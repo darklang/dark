@@ -8,6 +8,8 @@ module Errors = LibExecution.Errors
 
 module Canvas = LibBackend.Canvas
 
+module LibHttpClientAuth = LibExecutionStdLib.LibHttpClientAuth
+
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = Errors.incorrectArgs
@@ -52,10 +54,9 @@ let fns : List<BuiltInFn> =
             |> DObj
           let twilioUri =
             $"https://api.twilio.com/2010-04-01/Accounts/{accountSID}/Messages.json"
-          LegacyHttpClient0.sendRequest
+          LegacyHttpClient2.sendRequest
             twilioUri
             System.Net.Http.HttpMethod.Post
-            LibExecution.DvalReprExternal.toPrettyMachineJsonStringV1
             (Some body)
             (DObj Map.empty)
             headers
@@ -103,10 +104,9 @@ let fns : List<BuiltInFn> =
             |> DObj
           let twilioUri =
             $"https://api.twilio.com/2010-04-01/Accounts/{accountSID}/Messages.json"
-          LegacyHttpClient0.sendRequest
+          LegacyHttpClient2.sendRequest
             twilioUri
             System.Net.Http.HttpMethod.Post
-            LibExecution.DvalReprExternal.toPrettyMachineJsonStringV1
             (Some body)
             (DObj Map.empty)
             headers

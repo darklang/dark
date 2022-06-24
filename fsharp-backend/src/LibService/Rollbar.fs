@@ -9,7 +9,7 @@ open Microsoft.AspNetCore.Http.Extensions
 
 open Prelude
 open Tablecloth
-open Exception
+open LibService.Exception
 
 /// Logs various Rollbar-related configuration options to Rollbar,
 /// at the debug level
@@ -101,7 +101,7 @@ let init (serviceName : string) : unit =
   dsOpts.ScrubFields <-
     Array.append
       config.RollbarLoggerConfig.RollbarDataSecurityOptions.ScrubFields
-      [| "Set-Cookie"; "Cookie"; "Authorization" |]
+      [| "Set-Cookie"; "Cookie"; "Authorization"; "x-csrf-token" |]
   config.RollbarLoggerConfig.RollbarDataSecurityOptions.Reconfigure dsOpts
   |> ignore<Rollbar.IRollbarDataSecurityOptions>
 
@@ -128,8 +128,8 @@ let init (serviceName : string) : unit =
 
   // Debug Rollbar internals - when a Rollbar log is made, we lose sight of it.
   // Enabling this callback lets us see what actually happens when it's processed
-  // Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
-  //   (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
+  Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
+    (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
 
   // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
   // We actually want to call
@@ -169,10 +169,10 @@ type HoneycombJson =
     limit : int
     time_range : int }
 
-let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
+let honeycombLinkOfTraceID () : string =
+  let rootID = Telemetry.rootID ()
   let query =
-    { filters =
-        [ { column = "trace.trace_id"; op = "="; value = string executionID } ]
+    { filters = [ { column = "trace.trace_id"; op = "="; value = rootID } ]
       limit = 100
       // 604800 is 7 days
       time_range = 604800 }
@@ -189,42 +189,36 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 // Include person data
 // -------------------------------
 
-type Person =
-  { id : Option<UserID>
-    email : Option<string>
-    username : Option<UserName.T> }
+type PersonData = { id : UserID; username : Option<UserName.T> }
 
-let emptyPerson = { id = None; email = None; username = None }
+/// Optional person data
+type Person = Option<PersonData>
 
 /// Take a Person and an Exception and create a RollbarPackage that can be reported
 let createPackage (exn : exn) (person : Person) : Rollbar.IRollbarPackage =
   let package : Rollbar.IRollbarPackage =
     new Rollbar.ExceptionPackage(exn, exn.Message)
-  Rollbar.PersonPackageDecorator(
-    package,
-    person.id |> Option.map string |> Option.defaultValue null,
-    person.username |> Option.map string |> Option.defaultValue null,
-    person.email |> Option.defaultValue null
-  )
+  match person with
+  | Some person ->
+    Rollbar.PersonPackageDecorator(
+      package,
+      person.id |> string,
+      person.username |> Option.map string |> Option.defaultValue null
+    )
+  | None -> package
 
 
 
 // -------------------------------
 // Custom metadata
 // -------------------------------
-let createCustom
-  (executionID : ExecutionID)
-  (metadata : Metadata)
-  : Dictionary.T<string, obj> =
+let createCustom (metadata : Metadata) : Dictionary.T<string, obj> =
 
   let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
   // CLEANUP rollbar has a built-in way to do this called "Service links"
-  custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
-  custom["execution_id"] <- string executionID
-  List.iter
-    (fun (k, v) ->
-      Dictionary.add k (v :> obj) custom |> ignore<Dictionary.T<string, obj>>)
-    metadata
+  custom["message.honeycomb"] <- honeycombLinkOfTraceID ()
+
+  List.iter (fun (k, v) -> Dictionary.add k (v :> obj) custom) metadata
   custom
 
 // -------------------------------
@@ -232,11 +226,7 @@ let createCustom
 // -------------------------------
 
 /// Notify that a non-error happened
-let notify
-  (executionID : ExecutionID)
-  (message : string)
-  (metadata : Metadata)
-  : unit =
+let notify (message : string) (metadata : Metadata) : unit =
   print $"rollbar: {message}"
   try
     print (string metadata)
@@ -245,17 +235,13 @@ let notify
   let stacktraceMetadata = ("stacktrace", System.Environment.StackTrace :> obj)
   let metadata = stacktraceMetadata :: metadata
   Telemetry.notify message metadata
-  let custom = createCustom executionID metadata
+  let custom = createCustom metadata
   Rollbar.RollbarLocator.RollbarInstance.Info(message, custom)
   |> ignore<Rollbar.ILogger>
 
 
 /// Notify that an error (but not an exception) happened
-let sendError
-  (executionID : ExecutionID)
-  (message : string)
-  (metadata : Metadata)
-  : unit =
+let sendError (message : string) (metadata : Metadata) : unit =
   print $"rollbar: {message}"
   try
     print (string metadata)
@@ -263,15 +249,9 @@ let sendError
   | _ -> ()
   print System.Environment.StackTrace
   Telemetry.addEvent message metadata
-  let custom = createCustom executionID (("message", message :> obj) :: metadata)
+  let custom = createCustom (("message", message :> obj) :: metadata)
   Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
   |> ignore<Rollbar.ILogger>
-
-let printMetadata (metadata : Metadata) =
-  try
-    print (string metadata)
-  with
-  | _ -> ()
 
 // If there is an exception while processing the exception
 let exceptionWhileProcessingException
@@ -315,17 +295,13 @@ let exceptionWhileProcessingException
 
   try
     // Do this after, as these could cause exceptions
-    print "Original exception"
-    print original.Message
-    print original.StackTrace
+    printException "Original exception" [] original
   with
   | _ ->
 
     try
       // Do this after, as these could cause exceptions
-      print "Processing exception"
-      print processingException.Message
-      print processingException.StackTrace
+      printException "Processing exception" [] processingException
     with
     | _ ->
 
@@ -338,26 +314,40 @@ let exceptionWhileProcessingException
       with
       | _ -> ()
 
+let personMetadata (person : Person) : Metadata =
+  match person with
+  | None -> []
+  | Some person -> [ "user.id", person.id; "user.username", person.username ]
 
-/// Sends exception to Rollbar and also to Telemetry (honeycomb). The error is titled
-/// after the exception message - to change it wrap it in another exception. However,
-/// it's better to keep the existing exception and add extra context via metadata.
-let sendException
-  (executionID : ExecutionID)
-  (person : Person)
-  (metadata : Metadata)
-  (e : exn)
-  : unit =
+
+/// Sends exception to Rollbar and also to Telemetry (honeycomb) and also prints it.
+/// The error is titled after the exception message - to change it wrap it in another
+/// exception. However, it's better to keep the existing exception and add extra
+/// context via metadata. For nested exceptions: the printException function and Telemetry.addException are recursive and capture nested exceptions.
+
+let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
   try
-    print $"rollbar: {e.Message}"
-    print e.StackTrace
-    let metadata = Exception.toMetadata e @ metadata
-    printMetadata metadata
+    // don't include exception metadata, as the other functions do
+    let metadata = personMetadata person @ metadata
+
+    // print to console
+    printException $"rollbar ({NodaTime.Instant()})" metadata e
+
+    // send to telemetry
+    use span =
+      if isNull (Telemetry.Span.current ()) then
+        Telemetry.createRoot "sendException"
+      else
+        null // don't use the current span as we don't want `use` to clean it up
     Telemetry.addException metadata e
-    let custom = createCustom executionID metadata
+
+    // actually send to rollbar
+    let metadata = Exception.nestedMetadata e @ metadata
+    let custom = createCustom metadata
     let package = createPackage e person
     Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
     |> ignore<Rollbar.ILogger>
+  // Do the same for the innerException
   with
   | processingException -> exceptionWhileProcessingException e processingException
 
@@ -368,13 +358,11 @@ let sendException
 /// as it blocks. Returns an int as the process will exit immediately after.
 let lastDitchBlockAndPage (msg : string) (e : exn) : int =
   try
-    print $"last ditch rollbar: {msg}"
-    print e.Message
-    print e.StackTrace
+    printException msg [] e
     let e = PageableException(msg, [], e)
-    let metadata = Exception.toMetadata e
     Telemetry.addException [] e
-    let custom = createCustom (ExecutionID "last ditch") metadata
+    let metadata = Exception.nestedMetadata e
+    let custom = createCustom metadata
     Rollbar
       .RollbarLocator
       .RollbarInstance
@@ -386,6 +374,8 @@ let lastDitchBlockAndPage (msg : string) (e : exn) : int =
   with
   | processingException ->
     exceptionWhileProcessingException e processingException
+    Telemetry.flush ()
+    LaunchDarkly.flush ()
     // Pause so that the exceptions can send
     Task.Delay(10000).Wait()
     (-1)
@@ -424,24 +414,18 @@ module AspNet =
             ()
           else
             try
-              print $"rollbar in http middleware"
-              print e.Message
-              print e.StackTrace
-              print (ctx.Request.GetEncodedUrl())
-
-              let executionID =
-                try
-                  ctx.Items["executionID"] :?> ExecutionID
-                with
-                | _ -> ExecutionID "unavailable"
+              let url =
+                Exception.catch ctx.Request.GetEncodedUrl
+                |> Option.defaultValue "invalid url"
+              printException "rollbar in http middleware" [ "url", url ] e
 
               let person, metadata =
                 try
                   rollbarCtx.ctxMetadataFn ctx
                 with
-                | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
-              let metadata = metadata @ Exception.toMetadata e
-              let custom = createCustom executionID metadata
+                | _ -> None, [ "exception calling ctxMetadataFn", true ]
+              let metadata = metadata @ Exception.nestedMetadata e
+              let custom = createCustom metadata
               let package = createPackage e person
               let package = HttpRequestPackageDecorator(package, ctx.Request, true)
               let package = HttpResponsePackageDecorator(package, ctx.Response, true)

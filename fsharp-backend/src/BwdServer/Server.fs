@@ -37,8 +37,10 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module Middleware = HttpMiddleware.MiddlewareV0
 module Resp = HttpMiddleware.ResponseV0
+module Req = HttpMiddleware.RequestV0
+module Cors = HttpMiddleware.Cors
+module RealExe = LibRealExecution.RealExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
@@ -64,33 +66,31 @@ let getHeaders (ctx : HttpContext) : List<string * string> =
 /// Reads the incoming query parameters and simplifies into a list of key*values pairs
 ///
 /// (multiple query params may be present with the same key)
-let getQuery (ctx : HttpContext) : List<string * List<string>> =
-  ctx.Request.Query
-  |> Seq.map Tuple2.fromKeyValuePair
-  |> Seq.map (fun (k, v) ->
-    (k,
-     // If there are duplicates, .NET puts them in the same StringValues.
-     // However, it doesn't parse commas. We want a list if there are commas,
-     // but we want to overwrite if there are two of the same headers.
-     // CLEANUP this isn't to say that this is good behaviour
-     v.ToArray()
-     |> Array.toList
-     |> List.tryLast
-     |> Option.defaultValue ""
-     |> String.split ","))
-  |> Seq.toList
+let getQuery (ctx : HttpContext) : string = ctx.Request.QueryString.ToString()
 
 /// Reads the incoming request body as a byte array
 let getBody (ctx : HttpContext) : Task<byte array> =
   task {
-    // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
-    if ctx.Request.Method = "GET" then
-      return [||]
-    else
-      // TODO: apparently it's faster to use a PipeReader, but that broke for us
-      let ms = new IO.MemoryStream()
-      do! ctx.Request.Body.CopyToAsync(ms)
-      return ms.ToArray()
+    try
+      // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
+      if ctx.Request.Method = "GET" then
+        return [||]
+      else
+        // TODO: apparently it's faster to use a PipeReader, but that broke for us
+        let ms = new IO.MemoryStream()
+        do! ctx.Request.Body.CopyToAsync(ms)
+        return ms.ToArray()
+    with
+    | e ->
+      // Let's try to get a good error message to the user, but don't include .NET specific hints
+      let tooSlowlyMessage =
+        "Reading the request body timed out due to data arriving too slowly"
+      let message =
+        if String.startsWith tooSlowlyMessage e.Message then
+          tooSlowlyMessage
+        else
+          e.Message
+      return Exception.raiseGrandUser $"Invalid request body: {message}"
   }
 
 
@@ -114,6 +114,7 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     // NB: we're sending back a png, not an ico - this is deliberate,
     // favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico
     let memory = Lazy.force favicon
+    Telemetry.addTag "http.completion_reason" "darklangFavicon"
     setHeader ctx "Access-Control-Allow-Origin" "*"
     ctx.Response.StatusCode <- 200
     ctx.Response.ContentType <- "image/png"
@@ -189,16 +190,19 @@ let errorResponse
 
 let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   // CLEANUP: use errorResponse
+  Telemetry.addTag "http.completion_reason" "noHandler"
   standardResponse ctx "404 Not Found: No route matches" textPlain 404
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
   // CLEANUP: use errorResponse
-  standardResponse ctx "user not found" textPlain 404
+  Telemetry.addTag "http.completion_reason" "canvasNotFound"
+  standardResponse ctx "canvas not found" textPlain 404
 
 let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
   let msg =
     "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
   // CLEANUP: use errorResponse
+  Telemetry.addTag "http.completion_reason" "internalError"
   standardResponse ctx msg textPlain 500
 
 
@@ -206,6 +210,7 @@ let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   let path = ctx.Request.Path.Value
   let message = $"500 Internal Server Error: More than one handler for route: {path}"
   // CLEANUP: use errorResponse
+  Telemetry.addTag "http.completion_reason" "moreThanOnHandler"
   standardResponse ctx message textPlain 500
 
 let unmatchedRouteResponse
@@ -215,6 +220,7 @@ let unmatchedRouteResponse
   : Task<HttpContext> =
   let message = $"The request ({requestPath}) does not match the route ({route})"
   // CLEANUP use errorResponse
+  Telemetry.addTag "http.completion_reason" "unmatchedRoute"
   standardResponse ctx message textPlain 500
 
 
@@ -241,6 +247,7 @@ let httpsRedirect (ctx : HttpContext) : HttpContext =
   // CLEANUP use better status code, maybe 307
   ctx.Response.StatusCode <- 302
   setHeader ctx "Location" redirectUrl
+  Telemetry.addTag "http.completion_reason" "httpsRedirect"
   ctx
 
 
@@ -266,50 +273,52 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
+// CLEANUP we'd like to get rid of corsSetting and move it out of the DB and
+// entirely into code in some middleware
+let canvasMetadataFromHost (host : string) : Task<Option<Canvas.Meta>> =
+  task {
+    match Routing.canvasSourceFromHost host with
+    | Routing.Bwd canvasName ->
+      match CanvasName.create canvasName with
+      | Ok canvasName -> return! Canvas.getMeta canvasName
+      | Error _ -> return None
+    | Routing.CustomDomain customDomain ->
+      return! Canvas.getMetaForCustomDomain customDomain
+  }
+
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    let executionID = LibService.Telemetry.executionID ()
-    ctx.Items[ "executionID" ] <- executionID
-    setHeader ctx "x-darklang-execution-id" (string executionID)
-    setHeader ctx "Server" "darklang"
+    let host = Exception.catch (fun () -> ctx.Request.Host.Host)
+    let! canvasMeta =
+      match host with
+      | None -> Task.FromResult None
+      | Some host -> canvasMetadataFromHost host
 
-    match! Routing.canvasNameFromHost ctx.Request.Host.Host with
-    | Some canvasName ->
-      ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
+    match canvasMeta with
+    | Some meta ->
 
-      let! meta =
-        // Extra task CE is to make sure the exception is caught
-        task {
-          try
-            return! Canvas.getMeta canvasName
-          with
-          | _ -> return raise (NotFoundException "user not found")
-        }
-
+      ctx.Items[ "canvasName" ] <- meta.name // store for exception tracking
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
       let traceID = System.Guid.NewGuid()
-      let method = ctx.Request.Method
+      let requestMethod = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
-      let url : string =
-        let isHttps =
-          getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
-        ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
+      let desc = ("HTTP", requestPath, requestMethod)
 
-      Telemetry.addTags [ "canvas.name", canvasName
+      Telemetry.addTags [ "canvas.name", meta.name
                           "canvas.id", meta.id
-                          "canvas.ownerID", meta.owner
+                          "canvas.owner_id", meta.owner
                           "trace_id", traceID ]
 
       // redirect HEADs to GET. We pass the actual HEAD method to the engine,
       // and leave it to middleware to say what it wants to do with that
-      let searchMethod = if method = "HEAD" then "GET" else method
+      let searchMethod = if requestMethod = "HEAD" then "GET" else requestMethod
 
-      /// Canvas to process request against,
-      /// with enough loaded to handle this request
+      // Canvas to process request against, with enough loaded to handle this
+      // request
       let! canvas = Canvas.loadHttpHandlers meta requestPath searchMethod
 
       let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
@@ -320,8 +329,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
-        LibService.Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
+      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } as handler ] ->
+        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
         let routeVars = Routing.routeInputVars route requestPath
@@ -332,52 +341,35 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         match routeVars with
         | Some routeVars ->
-          // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
-          // and entirely into code in some middleware
-          let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
-
-          let program = Canvas.toProgram canvas
-          let expr = PT2RT.Expr.toRT expr
-
-          // Store trace - Do not resolve task, send this into the ether
-          let traceHook (request : RT.Dval) : unit =
-            FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-              TI.storeEvent
-                canvas.meta.id
-                traceID
-                ("HTTP", requestPath, method)
-                request)
-
-          // Send to Pusher - Do not resolve task, send this into the ether
-          let notifyHook (touchedTLIDs : List<tlid>) : unit =
-            Pusher.pushNewTraceID executionID meta.id traceID touchedTLIDs
+          Telemetry.addTag "handler.routeVars" routeVars
 
           // Do request
-          let! result =
-            Middleware.executeHandler
-              tlid
-              executionID
+          use _ = Telemetry.child "executeHandler" []
+
+          let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+          let inputVars = routeVars |> Map |> Map.add "request" request
+          let! (result, _) =
+            RealExe.executeHandler
+              canvas.meta
+              (PT2RT.Handler.toRT handler)
+              (Canvas.toProgram canvas)
               traceID
-              traceHook
-              notifyHook
-              url
-              routeVars
-              reqHeaders
-              reqQuery
-              reqBody
-              program
-              expr
-              corsSetting
+              inputVars
+              (RealExe.InitialExecution(desc, request))
+
+          // Execute - note that these are outside the handler
+          let result = Resp.toHttpResponse result
+          let result = Cors.addCorsHeaders reqHeaders meta.name result
 
           do! writeResponseToContext ctx result
+          Telemetry.addTag "http.completion_reason" "success"
 
           return ctx
 
         | None -> // vars didnt parse
-          FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-            let request =
-              Middleware.createRequest false url reqHeaders reqQuery reqBody
-            TI.storeEvent meta.id traceID ("HTTP", requestPath, method) request)
+          FireAndForget.fireAndForgetTask "store-event" (fun () ->
+            let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+            TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
 
@@ -385,11 +377,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         return! faviconResponse ctx
 
       | [] when ctx.Request.Method = "OPTIONS" ->
-        let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
         let reqHeaders = getHeaders ctx
-        match Middleware.optionsResponse reqHeaders corsSetting with
-        | Some response -> do! writeResponseToContext ctx response
-        | None -> ()
+        match Cors.optionsResponse reqHeaders meta.name with
+        | Some response ->
+          Telemetry.addTag "http.completion_reason" "options response"
+          do! writeResponseToContext ctx response
+        | None -> Telemetry.addTag "http.completion_reason" "options none"
         return ctx
 
       // no matching route found - store as 404
@@ -397,16 +390,14 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
-        let event = Middleware.createRequest true url reqHeaders reqQuery reqBody
+        let event = Req.fromRequest true url reqHeaders reqQuery reqBody
+        let! timestamp = TI.storeEvent meta.id traceID desc event
 
-        let! timestamp =
-          TI.storeEvent meta.id traceID ("HTTP", requestPath, method) event
-
+        // CLEANUP: move pusher into storeEvent
         // Send to pusher - do not resolve task, send this into the ether
         Pusher.pushNew404
-          executionID
           meta.id
-          ("HTTP", requestPath, method, timestamp, traceID)
+          ("HTTP", requestPath, requestMethod, timestamp, traceID)
 
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx
@@ -419,6 +410,16 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) : Task =
     (task {
+      // The traditional methods of using `UseHsts` and `AddHsts` within BwdServer
+      // were ineffective. Somehow, the Strict-Transport-Security header was not
+      // included in HTTP Reponses as a result of these efforts. Here, we manually
+      // work around this by setting it manually.
+      // CLEANUP: replace this with the more traditional approach, if possible
+      setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
+
+      setHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())
+      setHeader ctx "Server" "darklang"
+
       try
         // Do this here so we don't redirect the health check
         if shouldRedirect ctx then
@@ -450,7 +451,9 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       try
         canvasName
         |> Option.map (fun canvasName ->
-          canvasName |> Account.ownerNameFromCanvasName |> fun on -> on.toUserName ())
+          canvasName
+          |> Account.ownerNameFromCanvasName
+          |> fun on -> on.toUserName ())
       with
       | _ -> None
 
@@ -465,7 +468,8 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       |> Option.map (fun cn -> [ "canvas", string cn :> obj ])
       |> Option.defaultValue []
 
-    let person : Rollbar.Person = { id = id; username = username; email = None }
+    let person : Rollbar.Person =
+      id |> Option.map (fun id -> { id = id; username = username })
 
     (person, metadata)
 
@@ -477,15 +481,10 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
+  |> Kubernetes.configureServices []
   |> Rollbar.AspNet.addRollbarToServices
   |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
-
-let noLogger (builder : ILoggingBuilder) : unit =
-  // We use telemetry instead
-  builder.ClearProviders() |> ignore<ILoggingBuilder>
-
 
 
 let webserver
@@ -512,21 +511,21 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdServerPort
   let k8sPort = LibService.Config.bwdServerKubernetesPort
-  (webserver noLogger port k8sPort).Run()
+  (webserver LibService.Logging.noLogger port k8sPort).Run()
 
 
 
 [<EntryPoint>]
 let main _ =
   try
+    let name = "BwdServer"
     print "Starting BwdServer"
-    LibService.Init.init "BwdServer"
-    LibExecution.Init.init "BwdServer"
-    LibExecutionStdLib.Init.init "BwdServer"
-    (LibBackend.Init.init "BwdServer" false).Result
-    LibRealExecution.Init.init "BwdServer"
-    HttpMiddleware.Init.init "BwdServer"
+    LibService.Init.init name
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    (LibRealExecution.Init.init name).Result
     run ()
+    // CLEANUP I suspect this isn't called
+    LibService.Init.shutdown name
     0
   with
   | e -> Rollbar.lastDitchBlockAndPage "error starting bwdserver" e

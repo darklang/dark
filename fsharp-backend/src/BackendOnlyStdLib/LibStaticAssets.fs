@@ -10,19 +10,22 @@ open Prelude
 module SA = LibBackend.StaticAssets
 module Errors = LibExecution.Errors
 
+module Telemetry = LibService.Telemetry
+
 let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = Errors.incorrectArgs
 
-open System.IO
-open System.IO.Compression
 open System.Net.Http
 
 let httpClient =
   let socketHandler : HttpMessageHandler =
     let handler = new SocketsHttpHandler()
+
+    handler.UseProxy <- true
+    handler.Proxy <- System.Net.WebProxy(LibBackend.Config.httpclientProxyUrl, false)
 
     // Cookies shouldn't be necessary
     handler.UseCookies <- false
@@ -30,7 +33,7 @@ let httpClient =
 
   let client = new HttpClient(socketHandler, disposeHandler = false)
   client.Timeout <- System.TimeSpan.FromSeconds 30.0
-  // Can't find what this was in OCaml/Curl, but 100MB seems a reasonable default
+  // 100MB seems a reasonable default
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
@@ -41,49 +44,62 @@ let httpClient =
 /// anything goes wrong.
 let getV0 (url : string) : Task<byte []> =
   task {
-    try
-      use req = new HttpRequestMessage(HttpMethod.Get, url)
-      let! response = httpClient.SendAsync req
-      let code = int response.StatusCode
-      let! body = response.Content.ReadAsByteArrayAsync()
-      if code < 200 || code >= 300 then
-        return
-          Exception.raiseLibrary
-            $"Bad HTTP response ({code}) in call to {url}"
-            [ "url", url; "code", code; "body", UTF8.ofBytesWithReplacement body ]
-      else
-        return body
-    with
-    | e ->
-      return
-        Exception.raiseLibrary
-          $"Internal HTTP-stack exception: {e.Message}"
-          [ "url", url ]
+    use _ = Telemetry.child "StaticAssets.getV0" [ "request.url", url ]
+    let! (body, code) =
+      task {
+        try
+          use req = new HttpRequestMessage(HttpMethod.Get, url)
+          let! response = httpClient.SendAsync req
+          let code = int response.StatusCode
+          let! body = response.Content.ReadAsByteArrayAsync()
+          Telemetry.addTags [ "response.code", code
+                              "response.content_length", body.Length
+                              "response.version", response.Version
+                              "response.encoding",
+                              response.Content.Headers.ContentEncoding
+                              "response.type", response.Content.Headers.ContentType ]
+          return body, code
+        with
+        | e ->
+          Telemetry.addException [] e
+          return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
+      }
+
+    if code < 200 || code >= 300 then
+      return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
+    else
+      return body
   }
 
 /// Replaces legacy HttpClientv1. Returns bytes, headers, and status code, and throws
 /// on non-200s or if anything goes wrong.
 let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
   task {
-    try
-      use req = new HttpRequestMessage(HttpMethod.Get, url)
-      let! response = httpClient.SendAsync req
-      let code = int response.StatusCode
-      let headers = response.Headers |> HttpHeaders.fromAspNetHeaders
-      let! body = response.Content.ReadAsByteArrayAsync()
-      if code < 200 || code >= 300 then
-        return
-          Exception.raiseLibrary
-            $"Bad HTTP response ({code}) in call to {url}"
-            [ "url", url; "code", code; "body", UTF8.ofBytesWithReplacement body ]
-      else
-        return body, headers, code
-    with
-    | e ->
-      return
-        Exception.raiseLibrary
-          $"Internal HTTP-stack exception: {e.Message}"
-          [ "url", url ]
+    use _ = Telemetry.child "StaticAssets.getV1" [ "request.url", url ]
+    let! body, headers, code =
+      task {
+        try
+          use req = new HttpRequestMessage(HttpMethod.Get, url)
+          let! response = httpClient.SendAsync req
+          let code = int response.StatusCode
+          let headers = HttpHeaders.headersForAspNetResponse response
+          let! body = response.Content.ReadAsByteArrayAsync()
+          Telemetry.addTags [ "response.code", code
+                              "response.content_length", body.Length
+                              "response.version", response.Version
+                              "response.encoding",
+                              response.Content.Headers.ContentEncoding
+                              "response.type", response.Content.Headers.ContentType ]
+          return body, headers, code
+        with
+        | e ->
+          Telemetry.addException [] e
+          return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
+      }
+    if code < 200 || code >= 300 then
+      return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
+    else
+      return body, headers, code
   }
 
 /// Replaces legacy HttpClientv2. Returns bytes, headers, and status code, and throws
@@ -91,18 +107,23 @@ let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
 let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
   task {
     try
+      use _ = Telemetry.child "StaticAssets.getV2" [ "request.url", url ]
       use req = new HttpRequestMessage(HttpMethod.Get, url)
       let! response = httpClient.SendAsync req
       let code = int response.StatusCode
-      let headers = response.Headers |> HttpHeaders.fromAspNetHeaders
+      let headers = HttpHeaders.headersForAspNetResponse response
       let! body = response.Content.ReadAsByteArrayAsync()
+      Telemetry.addTags [ "response.code", code
+                          "response.content_length", body.Length
+                          "response.version", response.Version
+                          "response.encoding",
+                          response.Content.Headers.ContentEncoding
+                          "response.type", response.Content.Headers.ContentType ]
       return body, headers, code
     with
     | e ->
-      return
-        Exception.raiseLibrary
-          $"Internal HTTP-stack exception: {e.Message}"
-          [ "url", url ]
+      Telemetry.addException [] e
+      return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
   }
 
 
@@ -117,6 +138,7 @@ let fns : List<BuiltInFn> =
           SA.url state.program.canvasName deployHash SA.Short |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
+      // CLEANUP may be marked as ImpurePreviewable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -129,9 +151,13 @@ let fns : List<BuiltInFn> =
         (function
         | state, [] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.url state.program.canvasName deployHash SA.Short
-            return DStr url
+            // CLEANUP calling this with no deploy hash generates an error
+            // (should be Option<TStr>)
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.url state.program.canvasName deployHash SA.Short
+              return DStr url
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -149,6 +175,7 @@ let fns : List<BuiltInFn> =
           SA.urlFor state.program.canvasName deployHash SA.Short file |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
+      // CLEANUP may be marked as ImpurePreviewable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -161,9 +188,11 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            return DStr url
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some hash ->
+              let url = SA.urlFor state.program.canvasName hash SA.Short file
+              return DStr url
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -185,7 +214,7 @@ let fns : List<BuiltInFn> =
             let! response = getV0 url
             match UTF8.ofBytesOpt response with
             | Some dv -> return DResult(Ok(DStr dv))
-            | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
+            | None -> return DResult(Error(DStr "Response was not\nUTF-8 safe"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -241,12 +270,14 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! response = getV0 url
-            match UTF8.ofBytesOpt response with
-            | Some str -> return DResult(Ok(DStr str))
-            | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! response = getV0 url
+              match UTF8.ofBytesOpt response with
+              | Some str -> return DResult(Ok(DStr str))
+              | None -> return DResult(Error(DStr "Response was not\nUTF-8 safe"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -263,12 +294,14 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! response = getV0 url
-            match UTF8.ofBytesOpt response with
-            | Some str -> return Dval.resultOk (DStr str)
-            | None -> return Dval.resultError (DStr "Response was not UTF-8 safe")
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! response = getV0 url
+              match UTF8.ofBytesOpt response with
+              | Some str -> return Dval.resultOk (DStr str)
+              | None -> return Dval.resultError (DStr "Response was not UTF-8 safe")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -284,10 +317,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! response, _, _ = getV1 url
-            return DResult(Ok(DBytes(response)))
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! response, _, _ = getV1 url
+              return DResult(Ok(DBytes(response)))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -309,9 +344,14 @@ let fns : List<BuiltInFn> =
             let headers =
               headers
               |> List.map (fun (k, v) -> (k, v.Trim()))
-              |> List.filter (fun (k, v) -> not (k.Contains("Content-Length")))
+              // The OCaml version trimmed Cache-Control and Content-Length, except
+              // it didn't work as it used the wrong casing. We trim Content-Length
+              // anyway as asp.net likes to do that itself and doesn't need our help.
+              // Note that Cache-Control has any meaning since we don't do anything
+              // with it.
               |> List.filter (fun (k, v) -> not (k.Contains("Transfer-Encoding")))
-              |> List.filter (fun (k, v) -> not (k.Contains("Cache-Control")))
+              |> List.filter (fun (k, v) -> not (k.Contains("Content-Length")))
+              |> List.filter (fun (k, v) -> not (k.Contains "Server"))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
             match UTF8.ofBytesOpt body with
@@ -338,12 +378,17 @@ let fns : List<BuiltInFn> =
             let headers =
               headers
               |> List.map (fun (k, v) -> (k, v.Trim()))
+              // The OCaml version trimmed Cache-Control and Content-Length, except
+              // it didn't work as it used the wrong casing. We trim Content-Length
+              // anyway as asp.net likes to do that itself and doesn't need our help.
+              // Note that Cache-Control has any meaning since we don't do anything
+              // with it.
               |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
               |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
+              |> List.filter (fun (k, v) -> not (k.Contains "Server"))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
-            return DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
+            return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -360,18 +405,25 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! body, headers, code = getV2 url
-            let headers =
-              headers
-              |> List.map (fun (k, v) -> (k, v.Trim()))
-              |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
-              |> List.filter (fun (k, v) -> not (k.Trim() = ""))
-              |> List.filter (fun (k, v) -> not (v.Trim() = ""))
-            return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! body, headers, code = getV2 url
+              let headers =
+                headers
+                |> List.map (fun (k, v) -> (k, v.Trim()))
+                // The OCaml version trimmed Cache-Control and Content-Length, except
+                // it didn't work as it used the wrong casing. We trim Content-Length
+                // anyway as asp.net likes to do that itself and doesn't need our help.
+                // Note that Cache-Control has any meaning since we don't do anything
+                // with it.
+                |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
+                |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+                |> List.filter (fun (k, v) -> not (k.Contains "Server"))
+                |> List.filter (fun (k, v) -> not (k.Trim() = ""))
+                |> List.filter (fun (k, v) -> not (v.Trim() = ""))
+              return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -387,18 +439,26 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! body, headers, code = getV2 url
-            let headers =
-              headers
-              |> List.map (fun (k, v) -> (k, v.Trim()))
-              |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
-              |> List.filter (fun (k, v) -> not (k.Trim() = ""))
-              |> List.filter (fun (k, v) -> not (v.Trim() = ""))
-            return DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! body, headers, code = getV2 url
+              let headers =
+                headers
+                |> List.map (fun (k, v) -> (k, v.Trim()))
+                // The OCaml version trimmed Cache-Control and Content-Length, except
+                // it didn't work as it used the wrong casing. We trim Content-Length
+                // anyway as asp.net likes to do that itself and doesn't need our help.
+                // Note that Cache-Control has any meaning since we don't do anything
+                // with it.
+                |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
+                |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+                |> List.filter (fun (k, v) -> not (k.Contains "Server"))
+                |> List.filter (fun (k, v) -> not (k.Trim() = ""))
+                |> List.filter (fun (k, v) -> not (v.Trim() = ""))
+              return
+                DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

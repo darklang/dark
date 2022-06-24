@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module P = Pointer
 module TL = Toplevel
@@ -98,7 +98,7 @@ let autocomplete_highlights_on_partial_match = (m: model): testResult =>
   }
 
 let no_request_global_in_non_http_space = (m: model): testResult =>
-  /* this might change but this is the answer for now. */
+  // this might change but this is the answer for now.
   switch onlyExpr(m) {
   | Some(EFnCall(_, "Http::badRequest", _, _)) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
@@ -218,7 +218,7 @@ let rename_db_type = (m: model): testResult =>
   m.dbs
   |> Map.mapValues(~f=({cols, dbTLID, _}) =>
     switch cols {
-    /* this was previously an Int */
+    // this was previously an Int
     | list{(F(_, "field1"), F(_, "String")), (F(_, "field2"), F(_, "Int")), (Blank(_), Blank(_))} =>
       switch m.cursorState {
       | Selecting(tlid, None) =>
@@ -284,11 +284,11 @@ let feature_flag_in_function = (m: model): testResult => {
         },
         NoRail,
       ) => pass
-    /* TODO: validate result should evaluate true turning  5 + 5 --> 3 + 5 == 8 */
-    /* let res = Analysis.getLiveValue m f.tlid id in */
-    /* case res of */
-    /* Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value) */
-    /* _ -> fail (f.ast, res) */
+    // TODO: validate result should evaluate true turning  5 + 5 --> 3 + 5 == 8
+    // let res = Analysis.getLiveValue m f.tlid id in
+    // case res of
+    // Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value)
+    // _ -> fail (f.ast, res)
     | expr => fail(~f=show_fluidExpr, expr)
     }
   | None => fail("Cant find function")
@@ -303,23 +303,23 @@ let rename_function = (m: model): testResult =>
   }
 
 let execute_function_works = (_: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let correct_field_livevalue = (_: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let int_add_with_float_error_includes_fnname = (_: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let fluid_execute_function_shows_live_value = (_: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let function_version_renders = (_: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let delete_db_col = (m: model): testResult => {
@@ -347,7 +347,7 @@ let cant_delete_locked_col = (m: model): testResult => {
 }
 
 let passwords_are_redacted = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let select_route = (m: model): testResult =>
@@ -357,7 +357,7 @@ let select_route = (m: model): testResult =>
   }
 
 let function_analysis_works = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let jump_to_error = (m: model): testResult => {
@@ -404,7 +404,7 @@ let fourohfours_parse = (m: model): testResult =>
   }
 
 let autocomplete_visible_height = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let fn_page_returns_to_lastpos = (m: model): testResult =>
@@ -599,7 +599,7 @@ let fluid_shift_left_selects_chars_at_back = (m: model): testResult =>
   }
 
 let fluid_undo_redo_happen_exactly_once = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let fluid_ctrl_left_on_string = (_m: model): testResult => {
@@ -636,35 +636,35 @@ let fluid_ctrl_left_on_empty_match = (_m: model): testResult => {
 }
 
 let varnames_are_incomplete = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let center_toplevel = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let max_callstack_bug = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let sidebar_opens_function = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let empty_fn_never_called_result = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let empty_fn_been_called_result = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let sha256hmac_for_aws = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let fluid_fn_pg_change = (_m: model): testResult =>
-  /* The test logic is in tests.js */
+  // The test logic is in tests.js
   pass
 
 let fluid_creating_an_http_handler_focuses_the_verb = (_m: model): testResult => pass
@@ -749,7 +749,7 @@ let function_docstrings_are_valid = (m: model): testResult => {
 
 let record_consent_saved_across_canvases = (_m: model): testResult => pass
 
-/* let exe_flow_fades (_m : model) : testResult = pass */
+// let exe_flow_fades (_m : model) : testResult = pass
 
 let unexe_code_unfades_on_focus = (_m: model): testResult => pass
 

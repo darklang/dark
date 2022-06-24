@@ -23,7 +23,7 @@ module LibExecution.RuntimeTypes
 // These formats should never be serialized/deserialized, that defeats the
 // purpose. If you need to save data of this format, create a set of new
 // types and convert this type into them. (even if they are identical).
-// CLEANUP: we probably do serialize Dvals though :(
+// CLEANUP: we serialize Dvals though :(
 //
 // This format is lossy, relative to the serialized types. Use IDs to refer
 // back.
@@ -70,7 +70,7 @@ module FQFnName =
     : StdlibFnName =
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
     assertRe "stdlib function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 
   module StdlibFnName =
@@ -133,13 +133,17 @@ type Expr =
   | EInteger of id * int64
   | EBool of id * bool
   | EString of id * string
+
+  /// A single Extended Grapheme Cluster
   | ECharacter of id * string
   | EFloat of id * double
   | ENull of id
   | EBlank of id
 
+  /// <summary>
   /// Composed of binding name, the bound expression,
   /// and the expression that follows, where the bound value is available
+  /// </summary>
   ///
   /// <code>
   /// let str = expr1
@@ -153,20 +157,18 @@ type Expr =
   /// Composed of a parameters * the expression itself
   | ELambda of id * List<id * string> * Expr
 
-  /// Composed of:
-  /// - an expression resulting in a value that contains a field
-  /// - the name of the field to acceess
-  ///
-  /// <code>someExpr.fieldName</code>
+  /// Access a field of some expression (e.g. `someExpr.fieldName`)
   | EFieldAccess of id * Expr * string
 
+  /// Reference some local variable by name
+  ///
+  /// i.e. after a `let binding = value`, any use of `binding`
   | EVariable of id * string
 
   /// This is a function call, the first expression is the value of the function.
   | EApply of id * Expr * List<Expr> * IsInPipe * SendToRail
 
-  | EPartial of id * Expr
-
+  /// Reference a fully-qualified function name
   /// Since functions aren't real values in the symbol table, we look them up directly
   | EFQFnValue of id * FQFnName.T
 
@@ -363,7 +365,10 @@ and DType =
 /// information later, such as the iteration count that led to this, or
 /// something like a stack trace
 and DvalSource =
+  /// We do not have context to supply an identifier
   | SourceNone
+
+  /// Caused by an expression of `id` within the given `tlid`
   | SourceID of tlid * id
 
 and Param =
@@ -399,7 +404,6 @@ module Expr =
     | EBlank id
     | ELet (id, _, _, _)
     | EIf (id, _, _, _)
-    | EPartial (id, _)
     | EApply (id, _, _, _, _)
     | EList (id, _)
     | ERecord (id, _)
@@ -599,7 +603,8 @@ module Dval =
         | m, _, _ -> m)
       fields
 
-  // CLEANUP a version of obj that's backward compatible with the OCaml interpreter. Hopefully we'll get rid of this in the future.
+  // CLEANUP a version of obj that's backward compatible with the OCaml interpreter.
+  // Hopefully we'll get rid of this in the future.
   let interpreterObj (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
@@ -737,13 +742,16 @@ module Package =
 /// this includes Date::now and Int::random.
 /// </remarks>
 type Previewable =
-  /// Do not need to be saved, can be recalculated in JS
+  /// The same inputs will always yield the same outputs,
+  /// so we don't need to save results. e.g. `Date::add`
   | Pure
 
-  /// Save their results. We can preview these safely
+  /// Output may vary with the same inputs, though we can safely preview.
+  /// e.g. `Date::now`. We should save the results.
   | ImpurePreviewable
 
-  /// Save their results, cannot be safely previewed
+  /// Can only be run on the server. e.g. `DB::update`
+  /// We should save the results.
   | Impure
 
 /// Used to mark whether a function has been deprecated, and if so,
@@ -841,8 +849,14 @@ and FnImpl =
   | UserFunction of tlid * Expr
   | PackageFunction of tlid * Expr
 
+
+// CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
+/// Represents the context in which we're evaluating some code
 and RealOrPreview =
+  /// We are evaluating an expression normally
   | Real
+
+  /// We are previewing the evaluation of some expression within the editor.
   | Preview
 
 and FunctionRecord = tlid * FQFnName.T * id
@@ -853,11 +867,11 @@ and TraceTLID = tlid -> unit
 
 and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instant>
 
-and StoreFnResult = FunctionRecord -> Dval list -> Dval -> Task<unit>
+and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 
 and LoadFnArguments = tlid -> List<DvalMap * NodaTime.Instant>
 
-and StoreFnArguments = tlid -> DvalMap -> Task<unit>
+and StoreFnArguments = tlid -> DvalMap -> unit
 
 /// Every part of a user's program
 and ProgramContext =
@@ -882,7 +896,8 @@ and Tracing =
 /// Used for testing
 and TestContext =
   { mutable sideEffectCount : int
-    mutable exceptionReports : List<ExecutionID * string * string * Metadata>
+    mutable exceptionReports : List<string * string * Metadata>
+    expectedExceptionCount : int
     postTestExecutionHook : TestContext -> Dval -> unit }
 
 /// Non-user-specific functionality needed to run code
@@ -914,8 +929,6 @@ and ExecutionState =
     /// TLID of the currently executing handler/fn
     tlid : tlid
 
-    executionID : ExecutionID
-
     executingFnName : Option<FQFnName.T>
 
     /// <summary>
@@ -935,13 +948,11 @@ and ExecutionState =
 
 let consoleReporter : ExceptionReporter =
   fun state (metadata : Metadata) (exn : exn) ->
-    let metadata = metadata @ Exception.toMetadata exn
-    print
-      $"An error was reported in the runtime ({state.executionID}):  \n  {exn.Message}\n{exn.StackTrace}\n  {metadata}\n\n"
+    printException "runtime-error" metadata exn
 
 let consoleNotifier : Notifier =
   fun state msg tags ->
-    print $"A notification happened in the runtime ({state}):\n  {msg}\n  {tags}\n\n"
+    print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name

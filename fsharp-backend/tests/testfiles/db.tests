@@ -51,10 +51,7 @@
 // ------------
 // Schema
 // ------------
-[test.db.schema_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.schema_v0 X = Test.typeError_v0 "DB::schema is DEPRECATED"
-
-[test.db.schema_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.schema_v0 does not exist for fsharp] with DB X
 DB.schema_v0 X = Test.typeError_v0 "DB::schema_v0 was removed from Dark"
 
 [test.db.schemaFields_v1 works for db with one field] with DB X
@@ -393,65 +390,35 @@ DB.count X = 0
  let _ = DB.set_v1 { x = "cheers" } "four" X in
  DB.count X) = 4
 
-
-[test.db.delete_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete is DEPRECATED"
-
-[test.db.delete_v0 does not exist for fsharp FSHARPONLY] with DB X
+// CLEANUP put into one test
+[test.db.delete_v0 does not exist for fsharp] with DB X
 DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete_v0 was removed from Dark"
 
-[test.db.deleteAll_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.deleteAll_v0 X = Test.typeError_v0 "DB::deleteAll is DEPRECATED"
-
-[test.db.deleteAll_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.deleteAll_v0 does not exist for fsharp] with DB X
 DB.deleteAll_v0 X = Test.typeError_v0 "DB::deleteAll_v0 was removed from Dark"
 
-[test.db.fetchAll_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchAll_v0 X = Test.typeError_v0 "DB::fetchAll is DEPRECATED"
-
-[test.db.fetchAll_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchAll_v0 does not exist for fsharp] with DB X
 DB.fetchAll_v0 X = Test.typeError_v0 "DB::fetchAll_v0 was removed from Dark"
 
-[test.db.fetchBy_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchBy is DEPRECATED"
-
-[test.db.fetchBy_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchBy_v0 does not exist for fsharp] with DB X
 DB.fetchBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchBy_v0 was removed from Dark"
 
-[test.db.fetchOneBy_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchOneBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchOneBy is DEPRECATED"
-
-[test.db.fetchOneBy_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchOneBy_v0 does not exist for fsharp] with DB X
 DB.fetchOneBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchOneBy_v0 was removed from Dark"
 
-[test.db.fetchByMany_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchByMany_v0 "a" X = Test.typeError_v0 "DB::fetchByMany is DEPRECATED"
-
-[test.db.fetchByMany_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchByMany_v0 does not exist for fsharp] with DB X
 DB.fetchByMany_v0 "a" X = Test.typeError_v0 "DB::fetchByMany_v0 was removed from Dark"
 
-[test.db.fetchOneByMany_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchOneByMany_v0 "a" X = Test.typeError_v0 "DB::fetchOneByMany is DEPRECATED"
-
-[test.db.fetchOneByMany_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchOneByMany_v0 does not exist for fsharp] with DB X
 DB.fetchOneByMany_v0 "a" X = Test.typeError_v0 "DB::fetchOneByMany_v0 was removed from Dark"
 
-[test.db.keys_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.keys_v0 X = Test.typeError_v0 "DB::keys is DEPRECATED"
-
-[test.db.keys_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.keys_v0 does not exist for fsharp] with DB X
 DB.keys_v0 X = Test.typeError_v0 "DB::keys_v0 was removed from Dark"
 
-[test.db.insert_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert is DEPRECATED"
-
-[test.db.insert_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.insert_v0 does not exist for fsharp] with DB X
 DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert_v0 was removed from Dark"
 
-[test.db.update_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.update_v0 "a" X = Test.typeError_v0 "DB::update is DEPRECATED"
-
-[test.db.update_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.update_v0 does not exist for fsharp] with DB X
 DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 
 
@@ -460,12 +427,12 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 // ------------
 [db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
 
-[fn.addFriend key name height human dob income]
+[fn.addFriend key:string name:string height:int human:bool dob:string income:float]
 (let dob = Date.parse_v2_ster dob in
  let obj = { height = height; name = name; human = human; dob = dob; income = income } in
  DB.set_v1 obj key Person)
 
-[fn.prepFriends v]
+[fn.prepFriends v:any]
 (let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
  let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
  // Note spaces around Chandler, that's to test trim functions
@@ -473,12 +440,16 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
  let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
  DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
 
-[fn.d datestr]
+[fn.d datestr:string]
 (Date.parse_v1_ster datestr)
-[fn.rossDOB x]
+[fn.rossDOB x:any]
 (Date.parse_v1_ster  "1967-05-12T00:00:00Z")
 
-[fn.friends lambda]
+[fn.friendsError lambda:any]
+(let _ = prepFriends null in
+ DB.query_v4 Person lambda)
+
+[fn.friends lambda:any]
 (let _ = prepFriends null in
  ((DB.query_v4 Person lambda)
  |> List.map_v0 (fun p -> p.name)
@@ -528,19 +499,29 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
   [" Chandler "; "Rachel"; "Ross" ]
 
 [test.db nested fieldaccess] with DB Person
-(friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 )) =
+friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ) =
   [" Chandler "; "Rachel"; "Ross" ]
 
 [test.db lambda doesnt return a bool] with DB Person
-(friends (fun p -> "x")) =
-  Test.typeError_v0 "Fn called with an error as an argument"
+friendsError (fun p -> "x") =
+  Test.sqlError "Incorrect type in string \"x\", expected Bool, but got a Str"
 
 [test.db bad variable name] with DB Person
-(friends (fun p -> let x = 32 in true && p.height > y)) =
-  Test.typeError_v0 "Fn called with an error as an argument"
+friendsError (fun p -> let x = 32 in true && p.height > y) =
+  Test.sqlError "This variable is not defined: y"
 
 [test.db sql injection] with DB Person
-(friends (fun p -> "; select * from users;" = p.name )) = []
+friendsError (fun p -> "; select * from users;" = p.name ) = []
+
+// CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
+[test.db invalid type comparison EXPECTED_EXCEPTION_COUNT: 1] with DB Person
+friendsError (fun p -> p.height == "string") =
+  Test.sqlError "An error occurred while querying the Datastore"
+
+// This test checks do we look up dates correctly when the function type is not a date
+[test.db invalid date comparison EXPECTED_EXCEPTION_COUNT: 1] with DB Person
+friendsError (fun p -> p.dob != Date.now_v0) =
+  Test.sqlError "An error occurred while querying the Datastore"
 
 // ------------
 // Test compiled functions
@@ -659,14 +640,14 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 // Date Functions
 // ------------
 
-[fn.beforeDate null]
+[fn.beforeDate null:any]
 Date.parse_v2_ster "1900-01-01T00:00:00Z"
-[fn.middleDate null]
+[fn.middleDate null:any]
 Date.parse_v2_ster "2000-01-01T00:00:00Z"
-[fn.afterDate null]
+[fn.afterDate null:any]
 Date.parse_v2_ster "2100-01-01T00:00:00Z"
 
-[fn.prepDates null]
+[fn.prepDates null:any]
 (let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in
  let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
  DB.set_v1 { ts = afterDate null } "after"  Timestamp)

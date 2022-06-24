@@ -1,9 +1,9 @@
 open Prelude
 open Json.Encode
 
-/* Dark */
+// Dark
 
-/* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! */
+// XXX(JULIAN): All of this should be cleaned up and moved somewhere nice!
 @deriving(abstract) type jsArrayBuffer = {byteLength: int}
 
 @deriving(abstract) type jsUint8Array
@@ -111,7 +111,7 @@ let rec dval = (dv: Types.dval): Js.Json.t => {
 
     ev("DBlock", list{dblock_args})
   | DIncomplete(ds) => ev("DIncomplete", list{dval_source(ds)})
-  /* user-ish types */
+  // user-ish types
   | DCharacter(c) => ev("DCharacter", list{string(c)})
   | DError(ds, msg) => ev("DError", list{pair(dval_source, string, (ds, msg))})
   | DResp(h, hdv) => ev("DResp", list{tuple2(dhttp, dval, (h, hdv))})
@@ -190,11 +190,8 @@ and tlidOf = (op: Types.op): TLID.t =>
   | DeleteDBCol(tlid, _) => tlid
   | RenameDBname(tlid, _) => tlid
   | CreateDBWithBlankOr(tlid, _, _, _) => tlid
-  | DeleteFunctionForever(tlid) => tlid
-  | DeleteTLForever(tlid) => tlid
   | SetType(ut) => ut.utTLID
   | DeleteType(tlid) => tlid
-  | DeleteTypeForever(tlid) => tlid
   }
 
 and ops = (ops: list<Types.op>): Js.Json.t =>
@@ -207,7 +204,7 @@ and ops = (ops: list<Types.op>): Js.Json.t =>
     | _ =>
       let savepoints = List.map(~f=op => Types.TLSavepoint(tlidOf(op)), ops)
 
-      \"@"(savepoints, ops)
+      Belt.List.concat(savepoints, ops)
     },
   )
 
@@ -303,11 +300,8 @@ and op = (call: Types.op): Js.Json.t => {
   | RenameDBname(t, name) => ev("RenameDBname", list{tlid(t), string(name)})
   | CreateDBWithBlankOr(t, p, i, name) =>
     ev("CreateDBWithBlankOr", list{tlid(t), pos(p), id(i), string(name)})
-  | DeleteFunctionForever(t) => ev("DeleteFunctionForever", list{tlid(t)})
-  | DeleteTLForever(t) => ev("DeleteTLForever", list{tlid(t)})
   | SetType(t) => ev("SetType", list{userTipe(t)})
   | DeleteType(t) => ev("DeleteType", list{tlid(t)})
-  | DeleteTypeForever(t) => ev("DeleteTypeForever", list{tlid(t)})
   }
 }
 
@@ -326,6 +320,9 @@ and executeFunctionAPIParams = (params: Types.executeFunctionAPIParams): Js.Json
     ("args", list(dval, params.efpArgs)),
     ("fnname", string(params.efpFnName)),
   })
+
+and deleteToplevelForeverAPIParams = (params: Types.deleteToplevelForeverAPIParams): Js.Json.t =>
+  object_(list{("tlid", tlid(params.dtfTLID))})
 
 and packageFnParameter = (pfp: Types.packageFnParameter): Js.Json.t =>
   object_(list{

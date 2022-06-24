@@ -51,7 +51,7 @@ let update = (m: model, msg: fnpMsg): modification => {
     ReplaceAllModificationsWithThisOne(m => ({...m, currentUserFn: currentUserFn}, Tea.Cmd.none))
   } else {
     Many(
-      \"@"(
+      Belt.List.concat(
         mods,
         list{
           ReplaceAllModificationsWithThisOne(
@@ -194,13 +194,11 @@ let viewParam = (fn: functionTypes, vp: viewProps, index: int, p: userFunctionPa
 
     Html.div(
       ~unique=strId,
-      \"@"(
-        list{
-          Html.classList(list{("col param", true), ...conditionalClasses}),
-          Vdom.attribute("", "data-pos", string_of_int(index)),
-        },
-        events,
-      ),
+      list{
+        Html.classList(list{("col param", true), ...conditionalClasses}),
+        Vdom.attribute("", "data-pos", string_of_int(index)),
+        ...events,
+      },
       list{
         killParamBtn,
         viewParamName(vp, ~classes=list{"name"}, p.ufpName),
@@ -226,5 +224,5 @@ let view = (fn: functionTypes, vp: viewProps): list<Html.html<msg>> => {
   }
 
   let lastSpace = viewParamSpace(List.length(params), vp.fnProps)
-  \"@"(params, list{lastSpace})
+  Belt.List.concat(params, list{lastSpace})
 }

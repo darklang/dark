@@ -17,16 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:c3ecb60
-  # Rust is so big we create a separate container for it and only use that
-  # for rust builds
-  in-rust-container:
-    working_directory: ~/app
-    environment:
-      IN_DEV_CONTAINER: true
-    docker:
-      # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-rust:c3ecb60
+      - image: darklang/dark-base:dcf86ff
 
 commands:
   show-large-files-and-directories:
@@ -61,6 +52,7 @@ commands:
       - run: rm -Rf /home/dark/app/*
       - checkout
 
+
   ##########################
   # Setup app
   ##########################
@@ -76,6 +68,32 @@ commands:
             scripts/devcontainer/_setup-hosts
             scripts/devcontainer/_start-background-services postgresql
             env
+
+  ##########################
+  # Deploy locks
+  ##########################
+  deploy-lock-remove-on-fail:
+    steps:
+      # Can only be used from in-container executors as it needs gsutil. Though that
+      # could be installed if we needed to:
+      # https://cloud.google.com/storage/docs/gsutil_install
+      - auth-with-gcp-on-fail
+      - run:
+          name: Remove deploy lock
+          when: on_fail
+          command: |
+            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
+              ./scripts/deployment/deploy-lock-one-remove
+            fi
+
+  deploy-lock-remove:
+    steps:
+      - run:
+          name: Remove deploy lock
+          command: ./scripts/deployment/deploy-lock-one-remove
+
+
+
 
   ##########################
   # Slack
@@ -118,70 +136,26 @@ commands:
           buildType: "build"
 
 
-
-
   ##########################
-  # Rust
+  # etags
   ##########################
-  rust-setup:
-    parameters:
-      project: { type: string }
-      dir: { type: string }
-    steps:
-      - setup-app
-      - restore_cache:
-          keys:
-            # This cache should be about 500MB or so. It balloons over time and needs to be deleted.
-            - v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
-            - v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}
-            - v1d-<< parameters.project >>
-
-  rust-finish:
-    parameters:
-      project: { type: string }
-      dir: { type: string }
+  regenerate-etags:
     steps:
       - run:
-          name: Reduce caches
-          command: cargo cache -a
-      - show-large-files-and-directories
-
-      # must persist to workspace first, as next step will remove built release artifact
-      - persist_to_workspace:
-          root: "."
-          paths:
-            [
-              << parameters.dir >>/target/release/dark-<< parameters.project >>,
-            ]
-
-      # This removes files in the top-level of target/{debug,release}, which include the actual built artifact
-      # and other intermediates that will always be rebuilt on the next build (so there's no sense in caching them).
-      # It also includes our own (dark*) build files from deps, which are likewise always rebuilt.
-      #
-      # See https://github.com/rust-lang/cargo/issues/5885 for discussion and details
-      - run:
-          name: Cleanup frequently changing rust artifacts
+          name: Regenerate combined ETags
           command: |
-            find << parameters.dir >>/target -maxdepth 2 -type f -delete
-            rm -rf << parameters.dir >>/target/{debug,release}/{deps,.fingerprint}/dark*
+            scripts/build/_generate-etags
+            cat backend/static/etags.json
+            scripts/linting/_check-etags
+            cp backend/static/etags.json rundir/
 
-      # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
-      - save_cache:
-          name: "Save << parameters.project >> cache"
-          paths:
-            - << parameters.dir >>/target
-            - .cargo/bin/
-            - .cargo/registry/index/
-            - .cargo/registry/cache/
-            - .cargo/git/db/
-          key: v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
 
   ##########################
   # Initializing the containers
   ##########################
   prep-container-creation:
     steps:
-      - setup_remote_docker: { docker_layer_caching: true, version: 20.10.11 }
+      - setup_remote_docker: { docker_layer_caching: true, version: 20.10.14 }
 
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker
@@ -192,19 +166,13 @@ commands:
   build-gcp-containers:
     steps:
       - prep-container-creation
-      - run:
-          name: Regenerate combined ETags
-          command: |
-            scripts/build/_generate-etags
-            cat backend/static/etags.json
-            scripts/linting/_check-etags
-            cp backend/static/etags.json rundir/
+      - regenerate-etags
       - store_artifacts: { path: backend/static/etags.json }
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
       - run: cat gcr-image-ids.json
       # Test them
-      - run: scripts/deployment/shipit release prepare --dry-run=client --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
+      - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
   ##########################
   # misc
@@ -221,6 +189,21 @@ commands:
             gcloud auth configure-docker
             ./scripts/production/gcp-authorize-kubectl
 
+  auth-with-gcp-on-fail:
+    steps:
+      - run:
+          name: Auth with GCP
+          when: on_fail
+          command: |
+            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
+              echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
+              gcloud auth activate-service-account --key-file gcloud-service-key.json
+              gcloud auth configure-docker
+              ./scripts/production/gcp-authorize-kubectl
+            fi
+
+
+
 ##########################
 # Actual workflow
 ##########################
@@ -232,16 +215,16 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v3-client-{{ checksum "package-lock.json" }}
-            - v3-client
+            - v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v4-client-{{ checksum "package-lock.json" }}
+            - v4-client
       - run: scripts/build/compile-project client --test
       - assert-clean-worktree
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: ["node_modules"]
-          key: v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+          key: v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -250,6 +233,7 @@ jobs:
       - store_artifacts: { path: backend/static/etags.json }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   build-backend:
     executor: in-container
@@ -275,13 +259,9 @@ jobs:
           paths:
             # Just enough for integration tests and deploy
             - _build/default/backend/bin/server.exe
-            - _build/default/backend/bin/emergency_login_script.exe
             - _build/default/backend/bin/garbage_collector_worker.exe
-            - _build/default/backend/bin/queue_worker.exe
-            - _build/default/backend/bin/cron_checker.exe
             - _build/default/backend/bin/legacy_serialization_server.exe
             - _build/default/backend/bin/legacy_fuzzing_server.exe
-            - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache
           command: |
@@ -305,26 +285,38 @@ jobs:
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
+  # Build server binaries and run tests (but not blazor, which is separated out for build speed)
   build-fsharp-backend:
     executor: in-container
-    resource_class: large
+    resource_class: xlarge
     steps:
       - darkcheckout
+      # Set the timestamp to the commit time. This allows timestamp-based build tools
+      # like .NET to use their incremental build feature. Without this, the checkout
+      # time is always newer than the cached object file, and files are always
+      # rebuilt.
+      - run: git restore-mtime
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v5-fsharp-backend-{{ checksum "../checksum" }}
+            - v11-fsharp-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
-      - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      # so the ocamltestserver will load
-      - run: touch backend/static/appsupport.js backend/static/app.js backend/static/analysis.js backend/static/app.css
       # For tests
+      # appsupport is needed for a unit test, but it is not needed as part
+      # of the backend otherwise. It is compiled as part of the frontend
+      # tests.
+      - run: touch backend/static/appsupport.js
       - run: cp client/static/favicon-32x32.png backend/static/
       - run: scripts/build/_generate-etags
-      - run: scripts/build/compile-project fsharp-backend --test
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
+      - run: scripts/run-fsharp-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
@@ -336,18 +328,60 @@ jobs:
             - fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
             - fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
             - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
+      - show-large-files-and-directories
+      - save_cache:
+          paths:
+            - fsharp-backend/Build/obj
+            - /home/dark/.nuget
+          key: v11-fsharp-backend-{{ checksum "../checksum" }}
+      - store_artifacts: { path: rundir }
+      - store_test_results: { path: rundir/test_results }
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
+  # We build blazor in parallel with server binaries
+  build-fsharp-blazor:
+    executor: in-container
+    resource_class: xlarge
+    steps:
+      - darkcheckout
+      # Set the timestamp to the commit time. This allows timestamp-based build tools
+      # like .NET to use their incremental build feature. Without this, the checkout
+      # time is always newer than the cached object file, and files are always
+      # rebuilt.
+      - run: git restore-mtime
+      - setup-app
+      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
+      - restore_cache:
+          keys:
+            - v2-fsharp-blazor-{{ checksum "../checksum" }}
+            # Fails often enough that it's better not to have a fallback
+      - show-large-files-and-directories
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Analysis/Analysis.fsproj
+      - run: cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/
+      - run: rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
+      - assert-clean-worktree
+      - persist_to_workspace:
+          root: "."
+          paths:
             - backend/static/BlazorWorker.js
             - backend/static/blazor
       - show-large-files-and-directories
       - save_cache:
-          paths: [fsharp-backend/Build]
-          key: v5-fsharp-backend-{{ checksum "../checksum" }}
+          paths:
+            - fsharp-backend/Build/obj
+            - /home/dark/.nuget
+          key: v2-fsharp-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
-      - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
+
 
   static-checks:
-    executor: in-rust-container
+    executor: in-container
     steps:
       - darkcheckout
       - run: scripts/linting/shellchecker
@@ -356,6 +390,7 @@ jobs:
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit validate
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   predeployment-checks:
     executor: in-container
@@ -365,35 +400,7 @@ jobs:
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
       - slack-notify-job-failure
-
-  build-stroller:
-    executor: in-rust-container
-    steps:
-      - darkcheckout
-      - rust-setup: { project: "stroller", dir: "containers/stroller" }
-      - run: scripts/build/compile-project stroller --test
-      - assert-clean-worktree
-      - rust-finish: { project: "stroller", dir: "containers/stroller" }
-      - slack-notify-job-failure
-
-  build-queue-scheduler:
-    executor: in-rust-container
-    steps:
-      - darkcheckout
-      - rust-setup: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
-      # tests are run in rust-integration-tests
-      - run: scripts/build/compile-project queue-scheduler
-      - assert-clean-worktree
-      - rust-finish: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
-      - slack-notify-job-failure
-
-  build-postgres-honeytail:
-    executor: simple-executor
-    steps:
-      - darkcheckout
-      - prep-container-creation
-      - run: cd containers/postgres-honeytail && docker build -t postgres-honeytail .
-      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   validate-honeycomb-config:
     executor: simple-executor
@@ -402,10 +409,11 @@ jobs:
       - prep-container-creation
       - run: bash -c scripts/linting/test-honeycomb-config.sh
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   integration-tests:
     executor: in-container
-    parallelism: 4
+    resource_class: xlarge
     steps:
       - darkcheckout
       - setup-app
@@ -417,36 +425,15 @@ jobs:
             - v2-playwright
       - show-large-files-and-directories
       - run: "cd integration-tests && npm install"
-      - run: scripts/build/_generate-etags
-      - run:
-          name: Prep test split
-          command: |
-            # get full list of tests
-            integration-tests/test-list.sh > rundir/all-tests
-
-            # split them using timing info
-            TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
-
-            # concat them into a pattern (note: $TESTS is deliberately unquoted)
-            PATTERN=$(printf -- "%s|" $TESTS)
-
-            # remove last char
-            PATTERN=${PATTERN%?}
-
-            echo $PATTERN > test-pattern
-      - run:
-          name: DB migrations
-          command: |
-            cd fsharp-backend
-            ./Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost migrations run
+      - regenerate-etags
       - run:
           name: Run integration tests
           command: |
+            # Run the server first to set up the DB correctly for the prep script
             scripts/run-fsharp-server --published
-            scripts/devcontainer/_wait-until-apiserver-ready
-            integration-tests/run.sh --concurrency=3 --retry --pattern="`cat test-pattern`"
-            rm test-pattern
-
+            # Wait for users to be added so prep.sh works
+            ./scripts/devcontainer/_wait-until-apiserver-ready
+            integration-tests/run.sh --concurrency=8 --retry --published
       - run: integration-tests/_integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
@@ -456,27 +443,8 @@ jobs:
           paths: ["integration-tests/node_modules", "/home/dark/.cache/ms-playwright"]
           key: v2-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
-
-  rust-integration-tests:
-    executor: in-rust-container
-    steps:
-      - darkcheckout
-      - rust-setup: { dir: "containers/queue-scheduler", project: "containers/queue-scheduler" }
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - run:
-          name: Run DB migrations
-          command: |
-            # Run the server long enough to ensure it runs the migrations
-            cd fsharp-backend
-            ./Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost migrations run
-      - run:
-          name: Run queue-scheduler tests
-          command: scripts/run-rust-tests containers/queue-scheduler
-      - assert-clean-worktree
-      - store_artifacts: { path: rundir }
-      - slack-notify-job-failure
 
   gcp-containers-test:
     executor: in-container
@@ -487,8 +455,9 @@ jobs:
       - attach_workspace: { at: "." }
       - build-gcp-containers
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
-  push-to-gcp:
+  push-containers-to-gcp:
     executor: in-container
     steps:
       - darkcheckout
@@ -501,9 +470,35 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths: ["gcr-image-ids.json"]
-      - run: scripts/deployment/_push-assets-to-cdn
       - run: scripts/deployment/shipit containers push
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
+  push-assets-to-gcp:
+    executor: in-container
+    steps:
+      - darkcheckout
+      - setup-app
+      - auth-with-gcp: { background: true }
+      - attach_workspace: { at: "." }
+      - show-large-files-and-directories
+      - regenerate-etags
+      - run: scripts/deployment/_push-assets-to-cdn
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
+  deploy-lock:
+    # Note that it doesn't matter if the in-container executor is a bit slow: they
+    # deploy according the timestamp on the commit. Even if builds add their locks in
+    # the wrong order, so long as the locks are there by the time the next deploy
+    # comes, they'll be in the right order.
+    executor: in-container
+    steps:
+      - darkcheckout
+      - auth-with-gcp: { background: false }
+      - run: scripts/deployment/deploy-lock-one-add
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   deploy:
     executor: in-container
@@ -514,8 +509,10 @@ jobs:
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
+      # deploy lock is removed as part of the gke-deploy script
       - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
       - slack-notify-deploy
+      - deploy-lock-remove-on-fail
 
   notify-non-deploy:
     executor: simple-executor
@@ -532,48 +529,53 @@ workflows:
           filters:
             branches:
               ignore: /^(pull\/).*$/
-      - build-postgres-honeytail
       - validate-honeycomb-config
       - build-backend
       - build-client
-      - build-stroller
-      - build-queue-scheduler
-      - build-fsharp-backend:
-          requires:
-            - build-backend
+      - build-fsharp-backend
+      - build-fsharp-blazor
 
       # expensive tests
-      - rust-integration-tests:
-          requires:
-            - build-backend
-            - build-fsharp-backend
-            - build-client
-            - build-queue-scheduler
       - integration-tests:
           requires:
             - build-backend
             - build-client
+            - build-fsharp-blazor
             - build-fsharp-backend
+
       - gcp-containers-test:
+          # This is fully covered by push-assets-to-gcp, so no need to do it twice
+          filters:
+            branches:
+              ignore: main
           requires:
             - build-client # to rebuild etags
             - build-backend
             - build-fsharp-backend
-            - build-stroller
-            - build-queue-scheduler
+            - build-fsharp-blazor # etags
 
       # pre-deploy, in parallel with integration-tests
-      - push-to-gcp:
+      - push-assets-to-gcp:
+          filters:
+            branches:
+              only: main
+          requires:
+            - build-backend
+            - build-fsharp-blazor
+            - build-fsharp-backend
+            - build-client
+
+      # pre-deploy, in parallel with integration-tests
+      - push-containers-to-gcp:
           filters:
             branches:
               only: main
           requires:
             - build-backend
             - build-fsharp-backend
+            # CLEANUP: need this because of etags, should be able to remove it
+            - build-fsharp-blazor
             - build-client
-            - build-stroller
-            - build-queue-scheduler
-            - build-postgres-honeytail
 
       # actual deploy
       - deploy:
@@ -581,12 +583,18 @@ workflows:
             branches:
               only: main
           requires:
+            - deploy-lock
             - validate-honeycomb-config
             - integration-tests
-            - rust-integration-tests
-            - push-to-gcp
+            - push-containers-to-gcp
+            - push-assets-to-gcp
             - static-checks
             - predeployment-checks
+
+      - deploy-lock:
+          filters:
+            branches:
+              only: main
 
       - notify-non-deploy:
           filters:
@@ -596,12 +604,9 @@ workflows:
             - build-backend
             - build-client
             - build-fsharp-backend
-            - build-postgres-honeytail
-            - build-queue-scheduler
-            - build-stroller
+            - build-fsharp-blazor
             - gcp-containers-test
             - integration-tests
-            - rust-integration-tests
             - static-checks
             - predeployment-checks
             - validate-honeycomb-config

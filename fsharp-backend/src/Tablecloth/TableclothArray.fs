@@ -179,9 +179,10 @@ let groupBy (f : 'v -> 'k) (a : 'v array) : Map<'k, 'v list> =
 
       Tablecloth.Map.update
         key
-        (function
-        | None -> Some [ element ]
-        | Some elements -> Some(element :: elements))
+        (fun elements ->
+          match elements with
+          | None -> Some [ element ]
+          | Some elements -> Some(element :: elements))
         map)
     a
 

@@ -6,7 +6,7 @@ module BackendOnlyStdLib.LibEvent
 open LibExecution.RuntimeTypes
 open Prelude
 
-module EventQueue = LibBackend.EventQueue
+module EventQueueV2 = LibBackend.EventQueueV2
 module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
@@ -18,10 +18,9 @@ let varA = TVariable "a"
 let fns : List<BuiltInFn> =
   [ { name = fn "" "emit" 0
       parameters =
-        // CLEANUP lowercase names
-        [ Param.make "Data" varA ""
-          Param.make "Space" TStr ""
-          Param.make "Name" TStr "" ]
+        [ Param.make "data" varA ""
+          Param.make "space" TStr ""
+          Param.make "name" TStr "" ]
       returnType = varA
       description =
         "Emit event `name` in `space`, passing along `data` as a parameter"
@@ -30,12 +29,10 @@ let fns : List<BuiltInFn> =
         | state, [ data; DStr space; DStr name ] ->
           uply {
             let canvasID = state.program.canvasID
-            let canvasName = state.program.canvasName
-            let accountID = state.program.accountID
 
             // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
             // but we don't need a 3rd one for workers
-            do! EventQueue.enqueue canvasName canvasID accountID space name "_" data
+            do! EventQueueV2.enqueue canvasID space name "_" data
             return data
           }
         | _ -> incorrectArgs ())
@@ -44,7 +41,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "" "emit" 1) }
 
     { name = fn "" "emit" 1
-      parameters = [ Param.make "event" varA ""; Param.make "Name" TStr "" ]
+      parameters = [ Param.make "event" varA ""; Param.make "name" TStr "" ]
       returnType = varA
       description = "Emit a `event` to the `name` worker"
       fn =
@@ -52,13 +49,11 @@ let fns : List<BuiltInFn> =
         | state, [ data; DStr name ] ->
           uply {
             let canvasID = state.program.canvasID
-            let canvasName = state.program.canvasName
-            let accountID = state.program.accountID
 
             do!
               // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
               // but we don't need a 3rd one for workers
-              EventQueue.enqueue canvasName canvasID accountID "WORKER" name "_" data
+              EventQueueV2.enqueue canvasID "WORKER" name "_" data
 
             return data
           }

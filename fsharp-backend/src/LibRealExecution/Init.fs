@@ -1,9 +1,15 @@
+/// Initialize LibRealExecution
 module LibRealExecution.Init
 
-// Initialize LibRealExecution
+open FSharp.Control.Tasks
+open System.Threading.Tasks
 
 open Prelude
 
-let init (serviceName : string) : unit =
-  print $"Initing LibRealExecution in {serviceName}"
-  print $" Inited LibRealExecution in {serviceName}"
+let init (serviceName : string) : Task<unit> =
+  task {
+    print $"Initing LibRealExecution in {serviceName}"
+    do! RealExecution.init ()
+    print $" Inited LibRealExecution in {serviceName}"
+    return ()
+  }

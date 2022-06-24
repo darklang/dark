@@ -1,3 +1,4 @@
+/// FuzzTests around Passwords
 module FuzzTests.Passwords
 
 open Expecto
@@ -19,15 +20,15 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module G = Generators
 
-let tpwg = testPropertyWithGenerator
-
 type Generator =
-  static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+  static member String() : Arbitrary<string> = G.SafeUnicodeString
 
-let passwordChecks (rawPassword : string) : bool =
+/// We should be able to successfully 'check' a
+/// password against a hash of the same password
+let hashCheckRoundtrip (rawPassword : string) : bool =
   let t =
     task {
-      let! meta = initializeTestCanvas "executePure"
+      let! meta = initializeTestCanvas (Randomized "executePure")
       let! state = executionStateFor meta Map.empty Map.empty
 
       let ast =
@@ -40,5 +41,7 @@ let passwordChecks (rawPassword : string) : bool =
     }
   t.Result
 
-let tests =
-  testList "password" [ tpwg typeof<Generator> "comparing passwords" passwordChecks ]
+let tests config =
+  testList
+    "password"
+    [ testProperty config typeof<Generator> "hash/check roundtrip" hashCheckRoundtrip ]

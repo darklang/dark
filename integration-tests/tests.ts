@@ -1,29 +1,66 @@
-import {
-  test,
-  expect,
-  ConsoleMessage,
-  Page,
-  TestInfo,
-} from "@playwright/test";
+import { test, expect, ConsoleMessage, Page, TestInfo } from "@playwright/test";
 import fs from "fs";
 
-const BASE_URL = process.env.BASE_URL || "http://darklang.localhost:9000";
-const BWD_BASE_URL = process.env.BWD_BASE_URL || ".builtwithdark.localhost:11000";
-const options = {
-  baseURL: BASE_URL,
-  bwdBaseURL: BWD_BASE_URL,
-};
-test.use(options);
+import {
+  initMessages,
+  saveMessage,
+  getMessages,
+  clearMessages,
+} from "./messages";
+import {
+  canvasUrl,
+  awaitAnalysisLoaded,
+  awaitAnalysis,
+  bwdUrl,
+  caretPos,
+  createEmptyHTTPHandler,
+  createHTTPHandler,
+  createRepl,
+  createWorkerHandler,
+  expectContainsText,
+  expectExactText,
+  getElementSelectionStart,
+  getStyleProperty,
+  gotoAST,
+  gotoHash,
+  Locators,
+  get,
+  post,
+  pressShortcut,
+  selectAll,
+  waitForEmptyEntryBox,
+} from "./utils";
 
-async function prepSettings(page: Page, testInfo: TestInfo) {
-  let setLocalStorage = async (key: string, value: any) => {
+declare global {
+  interface Window {
+    // makes TypeScript OK with us reaching into window.Dark.analysis
+    Dark: any;
+  }
+
+  // makes TypeScript OK with us accessing `process.env`
+  // TODO import the node types package rather tha nthis
+  const process: {
+    env: any;
+  };
+}
+
+export const BASE_URL = process.env.BASE_URL;
+export const BWD_BASE_URL = process.env.BWD_BASE_URL;
+
+/**
+ * Set local storage for userState and editorState. We don't want various UI
+ * elements to get in the way, including Fullstory consent, the "welcome to
+ * Dark" modal, etc.
+ */
+async function prepSettings(page: Page, testName: string) {
+  async function setLocalStorage(key: string, value: any) {
     await page.evaluate(
       ([k, v]) => {
         localStorage.setItem(k, v);
       },
       [key, JSON.stringify(value)],
     );
-  };
+  }
 
   // Turn on fluid debugger
   let editorState = {
@@ -39,78 +76,68 @@ async function prepSettings(page: Page, testInfo: TestInfo) {
     firstVisitToDark: false,
     // Don't show recordConsent modal or record to Fullstory, unless it's the modal test
     recordConsent:
-      testInfo.title === "record_consent_saved_across_canvases" ? null : false,
+      testName === "record_consent_saved_across_canvases" ? null : false,
   };
-  await setLocalStorage(`editorState-test-${testInfo.title}`, editorState);
+  await setLocalStorage(`editorState-test-${testName}`, editorState);
   await setLocalStorage("userState-test", userState);
 }
 
-async function awaitAnalysis(page: Page, lastTimestamp: number) {
-  let analysisFunction = (lastTimestamp: number) => {
-    let newTimestamp = window.Dark.analysis.lastRun;
-    if (newTimestamp > lastTimestamp) {
-      const diffInSecs = (newTimestamp - lastTimestamp) / 1000.0;
-      console.info("Analysis ran in ~ " + diffInSecs + "secs");
-      return true;
-    }
-    return false;
-  };
-  await page.waitForFunction(analysisFunction, lastTimestamp);
-}
+/**
+ * Whether or not the test has passed, we flush all console logs to a logfile
+ */
+async function flushLogs(page: Page, testInfo: TestInfo) {
+  function flush(testInfo: TestInfo): boolean {
+    let logs = getMessages(testInfo).map(
+      (msg: ConsoleMessage) => `${msg.type()}: ${msg.text()}`,
+    );
+    const testName = testInfo.title;
+    let filename = `rundir/integration-tests/console-logs/${testName}.log`;
+    fs.writeFile(filename, logs.join("\n"), () => {});
+    return true;
+  }
 
-// Wait until the frontend is loaded - this is when we know we are able to do analyses
+  let haveLogsBeenFlushed = false;
 
-interface AnalyisLoadPromiseHolder {
-  analysisLoadPromise: Promise<boolean>;
-}
+  if (testInfo.status === testInfo.expectedStatus) {
+    // Only run final checks if we're on the road to success
+    try {
+      // TODO: clicks on this button are not registered in function space
+      // We should probably figure out why.
+      // For now, putting a more helpful error message
+      await page.click("#finishIntegrationTest");
 
-function createLibfrontendLoadPromise(
-  testInfo: TestInfo,
-  page: Page,
-): AnalyisLoadPromiseHolder & TestInfo {
-  let ti = <TestInfo & AnalyisLoadPromiseHolder>testInfo;
-  ti.analysisLoadPromise = new Promise((resolve, reject) => {
-    page.on("console", async (msg: ConsoleMessage) => {
-      if (msg.text() === "libfrontend reporting in") {
-        resolve(true);
+      // Ensure the test has completed correctly
+      await page.waitForSelector("#integrationTestSignal");
+      await expectExactText(page, "#integrationTestSignal", "success");
+
+      // check the class
+      let class_ = await page.getAttribute("#integrationTestSignal", "class");
+      expect(class_).toContain("success");
+      expect(class_).not.toContain("failure");
+
+      // Ensure there are no errors in the logs
+      var errorMessages = getMessages(testInfo)
+        .filter((msg: ConsoleMessage) => msg.type() == "error")
+        .map(msg => `[console ${msg.type()}]: ${msg.text()}`);
+      expect(errorMessages).toHaveLength(0);
+      haveLogsBeenFlushed = flush(testInfo);
+    } catch (e) {
+      if (haveLogsBeenFlushed === false) {
+        flush(testInfo);
       }
-    });
-  });
-  return ti;
-}
-async function awaitAnalysisLoad(testInfo: TestInfo): Promise<void> {
-  let ti = <AnalyisLoadPromiseHolder & TestInfo>testInfo;
-  expect(await ti.analysisLoadPromise).toBe(true);
+      throw e;
+    }
+  } else {
+    haveLogsBeenFlushed = flush(testInfo);
+  }
 }
 
-interface MessagesHolder {
-  messages: ConsoleMessage[];
-}
-function initMessages(testInfo: TestInfo) {
-  let ti = <MessagesHolder & TestInfo>testInfo;
-  ti.messages = [];
-}
-
-function getMessages(testInfo: TestInfo) {
-  let ti = <MessagesHolder & TestInfo>testInfo;
-  return ti.messages;
-}
-
-function saveMessage(testInfo: TestInfo, msg: ConsoleMessage) {
-  let ti = <MessagesHolder & TestInfo>testInfo;
-  ti.messages.push(msg);
-}
-
-function clearMessages(testInfo: TestInfo) {
-  let ti = <MessagesHolder & TestInfo>testInfo;
-  ti.messages = [];
-}
+test.use({ baseURL: BASE_URL });
 
 test.describe.parallel("Integration Tests", async () => {
-  // To add this user, run the backend tests
   test.beforeEach(async ({ page }, testInfo) => {
+    // set up listeners for console logs and page errors
     initMessages(testInfo);
-    createLibfrontendLoadPromise(testInfo, page);
     page.on("pageerror", async err => {
       console.error(err);
     });
@@ -124,260 +151,27 @@ test.describe.parallel("Integration Tests", async () => {
       }
       saveMessage(testInfo, msg);
     });
-    const testname = testInfo.title;
-    var url = `/a/test-${testname}?integration-test=true`;
 
+    // go to test page; wait until page (incl. analysis) has loaded
+    const testname = testInfo.title;
     var username = "test";
     if (testname.match(/_as_admin/)) {
       username = "test_admin";
     }
-
-    await page.goto(url, { waitUntil: "networkidle" });
-    await prepSettings(page, testInfo);
-    await page.type("#username", username);
+    await page.goto(canvasUrl(testname), { waitUntil: "networkidle" });
+    await prepSettings(page, testname);
+    await page.type("#username", "test");
     await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
     await page.click("text=Login");
     await page.waitForSelector("#finishIntegrationTest");
     await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
+    await awaitAnalysisLoaded(page);
     await page.pause();
   });
 
   test.afterEach(async ({ page }, testInfo) => {
-    const testname = testInfo.title;
-
-    // write out all logs
-    let flushedLogs = false;
-    function flushLogs(): boolean {
-      let logs = getMessages(testInfo).map(
-        (msg: ConsoleMessage) => `${msg.type()}: ${msg.text()}`,
-      );
-      let filename = `rundir/integration-tests/console-logs/${testname}.log`;
-      fs.writeFile(filename, logs.join("\n"), () => {});
-      return true;
-    }
-
-    await page.pause();
-    if (testInfo.status === testInfo.expectedStatus) {
-      // Only run final checks if we're on the road to success
-      try {
-        // TODO: clicks on this button are not registered in function space
-        // We should probably figure out why.
-        // For now, putting a more helpful error message
-        await page.click("#finishIntegrationTest");
-
-        // Ensure the test has completed correctly
-        await page.waitForSelector("#integrationTestSignal");
-        await expectExactText(page, "#integrationTestSignal", "success");
-
-        // check the class
-        let class_ = await page.getAttribute("#integrationTestSignal", "class");
-        expect(class_).toContain("success");
-        expect(class_).not.toContain("failure");
-
-        // Ensure there are no errors in the logs
-        var errorMessages = getMessages(testInfo)
-          .filter((msg: ConsoleMessage) => msg.type() == "error")
-          .map(msg => `[console ${msg.type()}]: ${msg.text()}`);
-        expect(errorMessages).toHaveLength(0);
-        flushedLogs = flushLogs();
-      } catch (e) {
-        if (flushedLogs === false) {
-          flushLogs();
-        }
-        throw e;
-      }
-    } else {
-      flushedLogs = flushLogs();
-    }
+    await flushLogs(page, testInfo);
   });
-
-  //********************************
-  // Utilities
-  //********************************
-  async function waitForPageToStopMoving(page: Page): Promise<void> {
-    // We can do better in the future
-    await page.waitForTimeout(500);
-  }
-  async function createEmptyHTTPHandler(page: Page) {
-    await page.click(".sidebar-category.http i.fa-plus-circle");
-    await waitForPageToStopMoving(page);
-    await waitForEmptyEntryBox(page);
-  }
-
-  async function createHTTPHandler(page: Page, method: string, path: string) {
-    await createEmptyHTTPHandler(page);
-    await page.type(entryBox, method);
-    await expectExactText(page, acHighlightedValue, method);
-    await page.keyboard.press("Enter");
-    await waitForEmptyEntryBox(page);
-    await page.type(entryBox, path);
-    await expectExactText(page, acHighlightedValue, path);
-    await page.keyboard.press("Enter");
-    await waitForEmptyFluidEntryBox(page);
-  }
-
-  async function createWorkerHandler(page) {
-    await page.click(".sidebar-category.worker i.fa-plus-circle");
-    await waitForPageToStopMoving(page);
-    await waitForEmptyEntryBox(page);
-  }
-
-  async function createRepl(page) {
-    await page.click(".sidebar-category.repl i.fa-plus-circle");
-    await waitForPageToStopMoving(page);
-    await waitForEmptyFluidEntryBox(page);
-  }
-
-  async function gotoAST(page: Page): Promise<void> {
-    await page.click("#active-editor > span");
-  }
-
-  function bwdUrl(testInfo: TestInfo, path: string) {
-    return (
-      "http://test-" + testInfo.title + options.bwdBaseURL + path
-    );
-  }
-
-  async function pressShortcut(page: Page, shortcut: string) {
-    if (process.platform == "darwin") {
-      page.keyboard.press(`Meta+${shortcut}`);
-    } else {
-      page.keyboard.press(`Control+${shortcut}`);
-    }
-  }
-
-  async function get(page: Page, url: string): Promise<string> {
-    return await page.evaluate(
-      async ({ url }) => {
-        const response = await fetch(url, {
-          method: "GET",
-        });
-        return response.text();
-      },
-      { url: url },
-    );
-  }
-  async function post(page: Page, url: string, body: string): Promise<string> {
-    return await page.evaluate(
-      async ({ url, body }) => {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: body,
-        });
-        return response.text();
-      },
-      { url: url, body: body },
-    );
-  }
-
-  //********************************
-  // Locators
-  //********************************
-  const entryBox = "#entry-box";
-  const acHighlightedValue = ".autocomplete-item.highlighted > .name";
-  const fluidACHighlightedValue = ".autocomplete-item.fluid-selected";
-  const dbLockLocator = ".db .spec-header.lock";
-
-  //********************************
-  // Utilities
-  //********************************
-  async function selectAll(page: Page): Promise<void> {
-    // Do these multiple times to make sure it actually selects
-    if (process.platform == "darwin") {
-      await page.keyboard.press("Meta+a");
-      await page.keyboard.press("Meta+a");
-      await page.keyboard.press("Meta+a");
-    } else {
-      await page.keyboard.press("Control+a");
-      await page.keyboard.press("Control+a");
-      await page.keyboard.press("Control+a");
-    }
-  }
-
-  async function expectExactText(page: Page, selector: string, text: string) {
-    await expect(page.locator(selector)).toHaveText(text);
-  }
-  async function expectContainsText(
-    page: Page,
-    selector: string,
-    text: string,
-  ) {
-    await expect(page.locator(selector)).toContainText(text);
-  }
-
-  async function expectPlaceholderText(page: Page, text: string) {
-    await expect(page.locator(entryBox)).toHaveAttribute("placeholder", text);
-  }
-
-  // Entry-box sometimes carries state over briefly, so wait til it's clear
-  async function waitForEmptyEntryBox(page: Page): Promise<void> {
-    await page.waitForSelector("#entry-box >> text=''");
-  }
-
-  async function waitForEmptyFluidEntryBox(page: Page): Promise<void> {
-    await page.waitForSelector("#active-editor >> text=''");
-  }
-
-  async function gotoHash(page: Page, testInfo: TestInfo, hash: string) {
-    const testname = testInfo.title;
-    var url = `/a/test-${testname}?integration-test=true`;
-    // networkidle needed for hash
-    // await page.goto(`${url}#${hash}`, { waitUntil: "networkidle" });
-    await page.goto(`${url}#${hash}`);
-  }
-
-  async function selectText(
-    page: Page,
-    locator: string,
-    initial: number,
-    final: number,
-  ) {
-    await page.focus(locator);
-    await page.keyboard.press("Home");
-    for (let i = 0; i < initial; i++) {
-      await page.keyboard.press("ArrowRight");
-    }
-    await page.keyboard.press("Shift");
-    for (let i = 0; i < final; i++) {
-      await page.keyboard.press("ArrowRight");
-    }
-  }
-
-  function caretPos(pos: number) {
-    return { position: { x: pos * 8, y: 4 } };
-  }
-
-  async function getStyleProperty(
-    page: Page,
-    selector: string,
-    property: string,
-  ): Promise<string> {
-    return await page.$eval(
-      selector,
-      (el, prop) => {
-        return window.getComputedStyle(el).getPropertyValue(prop);
-      },
-      property,
-    );
-  }
-
-  // const scrollBy = ClientFunction((id, dx, dy) => {
-  //   document.getElementById(id).scrollBy(dx, dy);
-  // });
-
-  async function getElementSelectionStart(
-    page: Page,
-    selector: string,
-  ): Promise<number> {
-    return page.$eval(selector, el => (<HTMLInputElement>el).selectionStart);
-  }
-  async function getElementSelectionEnd(
-    page: Page,
-    selector: string,
-  ): Promise<number> {
-    return page.$eval(selector, el => (<HTMLInputElement>el).selectionEnd);
-  }
 
   // ------------------------
   // Tests below here. Don't forget to update client/src/IntegrationTest.ml
@@ -393,7 +187,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, "CRON");
+    await page.type(Locators.entryBox, "CRON");
     await page.pause();
     await page.keyboard.press("Enter");
   });
@@ -408,7 +202,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, "REPL");
+    await page.type(Locators.entryBox, "REPL");
     await page.keyboard.press("Enter");
   });
 
@@ -422,47 +216,36 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, "REPL");
+    await page.type(Locators.entryBox, "REPL");
     await page.keyboard.press("Enter");
   });
 
   test("enter_changes_state", async ({ page }) => {
     await page.keyboard.press("Enter");
-    await page.waitForSelector(entryBox);
+    await page.waitForSelector(Locators.entryBox);
   });
 
   test("field_access_closes", async ({ page }, testInfo) => {
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
-    await awaitAnalysisLoad(testInfo);
 
     await page.type("#active-editor", "re");
     let start = Date.now();
     await page.type("#active-editor", "q");
-    await expectContainsText(page, fluidACHighlightedValue, "request");
+    await expectContainsText(page, Locators.fluidACHighlightedValue, "request");
     // There's a race condition here, sometimes the client doesn't manage to load the
     // trace for quite some time, and the autocomplete box ends up in a weird
     // condition
     await awaitAnalysis(page, start);
-    await expectExactText(page, fluidACHighlightedValue, "requestDict");
+    await expectExactText(
+      page,
+      Locators.fluidACHighlightedValue,
+      "requestDict",
+    );
     await page.type("#active-editor", ".bo");
-    await expectExactText(page, fluidACHighlightedValue, "bodyfield");
+    await expectExactText(page, Locators.fluidACHighlightedValue, "bodyfield");
     await page.keyboard.press("Enter");
   });
-
-  // CLEANUP flaky - often the `request` field is not available
-  // test("field_access_pipes", async ({ page }, testInfo) => {
-  //   await createEmptyHTTPHandler(page);
-  //   await awaitAnalysisLoad(testInfo);
-  //   await gotoAST(page);
-
-  //   await page.type("#active-editor", "req");
-  //   await expectContainsText(page, fluidACHighlightedValue, "request");
-  //   await page.type("#active-editor", ".");
-  //   await page.type("#active-editor", "bo");
-  //   await expectExactText(page, fluidACHighlightedValue, "bodyfield");
-  //   await page.keyboard.press("Shift+Enter");
-  // });
 
   test("tabbing_works", async ({ page }) => {
     await createRepl(page);
@@ -479,7 +262,11 @@ test.describe.parallel("Integration Tests", async () => {
 
     await page.type("#active-editor", "Int::add");
 
-    await expectContainsText(page, fluidACHighlightedValue, "Int::add");
+    await expectContainsText(
+      page,
+      Locators.fluidACHighlightedValue,
+      "Int::add",
+    );
     await page.keyboard.press("Enter");
   });
 
@@ -488,7 +275,11 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoAST(page);
     await page.type("#active-editor", "request");
     await page.keyboard.press("ArrowDown");
-    await expectContainsText(page, fluidACHighlightedValue, "Http::badRequest");
+    await expectContainsText(
+      page,
+      Locators.fluidACHighlightedValue,
+      "Http::badRequest",
+    );
     await page.keyboard.press("Enter");
   });
 
@@ -496,11 +287,11 @@ test.describe.parallel("Integration Tests", async () => {
     await createEmptyHTTPHandler(page);
 
     // verb
-    await page.type(entryBox, "g");
+    await page.type(Locators.entryBox, "g");
     await page.keyboard.press("Enter");
 
     // route
-    await page.type(entryBox, "/hello");
+    await page.type(Locators.entryBox, "/hello");
     await page.keyboard.press("Enter");
 
     // string
@@ -514,13 +305,13 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".spec-header > .toplevel-name");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "/myroute");
+    await page.type(Locators.entryBox, "/myroute");
     await page.keyboard.press("Enter");
 
     await page.click(".spec-header > .toplevel-type > .modifier");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "GET");
+    await page.type(Locators.entryBox, "GET");
     await page.keyboard.press("Enter");
   });
 
@@ -530,14 +321,14 @@ test.describe.parallel("Integration Tests", async () => {
     // add headers
     await page.click(".spec-header > .toplevel-name");
     await page.keyboard.press("Enter");
-    await page.type(entryBox, "spec_name");
+    await page.type(Locators.entryBox, "spec_name");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "HTTP");
+    await page.type(Locators.entryBox, "HTTP");
     await page.keyboard.press("Enter");
   });
 
@@ -549,7 +340,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, "CRON");
+    await page.type(Locators.entryBox, "CRON");
     await page.keyboard.press("Enter");
   });
 
@@ -582,14 +373,14 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".name >> text='field1'");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "field6");
+    await page.type(Locators.entryBox, "field6");
     await page.keyboard.press("Enter");
     await page.waitForResponse(`${BASE_URL}/api/test-rename_db_fields/add_op`);
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
     await post(page, url, '{ "field6": "a", "field2": "b" }');
-    await page.waitForSelector(dbLockLocator);
+    await page.waitForSelector(Locators.dbLockLocator);
 
     await page.click(".name >> text='field6'");
     await page.keyboard.press("Enter");
@@ -601,93 +392,20 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".type >> text='Int'");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "String");
+    await page.type(Locators.entryBox, "String");
     await page.keyboard.press("Enter");
     await page.waitForResponse(`${BASE_URL}/api/test-rename_db_type/add_op`);
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
     await post(page, url, '{ "field1": "str", "field2": 5 }');
-    await page.waitForSelector(dbLockLocator, { timeout: 8000 });
+    await page.waitForSelector(Locators.dbLockLocator, { timeout: 8000 });
 
     await page.click(".type >> text='String'");
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
   });
 
-  /* Disable for now, will bring back as command palette fn
-test("feature_flag_works", async ({ page }) => {
-
-    // Create an empty let
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "let");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "a");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "13");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("ArrowDown")
-    await page.keyboard.press("TODO: esc);
-
-    // Click feature name
-    .click('.expr-actions .flag')
-
-    // Name it
-    await page.waitForSelector(".feature-flag");
-    await page.type(entryBox, "myflag");
-    await page.keyboard.press("Enter");
-
-    // Set condition
-    await page.type(entryBox, "Int::greaterThan");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "a");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "10");
-    await page.keyboard.press("Enter");
-
-    // Case A
-    await page.type(entryBox, "\"");
-    await page.type(entryBox, "A");
-    await page.keyboard.press("Enter");
-
-    // Case B
-    await page.type(entryBox, "\"");
-    await page.type(entryBox, "B");
-    await page.keyboard.press("Enter");
-
-});
-
-test("feature_flag_in_function", async ({ page }) => {
-
-    // Go to function
-    await page.click(".fun1")
-    await page.click(".fa-edit")
-
-    await page.waitForSelector(".tl-2296485551");
-    await page.click(".tl-2296485551")
-    await page.keyboard.press("Enter");
-
-    // Make feature Flag
-    .click('.expr-actions .flag')
-
-    await page.waitForSelector(".feature-flag");
-    await page.type(entryBox, "myflag");
-    await page.keyboard.press("Enter");
-
-    // Set condition
-    await page.type(entryBox, "true");
-    await page.keyboard.press("Enter");
-
-    // Case B
-    await page.type(entryBox, "3");
-    await page.keyboard.press("Enter");
-
-    // Return to main canvas to finish tests
-    await page.click(".return-to-canvas")
-    await page.waitForSelector(".tl-180770093");
-});
-*/
   test("rename_function", async ({ page }, testInfo) => {
     const fnNameBlankOr = ".fn-name-content";
     await gotoHash(page, testInfo, "fn=123");
@@ -702,7 +420,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.click(fnNameBlankOr);
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "hello");
+    await page.type(Locators.entryBox, "hello");
     await page.keyboard.press("Enter");
   });
 
@@ -752,11 +470,15 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await page.waitForSelector(".return-value");
 
-    try { // text when against F# backend
-      const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
+    try {
+      // text when against F# backend
+      const expectedText =
+        "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
       await expectContainsText(page, ".return-value", expectedText);
-    } catch { // text when against OCaml backend
-      const expectedText = "Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints.";
+    } catch {
+      // text when against OCaml backend
+      const expectedText =
+        "Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints.";
       await expectContainsText(page, ".return-value", expectedText);
     }
   });
@@ -780,7 +502,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await page.click(".execution-button-needed");
 
-    await page.waitForSelector(dbLockLocator, { timeout: 8000 });
+    await page.waitForSelector(Locators.dbLockLocator, { timeout: 8000 });
 
     await page.click(".db"); // this click is required due to caching
     await expect(page.locator(".delete-col")).not.toBeVisible();
@@ -800,21 +522,6 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await expect(page.locator(toplevelElement)).toHaveClass(/selected/);
   });
-
-  // TODO: This needs Stroller/Pusher in CI
-  // test('passwords_are_redacted', async ({ page }) => {
-  //   const callBackend = ClientFunction(
-  //     function (url) {
-  //       var xhttp = new XMLHttpRequest();
-  //       xhttp.open("POST", url, true);
-  //       xhttp.setRequestHeader("Content-type", "application/json");
-  //       xhttp.send('{ "password": "redactme!" }');
-  //     });
-
-  //   .click(Selector('.Password\\:\\:hash'))
-  //   await callBackend(user_content_url(t, "/signup"));
-  //   await expect(Selector('.live-value').textContent).eql('<Password: Redacted>', { timeout: 5000 })
-  // })
 
   // TODO: Add test that verifies pasting text/plain when Entering works
   // See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
@@ -872,19 +579,9 @@ test("feature_flag_in_function", async ({ page }) => {
     ).toBeVisible();
   });
 
-  // Disabled the feature for now
-  // test("create_new_function_from_autocomplete", async ({ page }) => {
-  //   await createRepl(page);
-  //
-  //     await page.type("#active-editor", "myFunctionName");
-  //     .expect(fluidACHighlightedValue(page)())
-  //     .eql("Create new function: myFunctionName")
-  //     await page.keyboard.press("Enter");;
-  // });
-
   test("load_with_unnamed_function", async ({ page }) => {
     await page.keyboard.press("Enter");
-    await page.waitForSelector(entryBox);
+    await page.waitForSelector(Locators.entryBox);
   });
 
   test("extract_from_function", async ({ page }, testInfo) => {
@@ -892,7 +589,6 @@ test("feature_flag_in_function", async ({ page }) => {
     await gotoHash(page, testInfo, "fn=123");
     await page.waitForSelector(".tl-123");
     await page.click(exprElem);
-    await selectText(page, exprElem, 0, 1);
     await page.keyboard.press("Control+\\");
     await page.type("#cmd-filter", "extract-function");
     await page.keyboard.press("Enter");
@@ -903,9 +599,9 @@ test("feature_flag_in_function", async ({ page }) => {
     makes the live value visible. There is some extra complication in that clicking
     on a play button as it stands does not actually "count" as clicking on the play button
     unless the handler is "active" with a placed caret. To account for this, we
-    click on "hello" within Crypto::sha256 ("hello" |> String::toBytes) after focusing
+    click on "hello" within Crypto::md5 ("hello" |> String::toBytes) after focusing
     in order to place the caret. Then we click on the button and see if the live value
-    corresponds to the result of `Crypto::sha256`. */
+    corresponds to the result of `Crypto::md5`. */
     await gotoHash(page, ti, "handler=1013604333");
     await page.click(".id-1045574047.fluid-string");
     await page.click(".id-1334251057 .execution-button-needed"); // wait for it to be green
@@ -913,7 +609,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await expectExactText(
       page,
       ".selected .live-value.loaded",
-      "<Bytes: length=32>",
+      "<Bytes: length=16>",
     );
   });
 
@@ -971,8 +667,10 @@ test("feature_flag_in_function", async ({ page }) => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
-    const options = { modifiers: ["Alt"], position: { x: 24, y: 4 } };
-    await page.dblclick(".fluid-match-keyword", options);
+    await page.dblclick(".fluid-match-keyword", {
+      modifiers: ["Alt"],
+      position: { x: 24, y: 4 },
+    });
   });
 
   test("fluid_shift_right_selects_chars_in_front", async ({ page }, ti) => {
@@ -1035,8 +733,8 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.click(".spec-header > .toplevel-name");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, ":a");
-    await expectExactText(page, acHighlightedValue, "/:a");
+    await page.type(Locators.entryBox, ":a");
+    await expectExactText(page, Locators.acHighlightedValue, "/:a");
     await page.keyboard.press("Tab");
     await page.keyboard.press("a");
     await page.keyboard.press("Enter");
@@ -1113,7 +811,6 @@ test("feature_flag_in_function", async ({ page }) => {
 
     // click into the body, then wait for the button to appear
     await page.click(".fluid-let-var-name >> text='scope'");
-    await awaitAnalysisLoad(testInfo);
     await awaitAnalysis(page, before); // wait for the first analysis to get the trigger visible
 
     let beforeClick = Date.now();
@@ -1143,59 +840,10 @@ test("feature_flag_in_function", async ({ page }) => {
     await createEmptyHTTPHandler(page);
 
     await page.keyboard.press("ArrowDown"); // enter AC
-    await expectExactText(page, acHighlightedValue, "GET");
+    await expectExactText(page, Locators.acHighlightedValue, "GET");
   });
 
-  // CLEANUP: broken
-  // test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({ page }) => {
-  //   await createEmptyHTTPHandler(page);
-  //   await expectPlaceholderText(page, "verb");
-
-  //   await page.keyboard.press("Tab"); // verb -> route
-  //   await expectPlaceholderText(page, "route");
-  //   await page.keyboard.press("Tab"); // route -> ast
-  //   await page.waitForSelector(".fluid-entry.cursor-on");
-  //   await page.keyboard.press("r"); // enter AC
-  //   await expectContainsText(page, fluidACHighlightedValue, "request");
-  // });
-
-  // CLEANUP: tabbing is broken and should be fixed
-  // test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async ({
-  //   page,
-  // }) => {
-  //   await createEmptyHTTPHandler(page);
-  //   await expectPlaceholderText(page, "verb");
-
-  //   await page.keyboard.press("Tab"); // verb -> route
-  //   await expectPlaceholderText(page, "route");
-  //   await page.keyboard.press("Tab"); // route -> ast
-  //   await page.waitForSelector(".fluid-entry.cursor-on");
-  //   await page.keyboard.press("Tab"); // ast -> loop back to verb;
-  //   await expectPlaceholderText(page, "verb");
-  //   await page.keyboard.press("ArrowDown"); // enter AC
-  //   await expectExactText(page, acHighlightedValue, "GET");
-  // });
-
-  // CLEANUP: tabbing is broken and should be fixed
-  // test("fluid_shift_tabbing_from_handler_ast_back_to_route", async ({
-  //   page,
-  // }) => {
-  //   await createEmptyHTTPHandler(page);
-  //   await expectPlaceholderText(page, "verb");
-
-  //   await page.keyboard.press("Tab"); // verb -> route
-  //   await expectPlaceholderText(page, "route");
-  //   await page.keyboard.press("Tab"); // route -> ast
-  //   await page.waitForSelector(".fluid-entry.cursor-on");
-  //   await page.keyboard.press("Shift+Tab"); // ast -> back to route
-  //   await expectPlaceholderText(page, "route");
-  //   await page.keyboard.press("ArrowDown"); // enter route
-  //   await expectExactText(page, acHighlightedValue, "/");
-  // });
-
   test("fluid_test_copy_request_as_curl", async ({ page }, testInfo) => {
-    await awaitAnalysisLoad(testInfo);
-
     let before = Date.now();
     await page.click(".toplevel.tl-91390945");
     await page.waitForSelector(".tl-91390945");
@@ -1234,56 +882,11 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.waitForSelector(".error-panel.show");
   }
 
-  // CLEANUP add this back or replace it with a different package manager situation
-  // // this tests:
-  // // - happy path upload
-  // // - upload fails b/c the db already has a fn with this name + version
-  // // - upload fails b/c the version we're trying to upload is too low (eg, if you
-  // // already have a v1, you can't upload a v0)
-  // test("upload_pkg_fn_as_admin", async ({ page }, testInfo) => {
-  //   // upload v1/2/3 depending whether this is test run 1/2/3
-  //   const tlid = testInfo.retry + 1;
-
-  //   // it should succeed, it's a new package_fn
-  //   await upload_pkg_for_tlid(page, testInfo, tlid);
-
-  //   await expectExactText(
-  //     page,
-  //     ".error-panel.show",
-  //     "Successfully uploaded functionDismiss",
-  //   );
-  //   await page.click(".dismissBtn");
-
-  //   // attempting to upload v0 should fail, because we already have a version
-  //   // greater than 0 in the db
-  //   await upload_pkg_for_tlid(page, testInfo, 0);
-  //   // this failureMsg2 is the same as failureMsg above, because its text dpends
-  //   // on the latest version (and the next valid version of the fn), not the
-  //   // version you tried to upload
-  //   const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
-  //     tlid + 1
-  //   }? (UploadFnAPICallback)Dismiss`;
-  //   await expectExactText(page, ".error-panel.show", failureMsg2);
-  //   await page.click(".dismissBtn");
-
-  //   // second (attempted) upload should fail, as we've already uploaded this
-  //   await upload_pkg_for_tlid(page, testInfo, tlid);
-  //   const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
-  //     tlid + 1
-  //   }? (UploadFnAPICallback)Dismiss`;
-  //   await expectExactText(page, ".error-panel.show", failureMsg);
-  //   await page.click(".dismissBtn");
-
-  //   // CLEANUP: this is a hack to get the test to pass, but really the errors should be cleared up
-  //   clearMessages(testInfo);
-  // });
-
   test("use_pkg_fn", async ({ page }, testInfo) => {
     const attempt = testInfo.retry + 1;
     const url = `/${attempt}`;
     await createHTTPHandler(page, "GET", url);
     await gotoAST(page);
-    await awaitAnalysisLoad(testInfo);
 
     // this await confirms that test_admin/stdlib/Test::one_v1 is in fact
     // in the autocomplete
@@ -1376,7 +979,7 @@ test("feature_flag_in_function", async ({ page }) => {
     ).not.toBeVisible();
   });
 
-  test("function_docstrings_are_valid", async ({ page }) => {
+  test("function_docstrings_are_valid", async ({}) => {
     // validate functions in IntegrationTest.ml
   });
 
@@ -1390,7 +993,7 @@ test("feature_flag_in_function", async ({ page }) => {
     });
 
     // navigate to another canvas
-    await page.goto(`${BASE_URL}/a/test-another-canvas`, {
+    await page.goto(canvasUrl("another-canvas"), {
       waitUntil: "networkidle",
     });
 
@@ -1398,26 +1001,12 @@ test("feature_flag_in_function", async ({ page }) => {
 
     // go back to original canvas to end the test
     const testname = testInfo.title;
-    await page.goto(`${BASE_URL}/a/test-${testname}?integration-test=true`);
+    await page.goto(canvasUrl(testname));
 
     // there are errors loading some assets cause we're changing pages pretty fast.
     // Doesn't really matter, so ignore.
     clearMessages(testInfo);
   });
-
-  // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
-  // didn't solve the problem
-  /*
-  test("exe_flow_fades", async ({ page }) => {
-    const timestamp = new Date();
-    await page.click(".fluid-entry");
-    awaitAnalysis(t, timestamp);
-    // wait up to 1000ms for this selector to appear
-
-      .expect(Selector(".fluid-not-executed", { timeout: 1000 }).exists)
-      .ok();
-  });
-  */
 
   test("unexe_code_unfades_on_focus", async ({ page }) => {
     const timestamp = Date.now();
@@ -1612,4 +1201,216 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await page.click(".modal.insert-secret .close-btn");
   });
+
+  // CLEANUP flaky - often the `request` field is not available
+  // test("field_access_pipes", async ({page}, testInfo) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await gotoAST(page);
+
+  //   await page.type("#active-editor", "req");
+  //   await expectContainsText(page, fluidACHighlightedValue, "request");
+  //   await page.type("#active-editor", ".");
+  //   await page.type("#active-editor", "bo");
+  //   await expectExactText(page, fluidACHighlightedValue, "bodyfield");
+  //   await page.keyboard.press("Shift+Enter");
+  // });
+
+  //Disable for now, will bring back as command palette fn
+  // test("feature_flag_works", async ({page}) => {
+  //     // Create an empty let
+  //     await page.keyboard.press("Enter");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "let");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "a");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "13");
+  //     await page.keyboard.press("Enter");
+  //     await page.keyboard.press("ArrowDown")
+  //     await page.keyboard.press("TODO: esc);
+
+  //     // Click feature name
+  //     .click('.expr-actions .flag')
+
+  //     // Name it
+  //     await page.waitForSelector(".feature-flag");
+  //     await page.type(entryBox, "myflag");
+  //     await page.keyboard.press("Enter");
+
+  //     // Set condition
+  //     await page.type(entryBox, "Int::greaterThan");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "a");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "10");
+  //     await page.keyboard.press("Enter");
+
+  //     // Case A
+  //     await page.type(entryBox, "\"");
+  //     await page.type(entryBox, "A");
+  //     await page.keyboard.press("Enter");
+
+  //     // Case B
+  //     await page.type(entryBox, "\"");
+  //     await page.type(entryBox, "B");
+  //     await page.keyboard.press("Enter");
+
+  // });
+
+  // test("feature_flag_in_function", async ({page}) => {
+  //     // Go to function
+  //     await page.click(".fun1")
+  //     await page.click(".fa-edit")
+
+  //     await page.waitForSelector(".tl-2296485551");
+  //     await page.click(".tl-2296485551")
+  //     await page.keyboard.press("Enter");
+
+  //     // Make feature Flag
+  //     .click('.expr-actions .flag')
+
+  //     await page.waitForSelector(".feature-flag");
+  //     await page.type(entryBox, "myflag");
+  //     await page.keyboard.press("Enter");
+
+  //     // Set condition
+  //     await page.type(entryBox, "true");
+  //     await page.keyboard.press("Enter");
+
+  //     // Case B
+  //     await page.type(entryBox, "3");
+  //     await page.keyboard.press("Enter");
+
+  //     // Return to main canvas to finish tests
+  //     await page.click(".return-to-canvas")
+  //     await page.waitForSelector(".tl-180770093");
+  // });
+
+  // TODO: This needs Pusher in CI
+  // test('passwords_are_redacted', async ({page}) => {
+  //   const callBackend = ClientFunction(
+  //     function (url) {
+  //       var xhttp = new XMLHttpRequest();
+  //       xhttp.open("POST", url, true);
+  //       xhttp.setRequestHeader("Content-type", "application/json");
+  //       xhttp.send('{ "password": "redactme!" }');
+  //     });
+
+  //   .click(Selector('.Password\\:\\:hash'))
+  //   await callBackend(user_content_url(t, "/signup"));
+  //   await expect(Selector('.live-value').textContent).eql('<Password: Redacted>', { timeout: 5000 })
+  // })
+
+  // Disabled the feature for now
+  // test("create_new_function_from_autocomplete", async ({page}) => {
+  //   await createRepl(page);
+  //
+  //     await page.type("#active-editor", "myFunctionName");
+  //     .expect(fluidACHighlightedValue(page)())
+  //     .eql("Create new function: myFunctionName")
+  //     await page.keyboard.press("Enter");;
+  // });
+
+  // CLEANUP: broken
+  // test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({page}) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await expectPlaceholderText(page, "verb");
+
+  //   await page.keyboard.press("Tab"); // verb -> route
+  //   await expectPlaceholderText(page, "route");
+  //   await page.keyboard.press("Tab"); // route -> ast
+  //   await page.waitForSelector(".fluid-entry.cursor-on");
+  //   await page.keyboard.press("r"); // enter AC
+  //   await expectContainsText(page, fluidACHighlightedValue, "request");
+  // });
+
+  // CLEANUP: tabbing is broken and should be fixed
+  // test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async ({
+  //   page
+  // }) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await expectPlaceholderText(page, "verb");
+
+  //   await page.keyboard.press("Tab"); // verb -> route
+  //   await expectPlaceholderText(page, "route");
+  //   await page.keyboard.press("Tab"); // route -> ast
+  //   await page.waitForSelector(".fluid-entry.cursor-on");
+  //   await page.keyboard.press("Tab"); // ast -> loop back to verb;
+  //   await expectPlaceholderText(page, "verb");
+  //   await page.keyboard.press("ArrowDown"); // enter AC
+  //   await expectExactText(page, acHighlightedValue, "GET");
+  // });
+
+  // CLEANUP: tabbing is broken and should be fixed
+  // test("fluid_shift_tabbing_from_handler_ast_back_to_route", async ({
+  //   page
+  // }) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await expectPlaceholderText(page, "verb");
+
+  //   await page.keyboard.press("Tab"); // verb -> route
+  //   await expectPlaceholderText(page, "route");
+  //   await page.keyboard.press("Tab"); // route -> ast
+  //   await page.waitForSelector(".fluid-entry.cursor-on");
+  //   await page.keyboard.press("Shift+Tab"); // ast -> back to route
+  //   await expectPlaceholderText(page, "route");
+  //   await page.keyboard.press("ArrowDown"); // enter route
+  //   await expectExactText(page, acHighlightedValue, "/");
+  // });
+
+  // CLEANUP add this back or replace it with a different package manager situation
+  // // this tests:
+  // // - happy path upload
+  // // - upload fails b/c the db already has a fn with this name + version
+  // // - upload fails b/c the version we're trying to upload is too low (eg, if you
+  // // already have a v1, you can't upload a v0)
+  // test("upload_pkg_fn_as_admin", async ({page}, testInfo) => {
+  //   // upload v1/2/3 depending whether this is test run 1/2/3
+  //   const tlid = testInfo.retry + 1;
+
+  //   // it should succeed, it's a new package_fn
+  //   await upload_pkg_for_tlid(page, testInfo, tlid);
+
+  //   await expectExactText(
+  //     page,
+  //     ".error-panel.show",
+  //     "Successfully uploaded functionDismiss",
+  //   );
+  //   await page.click(".dismissBtn");
+
+  //   // attempting to upload v0 should fail, because we already have a version
+  //   // greater than 0 in the db
+  //   await upload_pkg_for_tlid(page, testInfo, 0);
+  //   // this failureMsg2 is the same as failureMsg above, because its text dpends
+  //   // on the latest version (and the next valid version of the fn), not the
+  //   // version you tried to upload
+  //   const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+  //     tlid + 1
+  //   }? (UploadFnAPICallback)Dismiss`;
+  //   await expectExactText(page, ".error-panel.show", failureMsg2);
+  //   await page.click(".dismissBtn");
+
+  //   // second (attempted) upload should fail, as we've already uploaded this
+  //   await upload_pkg_for_tlid(page, testInfo, tlid);
+  //   const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+  //     tlid + 1
+  //   }? (UploadFnAPICallback)Dismiss`;
+  //   await expectExactText(page, ".error-panel.show", failureMsg);
+  //   await page.click(".dismissBtn");
+
+  //   // CLEANUP: this is a hack to get the test to pass, but really the errors should be cleared up
+  //   clearMessages(testInfo);
+  // });
+
+  // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
+  // didn't solve the problem
+  // test("exe_flow_fades", async ({page}) => {
+  //   const timestamp = new Date();
+  //   await page.click(".fluid-entry");
+  //   awaitAnalysis(t, timestamp);
+  //   // wait up to 1000ms for this selector to appear
+
+  //     .expect(Selector(".fluid-not-executed", { timeout: 1000 }).exists)
+  //     .ok();
+  // });
 });

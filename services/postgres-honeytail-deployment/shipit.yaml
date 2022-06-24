@@ -1,9 +1,0 @@
-k8s:
-  manually-deployed:
-    configs: []
-  release:
-    config-template: postgres-honeytail-deployment.template.yaml
-    containers:
-      - postgres-honeytail
-    expected-args:
-      - CHANGE_CAUSE

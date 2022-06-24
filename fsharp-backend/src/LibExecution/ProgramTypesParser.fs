@@ -5,6 +5,8 @@
 /// representation (spoken by the client and used in the API for example)
 module LibExecution.ProgramTypesParser
 
+// CLEANUP remove this entire file once we've removed the add_ops format
+
 // CLEANUP: almost all users of functions in this file could be replaced by having
 // better types and/or propagating the type definitions end-to-end (such as to the
 // client). It would likely also increase the reliability and reduce the
@@ -55,7 +57,7 @@ module FQFnName =
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
     assertRe "package function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
     { owner = owner
       package = package
@@ -88,7 +90,7 @@ module FQFnName =
     : PT.FQFnName.StdlibFnName =
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
     assertRe "stdlib function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 
   let stdlibFqName
@@ -103,7 +105,6 @@ module FQFnName =
   let binopFqName (op : string) : PT.FQFnName.T = stdlibFqName "" op 0
 
   let parse (fnName : string) : PT.FQFnName.T =
-    // These should match up with the regexes in RuntimeTypes
     match fnName with
     | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ owner; package; module_; name; version ] ->
@@ -117,8 +118,6 @@ module FQFnName =
             [ module_; name; version ] -> stdlibFqName module_ name (int version)
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
       stdlibFqName module_ name 0
-    | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
-      stdlibFqName "" name (int version)
     | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] -> stdlibFqName "Date" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> stdlibFqName "" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
@@ -136,7 +135,7 @@ module FQFnName =
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> userFqName name
     // CLEANUP People have the most ridiculous names in userFunctions. One user had a
     // fully qualified url in there! Ridiculous. This needs a data cleanup before it
-    // can be removed.
+    // can be removed. Also some functions have "_v2" or similar in them.
     | Regex "^(.*)$" [ name ] -> userFqName name
     | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
 
@@ -260,7 +259,7 @@ module Handler =
       | _ -> true
 
     // Same as a TraceInput.EventDesc
-    let toEventDesc (s : PT.Handler.Spec) : Option<string * string * string> =
+    let toEventDesc (s : PT.Handler.Spec) : Option<HandlerDesc> =
       if isComplete s then Some(toModule s, toName s, toModifier s) else None
 
 module Toplevel =

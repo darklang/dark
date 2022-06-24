@@ -16,11 +16,11 @@ open Tablecloth
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let runMigrations (executionID : ExecutionID) : unit =
+let runMigrations () : unit =
   print $"Running migrations"
-  LibBackend.Migrations.run executionID
+  LibBackend.Migrations.run ()
 
-let listMigrations (executionID : ExecutionID) : unit =
+let listMigrations () : unit =
   print "Migrations needed:\n"
   LibBackend.Migrations.migrationsToRun ()
   |> List.iter (fun name -> print $" - {name}")
@@ -45,19 +45,19 @@ let emergencyLogin (username : string) : Task<unit> =
   }
 
 /// Send multiple messages to Rollbar, to ensure our usage is generally OK
-let triggerRollbar (executionID : ExecutionID) : unit =
+let triggerRollbar () : unit =
   let tags = [ "int", 6 :> obj; "string", "string"; "float", -0.6; "bool", true ]
   let prefix = "execHost test: "
 
   // Send async notification ("info" level in the rollbar UI)
-  Rollbar.notify executionID $"{prefix} notify" tags
+  Rollbar.notify $"{prefix} notify" tags
 
   // Send async error
-  Rollbar.sendError executionID $"{prefix} sendError" tags
+  Rollbar.sendError $"{prefix} sendError" tags
 
   // Send async exception
   let e = new System.Exception($"{prefix} sendException exception")
-  Rollbar.sendException executionID Rollbar.emptyPerson tags e
+  Rollbar.sendException None tags e
 
 /// Send a message to Rollbar that should result in a Page (notification)
 /// going out
@@ -75,51 +75,109 @@ let help () : unit =
     "  ExecHost migrations run"
     "  ExecHost trigger-rollbar"
     "  ExecHost trigger-pageable-rollbar"
-    "  ExecHost convert-packages"
+    "  ExecHost convert-st-to-rt"
     "  ExecHost help" ]
   |> List.join "\n"
   |> print
 
-let run (executionID : ExecutionID) (args : string []) : Task<int> =
+type Options =
+  | EmergencyLogin of string
+  | MigrationList
+  | MigrationsRun
+  | TriggerRollbar
+  | TriggerPagingRollbar
+  | InvalidUsage
+  | ConvertST2RT of string
+  | ConvertST2RTAll
+  | Help
+
+let parse (args : string []) : Options =
+  match args with
+  | [| "emergency-login"; username |] -> EmergencyLogin username
+  | [| "migrations"; "list" |] -> MigrationList
+  | [| "migrations"; "run" |] -> MigrationsRun
+  | [| "trigger-rollbar" |] -> TriggerRollbar
+  | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
+  | [| "convert-st-to-rt"; "all" |] -> ConvertST2RTAll
+  | [| "convert-st-to-rt"; canvasName |] -> ConvertST2RT canvasName
+  | [| "help" |] -> Help
+  | _ -> InvalidUsage
+
+let usesDB (options : Options) =
+  match options with
+  | EmergencyLogin _
+  | MigrationList
+  | MigrationsRun -> true
+  | TriggerRollbar
+  | TriggerPagingRollbar
+  | InvalidUsage
+  | ConvertST2RT _
+  | ConvertST2RTAll
+  | Help -> false
+
+let convertToRT (canvasName : string) : Task<unit> =
+  task {
+    let canvasName = CanvasName.createExn canvasName
+    let! canvasInfo = LibBackend.Canvas.getMetaExn canvasName
+    let! canvas = LibBackend.Canvas.loadAll canvasInfo
+    let _program = LibBackend.Canvas.toProgram canvas
+    let _handlers =
+      canvas.handlers
+      |> Map.values
+      |> List.map (fun h -> LibExecution.ProgramTypesToRuntimeTypes.Handler.toRT h)
+    return ()
+  }
+
+
+
+
+
+let run (options : Options) : Task<int> =
   task {
     // Track calls to this
     use _ = Telemetry.createRoot "ExecHost run"
-    Telemetry.addTags [ "args", args ]
-    Rollbar.notify executionID "execHost called" [ "args", String.concat "," args ]
+    Telemetry.addTags [ "options", options ]
+    Rollbar.notify "execHost called" [ "options", string options ]
 
-    match args with
+    match options with
 
-    | [| "emergency-login"; username |] ->
-      Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
+    | EmergencyLogin username ->
+      Rollbar.notify "emergencyLogin called" [ "username", username ]
       do! emergencyLogin username
       return 0
 
-    | [| "migrations"; "list" |] ->
-      listMigrations executionID
+    | MigrationList ->
+      listMigrations ()
       return 0
 
-    | [| "migrations"; "run" |] ->
-      runMigrations executionID
+    | MigrationsRun ->
+      runMigrations ()
       return 0
 
-    | [| "trigger-rollbar" |] ->
-      triggerRollbar executionID
+    | TriggerRollbar ->
+      triggerRollbar ()
       // The async operations go in a queue, and I don't know how to block until
       // the queue is empty.
       do! Task.Delay 5000
       return 0
 
-    | [| "trigger-paging-rollbar" |] -> return triggerPagingRollbar ()
+    | TriggerPagingRollbar -> return triggerPagingRollbar ()
 
-    | [| "convert-packages" |] ->
-      do! LibBackend.PackageManager.convertPackagesToFSharpBinary ()
+    | ConvertST2RT canvasName ->
+      do! convertToRT canvasName
       return 0
 
-    | [| "help" |] ->
+    | ConvertST2RTAll ->
+      let! allCanvases = LibBackend.Serialize.currentHosts ()
+      do! Task.iterWithConcurrency 25 convertToRT allCanvases
+      return 0
+
+
+    | Help ->
       help ()
       return 0
 
-    | _ ->
+    | InvalidUsage ->
       print "Invalid usage!!\n"
       help ()
       return 1
@@ -127,18 +185,19 @@ let run (executionID : ExecutionID) (args : string []) : Task<int> =
 
 [<EntryPoint>]
 let main (args : string []) : int =
+  let name = "ExecHost"
   try
-    LibService.Init.init "ExecHost"
-    Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
-    let executionID = Telemetry.executionID ()
-    (LibBackend.Init.init "ExecHost" false).Result
-    (run executionID args).Result
+    LibService.Init.init name
+    Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
+    let options = parse args
+    if usesDB options then
+      (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    let result = (run options).Result
+    LibService.Init.shutdown name
+    result
   with
   | e ->
     // Don't reraise or report as ExecHost is only run interactively
-    print e.Message
-    print e.StackTrace
-    if e.InnerException <> null then
-      print e.InnerException.Message
-      print e.InnerException.StackTrace
+    printException "" [] e
+    LibService.Init.shutdown name
     1

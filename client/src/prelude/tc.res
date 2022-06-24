@@ -142,7 +142,7 @@ module List = {
 
   let sortWith = (f: ('a, 'a) => int, l: list<'a>): list<'a> => Belt.List.sort(l, f)
 
-  /* From https://github.com/janestreet/base/blob/eaab227499b36bb90c2537bc6358a2d5caf75227/src/list.ml#L247 */
+  // From https://github.com/janestreet/base/blob/eaab227499b36bb90c2537bc6358a2d5caf75227/src/list.ml#L247
   let findMap = (t, ~f) => {
     let rec loop = x =>
       switch x {
@@ -185,7 +185,7 @@ module List = {
     }
   }
 
-  /* Takes everything before and after, but not including nexted element */
+  // Takes everything before and after, but not including nexted element
   let splitOn = (~index: int, l: list<'a>): (list<'a>, list<'a>) => (
     take(~count=index, l),
     drop(~count=index + 1, l),
@@ -200,10 +200,10 @@ module List = {
   let moveInto = (~oldPos: int, ~newPos: int, l: list<'a>): list<'a> =>
     switch getAt(~index=oldPos, l) {
     | Some(value) =>
-      let index = /* Checks to see if we need to offset the newPos by -1, after removing the element at oldPos */
+      let index = // Checks to see if we need to offset the newPos by -1, after removing the element at oldPos
       if newPos > oldPos {
         let len = List.length(l)
-        /* Clamp at list length to prevent overflow */
+        // Clamp at list length to prevent overflow
         if newPos > len {
           len - 1
         } else {
@@ -290,7 +290,7 @@ module String = {
   let replaceChunk = (~from: int, ~to_: int, ~replacement: string, s): string =>
     slice(~from=0, ~to_=from, s) ++ (replacement ++ slice(~from=to_, ~to_=length(s), s))
 
-  /* returns the index of the last occurrence of character c in string s before position i+1 or None if c does not occur in s before position i+1. */
+  // returns the index of the last occurrence of character c in string s before position i+1 or None if c does not occur in s before position i+1.
   let rindex_from_opt = (~pos: int, s: string, c: char): option<int> =>
     String.rindex_from_opt(s, pos, c)
 
@@ -303,7 +303,7 @@ module String = {
 }
 
 module Map = {
-  /* Include this way to allow adding to String and Int submodules */
+  // Include this way to allow adding to String and Int submodules
   include (
     Tablecloth.Map: module type of Tablecloth.Map
       with module String := Tablecloth.Map.String
@@ -354,7 +354,7 @@ module Map = {
 
   let get = (~key, dict: t<'key, 'value, 'id>): option<'value> => Tablecloth.Map.get(dict, key)
 
-  /* Js.String.make gives us "[object Object]", so we actually want our own toString. Not perfect, but slightly nicer (e.g., for App.ml's DisplayAndReportHttpError, info's values are all strings, which this handles) */
+  // Js.String.make gives us "[object Object]", so we actually want our own toString. Not perfect, but slightly nicer (e.g., for App.ml's DisplayAndReportHttpError, info's values are all strings, which this handles)
   let toString = (d: t<'key, 'value, 'id>) =>
     d
     |> toList
@@ -424,7 +424,7 @@ module Map = {
 }
 
 module Set = {
-  /* Include this way to allow adding to String and Int submodules */
+  // Include this way to allow adding to String and Int submodules
   include (
     Tablecloth.Set: module type of Tablecloth.Set
       with module String := Tablecloth.Set.String

@@ -22,7 +22,7 @@ let ancestorFlag = (ast: FluidAST.t, id: ID.t): option<FluidExpression.t> =>
     wasn't created) and the new AST ")
 let wrap = (s: Types.fluidState, ast: FluidAST.t, id: ID.t): (option<ID.t>, FluidAST.t) =>
   switch ancestorFlag(ast, id) {
-  | Some(_) => (None, ast) /* don't nest flags! */
+  | Some(_) => (None, ast) // don't nest flags!
   | None =>
     let flagName = "flag-" ++ (gid() |> ID.toString)
     let flagID = gid()
@@ -39,7 +39,7 @@ let wrap = (s: Types.fluidState, ast: FluidAST.t, id: ID.t): (option<ID.t>, Flui
     }
 
     if isSelectAll {
-      /* selected all - wrap the whole thing */
+      // selected all - wrap the whole thing
       (Some(flagID), FluidAST.ofExpr(E.EFeatureFlag(flagID, flagName, E.newB(), expr, E.newB())))
     } else {
       let ast = FluidAST.update(id, ast, ~f=x =>
@@ -128,7 +128,7 @@ let unwrap = (keep: unwrapKeep, ast: FluidAST.t, id: ID.t): option<FluidAST.t> =
   )
   |> Option.orElseLazy(_ => ancestorFlag(ast, id))
   |> Option.map(~f=flag =>
-    /* once we've found the flag, remove it, keeping the correct thing */
+    // once we've found the flag, remove it, keeping the correct thing
     FluidAST.update(E.toID(flag), ast, ~f=x =>
       switch x {
       | E.EFeatureFlag(_id, _name, _cond, oldCode, newCode) =>

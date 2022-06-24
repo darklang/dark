@@ -64,7 +64,7 @@ let fetch_ = (
     resolve(postMessage(self, on_success(result)))
   })
   |> catch(err =>
-    /* Js.Promise.error is opaque, and we just put this in here */
+    // Js.Promise.error is opaque, and we just put this in here
     switch Obj.magic(err) {
     | NoneFound =>
       /* Note: there's no user facing error here, we just want to try
@@ -91,7 +91,7 @@ let fetch_ = (
 }
 
 let fetch = (context: Types.fetchContext, request: Types.fetchRequest) => {
-  let urlRoot = context.origin ++ context.apiRoot ++ context.canvasName
+  let urlRoot = context.origin ++ API.apiRoot ++ context.canvasName
   switch request {
   | TraceFetch(gdtp) =>
     let url = urlRoot ++ "/get_trace_data"

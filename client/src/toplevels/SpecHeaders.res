@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module P = Pointer
 

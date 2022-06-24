@@ -19,7 +19,7 @@ let registerGlobal = (eventName, key, tagger, decoder) => {
   Tea_sub.registration(key, enableCall)
 }
 
-/* Same, but no JSON decoding */
+// Same, but no JSON decoding
 let registerGlobalDirect = (name, key, tagger) => {
   open Vdom
   let enableCall = callbacks_base => {
@@ -106,19 +106,6 @@ module OnWheel = {
   }
 
   let listen = (~key, tagger) => registerGlobal("wheel", key, tagger, decode)
-}
-
-module OnCaptureView = {
-  @val @scope(("window", "Dark", "view")) external _capture: unit => unit = "capture"
-
-  let capture = ((): unit): Tea.Cmd.t<Types.msg> => Tea_cmd.call(_ => _capture())
-
-  let decode = {
-    open Tea.Json.Decoder
-    map(msg => msg, field("detail", string))
-  }
-
-  let listen = (~key, tagger) => registerGlobal("captureView", key, tagger, decode)
 }
 
 module DarkMouse = {

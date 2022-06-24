@@ -7,17 +7,16 @@ Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
 
+
+
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-Connection: keep-alive
-Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
+Server: darklang
+Access-Control-Allow-Origin: *
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Type: text/plain; charset=utf-8
 x-darklang-execution-id: 0123456789
 Content-Length: LENGTH
 
-{ "Error": "Expected a string with only numbers, got not an int" } // OCAMLONLY
-{ "Error": "Expected to parse string with only numbers, instead got \"not an int\"" } // FSHARPONLY
+{ "Error": "Expected to parse string with only numbers, instead got \"not an int\"" }

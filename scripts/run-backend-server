@@ -6,9 +6,6 @@ set -euo pipefail
 
 BINPATH="_build/default/backend/bin"
 SERVER_EXE="$BINPATH/server.exe"
-QW_EXE="$BINPATH/queue_worker.exe"
-CRON_EXE="$BINPATH/cron_checker.exe"
-TUNNEL_DAEMON_EXE="containers/tunnel2/tunnel2-daemon"
 
 # Stop the server processes
 echo "Stopping servers"
@@ -17,43 +14,23 @@ sudo pkill -f server.exe || true
 pkill -f queue_worker.exe || true
 pkill -f cron_checker.exe || true
 
-# tunnel cleanup
-echo "pkill tunnel"
-sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
-echo "rm tunnel"
-sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
-echo "pkill sleep"
-sudo pkill -f sleep.infinity || true
-# end tunnel cleanup
-
-echo "Waiting for postgres"
-./scripts/devcontainer/_wait-for-background-services postgresql
-
-# Run tunnel
-sudo mkdir -p /run/sshd
-echo "Starting tunnel"
-# shellcheck disable=SC2024
-sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
-echo "Started tunnel"
+./scripts/run-httptunnel
 
 # if it hasn't been compiled yet, wait for it
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
 do
-  if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
+  if [[ ! -f "${SERVER_EXE}" ]]; then
     sleep 0.01
   fi
 done
 echo "Done waiting for compiled servers"
 
-if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
+if [[ -f "${SERVER_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
   echo "Running server"
   # shellcheck disable=SC2024
   sudo --preserve-env "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
-  "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
-  "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
-
   scripts/run-nginx-server
 else
   echo "Missing OCaml binaries"

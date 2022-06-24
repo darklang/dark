@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+echo "Running PubSub emulator"
+
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
+
+# This is slow to start up, so if it's already loaded, don't restart
+if [[ $(pgrep --full 'cloud-pubsub-emulator-0.6.0.jar') == "" ]] ; then
+  gcloud beta emulators pubsub start \
+    --host-port=0.0.0.0:8085 \
+    > "$LOGS/pub-sub-emulator.log" 2>&1 &
+fi
+
+# Pubsub takes ~1s to startup
+while ! curl --output /dev/null --silent --head http://0.0.0.0:8085 ; do
+  sleep 1
+  echo .
+done
+
+echo "Finished loading PubSub emulator"

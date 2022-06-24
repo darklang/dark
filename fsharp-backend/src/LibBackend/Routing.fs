@@ -30,7 +30,8 @@ let routeToPostgresPattern (route : string) : string =
 
   // https://www.postgresql.org/docs/9.6/functions-matching.html
   route
-  |> String.collect (function
+  |> String.collect (fun str ->
+    match str with
     | '%' -> "\\%"
     | '_' -> "\\_"
     | other -> string other)
@@ -183,14 +184,6 @@ let filterMatchingHandlers
   |> filterMatchingHandlersBySpecificity
 
 
-let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.T>> =
-  Sql.query
-    "SELECT canvas
-     FROM custom_domains
-     WHERE host = @host"
-  |> Sql.parameters [ "host", Sql.string customDomain ]
-  |> Sql.executeRowOptionAsync (fun read -> read.string "canvas" |> CanvasName.create)
-
 
 let addCustomDomain
   (customDomain : string)
@@ -207,18 +200,27 @@ let addCustomDomain
                       "canvas", Sql.string (string canvasName) ]
   |> Sql.executeStatementAsync
 
-let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
-  task {
-    match host.Split [| '.' |] with
-    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
-    // just another load balancer
-    | [| a; "darkcustomdomain"; "com" |]
-    | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
-    | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
-    | _ -> return! canvasNameFromCustomDomain host
-  }
+type CanvasSource =
+  | Bwd of string
+  | CustomDomain of string
+
+
+let canvasSourceFromHost (host : string) : CanvasSource =
+  match host.Split [| '.' |] with
+  // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's just
+  // another load balancer. This is a minor concern, but a nice feeling for users
+  // when they're setting up the domain. We only do something special when the host
+  // is an actual custom domain (that is, the domain pointing to)
+
+  | [| a; "darkcustomdomain"; "com" |]
+  | [| a; "builtwithdark"; "localhost" |]
+  | [| a; "builtwithdark"; "com" |] ->
+    // If the name is invalid, we'll 404 later
+    Bwd a
+  | [| "builtwithdark"; "localhost" |]
+  | [| "builtwithdark"; "com" |] -> Bwd "builtwithdark"
+  | _ -> CustomDomain host
+
 
 let sanitizeUrlPath (path : string) : string =
   path

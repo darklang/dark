@@ -17,6 +17,7 @@ open LibExecution
 open LibBackend
 open VendoredTablecloth
 
+module Telemetry = LibService.Telemetry
 
 module RT = RuntimeTypes
 
@@ -120,8 +121,8 @@ module ContentType =
     |> Option.map (fun s -> s.Contains "application/json")
     |> Option.defaultValue false
 
-  // this isn't a "contains", to match the OCaml impl.
   let hasFormHeaderWithoutCharset (headers : HttpHeaders.T) : bool =
+    // CLEANUP: don't use contains for this
     HttpHeaders.get "content-type" headers
     |> Option.map (fun s -> s = "application/x-www-form-urlencoded")
     |> Option.defaultValue false
@@ -130,7 +131,7 @@ module ContentType =
 
 // includes an implicit content-type
 type Content =
-  // OCaml's impl. uses cURL under the hood.
+  // OCaml's impl. used cURL under the hood.
   // cURL is special in that it will assume that
   // the request is a _form_ request if unspecified,
   // when POST/PUTing
@@ -179,7 +180,7 @@ let socketHandler : HttpMessageHandler =
 let httpClient : HttpClient =
   let client = new HttpClient(socketHandler, disposeHandler = false)
   client.Timeout <- System.TimeSpan.FromSeconds 30.0
-  // Can't find what this was in OCaml/Curl, but 100MB seems a reasonable default
+  // 100MB seems a reasonable default
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
@@ -196,7 +197,6 @@ let prependInternalErrorMessage errorMessage =
   $"Internal HTTP-stack exception: {errorMessage}"
 
 let makeHttpCall
-  (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
@@ -204,6 +204,7 @@ let makeHttpCall
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
+    use _ = Telemetry.child "LegacyHttpClient.call" [ "url", url; "method", method ]
     try
       let uri = System.Uri(url, System.UriKind.Absolute)
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
@@ -220,13 +221,10 @@ let makeHttpCall
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
-        let queryString =
-          // Remove leading '?'
-          if uri.Query = "" then "" else uri.Query.Substring 1
-        reqUri.Query <-
-          DvalReprExternal.queryToEncodedString (
-            queryParams @ DvalReprExternal.parseQueryString queryString
-          )
+        // Remove the question mark
+        let query =
+          if uri.Query.Length > 0 then String.dropLeft 1 uri.Query else uri.Query
+        reqUri.Query <- HttpQueryEncoding.createQueryString query queryParams
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in
@@ -250,16 +248,40 @@ let makeHttpCall
               Base64.defaultEncodeToString (UTF8.toBytes authString)
             )
 
+        // If the user set the content-length, then we want to try to set the content
+        // length of the data. Don't let it be set too large though, as that isn't
+        // allowed in .NET.
+        let contentLengthHeader : Option<int> =
+          reqHeaders
+          |> List.find (fun (k, v) -> String.equalsCaseInsensitive k "content-length")
+          // Note: in ocaml it would send nonsense headers, .NET doesn't allow it
+          |> Option.bind (fun (k, v) -> parseInt v)
+
         // content
         let utf8 = System.Text.Encoding.UTF8
         match reqBody with
         | FormContent s ->
+          let s =
+            match contentLengthHeader with
+            | None -> s
+            | Some count when count >= s.Length -> s
+            | Some count -> s.Substring(0, count)
           req.Content <-
             new StringContent(s, utf8, "application/x-www-form-urlencoded")
         | StringContent str ->
+          let str =
+            match contentLengthHeader with
+            | None -> str
+            | Some count when count >= str.Length -> str
+            | Some count -> str.Substring(0, count)
           req.Content <- new StringContent(str, utf8, "text/plain")
         | NoContent -> req.Content <- new ByteArrayContent [||]
         | FakeFormContentToMatchCurl s ->
+          let s =
+            match contentLengthHeader with
+            | None -> s
+            | Some count when count >= s.Length -> s
+            | Some count -> s.Substring(0, count)
           req.Content <-
             new StringContent(s, utf8, "application/x-www-form-urlencoded")
           req.Content.Headers.ContentType.CharSet <- System.String.Empty
@@ -279,7 +301,10 @@ let makeHttpCall
                 Headers.MediaTypeHeaderValue.Parse(v)
             with
             | :? System.FormatException ->
-              Exception.raiseDeveloper "Invalid content-type header" []
+              Exception.raiseCode "Invalid content-type header"
+          elif String.equalsCaseInsensitive k "content-length" then
+            // Handled above
+            ()
           else
             // Dark headers can only be added once, as they use a Dict. Remove them
             // so they don't get added twice (eg via Authorization headers above)
@@ -291,6 +316,8 @@ let makeHttpCall
               req.Content.Headers.Add(k, v))
 
         // send request
+        Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
+        Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
         use! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
@@ -298,11 +325,13 @@ let makeHttpCall
         // some reason.
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let encoding = response.Content.Headers.ContentEncoding.ToString()
+        Telemetry.addTags [ "response.encoding", encoding
+                            "response.status_code", response.StatusCode
+                            "response.version", response.Version ]
         use! responseStream = response.Content.ReadAsStreamAsync()
         use contentStream : Stream =
           let decompress = CompressionMode.Decompress
-          // The version of Curl we used in OCaml does not support zstd, so omitting
-          // that won't break anything.
+          // CLEANUP support zstd
           match String.toLowercase encoding with
           | "br" -> new BrotliStream(responseStream, decompress)
           | "gzip" -> new GZipStream(responseStream, decompress)
@@ -319,7 +348,10 @@ let makeHttpCall
           // lot
           let latin1 =
             try
-              let charset = response.Content.Headers.ContentType.CharSet
+              let charset = response.Content.Headers.ContentType.CharSet.ToLower()
+              Telemetry.addTag
+                "response.content_type"
+                response.Content.Headers.ContentType
               match charset with
               | "latin1"
               | "us-ascii"
@@ -334,7 +366,6 @@ let makeHttpCall
             respBody
 
         let code = int response.StatusCode
-
         let isHttp2 = (response.Version = System.Net.HttpVersion.Version20)
 
         // CLEANUP: For some reason, the OCaml version includes a header with the HTTP
@@ -363,9 +394,11 @@ let makeHttpCall
     with
     | InvalidEncodingException code ->
       let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
+      Telemetry.addTags [ "error", true; "error.msg", error ]
       return
         Error { url = url; code = code; error = prependInternalErrorMessage error }
     | :? TaskCanceledException -> // only timeouts
+      Telemetry.addTags [ "error", true; "error.msg", "Timeout" ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
@@ -374,20 +407,24 @@ let makeHttpCall
           prependInternalErrorMessage "Unsupported protocol"
         else
           prependInternalErrorMessage e.Message
+      Telemetry.addTags [ "error", true; "error.msg", message ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage message }
     | :? System.UriFormatException ->
+      Telemetry.addTags [ "error", true; "error.msg", "Invalid URI" ]
       return
         Error
           { url = url; code = 0; error = prependInternalErrorMessage "Invalid URI" }
     | :? IOException as e ->
+      Telemetry.addTags [ "error", true; "error.msg", e.Message ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
+      Telemetry.addException [ "error.status_code", code ] e
+      let message = e |> Exception.getMessages |> String.concat " "
       return
-        Error
-          { url = url; code = code; error = prependInternalErrorMessage e.Message }
+        Error { url = url; code = code; error = prependInternalErrorMessage message }
   }
 
 // Encodes [body] as a UTF-8 string, safe for sending across the internet! Uses
@@ -403,9 +440,9 @@ let encodeRequestBody
   | Some dv ->
     match dv with
     | RT.DObj _ when ContentType.hasFormHeaderWithoutCharset headers ->
-      match DvalReprExternal.toFormEncoding dv with
+      match HttpQueryEncoding.toFormEncoding dv with
       | Ok content -> FormContent(content)
-      | Error msg -> Exception.raiseDeveloper msg
+      | Error msg -> Exception.raiseCode msg
     | _ when ContentType.hasNoContentType headers ->
       FakeFormContentToMatchCurl(jsonFn dv)
     | _ -> StringContent(jsonFn dv)
@@ -413,7 +450,6 @@ let encodeRequestBody
 
 let rec httpCall
   (count : int)
-  (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
@@ -427,14 +463,14 @@ let rec httpCall
     //   2) when redirecting, it kept the Authorization header (which HTTPClient drops)
     //   3) when redirecting, it failed appropriately when the scheme was not http/https
     // Each of these was a breaking change, and not great, but considering all three
-    // it felt worth implementing redirects outselves. Note that we did not use
+    // it felt worth implementing redirects ourselves. Note that we did not use
     // recursion within makeHttpCall, to ensure that the HTTP objects/streams were
     // all cleaned up before the redirect happened. We do keep more data in this case
     // than we would like but they're all redirects and so unlikely to have bodies.
     if (count > 50) then
       return Error { url = url; code = 0; error = "Too many redirects" }
     else
-      let! response = makeHttpCall rawBytes url queryParams method reqHeaders reqBody
+      let! response = makeHttpCall url queryParams method reqHeaders reqBody
 
       match response with
       | Ok result when result.code >= 300 && result.code < 400 ->
@@ -450,7 +486,6 @@ let rec httpCall
           let newUrl = System.Uri(System.Uri(url), locationUrl).ToString()
 
           // Match curls default redirect behaviour: if it's a POST with content, redirect to GET
-          // FSTODO: are some headers involved
           let method, reqBody =
             match reqBody with
             | StringContent body when body <> "" ->
@@ -463,17 +498,22 @@ let rec httpCall
                 HttpMethod.Get, NoContent
               else
                 method, NoContent
-
             | _ -> method, reqBody
 
           // Unlike HttpClient, do not drop the authorization header
           let! newResponse =
-            httpCall newCount rawBytes newUrl queryParams method reqHeaders reqBody
+            // Query params are part of the client's creation of the url. Once the
+            // server redirects, it gives us a new url and we shouldn't append the
+            // query param to it.
+            // Consider: http://redirect.to?url=xyz.com/path
+            httpCall newCount newUrl [] method reqHeaders reqBody
 
           return
             Result.map
               (fun redirectResult ->
-                // Keep all headers along the way, mirroring the OCaml version
+                // Keep all headers along the way, mirroring the OCaml version. The
+                // first request's headers win when there are duplicates.
+                // CLEANUP: really the redirect target should win
                 { redirectResult with
                     headers = redirectResult.headers @ result.headers })
               newResponse

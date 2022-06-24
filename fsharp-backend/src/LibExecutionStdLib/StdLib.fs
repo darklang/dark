@@ -21,29 +21,30 @@ let renames =
     fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0 ]
 
 
-let prefixFns : Lazy<List<BuiltInFn>> =
-  lazy
-    ([ LibBool.fns
-       LibBytes.fns
-       LibChar.fns
-       LibDate.fns
-       LibDict.fns
-       LibFloat.fns
-       LibHttp.fns
-       LibHttpClient.fns
-       LibJson.fns
-       LibMath.fns
-       LibObject.fns
-       LibUuid.fns
-       LibInt.fns
-       LibList.fns
-       // LibMiddleware.fns
-       LibNoModule.fns
-       LibOption.fns
-       LibResult.fns
-       LibString.fns ]
-     |> List.concat
-     |> renameFunctions renames)
+let prefixFns : List<BuiltInFn> =
+  [ LibBool.fns
+    LibBytes.fns
+    LibChar.fns
+    LibDate.fns
+    LibDict.fns
+    LibFloat.fns
+    LibHttp.fns
+    LibHttpClient.fns
+    LibHttpClientAuth.fns
+    LibJson.fns
+    LibMath.fns
+    LibObject.fns
+    LibUuid.fns
+    LibInt.fns
+    LibList.fns
+    // LibMiddleware.fns
+    LibNoModule.fns
+    LibOption.fns
+    LibResult.fns
+    LibCrypto.fns
+    LibString.fns ]
+  |> List.concat
+  |> renameFunctions renames
 
 // -------------------------
 // Infix fns
@@ -79,23 +80,22 @@ let infixFnNames =
   infixFnMapping |> Map.toSeq |> Seq.map FSharpPlus.Operators.item2 |> Set
 
 // Is this the name of an infix function?
-let isInfixName (name : FQFnName.StdlibFnName) = infixFnNames.Contains name
+let isInfixName (module_ : string) (fnName : string) =
+  infixFnNames.Contains { module_ = module_; function_ = fnName; version = 0 }
 
-let infixFns : Lazy<List<BuiltInFn>> =
-  lazy
-    (let fns =
-      prefixFns
-      |> Lazy.force
-      |> List.choose (fun (builtin : BuiltInFn) ->
-        let opName = infixFnMapping.TryFind builtin.name
-        Option.map (fun newName -> { builtin with name = newName }) opName)
+let infixFns : List<BuiltInFn> =
+  let fns =
+    prefixFns
+    |> List.choose (fun (builtin : BuiltInFn) ->
+      let opName = infixFnMapping.TryFind builtin.name
+      Option.map (fun newName -> { builtin with name = newName }) opName)
 
-     assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
-     fns)
+  assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
+  fns
 
 
 
 // -------------------------
 // All fns
 // -------------------------
-let fns = lazy (Lazy.force infixFns @ Lazy.force prefixFns)
+let fns = infixFns @ prefixFns

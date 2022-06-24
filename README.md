@@ -1,13 +1,14 @@
 # Dark
 
-This is the main repo for [Dark](https://darklang.com), a combined language, editor, and infrastructure to make it easy to build backends.
+This is the main repo for [Dark](https://darklang.com), a combined language, editor,
+and infrastructure to make it easy to build backends.
 
 This repo is intended to help Dark users solve their needs by fixing bugs, expanding features, or otherwise contributing. Dark is
 [source available, not open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
 
 See also:
 
-- [Project Tracking](https://github.com/darklang/dark/projects/1) - what we're actually
+- [Project Tracking](https://github.com/orgs/darklang/projects/5) - what we're actually
   working on right
 - [Darklang Community Slack](https://darklang.com/slack-invite)
 - [Roadmap](https://github.com/darklang/dark/issues/3284)
@@ -81,7 +82,7 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 - If you see "initial compile failed", it may be a memory issue. Sometimes
   trying again will work. If not, ensure you have Docker configured to provide
   4GB or more of memory, then try again.
-- Open your browser to http://darklang.localhost:8000/a/dark/, username "dark",
+- Open your browser to http://darklang.localhost:9000/a/dark/, username "dark",
   password "what"
 - Edit code normally - on each save to your filesystem, the app will be rebuilt
   and the browser will reload as necessary
@@ -111,8 +112,6 @@ Unit tests run when you specify `--test` to `scripts/builder`. You can run them 
 - `scripts/run-client-tests`
 - `scripts/run-backend-tests`
 - `scripts/run-fsharp-tests`
-- `scripts/run-rust-tests containers/stroller`
-- `scripts/run-rust-tests containers/queue-scheduler`
 
 Integration tests:
 
@@ -179,10 +178,9 @@ the dev container.
 
 ## Production Services
 
-The app is split into [backend/](backend) (being converted into
-[fsharp-backend](fsharp-backend)) and [client/](client). Part of the backend is
-used in the client ([jsanalysis](backend/jsanalysis), and in F#:
-[Wasm](fsharp-backend/src/Wasm)).
+The app is split into [fsharp-backend](fsharp-backend) and [client/](client).
+Part of the backend is used in the client ([Analysis](fsharp-backend/src/Analysis)).
+
 These are compiled to create libraries and binaries.
 
 These are put into containers, whose definitions are in [containers/](containers). We also
@@ -199,9 +197,7 @@ A _service_ in our repo typically wraps a deployment, but it can sometimes mean
 other things, so we also have a number of other services, defined via yaml
 files, in [services](services). Some of the services are deployments that use
 3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
-Google Cloud services. Some deployments just have a single container (eg
-[queue-scheduler](services/scheduler-deployment) and
-[postgres-honeytail](services/postgres-honeytail)).
+Google Cloud services.
 
 ## Other important docs
 

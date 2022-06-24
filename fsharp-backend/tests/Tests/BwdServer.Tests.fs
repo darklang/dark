@@ -1,3 +1,8 @@
+/// Tests the builtwithdark.com server (`BwdServer`),
+/// which is the server that runs Dark users' HTTP handlers.
+///
+/// Test files are stored in the `tests/httptestfiles` directory,
+/// which includes a README.md of how these tests work.
 module Tests.BwdServer
 
 open Expecto
@@ -20,14 +25,12 @@ module Canvas = LibBackend.Canvas
 open TestUtils.TestUtils
 open System.Text.Json
 
-type Server =
-  | OCaml
-  | FSharp
-
 type Test =
   { handlers : List<string * string * string>
     cors : Option<string>
     secrets : List<string * string>
+    /// Allow testing of a specific canvas name
+    canvasName : Option<string>
     customDomain : Option<string>
     request : byte array
     response : byte array }
@@ -38,15 +41,14 @@ type TestParsingState =
   | InResponse
   | InRequest
 
-let nl = byte '\n'
+let newline = byte '\n'
 
-// Take a byte array and split it by newline, returning a list of lists. The
-// arrays do NOT have the newlines in them.
-
+/// Take a byte array and split it by newline, returning a list of lists. The
+/// arrays do NOT have the newlines in them.
 let splitAtNewlines (bytes : byte array) : byte list list =
   bytes
   |> Array.fold [ [] ] (fun state b ->
-    if b = nl then
+    if b = newline then
       [] :: state
     else
       match state with
@@ -61,7 +63,7 @@ let findIndex (pattern : 'a list) (list : 'a list) : int option =
   else
     let mutable i = 0
     let mutable result = None
-    while result = None && i < list.Length - pattern.Length do
+    while result = None && i <= list.Length - pattern.Length do
       let mutable matches = true
       let mutable j = 0
       while matches && j < pattern.Length do
@@ -79,7 +81,7 @@ let findLastIndex (pattern : 'a list) (list : 'a list) : int option =
   |> Option.map (fun i -> list.Length - i - pattern.Length)
 
 
-// Parse the test line-by-line. We don't use regex here because we want to test more than strings
+/// Parse the test line-by-line. We don't use regex here because we want to test more than strings
 let parseTest (bytes : byte array) : Test =
   let lines : List<List<byte>> = bytes |> splitAtNewlines
   let emptyTest =
@@ -87,6 +89,7 @@ let parseTest (bytes : byte array) : Test =
       cors = None
       secrets = []
       customDomain = None
+      canvasName = None
       request = [||]
       response = [||] }
   lines
@@ -109,6 +112,8 @@ let parseTest (bytes : byte array) : Test =
         (Limbo, { result with secrets = secrets @ result.secrets })
       | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
         (Limbo, { result with customDomain = Some customDomain })
+      | Regex "\[canvas-name (\S+)]" [ canvasName ] ->
+        (Limbo, { result with canvasName = Some canvasName })
       | "[request]" -> (InRequest, result)
       | "[response]" -> (InResponse, result)
       | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
@@ -127,12 +132,12 @@ let parseTest (bytes : byte array) : Test =
           InResponse,
           { result with
               response =
-                Array.concat [| result.response; Array.ofList line; [| nl |] |] }
+                Array.concat [| result.response; Array.ofList line; [| newline |] |] }
         | InRequest ->
           InRequest,
           { result with
               request =
-                Array.concat [| result.request; Array.ofList line; [| nl |] |] }
+                Array.concat [| result.request; Array.ofList line; [| newline |] |] }
         | Limbo ->
           if line.Length = 0 then
             (Limbo, result)
@@ -142,11 +147,14 @@ let parseTest (bytes : byte array) : Test =
               [ "line", line ])
   |> Tuple2.second
   |> fun test ->
-       // Remove the superfluously added newline on response (keep it on the request though)
-       { test with response = Array.slice 0 -1 test.response }
+       { test with
+           // Remove the superfluously added newline on response
+           response = Array.slice 0 -1 test.response
+           // Allow separation from the next section with a blank line
+           request = Array.slice 0 -2 test.request }
 
-// Replace `pattern` in the byte array with `replacement` - both are provided as strings
-// for convenience, but obviously both will be converted to bytes
+/// Replace `pattern` in the byte array with `replacement` - both are provided as strings
+/// for convenience, but obviously both will be converted to bytes
 let replaceByteStrings
   (pattern : string)
   (replacement : string)
@@ -154,7 +162,7 @@ let replaceByteStrings
   : byte array =
   let patternBytes = UTF8.toBytes pattern
   let replacementBytes = UTF8.toBytes replacement |> Array.toList |> List.reverse
-  let list = Array.toList bytes
+
   if pattern.Length = 0 || bytes.Length < pattern.Length then
     bytes
   else
@@ -186,24 +194,17 @@ let replaceByteStrings
     // bytes are added in reverse, so one more reverse needed
     result |> List.reverse |> List.toArray
 
+/// Initializes and sets up a test canvas (handlers, secrets, etc.)
+let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
+  task {
+    let! (meta : Canvas.Meta) =
+      let canvasName =
+        match test.canvasName with
+        | Some name -> Exact name
+        | None -> Randomized $"bwdserver-{testName}"
+      initializeTestCanvas canvasName
 
-
-
-
-
-let t filename =
-  testTask $"Httpfiles: {filename}" {
-    let skip = String.startsWith "_" filename
-    let name =
-      let withoutPrefix = if skip then String.dropLeft 1 filename else filename
-      withoutPrefix |> String.dropRight 5 // ".test"
-    let! (meta : Canvas.Meta) = initializeTestCanvas $"bwdserver-{name}"
-
-    let filename = $"tests/httptestfiles/{filename}"
-    let! contents = System.IO.File.ReadAllBytesAsync filename
-
-    let test = parseTest contents
-
+    // Handlers
     let oplists =
       test.handlers
       |> List.map (fun (httpMethod, httpRoute, progString) ->
@@ -231,11 +232,11 @@ let t filename =
     // CORS
     match test.cors with
     | None -> ()
-    | Some "" -> do! Canvas.updateCorsSetting meta.id None
-    | Some "*" -> do! Canvas.updateCorsSetting meta.id (Some Canvas.AllOrigins)
+    | Some "" -> ()
+    | Some "*" -> HttpMiddleware.Cors.Test.addAllOrigins meta.name
     | Some domains ->
-      let domains = (Canvas.Origins(String.split "," domains))
-      do! Canvas.updateCorsSetting meta.id (Some domains)
+      let domains = String.split "," domains
+      HttpMiddleware.Cors.Test.addOrigins meta.name domains
 
     // Custom domains
     match test.customDomain with
@@ -247,159 +248,191 @@ let t filename =
       test.secrets
       |> List.map (fun (name, value) -> LibBackend.Secret.insert meta.id name value)
       |> Task.WhenAll
+      |> Task.map (fun _ -> ())
 
-    let normalizeActualHeaders
-      (hs : (string * string) list)
-      : (string * string) list =
-      hs
-      |> List.map (fun (k, v) ->
-        match k, v with
-        | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
-        | "x-darklang-execution-id", _ -> k, "0123456789"
-        | other -> (k, v))
-      |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
-
-    let normalizeExpectedHeaders
-      (hs : (string * string) list)
-      (actualBody : byte array)
-      : (string * string) list =
-      hs
-      |> List.map (fun (k, v) ->
-        match k, v with
-        // Json can be different lengths, this plugs in the expected length
-        | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
-        | _ -> (k, v))
-      |> List.sortBy Tuple2.first
-
-
-    let callServer (server : Server) : Task<unit> =
-      task {
-        // Web server might not be loaded yet
-        use client = new TcpClient()
-
-        let port =
-          match server with
-          | OCaml -> TestConfig.ocamlServerNginxPort
-          | FSharp -> TestConfig.bwdServerNginxPort
-
-        let mutable connected = false
-
-        for i in 1..10 do
-          try
-            if not connected then
-              do! client.ConnectAsync("127.0.0.1", port)
-              connected <- true
-          with
-          | _ when i <> 10 ->
-            print $"Server not ready on port {port}, maybe retry"
-            do! System.Threading.Tasks.Task.Delay 1000
-
-        use stream = client.GetStream()
-        stream.ReadTimeout <- 1000 // responses should be instant, right?
-
-        if test.request |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH" then
-          Expect.isFalse true "LENGTH substitution not done on request"
-
-        let host = $"{meta.name}.builtwithdark.localhost:{port}"
-        let canvasName = string meta.name
-        let request =
-          test.request
-          |> replaceByteStrings "HOST" host
-          |> replaceByteStrings "CANVAS" canvasName
-          |> Http.setHeadersToCRLF
-
-
-        do! stream.WriteAsync(request, 0, request.Length)
-
-        // Read the response
-        let length = 10000
-        let response = Array.zeroCreate length
-        let! byteCount = stream.ReadAsync(response, 0, length)
-        let response = Array.take byteCount response
-
-        // Prepare expected response
-        let expectedResponse =
-          test.response
-          |> splitAtNewlines
-          |> List.filterMap (fun line ->
-            let asString = line |> List.toArray |> UTF8.ofBytesWithReplacement
-            if String.includes "// " asString then
-              if String.includes "OCAMLONLY" asString && server = FSharp then
-                None
-              else if String.includes "FSHARPONLY" asString && server = OCaml then
-                None
-              else if String.includes "KEEP" asString then
-                Some line
-              else
-                // Remove final comment only
-                let index =
-                  findLastIndex [ byte ' '; byte '/'; byte '/' ] line
-                  |> Option.orElse (findLastIndex [ byte '/'; byte '/' ] line)
-                  |> Option.unwrapUnsafe
-                line |> List.splitAt index |> Tuple2.first |> Some
-            else
-              Some line)
-          |> List.map (fun l -> List.append l [ nl ])
-          |> List.flatten
-          |> List.initial // remove final newline which we don't want
-          |> Option.unwrapUnsafe
-          |> List.toArray
-          |> replaceByteStrings "HOST" host
-          |> replaceByteStrings "CANVAS" canvasName
-          |> Http.setHeadersToCRLF
-
-        // Parse and normalize the response
-        let actual = Http.split response
-        let expected = Http.split expectedResponse
-        let eHeaders = normalizeExpectedHeaders expected.headers actual.body
-        let aHeaders = normalizeActualHeaders actual.headers
-
-        // Test as json or strings
-        let asJson =
-          try
-            Some(
-              LibExecution.DvalReprExternal.parseJson (
-                UTF8.ofBytesUnsafe actual.body
-              ),
-              LibExecution.DvalReprExternal.parseJson (
-                UTF8.ofBytesUnsafe expected.body
-              )
-            )
-          with
-          | e -> None
-
-        match asJson with
-        | Some (aJson, eJson) ->
-          let serialize (json : JsonDocument) =
-            LibExecution.DvalReprExternal.writePrettyJson json.WriteTo
-          Expect.equal
-            (actual.status, aHeaders, serialize aJson)
-            (expected.status, eHeaders, serialize eJson)
-            $"({server} as json)"
-        | None ->
-          match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
-          | Some actualBody, Some expectedBody ->
-            Expect.equal
-              (actual.status, aHeaders, actualBody)
-              (expected.status, eHeaders, expectedBody)
-              $"({server} as string)"
-          | _ ->
-            Expect.equal
-              (actual.status, aHeaders, actual.body)
-              (expected.status, eHeaders, expected.body)
-              $"({server} as bytes)"
-      }
-
-    if skip then
-      skiptest $"underscore test - {name}"
-    else
-      do! callServer OCaml // check OCaml to see if we got the right answer
-      do! callServer FSharp // test F# impl
+    return meta
   }
 
+let normalizeActualHeaders (hs : (string * string) list) : (string * string) list =
+  hs
+  |> List.filterMap (fun (k, v) ->
+    match k, v with
+    | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+    | "expires", _
+    | "Expires", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+    | "x-darklang-execution-id", _ -> Some(k, "0123456789")
+    | "age", _
+    | "Age", _ -> None
+    | "X-GUploader-UploadID", _
+    | "x-guploader-uploadid", _ -> Some(k, "xxxx")
+    | "x-goog-generation", _ -> Some(k, "xxxx")
+    | _other -> Some(k, v))
+  |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
+
+let normalizeExpectedHeaders
+  (headers : (string * string) list)
+  (actualBody : byte array)
+  : (string * string) list =
+  headers
+  |> List.map (fun (k, v) ->
+    match k, v with
+    // JSON can be different lengths, this plugs in the expected length
+    | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
+    | _ -> (k, v))
+  |> List.sortBy Tuple2.first
+
+/// create a TCP client, used to make test HTTP requests
+let createClient (port : int) : Task<TcpClient> =
+  task {
+    let client = new TcpClient()
+
+    // Web server might not be loaded yet
+    let mutable connected = false
+    for i in 1..10 do
+      try
+        if not connected then
+          do! client.ConnectAsync("127.0.0.1", port)
+          connected <- true
+      with
+      | _ when i <> 10 ->
+        print $"Server not ready on port {port}, maybe retry"
+        do! System.Threading.Tasks.Task.Delay 1000
+    return client
+  }
+
+/// Makes the test request to one of the servers,
+/// testing the response matches expectations
+let runTestRequest
+  (canvasName : string)
+  (testRequest : byte array)
+  (testResponse : byte array)
+  : Task<unit> =
+  task {
+    let port = TestConfig.bwdServerBackendPort
+
+    let host = $"{canvasName}.builtwithdark.localhost:{port}"
+
+    let request =
+      testRequest
+      |> replaceByteStrings "HOST" host
+      |> replaceByteStrings "CANVAS" canvasName
+      |> Http.setHeadersToCRLF
+
+    // Check body matches content-length
+    let incorrectContentTypeAllowed =
+      testRequest
+      |> UTF8.ofBytesWithReplacement
+      |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
+
+    if not incorrectContentTypeAllowed then
+      let parsedTestRequest = Http.split request
+      let contentLength =
+        parsedTestRequest.headers
+        |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
+      match contentLength with
+      | None -> ()
+      | Some (_, v) ->
+        if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
+          ()
+        else
+          Expect.equal parsedTestRequest.body.Length (int v) ""
+
+    // Check input LENGTH not set
+    if testRequest |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
+       && not incorrectContentTypeAllowed then // false alarm as also have LENGTH in it
+      Expect.isFalse true "LENGTH substitution not done on request"
+
+    // Make the request
+    use! client = createClient (port)
+    use stream = client.GetStream()
+    stream.ReadTimeout <- 1000 // responses should be instant, right?
+
+    do! stream.WriteAsync(request, 0, request.Length)
+    do! stream.FlushAsync()
+
+    // Read the response
+    let length = 10000
+    let responseBuffer = Array.zeroCreate length
+    let! byteCount = stream.ReadAsync(responseBuffer, 0, length)
+    stream.Close()
+    client.Close()
+    let response = Array.take byteCount responseBuffer
+
+    // Prepare expected response
+    let expectedResponse =
+      testResponse
+      |> splitAtNewlines
+      |> List.map (fun l -> List.append l [ newline ])
+      |> List.flatten
+      |> List.initial // remove final newline which we don't want
+      |> Exception.unwrapOptionInternal "cannot find newline" []
+      |> List.toArray
+      |> replaceByteStrings "HOST" host
+      |> replaceByteStrings "CANVAS" canvasName
+      |> Http.setHeadersToCRLF
+
+    // Parse and normalize the response
+    let actual = Http.split response
+    let expected = Http.split expectedResponse
+    let expectedHeaders = normalizeExpectedHeaders expected.headers actual.body
+    let actualHeaders = normalizeActualHeaders actual.headers
+
+    // Test as json or strings
+    let asJson =
+      try
+        Some(
+          LibExecution.DvalReprExternal.parseJson (UTF8.ofBytesUnsafe actual.body),
+          LibExecution.DvalReprExternal.parseJson (UTF8.ofBytesUnsafe expected.body)
+        )
+      with
+      | e -> None
+
+    match asJson with
+    | Some (aJson, eJson) ->
+      let serialize (json : JsonDocument) =
+        LibExecution.DvalReprExternal.writePrettyJson json.WriteTo
+      Expect.equal
+        (actual.status, actualHeaders, serialize aJson)
+        (expected.status, expectedHeaders, serialize eJson)
+        $"(json)"
+    | None ->
+      match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
+      | Some actualBody, Some expectedBody ->
+        Expect.equal
+          (actual.status, actualHeaders, actualBody)
+          (expected.status, expectedHeaders, expectedBody)
+          $"(string)"
+      | _ ->
+        Expect.equal
+          (actual.status, actualHeaders, actual.body)
+          (expected.status, expectedHeaders, expected.body)
+          $"(bytes)"
+  }
+
+/// Makes a test to be run
+let t (filename : string) =
+  testTask $"Httpfiles: {filename}" {
+    let shouldSkip = String.startsWith "_" filename
+
+    // read and parse the test
+    let filename = $"tests/httptestfiles/{filename}"
+    let! contents = System.IO.File.ReadAllBytesAsync filename
+
+    let test = parseTest contents
+    let testName =
+      let withoutPrefix = if shouldSkip then String.dropLeft 1 filename else filename
+      withoutPrefix |> String.dropRight (".test".Length)
+
+    // set up a test canvas
+    let! (meta : Canvas.Meta) = setupTestCanvas testName test
+
+    if shouldSkip then
+      skiptest $"underscore test - {testName}"
+    else
+      do! runTestRequest (string meta.name) test.request test.response
+  }
 
 let testsFromFiles =
-  // get all files
   let dir = "tests/httptestfiles/"
 
   System.IO.Directory.GetFiles(dir, "*.test")
@@ -408,13 +441,14 @@ let testsFromFiles =
   |> List.map t
 
 
-
 let tests = testList "BwdServer" [ testList "httptestfiles" testsFromFiles ]
 
 open Microsoft.Extensions.Hosting
 
-// run our own webserver instead of relying on the dev webserver
 let init (token : System.Threading.CancellationToken) : Task =
+  // Make sure cors tests work
+  HttpMiddleware.Cors.Test.initialize ()
+  // run our own webserver instead of relying on the dev webserver
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
   let logger = configureLogging "test-bwdserver"

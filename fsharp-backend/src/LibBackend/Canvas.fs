@@ -12,6 +12,7 @@ open Prelude
 open Tablecloth
 open LibService.Exception
 
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
@@ -19,9 +20,6 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OT = LibExecution.OCamlTypes
 module Telemetry = LibService.Telemetry
 
-type CorsSetting =
-  | AllOrigins
-  | Origins of List<string>
 
 type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
 
@@ -38,15 +36,57 @@ let canvasIDForCanvasName
   |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
 /// Fetch high-level metadata for a canvas
-let getMeta (canvasName : CanvasName.T) : Task<Meta> =
+let getMetaAndCreate (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
-    // CLEANUP put into single query
     let! ownerID = Account.userIDForUserName ownerName
     let! canvasID = canvasIDForCanvasName ownerID canvasName
     return { id = canvasID; owner = ownerID; name = canvasName }
   }
 
+/// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
+/// We want to use this in nearly all cases, with the only exception being when a
+/// user enters a URL to open an editor for a canvas.
+let getMeta (canvasName : CanvasName.T) : Task<Option<Meta>> =
+  Sql.query "SELECT id, account_id from canvases where name = @canvasName"
+  |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
+  |> Sql.executeRowOptionAsync (fun read ->
+    { id = read.uuid "id"; owner = read.uuid "account_id"; name = canvasName })
+
+/// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
+/// We want to use this in nearly all cases, with the only exception being when a
+/// user enters a URL to open an editor for a canvas. Throws if the canvas does not exist.
+let getMetaExn (canvasName : CanvasName.T) : Task<Meta> =
+  task {
+    let! option = getMeta canvasName
+    return
+      Exception.unwrapOptionInternal
+        "getMeta expected to find a canvas"
+        [ "canvasName", canvasName ]
+        option
+  }
+
+
+let getMetaForCustomDomain (customDomain : string) : Task<Option<Meta>> =
+  Sql.query
+    "SELECT c.id, c.account_id, c.name
+           FROM canvases c, custom_domains d
+          WHERE d.canvas = c.name
+            AND d.host = @customDomain"
+  |> Sql.parameters [ "customDomain", Sql.string customDomain ]
+  |> Sql.executeRowOptionAsync (fun read ->
+    { id = read.uuid "id"
+      owner = read.uuid "account_id"
+      name = CanvasName.createExn (read.string "name") })
+
+
+let getMetaFromID (id : CanvasID) : Task<Meta> =
+  Sql.query "SELECT name, account_id FROM canvases WHERE id = @canvasID"
+  |> Sql.parameters [ "canvasID", Sql.uuid id ]
+  |> Sql.executeRowAsync (fun read ->
+    { id = id
+      owner = read.uuid "account_id"
+      name = read.string "name" |> CanvasName.createExn })
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.
@@ -164,11 +204,6 @@ let deleteFunction (tlid : tlid) (c : T) : T =
         userFunctions = Map.remove tlid c.userFunctions
         deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
 
-let deleteFunctionForever (tlid : tlid) (c : T) : T =
-  { c with
-      userFunctions = Map.remove tlid c.userFunctions
-      deletedUserFunctions = Map.remove tlid c.deletedUserFunctions }
-
 let deleteType (tlid : tlid) (c : T) : T =
   match Map.get tlid c.userTypes with
   | None -> c
@@ -177,19 +212,8 @@ let deleteType (tlid : tlid) (c : T) : T =
         userTypes = Map.remove tlid c.userTypes
         deletedUserTypes = Map.add tlid t c.deletedUserTypes }
 
-let deleteTypeForever (tlid : tlid) (c : T) : T =
-  { c with
-      userTypes = Map.remove tlid c.userTypes
-      deletedUserTypes = Map.remove tlid c.deletedUserTypes }
-
-let deleteTLForever (tlid : tlid) (c : T) : T =
-  { c with
-      dbs = Map.remove tlid c.dbs
-      handlers = Map.remove tlid c.handlers
-      deletedDBs = Map.remove tlid c.deletedDBs
-      deletedHandlers = Map.remove tlid c.deletedHandlers }
-
 // CLEANUP Historically, on the backend, toplevel meant handler or DB
+// we want to de-conflate the concepts
 let deleteToplevel (tlid : tlid) (c : T) : T =
   c |> deleteHandler tlid |> deleteDB tlid
 
@@ -252,15 +276,12 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
       setDB (UserDB.create2 tlid name pos id) c
-    | PT.DeleteTLForever tlid -> deleteTLForever tlid c
-    | PT.DeleteFunctionForever tlid -> deleteFunctionForever tlid c
     | PT.SetType t -> setType t c
     | PT.DeleteType tlid -> deleteType tlid c
-    | PT.DeleteTypeForever tlid -> deleteTypeForever tlid c
   with
   | e ->
     // Log here so we have context, but then re-raise
-    let tags = [ ("host", c.meta.name :> obj); ("op", string op) ]
+    let tags = [ ("canvas_name", c.meta.name :> obj); ("op", string op) ]
     Telemetry.addException tags (InternalException("apply_op", e))
     e.Reraise()
 
@@ -291,48 +312,11 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   let reducedOps = Undo.preprocess (oldops @ newops)
   List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
-let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
-  Sql.query "SELECT cors_setting FROM canvases WHERE id = @canvasID"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeRowAsync (fun read ->
-    match read.stringOrNone "cors_setting" with
-    | None -> None
-    | Some str ->
-      let json = System.Text.Json.JsonDocument.Parse str
-
-      match json.RootElement.ValueKind with
-      | System.Text.Json.JsonValueKind.String when json.RootElement.GetString() = "*" ->
-        Some AllOrigins
-      | System.Text.Json.JsonValueKind.Array ->
-        json.RootElement.EnumerateArray()
-        |> Seq.map string
-        |> Seq.toList
-        |> Origins
-        |> Some
-      | _ -> Exception.raiseInternal "invalid json in CorsSettings" [ "json", json ])
 
 let canvasCreationDate (canvasID : CanvasID) : Task<NodaTime.Instant> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
-
-let updateCorsSetting
-  (canvasID : CanvasID)
-  (setting : CorsSetting option)
-  : Task<unit> =
-  let corsSettingToDB (setting : CorsSetting option) : SqlValue =
-    match setting with
-    | None -> Sql.dbnull
-    | Some AllOrigins -> Sql.jsonb "\"*\""
-    | Some (Origins ss) -> ss |> Json.Vanilla.serialize |> Sql.jsonb
-  Sql.query
-    "UPDATE canvases
-     SET cors_setting = @setting
-     WHERE id = @canvasID"
-  |> Sql.parameters [ "setting", corsSettingToDB setting
-                      "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeStatementAsync
-
 
 let urlFor (canvasName : CanvasName.T) : string =
   $"https://{canvasName}.{Config.publicDomain}"
@@ -358,7 +342,7 @@ let empty (meta : Meta) : T =
 let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
 
-let knownBrokenCanvases =
+let knownBrokenCanvases : Set<CanvasName.T> =
   [ "danbowles"
     "danwetherald"
     "ellen-dbproblem18"
@@ -369,7 +353,7 @@ let knownBrokenCanvases =
     "jaeren_sl"
     "jaeren_sl-crud"
     "sydney" ]
-  |> List.map CanvasName.create
+  |> List.map CanvasName.createExn
   |> Set
 
 let loadFrom
@@ -379,10 +363,10 @@ let loadFrom
   : Task<T> =
   task {
     try
-      // CLEANUP: rename "rendered" and "cached" to be consistent
+      Telemetry.addTags [ "tlids", tlids; "loadAmount", loadAmount ]
 
       // load
-      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids
+      let! fastLoadedTLs = Serialize.loadOnlyCachedTLIDs meta.id tlids
 
       let fastLoadedTLIDs = List.map PT.Toplevel.toTLID fastLoadedTLs
 
@@ -433,10 +417,14 @@ let loadTLIDsWithContext (meta : Meta) (tlids : List<tlid>) : Task<T> =
     return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
-let loadForEvent (e : EventQueue.T) : Task<T> =
+let loadForEventV2
+  (meta : Meta)
+  (module' : string)
+  (name : string)
+  (modifier : string)
+  : Task<T> =
   task {
-    let meta = { id = e.canvasID; name = e.canvasName; owner = e.ownerID }
-    let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id e
+    let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id module' name modifier
     return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
@@ -504,9 +492,21 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   |> Option.orElseWith userType
   |> Option.orElseWith deletedUserType
 
+let deleteToplevelForever (meta : Meta) (tlid : tlid) : Task<unit> =
+  // CLEANUP: set deleted column in toplevel_oplists to be not nullable
+  Sql.query
+    "DELETE from toplevel_oplists
+      WHERE canvas_id = @canvasID
+        AND account_id = @accountID
+        AND tlid = @tlid"
+  |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                      "accountID", Sql.uuid meta.owner
+                      "tlid", Sql.id tlid ]
+  |> Sql.executeStatementAsync
 
-// Save just the TLIDs listed (a canvas may load more tlids to support
-// calling/testing these TLs, even though those TLs do not need to be updated)
+
+/// Save just the TLIDs listed (a canvas may load more tlids to support
+/// calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
   (meta : Meta)
   (oplists : List<tlid * PT.Oplist * PT.Toplevel.T * Deleted>)
@@ -520,11 +520,6 @@ let saveTLIDs
       task {
         let string2option (s : string) : Option<string> =
           if s = "" then None else Some s
-
-        let deleted =
-          match deleted with
-          | Deleted -> true
-          | NotDeleted -> false
 
         let routingNames =
           match tl with
@@ -551,10 +546,14 @@ let saveTLIDs
           | PT.Toplevel.TLFunction _ -> None
 
         let (module_, name, modifier) =
-          match routingNames with
-          | Some (module_, name, modifier) ->
-            (string2option module_, string2option name, string2option modifier)
-          | None -> None, None, None
+          // Only save info used to find handlers when the handler has not been deleted
+          if deleted = NotDeleted then
+            match routingNames with
+            | Some (module_, name, modifier) ->
+              (string2option module_, string2option name, string2option modifier)
+            | None -> None, None, None
+          else
+            None, None, None
 
         let pos =
           match tl with
@@ -563,47 +562,50 @@ let saveTLIDs
           | PT.Toplevel.TLType _ -> None
           | PT.Toplevel.TLFunction _ -> None
 
-        // CLEANUP stop saving the ocaml binary
-        let! ocamlOplist = OCamlInterop.oplistToBinary oplist
-        let! ocamlOplistCache = OCamlInterop.toplevelToCachedBinary tl
-        let fsharpOplist = BinarySerialization.serializeOplist tlid oplist
-        let fsharpOplistCache = BinarySerialization.serializeToplevel tl
+        let serializedOplist = BinarySerialization.serializeOplist tlid oplist
+        let serializedOplistCache = BinarySerialization.serializeToplevel tl
+
+        let deleted =
+          match deleted with
+          | Deleted -> true
+          | NotDeleted -> false
 
         return!
           Sql.query
             "INSERT INTO toplevel_oplists
-                  (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
-                   rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
-                  VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
-                          @module, @modifier, @data, @renderedOplistCache, @deleted, @pos,
-                          @oplist, @oplistCache)
-                  ON CONFLICT (canvas_id, tlid) DO UPDATE
-                  SET account_id = @accountID,
-                      digest = @digest,
-                      tipe = @typ::toplevel_type,
-                      name = @name,
-                      module = @module,
-                      modifier = @modifier,
-                      data = @data,
-                      rendered_oplist_cache = @renderedOplistCache,
-                      deleted = @deleted,
-                      pos = @pos,
-                      oplist = @oplist,
-                      oplist_cache = @oplistCache"
+                    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
+                     deleted, pos, oplist, oplist_cache, data, rendered_oplist_cache)
+                    VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
+                            @module, @modifier, @deleted, @pos,
+                            @oplist, @oplistCache,
+                            @ocamlData, @ocamlOplistCache)
+                    ON CONFLICT (canvas_id, tlid) DO UPDATE
+                    SET account_id = @accountID,
+                        digest = @digest,
+                        tipe = @typ::toplevel_type,
+                        name = @name,
+                        module = @module,
+                        modifier = @modifier,
+                        deleted = @deleted,
+                        pos = @pos,
+                        oplist = @oplist,
+                        oplist_cache = @oplistCache,
+                        data = @ocamlData,
+                        rendered_oplist_cache = @ocamlOplistCache"
           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                               "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
-                              "digest", Sql.string (OCamlInterop.digest ())
+                              "digest", Sql.string "fsharp"
                               "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
                               "name", Sql.stringOrNone name
                               "module", Sql.stringOrNone module_
                               "modifier", Sql.stringOrNone modifier
-                              "data", Sql.bytea ocamlOplist
-                              "renderedOplistCache", Sql.bytea ocamlOplistCache
                               "deleted", Sql.bool deleted
                               "pos", Sql.jsonbOrNone pos
-                              "oplist", Sql.bytea fsharpOplist
-                              "oplistCache", Sql.bytea fsharpOplistCache ]
+                              "oplist", Sql.bytea serializedOplist
+                              "oplistCache", Sql.bytea serializedOplistCache
+                              "ocamlData", Sql.bytea [||]
+                              "ocamlOplistCache", Sql.bytea [||] ]
           |> Sql.executeStatementAsync
       })
   with
@@ -663,7 +665,9 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
             let oplist = fromOplist meta [] oplist
             let tls = toplevels oplist
             let dtls = deletedToplevels oplist
-            (Map.mergeFavoringLeft tls dtls) |> Map.get tlid |> Option.unwrapUnsafe
+            (Map.mergeFavoringLeft tls dtls)
+            |> Map.get tlid
+            |> Exception.unwrapOptionInternal "could not find tlid" [ "tlid", tlid ]
           (tlid, oplist, tl, NotDeleted))
       | None -> []
 

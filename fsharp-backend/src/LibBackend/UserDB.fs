@@ -38,27 +38,30 @@ let rec queryExactFields
   (db : RT.DB.T)
   (queryObj : RT.DvalMap)
   : Task<List<string * RT.Dval>> =
-  Sql.query
-    "SELECT key, data
-     FROM user_data
-     WHERE table_tlid = @tlid
-     AND user_version = @userVersion
-     AND dark_version = @darkVersion
-     AND canvas_id = @canvasID
-     AND data @> @fields"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "fields", Sql.queryableDvalMap queryObj ]
-  |> Sql.executeAsync (fun read ->
-    (read.string "key", read.string "data" |> toObj db))
+  task {
+    let! results =
+      Sql.query
+        "SELECT key, data
+           FROM user_data
+          WHERE table_tlid = @tlid
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion
+            AND canvas_id = @canvasID
+            AND data @> @fields"
+      |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                          "userVersion", Sql.int db.version
+                          "darkVersion", Sql.int currentDarkVersion
+                          "canvasID", Sql.uuid state.program.canvasID
+                          "fields", Sql.queryableDvalMap queryObj ]
+      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+    return results |> List.map (fun (key, data) -> (key, toObj db data))
+  }
 
 
 // Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let pObj =
-    match LibExecution.DvalReprInternal.ofInternalQueryableV1 obj with
+    match LibExecution.DvalReprInternalDeprecated.ofInternalQueryableV1 obj with
     | RT.DObj o ->
       // <HACK 1>: some legacy objects were allowed to be saved with `id`
       // keys _in_ the data object itself. they got in the datastore on
@@ -98,7 +101,12 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
   if sameKeys then
     Map.mapWithIndex
       (fun key value ->
-        match (Map.get key cols |> Option.unwrapUnsafe, value) with
+        let col =
+          Map.get key cols
+          |> Exception.unwrapOptionInternal
+               "Could not find Col"
+               [ "name", key; "cols", cols ]
+        match col, value with
         | RT.TInt, RT.DInt _ -> value
         | RT.TFloat, RT.DFloat _ -> value
         | RT.TStr, RT.DStr _ -> value
@@ -112,7 +120,9 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TRecord _, RT.DObj _ -> value
         | _, RT.DNull -> value // allow nulls for now
         | expectedType, valueOfActualType ->
-          Errors.throw (Errors.typeErrorMsg key expectedType valueOfActualType))
+          Exception.raiseCode (
+            Errors.typeErrorMsg key expectedType valueOfActualType
+          ))
       obj
   else
     let missingKeys = Set.difference tipeKeys objKeys
@@ -130,11 +140,11 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
       + "]"
 
     match (Set.isEmpty missingKeys, Set.isEmpty extraKeys) with
-    | false, false -> Errors.throw $"{missingMsg} & {extraMsg}"
-    | false, true -> Errors.throw missingMsg
-    | true, false -> Errors.throw extraMsg
+    | false, false -> Exception.raiseCode $"{missingMsg} & {extraMsg}"
+    | false, true -> Exception.raiseCode missingMsg
+    | true, false -> Exception.raiseCode extraMsg
     | true, true ->
-      Errors.throw
+      Exception.raiseCode
         "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 
@@ -177,22 +187,27 @@ and getOption
   (db : RT.DB.T)
   (key : string)
   : Task<Option<RT.Dval>> =
-  Sql.query
-    "SELECT data
-       FROM user_data
-       WHERE table_tlid = @tlid
-         AND account_id = @accountID
-         AND canvas_id = @canvasID
-         AND user_version = @userVersion
-         AND dark_version = @darkVersion
-         AND key = @key"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid state.program.accountID
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion
-                      "key", Sql.string key ]
-  |> Sql.executeRowOptionAsync (fun read -> read.string "data" |> toObj db)
+  task {
+    let! result =
+      Sql.query
+        "SELECT data
+          FROM user_data
+          WHERE table_tlid = @tlid
+            AND account_id = @accountID
+            AND canvas_id = @canvasID
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion
+            AND key = @key"
+      |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                          "accountID", Sql.uuid state.program.accountID
+                          "canvasID", Sql.uuid state.program.canvasID
+                          "userVersion", Sql.int db.version
+                          "darkVersion", Sql.int currentDarkVersion
+                          "key", Sql.string key ]
+      |> Sql.executeRowOptionAsync (fun read -> read.string "data")
+    return Option.map (toObj db) result
+  }
+
 
 // CLEANUP: this is identical to getManyWithKeys, remove the key
 and getMany
@@ -200,23 +215,26 @@ and getMany
   (db : RT.DB.T)
   (keys : string list)
   : Task<List<string * RT.Dval>> =
-  Sql.query
-    "SELECT key, data
-     FROM user_data
-     WHERE table_tlid = @tlid
-       AND account_id = @accountID
-       AND canvas_id = @canvasID
-       AND user_version = @userVersion
-       AND dark_version = @darkVersion
-       AND key = ANY (@keys)"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid state.program.accountID
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion
-                      "keys", Sql.stringArray (Array.ofList keys) ]
-  |> Sql.executeAsync (fun read ->
-    (read.string "key", read.string "data" |> toObj db))
+  task {
+    let! results =
+      Sql.query
+        "SELECT key, data
+        FROM user_data
+        WHERE table_tlid = @tlid
+          AND account_id = @accountID
+          AND canvas_id = @canvasID
+          AND user_version = @userVersion
+          AND dark_version = @darkVersion
+          AND key = ANY (@keys)"
+      |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                          "accountID", Sql.uuid state.program.accountID
+                          "canvasID", Sql.uuid state.program.canvasID
+                          "userVersion", Sql.int db.version
+                          "darkVersion", Sql.int currentDarkVersion
+                          "keys", Sql.stringArray (Array.ofList keys) ]
+      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+    return results |> List.map (fun (key, data) -> (key, toObj db data))
+  }
 
 
 and getManyWithKeys
@@ -224,44 +242,50 @@ and getManyWithKeys
   (db : RT.DB.T)
   (keys : string list)
   : Task<List<string * RT.Dval>> =
-  Sql.query
-    "SELECT key, data
-     FROM user_data
-     WHERE table_tlid = @tlid
-     AND account_id = @accountID
-     AND canvas_id = @canvasID
-     AND user_version = @userVersion
-     AND dark_version = @darkVersion
-     AND key = ANY (@keys)"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid state.program.accountID
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion
-                      "keys", Sql.stringArray (Array.ofList keys) ]
-  |> Sql.executeAsync (fun read ->
-    (read.string "key", read.string "data" |> toObj db))
+  task {
+    let! results =
+      Sql.query
+        "SELECT key, data
+        FROM user_data
+        WHERE table_tlid = @tlid
+        AND account_id = @accountID
+        AND canvas_id = @canvasID
+        AND user_version = @userVersion
+        AND dark_version = @darkVersion
+        AND key = ANY (@keys)"
+      |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                          "accountID", Sql.uuid state.program.accountID
+                          "canvasID", Sql.uuid state.program.canvasID
+                          "userVersion", Sql.int db.version
+                          "darkVersion", Sql.int currentDarkVersion
+                          "keys", Sql.stringArray (Array.ofList keys) ]
+      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+    return results |> List.map (fun (key, data) -> (key, toObj db data))
+  }
 
 
 let getAll
   (state : RT.ExecutionState)
   (db : RT.DB.T)
   : Task<List<string * RT.Dval>> =
-  Sql.query
-    "SELECT key, data
-     FROM user_data
-     WHERE table_tlid = @tlid
-     AND account_id = @accountID
-     AND canvas_id = @canvasID
-     AND user_version = @userVersion
-     AND dark_version = @darkVersion"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid state.program.accountID
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion ]
-  |> Sql.executeAsync (fun read ->
-    (read.string "key", read.string "data" |> toObj db))
+  task {
+    let! results =
+      Sql.query
+        "SELECT key, data
+        FROM user_data
+        WHERE table_tlid = @tlid
+        AND account_id = @accountID
+        AND canvas_id = @canvasID
+        AND user_version = @userVersion
+        AND dark_version = @darkVersion"
+      |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                          "accountID", Sql.uuid state.program.accountID
+                          "canvasID", Sql.uuid state.program.canvasID
+                          "userVersion", Sql.int db.version
+                          "darkVersion", Sql.int currentDarkVersion ]
+      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+    return results |> List.map (fun (key, data) -> (key, toObj db data))
+  }
 
 // Reusable function that provides the template for the SqlCompiler query functions
 let doQuery
@@ -308,11 +332,11 @@ let query
   : Task<List<string * RT.Dval>> =
   task {
     let! results = doQuery state db b "key, data"
-
-    return!
+    let! results =
       results
-      |> Sql.executeAsync (fun read ->
-        (read.string "key", read.string "data" |> toObj db))
+      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+
+    return results |> List.map (fun (key, data) -> (key, toObj db data))
   }
 
 let queryValues
@@ -323,8 +347,9 @@ let queryValues
   task {
     let! results = doQuery state db b "data"
 
-    return!
-      results |> Sql.executeAsync (fun read -> (read.string "data" |> toObj db))
+    let! results = results |> Sql.executeAsync (fun read -> (read.string "data"))
+
+    return results |> List.map (toObj db)
   }
 
 let queryCount
@@ -411,23 +436,27 @@ let statsPluck
   (ownerID : UserID)
   (db : RT.DB.T)
   : Task<Option<RT.Dval * string>> =
-  Sql.query
-    "SELECT data, key
-     FROM user_data
-     WHERE table_tlid = @tlid
-       AND account_id = @accountID
-       AND canvas_id = @canvasID
-       AND user_version = @userVersion
-       AND dark_version = @darkVersion
-     ORDER BY created_at DESC
-     LIMIT 1"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid ownerID
-                      "canvasID", Sql.uuid canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    toObj db (read.string "data"), read.string "key")
+  task {
+    let! result =
+      Sql.query
+        "SELECT data, key
+        FROM user_data
+        WHERE table_tlid = @tlid
+          AND account_id = @accountID
+          AND canvas_id = @canvasID
+          AND user_version = @userVersion
+          AND dark_version = @darkVersion
+        ORDER BY created_at DESC
+        LIMIT 1"
+      |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                          "accountID", Sql.uuid ownerID
+                          "canvasID", Sql.uuid canvasID
+                          "userVersion", Sql.int db.version
+                          "darkVersion", Sql.int currentDarkVersion ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.string "data", read.string "key"))
+    return result |> Option.map (fun (data, key) -> (toObj db data, key))
+  }
 
 let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<int> =
   Sql.query

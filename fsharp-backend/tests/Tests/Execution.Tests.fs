@@ -30,15 +30,14 @@ let executionStateForPreview
   (fns : Map<string, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
-    let! meta = createTestCanvas name
+    let! meta = createTestCanvas (Randomized name)
     let! state = executionStateFor meta dbs fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =
-      Exe.updateTracing
-        (fun t -> { t with traceDval = traceFn; realOrPreview = Preview })
-        state
-
+      { state with
+          tracing =
+            { state.tracing with traceDval = traceFn; realOrPreview = Preview } }
     return (results, state)
   }
 
@@ -62,7 +61,7 @@ let execSaveDvals
 
 let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
-    let! meta = initializeTestCanvas "exec-function-tlids"
+    let! meta = initializeTestCanvas (Randomized "exec-function-tlids")
     let name = "testFunction"
     let fn = testUserFn name [] (PT.EInteger(gid (), 5)) |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
@@ -71,11 +70,11 @@ let testExecFunctionTLIDs : Test =
     let tlids, traceFn = Exe.traceTLIDs ()
 
     let state =
-      Exe.updateTracing
-        (fun t -> { t with traceTLID = traceFn; realOrPreview = Preview })
-        state
+      { state with
+          tracing =
+            { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
 
-    let! value = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
+    let! value = Exe.executeFunction state (gid ()) (FQFnName.User name) []
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5L) "sanity check"
@@ -85,7 +84,7 @@ let testExecFunctionTLIDs : Test =
 let testErrorRailUsedInAnalysis : Test =
   testTask
     "When a function isn't available on the client, but has analysis data, we need to make sure we process the errorrail functions correctly" {
-    let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
+    let! meta = createTestCanvas (Randomized "testErrorRailsUsedInAnalysis")
     let! state = executionStateFor meta Map.empty Map.empty
 
     let loadTraceResults _ _ =
@@ -208,9 +207,12 @@ let testIfPreview : Test =
       let! results = execSaveDvals "if-preview" [] [] ast
 
       return
-        (Dictionary.get ifID results |> Option.unwrapUnsafe,
-         Dictionary.get thenID results |> Option.unwrapUnsafe,
-         Dictionary.get elseID results |> Option.unwrapUnsafe)
+        (Dictionary.get ifID results
+         |> Exception.unwrapOptionInternal "cannot find ifID" [],
+         Dictionary.get thenID results
+         |> Exception.unwrapOptionInternal "cannot find thenID" [],
+         Dictionary.get elseID results
+         |> Exception.unwrapOptionInternal "cannot find elseID" [])
     }
 
   // Using the first test below for illustration,
@@ -275,9 +277,12 @@ let testFeatureFlagPreview : Test =
       let! results = execSaveDvals "ff-preview" [] [] ast
 
       return
-        (Dictionary.get ffID results |> Option.unwrapUnsafe,
-         Dictionary.get oldID results |> Option.unwrapUnsafe,
-         Dictionary.get newID results |> Option.unwrapUnsafe)
+        (Dictionary.get ffID results
+         |> Exception.unwrapOptionInternal "missing ffID" [ "ffid", ffID ],
+         Dictionary.get oldID results
+         |> Exception.unwrapOptionInternal "missing oldID" [ "oldID", oldID ],
+         Dictionary.get newID results
+         |> Exception.unwrapOptionInternal "missing newID" [ "newID", newID ])
     }
 
   // see notes in above `testIfPreview` regarding how these tests work

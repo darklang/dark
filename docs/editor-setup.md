@@ -60,8 +60,7 @@ For vim:
 ```
 let g:ale_javascript_prettier_executable= '~/path to dark]/dark/scripts/formatting/prettier'
 let g:ale_fixers =
-\ {'rust': ['rustfmt'],
-\  'javascript': ['prettier'],
+\ {'javascript': ['prettier'],
 \  'js': ['prettier'],
 \  'html': ['prettier'],
 \  'css': ['prettier'],

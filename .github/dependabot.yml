@@ -1,25 +1,5 @@
 version: 2
 updates:
-- package-ecosystem: cargo
-  directory: "/containers/stroller"
-  schedule:
-    interval: daily
-    time: "13:00"
-  open-pull-requests-limit: 10
-  labels:
-  - rust
-  ignore:
-  - dependency-name: hyper
-    versions:
-    - 0.14.2
-    - 0.14.4
-    - 0.14.5
-  - dependency-name: serde_json
-    versions:
-    - 1.0.63
-  - dependency-name: sha2
-    versions:
-    - 0.9.3
 - package-ecosystem: docker
   directory: "/"
   schedule:
@@ -36,28 +16,6 @@ updates:
   - dependency-name: rollbar
     versions:
     - 2.20.0
-- package-ecosystem: cargo
-  directory: "/containers/queue-scheduler"
-  schedule:
-    interval: daily
-    time: "12:00"
-  open-pull-requests-limit: 10
-  labels:
-  - rust
-  ignore:
-  - dependency-name: uuid
-    versions:
-    - "> 0.5.1"
-  - dependency-name: backtrace
-    versions:
-    - 0.3.56
-    - 0.3.57
-  - dependency-name: config
-    versions:
-    - 0.11.0
-  - dependency-name: backoff
-    versions:
-    - 0.3.0
 - package-ecosystem: nuget
   directory: "/fsharp-backend"
   schedule:

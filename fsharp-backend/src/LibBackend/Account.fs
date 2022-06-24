@@ -11,7 +11,7 @@ open Tablecloth
 open Db
 
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // **********************
 // Types
@@ -39,7 +39,7 @@ type UserInfoAndCreatedAt =
     createdAt : NodaTime.Instant }
 
 let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
-  { id = Some ui.id; email = Some ui.email; username = Some ui.username }
+  Some { id = ui.id; username = Some ui.username }
 
 
 // **********************
@@ -131,7 +131,7 @@ let insertUser
                               ("password", Sql.string (string Password.invalid))
                               ("metadata",
                                Sql.jsonb (
-                                 DvalReprInternal.toInternalQueryableV1
+                                 DvalReprInternalDeprecated.toInternalQueryableV1
                                    analyticsMetadata
                                )) ]
           |> Sql.executeStatementAsync
@@ -180,9 +180,10 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
        WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
-  |> Task.map (function
+  |> Task.map (fun user ->
+    match user with
     | Some v -> v
-    | None -> Exception.raiseDeveloper "User not found")
+    | None -> Exception.raiseGrandUser "User not found")
 
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
@@ -278,7 +279,7 @@ let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
 // (https://github.com/ahrefs/ocaml-sodium/blob/master/lib/sodium.ml), the F#
 // version is libsodium-net
 // (https://github.com/tabrath/libsodium-core/blob/master/src/Sodium.Core/PasswordHash.cs).
-// The OCaml version uses the argon2i versions under the hood, which we use explicitly in F#.
+// The OCaml version used the argon2i versions under the hood, which we use explicitly in F#.
 let authenticate
   (usernameOrEmail : string)
   (givenPassword : string)
@@ -302,10 +303,10 @@ let authenticate
 let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 
 // formerly called auth_domain_for
-let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
-  match String.split "-" (string host) with
+let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
+  match String.split "-" (string canvasName) with
   | owner :: _ -> OwnerName.create owner
-  | _ -> OwnerName.create (string host)
+  | _ -> OwnerName.create (string canvasName)
 
 // **********************
 // What user has access to
@@ -317,7 +318,7 @@ let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
      FROM canvases
      WHERE account_id = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.createExn)
   |> Task.map List.sort
 
 
@@ -331,7 +332,7 @@ let accessibleCanvases (userID : UserID) : Task<List<CanvasName.T>> =
       INNER JOIN canvases as c on org.id = account_id
       WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.createExn)
   |> Task.map List.sort
 
 let orgs (userID : UserID) : Task<List<OrgName.T>> =
@@ -412,13 +413,11 @@ let initAdmins () : Task<unit> =
     return ()
   }
 
-let init (serviceName : string) : Task<unit> =
+/// Initialize accounts needed for development and testing
+let initializeDevelopmentAccounts (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend.Account in {serviceName}"
-    if Config.createAccounts then
-      do! initTestAccounts ()
-      do! initAdmins ()
-      return ()
-    else
-      return ()
+    do! initTestAccounts ()
+    do! initAdmins ()
+    return ()
   }

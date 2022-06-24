@@ -1,11 +1,11 @@
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: configconnector.darklang.com-tls
-  namespace: default
-spec:
-  secretName: configconnector.darklang.com-tls
-  dnsNames:
-    - configconnector.darklang.com
-  issuerRef:
-    name: letsencrypt-prod-wildcards
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: configconnector.darklang.com-tls
+#   namespace: default
+# spec:
+#   secretName: configconnector.darklang.com-tls
+#   dnsNames:
+#     - configconnector.darklang.com
+#   issuerRef:
+#     name: letsencrypt-prod-wildcards

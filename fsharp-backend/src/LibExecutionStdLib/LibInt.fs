@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
     ; description =
         "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
          If `modulus` is positive, returns `Ok res`. Returns an `Error` if `modulus` is 0 or negative.
-         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
+        Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
     ; fn =
         (* TODO: A future version should support all non-zero modulus values and should include the infix "%" *)
 
@@ -326,7 +326,8 @@ let fns : List<BuiltInFn> =
               (fun i ->
                 match i with
                 | DInt it -> it
-                | t -> Errors.throw (Errors.argumentWasnt "a list of ints" "a" ldv))
+                | t ->
+                  Exception.raiseCode (Errors.argumentWasnt "a list of ints" "a" ldv))
               l
 
           let sum = List.fold (fun acc elem -> acc + elem) 0L ints
@@ -383,5 +384,27 @@ let fns : List<BuiltInFn> =
           else Ply(DInt v)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Int" "parse" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TResult(TInt, TStr)
+      description = "Returns the int value of the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+          (try
+            s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
+           with
+           | _e ->
+             $"Expected to parse string with only numbers, instead got \"{s}\""
+             |> DStr
+             |> Error
+             |> DResult
+             |> Ply)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

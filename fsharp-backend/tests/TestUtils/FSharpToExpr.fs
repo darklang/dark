@@ -46,7 +46,9 @@ let parse (input) : SynExpr =
     // Extract declarations and walk over them
     expr
   | _ ->
-    Exception.raiseInternal $"wrong shape tree" [ "parseTree", results.ParseTree ]
+    Exception.raiseInternal
+      $"wrong shape tree"
+      [ "parseTree", results.ParseTree; "input", input ]
 
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = PT.EString(12345678UL, "PLACEHOLDER VALUE")
@@ -57,8 +59,8 @@ let (|Placeholder|_|) (input : PT.Expr) =
 
 let nameOrBlank (v : string) : string = if v = "___" then "" else v
 
-let rec convertToExpr (ast : SynExpr) : PT.Expr =
-  let c = convertToExpr
+let rec convertToExpr' (ast : SynExpr) : PT.Expr =
+  let c = convertToExpr'
 
   let rec convertPattern (pat : SynPat) : PT.Pattern =
     let id = gid ()
@@ -137,9 +139,13 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     PT.EFloat(id, sign, whole, fraction)
   | SynExpr.Const (SynConst.String (s, _, _), _) -> PT.EString(id, s)
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
-    let op = Map.get ident.idText ops |> Option.unwrapUnsafe
-    let name = PTParser.FQFnName.stdlibFqName "" op 0
-    PT.EBinOp(id, name, placeholder, placeholder, PT.NoRail)
+    let op =
+      Map.get ident.idText ops
+      |> Exception.unwrapOptionInternal
+           "can't find operation"
+           [ "name", ident.idText ]
+    let fn : PT.FQFnName.InfixStdlibFnName = { module_ = None; function_ = op }
+    PT.EBinOp(id, fn, placeholder, placeholder, PT.NoRail)
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
     let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
     PT.EFnCall(id, name, [], PT.NoRail)
@@ -177,7 +183,11 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
         ($"{module_}::{name}_v{int version}", PT.NoRail)
       | Regex "(.*)" [ name ] when Map.containsKey name ops ->
         // Things like `Date::<`, written `Date.(<)`
-        let name = Map.get name ops |> Option.unwrapUnsafe
+        let name =
+          Map.get name ops
+          |> Exception.unwrapOptionInternal
+               "can't find function name"
+               [ "name", name ]
         ($"{module_}::{name}", PT.NoRail)
       | Regex "(.+)_ster" [ name ] -> ($"{module_}::{name}", PT.Rail)
       | Regex "(.+)" [ name ] -> ($"{module_}::{name}", PT.NoRail)
@@ -186,6 +196,21 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
           $"Bad format in function name"
           [ "name", fnName.idText ]
 
+    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
+  // Preliminary support for package manager functions
+  | SynExpr.LongIdent (_,
+                       LongIdentWithDots ([ owner; package; modName; fnName ], _),
+                       _,
+                       _) when
+    owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
+    ->
+    let fnName = fnName.idText
+    let name, ster =
+      if String.endsWith "_ster" fnName then
+        String.dropRight 5 fnName, PT.Rail
+      else
+        fnName, PT.NoRail
+    let name = $"test/test/Test::{name}_v0"
     PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
     let obj1 =
@@ -273,7 +298,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     PT.EMatch(id, c cond, List.map convertClause clauses)
   | SynExpr.Record (_, _, fields, _) ->
     fields
-    |> List.map (function
+    |> List.map (fun field ->
+      match field with
       | SynExprRecordField ((LongIdentWithDots ([ name ], _), _), _, Some expr, _) ->
         (nameOrBlank name.idText, c expr)
       | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
@@ -333,6 +359,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     // A pipe with more than one entry
     | PT.EPipe (id, arg1, arg2, rest) as pipe ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+    // Function calls sending to error rail
+    | PT.EVariable (id, name) when String.endsWith "_ster" name ->
+      let name = String.dropRight 5 name
+      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.Rail)
     | PT.EVariable (id, name) ->
       PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.NoRail)
     | e ->
@@ -345,6 +375,19 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.FromParseError _ as expr ->
     Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
   | expr -> Exception.raiseInternal "Unsupported expression" [ "ast", ast ]
+
+let convertToExpr e =
+  e
+  |> convertToExpr'
+  |> LibExecution.ProgramTypesAst.postTraversal (fun e ->
+    match e with
+    | PT.EFnCall (id, PT.FQFnName.User "partial", [ PT.EString (_, msg); arg ], _) ->
+      PT.EPartial(gid (), msg, arg)
+    | PT.EFnCall (id,
+                  PT.FQFnName.User "partial",
+                  [ PT.EPipeTarget _; PT.EString (_, msg); arg ],
+                  _) -> PT.EPartial(gid (), msg, arg)
+    | e -> e)
 
 let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
   // Split equality into actual vs expected in tests.

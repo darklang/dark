@@ -40,10 +40,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "foreach" 0
       parameters =
-        [ Param.make "s" TStr "" // CLEANUP "string to iterate over"
-          Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "char" ]
-          // CLEANUP "function used to convert one character to another"
-          ]
+        [ Param.make "s" TStr "string to iterate over"
+          Param.makeWithArgs
+            "fn"
+            (TFn([ TChar ], TChar))
+            "function used to convert one character to another"
+            [ "char" ] ]
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
@@ -59,7 +61,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "foreach" 1
       parameters =
         [ Param.make "s" TStr ""
-          Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "character" ] ]
+          Param.makeWithArgs "fn" (TFn([ TChar ], TChar)) "" [ "character" ] ]
       returnType = TStr
       description =
         "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
@@ -87,7 +89,8 @@ let fns : List<BuiltInFn> =
                    List.map
                      (function
                      | DChar c -> c
-                     | dv -> Errors.throw (Errors.expectedLambdaType "f" TChar dv))
+                     | dv ->
+                       Exception.raiseCode (Errors.expectedLambdaType "fn" TChar dv))
                      dvals
 
                  let str = String.concat "" chars
@@ -147,8 +150,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "replaceAll" 0
       parameters =
-        [ Param.make "s" TStr "" // CLEANUP "The string to operate on"
-          Param.make "searchFor" TStr "" // CLEANUP "The string to search for within <param s>"
+        [ Param.make "s" TStr "The string to operate on"
+          Param.make "searchFor" TStr "The string to search for within <param s>"
           Param.make "replaceWith" TStr "" ]
       returnType = TStr
       description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
@@ -183,8 +186,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            let int = s |> parseInt64
+            let int = s |> System.Convert.ToInt64
 
+            // These constants represent how high the old OCaml parsers would go
             if int < -4611686018427387904L then
               Exception.raiseInternal "goto exception case" []
             else if int >= 4611686018427387904L then
@@ -208,9 +212,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           try
-            // CLEANUP: These constants represent how high the OCaml parsers would go
-            let int = s |> parseInt64
+            let int = s |> System.Convert.ToInt64
 
+            // These constants represent how high the old OCaml parsers would go
             if int < -4611686018427387904L then
               Exception.raiseInternal "goto exception case" []
             else if int >= 4611686018427387904L then
@@ -227,7 +231,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Int" "parse" 0) }
 
 
     { name = fn "String" "toFloat" 0
@@ -536,7 +540,7 @@ let fns : List<BuiltInFn> =
           if sep = "" then
             s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
           else
-            // CLEANUP
+            // CLEANUP: we need a new version of this fn.
             // This behaviour is the worst. This mimics what OCaml did: There
             // should be (n-1) empty strings returned for each sequence of n
             // strings matching the separator (eg: split "aaaa" "a" = ["",
@@ -575,7 +579,7 @@ let fns : List<BuiltInFn> =
               (fun s ->
                 match s with
                 | DStr st -> st
-                | dv -> Errors.throw (Errors.argumentMemberWasnt TStr "l" dv))
+                | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TStr "l" dv))
               l
 
           // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
@@ -608,9 +612,10 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
           DStr(
             l
-            |> List.map (function
+            |> List.map (fun dval ->
+              match dval with
               | DChar c -> c
-              | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
+              | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TChar "l" dv))
             |> String.concat ""
           )
           |> Ply
@@ -899,6 +904,7 @@ let fns : List<BuiltInFn> =
           Ply(DStr(htmlEscape s))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      // CLEANUP mark as Pure
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1334,8 +1340,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "endsWith" 0
       parameters =
-        [ Param.make "subject" TStr "" // CLEANUP "String to test"
-          Param.make "suffix" TStr "" ]
+        [ Param.make "subject" TStr "String to test"; Param.make "suffix" TStr "" ]
       returnType = TBool
       description = "Checks if `subject` ends with `suffix`"
       fn =

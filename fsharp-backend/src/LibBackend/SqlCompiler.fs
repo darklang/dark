@@ -19,7 +19,11 @@ module DvalReprExternal = LibExecution.DvalReprExternal
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
 
-let error (str : string) : 'a = raise (Errors.DBQueryException str)
+// CLEANUP mention Slack explicitly. Maybe even try to get a clickable URL into this.
+let errorTemplate =
+  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\n  Error: "
+
+let error (str : string) : 'a = Exception.raiseCode (errorTemplate + str)
 
 let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
 
@@ -44,7 +48,7 @@ let dvalToSql (dval : Dval) : SqlValue =
   match dval with
   | DError _
   | DIncomplete _
-  | DErrorRail _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
+  | DErrorRail _ -> Errors.foundFakeDval dval
   | DObj _
   | DList _
   | DHttpResponse _
@@ -79,7 +83,7 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
 // TODO: support character. And maybe lists and bytes.
 // Probably something can be done with options and results.
 let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
-  if Dval.isFake dval then raise (Errors.FakeValFoundInQuery dval)
+  if Dval.isFake dval then Errors.foundFakeDval dval
   typecheck name (Dval.toType dval) expectedType
 
 let escapeFieldname (str : string) : string =
@@ -130,16 +134,17 @@ let rec inline'
   (expr : Expr)
   : Expr =
   RuntimeTypesAst.postTraversal
-    (function
-    | ELet (_, name, expr, body) ->
-      inline' paramName (Map.add name expr symtable) body
-    | EVariable (_, name) as expr when name <> paramName ->
-      (match Map.get name symtable with
-       | Some found -> found
-       | None ->
-         // the variable might be in the symtable, so put it back to fill in later
-         expr)
-    | expr -> expr)
+    (fun expr ->
+      match expr with
+      | ELet (_, name, expr, body) ->
+        inline' paramName (Map.add name expr symtable) body
+      | EVariable (_, name) as expr when name <> paramName ->
+        (match Map.get name symtable with
+         | Some found -> found
+         | None ->
+           // the variable might be in the symtable, so put it back to fill in later
+           expr)
+      | expr -> expr)
     expr
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (pattern : Expr) =
@@ -196,7 +201,11 @@ let rec lambdaToSql
             $"{FQFnName.StdlibFnName.toString fn.name} has {paramCount} functions but we have {argCount} arguments"
 
       match fn, argSqls with
-      | { sqlSpec = SqlBinOp op }, [ argL; argR ] -> $"({argL} {op} {argR})", sqlVars
+      | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
+        // CLEANUP there's a type checking bug here. If the parameter types of fn are
+        // both (TVariable "a"), we do not check that they are the same type. If they
+        // are not, it becomes a runtime error when we actually make the call to the DB
+        $"({argL} {op} {argR})", sqlVars
       | { sqlSpec = SqlUnaryOp op }, [ argSql ] -> $"({op} {argSql})", sqlVars
       | { sqlSpec = SqlFunction fnname }, _ ->
         let argSql = String.concat ", " argSqls
@@ -242,17 +251,20 @@ let rec lambdaToSql
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ]
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
-    let typ =
+    let dbFieldType =
       match Map.get fieldname dbFields with
       | Some v -> v
       | None -> error2 "The datastore does not have a field named" fieldname
 
-    if expectedType <> TNull (* Fields are allowed be null *) then
-      typecheck fieldname typ expectedType
+    if expectedType <> TNull // Fields are allowed to be null
+    then
+      typecheck fieldname dbFieldType expectedType
 
     let fieldname = escapeFieldname fieldname
-    let typename = typeToSqlType typ
+    let typename = typeToSqlType dbFieldType
 
+    // CLEANUP this should be dbFieldType, since we know it. We could have a TAny
+    // function with a Date field and this would query it wrong
     (match expectedType with
      | TDate ->
        // This match arm handles types that are serialized in
@@ -325,14 +337,15 @@ let partiallyEvaluate
         | EApply (_, EFQFnValue (_, name), args, _, _) when
           // functions that are fully specified
           List.all
-            (function
-            | EInteger _
-            | EBool _
-            | ENull _
-            | EFloat _
-            | EString _
-            | EVariable _ -> true
-            | _ -> false)
+            (fun expr ->
+              match expr with
+              | EInteger _
+              | EBool _
+              | ENull _
+              | EFloat _
+              | EString _
+              | EVariable _ -> true
+              | _ -> false)
             args
           ->
           // TODO: should limit this further to pure functions.
@@ -405,9 +418,6 @@ let partiallyEvaluate
             | EConstructor (id, name, exprs) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EConstructor(id, name, exprs)
-            | EPartial (id, oldExpr) ->
-              let! oldExpr = r oldExpr
-              return EPartial(id, oldExpr)
             | EFeatureFlag (id, cond, casea, caseb) ->
               let! cond = r cond
               let! casea = r casea

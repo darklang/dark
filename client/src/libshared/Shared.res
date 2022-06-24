@@ -5,7 +5,7 @@
 let gid = Unshared.gid
 
 module Recover = {
-  /* We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue. */
+  // We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue.
   let recover = (
     ~sendToRollbar: bool=true,
     ~debug: option<'d>=?,
@@ -82,7 +82,7 @@ module Recover = {
     ~f: 'a => bool,
   ): unit => assertFn(~f, ~sendToRollbar, ~debug, msg, ())
 
-  /* Like recover but with the message TODO */
+  // Like recover but with the message TODO
   let todo = (~sendToRollbar: bool=true, msg: string, recoveryVal: 'b): 'b =>
     recover(~sendToRollbar, ~debug=recoveryVal, "TODO: " ++ msg, recoveryVal)
 }

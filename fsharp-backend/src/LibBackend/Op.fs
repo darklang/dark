@@ -29,11 +29,8 @@ let eventNameOfOp (op : PT.Op) : string =
   | PT.DeleteDBCol _ -> "DeleteDBCol"
   | PT.RenameDBname _ -> "RenameDBname"
   | PT.CreateDBWithBlankOr _ -> "CreateDBWithBlankOr"
-  | PT.DeleteTLForever _ -> "DeleteTLForever"
-  | PT.DeleteFunctionForever _ -> "DeleteFunctionForever"
   | PT.SetType _ -> "SetType"
   | PT.DeleteType _ -> "DeleteType"
-  | PT.DeleteTypeForever _ -> "DeleteTypeForever"
 
 type RequiredContext =
   | NoContext
@@ -66,11 +63,8 @@ let requiredContextToValidate (op : PT.Op) : RequiredContext =
   | PT.DeleteDBCol _ -> NoContext
   | PT.RenameDBname _ -> AllDatastores
   | PT.CreateDBWithBlankOr _ -> AllDatastores
-  | PT.DeleteTLForever _ -> NoContext
-  | PT.DeleteFunctionForever _ -> NoContext
   | PT.SetType _ -> NoContext
   | PT.DeleteType _ -> NoContext
-  | PT.DeleteTypeForever _ -> NoContext
 
 
 let requiredContextToValidateOplist (oplist : PT.Oplist) : RequiredContext =
@@ -79,7 +73,8 @@ let requiredContextToValidateOplist (oplist : PT.Oplist) : RequiredContext =
   else
     oplist
     |> List.map requiredContextToValidate
-    |> List.maxBy (function
+    |> List.maxBy (fun requiredContext ->
+      match requiredContext with
       | AllDatastores -> 1
       | NoContext -> 0)
 
@@ -112,11 +107,8 @@ let tlidOf (op : PT.Op) : tlid =
   | PT.DeleteDBCol (tlid, _) -> tlid
   | PT.RenameDBname (tlid, _) -> tlid
   | PT.CreateDBWithBlankOr (tlid, _, _, _) -> tlid
-  | PT.DeleteTLForever tlid -> tlid
-  | PT.DeleteFunctionForever tlid -> tlid
   | PT.SetType ut -> ut.tlid
   | PT.DeleteType tlid -> tlid
-  | PT.DeleteTypeForever tlid -> tlid
 
 
 let oplist2TLIDOplists (oplist : PT.Oplist) : PT.TLIDOplists =
@@ -146,11 +138,8 @@ let astOf (op : PT.Op) : PT.Expr option =
   | PT.DeleteDBCol (_, _)
   | PT.RenameDBname (_, _)
   | PT.CreateDBWithBlankOr (_, _, _, _)
-  | PT.DeleteTLForever _
-  | PT.DeleteFunctionForever _
   | PT.SetType _
-  | PT.DeleteType _
-  | PT.DeleteTypeForever _ -> None
+  | PT.DeleteType _ -> None
 
 
 let withAST (newAST : PT.Expr) (op : PT.Op) =
@@ -174,11 +163,8 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   | PT.DeleteDBCol (_, _)
   | PT.RenameDBname (_, _)
   | PT.CreateDBWithBlankOr (_, _, _, _)
-  | PT.DeleteTLForever _
-  | PT.DeleteFunctionForever _
   | PT.SetType _
-  | PT.DeleteType _
-  | PT.DeleteTypeForever _ -> op
+  | PT.DeleteType _ -> op
 
 
 /// Filter down to only those ops which can be applied out of order
@@ -210,10 +196,7 @@ let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
     | PT.DeleteFunction _
     | PT.DeleteDBCol _
     | PT.CreateDBWithBlankOr _
-    | PT.DeleteTLForever _
-    | PT.DeleteFunctionForever _
-    | PT.DeleteType _
-    | PT.DeleteTypeForever _ -> true)
+    | PT.DeleteType _ -> true)
 
 type AddOpResult =
   { toplevels : ORT.toplevel list (* replace *)

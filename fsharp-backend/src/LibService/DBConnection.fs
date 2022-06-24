@@ -15,9 +15,9 @@ let connectionString =
   |> Sql.database Config.pgDBName
   // |> Sql.sslMode SslMode.Require
 
-  // Our DB in GCP supports 800 connections at once. We plan to have 3 ApiServers, 4
-  // BwdServers, 4-10 QueueWorkers, and 1 CronChecker, in addition to 1 garbage
-  // collector, and 1 queue-scheduler.
+  // Our DB in GCP supports 800 connections at once. We plan to have 2 ApiServers, 2
+  // BwdServers, 2 QueueWorkers, and 1 CronChecker, in addition to 1 garbage
+  // collector.
 
   |> Sql.config
        $"Pooling=true;Minimum Pool Size={minPoolSize};Maximum Pool Size={maxPoolSize};Include Error Detail=true"

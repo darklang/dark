@@ -57,12 +57,10 @@ Float.clamp_v0 Test.negativeInfinity_v0 -1.0 0.5 = -1.0
 Float.clamp_v0 Test.nan_v0 -1.0 1.0 = Test.nan_v0
 Float.clamp_v0 0.5 Test.infinity_v0 1.0 = 1.0
 Float.clamp_v0 0.5 Test.negativeInfinity_v0 1.0 = 0.5
-Float.clamp_v0 0.5 Test.nan_v0 1.0 = Test.typeError_v0 "Internal Float.clamp exception: (\"clamp requires [min <= max]\" (min 1) (max NAN))" // OCAMLONLY
-Float.clamp_v0 0.5 Test.nan_v0 1.0 = Test.typeError_v0 "clamp requires arguments to be valid numbers" // FSHARPONLY
+Float.clamp_v0 0.5 Test.nan_v0 1.0 = Test.typeError_v0 "clamp requires arguments to be valid numbers"
 Float.clamp_v0 -1.0 0.5 Test.infinity_v0 = 0.5
 Float.clamp_v0 -1.0 0.5 Test.negativeInfinity_v0 = -1.0
-Float.clamp_v0 0.5 1.0 Test.nan_v0 = Test.typeError_v0 "Internal Float.clamp exception: (\"clamp requires [min <= max]\" (min NAN) (max 1))" // OCAMLONLY
-Float.clamp_v0 0.5 1.0 Test.nan_v0 = Test.typeError_v0 "clamp requires arguments to be valid numbers" // FSHARPONLY
+Float.clamp_v0 0.5 1.0 Test.nan_v0 = Test.typeError_v0 "clamp requires arguments to be valid numbers"
 Float.clamp_v0 -2.0 -5.0 5.0 = -2.0
 Float.clamp_v0 -3.0 -2.0 1.0 = -2.0
 Float.clamp_v0 -5.0 1.0 1.0 = 1.0
@@ -117,12 +115,9 @@ Float.roundTowardsZero 2147483647.000009 = 2147483647
 
 Float.sqrt_v0 25.0 = 5.0
 Float.sqrt_v0 0.0 = 0.0
-//Float.sqrt_v0 111111111111111111111111111111111111111111.1 = 333333333333333400000 // Ocaml accepts this large number
 
 Float.subtract_v0 1.0 0.2 = 0.8
 
 Float.sum_v0 [1.0;0.2] = 1.2
-Float.sum_v0 [1.0;"a"] = Test.typeError_v0 "Expected the argument `a` to be a list of floats, but it was `[ \n  1., \"a\"\n]`" // FSHARPONLY
-Float.sum_v0 [1.0;"a"] = Test.typeError_v0 "Sum expects you to pass a list of floats" // OCAMLONLY
-
+Float.sum_v0 [1.0;"a"] = Test.typeError_v0 "Expected the argument `a` to be a list of floats, but it was `[ \n  1., \"a\"\n]`"
 Test.nan_v0 != Test.nan_v0

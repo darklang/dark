@@ -4,8 +4,8 @@
 set -euo pipefail
 
 
-jsonfile=backend/serialization/oplist-format.json
-binfile=backend/serialization/oplist-format.bin
+jsonfile=backend/serialization/oplist-format-latest.json
+binfile=backend/serialization/oplist-format-latest.bin
 
 echo "Before: "
 sha1sum "$jsonfile"

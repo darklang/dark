@@ -74,7 +74,10 @@ let savedInputVars
         // trace doesn't match the handler should be done in the future
         // somehow.
         if Routing.requestPathMatchesRoute route requestPath then
-          Routing.routeInputVars route requestPath |> Option.unwrapUnsafe
+          Routing.routeInputVars route requestPath
+          |> Exception.unwrapOptionInternal
+               "invalid routeInputVars"
+               [ "route", route; "requestPath", requestPath ]
         else
           sampleRouteInputVars h
       else
@@ -137,7 +140,6 @@ let userfnTrace
 
 
 let traceIDofTLID (tlid : tlid) : AT.TraceID =
-  // This was what we originally used in OCaml, so I guess we're stuck with it.
   Uuid.uuidV5 (string tlid) (Uuid.nilNamespace)
 
 
@@ -167,9 +169,10 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
             // Don't use HTTP filtering stack for non-HTTP traces
             Some traceID)
         // If there's no matching traces, add the default trace
-        |> (function
-        | [] -> [ traceIDofTLID h.tlid ]
-        | x -> x)
+        |> (fun traces ->
+          match traces with
+          | [] -> [ traceIDofTLID h.tlid ]
+          | x -> x)
     | None ->
       // If the event description isn't complete, add the default trace
       return [ traceIDofTLID h.tlid ]

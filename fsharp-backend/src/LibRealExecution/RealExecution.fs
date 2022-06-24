@@ -15,19 +15,18 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 open LibBackend
 
-let stdlibFns : Lazy<Map<RT.FQFnName.T, RT.BuiltInFn>> =
-  lazy
-    (Lazy.force LibExecutionStdLib.StdLib.fns
-     @ Lazy.force BackendOnlyStdLib.StdLib.fns
-     |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
+let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
+  LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
+  |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
   lazy
     (task {
-      let! packages = Lazy.force PackageManager.cachedForAPI
+      let! packages = PackageManager.allFunctions ()
 
       return
         packages
@@ -41,64 +40,110 @@ let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     (task {
       let! packageFns = Lazy.force packageFns
-      let stdlibFns = Lazy.force stdlibFns
       // TODO: this keeps a cached version so we're not loading them all the time.
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
       return { stdlib = stdlibFns; packageFns = packageFns }
     })
 
-
 let createState
-  (executionID : ExecutionID)
   (traceID : AT.TraceID)
   (tlid : tlid)
   (program : RT.ProgramContext)
-  : Task<RT.ExecutionState * HashSet.T<tlid>> =
+  (tracing : RT.Tracing)
+  : Task<RT.ExecutionState> =
   task {
-    let canvasID = program.canvasID
-
-    // Any real execution needs to track the touched TLIDs in order to send traces to pusher
-    let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
-    HashSet.add tlid touchedTLIDs
-
-    let tracing =
-      { Exe.noTracing RT.Real with
-          storeFnResult = TraceFunctionResults.store canvasID traceID
-          storeFnArguments = TraceFunctionArguments.store canvasID traceID
-          traceTLID = traceTLIDFn }
-
     let! libraries = Lazy.force libraries
+
+    let username () =
+      (Account.ownerNameFromCanvasName program.canvasName).toUserName ()
 
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
-        "traceID", traceID
-        "touchedTLIDs", touchedTLIDs
-        "executingFnName", state.executingFnName
+        "trace_id", traceID
+        "executing_fn_name", state.executingFnName
         "callstack", state.callstack
-        "canvas", state.program.canvasName
-        "canvasID", state.program.canvasID
-        "accountID", state.program.accountID ]
+        "canvas", program.canvasName
+        "username", username ()
+        "canvas_id", program.canvasID
+        "account_id", program.accountID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
-      LibService.Rollbar.notify state.executionID msg metadata
+      LibService.Rollbar.notify msg metadata
 
     let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
       let metadata = extraMetadata state @ metadata
       let person : LibService.Rollbar.Person =
-        { id = Some state.program.accountID; username = None; email = None }
-      LibService.Rollbar.sendException state.executionID person metadata exn
+        Some { id = program.accountID; username = Some(username ()) }
+      LibService.Rollbar.sendException person metadata exn
+
+    return Exe.createState libraries tracing sendException notify tlid program
+  }
+
+type ExecutionReason =
+  /// The first time a trace is executed. This means more data should be stored and
+  /// more users notified.
+  | InitialExecution of HandlerDesc * RT.Dval
+
+  /// A reexecution is a trace that already exists, being amended with new values
+  | ReExecution
+
+/// Execute handler. This could be the first execution, which will have an
+/// ExecutionReason of InitialExecution, and initialize traces and send pushes, or
+/// ReExecution, which will update existing traces and not send pushes.
+let executeHandler
+  (meta : Canvas.Meta)
+  (h : RT.Handler.T)
+  (program : RT.ProgramContext)
+  (traceID : AT.TraceID)
+  (inputVars : Map<string, RT.Dval>)
+  (reason : ExecutionReason)
+  : Task<RT.Dval * Tracing.TraceResults.T> =
+  task {
+    let tracing = Tracing.create meta h.tlid traceID
+
+    match reason with
+    | InitialExecution (desc, inputVar) -> tracing.storeInput desc inputVar
+    | ReExecution -> ()
+
+    let! state = createState traceID h.tlid program tracing.executionTracing
+    HashSet.add h.tlid tracing.results.tlids
+    let! result = Exe.executeExpr state inputVars h.ast
+    tracing.storeTraceResults ()
+
+    match reason with
+    | ReExecution -> ()
+    | InitialExecution _ ->
+      if tracing.enabled then
+        let tlids = HashSet.toList tracing.results.tlids
+        Pusher.pushNewTraceID meta.id traceID tlids
+
+    return (result, tracing.results)
+  }
+
+/// We call this reexecuteFunction because it always runs in an existing trace.
+let reexecuteFunction
+  (meta : Canvas.Meta)
+  (program : RT.ProgramContext)
+  (tlid : tlid)
+  (callerID : id)
+  (traceID : AT.TraceID)
+  (name : RT.FQFnName.T)
+  (args : List<RT.Dval>)
+  : Task<RT.Dval * Tracing.TraceResults.T> =
+  task {
+    let tracing = Tracing.create meta tlid traceID
+    let! state = createState traceID tlid program tracing.executionTracing
+    let! result = Exe.executeFunction state callerID name args
+    tracing.storeTraceResults ()
+    return result, tracing.results
+  }
 
 
-    return
-      (Exe.createState
-        executionID
-        libraries
-        tracing
-        sendException
-        notify
-        tlid
-        program,
-       touchedTLIDs)
+/// Ensure library is ready to be called. Throws if it cannot initialize.
+let init () : Task<unit> =
+  task {
+    let! (_ : RT.Libraries) = Lazy.force libraries
+    return ()
   }

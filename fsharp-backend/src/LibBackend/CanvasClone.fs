@@ -19,10 +19,7 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
   | PT.CreateDBWithBlankOr _
   | PT.SetType _ -> true
   | PT.DeleteFunction _
-  | PT.DeleteTLForever _
-  | PT.DeleteFunctionForever _
   | PT.DeleteType _
-  | PT.DeleteTypeForever _
   | PT.DeleteTL _
   | PT.DeleteDBCol _
   | PT.RenameDBname _
@@ -57,17 +54,17 @@ let onlyOpsSinceLastSavepoint (ops : PT.Oplist) : PT.Oplist =
 
 
 /// <summary>
-/// Update string literals from the old to the new host.
+/// Update string literals from the old to the new canvas.
 /// </summary>
 /// <remarks>
 /// Say your canvas contains a string literal that is (or contains)
-/// a url pointing to the `oldHost` ("://oldhost.builtwithdark.com/stuff",
+/// a url pointing to the `oldCanvas` ("://oldhost.builtwithdark.com/stuff",
 /// or its localhost equivalent), the `op` will be transformed
-/// to refer to the `newHost`
+/// to refer to the `newCanvas`
 /// </remarks>
 let updateHostsInOp
-  (oldHost : CanvasName.T)
-  (newHost : CanvasName.T)
+  (oldCanvas : CanvasName.T)
+  (newCanvas : CanvasName.T)
   (op : PT.Op)
   : PT.Op =
   let replaceHost (str : string) : string =
@@ -77,16 +74,18 @@ let updateHostsInOp
     // ://newHost.builtwithdark.com. *)
     let host (canvas : CanvasName.T) =
       $"://{string canvas}.{Config.bwdServerContentHost}"
-    String.replace (host oldHost) (host newHost) str
+    String.replace (host oldCanvas) (host newCanvas) str
   let rec updateHostsInPattern (pattern : PT.Pattern) : PT.Pattern =
     ProgramTypesAst.patternPostTraversal
-      (function
-      | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
-      | pat -> pat)
+      (fun pat ->
+        match pat with
+        | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
+        | pat -> pat)
       pattern
   Op.astOf op
   |> Option.map (
-    ProgramTypesAst.preTraversal (function
+    ProgramTypesAst.preTraversal (fun pat ->
+      match pat with
       | PT.EString (id, str) -> PT.EString(id, replaceHost str)
       | PT.EMatch (id, cond, branches) ->
         let newBranches =
@@ -117,13 +116,17 @@ let cloneCanvas
   // an acceptable risk - users would have to get their welcome to dark email,
   // reset their password, and log in, before we finish running cloneCanvas.
   task {
-    let! fromMeta = Canvas.getMeta fromCanvasName
+    // In production, this canvas will always already exist. We use the AndCreate
+    // version here to make tests not fail.
+    let! fromMeta = Canvas.getMetaAndCreate fromCanvasName
     let! fromTLIDs = Serialize.fetchAllLiveTLIDs fromMeta.id
+    // CLEANUP this could be substantially simplified now that we know that oplist_cache
+    // is non-null.
     let! fromOps =
       Serialize.loadOplists Serialize.LiveToplevels fromMeta.id fromTLIDs
     let! fromCanvas = Canvas.loadAll fromMeta
 
-    let! toMeta = Canvas.getMeta toCanvasName
+    let! toMeta = Canvas.getMetaAndCreate toCanvasName
     let! toTLIDs = Serialize.fetchAllTLIDs toMeta.id
     if toTLIDs <> [] then Exception.raiseInternal "destination already exists" []
 
@@ -138,12 +141,12 @@ let cloneCanvas
           (tlid, ops)
         else
           (tlid, onlyOpsSinceLastSavepoint ops))
-      |> List.map (fun (tlid, ops) ->
+      |> List.filterMap (fun (tlid, ops) ->
         let newOps = List.map (updateHostsInOp fromCanvasName toCanvasName) ops
-        let (isDeleted, toplevel) =
-          Canvas.getToplevel tlid fromCanvas
-          |> Exception.unwrapOptionInternal "gettoplevel" [ "tlid", tlid ]
-        (tlid, newOps, toplevel, isDeleted))
+        // Deleted forever handlers won't be present but better safe than sorry
+        match Canvas.getToplevel tlid fromCanvas with
+        | None -> None
+        | Some (isDeleted, toplevel) -> Some(tlid, newOps, toplevel, isDeleted))
 
     do! Canvas.saveTLIDs toMeta toOps
     return ()

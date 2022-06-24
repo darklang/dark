@@ -85,7 +85,7 @@ let analysisID = (t: t): ID.t =>
   | _ => tid(t)
   }
 
-/* TODO(alice) merge these two functions? */
+// TODO(alice) merge these two functions?
 let parentExprID = (t: t): ID.t =>
   switch t {
   | TNewline(Some(_, id, _)) => id
@@ -97,16 +97,16 @@ let parentExprID = (t: t): ID.t =>
 */
 let parentBlockID = (t: t): option<ID.t> =>
   switch t {
-  /* The first ID is the ID of the whole string expression */
+  // The first ID is the ID of the whole string expression
   | TStringMLStart(id, _, _, _)
   | TStringMLMiddle(id, _, _, _)
   | TStringMLEnd(id, _, _, _)
-  | /* The ID of a comma token is the ID of the whole list expression */
+  | // The ID of a comma token is the ID of the whole list expression
   TListComma(id, _)
-  | /* The first ID in the separator token is the ID of the whole obj expression */
+  | // The first ID in the separator token is the ID of the whole obj expression
   TRecordSep(id, _, _) =>
     Some(id)
-  /* The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block. */
+  // The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block.
   | TRecordOpen(_, pid)
   | TRecordClose(_, pid)
   | TListOpen(_, pid)
@@ -461,7 +461,7 @@ let isAutocompletable = (t: t): bool =>
   | _ => false
   }
 
-/* Is this token something we can highlight as DError or DIncomplete? */
+// Is this token something we can highlight as DError or DIncomplete?
 let isErrorDisplayable = (t: t): bool =>
   isTextToken(t) &&
   switch t {
@@ -794,7 +794,7 @@ let toCssClasses = (t: t): list<string> => {
     }
   }
 
-  \"@"(empty, \"@"(keyword, \"@"(typename, category)))
+  Belt.List.concatMany([empty, keyword, typename, category])
 }
 
 let show_tokenInfo = (ti: tokenInfo) =>
@@ -827,7 +827,7 @@ let matches = (t1: t, t2: t): bool =>
     (toTypeName(t1) == toTypeName(t2) &&
     (toIndex(t1) == toIndex(t2) && t1 != /* Matches too many things */ TNewline(None)))
 
-/* Matches everything except parentBlockID */
+// Matches everything except parentBlockID
 let matchesContent = (t1: t, t2: t): bool =>
   switch (t1, t2) {
   | (TStringMLStart(id1, seg1, ind1, str1), TStringMLStart(id2, seg2, ind2, str2))

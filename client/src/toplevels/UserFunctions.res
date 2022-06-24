@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module P = Pointer
 module TD = TLIDDict
@@ -221,7 +221,10 @@ let extend = (uf: userFunction): userFunction => {
   }
 
   let metadata = uf.ufMetadata
-  let newMetadata = {...metadata, ufmParameters: \"@"(uf.ufMetadata.ufmParameters, list{newParam})}
+  let newMetadata = {
+    ...metadata,
+    ufmParameters: Belt.List.concat(uf.ufMetadata.ufmParameters, list{newParam}),
+  }
 
   {...uf, ufMetadata: newMetadata}
 }
@@ -238,7 +241,7 @@ let idOfLastBlankor = (f: userFunction): ID.t =>
   |> Option.andThen(~f=p => Some(B.toID(p.ufpTipe)))
   |> Option.unwrap(~default=B.toID(f.ufMetadata.ufmName))
 
-/* Converts inputValueDict to executeFunctionAPIParams.efpArgs */
+// Converts inputValueDict to executeFunctionAPIParams.efpArgs
 let inputToArgs = (f: userFunction, input: inputValueDict): list<dval> => {
   let default = DIncomplete(SourceNone)
   f.ufMetadata.ufmParameters |> List.map(~f=p =>

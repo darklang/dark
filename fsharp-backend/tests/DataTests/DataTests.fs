@@ -12,7 +12,7 @@ open TestUtils.TestUtils
 
 module Account = LibBackend.Account
 module Serialize = LibBackend.Serialize
-module BinarySerialization = LibBackend.BinarySerialization
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 module Canvas = LibBackend.Canvas
 module Execution = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
@@ -53,9 +53,7 @@ module CD =
     with
     | e ->
       print $"No test file found or test file error: {filename}"
-      print e.Message
-      print (Exception.toMetadata e |> string)
-      print e.StackTrace
+      printException "" [] e
       System.Environment.Exit(-1)
 
   let saveCheckpointData () : unit =
@@ -109,7 +107,7 @@ let catchException (failOnError : bool) (e : exn) =
   try
     if failOnError then print "exiting" else print "error found"
     print e.Message
-    print (Exception.toMetadata e |> string)
+    print (string (Exception.toMetadata e))
     if failOnError then
       CD.saveCheckpointData ()
       e.StackTrace
@@ -174,74 +172,6 @@ let forEachCanvasWithClient
     let client = lazy (Tests.ApiServer.forceLogin username)
     fn client canvasName)
 
-/// Iterate through all canvases and all DBs in those canvases
-let loadAllUserData (concurrency : int) (failOnError : bool) =
-  forEachCanvas concurrency failOnError (fun canvasName ->
-    task {
-      let! meta = Canvas.getMeta canvasName
-      let! c = Canvas.loadAllDBs meta
-      let dbs =
-        c.dbs |> Map.values |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map
-      let! state = TestUtils.TestUtils.executionStateFor meta dbs Map.empty
-      let! (result : List<unit>) =
-        dbs
-        |> Map.values
-        |> List.map (fun (db : RT.DB.T) ->
-          uply {
-            let code = $"DB.getAllWithKeys_v2 {db.name}"
-            let ast = FSharpToExpr.parsePTExpr code
-            let! actual =
-              LibExecution.Execution.executeExpr
-                state
-                (Map.map (fun (db : RT.DB.T) -> RT.DDB db.name) dbs)
-                (PT2RT.Expr.toRT ast)
-
-            // For this to work, we need to make PasswordBytes.to_yojson return
-            // [`String (Bytes.to_string bytes)]
-            let! expected =
-              LibBackend.OCamlInterop.execute
-                state.program.accountID
-                state.program.canvasID
-                ast
-                Map.empty
-                (Map.values c.dbs)
-                []
-            let expected =
-              match expected with
-              | RT.DError (source, str) ->
-                RT.DError(source, TestUtils.TestUtils.parseOCamlError str)
-              | other -> other
-
-            // The values should be the same
-            Expect.equal actual expected "getAll should be the same equal"
-            return ()
-          }
-          |> Ply.toTask)
-        |> Task.flatten
-
-      let fn cn = task { return () }
-
-      return! fn canvasName
-    })
-
-
-/// Iterate through all canvases and load all data from the queue
-let loadAllQueueData (concurrency : int) (failOnError : bool) =
-  forEachCanvas concurrency failOnError (fun canvasName ->
-    task {
-      let! dvalStrs = LibBackend.EventQueue.fetchAllQueueItems canvasName
-      return!
-        dvalStrs
-        |> Task.iterInParallel (fun dvalStr ->
-          task {
-            let fsharpDval =
-              LibExecution.DvalReprInternal.ofInternalRoundtrippableV0 dvalStr
-            let! ocamlDval =
-              LibBackend.OCamlInterop.ofInternalRoundtrippableV0 dvalStr
-            return Expect.equalDval fsharpDval ocamlDval ""
-          })
-    })
-
 
 let loadAllTraceData (concurrency : int) (failOnError : bool) =
   forEachCanvasWithClient concurrency failOnError (fun client canvasName ->
@@ -285,14 +215,14 @@ let validate
     print e.StackTrace
     reraise ()
 
-let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
+let checkCached (meta : Canvas.Meta) (tlids : List<tlid>) =
   task {
     let loadWatch = System.Diagnostics.Stopwatch()
     loadWatch.Start()
-    let! expected = Serialize.loadOnlyRenderedTLIDs meta.id tlids
+    let! expected = Serialize.loadOnlyCachedTLIDs meta.id tlids
     loadWatch.Stop()
     // debuG "legacyserver load time" loadWatch.ElapsedMilliseconds
-    // debuG "rendered items" (List.length expected)
+    // debuG "cached items" (List.length expected)
     expected
     |> List.iter (fun v ->
       let tlid = PT.Toplevel.toTLID v
@@ -326,24 +256,20 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
 
 [<EntryPoint>]
 let main args =
-  LibService.Init.init "Tests"
-  LibExecution.Init.init "Tests"
-  LibExecutionStdLib.Init.init "Tests"
-  (LibBackend.Init.init "Tests" true).Result
-  LibRealExecution.Init.init "Tests"
-  HttpMiddleware.Init.init "Tests"
-  TestUtils.Init.init "Tests"
-
+  let name = "DataTests"
+  LibService.Init.init name
   LibService.Telemetry.Console.loadTelemetry
     "DataTests"
     LibService.Telemetry.DontTraceDBQueries
+  (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+  (LibRealExecution.Init.init name).Result
 
   let fn (canvasName : CanvasName.T) : Task<unit> =
     task {
-      let! meta = Canvas.getMeta canvasName
+      let! meta = Canvas.getMetaExn canvasName
       let! tlids = Serialize.fetchAllTLIDs meta.id
 
-      do! checkRendered meta tlids
+      do! checkCached meta tlids
       do! checkOplists meta tlids
       return ()
     }

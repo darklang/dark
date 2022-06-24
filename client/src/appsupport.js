@@ -137,9 +137,9 @@ function displayError(msg) {
 }
 
 window.onerror = function (msg, url, lineno, colno, error) {
+  console.error("Uncaught exception", msg, url, lineno, colno, error);
   window.Rollbar.error(msg, error);
   window.lastError = error;
-  console.error("Uncaught exception", msg, url, lineno, colno, error);
   displayError(msg);
 };
 
@@ -190,65 +190,20 @@ window.Dark = {
   // ---------------------------
   // Run analysis
   // ---------------------------
-  ocamlAnalysis: {
-    /* Next and busy are used to queue analyses. If busy is false, run
-      immediately; else wait until the analysis is done and then run next. If
-      next is not set, reset busy. */
-    next: null,
-    busy: false,
-    requestAnalysis: function (params) {
-      const analysis = window.Dark.ocamlAnalysis;
-      const worker = window.analysisWorker;
-      if (!worker) {
-        console.log("AnalysisWorker not loaded yet");
-        setTimeout(function () {
-          console.log("Trying AnalysisWorker again");
-          analysis.requestAnalysis(params);
-        }, 100);
-        return;
-      }
-
-      // analysis queue: run immediately or store if busy
-      if (window.Dark.analysis.busy) {
-        // busy: record for next time
-        analysis.next = params;
-      } else {
-        // not busy: run it immediately
-        worker.postMessage(params);
-        analysis.busy = true;
-      }
-
-      worker.onmessage = function (e) {
-        var result = e.data;
-
-        var event = new CustomEvent("receiveAnalysis", { detail: result });
-        document.dispatchEvent(event);
-
-        // analysis queue: run the next analysis or mark not busy
-        let params = analysis.next;
-        if (params === null) {
-          // no analyses waiting, we're done
-          analysis.busy = false;
-        } else {
-          // an analysis is waiting, run it
-          analysis.next = null;
-          worker.postMessage(params);
-        }
-
-        window.Dark.analysis.lastRun = new Date();
-      };
-    },
-  },
-  fsharpAnalysis: {
+  analysis: {
     /* Next and busy are used to queue analyses. If busy is false, run
       immediately; else wait until the analysis is done and then run next. If
       next is not set, reset busy. */
     next: null,
     busy: false,
     /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
-    utils: require("../../lib/js/client/workers/FSharpAnalysisWrapper.bs.js"),
+    utils: require("../../lib/js/client/workers/AnalysisWrapper.bs.js"),
+    debug: (function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get("debug-analysis") == "true";
+    })(),
     callback: function (event) {
-      const analysis = window.Dark.fsharpAnalysis;
+      const analysis = window.Dark.analysis;
       const worker = window.BlazorWorker;
       var result = analysis.utils.decodeOutput(event.data);
 
@@ -273,7 +228,7 @@ window.Dark = {
     },
     initialized: false,
     requestAnalysis: function (params) {
-      const analysis = window.Dark.fsharpAnalysis;
+      const analysis = window.Dark.analysis;
       const worker = window.BlazorWorker;
       if (!analysis.initialized) {
         console.log("BlazorWorker not loaded yet");
@@ -300,37 +255,25 @@ window.Dark = {
       } else {
         // not busy: run it immediately
 
+        if (analysis.debug) {
+          console.log("Requesting analysis", params);
+        }
         worker.postMessage(params);
         analysis.busy = true;
       }
     },
     initializeBlazorWorker: function () {
-      const analysis = window.Dark.fsharpAnalysis;
+      const analysis = window.Dark.analysis;
       let initializedCallback = () => {
         console.log("Blazor loaded");
         analysis.initialized = true;
       };
       // Only load when asked for
-      if (window.Dark.analysis.useBlazor) {
-        window.BlazorWorker.initWorker(
-          initializedCallback,
-          analysis.callback,
-          analysis.errorCallback,
-        );
-      }
-    },
-  },
-  analysis: {
-    useBlazor: (function () {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get("use-blazor");
-    })(),
-    requestAnalysis: function (params) {
-      if (window.Dark.analysis.useBlazor) {
-        window.Dark.fsharpAnalysis.requestAnalysis(params);
-      } else {
-        window.Dark.ocamlAnalysis.requestAnalysis(params);
-      }
+      window.BlazorWorker.initWorker(
+        initializedCallback,
+        analysis.callback,
+        analysis.errorCallback,
+      );
     },
     // Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp
     lastRun: 0,
@@ -386,27 +329,6 @@ window.Dark = {
     },
   },
 
-  // ---------------------------
-  // Capturing screenshots
-  // ---------------------------
-  view: {
-    capture: function () {
-      var html2canvas = require("html2canvas");
-      html2canvas(document.getElementById("app"), {
-        backgroundColor: "#484848",
-        ignoreElements: e => e.id === "sidebar-left" || e.id === "minimap",
-      }).then(
-        canvas => {
-          const data = canvas.toDataURL("image/jpeg");
-          const event = new CustomEvent("captureView", { detail: data });
-          document.dispatchEvent(event);
-        },
-        err => {
-          console.error("captureView", err);
-        },
-      );
-    },
-  },
   // ---------------------------
   // Fullstory
   // ---------------------------
@@ -629,20 +551,7 @@ setTimeout(function () {
     "const rollbarConfig = '" + JSON.stringify(rollbarConfig) + "';\n\n";
   let buildHashSetup = "const buildHash = '" + buildHash + "';\n\n";
 
-  let analysisjs = fetcher("/analysis.js");
-  let analysiswrapperjs = fetcher("/analysiswrapper.js");
   let fetcherjs = fetcher("/fetcher.js");
-  (async function () {
-    var strings = [
-      rollbarConfigSetup,
-      buildHashSetup,
-      await analysisjs,
-      "\n\n",
-      await analysiswrapperjs,
-    ];
-    var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
-    window.analysisWorker = new Worker(analysisWorkerUrl);
-  })();
   (async function () {
     var strings = [rollbarConfigSetup, buildHashSetup, await fetcherjs];
     var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
@@ -652,7 +561,7 @@ setTimeout(function () {
   // ---------------------------
   // Initialize blazorworker
   // ---------------------------
-  window.Dark.fsharpAnalysis.initializeBlazorWorker();
+  window.Dark.analysis.initializeBlazorWorker();
 
   // ---------------------------
   // Detect window focus change

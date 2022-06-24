@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 
 type viewProps = ViewUtils.viewProps
@@ -44,7 +44,7 @@ let fnExecutionStatus = (p: props, fn: function_, id: ID.t, args: list<ID.t>) =>
     switch Analysis.getLiveValue'(p.analysisStore, id) {
     | Some(DIncomplete(SourceId(srcTlid, srcId)))
     | Some(DError(SourceId(srcTlid, srcId), _))
-      if /* assume tlids are the same if the ids are */
+      if // assume tlids are the same if the ids are
       (srcTlid, srcId) ==
         (p.tlid, id) => /* this means the live value is an error/incomplete created by this
        * function, so the function is incomplete because it's unplayed. */
@@ -139,7 +139,7 @@ let fnExecutionButton = (p: props, fn: function_, id: ID.t, args: list<ID.t>) =>
   let name = fn.fnName
   let status = fnExecutionStatus(p, fn, id, args)
   switch fn.fnPreviewSafety {
-  /* UserFunctions always need play buttons to add the arguments to the trace */
+  // UserFunctions always need play buttons to add the arguments to the trace
   | Safe if fn.fnOrigin != UserFunction => Vdom.noNode
   | Safe | Unsafe =>
     let class_ = executionClass(status)
@@ -147,7 +147,7 @@ let fnExecutionButton = (p: props, fn: function_, id: ID.t, args: list<ID.t>) =>
     let icon = executionIcon(status)
     let events = executionEvents(status, p.tlid, id, name)
     Html.div(
-      \"@"(list{Html.class'("execution-button " ++ class_), Html.title(title)}, events),
+      list{Html.class'("execution-button " ++ class_), Html.title(title), ...events},
       list{fontAwesome(icon)},
     )
   }

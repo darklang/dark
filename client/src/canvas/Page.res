@@ -165,7 +165,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
       ...m,
       currentPage: newPage,
       cursorState: Selecting(tlid, None),
-      canvasProps: {...m.canvasProps, offset: offset, lastOffset: None, minimap: None},
+      canvasProps: {...m.canvasProps, offset: offset, lastOffset: None},
     }
   | (SettingsModal(_), FocusedHandler(tlid, _, _))
   | (SettingsModal(_), FocusedDB(tlid, _))
@@ -208,7 +208,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
     {
       ...m,
       currentPage: newPage,
-      canvasProps: {...m.canvasProps, offset: offset, lastOffset: None, minimap: None},
+      canvasProps: {...m.canvasProps, offset: offset, lastOffset: None},
     }
   | (_, SettingsModal(tab)) =>
     let settingsView = SettingsView.update(m.settingsView, OpenSettingsView(tab))
@@ -218,20 +218,6 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
      * Stay where you are, Deselect
      */
     {...m, currentPage: newPage, cursorState: Deselected}
-  }
-
-let capMinimap = (oldPage: page, newPage: page): list<Cmd.t<msg>> =>
-  switch (oldPage, newPage) {
-  | (Architecture, FocusedFn(_))
-  | (FocusedHandler(_), FocusedFn(_))
-  | (FocusedDB(_), FocusedFn(_))
-  | (Architecture, FocusedType(_))
-  | (FocusedHandler(_), FocusedType(_))
-  | (FocusedDB(_), FocusedType(_))
-  | (Architecture, FocusedPackageManagerFn(_))
-  | (FocusedHandler(_), FocusedPackageManagerFn(_))
-  | (FocusedDB(_), FocusedPackageManagerFn(_)) => list{Native.OnCaptureView.capture()}
-  | _ => list{}
   }
 
 /* Go back to Architecture view if user is on the type/fn page

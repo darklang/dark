@@ -4,11 +4,9 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>6.0</LangVersion>
     <OtherFlags>--warnaserror</OtherFlags>
-    <!-- <PublishReadyToRun>true</PublishReadyToRun> -->
+    <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
@@ -19,14 +17,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.FuzzTests.fs" />
+    <Compile Include="Generators.fs" />
     <Compile Include="FQFnName.FuzzTests.fs" />
-    <Compile Include="OCamlInterop.FuzzTests.fs" />
-    <Compile Include="DvalRepr.FuzzTests.fs" />
-    <Compile Include="HttpClient.FuzzTests.fs" />
-    <Compile Include="Json.FuzzTests.fs" />
     <Compile Include="Passwords.FuzzTests.fs" />
-    <Compile Include="BytesToString.FuzzTests.fs" />
-    <Compile Include="Date.FuzzTests.fs" />
+    <Compile Include="NodaTime.FuzzTests.fs" />
+    <Compile Include="InternalJson.FuzzTests.fs" />
+    <Compile Include="AllowedFuzzerErrors.fs" />
     <Compile Include="ExecutePureFunctions.FuzzTests.fs" />
     <Compile Include="FuzzTests.fs" />
   </ItemGroup>

@@ -7,23 +7,13 @@ the builder script. Run it with `--test` to run tests.
 
 ## Backend
 
-The entry point is backend/test/test.ml. Run tests from the command
-line using:
-
-`scripts/run-backend-tests`
-
-Tests are _not_ automatically discovered; they must be added to the
-list at the bottom of the test file. New test files must be added
-to test.ml.
-
-## F#
-
-The entry point is fsharp-backend/tests/Tests/Tests.ml. Run tests from the command
-line using:
+The entry point is `fsharp-backend/tests/Tests/Tests.fs`. Run tests from the
+command line using:
 
 `scripts/run-fsharp-tests`
 
-Run `scripts/run-fsharp-tests --help` for options. In particular, to run only tests with XXX in their names:
+Run `scripts/run-fsharp-tests --help` for options. In particular, to run only
+tests with XXX in their names:
 
 `scripts/run-fsharp-tests --filter-test-case XXX`
 
@@ -31,7 +21,10 @@ Or to run only testlists with XXX in their names:
 
 `scripts/run-fsharp-tests --filter-test-list XXX`
 
-Tests are _not_ automatically discovered; they must be added to Tests.fs.
+Tests are _not_ automatically discovered; they must be added to `Tests.fs`.
+
+We also have a number of property-based tests, which we currently keep separate
+in `fsharp-backend/tests/FuzzTests`. Run them with `scripts/run-fsharp-fuzzer`.
 
 ## Client-side
 
@@ -49,4 +42,4 @@ figuring out why it was bad.
 
 ## Integration tests
 
-There are also integration tests, see integration-tests/README.md.
+There are also integration tests, see `integration-tests/README.md`.

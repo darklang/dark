@@ -290,6 +290,40 @@ type 'expr_type op =
   | DeleteType of tlid
   | DeleteTypeForever of tlid
 
+let tlidOf (op : op<'expr_type>) : tlid =
+  match op with
+  | DeleteColInDBMigration (tlid, _) -> tlid
+  | DeprecatedInitDbm (tlid, _, _, _, _) -> tlid
+  | SetHandler (tlid, _, _) -> tlid
+  | CreateDB (tlid, _, _) -> tlid
+  | AddDBCol (tlid, _, _) -> tlid
+  | SetDBColName (tlid, _, _) -> tlid
+  | ChangeDBColName (tlid, _, _) -> tlid
+  | SetDBColType (tlid, _, _) -> tlid
+  | ChangeDBColType (tlid, _, _) -> tlid
+  | SetExpr (tlid, _, _) -> tlid
+  | TLSavepoint tlid -> tlid
+  | UndoTL tlid -> tlid
+  | RedoTL tlid -> tlid
+  | DeleteTL tlid -> tlid
+  | MoveTL (tlid, _) -> tlid
+  | SetFunction f -> f.tlid
+  | DeleteFunction tlid -> tlid
+  | CreateDBMigration (tlid, _, _, _) -> tlid
+  | AddDBColToDBMigration (tlid, _, _) -> tlid
+  | AbandonDBMigration tlid -> tlid
+  | SetDBColNameInDBMigration (tlid, _, _) -> tlid
+  | SetDBColTypeInDBMigration (tlid, _, _) -> tlid
+  | DeleteDBCol (tlid, _) -> tlid
+  | RenameDBname (tlid, _) -> tlid
+  | CreateDBWithBlankOr (tlid, _, _, _) -> tlid
+  | SetType ut -> ut.tlid
+  | DeleteType tlid -> tlid
+  | DeleteFunctionForever tlid -> tlid
+  | DeleteTLForever tlid -> tlid
+  | DeleteTypeForever tlid -> tlid
+
+
 type 'expr_type oplist = 'expr_type op list
 type 'expr_type tlid_oplist = (tlid * 'expr_type oplist)
 
@@ -344,6 +378,32 @@ module Convert =
     | ORT.Rail -> PT.Rail
     | ORT.NoRail -> PT.NoRail
 
+  // Copied from LibExecutionStdlib.Stdlib, which isn't accessible from here (and
+  // this file can't be moved easily). This file will be deleted "soon" so it doesn't
+  // matter.
+  let infixNames =
+    [ "+"
+      "-"
+      "*"
+      ">"
+      ">="
+      "<="
+      "<"
+      "^"
+      "%"
+      "/"
+      "Date::<"
+      "Date::>"
+      "Date::<="
+      "Date::>="
+      "++"
+      "=="
+      "!="
+      "&&"
+      "||" ]
+    |> Set
+
+
   let rec ocamlExpr2PT (o : ORT.fluidExpr) : PT.Expr =
     let r = ocamlExpr2PT
 
@@ -370,7 +430,25 @@ module Convert =
         ocamlSter2PT ster
       )
     | ORT.EBinOp (id, name, arg1, arg2, ster) ->
-      PT.EBinOp(id, PTParser.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
+      assert_
+        "is a valid infix function"
+        [ "name", name ]
+        (Set.contains name infixNames)
+      let (module_, fn) =
+        match String.split "::" name with
+        | [ "Date"; fn ] -> Some "Date", fn
+        | [ fn ] -> None, fn
+        | other ->
+          Exception.raiseInternal
+            "invalid split fnName"
+            [ "value", other; "name", name ]
+      PT.EBinOp(
+        id,
+        { module_ = module_; function_ = fn },
+        r arg1,
+        r arg2,
+        ocamlSter2PT ster
+      )
     | ORT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
     | ORT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
     | ORT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -552,11 +630,11 @@ module Convert =
     | CreateDBWithBlankOr (tlid, pos, id, string) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
       Some(PT.CreateDBWithBlankOr(tlid, position, id, string))
-    | DeleteTLForever tlid -> Some(PT.DeleteTLForever tlid)
-    | DeleteFunctionForever tlid -> Some(PT.DeleteFunctionForever tlid)
     | SetType tipe -> Some(PT.SetType(ocamlUserType2PT tipe))
     | DeleteType tlid -> Some(PT.DeleteType tlid)
-    | DeleteTypeForever tlid -> Some(PT.DeleteTypeForever tlid)
+    | DeleteTLForever _
+    | DeleteFunctionForever _
+    | DeleteTypeForever _ -> None
 
 
   let ocamlOplist2PT (list : oplist<ORT.fluidExpr>) : PT.Oplist =
@@ -595,7 +673,8 @@ module Convert =
     | BSTypes.UserType ut -> PT.Toplevel.TLType(ocamlUserType2PT ut)
     | BSTypes.UserFn uf -> PT.Toplevel.TLFunction(ocamlUserFunction2PT uf)
 
-
+  let ocamlSecret2RT (secret : secret) : RT.Secret.T =
+    { name = secret.secret_name; value = secret.secret_value }
 
   // ----------------
 // ProgramTypes to OCaml
@@ -689,16 +768,11 @@ module Convert =
 
       ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
-      ORT.EBinOp(
-        id,
-        name
-        |> PT2RT.FQFnName.toRT
-        |> RT.FQFnName.toString
-        |> String.replace "_v0" "",
-        r arg1,
-        r arg2,
-        pt2ocamlSter ster
-      )
+      let name =
+        match name.module_ with
+        | Some module_ -> $"{module_}::{name.function_}"
+        | None -> name.function_
+      ORT.EBinOp(id, name, r arg1, r arg2, pt2ocamlSter ster)
     | PT.ELambda (id, vars, body) -> ORT.ELambda(id, vars, r body)
     | PT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -745,7 +819,6 @@ module Convert =
     | RT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       ORT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EPartial (id, oldExpr) -> ORT.EPartial(id, "partial", r oldExpr)
     | RT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
     | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | RT.EConstructor (id, name, exprs) ->
@@ -795,7 +868,7 @@ module Convert =
 
       let pipeTarget = ORT.EPipeTarget(gid ())
       let fnCall = ORT.EFnCall(id, name, pipeTarget :: actualArgs, rt2ocamlSter rail)
-      ORT.EPipe(pipeID, pipeStart @ [ fnCall ]) |> debug "converted to pipe"
+      ORT.EPipe(pipeID, pipeStart @ [ fnCall ])
     | RT.EFQFnValue _
     | RT.EApply (_, _, _, _, _) ->
       // these shouldn't happen in practice at the moment
@@ -954,11 +1027,8 @@ module Convert =
     | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
       let pos : pos = { x = pos.x; y = pos.y }
       CreateDBWithBlankOr(tlid, pos, id, string)
-    | PT.DeleteTLForever tlid -> DeleteTLForever tlid
-    | PT.DeleteFunctionForever tlid -> DeleteFunctionForever tlid
     | PT.SetType tipe -> SetType(pt2ocamlUserType tipe)
     | PT.DeleteType tlid -> DeleteType tlid
-    | PT.DeleteTypeForever tlid -> DeleteTypeForever tlid
 
 
   let pt2ocamlOplist (list : PT.Oplist) : oplist<ORT.fluidExpr> =

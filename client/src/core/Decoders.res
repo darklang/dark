@@ -1,7 +1,7 @@
 open Prelude
 open Json.Decode
 
-/* Dark */
+// Dark
 module TL = Toplevel
 module RT = Runtime
 
@@ -9,7 +9,7 @@ type id = Shared.id
 
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
-/* This and tuple5 are adapted from Bucklescript - see tuple4 for the original */
+// This and tuple5 are adapted from Bucklescript - see tuple4 for the original
 external unsafe_get: (array<'a>, int) => 'a = "%array_unsafe_get"
 
 let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
@@ -38,7 +38,7 @@ let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
   = "getFluidSelectionRange"
   [@@bs.val] [@@bs.scope "window"] */
 
-/* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! */
+// XXX(JULIAN): All of this should be cleaned up and moved somewhere nice!
 @deriving(abstract) type jsArrayBuffer = {byteLength: int}
 
 @deriving(abstract) type jsUint8Array
@@ -49,7 +49,7 @@ let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
 
 @set_index external setUint8ArrayIdx: (jsUint8Array, int, int) => unit = ""
 
-/* Note: unsafe. Wrap in bytes_from_base64url, which validates the input */
+// Note: unsafe. Wrap in bytes_from_base64url, which validates the input
 let dark_arrayBuffer_from_b64url = %raw(`
   function (base64) {
     // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
@@ -108,7 +108,7 @@ exception Invalid_B64(string)
 let valid_rfc4648_b64_or_exn = (str: string) => {
   let rfc4648_section5_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\\-_"
 
-  /* '=' isn't in the alphabet, but we allow it as padding */
+  // '=' isn't in the alphabet, but we allow it as padding
   if Util.Regex.exactly(~re="[" ++ (rfc4648_section5_alphabet ++ ("=" ++ "]*")), str) {
     str
   } else {
@@ -226,19 +226,11 @@ let rec fluidPattern = (j): FluidPattern.t => {
       ("FPConstructor", dv4((a, b, c, d) => P.FPConstructor(a, b, c, d), id, id, string, list(dp))),
       ("FPInteger", dv3((a, b, c) => P.FPInteger(a, b, c), id, id, string)),
       ("FPBool", dv3((a, b, c) => P.FPBool(a, b, c), id, id, bool)),
-      (
-        "FPString",
-        recordVariant3(
-          (matchID, patternID, str) => P.FPString({
-            matchID: matchID,
-            patternID: patternID,
-            str: str,
-          }),
-          ("matchID", id),
-          ("patternID", id),
-          ("str", string),
-        ),
-      ),
+      ("FPString", recordVariant3((matchID, patternID, str) => P.FPString({
+          matchID: matchID,
+          patternID: patternID,
+          str: str,
+        }), ("matchID", id), ("patternID", id), ("str", string))),
       ("FPFloat", dv4((a, b, c, d) => P.FPFloat(a, b, c, d), id, id, string, string)),
       ("FPNull", dv2((a, b) => P.FPNull(a, b), id, id)),
       ("FPBlank", dv2((a, b) => P.FPBlank(a, b), id, id)),
@@ -344,8 +336,12 @@ let rec dval = (j): dval => {
      * language isn't intended to have them, we haven't actually managed to
      * eradicate them from the runtime, and so we'll sometimes get the from the
      * analysis code.  However, since JSON doesn't support Infinity/NaN, our
-     * JSON parser crashes. So instead we encode them specially in
-     * Jsanalysis.clean_yojson, which is the encoder which matches this decoder
+     * JSON parser crashes. So instead we encode them specially in the backend,
+     * with quotes, e.g. "NaN".
+     *
+     * CLEANUP remove OCaml-specific parsing here.
+     * The checks within `Some` are for OCaml analysis, while the ones under `None` are
+     * for F#.
      */
     switch Js.Json.decodeObject(j) {
     | Some(obj) =>
@@ -362,7 +358,16 @@ let rec dval = (j): dval => {
       } else {
         \"@@"(raise, DecodeError("Expected float, got " ++ stringify(j)))
       }
-    | None => Json.Decode.float(j)
+    | None =>
+      if j == Js.Json.string("Infinity") {
+        Float.infinity
+      } else if j == Js.Json.string("-Infinity") {
+        Float.negativeInfinity
+      } else if j == Js.Json.string("NaN") {
+        Float.nan
+      } else {
+        Json.Decode.float(j)
+      }
     }
 
   variants(
@@ -516,16 +521,11 @@ and cursorState = (j: Js.Json.t): cursorState => {
         "PanningCanvas",
         /* TODO: There's a danger of mismatching the encoder order here because we're using an inline record.
          * An order-independent encoding would alleviate this. */
-        dv3(
-          (viewportStart, viewportCurr, prevCursorState) => PanningCanvas({
-            viewportStart: viewportStart,
-            viewportCurr: viewportCurr,
-            prevCursorState: prevCursorState,
-          }),
-          vPos,
-          vPos,
-          cursorState,
-        ),
+        dv3((viewportStart, viewportCurr, prevCursorState) => PanningCanvas({
+          viewportStart: viewportStart,
+          viewportCurr: viewportCurr,
+          prevCursorState: prevCursorState,
+        }), vPos, vPos, cursorState),
       ),
       ("Deselected", dv0(Deselected)) /* Old value */,
       ("SelectingCommand", dv2((a, b) => Selecting(a, Some(b)), tlid, id)),
@@ -536,19 +536,19 @@ and cursorState = (j: Js.Json.t): cursorState => {
   )
 }
 
-/*  */
-/* and entering j = */
-/* let dv1 = variant1 in */
-/* let dv2 = variant2 in */
-/* variants */
-/* [ ( "Creating" */
-/* , dv1 */
-/* (fun x -> Creating (if x = Defaults.origin then None else Some x)) */
-/* pos ) */
-/* ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ] */
-/* j */
-/*  */
-/*  */
+//
+// and entering j =
+// let dv1 = variant1 in
+// let dv2 = variant2 in
+// variants
+// [ ( "Creating"
+// , dv1
+// (fun x -> Creating (if x = Defaults.origin then None else Some x))
+// pos )
+// ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
+// j
+//
+//
 and loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
   variants(
     list{
@@ -787,8 +787,6 @@ let op = (j): op =>
       ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
       ("ChangeDBColType", variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string)),
       ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
-      /* deprecated, can't happen */
-      ("DeprecatedInitDbm", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
       (
         "CreateDBMigration",
         variant4(
@@ -831,11 +829,13 @@ let op = (j): op =>
         "CreateDBWithBlankOr",
         variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
       ),
-      ("DeleteFunctionForever", variant1(t => DeleteFunctionForever(t), tlid)),
-      ("DeleteTLForever", variant1(t => DeleteTLForever(t), tlid)),
       ("SetType", variant1(t => SetType(t), userTipe)),
       ("DeleteType", variant1(t => DeleteType(t), tlid)),
-      ("DeleteTypeForever", variant1(t => DeleteTypeForever(t), tlid)),
+      // deprecated, can't happen
+      ("DeprecatedInitDbm", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteFunctionForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteTLForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteTypeForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
     },
     j,
   )
@@ -863,7 +863,7 @@ let addOpAPIParams = (j): addOpAPIParams => {
   clientOpCtrId: field("clientOpCtrId", string)(j),
 }
 
-let addOpAPIStrollerMsg = (j: Js.Json.t): addOpStrollerMsg => {
+let addOpAPIPusherMsg = (j: Js.Json.t): addOpPusherMsg => {
   result: field("result", addOpAPIResult, j),
   params: field("params", addOpAPIParams, j),
 }
@@ -948,9 +948,9 @@ let triggerHandlerAPIResult = (j): triggerHandlerAPIResult => field("touched_tli
 
 let saveTestAPIResult = (j): saveTestAPIResult => string(j)
 
-/* -------------------------- */
-/* Dval (some here because of cyclic dependencies) */
-/* ------------------------- */
+// --------------------------
+// Dval (some here because of cyclic dependencies)
+// -------------------------
 
 let parseBasicDval = (str): dval =>
   oneOf(
@@ -964,7 +964,7 @@ let parseBasicDval = (str): dval =>
     str,
   )
 
-/* Ported directly from Dval.parse in the backend */
+// Ported directly from Dval.parse in the backend
 let parseDvalLiteral = (str: string): option<dval> =>
   switch String.toList(str) {
   | list{'\'', c, '\''} => Some(DCharacter(String.fromList(list{c})))
@@ -1043,7 +1043,7 @@ let exception_ = (j): exception_ => {
   workarounds: field("workarounds", list(string), j),
 }
 
-/* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format */
+// Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format
 let wrapExpect = (fn: Js.Json.t => 'a): (string => Tea.Result.t<'ok, string>) =>
   j =>
     try Ok(fn(Json.parseOrRaise(j))) catch {
@@ -1055,7 +1055,7 @@ let wrapExpect = (fn: Js.Json.t => 'a): (string => Tea.Result.t<'ok, string>) =>
       }
     }
 
-/* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format */
+// Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format
 let wrapDecoder = (fn: Js.Json.t => 'a): Tea.Json.Decoder.t<Js.Json.t, 'a> => Decoder(
   value =>
     try Tea_result.Ok(fn(value)) catch {

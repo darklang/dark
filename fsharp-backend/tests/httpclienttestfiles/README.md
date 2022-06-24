@@ -1,6 +1,9 @@
 # Dark HTTP client tests
 
-The files in this directory are tests of the HTTP client libraries. The test suite sets up a server that we can make HTTP requests against, using HttpClient. It then checks the request is as expected, and returns a response to be parsed by the HTTP client.
+The files in this directory are tests of the HTTP client libraries. The test suite
+sets up a server that we can make HTTP requests against, using HttpClient. It then
+checks the request is as expected, and returns a response to be parsed by the HTTP
+client.
 
 A test comprises some Dark code to make a request. The request string will be
 compared to the expected test string, and if it is identical, the response will
@@ -21,11 +24,10 @@ HttpClient::get_v0 "http://HOST/path" {} {} {} = Test.error_v0 "x"
 Note that this section has an equality test, this is so that the same test can
 check how it sends and how it receives data.
 
-You can use OCAMLONLY and FSHARPONLY in this section to limit tests to just one implementation. Otherwise they are tested against both implementations.
-
 # Expected Requests
 
-You test should make a request, which is compared, byte-for-byte, against the expected request. For example:
+You test should make a request, which is compared, byte-for-byte, against the
+expected request. For example:
 
 ```
 [expected-request]

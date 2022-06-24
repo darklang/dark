@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 
 let fontAwesome = ViewUtils.fontAwesome

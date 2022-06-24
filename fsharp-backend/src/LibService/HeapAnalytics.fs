@@ -43,12 +43,8 @@ let httpClient () : HttpClient = new HttpClient(_socketsHandler)
 
 
 /// Send an event to Heap.io
-let emitEvent
-  (executionID : ExecutionID)
-  (msgType : Type)
-  (body : JsonContent)
-  : unit =
-  FireAndForget.fireAndForgetTask executionID "heapio.track" (fun () ->
+let emitEvent (msgType : Type) (body : JsonContent) : unit =
+  FireAndForget.fireAndForgetTask "heapio.track" (fun () ->
     task {
       let client = httpClient ()
 
@@ -83,7 +79,6 @@ let emitEvent
       if result.StatusCode <> System.Net.HttpStatusCode.OK then
         let! responseBody = result.Content.ReadAsStringAsync()
         Rollbar.sendError
-          executionID
           "heapio-apierror"
           [ "response", responseBody
             "request", body
@@ -96,7 +91,6 @@ let emitEvent
 
 /// Collects data to be sent in a Heap event
 let makeTrackEventBody
-  (executionID : ExecutionID)
   (event : string)
   (owner : UserID)
   (canvasName : CanvasName.T)
@@ -108,7 +102,6 @@ let makeTrackEventBody
     properties
     |> Map.add "timestamp" (string timestamp)
     |> Map.add "organization" (string owner)
-    |> Map.add "execution_id" (string executionID)
     |> Map.add "canvas" (string canvasName)
     |> Map.add "organization" (string owner)
     |> Map.add "canvas_id" (string canvasID)
@@ -126,7 +119,6 @@ let makeTrackEventBody
 
 /// Track an event to Heap
 let track
-  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
   (owner : System.Guid)
@@ -134,15 +126,14 @@ let track
   (metadata : Map<string, string>)
   : unit =
   let body =
-    makeTrackEventBody executionID event owner canvasName canvasID metadata
+    makeTrackEventBody event owner canvasName canvasID metadata
     |> JsonContent.Create
 
-  emitEvent executionID Track body
+  emitEvent Track body
 
 
 /// Collects data to be sent in an "identify user" Heap event
 let makeIdentifyUserBody
-  (executionID : ExecutionID)
   (owner : UserID)
   (properties : Map<string, string>)
   : IdentifyUserPayload =
@@ -151,14 +142,9 @@ let makeIdentifyUserBody
     properties
     |> Map.add "timestamp" (string timestamp)
     |> Map.add "organization" (string owner)
-    |> Map.add "execution_id" (string executionID)
 
   { identity = string owner; app_id = Config.heapioId; properties = properties }
 
-let emitIdentifyUserEvent
-  (executionID : ExecutionID)
-  (owner : UserID)
-  (metadata : Map<string, string>)
-  : unit =
-  let body = makeIdentifyUserBody executionID owner metadata |> JsonContent.Create
-  emitEvent executionID IdentifyUser body
+let emitIdentifyUserEvent (owner : UserID) (metadata : Map<string, string>) : unit =
+  let body = makeIdentifyUserBody owner metadata |> JsonContent.Create
+  emitEvent IdentifyUser body

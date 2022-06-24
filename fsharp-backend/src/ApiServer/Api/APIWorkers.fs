@@ -16,8 +16,10 @@ module AT = LibExecution.AnalysisTypes
 module Convert = LibExecution.OCamlTypes.Convert
 
 module Stats = LibBackend.Stats
-module EQ = LibBackend.EventQueue
+module EQ = LibBackend.EventQueueV2
 module Telemetry = LibService.Telemetry
+
+module SchedulingRules = LibBackend.QueueSchedulingRules
 
 module WorkerStats =
   type Params = { tlid : tlid }
@@ -39,7 +41,7 @@ module WorkerStats =
 
 module Scheduler =
   type Params = { name : string; schedule : string }
-  type T = EQ.WorkerStates.T
+  type T = SchedulingRules.WorkerStates.T
 
   /// API endpoint to update the Schedule of a Worker
   let updateSchedule (ctx : HttpContext) : Task<T> =
@@ -57,13 +59,12 @@ module Scheduler =
 
 
       t.next "get-worker-schedule"
-      let! ws = EQ.getWorkerSchedules canvasInfo.id
+      let! ws = SchedulingRules.getWorkerSchedules canvasInfo.id
 
       t.next "update-pusher"
       // TODO: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
-      let executionID = loadExecutionID ctx
-      LibBackend.Pusher.pushWorkerStates executionID canvasInfo.id ws
+      LibBackend.Pusher.pushWorkerStates canvasInfo.id ws
 
       return ws
     }

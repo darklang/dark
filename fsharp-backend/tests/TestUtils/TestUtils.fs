@@ -21,7 +21,10 @@ module Exe = LibExecution.Execution
 module S = RTShortcuts
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
+  lazy
+    (UserName.create "test"
+     |> Account.getUser
+     |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
 
 /// Delete test data (in DB) for one canvas
 let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
@@ -32,113 +35,113 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let customDomains =
       Sql.query "DELETE FROM custom_domains where canvas = @name"
       |> Sql.parameters [ "name", Sql.string (string name) ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let events =
       Sql.query "DELETE FROM events where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
+
+    let eventsV2 =
+      Sql.query "DELETE FROM events_v2 where canvas_id = @id::uuid"
+      |> Sql.parameters [ "id", Sql.uuid canvasID ]
+      |> Sql.executeStatementAsync
 
     let functionArguments =
       Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let functionResultsV3 =
       Sql.query "DELETE FROM function_results_v3 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let schedulingRules =
       Sql.query "DELETE FROM scheduling_rules where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let secrets =
       Sql.query "DELETE FROM secrets where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let staticAssetDeploys =
       Sql.query "DELETE FROM static_asset_deploys where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
-
 
     let storedEventsV2 =
       Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let toplevelOplists =
       Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let userData =
       Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
-    do!
-      Task.WhenAll [| cronRecords
-                      customDomains
-                      events
-                      functionArguments
-                      functionResultsV3
-                      schedulingRules
-                      secrets
-                      staticAssetDeploys
-                      storedEventsV2
-                      toplevelOplists
-                      userData |]
+    let! (_ : List<unit>) =
+      Task.flatten [ cronRecords
+                     customDomains
+                     events
+                     eventsV2
+                     functionArguments
+                     functionResultsV3
+                     schedulingRules
+                     secrets
+                     staticAssetDeploys
+                     storedEventsV2
+                     toplevelOplists
+                     userData ]
 
     return ()
   }
 
+type TestCanvasName =
+  /// Use exactly this canvas name for the test. This is needed to test some features
+  /// which use the canvas name within them, such as static assets.
+  | Exact of string
+  /// Randomized test name using the provided base. This allows tests to avoid
+  /// sharing the same canvas so they can be parallelized, etc
+  | Randomized of string
 
-let nameToTestName (name : string) : string =
-  // We want to avoid tests sharing the same canvas, so they can be parallelized, so
-  // generate something that's roughly what's provided, that fits in a canvas name,
-  // and that's random. Tests are expected to use the canvasName returned, not the
-  // one they provide.
-  let name =
-    name
-    |> String.toLowercase
-    // replace invalid chars with a single hyphen
-    |> FsRegEx.replace "[^-a-z0-9]+" "-"
-    |> FsRegEx.replace "[-_]+" "-"
-    |> String.take 50
-  let suffix = randomString 5 |> String.toLowercase
-  $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
+let nameToTestName (name : TestCanvasName) : string =
+  match name with
+  | Exact name -> name
+  | Randomized name ->
+    let name =
+      name
+      |> String.toLowercase
+      // replace invalid chars with a single hyphen
+      |> FsRegEx.replace "[^-a-z0-9]+" "-"
+      |> FsRegEx.replace "[-_]+" "-"
+      |> String.take 50
+    let suffix = randomString 5 |> String.toLowercase
+    $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
 
 let initializeCanvasForOwner
   (owner : Account.UserInfo)
-  (name : string)
+  (name : TestCanvasName)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.create (nameToTestName name)
+    let canvasName = CanvasName.createExn (nameToTestName name)
     do! clearCanvasData owner.id canvasName
     let! id = Canvas.canvasIDForCanvasName owner.id canvasName
     return { id = id; name = canvasName; owner = owner.id }
   }
 
-let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
+let initializeTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
   task {
     let! owner = testOwner.Force()
     return! initializeCanvasForOwner owner name
@@ -148,15 +151,15 @@ let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
 // Same as initializeTestCanvas, for tests that don't need to hit the DB
 let createCanvasForOwner
   (owner : Account.UserInfo)
-  (name : string)
+  (name : TestCanvasName)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.create (nameToTestName name)
+    let canvasName = CanvasName.createExn (nameToTestName name)
     let id = System.Guid.NewGuid()
     return { id = id; name = canvasName; owner = owner.id }
   }
 
-let createTestCanvas (name : string) : Task<Canvas.Meta> =
+let createTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
   task {
     let! owner = testOwner.Force()
     return! createCanvasForOwner owner name
@@ -259,7 +262,7 @@ let libraries : Lazy<RT.Libraries> =
     (let testFns =
       LibTest.fns
       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-      |> Map.mergeFavoringLeft (Lazy.force LibRealExecution.RealExecution.stdlibFns)
+      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
      { stdlib = testFns; packageFns = Map.empty })
 
 let executionStateFor
@@ -268,8 +271,6 @@ let executionStateFor
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let executionID = ExecutionID(string meta.name)
-
     let program : RT.ProgramContext =
       { canvasID = meta.id
         canvasName = meta.name
@@ -282,24 +283,27 @@ let executionStateFor
     let testContext : RT.TestContext =
       { sideEffectCount = 0
         exceptionReports = []
+        expectedExceptionCount = 0
         postTestExecutionHook =
           fun tc result ->
-            // In an effort to find error in the test suite, we track exceptions that
-            // we report in the runtime and check for them after the test completes.
-            // Because there are some places where exceptions are allowed, a rule of
-            // thumb is that if the result is a DError, the exception was reported to
-            // the user as an error, and that's probably what the test was for.
-            // This isn't a perfect rule and we may need to do better, but it seems
-            // to work for now
-            let errorsExpected = RT.Dval.isDError result
-            if tc.exceptionReports.Length > 0 && not errorsExpected then
-              print $"UNEXPECTED EXCEPTION in {meta.name}"
+            // In an effort to find errors in the test suite, we track exceptions
+            // that we report in the runtime and check for them after the test
+            // completes.  There are a lot of places where exceptions are allowed,
+            // possibly too many to annotate, so we assume that errors are intended
+            // to be reported anytime the result is a DError.
+            let exceptionCountMatches =
+              tc.exceptionReports.Length = tc.expectedExceptionCount
+
+            if not exceptionCountMatches then
               List.iter
-                (fun (executionID, msg, stackTrace, metadata) ->
+                (fun (msg, stackTrace, metadata) ->
                   print
-                    $"An error was reported in the runtime ({executionID}):  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
+                    $"An error was reported in the runtime:  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
-              Exception.raiseInternal $"UNEXPECTED EXCEPTION in test {meta.name}" [] }
+              Exception.raiseInternal
+                $"UNEXPECTED EXCEPTION COUNT in test {meta.name}"
+                [ "expectedExceptionCount", tc.expectedExceptionCount
+                  "actualExceptionCount", tc.exceptionReports.Length ] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function
@@ -310,19 +314,17 @@ let executionStateFor
         let stackTrace = exn.StackTrace
         let metadata = Exception.toMetadata exn @ metadata
         let inner = exn.InnerException
-        if inner <> null then (exceptionReporter state metadata inner) else ()
-        testContext.exceptionReports <-
-          (executionID, message, stackTrace, metadata)
-          :: testContext.exceptionReports
+        if not (isNull inner) then (exceptionReporter state [] inner) else ()
+        state.test.exceptionReports <-
+          (message, stackTrace, metadata) :: state.test.exceptionReports
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
-    let notifier : RT.Notifier = fun executionID msg tags -> ()
+    let notifier : RT.Notifier = fun state msg tags -> ()
 
     let state =
       Exe.createState
-        executionID
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
         exceptionReporter
@@ -451,6 +453,12 @@ let rec debugDval (v : Dval) : string =
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
     |> fun contents -> $"DObj {{\n  {contents}}}"
+  | DBytes b ->
+    b
+    |> Array.toList
+    |> List.map string
+    |> String.concat ", "
+    |> fun s -> $"[|{s}|]"
 
   | _ -> v.ToString()
 
@@ -616,7 +624,6 @@ module Expect =
     | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       check path s s'
       eqList (s :: path) ts ts'
-    | EPartial (_, e), EPartial (_, e') -> eq ("partial" :: path) e e'
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
@@ -648,7 +655,6 @@ module Expect =
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
-    | EPartial _, _
     | ELambda _, _
     | EMatch _, _ -> check path actual expected
 
@@ -733,7 +739,6 @@ module Expect =
     | DErrorRail _, _
     | DOption _, _
     | DStr _, _
-    // All others can be directly compared
     | DInt _, _
     | DDate _, _
     | DBool _, _
@@ -821,8 +826,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   state
 
 let containsPassword (dv : Dval) : bool =
-  let isPassword =
-    function
+  let isPassword dval =
+    match dval with
     | RT.DPassword _ -> true
     | _ -> false
   dv |> visitDval isPassword |> List.any Fun.identity

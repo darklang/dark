@@ -3,11 +3,11 @@ open Shared
 
 @ppx.deriving(show({with_path: false}))
 type rec t =
-  /* match id, then pattern id */
+  // match id, then pattern id
   | FPVariable(id, id, string)
   | FPConstructor(id, id, string, list<t>)
-  /* TODO: support char */
-  /* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support */
+  // TODO: support char
+  // Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support
   | FPInteger(id, id, string)
   | FPBool(id, id, bool)
   | FPString({matchID: id, patternID: id, str: string})

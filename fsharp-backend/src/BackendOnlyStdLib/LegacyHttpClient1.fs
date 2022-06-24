@@ -32,17 +32,17 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalRepr.toQuery query |> Exception.unwrapResultDeveloper
+    let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
     let encodedReqHeaders =
-      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
+      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultCode
     let encodedReqBody =
       encodeRequestBody
         DvalRepr.toPrettyMachineJsonStringV1
         encodedReqHeaders
         reqBody
 
-    match! httpCall 0 false uri query verb encodedReqHeaders encodedReqBody with
+    match! httpCall 0 uri query verb encodedReqHeaders encodedReqBody with
     | Ok response ->
       let body =
         response.body
@@ -72,9 +72,6 @@ let sendRequest
       if response.code >= 200 && response.code <= 299 then
         return DResult(Ok obj)
       else
-        // The OCaml version of this was Legacy.LibHttpClientv1, which called
-        // Legacy.HttpClientv1.http_call, which threw exceptions for non-200 status
-        // codes
         return
           DError(SourceNone, $"Bad HTTP response ({response.code}) in call to {uri}")
     | Error err -> return DError(SourceNone, err.error)

@@ -18,15 +18,12 @@ module List =
   type T = List<OT.PackageManager.fn>
 
   /// API endpoint to fetch a list of available Packages
-  let packages (ctx : HttpContext) : Task<T> =
+  let packages (packages : List<PT.Package.Fn>) (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
 
-      t.next "load-functions"
-      let! fns = Lazy.force LibBackend.PackageManager.cachedForAPI
-
       t.next "convert"
-      return fns |> List.map Convert.pt2ocamlPackageManagerFn
+      return packages |> List.map Convert.pt2ocamlPackageManagerFn
     }
 
 

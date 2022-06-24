@@ -32,7 +32,7 @@ let ownerNameFromHost =
     "ownerNameFromHost"
     (fun cn ->
       cn
-      |> CanvasName.create
+      |> CanvasName.createExn
       |> LibBackend.Account.ownerNameFromCanvasName
       |> fun (on : OwnerName.T) -> on.ToString())
     [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
@@ -134,15 +134,14 @@ let filterMatchingHandlers =
        ("/a", [ filled; emptyHttp ], [ filled ])) ]
 
 let canvasNameFromHost =
-  testManyTask
+  testMany
     "canvasNameFromHost"
-    (fun h ->
-      h |> canvasNameFromHost |> Task.map (Option.map (fun cn -> cn.ToString())))
-    [ ("test-something.builtwithdark.com", Some "test-something")
-      ("some-canvas.builtwithdark.localhost", Some "some-canvas")
-      ("builtwithdark.localhost", Some "builtwithdark")
-      ("some-canvas.darkcustomdomain.com", Some "some-canvas")
-      ("www.microsoft.com", None) ]
+    canvasSourceFromHost
+    [ ("test-something.builtwithdark.com", Bwd "test-something")
+      ("some-canvas.builtwithdark.localhost", Bwd "some-canvas")
+      ("builtwithdark.localhost", Bwd "builtwithdark")
+      ("some-canvas.darkcustomdomain.com", Bwd "some-canvas")
+      ("www.microsoft.com", CustomDomain "www.microsoft.com") ]
 
 let tests =
   testList

@@ -92,7 +92,7 @@ let typeOf = (dv: dval): tipe =>
   | DBytes(_) => TBytes
   }
 
-/* Drop initial/final '"' */
+// Drop initial/final '"'
 let stripQuotes = (s: string): string => {
   let s = if String.starts_with(~prefix="\"", s) {
     s |> String.dropLeft(~count=1)
@@ -194,7 +194,7 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
     }
   | DPassword(s) => wrap(s)
   | DBlock({params, body, _}) =>
-    /* TODO: show relevant symtable entries */
+    // TODO: show relevant symtable entries
     FluidPrinter.eToHumanString(ELambda(gid(), params, body))
   | DIncomplete(_) => asType
   | DResp(Redirect(url), dv_) => "302 " ++ (url ++ (nl ++ toRepr_(indent, dv_)))
@@ -207,7 +207,7 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
   | DResult(ResOk(dv_)) => "Ok " ++ toRepr(dv_)
   | DResult(ResError(dv_)) => "Error " ++ toRepr(dv_)
   | DErrorRail(dv_) => wrap(toRepr(dv_))
-  /* TODO: newlines and indentation */
+  // TODO: newlines and indentation
   | DList(l) =>
     switch l |> Array.to_list {
     | list{} => "[]"
@@ -229,7 +229,7 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
 
 and toRepr = (dv: dval): string => toRepr_(0, dv)
 
-/* TODO: copied from Libexecution/http.ml */
+// TODO: copied from Libexecution/http.ml
 let route_variables = (route: string): list<string> => {
   let split_uri_path = (path: string): list<string> => {
     let subs = String.split(~on="/", path)
@@ -239,7 +239,7 @@ let route_variables = (route: string): list<string> => {
   route
   |> split_uri_path
   |> List.filter(~f=String.startsWith(~prefix=":"))
-  |> List.map(~f=String.dropLeft(~count= /* ":" */1))
+  |> List.map(~f=String.dropLeft(~count=/* ":" */ 1))
 }
 
 let inputVariables = (tl: toplevel): list<string> =>
@@ -252,14 +252,13 @@ let inputVariables = (tl: toplevel): list<string> =>
         |> BlankOr.toOption
         |> Option.map(~f=route_variables)
         |> Option.unwrap(~default=list{})
-
-      \"@"(list{"request"}, fromRoute)
+      list{"request", ...fromRoute}
     | F(_, m) if String.toLowercase(m) == "cron" => list{}
     | F(_, m) if String.toLowercase(m) == "repl" => list{}
     | F(_, m) if String.toLowercase(m) == "worker" => list{"event"}
-    | F(_, _) => /* workers, including old names */
+    | F(_, _) => // workers, including old names
       list{"event"}
-    | Blank(_) => /* we used to be allowed unknown */
+    | Blank(_) => // we used to be allowed unknown
       list{"request", "event"}
     }
   | TLFunc(f) => f.ufMetadata.ufmParameters |> List.filterMap(~f=p => BlankOr.toOption(p.ufpName))

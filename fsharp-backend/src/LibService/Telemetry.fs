@@ -55,6 +55,7 @@ module Span =
   let root (name : string) : T =
     assert_
       "Telemetry must be initialized before creating root"
+      []
       (Internal._source <> null)
     // Deliberately created with no parent to make this a root
     // From https://github.com/open-telemetry/opentelemetry-dotnet/issues/984
@@ -80,6 +81,7 @@ module Span =
   let child (name : string) (parent : T) (tags : Metadata) : T =
     assert_
       "Telemetry must be initialized before creating root"
+      []
       (Internal._source <> null)
     let tags = tags |> List.map Tuple2.toKeyValuePair
     let parentId = if parent = null then null else parent.Id
@@ -107,6 +109,10 @@ let child (name : string) (tags : Metadata) : Span.T =
   Span.child name (Span.current ()) tags
 
 let createRoot (name : string) : Span.T = Span.root name
+
+let rootID () : string =
+  let root = System.Diagnostics.Activity.Current.RootId
+  if isNull root then "null" else string root
 
 let addTag (name : string) (value : obj) : unit =
   Span.addTag name value (Span.current ())
@@ -143,17 +149,32 @@ let notify (name : string) (tags : Metadata) : unit =
     )
   span.AddEvent(event) |> ignore<Span.T>
 
+let rec exceptionTags (count : int) (e : exn) : Metadata =
+  let prefix = if count = 0 then "" else $"inner[{count}]."
+  let defaultTags =
+    [ $"exception.{prefix}type", e.GetType().FullName :> obj
+      $"exception.{prefix}stacktrace", string e.StackTrace
+      $"exception.{prefix}message", e.Message ]
+  let metadata = Exception.toMetadata e
+  let innerTags =
+    if (isNull e.InnerException) then
+      []
+    else
+      exceptionTags (count + 1) e.InnerException
+  metadata @ defaultTags @ innerTags
+
 
 let addException (metadata : Metadata) (e : exn) : unit =
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/1191a2a3da7be8deae7aa94083b5981cb7610080/src/OpenTelemetry.Api/Trace/ActivityExtensions.cs#L79
-  // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.
-  let exceptionTags =
-    [ "exception", true :> obj
-      "exception.type", e.GetType().FullName :> obj
-      "exception.stacktrace", string e.StackTrace
-      "exception.message", e.Message ]
-    @ Exception.toMetadata e @ metadata
-  addEvent e.Message exceptionTags
+  // The .NET RecordException function doesn't take tags, despite it being a MUST in the
+  // [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception),
+  // so we implement our own.
+  let errorTags = [ "exception", true :> obj; "error", true ]
+  let exceptionTags = exceptionTags 0 e
+  let tags = metadata @ errorTags @ exceptionTags
+  addEvent e.Message tags
+
+
 
 let serverTags : List<string * obj> =
   // Ensure that these are all stringified on startup, not when they're added to the
@@ -237,39 +258,33 @@ let configureAspNetCore
     (fun (activity : Span.T) (eventName : string) (rawObject : obj) ->
       match (eventName, rawObject) with
       | "OnStartActivity", (:? Microsoft.AspNetCore.Http.HttpRequest as httpRequest) ->
-        // CLEANUP
-        // The .NET instrumentation uses http.{path,url}, etc, but we used
-        // request.whatever in the OCaml version. To make sure that I can compare the
-        // old and new requests, I'm also adding request.whatever for now, but they
-        // can be removed once it's been switched over. Events are infinitely wide so
-        // this shouldn't cause any issues.  This is separate from rollbar data,
-        // which is done by the library and does not use the same prefixes
         let ipAddress =
           try
-            httpRequest.Headers.["x-forward-for"].[0]
-            |> String.split ";"
+            httpRequest.Headers.["x-forwarded-for"].[0]
+            |> String.split ","
             |> List.head
             |> Option.unwrap (
               string httpRequest.HttpContext.Connection.RemoteIpAddress
             )
           with
           | _ -> ""
+        let proto =
+          try
+            httpRequest.Headers.["x-forwarded-proto"].[0]
+          with
+          | _ -> ""
 
         activity
         |> Span.addTags [ "meta.type", "http_request"
+                          "http.request.cookies.count", httpRequest.Cookies.Count
+                          "http.request.content_type", httpRequest.ContentType
+                          "http.request.content_length", httpRequest.ContentLength
                           "http.remote_addr", ipAddress
-                          "request.method", httpRequest.Method
-                          "request.path", httpRequest.Path
-                          "request.remote_addr", ipAddress
-                          "request.host", httpRequest.Host
-                          "request.url", httpRequest.GetDisplayUrl()
-                          "request.header.user_agent",
-                          httpRequest.Headers["User-Agent"] ]
+                          "http.proto", proto ]
       | "OnStopActivity", (:? Microsoft.AspNetCore.Http.HttpResponse as httpResponse) ->
         activity
-        |> Span.addTags [ "response.contentLength", httpResponse.ContentLength
-                          "http.contentLength", httpResponse.ContentLength
-                          "http.contentType", httpResponse.ContentType ]
+        |> Span.addTags [ "http.response.content_length", httpResponse.ContentLength
+                          "http.response.content_type", httpResponse.ContentType ]
       | _ -> ())
   options.Enrich <- enrich
   options.RecordException <- true
@@ -320,6 +335,14 @@ type TraceDBQueries =
   | TraceDBQueries
   | DontTraceDBQueries
 
+let mutable tracerProvider : TracerProvider = null
+
+/// Flush all Telemetry. Used on shutdown
+let flush () : unit =
+  if tracerProvider <> null then tracerProvider.ForceFlush() |> ignore<bool>
+
+
+
 let addTelemetry
   (serviceName : string)
   (traceDBQueries : TraceDBQueries)
@@ -336,12 +359,14 @@ let addTelemetry
          Config.telemetryExporters
   |> fun b ->
        b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
-  |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b ->
        b.AddHttpClientInstrumentation (fun options ->
          options.SetHttpFlavor <- true // Record HTTP version
          options.RecordException <- true
          ())
+  // TODO HttpClient instrumentation isn't working, so let's try to add it
+  // before AspNetCoreInstrumentation
+  |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b ->
        match traceDBQueries with
        | TraceDBQueries -> b.AddNpgsql()
@@ -350,29 +375,15 @@ let addTelemetry
   |> fun b -> b.SetSampler(sampler)
 
 
-/// <summary>
-/// Returns an executionID used to tie together everything
-/// that happens within a BWD request
-/// </summary>
-/// <remarks>
-/// An execution ID was an int64 ID in the OCaml version, but since we're using
-/// OpenTelemetry from the start, we use the Trace ID instead. This should be used to
-/// create a TraceID for anywhere there's a thread and a trace available. The
-/// execution ID should be constant no matter when this is called in a thread, but for
-/// safety, call it at the top and pass it down.
-/// </remarks>
-let executionID () = ExecutionID(string System.Diagnostics.Activity.Current.TraceId)
-
-
-
 module Console =
   /// For webservers, tracing is added by ASP.NET middlewares.
   /// For non-webservers, we also need to add tracing. This does that.
   let loadTelemetry (serviceName : string) (traceDBQueries : TraceDBQueries) : unit =
-    Sdk.CreateTracerProviderBuilder()
-    |> addTelemetry serviceName traceDBQueries
-    |> fun tp -> tp.Build()
-    |> ignore<TracerProvider>
+    let tp =
+      Sdk.CreateTracerProviderBuilder()
+      |> addTelemetry serviceName traceDBQueries
+      |> fun tp -> tp.Build()
+    tracerProvider <- tp
 
     // Create a default root span, to ensure that one exists. This span will not be
     // cleaned up, and therefor it will not be printed in real-time (and you won't be
@@ -389,5 +400,7 @@ module AspNet =
     (services : IServiceCollection)
     : IServiceCollection =
     services.AddOpenTelemetryTracing (fun builder ->
+      // TODO: save tracerProvider to flush when it's finished
       addTelemetry serviceName traceDBQueries builder
-      |> ignore<TracerProviderBuilder>)
+      |> ignore<TracerProviderBuilder>
+      ())

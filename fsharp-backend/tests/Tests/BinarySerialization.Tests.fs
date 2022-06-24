@@ -9,7 +9,7 @@ open TestUtils.TestUtils
 module File = LibBackend.File
 module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBackend.BinarySerialization
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 /// The test values below are used to check the exact output of test file. So we need
 /// the test inputs to be consistent, which is why we never use `gid ()` below, or
@@ -68,16 +68,14 @@ let testExpr =
                           729246077UL,
                           PT.EBinOp(
                             94793109UL,
-                            PT.FQFnName.Stdlib
-                              { module_ = ""; function_ = "!="; version = 0 },
+                            { module_ = None; function_ = "!=" },
                             PT.EInteger(264400705UL, 5L),
                             PT.EInteger(335743639UL, 6L),
                             PT.NoRail
                           ),
                           PT.EBinOp(
                             775118986UL,
-                            PT.FQFnName.Stdlib
-                              { module_ = ""; function_ = "+"; version = 0 },
+                            { module_ = None; function_ = "+" },
                             PT.EInteger(803876589UL, 5L),
                             PT.EInteger(219131014UL, 2L),
                             PT.NoRail
@@ -87,8 +85,7 @@ let testExpr =
                             [ (180359194UL, "y") ],
                             PT.EBinOp(
                               140609068UL,
-                              PT.FQFnName.Stdlib
-                                { module_ = ""; function_ = "+"; version = 0 },
+                              { module_ = None; function_ = "+" },
                               PT.EInteger(450951790UL, 2L),
                               PT.EVariable(402203255UL, "y"),
                               PT.NoRail
@@ -97,12 +94,10 @@ let testExpr =
                         ),
                         PT.EBinOp(
                           265463935UL,
-                          PT.FQFnName.Stdlib
-                            { module_ = ""; function_ = "+"; version = 0 },
+                          { module_ = None; function_ = "+" },
                           PT.EBinOp(
                             312092282UL,
-                            PT.FQFnName.Stdlib
-                              { module_ = ""; function_ = "+"; version = 0 },
+                            { module_ = None; function_ = "+" },
                             PT.EFieldAccess(
                               974664608UL,
                               PT.EVariable(1002893266UL, "x"),
@@ -138,8 +133,7 @@ let testExpr =
                                PT.EInteger(555880460UL, 5L),
                                PT.EBinOp(
                                  1021880969UL,
-                                 PT.FQFnName.Stdlib
-                                   { module_ = ""; function_ = "+"; version = 0 },
+                                 { module_ = None; function_ = "+" },
                                  PT.EPipeTarget 936577032UL,
                                  PT.EInteger(962393769UL, 2L),
                                  PT.NoRail
@@ -193,8 +187,7 @@ let testExpr =
                               (PT.PVariable(722099983UL, "var"),
                                PT.EBinOp(
                                  275666765UL,
-                                 PT.FQFnName.Stdlib
-                                   { module_ = ""; function_ = "+"; version = 0 },
+                                 { module_ = None; function_ = "+" },
                                  PT.EInteger(739193732UL, 6L),
                                  PT.EVariable(880556562UL, "var"),
                                  PT.NoRail
@@ -407,11 +400,8 @@ let testOplist : PT.Oplist =
     PT.DeleteDBCol(tlid, id)
     PT.RenameDBname(tlid, "newname")
     PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
-    PT.DeleteTLForever tlid
-    PT.DeleteFunctionForever tlid
     PT.SetType(testUserTypes[0])
-    PT.DeleteType tlid
-    PT.DeleteTypeForever tlid ]
+    PT.DeleteType tlid ]
 
 let oplistRoundtripTest =
   test "roundtrip oplists" {
@@ -422,40 +412,56 @@ let oplistRoundtripTest =
     Expect.equal actual testOplist ""
   }
 
-/// Generates test files for binary serialization. These files are used to prove that
-/// the binary serialization format did not change. We commit the output of these
-/// files and if it differs then something changed. If we make changes to the binary
-/// serialization format (or to the test cases), we regenerate the files instead and
-/// commit them. Regenerate using ./scripts/build/regenerate-test-files
+/// Generates timestamped test files for binary serialization. These files are used
+/// to prove that the binary serialization format is compatible.  When we change the
+/// format, we should still be able to read the old files in addition to the new ones
+/// (though they will not necessarily have the same output). If we make changes to
+/// the binary serialization format (or to the test cases), we generate the files
+/// and commit them.
+let generateBinarySerializationTestFiles () : unit =
+  let binaryData = testOplist |> BinarySerialization.serializeOplist 0UL
+  let jsonData = testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
+
+  let sha1 =
+    System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan binaryData)
+    |> SimpleBase.Base16.LowerCase.Encode
+
+  File.writefileBytes Config.Serialization $"oplist-format-{sha1}.bin" binaryData
+  File.writefileBytes Config.Serialization "oplist-format-latest.bin" binaryData
+
+  File.writefile Config.Serialization $"oplist-format-{sha1}.json" jsonData
+  File.writefile Config.Serialization "oplist-format-latest.json" jsonData
 
 let testTestFiles =
   test "check test files are correct" {
     // We can just check the oplists as expressions and toplevels are contained inside
-    let expected = File.readfile Config.Serialization "oplist-format.json"
-    let actual = testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
+
+    // Check that the generated JSON matches what we have saved. This ensures the
+    // format have not diverged.
+    let expectedJsonContents =
+      File.readfile Config.Serialization "oplist-format-latest.json"
+    let actualJson = testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
     // There are times where the json would be the same but the binary would be different
-    Expect.equal actual expected "check generates the same json"
+    Expect.equal actualJson expectedJsonContents "check generates the same json"
 
-    let expected =
-      File.readfileBytes Config.Serialization "oplist-format.bin"
-      |> BinarySerialization.deserializeOplist 0UL
-    let actual = testOplist
-    Expect.equal actual expected "check can read the saved file"
+    // Check that the generated binary data matches what we have saved. This ensures
+    // the format has not changed.
+    let actualBinary = testOplist |> BinarySerialization.serializeOplist 0UL
+    let expectedBinaryBytes =
+      File.readfileBytes Config.Serialization "oplist-format-latest.bin"
+    Expect.equal actualBinary expectedBinaryBytes "check can read the saved file"
 
-    let expected = File.readfileBytes Config.Serialization "oplist-format.bin"
-    let actual = testOplist |> BinarySerialization.serializeOplist 0UL
-    Expect.equal actual expected "check generates the same binary"
+    // Check that all .bin files can be parsed and give us the expected answer (this
+    // might not be true as we get more formats, so this may need to be adapted)
+    File.lsdir Config.Serialization "./"
+    |> List.filter (String.endsWith ".bin")
+    |> List.iter (fun filename ->
+      let actual =
+        File.readfileBytes Config.Serialization filename
+        |> BinarySerialization.deserializeOplist 0UL
+      Expect.equal actual testOplist "should all equal latest format")
   }
 
-
-let generateBinarySerializationTestFiles () : unit =
-  testOplist
-  |> BinarySerialization.serializeOplist 0UL
-  |> File.writefileBytes Config.Serialization "oplist-format.bin"
-
-  testOplist
-  |> BinarySerialization.Test.serializeOplistToJson 0UL
-  |> File.writefile Config.Serialization "oplist-format.json"
 
 let tests =
   testList

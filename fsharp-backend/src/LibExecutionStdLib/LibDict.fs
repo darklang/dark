@@ -73,7 +73,7 @@ let fns : List<BuiltInFn> =
       description = "Returns `dict`'s values in a list, in an arbitrary order."
       fn =
         (function
-        | _, [ DObj o ] -> o |> Map.values |> Seq.toList |> fun l -> DList l |> Ply
+        | _, [ DObj o ] -> o |> Map.values |> Seq.toList |> (fun l -> DList l |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -113,14 +113,14 @@ let fns : List<BuiltInFn> =
             match e with
             | DList [ DStr k; value ] -> Map.add k value acc
             | DList [ k; value ] ->
-              Errors.throw (Errors.argumentWasnt "a string" "key" k)
+              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | (DIncomplete _
             | DErrorRail _
-            | DError _) as dv -> Errors.foundFakeDval (dv)
-            | _ -> Errors.throw "All list items must be `[key, value]`"
+            | DError _) as dv -> Errors.foundFakeDval dv
+            | _ -> Exception.raiseCode "All list items must be `[key, value]`"
 
           let result = List.fold Map.empty f l
-          Ply((DObj(result)))
+          Ply(DObj result)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -147,8 +147,9 @@ let fns : List<BuiltInFn> =
               | DErrorRail _
               | DError _) as dv) -> Errors.foundFakeDval dv
             | Some _, DList [ k; _ ] ->
-              Errors.throw (Errors.argumentWasnt "a string" "key" k)
-            | Some _, _ -> Errors.throw "All list items must be `[key, value]`"
+              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
+            | Some _, _ ->
+              Exception.raiseCode "All list items must be `[key, value]`"
             | None, _ -> None
 
           let result = List.fold (Some Map.empty) f l
@@ -223,10 +224,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "foreach" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TDict varB
       description =
-        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `fn`, which operates on each value."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
@@ -248,10 +249,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "map" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
       returnType = TDict varB
       description =
-        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `fn`, which operates on each key-value pair.
           Consider `Dict::filterMap` if you also want to drop some of the entries."
       fn =
         (function
@@ -282,10 +283,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "filter" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varA
       description =
-        "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
+        "Calls `fn` on every entry in `dict`, returning a dictionary of only those entries for which `fn key value` returns `true`.
               Consider `Dict::filterMap` if you also want to transform the entries."
       fn =
         (function
@@ -309,7 +310,8 @@ let fns : List<BuiltInFn> =
                 | DIncomplete _ ->
                   incomplete.Value <- true
                   return false
-                | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
+                | v ->
+                  return Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
               }
 
             if incomplete.Value then
@@ -327,10 +329,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "filter" 1
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varB
       description =
-        "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
+        "Evaluates `fn key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `fn` returned `true`."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
@@ -359,7 +361,10 @@ let fns : List<BuiltInFn> =
                   | (DIncomplete _ as e)
                   | (DError _ as e) -> return Error e
                   | other ->
-                    return Errors.throw (Errors.expectedLambdaType "f" TBool other)
+                    return
+                      Exception.raiseCode (
+                        Errors.expectedLambdaType "fn" TBool other
+                      )
                 }
 
             let! filtered_result =
@@ -379,15 +384,15 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
-            "f"
+            "fn"
             (TFn([ TStr; varA ], TOption varB))
             ""
             [ "key"; "value" ] ]
       returnType = TDict varB
       description =
-        "Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
-          If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
-          If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
+        "Calls `fn` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
+          If `fn key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
+          If `fn key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
           This function combines `Dict::filter` and `Dict::map`."
       fn =
         (function
@@ -418,7 +423,9 @@ let fns : List<BuiltInFn> =
                     abortReason.Value <- Some dv
                     return None
                   | v ->
-                    Errors.throw (Errors.expectedLambdaType "f" (TOption varB) v)
+                    Exception.raiseCode (
+                      Errors.expectedLambdaType "fn" (TOption varB) v
+                    )
 
                     return None
 

@@ -96,7 +96,7 @@ module Location = {
 
   @val @scope(("window", "location")) external reload: bool => unit = "reload"
 
-  /* TODO write string query parser */
+  // TODO write string query parser
 }
 
 module Window = {
@@ -109,12 +109,6 @@ module Window = {
   @val @scope("window") external pageHeight: int = "outerHeight"
 
   @val @scope("window") external openUrl: (string, string) => unit = "open"
-}
-
-module OnCaptureView = {
-  @val @scope(("window", "Dark", "view")) external _capture: unit => unit = "capture"
-
-  let capture = ((): unit): Tea.Cmd.t<Types.msg> => Tea_cmd.call(_ => _capture())
 }
 
 module Clipboard = {

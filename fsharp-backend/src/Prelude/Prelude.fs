@@ -26,28 +26,6 @@ let failwith = failwith
                            IsHidden = true)>]
 let printf = printf
 
-module Option =
-
-  [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
-                             0,
-                             IsError = true,
-                             IsHidden = true)>]
-  let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
-
-  [<CompilerMessageAttribute("Option.get is banned, use Prelude.Exception.unwrapOption* instead",
-                             0,
-                             IsError = true,
-                             IsHidden = true)>]
-  let get = Option.get
-
-module Result =
-
-  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
-                             0,
-                             IsError = true,
-                             IsHidden = true)>]
-  let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
-
 
 // ----------------------
 // Null
@@ -64,7 +42,7 @@ type Metadata = List<string * obj>
 
 /// An error within Dark itself - we need to rollbar this and address it.
 ///
-/// Do not show to anyone, unless within a WASM request.
+/// Do not show to anyone, unless within an Analysis request.
 type InternalException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
   member _.metadata = metadata
@@ -72,36 +50,31 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
   new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
   new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
-/// An error caused by the grand user making the request, show the error to the
-/// requester no matter who they are
+// A grand user exception was caused by the incorrect actions of a grand user. The
+// msg is suitable to show to the grand user. We don't care about grandUser
+// exceptions, they're normal. When a message can be safely propagated to show to the
+// grand user, it's safe to use this exception, even if it's more properly defined by
+// another exception type.
 type GrandUserException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = GrandUserException(msg, null)
 
-/// An error caused by how the developer wrote the code, such as calling a function
-/// with the wrong type
-type DeveloperException(message : string, inner : exn) =
+/// An error during code execution, which is the responsibility of the
+/// User/Developer. The message can be shown to the developer. You can alternatively
+/// use GrandUser exception in code which is used in both Libraries and in the
+/// HttpFramework.
+type CodeException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
-  new(msg : string) = DeveloperException(msg, null)
+  new(msg : string) = CodeException(msg, null)
 
 /// An editor exception is one which is caused by an invalid action on the part of
 /// the Dark editor, such as an Redo or rename that isn't allowed.  We are
 /// interested in these, as the editor should have caught this on the client and not
-/// made the request.The message may be shown to the logged-in user, and should be
+/// made the request. The message may be shown to the logged-in user, and should be
 /// suitable for this.
 type EditorException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = EditorException(msg, null)
-
-// A known error in library or framework code, such as calling a function with a
-// negative number when it doesn't support it. When we find internal or other
-// exceptions in library code, we replace it with this exception to indicate that we
-// know about it: that the library is wrong but that also we're stuck with it. It's
-// OK to tell the developer what happened (not grandusers though)
-type LibraryException(message : string, metadata : Metadata, inner : exn) =
-  inherit System.Exception(message, inner)
-  member _.metadata = metadata
-  new(msg : string, metadata : Metadata) = LibraryException(msg, metadata, null)
 
 // A pageable exception will cause the pager to go off! This is something that should
 // never happen and is an indicator that the service is broken in some way.  The
@@ -117,16 +90,34 @@ let mutable exceptionCallback = (fun (e : exn) -> ())
 
 module Exception =
 
-  let rec toMetadata (e : exn) : Metadata =
-    let innerMetadata =
-      if e.InnerException <> null then toMetadata e.InnerException else []
+  /// Returns a list of exceptions of this exception, and all nested inner
+  /// exceptions.
+  let rec getMessages (e : exn) : List<string> =
+    if isNull e.InnerException then
+      [ e.Message ]
+    else
+      e.Message :: getMessages e.InnerException
+
+  let toMetadata (e : exn) : Metadata =
     let thisMetadata =
       match e with
       | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
       | :? InternalException as e -> e.metadata
-      | :? LibraryException as e -> e.metadata
-      | :? DeveloperException
       | :? EditorException
+      | :? CodeException
+      | :? GrandUserException
+      | _ -> []
+    thisMetadata
+
+  let rec nestedMetadata (e : exn) : Metadata =
+    let innerMetadata =
+      if not (isNull e.InnerException) then nestedMetadata e.InnerException else []
+    let thisMetadata =
+      match e with
+      | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
+      | :? InternalException as e -> e.metadata
+      | :? EditorException
+      | :? CodeException
       | :? GrandUserException
       | _ -> []
     thisMetadata @ innerMetadata
@@ -143,38 +134,31 @@ module Exception =
       System.Console.WriteLine e.StackTrace
 
 
-  // A grand user exception was caused by the incorrect actions of a grand user. The
-  // msg is suitable to show to the grand user. We don't care about grandUser
-  // exceptions, they're normal.
   let raiseGrandUser (msg : string) =
     let e = GrandUserException(msg)
     callExceptionCallback e
     raise e
 
-  // A developer exception is one caused by the incorrect actions of our
-  // user/developer. The msg is suitable to show to the user.
-  let raiseDeveloper (msg : string) =
-    let e = DeveloperException(msg)
+  let raiseCode (msg : string) =
+    let e = CodeException(msg)
     callExceptionCallback e
     raise e
 
-  let unwrapResultDeveloper (r : Result<'ok, string>) : 'ok =
-    match r with
-    | Ok v -> v
-    | Error msg -> raiseDeveloper msg
-
-  let unwrapOptionDeveloper (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
+  let unwrapOptionCode (msg : string) (o : Option<'a>) : 'a =
     match o with
     | Some v -> v
-    | None -> raiseDeveloper msg tags
+    | None -> raiseCode msg
 
+  let unwrapResultCode (r : Result<'a, string>) : 'a =
+    match r with
+    | Ok v -> v
+    | Error msg -> raiseCode msg
 
   let raiseEditor (msg : string) =
     let e = EditorException(msg)
     callExceptionCallback e
     raise e
 
-  // An internal error. Should be rollbarred, and should not be shown to users.
   let raiseInternal (msg : string) (tags : Metadata) =
     let e = InternalException(msg, tags)
     callExceptionCallback e
@@ -195,32 +179,12 @@ module Exception =
     callExceptionCallback e
     raise e
 
-
-  let raiseLibrary (msg : string) (tags : Metadata) =
-    let e = LibraryException(msg, tags)
-    callExceptionCallback e
-    raise e
-
-  let unwrapOptionLibrary (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
-    match o with
-    | Some v -> v
-    | None -> raiseLibrary msg tags
-
   let unknownErrorMessage = "Unknown error"
 
   let toGrandUserMessage (e : exn) : string =
     match e with
     | :? GrandUserException as e -> e.Message
     | _ -> unknownErrorMessage
-
-  let toDeveloperMessage (e : exn) : string =
-    match e with
-    | :? GrandUserException as e -> e.Message
-    | :? DeveloperException as e -> e.Message
-    | :? LibraryException as e -> e.Message
-    | :? EditorException as e -> e.Message
-    | _ -> unknownErrorMessage
-
 
   let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
     task {
@@ -237,7 +201,11 @@ module Exception =
     with
     | _ -> None
 
-
+  let catchError (f : unit -> 'r) : Result<'r, string> =
+    try
+      Ok(f ())
+    with
+    | e -> Error e.Message
 
 
 // ----------------------
@@ -334,6 +302,16 @@ let debugByteArray (msg : string) (a : byte array) : byte array =
   NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
   a
 
+let debugList (msg : string) (list : List<'a>) : List<'a> =
+  if list = [] then
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+  else
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {List.length list}, ["
+    List.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}") list
+    NonBlockingConsole.WriteLine $"])"
+  list
+
+
 let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
   NonBlockingConsole.WriteLine $"DEBUG: {msg} {f v}"
   v
@@ -358,6 +336,27 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     return a
   }
 
+let printMetadata (prefix : string) (metadata : Metadata) =
+  try
+    List.iter (fun (k, v) -> print $"  {k}: {v}") metadata
+  with
+  | _ -> ()
+
+let rec printException'
+  (prefix : string)
+  (count : int)
+  (metadata : Metadata)
+  (e : exn)
+  : unit =
+  print $"{prefix}: error: {e.Message}"
+  printMetadata prefix (Exception.toMetadata e)
+  print $"{prefix}: exceptionType: {e.GetType()}"
+  print $"{prefix}: {e.StackTrace}"
+  if not (isNull e.InnerException) then
+    printException' $"prefex.inner[{count}]" (count + 1) [] e.InnerException
+
+let printException (prefix : string) (metadata : Metadata) (e : exn) : unit =
+  printException' prefix 0 metadata e
 
 
 // ----------------------
@@ -366,8 +365,11 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 // Asserts are problematic because they don't run in prod, and if they did they
 // wouldn't be caught by the webserver
 
-let assert_ (msg : string) (cond : bool) : unit =
-  if cond then () else Exception.raiseInternal $"Assertion failure: {msg}" []
+let assert_ (msg : string) (metadata : Metadata) (cond : bool) : unit =
+  if cond then
+    ()
+  else
+    Exception.raiseInternal $"Assertion failure: {msg}" metadata
 
 let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
   if expected <> actual then
@@ -375,9 +377,38 @@ let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
       $"Assertion equality failure: {msg}"
       [ "expected", expected :> obj; "actual", actual :> obj ]
 
+let assertIn (msg : string) (expected : List<'a>) (actual : 'a) : unit =
+  if not (Tablecloth.List.includes actual expected) then
+    Exception.raiseInternal
+      $"Assertion equality failure: {msg}"
+      [ "expected", expected :> obj; "actual", actual :> obj ]
+
+
+let assertFn (msg : string) (fn : 'a -> bool) (arg : 'a) : unit =
+  if not (fn arg) then
+    Exception.raiseInternal $"Function failure: {msg}" [ "arg", arg :> obj ]
+
+let assertFn2 (msg : string) (fn : 'a -> 'b -> bool) (arg1 : 'a) (arg2 : 'b) : unit =
+  if not (fn arg1 arg2) then
+    Exception.raiseInternal
+      $"Function failure: {msg}"
+      [ "arg1", arg1 :> obj; "arg2", arg2 :> obj ]
+
+let assertFn3
+  (msg : string)
+  (fn : 'a -> 'b -> 'c -> bool)
+  (arg1 : 'a)
+  (arg2 : 'b)
+  (arg3 : 'c)
+  : unit =
+  if not (fn arg1 arg2 arg3) then
+    Exception.raiseInternal
+      $"Function failure: {msg}"
+      [ "arg1", arg1 :> obj; "arg2", arg2 :> obj; "arg3", arg3 :> obj ]
+
+
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
-
   if m.Success then
     ()
   else
@@ -389,6 +420,12 @@ let assertRe (msg : string) (pattern : string) (input : string) : unit =
 // Standard conversion functions
 // ----------------------
 // There are multiple ways to convert things in dotnet. Let's have a consistent set we use.
+
+let parseInt (str : string) : Option<int> =
+  try
+    Some(int str)
+  with
+  | _ -> None
 
 let parseInt64 (str : string) : int64 =
   try
@@ -436,8 +473,8 @@ let readFloat (f : float) : (Sign * string * string) =
 
 let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
   try
-    if whole <> "" then assert_ "non-zero string" (whole[0] <> '-')
-    if whole <> "0" then assertRe $"makefloat: {whole}" "[1-9][0-9]*" whole
+    if whole <> "" then assert_ "non-zero string" [] (whole[0] <> '-')
+    if whole <> "0" then assertRe $"makefloat" "[1-9][0-9]*" whole
     let sign =
       match sign with
       | Positive -> ""
@@ -577,6 +614,7 @@ let urlEncodeExcept (keep : string) (s : string) : string =
     // CLEANUP make a nicer version of this that's designed for this use case
     // We do want to escape the following: []+&^%#@"<>/;
     // We don't want to escape the following: *$@!:?,.-_'
+    // cut+paste this fn to its usages; Prelude to only have idiomatic version
     if (b >= (byte 'a') && b <= (byte 'z'))
        || (b >= (byte '0') && b <= (byte '9'))
        || (b >= (byte 'A') && b <= (byte 'Z'))
@@ -694,8 +732,9 @@ let randomSeeded () : System.Random =
 let gid () : uint64 =
   try
     let rand64 = RNG.GetBytes(8) |> System.BitConverter.ToUInt64
-    // Keep 30 bits
     // CLEANUP To be compabible to OCAML, keep this at 32 bit for now.
+    // This currently keeps us at 30 bits - we'd like to instead use 64, or
+    // settle on 63. Current blocker is client (needs research)
     // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
@@ -726,8 +765,10 @@ module String =
     }
 
   let splitOnNewline (str : string) : List<string> =
-    str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
-
+    if str = "" then
+      []
+    else
+      str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
@@ -775,9 +816,9 @@ module Dictionary =
   let get (k : 'k) (t : T<'k, 'v>) : Option<'v> =
     FSharpPlus.Dictionary.tryGetValue k t
 
-  let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : T<'k, 'v> =
+  let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : unit =
     d[k] <- v
-    d
+    ()
 
   let empty () : T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>()
 
@@ -798,6 +839,21 @@ module Dictionary =
     List.iter (fun (k, v) -> result[k] <- v) l
     result
 
+module ResizeArray =
+  type T<'v> = ResizeArray<'v>
+  let empty () = T()
+
+  let iter (f : 'v -> unit) (l : T<'v>) : unit =
+    FSharpx.Collections.ResizeArray.iter f l
+
+  let map (f : 'v -> 'v2) (l : T<'v>) : T<'v2> =
+    FSharpx.Collections.ResizeArray.map f l
+
+  let append (v : 'v) (list : T<'v>) : unit = list.Add(v)
+
+  let toList (l : T<'v>) : List<'v> = FSharpx.Collections.ResizeArray.toList l
+
+  let toSeq (l : T<'v>) : seq<'v> = FSharpx.Collections.ResizeArray.toSeq l
 
 
 // ----------------------
@@ -816,16 +872,6 @@ type tlid = uint64
 
 type id = uint64
 
-// In real code, only create these from LibService.Telemetry
-type ExecutionID =
-  | ExecutionID of string
-
-  override this.ToString() : string =
-    let (ExecutionID str) = this
-    str
-
-
-
 
 // This is important to prevent auto-serialization accidentally leaking this,
 // though it never should anyway
@@ -840,6 +886,7 @@ module Json =
 
     open System.Text.Json
     open System.Text.Json.Serialization
+    open NodaTime.Serialization.SystemTextJson
 
     type TLIDConverter() =
       inherit JsonConverter<tlid>()
@@ -863,6 +910,32 @@ module Json =
       override _.Write(writer : Utf8JsonWriter, _ : Password, _options) =
         writer.WriteStringValue("Redacted")
 
+    // Since we're getting this back from OCaml in DDates, we need to use the
+    // timezone even though there isn't one in the type
+    type LocalDateTimeConverter() =
+      inherit JsonConverter<NodaTime.LocalDateTime>()
+
+      override _.Read(reader : byref<Utf8JsonReader>, tipe, options) =
+        let rawToken = reader.GetString()
+        try
+          (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
+        with
+        // We briefly used this converter for `Vanilla` - this is us "falling
+        // back" so we're able to read values serialized during that time.
+        | _ -> NodaConverters.LocalDateTimeConverter.Read(&reader, tipe, options)
+
+      override _.Write
+        (
+          writer : Utf8JsonWriter,
+          value : NodaTime.LocalDateTime,
+          _options
+        ) =
+        let value =
+          NodaTime
+            .ZonedDateTime(value, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
+            .ToInstant()
+            .toIsoString ()
+        writer.WriteStringValue(value)
 
     type RawBytesConverter() =
       inherit JsonConverter<byte array>()
@@ -891,7 +964,10 @@ module Json =
         )
       let options = JsonSerializerOptions()
       options.MaxDepth <- System.Int32.MaxValue // infinite
+      options.NumberHandling <- JsonNumberHandling.AllowNamedFloatingPointLiterals
       // CLEANUP we can put these converters on the type or property if appropriate.
+      options.Converters.Add(NodaConverters.InstantConverter)
+      options.Converters.Add(LocalDateTimeConverter())
       options.Converters.Add(TLIDConverter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
@@ -924,9 +1000,8 @@ module Json =
 
   module OCamlCompatible =
     // CLEANUP: get rid of OCamlCompatible serializers, replacing it with Vanilla.
-    // AFAIK, the only places we really have to use it are:
-    // - ocamlinterop (needed to parse funky floats like infinity)
-    // - JSON api (we can change the client after the migration is done)
+    // AFAIK, the only places we have to use it is for actual ocamlinterop, and all
+    // other uses have been removed
     open Newtonsoft.Json
     open Microsoft.FSharp.Reflection
 
@@ -1006,8 +1081,8 @@ module Json =
         let listType = typedefof<list<_>>.MakeGenericType (itemType)
         let cases = FSharpType.GetUnionCases(listType)
 
-        let rec make =
-          function
+        let rec make collection =
+          match collection with
           | [] -> FSharpValue.MakeUnion(cases[0], [||])
           | head :: tail -> FSharpValue.MakeUnion(cases[1], [| head; (make tail) |])
 
@@ -1155,7 +1230,7 @@ module Json =
             FSharpValue.MakeUnion(cases[1], [| value |])
 
     // Since we're getting this back from OCaml in DDates, we need to use the
-    // timezone even though there isn't on in the type
+    // timezone even though there isn't one in the type
     type LocalDateTimeConverter() =
       inherit JsonConverter<NodaTime.LocalDateTime>()
 
@@ -1246,6 +1321,7 @@ module Json =
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
+    /// Serialize to JSON
     let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
 
     /// Serialize WITHOUT redacting passwords. Only used for communicating to the
@@ -1274,6 +1350,26 @@ module Tablecloth =
       | Ok v -> v
       | Error v -> f v
 
+    [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
+                               0,
+                               IsError = true,
+                               IsHidden = true)>]
+    let unwrapUnsafe = Tablecloth.Result.unwrapUnsafe
+
+  module Option =
+
+    [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+                               0,
+                               IsError = true,
+                               IsHidden = true)>]
+    let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
+
+    [<CompilerMessageAttribute("Option.get is banned, use Prelude.Exception.unwrapOption* instead",
+                               0,
+                               IsError = true,
+                               IsHidden = true)>]
+    let get = Option.get
+
   module String =
     let take (count : int) (str : string) : string =
       if count >= str.Length then str else str.Substring(0, count)
@@ -1283,6 +1379,7 @@ module Tablecloth =
         str.Substring(0, str.Length - suffix.Length)
       else
         str
+
 
   module Map =
     let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
@@ -1653,6 +1750,16 @@ type pos = { x : int; y : int }
 type CanvasID = System.Guid
 type UserID = System.Guid
 
+/// User to represent handlers in their lowest-level form: a triple of space * name * modifier
+/// "Space" is "HTTP", "WORKER", "REPL", etc.
+///
+/// "Modifier" options differ based on space.
+/// e.g. HTTP handler may have "GET" modifier.
+///
+/// Handlers which don't have modifiers (e.g. repl, worker) nearly
+/// always (but not actually always) have `_` as their modifier.
+type HandlerDesc = (string * string * string)
+
 // since these are all usernames, use types for safety
 module UserName =
   type T =
@@ -1725,7 +1832,7 @@ module UserName =
       Ok name
     else
       Error
-        $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '_'"
+        $"Invalid username '{name}', can only contain lowercase roman letters and digits"
 
   let newUserAllowed (name : string) : Result<unit, string> =
     match validate name with
@@ -1771,33 +1878,59 @@ module CanvasName =
 
     override this.ToString() = let (CanvasName name) = this in name
 
-  let validate (name : string) : Result<string, string> =
+  type CanvasNameError =
+    | LengthError
+    | EmptyError
+    | UsernameError of string
+    | CanvasNameError of string
+
+    override this.ToString() =
+      match this with
+      | LengthError -> "Invalid canvas name - must be <= 64 characters"
+      | EmptyError -> "Invalid canvas name - no canvas name"
+      | UsernameError name ->
+        $"Invalid username '{name}' - must be 2-20 lowercase characters, and must start with a letter."
+      | CanvasNameError name ->
+        $"Invalid canvas name '{name}' - must contain only letters, digits, and '-'"
+
+
+  let validate (name : string) : Result<string, CanvasNameError> =
     // starts with username
     // no capitals
     // hyphen between username and canvasname
     // more hyphens allowed
-    let canvasRegex = "[-_a-z0-9]+"
-    let userNameRegex = UserName.allowedPattern
+    let canvasPortionRegex = "[-_a-z0-9]+"
+    let userPortionRegex = UserName.allowedPattern
     // This is complicated because users have canvas names like "username-", though
     // none have any content there.
-    let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"
+    let regex = $"^{userPortionRegex}(-({canvasPortionRegex})?)?$"
 
-    if String.length name > 64 then
-      Error "Canvas name was too long, must be <= 64."
-    else if System.Text.RegularExpressions.Regex.IsMatch(name, regex) then
+    if String.length name > 64 then // check the length of the entire subdomain
+      Error LengthError
+    else if Regex.IsMatch(name, regex) then
       Ok name
     else
-      Error
-        $"Invalid canvas name '{name}', can only contain roman letters, digits, and '-' or '_'"
+      match Tablecloth.String.split "-" name with
+      | [] -> Error EmptyError
+      | [ _usernameOnly ] -> Error(UsernameError name)
+      | username :: _canvasSegments ->
+        if Regex.IsMatch(username, $"^{userPortionRegex}$") then
+          Error(CanvasNameError name)
+        else
+          Error(UsernameError username)
 
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors
-  let create (name : string) : T =
+  let createExn (name : string) : T =
     name |> validate |> Exception.unwrapResultInternal [] |> CanvasName
+
+  let create (name : string) : Result<T, string> =
+    name |> validate |> Result.map CanvasName |> Result.mapError string
 
 
 module HttpHeaders =
   type AspHeaders = System.Net.Http.Headers.HttpHeaders
+  type HttpResponseMessage = System.Net.Http.HttpResponseMessage
 
   // We include these here as the _most_ basic http header types and functionality.
   // Anything even remotely more complicated should be put next to where it's used,
@@ -1812,12 +1945,16 @@ module HttpHeaders =
       String.equalsCaseInsensitive headerName k)
     |> Option.map (fun (k, v) -> v)
 
-  /// Convert .NET HttpHeaders into Dark-style headers
-  let fromAspNetHeaders (headers : AspHeaders) : T =
-    headers
-    |> Seq.map Tuple2.fromKeyValuePair
-    |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-    |> Seq.toList
+  /// Get Dark-style headers from an Asp.Net HttpResponseMessage
+  let headersForAspNetResponse (response : HttpResponseMessage) : T =
+    let fromAspNetHeaders (headers : AspHeaders) : T =
+      headers
+      |> Seq.map Tuple2.fromKeyValuePair
+      |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
+      |> Seq.toList
+    fromAspNetHeaders response.Headers @ fromAspNetHeaders response.Content.Headers
+
+
 
 
 let id (x : int) : id = uint64 x

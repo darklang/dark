@@ -7,17 +7,6 @@ set -euo pipefail
 
 LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
 
-# Docs: https://docs.honeycomb.io/working-with-your-data/customizing-your-query/markers
-HONEYCOMB_DATASETS="integration-tests
-kubernetes-bwd-nginx
-kubernetes-bwd-ocaml
-kubernetes-cluster-events
-kubernetes-garbagecollector
-kubernetes-metrics
-kubernetes-scheduler
-kubernetes-stroller
-postgres"
-
 if [[ -v CI ]]; then
   key="${BUILDEVENT_APIKEY}"
   msg="${CIRCLE_USERNAME} deployed PR (SHA1: ${CIRCLE_SHA1})"
@@ -29,7 +18,15 @@ else
   url=""
 fi
 
-for dataset in $HONEYCOMB_DATASETS; do
+# https://docs.honeycomb.io/api/datasets/
+datasets=$( \
+  curl https://api.honeycomb.io/1/datasets \
+    -s \
+    -X GET \
+    -H "X-Honeycomb-Team: ${key}" \
+  | jq .[].slug -r)
+
+for dataset in $datasets; do
   honeymarker add \
       --writekey="${key}" \
       --dataset="$dataset" \

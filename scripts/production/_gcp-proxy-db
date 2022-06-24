@@ -6,36 +6,19 @@ set -euo pipefail
 
 # 1) `cloud_sql_proxy` is a google thing
 # (https://cloud.google.com/sql/docs/postgres/sql-proxy) that takes your gcloud
-# creds and uses them to open a proxy to the specified db and exposes it using
-# either a tcp port or a unix socket. (We're using the latter, it's not exposed
-# to the docker host so no need to use a port.)
+# creds and uses them to open a proxy to the specified db.
 #
-# 2) In theory we could block until this connects and then continue - perhaps
-# using `expect` - but in practice, the proxy is quick enough to launch that
-# this doesn't seem necessary
-#
-# 3) This does leave around a cloud_sql_proxy process per invoke of this script.
-# If that ends up being a problem, we could try reaping them periodically, or
-# perhaps if `ps | grep cloud_sql_proxy | wc -l` is greater than some threshold.
-#
-# 4) -verbose=false because we don't need to know about non-error'ing client
+# 2) -verbose=false because we don't need to know about non-error'ing client
 # connection open/close events
 
 PROJECT=balmy-ground-195100
 REGION=us-west1
-PROD_DB=dark-west
-
-echo "Connecting to production (port 2346)"
-DB="${PROD_DB}"
+DB=dark-west
 PORT=2346
-
-
 INSTANCE="${PROJECT}:${REGION}:${DB}"
 
-echo "Setting up proxy to ${INSTANCE}"
+echo "Setting up proxy to production: ${INSTANCE} (port ${PORT})"
 
 cloud_sql_proxy \
     -verbose=false \
     -instances "${INSTANCE}=tcp:${PORT}"
-
-

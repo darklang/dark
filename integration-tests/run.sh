@@ -5,7 +5,9 @@
 set -euo pipefail
 
 # This deliberately can be run outside the container - sometimes you want to test on
-# the host
+# the host. TODO this is currently failing, unless you specify some env vars
+# explicitly. Here's a sample command to get it working for now:
+# DARK_CONFIG_APISERVER_HOST=darklang.localhost:9000 DARK_CONFIG_BWDSERVER_HOST=builtwithdark.localhost:11001 ./integration-tests/run.sh
 
 # CLEANUP this script fails if you cd to this directory.
 # we should adjust to either allow such, or warn so dev doesn't get confused
@@ -15,9 +17,10 @@ DEBUG_MODE_FLAG=""
 CONCURRENCY=1
 RETRIES=0
 REPEAT=1 # repeat allows us to repeat individual tests many times to check for edge cases
-BASE_URL="http://darklang.localhost:9000"
-BWD_BASE_URL=".builtwithdark.localhost:11000"
+BASE_URL="http://${DARK_CONFIG_APISERVER_HOST}"
+BWD_BASE_URL=".${DARK_CONFIG_BWDSERVER_HOST}"
 BROWSER="chromium"
+PUBLISHED=""
 
 for i in "$@"
 do
@@ -36,6 +39,10 @@ do
     ;;
     --repeat=*)
     REPEAT=${1/--repeat=/''}
+    shift
+    ;;
+    --published)
+    PUBLISHED="--published"
     shift
     ;;
     --debug)
@@ -79,6 +86,11 @@ fi
 # Prep for tests (in the container)
 ######################
 ./integration-tests/prep.sh
+
+# We need to restart the server after adding new packages. Integration tests test
+# against the dev environment, not the test one.
+./scripts/run-fsharp-server "${PUBLISHED}"
+./scripts/devcontainer/_wait-until-apiserver-ready
 
 ######################
 # Run playwright

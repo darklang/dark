@@ -3,12 +3,13 @@
 If login is broken because auth0 is down or the ops-login canvas (which backs
 login.darklang.com) is down, on-call will still need a way to log in.
 
-To do this, run `scripts/production/emergency-login <username>`.
+To do this, run:
 
-That script will:
+- `scripts/production/connect-to-exec host`
+- `./app/ExecHost emergency-login <username>`
 
-- get kubectl credentials
-- use those to run `bin/emergency_login_script.exe` in prod, which
+This will:
+
 - inserts a row into the `session` table in postgres and
 - prints a session key, along with instructions for use
 

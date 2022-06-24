@@ -70,7 +70,6 @@ let defaultCanvasProps: canvasProps = {
   enablePan: true,
   lastOffset: None,
   panAnimation: DontAnimateTransition,
-  minimap: None,
 }
 
 let defaultHandlerProp: handlerProp = {hoveringReferences: list{}, execution: Idle}
@@ -95,7 +94,7 @@ let defaultModel: model = {
   lastMsg: IgnoreMsg("default"),
   opCtrs: Map.String.empty,
   clientOpCtrId: "",
-  complete: /* this is awkward, but avoids circular deps */
+  complete: // this is awkward, but avoids circular deps
   {
     admin: false,
     completions: list{},

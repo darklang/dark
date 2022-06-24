@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cronchecker-deployment
+  namespace: default
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 spec:
@@ -19,6 +20,9 @@ spec:
     metadata:
       labels:
         app: cronchecker
+      annotations:
+        # We use EmptyDir to allow read-only pods, but they need this annotation to scale down
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
       containers:
 
@@ -31,10 +35,10 @@ spec:
             # Observed in practice using 670m and 74Mi when going full-tilt
             requests:
               memory: "180Mi"
-              cpu: "500m"
+              cpu: "700m"
             limits:
               memory: "400Mi"
-              cpu: "800m"
+              cpu: "1100m"
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -72,17 +76,33 @@ spec:
                 secretKeyRef:
                   name: rollbar-account-credentials
                   key: post_token
+            # honeycomb
+            - name: DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: launchdarkly-account-credentials
+                  key: key
             # pusher
+            - name: DARK_CONFIG_PUSHER_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-pusher
+                  key: app_id
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
                 secretKeyRef:
-                  name: pusher-account-credentials
+                  name: credentials-pusher
                   key: key
             - name: DARK_CONFIG_PUSHER_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: pusher-account-credentials
+                  name: credentials-pusher
                   key: secret
+            - name: DARK_CONFIG_PUSHER_CLUSTER
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-pusher
+                  key: cluster
             # database (sql server in the same pod)
             - name: DARK_CONFIG_DB_HOST
               value: 127.0.0.1
@@ -102,6 +122,12 @@ spec:
                 secretKeyRef:
                   name: honeycomb-account-credentials
                   key: api-key
+            # PubSub - service account JSON file
+            - name: DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-queue-pubsub
+                  key: key.json
 
         #########################
         # Postgres proxy config
@@ -145,11 +171,11 @@ spec:
           # ---------------------
           resources:
             requests:
-              memory: "20Mi"
-              cpu: "300m"
+              memory: "80Mi"
+              cpu: "500m"
             limits:
               memory: "500Mi"
-              cpu: "500m"
+              cpu: "800m"
 
           # ---------------------
           # Lifecycle probes
@@ -189,3 +215,8 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+
+        # Main container
+        # to allow readOnlyRootFilesystem
+        - name: rundir
+          emptyDir: { }

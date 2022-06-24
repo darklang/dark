@@ -18,8 +18,6 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 let varErr = TVariable "err"
 
-// CLEANUP: fix the typos in "unecnrypted"
-
 // Here's how JWT with RS256, and this library, work:
 //
 //   Users provide a private key, some headers, and a payload.
@@ -92,8 +90,8 @@ module Legacy =
     | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
     | DBytes bytes -> bytes |> Base64.defaultEncodeToString |> String
 
-  // We are adding bytes to match the OCaml implementation. Don't use strings
-  // or characters as those are different sizes: OCaml strings are literally
+  // We are adding bytes to match the old OCaml implementation. Don't use strings
+  // or characters as those are different sizes: OCaml strings were literally
   // just byte arrays.
   // A SCG.List is a growing vector (unlike an F# List, which is a linked
   // list). This should have not-awful performance
@@ -379,14 +377,14 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
       returnType = TStr
       description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unencrypted RSA private key in PEM format."
       fn =
         (function
         | _, [ DStr key; payload ] ->
           signAndEncode key Map.empty payload |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = ReplacedBy(fn "JWT" "signAndEncode" 1) }
 
     { name = fn "JWT" "signAndEncodeWithHeaders" 0
@@ -396,7 +394,7 @@ let fns : List<BuiltInFn> =
           Param.make "payload" varA "" ]
       returnType = TStr
       description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unencrypted RSA private key in PEM format."
       fn =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
@@ -410,7 +408,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
       returnType = TResult(varB, varErr)
       description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unencrypted RSA private key in PEM format."
       fn =
         (function
         | _, [ DStr key; payload ] ->
@@ -420,7 +418,7 @@ let fns : List<BuiltInFn> =
           | e -> Ply(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
     { name = fn "JWT" "signAndEncodeWithHeaders" 1
@@ -430,7 +428,7 @@ let fns : List<BuiltInFn> =
           Param.make "payload" varA "" ]
       returnType = TResult(varB, varErr)
       description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unencrypted RSA private key in PEM format."
       fn =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
@@ -447,8 +445,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
       returnType = TOption varA
       description =
-        // CLEANUP: the docstring should say "extract"
-        "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
+        "Verify and extract the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
       fn =
         (function
         | _, [ DStr key; DStr token ] ->
@@ -459,11 +456,11 @@ let fns : List<BuiltInFn> =
               verifyAndExtractV0 rsa token
             with
             | _ ->
-              Errors.throw
+              Exception.raiseCode
                 "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
           match result with
           | Some (headers, payload) ->
-            let unwrap = Exception.unwrapResultDeveloper
+            let unwrap = Exception.unwrapResultCode
             [ ("header", ofJson headers |> unwrap)
               ("payload", ofJson payload |> unwrap) ]
             |> Map.ofList
@@ -481,8 +478,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
       returnType = TResult(varA, varErr)
       description =
-        // CLEANUP: the docstring should say "extract"
-        "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
+        "Verify and extract the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
       fn =
         (function
         | _, [ DStr key; DStr token ] ->
@@ -495,7 +491,7 @@ let fns : List<BuiltInFn> =
             | _ -> Error "Invalid public key"
           match result with
           | Ok (headers, payload) ->
-            let unwrap = Exception.unwrapResultDeveloper
+            let unwrap = Exception.unwrapResultCode
             [ ("header", ofJson headers |> unwrap)
               ("payload", ofJson payload |> unwrap) ]
             |> Map.ofList

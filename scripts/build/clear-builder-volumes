@@ -13,9 +13,6 @@ docker volume rm \
   dark_fsharp_build \
   dark_lib \
   dark_node_modules \
-  dark_queue_scheduler_target \
-  dark_rust_cargo \
-  dark_stroller_target \
   dark_nuget \
   darklang-dark-extension-volume \
   darklang-dark-extension-volume-insiders \

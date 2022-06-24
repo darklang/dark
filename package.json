@@ -9,7 +9,7 @@
     "browserify-incremental": "3.1.1",
     "bs-platform": "9.0.2",
     "dom-storage": "2.1.0",
-    "jsdom": "19.0.0",
+    "jsdom": "20.0.0",
     "jsdom-global": "3.0.2",
     "node-sass": "5.0.0",
     "npm-run-all": "4.1.5",
@@ -18,7 +18,7 @@
   "dependencies": {
     "@fullstory/browser": "^1.4.10",
     "@glennsl/bs-json": "5.0.3",
-    "acorn": ">=8.6.0",
+    "acorn": ">=8.7.1",
     "bs-deriving": "44.2.0",
     "bs-fetch": "0.6.2",
     "bs-uuid": "0.3.1",
@@ -26,12 +26,11 @@
     "bucklescript-tea": "darklang/bucklescript-tea#master",
     "clipboard-copy": "4.0.1",
     "domready": "1.0.8",
-    "html2canvas": "1.0.0-rc.7",
-    "minimist": ">=1.2.3",
-    "moment": "^2.29.1",
+    "minimist": ">=1.2.6",
+    "moment": "^2.29.3",
     "mouse-wheel": "1.2.0",
     "pusher-js": "5.1.1",
-    "rollbar": "2.24.1",
+    "rollbar": "2.25.0",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "darklang/tablecloth#49cb938d1bb177a504de40de7d470615452e8d8d",
     "validator": "^13.7.0"
@@ -43,9 +42,8 @@
     "build:appsupport": "browserifyinc --cachefile lib/browserify-cache.json client/src/appsupport.js --standalone appsupport -o backend/static/appsupport.js",
     "build:unsupportedBrowser": "browserifyinc --cachefile lib/browserify-cache.json client/src/unsupportedBrowser.js --standalone unsupportedBrowser -o backend/static/unsupportedBrowser.js",
     "build:fetcher": "browserifyinc --cachefile lib/browserify-fetcher-cache.json lib/js/client/workers/Fetcher.bs.js --standalone fetcher -o backend/static/fetcher.js",
-    "build:analysiswrapper": "browserifyinc --cachefile lib/browserify-analysis-wrapper-cache.json lib/js/client/workers/AnalysisWrapper.bs.js --standalone analysiswrapper -o backend/static/analysiswrapper.js",
     "copy:static": "rsync -a client/static/* backend/static/",
-    "build": "npm-run-all --sequential build:rescript --parallel build:app build:appsupport build:unsupportedBrowser build:fetcher build:analysiswrapper copy:static",
+    "build": "npm-run-all --sequential build:rescript --parallel build:app build:appsupport build:unsupportedBrowser build:fetcher copy:static",
     "test": "scripts/run-client-tests --dom"
   }
 }

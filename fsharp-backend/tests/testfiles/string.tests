@@ -1,4 +1,4 @@
-[fn.c arg]
+[fn.c arg:string]
 Test.toChar_v0_ster arg
 
 [tests.tests]
@@ -33,9 +33,7 @@ String.join_v0 ["🧟‍♀️🧟‍♂️", "🧟‍♀️🧑🏽‍🦰"] ""
 String.join_v0 ["👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️", "‍⚧️‍️🇵🇷"] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.join_v0 ["🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍"] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
 String.join_v0 ["🧑🏽‍🦰‍", "🧑🏼‍💻‍‍"] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
-String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected string" // OCAMLONLY
-String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a list of Strings, but the list contained `0`" // FSHARPONLY
-
+String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a list of Strs, but the list contained `0`"
 Bytes.length_v0 (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
 Bytes.length_v0 (String.toBytes_v0 "😄APPLE🍏") = 13
 Bytes.length_v0 (String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53
@@ -80,8 +78,7 @@ String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
 String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
 String.endsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷"= true
 
-String.foreach_v0 "a string" (fun x -> x) = Test.typeError_v0 "String::foreach was removed from Dark" // FSHARPONLY
-String.foreach_v0 "a string" (fun x -> x) = Test.typeError "This function no longer exists." // OCAMLONLY
+String.foreach_v0 "a string" (fun x -> x) = Test.typeError_v0 "String::foreach was removed from Dark"
 String.foreach_v1 "a string" (fun x -> x) = "a string"
 String.foreach_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 String.foreach_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
@@ -91,9 +88,8 @@ String.foreach_v1  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 String.foreach_v1 "abcdef" (fun x -> blank) = blank
 
 // fromChar
-String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark" // FSHARPONLY
-String.fromChar_v0 (c "1") = Test.typeError "This function no longer exists." // OCAMLONLY
-String.fromChar_v1 'a' = "a" // FSHARPONLY
+String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark"
+String.fromChar_v1 'a' = "a"
 String.fromChar_v1 (c "1") = "1"
 String.fromChar_v1 (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
 String.fromChar_v1 (c "🏳️‍⚧️‍️") = "🏳️‍⚧️‍️"
@@ -128,13 +124,9 @@ String.base64Decode_v0 "Zm9vYmC=" = "foob`"
 String.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = "from=06/07/2013 query=\"Καλώς ορίσατε\""
 String.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 // These produce strings of bytes which are technically legal it seems
-String.base64Decode_v0 "-p" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\250\"" // OCAMLONLY
-String.base64Decode_v0 "-p" = "�" // FSHARPONLY
-String.base64Decode_v0 "lI" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\148\"" // OCAMLONLY
-String.base64Decode_v0 "lI" = "�" // FSHARPONLY
-String.base64Decode_v0 "5Sk" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\229)\"" // OCAMLONLY
-String.base64Decode_v0 "5Sk" = "�)" // FSHARPONLY
-
+String.base64Decode_v0 "-p" = "�"
+String.base64Decode_v0 "lI" = "�"
+String.base64Decode_v0 "5Sk" = "�)"
 
 String.base64Encode_v0 "+" = "Kw"
 String.base64Encode_v0 "Ⱥ" = "yLo"
@@ -205,8 +197,7 @@ String.random_v1 -1 = Error "l should be a positive integer"
 String.length_v1 (String.random_v2_ster 10) = 10
 String.length_v1 (String.random_v2_ster 5) = 5
 String.length_v1 (String.random_v2_ster 0) = 0
-String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`" // FSHARPONLY
-String.random_v2 -1 = Error "l should be a positive integer" // OCAMLONLY
+String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`"
 (String.random_v2 5) == (String.random_v2 5) = false
 
 
@@ -336,19 +327,15 @@ String.slugify_v2 "[\\]^_`" = "-"
 String.slugify_v2 "{|}~\x7F" = ""
 
 // toList and fromList
-String.fromList_v0 [] = Test.typeError_v0 "This function no longer exists." // OCAMLONLY
-String.fromList_v0 [] = Test.typeError_v0 "String::fromList was removed from Dark" // FSHARPONLY
-String.toList_v0 "" = Test.typeError_v0 "This function no longer exists." // OCAMLONLY
-String.toList_v0 "" = Test.typeError_v0 "String::toList was removed from Dark" // FSHARPONLY
-
+String.fromList_v0 [] = Test.typeError_v0 "String::fromList was removed from Dark"
+String.toList_v0 "" = Test.typeError_v0 "String::toList was removed from Dark"
 String.fromList_v1 [] = ""
 String.fromList_v1 [c "a"] = "a"
 String.fromList_v1 [c "👩‍👩‍👧‍👦", c "🏳️‍⚧️‍️", c "👱🏾", c "Z̤͔ͧ̑̓"] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
-String.fromList_v1 ["a"] = Test.typeError_v0 "expected a char" // OCAMLONLY
-String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `\"a\"`" // FSHARPONLY
-String.fromList_v1 [6] = Test.typeError_v0 "expected a char" // OCAMLONLY
-String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`" // FSHARPONLY
+String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `\"a\"`"
+String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`"
 String.toList_v1 "" = []
+
 String.toList_v1 "ab" = ['a', 'b']
 String.toList_v1 "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
 String.toList_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ c "Z̤͔ͧ̑̓", c "ä͖̭̈̇", c "lͮ̒ͫ", c "ǧ̗͚̚", c "o̙̔ͮ̇͐̇" ]
@@ -397,43 +384,68 @@ String.split_v0 "x333y" "3" = ["x"; ""; ""; "y"]
 String.split_v0 "x22y" "2" = ["x"; ""; "y"]
 String.split_v0 "x1y" "1" = ["x"; "y"]
 String.split_v0 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""]
-String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"] // FSHARPONLY
+String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"]
 
-String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`" // FSHARPONLY
-String.toInt_v0 "" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
+// Note: these have been replaced by Int.parse
+String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`"
 String.toInt_v0 "-4611686018427387903" = -4611686018427387903I
 String.toInt_v0 "-4611686018427387904" = -4611686018427387904I
-String.toInt_v0 "-4611686018427387905" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
-String.toInt_v0 "-4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"-4611686018427387905\"`" // FSHARPONLY
+String.toInt_v0 "-4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"-4611686018427387905\"`"
 String.toInt_v0 "4611686018427387903" = 4611686018427387903I
-String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387904\"`" // FSHARPONLY
-String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387905\"`" // FSHARPONLY
-String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
-String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
+String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387904\"`"
+String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387905\"`"
 String.toInt_v0 "+333" = 333
-String.toInt_v0 "-11111" = -11111
 String.toInt_v0 "-11111" = -11111
 String.toInt_v0 "0" = 0
 String.toInt_v0 "1" = 1
 String.toInt_v0 "55555555" = 55555555
+String.toInt_v0 " 1" = 1
+String.toInt_v0 "1 " = 1
+String.toInt_v0 " +1 " = 1
+String.toInt_v0 "078" = 78 // "octal" format ignored
+String.toInt_v0 "-00001" = -1
+String.toInt_v0 "1 2 3" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"1 2 3\"`"
+String.toInt_v0 "+ 1" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"+ 1\"`"
+String.toInt_v0 "- 1" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"- 1\"`"
+String.toInt_v0 "0xA" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"0xA\"`"
+String.toInt_v0 "0x123" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"0x123\"`"
+String.toInt_v0 "0b0100" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"0b0100\"`"
+String.toInt_v0 "pi" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"pi\"`"
+String.toInt_v0 "Math.pi" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"Math.pi\"`"
+String.toInt_v0 "1.23E+04" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"1.23E+04\"`"
+String.toInt_v0 "1I" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"1I\"`"
+String.toInt_v0 "one" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"one\"`"
+String.toInt_v0 "XIV" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"XIV\"`"
 
-String.toInt_v1 "" = Error "Expected a string with only numbers, got " // OCAMLONLY
-String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\"" // FSHARPONLY
+String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\""
 String.toInt_v1 "-00001" = Ok -1
 String.toInt_v1 "-10001" = Ok -10001
 String.toInt_v1 "-4611686018427387903" = Ok -4611686018427387903I
 String.toInt_v1 "-4611686018427387904" = Ok -4611686018427387904I
-String.toInt_v1 "-4611686018427387905" = Error "Expected a string with only numbers, got -4611686018427387905" // OCAMLONLY
-String.toInt_v1 "-4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"-4611686018427387905\"" // FSHARPONLY
+String.toInt_v1 "-4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"-4611686018427387905\""
 String.toInt_v1 "4611686018427387903" = Ok 4611686018427387903I
-String.toInt_v1 "4611686018427387904" = Error "Expected to parse string with only numbers, instead got \"4611686018427387904\"" // FSHARPONLY
-String.toInt_v1 "4611686018427387904" = Error "Expected a string with only numbers, got 4611686018427387904" // OCAMLONLY
-String.toInt_v1 "4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"4611686018427387905\"" // FSHARPONLY
-String.toInt_v1 "4611686018427387905" = Error "Expected a string with only numbers, got 4611686018427387905" // OCAMLONLY
-String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\"" // FSHARPONLY
-String.toInt_v1 "" = Error "Expected a string with only numbers, got " // OCAMLONLY
+String.toInt_v1 "4611686018427387904" = Error "Expected to parse string with only numbers, instead got \"4611686018427387904\""
+String.toInt_v1 "4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"4611686018427387905\""
+String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\""
 String.toInt_v1 "0" = Ok 0
 String.toInt_v1 "1" = Ok 1
+String.toInt_v1 " 1" = Ok 1
+String.toInt_v1 "1 " = Ok 1
+String.toInt_v1 " +1 " = Ok 1
+String.toInt_v1 "078" = Ok 78 // "octal" format ignored
+String.toInt_v1 "-00001" = Ok -1
+String.toInt_v1 "1 2 3" = Error "Expected to parse string with only numbers, instead got \"1 2 3\""
+String.toInt_v1 "+ 1" = Error "Expected to parse string with only numbers, instead got \"+ 1\""
+String.toInt_v1 "- 1" = Error "Expected to parse string with only numbers, instead got \"- 1\""
+String.toInt_v1 "0xA" = Error "Expected to parse string with only numbers, instead got \"0xA\""
+String.toInt_v1 "0x123" = Error "Expected to parse string with only numbers, instead got \"0x123\""
+String.toInt_v1 "0b0100" = Error "Expected to parse string with only numbers, instead got \"0b0100\""
+String.toInt_v1 "pi" = Error "Expected to parse string with only numbers, instead got \"pi\""
+String.toInt_v1 "Math.pi" = Error "Expected to parse string with only numbers, instead got \"Math.pi\""
+String.toInt_v1 "1.23E+04" = Error "Expected to parse string with only numbers, instead got \"1.23E+04\""
+String.toInt_v1 "1I" = Error "Expected to parse string with only numbers, instead got \"1I\""
+String.toInt_v1 "one" = Error "Expected to parse string with only numbers, instead got \"one\""
+String.toInt_v1 "XIV" = Error "Expected to parse string with only numbers, instead got \"XIV\""
 
 String.toFloat_v0 "1.5" = 1.5
 String.toFloat_v0 "0.0" = 0.0
@@ -556,10 +568,8 @@ String.toUppercase_v1 "ჾ" = "Ჾ"
 // (packaged at
 // https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
 
-String.toUppercase_v1 "ﬁﬂ" = "FIFL" // OCAMLONLY
-String.toUppercase_v1 "և" = "ԵՒ" // OCAMLONLY
-String.toUppercase_v1 "ﬁﬂ" = "ﬁﬂ" // FSHARPONLY
-String.toUppercase_v1 "և" = "և" // FSHARPONLY
+String.toUppercase_v1 "ﬁﬂ" = "ﬁﬂ" // should be "FIFL"
+String.toUppercase_v1 "և" = "և" // should be "ԵՒ"
 
 
 String.toUppercase_v1 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
@@ -583,8 +593,7 @@ String.trimEnd_v0 "       ﷽﷽  " = "       ﷽﷽"
 String.trimEnd_v0 " 🧟‍♀️🧟‍♂️ " = " 🧟‍♀️🧟‍♂️"
 String.trimEnd_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.trimEnd_v0 "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" = "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" // FSHARPONLY
-
+String.trimEnd_v0 "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" = "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
 String.trimStart_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
 String.trimStart_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
 String.trimStart_v0 "      " = ""
@@ -620,8 +629,7 @@ String.trim_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍�
 String.trim_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 String.trim_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
 String.trim_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
-String.trim_v0 "쉆ꥨ逴皪巌䖑ⱝዓ淋" = "쉆ꥨ逴皪巌䖑ⱝዓ淋" // FSHARPONLY - this one is correct
-String.trim_v0 "쉆ꥨ逴皪巌䖑ⱝዓ淋" = "ꥨ쉆逴皪巌䖑ⱝዓ淋" // OCAMLONLY -- CLEANUP
+String.trim_v0 "쉆ꥨ逴皪巌䖑ⱝዓ淋" = "쉆ꥨ逴皪巌䖑ⱝዓ淋"
 
 String.reverse_v0 "abcde" = "edcba"
 String.reverse_v0 "0abcde" = "edcba0"
@@ -715,7 +723,7 @@ String.first_v0 "abcd" 0 = ""
 String.first_v0 "abcd" 1 = "a"
 String.first_v0 "abcd" 2 = "ab"
 String.first_v0 "abcd" 3 = "abc"
-String.first_v0 "abcd" 3000000000000000L = "abcd" // FSHARPONLY
+String.first_v0 "abcd" 3000000000000000L = "abcd"
 String.first_v0 "" 7 = ""
 String.first_v0 "🍊🍍🍏" 1 = "🍊"
 String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"
@@ -732,10 +740,8 @@ String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍�
 
 String.padStart_v0 "123" "0" 3 = "123"
 String.padStart_v0 "123" "0" -3 = "123"
-String.padStart_v0 "123" "_-" 4 = Test.typeError_v0 "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"_-\"` is 2 characters long." // OCAMLONLY
-String.padStart_v0 "123" "_-" 4 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`" // FSHARPONLY
-String.padStart_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"\"` is 0 characters long." // OCAMLONLY
-String.padStart_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`" // FSHARPONLY
+String.padStart_v0 "123" "_-" 4 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padStart_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`"
 String.padStart_v0 "123" "0" 6 = "000123"
 String.padStart_v0 "" "0" 0 = ""
 String.padStart_v0 "123🍊🍊" "0" 3 = "123🍊🍊"
@@ -750,10 +756,8 @@ String.padStart_v0 "鷝" "觌഻" 0 = "鷝"
 
 String.padEnd_v0 "123" "0" 3 = "123"
 String.padEnd_v0 "123" "0" -3 = "123"
-String.padEnd_v0 "123" "_-" 3 = Test.typeError_v0 "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"_-\"` is 2 characters long." // OCAMLONLY
-String.padEnd_v0 "123" "_-" 3 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`" // FSHARPONLY
-String.padEnd_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"\"` is 0 characters long." // OCAMLONLY
-String.padEnd_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`" // FSHARPONLY
+String.padEnd_v0 "123" "_-" 3 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padEnd_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`"
 String.padEnd_v0 "123" "0" 6 = "123000"
 String.padEnd_v0 "" "0" 0 = ""
 String.padEnd_v0 "123🍊🍊" "0" 8 = "123🍊🍊000"
@@ -811,7 +815,5 @@ String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 
 [test.stringForeach]
 // Check that foreach executes the right number of times
-// CLEANUP only needed for OCaml
-(let _ = Test.resetSideEffectCounter_v0 "foreach" in
- let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 "foreach" false) in
- Test.sideEffectCount_v0 "foreach") = 8
+(let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 false) in
+ Test.sideEffectCount_v0) = 8

@@ -6,7 +6,7 @@ module TL = Toplevel
 let hashUrlParams = (params: list<(string, string)>): string => {
   let merged = List.map(~f=((k, v)) => k ++ ("=" ++ v), params)
   if merged == list{} {
-    /* the space here is important - https://stackoverflow.com/a/49373716/104021 */
+    // the space here is important - https://stackoverflow.com/a/49373716/104021
     " "
   } else {
     "#" ++ String.join(~sep="&", merged)

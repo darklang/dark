@@ -57,10 +57,10 @@ module PrettyRequestJson =
       | DOption (Some dv) -> "Just " + to_repr_ indent dv
       | DErrorRail dv -> "ErrorRail: " + to_repr_ indent dv
       | DResult _ ->
-        Exception.raiseDeveloper
+        Exception.raiseCode
           "Unknown Err: (Failure \"printing an unprintable value:<result>\")"
       | DBytes _ ->
-        Exception.raiseDeveloper
+        Exception.raiseCode
           "Unknown Err: (Failure \"printing an unprintable value:<bytes>\")"
     to_repr_ 0 dv
 

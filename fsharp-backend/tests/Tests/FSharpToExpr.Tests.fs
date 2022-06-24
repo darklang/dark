@@ -43,10 +43,10 @@ let parserTests =
         "(5 + 3) == 8"
         (PT.EBinOp(
           id,
-          PTParser.FQFnName.stdlibFqName "" "==" 0,
+          { module_ = None; function_ = "==" },
           PT.EBinOp(
             id,
-            PTParser.FQFnName.stdlibFqName "" "+" 0,
+            { module_ = None; function_ = "+" },
             PT.EInteger(id, 5),
             PT.EInteger(id, 3),
             PT.NoRail
@@ -77,6 +77,10 @@ let parserTests =
           "099999999999994315658113919198513031005859375"
         ))
       t "zero" "0.0" (PT.EFloat(id, Positive, "0", "0"))
-      t "negative 180" "-180.0" (PT.EFloat(id, Negative, "180", "0")) ]
+      t "negative 180" "-180.0" (PT.EFloat(id, Negative, "180", "0"))
+      t
+        "user-defined function with send-to-rail"
+        "myFnCall_ster 5"
+        (PT.EFnCall(id, PT.FQFnName.User "myFnCall", [ PT.EInteger(id, 5) ], PT.Rail)) ]
 
 let tests = testList "FSharpToExpr" [ parserTests ]

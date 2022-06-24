@@ -150,7 +150,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TBool -> "Bool"
   | TNull -> "Null"
   | TChar -> "Character"
-  | TStr -> "String"
+  | TStr -> "Str" // CLEANUP change to String
   | TList _ -> "List"
   | TDict _ -> "Dict"
   | TRecord _ -> "Dict"
@@ -160,7 +160,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TError -> "Error"
   | THttpResponse _ -> "Response"
   | TDB _ -> "Datastore"
-  | TDate -> "Date"
+  | TDate -> "Date" // CLEANUP Dates should be DateTimes
   | TPassword -> "Password"
   | TUuid -> "UUID"
   | TOption _ -> "Option"
@@ -438,7 +438,8 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
-let unsafeOfUnknownJsonV0 str =
+// Raises CodeException as nearly all callers are in code
+let unsafeOfUnknownJsonV0 str : Dval =
   // This special format was originally the default OCaml (yojson-derived) format
   // for this.
   let responseOfJson (dv : Dval) (j : JsonElement) : DHTTP =
@@ -447,10 +448,11 @@ let unsafeOfUnknownJsonV0 str =
     | JList [ JString "Response"; JInteger code; JList headers ] ->
       let headers =
         headers
-        |> List.map (function
+        |> List.map (fun header ->
+          match header with
           | JList [ JString k; JString v ] -> (k, v)
           | h ->
-            Exception.raiseInternal "Invalid DHttpResponse headers" [ "header", h ])
+            Exception.raiseInternal "Invalid DHttpResponse headers" [ "headers", h ])
 
       Response(code, headers, dv)
     | _ -> Exception.raiseInternal "Invalid response json" [ "json", j ]
@@ -512,7 +514,7 @@ let unsafeOfUnknownJsonV0 str =
     use document = parseJson str
     convert document.RootElement
   with
-  | _ -> Exception.raiseInternal "Invalid json" [ "json", str ]
+  | _ -> Exception.raiseGrandUser "Invalid json"
 
 
 // When receiving unknown json from the user, or via a HTTP API, attempt to
@@ -557,10 +559,11 @@ let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
   | DObj obj ->
     obj
     |> Map.toList
-    |> List.map (function
+    |> List.map (fun pair ->
+      match pair with
       | (k, DStr v) -> Ok(k, v)
       | (k, v) ->
-        // CLEANUP: this is just to keep the error messages the same with OCaml. It's safe to change the error message
+        // CLEANUP: this was just to keep the error messages the same with OCaml. It's safe to change the error message
         // Error $"Expected a string, but got: {toDeveloperReprV0 v}"
         Error "expecting str")
     |> Tablecloth.Result.values
@@ -568,113 +571,3 @@ let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
     // CLEANUP As above
     // $"Expected a string, but got: {toDeveloperReprV0 dv}"
     Error "expecting str"
-
-// -------------------------
-// URLs and queryStrings
-// -------------------------
-
-// For putting into URLs as query params
-let rec toUrlString (dv : Dval) : string =
-  let r = toUrlString
-  match dv with
-  | DFnVal _ ->
-    (* See docs/dblock-serialization.ml *)
-    "<block>"
-  | DIncomplete _ -> "<incomplete>"
-  | DPassword _ -> "<password>"
-  | DInt i -> string i
-  | DBool true -> "true"
-  | DBool false -> "false"
-  | DStr s -> s
-  | DFloat f -> ocamlStringOfFloat f
-  | DChar c -> c
-  | DNull -> "null"
-  | DDate d -> DDateTime.toIsoString d
-  | DDB dbname -> dbname
-  | DErrorRail d -> r d
-  | DError _ -> "error="
-  | DUuid uuid -> string uuid
-  | DHttpResponse (Redirect _) -> "null"
-  | DHttpResponse (Response (_, _, hdv)) -> r hdv
-  | DList l -> "[ " + String.concat ", " (List.map r l) + " ]"
-  | DObj o ->
-    let strs = Map.fold [] (fun l key value -> (key + ": " + r value) :: l) o
-    "{ " + (String.concat ", " strs) + " }"
-  | DOption None -> "none"
-  | DOption (Some v) -> r v
-  | DResult (Error v) -> "error=" + r v
-  | DResult (Ok v) -> r v
-  | DBytes bytes -> Base64.defaultEncodeToString bytes
-
-// Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
-let queryToEncodedString (queryParams : (List<string * List<string>>)) : string =
-  match queryParams with
-  | [ key, [] ] -> urlEncodeKey key
-  | _ ->
-    queryParams
-    |> List.map (fun (k, vs) ->
-      let k = k |> urlEncodeKey
-      vs
-      |> List.map urlEncodeValue
-      |> fun vs ->
-           if vs = [] then
-             k
-           else
-             let vs = String.concat "," vs
-             $"{k}={vs}")
-    |> String.concat "&"
-
-let toQuery (dv : Dval) : Result<List<string * List<string>>, string> =
-  match dv with
-  | DObj kvs ->
-    kvs
-    |> Map.toList
-    |> List.map (fun (k, value) ->
-      match value with
-      | DNull -> Ok(k, [])
-      | DList l -> Ok(k, List.map toUrlString l)
-      | _ -> Ok(k, [ toUrlString value ]))
-    |> Tablecloth.Result.values
-  | _ -> Error "attempting to use non-object as query param" // CODE exception
-
-
-// The queryString passed in should not include the leading '?' from the URL
-let parseQueryString (queryString : string) : List<string * List<string>> =
-  // This will eat any intended question mark, so add one
-  let nvc = System.Web.HttpUtility.ParseQueryString("?" + queryString)
-  nvc.AllKeys
-  |> Array.map (fun key ->
-    let values = nvc.GetValues key
-    let split =
-      values[values.Length - 1] |> FSharpPlus.String.split [| "," |] |> Seq.toList
-
-    if isNull key then
-      // All the values with no key are by GetValues, so make each one a value
-      values |> Array.toList |> List.map (fun k -> (k, []))
-    else
-      [ (key, split) ])
-  |> List.concat
-
-let ofQuery (query : List<string * List<string>>) : Dval =
-  query
-  |> List.map (fun (k, v) ->
-    match v with
-    | [] -> k, DNull
-    | [ "" ] -> k, DNull // CLEANUP this should be a string
-    | [ v ] -> k, DStr v
-    | list -> k, DList(List.map DStr list))
-  |> Map
-  |> DObj
-
-
-let ofQueryString (queryString : string) : Dval =
-  queryString |> parseQueryString |> ofQuery
-
-// -------------------------
-// Forms
-// -------------------------
-
-let toFormEncoding (dv : Dval) : Result<string, string> =
-  toQuery dv |> Result.map queryToEncodedString
-
-let ofFormEncoding (f : string) : Dval = f |> parseQueryString |> ofQuery

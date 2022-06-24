@@ -42,7 +42,7 @@ let tipesByName = (uts: TD.t<userTipe>): Map.String.t<TLID.t> =>
     let name =
       ut.utName
       |> B.toOption
-      |> /* Shouldn't happen: all tipes have a default name */
+      |> // Shouldn't happen: all tipes have a default name
       recoverOpt("tipes should have default names", ~default="_")
 
     let version = ut.utVersion
@@ -74,12 +74,9 @@ let tlidsToUpdateUsage = (ops: list<op>): list<TLID.t> =>
     | DeleteColInDBMigration(_)
     | AbandonDBMigration(_)
     | CreateDBWithBlankOr(_)
-    | DeleteTLForever(_)
-    | DeleteFunctionForever(_)
     | SetType(_)
     | DeleteType(_)
     | AddDBCol(_)
-    | DeleteTypeForever(_)
     | SetDBColType(_)
     | DeleteDBCol(_)
     | RenameDBname(_)
@@ -118,7 +115,7 @@ let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<ID.t>)> =>
     updateAssocList(~key=tlid, assoc, ~f=x =>
       switch x {
       | None => Some(list{id})
-      | Some(lst) => Some(\"@"(lst, list{id}))
+      | Some(lst) => Some(Belt.List.concat(lst, list{id}))
       }
     )
   )
@@ -199,8 +196,8 @@ let getUsageFor = (
     |> Option.map(~f=findUsagesInFunctionParams(tipes))
     |> Option.unwrap(~default=list{})
 
-  /* TODO: tipes in other tipes */
-  \"@"(astUsages, fnUsages)
+  // TODO: tipes in other tipes
+  Belt.List.concat(astUsages, fnUsages)
 }
 
 let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
@@ -229,7 +226,7 @@ let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
     |> List.fold(~initial=(tlUsedInDict, tlRefersToDict), ~f=((usedIn, refersTo), usage) => {
       let newRefersTo = Map.add(
         ~key=usage.refersTo,
-        ~value=\"@"(
+        ~value=Belt.List.concat(
           Map.get(~key=usage.refersTo, refersTo) |> Option.unwrap(~default=list{}),
           list{(usage.usedIn, usage.id)},
         ),

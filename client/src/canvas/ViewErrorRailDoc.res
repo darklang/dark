@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module E = FluidExpression
 open PrettyDocs
 
@@ -17,9 +17,7 @@ let hintForFunction = (fn: Prelude.function_, sendToRail: option<E.sendToRail>):
   let errorRail = Html.a(
     list{
       Html.class'("link"),
-      Html.href(
-        "https://ops-documentation.builtwithdark.com/user-manual/error-handling#error-rail",
-      ),
+      Html.href("https://docs.darklang.com/discussion/error-handling#error-rail"),
       Html.target("_blank"),
     },
     list{Html.text("error rail")},
@@ -29,7 +27,7 @@ let hintForFunction = (fn: Prelude.function_, sendToRail: option<E.sendToRail>):
     ~default=Html.noNode,
     switch sendToRail {
     | None =>
-      /* If we don't know if the function is on the rail, return a generic message: */
+      // If we don't know if the function is on the rail, return a generic message:
       switch fn.fnReturnTipe {
       | TOption =>
         Some(
@@ -68,7 +66,7 @@ let hintForFunction = (fn: Prelude.function_, sendToRail: option<E.sendToRail>):
       | _ => None
       }
     | Some(sendToRail) =>
-      /* If we know if the function is on the rail, return a specific message: */
+      // If we know if the function is on the rail, return a specific message:
       switch (fn.fnReturnTipe, sendToRail) {
       | (TOption, Rail) =>
         Some(

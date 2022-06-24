@@ -77,13 +77,13 @@ let strSet = json => json |> array(string) |> Set.String.fromArray
 let decodeString = (decoder: decoder<'a>, str: string): Tc.Result.t<'a, string> =>
   try Ok(decoder(Json.parseOrRaise(str))) catch {
   | DecodeError(e) =>
-    /* Debug.loG ("json decoding error: '" ^ e ^ "'") str; */
+    // Debug.loG ("json decoding error: '" ^ e ^ "'") str;
     Error(e)
   | Json.ParseError(e) =>
-    /* Debug.loG ("json parse error: '" ^ e ^ "'") str; */
+    // Debug.loG ("json parse error: '" ^ e ^ "'") str;
     Error(e)
   | _ =>
-    /* let errStr = Printexc.to_string e in */
-    /* Debug.loG ("unknown json parsing error: '" ^ errStr ^ "'") str; */
+    // let errStr = Printexc.to_string e in
+    // Debug.loG ("unknown json parsing error: '" ^ errStr ^ "'") str;
     Error(str)
   }

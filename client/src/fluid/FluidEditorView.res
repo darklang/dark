@@ -46,7 +46,7 @@ let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> =>
     | TFnVersion(id, _, _, _) =>
       ViewFnExecution.fnExecutionButton(propsToFnExecutionProps(p), fn, id, argIDs)
     | TFnName(id, _, displayName, fnName, _)
-      if /* If fn is unversioned or is v0 */
+      if // If fn is unversioned or is v0
       displayName == fnName || displayName ++ "_v0" == fnName =>
       ViewFnExecution.fnExecutionButton(propsToFnExecutionProps(p), fn, id, argIDs)
     | _ => Vdom.noNode
@@ -68,7 +68,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
 
   let caretToken = FluidTokenizer.getTokenNotWhitespace(p.tokens, p.fluidState)
   let caretParentBlockID = caretToken |> Option.andThen(~f=ti =>
-    /* We only care to check further if caret is in a faded region. */
+    // We only care to check further if caret is in a faded region.
     if exeFlow(ti) == CodeNotExecuted {
       FluidToken.parentBlockID(ti.token)
     } else {
@@ -76,30 +76,30 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
     }
   )
 
-  /* Returns true if token is in the same block as the caret or on the same row */
+  // Returns true if token is in the same block as the caret or on the same row
   let isNearCaret = ti =>
     switch caretParentBlockID {
     | Some(pid) => FluidToken.parentBlockID(ti.token) == Some(pid) && exeFlow(ti) == CodeNotExecuted
     | None =>
       let isNotInBlock =
-        /* So we don't unfade tokens in the same row, but belong to another block */
+        // So we don't unfade tokens in the same row, but belong to another block
         FluidToken.parentBlockID(ti.token) == None
 
       let caretRow = Option.map(~f=ti => ti.startRow, caretToken)
       Some(ti.startRow) == caretRow && (isNotInBlock && exeFlow(ti) == CodeNotExecuted)
     }
 
-  /* Returns true if token is part of the expr the opened command palette will act on */
+  // Returns true if token is part of the expr the opened command palette will act on
   let isInCPExpr = ti =>
     switch p.fluidState.cp.location {
     | Some(_, id) if id == FluidToken.tid(ti.token) => true
     | _ => false
     }
 
-  /* Gets the source of a DIncomplete given an expr id */
+  // Gets the source of a DIncomplete given an expr id
   let sourceOfExprValue = id =>
     if FluidToken.validID(id) {
-      /* Only highlight incompletes and errors on executed paths */
+      // Only highlight incompletes and errors on executed paths
       switch Analysis.getLiveValueLoadable(p.analysisStore, id) {
       | LoadableSuccess(ExecutedResult(DIncomplete(SourceId(tlid, id)))) => (
           Some(tlid, id),
@@ -130,7 +130,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
   let nesting = ref(0)
   let cmdToken = switch p.fluidState.cp.location {
   | Some(ltlid, id) if p.tlid == ltlid =>
-    /* Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos */
+    // Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos
     p.tokens |> List.reverse |> List.getBy(~f=ti => FluidToken.tid(ti.token) == id)
   | _ => None
   }
@@ -198,7 +198,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
       ) {
         withinFlag := false
       }
-      /* Apply CSS classes to token */
+      // Apply CSS classes to token
       let tokenClasses = FluidToken.toCssClasses(ti.token)
       let (backingNestingClass, innerNestingClass) = {
         let (tokenBackingPrecedence, tokenInnerPrecedence) = {
@@ -223,7 +223,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
             n
           }
 
-          \"@"(list{"precedence-" ++ (wraparoundPrecedence |> string_of_int)}, ext)
+          list{"precedence-" ++ (wraparoundPrecedence |> string_of_int), ...ext}
         }
 
         (
@@ -238,7 +238,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
         list{
           "fluid-entry",
           "id-" ++ idStr,
-          ...\"@"(backingNestingClass, tokenClasses),
+          ...Belt.List.concat(backingNestingClass, tokenClasses),
         } |> List.map(~f=s => (s, true))
 
       let isInvalidToken = ti =>
@@ -253,7 +253,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
       let conditionalClasses = {
         let (sourceId, errorType) = sourceOfExprValue(analysisId)
         let isError =
-          /* Only apply to text tokens (not TSep, TNewlines, etc.) */
+          // Only apply to text tokens (not TSep, TNewlines, etc.)
           FluidToken.isErrorDisplayable(ti.token) &&
           (/* This expression is the source of its own incompleteness. We
             only draw underlines under sources of incompletes, not all
@@ -293,7 +293,10 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
       | None => list{Html.text(content)}
       }
 
-      Html.span(list{Html.classList(\"@"(cls, conditionalClasses))}, \"@"(innerNode, nested))
+      Html.span(
+        list{Html.classList(Belt.List.concat(cls, conditionalClasses))},
+        Belt.List.concat(innerNode, nested),
+      )
     }
 
     if p.permission == Some(ReadWrite) {
@@ -356,7 +359,7 @@ let tokensView = (p: props): Html.html<Types.msg> => {
 
         FluidMsg(FluidMouseUp({tlid: p.tlid, editor: p.editor, selection: selection}))
       | None =>
-        /* Select the handler, if not selected */
+        // Select the handler, if not selected
         FluidMsg(FluidMouseUp({tlid: p.tlid, editor: p.editor, selection: ClickAt(0)}))
       }
     ),
@@ -405,9 +408,9 @@ let tokensView = (p: props): Html.html<Types.msg> => {
   }
 
   Html.div(
-    /* disable grammarly crashes */
+    // disable grammarly crashes
 
-    \"@"(
+    Belt.List.concatMany([
       list{
         idAttr,
         Html.class'("fluid-tokens"),
@@ -416,8 +419,9 @@ let tokensView = (p: props): Html.html<Types.msg> => {
         Vdom.attribute("", "spellcheck", "false"),
         Vdom.attribute("", "data-gramm", "false"),
       },
-      \"@"(clickHandlers, Tuple3.toList(textInputListeners)),
-    ),
+      clickHandlers,
+      Tuple3.toList(textInputListeners),
+    ]),
     toHtml(p, duplicatedRecordFields),
   )
 }

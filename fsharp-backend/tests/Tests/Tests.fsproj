@@ -6,9 +6,8 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- We make this publishable so that we can run tests on the published version -->
     <PublishReadyToRun>true</PublishReadyToRun>
-    <SelfContained>true</SelfContained>
-    <!-- this makes the VSCode debugger hang -->
-    <!-- <PublishSingleFile>true</PublishSingleFile> -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
@@ -16,6 +15,7 @@
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
@@ -36,11 +36,11 @@
     <Compile Include="Cron.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
     <Compile Include="EventQueue.Tests.fs" />
+    <Compile Include="EventQueueV2.Tests.fs" />
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="FSharpToExpr.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
-    <Compile Include="OCamlInterop.Tests.fs" />
     <Compile Include="Prelude.Tests.fs" />
     <Compile Include="ProgramTypes.Tests.fs" />
     <Compile Include="Routing.Tests.fs" />

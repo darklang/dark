@@ -1,11 +1,11 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 
-/* ------------------------ */
-/* PointerData */
-/* ------------------------ */
+// ------------------------
+// PointerData
+// ------------------------
 
 let typeOf = (pd: blankOrData): blankOrType =>
   switch pd {

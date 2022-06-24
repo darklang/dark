@@ -20,6 +20,9 @@ spec:
     metadata:
       labels:
         app: exechost-app
+      annotations:
+        # We use EmptyDir to allow read-only pods, but they need this annotation to scale down
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
 
     spec:
       # ---------------------
@@ -72,7 +75,6 @@ spec:
             limits:
               # Allow generous limits in case it needs it when we're actually doing something
               memory: "200Mi"
-              cpu: "250m"
 
           # ---------------------
           # Environment
@@ -87,17 +89,33 @@ spec:
                 secretKeyRef:
                   name: rollbar-account-credentials
                   key: post_token
+            # honeycomb
+            - name: DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: launchdarkly-account-credentials
+                  key: key
             # pusher (not used here but needed for startup)
+            - name: DARK_CONFIG_PUSHER_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-pusher
+                  key: app_id
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
                 secretKeyRef:
-                  name: pusher-account-credentials
+                  name: credentials-pusher
                   key: key
             - name: DARK_CONFIG_PUSHER_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: pusher-account-credentials
+                  name: credentials-pusher
                   key: secret
+            - name: DARK_CONFIG_PUSHER_CLUSTER
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-pusher
+                  key: cluster
             # database (sql server in the same pod)
             - name: DARK_CONFIG_DB_HOST
               value: 127.0.0.1
@@ -117,6 +135,13 @@ spec:
                 secretKeyRef:
                   name: honeycomb-account-credentials
                   key: api-key
+            # PubSub - service account JSON file
+            - name: DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-queue-pubsub
+                  key: key.json
+
 
         #########################
         # Cloudsql proxy container
@@ -165,7 +190,6 @@ spec:
               cpu: "10m"
             limits:
               memory: "50Mi"
-              cpu: "50m"
 
           # ---------------------
           # Lifecycle probes

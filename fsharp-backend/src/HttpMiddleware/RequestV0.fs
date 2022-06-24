@@ -10,6 +10,7 @@ module RT = LibExecution.RuntimeTypes
 module ContentType = HeadersV0.ContentType
 module MediaType = HeadersV0.MediaType
 module DvalReprExternal = LibExecution.DvalReprExternal
+module HttpQueryEncoding = BackendOnlyStdLib.HttpQueryEncoding
 
 
 // Internal invariant, _must_ be a DObj
@@ -28,7 +29,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
      | e ->
        Exception.raiseGrandUser $"Invalid json: {UTF8.ofBytesWithReplacement body}")
   | Some MediaType.Form ->
-    body |> UTF8.ofBytesUnsafe |> DvalReprExternal.ofFormEncoding
+    body |> UTF8.ofBytesUnsafe |> HttpQueryEncoding.ofFormEncoding
   // CLEANUP: text should just be text
   | Some (MediaType.Text _)
   | Some (MediaType.Xml _)
@@ -51,9 +52,10 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
     parse mt reqbody
 
 
-let parseQueryString (queryvals : List<string * List<string>>) =
-  DvalReprExternal.ofQuery queryvals
-
+let parseQueryString (query : string) : RT.Dval =
+  // Drop leading ?
+  let query = if query.Length > 0 then String.dropLeft 1 query else query
+  BackendOnlyStdLib.HttpQueryEncoding.ofFormEncoding query
 
 let parseHeaders (headers : (string * string) list) =
   headers
@@ -81,7 +83,8 @@ let parseCookies (cookies : string) : RT.Dval =
   |> String.split ";"
   |> List.map String.trim
   |> List.map (fun s -> s.Split("=", 2) |> Array.toList)
-  |> List.map (function
+  |> List.map (fun cookie ->
+    match cookie with
     | [] -> ("", RT.DNull) // skip empty rows
     | [ _ ] -> ("", RT.DNull) // skip rows with only a key
     | k :: v :: _ -> (decode k, RT.DStr(decode v)))
@@ -99,17 +102,16 @@ let url (headers : List<string * string>) (uri : string) =
   // FSTODO test this somehow (probably fuzz against old)
   parsed.Query <- urlEncodeExcept "*$@!:()~?/.,&-_=\\" parsed.Query
   // Set the scheme if it's passed by the load balancer
-  let headerProtocol =
-    headers
-    |> List.find (fun (k, _) -> String.toLowercase k = "x-forwarded-proto")
-    |> Option.map (fun (_, v) -> parsed.Scheme <- v)
-    |> ignore<Option<unit>>
+  headers
+  |> List.find (fun (k, _) -> String.toLowercase k = "x-forwarded-proto")
+  |> Option.map (fun (_, v) -> parsed.Scheme <- v)
+  |> ignore<Option<unit>>
   // Use .Uri or it will slip in a port number
   RT.DStr(string parsed.Uri)
 
 
 // -------------------------
-// Exported *)
+// Exported
 // -------------------------
 
 // If allow_unparsed is true, we fall back to DNull; this allows us to create a
@@ -118,31 +120,36 @@ let fromRequest
   (allowUnparseable : bool)
   (uri : string)
   (headers : List<string * string>)
-  (query : List<string * List<string>>)
+  (query : string)
   (body : byte array)
   : RT.Dval =
   let parseBody =
     try
       parseBody headers body
     with
-    | e -> if allowUnparseable then RT.DNull else raise e
+    | _ -> if allowUnparseable then RT.DNull else reraise ()
   let jsonBody =
     try
       parseJsonBody headers body
     with
-    | e -> if allowUnparseable then RT.DNull else raise e
+    | _ -> if allowUnparseable then RT.DNull else reraise ()
   let formBody =
     try
       parseFormBody headers body
     with
-    | e -> if allowUnparseable then RT.DNull else raise e
+    | _ -> if allowUnparseable then RT.DNull else reraise ()
+  let fullBody =
+    try
+      UTF8.ofBytesUnsafe body |> RT.DStr
+    with
+    | _ -> RT.DError(RT.SourceNone, "Invalid UTF8 input")
   let parts =
     [ "body", parseBody
       "jsonBody", jsonBody
       "formBody", formBody
       "queryParams", parseQueryString query
       "headers", parseHeaders headers
-      "fullBody", RT.DStr(UTF8.ofBytesUnsafe body)
+      "fullBody", fullBody
       "cookies", cookies headers
       "url", url headers uri ]
   RT.Dval.obj parts

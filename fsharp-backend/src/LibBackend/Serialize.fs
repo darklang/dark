@@ -17,6 +17,7 @@ open Tablecloth
 open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PTParser = LibExecution.ProgramTypesParser
 module Telemetry = LibService.Telemetry
 
@@ -65,175 +66,6 @@ let isLatestOpRequest
 // --------------------------------------------------------
 module OT = LibExecution.OCamlTypes
 
-let deserializeOCamlSerializedToplevel
-  (tlid : tlid)
-  (typ : string)
-  (ocamlSerialized : byte [])
-  (pos : Option<string>)
-  : Task<PT.Toplevel.T> =
-  let deserializePos (pos : Option<string>) : pos =
-    try
-      pos
-      |> Option.map Json.OCamlCompatible.deserialize<pos>
-      |> Option.unwrap { x = 0; y = 0 }
-    with
-    | e -> { x = 0; y = 0 }
-  match typ with
-  | "db" ->
-    task {
-      let! json = OCamlInterop.bytesToStringReq "bs/db_bin2json" ocamlSerialized
-      return
-        json
-        |> Json.OCamlCompatible.deserialize<OT.RuntimeT.DbT.db<OT.RuntimeT.fluidExpr>>
-        |> OT.Convert.ocamlDB2PT (deserializePos pos)
-        |> PT.Toplevel.TLDB
-    }
-  | "handler" ->
-    task {
-      let! json = OCamlInterop.bytesToStringReq "bs/handler_bin2json" ocamlSerialized
-      return
-        json
-        |> Json.OCamlCompatible.deserialize<OT.RuntimeT.HandlerT.handler<OT.RuntimeT.fluidExpr>>
-        |> OT.Convert.ocamlHandler2PT (deserializePos pos)
-        |> PT.Toplevel.TLHandler
-    }
-  | "user_tipe" ->
-    task {
-      let! json =
-        OCamlInterop.bytesToStringReq "bs/user_tipe_bin2json" ocamlSerialized
-      return
-        json
-        |> Json.OCamlCompatible.deserialize<OT.RuntimeT.user_tipe>
-        |> OT.Convert.ocamlUserType2PT
-        |> PT.Toplevel.TLType
-    }
-  | "user_function" ->
-    task {
-      let! json = OCamlInterop.bytesToStringReq "bs/user_fn_bin2json" ocamlSerialized
-      return
-        json
-        |> Json.OCamlCompatible.deserialize<OT.RuntimeT.user_fn<OT.RuntimeT.fluidExpr>>
-        |> OT.Convert.ocamlUserFunction2PT
-        |> PT.Toplevel.TLFunction
-    }
-  | _ ->
-    Exception.raiseInternal "Invalid tipe for toplevel" [ "type", typ; "tlid", tlid ]
-
-/// Save the oplist using the F# serialization formats, after reading the oplist from
-/// OCaml. Takes the existing OCaml value to ensure things are in sync - if they
-/// aren't, logs but doesn't save or error (because things can continue just fine).
-let saveOplistToFSharpCache
-  (canvasID : CanvasID)
-  (tlid : tlid)
-  (ocamlSerializedBytes : byte [])
-  (oplist : PT.Oplist)
-  : Task<unit> =
-  task {
-    let serialized = BinarySerialization.serializeOplist tlid oplist
-    let! rowUpdateCount =
-      Sql.query
-        "UPDATE toplevel_oplists
-         SET oplist = @oplist
-         WHERE canvas_id = @canvasID
-           AND tlid = @tlid
-           AND data = @ocamlOplist"
-      |> Sql.parameters [ "oplist", Sql.bytea serialized
-                          "canvasID", Sql.uuid canvasID
-                          "tlid", Sql.id tlid
-                          // There might have been writes since then, so don't update
-                          // unless it exactly matches what we expect it to have,
-                          // otherwise we might overwrite other writes.
-                          "ocamlOplist", Sql.bytea ocamlSerializedBytes ]
-      |> Sql.executeNonQueryAsync
-    match rowUpdateCount with
-    | 1 -> ()
-    | 0 ->
-      Telemetry.addEvent
-        "Oplist was not updated"
-        [ "tlid", tlid; "canvasID", canvasID ]
-    | _ ->
-      Telemetry.addEvent
-        "More than 1 row of oplists was updated, that's bad"
-        [ "tlid", tlid; "canvasID", canvasID ]
-    return ()
-  }
-
-/// Save the F# toplevel suing the F# serialization format, after reading it from
-/// OCaml. Takes the existing OCaml value to ensure things are in sync - if they
-/// aren't, logs but doesn't save or error (because things can continue just fine).
-let saveToplevelToFSharpCache
-  (canvasID : CanvasID)
-  (ocamlSerializedBytes : byte [])
-  (tl : PT.Toplevel.T)
-  : Task<unit> =
-  task {
-    let tlid = PT.Toplevel.toTLID tl
-    let serialized = BinarySerialization.serializeToplevel tl
-    let! rowUpdateCount =
-      Sql.query
-        "UPDATE toplevel_oplists
-         SET oplist_cache = @oplistCache
-         WHERE canvas_id = @canvasID
-           AND tlid = @tlid
-           AND rendered_oplist_cache = @renderedOplistCache"
-      |> Sql.parameters [ "oplistCache", Sql.bytea serialized
-                          "canvasID", Sql.uuid canvasID
-                          "tlid", Sql.id tlid
-                          // There might have been writes since then, so don't update
-                          // unless it exactly matches what we expect it to have,
-                          // otherwise we might overwrite other writes.
-                          "renderedOplistCache", Sql.bytea ocamlSerializedBytes ]
-      |> Sql.executeNonQueryAsync
-    match rowUpdateCount with
-    | 1 -> ()
-    | 0 ->
-      Telemetry.addEvent "Row was not updated" [ "tlid", tlid; "canvasID", canvasID ]
-    | _ ->
-      Telemetry.addEvent
-        "More than 1 row was updated, that's bad"
-        [ "tlid", tlid; "canvasID", canvasID ]
-    return ()
-  }
-
-/// Save the F# oplist and cached oplist, after reading them from OCaml. Takes the
-/// existing OCaml value to ensure things are in sync - if they aren't, logs but
-/// doesn't save or error (because things can continue just fine).
-let cacheOplists
-  (canvasID : CanvasID)
-  (ocamlSerializedBytes : byte [])
-  (tl : PT.Toplevel.T)
-  : Task<unit> =
-  task {
-    let tlid = PT.Toplevel.toTLID tl
-    let serialized = BinarySerialization.serializeToplevel tl
-    let! rowUpdateCount =
-      Sql.query
-        "UPDATE toplevel_oplists
-         SET oplist_cache = @oplist_cache
-         WHERE
-          canvas_id = @canvasID,
-          tlid = @tlid,
-          rendered_oplist_cache = @renderedOplistCache"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "tlid", Sql.id tlid
-                          // There might have been writes since then, so don't update
-                          // unless it exactly matches what we expect it to have,
-                          // otherwise we might overwrite other writes.
-                          "renderedOplistCache", Sql.bytea ocamlSerializedBytes
-                          "oplistCache", Sql.bytea serialized ]
-      |> Sql.executeNonQueryAsync
-    match rowUpdateCount with
-    | 1 -> ()
-    | 0 ->
-      Telemetry.addEvent "Row was not updated" [ "tlid", tlid; "canvasID", canvasID ]
-    | _ ->
-      Telemetry.addEvent
-        "More than 1 row was updated, that's bad"
-        [ "tlid", tlid; "canvasID", canvasID ]
-    return ()
-  }
-
-
 type LoadAmount =
   | LiveToplevels
   | IncludeDeletedToplevels
@@ -250,60 +82,54 @@ let loadOplists
   (tlids : List<tlid>)
   : Task<List<tlid * PT.Oplist>> =
   let query =
-    // CLEANUP stop loading ocaml data
+    // Deleted can be null is which case it is DeletedForever
     match loadAmount with
     | LiveToplevels ->
-      "SELECT tlid, data, oplist FROM toplevel_oplists
+      "SELECT tlid, oplist FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
-            AND deleted IS NOT TRUE"
+            AND deleted IS FALSE"
     | IncludeDeletedToplevels ->
-      "SELECT tlid, data, oplist FROM toplevel_oplists
+      // IS NOT NULL just skipped DeletedForever
+      "SELECT tlid, oplist FROM toplevel_oplists
           WHERE canvas_id = @canvasID
-            AND tlid = ANY(@tlids)"
+            AND tlid = ANY(@tlids)
+            AND deleted IS NOT NULL"
 
   Sql.query query
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync (fun read ->
-    (read.tlid "tlid", read.bytea "data", read.byteaOrNone "oplist"))
+  |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist"))
   |> Task.bind (fun list ->
     list
-    |> Task.mapWithConcurrency 2 (fun (tlid, ocamlSerialized, fsharpSerialized) ->
-      task {
-        match fsharpSerialized with
-        | Some oplist ->
-          return (tlid, BinarySerialization.deserializeOplist tlid oplist)
-        | None ->
-          let! oplist = OCamlInterop.oplistOfBinary ocamlSerialized
-          do! saveOplistToFSharpCache canvasID tlid ocamlSerialized oplist
-          return (tlid, oplist)
-      }))
+    |> Task.mapWithConcurrency 2 (fun (tlid, oplist) ->
+      task { return (tlid, BinarySerialization.deserializeOplist tlid oplist) }))
 
 
-// This is a special `load_*` function that specifically loads toplevels
-// via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
-// stores a binary-serialized representation of the toplevel after the oplist
-// is applied. This should be much faster because we don't have to ship
-// the full oplist across the network from Postgres to the OCaml boxes,
-// and similarly they don't have to apply the full history of the canvas
-// in memory before they can execute the code.
+// This is a special `load_*` function that specifically loads toplevels via the
+// `oplist_cache` column on `toplevel_oplists`. This column stores a
+// binary-serialized representation of the toplevel after the oplist is applied. This
+// should be much faster because we don't have to ship the full oplist across the
+// network from Postgres, and similarly they don't have to apply the full history of
+// the canvas in memory before they can execute the code.
 /// Loads all cached top-levels given
-let loadOnlyRenderedTLIDs
+let loadOnlyCachedTLIDs
   (canvasID : CanvasID)
   (tlids : List<tlid>)
   : Task<List<PT.Toplevel.T>> =
   task {
-    // We specifically only load where `deleted` IS FALSE (even though the column
-    // is nullable). This means we will not load undeleted handlers from the
-    // cache if we've never written their `deleted` state. This is less
-    // efficient, but still correct, as they'll still be loaded via their oplist.
-    // It avoids loading deleted handlers that have had their cached version
-    // written but never their deleted state, which could be true for some
-    // handlers that were touched between the addition of the
-    // `rendered_oplist_cache` column and the addition of the `deleted` column.
+    // We specifically only load where `deleted` IS FALSE (even though the column is
+    // nullable). This means we will not load undeleted handlers from the cache if
+    // we've never written their `deleted` state. This is less efficient, but still
+    // correct, as they'll still be loaded via their oplist.
+    // CLEANUP: the situation described below is no longer possible and the data has
+    // been cleaned.
+    // It avoids loading deleted handlers that have had their cached version written
+    // but never their deleted state, which could be true for some handlers that were
+    // touched between the addition of the `oplist_cache` column and the addition of
+    // the `deleted` column.
     let! data =
       Sql.query
-        "SELECT tlid, tipe, rendered_oplist_cache, oplist_cache, pos FROM toplevel_oplists
+        "SELECT tlid, oplist_cache FROM toplevel_oplists
           WHERE canvas_id = @canvasID
           AND tlid = ANY (@tlids)
           AND deleted IS FALSE
@@ -313,46 +139,11 @@ let loadOnlyRenderedTLIDs
               OR tipe = 'user_function'::toplevel_type
               OR tipe = 'user_tipe'::toplevel_type)"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-      |> Sql.executeAsync (fun read ->
-        (read.int64 "tlid" |> uint64,
-         read.string "tipe",
-         // CLEANUP stop reading ocaml data
-         read.bytea "rendered_oplist_cache",
-         read.byteaOrNone "oplist_cache",
-         read.stringOrNone "pos"))
+      |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist_cache"))
 
-    // At this point, we need to deserialize the binary data. Some binary data will
-    // be serialized using the ocaml serializers and some using the F# serializers.
-    //
-    // For data that is serialized with the ocaml serializers, we need to send it to
-    // the legacy server. However, when sending all of the requests in parallel, we
-    // accidentally timeout some http requests while parsing the json that they
-    // return. This happened a lot for bigger canvases.
-    //
-    // Ideally we would make one http request to do that, but we would need to send
-    // over some text (type, pos, etc) along with binary data, and then put in some
-    // structure so we can parse it at the other end, which seems very hard.
-    //
-    // Instead we just limit it to 2 threads at a time.
-    let semaphore = new System.Threading.SemaphoreSlim(2)
-    return!
+    return
       data
-      |> Task.mapInParallel
-        (fun (tlid, typ, ocamlSerialized, fsharpSerialized, pos) ->
-          match fsharpSerialized with
-          | Some tl ->
-            Task.FromResult(BinarySerialization.deserializeToplevel tlid tl)
-          | None ->
-            Task.execWithSemaphore
-              semaphore
-              (fun () ->
-                task {
-                  let! deserialized =
-                    deserializeOCamlSerializedToplevel tlid typ ocamlSerialized pos
-                  do! saveToplevelToFSharpCache canvasID ocamlSerialized deserialized
-                  return deserialized
-                })
-              ())
+      |> List.map (fun (tlid, tl) -> BinarySerialization.deserializeToplevel tlid tl)
   }
 
 
@@ -361,8 +152,6 @@ let fetchReleventTLIDsForHTTP
   (path : string)
   (method : string)
   : Task<List<tlid>> =
-  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
-
   // The pattern `$2 like name` is deliberate, to leverage the DB's
   // pattern matching to solve our routing.
   Sql.query
@@ -372,37 +161,40 @@ let fetchReleventTLIDsForHTTP
        AND ((module = 'HTTP'
              AND @path like name
              AND modifier = @method)
-         OR tipe <> 'handler'::toplevel_type)"
+         OR tipe <> 'handler'::toplevel_type)
+       AND deleted IS FALSE"
   |> Sql.parameters [ "path", Sql.string path
                       "method", Sql.string method
                       "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
-  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
   Sql.query
     "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = @canvasID
-      AND tipe <> 'handler'::toplevel_type"
+      AND tipe <> 'handler'::toplevel_type
+      AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchRelevantTLIDsForEvent
   (canvasID : CanvasID)
-  (event : EventQueue.T)
+  (module' : string)
+  (name : string)
+  (modifier : string)
   : Task<List<tlid>> =
-  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
   Sql.query
     "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = @canvasID
         AND ((module = @space
               AND name = @name
               AND modifier = @modifier)
-              OR tipe <> 'handler'::toplevel_type)"
+              OR tipe <> 'handler'::toplevel_type)
+        AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "space", Sql.string event.space
-                      "name", Sql.string event.name
-                      "modifier", Sql.string event.modifier ]
+                      "space", Sql.string module'
+                      "name", Sql.string name
+                      "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> read.id "tlid")
 
 
@@ -410,7 +202,8 @@ let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevel_oplists
      WHERE canvas_id = @canvasID
-       AND tipe = 'db'::toplevel_type"
+       AND tipe = 'db'::toplevel_type
+       AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -421,7 +214,8 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
        AND tipe = 'handler'::toplevel_type
        AND module <> 'CRON'
        AND module <> 'REPL'
-       AND module <> 'HTTP'"
+       AND module <> 'HTTP'
+       AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -429,7 +223,8 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
 let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevel_oplists
-     WHERE canvas_id = @canvasID"
+     WHERE canvas_id = @canvasID
+       AND deleted is NOT NULL"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -467,100 +262,24 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
       WHERE module = 'CRON'
         AND modifier IS NOT NULL
         AND modifier <> ''
-        AND toplevel_oplists.name IS NOT NULL"
+        AND toplevel_oplists.name IS NOT NULL
+        AND deleted IS FALSE"
   |> Sql.executeAsync (fun read ->
-    { canvasID = read.uuid "canvas_id"
-      ownerID = read.uuid "account_id"
-      canvasName = read.string "canvas_name" |> CanvasName.create
+    let interval = read.string "modifier"
+    let canvasID = read.uuid "canvas_id"
+    let ownerID = read.uuid "account_id"
+    { canvasID = canvasID
+      ownerID = ownerID
+      canvasName = read.string "canvas_name" |> CanvasName.createExn
       tlid = read.id "tlid"
       cronName = read.string "handler_name"
       interval =
-        read.string "modifier"
+        interval
         |> PTParser.Handler.CronInterval.parse
-        |> Option.unwrapUnsafe })
+        |> Exception.unwrapOptionInternal
+             "Could not parse cron modifier"
+             [ "interval", interval; "canvasID", canvasID; "accountID", ownerID ] })
 
-
-
-
-
-
-// let transactionally_migrate_oplist
-//     ~(canvas_id : Uuidm.t)
-//     ~host
-//     ~tlid
-//     ~(oplist_f : Types.oplist -> Types.oplist)
-//     ~(handler_f :
-//        Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.HandlerT.handler)
-//     ~(db_f : Types.RuntimeT.DbT.db -> Types.RuntimeT.DbT.db)
-//     ~(user_fn_f : Types.RuntimeT.user_fn -> Types.RuntimeT.user_fn)
-//     ~(user_tipe_f : Types.RuntimeT.user_tipe -> Types.RuntimeT.user_tipe)
-//     () : (string, unit) Tc.Result.t =
-//   Log.inspecT "migrating oplists for" (host, tlid) ;
-//   try
-//     Db.transaction ~name:"oplist migration" (fun () ->
-//         let oplist, rendered =
-//           Db.fetch
-//             ~name:"load_all_from_db"
-//             (* SELECT FOR UPDATE locks row! *)
-//             "SELECT data, rendered_oplist_cache FROM toplevel_oplists
-//          WHERE canvas_id = $1
-//          AND tlid = $2
-//          FOR UPDATE"
-//             ~params:[Uuid canvas_id; ID tlid]
-//             ~result:BinaryResult
-//           |> List.hd_exn
-//           |> function
-//           | [data; rendered_oplist_cache] ->
-//               ( Binary_serialization.oplist_of_binary_string data
-//               , rendered_oplist_cache )
-//           | _ ->
-//               Exception.internal "invalid oplists"
-//         in
-//         let try_convert f () = try Some (f rendered) with _ -> None in
-//         let rendered =
-//           if rendered = ""
-//           then Db.Null
-//           else
-//             try_convert
-//               (Binary_serialization.translate_handler_as_binary_string
-//                  ~f:handler_f)
-//               ()
-//             |> Tc.Option.or_else_lazy
-//                  (try_convert
-//                     (Binary_serialization.translate_db_as_binary_string ~f:db_f))
-//             |> Tc.Option.or_else_lazy
-//                  (try_convert
-//                     (Binary_serialization
-//                      .translate_user_function_as_binary_string
-//                        ~f:user_fn_f))
-//             |> Tc.Option.or_else_lazy
-//                  (try_convert
-//                     (Binary_serialization.translate_user_tipe_as_binary_string
-//                        ~f:user_tipe_f))
-//             |> Tc.Option.map ~f:(fun str -> Db.Binary str)
-//             |> Tc.Option.or_else_lazy (fun () ->
-//                    Exception.internal "none of the decoders worked on the cache")
-//             |> Tc.Option.withDefault ~default:Db.Null
-//         in
-//         let converted_oplist = oplist |> oplist_f in
-//         Db.run
-//           ~name:"save per tlid oplist"
-//           "UPDATE toplevel_oplists
-//        SET data = $1,
-//            digest = $2,
-//            rendered_oplist_cache = $3
-//        WHERE canvas_id = $4
-//          AND tlid = $5"
-//           ~params:
-//             [ Binary
-//                 (Binary_serialization.oplist_to_binary_string converted_oplist)
-//             ; String Binary_serialization.digest
-//             ; rendered
-//             ; Uuid canvas_id
-//             ; ID tlid ]) ;
-//     Ok ()
-//   with e -> Error (Exception.to_string e)
-//
 
 // -------------------------
 // hosts
@@ -575,12 +294,4 @@ let currentHosts () : Task<string list> =
   }
 
 let getAllCanvases () : Task<List<CanvasName.T>> =
-  currentHosts () |> Task.map (List.map CanvasName.create)
-
-let tierOneHosts () : List<CanvasName.T> =
-  [ "ian-httpbin"
-    "paul-slackermuse"
-    "listo"
-    "ellen-battery2"
-    "julius-tokimeki-unfollow" ]
-  |> List.map CanvasName.create
+  currentHosts () |> Task.map (List.map CanvasName.createExn)

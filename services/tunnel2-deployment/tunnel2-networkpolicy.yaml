@@ -37,6 +37,19 @@ spec:
         - protocol: UDP
           port: 53
 
+    # Custom domains route to darkcustomdomain-nginx-ingress-controller, which is in
+    # the same namespace and so is by-default firewalled off, so we need a path to
+    # it. We don't need to do this for other ingresses as they are not in the cluster
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: darkcustomdomain-nginx-ingress-controller
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
     # Allow egress to non-internal addresses, with all the known internal addresses
     # specifically excepted
     - to:

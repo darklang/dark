@@ -165,8 +165,6 @@ def main():
         "node_modules",
         "integration-tests/node_modules",
         "backend/static",
-        "containers/stroller/target",
-        "containers/queue-scheduler/target",
         "lib",
         "fsharp-backend/Build",
     ]

@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module TL = Toplevel
 module TD = TLIDDict
@@ -18,7 +18,7 @@ let convertTipe = (tipe: tipe): tipe =>
   | _ => tipe
   }
 
-/* Call f on calls to uf across the whole AST */
+// Call f on calls to uf across the whole AST
 let transformFnCalls = (
   m: model,
   uf: userFunction,
@@ -52,7 +52,7 @@ let transformFnCalls = (
     }
   })
 
-  \"@"(newHandlers, newFunctions)
+  Belt.List.concat(newHandlers, newFunctions)
 }
 
 type wrapLoc =
@@ -119,7 +119,7 @@ let isRailable = (m: model, name: string) =>
   |> Option.unwrap(~default=false)
 
 let putOnRail = (m: model, tl: toplevel, id: ID.t): modification =>
-  /* Only toggle onto rail iff. return tipe is TOption or TResult */
+  // Only toggle onto rail iff. return tipe is TOption or TResult
   TL.modifyASTMod(tl, ~f=ast =>
     FluidAST.update(id, ast, ~f=x =>
       switch x {
@@ -313,7 +313,7 @@ let updateUsageCounts = (m: model): model => {
   let asts =
     m |> TL.all |> Map.mapValues(~f=TL.getAST) |> List.filterMap(~f=Option.map(~f=FluidAST.toExpr))
 
-  /* Pretend it's one big AST */
+  // Pretend it's one big AST
   let bigAst = EList(gid(), asts)
   let usedFns =
     bigAst
@@ -340,7 +340,7 @@ let updateUsageCounts = (m: model): model => {
     |> Map.mapValues(~f=UserFunctions.allParamData)
     |> List.flatten
     |> List.filterMap(~f=x =>
-      /* Note: this does _not_ currently handle multiple versions */
+      // Note: this does _not_ currently handle multiple versions
       switch x {
       | PParamTipe(F(_, TUserType(name, _))) => Some(name)
       | _ => None
@@ -376,7 +376,7 @@ let addFunctionParameter = (m: model, f: userFunction, currentBlankId: ID.t): mo
     let fn = e =>
       switch e {
       | EFnCall(id, name, params, r) =>
-        EFnCall(id, name, \"@"(params, list{FluidExpression.newB()}), r)
+        EFnCall(id, name, Belt.List.concat(params, list{FluidExpression.newB()}), r)
       | _ => e
       }
 
@@ -515,7 +515,7 @@ let createNewDB = (m: model, maybeName: option<dbName>, pos: pos): modification 
   }
 }
 
-/* Create a new function, update the server, and go to the new function */
+// Create a new function, update the server, and go to the new function
 let createNewFunction = (m: model, newFnName: option<string>): modification => {
   let fn = generateEmptyFunction()
   let newFn = switch newFnName {
@@ -527,10 +527,10 @@ let createNewFunction = (m: model, newFnName: option<string>): modification => {
   | Some(name) if hasExistingFunctionNamed(m, name) =>
     Model.updateErrorMod(Error.set("Function named " ++ (name ++ " already exists")))
   | _ =>
-    /* We need to update both the model and the backend */
+    // We need to update both the model and the backend
     Many(list{
       ReplaceAllModificationsWithThisOne(m => (UserFunctions.upsert(m, newFn), Tea.Cmd.none)),
-      /* Both ops in a single transaction */
+      // Both ops in a single transaction
       AddOps(list{SetFunction(newFn)}, FocusNothing),
       MakeCmd(Url.navigateTo(FocusedFn(newFn.ufTLID, None))),
     })
@@ -547,7 +547,7 @@ let createAndInsertNewFunction = (
 ): modification =>
   switch Toplevel.get(m, tlid) |> Option.thenAlso(~f=TL.getAST) {
   | Some(tl, ast) =>
-    /* Create the new function */
+    // Create the new function
     let fn = generateEmptyFunction()
     let newFn = {
       ...fn,
@@ -555,10 +555,10 @@ let createAndInsertNewFunction = (
     }
 
     let op = SetFunction(newFn)
-    /* Update the old ast */
+    // Update the old ast
     let replacement = E.EFnCall(partialID, newFnName, list{}, NoRail)
     let newAST = FluidAST.replace(partialID, ast, ~replacement)
-    /* We need to update both the model and the backend */
+    // We need to update both the model and the backend
     let alreadyExists = hasExistingFunctionNamed(m, newFnName)
     if alreadyExists {
       Model.updateErrorMod(Error.set("Function named " ++ (newFnName ++ " already exists")))
@@ -574,7 +574,7 @@ let createAndInsertNewFunction = (
               Tea.Cmd.none,
             ),
           ),
-          /* Both ops in a single transaction */
+          // Both ops in a single transaction
           TL.setASTMod(~ops=list{op}, tl, newAST),
           MakeCmd(Url.navigateTo(FocusedFn(newFn.ufTLID, None))),
         })
