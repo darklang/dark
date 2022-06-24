@@ -289,7 +289,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "pushStrollerEvent" 1
       parameters =
-        [ Param.make "canvasId" TStr ""
+        [ Param.make "canvasID" TStr ""
           Param.make "event" TStr ""
           Param.make "payload" varA "" ]
       returnType = TResult(varB, TStr)
@@ -565,7 +565,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
-      parameters = [ Param.make "canvasId" TUuid "" ]
+      parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList varA
       description =
         "Returns a list of all queue scheduling rules for the specified canvas_id"
@@ -585,7 +585,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
       parameters =
-        [ Param.make "canvasId" TUuid ""; Param.make "handlerName" TStr "" ]
+        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
       returnType = TNull
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
@@ -597,7 +597,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
       parameters =
-        [ Param.make "canvasId" TUuid ""; Param.make "handlerName" TStr "" ]
+        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
       returnType = TNull
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
