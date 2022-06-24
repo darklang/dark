@@ -72,7 +72,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
 /* If the expression at `id` is one of the expressions in a pipe, this returns
  * the previous expression in that pipe (eg, the one that is piped into this
  * one) */
-let pipePrevious = (id: ID.t, ast: FluidAST.t): option<E.t> =>
+let pipePrevious = (id: id, ast: FluidAST.t): option<E.t> =>
   switch FluidAST.findParent(id, ast) {
   | Some(EPipe(_, exprs)) =>
     exprs
@@ -83,7 +83,7 @@ let pipePrevious = (id: ID.t, ast: FluidAST.t): option<E.t> =>
 
 /* If the expression at `id` is one of the expressions in a pipe, this returns
  * the next expression in that pipe (eg, the one that the expr at `id` pipes into) */
-let pipeNext = (id: ID.t, ast: FluidAST.t): option<E.t> =>
+let pipeNext = (id: id, ast: FluidAST.t): option<E.t> =>
   switch FluidAST.findParent(id, ast) {
   | Some(EPipe(_, exprs)) =>
     exprs
@@ -93,7 +93,7 @@ let pipeNext = (id: ID.t, ast: FluidAST.t): option<E.t> =>
   }
 
 // Given the ID of a function call or binop, return its arguments. Takes pipes into account.
-let getArguments = (id: ID.t, ast: FluidAST.t): list<E.t> => {
+let getArguments = (id: id, ast: FluidAST.t): list<E.t> => {
   let pipePrevious = pipePrevious(id, ast)
   let caller = FluidAST.find(id, ast)
   let defaultArgs = switch caller {
@@ -120,7 +120,7 @@ let getArguments = (id: ID.t, ast: FluidAST.t): list<E.t> => {
  * eg: Int::add 4 3 => if `id` was the id of the `4` expression, then we'd
  *                     return (`Int::add`, 0)
  */
-let getParamIndex = (id: ID.t, ast: FluidAST.t): option<(string, int)> => {
+let getParamIndex = (id: id, ast: FluidAST.t): option<(string, int)> => {
   let parent = pipeNext(id, ast) |> Option.orElseLazy(() => FluidAST.findParent(id, ast))
 
   switch parent {
@@ -136,7 +136,7 @@ let getParamIndex = (id: ID.t, ast: FluidAST.t): option<(string, int)> => {
 // Ancestors
 // -------------------------
 
-let freeVariables = (ast: E.t): list<(ID.t, string)> => {
+let freeVariables = (ast: E.t): list<(id, string)> => {
   /* Find all variable lookups that lookup a variable that
    * is also _defined_ in this expression. We create a set of
    * these IDs so we can filter them out later. */
@@ -192,7 +192,7 @@ let freeVariables = (ast: E.t): list<(ID.t, string)> => {
 module VarDict = Map.String
 module IDTable = Belt.MutableMap.String
 
-type sym_set = VarDict.t<ID.t>
+type sym_set = VarDict.t<id>
 
 type sym_store = IDTable.t<sym_set>
 

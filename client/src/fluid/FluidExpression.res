@@ -11,7 +11,7 @@ type rec fluidPatOrExpr =
 
 let newB = () => ProgramTypes.Expr.EBlank(gid())
 
-let toID = (expr: t): ID.t =>
+let toID = (expr: t): id =>
   switch expr {
   | EInteger(id, _)
   | EString(id, _)
@@ -38,7 +38,7 @@ let toID = (expr: t): ID.t =>
   | EMatch(id, _, _) => id
   }
 
-let rec findExprOrPat = (target: ID.t, within: fluidPatOrExpr): option<fluidPatOrExpr> => {
+let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrExpr> => {
   let (id, patOrExprs) = switch within {
   | Expr(expr) =>
     switch expr {
@@ -93,7 +93,7 @@ let rec findExprOrPat = (target: ID.t, within: fluidPatOrExpr): option<fluidPatO
   }
 }
 
-let rec find = (target: ID.t, expr: t): option<t> => {
+let rec find = (target: id, expr: t): option<t> => {
   let fe = find(target)
   if toID(expr) == target {
     Some(expr)
@@ -166,8 +166,8 @@ let children = (expr: t): list<t> =>
     list{matchExpr, ...casePointers}
   }
 
-let findParent = (target: ID.t, expr: t): option<t> => {
-  let rec findParent' = (~parent: option<t>, target: ID.t, expr: t): option<t> =>
+let findParent = (target: id, expr: t): option<t> => {
+  let rec findParent' = (~parent: option<t>, target: id, expr: t): option<t> =>
     if toID(expr) == target {
       parent
     } else {
@@ -193,7 +193,7 @@ let isEmpty = (expr: t): bool =>
   | _ => false
   }
 
-let hasEmptyWithId = (id: ID.t, expr: t): bool =>
+let hasEmptyWithId = (id: id, expr: t): bool =>
   switch find(id, expr) {
   | Some(e) => isEmpty(e)
   | _ => false
@@ -314,7 +314,7 @@ let filter = (~f: t => bool, expr: t): list<t> => filterMap(~f=t =>
     }
   , expr)
 
-let decendants = (expr: t): list<ID.t> => {
+let decendants = (expr: t): list<id> => {
   let res = ref(list{})
   preTraversal(expr, ~f=e => {
     res := list{toID(e), ...res.contents}
@@ -323,7 +323,7 @@ let decendants = (expr: t): list<ID.t> => {
   res.contents
 }
 
-let update = (~failIfMissing=true, ~f: t => t, target: ID.t, ast: t): t => {
+let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
   let found = ref(false)
   let rec run = e =>
     if target == toID(e) {
@@ -351,7 +351,7 @@ let update = (~failIfMissing=true, ~f: t => t, target: ID.t, ast: t): t => {
  * It's very unclear which to use at what point and likely to cause bugs.
  * We should either hide [update] from the public interface of FluidExpression
  * or remove [replace] and put the special-case EPipe logic into the calling code. */
-let replace = (~replacement: t, target: ID.t, ast: t): t => {
+let replace = (~replacement: t, target: id, ast: t): t => {
   // If we're putting a pipe into another pipe, fix it up
   let (target', newExpr') = switch (findParent(target, ast), replacement) {
   | (Some(EPipe(parentID, oldExprs)), EPipe(newID, newExprs)) =>
@@ -451,10 +451,10 @@ let rec clone = (expr: t): t => {
 
 let blanks = filter(~f=isBlank)
 
-let ids = (ast: t): list<ID.t> => filter(ast, ~f=_ => true) |> List.map(~f=toID)
+let ids = (ast: t): list<id> => filter(ast, ~f=_ => true) |> List.map(~f=toID)
 
-let ancestors = (id: ID.t, expr: t): list<t> => {
-  let rec rec_ancestors = (tofind: ID.t, walk: list<t>, exp: t) => {
+let ancestors = (id: id, expr: t): list<t> => {
+  let rec rec_ancestors = (tofind: id, walk: list<t>, exp: t) => {
     let rec_ = (id_, e_, walk_) => rec_ancestors(id_, list{e_, ...walk_})
     let reclist = (id_, e_, walk_, exprs) =>
       exprs |> List.map(~f=rec_(id_, e_, walk_)) |> List.flatten

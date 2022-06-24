@@ -32,7 +32,7 @@ let viewCopyButton = (tlid, value): Html.html<msg> =>
     list{ViewUtils.fontAwesome("copy")},
   )
 
-let viewArrow = (curID: ID.t, srcID: ID.t): Html.html<Types.msg> => {
+let viewArrow = (curID: id, srcID: id): Html.html<Types.msg> => {
   let curSelector = ".id-" ++ ID.toString(curID)
   let srcSelector = ".id-" ++ ID.toString(srcID)
   switch (Native.Ext.querySelector(curSelector), Native.Ext.querySelector(srcSelector)) {
@@ -67,10 +67,10 @@ type rec lvResult =
   | WithMessage(string)
   | WithDval({value: dval, canCopy: bool})
   | WithMessageAndDval({msg: string, value: dval, canCopy: bool})
-  | WithSource({tlid: TLID.t, srcID: ID.t, propValue: dval, srcResult: lvResult})
+  | WithSource({tlid: TLID.t, srcID: id, propValue: dval, srcResult: lvResult})
   | Loading
 
-let rec lvResultForId = (~recurred=false, vp: viewProps, id: ID.t): lvResult => {
+let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
   let fnLoading = {
     // If fn needs to be manually executed, check status
     let ast = vp.astInfo.ast
@@ -353,7 +353,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
   }
 
   let secondaryEditors = {
-    let findRowOffestOfMainTokenWithId = (flagID: ID.t): option<int> =>
+    let findRowOffestOfMainTokenWithId = (flagID: id): option<int> =>
       /* FIXME(ds) this is a giant hack to find the row offset of the corresponding
        * token in the main view for each secondary editor. This works by getting
        * the id of the split (ie, the id of the first token in the split)

@@ -24,7 +24,7 @@ let typeOf = (pd: blankOrData): blankOrType =>
   | PTypeFieldTipe(_) => TypeFieldTipe
   }
 
-let toID = (pd: blankOrData): ID.t =>
+let toID = (pd: blankOrData): id =>
   switch pd {
   | PEventModifier(d) => B.toID(d)
   | PEventName(d) => B.toID(d)

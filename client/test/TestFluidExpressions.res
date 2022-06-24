@@ -10,12 +10,12 @@ let run = () => {
      * It expects a single function [f], which should return the expression on
      * which [decendants] is called.
      *
-     * [f] is passed a function (unit -> ID.t) that should be called to
+     * [f] is passed a function (unit -> id) that should be called to
      * generate an ID for each decendant expression that is expected in the
      * result. Each time this generator function is called, the generated ID
      * is tracked. The test assertion is that all generated IDs appear in the
      * expression's [decendants] list. */
-    let t = (name: string, f: (unit => ID.t) => E.t) => {
+    let t = (name: string, f: (unit => id) => E.t) => {
       let generatedIDs = ref(ID.Set.empty)
       let idGenerator = () => {
         let id = gid()

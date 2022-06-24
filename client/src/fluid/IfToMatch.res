@@ -15,7 +15,7 @@ let findIf = (ast: FluidAST.t, e: E.t): option<E.t> =>
     )
   }
 
-let refactor = (_: model, tl: toplevel, id: ID.t): modification => {
+let refactor = (_: model, tl: toplevel, id: id): modification => {
   let makeGenericMatch = (ifID, cond, then_, else_) => E.EMatch(
     ifID,
     cond,

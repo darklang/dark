@@ -1,13 +1,11 @@
 open Tc
 
 type t = ProgramTypes.Pattern.t
+type id = ID.t
 
-// CLEANUP: Added temporarily. Fluid stuff was in libshared and so couldn't rely on
-// types. But now we're moving things around and we can. this is here to let it all
-// typecheck and then we'll move this.
-let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
+let gid = Prelude.gid
 
-let toID = (p: t): ID.t =>
+let toID = (p: t): id =>
   switch p {
   | FPVariable(_, id, _)
   | FPConstructor(_, id, _, _)
@@ -19,7 +17,7 @@ let toID = (p: t): ID.t =>
   | FPBlank(_, id) => id
   }
 
-let rec ids = (p: t): list<ID.t> =>
+let rec ids = (p: t): list<id> =>
   switch p {
   | FPConstructor(_, id, _, list) =>
     list |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
@@ -32,7 +30,7 @@ let rec ids = (p: t): list<ID.t> =>
   | FPBlank(_) => list{toID(p)}
   }
 
-let toMatchID = (p: t): ID.t =>
+let toMatchID = (p: t): id =>
   switch p {
   | FPVariable(mid, _, _)
   | FPConstructor(mid, _, _, _)
@@ -44,7 +42,7 @@ let toMatchID = (p: t): ID.t =>
   | FPBlank(mid, _) => mid
   }
 
-let rec clone = (matchID: ID.t, p: t): t =>
+let rec clone = (matchID: id, p: t): t =>
   switch p {
   | FPVariable(_, _, name) => FPVariable(matchID, gid(), name)
   | FPConstructor(_, _, name, patterns) =>
@@ -67,7 +65,7 @@ let rec variableNames = (p: t): list<string> =>
 let hasVariableNamed = (varName: string, p: t): bool =>
   List.member(~value=varName, variableNames(p))
 
-let rec findPattern = (patID: ID.t, within: t): option<t> =>
+let rec findPattern = (patID: id, within: t): option<t> =>
   switch within {
   | FPVariable(_, pid, _)
   | FPInteger(_, pid, _)

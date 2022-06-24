@@ -34,7 +34,7 @@ let moveToNewerTrace = (m: model, tlid: TLID.t): modification => {
 // Entering
 // -------------------------------
 
-let enterDB = (m: model, db: db, tl: toplevel, id: ID.t): modification => {
+let enterDB = (m: model, db: db, tl: toplevel, id: id): modification => {
   let tlid = TL.id(tl)
   let isLocked = DB.isLocked(m, tlid)
   let isMigrationCol = DB.isMigrationCol(db, id)
@@ -68,7 +68,7 @@ let enterDB = (m: model, db: db, tl: toplevel, id: ID.t): modification => {
   }
 }
 
-let enterWithOffset = (m: model, tlid: TLID.t, id: ID.t, offset: option<int>): modification =>
+let enterWithOffset = (m: model, tlid: TLID.t, id: id, offset: option<int>): modification =>
   switch TL.get(m, tlid) {
   | Some(TLDB(db) as tl) => enterDB(m, db, tl, id)
   | Some(tl) =>
@@ -85,9 +85,9 @@ let enterWithOffset = (m: model, tlid: TLID.t, id: ID.t, offset: option<int>): m
   | _ => recover("Entering invalid tl", ~debug=(tlid, id), NoChange)
   }
 
-let enter = (m: model, tlid: TLID.t, id: ID.t): modification => enterWithOffset(m, tlid, id, None)
+let enter = (m: model, tlid: TLID.t, id: id): modification => enterWithOffset(m, tlid, id, None)
 
-let dblclick = (m: model, tlid: TLID.t, id: ID.t, offset: option<int>): modification =>
+let dblclick = (m: model, tlid: TLID.t, id: id, offset: option<int>): modification =>
   enterWithOffset(m, tlid, id, offset)
 
 // -------------------------------
@@ -105,7 +105,7 @@ let fluidEnteringMod = tlid => ReplaceAllModificationsWithThisOne(
 let maybeEnterFluid = (
   ~nonFluidCursorMod: modification,
   tl: toplevel,
-  newPD: option<ID.t>,
+  newPD: option<id>,
 ): modification => {
   let tlid = TL.id(tl)
   switch newPD {
@@ -119,7 +119,7 @@ let maybeEnterFluid = (
   }
 }
 
-let enterNextBlank = (m: model, tlid: TLID.t, cur: ID.t): modification =>
+let enterNextBlank = (m: model, tlid: TLID.t, cur: id): modification =>
   switch TL.get(m, tlid) {
   | None => recover("entering no TL", ~debug=(tlid, cur), NoChange)
   | Some(tl) =>
@@ -132,7 +132,7 @@ let enterNextBlank = (m: model, tlid: TLID.t, cur: ID.t): modification =>
     maybeEnterFluid(~nonFluidCursorMod=target, tl, nextBlank)
   }
 
-let enterPrevBlank = (m: model, tlid: TLID.t, cur: ID.t): modification =>
+let enterPrevBlank = (m: model, tlid: TLID.t, cur: id): modification =>
   switch TL.get(m, tlid) {
   | None => recover("entering no TL", ~debug=(tlid, cur), NoChange)
   | Some(tl) =>

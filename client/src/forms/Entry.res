@@ -386,7 +386,7 @@ let validate = (tl: toplevel, pd: blankOrData, value: string): option<string> =>
 let submitACItem = (
   m: model,
   tlid: TLID.t,
-  id: ID.t,
+  id: id,
   item: autocompleteItem,
   move: nextMove,
 ): modification => {
@@ -594,7 +594,7 @@ let submitACItem = (
   }
 }
 
-let submit = (m: model, tlid: TLID.t, id: ID.t, move: nextMove): modification =>
+let submit = (m: model, tlid: TLID.t, id: id, move: nextMove): modification =>
   switch AC.highlighted(m.complete) {
   | Some(ACOmniAction(_)) => recover("Shouldnt allow omniactions here", ~debug=(tlid, id), NoChange)
   | Some(item) => submitACItem(m, tlid, id, item, move)
@@ -638,4 +638,4 @@ let submit = (m: model, tlid: TLID.t, id: ID.t, move: nextMove): modification =>
  * This was added to to cleanly express "commit the state of an input box when I click away",
  * but is more generally intended to express "commit the state and I'll handle the cursor"
  * */
-let commit = (m: model, tlid: TLID.t, id: ID.t) => submit(m, tlid, id, StayHere)
+let commit = (m: model, tlid: TLID.t, id: id) => submit(m, tlid, id, StayHere)
