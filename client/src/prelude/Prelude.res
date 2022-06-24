@@ -1,8 +1,10 @@
 include Tc
 include Types
-include Shared.Recover
+include Recover
 
-let reportError = Unshared.reportError
+type jsonType = Js.Json.t
+
+let reportError = ErrorReporting.reportError
 
 /* Every other module should have `open Prelude` as its first statement.
  * You don't need to open/include Tc or Types, Prelude includes them. */
@@ -44,17 +46,9 @@ module Json = {
   module Encode = Json_encode_extended
 }
 
-// ---
-// IDs
-// ---
-
-let gid = Shared.gid
+let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
 
 let gtlid = (): TLID.t => Util.random() |> string_of_int |> TLID.fromString
-
-// --------------------------------------
-// CursorState
-// --------------------------------------
 
 module Debug = {
   let log = (~f: 'a => 'b=x => Obj.magic(x), msg: string, data: 'a): 'a => {

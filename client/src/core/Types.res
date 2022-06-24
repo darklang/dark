@@ -41,9 +41,9 @@ type clipboardData = {"setData": clipboardSetData, "getData": clipboardGetData}
 type clipboardEventDef = {"preventDefault": clipboardPreventDefault, "clipboardData": clipboardData}
 
 @ppx.deriving(show) @opaque
-type rec clipboardContents = /* Clipboard supports both text and encoded FluidExpression.ts. At the moment,
+type rec clipboardContents = /* Clipboard supports both text and encoded fluidExprs. At the moment,
  * there is always a text option - there isn't a json option if the copied
- * string wasn't a FluidExpression.t */
+ * string wasn't a fluidExpr */
 (string, @opaque option<Js.Json.t>)
 
 @ppx.deriving(show) @opaque type rec clipboardEvent = @opaque clipboardEventDef
@@ -54,6 +54,8 @@ type rec clipboardContents = /* Clipboard supports both text and encoded FluidEx
 
 module /* == legacy aliases == */ TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
+
+@ppx.deriving(show) type rec id = ID.t
 
 @ppx.deriving(show) type rec analysisID = ID.t
 
@@ -158,9 +160,9 @@ module TypeInformation = {
 // ----------------------
 type rec fnName = string
 
-and fluidExpr = FluidExpression.t
-
-and fluidPattern = FluidPattern.t
+and fluidPattern = ProgramTypes.Pattern.t
+and fluidExpr = ProgramTypes.Expr.t
+and fluidAST = ProgramTypes.AST.t
 
 // -----------------------------
 // Pointers
@@ -228,7 +230,7 @@ and handlerSpace =
   | HSDeprecatedOther
 
 and handler = {
-  ast: FluidAST.t,
+  ast: fluidAST,
   spec: handlerSpec,
   hTLID: TLID.t,
   pos: pos,
@@ -253,8 +255,8 @@ and dbMigration = {
   startingVersion: int,
   version: int,
   state: dbMigrationState,
-  rollforward: FluidExpression.t,
-  rollback: FluidExpression.t,
+  rollforward: fluidExpr,
+  rollback: fluidExpr,
   cols: list<dbColumn>,
 }
 
@@ -292,7 +294,7 @@ and userFunctionMetadata = {
 and userFunction = {
   ufTLID: TLID.t,
   ufMetadata: userFunctionMetadata,
-  ufAST: FluidAST.t,
+  ufAST: fluidAST,
 }
 
 and userRecordField = {
@@ -365,7 +367,7 @@ and dblock_args = {
    with the cloning algorithm of web workers */
   symtable: Belt.Map.String.t<dval>,
   params: list<(ID.t, string)>,
-  body: FluidExpression.t,
+  body: fluidExpr,
 }
 
 @ppx.deriving(show({with_path: false}))
@@ -723,7 +725,7 @@ and op =
   | ChangeDBColName(TLID.t, ID.t, dbColName)
   | ChangeDBColType(TLID.t, ID.t, dbColType)
   | DeprecatedInitDbm(TLID.t, ID.t, rollbackID, rollforwardID, dbMigrationKind)
-  | SetExpr(TLID.t, ID.t, FluidExpression.t)
+  | SetExpr(TLID.t, ID.t, fluidExpr)
   | CreateDBMigration(TLID.t, rollbackID, rollforwardID, list<dbColumn>)
   | AddDBColToDBMigration(TLID.t, ID.t, ID.t)
   | SetDBColNameInDBMigration(TLID.t, ID.t, dbColName)
@@ -950,7 +952,7 @@ and command = {
   commandName: string,
   action: (model, toplevel, ID.t) => modification,
   doc: string,
-  shouldShow: (model, toplevel, FluidExpression.t) => bool,
+  shouldShow: (model, toplevel, fluidExpr) => bool,
 }
 
 and omniAction =
@@ -1583,7 +1585,7 @@ and fluidToken =
     )
   | TVariable(ID.t, string, option<parentBlockID>)
   // ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail
-  | TFnName(ID.t, string, string, string, FluidExpression.sendToRail)
+  | TFnName(ID.t, string, string, string, ProgramTypes.Expr.sendToRail)
   // ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3')
   | TFnVersion(ID.t, string, string, string)
   | TLambdaComma(ID.t, int, option<parentBlockID>)
@@ -1639,7 +1641,7 @@ and fluidTokenInfo = {
 
 and fluidPatternAutocomplete =
   | FPAVariable(ID.t, ID.t, string)
-  | FPAConstructor(ID.t, ID.t, string, list<FluidPattern.t>)
+  | FPAConstructor(ID.t, ID.t, string, list<fluidPattern>)
   | FPANull(ID.t, ID.t)
   | FPABool(ID.t, ID.t, bool)
 

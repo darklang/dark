@@ -2,7 +2,6 @@ open Prelude
 open Fluid
 open FluidTestData
 open Tester
-open FluidExpression
 open FluidShortcuts
 
 // See docs/fuzzer.md for documentation on how to use this.

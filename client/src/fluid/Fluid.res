@@ -26,6 +26,9 @@ module Clipboard = FluidClipboard
 module CT = CaretTarget
 module ASTInfo = Tokenizer.ASTInfo
 
+open ProgramTypes.Expr
+open ProgramTypes.Pattern
+
 // --------------------
 // Utils
 // --------------------
@@ -1014,7 +1017,7 @@ let rec caretTargetForEndOfExpr': fluidExpr => caretTarget = x =>
     |> List.reverse
     |> List.find(~f=e =>
       switch e {
-      | E.EPipeTarget(_) => false
+      | EPipeTarget(_) => false
       | _ => true
       }
     )
@@ -1295,7 +1298,7 @@ let addMatchPatternAt = (matchId: ID.t, idx: int, astInfo: ASTInfo.t): ASTInfo.t
   let ast = FluidAST.update(matchId, astInfo.ast, ~f=x =>
     switch x {
     | EMatch(_, cond, rows) =>
-      let newVal = (P.FPBlank(matchId, gid()), E.newB())
+      let newVal = (FPBlank(matchId, gid()), E.newB())
       let newRows = List.insertAt(rows, ~index=idx, ~value=newVal)
       EMatch(matchId, cond, newRows)
     | e => recover("expected to find EMatch to update", ~debug=e, e)
@@ -1329,17 +1332,17 @@ let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, caretTarget)> =>
     Some({
       let newID = gid()
       if ins == "\"" {
-        (E.EString(newID, ""), CT.forARStringOpenQuote(newID, 1))
+        (EString(newID, ""), CT.forARStringOpenQuote(newID, 1))
       } else if ins == "[" {
-        (E.EList(newID, list{}), {astRef: ARList(newID, LPOpen), offset: 1})
+        (EList(newID, list{}), {astRef: ARList(newID, LPOpen), offset: 1})
       } else if ins == "{" {
-        (E.ERecord(newID, list{}), {astRef: ARRecord(newID, RPOpen), offset: 1})
+        (ERecord(newID, list{}), {astRef: ARRecord(newID, RPOpen), offset: 1})
       } else if Util.isNumber(ins) {
         let intStr = ins |> Util.coerceStringTo63BitInt
-        (E.EInteger(newID, intStr), {astRef: ARInteger(newID), offset: String.length(intStr)})
+        (EInteger(newID, intStr), {astRef: ARInteger(newID), offset: String.length(intStr)})
       } else {
         (
-          E.EPartial(newID, ins, EBlank(gid())),
+          EPartial(newID, ins, EBlank(gid())),
           {astRef: ARPartial(newID), offset: String.length(ins)},
         )
       }
@@ -1355,7 +1358,7 @@ let maybeInsertInBlankExpr = (ins: string): option<(E.t, caretTarget)> =>
   if ins == "\\" {
     let newID = gid()
     Some(
-      E.ELambda(newID, list{(gid(), "")}, EBlank(gid())),
+      ELambda(newID, list{(gid(), "")}, EBlank(gid())),
       {astRef: ARLambda(newID, LBPVarName(0)), offset: 0},
     )
   } else {
@@ -1370,7 +1373,7 @@ let insertInBlankExpr = (ins: string): (E.t, caretTarget) =>
   maybeInsertInBlankExpr(ins) |> Option.unwrap(
     ~default={
       let newID = gid()
-      (E.EBlank(newID), {astRef: ARBlank(newID), offset: 0})
+      (EBlank(newID), {astRef: ARBlank(newID), offset: 0})
     },
   )
 
@@ -1393,7 +1396,7 @@ let insertInPlaceholderExpr = (
   let newID = gid()
   let lambdaArgs = () => {
     let fnname = switch FluidAST.find(fnID, ast) {
-    | Some(E.EFnCall(_, name, _, _)) => Some(name)
+    | Some(EFnCall(_, name, _, _)) => Some(name)
     | _ => None
     }
 
@@ -1409,7 +1412,7 @@ let insertInPlaceholderExpr = (
 
   let (newExpr, newTarget) = if ins == "\\" {
     (
-      E.ELambda(newID, lambdaArgs(), EBlank(gid())),
+      ELambda(newID, lambdaArgs(), EBlank(gid())),
       // TODO: if lambdaArgs is a populated list, place caret at the end
       {astRef: ARLambda(newID, LBPSymbol), offset: 1},
     )
@@ -1417,7 +1420,7 @@ let insertInPlaceholderExpr = (
     insBlankOrPlaceholderHelper'(
       ins,
     ) |> // Just replace with a new blank -- we were creating eg a new list item
-    Option.unwrap(~default=(E.EBlank(newID), {astRef: ARBlank(newID), offset: 0}))
+    Option.unwrap(~default=(EBlank(newID), {astRef: ARBlank(newID), offset: 0}))
   }
 
   (newExpr, newTarget)
@@ -1628,7 +1631,7 @@ let addRecordRowToBack = (id: ID.t, ast: FluidAST.t): FluidAST.t =>
 let recordFields = (recordID: ID.t, ast: FluidExpression.t): option<list<(string, fluidExpr)>> =>
   E.find(recordID, ast) |> Option.andThen(~f=expr =>
     switch expr {
-    | E.ERecord(_, fields) => Some(fields)
+    | ERecord(_, fields) => Some(fields)
     | _ => None
     }
   )
@@ -1689,7 +1692,6 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: ID.t, ast: F
   FluidAST.t,
   caretTarget,
 ) => {
-  open FluidExpression
   let getFunctionParams = (fnname, count, varExprs): list<option<(string, string, E.t, int)>> =>
     List.map(List.range(0, count), ~f=index =>
       props.functions
@@ -1981,7 +1983,7 @@ let createPipe = (~findParent: bool, id: ID.t, astInfo: ASTInfo.t): (ASTInfo.t, 
   | None => (astInfo, None)
   | Some(expr) =>
     let blankId = gid()
-    let replacement = E.EPipe(gid(), list{expr, EBlank(blankId)})
+    let replacement = EPipe(gid(), list{expr, EBlank(blankId)})
     let ast = FluidAST.replace(E.toID(expr), astInfo.ast, ~replacement)
     (astInfo |> ASTInfo.setAST(ast), Some(blankId))
   }
@@ -1992,7 +1994,6 @@ let createPipe = (~findParent: bool, id: ID.t, astInfo: ASTInfo.t): (ASTInfo.t, 
     Returns a new ast, fluidState with the action recorded, and the id of the
     newly inserted EBlank, which may be useful for doing caret placement. ")
 let addPipeExprAt = (pipeId: ID.t, idx: int, astInfo: ASTInfo.t): (ASTInfo.t, ID.t) => {
-  open FluidExpression
   let action = Printf.sprintf("addPipeExprAt(id=%s idx=%d)", ID.toString(pipeId), idx)
 
   let astInfo = recordAction(action, astInfo)
@@ -2034,7 +2035,6 @@ let insertAtListEnd = (~newExpr: E.t, id: ID.t, ast: FluidAST.t): FluidAST.t =>
 // --------------------
 
 let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> => {
-  open FluidExpression
   let mkBlank = (): (E.t, caretTarget) => {
     let bID = gid()
     (EBlank(bID), {astRef: ARBlank(bID), offset: 0})
@@ -2408,7 +2408,7 @@ let acEnter = (ti: T.tokenInfo, key: K.key, astInfo: ASTInfo.t): ASTInfo.t => {
       // Accept fieldname, even if it's not in the autocomplete
       FluidAST.find(anaID, astInfo.ast)
       |> Option.map(~f=expr => {
-        let replacement = E.EFieldAccess(gid(), expr, fieldname)
+        let replacement = EFieldAccess(gid(), expr, fieldname)
         FluidAST.replace(~replacement, partialID, astInfo.ast)
       })
       |> Option.map(~f=ast => ASTInfo.setAST(ast, astInfo))
@@ -2458,7 +2458,7 @@ let acStartField = (ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
     astInfo |> ASTInfo.setAST(ast) |> moveToCaretTarget(target) |> acClear
   | (Some(entry), _) =>
     let replacement = switch acToPatternOrExpr(entry) {
-    | (Expr(newExpr), _ignoredTarget) => E.EPartial(gid(), "", EFieldAccess(gid(), newExpr, ""))
+    | (Expr(newExpr), _ignoredTarget) => EPartial(gid(), "", EFieldAccess(gid(), newExpr, ""))
     | (Pat(_), _) => recover("acStartField", E.newB())
     }
 
@@ -2818,7 +2818,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
     | (ARMatch(_, MPKeyword), EMatch(_, EBlank(_), pairs))
       if List.all(pairs, ~f=((p, e)) =>
         switch (p, e) {
-        | (P.FPBlank(_), EBlank(_)) => true
+        | (FPBlank(_), EBlank(_)) => true
         | _ => false
         }
       ) =>
@@ -2936,9 +2936,9 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       patContainerRef := Some(mID)
       let newName = mutation(oldName)
       let (newPat, target) = if newName == "" {
-        (P.FPBlank(mID, pID), {astRef: ARPattern(pID, PPBlank), offset: 0})
+        (FPBlank(mID, pID), {astRef: ARPattern(pID, PPBlank), offset: 0})
       } else {
-        (P.FPVariable(mID, pID, newName), currCTMinusOne)
+        (FPVariable(mID, pID, newName), currCTMinusOne)
       }
 
       switch FluidAST.find(mID, ast) {
@@ -3291,7 +3291,7 @@ let doExplicitInsert = (
         if FluidUtil.isValidIdentifier(newName) {
           let vars = List.updateAt(vars, ~index, ~f=((varId, _)) => (varId, newName))
 
-          Some(E.ELambda(id, vars, E.renameVariableUses(~oldName, ~newName, expr)), currCTPlusLen)
+          Some(ELambda(id, vars, E.renameVariableUses(~oldName, ~newName, expr)), currCTPlusLen)
         } else {
           None
         }
@@ -3348,7 +3348,7 @@ let doExplicitInsert = (
         if FluidUtil.isValidRecordLiteralFieldName(newName) {
           let nameValPairs = List.updateAt(nameValPairs, ~index, ~f=((_, expr)) => (newName, expr))
 
-          Some(E.ERecord(id, nameValPairs), currCTPlusLen)
+          Some(ERecord(id, nameValPairs), currCTPlusLen)
         } else {
           None
         }
@@ -3366,13 +3366,13 @@ let doExplicitInsert = (
         ~debug=old,
         None,
       )
-    | (ARVariable(_), E.EVariable(_, varName)) =>
+    | (ARVariable(_), EVariable(_, varName)) =>
       // inserting in the middle or at the end of a variable turns it into a partial
       mkPartial(mutation(varName), currExpr)
-    | (ARNull(_), E.ENull(_)) =>
+    | (ARNull(_), ENull(_)) =>
       // inserting in the middle or at the end of null turns it into a partial
       mkPartial(mutation("null"), currExpr)
-    | (ARBool(_), E.EBool(_, bool)) =>
+    | (ARBool(_), EBool(_, bool)) =>
       // inserting in the middle or at the end of a bool turns it into a partial
       let str = if bool {
         "true"
@@ -3594,7 +3594,7 @@ let doExplicitInsert = (
       let newName = mutation(oldName)
       if FluidUtil.isValidIdentifier(newName) {
         patContainerRef := Some(mID)
-        let (newPat, target) = (P.FPVariable(mID, pID, newName), currCTPlusLen)
+        let (newPat, target) = (FPVariable(mID, pID, newName), currCTPlusLen)
 
         switch FluidAST.find(mID, ast) {
         | Some(EMatch(_, cond, cases)) =>
@@ -3769,7 +3769,7 @@ let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t
         let newID = gid()
         Some(
           id,
-          E.ERightPartial(newID, infixTxt, expr),
+          ERightPartial(newID, infixTxt, expr),
           {
             astRef: ARRightPartial(newID),
             offset: String.length(infixTxt),
@@ -3782,10 +3782,10 @@ let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t
       let newID = gid()
       Some(
         id,
-        E.EPartial(newID, infixTxt, expr),
+        EPartial(newID, infixTxt, expr),
         {astRef: ARPartial(newID), offset: String.length(infixTxt)},
       )
-    | (ARPipe(_, index), E.EPipe(id, pipeExprs)) =>
+    | (ARPipe(_, index), EPipe(id, pipeExprs)) =>
       switch pipeExprs |> List.getAt(~index=index + 1) {
       | Some(pipedInto) =>
         /* Note that this essentially destroys the pipedInto
@@ -3793,12 +3793,12 @@ let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t
          * partial. Handling this properly would involve
          * introducing a new construct -- perhaps a left partial. */
         let parID = gid()
-        let newExpr = E.EPartial(parID, infixTxt, pipedInto)
+        let newExpr = EPartial(parID, infixTxt, pipedInto)
         let newPipeExprs = pipeExprs |> List.updateAt(~index=index + 1, ~f=_ => newExpr)
 
         Some(
           id,
-          E.EPipe(id, newPipeExprs),
+          EPipe(id, newPipeExprs),
           {astRef: ARPartial(parID), offset: String.length(infixTxt)},
         )
       | None => None
@@ -3842,7 +3842,7 @@ let wrapInLet = (ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
     | None => expr
     }
 
-    let replacement = E.ELet(gid(), "_", exprToWrap, EBlank(bodyId))
+    let replacement = ELet(gid(), "_", exprToWrap, EBlank(bodyId))
     astInfo
     |> ASTInfo.setAST(FluidAST.replace(~replacement, E.toID(exprToWrap), astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bodyId), offset: 0})
@@ -3965,7 +3965,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   let isInIfCondition = token => {
     let rec recurseUp = (maybeExpr, prevId) =>
       switch maybeExpr {
-      | Some(E.EIf(_, cond, _, _)) if E.toID(cond) == prevId => true
+      | Some(EIf(_, cond, _, _)) if E.toID(cond) == prevId => true
       | Some(e) =>
         let id = E.toID(e)
         recurseUp(FluidAST.findParent(id, astInfo.ast), id)
@@ -4143,7 +4143,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     switch mNext {
     | Some({token: TListClose(id, _), _}) =>
       astInfo
-      |> ASTInfo.setAST(FluidAST.update(~f=_ => E.EList(id, list{}), id, astInfo.ast))
+      |> ASTInfo.setAST(FluidAST.update(~f=_ => EList(id, list{}), id, astInfo.ast))
       |> moveToCaretTarget({astRef: ARList(id, LPOpen), offset: 1})
     | Some(ti) => doDelete(~pos, ti, astInfo)
     | None => doDelete(~pos, rti, astInfo)
@@ -4235,7 +4235,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   // comma - add another of the thing
   | (InsertText(","), L(TListOpen(id, _), _), _) if onEdge =>
     let bID = gid()
-    let newExpr = E.EBlank(bID) // new separators
+    let newExpr = EBlank(bID) // new separators
     astInfo
     |> ASTInfo.setAST(insertInList(~index=0, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
@@ -4243,14 +4243,14 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   | (InsertText(","), L(_, ti), R(TListComma(id, index), _)) if onEdge =>
     let astInfo = acEnter(ti, K.Enter, astInfo)
     let bID = gid()
-    let newExpr = E.EBlank(bID) // new separators
+    let newExpr = EBlank(bID) // new separators
     astInfo
     |> ASTInfo.setAST(insertInList(~index=index + 1, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
   | (InsertText(","), L(_, ti), R(TListClose(id, _), _)) if onEdge =>
     let astInfo = acEnter(ti, K.Enter, astInfo)
     let bID = gid()
-    let newExpr = E.EBlank(bID) // new separators
+    let newExpr = EBlank(bID) // new separators
     astInfo
     |> ASTInfo.setAST(insertAtListEnd(id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
@@ -4273,7 +4273,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     let ast = FluidAST.update(id, astInfo.ast, ~f=x =>
       switch x {
       | EPartial(_, name, EFieldAccess(faid, expr, _)) =>
-        let committedAccess = E.EFieldAccess(faid, expr, name)
+        let committedAccess = EFieldAccess(faid, expr, name)
         EPartial(newPartialID, "", EFieldAccess(gid(), committedAccess, ""))
       | e => recover("updateKey insert . - unexpected expr " ++ E.show(e), e)
       }
@@ -4301,7 +4301,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   | (InsertText("["), _, R(TConstructorName(id, _), _)) =>
     let newID = gid()
     astInfo
-    |> ASTInfo.setAST(FluidAST.update(~f=var => E.EList(newID, list{var}), id, astInfo.ast))
+    |> ASTInfo.setAST(FluidAST.update(~f=var => EList(newID, list{var}), id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
   // Strings can be wrapped in lists, but only if we're outside the quote
   | (InsertText("["), _, R(TString(id, _, _), toTheRight))
@@ -4309,7 +4309,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     if onEdge && pos == toTheRight.startPos =>
     let newID = gid()
     astInfo
-    |> ASTInfo.setAST(FluidAST.update(~f=var => E.EList(newID, list{var}), id, astInfo.ast))
+    |> ASTInfo.setAST(FluidAST.update(~f=var => EList(newID, list{var}), id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
   // Infix symbol insertion to create partials
   | (InsertText(infixTxt), L(TPipe(_), ti), _)
@@ -4766,7 +4766,6 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
   FluidExpression.t,
 > => {
   // prevent duplicates
-  open FluidExpression
   let astInfo = ASTInfo.setAST(FluidAST.clone(astInfo.ast), astInfo)
   // a few helpers
   let toBool_ = s =>
@@ -5122,7 +5121,6 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         Some(e)
       }
     | EMatch(mID, cond, patternsAndExprs) =>
-      open FluidPattern
       let newPatternAndExprs = List.map(patternsAndExprs, ~f=((pattern, expr)) => {
         let toksToPattern = (tokens, pID) =>
           switch tokens |> List.filter(~f=((pID', _, _)) => pID == pID') {
@@ -5206,22 +5204,21 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
       /* [addPipeTarget pipeId initialExpr] replaces the first arg into which one can pipe with a pipe target having [pipeId]
        * at the root of [initialExpr], if such an arg exists.
        * It is recursive in order to handle root expressions inside partials. */
-      let rec addPipeTarget = (pipeId: Shared.id, initialExpr: E.t): E.t =>
+      let rec addPipeTarget = (pipeId: ID.t, initialExpr: E.t): E.t =>
         switch initialExpr {
         | EFnCall(id, name, args, sendToRail) =>
           let args = switch args {
-          | list{_, ...rest} => list{E.EPipeTarget(pipeId), ...rest}
+          | list{_, ...rest} => list{EPipeTarget(pipeId), ...rest}
           | args => args
           }
 
-          E.EFnCall(id, name, args, sendToRail)
+          EFnCall(id, name, args, sendToRail)
         | EBinOp(id, name, _lhs, rhs, sendToRail) =>
-          E.EBinOp(id, name, E.EPipeTarget(pipeId), rhs, sendToRail)
-        | EPartial(id, text, oldExpr) => E.EPartial(id, text, addPipeTarget(pipeId, oldExpr))
+          EBinOp(id, name, EPipeTarget(pipeId), rhs, sendToRail)
+        | EPartial(id, text, oldExpr) => EPartial(id, text, addPipeTarget(pipeId, oldExpr))
         | ERightPartial(id, text, oldExpr) =>
-          E.ERightPartial(id, text, addPipeTarget(pipeId, oldExpr))
-        | ELeftPartial(id, text, oldExpr) =>
-          E.ELeftPartial(id, text, addPipeTarget(pipeId, oldExpr))
+          ERightPartial(id, text, addPipeTarget(pipeId, oldExpr))
+        | ELeftPartial(id, text, oldExpr) => ELeftPartial(id, text, addPipeTarget(pipeId, oldExpr))
         | _ => initialExpr
         }
 
@@ -5232,24 +5229,24 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
         | EFnCall(id, name, args, sendToRail) =>
           let args = args |> List.map(~f=x =>
             switch x {
-            | E.EPipeTarget(_) => E.newB()
+            | EPipeTarget(_) => E.newB()
             | arg => arg
             }
           )
 
-          E.EFnCall(id, name, args, sendToRail)
+          EFnCall(id, name, args, sendToRail)
         | EBinOp(id, name, lhs, rhs, sendToRail) =>
           let (lhs, rhs) = (lhs, rhs) |> Tuple2.mapAll(~f=x =>
             switch x {
-            | E.EPipeTarget(_) => E.newB()
+            | EPipeTarget(_) => E.newB()
             | arg => arg
             }
           )
 
-          E.EBinOp(id, name, lhs, rhs, sendToRail)
-        | EPartial(id, text, oldExpr) => E.EPartial(id, text, removePipeTarget(oldExpr))
-        | ERightPartial(id, text, oldExpr) => E.ERightPartial(id, text, removePipeTarget(oldExpr))
-        | ELeftPartial(id, text, oldExpr) => E.ELeftPartial(id, text, removePipeTarget(oldExpr))
+          EBinOp(id, name, lhs, rhs, sendToRail)
+        | EPartial(id, text, oldExpr) => EPartial(id, text, removePipeTarget(oldExpr))
+        | ERightPartial(id, text, oldExpr) => ERightPartial(id, text, removePipeTarget(oldExpr))
+        | ELeftPartial(id, text, oldExpr) => ELeftPartial(id, text, removePipeTarget(oldExpr))
         | _ => initialExpr
         }
 
@@ -5273,7 +5270,7 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
       let caretTarget = caretTargetForEndOfExpr(E.toID(cp), newAST)
       astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(caretTarget)
     | (EString(id, str), _, Some({astRef: ARString(_, SPOpenQuote), offset})) =>
-      let replacement = E.EString(id, String.insertAt(~value=text, ~index=offset - 1, str))
+      let replacement = EString(id, String.insertAt(~value=text, ~index=offset - 1, str))
 
       let newAST = FluidAST.replace(~replacement, id, ast)
       let caretTarget = if offset == 0 {
@@ -5302,7 +5299,7 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
       }
 
       let newKVs = List.flatten(list{first, pastedKVs, last})
-      let replacement = E.ERecord(id, newKVs)
+      let replacement = ERecord(id, newKVs)
       List.last(pastedKVs)
       |> Option.map(~f=((_, valueExpr)) => {
         let caretTarget = caretTargetForEndOfExpr'(valueExpr)

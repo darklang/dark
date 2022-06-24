@@ -26,7 +26,7 @@ let decodeOutput = str => {
   switch result {
   | Belt.Result.Ok(msg) => Belt.Result.Ok(msg)
   | Belt.Result.Error(msg) =>
-    Unshared.Rollbar.send(msg, None, Js.Json.null)
+    ErrorReporting.Rollbar.send(msg, None, Js.Json.null)
     Belt.Result.Error(Types.AnalysisParseError(msg))
   }
 }

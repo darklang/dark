@@ -1,5 +1,6 @@
 open Prelude
 module T = FluidToken
+module Expr = ProgramTypes.Expr
 module E = FluidExpression
 module Pattern = FluidPattern
 
@@ -791,7 +792,7 @@ module ASTInfo = {
     getTokenNotWhitespace(activeTokenInfos(astInfo), astInfo.state)
 
   let emptyFor = (props: fluidProps, state: fluidState): t => {
-    ast: FluidAST.ofExpr(E.EBlank(gid())),
+    ast: FluidAST.ofExpr(Expr.EBlank(gid())),
     state: state,
     mainTokenInfos: list{},
     featureFlagTokenInfos: list{},

@@ -1,10 +1,10 @@
 open Prelude
-open FluidExpression
+open ProgramTypes.Expr
 
 // ----------------
 // Shortcuts
 // ----------------
-let b = newB()
+let b = FluidExpression.newB()
 
 open FluidShortcuts
 

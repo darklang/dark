@@ -5,7 +5,7 @@ open Json.Decode
 module TL = Toplevel
 module RT = Runtime
 
-type id = Shared.id
+type id = id
 
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
@@ -211,11 +211,14 @@ let jsDate = (j): Js.Date.t => Js.Date.fromString(string(j))
 
 let sendToRail = j => {
   let dv0 = variant0
-  variants(list{("Rail", dv0(FluidExpression.Rail)), ("NoRail", dv0(FluidExpression.NoRail))}, j)
+  variants(
+    list{("Rail", dv0(ProgramTypes.Expr.Rail)), ("NoRail", dv0(ProgramTypes.Expr.NoRail))},
+    j,
+  )
 }
 
 let rec fluidPattern = (j): FluidPattern.t => {
-  module P = FluidPattern
+  module P = ProgramTypes.Pattern
   let dp = fluidPattern
   let dv4 = variant4
   let dv3 = variant3
@@ -240,7 +243,7 @@ let rec fluidPattern = (j): FluidPattern.t => {
 }
 
 let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
-  module E = FluidExpression
+  module E = ProgramTypes.Expr
   let de = fluidExpr
   let dv5 = variant5
   let dv4 = variant4

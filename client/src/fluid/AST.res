@@ -3,8 +3,8 @@ open Prelude
 // Dark
 module B = BlankOr
 module E = FluidExpression
-open FluidExpression
-open FluidPattern
+open ProgramTypes.Expr
+open ProgramTypes.Pattern
 
 // --------------------------------
 // PointerData

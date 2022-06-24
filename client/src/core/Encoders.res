@@ -489,7 +489,7 @@ and userFunctionParameter = (p: Types.userFunctionParameter): Js.Json.t =>
     ("description", string(p.ufpDescription)),
   })
 
-and sendToRail = (sendToRail: FluidExpression.sendToRail): Js.Json.t => {
+and sendToRail = (sendToRail: ProgramTypes.Expr.sendToRail): Js.Json.t => {
   let ev = variant
   switch sendToRail {
   | Rail => ev("Rail", list{})

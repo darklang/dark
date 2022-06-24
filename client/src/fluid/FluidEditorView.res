@@ -1,5 +1,7 @@
 open Prelude
 
+open ProgramTypes.Expr
+
 type props = {
   analysisStore: analysisStore,
   ast: FluidAST.t,
@@ -165,7 +167,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
       }
     ) |> List.fold(~initial=ID.Set.empty, ~f=(acc, e) =>
       switch e {
-      | FluidExpression.EFeatureFlag(_, _, _, oldCode, _) =>
+      | EFeatureFlag(_, _, _, oldCode, _) =>
         Set.addMany(acc, ~values=FluidExpression.decendants(oldCode))
       | _ => acc
       }

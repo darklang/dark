@@ -41,7 +41,7 @@ let fetch_ = (
         Js.Dict.fromList(list{
           ("Content-Type", "application/json"),
           ("X-CSRF-TOKEN", context.csrfToken),
-          (Header.client_version, buildHash),
+          ("x-darklang-client-version", buildHash),
         }),
       ),
       (),

@@ -1,6 +1,7 @@
 module E = FluidExpression
+open ProgramTypes.AST
 
-type t = Root(E.t)
+type t = ProgramTypes.AST.t
 
 let show = (Root(e)) => E.show(e)
 
@@ -14,23 +15,23 @@ let toID = (Root(e)) => E.toID(e)
 
 let map = (~f: E.t => E.t, ast: t): t => toExpr(ast) |> f |> ofExpr
 
-let replace = (~replacement: E.t, target: Shared.id, ast: t): t =>
+let replace = (~replacement: E.t, target: ID.t, ast: t): t =>
   map(ast, ~f=E.replace(~replacement, target))
 
-let update = (~failIfMissing=true, ~f: E.t => E.t, target: Shared.id, ast: t): t =>
+let update = (~failIfMissing=true, ~f: E.t => E.t, target: ID.t, ast: t): t =>
   map(ast, ~f=E.update(~failIfMissing, ~f, target))
 
 let filter = (ast: t, ~f: E.t => bool): list<E.t> => toExpr(ast) |> E.filter(~f)
 
 let blanks = (ast: t): list<E.t> => toExpr(ast) |> E.blanks
 
-let ids = (ast: t): list<Shared.id> => toExpr(ast) |> E.ids
+let ids = (ast: t): list<ID.t> => toExpr(ast) |> E.ids
 
-let find = (target: Shared.id, ast: t): option<E.t> => toExpr(ast) |> E.find(target)
+let find = (target: ID.t, ast: t): option<E.t> => toExpr(ast) |> E.find(target)
 
-let findParent = (target: Shared.id, ast: t): option<E.t> => toExpr(ast) |> E.findParent(target)
+let findParent = (target: ID.t, ast: t): option<E.t> => toExpr(ast) |> E.findParent(target)
 
-let ancestors = (target: Shared.id, ast: t): list<E.t> => toExpr(ast) |> E.ancestors(target)
+let ancestors = (target: ID.t, ast: t): list<E.t> => toExpr(ast) |> E.ancestors(target)
 
 let getFeatureFlags = (ast: t): list<E.t> =>
   filter(ast, ~f=x =>

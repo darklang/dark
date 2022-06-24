@@ -28,7 +28,7 @@ let testWrap = (
   expected: FluidExpression.t,
 ) =>
   test(name, () => {
-    let id = Shared.gid()
+    let id = Prelude.gid()
     let ast = FluidAST.ofExpr(exprFn(id))
     let (_flagId, newAST) = FF.wrap(state, ast, id)
     expect(FluidAST.toExpr(newAST))
@@ -42,7 +42,7 @@ let testUnwrap = (
   ~keepOld: FluidExpression.t,
   ~keepNew: FluidExpression.t,
 ) => {
-  let id = Shared.gid()
+  let id = Prelude.gid()
   let ast = FluidAST.ofExpr(exprFn(id))
   test(name ++ "- KeepOld", () => {
     let actualOld = FF.unwrap(FF.KeepOld, ast, id) |> Option.unwrapUnsafe

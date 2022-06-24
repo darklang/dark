@@ -10,7 +10,7 @@ module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module AC = FluidAutocomplete
 module T = FluidToken
-module E = FluidExpression
+module E = ProgramTypes.Expr
 module Util = FluidUtil
 module Printer = FluidTokenizer
 
@@ -64,7 +64,7 @@ let clipboardContentsToExpr = ((text, json): clipboardContents): option<E.t> =>
   | Some(json) =>
     try {
       let expr = Decoders.fluidExpr(json)
-      Some(E.clone(expr))
+      Some(FluidExpression.clone(expr))
     } catch {
     | _ => recover("could not decode", ~debug=json, None)
     }

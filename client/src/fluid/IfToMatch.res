@@ -1,15 +1,15 @@
 open Prelude
 module TL = Toplevel
-module E = FluidExpression
+module E = ProgramTypes.Expr
 module P = FluidPattern
 
 let findIf = (ast: FluidAST.t, e: E.t): option<E.t> =>
   switch e {
   | EIf(_) => Some(e)
   | _ =>
-    FluidAST.ancestors(E.toID(e), ast) |> List.find(~f=x =>
+    FluidAST.ancestors(FluidExpression.toID(e), ast) |> List.find(~f=x =>
       switch x {
-      | FluidExpression.EIf(_) => true
+      | E.EIf(_) => true
       | _ => false
       }
     )
@@ -82,7 +82,9 @@ let refactor = (_: model, tl: toplevel, id: ID.t): modification => {
     }
 
     ifExprToMatchExpr |> Option.map(~f=matchExpr =>
-      FluidAST.replace(~replacement=matchExpr, E.toID(ifexpr), ast) |> TL.setASTMod(tl)
+      FluidAST.replace(~replacement=matchExpr, FluidExpression.toID(ifexpr), ast) |> TL.setASTMod(
+        tl,
+      )
     )
   }
 

@@ -4,8 +4,8 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 module TD = TLIDDict
-module E = FluidExpression
-module P = FluidPattern
+module E = ProgramTypes.Expr
+module P = ProgramTypes.Pattern
 
 let generateFnName = (_: unit): string => "fn_" ++ (() |> Util.random |> string_of_int)
 
@@ -28,7 +28,7 @@ let transformFnCalls = (
     let rec run = e =>
       switch e {
       | E.EFnCall(_, name, _, _) if Some(name) == BlankOr.toOption(uf.ufMetadata.ufmName) => f(e)
-      | other => E.deprecatedWalk(~f=run, other)
+      | other => FluidExpression.deprecatedWalk(~f=run, other)
       }
 
     FluidAST.map(ast, ~f=run)
@@ -66,19 +66,20 @@ type wrapLoc =
 
 let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: ID.t): modification => {
   let replacement = (e): FluidExpression.t => {
+    let newB = FluidExpression.newB
     let newBlankPattern = mid => P.FPBlank(mid, gid())
     switch wl {
-    | WLetRHS => ELet(gid(), "", e, E.newB())
-    | WLetBody => ELet(gid(), "", E.newB(), e)
-    | WIfCond => EIf(gid(), e, E.newB(), E.newB())
-    | WIfThen => EIf(gid(), E.newB(), e, E.newB())
-    | WIfElse => EIf(gid(), E.newB(), E.newB(), e)
+    | WLetRHS => ELet(gid(), "", e, newB())
+    | WLetBody => ELet(gid(), "", newB(), e)
+    | WIfCond => EIf(gid(), e, newB(), newB())
+    | WIfThen => EIf(gid(), newB(), e, newB())
+    | WIfElse => EIf(gid(), newB(), newB(), e)
     | WMatchExpr =>
       /* e becomes
        * match e
        * _ -> _ */
       let mid = gid()
-      EMatch(mid, e, list{(newBlankPattern(mid), E.newB())})
+      EMatch(mid, e, list{(newBlankPattern(mid), newB())})
     | WMatchArm =>
       /* e becomes
        * match _
@@ -89,7 +90,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: ID.t): modification => {
        * at the end of a match, but it's always possible to delete a pattern)
        * */
       let mid = gid()
-      EMatch(mid, E.newB(), list{(newBlankPattern(mid), e), (newBlankPattern(mid), E.newB())})
+      EMatch(mid, newB(), list{(newBlankPattern(mid), e), (newBlankPattern(mid), newB())})
     }
   }
 
@@ -145,7 +146,7 @@ let extractVarInAst = (
 
       list{e, ...ancestors}
       |> List.takeWhile(~f=elem => {
-        let id = E.toID(elem)
+        let id = FluidExpression.toID(elem)
         let availableVars =
           Option.map(traceID, ~f=Analysis.getAvailableVarnames(m, tl, id))
           |> Option.unwrap(~default=list{})
@@ -166,12 +167,12 @@ let extractVarInAst = (
     switch lastPlaceWithSameVarsAndValues {
     | Some(last) =>
       ast
-      |> FluidAST.update(E.toID(last), ~f=x =>
+      |> FluidAST.update(FluidExpression.toID(last), ~f=x =>
         switch x {
-        | last => ELet(gid(), varname, E.clone(e), last)
+        | last => ELet(gid(), varname, FluidExpression.clone(e), last)
         }
       )
-      |> FluidAST.replace(E.toID(e), ~replacement=EVariable(gid(), varname))
+      |> FluidAST.replace(FluidExpression.toID(e), ~replacement=EVariable(gid(), varname))
     | None => ast
     }
   | None => ast
@@ -225,16 +226,19 @@ let extractFunction = (m: model, tl: toplevel, id: ID.t): modification => {
     let newF = {
       ufTLID: gtlid(),
       ufMetadata: metadata,
-      ufAST: E.clone(body) |> FluidAST.ofExpr,
+      ufAST: FluidExpression.clone(body) |> FluidAST.ofExpr,
     }
 
-    Many(list{AddOps(list{SetFunction(newF)}, FocusExact(tlid, E.toID(replacement))), astOp})
+    Many(list{
+      AddOps(list{SetFunction(newF)}, FocusExact(tlid, FluidExpression.toID(replacement))),
+      astOp,
+    })
   | _ => NoChange
   }
 }
 
 let renameFunction = (m: model, uf: userFunction, newName: string): list<op> => {
-  open FluidExpression
+  open ProgramTypes.Expr
   let fn = e =>
     switch e {
     | EFnCall(id, _, params, r) => EFnCall(id, newName, params, r)
@@ -299,7 +303,7 @@ let dbUseCount = (m: model, name: string): int =>
   Map.get(m.usedDBs, ~key=name) |> Option.unwrap(~default=0)
 
 let updateUsageCounts = (m: model): model => {
-  open FluidExpression
+  open ProgramTypes.Expr
   let countFromList = names =>
     List.fold(names, ~initial=Map.String.empty, ~f=(dict, name) =>
       Map.update(dict, ~key=name, ~f=x =>
@@ -317,7 +321,7 @@ let updateUsageCounts = (m: model): model => {
   let bigAst = EList(gid(), asts)
   let usedFns =
     bigAst
-    |> E.filterMap(~f=x =>
+    |> FluidExpression.filterMap(~f=x =>
       switch x {
       | EFnCall(_, name, _, _) | EBinOp(_, name, _, _, _) => Some(name)
       | _ => None
@@ -327,7 +331,7 @@ let updateUsageCounts = (m: model): model => {
 
   let usedDBs =
     bigAst
-    |> E.filterMap(~f=x =>
+    |> FluidExpression.filterMap(~f=x =>
       switch x {
       | EVariable(_, name) if String.isCapitalized(name) => Some(name)
       | _ => None
@@ -354,7 +358,7 @@ let updateUsageCounts = (m: model): model => {
 let removeFunctionParameter = (m: model, uf: userFunction, ufp: userFunctionParameter): list<
   op,
 > => {
-  open FluidExpression
+  open ProgramTypes.Expr
   let indexInList =
     List.findIndex(~f=(_, p) => p == ufp, uf.ufMetadata.ufmParameters)
     |> Option.map(~f=Tuple2.first)
@@ -371,7 +375,7 @@ let removeFunctionParameter = (m: model, uf: userFunction, ufp: userFunctionPara
 }
 
 let addFunctionParameter = (m: model, f: userFunction, currentBlankId: ID.t): modification => {
-  open FluidExpression
+  open ProgramTypes.Expr
   let transformOp = old => {
     let fn = e =>
       switch e {
@@ -450,7 +454,7 @@ let renameDBReferences = (m: model, oldName: dbName, newName: dbName): list<op> 
   |> Map.filterMapValues(~f=tl =>
     switch tl {
     | TLHandler(h) =>
-      let newAST = h.ast |> FluidAST.map(~f=E.renameVariableUses(~oldName, ~newName))
+      let newAST = h.ast |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
 
       if newAST != h.ast {
         Some(SetHandler(h.hTLID, h.pos, {...h, ast: newAST}))
@@ -458,7 +462,8 @@ let renameDBReferences = (m: model, oldName: dbName, newName: dbName): list<op> 
         None
       }
     | TLFunc(f) =>
-      let newAST = f.ufAST |> FluidAST.map(~f=E.renameVariableUses(~oldName, ~newName))
+      let newAST =
+        f.ufAST |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
 
       if newAST != f.ufAST {
         Some(SetFunction({...f, ufAST: newAST}))

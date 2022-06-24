@@ -5,6 +5,7 @@ open Prelude
 open Fluid
 open FluidTestData
 open FluidShortcuts
+open ProgramTypes.Expr
 
 let run = () => {
   describe("getSelectedExprID", () => {
@@ -26,7 +27,7 @@ let run = () => {
       expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(Some(ID.fromString("letVal")))
     })
     test("select larger expressions", () => {
-      let ast = E.EFnCall(ID("fn"), "+", list{int(1), int(2)}, NoRail)
+      let ast = EFnCall(ID("fn"), "+", list{int(1), int(2)}, NoRail)
       let s = {
         ...defaultTestState,
         oldPos: 0,

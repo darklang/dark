@@ -5,6 +5,7 @@ open FluidTestData
 module B = BlankOr
 module K = FluidKeyboard
 module E = FluidExpression
+open ProgramTypes.Expr
 open FluidShortcuts
 
 @@ocaml.text("
@@ -4970,7 +4971,7 @@ let run = () => {
       open FluidTokenizer
       let id = ID.fromString("543")
       expect({
-        let ast = E.EString(id, "test")
+        let ast = EString(id, "test")
         let tokens = tokenize(ast)
         getNeighbours(~pos=3, tokens)
       }) |> toEqual({

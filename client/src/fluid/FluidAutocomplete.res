@@ -357,7 +357,7 @@ let lookupIsInQuery = (tl: toplevel, ti) => {
     FluidAST.ancestors(FluidToken.tid(ti.token), ast)
     |> List.find(~f=x =>
       switch x {
-      | FluidExpression.EFnCall(_, name, _, _) => isQueryFn(name)
+      | ProgramTypes.Expr.EFnCall(_, name, _, _) => isQueryFn(name)
       | _ => false
       }
     )
