@@ -10,7 +10,7 @@ let serverVersionOf = (e: apiError): option<string> =>
   | BadStatus(response) | BadPayload(_, response) =>
     module StringMap = Caml.Map.Make(Tc.Caml.String)
     response.headers
-    |> StringMap.find_first_opt(key => String.toLowercase(key) == Header.server_version)
+    |> StringMap.find_first_opt(key => String.toLowercase(key) == "x-darklang-server-version")
     |> Option.map(~f=Tuple2.second)
   }
 

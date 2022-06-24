@@ -2,7 +2,7 @@ open Prelude
 
 let apiRoot = "/api/"
 
-let clientVersionHeader = (m): Tea_http.header => Header(Header.client_version, m.buildHash)
+let clientVersionHeader = (m): Tea_http.header => Header("x-darklang-client-version", m.buildHash)
 
 let apiCallNoParams = (
   m: model,
