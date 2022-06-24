@@ -217,7 +217,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
     { name = fn "Test" "asBytes" 0
       parameters = [ Param.make "list" (TList TInt) "" ]
       returnType = TBytes
@@ -235,7 +234,8 @@ let fns : List<BuiltInFn> =
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Test" "raiseException" 0
       parameters = [ Param.make "message" TStr "" ]
       returnType = TVariable "a"
