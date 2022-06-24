@@ -1783,7 +1783,7 @@ let update_ = (msg: msg, m: model): modification => {
     let center = Viewport.findNewPos(m)
     let tlid = gtlid()
     let pos = center
-    let ast = FluidExpression.EBlank(gid())
+    let ast = ProgramTypes.Expr.EBlank(gid())
     let aHandler = {
       ast: FluidAST.ofExpr(ast),
       spec: {

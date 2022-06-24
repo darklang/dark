@@ -5,7 +5,6 @@ open Fluid
 open FluidTestData
 module B = BlankOr
 module K = FluidKeyboard
-open FluidExpression
 open FluidShortcuts
 
 type testResult = // ast, clipboard, newPos

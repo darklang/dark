@@ -1,48 +1,15 @@
-include Tc
+include Prelude
 
-// CLEANUP: Added temporarily. Fluid stuff was in libshared and so couldn't rely on
-// types. But now we're moving things around and we can. this is here to let it all
-// typecheck and then we'll move this.
-let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
+open ProgramTypes.Expr
 
-@ppx.deriving(show({with_path: false}))
-type rec sendToRail =
-  | Rail
-  | NoRail
-
-// See .mli for comments/descriptions of fields
-@ppx.deriving(show({with_path: false}))
-type rec t =
-  | EInteger(ID.t, string)
-  | EBool(ID.t, bool)
-  | EString(ID.t, string)
-  | EFloat(ID.t, string, string)
-  | ENull(ID.t)
-  | EBlank(ID.t)
-  | ELet(ID.t, string, t, t)
-  | EIf(ID.t, t, t, t)
-  | EBinOp(ID.t, string, t, t, sendToRail)
-  | ELambda(ID.t, list<(ID.t, string)>, t)
-  | EFieldAccess(ID.t, t, string)
-  | EVariable(ID.t, string)
-  | EFnCall(ID.t, string, list<t>, sendToRail)
-  | EPartial(ID.t, string, t)
-  | ERightPartial(ID.t, string, t)
-  | ELeftPartial(ID.t, string, t)
-  | EList(ID.t, list<t>)
-  | ERecord(ID.t, list<(string, t)>)
-  | EPipe(ID.t, list<t>)
-  | EConstructor(ID.t, string, list<t>)
-  | EMatch(ID.t, t, list<(FluidPattern.t, t)>)
-  | EPipeTarget(ID.t)
-  | EFeatureFlag(ID.t, string, t, t, t)
+@ppx.deriving(show({with_path: false})) type rec t = ProgramTypes.Expr.t
 
 @ppx.deriving(show({with_path: false}))
 type rec fluidPatOrExpr =
   | Expr(t)
-  | Pat(FluidPattern.t)
+  | Pat(fluidPattern)
 
-let newB = () => EBlank(gid())
+let newB = () => ProgramTypes.Expr.EBlank(gid())
 
 let toID = (expr: t): ID.t =>
   switch expr {

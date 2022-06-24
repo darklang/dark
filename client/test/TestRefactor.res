@@ -7,6 +7,7 @@ module R = Refactor
 module TL = Toplevel
 module E = FluidExpression
 open FluidShortcuts
+open ProgramTypes.Expr
 
 let sampleFunctions = {
   let par = (
@@ -126,7 +127,7 @@ let run = () => {
 
     let handlerWithPointer = (fnName, fnRail) => {
       let id = ID.fromString("ast1")
-      let ast = FluidAST.ofExpr(E.EFnCall(id, fnName, list{}, fnRail))
+      let ast = FluidAST.ofExpr(EFnCall(id, fnName, list{}, fnRail))
       ({...defaultHandler, ast: ast}, id)
     }
 
@@ -563,13 +564,13 @@ let run = () => {
     let handlerWithPointer = cond => {
       let id = ID.fromString("ast1")
       let ast = FluidAST.ofExpr(
-        E.EIf(id, cond, EBool(ID.fromString("bool1"), true), EBool(ID.fromString("bool2"), false)),
+        EIf(id, cond, EBool(ID.fromString("bool1"), true), EBool(ID.fromString("bool2"), false)),
       )
 
       ({...defaultHandler, ast: ast}, id)
     }
 
-    let binOp = (which, lhs, rhs) => E.EBinOp(ID.fromString("binop1"), which, lhs, rhs, NoRail)
+    let binOp = (which, lhs, rhs) => EBinOp(ID.fromString("binop1"), which, lhs, rhs, NoRail)
 
     let init = cond => {
       let (h, pd) = handlerWithPointer(cond)
@@ -585,7 +586,7 @@ let run = () => {
         switch FluidAST.toExpr(h.ast) {
         | EMatch(
             _,
-            E.EBinOp(_, "<", _, _, _),
+            EBinOp(_, "<", _, _, _),
             list{(FPBool(_, _, true), EBool(_, true)), (FPBool(_, _, false), EBool(_, false))},
           ) => true
         | _ => false
@@ -603,7 +604,7 @@ let run = () => {
         switch FluidAST.toExpr(h.ast) {
         | EMatch(
             _,
-            E.EBinOp(_, "==", _, _, _),
+            EBinOp(_, "==", _, _, _),
             list{(FPBool(_, _, true), EBool(_, true)), (FPBool(_, _, false), EBool(_, false))},
           ) => true
         | _ => false

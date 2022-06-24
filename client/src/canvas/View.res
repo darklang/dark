@@ -6,6 +6,8 @@ module P = Pointer
 module TD = TLIDDict
 module E = FluidExpression
 
+open ProgramTypes.Expr
+
 let appID = "app"
 
 let fontAwesome = ViewUtils.fontAwesome
@@ -134,7 +136,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           |> Option.andThen(~f=ast => FluidAST.find(id, ast))
           |> Option.andThen(~f=x =>
             switch x {
-            | E.EFnCall(_, name, _, sendToRail)
+            | EFnCall(_, name, _, sendToRail)
             | EBinOp(_, name, _, _, sendToRail) =>
               Some(name, sendToRail)
             | _ => None
@@ -703,7 +705,7 @@ let view = (m: model): Html.html<msg> => {
   let body = viewCanvas(m)
   let entry = ViewEntry.viewEntry(m)
   let activeAvatars = Avatar.viewAllAvatars(m.avatarsList)
-  let ast = TL.selectedAST(m) |> Option.unwrap(~default=FluidAST.ofExpr(E.EBlank(gid())))
+  let ast = TL.selectedAST(m) |> Option.unwrap(~default=FluidAST.ofExpr(EBlank(gid())))
 
   let fluidStatus = if m.editorSettings.showFluidDebugger {
     list{FluidDebugger.view(m, ast)}

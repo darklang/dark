@@ -12,7 +12,7 @@ module E = FluidExpression
 module P = FluidPattern
 module Printer = FluidPrinter
 
-// Tea
+open ProgramTypes.Expr
 
 type viewProps = ViewUtils.viewProps
 
@@ -77,7 +77,7 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: ID.t): lvResult => 
     FluidAST.find(id, ast)
     |> Option.andThen(~f=expr =>
       switch expr {
-      | E.EFnCall(_, name, _, _) | E.EBinOp(_, name, _, _, _) => Functions.find(name, vp.functions)
+      | EFnCall(_, name, _, _) | EBinOp(_, name, _, _, _) => Functions.find(name, vp.functions)
       | _ => None
       }
     )
@@ -363,7 +363,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
       FluidAST.find(flagID, vp.astInfo.ast)
       |> Option.andThen(~f=x =>
         switch x {
-        | E.EFeatureFlag(_, _, _, oldCode, _) => Some(E.toID(oldCode))
+        | EFeatureFlag(_, _, _, oldCode, _) => Some(E.toID(oldCode))
         | _ => None
         }
       )

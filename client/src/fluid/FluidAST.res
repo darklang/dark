@@ -1,6 +1,7 @@
 module E = FluidExpression
+open ProgramTypes.AST
 
-type t = Root(E.t)
+type t = ProgramTypes.AST.t
 
 let show = (Root(e)) => E.show(e)
 

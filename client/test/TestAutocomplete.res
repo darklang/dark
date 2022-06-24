@@ -11,7 +11,7 @@ let defaultID2 = gid()
 
 let defaultBlankOr = Blank(defaultID)
 
-let defaultExpr = FluidExpression.EBlank(defaultID)
+let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
 let enteringCS = (~tlid=defaultTLID, ~id=defaultID, ()): cursorState => Entering(tlid, id)
 

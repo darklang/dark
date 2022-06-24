@@ -1,5 +1,5 @@
 open Prelude
-open FluidExpression
+open ProgramTypes.Expr
 
 let blank = (~id=gid(), ()): t => EBlank(id)
 

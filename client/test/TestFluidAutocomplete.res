@@ -1,13 +1,12 @@
 open Tester
 open Prelude
-module E = FluidExpression
 module AC = FluidAutocomplete
 module B = BlankOr
 module K = FluidKeyboard
-module P = FluidPattern
 module Printer = FluidTokenizer
 module TL = Toplevel
-open FluidExpression
+open ProgramTypes.Expr
+open ProgramTypes.Pattern
 open FluidTestData
 open FluidShortcuts
 
@@ -64,7 +63,7 @@ let defaultID = gid()
 
 let defaultID2 = gid()
 
-let defaultExpr = E.EBlank(defaultID)
+let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
 let defaultToplevel = TLHandler({
   ast: FluidAST.ofExpr(defaultExpr),
@@ -514,7 +513,7 @@ let run = () => {
         let tlid = TLID.fromString("789")
         let mID = ID.fromString("1234")
         let patID = ID.fromString("456")
-        let pattern = P.FPVariable(mID, patID, "o")
+        let pattern = FPVariable(mID, patID, "o")
         let expr = match'(b, list{(pattern, b)})
         let m =
           defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ()) |> (

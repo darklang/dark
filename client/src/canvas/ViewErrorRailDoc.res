@@ -13,7 +13,10 @@ open PrettyDocs
  * status has yet to be determined (eg autocomplete). Pass `None` for [sendToRail]
  * in such cases.
  ")
-let hintForFunction = (fn: Prelude.function_, sendToRail: option<E.sendToRail>): Vdom.t<'a> => {
+let hintForFunction = (
+  fn: Prelude.function_,
+  sendToRail: option<ProgramTypes.Expr.sendToRail>,
+): Vdom.t<'a> => {
   let errorRail = Html.a(
     list{
       Html.class'("link"),

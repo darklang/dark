@@ -8,7 +8,7 @@ let defaultTLID = gtlid()
 
 let defaultExpr = B.new_()
 
-let defaultFluidExpr = FluidExpression.EBlank(gid())
+let defaultFluidExpr = ProgramTypes.Expr.EBlank(gid())
 
 let defaultPos = {x: 0, y: 0}
 

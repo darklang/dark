@@ -1,15 +1,4 @@
-@ppx.deriving(show({with_path: false}))
-type rec t =
-  | FPVariable(ID.t, ID.t, string)
-  | FPConstructor(ID.t, ID.t, string, list<t>)
-  /* TODO: support char */
-  /* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support */
-  | FPInteger(ID.t, ID.t, string)
-  | FPBool(ID.t, ID.t, bool)
-  | FPString({matchID: ID.t, patternID: ID.t, str: string})
-  | FPFloat(ID.t, ID.t, string, string)
-  | FPNull(ID.t, ID.t)
-  | FPBlank(ID.t, ID.t)
+type t = ProgramTypes.Pattern.t
 
 let toID: t => ID.t
 

@@ -2,8 +2,8 @@ open Tester
 open Prelude
 open AST
 module B = BlankOr
-open FluidExpression
-open FluidPattern
+open ProgramTypes.Expr
+open ProgramTypes.Pattern
 open FluidShortcuts
 
 type transformation_test_result<'a, 'b> =

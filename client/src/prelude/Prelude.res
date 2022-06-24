@@ -46,17 +46,9 @@ module Json = {
   module Encode = Json_encode_extended
 }
 
-// ---
-// IDs
-// ---
-
 let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
 
 let gtlid = (): TLID.t => Util.random() |> string_of_int |> TLID.fromString
-
-// --------------------------------------
-// CursorState
-// --------------------------------------
 
 module Debug = {
   let log = (~f: 'a => 'b=x => Obj.magic(x), msg: string, data: 'a): 'a => {

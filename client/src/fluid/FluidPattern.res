@@ -1,23 +1,11 @@
 open Tc
 
+type t = ProgramTypes.Pattern.t
+
 // CLEANUP: Added temporarily. Fluid stuff was in libshared and so couldn't rely on
 // types. But now we're moving things around and we can. this is here to let it all
 // typecheck and then we'll move this.
 let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
-
-@ppx.deriving(show({with_path: false}))
-type rec t =
-  // match id, then pattern id
-  | FPVariable(ID.t, ID.t, string)
-  | FPConstructor(ID.t, ID.t, string, list<t>)
-  // TODO: support char
-  // Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support
-  | FPInteger(ID.t, ID.t, string)
-  | FPBool(ID.t, ID.t, bool)
-  | FPString({matchID: ID.t, patternID: ID.t, str: string})
-  | FPFloat(ID.t, ID.t, string, string)
-  | FPNull(ID.t, ID.t)
-  | FPBlank(ID.t, ID.t)
 
 let toID = (p: t): ID.t =>
   switch p {

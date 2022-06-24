@@ -12,7 +12,7 @@
   * If you need new a new FluidAST function that already exists in
   * FluidExpression, it is usually safe to wrap the existing function with
   * [map] or [toExpr] as appropriate. ")
-type t
+type t = ProgramTypes.AST.t
 
 let show: t => string
 
