@@ -129,7 +129,7 @@ let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
 
 let fns : List<BuiltInFn> =
   [ { name = fn "StaticAssets" "baseUrlFor" 0
-      parameters = [ Param.make "deploy_hash" TStr "" ]
+      parameters = [ Param.make "deployHash" TStr "" ]
       returnType = TStr
       description = "Return the baseUrl for the specified deploy hash"
       fn =
@@ -166,7 +166,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "StaticAssets" "urlFor" 0
-      parameters = [ Param.make "deploy_hash" TStr ""; Param.make "file" TStr "" ]
+      parameters = [ Param.make "deployHash" TStr ""; Param.make "file" TStr "" ]
       returnType = TStr
       description = "Return a url for the specified file and deploy hash"
       fn =
@@ -201,7 +201,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "StaticAssets" "fetch" 0
-      parameters = [ Param.make "deploy_hash" TStr ""; Param.make "file" TStr "" ]
+      parameters = [ Param.make "deployHash" TStr ""; Param.make "file" TStr "" ]
       returnType = TResult(TStr, TStr)
       description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
@@ -223,7 +223,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "StaticAssets" "fetch" 1
-      parameters = [ Param.make "deploy_hash" TStr ""; Param.make "file" TStr "" ]
+      parameters = [ Param.make "deployHash" TStr ""; Param.make "file" TStr "" ]
       returnType = TResult(TStr, TStr)
       description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "StaticAssets" "fetchBytes" 0
-      parameters = [ Param.make "deploy_hash" TStr ""; Param.make "file" TStr "" ]
+      parameters = [ Param.make "deployHash" TStr ""; Param.make "file" TStr "" ]
       returnType = TResult(TBytes, TStr)
       description = "Return the bytes of the specified file from the deploy_hash"
       fn =
@@ -331,7 +331,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "StaticAssets" "serve" 0
-      parameters = [ Param.make "deploy_hash" TStr ""; Param.make "file" TStr "" ]
+      parameters = [ Param.make "deployHash" TStr ""; Param.make "file" TStr "" ]
       returnType = TResult(THttpResponse TStr, TStr)
       description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -366,7 +366,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "StaticAssets" "serve" 1
-      parameters = [ Param.make "deploy_hash" TStr ""; Param.make "file" TStr "" ]
+      parameters = [ Param.make "deployHash" TStr ""; Param.make "file" TStr "" ]
       returnType = TResult(THttpResponse TBytes, TStr)
       description = "Return the specified file from the latest deploy"
       fn =

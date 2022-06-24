@@ -13,11 +13,11 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Password" "hash" 0
-      parameters = [ Param.make "pw" TStr "" ]
+      parameters = [ Param.make "password" TStr "" ]
       returnType = TPassword
       description =
         "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
-                     NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
+         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
       fn =
         (function
         | _, [ DStr s ] ->
@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Password" "check" 0
       parameters =
-        [ Param.make "existingpwr" TPassword ""; Param.make "rawpw" TStr "" ]
+        [ Param.make "password" TPassword ""; Param.make "rawPassword" TStr "" ]
       returnType = TBool
       description =
         "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
