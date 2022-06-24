@@ -138,7 +138,7 @@ let fns : List<BuiltInFn> =
           SA.url state.program.canvasName deployHash SA.Short |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = ImpurePreviewable
+      previewable = Pure
       deprecated = NotDeprecated }
 
 
@@ -193,7 +193,7 @@ let fns : List<BuiltInFn> =
           SA.urlFor state.program.canvasName deployHash SA.Short file |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = ImpurePreviewable
+      previewable = Pure
       deprecated = NotDeprecated }
 
 
