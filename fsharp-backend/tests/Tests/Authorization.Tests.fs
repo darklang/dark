@@ -27,7 +27,7 @@ let testSetUserAccess =
       LibBackend.Account.upsertNonAdmin
         { username = UserName.create "test2"
           password = LibBackend.Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
-          email = "test@darklang.com"
+          email = "test2@darklang.com"
           name = "Dark Backend Tests" }
       |> Task.map (Exception.unwrapResultInternal [])
 
@@ -35,7 +35,7 @@ let testSetUserAccess =
       LibBackend.Account.upsertAdmin
         { username = UserName.create "test_admin2"
           password = LibBackend.Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
-          email = "test+admin@darklang.com"
+          email = "test+admin2@darklang.com"
           name = "Dark Backend Test Admin" }
       |> Task.map (Exception.unwrapResultInternal [])
 
