@@ -1,4 +1,4 @@
-/// The types that that the user sees
+/// The types that the user sees
 module LibExecution.ProgramTypes
 
 type id = Prelude.id
@@ -71,19 +71,62 @@ type Expr =
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EBinOp of id * FQFnName.InfixStdlibFnName * Expr * Expr * SendToRail
+  // the id in the varname list is the analysis id, used to get a livevalue
+  // from the analysis engine
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
   | EFnCall of id * FQFnName.T * List<Expr> * SendToRail
+  // An EPartial holds the intermediate state of user-input when changing from
+  // one expression to another. The [string] is the exact text that has been
+  // entered and the [t] is the old expression that is being changed.
+  //
+  // Examples:
+  // - When filling in an EBlank by typing `Str` an EPartial (id, "Str", EBlank (...)) is used.
+  // - When changing the EFnCall of "String::append" by deleting a character
+  //   from the end, an EPartial (id, "String::appen", EFnCall _) would
+  //   be created.
+  //
+  // EPartial is usually rendered as just the string part, but sometimes when
+  // wrapping certain kinds of expressions will be rendered in unique ways.
+  // Eg, an EPartial wrapping an EFnCall will render the arguments of the old
+  // EFnCall expression after the string. See FluidPrinter for specifics.
   | EPartial of id * string * Expr
+  // An ERightPartial is used while in the process of adding an EBinOp,
+  // allowing for typing multiple characters as operators (eg, "++") after an
+  // expression. The [string] holds the typed characters while the [t] holds
+  // the LHS of the binop.
+  //
+  // Example:
+  // Typing `"foo" ++` creates ERightPartial (id, "++", EString (_, "foo"))
+  // until the autocomplete of "++" is accepted, transforming the ERightPartial
+  // into a proper EBinOp.
+  //
+  // ERightPartial is rendered as the old expression followed by the string.
   | ERightPartial of id * string * Expr
+  // ELeftPartial allows typing to prepend a construct to an existing
+  // expression. The [string] holds the typed text, while the [t] holds the
+  // existing expression to the right.
+  //
+  // Example:
+  // On an existing line with `String::append "a" "b"` (a EFnCall), typing `if` at the beginning of the line
+  // will create a ELeftPartial (id, "if", EFnCall _). Accepting autocomplete
+  // of `if` would wrap the EFnCall into an EIf.
+  //
+  // ELeftPartial is rendered as the string followed by the normal rendering of the old expression.
   | ELeftPartial of id * string * Expr
   | EList of id * List<Expr>
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
+  // Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
+  // expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
+  // or length 0 (for `Nothing`).
   | EConstructor of id * string * List<Expr>
   | EMatch of id * Expr * List<Pattern * Expr>
+  // Placeholder that indicates the target of the Thread. May be movable at
+  // some point
   | EPipeTarget of id
+  // EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr
   | EFeatureFlag of id * string * Expr * Expr * Expr
 
 type DType =
