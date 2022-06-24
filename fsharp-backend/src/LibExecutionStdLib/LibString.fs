@@ -533,20 +533,17 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
       returnType = TList TStr
       description =
-        "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
+        "Splits a string at the separator, returning a list of strings without the separator.
+        If the separator is not present, returns a list containing only the initial string."
       fn =
         (function
         | _, [ DStr s; DStr sep ] ->
+          // This behaviour is the worst - it mimics what OCaml did:
+          // There are (n-1) empty strings returned for each sequence of n strings
+          // matching the separator (eg: split "aaaa" "a" = ["", "", ""]).
           if sep = "" then
             s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
           else
-            // CLEANUP: we need a new version of this fn.
-            // This behaviour is the worst. This mimics what OCaml did: There
-            // should be (n-1) empty strings returned for each sequence of n
-            // strings matching the separator (eg: split "aaaa" "a" = ["",
-            // "", ""]). However, the .NET string split puts in n-1 empty
-            // strings correctly everywhere except at the start and end,
-            // where there are n empty strings instead.
             let stripStartingEmptyString =
               (function
               | "" :: rest -> rest
@@ -561,6 +558,25 @@ let fns : List<BuiltInFn> =
             |> List.map DStr
             |> DList
             |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "split" 1) }
+
+
+    { name = fn "String" "split" 1
+      parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
+      returnType = TList TStr
+      description =
+        "Splits a string at the separator, returning a list of strings without the separator.
+        If the separator is not present, returns a list containing only the initial string."
+      fn =
+        (function
+        | _, [ DStr s; DStr sep ] ->
+          if sep = "" then
+            s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
+          else
+            s.Split sep |> Array.toList |> List.map DStr |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
