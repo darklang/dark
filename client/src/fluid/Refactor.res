@@ -67,7 +67,7 @@ type wrapLoc =
 let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): modification => {
   let replacement = (e): FluidExpression.t => {
     let newB = FluidExpression.newB
-    let newBlankPattern = mid => P.FPBlank(mid, gid())
+    let newBlankPattern = mid => P.PBlank(mid, gid())
     switch wl {
     | WLetRHS => ELet(gid(), "", e, newB())
     | WLetBody => ELet(gid(), "", newB(), e)

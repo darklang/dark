@@ -504,22 +504,22 @@ and fluidPattern = (pattern: FluidPattern.t): Js.Json.t => {
   /* Warning: A bunch of stuff here seems to expect that the
     second element of the tuples are match id but they are actually
     pattern ids. */
-  | FPVariable(id', mid, name) => ev("FPVariable", list{id(id'), id(mid), string(name)})
-  | FPConstructor(id', mid, name, patterns) =>
+  | PVariable(id', mid, name) => ev("FPVariable", list{id(id'), id(mid), string(name)})
+  | PConstructor(id', mid, name, patterns) =>
     ev("FPConstructor", list{id(id'), id(mid), string(name), list(fp, patterns)})
-  | FPInteger(id', mid, v) => ev("FPInteger", list{id(id'), id(mid), string(v)})
-  | FPBool(id', mid, v) => ev("FPBool", list{id(id'), id(mid), bool(v)})
-  | FPFloat(id', mid, whole, fraction) =>
+  | PInteger(id', mid, v) => ev("FPInteger", list{id(id'), id(mid), string(v)})
+  | PBool(id', mid, v) => ev("FPBool", list{id(id'), id(mid), bool(v)})
+  | PFloat(id', mid, whole, fraction) =>
     ev("FPFloat", list{id(id'), id(mid), string(whole), string(fraction)})
-  | FPString({matchID, patternID, str: v}) =>
+  | PString({matchID, patternID, str: v}) =>
     ev(
       "FPString",
       list{
         object_(list{("matchID", id(matchID)), ("patternID", id(patternID)), ("str", string(v))}),
       },
     )
-  | FPNull(id', mid) => ev("FPNull", list{id(id'), id(mid)})
-  | FPBlank(id', mid) => ev("FPBlank", list{id(id'), id(mid)})
+  | PNull(id', mid) => ev("FPNull", list{id(id'), id(mid)})
+  | PBlank(id', mid) => ev("FPBlank", list{id(id'), id(mid)})
   }
 }
 

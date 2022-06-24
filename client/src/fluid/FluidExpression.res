@@ -75,14 +75,14 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     }
   | Pat(pat) =>
     switch pat {
-    | FPVariable(_, pid, _)
-    | FPInteger(_, pid, _)
-    | FPBool(_, pid, _)
-    | FPNull(_, pid)
-    | FPBlank(_, pid)
-    | FPFloat(_, pid, _, _)
-    | FPString({matchID: _, patternID: pid, str: _}) => (pid, list{})
-    | FPConstructor(_, pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(p1)))
+    | PVariable(_, pid, _)
+    | PInteger(_, pid, _)
+    | PBool(_, pid, _)
+    | PNull(_, pid)
+    | PBlank(_, pid)
+    | PFloat(_, pid, _, _)
+    | PString({matchID: _, patternID: pid, str: _}) => (pid, list{})
+    | PConstructor(_, pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(p1)))
     }
   }
 
@@ -508,23 +508,23 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
         Tc.List.map2(~f=peq, l1, l2) |> Tc.List.all(~f=Tc.identity)
 
     switch (a, b) {
-    | (FPVariable(_, _, name), FPVariable(_, _, name')) => name == name'
-    | (FPConstructor(_, _, name, patterns), FPConstructor(_, _, name', patterns')) =>
+    | (PVariable(_, _, name), PVariable(_, _, name')) => name == name'
+    | (PConstructor(_, _, name, patterns), PConstructor(_, _, name', patterns')) =>
       name == name' && peqList(patterns, patterns')
-    | (FPString({str, _}), FPString({str: str', _})) => str == str'
-    | (FPInteger(_, _, l), FPInteger(_, _, l')) => l == l'
-    | (FPFloat(_, _, w, f), FPFloat(_, _, w', f')) => (w, f) == (w', f')
-    | (FPBool(_, _, l), FPBool(_, _, l')) => l == l'
-    | (FPNull(_, _), FPNull(_, _)) => true
-    | (FPBlank(_, _), FPBlank(_, _)) => true
-    | (FPVariable(_), _)
-    | (FPConstructor(_), _)
-    | (FPString(_), _)
-    | (FPInteger(_), _)
-    | (FPFloat(_), _)
-    | (FPBool(_), _)
-    | (FPNull(_), _)
-    | (FPBlank(_), _) => false
+    | (PString({str, _}), PString({str: str', _})) => str == str'
+    | (PInteger(_, _, l), PInteger(_, _, l')) => l == l'
+    | (PFloat(_, _, w, f), PFloat(_, _, w', f')) => (w, f) == (w', f')
+    | (PBool(_, _, l), PBool(_, _, l')) => l == l'
+    | (PNull(_, _), PNull(_, _)) => true
+    | (PBlank(_, _), PBlank(_, _)) => true
+    | (PVariable(_), _)
+    | (PConstructor(_), _)
+    | (PString(_), _)
+    | (PInteger(_), _)
+    | (PFloat(_), _)
+    | (PBool(_), _)
+    | (PNull(_), _)
+    | (PBlank(_), _) => false
     }
   }
 
@@ -630,15 +630,15 @@ let toHumanReadable = (expr: t): string => {
         let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
         let spaced = elems => String.join(~sep=" ", elems)
         switch p {
-        | FPBlank(_) => "pBlank"
-        | FPString({str, _}) => spaced(list{"pString", quoted(str)})
-        | FPBool(_, _, true) => spaced(list{"pBool true"})
-        | FPBool(_, _, false) => spaced(list{"pBool false"})
-        | FPFloat(_, _, whole, fractional) => spaced(list{"pFloat'", whole, fractional})
-        | FPInteger(_, _, int) => spaced(list{"pInt", int})
-        | FPNull(_) => "pNull"
-        | FPVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
-        | FPConstructor(_, _, name, args) =>
+        | PBlank(_) => "pBlank"
+        | PString({str, _}) => spaced(list{"pString", quoted(str)})
+        | PBool(_, _, true) => spaced(list{"pBool true"})
+        | PBool(_, _, false) => spaced(list{"pBool false"})
+        | PFloat(_, _, whole, fractional) => spaced(list{"pFloat'", whole, fractional})
+        | PInteger(_, _, int) => spaced(list{"pInt", int})
+        | PNull(_) => "pNull"
+        | PVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
+        | PConstructor(_, _, name, args) =>
           spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
         }
       }

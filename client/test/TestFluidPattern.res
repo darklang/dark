@@ -29,28 +29,28 @@ let h = expr => {
 
 let run = () => {
   let mID = gid()
-  let aStr = FPString({matchID: mID, patternID: gid(), str: "some string"})
+  let aStr = PString({matchID: mID, patternID: gid(), str: "some string"})
 
-  let emptyStr = FPString({matchID: mID, patternID: gid(), str: ""})
-  let oneCharStr = FPString({matchID: mID, patternID: gid(), str: "c"})
-  let aShortInt = FPInteger(mID, gid(), "1")
-  let anInt = FPInteger(mID, gid(), "12345")
-  let aHugeInt = FPInteger(mID, gid(), "2000000000000000000")
-  let aFloat = FPFloat(mID, gid(), "123", "456")
-  let aHugeFloat = FPFloat(mID, gid(), "123456789", "123456789")
-  let aShortFloat = FPFloat(mID, gid(), "1", "2")
-  let aPartialFloat = FPFloat(mID, gid(), "1", "")
-  let trueBool = FPBool(mID, gid(), true)
-  let falseBool = FPBool(mID, gid(), false)
-  let aNull = FPNull(mID, gid())
-  let five = FPInteger(mID, gid(), "5")
-  // let fiftySix = FPInteger (mID, gid (), 56) in
-  // let seventyEight = FPInteger (gid (), 78) in
-  let b = () => FPBlank(mID, gid())
+  let emptyStr = PString({matchID: mID, patternID: gid(), str: ""})
+  let oneCharStr = PString({matchID: mID, patternID: gid(), str: "c"})
+  let aShortInt = PInteger(mID, gid(), "1")
+  let anInt = PInteger(mID, gid(), "12345")
+  let aHugeInt = PInteger(mID, gid(), "2000000000000000000")
+  let aFloat = PFloat(mID, gid(), "123", "456")
+  let aHugeFloat = PFloat(mID, gid(), "123456789", "123456789")
+  let aShortFloat = PFloat(mID, gid(), "1", "2")
+  let aPartialFloat = PFloat(mID, gid(), "1", "")
+  let trueBool = PBool(mID, gid(), true)
+  let falseBool = PBool(mID, gid(), false)
+  let aNull = PNull(mID, gid())
+  let five = PInteger(mID, gid(), "5")
+  // let fiftySix = PInteger (mID, gid (), 56) in
+  // let seventyEight = PInteger (gid (), 78) in
+  let b = () => PBlank(mID, gid())
   // let aPartialVar = FPPartial (gid (), "req") in
-  let aVar = FPVariable(mID, gid(), "variable")
-  let aShortVar = FPVariable(mID, gid(), "v")
-  let aConstructor = FPConstructor(mID, gid(), "Just", list{b()})
+  let aVar = PVariable(mID, gid(), "variable")
+  let aShortVar = PVariable(mID, gid(), "v")
+  let aConstructor = PConstructor(mID, gid(), "Just", list{b()})
   let process = (~debug: bool, inputs: list<fluidInputEvent>, pos: int, pat: FluidPattern.t): (
     string,
     int,
@@ -183,8 +183,8 @@ let run = () => {
     t("insert number at scale", aHugeInt, insert("9", 5), ("2000090000000000000", 6))
     t("insert number at scale", aHugeInt, insert("9", 0), ("920000000000000000", 1))
     t("insert number at scale", aHugeInt, insert("9", 19), ("2000000000000000000", 19))
-    // let max62BitInt = FPInteger (mID, gid (), "4611686018427387903") in
-    let oneShorterThanMax62BitInt = FPInteger(mID, gid(), "461168601842738790")
+    // let max62BitInt = PInteger (mID, gid (), "4611686018427387903") in
+    let oneShorterThanMax62BitInt = PInteger(mID, gid(), "461168601842738790")
 
     t(
       "insert number at scale",
@@ -217,8 +217,8 @@ let run = () => {
     t("insert non-int in fraction", aFloat, insert("c", 6), ("123.456", 6))
     t("del dot", aFloat, del(3), ("123456", 3))
     t("del dot at scale", aHugeFloat, del(9), ("123456789123456789", 9))
-    let maxPosIntWithDot = FPFloat(mID, gid(), "4611686018427387", "903")
-    let maxPosIntPlus1WithDot = FPFloat(mID, gid(), "4611686018427387", "904")
+    let maxPosIntWithDot = PFloat(mID, gid(), "4611686018427387", "903")
+    let maxPosIntPlus1WithDot = PFloat(mID, gid(), "4611686018427387", "904")
 
     t("del dot at limit", maxPosIntWithDot, del(16), ("4611686018427387903", 16))
     t("del dot at limit", maxPosIntPlus1WithDot, del(16), ("461168601842738790", 16))

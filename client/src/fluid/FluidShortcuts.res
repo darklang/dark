@@ -78,76 +78,76 @@ let match' = (~id=gid(), cond: t, matches: list<(FluidPattern.t, t)>): t => EMat
   matches,
 )
 
-let pInt = (~mid=gid(), ~id=gid(), int: int): FluidPattern.t => FPInteger(
+let pInt = (~mid=gid(), ~id=gid(), int: int): FluidPattern.t => PInteger(
   mid,
   id,
   string_of_int(int),
 )
 
-let pIntStr = (~mid=gid(), ~id=gid(), int: string): FluidPattern.t => FPInteger(mid, id, int)
+let pIntStr = (~mid=gid(), ~id=gid(), int: string): FluidPattern.t => PInteger(mid, id, int)
 
-let pVar = (~mid=gid(), ~id=gid(), name: string): FluidPattern.t => FPVariable(mid, id, name)
+let pVar = (~mid=gid(), ~id=gid(), name: string): FluidPattern.t => PVariable(mid, id, name)
 
 let pConstructor = (
   ~mid=gid(),
   ~id=gid(),
   name: string,
   patterns: list<FluidPattern.t>,
-): FluidPattern.t => FPConstructor(mid, id, name, patterns)
+): FluidPattern.t => PConstructor(mid, id, name, patterns)
 
-let pJust = (~mid=gid(), ~id=gid(), arg: FluidPattern.t): FluidPattern.t => FPConstructor(
+let pJust = (~mid=gid(), ~id=gid(), arg: FluidPattern.t): FluidPattern.t => PConstructor(
   mid,
   id,
   "Just",
   list{arg},
 )
 
-let pNothing = (~mid=gid(), ~id=gid(), ()): FluidPattern.t => FPConstructor(
+let pNothing = (~mid=gid(), ~id=gid(), ()): FluidPattern.t => PConstructor(
   mid,
   id,
   "Nothing",
   list{},
 )
 
-let pError = (~mid=gid(), ~id=gid(), arg: FluidPattern.t): FluidPattern.t => FPConstructor(
+let pError = (~mid=gid(), ~id=gid(), arg: FluidPattern.t): FluidPattern.t => PConstructor(
   mid,
   id,
   "Error",
   list{arg},
 )
 
-let pOk = (~mid=gid(), ~id=gid(), arg: FluidPattern.t): FluidPattern.t => FPConstructor(
+let pOk = (~mid=gid(), ~id=gid(), arg: FluidPattern.t): FluidPattern.t => PConstructor(
   mid,
   id,
   "Ok",
   list{arg},
 )
 
-let pBool = (~mid=gid(), ~id=gid(), b: bool): FluidPattern.t => FPBool(mid, id, b)
+let pBool = (~mid=gid(), ~id=gid(), b: bool): FluidPattern.t => PBool(mid, id, b)
 
-let pString = (~mid=gid(), ~id=gid(), str: string): FluidPattern.t => FPString({
+let pString = (~mid=gid(), ~id=gid(), str: string): FluidPattern.t => PString({
   matchID: mid,
   patternID: id,
   str: str,
 })
 
-let pFloatStr = (~mid=gid(), ~id=gid(), whole: string, fraction: string): FluidPattern.t => FPFloat(
+let pFloatStr = (~mid=gid(), ~id=gid(), whole: string, fraction: string): FluidPattern.t => PFloat(
   mid,
   id,
   whole,
   fraction,
 )
 
-let pFloat = (~mid=gid(), ~id=gid(), whole: int, fraction: int): FluidPattern.t => FPFloat(
+let pFloat = (~mid=gid(), ~id=gid(), whole: int, fraction: int): FluidPattern.t => PFloat(
   mid,
   id,
   string_of_int(whole),
   string_of_int(fraction),
 )
 
-let pNull = (~mid=gid(), ~id=gid(), ()): FluidPattern.t => FPNull(mid, id)
+let pNull = (~mid=gid(), ~id=gid(), ()): FluidPattern.t => PNull(mid, id)
 
-let pBlank = (~mid=gid(), ~id=gid(), ()): FluidPattern.t => FPBlank(mid, id)
+let pBlank = (~mid=gid(), ~id=gid(), ()): FluidPattern.t => PBlank(mid, id)
 
 let flag = (~id=gid(), ~name="flag-1", cond, oldCode, newCode) => EFeatureFlag(
   id,

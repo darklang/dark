@@ -6,16 +6,16 @@ module Pattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
     // match id, then pattern id
-    | FPVariable(id, id, string)
-    | FPConstructor(id, id, string, list<t>)
+    | PVariable(id, id, string)
+    | PConstructor(id, id, string, list<t>)
     // TODO: support char
     // Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support
-    | FPInteger(id, id, string)
-    | FPBool(id, id, bool)
-    | FPString({matchID: id, patternID: id, str: string})
-    | FPFloat(id, id, string, string)
-    | FPNull(id, id)
-    | FPBlank(id, id)
+    | PInteger(id, id, string)
+    | PBool(id, id, bool)
+    | PString({matchID: id, patternID: id, str: string})
+    | PFloat(id, id, string, string)
+    | PNull(id, id)
+    | PBlank(id, id)
 }
 
 module Expr = {

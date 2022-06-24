@@ -28,7 +28,7 @@ let run = () => {
       let e = EConstructor(id2, "Just", list{EVariable(id4, "request")})
       let pats = list{
         (
-          FPConstructor(id5, id1, "Just", list{FPVariable(id6, id1, "anything")}),
+          PConstructor(id5, id1, "Just", list{PVariable(id6, id1, "anything")}),
           EVariable(id7, "anything"),
         ),
       }

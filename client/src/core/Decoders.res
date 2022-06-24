@@ -225,18 +225,18 @@ let rec fluidPattern = (j): FluidPattern.t => {
   let dv2 = variant2
   variants(
     list{
-      ("FPVariable", dv3((a, b, c) => P.FPVariable(a, b, c), id, id, string)),
-      ("FPConstructor", dv4((a, b, c, d) => P.FPConstructor(a, b, c, d), id, id, string, list(dp))),
-      ("FPInteger", dv3((a, b, c) => P.FPInteger(a, b, c), id, id, string)),
-      ("FPBool", dv3((a, b, c) => P.FPBool(a, b, c), id, id, bool)),
-      ("FPString", recordVariant3((matchID, patternID, str) => P.FPString({
+      ("FPVariable", dv3((a, b, c) => P.PVariable(a, b, c), id, id, string)),
+      ("FPConstructor", dv4((a, b, c, d) => P.PConstructor(a, b, c, d), id, id, string, list(dp))),
+      ("FPInteger", dv3((a, b, c) => P.PInteger(a, b, c), id, id, string)),
+      ("FPBool", dv3((a, b, c) => P.PBool(a, b, c), id, id, bool)),
+      ("FPString", recordVariant3((matchID, patternID, str) => P.PString({
           matchID: matchID,
           patternID: patternID,
           str: str,
         }), ("matchID", id), ("patternID", id), ("str", string))),
-      ("FPFloat", dv4((a, b, c, d) => P.FPFloat(a, b, c, d), id, id, string, string)),
-      ("FPNull", dv2((a, b) => P.FPNull(a, b), id, id)),
-      ("FPBlank", dv2((a, b) => P.FPBlank(a, b), id, id)),
+      ("FPFloat", dv4((a, b, c, d) => P.PFloat(a, b, c, d), id, id, string, string)),
+      ("FPNull", dv2((a, b) => P.PNull(a, b), id, id)),
+      ("FPBlank", dv2((a, b) => P.PBlank(a, b), id, id)),
     },
     j,
   )

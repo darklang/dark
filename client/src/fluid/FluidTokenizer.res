@@ -124,22 +124,22 @@ module Builder = {
 
 let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
   switch p {
-  | FPVariable(mid, id, name) => list{TPatternVariable(mid, id, name, idx)}
-  | FPConstructor(mid, id, name, args) =>
+  | PVariable(mid, id, name) => list{TPatternVariable(mid, id, name, idx)}
+  | PConstructor(mid, id, name, args) =>
     let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(a, ~idx)})
 
     List.flatten(list{list{TPatternConstructorName(mid, id, name, idx)}, ...args})
-  | FPInteger(mid, id, i) => list{TPatternInteger(mid, id, i, idx)}
-  | FPBool(mid, id, b) =>
+  | PInteger(mid, id, i) => list{TPatternInteger(mid, id, i, idx)}
+  | PBool(mid, id, b) =>
     if b {
       list{TPatternTrue(mid, id, idx)}
     } else {
       list{TPatternFalse(mid, id, idx)}
     }
-  | FPString({matchID: mid, patternID: id, str}) => list{
+  | PString({matchID: mid, patternID: id, str}) => list{
       TPatternString({matchID: mid, patternID: id, str: str, branchIdx: idx}),
     }
-  | FPFloat(mID, id, whole, fraction) =>
+  | PFloat(mID, id, whole, fraction) =>
     let whole = if whole == "" {
       list{}
     } else {
@@ -153,8 +153,8 @@ let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
     }
 
     Belt.List.concatMany([whole, list{TPatternFloatPoint(mID, id, idx)}, fraction])
-  | FPNull(mid, id) => list{TPatternNullToken(mid, id, idx)}
-  | FPBlank(mid, id) => list{TPatternBlank(mid, id, idx)}
+  | PNull(mid, id) => list{TPatternNullToken(mid, id, idx)}
+  | PBlank(mid, id) => list{TPatternBlank(mid, id, idx)}
   }
 
 let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {

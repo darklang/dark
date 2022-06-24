@@ -237,14 +237,14 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     | EMatch(_, matchExpr, cases) =>
       let rec variablesInPattern = p =>
         switch p {
-        | FPInteger(_)
-        | FPNull(_)
-        | FPString(_)
-        | FPFloat(_)
-        | FPBool(_)
-        | FPBlank(_) => list{}
-        | FPVariable(_, patternID, v) => list{(patternID, v)}
-        | FPConstructor(_, _, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
+        | PInteger(_)
+        | PNull(_)
+        | PString(_)
+        | PFloat(_)
+        | PBool(_)
+        | PBlank(_) => list{}
+        | PVariable(_, patternID, v) => list{(patternID, v)}
+        | PConstructor(_, _, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
         }
 
       sexe(st, matchExpr)
