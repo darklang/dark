@@ -5206,7 +5206,7 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
       /* [addPipeTarget pipeId initialExpr] replaces the first arg into which one can pipe with a pipe target having [pipeId]
        * at the root of [initialExpr], if such an arg exists.
        * It is recursive in order to handle root expressions inside partials. */
-      let rec addPipeTarget = (pipeId: Shared.id, initialExpr: E.t): E.t =>
+      let rec addPipeTarget = (pipeId: ID.t, initialExpr: E.t): E.t =>
         switch initialExpr {
         | EFnCall(id, name, args, sendToRail) =>
           let args = switch args {

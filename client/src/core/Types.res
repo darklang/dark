@@ -55,6 +55,8 @@ type rec clipboardContents = /* Clipboard supports both text and encoded FluidEx
 module /* == legacy aliases == */ TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
 
+@ppx.deriving(show) type rec id = ID.t
+
 @ppx.deriving(show) type rec analysisID = ID.t
 
 @ppx.deriving(show) type rec parentBlockID = ID.t

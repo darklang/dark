@@ -5,7 +5,7 @@ open Json.Decode
 module TL = Toplevel
 module RT = Runtime
 
-type id = Shared.id
+type id = id
 
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 

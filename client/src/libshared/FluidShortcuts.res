@@ -1,6 +1,5 @@
-open Tc
+open Prelude
 open FluidExpression
-open Shared
 
 let blank = (~id=gid(), ()): t => EBlank(id)
 

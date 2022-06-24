@@ -1,21 +1,25 @@
 open Tc
-open Shared
+
+// CLEANUP: Added temporarily. Fluid stuff was in libshared and so couldn't rely on
+// types. But now we're moving things around and we can. this is here to let it all
+// typecheck and then we'll move this.
+let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
 
 @ppx.deriving(show({with_path: false}))
 type rec t =
   // match id, then pattern id
-  | FPVariable(id, id, string)
-  | FPConstructor(id, id, string, list<t>)
+  | FPVariable(ID.t, ID.t, string)
+  | FPConstructor(ID.t, ID.t, string, list<t>)
   // TODO: support char
   // Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support
-  | FPInteger(id, id, string)
-  | FPBool(id, id, bool)
-  | FPString({matchID: id, patternID: id, str: string})
-  | FPFloat(id, id, string, string)
-  | FPNull(id, id)
-  | FPBlank(id, id)
+  | FPInteger(ID.t, ID.t, string)
+  | FPBool(ID.t, ID.t, bool)
+  | FPString({matchID: ID.t, patternID: ID.t, str: string})
+  | FPFloat(ID.t, ID.t, string, string)
+  | FPNull(ID.t, ID.t)
+  | FPBlank(ID.t, ID.t)
 
-let toID = (p: t): id =>
+let toID = (p: t): ID.t =>
   switch p {
   | FPVariable(_, id, _)
   | FPConstructor(_, id, _, _)
@@ -27,7 +31,7 @@ let toID = (p: t): id =>
   | FPBlank(_, id) => id
   }
 
-let rec ids = (p: t): list<id> =>
+let rec ids = (p: t): list<ID.t> =>
   switch p {
   | FPConstructor(_, id, _, list) =>
     list |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
@@ -40,7 +44,7 @@ let rec ids = (p: t): list<id> =>
   | FPBlank(_) => list{toID(p)}
   }
 
-let toMatchID = (p: t): id =>
+let toMatchID = (p: t): ID.t =>
   switch p {
   | FPVariable(mid, _, _)
   | FPConstructor(mid, _, _, _)
@@ -52,7 +56,7 @@ let toMatchID = (p: t): id =>
   | FPBlank(mid, _) => mid
   }
 
-let rec clone = (matchID: id, p: t): t =>
+let rec clone = (matchID: ID.t, p: t): t =>
   switch p {
   | FPVariable(_, _, name) => FPVariable(matchID, gid(), name)
   | FPConstructor(_, _, name, patterns) =>
@@ -75,7 +79,7 @@ let rec variableNames = (p: t): list<string> =>
 let hasVariableNamed = (varName: string, p: t): bool =>
   List.member(~value=varName, variableNames(p))
 
-let rec findPattern = (patID: id, within: t): option<t> =>
+let rec findPattern = (patID: ID.t, within: t): option<t> =>
   switch within {
   | FPVariable(_, pid, _)
   | FPInteger(_, pid, _)

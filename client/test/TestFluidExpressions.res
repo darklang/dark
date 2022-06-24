@@ -3,8 +3,6 @@ open Tester
 open FluidShortcuts
 module E = FluidExpression
 
-let gid = Shared.gid
-
 let run = () => {
   describe("decendants", () => {
     /* [t f] helps test the decendants function

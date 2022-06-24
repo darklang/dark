@@ -1,8 +1,8 @@
 open Prelude
 
-let send = Unshared.Rollbar.send
+let send = ErrorReporting.Rollbar.send
 
-let init = Unshared.Rollbar.init
+let init = ErrorReporting.Rollbar.init
 
 let customContext = (e: apiError, state: cursorState): Js.Json.t => {
   let parameters = Option.unwrap(~default=Js.Json.null, e.requestParams)

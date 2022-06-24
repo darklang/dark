@@ -30,7 +30,7 @@ let toExpr: t => FluidExpression.t
 let ofExpr: FluidExpression.t => t
 
 @ocaml.doc(" [toID ast] returns the id of the first (root) expression of [ast]. ")
-let toID: t => Shared.id
+let toID: t => ID.t
 
 @ocaml.doc(" [map ast ~f] passes [ast] to [f] as an expression and returns the result of
   * [f e] as an AST. ")
@@ -40,7 +40,7 @@ let map: (~f: FluidExpression.t => FluidExpression.t, t) => t
   * [ast] and returns a new AST with it replaced by [replacement].
   *
   * See FluidExpression.replace ")
-let replace: (~replacement: FluidExpression.t, Shared.id, t) => t
+let replace: (~replacement: FluidExpression.t, ID.t, t) => t
 
 @ocaml.doc(" [update f target ast] recursively searches [ast] for the expression having
   * an id of [target].
@@ -52,7 +52,7 @@ let replace: (~replacement: FluidExpression.t, Shared.id, t) => t
   * unmodified AST.
   *
   * See FluidExpression.update ")
-let update: (~failIfMissing: bool=?, ~f: FluidExpression.t => FluidExpression.t, Shared.id, t) => t
+let update: (~failIfMissing: bool=?, ~f: FluidExpression.t => FluidExpression.t, ID.t, t) => t
 
 @ocaml.doc(" [filter ast ~f] recursively calls [f] on every expression within [ast],
   * returning a list of all expressions for which [f e] is true.
@@ -68,26 +68,26 @@ let blanks: t => list<FluidExpression.t>
 @ocaml.doc(" [ids ast] returns a list of the id of every expression in [ast].
   *
   * See FluidExpression.ids ")
-let ids: t => list<Shared.id>
+let ids: t => list<ID.t>
 
 @ocaml.doc(" [find target ast] recursively finds the expression having an id of [target]
   * in [ast] and returns it if found.
   *
   * See FluidExpression.find ")
-let find: (Shared.id, t) => option<FluidExpression.t>
+let find: (ID.t, t) => option<FluidExpression.t>
 
 @ocaml.doc(" [findParent target ast] recursively finds the expression having an id of
   * [target] in [ast] and then returns the parent of that expression.
   *
   * See FluidExpression.findParent ")
-let findParent: (Shared.id, t) => option<FluidExpression.t>
+let findParent: (ID.t, t) => option<FluidExpression.t>
 
 @ocaml.doc(" [ancestors target ast] finds the expression having an id of [target] in
   * [ast] and then returns the list of ancestors (parent, parent of parent, etc)
   * of that expression.
   *
   * See FluidExpression.ancestors ")
-let ancestors: (Shared.id, t) => list<FluidExpression.t>
+let ancestors: (ID.t, t) => list<FluidExpression.t>
 
 @ocaml.doc(" [getFeatureFlags ast] returns a list of all feature flags in the AST. ")
 let getFeatureFlags: t => list<FluidExpression.t>

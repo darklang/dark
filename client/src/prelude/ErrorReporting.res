@@ -1,7 +1,3 @@
-let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
-
-type jsonType = Js.Json.t
-
 module Rollbar = {
   type rollbar_mod = {@meth "init": Js.Json.t => unit}
 
