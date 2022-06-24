@@ -127,6 +127,8 @@ let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
   }
 
 
+let varA = TVariable "a"
+
 let fns : List<BuiltInFn> =
   [ { name = fn "StaticAssets" "baseUrlFor" 0
       parameters = [ Param.make "deploy_hash" TStr "" ]
@@ -164,18 +166,18 @@ let fns : List<BuiltInFn> =
 
     { name = fn "StaticAssets" "baseUrlForLatest" 1
       parameters = []
-      returnType = TResult(TStr, TStr)
+      returnType = TOption varA
       description = "Return the baseUrl for the latest deploy"
       fn =
         (function
         | state, [] ->
           uply {
             match! SA.latestDeployHash state.program.canvasID with
-            | None -> return DResult(Error(DStr "No deploy hash found"))
+            | None -> return DOption None
             | Some deployHash ->
               printfn "here"
               let url = SA.url state.program.canvasName deployHash SA.Short
-              return DResult(Ok(DStr url))
+              return DOption(Some(DStr url))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

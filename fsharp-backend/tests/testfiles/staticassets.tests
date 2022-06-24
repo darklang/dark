@@ -67,10 +67,10 @@ StaticAssets.baseUrlForLatest_v0 = "https://test-baseurlforlatest-0.darksa.com/h
 StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "No deploy hash found"
 
 [test.baseUrlForLatest_v1] with ExactCanvasName test-baseurlforlatest-1, StaticAssetsDeployHash abcdef1235
-StaticAssets.baseUrlForLatest_v1 = Ok "https://test-baseurlforlatest-1.darksa.com/preb3tbz8blanninut_61rbtx-s/abcdef1235"
+StaticAssets.baseUrlForLatest_v1 = Some "https://test-baseurlforlatest-1.darksa.com/preb3tbz8blanninut_61rbtx-s/abcdef1235"
 
 [tests.baseUrlForLatest_v1with no hash]
-StaticAssets.baseUrlForLatest_v1 = Error "No deploy hash found"
+StaticAssets.baseUrlForLatest_v1 = None
 
 // urlFor
 
