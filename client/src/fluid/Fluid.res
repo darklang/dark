@@ -25,6 +25,7 @@ module Util = FluidUtil
 module Clipboard = FluidClipboard
 module CT = CaretTarget
 module ASTInfo = Tokenizer.ASTInfo
+module Sign = ProgramTypes.Sign
 
 open ProgramTypes.Expr
 open ProgramTypes.Pattern
@@ -998,7 +999,7 @@ let rec caretTargetForEndOfExpr': fluidExpr => caretTarget = x =>
   | EBool(id, true) => {astRef: ARBool(id), offset: String.length("true")}
   | EBool(id, false) => {astRef: ARBool(id), offset: String.length("false")}
   | EString(id, str) => CT.forARStringCloseQuote(id, 1, str)
-  | EFloat(id, _, decimalStr) => {
+  | EFloat(id, _, _, decimalStr) => {
       astRef: ARFloat(id, FPFractional),
       offset: String.length(decimalStr),
     }
@@ -1097,7 +1098,7 @@ let rec caretTargetForStartOfExpr': fluidExpr => caretTarget = x =>
   | EInteger(id, _) => {astRef: ARInteger(id), offset: 0}
   | EBool(id, _) => {astRef: ARBool(id), offset: 0}
   | EString(id, _) => CT.forARStringOpenQuote(id, 0)
-  | EFloat(id, _, _) => {astRef: ARFloat(id, FPWhole), offset: 0}
+  | EFloat(id, _, _, _) => {astRef: ARFloat(id, FPWhole), offset: 0}
   | ENull(id) => {astRef: ARNull(id), offset: 0}
   | EBlank(id) => {astRef: ARBlank(id), offset: 0}
   | ELet(id, _, _, _) => {astRef: ARLet(id, LPKeyword), offset: 0}
@@ -1150,7 +1151,7 @@ let caretTargetForStartOfPattern = (pattern: fluidPattern): caretTarget =>
   | PInteger(_, id, _) => {astRef: ARPattern(id, PPInteger), offset: 0}
   | PBool(_, id, _) => {astRef: ARPattern(id, PPBool), offset: 0}
   | PString({patternID: id, _}) => CT.forPPStringOpenQuote(id, 0)
-  | PFloat(_, id, _, _) => {astRef: ARPattern(id, PPFloat(FPWhole)), offset: 0}
+  | PFloat(_, id, _, _, _) => {astRef: ARPattern(id, PPFloat(FPWhole)), offset: 0}
   | PNull(_, id) => {astRef: ARPattern(id, PPNull), offset: 0}
   | PBlank(_, id) => {astRef: ARPattern(id, PPBlank), offset: 0}
   }
@@ -1179,7 +1180,7 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): caretTarget =>
   | PBool(_, id, true) => {astRef: ARPattern(id, PPBool), offset: String.length("true")}
   | PBool(_, id, false) => {astRef: ARPattern(id, PPBool), offset: String.length("false")}
   | PString({patternID: id, str, _}) => CT.forPPStringCloseQuote(id, 1, str) // end of close quote
-  | PFloat(_, id, _, frac) => {
+  | PFloat(_, id, _, _, frac) => {
       astRef: ARPattern(id, PPFloat(FPFractional)),
       offset: String.length(frac),
     }
@@ -2626,16 +2627,18 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         let newStr = str |> mutationAt(~index=strRelOffset - 1)
         Some(Expr(EString(id, newStr)), CT.forARStringOpenQuote(id, strRelOffset))
       }
-    | (ARFloat(_, FPWhole), EFloat(id, whole, frac)) =>
-      Some(Expr(EFloat(id, mutation(whole), frac)), currCTMinusOne)
-    | (ARFloat(_, FPPoint), EFloat(_, whole, frac)) =>
-      /* Todo: If the float only consists of a . and has no whole or frac,
-       it should become a blank. Instead, it currently becomes a 0, which is weird. */
-      let i = Util.coerceStringTo63BitInt(whole ++ frac)
+    | (ARFloat(_, FPWhole), EFloat(id, sign, whole, frac)) =>
+      let word = Sign.combine(sign, whole)
+      let (sign, whole) = Sign.split(mutation(word))
+      Some(Expr(EFloat(id, sign, whole, frac)), currCTMinusOne)
+    | (ARFloat(_, FPPoint), EFloat(_, sign, whole, frac)) =>
+      // Todo: If the float only consists of a . and has no whole or frac,
+      // it should become a blank. Instead, it currently becomes a 0, which is weird.
+      let i = Util.coerceStringTo63BitInt(ProgramTypes.Sign.combine(sign, whole) ++ frac)
       let iID = gid()
       Some(Expr(EInteger(iID, i)), {astRef: ARInteger(iID), offset: String.length(whole)})
-    | (ARFloat(_, FPFractional), EFloat(id, whole, frac)) =>
-      Some(Expr(EFloat(id, whole, mutation(frac))), currCTMinusOne)
+    | (ARFloat(_, FPFractional), EFloat(id, sign, whole, frac)) =>
+      Some(Expr(EFloat(id, sign, whole, mutation(frac))), currCTMinusOne)
     | (ARLet(_, LPVarName), ELet(id, oldName, value, body)) =>
       let newName = mutation(oldName)
       let newExpr = ELet(id, newName, value, E.renameVariableUses(~oldName, ~newName, body))
@@ -2996,25 +2999,26 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
           {astRef: ARPattern(newID, PPVariable), offset: currOffset - 1},
         )
       }
-    /*
-     * Floats
-     */
-    | (ARPattern(_, PPFloat(FPWhole)), PFloat(mID, pID, whole, frac)) =>
-      Some(Pat(PFloat(mID, pID, mutation(whole), frac)), currCTMinusOne)
-    | (ARPattern(_, PPFloat(FPPoint)), PFloat(mID, _, whole, frac)) =>
-      /* TODO: If the float only consists of a . and has no whole or frac,
-       it should become a blank. Instead, it currently becomes a 0, which is weird. */
-      let i = Util.coerceStringTo63BitInt(whole ++ frac)
+    //
+    // Floats
+    //
+    | (ARPattern(_, PPFloat(FPWhole)), PFloat(mID, pID, sign, whole, frac)) =>
+      let (sign, whole) = Sign.combine(sign, whole)->mutation->Sign.split
+      Some(Pat(PFloat(mID, pID, sign, whole, frac)), currCTMinusOne)
+    | (ARPattern(_, PPFloat(FPPoint)), PFloat(mID, _, sign, whole, frac)) =>
+      // TODO: If the float only consists of a . and has no whole or frac,
+      // it should become a blank. Instead, it currently becomes a 0, which is weird.
+      let i = Util.coerceStringTo63BitInt(Sign.toString(sign) ++ whole ++ frac)
       let iID = gid()
       Some(
         Pat(PInteger(mID, iID, i)),
         {astRef: ARPattern(iID, PPInteger), offset: String.length(whole)},
       )
-    | (ARPattern(_, PPFloat(FPFractional)), PFloat(mID, pID, whole, frac)) =>
-      Some(Pat(PFloat(mID, pID, whole, mutation(frac))), currCTMinusOne)
-    /*
-     * Strings
-     */
+    | (ARPattern(_, PPFloat(FPFractional)), PFloat(mID, pID, sign, whole, frac)) =>
+      Some(Pat(PFloat(mID, pID, sign, whole, mutation(frac))), currCTMinusOne)
+    //
+    // Strings
+    //
     | (ARPattern(_, PPString(kind)), PString({matchID, patternID, str} as data)) =>
       let strRelOffset = switch kind {
       | SPOpenQuote => currOffset - 1
@@ -3224,8 +3228,7 @@ let doExplicitInsert = (
       if currCaretTarget.offset == 0 &&
         FluidUtil.isUnicodeLetter(
           extendedGraphemeCluster,
-        ) => /* only allow unicode letters, as we don't want
-       * symbols or numbers to create left partials */
+        ) => // only allow unicode letters, as we don't want symbols or numbers to create left partials
       maybeIntoLeftPartial
     | (ARString(_, kind), EString(id, str)) =>
       let len = String.length(str)
@@ -3239,7 +3242,7 @@ let doExplicitInsert = (
         let newStr = str |> mutationAt(~index=strRelOffset)
         Some(EString(id, newStr), CT.forARStringText(id, strRelOffset + caretDelta))
       }
-    | (ARFloat(_, kind), EFloat(id, whole, frac)) =>
+    | (ARFloat(_, kind), EFloat(id, sign, whole, frac)) =>
       if FluidUtil.isNumber(extendedGraphemeCluster) {
         let (isWhole, index) = switch kind {
         | FPWhole => (true, currOffset)
@@ -3259,14 +3262,14 @@ let doExplicitInsert = (
             None
           } else {
             Some(
-              EFloat(id, newWhole, frac),
+              EFloat(id, sign, newWhole, frac),
               {astRef: ARFloat(id, FPWhole), offset: index + caretDelta},
             )
           }
         } else {
           let newFrac = mutationAt(frac, ~index)
           Some(
-            EFloat(id, whole, newFrac),
+            EFloat(id, sign, whole, newFrac),
             {
               astRef: ARFloat(id, FPFractional),
               offset: index + caretDelta,
@@ -3331,7 +3334,7 @@ let doExplicitInsert = (
       } else if extendedGraphemeCluster == "." {
         let newID = gid()
         let (whole, frac) = String.splitAt(~index=currOffset, intStr)
-        Some(EFloat(newID, whole, frac), {astRef: ARFloat(newID, FPPoint), offset: 1})
+        Some(EFloat(newID, Positive, whole, frac), {astRef: ARFloat(newID, FPPoint), offset: 1})
       } else {
         None
       }
@@ -3450,7 +3453,7 @@ let doExplicitInsert = (
     pat: fluidPattern,
   ): option<(E.fluidPatOrExpr, caretTarget)> =>
     switch (currAstRef, pat) {
-    | (ARPattern(_, PPFloat(kind)), PFloat(mID, pID, whole, frac)) =>
+    | (ARPattern(_, PPFloat(kind)), PFloat(mID, pID, sign, whole, frac)) =>
       if FluidUtil.isNumber(extendedGraphemeCluster) {
         let (isWhole, index) = switch kind {
         | FPWhole => (true, currOffset)
@@ -3470,7 +3473,7 @@ let doExplicitInsert = (
             None
           } else {
             Some(
-              Pat(PFloat(mID, pID, newWhole, frac)),
+              Pat(PFloat(mID, pID, sign, newWhole, frac)),
               {
                 astRef: ARPattern(pID, PPFloat(FPWhole)),
                 offset: index + caretDelta,
@@ -3480,7 +3483,7 @@ let doExplicitInsert = (
         } else {
           let newFrac = mutationAt(frac, ~index)
           Some(
-            Pat(PFloat(mID, pID, whole, newFrac)),
+            Pat(PFloat(mID, pID, sign, whole, newFrac)),
             {
               astRef: ARPattern(pID, PPFloat(FPFractional)),
               offset: index + caretDelta,
@@ -3544,8 +3547,9 @@ let doExplicitInsert = (
       } else if extendedGraphemeCluster == "." {
         let newID = gid()
         let (whole, frac) = String.splitAt(~index=currOffset, intStr)
+        let (sign, whole) = Sign.split(whole)
         Some(
-          Pat(PFloat(mID, newID, whole, frac)),
+          Pat(PFloat(mID, newID, sign, whole, frac)),
           {astRef: ARPattern(newID, PPFloat(FPPoint)), offset: 1},
         )
       } else {
@@ -4881,17 +4885,17 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       } else {
         Some(EString(eID, Util.trimQuotes(merged)))
       }
-    | EFloat(eID, _, _) =>
+    | EFloat(eID, _, _, _) =>
       let newWhole = findTokenValue(tokens, eID, "float-whole")
       let pointSelected = findTokenValue(tokens, eID, "float-point") != None
       let newFraction = findTokenValue(tokens, eID, "float-fractional")
       switch (newWhole, pointSelected, newFraction) {
-      | (Some(value), true, None) => Some(EFloat(id, value, "0"))
+      | (Some(value), true, None) => Some(EFloat(id, Positive, value, "0"))
       | (Some(value), false, None) | (None, false, Some(value)) =>
         Some(EInteger(id, Util.coerceStringTo63BitInt(value)))
-      | (None, true, Some(value)) => Some(EFloat(id, "0", value))
-      | (Some(whole), true, Some(fraction)) => Some(EFloat(id, whole, fraction))
-      | (None, true, None) => Some(EFloat(id, "0", "0"))
+      | (None, true, Some(value)) => Some(EFloat(id, Positive, "0", value))
+      | (Some(whole), true, Some(fraction)) => Some(EFloat(id, Positive, whole, fraction))
+      | (None, true, None) => Some(EFloat(id, Positive, "0", "0"))
       | (_, _, _) => None
       }
     | EBlank(_) => Some(EBlank(id))
@@ -5146,7 +5150,8 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
               (_, _, "pattern-float-point"),
               (_, fraction, "pattern-float-fractional"),
             } =>
-            PFloat(mID, id, whole, fraction)
+            let (sign, whole) = Sign.split(whole)
+            PFloat(mID, id, sign, whole, fraction)
           | list{(id, value, "pattern-float-whole"), (_, _, "pattern-float-point")}
           | list{(id, value, "pattern-float-whole")} =>
             PInteger(mID, id, Util.coerceStringTo63BitInt(value))

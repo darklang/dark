@@ -139,13 +139,16 @@ let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
   | PString({matchID: mid, patternID: id, str}) => list{
       TPatternString({matchID: mid, patternID: id, str: str, branchIdx: idx}),
     }
-  | PFloat(mID, id, whole, fraction) =>
+  | PFloat(mID, id, sign, whole, fraction) =>
+    let whole = switch sign {
+    | Positive => whole
+    | Negative => "-" ++ whole
+    }
     let whole = if whole == "" {
       list{}
     } else {
       list{TPatternFloatWhole(mID, id, whole, idx)}
     }
-
     let fraction = if fraction == "" {
       list{}
     } else {
@@ -268,7 +271,11 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       },
     )
   | ENull(id) => b |> add(TNullToken(id, parentID))
-  | EFloat(id, whole, fraction) =>
+  | EFloat(id, sign, whole, fraction) =>
+    let whole = switch sign {
+    | Positive => whole
+    | Negative => "-" ++ whole
+    }
     let whole = if whole == "" {
       list{}
     } else {

@@ -155,7 +155,7 @@ let rec generatePattern' = (): FluidPattern.t =>
     lazy pConstructor(generateName(), generateList(~minSize=0, ~f=generatePattern, ())),
     lazy pVar(generateName()),
     lazy pString(generateString()),
-    lazy pFloat(range(5000000), range(500000)),
+    lazy pFloat(Positive, range(5000000), range(500000)),
     lazy pBlank(),
   }) |> Lazy.force
 
@@ -177,7 +177,7 @@ and generateExpr' = () =>
     lazy str(generateString()),
     lazy int(range(500)),
     lazy bool(random() < 0.5),
-    lazy float'(range(5000000), range(500000)),
+    lazy float'(Positive, range(5000000), range(500000)),
     lazy null,
     lazy var(generateName()),
     lazy partial(generateFnName(), generateExpr()),

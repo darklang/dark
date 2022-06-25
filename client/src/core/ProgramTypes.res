@@ -4,13 +4,16 @@
 @ppx.deriving(show) type rec tlid = TLID.t
 
 module FQFnName = {
-  type stdlibFnName = {module_: string, function_: string, version: int}
+  @ppx.deriving(show({with_path: false}))
+  type rec stdlibFnName = {module_: string, function_: string, version: int}
 
-  type infixStdlibFnName = {module_: option<string>, function_: string}
+  @ppx.deriving(show({with_path: false}))
+  type rec infixStdlibFnName = {module_: option<string>, function_: string}
 
-  type userFnName = string
+  @ppx.deriving(show({with_path: false})) type rec userFnName = string
 
-  type packageFnName = {
+  @ppx.deriving(show({with_path: false}))
+  type rec packageFnName = {
     owner: string,
     package: string,
     module_: string,
@@ -18,10 +21,37 @@ module FQFnName = {
     version: int,
   }
 
-  type t =
+  @ppx.deriving(show({with_path: false}))
+  type rec t =
     | User(userFnName)
     | Stdlib(stdlibFnName)
     | Package(packageFnName)
+}
+
+@ppx.deriving(show({with_path: false}))
+type rec sign =
+  | Positive
+  | Negative
+
+module Sign = {
+  let toString = (sign: sign): string =>
+    switch sign {
+    | Positive => ""
+    | Negative => "-"
+    }
+  // Split the string into a sign and a string (removes the sign if present and )
+  let split = (whole: string): (sign, string) => {
+    if Tc.String.startsWith(~prefix="-", whole) {
+      (Negative, Tc.String.dropLeft(~count=1, whole))
+    } else if Tc.String.startsWith(~prefix="+", whole) {
+      (Positive, Tc.String.dropLeft(~count=1, whole))
+    } else {
+      (Positive, whole)
+    }
+  }
+  let combine = (sign: sign, whole: string): string => {
+    toString(sign) ++ whole
+  }
 }
 
 module Pattern = {
@@ -35,17 +65,12 @@ module Pattern = {
     | PInteger(id, id, string)
     | PBool(id, id, bool)
     | PString({matchID: id, patternID: id, str: string})
-    | PFloat(id, id, string, string)
+    | PFloat(id, id, sign, string, string)
     | PNull(id, id)
     | PBlank(id, id)
 }
 
 module Expr = {
-  @ppx.deriving(show({with_path: false}))
-  type rec sign =
-    | Positive
-    | Negative
-
   @ppx.deriving(show({with_path: false}))
   type rec sendToRail =
     | Rail
@@ -68,7 +93,7 @@ module Expr = {
     | ELambda(id, list<(id, string)>, t)
     | EFieldAccess(id, t, string)
     | EVariable(id, string)
-    | EFnCall(id, FqFnName.t, list<t>, sendToRail)
+    | EFnCall(id, string, list<t>, sendToRail)
     | EPartial(id, string, t)
     | ERightPartial(id, string, t)
     | ELeftPartial(id, string, t)
@@ -85,28 +110,28 @@ module DType = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
     | TInt
-    | TStr
-    | TCharacter
-    | TBool
     | TFloat
-    | TObj
-    | TList
-    | TAny
+    | TBool
     | TNull
-    | TBlock
+    | TStr
+    | TList
+    | TObj
     | TIncomplete
     | TError
     | TResp
     | TDB
     | TDate
+    | TCharacter
     | TPassword
     | TUuid
     | TOption
     | TErrorRail
-    | TResult
-    | TDbList(t)
     | TUserType(string, int)
     | TBytes
+    | TResult
+    | TAny
+    | TBlock
+    | TDbList(t)
 }
 
 module AST = {

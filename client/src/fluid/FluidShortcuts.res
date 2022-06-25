@@ -1,4 +1,5 @@
 open Prelude
+open ProgramTypes
 open ProgramTypes.Expr
 
 let blank = (~id=gid(), ()): t => EBlank(id)
@@ -11,13 +12,19 @@ let intStr = (~id=gid(), int: string): t => EInteger(id, int)
 
 let bool = (~id=gid(), b: bool): t => EBool(id, b)
 
-let float' = (~id=gid(), whole: int, fraction: int): t => EFloat(
+let float' = (~id=gid(), sign: sign, whole: int, fraction: int): t => EFloat(
   id,
+  sign,
   string_of_int(whole),
   string_of_int(fraction),
 )
 
-let floatStr = (~id=gid(), whole: string, fraction: string): t => EFloat(id, whole, fraction)
+let floatStr = (~id=gid(), sign: sign, whole: string, fraction: string): t => EFloat(
+  id,
+  sign,
+  whole,
+  fraction,
+)
 
 let null: t = ENull(gid())
 
@@ -131,19 +138,23 @@ let pString = (~mid=gid(), ~id=gid(), str: string): FluidPattern.t => PString({
   str: str,
 })
 
-let pFloatStr = (~mid=gid(), ~id=gid(), whole: string, fraction: string): FluidPattern.t => PFloat(
-  mid,
-  id,
-  whole,
-  fraction,
-)
+let pFloatStr = (
+  ~mid=gid(),
+  ~id=gid(),
+  sign: sign,
+  whole: string,
+  fraction: string,
+): FluidPattern.t => {
+  assert (int_of_string(whole) > 0)
+  assert (int_of_string(fraction) > 0)
+  PFloat(mid, id, sign, whole, fraction)
+}
 
-let pFloat = (~mid=gid(), ~id=gid(), whole: int, fraction: int): FluidPattern.t => PFloat(
-  mid,
-  id,
-  string_of_int(whole),
-  string_of_int(fraction),
-)
+let pFloat = (~mid=gid(), ~id=gid(), sign, whole: int, fraction: int): FluidPattern.t => {
+  assert (whole > 0)
+  assert (fraction > 0)
+  PFloat(mid, id, sign, string_of_int(whole), string_of_int(fraction))
+}
 
 let pNull = (~mid=gid(), ~id=gid(), ()): FluidPattern.t => PNull(mid, id)
 

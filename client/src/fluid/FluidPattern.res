@@ -12,7 +12,7 @@ let toID = (p: t): id =>
   | PInteger(_, id, _)
   | PBool(_, id, _)
   | PString({patternID: id, _})
-  | PFloat(_, id, _, _)
+  | PFloat(_, id, _, _, _)
   | PNull(_, id)
   | PBlank(_, id) => id
   }
@@ -37,7 +37,7 @@ let toMatchID = (p: t): id =>
   | PInteger(mid, _, _)
   | PBool(mid, _, _)
   | PString({matchID: mid, _})
-  | PFloat(mid, _, _, _)
+  | PFloat(mid, _, _, _, _)
   | PNull(mid, _)
   | PBlank(mid, _) => mid
   }
@@ -52,7 +52,7 @@ let rec clone = (matchID: id, p: t): t =>
   | PString({str, _}) => PString({matchID: matchID, patternID: gid(), str: str})
   | PBlank(_, _) => PBlank(matchID, gid())
   | PNull(_, _) => PNull(matchID, gid())
-  | PFloat(_, _, whole, fraction) => PFloat(matchID, gid(), whole, fraction)
+  | PFloat(_, _, sign, whole, fraction) => PFloat(matchID, gid(), sign, whole, fraction)
   }
 
 let rec variableNames = (p: t): list<string> =>
@@ -72,7 +72,7 @@ let rec findPattern = (patID: id, within: t): option<t> =>
   | PBool(_, pid, _)
   | PNull(_, pid)
   | PBlank(_, pid)
-  | PFloat(_, pid, _, _)
+  | PFloat(_, pid, _, _, _)
   | PString({matchID: _, patternID: pid, str: _}) =>
     if patID == pid {
       Some(within)

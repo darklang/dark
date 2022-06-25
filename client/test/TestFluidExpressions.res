@@ -50,8 +50,21 @@ let run = () => {
     let neq = t(false)
     eq("int with same values", int(1), int(1))
     neq("int with diff values", int(1), int(2))
-    eq("float with same values", float'(1, 0), float'(1, 0))
-    neq("float with diff values", float'(1, 0), float'(2, 0))
+    eq(
+      "float with same values",
+      float'(ProgramTypes.Positive, 1, 0),
+      float'(ProgramTypes.Positive, 1, 0),
+    )
+    neq(
+      "float with diff values",
+      float'(ProgramTypes.Positive, 1, 0),
+      float'(ProgramTypes.Positive, 2, 0),
+    )
+    neq(
+      "float with diff sign",
+      float'(ProgramTypes.Negative, 1, 0),
+      float'(ProgramTypes.Positive, 1, 0),
+    )
     eq("string with same values", str("a"), str("a"))
     neq("string with diff values", str("a"), str("b"))
     eq("bool with same values", bool(true), bool(true))

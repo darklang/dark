@@ -55,7 +55,7 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
     | EInteger(pid, value) => Some(PInteger(ifID, pid, value))
     | EBool(pid, value) => Some(PBool(ifID, pid, value))
     | EString(pid, string) => Some(PString({matchID: ifID, patternID: pid, str: string}))
-    | EFloat(pid, whole, frac) => Some(PFloat(ifID, pid, whole, frac))
+    | EFloat(pid, sign, whole, frac) => Some(PFloat(ifID, pid, sign, whole, frac))
     | ENull(pid) => Some(PNull(ifID, pid))
     | EBlank(pid) => Some(PBlank(ifID, pid))
     | EVariable(pid, name) => Some(PVariable(ifID, pid, name))

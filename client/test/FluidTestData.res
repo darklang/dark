@@ -61,17 +61,17 @@ let seventyEight = EInteger(gid(), "78")
 // ----------------
 // Floats
 // ----------------
-let aFloat = EFloat(gid(), "123", "456")
+let aFloat = EFloat(gid(), Positive, "123", "456")
 
-let aFloatWithoutWhole = EFloat(gid(), "", "1")
+let aFloatWithoutWhole = EFloat(gid(), Positive, "", "1")
 
-let aHugeFloat = EFloat(gid(), "123456789", "123456789")
+let aHugeFloat = EFloat(gid(), Positive, "123456789", "123456789")
 
-let aPartialFloat = EFloat(gid(), "1", "")
+let aPartialFloat = EFloat(gid(), Positive, "1", "")
 
-let maxPosIntWithDot = floatStr("4611686018427387", "903")
+let maxPosIntWithDot = floatStr(Positive, "4611686018427387", "903")
 
-let maxPosIntPlus1WithDot = floatStr("4611686018427387", "904")
+let maxPosIntPlus1WithDot = floatStr(Positive, "4611686018427387", "904")
 
 // ----------------
 // Bools

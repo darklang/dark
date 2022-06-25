@@ -17,7 +17,7 @@ let toID = (expr: t): id =>
   | EString(id, _)
   | EBool(id, _)
   | ENull(id)
-  | EFloat(id, _, _)
+  | EFloat(id, _, _, _)
   | EVariable(id, _)
   | EFieldAccess(id, _, _)
   | EFnCall(id, _, _, _)
@@ -45,7 +45,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | EInteger(id, _)
     | EBool(id, _)
     | EString(id, _)
-    | EFloat(id, _, _)
+    | EFloat(id, _, _, _)
     | ENull(id)
     | EBlank(id)
     | EVariable(id, _)
@@ -80,7 +80,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | PBool(_, pid, _)
     | PNull(_, pid)
     | PBlank(_, pid)
-    | PFloat(_, pid, _, _)
+    | PFloat(_, pid, _, _, _)
     | PString({matchID: _, patternID: pid, str: _}) => (pid, list{})
     | PConstructor(_, pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(p1)))
     }
@@ -431,7 +431,7 @@ let rec clone = (expr: t): t => {
   | EString(_, v) => EString(gid(), v)
   | EInteger(_, v) => EInteger(gid(), v)
   | EBool(_, v) => EBool(gid(), v)
-  | EFloat(_, whole, fraction) => EFloat(gid(), whole, fraction)
+  | EFloat(_, sign, whole, fraction) => EFloat(gid(), sign, whole, fraction)
   | ENull(_) => ENull(gid())
   | EBlank(_) => EBlank(gid())
   | EVariable(_, name) => EVariable(gid(), name)
@@ -513,7 +513,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
       name == name' && peqList(patterns, patterns')
     | (PString({str, _}), PString({str: str', _})) => str == str'
     | (PInteger(_, _, l), PInteger(_, _, l')) => l == l'
-    | (PFloat(_, _, w, f), PFloat(_, _, w', f')) => (w, f) == (w', f')
+    | (PFloat(_, _, s, w, f), PFloat(_, _, s', w', f')) => (s, w, f) == (s', w', f')
     | (PBool(_, _, l), PBool(_, _, l')) => l == l'
     | (PNull(_, _), PNull(_, _)) => true
     | (PBlank(_, _), PBlank(_, _)) => true
@@ -537,7 +537,8 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (EVariable(_, v), EVariable(_, v')) =>
     v == v'
   | (EBool(_, v), EBool(_, v')) => v == v'
-  | (EFloat(_, whole, frac), EFloat(_, whole', frac')) => whole == whole' && frac == frac'
+  | (EFloat(_, sign, whole, frac), EFloat(_, sign', whole', frac')) =>
+    sign == sign' && whole == whole' && frac == frac'
   | (ELet(_, lhs, rhs, body), ELet(_, lhs', rhs', body')) =>
     lhs == lhs' && eq2((rhs, rhs'), (body, body'))
   | (EIf(_, con, thn, els), EIf(_, con', thn', els')) => eq3((con, con'), (thn, thn'), (els, els'))
@@ -612,7 +613,8 @@ let toHumanReadable = (expr: t): string => {
       } |> Printf.sprintf(`(str "%s")`)
     | EBool(_, true) => "(true)"
     | EBool(_, false) => "(false)"
-    | EFloat(_, whole, fractional) => Printf.sprintf(`(%s.%s)`, whole, fractional)
+    | EFloat(_, sign, whole, fractional) =>
+      Printf.sprintf(`(%s%s.%s)`, ProgramTypes.Sign.toString(sign), whole, fractional)
     | EInteger(_, i) => Printf.sprintf(`(%s)`, i)
     | ENull(_) => "(null)"
     | EPipeTarget(_) => "(pt)"
@@ -634,7 +636,12 @@ let toHumanReadable = (expr: t): string => {
         | PString({str, _}) => spaced(list{"pString", quoted(str)})
         | PBool(_, _, true) => spaced(list{"pBool true"})
         | PBool(_, _, false) => spaced(list{"pBool false"})
-        | PFloat(_, _, whole, fractional) => spaced(list{"pFloat'", whole, fractional})
+        | PFloat(_, _, sign, whole, fractional) =>
+          let sign = switch sign {
+          | Positive => "Positive"
+          | Negative => "Negative"
+          }
+          spaced(list{"pFloat'", sign, whole, fractional})
         | PInteger(_, _, int) => spaced(list{"pInt", int})
         | PNull(_) => "pNull"
         | PVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
