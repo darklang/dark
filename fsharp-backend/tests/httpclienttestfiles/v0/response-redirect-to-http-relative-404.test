@@ -7,8 +7,8 @@ Host: HOST
 [response]
 HTTP/1.1 303 See Other
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /invalid-url
+Location: /v0/invalid-url
 
 
 [test]
-HttpClient.get_v1 "http://URL" {} {} = Test.typeError "Bad HTTP response (500) in call to http://URL"
+HttpClient.get_v0 "http://URL" "" {} {} = Test.typeError "Bad HTTP response (404) in call to http://URL"
