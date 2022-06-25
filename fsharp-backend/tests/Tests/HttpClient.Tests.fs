@@ -197,121 +197,151 @@ type Compression =
 
 let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    let versionName, testName =
-      let segments = System.Uri(ctx.Request.Path.Value).Segments
+    try
+      let versionName, testName =
+        let segments = System.Uri(ctx.Request.Path.Value).Segments
 
-      let versionName = segments.[1]
-      let versionName =
-        if String.endsWith "/" versionName then
-          String.dropRight 1 versionName
+        let versionName = segments.[1]
+        let versionName =
+          if String.endsWith "/" versionName then
+            String.dropRight 1 versionName
+          else
+            versionName
+
+        let testName = segments.[2]
+        let testName =
+          if String.endsWith "/" testName then
+            String.dropRight 1 testName
+          else
+            testName
+
+        versionName, testName
+
+      let testCase =
+        try
+          Some testCases.[$"{versionName}/{testName}"]
+        with
+        | _ -> None
+
+      match testCase with
+      | None ->
+        ctx.Response.StatusCode <- 404
+        let body = "intentionally not found" |> UTF8.toBytes
+        ctx.Response.ContentLength <- int64 body.Length
+        do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
+        return ctx
+      | Some testCase ->
+
+        let actualHeaders =
+          BwdServer.Server.getHeaders ctx
+          |> Map
+          // .NET always adds a Content-Length header, but OCaml doesn't
+          |> Map.remove "Content-Length"
+        let! actualBody = BwdServer.Server.getBody ctx
+
+        let actualStatus =
+          $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
+
+        let expectedHeaders = Map testCase.expected.headers
+        let expectedBody = testCase.expected.body
+        let expectedStatus =
+          testCase.expected.status |> String.replace "PATH" ctx.Request.Path.Value
+
+        if (actualStatus, actualHeaders, actualBody) = (expectedStatus,
+                                                        expectedHeaders,
+                                                        expectedBody) then
+          let mutable compression = None
+          let mutable transcodeToLatin1 = false
+
+          ctx.Response.StatusCode <-
+            testCase.result.status
+            |> String.split " "
+            |> List.getAt 1
+            |> Exception.unwrapOptionInternal
+                 "invalid status code"
+                 [ "status", testCase.result.status ]
+            |> int
+          List.iter
+            (fun (k, v) ->
+              if String.equalsCaseInsensitive k "Content-Encoding" then
+                if v = "deflate" then compression <- Some Deflate
+                else if v = "br" then compression <- Some Brotli
+                else if v = "gzip" then compression <- Some Gzip
+                else ()
+              elif String.equalsCaseInsensitive k "Content-Type" then
+                if v.Contains "charset=iso-8859-1"
+                   || v.Contains "charset=latin1"
+                   || v.Contains "us-ascii" then
+                  transcodeToLatin1 <- true
+
+              BwdServer.Server.setHeader ctx k v)
+            testCase.result.headers
+
+          let data =
+            if transcodeToLatin1 then
+              System.Text.Encoding.Convert(
+                System.Text.Encoding.UTF8,
+                System.Text.Encoding.Latin1,
+                testCase.result.body
+              )
+            else
+              testCase.result.body
+
+          match compression with
+          | Some algo ->
+            let stream : Stream =
+              let body = ctx.Response.Body
+              match algo with
+              | Gzip -> new GZipStream(body, CompressionMode.Compress)
+              | Brotli -> new BrotliStream(body, CompressionMode.Compress)
+              | Deflate -> new DeflateStream(body, CompressionMode.Compress)
+            do! stream.WriteAsync(data, 0, data.Length)
+            do! stream.FlushAsync()
+            do! stream.DisposeAsync()
+          | None ->
+            if ctx.Response.StatusCode <> 304 then
+              do! ctx.Response.Body.WriteAsync(data, 0, data.Length)
         else
-          versionName
+          let expectedHeaders =
+            expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
+          let actualHeaders = actualHeaders |> Map.toList |> List.sortBy Tuple2.first
+          let message =
+            [ (if actualStatus <> expectedStatus then "status" else "")
+              (if actualHeaders <> expectedHeaders then "headers" else "")
+              (if actualBody <> expectedBody then "body" else "") ]
+            |> List.filter ((<>) "")
+            |> String.concat ", "
+            |> fun s -> $"The request to the server differs in {s}"
 
-      let testName = segments.[2]
-      let testName =
-        if String.endsWith "/" testName then
-          String.dropRight 1 testName
-        else
-          testName
+          let body =
+            { message = message
+              expectedStatus = expectedStatus
+              actualStatus = actualStatus
+              expectedHeaders = expectedHeaders
+              expectedBody = UTF8.ofBytesUnsafe expectedBody
+              actualHeaders = actualHeaders
+              actualBody = UTF8.ofBytesUnsafe actualBody }
+            |> Json.Vanilla.prettySerialize
+            |> UTF8.toBytes
 
-      versionName, testName
+          ctx.Response.StatusCode <- 400
+          ctx.Response.ContentLength <- int64 body.Length
+          do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
 
-    let testCase = testCases.[$"{versionName}/{testName}"]
+        return ctx
 
-    let actualHeaders =
-      BwdServer.Server.getHeaders ctx
-      |> Map
-      // .NET always adds a Content-Length header, but OCaml doesn't
-      |> Map.remove "Content-Length"
-    let! actualBody = BwdServer.Server.getBody ctx
+    with
+    | e ->
+      // It might already have started, in which case let's just get the exception in
+      // the body and hope that helps
+      if not ctx.Response.HasStarted then ctx.Response.StatusCode <- 500
 
-    let actualStatus =
-      $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
+      let body = $"{e.Message}\n\n{e.StackTrace}"
+      print $"{body}-{ctx.Request.Path}"
+      let body = UTF8.toBytes body
 
-    let expectedHeaders = Map testCase.expected.headers
-    let expectedBody = testCase.expected.body
-    let expectedStatus =
-      testCase.expected.status |> String.replace "PATH" ctx.Request.Path.Value
-
-    if (actualStatus, actualHeaders, actualBody) = (expectedStatus,
-                                                    expectedHeaders,
-                                                    expectedBody) then
-      let mutable compression = None
-      let mutable transcodeToLatin1 = false
-
-      ctx.Response.StatusCode <-
-        testCase.result.status
-        |> String.split " "
-        |> List.getAt 1
-        |> Exception.unwrapOptionInternal
-             "invalid status code"
-             [ "status", testCase.result.status ]
-        |> int
-      List.iter
-        (fun (k, v) ->
-          if String.equalsCaseInsensitive k "Content-Encoding" then
-            if v = "deflate" then compression <- Some Deflate
-            else if v = "br" then compression <- Some Brotli
-            else if v = "gzip" then compression <- Some Gzip
-            else ()
-          elif String.equalsCaseInsensitive k "Content-Type" then
-            if v.Contains "charset=iso-8859-1"
-               || v.Contains "charset=latin1"
-               || v.Contains "us-ascii" then
-              transcodeToLatin1 <- true
-
-          BwdServer.Server.setHeader ctx k v)
-        testCase.result.headers
-
-      let data =
-        if transcodeToLatin1 then
-          System.Text.Encoding.Convert(
-            System.Text.Encoding.UTF8,
-            System.Text.Encoding.Latin1,
-            testCase.result.body
-          )
-        else
-          testCase.result.body
-
-      match compression with
-      | Some algo ->
-        let stream : Stream =
-          let body = ctx.Response.Body
-          match algo with
-          | Gzip -> new GZipStream(body, CompressionMode.Compress)
-          | Brotli -> new BrotliStream(body, CompressionMode.Compress)
-          | Deflate -> new DeflateStream(body, CompressionMode.Compress)
-        do! stream.WriteAsync(data, 0, data.Length)
-        do! stream.FlushAsync()
-        do! stream.DisposeAsync()
-      | None -> do! ctx.Response.Body.WriteAsync(data, 0, data.Length)
-    else
-      let expectedHeaders = expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
-      let actualHeaders = actualHeaders |> Map.toList |> List.sortBy Tuple2.first
-      let message =
-        [ (if actualStatus <> expectedStatus then "status" else "")
-          (if actualHeaders <> expectedHeaders then "headers" else "")
-          (if actualBody <> expectedBody then "body" else "") ]
-        |> List.filter ((<>) "")
-        |> String.concat ", "
-        |> fun s -> $"The request to the server differs in {s}"
-
-      let body =
-        { message = message
-          expectedStatus = expectedStatus
-          actualStatus = actualStatus
-          expectedHeaders = expectedHeaders
-          expectedBody = UTF8.ofBytesUnsafe expectedBody
-          actualHeaders = actualHeaders
-          actualBody = UTF8.ofBytesUnsafe actualBody }
-        |> Json.Vanilla.prettySerialize
-        |> UTF8.toBytes
-
-      ctx.Response.StatusCode <- 400
-      ctx.Response.ContentLength <- int64 body.Length
       do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-
-    return ctx
+      return ctx
   }
 
 
