@@ -502,7 +502,7 @@ let toText = (t: t): string => {
       name
     }
   switch t {
-  | TInteger(_, i, _) => shouldntBeEmpty(i)
+  | TInteger(_, i, _) => Int64.to_string(i)
   | TFloatWhole(_, w, _) => shouldntBeEmpty(w)
   | TFloatPoint(_) => "."
   | TFloatFractional(_, f, _) => f
@@ -555,7 +555,7 @@ let toText = (t: t): string => {
   | TPipe(_) => "|>"
   | TMatchKeyword(_) => "match "
   | TMatchBranchArrow(_) => " -> "
-  | TPatternInteger(_, _, i, _) => shouldntBeEmpty(i)
+  | TPatternInteger(_, _, i, _) => Int64.to_string(i)
   | TPatternFloatWhole(_, _, w, _) => shouldntBeEmpty(w)
   | TPatternFloatPoint(_) => "."
   | TPatternFloatFractional(_, _, f, _) => f
@@ -861,7 +861,7 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TRecordSep(id1, ind1, _), TRecordSep(id2, ind2, _))
   | (TLambdaComma(id1, ind1, _), TLambdaComma(id2, ind2, _)) =>
     id1 == id2 && ind1 == ind2
-  | (TInteger(id1, val1, _), TInteger(id2, val2, _))
+  | (TInteger(id1, val1, _), TInteger(id2, val2, _)) => id1 == id2 && val1 == val2
   | (TFloatWhole(id1, val1, _), TFloatWhole(id2, val2, _))
   | (TFloatFractional(id1, val1, _), TFloatFractional(id2, val2, _))
   | (TPartial(id1, val1, _), TPartial(id2, val2, _))
@@ -897,7 +897,8 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TFnVersion(id1, _, _, fullname1), TFnVersion(id2, _, _, fullname2)) =>
     id1 == id2 && fullname1 == fullname2
   | (TPatternVariable(m1, p1, val1, ind1), TPatternVariable(m2, p2, val2, ind2))
-  | (TPatternConstructorName(m1, p1, val1, ind1), TPatternConstructorName(m2, p2, val2, ind2))
+  | (TPatternConstructorName(m1, p1, val1, ind1), TPatternConstructorName(m2, p2, val2, ind2)) =>
+    m1 == m2 && (p1 == p2 && (val1 == val2 && ind1 == ind2))
   | (TPatternInteger(m1, p1, val1, ind1), TPatternInteger(m2, p2, val2, ind2)) =>
     m1 == m2 && (p1 == p2 && (val1 == val2 && ind1 == ind2))
   | (TPatternTrue(p1, id1, ind1), TPatternTrue(p2, id2, ind2))

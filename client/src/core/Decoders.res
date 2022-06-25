@@ -227,7 +227,10 @@ let rec fluidPattern = (j): FluidPattern.t => {
     list{
       ("FPVariable", dv3((a, b, c) => P.PVariable(a, b, c), id, id, string)),
       ("FPConstructor", dv4((a, b, c, d) => P.PConstructor(a, b, c, d), id, id, string, list(dp))),
-      ("FPInteger", dv3((a, b, c) => P.PInteger(a, b, c), id, id, string)),
+      (
+        "FPInteger",
+        dv3((a, b, c) => P.PInteger(a, b, c), id, id, i => i |> string |> Int64.of_string),
+      ),
       ("FPBool", dv3((a, b, c) => P.PBool(a, b, c), id, id, bool)),
       ("FPString", recordVariant3((matchID, patternID, str) => P.PString({
           matchID: matchID,
@@ -259,7 +262,7 @@ let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
   let dv1 = variant1
   variants(
     list{
-      ("EInteger", dv2((x, y) => E.EInteger(x, y), id, string)),
+      ("EInteger", dv2((x, y) => E.EInteger(x, y), id, i => i |> string |> Int64.of_string)),
       ("EBool", dv2((x, y) => E.EBool(x, y), id, bool)),
       ("EString", dv2((x, y) => E.EString(x, y), id, string)),
       ("EFloat", dv3((x, whole, fraction) => {

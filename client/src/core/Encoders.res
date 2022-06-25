@@ -507,7 +507,7 @@ and fluidPattern = (pattern: FluidPattern.t): Js.Json.t => {
   | PVariable(id', mid, name) => ev("FPVariable", list{id(id'), id(mid), string(name)})
   | PConstructor(id', mid, name, patterns) =>
     ev("FPConstructor", list{id(id'), id(mid), string(name), list(fp, patterns)})
-  | PInteger(id', mid, v) => ev("FPInteger", list{id(id'), id(mid), string(v)})
+  | PInteger(id', mid, v) => ev("FPInteger", list{id(id'), id(mid), string(Int64.to_string(v))})
   | PBool(id', mid, v) => ev("FPBool", list{id(id'), id(mid), bool(v)})
   | PFloat(id', mid, sign, whole, fraction) =>
     ev(
@@ -542,7 +542,7 @@ and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
   | EPipe(id', exprs) => ev("EPipe", list{id(id'), list(fe, exprs)})
   | EFieldAccess(id', obj, field) => ev("EFieldAccess", list{id(id'), fe(obj), string(field)})
   | EString(id', v) => ev("EString", list{id(id'), string(v)})
-  | EInteger(id', v) => ev("EInteger", list{id(id'), string(v)})
+  | EInteger(id', v) => ev("EInteger", list{id(id'), string(Int64.to_string(v))})
   | EBool(id', v) => ev("EBool", list{id(id'), bool(v)})
   | EFloat(id', sign, whole, fraction) =>
     ev("EFloat", list{id(id'), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)})

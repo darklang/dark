@@ -30,23 +30,25 @@ let jsonToExpr = (jsonStr: string): option<E.t> => {
     | JSONNull => ENull(gid())
     | JSONNumber(float) =>
       let str = Js.Float.toString(float)
-      if Util.is63BitInt(str) {
-        EInteger(gid(), str)
-      } else if Regex.exactly(~re="[0-9]+\\.[0-9]+", str) {
-        switch String.split(~on=".", str) {
-        | list{whole, fraction} => EFloat(gid(), ProgramTypes.Positive, whole, fraction)
-        | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), "0"))
+      switch Int64.of_string_opt(str) {
+      | Some(int) => EInteger(gid(), int)
+      | None =>
+        if Regex.exactly(~re="[0-9]+\\.[0-9]+", str) {
+          switch String.split(~on=".", str) {
+          | list{whole, fraction} => EFloat(gid(), ProgramTypes.Positive, whole, fraction)
+          | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), 0L))
+          }
+        } else if Regex.exactly(~re="-[0-9]+\\.[0-9]+", str) {
+          switch String.split(~on=".", str) {
+          | list{whole, fraction} =>
+            let (sign, whole) = ProgramTypes.Sign.split(whole)
+            EFloat(gid(), sign, whole, fraction)
+          | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), 0L))
+          }
+        } else {
+          // TODO: support floats in the format 3.4e5
+          recover("unsupported float in json", ~debug=str, E.EInteger(gid(), 0L))
         }
-      } else if Regex.exactly(~re="-[0-9]+\\.[0-9]+", str) {
-        switch String.split(~on=".", str) {
-        | list{whole, fraction} =>
-          let (sign, whole) = ProgramTypes.Sign.split(whole)
-          EFloat(gid(), sign, whole, fraction)
-        | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), "0"))
-        }
-      } else {
-        // TODO: support floats in the format 3.4e5
-        recover("unsupported float in json", ~debug=str, E.EInteger(gid(), "0"))
       }
     | JSONObject(dict) =>
       dict

@@ -1187,41 +1187,48 @@ let run = () => {
       list{InsertText("c")},
       leftPartial("c", anInt),
     )
-    t("insert number at scale", aHugeInt, ~pos=5, ins("9"), "200009~0000000000000")
-    t("insert number at scale", aHugeInt, ins("9"), "9~20000000000000000")
-    t("insert number at scale", aHugeInt, ~pos=19, ins("9"), "2000000000000000000~")
+    t("insert number at scale", aHugeInt, ~pos=5, ins("9"), "300009~0000000000000")
+    t("insert number at scale", aHugeInt, ins("9"), "9~30000000000000000")
+    t("insert number at scale", aHugeInt, ins("8"), "8~300000000000000000")
+    t("insert number at scale", aHugeInt, ~pos=19, ins("9"), "3000000000000000000~")
     t(
       "insert number at scale",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=18,
       ins("3"),
-      "4611686018427387903~",
+      "9223372036854775803~",
     )
-    t("insert number at scale", oneShorterThanMax62BitInt, ~pos=18, ins("4"), "461168601842738790~")
+    t(
+      "insert number at scale",
+      oneShorterThanMax63BitInt,
+      ~pos=18,
+      ins("4"),
+      "9223372036854775804~",
+    )
     t(
       "ctrl+left go to beg of int moves to beg",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       ctrlLeft,
-      "~461168601842738790",
+      "~922337203685477580",
     )
     t(
       "ctrl+right go to end of int moves to end",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       ctrlRight,
-      "461168601842738790~",
+      "922337203685477580~",
     )
     t(
       "DeleteWordBackward in the middle of an int deletes all the nums in front of cursor",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       inputs(list{DeleteWordBackward}),
-      "~2738790",
+      "~5477580",
     )
     t(
       "DeleteWordBackward at the end of an int deletes it all",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=18,
       inputs(list{DeleteWordBackward}),
       "~___",
@@ -1253,8 +1260,8 @@ let run = () => {
     t("insert non-int in fraction", aFloat, ~pos=6, ins("c"), "123.45~6")
     t("del dot", aFloat, ~pos=3, del, "123~456")
     t("del dot at scale", aHugeFloat, ~pos=9, del, "123456789~123456789")
-    t("del dot at limit1", maxPosIntWithDot, ~pos=16, del, "4611686018427387~903")
-    t("del dot at limit2", maxPosIntPlus1WithDot, ~pos=16, del, "4611686018427387~90")
+    t("del dot at limit1", maxPosIntWithDot, ~pos=16, del, "9223372036854775~807")
+    t("del dot at limit2", maxPosIntPlus1WithDot, ~pos=16, del, "9223372036854775~80")
     t("del start of whole", aFloat, ~pos=0, del, "~23.456")
     t("del middle of whole", aFloat, ~pos=1, del, "1~3.456")
     t("del end of whole", aFloat, ~pos=2, del, "12~.456")
@@ -1265,8 +1272,8 @@ let run = () => {
     t("del dot converts to int, no fraction", aPartialFloat, ~pos=1, del, "1~")
     t("bs dot", aFloat, ~pos=4, bs, "123~456")
     t("bs dot at scale", aHugeFloat, ~pos=10, bs, "123456789~123456789")
-    t("bs dot at limit1", maxPosIntWithDot, ~pos=17, bs, "4611686018427387~903")
-    t("bs dot at limit2", maxPosIntPlus1WithDot, ~pos=17, bs, "4611686018427387~90")
+    t("bs dot at limit1", maxPosIntWithDot, ~pos=17, bs, "9223372036854775~807")
+    t("bs dot at limit2", maxPosIntPlus1WithDot, ~pos=17, bs, "9223372036854775~80")
     t("bs start of whole", aFloat, ~pos=1, bs, "~23.456")
     t("bs middle of whole", aFloat, ~pos=2, bs, "1~3.456")
     t("bs end of whole", aFloat, ~pos=3, bs, "12~.456")
@@ -4423,7 +4430,7 @@ let run = () => {
       ELet(
         gid(),
         "request",
-        ERecord(gid(), list{("body", EInteger(gid(), "5")), ("blank", EBlank(gid()))}),
+        ERecord(gid(), list{("body", EInteger(gid(), 5L)), ("blank", EBlank(gid()))}),
         ELet(
           gid(),
           "foo",
@@ -4440,7 +4447,7 @@ let run = () => {
       ELet(
         gid(),
         "request",
-        ERecord(gid(), list{("body", EInteger(gid(), "5"))}),
+        ERecord(gid(), list{("body", EInteger(gid(), 5L))}),
         ELet(
           gid(),
           "foo",

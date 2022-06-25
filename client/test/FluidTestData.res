@@ -40,23 +40,23 @@ let mlStrWSpace = str(
 // ----------------
 // Ints
 // ----------------
-let aShortInt = EInteger(gid(), "1")
+let aShortInt = EInteger(gid(), 1L)
 
-let anInt = EInteger(gid(), "12345")
+let anInt = EInteger(gid(), 12345L)
 
-let aHugeInt = EInteger(gid(), "2000000000000000000")
+let aHugeInt = EInteger(gid(), 3000000000000000000L)
 
-let max62BitInt = intStr("4611686018427387903")
+let max63BitInt = EInteger(gid(), 9223372036854775808L)
 
-let oneShorterThanMax62BitInt = intStr("461168601842738790")
+let oneShorterThanMax63BitInt = EInteger(gid(), 922337203685477580L)
 
-let five = EInteger(gid(), "5")
+let five = EInteger(gid(), 5L)
 
-let six = EInteger(gid(), "6")
+let six = EInteger(gid(), 6L)
 
-let fiftySix = EInteger(gid(), "56")
+let fiftySix = EInteger(gid(), 56L)
 
-let seventyEight = EInteger(gid(), "78")
+let seventyEight = EInteger(gid(), 78L)
 
 // ----------------
 // Floats
@@ -69,9 +69,9 @@ let aHugeFloat = EFloat(gid(), Positive, "123456789", "123456789")
 
 let aPartialFloat = EFloat(gid(), Positive, "1", "")
 
-let maxPosIntWithDot = floatStr(Positive, "4611686018427387", "903")
+let maxPosIntWithDot = floatStr(Positive, "9223372036854775", "807")
 
-let maxPosIntPlus1WithDot = floatStr(Positive, "4611686018427387", "904")
+let maxPosIntPlus1WithDot = floatStr(Positive, "9223372036854775", "808")
 
 // ----------------
 // Bools
@@ -96,18 +96,18 @@ let aPartialVar = EPartial(gid(), "req", b)
 let completelyEmptyLet = ELet(gid(), "", b, b)
 
 // let *** = ___\n5
-let emptyLet = ELet(gid(), "", b, EInteger(gid(), "5"))
+let emptyLet = ELet(gid(), "", b, EInteger(gid(), 5L))
 
 // let *** = 6\n___
-let nonEmptyLetWithBlankEnd = ELet(gid(), "", EInteger(gid(), "6"), b)
+let nonEmptyLetWithBlankEnd = ELet(gid(), "", EInteger(gid(), 6L), b)
 
-let nonEmptyLet = ELet(gid(), "", EInteger(gid(), "6"), EInteger(gid(), "5"))
+let nonEmptyLet = ELet(gid(), "", EInteger(gid(), 6L), EInteger(gid(), 5L))
 
 let twoLets = ELet(
   gid(),
   "x",
-  EInteger(gid(), "5"),
-  ELet(gid(), "y", EInteger(gid(), "6"), EInteger(gid(), "7")),
+  EInteger(gid(), 5L),
+  ELet(gid(), "y", EInteger(gid(), 6L), EInteger(gid(), 7L)),
 )
 
 let longLets = ELet(
@@ -117,12 +117,12 @@ let longLets = ELet(
   ELet(gid(), "secondLetName", EString(gid(), "0123456789"), EString(gid(), "RESULT")),
 )
 
-let letWithLhs = ELet(gid(), "n", EInteger(gid(), "6"), EInteger(gid(), "5"))
+let letWithLhs = ELet(gid(), "n", EInteger(gid(), 6L), EInteger(gid(), 5L))
 
 let letWithBinding = (bindingName: string, expr: t) => ELet(
   gid(),
   bindingName,
-  EInteger(gid(), "6"),
+  EInteger(gid(), 6L),
   expr,
 )
 
@@ -144,7 +144,7 @@ let emptyMatchWithTwoPatterns = {
 
 let matchWithPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(PInteger(mID, gid(), "3"), b)})
+  EMatch(mID, b, list{(PInteger(mID, gid(), 3L), b)})
 }
 
 let matchWithConstructorPattern = {
@@ -186,12 +186,7 @@ let matchWithTwoLets = {
     list{
       (
         PBlank(mID, gid()),
-        ELet(
-          gid(),
-          "x",
-          EInteger(gid(), "5"),
-          ELet(gid(), "y", EInteger(gid(), "6"), EBlank(gid())),
-        ),
+        ELet(gid(), "x", EInteger(gid(), 5L), ELet(gid(), "y", EInteger(gid(), 6L), EBlank(gid()))),
       ),
     },
   )
@@ -215,19 +210,19 @@ let aShortVar = EVariable(gid(), "v")
 // ----------------
 let emptyIf = EIf(gid(), b, b, b)
 
-let plainIf = EIf(gid(), EInteger(gid(), "5"), EInteger(gid(), "6"), EInteger(gid(), "7"))
+let plainIf = EIf(gid(), EInteger(gid(), 5L), EInteger(gid(), 6L), EInteger(gid(), 7L))
 
 let nestedIf = EIf(
   gid(),
-  EInteger(gid(), "5"),
-  EIf(gid(), EInteger(gid(), "5"), EInteger(gid(), "6"), EInteger(gid(), "7")),
-  EInteger(gid(), "7"),
+  EInteger(gid(), 5L),
+  EIf(gid(), EInteger(gid(), 5L), EInteger(gid(), 6L), EInteger(gid(), 7L)),
+  EInteger(gid(), 7L),
 )
 
 let indentedIfElse = ELet(
   gid(),
   "var",
-  EIf(gid(), b, EInteger(gid(), "6"), EInteger(gid(), "7")),
+  EIf(gid(), b, EInteger(gid(), 6L), EInteger(gid(), 7L)),
   EVariable(gid(), "var"),
 )
 

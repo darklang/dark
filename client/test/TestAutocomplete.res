@@ -538,7 +538,7 @@ let run = () => {
       let fn = aFunction(
         ~tlid=TLID.fromString("789"),
         ~name="fn1",
-        ~expr=ELet(gid(), "bunny", EInteger(gid(), "9"), EString(gid(), "\"hello\"")),
+        ~expr=ELet(gid(), "bunny", EInteger(gid(), 9L), EString(gid(), "\"hello\"")),
         (),
       )
 

@@ -118,7 +118,7 @@ let run = () => {
       expect(removePartials(expr)) |> toEqual(expr)
     })
     test("No changes when not-partial", () => {
-      let expr = EFnCall(gid(), "+", list{EInteger(gid(), "3"), EInteger(gid(), "9")}, NoRail)
+      let expr = EFnCall(gid(), "+", list{EInteger(gid(), 3L), EInteger(gid(), 9L)}, NoRail)
 
       expect(removePartials(expr)) |> toEqual(expr)
     })
@@ -129,12 +129,12 @@ let run = () => {
       let expr = EFnCall(
         fnid,
         "+",
-        list{EInteger(argid, "3"), EPartial(gid(), "abc", blank)},
+        list{EInteger(argid, 3L), EPartial(gid(), "abc", blank)},
         NoRail,
       )
 
       expect(removePartials(expr)) |> toEqual(
-        EFnCall(fnid, "+", list{EInteger(argid, "3"), blank}, NoRail),
+        EFnCall(fnid, "+", list{EInteger(argid, 3L), blank}, NoRail),
       )
     })
     test("Updates AST when there's a fn rename partial", () => {

@@ -33,9 +33,9 @@ let run = () => {
 
   let emptyStr = PString({matchID: mID, patternID: gid(), str: ""})
   let oneCharStr = PString({matchID: mID, patternID: gid(), str: "c"})
-  let aShortInt = PInteger(mID, gid(), "1")
-  let anInt = PInteger(mID, gid(), "12345")
-  let aHugeInt = PInteger(mID, gid(), "2000000000000000000")
+  let aShortInt = PInteger(mID, gid(), 1L)
+  let anInt = PInteger(mID, gid(), 12345L)
+  let aHugeInt = PInteger(mID, gid(), 3000000000000000000L)
   let aFloat = PFloat(mID, gid(), Positive, "123", "456")
   let aHugeFloat = PFloat(mID, gid(), Positive, "123456789", "123456789")
   let aShortFloat = PFloat(mID, gid(), Positive, "1", "2")
@@ -43,7 +43,7 @@ let run = () => {
   let trueBool = PBool(mID, gid(), true)
   let falseBool = PBool(mID, gid(), false)
   let aNull = PNull(mID, gid())
-  let five = PInteger(mID, gid(), "5")
+  let five = PInteger(mID, gid(), 5L)
   // let fiftySix = PInteger (mID, gid (), 56) in
   // let seventyEight = PInteger (gid (), 78) in
   let b = () => PBlank(mID, gid())
@@ -180,23 +180,22 @@ let run = () => {
     t("insert end of number", anInt, insert("0", 5), ("123450", 6))
     t("del end of number", anInt, del(5), ("12345", 5))
     t("bs end of number", anInt, bs(5), ("1234", 4))
-    t("insert number at scale", aHugeInt, insert("9", 5), ("2000090000000000000", 6))
-    t("insert number at scale", aHugeInt, insert("9", 0), ("920000000000000000", 1))
-    t("insert number at scale", aHugeInt, insert("9", 19), ("2000000000000000000", 19))
-    // let max62BitInt = PInteger (mID, gid (), "4611686018427387903") in
-    let oneShorterThanMax62BitInt = PInteger(mID, gid(), "461168601842738790")
+    t("insert number at scale", aHugeInt, insert("9", 5), ("3000090000000000000", 6))
+    t("insert number at scale", aHugeInt, insert("9", 0), ("930000000000000000", 1))
+    t("insert number at scale", aHugeInt, insert("9", 19), ("3000000000000000000", 19))
+    let oneShorterThanMax63BitInt = PInteger(mID, gid(), 922337203685477580L)
 
     t(
       "insert number at scale",
-      oneShorterThanMax62BitInt,
-      insert("3", 18),
-      ("4611686018427387903", 19),
+      oneShorterThanMax63BitInt,
+      insert("7", 18),
+      ("9223372036854775807", 19),
     )
     t(
       "insert number at scale",
-      oneShorterThanMax62BitInt,
-      insert("4", 18),
-      ("461168601842738790", 18),
+      oneShorterThanMax63BitInt,
+      insert("9", 18),
+      ("922337203685477580", 18),
     )
     ()
   })
@@ -217,11 +216,11 @@ let run = () => {
     t("insert non-int in fraction", aFloat, insert("c", 6), ("123.456", 6))
     t("del dot", aFloat, del(3), ("123456", 3))
     t("del dot at scale", aHugeFloat, del(9), ("123456789123456789", 9))
-    let maxPosIntWithDot = PFloat(mID, gid(), Positive, "4611686018427387", "903")
-    let maxPosIntPlus1WithDot = PFloat(mID, gid(), Positive, "4611686018427387", "904")
+    let maxPosIntWithDot = PFloat(mID, gid(), Positive, "9223372036854775", "807")
+    let maxPosIntPlus1WithDot = PFloat(mID, gid(), Positive, "9223372036854775", "808")
 
-    t("del dot at limit", maxPosIntWithDot, del(16), ("4611686018427387903", 16))
-    t("del dot at limit", maxPosIntPlus1WithDot, del(16), ("461168601842738790", 16))
+    t("del dot at limit1", maxPosIntWithDot, del(16), ("9223372036854775807", 16))
+    t("del dot at limit2", maxPosIntPlus1WithDot, del(16), ("922337203685477580", 16))
     t("del start of whole", aFloat, del(0), ("23.456", 0))
     t("del middle of whole", aFloat, del(1), ("13.456", 1))
     t("del end of whole", aFloat, del(2), ("12.456", 2))
@@ -234,8 +233,8 @@ let run = () => {
     t("bs frac of float", aShortFloat, bs(3), ("1.", 2))
     t("bs whole of float", aShortFloat, bs(1), (".2", 0))
     t("bs dot at scale", aHugeFloat, bs(10), ("123456789123456789", 9))
-    t("bs dot at limit", maxPosIntWithDot, bs(17), ("4611686018427387903", 16))
-    t("bs dot at limit", maxPosIntPlus1WithDot, bs(17), ("461168601842738790", 16))
+    t("bs dot at limit1", maxPosIntWithDot, bs(17), ("9223372036854775807", 16))
+    t("bs dot at limit2", maxPosIntPlus1WithDot, bs(17), ("922337203685477580", 16))
     t("bs start of whole", aFloat, bs(1), ("23.456", 0))
     t("bs middle of whole", aFloat, bs(2), ("13.456", 1))
     t("bs end of whole", aFloat, bs(3), ("12.456", 2))

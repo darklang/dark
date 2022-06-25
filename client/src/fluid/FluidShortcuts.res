@@ -6,9 +6,8 @@ let blank = (~id=gid(), ()): t => EBlank(id)
 
 let str = (~id=gid(), str: string): t => EString(id, str)
 
-let int = (~id=gid(), int: int): t => EInteger(id, string_of_int(int))
-
-let intStr = (~id=gid(), int: string): t => EInteger(id, int)
+let int = (~id=gid(), int: int): t => EInteger(id, Int64.of_int(int))
+let int64 = (~id=gid(), int: int64): t => EInteger(id, int)
 
 let bool = (~id=gid(), b: bool): t => EBool(id, b)
 
@@ -85,13 +84,9 @@ let match' = (~id=gid(), cond: t, matches: list<(FluidPattern.t, t)>): t => EMat
   matches,
 )
 
-let pInt = (~mid=gid(), ~id=gid(), int: int): FluidPattern.t => PInteger(
-  mid,
-  id,
-  string_of_int(int),
-)
+let pInt = (~mid=gid(), ~id=gid(), int: int): FluidPattern.t => PInteger(mid, id, Int64.of_int(int))
 
-let pIntStr = (~mid=gid(), ~id=gid(), int: string): FluidPattern.t => PInteger(mid, id, int)
+let pInt64 = (~mid=gid(), ~id=gid(), int: int64): FluidPattern.t => PInteger(mid, id, int)
 
 let pVar = (~mid=gid(), ~id=gid(), name: string): FluidPattern.t => PVariable(mid, id, name)
 

@@ -1529,7 +1529,7 @@ and placeholder = {
 }
 
 and fluidToken =
-  | TInteger(id, string, option<parentBlockID>)
+  | TInteger(id, int64, option<parentBlockID>)
   | TString(id, string, option<parentBlockID>)
   // multi-line strings: id *, segment, start offset, full-string
   | TStringMLStart(id, string, int, string)
@@ -1615,7 +1615,7 @@ and fluidToken =
    * - the final int is the index of the (pattern -> expr) */
   | TPatternVariable(id, id, string, int)
   | TPatternConstructorName(id, id, string, int)
-  | TPatternInteger(id, id, string, int)
+  | TPatternInteger(id, id, int64, int)
   | TPatternString({matchID: id, patternID: id, str: string, branchIdx: int})
   | TPatternTrue(id, id, int)
   | TPatternFalse(id, id, int)
