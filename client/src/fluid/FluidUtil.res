@@ -37,11 +37,6 @@ let truncateStringTo64BitInt = (s: string): Result.t<int64, string> => {
     | Some(i) => Native.BigInt.toString(i) == s
     | None => false
     }
-  let is62BitInt = s =>
-    switch Native.BigInt.asUintN(~nBits=62, s) {
-    | Some(i) => Native.BigInt.toString(i) == s
-    | None => false
-    }
 
   // 9223372036854775807 is largest positive 63 bit number, which has 19 characters
   // We use 63 bit checks instead of 64 because the most significanty bit is for sign
@@ -51,7 +46,7 @@ let truncateStringTo64BitInt = (s: string): Result.t<int64, string> => {
     Ok(Int64.of_string(trunc19))
   } else {
     let trunc18 = String.left(~count=18, s)
-    if is62BitInt(trunc18) {
+    if is63BitInt(trunc18) {
       Ok(Int64.of_string(trunc18))
     } else {
       Error("Invalid 63bit number even after truncate")
