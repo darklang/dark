@@ -23,24 +23,23 @@ let spaceOf = (hs: handlerSpec): handlerSpace => {
 }
 
 let replaceEventModifier = (
-  search: ID.t,
+  search: id,
   replacement: blankOr<string>,
   hs: handlerSpec,
 ): handlerSpec => {...hs, modifier: B.replace(search, replacement, hs.modifier)}
 
-let replaceEventName = (
-  search: ID.t,
-  replacement: blankOr<string>,
-  hs: handlerSpec,
-): handlerSpec => {...hs, name: B.replace(search, replacement, hs.name)}
+let replaceEventName = (search: id, replacement: blankOr<string>, hs: handlerSpec): handlerSpec => {
+  ...hs,
+  name: B.replace(search, replacement, hs.name),
+}
 
 let replaceEventSpace = (
-  search: ID.t,
+  search: id,
   replacement: blankOr<string>,
   hs: handlerSpec,
 ): handlerSpec => {...hs, space: B.replace(search, replacement, hs.space)}
 
-let replace = (search: ID.t, replacement: blankOr<string>, hs: handlerSpec): handlerSpec =>
+let replace = (search: id, replacement: blankOr<string>, hs: handlerSpec): handlerSpec =>
   hs
   |> replaceEventModifier(search, replacement)
   |> replaceEventName(search, replacement)
@@ -52,10 +51,10 @@ let blankOrData = (spec: handlerSpec): list<blankOrData> => list{
   PEventName(spec.name),
 }
 
-let firstBlank = (spec: handlerSpec): option<ID.t> =>
+let firstBlank = (spec: handlerSpec): option<id> =>
   spec |> blankOrData |> List.filter(~f=Pointer.isBlank) |> List.head |> Option.map(~f=Pointer.toID)
 
-let lastBlank = (spec: handlerSpec): option<ID.t> =>
+let lastBlank = (spec: handlerSpec): option<id> =>
   spec
   |> blankOrData
   |> List.filter(~f=Pointer.isBlank)

@@ -110,7 +110,7 @@ module Builder = {
     {...b, indent: newIndent} |> f |> (b => {...b, indent: oldIndent})
   }
 
-  let addNewlineIfNeeded = (nlInfo: option<(ID.t, ID.t, option<int>)>, b: t): t =>
+  let addNewlineIfNeeded = (nlInfo: option<(id, id, option<int>)>, b: t): t =>
     if endsInNewline(b) {
       b
     } else {
@@ -124,28 +124,31 @@ module Builder = {
 
 let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
   switch p {
-  | FPVariable(mid, id, name) => list{TPatternVariable(mid, id, name, idx)}
-  | FPConstructor(mid, id, name, args) =>
+  | PVariable(mid, id, name) => list{TPatternVariable(mid, id, name, idx)}
+  | PConstructor(mid, id, name, args) =>
     let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(a, ~idx)})
 
     List.flatten(list{list{TPatternConstructorName(mid, id, name, idx)}, ...args})
-  | FPInteger(mid, id, i) => list{TPatternInteger(mid, id, i, idx)}
-  | FPBool(mid, id, b) =>
+  | PInteger(mid, id, i) => list{TPatternInteger(mid, id, i, idx)}
+  | PBool(mid, id, b) =>
     if b {
       list{TPatternTrue(mid, id, idx)}
     } else {
       list{TPatternFalse(mid, id, idx)}
     }
-  | FPString({matchID: mid, patternID: id, str}) => list{
+  | PString({matchID: mid, patternID: id, str}) => list{
       TPatternString({matchID: mid, patternID: id, str: str, branchIdx: idx}),
     }
-  | FPFloat(mID, id, whole, fraction) =>
+  | PFloat(mID, id, sign, whole, fraction) =>
+    let whole = switch sign {
+    | Positive => whole
+    | Negative => "-" ++ whole
+    }
     let whole = if whole == "" {
       list{}
     } else {
       list{TPatternFloatWhole(mID, id, whole, idx)}
     }
-
     let fraction = if fraction == "" {
       list{}
     } else {
@@ -153,8 +156,8 @@ let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
     }
 
     Belt.List.concatMany([whole, list{TPatternFloatPoint(mID, id, idx)}, fraction])
-  | FPNull(mid, id) => list{TPatternNullToken(mid, id, idx)}
-  | FPBlank(mid, id) => list{TPatternBlank(mid, id, idx)}
+  | PNull(mid, id) => list{TPatternNullToken(mid, id, idx)}
+  | PBlank(mid, id) => list{TPatternBlank(mid, id, idx)}
   }
 
 let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
@@ -174,7 +177,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
    * int: index of the placeholder within the expr's parameters
    */
   let nest = (
-    ~placeholderFor: option<(ID.t, string, int)>=None,
+    ~placeholderFor: option<(id, string, int)>=None,
     ~indent,
     e: E.t,
     b: Builder.t,
@@ -207,7 +210,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     b |> indentBy(~indent, ~f=addNested(~f=tokensFn))
   }
 
-  let addArgs = (name: string, id: ID.t, args: list<E.t>, b: Builder.t): Builder.t => {
+  let addArgs = (name: string, id: id, args: list<E.t>, b: Builder.t): Builder.t => {
     let (args, offset) = switch args {
     | list{EPipeTarget(_), ...args} => (args, 1)
     | _ => (args, 0)
@@ -268,7 +271,11 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       },
     )
   | ENull(id) => b |> add(TNullToken(id, parentID))
-  | EFloat(id, whole, fraction) =>
+  | EFloat(id, sign, whole, fraction) =>
+    let whole = switch sign {
+    | Positive => whole
+    | Negative => "-" ++ whole
+    }
     let whole = if whole == "" {
       list{}
     } else {
@@ -742,7 +749,7 @@ module ASTInfo = {
     ast: FluidAST.t,
     state: fluidState,
     mainTokenInfos: tokenInfos,
-    featureFlagTokenInfos: list<(ID.t, tokenInfos)>,
+    featureFlagTokenInfos: list<(id, tokenInfos)>,
     props: fluidProps,
   }
 
@@ -767,7 +774,7 @@ module ASTInfo = {
       }
     }
 
-  let ffTokenInfosFor = (ffid: ID.t, astInfo: t): option<tokenInfos> =>
+  let ffTokenInfosFor = (ffid: id, astInfo: t): option<tokenInfos> =>
     List.find(astInfo.featureFlagTokenInfos, ~f=((id, _)) => ffid == id) |> Option.map(
       ~f=Tuple2.second,
     )

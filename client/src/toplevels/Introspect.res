@@ -107,11 +107,11 @@ let rec updateAssocList = (~key: 'k, ~f: option<'v> => option<'v>, assoc: list<(
     }
   }
 
-let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<ID.t>)> =>
+let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<id>)> =>
   m.tlRefersTo
   |> Map.get(~key=tlid)
   |> Option.unwrap(~default=list{})
-  |> List.fold(~initial=list{}, ~f=(assoc, (tlid, id)): list<(TLID.t, list<ID.t>)> =>
+  |> List.fold(~initial=list{}, ~f=(assoc, (tlid, id)): list<(TLID.t, list<id>)> =>
     updateAssocList(~key=tlid, assoc, ~f=x =>
       switch x {
       | None => Some(list{id})
@@ -245,7 +245,7 @@ let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
   {...m, tlUsedIn: newTlUsedIn, tlRefersTo: newTlRefersTo}
 }
 
-let setHoveringReferences = (tlid: TLID.t, ids: list<ID.t>): modification => {
+let setHoveringReferences = (tlid: TLID.t, ids: list<id>): modification => {
   let new_props = x =>
     switch x {
     | None => Some({...Defaults.defaultHandlerProp, hoveringReferences: ids})

@@ -11,7 +11,7 @@ type transformation_test_result<'a, 'b> =
   | Fail('a, 'b)
 
 let run = () => {
-  describe("ast", () => {
+  describe("freeVariables", () => {
     let id1 = ID.fromString("5")
     let id2 = ID.fromString("10")
     let id3 = ID.fromString("11")
@@ -28,13 +28,15 @@ let run = () => {
       let e = EConstructor(id2, "Just", list{EVariable(id4, "request")})
       let pats = list{
         (
-          FPConstructor(id5, id1, "Just", list{FPVariable(id6, id1, "anything")}),
+          PConstructor(id5, id1, "Just", list{PVariable(id6, id1, "anything")}),
           EVariable(id7, "anything"),
         ),
       }
 
       expect(freeVariables(EMatch(id1, e, pats))) |> toEqual(list{(id4, "request")})
     })
+  })
+  describe("getArguments", () => {
     test("getArguments of binop works", () => {
       let arg1 = int(4)
       let arg2 = str("asf")
@@ -57,6 +59,8 @@ let run = () => {
       let ast = FluidAST.ofExpr(e)
       expect(getArguments(id, ast)) |> toEqual(list{arg1, arg2})
     })
+  })
+  describe("getParamIndex", () => {
     test("getParamIndex of pipe works", () => {
       let id1 = gid()
       let id2 = gid()
@@ -68,6 +72,8 @@ let run = () => {
         Some("String::append", 1),
       ))
     })
+  })
+  describe("variablesIn", () => {
     test("variablesIn correctly identifies available vars in let RHS with incomplete LHS", () => {
       let testId = ID.fromString("testme")
       let inner = ELet(gid(), "", EBlank(testId), E.newB())
@@ -104,7 +110,6 @@ let run = () => {
         |> Option.andThen(~f=d => Map.get(~key="myvar", d)),
       ) |> toEqual(Some(id1))
     })
-    ()
   })
   describe("removePartials", () => {
     let b = () => EBlank(gid())

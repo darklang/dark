@@ -1,6 +1,6 @@
 open Prelude
 
-let toID = (b: blankOr<'a>): ID.t =>
+let toID = (b: blankOr<'a>): id =>
   switch b {
   | Blank(id) => id
   | F(id, _) => id
@@ -48,7 +48,7 @@ let ofOption = (o: option<'a>): blankOr<'a> =>
   | None => new_()
   }
 
-let replace = (search: ID.t, replacement: blankOr<'a>, bo: blankOr<'a>): blankOr<'a> =>
+let replace = (search: id, replacement: blankOr<'a>, bo: blankOr<'a>): blankOr<'a> =>
   if toID(bo) == search {
     replacement
   } else {

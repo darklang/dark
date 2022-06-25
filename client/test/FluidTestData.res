@@ -61,17 +61,17 @@ let seventyEight = EInteger(gid(), "78")
 // ----------------
 // Floats
 // ----------------
-let aFloat = EFloat(gid(), "123", "456")
+let aFloat = EFloat(gid(), Positive, "123", "456")
 
-let aFloatWithoutWhole = EFloat(gid(), "", "1")
+let aFloatWithoutWhole = EFloat(gid(), Positive, "", "1")
 
-let aHugeFloat = EFloat(gid(), "123456789", "123456789")
+let aHugeFloat = EFloat(gid(), Positive, "123456789", "123456789")
 
-let aPartialFloat = EFloat(gid(), "1", "")
+let aPartialFloat = EFloat(gid(), Positive, "1", "")
 
-let maxPosIntWithDot = floatStr("4611686018427387", "903")
+let maxPosIntWithDot = floatStr(Positive, "4611686018427387", "903")
 
-let maxPosIntPlus1WithDot = floatStr("4611686018427387", "904")
+let maxPosIntPlus1WithDot = floatStr(Positive, "4611686018427387", "904")
 
 // ----------------
 // Bools
@@ -134,27 +134,27 @@ let letWithUsedBinding = (bindingName: string) =>
 // ----------------
 let emptyMatch = {
   let mID = gid()
-  EMatch(mID, b, list{(FPBlank(mID, gid()), b)})
+  EMatch(mID, b, list{(PBlank(mID, gid()), b)})
 }
 
 let emptyMatchWithTwoPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(FPBlank(mID, gid()), b), (FPBlank(mID, gid()), b)})
+  EMatch(mID, b, list{(PBlank(mID, gid()), b), (PBlank(mID, gid()), b)})
 }
 
 let matchWithPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(FPInteger(mID, gid(), "3"), b)})
+  EMatch(mID, b, list{(PInteger(mID, gid(), "3"), b)})
 }
 
 let matchWithConstructorPattern = {
   let mID = gid()
-  EMatch(mID, b, list{(FPConstructor(mID, gid(), "Just", list{}), b)})
+  EMatch(mID, b, list{(PConstructor(mID, gid(), "Just", list{}), b)})
 }
 
 let matchWithBinding = (bindingName: string, expr: t) => {
   let mID = gid()
-  EMatch(mID, b, list{(FPVariable(mID, gid(), bindingName), expr)})
+  EMatch(mID, b, list{(PVariable(mID, gid(), bindingName), expr)})
 }
 
 let matchWithTwoBindings = (bindingName1: string, expr1: t, bindingName2: string, expr2: t) => {
@@ -163,8 +163,8 @@ let matchWithTwoBindings = (bindingName1: string, expr1: t, bindingName2: string
     mID,
     b,
     list{
-      (FPVariable(mID, gid(), bindingName1), expr1),
-      (FPVariable(mID, gid(), bindingName2), expr2),
+      (PVariable(mID, gid(), bindingName1), expr1),
+      (PVariable(mID, gid(), bindingName2), expr2),
     },
   )
 }
@@ -174,7 +174,7 @@ let matchWithConstructorBinding = (bindingName: string, expr: t) => {
   EMatch(
     mID,
     b,
-    list{(FPConstructor(mID, gid(), "Ok", list{FPVariable(mID, gid(), bindingName)}), expr)},
+    list{(PConstructor(mID, gid(), "Ok", list{PVariable(mID, gid(), bindingName)}), expr)},
   )
 }
 
@@ -185,7 +185,7 @@ let matchWithTwoLets = {
     b,
     list{
       (
-        FPBlank(mID, gid()),
+        PBlank(mID, gid()),
         ELet(
           gid(),
           "x",
@@ -199,7 +199,7 @@ let matchWithTwoLets = {
 
 let nestedMatch = {
   let mID = gid()
-  EMatch(mID, b, list{(FPBlank(mID, gid()), emptyMatch)})
+  EMatch(mID, b, list{(PBlank(mID, gid()), emptyMatch)})
 }
 
 // ----------------

@@ -127,7 +127,7 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
   }
 }
 
-let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: ID.t, name: string): option<string> => {
+let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): option<string> => {
   let traces =
     Map.get(~key=TLID.toString(tlid), m.traces) |> recoverOption(
       ~debug=TLID.toString(tlid),

@@ -17,7 +17,7 @@ let tlidOf = (s: cursorState): option<TLID.t> =>
   | DraggingTL(_) | PanningCanvas(_) => None
   }
 
-let idOf = (s: cursorState): option<ID.t> =>
+let idOf = (s: cursorState): option<id> =>
   switch unwrap(s) {
   | Selecting(_, id) => id
   | Omnibox(_) => None

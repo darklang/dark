@@ -47,7 +47,7 @@ let replaceFunctionResult = (
   m: model,
   tlid: TLID.t,
   traceID: traceID,
-  callerID: ID.t,
+  callerID: id,
   fnName: string,
   hash: dvalArgsHash,
   hashVersion: int,
@@ -91,9 +91,7 @@ let replaceFunctionResult = (
   {...m, traces: traces}
 }
 
-let getLiveValueLoadable = (analysisStore: analysisStore, ID(id): ID.t): loadable<
-  executionResult,
-> =>
+let getLiveValueLoadable = (analysisStore: analysisStore, ID(id): id): loadable<executionResult> =>
   switch analysisStore {
   | LoadableSuccess(dvals) =>
     Belt.Map.String.get(dvals, id)
@@ -108,7 +106,7 @@ let getLiveValueLoadable = (analysisStore: analysisStore, ID(id): ID.t): loadabl
   | LoadableError(error) => LoadableError(error)
   }
 
-let getLiveValue' = (analysisStore: analysisStore, ID(id): ID.t): option<dval> =>
+let getLiveValue' = (analysisStore: analysisStore, ID(id): id): option<dval> =>
   switch analysisStore {
   | LoadableSuccess(dvals) =>
     switch Belt.Map.String.get(dvals, id) {
@@ -118,16 +116,16 @@ let getLiveValue' = (analysisStore: analysisStore, ID(id): ID.t): option<dval> =
   | _ => None
   }
 
-let getLiveValue = (m: model, id: ID.t, traceID: traceID): option<dval> =>
+let getLiveValue = (m: model, id: id, traceID: traceID): option<dval> =>
   getLiveValue'(getStoredAnalysis(m, traceID), id)
 
-let getTipeOf' = (analysisStore: analysisStore, id: ID.t): option<tipe> =>
+let getTipeOf' = (analysisStore: analysisStore, id: id): option<tipe> =>
   getLiveValue'(analysisStore, id) |> Option.map(~f=RT.typeOf)
 
-let getTipeOf = (m: model, id: ID.t, traceID: traceID): option<tipe> =>
+let getTipeOf = (m: model, id: id, traceID: traceID): option<tipe> =>
   getLiveValue(m, id, traceID) |> Option.map(~f=RT.typeOf)
 
-let getArguments = (m: model, tl: toplevel, callerID: ID.t, traceID: traceID): option<list<dval>> =>
+let getArguments = (m: model, tl: toplevel, callerID: id, traceID: traceID): option<list<dval>> =>
   switch TL.getAST(tl) {
   | Some(ast) =>
     let argIDs = ast |> AST.getArguments(callerID) |> List.map(~f=E.toID)
@@ -144,7 +142,7 @@ let getArguments = (m: model, tl: toplevel, callerID: ID.t, traceID: traceID): o
 @ocaml.doc(" [getAvailableVarnames m tl id traceID] gets a list of (varname, dval option)s that are in scope
  * at an expression with the given [id] within the ast of the [tl]. The dval for a given varname
  * comes from the trace with [traceID]. ")
-let getAvailableVarnames = (m: model, tl: toplevel, id: ID.t, traceID: traceID): list<(
+let getAvailableVarnames = (m: model, tl: toplevel, id: id, traceID: traceID): list<(
   string,
   option<dval>,
 )> => {

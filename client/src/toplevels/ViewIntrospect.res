@@ -71,7 +71,7 @@ let fnReturnTipeView = (returnTipe: blankOr<tipe>): Html.html<msg> =>
   | Blank(_) => Vdom.noNode
   }
 
-let hoveringRefProps = (originTLID: TLID.t, originIDs: list<ID.t>, ~key: string) => list{
+let hoveringRefProps = (originTLID: TLID.t, originIDs: list<id>, ~key: string) => list{
   ViewUtils.eventNoPropagation(
     ~key=key ++ ("-in_" ++ TLID.toString(originTLID)),
     "mouseenter",
@@ -86,7 +86,7 @@ let hoveringRefProps = (originTLID: TLID.t, originIDs: list<ID.t>, ~key: string)
 
 let dbView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   name: string,
   cols: list<dbColumn>,
@@ -116,7 +116,7 @@ let dbView = (
 
 let handlerView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   space: string,
   name: string,
@@ -148,7 +148,7 @@ let handlerView = (
 
 let fnView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   name: string,
   params: list<userFunctionParameter>,
@@ -180,7 +180,7 @@ let fnView = (
 
 let packageFnView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   name: string,
   params: list<packageFnParameter>,
@@ -211,7 +211,7 @@ let packageFnView = (
 
 let tipeView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   name: string,
   _version: int,
@@ -266,7 +266,7 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   | _ => Vdom.noNode
   }
 
-let allUsagesView = (tlid: TLID.t, uses: list<toplevel>, refs: list<(toplevel, list<ID.t>)>): list<
+let allUsagesView = (tlid: TLID.t, uses: list<toplevel>, refs: list<(toplevel, list<id>)>): list<
   Html.html<msg>,
 > => {
   let refersTo = List.map(~f=renderView(tlid, "refers-to"), refs)

@@ -6,9 +6,9 @@ type props = {
   analysisStore: analysisStore,
   ast: FluidAST.t,
   functions: functionsType,
-  executingFunctions: list<ID.t>,
+  executingFunctions: list<id>,
   editor: fluidEditor,
-  hoveringRefs: list<ID.t>,
+  hoveringRefs: list<id>,
   fluidState: fluidState,
   permission: option<permission>,
   tlid: TLID.t,
@@ -56,7 +56,7 @@ let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> =>
   | Some({fnPreviewSafety: Safe, _}) | None => Vdom.noNode
   }
 
-let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): list<
+let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
   Html.html<Types.msg>,
 > => {
   let exeFlow = ti => {
@@ -434,7 +434,7 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.m
     |> Option.map(~f=fn => fn.fnReturnTipe)
     |> Option.unwrap(~default=TAny)
 
-  let liveValue = (id: ID.t) => Analysis.getLiveValue'(p.analysisStore, id)
+  let liveValue = (id: id) => Analysis.getLiveValue'(p.analysisStore, id)
   let isEvalSuccess = dv =>
     switch dv {
     | Some(DIncomplete(_)) | Some(DError(_)) => false

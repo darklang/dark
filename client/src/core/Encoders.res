@@ -56,7 +56,7 @@ let base64url_bytes = (input: Bytes.t): string =>
   input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 
 /* Don't attempt to encode these as integers, because we're not capable
- * of expressing all existing ids as ints because bucklescript is strict
+ * of expressing all existing ids as ints because ReScript is strict
  * about int == 32 bit. As far as we're concerned, ids are strings and
  * we know nothing about their parseability as ints */
 let id = \">>"(ID.toString, string)
@@ -504,22 +504,25 @@ and fluidPattern = (pattern: FluidPattern.t): Js.Json.t => {
   /* Warning: A bunch of stuff here seems to expect that the
     second element of the tuples are match id but they are actually
     pattern ids. */
-  | FPVariable(id', mid, name) => ev("FPVariable", list{id(id'), id(mid), string(name)})
-  | FPConstructor(id', mid, name, patterns) =>
+  | PVariable(id', mid, name) => ev("FPVariable", list{id(id'), id(mid), string(name)})
+  | PConstructor(id', mid, name, patterns) =>
     ev("FPConstructor", list{id(id'), id(mid), string(name), list(fp, patterns)})
-  | FPInteger(id', mid, v) => ev("FPInteger", list{id(id'), id(mid), string(v)})
-  | FPBool(id', mid, v) => ev("FPBool", list{id(id'), id(mid), bool(v)})
-  | FPFloat(id', mid, whole, fraction) =>
-    ev("FPFloat", list{id(id'), id(mid), string(whole), string(fraction)})
-  | FPString({matchID, patternID, str: v}) =>
+  | PInteger(id', mid, v) => ev("FPInteger", list{id(id'), id(mid), string(v)})
+  | PBool(id', mid, v) => ev("FPBool", list{id(id'), id(mid), bool(v)})
+  | PFloat(id', mid, sign, whole, fraction) =>
+    ev(
+      "FPFloat",
+      list{id(id'), id(mid), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)},
+    )
+  | PString({matchID, patternID, str: v}) =>
     ev(
       "FPString",
       list{
         object_(list{("matchID", id(matchID)), ("patternID", id(patternID)), ("str", string(v))}),
       },
     )
-  | FPNull(id', mid) => ev("FPNull", list{id(id'), id(mid)})
-  | FPBlank(id', mid) => ev("FPBlank", list{id(id'), id(mid)})
+  | PNull(id', mid) => ev("FPNull", list{id(id'), id(mid)})
+  | PBlank(id', mid) => ev("FPBlank", list{id(id'), id(mid)})
   }
 }
 
@@ -541,7 +544,8 @@ and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
   | EString(id', v) => ev("EString", list{id(id'), string(v)})
   | EInteger(id', v) => ev("EInteger", list{id(id'), string(v)})
   | EBool(id', v) => ev("EBool", list{id(id'), bool(v)})
-  | EFloat(id', whole, fraction) => ev("EFloat", list{id(id'), string(whole), string(fraction)})
+  | EFloat(id', sign, whole, fraction) =>
+    ev("EFloat", list{id(id'), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)})
   | ENull(id') => ev("ENull", list{id(id')})
   | EBlank(id') => ev("EBlank", list{id(id')})
   | EVariable(id', name) => ev("EVariable", list{id(id'), string(name)})

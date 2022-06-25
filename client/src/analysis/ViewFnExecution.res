@@ -18,7 +18,7 @@ type fnExecutionStatus =
 type props = {
   analysisStore: analysisStore,
   ast: FluidAST.t,
-  executingFunctions: list<ID.t>,
+  executingFunctions: list<id>,
   permission: option<permission>,
   tlid: TLID.t,
 }
@@ -31,8 +31,8 @@ let propsFromViewProps = (p: ViewUtils.viewProps): props => {
   tlid: p.tlid,
 }
 
-let fnExecutionStatus = (p: props, fn: function_, id: ID.t, args: list<ID.t>) => {
-  let functionIsExecuting = (fid: ID.t): bool => List.member(~value=fid, p.executingFunctions)
+let fnExecutionStatus = (p: props, fn: function_, id: id, args: list<id>) => {
+  let functionIsExecuting = (fid: id): bool => List.member(~value=fid, p.executingFunctions)
 
   let isComplete = id =>
     switch Analysis.getLiveValue'(p.analysisStore, id) {
@@ -135,7 +135,7 @@ let executionEvents = (status, tlid, id, name) =>
     }
   }
 
-let fnExecutionButton = (p: props, fn: function_, id: ID.t, args: list<ID.t>) => {
+let fnExecutionButton = (p: props, fn: function_, id: id, args: list<id>) => {
   let name = fn.fnName
   let status = fnExecutionStatus(p, fn, id, args)
   switch fn.fnPreviewSafety {

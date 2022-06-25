@@ -9,7 +9,7 @@ type id = id
 
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
-// This and tuple5 are adapted from Bucklescript - see tuple4 for the original
+// This and tuple5 are adapted from ReScript - see tuple4 for the original
 external unsafe_get: (array<'a>, int) => 'a = "%array_unsafe_get"
 
 let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
@@ -225,18 +225,25 @@ let rec fluidPattern = (j): FluidPattern.t => {
   let dv2 = variant2
   variants(
     list{
-      ("FPVariable", dv3((a, b, c) => P.FPVariable(a, b, c), id, id, string)),
-      ("FPConstructor", dv4((a, b, c, d) => P.FPConstructor(a, b, c, d), id, id, string, list(dp))),
-      ("FPInteger", dv3((a, b, c) => P.FPInteger(a, b, c), id, id, string)),
-      ("FPBool", dv3((a, b, c) => P.FPBool(a, b, c), id, id, bool)),
-      ("FPString", recordVariant3((matchID, patternID, str) => P.FPString({
+      ("FPVariable", dv3((a, b, c) => P.PVariable(a, b, c), id, id, string)),
+      ("FPConstructor", dv4((a, b, c, d) => P.PConstructor(a, b, c, d), id, id, string, list(dp))),
+      ("FPInteger", dv3((a, b, c) => P.PInteger(a, b, c), id, id, string)),
+      ("FPBool", dv3((a, b, c) => P.PBool(a, b, c), id, id, bool)),
+      ("FPString", recordVariant3((matchID, patternID, str) => P.PString({
           matchID: matchID,
           patternID: patternID,
           str: str,
         }), ("matchID", id), ("patternID", id), ("str", string))),
-      ("FPFloat", dv4((a, b, c, d) => P.FPFloat(a, b, c, d), id, id, string, string)),
-      ("FPNull", dv2((a, b) => P.FPNull(a, b), id, id)),
-      ("FPBlank", dv2((a, b) => P.FPBlank(a, b), id, id)),
+      ("FPFloat", dv4((id1, id2, whole, fraction) => {
+          let (sign, whole) = if String.startsWith(~prefix="-", whole) {
+            (ProgramTypes.Negative, String.dropLeft(~count=1, whole))
+          } else {
+            (ProgramTypes.Positive, whole)
+          }
+          P.PFloat(id1, id2, sign, whole, fraction)
+        }, id, id, string, string)),
+      ("FPNull", dv2((a, b) => P.PNull(a, b), id, id)),
+      ("FPBlank", dv2((a, b) => P.PBlank(a, b), id, id)),
     },
     j,
   )
@@ -255,7 +262,14 @@ let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
       ("EInteger", dv2((x, y) => E.EInteger(x, y), id, string)),
       ("EBool", dv2((x, y) => E.EBool(x, y), id, bool)),
       ("EString", dv2((x, y) => E.EString(x, y), id, string)),
-      ("EFloat", dv3((x, y, z) => E.EFloat(x, y, z), id, string, string)),
+      ("EFloat", dv3((x, whole, fraction) => {
+          let (sign, whole) = if String.startsWith(~prefix="-", whole) {
+            (ProgramTypes.Negative, String.dropLeft(~count=1, whole))
+          } else {
+            (ProgramTypes.Positive, whole)
+          }
+          E.EFloat(x, sign, whole, fraction)
+        }, id, string, string)),
       ("ENull", dv1(x => E.ENull(x), id)),
       ("EBlank", dv1(x => E.EBlank(x), id)),
       ("ELet", dv4((a, b, c, d) => E.ELet(a, b, c, d), id, string, de, de)),

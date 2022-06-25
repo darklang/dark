@@ -6,7 +6,7 @@ type tokenInfo = Types.fluidTokenInfo
 
 let fakeid = ID.fromString("fake-id")
 
-let tid = (t: t): ID.t =>
+let tid = (t: t): id =>
   switch t {
   | TInteger(id, _, _)
   | TFloatWhole(id, _, _)
@@ -73,7 +73,7 @@ let tid = (t: t): ID.t =>
   | TNewline(None) | TIndent(_) => fakeid
   }
 
-let analysisID = (t: t): ID.t =>
+let analysisID = (t: t): id =>
   switch t {
   | TLetVarName(_, id, _, _)
   | TLetKeyword(_, id, _)
@@ -86,7 +86,7 @@ let analysisID = (t: t): ID.t =>
   }
 
 // TODO(alice) merge these two functions?
-let parentExprID = (t: t): ID.t =>
+let parentExprID = (t: t): id =>
   switch t {
   | TNewline(Some(_, id, _)) => id
   | _ => tid(t)
@@ -95,7 +95,7 @@ let parentExprID = (t: t): ID.t =>
 /* List literals, object literals, and multiline strings are blocks.
  This function returns the ID of the whole list, object, or string expression that this token belongs to, if it does indeed live inside a block.
 */
-let parentBlockID = (t: t): option<ID.t> =>
+let parentBlockID = (t: t): option<id> =>
   switch t {
   // The first ID is the ID of the whole string expression
   | TStringMLStart(id, _, _, _)
@@ -626,7 +626,7 @@ let toIndex = (t: t): option<int> =>
   | _ => None
   }
 
-let toParentID = (t: t): option<ID.t> =>
+let toParentID = (t: t): option<id> =>
   switch t {
   | TRecordFieldname({recordID: id, _})
   | TPatternBlank(id, _, _)

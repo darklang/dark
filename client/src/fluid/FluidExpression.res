@@ -11,13 +11,13 @@ type rec fluidPatOrExpr =
 
 let newB = () => ProgramTypes.Expr.EBlank(gid())
 
-let toID = (expr: t): ID.t =>
+let toID = (expr: t): id =>
   switch expr {
   | EInteger(id, _)
   | EString(id, _)
   | EBool(id, _)
   | ENull(id)
-  | EFloat(id, _, _)
+  | EFloat(id, _, _, _)
   | EVariable(id, _)
   | EFieldAccess(id, _, _)
   | EFnCall(id, _, _, _)
@@ -38,14 +38,14 @@ let toID = (expr: t): ID.t =>
   | EMatch(id, _, _) => id
   }
 
-let rec findExprOrPat = (target: ID.t, within: fluidPatOrExpr): option<fluidPatOrExpr> => {
+let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrExpr> => {
   let (id, patOrExprs) = switch within {
   | Expr(expr) =>
     switch expr {
     | EInteger(id, _)
     | EBool(id, _)
     | EString(id, _)
-    | EFloat(id, _, _)
+    | EFloat(id, _, _, _)
     | ENull(id)
     | EBlank(id)
     | EVariable(id, _)
@@ -75,14 +75,14 @@ let rec findExprOrPat = (target: ID.t, within: fluidPatOrExpr): option<fluidPatO
     }
   | Pat(pat) =>
     switch pat {
-    | FPVariable(_, pid, _)
-    | FPInteger(_, pid, _)
-    | FPBool(_, pid, _)
-    | FPNull(_, pid)
-    | FPBlank(_, pid)
-    | FPFloat(_, pid, _, _)
-    | FPString({matchID: _, patternID: pid, str: _}) => (pid, list{})
-    | FPConstructor(_, pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(p1)))
+    | PVariable(_, pid, _)
+    | PInteger(_, pid, _)
+    | PBool(_, pid, _)
+    | PNull(_, pid)
+    | PBlank(_, pid)
+    | PFloat(_, pid, _, _, _)
+    | PString({matchID: _, patternID: pid, str: _}) => (pid, list{})
+    | PConstructor(_, pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(p1)))
     }
   }
 
@@ -93,7 +93,7 @@ let rec findExprOrPat = (target: ID.t, within: fluidPatOrExpr): option<fluidPatO
   }
 }
 
-let rec find = (target: ID.t, expr: t): option<t> => {
+let rec find = (target: id, expr: t): option<t> => {
   let fe = find(target)
   if toID(expr) == target {
     Some(expr)
@@ -166,8 +166,8 @@ let children = (expr: t): list<t> =>
     list{matchExpr, ...casePointers}
   }
 
-let findParent = (target: ID.t, expr: t): option<t> => {
-  let rec findParent' = (~parent: option<t>, target: ID.t, expr: t): option<t> =>
+let findParent = (target: id, expr: t): option<t> => {
+  let rec findParent' = (~parent: option<t>, target: id, expr: t): option<t> =>
     if toID(expr) == target {
       parent
     } else {
@@ -193,7 +193,7 @@ let isEmpty = (expr: t): bool =>
   | _ => false
   }
 
-let hasEmptyWithId = (id: ID.t, expr: t): bool =>
+let hasEmptyWithId = (id: id, expr: t): bool =>
   switch find(id, expr) {
   | Some(e) => isEmpty(e)
   | _ => false
@@ -314,7 +314,7 @@ let filter = (~f: t => bool, expr: t): list<t> => filterMap(~f=t =>
     }
   , expr)
 
-let decendants = (expr: t): list<ID.t> => {
+let decendants = (expr: t): list<id> => {
   let res = ref(list{})
   preTraversal(expr, ~f=e => {
     res := list{toID(e), ...res.contents}
@@ -323,7 +323,7 @@ let decendants = (expr: t): list<ID.t> => {
   res.contents
 }
 
-let update = (~failIfMissing=true, ~f: t => t, target: ID.t, ast: t): t => {
+let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
   let found = ref(false)
   let rec run = e =>
     if target == toID(e) {
@@ -351,7 +351,7 @@ let update = (~failIfMissing=true, ~f: t => t, target: ID.t, ast: t): t => {
  * It's very unclear which to use at what point and likely to cause bugs.
  * We should either hide [update] from the public interface of FluidExpression
  * or remove [replace] and put the special-case EPipe logic into the calling code. */
-let replace = (~replacement: t, target: ID.t, ast: t): t => {
+let replace = (~replacement: t, target: id, ast: t): t => {
   // If we're putting a pipe into another pipe, fix it up
   let (target', newExpr') = switch (findParent(target, ast), replacement) {
   | (Some(EPipe(parentID, oldExprs)), EPipe(newID, newExprs)) =>
@@ -431,7 +431,7 @@ let rec clone = (expr: t): t => {
   | EString(_, v) => EString(gid(), v)
   | EInteger(_, v) => EInteger(gid(), v)
   | EBool(_, v) => EBool(gid(), v)
-  | EFloat(_, whole, fraction) => EFloat(gid(), whole, fraction)
+  | EFloat(_, sign, whole, fraction) => EFloat(gid(), sign, whole, fraction)
   | ENull(_) => ENull(gid())
   | EBlank(_) => EBlank(gid())
   | EVariable(_, name) => EVariable(gid(), name)
@@ -451,10 +451,10 @@ let rec clone = (expr: t): t => {
 
 let blanks = filter(~f=isBlank)
 
-let ids = (ast: t): list<ID.t> => filter(ast, ~f=_ => true) |> List.map(~f=toID)
+let ids = (ast: t): list<id> => filter(ast, ~f=_ => true) |> List.map(~f=toID)
 
-let ancestors = (id: ID.t, expr: t): list<t> => {
-  let rec rec_ancestors = (tofind: ID.t, walk: list<t>, exp: t) => {
+let ancestors = (id: id, expr: t): list<t> => {
+  let rec rec_ancestors = (tofind: id, walk: list<t>, exp: t) => {
     let rec_ = (id_, e_, walk_) => rec_ancestors(id_, list{e_, ...walk_})
     let reclist = (id_, e_, walk_, exprs) =>
       exprs |> List.map(~f=rec_(id_, e_, walk_)) |> List.flatten
@@ -508,23 +508,23 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
         Tc.List.map2(~f=peq, l1, l2) |> Tc.List.all(~f=Tc.identity)
 
     switch (a, b) {
-    | (FPVariable(_, _, name), FPVariable(_, _, name')) => name == name'
-    | (FPConstructor(_, _, name, patterns), FPConstructor(_, _, name', patterns')) =>
+    | (PVariable(_, _, name), PVariable(_, _, name')) => name == name'
+    | (PConstructor(_, _, name, patterns), PConstructor(_, _, name', patterns')) =>
       name == name' && peqList(patterns, patterns')
-    | (FPString({str, _}), FPString({str: str', _})) => str == str'
-    | (FPInteger(_, _, l), FPInteger(_, _, l')) => l == l'
-    | (FPFloat(_, _, w, f), FPFloat(_, _, w', f')) => (w, f) == (w', f')
-    | (FPBool(_, _, l), FPBool(_, _, l')) => l == l'
-    | (FPNull(_, _), FPNull(_, _)) => true
-    | (FPBlank(_, _), FPBlank(_, _)) => true
-    | (FPVariable(_), _)
-    | (FPConstructor(_), _)
-    | (FPString(_), _)
-    | (FPInteger(_), _)
-    | (FPFloat(_), _)
-    | (FPBool(_), _)
-    | (FPNull(_), _)
-    | (FPBlank(_), _) => false
+    | (PString({str, _}), PString({str: str', _})) => str == str'
+    | (PInteger(_, _, l), PInteger(_, _, l')) => l == l'
+    | (PFloat(_, _, s, w, f), PFloat(_, _, s', w', f')) => (s, w, f) == (s', w', f')
+    | (PBool(_, _, l), PBool(_, _, l')) => l == l'
+    | (PNull(_, _), PNull(_, _)) => true
+    | (PBlank(_, _), PBlank(_, _)) => true
+    | (PVariable(_), _)
+    | (PConstructor(_), _)
+    | (PString(_), _)
+    | (PInteger(_), _)
+    | (PFloat(_), _)
+    | (PBool(_), _)
+    | (PNull(_), _)
+    | (PBlank(_), _) => false
     }
   }
 
@@ -537,7 +537,8 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (EVariable(_, v), EVariable(_, v')) =>
     v == v'
   | (EBool(_, v), EBool(_, v')) => v == v'
-  | (EFloat(_, whole, frac), EFloat(_, whole', frac')) => whole == whole' && frac == frac'
+  | (EFloat(_, sign, whole, frac), EFloat(_, sign', whole', frac')) =>
+    sign == sign' && whole == whole' && frac == frac'
   | (ELet(_, lhs, rhs, body), ELet(_, lhs', rhs', body')) =>
     lhs == lhs' && eq2((rhs, rhs'), (body, body'))
   | (EIf(_, con, thn, els), EIf(_, con', thn', els')) => eq3((con, con'), (thn, thn'), (els, els'))
@@ -612,7 +613,8 @@ let toHumanReadable = (expr: t): string => {
       } |> Printf.sprintf(`(str "%s")`)
     | EBool(_, true) => "(true)"
     | EBool(_, false) => "(false)"
-    | EFloat(_, whole, fractional) => Printf.sprintf(`(%s.%s)`, whole, fractional)
+    | EFloat(_, sign, whole, fractional) =>
+      Printf.sprintf(`(%s%s.%s)`, ProgramTypes.Sign.toString(sign), whole, fractional)
     | EInteger(_, i) => Printf.sprintf(`(%s)`, i)
     | ENull(_) => "(null)"
     | EPipeTarget(_) => "(pt)"
@@ -630,15 +632,20 @@ let toHumanReadable = (expr: t): string => {
         let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
         let spaced = elems => String.join(~sep=" ", elems)
         switch p {
-        | FPBlank(_) => "pBlank"
-        | FPString({str, _}) => spaced(list{"pString", quoted(str)})
-        | FPBool(_, _, true) => spaced(list{"pBool true"})
-        | FPBool(_, _, false) => spaced(list{"pBool false"})
-        | FPFloat(_, _, whole, fractional) => spaced(list{"pFloat'", whole, fractional})
-        | FPInteger(_, _, int) => spaced(list{"pInt", int})
-        | FPNull(_) => "pNull"
-        | FPVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
-        | FPConstructor(_, _, name, args) =>
+        | PBlank(_) => "pBlank"
+        | PString({str, _}) => spaced(list{"pString", quoted(str)})
+        | PBool(_, _, true) => spaced(list{"pBool true"})
+        | PBool(_, _, false) => spaced(list{"pBool false"})
+        | PFloat(_, _, sign, whole, fractional) =>
+          let sign = switch sign {
+          | Positive => "Positive"
+          | Negative => "Negative"
+          }
+          spaced(list{"pFloat'", sign, whole, fractional})
+        | PInteger(_, _, int) => spaced(list{"pInt", int})
+        | PNull(_) => "pNull"
+        | PVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
+        | PConstructor(_, _, name, args) =>
           spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
         }
       }

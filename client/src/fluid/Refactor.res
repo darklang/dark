@@ -64,10 +64,10 @@ type wrapLoc =
   | WMatchExpr
   | WMatchArm
 
-let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: ID.t): modification => {
+let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): modification => {
   let replacement = (e): FluidExpression.t => {
     let newB = FluidExpression.newB
-    let newBlankPattern = mid => P.FPBlank(mid, gid())
+    let newBlankPattern = mid => P.PBlank(mid, gid())
     switch wl {
     | WLetRHS => ELet(gid(), "", e, newB())
     | WLetBody => ELet(gid(), "", newB(), e)
@@ -99,7 +99,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: ID.t): modification => {
   |> Option.unwrap(~default=NoChange)
 }
 
-let takeOffRail = (_m: model, tl: toplevel, id: ID.t): modification =>
+let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
   TL.getAST(tl)
   |> Option.map(~f=ast =>
     ast
@@ -119,7 +119,7 @@ let isRailable = (m: model, name: string) =>
   |> Option.map(~f=fn => fn.fnReturnTipe == TOption || fn.fnReturnTipe == TResult)
   |> Option.unwrap(~default=false)
 
-let putOnRail = (m: model, tl: toplevel, id: ID.t): modification =>
+let putOnRail = (m: model, tl: toplevel, id: id): modification =>
   // Only toggle onto rail iff. return tipe is TOption or TResult
   TL.modifyASTMod(tl, ~f=ast =>
     FluidAST.update(id, ast, ~f=x =>
@@ -133,7 +133,7 @@ let putOnRail = (m: model, tl: toplevel, id: ID.t): modification =>
 let extractVarInAst = (
   m: model,
   tl: toplevel,
-  id: ID.t,
+  id: id,
   varname: string,
   ast: FluidAST.t,
 ): FluidAST.t => {
@@ -179,12 +179,12 @@ let extractVarInAst = (
   }
 }
 
-let extractVariable = (m: model, tl: toplevel, id: ID.t): modification => {
+let extractVariable = (m: model, tl: toplevel, id: id): modification => {
   let varname = "var" ++ string_of_int(Util.random())
   TL.modifyASTMod(tl, ~f=extractVarInAst(m, tl, id, varname))
 }
 
-let extractFunction = (m: model, tl: toplevel, id: ID.t): modification => {
+let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   let tlid = TL.id(tl)
   let ast = TL.getAST(tl)
   switch (ast, Option.andThen(ast, ~f=FluidAST.find(id))) {
@@ -374,7 +374,7 @@ let removeFunctionParameter = (m: model, uf: userFunction, ufp: userFunctionPara
   transformFnCalls(m, uf, fn)
 }
 
-let addFunctionParameter = (m: model, f: userFunction, currentBlankId: ID.t): modification => {
+let addFunctionParameter = (m: model, f: userFunction, currentBlankId: id): modification => {
   open ProgramTypes.Expr
   let transformOp = old => {
     let fn = e =>
@@ -547,7 +547,7 @@ let createNewFunction = (m: model, newFnName: option<string>): modification => {
 let createAndInsertNewFunction = (
   m: model,
   tlid: TLID.t,
-  partialID: ID.t,
+  partialID: id,
   newFnName: string,
 ): modification =>
   switch Toplevel.get(m, tlid) |> Option.thenAlso(~f=TL.getAST) {

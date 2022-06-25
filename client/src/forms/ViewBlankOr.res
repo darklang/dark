@@ -7,7 +7,7 @@ module TL = Toplevel
 // Create a Html.div for this ID, incorporating all ID-related data,
 // such as whether it's selected, appropriate events, mouseover, etc.
 let div = (
-  ~id: ID.t,
+  ~id: id,
   ~enterable: bool,
   ~classes: list<string>,
   vp: ViewUtils.viewProps,

@@ -1,4 +1,4 @@
-open Tc
+open Prelude
 open Tester
 open FluidTestData
 open FluidShortcuts
@@ -24,7 +24,7 @@ module FF = FeatureFlags
 let testWrap = (
   name: string,
   ~state=defaultTestState,
-  exprFn: ID.t => FluidExpression.t,
+  exprFn: id => FluidExpression.t,
   expected: FluidExpression.t,
 ) =>
   test(name, () => {
@@ -38,7 +38,7 @@ let testWrap = (
 
 let testUnwrap = (
   name: string,
-  exprFn: ID.t => FluidExpression.t,
+  exprFn: id => FluidExpression.t,
   ~keepOld: FluidExpression.t,
   ~keepNew: FluidExpression.t,
 ) => {

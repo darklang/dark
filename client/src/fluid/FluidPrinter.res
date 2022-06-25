@@ -63,7 +63,8 @@ let rec eToTestcase = (e: E.t): string => {
   | EString(_, str) => spaced(list{"str", quoted(str)})
   | EBool(_, true) => spaced(list{"bool true"})
   | EBool(_, false) => spaced(list{"bool false"})
-  | EFloat(_, whole, fractional) => spaced(list{"float'", whole, fractional})
+  | EFloat(_, sign, whole, fractional) =>
+    spaced(list{"float'", ProgramTypes.Sign.toString(sign), whole, fractional})
   | EInteger(_, int) => spaced(list{"int", int})
   | ENull(_) => "null"
   | EPipeTarget(_) => "pipeTarget"
@@ -80,15 +81,16 @@ let rec eToTestcase = (e: E.t): string => {
       let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
       let spaced = elems => String.join(~sep=" ", elems)
       switch p {
-      | FPBlank(_) => "pBlank"
-      | FPString({str, _}) => spaced(list{"pString", quoted(str)})
-      | FPBool(_, _, true) => spaced(list{"pBool true"})
-      | FPBool(_, _, false) => spaced(list{"pBool false"})
-      | FPFloat(_, _, whole, fractional) => spaced(list{"pFloat'", whole, fractional})
-      | FPInteger(_, _, int) => spaced(list{"pInt", int})
-      | FPNull(_) => "pNull"
-      | FPVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
-      | FPConstructor(_, _, name, args) =>
+      | PBlank(_) => "pBlank"
+      | PString({str, _}) => spaced(list{"pString", quoted(str)})
+      | PBool(_, _, true) => spaced(list{"pBool true"})
+      | PBool(_, _, false) => spaced(list{"pBool false"})
+      | PFloat(_, _, sign, whole, fractional) =>
+        spaced(list{"pFloat'", ProgramTypes.Sign.toString(sign), whole, fractional})
+      | PInteger(_, _, int) => spaced(list{"pInt", int})
+      | PNull(_) => "pNull"
+      | PVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
+      | PConstructor(_, _, name, args) =>
         spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
       }
     }

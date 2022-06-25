@@ -513,7 +513,7 @@ let run = () => {
         let tlid = TLID.fromString("789")
         let mID = ID.fromString("1234")
         let patID = ID.fromString("456")
-        let pattern = FPVariable(mID, patID, "o")
+        let pattern = PVariable(mID, patID, "o")
         let expr = match'(b, list{(pattern, b)})
         let m =
           defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ()) |> (

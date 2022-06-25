@@ -155,7 +155,7 @@ let rec generatePattern' = (): FluidPattern.t =>
     lazy pConstructor(generateName(), generateList(~minSize=0, ~f=generatePattern, ())),
     lazy pVar(generateName()),
     lazy pString(generateString()),
-    lazy pFloat(range(5000000), range(500000)),
+    lazy pFloat(Positive, range(5000000), range(500000)),
     lazy pBlank(),
   }) |> Lazy.force
 
@@ -177,7 +177,7 @@ and generateExpr' = () =>
     lazy str(generateString()),
     lazy int(range(500)),
     lazy bool(random() < 0.5),
-    lazy float'(range(5000000), range(500000)),
+    lazy float'(Positive, range(5000000), range(500000)),
     lazy null,
     lazy var(generateName()),
     lazy partial(generateFnName(), generateExpr()),
@@ -217,7 +217,7 @@ module FuzzTest = {
 // Test case reduction
 // ------------------
 
-let unwrap = (id: ID.t, ast: E.t): E.t => {
+let unwrap = (id: id, ast: E.t): E.t => {
   let childOr = (exprs: list<E.t>) => List.find(exprs, ~f=e => E.toID(e) == id)
 
   E.postTraversal(ast, ~f=e => {
@@ -243,7 +243,7 @@ let unwrap = (id: ID.t, ast: E.t): E.t => {
   })
 }
 
-let changeStrings = (id: ID.t, ~f: string => string, ast: E.t): E.t => {
+let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
   let fStr = (strid, str) =>
     if strid == id {
       f(str)
@@ -305,12 +305,12 @@ let changeStrings = (id: ID.t, ~f: string => string, ast: E.t): E.t => {
   )
 }
 
-let blankVarNames = (id: ID.t, expr: E.t): E.t => changeStrings(~f=_ => "", id, expr)
+let blankVarNames = (id: id, expr: E.t): E.t => changeStrings(~f=_ => "", id, expr)
 
-let shortenNames = (id: ID.t, expr: E.t): E.t =>
+let shortenNames = (id: id, expr: E.t): E.t =>
   changeStrings(~f=String.dropRight(~count=1), id, expr)
 
-let remove = (id: ID.t, ast: E.t): E.t => {
+let remove = (id: id, ast: E.t): E.t => {
   let removeFromList = exprs => List.filter(exprs, ~f=e => E.toID(e) != id)
   E.postTraversal(ast, ~f=x =>
     switch x {
@@ -364,7 +364,7 @@ let remove = (id: ID.t, ast: E.t): E.t => {
   )
 }
 
-let simplify = (id: ID.t, ast: E.t): E.t =>
+let simplify = (id: id, ast: E.t): E.t =>
   E.update(id, ast, ~f=x =>
     switch x {
     | EBlank(e) => EBlank(e)
