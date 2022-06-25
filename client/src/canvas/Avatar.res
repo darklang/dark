@@ -9,7 +9,7 @@ let filterAvatarsByTlid = (avatars: list<avatar>, tlid: TLID.t): list<avatar> =>
   )
 
 let avatarUrl = (email: string, name: option<string>): string => {
-  // Digest.string is Bucklescript's MD5
+  // Digest.string is ReScript's MD5
   let digestedEmail = Digest.to_hex(Digest.string(email))
   let fallback = (name: option<string>) =>
     switch name {

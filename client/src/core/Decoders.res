@@ -9,7 +9,7 @@ type id = id
 
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
-// This and tuple5 are adapted from Bucklescript - see tuple4 for the original
+// This and tuple5 are adapted from ReScript - see tuple4 for the original
 external unsafe_get: (array<'a>, int) => 'a = "%array_unsafe_get"
 
 let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>

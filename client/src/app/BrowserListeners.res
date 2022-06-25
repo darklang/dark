@@ -39,7 +39,7 @@ module Window = {
 
   @ocaml.doc(" [registerListener eventName key decoder]
    * registers an event listener for the given [eventName]
-   * under the bucklescript key [key] with the [decoder].
+   * under the rescript key [key] with the [decoder].
    * The decoder must be a Tea_json.Decoder decoder,
    * and must therefore be wrapped if using a decoder of
    * the form (Js.Json.t -> 'a).

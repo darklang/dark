@@ -61,7 +61,7 @@ module Pattern = {
     | PVariable(id, id, string)
     | PConstructor(id, id, string, list<t>)
     // TODO: support char
-    // Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support
+    // Currently we support u62s; we will support s63s. ints in ReScript only support 32 bit ints but we want 63 bit int support
     | PInteger(id, id, string)
     | PBool(id, id, bool)
     | PString({matchID: id, patternID: id, str: string})
@@ -79,7 +79,7 @@ module Expr = {
   // CLEANUP: move comments to LibExecution.ProgramTypes
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    // ints in Bucklescript only support 32 bit ints but we want 63 bit int
+    // ints in ReScript only support 32 bit ints but we want 63 bit int
     // support
     | EInteger(id, string)
     | EBool(id, bool)

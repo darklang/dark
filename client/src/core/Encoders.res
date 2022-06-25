@@ -56,7 +56,7 @@ let base64url_bytes = (input: Bytes.t): string =>
   input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 
 /* Don't attempt to encode these as integers, because we're not capable
- * of expressing all existing ids as ints because bucklescript is strict
+ * of expressing all existing ids as ints because ReScript is strict
  * about int == 32 bit. As far as we're concerned, ids are strings and
  * we know nothing about their parseability as ints */
 let id = \">>"(ID.toString, string)
