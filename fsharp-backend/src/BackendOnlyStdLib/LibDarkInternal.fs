@@ -570,65 +570,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "getAllSchedulingRules" 0
-      parameters = []
-      returnType = TList varA
-      description = "Returns a list of all queue scheduling rules."
-      fn =
-        internalFn (function
-          | _, [] ->
-            uply {
-              let! rules = SchedulingRules.getAllSchedulingRules ()
-              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
-      parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList varA
-      description =
-        "Returns a list of all queue scheduling rules for the specified canvas_id"
-      // CLEANUP "Returns a list of all queue scheduling rules for the specified canvasID"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID ] ->
-            uply {
-              let! rules = SchedulingRules.getSchedulingRules canvasID
-              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
-      returnType = TNull
-      description =
-        "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-      fn = modifySchedule EventQueueV2.blockWorker
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
-      returnType = TNull
-      description =
-        "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-      fn = modifySchedule EventQueueV2.unblockWorker
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
 
     { name = fn "DarkInternal" "newSessionForUsername" 0
       parameters = [ Param.make "username" TStr "" ]
@@ -910,5 +851,155 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated }
 
+
+    // ---------------------
+    // Apis - toplevels
+    // ---------------------
+    { name = fn "DarkInternal" "deleteToplevelForever" 0
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
+      returnType = TBool
+      description =
+        "Delete a toplevel forever. Requires that the toplevel already by deleted. If so, deletes and returns true. Otherwise returns false"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DInt tlid ] ->
+            uply {
+              let! meta = Canvas.getMetaFromID canvasID
+              let tlid = uint64 tlid
+              let! c =
+                Canvas.loadFrom Serialize.IncludeDeletedToplevels meta [ tlid ]
+              if Map.containsKey tlid c.deletedHandlers
+                 || Map.containsKey tlid c.deletedDBs
+                 || Map.containsKey tlid c.deletedUserTypes
+                 || Map.containsKey tlid c.deletedUserFunctions then
+                do! Canvas.deleteToplevelForever meta tlid
+                return DBool true
+              else
+                return DBool false
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - DBs
+    // ---------------------
+    { name = fn "DarkInternal" "unlockedDBs" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TList TInt
+      description = "Get a list of unlocked DBs"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! meta = Canvas.getMetaFromID canvasID
+              let! unlocked = UserDB.unlocked meta.owner meta.id
+              return unlocked |> List.map int64 |> List.map DInt |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - workers
+    // ---------------------
+    { name = fn "DarkInternal" "getQueueCount" 0
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
+      returnType = TList TInt
+      description = "Get a list of unlocked DBs"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DInt tlid ] ->
+            uply {
+              let tlid = uint64 tlid
+              let! count = Stats.workerStats canvasID tlid
+              return DInt count
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getQueueCount" 0
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
+      returnType = TList TInt
+      description = "Get a list of unlocked DBs"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DInt tlid ] ->
+            uply {
+              let tlid = uint64 tlid
+              let! count = Stats.workerStats canvasID tlid
+              return DInt count
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getAllSchedulingRules" 0
+      parameters = []
+      returnType = TList varA
+      description = "Returns a list of all queue scheduling rules."
+      fn =
+        internalFn (function
+          | _, [] ->
+            uply {
+              let! rules = SchedulingRules.getAllSchedulingRules ()
+              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TList varA
+      description =
+        "Returns a list of all queue scheduling rules for the specified canvas_id"
+      // CLEANUP "Returns a list of all queue scheduling rules for the specified canvasID"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! rules = SchedulingRules.getSchedulingRules canvasID
+              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
+      returnType = TNull
+      description =
+        "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
+      fn = modifySchedule EventQueueV2.blockWorker
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
+      returnType = TNull
+      description =
+        "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
+      fn = modifySchedule EventQueueV2.unblockWorker
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
     ]
