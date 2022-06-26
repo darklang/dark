@@ -964,8 +964,7 @@ human-readable data."
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList varA
       description =
-        "Returns a list of all queue scheduling rules for the specified canvas_id"
-      // CLEANUP "Returns a list of all queue scheduling rules for the specified canvasID"
+        "Returns a list of all queue scheduling rules for the specified canvasID"
       fn =
         internalFn (function
           | _, [ DUuid canvasID ] ->
