@@ -855,23 +855,6 @@ human-readable data."
     // ---------------------
     // Apis - secrets
     // ---------------------
-    { name = fn "DarkInternal" "deleteSecret" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "secretName" TStr "" ]
-      returnType = TNull
-      description = "Fetch a list of recent 404s"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID; DStr secretName ] ->
-            uply {
-              do! Secret.delete canvasID secretName
-              return DNull
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
     { name = fn "DarkInternal" "getSecrets" 0
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TDict TStr
@@ -887,4 +870,45 @@ human-readable data."
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "deleteSecret" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "secretName" TStr "" ]
+      returnType = TNull
+      description = "Delete a secret"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr secretName ] ->
+            uply {
+              do! Secret.delete canvasID secretName
+              return DNull
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "insertSecret" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""
+          Param.make "secretName" TStr ""
+          Param.make "secretValue" TStr "" ]
+      returnType = TDict TStr
+      description = "Add a secret"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr secretName; DStr secretValue ] ->
+            uply {
+              do! Secret.insert canvasID secretName secretValue
+              return DNull
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    ]

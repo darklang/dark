@@ -94,8 +94,13 @@ DarkInternal.canvasIDOfCanvasName_v0 Test.getCanvasName = Ok (Test.getCanvasID)
 DarkInternal.canvasIDOfCanvasName_v0 "invalid name" = Error "Invalid username 'invalid name' - must be 2-20 lowercase characters, and must start with a letter."
 DarkInternal.canvasIDOfCanvasName_v0 "not-a-real-canvas" = Error "Canvas not found"
 
-[tests.getSecrets]
+[tests.getSecrets empty]
 DarkInternal.getSecrets Test.getCanvasID = {}
 
-[tests.deleteSecret]
+[tests.deleteSecret none]
 DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = null
+
+[test.insert]
+(let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
+ DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "VALUE" }
+
