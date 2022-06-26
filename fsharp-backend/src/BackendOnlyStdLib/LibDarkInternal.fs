@@ -351,6 +351,27 @@ that's already taken, returns an error."
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = ReplacedBy(fn "DarkInternal" "canvasIDOfCanvasName" 0) }
+
+
+    { name = fn "DarkInternal" "canvasIDOfCanvasName" 0
+      parameters = [ Param.make "canvasName" TStr "" ]
+      returnType = TResult(TUuid, TStr)
+      description = "Gives canvasID for a canvasName"
+      fn =
+        internalFn (function
+          | _, [ DStr canvasName ] ->
+            uply {
+              try
+                match! Canvas.getMeta (CanvasName.createExn canvasName) with
+                | Some meta -> return DResult(Ok(DUuid meta.id))
+                | None -> return DResult(Error(DStr "Canvas not found"))
+              with
+              | e -> return DResult(Error(DStr e.Message))
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated }
 
 
