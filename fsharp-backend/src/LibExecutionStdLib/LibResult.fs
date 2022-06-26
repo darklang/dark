@@ -146,7 +146,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Result" "fromOption" 0
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
-      returnType = (TResult(varB, varErr))
+      returnType = (TResult(varB, TStr))
       description =
         "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just value`, returns `Ok value`. Returns `Error error` otherwise."
       fn =
@@ -164,7 +164,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Result" "fromOption" 1
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
-      returnType = (TResult(varB, varErr))
+      returnType = (TResult(varB, TStr))
       description =
         "Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise."
       fn =
