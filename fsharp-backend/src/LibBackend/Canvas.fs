@@ -61,7 +61,7 @@ let getMetaExn (canvasName : CanvasName.T) : Task<Meta> =
     let! option = getMeta canvasName
     return
       Exception.unwrapOptionInternal
-        "getMeta expected to find a canvas"
+        "getMetaExn expected to find a canvas"
         [ "canvasName", canvasName ]
         option
   }
