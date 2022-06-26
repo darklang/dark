@@ -74,7 +74,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 let fns : List<BuiltInFn> =
   [ { name = fn "DarkInternal" "endUsers" 0
       parameters = []
-      returnType = TList varA
+      returnType = TList TStr
       description =
         "Return a <type list> of all user email addresses for non-admins and not in @darklang.com or @example.com"
       fn =
@@ -100,10 +100,9 @@ let fns : List<BuiltInFn> =
           Param.make "email" TStr ""
           Param.make "name" TStr ""
           Param.make "analyticsMetadata" (TDict TStr) "" ]
-      returnType = TResult(varA, TStr)
+      returnType = TResult(TStr, TStr)
       description =
-        "Add a user. Returns a result containing the password for the user,
-which was randomly generated. Usernames are unique; if you try to add a username
+        "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
@@ -143,7 +142,10 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "getUser" 1
       parameters = [ Param.make "username" TStr "" ]
-      returnType = TOption varA
+      returnType =
+        TOption(
+          TRecord [ "username", TStr; "name", TStr; "email", TStr; "admin", TBool ]
+        )
       description = "Return a user for the username. Does not include passwords."
       fn =
         internalFn (function
@@ -167,7 +169,10 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "getUserByEmail" 0
       parameters = [ Param.make "email" TStr "" ]
-      returnType = TOption varA
+      returnType =
+        TOption(
+          TRecord [ "username", TStr; "name", TStr; "email", TStr; "admin", TBool ]
+        )
       description = "Return a user for the email. Does not include passwords."
       fn =
         internalFn (function
@@ -313,7 +318,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "sessionKeyToUsername" 0
       parameters = [ Param.make "sessionKey" TStr "" ]
-      returnType = TOption varA
+      returnType = TResult(TStr, TStr)
       description = "Looks up the username for a session_key"
       fn =
         internalFn (function
@@ -331,7 +336,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
       parameters = [ Param.make "canvasName" TStr "" ]
-      returnType = TOption varA
+      returnType = TOption TStr
       description = "Gives canvasId for a canvasName"
       fn =
         internalFn (function
@@ -381,7 +386,7 @@ that's already taken, returns an error."
         [ Param.make "username" TStr ""
           Param.make "org" TStr ""
           Param.make "permission" TStr "" ]
-      returnType = TResult(varA, TStr)
+      returnType = TResult(TStr, TStr)
       description = "Set a user's permissions for a particular auth_domain."
       fn =
         internalFn (function
@@ -421,8 +426,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "grantsFor" 0
       parameters = [ Param.make "org" TStr "" ]
-      returnType = TDict(varA)
-      // CLEANUP returnType = varA
+      returnType = TDict(TStr)
       description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
       fn =
@@ -446,7 +450,6 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "orgsFor" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TDict TStr
-      // returnType = varA // CLEANUP
       description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
       fn =
@@ -491,10 +494,9 @@ that's already taken, returns an error."
         [ Param.make "level" TStr ""
           Param.make "name" TStr ""
           Param.make "log" (TDict TStr) "" ]
-      returnType = TDict(TStr)
-      // returnType = varA
+      returnType = TDict TStr
       description =
-        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
+        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         internalFn (function
           | _, [ DStr level; DStr name; DObj log as result ] ->
