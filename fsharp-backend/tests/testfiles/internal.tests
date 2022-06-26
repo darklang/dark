@@ -88,5 +88,14 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
  [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["rw" ; ""]
 
 
-[test.canvasId length]
-(DarkInternal.canvasIdOfCanvasName_v0_ster (Test.getCanvasName)) = toString Test.getCanvasID
+[tests.canvasIDOfCanvasName]
+DarkInternal.canvasIdOfCanvasName_v0_ster Test.getCanvasName = toString Test.getCanvasID
+DarkInternal.canvasIDOfCanvasName_v0 Test.getCanvasName = Ok (Test.getCanvasID)
+DarkInternal.canvasIDOfCanvasName_v0 "invalid name" = Error "Invalid username 'invalid name' - must be 2-20 lowercase characters, and must start with a letter."
+DarkInternal.canvasIDOfCanvasName_v0 "not-a-real-canvas" = Error "Canvas not found"
+
+[tests.getSecrets]
+DarkInternal.getSecrets Test.getCanvasID = {}
+
+[tests.deleteSecret]
+DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = null

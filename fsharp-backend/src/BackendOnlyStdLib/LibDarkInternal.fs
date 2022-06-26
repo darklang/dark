@@ -795,4 +795,96 @@ human-readable data."
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - 404s
+    // ---------------------
+    { name = fn "DarkInternal" "delete404" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""
+          Param.make "space" TStr ""
+          Param.make "path" TStr ""
+          Param.make "modifier" TStr "" ]
+      returnType = TNull
+      description = "Deletes a specific 404 for a canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr space; DStr path; DStr modifier ] ->
+            uply {
+              Telemetry.addTags [ "space", space
+                                  "path", path
+                                  "modifier", modifier ]
+              do! TraceInputs.delete404s canvasID space path modifier
+              return DNull
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getRecent404s" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TNull
+      description = "Fetch a list of recent 404s"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! f404s = TraceInputs.getRecent404s canvasID
+              return
+                f404s
+                |> List.map (fun (space, path, modifier, instant, traceID) ->
+                  [ "space", DStr space
+                    "path", DStr path
+                    "modifier", DStr modifier
+                    "timestamp", DDate(DDateTime.fromInstant instant)
+                    "traceID", DUuid traceID ]
+                  |> Map
+                  |> DObj)
+                |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - secrets
+    // ---------------------
+    { name = fn "DarkInternal" "deleteSecret" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "secretName" TStr "" ]
+      returnType = TNull
+      description = "Fetch a list of recent 404s"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr secretName ] ->
+            uply {
+              do! Secret.delete canvasID secretName
+              return DNull
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "DarkInternal" "getSecrets" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TDict TStr
+      description = "Get list of secrets in the canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! secrets = Secret.getCanvasSecrets canvasID
+              return
+                secrets |> List.map (fun s -> (s.name, DStr s.value)) |> Map |> DObj
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
