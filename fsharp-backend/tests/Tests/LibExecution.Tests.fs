@@ -165,10 +165,9 @@ let t
           Expect.isTrue canonical "expected is canonicalized"
 
         if shouldEqual then
-          Expect.equalDval actual expected $"FSharp: {msg}"
+          Expect.equalDval actual expected msg
         else
-          Expect.notEqual actual expected $"FSharp: {msg}"
-
+          Expect.notEqual actual expected msg
         return ()
       with
       | e ->
