@@ -577,4 +577,19 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Date" "diff" 0
+      parameters = [ Param.make "endDate" TDate ""; Param.make "startDate" TDate "" ]
+      returnType = TInt
+      description = "Returns the difference of the two dates, in seconds"
+      fn =
+        (function
+        | _, [ DDate endDate; DDate startDate ] ->
+          let seconds date = (DDateTime.toInstant date).ToUnixTimeSeconds()
+          (seconds endDate - seconds startDate) |> DInt |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
