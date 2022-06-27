@@ -40,23 +40,23 @@ let mlStrWSpace = str(
 // ----------------
 // Ints
 // ----------------
-let aShortInt = EInteger(gid(), "1")
+let aShortInt = EInteger(gid(), 1L)
 
-let anInt = EInteger(gid(), "12345")
+let anInt = EInteger(gid(), 12345L)
 
-let aHugeInt = EInteger(gid(), "2000000000000000000")
+let aHugeInt = EInteger(gid(), 3000000000000000000L)
 
-let max62BitInt = intStr("4611686018427387903")
+let max63BitInt = EInteger(gid(), 9223372036854775808L)
 
-let oneShorterThanMax62BitInt = intStr("461168601842738790")
+let oneShorterThanMax63BitInt = EInteger(gid(), 922337203685477580L)
 
-let five = EInteger(gid(), "5")
+let five = EInteger(gid(), 5L)
 
-let six = EInteger(gid(), "6")
+let six = EInteger(gid(), 6L)
 
-let fiftySix = EInteger(gid(), "56")
+let fiftySix = EInteger(gid(), 56L)
 
-let seventyEight = EInteger(gid(), "78")
+let seventyEight = EInteger(gid(), 78L)
 
 // ----------------
 // Floats
@@ -69,9 +69,9 @@ let aHugeFloat = EFloat(gid(), Positive, "123456789", "123456789")
 
 let aPartialFloat = EFloat(gid(), Positive, "1", "")
 
-let maxPosIntWithDot = floatStr(Positive, "4611686018427387", "903")
+let maxPosIntWithDot = floatStr(Positive, "9223372036854775", "807")
 
-let maxPosIntPlus1WithDot = floatStr(Positive, "4611686018427387", "904")
+let maxPosIntPlus1WithDot = floatStr(Positive, "9223372036854775", "808")
 
 // ----------------
 // Bools
@@ -96,18 +96,18 @@ let aPartialVar = EPartial(gid(), "req", b)
 let completelyEmptyLet = ELet(gid(), "", b, b)
 
 // let *** = ___\n5
-let emptyLet = ELet(gid(), "", b, EInteger(gid(), "5"))
+let emptyLet = ELet(gid(), "", b, EInteger(gid(), 5L))
 
 // let *** = 6\n___
-let nonEmptyLetWithBlankEnd = ELet(gid(), "", EInteger(gid(), "6"), b)
+let nonEmptyLetWithBlankEnd = ELet(gid(), "", EInteger(gid(), 6L), b)
 
-let nonEmptyLet = ELet(gid(), "", EInteger(gid(), "6"), EInteger(gid(), "5"))
+let nonEmptyLet = ELet(gid(), "", EInteger(gid(), 6L), EInteger(gid(), 5L))
 
 let twoLets = ELet(
   gid(),
   "x",
-  EInteger(gid(), "5"),
-  ELet(gid(), "y", EInteger(gid(), "6"), EInteger(gid(), "7")),
+  EInteger(gid(), 5L),
+  ELet(gid(), "y", EInteger(gid(), 6L), EInteger(gid(), 7L)),
 )
 
 let longLets = ELet(
@@ -117,12 +117,12 @@ let longLets = ELet(
   ELet(gid(), "secondLetName", EString(gid(), "0123456789"), EString(gid(), "RESULT")),
 )
 
-let letWithLhs = ELet(gid(), "n", EInteger(gid(), "6"), EInteger(gid(), "5"))
+let letWithLhs = ELet(gid(), "n", EInteger(gid(), 6L), EInteger(gid(), 5L))
 
 let letWithBinding = (bindingName: string, expr: t) => ELet(
   gid(),
   bindingName,
-  EInteger(gid(), "6"),
+  EInteger(gid(), 6L),
   expr,
 )
 
@@ -144,7 +144,7 @@ let emptyMatchWithTwoPatterns = {
 
 let matchWithPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(PInteger(mID, gid(), "3"), b)})
+  EMatch(mID, b, list{(PInteger(mID, gid(), 3L), b)})
 }
 
 let matchWithConstructorPattern = {
@@ -186,12 +186,7 @@ let matchWithTwoLets = {
     list{
       (
         PBlank(mID, gid()),
-        ELet(
-          gid(),
-          "x",
-          EInteger(gid(), "5"),
-          ELet(gid(), "y", EInteger(gid(), "6"), EBlank(gid())),
-        ),
+        ELet(gid(), "x", EInteger(gid(), 5L), ELet(gid(), "y", EInteger(gid(), 6L), EBlank(gid()))),
       ),
     },
   )
@@ -215,19 +210,19 @@ let aShortVar = EVariable(gid(), "v")
 // ----------------
 let emptyIf = EIf(gid(), b, b, b)
 
-let plainIf = EIf(gid(), EInteger(gid(), "5"), EInteger(gid(), "6"), EInteger(gid(), "7"))
+let plainIf = EIf(gid(), EInteger(gid(), 5L), EInteger(gid(), 6L), EInteger(gid(), 7L))
 
 let nestedIf = EIf(
   gid(),
-  EInteger(gid(), "5"),
-  EIf(gid(), EInteger(gid(), "5"), EInteger(gid(), "6"), EInteger(gid(), "7")),
-  EInteger(gid(), "7"),
+  EInteger(gid(), 5L),
+  EIf(gid(), EInteger(gid(), 5L), EInteger(gid(), 6L), EInteger(gid(), 7L)),
+  EInteger(gid(), 7L),
 )
 
 let indentedIfElse = ELet(
   gid(),
   "var",
-  EIf(gid(), b, EInteger(gid(), "6"), EInteger(gid(), "7")),
+  EIf(gid(), b, EInteger(gid(), 6L), EInteger(gid(), 7L)),
   EVariable(gid(), "var"),
 )
 
@@ -435,29 +430,29 @@ let aListNum = n => list(list{int(n)})
 
 let listFn = args => fn("List::append", list{pipeTarget, ...args})
 
-let aPipe = pipe(list(list{}), list{listFn(list{aList5}), listFn(list{aList5})})
+let aPipe = pipe(list(list{}), listFn(list{aList5}), list{listFn(list{aList5})})
 
-let emptyPipe = pipe(b, list{b})
+let emptyPipe = pipe(b, b, list{})
 
 let aLongPipe = pipe(
   list(list{}),
-  list{
-    listFn(list{aListNum(2)}),
-    listFn(list{aListNum(3)}),
-    listFn(list{aListNum(4)}),
-    listFn(list{aListNum(5)}),
-  },
+  listFn(list{aListNum(2)}),
+  list{listFn(list{aListNum(3)}), listFn(list{aListNum(4)}), listFn(list{aListNum(5)})},
 )
 
-let aBinopPipe = pipe(b, list{binop("++", pipeTarget, str("asd"))})
+let aBinopPipe = pipe(b, binop("++", pipeTarget, str("asd")), list{})
 
-let aBinopPlusPipe = pipe(b, list{binop("+", pipeTarget, int(10))})
+let aBinopPlusPipe = pipe(b, binop("+", pipeTarget, int(10)), list{})
 
 let aPipeInsideIf = if'(b, aLongPipe, b)
 
-let aNestedPipe = pipe(list(list{}), list{listFn(list{pipe(aList5, list{listFn(list{aList6})})})})
+let aNestedPipe = pipe(
+  list(list{}),
+  listFn(list{pipe(aList5, listFn(list{aList6}), list{})}),
+  list{},
+)
 
-let aPipeWithFilledFunction = pipe(str("hello"), list{fn("String::length_v1", list{pipeTarget})})
+let aPipeWithFilledFunction = pipe(str("hello"), fn("String::length_v1", list{pipeTarget}), list{})
 
 // -------------
 // Feature Flags
@@ -473,7 +468,7 @@ let letWithflagBody = let'("a", aShortInt, flagOld(oneCharStr))
 // Complex
 // ----------------
 
-let complexExpr = if'(
+let compoundExpr = if'(
   binop(
     "||",
     binop(
@@ -490,6 +485,109 @@ let complexExpr = if'(
   let'("", b, fn("Http::Forbidden", list{int(403)})),
   fn("Http::Forbidden", list{}),
 )
+
+let complexExpr = {
+  let e = int(-5)
+  let'(
+    "x1",
+    int(5),
+    let'(
+      "x2",
+      int64(9223372036854775807L),
+      let'(
+        "bool",
+        bool(true),
+        let'(
+          "bool",
+          bool(false),
+          let'(
+            "str",
+            str("a string"),
+            let'(
+              "char",
+              str("a"),
+              let'(
+                "float",
+                float'(Negative, 6, 5),
+                let'(
+                  "n",
+                  null,
+                  let'(
+                    "b",
+                    blank(),
+                    let'(
+                      "i",
+                      if'(
+                        fn("Bool:isError", list{int(6)}, ~ster=Rail),
+                        if'(
+                          binop("!=", int(5), int(6)),
+                          binop("+", int(5), int(2)),
+                          lambda(list{"y"}, binop("+", int(2), var("y"))),
+                        ),
+                        binop(
+                          "+",
+                          binop(
+                            "+",
+                            fieldAccess(var("x"), "y"),
+                            fn("Int::add", list{int(6), int(2)}),
+                          ),
+                          list(list{int(5), int(6), int(7)}),
+                        ),
+                      ),
+                      let'(
+                        "r",
+                        record(list{
+                          ("field", pipe(int(5), binop("+", pipeTarget, int(2)), list{})),
+                          (
+                            "constructor",
+                            constructor(
+                              "Ok",
+                              list{
+                                constructor(
+                                  "Error",
+                                  list{constructor("Just", list{constructor("Nothing", list{})})},
+                                ),
+                              },
+                            ),
+                          ),
+                        }),
+                        let'(
+                          "m",
+                          match'(
+                            fn("Mod::function_v2", list{}),
+                            list{
+                              (pConstructor("Ok", list{pVar("x")}), var("v")),
+                              (pInt(5), int64(-9223372036854775808L)),
+                              (pBool(true), int(7)),
+                              (pString("string"), str("string")),
+                              (pNull(), null),
+                              (pVar("var"), binop("+", int(6), var("var"))),
+                              (pFloat(Positive, 5, 6), float'(Positive, 5, 6)),
+                              (pBlank(), int(6)),
+                            },
+                          ),
+                          let'(
+                            "f",
+                            flag(~name="test", bool(true), int(5), int(6)),
+                            list(list{
+                              partial("some 🤬 string", e),
+                              rightPartial("some 😭 string", e),
+                              leftPartial("some 👨‍👩‍👧‍👦 string", e),
+                            }),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  )
+}
 
 // ----------------
 // Some useful defaults

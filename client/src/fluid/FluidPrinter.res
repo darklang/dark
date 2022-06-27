@@ -65,7 +65,7 @@ let rec eToTestcase = (e: E.t): string => {
   | EBool(_, false) => spaced(list{"bool false"})
   | EFloat(_, sign, whole, fractional) =>
     spaced(list{"float'", ProgramTypes.Sign.toString(sign), whole, fractional})
-  | EInteger(_, int) => spaced(list{"int", int})
+  | EInteger(_, int) => spaced(list{"int", Int64.to_string(int)})
   | ENull(_) => "null"
   | EPipeTarget(_) => "pipeTarget"
   | EPartial(_, str, e) => spaced(list{"partial", quoted(str), r(e)})
@@ -87,7 +87,7 @@ let rec eToTestcase = (e: E.t): string => {
       | PBool(_, _, false) => spaced(list{"pBool false"})
       | PFloat(_, _, sign, whole, fractional) =>
         spaced(list{"pFloat'", ProgramTypes.Sign.toString(sign), whole, fractional})
-      | PInteger(_, _, int) => spaced(list{"pInt", int})
+      | PInteger(_, _, int) => spaced(list{"pInt", Int64.to_string(int)})
       | PNull(_) => "pNull"
       | PVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
       | PConstructor(_, _, name, args) =>

@@ -285,7 +285,7 @@ let run = () => {
   describe("Copy text", () => {
     testCopyText(
       "copying text just gets text",
-      complexExpr,
+      compoundExpr,
       (132, 257),
       "Http::Forbidden 403\nelse\n  Http::Forbidden",
     )
@@ -379,6 +379,13 @@ let run = () => {
       "1234~",
     )
     testPaste(
+      "pasting a negative int from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      int(-1234),
+      "-1234~",
+    )
+    testPaste(
       "pasting an int into another integer should join the integers",
       int(5678),
       (1, 3),
@@ -411,6 +418,13 @@ let run = () => {
       int(5678),
       (0, 0),
       str("1234"),
+      "1234~5678",
+    )
+    testPaste(
+      "pasting a negative int-only string into an integer should extend integer",
+      int(5678),
+      (0, 0),
+      str("-1234"),
       "1234~5678",
     )
     testPaste(
@@ -991,10 +1005,8 @@ let run = () => {
       "copying first expression of pipe adds it to clipboard",
       pipe(
         list(list{}),
-        list{
-          fn("List::append", list{pipeTarget, list(list{int(5)})}),
-          fn("List::append", list{pipeTarget, list(list{int(6)})}),
-        },
+        fn("List::append", list{pipeTarget, list(list{int(5)})}),
+        list{fn("List::append", list{pipeTarget, list(list{int(6)})})},
       ),
       (0, 2),
       "[]",
@@ -1003,10 +1015,8 @@ let run = () => {
       "copying pipe adds it to clipboard",
       pipe(
         list(list{}),
-        list{
-          fn("List::append", list{pipeTarget, list(list{int(5)})}),
-          fn("List::append", list{pipeTarget, list(list{int(6)})}),
-        },
+        fn("List::append", list{pipeTarget, list(list{int(5)})}),
+        list{fn("List::append", list{pipeTarget, list(list{int(6)})})},
       ),
       (0, 41),
       "[]\n|>List::append [5]\n|>List::append [6]\n",
@@ -1020,7 +1030,7 @@ let run = () => {
     )
     testPasteExpr(
       "pasting a function into a pipe adds a pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (6, 6),
       fn("Int::add", list{int(4), int(5)}),
       "___\n|>Int::add 5~\n",
@@ -1034,21 +1044,21 @@ let run = () => {
     )
     testPasteExpr(
       "pasting a binop into a pipe adds a pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (6, 6),
       binop("||", var("myvar"), trueBool),
       "___\n|>|| true~\n",
     )
     testPasteExpr(
       "pasting a binop with a pipe target into the head of a pipe strips the pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (0, 0),
       binop("+", pipeTarget, int(10)),
       "_________ + 10~\n|>___\n",
     )
     testPasteExpr(
       "pasting a function with a pipe target into the head of a pipe strips the pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (0, 0),
       fn("List::append", list{pipeTarget, list(list{int(5)})}),
       "List::append ___________ [5]~\n|>___\n",
@@ -1062,7 +1072,7 @@ let run = () => {
     )
     testPasteExpr(
       "pasting a partial into a pipe adds a pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (6, 6),
       partial("test", fn("Int::add", list{int(4), int(5)})),
       "___\n|>test~@ad@ 5\n",
@@ -1277,8 +1287,8 @@ let run = () => {
     roundtrip(int(6))
     roundtrip(str("[1 , 5]"))
     roundtrip(str("12345678987654321.12345678987654321"))
-    roundtrip(pipe(str("a"), list{binop("++", pipeTarget, str("b"))}))
-    roundtrip(pipe(str("a"), list{fn("String::append", list{pipeTarget, str("b")})}))
+    roundtrip(pipe(str("a"), binop("++", pipeTarget, str("b")), list{}))
+    roundtrip(pipe(str("a"), fn("String::append", list{pipeTarget, str("b")}), list{}))
     roundtrip(aPipe)
     roundtrip(binop("+", if'(int(5), int(5), int(5)), int(5)))
     roundtrip(partial("D", constructor("d", list{fn("k", list{})})))

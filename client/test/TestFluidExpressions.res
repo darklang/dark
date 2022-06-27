@@ -131,18 +131,18 @@ let run = () => {
     )
     eq(
       "pipe with same list",
-      pipe(list(list{}), list{fn("reverse", list{pipeTarget})}),
-      pipe(list(list{}), list{fn("reverse", list{pipeTarget})}),
+      pipe(list(list{}), fn("reverse", list{pipeTarget}), list{}),
+      pipe(list(list{}), fn("reverse", list{pipeTarget}), list{}),
     )
     neq(
       "pipe with diff first",
-      pipe(list(list{}), list{fn("reverse", list{pipeTarget})}),
-      pipe(list(list{int(1)}), list{fn("reverse", list{pipeTarget})}),
+      pipe(list(list{}), fn("reverse", list{pipeTarget}), list{}),
+      pipe(list(list{int(1)}), fn("reverse", list{pipeTarget}), list{}),
     )
     neq(
       "pipe with diff arg",
-      pipe(list(list{}), list{fn("reverse", list{pipeTarget})}),
-      pipe(list(list{}), list{fn("length", list{pipeTarget})}),
+      pipe(list(list{}), fn("reverse", list{pipeTarget}), list{}),
+      pipe(list(list{}), fn("length", list{pipeTarget}), list{}),
     )
     eq("flag with same values", flag(bool(true), int(1), int(2)), flag(bool(true), int(1), int(2)))
     eq /* we don't care about flag names right now */(

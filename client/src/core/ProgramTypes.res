@@ -61,8 +61,7 @@ module Pattern = {
     | PVariable(id, id, string)
     | PConstructor(id, id, string, list<t>)
     // TODO: support char
-    // Currently we support u62s; we will support s63s. ints in ReScript only support 32 bit ints but we want 63 bit int support
-    | PInteger(id, id, string)
+    | PInteger(id, id, int64)
     | PBool(id, id, bool)
     | PString({matchID: id, patternID: id, str: string})
     | PFloat(id, id, sign, string, string)
@@ -76,12 +75,9 @@ module Expr = {
     | Rail
     | NoRail
 
-  // CLEANUP: move comments to LibExecution.ProgramTypes
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    // ints in ReScript only support 32 bit ints but we want 63 bit int
-    // support
-    | EInteger(id, string)
+    | EInteger(id, int64)
     | EBool(id, bool)
     | EString(id, string)
     | EFloat(id, sign, string, string)
@@ -99,7 +95,7 @@ module Expr = {
     | ELeftPartial(id, string, t)
     | EList(id, list<t>)
     | ERecord(id, list<(string, t)>)
-    | EPipe(id, list<t>)
+    | EPipe(id, list<t>) // CLEANUP: should be EPipe(id, t, t, list<t>)
     | EConstructor(id, string, list<t>)
     | EMatch(id, t, list<(Pattern.t, t)>)
     | EPipeTarget(id)

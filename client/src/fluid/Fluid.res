@@ -995,7 +995,7 @@ let rec caretTargetForEndOfExpr': fluidExpr => caretTarget = x =>
       astRef: ARFieldAccess(id, FAPFieldname),
       offset: String.length(fieldName),
     }
-  | EInteger(id, valueStr) => {astRef: ARInteger(id), offset: String.length(valueStr)}
+  | EInteger(id, value) => {astRef: ARInteger(id), offset: String.length(Int64.to_string(value))}
   | EBool(id, true) => {astRef: ARBool(id), offset: String.length("true")}
   | EBool(id, false) => {astRef: ARBool(id), offset: String.length("false")}
   | EString(id, str) => CT.forARStringCloseQuote(id, 1, str)
@@ -1173,9 +1173,9 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): caretTarget =>
     | Some(lastPattern) => caretTargetForEndOfPattern(lastPattern)
     | None => {astRef: ARPattern(id, PPConstructor), offset: String.length(name)}
     }
-  | PInteger(_, id, valueStr) => {
+  | PInteger(_, id, value) => {
       astRef: ARPattern(id, PPInteger),
-      offset: String.length(valueStr),
+      offset: String.length(Int64.to_string(value)),
     }
   | PBool(_, id, true) => {astRef: ARPattern(id, PPBool), offset: String.length("true")}
   | PBool(_, id, false) => {astRef: ARPattern(id, PPBool), offset: String.length("false")}
@@ -1332,8 +1332,11 @@ let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, caretTarget)> =>
       } else if ins == "{" {
         (ERecord(newID, list{}), {astRef: ARRecord(newID, RPOpen), offset: 1})
       } else if Util.isNumber(ins) {
-        let intStr = ins |> Util.coerceStringTo63BitInt
-        (EInteger(newID, intStr), {astRef: ARInteger(newID), offset: String.length(intStr)})
+        let int = ins->Util.coerceStringTo64BitInt
+        (
+          EInteger(newID, int),
+          {astRef: ARInteger(newID), offset: int->Int64.to_string->String.length},
+        )
       } else {
         (
           EPartial(newID, ins, EBlank(gid())),
@@ -1662,8 +1665,8 @@ let rec mergeExprs = (e1: fluidExpr, e2: fluidExpr): (fluidExpr, caretTarget) =>
   | (e1, EBlank(_)) => (e1, caretTargetForEndOfExpr'(e1))
   | (EBlank(_), e2) => (e2, caretTargetForStartOfExpr'(e2))
   | (EInteger(id, i1), EInteger(_, i2)) => (
-      EInteger(id, Util.coerceStringTo63BitInt(i1 ++ i2)),
-      {astRef: ARInteger(id), offset: String.length(i1)},
+      EInteger(id, Util.coerceStringTo64BitInt(Int64.to_string(i1) ++ Int64.to_string(i2))),
+      {astRef: ARInteger(id), offset: i1->Int64.to_string->String.length},
     )
   | (EString(id, s1), EString(_, s2)) => (
       EString(id, s1 ++ s2),
@@ -2605,13 +2608,13 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       }
 
     switch (currAstRef, currExpr) {
-    | (ARInteger(_), EInteger(id, intStr)) =>
-      let str = mutation(intStr)
+    | (ARInteger(_), EInteger(id, int)) =>
+      let str = int->Int64.to_string->mutation
       if str == "" {
         mkEBlank()
       } else {
-        let coerced = Util.coerceStringTo63BitInt(str)
-        if coerced == intStr {
+        let coerced = Util.coerceStringTo64BitInt(str)
+        if coerced == int {
           None
         } else {
           Some(Expr(EInteger(id, coerced)), currCTMinusOne)
@@ -2632,9 +2635,9 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       let (sign, whole) = Sign.split(mutation(word))
       Some(Expr(EFloat(id, sign, whole, frac)), currCTMinusOne)
     | (ARFloat(_, FPPoint), EFloat(_, sign, whole, frac)) =>
-      // Todo: If the float only consists of a . and has no whole or frac,
+      // TODO: If the float only consists of a . and has no whole or frac,
       // it should become a blank. Instead, it currently becomes a 0, which is weird.
-      let i = Util.coerceStringTo63BitInt(ProgramTypes.Sign.combine(sign, whole) ++ frac)
+      let i = Util.coerceStringTo64BitInt(ProgramTypes.Sign.combine(sign, whole) ++ frac)
       let iID = gid()
       Some(Expr(EInteger(iID, i)), {astRef: ARInteger(iID), offset: String.length(whole)})
     | (ARFloat(_, FPFractional), EFloat(id, sign, whole, frac)) =>
@@ -2976,13 +2979,13 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         Pat(PVariable(mID, newID, newStr)),
         {astRef: ARPattern(newID, PPVariable), offset: currOffset - 1},
       )
-    | (ARPattern(_, PPInteger), PInteger(mID, pID, intStr)) =>
-      let str = mutation(intStr)
+    | (ARPattern(_, PPInteger), PInteger(mID, pID, int)) =>
+      let str = int->Int64.to_string->mutation
       if str == "" {
         mkPBlank(mID)
       } else {
-        let coerced = Util.coerceStringTo63BitInt(str)
-        if coerced == intStr {
+        let coerced = Util.coerceStringTo64BitInt(str)
+        if coerced == int {
           None
         } else {
           Some(Pat(PInteger(mID, pID, coerced)), currCTMinusOne)
@@ -3008,7 +3011,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
     | (ARPattern(_, PPFloat(FPPoint)), PFloat(mID, _, sign, whole, frac)) =>
       // TODO: If the float only consists of a . and has no whole or frac,
       // it should become a blank. Instead, it currently becomes a 0, which is weird.
-      let i = Util.coerceStringTo63BitInt(Sign.toString(sign) ++ whole ++ frac)
+      let i = Util.coerceStringTo64BitInt(Sign.toString(sign) ++ whole ++ frac)
       let iID = gid()
       Some(
         Pat(PInteger(mID, iID, i)),
@@ -3313,27 +3316,27 @@ let doExplicitInsert = (
     | (ARBinOp(_), EBinOp(_, op, _, _, _) as oldExpr) =>
       let str = op |> FluidUtil.partialName |> mutation |> String.trim
       mkPartial(str, oldExpr)
-    | (ARInteger(_), EInteger(id, intStr)) =>
+    | (ARInteger(_), EInteger(id, int)) =>
       if currCaretTarget.offset == 0 && extendedGraphemeCluster == "0" {
         /* This prevents inserting leading 0s at the beginning of the int.
-         * Note that Util.coerceStringTo63BitInt currently coerces strings with
-         * leading "0"s to "0"; this prevents coerceStringTo63BitInt getting
-         * a leading 0 in the first place. If Util.coerceStringTo63BitInt could
+         * Note that Util.coerceStringTo64BitInt currently coerces strings with
+         * leading "0"s to "0"; this prevents coerceStringTo64BitInt getting
+         * a leading 0 in the first place. If Util.coerceStringTo64BitInt could
          * deal with leading 0s, we would still need this special case to deal with
-         * caret placement, unless Util.coerceStringTo63BitInt preserved leading 0s.
+         * caret placement, unless Util.coerceStringTo64BitInt preserved leading 0s.
          */
         None
       } else if Util.isNumber(extendedGraphemeCluster) {
-        let str = mutation(intStr)
-        let coerced = Util.coerceStringTo63BitInt(str)
-        if coerced == intStr {
+        let str = int->Int64.to_string->mutation
+        let coerced = Util.coerceStringTo64BitInt(str)
+        if coerced == int {
           None
         } else {
           Some(EInteger(id, coerced), currCTPlusLen)
         }
       } else if extendedGraphemeCluster == "." {
         let newID = gid()
-        let (whole, frac) = String.splitAt(~index=currOffset, intStr)
+        let (whole, frac) = String.splitAt(~index=currOffset, Int64.to_string(int))
         Some(EFloat(newID, Positive, whole, frac), {astRef: ARFloat(newID, FPPoint), offset: 1})
       } else {
         None
@@ -3526,27 +3529,27 @@ let doExplicitInsert = (
       } else {
         None
       }
-    | (ARPattern(_, PPInteger), PInteger(mID, pID, intStr)) =>
+    | (ARPattern(_, PPInteger), PInteger(mID, pID, int)) =>
       if currCaretTarget.offset == 0 && extendedGraphemeCluster == "0" {
         /* This prevents inserting leading 0s at the beginning of the int.
-         * Note that Util.coerceStringTo63BitInt currently coerces strings with
-         * leading "0"s to "0"; this prevents coerceStringTo63BitInt getting
-         * a leading 0 in the first place. If Util.coerceStringTo63BitInt could
+         * Note that Util.coerceStringTo64BitInt currently coerces strings with
+         * leading "0"s to "0"; this prevents coerceStringTo64BitInt getting
+         * a leading 0 in the first place. If Util.coerceStringTo64BitInt could
          * deal with leading 0s, we would still need this special case to deal with
-         * caret placement, unless Util.coerceStringTo63BitInt preserved leading 0s.
+         * caret placement, unless Util.coerceStringTo64BitInt preserved leading 0s.
          */
         None
       } else if Util.isNumber(extendedGraphemeCluster) {
-        let str = mutation(intStr)
-        let coerced = Util.coerceStringTo63BitInt(str)
-        if coerced == intStr {
+        let str = int->Int64.to_string->mutation
+        let coerced = Util.coerceStringTo64BitInt(str)
+        if coerced == int {
           None
         } else {
           Some(Pat(PInteger(mID, pID, coerced)), currCTPlusLen)
         }
       } else if extendedGraphemeCluster == "." {
         let newID = gid()
-        let (whole, frac) = String.splitAt(~index=currOffset, intStr)
+        let (whole, frac) = String.splitAt(~index=currOffset, Int64.to_string(int))
         let (sign, whole) = Sign.split(whole)
         Some(
           Pat(PFloat(mID, newID, sign, whole, frac)),
@@ -3576,7 +3579,7 @@ let doExplicitInsert = (
         Some(Pat(PString({matchID: mID, patternID: newID, str: ""})), CT.forPPStringText(newID, 0))
       } else if Util.isNumber(extendedGraphemeCluster) {
         Some(
-          Pat(PInteger(mID, newID, extendedGraphemeCluster |> Util.coerceStringTo63BitInt)),
+          Pat(PInteger(mID, newID, extendedGraphemeCluster |> Util.coerceStringTo64BitInt)),
           {astRef: ARPattern(newID, PPInteger), offset: caretDelta},
         )
       } else if FluidUtil.isIdentifierChar(extendedGraphemeCluster) {
@@ -4850,7 +4853,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
     // basic, single/fixed-token expressions
     | EInteger(eID, _) =>
       findTokenValue(tokens, eID, "integer")
-      |> Option.map(~f=Util.coerceStringTo63BitInt)
+      |> Option.map(~f=Util.coerceStringTo64BitInt)
       |> Option.map(~f=v => EInteger(gid(), v))
     | EBool(eID, value) =>
       Option.or_(
@@ -4892,7 +4895,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       switch (newWhole, pointSelected, newFraction) {
       | (Some(value), true, None) => Some(EFloat(id, Positive, value, "0"))
       | (Some(value), false, None) | (None, false, Some(value)) =>
-        Some(EInteger(id, Util.coerceStringTo63BitInt(value)))
+        Some(EInteger(id, Util.coerceStringTo64BitInt(value)))
       | (None, true, Some(value)) => Some(EFloat(id, Positive, "0", value))
       | (Some(whole), true, Some(fraction)) => Some(EFloat(id, Positive, whole, fraction))
       | (None, true, None) => Some(EFloat(id, Positive, "0", "0"))
@@ -5123,7 +5126,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           switch tokens |> List.filter(~f=((pID', _, _)) => pID == pID') {
           | list{(id, _, "pattern-blank")} => PBlank(mID, id)
           | list{(id, value, "pattern-integer")} =>
-            PInteger(mID, id, Util.coerceStringTo63BitInt(value))
+            PInteger(mID, id, Util.coerceStringTo64BitInt(value))
           | list{(id, value, "pattern-variable")} => PVariable(mID, id, value)
           | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
             // temporarily assuming that PConstructor's sub-pattern tokens are always copied as well
@@ -5154,10 +5157,10 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
             PFloat(mID, id, sign, whole, fraction)
           | list{(id, value, "pattern-float-whole"), (_, _, "pattern-float-point")}
           | list{(id, value, "pattern-float-whole")} =>
-            PInteger(mID, id, Util.coerceStringTo63BitInt(value))
+            PInteger(mID, id, Util.coerceStringTo64BitInt(value))
           | list{(_, _, "pattern-float-point"), (id, value, "pattern-float-fractional")}
           | list{(id, value, "pattern-float-fractional")} =>
-            PInteger(mID, id, Util.coerceStringTo63BitInt(value))
+            PInteger(mID, id, Util.coerceStringTo64BitInt(value))
           | _ => PBlank(mID, gid())
           }
 

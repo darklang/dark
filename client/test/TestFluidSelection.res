@@ -16,7 +16,7 @@ let run = () => {
       expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(None)
     })
     test("select atomic expression", () => {
-      let ast = let'("a", EInteger(ID("letVal"), "1999"), b)
+      let ast = let'("a", EInteger(ID("letVal"), 1999L), b)
       let s = {
         ...defaultTestState,
         oldPos: 8,

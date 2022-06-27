@@ -18,42 +18,43 @@ let getSelectionRange = (s: fluidState): (int, int) =>
   | None => (s.newPos, s.newPos)
   }
 
-@ocaml.doc(" [truncateStringTo63BitInt s] attempts to chop off the
+@ocaml.doc(" [truncateStringTo64BitInt s] attempts to chop off the
  * least-significant base-10 digits of a string [s] intended
  * to represent an integer, until the resulting truncated string
- * is a valid base-10 representation of a 63bit integer.
+ * is a valid base-10 representation of a 64bit integer.
  * If it succeeds, it produces (Ok truncatedString).
  * If the result after truncation is not a valid base-10 encoding
- * of a 63 bit integer, it returns an Error.
+ * of a 64 bit integer, it returns an Error.
  *
  * FIXME: This returns Error for strings with leading 0s.
  *
  * TODO: This only supports positive numbers for now, but we should change this
- * (and probably support 64 bit integers) once fluid supports negative numbers.
+ * once fluid supports negative numbers.
  ")
-let truncateStringTo63BitInt = (s: string): Result.t<string, string> => {
-  let is62BitInt = s =>
-    switch Native.BigInt.asUintN(~nBits=62, s) {
+let truncateStringTo64BitInt = (s: string): Result.t<int64, string> => {
+  let is63BitInt = s =>
+    switch Native.BigInt.asUintN(~nBits=63, s) {
     | Some(i) => Native.BigInt.toString(i) == s
     | None => false
     }
 
-  // 4611686018427387903 is largest 62 bit number, which has 19 characters
-  // We use 62 bit checks instead of 63 because the most significanty bit is for sign in two's complement -- which is not yet handled
+  // 9223372036854775807 is largest positive 63 bit number, which has 19 characters
+  // We use 63 bit checks instead of 64 because the most significanty bit is for sign
+  // in two's complement -- which is not yet handled
   let trunc19 = String.left(~count=19, s)
-  if is62BitInt(trunc19) {
-    Ok(trunc19)
+  if is63BitInt(trunc19) {
+    Ok(Int64.of_string(trunc19))
   } else {
     let trunc18 = String.left(~count=18, s)
-    if is62BitInt(trunc18) {
-      Ok(trunc18)
+    if is63BitInt(trunc18) {
+      Ok(Int64.of_string(trunc18))
     } else {
       Error("Invalid 63bit number even after truncate")
     }
   }
 }
 
-@ocaml.doc(" [coerceStringTo63BitInt s] produces a string
+@ocaml.doc(" [coerceStringTo64BitInt s] produces a string
  * representing a 63-bit base-10 integer based on the
  * input string [s], truncating the least significant
  * base-10 digits if necessary.
@@ -65,11 +66,8 @@ let truncateStringTo63BitInt = (s: string): Result.t<string, string> => {
  * TODO: This only supports positive numbers for now, but we should change this
  * (and probably support 64 bit integers) once fluid supports negative numbers.
  ")
-let coerceStringTo63BitInt = (s: string): string =>
-  Result.unwrap(truncateStringTo63BitInt(s), ~default="0")
-
-// Only supports positive numbers for now, but we should change this once fluid supports negative numbers
-let is63BitInt = (s: string): bool => Result.isOk(truncateStringTo63BitInt(s))
+let coerceStringTo64BitInt = (s: string): int64 =>
+  Result.unwrap(truncateStringTo64BitInt(s), ~default=0L)
 
 let trimQuotes = (s): string => {
   open String

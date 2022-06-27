@@ -532,7 +532,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   // expressions with no values
   | (ENull(_), ENull(_)) | (EBlank(_), EBlank(_)) | (EPipeTarget(_), EPipeTarget(_)) => true
   // expressions with single string values
-  | (EInteger(_, v), EInteger(_, v'))
+  | (EInteger(_, v), EInteger(_, v')) => v == v'
   | (EString(_, v), EString(_, v'))
   | (EVariable(_, v), EVariable(_, v')) =>
     v == v'
@@ -615,7 +615,7 @@ let toHumanReadable = (expr: t): string => {
     | EBool(_, false) => "(false)"
     | EFloat(_, sign, whole, fractional) =>
       Printf.sprintf(`(%s%s.%s)`, ProgramTypes.Sign.toString(sign), whole, fractional)
-    | EInteger(_, i) => Printf.sprintf(`(%s)`, i)
+    | EInteger(_, i) => `(${Int64.to_string(i)})`
     | ENull(_) => "(null)"
     | EPipeTarget(_) => "(pt)"
     | EPartial(_, str, e) => Printf.sprintf(`(partial "%s" %s)`, str, r(e))
@@ -642,7 +642,7 @@ let toHumanReadable = (expr: t): string => {
           | Negative => "Negative"
           }
           spaced(list{"pFloat'", sign, whole, fractional})
-        | PInteger(_, _, int) => spaced(list{"pInt", int})
+        | PInteger(_, _, int) => spaced(list{"pInt", Int64.to_string(int)})
         | PNull(_) => "pNull"
         | PVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
         | PConstructor(_, _, name, args) =>

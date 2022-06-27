@@ -1187,41 +1187,48 @@ let run = () => {
       list{InsertText("c")},
       leftPartial("c", anInt),
     )
-    t("insert number at scale", aHugeInt, ~pos=5, ins("9"), "200009~0000000000000")
-    t("insert number at scale", aHugeInt, ins("9"), "9~20000000000000000")
-    t("insert number at scale", aHugeInt, ~pos=19, ins("9"), "2000000000000000000~")
+    t("insert number at scale", aHugeInt, ~pos=5, ins("9"), "300009~0000000000000")
+    t("insert number at scale", aHugeInt, ins("9"), "9~30000000000000000")
+    t("insert number at scale", aHugeInt, ins("8"), "8~300000000000000000")
+    t("insert number at scale", aHugeInt, ~pos=19, ins("9"), "3000000000000000000~")
     t(
       "insert number at scale",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=18,
       ins("3"),
-      "4611686018427387903~",
+      "9223372036854775803~",
     )
-    t("insert number at scale", oneShorterThanMax62BitInt, ~pos=18, ins("4"), "461168601842738790~")
+    t(
+      "insert number at scale",
+      oneShorterThanMax63BitInt,
+      ~pos=18,
+      ins("4"),
+      "9223372036854775804~",
+    )
     t(
       "ctrl+left go to beg of int moves to beg",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       ctrlLeft,
-      "~461168601842738790",
+      "~922337203685477580",
     )
     t(
       "ctrl+right go to end of int moves to end",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       ctrlRight,
-      "461168601842738790~",
+      "922337203685477580~",
     )
     t(
       "DeleteWordBackward in the middle of an int deletes all the nums in front of cursor",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       inputs(list{DeleteWordBackward}),
-      "~2738790",
+      "~5477580",
     )
     t(
       "DeleteWordBackward at the end of an int deletes it all",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=18,
       inputs(list{DeleteWordBackward}),
       "~___",
@@ -1253,8 +1260,8 @@ let run = () => {
     t("insert non-int in fraction", aFloat, ~pos=6, ins("c"), "123.45~6")
     t("del dot", aFloat, ~pos=3, del, "123~456")
     t("del dot at scale", aHugeFloat, ~pos=9, del, "123456789~123456789")
-    t("del dot at limit1", maxPosIntWithDot, ~pos=16, del, "4611686018427387~903")
-    t("del dot at limit2", maxPosIntPlus1WithDot, ~pos=16, del, "4611686018427387~90")
+    t("del dot at limit1", maxPosIntWithDot, ~pos=16, del, "9223372036854775~807")
+    t("del dot at limit2", maxPosIntPlus1WithDot, ~pos=16, del, "9223372036854775~80")
     t("del start of whole", aFloat, ~pos=0, del, "~23.456")
     t("del middle of whole", aFloat, ~pos=1, del, "1~3.456")
     t("del end of whole", aFloat, ~pos=2, del, "12~.456")
@@ -1265,8 +1272,8 @@ let run = () => {
     t("del dot converts to int, no fraction", aPartialFloat, ~pos=1, del, "1~")
     t("bs dot", aFloat, ~pos=4, bs, "123~456")
     t("bs dot at scale", aHugeFloat, ~pos=10, bs, "123456789~123456789")
-    t("bs dot at limit1", maxPosIntWithDot, ~pos=17, bs, "4611686018427387~903")
-    t("bs dot at limit2", maxPosIntPlus1WithDot, ~pos=17, bs, "4611686018427387~90")
+    t("bs dot at limit1", maxPosIntWithDot, ~pos=17, bs, "9223372036854775~807")
+    t("bs dot at limit2", maxPosIntPlus1WithDot, ~pos=17, bs, "9223372036854775~80")
     t("bs start of whole", aFloat, ~pos=1, bs, "~23.456")
     t("bs middle of whole", aFloat, ~pos=2, bs, "1~3.456")
     t("bs end of whole", aFloat, ~pos=3, bs, "12~.456")
@@ -2683,7 +2690,7 @@ let run = () => {
     )
     t(
       "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe",
-      pipe(b, list{b}),
+      pipe(b, b, list{}),
       ~pos=6,
       inputs(/* we have to insert the function with completion here
        * so the arguments are adjusted based on the pipe */
@@ -3199,10 +3206,8 @@ let run = () => {
         blank(),
         pipe(
           list(list{}),
-          list{
-            fn("List::append", list{pipeTarget, list(list{int(5)})}),
-            fn("List::append", list{pipeTarget, list(list{int(5)})}),
-          },
+          fn("List::append", list{pipeTarget, list(list{int(5)})}),
+          list{fn("List::append", list{pipeTarget, list(list{int(5)})})},
         ),
       ),
     )
@@ -3508,7 +3513,7 @@ let run = () => {
     t(
       "enter at the end of pipe expression with line below creates a new entry",
       ~wrap=/* indent counting is all weird with wrapper */ false,
-      let'("a", pipe(list(list{}), list{listFn(list{aList5})}), five),
+      let'("a", pipe(list(list{}), listFn(list{aList5}), list{}), five),
       ~pos=37,
       enter,
       "let a = []\n        |>List::append [5]\n        |>~___\n5",
@@ -3516,7 +3521,7 @@ let run = () => {
     t(
       "enter at the beginning of expression after pipe creates let, not pipe",
       ~wrap=/* indent counting is all weird with wrapper */ false,
-      let'("a", pipe(list(list{}), list{listFn(list{aList5})}), five),
+      let'("a", pipe(list(list{}), listFn(list{aList5}), list{}), five),
       ~pos=38,
       enter,
       "let a = []\n        |>List::append [5]\nlet *** = ___\n~5",
@@ -3544,14 +3549,14 @@ let run = () => {
     )
     t(
       "inserting a pipe into another pipe gives a single pipe1",
-      pipe(five, list{listFn(list{rightPartial("|>", aList5)})}),
+      pipe(five, listFn(list{rightPartial("|>", aList5)}), list{}),
       ~pos=23,
       enter,
       "5\n|>List::append [5]\n|>~___\n",
     )
     t(
       "inserting a pipe into another pipe at a pipeable gives a new pipe",
-      pipe(five, list{listFn(list{aList5})}),
+      pipe(five, listFn(list{aList5}), list{}),
       ~pos=19,
       key(K.ShiftEnter),
       "5\n|>List::append [5\n                |>~___\n               ]\n",
@@ -3594,7 +3599,7 @@ let run = () => {
     t(
       "bsing a blank pipe after a piped 1-arg function deletes all",
       ~wrap=/* wrap false because else we delete the wrapper */ false,
-      pipe(aList5, list{fn("List::length", list{pipeTarget}), b}),
+      pipe(aList5, fn("List::length", list{pipeTarget}), list{b}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
       "~___",
@@ -4329,7 +4334,7 @@ let run = () => {
     t(
       "shift enter in pipe autocompletes and creates pipe",
       ~wrap=false,
-      pipe(list(list{}), list{partial("appe", b)}),
+      pipe(list(list{}), partial("appe", b), list{}),
       ~pos=9,
       key(K.ShiftEnter),
       "[]\n|>List::append ___________\n|>~___\n",
@@ -4423,7 +4428,7 @@ let run = () => {
       ELet(
         gid(),
         "request",
-        ERecord(gid(), list{("body", EInteger(gid(), "5")), ("blank", EBlank(gid()))}),
+        ERecord(gid(), list{("body", EInteger(gid(), 5L)), ("blank", EBlank(gid()))}),
         ELet(
           gid(),
           "foo",
@@ -4440,7 +4445,7 @@ let run = () => {
       ELet(
         gid(),
         "request",
-        ERecord(gid(), list{("body", EInteger(gid(), "5"))}),
+        ERecord(gid(), list{("body", EInteger(gid(), 5L))}),
         ELet(
           gid(),
           "foo",
@@ -4540,9 +4545,9 @@ let run = () => {
   })
   describe("Movement", () => {
     let s = defaultTestState
-    let tokens = FluidTokenizer.tokenize(complexExpr)
+    let tokens = FluidTokenizer.tokenize(compoundExpr)
     let len = tokens |> List.map(~f=ti => ti.token) |> length
-    let ast = complexExpr |> FluidAST.ofExpr
+    let ast = compoundExpr |> FluidAST.ofExpr
     let astInfo = ASTInfo.make(defaultTestProps, ast, defaultTestState)
     test("gridFor - 1", () => expect(gridFor(~pos=116, tokens)) |> toEqual({row: 2, col: 2}))
     test("gridFor - 2", () => expect(gridFor(~pos=70, tokens)) |> toEqual({row: 0, col: 70}))

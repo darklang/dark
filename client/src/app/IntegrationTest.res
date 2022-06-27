@@ -87,7 +87,7 @@ let field_access_pipes = (m: model): testResult =>
 
 let tabbing_works = (m: model): testResult =>
   switch onlyExpr(m) {
-  | Some(EIf(_, EBlank(_), EInteger(_, "5"), EBlank(_))) => pass
+  | Some(EIf(_, EBlank(_), EInteger(_, 5L), EBlank(_))) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
@@ -191,7 +191,7 @@ let switching_from_default_repl_space_removes_name = (m: model): testResult => {
 
 let tabbing_through_let = (m: model): testResult =>
   switch onlyExpr(m) {
-  | Some(ELet(_, "myvar", EInteger(_, "5"), EInteger(_, "5"))) => pass
+  | Some(ELet(_, "myvar", EInteger(_, 5L), EInteger(_, 5L))) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
@@ -242,11 +242,11 @@ let feature_flag_works = (m: model): testResult => {
   | Some(ELet(
       _,
       "a",
-      EInteger(_, "13"),
+      EInteger(_, 13L),
       EFeatureFlag(
         id,
         "myflag",
-        EFnCall(_, "Int::greaterThan", list{EVariable(_, "a"), EInteger(_, "10")}, _),
+        EFnCall(_, "Int::greaterThan", list{EVariable(_, "a"), EInteger(_, 10L)}, _),
         EString(_, "\"A\""),
         EString(_, "\"B\""),
       ),
@@ -279,8 +279,8 @@ let feature_flag_in_function = (m: model): testResult => {
         _,
         "+",
         list{
-          EFeatureFlag(_, "myflag", EBool(_, true), EInteger(_, "5"), EInteger(_, "3")),
-          EInteger(_, "5"),
+          EFeatureFlag(_, "myflag", EBool(_, true), EInteger(_, 5L), EInteger(_, 3L)),
+          EInteger(_, 5L),
         },
         NoRail,
       ) => pass

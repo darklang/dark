@@ -55,7 +55,7 @@ let run = () => {
       let id = gid()
       let arg1 = int(4)
       let arg2 = str("asf")
-      let e = pipe(arg1, list{fn(~id, "Int::add", list{pipeTarget, arg2})})
+      let e = pipe(arg1, fn(~id, "Int::add", list{pipeTarget, arg2}), list{})
       let ast = FluidAST.ofExpr(e)
       expect(getArguments(id, ast)) |> toEqual(list{arg1, arg2})
     })
@@ -64,7 +64,7 @@ let run = () => {
     test("getParamIndex of pipe works", () => {
       let id1 = gid()
       let id2 = gid()
-      let e = pipe(str(~id=id1, "asd"), list{fn("String::append", list{pipeTarget, EBlank(id2)})})
+      let e = pipe(str(~id=id1, "asd"), fn("String::append", list{pipeTarget, EBlank(id2)}), list{})
 
       let ast = FluidAST.ofExpr(e)
       expect((getParamIndex(id1, ast), getParamIndex(id2, ast))) |> toEqual((
@@ -118,7 +118,7 @@ let run = () => {
       expect(removePartials(expr)) |> toEqual(expr)
     })
     test("No changes when not-partial", () => {
-      let expr = EFnCall(gid(), "+", list{EInteger(gid(), "3"), EInteger(gid(), "9")}, NoRail)
+      let expr = EFnCall(gid(), "+", list{EInteger(gid(), 3L), EInteger(gid(), 9L)}, NoRail)
 
       expect(removePartials(expr)) |> toEqual(expr)
     })
@@ -129,12 +129,12 @@ let run = () => {
       let expr = EFnCall(
         fnid,
         "+",
-        list{EInteger(argid, "3"), EPartial(gid(), "abc", blank)},
+        list{EInteger(argid, 3L), EPartial(gid(), "abc", blank)},
         NoRail,
       )
 
       expect(removePartials(expr)) |> toEqual(
-        EFnCall(fnid, "+", list{EInteger(argid, "3"), blank}, NoRail),
+        EFnCall(fnid, "+", list{EInteger(argid, 3L), blank}, NoRail),
       )
     })
     test("Updates AST when there's a fn rename partial", () => {

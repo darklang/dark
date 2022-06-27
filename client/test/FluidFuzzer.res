@@ -190,7 +190,11 @@ and generateExpr' = () =>
     lazy binop(generateInfixName(), generateExpr(), generateExpr()),
     lazy if'(generateExpr(), generateExpr(), generateExpr()),
     lazy constructor(generateName(), generateList(~minSize=0, ~f=generateExpr, ())),
-    lazy pipe(generateExpr(), generateList(~minSize=2, ~f=generatePipeArgumentExpr, ())),
+    lazy pipe(
+      generateExpr(),
+      generateExpr(),
+      generateList(~minSize=2, ~f=generatePipeArgumentExpr, ()),
+    ),
     lazy record(generateList(~minSize=1, (), ~f=() => (generateName(), generateExpr()))),
     lazy match'(
       generateExpr(),
@@ -368,7 +372,7 @@ let simplify = (id: id, ast: E.t): E.t =>
   E.update(id, ast, ~f=x =>
     switch x {
     | EBlank(e) => EBlank(e)
-    | _ => EInteger(id, "5")
+    | _ => EInteger(id, 5L)
     }
   )
 
