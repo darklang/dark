@@ -164,10 +164,9 @@ let run = () => {
         switch FluidAST.toExpr(h.ast) {
         | EPipe(
             _,
-            list{
-              EList(_, list{}),
-              EFnCall(_, "List::getAt_v2", list{EPipeTarget(_), EInteger(_, 5L)}, NoRail),
-            },
+            EList(_, list{}),
+            EFnCall(_, "List::getAt_v2", list{EPipeTarget(_), EInteger(_, 5L)}, NoRail),
+            list{},
           ) => true
         | _ => false
         }
@@ -407,7 +406,7 @@ let run = () => {
   })
   describe("reorderFnCallArgs", () => {
     let matchExpr = (a, e) =>
-      expect(e) |> withEquality(FluidExpression.testEqualIgnoringIds) |> toEqual(a)
+      expect(e |> FluidPrinter.eToTestString) |> toEqual(a |> FluidPrinter.eToTestString)
 
     test("simple example", () =>
       fn("myFn", list{int(1), int(2), int(3)})

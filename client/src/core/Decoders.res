@@ -287,7 +287,21 @@ let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
       ("ERightPartial", dv3((a, b, c) => E.ERightPartial(a, b, c), id, string, de)),
       ("EList", dv2((x, y) => E.EList(x, y), id, list(de))),
       ("ERecord", dv2((x, y) => E.ERecord(x, y), id, list(pair(string, de)))),
-      ("EPipe", dv2((x, y) => E.EPipe(x, y), id, list(de))),
+      ("EPipe", dv2((x, y) =>
+          switch y {
+          | list{} =>
+            let (e1, e2) = recover(
+              "decoding a pipe with no exprs",
+              ~debug=x,
+              (E.EBlank(gid()), E.EBlank(gid())),
+            )
+            E.EPipe(x, e1, e2, list{})
+          | list{e1} =>
+            let e2 = recover("decoding a pipe with only one expr", ~debug=x, E.EBlank(gid()))
+            E.EPipe(x, e1, e2, list{})
+          | list{e1, e2, ...rest} => E.EPipe(x, e1, e2, rest)
+          }
+        , id, list(de))),
       ("EConstructor", dv3((a, b, c) => E.EConstructor(a, b, c), id, string, list(de))),
       ("EMatch", dv3((a, b, c) => E.EMatch(a, b, c), id, de, list(pair(fluidPattern, de)))),
       ("EPipeTarget", dv1(a => E.EPipeTarget(a), id)),

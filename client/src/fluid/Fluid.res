@@ -1051,8 +1051,8 @@ let rec caretTargetForEndOfExpr': fluidExpr => caretTarget = x =>
     {astRef: ARLeftPartial(id), offset: String.length(str)}
   | EList(id, _) => {astRef: ARList(id, LPClose), offset: 1 /* End of the close ] */}
   | ERecord(id, _) => {astRef: ARRecord(id, RPClose), offset: 1 /* End of the close } */}
-  | EPipe(id, pipeExprs) =>
-    switch List.last(pipeExprs) {
+  | EPipe(id, p1, p2, pipeExprs) =>
+    switch List.last(list{p1, p2, ...pipeExprs}) {
     | Some(lastExpr) => caretTargetForEndOfExpr'(lastExpr)
     | None => {astRef: ARPipe(id, 0), offset: String.length("|>")}
     }
@@ -1114,10 +1114,7 @@ let rec caretTargetForStartOfExpr': fluidExpr => caretTarget = x =>
   | ELeftPartial(id, _, _) => {astRef: ARLeftPartial(id), offset: 0}
   | EList(id, _) => {astRef: ARList(id, LPOpen), offset: 0}
   | ERecord(id, _) => {astRef: ARRecord(id, RPOpen), offset: 0}
-  | EPipe(id, exprChain) =>
-    List.getAt(~index=0, exprChain)
-    |> Option.map(~f=expr => caretTargetForStartOfExpr'(expr))
-    |> recoverOpt("caretTargetForStartOfExpr' - EPipe", ~default={astRef: ARPipe(id, 0), offset: 0})
+  | EPipe(_, e1, _, _) => caretTargetForStartOfExpr'(e1)
   | EConstructor(id, _, _) => {astRef: ARConstructor(id), offset: 0}
   | (EFeatureFlag(_) | EPipeTarget(_)) as expr =>
     recover(
@@ -1980,7 +1977,7 @@ let createPipe = (~findParent: bool, id: id, astInfo: ASTInfo.t): (ASTInfo.t, op
   | None => (astInfo, None)
   | Some(expr) =>
     let blankId = gid()
-    let replacement = EPipe(gid(), list{expr, EBlank(blankId)})
+    let replacement = EPipe(gid(), expr, EBlank(blankId), list{})
     let ast = FluidAST.replace(E.toID(expr), astInfo.ast, ~replacement)
     (astInfo |> ASTInfo.setAST(ast), Some(blankId))
   }
@@ -1995,14 +1992,17 @@ let addPipeExprAt = (pipeId: id, idx: int, astInfo: ASTInfo.t): (ASTInfo.t, id) 
 
   let astInfo = recordAction(action, astInfo)
   let bid = gid()
-  let ast = FluidAST.update(pipeId, astInfo.ast, ~f=x =>
-    switch x {
-    | EPipe(_, exprs) =>
-      let exprs = List.insertAt(exprs, ~index=idx, ~value=EBlank(bid))
-      EPipe(pipeId, exprs)
-    | e => recover("expected to find EPipe to update", ~debug=e, e)
+  let ast = FluidAST.update(pipeId, astInfo.ast, ~f=x => {
+    let newExpr = EBlank(bid)
+    switch (x, idx) {
+    | (EPipe(_, e1, e2, exprs), 0) => EPipe(pipeId, newExpr, e1, list{e2, ...exprs})
+    | (EPipe(_, e1, e2, exprs), 1) => EPipe(pipeId, e1, newExpr, list{e2, ...exprs})
+    | (EPipe(_, e1, e2, exprs), _) =>
+      let exprs = List.insertAt(exprs, ~index=idx - 2, ~value=newExpr)
+      EPipe(pipeId, e1, e2, exprs)
+    | (e, _) => recover("expected to find EPipe to update", ~debug=e, e)
     }
-  )
+  })
 
   (ASTInfo.setAST(ast, astInfo), bid)
 }
@@ -2094,7 +2094,7 @@ let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> 
     Some(EMatch(matchID, b, list{(PBlank(matchID, gid()), E.newB())}), target)
   | FACKeyword(KPipe) =>
     let (b, target) = mkBlank()
-    Some(EPipe(gid(), list{b, E.newB()}), target)
+    Some(EPipe(gid(), b, E.newB(), list{}), target)
   | FACVariable(name, _) =>
     let vID = gid()
     Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
@@ -2302,16 +2302,16 @@ let updateFromACItem = (
     switch exprToReplace {
     | None =>
       let blank = E.newB()
-      let replacement = EPipe(gid(), list{subExpr, blank})
+      let replacement = EPipe(gid(), subExpr, blank, list{})
       (FluidAST.replace(E.toID(oldExpr), ast, ~replacement), caretTargetForEndOfExpr'(blank))
     | Some(expr) if expr == subExpr =>
       let blank = E.newB()
-      let replacement = EPipe(gid(), list{subExpr, blank})
+      let replacement = EPipe(gid(), subExpr, blank, list{})
       (FluidAST.replace(E.toID(oldExpr), ast, ~replacement), caretTargetForEndOfExpr'(blank))
     | Some(expr) =>
       let blank = E.newB()
       let expr = E.replace(E.toID(oldExpr), expr, ~replacement=subExpr)
-      let replacement = EPipe(gid(), list{expr, blank})
+      let replacement = EPipe(gid(), expr, blank, list{})
       (FluidAST.replace(E.toID(expr), ast, ~replacement), caretTargetForEndOfExpr'(blank))
     }
   | (TLeftPartial(_), Some(ELeftPartial(pID, _, expr)), _, Expr(EIf(ifID, _, _, _))) =>
@@ -2334,15 +2334,15 @@ let updateFromACItem = (
     let replacement = EBinOp(bID, name, EPipeTarget(gid()), rhs, str)
     let newAST = FluidAST.replace(~replacement, id, ast)
     (newAST, caretTargetForEndOfExpr'(replacement))
-  | (TPartial(_), Some(oldExpr), Some(EPipe(_, list{firstExpr, ..._})), Expr(newExpr))
+  | (TPartial(_), Some(oldExpr), Some(EPipe(_, firstExpr, _, _)), Expr(newExpr))
     if oldExpr == firstExpr =>
-    /* special case of the generic TPartial in EPipe case just below this:
-     * when we are the first thing in the pipe, no pipe target required */
+    // special case of the generic TPartial in EPipe case just below this:
+    // when we are the first thing in the pipe, no pipe target required
     replacePartialWithArguments(props, ~newExpr, id, ast)
   | (TPartial(_), Some(_), Some(EPipe(_)), Expr(EFnCall(fnID, name, list{_, ...args}, str))) =>
     let newExpr = EFnCall(fnID, name, list{EPipeTarget(gid()), ...args}, str)
-    /* We can't use the newTarget because it might point to eg a blank
-     * replaced with an argument */
+    // We can't use the newTarget because it might point to eg a blank
+    // replaced with an argument
     replacePartialWithArguments(props, ~newExpr, id, ast)
   | (
       TPartial(_),
@@ -2354,8 +2354,8 @@ let updateFromACItem = (
     let newAST = FluidAST.replace(~replacement, id, ast)
     (newAST, caretTargetForStartOfExpr'(rhs))
   | (TPartial(_), _, _, Expr(newExpr)) =>
-    /* We can't use the newTarget because it might point to eg a blank
-     * replaced with an argument */
+    // We can't use the newTarget because it might point to eg a blank
+    // replaced with an argument
     replacePartialWithArguments(props, ~newExpr, id, ast)
   | (
       TRightPartial(_),
@@ -2791,16 +2791,25 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
 
         (Expr(ELambda(id, vars, E.renameVariableUses(~oldName, ~newName, expr))), currCTMinusOne)
       })
-    | (ARPipe(_, idx), EPipe(id, exprChain)) =>
-      switch exprChain {
-      | list{e1, _} => Some(Expr(e1), caretTargetForEndOfExpr'(e1))
-      | exprs =>
-        exprs
-        |> List.getAt(~index=idx)
-        |> Option.map(~f=expr => // remove expression in front of pipe, not behind it
-        Some(Expr(EPipe(id, List.removeAt(~index=idx + 1, exprs))), caretTargetForEndOfExpr'(expr)))
-        |> recoverOpt("doExplicitBackspace ARPipe", ~default=None)
-      }
+    // We're deleting the pipe token itself, which removes the expression to the
+    // RIGHT of the token, not the left
+    | (ARPipe(_, _), EPipe(_, e1, _, list{})) => Some(Expr(e1), caretTargetForEndOfExpr'(e1))
+    | (ARPipe(_, 0), EPipe(id, e1, _, list{e3, ...rest})) =>
+      let newExpr = EPipe(id, e1, e3, rest)
+      Some(Expr(newExpr), caretTargetForEndOfExpr'(e1))
+    | (ARPipe(_, 1), EPipe(id, e1, e2, list{_, ...rest})) =>
+      let newExpr = EPipe(id, e1, e2, rest)
+      Some(Expr(newExpr), caretTargetForEndOfExpr'(e2))
+    | (ARPipe(_, idx), EPipe(id, e1, e2, rest)) =>
+      rest
+      // This expr before the one we're removing, which the caret points at
+      |> List.getAt(~index=idx - 2)
+      |> Option.map(~f=expr => Some(
+        Expr(EPipe(id, e1, e2, List.removeAt(~index=idx - 1, rest))),
+        caretTargetForEndOfExpr'(expr),
+      ))
+      |> recoverOpt("doExplicitBackspace ARPipe", ~default=None)
+
     // Delete leading keywords of empty expressions
     | (ARLet(_, LPKeyword), ELet(_, varName, expr, EBlank(_)))
     | (ARLet(_, LPKeyword), ELet(_, varName, EBlank(_), expr)) if varName == "" || varName == "_" =>
@@ -3785,23 +3794,33 @@ let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t
         EPartial(newID, infixTxt, expr),
         {astRef: ARPartial(newID), offset: String.length(infixTxt)},
       )
-    | (ARPipe(_, index), EPipe(id, pipeExprs)) =>
-      switch pipeExprs |> List.getAt(~index=index + 1) {
-      | Some(pipedInto) =>
-        /* Note that this essentially destroys the pipedInto
-         * expression, because it becomes overwritten by the
-         * partial. Handling this properly would involve
-         * introducing a new construct -- perhaps a left partial. */
-        let parID = gid()
-        let newExpr = EPartial(parID, infixTxt, pipedInto)
-        let newPipeExprs = pipeExprs |> List.updateAt(~index=index + 1, ~f=_ => newExpr)
-
+    | (ARPipe(_, index), EPipe(id, e1, e2, rest)) =>
+      let parID = gid()
+      switch index {
+      | 0 =>
+        let newExpr = EPartial(parID, infixTxt, e2)
         Some(
           id,
-          EPipe(id, newPipeExprs),
+          EPipe(id, e1, newExpr, rest),
           {astRef: ARPartial(parID), offset: String.length(infixTxt)},
         )
-      | None => None
+      | _ =>
+        switch rest |> List.getAt(~index=index - 1) {
+        | Some(pipedInto) =>
+          /* Note that this essentially destroys the pipedInto
+           * expression, because it becomes overwritten by the
+           * partial. Handling this properly would involve
+           * introducing a new construct -- perhaps a left partial. */
+          let newExpr = EPartial(parID, infixTxt, pipedInto)
+          let newPipeExprs = rest |> List.updateAt(~index=index - 1, ~f=_ => newExpr)
+
+          Some(
+            id,
+            EPipe(id, e1, e2, newPipeExprs),
+            {astRef: ARPartial(parID), offset: String.length(infixTxt)},
+          )
+        | None => None
+        }
       }
     // Exhaustiveness
     | (ARPipe(_), _) => None
@@ -4486,11 +4505,11 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
 
         moveToCaretTarget(target, astInfo)
       }
-    | Some(EPipe(_, exprs)) =>
+    | Some(EPipe(_, _, _, rest)) =>
       /* exprs[0] is the initial value of the pipeline, but the indexing
        * is zero-based starting at exprs[1] (it indexes the _pipes
        * only_), so need idx+1 here to counteract. */
-      if idx + 1 == List.length(exprs) {
+      if idx + 1 == List.length(rest) + 2 {
         applyToRightToken()
       } else {
         let (astInfo, _) = addPipeExprAt(parentId, idx + 1, astInfo)
@@ -5094,20 +5113,19 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         )
 
       Some(ERecord(id, newEntries))
-    | EPipe(_, exprs) =>
-      let newExprs =
-        List.map(exprs, ~f=reconstructExpr)
-        |> Option.values
-        |> (
-          x =>
-            switch x {
-            | list{} => list{EBlank(gid()), EBlank(gid())}
-            | list{expr} => list{expr, EBlank(gid())}
-            | exprs => exprs
-            }
-        )
+    | EPipe(_, e1, e2, exprs) =>
+      list{e1, e2, ...exprs}
+      |> List.map(~f=reconstructExpr)
+      |> Option.values
+      |> (
+        x =>
+          switch x {
+          | list{} => Some(EPipe(id, EBlank(gid()), EBlank(gid()), list{}))
+          | list{expr} => Some(EPipe(id, expr, EBlank(gid()), list{}))
+          | list{e1, e2, ...rest} => Some(EPipe(id, e1, e2, rest))
+          }
+      )
 
-      Some(EPipe(id, newExprs))
     | EConstructor(eID, name, exprs) =>
       let newName = findTokenValue(tokens, eID, "constructor-name") |> Option.unwrap(~default="")
 
@@ -5252,10 +5270,10 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
         }
 
       switch FluidAST.findParent(E.toID(expr), ast) {
-      | Some(EPipe(_, list{head, ..._})) if head == expr =>
+      | Some(EPipe(_, e1, _e2, _rest)) if e1 == expr =>
         // If pasting into the head of a pipe, drop any root-level pipe targets
         clipboardExpr |> Option.map(~f=e => removePipeTarget(e))
-      | Some(EPipe(pipeId, _)) =>
+      | Some(EPipe(pipeId, _, _, _)) =>
         // If pasting into a child of a pipe, replace first arg of a root-level function with pipe target
         clipboardExpr |> Option.map(~f=e => addPipeTarget(pipeId, e))
       | _ =>

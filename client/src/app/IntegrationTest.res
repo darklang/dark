@@ -81,7 +81,7 @@ let field_access_closes = (m: model): testResult =>
 
 let field_access_pipes = (m: model): testResult =>
   switch onlyExpr(m) {
-  | Some(EPipe(_, list{EFieldAccess(_, EVariable(_, "request"), "body"), EBlank(_)})) => pass
+  | Some(EPipe(_, EFieldAccess(_, EVariable(_, "request"), "body"), EBlank(_), list{})) => pass
   | expr => fail(~f=showOption(show_fluidExpr), expr)
   }
 

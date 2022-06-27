@@ -30,7 +30,7 @@ let toID = (expr: t): id =>
   | ELeftPartial(id, _, _)
   | EList(id, _)
   | ERecord(id, _)
-  | EPipe(id, _)
+  | EPipe(id, _, _, _)
   | EPipeTarget(id)
   | EBinOp(id, _, _, _, _)
   | EConstructor(id, _, _)
@@ -55,6 +55,10 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
         id,
         list{Expr(e1), Expr(e2), Expr(e3)},
       )
+    | EPipe(id, expr1, expr2, exprs) => (
+        id,
+        List.map(list{expr1, expr2, ...exprs}, ~f=e1 => Expr(e1)),
+      )
     | ELambda(id, _, e1)
     | EFieldAccess(id, e1, _)
     | EPartial(id, _, e1)
@@ -62,7 +66,6 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | ELeftPartial(id, _, e1) => (id, list{Expr(e1)})
     | EFnCall(id, _, exprs, _)
     | EList(id, exprs)
-    | EPipe(id, exprs)
     | EConstructor(id, _, exprs) => (id, List.map(exprs, ~f=e1 => Expr(e1)))
     | ERecord(id, nameAndExprs) => (id, List.map(nameAndExprs, ~f=((_, e1)) => Expr(e1)))
     | EMatch(id, e1, pairs) => (
@@ -120,9 +123,9 @@ let rec find = (target: id, expr: t): option<t> => {
       )
     | EFnCall(_, _, exprs, _)
     | EList(_, exprs)
-    | EConstructor(_, _, exprs)
-    | EPipe(_, exprs) =>
+    | EConstructor(_, _, exprs) =>
       List.findMap(~f=fe, exprs)
+    | EPipe(_, expr1, expr2, exprs) => List.findMap(~f=fe, list{expr1, expr2, ...exprs})
     | EPartial(_, _, oldExpr)
     | ERightPartial(_, _, oldExpr)
     | ELeftPartial(_, _, oldExpr) =>
@@ -157,8 +160,8 @@ let children = (expr: t): list<t> =>
   // List
   | EFnCall(_, _, exprs, _)
   | EList(_, exprs)
-  | EConstructor(_, _, exprs)
-  | EPipe(_, exprs) => exprs
+  | EConstructor(_, _, exprs) => exprs
+  | EPipe(_, expr1, expr2, exprs) => list{expr1, expr2, ...exprs}
   // Special
   | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second)
   | EMatch(_, matchExpr, cases) =>
@@ -221,7 +224,7 @@ let rec preTraversal = (~f: t => t, expr: t): t => {
   | EMatch(id, mexpr, pairs) =>
     EMatch(id, r(mexpr), List.map(~f=((name, expr)) => (name, r(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, r(expr)), fields))
-  | EPipe(id, exprs) => EPipe(id, List.map(~f=r, exprs))
+  | EPipe(id, expr1, expr2, exprs) => EPipe(id, r(expr1), r(expr2), List.map(~f=r, exprs))
   | EConstructor(id, name, exprs) => EConstructor(id, name, List.map(~f=r, exprs))
   | EPartial(id, str, oldExpr) => EPartial(id, str, r(oldExpr))
   | ERightPartial(id, str, oldExpr) => ERightPartial(id, str, r(oldExpr))
@@ -251,7 +254,7 @@ let rec postTraversal = (~f: t => t, expr: t): t => {
   | EMatch(id, mexpr, pairs) =>
     EMatch(id, r(mexpr), List.map(~f=((name, expr)) => (name, r(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, r(expr)), fields))
-  | EPipe(id, exprs) => EPipe(id, List.map(~f=r, exprs))
+  | EPipe(id, expr1, expr2, exprs) => EPipe(id, r(expr1), r(expr2), List.map(~f=r, exprs))
   | EConstructor(id, name, exprs) => EConstructor(id, name, List.map(~f=r, exprs))
   | EPartial(id, str, oldExpr) => EPartial(id, str, r(oldExpr))
   | ERightPartial(id, str, oldExpr) => ERightPartial(id, str, r(oldExpr))
@@ -282,7 +285,7 @@ let deprecatedWalk = (~f: t => t, expr: t): t =>
   | EMatch(id, mexpr, pairs) =>
     EMatch(id, f(mexpr), List.map(~f=((name, expr)) => (name, f(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, f(expr)), fields))
-  | EPipe(id, exprs) => EPipe(id, List.map(~f, exprs))
+  | EPipe(id, expr1, expr2, exprs) => EPipe(id, f(expr1), f(expr2), List.map(~f, exprs))
   | EConstructor(id, name, exprs) => EConstructor(id, name, List.map(~f, exprs))
   | EPartial(id, str, oldExpr) => EPartial(id, str, f(oldExpr))
   | ERightPartial(id, str, oldExpr) => ERightPartial(id, str, f(oldExpr))
@@ -354,11 +357,24 @@ let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
 let replace = (~replacement: t, target: id, ast: t): t => {
   // If we're putting a pipe into another pipe, fix it up
   let (target', newExpr') = switch (findParent(target, ast), replacement) {
-  | (Some(EPipe(parentID, oldExprs)), EPipe(newID, newExprs)) =>
-    let (before, elemAndAfter) = List.splitWhen(~f=nested => toID(nested) == target, oldExprs)
-
+  | (Some(EPipe(parentID, oldExpr1, oldExpr2, oldRest)), EPipe(newID, newExpr1, newExpr2, newRest))
+    if toID(oldExpr1) == target => (
+      parentID,
+      EPipe(newID, newExpr1, newExpr2, Belt.List.concatMany([newRest, list{oldExpr2}, oldRest])),
+    )
+  | (Some(EPipe(parentID, oldExpr1, oldExpr2, oldRest)), EPipe(newID, newExpr1, newExpr2, newRest))
+    if toID(oldExpr2) == target => (
+      parentID,
+      EPipe(newID, oldExpr1, newExpr1, Belt.List.concatMany([list{newExpr2}, newRest, oldRest])),
+    )
+  | (
+      Some(EPipe(parentID, oldExpr1, oldExpr2, oldRest)),
+      EPipe(newID, newExpr1, newExpr2, newRest),
+    ) =>
+    let (before, elemAndAfter) = List.splitWhen(~f=nested => toID(nested) == target, oldRest)
     let after = List.tail(elemAndAfter) |> Option.unwrap(~default=list{})
-    (parentID, EPipe(newID, Belt.List.concatMany([before, newExprs, after])))
+    let newExprs = list{newExpr1, newExpr2, ...newRest}
+    (parentID, EPipe(newID, oldExpr1, oldExpr2, Belt.List.concatMany([before, newExprs, after])))
   | _ => (target, replacement)
   }
 
@@ -426,7 +442,7 @@ let rec clone = (expr: t): t => {
   | EFnCall(_, name, exprs, r) => EFnCall(gid(), name, cl(exprs), r)
   | EBinOp(_, name, left, right, r) => EBinOp(gid(), name, c(left), c(right), r)
   | ELambda(_, vars, body) => ELambda(gid(), List.map(vars, ~f=((_, var)) => (gid(), var)), c(body))
-  | EPipe(_, exprs) => EPipe(gid(), cl(exprs))
+  | EPipe(_, e1, e2, rest) => EPipe(gid(), c(e1), c(e2), cl(rest))
   | EFieldAccess(_, obj, field) => EFieldAccess(gid(), c(obj), field)
   | EString(_, v) => EString(gid(), v)
   | EInteger(_, v) => EInteger(gid(), v)
@@ -476,7 +492,7 @@ let ancestors = (id: id, expr: t): list<t> => {
       | EFnCall(_, _, exprs, _) => reclist(id, exp, walk, exprs)
       | EBinOp(_, _, lhs, rhs, _) => reclist(id, exp, walk, list{lhs, rhs})
       | ELambda(_, _, lexpr) => rec_(id, exp, walk, lexpr)
-      | EPipe(_, exprs) => reclist(id, exp, walk, exprs)
+      | EPipe(_, e1, e2, rest) => reclist(id, exp, walk, list{e1, e2, ...rest})
       | EFieldAccess(_, obj, _) => rec_(id, exp, walk, obj)
       | EList(_, exprs) => reclist(id, expr, walk, exprs)
       | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second) |> reclist(id, expr, walk)
@@ -553,7 +569,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
       ~f=identity,
     )
   | (EFieldAccess(_, e, f), EFieldAccess(_, e', f')) => eq(e, e') && f == f'
-  | (EPipe(_, l), EPipe(_, l')) => eqList(l, l')
+  | (EPipe(_, e1, e2, l), EPipe(_, e1', e2', l')) => eq(e1, e1') && eq(e2, e2') && eqList(l, l')
   | (EFeatureFlag(_, _, cond, old, knew), EFeatureFlag(_, _, cond', old', knew')) =>
     eq3((cond, cond'), (old, old'), (knew, knew'))
   | (EConstructor(_, s, ts), EConstructor(_, s', ts')) => s == s' && eqList(ts, ts')
@@ -664,7 +680,7 @@ let toHumanReadable = (expr: t): string => {
       Printf.sprintf("(record\n%s)", String.join(~sep="\n", pairStrs))
     | EList(_, list{}) => "(list)"
     | EList(_, exprs) => Printf.sprintf("(list\n%s)", newlineList(exprs))
-    | EPipe(_, exprs) => Printf.sprintf("(pipe\n%s)", newlineList(exprs))
+    | EPipe(_, e1, e2, rest) => Printf.sprintf("(pipe\n%s %s %s)", r(e1), r(e2), newlineList(rest))
     | EConstructor(_, name, exprs) =>
       Printf.sprintf("(constructor \"%s\"\n%s)", name, newlineList(exprs))
     | EIf(_, cond, then', else') =>
