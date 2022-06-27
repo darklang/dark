@@ -54,6 +54,40 @@ let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
     do! Canvas.saveTLIDs meta oplists
   }
 
+let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
+  task {
+    let ops =
+      // Convert the DBs back into ops so that DB operations will run
+      dbs
+      |> List.map (fun (db : PT.DB.T) ->
+        let initial =
+          PT.CreateDBWithBlankOr(db.tlid, { x = 0; y = 0 }, db.nameID, db.name)
+        let cols =
+          db.cols
+          |> List.map (fun (col : PT.DB.Col) ->
+            [ PT.AddDBCol(db.tlid, col.nameID, col.typeID)
+              PT.SetDBColName(
+                db.tlid,
+                col.nameID,
+                col.name |> Exception.unwrapOptionInternal "" []
+              )
+              PT.SetDBColType(
+                db.tlid,
+                col.typeID,
+                col.typ |> Exception.unwrapOptionInternal "" [] |> string
+              ) ])
+          |> List.flatten
+        (db, initial :: cols))
+
+    let oplists =
+      ops
+      |> List.map (fun (db, ops) ->
+        db.tlid, ops, PT.Toplevel.TLDB db, Canvas.NotDeleted)
+    do! Canvas.saveTLIDs meta oplists
+  }
+
+
+
 let setupStaticAssets
   (meta : Canvas.Meta)
   (deployHashes : List<string>)
@@ -136,14 +170,11 @@ let t
         let! expected =
           Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
-        let resetCanvas () : Task<unit> =
-          task {
-            do! clearCanvasData meta.owner meta.name
-            if staticAssetsDeployHashes <> [] then
-              do! setupStaticAssets meta staticAssetsDeployHashes
-            if workers <> [] then do! setupWorkers meta workers
-          }
-        do! resetCanvas ()
+        // Initialize
+        if staticAssetsDeployHashes <> [] then
+          do! setupStaticAssets meta staticAssetsDeployHashes
+        if workers <> [] then do! setupWorkers meta workers
+        if dbs <> [] then do! setupDBs meta dbs
 
         // Only do this now so that the error doesn't fire while evaluating the expectedExpr
         let state =
