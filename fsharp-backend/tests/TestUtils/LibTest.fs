@@ -331,4 +331,15 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "getUserID" 0
+      parameters = []
+      returnType = TUuid
+      description = "Get the ID of the user"
+      fn =
+        (function
+        | state, [] -> state.program.accountID |> DUuid |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
