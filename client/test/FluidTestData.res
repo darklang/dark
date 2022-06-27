@@ -486,6 +486,109 @@ let complexExpr = if'(
   fn("Http::Forbidden", list{}),
 )
 
+let testExpr = {
+  let e = int(5)
+  let'(
+    "x1",
+    int(5),
+    let'(
+      "x2",
+      int(6),
+      let'(
+        "bool",
+        bool(true),
+        let'(
+          "bool",
+          bool(false),
+          let'(
+            "str",
+            str("a string"),
+            let'(
+              "char",
+              str("a"),
+              let'(
+                "float",
+                float'(Negative, 6, 5),
+                let'(
+                  "n",
+                  null,
+                  let'(
+                    "b",
+                    blank(),
+                    let'(
+                      "i",
+                      if'(
+                        fn("Bool:isError", list{int(6)}, ~ster=Rail),
+                        if'(
+                          binop("!=", int(5), int(6)),
+                          binop("+", int(5), int(2)),
+                          lambda(list{"y"}, binop("+", int(2), var("y"))),
+                        ),
+                        binop(
+                          "+",
+                          binop(
+                            "+",
+                            fieldAccess(var("x"), "y"),
+                            fn("Int::add", list{int(6), int(2)}),
+                          ),
+                          list(list{int(5), int(6), int(7)}),
+                        ),
+                      ),
+                      let'(
+                        "r",
+                        record(list{
+                          ("field", pipe(int(5), binop("+", pipeTarget, int(2)), list{})),
+                          (
+                            "constructor",
+                            constructor(
+                              "Ok",
+                              list{
+                                constructor(
+                                  "Error",
+                                  list{constructor("Just", list{constructor("Nothing", list{})})},
+                                ),
+                              },
+                            ),
+                          ),
+                        }),
+                        let'(
+                          "m",
+                          match'(
+                            fn("Mod::function_v2", list{}),
+                            list{
+                              (pConstructor("Ok", list{pVar("x")}), var("v")),
+                              (pInt(5), int(6)),
+                              (pBool(true), int(7)),
+                              (pString("string"), str("string")),
+                              (pNull(), null),
+                              (pVar("var"), binop("+", int(6), var("var"))),
+                              (pFloat(Positive, 5, 6), float'(Positive, 5, 6)),
+                              (pBlank(), int(6)),
+                            },
+                          ),
+                          let'(
+                            "f",
+                            flag(~name="test", bool(true), int(5), int(6)),
+                            list(list{
+                              partial("some 🤬 string", e),
+                              rightPartial("some 😭 string", e),
+                              leftPartial("some 👨‍👩‍👧‍👦 string", e),
+                            }),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  )
+}
+
 // ----------------
 // Some useful defaults
 // ----------------
