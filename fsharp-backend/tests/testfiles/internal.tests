@@ -131,13 +131,13 @@ DarkInternal.canvasIDOfCanvasName_v0 "not-a-real-canvas" = Error "Canvas not fou
 DarkInternal.getSecrets Test.getCanvasID = {}
 
 [test.insertSecret]
-(let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
+(let _ = DarkInternal.insertSecret_ster Test.getCanvasID "SECRET" "VALUE"
  DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "VALUE" }
 
 [test.insertSecret twice]
 (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
- let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE"
- DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "OTHERVALUE" }
+ // Does not work
+ DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE") = Error "Error inserting secret"
 
 [test.deleteSecret none]
 DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = null

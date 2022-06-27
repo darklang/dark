@@ -844,14 +844,17 @@ human-readable data."
         [ Param.make "canvasID" TUuid ""
           Param.make "secretName" TStr ""
           Param.make "secretValue" TStr "" ]
-      returnType = TDict TStr
+      returnType = TResult(TNull, TStr)
       description = "Add a secret"
       fn =
         internalFn (function
           | _, [ DUuid canvasID; DStr secretName; DStr secretValue ] ->
             uply {
-              do! Secret.insert canvasID secretName secretValue
-              return DNull
+              try
+                do! Secret.insert canvasID secretName secretValue
+                return DResult(Ok DNull)
+              with
+              | e -> return DResult(Error(DStr "Error inserting secret"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
