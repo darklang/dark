@@ -175,7 +175,6 @@ let pos = (j): pos => {x: field("x", int, j), y: field("y", int, j)}
 
 let vPos = (j): vPos => {vx: field("vx", int, j), vy: field("vy", int, j)}
 
-
 let blankOr = d =>
   variants(list{
     ("Filled", variant2((id, v) => F(id, v), id, d)),
@@ -197,7 +196,10 @@ let rec tipe = (j): tipe => {
       ("TFloat", dv0(TFloat)),
       ("TObj", dv0(TObj)),
       ("TList", dv0(TList)),
-      ("TTuple", dv3((first, second, theRest) => TTuple(first, second, theRest), tipe, tipe, list(tipe))),
+      (
+        "TTuple",
+        dv3((first, second, theRest) => TTuple(first, second, theRest), tipe, tipe, list(tipe)),
+      ),
       ("TAny", dv0(TAny)),
       ("TNull", dv0(TNull)),
       ("TBlock", dv0(TBlock)),
@@ -353,12 +355,12 @@ let blankOrData = (j): blankOrData => {
   )
 }
 
-let rec dval = (j): dval => {
+let rec ocamlDval = (j): dval => {
   let dv0 = variant0
   let dv1 = variant1
   let dv2 = variant2
   let dv3 = variant3
-  let dd = dval
+  let dd = ocamlDval
 
   let optionT = variants(list{
     ("OptJust", dv1(x => OptJust(x), dd)),
@@ -383,7 +385,7 @@ let rec dval = (j): dval => {
   let dblock_args = j => {
     params: field("params", list(pair(id, string)), j),
     body: field("body", fluidExpr, j),
-    symtable: field("symtable", beltStrDict(dval), j),
+    symtable: field("symtable", beltStrDict(ocamlDval), j),
   }
 
   let encodedFloat = j =>
@@ -619,8 +621,8 @@ and loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
 let executionResult = (j: Js.Json.t): executionResult =>
   variants(
     list{
-      ("ExecutedResult", variant1(a => ExecutedResult(a), dval)),
-      ("NonExecutedResult", variant1(a => NonExecutedResult(a), dval)),
+      ("ExecutedResult", variant1(a => ExecutedResult(a), ocamlDval)),
+      ("NonExecutedResult", variant1(a => NonExecutedResult(a), ocamlDval)),
     },
     j,
   )
@@ -628,7 +630,7 @@ let executionResult = (j: Js.Json.t): executionResult =>
 let intermediateResultStore = (j: Js.Json.t): intermediateResultStore =>
   beltStrDict(executionResult, j)
 
-let dvalDict = (j: Js.Json.t): dvalDict => strDict(dval, j)
+let dvalDict = (j: Js.Json.t): dvalDict => strDict(ocamlDval, j)
 
 let analysisEnvelope = (j: Js.Json.t): (traceID, intermediateResultStore) =>
   tuple2(string, intermediateResultStore)(j)
@@ -775,10 +777,17 @@ let presenceMsg = (j): avatar => {
 }
 
 let inputValueDict = (j): inputValueDict =>
-  j |> array(tuple2(string, dval)) |> Belt.Map.String.fromArray
+  j |> array(tuple2(string, ocamlDval)) |> Belt.Map.String.fromArray
 
 let functionResult = (j): functionResult => {
-  let (fnName, callerID, argHash, argHashVersion, value) = tuple5(string, id, string, int, dval, j)
+  let (fnName, callerID, argHash, argHashVersion, value) = tuple5(
+    string,
+    id,
+    string,
+    int,
+    ocamlDval,
+    j,
+  )
 
   {
     fnName: fnName,
@@ -935,7 +944,7 @@ let getTraceDataAPIResult = (j): getTraceDataAPIResult => {trace: field("trace",
 
 let dbStats = (j): dbStats => {
   count: field("count", int, j),
-  example: field("example", optional(tuple2(dval, string)), j),
+  example: field("example", optional(tuple2(ocamlDval, string)), j),
 }
 
 let dbStatsStore = (j): dbStatsStore => strDict(dbStats, j)
@@ -989,7 +998,7 @@ let allTracesResult = (j): allTracesAPIResult => {
 }
 
 let executeFunctionAPIResult = (j): executeFunctionAPIResult => (
-  field("result", dval, j),
+  field("result", ocamlDval, j),
   field("hash", string, j),
   field("hashVersion", int, j),
   field("touched_tlids", list(tlid), j),

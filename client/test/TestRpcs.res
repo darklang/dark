@@ -4,18 +4,20 @@ open Tester
 let testRoundtrip = (decoder, encoder, name: string, v: 'a) =>
   test("roundtrip " ++ name, () => expect(v) |> toEqual(v |> encoder |> decoder))
 
-let rtDval = testRoundtrip(Decoders.dval, Encoders.dval)
+let rtDval = testRoundtrip(Decoders.ocamlDval, Encoders.ocamlDval)
 
 let run = () => {
   describe("compatible with server JSON encoding", () => {
     test("obj uses list", () =>
       expect("[\"DObj\",{\"foo\":[\"DInt\",5]}]") |> toEqual(
-        DObj(Belt.Map.String.fromArray([("foo", DInt(5L))])) |> Encoders.dval |> Js.Json.stringify,
+        DObj(Belt.Map.String.fromArray([("foo", DInt(5))]))
+        |> Encoders.ocamlDval
+        |> Js.Json.stringify,
       )
     )
     test("dresp shape", () =>
       expect("[\"DResp\",[[\"Response\",401,[]],[\"DNull\"]]]") |> toEqual(
-        DResp(Response(401, list{}), DNull) |> Encoders.dval |> Js.Json.stringify,
+        DResp(Response(401, list{}), DNull) |> Encoders.ocamlDval |> Js.Json.stringify,
       )
     )
     describe("roundtrips", () => {
