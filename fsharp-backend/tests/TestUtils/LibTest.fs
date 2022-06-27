@@ -32,6 +32,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "typeError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
@@ -43,6 +45,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "sqlError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
@@ -56,6 +60,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "nan" 0
       parameters = []
       returnType = TFloat
@@ -67,6 +73,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "infinity" 0
       parameters = []
       returnType = TFloat
@@ -78,6 +86,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "toChar" 0
       parameters = [ Param.make "c" TStr "" ]
       returnType = TOption TChar
@@ -95,6 +105,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "negativeInfinity" 0
       parameters = []
       returnType = TFloat
@@ -106,6 +118,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "incrementSideEffectCounter" 0
       parameters =
         [ Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
@@ -121,6 +135,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "sideEffectCount" 0
       parameters = []
       returnType = TInt
@@ -132,6 +148,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "inspect" 0
       parameters = [ Param.make "var" varA ""; Param.make "msg" TStr "" ]
       returnType = varA
@@ -145,6 +163,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "justWithTypeError" 0
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TOption varA
@@ -156,6 +176,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "okWithTypeError" 0
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TResult(varA, varB)
@@ -167,6 +189,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "errorWithTypeError" 0
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TResult(varA, varB)
@@ -178,6 +202,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "deleteUser" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TNull, varB)
@@ -198,6 +224,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "getQueue" 0
       parameters = [ Param.make "eventName" TStr "" ]
       returnType = TList TStr
@@ -217,6 +245,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "asBytes" 0
       parameters = [ Param.make "list" (TList TInt) "" ]
       returnType = TBytes
@@ -236,6 +266,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "raiseException" 0
       parameters = [ Param.make "message" TStr "" ]
       returnType = TVariable "a"
@@ -247,6 +279,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "intArrayToBytes" 0
       parameters = [ Param.make "bytes" (TList TInt) "" ]
       returnType = TBytes
@@ -267,6 +301,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "regexReplace" 0
       parameters =
         [ Param.make "subject" TStr ""
@@ -282,6 +318,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "httpResponseStatusCode" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = TInt
@@ -296,6 +334,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "httpResponseHeaders" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       // CLEANUP make this is a list of string*string tuples
@@ -315,6 +355,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "httpResponseBody" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = varA
@@ -329,6 +371,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "getCanvasName" 0
       parameters = []
       returnType = TStr
@@ -340,6 +384,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "getCanvasID" 0
       parameters = []
       returnType = TUuid
