@@ -280,13 +280,7 @@ let fileTests () : Test =
     let mutable dbs : Map<string, PT.DB.T> = Map.empty
     let owner =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
-    let initializeCanvas =
-      filename = "internal.tests"
-      // staticassets.tests only needs initialization for OCaml (where the
-      // canvas_id is fetched from the DB during test function call, rather than
-      // up-front). This is also true of the other places in this file this
-      // condition is repeated.
-      || filename = "staticassets.tests"
+    let initializeCanvas = filename = "internal.tests"
 
     let finish () =
       if currentTest.recording then
