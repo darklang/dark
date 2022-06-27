@@ -910,25 +910,7 @@ human-readable data."
     { name = fn "DarkInternal" "getQueueCount" 0
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
       returnType = TList TInt
-      description = "Get a list of unlocked DBs"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID; DInt tlid ] ->
-            uply {
-              let tlid = uint64 tlid
-              let! count = Stats.workerStats canvasID tlid
-              return DInt count
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getQueueCount" 0
-      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
-      returnType = TList TInt
-      description = "Get a list of unlocked DBs"
+      description = "Get count of how many events are in the queue for this tlid"
       fn =
         internalFn (function
           | _, [ DUuid canvasID; DInt tlid ] ->
@@ -1001,4 +983,92 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated }
 
-    ]
+
+    // ---------------------
+    // Apis - parts of initialLoad
+    // ---------------------
+    { name = fn "DarkInternal" "staticAssetsDeploys" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType =
+        TList(
+          TRecord [ "deployHash", TStr
+                    "url", TStr
+                    "status", TStr
+                    "lastUpdate", TDate ]
+        )
+      description = "Returns a list of deploys on this canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! meta = Canvas.getMetaFromID canvasID
+              let! deploys = StaticAssets.allDeploysInCanvas meta.name canvasID
+              return
+                deploys
+                |> List.map (fun d ->
+                  DObj(
+                    Map [ "deployHash", DStr d.deployHash
+                          "url", DStr d.url
+                          "status", DStr(string d.status)
+                          "lastUpdate", DDate(DDateTime.fromInstant d.lastUpdate) ]
+                  ))
+                |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - canvases and org metadata
+    // ---------------------
+    { name = fn "DarkInternal" "getCanvasList" 0
+      parameters = [ Param.make "userID" TUuid "" ]
+      returnType = TList TStr
+      description = "Returns all canvases owned by a user"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID ] ->
+            uply {
+              let! canvasList = Account.ownedCanvases userID
+              return canvasList |> List.map string |> List.map DStr |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getOrgCanvasList" 0
+      parameters = [ Param.make "userID" TUuid "" ]
+      returnType = TList TStr
+      description = "Returns all canvases the user has access to"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID ] ->
+            uply {
+              let! canvasList = Account.accessibleCanvases userID
+              return canvasList |> List.map string |> List.map DStr |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getOrgList" 0
+      parameters = [ Param.make "userID" TUuid "" ]
+      returnType = TList TStr
+      description = "Returns all orgs the user is a member of"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID ] ->
+            uply {
+              let! canvasList = Account.orgs userID
+              return canvasList |> List.map string |> List.map DStr |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]
