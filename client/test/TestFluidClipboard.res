@@ -285,7 +285,7 @@ let run = () => {
   describe("Copy text", () => {
     testCopyText(
       "copying text just gets text",
-      complexExpr,
+      compoundExpr,
       (132, 257),
       "Http::Forbidden 403\nelse\n  Http::Forbidden",
     )

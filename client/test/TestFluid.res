@@ -4545,9 +4545,9 @@ let run = () => {
   })
   describe("Movement", () => {
     let s = defaultTestState
-    let tokens = FluidTokenizer.tokenize(complexExpr)
+    let tokens = FluidTokenizer.tokenize(compoundExpr)
     let len = tokens |> List.map(~f=ti => ti.token) |> length
-    let ast = complexExpr |> FluidAST.ofExpr
+    let ast = compoundExpr |> FluidAST.ofExpr
     let astInfo = ASTInfo.make(defaultTestProps, ast, defaultTestState)
     test("gridFor - 1", () => expect(gridFor(~pos=116, tokens)) |> toEqual({row: 2, col: 2}))
     test("gridFor - 2", () => expect(gridFor(~pos=70, tokens)) |> toEqual({row: 0, col: 70}))

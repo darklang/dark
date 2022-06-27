@@ -468,7 +468,7 @@ let letWithflagBody = let'("a", aShortInt, flagOld(oneCharStr))
 // Complex
 // ----------------
 
-let complexExpr = if'(
+let compoundExpr = if'(
   binop(
     "||",
     binop(
@@ -486,8 +486,8 @@ let complexExpr = if'(
   fn("Http::Forbidden", list{}),
 )
 
-let testExpr = {
-  let e = int(5)
+let complexExpr = {
+  let e = int(-5)
   let'(
     "x1",
     int(5),
