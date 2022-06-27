@@ -166,8 +166,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "StaticAssets" "baseUrlForLatest" 1
       parameters = []
-      returnType = TOption varA
-      description = "Return the baseUrl for the latest deploy"
+      returnType = TOption TStr
+      description = "Return the baseUrl for the latest deploy, wrapped in an Option. If no deploys have been made, `Nothing` is returned."
       fn =
         (function
         | state, [] ->

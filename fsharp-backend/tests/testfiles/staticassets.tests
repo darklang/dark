@@ -73,8 +73,6 @@ StaticAssets.baseUrlForLatest_v1 = Some "https://test-baseurlforlatest-1.darksa.
 StaticAssets.baseUrlForLatest_v1 = None
 
 // urlFor
-
-// urlFor
 [test.urlFor] with ExactCanvasName test-urlfor-0
 StaticAssets.urlFor_v0 "abcdefghi" "index.html" = "https://test-urlfor-0.darksa.com/3jmuukrzwc2zszlzv_3kxyvd_eo/abcdefghi/index.html"
 
