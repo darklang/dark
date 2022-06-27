@@ -1043,7 +1043,8 @@ human-readable data."
     { name = fn "DarkInternal" "getOrgCanvasList" 0
       parameters = [ Param.make "userID" TUuid "" ]
       returnType = TList TStr
-      description = "Returns all canvases the user has access to"
+      description =
+        "Returns all canvases the user has access to via orgs (not including ones they have access to directly)"
       fn =
         internalFn (function
           | _, [ DUuid userID ] ->
