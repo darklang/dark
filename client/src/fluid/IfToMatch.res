@@ -19,7 +19,7 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
   let makeGenericMatch = (ifID, cond, then_, else_) => E.EMatch(
     ifID,
     cond,
-    list{(PBool(ifID, gid(), true), then_), (PBool(ifID, gid(), false), else_)},
+    list{(PBool(gid(), true), then_), (PBool(gid(), false), else_)},
   )
 
   let makeBinOpMatch = (ifID, binopID, lhs, rhs, rail, then_, else_) => {
@@ -52,13 +52,13 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
     }
 
     let pattern: option<P.t> = switch arm {
-    | EInteger(pid, value) => Some(PInteger(ifID, pid, value))
-    | EBool(pid, value) => Some(PBool(ifID, pid, value))
-    | EString(pid, string) => Some(PString({matchID: ifID, patternID: pid, str: string}))
-    | EFloat(pid, sign, whole, frac) => Some(PFloat(ifID, pid, sign, whole, frac))
-    | ENull(pid) => Some(PNull(ifID, pid))
-    | EBlank(pid) => Some(PBlank(ifID, pid))
-    | EVariable(pid, name) => Some(PVariable(ifID, pid, name))
+    | EInteger(pid, value) => Some(PInteger(pid, value))
+    | EBool(pid, value) => Some(PBool(pid, value))
+    | EString(pid, string) => Some(PString(pid, string))
+    | EFloat(pid, sign, whole, frac) => Some(PFloat(pid, sign, whole, frac))
+    | ENull(pid) => Some(PNull(pid))
+    | EBlank(pid) => Some(PBlank(pid))
+    | EVariable(pid, name) => Some(PVariable(pid, name))
     | _ => None
     }
 
@@ -66,7 +66,7 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
      * generic match expression with true and false arms.
      */
     switch pattern {
-    | Some(p) => E.EMatch(ifID, matchCond, list{(p, then_), (PVariable(ifID, gid(), "_"), else_)})
+    | Some(p) => E.EMatch(ifID, matchCond, list{(p, then_), (PVariable(gid(), "_"), else_)})
     | None => makeGenericMatch(ifID, EBinOp(binopID, "==", lhs, rhs, rail), then_, else_)
     }
   }

@@ -122,24 +122,24 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
-let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
+let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> =>
   switch p {
-  | PVariable(mid, id, name) => list{TPatternVariable(mid, id, name, idx)}
-  | PConstructor(mid, id, name, args) =>
-    let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(a, ~idx)})
+  | PVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
+  | PConstructor(id, name, args) =>
+    let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(matchID, a, ~idx)})
 
-    List.flatten(list{list{TPatternConstructorName(mid, id, name, idx)}, ...args})
-  | PInteger(mid, id, i) => list{TPatternInteger(mid, id, i, idx)}
-  | PBool(mid, id, b) =>
+    List.flatten(list{list{TPatternConstructorName(matchID, id, name, idx)}, ...args})
+  | PInteger(id, i) => list{TPatternInteger(matchID, id, i, idx)}
+  | PBool(id, b) =>
     if b {
-      list{TPatternTrue(mid, id, idx)}
+      list{TPatternTrue(matchID, id, idx)}
     } else {
-      list{TPatternFalse(mid, id, idx)}
+      list{TPatternFalse(matchID, id, idx)}
     }
-  | PString({matchID: mid, patternID: id, str}) => list{
-      TPatternString({matchID: mid, patternID: id, str: str, branchIdx: idx}),
+  | PString(id, str) => list{
+      TPatternString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
-  | PFloat(mID, id, sign, whole, fraction) =>
+  | PFloat(id, sign, whole, fraction) =>
     let whole = switch sign {
     | Positive => whole
     | Negative => "-" ++ whole
@@ -147,17 +147,17 @@ let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
     let whole = if whole == "" {
       list{}
     } else {
-      list{TPatternFloatWhole(mID, id, whole, idx)}
+      list{TPatternFloatWhole(matchID, id, whole, idx)}
     }
     let fraction = if fraction == "" {
       list{}
     } else {
-      list{TPatternFloatFractional(mID, id, fraction, idx)}
+      list{TPatternFloatFractional(matchID, id, fraction, idx)}
     }
 
-    Belt.List.concatMany([whole, list{TPatternFloatPoint(mID, id, idx)}, fraction])
-  | PNull(mid, id) => list{TPatternNullToken(mid, id, idx)}
-  | PBlank(mid, id) => list{TPatternBlank(mid, id, idx)}
+    Belt.List.concatMany([whole, list{TPatternFloatPoint(matchID, id, idx)}, fraction])
+  | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
+  | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
   }
 
 let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
@@ -523,7 +523,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       |> addIter(pairs, ~f=(i, (pattern, expr), b) =>
         b
         |> addNewlineIfNeeded(Some(id, id, Some(i)))
-        |> addMany(patternToToken(pattern, ~idx=i))
+        |> addMany(patternToToken(id, pattern, ~idx=i))
         |> add(
           TMatchBranchArrow({
             matchID: id,

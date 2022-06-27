@@ -429,10 +429,10 @@ let generatePatterns = (ti, a, queryString): list<item> => {
       list{
         FPABool(mid, gid(), true),
         FPABool(mid, gid(), false),
-        FPAConstructor(mid, gid(), "Just", list{PBlank(mid, gid())}),
+        FPAConstructor(mid, gid(), "Just", list{PBlank(gid())}),
         FPAConstructor(mid, gid(), "Nothing", list{}),
-        FPAConstructor(mid, gid(), "Ok", list{PBlank(mid, gid())}),
-        FPAConstructor(mid, gid(), "Error", list{PBlank(mid, gid())}),
+        FPAConstructor(mid, gid(), "Ok", list{PBlank(gid())}),
+        FPAConstructor(mid, gid(), "Error", list{PBlank(gid())}),
         FPANull(mid, gid()),
       } |> List.map(~f=p => FACPattern(p))
     } |> List.filter(~f=c =>

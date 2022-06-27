@@ -1143,14 +1143,14 @@ let caretTargetForStartOfExpr = (astPartId: id, ast: FluidAST.t): caretTarget =>
  placement at the very start of the expression in `pattern` */
 let caretTargetForStartOfPattern = (pattern: fluidPattern): caretTarget =>
   switch pattern {
-  | PVariable(_, id, _) => {astRef: ARPattern(id, PPVariable), offset: 0}
-  | PConstructor(_, id, _, _) => {astRef: ARPattern(id, PPConstructor), offset: 0}
-  | PInteger(_, id, _) => {astRef: ARPattern(id, PPInteger), offset: 0}
-  | PBool(_, id, _) => {astRef: ARPattern(id, PPBool), offset: 0}
-  | PString({patternID: id, _}) => CT.forPPStringOpenQuote(id, 0)
-  | PFloat(_, id, _, _, _) => {astRef: ARPattern(id, PPFloat(FPWhole)), offset: 0}
-  | PNull(_, id) => {astRef: ARPattern(id, PPNull), offset: 0}
-  | PBlank(_, id) => {astRef: ARPattern(id, PPBlank), offset: 0}
+  | PVariable(id, _) => {astRef: ARPattern(id, PPVariable), offset: 0}
+  | PConstructor(id, _, _) => {astRef: ARPattern(id, PPConstructor), offset: 0}
+  | PInteger(id, _) => {astRef: ARPattern(id, PPInteger), offset: 0}
+  | PBool(id, _) => {astRef: ARPattern(id, PPBool), offset: 0}
+  | PString(id, _) => CT.forPPStringOpenQuote(id, 0)
+  | PFloat(id, _, _, _) => {astRef: ARPattern(id, PPFloat(FPWhole)), offset: 0}
+  | PNull(id) => {astRef: ARPattern(id, PPNull), offset: 0}
+  | PBlank(id) => {astRef: ARPattern(id, PPBlank), offset: 0}
   }
 
 /* caretTargetForEndOfPattern returns a caretTarget representing caret
@@ -1161,28 +1161,28 @@ let caretTargetForStartOfPattern = (pattern: fluidPattern): caretTarget =>
  * on any tokenization functions. */
 let rec caretTargetForEndOfPattern = (pattern: fluidPattern): caretTarget =>
   switch pattern {
-  | PVariable(_, id, varName) => {
+  | PVariable(id, varName) => {
       astRef: ARPattern(id, PPVariable),
       offset: String.length(varName),
     }
-  | PConstructor(_, id, name, containedPatterns) =>
+  | PConstructor(id, name, containedPatterns) =>
     switch List.last(containedPatterns) {
     | Some(lastPattern) => caretTargetForEndOfPattern(lastPattern)
     | None => {astRef: ARPattern(id, PPConstructor), offset: String.length(name)}
     }
-  | PInteger(_, id, value) => {
+  | PInteger(id, value) => {
       astRef: ARPattern(id, PPInteger),
       offset: String.length(Int64.to_string(value)),
     }
-  | PBool(_, id, true) => {astRef: ARPattern(id, PPBool), offset: String.length("true")}
-  | PBool(_, id, false) => {astRef: ARPattern(id, PPBool), offset: String.length("false")}
-  | PString({patternID: id, str, _}) => CT.forPPStringCloseQuote(id, 1, str) // end of close quote
-  | PFloat(_, id, _, _, frac) => {
+  | PBool(id, true) => {astRef: ARPattern(id, PPBool), offset: String.length("true")}
+  | PBool(id, false) => {astRef: ARPattern(id, PPBool), offset: String.length("false")}
+  | PString(id, str) => CT.forPPStringCloseQuote(id, 1, str) // end of close quote
+  | PFloat(id, _, _, frac) => {
       astRef: ARPattern(id, PPFloat(FPFractional)),
       offset: String.length(frac),
     }
-  | PNull(_, id) => {astRef: ARPattern(id, PPNull), offset: String.length("null")}
-  | PBlank(_, id) => // Consider changing this from 3 to 0 if we don't want blanks to have two spots
+  | PNull(id) => {astRef: ARPattern(id, PPNull), offset: String.length("null")}
+  | PBlank(id) => // Consider changing this from 3 to 0 if we don't want blanks to have two spots
     {astRef: ARPattern(id, PPBlank), offset: 3}
   }
 
@@ -1249,7 +1249,7 @@ let recursePattern = (~f: fluidPattern => fluidPattern, pat: fluidPattern): flui
   | PBool(_)
   | PNull(_)
   | PFloat(_) => pat
-  | PConstructor(id, nameID, name, pats) => PConstructor(id, nameID, name, List.map(~f, pats))
+  | PConstructor(id, name, pats) => PConstructor(id, name, List.map(~f, pats))
   }
 
 let updatePattern = (
@@ -1289,7 +1289,7 @@ let addMatchPatternAt = (matchId: id, idx: int, astInfo: ASTInfo.t): ASTInfo.t =
   let ast = FluidAST.update(matchId, astInfo.ast, ~f=x =>
     switch x {
     | EMatch(_, cond, rows) =>
-      let newVal = (PBlank(matchId, gid()), E.newB())
+      let newVal = (PBlank(gid()), E.newB())
       let newRows = List.insertAt(rows, ~index=idx, ~value=newVal)
       EMatch(matchId, cond, newRows)
     | e => recover("expected to find EMatch to update", ~debug=e, e)
@@ -2091,7 +2091,7 @@ let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> 
   | FACKeyword(KMatch) =>
     let matchID = gid()
     let (b, target) = mkBlank()
-    Some(EMatch(matchID, b, list{(PBlank(matchID, gid()), E.newB())}), target)
+    Some(EMatch(matchID, b, list{(PBlank(gid()), E.newB())}), target)
   | FACKeyword(KPipe) =>
     let (b, target) = mkBlank()
     Some(EPipe(gid(), b, E.newB(), list{}), target)
@@ -2130,26 +2130,26 @@ let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> 
   }
 }
 
-let acToPattern = (entry: Types.fluidAutocompleteItem): option<(fluidPattern, caretTarget)> => {
-  let selectedPat: option<P.t> = switch entry {
+let acToPattern = (entry: Types.fluidAutocompleteItem): option<(id, fluidPattern, caretTarget)> => {
+  let selectedPat: option<(id, P.t)> = switch entry {
   | FACPattern(p) =>
     switch p {
-    | FPAConstructor(mID, patID, var, pats) => Some(PConstructor(mID, patID, var, pats))
-    | FPAVariable(mID, patID, var) => Some(PVariable(mID, patID, var))
-    | FPABool(mID, patID, var) => Some(PBool(mID, patID, var))
-    | FPANull(mID, patID) => Some(PNull(mID, patID))
+    | FPAConstructor(mID, patID, var, pats) => Some(mID, PConstructor(patID, var, pats))
+    | FPAVariable(mID, patID, var) => Some(mID, PVariable(patID, var))
+    | FPABool(mID, patID, var) => Some(mID, PBool(patID, var))
+    | FPANull(mID, patID) => Some(mID, PNull(patID))
     }
   | _ =>
     // This only works for patterns
     None
   }
 
-  selectedPat |> Option.map(~f=p => (p, caretTargetForEndOfPattern(p)))
+  selectedPat |> Option.map(~f=((mid, p)) => (mid, p, caretTargetForEndOfPattern(p)))
 }
 
 let acToPatternOrExpr = (entry: Types.fluidAutocompleteItem): (E.fluidPatOrExpr, caretTarget) =>
   acToPattern(entry)
-  |> Option.map(~f=((pat, target)) => (E.Pat(pat), target))
+  |> Option.map(~f=((mid, pat, target)) => (E.Pat(mid, pat), target))
   |> Option.orElseLazy(() =>
     acToExpr(entry) |> Option.map(~f=((expr, target)) => (E.Expr(expr), target))
   )
@@ -2283,7 +2283,7 @@ let updateFromACItem = (
   /* since patterns have no partial but commit as variables
    * automatically, allow intermediate variables to
    * be autocompletable to other expressions */
-  | (TPatternBlank(mID, pID, _) | TPatternVariable(mID, pID, _, _), _, _, Pat(newPat)) =>
+  | (TPatternBlank(mID, pID, _) | TPatternVariable(mID, pID, _, _), _, _, Pat(_, newPat)) =>
     let newAST = replacePattern(~newPat, mID, pID, ast)
     (newAST, newTarget)
   | (
@@ -2902,15 +2902,16 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
   let doPatternBackspace = (
     patContainerRef: ref<option<id>>,
     currAstRef: astRef,
+    mID: id,
     pat: fluidPattern,
   ): option<(E.fluidPatOrExpr, caretTarget)> => {
-    let mkPBlank = (matchID: id): option<(E.fluidPatOrExpr, caretTarget)> => {
+    let mkPBlank = (): option<(E.fluidPatOrExpr, caretTarget)> => {
       let bID = gid()
-      Some(Pat(PBlank(matchID, bID)), {astRef: ARPattern(bID, PPBlank), offset: 0})
+      Some(Pat(mID, PBlank(bID)), {astRef: ARPattern(bID, PPBlank), offset: 0})
     }
 
     switch (currAstRef, pat) {
-    | (ARPattern(_, PPBlank), PBlank(mID, pID)) =>
+    | (ARPattern(_, PPBlank), PBlank(pID)) =>
       if currOffset == 0 {
         switch FluidAST.find(mID, ast) {
         | Some(EMatch(_, cond, patterns)) =>
@@ -2938,15 +2939,15 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         | _ => recover("doExplicitBackspace PPBlank", None)
         }
       } else {
-        Some(Pat(PBlank(mID, pID)), {astRef: currAstRef, offset: 0})
+        Some(Pat(mID, PBlank(pID)), {astRef: currAstRef, offset: 0})
       }
-    | (ARPattern(_, PPVariable), PVariable(mID, pID, oldName)) =>
+    | (ARPattern(_, PPVariable), PVariable(pID, oldName)) =>
       patContainerRef := Some(mID)
       let newName = mutation(oldName)
       let (newPat, target) = if newName == "" {
-        (PBlank(mID, pID), {astRef: ARPattern(pID, PPBlank), offset: 0})
+        (PBlank(pID), {astRef: ARPattern(pID, PPBlank), offset: 0})
       } else {
-        (PVariable(mID, pID, newName), currCTMinusOne)
+        (PVariable(pID, newName), currCTMinusOne)
       }
 
       switch FluidAST.find(mID, ast) {
@@ -2969,14 +2970,14 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         Some(Expr(EMatch(mID, cond, newCases)), target)
       | _ => recover("doExplicitBackspace PVariable", None)
       }
-    | (ARPattern(_, PPNull), PNull(mID, _)) =>
+    | (ARPattern(_, PPNull), PNull(_)) =>
       let str = mutation("null")
       let newID = gid()
       Some(
-        Pat(PVariable(mID, newID, str)),
+        Pat(mID, PVariable(newID, str)),
         {astRef: ARPattern(newID, PPVariable), offset: currOffset - 1},
       )
-    | (ARPattern(_, PPBool), PBool(mID, _, bool)) =>
+    | (ARPattern(_, PPBool), PBool(_, bool)) =>
       let str = if bool {
         "true"
       } else {
@@ -2985,61 +2986,61 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       let newStr = mutation(str)
       let newID = gid()
       Some(
-        Pat(PVariable(mID, newID, newStr)),
+        Pat(mID, PVariable(newID, newStr)),
         {astRef: ARPattern(newID, PPVariable), offset: currOffset - 1},
       )
-    | (ARPattern(_, PPInteger), PInteger(mID, pID, int)) =>
+    | (ARPattern(_, PPInteger), PInteger(pID, int)) =>
       let str = int->Int64.to_string->mutation
       if str == "" {
-        mkPBlank(mID)
+        mkPBlank()
       } else {
         let coerced = Util.coerceStringTo64BitInt(str)
         if coerced == int {
           None
         } else {
-          Some(Pat(PInteger(mID, pID, coerced)), currCTMinusOne)
+          Some(Pat(mID, PInteger(pID, coerced)), currCTMinusOne)
         }
       }
-    | (ARPattern(_, PPConstructor), PConstructor(mID, _, str, _patterns)) =>
+    | (ARPattern(_, PPConstructor), PConstructor(_, str, _patterns)) =>
       let str = str |> mutation |> String.trim
       let newID = gid()
       if str == "" {
-        Some(Pat(PBlank(mID, newID)), {astRef: ARPattern(newID, PPBlank), offset: 0})
+        Some(Pat(mID, PBlank(newID)), {astRef: ARPattern(newID, PPBlank), offset: 0})
       } else {
         Some(
-          Pat(PVariable(mID, newID, str)),
+          Pat(mID, PVariable(newID, str)),
           {astRef: ARPattern(newID, PPVariable), offset: currOffset - 1},
         )
       }
     //
     // Floats
     //
-    | (ARPattern(_, PPFloat(FPWhole)), PFloat(mID, pID, sign, whole, frac)) =>
+    | (ARPattern(_, PPFloat(FPWhole)), PFloat(pID, sign, whole, frac)) =>
       let (sign, whole) = Sign.combine(sign, whole)->mutation->Sign.split
-      Some(Pat(PFloat(mID, pID, sign, whole, frac)), currCTMinusOne)
-    | (ARPattern(_, PPFloat(FPPoint)), PFloat(mID, _, sign, whole, frac)) =>
+      Some(Pat(mID, PFloat(pID, sign, whole, frac)), currCTMinusOne)
+    | (ARPattern(_, PPFloat(FPPoint)), PFloat(_, sign, whole, frac)) =>
       // TODO: If the float only consists of a . and has no whole or frac,
       // it should become a blank. Instead, it currently becomes a 0, which is weird.
       let i = Util.coerceStringTo64BitInt(Sign.toString(sign) ++ whole ++ frac)
       let iID = gid()
       Some(
-        Pat(PInteger(mID, iID, i)),
+        Pat(mID, PInteger(iID, i)),
         {astRef: ARPattern(iID, PPInteger), offset: String.length(whole)},
       )
-    | (ARPattern(_, PPFloat(FPFractional)), PFloat(mID, pID, sign, whole, frac)) =>
-      Some(Pat(PFloat(mID, pID, sign, whole, mutation(frac))), currCTMinusOne)
+    | (ARPattern(_, PPFloat(FPFractional)), PFloat(pID, sign, whole, frac)) =>
+      Some(Pat(mID, PFloat(pID, sign, whole, mutation(frac))), currCTMinusOne)
     //
     // Strings
     //
-    | (ARPattern(_, PPString(kind)), PString({matchID, patternID, str} as data)) =>
+    | (ARPattern(_, PPString(kind)), PString(id, str)) =>
       let strRelOffset = switch kind {
       | SPOpenQuote => currOffset - 1
       }
       if strRelOffset == 0 && str == "" {
-        mkPBlank(matchID)
+        mkPBlank()
       } else {
         let str = str |> mutationAt(~index=strRelOffset - 1)
-        Some(Pat(PString({...data, str: str})), CT.forPPStringOpenQuote(patternID, strRelOffset))
+        Some(Pat(mID, PString(id, str)), CT.forPPStringOpenQuote(id, strRelOffset))
       }
     /* ****************
      * Exhaustiveness
@@ -3097,7 +3098,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
   )
   |> Option.andThen(~f=((patOrExprID, patOrExpr)) => {
     let maybeTransformedExprAndCaretTarget = switch patOrExpr {
-    | E.Pat(pat) => doPatternBackspace(patContainerRef, currAstRef, pat)
+    | E.Pat(mID, pat) => doPatternBackspace(patContainerRef, currAstRef, mID, pat)
     | E.Expr(expr) => doExprBackspace(currAstRef, expr)
     }
 
@@ -3109,8 +3110,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       }
 
       Some(FluidAST.replace(patOrExprID, ~replacement=newExpr, ast), AtTarget(target))
-    | Some(Pat(newPat), target) =>
-      let mID = P.toMatchID(newPat)
+    | Some(Pat(mID, newPat), target) =>
       let newAST = replacePattern(mID, patOrExprID, ~newPat, ast)
       Some(newAST, AtTarget(target))
     | None => None
@@ -3462,10 +3462,11 @@ let doExplicitInsert = (
   let doPatInsert = (
     patContainerRef: ref<option<id>>,
     currAstRef: astRef,
+    mID: id,
     pat: fluidPattern,
   ): option<(E.fluidPatOrExpr, caretTarget)> =>
     switch (currAstRef, pat) {
-    | (ARPattern(_, PPFloat(kind)), PFloat(mID, pID, sign, whole, frac)) =>
+    | (ARPattern(_, PPFloat(kind)), PFloat(pID, sign, whole, frac)) =>
       if FluidUtil.isNumber(extendedGraphemeCluster) {
         let (isWhole, index) = switch kind {
         | FPWhole => (true, currOffset)
@@ -3485,7 +3486,7 @@ let doExplicitInsert = (
             None
           } else {
             Some(
-              Pat(PFloat(mID, pID, sign, newWhole, frac)),
+              Pat(mID, PFloat(pID, sign, newWhole, frac)),
               {
                 astRef: ARPattern(pID, PPFloat(FPWhole)),
                 offset: index + caretDelta,
@@ -3495,7 +3496,7 @@ let doExplicitInsert = (
         } else {
           let newFrac = mutationAt(frac, ~index)
           Some(
-            Pat(PFloat(mID, pID, sign, whole, newFrac)),
+            Pat(mID, PFloat(pID, sign, whole, newFrac)),
             {
               astRef: ARPattern(pID, PPFloat(FPFractional)),
               offset: index + caretDelta,
@@ -3505,12 +3506,12 @@ let doExplicitInsert = (
       } else {
         None
       }
-    | (ARPattern(_, PPNull), PNull(mID, _)) =>
+    | (ARPattern(_, PPNull), PNull(_)) =>
       let str = mutation("null")
       let newID = gid()
       if FluidUtil.isValidIdentifier(str) {
         Some(
-          Pat(PVariable(mID, newID, str)),
+          Pat(mID, PVariable(newID, str)),
           {
             astRef: ARPattern(newID, PPVariable),
             offset: currOffset + caretDelta,
@@ -3519,7 +3520,7 @@ let doExplicitInsert = (
       } else {
         None
       }
-    | (ARPattern(_, PPBool), PBool(mID, _, bool)) =>
+    | (ARPattern(_, PPBool), PBool(_, bool)) =>
       let str = if bool {
         "true"
       } else {
@@ -3529,7 +3530,7 @@ let doExplicitInsert = (
       let newID = gid()
       if FluidUtil.isValidIdentifier(str) {
         Some(
-          Pat(PVariable(mID, newID, newStr)),
+          Pat(mID, PVariable(newID, newStr)),
           {
             astRef: ARPattern(newID, PPVariable),
             offset: currOffset + caretDelta,
@@ -3538,7 +3539,7 @@ let doExplicitInsert = (
       } else {
         None
       }
-    | (ARPattern(_, PPInteger), PInteger(mID, pID, int)) =>
+    | (ARPattern(_, PPInteger), PInteger(pID, int)) =>
       if currCaretTarget.offset == 0 && extendedGraphemeCluster == "0" {
         /* This prevents inserting leading 0s at the beginning of the int.
          * Note that Util.coerceStringTo64BitInt currently coerces strings with
@@ -3554,20 +3555,20 @@ let doExplicitInsert = (
         if coerced == int {
           None
         } else {
-          Some(Pat(PInteger(mID, pID, coerced)), currCTPlusLen)
+          Some(Pat(mID, PInteger(pID, coerced)), currCTPlusLen)
         }
       } else if extendedGraphemeCluster == "." {
         let newID = gid()
         let (whole, frac) = String.splitAt(~index=currOffset, Int64.to_string(int))
         let (sign, whole) = Sign.split(whole)
         Some(
-          Pat(PFloat(mID, newID, sign, whole, frac)),
+          Pat(mID, PFloat(newID, sign, whole, frac)),
           {astRef: ARPattern(newID, PPFloat(FPPoint)), offset: 1},
         )
       } else {
         None
       }
-    | (ARPattern(_, PPString(kind)), PString({matchID: _, patternID, str} as data)) =>
+    | (ARPattern(_, PPString(kind)), PString(id, str)) =>
       let len = String.length(str)
       let strRelOffset = switch kind {
       | SPOpenQuote => currOffset - 1
@@ -3577,33 +3578,30 @@ let doExplicitInsert = (
         None
       } else {
         let str = str |> mutationAt(~index=strRelOffset)
-        Some(
-          Pat(PString({...data, str: str})),
-          CT.forPPStringText(patternID, strRelOffset + caretDelta),
-        )
+        Some(Pat(mID, PString(id, str)), CT.forPPStringText(id, strRelOffset + caretDelta))
       }
-    | (ARPattern(_, PPBlank), PBlank(mID, _)) =>
+    | (ARPattern(_, PPBlank), PBlank(_)) =>
       let newID = gid()
       if extendedGraphemeCluster == "\"" {
-        Some(Pat(PString({matchID: mID, patternID: newID, str: ""})), CT.forPPStringText(newID, 0))
+        Some(Pat(mID, PString(newID, "")), CT.forPPStringText(newID, 0))
       } else if Util.isNumber(extendedGraphemeCluster) {
         Some(
-          Pat(PInteger(mID, newID, extendedGraphemeCluster |> Util.coerceStringTo64BitInt)),
+          Pat(mID, PInteger(newID, extendedGraphemeCluster |> Util.coerceStringTo64BitInt)),
           {astRef: ARPattern(newID, PPInteger), offset: caretDelta},
         )
       } else if FluidUtil.isIdentifierChar(extendedGraphemeCluster) {
         Some(
-          Pat(PVariable(mID, newID, extendedGraphemeCluster)),
+          Pat(mID, PVariable(newID, extendedGraphemeCluster)),
           {astRef: ARPattern(newID, PPVariable), offset: caretDelta},
         )
       } else {
         None
       }
-    | (ARPattern(_, PPVariable), PVariable(mID, pID, oldName)) =>
+    | (ARPattern(_, PPVariable), PVariable(pID, oldName)) =>
       let newName = mutation(oldName)
       if FluidUtil.isValidIdentifier(newName) {
         patContainerRef := Some(mID)
-        let (newPat, target) = (PVariable(mID, pID, newName), currCTPlusLen)
+        let (newPat, target) = (PVariable(pID, newName), currCTPlusLen)
 
         switch FluidAST.find(mID, ast) {
         | Some(EMatch(_, cond, cases)) =>
@@ -3686,7 +3684,7 @@ let doExplicitInsert = (
   )
   |> Option.andThen(~f=((patOrExprID, patOrExpr)) => {
     let maybeTransformedExprAndCaretTarget = switch patOrExpr {
-    | E.Pat(pat) => doPatInsert(patContainerRef, currAstRef, pat)
+    | E.Pat(mID, pat) => doPatInsert(patContainerRef, currAstRef, mID, pat)
     | E.Expr(expr) =>
       switch doExprInsert(currAstRef, expr) {
       | None => None
@@ -3702,8 +3700,7 @@ let doExplicitInsert = (
       }
 
       Some(FluidAST.replace(patOrExprID, ~replacement=newExpr, ast), AtTarget(target))
-    | Some(Pat(newPat), target) =>
-      let mID = P.toMatchID(newPat)
+    | Some(Pat(mID, newPat), target) =>
       let newAST = replacePattern(mID, patOrExprID, ~newPat, ast)
       Some(newAST, AtTarget(target))
     | None => None
@@ -5138,48 +5135,41 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       } else {
         Some(e)
       }
-    | EMatch(mID, cond, patternsAndExprs) =>
+    | EMatch(_, cond, patternsAndExprs) =>
       let newPatternAndExprs = List.map(patternsAndExprs, ~f=((pattern, expr)) => {
         let toksToPattern = (tokens, pID) =>
           switch tokens |> List.filter(~f=((pID', _, _)) => pID == pID') {
-          | list{(id, _, "pattern-blank")} => PBlank(mID, id)
-          | list{(id, value, "pattern-integer")} =>
-            PInteger(mID, id, Util.coerceStringTo64BitInt(value))
-          | list{(id, value, "pattern-variable")} => PVariable(mID, id, value)
+          | list{(id, _, "pattern-blank")} => PBlank(id)
+          | list{(id, value, "pattern-integer")} => PInteger(id, Util.coerceStringTo64BitInt(value))
+          | list{(id, value, "pattern-variable")} => PVariable(id, value)
           | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
             // temporarily assuming that PConstructor's sub-pattern tokens are always copied as well
             PConstructor(
-              mID,
               id,
               value,
               switch pattern {
-              | PConstructor(_, _, _, ps) => ps
+              | PConstructor(_, _, ps) => ps
               | _ => list{}
               },
             )
-          | list{(id, value, "pattern-string")} =>
-            PString({
-              matchID: mID,
-              patternID: id,
-              str: Util.trimQuotes(value),
-            })
+          | list{(id, value, "pattern-string")} => PString(id, Util.trimQuotes(value))
           | list{(id, value, "pattern-true")} | list{(id, value, "pattern-false")} =>
-            PBool(mID, id, toBool_(value))
-          | list{(id, _, "pattern-null")} => PNull(mID, id)
+            PBool(id, toBool_(value))
+          | list{(id, _, "pattern-null")} => PNull(id)
           | list{
               (id, whole, "pattern-float-whole"),
               (_, _, "pattern-float-point"),
               (_, fraction, "pattern-float-fractional"),
             } =>
             let (sign, whole) = Sign.split(whole)
-            PFloat(mID, id, sign, whole, fraction)
+            PFloat(id, sign, whole, fraction)
           | list{(id, value, "pattern-float-whole"), (_, _, "pattern-float-point")}
           | list{(id, value, "pattern-float-whole")} =>
-            PInteger(mID, id, Util.coerceStringTo64BitInt(value))
+            PInteger(id, Util.coerceStringTo64BitInt(value))
           | list{(_, _, "pattern-float-point"), (id, value, "pattern-float-fractional")}
           | list{(id, value, "pattern-float-fractional")} =>
-            PInteger(mID, id, Util.coerceStringTo64BitInt(value))
-          | _ => PBlank(mID, gid())
+            PInteger(id, Util.coerceStringTo64BitInt(value))
+          | _ => PBlank(gid())
           }
 
         let newPattern = toksToPattern(tokens, P.toID(pattern))

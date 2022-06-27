@@ -6,9 +6,7 @@ let toID: t => ID.t
  * ID, does not include the matchID */
 let ids: t => list<ID.t>
 
-let toMatchID: t => ID.t
-
-let clone: (ID.t, t) => t
+let clone: t => t
 
 let variableNames: t => list<string>
 

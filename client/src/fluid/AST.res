@@ -245,8 +245,8 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
         | PFloat(_)
         | PBool(_)
         | PBlank(_) => list{}
-        | PVariable(_, patternID, v) => list{(patternID, v)}
-        | PConstructor(_, _, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
+        | PVariable(patternID, v) => list{(patternID, v)}
+        | PConstructor(_, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
         }
 
       sexe(st, matchExpr)
