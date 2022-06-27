@@ -379,6 +379,13 @@ let run = () => {
       "1234~",
     )
     testPaste(
+      "pasting a negative int from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      int(-1234),
+      "-1234~",
+    )
+    testPaste(
       "pasting an int into another integer should join the integers",
       int(5678),
       (1, 3),
@@ -411,6 +418,13 @@ let run = () => {
       int(5678),
       (0, 0),
       str("1234"),
+      "1234~5678",
+    )
+    testPaste(
+      "pasting a negative int-only string into an integer should extend integer",
+      int(5678),
+      (0, 0),
+      str("-1234"),
       "1234~5678",
     )
     testPaste(
