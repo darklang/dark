@@ -581,7 +581,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Date" "diff" 0
-      parameters = [ Param.make "endDate" TDate ""; Param.make "startDate" TDate "" ]
+      parameters = [ Param.make "end" TDate ""; Param.make "start" TDate "" ]
       returnType = TInt
       description = "Returns the difference of the two dates, in seconds"
       fn =
