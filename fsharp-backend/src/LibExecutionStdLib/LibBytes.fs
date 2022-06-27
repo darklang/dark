@@ -47,6 +47,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
     { name = fn "Bytes" "base64Encode" 0
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
