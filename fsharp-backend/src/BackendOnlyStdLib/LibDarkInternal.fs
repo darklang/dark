@@ -768,7 +768,14 @@ human-readable data."
 
     { name = fn "DarkInternal" "getRecent404s" 0
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TNull
+      returnType =
+        TList(
+          TRecord [ "space", TStr
+                    "path", TStr
+                    "modifier", TStr
+                    "timestamp", TDate
+                    "traceID", TUuid ]
+        )
       description = "Fetch a list of recent 404s"
       fn =
         internalFn (function
