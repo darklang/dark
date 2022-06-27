@@ -235,7 +235,7 @@ let unwrap = (id: id, ast: E.t): E.t => {
     | EList(_, exprs) => childOr(exprs)
     | EMatch(_, mexpr, pairs) => childOr(list{mexpr, ...List.map(~f=Tuple2.second, pairs)})
     | ERecord(_, fields) => childOr(List.map(~f=Tuple2.second, fields))
-    | EPipe(_, exprs) => childOr(exprs)
+    | EPipe(_, e1, e2, rest) => childOr(list{e1, e2, ...rest})
     | EConstructor(_, _, exprs) => childOr(exprs)
     | EPartial(_, _, oldExpr) => childOr(list{oldExpr})
     | ERightPartial(_, _, oldExpr) => childOr(list{oldExpr})
@@ -350,8 +350,8 @@ let remove = (id: id, ast: E.t): E.t => {
             Some(name, expr)
           }
         , fields))
-    | EPipe(id, exprs) =>
-      switch removeFromList(exprs) {
+    | EPipe(id, e1, e2, rest) =>
+      switch removeFromList(list{e1, e2, ...rest}) {
       | list{EBlank(_), EBinOp(id, op, EPipeTarget(ptid), rexpr, ster)}
       | list{EBinOp(id, op, EPipeTarget(ptid), rexpr, ster), EBlank(_)} =>
         EBinOp(id, op, EBlank(ptid), rexpr, ster)
@@ -360,7 +360,7 @@ let remove = (id: id, ast: E.t): E.t => {
         EFnCall(id, name, list{EBlank(ptid), ...tail}, ster)
       | list{justOne} => justOne
       | list{} => EBlank(id)
-      | newExprs => EPipe(id, newExprs)
+      | list{e1, e2, ...rest} => EPipe(id, e1, e2, rest)
       }
     | EConstructor(id, name, exprs) => EConstructor(id, name, removeFromList(exprs))
     | expr => expr

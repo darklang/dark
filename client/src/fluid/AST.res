@@ -50,7 +50,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | EBinOp(_, _, lhs, rhs, _) => Belt.List.concat(u(lhs), u(rhs))
     | EConstructor(_, _, exprs) => exprs |> List.map(~f=u) |> List.flatten
     | ELambda(_, _, lexpr) => u(lexpr)
-    | EPipe(_, exprs) => exprs |> List.map(~f=u) |> List.flatten
+    | EPipe(_, e1, e2, rest) => list{e1, e2, ...rest} |> List.map(~f=u) |> List.flatten
     | EFieldAccess(_, obj, _) => u(obj)
     | EList(_, exprs) => exprs |> List.map(~f=u) |> List.flatten
     | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second) |> List.map(~f=u) |> List.flatten
@@ -74,7 +74,8 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
  * one) */
 let pipePrevious = (id: id, ast: FluidAST.t): option<E.t> =>
   switch FluidAST.findParent(id, ast) {
-  | Some(EPipe(_, exprs)) =>
+  | Some(EPipe(_, e1, e2, rest)) =>
+    let exprs = list{e1, e2, ...rest}
     exprs
     |> List.find(~f=e => E.toID(e) == id)
     |> Option.andThen(~f=value => Util.listPrevious(~value, exprs))
@@ -85,7 +86,8 @@ let pipePrevious = (id: id, ast: FluidAST.t): option<E.t> =>
  * the next expression in that pipe (eg, the one that the expr at `id` pipes into) */
 let pipeNext = (id: id, ast: FluidAST.t): option<E.t> =>
   switch FluidAST.findParent(id, ast) {
-  | Some(EPipe(_, exprs)) =>
+  | Some(EPipe(_, e1, e2, rest)) =>
+    let exprs = list{e1, e2, ...rest}
     exprs
     |> List.find(~f=e => E.toID(e) == id)
     |> Option.andThen(~f=value => Util.listNext(~value, exprs))
@@ -231,7 +233,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
         )
 
       sexe(new_st, body)
-    | EPipe(_, exprs) => List.forEach(~f=sexe(st), exprs)
+    | EPipe(_, e1, e2, rest) => List.forEach(~f=sexe(st), list{e1, e2, ...rest})
     | EFieldAccess(_, obj, _) => sexe(st, obj)
     | EList(_, exprs) => List.forEach(~f=sexe(st), exprs)
     | EMatch(_, matchExpr, cases) =>
@@ -297,13 +299,13 @@ let rec reorderFnCallArgs = (fnName: string, oldPos: int, newPos: int, ast: E.t)
       let newArgs = List.moveInto(~oldPos, ~newPos, args) |> List.map(~f=replaceArgs)
 
       EFnCall(id, name, newArgs, sendToRail)
-    | EPipe(id, list{first, ...rest}) =>
+    | EPipe(id, first, second, rest) =>
       let newFirst = reorderFnCallArgs(fnName, oldPos, newPos, first)
-      let newRest = /* If the pipetarget is involved, we're really going to have to wrap
-       * it in a lambda instead of shifting things around (we could move
-       * the argument up if it's the first thing being piped into, but that
-       * might be ugly. */
-      List.map(rest, ~f=pipeArg =>
+      let reorder = pipeArg =>
+        /* If the pipetarget is involved, we're really going to have to wrap
+         * it in a lambda instead of shifting things around (we could move
+         * the argument up if it's the first thing being piped into, but that
+         * might be ugly. */
         if oldPos === 0 || newPos === 0 {
           switch pipeArg {
           | EFnCall(fnID, name, list{_pipeTarget, ...args}, sendToRail) if name == fnName =>
@@ -326,9 +328,10 @@ let rec reorderFnCallArgs = (fnName: string, oldPos: int, newPos: int, ast: E.t)
           // The pipetarget isn't involved, so just do it normally.
           reorderFnCallArgs(fnName, oldPos, newPos, pipeArg)
         }
-      )
+      let newSecond = reorder(second)
+      let newRest = List.map(rest, ~f=reorder)
 
-      EPipe(id, list{newFirst, ...newRest})
+      EPipe(id, newFirst, newSecond, newRest)
     | e => E.deprecatedWalk(~f=replaceArgs, e)
     }
 

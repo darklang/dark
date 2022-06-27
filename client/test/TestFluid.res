@@ -3455,7 +3455,7 @@ let run = () => {
       "___\n|>~10\n",
     )
     t(
-      "adding infix functions adds the right number of blanks",
+      "adding binops adds the right number of blanks",
       emptyPipe,
       ~pos=6,
       inputs(list{InsertText("+"), keypress(K.Enter)}),

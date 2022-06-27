@@ -494,23 +494,25 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         TRecordClose(id, parentBlockID),
       })
     }
-  | EPipe(id, exprs) =>
-    let length = List.length(exprs)
-    switch exprs {
-    | list{} => recover("Empty pipe found", ~debug=e, b)
-    | list{single} => recover("pipe with single entry found", ~debug=e, toTokens'(single, b))
-    | list{head, ...tail} =>
+  | EPipe(id, e1, e2, rest) =>
+    let length = 2 + List.length(rest)
+    b
+    // First entry
+    |> addNested(~f=toTokens'(e1))
+    |> addNewlineIfNeeded(Some(E.toID(e1), id, Some(0)))
+    // Second entry is same as rest
+    |> add(TPipe(id, 0, length, parentID))
+    |> addNested(~f=toTokens'(~parentID, e2))
+    |> addNewlineIfNeeded(Some(E.toID(e2), id, Some(1)))
+    // Rest of entries
+    |> addIter(rest, ~f=(i, e, b) =>
       b
-      |> addNested(~f=toTokens'(head))
-      |> addNewlineIfNeeded(Some(E.toID(head), id, Some(0)))
-      |> addIter(tail, ~f=(i, e, b) =>
-        b
-        |> add(TPipe(id, i, length, parentID))
-        |> addNested(~f=toTokens'(~parentID, e))
-        |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 1)))
-      )
-      |> addNewlineIfNeeded(Some(id, id, Some(List.length(tail))))
-    }
+      |> add(TPipe(id, i + 1, length, parentID))
+      |> addNested(~f=toTokens'(~parentID, e))
+      |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 2)))
+    )
+    |> addNewlineIfNeeded(Some(id, id, Some(2 + List.length(rest))))
+
   | EPipeTarget(_) => recover("should never be making tokens for EPipeTarget", ~debug=e, b)
   | EMatch(id, mexpr, pairs) =>
     b

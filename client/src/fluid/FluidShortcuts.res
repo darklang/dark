@@ -67,10 +67,7 @@ let lambda = (~id=gid(), varNames: list<string>, body: t): t => ELambda(
   body,
 )
 
-let pipe = (~id=gid(), first: t, second: t, rest: list<t>): t => EPipe(
-  id,
-  list{first, second, ...rest},
-)
+let pipe = (~id=gid(), first: t, second: t, rest: list<t>): t => EPipe(id, first, second, rest)
 
 let constructor = (~id=gid(), name: string, args: list<t>): t => EConstructor(id, name, args)
 

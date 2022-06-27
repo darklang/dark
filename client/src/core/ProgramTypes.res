@@ -95,7 +95,7 @@ module Expr = {
     | ELeftPartial(id, string, t)
     | EList(id, list<t>)
     | ERecord(id, list<(string, t)>)
-    | EPipe(id, list<t>) // CLEANUP: should be EPipe(id, t, t, list<t>)
+    | EPipe(id, t, t, list<t>)
     | EConstructor(id, string, list<t>)
     | EMatch(id, t, list<(Pattern.t, t)>)
     | EPipeTarget(id)

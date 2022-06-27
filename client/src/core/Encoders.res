@@ -539,7 +539,7 @@ and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
   | EBinOp(id', name, left, right, r) =>
     ev("EBinOp", list{id(id'), string(name), fe(left), fe(right), sendToRail(r)})
   | ELambda(id', vars, body) => ev("ELambda", list{id(id'), list(pair(id, string), vars), fe(body)})
-  | EPipe(id', exprs) => ev("EPipe", list{id(id'), list(fe, exprs)})
+  | EPipe(id', e1, e2, rest) => ev("EPipe", list{id(id'), list(fe, list{e1, e2, ...rest})})
   | EFieldAccess(id', obj, field) => ev("EFieldAccess", list{id(id'), fe(obj), string(field)})
   | EString(id', v) => ev("EString", list{id(id'), string(v)})
   | EInteger(id', v) => ev("EInteger", list{id(id'), string(Int64.to_string(v))})

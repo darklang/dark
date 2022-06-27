@@ -607,7 +607,7 @@ let defaultTestFunctions = {
     fnName: op,
     fnParameters: list{fnParam("a", tipe, false), fnParam("b", tipe, false)},
     fnReturnTipe: rtTipe,
-    fnDescription: "Some infix function",
+    fnDescription: "Some binop",
     fnPreviewSafety: Safe,
     fnDeprecated: false,
     fnInfix: true,
