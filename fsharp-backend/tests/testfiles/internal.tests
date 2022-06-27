@@ -134,6 +134,11 @@ DarkInternal.getSecrets Test.getCanvasID = {}
 (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
  DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "VALUE" }
 
+[test.insertSecret twice]
+(let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
+ let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE"
+ DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "OTHERVALUE" }
+
 [test.deleteSecret none]
 DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = null
 
