@@ -478,10 +478,7 @@ let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<in
 // a database is unlocked if it has no records, and thus its schema can be
 // changed without a migration.
 //
-// [ownerID] is needed here because we'll use it in the DB JOIN; we could
-// pass in a whole canvas and get [canvasID] and [accountID] from that, but
-// that would require loading the canvas, which is undesirable for performance
-// reasons
+// [ownerID] is needed here because we'll use it in the DB JOIN
 let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
   // this will need to be fixed when we allow migrations
   // Note: tl.module IS NULL means it's a db; anything else will be
