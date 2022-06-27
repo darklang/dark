@@ -493,7 +493,7 @@ let complexExpr = {
     int(5),
     let'(
       "x2",
-      int(6),
+      int64(9223372036854775807L),
       let'(
         "bool",
         bool(true),
@@ -557,7 +557,7 @@ let complexExpr = {
                             fn("Mod::function_v2", list{}),
                             list{
                               (pConstructor("Ok", list{pVar("x")}), var("v")),
-                              (pInt(5), int(6)),
+                              (pInt(5), int64(-9223372036854775808L)),
                               (pBool(true), int(7)),
                               (pString("string"), str("string")),
                               (pNull(), null),
