@@ -2,14 +2,53 @@ module LibExecutionStdLib.LibBytes
 
 open LibExecution.RuntimeTypes
 open Prelude
+open System
 open System.Text
+
+open System.Text.RegularExpressions
 
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Bytes" "base64Encode" 0
+  [ { name = fn "Bytes" "base64Decode" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TResult(TBytes, TStr)
+      description =
+        "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+          let base64FromUrlEncoded (str : string) : string =
+            let initial = str.Replace('-', '+').Replace('_', '/')
+            let length = initial.Length
+
+            if length % 4 = 2 then $"{initial}=="
+            else if length % 4 = 3 then $"{initial}="
+            else initial
+
+          if s = "" then
+            // This seems like we should allow it
+            [||] |> DBytes |> Ok |> DResult |> Ply
+          elif Regex.IsMatch(s, @"\s") then
+            // dotnet ignores whitespace but we don't allow it
+            "Not a valid base64 string" |> DStr |> Error |> DResult |> Ply
+          else
+            s
+            |> base64FromUrlEncoded
+            |> Convert.FromBase64String
+            |> DBytes
+            |> Ok
+            |> DResult
+            |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Bytes" "base64Encode" 0
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =
