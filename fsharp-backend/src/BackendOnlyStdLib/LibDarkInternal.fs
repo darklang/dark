@@ -283,8 +283,8 @@ that's already taken, returns an error."
                      JOIN canvases ON canvases.id = canvas_id
                     WHERE canvases.name = @name AND tipe = 'db'"
                 |> Sql.parameters [ "name", Sql.string canvasName ]
-                |> Sql.executeAsync (fun read -> read.string "tlid")
-              return dbTLIDs |> List.map DStr |> DList
+                |> Sql.executeAsync (fun read -> read.tlid "tlid")
+              return dbTLIDs |> List.map int64 |> List.map DInt |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
