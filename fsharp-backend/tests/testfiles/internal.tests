@@ -70,9 +70,10 @@ DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with undersco
 (DarkInternal.getOrgCanvasList Test.getUserID) = []
 DarkInternal.getOrgList Test.getUserID = []
 
-DarkInternal.endUsers = []
-DarkInternal.getUsers = ["test_unhashed"; "test"; "test_admin"; "sample"; "dark"; "paul"; "libexe_admin"]
-DarkInternal.getAllCanvases = []
+// These tests are racy as they use global state
+// DarkInternal.endUsers = []
+// DarkInternal.getUsers = ["test_unhashed"; "test"; "test_admin"; "sample"; "dark"; "paul"; "libexe_admin"]
+// DarkInternal.getAllCanvases = []
 
 // ---------------
 // permissions
