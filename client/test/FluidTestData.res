@@ -430,29 +430,29 @@ let aListNum = n => list(list{int(n)})
 
 let listFn = args => fn("List::append", list{pipeTarget, ...args})
 
-let aPipe = pipe(list(list{}), list{listFn(list{aList5}), listFn(list{aList5})})
+let aPipe = pipe(list(list{}), listFn(list{aList5}), list{listFn(list{aList5})})
 
-let emptyPipe = pipe(b, list{b})
+let emptyPipe = pipe(b, b, list{})
 
 let aLongPipe = pipe(
   list(list{}),
-  list{
-    listFn(list{aListNum(2)}),
-    listFn(list{aListNum(3)}),
-    listFn(list{aListNum(4)}),
-    listFn(list{aListNum(5)}),
-  },
+  listFn(list{aListNum(2)}),
+  list{listFn(list{aListNum(3)}), listFn(list{aListNum(4)}), listFn(list{aListNum(5)})},
 )
 
-let aBinopPipe = pipe(b, list{binop("++", pipeTarget, str("asd"))})
+let aBinopPipe = pipe(b, binop("++", pipeTarget, str("asd")), list{})
 
-let aBinopPlusPipe = pipe(b, list{binop("+", pipeTarget, int(10))})
+let aBinopPlusPipe = pipe(b, binop("+", pipeTarget, int(10)), list{})
 
 let aPipeInsideIf = if'(b, aLongPipe, b)
 
-let aNestedPipe = pipe(list(list{}), list{listFn(list{pipe(aList5, list{listFn(list{aList6})})})})
+let aNestedPipe = pipe(
+  list(list{}),
+  listFn(list{pipe(aList5, listFn(list{aList6}), list{})}),
+  list{},
+)
 
-let aPipeWithFilledFunction = pipe(str("hello"), list{fn("String::length_v1", list{pipeTarget})})
+let aPipeWithFilledFunction = pipe(str("hello"), fn("String::length_v1", list{pipeTarget}), list{})
 
 // -------------
 // Feature Flags

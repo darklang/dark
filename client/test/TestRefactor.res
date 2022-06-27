@@ -153,7 +153,7 @@ let run = () => {
     })
     test("toggles any fncall off rail in a thread", () => {
       let fn = fn(~ster=Rail, "List::getAt_v2", list{pipeTarget, int(5)})
-      let ast = pipe(emptyList, list{fn}) |> FluidAST.ofExpr
+      let ast = pipe(emptyList, fn, list{}) |> FluidAST.ofExpr
       let h = {...defaultHandler, ast: ast}
       let m = model(list{h})
       let id = E.toID(fn)
@@ -391,7 +391,7 @@ let run = () => {
       )
 
       let threadedExpr = fn("Dict::set", list{str("id"), var("id")})
-      let exprInThread = pipe(expr, list{threadedExpr})
+      let exprInThread = pipe(expr, threadedExpr, list{})
       let ast = FluidAST.ofExpr(let'("id", fn("Uuid::generate", list{}), exprInThread))
 
       let (m, tl) = modelAndTl(ast)
@@ -425,22 +425,22 @@ let run = () => {
       |> matchExpr(fn("myFn", list{fn("myFn", list{int(2), int(1), int(3)}), int(0), int(4)}))
     )
     test("simple pipe first argument not moved", () =>
-      pipe(int(1), list{fn("myFn", list{pipeTarget, int(2), int(3)})})
+      pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
       |> AST.reorderFnCallArgs("myFn", 2, 1)
-      |> matchExpr(pipe(int(1), list{fn("myFn", list{pipeTarget, int(3), int(2)})}))
+      |> matchExpr(pipe(int(1), fn("myFn", list{pipeTarget, int(3), int(2)}), list{}))
     )
     test("simple pipe first argument moved", () =>
-      pipe(int(1), list{fn("myFn", list{pipeTarget, int(2), int(3)})})
+      pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
       |> AST.reorderFnCallArgs("myFn", 0, 3)
       |> matchExpr(
-        pipe(int(1), list{lambdaWithBinding("x", fn("myFn", list{int(2), int(3), var("x")}))}),
+        pipe(int(1), lambdaWithBinding("x", fn("myFn", list{int(2), int(3), var("x")})), list{}),
       )
     )
     test("pipe but the fn is later", () =>
       pipe(
         int(1),
+        fn("other1", list{pipeTarget}),
         list{
-          fn("other1", list{pipeTarget}),
           fn("other2", list{pipeTarget}),
           fn("myFn", list{pipeTarget, int(2), int(3)}),
           fn("other3", list{pipeTarget}),
@@ -450,8 +450,8 @@ let run = () => {
       |> matchExpr(
         pipe(
           int(1),
+          fn("other1", list{pipeTarget}),
           list{
-            fn("other1", list{pipeTarget}),
             fn("other2", list{pipeTarget}),
             fn("myFn", list{pipeTarget, int(3), int(2)}),
             fn("other3", list{pipeTarget}),
@@ -462,8 +462,8 @@ let run = () => {
     test("pipe and first argument moved", () =>
       pipe(
         int(1),
+        fn("other1", list{pipeTarget}),
         list{
-          fn("other1", list{pipeTarget}),
           fn("other2", list{pipeTarget}),
           fn("myFn", list{pipeTarget, int(2), int(3)}),
           fn("other3", list{pipeTarget}),
@@ -473,8 +473,8 @@ let run = () => {
       |> matchExpr(
         pipe(
           int(1),
+          fn("other1", list{pipeTarget}),
           list{
-            fn("other1", list{pipeTarget}),
             fn("other2", list{pipeTarget}),
             lambdaWithBinding("x", fn("myFn", list{int(2), var("x"), int(3)})),
             fn("other3", list{pipeTarget}),
@@ -483,49 +483,50 @@ let run = () => {
       )
     )
     test("recurse into piped lambda exprs", () =>
-      pipe(int(1), list{fn("myFn", list{pipeTarget, int(2), int(3)})})
+      pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
       |> AST.reorderFnCallArgs("myFn", 0, 1)
       |> AST.reorderFnCallArgs("myFn", 0, 1)
       |> matchExpr(
-        pipe(int(1), list{lambdaWithBinding("x", fn("myFn", list{var("x"), int(2), int(3)}))}),
+        pipe(int(1), lambdaWithBinding("x", fn("myFn", list{var("x"), int(2), int(3)})), list{}),
       )
     )
     test("inside another expression in a pipe", () =>
       pipe(
         int(0),
-        list{fn("anotherFn", list{pipeTarget, int(1), fn("myFn", list{int(2), int(3), int(4)})})},
+        fn("anotherFn", list{pipeTarget, int(1), fn("myFn", list{int(2), int(3), int(4)})}),
+        list{},
       )
       |> AST.reorderFnCallArgs("myFn", 1, 0)
       |> matchExpr(
         pipe(
           int(0),
-          list{fn("anotherFn", list{pipeTarget, int(1), fn("myFn", list{int(3), int(2), int(4)})})},
+          fn("anotherFn", list{pipeTarget, int(1), fn("myFn", list{int(3), int(2), int(4)})}),
+          list{},
         ),
       )
     )
     test("inside nested pipes", () =>
       pipe(
         int(1),
-        list{
-          lambdaWithBinding(
-            "a",
-            pipe(var("a"), list{fn("myFn", list{pipeTarget, int(2), int(3)})}),
-          ),
-        },
+        lambdaWithBinding(
+          "a",
+          pipe(var("a"), fn("myFn", list{pipeTarget, int(2), int(3)}), list{}),
+        ),
+        list{},
       )
       |> AST.reorderFnCallArgs("myFn", 0, 3)
       |> matchExpr(
         pipe(
           int(1),
-          list{
-            lambdaWithBinding(
-              "a",
-              pipe(
-                var("a"),
-                list{lambdaWithBinding("x", fn("myFn", list{int(2), int(3), var("x")}))},
-              ),
+          lambdaWithBinding(
+            "a",
+            pipe(
+              var("a"),
+              lambdaWithBinding("x", fn("myFn", list{int(2), int(3), var("x")})),
+              list{},
             ),
-          },
+          ),
+          list{},
         ),
       )
     )

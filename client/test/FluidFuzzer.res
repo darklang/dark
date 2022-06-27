@@ -190,7 +190,11 @@ and generateExpr' = () =>
     lazy binop(generateInfixName(), generateExpr(), generateExpr()),
     lazy if'(generateExpr(), generateExpr(), generateExpr()),
     lazy constructor(generateName(), generateList(~minSize=0, ~f=generateExpr, ())),
-    lazy pipe(generateExpr(), generateList(~minSize=2, ~f=generatePipeArgumentExpr, ())),
+    lazy pipe(
+      generateExpr(),
+      generateExpr(),
+      generateList(~minSize=2, ~f=generatePipeArgumentExpr, ()),
+    ),
     lazy record(generateList(~minSize=1, (), ~f=() => (generateName(), generateExpr()))),
     lazy match'(
       generateExpr(),

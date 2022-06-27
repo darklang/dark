@@ -487,7 +487,7 @@ let run = () => {
       })
       test("Use piped types", () => {
         let id = gid()
-        let expr = pipe(str(~id, "asd"), list{partial("append", b)})
+        let expr = pipe(str(~id, "asd"), partial("append", b), list{})
         let m = defaultModel(
           ~analyses=list{(id, DStr("asd"))},
           ~handlers=list{aHandler(~expr, ())},
@@ -501,7 +501,7 @@ let run = () => {
       })
       test("functions with no arguments are invalid when piping", () => {
         let id = gid()
-        let expr = pipe(int(~id, 5), list{partial("string", b)})
+        let expr = pipe(int(~id, 5), partial("string", b), list{})
         let m = defaultModel(~analyses=list{(id, DInt(5))}, ~handlers=list{aHandler(~expr, ())}, ())
 
         let (_valid, invalid) = filterFor(m, ~pos=10)

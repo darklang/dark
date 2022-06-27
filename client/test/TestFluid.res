@@ -2690,7 +2690,7 @@ let run = () => {
     )
     t(
       "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe",
-      pipe(b, list{b}),
+      pipe(b, b, list{}),
       ~pos=6,
       inputs(/* we have to insert the function with completion here
        * so the arguments are adjusted based on the pipe */
@@ -3206,10 +3206,8 @@ let run = () => {
         blank(),
         pipe(
           list(list{}),
-          list{
-            fn("List::append", list{pipeTarget, list(list{int(5)})}),
-            fn("List::append", list{pipeTarget, list(list{int(5)})}),
-          },
+          fn("List::append", list{pipeTarget, list(list{int(5)})}),
+          list{fn("List::append", list{pipeTarget, list(list{int(5)})})},
         ),
       ),
     )
@@ -3515,7 +3513,7 @@ let run = () => {
     t(
       "enter at the end of pipe expression with line below creates a new entry",
       ~wrap=/* indent counting is all weird with wrapper */ false,
-      let'("a", pipe(list(list{}), list{listFn(list{aList5})}), five),
+      let'("a", pipe(list(list{}), listFn(list{aList5}), list{}), five),
       ~pos=37,
       enter,
       "let a = []\n        |>List::append [5]\n        |>~___\n5",
@@ -3523,7 +3521,7 @@ let run = () => {
     t(
       "enter at the beginning of expression after pipe creates let, not pipe",
       ~wrap=/* indent counting is all weird with wrapper */ false,
-      let'("a", pipe(list(list{}), list{listFn(list{aList5})}), five),
+      let'("a", pipe(list(list{}), listFn(list{aList5}), list{}), five),
       ~pos=38,
       enter,
       "let a = []\n        |>List::append [5]\nlet *** = ___\n~5",
@@ -3551,14 +3549,14 @@ let run = () => {
     )
     t(
       "inserting a pipe into another pipe gives a single pipe1",
-      pipe(five, list{listFn(list{rightPartial("|>", aList5)})}),
+      pipe(five, listFn(list{rightPartial("|>", aList5)}), list{}),
       ~pos=23,
       enter,
       "5\n|>List::append [5]\n|>~___\n",
     )
     t(
       "inserting a pipe into another pipe at a pipeable gives a new pipe",
-      pipe(five, list{listFn(list{aList5})}),
+      pipe(five, listFn(list{aList5}), list{}),
       ~pos=19,
       key(K.ShiftEnter),
       "5\n|>List::append [5\n                |>~___\n               ]\n",
@@ -3601,7 +3599,7 @@ let run = () => {
     t(
       "bsing a blank pipe after a piped 1-arg function deletes all",
       ~wrap=/* wrap false because else we delete the wrapper */ false,
-      pipe(aList5, list{fn("List::length", list{pipeTarget}), b}),
+      pipe(aList5, fn("List::length", list{pipeTarget}), list{b}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
       "~___",
@@ -4336,7 +4334,7 @@ let run = () => {
     t(
       "shift enter in pipe autocompletes and creates pipe",
       ~wrap=false,
-      pipe(list(list{}), list{partial("appe", b)}),
+      pipe(list(list{}), partial("appe", b), list{}),
       ~pos=9,
       key(K.ShiftEnter),
       "[]\n|>List::append ___________\n|>~___\n",
