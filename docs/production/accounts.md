@@ -57,13 +57,12 @@ List of accounts used by Dark as part of running Dark
 - [PagerDuty](https://pagerduty.com) for alerting when things are broken
   - triggers from rollbar, pingdom and honeycomb
 - [Better UpTime](https://betteruptime.com) for alerting when things are broken (newer)
-- [Pingdom](https://pingdom.com) TODO: where do we use this?
-- [sslmate](https://sslmate.com) TODO: where do we use this?
-- [Dr. Link Check](https://drlinkcheck.com) TODO: where do we use this?
+- [sslmate](https://sslmate.com) They email us if any of our SSL certs are misconfigured or expiring.
+- [Dr. Link Check](https://drlinkcheck.com) They send an email each week about broken links in the docs
 
 # User communications, analytics
 
-- [Mailchimp](https://mailchimp.com) TODO: where do we use this?
+- [Mailchimp](https://mailchimp.com) We add users to it when they sign up in `ops-adduser` canvas, and then we use it to email users when there are product updates.
 - [Mandrill](https://mandrillapp.com) automated emails
 - [Heap Analytics](https://heap.io) for analytics, but not really used
 - [FullStory](https://fullstory.com) for user insight, but not really used
