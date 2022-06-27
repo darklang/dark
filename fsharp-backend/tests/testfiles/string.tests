@@ -385,6 +385,7 @@ String.split_v0 "x22y" "2" = ["x"; ""; "y"]
 String.split_v0 "x1y" "1" = ["x"; "y"]
 String.split_v0 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""]
 String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"]
+String.split_v0 "👨‍👩‍👧‍👦" "👩" = ["👨‍"; "‍👧‍👦"]
 
 String.split_v1 "hello😄world" "😄" = [ "hello"; "world" ]
 String.split_v1 "hello&&&&world" "&&&&" = [ "hello"; "world" ]
@@ -427,6 +428,7 @@ String.split_v1 "x22y" "2" = ["x"; ""; "y"]
 String.split_v1 "x1y" "1" = ["x"; "y"]
 String.split_v1 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""; ""]
 String.split_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"]
+String.split_v1 "👨‍👩‍👧‍👦" "👩" = ["👨‍"; "‍👧‍👦"]
 
 // Note: these have been replaced by Int.parse
 String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`"
