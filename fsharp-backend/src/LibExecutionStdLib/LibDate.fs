@@ -587,8 +587,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate endDate; DDate startDate ] ->
-          let seconds date = (DDateTime.toInstant date).ToUnixTimeSeconds()
-          (seconds endDate - seconds startDate) |> DInt |> Ply
+          let diff = (DDateTime.toInstant endDate) - (DDateTime.toInstant startDate)
+          diff.TotalSeconds |> System.Math.Round |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
