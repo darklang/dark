@@ -225,28 +225,32 @@ let rec fluidPattern = (j): FluidPattern.t => {
   let dv2 = variant2
   variants(
     list{
-      ("FPVariable", dv3((a, b, c) => P.PVariable(a, b, c), id, id, string)),
-      ("FPConstructor", dv4((a, b, c, d) => P.PConstructor(a, b, c, d), id, id, string, list(dp))),
+      ("FPVariable", dv3((_, b, c) => P.PVariable(b, c), id, id, string)),
+      ("FPConstructor", dv4((_, b, c, d) => P.PConstructor(b, c, d), id, id, string, list(dp))),
       (
         "FPInteger",
-        dv3((a, b, c) => P.PInteger(a, b, c), id, id, i => i |> string |> Int64.of_string),
+        dv3((_, b, c) => P.PInteger(b, c), id, id, i => i |> string |> Int64.of_string),
       ),
-      ("FPBool", dv3((a, b, c) => P.PBool(a, b, c), id, id, bool)),
-      ("FPString", recordVariant3((matchID, patternID, str) => P.PString({
-          matchID: matchID,
-          patternID: patternID,
-          str: str,
-        }), ("matchID", id), ("patternID", id), ("str", string))),
-      ("FPFloat", dv4((id1, id2, whole, fraction) => {
+      ("FPBool", dv3((_, b, c) => P.PBool(b, c), id, id, bool)),
+      (
+        "FPString",
+        recordVariant3(
+          (_, patternID, str) => P.PString(patternID, str),
+          ("matchID", id),
+          ("patternID", id),
+          ("str", string),
+        ),
+      ),
+      ("FPFloat", dv4((_, id2, whole, fraction) => {
           let (sign, whole) = if String.startsWith(~prefix="-", whole) {
             (ProgramTypes.Negative, String.dropLeft(~count=1, whole))
           } else {
             (ProgramTypes.Positive, whole)
           }
-          P.PFloat(id1, id2, sign, whole, fraction)
+          P.PFloat(id2, sign, whole, fraction)
         }, id, id, string, string)),
-      ("FPNull", dv2((a, b) => P.PNull(a, b), id, id)),
-      ("FPBlank", dv2((a, b) => P.PBlank(a, b), id, id)),
+      ("FPNull", dv2((_, b) => P.PNull(b), id, id)),
+      ("FPBlank", dv2((_, b) => P.PBlank(b), id, id)),
     },
     j,
   )

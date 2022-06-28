@@ -497,32 +497,30 @@ and sendToRail = (sendToRail: ProgramTypes.Expr.sendToRail): Js.Json.t => {
   }
 }
 
-and fluidPattern = (pattern: FluidPattern.t): Js.Json.t => {
-  let fp = fluidPattern
+and fluidPattern = (mid: id, pattern: FluidPattern.t): Js.Json.t => {
+  let fp = fluidPattern(mid)
   let ev = variant
   switch pattern {
   /* Warning: A bunch of stuff here seems to expect that the
     second element of the tuples are match id but they are actually
     pattern ids. */
-  | PVariable(id', mid, name) => ev("FPVariable", list{id(id'), id(mid), string(name)})
-  | PConstructor(id', mid, name, patterns) =>
-    ev("FPConstructor", list{id(id'), id(mid), string(name), list(fp, patterns)})
-  | PInteger(id', mid, v) => ev("FPInteger", list{id(id'), id(mid), string(Int64.to_string(v))})
-  | PBool(id', mid, v) => ev("FPBool", list{id(id'), id(mid), bool(v)})
-  | PFloat(id', mid, sign, whole, fraction) =>
+  | PVariable(id', name) => ev("FPVariable", list{id(mid), id(id'), string(name)})
+  | PConstructor(id', name, patterns) =>
+    ev("FPConstructor", list{id(mid), id(id'), string(name), list(fp, patterns)})
+  | PInteger(id', v) => ev("FPInteger", list{id(mid), id(id'), string(Int64.to_string(v))})
+  | PBool(id', v) => ev("FPBool", list{id(mid), id(id'), bool(v)})
+  | PFloat(id', sign, whole, fraction) =>
     ev(
       "FPFloat",
-      list{id(id'), id(mid), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)},
+      list{id(mid), id(id'), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)},
     )
-  | PString({matchID, patternID, str: v}) =>
+  | PString(id', v) =>
     ev(
       "FPString",
-      list{
-        object_(list{("matchID", id(matchID)), ("patternID", id(patternID)), ("str", string(v))}),
-      },
+      list{object_(list{("matchID", id(mid)), ("patternID", id(id')), ("str", string(v))})},
     )
-  | PNull(id', mid) => ev("FPNull", list{id(id'), id(mid)})
-  | PBlank(id', mid) => ev("FPBlank", list{id(id'), id(mid)})
+  | PNull(id') => ev("FPNull", list{id(mid), id(id')})
+  | PBlank(id') => ev("FPBlank", list{id(mid), id(id')})
   }
 }
 
@@ -554,7 +552,7 @@ and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
   | EFeatureFlag(id', name, cond, a, b) =>
     ev("EFeatureFlag", list{id(id'), string(name), fe(cond), fe(a), fe(b)})
   | EMatch(id', matchExpr, cases) =>
-    ev("EMatch", list{id(id'), fe(matchExpr), list(pair(fluidPattern, fe), cases)})
+    ev("EMatch", list{id(id'), fe(matchExpr), list(pair(fluidPattern(id'), fe), cases)})
   | EConstructor(id', name, args) => ev("EConstructor", list{id(id'), string(name), list(fe, args)})
   | EPartial(id', str, oldExpr) => ev("EPartial", list{id(id'), string(str), fe(oldExpr)})
   | ERightPartial(id', str, oldExpr) => ev("ERightPartial", list{id(id'), string(str), fe(oldExpr)})

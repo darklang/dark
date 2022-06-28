@@ -67,7 +67,6 @@ type wrapLoc =
 let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): modification => {
   let replacement = (e): FluidExpression.t => {
     let newB = FluidExpression.newB
-    let newBlankPattern = mid => P.PBlank(mid, gid())
     switch wl {
     | WLetRHS => ELet(gid(), "", e, newB())
     | WLetBody => ELet(gid(), "", newB(), e)
@@ -79,7 +78,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): modification => {
        * match e
        * _ -> _ */
       let mid = gid()
-      EMatch(mid, e, list{(newBlankPattern(mid), newB())})
+      EMatch(mid, e, list{(P.PBlank(gid()), newB())})
     | WMatchArm =>
       /* e becomes
        * match _
@@ -90,7 +89,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): modification => {
        * at the end of a match, but it's always possible to delete a pattern)
        * */
       let mid = gid()
-      EMatch(mid, newB(), list{(newBlankPattern(mid), e), (newBlankPattern(mid), newB())})
+      EMatch(mid, newB(), list{(P.PBlank(gid()), e), (P.PBlank(gid()), newB())})
     }
   }
 

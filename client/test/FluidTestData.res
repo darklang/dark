@@ -134,27 +134,27 @@ let letWithUsedBinding = (bindingName: string) =>
 // ----------------
 let emptyMatch = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(mID, gid()), b)})
+  EMatch(mID, b, list{(PBlank(gid()), b)})
 }
 
 let emptyMatchWithTwoPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(mID, gid()), b), (PBlank(mID, gid()), b)})
+  EMatch(mID, b, list{(PBlank(gid()), b), (PBlank(gid()), b)})
 }
 
 let matchWithPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(PInteger(mID, gid(), 3L), b)})
+  EMatch(mID, b, list{(PInteger(gid(), 3L), b)})
 }
 
 let matchWithConstructorPattern = {
   let mID = gid()
-  EMatch(mID, b, list{(PConstructor(mID, gid(), "Just", list{}), b)})
+  EMatch(mID, b, list{(PConstructor(gid(), "Just", list{}), b)})
 }
 
 let matchWithBinding = (bindingName: string, expr: t) => {
   let mID = gid()
-  EMatch(mID, b, list{(PVariable(mID, gid(), bindingName), expr)})
+  EMatch(mID, b, list{(PVariable(gid(), bindingName), expr)})
 }
 
 let matchWithTwoBindings = (bindingName1: string, expr1: t, bindingName2: string, expr2: t) => {
@@ -162,20 +162,13 @@ let matchWithTwoBindings = (bindingName1: string, expr1: t, bindingName2: string
   EMatch(
     mID,
     b,
-    list{
-      (PVariable(mID, gid(), bindingName1), expr1),
-      (PVariable(mID, gid(), bindingName2), expr2),
-    },
+    list{(PVariable(gid(), bindingName1), expr1), (PVariable(gid(), bindingName2), expr2)},
   )
 }
 
 let matchWithConstructorBinding = (bindingName: string, expr: t) => {
   let mID = gid()
-  EMatch(
-    mID,
-    b,
-    list{(PConstructor(mID, gid(), "Ok", list{PVariable(mID, gid(), bindingName)}), expr)},
-  )
+  EMatch(mID, b, list{(PConstructor(gid(), "Ok", list{PVariable(gid(), bindingName)}), expr)})
 }
 
 let matchWithTwoLets = {
@@ -185,7 +178,7 @@ let matchWithTwoLets = {
     b,
     list{
       (
-        PBlank(mID, gid()),
+        PBlank(gid()),
         ELet(gid(), "x", EInteger(gid(), 5L), ELet(gid(), "y", EInteger(gid(), 6L), EBlank(gid()))),
       ),
     },
@@ -194,7 +187,7 @@ let matchWithTwoLets = {
 
 let nestedMatch = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(mID, gid()), emptyMatch)})
+  EMatch(mID, b, list{(PBlank(gid()), emptyMatch)})
 }
 
 // ----------------

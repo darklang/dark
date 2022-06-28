@@ -58,15 +58,15 @@ module Pattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
     // match id, then pattern id
-    | PVariable(id, id, string)
-    | PConstructor(id, id, string, list<t>)
+    | PVariable(id, string)
+    | PConstructor(id, string, list<t>)
     // TODO: support char
-    | PInteger(id, id, int64)
-    | PBool(id, id, bool)
-    | PString({matchID: id, patternID: id, str: string})
-    | PFloat(id, id, sign, string, string)
-    | PNull(id, id)
-    | PBlank(id, id)
+    | PInteger(id, int64)
+    | PBool(id, bool)
+    | PString(id, string)
+    | PFloat(id, sign, string, string)
+    | PNull(id)
+    | PBlank(id)
 }
 
 module Expr = {

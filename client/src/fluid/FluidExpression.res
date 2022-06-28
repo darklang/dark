@@ -7,7 +7,7 @@ open ProgramTypes.Expr
 @ppx.deriving(show({with_path: false}))
 type rec fluidPatOrExpr =
   | Expr(t)
-  | Pat(fluidPattern)
+  | Pat(id, fluidPattern)
 
 let newB = () => ProgramTypes.Expr.EBlank(gid())
 
@@ -72,20 +72,20 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
         id,
         list{
           Expr(e1),
-          ...pairs |> List.map(~f=((p1, e1)) => list{Pat(p1), Expr(e1)}) |> List.flatten,
+          ...pairs |> List.map(~f=((p1, e1)) => list{Pat(id, p1), Expr(e1)}) |> List.flatten,
         },
       )
     }
-  | Pat(pat) =>
+  | Pat(matchID, pat) =>
     switch pat {
-    | PVariable(_, pid, _)
-    | PInteger(_, pid, _)
-    | PBool(_, pid, _)
-    | PNull(_, pid)
-    | PBlank(_, pid)
-    | PFloat(_, pid, _, _, _)
-    | PString({matchID: _, patternID: pid, str: _}) => (pid, list{})
-    | PConstructor(_, pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(p1)))
+    | PVariable(pid, _)
+    | PInteger(pid, _)
+    | PBool(pid, _)
+    | PNull(pid)
+    | PBlank(pid)
+    | PFloat(pid, _, _, _)
+    | PString(pid, _) => (pid, list{})
+    | PConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
     }
   }
 
@@ -455,8 +455,7 @@ let rec clone = (expr: t): t => {
   | ERecord(_, pairs) => ERecord(gid(), List.map(~f=((k, v)) => (k, c(v)), pairs))
   | EFeatureFlag(_, name, cond, a, b) => EFeatureFlag(gid(), name, c(cond), c(a), c(b))
   | EMatch(_, matchExpr, cases) =>
-    let mid = gid()
-    EMatch(mid, c(matchExpr), List.map(~f=((k, v)) => (FluidPattern.clone(mid, k), c(v)), cases))
+    EMatch(gid(), c(matchExpr), List.map(~f=((k, v)) => (FluidPattern.clone(k), c(v)), cases))
   | EConstructor(_, name, args) => EConstructor(gid(), name, cl(args))
   | EPartial(_, str, oldExpr) => EPartial(gid(), str, c(oldExpr))
   | ERightPartial(_, str, oldExpr) => ERightPartial(gid(), str, c(oldExpr))
@@ -524,15 +523,15 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
         Tc.List.map2(~f=peq, l1, l2) |> Tc.List.all(~f=Tc.identity)
 
     switch (a, b) {
-    | (PVariable(_, _, name), PVariable(_, _, name')) => name == name'
-    | (PConstructor(_, _, name, patterns), PConstructor(_, _, name', patterns')) =>
+    | (PVariable(_, name), PVariable(_, name')) => name == name'
+    | (PConstructor(_, name, patterns), PConstructor(_, name', patterns')) =>
       name == name' && peqList(patterns, patterns')
-    | (PString({str, _}), PString({str: str', _})) => str == str'
-    | (PInteger(_, _, l), PInteger(_, _, l')) => l == l'
-    | (PFloat(_, _, s, w, f), PFloat(_, _, s', w', f')) => (s, w, f) == (s', w', f')
-    | (PBool(_, _, l), PBool(_, _, l')) => l == l'
-    | (PNull(_, _), PNull(_, _)) => true
-    | (PBlank(_, _), PBlank(_, _)) => true
+    | (PString(_, str), PString(_, str')) => str == str'
+    | (PInteger(_, l), PInteger(_, l')) => l == l'
+    | (PFloat(_, s, w, f), PFloat(_, s', w', f')) => (s, w, f) == (s', w', f')
+    | (PBool(_, l), PBool(_, l')) => l == l'
+    | (PNull(_), PNull(_)) => true
+    | (PBlank(_), PBlank(_)) => true
     | (PVariable(_), _)
     | (PConstructor(_), _)
     | (PString(_), _)
@@ -649,19 +648,19 @@ let toHumanReadable = (expr: t): string => {
         let spaced = elems => String.join(~sep=" ", elems)
         switch p {
         | PBlank(_) => "pBlank"
-        | PString({str, _}) => spaced(list{"pString", quoted(str)})
-        | PBool(_, _, true) => spaced(list{"pBool true"})
-        | PBool(_, _, false) => spaced(list{"pBool false"})
-        | PFloat(_, _, sign, whole, fractional) =>
+        | PString(_, str) => spaced(list{"pString", quoted(str)})
+        | PBool(_, true) => spaced(list{"pBool true"})
+        | PBool(_, false) => spaced(list{"pBool false"})
+        | PFloat(_, sign, whole, fractional) =>
           let sign = switch sign {
           | Positive => "Positive"
           | Negative => "Negative"
           }
           spaced(list{"pFloat'", sign, whole, fractional})
-        | PInteger(_, _, int) => spaced(list{"pInt", Int64.to_string(int)})
+        | PInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
         | PNull(_) => "pNull"
-        | PVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
-        | PConstructor(_, _, name, args) =>
+        | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
+        | PConstructor(_, name, args) =>
           spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
         }
       }

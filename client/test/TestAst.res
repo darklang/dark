@@ -16,9 +16,7 @@ let run = () => {
     let id2 = ID.fromString("10")
     let id3 = ID.fromString("11")
     let id4 = ID.fromString("12")
-    let id5 = ID.fromString("13")
-    let id6 = ID.fromString("14")
-    let id7 = ID.fromString("15")
+    let id5 = ID.fromString("15")
     test("lambda var is not free", () =>
       expect(
         freeVariables(ELambda(id1, list{(id2, "var")}, EVariable(id3, "var"))),
@@ -27,10 +25,7 @@ let run = () => {
     test("match pattern is not free", () => {
       let e = EConstructor(id2, "Just", list{EVariable(id4, "request")})
       let pats = list{
-        (
-          PConstructor(id5, id1, "Just", list{PVariable(id6, id1, "anything")}),
-          EVariable(id7, "anything"),
-        ),
+        (PConstructor(id1, "Just", list{PVariable(id1, "anything")}), EVariable(id5, "anything")),
       }
 
       expect(freeVariables(EMatch(id1, e, pats))) |> toEqual(list{(id4, "request")})

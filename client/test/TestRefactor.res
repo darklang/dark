@@ -587,7 +587,7 @@ let run = () => {
         | EMatch(
             _,
             EBinOp(_, "<", _, _, _),
-            list{(PBool(_, _, true), EBool(_, true)), (PBool(_, _, false), EBool(_, false))},
+            list{(PBool(_, true), EBool(_, true)), (PBool(_, false), EBool(_, false))},
           ) => true
         | _ => false
         }
@@ -605,7 +605,7 @@ let run = () => {
         | EMatch(
             _,
             EBinOp(_, "==", _, _, _),
-            list{(PBool(_, _, true), EBool(_, true)), (PBool(_, _, false), EBool(_, false))},
+            list{(PBool(_, true), EBool(_, true)), (PBool(_, false), EBool(_, false))},
           ) => true
         | _ => false
         }
@@ -623,7 +623,7 @@ let run = () => {
         | EMatch(
             _,
             EFnCall(_),
-            list{(PInteger(_, _, 3L), EBool(_, true)), (PVariable(_, _, "_"), EBool(_, false))},
+            list{(PInteger(_, 3L), EBool(_, true)), (PVariable(_, "_"), EBool(_, false))},
           ) => true
         | _ => false
         }

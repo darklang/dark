@@ -35,13 +35,13 @@ let eToStructure = (~includeIDs=false, e: E.t): string =>
 
 let pToString = (p: fluidPattern): string =>
   p
-  |> FluidTokenizer.patternToToken(~idx=0)
+  |> FluidTokenizer.patternToToken(ID("0"), ~idx=0)
   |> List.map(~f=t => T.toTestText(t))
   |> String.join(~sep="")
 
 let pToStructure = (p: fluidPattern): string =>
   p
-  |> FluidTokenizer.patternToToken(~idx=0)
+  |> FluidTokenizer.patternToToken(ID("0"), ~idx=0)
   |> List.map(~f=t => "<" ++ (T.toTypeName(t) ++ (":" ++ (T.toText(t) ++ ">"))))
   |> String.join(~sep="")
 
@@ -82,15 +82,15 @@ let rec eToTestcase = (e: E.t): string => {
       let spaced = elems => String.join(~sep=" ", elems)
       switch p {
       | PBlank(_) => "pBlank"
-      | PString({str, _}) => spaced(list{"pString", quoted(str)})
-      | PBool(_, _, true) => spaced(list{"pBool true"})
-      | PBool(_, _, false) => spaced(list{"pBool false"})
-      | PFloat(_, _, sign, whole, fractional) =>
+      | PString(_, str) => spaced(list{"pString", quoted(str)})
+      | PBool(_, true) => spaced(list{"pBool true"})
+      | PBool(_, false) => spaced(list{"pBool false"})
+      | PFloat(_, sign, whole, fractional) =>
         spaced(list{"pFloat'", ProgramTypes.Sign.toString(sign), whole, fractional})
-      | PInteger(_, _, int) => spaced(list{"pInt", Int64.to_string(int)})
+      | PInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
       | PNull(_) => "pNull"
-      | PVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
-      | PConstructor(_, _, name, args) =>
+      | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
+      | PConstructor(_, name, args) =>
         spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
       }
     }
