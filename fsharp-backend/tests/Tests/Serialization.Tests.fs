@@ -1,4 +1,4 @@
-module Tests.BinarySerialization
+module Tests.Serialization
 
 open Expecto
 
