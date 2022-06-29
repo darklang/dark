@@ -424,60 +424,88 @@ let oplistRoundtripTest =
     Expect.equal actual Values.testOplist ""
   }
 
+type Format =
+  { name : string
+    serializer : PT.Oplist -> byte array
+    deserializer : byte array -> PT.Oplist
+    prettyPrinter : Option<PT.Oplist -> string>
+    prefix : string
+    suffix : string
+    prettyPrinterSuffix : string }
+
+let formats =
+  [ { name = "BinarySerialization"
+      serializer = BinarySerialization.serializeOplist 0UL
+      deserializer = BinarySerialization.deserializeOplist 0UL
+      prettyPrinter = Some(BinarySerialization.Test.serializeOplistToJson 0UL)
+      prefix = "oplist-binary"
+      suffix = ".bin"
+      prettyPrinterSuffix = ".json" } ]
+
+let nameFor (f : Format) (pretty : bool) (version : string) =
+  let (pretty, suffix) =
+    if pretty then ("-pretty", f.prettyPrinterSuffix) else "", f.suffix
+  $"{f.prefix}{pretty}-{version}{suffix}"
+
 /// Generates timestamped test files for binary serialization. These files are used
 /// to prove that the binary serialization format is compatible.  When we change the
 /// format, we should still be able to read the old files in addition to the new ones
 /// (though they will not necessarily have the same output). If we make changes to
 /// the binary serialization format (or to the test cases), we generate the files
 /// and commit them.
-let generateBinarySerializationTestFiles () : unit =
-  let binaryData = Values.testOplist |> BinarySerialization.serializeOplist 0UL
-  let jsonData =
-    Values.testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
+let generateTestFiles () : unit =
+  formats
+  |> List.iter (fun f ->
+    let output = f.serializer Values.testOplist
 
-  let sha1 =
-    System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan binaryData)
-    |> SimpleBase.Base16.LowerCase.Encode
+    let sha1 =
+      System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan output)
+      |> SimpleBase.Base16.LowerCase.Encode
 
-  File.writefileBytes Config.Serialization $"oplist-format-{sha1}.bin" binaryData
-  File.writefileBytes Config.Serialization "oplist-format-latest.bin" binaryData
+    File.writefileBytes Config.Serialization (nameFor f false sha1) output
+    File.writefileBytes Config.Serialization (nameFor f false "latest") output
 
-  File.writefile Config.Serialization $"oplist-format-{sha1}.json" jsonData
-  File.writefile Config.Serialization "oplist-format-latest.json" jsonData
+    f.prettyPrinter
+    |> Option.tap (fun s ->
+      let jsonData = s Values.testOplist
+      File.writefile Config.Serialization (nameFor f true sha1) jsonData
+      File.writefile Config.Serialization (nameFor f true "latest") jsonData))
+
 
 let testTestFiles =
-  test "check test files are correct" {
-    // We can just check the oplists as expressions and toplevels are contained inside
+  formats
+  |> List.map (fun f ->
+    test "check test files are correct" {
+      f.prettyPrinter
+      |> Option.tap (fun s ->
+        let expected = File.readfile Config.Serialization (nameFor f true "latest")
+        let actual = s Values.testOplist
+        Expect.equal actual expected "check generates the same json")
 
-    // Check that the generated JSON matches what we have saved. This ensures the
-    // format have not diverged.
-    let expectedJsonContents =
-      File.readfile Config.Serialization "oplist-format-latest.json"
-    let actualJson =
-      Values.testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
-    // There are times where the json would be the same but the binary would be different
-    Expect.equal actualJson expectedJsonContents "check generates the same json"
+      // Check that the generated binary data matches what we have saved. This ensures
+      // the format has not changed.
+      let actual = f.serializer Values.testOplist
+      let expected =
+        File.readfileBytes Config.Serialization (nameFor f false "latest")
+      Expect.equal actual expected "check can read the saved file"
 
-    // Check that the generated binary data matches what we have saved. This ensures
-    // the format has not changed.
-    let actualBinary = Values.testOplist |> BinarySerialization.serializeOplist 0UL
-    let expectedBinaryBytes =
-      File.readfileBytes Config.Serialization "oplist-format-latest.bin"
-    Expect.equal actualBinary expectedBinaryBytes "check can read the saved file"
+      // Check that all .bin files can be parsed and give us the expected answer (this
+      // might not be true as we get more formats, so this may need to be adapted)
+      File.lspath Config.Serialization "{f.prefix}.*{f.suffix}"
+      |> List.iter (fun filename ->
+        let actual =
+          File.readfileBytes Config.Serialization filename |> f.deserializer
+        Expect.equal
+          actual
+          Values.testOplist
+          "deserialize should  match latest format")
+    })
 
-    // Check that all .bin files can be parsed and give us the expected answer (this
-    // might not be true as we get more formats, so this may need to be adapted)
-    File.lsdir Config.Serialization "./"
-    |> List.filter (String.endsWith ".bin")
-    |> List.iter (fun filename ->
-      let actual =
-        File.readfileBytes Config.Serialization filename
-        |> BinarySerialization.deserializeOplist 0UL
-      Expect.equal actual Values.testOplist "should all equal latest format")
-  }
 
 
 let tests =
   testList
-    "BinarySerialization"
-    [ toplevelRoundtripTest; oplistRoundtripTest; testTestFiles ]
+    "Serialization"
+    [ toplevelRoundtripTest
+      oplistRoundtripTest
+      testList "test formats" testTestFiles ]
