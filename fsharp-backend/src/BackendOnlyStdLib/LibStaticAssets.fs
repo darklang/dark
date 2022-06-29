@@ -176,7 +176,6 @@ let fns : List<BuiltInFn> =
             match! SA.latestDeployHash state.program.canvasID with
             | None -> return DOption None
             | Some deployHash ->
-              printfn "here"
               let url = SA.url state.program.canvasName deployHash SA.Short
               return DOption(Some(DStr url))
           }
