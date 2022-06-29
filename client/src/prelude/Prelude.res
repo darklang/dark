@@ -71,6 +71,7 @@ let rec tipe2str = (t: tipe): string =>
   | TCharacter => "Character"
   | TStr => "String"
   | TList => "List"
+  | TTuple(_, _, _) => "Tuple"
   | TObj => "Dict"
   | TBlock => "Block"
   | TIncomplete => "Incomplete"

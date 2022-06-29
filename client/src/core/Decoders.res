@@ -184,6 +184,7 @@ let rec tipe = (j): tipe => {
       ("TFloat", dv0(TFloat)),
       ("TObj", dv0(TObj)),
       ("TList", dv0(TList)),
+      ("TTuple", dv0(TTuple(TAny, TAny, list{}))),
       ("TAny", dv0(TAny)),
       ("TNull", dv0(TNull)),
       ("TBlock", dv0(TBlock)),
@@ -290,6 +291,7 @@ let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
       ("ELeftPartial", dv3((a, b, c) => E.ELeftPartial(a, b, c), id, string, de)),
       ("ERightPartial", dv3((a, b, c) => E.ERightPartial(a, b, c), id, string, de)),
       ("EList", dv2((x, y) => E.EList(x, y), id, list(de))),
+      ("ETuple", dv4((x, y1, y2, yRest) => E.ETuple(x, y1, y2, yRest), id, de, de, list(de))),
       ("ERecord", dv2((x, y) => E.ERecord(x, y), id, list(pair(string, de)))),
       ("EPipe", dv2((x, y) =>
           switch y {
@@ -342,7 +344,9 @@ let rec dval = (j): dval => {
   let dv0 = variant0
   let dv1 = variant1
   let dv2 = variant2
+  let dv3 = variant3
   let dd = dval
+
   let optionT = variants(list{
     ("OptJust", dv1(x => OptJust(x), dd)),
     ("OptNothing", dv0(OptNothing)),
@@ -417,6 +421,7 @@ let rec dval = (j): dval => {
       ("DCharacter", dv1(x => DCharacter(x), string)),
       ("DStr", dv1(x => DStr(x), string)),
       ("DList", dv1(x => DList(x), array(dd))),
+      ("DTuple", dv3((first, second, theRest) => DTuple(first, second, theRest), dd, dd, list(dd))),
       ("DObj", dv1(x => DObj(x), beltStrDict(dd))),
       (
         "DIncomplete",

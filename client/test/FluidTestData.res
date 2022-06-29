@@ -306,11 +306,11 @@ let functionWrappedEmptyRecord = fn("HttpClient::get_v4", list{emptyStr, emptyRe
 // ----------------
 let emptyList = list(list{})
 
-let single = list(list{fiftySix})
+let singleElementList = list(list{fiftySix})
 
-let multi = list(list{fiftySix, seventyEight})
+let multiList = list(list{fiftySix, seventyEight})
 
-let withStr = list(list{str("ab")})
+let listWithStr = list(list{str("ab")})
 
 let longList = list(list{fiftySix, seventyEight, fiftySix, seventyEight, fiftySix, seventyEight})
 
@@ -393,7 +393,103 @@ let listWithJustABlank = list(list{b})
 
 let listWithRecord = list(list{emptyRecord})
 
-let multiWithStrs = list(list{str("ab"), str("cd"), str("ef")})
+let listWithMultiStrs = list(list{str("ab"), str("cd"), str("ef")})
+
+/* ---------------- */
+/* Tuples */
+/* ---------------- */
+
+// todo: add tests that actually use these (in TestFluid.res)
+
+let tuple2WithNoBlank = tuple(fiftySix, seventyEight, list{})
+let tuple2WithBothBlank = tuple(b, b, list{})
+let tuple2WithFirstBlank = tuple(b, fiftySix, list{})
+let tuple2WithSecondBlank = tuple(fiftySix, b, list{})
+
+let tuple3WithNoBlanks = tuple(fiftySix, seventyEight, list{b})
+let tuple3WithAllBlank = tuple(b, b, list{b})
+let tuple3WithFirstBlank = tuple(b, seventyEight, list{b})
+let tuple3WithSecondBlank = tuple(fiftySix, b, list{b})
+let tuple3WithThirdBlank = tuple(fiftySix, seventyEight, list{b})
+
+let tuple6 =
+  tuple(fiftySix, seventyEight, list{fiftySix, seventyEight, fiftySix, seventyEight})
+
+let tupleWithRecord = tuple(emptyRecord, b, list{})
+
+let tuple3WithStrs = tuple(str("ab"), str("cd"), list{str("ef")})
+
+let tupleHuge =
+  tuple(fiftySix,
+    seventyEight,
+    list{
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight,
+    fiftySix,
+    seventyEight})
+
 
 // ----------------
 // Fields

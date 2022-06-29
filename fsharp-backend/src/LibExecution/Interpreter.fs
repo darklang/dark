@@ -76,14 +76,31 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // instead of ignoring, this is probably a mistake.
       let! results = Ply.List.mapSequentially (eval state st) exprs
 
-      let filtered =
-        List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
+      let filtered = List.filter (not << Dval.isIncomplete) results
 
       // CLEANUP: why do we only find errorRail, and not errors. Seems like
       // a mistake
-      match List.tryFind (fun (dv : Dval) -> Dval.isErrorRail dv) filtered with
+      match List.tryFind Dval.isErrorRail filtered with
       | Some er -> return er
       | None -> return (DList filtered)
+
+    | ETuple (id, first, second, theRest) ->
+      let! firstResult = eval state st first
+      let! secondResult = eval state st second
+      let! otherResults = Ply.List.mapSequentially (eval state st) theRest
+
+      let allResults = [ firstResult; secondResult ] @ otherResults
+
+      let foundIncompletes = List.filter (not << Dval.isIncomplete) allResults
+      let firstFoundError =
+        List.tryFind (fun dv -> Dval.isErrorRail dv || Dval.isDError dv) allResults
+
+      match foundIncompletes, firstFoundError with
+      | [], None -> return DTuple(firstResult, secondResult, otherResults)
+      | [], Some error -> return error
+      | _ ->
+        // or should this return the ID of the first incomplete or something?
+        return DIncomplete(sourceID id)
 
     | EVariable (id, name) ->
       match (st.TryFind name, state.tracing.realOrPreview) with

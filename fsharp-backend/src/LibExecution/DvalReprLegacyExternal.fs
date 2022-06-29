@@ -164,9 +164,13 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
       let recurse = inner indent
 
       match dv with
+      | DTuple (first, second, rest) ->
+        let l = [ first; second ] @ rest
+        "(" + inl + String.concat ", " (List.map recurse l) + nl + ")"
       | DList l ->
         if l = [] then
           "[]"
+        // CLEANUP no good reason to have the space before the newline
         else
           // CLEANUP no good reason to have the space before the newline
           "[ " + inl + String.concat ", " (List.map recurse l) + nl + "]"
@@ -205,7 +209,8 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
       // redacting, do not unredact
       "<Password>"
     | DObj _
-    | DList _ -> toNestedString dv
+    | DList _
+    | DTuple _ -> toNestedString dv
     | DErrorRail d ->
       // We don't print error here, because the errorrail value will know
       // whether it's an error or not.
@@ -265,6 +270,8 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DNull -> w.WriteNullValue()
   | DStr s -> w.WriteStringValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
+  | DTuple (first, second, rest) ->
+    w.writeArray (fun () -> List.iter writeDval ([ first; second ] @ rest))
   | DObj o ->
     w.writeObject (fun () ->
       Map.iter

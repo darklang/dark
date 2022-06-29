@@ -268,7 +268,7 @@ let allRoundtrips =
       t
         "queryable v0"
         FuzzTests.InternalJson.Queryable.canV1Roundtrip
-        (dvs DvalReprInternalDeprecated.isQueryableDval) ]
+        (dvs DvalReprInternalDeprecated.Test.isQueryableDval) ]
 
 
 

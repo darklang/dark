@@ -157,6 +157,7 @@ module DType =
     | "str" -> Some PT.TStr
     | "string" -> Some PT.TStr
     | "list" -> Some(PT.TList any)
+    | "tuple" -> Some(PT.TTuple(any, any, []))
     | "obj" -> Some(PT.TDict any)
     | "block" -> Some(PT.TFn([ PT.TVariable "a" ], PT.TVariable "b"))
     | "incomplete" -> Some PT.TIncomplete

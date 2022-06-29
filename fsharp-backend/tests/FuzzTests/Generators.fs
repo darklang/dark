@@ -122,6 +122,8 @@ module RuntimeTypes =
     | RT.DOption None -> false
 
     | RT.DList dv -> List.any containsBytes dv
+    | RT.DTuple (first, second, theRest) ->
+      List.any containsBytes ([ first; second ] @ theRest)
     | RT.DObj o -> o |> Map.values |> List.any containsBytes
 
     | RT.DHttpResponse (RT.Response (_, _, dv))
@@ -162,6 +164,8 @@ module RuntimeTypes =
       | RT.TDict t
       | RT.TOption t
       | RT.THttpResponse t -> isSupportedType t
+      | RT.TTuple (first, second, theRest) ->
+        List.all isSupportedType ([ first; second ] @ theRest)
       | RT.TResult (t1, t2) -> isSupportedType t1 && isSupportedType t2
       | RT.TFn (ts, rt) -> isSupportedType rt && List.all isSupportedType ts
       | RT.TRecord (pairs) ->

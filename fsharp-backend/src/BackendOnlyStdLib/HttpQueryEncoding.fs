@@ -49,6 +49,8 @@ let rec toUrlString (dv : RT.Dval) : string =
   | RT.DHttpResponse (RT.Redirect _) -> "null"
   | RT.DHttpResponse (RT.Response (_, _, hdv)) -> r hdv
   | RT.DList l -> "[ " + String.concat ", " (List.map r l) + " ]"
+  | RT.DTuple (first, second, rest) ->
+    "( " + String.concat ", " (List.map r ([ first; second ] @ rest)) + " )"
   | RT.DObj o ->
     let strs = Map.fold [] (fun l key value -> (key + ": " + r value) :: l) o
     "{ " + (String.concat ", " strs) + " }"

@@ -33,6 +33,11 @@ let rec to_url_string = (dv: dval): option<string> =>
     Some(
       "[ " ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, Array.to_list(l))) ++ " ]"),
     )
+  | DTuple(first, second, theRest) =>
+    let l = list{first, second, ...theRest}
+    Some(
+      "(" ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, l)) ++ ")"),
+    )
   | DOption(OptJust(v)) => to_url_string(v)
   | DResult(ResOk(v)) => to_url_string(v)
   | DBytes(bytes) => Some(bytes |> Encoders.base64url_bytes)

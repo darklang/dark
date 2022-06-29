@@ -35,6 +35,8 @@ let record = (~id=gid(), rows: list<(string, t)>): t => ERecord(
 
 let list = (~id=gid(), elems: list<t>): t => EList(id, elems)
 
+let tuple = (~id=gid(), first, second, theRest: list<t>): t => ETuple(id, first, second, theRest)
+
 let pipeTarget = EPipeTarget(gid())
 
 let fn = (~id=gid(), ~ster=NoRail, name: string, args: list<t>) => EFnCall(id, name, args, ster)

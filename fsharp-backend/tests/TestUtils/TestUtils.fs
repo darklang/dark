@@ -504,6 +504,7 @@ module Expect =
     | DOption (Some v) -> check v
 
     | DList vs -> List.all check vs
+    | DTuple (first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DObj vs -> vs |> Map.values |> List.all check
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
@@ -594,6 +595,10 @@ module Expect =
       eq ("then" :: path) thn thn'
       eq ("else" :: path) els els'
     | EList (_, l), EList (_, l') -> eqList path l l'
+    | ETuple (_, first, second, theRest), ETuple (_, first', second', theRest') ->
+      eq ("first" :: path) first first'
+      eq ("second" :: path) second second'
+      eqList path theRest theRest'
     | EFQFnValue (_, v), EFQFnValue (_, v') -> check path v v'
     | EApply (_, name, args, inPipe, toRail),
       EApply (_, name', args', inPipe', toRail') ->
@@ -649,6 +654,7 @@ module Expect =
     | ELet _, _
     | EIf _, _
     | EList _, _
+    | ETuple _, _
     | EFQFnValue _, _
     | EApply _, _
     | ERecord _, _
@@ -699,6 +705,14 @@ module Expect =
       check (".Length" :: path) (List.length ls) (List.length rs)
       List.iteri2 (fun i l r -> de (string i :: path) l r) ls rs
 
+    | DTuple (firstL, secondL, theRestL), DTuple (firstR, secondR, theRestR) ->
+      de path firstL firstR
+
+      de path secondL secondR
+
+      check (".Length" :: path) (List.length theRestL) (List.length theRestR)
+      List.iteri2 (fun i l r -> de (string i :: path) l r) theRestL theRestR
+
     | DObj ls, DObj rs ->
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
@@ -735,6 +749,7 @@ module Expect =
     | DHttpResponse _, _
     | DObj _, _
     | DList _, _
+    | DTuple _, _
     | DResult _, _
     | DErrorRail _, _
     | DOption _, _
@@ -799,6 +814,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     // Keep for exhaustiveness checking
     | DObj map -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
+    | DTuple (first, second, theRest) ->
+      List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
     | DHttpResponse (Response (_, _, v))
     | DResult (Error v)
     | DResult (Ok v)

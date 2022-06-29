@@ -22,6 +22,7 @@ let str2tipe = (t: string): tipe => {
     | "null" => TNull
     | "any" => TAny
     | "list" => TList
+    | "tuple" => TTuple(TAny, TAny, list{})
     | "obj" => TObj
     | "block" => TBlock
     | "incomplete" => TIncomplete
@@ -45,6 +46,7 @@ let str2tipe = (t: string): tipe => {
   | "str" => TStr
   | "string" => TStr
   | "list" => TList
+  | "tuple" => TTuple(TAny, TAny, list{})
   | "obj" => TObj
   | "block" => TBlock
   | "incomplete" => TIncomplete
@@ -68,7 +70,7 @@ let str2tipe = (t: string): tipe => {
   }
 }
 
-let typeOf = (dv: dval): tipe =>
+let rec typeOf = (dv: dval): tipe =>
   switch dv {
   | DInt(_) => TInt
   | DFloat(_) => TFloat
@@ -77,6 +79,8 @@ let typeOf = (dv: dval): tipe =>
   | DCharacter(_) => TCharacter
   | DStr(_) => TStr
   | DList(_) => TList
+  | DTuple(first, second, theRest) =>
+    TTuple(typeOf(first), typeOf(second), List.map(~f = (t) => typeOf(t), theRest))
   | DObj(_) => TObj
   | DBlock(_) => TBlock
   | DIncomplete(_) => TIncomplete
@@ -219,6 +223,9 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
       "]")))
     | l => "[ " ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), l)) ++ " ]")
     }
+  | DTuple(first, second, theRest) =>
+    let exprs = list{first, second, ...theRest}
+    "(" ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), exprs)) ++ ")")
   | DObj(o) => objToString(Belt.Map.String.toList(o))
   | DBytes(s) =>
     "<" ++

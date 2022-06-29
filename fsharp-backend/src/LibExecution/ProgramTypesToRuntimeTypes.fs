@@ -88,6 +88,8 @@ module Expr =
     | PT.ERightPartial (_, _, oldExpr)
     | PT.ELeftPartial (_, _, oldExpr) -> toRT oldExpr
     | PT.EList (id, exprs) -> RT.EList(id, List.map toRT exprs)
+    | PT.ETuple (id, first, second, theRest) ->
+      RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
     | PT.ERecord (id, pairs) ->
       RT.ERecord(id, List.map (Tuple2.mapSecond toRT) pairs)
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
@@ -159,6 +161,8 @@ module DType =
     | PT.TNull -> RT.TNull
     | PT.TStr -> RT.TStr
     | PT.TList typ -> RT.TList(toRT typ)
+    | PT.TTuple (firstType, secondType, otherTypes) ->
+      RT.TTuple(toRT firstType, toRT secondType, List.map toRT otherTypes)
     | PT.TDict typ -> RT.TDict(toRT typ)
     | PT.TIncomplete -> RT.TIncomplete
     | PT.TError -> RT.TError

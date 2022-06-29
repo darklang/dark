@@ -127,6 +127,7 @@ and tipe =
   | TFloat
   | TObj
   | TList
+  | TTuple(tipe, tipe, list<tipe>)
   | TAny
   | TNull
   | TBlock
@@ -379,6 +380,7 @@ and dval =
   | DCharacter(string)
   | DStr(string)
   | DList(array<dval>)
+  | DTuple(dval, dval, list<dval>)
   /* We use Belt.Map.String as Map.String.t has a comparator that doesn't work
    with the cloning algorithm of web workers */
   | DObj(Belt.Map.String.t<dval>)
@@ -449,6 +451,12 @@ type rec astListPart =
   | LPComma(int)
 
 @ppx.deriving(show({with_path: false}))
+type rec astTuplePart =
+  | TPOpen
+  | TPClose
+  | TPComma(int)
+
+@ppx.deriving(show({with_path: false}))
 type rec astMatchPart =
   | MPKeyword
   | MPBranchArrow(/* index of the branch */ int)
@@ -504,6 +512,7 @@ type rec astRef =
   | ARRightPartial(id)
   | ARLeftPartial(id)
   | ARList(id, astListPart)
+  | ARTuple(id, astTuplePart)
   | ARRecord(id, astRecordPart)
   | ARPipe(id, int) // index of the pipe
   | ARConstructor(id) // name of the constructor
@@ -1595,6 +1604,9 @@ and fluidToken =
   | TListOpen(id, option<parentBlockID>)
   | TListClose(id, option<parentBlockID>)
   | TListComma(id, int)
+  | TTupleOpen(id, option<parentBlockID>)
+  | TTupleClose(id, option<parentBlockID>)
+  | TTupleComma(id, int)
   // 2nd int is the number of pipe segments there are
   | TPipe(id, int, int, option<parentBlockID>)
   | TRecordOpen(id, option<parentBlockID>)

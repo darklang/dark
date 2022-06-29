@@ -45,6 +45,9 @@ let tid = (t: t): id =>
   | TListOpen(id, _)
   | TListClose(id, _)
   | TListComma(id, _)
+  | TTupleOpen(id, _)
+  | TTupleClose(id, _)
+  | TTupleComma(id, _)
   | TPipe(id, _, _, _)
   | TRecordOpen(id, _)
   | TRecordClose(id, _)
@@ -103,6 +106,8 @@ let parentBlockID = (t: t): option<id> =>
   | TStringMLEnd(id, _, _, _)
   | // The ID of a comma token is the ID of the whole list expression
   TListComma(id, _)
+  | // The ID of a comma token is the ID of the whole tuple expression
+  TTupleComma(id, _)
   | // The first ID in the separator token is the ID of the whole obj expression
   TRecordSep(id, _, _) =>
     Some(id)
@@ -111,6 +116,8 @@ let parentBlockID = (t: t): option<id> =>
   | TRecordClose(_, pid)
   | TListOpen(_, pid)
   | TListClose(_, pid)
+  | TTupleOpen(_, pid)
+  | TTupleClose(_, pid)
   | TBlank(_, pid)
   | TInteger(_, _, pid)
   | TString(_, _, pid)
@@ -217,6 +224,9 @@ let isTextToken = (t: t): bool =>
   | TListOpen(_)
   | TListClose(_)
   | TListComma(_, _)
+  | TTupleOpen(_)
+  | TTupleClose(_)
+  | TTupleComma(_, _)
   | TSep(_)
   | TLetKeyword(_)
   | TRecordOpen(_)
@@ -246,6 +256,7 @@ let isPipeable = (t: t): bool =>
   | TInteger(_)
   | TLetVarName(_)
   | TListClose(_)
+  | TTupleClose(_)
   | TRecordClose(_)
   | TFieldName(_)
   | TVariable(_)
@@ -283,9 +294,11 @@ let isPipeable = (t: t): bool =>
   | TStringMLStart(_)
   | TStringMLMiddle(_)
   | TStringMLEnd(_)
-  | TListOpen(_)
   | TFieldPartial(_)
+  | TListOpen(_)
   | TListComma(_, _)
+  | TTupleOpen(_)
+  | TTupleComma(_, _)
   | TSep(_)
   | TLetKeyword(_)
   | TRecordOpen(_)
@@ -396,6 +409,9 @@ let isWhitespace = (t: t): bool =>
   | TListOpen(_)
   | TListClose(_)
   | TListComma(_)
+  | TTupleOpen(_)
+  | TTupleClose(_)
+  | TTupleComma(_)
   | TPipe(_)
   | TRecordOpen(_)
   | TRecordClose(_)
@@ -487,6 +503,12 @@ let isListSymbol = (t: fluidToken): bool =>
   | _ => false
   }
 
+let isTupleSymbol = (t: fluidToken): bool =>
+  switch t {
+  | TTupleOpen(_) | TTupleClose(_) | TTupleComma(_) => true
+  | _ => false
+  }
+
 let toText = (t: t): string => {
   let shouldntBeEmpty = name => {
     if name == "" {
@@ -547,6 +569,9 @@ let toText = (t: t): string => {
   | TListOpen(_) => "["
   | TListClose(_) => "]"
   | TListComma(_, _) => ","
+  | TTupleOpen(_) => "("
+  | TTupleClose(_) => ")"
+  | TTupleComma(_, _) => ","
   | TRecordOpen(_) => "{"
   | TRecordClose(_) => "}"
   | TRecordFieldname(f) => canBeEmpty(f.fieldName)
@@ -610,6 +635,7 @@ let toIndex = (t: t): option<int> =>
   | TRecordFieldname({index, _})
   | TRecordSep(_, index, _)
   | TListComma(_, index)
+  | TTupleComma(_, index)
   | TNewline(Some(_, _, Some(index)))
   | TPatternBlank(_, _, index)
   | TPatternInteger(_, _, _, index)
@@ -686,6 +712,9 @@ let toTypeName = (t: t): string =>
   | TListOpen(_) => "list-open"
   | TListClose(_) => "list-close"
   | TListComma(_, _) => "list-comma"
+  | TTupleOpen(_) => "tuple-open"
+  | TTupleClose(_) => "tuple-close"
+  | TTupleComma(_, _) => "tuple-comma"
   | TRecordOpen(_) => "record-open"
   | TRecordClose(_) => "record-close"
   | TRecordFieldname(_) => "record-fieldname"
@@ -727,6 +756,7 @@ let toCategoryName = (t: t): string =>
   | TFieldOp(_) | TFieldName(_) | TFieldPartial(_) => "field"
   | TLambdaVar(_) | TLambdaSymbol(_) | TLambdaArrow(_) | TLambdaComma(_) => "lambda"
   | TListOpen(_) | TListClose(_) | TListComma(_) => "list"
+  | TTupleOpen(_) | TTupleClose(_) | TTupleComma(_) => "tuple"
   | TPipe(_) => "pipe"
   | TConstructorName(_) => "constructor"
   | TRecordOpen(_) | TRecordClose(_) | TRecordFieldname(_) | TRecordSep(_) => "record"
@@ -836,6 +866,8 @@ let matchesContent = (t1: t, t2: t): bool =>
     id1 == id2 && (seg1 == seg2 && (ind1 == ind2 && str1 == str2))
   | (TListOpen(id1, _), TListOpen(id2, _))
   | (TListClose(id1, _), TListClose(id2, _))
+  | (TTupleOpen(id1, _), TTupleOpen(id2, _))
+  | (TTupleClose(id1, _), TTupleClose(id2, _))
   | (TRecordOpen(id1, _), TRecordOpen(id2, _))
   | (TRecordClose(id1, _), TRecordClose(id2, _))
   | (TTrue(id1, _), TTrue(id2, _))
@@ -858,6 +890,7 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TFlagEnabledKeyword(id1), TFlagEnabledKeyword(id2)) =>
     id1 == id2
   | (TListComma(id1, ind1), TListComma(id2, ind2))
+  | (TTupleComma(id1, ind1), TTupleComma(id2, ind2))
   | (TRecordSep(id1, ind1, _), TRecordSep(id2, ind2, _))
   | (TLambdaComma(id1, ind1, _), TLambdaComma(id2, ind2, _)) =>
     id1 == id2 && ind1 == ind2
@@ -953,6 +986,9 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TListOpen(_), _)
   | (TListClose(_), _)
   | (TListComma(_), _)
+  | (TTupleOpen(_), _)
+  | (TTupleClose(_), _)
+  | (TTupleComma(_), _)
   | (TPipe(_), _)
   | (TRecordOpen(_), _)
   | (TRecordFieldname(_), _)

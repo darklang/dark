@@ -18,6 +18,7 @@ let rec typeName (t : DType) : string =
   | TChar -> "Character"
   | TStr -> "Str" // CLEANUP change to String
   | TList _ -> "List"
+  | TTuple _ -> "Tuple"
   | TDict _ -> "Dict"
   | TRecord _ -> "Dict"
   | TFn _ -> "Block"
@@ -101,6 +102,10 @@ let rec toRepr (dv : Dval) : string =
         let elems = String.concat ", " (List.map (toRepr_ indent) l)
         // CLEANUP: this space makes no sense
         $"[ {inl}{elems}{nl}]"
+    | DTuple (first, second, theRest) ->
+      let l = [ first; second ] @ theRest
+      let elems = String.concat ", " (List.map (toRepr_ indent) l)
+      $"({inl}{elems}{nl})"
     | DObj o ->
       if Map.isEmpty o then
         "{}"

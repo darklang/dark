@@ -423,9 +423,10 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TLambdaArrow(id, parentID))
     |> nest(~indent=2, body)
   | EList(id, exprs) =>
-    /*
-         With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
- */
+    /* With each iteration of the list, we calculate the new line length if
+     * we were to add this new item. If the new line length exceeds the
+     * limit, then we add a new line token and an indent by 1 first, before
+     * adding the tokenized item to the builder. */
     let lastIndex = List.length(exprs) - 1
     let xOffset = b.xPos |> Option.unwrap(~default=0)
     let pid = if lastIndex == -1 {
@@ -464,6 +465,52 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       )
     })
     |> add(TListClose(id, pid))
+  | ETuple(id, first, second, theRest) =>
+    let exprs = list{first, second, ...theRest}
+
+    /* With each item of the tuple, we calculate the new line length if
+     * we were to add this new item. If the new line length exceeds the
+     * limit, then we add a new line token and an indent by 1 first, before
+     * adding the tokenized item to the builder. */
+    let lastIndex = List.length(exprs) - 1
+    let xOffset = b.xPos |> Option.unwrap(~default=0)
+    let pid = if lastIndex == -1 {
+      None
+    } else {
+      Some(id)
+    }
+
+    b
+    |> add(TTupleOpen(id, pid))
+    |> addIter(exprs, ~f=(i, e, b') => {
+      let currentLineLength = {
+        let commaWidth = if i != lastIndex {
+          1
+        } else {
+          0
+        }
+        toTokens'(e, b').xPos
+        |> Option.map(~f=x => x - xOffset + commaWidth)
+        |> Option.unwrap(~default=commaWidth)
+      }
+
+      /* Even if first element overflows, don't put it in a new line */
+      let isOverLimit = i > 0 && currentLineLength > listLimit
+      /* Indent after newlines to match the '( ' */
+      let indent = if isOverLimit {
+        1
+      } else {
+        0
+      }
+      b'
+      |> addIf(isOverLimit, TNewline(None))
+      |> indentBy(~indent, ~f=b' =>
+        b'
+        |> addNested(~f=toTokens'(~parentID=Some(id), e))
+        |> addIf(i != lastIndex, TTupleComma(id, i))
+      )
+    })
+    |> add(TTupleClose(id, pid))
   | ERecord(id, fields) =>
     if fields == list{} {
       b |> addMany(list{TRecordOpen(id, None), TRecordClose(id, None)})

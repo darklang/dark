@@ -76,6 +76,8 @@ module PrettyResponseJsonV0 =
     | DNull -> w.WriteNull()
     | DStr s -> w.WriteValue s
     | DList l -> w.writeArray (fun () -> List.iter writeDval l)
+    | DTuple (first, second, theRest) ->
+      w.writeArray (fun () -> List.iter writeDval ([ first; second ] @ theRest))
     | DObj o ->
       w.writeObject (fun () ->
         Map.iter

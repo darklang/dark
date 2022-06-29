@@ -537,17 +537,18 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
 // Create the list
 // ------------------------------------
 
-let allowedParamTipes = /* Types from Types.tipe that aren't included:
-       TCharacter - very hard to create characters right now, so this type
-                    would raises more questions than answers right now
-       TNull - trying to get rid of this, so don't spread it
-       TIncomplete - makes no sense to pass to a function
-       TError - makes no sense to pass to a function
-       TResp - these aren't really exposed to users as real things, but maybe
-               should be?
-       TErrorRail  - doesn't make sense pass to function
-       TDbList - only for DB schemas
-       TUserType  - added later
+let allowedParamTipes =
+/* Types from Types.tipe that aren't included:
+TCharacter - very hard to create characters right now, so this type
+            would raises more questions than answers right now
+TNull - trying to get rid of this, so don't spread it
+TIncomplete - makes no sense to pass to a function
+TError - makes no sense to pass to a function
+TResp - these aren't really exposed to users as real things, but maybe
+        should be?
+TErrorRail  - doesn't make sense pass to function
+TDbList - only for DB schemas
+TUserType  - added later
  */
 list{
   TInt,
@@ -556,6 +557,7 @@ list{
   TFloat,
   TObj,
   TList,
+  TTuple(TAny, TAny, list{}), // TODO: 
   TAny,
   TBlock,
   TDB,
@@ -636,6 +638,7 @@ let generate = (m: model, a: autocomplete): autocomplete => {
       Belt.List.concat(allowedParamTipes, userTypes) |> List.map(~f=t => ACParamTipe(t))
     | TypeFieldTipe => allowedUserTypeFieldTipes |> List.map(~f=t => ACTypeFieldTipe(t))
     | FnReturnTipe =>
+      // what is this actually used for?
       let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
       Belt.List.concat(allowedReturnTipes, userTypes) |> List.map(~f=t => ACReturnTipe(t))
