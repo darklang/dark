@@ -266,7 +266,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
-      deprecated = ReplacedBy(fn "Date" "subtractSeconds" 0) }
+      deprecated = RenamedTo(fn "Date" "subtractSeconds" 0) }
 
 
     { name = fn "Date" "subtractSeconds" 0
