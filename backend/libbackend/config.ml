@@ -111,8 +111,6 @@ let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 
 let create_accounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 
-let should_write_shape_data = bool "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST"
-
 let show_stacktrace = bool "DARK_CONFIG_SHOW_STACKTRACE"
 
 (* ------------------------- *)

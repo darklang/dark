@@ -965,15 +965,7 @@ let migrate_all_hosts () =
       migrate_host host |> Result.ok_or_failwith)
 
 
-let write_shape_data () =
-  if Config.should_write_shape_data
-  then
-    File.writefile
-      ~root:Serialization
-      Binary_serialization.digest
-      Binary_serialization.shape_string
-  else ()
-
+let write_shape_data () = ()
 
 let time (fn : unit -> 'a) : float * 'a =
   let start = Unix.gettimeofday () in
