@@ -2,9 +2,9 @@
 module ApiServer.Json
 
 // This provides a JSON encoding that exactly matches the encoding used in the
-// client, but uses System.Text.Json. The intent is to be significantly faster than
-// old ocamlCompatible one. It doesn't differ from Prelude.Json.Vanilla very much,
-// and I suspect it could be
+// client, but uses System.Text.Json. The intent is to be significantly faster
+// than old ocamlCompatible one. It doesn't differ from Prelude.Json.Vanilla
+// very much, and I suspect it could be switched to such.
 
 open Prelude
 
@@ -12,7 +12,7 @@ open System.Text.Json
 open System.Text.Json.Serialization
 open NodaTime.Serialization.SystemTextJson
 
-
+/// OCamlCompatible converter ported to STJ
 type FloatConverter() =
   // CLEANUP: check if we need the float converter
   inherit JsonConverter<float>()
@@ -71,8 +71,11 @@ let options =
   options
 
 
-
+// SERIALIZER_DEF STJ ApiServer.Json.serialize
+// Plan: remove and replace with `dark-editor` canvas
 let serialize (data : 'a) : string = JsonSerializer.Serialize(data, options)
 
+// SERIALIZER_DEF STJ ApiServer.Json.serialize
+// Plan: remove and replace with `dark-editor` canvas
 let deserialize<'a> (json : string) : 'a =
   JsonSerializer.Deserialize<'a>(json, options)

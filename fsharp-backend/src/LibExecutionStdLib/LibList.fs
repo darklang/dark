@@ -5,7 +5,8 @@ open Prelude
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 let fn = FQFnName.stdlibFnName
 
@@ -1322,7 +1323,7 @@ let fns : List<BuiltInFn> =
                 | DList l ->
                   $". It has length {List.length l} but should have length 2"
                 | nonList ->
-                  $". It is of type {DvalReprExternal.prettyTypename v} instead of `List`"
+                  $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `List`"
 
               Exception.raiseCode (
                 Errors.argumentWasnt "a list with exactly two values" "pairs" v

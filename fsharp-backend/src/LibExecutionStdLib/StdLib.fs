@@ -3,7 +3,7 @@ module LibExecutionStdLib.StdLib
 open Prelude
 open LibExecution.RuntimeTypes
 
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 let fn = FQFnName.stdlibFnName
 

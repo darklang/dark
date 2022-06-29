@@ -157,7 +157,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             match Dval.toType x with
             | TDB _ ->
               "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
-            | tipe -> $"it's a {DvalReprExternal.typeToDeveloperReprV0 tipe}"
+            | tipe -> $"it's a {DvalReprDeveloper.typeName tipe}"
 
           DError(
             sourceID id,
@@ -446,7 +446,7 @@ and applyFn
     Ply(
       Dval.errSStr
         sourceID
-        $"Expected a function value, got something else: {DvalReprExternal.toDeveloperReprV0 other}"
+        $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
     )
 
 

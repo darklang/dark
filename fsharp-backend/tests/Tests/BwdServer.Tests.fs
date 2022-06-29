@@ -381,8 +381,12 @@ let runTestRequest
     let asJson =
       try
         Some(
-          LibExecution.DvalReprExternal.parseJson (UTF8.ofBytesUnsafe actual.body),
-          LibExecution.DvalReprExternal.parseJson (UTF8.ofBytesUnsafe expected.body)
+          LibExecution.DvalReprLegacyExternal.parseJson (
+            UTF8.ofBytesUnsafe actual.body
+          ),
+          LibExecution.DvalReprLegacyExternal.parseJson (
+            UTF8.ofBytesUnsafe expected.body
+          )
         )
       with
       | e -> None
@@ -390,7 +394,7 @@ let runTestRequest
     match asJson with
     | Some (aJson, eJson) ->
       let serialize (json : JsonDocument) =
-        LibExecution.DvalReprExternal.writePrettyJson json.WriteTo
+        LibExecution.DvalReprLegacyExternal.writePrettyJson json.WriteTo
       Expect.equal
         (actual.status, actualHeaders, serialize aJson)
         (expected.status, expectedHeaders, serialize eJson)

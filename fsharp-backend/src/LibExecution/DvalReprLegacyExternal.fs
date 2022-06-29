@@ -1,5 +1,13 @@
 /// Ways of converting Dvals to/from strings, with external use allowed
-module LibExecution.DvalReprExternal
+module LibExecution.DvalReprLegacyExternal
+
+// The remaining functions in this file are used by the HttpClient or the Http
+// framework, and cannot be changed in their existing usages. The plan to
+// remove them is to replace both the Http framework with a middleware based
+// design, with some of that middleware being a typed json serializer. The
+// typed json serializer would be a standard library function, not something
+// that's an inate part of the framework/client in the way that these functions
+// are.
 
 // Printing Dvals is more complicated than you'd expect. Different situations
 // have different constraints, such as develop-focused representation showing
@@ -19,12 +27,7 @@ open VendoredTablecloth
 
 open RuntimeTypes
 
-// CLEANUP: move everything in this file into where it's used
-
 open System.Text.Json
-
-// CLEANUP - remove all the unsafeDval by inlining them into the named
-// functions that use them, such as toQueryable or toRoundtrippable
 
 let jsonWriterOptions : JsonWriterOptions =
   let mutable options = new JsonWriterOptions()
@@ -110,7 +113,6 @@ let (|JObject|_|) (j : JsonElement) : Option<List<string * JsonElement>> =
 
   | _ -> None
 
-
 let (|JUndefined|_|) (j : JsonElement) : Option<unit> =
   match j.ValueKind with
   | JsonValueKind.Undefined -> Some()
@@ -123,7 +125,7 @@ let ocamlStringOfFloat (f : float) : string =
   // format "%.12g".
   // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
 
-  // CLEANUP We should move on to a nicer format. See DvalReprExternal.tests for edge cases. See:
+  // CLEANUP We should move on to a nicer format. See DvalRepr.Tests for edge cases. See:
   if System.Double.IsPositiveInfinity f then
     "inf"
   else if System.Double.IsNegativeInfinity f then
@@ -139,71 +141,11 @@ let ocamlStringOfFloat (f : float) : string =
 // Runtime Types
 // -------------------------
 
-// As of Wed Apr 21, 2021, this fn is only used for things that are shown to
-// developers, and not for storage or any other thing that needs to be kept
-// backwards-compatible.
-// CLEANUP: once we no longer support compatibility with OCaml, these messages can get much better.
-let rec typeToDeveloperReprV0 (t : DType) : string =
-  match t with
-  | TInt -> "Int"
-  | TFloat -> "Float"
-  | TBool -> "Bool"
-  | TNull -> "Null"
-  | TChar -> "Character"
-  | TStr -> "Str" // CLEANUP change to String
-  | TList _ -> "List"
-  | TDict _ -> "Dict"
-  | TRecord _ -> "Dict"
-  | TFn _ -> "Block"
-  | TVariable varname -> "Any"
-  | TIncomplete -> "Incomplete"
-  | TError -> "Error"
-  | THttpResponse _ -> "Response"
-  | TDB _ -> "Datastore"
-  | TDate -> "Date" // CLEANUP Dates should be DateTimes
-  | TPassword -> "Password"
-  | TUuid -> "UUID"
-  | TOption _ -> "Option"
-  | TErrorRail -> "ErrorRail"
-  | TResult _ -> "Result"
-  | TUserType (name, _) -> name
-  | TBytes -> "Bytes"
-
-let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperReprV0
-
-// Backwards compatible version of `typeToDeveloperRepr`, should not be visible to
-// users (except through LibDarkInternal) but used by things like HttpClient
-// (transitively)
-let rec typeToBCTypeName (t : DType) : string =
-  match t with
-  | TInt -> "int"
-  | TFloat -> "float"
-  | TBool -> "bool"
-  | TNull -> "null"
-  | TChar -> "character"
-  | TStr -> "string"
-  | TList _ -> "list"
-  | TDict _ -> "dict"
-  | TRecord _ -> "dict"
-  | TFn _ -> "block"
-  | TVariable varname -> "any"
-  | TIncomplete -> "incomplete"
-  | TError -> "error"
-  | THttpResponse _ -> "response"
-  | TDB _ -> "datastore"
-  | TDate -> "date"
-  | TPassword -> "password"
-  | TUuid -> "uuid"
-  | TOption _ -> "option"
-  | TErrorRail -> "errorrail"
-  | TResult _ -> "result"
-  | TUserType (name, _) -> String.toLowercase name
-  | TBytes -> "bytes"
-
-// When printing to grand-users (our users' users) using text/plain, print a
-// human-readable format. TODO: this should probably be part of the functions
-// generating the responses. Redacts passwords.
-
+// SERIALIZER_DEF DvalReprLegacyExternal.toEnduserReadableTextV0
+// Plan: We'd like to deprecate this in favor of an improved version only
+// usable/used by StdLib functions in various http clients and middlewares.
+/// When printing to grand-users (our users' users) using text/plain, print a
+/// human-readable format. Redacts passwords.
 let toEnduserReadableTextV0 (dval : Dval) : string =
 
   let rec nestedreprfn dv =
@@ -226,6 +168,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
         if l = [] then
           "[]"
         else
+          // CLEANUP no good reason to have the space before the newline
           "[ " + inl + String.concat ", " (List.map recurse l) + nl + "]"
       | DObj o ->
         if o = Map.empty then
@@ -284,11 +227,15 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   reprfn dval
 
+// SERIALIZER_DEF STJ DvalReprLegacyExternal.toPrettyMachineJsonV1
+// Plan: make this a standard library function; use that within current usages
+// TODO: revise commentary here - may be inaccurate.
 /// For passing to Dark functions that operate on JSON, such as the JWT fns.
 /// This turns Option and Result into plain values, or null/error. String-like
 /// values are rendered as string. Redacts passwords.
 let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
+
   let writeOCamlFloatValue (f : float) =
     if System.Double.IsPositiveInfinity f then
       w.WriteStringValue("Infinity")
@@ -309,7 +256,6 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
     else
       let v = f |> string |> String.toLowercase
       w.WriteRawValue(v)
-
 
   match dv with
   // basic types
@@ -367,74 +313,9 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
 // Other formats
 // -------------------------
 
-/// For printing something for the developer to read, as a live-value, error
-/// message, etc. This will faithfully represent the code, textually. Redacts
-/// passwords. Customers should not come to rely on this format.
-let rec toDeveloperReprV0 (dv : Dval) : string =
-  let rec toRepr_ (indent : int) (dv : Dval) : string =
-    let makeSpaces len = "".PadRight(len, ' ')
-    let nl = "\n" + makeSpaces indent
-    let inl = "\n" + makeSpaces (indent + 2)
-    let indent = indent + 2
-    let typename = prettyTypename dv
-    let wrap str = $"<{typename}: {str}>"
-    let justtipe = $"<{typename}>"
-
-    match dv with
-    | DPassword _ -> "<password>"
-    | DStr s -> $"\"{s}\""
-    | DChar c -> $"'{c}'"
-    | DInt i -> string i
-    | DBool true -> "true"
-    | DBool false -> "false"
-    | DFloat f -> ocamlStringOfFloat f
-    | DNull -> "null"
-    | DFnVal _ ->
-      (* See docs/dblock-serialization.ml *)
-      justtipe
-    | DIncomplete _ -> justtipe
-    | DError _ -> "<error>"
-    | DDate d -> wrap (DDateTime.toIsoString d)
-    | DDB name -> wrap name
-    | DUuid uuid -> wrap (string uuid)
-    | DHttpResponse h ->
-      match h with
-      | Redirect url -> $"302 {url}" + nl + toRepr_ indent DNull
-      | Response (code, headers, hdv) ->
-        let headerString =
-          headers
-          |> List.map (fun (k, v) -> k + ": " + v)
-          |> String.concat ","
-          |> fun s -> "{ " + s + " }"
-
-        $"{code} {headerString}" + nl + toRepr_ indent hdv
-    | DList l ->
-      if List.isEmpty l then
-        "[]"
-      else
-        let elems = String.concat ", " (List.map (toRepr_ indent) l)
-        // CLEANUP: this space makes no sense
-        $"[ {inl}{elems}{nl}]"
-    | DObj o ->
-      if Map.isEmpty o then
-        "{}"
-      else
-        let strs =
-          Map.fold [] (fun l key value -> ($"{key}: {toRepr_ indent value}") :: l) o
-
-        let elems = String.concat $",{inl}" strs
-        // CLEANUP: this space makes no sense
-        "{ " + $"{inl}{elems}{nl}" + "}"
-    | DOption None -> "Nothing"
-    | DOption (Some dv) -> "Just " + toRepr_ indent dv
-    | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
-    | DResult (Error dv) -> "Error " + toRepr_ indent dv
-    | DErrorRail dv -> "ErrorRail: " + toRepr_ indent dv
-    | DBytes bytes -> Base64.defaultEncodeToString bytes
-
-  toRepr_ 0 dv
-
-
+// SERIALIZER_DEF DvalReprLegacyExternal.unsafeOfUnknownJsonV0
+// Plan: we want to replace this with type-based deserializers.
+// TODO: revise commentary here - may be inaccurate.
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
@@ -516,9 +397,10 @@ let unsafeOfUnknownJsonV0 str : Dval =
   with
   | _ -> Exception.raiseGrandUser "Invalid json"
 
-
-// When receiving unknown json from the user, or via a HTTP API, attempt to
-// convert everything into reasonable types, in the absense of a schema.
+// SERIALIZER_DEF STJ DvalReprLegacyExternal.ofUnknownJsonV1
+// Plan: add a Json::parse that can takes a type parameter; deprecate this fn
+/// When receiving unknown json from the user, or via a HTTP API, attempt to
+/// convert everything into reasonable types, in the absense of a schema.
 let ofUnknownJsonV1 str : Result<Dval, string> =
   let rec convert json =
     match json with
@@ -529,7 +411,7 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
     | JString s -> DStr s
     | JList l -> l |> List.map convert |> Dval.list
     | JObject fields ->
-      fields |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m) |> DObj
+      fields |> List.map (fun (k, v) -> k, (convert v)) |> Map |> DObj
     | JUndefined
     | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
@@ -551,23 +433,3 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
           msg
     Error msg
   | e -> Error e.Message
-
-
-// Converts an object to (string,string) pairs. Raises an exception if not an object
-let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
-  match dv with
-  | DObj obj ->
-    obj
-    |> Map.toList
-    |> List.map (fun pair ->
-      match pair with
-      | (k, DStr v) -> Ok(k, v)
-      | (k, v) ->
-        // CLEANUP: this was just to keep the error messages the same with OCaml. It's safe to change the error message
-        // Error $"Expected a string, but got: {toDeveloperReprV0 v}"
-        Error "expecting str")
-    |> Tablecloth.Result.values
-  | _ ->
-    // CLEANUP As above
-    // $"Expected a string, but got: {toDeveloperReprV0 dv}"
-    Error "expecting str"

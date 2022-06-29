@@ -9,7 +9,7 @@ open LibExecution.VendoredTablecloth
 module RT = LibExecution.RuntimeTypes
 module ContentType = HeadersV0.ContentType
 module MediaType = HeadersV0.MediaType
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module HttpQueryEncoding = BackendOnlyStdLib.HttpQueryEncoding
 
 
@@ -24,7 +24,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   match p with
   | Some (MediaType.Json _) ->
     (try
-      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.unsafeOfUnknownJsonV0
+      body |> UTF8.ofBytesUnsafe |> DvalReprLegacyExternal.unsafeOfUnknownJsonV0
      with
      | e ->
        Exception.raiseGrandUser $"Invalid json: {UTF8.ofBytesWithReplacement body}")
@@ -37,7 +37,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   | Some (MediaType.Other _)
   | None ->
     (try
-      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.unsafeOfUnknownJsonV0
+      body |> UTF8.ofBytesUnsafe |> DvalReprLegacyExternal.unsafeOfUnknownJsonV0
      with
      | e ->
        Exception.raiseGrandUser

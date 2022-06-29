@@ -31,7 +31,7 @@ let parametersNoBody =
     Param.make "query" (TDict TStr) ""
     Param.make "headers" (TDict TStr) "" ]
 
-let jsonFn = DvalReprExternal.toPrettyMachineJsonStringV1
+let jsonFn = DvalReprLegacyExternal.toPrettyMachineJsonStringV1
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "post" 2
