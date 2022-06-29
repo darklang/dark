@@ -141,7 +141,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     PT.EFloat(id, sign, whole, fraction)
   | SynExpr.Const (SynConst.String (s, _, _), _) -> PT.EString(id, s)
 
-  // simple operators like `==`
+  // simple identifiers like `==`
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
     let op =
       Map.get ident.idText ops
