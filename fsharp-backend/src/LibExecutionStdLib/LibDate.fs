@@ -266,6 +266,20 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "subtractSeconds" 0) }
+
+
+    { name = fn "Date" "subtractSeconds" 0
+      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
+      returnType = TDate
+      description = "Returns a new Date `seconds` seconds before `d`"
+      fn =
+        (function
+        | _, [ DDate d; DInt s ] ->
+          d - (NodaTime.Period.FromSeconds s) |> DDate |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlBinOp "-"
+      previewable = Pure
       deprecated = NotDeprecated }
 
 
@@ -580,7 +594,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Date" "diff" 0
+    // TODO: when we have timespans in Dark, deprecate this
+    // in favor of a fn which returns a timespan rather than seconds
+    { name = fn "Date" "subtract" 1
       parameters = [ Param.make "end" TDate ""; Param.make "start" TDate "" ]
       returnType = TInt
       description = "Returns the difference of the two dates, in seconds"
