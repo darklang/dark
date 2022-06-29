@@ -127,17 +127,21 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
                  ("op_BooleanOr", "||") ]
 
   let id = gid ()
+
   match ast with
+  // constant values
+  | SynExpr.Null _ -> PT.ENull id
   | SynExpr.Const (SynConst.Int32 n, _) -> PT.EInteger(id, n)
   | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInteger(id, int64 n)
   | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInteger(id, parseInt64 n)
-  | SynExpr.Null _ -> PT.ENull id
   | SynExpr.Const (SynConst.Char c, _) -> PT.ECharacter(id, string c)
   | SynExpr.Const (SynConst.Bool b, _) -> PT.EBool(id, b)
   | SynExpr.Const (SynConst.Double d, _) ->
     let sign, whole, fraction = readFloat d
     PT.EFloat(id, sign, whole, fraction)
   | SynExpr.Const (SynConst.String (s, _, _), _) -> PT.EString(id, s)
+
+  // simple operators like `==`
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
     let op =
       Map.get ident.idText ops
@@ -157,6 +161,8 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     PT.EConstructor(id, "Nothing", [])
   | SynExpr.Ident ident when ident.idText = "blank" -> PT.EBlank id
   | SynExpr.Ident name -> PT.EVariable(id, name.idText)
+
+  // lists and arrays
   | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
   // A literal list is sometimes made up of nested Sequentials
   | SynExpr.ArrayOrListComputed (_, (SynExpr.Sequential _ as seq), _) ->
@@ -169,7 +175,18 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     PT.EList(id, exprs |> List.map c)
   | SynExpr.ArrayOrListComputed (_, expr, _) -> PT.EList(id, [ c expr ])
 
-  // Note to self: LongIdent = Ident list
+  // tuples
+  | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
+    PT.ETuple(id, c first, c second, List.map c rest)
+
+  | SynExpr.Tuple (_, expr, _, _) ->
+    Exception.raiseInternal
+      "We don't support tuples of fewer than 2 elements"
+      [ "expr", expr ]
+
+
+  // Long Identifiers like Date.now, represented in the form of ["Date"; "now"]
+  // (LongIdent = Ident list)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ modName; fnName ], _), _, _) when
     System.Char.IsUpper(modName.idText[0])
     ->
@@ -249,10 +266,13 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
       |> List.map convertLambdaVar
       |> (List.map (fun name -> (gid (), name)))
     PT.ELambda(id, vars, c body)
+
+  // if/then expressions
   | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
     PT.EIf(id, c cond, c thenExpr, c elseExpr)
-  // When we add patterns on the lhs of lets, the pattern below could be
-  // expanded to use convertPat
+
+  // When we add patterns on the left hand side of lets, the pattern below
+  // could be expanded to use convertPat
   | SynExpr.LetOrUse (_,
                       _,
                       [ SynBinding (_,
@@ -374,7 +394,8 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
 
   | SynExpr.FromParseError _ as expr ->
     Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
-  | expr -> Exception.raiseInternal "Unsupported expression" [ "ast", ast ]
+  | expr ->
+    Exception.raiseInternal "Unsupported expression" [ "ast", ast; "expr", expr ]
 
 let convertToExpr e =
   e

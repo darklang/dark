@@ -18,6 +18,9 @@
 [ 5; Test.typeError_v0 "test"; 0 ] = [ 5; Test.typeError_v0 "test"; 0 ]
 [ 5; Test.errorRailValue_v0 Nothing; 0 ] = Test.errorRailValue_v0 Nothing
 
+[tests.tuple]
+(1, 2) = (1, 2)
+
 
 [tests.records]
 { col1 = 1 ; col1 = 2 } = Test.typeError_v0 "Duplicate key: col1"
