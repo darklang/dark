@@ -74,7 +74,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 let fns : List<BuiltInFn> =
   [ { name = fn "DarkInternal" "endUsers" 0
       parameters = []
-      returnType = TList varA
+      returnType = TList TStr
       description =
         "Return a <type list> of all user email addresses for non-admins and not in @darklang.com or @example.com"
       fn =
@@ -100,10 +100,9 @@ let fns : List<BuiltInFn> =
           Param.make "email" TStr ""
           Param.make "name" TStr ""
           Param.make "analyticsMetadata" (TDict TStr) "" ]
-      returnType = TResult(varA, TStr)
+      returnType = TResult(TStr, TStr)
       description =
-        "Add a user. Returns a result containing the password for the user,
-which was randomly generated. Usernames are unique; if you try to add a username
+        "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
@@ -143,7 +142,10 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "getUser" 1
       parameters = [ Param.make "username" TStr "" ]
-      returnType = TOption varA
+      returnType =
+        TOption(
+          TRecord [ "username", TStr; "name", TStr; "email", TStr; "admin", TBool ]
+        )
       description = "Return a user for the username. Does not include passwords."
       fn =
         internalFn (function
@@ -167,7 +169,10 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "getUserByEmail" 0
       parameters = [ Param.make "email" TStr "" ]
-      returnType = TOption varA
+      returnType =
+        TOption(
+          TRecord [ "username", TStr; "name", TStr; "email", TStr; "admin", TBool ]
+        )
       description = "Return a user for the email. Does not include passwords."
       fn =
         internalFn (function
@@ -278,8 +283,8 @@ that's already taken, returns an error."
                      JOIN canvases ON canvases.id = canvas_id
                     WHERE canvases.name = @name AND tipe = 'db'"
                 |> Sql.parameters [ "name", Sql.string canvasName ]
-                |> Sql.executeAsync (fun read -> read.string "tlid")
-              return dbTLIDs |> List.map DStr |> DList
+                |> Sql.executeAsync (fun read -> read.tlid "tlid")
+              return dbTLIDs |> List.map int64 |> List.map DInt |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -313,7 +318,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "sessionKeyToUsername" 0
       parameters = [ Param.make "sessionKey" TStr "" ]
-      returnType = TOption varA
+      returnType = TResult(TStr, TStr)
       description = "Looks up the username for a session_key"
       fn =
         internalFn (function
@@ -331,7 +336,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
       parameters = [ Param.make "canvasName" TStr "" ]
-      returnType = TOption varA
+      returnType = TOption TStr
       description = "Gives canvasId for a canvasName"
       fn =
         internalFn (function
@@ -342,6 +347,27 @@ that's already taken, returns an error."
                 return DOption(Some(DStr(string meta.id)))
               with
               | e -> return DOption None
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DarkInternal" "canvasIDOfCanvasName" 0) }
+
+
+    { name = fn "DarkInternal" "canvasIDOfCanvasName" 0
+      parameters = [ Param.make "canvasName" TStr "" ]
+      returnType = TResult(TUuid, TStr)
+      description = "Gives canvasID for a canvasName"
+      fn =
+        internalFn (function
+          | _, [ DStr canvasName ] ->
+            uply {
+              try
+                match! Canvas.getMeta (CanvasName.createExn canvasName) with
+                | Some meta -> return DResult(Ok(DUuid meta.id))
+                | None -> return DResult(Error(DStr "Canvas not found"))
+              with
+              | e -> return DResult(Error(DStr e.Message))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -381,7 +407,7 @@ that's already taken, returns an error."
         [ Param.make "username" TStr ""
           Param.make "org" TStr ""
           Param.make "permission" TStr "" ]
-      returnType = TResult(varA, TStr)
+      returnType = TResult(TStr, TStr)
       description = "Set a user's permissions for a particular auth_domain."
       fn =
         internalFn (function
@@ -421,8 +447,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "grantsFor" 0
       parameters = [ Param.make "org" TStr "" ]
-      returnType = TDict(varA)
-      // CLEANUP returnType = varA
+      returnType = TDict(TStr)
       description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
       fn =
@@ -446,7 +471,6 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "orgsFor" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TDict TStr
-      // returnType = varA // CLEANUP
       description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
       fn =
@@ -491,10 +515,9 @@ that's already taken, returns an error."
         [ Param.make "level" TStr ""
           Param.make "name" TStr ""
           Param.make "log" (TDict TStr) "" ]
-      returnType = TDict(TStr)
-      // returnType = varA
+      returnType = TDict TStr
       description =
-        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
+        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         internalFn (function
           | _, [ DStr level; DStr name; DObj log as result ] ->
@@ -571,65 +594,6 @@ that's already taken, returns an error."
       previewable = Impure
       deprecated = NotDeprecated }
 
-
-    { name = fn "DarkInternal" "getAllSchedulingRules" 0
-      parameters = []
-      returnType = TList varA
-      description = "Returns a list of all queue scheduling rules."
-      fn =
-        internalFn (function
-          | _, [] ->
-            uply {
-              let! rules = SchedulingRules.getAllSchedulingRules ()
-              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
-      parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList varA
-      description =
-        "Returns a list of all queue scheduling rules for the specified canvas_id"
-      // CLEANUP "Returns a list of all queue scheduling rules for the specified canvasID"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID ] ->
-            uply {
-              let! rules = SchedulingRules.getSchedulingRules canvasID
-              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
-      returnType = TNull
-      description =
-        "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-      fn = modifySchedule EventQueueV2.blockWorker
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
-      returnType = TNull
-      description =
-        "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-      fn = modifySchedule EventQueueV2.unblockWorker
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
 
 
     { name = fn "DarkInternal" "newSessionForUsername" 0
@@ -794,6 +758,352 @@ human-readable data."
             Exception.raiseInternal
               "DarkInternal::raiseInternalException"
               [ "arg", arg ]
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - 404s
+    // ---------------------
+    { name = fn "DarkInternal" "delete404" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""
+          Param.make "space" TStr ""
+          Param.make "path" TStr ""
+          Param.make "modifier" TStr "" ]
+      returnType = TNull
+      description = "Deletes a specific 404 for a canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr space; DStr path; DStr modifier ] ->
+            uply {
+              Telemetry.addTags [ "space", space
+                                  "path", path
+                                  "modifier", modifier ]
+              do! TraceInputs.delete404s canvasID space path modifier
+              return DNull
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getRecent404s" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType =
+        TList(
+          TRecord [ "space", TStr
+                    "path", TStr
+                    "modifier", TStr
+                    "timestamp", TDate
+                    "traceID", TUuid ]
+        )
+      description = "Fetch a list of recent 404s"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! f404s = TraceInputs.getRecent404s canvasID
+              return
+                f404s
+                |> List.map (fun (space, path, modifier, instant, traceID) ->
+                  [ "space", DStr space
+                    "path", DStr path
+                    "modifier", DStr modifier
+                    "timestamp", DDate(DDateTime.fromInstant instant)
+                    "traceID", DUuid traceID ]
+                  |> Map
+                  |> DObj)
+                |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - secrets
+    // ---------------------
+    { name = fn "DarkInternal" "getSecrets" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TDict TStr
+      description = "Get list of secrets in the canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! secrets = Secret.getCanvasSecrets canvasID
+              return
+                secrets |> List.map (fun s -> (s.name, DStr s.value)) |> Map |> DObj
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "deleteSecret" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "secretName" TStr "" ]
+      returnType = TNull
+      description = "Delete a secret"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr secretName ] ->
+            uply {
+              do! Secret.delete canvasID secretName
+              return DNull
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "insertSecret" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""
+          Param.make "secretName" TStr ""
+          Param.make "secretValue" TStr "" ]
+      returnType = TResult(TNull, TStr)
+      description = "Add a secret"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr secretName; DStr secretValue ] ->
+            uply {
+              try
+                do! Secret.insert canvasID secretName secretValue
+                return DResult(Ok DNull)
+              with
+              | e -> return DResult(Error(DStr "Error inserting secret"))
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - toplevels
+    // ---------------------
+    { name = fn "DarkInternal" "deleteToplevelForever" 0
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
+      returnType = TBool
+      description =
+        "Delete a toplevel forever. Requires that the toplevel already by deleted. If so, deletes and returns true. Otherwise returns false"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DInt tlid ] ->
+            uply {
+              let! meta = Canvas.getMetaFromID canvasID
+              let tlid = uint64 tlid
+              let! c =
+                Canvas.loadFrom Serialize.IncludeDeletedToplevels meta [ tlid ]
+              if Map.containsKey tlid c.deletedHandlers
+                 || Map.containsKey tlid c.deletedDBs
+                 || Map.containsKey tlid c.deletedUserTypes
+                 || Map.containsKey tlid c.deletedUserFunctions then
+                do! Canvas.deleteToplevelForever meta tlid
+                return DBool true
+              else
+                return DBool false
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - DBs
+    // ---------------------
+    { name = fn "DarkInternal" "unlockedDBs" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TList TInt
+      description = "Get a list of unlocked DBs"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! meta = Canvas.getMetaFromID canvasID
+              let! unlocked = UserDB.unlocked meta.owner meta.id
+              return unlocked |> List.map int64 |> List.map DInt |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - workers
+    // ---------------------
+    { name = fn "DarkInternal" "getQueueCount" 0
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
+      returnType = TList TInt
+      description = "Get count of how many events are in the queue for this tlid"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DInt tlid ] ->
+            uply {
+              let tlid = uint64 tlid
+              let! count = Stats.workerStats canvasID tlid
+              return DInt count
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getAllSchedulingRules" 0
+      parameters = []
+      returnType = TList varA
+      description = "Returns a list of all queue scheduling rules."
+      fn =
+        internalFn (function
+          | _, [] ->
+            uply {
+              let! rules = SchedulingRules.getAllSchedulingRules ()
+              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TList varA
+      description =
+        "Returns a list of all queue scheduling rules for the specified canvasID"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! rules = SchedulingRules.getSchedulingRules canvasID
+              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
+      returnType = TNull
+      description =
+        "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
+      fn = modifySchedule EventQueueV2.blockWorker
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
+      returnType = TNull
+      description =
+        "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
+      fn = modifySchedule EventQueueV2.unblockWorker
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - parts of initialLoad
+    // ---------------------
+    { name = fn "DarkInternal" "staticAssetsDeploys" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType =
+        TList(
+          TRecord [ "deployHash", TStr
+                    "url", TStr
+                    "status", TStr
+                    "lastUpdate", TDate ]
+        )
+      description = "Returns a list of deploys on this canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              let! meta = Canvas.getMetaFromID canvasID
+              let! deploys = StaticAssets.allDeploysInCanvas meta.name canvasID
+              return
+                deploys
+                |> List.map (fun d ->
+                  DObj(
+                    Map [ "deployHash", DStr d.deployHash
+                          "url", DStr d.url
+                          "status", DStr(string d.status)
+                          "lastUpdate", DDate(DDateTime.fromInstant d.lastUpdate) ]
+                  ))
+                |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - canvases and org metadata
+    // ---------------------
+    { name = fn "DarkInternal" "getCanvasList" 0
+      parameters = [ Param.make "userID" TUuid "" ]
+      returnType = TList TStr
+      description = "Returns all canvases owned by a user"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID ] ->
+            uply {
+              let! canvasList = Account.ownedCanvases userID
+              return canvasList |> List.map string |> List.map DStr |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getOrgCanvasList" 0
+      parameters = [ Param.make "userID" TUuid "" ]
+      returnType = TList TStr
+      description =
+        "Returns all canvases the user has access to via orgs (not including ones they have access to directly)"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID ] ->
+            uply {
+              let! canvasList = Account.accessibleCanvases userID
+              return canvasList |> List.map string |> List.map DStr |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getOrgList" 0
+      parameters = [ Param.make "userID" TUuid "" ]
+      returnType = TList TStr
+      description = "Returns all orgs the user is a member of"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID ] ->
+            uply {
+              let! canvasList = Account.orgs userID
+              return canvasList |> List.map string |> List.map DStr |> DList
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
