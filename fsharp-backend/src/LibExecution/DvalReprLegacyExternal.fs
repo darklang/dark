@@ -1,6 +1,14 @@
 /// Ways of converting Dvals to/from strings, with external use allowed
 module LibExecution.DvalReprLegacyExternal
 
+// The remaining functions in this file are used by the HttpClient or the Http
+// framework, and cannot be changed in their existing usages. The plan to
+// remove them is to replace both the Http framework with a middleware based
+// design, with some of that middleware being a typed json serializer. The
+// typed json serializer would be a standard library function, not something
+// that's an inate part of the framework/client in the way that these functions
+// are.
+
 // Printing Dvals is more complicated than you'd expect. Different situations
 // have different constraints, such as develop-focused representation showing
 // explicitly what the value is, vs an API-based representation which does
@@ -137,8 +145,7 @@ let ocamlStringOfFloat (f : float) : string =
 // Plan: We'd like to deprecate this in favor of an improved version only
 // usable/used by StdLib functions in various http clients and middlewares.
 /// When printing to grand-users (our users' users) using text/plain, print a
-/// human-readable format. TODO: this should probably be part of the functions
-/// generating the responses. Redacts passwords.
+/// human-readable format. Redacts passwords.
 let toEnduserReadableTextV0 (dval : Dval) : string =
 
   let rec nestedreprfn dv =
@@ -221,8 +228,8 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
   reprfn dval
 
 // SERIALIZER_DEF STJ DvalReprLegacyExternal.toPrettyMachineJsonV1
-// OK as-is
 // Plan: make this a standard library function; use that within current usages
+// TODO: revise commentary here - may be inaccurate.
 /// For passing to Dark functions that operate on JSON, such as the JWT fns.
 /// This turns Option and Result into plain values, or null/error. String-like
 /// values are rendered as string. Redacts passwords.
@@ -308,6 +315,7 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
 
 // SERIALIZER_DEF DvalReprLegacyExternal.unsafeOfUnknownJsonV0
 // Plan: we want to replace this with type-based deserializers.
+// TODO: revise commentary here - may be inaccurate.
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
