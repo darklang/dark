@@ -440,7 +440,33 @@ let formats =
       prettyPrinter = Some(BinarySerialization.Test.serializeOplistToJson 0UL)
       prefix = "oplist-binary"
       suffix = ".bin"
-      prettyPrinterSuffix = ".json" } ]
+      prettyPrinterSuffix = ".json" }
+    // DvalReprExternal
+    // - toEnduserReadableTextV0
+    // - toPrettyMachineJsonV1
+    // - toDeveloperReprV0
+    // - unsafeOfUnknownJsonV0
+    // - ofUnknownJsonV1
+    // DvalReprInternalDeprecated
+    // - unsafeDvalOfJsonV1
+    // - unsafeDvalToJsonValueV0
+    // - unsafeDvalToJsonValueV1
+    // - toInternalRoundtrippableV0
+    // - ofIntertnalRoundtrippableJsonV0
+    // - toInternalQueryableV1
+    // - ofInternalQueryableV1
+    // - hash 0
+    // - hash 1
+    // DvalReprInternalNew
+    // - toRoundtrippableJsonV0
+    // - parseRoundtrippableJsonV0
+    // Prelude.Json.Vanilla
+    // Prelude.Json.OCamlCompatible
+    // toStringPairs (LegacyBaseHttpClient)
+    // toStringPairs (HttpClient)
+    // LibJwt LegacySerializer.toYojson
+    // LibJwt LegacySerializer.ofYojson
+    ]
 
 let nameFor (f : Format) (pretty : bool) (version : string) =
   let (pretty, suffix) =
