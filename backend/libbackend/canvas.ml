@@ -966,13 +966,7 @@ let migrate_all_hosts () =
 
 
 let write_shape_data () =
-  if Config.should_write_shape_data
-  then
-    File.writefile
-      ~root:Serialization
-      Binary_serialization.digest
-      Binary_serialization.shape_string
-  else ()
+  ()
 
 
 let time (fn : unit -> 'a) : float * 'a =

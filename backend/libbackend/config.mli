@@ -17,8 +17,6 @@ val dir : root -> string
 
 val port : int
 
-val should_write_shape_data : bool
-
 val allow_test_routes : bool
 
 val create_accounts : bool
