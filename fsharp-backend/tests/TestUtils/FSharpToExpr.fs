@@ -179,12 +179,6 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
   | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
     PT.ETuple(id, c first, c second, List.map c rest)
 
-  | SynExpr.Tuple (_, expr, _, _) ->
-    Exception.raiseInternal
-      "We don't support tuples of fewer than 2 elements"
-      [ "expr", expr ]
-
-
   // Long Identifiers like Date.now, represented in the form of ["Date"; "now"]
   // (LongIdent = Ident list)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ modName; fnName ], _), _, _) when
@@ -194,6 +188,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
 
     let name, ster =
       match fnName.idText with
+      // ster = send to error
       | Regex "(.+)_v(\d+)_ster" [ name; version ] ->
         ($"{module_}::{name}_v{int version}", PT.Rail)
       | Regex "(.+)_v(\d+)" [ name; version ] ->

@@ -91,7 +91,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       let allResults = [ firstResult; secondResult ] @ otherResults
 
-      let foundIncompletes = List.filter (not << Dval.isIncomplete) allResults
+      let foundIncompletes = List.filter Dval.isIncomplete allResults
       let firstFoundError =
         List.tryFind (fun dv -> Dval.isErrorRail dv || Dval.isDError dv) allResults
 
