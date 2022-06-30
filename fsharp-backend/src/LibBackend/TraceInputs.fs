@@ -29,6 +29,8 @@ module Repr = LibExecution.DvalReprInternalDeprecated
 
 type EventRecord = HandlerDesc * NodaTime.Instant * AT.TraceID
 
+[<Json.Vanilla.Serializable("F404")>]
+[<Json.OCamlCompatible.Serializable("F404")>]
 type F404 = (string * string * string * NodaTime.Instant * AT.TraceID)
 
 type Limit =

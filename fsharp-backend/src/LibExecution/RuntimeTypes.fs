@@ -219,7 +219,8 @@ and DHTTP =
   | Response of int64 * List<string * string> * Dval
 
 and DDateTime = NodaTime.LocalDate
-and Dval =
+and [<Json.Vanilla.Serializable("RT.Dval");
+      Json.OCamlCompatible.Serializable("RT.Dval")>] Dval =
   | DInt of int64
   | DFloat of double
   | DBool of bool

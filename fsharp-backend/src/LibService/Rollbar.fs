@@ -164,6 +164,7 @@ let init (serviceName : string) : unit =
 // "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
 type HoneycombFilter = { column : string; op : string; value : string }
 
+[<Json.Vanilla.Serializable("HoneyCombJson")>]
 type HoneycombJson =
   { filters : List<HoneycombFilter>
     limit : int

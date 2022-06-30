@@ -5,6 +5,7 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
+[<Prelude.Json.Vanilla.Serializable("PT.Position")>]
 type Position = { x : int; y : int }
 
 /// A Fully-Qualified Function Name
@@ -186,6 +187,8 @@ module Handler =
     // CLEANUP: convert these into repl and get rid of this case
     | UnknownHandler of string * string * ids
 
+  [<Prelude.Json.Vanilla.Serializable("PT.Handler.T")>]
+  [<Prelude.Json.OCamlCompatible.Serializable("PT.Handler.T")>]
   type T = { tlid : tlid; pos : Position; ast : Expr; spec : Spec }
 
 

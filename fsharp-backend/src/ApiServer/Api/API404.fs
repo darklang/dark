@@ -14,6 +14,7 @@ module Telemetry = LibService.Telemetry
 
 module List =
 
+  [<Json.OCamlCompatible.Serializable("Api404.List.T")>]
   type T = { f404s : List<TI.F404> }
 
   /// Endpoint to fetch a list of recent 404s
@@ -28,7 +29,10 @@ module List =
     }
 
 module Delete =
+  [<Json.OCamlCompatible.Serializable("Api404.Delete.T")>]
   type T = { result : string }
+
+  [<Json.OCamlCompatible.Serializable("Api404.Delete.Params")>]
   type Params = { space : string; path : string; modifier : string }
 
   /// Endpoint to delete a 404

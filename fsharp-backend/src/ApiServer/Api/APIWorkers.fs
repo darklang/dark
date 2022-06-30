@@ -22,8 +22,11 @@ module Telemetry = LibService.Telemetry
 module SchedulingRules = LibBackend.QueueSchedulingRules
 
 module WorkerStats =
+
+  [<Json.OCamlCompatible.Serializable("ApiWorkers.Stats.Params")>]
   type Params = { tlid : tlid }
 
+  [<Json.OCamlCompatible.Serializable("ApiWorkers.Stats.T")>]
   type T = { count : int }
 
   /// API endpoint to get statistical data related to a Worker
@@ -40,7 +43,10 @@ module WorkerStats =
     }
 
 module Scheduler =
+  [<Json.OCamlCompatible.Serializable("ApiWorkers.Scheduler.Params")>]
   type Params = { name : string; schedule : string }
+
+  [<Json.OCamlCompatible.Serializable("ApiWorkers.Scheduler.T")>]
   type T = SchedulingRules.WorkerStates.T
 
   /// API endpoint to update the Schedule of a Worker

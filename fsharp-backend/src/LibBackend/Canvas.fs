@@ -631,7 +631,7 @@ let tryLoadJsonFromDisk
   |> File.tryReadFile root
   |> Option.map (fun json ->
     json
-    |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
+    |> Json.Vanilla.deserialize<OT.oplist>
     |> OT.Convert.ocamlOplist2PT
     |> Op.oplist2TLIDOplists)
 

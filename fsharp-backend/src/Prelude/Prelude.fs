@@ -882,6 +882,25 @@ type Password = Password of byte array
 // ----------------------
 module Json =
 
+  let isBaseType (t : System.Type) =
+    t = typeof<int>
+    || t = typeof<bool>
+    || t = typeof<string>
+    || t = typeof<float>
+    || t = typeof<int64>
+    || t = typeof<uint64>
+    || t = typeof<NodaTime.Instant>
+    || t = typeof<System.Guid>
+
+  let isAllowedGenericType (t : System.Type) =
+    t.IsGenericType
+    && (t.Name = "FSharpMap`2"
+        || t.Name = "FSharpList`1"
+        || t.Name = "Tuple`2"
+        || t.Name = "Tuple`3"
+        || t.Name = "Tuple`4"
+        || t.Name = "Tuple`5")
+
   module Vanilla =
 
     open System.Text.Json
@@ -982,17 +1001,67 @@ module Json =
       // supports the type, not the best one
       _options.Converters.Insert(0, c)
 
-    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
+    // ----------------------
+    // Tracking serializers
+    // ----------------------
+
+    // Serializers are easy to be unsure about. We use the Vanilla and Json serializers a
+    // lot for random types, and we would like to be sure that we don't accidentally
+    // change the format of those types by adding new converters or whatever. Our
+    // solution this is:
+    // 1) track all types that are serialized and also how they are // serialized
+    // 2) store sample input/output for each type, and test them it
+    // 3) warn when serializing using a type that is not a known serializer.
+
+    // We track the types using an attributes, added to all the types that we wish to
+    // serialize. Those attributes add the type to a dictionary: at test time we check
+    // all members of the dictionary are accounted for. At runtime we warn if we're
+    // attempt to serialize a type without the annotation. During development, we upgrade
+    // that warning to an exception.
+
+    let mutable vanillaSerializers =
+      System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
+
+    type Serializable(name : string) =
+      inherit System.Attribute()
+      do vanillaSerializers[name] <- true
+
+    let rec isSerializable (t : System.Type) : bool =
+      if isAllowedGenericType t then
+        t.GetGenericArguments() |> Array.forall isSerializable
+      elif isBaseType t then
+        true
+      else
+        try
+          t
+          |> System.Attribute.GetCustomAttributes
+          |> Array.exists (fun attr -> attr :? Serializable)
+        with
+        | _ -> false
+
+    let assertSerializable (t : System.Type) : unit =
+      if not (isSerializable t) then
+        Exception.raiseInternal
+          "Invalid serialization call to unannotated type: annotate this type with [<Json.Vanilla.Serializable(name)>]"
+          [ "type", string t ]
+
+
+    let serialize (data : 'a) : string =
+      assertSerializable typeof<'a>
+      JsonSerializer.Serialize(data, _options)
 
     let deserialize<'a> (json : string) : 'a =
+      assertSerializable typeof<'a>
       JsonSerializer.Deserialize<'a>(json, _options)
 
     let deserializeWithComments<'a> (json : string) : 'a =
+      assertSerializable typeof<'a>
       let options = getOptions ()
       options.ReadCommentHandling <- JsonCommentHandling.Skip
       JsonSerializer.Deserialize<'a>(json, options)
 
     let prettySerialize (data : 'a) : string =
+      assertSerializable typeof<'a>
       let options = getOptions ()
       options.WriteIndented <- true
       JsonSerializer.Serialize(data, options)
@@ -1147,21 +1216,6 @@ module Json =
         ) : unit =
         writer.WriteValue("Redacted")
 
-    type NonRedactedPasswordConverter() =
-      inherit JsonConverter<Password>()
-      // Corresponds to the PasswordBytes serializers in OCaml
-      override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode |> Password
-
-      override _.WriteJson
-        (
-          writer : JsonWriter,
-          (Password bytes) : Password,
-          _ : JsonSerializer
-        ) =
-        bytes |> Base64.urlEncodeToString |> writer.WriteValue
-
-
     type OCamlRawBytesConverter() =
       inherit JsonConverter<byte array>()
       // Corresponds to the RawBytes serializers in OCaml, and generates the url-safe
@@ -1283,8 +1337,7 @@ module Json =
         | _ -> writer.WriteValue value
 
 
-    let getSettings (redactPasswords : bool) =
-      // Do NOT redact passwords when calling the legacyServer
+    let getSettings () =
       let settings = JsonSerializerSettings()
       // This might be a potential vulnerability, turn it off anyway
       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
@@ -1293,10 +1346,7 @@ module Json =
       settings.MaxDepth <- System.Int32.MaxValue // infinite
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
-      if redactPasswords then
-        settings.Converters.Add(RedactedPasswordConverter())
-      else
-        settings.Converters.Add(NonRedactedPasswordConverter())
+      settings.Converters.Add(RedactedPasswordConverter())
       settings.Converters.Add(TLIDConverter())
       settings.Converters.Add(LocalDateTimeConverter())
       settings.Converters.Add(FSharpListConverter())
@@ -1307,34 +1357,53 @@ module Json =
       settings.Converters.Add(FSharpTupleConverter()) // gets tripped up so put last
       settings
 
-    let _settings = getSettings true
-    let _legacySettings = getSettings false
+    let _settings = getSettings ()
 
     let registerConverter (c : JsonConverter<'a>) =
       // insert in the front as the formatter will use the first converter that
       // supports the type, not the best one
       _settings.Converters.Insert(0, c)
-      _legacySettings.Converters.Insert(0, c)
 
     let prettySerialize (data : 'a) : string =
-      let settings = getSettings true
+      let settings = getSettings ()
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
+    let mutable serializers =
+      System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
+
+    type Serializable(name : string) =
+      inherit System.Attribute()
+      do serializers[name] <- true
+
+    let rec isSerializable (t : System.Type) : bool =
+      if isAllowedGenericType t then
+        t.GetGenericArguments() |> Array.forall isSerializable
+      elif isBaseType t then
+        true
+      else
+        try
+          t
+          |> System.Attribute.GetCustomAttributes
+          |> Array.exists (fun attr -> attr :? Serializable)
+        with
+        | _ -> false
+
+    let assertSerializable (t : System.Type) : unit =
+      if not (isSerializable t) then
+        Exception.raiseInternal
+          "Invalid serialization call to unannotated type: annotate this type with [<Json.Vanilla.Serializable(name)>]"
+          [ "type", string t ]
+
+
+
     /// Serialize to JSON
-    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
-
-    /// Serialize WITHOUT redacting passwords. Only used for communicating to the
-    /// legacy server, where passwords in Dvals not be redacted because we want to
-    /// interoperate on real values. This is only needed for fuzzing, as we don't
-    /// translate Dvals in the ordinary course of business.
-    let legacySerialize (data : 'a) : string =
-      JsonConvert.SerializeObject(data, _legacySettings)
-
-    let legacyDeserialize<'a> (json : string) : 'a =
-      JsonConvert.DeserializeObject<'a>(json, _legacySettings)
+    let serialize (data : 'a) : string =
+      assertSerializable typeof<'a>
+      JsonConvert.SerializeObject(data, _settings)
 
     let deserialize<'a> (json : string) : 'a =
+      assertSerializable typeof<'a>
       JsonConvert.DeserializeObject<'a>(json, _settings)
 
 
@@ -1745,6 +1814,7 @@ module Task =
 // them, you should move these to the files with specific formats and serialize
 // them there.
 
+[<Json.Vanilla.Serializable("Replacements")>]
 type pos = { x : int; y : int }
 
 type CanvasID = System.Guid

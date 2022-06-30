@@ -22,6 +22,7 @@ module TI = LibBackend.TraceInputs
 module Telemetry = LibService.Telemetry
 
 module Unlocked =
+  [<Json.OCamlCompatible.Serializable("ApiDBs.Unlocked.T")>]
   type T = { unlocked_dbs : tlid list }
 
   /// API endpoint to fetch a list of unlocked User DBs
@@ -39,8 +40,12 @@ module Unlocked =
     }
 
 module DBStats =
+  [<Json.OCamlCompatible.Serializable("ApiDBs.DbStats.Params")>]
   type Params = { tlids : tlid list }
+
+  [<Json.OCamlCompatible.Serializable("ApiDBs.DbStats.Stat")>]
   type Stat = { count : int; example : Option<ORT.dval * string> }
+
   type T = Map<string, Stat>
 
   /// API endpoint to get statistical data regarding User DBs

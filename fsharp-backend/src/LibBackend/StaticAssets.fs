@@ -32,6 +32,7 @@ type StaticAssetError =
   | FailureUploadingStaticAsset of string
   | FailureDeletingStaticAsset of string
 
+[<Json.Vanilla.Serializable("StaticDeploy")>]
 type StaticDeploy =
   { deployHash : string
     url : string

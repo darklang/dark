@@ -756,7 +756,7 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                             | other -> other
                           // We don't have these anymore
                           types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
-    let canonicalizeUserFn (uf : ORT.user_fn<ORT.fluidExpr>) =
+    let canonicalizeUserFn (uf : ORT.user_fn) =
       { uf with
           ast = canonicalizeAst uf.ast
           metadata =

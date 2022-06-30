@@ -53,9 +53,7 @@ module ClientInterop =
         |> OT.Convert.pt2ocamlTipe
       (name, (OT.Filled(id, typ)))
 
-  let convert_migration
-    (m : client_db_migration)
-    : ORT.fluidExpr ORT.DbT.db_migration =
+  let convert_migration (m : client_db_migration) : ORT.DbT.db_migration =
     { starting_version = m.starting_version
       version = m.version
       state = m.state
@@ -64,7 +62,7 @@ module ClientInterop =
       cols = List.map convert_col m.cols }
 
 
-  let convert_db (db : client_db) : ORT.fluidExpr ORT.DbT.db =
+  let convert_db (db : client_db) : ORT.DbT.db =
     { tlid = db.tlid
       name = db.name
       cols = List.map convert_col db.cols
@@ -98,25 +96,26 @@ module ClientInterop =
   // High-level defs
   // -----------------------
   type handler_analysis_param =
-    { handler : ORT.fluidExpr ORT.HandlerT.handler
+    { handler : ORT.HandlerT.handler
       trace_id : AT.TraceID
       trace_data : TraceData
       // don't use a trace as this isn't optional
       dbs : client_db list
-      user_fns : ORT.fluidExpr ORT.user_fn list
+      user_fns : ORT.user_fn list
       user_tipes : ORT.user_tipe list
       secrets : OT.secret list }
 
   type function_analysis_param =
-    { func : ORT.fluidExpr ORT.user_fn
+    { func : ORT.user_fn
       trace_id : AT.TraceID
       trace_data : TraceData
       // don't use a trace as this isn't optional
       dbs : client_db list
-      user_fns : ORT.fluidExpr ORT.user_fn list
+      user_fns : ORT.user_fn list
       user_tipes : ORT.user_tipe list
       secrets : OT.secret list }
 
+  [<Json.Vanilla.Serializable("performAnalysisParams")>]
   type performAnalysisParams =
     /// This is called `performHandlerAnalysisParam` in the client
     | AnalyzeHandler of handler_analysis_param
@@ -166,9 +165,9 @@ module Eval =
     (tlid : tlid)
     (traceID : AT.TraceID)
     (traceData : AT.TraceData)
-    (userFns : List<ORT.fluidExpr ORT.user_fn>)
+    (userFns : List<ORT.user_fn>)
     (userTypes : List<ORT.user_tipe>)
-    (dbs : List<ORT.fluidExpr ORT.DbT.db>)
+    (dbs : List<ORT.DbT.db>)
     (expr : ORT.fluidExpr)
     (secrets : List<OT.secret>)
     : Task<ClientInterop.AnalysisEnvelope> =
@@ -271,6 +270,9 @@ open System.Reflection
 type GetGlobalObjectDelegate = delegate of string -> obj
 
 type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
+
+[<Json.Vanilla.Serializable("AnalysisResult")>]
+type AnalysisResult = Result<ClientInterop.AnalysisEnvelope, string>
 
 /// Responsible for interacting with the JS world
 ///

@@ -53,7 +53,6 @@ let hashedFilename (filename : string) (hash : string) : string =
     let name = parts[.. (parts.Length - 2)] |> String.concat "."
     $"/{name}-{hash}.{extension}"
 
-
 let prodHashReplacements : Map<string, string> =
   "etags.json"
   |> File.readfile Config.Webroot

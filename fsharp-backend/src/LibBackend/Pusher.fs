@@ -56,6 +56,8 @@ let push
       return ()
     })
 
+[<Json.Vanilla.Serializable("NewTraceID")>]
+type NewTraceID = AT.TraceID * List<tlid>
 
 let pushNewTraceID
   (canvasID : CanvasID)
@@ -72,6 +74,7 @@ let pushNew404 (canvasID : CanvasID) (f404 : TraceInputs.F404) =
 let pushNewStaticDeploy (canvasID : CanvasID) (asset : StaticAssets.StaticDeploy) =
   push canvasID "new_static_deploy" (Json.Vanilla.serialize asset)
 
+[<Json.Vanilla.Serializable("AddOpEventTooBigPayload")>]
 type AddOpEventTooBigPayload = { tlids : List<tlid> }
 
 // For exposure as a DarkInternal function

@@ -39,7 +39,7 @@ module RoundtrippableSerializationFormatV0 =
     | Redirect of string
     | Response of int64 * List<string * string> * Dval
 
-  and Dval =
+  and [<Json.Vanilla.Serializable("RoundtrippableSerializationFormatV0")>] Dval =
     | DInt of int64
     | DFloat of double
     | DBool of bool

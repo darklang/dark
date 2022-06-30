@@ -412,15 +412,6 @@ module Password =
             password
             (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
-        }
-        test "ocamlcompatible without redaction" {
-          let expectedPassword = RT.DPassword(Password(UTF8.toBytes "some password"))
-          let password =
-            expectedPassword
-            |> Json.OCamlCompatible.legacySerialize
-            |> Json.OCamlCompatible.legacyDeserialize
-
-          Expect.equal password expectedPassword "should not be redacted"
         } ]
 
 

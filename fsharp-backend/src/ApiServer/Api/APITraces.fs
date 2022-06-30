@@ -19,6 +19,7 @@ module Convert = LibExecution.OCamlTypes.Convert
 module Telemetry = LibService.Telemetry
 
 module TraceData =
+  [<Json.OCamlCompatible.Serializable("ApiTraces.TraceParams")>]
   type Params = { tlid : tlid; trace_id : AT.TraceID }
 
   // CLEANUP: this uses ORT.dval instead of RT.Dval
@@ -34,6 +35,8 @@ module TraceData =
       function_results : List<FunctionResult> }
 
   type Trace = AT.TraceID * TraceData
+
+  [<Json.OCamlCompatible.Serializable("ApiTraces.TraceResult")>]
   type TraceResult = { trace : Trace }
 
   type T = Option<TraceResult>
