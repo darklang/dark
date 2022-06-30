@@ -1021,12 +1021,12 @@ module Json =
     // attempt to serialize a type without the annotation. During development, we upgrade
     // that warning to an exception.
 
-    let mutable vanillaSerializers =
+    let mutable annotatedTypes =
       System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
 
     type Serializable(name : string) =
       inherit System.Attribute()
-      do vanillaSerializers[name] <- true
+      do annotatedTypes[name] <- true
 
     let rec isSerializable (t : System.Type) : bool =
       if isAllowedGenericType t then
@@ -1371,12 +1371,12 @@ module Json =
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
-    let mutable serializers =
+    let mutable annotatedTypes =
       System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
 
     type Serializable(name : string) =
       inherit System.Attribute()
-      do serializers[name] <- true
+      do annotatedTypes[name] <- true
 
     let rec isSerializable (t : System.Type) : bool =
       if isAllowedGenericType t then
