@@ -123,6 +123,7 @@ module ClientInterop =
     /// This is called `performHandlerFunctionParam` in the client
     | AnalyzeFunction of function_analysis_param
 
+  [<Json.Vanilla.Serializable("ExecutionResult")>]
   type ExecutionResult =
     | ExecutedResult of ORT.dval
     | NonExecutedResult of ORT.dval

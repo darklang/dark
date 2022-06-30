@@ -896,6 +896,8 @@ module Json =
     t.IsGenericType
     && (t.Name = "FSharpMap`2"
         || t.Name = "FSharpList`1"
+        || t.Name = "FSharpResult`2"
+        || t.Name = "Dictionary`2" // System.Collections.Generic.Dictionary
         || t.Name = "Tuple`2"
         || t.Name = "Tuple`3"
         || t.Name = "Tuple`4"
@@ -1392,7 +1394,7 @@ module Json =
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
         Exception.raiseInternal
-          "Invalid serialization call to unannotated type: annotate this type with [<Json.Vanilla.Serializable(name)>]"
+          "Invalid serialization call to unannotated type: annotate this type with [<Json.OCamlCompatible.Serializable(name)>]"
           [ "type", string t ]
 
 

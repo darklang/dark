@@ -94,6 +94,7 @@ module TraceData =
 
 module AllTraces =
 
+  [<Json.OCamlCompatible.Serializable("ApiTraces.TraceResult")>]
   type T = { traces : List<tlid * AT.TraceID> }
 
   /// API endpoint to fetch a list of Traces for a Toplevel
