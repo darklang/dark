@@ -3992,8 +3992,6 @@ let run = () => {
     )
     ()
   })
-
-
   describe("Tuples",  () => {
     describe("render", () => {
       t(
@@ -4026,335 +4024,332 @@ let run = () => {
         render,
         "~(4611686018427387.12345678901234567989048290381902830912830912830912830912309128901234567890123456789,\n 4611686018427387.1234567890183918309183091809183091283019832345678901234567890123456789,\n 4611686018427387.123456)"
       )
-
-      // t
-      //   "a nested very tuple wraps with proper indents"
-      //   (let' "a" veryBigTuple b)
-      //   render
-      //   "~let a = (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78)\n___"
-
+      t(
+        "a nested very tuple wraps with proper indents",
+        let'("a", tupleHuge, b),
+        render,
+        "~let a = (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78)\n___"
+      )
+      ()
+    })
+    describe("navigate", () => {
+      t(
+        "ctrl+left at the beginning of tuple item moves to beginning of next tuple item",
+        tuple(fiftySix, seventyEight, list{fiftySix, seventyEight, fiftySix, seventyEight}),
+        ~pos=10, // after the third comma, before the 2nd 78
+        ctrlLeft,
+        "(56,78,~56,78,56,78)"
+      )
+      t(
+        "ctrl+right at the end of tuple item moves to end of next tuple item",
+        tuple6,
+        ~pos=12,
+        ctrlRight,
+        "(56,78,56,78,56~,78)"
+      )
+      ()
+    })
+    // todo: add more describes below - helps to break things down.
+    describe("create", () => {
+      t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
+      t(
+        "inserting ( before true creates a wrapping tuple",
+        trueBool,
+        ~pos=0,
+        ins("("),
+        "(~true,___)"
+      )
+      t(
+        "inserting ( before false creates a wrapping tuple",
+        falseBool,
+        ~pos=0,
+        ins("("),
+        "(~false,___)"
+      )
+      t(
+        "inserting ( before int creates a simple tuple",
+        aShortInt,
+        ~pos=0,
+        ins("("),
+        "(~1,___)"
+      )
+      t( // todo: review this test, not sure what's going on.
+        "inserting ( before multiline string creates a wrapping tuple",
+        mlStrWSpace,
+        ~pos=0,
+        ins("("),
+        "(~\"123456789_abcdefghi,123456789_abcdefghi,\n  123456789_ abcdefghi, 123456789_ abcdef\n ghi,\",___)"
+      )
+      t(
+        "inserting ( before null creates a wrapping tuple",
+        aNull,
+        ~pos=0,
+        ins("("),
+        "(~null,___)"
+      )
+      t(
+        "inserting ( before float creates a wrapping tuple",
+        aFloat,
+        ~pos=0,
+        ins("("),
+        "(~123.456,___)"
+      )
+      t(
+        "inserting ( before function call creates a wrapping tuple",
+        aFullFnCall,
+        ~pos=0,
+        ins("("),
+        "(~Int::add 5 5,___)"
+      )
+      t(
+        "inserting ( before variable creates a wrapping tuple",
+        aVar,
+        ~pos=0,
+        ins("("),
+        "(~variable,___)"
+      )
+      t(
+        "inserting ( before empty tuple open wraps it in another tuple",
+        tuple2WithBothBlank,
+        ~pos=0,
+        ins("("),
+        "(~(___,___),___)"
+      )
+      t(
+        "inserting ( before tuple open wraps it in another tuple",
+        tuple2WithNoBlank,
+        ~pos=0,
+        ins("("),
+        "(~(56,78),___)"
+      )
+      t(
+        "inserting ( before record open wraps it in a tuple",
+        singleRowRecord,
+        ~pos=0,
+        ins("("),
+        "(~{\n   f1 : 56\n },___)"
+      )
+      t(
+        "inserting ( before constructor creates a wrapping tuple",
+        aConstructor,
+        ~pos=0,
+        ins("("),
+        "(~Just ___,___)"
+      )
+      ()
     })
 
-    // todo: add more describes below - helps to break things down.
-
-    // move around (arrow keys and ctrl+arrow)
-    // t
-    //   "ctrl+left at the beg of tuple item moves to beg of next tuple item"
-    //   bigTuple
-    //   ~pos:10
-    //   ctrlLeft
-    //   "(56,78,~56,78,56,78)"
-
-    // t
-    //   "ctrl+right at the end of tuple item moves to end of next tuple item"
-    //   bigTuple
-    //   ~pos:12
-    //   ctrlRight
-    //   "(56,78,56,78,56~,78)"
-
-    // create
-    t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
-
-
     // insert
-    t("insert into empty tuple inserts", tuple2WithBothBlank, ~pos=1, ins("5"), "(5~,___)")
-    t("inserting before a tuple is no-op", tuple2WithBothBlank, ~pos=0, ins("5"), "~(___,___)")
-    tStruct( // todo: review this - I'm not sure what it does.
-      "inserting before a tuple at top-level creates left partial",
-      tuple2WithBothBlank,
-      ~pos=0,
-      list{InsertText("c")},
-      (leftPartial("c", tuple2WithBothBlank))
-    )
-    t( // todo: review this - I'm not sure what it does.
-      "insert space into multi tuple",
-      tuple2WithNoBlank,
-      ~pos=6,
-      key(K.Space),
-      "(56,78~)"
-    )
-    t(
-      "insert separator after separator creates blank",
-      tuple(int(1), int(2), list{int(3)}),
-      ~pos=5,
-      ins(","),
-      "(1,2,~___,3)"
-    )
+    describe("insert", () => {
+      t("insert into empty tuple inserts", tuple2WithBothBlank, ~pos=1, ins("5"), "(5~,___)")
+      t("inserting before a tuple is no-op", tuple2WithBothBlank, ~pos=0, ins("5"), "~(___,___)")
+      tStruct( // todo: review this - I'm not sure what it does.
+        "inserting before a tuple at top-level creates left partial",
+        tuple2WithBothBlank,
+        ~pos=0,
+        list{InsertText("c")},
+        (leftPartial("c", tuple2WithBothBlank))
+      )
+      t( // todo: review this - I'm not sure what it does.
+        "insert space into multi tuple",
+        tuple2WithNoBlank,
+        ~pos=6, // right before closing )
+        key(K.Space),
+        "(56,78~)"
+      )
+      t(
+        "insert separator after separator creates blank",
+        tuple(int(1), int(2), list{int(3)}),
+        ~pos=5, // after the second comma
+        ins(","),
+        "(1,2,~___,3)"
+      )
+      t(
+        "inserting space into simple tuple does nothing",
+        tuple2WithNoBlank,
+        ~pos=3,
+        key(K.Space),
+        "(56~,78)"
+      )
+      t("insert into existing tuple item", tuple2WithNoBlank, ~pos=1, ins("4"), "(4~56,78)")
+      t(
+        "insert separator before item creates blank",
+        tuple2WithNoBlank,
+        ~pos=1,
+        ins(","),
+        "(~___,56,78)"
+      )
+      t(
+        "insert separator after item creates blank",
+        tuple2WithNoBlank,
+        ~pos=6, // after 78
+        ins(","),
+        "(56,78,~___)"
+      )
+      // t
+      //   "insert , in string in tuple types ,"
+      //   (tuple [str "01234567890123456789012345678901234567890"])
+      //   ~pos:44
+      //   (ins ",")
+      //   "(\"0123456789012345678901234567890123456789\n ,~0\")"
 
-    // t
-    //   "inserting ( before int creates a singleton int tuple"
-    //   aShortInt
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~1)"
+      // t
+      //   "insert separator after item creates blank when tuple is in match"
+      //   (match' singleTuple [(pBlank (), b)])
+      //   ~pos:9
+      //   (ins ",")
+      //   "match (56,~___)\n  *** -> ___\n"
 
-    // t
-    //   "inserting ( before multiline string creates a singleton string tuple"
-    //   mlStrWSpace
-    //   ~pos:0
-    //   (ins "(")
-    //   ( "(~\"123456789_abcdefghi,123456789_abcdefghi,\n"
-    //   ^ "  123456789_ abcdefghi, 123456789_ abcdef\n"
-    //   ^ " ghi,\")" )
+      // t
+      //   "insert separator between items creates blank"
+      //   multiTuple
+      //   ~pos:3
+      //   (ins ",")
+      //   "(56,~___,78)"
 
-    // t
-    //   "inserting ( before true creates a singleton bool tuple"
-    //   trueBool
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~true)"
+      // (* t "insert separator mid integer makes two items" singleTuple (ins ',' 2) *)
+      // (*   ("(5,6)", 3) ; *)
+      // (* TODO: when on a separator in a nested tuple, pressing comma makes an entry outside the tuple. *)
+      // t
+      //   "insert separator mid string does nothing special "
+      //   tupleWithStr
+      //   ~pos:3
+      //   (ins ",")
+      //   "(\"a,~b\")"
+      t(
+        "close bracket at end of tuple is swallowed",
+        tuple2WithNoBlank,
+        ~pos=6, // right before closing )
+        ins(")"),
+        "(56,78)~"
+      )
+      ()
+    })
 
-    // t
-    //   "inserting ( before true creates a singleton bool tuple"
-    //   falseBool
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~false)"
+    describe("deletion", () => {
+      // backspace/delete
+      // t
+      //   "deleting ( from a singleton remove a tuple wrapping"
+      //   singleTuple
+      //   ~pos:0
+      //   del
+      //   "~56"
 
-    // t
-    //   "inserting ( before true creates a singleton bool tuple"
-    //   aNull
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~null)"
+      // t
+      //   "backspacing ( from a singleton remove a tuple wrapping"
+      //   singleTuple
+      //   ~pos:1
+      //   bs
+      //   "~56"
 
-    // t
-    //   "inserting ( before float creates a singleton float tuple"
-    //   aFloat
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~123.456)"
+      // t
+      //   "a delete with caret before a blank in front of a tuple will delete the blank"
+      //   tupleWithBlankAtStart
+      //   ~pos:1
+      //   del
+      //   "(~56,78,56)"
 
-    // t
-    //   "inserting ( before function call creates a singleton function tuple"
-    //   aFullFnCall
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~Int::add 5 5)"
+      // t
+      //   "a delete with caret before a tuple with just a blank removes the blank"
+      //   tupleWithJustABlank
+      //   ~pos:1
+      //   del
+      //   "(~)"
 
-    // t
-    //   "inserting ( before variable creates a singleton with variable"
-    //   aVar
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~variable)"
+      // t
+      //   "bs on first separator between ints merges ints on either side of sep"
+      //   multiTuple
+      //   ~pos:4
+      //   bs
+      //   "(56~78)"
 
-    // t
-    //   "inserting ( before empty tuple open wraps it in another tuple"
-    //   emptyTuple
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~())"
+      // t
+      //   "del before first separator between ints merges ints on either side of sep"
+      //   multiTuple
+      //   ~pos:3
+      //   del
+      //   "(56~78)"
 
-    // t
-    //   "inserting ( before tuple open wraps it in another tuple"
-    //   multiTuple
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~(56,78))"
+      // t
+      //   "bs on middle separator between ints merges ints on either side of sep"
+      //   bigTuple
+      //   ~pos:10
+      //   bs
+      //   "(56,78,56~78,56,78)"
 
-    // t
-    //   "inserting ( before record open wraps it in a tuple"
-    //   singleRowRecord
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~{\n   f1 : 56\n })"
+      // t
+      //   "del before middle separator between ints merges ints on either side of sep"
+      //   bigTuple
+      //   ~pos:9
+      //   del
+      //   "(56,78,56~78,56,78)"
 
-    // t
-    //   "inserting ( before constructor creates a singleton of that type"
-    //   aConstructor
-    //   ~pos:0
-    //   (ins "(")
-    //   "(~Just ___)"
+      // t
+      //   "bs on separator between item and blank dels blank"
+      //   tupleWithBlank
+      //   ~pos:7
+      //   bs
+      //   "(56,78~,56)"
 
-    // t
-    //   "insert space into single tuple"
-    //   singleTuple
-    //   ~pos:3
-    //   (key K.Space)
-    //   "(56~)"
+      // t
+      //   "del on separator between item and blank dels blank"
+      //   tupleWithBlank
+      //   ~pos:6
+      //   del
+      //   "(56,78~,56)"
 
-    // t "insert into existing tuple item" singleTuple ~pos:1 (ins "4") "(4~56)"
+      // t
+      //   "bs on separator between blank and item dels blank"
+      //   tupleWithBlank
+      //   ~pos:11
+      //   bs
+      //   "(56,78,~56)"
 
-    // t
-    //   "insert separator before item creates blank"
-    //   singleTuple
-    //   ~pos:1
-    //   (ins ",")
-    //   "(~___,56)"
+      // t
+      //   "del on separator between blank and item dels blank"
+      //   tupleWithBlank
+      //   ~pos:10
+      //   del
+      //   "(56,78,~56)"
 
-    // t
-    //   "insert separator after item creates blank"
-    //   singleTuple
-    //   ~pos:3
-    //   (ins ",")
-    //   "(56,~___)"
+      // t
+      //   "bs on separator between string items merges strings"
+      //   multiTupleWithStrs
+      //   ~pos:6
+      //   bs
+      //   "(\"ab~cd\",\"ef\")"
 
+      // t
+      //   "del before separator between string items merges strings"
+      //   multiTupleWithStrs
+      //   ~pos:5
+      //   del
+      //   "(\"ab~cd\",\"ef\")"
 
-    // t
-    //   "insert , in string in tuple types ,"
-    //   (tuple [str "01234567890123456789012345678901234567890"])
-    //   ~pos:44
-    //   (ins ",")
-    //   "(\"0123456789012345678901234567890123456789\n ,~0\")"
+      // t
+      //   "backspacing open bracket of empty tuple dels tuple"
+      //   emptyTuple
+      //   ~pos:1
+      //   bs
+      //   "~___"
 
-    // t
-    //   "insert separator after item creates blank when tuple is in match"
-    //   (match' singleTuple [(pBlank (), b)])
-    //   ~pos:9
-    //   (ins ",")
-    //   "match (56,~___)\n  *** -> ___\n"
+      // t
+      //   "backspacing close bracket of empty tuple moves inside tuple"
+      //   emptyTuple
+      //   ~pos:2
+      //   bs
+      //   "(~)"
 
-    // t
-    //   "insert separator between items creates blank"
-    //   multiTuple
-    //   ~pos:3
-    //   (ins ",")
-    //   "(56,~___,78)"
-
-    // (* t "insert separator mid integer makes two items" singleTuple (ins ',' 2) *)
-    // (*   ("(5,6)", 3) ; *)
-    // (* TODO: when on a separator in a nested tuple, pressing comma makes an entry outside the tuple. *)
-    // t
-    //   "insert separator mid string does nothing special "
-    //   tupleWithStr
-    //   ~pos:3
-    //   (ins ",")
-    //   "(\"a,~b\")"
-
-
-    // t
-    //   "close bracket at end of tuple is swallowed"
-    //   emptyTuple
-    //   ~pos:1
-    //   (ins ")")
-    //   "()~"
-
-
-    // backspace/delete
-    // t
-    //   "deleting ( from a singleton remove a tuple wrapping"
-    //   singleTuple
-    //   ~pos:0
-    //   del
-    //   "~56"
-
-    // t
-    //   "backspacing ( from a singleton remove a tuple wrapping"
-    //   singleTuple
-    //   ~pos:1
-    //   bs
-    //   "~56"
-
-    // t
-    //   "a delete with caret before a blank in front of a tuple will delete the blank"
-    //   tupleWithBlankAtStart
-    //   ~pos:1
-    //   del
-    //   "(~56,78,56)"
-
-    // t
-    //   "a delete with caret before a tuple with just a blank removes the blank"
-    //   tupleWithJustABlank
-    //   ~pos:1
-    //   del
-    //   "(~)"
-
-    // t
-    //   "bs on first separator between ints merges ints on either side of sep"
-    //   multiTuple
-    //   ~pos:4
-    //   bs
-    //   "(56~78)"
-
-    // t
-    //   "del before first separator between ints merges ints on either side of sep"
-    //   multiTuple
-    //   ~pos:3
-    //   del
-    //   "(56~78)"
-
-    // t
-    //   "bs on middle separator between ints merges ints on either side of sep"
-    //   bigTuple
-    //   ~pos:10
-    //   bs
-    //   "(56,78,56~78,56,78)"
-
-    // t
-    //   "del before middle separator between ints merges ints on either side of sep"
-    //   bigTuple
-    //   ~pos:9
-    //   del
-    //   "(56,78,56~78,56,78)"
-
-    // t
-    //   "bs on separator between item and blank dels blank"
-    //   tupleWithBlank
-    //   ~pos:7
-    //   bs
-    //   "(56,78~,56)"
-
-    // t
-    //   "del on separator between item and blank dels blank"
-    //   tupleWithBlank
-    //   ~pos:6
-    //   del
-    //   "(56,78~,56)"
-
-    // t
-    //   "bs on separator between blank and item dels blank"
-    //   tupleWithBlank
-    //   ~pos:11
-    //   bs
-    //   "(56,78,~56)"
-
-    // t
-    //   "del on separator between blank and item dels blank"
-    //   tupleWithBlank
-    //   ~pos:10
-    //   del
-    //   "(56,78,~56)"
-
-    // t
-    //   "bs on separator between string items merges strings"
-    //   multiTupleWithStrs
-    //   ~pos:6
-    //   bs
-    //   "(\"ab~cd\",\"ef\")"
-
-    // t
-    //   "del before separator between string items merges strings"
-    //   multiTupleWithStrs
-    //   ~pos:5
-    //   del
-    //   "(\"ab~cd\",\"ef\")"
-
-    // t
-    //   "backspacing open bracket of empty tuple dels tuple"
-    //   emptyTuple
-    //   ~pos:1
-    //   bs
-    //   "~___"
-
-    // t
-    //   "backspacing close bracket of empty tuple moves inside tuple"
-    //   emptyTuple
-    //   ~pos:2
-    //   bs
-    //   "(~)"
-
-    // t
-    //   "deleting open bracket of empty tuple dels tuple"
-    //   emptyTuple
-    //   ~pos:0
-    //   del
-    //   "~___"
-
-
+      // t
+      //   "deleting open bracket of empty tuple dels tuple"
+      //   emptyTuple
+      //   ~pos:0
+      //   del
+      //   "~___"
+      ()
+    })
     ()
   })
-
 
   describe("Records", () => {
     t("create record", b, ~pos=0, ins("{"), "{~}")
