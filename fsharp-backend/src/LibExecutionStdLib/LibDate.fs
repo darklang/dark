@@ -596,6 +596,9 @@ let fns : List<BuiltInFn> =
 
     // TODO: when we have timespans in Dark, deprecate this
     // in favor of a fn which returns a timespan rather than seconds
+    //
+    // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
+    // currently support such a complex sqlSpec in Dark fns.
     { name = fn "Date" "subtract" 1
       parameters = [ Param.make "end" TDate ""; Param.make "start" TDate "" ]
       returnType = TInt
