@@ -4186,36 +4186,39 @@ let run = () => {
         ins(","),
         "(56,78,~___)"
       )
-      // t
-      //   "insert , in string in tuple types ,"
-      //   (tuple [str "01234567890123456789012345678901234567890"])
-      //   ~pos:44
-      //   (ins ",")
-      //   "(\"0123456789012345678901234567890123456789\n ,~0\")"
+      t(
+        "insert , in string in tuple types ,",
+        tuple(str("01234567890123456789012345678901234567890"), fiftySix, list{}),
+        ~pos=44, // right before the last 0
+        ins(","),
+        "(\"0123456789012345678901234567890123456789\n ,~0\",56)"
+      )
+      t(
+        "insert separator after item creates blank when tuple is in match",
+        match'(tuple2WithNoBlank, list{(pBlank (), b)}),
+        ~pos=12, // before the closing )
+        ins(","),
+        "match (56,78,~___)\n  *** -> ___\n"
+      )
 
-      // t
-      //   "insert separator after item creates blank when tuple is in match"
-      //   (match' singleTuple [(pBlank (), b)])
-      //   ~pos:9
-      //   (ins ",")
-      //   "match (56,~___)\n  *** -> ___\n"
-
-      // t
-      //   "insert separator between items creates blank"
-      //   multiTuple
-      //   ~pos:3
-      //   (ins ",")
-      //   "(56,~___,78)"
+      t(
+        "insert separator between items creates blank",
+        tuple2WithNoBlank,
+        ~pos=3, // before the first comma
+        ins(","),
+        "(56,~___,78)"
+      )
 
       // (* t "insert separator mid integer makes two items" singleTuple (ins ',' 2) *)
       // (*   ("(5,6)", 3) ; *)
       // (* TODO: when on a separator in a nested tuple, pressing comma makes an entry outside the tuple. *)
-      // t
-      //   "insert separator mid string does nothing special "
-      //   tupleWithStr
-      //   ~pos:3
-      //   (ins ",")
-      //   "(\"a,~b\")"
+      t(
+        "insert separator mid string does nothing special ",
+        tuple3WithStrs,
+        ~pos=3, // in between the a and b of the first str
+        ins(","),
+        "(\"a,~b\",\"cd\",\"ef\")"
+      )
       t(
         "close bracket at end of tuple is swallowed",
         tuple2WithNoBlank,
@@ -4227,125 +4230,145 @@ let run = () => {
     })
 
     describe("deletion", () => {
-      // backspace/delete
-      // t
-      //   "deleting ( from a singleton remove a tuple wrapping"
-      //   singleTuple
-      //   ~pos:0
-      //   del
+      // todo: add tests around blank tuples (of length 2, 3, and something bigger)
+
+      // t(
+      //   "deleting ( from a singleton remove a tuple wrapping",
+      //   tuple2WithFirstBlank,
+      //   ~pos=0,
+      //   del,
       //   "~56"
+      // )
 
-      // t
-      //   "backspacing ( from a singleton remove a tuple wrapping"
-      //   singleTuple
-      //   ~pos:1
-      //   bs
+      //t(
+      //   "backspacing ( from a singleton remove a tuple wrapping",
+      //   tuple2WithFirstBlank,
+      //   ~pos=1,
+      //   bs,
       //   "~56"
+      // )
+      // todo: add tests like the above, but with the 2nd element blank
 
-      // t
-      //   "a delete with caret before a blank in front of a tuple will delete the blank"
-      //   tupleWithBlankAtStart
-      //   ~pos:1
-      //   del
-      //   "(~56,78,56)"
+      // t(
+      //   "a delete with caret before a blank in front of a tuple will delete the blank",
+      //   tuple3WithFirstBlank,
+      //   ~pos=1,
+      //   del,
+      //   "(~78,56)"
+      // )
 
-      // t
-      //   "a delete with caret before a tuple with just a blank removes the blank"
-      //   tupleWithJustABlank
-      //   ~pos:1
-      //   del
+      // t(
+      //   "a delete with caret before a tuple with just a blank removes the blank",
+      //   tupleWithJustABlank,
+      //   ~pos=1,
+      //   del,
       //   "(~)"
+      // )
 
-      // t
-      //   "bs on first separator between ints merges ints on either side of sep"
-      //   multiTuple
-      //   ~pos:4
-      //   bs
+
+      // t( // no?
+      //   "bs on first separator between ints merges ints on either side of sep",
+      //   multiTuple,
+      //   ~pos=4,
+      //   bs,
       //   "(56~78)"
+      // )
 
-      // t
-      //   "del before first separator between ints merges ints on either side of sep"
-      //   multiTuple
-      //   ~pos:3
-      //   del
+      // t(
+      //   "del before first separator between ints merges ints on either side of sep",
+      //   multiTuple,
+      //   ~pos=3,
+      //   del,
       //   "(56~78)"
+      // )
 
-      // t
-      //   "bs on middle separator between ints merges ints on either side of sep"
-      //   bigTuple
-      //   ~pos:10
-      //   bs
+      // t(
+      //   "bs on middle separator between ints merges ints on either side of sep",
+      //   tuple6,
+      //   ~pos=10,
+      //   bs,
       //   "(56,78,56~78,56,78)"
+      // )
 
-      // t
-      //   "del before middle separator between ints merges ints on either side of sep"
-      //   bigTuple
-      //   ~pos:9
-      //   del
+      // t(
+      //   "del before middle separator between ints merges ints on either side of sep",
+      //   tuple6,
+      //   ~pos=9,
+      //   del,
       //   "(56,78,56~78,56,78)"
+      // )
 
-      // t
-      //   "bs on separator between item and blank dels blank"
-      //   tupleWithBlank
-      //   ~pos:7
-      //   bs
+      // t(
+      //   "bs on separator between item and blank dels blank",
+      //   tupleWithBlank,
+      //   ~pos=7,
+      //   bs,
       //   "(56,78~,56)"
+      // )
 
-      // t
-      //   "del on separator between item and blank dels blank"
-      //   tupleWithBlank
-      //   ~pos:6
-      //   del
+      // t(
+      //   "del on separator between item and blank dels blank",
+      //   tupleWithBlank,
+      //   ~pos=6,
+      //   del,
       //   "(56,78~,56)"
+      // )
 
-      // t
-      //   "bs on separator between blank and item dels blank"
-      //   tupleWithBlank
-      //   ~pos:11
-      //   bs
+      // t(
+      //   "bs on separator between blank and item dels blank",
+      //   tupleWithBlank,
+      //   ~pos=11,
+      //   bs,
       //   "(56,78,~56)"
+      // )
 
-      // t
-      //   "del on separator between blank and item dels blank"
-      //   tupleWithBlank
-      //   ~pos:10
-      //   del
+      // t(
+      //   "del on separator between blank and item dels blank",
+      //   tupleWithBlank,
+      //   ~pos=10,
+      //   del,
       //   "(56,78,~56)"
+      // )
 
-      // t
-      //   "bs on separator between string items merges strings"
-      //   multiTupleWithStrs
-      //   ~pos:6
-      //   bs
+      // t(
+      //   "bs on separator between string items merges strings",
+      //   multiTupleWithStrs,
+      //   ~pos=6,
+      //   bs,
       //   "(\"ab~cd\",\"ef\")"
+      // )
 
-      // t
-      //   "del before separator between string items merges strings"
-      //   multiTupleWithStrs
-      //   ~pos:5
-      //   del
+      // t(
+      //   "del before separator between string items merges strings",
+      //   multiTupleWithStrs,
+      //   ~pos=5,
+      //   del,
       //   "(\"ab~cd\",\"ef\")"
+      // )
 
-      // t
-      //   "backspacing open bracket of empty tuple dels tuple"
-      //   emptyTuple
-      //   ~pos:1
-      //   bs
+      // t(
+      //   "backspacing open bracket of empty tuple dels tuple",
+      //   emptyTuple,
+      //   ~pos=1,
+      //   bs,
       //   "~___"
+      // )
 
-      // t
-      //   "backspacing close bracket of empty tuple moves inside tuple"
-      //   emptyTuple
-      //   ~pos:2
-      //   bs
+      // t(
+      //   "backspacing close bracket of empty tuple moves inside tuple",
+      //   emptyTuple,
+      //   ~pos=2,
+      //   bs,
       //   "(~)"
+      // )
 
-      // t
-      //   "deleting open bracket of empty tuple dels tuple"
-      //   emptyTuple
-      //   ~pos:0
-      //   del
+      // t(
+      //   "deleting open bracket of empty tuple dels tuple",
+      //   emptyTuple,
+      //   ~pos=0,
+      //   del,
       //   "~___"
+      // )
       ()
     })
     ()
