@@ -21,6 +21,7 @@
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
     <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
+    <ProjectReference Include="../../src/Analysis/Analysis.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
     <ProjectReference Include="../../tests/FuzzTests/FuzzTests.fsproj" />
   </ItemGroup>
