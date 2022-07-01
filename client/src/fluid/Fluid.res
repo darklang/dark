@@ -2705,7 +2705,6 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       |> recoverOpt("doExplicitBackspace - LPComma", ~debug=(varAndSepIdx, oldVars), ~default=None)
 
 
-
     // Lists
     | (ARList(_, LPComma(elemAndSepIdx)), EList(id, exprs)) =>
       let (newExpr, target) =
