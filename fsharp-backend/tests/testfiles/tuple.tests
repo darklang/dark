@@ -1,0 +1,6 @@
+//Tuple.toList_v0 (1, 2) = [1; 2]
+Tuple.toList_v0 (1, blank) = [1; blank]
+//Tuple.toList_v0 (blank, 2) = [blank; 2]
+//Tuple.toList_v0 (blank, blank) = [blank; blank]
+//Tuple.toList_v0 (1, 2, 3, 4, 5, 6, 7, 8, 9) = [1; 2; 3; 4; 5; 6; 7; 8; 9]
+//Tuple.toList_v0 ("one", true, 3.14, (4, 4, 4, 4), (Just 5)) = ["one"; true; 3.14; (4, 4, 4, 4); (Just 5)]

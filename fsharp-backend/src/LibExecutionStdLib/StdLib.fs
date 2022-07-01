@@ -37,6 +37,7 @@ let prefixFns : List<BuiltInFn> =
     LibUuid.fns
     LibInt.fns
     LibList.fns
+    LibTuple.fns
     // LibMiddleware.fns
     LibNoModule.fns
     LibOption.fns

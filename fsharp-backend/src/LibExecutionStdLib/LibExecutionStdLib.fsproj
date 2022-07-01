@@ -27,6 +27,7 @@
     <Compile Include="LibOption.fs" />
     <Compile Include="LibResult.fs" />
     <Compile Include="LibString.fs" />
+    <Compile Include="LibTuple.fs" />
     <Compile Include="LibUuid.fs" />
     <Compile Include="LibCrypto.fs" />
     <Compile Include="LibHttpClientAuth.fs" />
