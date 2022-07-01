@@ -494,9 +494,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         |> Option.unwrap(~default=commaWidth)
       }
 
-      /* Even if first element overflows, don't put it in a new line */
+      // Even if first element overflows, don't put it in a new line
       let isOverLimit = i > 0 && currentLineLength > listLimit
-      /* Indent after newlines to match the '( ' */
+      // Indent after newlines to match the '( '
       let indent = if isOverLimit {
         1
       } else {
