@@ -4938,11 +4938,7 @@ let getExpressionRangeAtCaret = (astInfo: ASTInfo.t): option<(int, int)> =>
   })
   |> Option.map(~f=((eStartPos, eEndPos)) => (eStartPos, eEndPos))
 
-/*
-this is used for pasting subsets of code
-- select part of an expr
-- paste it
-*/
+
 let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
   FluidExpression.t,
 > => {
