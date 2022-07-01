@@ -56,7 +56,7 @@ let deselectFluidEditor = (s: fluidState): fluidState => {
 let astInfoFromModelAndTLID = (~removeTransientState=true, m: model, tlid: TLID.t): option<
   ASTInfo.t,
 > => {
-  /* TODO(JULIAN): codify removeHandlerTransientState as an external function,
+  /* TODO: codify removeHandlerTransientState as an external function,
    * make `fromExpr` accept only the info it needs, and differentiate between
    * handler-specific and global fluid state. */
   let removeHandlerTransientState = m =>
@@ -654,18 +654,17 @@ let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
    * Please fix.
    */
 
-  /* posForTi is the most common way of going from a single token info to a caretPos.
+  /* This is the most common way of going from a single token info to a caretPos.
     It only really makes sense for situations where there is a 1:1 correspondence
     between an ASTRef and a token. It does not make sense for ASTRefs that scan across
     multiple tokens (eg Multiline Strings) */
   let posForTi = (ti): option<int> => Some(ti.startPos + min(ct.offset, ti.length))
   let clampedPosForTi = (ti, pos): option<int> => Some(ti.startPos + max(0, min(pos, ti.length)))
 
-  /* targetAndTokenInfoToMaybeCaretPos takes a caretTarget and tokenInfo and produces
-     the corresponding token-stream-global caretPos within the token stream,
-     or None if the passed token isn't one we care about. The function will be used below
-     as part of a List.findMap
- */
+  /* takes a caretTarget and tokenInfo and produces the corresponding
+   * token-stream-global caretPos within the token stream, or None if the
+   * passed token isn't one we care about. The function will be used below
+     as part of a List.findMap */
   let targetAndTokenInfoToMaybeCaretPos = ((ct, ti): (caretTarget, T.tokenInfo)): option<int> =>
     switch (ct.astRef, ti.token) {
     | (ARBinOp(id), TBinOp(id', _, _))
@@ -793,9 +792,7 @@ let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
         clampedPosForTi(ti, offsetInStr - startOffsetIntoString)
       | _ => None
       }
-    /*
-     * Exhaustiveness satisfaction for astRefs
-     */
+    // Exhaustiveness satisfaction for astRefs
     | (ARBinOp(_), _)
     | (ARBlank(_), _)
     | (ARBool(_), _)
@@ -857,10 +854,8 @@ let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
   |> List.findMap(~f=ti => targetAndTokenInfoToMaybeCaretPos((ct, ti))) {
   | Some(newPos) => newPos
   | None =>
-    /*
-        NOTE: This is very useful for fixing issues in dev, but much too large for Rollbar:
-        (Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~incluID.toStrings:true ast)) ());
- */
+    // NOTE: This is very useful for fixing issues in dev, but much too large for Rollbar:
+    // Debug.loG(((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~incluID.toStrings:true ast)), ())
     recover(
       "We expected to find the given caretTarget in the token stream but couldn't.",
       ~debug=show_caretTarget(ct),
@@ -2709,7 +2704,9 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       })
       |> recoverOpt("doExplicitBackspace - LPComma", ~debug=(varAndSepIdx, oldVars), ~default=None)
 
-    // lists
+
+
+    // Lists
     | (ARList(_, LPComma(elemAndSepIdx)), EList(id, exprs)) =>
       let (newExpr, target) =
         itemsAtCurrAndNextIndex(exprs, elemAndSepIdx)
@@ -2728,36 +2725,46 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
     | (ARList(_, LPOpen), EList(_, list{item})) =>
       Some(Expr(item), caretTargetForStartOfExpr'(item))
 
-    // tuples
-    | (ARTuple(_, TPOpen), ETuple(id, first, second, theRest)) => {
-      Debug.loG("TPOpen", "")
-      // TODO: if the tuple parts are all blank, delete the tuple
-      // if first blank and second blank and theRest blank
 
-      let target = {astRef: ARTuple(id, TPOpen), offset: 1}
+    // Tuples
+    | (ARTuple(_, TPClose), ETuple(id, first, second, theRest)) =>
+      let target = {astRef: ARTuple(id, TPClose), offset: 0}
       Some(Expr(ETuple(id, first, second, theRest)), target)
-      }
-    | (ARTuple(_, TPClose), ETuple(id, first, second, theRest)) => {
-      Debug.loG("TPClose branch", "")
-      // TODO: ??
 
-      let target = {astRef: ARTuple(id, TPOpen), offset: 1}
-      Some(Expr(ETuple(id, first, second, theRest)), target)
-      }
-    | (ARTuple(_, TPComma(elemAndSepIdx)), ETuple(id, first, second, theRest)) => {
-      Debug.loG("Comma branch. elemAndSepIdx", elemAndSepIdx)
-      // TODO: This needs quite some work.
-      // (trying to copy the tuple impl. did not go well.)
-
-      // todo: if a tuple part is blank, remove that part
-
-      // first off, let's verify when this actually gets triggered, and expand
-      // it if it's not getting triggered often enough.
-
-      let target = {astRef: ARTuple(id, TPOpen), offset: 1}
-      Some(Expr(ETuple(id, first, second, theRest)), target)
+    | (ARTuple(_, TPOpen), ETuple(id, first, second, theRest)) =>
+      let all = list{first, second, ...theRest}
+      let nonBlanks = List.filter(~f= expr => !isBlank(expr), all)
+      switch nonBlanks {
+        // TODO: do I need to adjust the IDs for the Blank and Single cases here?
+        | list{} =>
+          Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
+        | list{single} => Some(Expr(single), caretTargetForStartOfExpr'(single))
+        | _ =>
+          let target = {astRef: ARTuple(id, TPOpen), offset: 0}
+          Some(Expr(ETuple(id, first, second, theRest)), target)
       }
 
+    | (ARTuple(_, TPComma(elemAndSepIdx)), ETuple(id, first, second, theRest)) =>
+      // generally, delete the item right after the deleted ,
+      // if that leaves us with only
+      let all = list{first, second, ...theRest}
+      let withoutDeleted = Belt.List.keepWithIndex(all, (_expr, i) => i != elemAndSepIdx + 1)
+
+      switch withoutDeleted {
+        // TODO: do I need to adjust the IDs for the Blank and Single cases here?
+        | list{} => Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0}) // should be impossible.
+        | list{single} => Some(Expr(single), caretTargetForStartOfExpr'(single))
+        | list{first, second, ...theRest} =>
+          let newExpr = Expr(ETuple(id, first, second, theRest))
+
+          let elementLeftOfDeletion = Belt.List.getExn(withoutDeleted, elemAndSepIdx)
+          let newTarget = caretTargetForEndOfExpr(toID(elementLeftOfDeletion), ast)
+
+          Some(newExpr, newTarget)
+      }
+
+
+    // Records
     | (ARRecord(_, RPOpen), expr) | (ARList(_, LPOpen), expr) | (ARTuple(_, TPOpen), expr) if E.isEmpty(expr) => mkEBlank()
     | (ARRecord(_, RPFieldname(index)), ERecord(id, nameValPairs)) =>
       List.getAt(~index, nameValPairs) |> Option.map(~f=x =>
@@ -2781,13 +2788,21 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
           (Expr(ERecord(id, nameValPairs)), currCTMinusOne)
         }
       )
+
+    // Field access
     | (ARFieldAccess(_, FAPFieldOp), EFieldAccess(_, faExpr, _))
     | (ARFieldAccess(_, FAPFieldOp), EPartial(_, _, EFieldAccess(_, faExpr, _))) =>
       Some(Expr(faExpr), caretTargetForEndOfExpr'(faExpr))
+
+    // Constructors
     | (ARConstructor(_), EConstructor(_, str, _)) =>
       mkPartialOrBlank(str |> mutation |> String.trim, currExpr)
+
+    // Function call
     | (ARFnCall(_), EFnCall(_, fnName, _, _)) =>
       mkPartialOrBlank(fnName |> FluidUtil.partialName |> mutation |> String.trim, currExpr)
+
+    // Bools
     | (ARBool(_), EBool(_, bool)) =>
       let str = if bool {
         "true"
@@ -2795,6 +2810,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         "false"
       }
       mkPartialOrBlank(mutation(str), currExpr)
+
     | (ARNull(_), ENull(_)) => mkPartialOrBlank(mutation("null"), currExpr)
     | (ARVariable(_), EVariable(_, varName)) => mkPartialOrBlank(mutation(varName), currExpr)
     | (ARBinOp(_), EBinOp(_, op, lhsExpr, rhsExpr, _)) =>
@@ -2913,6 +2929,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
     | (ARLambda(_, LBPSymbol), ELambda(_)) =>
       // keywords of "non-empty" exprs shouldn't be deletable at all
       None
+
     /*
      * Immutable; just jump to the start
      */
@@ -2938,9 +2955,8 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
            is meaningless and we want this to bring you to a location
            where you can meaningfully type. */
       Some(Expr(expr), {astRef: currAstRef, offset: 0})
-    /* ****************
-     * Exhaustiveness
-     */
+
+    // Anything else is unexpected; this satisfies the exhaustiveness check
     | (ARBinOp(_), _)
     | (ARBool(_), _)
     | (ARConstructor(_), _)
@@ -4249,9 +4265,10 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     | Some(ti) => doDelete(~pos, ti, astInfo)
     | None => doDelete(~pos, rti, astInfo)
     }
+
   /* Special case for deleting blanks in front of a tuple */
-  // TODO: this is a few kinds of wrong
-  | (DeleteContentForward, L(TTupleOpen(_), _), R(TBlank(_), rti)) =>
+  // TODO: revisit this. I'm not even sure if this branch gets hit?
+  | (DeleteContentForward, L(TTupleOpen(_), _), R(TBlank(_), rti)) => {
     /* If L is a TTupleOpen and R is a TBlank, mNext can be a comma or a tuple close.
      * In case of a tuple close, we just replace the expr with the empty tuple
      */
@@ -4262,6 +4279,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
       |> moveToCaretTarget({astRef: ARTuple(id, TPOpen), offset: 1})
     | Some(ti) => doDelete(~pos, ti, astInfo)
     | None => doDelete(~pos, rti, astInfo)
+    }
     }
   | (DeleteContentForward, _, R(_, ti)) => doDelete(~pos, ti, astInfo)
   | (DeleteSoftLineBackward, _, R(_, ti))
@@ -4459,7 +4477,8 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     |> ASTInfo.setAST(FluidAST.update(~f=var => EList(newID, list{var}), id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
 
-  /* Wrap the current expression in a tuple */
+
+  // Wrap the current expression in a tuple
   | (InsertText("("), _, R(TInteger(id, _, _), _))
   | (InsertText("("), _, R(TTrue(id, _), _))
   | (InsertText("("), _, R(TFalse(id, _), _))
@@ -4475,7 +4494,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     astInfo
     |> ASTInfo.setAST(FluidAST.update(~f=var => ETuple(newID, var, EBlank(gid()), list{}), id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARTuple(newID, TPOpen), offset: 1})
-  /* Strings can be wrapped in tuples, but only if we're outside the quote */
+  // Strings can be wrapped in tuples, but only if we're outside the quote
   | (InsertText("("), _, R(TString(id, _, _), toTheRight))
   | (InsertText("("), _, R(TStringMLStart(id, _, _, _), toTheRight))
     if onEdge && pos == toTheRight.startPos =>
@@ -4483,6 +4502,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     astInfo
     |> ASTInfo.setAST(FluidAST.update(~f=var => ETuple(newID, var, EBlank(gid()), list{}), id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARTuple(newID, TPOpen), offset: 1})
+
 
   // Infix symbol insertion to create partials
   | (InsertText(infixTxt), L(TPipe(_), ti), _)
@@ -4498,13 +4518,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     |> ASTInfo.setAST(insertInList(~index=0, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget(target)
 
-  // Typing between empty tuple symbols ()
-  | (InsertText(txt), L(TTupleOpen(id, _), _), R(TTupleClose(_), _)) =>
-    let (newExpr, target) = insertInBlankExpr(txt)
-    astInfo
-    |> ASTInfo.setAST(insertInTuple(~index=0, id, ~newExpr, astInfo.ast))
-    |> moveToCaretTarget(target)
-
   // Typing between empty record symbols {}
   | (InsertText(txt), L(TRecordOpen(id, _), _), R(TRecordClose(_), _)) =>
     /* Adds new initial record row with the typed
@@ -4517,6 +4530,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     } else {
       astInfo
     }
+
   // *********************************
   // INSERT INTO EXISTING CONSTRUCTS
   // *********************************
@@ -4540,8 +4554,9 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   | (InsertText(txt), L(_, toTheLeft), _) if T.isAppendable(toTheLeft.token) =>
     doInsert(~pos, txt, toTheLeft, astInfo)
   | (InsertText(txt), _, R(_, toTheRight)) => doInsert(~pos, txt, toTheRight, astInfo)
+
   // *********
-  // K.Enter
+  // Handle K.Enter (hit Enter on keyboard)
   // *********
   /*
    * Caret to right of record open {
@@ -5262,9 +5277,16 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       let newExprs = List.map(exprs, ~f=reconstructExpr) |> Option.values
       Some(EList(id, newExprs))
     | ETuple(_, first, second, theRest) =>
-      // todo: deal with empties, or whatever this fn is _supposed_ to do.
-      let newTheRest = List.map(theRest, ~f=reconstructExpr) |> Option.values
-      Some(ETuple(id, first, second, newTheRest))
+      let results =
+        List.map(list{first, second, ...theRest}, ~f=reconstructExpr)
+        |> Option.values
+
+      switch results {
+        | list{} => None
+        | list{el} => Some(el)
+        | list{fst, snd, ...tail} =>
+          Some(ETuple(id, fst, snd, tail))
+      }
     | ERecord(id, entries) =>
       let newEntries =
         /* looping through original set of tokens (before transforming them into tuples)
