@@ -2035,9 +2035,9 @@ let insertAtListEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
     }
   )
 
-/* ---------------- */
-/* Tuples */
-/* ---------------- */
+// ----------------
+// Tuples
+// ----------------
 
 let insertInTuple = (~index: int, ~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
   FluidAST.update(id, ast, ~f=e =>
