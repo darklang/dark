@@ -395,22 +395,27 @@ let listWithRecord = list(list{emptyRecord})
 
 let listWithMultiStrs = list(list{str("ab"), str("cd"), str("ef")})
 
-/* ---------------- */
-/* Tuples */
-/* ---------------- */
-
-// todo: add tests that actually use these (in TestFluid.res)
+// ----------------
+// Tuples
+// ----------------
 
 let tuple2WithNoBlank = tuple(fiftySix, seventyEight, list{})
 let tuple2WithBothBlank = tuple(b, b, list{})
 let tuple2WithFirstBlank = tuple(b, seventyEight, list{})
 let tuple2WithSecondBlank = tuple(fiftySix, b, list{})
 
+
 let tuple3WithNoBlanks = tuple(fiftySix, seventyEight, list{fiftySix})
 let tuple3WithAllBlank = tuple(b, b, list{b})
-let tuple3WithFirstBlank = tuple(b, seventyEight, list{b})
-let tuple3WithSecondBlank = tuple(fiftySix, b, list{b})
+
+let tuple3WithFirstBlank = tuple(b, seventyEight, list{fiftySix})
+let tuple3WithSecondBlank = tuple(fiftySix, b, list{seventyEight})
 let tuple3WithThirdBlank = tuple(fiftySix, seventyEight, list{b})
+
+let tuple3WithFirstFilled = tuple(fiftySix, b, list{b})
+let tuple3WithSecondFilled = tuple(b, fiftySix, list{b})
+let tuple3WithThirdFilled = tuple(b, b, list{fiftySix})
+
 
 let tuple6 =
   tuple(fiftySix, seventyEight, list{fiftySix, seventyEight, fiftySix, seventyEight})

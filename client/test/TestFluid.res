@@ -4352,46 +4352,214 @@ let run = () => {
       )
 
       // 3-tuple, first blank
-      // - (
-      // - )
-      // - first ,
-      // - second ,
+      t(
+        "deleting ( from a 3-tuple with first item blank does nothing",
+        tuple3WithFirstBlank,
+        ~pos=0,
+        del,
+        "~(___,78,56)"
+      )
+      // t( // TODO: fix the impl. to match this failing test
+      //   "deleting first , from a 3-tuple with first item blank removes 2nd item",
+      //   tuple3WithFirstBlank,
+      //   ~pos=4, // just before ,
+      //   del,
+      //   "(___~,56)"// I could also see it being right after the ,
+      // )
+      t(
+        "deleting second , from a 3-tuple with first item blank removes 3rd item",
+        tuple3WithFirstBlank,
+        ~pos=8, // just after ,
+        bs,
+        "(___,78~)"
+      )
+      t(
+        "deleting ) from a 3-tuple with first item blank just moves cursor left",
+        tuple3WithFirstBlank,
+        ~pos=11, // just after )
+        bs,
+        "(___,78,56~)"
+      )
 
       // 3-tuple, second blank
-      // - (
-      // - )
-      // - first ,
-      // - second ,
+      t(
+        "deleting ( from a 3-tuple with the second item blank does nothing",
+        tuple3WithSecondBlank,
+        ~pos=0,
+        del,
+        "~(56,___,78)"
+      )
+      t(
+        "deleting first , from a 3-tuple with the second item blank removes the blank",
+        tuple3WithSecondBlank,
+        ~pos=3, // just before ,
+        del,
+        "(56~,78)"
+      )
+      // t( // TODO: fix the impl. to match this failing test
+      //   "deleting second , from a 3-tuple with the second item blank removes 3rd item",
+      //   tuple3WithSecondBlank,
+      //   ~pos=6, // just before ,
+      //   del,
+      //   "(56,~___)"
+      // )
+      t(
+        "deleting ) from a 3-tuple with the second item blank just moves cursor left",
+        tuple3WithSecondBlank,
+        ~pos=11, // just after )
+        bs,
+        "(56,___,78~)"
+      )
 
-      // 3-tuple, third blank
-      // - (
-      // - )
-      // - first ,
-      // - second ,
+      // 3-tuple, third blank `(56,78,___)`
+      t(
+        "deleting ( from a 3-tuple with the third item blank does nothing",
+        tuple3WithThirdBlank,
+        ~pos=0,
+        del,
+        "~(56,78,___)"
+      )
+      t(
+        "deleting first , from a 3-tuple with the third item blank removes the second item",
+        tuple3WithThirdBlank,
+        ~pos=3, // just before ,
+        del,
+        "(56~,___)" // or maybe 1char to the right of this
+      )
+      t(
+        "deleting second , from a 3-tuple with the third item blank removes the blank",
+        tuple3WithThirdBlank,
+        ~pos=7, // just after ,
+        bs,
+        "(56,78~)"
+      )
+      t(
+        "deleting ) from a 3-tuple with the third item blank just moves the cursor left",
+        tuple3WithThirdBlank,
+        ~pos=11, // just after )
+        bs,
+        "(56,78,___~)"
+      )
 
-      // 3-tuple, first non-blank
-      // - (
-      // - )
-      // - first ,
-      // - second ,
+      // 3-tuple, first non-blank `(56,___,___)`
+      t(
+        "deleting ( from a 3-tuple with only first item replaces it with that item",
+        tuple3WithFirstFilled,
+        ~pos=0,
+        del,
+        "~56"
+      )
+      t(
+        "deleting first , from a 3-tuple with only first item filled ___",
+        tuple3WithFirstFilled,
+        ~pos=3, // just before ,
+        del,
+        "(56~,___)"
+      )
+      t(
+        "deleting second , from a 3-tuple with only first item filled ___",
+        tuple3WithFirstFilled,
+        ~pos=8, // just after ,
+        bs,
+        "(56,~___)"
+      )
+      t(
+        "deleting ) from a 3-tuple with only first item filled just moves cursor left",
+        tuple3WithFirstFilled,
+        ~pos=12, // just after )
+        bs,
+        "(56,___,___~)"
+      )
 
-      // 3-tuple, second non-blank
-      // - (
-      // - )
-      // - first ,
-      // - second ,
+      // 3-tuple, second non-blank `(___,56,___)`
+      t(
+        "deleting ( from a 3-tuple with only second item filled replaces the tuple with the item",
+        tuple3WithSecondFilled,
+        ~pos=0,
+        del,
+        "~56"
+      )
+      t(
+        "deleting first , from a 3-tuple with only second item filled removes the second item",
+        tuple3WithSecondFilled,
+        ~pos=4, // just before ,
+        del,
+        "(~___,___)"
+      )
+      t(
+        "deleting second , from a 3-tuple with only second item filled removes the ending blank",
+        tuple3WithSecondFilled,
+        ~pos=8, // just after ,
+        bs,
+        "(___,56~)"
+      )
+      t(
+        "deleting ) from a 3-tuple with only second item filled just moves the cursor left",
+        tuple3WithSecondFilled,
+        ~pos=12, // just after )
+        bs,
+        "(___,56,___~)"
+      )
 
-      // 3-tuple, third non-blank
-      // - (
-      // - )
-      // - first ,
-      // - second ,
+      // 3-tuple, third non-blank `(___,___,56)`
+      t(
+        "deleting ( from a 3-tuple with only third item filled replaces the tuple with the item",
+        tuple3WithThirdFilled,
+        ~pos=0,
+        del,
+        "~56"
+      )
+      t(
+        "deleting first , from a 3-tuple with only third item filled removes the second blank",
+        tuple3WithThirdFilled,
+        ~pos=4, // just before ,
+        del,
+        "(~___,56)"
+      )
+      t(
+        "deleting second , from a 3-tuple with only third item filled removes the filled item",
+        tuple3WithThirdFilled,
+        ~pos=9, // just after ,
+        bs,
+        "(___,~___)"
+      )
+      t(
+        "deleting ) from a 3-tuple with only third item filled just moves the cursor left",
+        tuple3WithThirdFilled,
+        ~pos=12, // just after )
+        bs,
+        "(___,___,56~)"
+      )
 
-      // 3-tuple, all blank
-      // - (
-      // - )
-      // - first ,
-      // - second ,
+      // 3-tuple, all blank `(___,___,___)`
+      t(
+        "deleting ( from a 3-tuple of all blanks replaces the tuple with a blank",
+        tuple3WithAllBlank,
+        ~pos=0,
+        del,
+        "~___"
+      )
+      t(
+        "deleting first , from a 3-tuple of all blanks removes the second blank",
+        tuple3WithAllBlank,
+        ~pos=4, // just before ,
+        del,
+        "(~___,___)"
+      )
+      t(
+        "deleting second , from a 3-tuple of all blanks removes the third blank",
+        tuple3WithAllBlank,
+        ~pos=9, // just after ,
+        bs,
+        "(___,~___)"
+      )
+      t(
+        "deleting ) from a 3-tuple of all blanks just moves left",
+        tuple3WithAllBlank,
+        ~pos=13, // just after )
+        bs,
+        "(___,___,___~)" // I could see this instead turning into `~___`
+      )
 
       // TODO: in the previous "implement tuples" PR, there were a number of
       // tests suggesting that deletions of commas between same-typed items
