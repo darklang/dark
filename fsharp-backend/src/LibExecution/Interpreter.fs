@@ -99,7 +99,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | [], None -> return DTuple(firstResult, secondResult, otherResults)
       | [], Some error -> return error
       | _ ->
-        // or should this return the ID of the first incomplete or something?
         return DIncomplete(sourceID id)
 
     | EVariable (id, name) ->
