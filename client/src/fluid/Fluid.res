@@ -1332,6 +1332,7 @@ let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, caretTarget)> =>
         (EString(newID, ""), CT.forARStringOpenQuote(newID, 1))
       } else if ins == "[" {
         (EList(newID, list{}), {astRef: ARList(newID, LPOpen), offset: 1})
+      // TODO: prior to PR merge, disable below (until tuples functionality fuller)
       } else if ins == "(" {
         (ETuple(newID, EBlank(gid()), EBlank(gid()), list{}), {astRef: ARTuple(newID, TPOpen), offset: 1})
       } else if ins == "{" {
@@ -4458,6 +4459,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
 
 
   // Wrap the current expression in a tuple
+  // TODO: prior to PR merge, disable below (until tuples functionality fuller)
   | (InsertText("("), _, R(TInteger(id, _, _), _))
   | (InsertText("("), _, R(TTrue(id, _), _))
   | (InsertText("("), _, R(TFalse(id, _), _))
