@@ -98,8 +98,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       match foundIncompletes, firstFoundError with
       | [], None -> return DTuple(firstResult, secondResult, otherResults)
       | [], Some error -> return error
-      | _ ->
-        return DIncomplete(sourceID id)
+      | _ -> return DIncomplete(sourceID id)
 
     | EVariable (id, name) ->
       match (st.TryFind name, state.tracing.realOrPreview) with
