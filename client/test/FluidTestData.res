@@ -403,10 +403,10 @@ let listWithMultiStrs = list(list{str("ab"), str("cd"), str("ef")})
 
 let tuple2WithNoBlank = tuple(fiftySix, seventyEight, list{})
 let tuple2WithBothBlank = tuple(b, b, list{})
-let tuple2WithFirstBlank = tuple(b, fiftySix, list{})
+let tuple2WithFirstBlank = tuple(b, seventyEight, list{})
 let tuple2WithSecondBlank = tuple(fiftySix, b, list{})
 
-let tuple3WithNoBlanks = tuple(fiftySix, seventyEight, list{b})
+let tuple3WithNoBlanks = tuple(fiftySix, seventyEight, list{fiftySix})
 let tuple3WithAllBlank = tuple(b, b, list{b})
 let tuple3WithFirstBlank = tuple(b, seventyEight, list{b})
 let tuple3WithSecondBlank = tuple(fiftySix, b, list{b})

@@ -4049,7 +4049,6 @@ let run = () => {
       )
       ()
     })
-    // todo: add more describes below - helps to break things down.
     describe("create", () => {
       t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
       t(
@@ -4230,145 +4229,178 @@ let run = () => {
     })
 
     describe("deletion", () => {
-      // todo: add tests around blank tuples (of length 2, 3, and something bigger)
-
-      // t(
-      //   "deleting ( from a singleton remove a tuple wrapping",
-      //   tuple2WithFirstBlank,
-      //   ~pos=0,
-      //   del,
-      //   "~56"
-      // )
-
-      //t(
-      //   "backspacing ( from a singleton remove a tuple wrapping",
-      //   tuple2WithFirstBlank,
-      //   ~pos=1,
-      //   bs,
-      //   "~56"
-      // )
-      // todo: add tests like the above, but with the 2nd element blank
-
-      // t(
-      //   "a delete with caret before a blank in front of a tuple will delete the blank",
-      //   tuple3WithFirstBlank,
-      //   ~pos=1,
-      //   del,
-      //   "(~78,56)"
-      // )
-
-      // t(
-      //   "a delete with caret before a tuple with just a blank removes the blank",
-      //   tupleWithJustABlank,
-      //   ~pos=1,
-      //   del,
-      //   "(~)"
-      // )
-
-
-      // t( // no?
-      //   "bs on first separator between ints merges ints on either side of sep",
-      //   multiTuple,
+      // 2-tuple, no blanks
+      t(
+        "deleting ( from a filled 2-tuple does nothing",
+        tuple2WithNoBlank,
+        ~pos=0,
+        del,
+        "~(56,78)"
+      )
+      t(
+        "deleting ) from a filled 2-tuple just moves cursor left",
+        tuple2WithNoBlank,
+        ~pos=7,
+        bs,
+        "(56,78~)"
+      )
+      // t( // TODO: fix the impl. to match this failing test
+      //   "deleting , from a filled 2-tuple leaves only the first item",
+      //   tuple2WithNoBlank,
       //   ~pos=4,
       //   bs,
-      //   "(56~78)"
+      //   "~56"
       // )
 
-      // t(
-      //   "del before first separator between ints merges ints on either side of sep",
-      //   multiTuple,
-      //   ~pos=3,
+      // 2-tuple, first blank
+      t(
+        "deleting ( from a 2-tuple with first value blank converts to the non-blank value",
+        tuple2WithFirstBlank,
+        ~pos=0,
+        del,
+        "~78"
+      )
+      t(
+        "deleting ) from a 2-tuple with first value blank just moves the cursor to left of )",
+        tuple2WithFirstBlank,
+        ~pos=8, // just after )
+        bs,
+        "(___,78~)"
+      )
+      t(
+        "deleting , from a 2-tuple with first value blank converts to a blank",
+        tuple2WithFirstBlank,
+        ~pos=4, // just after ,
+        del,
+        "~___"
+      )
+
+      // 2-tuple, second blank
+      t(
+        "deleting ( from a 2-tuple with second value blank converts to the non-blank value",
+        tuple2WithSecondBlank,
+        ~pos=0,
+        del,
+        "~56"
+      )
+      t(
+        "deleting ) from a 2-tuple with second value blank just moves the cursor left",
+        tuple2WithSecondBlank,
+        ~pos=7, // just before )
+        del,
+        "(56,___~)"
+      )
+      // t( // TODO: fix the impl. to match this failing test
+      //   "deleting , from a 2-tuple with second value blank converts to the non-blank value",
+      //   tuple2WithSecondBlank,
+      //   ~pos=3, // just before ,
       //   del,
-      //   "(56~78)"
+      //   "~56"
       // )
 
-      // t(
-      //   "bs on middle separator between ints merges ints on either side of sep",
-      //   tuple6,
-      //   ~pos=10,
-      //   bs,
-      //   "(56,78,56~78,56,78)"
-      // )
+      // 2-tuple, both blank
+      t(
+        "deleting ( from a blank 2-tuple converts to blank",
+        tuple2WithBothBlank,
+        ~pos=0,
+        del,
+        "~___"
+      )
+      t(
+        "deleting ) from a blank 2-tuple just moves the cursor left",
+        tuple2WithBothBlank,
+        ~pos=9,
+        bs,
+        "(___,___~)"
+      )
+      t(
+        "deleting , from a blank 2-tuple replaces the tuple with a blank",
+        tuple2WithBothBlank,
+        ~pos=5,
+        bs,
+        "~___"
+      )
 
-      // t(
-      //   "del before middle separator between ints merges ints on either side of sep",
-      //   tuple6,
-      //   ~pos=9,
-      //   del,
-      //   "(56,78,56~78,56,78)"
-      // )
+      // 3-tuple, no blanks
+      t(
+        "deleting ( from a filled 3-tuple does nothing",
+        tuple3WithNoBlanks,
+        ~pos=0,
+        del,
+        "~(56,78,56)"
+      )
+      t(
+        "deleting ) from a filled 3-tuple just moves cursor left",
+        tuple3WithNoBlanks,
+        ~pos=10, // just after )
+        bs,
+        "(56,78,56~)"
+      )
+      t(
+        "deleting first , from a filled 3-tuple removes 2nd item",
+        tuple3WithNoBlanks,
+        ~pos=3, // just before ,
+        del,
+        "(56~,56)"
+      )
+      t(
+        "deleting second , from a filled 3-tuple removes 3rd item",
+        tuple3WithNoBlanks,
+        ~pos=6, // just before ,
+        del,
+        "(56,78~)"
+      )
 
-      // t(
-      //   "bs on separator between item and blank dels blank",
-      //   tupleWithBlank,
-      //   ~pos=7,
-      //   bs,
-      //   "(56,78~,56)"
-      // )
+      // 3-tuple, first blank
+      // - (
+      // - )
+      // - first ,
+      // - second ,
 
-      // t(
-      //   "del on separator between item and blank dels blank",
-      //   tupleWithBlank,
-      //   ~pos=6,
-      //   del,
-      //   "(56,78~,56)"
-      // )
+      // 3-tuple, second blank
+      // - (
+      // - )
+      // - first ,
+      // - second ,
 
-      // t(
-      //   "bs on separator between blank and item dels blank",
-      //   tupleWithBlank,
-      //   ~pos=11,
-      //   bs,
-      //   "(56,78,~56)"
-      // )
+      // 3-tuple, third blank
+      // - (
+      // - )
+      // - first ,
+      // - second ,
 
-      // t(
-      //   "del on separator between blank and item dels blank",
-      //   tupleWithBlank,
-      //   ~pos=10,
-      //   del,
-      //   "(56,78,~56)"
-      // )
+      // 3-tuple, first non-blank
+      // - (
+      // - )
+      // - first ,
+      // - second ,
 
-      // t(
-      //   "bs on separator between string items merges strings",
-      //   multiTupleWithStrs,
-      //   ~pos=6,
-      //   bs,
-      //   "(\"ab~cd\",\"ef\")"
-      // )
+      // 3-tuple, second non-blank
+      // - (
+      // - )
+      // - first ,
+      // - second ,
 
-      // t(
-      //   "del before separator between string items merges strings",
-      //   multiTupleWithStrs,
-      //   ~pos=5,
-      //   del,
-      //   "(\"ab~cd\",\"ef\")"
-      // )
+      // 3-tuple, third non-blank
+      // - (
+      // - )
+      // - first ,
+      // - second ,
 
-      // t(
-      //   "backspacing open bracket of empty tuple dels tuple",
-      //   emptyTuple,
-      //   ~pos=1,
-      //   bs,
-      //   "~___"
-      // )
+      // 3-tuple, all blank
+      // - (
+      // - )
+      // - first ,
+      // - second ,
 
-      // t(
-      //   "backspacing close bracket of empty tuple moves inside tuple",
-      //   emptyTuple,
-      //   ~pos=2,
-      //   bs,
-      //   "(~)"
-      // )
+      // TODO: in the previous "implement tuples" PR, there were a number of
+      // tests suggesting that deletions of commas between same-typed items
+      // (e.g. int and int) should attempt to merge those items. For example,
+      // A deletion of the first comma in (1,2,3) would turn the tuple into
+      // (12,3). Personally I find this a bit surprising/undesired, but it's
+      // worth revisiting this idea, especially since lists seem to behave this
+      // way.
 
-      // t(
-      //   "deleting open bracket of empty tuple dels tuple",
-      //   emptyTuple,
-      //   ~pos=0,
-      //   del,
-      //   "~___"
-      // )
       ()
     })
     ()
