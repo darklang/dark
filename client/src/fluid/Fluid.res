@@ -2727,17 +2727,11 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
 
 
     // Tuples
-    | (ARTuple(_, TPClose), ETuple(id, first, second, theRest)) =>
-      let target = {astRef: ARTuple(id, TPClose), offset: 0}
-      Some(Expr(ETuple(id, first, second, theRest)), target)
-
     | (ARTuple(_, TPOpen), ETuple(id, first, second, theRest)) =>
       let all = list{first, second, ...theRest}
       let nonBlanks = List.filter(~f= expr => !isBlank(expr), all)
       switch nonBlanks {
-        // TODO: do I need to adjust the IDs for the Blank and Single cases here?
-        | list{} =>
-          Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
+        | list{} => Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
         | list{single} => Some(Expr(single), caretTargetForStartOfExpr'(single))
         | _ =>
           let target = {astRef: ARTuple(id, TPOpen), offset: 0}
@@ -2745,15 +2739,12 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       }
 
     | (ARTuple(_, TPComma(elemAndSepIdx)), ETuple(id, first, second, theRest)) =>
-      // generally, delete the item right after the deleted ,
-      // if that leaves us with only
       let all = list{first, second, ...theRest}
       let withoutDeleted = Belt.List.keepWithIndex(all, (_expr, i) => i != elemAndSepIdx + 1)
 
       switch withoutDeleted {
-        // TODO: do I need to adjust the IDs for the Blank and Single cases here?
         | list{} => Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0}) // should be impossible.
-        | list{single} => Some(Expr(single), caretTargetForStartOfExpr'(single))
+        | list{_single} =>  Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
         | list{first, second, ...theRest} =>
           let newExpr = Expr(ETuple(id, first, second, theRest))
 
@@ -2762,6 +2753,10 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
 
           Some(newExpr, newTarget)
       }
+
+    | (ARTuple(_, TPClose), ETuple(id, first, second, theRest)) =>
+      let target = {astRef: ARTuple(id, TPClose), offset: 0}
+      Some(Expr(ETuple(id, first, second, theRest)), target)
 
 
     // Records
@@ -2773,7 +2768,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
           let target = switch recordExprIdAtIndex(id, index - 1, FluidAST.toExpr(ast)) {
           | None => {
               astRef: ARRecord(id, RPOpen),
-              offset: 1 /* right after the { */,
+              offset: 1 // right after the {
             }
           | Some(exprId) => caretTargetForEndOfExpr(exprId, ast)
           }
@@ -4392,7 +4387,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     |> ASTInfo.setAST(insertAtListEnd(id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
 
-  // tuples
+  // Tuples
   | (InsertText(","), L(TTupleOpen(id, _), _), _) if onEdge =>
     let bID = gid()
     let newExpr = EBlank(bID) // new separators
@@ -4410,7 +4405,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   | (InsertText(","), L(_, ti), R(TTupleClose(id, _), _)) if onEdge =>
     let astInfo = acEnter(ti, K.Enter, astInfo)
     let bID = gid()
-    let newExpr = EBlank(bID) /* new separators */
+    let newExpr = EBlank(bID) // new separators
     astInfo
     |> ASTInfo.setAST(insertAtTupleEnd(id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
