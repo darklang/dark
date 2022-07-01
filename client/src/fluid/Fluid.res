@@ -4260,21 +4260,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     | None => doDelete(~pos, rti, astInfo)
     }
 
-  /* Special case for deleting blanks in front of a tuple */
-  // TODO: revisit this. I'm not even sure if this branch gets hit?
-  | (DeleteContentForward, L(TTupleOpen(_), _), R(TBlank(_), rti)) => {
-    /* If L is a TTupleOpen and R is a TBlank, mNext can be a comma or a tuple close.
-     * In case of a tuple close, we just replace the expr with the empty tuple
-     */
-    switch mNext {
-    | Some({token: TTupleClose(id, _), _}) =>
-      astInfo
-      |> ASTInfo.setAST(FluidAST.update(~f=_ => ETuple(id, EBlank(gid()), EBlank(gid()), list{}), id, astInfo.ast))
-      |> moveToCaretTarget({astRef: ARTuple(id, TPOpen), offset: 1})
-    | Some(ti) => doDelete(~pos, ti, astInfo)
-    | None => doDelete(~pos, rti, astInfo)
-    }
-    }
   | (DeleteContentForward, _, R(_, ti)) => doDelete(~pos, ti, astInfo)
   | (DeleteSoftLineBackward, _, R(_, ti))
   | (DeleteSoftLineBackward, L(_, ti), _) =>
