@@ -557,7 +557,7 @@ list{
   TFloat,
   TObj,
   TList,
-  TTuple(TAny, TAny, list{}), // TODO: 
+  TTuple(TAny, TAny, list{}),
   TAny,
   TBlock,
   TDB,
@@ -638,7 +638,6 @@ let generate = (m: model, a: autocomplete): autocomplete => {
       Belt.List.concat(allowedParamTipes, userTypes) |> List.map(~f=t => ACParamTipe(t))
     | TypeFieldTipe => allowedUserTypeFieldTipes |> List.map(~f=t => ACTypeFieldTipe(t))
     | FnReturnTipe =>
-      // what is this actually used for?
       let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
       Belt.List.concat(allowedReturnTipes, userTypes) |> List.map(~f=t => ACReturnTipe(t))
