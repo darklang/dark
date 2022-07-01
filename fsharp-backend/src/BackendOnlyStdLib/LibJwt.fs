@@ -48,10 +48,6 @@ let varErr = TVariable "err"
 // corner to remain untouched. New JWT functions should use a new
 // roundtrippable thing that is based on a type definition and is also separate
 // from the rest of the world (even if code is identical) for safety.
-//
-// The current implementation is broken in that it is not roundtrippable. Dates
-// are serialized into strings, without providing any way of knowing they
-// should be a string when we deserialize/extract it later.
 module private LegacySerializer =
   // The LibJWT functions use signatures based off the exact string encoding of
   // Dvals. This was defined in the original OCaml version. We need to keep
