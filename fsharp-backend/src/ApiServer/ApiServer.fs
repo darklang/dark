@@ -232,6 +232,34 @@ let run (packages : Packages) : unit =
   let k8sPort = LibService.Config.apiServerKubernetesPort
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
+let initSerializers () =
+  do Json.OCamlCompatible.allow<F404s.List.T> ()
+  do Json.OCamlCompatible.allow<F404s.Delete.T> ()
+  do Json.OCamlCompatible.allow<F404s.Delete.Params> ()
+  do Json.OCamlCompatible.allow<Traces.TraceData.TraceResult> ()
+  do Json.OCamlCompatible.allow<Traces.TraceData.Params> ()
+  do Json.OCamlCompatible.allow<Traces.TraceData.T> ()
+  do Json.OCamlCompatible.allow<Traces.AllTraces.T> ()
+  do Json.OCamlCompatible.allow<DBs.Unlocked.T> ()
+  do Json.OCamlCompatible.allow<DBs.DBStats.Params> ()
+  do Json.OCamlCompatible.allow<DBs.DBStats.Stat> ()
+  do Json.OCamlCompatible.allow<Execution.Function.T> ()
+  do Json.OCamlCompatible.allow<Execution.Function.Params> ()
+  do Json.OCamlCompatible.allow<Execution.Handler.T> ()
+  do Json.OCamlCompatible.allow<Execution.Handler.Params> ()
+  do Json.OCamlCompatible.allow<InitialLoad.T> ()
+  do Json.OCamlCompatible.allow<Secrets.Insert.Secret> ()
+  do Json.OCamlCompatible.allow<Secrets.Insert.T> ()
+  do Json.OCamlCompatible.allow<Secrets.Delete.Params> ()
+  do Json.OCamlCompatible.allow<Secrets.Delete.T> ()
+  do Json.OCamlCompatible.allow<Toplevels.Delete.Params> ()
+  do Json.OCamlCompatible.allow<Toplevels.Delete.T> ()
+  do Json.OCamlCompatible.allow<Workers.WorkerStats.Params> ()
+  do Json.OCamlCompatible.allow<Workers.WorkerStats.T> ()
+  do Json.OCamlCompatible.allow<Workers.Scheduler.Params> ()
+  do Json.OCamlCompatible.allow<Workers.Scheduler.T> ()
+
+  do Json.Vanilla.allow<Functions.FunctionMetadata> ()
 
 
 
@@ -240,12 +268,16 @@ let main _ =
   try
     let name = "ApiServer"
     print "Starting ApiServer"
+    Prelude.init ()
     LibService.Init.init name
+    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
     if Config.createAccounts then
       LibBackend.Account.initializeDevelopmentAccounts(name).Result
+
+    initSerializers ()
 
     let packages = LibBackend.PackageManager.allFunctions().Result
     run packages

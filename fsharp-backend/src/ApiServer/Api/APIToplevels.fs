@@ -16,10 +16,8 @@ module Telemetry = LibService.Telemetry
 module Delete =
   type Success = { result : string }
 
-  [<Json.OCamlCompatible.Serializable("ApiToplevels.Delete.T")>]
   type T = Option<Success>
 
-  [<Json.OCamlCompatible.Serializable("ApiToplevels.Delete.Params")>]
   type Params = { tlid : tlid }
 
   /// Endpoint to delete a toplevel

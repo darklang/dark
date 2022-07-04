@@ -1024,28 +1024,29 @@ module Json =
     let mutable annotatedTypes =
       System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
 
-    type Serializable(name : string) =
-      inherit System.Attribute()
-      do annotatedTypes[name] <- true
-
     let rec isSerializable (t : System.Type) : bool =
       if isAllowedGenericType t then
         t.GetGenericArguments() |> Array.forall isSerializable
       elif isBaseType t then
         true
       else
-        try
-          t
-          |> System.Attribute.GetCustomAttributes
-          |> Array.exists (fun attr -> attr :? Serializable)
-        with
-        | _ -> false
+        annotatedTypes.ContainsKey(string t)
+
+    let allow<'a> () : unit =
+      try
+        let t = typeof<'a>
+        print $"Allowing type Json.Vanilla type {t}"
+        annotatedTypes[string t] <- true
+        ()
+      with
+      | _ -> System.Console.Write("error allowing Vanilla type")
 
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
         Exception.raiseInternal
-          "Invalid serialization call to unannotated type: annotate this type with [<Json.Vanilla.Serializable(name)>]"
+          "Invalid serialization call to unannotated type: add `do Json.Vanilla.allow<type>()` to allow it to be serialized"
           [ "type", string t ]
+
 
 
     let serialize (data : 'a) : string =
@@ -1374,30 +1375,30 @@ module Json =
     let mutable annotatedTypes =
       System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
 
-    type Serializable(name : string) =
-      inherit System.Attribute()
-      do annotatedTypes[name] <- true
-
     let rec isSerializable (t : System.Type) : bool =
       if isAllowedGenericType t then
         t.GetGenericArguments() |> Array.forall isSerializable
       elif isBaseType t then
         true
       else
-        try
-          t
-          |> System.Attribute.GetCustomAttributes
-          |> Array.exists (fun attr -> attr :? Serializable)
-        with
-        | _ -> false
+        annotatedTypes.ContainsKey(string t)
+
+    let allow<'a> () : unit =
+      try
+        let t = typeof<'a>
+        print $"Allowing Json.OCamlCompatible type {t}"
+        annotatedTypes[string t] <- true
+        ()
+      with
+      | _ -> System.Console.Write("error allowing OCamlCompatible type")
+
+
 
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
         Exception.raiseInternal
-          "Invalid serialization call to unannotated type: annotate this type with [<Json.OCamlCompatible.Serializable(name)>]"
+          "Invalid serialization call to unannotated type: add `do Json.OCamlSerialiation.allow<type>()` to allow it to be serialized"
           [ "type", string t ]
-
-
 
     /// Serialize to JSON
     let serialize (data : 'a) : string =
@@ -1816,7 +1817,6 @@ module Task =
 // them, you should move these to the files with specific formats and serialize
 // them there.
 
-[<Json.Vanilla.Serializable("Replacements")>]
 type pos = { x : int; y : int }
 
 type CanvasID = System.Guid
@@ -2030,3 +2030,7 @@ module HttpHeaders =
 
 
 let id (x : int) : id = uint64 x
+
+let init () =
+  // CLEANUP: move somewhere else, we shouldn't be serializing anything here
+  do Json.Vanilla.allow<pos> ()

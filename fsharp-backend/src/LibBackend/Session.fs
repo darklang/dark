@@ -9,7 +9,6 @@ open Prelude
 open Tablecloth
 open Db
 
-[<Json.Vanilla.Serializable("Session.JsonData")>]
 type JsonData = { username : string; csrf_token : string }
 
 type T =

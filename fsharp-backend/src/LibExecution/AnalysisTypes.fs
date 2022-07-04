@@ -31,7 +31,6 @@ type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval
 
 type TraceID = System.Guid
 
-[<Json.OCamlCompatible.Serializable("TraceData")>]
 type TraceData =
   { input : InputVars
     timestamp : NodaTime.Instant

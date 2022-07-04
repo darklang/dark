@@ -25,7 +25,6 @@ module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module Telemetry = LibService.Telemetry
 
 module Function =
-  [<Json.OCamlCompatible.Serializable("ApiExecution.Function.Params")>]
   type Params =
     { tlid : tlid
       trace_id : AT.TraceID
@@ -33,7 +32,6 @@ module Function =
       args : ORT.dval list
       fnname : string }
 
-  [<Json.OCamlCompatible.Serializable("ApiExecution.Function.T")>]
   type T =
     { result : ORT.dval
       hash : string
@@ -89,13 +87,11 @@ module Function =
     }
 
 module Handler =
-  [<Json.OCamlCompatible.Serializable("ApiExecution.Handler.Params")>]
   type Params =
     { tlid : tlid
       trace_id : AT.TraceID
       input : List<string * ORT.dval> }
 
-  [<Json.OCamlCompatible.Serializable("ApiExecution.Handler.T")>]
   type T = { touched_tlids : tlid list }
 
   /// API endpoint to trigger the execution of a Handler

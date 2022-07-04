@@ -21,7 +21,6 @@ type PreviewSafety =
   | Safe
   | Unsafe
 
-[<Json.Vanilla.Serializable("FunctionMetadata")>]
 type FunctionMetadata =
   { name : string
     parameters : ParamMetadata list

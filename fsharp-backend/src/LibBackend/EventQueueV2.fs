@@ -42,7 +42,6 @@ type EventID = System.Guid
 /// Notifications are sent by PubSub to say that now would be a good time to try this
 /// event. We only load events in response to notifications.
 
-[<Json.Vanilla.Serializable("NotifcationData")>]
 type NotificationData = { id : EventID; canvasID : CanvasID }
 
 type Notification =

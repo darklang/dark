@@ -210,8 +210,7 @@ module RuntimeT =
       ``params`` : (id * string) list
       body : fluidExpr }
 
-  and [<Json.OCamlCompatible.Serializable("ORT.dval");
-        Json.Vanilla.Serializable("ORT.dval")>] dval =
+  and dval =
     (* basic types  *)
     | DInt of int64
     | DFloat of float
@@ -240,10 +239,8 @@ module RuntimeT =
 type secret = { secret_name : string; secret_value : string }
 
 module PackageManager =
-  [<Json.OCamlCompatible.Serializable("OT.PackageManager.parameter")>]
   type parameter = { name : string; tipe : tipe; description : string }
 
-  [<Json.OCamlCompatible.Serializable("OT.PackageManager.fn")>]
   type fn =
     { user : string
       package : string
@@ -258,8 +255,6 @@ module PackageManager =
       deprecated : bool
       tlid : id }
 
-[<Prelude.Json.Vanilla.Serializable("OT.op")>]
-[<Json.OCamlCompatible.Serializable("OT.op")>]
 type op =
   | SetHandler of tlid * pos * RuntimeT.HandlerT.handler
   | CreateDB of tlid * pos * string

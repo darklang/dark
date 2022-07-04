@@ -4,8 +4,13 @@ module LibService.Init
 
 open Prelude
 
+let initializeSerializers () = do Json.Vanilla.allow<Rollbar.HoneycombJson> ()
+
+
 let init (serviceName : string) : unit =
   print $"Initing LibService in {serviceName}"
+
+  initializeSerializers ()
 
   Rollbar.init serviceName
   Telemetry.init serviceName

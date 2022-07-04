@@ -40,6 +40,18 @@ type WaitForDB =
   | WaitForDB
   | DontWaitForDB
 
+let initSerializers () =
+  do Json.Vanilla.allow<Pusher.AddOpEventTooBigPayload> ()
+  do Json.Vanilla.allow<Pusher.NewTraceID> ()
+  do Json.Vanilla.allow<EventQueueV2.NotificationData> ()
+  do Json.Vanilla.allow<StaticAssets.StaticDeploy> ()
+  do Json.Vanilla.allow<TraceInputs.F404> ()
+  do Json.OCamlCompatible.allow<TraceInputs.F404> ()
+  do Json.Vanilla.allow<Session.JsonData> ()
+  do Json.OCamlCompatible.allow<Op.AddOpParams> ()
+  do Json.OCamlCompatible.allow<Op.AddOpEvent> ()
+
+
 /// <summary>Initialize LibBackend.</summary>
 ///
 /// <remarks> This function does not do any behaviour which accesses DB tables and
@@ -59,6 +71,8 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     Json.Vanilla.registerConverter (
       QueueSchedulingRules.WorkerStates.STJJsonConverter.WorkerStateConverter()
     )
+
+    initSerializers ()
 
     match shouldWaitForDB with
     | WaitForDB -> do! _waitForDB ()

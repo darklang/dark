@@ -20,12 +20,10 @@ open LibService.Exception
 
 module Insert =
 
-  [<Json.OCamlCompatible.Serializable("ApiSecrets.Insert.Secret")>]
   type Secret = { secret_name : string; secret_value : string }
 
   type Params = Secret
 
-  [<Json.OCamlCompatible.Serializable("ApiSecrets.Insert.T")>]
   type T = { secrets : List<Secret> }
 
   /// API endpoint to insert a Secret within a canvas
@@ -67,10 +65,8 @@ module Insert =
 module Delete =
   type Secret = { secret_name : string; secret_value : string }
 
-  [<Json.OCamlCompatible.Serializable("ApiSecrets.Delete.Params")>]
   type Params = { secret_name : string }
 
-  [<Json.OCamlCompatible.Serializable("ApiSecrets.Delete.T")>]
   type T = { secrets : List<Secret> }
 
   /// API endpoint to delete a specific Secret

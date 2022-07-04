@@ -43,7 +43,6 @@ let toApiStaticDeploys (d : SA.StaticDeploy) : ApiStaticDeploy =
 
 type ApiSecret = { secret_name : string; secret_value : string }
 
-[<Json.OCamlCompatible.Serializable("InitialLoad.T")>]
 type T =
   { toplevels : ORT.toplevels
     deleted_toplevels : ORT.toplevels

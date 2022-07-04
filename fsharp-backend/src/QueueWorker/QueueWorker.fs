@@ -297,8 +297,10 @@ let main _ : int =
   try
     let name = "QueueWorker"
     print "Starting QueueWorker"
+    Prelude.init ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
+    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

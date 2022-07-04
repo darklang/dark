@@ -9,6 +9,8 @@ open TestUtils.TestUtils
 module File = LibBackend.File
 module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module ORT = LibExecution.OCamlTypes.RuntimeT
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 module Values =
@@ -424,114 +426,175 @@ let oplistRoundtripTest =
     Expect.equal actual Values.testOplist ""
   }
 
-type Format =
-  { name : string
-    serializer : PT.Oplist -> byte array
-    deserializer : byte array -> PT.Oplist
-    prettyPrinter : Option<PT.Oplist -> string>
-    prefix : string
-    suffix : string
-    prettyPrinterSuffix : string }
+module GenericSerializersTests =
+  // We've annotated each type that we serialize in Dark, with the generic serializer
+  // that it allows. Now we want to verify that the format doesn't change by having a
+  // sample value of each type, and verifying the serialized sample value doesn't
+  // change.  This gives us extremely high confidence that we're not breaking
+  // anything when we change the serializer.
+  // - If there's a change to the format, a new file will be generated.
+  //   What to do here will depend on the change, how much data is saved with the old
+  //   change, etc. You may want to save both formats and check that both are
+  //   deserializable.
+  // - If there's a change to the sample value, generate a new file.
+  //   Commit it after verifying that the format is appropriate.
 
-let formats =
-  [ { name = "BinarySerialization"
-      serializer = BinarySerialization.serializeOplist 0UL
-      deserializer = BinarySerialization.deserializeOplist 0UL
-      prettyPrinter = Some(BinarySerialization.Test.serializeOplistToJson 0UL)
-      prefix = "oplist-binary"
-      suffix = ".bin"
-      prettyPrinterSuffix = ".json" }
-    // DvalReprExternal
-    // - toEnduserReadableTextV0
-    // - toPrettyMachineJsonV1
-    // - toDeveloperReprV0
-    // - unsafeOfUnknownJsonV0
-    // - ofUnknownJsonV1
-    // DvalReprInternalDeprecated
-    // - unsafeDvalOfJsonV1
-    // - unsafeDvalToJsonValueV0
-    // - unsafeDvalToJsonValueV1
-    // - toInternalRoundtrippableV0
-    // - ofIntertnalRoundtrippableJsonV0
-    // - toInternalQueryableV1
-    // - ofInternalQueryableV1
-    // - hash 0
-    // - hash 1
-    // DvalReprInternalNew
-    // - toRoundtrippableJsonV0
-    // - parseRoundtrippableJsonV0
-    // Prelude.Json.Vanilla
-    // Prelude.Json.OCamlCompatible
-    // toStringPairs (LegacyBaseHttpClient)
-    // toStringPairs (HttpClient)
-    // LibJwt LegacySerializer.toYojson
-    // LibJwt LegacySerializer.ofYojson
+  let goodDval = RT.DInt 5L
+  let goodOCamlDval = ORT.DInt 5L
+
+  let x : LibAnalysis.AnalysisResult = Error "x"
+
+  let sampleData : Map<string, obj> =
+    [
+       (LibAnalysis.ClientInterop.ExecutedResult goodOCamlDval) :> obj
+       ({ username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abcd1234"} : LibBackend.Session.JsonData) :> obj
     ]
+    |> List.map (fun v -> (v.GetType().ToString()), v)
+    |> Map
+    |> debug "sampleData"
 
-let nameFor (f : Format) (pretty : bool) (version : string) =
-  let (pretty, suffix) =
-    if pretty then ("-pretty", f.prettyPrinterSuffix) else "", f.suffix
-  $"{f.prefix}{pretty}-{version}{suffix}"
-
-/// Generates timestamped test files for binary serialization. These files are used
-/// to prove that the binary serialization format is compatible.  When we change the
-/// format, we should still be able to read the old files in addition to the new ones
-/// (though they will not necessarily have the same output). If we make changes to
-/// the binary serialization format (or to the test cases), we generate the files
-/// and commit them.
-let generateTestFiles () : unit =
-  formats
-  |> List.iter (fun f ->
-    let output = f.serializer Values.testOplist
-
-    let sha1 =
-      System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan output)
-      |> SimpleBase.Base16.LowerCase.Encode
-
-    File.writefileBytes Config.Serialization (nameFor f false sha1) output
-    File.writefileBytes Config.Serialization (nameFor f false "latest") output
-
-    f.prettyPrinter
-    |> Option.tap (fun s ->
-      let jsonData = s Values.testOplist
-      File.writefile Config.Serialization (nameFor f true sha1) jsonData
-      File.writefile Config.Serialization (nameFor f true "latest") jsonData))
+  let generateTestFiles () : unit =
+    debuG "length" Json.Vanilla.annotatedTypes.Count
+    Json.Vanilla.annotatedTypes.Keys
+    |> debugBy "annotated vanilla types" Seq.length
+    |> Seq.iter (fun name ->
+      print $"writing config for {name}"
+      let sampleValue = sampleData[name]
+      let output = Json.Vanilla.serialize sampleValue
+      File.writefile Config.Serialization $"vanilla-{name}.json" output)
 
 
-let testTestFiles =
-  formats
-  |> List.map (fun f ->
-    test "check test files are correct" {
+  let testTestFiles = []
+//   Json.Vanilla.annotatedTypes
+//   |> Map.keys
+//   |> List.map (fun typ ->
+//     test "check test files are correct" {
+//       let sampleValue = sampleData[typ]
+
+//       // Check that the generated binary data matches what we have saved. This ensures
+//       // the format has not changed.
+//       let actual = Json.Vanilla.serialize sampleValue
+//       let expected = File.readfileBytes Config.Serialization (nameFor typ)
+//       Expect.equal actual expected "check matches the saved file"
+
+//       // Check deserialization works too
+//       let deserialized = Json.Vanilla.serialize actual
+//       Expect.equal deserialized sampleValue "check deserialized matches original"
+//     })
+
+module CustomSerializersTests =
+
+  type Format =
+    { name : string
+      serializer : PT.Oplist -> byte array
+      deserializer : byte array -> PT.Oplist
+      prettyPrinter : Option<PT.Oplist -> string>
+      prefix : string
+      suffix : string
+      prettyPrinterSuffix : string }
+
+  let formats =
+    [ { name = "BinarySerialization"
+        serializer = BinarySerialization.serializeOplist 0UL
+        deserializer = BinarySerialization.deserializeOplist 0UL
+        prettyPrinter = Some(BinarySerialization.Test.serializeOplistToJson 0UL)
+        prefix = "oplist-binary"
+        suffix = ".bin"
+        prettyPrinterSuffix = ".json" }
+      // DvalReprExternal
+      // - toEnduserReadableTextV0
+      // - toPrettyMachineJsonV1
+      // - toDeveloperReprV0
+      // - unsafeOfUnknownJsonV0
+      // - ofUnknownJsonV1
+      // DvalReprInternalDeprecated
+      // - unsafeDvalOfJsonV1
+      // - unsafeDvalToJsonValueV0
+      // - unsafeDvalToJsonValueV1
+      // - toInternalRoundtrippableV0
+      // - ofIntertnalRoundtrippableJsonV0
+      // - toInternalQueryableV1
+      // - ofInternalQueryableV1
+      // - hash 0
+      // - hash 1
+      // DvalReprInternalNew
+      // - toRoundtrippableJsonV0
+      // - parseRoundtrippableJsonV0
+      // Prelude.Json.Vanilla
+      // Prelude.Json.OCamlCompatible
+      // toStringPairs (LegacyBaseHttpClient)
+      // toStringPairs (HttpClient)
+      // LibJwt LegacySerializer.toYojson
+      // LibJwt LegacySerializer.ofYojson
+      ]
+
+  let nameFor (f : Format) (pretty : bool) (version : string) =
+    let (pretty, suffix) =
+      if pretty then ("-pretty", f.prettyPrinterSuffix) else "", f.suffix
+    $"{f.prefix}{pretty}-{version}{suffix}"
+
+  /// Generates timestamped test files for binary serialization. These files are used
+  /// to prove that the binary serialization format is compatible.  When we change the
+  /// format, we should still be able to read the old files in addition to the new ones
+  /// (though they will not necessarily have the same output). If we make changes to
+  /// the binary serialization format (or to the test cases), we generate the files
+  /// and commit them.
+  let generateTestFiles () : unit =
+    formats
+    |> List.iter (fun f ->
+      let output = f.serializer Values.testOplist
+
+      let sha1 =
+        System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan output)
+        |> SimpleBase.Base16.LowerCase.Encode
+
+      File.writefileBytes Config.Serialization (nameFor f false sha1) output
+      File.writefileBytes Config.Serialization (nameFor f false "latest") output
+
       f.prettyPrinter
       |> Option.tap (fun s ->
-        let expected = File.readfile Config.Serialization (nameFor f true "latest")
-        let actual = s Values.testOplist
-        Expect.equal actual expected "check generates the same json")
-
-      // Check that the generated binary data matches what we have saved. This ensures
-      // the format has not changed.
-      let actual = f.serializer Values.testOplist
-      let expected =
-        File.readfileBytes Config.Serialization (nameFor f false "latest")
-      Expect.equal actual expected "check can read the saved file"
-
-      // Check that all .bin files can be parsed and give us the expected answer (this
-      // might not be true as we get more formats, so this may need to be adapted)
-      File.lspath Config.Serialization "{f.prefix}.*{f.suffix}"
-      |> List.iter (fun filename ->
-        let actual =
-          File.readfileBytes Config.Serialization filename |> f.deserializer
-        Expect.equal
-          actual
-          Values.testOplist
-          "deserialize should  match latest format")
-    })
+        let jsonData = s Values.testOplist
+        File.writefile Config.Serialization (nameFor f true sha1) jsonData
+        File.writefile Config.Serialization (nameFor f true "latest") jsonData))
 
 
+  let testTestFiles =
+    formats
+    |> List.map (fun f ->
+      test "check test files are correct" {
+        f.prettyPrinter
+        |> Option.tap (fun s ->
+          let expected = File.readfile Config.Serialization (nameFor f true "latest")
+          let actual = s Values.testOplist
+          Expect.equal actual expected "check generates the same json")
+
+        // Check that the generated binary data matches what we have saved. This ensures
+        // the format has not changed.
+        let actual = f.serializer Values.testOplist
+        let expected =
+          File.readfileBytes Config.Serialization (nameFor f false "latest")
+        Expect.equal actual expected "check can read the saved file"
+
+        // Check that all .bin files can be parsed and give us the expected answer (this
+        // might not be true as we get more formats, so this may need to be adapted)
+        File.lspath Config.Serialization "{f.prefix}.*{f.suffix}"
+        |> List.iter (fun filename ->
+          let actual =
+            File.readfileBytes Config.Serialization filename |> f.deserializer
+          Expect.equal
+            actual
+            Values.testOplist
+            "deserialize should  match latest format")
+      })
+
+let generateTestFiles () =
+  CustomSerializersTests.generateTestFiles ()
+  GenericSerializersTests.generateTestFiles ()
 
 let tests =
   testList
     "Serialization"
     [ toplevelRoundtripTest
       oplistRoundtripTest
-      testList "test formats" testTestFiles ]
+      testList "customer test formats" CustomSerializersTests.testTestFiles
+      testList "generic vanilla test formats" GenericSerializersTests.testTestFiles ]

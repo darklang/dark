@@ -13,10 +13,15 @@ module Telemetry = LibService.Telemetry
 let main (args : string array) : int =
   try
     let name = "Tests"
+    Prelude.init ()
     LibService.Init.init name
+    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
     (LibBackend.Account.initializeDevelopmentAccounts name).Result
+
+    ApiServer.ApiServer.initSerializers()
+    LibAnalysis.init()
 
     let tests =
       [ Tests.Account.tests
