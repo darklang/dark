@@ -263,7 +263,7 @@ let run () : Task<unit> =
     // automatically when an event finishes.
 
     // We use a high number because we don't actually know the number of slots: it's
-    // decided somewhat dynamically by a feature flag. Do just pick a high number,
+    // decided somewhat dynamically by a feature flag. So just pick a high number,
     // and then use the semaphore to count the events in progress.
     let initialCount = 100000 // just be a high number
     let semaphore = new System.Threading.SemaphoreSlim(initialCount)
@@ -271,7 +271,7 @@ let run () : Task<unit> =
     let maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
     while not shouldShutdown do
       try
-        // FSTODO: include memory and CPU usage checks in here
+        // TODO: include memory and CPU usage checks in here
         let runningCount = initialCount - semaphore.CurrentCount
         let remainingSlots = maxEventsFn () - runningCount
         if remainingSlots > 0 then
