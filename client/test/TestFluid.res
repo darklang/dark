@@ -4049,96 +4049,11 @@ let run = () => {
       )
       ()
     })
+
     describe("create", () => {
       t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
-      t(
-        "inserting ( before true creates a wrapping tuple",
-        trueBool,
-        ~pos=0,
-        ins("("),
-        "(~true,___)"
-      )
-      t(
-        "inserting ( before false creates a wrapping tuple",
-        falseBool,
-        ~pos=0,
-        ins("("),
-        "(~false,___)"
-      )
-      t(
-        "inserting ( before int creates a simple tuple",
-        aShortInt,
-        ~pos=0,
-        ins("("),
-        "(~1,___)"
-      )
-      t( // todo: review this test, not sure what's going on.
-        "inserting ( before multiline string creates a wrapping tuple",
-        mlStrWSpace,
-        ~pos=0,
-        ins("("),
-        "(~\"123456789_abcdefghi,123456789_abcdefghi,\n  123456789_ abcdefghi, 123456789_ abcdef\n ghi,\",___)"
-      )
-      t(
-        "inserting ( before null creates a wrapping tuple",
-        aNull,
-        ~pos=0,
-        ins("("),
-        "(~null,___)"
-      )
-      t(
-        "inserting ( before float creates a wrapping tuple",
-        aFloat,
-        ~pos=0,
-        ins("("),
-        "(~123.456,___)"
-      )
-      t(
-        "inserting ( before function call creates a wrapping tuple",
-        aFullFnCall,
-        ~pos=0,
-        ins("("),
-        "(~Int::add 5 5,___)"
-      )
-      t(
-        "inserting ( before variable creates a wrapping tuple",
-        aVar,
-        ~pos=0,
-        ins("("),
-        "(~variable,___)"
-      )
-      t(
-        "inserting ( before empty tuple open wraps it in another tuple",
-        tuple2WithBothBlank,
-        ~pos=0,
-        ins("("),
-        "(~(___,___),___)"
-      )
-      t(
-        "inserting ( before tuple open wraps it in another tuple",
-        tuple2WithNoBlank,
-        ~pos=0,
-        ins("("),
-        "(~(56,78),___)"
-      )
-      t(
-        "inserting ( before record open wraps it in a tuple",
-        singleRowRecord,
-        ~pos=0,
-        ins("("),
-        "(~{\n   f1 : 56\n },___)"
-      )
-      t(
-        "inserting ( before constructor creates a wrapping tuple",
-        aConstructor,
-        ~pos=0,
-        ins("("),
-        "(~Just ___,___)"
-      )
       ()
     })
-
-    // insert
     describe("insert", () => {
       t("insert into empty tuple inserts", tuple2WithBothBlank, ~pos=1, ins("5"), "(5~,___)")
       t("inserting before a tuple is no-op", tuple2WithBothBlank, ~pos=0, ins("5"), "~(___,___)")

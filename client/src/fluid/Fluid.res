@@ -4458,33 +4458,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
 
 
-  // Wrap the current expression in a tuple
-  // TODO: prior to PR merge, disable below (until tuples functionality fuller)
-  | (InsertText("("), _, R(TInteger(id, _, _), _))
-  | (InsertText("("), _, R(TTrue(id, _), _))
-  | (InsertText("("), _, R(TFalse(id, _), _))
-  | (InsertText("("), _, R(TNullToken(id, _), _))
-  | (InsertText("("), _, R(TFloatWhole(id, _, _), _))
-  | (InsertText("("), _, R(TFnName(id, _, _, _, _), _))
-  | (InsertText("("), _, R(TVariable(id, _, _), _))
-  | (InsertText("("), _, R(TListOpen(id, _), _))
-  | (InsertText("("), _, R(TTupleOpen(id, _), _))
-  | (InsertText("("), _, R(TRecordOpen(id, _), _))
-  | (InsertText("("), _, R(TConstructorName(id, _), _)) =>
-    let newID = gid()
-    astInfo
-    |> ASTInfo.setAST(FluidAST.update(~f=var => ETuple(newID, var, EBlank(gid()), list{}), id, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARTuple(newID, TPOpen), offset: 1})
-  // Strings can be wrapped in tuples, but only if we're outside the quote
-  | (InsertText("("), _, R(TString(id, _, _), toTheRight))
-  | (InsertText("("), _, R(TStringMLStart(id, _, _, _), toTheRight))
-    if onEdge && pos == toTheRight.startPos =>
-    let newID = gid()
-    astInfo
-    |> ASTInfo.setAST(FluidAST.update(~f=var => ETuple(newID, var, EBlank(gid()), list{}), id, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARTuple(newID, TPOpen), offset: 1})
-
-
   // Infix symbol insertion to create partials
   | (InsertText(infixTxt), L(TPipe(_), ti), _)
   | (InsertText(infixTxt), _, R(TPlaceholder(_), ti))
