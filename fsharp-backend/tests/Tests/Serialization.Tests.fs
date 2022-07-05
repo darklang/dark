@@ -463,10 +463,6 @@ module GenericSerializersTests =
     // Stores a list of sample outputs for `$"{serializerName}-{typeName}"
     let data = Dictionary.T<string, List<string * string>>()
 
-    let typeToKeyName (t : System.Type) : string =
-      let replaced = Regex.Replace(t.ToString(), "[^-_a-zA-Z0-9]", "-")
-      Regex.Replace(replaced, "[-]+", "-")
-
     let keyFor (typeName : string) (serializerName : string) : string =
       $"{serializerName}-{typeName}"
 
@@ -475,7 +471,9 @@ module GenericSerializersTests =
       (serializerName : string)
       (dataName : string)
       : string =
-      $"{serializerName}-{typeName}-{dataName}"
+      let original = $"{serializerName}-{typeName}-{dataName}"
+      let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
+      Regex.Replace(replaced, "[-]+", "-")
 
     let get (typeName : string) (serializerName : string) : List<string * string> =
       data
