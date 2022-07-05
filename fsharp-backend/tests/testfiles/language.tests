@@ -26,7 +26,13 @@
 (1, 2, 3, 4, 5, 6, 7, 8, 9) = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 (1, blank, 3) = blank
 (1, Test.typeError_v0 "test", 3) = Test.typeError_v0 "test"
+(1, Test.typeError_v0 "error1", Test.typeError_v0 "error2") = Test.typeError_v0 "error1"
 (1, Test.errorRailValue_v0 Nothing, 3) = Test.errorRailValue_v0 Nothing
+(1, blank, Test.typeError_v0 "err", 4) = blank
+(1, Test.typeError_v0 "err", blank, 4) = blank
+(1, Test.typeError_v0 "err", Test.errorRailValue_v0 Nothing, blank, 4) = blank
+(1, blank, Test.typeError_v0 "err", Test.errorRailValue_v0 Nothing, 4) = blank
+(1, blank, Test.errorRailValue_v0 Nothing, Test.typeError_v0 "err", 4) = blank
 
 
 [tests.records]
