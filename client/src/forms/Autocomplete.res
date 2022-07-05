@@ -546,6 +546,7 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
 - TErrorRail: doesn't make sense pass to function
 - TDbList: only for DB schemas
 - TUserType: added later
+- TTuple: currently awkward to support parameterized types. TODO
  */
 let allowedParamTipes =
   list{
@@ -555,7 +556,6 @@ let allowedParamTipes =
     TFloat,
     TObj,
     TList,
-    TTuple(TAny, TAny, list{}),
     TAny,
     TBlock,
     TDB,
