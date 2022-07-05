@@ -4057,6 +4057,13 @@ let run = () => {
     describe("insert", () => {
       t("insert into empty tuple inserts", tuple2WithBothBlank, ~pos=1, ins("5"), "(5~,___)")
       t("inserting before a tuple is no-op", tuple2WithBothBlank, ~pos=0, ins("5"), "~(___,___)")
+      tStruct(
+        "inserting before a tuple at top-level is a no-op",
+        tuple2WithBothBlank,
+        ~pos=0,
+        list{InsertText("c")},
+        tuple2WithBothBlank
+      )
       t( // todo: review this - I'm not sure what it does.
         "insert space into multi tuple",
         tuple2WithNoBlank,

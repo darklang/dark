@@ -3326,7 +3326,6 @@ let doExplicitInsert = (
     | (ARFnCall(_), EFnCall(_))
     | (ARString(_, SPOpenQuote), EString(_))
     | (ARList(_, LPOpen), EList(_))
-    | (ARTuple(_, TPOpen), ETuple(_))
     | (ARRecord(_, RPOpen), ERecord(_))
       if currCaretTarget.offset == 0 &&
         FluidUtil.isUnicodeLetter(
