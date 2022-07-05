@@ -1000,26 +1000,28 @@ module Json =
     // lot for random types, and we would like to be sure that we don't accidentally
     // change the format of those types by adding new converters or whatever. Our
     // solution this is:
-    // 1) track all types that are serialized and also how they are // serialized
+    // 1) track all types that are serialized and also how they are serialized
     // 2) store sample input/output for each type, and test them it
     // 3) warn when serializing using a type that is not a known serializer.
 
-    // We track the types using an attributes, added to all the types that we wish to
-    // serialize. Those attributes add the type to a dictionary: at test time we check
-    // all members of the dictionary are accounted for. At runtime we warn if we're
-    // attempt to serialize a type without the annotation. During development, we upgrade
-    // that warning to an exception.
+    // We track the types by explicitly calling the `allow<type>` function.  This
+    // adds the type to a dictionary: at test-time we check all members of the
+    // dictionary are accounted for. At runtime we warn if we're attempt to serialize
+    // a type that hasn't been allowed. During development, we upgrade that warning
+    // to an exception.
+    //
+    // See also Serializers.Tests.fs and [/docs/serialization.md]
 
-    let mutable annotatedTypes =
+    let mutable allowedTypes =
       System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
 
     let rec isSerializable (t : System.Type) : bool =
-      if isBaseType t then true else annotatedTypes.ContainsKey(string t)
+      if isBaseType t then true else allowedTypes.ContainsKey(string t)
 
     let allow<'a> () : unit =
       try
         let t = typeof<'a>
-        annotatedTypes[string t] <- true
+        allowedTypes[string t] <- true
         ()
       with
       | _ -> System.Console.Write("error allowing Vanilla type")
@@ -1355,16 +1357,16 @@ module Json =
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
-    let mutable annotatedTypes =
+    let mutable allowedTypes =
       System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
 
     let rec isSerializable (t : System.Type) : bool =
-      if isBaseType t then true else annotatedTypes.ContainsKey(string t)
+      if isBaseType t then true else allowedTypes.ContainsKey(string t)
 
     let allow<'a> () : unit =
       try
         let t = typeof<'a>
-        annotatedTypes[string t] <- true
+        allowedTypes[string t] <- true
         ()
       with
       | _ -> System.Console.Write("error allowing OCamlCompatible type")

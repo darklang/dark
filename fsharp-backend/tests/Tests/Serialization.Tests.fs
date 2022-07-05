@@ -655,8 +655,8 @@ module GenericSerializersTests =
             let expected = File.readfile Config.Serialization filename
             Expect.equal "matches" actualSerializedData expected)
         })
-    (testsFor Json.Vanilla.annotatedTypes.Keys "vanilla")
-    @ (testsFor Json.OCamlCompatible.annotatedTypes.Keys "ocaml")
+    (testsFor Json.Vanilla.allowedTypes.Keys "vanilla")
+    @ (testsFor Json.OCamlCompatible.allowedTypes.Keys "ocaml")
 
   let generateTestFiles () : unit =
     let generate (keys : seq<string>) (serializerName : string) =
@@ -667,8 +667,8 @@ module GenericSerializersTests =
         |> List.iter (fun (name, serializedData) ->
           let filename = SampleData.fileNameFor typeName serializerName name
           File.writefile Config.Serialization filename serializedData))
-    generate Json.Vanilla.annotatedTypes.Keys "vanilla"
-    generate Json.OCamlCompatible.annotatedTypes.Keys "ocaml"
+    generate Json.Vanilla.allowedTypes.Keys "vanilla"
+    generate Json.OCamlCompatible.allowedTypes.Keys "ocaml"
 
 module CustomSerializersTests =
 
