@@ -37,7 +37,7 @@ type EvalWorker =
 
   static member selfDelegate =
     // This feels like the initializer
-    LibAnalysis.init()
+    LibAnalysis.init ()
 
     let typ =
       let sourceAssembly : Assembly =
