@@ -2743,7 +2743,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       let withoutDeleted = Belt.List.keepWithIndex(all, (_expr, i) => i != elemAndSepIdx + 1)
 
       switch withoutDeleted {
-        | list{} => Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0}) // should be impossible.
+        | list{} => recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=show_astRef(currAstRef), None)
         | list{_single} =>  Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
         | list{first, second, ...theRest} =>
           let newExpr = Expr(ETuple(id, first, second, theRest))
