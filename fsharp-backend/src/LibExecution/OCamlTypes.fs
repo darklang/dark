@@ -686,8 +686,8 @@ module Convert =
     | PT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
     | PT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
-    | PT.PCharacter (id, c) ->
-      Exception.raiseInternal "Character patterns not supported" [ "id", id; "c", c ]
+    | PT.PCharacter (id, c) -> ORT.FPBlank(mid, id)
+    // Exception.raiseInternal "Character patterns not supported" [ "id", id; "c", c ]
     | PT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | PT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | PT.PFloat (id, Positive, w, f) -> ORT.FPFloat(mid, id, string w, string f)
@@ -703,8 +703,8 @@ module Convert =
     | RT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
     | RT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
-    | RT.PCharacter (id, c) ->
-      Exception.raiseInternal "Character patterns not supported" [ "id", id; "c", c ]
+    | RT.PCharacter (id, c) -> ORT.FPBlank(mid, id)
+    // Exception.raiseInternal "Character patterns not supported" [ "id", id; "c", c ]
     | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | RT.PFloat (id, d) ->
@@ -735,8 +735,8 @@ module Convert =
     match p with
     | PT.EBlank id -> ORT.EBlank id
     | PT.EInteger (id, num) -> ORT.EInteger(id, string num)
-    | PT.ECharacter (id, c) ->
-      Exception.raiseInternal "Characters not supported" [ "id", id; "c", c ]
+    | PT.ECharacter (id, c) -> ORT.EBlank id
+    // Exception.raiseInternal "Characters not supported" [ "id", id; "c", c ]
     | PT.EString (id, str) -> ORT.EString(id, str)
     | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, string w, string f)
     | PT.EFloat (id, Negative, w, f) -> ORT.EFloat(id, $"-{w}", string f)
