@@ -2740,7 +2740,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
 
     | (ARTuple(_, TPComma(elemAndSepIdx)), ETuple(id, first, second, theRest)) =>
       let all = list{first, second, ...theRest}
-      let withoutDeleted = Belt.List.keepWithIndex(all, (_expr, i) => i != elemAndSepIdx + 1)
+      let withoutDeleted = List.removeAt(~index=elemAndSepIdx + 1, all)
 
       switch withoutDeleted {
         | list{} => recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=show_astRef(currAstRef), None)
