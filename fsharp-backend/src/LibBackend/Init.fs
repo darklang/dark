@@ -50,6 +50,7 @@ let initSerializers () =
   do Json.Vanilla.allow<Session.JsonData> ()
   do Json.OCamlCompatible.allow<Op.AddOpParams> ()
   do Json.OCamlCompatible.allow<Op.AddOpEvent> ()
+  do Json.OCamlCompatible.allow<PackageManager.ParametersDBFormat> ()
 
 
 /// <summary>Initialize LibBackend.</summary>

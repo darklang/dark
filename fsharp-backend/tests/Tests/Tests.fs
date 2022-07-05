@@ -9,6 +9,8 @@ open Prelude
 
 module Telemetry = LibService.Telemetry
 
+let initSerializers () = Json.Vanilla.allow<Map<string, string>> ()
+
 [<EntryPoint>]
 let main (args : string array) : int =
   try
@@ -20,8 +22,9 @@ let main (args : string array) : int =
     (LibRealExecution.Init.init name).Result
     (LibBackend.Account.initializeDevelopmentAccounts name).Result
 
-    ApiServer.ApiServer.initSerializers()
-    LibAnalysis.init()
+    ApiServer.ApiServer.initSerializers ()
+    LibAnalysis.init ()
+    initSerializers ()
 
     let tests =
       [ Tests.Account.tests

@@ -1,6 +1,7 @@
 module Tests.Serialization
 
 open Expecto
+open System.Text.RegularExpressions
 
 open Prelude
 open Tablecloth
@@ -442,45 +443,111 @@ module GenericSerializersTests =
   let goodDval = RT.DInt 5L
   let goodOCamlDval = ORT.DInt 5L
 
+  let instant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
+
+  let uuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+
+  let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
+
   let x : LibAnalysis.AnalysisResult = Error "x"
 
-  let sampleData : Map<string, obj> =
-    [
-       (LibAnalysis.ClientInterop.ExecutedResult goodOCamlDval) :> obj
-       ({ username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abcd1234"} : LibBackend.Session.JsonData) :> obj
-    ]
-    |> List.map (fun v -> (v.GetType().ToString()), v)
-    |> Map
-    |> debug "sampleData"
+  module SampleData =
+    // Stores a list of sample outputs for `$"{serializerName}-{typeName}"
+    let data = Dictionary.T<string, List<string * string>>()
+
+    let typeToKeyName (t : System.Type) : string =
+      let replaced = Regex.Replace(t.ToString(), "[^-_a-zA-Z0-9]", "-")
+      Regex.Replace(replaced, "[-]+", "-")
+
+    let keyFor (typeName : string) (serializerName : string) : string =
+      $"{serializerName}-{typeName}"
+
+    let fileNameFor
+      (typeName : string)
+      (serializerName : string)
+      (dataName : string)
+      : string =
+      $"{serializerName}-{typeName}-{dataName}"
+
+    let get (typeName : string) (serializerName : string) : List<string * string> =
+      Dictionary.get (keyFor typeName serializerName) data |> Option.unwrap []
+
+    let generate<'v>
+      (serializerName : string)
+      (f : 'v -> string)
+      (name : string)
+      (v : 'v)
+      =
+      let typeName = string typeof<'v>
+      let key = keyFor typeName serializerName
+      let currentValue = Dictionary.get key data |> Option.unwrap []
+      let newValue = (name, f v) :: currentValue
+      data[key] <- newValue
+
+    let v<'v> (dataName : string) (data : 'v) =
+      generate "vanilla" Json.Vanilla.serialize dataName data
+
+    let oc<'v> (dataName : string) (data : 'v) =
+      generate "ocaml" Json.OCamlCompatible.serialize dataName data
+
+    let generateTestData () : unit =
+      v<LibAnalysis.ClientInterop.ExecutionResult>
+        "executed"
+        (LibAnalysis.ClientInterop.ExecutedResult goodOCamlDval)
+      v<LibAnalysis.ClientInterop.ExecutionResult>
+        "nonexecuted"
+        (LibAnalysis.ClientInterop.NonExecutedResult goodOCamlDval)
+      v<LibBackend.Session.JsonData>
+        "simple"
+        { username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abc1234" }
+      v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = tlids }
+      v<LibBackend.Pusher.NewTraceID> "simple" (uuid, tlids)
+      v<LibBackend.EventQueueV2.NotificationData>
+        "simple"
+        { id = uuid; canvasID = uuid }
+      v<LibBackend.StaticAssets.StaticDeploy>
+        "simple"
+        { deployHash = "zf2ttsgwln"
+          url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
+          status = LibBackend.StaticAssets.Deployed
+          lastUpdate = instant }
+      v<LibAnalysis.AnalysisResult>
+        "simple"
+        (Ok(
+          uuid,
+          Dictionary.fromList (
+            [ (7UL, LibAnalysis.ClientInterop.ExecutedResult goodOCamlDval) ]
+          )
+        ))
+      v<Prelude.pos> "simple" { x = 10; y = -16 }
+      v "simple" ("HTTP", "/", "GET", instant, uuid)
+
+
+  let isSignificantType (name : string) : bool =
+    name <> typeof<Map<string, string>>.ToString ()
+
+  let testTestFiles : List<Test> =
+    Json.Vanilla.annotatedTypes.Keys
+    |> Seq.toList
+    |> List.map (fun typeName ->
+      // TODO find a roundtrip test
+      test $"check test files are correct for {typeName}" {
+        // For each type, compare the sample data to the file data
+        SampleData.get typeName "vanilla"
+        |> List.iter (fun (name, actualSerializedData) ->
+          let filename = SampleData.fileNameFor typeName "vanilla" name
+          let expected = File.readfile Config.Serialization filename
+          Expect.equal "matches" actualSerializedData expected)
+      })
 
   let generateTestFiles () : unit =
-    debuG "length" Json.Vanilla.annotatedTypes.Count
     Json.Vanilla.annotatedTypes.Keys
-    |> debugBy "annotated vanilla types" Seq.length
-    |> Seq.iter (fun name ->
-      print $"writing config for {name}"
-      let sampleValue = sampleData[name]
-      let output = Json.Vanilla.serialize sampleValue
-      File.writefile Config.Serialization $"vanilla-{name}.json" output)
-
-
-  let testTestFiles = []
-//   Json.Vanilla.annotatedTypes
-//   |> Map.keys
-//   |> List.map (fun typ ->
-//     test "check test files are correct" {
-//       let sampleValue = sampleData[typ]
-
-//       // Check that the generated binary data matches what we have saved. This ensures
-//       // the format has not changed.
-//       let actual = Json.Vanilla.serialize sampleValue
-//       let expected = File.readfileBytes Config.Serialization (nameFor typ)
-//       Expect.equal actual expected "check matches the saved file"
-
-//       // Check deserialization works too
-//       let deserialized = Json.Vanilla.serialize actual
-//       Expect.equal deserialized sampleValue "check deserialized matches original"
-//     })
+    |> Seq.iter (fun typeName ->
+      // For each type, compare the sample data to the file data
+      SampleData.get typeName "vanilla"
+      |> List.iter (fun (name, serializedData) ->
+        let filename = SampleData.fileNameFor typeName "vanilla" name
+        File.writefile Config.Serialization filename serializedData))
 
 module CustomSerializersTests =
 
@@ -588,8 +655,9 @@ module CustomSerializersTests =
       })
 
 let generateTestFiles () =
-  CustomSerializersTests.generateTestFiles ()
-  GenericSerializersTests.generateTestFiles ()
+  if Config.serializationGenerateTestData then
+    CustomSerializersTests.generateTestFiles ()
+    GenericSerializersTests.generateTestFiles ()
 
 let tests =
   testList

@@ -258,8 +258,9 @@ let initSerializers () =
   do Json.OCamlCompatible.allow<Workers.WorkerStats.T> ()
   do Json.OCamlCompatible.allow<Workers.Scheduler.Params> ()
   do Json.OCamlCompatible.allow<Workers.Scheduler.T> ()
+  do Json.OCamlCompatible.allow<Packages.List.T> ()
 
-  do Json.Vanilla.allow<Functions.FunctionMetadata> ()
+  do Json.Vanilla.allow<List<Functions.FunctionMetadata>> ()
 
 
 

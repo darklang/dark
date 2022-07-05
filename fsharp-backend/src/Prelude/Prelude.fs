@@ -892,17 +892,6 @@ module Json =
     || t = typeof<NodaTime.Instant>
     || t = typeof<System.Guid>
 
-  let isAllowedGenericType (t : System.Type) =
-    t.IsGenericType
-    && (t.Name = "FSharpMap`2"
-        || t.Name = "FSharpList`1"
-        || t.Name = "FSharpResult`2"
-        || t.Name = "Dictionary`2" // System.Collections.Generic.Dictionary
-        || t.Name = "Tuple`2"
-        || t.Name = "Tuple`3"
-        || t.Name = "Tuple`4"
-        || t.Name = "Tuple`5")
-
   module Vanilla =
 
     open System.Text.Json
@@ -1025,17 +1014,11 @@ module Json =
       System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
 
     let rec isSerializable (t : System.Type) : bool =
-      if isAllowedGenericType t then
-        t.GetGenericArguments() |> Array.forall isSerializable
-      elif isBaseType t then
-        true
-      else
-        annotatedTypes.ContainsKey(string t)
+      if isBaseType t then true else annotatedTypes.ContainsKey(string t)
 
     let allow<'a> () : unit =
       try
         let t = typeof<'a>
-        print $"Allowing type Json.Vanilla type {t}"
         annotatedTypes[string t] <- true
         ()
       with
@@ -1376,17 +1359,11 @@ module Json =
       System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
 
     let rec isSerializable (t : System.Type) : bool =
-      if isAllowedGenericType t then
-        t.GetGenericArguments() |> Array.forall isSerializable
-      elif isBaseType t then
-        true
-      else
-        annotatedTypes.ContainsKey(string t)
+      if isBaseType t then true else annotatedTypes.ContainsKey(string t)
 
     let allow<'a> () : unit =
       try
         let t = typeof<'a>
-        print $"Allowing Json.OCamlCompatible type {t}"
         annotatedTypes[string t] <- true
         ()
       with

@@ -298,6 +298,7 @@ let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
 // Fetching functions
 // ------------------
 
+type ParametersDBFormat = List<OT.PackageManager.parameter>
 
 let allFunctions () : Task<List<PT.Package.Fn>> =
   task {
@@ -347,8 +348,9 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
               version = version }
           let expr = BinarySerialization.deserializeExpr tlid body2
           let parameters =
+            // CLEANUP convert to non-ocaml format (in the DB)
             parameters
-            |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
+            |> Json.OCamlCompatible.deserialize<ParametersDBFormat>
             |> List.map Convert.ocamlPackageManagerParameter2PT
           let returnType =
             PTParser.DType.parse returnType

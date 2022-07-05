@@ -128,6 +128,15 @@ let rollbarJs =
 
 
 // -------------------------
+// Serialization
+// -------------------------
+
+let serializationGenerateTestData =
+  bool "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA"
+
+let serializationGenerateCheckTypes = bool "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"
+
+// -------------------------
 // Pusher
 // -------------------------
 
