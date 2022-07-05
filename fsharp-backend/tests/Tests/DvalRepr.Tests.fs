@@ -69,6 +69,7 @@ let testToDeveloperRepr =
         [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {  }\nnull"
           RT.DFloat(-0.0), "-0."
           RT.DFloat(infinity), "inf"
+          RT.DTuple(RT.DInt 1, RT.DInt 2, [RT.DInt 3]), "(\n  1, 2, 3\n)"
           RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
           RT.DList [ RT.DNull ], "[ \n  null\n]" ] ]
 
@@ -83,6 +84,7 @@ let testToEnduserReadable =
       RT.DFloat(5.1), "5.1"
       RT.DFloat(-5.0), "-5."
       RT.DFloat(-5.1), "-5.1"
+      RT.DTuple(RT.DInt 1, RT.DInt 2, [RT.DInt 3]), "(\n  1, 2, 3\n)"
       RT.DError(RT.SourceNone, "Some message"), "Error"
       RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull"
       RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DNull)),
@@ -92,7 +94,10 @@ let testToPrettyResponseJson =
   testMany
     "toPrettyResponseJson"
     LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
-    [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}" ]
+    [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}"
+
+      // todo: reconsider if this is appropriate.
+      RT.DTuple(RT.DInt 1, RT.DInt 2, [RT.DInt 3]), "[\n  1,\n  2,\n  3\n]"]
 
 
 let testDateMigrationHasCorrectFormats =
@@ -150,7 +155,8 @@ let testToPrettyRequestJson =
       (RT.DHttpResponse(RT.Response(200L, [], RT.DStr "some url"))),
       "200 {  }\n\"some url\""
       (RT.DHttpResponse(RT.Response(200L, [ "header", "value" ], RT.DStr "some url"))),
-      "200 { header: value }\n\"some url\"" ]
+      "200 { header: value }\n\"some url\""
+      RT.DTuple(RT.DInt 1, RT.DInt 2, [RT.DInt 3]), "(\n  1, 2, 3\n)"]
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
@@ -186,7 +192,6 @@ module ToHashableRepr =
                    DStr "6"
                    DResult(Ok(DHttpResponse(Response(0L, [], DChar "")))) ])
           "[ \n  <uuid: 3e64631e-f455-5d61-30f7-2be5794ebb19>, \"6\", ResultOk 0 {  }\n    ''\n]"
-
         t
           (DBytes [| 148uy; 96uy; 130uy; 71uy |])
           "HnXEOfyd6X-BKhAPIBY6kHcrYLxO44nHCshZShS12Qy2qbnLc6vvrQnU4bjTiewW" ]

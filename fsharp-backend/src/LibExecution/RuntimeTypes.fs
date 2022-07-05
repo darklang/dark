@@ -228,7 +228,7 @@ and Dval =
   | DStr of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
-  (* compound types *)
+  // compound types
   | DList of List<Dval>
   | DTuple of Dval * Dval * List<Dval>
   | DObj of DvalMap

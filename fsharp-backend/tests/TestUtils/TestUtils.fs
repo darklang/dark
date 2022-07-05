@@ -999,7 +999,11 @@ let interestingDvals =
          LibBackend.Config.Testdata
          "sample_image_bytes.png"
      // TODO: deeply nested data
-     )) ]
+     ))
+    ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []))
+    ("simple3Tuple", DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]))
+    ("tupleWithNull", DTuple(Dval.int 1, Dval.int 2, [ DNull ]))
+    ("tupleWithError", DTuple(Dval.int 1, DResult(Error(DStr "error")), [])) ]
 
 let sampleDvals : List<string * Dval> =
   List.map (Tuple2.mapSecond DInt) interestingInts

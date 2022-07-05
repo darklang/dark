@@ -45,7 +45,7 @@ module PrettyRequestJson =
           "[ " + inl + String.concat ", " (List.map (to_repr_ indent) l) + nl + "]"
       | DTuple (first, second, rest) ->
         let l = [ first; second ] @ rest
-        "( " + inl + String.concat ", " (List.map (to_repr_ indent) l) + nl + " )"
+        "(" + inl + String.concat ", " (List.map (to_repr_ indent) l) + nl + ")"
       | DObj o ->
         if Map.empty = o then
           "{}"
