@@ -4057,13 +4057,6 @@ let run = () => {
     describe("insert", () => {
       t("insert into empty tuple inserts", tuple2WithBothBlank, ~pos=1, ins("5"), "(5~,___)")
       t("inserting before a tuple is no-op", tuple2WithBothBlank, ~pos=0, ins("5"), "~(___,___)")
-      tStruct( // todo: review this - I'm not sure what it does.
-        "inserting before a tuple at top-level creates left partial",
-        tuple2WithBothBlank,
-        ~pos=0,
-        list{InsertText("c")},
-        (leftPartial("c", tuple2WithBothBlank))
-      )
       t( // todo: review this - I'm not sure what it does.
         "insert space into multi tuple",
         tuple2WithNoBlank,
