@@ -242,7 +242,7 @@ let initSerializers () =
   do Json.OCamlCompatible.allow<Traces.AllTraces.T> ()
   do Json.OCamlCompatible.allow<DBs.Unlocked.T> ()
   do Json.OCamlCompatible.allow<DBs.DBStats.Params> ()
-  do Json.OCamlCompatible.allow<DBs.DBStats.Stat> ()
+  do Json.OCamlCompatible.allow<DBs.DBStats.T> ()
   do Json.OCamlCompatible.allow<Execution.Function.T> ()
   do Json.OCamlCompatible.allow<Execution.Function.Params> ()
   do Json.OCamlCompatible.allow<Execution.Handler.T> ()

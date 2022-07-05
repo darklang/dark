@@ -265,7 +265,4 @@ type AnalysisResult = Result<ClientInterop.AnalysisEnvelope, string>
 
 let init () =
   do Json.Vanilla.allow<AnalysisResult> ()
-  do Json.Vanilla.allow<ClientInterop.ExecutionResult> ()
   do Json.Vanilla.allow<ClientInterop.performAnalysisParams> ()
-
-

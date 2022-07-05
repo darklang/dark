@@ -12,6 +12,7 @@ module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
+module OT = LibExecution.OCamlTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 module Values =
@@ -285,6 +286,17 @@ module Values =
       testUnknownHandler
       testOldWorker ]
 
+  let testDval = RT.DObj(Map sampleDvals)
+
+  let testOCamlDval = LibExecution.OCamlTypes.Convert.rt2ocamlDval testDval
+
+  let testInstant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
+
+  let testUuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+
+  let testTLID : tlid = 7UL
+  let testTLIDs : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
+
   let testType =
     PT.TRecord [ ("nested",
                   PT.TList(
@@ -406,26 +418,30 @@ module Values =
       PT.SetType(testUserTypes[0])
       PT.DeleteType tlid ]
 
-let toplevelRoundtripTest =
-  testMany
-    "serializeToplevels"
-    (fun tl ->
-      let tlid = PT.Toplevel.toTLID tl
-      tl
-      |> BinarySerialization.serializeToplevel
-      |> BinarySerialization.deserializeToplevel tlid
-      |> (=) tl)
-    (List.map (fun x -> x, true) Values.testToplevels)
+  let testOCamlOplist : OT.oplist = OT.Convert.pt2ocamlOplist testOplist
 
 
-let oplistRoundtripTest =
-  test "roundtrip oplists" {
-    let actual =
-      Values.testOplist
-      |> BinarySerialization.serializeOplist 0UL
-      |> BinarySerialization.deserializeOplist 0UL
-    Expect.equal actual Values.testOplist ""
-  }
+module BinarySerializationRoundtripTests =
+  let toplevelRoundtripTest =
+    testMany
+      "serializeToplevels"
+      (fun tl ->
+        let tlid = PT.Toplevel.toTLID tl
+        tl
+        |> BinarySerialization.serializeToplevel
+        |> BinarySerialization.deserializeToplevel tlid
+        |> (=) tl)
+      (List.map (fun x -> x, true) Values.testToplevels)
+
+
+  let oplistRoundtripTest =
+    test "roundtrip oplists" {
+      let actual =
+        Values.testOplist
+        |> BinarySerialization.serializeOplist 0UL
+        |> BinarySerialization.deserializeOplist 0UL
+      Expect.equal actual Values.testOplist ""
+    }
 
 module GenericSerializersTests =
   // We've annotated each type that we serialize in Dark, with the generic serializer
@@ -440,18 +456,10 @@ module GenericSerializersTests =
   // - If there's a change to the sample value, generate a new file.
   //   Commit it after verifying that the format is appropriate.
 
-  let goodDval = RT.DInt 5L
-  let goodOCamlDval = ORT.DInt 5L
-
-  let instant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
-
-  let uuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
-
-  let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
-
-  let x : LibAnalysis.AnalysisResult = Error "x"
 
   module SampleData =
+    open Values
+
     // Stores a list of sample outputs for `$"{serializerName}-{typeName}"
     let data = Dictionary.T<string, List<string * string>>()
 
@@ -470,7 +478,12 @@ module GenericSerializersTests =
       $"{serializerName}-{typeName}-{dataName}"
 
     let get (typeName : string) (serializerName : string) : List<string * string> =
-      Dictionary.get (keyFor typeName serializerName) data |> Option.unwrap []
+      data
+      |> Dictionary.get (keyFor typeName serializerName)
+      |> Exception.unwrapOptionInternal
+           "testCases should exist"
+           [ "typeName", typeName :> obj; "serializer", serializerName ]
+
 
     let generate<'v>
       (serializerName : string)
@@ -491,63 +504,171 @@ module GenericSerializersTests =
       generate "ocaml" Json.OCamlCompatible.serialize dataName data
 
     let generateTestData () : unit =
-      v<LibAnalysis.ClientInterop.ExecutionResult>
-        "executed"
-        (LibAnalysis.ClientInterop.ExecutedResult goodOCamlDval)
-      v<LibAnalysis.ClientInterop.ExecutionResult>
-        "nonexecuted"
-        (LibAnalysis.ClientInterop.NonExecutedResult goodOCamlDval)
+
+      v<Map<string, string>> "simple" (Map.ofList [ "a", "b" ])
+
+      // ------------------
+      // Prelude
+      // ------------------
+      v<Prelude.pos> "simple" { x = 10; y = -16 }
+
+      // ------------------
+      // LibService
+      // ------------------
+
+      v<LibService.Rollbar.HoneycombJson>
+        "simple"
+        { filters =
+            [ { column = "trace.trace_id"; op = "="; value = string testUuid } ]
+          limit = 100
+          time_range = 604800 }
+
+      // ------------------
+      // LibExecution
+      // ------------------
+
+      v<ORT.dval> "complete" testOCamlDval
+      v<RT.Dval> "complete" testDval
+      testHandlers
+      |> List.iteri (fun i h ->
+        v<PT.Handler.T> $"handlers[{i}]" h
+        oc<PT.Handler.T> $"handlers[{i}]" h)
+
+      v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+        "complete"
+        (testDval
+         |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
+      v<OT.oplist> "all" testOCamlOplist
+      v<PT.Position> "simple" { x = 10; y = -16 }
+
+      // ------------------
+      // LibBackend
+      // ------------------
+
+      v<LibBackend.EventQueueV2.NotificationData>
+        "simple"
+        { id = testUuid; canvasID = testUuid }
+
+      v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
+      v<LibBackend.Pusher.NewTraceID> "simple" (testUuid, testTLIDs)
+
       v<LibBackend.Session.JsonData>
         "simple"
         { username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abc1234" }
-      v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = tlids }
-      v<LibBackend.Pusher.NewTraceID> "simple" (uuid, tlids)
-      v<LibBackend.EventQueueV2.NotificationData>
-        "simple"
-        { id = uuid; canvasID = uuid }
+
       v<LibBackend.StaticAssets.StaticDeploy>
         "simple"
         { deployHash = "zf2ttsgwln"
           url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
           status = LibBackend.StaticAssets.Deployed
-          lastUpdate = instant }
+          lastUpdate = testInstant }
+
+      v<LibBackend.TraceInputs.F404>
+        "simple"
+        ("HTTP", "/", "GET", testInstant, testUuid)
+
+      oc<LibBackend.TraceInputs.F404>
+        "simple"
+        ("HTTP", "/", "GET", testInstant, testUuid)
+
+      // ------------------
+      // ApiServer
+      // ------------------
+      v<List<ApiServer.Functions.FunctionMetadata>>
+        "all"
+        [ { name = "Int::mod_v0"
+            parameters =
+              [ { name = "a"
+                  tipe = "TInt"
+                  block_args = []
+                  optional = false
+                  description = "param description" } ]
+            description = "Some fucntion description"
+            return_type = "bool"
+            infix = false
+            preview_safety = ApiServer.Functions.Safe
+            deprecated = false
+            is_supported_in_query = false } ]
+      oc<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
+      oc<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
+      oc<ApiServer.Workers.Scheduler.Params>
+        "simple"
+        { name = "x"; schedule = "pause" }
+      oc<ApiServer.Workers.Scheduler.T>
+        "all"
+        (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
+                      "blocked", LibBackend.QueueSchedulingRules.WorkerStates.Blocked
+                      "paused", LibBackend.QueueSchedulingRules.WorkerStates.Paused ])
+
+      oc<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
+      oc<ApiServer.DBs.DBStats.T>
+        "simple"
+        (Map.ofList [ "db1", { count = 0; example = None }
+                      "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
+
+      // ------------------
+      // LibAnalysis
+      // ------------------
       v<LibAnalysis.AnalysisResult>
         "simple"
         (Ok(
-          uuid,
+          testUuid,
           Dictionary.fromList (
-            [ (7UL, LibAnalysis.ClientInterop.ExecutedResult goodOCamlDval) ]
+            [ (7UL, LibAnalysis.ClientInterop.ExecutedResult testOCamlDval)
+              (7UL, LibAnalysis.ClientInterop.NonExecutedResult testOCamlDval) ]
           )
         ))
-      v<Prelude.pos> "simple" { x = 10; y = -16 }
-      v "simple" ("HTTP", "/", "GET", instant, uuid)
+      v<LibAnalysis.ClientInterop.performAnalysisParams>
+        "handler"
+        (LibAnalysis.ClientInterop.AnalyzeHandler
+          { handler = OT.Convert.pt2ocamlHandler testHttpHandler
+            trace_id = testUuid
+            trace_data =
+              { input = [ "var", testOCamlDval ]
+                timestamp = testInstant
+                function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }
+            dbs =
+              [ { tlid = testTLIDs[0]
+                  name = OT.Filled(7UL, "dbname")
+                  cols = [ OT.Filled(7UL, "colname"), OT.Filled(7UL, "int") ]
+                  version = 1L
+                  old_migrations = []
+                  active_migration = None } ]
+            user_fns = List.map OT.Convert.pt2ocamlUserFunction testFunctions
+            user_tipes = List.map OT.Convert.pt2ocamlUserType testUserTypes
+            secrets = [ { secret_name = "z"; secret_value = "y" } ] })
 
+    generateTestData ()
 
-  let isSignificantType (name : string) : bool =
-    name <> typeof<Map<string, string>>.ToString ()
 
   let testTestFiles : List<Test> =
-    Json.Vanilla.annotatedTypes.Keys
-    |> Seq.toList
-    |> List.map (fun typeName ->
-      // TODO find a roundtrip test
-      test $"check test files are correct for {typeName}" {
-        // For each type, compare the sample data to the file data
-        SampleData.get typeName "vanilla"
-        |> List.iter (fun (name, actualSerializedData) ->
-          let filename = SampleData.fileNameFor typeName "vanilla" name
-          let expected = File.readfile Config.Serialization filename
-          Expect.equal "matches" actualSerializedData expected)
-      })
+    let testsFor (keys : seq<string>) (serializerName : string) =
+      keys
+      |> Seq.toList
+      |> List.map (fun typeName ->
+        // TODO find a roundtrip test
+        test $"check test files are correct for {typeName}" {
+          // For each type, compare the sample data to the file data
+          SampleData.get typeName serializerName
+          |> List.iter (fun (name, actualSerializedData) ->
+            let filename = SampleData.fileNameFor typeName serializerName name
+            let expected = File.readfile Config.Serialization filename
+            Expect.equal "matches" actualSerializedData expected)
+        })
+    (testsFor Json.Vanilla.annotatedTypes.Keys "vanilla")
+    @ (testsFor Json.OCamlCompatible.annotatedTypes.Keys "ocaml")
 
   let generateTestFiles () : unit =
-    Json.Vanilla.annotatedTypes.Keys
-    |> Seq.iter (fun typeName ->
-      // For each type, compare the sample data to the file data
-      SampleData.get typeName "vanilla"
-      |> List.iter (fun (name, serializedData) ->
-        let filename = SampleData.fileNameFor typeName "vanilla" name
-        File.writefile Config.Serialization filename serializedData))
+    let generate (keys : seq<string>) (serializerName : string) =
+      keys
+      |> Seq.iter (fun typeName ->
+        // For each type, compare the sample data to the file data
+        SampleData.get typeName serializerName
+        |> List.iter (fun (name, serializedData) ->
+          let filename = SampleData.fileNameFor typeName serializerName name
+          File.writefile Config.Serialization filename serializedData))
+    generate Json.Vanilla.annotatedTypes.Keys "vanilla"
+    generate Json.OCamlCompatible.annotatedTypes.Keys "ocaml"
 
 module CustomSerializersTests =
 
@@ -662,7 +783,7 @@ let generateTestFiles () =
 let tests =
   testList
     "Serialization"
-    [ toplevelRoundtripTest
-      oplistRoundtripTest
+    [ BinarySerializationRoundtripTests.toplevelRoundtripTest
+      BinarySerializationRoundtripTests.oplistRoundtripTest
       testList "customer test formats" CustomSerializersTests.testTestFiles
       testList "generic vanilla test formats" GenericSerializersTests.testTestFiles ]
