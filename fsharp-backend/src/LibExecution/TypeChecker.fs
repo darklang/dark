@@ -84,19 +84,8 @@ let rec unify
   | TNull, DNull -> Ok()
   | TStr, DStr _ -> Ok()
   | TList _, DList _ -> Ok()
-  | TTuple (firstType, secondType, otherTypes), DTuple (first, second, theRest) ->
-    // TODO: there's definitely a simpler way to gather these errors, but I'm blanking.
-    let errors =
-      [ (firstType, first); (secondType, second) ] @ List.zip otherTypes theRest
-      |> List.filterMap (fun (t, v) ->
-        match unify userTypes t v with
-        | Ok () -> None
-        | Error err -> Some err)
-      |> List.collect (fun errs -> errs)
-
-    match errors with
-    | [] -> Ok()
-    | errors -> Error errors
+  // TODO: support Tuple type-checking.
+  // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
   | TDate, DDate _ -> Ok()
   | TDict _, DObj _ -> Ok()
   | TRecord _, DObj _ -> Ok()
