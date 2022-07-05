@@ -2058,7 +2058,7 @@ let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
   FluidAST.update(id, ast, ~f=e =>
     switch e {
     | ETuple(id, first, second, theRest) =>
-      ETuple(id, first, second, \"@"(theRest, list{newExpr}))
+      ETuple(id, first, second, Belt.List.concat(theRest, list{newExpr}))
     | _ => recover("not a tuple in insertAtTupleEnd", ~debug=e, e)
     }
   )
