@@ -4052,6 +4052,7 @@ let run = () => {
 
     describe("create", () => {
       t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
+      t("create and fill in tuple", b, ~pos=0, insMany(list{"(", "1", ",", "2", ")"}), "(1,2)~")
       ()
     })
     describe("insert", () => {
@@ -4129,11 +4130,11 @@ let run = () => {
       )
 
       t(
-        "insert separator just before another creates blank",
+        "insert separator just before another skips over it",
         tuple2WithNoBlank,
         ~pos=3, // before the first comma
         ins(","),
-        "(56,~___,78)"
+        "(56,~78)"
       )
       t(
         "insert separator just after another creates blank",
@@ -4167,7 +4168,7 @@ let run = () => {
       ()
     })
 
-    describe("deletion", () => {
+    describe("delete", () => {
       // 2-tuple, no blanks
       t(
         "deleting ( from a filled 2-tuple does nothing",
@@ -4501,6 +4502,29 @@ let run = () => {
       )
       ()
     })
+    // describe("reconstruct", () => {
+    //   t(
+    //     "whole tuple",
+    //     tuple2WithNoBlank, // (56,78)
+    //     ~sel=(0, 7),
+    //     inputs(list{
+    //       // todo copy. how?
+    //       keypress(K.GoToEndOfLine(K.DropSelection)),
+    //       keypress(K.Enter),
+    //       // todo paste. how?
+    //     }),
+    //     "let _ = (56, 78)\n(56,78)",
+    //   )
+    //   t(
+    //     "insides of tuple",
+    //     tuple2WithNoBlank, // (56,78)
+    //     ~sel=(1, 6),
+    //     inputs(list{DeleteContentBackward}), // todo: copy, end of line, enter, paste
+    //     "~___",
+    //   )
+    //   // todo: copy the first element and paste it to make a third
+    //   // todo: review the source code and write a bunch of other tests based on that.
+    // })
     ()
   })
 

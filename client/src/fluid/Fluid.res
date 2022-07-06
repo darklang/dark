@@ -8,8 +8,6 @@
  * https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
  */
 
-// TUPLETODO if you type (1,2), you should get (1,2)| but currently you get (1,2|,___).
-
 open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
@@ -4409,18 +4407,12 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     |> ASTInfo.setAST(insertInTuple(~index=0, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
-  | (InsertText(","), L(TTupleComma(id, index), _), R(_, ti))
-  | (InsertText(","), L(_, ti), R(TTupleComma(id, index), _)) if onEdge =>
-    // Case: either of these places in a Tuple:
-    //  - (123|,456,...)
-    //  - (123,|456,...)
-    // but not this (within an element, not on the edge)
-    //  - (123,45|6,...)
-    // Either way, insert a blank just to the right of the ,
-    //
-    // We compute where to insert a Blank by referencing the comma's index:
-    // In `(123,456,789)`, the 0th element is 123 and corresponds to the 0th comma.
-    // So we insert into the index just after the current one.
+  | (InsertText(","), L(_, _ti), R(TTupleComma(_, _), _)) if onEdge =>
+    // Case: just to the left of a tuple's separator `,`
+    moveOneRight(pos, astInfo)
+
+  | (InsertText(","), L(TTupleComma(id, index), _), R(_, ti)) if onEdge =>
+    // Case: just to the right of a tuple's `,`
     let indexToInsertInto = index + 1
 
     let astInfo = acEnter(ti, K.Enter, astInfo)
@@ -4435,7 +4427,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   | (InsertText(","), L(_, ti), R(TTupleClose(id, _), _)) if onEdge =>
     // Case: right before the tuple's closing `)`
     let astInfo = acEnter(ti, K.Enter, astInfo)
-    
+
     let blankID = gid()
     let newExpr = EBlank(blankID)
 
@@ -5032,6 +5024,8 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       (tid(t), text, toTypeName(t))
     })
 
+    // Reconstructs an expression, returning an Option.
+    // If it's not within range of the selection, returns None.
     let reconstructExpr = (expr): option<E.t> =>
       switch expr {
       | EPipeTarget(_) => Some(expr)
