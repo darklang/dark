@@ -37,6 +37,7 @@ let main (args : string array) : int =
         Tests.Prelude.tests
         Tests.ProgramTypes.tests
         Tests.Routing.tests
+        Tests.RuntimeTypes.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
         Tests.Traces.tests
