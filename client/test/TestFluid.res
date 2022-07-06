@@ -4285,13 +4285,13 @@ let run = () => {
         del,
         "~(___,78,56)"
       )
-      // t( // TUPLETODO: fix the impl. to match this failing test
-      //   "deleting first , from a 3-tuple with first item blank removes 2nd item",
-      //   tuple3WithFirstBlank,
-      //   ~pos=4, // just before ,
-      //   del,
-      //   "(___~,56)"// I could also see it being right after the ,
-      // )
+      t(
+        "deleting first , from a 3-tuple with first item blank removes 2nd item",
+        tuple3WithFirstBlank,
+        ~pos=4, // just before ,
+        del,
+        "(~___,56)"
+      )
       t(
         "deleting second , from a 3-tuple with first item blank removes 3rd item",
         tuple3WithFirstBlank,
