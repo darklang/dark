@@ -4130,10 +4130,13 @@ let run = () => {
         "(56,~___,78)"
       )
 
-      // TUPLETODO address the below commented half-test
-      // (* t "insert separator mid integer makes two items" singleTuple (ins ',' 2) *)
-      // (*   ("(5,6)", 3) ; *)
-      // (* TODO: when on a separator in a nested tuple, pressing comma makes an entry outside the tuple. *)
+      t(
+        "insert separator mid int does nothing special ",
+        tuple2WithNoBlank,
+        ~pos=2, // halfway through `56`
+        ins(","),
+        "(5~6,78)"
+      )
       t(
         "insert separator mid string does nothing special ",
         tuple3WithStrs,
