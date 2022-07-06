@@ -163,9 +163,7 @@ let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
   else
     app
 
-let rollbarCtxToMetadata
-  (ctx : HttpContext)
-  : (LibService.Rollbar.Person * Metadata) =
+let rollbarCtxToMetadata (ctx : HttpContext) : (Rollbar.Person * Metadata) =
   let person =
     try
       loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
@@ -181,13 +179,12 @@ let rollbarCtxToMetadata
 let configureApp (packages : Packages) (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
-  |> fun app ->
-       LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
+  |> fun app -> Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseHsts()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> LibService.Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
+  |> Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
   |> configureStaticContent
   |> addRoutes packages
   |> ignore<IApplicationBuilder>
@@ -196,11 +193,9 @@ let configureApp (packages : Packages) (appBuilder : WebApplication) =
 // For example, ServerTiming adds a ServerTiming value that is then used by the ServerTiming middleware
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> LibService.Rollbar.AspNet.addRollbarToServices
-  |> LibService.Telemetry.AspNet.addTelemetryToServices
-       "ApiServer"
-       LibService.Telemetry.TraceDBQueries
-  |> LibService.Kubernetes.configureServices []
+  |> Rollbar.AspNet.addRollbarToServices
+  |> Telemetry.AspNet.addTelemetryToServices "ApiServer" Telemetry.TraceDBQueries
+  |> Kubernetes.configureServices []
   |> fun s -> s.AddServerTiming()
   |> fun s -> s.AddHsts(LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
