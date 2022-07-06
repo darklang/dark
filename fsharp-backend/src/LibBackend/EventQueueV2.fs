@@ -438,6 +438,7 @@ let requeueSavedEvents (canvasID : CanvasID) (handlerName : string) : Task<unit>
   }
 
 let init () : Task<unit> =
+  do Json.Vanilla.allow<NotificationData> "eventqueue storage"
   task {
     let! (_ : PublisherServiceApiClient) = publisher.Force()
     let! (_ : SubscriberServiceApiClient) = subscriber.Force()

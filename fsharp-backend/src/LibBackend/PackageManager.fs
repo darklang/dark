@@ -366,3 +366,5 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
             deprecated = deprecated
             tlid = tlid })
   }
+
+let init () = do Json.OCamlCompatible.allow<ParametersDBFormat> "PackageManager"

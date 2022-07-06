@@ -242,6 +242,7 @@ module Values =
       )
     )
 
+  let testOCamlExpr = OT.Convert.pt2ocamlExpr testExpr
 
   let testPos : PT.Position = { x = 6; y = 6 }
 
@@ -286,7 +287,11 @@ module Values =
       testUnknownHandler
       testOldWorker ]
 
-  let testDval = RT.DObj(Map sampleDvals)
+  let testDval =
+    sampleDvals
+    |> List.filter (fun (name, dv) -> name <> "password")
+    |> Map
+    |> RT.DObj
 
   let testOCamlDval = LibExecution.OCamlTypes.Convert.rt2ocamlDval testDval
 
@@ -328,6 +333,7 @@ module Values =
                  ("bytes", PT.TBytes)
                  ("variable ", PT.TVariable "v") ]
 
+  let testOCamlTipe = OT.Convert.pt2ocamlTipe testType
 
   let testDB : List<PT.DB.T> =
     [ { tlid = 0UL
@@ -394,6 +400,13 @@ module Values =
       List.map PT.Toplevel.TLType testUserTypes ]
     |> List.concat
 
+  let (testOCamlToplevels, testOCamlUserFns, testOCamlUserTipes) =
+    testToplevels
+    |> (List.map (fun tl -> PT.Toplevel.toTLID tl, tl))
+    |> Map
+    |> OT.Convert.pt2ocamlToplevels
+
+
   let testOplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
@@ -419,6 +432,27 @@ module Values =
       PT.DeleteType tlid ]
 
   let testOCamlOplist : OT.oplist = OT.Convert.pt2ocamlOplist testOplist
+
+  let testStaticDeploy : LibBackend.StaticAssets.StaticDeploy =
+    { deployHash = "zf2ttsgwln"
+      url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
+      status = LibBackend.StaticAssets.Deployed
+      lastUpdate = testInstant }
+
+  let testAddOpEvent : LibBackend.Op.AddOpEvent =
+    { ``params`` = { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
+      result =
+        { toplevels = testOCamlToplevels
+          deleted_toplevels = testOCamlToplevels
+          user_functions = testOCamlUserFns
+          deleted_user_functions = testOCamlUserFns
+          user_tipes = testOCamlUserTipes
+          deleted_user_tipes = testOCamlUserTipes } }
+
+  let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
+    (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
+                  "blocked", LibBackend.QueueSchedulingRules.WorkerStates.Blocked
+                  "paused", LibBackend.QueueSchedulingRules.WorkerStates.Paused ])
 
 
 module BinarySerializationRoundtripTests =
@@ -475,12 +509,18 @@ module GenericSerializersTests =
       let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
       Regex.Replace(replaced, "[-]+", "-")
 
-    let get (typeName : string) (serializerName : string) : List<string * string> =
+    let get
+      (typeName : string)
+      (serializerName : string)
+      (reason : string)
+      : List<string * string> =
       data
       |> Dictionary.get (keyFor typeName serializerName)
       |> Exception.unwrapOptionInternal
-           "testCases should exist"
-           [ "typeName", typeName :> obj; "serializer", serializerName ]
+           "testCases should exist for allowed serializable type"
+           [ "typeName", typeName :> obj
+             "serializer", serializerName
+             "reason", reason ]
 
 
     let generate<'v>
@@ -495,11 +535,27 @@ module GenericSerializersTests =
       let newValue = (name, f v) :: currentValue
       data[key] <- newValue
 
-    let v<'v> (dataName : string) (data : 'v) =
+    let v<'t when 't : equality> (dataName : string) (data : 't) =
+      // let roundtripped =
+      //   data |> Json.Vanilla.serialize |> Json.Vanilla.deserialize<'t>
+      // if data <> roundtripped then
+      //   Exception.raiseInternal
+      //     $"bad vanilla roundtrip for {dataName}"
+      //     [ "actual", string roundtripped; "expected", string data ]
       generate "vanilla" Json.Vanilla.serialize dataName data
 
-    let oc<'v> (dataName : string) (data : 'v) =
+    let oc<'t when 't : equality> (dataName : string) (data : 't) =
+      // let roundtripped =
+      //   data |> Json.Vanilla.serialize |> Json.Vanilla.deserialize<'t>
+      // if data <> roundtripped then
+      //   Exception.raiseInternal
+      //     $"bad ocaml roundtrip for {dataName}"
+      //     [ "actual", roundtripped; "expected", string data ]
       generate "ocaml" Json.OCamlCompatible.serialize dataName data
+
+    let both<'t when 't : equality> (dataName) (data : 't) =
+      v<'t> dataName data
+      oc<'t> dataName data
 
     let generateTestData () : unit =
 
@@ -525,19 +581,15 @@ module GenericSerializersTests =
       // LibExecution
       // ------------------
 
-      v<ORT.dval> "complete" testOCamlDval
-      v<RT.Dval> "complete" testDval
-      testHandlers
-      |> List.iteri (fun i h ->
-        v<PT.Handler.T> $"handlers[{i}]" h
-        oc<PT.Handler.T> $"handlers[{i}]" h)
+      both<ORT.dval> "complete" testOCamlDval
+      both<RT.Dval> "complete" testDval
+      testHandlers |> List.iteri (fun i h -> oc<PT.Handler.T> $"handlers[{i}]" h)
+      // v<OT.oplist> "all" testOCamlOplist
 
       v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
         "complete"
         (testDval
          |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
-      v<OT.oplist> "all" testOCamlOplist
-      v<PT.Position> "simple" { x = 10; y = -16 }
 
       // ------------------
       // LibBackend
@@ -547,31 +599,80 @@ module GenericSerializersTests =
         "simple"
         { id = testUuid; canvasID = testUuid }
 
-      v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
-      v<LibBackend.Pusher.NewTraceID> "simple" (testUuid, testTLIDs)
-
       v<LibBackend.Session.JsonData>
         "simple"
         { username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abc1234" }
 
-      v<LibBackend.StaticAssets.StaticDeploy>
+      oc<LibBackend.PackageManager.ParametersDBFormat>
         "simple"
-        { deployHash = "zf2ttsgwln"
-          url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
-          status = LibBackend.StaticAssets.Deployed
-          lastUpdate = testInstant }
+        [ { name = "a"; tipe = OT.TInt; description = "param1" } ]
 
+      v<PT.Position> "simple" { x = 10; y = -16 }
+      v<OT.oplist> "simple" testOCamlOplist
+
+      // Used by Pusher
+      v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
+      oc<LibBackend.Op.AddOpEvent> "simple" testAddOpEvent
+      v<LibBackend.StaticAssets.StaticDeploy> "simple" testStaticDeploy
+      v<LibBackend.Pusher.NewTraceID> "simple" (testUuid, testTLIDs)
       v<LibBackend.TraceInputs.F404>
         "simple"
         ("HTTP", "/", "GET", testInstant, testUuid)
+      v<LibBackend.QueueSchedulingRules.WorkerStates.T> "simple" testWorkerStates
 
-      oc<LibBackend.TraceInputs.F404>
-        "simple"
-        ("HTTP", "/", "GET", testInstant, testUuid)
+
 
       // ------------------
       // ApiServer
       // ------------------
+
+      // AddOps
+      oc<ApiServer.AddOps.Params>
+        "simple"
+        { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
+      oc<ApiServer.AddOps.T> "simple" testAddOpEvent
+
+
+      // DBs
+
+      oc<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
+      oc<ApiServer.DBs.DBStats.T>
+        "simple"
+        (Map.ofList [ "db1", { count = 0; example = None }
+                      "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
+      oc<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
+
+      // Execution
+      oc<ApiServer.Execution.Function.Params>
+        "simple"
+        { tlid = testTLID
+          trace_id = testUuid
+          caller_id = 7UL
+          args = [ testOCamlDval ]
+          fnname = "Int::mod_v0" }
+      oc<ApiServer.Execution.Function.T>
+        "simple"
+        { result = testOCamlDval
+          hash = "abcd"
+          hashVersion = 0
+          touched_tlids = [ testTLID ]
+          unlocked_dbs = [ testTLID ] }
+      oc<ApiServer.Execution.Handler.Params>
+        "simple"
+        { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
+      oc<ApiServer.Execution.Handler.T> "simple" { touched_tlids = [ testTLID ] }
+
+      // F404s
+      oc<ApiServer.F404s.List.T>
+        "simple"
+        { f404s = [ ("HTTP", "/", "GET", testInstant, testUuid) ] }
+      oc<ApiServer.F404s.Delete.Params>
+        "simple"
+        { space = "HTTP"; path = "/"; modifier = "POST" }
+      oc<ApiServer.F404s.Delete.T> "simple" { result = "success" }
+
+      // Functions
+
       v<List<ApiServer.Functions.FunctionMetadata>>
         "all"
         [ { name = "Int::mod_v0"
@@ -581,28 +682,101 @@ module GenericSerializersTests =
                   block_args = []
                   optional = false
                   description = "param description" } ]
-            description = "Some fucntion description"
+            description = "Some function description"
             return_type = "bool"
             infix = false
             preview_safety = ApiServer.Functions.Safe
             deprecated = false
             is_supported_in_query = false } ]
-      oc<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
-      oc<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
+
+      // InitialLoad
+      oc<ApiServer.InitialLoad.T>
+        "initial"
+        { toplevels = testOCamlToplevels
+          deleted_toplevels = testOCamlToplevels
+          user_functions = testOCamlUserFns
+          deleted_user_functions = testOCamlUserFns
+          unlocked_dbs = [ testTLID ]
+          user_tipes = testOCamlUserTipes
+          deleted_user_tipes = testOCamlUserTipes
+          assets = [ ApiServer.InitialLoad.toApiStaticDeploys testStaticDeploy ]
+          op_ctrs = [ testUuid, 7 ]
+          canvas_list = [ "test"; "test-canvas2" ]
+          org_canvas_list = [ "testorg"; "testorg-canvas2" ]
+          permission = Some(LibBackend.Authorization.ReadWrite)
+          orgs = [ "test"; "testorg" ]
+          account =
+            { username = "test"
+              name = "Test Name"
+              admin = false
+              email = "test@darklang.com"
+              id = testUuid }
+          creation_date = testInstant
+          worker_schedules = testWorkerStates
+          secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+
+      // Packages
+
+      oc<ApiServer.Packages.List.T>
+        "simple"
+        [ { user = "dark"
+            package = "stdlib"
+            ``module`` = "Int"
+            fnname = "mod"
+            version = 0
+            body = testOCamlExpr
+            parameters =
+              [ { name = "param"; tipe = testOCamlTipe; description = "desc" } ]
+            return_type = testOCamlTipe
+            description = "test"
+            author = "test"
+            deprecated = false
+            tlid = testTLID } ]
+
+      // Secrets
+
+      oc<ApiServer.Secrets.Delete.Params> "simple" { secret_name = "test" }
+      oc<ApiServer.Secrets.Delete.T>
+        "simple"
+        { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+
+      oc<ApiServer.Secrets.Insert.Params>
+        "simple"
+        { secret_name = "test"; secret_value = "secret" }
+      oc<ApiServer.Secrets.Insert.T>
+        "simple"
+        { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+
+      // Toplevels
+
+      oc<ApiServer.Toplevels.Delete.Params> "simple" { tlid = testTLID }
+      oc<ApiServer.Toplevels.Delete.T> "some" (Some { result = "success" })
+      oc<ApiServer.Toplevels.Delete.T> "none" None
+
+      // Traces
+
+      oc<ApiServer.Traces.AllTraces.T> "simple" { traces = [ (testTLID, testUuid) ] }
+      oc<ApiServer.Traces.TraceData.Params>
+        "simple"
+        { tlid = testTLID; trace_id = testUuid }
+      v<ApiServer.Traces.TraceData.T>
+        "simple"
+        (Some
+          { trace =
+              (testUuid,
+               { input = [ "var", testOCamlDval ]
+                 timestamp = testInstant
+                 function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }) })
+
+      // Workers
+
       oc<ApiServer.Workers.Scheduler.Params>
         "simple"
         { name = "x"; schedule = "pause" }
-      oc<ApiServer.Workers.Scheduler.T>
-        "all"
-        (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
-                      "blocked", LibBackend.QueueSchedulingRules.WorkerStates.Blocked
-                      "paused", LibBackend.QueueSchedulingRules.WorkerStates.Paused ])
+      oc<ApiServer.Workers.Scheduler.T> "all" testWorkerStates
 
-      oc<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
-      oc<ApiServer.DBs.DBStats.T>
-        "simple"
-        (Map.ofList [ "db1", { count = 0; example = None }
-                      "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
+      oc<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
+      oc<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
 
       // ------------------
       // LibAnalysis
@@ -636,37 +810,49 @@ module GenericSerializersTests =
             user_tipes = List.map OT.Convert.pt2ocamlUserType testUserTypes
             secrets = [ { secret_name = "z"; secret_value = "y" } ] })
 
+
+      // ------------------
+      // Tests
+      // ------------------
+
+      oc<LibExecution.AnalysisTypes.TraceData>
+        "testTraceData"
+        { input = [ "var", testDval ]
+          timestamp = testInstant
+          function_results = [ ("fnName", 7UL, "hash", 0, testDval) ] }
+
     generateTestData ()
 
 
   let testTestFiles : List<Test> =
-    let testsFor (keys : seq<string>) (serializerName : string) =
-      keys
-      |> Seq.toList
-      |> List.map (fun typeName ->
+    let testsFor (dict : Dictionary.T<string, string>) (serializerName : string) =
+      dict
+      |> Dictionary.toList
+      |> List.map (fun (typeName, reason) ->
         // TODO find a roundtrip test
-        test $"check test files are correct for {typeName}" {
+        test $"check {serializerName} test files are correct for {typeName}" {
           // For each type, compare the sample data to the file data
-          SampleData.get typeName serializerName
+          SampleData.get typeName serializerName reason
           |> List.iter (fun (name, actualSerializedData) ->
             let filename = SampleData.fileNameFor typeName serializerName name
             let expected = File.readfile Config.Serialization filename
             Expect.equal "matches" actualSerializedData expected)
         })
-    (testsFor Json.Vanilla.allowedTypes.Keys "vanilla")
-    @ (testsFor Json.OCamlCompatible.allowedTypes.Keys "ocaml")
+    (testsFor Json.Vanilla.allowedTypes "vanilla")
+    @ (testsFor Json.OCamlCompatible.allowedTypes "ocaml")
 
   let generateTestFiles () : unit =
-    let generate (keys : seq<string>) (serializerName : string) =
-      keys
-      |> Seq.iter (fun typeName ->
+    let generate (dict : Dictionary.T<string, string>) (serializerName : string) =
+      dict
+      |> Dictionary.toList
+      |> List.iter (fun (typeName, reason) ->
         // For each type, compare the sample data to the file data
-        SampleData.get typeName serializerName
+        SampleData.get typeName serializerName reason
         |> List.iter (fun (name, serializedData) ->
           let filename = SampleData.fileNameFor typeName serializerName name
           File.writefile Config.Serialization filename serializedData))
-    generate Json.Vanilla.allowedTypes.Keys "vanilla"
-    generate Json.OCamlCompatible.allowedTypes.Keys "ocaml"
+    generate Json.Vanilla.allowedTypes "vanilla"
+    generate Json.OCamlCompatible.allowedTypes "ocaml"
 
 module CustomSerializersTests =
 

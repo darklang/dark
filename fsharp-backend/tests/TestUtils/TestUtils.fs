@@ -426,6 +426,7 @@ let testListUsingProperty
 // "short" field (there are other fields but we'll ignore them)
 type OCamlError = { short : string }
 
+// CLEANUP should be able to remove this
 let parseOCamlError (str : string) : string =
   try
     (Json.Vanilla.deserialize<OCamlError> str).short
@@ -913,7 +914,7 @@ let interestingDvals =
     ("float2", DFloat -7.2)
     ("float3", DFloat 15.0)
     ("float4", DFloat -15.0)
-    ("int5", RT.DInt 5L)
+    ("int5", DInt 5L)
     ("true", DBool true)
     ("false", DBool false)
     ("null", DNull)
@@ -937,6 +938,7 @@ let interestingDvals =
     ("obj with error",
      DObj(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
     ("incomplete", DIncomplete SourceNone)
+    ("incomplete2", DIncomplete(SourceID(7UL, 8UL)))
     ("error", DError(SourceNone, "some error string"))
     ("block",
      DFnVal(

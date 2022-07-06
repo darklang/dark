@@ -100,3 +100,11 @@ type JsConfig = { enabled : bool; key : string; cluster : string }
 let jsConfigString =
   // CLEANUP use JSON serialization
   $"{{enabled: true, key: '{Config.pusherKey}', cluster: '{Config.pusherCluster}'}}"
+
+let init () =
+  do Json.OCamlCompatible.allow<Op.AddOpEvent> "LibBackend.Pusher"
+  do Json.Vanilla.allow<TraceInputs.F404> "LibBackend.Pusher"
+  do Json.Vanilla.allow<AddOpEventTooBigPayload> "LibBackend.Pusher"
+  do Json.Vanilla.allow<NewTraceID> "LibBackend.Pusher"
+  do Json.Vanilla.allow<StaticAssets.StaticDeploy> "LibBackend.Pusher"
+  do Json.Vanilla.allow<QueueSchedulingRules.WorkerStates.T> "LibBackend.Pusher"

@@ -338,7 +338,7 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 
 let printMetadata (prefix : string) (metadata : Metadata) =
   try
-    List.iter (fun (k, v) -> print $"  {k}: {v}") metadata
+    List.iter (fun (k, v) -> print (sprintf "%s:  %s: %A" prefix k v)) metadata
   with
   | _ -> ()
 
@@ -1012,16 +1012,20 @@ module Json =
     //
     // See also Serializers.Tests.fs and [/docs/serialization.md]
 
-    let mutable allowedTypes =
-      System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
+    let mutable allowedTypes = Dictionary.T<string, string>()
 
     let rec isSerializable (t : System.Type) : bool =
       if isBaseType t then true else allowedTypes.ContainsKey(string t)
 
-    let allow<'a> () : unit =
+    let allow<'a> (reason : string) : unit =
       try
-        let t = typeof<'a>
-        allowedTypes[string t] <- true
+        let key = string typeof<'a>
+        let reason =
+          if allowedTypes.ContainsKey key then
+            $"{reason}+{allowedTypes[key]}"
+          else
+            reason
+        allowedTypes[key] <- reason
         ()
       with
       | _ -> System.Console.Write("error allowing Vanilla type")
@@ -1029,7 +1033,7 @@ module Json =
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
         Exception.raiseInternal
-          "Invalid serialization call to unannotated type: add `do Json.Vanilla.allow<type>()` to allow it to be serialized"
+          "Invalid serialization call to type not allowed: add `do Json.Vanilla.allow<type>()` to allow it to be serialized"
           [ "type", string t ]
 
 
@@ -1357,26 +1361,28 @@ module Json =
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
-    let mutable allowedTypes =
-      System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
+    let mutable allowedTypes = Dictionary.T<string, string>()
 
     let rec isSerializable (t : System.Type) : bool =
       if isBaseType t then true else allowedTypes.ContainsKey(string t)
 
-    let allow<'a> () : unit =
+    let allow<'a> (reason : string) : unit =
       try
-        let t = typeof<'a>
-        allowedTypes[string t] <- true
+        let key = string typeof<'a>
+        let reason =
+          if allowedTypes.ContainsKey key then
+            $"{reason}+{allowedTypes[key]}"
+          else
+            reason
+        allowedTypes[key] <- reason
         ()
       with
       | _ -> System.Console.Write("error allowing OCamlCompatible type")
 
-
-
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
         Exception.raiseInternal
-          "Invalid serialization call to unannotated type: add `do Json.OCamlSerialiation.allow<type>()` to allow it to be serialized"
+          "Invalid serialization call to type not allowed: add `do Json.OCamlSerialiation.allow<type>()` to allow it to be serialized"
           [ "type", string t ]
 
     /// Serialize to JSON
@@ -2012,4 +2018,4 @@ let id (x : int) : id = uint64 x
 
 let init () =
   // CLEANUP: move somewhere else, we shouldn't be serializing anything here
-  do Json.Vanilla.allow<pos> ()
+  do Json.Vanilla.allow<pos> "Prelude"

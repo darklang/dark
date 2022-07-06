@@ -228,34 +228,35 @@ let run (packages : Packages) : unit =
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
 let initSerializers () =
-  do Json.OCamlCompatible.allow<F404s.List.T> ()
-  do Json.OCamlCompatible.allow<F404s.Delete.T> ()
-  do Json.OCamlCompatible.allow<F404s.Delete.Params> ()
-  do Json.OCamlCompatible.allow<Traces.TraceData.TraceResult> ()
-  do Json.OCamlCompatible.allow<Traces.TraceData.Params> ()
-  do Json.OCamlCompatible.allow<Traces.TraceData.T> ()
-  do Json.OCamlCompatible.allow<Traces.AllTraces.T> ()
-  do Json.OCamlCompatible.allow<DBs.Unlocked.T> ()
-  do Json.OCamlCompatible.allow<DBs.DBStats.Params> ()
-  do Json.OCamlCompatible.allow<DBs.DBStats.T> ()
-  do Json.OCamlCompatible.allow<Execution.Function.T> ()
-  do Json.OCamlCompatible.allow<Execution.Function.Params> ()
-  do Json.OCamlCompatible.allow<Execution.Handler.T> ()
-  do Json.OCamlCompatible.allow<Execution.Handler.Params> ()
-  do Json.OCamlCompatible.allow<InitialLoad.T> ()
-  do Json.OCamlCompatible.allow<Secrets.Insert.Secret> ()
-  do Json.OCamlCompatible.allow<Secrets.Insert.T> ()
-  do Json.OCamlCompatible.allow<Secrets.Delete.Params> ()
-  do Json.OCamlCompatible.allow<Secrets.Delete.T> ()
-  do Json.OCamlCompatible.allow<Toplevels.Delete.Params> ()
-  do Json.OCamlCompatible.allow<Toplevels.Delete.T> ()
-  do Json.OCamlCompatible.allow<Workers.WorkerStats.Params> ()
-  do Json.OCamlCompatible.allow<Workers.WorkerStats.T> ()
-  do Json.OCamlCompatible.allow<Workers.Scheduler.Params> ()
-  do Json.OCamlCompatible.allow<Workers.Scheduler.T> ()
-  do Json.OCamlCompatible.allow<Packages.List.T> ()
-
-  do Json.Vanilla.allow<List<Functions.FunctionMetadata>> ()
+  do Json.OCamlCompatible.allow<AddOps.Params> "ApiServer.AddOps"
+  do Json.OCamlCompatible.allow<AddOps.T> "ApiServer.AddOps"
+  do Json.OCamlCompatible.allow<DBs.DBStats.Params> "ApiServer.DBs"
+  do Json.OCamlCompatible.allow<DBs.DBStats.T> "ApiServer.DBs"
+  do Json.OCamlCompatible.allow<DBs.Unlocked.T> "ApiServer.DBs"
+  do Json.OCamlCompatible.allow<Execution.Function.Params> "ApiServer.Execution"
+  do Json.OCamlCompatible.allow<Execution.Function.T> "ApiServer.Execution"
+  do Json.OCamlCompatible.allow<Execution.Handler.Params> "ApiServer.Execution"
+  do Json.OCamlCompatible.allow<Execution.Handler.T> "ApiServer.Execution"
+  do Json.OCamlCompatible.allow<F404s.Delete.Params> "ApiServer.F404s"
+  do Json.OCamlCompatible.allow<F404s.Delete.T> "ApiServer.F404s"
+  do Json.OCamlCompatible.allow<F404s.List.T> "ApiServer.F404s"
+  do Json.Vanilla.allow<List<Functions.FunctionMetadata>> "ApiServer.Functions"
+  do Json.OCamlCompatible.allow<InitialLoad.T> "ApiServer.InitialLoad"
+  do Json.OCamlCompatible.allow<Packages.List.T> "ApiServer.Packages"
+  do Json.OCamlCompatible.allow<Secrets.Delete.Params> "ApiServer.Secrets"
+  do Json.OCamlCompatible.allow<Secrets.Delete.T> "ApiServer.Secrets"
+  do Json.OCamlCompatible.allow<Secrets.Insert.Params> "ApiServer.Secrets"
+  do Json.OCamlCompatible.allow<Secrets.Insert.T> "ApiServer.Secrets"
+  do Json.OCamlCompatible.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
+  do Json.OCamlCompatible.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
+  do Json.OCamlCompatible.allow<Traces.AllTraces.T> "ApiServer.Traces"
+  do Json.OCamlCompatible.allow<Traces.TraceData.Params> "ApiServer.Traces"
+  do Json.Vanilla.allow<Traces.TraceData.T> "ApiServer.Traces"
+  do Json.OCamlCompatible.allow<Workers.Scheduler.Params> "ApiServer.Workers"
+  do Json.OCamlCompatible.allow<Workers.Scheduler.T> "ApiServer.Workers"
+  do Json.OCamlCompatible.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
+  do Json.OCamlCompatible.allow<Workers.WorkerStats.T> "ApiServer.Workers"
+  do Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
 
 

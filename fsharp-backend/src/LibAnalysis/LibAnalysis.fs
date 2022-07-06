@@ -264,5 +264,5 @@ module Eval =
 type AnalysisResult = Result<ClientInterop.AnalysisEnvelope, string>
 
 let init () =
-  do Json.Vanilla.allow<AnalysisResult> ()
-  do Json.Vanilla.allow<ClientInterop.performAnalysisParams> ()
+  do Json.Vanilla.allow<AnalysisResult> "LibAnalysis"
+  do Json.Vanilla.allow<ClientInterop.performAnalysisParams> "LibAnalysis"
