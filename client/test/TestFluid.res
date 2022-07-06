@@ -4116,14 +4116,19 @@ let run = () => {
       )
 
       t(
-        "insert separator between items creates blank",
+        "insert separator just before another creates blank",
         tuple2WithNoBlank,
         ~pos=3, // before the first comma
         ins(","),
         "(56,~___,78)"
       )
-
-      // TUPLETODO add a test for adding a comma at the pipe in `(56,|78)`
+      t(
+        "insert separator just after another creates blank",
+        tuple2WithNoBlank,
+        ~pos=4, // just after the comma
+        ins(","),
+        "(56,~___,78)"
+      )
 
       // TUPLETODO address the below commented half-test
       // (* t "insert separator mid integer makes two items" singleTuple (ins ',' 2) *)
