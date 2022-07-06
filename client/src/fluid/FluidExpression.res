@@ -130,7 +130,6 @@ let rec find = (target: id, expr: t): option<t> => {
     | EConstructor(_, _, exprs) =>
       List.findMap(~f=fe, exprs)
     | ETuple(_, first, second, theRest) =>
-      // TUPLETODO ensure we have enough testing around this
       let exprs = list{first, second, ...theRest}
       List.findMap(~f=fe, exprs)
     | EPipe(_, expr1, expr2, exprs) => List.findMap(~f=fe, list{expr1, expr2, ...exprs})

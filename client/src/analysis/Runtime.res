@@ -119,8 +119,8 @@ let isComplete = (dv: dval): bool =>
   | _ => true
   }
 
-/* Copied from Dval.to_repr in backend code, but that's terrible and it should
- * be recopied from to_developer_repr_v0 */
+// Copied from Dval.to_repr in backend code, but that's terrible and it should
+// be recopied from to_developer_repr_v0
 let rec toRepr_ = (oldIndent: int, dv: dval): string => {
   let wrap = value => "<" ++ ((dv |> typeOf |> tipe2str) ++ (": " ++ (value ++ ">")))
   let asType = "<" ++ ((dv |> typeOf |> tipe2str) ++ ">")
@@ -224,7 +224,6 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
     | l => "[ " ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), l)) ++ " ]")
     }
   | DTuple(first, second, theRest) =>
-    // TUPLETODO reconsider whether this is the right thing to do
     let exprs = list{first, second, ...theRest}
     "(" ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), exprs)) ++ ")")
   | DObj(o) => objToString(Belt.Map.String.toList(o))
