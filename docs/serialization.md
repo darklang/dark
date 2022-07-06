@@ -42,8 +42,15 @@ compatibility, we:
   `Json.Vanilla.allow<type>()`). Attempting to serialize or deserialize a type that
   isn't explicitly allowed will throw an exception.
 
+  - Note: You should place the `allow` call in an `init` function in the same files
+    that uses the serializer (not where the type is defined!)
+  - You do not need to `allow` all nested types within serialized types, just the
+    type that's actually serialized.
+
 - require a test case for each top-level type that will be serialized. That way if we
-  change the toplevel type, we'll see the change to the format. Tests will fail if an allowed type does not have a test case, or if there is a test case for a type that hasn't been allowed
+  change the toplevel type, we'll see the change to the format. Tests will fail if an
+  allowed type does not have a test case, or if there is a test case for a type that
+  hasn't been allowed
 
 #### Binary Serialization
 
