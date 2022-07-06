@@ -583,7 +583,6 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (EIf(_, con, thn, els), EIf(_, con', thn', els')) => eq3((con, con'), (thn, thn'), (els, els'))
   | (EList(_, l), EList(_, l')) => eqList(l, l')
   | (ETuple(_, first, second, theRest), ETuple(_, first', second', theRest')) =>
-    // TUPLETODO remind yourself of where this is used, and write tests around this.
     let exprs = list{first, second, ...theRest}
     let exprs' = list{first', second', ...theRest'}
     eqList(exprs, exprs')
