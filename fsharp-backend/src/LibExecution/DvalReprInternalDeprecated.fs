@@ -260,6 +260,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
   | DStr s -> w.WriteValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DTuple (first, second, theRest) ->
+    // TUPLETODO ensure we have enough testing around this. it seems broken
     wrapNestedListValue "tuple" ([ first; second ] @ theRest)
   | DObj o ->
     w.writeObject (fun () ->
@@ -528,6 +529,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
                      nl |> UTF8.toBytes
                      "]" |> UTF8.toBytes ]
   | DTuple (first, second, theRest) ->
+    // TUPLETODO ensure we have enough testing around this
     let l = [ first; second ] @ theRest
     let body =
       l

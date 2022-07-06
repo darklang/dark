@@ -165,6 +165,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
       match dv with
       | DTuple (first, second, rest) ->
+        // TUPLETODO ensure we have testing around this
         let l = [ first; second ] @ rest
         "(" + inl + String.concat ", " (List.map recurse l) + nl + ")"
       | DList l ->
@@ -271,6 +272,7 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DStr s -> w.WriteStringValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DTuple (first, second, rest) ->
+    // TUPLETODO ensure we have testing around this and that it's correct
     w.writeArray (fun () -> List.iter writeDval ([ first; second ] @ rest))
   | DObj o ->
     w.writeObject (fun () ->

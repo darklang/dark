@@ -85,6 +85,20 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | None -> return (DList filtered)
 
     | ETuple (id, first, second, theRest) ->
+      (*
+        TUPLETODO it's worth describing what we're trying to achieve here.
+        I also think a match isn't a good way to describe this compound behaviour
+        (we always try to exhaustively list all cases, but also it takes effort to
+        try and figure out what's going on here).
+
+        Something like:
+          if hasError then error else if has incomplete then incomplete else DTuple
+
+        Though now that I write that out, I see it's actually the incomplete
+        that's prioritized over the error. Why was that order chosen? Can you
+        add the reason as a comment?
+      *)
+
       let! firstResult = eval state st first
       let! secondResult = eval state st second
       let! otherResults = Ply.List.mapSequentially (eval state st) theRest
@@ -98,7 +112,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       match foundIncompletes, firstFoundError with
       | [], None -> return DTuple(firstResult, secondResult, otherResults)
       | [], Some error -> return error
-      | _ -> return DIncomplete(sourceID id)
+      | first :: _rest, _ -> return first
 
     | EVariable (id, name) ->
       match (st.TryFind name, state.tracing.realOrPreview) with

@@ -96,6 +96,7 @@ module private LegacySerializer =
     | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
     | DBytes bytes -> bytes |> Base64.defaultEncodeToString |> String
     | DTuple (first, second, rest) ->
+      // TUPLETODO add tests around this, and reconsider if it's correct
       List([ toYojson first; toYojson second ] @ List.map toYojson rest)
 
   // We are adding bytes to match the old OCaml implementation. Don't use strings

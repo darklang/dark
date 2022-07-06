@@ -34,6 +34,13 @@ let rec to_url_string = (dv: dval): option<string> =>
       "[ " ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, Array.to_list(l))) ++ " ]"),
     )
   | DTuple(first, second, theRest) =>
+    // TUPLETODO reconsider whether this is the right thing to do
+    // Comment from Paul:
+    // There's a few places like this where we generate a string, using roughly
+    // the format for tuple that we used for lists. However, I think the intent
+    // was that lists get parsed in URLs. This isn't true for tuples. So in all
+    // these cases of generating random url-adjacent strings for tuples, I'm
+    // not sure we're doing this right.
     let l = list{first, second, ...theRest}
     Some(
       "(" ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, l)) ++ ")"),

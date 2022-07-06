@@ -421,6 +421,7 @@ let rec dval = (j): dval => {
       ("DCharacter", dv1(x => DCharacter(x), string)),
       ("DStr", dv1(x => DStr(x), string)),
       ("DList", dv1(x => DList(x), array(dd))),
+      // TUPLETODO: Ensure we have enough testing around this
       ("DTuple", dv3((first, second, theRest) => DTuple(first, second, theRest), dd, dd, list(dd))),
       ("DObj", dv1(x => DObj(x), beltStrDict(dd))),
       (

@@ -54,6 +54,9 @@ module Builder = {
 
   let listLimit = 60
 
+  /** # of items in a tuple before we should wrap*/
+  let tupleLimit = 60
+
   let add = (token: fluidToken, b: t): t => {
     let tokenLength = token |> T.toText |> String.length
     let (newTokens, xPos) = // Add new tokens on the front
@@ -468,20 +471,26 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   | ETuple(id, first, second, theRest) =>
     let exprs = list{first, second, ...theRest}
 
-    /* With each item of the tuple, we calculate the new line length if
-     * we were to add this new item. If the new line length exceeds the
-     * limit, then we add a new line token and an indent by 1 first, before
-     * adding the tokenized item to the builder. */
+    // With each item of the tuple, we calculate the new line length if we were
+    // to add this new item. If the new line length exceeds the limit, then we
+    // add a new line token and an indent by 1 first, before adding the
+    // tokenized item to the builder.
+
+    // TODO or we could define isLastElement, and pass the itemIndex as a param
+    // (I think this would be make the code more clear.)
     let lastIndex = List.length(exprs) - 1
+
     let xOffset = b.xPos |> Option.unwrap(~default=0)
-    let pid = if lastIndex == -1 {
+
+    // what is this? how would lastIndex be -1? Seems impossible for tuples actually.
+    let parentId = if lastIndex == -1 {
       None
     } else {
       Some(id)
     }
 
     b
-    |> add(TTupleOpen(id, pid))
+    |> add(TTupleOpen(id, parentId))
     |> addIter(exprs, ~f=(i, e, b') => {
       let currentLineLength = {
         let commaWidth = if i != lastIndex {
@@ -494,23 +503,30 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         |> Option.unwrap(~default=commaWidth)
       }
 
+
+      let isNotFirstElement = i > 0
+      let isOverLimit = currentLineLength > tupleLimit
+
       // Even if first element overflows, don't put it in a new line
-      let isOverLimit = i > 0 && currentLineLength > listLimit
+      // TUPLETODO aded tests around this
+      let shouldIndent = isNotFirstElement && isOverLimit
+
       // Indent after newlines to match the '( '
-      let indent = if isOverLimit {
+      let indent = if shouldIndent {
         1
       } else {
         0
       }
+
       b'
-      |> addIf(isOverLimit, TNewline(None))
+      |> addIf(shouldIndent, TNewline(None))
       |> indentBy(~indent, ~f=b' =>
         b'
         |> addNested(~f=toTokens'(~parentID=Some(id), e))
         |> addIf(i != lastIndex, TTupleComma(id, i))
       )
     })
-    |> add(TTupleClose(id, pid))
+    |> add(TTupleClose(id, parentId))
   | ERecord(id, fields) =>
     if fields == list{} {
       b |> addMany(list{TRecordOpen(id, None), TRecordClose(id, None)})

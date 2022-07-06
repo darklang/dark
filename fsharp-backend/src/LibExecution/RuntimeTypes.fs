@@ -483,6 +483,7 @@ module Dval =
     | DList (head :: _) -> TList(toType head)
     | DList [] -> TList any
     | DTuple (first, second, theRest) ->
+      // TUPLETODO ensure we have enough testing around this
       TTuple(toType first, toType second, List.map toType theRest)
     | DObj map ->
       map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
@@ -528,6 +529,7 @@ module Dval =
     | DDB _, TDB _
     | DBytes _, TBytes -> true
     | DTuple (first, second, theRest), TTuple (firstType, secondType, otherTypes) ->
+      // TUPLETODO ensure we have enough testing around this
       let pairs =
         [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
 

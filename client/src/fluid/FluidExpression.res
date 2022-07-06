@@ -69,6 +69,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | EList(id, exprs)
     | EConstructor(id, _, exprs) => (id, List.map(exprs, ~f=e1 => Expr(e1)))
     | ETuple(id, first, second, theRest) =>
+      // TUPLETODO ensure we have enough testing around this
       let exprs = list{first, second, ...theRest}
       (id, List.map(exprs, ~f=e1 => Expr(e1)))
     | ERecord(id, nameAndExprs) => (id, List.map(nameAndExprs, ~f=((_, e1)) => Expr(e1)))
@@ -130,6 +131,7 @@ let rec find = (target: id, expr: t): option<t> => {
     | EConstructor(_, _, exprs) =>
       List.findMap(~f=fe, exprs)
     | ETuple(_, first, second, theRest) =>
+      // TUPLETODO ensure we have enough testing around this
       let exprs = list{first, second, ...theRest}
       List.findMap(~f=fe, exprs)
     | EPipe(_, expr1, expr2, exprs) => List.findMap(~f=fe, list{expr1, expr2, ...exprs})
@@ -206,6 +208,7 @@ let isEmpty = (expr: t): bool =>
   | ERecord(_, l) => l |> List.filter(~f=((k, v)) => k == "" && !isBlank(v)) |> List.isEmpty
   | EList(_, l) => l |> List.filter(~f=\"<<"(not, isBlank)) |> List.isEmpty
   | ETuple(_, first, second, theRest) =>
+    // TUPLETODO ensure we have enough testing around this
     let exprs = list{first, second, ...theRest}
     exprs |> List.filter(~f = e => not(isBlank(e))) |> List.isEmpty
   | _ => false
@@ -581,6 +584,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (EIf(_, con, thn, els), EIf(_, con', thn', els')) => eq3((con, con'), (thn, thn'), (els, els'))
   | (EList(_, l), EList(_, l')) => eqList(l, l')
   | (ETuple(_, first, second, theRest), ETuple(_, first', second', theRest')) =>
+    // TUPLETODO remind yourself of where this is used, and write tests around this.
     let exprs = list{first, second, ...theRest}
     let exprs' = list{first', second', ...theRest'}
     eqList(exprs, exprs')

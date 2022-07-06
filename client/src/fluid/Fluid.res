@@ -8,6 +8,10 @@
  * https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
  */
 
+// TUPLETODO if you type (1,2), you should get (1,2)| but currently you get (1,2|,___).
+
+// TUPLETODO given (1,2), if I delete the comma, I get ___, but I should get 1.
+
 open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
@@ -2728,8 +2732,14 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
 
     // Tuples
     | (ARTuple(_, TPOpen), ETuple(id, first, second, theRest)) =>
-      let all = list{first, second, ...theRest}
-      let nonBlanks = List.filter(~f= expr => !isBlank(expr), all)
+      // When we're trying to delete the ( in a tuple,
+      // - normally, don't do anything, and leave cursor at left of (
+      // - if there are only blanks in the tuple, replace with blank
+      // - if there's only 1 non-blank item, replace with that item
+      let nonBlanks =
+        list{first, second, ...theRest}
+        |> List.filter(~f= expr => !isBlank(expr))
+
       switch nonBlanks {
         | list{} => Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
         | list{single} => Some(Expr(single), caretTargetForStartOfExpr'(single))
@@ -2739,8 +2749,15 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       }
 
     | (ARTuple(_, TPComma(elemAndSepIdx)), ETuple(id, first, second, theRest)) =>
-      let all = list{first, second, ...theRest}
-      let withoutDeleted = List.removeAt(~index=elemAndSepIdx + 1, all)
+      // When we're trying a comma (,) within in a tuple,
+      // - normally, remove the element just after the comma
+      // - if that leaves only one element
+      // - normally, don't do anything, and leave cursor at left of (
+      // - if there are only blanks in the tuple, replace with blank
+      // - if there's only 1 non-blank item, replace with that item
+      let withoutDeleted =
+        list{first, second, ...theRest}
+        |> List.removeAt(~index=elemAndSepIdx + 1)
 
       switch withoutDeleted {
         | list{} => recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=show_astRef(currAstRef), None)
@@ -2748,6 +2765,8 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         | list{first, second, ...theRest} =>
           let newExpr = Expr(ETuple(id, first, second, theRest))
 
+          // TUPLETODO do this another way here (with recover, probably)?
+          // We shouldn't ever throw exceptions as they crash the client.
           let elementLeftOfDeletion = Belt.List.getExn(withoutDeleted, elemAndSepIdx)
           let newTarget = caretTargetForEndOfExpr(toID(elementLeftOfDeletion), ast)
 
@@ -4372,6 +4391,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
 
   // Tuples
+  // TUPLETODO ensure everything here is well-tested
   | (InsertText(","), L(TTupleOpen(id, _), _), _) if onEdge =>
     let bID = gid()
     let newExpr = EBlank(bID) // new separators
@@ -4383,6 +4403,12 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     let astInfo = acEnter(ti, K.Enter, astInfo)
     let bID = gid()
     let newExpr = EBlank(bID) // new separators
+
+    // TUPLETODO
+    // This seems to me like it does the same behaviour when the comma is put
+    // on the left or the right of an expression, which doesn't seem right.
+    // This works fine when I test it though - maybe add a comment explaining
+    // why index+1 works in the both cases.
     astInfo
     |> ASTInfo.setAST(insertInTuple(~index=index + 1, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
@@ -5226,6 +5252,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       let newExprs = List.map(exprs, ~f=reconstructExpr) |> Option.values
       Some(EList(id, newExprs))
     | ETuple(_, first, second, theRest) =>
+      // TUPLETODO aded tests around this
       let results =
         List.map(list{first, second, ...theRest}, ~f=reconstructExpr)
         |> Option.values

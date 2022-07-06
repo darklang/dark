@@ -98,6 +98,7 @@ let rec dval = (dv: Types.dval): Js.Json.t => {
   | DStr(s) => ev("DStr", list{string(s)})
   | DList(l) => ev("DList", list{array(dval, l)})
   | DTuple(first, second, theRest) =>
+    // TUPLETODO: Ensure we have enough testing around this
     ev("DTuple", list{dval(first), dval(second), array(dval, List.toArray(theRest))})
   | DObj(o) =>
     o->Belt.Map.String.map(dval)->Belt.Map.String.toList
@@ -464,6 +465,7 @@ and tipe = (t: Types.tipe): Js.Json.t => {
   | TObj => ev("TObj", list{})
   | TList => ev("TList", list{})
   | TTuple(first, second, theRest) =>
+    // TUPLETODO: Ensure we have enough testing around this
     let otherTipes = Array.map(~f = (t) => tipe(t), List.toArray(theRest))
     ev("TTuple", list{tipe(first), tipe(second), jsonArray(otherTipes)})
   | TAny => ev("TAny", list{})
@@ -554,6 +556,7 @@ and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
   | EVariable(id', name) => ev("EVariable", list{id(id'), string(name)})
   | EList(id', exprs) => ev("EList", list{id(id'), list(fe, exprs)})
   | ETuple(id', first, second, theRest) =>
+    // TUPLETODO: Ensure we have enough testing around this, incl. roundtripping
     ev("ETuple", list{id(id'), fe(first), fe(second), list(fe,  theRest)})
   | ERecord(id', pairs) => ev("ERecord", list{id(id'), list(pair(string, fe), pairs)})
   | EFeatureFlag(id', name, cond, a, b) =>

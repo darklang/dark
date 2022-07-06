@@ -4064,8 +4064,8 @@ let run = () => {
         list{InsertText("c")},
         tuple2WithBothBlank
       )
-      t( // todo: review this - I'm not sure what it does.
-        "insert space into multi tuple",
+      t(
+        "insert space into multi tuple does nothing",
         tuple2WithNoBlank,
         ~pos=6, // right before closing )
         key(K.Space),
@@ -4123,6 +4123,9 @@ let run = () => {
         "(56,~___,78)"
       )
 
+      // TUPLETODO add a test for adding a comma at the pipe in `(56,|78)`
+
+      // TUPLETODO address the below commented half-test
       // (* t "insert separator mid integer makes two items" singleTuple (ins ',' 2) *)
       // (*   ("(5,6)", 3) ; *)
       // (* TODO: when on a separator in a nested tuple, pressing comma makes an entry outside the tuple. *)
@@ -4159,7 +4162,7 @@ let run = () => {
         bs,
         "(56,78~)"
       )
-      // t( // TODO: fix the impl. to match this failing test
+      // t( // TUPLETODO: fix the impl. to match this failing test
       //   "deleting , from a filled 2-tuple leaves only the first item",
       //   tuple2WithNoBlank,
       //   ~pos=4,
@@ -4205,7 +4208,7 @@ let run = () => {
         del,
         "(56,___~)"
       )
-      // t( // TODO: fix the impl. to match this failing test
+      // t( // TUPLETODO: fix the impl. to match this failing test
       //   "deleting , from a 2-tuple with second value blank converts to the non-blank value",
       //   tuple2WithSecondBlank,
       //   ~pos=3, // just before ,
@@ -4274,7 +4277,7 @@ let run = () => {
         del,
         "~(___,78,56)"
       )
-      // t( // TODO: fix the impl. to match this failing test
+      // t( // TUPLETODO: fix the impl. to match this failing test
       //   "deleting first , from a 3-tuple with first item blank removes 2nd item",
       //   tuple3WithFirstBlank,
       //   ~pos=4, // just before ,
@@ -4311,7 +4314,7 @@ let run = () => {
         del,
         "(56~,78)"
       )
-      // t( // TODO: fix the impl. to match this failing test
+      // t( // TUPLETODO: fix the impl. to match this failing test
       //   "deleting second , from a 3-tuple with the second item blank removes 3rd item",
       //   tuple3WithSecondBlank,
       //   ~pos=6, // just before ,
@@ -4476,7 +4479,7 @@ let run = () => {
         "(___,___,___~)" // I could see this instead turning into `~___`
       )
 
-      // TODO: in the previous "implement tuples" PR, there were a number of
+      // TUPLE TODO: in the previous "implement tuples" PR, there were some
       // tests suggesting that deletions of commas between same-typed items
       // (e.g. int and int) should attempt to merge those items. For example,
       // A deletion of the first comma in (1,2,3) would turn the tuple into

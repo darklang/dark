@@ -84,7 +84,7 @@ let rec unify
   | TNull, DNull -> Ok()
   | TStr, DStr _ -> Ok()
   | TList _, DList _ -> Ok()
-  // TODO: support Tuple type-checking.
+  // TUPLETODO: support Tuple type-checking.
   // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
   | TDate, DDate _ -> Ok()
   | TDict _, DObj _ -> Ok()
