@@ -4434,13 +4434,14 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
 
   | (InsertText(","), L(_, ti), R(TTupleClose(id, _), _)) if onEdge =>
     // Case: right before the tuple's closing `)`
-    // TUPLETODO ensure everything here is well-tested
     let astInfo = acEnter(ti, K.Enter, astInfo)
-    let bID = gid()
-    let newExpr = EBlank(bID)
+    
+    let blankID = gid()
+    let newExpr = EBlank(blankID)
+
     astInfo
     |> ASTInfo.setAST(insertAtTupleEnd(id, ~newExpr, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
+    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
 
   // Add another param to a lambda
