@@ -4401,8 +4401,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
 
   // Add another element to a tuple by inserting a `,`
   | (InsertText(","), L(TTupleOpen(id, _), _), _) if onEdge =>
-    // right after a tuple's opening `(`
-    // TUPLETODO ensure everything here is well-tested
+    // Case: right after a tuple's opening `(`
     let blankID = gid()
     let newExpr = EBlank(blankID)
 
@@ -4412,30 +4411,29 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
 
   | (InsertText(","), L(TTupleComma(id, index), _), R(_, ti))
   | (InsertText(","), L(_, ti), R(TTupleComma(id, index), _)) if onEdge =>
-    // Case: any of these places in a Tuple:
-    //   - (123|,456,789,000)
-    //   - (123,|456,789,000)
-    //   - (123,456|,789,000), etc.
-    // but not this
-    //   - (123,45|6,789,000).
-    // Either way,
+    // Case: either of these places in a Tuple:
+    //  - (123|,456,...)
+    //  - (123,|456,...)
+    // but not this (within an element, not on the edge)
+    //  - (123,45|6,...)
+    // Either way, insert a blank just to the right of the ,
+    //
+    // We compute where to insert a Blank by referencing the comma's index:
+    // In `(123,456,789)`, the 0th element is 123 and corresponds to the 0th comma.
+    // So we insert into the index just after the current one.
+    let indexToInsertInto = index + 1
 
-    // TUPLETODO ensure everything here is well-tested
-    // This seems to me like it does the same behaviour when the comma is put
-    // on the left or the right of an expression, which doesn't seem right.
-    // This works fine when I test it though - maybe add a comment explaining
-    // why index+1 works in the both cases.
     let astInfo = acEnter(ti, K.Enter, astInfo)
 
     let blankID = gid()
     let newExpr = EBlank(blankID)
 
     astInfo
-    |> ASTInfo.setAST(insertInTuple(~index=index + 1, id, ~newExpr, astInfo.ast))
+    |> ASTInfo.setAST(insertInTuple(~index=indexToInsertInto, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
   | (InsertText(","), L(_, ti), R(TTupleClose(id, _), _)) if onEdge =>
-    // right before the tuple's closing `)`
+    // Case: right before the tuple's closing `)`
     // TUPLETODO ensure everything here is well-tested
     let astInfo = acEnter(ti, K.Enter, astInfo)
     let bID = gid()
