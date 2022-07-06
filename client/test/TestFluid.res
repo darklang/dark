@@ -4092,7 +4092,6 @@ let run = () => {
         key(K.Space),
         "(56~,78)"
       )
-      t("insert into existing tuple item", tuple2WithNoBlank, ~pos=1, ins("4"), "(4~56,78)")
       t(
         "insert separator before item creates blank",
         tuple2WithNoBlank,
