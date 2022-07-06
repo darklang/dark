@@ -4322,13 +4322,13 @@ let run = () => {
         del,
         "(56~,78)"
       )
-      // t( // TUPLETODO: fix the impl. to match this failing test
-      //   "deleting second , from a 3-tuple with the second item blank removes 3rd item",
-      //   tuple3WithSecondBlank,
-      //   ~pos=6, // just before ,
-      //   del,
-      //   "(56,~___)"
-      // )
+      t(
+        "deleting second , from a 3-tuple with the second item blank removes 3rd item",
+        tuple3WithSecondBlank, // (56,___,78)
+        ~pos=7, // just before ,
+        del,
+        "(56,~___)"
+      )
       t(
         "deleting ) from a 3-tuple with the second item blank just moves cursor left",
         tuple3WithSecondBlank,
