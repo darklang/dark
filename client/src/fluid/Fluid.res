@@ -2760,14 +2760,18 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
           let newTarget = caretTargetForEndOfExpr(toID(single), ast)
           Some(Expr(single), newTarget)
         | list{first, second, ...theRest} =>
+
           let newExpr = Expr(ETuple(id, first, second, theRest))
 
-          // TUPLETODO do this another way here (with recover, probably)?
-          // We shouldn't ever throw exceptions as they crash the client.
-          let elementLeftOfDeletion = Belt.List.getExn(withoutDeleted, elemAndSepIdx)
-          let newTarget = caretTargetForEndOfExpr(toID(elementLeftOfDeletion), ast)
+          // set target to RHS of the item to left of ,
+          // something is broken about this. We're currently ending up on the LHS of the thing before the deleted item
+          switch Belt.List.get(withoutDeleted, elemAndSepIdx) {
+            | None => recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=show_astRef(currAstRef), None)
+            | Some(elementLeftOfDeletion) =>
+              let newTarget = caretTargetForEndOfExpr(toID(elementLeftOfDeletion), ast)
 
-          Some(newExpr, newTarget)
+              Some(newExpr, newTarget)
+          }
       }
 
     | (ARTuple(_, TPClose), ETuple(id, first, second, theRest)) =>
