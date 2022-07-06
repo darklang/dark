@@ -1120,6 +1120,29 @@ let run = () => {
     )
     ()
   })
+
+  describe("Tuples", () => {
+    // whole tuple
+    testCopy(
+      "copying whole tuple adds subset tuple expr to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (0, 10),
+      "(12,34,56)",
+    )
+    // TUPLETODO: cut
+    // TUPLETODO: copy and paste
+    // TUPLETODO: cut and paste
+
+    // all elements within a tuple (i.e. excluding parens)
+    // TUPLETODO: copy
+    // TUPLETODO: copy and paste
+    // TUPLETODO: cut
+    // TUPLETODO: cut and paste
+
+    // ... and a bunch more.
+    ()
+  })
+
   describe("Records", () => {
     testCopy(
       "copying opening bracket adds empty record expr to clipboard",

@@ -4502,29 +4502,6 @@ let run = () => {
       )
       ()
     })
-    // describe("reconstruct", () => {
-    //   t(
-    //     "whole tuple",
-    //     tuple2WithNoBlank, // (56,78)
-    //     ~sel=(0, 7),
-    //     inputs(list{
-    //       // todo copy. how?
-    //       keypress(K.GoToEndOfLine(K.DropSelection)),
-    //       keypress(K.Enter),
-    //       // todo paste. how?
-    //     }),
-    //     "let _ = (56, 78)\n(56,78)",
-    //   )
-    //   t(
-    //     "insides of tuple",
-    //     tuple2WithNoBlank, // (56,78)
-    //     ~sel=(1, 6),
-    //     inputs(list{DeleteContentBackward}), // todo: copy, end of line, enter, paste
-    //     "~___",
-    //   )
-    //   // todo: copy the first element and paste it to make a third
-    //   // todo: review the source code and write a bunch of other tests based on that.
-    // })
     ()
   })
 
