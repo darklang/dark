@@ -4486,15 +4486,6 @@ let run = () => {
         bs,
         "(___,___,___~)" // I could see this instead turning into `~___`
       )
-
-      // TUPLETODO: in the previous "implement tuples" PR, there were some
-      // tests suggesting that deletions of commas between same-typed items
-      // (e.g. int and int) should attempt to merge those items. For example,
-      // A deletion of the first comma in (1,2,3) would turn the tuple into
-      // (12,3). Personally I find this a bit surprising/undesired, but it's
-      // worth revisiting this idea, especially since lists seem to behave this
-      // way.
-
       ()
     })
     ()
