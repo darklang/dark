@@ -4,6 +4,14 @@ open FluidShortcuts
 module E = FluidExpression
 
 let run = () => {
+  describe("isEmpty", () => {
+    test("empty tuple", () => {
+      expect(E.isEmpty(tuple(blank(), blank(), list{blank()}))) |> toEqual(true)
+    })
+    test("nonempty tuple", () => {
+      expect(E.isEmpty(tuple(blank(), int(2), list{blank()}))) |> toEqual(false)
+    })
+  })
   describe("decendants", () => {
     /* [t f] helps test the decendants function
      *
@@ -48,6 +56,7 @@ let run = () => {
 
     let eq = t(true)
     let neq = t(false)
+
     eq("int with same values", int(1), int(1))
     neq("int with diff values", int(1), int(2))
     eq(

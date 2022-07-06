@@ -206,7 +206,6 @@ let isEmpty = (expr: t): bool =>
   | ERecord(_, l) => l |> List.filter(~f=((k, v)) => k == "" && !isBlank(v)) |> List.isEmpty
   | EList(_, l) => l |> List.filter(~f=\"<<"(not, isBlank)) |> List.isEmpty
   | ETuple(_, first, second, theRest) =>
-    // TUPLETODO ensure we have enough testing around this
     let exprs = list{first, second, ...theRest}
     exprs |> List.filter(~f = e => not(isBlank(e))) |> List.isEmpty
   | _ => false
