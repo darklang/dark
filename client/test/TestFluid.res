@@ -4208,13 +4208,13 @@ let run = () => {
         del,
         "(56,___~)"
       )
-      // t( // TUPLETODO: fix the impl. to match this failing test
-      //   "deleting , from a 2-tuple with second value blank converts to the non-blank value",
-      //   tuple2WithSecondBlank,
-      //   ~pos=3, // just before ,
-      //   del,
-      //   "~56"
-      // )
+      t(
+        "deleting , from a 2-tuple with second value blank converts to the non-blank value",
+        tuple2WithSecondBlank,
+        ~pos=3, // just before ,
+        del,
+        "56~"
+      )
 
       // 2-tuple, both blank
       t(
@@ -4479,7 +4479,7 @@ let run = () => {
         "(___,___,___~)" // I could see this instead turning into `~___`
       )
 
-      // TUPLE TODO: in the previous "implement tuples" PR, there were some
+      // TUPLETODO: in the previous "implement tuples" PR, there were some
       // tests suggesting that deletions of commas between same-typed items
       // (e.g. int and int) should attempt to merge those items. For example,
       // A deletion of the first comma in (1,2,3) would turn the tuple into

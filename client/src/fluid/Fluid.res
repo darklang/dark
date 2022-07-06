@@ -10,8 +10,6 @@
 
 // TUPLETODO if you type (1,2), you should get (1,2)| but currently you get (1,2|,___).
 
-// TUPLETODO given (1,2), if I delete the comma, I get ___, but I should get 1.
-
 open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
@@ -2751,17 +2749,16 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
     | (ARTuple(_, TPComma(elemAndSepIdx)), ETuple(id, first, second, theRest)) =>
       // When we're trying a comma (,) within in a tuple,
       // - normally, remove the element just after the comma
-      // - if that leaves only one element
-      // - normally, don't do anything, and leave cursor at left of (
-      // - if there are only blanks in the tuple, replace with blank
-      // - if there's only 1 non-blank item, replace with that item
+      // - if that leaves only one element, replace with that item
       let withoutDeleted =
         list{first, second, ...theRest}
         |> List.removeAt(~index=elemAndSepIdx + 1)
 
       switch withoutDeleted {
         | list{} => recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=show_astRef(currAstRef), None)
-        | list{_single} =>  Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
+        | list{single} =>
+          let newTarget = caretTargetForEndOfExpr(toID(single), ast)
+          Some(Expr(single), newTarget)
         | list{first, second, ...theRest} =>
           let newExpr = Expr(ETuple(id, first, second, theRest))
 
@@ -4366,61 +4363,85 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     if false /* disable for now */ && pos - ti.startPos !== 0 =>
     startEscapingString(pos, ti, astInfo)
 
-  // comma - add another of the thing
-  // lists
+
+  // Add another element to a List by inserting a `,`
   | (InsertText(","), L(TListOpen(id, _), _), _) if onEdge =>
     let bID = gid()
-    let newExpr = EBlank(bID) // new separators
+    let newExpr = EBlank(bID)
     astInfo
     |> ASTInfo.setAST(insertInList(~index=0, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
+
   | (InsertText(","), L(TListComma(id, index), _), R(_, ti))
-  | (InsertText(","), L(_, ti), R(TListComma(id, index), _)) if onEdge =>
+  | (InsertText(","), L(_, ti), R(TListComma(id, index), _)) if onEdge => {
     let astInfo = acEnter(ti, K.Enter, astInfo)
-    let bID = gid()
-    let newExpr = EBlank(bID) // new separators
+
+    let blankID = gid()
+    let newExpr = EBlank(blankID)
+
     astInfo
     |> ASTInfo.setAST(insertInList(~index=index + 1, id, ~newExpr, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
-  | (InsertText(","), L(_, ti), R(TListClose(id, _), _)) if onEdge =>
-    let astInfo = acEnter(ti, K.Enter, astInfo)
-    let bID = gid()
-    let newExpr = EBlank(bID) // new separators
-    astInfo
-    |> ASTInfo.setAST(insertAtListEnd(id, ~newExpr, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
+    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
+    }
 
-  // Tuples
-  // TUPLETODO ensure everything here is well-tested
+  | (InsertText(","), L(_, ti), R(TListClose(id, _), _)) if onEdge =>
+    let newAstInfo = acEnter(ti, K.Enter, astInfo)
+
+    let blankID = gid()
+    let newExpr = EBlank(blankID)
+
+    newAstInfo
+    |> ASTInfo.setAST(insertAtListEnd(id, ~newExpr, newAstInfo.ast))
+    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
+
+
+  // Add another element to a tuple by inserting a `,`
   | (InsertText(","), L(TTupleOpen(id, _), _), _) if onEdge =>
-    let bID = gid()
-    let newExpr = EBlank(bID) // new separators
+    // right after a tuple's opening `(`
+    // TUPLETODO ensure everything here is well-tested
+    let blankID = gid()
+    let newExpr = EBlank(blankID)
+
     astInfo
     |> ASTInfo.setAST(insertInTuple(~index=0, id, ~newExpr, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
+    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
+
   | (InsertText(","), L(TTupleComma(id, index), _), R(_, ti))
   | (InsertText(","), L(_, ti), R(TTupleComma(id, index), _)) if onEdge =>
-    let astInfo = acEnter(ti, K.Enter, astInfo)
-    let bID = gid()
-    let newExpr = EBlank(bID) // new separators
+    // Case: any of these places in a Tuple:
+    //   - (123|,456,789,000)
+    //   - (123,|456,789,000)
+    //   - (123,456|,789,000), etc.
+    // but not this
+    //   - (123,45|6,789,000).
+    // Either way,
 
-    // TUPLETODO
+    // TUPLETODO ensure everything here is well-tested
     // This seems to me like it does the same behaviour when the comma is put
     // on the left or the right of an expression, which doesn't seem right.
     // This works fine when I test it though - maybe add a comment explaining
     // why index+1 works in the both cases.
+    let astInfo = acEnter(ti, K.Enter, astInfo)
+
+    let blankID = gid()
+    let newExpr = EBlank(blankID)
+
     astInfo
     |> ASTInfo.setAST(insertInTuple(~index=index + 1, id, ~newExpr, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
+    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
+
   | (InsertText(","), L(_, ti), R(TTupleClose(id, _), _)) if onEdge =>
+    // right before the tuple's closing `)`
+    // TUPLETODO ensure everything here is well-tested
     let astInfo = acEnter(ti, K.Enter, astInfo)
     let bID = gid()
-    let newExpr = EBlank(bID) // new separators
+    let newExpr = EBlank(bID)
     astInfo
     |> ASTInfo.setAST(insertAtTupleEnd(id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(bID), offset: 0})
 
-  // add another param to lambda
+
+  // Add another param to a lambda
   | (InsertText(","), L(TLambdaSymbol(id, _), _), _) if onEdge =>
     astInfo
     |> ASTInfo.setAST(insertLambdaVar(~index=0, id, ~name="", astInfo.ast))
@@ -4433,6 +4454,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     astInfo
     |> ASTInfo.setAST(insertLambdaVar(~index, id, ~name="", astInfo.ast))
     |> moveToCaretTarget({astRef: ARLambda(id, LBPVarName(index)), offset: 0})
+
 
   // Field access
   | (InsertText("."), L(TFieldPartial(id, _, _, _, _), _), _) =>
@@ -4450,12 +4472,14 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     astInfo
     |> ASTInfo.setAST(ast)
     |> moveToCaretTarget({astRef: ARPartial(newPartialID), offset: 0})
+
   | (InsertText("."), L(TVariable(id, _, _), toTheLeft), _)
   | (InsertText("."), L(TFieldName(id, _, _, _), toTheLeft), _)
     if onEdge && pos == toTheLeft.endPos =>
     let (newAST, target) = exprToFieldAccess(id, ~partialID=gid(), ~fieldID=gid(), astInfo.ast)
 
     astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(target)
+
 
   // Wrap the current expression in a list
   | (InsertText("["), _, R(TInteger(id, _, _), _))
@@ -5252,7 +5276,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       let newExprs = List.map(exprs, ~f=reconstructExpr) |> Option.values
       Some(EList(id, newExprs))
     | ETuple(_, first, second, theRest) =>
-      // TUPLETODO aded tests around this
+      // TUPLETODO add tests around this
       let results =
         List.map(list{first, second, ...theRest}, ~f=reconstructExpr)
         |> Option.values

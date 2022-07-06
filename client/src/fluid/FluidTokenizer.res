@@ -508,7 +508,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       let isOverLimit = currentLineLength > tupleLimit
 
       // Even if first element overflows, don't put it in a new line
-      // TUPLETODO aded tests around this
+      // TUPLETODO add tests around this
       let shouldIndent = isNotFirstElement && isOverLimit
 
       // Indent after newlines to match the '( '
