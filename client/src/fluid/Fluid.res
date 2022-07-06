@@ -5276,7 +5276,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       let newExprs = List.map(exprs, ~f=reconstructExpr) |> Option.values
       Some(EList(id, newExprs))
     | ETuple(_, first, second, theRest) =>
-      // TUPLETODO add tests around this
+      // TUPLETODO add tests around this (reconstructing tuples when you copy/paste)
       let results =
         List.map(list{first, second, ...theRest}, ~f=reconstructExpr)
         |> Option.values

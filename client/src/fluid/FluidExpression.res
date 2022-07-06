@@ -40,7 +40,7 @@ let toID = (expr: t): id =>
   }
 
 let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrExpr> => {
-  let (id, patOrExprs) = switch within {
+  let (id, childPatOrExprs) = switch within {
   | Expr(expr) =>
     switch expr {
     | EInteger(id, _)
@@ -69,9 +69,8 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | EList(id, exprs)
     | EConstructor(id, _, exprs) => (id, List.map(exprs, ~f=e1 => Expr(e1)))
     | ETuple(id, first, second, theRest) =>
-      // TUPLETODO ensure we have enough testing around this
-      let exprs = list{first, second, ...theRest}
-      (id, List.map(exprs, ~f=e1 => Expr(e1)))
+      let childExprs = List.map(list{first, second, ...theRest}, ~f = e1 => Expr(e1))
+      (id, childExprs)
     | ERecord(id, nameAndExprs) => (id, List.map(nameAndExprs, ~f=((_, e1)) => Expr(e1)))
     | EMatch(id, e1, pairs) => (
         id,
@@ -97,7 +96,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
   if id == target {
     Some(within)
   } else {
-    patOrExprs |> List.findMap(~f=pOrE => findExprOrPat(target, pOrE))
+    childPatOrExprs |> List.findMap(~f=pOrE => findExprOrPat(target, pOrE))
   }
 }
 
