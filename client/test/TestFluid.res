@@ -4170,13 +4170,13 @@ let run = () => {
         bs,
         "(56,78~)"
       )
-      // t( // TUPLETODO: fix the impl. to match this failing test
-      //   "deleting , from a filled 2-tuple leaves only the first item",
-      //   tuple2WithNoBlank,
-      //   ~pos=4,
-      //   bs,
-      //   "~56"
-      // )
+      t(
+        "deleting , from a filled 2-tuple leaves only the first item",
+        tuple2WithNoBlank, // (56,78)
+        ~pos=4, // at the ,
+        bs,
+        "56~"
+      )
 
       // 2-tuple, first blank
       t(
