@@ -4072,6 +4072,13 @@ let run = () => {
         "(56,78~)"
       )
       t(
+        "insert separator after opening parens creates blank",
+        tuple(int(1), int(2), list{int(3)}),
+        ~pos=1, // after the (
+        ins(","),
+        "(~___,1,2,3)"
+      )
+      t(
         "insert separator after separator creates blank",
         tuple(int(1), int(2), list{int(3)}),
         ~pos=5, // after the second comma
