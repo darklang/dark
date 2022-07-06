@@ -1080,12 +1080,12 @@ let run = () => {
     ()
   })
   describe("Lists", () => {
-    /* NOT WORKING YET
-      testCopy
-        "copying opening bracket adds empty list expr to clipboard"
-        (list ([int ("123")]))
-        ((0, 1))
-        ("[123]",  "[]") ; */
+    // TODO fix this
+    // testCopy
+    //  "copying opening bracket adds empty list expr to clipboard"
+    //  (list ([int ("123")]))
+    //  ((0, 1))
+    //  ("[123]",  "[]") ;
     testCopy(
       "copying subset of elements adds subset list expr to clipboard",
       list(list{int(123), int(456), int(789)}),
@@ -1098,18 +1098,19 @@ let run = () => {
       (5, 12),
       ("[123,~___]", "[456,789]"),
     )
-    /* NOT WORKING b/c placing the cursor on either side of a separator
-       * acts as though it's on the sub-expression
-      t
-        "pasting an expression into list expr at separator works"
-        (list
-           (
-           , [ int ("123")
-             ; int ("456")
-             ; int ("789") ] ))
-        (paste ~clipboard:(int ("9000")) (4, 5))
-        ("[123,9000,456,789]", "9000", 9) ;
- */
+
+    // TODO fix this. NOT WORKING b/c placing the cursor on either side of a
+    // separator acts as though it's on the sub-expression.
+    //  t
+    //    "pasting an expression into list expr at separator works"
+    //    (list
+    //       (
+    //       , [ int ("123")
+    //         ; int ("456")
+    //         ; int ("789") ] ))
+    //    (paste ~clipboard:(int ("9000")) (4, 5))
+    //    ("[123,9000,456,789]", "9000", 9) ;
+
     testPasteExpr(
       "pasting an expression over subset of list expr works",
       list(list{int(123), int(456), int(789)}),
