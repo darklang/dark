@@ -27,7 +27,7 @@
     "clipboard-copy": "4.0.1",
     "domready": "1.0.8",
     "minimist": ">=1.2.6",
-    "moment": "^2.29.3",
+    "moment": "^2.29.4",
     "mouse-wheel": "1.2.0",
     "pusher-js": "5.1.1",
     "rollbar": "2.25.0",
