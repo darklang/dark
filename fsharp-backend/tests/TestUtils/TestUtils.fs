@@ -1001,8 +1001,6 @@ let interestingDvals =
      // TODO: deeply nested data
      ))
 
-    // TUPLETODO tests fail on these right now. fix that
-    // TUPLETODO consider adding more cases here
     ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []))
     ("simple3Tuple", DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]))
     ("tupleWithNull", DTuple(Dval.int 1, Dval.int 2, [ DNull ]))

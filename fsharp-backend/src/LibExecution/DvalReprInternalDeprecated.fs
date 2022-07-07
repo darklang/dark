@@ -178,6 +178,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
     // These are the only types that are allowed in the queryable
     // representation. We may allow more in the future, but the real thing to
     // do is to use the DB's type and version to encode/decode them correctly
+    // Note: the fields are ordered.
     match fields with
     // DResp (Result.ok_or_Exception.raiseInternal (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
     | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
@@ -205,6 +206,11 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
         Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
       )
     | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+    | [ ("first", first)
+        ("second", second)
+        ("theRest", JList theRest)
+        ("type", JString "tuple") ] ->
+      DTuple(convert first, convert second, theRest |> List.map convert)
     | [ ("constructor", JString "Ok")
         ("type", JString "result")
         ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
@@ -219,7 +225,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   | JNonStandard
   | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
-let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
+let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
   let writeDval = unsafeDvalToJsonValueV0 w
 
   let wrapStringValue (typ : string) (str : string) =
@@ -243,14 +249,6 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
       w.WritePropertyName "value"
       writeDval dv)
 
-  let wrapNestedListValue (typ : string) (dvs : List<Dval>) =
-    w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue(typ)
-
-      w.WritePropertyName "value"
-      w.writeArray (fun () -> List.iter writeDval dvs))
-
   match dv with
   // basic types
   | DInt i -> w.WriteValue i
@@ -260,8 +258,19 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
   | DStr s -> w.WriteValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DTuple (first, second, theRest) ->
-    // TUPLETODO ensure we have enough testing around this. it seems broken
-    wrapNestedListValue "tuple" ([ first; second ] @ theRest)
+    w.writeObject (fun () ->
+      w.WritePropertyName "type"
+      w.WriteValue("tuple")
+
+      w.WritePropertyName "first"
+      writeDval first
+
+      w.WritePropertyName "second"
+      writeDval second
+
+      w.WritePropertyName "theRest"
+      w.writeArray (fun () -> List.iter writeDval theRest))
+
   | DObj o ->
     w.writeObject (fun () ->
       Map.iter
@@ -338,7 +347,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
 
 
 
-let unsafeDvalToJsonValueV1 (w : JsonWriter) (dv : Dval) : unit =
+let private unsafeDvalToJsonValueV1 (w : JsonWriter) (dv : Dval) : unit =
   unsafeDvalToJsonValueV0 w dv
 
 // -------------------------

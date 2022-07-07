@@ -288,7 +288,29 @@ let allRoundtrips =
         FuzzTests.InternalJson.Queryable.canV1Roundtrip
         (dvs DvalReprInternalDeprecated.Test.isQueryableDval) ]
 
+let testInternalRoundtrippableV0 =
+  testList
+    "tuples"
+    [ test "serializes correctly" {
+        let expected = """{"type":"tuple","first":1,"second":2,"theRest":[3]}"""
 
+        let actual =
+          RT.Dval.DTuple(RT.Dval.DInt 1, RT.Dval.DInt 2, [ RT.Dval.DInt 3 ])
+          |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+
+        Expect.equal actual expected ""
+      }
+
+      test "roundtrips successfully" {
+        let tpl = RT.Dval.DTuple(RT.Dval.DInt 1, RT.Dval.DInt 2, [ RT.Dval.DInt 3 ])
+
+        let roundtripped =
+          tpl
+          |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+          |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+
+        Expect.equal tpl roundtripped ""
+      } ]
 
 
 module Password =
@@ -464,5 +486,6 @@ let tests =
       testDateMigrationHasCorrectFormats
       ToHashableRepr.tests
       Password.tests
+      testInternalRoundtrippableV0
       testPreviousDateSerializionCompatibility
       allRoundtrips ]
