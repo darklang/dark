@@ -965,6 +965,8 @@ module CustomSerializersTests =
       })
 
 let generateTestFiles () =
+  // Enabled in dev so we can see changes as git diffs. Disabled in CI so changes
+  // will fail the tests
   if Config.serializationGenerateTestData then
     CustomSerializersTests.generateTestFiles ()
     GenericSerializersTests.generateTestFiles ()
