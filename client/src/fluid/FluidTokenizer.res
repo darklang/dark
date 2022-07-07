@@ -482,15 +482,8 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
 
     let xOffset = b.xPos |> Option.unwrap(~default=0)
 
-    // what is this? how would lastIndex be -1? Seems impossible for tuples actually.
-    let parentId = if lastIndex == -1 {
-      None
-    } else {
-      Some(id)
-    }
-
     b
-    |> add(TTupleOpen(id, parentId))
+    |> add(TTupleOpen(id))
     |> addIter(exprs, ~f=(i, e, b') => {
       let currentLineLength = {
         let commaWidth = if i != lastIndex {
@@ -502,7 +495,6 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         |> Option.map(~f=x => x - xOffset + commaWidth)
         |> Option.unwrap(~default=commaWidth)
       }
-
 
       let isNotFirstElement = i > 0
       let isOverLimit = currentLineLength > tupleLimit
@@ -526,7 +518,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         |> addIf(i != lastIndex, TTupleComma(id, i))
       )
     })
-    |> add(TTupleClose(id, parentId))
+    |> add(TTupleClose(id))
   | ERecord(id, fields) =>
     if fields == list{} {
       b |> addMany(list{TRecordOpen(id, None), TRecordClose(id, None)})

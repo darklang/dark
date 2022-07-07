@@ -45,8 +45,8 @@ let tid = (t: t): id =>
   | TListOpen(id, _)
   | TListClose(id, _)
   | TListComma(id, _)
-  | TTupleOpen(id, _)
-  | TTupleClose(id, _)
+  | TTupleOpen(id)
+  | TTupleClose(id)
   | TTupleComma(id, _)
   | TPipe(id, _, _, _)
   | TRecordOpen(id, _)
@@ -104,20 +104,15 @@ let parentBlockID = (t: t): option<id> =>
   | TStringMLStart(id, _, _, _)
   | TStringMLMiddle(id, _, _, _)
   | TStringMLEnd(id, _, _, _)
-  | // The ID of a comma token is the ID of the whole list expression
-  TListComma(id, _)
-  | // The ID of a comma token is the ID of the whole tuple expression
-  TTupleComma(id, _)
-  | // The first ID in the separator token is the ID of the whole obj expression
-  TRecordSep(id, _, _) =>
+
+  // The first ID in the separator token is the ID of the whole obj expression
+  | TRecordSep(id, _, _) =>
     Some(id)
   // The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block.
   | TRecordOpen(_, pid)
   | TRecordClose(_, pid)
   | TListOpen(_, pid)
   | TListClose(_, pid)
-  | TTupleOpen(_, pid)
-  | TTupleClose(_, pid)
   | TBlank(_, pid)
   | TInteger(_, _, pid)
   | TString(_, _, pid)
@@ -150,6 +145,12 @@ let parentBlockID = (t: t): option<id> =>
   | TSep(_, pid) => pid
   | TRecordFieldname(d) => d.parentBlockID
   | TNewline(Some(_, id, _)) => Some(id)
+
+  | TTupleOpen(id)
+  | TTupleClose(id)
+  | TListComma(id, _)
+  | TTupleComma(id, _) => Some(id)
+
   | TFnName(_)
   | TFnVersion(_)
   | TMatchKeyword(_)
@@ -866,8 +867,8 @@ let matchesContent = (t1: t, t2: t): bool =>
     id1 == id2 && (seg1 == seg2 && (ind1 == ind2 && str1 == str2))
   | (TListOpen(id1, _), TListOpen(id2, _))
   | (TListClose(id1, _), TListClose(id2, _))
-  | (TTupleOpen(id1, _), TTupleOpen(id2, _))
-  | (TTupleClose(id1, _), TTupleClose(id2, _))
+  | (TTupleOpen(id1), TTupleOpen(id2))
+  | (TTupleClose(id1), TTupleClose(id2))
   | (TRecordOpen(id1, _), TRecordOpen(id2, _))
   | (TRecordClose(id1, _), TRecordClose(id2, _))
   | (TTrue(id1, _), TTrue(id2, _))

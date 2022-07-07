@@ -1604,8 +1604,8 @@ and fluidToken =
   | TListOpen(id, option<parentBlockID>)
   | TListClose(id, option<parentBlockID>)
   | TListComma(id, int)
-  | TTupleOpen(id, option<parentBlockID>)
-  | TTupleClose(id, option<parentBlockID>)
+  | TTupleOpen(id)
+  | TTupleClose(id)
   | TTupleComma(id, int)
   // 2nd int is the number of pipe segments there are
   | TPipe(id, int, int, option<parentBlockID>)

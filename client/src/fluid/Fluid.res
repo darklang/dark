@@ -682,8 +682,8 @@ let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
     | (ARLet(id, LPAssignment), TLetAssignment(id', _, _))
     | (ARList(id, LPOpen), TListOpen(id', _))
     | (ARList(id, LPClose), TListClose(id', _))
-    | (ARTuple(id, TPOpen), TTupleOpen(id', _))
-    | (ARTuple(id, TPClose), TTupleClose(id', _))
+    | (ARTuple(id, TPOpen), TTupleOpen(id'))
+    | (ARTuple(id, TPClose), TTupleClose(id'))
     | (ARMatch(id, MPKeyword), TMatchKeyword(id'))
     | (ARNull(id), TNullToken(id', _))
     | (ARPartial(id), TPartial(id', _, _))
@@ -922,8 +922,8 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<caretTarget> 
   | TListOpen(id, _) => Some({astRef: ARList(id, LPOpen), offset: offset})
   | TListClose(id, _) => Some({astRef: ARList(id, LPClose), offset: offset})
   | TListComma(id, idx) => Some({astRef: ARList(id, LPComma(idx)), offset: offset})
-  | TTupleOpen(id, _) => Some({astRef: ARTuple(id, TPOpen), offset: offset})
-  | TTupleClose(id, _) => Some({astRef: ARTuple(id, TPClose), offset: offset})
+  | TTupleOpen(id) => Some({astRef: ARTuple(id, TPOpen), offset: offset})
+  | TTupleClose(id) => Some({astRef: ARTuple(id, TPClose), offset: offset})
   | TTupleComma(id, idx) => Some({astRef: ARTuple(id, TPComma(idx)), offset: offset})
   | TPipe(id, idx, _, _) => Some({astRef: ARPipe(id, idx), offset: offset})
   | TRecordOpen(id, _) => Some({astRef: ARRecord(id, RPOpen), offset: offset})
@@ -4398,7 +4398,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
 
 
   // Add another element to a tuple by inserting a `,`
-  | (InsertText(","), L(TTupleOpen(id, _), _), _) if onEdge =>
+  | (InsertText(","), L(TTupleOpen(id), _), _) if onEdge =>
     // Case: right after a tuple's opening `(`
     let blankID = gid()
     let newExpr = EBlank(blankID)
@@ -4424,7 +4424,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     |> ASTInfo.setAST(insertInTuple(~index=indexToInsertInto, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
-  | (InsertText(","), L(_, ti), R(TTupleClose(id, _), _)) if onEdge =>
+  | (InsertText(","), L(_, ti), R(TTupleClose(id), _)) if onEdge =>
     // Case: right before the tuple's closing `)`
     let astInfo = acEnter(ti, K.Enter, astInfo)
 
@@ -4485,7 +4485,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   | (InsertText("["), _, R(TFnName(id, _, _, _, _), _))
   | (InsertText("["), _, R(TVariable(id, _, _), _))
   | (InsertText("["), _, R(TListOpen(id, _), _))
-  | (InsertText("["), _, R(TTupleOpen(id, _), _))
+  | (InsertText("["), _, R(TTupleOpen(id), _))
   | (InsertText("["), _, R(TRecordOpen(id, _), _))
   | (InsertText("["), _, R(TConstructorName(id, _), _)) =>
     let newID = gid()
