@@ -5,17 +5,22 @@ module B = BlankOr
 module RT = Runtime
 module TL = Toplevel
 
-/* Borrowed from libexecution/dval.mli with some items - DObj, DResult (ResError
- * _), DOption (OptNothing) - moved to the None case */
 let rec to_url_string = (dv: dval): option<string> =>
   switch dv {
+  // things that can't be parsed out of a HTTP request
   | DBlock(_)
   | DIncomplete(_)
   | DPassword(_)
   | DObj(_)
   | DOption(OptNothing)
+  | DTuple(_)
   | DResult(ResError(_)) =>
     None
+
+  // some of these things also can't be parsed out of a HTTP request,
+  // but someone has added code for those cases anyway
+  // CLEANUP we can probably remove types that cannot be created as part of
+  // a HTTP request
   | DInt(i) => Some(string_of_int(i))
   | DBool(true) => Some("true")
   | DBool(false) => Some("false")
@@ -32,18 +37,6 @@ let rec to_url_string = (dv: dval): option<string> =>
   | DList(l) =>
     Some(
       "[ " ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, Array.to_list(l))) ++ " ]"),
-    )
-  | DTuple(first, second, theRest) =>
-    // TUPLETODO reconsider whether this is the right thing to do
-    // Comment from Paul:
-    // There's a few places like this where we generate a string, using roughly
-    // the format for tuple that we used for lists. However, I think the intent
-    // was that lists get parsed in URLs. This isn't true for tuples. So in all
-    // these cases of generating random url-adjacent strings for tuples, I'm
-    // not sure we're doing this right.
-    let l = list{first, second, ...theRest}
-    Some(
-      "(" ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, l)) ++ ")"),
     )
   | DOption(OptJust(v)) => to_url_string(v)
   | DResult(ResOk(v)) => to_url_string(v)

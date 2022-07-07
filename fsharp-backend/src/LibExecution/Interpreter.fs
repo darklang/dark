@@ -76,6 +76,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // instead of ignoring, this is probably a mistake.
       let! results = Ply.List.mapSequentially (eval state st) exprs
 
+      // We filter these out as we want users to be able to add elements to
+      // lists without breaking their code.
       let filtered = List.filter (not << Dval.isIncomplete) results
 
       // CLEANUP: why do we only find errorRail, and not errors. Seems like
@@ -105,6 +107,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       let allResults = [ firstResult; secondResult ] @ otherResults
 
+      // If any elements in a tuple is fake (blank, error, etc.),
+      // we don't want to allow that.
+
+      // TUPLETODO: rather than borrowing so heavily from the old List logic,
+      // just try to find the first fake value and return that if any
       let foundIncompletes = List.filter Dval.isIncomplete allResults
       let firstFoundError =
         List.tryFind (fun dv -> Dval.isErrorRail dv || Dval.isDError dv) allResults
@@ -144,6 +151,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let evaluated = List.choose Operators.id evaluated
 
       // CLEANUP - we should propagate DErrors too
+
+      // CLEANUP - we should propogate blank field names too
+      // (similar to tuples, the other product type)
       let errorRail = List.tryFind (fun (_, dv) -> Dval.isErrorRail dv) evaluated
 
       match errorRail with

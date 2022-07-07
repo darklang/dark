@@ -97,9 +97,6 @@ let testToPrettyResponseJson =
     LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
     [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}"
 
-      // TUPLETODO: reconsider if this is appropriate.
-      // Reminder: this is usable by users in Object::toJSON, beyond
-      // our in-code usages of the fn
       RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "[\n  1,\n  2,\n  3\n]" ]
 
 
@@ -319,7 +316,6 @@ let testInternalRoundtrippableNew =
   testList
     "internalNew"
     [ test "tuples serialize correctly" {
-        // TUPLETODO reconsider if this is ideal
         let expected = """["DTuple",["DInt",1],["DInt",2],[["DInt",3]]]"""
 
         let actual =
@@ -333,7 +329,6 @@ let testToPrettyMachineJsonStringV1 =
   testList
     "toPrettyMachineJsonStringV1"
     [ test "tuples serialize correctly" {
-        // TUPLETODO reconsider if this is ideal
         let expected = "[1,2,3\n]"
 
         let actual =

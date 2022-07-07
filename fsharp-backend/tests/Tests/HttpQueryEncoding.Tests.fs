@@ -42,7 +42,7 @@ let toQueryTests =
           RT.DObj(Map.ofList [ "key", RT.DTuple(RT.DInt 1, RT.DInt 2, []) ])
 
         let actual = HttpQueryEncoding.toQuery queryObj
-        let expected = Ok [ "key", [ "( 1, 2 )" ] ] // TUPLETODO is this ideal?
+        let expected = Ok [ "key", [ "( 1, 2 )" ] ]
 
         Expect.equal actual expected "old format"
       } ]

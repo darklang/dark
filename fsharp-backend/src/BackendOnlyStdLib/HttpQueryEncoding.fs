@@ -50,6 +50,9 @@ let rec private toUrlString (dv : RT.Dval) : string =
   | RT.DHttpResponse (RT.Response (_, _, hdv)) -> r hdv
   | RT.DList l -> "[ " + String.concat ", " (List.map r l) + " ]"
   | RT.DTuple (first, second, rest) ->
+    // We decided to format this way to be less surprising to users. We could
+    // have gone with square brackets to be closer to what tools would expect,
+    // but it seems best to stay nonidiomatic here.
     "( " + String.concat ", " (List.map r ([ first; second ] @ rest)) + " )"
   | RT.DObj o ->
     let strs = Map.fold [] (fun l key value -> (key + ": " + r value) :: l) o
