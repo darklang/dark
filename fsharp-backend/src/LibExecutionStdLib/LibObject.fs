@@ -20,6 +20,7 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 
+// Note: this is used outside of this fn!
 module PrettyResponseJsonV0 =
 
   // At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change.
@@ -77,7 +78,6 @@ module PrettyResponseJsonV0 =
     | DStr s -> w.WriteValue s
     | DList l -> w.writeArray (fun () -> List.iter writeDval l)
     | DTuple (first, second, theRest) ->
-      // TUPLETODO ensure we have enough testing around this
       w.writeArray (fun () -> List.iter writeDval ([ first; second ] @ theRest))
     | DObj o ->
       w.writeObject (fun () ->

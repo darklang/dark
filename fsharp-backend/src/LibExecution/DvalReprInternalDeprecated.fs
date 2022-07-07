@@ -538,7 +538,6 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
                      nl |> UTF8.toBytes
                      "]" |> UTF8.toBytes ]
   | DTuple (first, second, theRest) ->
-    // TUPLETODO ensure we have enough testing around this
     let l = [ first; second ] @ theRest
     let body =
       l

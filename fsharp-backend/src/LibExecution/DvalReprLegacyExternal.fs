@@ -149,7 +149,7 @@ let ocamlStringOfFloat (f : float) : string =
 let toEnduserReadableTextV0 (dval : Dval) : string =
 
   let rec nestedreprfn dv =
-    (* If nesting inside an object or a list, wrap strings in quotes *)
+    // If nesting inside an object or a list, wrap strings in quotes
     match dv with
     | DStr _
     | DUuid _
@@ -165,7 +165,6 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
       match dv with
       | DTuple (first, second, rest) ->
-        // TUPLETODO ensure we have testing around this
         let l = [ first; second ] @ rest
         "(" + inl + String.concat ", " (List.map recurse l) + nl + ")"
       | DList l ->
@@ -239,7 +238,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 /// For passing to Dark functions that operate on JSON, such as the JWT fns.
 /// This turns Option and Result into plain values, or null/error. String-like
 /// values are rendered as string. Redacts passwords.
-let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
+let rec private toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
 
   let writeOCamlFloatValue (f : float) =
@@ -272,7 +271,6 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DStr s -> w.WriteStringValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DTuple (first, second, rest) ->
-    // TUPLETODO ensure we have testing around this and that it's correct
     w.writeArray (fun () -> List.iter writeDval ([ first; second ] @ rest))
   | DObj o ->
     w.writeObject (fun () ->

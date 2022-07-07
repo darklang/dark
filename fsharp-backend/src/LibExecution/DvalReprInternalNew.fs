@@ -87,7 +87,6 @@ module RoundtrippableSerializationFormatV0 =
       RT.DHttpResponse(RT.Response(code, headers, toRT hdv))
     | DList l -> RT.DList(List.map toRT l)
     | DTuple (first, second, theRest) ->
-      // TUPLETODO ensure we have enough testing around this
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DObj o -> RT.DObj(Map.map toRT o)
     | DOption None -> RT.DOption None

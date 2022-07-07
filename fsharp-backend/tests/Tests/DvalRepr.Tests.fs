@@ -15,6 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalNew = LibExecution.DvalReprInternalNew
 module Errors = LibExecution.Errors
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
@@ -97,6 +98,8 @@ let testToPrettyResponseJson =
     [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}"
 
       // TUPLETODO: reconsider if this is appropriate.
+      // Reminder: this is usable by users in Object::toJSON, beyond
+      // our in-code usages of the fn
       RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "[\n  1,\n  2,\n  3\n]" ]
 
 
@@ -168,7 +171,6 @@ let testToPrettyRequestJson =
       (RT.DHttpResponse(RT.Response(200L, [ "header", "value" ], RT.DStr "some url"))),
       "200 { header: value }\n\"some url\""
 
-      // TUPLETODO: reconsider if this is appropriate.
       RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)" ]
 
 module ToHashableRepr =
@@ -188,6 +190,7 @@ module ToHashableRepr =
       "toHashableRepr string"
       [ t (DHttpResponse(Redirect "")) "302 \nnull"
         t (DFloat 0.0) "0."
+        t (DTuple(DInt 1, DStr "two", [ DFloat 3.14 ])) "(\n  1, \"two\", 3.14\n)"
         t
           (DObj(
             Map.ofList [ ("", DNull)
@@ -312,6 +315,33 @@ let testInternalRoundtrippableV0 =
         Expect.equal tpl roundtripped ""
       } ]
 
+let testInternalRoundtrippableNew =
+  testList
+    "internalNew"
+    [ test "tuples serialize correctly" {
+        // TUPLETODO reconsider if this is ideal
+        let expected = """["DTuple",["DInt",1],["DInt",2],[["DInt",3]]]"""
+
+        let actual =
+          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
+          |> DvalReprInternalNew.toRoundtrippableJsonV0
+
+        Expect.equal actual expected ""
+      } ]
+
+let testToPrettyMachineJsonStringV1 =
+  testList
+    "toPrettyMachineJsonStringV1"
+    [ test "tuples serialize correctly" {
+        // TUPLETODO reconsider if this is ideal
+        let expected = "[1,2,3\n]"
+
+        let actual =
+          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
+          |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1
+
+        Expect.equal actual expected ""
+      } ]
 
 module Password =
   let testJsonRoundtripForwards =
@@ -376,7 +406,7 @@ module Password =
         DvalReprLegacyExternal.toEnduserReadableTextV0
       doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
       doesRedact
-        "toPrettyMachineJsonV1"
+        "toPrettyMachineJsonStringV1"
         DvalReprLegacyExternal.toPrettyMachineJsonStringV1
       doesRedact
         "toPrettyRequestJsonV0"
@@ -485,6 +515,8 @@ let tests =
       testToPrettyResponseJson
       testDateMigrationHasCorrectFormats
       ToHashableRepr.tests
+      testInternalRoundtrippableNew
+      testToPrettyMachineJsonStringV1
       Password.tests
       testInternalRoundtrippableV0
       testPreviousDateSerializionCompatibility

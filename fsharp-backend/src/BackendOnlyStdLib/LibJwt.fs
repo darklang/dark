@@ -95,9 +95,17 @@ module private LegacySerializer =
     | DResult (Ok dv) -> toYojson dv
     | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
     | DBytes bytes -> bytes |> Base64.defaultEncodeToString |> String
-    | DTuple (first, second, rest) ->
-      // TUPLETODO add tests around this, and reconsider if it's correct
-      List([ toYojson first; toYojson second ] @ List.map toYojson rest)
+    | DTuple (first, second, theRest) ->
+      // CLEANUP this doesn't roundtrip. It _could_ with this:
+      // Assoc [
+      //   "type", String "tuple"
+      //   "first", toYojson first
+      //   "second", toYojson second
+      //   "theRest", List(List.map toYojson theRest)
+      // ]
+      // and some relevant code on the parsing side of libjwt.
+      // Make LibJwt roundtrip tuples well with the next version.
+      List([ toYojson first; toYojson second ] @ List.map toYojson theRest)
 
   // We are adding bytes to match the old OCaml implementation. Don't use strings
   // or characters as those are different sizes: OCaml strings were literally
