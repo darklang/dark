@@ -86,20 +86,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | Some er -> return er
       | None -> return (DList filtered)
 
-    | ETuple (id, first, second, theRest) ->
-      (*
-        TUPLETODO it's worth describing what we're trying to achieve here.
-        I also think a match isn't a good way to describe this compound behaviour
-        (we always try to exhaustively list all cases, but also it takes effort to
-        try and figure out what's going on here).
-
-        Something like:
-          if hasError then error else if has incomplete then incomplete else DTuple
-
-        Though now that I write that out, I see it's actually the incomplete
-        that's prioritized over the error. Why was that order chosen? Can you
-        add the reason as a comment?
-      *)
+    | ETuple (_id, first, second, theRest) ->
 
       let! firstResult = eval state st first
       let! secondResult = eval state st second
@@ -108,18 +95,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let allResults = [ firstResult; secondResult ] @ otherResults
 
       // If any elements in a tuple is fake (blank, error, etc.),
-      // we don't want to allow that.
-
-      // TUPLETODO: rather than borrowing so heavily from the old List logic,
-      // just try to find the first fake value and return that if any
-      let foundIncompletes = List.filter Dval.isIncomplete allResults
-      let firstFoundError =
-        List.tryFind (fun dv -> Dval.isErrorRail dv || Dval.isDError dv) allResults
-
-      match foundIncompletes, firstFoundError with
-      | [], None -> return DTuple(firstResult, secondResult, otherResults)
-      | [], Some error -> return error
-      | first :: _rest, _ -> return first
+      // we don't want to return a tuple, but rather the fake val.
+      match List.tryFind Dval.isFake allResults with
+      | Some fakeDval -> return fakeDval
+      | None -> return DTuple(firstResult, secondResult, otherResults)
 
     | EVariable (id, name) ->
       match (st.TryFind name, state.tracing.realOrPreview) with
