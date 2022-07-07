@@ -1122,24 +1122,95 @@ let run = () => {
   })
 
   describe("Tuples", () => {
+    // TUPLETODO: once the following github issue is resolved, write more tests
+    // https://github.com/darklang/dark/issues/4235
+
     // whole tuple
     testCopy(
-      "copying whole tuple adds subset tuple expr to clipboard",
+      "copying whole tuple adds tuple expr to clipboard",
       tuple(int(12), int(34), list{int(56)}),
       (0, 10),
       "(12,34,56)",
     )
-    // TUPLETODO: cut
-    // TUPLETODO: copy and paste
-    // TUPLETODO: cut and paste
+    testCut(
+      "cutting whole tuple removes tuple and copies to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (0, 10),
+      ("~___", "(12,34,56)"),
+    )
 
     // all elements within a tuple (i.e. excluding parens)
-    // TUPLETODO: copy
-    // TUPLETODO: copy and paste
-    // TUPLETODO: cut
-    // TUPLETODO: cut and paste
+    testCopy(
+      "copying whole tuple internals adds tuple expr to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (1, 9),
+      "(12,34,56)",
+    )
+    // testCut(// TUPLETODO: Resolve bug here. currently, `1~` somehow remains.
+    //   "cutting whole tuple internals removes tuple and copies tuple expr to clipboard",
+    //   tuple(int(12), int(34), list{int(56)}),
+    //   (1, 9),
+    //   ("~___", "(12,34,56)"),
+    // )
 
-    // ... and a bunch more.
+    // first 2 out of 3 tuple elements
+    testCopy(
+      "copying first 2/3 items in tuple adds subset tuple expr to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (0, 6),
+      "(12,34)",
+    )
+    testCut(
+      "cutting first 2/3 items in tuple leaves the 3rd item and copies the subset to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (0, 6),
+      ("~56", "(12,34)"),
+    )
+
+    // last 2 out of 3 tuple elements
+    testCopy(
+      "copying last 2/3 items in tuple adds subset tuple expr to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (4, 10),
+      "(34,56)",
+    )
+    testCut(
+      "cutting last 2/3 items in tuple leaves the 3rd item and copies the subset to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (4, 10),
+      ("(12,~___)", "(34,56)"),
+    )
+
+    // between these two cursors ("hel|lo", 12|34)
+    testCopy(
+      "copying halfway between tuple parts copies just the data selected to clipboard",
+      tuple(str("hello"), int(1234), list{}), // ("hello",1234)
+      (5, 11),
+      "(\"lo\",12)",
+    )
+    // testCut( // TUPLETODO fix results - somehow an extra 'l' is being included.
+    //   "cutting halfway between tuple parts leaves a partial tuple and copies the data selected to clipboard",
+    //   tuple(str("hello"), int(1234), list{}), // ("hello",1234)
+    //   (5, 11),
+    //   ("(\"hel~\")", "(\"lo\",12)"),
+    // )
+
+    // pasting tuples
+    testPasteText(
+      "pasting a 2-tuple from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      "(12,34)",
+      "(12,34)~"
+    )
+    testPasteText(
+      "pasting a 3-tuple from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      "(12,34,56)",
+      "(12,34)~"
+    )
+
     ()
   })
 
