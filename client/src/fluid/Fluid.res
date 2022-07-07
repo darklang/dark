@@ -4979,11 +4979,11 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
     ) |> Option.map(~f=Tuple3.second)
 
   let (startPos, endPos) = orderRangeFromSmallToBig(range)
-  // main main recursive algorithm
-  /* algo:
-   * find topmost expression by ID and
-   * reconstruct full/subset of expression
-   * recurse into children (that remain in subset) to reconstruct those too */
+  // main recursive algorithm
+  // algo:
+  // - find topmost expression by ID and
+  // - reconstruct full/subset of expression
+  // - recurse into children (that remain in subset) to reconstruct those too
   let rec reconstruct = (~topmostID, (startPos, endPos)): option<E.t> => {
     let topmostExpr =
       topmostID
@@ -5031,6 +5031,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       | EPipeTarget(_) => Some(expr)
       | _ =>
         let exprID = E.toID(expr)
+
         expressionRange(exprID, astInfo)
         |> Option.andThen(~f=((exprStartPos, exprEndPos)) =>
           // ensure expression range is not totally outside selection range
@@ -5273,13 +5274,12 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       let newExprs = List.map(exprs, ~f=reconstructExpr) |> Option.values
       Some(EList(id, newExprs))
     | ETuple(_, first, second, theRest) =>
-      // TUPLETODO add tests around this (reconstructing tuples when you copy/paste)
       let results =
         List.map(list{first, second, ...theRest}, ~f=reconstructExpr)
         |> Option.values
 
       switch results {
-        | list{} => None
+        | list{} => recover("unexpected reconstruction of invalid empty tuple", None)
         | list{el} => Some(el)
         | list{fst, snd, ...tail} =>
           Some(ETuple(id, fst, snd, tail))
