@@ -951,7 +951,48 @@ let interestingDvals =
      DFnVal(
        Lambda
          { body =
-             FSharpToExpr.parseRTExpr "5 |> (+) 6 |> (+) 7 |> (+) 8 |> List.push 6"
+             EApply(
+               92356985UL,
+               (EFQFnValue(
+                 700731989UL,
+                 FQFnName.Stdlib
+                   { module_ = "List"; function_ = "push"; version = 0 }
+               )),
+               [ EApply(
+                   93459985UL,
+                   (EFQFnValue(
+                     707841989UL,
+                     FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 }
+                   )),
+                   [ EApply(
+                       394567785UL,
+                       (EFQFnValue(
+                         700766785UL,
+                         FQFnName.Stdlib
+                           { module_ = ""; function_ = "+"; version = 0 }
+                       )),
+                       [ EApply(
+                           44444485UL,
+                           (EFQFnValue(
+                             893346989UL,
+                             FQFnName.Stdlib
+                               { module_ = ""; function_ = "+"; version = 0 }
+                           )),
+                           [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ],
+                           NotInPipe,
+                           NoRail
+                         )
+                         EInteger(648327618UL, 7) ],
+                       NotInPipe,
+                       NoRail
+                     )
+                     EInteger(325843618UL, 8) ],
+                   NotInPipe,
+                   NoRail
+                 ) ],
+               NotInPipe,
+               NoRail
+             )
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
