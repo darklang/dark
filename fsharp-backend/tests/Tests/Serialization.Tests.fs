@@ -841,7 +841,7 @@ module GenericSerializersTests =
           |> List.iter (fun (name, actualSerializedData) ->
             let filename = SampleData.fileNameFor typeName serializerName name
             let expected = File.readfile Config.Serialization filename
-            Expect.equal "matches" actualSerializedData expected)
+            Expect.equal actualSerializedData expected "matches")
         })
     (testsFor Json.Vanilla.allowedTypes "vanilla")
     @ (testsFor Json.OCamlCompatible.allowedTypes "ocaml")
