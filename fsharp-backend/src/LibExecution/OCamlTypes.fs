@@ -872,8 +872,9 @@ module Convert =
 
 
   let pt2ocamlSpec (p : PT.Handler.Spec) : ORT.HandlerT.spec =
-    let types : ORT.HandlerT.spec_types =
-      { input = Blank(gid ()); output = Blank(gid ()) }
+    // Use 0 as this is neveer actually used, and having this be consistent is useful
+    // for testing the serializers
+    let types : ORT.HandlerT.spec_types = { input = Blank(0UL); output = Blank(0UL) }
 
     match p with
     | PT.Handler.HTTP (route, method, ids) ->
