@@ -47,10 +47,10 @@ compatibility, we:
   - You do not need to `allow` all nested types within serialized types, just the
     type that's actually serialized.
 
-- require a test case for each top-level type that will be serialized. That way if we
+- a test case is required for each top-level type that will be serialized. That way if we
   change the toplevel type, we'll see the change to the format. Tests will fail if an
   allowed type does not have a test case, or if there is a test case for a type that
-  hasn't been allowed
+  hasn't been allowed.
 
 #### Binary Serialization
 
