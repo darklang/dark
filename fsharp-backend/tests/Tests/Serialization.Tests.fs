@@ -542,7 +542,10 @@ module GenericSerializersTests =
       //   Exception.raiseInternal
       //     $"bad vanilla roundtrip for {dataName}"
       //     [ "actual", string roundtripped; "expected", string data ]
-      generate "vanilla" Json.Vanilla.serialize dataName data
+
+      // Use prettySerialize even though we use serialize in practice, as the
+      // non-pretty version is too hard to read and compare.
+      generate "vanilla" Json.Vanilla.prettySerialize dataName data
 
     let oc<'t when 't : equality> (dataName : string) (data : 't) =
       // let roundtripped =
@@ -551,7 +554,9 @@ module GenericSerializersTests =
       //   Exception.raiseInternal
       //     $"bad ocaml roundtrip for {dataName}"
       //     [ "actual", roundtripped; "expected", string data ]
-      generate "ocaml" Json.OCamlCompatible.serialize dataName data
+      // Use prettySerialize even though we use serialize in practice, as the
+      // non-pretty version is too hard to read and compare.
+      generate "ocaml" Json.OCamlCompatible.prettySerialize dataName data
 
     let both<'t when 't : equality> (dataName) (data : 't) =
       v<'t> dataName data
