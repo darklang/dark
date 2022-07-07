@@ -1122,8 +1122,8 @@ let run = () => {
   })
 
   describe("Tuples", () => {
-    // TUPLETODO: once the following github issue is resolved, write more tests
-    // https://github.com/darklang/dark/issues/4235
+    // TUPLETODO: once the following github issue is resolved, write tests
+    // around such functionality https://github.com/darklang/dark/issues/4235
 
     // whole tuple
     testCopy(
