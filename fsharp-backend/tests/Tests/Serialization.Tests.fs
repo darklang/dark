@@ -507,7 +507,7 @@ module GenericSerializersTests =
       : string =
       let original = $"{serializerName}-{typeName}-{dataName}"
       let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
-      Regex.Replace(replaced, "[-]+", "-")
+      Regex.Replace(replaced, "[-]+", "-") + ".json"
 
     let get
       (typeName : string)
