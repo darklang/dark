@@ -15,7 +15,7 @@ let find = (name: string, functions: t): option<function_> =>
 
 let empty: t = {
   builtinFunctions: list{},
-  packageFunctions: TLIDDict.empty,
+  packageFunctions: TLID.Dict.empty,
   allowedFunctions: list{},
   previewUnsafeFunctions: Set.String.empty,
 }

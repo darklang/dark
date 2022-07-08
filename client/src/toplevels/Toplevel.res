@@ -3,7 +3,7 @@ open Prelude
 // Dark
 module B = BlankOr
 module P = Pointer
-module TD = TLIDDict
+module TD = TLID.Dict
 
 // -------------------------
 // Toplevel manipulation
@@ -59,7 +59,7 @@ let remove = (m: model, tl: toplevel): model => {
   }
 }
 
-let fromList = (tls: list<toplevel>): TLIDDict.t<toplevel> =>
+let fromList = (tls: list<toplevel>): TLID.Dict.t<toplevel> =>
   tls |> List.map(~f=tl => (id(tl), tl)) |> TD.fromList
 
 let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {

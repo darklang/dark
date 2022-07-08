@@ -821,7 +821,7 @@ let defaultTestFunctions = {
 
 let defaultTestState = {...Defaults.defaultFluidState, activeEditor: MainEditor(defaultTLID)}
 
-let defaultFunctionsProps = {usedFns: Map.String.empty, userFunctions: TLIDDict.empty}
+let defaultFunctionsProps = {usedFns: Map.String.empty, userFunctions: TLID.Dict.empty}
 
 let defaultTestProps: Types.fluidProps = {
   functions: Functions.empty |> Functions.setBuiltins(defaultTestFunctions, defaultFunctionsProps),

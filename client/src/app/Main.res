@@ -12,7 +12,7 @@ module RT = Runtime
 module TL = Toplevel
 module Key = Keyboard
 module Regex = Util.Regex
-module TD = TLIDDict
+module TD = TLID.Dict
 
 let incOpCtr = (m: model): model => {
   ...m,
@@ -86,8 +86,8 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     ),
     complete: AC.init(m),
     tests: variants,
-    handlers: TLIDDict.empty,
-    dbs: TLIDDict.empty,
+    handlers: TLID.Dict.empty,
+    dbs: TLID.Dict.empty,
     canvasName: canvasName,
     userContentHost: userContentHost,
     origin: location.origin,
@@ -1482,7 +1482,7 @@ let update_ = (msg: msg, m: model): modification => {
   | LoadPackagesAPICallback(Ok(loadedPackages)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let pkgs = loadedPackages |> List.map(~f=pkg => (pkg.pfTLID, pkg)) |> TLIDDict.fromList
+        let pkgs = loadedPackages |> List.map(~f=pkg => (pkg.pfTLID, pkg)) |> TLID.Dict.fromList
 
         let props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
         let m = {...m, functions: Functions.setPackages(pkgs, props, m.functions)}

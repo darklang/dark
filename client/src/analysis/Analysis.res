@@ -8,7 +8,7 @@ module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = FluidExpression
 
 // ----------------------

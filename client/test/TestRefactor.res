@@ -357,7 +357,7 @@ let run = () => {
       let m = {
         ...D.defaultModel,
         functions: Functions.empty |> Functions.setBuiltins(sampleFunctions, defaultFunctionsProps),
-        handlers: list{(hTLID, tl)} |> TLIDDict.fromList,
+        handlers: list{(hTLID, tl)} |> TLID.Dict.fromList,
         fluidState: {...Defaults.defaultFluidState, ac: FluidAutocomplete.init},
       }
 
@@ -540,7 +540,7 @@ let run = () => {
         aFn("callsUnsafeUserfn", fn("callsUnsafeBuiltin", list{})),
       }
       |> List.map(~f=fn => (fn.ufTLID, fn))
-      |> TLIDDict.fromList
+      |> TLID.Dict.fromList
 
     test("simple example", () => {
       let props = {userFunctions: userFunctions, usedFns: Map.String.empty}

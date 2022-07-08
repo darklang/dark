@@ -654,7 +654,7 @@ let savedUserSettings = (se: Types.savedUserSettings): Js.Json.t =>
     ("recordConsent", Option.map(~f=bool, se.recordConsent) |> Option.unwrap(~default=null)),
   })
 
-let tlidDict = (valueEncoder: 'value => Js.Json.t, t: TLIDDict.t<'value>): Js.Json.t =>
+let tlidDict = (valueEncoder: 'value => Js.Json.t, t: TLID.Dict.t<'value>): Js.Json.t =>
   t |> Map.toList |> List.map(~f=((k, v)) => (TLID.toString(k), valueEncoder(v))) |> object_
 
 let savedSettings = (se: Types.savedSettings): Js.Json.t =>

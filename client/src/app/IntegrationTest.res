@@ -4,7 +4,7 @@ open Prelude
 module B = BlankOr
 module P = Pointer
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = FluidExpression
 
 let pass: testResult = Ok()
@@ -424,7 +424,7 @@ let fn_page_to_handler_pos = (_m: model): testResult => pass
 let load_with_unnamed_function = (_m: model): testResult => pass
 
 let create_new_function_from_autocomplete = (m: model): testResult => {
-  module TD = TLIDDict
+  module TD = TLID.Dict
   switch (Map.toList(m.userFunctions), Map.toList(m.handlers)) {
   | (
       list{(

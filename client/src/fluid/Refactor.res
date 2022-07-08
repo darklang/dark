@@ -3,7 +3,7 @@ open Prelude
 // Dark
 module B = BlankOr
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = ProgramTypes.Expr
 module P = ProgramTypes.Pattern
 

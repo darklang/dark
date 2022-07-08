@@ -144,7 +144,7 @@ let tlidOption = (j: Js.Json.t): option<TLID.t> =>
   | None => None
   }
 
-let tlidDict = (decoder: Js.Json.t => 'value, j: Js.Json.t): TLIDDict.t<'value> =>
+let tlidDict = (decoder: Js.Json.t => 'value, j: Js.Json.t): TLID.Dict.t<'value> =>
   dict(decoder, j)
   |> Js.Dict.entries
   |> Array.map(~f=((k, v)) => (TLID.fromString(k), v))
@@ -514,9 +514,9 @@ and savedSettings = (
     ),
   },
   cursorState: withDefault(Deselected, field("cursorState", cursorState), j),
-  tlTraceIDs: withDefault(TLIDDict.empty, field("tlTraceIDs", tlidDict(traceID)), j),
+  tlTraceIDs: withDefault(TLID.Dict.empty, field("tlTraceIDs", tlidDict(traceID)), j),
   featureFlags: withDefault(Map.String.empty, field("featureFlags", strDict(bool)), j),
-  handlerProps: withDefault(TLIDDict.empty, field("handlerProps", tlidDict(handlerProp)), j),
+  handlerProps: withDefault(TLID.Dict.empty, field("handlerProps", tlidDict(handlerProp)), j),
   canvasPos: withDefault(Defaults.origin, field("canvasPos", pos), j),
   lastReload: optional(field("lastReload", jsDate), j),
   sidebarState: withDefault(Defaults.defaultSidebar, field("sidebarState", sidebarState), j),

@@ -49,7 +49,7 @@ let run = () => {
         dbStats: Map.String.empty,
         functions: Functions.empty,
         executingFunctions: list{},
-        tlTraceIDs: TLIDDict.empty,
+        tlTraceIDs: TLID.Dict.empty,
         testVariants: list{},
         featureFlags: Map.String.empty,
         handlerProp: None,

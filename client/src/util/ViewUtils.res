@@ -1,7 +1,7 @@
 open Prelude
 module Regex = Util.Regex
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = FluidExpression
 module ASTInfo = FluidTokenizer.ASTInfo
 

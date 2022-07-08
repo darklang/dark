@@ -3,10 +3,10 @@ open Prelude
 // Dark
 module B = BlankOr
 module P = Pointer
-module TD = TLIDDict
+module TD = TLID.Dict
 
-let fromList = (handlers: list<handler>): TLIDDict.t<handler> =>
-  handlers |> List.map(~f=h => (h.hTLID, h)) |> TLIDDict.fromList
+let fromList = (handlers: list<handler>): TLID.Dict.t<handler> =>
+  handlers |> List.map(~f=h => (h.hTLID, h)) |> TLID.Dict.fromList
 
 let upsert = (m: model, h: handler): model => {
   ...m,
