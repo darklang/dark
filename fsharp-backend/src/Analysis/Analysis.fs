@@ -37,7 +37,6 @@ type EvalWorker =
 
   static member selfDelegate =
     // This feels like the initializer
-    LibAnalysis.init ()
 
     let typ =
       let sourceAssembly : Assembly =
@@ -67,6 +66,9 @@ type EvalWorker =
   ///
   /// Once evaluated, an async call to `self.postMessage` will be made
   static member OnMessage(input : string) =
+    // We'd like to only call this once on initialization, but I can't figure out how
+    do LibAnalysis.initSerializers ()
+
     let reportAndRollUpExceptionIntoError (preamble : string) (e) =
       let metadata = Exception.nestedMetadata e
       let errorMessage = Exception.getMessages e |> String.concat " "

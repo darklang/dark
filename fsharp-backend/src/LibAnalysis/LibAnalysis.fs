@@ -263,6 +263,6 @@ module Eval =
 
 type AnalysisResult = Result<ClientInterop.AnalysisEnvelope, string>
 
-let init () =
+let initSerializers () =
   do Json.Vanilla.allow<AnalysisResult> "LibAnalysis"
   do Json.Vanilla.allow<ClientInterop.performAnalysisParams> "LibAnalysis"
