@@ -862,7 +862,7 @@ and loadPackagesAPIResult = list<packageFn>
 
 and triggerHandlerAPIResult = list<TLID.t>
 
-and unlockedDBs = Set.String.t
+and unlockedDBs = TLID.Set.t
 
 and getUnlockedDBsAPIResult = unlockedDBs
 

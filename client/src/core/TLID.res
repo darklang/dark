@@ -10,6 +10,10 @@ module T = {
   let fromString = (tlid: string) => TLID(tlid)
 
   let toString = (TLID(tlid): t) => tlid
+
+  let encode = (tlid) => Json.Encode.string(toString(tlid))
+
+  let decode = (j) => fromString(Json.Decode.string(j))
 }
 
 include T
@@ -46,3 +50,4 @@ module Dict = {
 
   let fromList = l => fromArray(Array.of_list(l))
 }
+

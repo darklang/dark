@@ -5,8 +5,6 @@ open Json.Decode
 module TL = Toplevel
 module RT = Runtime
 
-type id = id
-
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
 // This and tuple5 are adapted from ReScript - see tuple4 for the original
@@ -130,27 +128,8 @@ let int64 = (j: Js.Json.t) =>
     Int64.of_float(Json.Decode.float(j))
   }
 
-/* IDs are strings in the client. The server serializes IDs to ints, while the
- * client serializes them to strings, so they could actually be either.
- *
- * This is actually a really important path for responsiveness of the client.
- * In the past we used tried one decoder, then the other, using an exception.
- * This is very very slow. It's possible that testing it isn't the fastest
- * approach, but it no longer appears in profiles, so it's at least good
- * enough. If you change this, profile the changes (expression decoding) to
- * ensure it's still fast.
- *
- * We should change the formats so that we always know what we're getting. */
-let wireIdentifier = (j: Js.Json.t) =>
-  if Js.typeof(j) == "string" {
-    string(j)
-  } else {
-    string_of_int((Obj.magic(j): int))
-  }
-
-let id = \"<<"(ID.fromString, wireIdentifier)
-
-let tlid = \"<<"(TLID.fromString, wireIdentifier)
+let id = ID.decode
+let tlid = TLID.decode
 
 let wireIdentifierOption = (j: Js.Json.t): option<string> =>
   if Js.typeof(j) == "object" {
@@ -221,7 +200,7 @@ let rec tipe = (j): tipe => {
   )
 }
 
-let traceID = (j): traceID => wireIdentifier(j)
+let traceID = (j): traceID => string(j)
 
 let jsDate = (j): Js.Date.t => Js.Date.fromString(string(j))
 
@@ -813,7 +792,7 @@ let trace = (j): trace =>
       }
   )
 
-let traces = (j): traces => j |> list(tuple2(wireIdentifier, list(trace))) |> Map.String.fromList
+let traces = (j): traces => j |> list(tuple2(string, list(trace))) |> Map.String.fromList
 
 let userRecordField = j => {
   urfName: field("name", blankOr(string), j),
@@ -934,7 +913,7 @@ let addOpAPIPusherMsg = (j: Js.Json.t): addOpPusherMsg => {
 }
 
 let getUnlockedDBsAPIResult = (j): getUnlockedDBsAPIResult =>
-  j |> field("unlocked_dbs", list(wireIdentifier)) |> Set.String.fromList
+  j |> field("unlocked_dbs", list(tlid)) |> TLID.Set.fromList
 
 let get404sAPIResult = (j): get404sAPIResult => j |> field("f404s", list(fof))
 
@@ -975,7 +954,7 @@ let initialLoadAPIResult = (j): initialLoadAPIResult => {
     deletedDBs: List.filterMap(~f=TL.asDB, dtls),
     userFunctions: field("user_functions", list(userFunction), j),
     deletedUserFunctions: field("deleted_user_functions", list(userFunction), j),
-    unlockedDBs: j |> field("unlocked_dbs", list(wireIdentifier)) |> Set.String.fromList,
+    unlockedDBs: j |> field("unlocked_dbs", list(tlid)) |> TLID.Set.fromList,
     staticDeploys: field("assets", list(sDeploy), j),
     userTipes: field("user_tipes", list(userTipe), j),
     deletedUserTipes: field("deleted_user_tipes", list(userTipe), j),
@@ -1002,7 +981,7 @@ let executeFunctionAPIResult = (j): executeFunctionAPIResult => (
   field("hash", string, j),
   field("hashVersion", int, j),
   field("touched_tlids", list(tlid), j),
-  j |> field("unlocked_dbs", list(wireIdentifier)) |> Set.String.fromList,
+  field("unlocked_dbs", list(tlid), j) |> TLID.Set.fromList,
 )
 
 let uploadFnAPIResult = (_): uploadFnAPIResult => ()

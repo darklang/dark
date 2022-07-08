@@ -119,7 +119,7 @@ let defaultModel: model = {
   analyses: Map.String.empty /* CLEANUP: should be TLIDDict */,
   traces: Map.String.empty /* CLEANUP: should be TLIDDict */,
   f404s: list{},
-  unlockedDBs: Set.String.empty,
+  unlockedDBs: TLID.Set.empty,
   integrationTestState: NoIntegrationTest,
   visibility: PageVisibility.Visible /* partially saved in editor */,
   syncState: Set.String.empty,

@@ -10,7 +10,7 @@ let run = () => {
   describe("compatible with server JSON encoding", () => {
     test("obj uses list", () =>
       expect("[\"DObj\",{\"foo\":[\"DInt\",5]}]") |> toEqual(
-        DObj(Belt.Map.String.fromArray([("foo", DInt(5))]))
+        DObj(Belt.Map.String.fromArray([("foo", DInt(5L))]))
         |> Encoders.ocamlDval
         |> Js.Json.stringify,
       )

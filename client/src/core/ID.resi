@@ -8,6 +8,10 @@ module T: {
   let fromString: string => t
 
   let toString: t => string
+
+  let encode: t => Js.Json.t
+
+  let decode: Js.Json.t => t
 }
 
 include module type of {

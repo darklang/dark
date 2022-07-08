@@ -8,6 +8,10 @@ module T: {
   let toString: t => string
 
   let comparator: Tablecloth.Comparator.t<t, identity>
+
+  let encode: t => Js.Json.t
+
+  let decode: Js.Json.t => t
 }
 
 include module type of {

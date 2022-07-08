@@ -66,13 +66,8 @@ let int64 = i =>
     i->Int64.to_float->Json.Encode.float
   }
 
-/* Don't attempt to encode these as integers, because we're not capable
- * of expressing all existing ids as ints because ReScript is strict
- * about int == 32 bit. As far as we're concerned, ids are strings and
- * we know nothing about their parseability as ints */
-let id = \">>"(ID.toString, string)
-
-let tlid = \">>"(TLID.toString, string)
+let id = ID.encode
+let tlid = TLID.encode
 
 let pos = (p: Types.pos) => object_(list{("x", int(p.x)), ("y", int(p.y))})
 

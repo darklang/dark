@@ -39,7 +39,7 @@ let hasCol = (db: db, name: string): bool =>
   )
 
 let isLocked = (m: model, tlid: TLID.t): bool =>
-  !Set.member(~value=TLID.toString(tlid), m.unlockedDBs)
+  !Set.member(~value=tlid, m.unlockedDBs)
 
 let isMigrationCol = (db: db, id: id): bool =>
   switch db.activeMigration {

@@ -12,6 +12,10 @@ module T = {
   let toString = (ID(id): t) => id
 
   include Tablecloth.Comparator.Make(Nested)
+
+  let encode = (tlid) => Json.Encode.string(toString(tlid))
+
+  let decode = (j) => fromString(Json.Decode.string(j))
 }
 
 include T
