@@ -31,7 +31,7 @@ let main (args : string array) : int =
     (LibBackend.Account.initializeDevelopmentAccounts name).Result
 
     ApiServer.ApiServer.initSerializers ()
-    LibAnalysis.init ()
+    LibAnalysis.initSerializers ()
     initSerializers ()
 
     let tests =

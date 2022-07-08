@@ -35,14 +35,12 @@ module TraceData =
 
   type Trace = AT.TraceID * TraceData
 
-  type TraceResult = { trace : Trace }
-
-  type T = Option<TraceResult>
+  type T = { trace : Trace }
 
   /// API endpoint to fetch data for a specific Trace
   ///
   /// Data returned includes input, timestamp, and results
-  let getTraceData (ctx : HttpContext) : Task<T> =
+  let getTraceData (ctx : HttpContext) : Task<Option<T>> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx

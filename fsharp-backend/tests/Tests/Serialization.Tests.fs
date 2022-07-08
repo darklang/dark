@@ -755,8 +755,7 @@ module GenericSerializersTests =
       // Toplevels
 
       oc<ApiServer.Toplevels.Delete.Params> "simple" { tlid = testTLID }
-      oc<ApiServer.Toplevels.Delete.T> "some" (Some { result = "success" })
-      oc<ApiServer.Toplevels.Delete.T> "none" None
+      oc<ApiServer.Toplevels.Delete.T> "simple" { result = "success" }
 
       // Traces
 
@@ -766,12 +765,11 @@ module GenericSerializersTests =
         { tlid = testTLID; trace_id = testUuid }
       v<ApiServer.Traces.TraceData.T>
         "simple"
-        (Some
-          { trace =
-              (testUuid,
-               { input = [ "var", testOCamlDval ]
-                 timestamp = testInstant
-                 function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }) })
+        { trace =
+            (testUuid,
+             { input = [ "var", testOCamlDval ]
+               timestamp = testInstant
+               function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }) }
 
       // Workers
 

@@ -377,15 +377,13 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
     let! body = o.Content.ReadAsStringAsync()
 
     let canonicalize (t : Traces.TraceData.T) : Traces.TraceData.T =
-      t
-      |> Option.map (fun t ->
-        { t with
-            trace =
-              t.trace
-              |> Tuple2.mapSecond (fun td ->
-                { td with
-                    timestamp = td.timestamp.truncate ()
-                    input = td.input |> List.sortBy (fun (k, v) -> k) }) })
+      { t with
+          trace =
+            t.trace
+            |> Tuple2.mapSecond (fun td ->
+              { td with
+                  timestamp = td.timestamp.truncate ()
+                  input = td.input |> List.sortBy (fun (k, v) -> k) }) }
 
     do!
       body
