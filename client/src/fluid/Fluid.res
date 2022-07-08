@@ -30,6 +30,9 @@ module Sign = ProgramTypes.Sign
 open ProgramTypes.Expr
 open ProgramTypes.Pattern
 
+// TUPLETODO re-enable
+let allowUserToCreateTuple = false
+
 // --------------------
 // Utils
 // --------------------
@@ -1333,7 +1336,7 @@ let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, caretTarget)> =>
       } else if ins == "[" {
         (EList(newID, list{}), {astRef: ARList(newID, LPOpen), offset: 1})
       // TODO: prior to PR merge, disable below (until tuples functionality fuller)
-      } else if ins == "(" {
+      } else if ins == "(" && allowUserToCreateTuple {
         (ETuple(newID, EBlank(gid()), EBlank(gid()), list{}), {astRef: ARTuple(newID, TPOpen), offset: 1})
       } else if ins == "{" {
         (ERecord(newID, list{}), {astRef: ARRecord(newID, RPOpen), offset: 1})
