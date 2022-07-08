@@ -573,10 +573,41 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr sep ] ->
+          // This is pretty rough. TODO make less bad.
+          let ecgStringSplit
+            (elements : string list)
+            (sep : string list)
+            : string list =
+            let startsWithSeparator (str : string list) =
+              sep = (str |> List.truncate sep.Length)
+
+            let mutable result = []
+            let mutable inProgress = []
+
+            let rec recursiveFn (elementsRemaining : string list) : unit =
+              if elementsRemaining = [] then
+                result <- result @ [ inProgress |> String.concat "" ]
+              elif startsWithSeparator elementsRemaining then
+                result <- result @ [ inProgress |> String.concat "" ]
+                inProgress <- []
+                recursiveFn (List.skip sep.Length elementsRemaining)
+              else
+                inProgress <- inProgress @ [ elementsRemaining.Head ]
+                recursiveFn elementsRemaining.Tail
+
+            recursiveFn elements
+
+            result
+
           if sep = "" then
             s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
           else
-            s.Split sep |> Array.toList |> List.map DStr |> DList |> Ply
+            ecgStringSplit
+              (s |> String.toEgcSeq |> Seq.toList)
+              (sep |> String.toEgcSeq |> Seq.toList)
+            |> List.map DStr
+            |> DList
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
