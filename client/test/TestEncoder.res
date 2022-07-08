@@ -7,7 +7,5 @@ let run = () => {
         FluidTestData.complexExpr,
       )
     )
-    ()
   })
-  ()
 }

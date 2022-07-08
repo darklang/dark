@@ -1,7 +1,7 @@
 open Tester
 open Prelude
 open FluidTestData
-module E = FluidExpression
+module E = ProgramTypes.Expr
 module T = FluidToken
 
 let run = () => {

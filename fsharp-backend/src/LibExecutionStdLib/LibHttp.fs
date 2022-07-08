@@ -10,7 +10,8 @@ open LibExecution.VendoredTablecloth
 open LibExecution.RuntimeTypes
 
 module Errors = LibExecution.Errors
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 let fn = FQFnName.stdlibFnName
 
@@ -220,7 +221,7 @@ let fns : List<BuiltInFn> =
             // Throw if there's not a good way to transform the k/v pair
             | _ ->
               Exception.raiseCode
-                $"Unknown set-cookie param: {x}: {DvalReprExternal.toDeveloperReprV0 y}")
+                $"Unknown set-cookie param: {x}: {DvalReprDeveloper.toRepr y}")
           // Combine it into a set-cookie header
           |> List.concat
           |> String.concat "; "
@@ -266,7 +267,7 @@ let fns : List<BuiltInFn> =
             // Throw if there's not a good way to transform the k/v pair
             | _ ->
               Exception.raiseCode
-                $"Unknown set-cookie param: {x}: {DvalReprExternal.toDeveloperReprV0 y}")
+                $"Unknown set-cookie param: {x}: {DvalReprDeveloper.toRepr y}")
           // Combine it into a set-cookie header
           |> List.concat
           |> String.concat "; "

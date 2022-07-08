@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module TL = Toplevel
 module P = Pointer
 module TD = TLIDDict

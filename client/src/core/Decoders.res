@@ -1,15 +1,15 @@
 open Prelude
 open Json.Decode
 
-/* Dark */
+// Dark
 module TL = Toplevel
 module RT = Runtime
 
-type id = Shared.id
+type id = id
 
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
-/* This and tuple5 are adapted from Bucklescript - see tuple4 for the original */
+// This and tuple5 are adapted from ReScript - see tuple4 for the original
 external unsafe_get: (array<'a>, int) => 'a = "%array_unsafe_get"
 
 let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
@@ -38,7 +38,7 @@ let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
   = "getFluidSelectionRange"
   [@@bs.val] [@@bs.scope "window"] */
 
-/* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! */
+// XXX(JULIAN): All of this should be cleaned up and moved somewhere nice!
 @deriving(abstract) type jsArrayBuffer = {byteLength: int}
 
 @deriving(abstract) type jsUint8Array
@@ -49,7 +49,7 @@ let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
 
 @set_index external setUint8ArrayIdx: (jsUint8Array, int, int) => unit = ""
 
-/* Note: unsafe. Wrap in bytes_from_base64url, which validates the input */
+// Note: unsafe. Wrap in bytes_from_base64url, which validates the input
 let dark_arrayBuffer_from_b64url = %raw(`
   function (base64) {
     // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
@@ -108,7 +108,7 @@ exception Invalid_B64(string)
 let valid_rfc4648_b64_or_exn = (str: string) => {
   let rfc4648_section5_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\\-_"
 
-  /* '=' isn't in the alphabet, but we allow it as padding */
+  // '=' isn't in the alphabet, but we allow it as padding
   if Util.Regex.exactly(~re="[" ++ (rfc4648_section5_alphabet ++ ("=" ++ "]*")), str) {
     str
   } else {
@@ -211,44 +211,53 @@ let jsDate = (j): Js.Date.t => Js.Date.fromString(string(j))
 
 let sendToRail = j => {
   let dv0 = variant0
-  variants(list{("Rail", dv0(FluidExpression.Rail)), ("NoRail", dv0(FluidExpression.NoRail))}, j)
+  variants(
+    list{("Rail", dv0(ProgramTypes.Expr.Rail)), ("NoRail", dv0(ProgramTypes.Expr.NoRail))},
+    j,
+  )
 }
 
 let rec fluidPattern = (j): FluidPattern.t => {
-  module P = FluidPattern
+  module P = ProgramTypes.Pattern
   let dp = fluidPattern
   let dv4 = variant4
   let dv3 = variant3
   let dv2 = variant2
   variants(
     list{
-      ("FPVariable", dv3((a, b, c) => P.FPVariable(a, b, c), id, id, string)),
-      ("FPConstructor", dv4((a, b, c, d) => P.FPConstructor(a, b, c, d), id, id, string, list(dp))),
-      ("FPInteger", dv3((a, b, c) => P.FPInteger(a, b, c), id, id, string)),
-      ("FPBool", dv3((a, b, c) => P.FPBool(a, b, c), id, id, bool)),
+      ("FPVariable", dv3((_, b, c) => P.PVariable(b, c), id, id, string)),
+      ("FPConstructor", dv4((_, b, c, d) => P.PConstructor(b, c, d), id, id, string, list(dp))),
+      (
+        "FPInteger",
+        dv3((_, b, c) => P.PInteger(b, c), id, id, i => i |> string |> Int64.of_string),
+      ),
+      ("FPBool", dv3((_, b, c) => P.PBool(b, c), id, id, bool)),
       (
         "FPString",
         recordVariant3(
-          (matchID, patternID, str) => P.FPString({
-            matchID: matchID,
-            patternID: patternID,
-            str: str,
-          }),
+          (_, patternID, str) => P.PString(patternID, str),
           ("matchID", id),
           ("patternID", id),
           ("str", string),
         ),
       ),
-      ("FPFloat", dv4((a, b, c, d) => P.FPFloat(a, b, c, d), id, id, string, string)),
-      ("FPNull", dv2((a, b) => P.FPNull(a, b), id, id)),
-      ("FPBlank", dv2((a, b) => P.FPBlank(a, b), id, id)),
+      ("FPFloat", dv4((_, id2, whole, fraction) => {
+          let (sign, whole) = if String.startsWith(~prefix="-", whole) {
+            (ProgramTypes.Negative, String.dropLeft(~count=1, whole))
+          } else {
+            (ProgramTypes.Positive, whole)
+          }
+          P.PFloat(id2, sign, whole, fraction)
+        }, id, id, string, string)),
+      ("FPNull", dv2((_, b) => P.PNull(b), id, id)),
+      ("FPBlank", dv2((_, b) => P.PBlank(b), id, id)),
     },
     j,
   )
 }
 
 let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
-  module E = FluidExpression
+  module E = ProgramTypes.Expr
   let de = fluidExpr
   let dv5 = variant5
   let dv4 = variant4
@@ -257,10 +266,17 @@ let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
   let dv1 = variant1
   variants(
     list{
-      ("EInteger", dv2((x, y) => E.EInteger(x, y), id, string)),
+      ("EInteger", dv2((x, y) => E.EInteger(x, y), id, i => i |> string |> Int64.of_string)),
       ("EBool", dv2((x, y) => E.EBool(x, y), id, bool)),
       ("EString", dv2((x, y) => E.EString(x, y), id, string)),
-      ("EFloat", dv3((x, y, z) => E.EFloat(x, y, z), id, string, string)),
+      ("EFloat", dv3((x, whole, fraction) => {
+          let (sign, whole) = if String.startsWith(~prefix="-", whole) {
+            (ProgramTypes.Negative, String.dropLeft(~count=1, whole))
+          } else {
+            (ProgramTypes.Positive, whole)
+          }
+          E.EFloat(x, sign, whole, fraction)
+        }, id, string, string)),
       ("ENull", dv1(x => E.ENull(x), id)),
       ("EBlank", dv1(x => E.EBlank(x), id)),
       ("ELet", dv4((a, b, c, d) => E.ELet(a, b, c, d), id, string, de, de)),
@@ -275,7 +291,21 @@ let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
       ("ERightPartial", dv3((a, b, c) => E.ERightPartial(a, b, c), id, string, de)),
       ("EList", dv2((x, y) => E.EList(x, y), id, list(de))),
       ("ERecord", dv2((x, y) => E.ERecord(x, y), id, list(pair(string, de)))),
-      ("EPipe", dv2((x, y) => E.EPipe(x, y), id, list(de))),
+      ("EPipe", dv2((x, y) =>
+          switch y {
+          | list{} =>
+            let (e1, e2) = recover(
+              "decoding a pipe with no exprs",
+              ~debug=x,
+              (E.EBlank(gid()), E.EBlank(gid())),
+            )
+            E.EPipe(x, e1, e2, list{})
+          | list{e1} =>
+            let e2 = recover("decoding a pipe with only one expr", ~debug=x, E.EBlank(gid()))
+            E.EPipe(x, e1, e2, list{})
+          | list{e1, e2, ...rest} => E.EPipe(x, e1, e2, rest)
+          }
+        , id, list(de))),
       ("EConstructor", dv3((a, b, c) => E.EConstructor(a, b, c), id, string, list(de))),
       ("EMatch", dv3((a, b, c) => E.EMatch(a, b, c), id, de, list(pair(fluidPattern, de)))),
       ("EPipeTarget", dv1(a => E.EPipeTarget(a), id)),
@@ -367,11 +397,11 @@ let rec dval = (j): dval => {
         \"@@"(raise, DecodeError("Expected float, got " ++ stringify(j)))
       }
     | None =>
-      if (j == Js.Json.string("Infinity")) {
+      if j == Js.Json.string("Infinity") {
         Float.infinity
-      } else if (j == Js.Json.string("-Infinity")) {
+      } else if j == Js.Json.string("-Infinity") {
         Float.negativeInfinity
-      } else if (j == Js.Json.string("NaN")) {
+      } else if j == Js.Json.string("NaN") {
         Float.nan
       } else {
         Json.Decode.float(j)
@@ -529,16 +559,11 @@ and cursorState = (j: Js.Json.t): cursorState => {
         "PanningCanvas",
         /* TODO: There's a danger of mismatching the encoder order here because we're using an inline record.
          * An order-independent encoding would alleviate this. */
-        dv3(
-          (viewportStart, viewportCurr, prevCursorState) => PanningCanvas({
-            viewportStart: viewportStart,
-            viewportCurr: viewportCurr,
-            prevCursorState: prevCursorState,
-          }),
-          vPos,
-          vPos,
-          cursorState,
-        ),
+        dv3((viewportStart, viewportCurr, prevCursorState) => PanningCanvas({
+          viewportStart: viewportStart,
+          viewportCurr: viewportCurr,
+          prevCursorState: prevCursorState,
+        }), vPos, vPos, cursorState),
       ),
       ("Deselected", dv0(Deselected)) /* Old value */,
       ("SelectingCommand", dv2((a, b) => Selecting(a, Some(b)), tlid, id)),
@@ -549,19 +574,19 @@ and cursorState = (j: Js.Json.t): cursorState => {
   )
 }
 
-/*  */
-/* and entering j = */
-/* let dv1 = variant1 in */
-/* let dv2 = variant2 in */
-/* variants */
-/* [ ( "Creating" */
-/* , dv1 */
-/* (fun x -> Creating (if x = Defaults.origin then None else Some x)) */
-/* pos ) */
-/* ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ] */
-/* j */
-/*  */
-/*  */
+//
+// and entering j =
+// let dv1 = variant1 in
+// let dv2 = variant2 in
+// variants
+// [ ( "Creating"
+// , dv1
+// (fun x -> Creating (if x = Defaults.origin then None else Some x))
+// pos )
+// ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
+// j
+//
+//
 and loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
   variants(
     list{
@@ -961,9 +986,9 @@ let triggerHandlerAPIResult = (j): triggerHandlerAPIResult => field("touched_tli
 
 let saveTestAPIResult = (j): saveTestAPIResult => string(j)
 
-/* -------------------------- */
-/* Dval (some here because of cyclic dependencies) */
-/* ------------------------- */
+// --------------------------
+// Dval (some here because of cyclic dependencies)
+// -------------------------
 
 let parseBasicDval = (str): dval =>
   oneOf(
@@ -977,7 +1002,7 @@ let parseBasicDval = (str): dval =>
     str,
   )
 
-/* Ported directly from Dval.parse in the backend */
+// Ported directly from Dval.parse in the backend
 let parseDvalLiteral = (str: string): option<dval> =>
   switch String.toList(str) {
   | list{'\'', c, '\''} => Some(DCharacter(String.fromList(list{c})))
@@ -1056,7 +1081,7 @@ let exception_ = (j): exception_ => {
   workarounds: field("workarounds", list(string), j),
 }
 
-/* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format */
+// Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format
 let wrapExpect = (fn: Js.Json.t => 'a): (string => Tea.Result.t<'ok, string>) =>
   j =>
     try Ok(fn(Json.parseOrRaise(j))) catch {
@@ -1068,7 +1093,7 @@ let wrapExpect = (fn: Js.Json.t => 'a): (string => Tea.Result.t<'ok, string>) =>
       }
     }
 
-/* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format */
+// Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format
 let wrapDecoder = (fn: Js.Json.t => 'a): Tea.Json.Decoder.t<Js.Json.t, 'a> => Decoder(
   value =>
     try Tea_result.Ok(fn(value)) catch {

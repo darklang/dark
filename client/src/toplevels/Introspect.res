@@ -42,7 +42,7 @@ let tipesByName = (uts: TD.t<userTipe>): Map.String.t<TLID.t> =>
     let name =
       ut.utName
       |> B.toOption
-      |> /* Shouldn't happen: all tipes have a default name */
+      |> // Shouldn't happen: all tipes have a default name
       recoverOpt("tipes should have default names", ~default="_")
 
     let version = ut.utVersion
@@ -107,15 +107,15 @@ let rec updateAssocList = (~key: 'k, ~f: option<'v> => option<'v>, assoc: list<(
     }
   }
 
-let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<ID.t>)> =>
+let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<id>)> =>
   m.tlRefersTo
   |> Map.get(~key=tlid)
   |> Option.unwrap(~default=list{})
-  |> List.fold(~initial=list{}, ~f=(assoc, (tlid, id)): list<(TLID.t, list<ID.t>)> =>
+  |> List.fold(~initial=list{}, ~f=(assoc, (tlid, id)): list<(TLID.t, list<id>)> =>
     updateAssocList(~key=tlid, assoc, ~f=x =>
       switch x {
       | None => Some(list{id})
-      | Some(lst) => Some(\"@"(lst, list{id}))
+      | Some(lst) => Some(Belt.List.concat(lst, list{id}))
       }
     )
   )
@@ -196,8 +196,8 @@ let getUsageFor = (
     |> Option.map(~f=findUsagesInFunctionParams(tipes))
     |> Option.unwrap(~default=list{})
 
-  /* TODO: tipes in other tipes */
-  \"@"(astUsages, fnUsages)
+  // TODO: tipes in other tipes
+  Belt.List.concat(astUsages, fnUsages)
 }
 
 let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
@@ -226,7 +226,7 @@ let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
     |> List.fold(~initial=(tlUsedInDict, tlRefersToDict), ~f=((usedIn, refersTo), usage) => {
       let newRefersTo = Map.add(
         ~key=usage.refersTo,
-        ~value=\"@"(
+        ~value=Belt.List.concat(
           Map.get(~key=usage.refersTo, refersTo) |> Option.unwrap(~default=list{}),
           list{(usage.usedIn, usage.id)},
         ),
@@ -245,7 +245,7 @@ let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
   {...m, tlUsedIn: newTlUsedIn, tlRefersTo: newTlRefersTo}
 }
 
-let setHoveringReferences = (tlid: TLID.t, ids: list<ID.t>): modification => {
+let setHoveringReferences = (tlid: TLID.t, ids: list<id>): modification => {
   let new_props = x =>
     switch x {
     | None => Some({...Defaults.defaultHandlerProp, hoveringReferences: ids})

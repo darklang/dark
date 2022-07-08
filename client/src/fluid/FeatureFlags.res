@@ -1,5 +1,5 @@
 open Prelude
-module E = FluidExpression
+module E = ProgramTypes.Expr
 
 type unwrapKeep =
   | KeepOld
@@ -7,7 +7,7 @@ type unwrapKeep =
 
 @ocaml.doc(" [ancestorFlag ast id] returns the first ancestor of the expression having
  * [id] that is a feature flag ")
-let ancestorFlag = (ast: FluidAST.t, id: ID.t): option<FluidExpression.t> =>
+let ancestorFlag = (ast: FluidAST.t, id: id): option<FluidExpression.t> =>
   FluidAST.ancestors(id, ast) |> List.find(~f=x =>
     switch x {
     | E.EFeatureFlag(_) => true
@@ -20,10 +20,11 @@ let ancestorFlag = (ast: FluidAST.t, id: ID.t): option<FluidExpression.t> =>
 
     Returns a Some of the ID of the newly created EFeatureFlag (or None if one
     wasn't created) and the new AST ")
-let wrap = (s: Types.fluidState, ast: FluidAST.t, id: ID.t): (option<ID.t>, FluidAST.t) =>
+let wrap = (s: Types.fluidState, ast: FluidAST.t, id: id): (option<id>, FluidAST.t) =>
   switch ancestorFlag(ast, id) {
-  | Some(_) => (None, ast) /* don't nest flags! */
+  | Some(_) => (None, ast) // don't nest flags!
   | None =>
+    let newB = FluidExpression.newB
     let flagName = "flag-" ++ (gid() |> ID.toString)
     let flagID = gid()
     let expr = FluidAST.toExpr(ast)
@@ -39,8 +40,8 @@ let wrap = (s: Types.fluidState, ast: FluidAST.t, id: ID.t): (option<ID.t>, Flui
     }
 
     if isSelectAll {
-      /* selected all - wrap the whole thing */
-      (Some(flagID), FluidAST.ofExpr(E.EFeatureFlag(flagID, flagName, E.newB(), expr, E.newB())))
+      // selected all - wrap the whole thing
+      (Some(flagID), FluidAST.ofExpr(E.EFeatureFlag(flagID, flagName, newB(), expr, newB())))
     } else {
       let ast = FluidAST.update(id, ast, ~f=x =>
         /* Somewhat arbitrary decision: when flagging a let, only wrap the
@@ -56,10 +57,10 @@ let wrap = (s: Types.fluidState, ast: FluidAST.t, id: ID.t): (option<ID.t>, Flui
          * we choose to only wrap the RHS. */
         switch x {
         | E.ELet(id, var, rhs, body) =>
-          let ff = E.EFeatureFlag(flagID, flagName, E.newB(), rhs, E.newB())
+          let ff = E.EFeatureFlag(flagID, flagName, newB(), rhs, newB())
 
           E.ELet(id, var, ff, body)
-        | e => E.EFeatureFlag(flagID, flagName, E.newB(), e, E.newB())
+        | e => E.EFeatureFlag(flagID, flagName, newB(), e, newB())
         }
       )
 
@@ -80,7 +81,7 @@ let hasFlag = (ast: FluidAST.t): bool =>
 
 @ocaml.doc(" [wrapCmd m tl id] returns a [modification] that calls [wrap] with the
     [tl]'s AST. ")
-let wrapCmd = (m: model, tl: toplevel, id: ID.t): modification =>
+let wrapCmd = (m: model, tl: toplevel, id: id): modification =>
   switch Toplevel.getAST(tl) {
   | Some(ast) if !hasFlag(ast) =>
     let (maybeId, ast) = wrap(m.fluidState, ast, id)
@@ -116,7 +117,7 @@ let wrapCmd = (m: model, tl: toplevel, id: ID.t): modification =>
  * old or new code, based on [keep].
  *
  * Returns the new AST if the flag was successfuly removed. ")
-let unwrap = (keep: unwrapKeep, ast: FluidAST.t, id: ID.t): option<FluidAST.t> =>
+let unwrap = (keep: unwrapKeep, ast: FluidAST.t, id: id): option<FluidAST.t> =>
   /* Either the given ID is a FF or it's somewhere in the ancestor chain. Find
    it (hopefully). */
   FluidAST.find(id, ast)
@@ -128,8 +129,8 @@ let unwrap = (keep: unwrapKeep, ast: FluidAST.t, id: ID.t): option<FluidAST.t> =
   )
   |> Option.orElseLazy(_ => ancestorFlag(ast, id))
   |> Option.map(~f=flag =>
-    /* once we've found the flag, remove it, keeping the correct thing */
-    FluidAST.update(E.toID(flag), ast, ~f=x =>
+    // once we've found the flag, remove it, keeping the correct thing
+    FluidAST.update(FluidExpression.toID(flag), ast, ~f=x =>
       switch x {
       | E.EFeatureFlag(_id, _name, _cond, oldCode, newCode) =>
         switch keep {
@@ -143,7 +144,7 @@ let unwrap = (keep: unwrapKeep, ast: FluidAST.t, id: ID.t): option<FluidAST.t> =
 
 @ocaml.doc(" [unwrapCmd keep m tl id] returns a [modification] that calls [unwrap] with
  * the [tl]'s AST. ")
-let unwrapCmd = (keep: unwrapKeep, _: model, tl: toplevel, id: ID.t): modification =>
+let unwrapCmd = (keep: unwrapKeep, _: model, tl: toplevel, id: id): modification =>
   Toplevel.getAST(tl)
   |> Option.andThen(~f=ast => unwrap(keep, ast, id))
   |> Option.map(~f=ast => Many(list{
@@ -179,6 +180,6 @@ let shouldShowRemoveFlagCmds = (_: model, tl: toplevel, e: E.t): bool =>
   | EFeatureFlag(_) => true
   | _ =>
     Toplevel.getAST(tl)
-    |> Option.map(~f=ast => ancestorFlag(ast, E.toID(e)) |> Option.isSome)
+    |> Option.map(~f=ast => ancestorFlag(ast, FluidExpression.toID(e)) |> Option.isSome)
     |> Option.unwrap(~default=false)
   }

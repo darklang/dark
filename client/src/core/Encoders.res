@@ -1,9 +1,9 @@
 open Prelude
 open Json.Encode
 
-/* Dark */
+// Dark
 
-/* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! */
+// XXX(JULIAN): All of this should be cleaned up and moved somewhere nice!
 @deriving(abstract) type jsArrayBuffer = {byteLength: int}
 
 @deriving(abstract) type jsUint8Array
@@ -56,7 +56,7 @@ let base64url_bytes = (input: Bytes.t): string =>
   input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 
 /* Don't attempt to encode these as integers, because we're not capable
- * of expressing all existing ids as ints because bucklescript is strict
+ * of expressing all existing ids as ints because ReScript is strict
  * about int == 32 bit. As far as we're concerned, ids are strings and
  * we know nothing about their parseability as ints */
 let id = \">>"(ID.toString, string)
@@ -111,7 +111,7 @@ let rec dval = (dv: Types.dval): Js.Json.t => {
 
     ev("DBlock", list{dblock_args})
   | DIncomplete(ds) => ev("DIncomplete", list{dval_source(ds)})
-  /* user-ish types */
+  // user-ish types
   | DCharacter(c) => ev("DCharacter", list{string(c)})
   | DError(ds, msg) => ev("DError", list{pair(dval_source, string, (ds, msg))})
   | DResp(h, hdv) => ev("DResp", list{tuple2(dhttp, dval, (h, hdv))})
@@ -204,7 +204,7 @@ and ops = (ops: list<Types.op>): Js.Json.t =>
     | _ =>
       let savepoints = List.map(~f=op => Types.TLSavepoint(tlidOf(op)), ops)
 
-      \"@"(savepoints, ops)
+      Belt.List.concat(savepoints, ops)
     },
   )
 
@@ -489,7 +489,7 @@ and userFunctionParameter = (p: Types.userFunctionParameter): Js.Json.t =>
     ("description", string(p.ufpDescription)),
   })
 
-and sendToRail = (sendToRail: FluidExpression.sendToRail): Js.Json.t => {
+and sendToRail = (sendToRail: ProgramTypes.Expr.sendToRail): Js.Json.t => {
   let ev = variant
   switch sendToRail {
   | Rail => ev("Rail", list{})
@@ -497,29 +497,30 @@ and sendToRail = (sendToRail: FluidExpression.sendToRail): Js.Json.t => {
   }
 }
 
-and fluidPattern = (pattern: FluidPattern.t): Js.Json.t => {
-  let fp = fluidPattern
+and fluidPattern = (mid: id, pattern: FluidPattern.t): Js.Json.t => {
+  let fp = fluidPattern(mid)
   let ev = variant
   switch pattern {
   /* Warning: A bunch of stuff here seems to expect that the
     second element of the tuples are match id but they are actually
     pattern ids. */
-  | FPVariable(id', mid, name) => ev("FPVariable", list{id(id'), id(mid), string(name)})
-  | FPConstructor(id', mid, name, patterns) =>
-    ev("FPConstructor", list{id(id'), id(mid), string(name), list(fp, patterns)})
-  | FPInteger(id', mid, v) => ev("FPInteger", list{id(id'), id(mid), string(v)})
-  | FPBool(id', mid, v) => ev("FPBool", list{id(id'), id(mid), bool(v)})
-  | FPFloat(id', mid, whole, fraction) =>
-    ev("FPFloat", list{id(id'), id(mid), string(whole), string(fraction)})
-  | FPString({matchID, patternID, str: v}) =>
+  | PVariable(id', name) => ev("FPVariable", list{id(mid), id(id'), string(name)})
+  | PConstructor(id', name, patterns) =>
+    ev("FPConstructor", list{id(mid), id(id'), string(name), list(fp, patterns)})
+  | PInteger(id', v) => ev("FPInteger", list{id(mid), id(id'), string(Int64.to_string(v))})
+  | PBool(id', v) => ev("FPBool", list{id(mid), id(id'), bool(v)})
+  | PFloat(id', sign, whole, fraction) =>
+    ev(
+      "FPFloat",
+      list{id(mid), id(id'), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)},
+    )
+  | PString(id', v) =>
     ev(
       "FPString",
-      list{
-        object_(list{("matchID", id(matchID)), ("patternID", id(patternID)), ("str", string(v))}),
-      },
+      list{object_(list{("matchID", id(mid)), ("patternID", id(id')), ("str", string(v))})},
     )
-  | FPNull(id', mid) => ev("FPNull", list{id(id'), id(mid)})
-  | FPBlank(id', mid) => ev("FPBlank", list{id(id'), id(mid)})
+  | PNull(id') => ev("FPNull", list{id(mid), id(id')})
+  | PBlank(id') => ev("FPBlank", list{id(mid), id(id')})
   }
 }
 
@@ -536,12 +537,13 @@ and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
   | EBinOp(id', name, left, right, r) =>
     ev("EBinOp", list{id(id'), string(name), fe(left), fe(right), sendToRail(r)})
   | ELambda(id', vars, body) => ev("ELambda", list{id(id'), list(pair(id, string), vars), fe(body)})
-  | EPipe(id', exprs) => ev("EPipe", list{id(id'), list(fe, exprs)})
+  | EPipe(id', e1, e2, rest) => ev("EPipe", list{id(id'), list(fe, list{e1, e2, ...rest})})
   | EFieldAccess(id', obj, field) => ev("EFieldAccess", list{id(id'), fe(obj), string(field)})
   | EString(id', v) => ev("EString", list{id(id'), string(v)})
-  | EInteger(id', v) => ev("EInteger", list{id(id'), string(v)})
+  | EInteger(id', v) => ev("EInteger", list{id(id'), string(Int64.to_string(v))})
   | EBool(id', v) => ev("EBool", list{id(id'), bool(v)})
-  | EFloat(id', whole, fraction) => ev("EFloat", list{id(id'), string(whole), string(fraction)})
+  | EFloat(id', sign, whole, fraction) =>
+    ev("EFloat", list{id(id'), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)})
   | ENull(id') => ev("ENull", list{id(id')})
   | EBlank(id') => ev("EBlank", list{id(id')})
   | EVariable(id', name) => ev("EVariable", list{id(id'), string(name)})
@@ -550,7 +552,7 @@ and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
   | EFeatureFlag(id', name, cond, a, b) =>
     ev("EFeatureFlag", list{id(id'), string(name), fe(cond), fe(a), fe(b)})
   | EMatch(id', matchExpr, cases) =>
-    ev("EMatch", list{id(id'), fe(matchExpr), list(pair(fluidPattern, fe), cases)})
+    ev("EMatch", list{id(id'), fe(matchExpr), list(pair(fluidPattern(id'), fe), cases)})
   | EConstructor(id', name, args) => ev("EConstructor", list{id(id'), string(name), list(fe, args)})
   | EPartial(id', str, oldExpr) => ev("EPartial", list{id(id'), string(str), fe(oldExpr)})
   | ERightPartial(id', str, oldExpr) => ev("ERightPartial", list{id(id'), string(str), fe(oldExpr)})

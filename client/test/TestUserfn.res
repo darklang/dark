@@ -7,7 +7,7 @@ module D = Defaults
 
 let defaultTLID = gtlid()
 
-let defaultFluidExpr = FluidExpression.EBlank(gid())
+let defaultFluidExpr = ProgramTypes.Expr.EBlank(gid())
 
 let defaultPos = {x: 0, y: 0}
 

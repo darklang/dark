@@ -3,8 +3,6 @@ open Tester
 open FluidShortcuts
 module E = FluidExpression
 
-let gid = Shared.gid
-
 let run = () => {
   describe("decendants", () => {
     /* [t f] helps test the decendants function
@@ -12,12 +10,12 @@ let run = () => {
      * It expects a single function [f], which should return the expression on
      * which [decendants] is called.
      *
-     * [f] is passed a function (unit -> ID.t) that should be called to
+     * [f] is passed a function (unit -> id) that should be called to
      * generate an ID for each decendant expression that is expected in the
      * result. Each time this generator function is called, the generated ID
      * is tracked. The test assertion is that all generated IDs appear in the
      * expression's [decendants] list. */
-    let t = (name: string, f: (unit => ID.t) => E.t) => {
+    let t = (name: string, f: (unit => id) => E.t) => {
       let generatedIDs = ref(ID.Set.empty)
       let idGenerator = () => {
         let id = gid()
@@ -52,8 +50,21 @@ let run = () => {
     let neq = t(false)
     eq("int with same values", int(1), int(1))
     neq("int with diff values", int(1), int(2))
-    eq("float with same values", float'(1, 0), float'(1, 0))
-    neq("float with diff values", float'(1, 0), float'(2, 0))
+    eq(
+      "float with same values",
+      float'(ProgramTypes.Positive, 1, 0),
+      float'(ProgramTypes.Positive, 1, 0),
+    )
+    neq(
+      "float with diff values",
+      float'(ProgramTypes.Positive, 1, 0),
+      float'(ProgramTypes.Positive, 2, 0),
+    )
+    neq(
+      "float with diff sign",
+      float'(ProgramTypes.Negative, 1, 0),
+      float'(ProgramTypes.Positive, 1, 0),
+    )
     eq("string with same values", str("a"), str("a"))
     neq("string with diff values", str("a"), str("b"))
     eq("bool with same values", bool(true), bool(true))
@@ -120,18 +131,18 @@ let run = () => {
     )
     eq(
       "pipe with same list",
-      pipe(list(list{}), list{fn("reverse", list{pipeTarget})}),
-      pipe(list(list{}), list{fn("reverse", list{pipeTarget})}),
+      pipe(list(list{}), fn("reverse", list{pipeTarget}), list{}),
+      pipe(list(list{}), fn("reverse", list{pipeTarget}), list{}),
     )
     neq(
       "pipe with diff first",
-      pipe(list(list{}), list{fn("reverse", list{pipeTarget})}),
-      pipe(list(list{int(1)}), list{fn("reverse", list{pipeTarget})}),
+      pipe(list(list{}), fn("reverse", list{pipeTarget}), list{}),
+      pipe(list(list{int(1)}), fn("reverse", list{pipeTarget}), list{}),
     )
     neq(
       "pipe with diff arg",
-      pipe(list(list{}), list{fn("reverse", list{pipeTarget})}),
-      pipe(list(list{}), list{fn("length", list{pipeTarget})}),
+      pipe(list(list{}), fn("reverse", list{pipeTarget}), list{}),
+      pipe(list(list{}), fn("length", list{pipeTarget}), list{}),
     )
     eq("flag with same values", flag(bool(true), int(1), int(2)), flag(bool(true), int(1), int(2)))
     eq /* we don't care about flag names right now */(

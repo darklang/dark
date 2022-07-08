@@ -1,6 +1,7 @@
 open Tester
 open Prelude
 open FluidTestData
+open ProgramTypes.Expr
 
 let makeTL = ast => TLHandler({
   ast: ast,
@@ -45,12 +46,7 @@ let run = () =>
     )
     test("no copy as curl for normal function", () => expectNoCmd("copy-request-as-curl", aFnCall))
     test("has copy as curl for Http function", () => {
-      let expr = FluidExpression.EFnCall(
-        gid(),
-        "HttpClient::get",
-        list{aStr, emptyRecord, emptyRecord},
-        Rail,
-      )
+      let expr = EFnCall(gid(), "HttpClient::get", list{aStr, emptyRecord, emptyRecord}, Rail)
 
       expectCmd("copy-request-as-curl", expr)
     })
@@ -60,7 +56,7 @@ let run = () =>
     )
     test("has discard+commit flag for target expr inside flag", () => {
       let targetExpr = oneCharStr
-      let ast = FluidExpression.ELet(gid(), "a", aShortInt, flagOld(targetExpr)) |> FluidAST.ofExpr
+      let ast = ELet(gid(), "a", aShortInt, flagOld(targetExpr)) |> FluidAST.ofExpr
 
       let hasDiscard = hasCmd("discard-feature-flag", targetExpr, ast)
       let hasCommit = hasCmd("commit-feature-flag", targetExpr, ast)
@@ -68,7 +64,7 @@ let run = () =>
     })
     test("no discard or commit flag for target expr outside flag", () => {
       let targetExpr = aShortInt
-      let ast = FluidExpression.ELet(gid(), "a", targetExpr, flagOld(oneCharStr)) |> FluidAST.ofExpr
+      let ast = ELet(gid(), "a", targetExpr, flagOld(oneCharStr)) |> FluidAST.ofExpr
 
       let hasDiscard = hasCmd("discard-feature-flag", targetExpr, ast)
       let hasCommit = hasCmd("commit-feature-flag", targetExpr, ast)

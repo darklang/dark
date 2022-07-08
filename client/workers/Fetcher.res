@@ -41,7 +41,7 @@ let fetch_ = (
         Js.Dict.fromList(list{
           ("Content-Type", "application/json"),
           ("X-CSRF-TOKEN", context.csrfToken),
-          (Header.client_version, buildHash),
+          ("x-darklang-client-version", buildHash),
         }),
       ),
       (),
@@ -64,7 +64,7 @@ let fetch_ = (
     resolve(postMessage(self, on_success(result)))
   })
   |> catch(err =>
-    /* Js.Promise.error is opaque, and we just put this in here */
+    // Js.Promise.error is opaque, and we just put this in here
     switch Obj.magic(err) {
     | NoneFound =>
       /* Note: there's no user facing error here, we just want to try

@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module RT = Runtime
 module TL = Toplevel
@@ -117,7 +117,7 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
           |> Option.andThen(~f=s => Some("-X " ++ s))
           |> wrapInList
 
-        \"@"(list{"curl", ...headers}, \"@"(body, \"@"(meth, list{"'" ++ (url ++ "'")})))
+        Belt.List.concatMany([list{"curl", ...headers}, body, meth, list{"'" ++ (url ++ "'")}])
         |> String.join(~sep=" ")
         |> Option.some
       | _ => None
@@ -127,7 +127,7 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
   }
 }
 
-let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: ID.t, name: string): option<string> => {
+let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): option<string> => {
   let traces =
     Map.get(~key=TLID.toString(tlid), m.traces) |> recoverOption(
       ~debug=TLID.toString(tlid),

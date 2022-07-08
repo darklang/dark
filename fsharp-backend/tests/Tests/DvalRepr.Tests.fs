@@ -1,4 +1,4 @@
-module Tests.DvalReprExternal
+module Tests.DvalRepr
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -12,10 +12,10 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module Errors = LibExecution.Errors
-
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
   test "internal_roundtrippable doesn't care about key order" {
@@ -64,7 +64,7 @@ let testToDeveloperRepr =
     "toDeveloperRepr"
     [ testMany
         "toDeveloperRepr string"
-        DvalReprExternal.toDeveloperReprV0
+        DvalReprDeveloper.toRepr
         // Most of this is just the OCaml output and not really what the output should be
         [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {  }\nnull"
           RT.DFloat(-0.0), "-0."
@@ -75,7 +75,7 @@ let testToDeveloperRepr =
 let testToEnduserReadable =
   testMany
     "toEnduserReadable string"
-    DvalReprExternal.toEnduserReadableTextV0
+    DvalReprLegacyExternal.toEnduserReadableTextV0
     // Most of this is just the OCaml output and not really what the output should be
     [ RT.DFloat(0.0), "0." // this type of thing in particular is ridic
       RT.DFloat(-0.0), "-0."
@@ -105,7 +105,7 @@ let testDateMigrationHasCorrectFormats =
     let oldExpected =
       "{\n  \"type\": \"date\",\n  \"value\": \"2019-03-08T08:26:14Z\"\n}"
     Expect.equal oldActual oldExpected "old format"
-    let newActual = DvalReprExternal.toPrettyMachineJsonStringV1 date
+    let newActual = DvalReprLegacyExternal.toPrettyMachineJsonStringV1 date
     Expect.equal newActual $"\"{str}\"" "old format"
   }
 
@@ -331,9 +331,13 @@ module Password =
         DvalReprInternalDeprecated.ofInternalRoundtrippableV0
 
       // redacting
-      doesRedact "toEnduserReadableTextV0" DvalReprExternal.toEnduserReadableTextV0
-      doesRedact "toDeveloperReprV0" DvalReprExternal.toDeveloperReprV0
-      doesRedact "toPrettyMachineJsonV1" DvalReprExternal.toPrettyMachineJsonStringV1
+      doesRedact
+        "toEnduserReadableTextV0"
+        DvalReprLegacyExternal.toEnduserReadableTextV0
+      doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
+      doesRedact
+        "toPrettyMachineJsonV1"
+        DvalReprLegacyExternal.toPrettyMachineJsonStringV1
       doesRedact
         "toPrettyRequestJsonV0"
         BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson

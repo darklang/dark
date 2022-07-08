@@ -48,9 +48,9 @@ let focusItem = (i: int): Tea.Cmd.t<msg> =>
     }),
   )
 
-/* ---------------------------- */
-/* display */
-/* ---------------------------- */
+// ----------------------------
+// display
+// ----------------------------
 let asName = (aci: item): string =>
   switch aci {
   | FACFunction(fn) => fn.fnName
@@ -117,16 +117,16 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACCreateFunction(_) => (list{}, "")
   }
 
-/* Used for matching, not for displaying to users */
+// Used for matching, not for displaying to users
 let asMatchingString = (aci: item): string => {
   let (argTypes, returnType) = asTypeStrings(aci)
   let typeString = String.join(~sep=", ", argTypes) ++ (" -> " ++ returnType)
   asName(aci) ++ typeString
 }
 
-/* ---------------------------- */
-/* Utils */
-/* ---------------------------- */
+// ----------------------------
+// Utils
+// ----------------------------
 
 let isVariable = (aci: item): bool =>
   switch aci {
@@ -154,9 +154,9 @@ let isCreateFn = (aci: item): bool =>
 
 let item = (data: data): item => data.item
 
-/* ---------------------------- */
-/* External: utils */
-/* ---------------------------- */
+// ----------------------------
+// External: utils
+// ----------------------------
 
 /* Return the item that is highlighted (at a.index position in the
  * list), along with whether that it is a valid autocomplete option right now. */
@@ -179,11 +179,11 @@ let rec containsOrdered = (needle: string, haystack: string): bool =>
   | None => true
   }
 
-/* ------------------------------------ */
-/* Type checking */
-/* ------------------------------------ */
+// ------------------------------------
+// Type checking
+// ------------------------------------
 
-/* Return the value being piped into the token at ti, if there is one */
+// Return the value being piped into the token at ti, if there is one
 let findPipedDval = (m: model, tl: toplevel, ti: tokenInfo): option<dval> => {
   let id =
     TL.getAST(tl)
@@ -201,7 +201,7 @@ let findPipedDval = (m: model, tl: toplevel, ti: tokenInfo): option<dval> => {
   )
 }
 
-/* Return the fields of the object being referenced at ti, if there is one */
+// Return the fields of the object being referenced at ti, if there is one
 let findFields = (m: model, tl: toplevel, ti: tokenInfo): list<string> => {
   let tlid = TL.id(tl)
   let id = switch ti.token {
@@ -248,7 +248,7 @@ let findExpectedType = (
   |> Option.unwrap(~default)
 }
 
-/* Checks whether an autocomplete item matches the expected types */
+// Checks whether an autocomplete item matches the expected types
 let typeCheck = (
   pipedType: option<tipe>,
   expectedReturnType: TypeInformation.t,
@@ -272,7 +272,7 @@ let typeCheck = (
           invalidFirstArg(pipedType)
         }
       | (None, Some(pipedType)) =>
-        /* if it takes no arguments, piping into it is invalid */
+        // if it takes no arguments, piping into it is invalid
         invalidFirstArg(pipedType)
       | _ => valid
       }
@@ -325,14 +325,14 @@ let toQueryString = (ti: tokenInfo): string =>
     FluidToken.toText(ti.token)
   }
 
-/* ---------------------------- */
-/* Autocomplete state */
-/* ---------------------------- */
+// ----------------------------
+// Autocomplete state
+// ----------------------------
 let init: t = Defaults.defaultModel.fluidState.ac
 
-/* ------------------------------------ */
-/* Create the list */
-/* ------------------------------------ */
+// ------------------------------------
+// Create the list
+// ------------------------------------
 
 let secretToACItem = (s: SecretTypes.t): fluidAutocompleteItem => {
   let asDval = DStr(Util.obscureString(s.secretValue))
@@ -357,7 +357,7 @@ let lookupIsInQuery = (tl: toplevel, ti) => {
     FluidAST.ancestors(FluidToken.tid(ti.token), ast)
     |> List.find(~f=x =>
       switch x {
-      | FluidExpression.EFnCall(_, name, _, _) => isQueryFn(name)
+      | ProgramTypes.Expr.EFnCall(_, name, _, _) => isQueryFn(name)
       | _ => false
       }
     )
@@ -409,7 +409,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   let literals = List.map(~f=x => FACLiteral(x), list{"true", "false", "null"})
 
   let secrets = List.map(m.secrets, ~f=secretToACItem)
-  \"@"(varnames, \"@"(constructors, \"@"(literals, \"@"(keywords, \"@"(functions, secrets)))))
+  Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
 }
 
 let generatePatterns = (ti, a, queryString): list<item> => {
@@ -429,14 +429,14 @@ let generatePatterns = (ti, a, queryString): list<item> => {
       list{
         FPABool(mid, gid(), true),
         FPABool(mid, gid(), false),
-        FPAConstructor(mid, gid(), "Just", list{FPBlank(mid, gid())}),
+        FPAConstructor(mid, gid(), "Just", list{PBlank(gid())}),
         FPAConstructor(mid, gid(), "Nothing", list{}),
-        FPAConstructor(mid, gid(), "Ok", list{FPBlank(mid, gid())}),
-        FPAConstructor(mid, gid(), "Error", list{FPBlank(mid, gid())}),
+        FPAConstructor(mid, gid(), "Ok", list{PBlank(gid())}),
+        FPAConstructor(mid, gid(), "Error", list{PBlank(gid())}),
         FPANull(mid, gid()),
       } |> List.map(~f=p => FACPattern(p))
     } |> List.filter(~f=c =>
-      /* filter out old query string variable */
+      // filter out old query string variable
       switch c {
       | FACPattern(FPAVariable(_)) => false
       | _ => true
@@ -459,14 +459,14 @@ let generatePatterns = (ti, a, queryString): list<item> => {
 
   switch ti.token {
   | TPatternBlank(mid, _, _) | TPatternVariable(mid, _, _, _) =>
-    \"@"(newQueryVariable(mid), newStandardPatterns(mid))
+    Belt.List.concat(newQueryVariable(mid), newStandardPatterns(mid))
   | _ => list{}
   }
 }
 
 let generateCommands = (_name, _tlid, _id) =>
-  /* Disable for now, this is really annoying */
-  /* [FACCreateFunction (name, tlid, id)] */
+  // Disable for now, this is really annoying
+  // [FACCreateFunction (name, tlid, id)]
   list{}
 
 let generateFields = fieldList => List.map(~f=x => FACField(x), fieldList)
@@ -476,10 +476,10 @@ let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
   switch query.ti.token {
   | TPatternBlank(_) | TPatternVariable(_) => generatePatterns(query.ti, a, query.queryString)
   | TFieldName(_) | TFieldPartial(_) => generateFields(query.fieldList)
-  | TLeftPartial(_) => /* Left partials can ONLY be if/let/match for now */
+  | TLeftPartial(_) => // Left partials can ONLY be if/let/match for now
     list{FACKeyword(KLet), FACKeyword(KIf), FACKeyword(KMatch)}
   | TPartial(id, name, _) =>
-    \"@"(generateExprs(m, props, query.tl, query.ti), generateCommands(name, tlid, id))
+    Belt.List.concat(generateExprs(m, props, query.tl, query.ti), generateCommands(name, tlid, id))
   | _ => generateExprs(m, props, query.tl, query.ti)
   }
 }
@@ -498,7 +498,7 @@ let filter = (functions: list<function_>, candidates0: list<item>, query: fullQu
     |> Regex.replace(~re=Regex.regex(`⟶`), ~repl="->")
     |> stripColons
 
-  /* split into different lists */
+  // split into different lists
   let (candidates1, notSubstring) = List.partition(
     ~f=\">>"(\">>"(stringify, String.toLowercase), String.includes(~substring=lcq)),
     candidates0,
@@ -527,14 +527,14 @@ let filter = (functions: list<function_>, candidates0: list<item>, query: fullQu
   let allMatches =
     list{startsWith, startsWithCI, substring, substringCI, stringMatch} |> List.flatten
 
-  /* Now split list by type validity */
+  // Now split list by type validity
   let pipedType = Option.map(~f=RT.typeOf, query.pipedDval)
   let expectedTypeInfo = findExpectedType(functions, query.tl, query.ti)
   List.map(allMatches, ~f=typeCheck(pipedType, expectedTypeInfo))
 }
 
 let refilter = (props: props, query: fullQuery, old: t, items: list<item>): t => {
-  /* add or replace the literal the user is typing to the completions */
+  // add or replace the literal the user is typing to the completions
   let newCompletions = filter(Functions.asFunctions(props.functions), items, query)
 
   let oldHighlight = highlighted(old)
@@ -561,26 +561,26 @@ let refilter = (props: props, query: fullQuery, old: t, items: list<item>): t =>
        * - we want the arrow keys to work */
       Some(0)
     } else if oldQueryString == "" && old.index == Some(0) {
-      /* If we didn't actually select the old value, don't cling to it. */
+      // If we didn't actually select the old value, don't cling to it.
       Some(0)
     } else if Option.isSome(oldHighlightNewIndex) {
-      /* Otherwise we did select something, so let's find it. */
+      // Otherwise we did select something, so let's find it.
       oldHighlightNewIndex
     } else {
-      /* Always show fields. */
+      // Always show fields.
       Some(0)
     }
   } else if query.queryString == "" || newCount == 0 {
-    /* Do nothing if no queryString or autocomplete list */
+    // Do nothing if no queryString or autocomplete list
     None
   } else if oldQueryString == query.queryString {
-    /* If we didn't change anything, don't change anything */
+    // If we didn't change anything, don't change anything
     switch oldHighlightNewIndex {
     | Some(newIndex) => Some(newIndex)
     | None => None
     }
   } else {
-    /* If an entry vanishes, highlight 0 */
+    // If an entry vanishes, highlight 0
     Some(0)
   }
 
@@ -608,9 +608,9 @@ let regenerate = (m: model, a: t, (tlid, ti): query): t =>
     refilter(props, query, a, items)
   }
 
-/* ---------------------------- */
-/* Autocomplete state */
-/* ---------------------------- */
+// ----------------------------
+// Autocomplete state
+// ----------------------------
 
 let numCompletions = (a: t): int => List.length(a.completions)
 
@@ -662,16 +662,14 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<msg> => {
 
     Html.div(
       list{},
-      \"@"(
-        list{
-          Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
-          Html.text("A value of type "),
-          Html.span(list{Html.class'("type")}, list{Html.text(RT.tipe2str(tipe))}),
-          Html.text(" is being piped into this function call, but "),
-          Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
-        },
-        typeInfo,
-      ),
+      list{
+        Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
+        Html.text("A value of type "),
+        Html.span(list{Html.class'("type")}, list{Html.text(RT.tipe2str(tipe))}),
+        Html.text(" is being piped into this function call, but "),
+        Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
+        ...typeInfo,
+      },
     )
   | FACItemInvalidReturnType({fnName, paramName, returnType}) =>
     let acFunction = asName(item)
@@ -713,7 +711,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
     } else {
       desc
     }
-    Some(\"@"(desc, list{ViewErrorRailDoc.hintForFunction(f, None), typeDoc}))
+    Some(Belt.List.concat(desc, list{ViewErrorRailDoc.hintForFunction(f, None), typeDoc}))
   | FACConstructorName("Just", _) => simpleDoc("An Option containing a value")
   | FACConstructorName("Nothing", _) => simpleDoc("An Option representing Nothing")
   | FACConstructorName("Ok", _) => simpleDoc("A successful Result containing a value")

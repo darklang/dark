@@ -5,10 +5,9 @@ open Fluid
 open FluidTestData
 module B = BlankOr
 module K = FluidKeyboard
-open FluidExpression
 open FluidShortcuts
 
-type testResult = /* ast, clipboard, newPos */
+type testResult = // ast, clipboard, newPos
 (string, (string, option<string>), int)
 
 let clipboardEvent = (): clipboardEvent => {
@@ -113,9 +112,8 @@ let run = () => {
     name: string,
     initial: fluidExpr,
     range: (int, int),
-    /* This is the expr copied, and stringified. The copy logic for the
-     * string copy buffer is super simple and doesn't need extensive testing.
-     * */
+    // This is the expr copied, and stringified. The copy logic for the
+    // string copy buffer is super simple and doesn't need extensive testing.
     expectedClipboard: string,
   ): unit =>
     test(nameToName(name, initial), () => {
@@ -257,7 +255,7 @@ let run = () => {
     name: string,
     initial: fluidExpr,
     range: (int, int),
-    /* This is the string copied. */
+    // This is the string copied.
     expectedClipboard: string,
   ): unit =>
     test(nameToName(name, initial), () => {
@@ -287,7 +285,7 @@ let run = () => {
   describe("Copy text", () => {
     testCopyText(
       "copying text just gets text",
-      complexExpr,
+      compoundExpr,
       (132, 257),
       "Http::Forbidden 403\nelse\n  Http::Forbidden",
     )
@@ -381,6 +379,13 @@ let run = () => {
       "1234~",
     )
     testPaste(
+      "pasting a negative int from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      int(-1234),
+      "-1234~",
+    )
+    testPaste(
       "pasting an int into another integer should join the integers",
       int(5678),
       (1, 3),
@@ -391,21 +396,21 @@ let run = () => {
       "pasting a float into an integer should convert to float",
       int(5678),
       (1, 3),
-      float'(12, 34),
+      float'(Positive, 12, 34),
       "512.34~8",
     )
     testPaste(
       "pasting a float into an integer should convert to float 2",
       int(5678),
       (0, 0),
-      float'(12, 34),
+      float'(Positive, 12, 34),
       "12.34~5678",
     )
     testPaste(
       "pasting a float into an integer should convert to float 3",
       int(5678),
       (4, 4),
-      float'(12, 34),
+      float'(Positive, 12, 34),
       "567812.34~",
     )
     testPaste(
@@ -413,6 +418,13 @@ let run = () => {
       int(5678),
       (0, 0),
       str("1234"),
+      "1234~5678",
+    )
+    testPaste(
+      "pasting a negative int-only string into an integer should extend integer",
+      int(5678),
+      (0, 0),
+      str("-1234"),
       "1234~5678",
     )
     testPaste(
@@ -554,82 +566,87 @@ let run = () => {
     ()
   })
   describe("Floats", () => {
-    testCopy("copying a float adds a float to clipboard", float'(1234, 5678), (0, 9), "1234.5678")
+    testCopy(
+      "copying a float adds a float to clipboard",
+      float'(Positive, 1234, 5678),
+      (0, 9),
+      "1234.5678",
+    )
     testCopy(
       "copying a float adds a float to clipboard 2",
-      fn("Float::round", list{float'(1234, 5678)}),
+      fn("Float::round", list{float'(Positive, 1234, 5678)}),
       (13, 22),
       "1234.5678",
     )
     testCopy(
       "copying the whole part w/o the point adds an int to clipboard",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (0, 4),
       "1234",
     )
     testCopy(
       "copying the whole part w/ the point adds a float with fraction value of 0 to clipboard",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (0, 5),
       "1234.0",
     )
     testCopy(
       "copying the fraction part w/o the point adds an int to clipboard",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (5, 9),
       "5678",
     )
     testCopy(
       "copying the fraction part w/ the point adds a float with whole value of 0 to clipboard",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (4, 9),
       "0.5678",
     )
     testCopy(
       "copying just the point adds a float with 0.0 to clipboard",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (4, 5),
       "0.0",
     )
     testCut(
       "cutting a float adds a float to clipboard",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (0, 9),
       ("~___", "1234.5678"),
     )
     testCut(
       "cutting a float adds a float to clipboard 2",
-      fn("Float::round", list{float'(1234, 5678)}),
+      fn("Float::round", list{float'(Positive, 1234, 5678)}),
       (13, 22),
       ("Float::round ~___", "1234.5678"),
     )
     testCut(
       "cutting the whole part w/o the point adds an int to clipboard, leaves float'",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (0, 4),
       ("~.5678", "1234"),
     )
     testCut(
       "cutting the whole part w/ the point adds a float with fraction value of 0 to clipboard, leaves int",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (0, 5),
       ("~5678", "1234.0"),
     )
     testCut(
       "cutting the fraction part w/o the point adds an int to clipboard, leaves float'",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (5, 9),
       ("1234.~", "5678"),
     )
     testCut(
       "cutting the fraction part w/ the point adds a float with whole value of 0 to clipboard, leaves int",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (4, 9),
       ("1234~", "0.5678"),
     )
     testCut(
       "cutting just the point adds a float with 0.0 to clipboard, leaves int of joint expr",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (4, 5),
       ("1234~5678", "0.0"),
     )
@@ -637,54 +654,68 @@ let run = () => {
       "pasting a float from clipboard on a blank should paste it",
       b,
       (0, 0),
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       "1234.5678~",
     )
     testPaste(
+      "pasting a negative float from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      float'(Negative, 1234, 5678),
+      "-1234.5678~",
+    )
+    // testPaste(
+    //   "pasting a negative int in a float whole part should paste it",
+    //   float'(Positive, 1234, 5678),
+    //   (0, 0),
+    //   int(-9000),
+    //   "-9000~1234.5678",
+    // )
+    testPaste(
       "pasting an int in a float whole part should paste it",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (0, 0),
       int(9000),
       "9000~1234.5678",
     )
     testPaste(
       "pasting an int in a float whole part should paste it 2",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (1, 3),
       int(9000),
       "19000~4.5678",
     )
     testPaste(
       "pasting an int in a float fraction part should paste it",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (8, 8),
       int(9000),
       "1234.5679000~8",
     )
     testPaste(
       "pasting an int over a float fraction part should paste it and remove selection",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (6, 8),
       int(9000),
       "1234.59000~8",
     )
     testPaste(
       "pasting an int before a float point should paste it",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (4, 4),
       int(9000),
       "12349000~.5678",
     )
     testPaste(
       "pasting an int after a float point should paste it",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (5, 5),
       int(9000),
       "1234.9000~5678",
     )
     testPaste(
       "pasting an int over a float point should paste it",
-      float'(1234, 5678),
+      float'(Positive, 1234, 5678),
       (3, 6),
       int(9000),
       "1239000~678",
@@ -974,10 +1005,8 @@ let run = () => {
       "copying first expression of pipe adds it to clipboard",
       pipe(
         list(list{}),
-        list{
-          fn("List::append", list{pipeTarget, list(list{int(5)})}),
-          fn("List::append", list{pipeTarget, list(list{int(6)})}),
-        },
+        fn("List::append", list{pipeTarget, list(list{int(5)})}),
+        list{fn("List::append", list{pipeTarget, list(list{int(6)})})},
       ),
       (0, 2),
       "[]",
@@ -986,10 +1015,8 @@ let run = () => {
       "copying pipe adds it to clipboard",
       pipe(
         list(list{}),
-        list{
-          fn("List::append", list{pipeTarget, list(list{int(5)})}),
-          fn("List::append", list{pipeTarget, list(list{int(6)})}),
-        },
+        fn("List::append", list{pipeTarget, list(list{int(5)})}),
+        list{fn("List::append", list{pipeTarget, list(list{int(6)})})},
       ),
       (0, 41),
       "[]\n|>List::append [5]\n|>List::append [6]\n",
@@ -1003,7 +1030,7 @@ let run = () => {
     )
     testPasteExpr(
       "pasting a function into a pipe adds a pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (6, 6),
       fn("Int::add", list{int(4), int(5)}),
       "___\n|>Int::add 5~\n",
@@ -1017,21 +1044,21 @@ let run = () => {
     )
     testPasteExpr(
       "pasting a binop into a pipe adds a pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (6, 6),
       binop("||", var("myvar"), trueBool),
       "___\n|>|| true~\n",
     )
     testPasteExpr(
       "pasting a binop with a pipe target into the head of a pipe strips the pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (0, 0),
       binop("+", pipeTarget, int(10)),
       "_________ + 10~\n|>___\n",
     )
     testPasteExpr(
       "pasting a function with a pipe target into the head of a pipe strips the pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (0, 0),
       fn("List::append", list{pipeTarget, list(list{int(5)})}),
       "List::append ___________ [5]~\n|>___\n",
@@ -1045,7 +1072,7 @@ let run = () => {
     )
     testPasteExpr(
       "pasting a partial into a pipe adds a pipe target",
-      pipe(blank(), list{blank()}),
+      pipe(blank(), blank(), list{}),
       (6, 6),
       partial("test", fn("Int::add", list{int(4), int(5)})),
       "___\n|>test~@ad@ 5\n",
@@ -1185,18 +1212,18 @@ let run = () => {
       b,
       (4, 4),
       "{\n  Key: [\"a\", \"b\"]\n  Key2: [\"c\", \"d\"]\n}",
-      /* not ideal outcome, but consistent. Could be improved */
+      // not ideal outcome, but consistent. Could be improved
       "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n  ~*** : ___\n}",
     )
     /* TODO: not working, waiting for more caretTarget stuff to land before
      * fixing */
-    /* testPasteText */
-    /* "pasting 2 row record text into empty blank (js style)" */
-    /* b */
-    /* (4, 4) */
-    /* "{\n  Key: [\"a\", \"b\"],\n  Key2: [\"c\", \"d\"]\n}" */
-    /* (* not ideal outcome, but consistent. Could be improved *) */
-    /* "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n}~" ; */
+    // testPasteText
+    // "pasting 2 row record text into empty blank (js style)"
+    // b
+    // (4, 4)
+    // "{\n  Key: [\"a\", \"b\"],\n  Key2: [\"c\", \"d\"]\n}"
+    // (* not ideal outcome, but consistent. Could be improved *)
+    // "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n}~" ;
     ()
   })
   describe("Constructors", () => {
@@ -1227,7 +1254,7 @@ let run = () => {
     ()
   })
   describe("Match", () =>
-    /* TODO: test match statements, implementation is slightly inconsistent */
+    // TODO: test match statements, implementation is slightly inconsistent
     ()
   )
   describe("json", () => {
@@ -1260,8 +1287,8 @@ let run = () => {
     roundtrip(int(6))
     roundtrip(str("[1 , 5]"))
     roundtrip(str("12345678987654321.12345678987654321"))
-    roundtrip(pipe(str("a"), list{binop("++", pipeTarget, str("b"))}))
-    roundtrip(pipe(str("a"), list{fn("String::append", list{pipeTarget, str("b")})}))
+    roundtrip(pipe(str("a"), binop("++", pipeTarget, str("b")), list{}))
+    roundtrip(pipe(str("a"), fn("String::append", list{pipeTarget, str("b")}), list{}))
     roundtrip(aPipe)
     roundtrip(binop("+", if'(int(5), int(5), int(5)), int(5)))
     roundtrip(partial("D", constructor("d", list{fn("k", list{})})))

@@ -64,8 +64,8 @@ let centerCanvasOn = (tl: toplevel): pos => {
   {x: TL.pos(tl).x - offsetLeft, y: TL.pos(tl).y - 200}
 }
 
-/* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas */
-let moveToToken = (id: ID.t, tl: toplevel): (option<int>, option<int>) => {
+// Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas
+let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
   let tokenSelector = ".id-" ++ ID.toString(id)
   let tlSelector = ".tl-" ++ TLID.toString(TL.id(tl))
   switch Native.Ext.querySelector(tokenSelector) {
@@ -90,7 +90,7 @@ let moveToToken = (id: ID.t, tl: toplevel): (option<int>, option<int>) => {
       |> Option.unwrapUnsafe
 
     let tlPos = TL.pos(tl)
-    /* If the token's DOM element is out of viewport, we want to shift the canvas transform to bring it within view. To make the transition seem smooth, ideally we want only either move by y-axis or x-axis. Sometimes we might have to both by both axis. But since the only use case for this function at the moment is to find code from several statements before where you are currently looking at, the most likely case is the that the token we are looking for is above the top fold, therefore we are likely going to move by only the y-axis. */
+    // If the token's DOM element is out of viewport, we want to shift the canvas transform to bring it within view. To make the transition seem smooth, ideally we want only either move by y-axis or x-axis. Sometimes we might have to both by both axis. But since the only use case for this function at the moment is to find code from several statements before where you are currently looking at, the most likely case is the that the token we are looking for is above the top fold, therefore we are likely going to move by only the y-axis.
     let xTarget = if tokenBox.right > viewport.left && tokenBox.left < viewport.right {
       None
     } else {
@@ -115,7 +115,7 @@ let findNewPos = (m: model): pos => {
   switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) =>
     let o = m.canvasProps.offset
-    /* We add padding to the viewport range, to ensure we don't have new handlers too far from eachother. */
+    // We add padding to the viewport range, to ensure we don't have new handlers too far from eachother.
     let padRight = 400
     let padBottom = 400
     let minX = switch m.sidebarState.mode {

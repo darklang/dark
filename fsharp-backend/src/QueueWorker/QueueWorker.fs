@@ -21,7 +21,8 @@ module Execution = LibExecution.Execution
 module Pusher = LibBackend.Pusher
 module RealExecution = LibRealExecution.RealExecution
 module Canvas = LibBackend.Canvas
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
@@ -56,7 +57,7 @@ let processNotification
       | RT.DOption (Some _) -> "Option(Some)"
       | RT.DResult (Error _) -> "Result(Error)"
       | RT.DResult (Ok _) -> "Result(Ok)"
-      | _ -> dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
+      | _ -> dv |> RT.Dval.toType |> DvalReprDeveloper.typeName
 
     // Function used to quit this event
     let stop

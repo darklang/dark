@@ -23,8 +23,24 @@ let testSpecialCaseAccounts () =
 
 let testSetUserAccess =
   testTask "Changes with A.set_user_access affect permissions" {
-    let username = UserName.create "test"
-    let owner = OwnerName.create "test_admin"
+    do!
+      LibBackend.Account.upsertNonAdmin
+        { username = UserName.create "test2"
+          password = LibBackend.Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
+          email = "test2@darklang.com"
+          name = "Dark Backend Tests" }
+      |> Task.map (Exception.unwrapResultInternal [])
+
+    do!
+      LibBackend.Account.upsertAdmin
+        { username = UserName.create "test_admin2"
+          password = LibBackend.Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
+          email = "test+admin2@darklang.com"
+          name = "Dark Backend Test Admin" }
+      |> Task.map (Exception.unwrapResultInternal [])
+
+    let username = UserName.create "test2"
+    let owner = OwnerName.create "test_admin2"
 
     do! A.setUserAccess username owner None
     let! permission = A.grantedPermission username owner
@@ -40,7 +56,7 @@ let testSetUserAccess =
 
     do! A.setUserAccess username owner None
     let! permission = A.grantedPermission username owner
-    Expect.equal permission None "revoekd access"
+    Expect.equal permission None "revoked access"
   }
 
 

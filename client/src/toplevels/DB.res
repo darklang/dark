@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module TD = TLIDDict
 
@@ -20,7 +20,7 @@ let fromList = (dbs: list<db>): TLIDDict.t<db> =>
 
 let blankOrData = (db: db): list<blankOrData> => {
   let cols = switch db.activeMigration {
-  | Some(migra) => \"@"(db.cols, migra.cols)
+  | Some(migra) => Belt.List.concat(db.cols, migra.cols)
   | None => db.cols
   }
 
@@ -41,7 +41,7 @@ let hasCol = (db: db, name: string): bool =>
 let isLocked = (m: model, tlid: TLID.t): bool =>
   !Set.member(~value=TLID.toString(tlid), m.unlockedDBs)
 
-let isMigrationCol = (db: db, id: ID.t): bool =>
+let isMigrationCol = (db: db, id: id): bool =>
   switch db.activeMigration {
   | Some(schema) =>
     let inCols = schema.cols |> List.filter(~f=((n, t)) => B.toID(n) == id || B.toID(t) == id)

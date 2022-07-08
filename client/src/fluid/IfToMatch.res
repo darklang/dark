@@ -1,25 +1,25 @@
 open Prelude
 module TL = Toplevel
-module E = FluidExpression
+module E = ProgramTypes.Expr
 module P = FluidPattern
 
 let findIf = (ast: FluidAST.t, e: E.t): option<E.t> =>
   switch e {
   | EIf(_) => Some(e)
   | _ =>
-    FluidAST.ancestors(E.toID(e), ast) |> List.find(~f=x =>
+    FluidAST.ancestors(FluidExpression.toID(e), ast) |> List.find(~f=x =>
       switch x {
-      | FluidExpression.EIf(_) => true
+      | E.EIf(_) => true
       | _ => false
       }
     )
   }
 
-let refactor = (_: model, tl: toplevel, id: ID.t): modification => {
+let refactor = (_: model, tl: toplevel, id: id): modification => {
   let makeGenericMatch = (ifID, cond, then_, else_) => E.EMatch(
     ifID,
     cond,
-    list{(FPBool(ifID, gid(), true), then_), (FPBool(ifID, gid(), false), else_)},
+    list{(PBool(gid(), true), then_), (PBool(gid(), false), else_)},
   )
 
   let makeBinOpMatch = (ifID, binopID, lhs, rhs, rail, then_, else_) => {
@@ -52,13 +52,13 @@ let refactor = (_: model, tl: toplevel, id: ID.t): modification => {
     }
 
     let pattern: option<P.t> = switch arm {
-    | EInteger(pid, value) => Some(FPInteger(ifID, pid, value))
-    | EBool(pid, value) => Some(FPBool(ifID, pid, value))
-    | EString(pid, string) => Some(FPString({matchID: ifID, patternID: pid, str: string}))
-    | EFloat(pid, whole, frac) => Some(FPFloat(ifID, pid, whole, frac))
-    | ENull(pid) => Some(FPNull(ifID, pid))
-    | EBlank(pid) => Some(FPBlank(ifID, pid))
-    | EVariable(pid, name) => Some(FPVariable(ifID, pid, name))
+    | EInteger(pid, value) => Some(PInteger(pid, value))
+    | EBool(pid, value) => Some(PBool(pid, value))
+    | EString(pid, string) => Some(PString(pid, string))
+    | EFloat(pid, sign, whole, frac) => Some(PFloat(pid, sign, whole, frac))
+    | ENull(pid) => Some(PNull(pid))
+    | EBlank(pid) => Some(PBlank(pid))
+    | EVariable(pid, name) => Some(PVariable(pid, name))
     | _ => None
     }
 
@@ -66,7 +66,7 @@ let refactor = (_: model, tl: toplevel, id: ID.t): modification => {
      * generic match expression with true and false arms.
      */
     switch pattern {
-    | Some(p) => E.EMatch(ifID, matchCond, list{(p, then_), (FPVariable(ifID, gid(), "_"), else_)})
+    | Some(p) => E.EMatch(ifID, matchCond, list{(p, then_), (PVariable(gid(), "_"), else_)})
     | None => makeGenericMatch(ifID, EBinOp(binopID, "==", lhs, rhs, rail), then_, else_)
     }
   }
@@ -82,7 +82,9 @@ let refactor = (_: model, tl: toplevel, id: ID.t): modification => {
     }
 
     ifExprToMatchExpr |> Option.map(~f=matchExpr =>
-      FluidAST.replace(~replacement=matchExpr, E.toID(ifexpr), ast) |> TL.setASTMod(tl)
+      FluidAST.replace(~replacement=matchExpr, FluidExpression.toID(ifexpr), ast) |> TL.setASTMod(
+        tl,
+      )
     )
   }
 

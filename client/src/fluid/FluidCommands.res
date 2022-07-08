@@ -18,7 +18,7 @@ let reset = (m: model): fluidCommandState => {
 let commandsFor = (m: model, tl: toplevel, expr: fluidExpr): list<command> =>
   fluidCommands(m) |> List.filter(~f=cmd => cmd.shouldShow(m, tl, expr))
 
-let show = (m: model, tlid: TLID.t, id: ID.t): model => {
+let show = (m: model, tlid: TLID.t, id: id): model => {
   let tl = TL.get(m, tlid)
   tl
   |> Option.andThen(~f=TL.getAST)
@@ -36,7 +36,7 @@ let show = (m: model, tlid: TLID.t, id: ID.t): model => {
   |> Option.unwrap(~default=m)
 }
 
-let executeCommand = (m: model, tlid: TLID.t, id: ID.t, cmd: command): modification =>
+let executeCommand = (m: model, tlid: TLID.t, id: id, cmd: command): modification =>
   switch TL.get(m, tlid) {
   | Some(tl) => cmd.action(m, tl, id)
   | _ => recover("No pd for the command", ~debug=(tlid, id, cmd), NoChange)

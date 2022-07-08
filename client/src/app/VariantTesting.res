@@ -5,7 +5,7 @@ let variantIsActive = (m: model, vt: variantTest): bool => List.member(~value=vt
 let variantIsActive' = (vs: list<variantTest>, t: variantTest): bool => List.member(~value=t, vs)
 
 let toVariantTest = (s: string): option<variantTest> =>
-  /* names in toVariantTest and nameOf should match */
+  // names in toVariantTest and nameOf should match
   switch String.toLowercase(s) {
   | "stub" => Some(StubVariant)
   | "localhost-assets" => Some(NgrokVariant)
@@ -14,7 +14,7 @@ let toVariantTest = (s: string): option<variantTest> =>
   }
 
 let nameOf = (vt: variantTest): string =>
-  /* names in toVariantTest and nameOf should match */
+  // names in toVariantTest and nameOf should match
   switch vt {
   | StubVariant => "stub"
   | NgrokVariant => "localhost-assets"
@@ -29,7 +29,7 @@ let activeCSSClasses = (m: model): string =>
   m.tests |> List.map(~f=toCSSClass) |> String.join(~sep=" ")
 
 let enabledVariantTests = (isAdmin: bool): list<variantTest> => {
-  /* admins have these enabled by default, but can opt-out via query param */
+  // admins have these enabled by default, but can opt-out via query param
   let initial = if isAdmin {
     list{}
   } else {
@@ -39,7 +39,7 @@ let enabledVariantTests = (isAdmin: bool): list<variantTest> => {
   |> /* convert a (string * bool) list to a (variantTest * bool) list,
    * ignoring any unknown query params */
   List.filterMap(~f=((k, enabled)) => toVariantTest(k) |> Option.map(~f=vt => (vt, enabled)))
-  |> /* starting with the defaults above, either add or remove each variantTest */
+  |> // starting with the defaults above, either add or remove each variantTest
   List.fold(~initial, ~f=(acc, (vt, enabled)) =>
     if enabled {
       list{vt, ...acc}

@@ -24,7 +24,7 @@ module PrettyRequestJson =
       | DUuid uuid -> $"<uuid: {uuid}>"
       | DPassword _ -> "<password: <password>>"
       | DInt i -> string i
-      | DFloat f -> LibExecution.DvalReprExternal.ocamlStringOfFloat f
+      | DFloat f -> LibExecution.DvalReprLegacyExternal.ocamlStringOfFloat f
       | DBool true -> "true"
       | DBool false -> "false"
       | DNull -> "null"

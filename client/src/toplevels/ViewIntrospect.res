@@ -71,7 +71,7 @@ let fnReturnTipeView = (returnTipe: blankOr<tipe>): Html.html<msg> =>
   | Blank(_) => Vdom.noNode
   }
 
-let hoveringRefProps = (originTLID: TLID.t, originIDs: list<ID.t>, ~key: string) => list{
+let hoveringRefProps = (originTLID: TLID.t, originIDs: list<id>, ~key: string) => list{
   ViewUtils.eventNoPropagation(
     ~key=key ++ ("-in_" ++ TLID.toString(originTLID)),
     "mouseenter",
@@ -86,14 +86,14 @@ let hoveringRefProps = (originTLID: TLID.t, originIDs: list<ID.t>, ~key: string)
 
 let dbView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   name: string,
   cols: list<dbColumn>,
   direction: string,
 ): Html.html<msg> =>
   Html.div(
-    \"@"(
+    Belt.List.concat(
       list{
         Html.class'("ref-block db " ++ direction),
         ViewUtils.eventNoPropagation(~key="ref-db-link" ++ TLID.toString(tlid), "click", _ => GoTo(
@@ -116,7 +116,7 @@ let dbView = (
 
 let handlerView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   space: string,
   name: string,
@@ -129,17 +129,15 @@ let handlerView = (
   }
 
   Html.div(
-    \"@"(
-      list{
-        Html.class'("ref-block handler " ++ direction),
-        ViewUtils.eventNoPropagation(
-          ~key="ref-handler-link" ++ TLID.toString(tlid),
-          "click",
-          _ => GoTo(FocusedHandler(tlid, None, true)),
-        ),
-      },
-      hoveringRefProps(originTLID, originIDs, ~key="ref-handler-hover"),
-    ),
+    list{
+      Html.class'("ref-block handler " ++ direction),
+      ViewUtils.eventNoPropagation(
+        ~key="ref-handler-link" ++ TLID.toString(tlid),
+        "click",
+        _ => GoTo(FocusedHandler(tlid, None, true)),
+      ),
+      ...hoveringRefProps(originTLID, originIDs, ~key="ref-handler-hover"),
+    },
     list{
       Html.div(list{Html.class'("spec space")}, list{Html.text(space)}),
       Html.div(list{Html.class'("spec")}, list{Html.text(name)}),
@@ -150,7 +148,7 @@ let handlerView = (
 
 let fnView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   name: string,
   params: list<userFunctionParameter>,
@@ -163,7 +161,7 @@ let fnView = (
   }
 
   Html.div(
-    \"@"(
+    Belt.List.concat(
       list{
         Html.class'("ref-block fn " ++ direction),
         ViewUtils.eventNoPropagation(~key="ref-fn-link" ++ TLID.toString(tlid), "click", _ => GoTo(
@@ -182,29 +180,27 @@ let fnView = (
 
 let packageFnView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   name: string,
   params: list<packageFnParameter>,
   returnTipe: blankOr<tipe>,
   direction: string,
 ): Html.html<msg> => {
-  /* Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f */
+  // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f
   let header = list{
     ViewUtils.fontAwesome("box-open"),
     Html.span(list{Html.class'("fnname")}, list{Html.text(name)}),
   }
 
   Html.div(
-    \"@"(
-      list{
-        Html.class'("ref-block pkg-fn " ++ direction),
-        ViewUtils.eventNoPropagation(~key="ref-fn-link" ++ TLID.toString(tlid), "click", _ => GoTo(
-          FocusedPackageManagerFn(tlid),
-        )),
-      },
-      hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
-    ),
+    list{
+      Html.class'("ref-block pkg-fn " ++ direction),
+      ViewUtils.eventNoPropagation(~key="ref-fn-link" ++ TLID.toString(tlid), "click", _ => GoTo(
+        FocusedPackageManagerFn(tlid),
+      )),
+      ...hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
+    },
     list{
       Html.div(list{Html.class'("fnheader fnheader-pkg")}, header),
       packageFnParamsView(params),
@@ -215,7 +211,7 @@ let packageFnView = (
 
 let tipeView = (
   originTLID: TLID.t,
-  originIDs: list<ID.t>,
+  originIDs: list<id>,
   tlid: TLID.t,
   name: string,
   _version: int,
@@ -227,7 +223,7 @@ let tipeView = (
   }
 
   Html.div(
-    \"@"(
+    Belt.List.concat(
       list{
         Html.class'("ref-block tipe " ++ direction),
         ViewUtils.eventNoPropagation(
@@ -270,11 +266,11 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   | _ => Vdom.noNode
   }
 
-let allUsagesView = (tlid: TLID.t, uses: list<toplevel>, refs: list<(toplevel, list<ID.t>)>): list<
+let allUsagesView = (tlid: TLID.t, uses: list<toplevel>, refs: list<(toplevel, list<id>)>): list<
   Html.html<msg>,
 > => {
   let refersTo = List.map(~f=renderView(tlid, "refers-to"), refs)
   let usedIn = List.map(~f=use => renderView(tlid, "used-in")((use, list{})), uses)
 
-  \"@"(usedIn, refersTo)
+  Belt.List.concat(usedIn, refersTo)
 }

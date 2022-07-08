@@ -1,14 +1,14 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module E = FluidExpression
-open FluidExpression
-open FluidPattern
+open ProgramTypes.Expr
+open ProgramTypes.Pattern
 
-/* -------------------------------- */
-/* PointerData */
-/* -------------------------------- */
+// --------------------------------
+// PointerData
+// --------------------------------
 
 let isDefinitionOf = (var: string, expr: E.t): bool =>
   switch expr {
@@ -47,17 +47,17 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | ELet(_, _, rhs, body) => List.flatten(list{u(rhs), u(body)})
     | EIf(_, cond, ifbody, elsebody) => List.flatten(list{u(cond), u(ifbody), u(elsebody)})
     | EFnCall(_, _, exprs, _) => exprs |> List.map(~f=u) |> List.flatten
-    | EBinOp(_, _, lhs, rhs, _) => \"@"(u(lhs), u(rhs))
+    | EBinOp(_, _, lhs, rhs, _) => Belt.List.concat(u(lhs), u(rhs))
     | EConstructor(_, _, exprs) => exprs |> List.map(~f=u) |> List.flatten
     | ELambda(_, _, lexpr) => u(lexpr)
-    | EPipe(_, exprs) => exprs |> List.map(~f=u) |> List.flatten
+    | EPipe(_, e1, e2, rest) => list{e1, e2, ...rest} |> List.map(~f=u) |> List.flatten
     | EFieldAccess(_, obj, _) => u(obj)
     | EList(_, exprs) => exprs |> List.map(~f=u) |> List.flatten
     | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second) |> List.map(~f=u) |> List.flatten
     | EFeatureFlag(_, _, cond, a, b) => List.flatten(list{u(cond), u(a), u(b)})
     | EMatch(_, matchExpr, cases) =>
       let exprs = cases |> List.map(~f=Tuple2.second)
-      \"@"(u(matchExpr), exprs)
+      Belt.List.concat(u(matchExpr), exprs)
     | EPartial(_, _, oldExpr) => u(oldExpr)
     | ERightPartial(_, _, oldExpr) => u(oldExpr)
     | ELeftPartial(_, _, oldExpr) => u(oldExpr)
@@ -65,16 +65,17 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
   }
 }
 
-/* ------------------------- */
-/* EPipe stuff */
-/* ------------------------- */
+// -------------------------
+// EPipe stuff
+// -------------------------
 
 /* If the expression at `id` is one of the expressions in a pipe, this returns
  * the previous expression in that pipe (eg, the one that is piped into this
  * one) */
-let pipePrevious = (id: ID.t, ast: FluidAST.t): option<E.t> =>
+let pipePrevious = (id: id, ast: FluidAST.t): option<E.t> =>
   switch FluidAST.findParent(id, ast) {
-  | Some(EPipe(_, exprs)) =>
+  | Some(EPipe(_, e1, e2, rest)) =>
+    let exprs = list{e1, e2, ...rest}
     exprs
     |> List.find(~f=e => E.toID(e) == id)
     |> Option.andThen(~f=value => Util.listPrevious(~value, exprs))
@@ -83,17 +84,18 @@ let pipePrevious = (id: ID.t, ast: FluidAST.t): option<E.t> =>
 
 /* If the expression at `id` is one of the expressions in a pipe, this returns
  * the next expression in that pipe (eg, the one that the expr at `id` pipes into) */
-let pipeNext = (id: ID.t, ast: FluidAST.t): option<E.t> =>
+let pipeNext = (id: id, ast: FluidAST.t): option<E.t> =>
   switch FluidAST.findParent(id, ast) {
-  | Some(EPipe(_, exprs)) =>
+  | Some(EPipe(_, e1, e2, rest)) =>
+    let exprs = list{e1, e2, ...rest}
     exprs
     |> List.find(~f=e => E.toID(e) == id)
     |> Option.andThen(~f=value => Util.listNext(~value, exprs))
   | _ => None
   }
 
-/* Given the ID of a function call or binop, return its arguments. Takes pipes into account. */
-let getArguments = (id: ID.t, ast: FluidAST.t): list<E.t> => {
+// Given the ID of a function call or binop, return its arguments. Takes pipes into account.
+let getArguments = (id: id, ast: FluidAST.t): list<E.t> => {
   let pipePrevious = pipePrevious(id, ast)
   let caller = FluidAST.find(id, ast)
   let defaultArgs = switch caller {
@@ -120,7 +122,7 @@ let getArguments = (id: ID.t, ast: FluidAST.t): list<E.t> => {
  * eg: Int::add 4 3 => if `id` was the id of the `4` expression, then we'd
  *                     return (`Int::add`, 0)
  */
-let getParamIndex = (id: ID.t, ast: FluidAST.t): option<(string, int)> => {
+let getParamIndex = (id: id, ast: FluidAST.t): option<(string, int)> => {
   let parent = pipeNext(id, ast) |> Option.orElseLazy(() => FluidAST.findParent(id, ast))
 
   switch parent {
@@ -132,21 +134,21 @@ let getParamIndex = (id: ID.t, ast: FluidAST.t): option<(string, int)> => {
   }
 }
 
-/* ------------------------- */
-/* Ancestors */
-/* ------------------------- */
+// -------------------------
+// Ancestors
+// -------------------------
 
-let freeVariables = (ast: E.t): list<(ID.t, string)> => {
+let freeVariables = (ast: E.t): list<(id, string)> => {
   /* Find all variable lookups that lookup a variable that
    * is also _defined_ in this expression. We create a set of
    * these IDs so we can filter them out later. */
   let definedAndUsed =
     ast
     |> E.filterMap(~f=x =>
-      /* Grab all uses of the `lhs` of a Let in its body */
+      // Grab all uses of the `lhs` of a Let in its body
       switch x {
       | ELet(_, lhs, _, body) => Some(uses(lhs, body))
-      /* Grab all uses of the `vars` of a Lambda in its body */
+      // Grab all uses of the `vars` of a Lambda in its body
       | ELambda(_, vars, body) =>
         vars
         |> List.map(~f=Tuple2.second)
@@ -192,7 +194,7 @@ let freeVariables = (ast: E.t): list<(ID.t, string)> => {
 module VarDict = Map.String
 module IDTable = Belt.MutableMap.String
 
-type sym_set = VarDict.t<ID.t>
+type sym_set = VarDict.t<id>
 
 type sym_store = IDTable.t<sym_set>
 
@@ -231,20 +233,20 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
         )
 
       sexe(new_st, body)
-    | EPipe(_, exprs) => List.forEach(~f=sexe(st), exprs)
+    | EPipe(_, e1, e2, rest) => List.forEach(~f=sexe(st), list{e1, e2, ...rest})
     | EFieldAccess(_, obj, _) => sexe(st, obj)
     | EList(_, exprs) => List.forEach(~f=sexe(st), exprs)
     | EMatch(_, matchExpr, cases) =>
       let rec variablesInPattern = p =>
         switch p {
-        | FPInteger(_)
-        | FPNull(_)
-        | FPString(_)
-        | FPFloat(_)
-        | FPBool(_)
-        | FPBlank(_) => list{}
-        | FPVariable(_, patternID, v) => list{(patternID, v)}
-        | FPConstructor(_, _, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
+        | PInteger(_)
+        | PNull(_)
+        | PString(_)
+        | PFloat(_)
+        | PBool(_)
+        | PBlank(_) => list{}
+        | PVariable(patternID, v) => list{(patternID, v)}
+        | PConstructor(_, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
         }
 
       sexe(st, matchExpr)
@@ -297,17 +299,17 @@ let rec reorderFnCallArgs = (fnName: string, oldPos: int, newPos: int, ast: E.t)
       let newArgs = List.moveInto(~oldPos, ~newPos, args) |> List.map(~f=replaceArgs)
 
       EFnCall(id, name, newArgs, sendToRail)
-    | EPipe(id, list{first, ...rest}) =>
+    | EPipe(id, first, second, rest) =>
       let newFirst = reorderFnCallArgs(fnName, oldPos, newPos, first)
-      let newRest = /* If the pipetarget is involved, we're really going to have to wrap
-       * it in a lambda instead of shifting things around (we could move
-       * the argument up if it's the first thing being piped into, but that
-       * might be ugly. */
-      List.map(rest, ~f=pipeArg =>
+      let reorder = pipeArg =>
+        /* If the pipetarget is involved, we're really going to have to wrap
+         * it in a lambda instead of shifting things around (we could move
+         * the argument up if it's the first thing being piped into, but that
+         * might be ugly. */
         if oldPos === 0 || newPos === 0 {
           switch pipeArg {
           | EFnCall(fnID, name, list{_pipeTarget, ...args}, sendToRail) if name == fnName =>
-            /* We replace the pipeTarget with a variable in a lambda fn */
+            // We replace the pipeTarget with a variable in a lambda fn
             let newArg = EVariable(gid(), "x")
             let newArgs =
               List.moveInto(~oldPos, ~newPos, list{newArg, ...args}) |> List.map(~f=replaceArgs)
@@ -323,12 +325,13 @@ let rec reorderFnCallArgs = (fnName: string, oldPos: int, newPos: int, ast: E.t)
           | _ => reorderFnCallArgs(fnName, oldPos, newPos, pipeArg)
           }
         } else {
-          /* The pipetarget isn't involved, so just do it normally. */
+          // The pipetarget isn't involved, so just do it normally.
           reorderFnCallArgs(fnName, oldPos, newPos, pipeArg)
         }
-      )
+      let newSecond = reorder(second)
+      let newRest = List.map(rest, ~f=reorder)
 
-      EPipe(id, list{newFirst, ...newRest})
+      EPipe(id, newFirst, newSecond, newRest)
     | e => E.deprecatedWalk(~f=replaceArgs, e)
     }
 

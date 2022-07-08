@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module TL = Toplevel
 
@@ -125,7 +125,7 @@ let viewTrace = (
   }
 
   let props = list{Html.classList(classes), unfetchableAltText, ...events}
-  Html.li(props, \"@"(dotHtml, list{viewData}))
+  Html.li(props, Belt.List.concat(dotHtml, list{viewData}))
 }
 
 let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
@@ -134,7 +134,7 @@ let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
 
     let timestamp = Option.map(~f=(td: traceData) => td.timestamp, traceData |> Result.toOption)
 
-    /* Note: the isActive and hoverID tlcursors are very different things */
+    // Note: the isActive and hoverID tlcursors are very different things
     let isActive = Analysis.selectedTraceID(vp.tlTraceIDs, vp.traces, vp.tlid) == Some(traceID)
 
     let isHover = vp.hovering == Some(vp.tlid, ID(traceID))

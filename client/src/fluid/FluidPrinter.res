@@ -35,23 +35,23 @@ let eToStructure = (~includeIDs=false, e: E.t): string =>
 
 let pToString = (p: fluidPattern): string =>
   p
-  |> FluidTokenizer.patternToToken(~idx=0)
+  |> FluidTokenizer.patternToToken(ID("0"), ~idx=0)
   |> List.map(~f=t => T.toTestText(t))
   |> String.join(~sep="")
 
 let pToStructure = (p: fluidPattern): string =>
   p
-  |> FluidTokenizer.patternToToken(~idx=0)
+  |> FluidTokenizer.patternToToken(ID("0"), ~idx=0)
   |> List.map(~f=t => "<" ++ (T.toTypeName(t) ++ (":" ++ (T.toText(t) ++ ">"))))
   |> String.join(~sep="")
 
-/* ----------------- */
-/* Test cases */
-/* ----------------- */
+// -----------------
+// Test cases
+// -----------------
 /* eToTestcase constructs testcases that we can enter in our
  * test suite. They are similar to `show` except that instead of the full code,
  * they use the shortcuts from FluidTestData. */
-/* ----------------- */
+// -----------------
 
 let rec eToTestcase = (e: E.t): string => {
   let r = eToTestcase
@@ -63,8 +63,9 @@ let rec eToTestcase = (e: E.t): string => {
   | EString(_, str) => spaced(list{"str", quoted(str)})
   | EBool(_, true) => spaced(list{"bool true"})
   | EBool(_, false) => spaced(list{"bool false"})
-  | EFloat(_, whole, fractional) => spaced(list{"float'", whole, fractional})
-  | EInteger(_, int) => spaced(list{"int", int})
+  | EFloat(_, sign, whole, fractional) =>
+    spaced(list{"float'", ProgramTypes.Sign.toString(sign), whole, fractional})
+  | EInteger(_, int) => spaced(list{"int", Int64.to_string(int)})
   | ENull(_) => "null"
   | EPipeTarget(_) => "pipeTarget"
   | EPartial(_, str, e) => spaced(list{"partial", quoted(str), r(e)})
@@ -80,15 +81,16 @@ let rec eToTestcase = (e: E.t): string => {
       let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
       let spaced = elems => String.join(~sep=" ", elems)
       switch p {
-      | FPBlank(_) => "pBlank"
-      | FPString({str, _}) => spaced(list{"pString", quoted(str)})
-      | FPBool(_, _, true) => spaced(list{"pBool true"})
-      | FPBool(_, _, false) => spaced(list{"pBool false"})
-      | FPFloat(_, _, whole, fractional) => spaced(list{"pFloat'", whole, fractional})
-      | FPInteger(_, _, int) => spaced(list{"pInt", int})
-      | FPNull(_) => "pNull"
-      | FPVariable(_, _, name) => spaced(list{"pVar", quoted(name)})
-      | FPConstructor(_, _, name, args) =>
+      | PBlank(_) => "pBlank"
+      | PString(_, str) => spaced(list{"pString", quoted(str)})
+      | PBool(_, true) => spaced(list{"pBool true"})
+      | PBool(_, false) => spaced(list{"pBool false"})
+      | PFloat(_, sign, whole, fractional) =>
+        spaced(list{"pFloat'", ProgramTypes.Sign.toString(sign), whole, fractional})
+      | PInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
+      | PNull(_) => "pNull"
+      | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
+      | PConstructor(_, name, args) =>
         spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
       }
     }
@@ -104,8 +106,7 @@ let rec eToTestcase = (e: E.t): string => {
       listed(List.map(pairs, ~f=((k, v)) => "(" ++ (quoted(k) ++ (", " ++ (r(v) ++ ")"))))),
     })
   | EList(_, exprs) => spaced(list{"list", listed(List.map(~f=r, exprs))})
-  | EPipe(_, list{a, ...rest}) => spaced(list{"pipe", r(a), listed(List.map(~f=r, rest))})
-  | EPipe(_, list{}) => "INVALID PIPE - NO ELEMENTS"
+  | EPipe(_, e1, e2, rest) => spaced(list{"pipe", r(e1), r(e2), listed(List.map(~f=r, rest))})
   | EConstructor(_, name, exprs) =>
     spaced(list{"constructor", quoted(name), listed(List.map(exprs, ~f=r))})
   | EIf(_, cond, thenExpr, elseExpr) => spaced(list{"if'", r(cond), r(thenExpr), r(elseExpr)})

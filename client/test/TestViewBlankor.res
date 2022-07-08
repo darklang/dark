@@ -5,7 +5,7 @@ open ViewBlankOr
 let run = () => {
   describe("placeholdersDisplayed", () => {
     test("shows placeholders in user functions", () => {
-      let ast = FluidExpression.EBlank(gid())
+      let ast = ProgramTypes.Expr.EBlank(gid())
       let tlFunc = TLFunc({
         ufAST: FluidAST.ofExpr(ast),
         ufTLID: gtlid(),

@@ -24,6 +24,25 @@ module RT = RuntimeTypes
 
 let incorrectArgs = Errors.incorrectArgs
 
+// Converts an object to (string,string) pairs. Raises an exception if not an object
+let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
+  match dv with
+  | DObj obj ->
+    obj
+    |> Map.toList
+    |> List.map (fun pair ->
+      match pair with
+      | (k, DStr v) -> Ok(k, v)
+      | (k, v) ->
+        // CLEANUP: this was just to keep the error messages the same with OCaml. It's safe to change the error message
+        // Error $"Expected a string, but got: {toDeveloperReprV0 v}"
+        Error "expecting str")
+    |> Tablecloth.Result.values
+  | _ ->
+    // CLEANUP As above
+    // $"Expected a string, but got: {toDeveloperReprV0 dv}"
+    Error "expecting str"
+
 type HttpResult =
   { body : byte []
     code : int
@@ -31,7 +50,6 @@ type HttpResult =
     error : string }
 
 type ClientError = { url : string; error : string; code : int }
-
 
 // -------------------------
 // Forms and queries Functions
@@ -445,9 +463,9 @@ let encodeRequestBody (body : Dval option) (headers : HttpHeaders.T) : Content =
       | Ok content -> FormContent(content)
       | Error msg -> Exception.raiseCode msg
     | dv when hasTextHeader headers ->
-      StringContent(DvalReprExternal.toEnduserReadableTextV0 dv)
+      StringContent(DvalReprLegacyExternal.toEnduserReadableTextV0 dv)
     | _ -> // hasJsonHeader
-      StringContent(DvalReprExternal.toPrettyMachineJsonStringV1 dv)
+      StringContent(DvalReprLegacyExternal.toPrettyMachineJsonStringV1 dv)
   | None -> NoContent
 
 /// Used in both Ok and Error cases
@@ -469,8 +487,7 @@ let sendRequest
     let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
     // Headers
-    let encodedReqHeaders =
-      DvalReprExternal.toStringPairs reqHeaders |> Exception.unwrapResultCode
+    let encodedReqHeaders = toStringPairs reqHeaders |> Exception.unwrapResultCode
     let contentType =
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)
@@ -487,7 +504,7 @@ let sendRequest
           try
             body
             |> Exception.unwrapOptionInternal "invalid json string" []
-            |> DvalReprExternal.unsafeOfUnknownJsonV0
+            |> DvalReprLegacyExternal.unsafeOfUnknownJsonV0
           with
           | _ -> DStr "json decoding error"
         else

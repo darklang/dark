@@ -8,11 +8,12 @@ open LibExecution.RuntimeTypes
 open Prelude
 
 module Errors = LibExecution.Errors
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
+
 
 let varErr = TVariable "err"
 let varA = TVariable "a"
@@ -28,13 +29,14 @@ let fns : List<BuiltInFn> =
         | _, [ DStr json ] ->
           uply {
             try
-              return DvalReprExternal.unsafeOfUnknownJsonV0 json
+              return DvalReprLegacyExternal.unsafeOfUnknownJsonV0 json
             with
             | _ -> return DNull
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      // a.k.a. Json::parse_v0
       deprecated = ReplacedBy(fn "JSON" "read" 1) }
 
 
@@ -46,7 +48,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-          match DvalReprExternal.ofUnknownJsonV1 json with
+          match DvalReprLegacyExternal.ofUnknownJsonV1 json with
           | Ok dv -> Ply dv
           | Error msg -> Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
@@ -64,7 +66,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr json ] ->
           json
-          |> DvalReprExternal.ofUnknownJsonV1
+          |> DvalReprLegacyExternal.ofUnknownJsonV1
           |> Result.mapError DStr
           |> DResult
           |> Ply

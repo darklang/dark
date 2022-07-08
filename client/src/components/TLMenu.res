@@ -83,7 +83,7 @@ let viewMenu = (s: menuState, tlid: TLID.t, items: list<menuItem>): Html.html<ms
   Html.div(
     list{
       Html.classList(list{("more-actions", true), ("show", showMenu)}),
-      /* Block opening the omnibox here by preventing canvas pan start */
+      // Block opening the omnibox here by preventing canvas pan start
       ViewUtils.nothingMouseEvent("mousedown"),
       ViewUtils.eventPreventDefault(~key="hide-tl-opts" ++ strTLID, "mouseleave", _ => TLMenuMsg(
         tlid,

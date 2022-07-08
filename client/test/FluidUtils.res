@@ -3,7 +3,7 @@ open Prelude
 let debugState = s =>
   show_fluidState({
     ...s,
-    /* remove the things that take a lot of space and provide little value. */
+    // remove the things that take a lot of space and provide little value.
     ac: {
       ...s.ac,
       completions: if s.ac.index == None {

@@ -1,6 +1,6 @@
 open Prelude
 
-/* The parameters passed from appsupport.js. */
+// The parameters passed from appsupport.js.
 
 let parameter = (j): parameter => {
   open Json.Decode

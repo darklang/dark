@@ -11,8 +11,8 @@ type response = {
 let stringifyInput = (event: event): response =>
   switch Js.Nullable.toOption(event) {
   | None =>
-    /* When we sent too much data, the event just won't have data in it. */
-    /* reportError "Trace was too big to load into analysis" () ; */
+    // When we sent too much data, the event just won't have data in it.
+    // reportError "Trace was too big to load into analysis" () ;
     Js.Console.log2("Got null instead of an event", event)
     {responseType: "error", json: "Error: got null instead of an event"}
   | Some(params) => {
@@ -26,7 +26,7 @@ let decodeOutput = str => {
   switch result {
   | Belt.Result.Ok(msg) => Belt.Result.Ok(msg)
   | Belt.Result.Error(msg) =>
-    Unshared.Rollbar.send(msg, None, Js.Json.null)
+    ErrorReporting.Rollbar.send(msg, None, Js.Json.null)
     Belt.Result.Error(Types.AnalysisParseError(msg))
   }
 }

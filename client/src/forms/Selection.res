@@ -1,15 +1,15 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module P = Pointer
 module TL = Toplevel
 
-/* ------------------------------- */
-/* Traces */
+// -------------------------------
+// Traces
 /* These used to have keyboard shortcuts to move between traces. When we
  * reintroduce shortcuts, it would likely be nice to have them again. */
-/* ------------------------------- */
+// -------------------------------
 let moveToOlderTrace = (m: model, tlid: TLID.t): modification => {
   let traceIDs = Analysis.getTraces(m, tlid) |> List.map(~f=Tuple2.first)
   let traceID = switch Analysis.getSelectedTraceID(m, tlid) {
@@ -30,11 +30,11 @@ let moveToNewerTrace = (m: model, tlid: TLID.t): modification => {
   traceID |> Option.map(~f=t => SetTLTraceID(tlid, t)) |> Option.unwrap(~default=NoChange)
 }
 
-/* ------------------------------- */
-/* Entering */
-/* ------------------------------- */
+// -------------------------------
+// Entering
+// -------------------------------
 
-let enterDB = (m: model, db: db, tl: toplevel, id: ID.t): modification => {
+let enterDB = (m: model, db: db, tl: toplevel, id: id): modification => {
   let tlid = TL.id(tl)
   let isLocked = DB.isLocked(m, tlid)
   let isMigrationCol = DB.isMigrationCol(db, id)
@@ -63,12 +63,12 @@ let enterDB = (m: model, db: db, tl: toplevel, id: ID.t): modification => {
     } else {
       enterField
     }
-  /* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress */
+  // TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress
   | _ => NoChange
   }
 }
 
-let enterWithOffset = (m: model, tlid: TLID.t, id: ID.t, offset: option<int>): modification =>
+let enterWithOffset = (m: model, tlid: TLID.t, id: id, offset: option<int>): modification =>
   switch TL.get(m, tlid) {
   | Some(TLDB(db) as tl) => enterDB(m, db, tl, id)
   | Some(tl) =>
@@ -85,14 +85,14 @@ let enterWithOffset = (m: model, tlid: TLID.t, id: ID.t, offset: option<int>): m
   | _ => recover("Entering invalid tl", ~debug=(tlid, id), NoChange)
   }
 
-let enter = (m: model, tlid: TLID.t, id: ID.t): modification => enterWithOffset(m, tlid, id, None)
+let enter = (m: model, tlid: TLID.t, id: id): modification => enterWithOffset(m, tlid, id, None)
 
-let dblclick = (m: model, tlid: TLID.t, id: ID.t, offset: option<int>): modification =>
+let dblclick = (m: model, tlid: TLID.t, id: id, offset: option<int>): modification =>
   enterWithOffset(m, tlid, id, offset)
 
-/* ------------------------------- */
-/* Blanks */
-/* ------------------------------- */
+// -------------------------------
+// Blanks
+// -------------------------------
 /* the name here is _awful_, but going to rip all of the glue
  * out soon so i pinky promise that it'll go away */
 let fluidEnteringMod = tlid => ReplaceAllModificationsWithThisOne(
@@ -105,7 +105,7 @@ let fluidEnteringMod = tlid => ReplaceAllModificationsWithThisOne(
 let maybeEnterFluid = (
   ~nonFluidCursorMod: modification,
   tl: toplevel,
-  newPD: option<ID.t>,
+  newPD: option<id>,
 ): modification => {
   let tlid = TL.id(tl)
   switch newPD {
@@ -119,7 +119,7 @@ let maybeEnterFluid = (
   }
 }
 
-let enterNextBlank = (m: model, tlid: TLID.t, cur: ID.t): modification =>
+let enterNextBlank = (m: model, tlid: TLID.t, cur: id): modification =>
   switch TL.get(m, tlid) {
   | None => recover("entering no TL", ~debug=(tlid, cur), NoChange)
   | Some(tl) =>
@@ -132,7 +132,7 @@ let enterNextBlank = (m: model, tlid: TLID.t, cur: ID.t): modification =>
     maybeEnterFluid(~nonFluidCursorMod=target, tl, nextBlank)
   }
 
-let enterPrevBlank = (m: model, tlid: TLID.t, cur: ID.t): modification =>
+let enterPrevBlank = (m: model, tlid: TLID.t, cur: id): modification =>
   switch TL.get(m, tlid) {
   | None => recover("entering no TL", ~debug=(tlid, cur), NoChange)
   | Some(tl) =>
