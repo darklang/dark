@@ -826,6 +826,26 @@ module GenericSerializersTests =
 
     generateTestData ()
 
+  let testNoExtraTestFiles : Test =
+    test "test no extra test files" {
+      let filenamesFor dict serializerName =
+        dict
+        |> Dictionary.toList
+        |> List.map (fun (typeName, reason) ->
+          SampleData.get typeName serializerName reason
+          |> List.map (fun (name, _) ->
+            SampleData.fileNameFor typeName serializerName name))
+        |> List.concat
+        |> Set
+
+      let vanillaFilenames = filenamesFor Json.Vanilla.allowedTypes "vanilla"
+      let vanillaActual = File.lspath Config.Serialization "vanilla-*.json" |> Set
+      Expect.equal vanillaFilenames vanillaActual "vanilla-files"
+
+      let ocamlFilenames = filenamesFor Json.OCamlCompatible.allowedTypes "ocaml"
+      let ocamlActual = File.lspath Config.Serialization "ocaml-*.json" |> Set
+      Expect.equal ocamlFilenames ocamlActual "vanilla-files"
+    }
 
   let testTestFiles : List<Test> =
     let testsFor (dict : Dictionary.T<string, string>) (serializerName : string) =
@@ -974,5 +994,6 @@ let tests =
     "Serialization"
     [ BinarySerializationRoundtripTests.toplevelRoundtripTest
       BinarySerializationRoundtripTests.oplistRoundtripTest
+      GenericSerializersTests.testNoExtraTestFiles
       testList "customer test formats" CustomSerializersTests.testTestFiles
       testList "generic vanilla test formats" GenericSerializersTests.testTestFiles ]
