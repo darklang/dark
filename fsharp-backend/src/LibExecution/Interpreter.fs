@@ -94,7 +94,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       let allResults = [ firstResult; secondResult ] @ otherResults
 
-      // If any elements in a tuple is fake (blank, error, etc.),
+      // If any element in a tuple is fake (blank, error, etc.),
       // we don't want to return a tuple, but rather the fake val.
       match List.tryFind Dval.isFake allResults with
       | Some fakeDval -> return fakeDval
