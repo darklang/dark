@@ -36,8 +36,6 @@ type EvalWorker =
   static member GetGlobalObject(_globalObjectName : string) : unit = ()
 
   static member selfDelegate =
-    // This feels like the initializer
-
     let typ =
       let sourceAssembly : Assembly =
         Assembly.Load "System.Private.Runtime.InteropServices.JavaScript"
