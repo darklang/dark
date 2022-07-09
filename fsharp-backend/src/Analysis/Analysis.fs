@@ -35,6 +35,8 @@ type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
 type EvalWorker =
   static member GetGlobalObject(_globalObjectName : string) : unit = ()
 
+  static member InitializeDarkRuntime() : unit = LibAnalysis.initSerializers ()
+
   static member selfDelegate =
     let typ =
       let sourceAssembly : Assembly =
@@ -64,8 +66,6 @@ type EvalWorker =
   ///
   /// Once evaluated, an async call to `self.postMessage` will be made
   static member OnMessage(input : string) =
-    // We'd like to only call this once on initialization, but I can't figure out how
-    do LibAnalysis.initSerializers ()
 
     let reportAndRollUpExceptionIntoError (preamble : string) (e) =
       let metadata = Exception.nestedMetadata e

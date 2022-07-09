@@ -923,6 +923,13 @@ D-REMOVED */
 
     const onReady = () => {
       console.log("Calling onReady");
+
+      // Call anything we need to startup within Dark
+      const initFn = Module.mono_bind_static_method(
+        "[Analysis]Analysis.EvalWorker:InitializeDarkRuntime",
+      );
+      initFn();
+
       // Setup the onmessage handler to call F#
       const messageHandler = Module.mono_bind_static_method(
         "[Analysis]Analysis.EvalWorker:OnMessage",
