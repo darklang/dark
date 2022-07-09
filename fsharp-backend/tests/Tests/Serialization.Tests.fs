@@ -523,44 +523,37 @@ module GenericSerializersTests =
              "reason", reason ]
 
 
-    let generate<'v>
+    let private generateSerializerData<'t>
       (serializerName : string)
-      (f : 'v -> string)
+      (serializerFn : 't -> string)
       (name : string)
-      (v : 'v)
+      (value : 't)
       =
-      let typeName = string typeof<'v>
+      let typeName = string typeof<'t>
       let key = keyFor typeName serializerName
       let currentValue = Dictionary.get key data |> Option.unwrap []
-      let newValue = (name, f v) :: currentValue
+      let newValue = (name, serializerFn value) :: currentValue
       data[key] <- newValue
 
-    let v<'t when 't : equality> (dataName : string) (data : 't) =
-      // let roundtripped =
-      //   data |> Json.Vanilla.serialize |> Json.Vanilla.deserialize<'t>
-      // if data <> roundtripped then
-      //   Exception.raiseInternal
-      //     $"bad vanilla roundtrip for {dataName}"
-      //     [ "actual", string roundtripped; "expected", string data ]
-
+    let private generateVanillaData<'t> (dataName : string) (data : 't) =
       // Use prettySerialize even though we use serialize in practice, as the
       // non-pretty version is too hard to read and compare.
-      generate "vanilla" Json.Vanilla.prettySerialize dataName data
+      generateSerializerData "vanilla" Json.Vanilla.prettySerialize dataName data
 
-    let oc<'t when 't : equality> (dataName : string) (data : 't) =
-      // let roundtripped =
-      //   data |> Json.Vanilla.serialize |> Json.Vanilla.deserialize<'t>
-      // if data <> roundtripped then
-      //   Exception.raiseInternal
-      //     $"bad ocaml roundtrip for {dataName}"
-      //     [ "actual", roundtripped; "expected", string data ]
+    let generateOCamlCompatibleData<'t> (dataName : string) (data : 't) =
       // Use prettySerialize even though we use serialize in practice, as the
       // non-pretty version is too hard to read and compare.
-      generate "ocaml" Json.OCamlCompatible.prettySerialize dataName data
+      let serializer = Json.OCamlCompatible.prettySerialize
+      generateSerializerData "ocaml" serializer dataName data
 
-    let both<'t when 't : equality> (dataName) (data : 't) =
-      v<'t> dataName data
-      oc<'t> dataName data
+    let generateBoth<'t> (dataName) (data : 't) =
+      generateVanillaData<'t> dataName data
+      generateOCamlCompatibleData<'t> dataName data
+
+    // Shortcuts to make generateTestData more readable
+    let private v<'t> = generateVanillaData<'t>
+    let private oc<'t> = generateOCamlCompatibleData<'t>
+    let private both<'t> = generateBoth<'t>
 
     let generateTestData () : unit =
 
@@ -839,11 +832,11 @@ module GenericSerializersTests =
         |> Set
 
       let vanillaFilenames = filenamesFor Json.Vanilla.allowedTypes "vanilla"
-      let vanillaActual = File.lspath Config.Serialization "vanilla-*.json" |> Set
+      let vanillaActual = File.lsPattern Config.Serialization "vanilla-*.json" |> Set
       Expect.equal vanillaFilenames vanillaActual "vanilla-files"
 
       let ocamlFilenames = filenamesFor Json.OCamlCompatible.allowedTypes "ocaml"
-      let ocamlActual = File.lspath Config.Serialization "ocaml-*.json" |> Set
+      let ocamlActual = File.lsPattern Config.Serialization "ocaml-*.json" |> Set
       Expect.equal ocamlFilenames ocamlActual "vanilla-files"
     }
 
@@ -972,7 +965,7 @@ module CustomSerializersTests =
 
         // Check that all .bin files can be parsed and give us the expected answer (this
         // might not be true as we get more formats, so this may need to be adapted)
-        File.lspath Config.Serialization "{f.prefix}.*{f.suffix}"
+        File.lsPattern Config.Serialization "{f.prefix}.*{f.suffix}"
         |> List.iter (fun filename ->
           let actual =
             File.readfileBytes Config.Serialization filename |> f.deserializer

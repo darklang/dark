@@ -54,7 +54,7 @@ let lsdir (root : Config.Root) (dir : string) : string list =
   |> Seq.toList
   |> List.map (String.dropLeft absoluteDir.Length)
 
-let lspath (root : Config.Root) (pattern : string) : string list =
+let lsPattern (root : Config.Root) (pattern : string) : string list =
   let absoluteDir = checkFilename root Dir ""
 
   System.IO.Directory.EnumerateFileSystemEntries(absoluteDir, pattern)
