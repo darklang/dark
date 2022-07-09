@@ -573,30 +573,24 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr sep ] ->
-          // TODO: this is not really performant.
-          let ecgStringSplit
-            (elements : string list)
-            (sep : string list)
-            : string list =
+          let ecgStringSplit str sep =
             let startsWithSeparator str = sep = (str |> List.truncate sep.Length)
 
-            let rec r (elementsRemaining, inProgress, result) =
-              if elementsRemaining = [] then
-                result @ [ inProgress |> String.concat "" ]
-              elif startsWithSeparator elementsRemaining then
-                r (
-                  List.skip sep.Length elementsRemaining,
-                  [],
-                  result @ [ inProgress |> String.concat "" ]
-                )
-              else
-                r (
-                  elementsRemaining.Tail,
-                  inProgress @ [ elementsRemaining.Head ],
-                  result
-                )
+            let result = ResizeArray<string>()
 
-            r (elements, [], [])
+            let rec r (strRemaining : List<string>, inProgress) : unit =
+              if strRemaining = [] then
+                result |> ResizeArray.append (inProgress.ToString())
+              elif startsWithSeparator strRemaining then
+                result |> ResizeArray.append (inProgress.ToString())
+
+                r (List.skip sep.Length strRemaining, StringBuilder())
+              else
+                r (strRemaining.Tail, inProgress.Append(strRemaining.Head))
+
+            r (str, StringBuilder())
+
+            result |> ResizeArray.toList
 
           if sep = "" then
             s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
