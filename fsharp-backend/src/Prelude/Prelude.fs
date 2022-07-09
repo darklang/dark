@@ -996,17 +996,19 @@ module Json =
     // Tracking serializers
     // ----------------------
 
-    // Serializers are easy to be unsure about. We use the Vanilla and Json serializers a
-    // lot for random types, and we would like to be sure that we don't accidentally
-    // change the format of those types by adding new converters or whatever. Our
-    // solution this is:
+    // Serializers are easy to be unsure about. We use the Vanilla and
+    // OCamlCompatible serializers a lot for random types, and we would like to be
+    // sure that we don't accidentally change the format of those types by adding new
+    // converters or whatever. Our solution this is:
+
     // 1) track all types that are serialized and also how they are serialized
-    // 2) store sample input/output for each type, and test them it
-    // 3) warn when serializing using a type that is not a known serializer.
+    // 2) store sample input/output for each type
+    // 3) During testing, assert stored sample output has not changed
+    // 4) warn when serializing using a type that is not allowed/tested serializer.
 
     // We track the types by explicitly calling the `allow<type>` function.  This
     // adds the type to a dictionary: at test-time we check all members of the
-    // dictionary are accounted for. At runtime we warn if we're attempt to serialize
+    // dictionary are accounted for. At runtime we warn if we're attempting to serialize
     // a type that hasn't been allowed. During development, we upgrade that warning
     // to an exception.
     //

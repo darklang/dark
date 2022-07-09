@@ -16,21 +16,23 @@ Our goals with serializers are:
 
 - never change a serialization format in a way that could break users' code
 - deprecate and remove old/broken serialization formats
-- remove the OCamlCompatible serializer
+- remove the OCamlCompatible serializer (slow and uses Newtonsoft, which we'd
+  like to remove)
 
 ## Testing
 
 To accomplish these, we have robust serialization tests, implemented in Serialization.Tests.fs
 
-For each serialization format in Dark, we store serialized data from that format, to
-ensure it never changes. The serialized data should be quite extensive, covering as
-many cases as we can reasonably think of.
-
-They help solve our goals in the following ways.
+For each serialization format in Dark, we store serialized data from that format in
+the repo, to ensure it never changes. The serialized data should be quite extensive,
+covering as many cases as we can reasonably think of. It's currently stored in [backend/serialization].
 
 ### Goal: never changing formats
 
-If the format changes, we want to know about it. The saved serialized data ensures this: if we change something, there's a git diff to tell us something changed, and we can choose to commit it if that's a backward-compatible change or we determine that it's otherwise OK.
+If the format changes, we want to know about it. The saved serialized data ensures
+this: if we change something, there's a git diff to tell us something changed, and we
+can choose to commit it if that's a backward-compatible change or we determine that
+it's otherwise OK.
 
 #### Vanilla / OCamlCompatible
 
