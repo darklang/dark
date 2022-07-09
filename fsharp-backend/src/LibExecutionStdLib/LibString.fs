@@ -573,31 +573,30 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr sep ] ->
-          // This is pretty rough. TODO make less bad.
+          // TODO: this is not really performant.
           let ecgStringSplit
             (elements : string list)
             (sep : string list)
             : string list =
-            let startsWithSeparator (str : string list) =
-              sep = (str |> List.truncate sep.Length)
+            let startsWithSeparator str = sep = (str |> List.truncate sep.Length)
 
-            let mutable result = []
-            let mutable inProgress = []
-
-            let rec recursiveFn (elementsRemaining : string list) : unit =
+            let rec r (elementsRemaining, inProgress, result) =
               if elementsRemaining = [] then
-                result <- result @ [ inProgress |> String.concat "" ]
+                result @ [ inProgress |> String.concat "" ]
               elif startsWithSeparator elementsRemaining then
-                result <- result @ [ inProgress |> String.concat "" ]
-                inProgress <- []
-                recursiveFn (List.skip sep.Length elementsRemaining)
+                r (
+                  List.skip sep.Length elementsRemaining,
+                  [],
+                  result @ [ inProgress |> String.concat "" ]
+                )
               else
-                inProgress <- inProgress @ [ elementsRemaining.Head ]
-                recursiveFn elementsRemaining.Tail
+                r (
+                  elementsRemaining.Tail,
+                  inProgress @ [ elementsRemaining.Head ],
+                  result
+                )
 
-            recursiveFn elements
-
-            result
+            r (elements, [], [])
 
           if sep = "" then
             s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
