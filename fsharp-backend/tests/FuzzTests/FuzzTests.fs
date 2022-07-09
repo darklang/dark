@@ -29,7 +29,7 @@ let main args =
   Prelude.init ()
   LibService.Init.init "FuzzTests"
   LibExecution.Init.init ()
-  Json.Vanilla.allow<AllowedFuzzerErrors.AllowedFuzzerErrorFileStructure> "datatests"
+  Json.Vanilla.allow<AllowedFuzzerErrors.AllowedFuzzerErrorFileStructure> "fuzztests"
 
   let config : FuzzTestConfig =
     // CLEANUP figure out why --fscheck-max-tests doesn't work
