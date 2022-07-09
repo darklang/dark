@@ -8,7 +8,7 @@ let run = () => {
     test("on tlid not found", () => {
       let m = {...Defaults.defaultModel, deletedUserFunctions: TLID.Dict.empty}
 
-      expect(requestAnalysis(m, TLID.fromString("123"), "abc")) |> toEqual(Cmd.none)
+      expect(requestAnalysis(m, TLID(123l), "abc")) |> toEqual(Cmd.none)
     })
   )
   ()

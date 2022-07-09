@@ -19,7 +19,7 @@ let div = (
   }
 
   let mouseoverClass = {
-    let targetted = enterable && Some(id) == Option.map(~f=Tuple2.second, vp.hovering)
+    let targetted = enterable && Some(AnID(id)) == Option.map(~f=Tuple2.second, vp.hovering)
 
     if targetted {
       list{"mouseovered-selectable"}

@@ -16,7 +16,8 @@ let run = () => {
       expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(None)
     })
     test("select atomic expression", () => {
-      let ast = let'("a", EInteger(ID("letVal"), 1999L), b)
+      let id = gid()
+      let ast = let'("a", EInteger(id, 1999L), b)
       let s = {
         ...defaultTestState,
         oldPos: 8,
@@ -24,10 +25,11 @@ let run = () => {
         selectionStart: Some(8),
       }
 
-      expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(Some(ID.fromString("letVal")))
+      expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(Some(id))
     })
     test("select larger expressions", () => {
-      let ast = EFnCall(ID("fn"), "+", list{int(1), int(2)}, NoRail)
+      let id = gid()
+      let ast = EFnCall(id, "+", list{int(1), int(2)}, NoRail)
       let s = {
         ...defaultTestState,
         oldPos: 0,
@@ -35,10 +37,11 @@ let run = () => {
         selectionStart: Some(0),
       }
 
-      expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(Some(ID.fromString("fn")))
+      expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(Some(id))
     })
     test("selects part of AST", () => {
-      let ast = let'("a", EFnCall(ID("fn"), "+", list{int(1), int(2)}, NoRail), b)
+      let id = gid()
+      let ast = let'("a", EFnCall(id, "+", list{int(1), int(2)}, NoRail), b)
 
       let s = {
         ...defaultTestState,
@@ -47,7 +50,7 @@ let run = () => {
         selectionStart: Some(8),
       }
 
-      expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(Some(ID.fromString("fn")))
+      expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(Some(id))
     })
     ()
   })

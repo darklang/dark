@@ -686,7 +686,7 @@ let complexExpr = {
 // ----------------
 // Some useful defaults
 // ----------------
-let defaultTLID = TLID.fromString("7")
+let defaultTLID = TLID.TLID(7l)
 
 let defaultTestFunctions = {
   let fnParam = (name: string, t: tipe, ~blockArgs=list{}, opt: bool): Types.parameter => {
@@ -828,18 +828,22 @@ let defaultTestProps: Types.fluidProps = {
   variants: list{LeftPartialVariant},
 }
 
+let fakeID1 = ID.ID(77777771l)
+let fakeID2 = ID.ID(77777772l)
+let fakeID3 = ID.ID(77777773l)
+
 let defaultTestModel = {
   ...Defaults.defaultModel,
   tests: defaultTestProps.variants,
   functions: defaultTestProps.functions,
-  analyses: Map.String.fromList /* The default traceID for TLID 7 */(list{
+  analyses: Map.String.fromList (list{
     (
-      "94167980-f909-527e-a4af-bc3155f586d3",
+      "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
       LoadableSuccess(
-        Belt.Map.String.fromArray([
-          ("fake-acdata1", ExecutedResult(Dval.obj(list{("body", DNull), ("formBody", DNull)}))),
-          ("fake-acdata2", ExecutedResult(Dval.obj(list{("title", DNull), ("author", DNull)}))),
-          ("fake-acdata3", ExecutedResult(Dval.obj(list{("body", DInt(5L))}))),
+        ID.Map.fromArray([
+          (fakeID1, ExecutedResult(Dval.obj(list{("body", DNull), ("formBody", DNull)}))),
+          (fakeID2, ExecutedResult(Dval.obj(list{("title", DNull), ("author", DNull)}))),
+          (fakeID3, ExecutedResult(Dval.obj(list{("body", DInt(5L))}))),
         ]),
       ),
     ),

@@ -68,7 +68,7 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
 
   let pmfn = () =>
     switch Map.get(~key="packagemanagerfn", unstructured) {
-    | Some(sid) => Some(FocusedPackageManagerFn(TLID.fromString(sid)))
+    | Some(sid) => Some(FocusedPackageManagerFn(TLID.parse(sid)))
     | _ => None
     }
 
@@ -76,7 +76,7 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
     switch Map.get(~key="fn", unstructured) {
     | Some(sid) =>
       let trace = Map.get(~key="trace", unstructured)
-      Some(FocusedFn(TLID.fromString(sid), trace))
+      Some(FocusedFn(TLID.parse(sid), trace))
     | _ => None
     }
 
@@ -84,19 +84,19 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
     switch Map.get(~key="handler", unstructured) {
     | Some(sid) =>
       let trace = Map.get(~key="trace", unstructured)
-      Some(FocusedHandler(TLID.fromString(sid), trace, true))
+      Some(FocusedHandler(TLID.parse(sid), trace, true))
     | _ => None
     }
 
   let db = () =>
     switch Map.get(~key="db", unstructured) {
-    | Some(sid) => Some(FocusedDB(TLID.fromString(sid), true))
+    | Some(sid) => Some(FocusedDB(TLID.parse(sid), true))
     | _ => None
     }
 
   let tipe = () =>
     switch Map.get(~key="type", unstructured) {
-    | Some(sid) => Some(FocusedType(TLID.fromString(sid)))
+    | Some(sid) => Some(FocusedType(TLID.parse(sid)))
     | _ => None
     }
 

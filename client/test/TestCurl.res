@@ -3,7 +3,7 @@ open Tester
 open CurlCommand
 module B = BlankOr
 
-let defaultTLID = TLID.fromString("7")
+let defaultTLID = TLID.TLID(7l)
 
 let http = (~path: string, ~meth="GET", ()): handler => {
   ast: FluidAST.ofExpr(EBlank(gid())),
@@ -13,7 +13,7 @@ let http = (~path: string, ~meth="GET", ()): handler => {
 }
 
 // Sets the model with the appropriate toplevels
-let makeModel = (~handlers=list{}, ~traces=Map.String.empty, ~cursorState, ()): model => {
+let makeModel = (~handlers=list{}, ~traces=TLID.Dict.empty, ~cursorState, ()): model => {
   let default = Defaults.defaultModel
   {
     ...default,
@@ -69,10 +69,10 @@ let run = () => {
       )
     })
     test("returns None if tlid not found", () =>
-      expect(curlFromSpec(m, TLID.fromString("1"))) |> toEqual(None)
+      expect(curlFromSpec(m, TLID(1l))) |> toEqual(None)
     )
     test("returns None for non-HTTP handlers", () => {
-      let cronTLID = TLID.fromString("2")
+      let cronTLID = gtlid()
       let cron = {
         ast: FluidAST.ofExpr(EBlank(gid())),
         hTLID: cronTLID,
@@ -90,11 +90,11 @@ let run = () => {
   })
   describe("curlFromCurrentTrace", () => {
     let traces = input =>
-      Map.String.empty |> Map.add(
-        ~key="7",
+      TLID.Dict.empty |> Map.add(
+        ~key=TLID.TLID(7l),
         ~value=list{
           (
-            "123",
+            "traceid",
             Ok({
               input: input,
               timestamp: "2019-09-17T12:00:30Z",

@@ -389,7 +389,7 @@ type modifierKeys = {
 let processMsg = (inputs: list<fluidInputEvent>, astInfo: ASTInfo.t): ASTInfo.t => {
   let h = FluidUtils.h(FluidAST.toExpr(astInfo.ast))
   let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
-  let astInfo = Fluid.updateAutocomplete(m, TLID.fromString("7"), astInfo)
+  let astInfo = Fluid.updateAutocomplete(m, TLID(7l), astInfo)
   List.fold(inputs, ~initial=astInfo, ~f=(astInfo: ASTInfo.t, input) =>
     Fluid.updateMsg'(m, h.hTLID, astInfo, FluidInputEvent(input))
   )
@@ -1702,7 +1702,7 @@ let run = () => {
       ~expectsPartial=true,
       ~clone=false,
       "insert dot to complete partial field",
-      EPartial(gid(), "body", EFieldAccess(gid(), EVariable(ID("fake-acdata1"), "request"), "")),
+      EPartial(gid(), "body", EFieldAccess(gid(), EVariable(fakeID1, "request"), "")),
       ~pos=11,
       ins("."),
       "request.body.~***",
@@ -1711,7 +1711,7 @@ let run = () => {
       ~expectsPartial=true,
       ~clone=false,
       "insert dot even when no content in the field",
-      EVariable(ID("fake-acdata1"), "request"),
+      EVariable(fakeID1, "request"),
       ~pos=7,
       insMany(list{".", "."}),
       "request.body.~***",
@@ -4729,8 +4729,8 @@ let run = () => {
     ()
   })
   describe("Autocomplete", () => {
-    /* Note that many of these autocomplete tests use ~clone:false
-     because they rely on fake data defined under ids prefixed with `fake-acdata` */
+    // Note that many of these autocomplete tests use ~clone:false
+    // because they rely on specific IDs (update: not sure why this is?)
     t(
       "space autocompletes correctly",
       partial("if", b),
@@ -4842,7 +4842,7 @@ let run = () => {
     t(
       "shift enter in a field works correctly",
       ~clone=false,
-      EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(ID("fake-acdata1"), "request"), "")),
+      EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(fakeID1, "request"), "")),
       ~pos=10,
       key(K.ShiftEnter),
       "request.body\n|>~___\n",
@@ -4869,7 +4869,7 @@ let run = () => {
     t(
       "autocomplete for field",
       ~clone=false,
-      EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(ID("fake-acdata1"), "request"), "")),
+      EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(fakeID1, "request"), "")),
       ~pos=10,
       enter,
       "request.body~",
@@ -4877,7 +4877,7 @@ let run = () => {
     t(
       "autocomplete shows first alphabetical item for fields",
       ~clone=false,
-      let'("request", int(5), EVariable(ID("fake-acdata2"), "request")),
+      let'("request", int(5), EVariable(fakeID2, "request")),
       ~pos=23,
       inputs(list{InsertText("."), keypress(K.Enter)}),
       "let request = 5\nrequest.author~",
@@ -4885,7 +4885,7 @@ let run = () => {
     t(
       "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further",
       ~clone=false,
-      let'("request", int(5), EVariable(ID("fake-acdata2"), "request")),
+      let'("request", int(5), EVariable(fakeID2, "request")),
       ~pos=23,
       inputs(list{InsertText("."), InsertText("t"), keypress(K.Enter)}),
       "let request = 5\nrequest.title~",
@@ -4895,7 +4895,7 @@ let run = () => {
       ~clone=false,
       let'(
         "x",
-        partial("body", fieldAccess(EVariable(ID("fake-acdata1"), "request"), "longfield")),
+        partial("body", fieldAccess(EVariable(fakeID1, "request"), "longfield")),
         b,
       ),
       // Right should make it commit
@@ -4908,7 +4908,7 @@ let run = () => {
       ~clone=false,
       let'(
         "x",
-        partial("body", fieldAccess(EVariable(ID("fake-acdata1"), "request"), "longfield")),
+        partial("body", fieldAccess(EVariable(fakeID1, "request"), "longfield")),
         b,
       ),
       ~pos=16,
@@ -4922,7 +4922,7 @@ let run = () => {
       EPartial(
         gid(),
         "bod",
-        EFieldAccess(gid(), EVariable(ID("fake-acdata1"), "request"), "longfield"),
+        EFieldAccess(gid(), EVariable(fakeID1, "request"), "longfield"),
       ),
       // Dot should select the autocomplete
       ~pos=11,
@@ -4948,7 +4948,7 @@ let run = () => {
         ELet(
           gid(),
           "foo",
-          EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(ID("fake-acdata3"), "request"), "")),
+          EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(fakeID3, "request"), "")),
           EVariable(gid(), "foo"),
         ),
       ),
@@ -4965,7 +4965,7 @@ let run = () => {
         ELet(
           gid(),
           "foo",
-          EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(ID("fake-acdata3"), "request"), "")),
+          EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(fakeID3, "request"), "")),
           EVariable(gid(), "foo"),
         ),
       ),
@@ -5007,7 +5007,7 @@ let run = () => {
           m.fluidState,
           FluidMouseUp({
             tlid: tlid,
-            editor: MainEditor(TLID.fromString("7")),
+            editor: MainEditor(TLID(7l)),
             selection: ClickAt(18),
           }),
         )
@@ -5051,7 +5051,7 @@ let run = () => {
     // "autocomplete for field in body"
     // (EMatch
     // ( gid ()
-    // , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "bo")
+    // , EFieldAccess (gid (), EVariable (fakeID1, "request"), gid (), "bo")
     // , [] ))
     // (enter 18)
     // ("match request.body", 18) ;
@@ -5492,7 +5492,7 @@ let run = () => {
   describe("Neighbours", () => {
     test("with empty AST, have left neighbour", () => {
       open FluidTokenizer
-      let id = ID.fromString("543")
+      let id = ID.ID(543l)
       expect({
         let ast = EString(id, "test")
         let tokens = tokenize(ast)

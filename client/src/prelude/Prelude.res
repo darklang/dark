@@ -46,9 +46,12 @@ module Json = {
   module Encode = Json_encode_extended
 }
 
-let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
+// CLEANUP: need to make the backend int31
+// We limit this is 31bit positive ints, as there is not uint32, and we don't want to
+// use 64-bit since JS/JSON can't support it.
+let gid = (): ID.t => ID.fromInt(Js_math.random_int(0, 2147483647))
 
-let gtlid = (): TLID.t => Util.random() |> string_of_int |> TLID.fromString
+let gtlid = (): TLID.t => TLID.fromInt(Js_math.random_int(0, 2147483647))
 
 module Debug = {
   let log = (~f: 'a => 'b=x => Obj.magic(x), msg: string, data: 'a): 'a => {

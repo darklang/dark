@@ -80,7 +80,7 @@ let updatePossibleTrace = (m: model, page: page): (model, Cmd.t<msg>) => {
   switch getTraceID(page) {
   | Some(tid) =>
     let m = {
-      let trace = Map.String.fromList(list{(TLID.toString(tlid), list{(tid, Error(NoneYet))})})
+      let trace = TLID.Dict.fromList(list{(tlid, list{(tid, Error(NoneYet))})})
 
       Analysis.updateTraces(m, trace)
     }

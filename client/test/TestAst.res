@@ -12,11 +12,12 @@ type transformation_test_result<'a, 'b> =
 
 let run = () => {
   describe("freeVariables", () => {
-    let id1 = ID.fromString("5")
-    let id2 = ID.fromString("10")
-    let id3 = ID.fromString("11")
-    let id4 = ID.fromString("12")
-    let id5 = ID.fromString("15")
+    open ID
+    let id1 = ID(5l)
+    let id2 = ID(10l)
+    let id3 = ID(11l)
+    let id4 = ID(12l)
+    let id5 = ID(15l)
     test("lambda var is not free", () =>
       expect(
         freeVariables(ELambda(id1, list{(id2, "var")}, EVariable(id3, "var"))),
@@ -70,25 +71,26 @@ let run = () => {
   })
   describe("variablesIn", () => {
     test("variablesIn correctly identifies available vars in let RHS with incomplete LHS", () => {
-      let testId = ID.fromString("testme")
-      let inner = ELet(gid(), "", EBlank(testId), E.newB())
+      let testID = ID.ID(923478769l)
+      let inner = ELet(gid(), "", EBlank(testID), E.newB())
       let outer = ELet(gid(), "variable", int(4), inner)
-      let vars = variablesIn(outer)->Map.get(~key="testme")
+      let vars = variablesIn(outer)->Map.get(~key=testID)
       let varsFor = vars |> Option.map(~f=d => Map.keys(d))
       expect(varsFor) |> toEqual(Some(list{"variable"}))
     })
     test("variablesIn correctly gets rhs id of latest let definition", () => {
-      let let1ID = ID.fromString("let1ID")
-      let let2ID = ID.fromString("let2ID")
-      let a1ID = ID.fromString("a1ID")
+      let let1ID = ID.ID(45683422l)
+      let let2ID = ID.ID(2388325l)
+      let a1ID = ID.ID(92305834l)
       let a1 = int(~id=a1ID, 4)
-      let a2ID = ID.fromString("a2ID")
+      let a2ID = ID.ID(23353463l)
       let a2 = int(~id=a2ID, 9)
-      let lastBlank = EBlank(ID("lastBlankid"))
+      let lastBlankID = ID.ID(93490346l)
+      let lastBlank = EBlank(lastBlankID)
       let ast = ELet(let1ID, "a", a1, ELet(let2ID, "a", a2, lastBlank))
       expect(
         variablesIn(ast)
-        |> Map.get(~key="lastBlankid")
+        |> Map.get(~key=lastBlankID)
         |> Option.andThen(~f=d => Map.get(~key="a", d)),
       ) |> toEqual(Some(a2ID))
     })
@@ -101,7 +103,7 @@ let run = () => {
 
       expect(
         variablesIn(ast)
-        |> Map.get(~key=ID.toString(targetID))
+        |> Map.get(~key=targetID)
         |> Option.andThen(~f=d => Map.get(~key="myvar", d)),
       ) |> toEqual(Some(id1))
     })

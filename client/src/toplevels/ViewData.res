@@ -137,7 +137,7 @@ let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
     // Note: the isActive and hoverID tlcursors are very different things
     let isActive = Analysis.selectedTraceID(vp.tlTraceIDs, vp.traces, vp.tlid) == Some(traceID)
 
-    let isHover = vp.hovering == Some(vp.tlid, ID(traceID))
+    let isHover = vp.hovering == Some(vp.tlid, ATraceID(traceID))
     let isUnfetchable = switch traceData {
     | Error(MaximumCallStackError) => true
     | _ => false

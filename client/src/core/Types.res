@@ -607,11 +607,11 @@ and executionResult =
   | ExecutedResult(dval)
   | NonExecutedResult(dval)
 
-and intermediateResultStore = Belt.Map.String.t<executionResult>
+and intermediateResultStore = ID.Map.t<executionResult>
 
-/* map from expression ids to symbol table, which maps from varname strings to
- * the ids of the expressions that represent their values */
-and avDict = Map.String.t<Map.String.t<id>>
+// map from expression ids to symbol table, which maps from varname strings to
+// the ids of the expressions that represent their values
+and avDict = ID.Map.t<Map.String.t<id>>
 
 and inputValueDict = Belt.Map.String.t<dval>
 
@@ -672,10 +672,7 @@ and traceError =
 
 and trace = (traceID, Result.t<traceData, traceError>)
 
-and traces = // indexed by TLID.t
-Map.String.t<
-  list<trace>,
->
+and traces = TLID.Dict.t<list<trace>>
 
 and fourOhFour = {
   space: string,
@@ -1209,8 +1206,8 @@ and modification =
   | DeleteToplevelForeverAPICall(TLID.t)
   // End API Calls
   | Select(TLID.t, tlidSelectTarget)
-  | SetHover(TLID.t, id)
-  | ClearHover(TLID.t, id)
+  | SetHover(TLID.t, idOrTraceID)
+  | ClearHover(TLID.t, idOrTraceID)
   | Deselect
   | RemoveToplevel(toplevel)
   | SetToplevels(list<handler>, list<db>, bool)
@@ -1346,6 +1343,14 @@ and heapioTrack =
   | InviteUser
   | OpenFnRef
   | OpenKeyboardRef
+
+// Somehow we allowed SetHover and ClearHover to use both traceIDs and regular IDs,
+// and it looks like different parts of the app rely on both. Since changing the
+// types of ID to no longer be a string, we can't support just hack it in anymore, so
+// this wraps around it.
+and idOrTraceID =
+  | AnID(ID.t)
+  | ATraceID(traceID)
 
 and msg =
   | IgnoreMsg(/* debug string so you know where it came from */ string)
@@ -1775,7 +1780,7 @@ and model = {
   complete: autocomplete,
   cursorState: cursorState,
   currentPage: page,
-  hovering: list<(TLID.t, id)>,
+  hovering: list<(TLID.t, idOrTraceID)>,
   handlers: TLID.Dict.t<handler>,
   deletedHandlers: TLID.Dict.t<handler>,
   dbs: TLID.Dict.t<db>,

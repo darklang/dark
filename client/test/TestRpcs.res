@@ -35,7 +35,7 @@ let run = () => {
       rtDval("obj", DObj(Belt.Map.String.fromArray([("foo", DInt(5L))])))
       rtDval("date", DDate("can be anything atm"))
       rtDval("incomplete", DIncomplete(SourceNone))
-      rtDval("incomplete2", DIncomplete(SourceId(TLID.fromString("14219007199254740993"), ID.fromString("14219007199254740993"))))
+      rtDval("incomplete2", DIncomplete(SourceId(TLID.parse("14219007199254740993"), ID.parse("14219007199254740993"))))
       rtDval("float", DFloat(7.2))
       rtDval("true", DBool(true))
       rtDval("false", DBool(false))

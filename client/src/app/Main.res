@@ -753,11 +753,11 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         {...m, staticDeploys: DarkStorage.appendDeploy(d, m.staticDeploys)},
         Cmd.none,
       )
-    | SetHover(tlid, id) =>
-      let nhovering = list{(tlid, id), ...m.hovering}
+    | SetHover(tlid, idOrTraceID) =>
+      let nhovering = list{(tlid, idOrTraceID), ...m.hovering}
       ({...m, hovering: nhovering}, Cmd.none)
-    | ClearHover(tlid, id) =>
-      let nhovering = List.filter(~f=m => m != (tlid, id), m.hovering)
+    | ClearHover(tlid, idOrTraceID) =>
+      let nhovering = List.filter(~f=m => m != (tlid, idOrTraceID), m.hovering)
       ({...m, hovering: nhovering}, Cmd.none)
     | SetTLTraceID(tlid, traceID) =>
       let m = Analysis.setSelectedTraceID(m, tlid, traceID)
@@ -1082,8 +1082,8 @@ let update_ = (msg: msg, m: model): modification => {
     | _ => NoChange
     }
   | IgnoreMouseUp => Fluid.update(m, FluidMouseUpExternal)
-  | BlankOrMouseEnter(tlid, id, _) => SetHover(tlid, id)
-  | BlankOrMouseLeave(tlid, id, _) => ClearHover(tlid, id)
+  | BlankOrMouseEnter(tlid, id, _) => SetHover(tlid, AnID(id))
+  | BlankOrMouseLeave(tlid, id, _) => ClearHover(tlid, AnID(id))
   | MouseWheel(x, y) => Viewport.moveCanvasBy(m, x, y)
   | TraceMouseEnter(tlid, traceID, _) =>
     let traceCmd = switch Analysis.getTrace(m, tlid, traceID) {
@@ -1093,8 +1093,8 @@ let update_ = (msg: msg, m: model): modification => {
     | _ => list{}
     }
 
-    Many(Belt.List.concat(traceCmd, list{SetHover(tlid, ID(traceID))}))
-  | TraceMouseLeave(tlid, traceID, _) => ClearHover(tlid, ID(traceID))
+    Many(Belt.List.concat(traceCmd, list{SetHover(tlid,ATraceID(traceID))}))
+  | TraceMouseLeave(tlid, traceID, _) => ClearHover(tlid, ATraceID(traceID))
   | TriggerHandler(tlid) => TriggerHandlerAPICall(tlid)
   | DragToplevel(_, mousePos) =>
     switch m.cursorState {
@@ -1370,9 +1370,9 @@ let update_ = (msg: msg, m: model): modification => {
       Many(Belt.List.concat(initialMods, list{MakeCmd(CursorState.focusEntry(m))}))
     }
   | FetchAllTracesAPICallback(Ok(x)) =>
-    let traces = List.fold(x.traces, ~initial=Map.String.empty, ~f=(dict, (tlid, traceid)) => {
+    let traces = List.fold(x.traces, ~initial=TLID.Dict.empty, ~f=(dict, (tlid, traceid)) => {
       let trace = (traceid, Error(NoneYet))
-      Map.update(dict, ~key=TLID.toString(tlid), ~f=x =>
+      Map.update(dict, ~key=tlid, ~f=x =>
         switch x {
         | Some(existing) => Some(Belt.List.concat(existing, list{trace}))
         | None => Some(list{trace})
@@ -1436,7 +1436,7 @@ let update_ = (msg: msg, m: model): modification => {
   | SaveTestAPICallback(Ok(msg)) => Model.updateErrorMod(Error.set("Success! " ++ msg))
   | ExecuteFunctionAPICallback(params, Ok(dval, hash, hashVersion, tlids, unlockedDBs)) =>
     let traces = List.map(
-      ~f=tlid => (TLID.toString(tlid), list{(params.efpTraceID, Error(NoneYet))}),
+      ~f=tlid => (tlid, list{(params.efpTraceID, Error(NoneYet))}),
       tlids,
     )
 
@@ -1451,15 +1451,15 @@ let update_ = (msg: msg, m: model): modification => {
         dval,
       ),
       ExecutingFunctionComplete(list{(params.efpTLID, params.efpCallerID)}),
-      OverrideTraces(Map.String.fromList(traces)),
+      OverrideTraces(TLID.Dict.fromList(traces)),
       SetUnlockedDBs(unlockedDBs),
     })
   | TriggerHandlerAPICallback(params, Ok(tlids)) =>
     let traces: Prelude.traces =
       List.map(
-        ~f=tlid => (TLID.toString(tlid), list{(params.thTraceID, Error(NoneYet))}),
+        ~f=tlid => (tlid, list{(params.thTraceID, Error(NoneYet))}),
         tlids,
-      ) |> Map.String.fromList
+      ) |> TLID.Dict.fromList
 
     Many(list{
       OverrideTraces(traces),
@@ -1496,9 +1496,9 @@ let update_ = (msg: msg, m: model): modification => {
   | InsertSecretCallback(Ok(secrets)) =>
     ReplaceAllModificationsWithThisOne(m => ({...m, secrets: secrets}, Cmd.none))
   | NewTracePush(traceID, tlids) =>
-    let traces = List.map(~f=tlid => (TLID.toString(tlid), list{(traceID, Error(NoneYet))}), tlids)
+    let traces = List.map(~f=tlid => (tlid, list{(traceID, Error(NoneYet))}), tlids)
 
-    UpdateTraces(Map.String.fromList(traces))
+    UpdateTraces(TLID.Dict.fromList(traces))
   | New404Push(f404) => Append404s(list{f404})
   | NewPresencePush(avatarsList) => UpdateAvatarList(avatarsList)
   | NewStaticDeployPush(asset) => AppendStaticDeploy(list{asset})
@@ -1563,8 +1563,8 @@ let update_ = (msg: msg, m: model): modification => {
     )
   | ReceiveFetch(TraceFetchFailure(params, url, error))
     if error == "Selected trace too large for the editor to load, maybe try another?" =>
-    let traces = Map.String.fromList(list{
-      (TLID.toString(params.gtdrpTlid), list{(params.gtdrpTraceID, Error(MaximumCallStackError))}),
+    let traces = TLID.Dict.fromList(list{
+      (params.gtdrpTlid, list{(params.gtdrpTraceID, Error(MaximumCallStackError))}),
     })
 
     Many(list{
@@ -1586,7 +1586,7 @@ let update_ = (msg: msg, m: model): modification => {
       },
     )
   | ReceiveFetch(TraceFetchSuccess(params, result)) =>
-    let traces = Map.String.fromList(list{(TLID.toString(params.gtdrpTlid), list{result.trace})})
+    let traces = TLID.Dict.fromList(list{(params.gtdrpTlid, list{result.trace})})
 
     Many(list{
       ReplaceAllModificationsWithThisOne(
@@ -1810,7 +1810,7 @@ let update_ = (msg: msg, m: model): modification => {
 
     let traceMods = switch List.head(traces) {
     | Some(first, _) =>
-      let traceDict = Map.String.fromList(list{(TLID.toString(tlid), traces)})
+      let traceDict = TLID.Dict.singleton(~key=tlid, ~value=traces)
 
       list{UpdateTraces(traceDict), SetTLTraceID(tlid, first)}
     | None => list{}

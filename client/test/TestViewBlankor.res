@@ -44,7 +44,7 @@ let run = () => {
         showEntry: false,
         showLivevalue: false,
         dbLocked: false,
-        analysisStore: LoadableSuccess(Belt.Map.String.empty),
+        analysisStore: LoadableSuccess(ID.Map.empty),
         traces: list{},
         dbStats: Map.String.empty,
         functions: Functions.empty,
