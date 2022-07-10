@@ -5,26 +5,35 @@
 printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fsi"
 
 #I "../../fsharp-backend"
+#I "../../fsharp-backend/.paket/"
 #I "../../fsharp-backend/Build/out"
 
-#load ".paket/load/net60/main.group.fsx"
-#r "Prelude.dll"
-#r "LibService.dll"
-#r "LibExecution.dll"
-#r "LibBackend.dll"
-#r "ApiServer.dll"
-#r "BwdServer.dll"
-#r "TestUtils.dll"
-#r "Tests.dll"
-#r "FuzzTests.dll"
+#load ".paket/load/net6.0/main.group.fsx"
+#r "Tablecloth/Debug/net6.0/Tablecloth.dll"
+#r "Prelude/Debug/net6.0/Prelude.dll"
+#r "LibService/Debug/net6.0/LibService.dll"
+#r "LibExecution/Debug/net6.0/linux-x64/LibExecution.dll"
+#r "LibBackend/Debug/net6.0/LibBackend.dll"
+#r "ApiServer/Debug/net6.0/linux-x64/ApiServer.dll"
+#r "BwdServer/Debug/net6.0/linux-x64/BwdServer.dll"
+#r "TestUtils/Debug/net6.0/TestUtils.dll"
+#r "Tests/Debug/net6.0/linux-x64/Tests.dll"
+#r "FuzzTests/Debug/net6.0/FuzzTests.dll"
+#r "Analysis/Debug/net6.0/Analysis.dll"
+#r "BackendOnlyStdLib/Debug/net6.0/BackendOnlyStdLib.dll"
+// #r "ExecHost/Debug/net6.0/ExecHost.dll"
+#r "HttpMiddleware/Debug/net6.0/HttpMiddleware.dll"
+#r "LibAnalysis/Debug/net6.0/linux-x64/LibAnalysis.dll"
+#r "LibBinarySerialization/Debug/net6.0/LibBinarySerialization.dll"
+#r "LibExecutionStdLib/Debug/net6.0/LibExecutionStdLib.dll"
+#r "LibRealExecution/Debug/net6.0/LibRealExecution.dll"
+// #r "QueueWorker/Debug/net6.0/QueueWorker.dll"
 
 // Convenience shortcuts
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module DvalReprExternal = LibExecution.DvalReprExternal
-module OCamlInterop = LibBackend.OCamlInterop
 
 open Prelude
-open FSI
+//open FSI
 
 printfn "Loaded and ready to go"

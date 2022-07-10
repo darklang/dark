@@ -21,6 +21,7 @@
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
     <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
+    <ProjectReference Include="../../src/LibAnalysis/LibAnalysis.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
     <ProjectReference Include="../../tests/FuzzTests/FuzzTests.fsproj" />
   </ItemGroup>
@@ -30,7 +31,6 @@
     <Compile Include="Traces.Tests.fs" />
     <Compile Include="ApiServer.Tests.fs" />
     <Compile Include="Authorization.Tests.fs" />
-    <Compile Include="BinarySerialization.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
     <Compile Include="Cron.Tests.fs" />
@@ -44,6 +44,7 @@
     <Compile Include="Prelude.Tests.fs" />
     <Compile Include="ProgramTypes.Tests.fs" />
     <Compile Include="Routing.Tests.fs" />
+    <Compile Include="Serialization.Tests.fs" />
     <Compile Include="StdLib.Tests.fs" />
     <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="TypeChecker.Tests.fs" />

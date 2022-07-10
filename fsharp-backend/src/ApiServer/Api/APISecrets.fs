@@ -19,8 +19,11 @@ module Telemetry = LibService.Telemetry
 open LibService.Exception
 
 module Insert =
+
   type Secret = { secret_name : string; secret_value : string }
+
   type Params = Secret
+
   type T = { secrets : List<Secret> }
 
   /// API endpoint to insert a Secret within a canvas
@@ -61,7 +64,9 @@ module Insert =
 
 module Delete =
   type Secret = { secret_name : string; secret_value : string }
+
   type Params = { secret_name : string }
+
   type T = { secrets : List<Secret> }
 
   /// API endpoint to delete a specific Secret

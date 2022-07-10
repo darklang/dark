@@ -57,3 +57,5 @@ let identifyUser (username : UserName.T) : unit =
       LibService.HeapAnalytics.emitIdentifyUserEvent userInfoAndCreatedAt.id payload
       return ()
     })
+
+let init () = Json.Vanilla.allow<Map<string, string>> "heapioMetadata"

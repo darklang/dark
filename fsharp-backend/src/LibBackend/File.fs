@@ -46,11 +46,6 @@ let fileExists root f : bool =
   let f = checkFilename root Check f
   System.IO.File.Exists f
 
-// let mkdir root dir : unit =
-//   let dir = check_filename root Dir dir in
-//   Unix.mkdir_p dir
-
-
 let lsdir (root : Config.Root) (dir : string) : string list =
   let absoluteDir = checkFilename root Dir dir
 
@@ -59,10 +54,12 @@ let lsdir (root : Config.Root) (dir : string) : string list =
   |> Seq.toList
   |> List.map (String.dropLeft absoluteDir.Length)
 
+let lsPattern (root : Config.Root) (pattern : string) : string list =
+  let absoluteDir = checkFilename root Dir ""
 
-// let rm root file : unit =
-//   let file = check_filename root Write file in
-//   Core_extended.Shell.rm () file
+  System.IO.Directory.EnumerateFileSystemEntries(absoluteDir, pattern)
+  |> Seq.toList
+  |> List.map (String.dropLeft absoluteDir.Length)
 
 
 let readfile (root : Config.Root) (f : string) : string =

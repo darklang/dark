@@ -22,6 +22,7 @@ module Telemetry = LibService.Telemetry
 module SchedulingRules = LibBackend.QueueSchedulingRules
 
 module WorkerStats =
+
   type Params = { tlid : tlid }
 
   type T = { count : int }
@@ -41,6 +42,7 @@ module WorkerStats =
 
 module Scheduler =
   type Params = { name : string; schedule : string }
+
   type T = SchedulingRules.WorkerStates.T
 
   /// API endpoint to update the Schedule of a Worker

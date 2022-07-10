@@ -1,6 +1,5 @@
+/// Initialize LibService
 module LibService.Init
-
-// Initialize LibService
 
 open Prelude
 

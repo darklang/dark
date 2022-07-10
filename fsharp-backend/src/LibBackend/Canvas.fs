@@ -631,7 +631,7 @@ let tryLoadJsonFromDisk
   |> File.tryReadFile root
   |> Option.map (fun json ->
     json
-    |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
+    |> Json.Vanilla.deserialize<OT.oplist>
     |> OT.Convert.ocamlOplist2PT
     |> Op.oplist2TLIDOplists)
 
@@ -728,3 +728,7 @@ let toProgram (c : T) : RT.ProgramContext =
     userTypes = userTypes
     dbs = dbs
     secrets = secrets }
+
+let init () =
+  Json.Vanilla.allow<OT.oplist> "loadJsonFromDisk"
+  Json.Vanilla.allow<PT.Position> "saveTLIDs"

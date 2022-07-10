@@ -377,15 +377,13 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
     let! body = o.Content.ReadAsStringAsync()
 
     let canonicalize (t : Traces.TraceData.T) : Traces.TraceData.T =
-      t
-      |> Option.map (fun t ->
-        { t with
-            trace =
-              t.trace
-              |> Tuple2.mapSecond (fun td ->
-                { td with
-                    timestamp = td.timestamp.truncate ()
-                    input = td.input |> List.sortBy (fun (k, v) -> k) }) })
+      { t with
+          trace =
+            t.trace
+            |> Tuple2.mapSecond (fun td ->
+              { td with
+                  timestamp = td.timestamp.truncate ()
+                  input = td.input |> List.sortBy (fun (k, v) -> k) }) }
 
     do!
       body
@@ -756,7 +754,7 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                             | other -> other
                           // We don't have these anymore
                           types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
-    let canonicalizeUserFn (uf : ORT.user_fn<ORT.fluidExpr>) =
+    let canonicalizeUserFn (uf : ORT.user_fn) =
       { uf with
           ast = canonicalizeAst uf.ast
           metadata =

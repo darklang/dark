@@ -263,6 +263,7 @@ let main args =
     LibService.Telemetry.DontTraceDBQueries
   (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
   (LibRealExecution.Init.init name).Result
+  Json.Vanilla.allow<SerializedCheckpointData> "datatests"
 
   let fn (canvasName : CanvasName.T) : Task<unit> =
     task {

@@ -46,8 +46,8 @@ type ApiSecret = { secret_name : string; secret_value : string }
 type T =
   { toplevels : ORT.toplevels
     deleted_toplevels : ORT.toplevels
-    user_functions : ORT.user_fn<ORT.fluidExpr> list
-    deleted_user_functions : ORT.user_fn<ORT.fluidExpr> list
+    user_functions : ORT.user_fn list
+    deleted_user_functions : ORT.user_fn list
     unlocked_dbs : tlid list
     user_tipes : ORT.user_tipe list
     deleted_user_tipes : ORT.user_tipe list

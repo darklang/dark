@@ -32,6 +32,7 @@
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <Compile Include="OCamlTypes.fs" />
     <Compile Include="OCamlTypesAst.fs" />
+    <Compile Include="Init.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
