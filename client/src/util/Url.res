@@ -66,39 +66,16 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
     | _ => None
     }
 
-  let pmfn = () =>
-    switch Map.get(~key="packagemanagerfn", unstructured) {
-    | Some(sid) => Some(FocusedPackageManagerFn(TLID.parse(sid)))
-    | _ => None
-    }
+  let getTLID = (key : string) : option<TLID.t> =>
+    Map.get(~key, unstructured) |> Option.andThen(~f=TLID.parse)
 
-  let fn = () =>
-    switch Map.get(~key="fn", unstructured) {
-    | Some(sid) =>
-      let trace = Map.get(~key="trace", unstructured)
-      Some(FocusedFn(TLID.parse(sid), trace))
-    | _ => None
-    }
+  let trace = Map.get(~key="trace", unstructured)
 
-  let handler = () =>
-    switch Map.get(~key="handler", unstructured) {
-    | Some(sid) =>
-      let trace = Map.get(~key="trace", unstructured)
-      Some(FocusedHandler(TLID.parse(sid), trace, true))
-    | _ => None
-    }
-
-  let db = () =>
-    switch Map.get(~key="db", unstructured) {
-    | Some(sid) => Some(FocusedDB(TLID.parse(sid), true))
-    | _ => None
-    }
-
-  let tipe = () =>
-    switch Map.get(~key="type", unstructured) {
-    | Some(sid) => Some(FocusedType(TLID.parse(sid)))
-    | _ => None
-    }
+  let pmfn = () => getTLID("packagemanagerfn")->Option.map(~f=(tlid) => FocusedPackageManagerFn(tlid))
+  let fn = () => getTLID("fn")->Option.map(~f=(tlid) => FocusedFn(tlid, trace))
+  let handler = () => getTLID("handler")->Option.map(~f=(tlid) => FocusedHandler(tlid, trace, true))
+  let db = () => getTLID("db")->Option.map(~f=(tlid) => FocusedDB(tlid, true))
+  let tipe = () => getTLID("type")->Option.map(~f=(tlid) => FocusedType(tlid))
 
   fn()
   |> Option.orElse(pmfn())
