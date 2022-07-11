@@ -257,7 +257,7 @@ Date.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-11-14T14:5
 Date.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:56Z")
 
 [tests.date difference]
-Date.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = 0LL
+Date.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = 0L
 Date.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:45Z") = 1L
 Date.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:36Z") = 10L
 Date.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:56Z") = -10L
