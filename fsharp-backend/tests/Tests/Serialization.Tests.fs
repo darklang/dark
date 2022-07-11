@@ -772,7 +772,7 @@ module GenericSerializersTests =
       both<ApiServer.Workers.Scheduler.T> "all" testWorkerStates
 
       both<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
-      both<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
+      v<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
 
       // ------------------
       // LibAnalysis

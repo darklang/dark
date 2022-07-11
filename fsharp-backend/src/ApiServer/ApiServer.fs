@@ -129,8 +129,7 @@ let addRoutes
   clientJsonApiOption "get_trace_data" R Traces.TraceData.getTraceData
   clientJsonApiOption "v1/get_trace_data" R Traces.TraceData.getTraceData
   clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
-  ocamlCompatibleApi "get_worker_stats" R Workers.WorkerStats.getStats
-  clientJsonApi "v1/get_worker_stats" R Workers.WorkerStats.getStats
+  clientJsonApi "get_worker_stats" R Workers.WorkerStats.getStats
   ocamlCompatibleApi "initial_load" R InitialLoad.initialLoad
   clientJsonApi "v1/initial_load" R InitialLoad.initialLoad
   clientJsonApi "insert_secret" RW Secrets.Insert.insert
@@ -280,7 +279,6 @@ let initSerializers () =
   Json.Vanilla.allow<Workers.Scheduler.T> "ApiServer.Workers"
   Json.OCamlCompatible.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
-  Json.OCamlCompatible.allow<Workers.WorkerStats.T> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.WorkerStats.T> "ApiServer.Workers"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
