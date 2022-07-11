@@ -52,7 +52,7 @@ let run = () => {
       expect(canDelete(list{}, defaultTLID)) |> toEqual(true)
     )
     test("cannot delete a function with used-in references from elsewhere", () => {
-      let caller = aHandler(~tlid=TLID(1l), ())
+      let caller = aHandler(~tlid=TLID.fromInt(1), ())
       expect(canDelete(list{caller}, defaultTLID)) |> toEqual(false)
     })
     test("can delete if only used-in references are itself", () => {
@@ -61,7 +61,7 @@ let run = () => {
     })
     test("cannot delete if any one of the used-in references is from elsewhere", () => {
       let fn = aFn()
-      let caller = aHandler(~tlid=TLID(1l), ())
+      let caller = aHandler(~tlid=TLID.fromInt(1), ())
       expect(canDelete(list{fn, caller}, defaultTLID)) |> toEqual(false)
     })
     ()

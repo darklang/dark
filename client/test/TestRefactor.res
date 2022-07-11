@@ -72,7 +72,7 @@ let sampleFunctions = {
   }
 }
 
-let defaultTLID = TLID.TLID(7l)
+let defaultTLID = TLID.fromInt(7)
 
 let defaultHandler = {
   hTLID: defaultTLID,
@@ -126,7 +126,7 @@ let run = () => {
     }
 
     let handlerWithPointer = (fnName, fnRail) => {
-      let id = ID.ID(1231241l)
+      let id = ID.fromInt(1231241)
       let ast = FluidAST.ofExpr(EFnCall(id, fnName, list{}, fnRail))
       ({...defaultHandler, ast: ast}, id)
     }
@@ -218,12 +218,12 @@ let run = () => {
           name: B.newF("/src"),
           modifier: B.newF("POST"),
         },
-        hTLID: defaultTLID,
+        hTLID: TLID.fromInt(5),
         pos: {x: 0, y: 0},
       }
 
       let f = {
-        ufTLID: gtlid(),
+        ufTLID: TLID.fromInt(6),
         ufMetadata: {
           ufmName: B.newF("f-1"),
           ufmParameters: list{},

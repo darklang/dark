@@ -3,7 +3,7 @@ open Tester
 open CurlCommand
 module B = BlankOr
 
-let defaultTLID = TLID.TLID(7l)
+let defaultTLID = TLID.fromInt(7)
 
 let http = (~path: string, ~meth="GET", ()): handler => {
   ast: FluidAST.ofExpr(EBlank(gid())),
@@ -69,7 +69,7 @@ let run = () => {
       )
     })
     test("returns None if tlid not found", () =>
-      expect(curlFromSpec(m, TLID(1l))) |> toEqual(None)
+      expect(curlFromSpec(m, TLID.fromInt(1))) |> toEqual(None)
     )
     test("returns None for non-HTTP handlers", () => {
       let cronTLID = gtlid()
@@ -91,7 +91,7 @@ let run = () => {
   describe("curlFromCurrentTrace", () => {
     let traces = input =>
       TLID.Dict.empty |> Map.add(
-        ~key=TLID.TLID(7l),
+        ~key=TLID.fromInt(7),
         ~value=list{
           (
             "traceid",

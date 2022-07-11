@@ -46,9 +46,7 @@ module Json = {
   module Encode = Json_encode_extended
 }
 
-// CLEANUP: need to make the backend int31
-// We limit this is 31bit positive ints, as there is not uint32, and we don't want to
-// use 64-bit since JS/JSON can't support it.
+// When we move to support larger numbers here, do not allow UInt64.max, as we use that as FluidToken.fakeid
 let gid = (): ID.t => ID.fromInt(Js_math.random_int(0, 2147483647))
 
 let gtlid = (): TLID.t => TLID.fromInt(Js_math.random_int(0, 2147483647))

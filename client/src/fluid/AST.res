@@ -195,7 +195,7 @@ let freeVariables = (ast: E.t): list<(id, string)> => {
 module VarDict = Map.String
 module IDComparable = Belt.Id.MakeComparable({
   type t = ID.t
-  let cmp = (ID.ID(a),ID.ID(b)) => Int32.compare(a,b)
+  let cmp = ID.cmp
 })
 
 module IDTable = Belt.MutableMap

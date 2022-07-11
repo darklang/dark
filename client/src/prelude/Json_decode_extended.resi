@@ -64,3 +64,6 @@ let beltStrDict: decoder<'a> => decoder<Belt.Map.String.t<'a>>
 let strSet: decoder<Tc.Set.String.t>
 
 let decodeString: (decoder<'a>, string) => Tc.Result.t<'a, string>
+
+let int64: decoder<int64>
+let uint64: decoder<U.UInt64.t>

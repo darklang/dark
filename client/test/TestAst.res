@@ -12,12 +12,11 @@ type transformation_test_result<'a, 'b> =
 
 let run = () => {
   describe("freeVariables", () => {
-    open ID
-    let id1 = ID(5l)
-    let id2 = ID(10l)
-    let id3 = ID(11l)
-    let id4 = ID(12l)
-    let id5 = ID(15l)
+    let id1 = ID.fromInt(5)
+    let id2 = ID.fromInt(10)
+    let id3 = ID.fromInt(11)
+    let id4 = ID.fromInt(12)
+    let id5 = ID.fromInt(15)
     test("lambda var is not free", () =>
       expect(
         freeVariables(ELambda(id1, list{(id2, "var")}, EVariable(id3, "var"))),
@@ -71,7 +70,7 @@ let run = () => {
   })
   describe("variablesIn", () => {
     test("variablesIn correctly identifies available vars in let RHS with incomplete LHS", () => {
-      let testID = ID.ID(923478769l)
+      let testID = ID.fromInt(923478769)
       let inner = ELet(gid(), "", EBlank(testID), E.newB())
       let outer = ELet(gid(), "variable", int(4), inner)
       let vars = variablesIn(outer)->Map.get(~key=testID)
@@ -79,13 +78,13 @@ let run = () => {
       expect(varsFor) |> toEqual(Some(list{"variable"}))
     })
     test("variablesIn correctly gets rhs id of latest let definition", () => {
-      let let1ID = ID.ID(45683422l)
-      let let2ID = ID.ID(2388325l)
-      let a1ID = ID.ID(92305834l)
+      let let1ID = ID.fromInt(45683422)
+      let let2ID = ID.fromInt(2388325)
+      let a1ID = ID.fromInt(92305834)
       let a1 = int(~id=a1ID, 4)
-      let a2ID = ID.ID(23353463l)
+      let a2ID = ID.fromInt(23353463)
       let a2 = int(~id=a2ID, 9)
-      let lastBlankID = ID.ID(93490346l)
+      let lastBlankID = ID.fromInt(93490346)
       let lastBlank = EBlank(lastBlankID)
       let ast = ELet(let1ID, "a", a1, ELet(let2ID, "a", a2, lastBlank))
       expect(

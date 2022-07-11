@@ -686,7 +686,7 @@ let complexExpr = {
 // ----------------
 // Some useful defaults
 // ----------------
-let defaultTLID = TLID.TLID(7l)
+let defaultTLID = TLID.fromInt(7)
 
 let defaultTestFunctions = {
   let fnParam = (name: string, t: tipe, ~blockArgs=list{}, opt: bool): Types.parameter => {
@@ -828,9 +828,9 @@ let defaultTestProps: Types.fluidProps = {
   variants: list{LeftPartialVariant},
 }
 
-let fakeID1 = ID.ID(77777771l)
-let fakeID2 = ID.ID(77777772l)
-let fakeID3 = ID.ID(77777773l)
+let fakeID1 = ID.fromInt(77777771)
+let fakeID2 = ID.fromInt(77777772)
+let fakeID3 = ID.fromInt(77777773)
 
 let defaultTestModel = {
   ...Defaults.defaultModel,

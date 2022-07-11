@@ -412,7 +412,7 @@ let run = () => {
         let expr = fn("Int::add", list{EBlank(id), b})
         let m = defaultModel(
           ~analyses=list{(id, DDB("MyDB"))},
-          ~dbs=list{aDB(~tlid=TLID(23l), ())},
+          ~dbs=list{aDB(~tlid=TLID.fromInt(23), ())},
           ~handlers=list{aHandler(~expr, ())},
           (),
         )

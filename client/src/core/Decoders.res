@@ -130,25 +130,9 @@ let int64 = (j: Js.Json.t) =>
 
 let id = ID.decode
 let tlid = TLID.decode
-
-let wireIdentifierOption = (j: Js.Json.t): option<string> =>
-  if Js.typeof(j) == "object" {
-    None
-  } else {
-    Some(string_of_int((Obj.magic(j): int)))
-  }
-
-let tlidOption = (j: Js.Json.t): option<TLID.t> =>
-  switch wireIdentifierOption(j) {
-  | Some(x) => Some(TLID.fromString(x))
-  | None => None
-  }
-
-let tlidDict = (decoder: Js.Json.t => 'value, j: Js.Json.t): TLID.Dict.t<'value> =>
-  dict(decoder, j)
-  |> Js.Dict.entries
-  |> Array.map(~f=((k, v)) => (TLID.fromString(k), v))
-  |> TLID.Dict.fromArray
+let tlidOption = (j: Js.Json.t): option<TLID.t> => optional(tlid, j)
+let tlidDict = TLID.Dict.decode
+let idMap = ID.Map.decode
 
 let pos = (j): pos => {x: field("x", int, j), y: field("y", int, j)}
 
@@ -607,7 +591,7 @@ let executionResult = (j: Js.Json.t): executionResult =>
   )
 
 let intermediateResultStore = (j: Js.Json.t): intermediateResultStore =>
-  beltStrDict(executionResult, j)
+  idMap(executionResult, j)
 
 let dvalDict = (j: Js.Json.t): dvalDict => strDict(ocamlDval, j)
 
@@ -792,7 +776,7 @@ let trace = (j): trace =>
       }
   )
 
-let traces = (j): traces => j |> list(tuple2(string, list(trace))) |> Map.String.fromList
+let traces = (j): traces => j |> list(tuple2(TLID.decode, list(trace))) |> TLID.Dict.fromList
 
 let userRecordField = j => {
   urfName: field("name", blankOr(string), j),
@@ -874,12 +858,7 @@ let op = (j): op =>
         variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
       ),
       ("SetType", variant1(t => SetType(t), userTipe)),
-      ("DeleteType", variant1(t => DeleteType(t), tlid)),
-      // deprecated, can't happen
-      ("DeprecatedInitDbm", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
-      ("DeleteFunctionForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
-      ("DeleteTLForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
-      ("DeleteTypeForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteType", variant1(t => DeleteType(t), tlid))
     },
     j,
   )

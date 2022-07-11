@@ -174,7 +174,7 @@ let run = () => {
     describe("validate httpName varnames", () => {
       let space = Some("HTTP")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventName(Types.F(ID.ID(0l), "foo"))
+      let pd = PEventName(Types.F(ID.fromInt(0), "foo"))
       test("/foo/bar is valid, no variables", () => {
         let value = "/foo/bar"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -193,7 +193,7 @@ let run = () => {
     describe("validate Worker names", () => {
       let space = Some("WORKER")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventName(Types.F(ID.ID(0l), "foo"))
+      let pd = PEventName(Types.F(ID.fromInt(0), "foo"))
       test("foo is valid", () => {
         let value = "/foo/bar"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -208,7 +208,7 @@ let run = () => {
     describe("validate CRON intervals", () => {
       let space = Some("CRON")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventModifier(Types.F(ID.ID(0l), "5mins"))
+      let pd = PEventModifier(Types.F(ID.fromInt(0), "5mins"))
       test("Every 1hr is valid", () => {
         let value = "Every 1hr"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -518,7 +518,7 @@ let run = () => {
     })
     describe("code search", () => {
       let http = aHandler(
-        ~tlid=TLID(123l),
+        ~tlid=TLID.fromInt(123),
         ~space=Some("HTTP"),
         ~name=Some("/hello"),
         ~modifier=Some("GET"),
@@ -527,7 +527,7 @@ let run = () => {
       )
 
       let repl = aHandler(
-        ~tlid=TLID(456l),
+        ~tlid=TLID.fromInt(456),
         ~space=Some("REPL"),
         ~name=Some("findingDori"),
         ~modifier=Some("_"),
@@ -536,7 +536,7 @@ let run = () => {
       )
 
       let fn = aFunction(
-        ~tlid=TLID(789l),
+        ~tlid=TLID.fromInt(789),
         ~name="fn1",
         ~expr=ELet(gid(), "bunny", EInteger(gid(), 9L), EString(gid(), "\"hello\"")),
         (),

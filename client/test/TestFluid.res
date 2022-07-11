@@ -389,7 +389,7 @@ type modifierKeys = {
 let processMsg = (inputs: list<fluidInputEvent>, astInfo: ASTInfo.t): ASTInfo.t => {
   let h = FluidUtils.h(FluidAST.toExpr(astInfo.ast))
   let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
-  let astInfo = Fluid.updateAutocomplete(m, TLID(7l), astInfo)
+  let astInfo = Fluid.updateAutocomplete(m, TLID.fromInt(7), astInfo)
   List.fold(inputs, ~initial=astInfo, ~f=(astInfo: ASTInfo.t, input) =>
     Fluid.updateMsg'(m, h.hTLID, astInfo, FluidInputEvent(input))
   )
@@ -5007,7 +5007,7 @@ let run = () => {
           m.fluidState,
           FluidMouseUp({
             tlid: tlid,
-            editor: MainEditor(TLID(7l)),
+            editor: MainEditor(TLID.fromInt(7)),
             selection: ClickAt(18),
           }),
         )
@@ -5492,7 +5492,7 @@ let run = () => {
   describe("Neighbours", () => {
     test("with empty AST, have left neighbour", () => {
       open FluidTokenizer
-      let id = ID.ID(543l)
+      let id = ID.fromInt(543)
       expect({
         let ast = EString(id, "test")
         let tokens = tokenize(ast)

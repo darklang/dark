@@ -55,17 +55,6 @@ let _bytes_to_uint8Array = (input: Bytes.t): jsUint8Array => {
 let base64url_bytes = (input: Bytes.t): string =>
   input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 
-let int64 = i =>
-  if i > 9007199254740992L {
-    i->Int64.to_string->string
-  } else if i < -9007199254740992L {
-    i->Int64.to_string->string
-  } else {
-    // We use `float` as `int` is 32bit, and can't handle the space between 2^32 and
-    // 2^53.
-    i->Int64.to_float->Json.Encode.float
-  }
-
 let id = ID.encode
 let tlid = TLID.encode
 
