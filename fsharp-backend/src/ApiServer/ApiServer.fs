@@ -144,8 +144,7 @@ let addRoutes
   clientJsonApi "v1/packages" R (Packages.List.packages packages)
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
-  ocamlCompatibleApi "trigger_handler" RW Execution.Handler.trigger
-  clientJsonApi "v1/trigger_handler" RW Execution.Handler.trigger
+  clientJsonApi "trigger_handler" RW Execution.Handler.trigger
   ocamlCompatibleApi "worker_schedule" RW Workers.Scheduler.updateSchedule
   clientJsonApi "v1/worker_schedule" RW Workers.Scheduler.updateSchedule
   app.UseRouter(builder.Build())
@@ -258,7 +257,6 @@ let initSerializers () =
   Json.Vanilla.allow<Execution.Function.T> "ApiServer.Execution"
   Json.OCamlCompatible.allow<Execution.Handler.Params> "ApiServer.Execution"
   Json.Vanilla.allow<Execution.Handler.Params> "ApiServer.Execution"
-  Json.OCamlCompatible.allow<Execution.Handler.T> "ApiServer.Execution"
   Json.Vanilla.allow<Execution.Handler.T> "ApiServer.Execution"
   Json.OCamlCompatible.allow<F404s.Delete.Params> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"

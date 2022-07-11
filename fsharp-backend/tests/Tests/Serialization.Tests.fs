@@ -658,7 +658,7 @@ module GenericSerializersTests =
       both<ApiServer.Execution.Handler.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
-      both<ApiServer.Execution.Handler.T> "simple" { touched_tlids = [ testTLID ] }
+      v<ApiServer.Execution.Handler.T> "simple" { touched_tlids = [ testTLID ] }
 
       // F404s
       both<ApiServer.F404s.List.T>
