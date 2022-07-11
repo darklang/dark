@@ -896,6 +896,7 @@ module Json =
     || t = typeof<float>
     || t = typeof<int64>
     || t = typeof<uint64>
+    || t = typeof<NodaTime.LocalDateTime>
     || t = typeof<NodaTime.Instant>
     || t = typeof<System.Guid>
 
