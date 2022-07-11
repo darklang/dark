@@ -899,6 +899,10 @@ module Json =
     open NodaTime.Serialization.SystemTextJson
 
     type UInt64Converter() =
+      // We serialize uint64s as valid JSON numbers for as long as we're allowed, and
+      // then we switch to strings. Since the deserialization is type-directed, we
+      // always know we're looking to convert them to uint64s, so if we see a string
+      // we know exactly what it means
       inherit JsonConverter<uint64>()
 
       override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
@@ -909,7 +913,12 @@ module Json =
           reader.GetUInt64()
 
       override _.Write(writer : Utf8JsonWriter, value : uint64, _options) =
-        writer.WriteNumberValue(value)
+        // largest uint64 for which all smaller ints can be represented in a double
+        // without losing precision
+        if value > 9007199254740992UL then
+          writer.WriteStringValue(value.ToString())
+        else
+          writer.WriteNumberValue(value)
 
     type PasswordConverter() =
       inherit JsonConverter<Password>()
@@ -1186,14 +1195,22 @@ module Json =
           Exception.raiseInternal "Invalid token" [ "existingValue", existingValue ]
 
     type UInt64Converter() =
-      inherit JsonConverter<tlid>()
+
+      // We serialize uint64s as valid JSON numbers for as long as we're allowed, and
+      // then we switch to strings. Since the deserialization is type-directed, we
+      // always know we're looking to convert them to uint64s, so if we see a string
+      // we know exactly what it means
+      inherit JsonConverter<uint64>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
         let rawToken = string reader.Value
         parseUInt64 rawToken
 
       override _.WriteJson(writer : JsonWriter, value : uint64, _ : JsonSerializer) =
-        writer.WriteValue(value)
+        if value > 9007199254740992UL then
+          writer.WriteValue(string value)
+        else
+          writer.WriteValue(value)
 
     type RedactedPasswordConverter() =
       inherit JsonConverter<Password>()
