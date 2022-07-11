@@ -255,20 +255,11 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "Date" "subtract" 0) }
 
 
-    { name = fn "Date" "subtract" 0
-      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
-      returnType = TDate
-      description = "Returns a new Date `seconds` seconds before `d`"
-      fn =
-        (function
-        | _, [ DDate d; DInt s ] ->
-          d - (NodaTime.Period.FromSeconds s) |> DDate |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "-"
-      previewable = Pure
-      deprecated = RenamedTo(fn "Date" "subtractSeconds" 0) }
-
-
+    // Note: this was was previously named`Date::subtract_v0`.
+    // A new Date::subtract_v1 was created to replace this, and subtract_v0 got
+    // replaced with this ::subtractSeconds_v0. "Date::subtract" implies that
+    // you are subtracting one date from another, so subtracting anything else
+    // should include the name of the relevant unit in the fn name.
     { name = fn "Date" "subtractSeconds" 0
       parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
       returnType = TDate
