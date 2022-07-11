@@ -54,6 +54,9 @@ module Builder = {
 
   let listLimit = 60
 
+  /** # of items in a tuple before we should wrap*/
+  let tupleLimit = 60
+
   let add = (token: fluidToken, b: t): t => {
     let tokenLength = token |> T.toText |> String.length
     let (newTokens, xPos) = // Add new tokens on the front
@@ -423,9 +426,10 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TLambdaArrow(id, parentID))
     |> nest(~indent=2, body)
   | EList(id, exprs) =>
-    /*
-         With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
- */
+    /* With each iteration of the list, we calculate the new line length if
+     * we were to add this new item. If the new line length exceeds the
+     * limit, then we add a new line token and an indent by 1 first, before
+     * adding the tokenized item to the builder. */
     let lastIndex = List.length(exprs) - 1
     let xOffset = b.xPos |> Option.unwrap(~default=0)
     let pid = if lastIndex == -1 {
@@ -464,6 +468,56 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       )
     })
     |> add(TListClose(id, pid))
+  | ETuple(id, first, second, theRest) =>
+    let exprs = list{first, second, ...theRest}
+
+    // With each item of the tuple, we calculate the new line length if we were
+    // to add this new item. If the new line length exceeds the limit, then we
+    // add a new line token and an indent by 1 first, before adding the
+    // tokenized item to the builder.
+
+    // TODO or we could define isLastElement, and pass the itemIndex as a param
+    // (I think this would be make the code more clear.)
+    let lastIndex = List.length(exprs) - 1
+
+    let xOffset = b.xPos |> Option.unwrap(~default=0)
+
+    b
+    |> add(TTupleOpen(id))
+    |> addIter(exprs, ~f=(i, e, b') => {
+      let currentLineLength = {
+        let commaWidth = if i != lastIndex {
+          1
+        } else {
+          0
+        }
+        toTokens'(e, b').xPos
+        |> Option.map(~f=x => x - xOffset + commaWidth)
+        |> Option.unwrap(~default=commaWidth)
+      }
+
+      let isNotFirstElement = i > 0
+      let isOverLimit = currentLineLength > tupleLimit
+
+      // Even if first element overflows, don't put it in a new line
+      let shouldIndent = isNotFirstElement && isOverLimit
+
+      // Indent after newlines to match the '( '
+      let indent = if shouldIndent {
+        1
+      } else {
+        0
+      }
+
+      b'
+      |> addIf(shouldIndent, TNewline(None))
+      |> indentBy(~indent, ~f=b' =>
+        b'
+        |> addNested(~f=toTokens'(~parentID=Some(id), e))
+        |> addIf(i != lastIndex, TTupleComma(id, i))
+      )
+    })
+    |> add(TTupleClose(id))
   | ERecord(id, fields) =>
     if fields == list{} {
       b |> addMany(list{TRecordOpen(id, None), TRecordClose(id, None)})

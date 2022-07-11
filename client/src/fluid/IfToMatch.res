@@ -39,6 +39,7 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
     | E.ERightPartial(_)
     | E.ELeftPartial(_)
     | E.EList(_)
+    | E.ETuple(_)
     | E.ERecord(_)
     | E.EPipe(_)
     | /* Constructor could be possible, but subexpressions would need to be

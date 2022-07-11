@@ -42,13 +42,14 @@ let varErr = TVariable "err"
 //
 //   https://jwt.io/ is helpful for validating this!
 
+
 // SERIALIZER_DEF LibJwt.LegacySerializer
 // Plan: deprecate existing JWT fns; put these types and serializer fn in a
 // corner to remain untouched. New JWT functions should use a new
 // roundtrippable thing that is based on a type definition and is also separate
 // from the rest of the world (even if code is identical) for safety.
 module private LegacySerializer =
-  // The LibJWT functions use signitures based off the exact string encoding of
+  // The LibJWT functions use signatures based off the exact string encoding of
   // Dvals. This was defined in the original OCaml version. We need to keep
   // this exactly the same or the signatures won't match.
 
@@ -94,6 +95,17 @@ module private LegacySerializer =
     | DResult (Ok dv) -> toYojson dv
     | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
     | DBytes bytes -> bytes |> Base64.defaultEncodeToString |> String
+    | DTuple (first, second, theRest) ->
+      // CLEANUP this doesn't roundtrip. It _could_ with this:
+      // Assoc [
+      //   "type", String "tuple"
+      //   "first", toYojson first
+      //   "second", toYojson second
+      //   "theRest", List(List.map toYojson theRest)
+      // ]
+      // and some relevant code on the parsing side of libjwt.
+      // Make LibJwt roundtrip tuples well with the next version.
+      List([ toYojson first; toYojson second ] @ List.map toYojson theRest)
 
   // We are adding bytes to match the old OCaml implementation. Don't use strings
   // or characters as those are different sizes: OCaml strings were literally

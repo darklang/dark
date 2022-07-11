@@ -116,6 +116,7 @@ type Expr =
   // ELeftPartial is rendered as the string followed by the normal rendering of the old expression.
   | ELeftPartial of id * string * Expr
   | EList of id * List<Expr>
+  | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   // Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
@@ -136,6 +137,7 @@ type DType =
   | TNull
   | TStr
   | TList of DType
+  | TTuple of DType * DType * List<DType>
   | TDict of DType
   | TIncomplete
   | TError

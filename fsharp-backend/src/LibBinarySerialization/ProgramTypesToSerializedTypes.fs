@@ -83,6 +83,8 @@ module Expr =
     | PT.ELeftPartial (id, str_, expr) -> ST.ELeftPartial(id, str_, toST expr)
 
     | PT.EList (id, exprs) -> ST.EList(id, List.map toST exprs)
+    | PT.ETuple (id, first, second, theRest) ->
+      ST.ETuple(id, toST first, toST second, List.map toST theRest)
     | PT.ERecord (id, pairs) ->
       ST.ERecord(id, List.map (Tuple2.mapSecond toST) pairs)
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
@@ -108,6 +110,8 @@ module DType =
     | PT.TNull -> ST.TNull
     | PT.TStr -> ST.TStr
     | PT.TList typ -> ST.TList(toST typ)
+    | PT.TTuple (first, second, theRest) ->
+      ST.TTuple(toST first, toST second, List.map toST theRest)
     | PT.TDict typ -> ST.TDict(toST typ)
     | PT.TIncomplete -> ST.TIncomplete
     | PT.TError -> ST.TError

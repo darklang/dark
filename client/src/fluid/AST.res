@@ -53,6 +53,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | EPipe(_, e1, e2, rest) => list{e1, e2, ...rest} |> List.map(~f=u) |> List.flatten
     | EFieldAccess(_, obj, _) => u(obj)
     | EList(_, exprs) => exprs |> List.map(~f=u) |> List.flatten
+    | ETuple(_, first, second, theRest) => list{first, second, ...theRest} |> List.map(~f=u) |> List.flatten
     | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second) |> List.map(~f=u) |> List.flatten
     | EFeatureFlag(_, _, cond, a, b) => List.flatten(list{u(cond), u(a), u(b)})
     | EMatch(_, matchExpr, cases) =>
@@ -236,6 +237,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     | EPipe(_, e1, e2, rest) => List.forEach(~f=sexe(st), list{e1, e2, ...rest})
     | EFieldAccess(_, obj, _) => sexe(st, obj)
     | EList(_, exprs) => List.forEach(~f=sexe(st), exprs)
+    | ETuple(_, first, second, theRest) => List.forEach(~f=sexe(st), list{first, second, ...theRest})
     | EMatch(_, matchExpr, cases) =>
       let rec variablesInPattern = p =>
         switch p {

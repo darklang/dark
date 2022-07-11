@@ -47,6 +47,7 @@ module RoundtrippableSerializationFormatV0 =
     | DStr of string
     | DChar of string
     | DList of List<Dval>
+    | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DObj of DvalMap
     | DError of DvalSource * string
@@ -85,6 +86,8 @@ module RoundtrippableSerializationFormatV0 =
     | DHttpResponse (Response (code, headers, hdv)) ->
       RT.DHttpResponse(RT.Response(code, headers, toRT hdv))
     | DList l -> RT.DList(List.map toRT l)
+    | DTuple (first, second, theRest) ->
+      RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DObj o -> RT.DObj(Map.map toRT o)
     | DOption None -> RT.DOption None
     | DOption (Some dv) -> RT.DOption(Some(toRT dv))
@@ -115,6 +118,8 @@ module RoundtrippableSerializationFormatV0 =
     | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
       DHttpResponse(Response(code, headers, fromRT hdv))
     | RT.DList l -> DList(List.map fromRT l)
+    | RT.DTuple (first, second, theRest) ->
+      DTuple(fromRT first, fromRT second, List.map fromRT theRest)
     | RT.DObj o -> DObj(Map.map fromRT o)
     | RT.DOption None -> DOption None
     | RT.DOption (Some dv) -> DOption(Some(fromRT dv))

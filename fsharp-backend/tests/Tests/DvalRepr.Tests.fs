@@ -15,6 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalNew = LibExecution.DvalReprInternalNew
 module Errors = LibExecution.Errors
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
@@ -69,6 +70,7 @@ let testToDeveloperRepr =
         [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {  }\nnull"
           RT.DFloat(-0.0), "-0."
           RT.DFloat(infinity), "inf"
+          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
           RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
           RT.DList [ RT.DNull ], "[ \n  null\n]" ] ]
 
@@ -83,6 +85,7 @@ let testToEnduserReadable =
       RT.DFloat(5.1), "5.1"
       RT.DFloat(-5.0), "-5."
       RT.DFloat(-5.1), "-5.1"
+      RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
       RT.DError(RT.SourceNone, "Some message"), "Error"
       RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull"
       RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DNull)),
@@ -92,7 +95,9 @@ let testToPrettyResponseJson =
   testMany
     "toPrettyResponseJson"
     LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
-    [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}" ]
+    [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}"
+
+      RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "[\n  1,\n  2,\n  3\n]" ]
 
 
 let testDateMigrationHasCorrectFormats =
@@ -132,25 +137,38 @@ let testToPrettyRequestJson =
       | e -> e.Message)
     [ RT.DErrorRail(RT.DResult(Ok RT.DNull)),
       "Unknown Err: (Failure \"printing an unprintable value:<result>\")"
+
       RT.DError(RT.SourceNone, "some message"), "<error: error>"
+
       RT.DIncomplete RT.SourceNone, "<incomplete: <incomplete>>"
+
       RT.DDB "my dbstore", "<datastore: my dbstore>"
+
       RT.DUuid(System.Guid.Parse "1271ebde-7d15-327d-9a36-f9bee0ac22e7"),
       "<uuid: 1271ebde-7d15-327d-9a36-f9bee0ac22e7>"
+
       RT.DPassword(Password [| 76uy; 13uy |]), "<password: <password>>"
+
       RT.DBytes [||],
       "Unknown Err: (Failure \"printing an unprintable value:<bytes>\")"
+
       RT.DDate(
         NodaTime.Instant.parse "2019-07-28T22:42:36Z" |> RT.DDateTime.fromInstant
       ),
       "<date: 2019-07-28T22:42:36Z>"
+
       (RT.DErrorRail(RT.DHttpResponse(RT.Redirect("some url"))),
        "ErrorRail: 302 some url\n  null")
+
       (RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull")
+
       (RT.DHttpResponse(RT.Response(200L, [], RT.DStr "some url"))),
       "200 {  }\n\"some url\""
+
       (RT.DHttpResponse(RT.Response(200L, [ "header", "value" ], RT.DStr "some url"))),
-      "200 { header: value }\n\"some url\"" ]
+      "200 { header: value }\n\"some url\""
+
+      RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)" ]
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
@@ -169,6 +187,7 @@ module ToHashableRepr =
       "toHashableRepr string"
       [ t (DHttpResponse(Redirect "")) "302 \nnull"
         t (DFloat 0.0) "0."
+        t (DTuple(DInt 1, DStr "two", [ DFloat 3.14 ])) "(\n  1, \"two\", 3.14\n)"
         t
           (DObj(
             Map.ofList [ ("", DNull)
@@ -186,7 +205,6 @@ module ToHashableRepr =
                    DStr "6"
                    DResult(Ok(DHttpResponse(Response(0L, [], DChar "")))) ])
           "[ \n  <uuid: 3e64631e-f455-5d61-30f7-2be5794ebb19>, \"6\", ResultOk 0 {  }\n    ''\n]"
-
         t
           (DBytes [| 148uy; 96uy; 130uy; 71uy |])
           "HnXEOfyd6X-BKhAPIBY6kHcrYLxO44nHCshZShS12Qy2qbnLc6vvrQnU4bjTiewW" ]
@@ -268,10 +286,57 @@ let allRoundtrips =
       t
         "queryable v0"
         FuzzTests.InternalJson.Queryable.canV1Roundtrip
-        (dvs DvalReprInternalDeprecated.isQueryableDval) ]
+        (dvs DvalReprInternalDeprecated.Test.isQueryableDval) ]
 
+let testInternalRoundtrippableV0 =
+  testList
+    "tuples"
+    [ test "serializes correctly" {
+        let expected = """{"type":"tuple","first":1,"second":2,"theRest":[3]}"""
 
+        let actual =
+          RT.Dval.DTuple(RT.Dval.DInt 1, RT.Dval.DInt 2, [ RT.Dval.DInt 3 ])
+          |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
 
+        Expect.equal actual expected ""
+      }
+
+      test "roundtrips successfully" {
+        let tpl = RT.Dval.DTuple(RT.Dval.DInt 1, RT.Dval.DInt 2, [ RT.Dval.DInt 3 ])
+
+        let roundtripped =
+          tpl
+          |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+          |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+
+        Expect.equal tpl roundtripped ""
+      } ]
+
+let testInternalRoundtrippableNew =
+  testList
+    "internalNew"
+    [ test "tuples serialize correctly" {
+        let expected = """["DTuple",["DInt",1],["DInt",2],[["DInt",3]]]"""
+
+        let actual =
+          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
+          |> DvalReprInternalNew.toRoundtrippableJsonV0
+
+        Expect.equal actual expected ""
+      } ]
+
+let testToPrettyMachineJsonStringV1 =
+  testList
+    "toPrettyMachineJsonStringV1"
+    [ test "tuples serialize correctly" {
+        let expected = "[1,2,3\n]"
+
+        let actual =
+          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
+          |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1
+
+        Expect.equal actual expected ""
+      } ]
 
 module Password =
   let testJsonRoundtripForwards =
@@ -336,7 +401,7 @@ module Password =
         DvalReprLegacyExternal.toEnduserReadableTextV0
       doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
       doesRedact
-        "toPrettyMachineJsonV1"
+        "toPrettyMachineJsonStringV1"
         DvalReprLegacyExternal.toPrettyMachineJsonStringV1
       doesRedact
         "toPrettyRequestJsonV0"
@@ -436,6 +501,9 @@ let tests =
       testToPrettyResponseJson
       testDateMigrationHasCorrectFormats
       ToHashableRepr.tests
+      testInternalRoundtrippableNew
+      testToPrettyMachineJsonStringV1
       Password.tests
+      testInternalRoundtrippableV0
       testPreviousDateSerializionCompatibility
       allRoundtrips ]

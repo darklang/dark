@@ -46,11 +46,13 @@ let main (args : string array) : int =
         Tests.EventQueueV2.tests
         Tests.Execution.tests
         Tests.FSharpToExpr.tests
+        Tests.HttpQueryEncoding.tests
         Tests.HttpClient.tests
         Tests.LibExecution.tests.Force()
         Tests.Prelude.tests
         Tests.ProgramTypes.tests
         Tests.Routing.tests
+        Tests.RuntimeTypes.tests
         Tests.Serialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests

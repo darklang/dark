@@ -1080,12 +1080,12 @@ let run = () => {
     ()
   })
   describe("Lists", () => {
-    /* NOT WORKING YET
-      testCopy
-        "copying opening bracket adds empty list expr to clipboard"
-        (list ([int ("123")]))
-        ((0, 1))
-        ("[123]",  "[]") ; */
+    // TODO fix this
+    // testCopy
+    //  "copying opening bracket adds empty list expr to clipboard"
+    //  (list ([int ("123")]))
+    //  ((0, 1))
+    //  ("[123]",  "[]") ;
     testCopy(
       "copying subset of elements adds subset list expr to clipboard",
       list(list{int(123), int(456), int(789)}),
@@ -1098,18 +1098,19 @@ let run = () => {
       (5, 12),
       ("[123,~___]", "[456,789]"),
     )
-    /* NOT WORKING b/c placing the cursor on either side of a separator
-       * acts as though it's on the sub-expression
-      t
-        "pasting an expression into list expr at separator works"
-        (list
-           (
-           , [ int ("123")
-             ; int ("456")
-             ; int ("789") ] ))
-        (paste ~clipboard:(int ("9000")) (4, 5))
-        ("[123,9000,456,789]", "9000", 9) ;
- */
+
+    // TODO fix this. NOT WORKING b/c placing the cursor on either side of a
+    // separator acts as though it's on the sub-expression.
+    //  t
+    //    "pasting an expression into list expr at separator works"
+    //    (list
+    //       (
+    //       , [ int ("123")
+    //         ; int ("456")
+    //         ; int ("789") ] ))
+    //    (paste ~clipboard:(int ("9000")) (4, 5))
+    //    ("[123,9000,456,789]", "9000", 9) ;
+
     testPasteExpr(
       "pasting an expression over subset of list expr works",
       list(list{int(123), int(456), int(789)}),
@@ -1119,6 +1120,100 @@ let run = () => {
     )
     ()
   })
+
+  describe("Tuples", () => {
+    // TUPLETODO: once the following github issue is resolved, write tests
+    // around such functionality https://github.com/darklang/dark/issues/4235
+
+    // whole tuple
+    testCopy(
+      "copying whole tuple adds tuple expr to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (0, 10),
+      "(12,34,56)",
+    )
+    testCut(
+      "cutting whole tuple removes tuple and copies to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (0, 10),
+      ("~___", "(12,34,56)"),
+    )
+
+    // all elements within a tuple (i.e. excluding parens)
+    testCopy(
+      "copying whole tuple internals adds tuple expr to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (1, 9),
+      "(12,34,56)",
+    )
+    // testCut(// TUPLETODO: Resolve bug here. currently, `1~` somehow remains.
+    //   "cutting whole tuple internals removes tuple and copies tuple expr to clipboard",
+    //   tuple(int(12), int(34), list{int(56)}),
+    //   (1, 9),
+    //   ("~___", "(12,34,56)"),
+    // )
+
+    // first 2 out of 3 tuple elements
+    testCopy(
+      "copying first 2/3 items in tuple adds subset tuple expr to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (0, 6),
+      "(12,34)",
+    )
+    testCut(
+      "cutting first 2/3 items in tuple leaves the 3rd item and copies the subset to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (0, 6),
+      ("~56", "(12,34)"),
+    )
+
+    // last 2 out of 3 tuple elements
+    testCopy(
+      "copying last 2/3 items in tuple adds subset tuple expr to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (4, 10),
+      "(34,56)",
+    )
+    testCut(
+      "cutting last 2/3 items in tuple leaves the 3rd item and copies the subset to clipboard",
+      tuple(int(12), int(34), list{int(56)}),
+      (4, 10),
+      ("(12,~___)", "(34,56)"),
+    )
+
+    // between these two cursors ("hel|lo", 12|34)
+    testCopy(
+      "copying halfway between tuple parts copies just the data selected to clipboard",
+      tuple(str("hello"), int(1234), list{}), // ("hello",1234)
+      (5, 11),
+      "(\"lo\",12)",
+    )
+    // testCut( // TUPLETODO fix results - somehow an extra 'l' is being included.
+    //   "cutting halfway between tuple parts leaves a partial tuple and copies the data selected to clipboard",
+    //   tuple(str("hello"), int(1234), list{}), // ("hello",1234)
+    //   (5, 11),
+    //   ("(\"hel~\")", "(\"lo\",12)"),
+    // )
+
+    // pasting tuples
+    testPasteText(
+      "pasting a 2-tuple from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      "(12,34)",
+      "(12,34)~"
+    )
+    testPasteText(
+      "pasting a 3-tuple from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      "(12,34,56)",
+      "(12,34,56)~"
+    )
+
+    ()
+  })
+
   describe("Records", () => {
     testCopy(
       "copying opening bracket adds empty record expr to clipboard",

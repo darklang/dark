@@ -76,14 +76,29 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // instead of ignoring, this is probably a mistake.
       let! results = Ply.List.mapSequentially (eval state st) exprs
 
-      let filtered =
-        List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
+      // We filter these out as we want users to be able to add elements to
+      // lists without breaking their code.
+      let filtered = List.filter (not << Dval.isIncomplete) results
 
       // CLEANUP: why do we only find errorRail, and not errors. Seems like
       // a mistake
-      match List.tryFind (fun (dv : Dval) -> Dval.isErrorRail dv) filtered with
+      match List.tryFind Dval.isErrorRail filtered with
       | Some er -> return er
       | None -> return (DList filtered)
+
+    | ETuple (_id, first, second, theRest) ->
+
+      let! firstResult = eval state st first
+      let! secondResult = eval state st second
+      let! otherResults = Ply.List.mapSequentially (eval state st) theRest
+
+      let allResults = [ firstResult; secondResult ] @ otherResults
+
+      // If any element in a tuple is fake (blank, error, etc.),
+      // we don't want to return a tuple, but rather the fake val.
+      match List.tryFind Dval.isFake allResults with
+      | Some fakeDval -> return fakeDval
+      | None -> return DTuple(firstResult, secondResult, otherResults)
 
     | EVariable (id, name) ->
       match (st.TryFind name, state.tracing.realOrPreview) with
@@ -115,6 +130,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let evaluated = List.choose Operators.id evaluated
 
       // CLEANUP - we should propagate DErrors too
+
+      // CLEANUP - we should propogate blank field names too
+      // (similar to tuples, the other product type)
       let errorRail = List.tryFind (fun (_, dv) -> Dval.isErrorRail dv) evaluated
 
       match errorRail with

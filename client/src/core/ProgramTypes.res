@@ -94,6 +94,7 @@ module Expr = {
     | ERightPartial(id, string, t)
     | ELeftPartial(id, string, t)
     | EList(id, list<t>)
+    | ETuple(id, t, t, list<t>)
     | ERecord(id, list<(string, t)>)
     | EPipe(id, t, t, list<t>)
     | EConstructor(id, string, list<t>)

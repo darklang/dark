@@ -59,7 +59,8 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DPassword _
   | DOption _
   | DResult _
-  | DBytes _ ->
+  | DBytes _
+  | DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
   | DDate date -> date |> DDateTime.toDateTimeUtc |> Sql.timestamptz
   | DInt i -> Sql.int64 i
@@ -390,6 +391,11 @@ let partiallyEvaluate
             | EList (id, exprs) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EList(id, exprs)
+            | ETuple (id, first, second, theRest) ->
+              let! first = r first
+              let! second = r second
+              let! theRest = Ply.List.mapSequentially r theRest
+              return ETuple(id, first, second, theRest)
             | EMatch (id, mexpr, pairs) ->
               let! mexpr = r mexpr
 

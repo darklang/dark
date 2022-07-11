@@ -537,35 +537,35 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
 // Create the list
 // ------------------------------------
 
-let allowedParamTipes = /* Types from Types.tipe that aren't included:
-       TCharacter - very hard to create characters right now, so this type
-                    would raises more questions than answers right now
-       TNull - trying to get rid of this, so don't spread it
-       TIncomplete - makes no sense to pass to a function
-       TError - makes no sense to pass to a function
-       TResp - these aren't really exposed to users as real things, but maybe
-               should be?
-       TErrorRail  - doesn't make sense pass to function
-       TDbList - only for DB schemas
-       TUserType  - added later
+/* Types from Types.tipe that aren't included:
+- TCharacter: TODO include once Characters are more easily add-able within code
+- TNull: trying to get rid of this, so don't spread it
+- TIncomplete: makes no sense to pass to a function
+- TError: makes no sense to pass to a function
+- TResp: these aren't really exposed to users as real things, but maybe should?
+- TErrorRail: doesn't make sense pass to function
+- TDbList: only for DB schemas
+- TUserType: added later
+- TTuple: currently awkward to support parameterized types. TODO
  */
-list{
-  TInt,
-  TStr,
-  TBool,
-  TFloat,
-  TObj,
-  TList,
-  TAny,
-  TBlock,
-  TDB,
-  TDate,
-  TPassword,
-  TUuid,
-  TOption,
-  TResult,
-  TBytes,
-}
+let allowedParamTipes =
+  list{
+    TInt,
+    TStr,
+    TBool,
+    TFloat,
+    TObj,
+    TList,
+    TAny,
+    TBlock,
+    TDB,
+    TDate,
+    TPassword,
+    TUuid,
+    TOption,
+    TResult,
+    TBytes,
+  }
 
 let allowedReturnTipes = allowedParamTipes
 

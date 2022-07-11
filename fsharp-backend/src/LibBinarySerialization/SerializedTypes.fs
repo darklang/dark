@@ -133,6 +133,7 @@ type Expr =
   | EMatch of id * Expr * List<Pattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
+  | ETuple of id * Expr * Expr * List<Expr>
 
 [<MessagePack.MessagePackObject>]
 type DType =
@@ -160,7 +161,7 @@ type DType =
   | TFn of List<DType> * DType
   | TRecord of List<string * DType>
   | TDbList of DType // TODO: cleanup and remove
-
+  | TTuple of DType * DType * List<DType>
 
 module Handler =
   [<MessagePack.MessagePackObject>]

@@ -5,17 +5,22 @@ module B = BlankOr
 module RT = Runtime
 module TL = Toplevel
 
-/* Borrowed from libexecution/dval.mli with some items - DObj, DResult (ResError
- * _), DOption (OptNothing) - moved to the None case */
 let rec to_url_string = (dv: dval): option<string> =>
   switch dv {
+  // things that can't be parsed out of a HTTP request
   | DBlock(_)
   | DIncomplete(_)
   | DPassword(_)
   | DObj(_)
   | DOption(OptNothing)
+  | DTuple(_)
   | DResult(ResError(_)) =>
     None
+
+  // some of these things also can't be parsed out of a HTTP request,
+  // but someone has added code for those cases anyway
+  // CLEANUP we can probably remove types that cannot be created as part of
+  // a HTTP request
   | DInt(i) => Some(string_of_int(i))
   | DBool(true) => Some("true")
   | DBool(false) => Some("false")

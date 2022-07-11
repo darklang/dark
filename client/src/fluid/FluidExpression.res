@@ -29,6 +29,7 @@ let toID = (expr: t): id =>
   | ERightPartial(id, _, _)
   | ELeftPartial(id, _, _)
   | EList(id, _)
+  | ETuple(id, _, _, _)
   | ERecord(id, _)
   | EPipe(id, _, _, _)
   | EPipeTarget(id)
@@ -39,7 +40,7 @@ let toID = (expr: t): id =>
   }
 
 let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrExpr> => {
-  let (id, patOrExprs) = switch within {
+  let (id, childPatOrExprs) = switch within {
   | Expr(expr) =>
     switch expr {
     | EInteger(id, _)
@@ -67,6 +68,9 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | EFnCall(id, _, exprs, _)
     | EList(id, exprs)
     | EConstructor(id, _, exprs) => (id, List.map(exprs, ~f=e1 => Expr(e1)))
+    | ETuple(id, first, second, theRest) =>
+      let childExprs = List.map(list{first, second, ...theRest}, ~f = e1 => Expr(e1))
+      (id, childExprs)
     | ERecord(id, nameAndExprs) => (id, List.map(nameAndExprs, ~f=((_, e1)) => Expr(e1)))
     | EMatch(id, e1, pairs) => (
         id,
@@ -92,7 +96,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
   if id == target {
     Some(within)
   } else {
-    patOrExprs |> List.findMap(~f=pOrE => findExprOrPat(target, pOrE))
+    childPatOrExprs |> List.findMap(~f=pOrE => findExprOrPat(target, pOrE))
   }
 }
 
@@ -125,6 +129,9 @@ let rec find = (target: id, expr: t): option<t> => {
     | EList(_, exprs)
     | EConstructor(_, _, exprs) =>
       List.findMap(~f=fe, exprs)
+    | ETuple(_, first, second, theRest) =>
+      let exprs = list{first, second, ...theRest}
+      List.findMap(~f=fe, exprs)
     | EPipe(_, expr1, expr2, exprs) => List.findMap(~f=fe, list{expr1, expr2, ...exprs})
     | EPartial(_, _, oldExpr)
     | ERightPartial(_, _, oldExpr)
@@ -153,15 +160,20 @@ let children = (expr: t): list<t> =>
   | ELeftPartial(_, _, expr)
   | ELambda(_, _, expr)
   | EFieldAccess(_, expr, _) => list{expr}
+
   // Two
   | EBinOp(_, _, c0, c1, _) | ELet(_, _, c0, c1) => list{c0, c1}
+
   // Three
   | EFeatureFlag(_, _, c0, c1, c2) | EIf(_, c0, c1, c2) => list{c0, c1, c2}
-  // List
+
+  // Multiple
   | EFnCall(_, _, exprs, _)
   | EList(_, exprs)
   | EConstructor(_, _, exprs) => exprs
+  | ETuple(_, first, second, theRest) => list{first, second, ...theRest}
   | EPipe(_, expr1, expr2, exprs) => list{expr1, expr2, ...exprs}
+
   // Special
   | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second)
   | EMatch(_, matchExpr, cases) =>
@@ -193,6 +205,9 @@ let isEmpty = (expr: t): bool =>
   | ERecord(_, list{}) => true
   | ERecord(_, l) => l |> List.filter(~f=((k, v)) => k == "" && !isBlank(v)) |> List.isEmpty
   | EList(_, l) => l |> List.filter(~f=\"<<"(not, isBlank)) |> List.isEmpty
+  | ETuple(_, first, second, theRest) =>
+    let exprs = list{first, second, ...theRest}
+    exprs |> List.filter(~f = e => not(isBlank(e))) |> List.isEmpty
   | _ => false
   }
 
@@ -221,6 +236,7 @@ let rec preTraversal = (~f: t => t, expr: t): t => {
   | EFnCall(id, name, exprs, ster) => EFnCall(id, name, List.map(~f=r, exprs), ster)
   | ELambda(id, names, expr) => ELambda(id, names, r(expr))
   | EList(id, exprs) => EList(id, List.map(~f=r, exprs))
+  | ETuple(id, first, second, theRest) => ETuple(id, r(first), r(second), List.map(~f=r, theRest))
   | EMatch(id, mexpr, pairs) =>
     EMatch(id, r(mexpr), List.map(~f=((name, expr)) => (name, r(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, r(expr)), fields))
@@ -251,6 +267,7 @@ let rec postTraversal = (~f: t => t, expr: t): t => {
   | EFnCall(id, name, exprs, ster) => EFnCall(id, name, List.map(~f=r, exprs), ster)
   | ELambda(id, names, expr) => ELambda(id, names, r(expr))
   | EList(id, exprs) => EList(id, List.map(~f=r, exprs))
+  | ETuple(id, first, second, theRest) => ETuple(id, r(first), r(second), List.map(~f=r, theRest))
   | EMatch(id, mexpr, pairs) =>
     EMatch(id, r(mexpr), List.map(~f=((name, expr)) => (name, r(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, r(expr)), fields))
@@ -282,6 +299,7 @@ let deprecatedWalk = (~f: t => t, expr: t): t =>
   | EFnCall(id, name, exprs, ster) => EFnCall(id, name, List.map(~f, exprs), ster)
   | ELambda(id, names, expr) => ELambda(id, names, f(expr))
   | EList(id, exprs) => EList(id, List.map(~f, exprs))
+  | ETuple(id, first, second, theRest) => ETuple(id, f(first), f(second), List.map(~f, theRest))
   | EMatch(id, mexpr, pairs) =>
     EMatch(id, f(mexpr), List.map(~f=((name, expr)) => (name, f(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, f(expr)), fields))
@@ -452,6 +470,7 @@ let rec clone = (expr: t): t => {
   | EBlank(_) => EBlank(gid())
   | EVariable(_, name) => EVariable(gid(), name)
   | EList(_, exprs) => EList(gid(), cl(exprs))
+  | ETuple(_, first, second, theRest) => ETuple(gid(), c(first), c(second), cl(theRest))
   | ERecord(_, pairs) => ERecord(gid(), List.map(~f=((k, v)) => (k, c(v)), pairs))
   | EFeatureFlag(_, name, cond, a, b) => EFeatureFlag(gid(), name, c(cond), c(a), c(b))
   | EMatch(_, matchExpr, cases) =>
@@ -494,6 +513,9 @@ let ancestors = (id: id, expr: t): list<t> => {
       | EPipe(_, e1, e2, rest) => reclist(id, exp, walk, list{e1, e2, ...rest})
       | EFieldAccess(_, obj, _) => rec_(id, exp, walk, obj)
       | EList(_, exprs) => reclist(id, expr, walk, exprs)
+      | ETuple(_, first, second, theRest) =>
+        let exprs = list{first, second, ...theRest}
+        reclist(id, expr, walk, exprs)
       | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second) |> reclist(id, expr, walk)
       | EFeatureFlag(_, _, cond, a, b) => reclist(id, exp, walk, list{cond, a, b})
       | EMatch(_, matchExpr, cases) =>
@@ -558,6 +580,10 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     lhs == lhs' && eq2((rhs, rhs'), (body, body'))
   | (EIf(_, con, thn, els), EIf(_, con', thn', els')) => eq3((con, con'), (thn, thn'), (els, els'))
   | (EList(_, l), EList(_, l')) => eqList(l, l')
+  | (ETuple(_, first, second, theRest), ETuple(_, first', second', theRest')) =>
+    let exprs = list{first, second, ...theRest}
+    let exprs' = list{first', second', ...theRest'}
+    eqList(exprs, exprs')
   | (EFnCall(_, name, args, toRail), EFnCall(_, name', args', toRail')) =>
     name == name' && (eqList(args, args') && toRail == toRail')
   | (EBinOp(_, name, lhs, rhs, toRail), EBinOp(_, name', lhs', rhs', toRail')) =>
@@ -596,6 +622,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (ELet(_), _)
   | (EIf(_), _)
   | (EList(_), _)
+  | (ETuple(_), _)
   | (EFnCall(_), _)
   | (EBinOp(_), _)
   | (ERecord(_), _)
@@ -679,6 +706,9 @@ let toHumanReadable = (expr: t): string => {
       Printf.sprintf("(record\n%s)", String.join(~sep="\n", pairStrs))
     | EList(_, list{}) => "(list)"
     | EList(_, exprs) => Printf.sprintf("(list\n%s)", newlineList(exprs))
+    | ETuple(_, first, second, theRest) =>
+      let exprs = list{first, second, ...theRest}
+      Printf.sprintf("(tuple\n%s)", newlineList(exprs))
     | EPipe(_, e1, e2, rest) => Printf.sprintf("(pipe\n%s %s %s)", r(e1), r(e2), newlineList(rest))
     | EConstructor(_, name, exprs) =>
       Printf.sprintf("(constructor \"%s\"\n%s)", name, newlineList(exprs))

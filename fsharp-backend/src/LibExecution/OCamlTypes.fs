@@ -40,6 +40,7 @@ type tipe =
   | TDeprecated1
   | TStr
   | TList
+  | TTuple of tipe * tipe * List<tipe>
   | TObj
   | TIncomplete
   | TError
@@ -106,6 +107,7 @@ module RuntimeT =
     | ERightPartial of id * string * fluidExpr
     | ELeftPartial of id * string * fluidExpr
     | EList of id * fluidExpr list
+    | ETuple of id * fluidExpr * fluidExpr * fluidExpr list
     | ERecord of id * (string * fluidExpr) list
     | EPipe of id * fluidExpr list
     | EConstructor of id * string * fluidExpr list
@@ -219,6 +221,7 @@ module RuntimeT =
     | DStr of string
     (* compound types *)
     | DList of dval list
+    | DTuple of dval * dval * dval list
     | DObj of dval_map
     (* special types - see notes above *)
     | DIncomplete of dval_source
@@ -454,6 +457,8 @@ module Convert =
     | ORT.ERightPartial (id, str, oldExpr) -> PT.ERightPartial(id, str, r oldExpr)
     | ORT.ELeftPartial (id, str, oldExpr) -> PT.ELeftPartial(id, str, r oldExpr)
     | ORT.EList (id, exprs) -> PT.EList(id, List.map r exprs)
+    | ORT.ETuple (id, first, second, theRest) ->
+      PT.ETuple(id, r first, r second, List.map r theRest)
     | ORT.ERecord (id, pairs) -> PT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | ORT.EPipe (id, expr1 :: expr2 :: rest) ->
       PT.EPipe(id, r expr1, r expr2, List.map r rest)
@@ -511,6 +516,12 @@ module Convert =
     | TDeprecated1 -> any
     | TStr -> PT.TStr
     | TList -> PT.TList any
+    | TTuple (firstType, secondType, otherTypes) ->
+      PT.TTuple(
+        ocamlTipe2PT firstType,
+        ocamlTipe2PT secondType,
+        List.map ocamlTipe2PT otherTypes
+      )
     | TObj -> PT.TDict any
     | TIncomplete -> PT.TIncomplete
     | TError -> PT.TError
@@ -772,6 +783,8 @@ module Convert =
     | PT.ERightPartial (id, str, oldExpr) -> ORT.ERightPartial(id, str, r oldExpr)
     | PT.ELeftPartial (id, str, oldExpr) -> ORT.ELeftPartial(id, str, r oldExpr)
     | PT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
+    | PT.ETuple (id, first, second, theRest) ->
+      ORT.ETuple(id, r first, r second, List.map r theRest)
     | PT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | PT.EPipe (id, expr1, expr2, rest) ->
       ORT.EPipe(id, r expr1 :: r expr2 :: List.map r rest)
@@ -811,6 +824,8 @@ module Convert =
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       ORT.EIf(id, r cond, r thenExpr, r elseExpr)
     | RT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
+    | RT.ETuple (id, first, second, theRest) ->
+      ORT.ETuple(id, r first, r second, List.map r theRest)
     | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | RT.EConstructor (id, name, exprs) ->
       ORT.EConstructor(id, name, List.map r exprs)
@@ -928,6 +943,12 @@ module Convert =
     | PT.TNull -> TNull
     | PT.TStr -> TStr
     | PT.TList _ -> TList
+    | PT.TTuple (firstType, secondType, otherTypes) ->
+      TTuple(
+        pt2ocamlTipe firstType,
+        pt2ocamlTipe secondType,
+        List.map pt2ocamlTipe otherTypes
+      )
     | PT.TRecord _ -> TObj
     | PT.TIncomplete -> TIncomplete
     | PT.TError -> TError
@@ -1124,6 +1145,8 @@ module Convert =
     | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
       ORT.DResp(ORT.Response(int64 code, headers), c hdv)
     | RT.DList l -> ORT.DList(List.map c l)
+    | RT.DTuple (first, second, theRest) ->
+      ORT.DTuple(c first, c second, List.map c theRest)
     | RT.DObj o -> ORT.DObj(Map.map c o)
     | RT.DOption None -> ORT.DOption ORT.OptNothing
     | RT.DOption (Some dv) -> ORT.DOption(ORT.OptJust(c dv))
@@ -1164,6 +1187,8 @@ module Convert =
     | ORT.DResp (ORT.Response (code, headers), hdv) ->
       RT.DHttpResponse(RT.Response(code, headers, c hdv))
     | ORT.DList l -> RT.DList(List.map c l)
+    | ORT.DTuple (first, second, theRest) ->
+      RT.DTuple(c first, c second, List.map c theRest)
     | ORT.DObj o -> RT.DObj(Map.map c o)
     | ORT.DOption ORT.OptNothing -> RT.DOption None
     | ORT.DOption (ORT.OptJust dv) -> RT.DOption(Some(c dv))

@@ -42,6 +42,7 @@ let typToApiString (typ : RT.DType) : string =
   | RT.TChar -> "Character"
   | RT.TStr -> "Str"
   | RT.TList _ -> "List"
+  | RT.TTuple _ -> "Tuple"
   | RT.TRecord _
   | RT.TDict _ -> "Dict"
   | RT.TFn _ -> "Block"

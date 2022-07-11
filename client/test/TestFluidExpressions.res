@@ -4,6 +4,14 @@ open FluidShortcuts
 module E = FluidExpression
 
 let run = () => {
+  describe("isEmpty", () => {
+    test("empty tuple", () => {
+      expect(E.isEmpty(tuple(blank(), blank(), list{blank()}))) |> toEqual(true)
+    })
+    test("nonempty tuple", () => {
+      expect(E.isEmpty(tuple(blank(), int(2), list{blank()}))) |> toEqual(false)
+    })
+  })
   describe("decendants", () => {
     /* [t f] helps test the decendants function
      *
@@ -48,6 +56,7 @@ let run = () => {
 
     let eq = t(true)
     let neq = t(false)
+
     eq("int with same values", int(1), int(1))
     neq("int with diff values", int(1), int(2))
     eq(
@@ -71,9 +80,28 @@ let run = () => {
     neq("bool with diff values", bool(true), bool(false))
     eq("nulls are equal", ENull(gid()), ENull(gid()))
     eq("blanks are equal", blank(), blank())
+
     eq("list with same values", list(list{int(1), str("a")}), list(list{int(1), str("a")}))
     neq("list and empty list", list(list{}), list(list{int(2), str("a")}))
     neq("list with diff values", list(list{int(1), str("a")}), list(list{int(2), str("a")}))
+
+    eq("tuple with same values",
+      tuple(int(1), str("a"), list{tuple(int(2), str("b"), list{})}),
+      tuple(int(1), str("a"), list{tuple(int(2), str("b"), list{})})
+    )
+    neq("tuple with differing first value",
+      tuple(int(1), str("a"), list{}),
+      tuple(int(2), str("a"), list{})
+    )
+    neq("tuple with differing second value",
+      tuple(int(1), str("a"), list{}),
+      tuple(int(1), str("b"), list{})
+    )
+    neq("tuple with differing third value",
+      tuple(int(1), str("a"), list{tuple(int(2), str("b"), list{})}),
+      tuple(int(1), str("a"), list{tuple(int(3), str("b"), list{})})
+    )
+
     eq("let with same values", let'("a", int(1), var("a")), let'("a", int(1), var("a")))
     eq("ifs with same values", if'(bool(true), int(1), int(2)), if'(bool(true), int(1), int(2)))
     neq(
