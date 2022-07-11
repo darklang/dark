@@ -133,8 +133,7 @@ let addRoutes
   clientJsonApi "v1/get_db_stats" R DBs.DBStats.getStats
   clientJsonApiOption "get_trace_data" R Traces.TraceData.getTraceData
   clientJsonApiOption "v1/get_trace_data" R Traces.TraceData.getTraceData
-  ocamlCompatibleApi "get_unlocked_dbs" R DBs.Unlocked.get
-  clientJsonApi "v1/get_unlocked_dbs" R DBs.Unlocked.get
+  clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
   ocamlCompatibleApi "get_worker_stats" R Workers.WorkerStats.getStats
   clientJsonApi "v1/get_worker_stats" R Workers.WorkerStats.getStats
   ocamlCompatibleApi "initial_load" R InitialLoad.initialLoad
@@ -252,7 +251,6 @@ let initSerializers () =
   Json.Vanilla.allow<DBs.DBStats.Params> "ApiServer.DBs"
   Json.OCamlCompatible.allow<DBs.DBStats.T> "ApiServer.DBs"
   Json.Vanilla.allow<DBs.DBStats.T> "ApiServer.DBs"
-  Json.OCamlCompatible.allow<DBs.Unlocked.T> "ApiServer.DBs"
   Json.Vanilla.allow<DBs.Unlocked.T> "ApiServer.DBs"
   Json.OCamlCompatible.allow<Execution.Function.Params> "ApiServer.Execution"
   Json.Vanilla.allow<Execution.Function.Params> "ApiServer.Execution"

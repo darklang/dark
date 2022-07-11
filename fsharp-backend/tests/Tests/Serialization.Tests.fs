@@ -638,7 +638,7 @@ module GenericSerializersTests =
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
                       "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
-      both<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
+      v<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
 
       // Execution
       both<ApiServer.Execution.Function.Params>
