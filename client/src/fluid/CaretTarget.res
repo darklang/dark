@@ -5,7 +5,7 @@ type t = caretTarget
 @ocaml.doc(" [forARStringOpenQuote id offset] produces an ARString caretTarget
 * pointing to an [offset] into the open quote of the string with [id].
 * [offset] may NOT be negative as it cannot represent something out of string bounds. ")
-let forARStringOpenQuote = (id: ID.t, offset: int): t => {
+let forARStringOpenQuote = (id: id, offset: int): t => {
   astRef: ARString(id, SPOpenQuote),
   offset: offset,
 }
@@ -13,7 +13,7 @@ let forARStringOpenQuote = (id: ID.t, offset: int): t => {
 @ocaml.doc(" [forARStringText id offset] produces an ARString caretTarget
 * pointing to an [offset] into the text of the string with [id].
 * [offset] may be negative but cannot represent something out of string bounds. ")
-let forARStringText = (id: ID.t, offset: int): t => {
+let forARStringText = (id: id, offset: int): t => {
   astRef: ARString(id, SPOpenQuote),
   offset: 1 + offset,
 }
@@ -22,7 +22,7 @@ let forARStringText = (id: ID.t, offset: int): t => {
 * pointing to an [offset] into the close quote of the string with [id]. It uses the
 * [fullStr] of the string (excluding visual quotes) to compute the target.
 * [offset] may be negative but cannot represent something out of string bounds. ")
-let forARStringCloseQuote = (id: ID.t, offset: int, fullStr: string): t => {
+let forARStringCloseQuote = (id: id, offset: int, fullStr: string): t => {
   let lenPlusOpenQuote = 1 + String.length(fullStr)
   {astRef: ARString(id, SPOpenQuote), offset: lenPlusOpenQuote + offset}
 }
@@ -30,7 +30,7 @@ let forARStringCloseQuote = (id: ID.t, offset: int, fullStr: string): t => {
 @ocaml.doc(" [forPPStringOpenQuote id offset] produces an ARPattern PPString caretTarget
 * pointing to an [offset] into the open quote of the pattern string with [id].
 * [offset] may NOT be negative as it cannot represent something out of string bounds. ")
-let forPPStringOpenQuote = (id: ID.t, offset: int): t => {
+let forPPStringOpenQuote = (id: id, offset: int): t => {
   astRef: ARPattern(id, PPString(SPOpenQuote)),
   offset: offset,
 }
@@ -38,7 +38,7 @@ let forPPStringOpenQuote = (id: ID.t, offset: int): t => {
 @ocaml.doc(" [forPPStringText id offset] produces an ARPattern PPString caretTarget
 * pointing to an [offset] into the text of the pattern string with [id].
 * [offset] may be negative but cannot represent something out of string bounds. ")
-let forPPStringText = (id: ID.t, offset: int): t => {
+let forPPStringText = (id: id, offset: int): t => {
   astRef: ARPattern(id, PPString(SPOpenQuote)),
   offset: 1 + offset,
 }
@@ -47,7 +47,7 @@ let forPPStringText = (id: ID.t, offset: int): t => {
 * pointing to an [offset] into the close quote of the pattern string with [id]. It uses the
 * [fullStr] of the string (excluding visual quotes) to compute the target.
 * [offset] may be negative but cannot represent something out of string bounds. ")
-let forPPStringCloseQuote = (id: ID.t, offset: int, fullStr: string): t => {
+let forPPStringCloseQuote = (id: id, offset: int, fullStr: string): t => {
   let lenPlusOpenQuote = 1 + String.length(fullStr)
   {
     astRef: ARPattern(id, PPString(SPOpenQuote)),

@@ -1,12 +1,12 @@
-/* Tests for functions in Fluid.ml that does not conform well with the tests in fluid-test.ml */
+// Tests for functions in Fluid.ml that does not conform well with the tests in fluid-test.ml
 
 open Tester
 open Prelude
 open Fluid
 open FluidTestData
 open FluidShortcuts
+open ProgramTypes.Expr
 
-/*  */
 let run = () => {
   describe("getSelectedExprID", () => {
     let aiFor = (ast, s) => ASTInfo.make(defaultTestProps, FluidAST.ofExpr(ast), s)
@@ -16,7 +16,7 @@ let run = () => {
       expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(None)
     })
     test("select atomic expression", () => {
-      let ast = let'("a", EInteger(ID("letVal"), "1999"), b)
+      let ast = let'("a", EInteger(ID("letVal"), 1999L), b)
       let s = {
         ...defaultTestState,
         oldPos: 8,
@@ -27,7 +27,7 @@ let run = () => {
       expect(getSelectedExprID(aiFor(ast, s))) |> toEqual(Some(ID.fromString("letVal")))
     })
     test("select larger expressions", () => {
-      let ast = E.EFnCall(ID("fn"), "+", list{int(1), int(2)}, NoRail)
+      let ast = EFnCall(ID("fn"), "+", list{int(1), int(2)}, NoRail)
       let s = {
         ...defaultTestState,
         oldPos: 0,

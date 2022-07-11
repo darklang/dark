@@ -37,7 +37,6 @@
     <!-- "modern" HttpClient supports LibHttpClient5 -->
     <Compile Include="HttpClient.fs" />
     <Compile Include="LibHttpClient5.fs" />
-    <Compile Include="LibHttpClientAuth.fs" />
     <Compile Include="LibJwt.fs" />
     <Compile Include="LibPassword.fs" />
     <Compile Include="LibStaticAssets.fs" />

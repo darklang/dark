@@ -5,6 +5,7 @@ open FluidTestData
 module B = BlankOr
 module K = FluidKeyboard
 module E = FluidExpression
+open ProgramTypes.Expr
 open FluidShortcuts
 
 @@ocaml.text("
@@ -126,9 +127,9 @@ open FluidShortcuts
  * behavior.
  ")
 
-let magicIfElseWrapperPrefix = 15 /* "if true\nthen\n  " */
+let magicIfElseWrapperPrefix = 15 // "if true\nthen\n  "
 
-let magicFeatureFlagPrefix = 20 /* "when true\nenabled\n  " */
+let magicFeatureFlagPrefix = 20 // "when true\nenabled\n  "
 
 let deOption = (msg, v) =>
   switch v {
@@ -233,13 +234,13 @@ module TestCase = {
           let selectionStart = Option.map(selectionStart, ~f=fixup)
           (selectionStart, fixup(pos))
         } else if wrap {
-          /* if the main editor was wrapped, remove it in the same way */
+          // if the main editor was wrapped, remove it in the same way
           let fixup = (p: int) => p + magicIfElseWrapperPrefix + newlinesBefore(p) * 2
 
           let selectionStart = Option.map(selectionStart, ~f=fixup)
           (selectionStart, fixup(pos))
         } else {
-          /* if not in FF and not wrapped, then just leave the pos/selection alone */
+          // if not in FF and not wrapped, then just leave the pos/selection alone
           (selectionStart, pos)
         }
       }
@@ -464,7 +465,7 @@ let insMany = (strings: list<string>, case: TestCase.t): TestResult.t =>
 let inputs = (inputs: list<fluidInputEvent>, case: TestCase.t): TestResult.t =>
   process(inputs, case)
 
-/* Test expecting no partials found and an expected caret position but no selection */
+// Test expecting no partials found and an expected caret position but no selection
 let t = (
   ~expectsPartial=false,
   ~expectsFnOnRail=false,
@@ -500,7 +501,7 @@ let t = (
       expectsFnOnRail,
     ))
   })
-  /* also run the same test in a feature flag editor panel, unless it's marked as not working */
+  // also run the same test in a feature flag editor panel, unless it's marked as not working
   if !brokenInFF {
     let case = TestCase.init(~wrap=false, ~clone, ~debug, ~pos, ~sel, ~ff=true, expr)
 
@@ -824,7 +825,7 @@ let run = () => {
     )
     t(
       "del start of middle string",
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       mlStr,
       ~pos=42,
       del,
@@ -834,7 +835,7 @@ let run = () => {
     )
     t(
       "del start of end string",
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       mlStr,
       ~pos=83,
       del,
@@ -1011,7 +1012,7 @@ let run = () => {
       ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
       "123456789_~\""),
     )
-    /* Skipped insert, del, bs of space, as it doesn't seem interesting */
+    // Skipped insert, del, bs of space, as it doesn't seem interesting
     t(
       "final quote is swallowed",
       mlStr,
@@ -1186,41 +1187,48 @@ let run = () => {
       list{InsertText("c")},
       leftPartial("c", anInt),
     )
-    t("insert number at scale", aHugeInt, ~pos=5, ins("9"), "200009~0000000000000")
-    t("insert number at scale", aHugeInt, ins("9"), "9~20000000000000000")
-    t("insert number at scale", aHugeInt, ~pos=19, ins("9"), "2000000000000000000~")
+    t("insert number at scale", aHugeInt, ~pos=5, ins("9"), "300009~0000000000000")
+    t("insert number at scale", aHugeInt, ins("9"), "9~30000000000000000")
+    t("insert number at scale", aHugeInt, ins("8"), "8~300000000000000000")
+    t("insert number at scale", aHugeInt, ~pos=19, ins("9"), "3000000000000000000~")
     t(
       "insert number at scale",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=18,
       ins("3"),
-      "4611686018427387903~",
+      "9223372036854775803~",
     )
-    t("insert number at scale", oneShorterThanMax62BitInt, ~pos=18, ins("4"), "461168601842738790~")
+    t(
+      "insert number at scale",
+      oneShorterThanMax63BitInt,
+      ~pos=18,
+      ins("4"),
+      "9223372036854775804~",
+    )
     t(
       "ctrl+left go to beg of int moves to beg",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       ctrlLeft,
-      "~461168601842738790",
+      "~922337203685477580",
     )
     t(
       "ctrl+right go to end of int moves to end",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       ctrlRight,
-      "461168601842738790~",
+      "922337203685477580~",
     )
     t(
       "DeleteWordBackward in the middle of an int deletes all the nums in front of cursor",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=11,
       inputs(list{DeleteWordBackward}),
-      "~2738790",
+      "~5477580",
     )
     t(
       "DeleteWordBackward at the end of an int deletes it all",
-      oneShorterThanMax62BitInt,
+      oneShorterThanMax63BitInt,
       ~pos=18,
       inputs(list{DeleteWordBackward}),
       "~___",
@@ -1252,8 +1260,8 @@ let run = () => {
     t("insert non-int in fraction", aFloat, ~pos=6, ins("c"), "123.45~6")
     t("del dot", aFloat, ~pos=3, del, "123~456")
     t("del dot at scale", aHugeFloat, ~pos=9, del, "123456789~123456789")
-    t("del dot at limit1", maxPosIntWithDot, ~pos=16, del, "4611686018427387~903")
-    t("del dot at limit2", maxPosIntPlus1WithDot, ~pos=16, del, "4611686018427387~90")
+    t("del dot at limit1", maxPosIntWithDot, ~pos=16, del, "9223372036854775~807")
+    t("del dot at limit2", maxPosIntPlus1WithDot, ~pos=16, del, "9223372036854775~80")
     t("del start of whole", aFloat, ~pos=0, del, "~23.456")
     t("del middle of whole", aFloat, ~pos=1, del, "1~3.456")
     t("del end of whole", aFloat, ~pos=2, del, "12~.456")
@@ -1264,8 +1272,8 @@ let run = () => {
     t("del dot converts to int, no fraction", aPartialFloat, ~pos=1, del, "1~")
     t("bs dot", aFloat, ~pos=4, bs, "123~456")
     t("bs dot at scale", aHugeFloat, ~pos=10, bs, "123456789~123456789")
-    t("bs dot at limit1", maxPosIntWithDot, ~pos=17, bs, "4611686018427387~903")
-    t("bs dot at limit2", maxPosIntPlus1WithDot, ~pos=17, bs, "4611686018427387~90")
+    t("bs dot at limit1", maxPosIntWithDot, ~pos=17, bs, "9223372036854775~807")
+    t("bs dot at limit2", maxPosIntPlus1WithDot, ~pos=17, bs, "9223372036854775~80")
     t("bs start of whole", aFloat, ~pos=1, bs, "~23.456")
     t("bs middle of whole", aFloat, ~pos=2, bs, "1~3.456")
     t("bs end of whole", aFloat, ~pos=3, bs, "12~.456")
@@ -2404,9 +2412,9 @@ let run = () => {
       inputs(list{DeleteWordForward}),
       "12345~12345",
     )
-    /* TODO bs on empty partial does something */
-    /* TODO support del on all the bs commands */
-    /* TODO pressing enter at the end of the partialGhost */
+    // TODO bs on empty partial does something
+    // TODO support del on all the bs commands
+    // TODO pressing enter at the end of the partialGhost
     t(
       "pressing bs on || in binop deletes right side",
       binop("||", trueBool, falseBool),
@@ -2620,7 +2628,7 @@ let run = () => {
     ()
   })
   describe("Lambdas", () => {
-    /* type -> to move through a lambda */
+    // type -> to move through a lambda
     t(
       "type - after a lambda var to move into a lambda arrow",
       aLambda,
@@ -2636,7 +2644,7 @@ let run = () => {
       "\\*** -~> ___",
     )
     t("type > inside a lambda arrow to move past it", aLambda, ~pos=6, ins(">"), "\\*** -> ~___")
-    /* end type -> to move through a lambda */
+    // end type -> to move through a lambda
     t("bs over lambda symbol", aLambda, ~pos=1, bs, "~___")
     t("insert space in lambda", aLambda, ~pos=1, key(K.Space), "\\~*** -> ___")
     t("bs non-empty lambda symbol", nonEmptyLambda, ~pos=1, bs, "\\~*** -> 5")
@@ -2670,7 +2678,7 @@ let run = () => {
       aLambda,
       ~pos=3,
       ins("5"),
-      /* TODO: this looks wrong */
+      // TODO: this looks wrong
       "\\**~* -> ___",
     )
     t(
@@ -2682,7 +2690,7 @@ let run = () => {
     )
     t(
       "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe",
-      pipe(b, list{b}),
+      pipe(b, b, list{}),
       ~pos=6,
       inputs(/* we have to insert the function with completion here
        * so the arguments are adjusted based on the pipe */
@@ -3020,7 +3028,7 @@ let run = () => {
       ctrlRight,
       "match ___\n  *** -> ___~\n",
     )
-    /* delete row with delete */
+    // delete row with delete
     ()
   })
   describe("Lets", () => {
@@ -3198,10 +3206,8 @@ let run = () => {
         blank(),
         pipe(
           list(list{}),
-          list{
-            fn("List::append", list{pipeTarget, list(list{int(5)})}),
-            fn("List::append", list{pipeTarget, list(list{int(5)})}),
-          },
+          fn("List::append", list{pipeTarget, list(list{int(5)})}),
+          list{fn("List::append", list{pipeTarget, list(list{int(5)})})},
         ),
       ),
     )
@@ -3257,7 +3263,7 @@ let run = () => {
     ()
   })
   describe("Pipes", () => {
-    /* TODO: add tests for clicking in the middle of a pipe (or blank) */
+    // TODO: add tests for clicking in the middle of a pipe (or blank)
     t(
       "move to the front of pipe on line 1",
       aPipe,
@@ -3319,7 +3325,7 @@ let run = () => {
       aLongPipe,
       ~pos=3,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "[]~\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n",
     )
     t(
@@ -3334,7 +3340,7 @@ let run = () => {
       aLongPipe,
       ~pos=22,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "[]\n|>List::append [2]~\n|>List::append [4]\n|>List::append [5]\n",
     )
     t(
@@ -3349,7 +3355,7 @@ let run = () => {
       aLongPipe,
       ~pos=41,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "[]\n|>List::append [2]\n|>List::append [3]~\n|>List::append [5]\n",
     )
     t(
@@ -3378,7 +3384,7 @@ let run = () => {
       aPipeInsideIf,
       ~pos=19,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "if ___\nthen\n  []~\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___",
     )
     t(
@@ -3393,7 +3399,7 @@ let run = () => {
       aPipeInsideIf,
       ~pos=40,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "if ___\nthen\n  []\n  |>List::append [2]~\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___",
     )
     t(
@@ -3408,7 +3414,7 @@ let run = () => {
       aPipeInsideIf,
       ~pos=61,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]~\n  |>List::append [5]\nelse\n  ___",
     )
     t(
@@ -3449,7 +3455,7 @@ let run = () => {
       "___\n|>~10\n",
     )
     t(
-      "adding infix functions adds the right number of blanks",
+      "adding binops adds the right number of blanks",
       emptyPipe,
       ~pos=6,
       inputs(list{InsertText("+"), keypress(K.Enter)}),
@@ -3507,7 +3513,7 @@ let run = () => {
     t(
       "enter at the end of pipe expression with line below creates a new entry",
       ~wrap=/* indent counting is all weird with wrapper */ false,
-      let'("a", pipe(list(list{}), list{listFn(list{aList5})}), five),
+      let'("a", pipe(list(list{}), listFn(list{aList5}), list{}), five),
       ~pos=37,
       enter,
       "let a = []\n        |>List::append [5]\n        |>~___\n5",
@@ -3515,7 +3521,7 @@ let run = () => {
     t(
       "enter at the beginning of expression after pipe creates let, not pipe",
       ~wrap=/* indent counting is all weird with wrapper */ false,
-      let'("a", pipe(list(list{}), list{listFn(list{aList5})}), five),
+      let'("a", pipe(list(list{}), listFn(list{aList5}), list{}), five),
       ~pos=38,
       enter,
       "let a = []\n        |>List::append [5]\nlet *** = ___\n~5",
@@ -3543,14 +3549,14 @@ let run = () => {
     )
     t(
       "inserting a pipe into another pipe gives a single pipe1",
-      pipe(five, list{listFn(list{rightPartial("|>", aList5)})}),
+      pipe(five, listFn(list{rightPartial("|>", aList5)}), list{}),
       ~pos=23,
       enter,
       "5\n|>List::append [5]\n|>~___\n",
     )
     t(
       "inserting a pipe into another pipe at a pipeable gives a new pipe",
-      pipe(five, list{listFn(list{aList5})}),
+      pipe(five, listFn(list{aList5}), list{}),
       ~pos=19,
       key(K.ShiftEnter),
       "5\n|>List::append [5\n                |>~___\n               ]\n",
@@ -3593,7 +3599,7 @@ let run = () => {
     t(
       "bsing a blank pipe after a piped 1-arg function deletes all",
       ~wrap=/* wrap false because else we delete the wrapper */ false,
-      pipe(aList5, list{fn("List::length", list{pipeTarget}), b}),
+      pipe(aList5, fn("List::length", list{pipeTarget}), list{b}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
       "~___",
@@ -3610,9 +3616,9 @@ let run = () => {
       }),
       "List::append ~___________ ___________\n|>List::append [5]\n|>List::append [5]\n",
     )
-    /* TODO: test for prefix fns */
-    /* TODO: test for deleting pipeed infix fns */
-    /* TODO: test for deleting pipeed prefix fns */
+    // TODO: test for prefix fns
+    // TODO: test for deleting pipeed infix fns
+    // TODO: test for deleting pipeed prefix fns
     ()
   })
   describe("Ifs", () => {
@@ -3749,11 +3755,11 @@ let run = () => {
       list{InsertText("c")},
       leftPartial("c", emptyList),
     )
-    t("insert space into multi list", multi, ~pos=6, key(K.Space), "[56,78~]")
-    t("insert space into single list", single, ~pos=3, key(K.Space), "[56~]")
-    t("insert into existing list item", single, ~pos=1, ins("4"), "[4~56]")
-    t("insert separator before item creates blank", single, ~pos=1, ins(","), "[~___,56]")
-    t("insert separator after item creates blank", single, ~pos=3, ins(","), "[56,~___]")
+    t("insert space into multi list", multiList, ~pos=6, key(K.Space), "[56,78~]")
+    t("insert space into single list", singleElementList, ~pos=3, key(K.Space), "[56~]")
+    t("insert into existing list item", singleElementList, ~pos=1, ins("4"), "[4~56]")
+    t("insert separator before item creates blank", singleElementList, ~pos=1, ins(","), "[~___,56]")
+    t("insert separator after item creates blank", singleElementList, ~pos=3, ins(","), "[56,~___]")
     t(
       "insert separator after separator creates blank",
       list(list{int(1), int(2), int(3)}),
@@ -3770,30 +3776,30 @@ let run = () => {
     )
     t(
       "insert separator after item creates blank when list is in match",
-      match'(single, list{(pBlank(), b)}),
+      match'(singleElementList, list{(pBlank(), b)}),
       ~pos=9,
       ins(","),
       "match [56,~___]\n  *** -> ___\n",
     )
-    t("insert separator between items creates blank", multi, ~pos=3, ins(","), "[56,~___,78]")
-    /* t "insert separator mid integer makes two items" single (ins ',' 2) */
-    /* ("[5,6]", 3) ; */
-    /* TODO: when on a separator in a nested list, pressing comma makes an entry outside the list. */
-    t("insert separator mid string does nothing special ", withStr, ~pos=3, ins(","), "[\"a,~b\"]")
+    t("insert separator between items creates blank", multiList, ~pos=3, ins(","), "[56,~___,78]")
+    // t "insert separator mid integer makes two items" single (ins ',' 2)
+    // ("[5,6]", 3) ;
+    // TODO: when on a separator in a nested list, pressing comma makes an entry outside the list.
+    t("insert separator mid string does nothing special ", listWithStr, ~pos=3, ins(","), "[\"a,~b\"]")
     t("backspacing open bracket of empty list dels list", emptyList, ~pos=1, bs, "~___")
     t("backspacing close bracket of empty list moves inside list", emptyList, ~pos=2, bs, "[~]")
     t("deleting open bracket of empty list dels list", emptyList, ~pos=0, del, "~___")
     t("close bracket at end of list is swallowed", emptyList, ~pos=1, ins("]"), "[]~")
     t(
       "bs on first separator between ints merges ints on either side of sep",
-      multi,
+      multiList,
       ~pos=4,
       bs,
       "[56~78]",
     )
     t(
       "del before first separator between ints merges ints on either side of sep",
-      multi,
+      multiList,
       ~pos=3,
       del,
       "[56~78]",
@@ -3836,14 +3842,14 @@ let run = () => {
     )
     t(
       "bs on separator between string items merges strings",
-      multiWithStrs,
+      listWithMultiStrs,
       ~pos=6,
       bs,
       "[\"ab~cd\",\"ef\"]",
     )
     t(
       "del before separator between string items merges strings",
-      multiWithStrs,
+      listWithMultiStrs,
       ~pos=5,
       del,
       "[\"ab~cd\",\"ef\"]",
@@ -3873,15 +3879,17 @@ let run = () => {
       list(list{
         EFloat(
           gid(),
+          Positive,
           "4611686018427387",
           "12345678901234567989048290381902830912830912830912830912309128901234567890123456789",
         ),
         EFloat(
           gid(),
+          Positive,
           "4611686018427387",
           "1234567890183918309183091809183091283019832345678901234567890123456789",
         ),
-        EFloat(gid(), "4611686018427387", "123456"),
+        EFloat(gid(), Positive, "4611686018427387", "123456"),
       }),
       render,
       "~[4611686018427387.12345678901234567989048290381902830912830912830912830912309128901234567890123456789,\n 4611686018427387.1234567890183918309183091809183091283019832345678901234567890123456789,\n 4611686018427387.123456]",
@@ -3947,7 +3955,7 @@ let run = () => {
     )
     t(
       "inserting [ before list open wraps it in another list",
-      multi,
+      multiList,
       ~pos=0,
       ins("["),
       "[~[56,78]]",
@@ -3966,8 +3974,8 @@ let run = () => {
       ins("["),
       "[~Just ___]",
     )
-    t("deleting [ from a singleton remove a list wrapping", single, ~pos=0, del, "~56")
-    t("backspacing [ from a singleton remove a list wrapping", single, ~pos=1, bs, "~56")
+    t("deleting [ from a singleton remove a list wrapping", singleElementList, ~pos=0, del, "~56")
+    t("backspacing [ from a singleton remove a list wrapping", singleElementList, ~pos=1, bs, "~56")
     t(
       "a delete with caret before a blank in front of a list will delete the blank",
       listWithBlankAtStart,
@@ -3984,6 +3992,522 @@ let run = () => {
     )
     ()
   })
+  describe("Tuples",  () => {
+    describe("render", () => {
+      t(
+        "blank tuple",
+        tuple2WithBothBlank,
+        render,
+        "~(___,___)"
+      )
+      t(
+        "simple tuple",
+        tuple2WithNoBlank,
+        render,
+        "~(56,78)"
+      )
+      t(
+        "a very long tuple wraps",
+        tupleHuge,
+        render,
+        "~(56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n 56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78)"
+      )
+      t(
+        "a tuple of long floats does not break upon wrap",
+        tuple(
+          EFloat(gid (), Positive, "4611686018427387", "12345678901234567989048290381902830912830912830912830912309128901234567890123456789"),
+          EFloat(gid (), Positive, "4611686018427387", "1234567890183918309183091809183091283019832345678901234567890123456789"),
+          list{
+            EFloat(gid (), Positive, "4611686018427387", "123456")
+          }
+        ),
+        render,
+        "~(4611686018427387.12345678901234567989048290381902830912830912830912830912309128901234567890123456789,\n 4611686018427387.1234567890183918309183091809183091283019832345678901234567890123456789,\n 4611686018427387.123456)"
+      )
+      t(
+        "a nested very tuple wraps with proper indents",
+        let'("a", tupleHuge, b),
+        render,
+        "~let a = (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78)\n___"
+      )
+      ()
+    })
+    describe("navigate", () => {
+      t(
+        "ctrl+left at the beginning of tuple item moves to beginning of next tuple item",
+        tuple(fiftySix, seventyEight, list{fiftySix, seventyEight, fiftySix, seventyEight}),
+        ~pos=10, // after the third comma, before the 2nd 78
+        ctrlLeft,
+        "(56,78,~56,78,56,78)"
+      )
+      t(
+        "ctrl+right at the end of tuple item moves to end of next tuple item",
+        tuple6,
+        ~pos=12,
+        ctrlRight,
+        "(56,78,56,78,56~,78)"
+      )
+      ()
+    })
+
+
+    if Fluid.allowUserToCreateTuple {
+      describe("create", () => {
+        t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
+        t("create and fill in tuple", b, ~pos=0, insMany(list{"(", "1", ",", "2", ")"}), "(1,2)~")
+        ()
+      })
+    }
+    describe("insert", () => {
+      t("insert into empty tuple inserts", tuple2WithBothBlank, ~pos=1, ins("5"), "(5~,___)")
+      t("inserting before a tuple is no-op", tuple2WithBothBlank, ~pos=0, ins("5"), "~(___,___)")
+      tStruct(
+        "inserting before a tuple at top-level is a no-op",
+        tuple2WithBothBlank,
+        ~pos=0,
+        list{InsertText("c")},
+        tuple2WithBothBlank
+      )
+      t(
+        "insert space into multi tuple does nothing",
+        tuple2WithNoBlank,
+        ~pos=6, // right before closing )
+        key(K.Space),
+        "(56,78~)"
+      )
+      t(
+        "insert separator after opening parens creates blank",
+        tuple(int(1), int(2), list{int(3)}),
+        ~pos=1, // after the (
+        ins(","),
+        "(~___,1,2,3)"
+      )
+      t(
+        "insert separator before closing parens creates blank",
+        tuple(int(1), int(2), list{int(3)}), // (1,2,3)
+        ~pos=6, // before the )
+        ins(","),
+        "(1,2,3,~___)"
+      )
+      t(
+        "insert separator after separator creates blank",
+        tuple(int(1), int(2), list{int(3)}),
+        ~pos=5, // after the second comma
+        ins(","),
+        "(1,2,~___,3)"
+      )
+      t(
+        "inserting space into simple tuple does nothing",
+        tuple2WithNoBlank,
+        ~pos=3,
+        key(K.Space),
+        "(56~,78)"
+      )
+      t(
+        "insert separator before item creates blank",
+        tuple2WithNoBlank,
+        ~pos=1,
+        ins(","),
+        "(~___,56,78)"
+      )
+      t(
+        "insert separator after item creates blank",
+        tuple2WithNoBlank,
+        ~pos=6, // after 78
+        ins(","),
+        "(56,78,~___)"
+      )
+      t(
+        "insert , in string in tuple types ,",
+        tuple(str("01234567890123456789012345678901234567890"), fiftySix, list{}),
+        ~pos=44, // right before the last 0
+        ins(","),
+        "(\"0123456789012345678901234567890123456789\n ,~0\",56)"
+      )
+      t(
+        "insert separator after item creates blank when tuple is in match",
+        match'(tuple2WithNoBlank, list{(pBlank (), b)}),
+        ~pos=12, // before the closing )
+        ins(","),
+        "match (56,78,~___)\n  *** -> ___\n"
+      )
+
+      t(
+        "insert separator just before another skips over it",
+        tuple2WithNoBlank,
+        ~pos=3, // before the first comma
+        ins(","),
+        "(56,~78)"
+      )
+      t(
+        "insert separator just after another creates blank",
+        tuple2WithNoBlank,
+        ~pos=4, // just after the comma
+        ins(","),
+        "(56,~___,78)"
+      )
+
+      t(
+        "insert separator mid int does nothing special ",
+        tuple2WithNoBlank,
+        ~pos=2, // halfway through `56`
+        ins(","),
+        "(5~6,78)"
+      )
+      t(
+        "insert separator mid string does nothing special ",
+        tuple3WithStrs,
+        ~pos=3, // in between the a and b of the first str
+        ins(","),
+        "(\"a,~b\",\"cd\",\"ef\")"
+      )
+      t(
+        "close bracket at end of tuple is swallowed",
+        tuple2WithNoBlank,
+        ~pos=6, // right before closing )
+        ins(")"),
+        "(56,78)~"
+      )
+      ()
+    })
+
+    describe("delete", () => {
+      // 2-tuple, no blanks
+      t(
+        "deleting ( from a filled 2-tuple does nothing",
+        tuple2WithNoBlank,
+        ~pos=0,
+        del,
+        "~(56,78)"
+      )
+      t(
+        "deleting ) from a filled 2-tuple just moves cursor left",
+        tuple2WithNoBlank,
+        ~pos=7,
+        bs,
+        "(56,78~)"
+      )
+      t(
+        "deleting , from a filled 2-tuple leaves only the first item",
+        tuple2WithNoBlank, // (56,78)
+        ~pos=4, // at the ,
+        bs,
+        "56~"
+      )
+
+      // 2-tuple, first blank
+      t(
+        "deleting ( from a 2-tuple with first value blank converts to the non-blank value",
+        tuple2WithFirstBlank,
+        ~pos=0,
+        del,
+        "~78"
+      )
+      t(
+        "deleting ) from a 2-tuple with first value blank just moves the cursor to left of )",
+        tuple2WithFirstBlank,
+        ~pos=8, // just after )
+        bs,
+        "(___,78~)"
+      )
+      t(
+        "deleting , from a 2-tuple with first value blank converts to a blank",
+        tuple2WithFirstBlank,
+        ~pos=4, // just after ,
+        del,
+        "~___"
+      )
+
+      // 2-tuple, second blank
+      t(
+        "deleting ( from a 2-tuple with second value blank converts to the non-blank value",
+        tuple2WithSecondBlank,
+        ~pos=0,
+        del,
+        "~56"
+      )
+      t(
+        "deleting ) from a 2-tuple with second value blank just moves the cursor left",
+        tuple2WithSecondBlank,
+        ~pos=7, // just before )
+        del,
+        "(56,___~)"
+      )
+      t(
+        "deleting , from a 2-tuple with second value blank converts to the non-blank value",
+        tuple2WithSecondBlank,
+        ~pos=3, // just before ,
+        del,
+        "56~"
+      )
+
+      // 2-tuple, both blank
+      t(
+        "deleting ( from a blank 2-tuple converts to blank",
+        tuple2WithBothBlank,
+        ~pos=0,
+        del,
+        "~___"
+      )
+      t(
+        "deleting ) from a blank 2-tuple just moves the cursor left",
+        tuple2WithBothBlank,
+        ~pos=9,
+        bs,
+        "(___,___~)"
+      )
+      t(
+        "deleting , from a blank 2-tuple replaces the tuple with a blank",
+        tuple2WithBothBlank,
+        ~pos=5,
+        bs,
+        "~___"
+      )
+
+      // 3-tuple, no blanks
+      t(
+        "deleting ( from a filled 3-tuple does nothing",
+        tuple3WithNoBlanks,
+        ~pos=0,
+        del,
+        "~(56,78,56)"
+      )
+      t(
+        "deleting ) from a filled 3-tuple just moves cursor left",
+        tuple3WithNoBlanks,
+        ~pos=10, // just after )
+        bs,
+        "(56,78,56~)"
+      )
+      t(
+        "deleting first , from a filled 3-tuple removes 2nd item",
+        tuple3WithNoBlanks,
+        ~pos=3, // just before ,
+        del,
+        "(56~,56)"
+      )
+      t(
+        "deleting second , from a filled 3-tuple removes 3rd item",
+        tuple3WithNoBlanks,
+        ~pos=6, // just before ,
+        del,
+        "(56,78~)"
+      )
+
+      // 3-tuple, first blank
+      t(
+        "deleting ( from a 3-tuple with first item blank does nothing",
+        tuple3WithFirstBlank,
+        ~pos=0,
+        del,
+        "~(___,78,56)"
+      )
+      t(
+        "deleting first , from a 3-tuple with first item blank removes 2nd item",
+        tuple3WithFirstBlank,
+        ~pos=4, // just before ,
+        del,
+        "(~___,56)"
+      )
+      t(
+        "deleting second , from a 3-tuple with first item blank removes 3rd item",
+        tuple3WithFirstBlank,
+        ~pos=8, // just after ,
+        bs,
+        "(___,78~)"
+      )
+      t(
+        "deleting ) from a 3-tuple with first item blank just moves cursor left",
+        tuple3WithFirstBlank,
+        ~pos=11, // just after )
+        bs,
+        "(___,78,56~)"
+      )
+
+      // 3-tuple, second blank
+      t(
+        "deleting ( from a 3-tuple with the second item blank does nothing",
+        tuple3WithSecondBlank,
+        ~pos=0,
+        del,
+        "~(56,___,78)"
+      )
+      t(
+        "deleting first , from a 3-tuple with the second item blank removes the blank",
+        tuple3WithSecondBlank,
+        ~pos=3, // just before ,
+        del,
+        "(56~,78)"
+      )
+      t(
+        "deleting second , from a 3-tuple with the second item blank removes 3rd item",
+        tuple3WithSecondBlank, // (56,___,78)
+        ~pos=7, // just before ,
+        del,
+        "(56,~___)"
+      )
+      t(
+        "deleting ) from a 3-tuple with the second item blank just moves cursor left",
+        tuple3WithSecondBlank,
+        ~pos=11, // just after )
+        bs,
+        "(56,___,78~)"
+      )
+
+      // 3-tuple, third blank `(56,78,___)`
+      t(
+        "deleting ( from a 3-tuple with the third item blank does nothing",
+        tuple3WithThirdBlank,
+        ~pos=0,
+        del,
+        "~(56,78,___)"
+      )
+      t(
+        "deleting first , from a 3-tuple with the third item blank removes the second item",
+        tuple3WithThirdBlank,
+        ~pos=3, // just before ,
+        del,
+        "(56~,___)" // or maybe 1char to the right of this
+      )
+      t(
+        "deleting second , from a 3-tuple with the third item blank removes the blank",
+        tuple3WithThirdBlank,
+        ~pos=7, // just after ,
+        bs,
+        "(56,78~)"
+      )
+      t(
+        "deleting ) from a 3-tuple with the third item blank just moves the cursor left",
+        tuple3WithThirdBlank,
+        ~pos=11, // just after )
+        bs,
+        "(56,78,___~)"
+      )
+
+      // 3-tuple, first non-blank `(56,___,___)`
+      t(
+        "deleting ( from a 3-tuple with only first item replaces it with that item",
+        tuple3WithFirstFilled,
+        ~pos=0,
+        del,
+        "~56"
+      )
+      t(
+        "deleting first , from a 3-tuple with only first item filled ___",
+        tuple3WithFirstFilled,
+        ~pos=3, // just before ,
+        del,
+        "(56~,___)"
+      )
+      t(
+        "deleting second , from a 3-tuple with only first item filled ___",
+        tuple3WithFirstFilled,
+        ~pos=8, // just after ,
+        bs,
+        "(56,~___)"
+      )
+      t(
+        "deleting ) from a 3-tuple with only first item filled just moves cursor left",
+        tuple3WithFirstFilled,
+        ~pos=12, // just after )
+        bs,
+        "(56,___,___~)"
+      )
+
+      // 3-tuple, second non-blank `(___,56,___)`
+      t(
+        "deleting ( from a 3-tuple with only second item filled replaces the tuple with the item",
+        tuple3WithSecondFilled,
+        ~pos=0,
+        del,
+        "~56"
+      )
+      t(
+        "deleting first , from a 3-tuple with only second item filled removes the second item",
+        tuple3WithSecondFilled,
+        ~pos=4, // just before ,
+        del,
+        "(~___,___)"
+      )
+      t(
+        "deleting second , from a 3-tuple with only second item filled removes the ending blank",
+        tuple3WithSecondFilled,
+        ~pos=8, // just after ,
+        bs,
+        "(___,56~)"
+      )
+      t(
+        "deleting ) from a 3-tuple with only second item filled just moves the cursor left",
+        tuple3WithSecondFilled,
+        ~pos=12, // just after )
+        bs,
+        "(___,56,___~)"
+      )
+
+      // 3-tuple, third non-blank `(___,___,56)`
+      t(
+        "deleting ( from a 3-tuple with only third item filled replaces the tuple with the item",
+        tuple3WithThirdFilled,
+        ~pos=0,
+        del,
+        "~56"
+      )
+      t(
+        "deleting first , from a 3-tuple with only third item filled removes the second blank",
+        tuple3WithThirdFilled,
+        ~pos=4, // just before ,
+        del,
+        "(~___,56)"
+      )
+      t(
+        "deleting second , from a 3-tuple with only third item filled removes the filled item",
+        tuple3WithThirdFilled,
+        ~pos=9, // just after ,
+        bs,
+        "(___,~___)"
+      )
+      t(
+        "deleting ) from a 3-tuple with only third item filled just moves the cursor left",
+        tuple3WithThirdFilled,
+        ~pos=12, // just after )
+        bs,
+        "(___,___,56~)"
+      )
+
+      // 3-tuple, all blank `(___,___,___)`
+      t(
+        "deleting ( from a 3-tuple of all blanks replaces the tuple with a blank",
+        tuple3WithAllBlank,
+        ~pos=0,
+        del,
+        "~___"
+      )
+      t(
+        "deleting first , from a 3-tuple of all blanks removes the second blank",
+        tuple3WithAllBlank,
+        ~pos=4, // just before ,
+        del,
+        "(~___,___)"
+      )
+      t(
+        "deleting second , from a 3-tuple of all blanks removes the third blank",
+        tuple3WithAllBlank,
+        ~pos=9, // just after ,
+        bs,
+        "(___,~___)"
+      )
+      t(
+        "deleting ) from a 3-tuple of all blanks just moves left",
+        tuple3WithAllBlank,
+        ~pos=13, // just after )
+        bs,
+        "(___,___,___~)" // I could see this instead turning into `~___`
+      )
+      ()
+    })
+    ()
+  })
+
   describe("Records", () => {
     t("create record", b, ~pos=0, ins("{"), "{~}")
     t("inserting before a record is no-op", emptyRecord, ~pos=0, ins("5"), "~{}")
@@ -4326,7 +4850,7 @@ let run = () => {
     t(
       "shift enter in pipe autocompletes and creates pipe",
       ~wrap=false,
-      pipe(list(list{}), list{partial("appe", b)}),
+      pipe(list(list{}), partial("appe", b), list{}),
       ~pos=9,
       key(K.ShiftEnter),
       "[]\n|>List::append ___________\n|>~___\n",
@@ -4374,7 +4898,7 @@ let run = () => {
         partial("body", fieldAccess(EVariable(ID("fake-acdata1"), "request"), "longfield")),
         b,
       ),
-      /* Right should make it commit */
+      // Right should make it commit
       ~pos=20,
       key(K.Right),
       "let x = request.body\n~___",
@@ -4400,7 +4924,7 @@ let run = () => {
         "bod",
         EFieldAccess(gid(), EVariable(ID("fake-acdata1"), "request"), "longfield"),
       ),
-      /* Dot should select the autocomplete */
+      // Dot should select the autocomplete
       ~pos=11,
       ins("."),
       "request.body.~***",
@@ -4420,7 +4944,7 @@ let run = () => {
       ELet(
         gid(),
         "request",
-        ERecord(gid(), list{("body", EInteger(gid(), "5")), ("blank", EBlank(gid()))}),
+        ERecord(gid(), list{("body", EInteger(gid(), 5L)), ("blank", EBlank(gid()))}),
         ELet(
           gid(),
           "foo",
@@ -4437,7 +4961,7 @@ let run = () => {
       ELet(
         gid(),
         "request",
-        ERecord(gid(), list{("body", EInteger(gid(), "5"))}),
+        ERecord(gid(), list{("body", EInteger(gid(), 5L))}),
         ELet(
           gid(),
           "foo",
@@ -4522,24 +5046,24 @@ let run = () => {
 
       expect((result, astInfo.state.ac.index)) |> toEqual(("let request = 1\nre", Some(0)))
     })
-    /* TODO: this doesn't work but should */
-    /* t */
-    /* "autocomplete for field in body" */
-    /* (EMatch */
-    /* ( gid () */
-    /* , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "bo") */
-    /* , [] )) */
-    /* (enter 18) */
-    /* ("match request.body", 18) ; */
-    /* test "backspacing on variable reopens autocomplete" (fun () -> */
-    /* expect (bs (EVariable (5, "request"))). */
+    // TODO: this doesn't work but should
+    // t
+    // "autocomplete for field in body"
+    // (EMatch
+    // ( gid ()
+    // , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "bo")
+    // , [] ))
+    // (enter 18)
+    // ("match request.body", 18) ;
+    // test "backspacing on variable reopens autocomplete" (fun () ->
+    // expect (bs (EVariable (5, "request"))).
     ()
   })
   describe("Movement", () => {
     let s = defaultTestState
-    let tokens = FluidTokenizer.tokenize(complexExpr)
+    let tokens = FluidTokenizer.tokenize(compoundExpr)
     let len = tokens |> List.map(~f=ti => ti.token) |> length
-    let ast = complexExpr |> FluidAST.ofExpr
+    let ast = compoundExpr |> FluidAST.ofExpr
     let astInfo = ASTInfo.make(defaultTestProps, ast, defaultTestState)
     test("gridFor - 1", () => expect(gridFor(~pos=116, tokens)) |> toEqual({row: 2, col: 2}))
     test("gridFor - 2", () => expect(gridFor(~pos=70, tokens)) |> toEqual({row: 0, col: 70}))
@@ -4583,14 +5107,14 @@ let run = () => {
       test("down from first row is end of last row", () =>
         expect(astInfo |> doDown(~pos=168) |> (({state, _}) => state.newPos)) |> toEqual(174)
       )
-      /* end of short row */
+      // end of short row
       test("up into shorter row goes to end of row", () =>
         expect(astInfo |> doUp(~pos=172) |> (({state, _}) => state.newPos)) |> toEqual(156)
       )
       test("down into shorter row goes to end of row", () =>
         expect(astInfo |> doDown(~pos=143) |> (({state, _}) => state.newPos)) |> toEqual(156)
       )
-      /* start of indented row */
+      // start of indented row
       test("up into indented row goes to first token", () =>
         expect(astInfo |> doUp(~pos=152) |> (({state, _}) => state.newPos)) |> toEqual(130)
       )
@@ -4636,7 +5160,7 @@ let run = () => {
       keys(list{K.Escape, K.Down, K.Down}),
       "if ___\nthen\n  ___~\nelse\n  ___",
     )
-    /* moving through the autocomplete */
+    // moving through the autocomplete
     test("up goes through the autocomplete", () =>
       expect(
         astInfo
@@ -4970,7 +5494,7 @@ let run = () => {
       open FluidTokenizer
       let id = ID.fromString("543")
       expect({
-        let ast = E.EString(id, "test")
+        let ast = EString(id, "test")
         let tokens = tokenize(ast)
         getNeighbours(~pos=3, tokens)
       }) |> toEqual({
@@ -4996,9 +5520,9 @@ let run = () => {
     t(
       "tab wraps second block in a let",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       emptyLet,
       ~pos=15,
       key(K.Tab),
@@ -5017,9 +5541,9 @@ let run = () => {
     t(
       "shift tab wraps from start of let",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       emptyLet,
       ~pos=4,
       shiftTab,
@@ -5028,9 +5552,9 @@ let run = () => {
     t(
       "shift tab goes to last blank in editor",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       nonEmptyLetWithBlankEnd,
       ~pos=4,
       shiftTab,
@@ -5041,9 +5565,9 @@ let run = () => {
     t(
       "can shift tab to field blank",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       aBlankField,
       shiftTab,
       "obj.~***",
@@ -5051,32 +5575,32 @@ let run = () => {
     t(
       "shift tab at beg of line, wraps to end",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       longList,
       ~pos=1,
       shiftTab,
       "[56,78,56,78,56,78~]",
     )
     t(
-      "tab at end of line, wraps to beginging",
+      "tab at end of line, wraps to beginning",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       aFnCall,
       ~pos=11,
       key(K.Tab),
       "~Int::add 5 _________",
     )
     t(
-      "tab at end of line, wraps to beginging",
+      "tab at end of line, wraps to beginning",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
-      multi,
+      // brokenInFF false because else we move the cursor into the ff condition
+      multiList,
       ~pos=6,
       key(K.Tab),
       "[~56,78]",
@@ -5085,7 +5609,7 @@ let run = () => {
       "tab does not go to middle of multiline string",
       mlStrWSpace,
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~pos=0,
       key(K.Tab),
       "~\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
@@ -5103,9 +5627,9 @@ let run = () => {
       "shift tab does not go to middle of multiline string",
       mlStrWSpace,
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       shiftTab,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       (" 123456789_ abcdefghi, 123456789_ abcdef\n" ++
@@ -5114,34 +5638,34 @@ let run = () => {
     t(
       "shift tab does not stop on function version",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       aFnCallWithVersion,
       shiftTab,
       "DB::getAllv1 ~___________________",
     )
     ()
   })
-  /* Disable string escaping for now */
-  /* describe "String escaping" (fun () -> ()) ; */
-  /* t ~expectsPartial:true */
-  /* "typing \\ in a string makes it a partial" */
-  /* aStr */
-  /* (key K.Backslash 3) */
+  // Disable string escaping for now
+  // describe "String escaping" (fun () -> ()) ;
+  // t ~expectsPartial:true
+  // "typing \\ in a string makes it a partial"
+  // aStr
+  // (key K.Backslash 3)
   /* TODO this works in a handler with _only_ a string, but if you wrap it in
    * anything else (let, if, etc) you get "some string\\~" */
-  /* "so\\~me string" ; */
-  /* t */
-  /* "typing n after an escape in a partial creates a newline" */
-  /* aStrEscape */
-  /* (ins 'n' 3) */
-  /* "\"so\n~me string\"" ; */
-  /* t */
-  /* "typing \\ after an escape in a partial creates a visible backslash" */
-  /* aStrEscape */
-  /* (key K.Backslash 3) */
-  /* "\"so\\~me string\"" ; */
+  // "so\\~me string" ;
+  // t
+  // "typing n after an escape in a partial creates a newline"
+  // aStrEscape
+  // (ins 'n' 3)
+  // "\"so\n~me string\"" ;
+  // t
+  // "typing \\ after an escape in a partial creates a visible backslash"
+  // aStrEscape
+  // (key K.Backslash 3)
+  // "\"so\\~me string\"" ;
   /* TODO this doesn't work yet, filed as
    * https://trello.com/c/kBsS9Qb2/2156-string-escaping-should-work-for-repeated-backslashes
   t ~expectsPartial:true
@@ -5158,12 +5682,12 @@ let run = () => {
     (keys [K.Backslash; K.Backslash; K.Backslash; K.Backslash] 3)
     "\"so\\\\~me string\"" ;
  */
-  /* Disable string escaping for now */
-  /* t */
-  /* "deleting the \\ in a partial brings back the string" */
-  /* aStrEscape */
-  /* (del 2) */
-  /* "\"so~me string\"" ; */
+  // Disable string escaping for now
+  // t
+  // "deleting the \\ in a partial brings back the string"
+  // aStrEscape
+  // (del 2)
+  // "\"so~me string\"" ;
   t(
     ~expectsPartial=true,
     "typing an unsupported char after an escape leaves us with a partial",

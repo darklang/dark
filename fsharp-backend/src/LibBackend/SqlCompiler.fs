@@ -14,7 +14,8 @@ open Tablecloth
 
 open LibExecution.RuntimeTypes
 
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
@@ -58,10 +59,9 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DPassword _
   | DOption _
   | DResult _
-  | DBytes _ ->
-    error2
-      "This value is not yet supported"
-      (DvalReprExternal.toDeveloperReprV0 dval)
+  | DBytes _
+  | DTuple _ ->
+    error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
   | DDate date -> date |> DDateTime.toDateTimeUtc |> Sql.timestamptz
   | DInt i -> Sql.int64 i
   | DFloat v -> Sql.double v
@@ -76,8 +76,8 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
   | TVariable _ -> ()
   | other when actualType = other -> ()
   | _ ->
-    let actual = DvalReprExternal.typeToDeveloperReprV0 actualType
-    let expected = DvalReprExternal.typeToDeveloperReprV0 expectedType
+    let actual = DvalReprDeveloper.typeName actualType
+    let expected = DvalReprDeveloper.typeName expectedType
     error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
 // TODO: support character. And maybe lists and bytes.
@@ -391,6 +391,11 @@ let partiallyEvaluate
             | EList (id, exprs) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EList(id, exprs)
+            | ETuple (id, first, second, theRest) ->
+              let! first = r first
+              let! second = r second
+              let! theRest = Ply.List.mapSequentially r theRest
+              return ETuple(id, first, second, theRest)
             | EMatch (id, mexpr, pairs) ->
               let! mexpr = r mexpr
 

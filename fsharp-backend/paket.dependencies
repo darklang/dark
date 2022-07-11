@@ -6,6 +6,7 @@ storage: none
 
 // Basics
 nuget Newtonsoft.Json = 13.0.1
+nuget Ply = 0.3.1
 nuget FSharpPlus = 1.2.2
 nuget FsRegEx = 0.7.2
 nuget FSharpx.Extras = 3.0.0
@@ -59,7 +60,7 @@ nuget Sodium.Core = 1.2.3
 nuget Argu = 6.1.1
 
 
-group Wasm
+group Analysis
   source https://api.nuget.org/v3/index.json
-  // Wasm - this is in its own group to avoid a clash with OpenTelemetry
+  // Analysis - this is in its own group to avoid a clash with OpenTelemetry
   nuget Microsoft.AspNetCore.Components.WebAssembly = 6.0.1

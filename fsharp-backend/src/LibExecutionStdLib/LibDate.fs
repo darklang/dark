@@ -223,8 +223,7 @@ let fns : List<BuiltInFn> =
           Ply(DDate(DDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      // CLEANUP mark as Impure
-      previewable = Pure
+      previewable = Impure
       deprecated = NotDeprecated }
 
 
@@ -256,7 +255,12 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "Date" "subtract" 0) }
 
 
-    { name = fn "Date" "subtract" 0
+    // Note: this was was previously named`Date::subtract_v0`.
+    // A new Date::subtract_v1 was created to replace this, and subtract_v0 got
+    // replaced with this ::subtractSeconds_v0. "Date::subtract" implies that
+    // you are subtracting one date from another, so subtracting anything else
+    // should include the name of the relevant unit in the fn name.
+    { name = fn "Date" "subtractSeconds" 0
       parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
       returnType = TDate
       description = "Returns a new Date `seconds` seconds before `d`"
@@ -482,9 +486,22 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
+          // this was made bug-for-bug compatible with old OCaml backend
           let s = if d.Year < 1970 then d.Hour - 23 else d.Hour
           Ply(Dval.int s)
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "hour" 2) }
+
+
+    { name = fn "Date" "hour" 2
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the hour portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Ply(Dval.int d.Hour)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -498,7 +515,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
+          // this was made bug-for-bug compatible with the old OCaml backend
           let s =
             if d.Year < 1970 then
               if d.Second = 0 then (d.Minute - 60) % 60 else d.Minute - 59
@@ -506,6 +523,19 @@ let fns : List<BuiltInFn> =
               d.Minute
 
           Ply(Dval.int s)
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "minute" 1) }
+
+
+    { name = fn "Date" "minute" 1
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the minute portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Ply(Dval.int d.Minute)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
@@ -519,9 +549,22 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
+          // this was made bug-for-bug compatible with the old OCaml backend
           let s = if d.Year < 1970 then (d.Second - 60) % 60 else d.Second
           Ply(Dval.int s)
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "second" 1) }
+
+
+    { name = fn "Date" "second" 1
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the second portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Ply(Dval.int d.Second)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
@@ -538,5 +581,25 @@ let fns : List<BuiltInFn> =
           DDateTime.T(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    // TODO: when we have timespans in Dark, deprecate this
+    // in favor of a fn which returns a timespan rather than seconds
+    //
+    // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
+    // currently support such a complex sqlSpec in Dark fns.
+    { name = fn "Date" "subtract" 1
+      parameters = [ Param.make "end" TDate ""; Param.make "start" TDate "" ]
+      returnType = TInt
+      description = "Returns the difference of the two dates, in seconds"
+      fn =
+        (function
+        | _, [ DDate endDate; DDate startDate ] ->
+          let diff = (DDateTime.toInstant endDate) - (DDateTime.toInstant startDate)
+          diff.TotalSeconds |> System.Math.Round |> int64 |> DInt |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

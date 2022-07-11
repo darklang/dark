@@ -1,10 +1,10 @@
 open Prelude
 
-/* Tea */
+// Tea
 module Cmd = Tea.Cmd
 module Http = Tea.Http
 
-/* Dark */
+// Dark
 module AC = Autocomplete
 module B = BlankOr
 module P = Pointer
@@ -46,7 +46,7 @@ let openOmnibox = (m: model): modification =>
   | Architecture | FocusedHandler(_) | FocusedDB(_) => Many(list{Deselect, Entry.openOmnibox()})
   | FocusedFn(_) | FocusedType(_) | FocusedPackageManagerFn(_) => Entry.openOmnibox()
   | SettingsModal(_) =>
-    /* Shouldnt be able to open the omnibox from the settings modal */
+    // Shouldnt be able to open the omnibox from the settings modal
     NoChange
   }
 
@@ -83,7 +83,7 @@ let defaultHandler = (event: Keyboard.keyEvent, m: model): modification => {
         /* if we're selecting an expression,
          go 'up' to selecting the toplevel only */
         | Some(_) => Select(tlid, STTopLevelRoot)
-        /* if we're selecting a toplevel only, deselect. */
+        // if we're selecting a toplevel only, deselect.
         | None => Deselect
         }
       | (Key.Enter, Some(TLTipe(t) as tl)) if event.shiftKey =>
@@ -119,7 +119,7 @@ let defaultHandler = (event: Keyboard.keyEvent, m: model): modification => {
         | None => NoChange
         }
       | (Key.Tab, _) =>
-        /* NB: see `stopKeys` in ui.html */
+        // NB: see `stopKeys` in ui.html
         switch mId {
         | Some(id) =>
           if event.shiftKey {
@@ -169,8 +169,8 @@ let defaultHandler = (event: Keyboard.keyEvent, m: model): modification => {
           }
         | Key.Unknown(_) => NoChange
         | Key.Escape => Many(list{Select(tlid, STID(id)), AutocompleteMod(ACReset)})
-        | Key.Up => AutocompleteMod(ACSelectUp) /* NB: see `stopKeys` in ui.html */
-        | Key.Down => AutocompleteMod(ACSelectDown) /* NB: see `stopKeys` in ui.html */
+        | Key.Up => AutocompleteMod(ACSelectUp) // NB: see `stopKeys` in ui.html
+        | Key.Down => AutocompleteMod(ACSelectDown) // NB: see `stopKeys` in ui.html
         | Key.Backspace =>
           /* This was an old hack for strings in the AST of the old editor.
            * Unclear if it still is needed. */
@@ -203,13 +203,13 @@ let defaultHandler = (event: Keyboard.keyEvent, m: model): modification => {
           let pos = Option.unwrap(~default=Viewport.findNewPos(m), pos)
           switch AC.highlighted(m.complete) {
           | Some(ACOmniAction(act)) => Entry.submitOmniAction(m, pos, act)
-          /* If empty, create an empty handler */
+          // If empty, create an empty handler
           | None if m.complete.value == "" => Entry.submitOmniAction(m, pos, NewReplHandler(None))
           | _ => NoChange
           }
         | Key.Escape => Many(list{Deselect, AutocompleteMod(ACReset)})
-        | Key.Up => AutocompleteMod(ACSelectUp) /* NB: see `stopKeys` in ui.html */
-        | Key.Down => AutocompleteMod(ACSelectDown) /* NB: see `stopKeys` in ui.html */
+        | Key.Up => AutocompleteMod(ACSelectUp) // NB: see `stopKeys` in ui.html
+        | Key.Down => AutocompleteMod(ACSelectDown) // NB: see `stopKeys` in ui.html
         | Key.Backspace =>
           /* This was an old hack for strings in the AST of the old editor.
            * Unclear if it still is needed. */
@@ -260,8 +260,8 @@ let defaultHandler = (event: Keyboard.keyEvent, m: model): modification => {
           }
         | Key.PageUp => Viewport.pageUp(m)
         | Key.PageDown => Viewport.pageDown(m)
-        | Key.Up => Viewport.moveUp(m) /* NB: see `stopKeys` in ui.html */
-        | Key.Down => Viewport.moveDown(m) /* NB: see `stopKeys` in ui.html */
+        | Key.Up => Viewport.moveUp(m) // NB: see `stopKeys` in ui.html
+        | Key.Down => Viewport.moveDown(m) // NB: see `stopKeys` in ui.html
         | Key.Left => Viewport.moveLeft(m)
         | Key.Right => Viewport.moveRight(m)
         | _ => NoChange
@@ -279,8 +279,8 @@ let optionDefaultHandler = (event: Keyboard.keyEvent, m: model): option<modifica
   defaultHandler(event, m),
 )
 
-/* process handlers until one has a result or we're done */
-/* this is sort of the opposite of >>= */
+// process handlers until one has a result or we're done
+// this is sort of the opposite of >>=
 /* NB: 'None' will allow subsequent handlers to run; 'Some NoChange' does not.
    (So if you wanted to _disable_ defaultHandler behavior for a given input,
    you could.) */

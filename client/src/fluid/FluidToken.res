@@ -6,7 +6,7 @@ type tokenInfo = Types.fluidTokenInfo
 
 let fakeid = ID.fromString("fake-id")
 
-let tid = (t: t): ID.t =>
+let tid = (t: t): id =>
   switch t {
   | TInteger(id, _, _)
   | TFloatWhole(id, _, _)
@@ -45,6 +45,9 @@ let tid = (t: t): ID.t =>
   | TListOpen(id, _)
   | TListClose(id, _)
   | TListComma(id, _)
+  | TTupleOpen(id)
+  | TTupleClose(id)
+  | TTupleComma(id, _)
   | TPipe(id, _, _, _)
   | TRecordOpen(id, _)
   | TRecordClose(id, _)
@@ -73,7 +76,7 @@ let tid = (t: t): ID.t =>
   | TNewline(None) | TIndent(_) => fakeid
   }
 
-let analysisID = (t: t): ID.t =>
+let analysisID = (t: t): id =>
   switch t {
   | TLetVarName(_, id, _, _)
   | TLetKeyword(_, id, _)
@@ -85,8 +88,8 @@ let analysisID = (t: t): ID.t =>
   | _ => tid(t)
   }
 
-/* TODO(alice) merge these two functions? */
-let parentExprID = (t: t): ID.t =>
+// TODO(alice) merge these two functions?
+let parentExprID = (t: t): id =>
   switch t {
   | TNewline(Some(_, id, _)) => id
   | _ => tid(t)
@@ -95,18 +98,17 @@ let parentExprID = (t: t): ID.t =>
 /* List literals, object literals, and multiline strings are blocks.
  This function returns the ID of the whole list, object, or string expression that this token belongs to, if it does indeed live inside a block.
 */
-let parentBlockID = (t: t): option<ID.t> =>
+let parentBlockID = (t: t): option<id> =>
   switch t {
-  /* The first ID is the ID of the whole string expression */
+  // The first ID is the ID of the whole string expression
   | TStringMLStart(id, _, _, _)
   | TStringMLMiddle(id, _, _, _)
   | TStringMLEnd(id, _, _, _)
-  | /* The ID of a comma token is the ID of the whole list expression */
-  TListComma(id, _)
-  | /* The first ID in the separator token is the ID of the whole obj expression */
-  TRecordSep(id, _, _) =>
+
+  // The first ID in the separator token is the ID of the whole obj expression
+  | TRecordSep(id, _, _) =>
     Some(id)
-  /* The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block. */
+  // The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block.
   | TRecordOpen(_, pid)
   | TRecordClose(_, pid)
   | TListOpen(_, pid)
@@ -143,6 +145,12 @@ let parentBlockID = (t: t): option<ID.t> =>
   | TSep(_, pid) => pid
   | TRecordFieldname(d) => d.parentBlockID
   | TNewline(Some(_, id, _)) => Some(id)
+
+  | TTupleOpen(id)
+  | TTupleClose(id)
+  | TListComma(id, _)
+  | TTupleComma(id, _) => Some(id)
+
   | TFnName(_)
   | TFnVersion(_)
   | TMatchKeyword(_)
@@ -217,6 +225,9 @@ let isTextToken = (t: t): bool =>
   | TListOpen(_)
   | TListClose(_)
   | TListComma(_, _)
+  | TTupleOpen(_)
+  | TTupleClose(_)
+  | TTupleComma(_, _)
   | TSep(_)
   | TLetKeyword(_)
   | TRecordOpen(_)
@@ -246,6 +257,7 @@ let isPipeable = (t: t): bool =>
   | TInteger(_)
   | TLetVarName(_)
   | TListClose(_)
+  | TTupleClose(_)
   | TRecordClose(_)
   | TFieldName(_)
   | TVariable(_)
@@ -283,9 +295,11 @@ let isPipeable = (t: t): bool =>
   | TStringMLStart(_)
   | TStringMLMiddle(_)
   | TStringMLEnd(_)
-  | TListOpen(_)
   | TFieldPartial(_)
+  | TListOpen(_)
   | TListComma(_, _)
+  | TTupleOpen(_)
+  | TTupleComma(_, _)
   | TSep(_)
   | TLetKeyword(_)
   | TRecordOpen(_)
@@ -396,6 +410,9 @@ let isWhitespace = (t: t): bool =>
   | TListOpen(_)
   | TListClose(_)
   | TListComma(_)
+  | TTupleOpen(_)
+  | TTupleClose(_)
+  | TTupleComma(_)
   | TPipe(_)
   | TRecordOpen(_)
   | TRecordClose(_)
@@ -461,7 +478,7 @@ let isAutocompletable = (t: t): bool =>
   | _ => false
   }
 
-/* Is this token something we can highlight as DError or DIncomplete? */
+// Is this token something we can highlight as DError or DIncomplete?
 let isErrorDisplayable = (t: t): bool =>
   isTextToken(t) &&
   switch t {
@@ -487,6 +504,12 @@ let isListSymbol = (t: fluidToken): bool =>
   | _ => false
   }
 
+let isTupleSymbol = (t: fluidToken): bool =>
+  switch t {
+  | TTupleOpen(_) | TTupleClose(_) | TTupleComma(_) => true
+  | _ => false
+  }
+
 let toText = (t: t): string => {
   let shouldntBeEmpty = name => {
     if name == "" {
@@ -502,7 +525,7 @@ let toText = (t: t): string => {
       name
     }
   switch t {
-  | TInteger(_, i, _) => shouldntBeEmpty(i)
+  | TInteger(_, i, _) => Int64.to_string(i)
   | TFloatWhole(_, w, _) => shouldntBeEmpty(w)
   | TFloatPoint(_) => "."
   | TFloatFractional(_, f, _) => f
@@ -547,6 +570,9 @@ let toText = (t: t): string => {
   | TListOpen(_) => "["
   | TListClose(_) => "]"
   | TListComma(_, _) => ","
+  | TTupleOpen(_) => "("
+  | TTupleClose(_) => ")"
+  | TTupleComma(_, _) => ","
   | TRecordOpen(_) => "{"
   | TRecordClose(_) => "}"
   | TRecordFieldname(f) => canBeEmpty(f.fieldName)
@@ -555,7 +581,7 @@ let toText = (t: t): string => {
   | TPipe(_) => "|>"
   | TMatchKeyword(_) => "match "
   | TMatchBranchArrow(_) => " -> "
-  | TPatternInteger(_, _, i, _) => shouldntBeEmpty(i)
+  | TPatternInteger(_, _, i, _) => Int64.to_string(i)
   | TPatternFloatWhole(_, _, w, _) => shouldntBeEmpty(w)
   | TPatternFloatPoint(_) => "."
   | TPatternFloatFractional(_, _, f, _) => f
@@ -610,6 +636,7 @@ let toIndex = (t: t): option<int> =>
   | TRecordFieldname({index, _})
   | TRecordSep(_, index, _)
   | TListComma(_, index)
+  | TTupleComma(_, index)
   | TNewline(Some(_, _, Some(index)))
   | TPatternBlank(_, _, index)
   | TPatternInteger(_, _, _, index)
@@ -626,7 +653,7 @@ let toIndex = (t: t): option<int> =>
   | _ => None
   }
 
-let toParentID = (t: t): option<ID.t> =>
+let toParentID = (t: t): option<id> =>
   switch t {
   | TRecordFieldname({recordID: id, _})
   | TPatternBlank(id, _, _)
@@ -686,6 +713,9 @@ let toTypeName = (t: t): string =>
   | TListOpen(_) => "list-open"
   | TListClose(_) => "list-close"
   | TListComma(_, _) => "list-comma"
+  | TTupleOpen(_) => "tuple-open"
+  | TTupleClose(_) => "tuple-close"
+  | TTupleComma(_, _) => "tuple-comma"
   | TRecordOpen(_) => "record-open"
   | TRecordClose(_) => "record-close"
   | TRecordFieldname(_) => "record-fieldname"
@@ -727,6 +757,7 @@ let toCategoryName = (t: t): string =>
   | TFieldOp(_) | TFieldName(_) | TFieldPartial(_) => "field"
   | TLambdaVar(_) | TLambdaSymbol(_) | TLambdaArrow(_) | TLambdaComma(_) => "lambda"
   | TListOpen(_) | TListClose(_) | TListComma(_) => "list"
+  | TTupleOpen(_) | TTupleClose(_) | TTupleComma(_) => "tuple"
   | TPipe(_) => "pipe"
   | TConstructorName(_) => "constructor"
   | TRecordOpen(_) | TRecordClose(_) | TRecordFieldname(_) | TRecordSep(_) => "record"
@@ -794,7 +825,7 @@ let toCssClasses = (t: t): list<string> => {
     }
   }
 
-  \"@"(empty, \"@"(keyword, \"@"(typename, category)))
+  Belt.List.concatMany([empty, keyword, typename, category])
 }
 
 let show_tokenInfo = (ti: tokenInfo) =>
@@ -827,7 +858,7 @@ let matches = (t1: t, t2: t): bool =>
     (toTypeName(t1) == toTypeName(t2) &&
     (toIndex(t1) == toIndex(t2) && t1 != /* Matches too many things */ TNewline(None)))
 
-/* Matches everything except parentBlockID */
+// Matches everything except parentBlockID
 let matchesContent = (t1: t, t2: t): bool =>
   switch (t1, t2) {
   | (TStringMLStart(id1, seg1, ind1, str1), TStringMLStart(id2, seg2, ind2, str2))
@@ -836,6 +867,8 @@ let matchesContent = (t1: t, t2: t): bool =>
     id1 == id2 && (seg1 == seg2 && (ind1 == ind2 && str1 == str2))
   | (TListOpen(id1, _), TListOpen(id2, _))
   | (TListClose(id1, _), TListClose(id2, _))
+  | (TTupleOpen(id1), TTupleOpen(id2))
+  | (TTupleClose(id1), TTupleClose(id2))
   | (TRecordOpen(id1, _), TRecordOpen(id2, _))
   | (TRecordClose(id1, _), TRecordClose(id2, _))
   | (TTrue(id1, _), TTrue(id2, _))
@@ -858,10 +891,11 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TFlagEnabledKeyword(id1), TFlagEnabledKeyword(id2)) =>
     id1 == id2
   | (TListComma(id1, ind1), TListComma(id2, ind2))
+  | (TTupleComma(id1, ind1), TTupleComma(id2, ind2))
   | (TRecordSep(id1, ind1, _), TRecordSep(id2, ind2, _))
   | (TLambdaComma(id1, ind1, _), TLambdaComma(id2, ind2, _)) =>
     id1 == id2 && ind1 == ind2
-  | (TInteger(id1, val1, _), TInteger(id2, val2, _))
+  | (TInteger(id1, val1, _), TInteger(id2, val2, _)) => id1 == id2 && val1 == val2
   | (TFloatWhole(id1, val1, _), TFloatWhole(id2, val2, _))
   | (TFloatFractional(id1, val1, _), TFloatFractional(id2, val2, _))
   | (TPartial(id1, val1, _), TPartial(id2, val2, _))
@@ -897,7 +931,8 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TFnVersion(id1, _, _, fullname1), TFnVersion(id2, _, _, fullname2)) =>
     id1 == id2 && fullname1 == fullname2
   | (TPatternVariable(m1, p1, val1, ind1), TPatternVariable(m2, p2, val2, ind2))
-  | (TPatternConstructorName(m1, p1, val1, ind1), TPatternConstructorName(m2, p2, val2, ind2))
+  | (TPatternConstructorName(m1, p1, val1, ind1), TPatternConstructorName(m2, p2, val2, ind2)) =>
+    m1 == m2 && (p1 == p2 && (val1 == val2 && ind1 == ind2))
   | (TPatternInteger(m1, p1, val1, ind1), TPatternInteger(m2, p2, val2, ind2)) =>
     m1 == m2 && (p1 == p2 && (val1 == val2 && ind1 == ind2))
   | (TPatternTrue(p1, id1, ind1), TPatternTrue(p2, id2, ind2))
@@ -952,6 +987,9 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TListOpen(_), _)
   | (TListClose(_), _)
   | (TListComma(_), _)
+  | (TTupleOpen(_), _)
+  | (TTupleClose(_), _)
+  | (TTupleComma(_), _)
   | (TPipe(_), _)
   | (TRecordOpen(_), _)
   | (TRecordFieldname(_), _)

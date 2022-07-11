@@ -1,5 +1,6 @@
 open Prelude
 module T = FluidToken
+module Expr = ProgramTypes.Expr
 module E = FluidExpression
 module Pattern = FluidPattern
 
@@ -14,9 +15,9 @@ type featureFlagTokenization =
           * panel for editing a flag's condition and new code ")
   FeatureFlagConditionAndEnabled
 
-/* -------------------------------------- */
-/* Convert FluidExpressions to tokenInfos */
-/* -------------------------------------- */
+// --------------------------------------
+// Convert FluidExpressions to tokenInfos
+// --------------------------------------
 
 module Builder = {
   type t = {
@@ -33,7 +34,7 @@ module Builder = {
   }
 
   let rec endsInNewline = (b: t): bool =>
-    /* The latest token is on the front */
+    // The latest token is on the front
     switch b.tokens {
     | list{TNewline(_), ..._} => true
     | list{TIndent(_), ...tail} => endsInNewline({...b, tokens: tail})
@@ -53,9 +54,12 @@ module Builder = {
 
   let listLimit = 60
 
+  /** # of items in a tuple before we should wrap*/
+  let tupleLimit = 60
+
   let add = (token: fluidToken, b: t): t => {
     let tokenLength = token |> T.toText |> String.length
-    let (newTokens, xPos) = /* Add new tokens on the front */
+    let (newTokens, xPos) = // Add new tokens on the front
     if endsInNewline(b) {
       (
         if b.indent != 0 {
@@ -109,7 +113,7 @@ module Builder = {
     {...b, indent: newIndent} |> f |> (b => {...b, indent: oldIndent})
   }
 
-  let addNewlineIfNeeded = (nlInfo: option<(ID.t, ID.t, option<int>)>, b: t): t =>
+  let addNewlineIfNeeded = (nlInfo: option<(id, id, option<int>)>, b: t): t =>
     if endsInNewline(b) {
       b
     } else {
@@ -117,43 +121,46 @@ module Builder = {
     }
 
   let asTokens = (b: t): list<fluidToken> =>
-    /* Tokens are stored reversed */
+    // Tokens are stored reversed
     List.reverse(b.tokens)
 }
 
-let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
+let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> =>
   switch p {
-  | FPVariable(mid, id, name) => list{TPatternVariable(mid, id, name, idx)}
-  | FPConstructor(mid, id, name, args) =>
-    let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(a, ~idx)})
+  | PVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
+  | PConstructor(id, name, args) =>
+    let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(matchID, a, ~idx)})
 
-    List.flatten(list{list{TPatternConstructorName(mid, id, name, idx)}, ...args})
-  | FPInteger(mid, id, i) => list{TPatternInteger(mid, id, i, idx)}
-  | FPBool(mid, id, b) =>
+    List.flatten(list{list{TPatternConstructorName(matchID, id, name, idx)}, ...args})
+  | PInteger(id, i) => list{TPatternInteger(matchID, id, i, idx)}
+  | PBool(id, b) =>
     if b {
-      list{TPatternTrue(mid, id, idx)}
+      list{TPatternTrue(matchID, id, idx)}
     } else {
-      list{TPatternFalse(mid, id, idx)}
+      list{TPatternFalse(matchID, id, idx)}
     }
-  | FPString({matchID: mid, patternID: id, str}) => list{
-      TPatternString({matchID: mid, patternID: id, str: str, branchIdx: idx}),
+  | PString(id, str) => list{
+      TPatternString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
-  | FPFloat(mID, id, whole, fraction) =>
+  | PFloat(id, sign, whole, fraction) =>
+    let whole = switch sign {
+    | Positive => whole
+    | Negative => "-" ++ whole
+    }
     let whole = if whole == "" {
       list{}
     } else {
-      list{TPatternFloatWhole(mID, id, whole, idx)}
+      list{TPatternFloatWhole(matchID, id, whole, idx)}
     }
-
     let fraction = if fraction == "" {
       list{}
     } else {
-      list{TPatternFloatFractional(mID, id, fraction, idx)}
+      list{TPatternFloatFractional(matchID, id, fraction, idx)}
     }
 
-    \"@"(whole, \"@"(list{TPatternFloatPoint(mID, id, idx)}, fraction))
-  | FPNull(mid, id) => list{TPatternNullToken(mid, id, idx)}
-  | FPBlank(mid, id) => list{TPatternBlank(mid, id, idx)}
+    Belt.List.concatMany([whole, list{TPatternFloatPoint(matchID, id, idx)}, fraction])
+  | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
+  | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
   }
 
 let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
@@ -173,7 +180,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
    * int: index of the placeholder within the expr's parameters
    */
   let nest = (
-    ~placeholderFor: option<(ID.t, string, int)>=None,
+    ~placeholderFor: option<(id, string, int)>=None,
     ~indent,
     e: E.t,
     b: Builder.t,
@@ -206,7 +213,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     b |> indentBy(~indent, ~f=addNested(~f=tokensFn))
   }
 
-  let addArgs = (name: string, id: ID.t, args: list<E.t>, b: Builder.t): Builder.t => {
+  let addArgs = (name: string, id: id, args: list<E.t>, b: Builder.t): Builder.t => {
     let (args, offset) = switch args {
     | list{EPipeTarget(_), ...args} => (args, 1)
     | _ => (args, 0)
@@ -226,7 +233,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
 
       let tooLong = length > lineLimit
       let needsNewlineBreak =
-        /* newlines aren't disruptive in the last argument */
+        // newlines aren't disruptive in the last argument
         args
         |> List.initial
         |> Option.unwrap(~default=list{})
@@ -267,7 +274,11 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       },
     )
   | ENull(id) => b |> add(TNullToken(id, parentID))
-  | EFloat(id, whole, fraction) =>
+  | EFloat(id, sign, whole, fraction) =>
+    let whole = switch sign {
+    | Positive => whole
+    | Negative => "-" ++ whole
+    }
     let whole = if whole == "" {
       list{}
     } else {
@@ -280,7 +291,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       list{TFloatFractional(id, fraction, parentID)}
     }
 
-    b |> addMany(\"@"(whole, \"@"(list{TFloatPoint(id, parentID)}, fraction)))
+    b |> addMany(Belt.List.concatMany([whole, list{TFloatPoint(id, parentID)}, fraction]))
   | EBlank(id) => b |> add(TBlank(id, parentID))
   | ELet(id, lhs, rhs, next) =>
     let rhsID = E.toID(rhs)
@@ -415,9 +426,10 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TLambdaArrow(id, parentID))
     |> nest(~indent=2, body)
   | EList(id, exprs) =>
-    /*
-         With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
- */
+    /* With each iteration of the list, we calculate the new line length if
+     * we were to add this new item. If the new line length exceeds the
+     * limit, then we add a new line token and an indent by 1 first, before
+     * adding the tokenized item to the builder. */
     let lastIndex = List.length(exprs) - 1
     let xOffset = b.xPos |> Option.unwrap(~default=0)
     let pid = if lastIndex == -1 {
@@ -439,9 +451,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         |> Option.unwrap(~default=commaWidth)
       }
 
-      /* Even if first element overflows, don't put it in a new line */
+      // Even if first element overflows, don't put it in a new line
       let isOverLimit = i > 0 && currentLineLength > listLimit
-      /* Indent after newlines to match the '[ ' */
+      // Indent after newlines to match the '[ '
       let indent = if isOverLimit {
         1
       } else {
@@ -456,6 +468,56 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       )
     })
     |> add(TListClose(id, pid))
+  | ETuple(id, first, second, theRest) =>
+    let exprs = list{first, second, ...theRest}
+
+    // With each item of the tuple, we calculate the new line length if we were
+    // to add this new item. If the new line length exceeds the limit, then we
+    // add a new line token and an indent by 1 first, before adding the
+    // tokenized item to the builder.
+
+    // TODO or we could define isLastElement, and pass the itemIndex as a param
+    // (I think this would be make the code more clear.)
+    let lastIndex = List.length(exprs) - 1
+
+    let xOffset = b.xPos |> Option.unwrap(~default=0)
+
+    b
+    |> add(TTupleOpen(id))
+    |> addIter(exprs, ~f=(i, e, b') => {
+      let currentLineLength = {
+        let commaWidth = if i != lastIndex {
+          1
+        } else {
+          0
+        }
+        toTokens'(e, b').xPos
+        |> Option.map(~f=x => x - xOffset + commaWidth)
+        |> Option.unwrap(~default=commaWidth)
+      }
+
+      let isNotFirstElement = i > 0
+      let isOverLimit = currentLineLength > tupleLimit
+
+      // Even if first element overflows, don't put it in a new line
+      let shouldIndent = isNotFirstElement && isOverLimit
+
+      // Indent after newlines to match the '( '
+      let indent = if shouldIndent {
+        1
+      } else {
+        0
+      }
+
+      b'
+      |> addIf(shouldIndent, TNewline(None))
+      |> indentBy(~indent, ~f=b' =>
+        b'
+        |> addNested(~f=toTokens'(~parentID=Some(id), e))
+        |> addIf(i != lastIndex, TTupleComma(id, i))
+      )
+    })
+    |> add(TTupleClose(id))
   | ERecord(id, fields) =>
     if fields == list{} {
       b |> addMany(list{TRecordOpen(id, None), TRecordClose(id, None)})
@@ -486,23 +548,25 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         TRecordClose(id, parentBlockID),
       })
     }
-  | EPipe(id, exprs) =>
-    let length = List.length(exprs)
-    switch exprs {
-    | list{} => recover("Empty pipe found", ~debug=e, b)
-    | list{single} => recover("pipe with single entry found", ~debug=e, toTokens'(single, b))
-    | list{head, ...tail} =>
+  | EPipe(id, e1, e2, rest) =>
+    let length = 2 + List.length(rest)
+    b
+    // First entry
+    |> addNested(~f=toTokens'(e1))
+    |> addNewlineIfNeeded(Some(E.toID(e1), id, Some(0)))
+    // Second entry is same as rest
+    |> add(TPipe(id, 0, length, parentID))
+    |> addNested(~f=toTokens'(~parentID, e2))
+    |> addNewlineIfNeeded(Some(E.toID(e2), id, Some(1)))
+    // Rest of entries
+    |> addIter(rest, ~f=(i, e, b) =>
       b
-      |> addNested(~f=toTokens'(head))
-      |> addNewlineIfNeeded(Some(E.toID(head), id, Some(0)))
-      |> addIter(tail, ~f=(i, e, b) =>
-        b
-        |> add(TPipe(id, i, length, parentID))
-        |> addNested(~f=toTokens'(~parentID, e))
-        |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 1)))
-      )
-      |> addNewlineIfNeeded(Some(id, id, Some(List.length(tail))))
-    }
+      |> add(TPipe(id, i + 1, length, parentID))
+      |> addNested(~f=toTokens'(~parentID, e))
+      |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 2)))
+    )
+    |> addNewlineIfNeeded(Some(id, id, Some(2 + List.length(rest))))
+
   | EPipeTarget(_) => recover("should never be making tokens for EPipeTarget", ~debug=e, b)
   | EMatch(id, mexpr, pairs) =>
     b
@@ -513,7 +577,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       |> addIter(pairs, ~f=(i, (pattern, expr), b) =>
         b
         |> addNewlineIfNeeded(Some(id, id, Some(i)))
-        |> addMany(patternToToken(pattern, ~idx=i))
+        |> addMany(patternToToken(id, pattern, ~idx=i))
         |> add(
           TMatchBranchArrow({
             matchID: id,
@@ -581,7 +645,7 @@ let validateTokens = (tokens: list<fluidToken>): list<fluidToken> => {
   tokens
 }
 
-/* Remove artifacts of the token generation process */
+// Remove artifacts of the token generation process
 let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
   tokens |> List.filter(~f=x =>
     switch x {
@@ -625,9 +689,9 @@ let tokenizeForEditor = (e: fluidEditor, expr: FluidExpression.t): list<FluidTok
   | FeatureFlagEditor(_) => tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled, expr)
   }
 
-/* -------------------------------------- */
-/* ASTInfo */
-/* -------------------------------------- */
+// --------------------------------------
+// ASTInfo
+// --------------------------------------
 type tokenInfos = list<T.tokenInfo>
 
 type neighbour =
@@ -640,7 +704,7 @@ let rec getTokensAtPosition = (~prev=None, ~pos: int, tokens: tokenInfos): (
   option<T.tokenInfo>,
   option<T.tokenInfo>,
 ) => {
-  /* Get the next token and the remaining tokens, skipping indents. */
+  // Get the next token and the remaining tokens, skipping indents.
   let rec getNextToken = (infos: tokenInfos): (option<T.tokenInfo>, tokenInfos) =>
     switch infos {
     | list{ti, ...rest} =>
@@ -675,18 +739,18 @@ let getNeighbours = (~pos: int, tokens: tokenInfos): (
   | _ => No
   }
 
-  /* The token directly before the cursor (skipping whitespace) */
+  // The token directly before the cursor (skipping whitespace)
   let toTheLeft = switch (mPrev, mCurrent) {
   | (Some(prev), _) if prev.endPos >= pos => L(prev.token, prev)
-  /* The left might be separated by whitespace */
+  // The left might be separated by whitespace
   | (Some(prev), Some(current)) if current.startPos >= pos => L(prev.token, prev)
   | (None, Some(current)) if current.startPos < pos =>
-    /* We could be in the middle of a token */
+    // We could be in the middle of a token
     L(current.token, current)
   | (None, _) => No
   | (_, Some(current)) => L(current.token, current)
   | (Some(prev), None) =>
-    /* Last position in the ast */
+    // Last position in the ast
     L(prev.token, prev)
   }
 
@@ -741,7 +805,7 @@ module ASTInfo = {
     ast: FluidAST.t,
     state: fluidState,
     mainTokenInfos: tokenInfos,
-    featureFlagTokenInfos: list<(ID.t, tokenInfos)>,
+    featureFlagTokenInfos: list<(id, tokenInfos)>,
     props: fluidProps,
   }
 
@@ -766,12 +830,12 @@ module ASTInfo = {
       }
     }
 
-  let ffTokenInfosFor = (ffid: ID.t, astInfo: t): option<tokenInfos> =>
+  let ffTokenInfosFor = (ffid: id, astInfo: t): option<tokenInfos> =>
     List.find(astInfo.featureFlagTokenInfos, ~f=((id, _)) => ffid == id) |> Option.map(
       ~f=Tuple2.second,
     )
 
-  /* Get the correct tokenInfos for the activeEditor */
+  // Get the correct tokenInfos for the activeEditor
   let activeTokenInfos = (astInfo: t): tokenInfos =>
     switch astInfo.state.activeEditor {
     | NoEditor => list{}
@@ -791,7 +855,7 @@ module ASTInfo = {
     getTokenNotWhitespace(activeTokenInfos(astInfo), astInfo.state)
 
   let emptyFor = (props: fluidProps, state: fluidState): t => {
-    ast: FluidAST.ofExpr(E.EBlank(gid())),
+    ast: FluidAST.ofExpr(Expr.EBlank(gid())),
     state: state,
     mainTokenInfos: list{},
     featureFlagTokenInfos: list{},

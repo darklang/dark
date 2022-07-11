@@ -108,7 +108,7 @@ type HttpContextExtensions() =
       addTag "json_flavor" "vanilla"
       ctx.Response.ContentType <- "application/json; charset=utf-8"
       // Use a client-specific ApiServer
-      let serialized = ApiServer.Json.serialize value
+      let serialized = Json.Vanilla.serialize value
       let bytes = System.ReadOnlyMemory(UTF8.toBytes serialized)
       ctx.Response.ContentLength <- int64 bytes.Length
       t.next "write-json-async"

@@ -3,7 +3,7 @@ module LibExecutionStdLib.StdLib
 open Prelude
 open LibExecution.RuntimeTypes
 
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 let fn = FQFnName.stdlibFnName
 
@@ -18,7 +18,8 @@ let renames =
     fn "JSON" "read" 1, fn "JSON" "parse" 0
     fn "Object" "empty" 0, fn "Dict" "empty" 0
     fn "Object" "merge" 0, fn "Dict" "merge" 0
-    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0 ]
+    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0
+    fn "Date" "subtract" 0, fn "Date" "subtractSeconds" 0 ]
 
 
 let prefixFns : List<BuiltInFn> =
@@ -30,6 +31,7 @@ let prefixFns : List<BuiltInFn> =
     LibFloat.fns
     LibHttp.fns
     LibHttpClient.fns
+    LibHttpClientAuth.fns
     LibJson.fns
     LibMath.fns
     LibObject.fns
@@ -40,6 +42,7 @@ let prefixFns : List<BuiltInFn> =
     LibNoModule.fns
     LibOption.fns
     LibResult.fns
+    LibCrypto.fns
     LibString.fns ]
   |> List.concat
   |> renameFunctions renames

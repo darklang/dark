@@ -17,7 +17,7 @@ open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module G = Generators
 
@@ -106,7 +106,8 @@ module Queryable =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter DvalReprInternalDeprecated.isQueryableDval
+      Arb.Default.Derive()
+      |> Arb.filter DvalReprInternalDeprecated.Test.isQueryableDval
 
   let canV1Roundtrip (dv : RT.Dval) : bool =
     let dvm = (Map.ofList [ "field", dv ])

@@ -90,7 +90,6 @@ module FQFnName =
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
-/// Patterns - used for pattern matching in a match statement
 [<MessagePack.MessagePackObject>]
 type Pattern =
   | PVariable of id * string
@@ -103,25 +102,17 @@ type Pattern =
   | PNull of id
   | PBlank of id
 
-/// Whether a function's result is unwrapped automatically (and, in the case of
-/// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.
 [<MessagePack.MessagePackObject>]
 type SendToRail =
   | Rail
   | NoRail
 
-/// Expressions - the main part of the language.
 [<MessagePack.MessagePackObject>]
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
   | EString of id * string
-  /// A character is an Extended Grapheme Cluster (hence why we use a string). This
-  /// is equivalent to one screen-visible "character" in Unicode.
   | ECharacter of id * string
-  // Allow the user to have arbitrarily big numbers, even if they don't make sense as
-  // floats. The float is split as we want to preserve what the user entered.
-  // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
   | ENull of id
   | EBlank of id
@@ -142,6 +133,7 @@ type Expr =
   | EMatch of id * Expr * List<Pattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
+  | ETuple of id * Expr * Expr * List<Expr>
 
 [<MessagePack.MessagePackObject>]
 type DType =
@@ -165,16 +157,11 @@ type DType =
   | TUserType of string * int
   | TBytes
   | TResult of DType * DType
-  // A named variable, eg `a` in `List<a>`, matches anything
-  | TVariable of string // replaces TAny
-  | TFn of List<DType> * DType // replaces TLambda
+  | TVariable of string
+  | TFn of List<DType> * DType
   | TRecord of List<string * DType>
   | TDbList of DType // TODO: cleanup and remove
-// This allows you to build up a record to eventually be the right shape.
-// | TRecordWithFields of List<string * DType>
-// | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-// | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-
+  | TTuple of DType * DType * List<DType>
 
 module Handler =
   [<MessagePack.MessagePackObject>]

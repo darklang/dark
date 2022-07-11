@@ -130,7 +130,7 @@ let ocamlStringOfFloat (f : float) : string =
   // format "%.12g".
   // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
 
-  // CLEANUP We should move on to a nicer format. See DvalReprExternal.tests for edge cases. See:
+  // CLEANUP We should move on to a nicer format. See DvalReprLegacyExternal.tests for edge cases. See:
   if System.Double.IsPositiveInfinity f then
     "inf"
   else if System.Double.IsNegativeInfinity f then
@@ -178,6 +178,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
     // These are the only types that are allowed in the queryable
     // representation. We may allow more in the future, but the real thing to
     // do is to use the DB's type and version to encode/decode them correctly
+    // Note: the fields are ordered.
     match fields with
     // DResp (Result.ok_or_Exception.raiseInternal (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
     | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
@@ -205,6 +206,11 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
         Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
       )
     | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+    | [ ("first", first)
+        ("second", second)
+        ("theRest", JList theRest)
+        ("type", JString "tuple") ] ->
+      DTuple(convert first, convert second, theRest |> List.map convert)
     | [ ("constructor", JString "Ok")
         ("type", JString "result")
         ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
@@ -219,7 +225,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   | JNonStandard
   | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
-let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
+let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
   let writeDval = unsafeDvalToJsonValueV0 w
 
   let wrapStringValue (typ : string) (str : string) =
@@ -251,6 +257,20 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
   | DNull -> w.WriteNull()
   | DStr s -> w.WriteValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
+  | DTuple (first, second, theRest) ->
+    w.writeObject (fun () ->
+      w.WritePropertyName "type"
+      w.WriteValue("tuple")
+
+      w.WritePropertyName "first"
+      writeDval first
+
+      w.WritePropertyName "second"
+      writeDval second
+
+      w.WritePropertyName "theRest"
+      w.writeArray (fun () -> List.iter writeDval theRest))
+
   | DObj o ->
     w.writeObject (fun () ->
       Map.iter
@@ -327,7 +347,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
 
 
 
-let unsafeDvalToJsonValueV1 (w : JsonWriter) (dv : Dval) : unit =
+let private unsafeDvalToJsonValueV1 (w : JsonWriter) (dv : Dval) : unit =
   unsafeDvalToJsonValueV0 w dv
 
 // -------------------------
@@ -358,6 +378,7 @@ let isRoundtrippableDval (allowKnownBuggyValues : bool) (dval : Dval) : bool =
     // the fakeval
     not (List.any Dval.isFake ls)
   | DList _ -> true
+  | DTuple _ -> true
   | DObj _ -> true
   | DDate _ -> true
   | DPassword _ -> true
@@ -407,30 +428,7 @@ let toInternalQueryableV1 (dvalMap : DvalMap) : string =
         w.WritePropertyName k
         unsafeDvalToJsonValueV0 w dval)))
 
-let rec isQueryableDval (dval : Dval) : bool =
-  match dval with
-  | DStr _ -> true
-  | DInt _ -> true
-  | DNull _ -> true
-  | DBool _ -> true
-  | DFloat _ -> true
-  | DList dvals -> List.all isQueryableDval dvals
-  | DObj map -> map |> Map.values |> List.all isQueryableDval
-  | DDate _ -> true
-  | DPassword _ -> true
-  | DUuid _ -> true
-  // TODO support
-  | DChar _ -> false
-  | DBytes _ -> false
-  | DHttpResponse _ -> false
-  | DOption _ -> false
-  | DResult _ -> false
-  // Not supportable I think
-  | DDB _ -> false
-  | DFnVal _ -> false // not supported
-  | DError _ -> false
-  | DIncomplete _ -> false
-  | DErrorRail _ -> false
+
 
 // This is a format used for roundtripping dvals internally, while still being
 // queryable using jsonb in our DB. There are some rare cases where it will
@@ -533,11 +531,25 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
         |> List.intersperse (UTF8.toBytes ", ")
         |> Array.concat
 
+      // CLEANUP this space is useless
       Array.concat [ "[ " |> UTF8.toBytes
                      inl |> UTF8.toBytes
                      body
                      nl |> UTF8.toBytes
                      "]" |> UTF8.toBytes ]
+  | DTuple (first, second, theRest) ->
+    let l = [ first; second ] @ theRest
+    let body =
+      l
+      |> List.map (toHashableRepr indent false)
+      |> List.intersperse (UTF8.toBytes ", ")
+      |> Array.concat
+
+    Array.concat [ "(" |> UTF8.toBytes
+                   inl |> UTF8.toBytes
+                   body
+                   nl |> UTF8.toBytes
+                   ")" |> UTF8.toBytes ]
   | DObj o ->
     if Map.isEmpty o then
       "{}" |> UTF8.toBytes
@@ -591,3 +603,30 @@ let hash (version : int) (arglist : List<Dval>) : string =
   | 0 -> arglist |> List.map (toHashableRepr 0 true) |> Array.concat |> hashStr
   | 1 -> DList arglist |> toHashableRepr 0 false |> hashStr
   | _ -> Exception.raiseInternal $"Invalid Dval.hash version" [ "version", version ]
+
+module Test =
+  let rec isQueryableDval (dval : Dval) : bool =
+    match dval with
+    | DStr _ -> true
+    | DInt _ -> true
+    | DNull _ -> true
+    | DBool _ -> true
+    | DFloat _ -> true
+    | DList dvals -> List.all isQueryableDval dvals
+    | DObj map -> map |> Map.values |> List.all isQueryableDval
+    | DDate _ -> true
+    | DPassword _ -> true
+    | DUuid _ -> true
+    // TODO support
+    | DTuple _ -> false
+    | DChar _ -> false
+    | DBytes _ -> false
+    | DHttpResponse _ -> false
+    | DOption _ -> false
+    | DResult _ -> false
+    // Not supportable I think
+    | DDB _ -> false
+    | DFnVal _ -> false // not supported
+    | DError _ -> false
+    | DIncomplete _ -> false
+    | DErrorRail _ -> false

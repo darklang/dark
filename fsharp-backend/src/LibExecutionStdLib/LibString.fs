@@ -14,7 +14,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
 
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "s" TStr "string to iterate over"
           Param.makeWithArgs
-            "f"
+            "fn"
             (TFn([ TChar ], TChar))
             "function used to convert one character to another"
             [ "char" ] ]
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "foreach" 1
       parameters =
         [ Param.make "s" TStr ""
-          Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "character" ] ]
+          Param.makeWithArgs "fn" (TFn([ TChar ], TChar)) "" [ "character" ] ]
       returnType = TStr
       description =
         "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
@@ -90,7 +90,7 @@ let fns : List<BuiltInFn> =
                      (function
                      | DChar c -> c
                      | dv ->
-                       Exception.raiseCode (Errors.expectedLambdaType "f" TChar dv))
+                       Exception.raiseCode (Errors.expectedLambdaType "fn" TChar dv))
                      dvals
 
                  let str = String.concat "" chars
@@ -186,8 +186,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            let int = s |> parseInt64
+            let int = s |> System.Convert.ToInt64
 
+            // These constants represent how high the old OCaml parsers would go
             if int < -4611686018427387904L then
               Exception.raiseInternal "goto exception case" []
             else if int >= 4611686018427387904L then
@@ -211,9 +212,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           try
-            // CLEANUP: These constants represent how high the OCaml parsers would go
-            let int = s |> parseInt64
+            let int = s |> System.Convert.ToInt64
 
+            // These constants represent how high the old OCaml parsers would go
             if int < -4611686018427387904L then
               Exception.raiseInternal "goto exception case" []
             else if int >= 4611686018427387904L then
@@ -230,7 +231,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Int" "parse" 0) }
 
 
     { name = fn "String" "toFloat" 0
@@ -532,20 +533,17 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
       returnType = TList TStr
       description =
-        "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
+        "Splits a string at the separator, returning a list of strings without the separator.
+        If the separator is not present, returns a list containing only the initial string."
       fn =
         (function
         | _, [ DStr s; DStr sep ] ->
+          // This behaviour is the worst - it mimics what OCaml did:
+          // There are (n-1) empty strings returned for each sequence of n strings
+          // matching the separator (eg: split "aaaa" "a" = ["", "", ""]).
           if sep = "" then
             s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
           else
-            // CLEANUP: we need a new version of this fn.
-            // This behaviour is the worst. This mimics what OCaml did: There
-            // should be (n-1) empty strings returned for each sequence of n
-            // strings matching the separator (eg: split "aaaa" "a" = ["",
-            // "", ""]). However, the .NET string split puts in n-1 empty
-            // strings correctly everywhere except at the start and end,
-            // where there are n empty strings instead.
             let stripStartingEmptyString =
               (function
               | "" :: rest -> rest
@@ -557,6 +555,49 @@ let fns : List<BuiltInFn> =
             |> List.rev
             |> stripStartingEmptyString
             |> List.rev
+            |> List.map DStr
+            |> DList
+            |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "split" 1) }
+
+
+    { name = fn "String" "split" 1
+      parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
+      returnType = TList TStr
+      description =
+        "Splits a string at the separator, returning a list of strings without the separator.
+        If the separator is not present, returns a list containing only the initial string."
+      fn =
+        (function
+        | _, [ DStr s; DStr sep ] ->
+          let ecgStringSplit str sep =
+            let startsWithSeparator str = sep = (str |> List.truncate sep.Length)
+
+            let result = ResizeArray<string>()
+
+            let rec r (strRemaining : List<string>, inProgress) : unit =
+              if strRemaining = [] then
+                result |> ResizeArray.append (inProgress.ToString())
+              elif startsWithSeparator strRemaining then
+                result |> ResizeArray.append (inProgress.ToString())
+
+                r (List.skip sep.Length strRemaining, StringBuilder())
+              else
+                r (strRemaining.Tail, inProgress.Append(strRemaining.Head))
+
+            r (str, StringBuilder())
+
+            result |> ResizeArray.toList
+
+          if sep = "" then
+            s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
+          else
+            ecgStringSplit
+              (s |> String.toEgcSeq |> Seq.toList)
+              (sep |> String.toEgcSeq |> Seq.toList)
             |> List.map DStr
             |> DList
             |> Ply

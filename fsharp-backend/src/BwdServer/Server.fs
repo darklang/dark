@@ -414,7 +414,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // were ineffective. Somehow, the Strict-Transport-Security header was not
       // included in HTTP Reponses as a result of these efforts. Here, we manually
       // work around this by setting it manually.
-      // CLEANUP: replace this with the more additional approach, if possible
+      // CLEANUP: replace this with the more traditional approach, if possible
       setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
       setHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())
@@ -520,9 +520,12 @@ let main _ =
   try
     let name = "BwdServer"
     print "Starting BwdServer"
+    Prelude.init ()
     LibService.Init.init name
+    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
+
     run ()
     // CLEANUP I suspect this isn't called
     LibService.Init.shutdown name

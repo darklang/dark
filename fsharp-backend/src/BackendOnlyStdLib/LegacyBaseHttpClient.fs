@@ -16,6 +16,7 @@ open Prelude
 open LibExecution
 open LibBackend
 open VendoredTablecloth
+open LibExecution.RuntimeTypes
 
 module Telemetry = LibService.Telemetry
 
@@ -520,3 +521,22 @@ let rec httpCall
         | _ -> return response
       | _ -> return response
   }
+
+// Converts an object to (string,string) pairs. Raises an exception if not an object
+let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
+  match dv with
+  | DObj obj ->
+    obj
+    |> Map.toList
+    |> List.map (fun pair ->
+      match pair with
+      | (k, DStr v) -> Ok(k, v)
+      | (k, v) ->
+        // CLEANUP: this was just to keep the error messages the same with OCaml. It's safe to change the error message
+        // Error $"Expected a string, but got: {toDeveloperReprV0 v}"
+        Error "expecting str")
+    |> Tablecloth.Result.values
+  | _ ->
+    // CLEANUP As above
+    // $"Expected a string, but got: {toDeveloperReprV0 dv}"
+    Error "expecting str"

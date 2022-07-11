@@ -30,12 +30,12 @@ let variant0: 'a => decoder<'a>
 
 /* For variants with record types, provide a constructor and three fields with
  * the field types, and decode them. For example, for the type:
- * FPString { matchID: id; patternID : id; str : string }
+ * PString { matchID: id; patternID : id; str : string }
  *
  * the decoder would be
  *
  * recordVariant3
- *    (fun matchID patternID str -> P.FPString {matchID; patternID; str})
+ *    (fun matchID patternID str -> P.PString {matchID; patternID; str})
  *    ("matchID", id)
  *    ("patternID", id)
  *    ("str", string)

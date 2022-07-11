@@ -82,7 +82,7 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 - If you see "initial compile failed", it may be a memory issue. Sometimes
   trying again will work. If not, ensure you have Docker configured to provide
   4GB or more of memory, then try again.
-- Open your browser to http://darklang.localhost:8000/a/dark/, username "dark",
+- Open your browser to http://darklang.localhost:9000/a/dark/, username "dark",
   password "what"
 - Edit code normally - on each save to your filesystem, the app will be rebuilt
   and the browser will reload as necessary
@@ -178,10 +178,9 @@ the dev container.
 
 ## Production Services
 
-The app is split into [backend/](backend) (being converted into
-[fsharp-backend](fsharp-backend)) and [client/](client). Part of the backend is
-used in the client ([jsanalysis](backend/jsanalysis), and in F#:
-[Wasm](fsharp-backend/src/Wasm)).
+The app is split into [fsharp-backend](fsharp-backend) and [client/](client).
+Part of the backend is used in the client ([Analysis](fsharp-backend/src/Analysis)).
+
 These are compiled to create libraries and binaries.
 
 These are put into containers, whose definitions are in [containers/](containers). We also

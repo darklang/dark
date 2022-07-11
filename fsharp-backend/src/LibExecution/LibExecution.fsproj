@@ -18,7 +18,8 @@
     <Compile Include="RuntimeTypesAst.fs" />
     <Compile Include="DvalReprInternalDeprecated.fs" />
     <Compile Include="DvalReprInternalNew.fs" />
-    <Compile Include="DvalReprExternal.fs" />
+    <Compile Include="DvalReprLegacyExternal.fs" />
+    <Compile Include="DvalReprDeveloper.fs" />
     <Compile Include="Errors.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="Interpreter.fs" />
@@ -31,6 +32,7 @@
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <Compile Include="OCamlTypes.fs" />
     <Compile Include="OCamlTypesAst.fs" />
+    <Compile Include="Init.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

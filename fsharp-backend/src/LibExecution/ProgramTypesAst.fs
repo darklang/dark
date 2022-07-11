@@ -26,6 +26,8 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EFnCall (id, name, exprs, ster) -> EFnCall(id, name, List.map f exprs, ster)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)
   | EList (id, exprs) -> EList(id, List.map f exprs)
+  | ETuple (id, first, second, theRest) ->
+    ETuple(id, f first, f second, List.map f theRest)
   | EMatch (id, mexpr, pairs) ->
     EMatch(id, f mexpr, List.map (fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, fields) ->

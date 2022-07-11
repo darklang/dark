@@ -18,7 +18,7 @@ type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
 open LegacyBaseHttpClient
 
-module DvalRepr = LibExecution.DvalReprExternal
+module DvalRepr = LibExecution.DvalReprLegacyExternal
 module Errors = LibExecution.Errors
 module RT = RuntimeTypes
 
@@ -34,8 +34,7 @@ let sendRequest
   uply {
     let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
-    let encodedReqHeaders =
-      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultCode
+    let encodedReqHeaders = toStringPairs reqHeaders |> Exception.unwrapResultCode
     let encodedReqBody =
       encodeRequestBody
         DvalRepr.toPrettyMachineJsonStringV1

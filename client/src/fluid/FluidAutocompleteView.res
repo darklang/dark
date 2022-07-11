@@ -27,10 +27,10 @@ let viewAutocompleteItemTypes = ({item, validity}: fluidAutocompleteData): Html.
 
       args
       |> List.intersperse(~sep=Html.text(", "))
-      |> (args => \"@"(list{Html.text("(")}, \"@"(args, list{Html.text(") -> ")})))
+      |> (args => Belt.List.concatMany([list{Html.text("(")}, args, list{Html.text(") -> ")}]))
     }
 
-    \"@"(argsHtml, returnTypeHtml)
+    Belt.List.concat(argsHtml, returnTypeHtml)
   }
 
   Html.span(list{Html.class'("types")}, html)

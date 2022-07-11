@@ -2,21 +2,20 @@ open Prelude
 open Fluid
 open FluidTestData
 open Tester
-open FluidExpression
 open FluidShortcuts
 
-/* See docs/fuzzer.md for documentation on how to use this. */
+// See docs/fuzzer.md for documentation on how to use this.
 
-/* ------------------ */
-/* Settings */
-/* ------------------ */
+// ------------------
+// Settings
+// ------------------
 
-/* At what size do we start to print more data? */
+// At what size do we start to print more data?
 let defaultVerbosityThreshold = 20
 
 let verbosityThreshold = ref(defaultVerbosityThreshold)
 
-/* The seed can be changed to get new test data */
+// The seed can be changed to get new test data
 let initialSeed: ref<int> =
   Js.Date.now()
   |> int_of_float
@@ -29,25 +28,25 @@ let initialSeed: ref<int> =
   |> mod(1000000000)
   |> ref
 
-/* How big should the generated lists be */
+// How big should the generated lists be
 let defaultItemSize = 4
 
 let itemSize = ref(defaultItemSize)
 
-/* Continue after the first seed */
+// Continue after the first seed
 let continue: ref<bool> = ref(false)
 
-/* Stop after getting our first failure */
+// Stop after getting our first failure
 let stopOnFail: ref<bool> = ref(true)
 
-/* Don't generate test cases that are too large */
+// Don't generate test cases that are too large
 let maxTestSize: ref<int> = ref(10000)
 
 let testSize: ref<int> = ref(0)
 
-/* ------------------ */
-/* Debugging */
-/* ------------------ */
+// ------------------
+// Debugging
+// ------------------
 
 let toText = ast => FluidPrinter.eToHumanString(ast)
 
@@ -55,11 +54,11 @@ let pointerToText = (p: blankOrData): string => Pointer.toContent(p)
 
 let debugAST = (_length: int, msg: string, e: E.t): unit => Js.log(msg ++ (":\n" ++ E.show(e)))
 
-/* if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ E.show e) */
+// if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ E.show e)
 
-/* ------------------ */
-/* Deterministic random number generator */
-/* ------------------ */
+// ------------------
+// Deterministic random number generator
+// ------------------
 
 /* Deterministic random number generator, where the random numbers are evenly
  * distributed across the range. */
@@ -69,7 +68,7 @@ let setSeed = (seed: int) => state := seed
 
 let random = (): float => {
   let xOrShiftRand = (): int => {
-    /* Adapted from the C version at https://en.wikipedia.org/wiki/Xorshift */
+    // Adapted from the C version at https://en.wikipedia.org/wiki/Xorshift
     /* Javascript treats numbers as 32 bit in the presence of bitwise ops and
      * our OCaml compiler defers to Javascript for handling numbers.
      */
@@ -82,7 +81,7 @@ let random = (): float => {
   }
 
   let twoToNeg32 = 2.0 ** -32.0
-  /* Conversion from https://www.doornik.com/research/randomdouble.pdf */
+  // Conversion from https://www.doornik.com/research/randomdouble.pdf
   float_of_int(xOrShiftRand()) *. twoToNeg32 +. 0.5
 }
 
@@ -90,14 +89,14 @@ let range = (max: int): int => truncate(float_of_int(max) *. random())
 
 let oneOf = (l: list<'a>): 'a => List.getAt(~index=range(List.length(l)), l) |> Option.unwrapUnsafe
 
-/* ------------------ */
-/* AST generators */
-/* ------------------ */
+// ------------------
+// AST generators
+// ------------------
 
 let generateLength = maxLength => max(0, 1 + range(maxLength - 1))
 
 let generateList = (~minSize: int, ~f: unit => 'a, ()): list<'a> => {
-  /* Lower the list lengths as we go so eventually the program converges */
+  // Lower the list lengths as we go so eventually the program converges
   itemSize := itemSize.contents - 1
   let s = max(minSize, itemSize.contents)
   let result = List.initialize(generateLength(s), ~f=_ => f())
@@ -139,7 +138,7 @@ let checkTestSize = (~default: 'a, f: unit => 'a) =>
     f()
   }
 
-/* Fields can only have a subset of expressions in the fieldAccess */
+// Fields can only have a subset of expressions in the fieldAccess
 let rec generateFieldAccessExpr' = (): FluidExpression.t =>
   oneOf(list{
     lazy var(generateName()),
@@ -156,7 +155,7 @@ let rec generatePattern' = (): FluidPattern.t =>
     lazy pConstructor(generateName(), generateList(~minSize=0, ~f=generatePattern, ())),
     lazy pVar(generateName()),
     lazy pString(generateString()),
-    lazy pFloat(range(5000000), range(500000)),
+    lazy pFloat(Positive, range(5000000), range(500000)),
     lazy pBlank(),
   }) |> Lazy.force
 
@@ -178,7 +177,7 @@ and generateExpr' = () =>
     lazy str(generateString()),
     lazy int(range(500)),
     lazy bool(random() < 0.5),
-    lazy float'(range(5000000), range(500000)),
+    lazy float'(Positive, range(5000000), range(500000)),
     lazy null,
     lazy var(generateName()),
     lazy partial(generateFnName(), generateExpr()),
@@ -191,7 +190,11 @@ and generateExpr' = () =>
     lazy binop(generateInfixName(), generateExpr(), generateExpr()),
     lazy if'(generateExpr(), generateExpr(), generateExpr()),
     lazy constructor(generateName(), generateList(~minSize=0, ~f=generateExpr, ())),
-    lazy pipe(generateExpr(), generateList(~minSize=2, ~f=generatePipeArgumentExpr, ())),
+    lazy pipe(
+      generateExpr(),
+      generateExpr(),
+      generateList(~minSize=2, ~f=generatePipeArgumentExpr, ()),
+    ),
     lazy record(generateList(~minSize=1, (), ~f=() => (generateName(), generateExpr()))),
     lazy match'(
       generateExpr(),
@@ -201,24 +204,24 @@ and generateExpr' = () =>
 
 and generateExpr = () => checkTestSize(~default=b, generateExpr')
 
-/* ------------------ */
-/* Fuzz Test definition */
-/* ------------------ */
+// ------------------
+// Fuzz Test definition
+// ------------------
 module FuzzTest = {
   type t = {
     name: string,
     fn: E.t => (E.t, fluidState),
     check: (~testcase: E.t, ~newAST: E.t, fluidState) => bool,
-    ignore: /* Sometimes you know some things are broken */
+    ignore: // Sometimes you know some things are broken
     E.t => bool,
   }
 }
 
-/* ------------------ */
-/* Test case reduction */
-/* ------------------ */
+// ------------------
+// Test case reduction
+// ------------------
 
-let unwrap = (id: ID.t, ast: E.t): E.t => {
+let unwrap = (id: id, ast: E.t): E.t => {
   let childOr = (exprs: list<E.t>) => List.find(exprs, ~f=e => E.toID(e) == id)
 
   E.postTraversal(ast, ~f=e => {
@@ -232,7 +235,7 @@ let unwrap = (id: ID.t, ast: E.t): E.t => {
     | EList(_, exprs) => childOr(exprs)
     | EMatch(_, mexpr, pairs) => childOr(list{mexpr, ...List.map(~f=Tuple2.second, pairs)})
     | ERecord(_, fields) => childOr(List.map(~f=Tuple2.second, fields))
-    | EPipe(_, exprs) => childOr(exprs)
+    | EPipe(_, e1, e2, rest) => childOr(list{e1, e2, ...rest})
     | EConstructor(_, _, exprs) => childOr(exprs)
     | EPartial(_, _, oldExpr) => childOr(list{oldExpr})
     | ERightPartial(_, _, oldExpr) => childOr(list{oldExpr})
@@ -244,7 +247,7 @@ let unwrap = (id: ID.t, ast: E.t): E.t => {
   })
 }
 
-let changeStrings = (id: ID.t, ~f: string => string, ast: E.t): E.t => {
+let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
   let fStr = (strid, str) =>
     if strid == id {
       f(str)
@@ -306,12 +309,12 @@ let changeStrings = (id: ID.t, ~f: string => string, ast: E.t): E.t => {
   )
 }
 
-let blankVarNames = (id: ID.t, expr: E.t): E.t => changeStrings(~f=_ => "", id, expr)
+let blankVarNames = (id: id, expr: E.t): E.t => changeStrings(~f=_ => "", id, expr)
 
-let shortenNames = (id: ID.t, expr: E.t): E.t =>
+let shortenNames = (id: id, expr: E.t): E.t =>
   changeStrings(~f=String.dropRight(~count=1), id, expr)
 
-let remove = (id: ID.t, ast: E.t): E.t => {
+let remove = (id: id, ast: E.t): E.t => {
   let removeFromList = exprs => List.filter(exprs, ~f=e => E.toID(e) != id)
   E.postTraversal(ast, ~f=x =>
     switch x {
@@ -347,8 +350,8 @@ let remove = (id: ID.t, ast: E.t): E.t => {
             Some(name, expr)
           }
         , fields))
-    | EPipe(id, exprs) =>
-      switch removeFromList(exprs) {
+    | EPipe(id, e1, e2, rest) =>
+      switch removeFromList(list{e1, e2, ...rest}) {
       | list{EBlank(_), EBinOp(id, op, EPipeTarget(ptid), rexpr, ster)}
       | list{EBinOp(id, op, EPipeTarget(ptid), rexpr, ster), EBlank(_)} =>
         EBinOp(id, op, EBlank(ptid), rexpr, ster)
@@ -357,7 +360,7 @@ let remove = (id: ID.t, ast: E.t): E.t => {
         EFnCall(id, name, list{EBlank(ptid), ...tail}, ster)
       | list{justOne} => justOne
       | list{} => EBlank(id)
-      | newExprs => EPipe(id, newExprs)
+      | list{e1, e2, ...rest} => EPipe(id, e1, e2, rest)
       }
     | EConstructor(id, name, exprs) => EConstructor(id, name, removeFromList(exprs))
     | expr => expr
@@ -365,11 +368,11 @@ let remove = (id: ID.t, ast: E.t): E.t => {
   )
 }
 
-let simplify = (id: ID.t, ast: E.t): E.t =>
+let simplify = (id: id, ast: E.t): E.t =>
   E.update(id, ast, ~f=x =>
     switch x {
     | EBlank(e) => EBlank(e)
-    | _ => EInteger(id, "5")
+    | _ => EInteger(id, 5L)
     }
   )
 
@@ -379,7 +382,7 @@ let reduce = (test: FuzzTest.t, ast: E.t) => {
 
     let eIDs = ast |> E.filterMap(~f=e => Some(E.toID(e)))
     let ids =
-      \"@"(tokenIDs, eIDs)
+      Belt.List.concat(tokenIDs, eIDs)
       |> List.uniqueBy(~f=ID.toString)
       |> List.mapWithIndex(~f=(i, v) => (i, v))
 
@@ -443,9 +446,9 @@ let generateTestCase = () => {
   generateExpr() |> FluidExpression.clone
 }
 
-/* ------------------ */
-/* Driver */
-/* ------------------ */
+// ------------------
+// Driver
+// ------------------
 let runTest = (test: FuzzTest.t): unit =>
   try {
     let seed = ref(initialSeed.contents)

@@ -167,7 +167,15 @@ for mimetype in mimetypes_to_process:
     cp -Z -n -r . "{BUCKET}"
     '''
 
-  subprocess.run(gsutil_command, shell=True, cwd=mimetype_subfolder)
+  result = subprocess.run(gsutil_command, shell=True, cwd=mimetype_subfolder, capture_output=True)
+  # Note: checking stderr won't work here, as gsutil sends non-error logs to
+  # stderr by default. We could add a `-q` flag to avoid this, but the logs are
+  # useful in local debugging, so let's check the returncode instead.
+  # https://github.com/GoogleCloudPlatform/gsutil/issues/116#issuecomment-13929972
+  if result.returncode != 0:
+    print(f"Failed to upload {mimetype_subfolder} to CDN bucket {BUCKET}. Failed with {result.returncode} {result.stderr}.")
+    sys.exit(1)
+
   elapsed = (time.time() - start)
   print(f"Uploaded dir {mimetype_subfolder} for mimetype {mimetype} in {elapsed}s")
 

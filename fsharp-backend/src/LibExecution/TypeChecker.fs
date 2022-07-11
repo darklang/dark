@@ -34,8 +34,8 @@ module Error =
         let lookupString = $"({lookupName}, v{lookupVersion})"
         $"Type {lookupString} could not be found on the canvas"
       | TypeUnificationFailure uf ->
-        let expected = DvalReprExternal.typeToDeveloperReprV0 uf.expectedType
-        let actual = DvalReprExternal.prettyTypename uf.actualValue
+        let expected = DvalReprDeveloper.typeName uf.expectedType
+        let actual = DvalReprDeveloper.dvalTypeName uf.actualValue
         $"Expected to see a value of type {expected} but found a {actual}"
       | MismatchedRecordFields mrf ->
         let expected = mrf.expectedFields
@@ -66,7 +66,6 @@ module Error =
 
 open Error
 
-
 let rec unify
   (userTypes : Map<string * int, UserType.T>)
   (expected : DType)
@@ -85,6 +84,8 @@ let rec unify
   | TNull, DNull -> Ok()
   | TStr, DStr _ -> Ok()
   | TList _, DList _ -> Ok()
+  // TODO: support Tuple type-checking.
+  // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
   | TDate, DDate _ -> Ok()
   | TDict _, DObj _ -> Ok()
   | TRecord _, DObj _ -> Ok()

@@ -262,7 +262,6 @@ jobs:
             - _build/default/backend/bin/garbage_collector_worker.exe
             - _build/default/backend/bin/legacy_serialization_server.exe
             - _build/default/backend/bin/legacy_fuzzing_server.exe
-            - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache
           command: |
@@ -303,7 +302,7 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v11-fsharp-backend-{{ checksum "../checksum" }}
+            - v12-fsharp-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -334,7 +333,7 @@ jobs:
           paths:
             - fsharp-backend/Build/obj
             - /home/dark/.nuget
-          key: v11-fsharp-backend-{{ checksum "../checksum" }}
+          key: v12-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
@@ -355,14 +354,14 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v2-fsharp-blazor-{{ checksum "../checksum" }}
+            - v3-fsharp-blazor-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
-      - run: cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/
-      - run: rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Analysis/Analysis.fsproj
+      - run: cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/
+      - run: rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
       - persist_to_workspace:
           root: "."
@@ -374,7 +373,7 @@ jobs:
           paths:
             - fsharp-backend/Build/obj
             - /home/dark/.nuget
-          key: v2-fsharp-blazor-{{ checksum "../checksum" }}
+          key: v3-fsharp-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail

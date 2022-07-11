@@ -29,6 +29,8 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     EApply(id, name, List.map r exprs, inPipe, ster)
   | ELambda (id, names, expr) -> ELambda(id, names, r expr)
   | EList (id, exprs) -> EList(id, List.map r exprs)
+  | ETuple (id, first, second, theRest) ->
+    ETuple(id, r first, r second, List.map r theRest)
   | EMatch (id, mexpr, pairs) ->
     EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
   | ERecord (id, fields) ->
@@ -58,6 +60,8 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
     | ELambda (id, names, expr) -> ELambda(id, names, r expr)
     | EList (id, exprs) -> EList(id, List.map r exprs)
+    | ETuple (id, first, second, theRest) ->
+      ETuple(id, r first, r second, List.map r theRest)
     | EMatch (id, mexpr, pairs) ->
       EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
     | ERecord (id, fields) ->

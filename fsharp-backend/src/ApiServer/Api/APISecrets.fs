@@ -19,8 +19,11 @@ module Telemetry = LibService.Telemetry
 open LibService.Exception
 
 module Insert =
+
   type Secret = { secret_name : string; secret_value : string }
+
   type Params = Secret
+
   type T = { secrets : List<Secret> }
 
   /// API endpoint to insert a Secret within a canvas
@@ -61,7 +64,9 @@ module Insert =
 
 module Delete =
   type Secret = { secret_name : string; secret_value : string }
+
   type Params = { secret_name : string }
+
   type T = { secrets : List<Secret> }
 
   /// API endpoint to delete a specific Secret
@@ -72,7 +77,7 @@ module Delete =
       let! p = ctx.ReadJsonAsync<Params>()
       Telemetry.addTags [ "secret_name", p.secret_name ]
 
-      // CLEANUP: only do this if the secret is not used on the canvas
+      // TODO: only do this if the secret is not used on the canvas
       t.next "delete-secret"
       do! LibBackend.Secret.delete canvasInfo.id p.secret_name
 

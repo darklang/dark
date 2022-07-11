@@ -1,6 +1,6 @@
 include Tea.Html
 
-/* TODO(ian): push to fork + upstream */
+// TODO(ian): push to fork + upstream
 let onWithOptions = (~key="", eventName, options: Tea_html.options, decoder) =>
   Tea_html.onCB(eventName, key, event => {
     if options.stopPropagation {

@@ -1,13 +1,12 @@
 open Tester
 open Prelude
-module E = FluidExpression
 module AC = FluidAutocomplete
 module B = BlankOr
 module K = FluidKeyboard
-module P = FluidPattern
 module Printer = FluidTokenizer
 module TL = Toplevel
-open FluidExpression
+open ProgramTypes.Expr
+open ProgramTypes.Pattern
 open FluidTestData
 open FluidShortcuts
 
@@ -32,7 +31,7 @@ let sampleFunctions: list<function_> = list{
   ("DB::generateKey", list{}, TStr),
   ("DB::getAll_v2", list{TDB}, TList),
   ("DB::getAll_v1", list{TDB}, TList),
-  /* ordering is deliberate - we want the query to order s.t. get is before getAll */
+  // ordering is deliberate - we want the query to order s.t. get is before getAll
   ("DB::get_v1", list{TDB}, TList),
   ("String::append", list{TStr, TStr}, TStr),
   ("List::append", list{TList, TList}, TList),
@@ -64,7 +63,7 @@ let defaultID = gid()
 
 let defaultID2 = gid()
 
-let defaultExpr = E.EBlank(defaultID)
+let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
 let defaultToplevel = TLHandler({
   ast: FluidAST.ofExpr(defaultExpr),
@@ -132,7 +131,7 @@ let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): db =>
   pos: {x: 0, y: 0},
 }
 
-/* Sets the model with the appropriate toplevels */
+// Sets the model with the appropriate toplevels
 let defaultModel = (
   ~tlid=defaultTLID,
   ~analyses=list{},
@@ -163,7 +162,7 @@ let defaultModel = (
   }
 }
 
-/* AC targeting a tlid and pointer */
+// AC targeting a tlid and pointer
 let acFor = (~tlid=defaultTLID, ~pos=0, m: model): AC.t => {
   let ti =
     TL.get(m, tlid)
@@ -488,7 +487,7 @@ let run = () => {
       })
       test("Use piped types", () => {
         let id = gid()
-        let expr = pipe(str(~id, "asd"), list{partial("append", b)})
+        let expr = pipe(str(~id, "asd"), partial("append", b), list{})
         let m = defaultModel(
           ~analyses=list{(id, DStr("asd"))},
           ~handlers=list{aHandler(~expr, ())},
@@ -502,7 +501,7 @@ let run = () => {
       })
       test("functions with no arguments are invalid when piping", () => {
         let id = gid()
-        let expr = pipe(int(~id, 5), list{partial("string", b)})
+        let expr = pipe(int(~id, 5), partial("string", b), list{})
         let m = defaultModel(~analyses=list{(id, DInt(5))}, ~handlers=list{aHandler(~expr, ())}, ())
 
         let (_valid, invalid) = filterFor(m, ~pos=10)
@@ -512,9 +511,8 @@ let run = () => {
       })
       test("Pattern expressions are available in pattern blank", () => {
         let tlid = TLID.fromString("789")
-        let mID = ID.fromString("1234")
         let patID = ID.fromString("456")
-        let pattern = P.FPVariable(mID, patID, "o")
+        let pattern = PVariable(patID, "o")
         let expr = match'(b, list{(pattern, b)})
         let m =
           defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ()) |> (

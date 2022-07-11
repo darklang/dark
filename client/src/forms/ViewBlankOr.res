@@ -1,13 +1,13 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module TL = Toplevel
 
-/* Create a Html.div for this ID, incorporating all ID-related data, */
-/* such as whether it's selected, appropriate events, mouseover, etc. */
+// Create a Html.div for this ID, incorporating all ID-related data,
+// such as whether it's selected, appropriate events, mouseover, etc.
 let div = (
-  ~id: ID.t,
+  ~id: id,
   ~enterable: bool,
   ~classes: list<string>,
   vp: ViewUtils.viewProps,
@@ -29,20 +29,16 @@ let div = (
   }
 
   let idClasses = list{"blankOr", "id-" ++ ID.toString(id)}
-  let allClasses = \"@"(
+  let allClasses = Belt.List.concatMany([
     classes,
-    \"@"(
-      idClasses,
-      \"@"(
-        if selected {
-          list{"selected"}
-        } else {
-          list{}
-        },
-        mouseoverClass,
-      ),
-    ),
-  )
+    idClasses,
+    if selected {
+      list{"selected"}
+    } else {
+      list{}
+    },
+    mouseoverClass,
+  ])
 
   let classAttr = Html.class'(String.join(~sep=" ", allClasses))
   let events = if enterable {

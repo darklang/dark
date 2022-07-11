@@ -29,6 +29,7 @@ module List =
 
 module Delete =
   type T = { result : string }
+
   type Params = { space : string; path : string; modifier : string }
 
   /// Endpoint to delete a 404

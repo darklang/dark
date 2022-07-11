@@ -331,7 +331,7 @@ let registerGlobal = (name, key, tagger) => {
       | _ => None
       }
     let handler = Vdom.EventHandlerCallback(key, fn)
-    /* TODO: put on window, not document */
+    // TODO: put on window, not document
     let elem = Web_node.document_node
     let cache = Vdom.eventHandler_Register(callbacks, elem, name, handler)
     () => ignore(Vdom.eventHandler_Unregister(elem, name, cache))

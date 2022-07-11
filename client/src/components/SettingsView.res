@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module Cmd = Tea.Cmd
 module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
@@ -38,7 +38,7 @@ let validateForm = (tab: T.settingsTab): (bool, T.settingsTab) =>
     let email = {T.email: text}
     let isInvalid = Option.is_some(text.error)
     (isInvalid, InviteUser(email))
-  | _ => /* shouldnt get here */
+  | _ => // shouldnt get here
     (false, tab)
   }
 
@@ -151,7 +151,7 @@ let getModifications = (m: Types.model, msg: T.settingsMsg): list<Types.modifica
   | _ => list{SettingsViewUpdate(msg)}
   }
 
-/* View functions */
+// View functions
 
 let settingsTabToText = (tab: T.settingsTab): string =>
   switch tab {
@@ -161,7 +161,7 @@ let settingsTabToText = (tab: T.settingsTab): string =>
   | Privacy => "Privacy"
   }
 
-/* View code */
+// View code
 
 let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<Types.msg>> => {
   let canvasLink = c => {
@@ -191,7 +191,7 @@ let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<Types.msg>> =>
     list{Vdom.noNode}
   }
 
-  \"@"(orgView, canvasView)
+  Belt.List.concat(orgView, canvasView)
 }
 
 let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<Types.msg>> => {
@@ -272,7 +272,7 @@ let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<Types.msg>
     }
   }
 
-  \"@"(introText, inviteform)
+  Belt.List.concat(introText, inviteform)
 }
 
 let viewNewCanvas = (svs: settingsViewState): list<Html.html<Types.msg>> => {
@@ -348,7 +348,7 @@ let settingViewWrapper = (acc: settingsViewState): Html.html<Types.msg> => {
   let tabView = settingsTabToHtml(acc)
   Html.div(
     list{Html.class'("settings-tab-wrapper")},
-    \"@"(list{Html.h1(list{}, list{Html.text("Settings")}), tabTitleView(acc.tab)}, tabView),
+    list{Html.h1(list{}, list{Html.text("Settings")}), tabTitleView(acc.tab), ...tabView},
   )
 }
 

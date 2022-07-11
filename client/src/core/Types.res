@@ -28,9 +28,9 @@ module Belt = {
   }
 }
 
-/* ------------------- */
-/* Clipboard */
-/* ------------------- */
+// -------------------
+// Clipboard
+// -------------------
 
 type clipboardSetData = @meth (string, string) => unit
 type clipboardGetData = @meth (string => string)
@@ -41,25 +41,27 @@ type clipboardData = {"setData": clipboardSetData, "getData": clipboardGetData}
 type clipboardEventDef = {"preventDefault": clipboardPreventDefault, "clipboardData": clipboardData}
 
 @ppx.deriving(show) @opaque
-type rec clipboardContents = /* Clipboard supports both text and encoded FluidExpression.ts. At the moment,
+type rec clipboardContents = /* Clipboard supports both text and encoded fluidExprs. At the moment,
  * there is always a text option - there isn't a json option if the copied
- * string wasn't a FluidExpression.t */
+ * string wasn't a fluidExpr */
 (string, @opaque option<Js.Json.t>)
 
 @ppx.deriving(show) @opaque type rec clipboardEvent = @opaque clipboardEventDef
 
-/* ------------------- */
-/* Standard types */
-/* ------------------- */
+// -------------------
+// Standard types
+// -------------------
 
 module /* == legacy aliases == */ TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
 
-@ppx.deriving(show) type rec analysisID = ID.t
+@ppx.deriving(show) type rec id = ID.t
 
-@ppx.deriving(show) type rec parentBlockID = ID.t
+@ppx.deriving(show) type rec analysisID = id
 
-/* == end legacy aliases == */
+@ppx.deriving(show) type rec parentBlockID = id
+
+// == end legacy aliases ==
 
 let show_list = (~f: 'a => string, x: list<'a>): string =>
   "[" ++ (String.join(~sep=",", List.map(~f, x)) ++ "]")
@@ -69,7 +71,7 @@ let opaque = (msg, fmt, _) => {
   ()
 }
 
-/* Probably deletable? */
+// Probably deletable?
 module PageVisibility = {
   @ppx.deriving(show)
   type rec visibility =
@@ -90,19 +92,19 @@ type rec exception_ = {
   workarounds: list<string>,
 }
 
-/* ---------------------- */
-/* Basic types */
-/* ---------------------- */
+// ----------------------
+// Basic types
+// ----------------------
 @ppx.deriving(show({with_path: false}))
 and blankOr<'a> =
-  | Blank(ID.t)
-  | F(ID.t, 'a)
+  | Blank(id)
+  | F(id, 'a)
 
-/* There are two coordinate systems. Pos is an absolute position in the */
-/* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur */
-/* within the viewport and we map Absolute positions back to the */
-/* viewport to display in the browser. */
-/* TODO: Can we depreciate VPos? */
+// There are two coordinate systems. Pos is an absolute position in the
+// canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
+// within the viewport and we map Absolute positions back to the
+// viewport to display in the browser.
+// TODO: Can we depreciate VPos?
 type rec pos = {
   x: int,
   y: int,
@@ -113,9 +115,9 @@ and vPos = {
   vy: int,
 }
 
-/* ---------------------- */
-/* Types */
-/* ---------------------- */
+// ----------------------
+// Types
+// ----------------------
 @ppx.deriving(show)
 and tipe =
   | TInt
@@ -125,6 +127,7 @@ and tipe =
   | TFloat
   | TObj
   | TList
+  | TTuple(tipe, tipe, list<tipe>)
   | TAny
   | TNull
   | TBlock
@@ -153,18 +156,18 @@ module TypeInformation = {
   let default: t = {fnName: "Unknown", paramName: "Unknown", returnType: TAny}
 }
 
-/* ---------------------- */
-/* Exprs and AST types */
-/* ---------------------- */
+// ----------------------
+// Exprs and AST types
+// ----------------------
 type rec fnName = string
 
-and fluidExpr = FluidExpression.t
+and fluidPattern = ProgramTypes.Pattern.t
+and fluidExpr = ProgramTypes.Expr.t
+and fluidAST = ProgramTypes.AST.t
 
-and fluidPattern = FluidPattern.t
-
-/* ----------------------------- */
-/* Pointers */
-/* ----------------------------- */
+// -----------------------------
+// Pointers
+// -----------------------------
 and blankOrData =
   | PEventName(blankOr<string>)
   | PEventModifier(blankOr<string>)
@@ -196,24 +199,24 @@ and blankOrType =
   | TypeFieldName
   | TypeFieldTipe
 
-/* ---------------------- */
-/* Toplevels */
-/* ---------------------- */
+// ----------------------
+// Toplevels
+// ----------------------
 type rec handlerSpaceName = string
 
 and handlerName = string
 
 and handlerModifer = string
 
-/* usedIn is a TL that's refered to in the refersTo tl at id */
-/* refersTo is a TL that uses the usedIn tl at id */
+// usedIn is a TL that's refered to in the refersTo tl at id
+// refersTo is a TL that uses the usedIn tl at id
 and usage = {
   usedIn: TLID.t,
   refersTo: TLID.t,
-  id: ID.t,
+  id: id,
 }
 
-/* handlers */
+// handlers
 and handlerSpec = {
   space: blankOr<handlerSpaceName>,
   name: blankOr<handlerName>,
@@ -228,13 +231,13 @@ and handlerSpace =
   | HSDeprecatedOther
 
 and handler = {
-  ast: FluidAST.t,
+  ast: fluidAST,
   spec: handlerSpec,
   hTLID: TLID.t,
   pos: pos,
 }
 
-/* dbs */
+// dbs
 and dbName = string
 
 and dbColName = string
@@ -253,8 +256,8 @@ and dbMigration = {
   startingVersion: int,
   version: int,
   state: dbMigrationState,
-  rollforward: FluidExpression.t,
-  rollback: FluidExpression.t,
+  rollforward: fluidExpr,
+  rollback: fluidExpr,
   cols: list<dbColumn>,
 }
 
@@ -272,7 +275,7 @@ and functionTypes =
   | UserFunction(userFunction)
   | PackageFn(packageFn)
 
-/* userFunctions */
+// userFunctions
 and userFunctionParameter = {
   ufpName: blankOr<string>,
   ufpTipe: blankOr<tipe>,
@@ -292,7 +295,7 @@ and userFunctionMetadata = {
 and userFunction = {
   ufTLID: TLID.t,
   ufMetadata: userFunctionMetadata,
-  ufAST: FluidAST.t,
+  ufAST: fluidAST,
 }
 
 and userRecordField = {
@@ -309,7 +312,7 @@ and userTipe = {
   utDefinition: userTipeDefinition,
 }
 
-/* Package manager Functions */
+// Package manager Functions
 and packageFnParameter = {
   name: string,
   tipe: tipe,
@@ -331,7 +334,7 @@ and packageFn = {
   pfTLID: TLID.t,
 }
 
-/* toplevels */
+// toplevels
 and toplevel =
   | TLHandler(handler)
   | TLDB(db)
@@ -341,9 +344,9 @@ and toplevel =
 
 and packageFns = TLIDDict.t<packageFn>
 
-/* ---------------------- */
-/* dvals */
-/* ---------------------- */
+// ----------------------
+// dvals
+// ----------------------
 and dhttp =
   | Redirect(string)
   | Response(int, list<(string, string)>)
@@ -358,14 +361,14 @@ and resultT =
 
 and dval_source =
   | SourceNone
-  | SourceId(TLID.t, ID.t)
+  | SourceId(TLID.t, id)
 
 and dblock_args = {
   /* We use Belt.Map.String as Map.String.t has a comparator that doesn't work
    with the cloning algorithm of web workers */
   symtable: Belt.Map.String.t<dval>,
-  params: list<(ID.t, string)>,
-  body: FluidExpression.t,
+  params: list<(id, string)>,
+  body: fluidExpr,
 }
 
 @ppx.deriving(show({with_path: false}))
@@ -377,6 +380,7 @@ and dval =
   | DCharacter(string)
   | DStr(string)
   | DList(array<dval>)
+  | DTuple(dval, dval, list<dval>)
   /* We use Belt.Map.String as Map.String.t has a comparator that doesn't work
    with the cloning algorithm of web workers */
   | DObj(Belt.Map.String.t<dval>)
@@ -393,10 +397,10 @@ and dval =
   | DResult(resultT)
   | DBytes(bytes)
 
-/* ----------------------------- */
-/* Referencing parts of an AST */
-/* at the caret level */
-/* ----------------------------- */
+// -----------------------------
+// Referencing parts of an AST
+// at the caret level
+// -----------------------------
 
 /* NOTE(JULIAN): the ast*Parts below are sketches of the types; they will likely change
  based on which specific parts of the AST we actually want to represent via astRef */
@@ -447,6 +451,12 @@ type rec astListPart =
   | LPComma(int)
 
 @ppx.deriving(show({with_path: false}))
+type rec astTuplePart =
+  | TPOpen
+  | TPClose
+  | TPComma(int)
+
+@ppx.deriving(show({with_path: false}))
 type rec astMatchPart =
   | MPKeyword
   | MPBranchArrow(/* index of the branch */ int)
@@ -486,30 +496,31 @@ type rec astFlagPart =
  */
 @ppx.deriving(show({with_path: false}))
 type rec astRef =
-  | ARInteger(ID.t)
-  | ARBool(ID.t)
-  | ARString(ID.t, astStringPart)
-  | ARFloat(ID.t, astFloatPart)
-  | ARNull(ID.t)
-  | ARBlank(ID.t)
-  | ARLet(ID.t, astLetPart)
-  | ARIf(ID.t, astIfPart)
-  | ARBinOp(ID.t) /* matches the operator */
-  | ARFieldAccess(ID.t, astFieldAccessPart)
-  | ARVariable(ID.t)
-  | ARFnCall(ID.t) /* Matches the fn name+version */
-  | ARPartial(ID.t)
-  | ARRightPartial(ID.t)
-  | ARLeftPartial(ID.t)
-  | ARList(ID.t, astListPart)
-  | ARRecord(ID.t, astRecordPart)
-  | ARPipe(ID.t, int) /* index of the pipe */
-  | ARConstructor(ID.t) /* name of the constructor */
-  | ARMatch(ID.t, astMatchPart)
-  | ARLambda(ID.t, astLambdaPart)
-  | ARPattern(ID.t, astPatternPart)
-  | ARFlag(ID.t, astFlagPart)
-  /* for use if something that should never happen happened */
+  | ARInteger(id)
+  | ARBool(id)
+  | ARString(id, astStringPart)
+  | ARFloat(id, astFloatPart)
+  | ARNull(id)
+  | ARBlank(id)
+  | ARLet(id, astLetPart)
+  | ARIf(id, astIfPart)
+  | ARBinOp(id) // matches the operator
+  | ARFieldAccess(id, astFieldAccessPart)
+  | ARVariable(id)
+  | ARFnCall(id) // Matches the fn name+version
+  | ARPartial(id)
+  | ARRightPartial(id)
+  | ARLeftPartial(id)
+  | ARList(id, astListPart)
+  | ARTuple(id, astTuplePart)
+  | ARRecord(id, astRecordPart)
+  | ARPipe(id, int) // index of the pipe
+  | ARConstructor(id) // name of the constructor
+  | ARMatch(id, astMatchPart)
+  | ARLambda(id, astLambdaPart)
+  | ARPattern(id, astPatternPart)
+  | ARFlag(id, astFlagPart)
+  // for use if something that should never happen happened
   | ARInvalid
 
 /* A caretTarget represents a distinct caret location within the AST.
@@ -523,14 +534,14 @@ type rec caretTarget = {
   offset: int,
 }
 
-/* ----------------------------- */
-/* Scroll */
-/* ----------------------------- */
+// -----------------------------
+// Scroll
+// -----------------------------
 @ppx.deriving(show({with_path: false})) type rec scrollEvent = {timeStamp: float}
 
-/* ----------------------------- */
-/* Mouse */
-/* ----------------------------- */
+// -----------------------------
+// Mouse
+// -----------------------------
 type rec mouseEvent = {
   mePos: vPos,
   button: int,
@@ -542,9 +553,9 @@ type rec mouseEvent = {
 
 and isLeftButton = bool
 
-/* ----------------------------- */
-/* CursorState */
-/* ----------------------------- */
+// -----------------------------
+// CursorState
+// -----------------------------
 and hasMoved = bool
 
 /* CursorState represents what the user is focussed on and where their actions
@@ -560,9 +571,9 @@ and cursorState =
    * blankOr, but were not "entering" it. However, this mostly only made
    * sense for code, and now that code is fluid this is just annoying and
    * weird. */
-  Selecting(TLID.t, option<ID.t>)
-  | /* When we're editing a blankOr */
-  Entering(TLID.t, ID.t)
+  Selecting(TLID.t, option<id>)
+  | // When we're editing a blankOr
+  Entering(TLID.t, id)
   | /* When we're editing code (in the fluid
    editor) */
   FluidEntering(TLID.t)
@@ -579,9 +590,9 @@ and cursorState =
     })
   | /* Doing nothing */ Deselected
 
-/* ------------------- */
-/* Analysis */
-/* ------------------- */
+// -------------------
+// Analysis
+// -------------------
 and timerAction =
   | RefreshAnalysis
   | RefreshAvatars
@@ -603,17 +614,20 @@ and intermediateResultStore = Belt.Map.String.t<executionResult>
 
 /* map from expression ids to symbol table, which maps from varname strings to
  * the ids of the expressions that represent their values */
-and avDict = Map.String.t<Map.String.t<ID.t>>
+and avDict = Map.String.t<Map.String.t<id>>
 
 and inputValueDict = Belt.Map.String.t<dval>
 
 and analysisStore = loadable<intermediateResultStore>
 
-and analyses = /* indexed by traceID */ Map.String.t<analysisStore> /* indexed by traceID */
+and analyses = // indexed by traceID
+Map.String.t<
+  analysisStore,
+>
 
 and functionResult = {
   fnName: string,
-  callerID: ID.t,
+  callerID: id,
   argHash: string,
   argHashVersion: int,
   value: dval,
@@ -624,7 +638,7 @@ and fetchRequest =
   | DbStatsFetch(dbStatsAPIParams)
   | WorkerStatsFetch(workerStatsAPIParams)
 
-/* traces/db_stats fetching */
+// traces/db_stats fetching
 and fetchResult =
   | TraceFetchSuccess(getTraceDataAPIParams, getTraceDataAPIResult)
   | TraceFetchFailure(getTraceDataAPIParams, string, string)
@@ -638,7 +652,6 @@ and fetchResult =
 
 and fetchContext = {
   canvasName: string,
-  apiRoot: string,
   csrfToken: string,
   origin: string,
 }
@@ -657,12 +670,15 @@ and traceError =
   /* NoneYet is a replacement for what was None when trace was a
    (traceID * traceData option) */
   | NoneYet
-  /* MaximumCallStackError is unrecoverable - don't try again */
+  // MaximumCallStackError is unrecoverable - don't try again
   | MaximumCallStackError
 
 and trace = (traceID, Result.t<traceData, traceError>)
 
-and traces = /* indexed by TLID.t */ Map.String.t<list<trace>> /* indexed by TLID.t */
+and traces = // indexed by TLID.t
+Map.String.t<
+  list<trace>,
+>
 
 and fourOhFour = {
   space: string,
@@ -695,19 +711,19 @@ and workerStats = {
   schedule: option<string>,
 }
 
-/* ------------------- */
-/* ops */
-/* ------------------- */
-and rollbackID = ID.t
+// -------------------
+// ops
+// -------------------
+and rollbackID = id
 
-and rollforwardID = ID.t
+and rollforwardID = id
 
 and op =
   | SetHandler(TLID.t, pos, handler)
   | CreateDB(TLID.t, pos, dbName)
-  | AddDBCol(TLID.t, ID.t, ID.t)
-  | SetDBColName(TLID.t, ID.t, dbColName)
-  | SetDBColType(TLID.t, ID.t, dbColType)
+  | AddDBCol(TLID.t, id, id)
+  | SetDBColName(TLID.t, id, dbColName)
+  | SetDBColType(TLID.t, id, dbColType)
   | DeleteTL(TLID.t)
   | MoveTL(TLID.t, pos)
   | TLSavepoint(TLID.t)
@@ -715,26 +731,26 @@ and op =
   | RedoTL(TLID.t)
   | SetFunction(userFunction)
   | DeleteFunction(TLID.t)
-  | ChangeDBColName(TLID.t, ID.t, dbColName)
-  | ChangeDBColType(TLID.t, ID.t, dbColType)
-  | DeprecatedInitDbm(TLID.t, ID.t, rollbackID, rollforwardID, dbMigrationKind)
-  | SetExpr(TLID.t, ID.t, FluidExpression.t)
+  | ChangeDBColName(TLID.t, id, dbColName)
+  | ChangeDBColType(TLID.t, id, dbColType)
+  | DeprecatedInitDbm(TLID.t, id, rollbackID, rollforwardID, dbMigrationKind)
+  | SetExpr(TLID.t, id, fluidExpr)
   | CreateDBMigration(TLID.t, rollbackID, rollforwardID, list<dbColumn>)
-  | AddDBColToDBMigration(TLID.t, ID.t, ID.t)
-  | SetDBColNameInDBMigration(TLID.t, ID.t, dbColName)
-  | SetDBColTypeInDBMigration(TLID.t, ID.t, dbColType)
-  | DeleteColInDBMigration(TLID.t, ID.t)
+  | AddDBColToDBMigration(TLID.t, id, id)
+  | SetDBColNameInDBMigration(TLID.t, id, dbColName)
+  | SetDBColTypeInDBMigration(TLID.t, id, dbColType)
+  | DeleteColInDBMigration(TLID.t, id)
   | AbandonDBMigration(TLID.t)
-  | DeleteDBCol(TLID.t, ID.t)
+  | DeleteDBCol(TLID.t, id)
   | RenameDBname(TLID.t, dbName)
-  | CreateDBWithBlankOr(TLID.t, pos, ID.t, dbName)
+  | CreateDBWithBlankOr(TLID.t, pos, id, dbName)
   | SetType(userTipe)
   | DeleteType(TLID.t)
 
-/* ------------------- */
-/* APIs */
-/* ------------------- */
-/* params */
+// -------------------
+// APIs
+// -------------------
+// params
 and sendPresenceParams = avatarModelMessage
 
 and sendInviteParams = SettingsViewTypes.inviteFormMessage
@@ -748,7 +764,7 @@ and addOpAPIParams = {
 and executeFunctionAPIParams = {
   efpTLID: TLID.t,
   efpTraceID: traceID,
-  efpCallerID: ID.t,
+  efpCallerID: id,
   efpArgs: list<dval>,
   efpFnName: string,
 }
@@ -817,7 +833,7 @@ and account = {
   username: string,
 }
 
-/* results */
+// results
 and addOpAPIResult = {
   handlers: list<handler>,
   deletedHandlers: list<handler>,
@@ -884,10 +900,10 @@ and initialLoadAPIResult = {
 
 and saveTestAPIResult = string
 
-/* ------------------- */
-/* Autocomplete / entry */
-/* ------------------- */
-/* functions */
+// -------------------
+// Autocomplete / entry
+// -------------------
+// functions
 and parameter = {
   paramName: string,
   paramTipe: tipe,
@@ -919,7 +935,7 @@ and function_ = {
   fnOrigin,
 }
 
-/* autocomplete items */
+// autocomplete items
 and literal = string
 
 and displayText = string
@@ -943,9 +959,9 @@ and keyword =
 
 and command = {
   commandName: string,
-  action: (model, toplevel, ID.t) => modification,
+  action: (model, toplevel, id) => modification,
   doc: string,
-  shouldShow: (model, toplevel, FluidExpression.t) => bool,
+  shouldShow: (model, toplevel, fluidExpr) => bool,
 }
 
 and omniAction =
@@ -959,28 +975,28 @@ and omniAction =
 
 and autocompleteItem =
   | ACOmniAction(omniAction)
-  /* HTTP */
+  // HTTP
   | ACHTTPModifier(string)
   | ACHTTPRoute(string)
-  /* Workers */
+  // Workers
   | ACWorkerName(string)
   | ACEventSpace(string)
   | ACEventModifier(string)
-  /* Repl */
+  // Repl
   | ACReplName(string)
-  /* CRON */
+  // CRON
   | ACCronName(string)
   | ACCronTiming(string)
-  /* DBs */
+  // DBs
   | ACDBName(string)
   | ACDBColType(string)
   | ACDBColName(string)
-  /* User functions */
+  // User functions
   | ACFnName(string)
   | ACParamName(string)
   | ACParamTipe(tipe)
   | ACReturnTipe(tipe)
-  /* User types */
+  // User types
   | ACTypeFieldTipe(tipe)
   | ACTypeName(string)
   | ACTypeFieldName(string)
@@ -1008,9 +1024,9 @@ and autocompleteMod =
   | ACRegenerate
   | ACSetVisible(bool)
 
-/* ------------------- */
-/* Functions.ml */
-/* ------------------- */
+// -------------------
+// Functions.ml
+// -------------------
 and functionsType = {
   builtinFunctions: list<function_>,
   packageFunctions: packageFns,
@@ -1025,22 +1041,22 @@ and functionsProps = {
   userFunctions: TLIDDict.t<userFunction>,
 }
 
-/* --------------- */
-/* Component Types */
-/* --------------- */
+// ---------------
+// Component Types
+// ---------------
 
-/* TLMenu */
+// TLMenu
 and menuState = {isOpen: bool}
 
 and menuMsg =
   | OpenMenu
   | CloseMenu
 
-/* FnParams */
+// FnParams
 and fnProps = {
   draggingParamIndex: option<int>,
   dragOverSpaceIndex: option<int>,
-  justMovedParam: option<ID.t>,
+  justMovedParam: option<id>,
 }
 
 and fnpMsg =
@@ -1051,7 +1067,7 @@ and fnpMsg =
   | ParamDropIntoSpace(int)
   | Reset
 
-/* Tool tips */
+// Tool tips
 and toolTipMsg =
   | OpenTooltip(tooltipSource)
   | Close
@@ -1070,14 +1086,14 @@ and tooltipState = {
   userTutorial: userTutorial,
 }
 
-/* Tutorial */
+// Tutorial
 and tutorialMsg =
   | NextStep
   | PrevStep
   | CloseTutorial
   | ReopenTutorial
 
-/* Sidebar state */
+// Sidebar state
 and sidebarMode =
   | DetailedMode
   | AbridgedMode
@@ -1092,9 +1108,9 @@ and sidebarMsg =
   | ResetSidebar
   | MarkCategoryOpen(bool, string)
 
-/* ------------------- */
-/* Modifications */
-/* ------------------- */
+// -------------------
+// Modifications
+// -------------------
 and centerPage = bool
 
 and page =
@@ -1108,11 +1124,11 @@ and page =
 
 and focus =
   | FocusNothing
-  | FocusExact(TLID.t, ID.t)
-  | FocusNext(TLID.t, option<ID.t>)
+  | FocusExact(TLID.t, id)
+  | FocusNext(TLID.t, option<id>)
   | FocusPageAndCursor(page, cursorState)
   | FocusSame
-  /* unchanged */
+  // unchanged
   | FocusNoChange
 
 and toast = {
@@ -1145,7 +1161,7 @@ and apiError = {
   importance: errorImportance,
 }
 
-/* Editor settings are global settings on the editor. Initially, these are only things that admins use for debugging - in the future they could be extended to editor settings */
+// Editor settings are global settings on the editor. Initially, these are only things that admins use for debugging - in the future they could be extended to editor settings
 and editorSettings = {
   showFluidDebugger: bool,
   showHandlerASTs: bool,
@@ -1156,20 +1172,20 @@ and editorSettings = {
    by the `Select` modification.
 
    In Fluid, we should probably use STCaret in all cases --
-   knowing the ID.t *of an ast node (via STID) is insufficient
+   knowing the id *of an ast node (via STID) is insufficient
    to know where to place the caret within that node.
    In non-fluid, the concept of a caret doesn't really exist;
    we select nodes at any nesting level as a whole, so STID is
    sufficient.
 
    If we want to select a toplevel as a whole but don't have a
-   specific ID.t *in mind, we use STTopLevelRoot. There's a few
+   specific id *in mind, we use STTopLevelRoot. There's a few
    places where we do this as a fallback when we expected to find
    an id but couldn't (they used to use Some(id) with an implicit
    fallback to None). */
 and tlidSelectTarget =
   | STCaret(caretTarget)
-  | STID(ID.t)
+  | STID(id)
   | STTopLevelRoot
 
 and modification =
@@ -1184,20 +1200,20 @@ and modification =
         * returning the (model * Cmd.t) from the update function ")
   ReplaceAllModificationsWithThisOne(model => (model, Tea.Cmd.t<msg>))
 
-  /* API Calls */
+  // API Calls
   | AddOps((list<op>, focus))
   | HandleAPIError(apiError)
   | GetUnlockedDBsAPICall
   | Get404sAPICall
   | GetWorkerStatsAPICall(TLID.t)
-  | ExecutingFunctionAPICall(TLID.t, ID.t, string)
+  | ExecutingFunctionAPICall(TLID.t, id, string)
   | TriggerHandlerAPICall(TLID.t)
   | UpdateDBStatsAPICall(TLID.t)
   | DeleteToplevelForeverAPICall(TLID.t)
-  /* End API Calls */
+  // End API Calls
   | Select(TLID.t, tlidSelectTarget)
-  | SetHover(TLID.t, ID.t)
-  | ClearHover(TLID.t, ID.t)
+  | SetHover(TLID.t, id)
+  | ClearHover(TLID.t, id)
   | Deselect
   | RemoveToplevel(toplevel)
   | SetToplevels(list<handler>, list<db>, bool)
@@ -1210,11 +1226,11 @@ and modification =
   | AppendUnlockedDBs(unlockedDBs)
   | Append404s(list<fourOhFour>)
   | Delete404(fourOhFour)
-  | Enter /* Enter a blankOr */(TLID.t, ID.t)
+  | Enter /* Enter a blankOr */(TLID.t, id)
   | EnterWithOffset(
-      /* Entering a blankOr with a desired caret offset */
+      // Entering a blankOr with a desired caret offset
       TLID.t,
-      ID.t,
+      id,
       int,
     )
   | OpenOmnibox /* Open the omnibox */(option<pos>)
@@ -1229,14 +1245,14 @@ and modification =
   | EndIntegrationTest
   | SetPage(page)
   | SetTLTraceID(TLID.t, traceID)
-  | ExecutingFunctionBegan(TLID.t, ID.t)
-  | ExecutingFunctionComplete(list<(TLID.t, ID.t)>)
+  | ExecutingFunctionBegan(TLID.t, id)
+  | ExecutingFunctionComplete(list<(TLID.t, id)>)
   | MoveCanvasTo(pos, isTransitionAnimated)
   | UpdateTraces(traces)
   | OverrideTraces(traces)
-  | UpdateTraceFunctionResult(TLID.t, traceID, ID.t, fnName, dvalArgsHash, int, dval)
+  | UpdateTraceFunctionResult(TLID.t, traceID, id, fnName, dvalArgsHash, int, dval)
   | AppendStaticDeploy(list<staticDeploy>)
-  /* designed for one-off small changes */
+  // designed for one-off small changes
   | Apply(
       /* It can be tempting to call a function which returns
        * modifications. However, this can have a bug - the model
@@ -1251,7 +1267,7 @@ and modification =
   | CenterCanvasOn(TLID.t)
   | InitIntrospect(list<toplevel>)
   | RefreshUsages(list<TLID.t>)
-  | FluidCommandsShow(TLID.t, ID.t)
+  | FluidCommandsShow(TLID.t, id)
   | FluidCommandsClose
   /* We need to track clicks so that we don't mess with the caret while a
    * click is happening. */
@@ -1266,13 +1282,13 @@ and modification =
   | TLMenuUpdate(TLID.t, menuMsg)
   | SettingsViewUpdate(SettingsViewTypes.settingsMsg)
 
-/* ------------------- */
-/* Msgs */
-/* ------------------- */
+// -------------------
+// Msgs
+// -------------------
 
-/* https://rawgit.com/w3c/input-events/v1/index.html#interface-InputEvent-Attributes */
+// https://rawgit.com/w3c/input-events/v1/index.html#interface-InputEvent-Attributes
 and fluidInputEvent =
-  | Keypress(FluidKeyboard.keyEvent) /* Backwards compatibility. Not an InputEvent inputType. */
+  | Keypress(FluidKeyboard.keyEvent) // Backwards compatibility. Not an InputEvent inputType.
   | InsertText(string)
   | DeleteContentBackward
   | DeleteContentForward
@@ -1283,7 +1299,7 @@ and fluidInputEvent =
   | ReplaceText(string)
 
 and fluidMouseUpClickType =
-  | SelectText(int, int) /* selection read from the DOM */
+  | SelectText(int, int) // selection read from the DOM
   | ClickAt(int)
 
 and fluidMouseUp = {
@@ -1320,10 +1336,10 @@ and fluidMsg =
   | FluidMouseDoubleClick(fluidMouseDoubleClick)
   | FluidCommandsFilter(string)
   | FluidCommandsClick(command)
-  | FluidFocusOnToken(TLID.t, ID.t)
+  | FluidFocusOnToken(TLID.t, id)
   | FluidClearErrorDvSrc
   | FluidUpdateAutocomplete
-  /* Index of the dropdown(autocomplete or command palette) item */
+  // Index of the dropdown(autocomplete or command palette) item
   | FluidUpdateDropdownIndex(int)
   | FluidCloseCmdPalette
 
@@ -1336,7 +1352,7 @@ and heapioTrack =
 
 and msg =
   | IgnoreMsg(/* debug string so you know where it came from */ string)
-  | IgnoreMouseUp /* for nothingMouseEvent */
+  | IgnoreMouseUp // for nothingMouseEvent
   | FluidMsg(fluidMsg)
   | AppMouseDown(mouseEvent)
   | @printer(opaque("AppMouseDrag")) AppMouseDrag(Tea.Mouse.position)
@@ -1344,8 +1360,8 @@ and msg =
   | AppScroll
   | WindowMouseUp(mouseEvent)
   | TLDragRegionMouseDown(TLID.t, mouseEvent)
-  /* we have the actual node when TLDragRegionMouseUp is created, */
-  /* but by the time we use it the proper node will be changed */
+  // we have the actual node when TLDragRegionMouseUp is created,
+  // but by the time we use it the proper node will be changed
   | TLDragRegionMouseUp(TLID.t, mouseEvent)
   | ToplevelDelete(TLID.t)
   | ToplevelDeleteForever(TLID.t)
@@ -1398,7 +1414,7 @@ and msg =
   | FinishIntegrationTest
   | SaveTestButton
   | ToggleEditorSetting(editorSettings => editorSettings)
-  | ExecuteFunctionButton(TLID.t, ID.t, string)
+  | ExecuteFunctionButton(TLID.t, id, string)
   | ExecuteFunctionFromWithin(executeFunctionAPIParams)
   | CreateHandlerFrom404(fourOhFour)
   | @printer(opaque("TimerFire")) TimerFire(timerAction, Tea.Time.t)
@@ -1408,10 +1424,10 @@ and msg =
   | AddUserFunctionParameter(TLID.t)
   | UploadFn(TLID.t)
   | DeleteUserTypeField(TLID.t, userRecordField)
-  | BlankOrClick(TLID.t, ID.t, mouseEvent)
-  | BlankOrDoubleClick(TLID.t, ID.t, mouseEvent)
-  | BlankOrMouseEnter(TLID.t, ID.t, mouseEvent)
-  | BlankOrMouseLeave(TLID.t, ID.t, mouseEvent)
+  | BlankOrClick(TLID.t, id, mouseEvent)
+  | BlankOrDoubleClick(TLID.t, id, mouseEvent)
+  | BlankOrMouseEnter(TLID.t, id, mouseEvent)
+  | BlankOrMouseLeave(TLID.t, id, mouseEvent)
   | MouseWheel(int, int)
   | TraceClick(TLID.t, traceID, mouseEvent)
   | TraceMouseEnter(TLID.t, traceID, mouseEvent)
@@ -1432,7 +1448,7 @@ and msg =
   | EnablePanning(bool)
   | StartMigration(TLID.t)
   | AbandonMigration(TLID.t)
-  | DeleteColInDB(TLID.t, ID.t)
+  | DeleteColInDB(TLID.t, id)
   | CreateDBTable
   | ClipboardCopyEvent(clipboardEvent)
   | ClipboardCutEvent(clipboardEvent)
@@ -1441,10 +1457,10 @@ and msg =
   | EventDecoderError(string, string, string)
   | CanvasPanAnimationEnd
   | GoTo(page)
-  | SetHoveringReferences(TLID.t, list<ID.t>)
+  | SetHoveringReferences(TLID.t, list<id>)
   | @printer(opaque("TriggerSendPresenceCallback"))
   TriggerSendPresenceCallback(Tea.Result.t<unit, httpError>)
-  | TakeOffErrorRail(TLID.t, ID.t)
+  | TakeOffErrorRail(TLID.t, id)
   | SetHandlerExeIdle(TLID.t)
   | CopyCurl(TLID.t, vPos)
   | TLMenuMsg(TLID.t, menuMsg)
@@ -1464,21 +1480,19 @@ and msg =
   | SettingsViewMsg(SettingsViewTypes.settingsMsg)
   | SecretMsg(SecretTypes.msg)
 
-/* ----------------------------- */
-/* AB tests */
-/* ----------------------------- */
+// -----------------------------
+// AB tests
+// -----------------------------
 and variantTest =
   | /* does nothing variant just so we can leave this in place
    * if we're not testing anything else */
   StubVariant
   | NgrokVariant
   | LeftPartialVariant
-  // CLEANUP remove after F# migration
-  | FsharpBackend
 
-/* ----------------------------- */
-/* FeatureFlags */
-/* ----------------------------- */
+// -----------------------------
+// FeatureFlags
+// -----------------------------
 and ffIsExpanded = bool
 
 and pick =
@@ -1487,9 +1501,9 @@ and pick =
 
 and flagsVS = Map.String.t<ffIsExpanded>
 
-/* ----------------------------- */
-/* Model */
-/* ----------------------------- */
+// -----------------------------
+// Model
+// -----------------------------
 and syncState = Set.String.t
 
 and exeState =
@@ -1500,13 +1514,13 @@ and exeState =
 and handlerProp = {
   hoveringReferences: /* When hovering over a reference, this is the list of ID.ts that refer to
    * the reference */
-  list<ID.t>,
+  list<id>,
   execution: exeState,
 }
 
 and tlTraceIDs = TLIDDict.t<traceID>
 
-/* Testing */
+// Testing
 and testResult = Result.t<unit, string>
 
 and integrationTestState =
@@ -1517,113 +1531,116 @@ and integrationTestState =
 /*
  * Fluid
  */
-/* eg ("value","Int") */
+// eg ("value","Int")
 and placeholder = {
   name: string,
   tipe: string,
 }
 
 and fluidToken =
-  | TInteger(ID.t, string, option<parentBlockID>)
-  | TString(ID.t, string, option<parentBlockID>)
-  /* multi-line strings: ID.t *, segment, start offset, full-string */
-  | TStringMLStart(ID.t, string, int, string)
-  | TStringMLMiddle(ID.t, string, int, string)
-  | TStringMLEnd(ID.t, string, int, string)
-  | TBlank(ID.t, option<parentBlockID>)
+  | TInteger(id, int64, option<parentBlockID>)
+  | TString(id, string, option<parentBlockID>)
+  // multi-line strings: id *, segment, start offset, full-string
+  | TStringMLStart(id, string, int, string)
+  | TStringMLMiddle(id, string, int, string)
+  | TStringMLEnd(id, string, int, string)
+  | TBlank(id, option<parentBlockID>)
   | TPlaceholder({
-      blankID: ID.t,
-      fnID: ID.t,
+      blankID: id,
+      fnID: id,
       parentBlockID: option<parentBlockID>,
       placeholder: placeholder,
     })
-  | TTrue(ID.t, option<parentBlockID>)
-  | TFalse(ID.t, option<parentBlockID>)
-  | TNullToken(ID.t, option<parentBlockID>)
-  | TFloatWhole(ID.t, string, option<parentBlockID>)
-  | TFloatPoint(ID.t, option<parentBlockID>)
-  | TFloatFractional(ID.t, string, option<parentBlockID>)
+  | TTrue(id, option<parentBlockID>)
+  | TFalse(id, option<parentBlockID>)
+  | TNullToken(id, option<parentBlockID>)
+  | TFloatWhole(id, string, option<parentBlockID>)
+  | TFloatPoint(id, option<parentBlockID>)
+  | TFloatFractional(id, string, option<parentBlockID>)
   /* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. */
-  | TPartial(ID.t, string, option<parentBlockID>)
-  /* A partial that extends out to the right. Used to create binops. */
-  /* A partial that preceeds an existing expression, used to wrap things in other things */
-  | TLeftPartial(ID.t, string, option<parentBlockID>)
-  | TRightPartial(ID.t, string, option<parentBlockID>)
+  | TPartial(id, string, option<parentBlockID>)
+  // A partial that extends out to the right. Used to create binops.
+  // A partial that preceeds an existing expression, used to wrap things in other things
+  | TLeftPartial(id, string, option<parentBlockID>)
+  | TRightPartial(id, string, option<parentBlockID>)
   /* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way */
-  | TPartialGhost(ID.t, string, option<parentBlockID>)
-  /* the ID.t *here disambiguates with other separators for reflow */
-  | TSep(ID.t, option<parentBlockID>)
-  /* The first ID.t *is the ID.t *of the expression directly associated with the
-   * newline. The second ID.t *is the ID.t *of that expression's parent. In an
+  | TPartialGhost(id, string, option<parentBlockID>)
+  // the id *here disambiguates with other separators for reflow
+  | TSep(id, option<parentBlockID>)
+  /* The first id *is the id *of the expression directly associated with the
+   * newline. The second id *is the id *of that expression's parent. In an
    * expression with potentially many newlines (ie, a pipeline), the int holds
    * the relative line number (index) of this newline. */
-  | TNewline(option<(ID.t, ID.t, option<int>)>)
+  | TNewline(option<(id, id, option<int>)>)
   | TIndent(int)
-  | TLetKeyword(ID.t, analysisID, option<parentBlockID>)
-  /* Let-expr id * rhs id * varname */
-  | TLetVarName(ID.t, analysisID, string, option<parentBlockID>)
-  | TLetAssignment(ID.t, analysisID, option<parentBlockID>)
-  | TIfKeyword(ID.t, option<parentBlockID>)
-  | TIfThenKeyword(ID.t, option<parentBlockID>)
-  | TIfElseKeyword(ID.t, option<parentBlockID>)
-  | TBinOp(ID.t, string, option<parentBlockID>)
-  | TFieldOp(/* fieldAccess */ ID.t, /* lhs */ ID.t, option<parentBlockID>)
-  | TFieldName(ID.t /* fieldAccess */, ID.t /* lhs */, string, option<parentBlockID>)
+  | TLetKeyword(id, analysisID, option<parentBlockID>)
+  // Let-expr id * rhs id * varname
+  | TLetVarName(id, analysisID, string, option<parentBlockID>)
+  | TLetAssignment(id, analysisID, option<parentBlockID>)
+  | TIfKeyword(id, option<parentBlockID>)
+  | TIfThenKeyword(id, option<parentBlockID>)
+  | TIfElseKeyword(id, option<parentBlockID>)
+  | TBinOp(id, string, option<parentBlockID>)
+  | TFieldOp(/* fieldAccess */ id, /* lhs */ id, option<parentBlockID>)
+  | TFieldName(id /* fieldAccess */, id /* lhs */, string, option<parentBlockID>)
   | TFieldPartial(
-      /* Partial ID, fieldAccess ID, analysisID (lhs), name */ ID.t,
-      ID.t,
-      ID.t,
+      /* Partial ID, fieldAccess ID, analysisID (lhs), name */ id,
+      id,
+      id,
       string,
       option<parentBlockID>,
     )
-  | TVariable(ID.t, string, option<parentBlockID>)
-  /* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail */
-  | TFnName(ID.t, string, string, string, FluidExpression.sendToRail)
-  /* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') */
-  | TFnVersion(ID.t, string, string, string)
-  | TLambdaComma(ID.t, int, option<parentBlockID>)
-  | TLambdaArrow(ID.t, option<parentBlockID>)
-  | TLambdaSymbol(ID.t, option<parentBlockID>)
-  | TLambdaVar(ID.t, analysisID, int, string, option<parentBlockID>)
-  | TListOpen(ID.t, option<parentBlockID>)
-  | TListClose(ID.t, option<parentBlockID>)
-  | TListComma(ID.t, int)
-  /* 2nd int is the number of pipe segments there are */
-  | TPipe(ID.t, int, int, option<parentBlockID>)
-  | TRecordOpen(ID.t, option<parentBlockID>)
+  | TVariable(id, string, option<parentBlockID>)
+  // id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail
+  | TFnName(id, string, string, string, ProgramTypes.Expr.sendToRail)
+  // id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3')
+  | TFnVersion(id, string, string, string)
+  | TLambdaComma(id, int, option<parentBlockID>)
+  | TLambdaArrow(id, option<parentBlockID>)
+  | TLambdaSymbol(id, option<parentBlockID>)
+  | TLambdaVar(id, analysisID, int, string, option<parentBlockID>)
+  | TListOpen(id, option<parentBlockID>)
+  | TListClose(id, option<parentBlockID>)
+  | TListComma(id, int)
+  | TTupleOpen(id)
+  | TTupleClose(id)
+  | TTupleComma(id, int)
+  // 2nd int is the number of pipe segments there are
+  | TPipe(id, int, int, option<parentBlockID>)
+  | TRecordOpen(id, option<parentBlockID>)
   | TRecordFieldname({
-      recordID: ID.t,
-      exprID: ID.t,
+      recordID: id,
+      exprID: id,
       parentBlockID: option<parentBlockID>,
       index: int,
       fieldName: string,
     })
-  | TRecordSep(ID.t, int, analysisID)
-  | TRecordClose(ID.t, option<parentBlockID>)
-  | TMatchKeyword(ID.t)
-  | TMatchBranchArrow({matchID: ID.t, patternID: ID.t, index: int})
+  | TRecordSep(id, int, analysisID)
+  | TRecordClose(id, option<parentBlockID>)
+  | TMatchKeyword(id)
+  | TMatchBranchArrow({matchID: id, patternID: id, index: int})
   /* for all these TPattern* variants:
-   * - the first ID.t *is the match ID.t *
-   * - the second ID.t *is the pattern ID.t *
+   * - the first id *is the match id *
+   * - the second id *is the pattern id *
    * - the final int is the index of the (pattern -> expr) */
-  | TPatternVariable(ID.t, ID.t, string, int)
-  | TPatternConstructorName(ID.t, ID.t, string, int)
-  | TPatternInteger(ID.t, ID.t, string, int)
-  | TPatternString({matchID: ID.t, patternID: ID.t, str: string, branchIdx: int})
-  | TPatternTrue(ID.t, ID.t, int)
-  | TPatternFalse(ID.t, ID.t, int)
-  | TPatternNullToken(ID.t, ID.t, int)
-  | TPatternFloatWhole(ID.t, ID.t, string, int)
-  | TPatternFloatPoint(ID.t, ID.t, int)
-  | TPatternFloatFractional(ID.t, ID.t, string, int)
-  | TPatternBlank(ID.t, ID.t, int)
-  | TConstructorName(ID.t, string)
-  | TParenOpen(ID.t)
-  | TParenClose(ID.t)
-  | TFlagWhenKeyword(ID.t)
-  | TFlagEnabledKeyword(ID.t)
+  | TPatternVariable(id, id, string, int)
+  | TPatternConstructorName(id, id, string, int)
+  | TPatternInteger(id, id, int64, int)
+  | TPatternString({matchID: id, patternID: id, str: string, branchIdx: int})
+  | TPatternTrue(id, id, int)
+  | TPatternFalse(id, id, int)
+  | TPatternNullToken(id, id, int)
+  | TPatternFloatWhole(id, id, string, int)
+  | TPatternFloatPoint(id, id, int)
+  | TPatternFloatFractional(id, id, string, int)
+  | TPatternBlank(id, id, int)
+  | TConstructorName(id, string)
+  | TParenOpen(id)
+  | TParenClose(id)
+  | TFlagWhenKeyword(id)
+  | TFlagEnabledKeyword(id)
 
 and fluidTokenInfo = {
   startRow: int,
@@ -1635,10 +1652,10 @@ and fluidTokenInfo = {
 }
 
 and fluidPatternAutocomplete =
-  | FPAVariable(ID.t, ID.t, string)
-  | FPAConstructor(ID.t, ID.t, string, list<FluidPattern.t>)
-  | FPANull(ID.t, ID.t)
-  | FPABool(ID.t, ID.t, bool)
+  | FPAVariable(id, id, string)
+  | FPAConstructor(id, id, string, list<fluidPattern>)
+  | FPANull(id, id)
+  | FPABool(id, id, bool)
 
 and fluidAutocompleteItem =
   | FACFunction(function_)
@@ -1648,7 +1665,7 @@ and fluidAutocompleteItem =
   | FACLiteral(literal)
   | FACKeyword(keyword)
   | FACPattern(fluidPatternAutocomplete)
-  | FACCreateFunction(string, TLID.t, ID.t)
+  | FACCreateFunction(string, TLID.t, id)
 
 and fluidAutocompleteData = {
   item: fluidAutocompleteItem,
@@ -1661,22 +1678,22 @@ and fluidAutocompleteValidity =
   | FACItemInvalidPipedArg(tipe)
 
 and fluidAutocompleteState = {
-  /* ------------------------------- */
-  /* state */
-  /* ------------------------------- */
+  // -------------------------------
+  // state
+  // -------------------------------
   index: option<int>,
-  query: /* We need to refer back to the previous one */
+  query: // We need to refer back to the previous one
   option<(TLID.t, fluidTokenInfo)>,
-  /* ------------------------------- */
-  /* Cached results */
-  /* ------------------------------- */
+  // -------------------------------
+  // Cached results
+  // -------------------------------
   completions: list<fluidAutocompleteData>,
 }
 
 and fluidCommandState = {
   index: int,
   commands: list<command>,
-  location: option<(TLID.t, ID.t)>,
+  location: option<(TLID.t, id)>,
   filter: option<string>,
 }
 
@@ -1684,7 +1701,7 @@ and fluidCommandState = {
 and fluidEditor =
   | NoEditor
   | MainEditor(TLID.t)
-  | FeatureFlagEditor(TLID.t, ID.t)
+  | FeatureFlagEditor(TLID.t, id)
 
 and fluidProps = {
   functions: functionsType,
@@ -1706,13 +1723,13 @@ and fluidState = {
   midClick: /* If we get a renderCallback between a mousedown and a mouseUp, we
    * lose the information we're trying to get from the click. */
   bool,
-  errorDvSrc: /* The source ID.t *of an error-dval of where the cursor is on and we might
+  errorDvSrc: /* The source id *of an error-dval of where the cursor is on and we might
    * have recently jumped to */
   dval_source,
   activeEditor: fluidEditor,
 }
 
-/* Avatars */
+// Avatars
 and avatar = {
   canvasId: string,
   canvasName: string,
@@ -1761,7 +1778,7 @@ and model = {
   complete: autocomplete,
   cursorState: cursorState,
   currentPage: page,
-  hovering: list<(TLID.t, ID.t)>,
+  hovering: list<(TLID.t, id)>,
   handlers: TLIDDict.t<handler>,
   deletedHandlers: TLIDDict.t<handler>,
   dbs: TLIDDict.t<db>,
@@ -1774,12 +1791,12 @@ and model = {
   analyses: analyses,
   f404s: list<fourOhFour>,
   unlockedDBs: unlockedDBs,
-  integrationTestState: /* State of individual integration tests */
+  integrationTestState: // State of individual integration tests
   integrationTestState,
   visibility: PageVisibility.visibility,
   syncState: syncState,
-  executingFunctions: list<(TLID.t, ID.t)>,
-  tlTraceIDs: tlTraceIDs /* This is TLID ID.t *to traceID map */,
+  executingFunctions: list<(TLID.t, id)>,
+  tlTraceIDs: tlTraceIDs /* This is TLID id *to traceID map */,
   featureFlags: flagsVS,
   canvasProps: canvasProps,
   canvasName: string,
@@ -1799,7 +1816,7 @@ and model = {
    *
    * which you can read as "repl2 refersTo myfunc". So a TLID.t points to the TLs
    * it uses. */
-  tlRefersTo: TLIDDict.t<list<(TLID.t, ID.t)>>,
+  tlRefersTo: TLIDDict.t<list<(TLID.t, id)>>,
   /* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
    * if myFunc was called in Repl2, the dict would
    *
@@ -1830,12 +1847,12 @@ and model = {
   unsupportedBrowser: bool,
   tlMenus: TLIDDict.t<menuState>,
   firstVisitToDark: bool,
-  /* indicates if it is the users first time visiting any dark canvas */
+  // indicates if it is the users first time visiting any dark canvas
   tooltipState: tooltipState,
   currentUserFn: fnProps,
   settingsView: SettingsViewTypes.settingsViewState,
   firstVisitToThisCanvas: bool,
-  /* indicates if it is the users first time this canvas */
+  // indicates if it is the users first time this canvas
   secrets: list<SecretTypes.t>,
   insertSecretModal: SecretTypes.insertModal,
 }

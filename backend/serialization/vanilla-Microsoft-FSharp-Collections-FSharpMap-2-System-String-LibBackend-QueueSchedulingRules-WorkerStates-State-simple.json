@@ -1,0 +1,11 @@
+{
+  "blocked": [
+    "Blocked"
+  ],
+  "paused": [
+    "Paused"
+  ],
+  "run": [
+    "Running"
+  ]
+}

@@ -90,16 +90,16 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(
-      start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
+      start, "cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/")
   if optimize:
     wwwroot = run_backend(
         start,
-        "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
     )
   else:
     wwwroot = run_backend(
         start,
-        "rsync -a fsharp-backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a fsharp-backend/Build/out/Analysis/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
     )
   return blazor and wwwroot
 
@@ -181,12 +181,9 @@ def backend_build():
   start = time.time()
 
   exes = []
-  exes.append("@analysis.js")
   exes.append("backend/test/test.exe")
   exes.append("backend/bin/server.exe")
   exes.append("backend/bin/garbage_collector_worker.exe")
-  exes.append("backend/bin/legacy_serialization_server.exe")
-  exes.append("backend/bin/legacy_fuzzing_server.exe")
   exes = " ".join(exes)
   if optimize:
     compilation_profile = "release"
@@ -518,8 +515,7 @@ def mark(should, f):
   elif ("/backend/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f) \
-                  or ("_tags" in f) \
-                  or ("libtarget.js" in f)) \
+                  or ("_tags" in f)) \
           or ("dune" in f):
     should.backend_build = True
 
@@ -606,7 +602,7 @@ def mark(should, f):
   elif "/client/static/" in f:
     should.copy_static = True
 
-  elif "/fsharp-backend/src/Wasm/static/" in f:
+  elif "/fsharp-backend/src/Analysis/static/" in f:
     should.copy_fsharp_static = True
 
   elif (".circleci/config.yml" in f):
@@ -665,7 +661,7 @@ def ignore(filename):
       ".bsdeps",
       ".bsbuild",
       "/obj/fsac.cache",
-      "/fsharp-backend/packages/wasm",
+      "/fsharp-backend/packages/analysis",
       ".sourcedirs.json",
       "/obj",
       ".processlock",

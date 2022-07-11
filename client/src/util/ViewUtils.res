@@ -12,7 +12,7 @@ type viewProps = {
   cursorState: cursorState,
   tlid: TLID.t,
   isAdmin: bool,
-  hovering: option<(TLID.t, ID.t)>,
+  hovering: option<(TLID.t, id)>,
   ac: autocomplete,
   showEntry: bool,
   showLivevalue: bool,
@@ -20,16 +20,16 @@ type viewProps = {
   analysisStore: analysisStore /* for current selected trace */,
   traces: list<trace>,
   dbStats: dbStatsStore,
-  executingFunctions: list<ID.t>,
+  executingFunctions: list<id>,
   tlTraceIDs: tlTraceIDs,
   testVariants: list<variantTest>,
   featureFlags: flagsVS,
   handlerProp: option<handlerProp>,
   canvasName: string,
   userContentHost: string,
-  refersToRefs: list<(toplevel, list<ID.t>)>,
+  refersToRefs: list<(toplevel, list<id>)>,
   usedInRefs: list<toplevel>,
-  hoveringRefs: list<ID.t>,
+  hoveringRefs: list<id>,
   fluidState: fluidState,
   avatarsList: list<avatar>,
   permission: option<permission>,
@@ -41,9 +41,9 @@ type viewProps = {
   secretValues: list<string>,
 }
 
-/* ----------------------------- */
-/* Events */
-/* ----------------------------- */
+// -----------------------------
+// Events
+// -----------------------------
 type domEvent = Vdom.property<msg>
 
 type domEventList = list<domEvent>
@@ -126,7 +126,8 @@ let createVS = (m: model, tl: toplevel): viewProps => {
     | _ => list{}
     },
     permission: m.permission,
-    workerStats: /* Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack. */
+    workerStats: // Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack.
+
     {
       let count = Map.get(~key=tlid, m.workerStats)
       let asWorkerSchedule = Handlers.getWorkerSchedule(m)
@@ -140,11 +141,11 @@ let createVS = (m: model, tl: toplevel): viewProps => {
       }
     },
     menuState: Map.get(~key=tlid, m.tlMenus) |> Option.unwrap(~default=Defaults.defaultMenu),
-    isExecuting: /* Converge can execute for functions & handlers */
+    isExecuting: // Converge can execute for functions & handlers
     switch tl {
     | TLFunc(_) => List.any(~f=((fTLID, _)) => fTLID == tlid, m.executingFunctions)
     | TLHandler(_) =>
-      /* Doing explicit match here just to be safe, even though we can probably assume you can't have handlerProp without it being a handler from code above. */
+      // Doing explicit match here just to be safe, even though we can probably assume you can't have handlerProp without it being a handler from code above.
       switch hp {
       | Some(p) => p.execution == Executing
       | _ => false
@@ -172,7 +173,7 @@ let decodeAnimEvent = (fn: string => 'a, j): 'a => {
   fn(field("animationName", string, j))
 }
 
-/* Generic event, the the listener handle and do what it wants with the event object */
+// Generic event, the the listener handle and do what it wants with the event object
 let onEvent = (
   ~event: string,
   ~key: string,
@@ -258,7 +259,7 @@ let onAnimationEnd = (~key: string, ~listener: string => msg): Vdom.property<msg
 
 let nothingMouseEvent = (name: string): Vdom.property<msg> =>
   eventNoPropagation(~key="", name, _ =>
-    /* For fluid, we need to know about most (all?) mouseups */
+    // For fluid, we need to know about most (all?) mouseups
     if name == "mouseup" {
       IgnoreMouseUp
     } else {

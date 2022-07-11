@@ -2,8 +2,8 @@ open Tester
 open Prelude
 open AST
 module B = BlankOr
-open FluidExpression
-open FluidPattern
+open ProgramTypes.Expr
+open ProgramTypes.Pattern
 open FluidShortcuts
 
 type transformation_test_result<'a, 'b> =
@@ -11,14 +11,12 @@ type transformation_test_result<'a, 'b> =
   | Fail('a, 'b)
 
 let run = () => {
-  describe("ast", () => {
+  describe("freeVariables", () => {
     let id1 = ID.fromString("5")
     let id2 = ID.fromString("10")
     let id3 = ID.fromString("11")
     let id4 = ID.fromString("12")
-    let id5 = ID.fromString("13")
-    let id6 = ID.fromString("14")
-    let id7 = ID.fromString("15")
+    let id5 = ID.fromString("15")
     test("lambda var is not free", () =>
       expect(
         freeVariables(ELambda(id1, list{(id2, "var")}, EVariable(id3, "var"))),
@@ -27,14 +25,13 @@ let run = () => {
     test("match pattern is not free", () => {
       let e = EConstructor(id2, "Just", list{EVariable(id4, "request")})
       let pats = list{
-        (
-          FPConstructor(id5, id1, "Just", list{FPVariable(id6, id1, "anything")}),
-          EVariable(id7, "anything"),
-        ),
+        (PConstructor(id1, "Just", list{PVariable(id1, "anything")}), EVariable(id5, "anything")),
       }
 
       expect(freeVariables(EMatch(id1, e, pats))) |> toEqual(list{(id4, "request")})
     })
+  })
+  describe("getArguments", () => {
     test("getArguments of binop works", () => {
       let arg1 = int(4)
       let arg2 = str("asf")
@@ -53,14 +50,16 @@ let run = () => {
       let id = gid()
       let arg1 = int(4)
       let arg2 = str("asf")
-      let e = pipe(arg1, list{fn(~id, "Int::add", list{pipeTarget, arg2})})
+      let e = pipe(arg1, fn(~id, "Int::add", list{pipeTarget, arg2}), list{})
       let ast = FluidAST.ofExpr(e)
       expect(getArguments(id, ast)) |> toEqual(list{arg1, arg2})
     })
+  })
+  describe("getParamIndex", () => {
     test("getParamIndex of pipe works", () => {
       let id1 = gid()
       let id2 = gid()
-      let e = pipe(str(~id=id1, "asd"), list{fn("String::append", list{pipeTarget, EBlank(id2)})})
+      let e = pipe(str(~id=id1, "asd"), fn("String::append", list{pipeTarget, EBlank(id2)}), list{})
 
       let ast = FluidAST.ofExpr(e)
       expect((getParamIndex(id1, ast), getParamIndex(id2, ast))) |> toEqual((
@@ -68,6 +67,8 @@ let run = () => {
         Some("String::append", 1),
       ))
     })
+  })
+  describe("variablesIn", () => {
     test("variablesIn correctly identifies available vars in let RHS with incomplete LHS", () => {
       let testId = ID.fromString("testme")
       let inner = ELet(gid(), "", EBlank(testId), E.newB())
@@ -104,7 +105,6 @@ let run = () => {
         |> Option.andThen(~f=d => Map.get(~key="myvar", d)),
       ) |> toEqual(Some(id1))
     })
-    ()
   })
   describe("removePartials", () => {
     let b = () => EBlank(gid())
@@ -113,7 +113,7 @@ let run = () => {
       expect(removePartials(expr)) |> toEqual(expr)
     })
     test("No changes when not-partial", () => {
-      let expr = EFnCall(gid(), "+", list{EInteger(gid(), "3"), EInteger(gid(), "9")}, NoRail)
+      let expr = EFnCall(gid(), "+", list{EInteger(gid(), 3L), EInteger(gid(), 9L)}, NoRail)
 
       expect(removePartials(expr)) |> toEqual(expr)
     })
@@ -124,12 +124,12 @@ let run = () => {
       let expr = EFnCall(
         fnid,
         "+",
-        list{EInteger(argid, "3"), EPartial(gid(), "abc", blank)},
+        list{EInteger(argid, 3L), EPartial(gid(), "abc", blank)},
         NoRail,
       )
 
       expect(removePartials(expr)) |> toEqual(
-        EFnCall(fnid, "+", list{EInteger(argid, "3"), blank}, NoRail),
+        EFnCall(fnid, "+", list{EInteger(argid, 3L), blank}, NoRail),
       )
     })
     test("Updates AST when there's a fn rename partial", () => {

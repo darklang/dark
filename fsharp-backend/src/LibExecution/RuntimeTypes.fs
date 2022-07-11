@@ -173,6 +173,7 @@ type Expr =
   | EFQFnValue of id * FQFnName.T
 
   | EList of id * List<Expr>
+  | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
   | EConstructor of id * string * List<Expr>
   | EMatch of id * Expr * List<Pattern * Expr>
@@ -227,8 +228,9 @@ and Dval =
   | DStr of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
-  (* compound types *)
+  // compound types
   | DList of List<Dval>
+  | DTuple of Dval * Dval * List<Dval>
   | DObj of DvalMap
   | DFnVal of FnValImpl
 
@@ -308,6 +310,7 @@ and DType =
   | TNull
   | TStr
   | TList of DType
+  | TTuple of DType * DType * List<DType>
   | TDict of DType
   | TIncomplete
   | TError
@@ -339,6 +342,7 @@ and DType =
     | TChar -> "Character"
     | TStr -> "Str"
     | TList _ -> "List"
+    | TTuple _ -> "Tuple"
     | TFn _ -> "Block"
     | TRecord _ -> "Dict"
     | TVariable _ -> "Any"
@@ -355,10 +359,6 @@ and DType =
     | TResult _ -> "Result"
     | TUserType (name, _) -> name
     | TBytes -> "Bytes"
-
-
-
-
 
 
 /// Record the source of an incomplete or error. Would be useful to add more
@@ -406,6 +406,7 @@ module Expr =
     | EIf (id, _, _, _)
     | EApply (id, _, _, _, _)
     | EList (id, _)
+    | ETuple (id, _, _, _)
     | ERecord (id, _)
     | EFQFnValue (id, _)
     | EConstructor (id, _, _)
@@ -477,6 +478,8 @@ module Dval =
     | DStr _ -> TStr
     | DList (head :: _) -> TList(toType head)
     | DList [] -> TList any
+    | DTuple (first, second, theRest) ->
+      TTuple(toType first, toType second, List.map toType theRest)
     | DObj map ->
       map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
     | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
@@ -520,6 +523,11 @@ module Dval =
     | DChar _, TChar
     | DDB _, TDB _
     | DBytes _, TBytes -> true
+    | DTuple (first, second, theRest), TTuple (firstType, secondType, otherTypes) ->
+      let pairs =
+        [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
+
+      pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
     | DList l, TList t -> List.all (typeMatches t) l
     | DObj m, TDict t -> Map.all (typeMatches t) m
     | DObj m, TRecord pairs ->
@@ -559,6 +567,7 @@ module Dval =
     | DDB _, _
     | DBytes _, _
     | DList _, _
+    | DTuple _, _
     | DObj _, _
     | DObj _, _
     | DFnVal _, _

@@ -1,4 +1,4 @@
-/* See docs/unittests.md for documentation on how to use this. */
+// See docs/unittests.md for documentation on how to use this.
 open Tc
 
 module Private = {
@@ -28,17 +28,17 @@ module Private = {
   }
 }
 
-/* ------------------ */
-/* Command line options */
-/* ------------------ */
+// ------------------
+// Command line options
+// ------------------
 
 let pattern: ref<option<Js.Re.t>> = ref(None)
 
 let verbose: ref<bool> = ref(false)
 
-/* ------------------ */
-/* Output / results */
-/* ------------------ */
+// ------------------
+// Output / results
+// ------------------
 
 let categoryIndent = () => String.repeat(~count=List.length(Private.categories.contents), " ")
 
@@ -86,9 +86,9 @@ let print_test_end = (name, t: Private.t): unit => {
   }
 }
 
-/* ------------------ */
-/* Framework - test creation functions */
-/* ------------------ */
+// ------------------
+// Framework - test creation functions
+// ------------------
 
 let shouldRun = name =>
   switch pattern.contents {
@@ -157,9 +157,9 @@ let testAll = (name: string, items: list<'a>, testFn: 'a => Private.t): unit =>
     test(name', () => testFn(item))
   })
 
-/* ------------------ */
-/* Framework - test evaluation functions */
-/* ------------------ */
+// ------------------
+// Framework - test evaluation functions
+// ------------------
 let expect = (actual: 'a) => {
   Private.actual: actual,
   equalityFn: \"=",
@@ -237,9 +237,9 @@ let skip = (): Private.t => {
   }
 }
 
-/* ------------------ */
-/* Announce completion */
-/* ------------------ */
+// ------------------
+// Announce completion
+// ------------------
 
 let successes = () => {
   open Private

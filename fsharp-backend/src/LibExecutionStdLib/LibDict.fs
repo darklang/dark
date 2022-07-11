@@ -10,7 +10,7 @@ open LibExecution.RuntimeTypes
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 let fn = FQFnName.stdlibFnName
 
@@ -224,10 +224,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "foreach" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TDict varB
       description =
-        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `fn`, which operates on each value."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
@@ -249,10 +249,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "map" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
       returnType = TDict varB
       description =
-        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `fn`, which operates on each key-value pair.
           Consider `Dict::filterMap` if you also want to drop some of the entries."
       fn =
         (function
@@ -283,10 +283,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "filter" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varA
       description =
-        "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
+        "Calls `fn` on every entry in `dict`, returning a dictionary of only those entries for which `fn key value` returns `true`.
               Consider `Dict::filterMap` if you also want to transform the entries."
       fn =
         (function
@@ -311,7 +311,7 @@ let fns : List<BuiltInFn> =
                   incomplete.Value <- true
                   return false
                 | v ->
-                  return Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
+                  return Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
               }
 
             if incomplete.Value then
@@ -329,10 +329,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "filter" 1
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varB
       description =
-        "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
+        "Evaluates `fn key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `fn` returned `true`."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
@@ -362,7 +362,9 @@ let fns : List<BuiltInFn> =
                   | (DError _ as e) -> return Error e
                   | other ->
                     return
-                      Exception.raiseCode (Errors.expectedLambdaType "f" TBool other)
+                      Exception.raiseCode (
+                        Errors.expectedLambdaType "fn" TBool other
+                      )
                 }
 
             let! filtered_result =
@@ -382,15 +384,15 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
-            "f"
+            "fn"
             (TFn([ TStr; varA ], TOption varB))
             ""
             [ "key"; "value" ] ]
       returnType = TDict varB
       description =
-        "Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
-          If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
-          If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
+        "Calls `fn` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
+          If `fn key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
+          If `fn key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
           This function combines `Dict::filter` and `Dict::map`."
       fn =
         (function
@@ -422,7 +424,7 @@ let fns : List<BuiltInFn> =
                     return None
                   | v ->
                     Exception.raiseCode (
-                      Errors.expectedLambdaType "f" (TOption varB) v
+                      Errors.expectedLambdaType "fn" (TOption varB) v
                     )
 
                     return None
@@ -484,6 +486,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO: move to LibJson
     { name = fn "Dict" "toJSON" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TStr
@@ -491,7 +494,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-          DObj o |> DvalReprExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
+          DObj o |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

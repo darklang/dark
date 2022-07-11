@@ -1,15 +1,16 @@
 module T = {
   module Nested = {
-    @ppx.deriving(show) type rec t = UnsharedTypes.id
+    @ppx.deriving(show({with_path: false})) type rec t = ID(string)
 
     let compare = (ID(id1): t, ID(id2): t) => compare(id1, id2)
   }
 
-  let fromString = (id: string) => UnsharedTypes.ID(id)
-
-  let toString = (UnsharedTypes.ID(id): UnsharedTypes.id) => id
-
   include Nested
+
+  let fromString = (id: string) => ID(id)
+
+  let toString = (ID(id): t) => id
+
   include Tablecloth.Comparator.Make(Nested)
 }
 

@@ -24,7 +24,7 @@ module PrettyRequestJson =
       | DUuid uuid -> $"<uuid: {uuid}>"
       | DPassword _ -> "<password: <password>>"
       | DInt i -> string i
-      | DFloat f -> LibExecution.DvalReprExternal.ocamlStringOfFloat f
+      | DFloat f -> LibExecution.DvalReprLegacyExternal.ocamlStringOfFloat f
       | DBool true -> "true"
       | DBool false -> "false"
       | DNull -> "null"
@@ -43,6 +43,9 @@ module PrettyRequestJson =
           "[]"
         else
           "[ " + inl + String.concat ", " (List.map (to_repr_ indent) l) + nl + "]"
+      | DTuple (first, second, rest) ->
+        let l = [ first; second ] @ rest
+        "(" + inl + String.concat ", " (List.map (to_repr_ indent) l) + nl + ")"
       | DObj o ->
         if Map.empty = o then
           "{}"

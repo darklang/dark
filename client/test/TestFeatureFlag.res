@@ -1,4 +1,4 @@
-open Tc
+open Prelude
 open Tester
 open FluidTestData
 open FluidShortcuts
@@ -24,11 +24,11 @@ module FF = FeatureFlags
 let testWrap = (
   name: string,
   ~state=defaultTestState,
-  exprFn: ID.t => FluidExpression.t,
+  exprFn: id => FluidExpression.t,
   expected: FluidExpression.t,
 ) =>
   test(name, () => {
-    let id = Shared.gid()
+    let id = Prelude.gid()
     let ast = FluidAST.ofExpr(exprFn(id))
     let (_flagId, newAST) = FF.wrap(state, ast, id)
     expect(FluidAST.toExpr(newAST))
@@ -38,11 +38,11 @@ let testWrap = (
 
 let testUnwrap = (
   name: string,
-  exprFn: ID.t => FluidExpression.t,
+  exprFn: id => FluidExpression.t,
   ~keepOld: FluidExpression.t,
   ~keepNew: FluidExpression.t,
 ) => {
-  let id = Shared.gid()
+  let id = Prelude.gid()
   let ast = FluidAST.ofExpr(exprFn(id))
   test(name ++ "- KeepOld", () => {
     let actualOld = FF.unwrap(FF.KeepOld, ast, id) |> Option.unwrapUnsafe

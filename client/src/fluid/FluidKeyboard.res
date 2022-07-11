@@ -139,10 +139,10 @@ let fromKeyboardEvent = (key: string, shift: bool, ctrl: bool, meta: bool, alt: 
    * check for Alt-X, Ctrl-s and Ctrl-\ when opening the command palette.
    *
    *
-   * On macOS, is key = '≈', which we have to hack in with bucklescript JS
-   * literals because OCaml is terrible.
+   * On macOS, is key = '≈', which we have to hack in with ReScript JS
+   * literals.
    *
-   * As a bonus, bucklescript doesn't seem to parse this correctly if it's in a
+   * As a bonus, ReScript doesn't seem to parse this correctly if it's in a
    * match conditional, meaning you still get UTF-8 escape sequences in the JS
    * instead of an unescaped JS literal. So...
    *
@@ -207,7 +207,7 @@ let onKeydown = (tagger, evt: Web.Node.event) =>
     switch x {
     | {key: Unhandled(_), _} => None
     | kevt =>
-      /* if we are going to handle the key, then preventDefault */
+      // if we are going to handle the key, then preventDefault
       evt["preventDefault"]()
       Some(tagger(kevt))
     }

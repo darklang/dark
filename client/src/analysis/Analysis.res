@@ -1,9 +1,9 @@
 open Prelude
 
-/* Tea */
+// Tea
 module Cmd = Tea.Cmd
 
-/* Dark */
+// Dark
 module B = BlankOr
 module P = Pointer
 module RT = Runtime
@@ -11,9 +11,9 @@ module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
 
-/* ---------------------- */
-/* Analyses */
-/* ---------------------- */
+// ----------------------
+// Analyses
+// ----------------------
 
 @ocaml.doc(" [defaultTraceIDForTL ~tlid] returns the id of the \"default\" trace
  * for the top level with the given [tlid].
@@ -35,9 +35,9 @@ let getTrace = (m: model, tlid: TLID.t, traceID: traceID): option<trace> =>
   getTraces(m, tlid) |> List.find(~f=((id, _)) => id == traceID)
 
 let getStoredAnalysis = (m: model, traceID: traceID): analysisStore =>
-  /* only handlers have analysis results, but lots of stuff expect this */
-  /* data to exist. It may be better to not do that, but this is fine */
-  /* for now. */
+  // only handlers have analysis results, but lots of stuff expect this
+  // data to exist. It may be better to not do that, but this is fine
+  // for now.
   Map.get(~key=traceID, m.analyses) |> Option.unwrap(~default=LoadableNotInitialized)
 
 let record = (old: analyses, id: traceID, result: analysisStore): analyses =>
@@ -47,7 +47,7 @@ let replaceFunctionResult = (
   m: model,
   tlid: TLID.t,
   traceID: traceID,
-  callerID: ID.t,
+  callerID: id,
   fnName: string,
   hash: dvalArgsHash,
   hashVersion: int,
@@ -91,9 +91,7 @@ let replaceFunctionResult = (
   {...m, traces: traces}
 }
 
-let getLiveValueLoadable = (analysisStore: analysisStore, ID(id): ID.t): loadable<
-  executionResult,
-> =>
+let getLiveValueLoadable = (analysisStore: analysisStore, ID(id): id): loadable<executionResult> =>
   switch analysisStore {
   | LoadableSuccess(dvals) =>
     Belt.Map.String.get(dvals, id)
@@ -108,7 +106,7 @@ let getLiveValueLoadable = (analysisStore: analysisStore, ID(id): ID.t): loadabl
   | LoadableError(error) => LoadableError(error)
   }
 
-let getLiveValue' = (analysisStore: analysisStore, ID(id): ID.t): option<dval> =>
+let getLiveValue' = (analysisStore: analysisStore, ID(id): id): option<dval> =>
   switch analysisStore {
   | LoadableSuccess(dvals) =>
     switch Belt.Map.String.get(dvals, id) {
@@ -118,16 +116,16 @@ let getLiveValue' = (analysisStore: analysisStore, ID(id): ID.t): option<dval> =
   | _ => None
   }
 
-let getLiveValue = (m: model, id: ID.t, traceID: traceID): option<dval> =>
+let getLiveValue = (m: model, id: id, traceID: traceID): option<dval> =>
   getLiveValue'(getStoredAnalysis(m, traceID), id)
 
-let getTipeOf' = (analysisStore: analysisStore, id: ID.t): option<tipe> =>
+let getTipeOf' = (analysisStore: analysisStore, id: id): option<tipe> =>
   getLiveValue'(analysisStore, id) |> Option.map(~f=RT.typeOf)
 
-let getTipeOf = (m: model, id: ID.t, traceID: traceID): option<tipe> =>
+let getTipeOf = (m: model, id: id, traceID: traceID): option<tipe> =>
   getLiveValue(m, id, traceID) |> Option.map(~f=RT.typeOf)
 
-let getArguments = (m: model, tl: toplevel, callerID: ID.t, traceID: traceID): option<list<dval>> =>
+let getArguments = (m: model, tl: toplevel, callerID: id, traceID: traceID): option<list<dval>> =>
   switch TL.getAST(tl) {
   | Some(ast) =>
     let argIDs = ast |> AST.getArguments(callerID) |> List.map(~f=E.toID)
@@ -144,7 +142,7 @@ let getArguments = (m: model, tl: toplevel, callerID: ID.t, traceID: traceID): o
 @ocaml.doc(" [getAvailableVarnames m tl id traceID] gets a list of (varname, dval option)s that are in scope
  * at an expression with the given [id] within the ast of the [tl]. The dval for a given varname
  * comes from the trace with [traceID]. ")
-let getAvailableVarnames = (m: model, tl: toplevel, id: ID.t, traceID: traceID): list<(
+let getAvailableVarnames = (m: model, tl: toplevel, id: id, traceID: traceID): list<(
   string,
   option<dval>,
 )> => {
@@ -175,25 +173,25 @@ let getAvailableVarnames = (m: model, tl: toplevel, id: ID.t, traceID: traceID):
     ))
 
   switch tl {
-  | TLHandler(h) => \"@"(varsFor(h.ast), \"@"(glob, inputVariables))
-  | TLFunc(fn) => \"@"(varsFor(fn.ufAST), \"@"(glob, inputVariables))
+  | TLHandler(h) => Belt.List.concatMany([varsFor(h.ast), glob, inputVariables])
+  | TLFunc(fn) => Belt.List.concatMany([varsFor(fn.ufAST), glob, inputVariables])
   | TLPmFunc(_) | TLDB(_) | TLTipe(_) => list{}
   }
 }
 
-/* ---------------------- */
-/* Which trace is selected */
-/* ---------------------- */
+// ----------------------
+// Which trace is selected
+// ----------------------
 
 let selectedTraceID = (tlTraceIDs: tlTraceIDs, traces: list<trace>, tlid: TLID.t): option<
   traceID,
 > =>
-  /* We briefly do analysis on a toplevel which does not have an */
-  /* analysis available, so be careful here. */
+  // We briefly do analysis on a toplevel which does not have an
+  // analysis available, so be careful here.
   switch Map.get(~key=tlid, tlTraceIDs) {
   | Some(c) => Some(c)
   | None =>
-    /* if we don't have it, pick the first trace */
+    // if we don't have it, pick the first trace
     List.head(traces) |> Option.map(~f=Tuple2.first)
   }
 
@@ -212,9 +210,9 @@ let getSelectedTraceID = (m: model, tlid: TLID.t): option<traceID> => {
   selectedTraceID(m.tlTraceIDs, traces, tlid)
 }
 
-/* ---------------------- */
-/* Communication with server */
-/* ---------------------- */
+// ----------------------
+// Communication with server
+// ----------------------
 module ReceiveAnalysis = {
   let decode: Tea.Json.Decoder.t<Js.Json.t, performAnalysisResult> = {
     open Tea.Json.Decoder
@@ -285,7 +283,7 @@ module WorkerStatePush = {
     BrowserListeners.registerGlobal("workerStatePush", key, tagger, decode)
 }
 
-/* Request analysis */
+// Request analysis
 module RequestAnalysis = {
   @val @scope(("window", "Dark", "analysis"))
   external send: performAnalysisParams => unit = "requestAnalysis"
@@ -300,7 +298,6 @@ module Fetcher = {
 
 let contextFromModel = (m: model): fetchContext => {
   canvasName: m.canvasName,
-  apiRoot: VariantTesting.apiRoot(m),
   csrfToken: m.csrfToken,
   origin: origin,
 }
@@ -372,7 +369,7 @@ let mergeTraces = (
        *
        ***
        */
-      /* Pass 1: merge the lists, using foldr to preserve the order of n */
+      // Pass 1: merge the lists, using foldr to preserve the order of n
       let merged = List.foldRight(n, ~initial=o, ~f=(acc, (newID, newData) as new_) => {
         let found = ref(false)
         let updated = List.map(acc, ~f=((oldID, oldData) as old) =>
@@ -414,7 +411,7 @@ let mergeTraces = (
         }
       )
 
-      /* We have to reverse because the fold prepended in reverse order */
+      // We have to reverse because the fold prepended in reverse order
       Some(List.reverse(preserved))
     }
   )
@@ -422,7 +419,7 @@ let mergeTraces = (
 
 let requestTrace = (~force=false, m, tlid, traceID): (model, Cmd.t<msg>) => {
   let should =
-    /* DBs + Types dont have traces */
+    // DBs + Types dont have traces
     TL.get(m, tlid)
     |> Option.map(~f=tl => !(TL.isDB(tl) || TL.isUserTipe(tl)))
     |> Option.unwrap(~default=false)
@@ -517,9 +514,9 @@ let analyzeFocused = (m: model): (model, Cmd.t<msg>) =>
        * to decode it */
       (m, Cmd.none)
     | Some(traceID, Error(NoneYet)) =>
-      /* Fetch the trace data if it's missing. */
+      // Fetch the trace data if it's missing.
       requestTrace(m, tlid, traceID)
-    | Some(traceID, Ok(_)) => /* Run the analysis, if missing */
+    | Some(traceID, Ok(_)) => // Run the analysis, if missing
       (m, requestAnalysis(m, tlid, traceID))
     | None => (m, Cmd.none)
     }

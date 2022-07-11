@@ -1,4 +1,4 @@
-/* NOTE: This will change in the future to pretty tool tips, this is just an inbetween state */
+// NOTE: This will change in the future to pretty tool tips, this is just an inbetween state
 open Prelude
 
 type rec toolTipDirection =
@@ -150,7 +150,7 @@ let update = (tooltipState: tooltipState, msg: toolTipMsg): modification => {
     ReplaceAllModificationsWithThisOne(m => ({...m, tooltipState: tooltipState}, Tea.Cmd.none))
   } else {
     Many(
-      \"@"(
+      Belt.List.concat(
         mods,
         list{
           ReplaceAllModificationsWithThisOne(
@@ -370,7 +370,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
       )
 
       Html.div(list{}, txtview)
-    /* Html.p [Html.class' "details"] [Html.text txt] */
+    // Html.p [Html.class' "details"] [Html.text txt]
     | None => Vdom.noNode
     }
 

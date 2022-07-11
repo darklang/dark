@@ -92,8 +92,8 @@
     [
       // the different impls run comparisons in a different order, if it fails, it may fail on a different element
       "List::sortByComparator",
-      "Expected `f` to return -1, 0, 1, but it returned `.*`",
-      "`f` must return one of -1, 0, 1, but returned .*: .*"
+      "Expected `fn` to return -1, 0, 1, but it returned `.*`",
+      "`fn` must return one of -1, 0, 1, but returned .*: .*"
     ],
     // -----------------------------
     // List::unzip
@@ -213,12 +213,12 @@
     // -----------------------------
     [
       ".*",
-      "Expected `f` to return .*, but it returned .*",
+      "Expected `fn` to return .*, but it returned .*",
       "Expected .* to return .*"
     ],
     [
       ".*",
-      "Expected `f` to return .*, but it returned .*",
+      "Expected `fn` to return .*, but it returned .*",
       "Expecting .* to return .*"
     ],
     [

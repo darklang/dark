@@ -1,13 +1,13 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module P = Pointer
 module TD = TLIDDict
 
-/* ------------------------- */
-/* Toplevel manipulation */
-/* ------------------------- */
+// -------------------------
+// Toplevel manipulation
+// -------------------------
 let name = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) => "H: " ++ (h.spec.name |> B.toOption |> Option.unwrap(~default=""))
@@ -54,7 +54,7 @@ let remove = (m: model, tl: toplevel): model => {
   | TLDB(db) => DB.remove(m, db)
   | TLFunc(f) => UserFunctions.remove(m, f)
   | TLTipe(ut) => UserTypes.remove(m, ut)
-  | TLPmFunc(_) => /* Cannot remove a package manager function */
+  | TLPmFunc(_) => // Cannot remove a package manager function
     m
   }
 }
@@ -157,9 +157,9 @@ let toOp = (tl: toplevel): list<op> =>
   | TLDB(_) => recover("This isn't how datastore ops work", ~debug=id(tl), list{})
   }
 
-/* ------------------------- */
-/* Generic */
-/* ------------------------- */
+// -------------------------
+// Generic
+// -------------------------
 let blankOrData = (tl: toplevel): list<blankOrData> =>
   switch tl {
   | TLHandler(h) => SpecHeaders.blankOrData(h.spec)
@@ -169,12 +169,12 @@ let blankOrData = (tl: toplevel): list<blankOrData> =>
   | TLTipe(t) => UserTypes.blankOrData(t)
   }
 
-let isValidBlankOrID = (tl: toplevel, id: ID.t): bool =>
+let isValidBlankOrID = (tl: toplevel, id: id): bool =>
   List.member(~value=id, tl |> blankOrData |> List.map(~f=P.toID))
 
-/* ------------------------- */
-/* ASTs */
-/* ------------------------- */
+// -------------------------
+// ASTs
+// -------------------------
 
 let getAST = (tl: toplevel): option<FluidAST.t> =>
   switch tl {
@@ -205,13 +205,16 @@ let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): modification =>
     if h.ast == ast {
       NoChange
     } else {
-      AddOps(\"@"(ops, list{SetHandler(id(tl), h.pos, {...h, ast: ast})}), FocusNoChange)
+      AddOps(
+        Belt.List.concat(ops, list{SetHandler(id(tl), h.pos, {...h, ast: ast})}),
+        FocusNoChange,
+      )
     }
   | TLFunc(f) =>
     if f.ufAST == ast {
       NoChange
     } else {
-      AddOps(\"@"(ops, list{SetFunction({...f, ufAST: ast})}), FocusNoChange)
+      AddOps(Belt.List.concat(ops, list{SetFunction({...f, ufAST: ast})}), FocusNoChange)
     }
   | TLPmFunc(_) => recover("cannot change ast in package manager", ~debug=tl, NoChange)
   | TLTipe(_) => recover("no ast in Tipes", ~debug=tl, NoChange)
@@ -273,17 +276,17 @@ let structural = (m: model): TD.t<toplevel> =>
 
 let get = (m: model, tlid: TLID.t): option<toplevel> => Map.get(~key=tlid, all(m))
 
-let find = (tl: toplevel, id_: ID.t): option<blankOrData> =>
+let find = (tl: toplevel, id_: id): option<blankOrData> =>
   blankOrData(tl)
   |> List.filter(~f=d => id_ == P.toID(d))
   |> assertFn("cant find pd for id", ~debug=(id(tl), id), ~f=r => List.length(r) <= 1)
-  |> /* guard against dups */
+  |> // guard against dups
   List.head
 
-let getPD = (m: model, tlid: TLID.t, id: ID.t): option<blankOrData> =>
+let getPD = (m: model, tlid: TLID.t, id: id): option<blankOrData> =>
   get(m, tlid) |> Option.andThen(~f=tl => find(tl, id))
 
-let getTLAndPD = (m: model, tlid: TLID.t, id: ID.t): option<(toplevel, option<blankOrData>)> =>
+let getTLAndPD = (m: model, tlid: TLID.t, id: id): option<(toplevel, option<blankOrData>)> =>
   get(m, tlid) |> Option.map(~f=tl => (tl, find(tl, id)))
 
 let allDBNames = (dbs: TD.t<db>): list<string> =>
@@ -315,16 +318,16 @@ let setSelectedAST = (m: model, ast: FluidAST.t): modification =>
   | Some(tl) => setASTMod(tl, ast)
   }
 
-/* ------------------------- */
-/* Blanks */
-/* ------------------------- */
+// -------------------------
+// Blanks
+// -------------------------
 
-type predecessor = option<ID.t>
+type predecessor = option<id>
 
-type successor = option<ID.t>
+type successor = option<id>
 
-let allBlanks = (tl: toplevel): list<ID.t> =>
-  \"@"(
+let allBlanks = (tl: toplevel): list<id> =>
+  Belt.List.concat(
     tl |> blankOrData |> List.filter(~f=P.isBlank) |> List.map(~f=P.toID),
     tl
     |> getAST
@@ -333,8 +336,8 @@ let allBlanks = (tl: toplevel): list<ID.t> =>
     |> List.map(~f=FluidExpression.toID),
   )
 
-let allIDs = (tl: toplevel): list<ID.t> =>
-  \"@"(
+let allIDs = (tl: toplevel): list<id> =>
+  Belt.List.concat(
     tl |> blankOrData |> List.map(~f=P.toID),
     tl |> getAST |> Option.map(~f=FluidAST.ids) |> Option.unwrap(~default=list{}),
   )
@@ -343,7 +346,7 @@ let firstBlank = (tl: toplevel): successor => tl |> allBlanks |> List.head
 
 let lastBlank = (tl: toplevel): successor => tl |> allBlanks |> List.last
 
-let getNextBlank = (tl: toplevel, id: ID.t): successor => {
+let getNextBlank = (tl: toplevel, id: id): successor => {
   let all = allIDs(tl)
   let index = List.elemIndex(~value=id, all) |> Option.unwrap(~default=-1)
   let blanks = allBlanks(tl) |> List.map(~f=ID.toString) |> Set.String.fromList
@@ -353,7 +356,7 @@ let getNextBlank = (tl: toplevel, id: ID.t): successor => {
   |> Option.orElse(firstBlank(tl))
 }
 
-let getPrevBlank = (tl: toplevel, id: ID.t): predecessor => {
+let getPrevBlank = (tl: toplevel, id: id): predecessor => {
   let all = allIDs(tl)
   let index = List.elemIndex(~value=id, all) |> Option.unwrap(~default=List.length(all))
 

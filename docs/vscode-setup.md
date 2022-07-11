@@ -21,7 +21,7 @@ now we are missing the extensions for ReScript and OCaml.
 ## Build output
 
 You should see build output in the terminal, under the heading "Configuring".
-This is also logged to `rundir/logs/build-server.txt`
+This is also logged to `rundir/logs/build-server.log`
 
 ## Extensions
 

@@ -14,12 +14,11 @@ module Serialize = LibBackend.Serialize
 module Telemetry = LibService.Telemetry
 
 module Delete =
-  type Success = { result : string }
-  type T = Option<Success>
+  type T = { result : string }
   type Params = { tlid : tlid }
 
   /// Endpoint to delete a toplevel
-  let delete (ctx : HttpContext) : Task<T> =
+  let delete (ctx : HttpContext) : Task<Option<T>> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx

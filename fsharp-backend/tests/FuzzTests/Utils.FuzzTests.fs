@@ -16,7 +16,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 

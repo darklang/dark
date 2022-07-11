@@ -1,0 +1,4 @@
+FSharp.Core
+
+group Analysis
+  Microsoft.AspNetCore.Components.WebAssembly

@@ -21,7 +21,8 @@ module Execution = LibExecution.Execution
 module Pusher = LibBackend.Pusher
 module RealExecution = LibRealExecution.RealExecution
 module Canvas = LibBackend.Canvas
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
@@ -56,7 +57,7 @@ let processNotification
       | RT.DOption (Some _) -> "Option(Some)"
       | RT.DResult (Error _) -> "Result(Error)"
       | RT.DResult (Ok _) -> "Result(Ok)"
-      | _ -> dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
+      | _ -> dv |> RT.Dval.toType |> DvalReprDeveloper.typeName
 
     // Function used to quit this event
     let stop
@@ -262,7 +263,7 @@ let run () : Task<unit> =
     // automatically when an event finishes.
 
     // We use a high number because we don't actually know the number of slots: it's
-    // decided somewhat dynamically by a feature flag. Do just pick a high number,
+    // decided somewhat dynamically by a feature flag. So just pick a high number,
     // and then use the semaphore to count the events in progress.
     let initialCount = 100000 // just be a high number
     let semaphore = new System.Threading.SemaphoreSlim(initialCount)
@@ -270,7 +271,7 @@ let run () : Task<unit> =
     let maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
     while not shouldShutdown do
       try
-        // FSTODO: include memory and CPU usage checks in here
+        // TODO: include memory and CPU usage checks in here
         let runningCount = initialCount - semaphore.CurrentCount
         let remainingSlots = maxEventsFn () - runningCount
         if remainingSlots > 0 then
@@ -296,8 +297,10 @@ let main _ : int =
   try
     let name = "QueueWorker"
     print "Starting QueueWorker"
+    Prelude.init ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
+    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

@@ -4,20 +4,20 @@ module Mouse = Tea.Mouse
 module TL = Toplevel
 module Regex = Util.Regex
 
-/* Tea */
+// Tea
 module Cmd = Tea.Cmd
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module AC = FluidAutocomplete
 module T = FluidToken
-module E = FluidExpression
+module E = ProgramTypes.Expr
 module Util = FluidUtil
 module Printer = FluidTokenizer
 
 type ast = E.t
 
 let exprToClipboardContents = (expr: FluidExpression.t): Js.Json.t =>
-  /* The text here comes from the selected text */
+  // The text here comes from the selected text
   Encoders.fluidExpr(expr)
 
 let jsonToExpr = (jsonStr: string): option<E.t> => {
@@ -30,16 +30,25 @@ let jsonToExpr = (jsonStr: string): option<E.t> => {
     | JSONNull => ENull(gid())
     | JSONNumber(float) =>
       let str = Js.Float.toString(float)
-      if Util.is63BitInt(str) {
-        EInteger(gid(), str)
-      } else if Regex.exactly(~re="[0-9]+\\.[0-9]+", str) {
-        switch String.split(~on=".", str) {
-        | list{whole, fraction} => EFloat(gid(), whole, fraction)
-        | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), "0"))
+      switch Int64.of_string_opt(str) {
+      | Some(int) => EInteger(gid(), int)
+      | None =>
+        if Regex.exactly(~re="[0-9]+\\.[0-9]+", str) {
+          switch String.split(~on=".", str) {
+          | list{whole, fraction} => EFloat(gid(), ProgramTypes.Positive, whole, fraction)
+          | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), 0L))
+          }
+        } else if Regex.exactly(~re="-[0-9]+\\.[0-9]+", str) {
+          switch String.split(~on=".", str) {
+          | list{whole, fraction} =>
+            let (sign, whole) = ProgramTypes.Sign.split(whole)
+            EFloat(gid(), sign, whole, fraction)
+          | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), 0L))
+          }
+        } else {
+          // TODO: support floats in the format 3.4e5
+          recover("unsupported float in json", ~debug=str, E.EInteger(gid(), 0L))
         }
-      } else {
-        /* TODO: support floats in the format 3.4e5 */
-        recover("unsupported float in json", ~debug=str, E.EInteger(gid(), "0"))
       }
     | JSONObject(dict) =>
       dict
@@ -64,7 +73,7 @@ let clipboardContentsToExpr = ((text, json): clipboardContents): option<E.t> =>
   | Some(json) =>
     try {
       let expr = Decoders.fluidExpr(json)
-      Some(E.clone(expr))
+      Some(FluidExpression.clone(expr))
     } catch {
     | _ => recover("could not decode", ~debug=json, None)
     }

@@ -75,6 +75,11 @@ module Generators =
           let! typ = generateTypeToMatchCollection typ
           let! v = Gen.listOfLength size (genExpr' typ (size / 2))
           return RT.EList(gid (), v)
+        | RT.TTuple (firstType, secondType, otherTypes) ->
+          let! first = genExpr' firstType (size / 2)
+          let! second = genExpr' secondType (size / 2)
+          let! theRest = Gen.collect (fun t -> genExpr' t (size / 2)) otherTypes
+          return RT.ETuple(gid (), first, second, theRest)
         | RT.TDict typ ->
           let! typ = generateTypeToMatchCollection typ
 
@@ -222,6 +227,11 @@ module Generators =
         | RT.TList typ ->
           let! typ = generateTypeToMatchCollection typ
           return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))
+        | RT.TTuple (firstType, secondType, otherTypes) ->
+          let! first = genDval' firstType (s / 2)
+          let! second = genDval' secondType (s / 2)
+          let! theRest = Gen.collect (fun z -> genDval' z (s / 2)) otherTypes
+          return RT.DTuple(first, second, theRest)
         | RT.TDict typ ->
           let! typ = generateTypeToMatchCollection typ
 

@@ -426,6 +426,7 @@ let testListUsingProperty
 // "short" field (there are other fields but we'll ignore them)
 type OCamlError = { short : string }
 
+// CLEANUP should be able to remove this
 let parseOCamlError (str : string) : string =
   try
     (Json.Vanilla.deserialize<OCamlError> str).short
@@ -504,6 +505,7 @@ module Expect =
     | DOption (Some v) -> check v
 
     | DList vs -> List.all check vs
+    | DTuple (first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DObj vs -> vs |> Map.values |> List.all check
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
@@ -594,6 +596,10 @@ module Expect =
       eq ("then" :: path) thn thn'
       eq ("else" :: path) els els'
     | EList (_, l), EList (_, l') -> eqList path l l'
+    | ETuple (_, first, second, theRest), ETuple (_, first', second', theRest') ->
+      eq ("first" :: path) first first'
+      eq ("second" :: path) second second'
+      eqList path theRest theRest'
     | EFQFnValue (_, v), EFQFnValue (_, v') -> check path v v'
     | EApply (_, name, args, inPipe, toRail),
       EApply (_, name', args', inPipe', toRail') ->
@@ -649,6 +655,7 @@ module Expect =
     | ELet _, _
     | EIf _, _
     | EList _, _
+    | ETuple _, _
     | EFQFnValue _, _
     | EApply _, _
     | ERecord _, _
@@ -699,6 +706,14 @@ module Expect =
       check (".Length" :: path) (List.length ls) (List.length rs)
       List.iteri2 (fun i l r -> de (string i :: path) l r) ls rs
 
+    | DTuple (firstL, secondL, theRestL), DTuple (firstR, secondR, theRestR) ->
+      de path firstL firstR
+
+      de path secondL secondR
+
+      check (".Length" :: path) (List.length theRestL) (List.length theRestR)
+      List.iteri2 (fun i l r -> de (string i :: path) l r) theRestL theRestR
+
     | DObj ls, DObj rs ->
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
@@ -735,6 +750,7 @@ module Expect =
     | DHttpResponse _, _
     | DObj _, _
     | DList _, _
+    | DTuple _, _
     | DResult _, _
     | DErrorRail _, _
     | DOption _, _
@@ -799,6 +815,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     // Keep for exhaustiveness checking
     | DObj map -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
+    | DTuple (first, second, theRest) ->
+      List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
     | DHttpResponse (Response (_, _, v))
     | DResult (Error v)
     | DResult (Ok v)
@@ -913,7 +931,7 @@ let interestingDvals =
     ("float2", DFloat -7.2)
     ("float3", DFloat 15.0)
     ("float4", DFloat -15.0)
-    ("int5", RT.DInt 5L)
+    ("int5", DInt 5L)
     ("true", DBool true)
     ("false", DBool false)
     ("null", DNull)
@@ -937,6 +955,7 @@ let interestingDvals =
     ("obj with error",
      DObj(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
     ("incomplete", DIncomplete SourceNone)
+    ("incomplete2", DIncomplete(SourceID(7UL, 8UL)))
     ("error", DError(SourceNone, "some error string"))
     ("block",
      DFnVal(
@@ -949,7 +968,48 @@ let interestingDvals =
      DFnVal(
        Lambda
          { body =
-             FSharpToExpr.parseRTExpr "5 |> (+) 6 |> (+) 7 |> (+) 8 |> List.push 6"
+             EApply(
+               92356985UL,
+               (EFQFnValue(
+                 700731989UL,
+                 FQFnName.Stdlib
+                   { module_ = "List"; function_ = "push"; version = 0 }
+               )),
+               [ EApply(
+                   93459985UL,
+                   (EFQFnValue(
+                     707841989UL,
+                     FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 }
+                   )),
+                   [ EApply(
+                       394567785UL,
+                       (EFQFnValue(
+                         700766785UL,
+                         FQFnName.Stdlib
+                           { module_ = ""; function_ = "+"; version = 0 }
+                       )),
+                       [ EApply(
+                           44444485UL,
+                           (EFQFnValue(
+                             893346989UL,
+                             FQFnName.Stdlib
+                               { module_ = ""; function_ = "+"; version = 0 }
+                           )),
+                           [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ],
+                           NotInPipe,
+                           NoRail
+                         )
+                         EInteger(648327618UL, 7) ],
+                       NotInPipe,
+                       NoRail
+                     )
+                     EInteger(325843618UL, 8) ],
+                   NotInPipe,
+                   NoRail
+                 ) ],
+               NotInPipe,
+               NoRail
+             )
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
@@ -982,7 +1042,12 @@ let interestingDvals =
          LibBackend.Config.Testdata
          "sample_image_bytes.png"
      // TODO: deeply nested data
-     )) ]
+     ))
+
+    ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []))
+    ("simple3Tuple", DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]))
+    ("tupleWithNull", DTuple(Dval.int 1, Dval.int 2, [ DNull ]))
+    ("tupleWithError", DTuple(Dval.int 1, DResult(Error(DStr "error")), [])) ]
 
 let sampleDvals : List<string * Dval> =
   List.map (Tuple2.mapSecond DInt) interestingInts

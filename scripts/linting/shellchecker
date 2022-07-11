@@ -20,6 +20,14 @@ else
     -o -path "./_build" -prune \
     -o -path "node_modules" -prune \
     -o -path "./node_modules" -prune \
+    -o -path "backend/static" \
+    -o -path "./backend/static" \
+    -o -path "client/static/vendor" \
+    -o -path "./client/static/vendor" \
+    -o -path "lib" \
+    -o -path "./lib" \
+    -o -path "integration-tests/node_modules" \
+    -o -path "./integration-tests/node_modules" \
     -o -path "_esy" -prune \
     -o -path "./_esy" -prune \
     -o -path "lib" -prune \
@@ -30,6 +38,10 @@ else
     -o -path "./rundir" -prune \
     -o -path "fsharp-backend/paket-files" -prune \
     -o -path "./fsharp-backend/paket-files" -prune \
+    -o -path "fsharp-backend/Build" -prune \
+    -o -path "./fsharp-backend/Build" -prune \
+    -o -path "fsharp-backend/tests/staticassets-tests" \
+    -o -path "./fsharp-backend/tests/staticassets-tests" \
     -o -type f \
     -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + \
     | xargs shellcheck -e SC2002 -e SC2044 -e SC2086

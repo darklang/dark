@@ -1,11 +1,11 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module TL = Toplevel
 module TD = TLIDDict
-module E = FluidExpression
-module P = FluidPattern
+module E = ProgramTypes.Expr
+module P = ProgramTypes.Pattern
 
 let generateFnName = (_: unit): string => "fn_" ++ (() |> Util.random |> string_of_int)
 
@@ -18,7 +18,7 @@ let convertTipe = (tipe: tipe): tipe =>
   | _ => tipe
   }
 
-/* Call f on calls to uf across the whole AST */
+// Call f on calls to uf across the whole AST
 let transformFnCalls = (
   m: model,
   uf: userFunction,
@@ -28,7 +28,7 @@ let transformFnCalls = (
     let rec run = e =>
       switch e {
       | E.EFnCall(_, name, _, _) if Some(name) == BlankOr.toOption(uf.ufMetadata.ufmName) => f(e)
-      | other => E.deprecatedWalk(~f=run, other)
+      | other => FluidExpression.deprecatedWalk(~f=run, other)
       }
 
     FluidAST.map(ast, ~f=run)
@@ -52,7 +52,7 @@ let transformFnCalls = (
     }
   })
 
-  \"@"(newHandlers, newFunctions)
+  Belt.List.concat(newHandlers, newFunctions)
 }
 
 type wrapLoc =
@@ -64,21 +64,21 @@ type wrapLoc =
   | WMatchExpr
   | WMatchArm
 
-let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: ID.t): modification => {
+let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): modification => {
   let replacement = (e): FluidExpression.t => {
-    let newBlankPattern = mid => P.FPBlank(mid, gid())
+    let newB = FluidExpression.newB
     switch wl {
-    | WLetRHS => ELet(gid(), "", e, E.newB())
-    | WLetBody => ELet(gid(), "", E.newB(), e)
-    | WIfCond => EIf(gid(), e, E.newB(), E.newB())
-    | WIfThen => EIf(gid(), E.newB(), e, E.newB())
-    | WIfElse => EIf(gid(), E.newB(), E.newB(), e)
+    | WLetRHS => ELet(gid(), "", e, newB())
+    | WLetBody => ELet(gid(), "", newB(), e)
+    | WIfCond => EIf(gid(), e, newB(), newB())
+    | WIfThen => EIf(gid(), newB(), e, newB())
+    | WIfElse => EIf(gid(), newB(), newB(), e)
     | WMatchExpr =>
       /* e becomes
        * match e
        * _ -> _ */
       let mid = gid()
-      EMatch(mid, e, list{(newBlankPattern(mid), E.newB())})
+      EMatch(mid, e, list{(P.PBlank(gid()), newB())})
     | WMatchArm =>
       /* e becomes
        * match _
@@ -89,7 +89,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: ID.t): modification => {
        * at the end of a match, but it's always possible to delete a pattern)
        * */
       let mid = gid()
-      EMatch(mid, E.newB(), list{(newBlankPattern(mid), e), (newBlankPattern(mid), E.newB())})
+      EMatch(mid, newB(), list{(P.PBlank(gid()), e), (P.PBlank(gid()), newB())})
     }
   }
 
@@ -98,7 +98,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: ID.t): modification => {
   |> Option.unwrap(~default=NoChange)
 }
 
-let takeOffRail = (_m: model, tl: toplevel, id: ID.t): modification =>
+let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
   TL.getAST(tl)
   |> Option.map(~f=ast =>
     ast
@@ -118,8 +118,8 @@ let isRailable = (m: model, name: string) =>
   |> Option.map(~f=fn => fn.fnReturnTipe == TOption || fn.fnReturnTipe == TResult)
   |> Option.unwrap(~default=false)
 
-let putOnRail = (m: model, tl: toplevel, id: ID.t): modification =>
-  /* Only toggle onto rail iff. return tipe is TOption or TResult */
+let putOnRail = (m: model, tl: toplevel, id: id): modification =>
+  // Only toggle onto rail iff. return tipe is TOption or TResult
   TL.modifyASTMod(tl, ~f=ast =>
     FluidAST.update(id, ast, ~f=x =>
       switch x {
@@ -132,7 +132,7 @@ let putOnRail = (m: model, tl: toplevel, id: ID.t): modification =>
 let extractVarInAst = (
   m: model,
   tl: toplevel,
-  id: ID.t,
+  id: id,
   varname: string,
   ast: FluidAST.t,
 ): FluidAST.t => {
@@ -145,7 +145,7 @@ let extractVarInAst = (
 
       list{e, ...ancestors}
       |> List.takeWhile(~f=elem => {
-        let id = E.toID(elem)
+        let id = FluidExpression.toID(elem)
         let availableVars =
           Option.map(traceID, ~f=Analysis.getAvailableVarnames(m, tl, id))
           |> Option.unwrap(~default=list{})
@@ -166,24 +166,24 @@ let extractVarInAst = (
     switch lastPlaceWithSameVarsAndValues {
     | Some(last) =>
       ast
-      |> FluidAST.update(E.toID(last), ~f=x =>
+      |> FluidAST.update(FluidExpression.toID(last), ~f=x =>
         switch x {
-        | last => ELet(gid(), varname, E.clone(e), last)
+        | last => ELet(gid(), varname, FluidExpression.clone(e), last)
         }
       )
-      |> FluidAST.replace(E.toID(e), ~replacement=EVariable(gid(), varname))
+      |> FluidAST.replace(FluidExpression.toID(e), ~replacement=EVariable(gid(), varname))
     | None => ast
     }
   | None => ast
   }
 }
 
-let extractVariable = (m: model, tl: toplevel, id: ID.t): modification => {
+let extractVariable = (m: model, tl: toplevel, id: id): modification => {
   let varname = "var" ++ string_of_int(Util.random())
   TL.modifyASTMod(tl, ~f=extractVarInAst(m, tl, id, varname))
 }
 
-let extractFunction = (m: model, tl: toplevel, id: ID.t): modification => {
+let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   let tlid = TL.id(tl)
   let ast = TL.getAST(tl)
   switch (ast, Option.andThen(ast, ~f=FluidAST.find(id))) {
@@ -225,16 +225,19 @@ let extractFunction = (m: model, tl: toplevel, id: ID.t): modification => {
     let newF = {
       ufTLID: gtlid(),
       ufMetadata: metadata,
-      ufAST: E.clone(body) |> FluidAST.ofExpr,
+      ufAST: FluidExpression.clone(body) |> FluidAST.ofExpr,
     }
 
-    Many(list{AddOps(list{SetFunction(newF)}, FocusExact(tlid, E.toID(replacement))), astOp})
+    Many(list{
+      AddOps(list{SetFunction(newF)}, FocusExact(tlid, FluidExpression.toID(replacement))),
+      astOp,
+    })
   | _ => NoChange
   }
 }
 
 let renameFunction = (m: model, uf: userFunction, newName: string): list<op> => {
-  open FluidExpression
+  open ProgramTypes.Expr
   let fn = e =>
     switch e {
     | EFnCall(id, _, params, r) => EFnCall(id, newName, params, r)
@@ -299,7 +302,7 @@ let dbUseCount = (m: model, name: string): int =>
   Map.get(m.usedDBs, ~key=name) |> Option.unwrap(~default=0)
 
 let updateUsageCounts = (m: model): model => {
-  open FluidExpression
+  open ProgramTypes.Expr
   let countFromList = names =>
     List.fold(names, ~initial=Map.String.empty, ~f=(dict, name) =>
       Map.update(dict, ~key=name, ~f=x =>
@@ -313,11 +316,11 @@ let updateUsageCounts = (m: model): model => {
   let asts =
     m |> TL.all |> Map.mapValues(~f=TL.getAST) |> List.filterMap(~f=Option.map(~f=FluidAST.toExpr))
 
-  /* Pretend it's one big AST */
+  // Pretend it's one big AST
   let bigAst = EList(gid(), asts)
   let usedFns =
     bigAst
-    |> E.filterMap(~f=x =>
+    |> FluidExpression.filterMap(~f=x =>
       switch x {
       | EFnCall(_, name, _, _) | EBinOp(_, name, _, _, _) => Some(name)
       | _ => None
@@ -327,7 +330,7 @@ let updateUsageCounts = (m: model): model => {
 
   let usedDBs =
     bigAst
-    |> E.filterMap(~f=x =>
+    |> FluidExpression.filterMap(~f=x =>
       switch x {
       | EVariable(_, name) if String.isCapitalized(name) => Some(name)
       | _ => None
@@ -340,7 +343,7 @@ let updateUsageCounts = (m: model): model => {
     |> Map.mapValues(~f=UserFunctions.allParamData)
     |> List.flatten
     |> List.filterMap(~f=x =>
-      /* Note: this does _not_ currently handle multiple versions */
+      // Note: this does _not_ currently handle multiple versions
       switch x {
       | PParamTipe(F(_, TUserType(name, _))) => Some(name)
       | _ => None
@@ -354,7 +357,7 @@ let updateUsageCounts = (m: model): model => {
 let removeFunctionParameter = (m: model, uf: userFunction, ufp: userFunctionParameter): list<
   op,
 > => {
-  open FluidExpression
+  open ProgramTypes.Expr
   let indexInList =
     List.findIndex(~f=(_, p) => p == ufp, uf.ufMetadata.ufmParameters)
     |> Option.map(~f=Tuple2.first)
@@ -370,13 +373,13 @@ let removeFunctionParameter = (m: model, uf: userFunction, ufp: userFunctionPara
   transformFnCalls(m, uf, fn)
 }
 
-let addFunctionParameter = (m: model, f: userFunction, currentBlankId: ID.t): modification => {
-  open FluidExpression
+let addFunctionParameter = (m: model, f: userFunction, currentBlankId: id): modification => {
+  open ProgramTypes.Expr
   let transformOp = old => {
     let fn = e =>
       switch e {
       | EFnCall(id, name, params, r) =>
-        EFnCall(id, name, \"@"(params, list{FluidExpression.newB()}), r)
+        EFnCall(id, name, Belt.List.concat(params, list{FluidExpression.newB()}), r)
       | _ => e
       }
 
@@ -450,7 +453,7 @@ let renameDBReferences = (m: model, oldName: dbName, newName: dbName): list<op> 
   |> Map.filterMapValues(~f=tl =>
     switch tl {
     | TLHandler(h) =>
-      let newAST = h.ast |> FluidAST.map(~f=E.renameVariableUses(~oldName, ~newName))
+      let newAST = h.ast |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
 
       if newAST != h.ast {
         Some(SetHandler(h.hTLID, h.pos, {...h, ast: newAST}))
@@ -458,7 +461,8 @@ let renameDBReferences = (m: model, oldName: dbName, newName: dbName): list<op> 
         None
       }
     | TLFunc(f) =>
-      let newAST = f.ufAST |> FluidAST.map(~f=E.renameVariableUses(~oldName, ~newName))
+      let newAST =
+        f.ufAST |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
 
       if newAST != f.ufAST {
         Some(SetFunction({...f, ufAST: newAST}))
@@ -515,7 +519,7 @@ let createNewDB = (m: model, maybeName: option<dbName>, pos: pos): modification 
   }
 }
 
-/* Create a new function, update the server, and go to the new function */
+// Create a new function, update the server, and go to the new function
 let createNewFunction = (m: model, newFnName: option<string>): modification => {
   let fn = generateEmptyFunction()
   let newFn = switch newFnName {
@@ -527,10 +531,10 @@ let createNewFunction = (m: model, newFnName: option<string>): modification => {
   | Some(name) if hasExistingFunctionNamed(m, name) =>
     Model.updateErrorMod(Error.set("Function named " ++ (name ++ " already exists")))
   | _ =>
-    /* We need to update both the model and the backend */
+    // We need to update both the model and the backend
     Many(list{
       ReplaceAllModificationsWithThisOne(m => (UserFunctions.upsert(m, newFn), Tea.Cmd.none)),
-      /* Both ops in a single transaction */
+      // Both ops in a single transaction
       AddOps(list{SetFunction(newFn)}, FocusNothing),
       MakeCmd(Url.navigateTo(FocusedFn(newFn.ufTLID, None))),
     })
@@ -542,12 +546,12 @@ let createNewFunction = (m: model, newFnName: option<string>): modification => {
 let createAndInsertNewFunction = (
   m: model,
   tlid: TLID.t,
-  partialID: ID.t,
+  partialID: id,
   newFnName: string,
 ): modification =>
   switch Toplevel.get(m, tlid) |> Option.thenAlso(~f=TL.getAST) {
   | Some(tl, ast) =>
-    /* Create the new function */
+    // Create the new function
     let fn = generateEmptyFunction()
     let newFn = {
       ...fn,
@@ -555,10 +559,10 @@ let createAndInsertNewFunction = (
     }
 
     let op = SetFunction(newFn)
-    /* Update the old ast */
+    // Update the old ast
     let replacement = E.EFnCall(partialID, newFnName, list{}, NoRail)
     let newAST = FluidAST.replace(partialID, ast, ~replacement)
-    /* We need to update both the model and the backend */
+    // We need to update both the model and the backend
     let alreadyExists = hasExistingFunctionNamed(m, newFnName)
     if alreadyExists {
       Model.updateErrorMod(Error.set("Function named " ++ (newFnName ++ " already exists")))
@@ -574,7 +578,7 @@ let createAndInsertNewFunction = (
               Tea.Cmd.none,
             ),
           ),
-          /* Both ops in a single transaction */
+          // Both ops in a single transaction
           TL.setASTMod(~ops=list{op}, tl, newAST),
           MakeCmd(Url.navigateTo(FocusedFn(newFn.ufTLID, None))),
         })

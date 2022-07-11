@@ -11,13 +11,13 @@ let defaultID2 = gid()
 
 let defaultBlankOr = Blank(defaultID)
 
-let defaultExpr = FluidExpression.EBlank(defaultID)
+let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
 let enteringCS = (~tlid=defaultTLID, ~id=defaultID, ()): cursorState => Entering(tlid, id)
 
 let omniboxCS: cursorState = Omnibox(None)
 
-/* Sets the model with the appropriate toplevels */
+// Sets the model with the appropriate toplevels
 let defaultModel = (
   ~dbs=list{},
   ~handlers=list{},
@@ -108,7 +108,7 @@ let enteringDBField = (
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
-    ~dbs=\"@"(list{aDB()}, dbs),
+    ~dbs=list{aDB(), ...dbs},
     ~handlers,
     ~userTipes,
     ~userFunctions,
@@ -124,7 +124,7 @@ let enteringDBType = (
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
-    ~dbs=\"@"(list{aDB(~fieldid=defaultID2, ~typeid=defaultID, ())}, dbs),
+    ~dbs=list{aDB(~fieldid=defaultID2, ~typeid=defaultID, ()), ...dbs},
     ~handlers,
     ~userTipes,
     ~userFunctions,
@@ -142,7 +142,7 @@ let enteringEventNameHandler = (~space: option<string>=None, ()): model => {
 
 let creatingOmni: model = {...Defaults.defaultModel, cursorState: Omnibox(None)}
 
-/* AC targeting a tlid and pointer */
+// AC targeting a tlid and pointer
 let acFor = (~target=Some(defaultTLID, PDBColType(defaultBlankOr)), m: model): autocomplete =>
   switch m.cursorState {
   | Omnibox(_) => init(m) |> setTarget(m, None)
@@ -538,7 +538,7 @@ let run = () => {
       let fn = aFunction(
         ~tlid=TLID.fromString("789"),
         ~name="fn1",
-        ~expr=ELet(gid(), "bunny", EInteger(gid(), "9"), EString(gid(), "\"hello\"")),
+        ~expr=ELet(gid(), "bunny", EInteger(gid(), 9L), EString(gid(), "\"hello\"")),
         (),
       )
 

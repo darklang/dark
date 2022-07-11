@@ -4,7 +4,7 @@ module TL = Toplevel
 let alwaysShow = (_, _, _) => true
 
 let commands: list<command> = {
-  open FluidExpression
+  open ProgramTypes.Expr
   list{
     {
       commandName: "extract-function",

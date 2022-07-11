@@ -150,10 +150,7 @@ let createTelemetryTracer () : TraceResults.T * RT.Tracing =
                 "argCount", List.length args
                 "hash", hash
                 "resultType",
-                result
-                |> RT.Dval.toType
-                |> LibExecution.DvalReprExternal.typeToDeveloperReprV0
-                :> obj ]
+                result |> LibExecution.DvalReprDeveloper.dvalTypeName :> obj ]
             standardTracing.storeFnResult (tlid, name, id) args result)
         storeFnArguments =
           (fun tlid args ->

@@ -32,6 +32,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "typeError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
@@ -43,6 +45,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "sqlError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
@@ -56,6 +60,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "nan" 0
       parameters = []
       returnType = TFloat
@@ -67,6 +73,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "infinity" 0
       parameters = []
       returnType = TFloat
@@ -78,6 +86,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "toChar" 0
       parameters = [ Param.make "c" TStr "" ]
       returnType = TOption TChar
@@ -95,6 +105,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "negativeInfinity" 0
       parameters = []
       returnType = TFloat
@@ -106,50 +118,38 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Test" "resetSideEffectCounter" 0
-      parameters = [ Param.make "counterName" TStr "Name of the counter (unused)" ]
-      returnType = TNull
-      description =
-        "Reset the side effect counter to zero, to test real-world side-effects."
-      fn =
-        (function
-        | state, [ _; arg ] ->
-          // CLEANUP this function is no longer needed once we remove ocaml
-          state.test.sideEffectCount <- 0
-          Ply(arg)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
+
+
     { name = fn "Test" "incrementSideEffectCounter" 0
       parameters =
-        // CLEANUP This parameter is only needed for OCaml, which doesn't have test
-        // state and uses a global instead
-        [ Param.make "counterName" TStr "Name of the counter (unused)"
-          Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
+        [ Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
       returnType = TVariable "a"
       description =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
       fn =
         (function
-        | state, [ _; arg ] ->
+        | state, [ arg ] ->
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
           Ply(arg)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "sideEffectCount" 0
-      parameters = [ Param.make "counterName" (TStr) "Name of the counter (unused)" ]
+      parameters = []
       returnType = TInt
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, [ _ ] -> Ply(Dval.int state.test.sideEffectCount)
+        | state, [] -> Ply(Dval.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "inspect" 0
       parameters = [ Param.make "var" varA ""; Param.make "msg" TStr "" ]
       returnType = varA
@@ -163,6 +163,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "justWithTypeError" 0
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TOption varA
@@ -174,6 +176,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "okWithTypeError" 0
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TResult(varA, varB)
@@ -185,6 +189,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "errorWithTypeError" 0
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TResult(varA, varB)
@@ -196,6 +202,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "deleteUser" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TNull, varB)
@@ -216,6 +224,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "getQueue" 0
       parameters = [ Param.make "eventName" TStr "" ]
       returnType = TList TStr
@@ -235,6 +245,29 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
+
+    { name = fn "Test" "asBytes" 0
+      parameters = [ Param.make "list" (TList TInt) "" ]
+      returnType = TBytes
+      description = "Turns a list of ints into bytes"
+      fn =
+        (function
+        | _, [ DList l ] ->
+          l
+          |> List.map (fun x ->
+            match x with
+            | DInt x -> byte x
+            | _ -> incorrectArgs ())
+          |> Array.ofList
+          |> DBytes
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "Test" "raiseException" 0
       parameters = [ Param.make "message" TStr "" ]
       returnType = TVariable "a"
@@ -246,6 +279,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "intArrayToBytes" 0
       parameters = [ Param.make "bytes" (TList TInt) "" ]
       returnType = TBytes
@@ -266,6 +301,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "regexReplace" 0
       parameters =
         [ Param.make "subject" TStr ""
@@ -281,6 +318,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "httpResponseStatusCode" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = TInt
@@ -295,6 +334,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "httpResponseHeaders" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       // CLEANUP make this is a list of string*string tuples
@@ -314,6 +355,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "httpResponseBody" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = varA
@@ -328,6 +371,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "getCanvasName" 0
       parameters = []
       returnType = TStr
@@ -339,6 +384,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "getCanvasID" 0
       parameters = []
       returnType = TUuid
@@ -346,6 +393,17 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [] -> state.program.canvasID |> DUuid |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "getUserID" 0
+      parameters = []
+      returnType = TUuid
+      description = "Get the ID of the user"
+      fn =
+        (function
+        | state, [] -> state.program.accountID |> DUuid |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
