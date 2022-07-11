@@ -898,8 +898,8 @@ module Json =
     open System.Text.Json.Serialization
     open NodaTime.Serialization.SystemTextJson
 
-    type TLIDConverter() =
-      inherit JsonConverter<tlid>()
+    type UInt64Converter() =
+      inherit JsonConverter<uint64>()
 
       override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
         if reader.TokenType = JsonTokenType.String then
@@ -908,7 +908,7 @@ module Json =
         else
           reader.GetUInt64()
 
-      override _.Write(writer : Utf8JsonWriter, value : tlid, _options) =
+      override _.Write(writer : Utf8JsonWriter, value : uint64, _options) =
         writer.WriteNumberValue(value)
 
     type PasswordConverter() =
@@ -978,7 +978,7 @@ module Json =
       // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(NodaConverters.InstantConverter)
       options.Converters.Add(LocalDateTimeConverter())
-      options.Converters.Add(TLIDConverter())
+      options.Converters.Add(UInt64Converter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
       options.Converters.Add(fsharpConverter)
@@ -1185,14 +1185,14 @@ module Json =
         | _ ->
           Exception.raiseInternal "Invalid token" [ "existingValue", existingValue ]
 
-    type TLIDConverter() =
+    type UInt64Converter() =
       inherit JsonConverter<tlid>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
         let rawToken = string reader.Value
         parseUInt64 rawToken
 
-      override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
+      override _.WriteJson(writer : JsonWriter, value : uint64, _ : JsonSerializer) =
         writer.WriteValue(value)
 
     type RedactedPasswordConverter() =
@@ -1341,7 +1341,7 @@ module Json =
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
       settings.Converters.Add(RedactedPasswordConverter())
-      settings.Converters.Add(TLIDConverter())
+      settings.Converters.Add(UInt64Converter())
       settings.Converters.Add(LocalDateTimeConverter())
       settings.Converters.Add(FSharpListConverter())
       settings.Converters.Add(OCamlOptionConverter())
