@@ -138,8 +138,7 @@ let addRoutes
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
   clientJsonApi "trigger_handler" RW Execution.Handler.trigger
-  ocamlCompatibleApi "worker_schedule" RW Workers.Scheduler.updateSchedule
-  clientJsonApi "v1/worker_schedule" RW Workers.Scheduler.updateSchedule
+  clientJsonApi "worker_schedule" RW Workers.Scheduler.updateSchedule
   app.UseRouter(builder.Build())
 
 
@@ -275,7 +274,6 @@ let initSerializers () =
   Json.Vanilla.allow<Traces.TraceData.T> "ApiServer.Traces"
   Json.OCamlCompatible.allow<Workers.Scheduler.Params> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.Scheduler.Params> "ApiServer.Workers"
-  Json.OCamlCompatible.allow<Workers.Scheduler.T> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.Scheduler.T> "ApiServer.Workers"
   Json.OCamlCompatible.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.WorkerStats.Params> "ApiServer.Workers"

@@ -769,7 +769,7 @@ module GenericSerializersTests =
       both<ApiServer.Workers.Scheduler.Params>
         "simple"
         { name = "x"; schedule = "pause" }
-      both<ApiServer.Workers.Scheduler.T> "all" testWorkerStates
+      v<ApiServer.Workers.Scheduler.T> "all" testWorkerStates
 
       both<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
       v<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
