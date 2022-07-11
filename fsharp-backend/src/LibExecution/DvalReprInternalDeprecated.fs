@@ -369,7 +369,7 @@ let isRoundtrippableDval (allowKnownBuggyValues : bool) (dval : Dval) : bool =
   | DChar c when c.Length = 1 -> true
   | DChar _ -> false // invalid
   | DStr _ -> true
-  | DInt _ -> true
+  | DInt i -> i > -4611686018427387904L && i < 4611686018427387904L
   | DNull _ -> true
   | DBool _ -> true
   | DFloat _ -> true
@@ -427,7 +427,6 @@ let toInternalQueryableV1 (dvalMap : DvalMap) : string =
       |> List.iter (fun (k, dval) ->
         w.WritePropertyName k
         unsafeDvalToJsonValueV0 w dval)))
-
 
 
 // This is a format used for roundtripping dvals internally, while still being
@@ -608,7 +607,7 @@ module Test =
   let rec isQueryableDval (dval : Dval) : bool =
     match dval with
     | DStr _ -> true
-    | DInt _ -> true
+    | DInt i -> i > -4611686018427387904L && i < 4611686018427387904L
     | DNull _ -> true
     | DBool _ -> true
     | DFloat _ -> true
