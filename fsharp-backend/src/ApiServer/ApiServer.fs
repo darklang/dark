@@ -123,8 +123,7 @@ let addRoutes
   clientJsonApi "v1/delete_404" RW F404s.Delete.delete
   ocamlCompatibleApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
   clientJsonApiOption "v1/delete-toplevel-forever" RW Toplevels.Delete.delete
-  ocamlCompatibleApi "delete_secret" RW Secrets.Delete.delete
-  clientJsonApi "v1/delete_secret" RW Secrets.Delete.delete
+  clientJsonApi "delete_secret" RW Secrets.Delete.delete
   ocamlCompatibleApi "execute_function" RW Execution.Function.execute
   clientJsonApi "v1/execute_function" RW Execution.Function.execute
   ocamlCompatibleApi "get_404s" R F404s.List.get
@@ -138,8 +137,7 @@ let addRoutes
   clientJsonApi "v1/get_worker_stats" R Workers.WorkerStats.getStats
   ocamlCompatibleApi "initial_load" R InitialLoad.initialLoad
   clientJsonApi "v1/initial_load" R InitialLoad.initialLoad
-  ocamlCompatibleApi "insert_secret" RW Secrets.Insert.insert
-  clientJsonApi "v1/insert_secret" RW Secrets.Insert.insert
+  clientJsonApi "insert_secret" RW Secrets.Insert.insert
   ocamlCompatibleApi "packages" R (Packages.List.packages packages)
   clientJsonApi "v1/packages" R (Packages.List.packages packages)
   // CLEANUP: packages/upload_function
@@ -271,11 +269,9 @@ let initSerializers () =
   Json.Vanilla.allow<Packages.List.T> "ApiServer.Packages"
   Json.OCamlCompatible.allow<Secrets.Delete.Params> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.Delete.Params> "ApiServer.Secrets"
-  Json.OCamlCompatible.allow<Secrets.Delete.T> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.Delete.T> "ApiServer.Secrets"
   Json.OCamlCompatible.allow<Secrets.Insert.Params> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.Insert.Params> "ApiServer.Secrets"
-  Json.OCamlCompatible.allow<Secrets.Insert.T> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.Insert.T> "ApiServer.Secrets"
   Json.OCamlCompatible.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
   Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"

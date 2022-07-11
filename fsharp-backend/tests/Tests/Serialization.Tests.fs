@@ -734,14 +734,14 @@ module GenericSerializersTests =
       // Secrets
 
       both<ApiServer.Secrets.Delete.Params> "simple" { secret_name = "test" }
-      both<ApiServer.Secrets.Delete.T>
+      v<ApiServer.Secrets.Delete.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
       both<ApiServer.Secrets.Insert.Params>
         "simple"
         { secret_name = "test"; secret_value = "secret" }
-      both<ApiServer.Secrets.Insert.T>
+      v<ApiServer.Secrets.Insert.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
