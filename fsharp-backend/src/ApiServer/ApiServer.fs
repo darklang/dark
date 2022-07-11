@@ -117,8 +117,7 @@ let addRoutes
 
   ocamlCompatibleApi "add_op" RW AddOps.addOp
   clientJsonApi "v1/add_op" RW AddOps.addOp
-  ocamlCompatibleApi "all_traces" R Traces.AllTraces.fetchAll
-  clientJsonApi "v1/all_traces" R Traces.AllTraces.fetchAll
+  clientJsonApi "all_traces" R Traces.AllTraces.fetchAll
   clientJsonApi "delete_404" RW F404s.Delete.delete
   clientJsonApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
   clientJsonApi "delete_secret" RW Secrets.Delete.delete
@@ -271,7 +270,6 @@ let initSerializers () =
   Json.OCamlCompatible.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
   Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
   Json.Vanilla.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
-  Json.OCamlCompatible.allow<Traces.AllTraces.T> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.AllTraces.T> "ApiServer.Traces"
   Json.OCamlCompatible.allow<Traces.TraceData.Params> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.TraceData.Params> "ApiServer.Traces"

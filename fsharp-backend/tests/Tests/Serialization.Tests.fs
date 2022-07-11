@@ -752,9 +752,7 @@ module GenericSerializersTests =
 
       // Traces
 
-      both<ApiServer.Traces.AllTraces.T>
-        "simple"
-        { traces = [ (testTLID, testUuid) ] }
+      v<ApiServer.Traces.AllTraces.T> "simple" { traces = [ (testTLID, testUuid) ] }
       both<ApiServer.Traces.TraceData.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid }
