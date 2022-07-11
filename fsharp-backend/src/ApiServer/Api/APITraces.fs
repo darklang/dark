@@ -44,7 +44,7 @@ module TraceData =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       t.next "load-canvas"

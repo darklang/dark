@@ -166,6 +166,19 @@ type HttpContextExtensions() =
     }
 
   [<Extension>]
+  static member ReadVanillaJsonAsync<'T>(ctx : HttpContext) : Task<'T> =
+    task {
+      use t = startTimer "read-vanilla-json-async" ctx
+      use ms = new System.IO.MemoryStream()
+      do! ctx.Request.Body.CopyToAsync(ms)
+      let body = ms.ToArray() |> UTF8.ofBytesUnsafe
+      t.next "deserialize-json"
+      let response = Json.Vanilla.deserialize<'T> body
+      return response
+    }
+
+
+  [<Extension>]
   static member SetHeader<'T>(ctx : HttpContext, name : string, value : string) =
     ctx.Response.Headers[ name ] <- StringValues([| value |])
 

@@ -37,7 +37,7 @@ module Delete =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "space", p.space; "path", p.path; "modifier", p.modifier ]
 
       t.next "delete-404"

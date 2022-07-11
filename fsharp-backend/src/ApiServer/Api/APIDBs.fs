@@ -50,7 +50,7 @@ module DBStats =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "tlids", p.tlids ]
 
       t.next "load-canvas"
