@@ -124,8 +124,7 @@ let addRoutes
   clientJsonApi "delete_secret" RW Secrets.Delete.delete
   ocamlCompatibleApi "execute_function" RW Execution.Function.execute
   clientJsonApi "v1/execute_function" RW Execution.Function.execute
-  ocamlCompatibleApi "get_404s" R F404s.List.get
-  clientJsonApi "v1/get_404s" R F404s.List.get
+  clientJsonApi "get_404s" R F404s.List.get
   ocamlCompatibleApi "get_db_stats" R DBs.DBStats.getStats
   clientJsonApi "v1/get_db_stats" R DBs.DBStats.getStats
   clientJsonApiOption "get_trace_data" R Traces.TraceData.getTraceData
@@ -257,7 +256,6 @@ let initSerializers () =
   Json.OCamlCompatible.allow<F404s.Delete.Params> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.Delete.T> "ApiServer.F404s"
-  Json.OCamlCompatible.allow<F404s.List.T> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
   Json.Vanilla.allow<List<Functions.FunctionMetadata>> "ApiServer.Functions"
   Json.OCamlCompatible.allow<InitialLoad.T> "ApiServer.InitialLoad"

@@ -661,7 +661,7 @@ module GenericSerializersTests =
       v<ApiServer.Execution.Handler.T> "simple" { touched_tlids = [ testTLID ] }
 
       // F404s
-      both<ApiServer.F404s.List.T>
+      v<ApiServer.F404s.List.T>
         "simple"
         { f404s = [ ("HTTP", "/", "GET", testInstant, testUuid) ] }
       both<ApiServer.F404s.Delete.Params>
