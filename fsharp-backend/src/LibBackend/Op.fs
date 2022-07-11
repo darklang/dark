@@ -199,15 +199,15 @@ let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
     | PT.DeleteType _ -> true)
 
 type AddOpResult =
-  { toplevels : ORT.toplevel list (* replace *)
-    deleted_toplevels : ORT.toplevel list (* replace, see note above *)
-    user_functions : ORT.fluidExpr ORT.user_fn list (* replace *)
-    deleted_user_functions : ORT.fluidExpr ORT.user_fn list
+  { toplevels : ORT.toplevel list // replace
+    deleted_toplevels : ORT.toplevel list // replace, see note above
+    user_functions : ORT.user_fn list // replace
+    deleted_user_functions : ORT.user_fn list
     user_tipes : ORT.user_tipe list
-    deleted_user_tipes : ORT.user_tipe list (* replace, see deleted_toplevels *)  }
+    deleted_user_tipes : ORT.user_tipe list } // replace, see deleted_toplevels
 
 type AddOpParams =
-  { ops : ORT.fluidExpr OT.oplist
+  { ops : OT.oplist
     opCtr : int
     // option means that we can still deserialize if this field is null
     clientOpCtrId : string option }

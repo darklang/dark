@@ -103,8 +103,6 @@ let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 // Should we redirect insecure requests
 let useHttps = bool "DARK_CONFIG_USE_HTTPS"
 
-let shouldWriteShapeData = bool "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST"
-
 let showStacktrace = bool "DARK_CONFIG_SHOW_STACKTRACE"
 
 // -------------------------
@@ -128,6 +126,21 @@ let rollbarJs =
       LibService.Config.rollbarEnvironment
   | _ -> "{enabled:false}"
 
+
+// -------------------------
+// Serialization
+// -------------------------
+
+/// Generate data for serialization tests. We want this to be off in CI so that we
+/// don't overwrite the tests before running them. In dev environment, git will tell
+/// us if something has changed.
+let serializationGenerateTestData =
+  bool "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA"
+
+/// When serializing values, check that they types we've explicitly allowed and
+/// tested. We want this off in production cases (just in case), but on in
+/// development and testing so that we'll catch types we haven't tested.
+let serializationGenerateCheckTypes = bool "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"
 
 // -------------------------
 // Pusher

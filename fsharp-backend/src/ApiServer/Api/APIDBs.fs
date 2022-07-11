@@ -40,7 +40,9 @@ module Unlocked =
 
 module DBStats =
   type Params = { tlids : tlid list }
+
   type Stat = { count : int; example : Option<ORT.dval * string> }
+
   type T = Map<string, Stat>
 
   /// API endpoint to get statistical data regarding User DBs

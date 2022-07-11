@@ -338,7 +338,7 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 
 let printMetadata (prefix : string) (metadata : Metadata) =
   try
-    List.iter (fun (k, v) -> print $"  {k}: {v}") metadata
+    List.iter (fun (k, v) -> print (sprintf "%s:  %s: %A" prefix k v)) metadata
   with
   | _ -> ()
 
@@ -882,6 +882,16 @@ type Password = Password of byte array
 // ----------------------
 module Json =
 
+  let isBaseType (t : System.Type) =
+    t = typeof<int>
+    || t = typeof<bool>
+    || t = typeof<string>
+    || t = typeof<float>
+    || t = typeof<int64>
+    || t = typeof<uint64>
+    || t = typeof<NodaTime.Instant>
+    || t = typeof<System.Guid>
+
   module Vanilla =
 
     open System.Text.Json
@@ -982,17 +992,70 @@ module Json =
       // supports the type, not the best one
       _options.Converters.Insert(0, c)
 
-    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
+    // ----------------------
+    // Tracking serializers
+    // ----------------------
+
+    // Serializers are easy to be unsure about. We use the Vanilla and
+    // OCamlCompatible serializers a lot for random types, and we would like to be
+    // sure that we don't accidentally change the format of those types by adding new
+    // converters or whatever. Our solution this is:
+
+    // 1) track all types that are serialized and also how they are serialized
+    // 2) store sample input/output for each type
+    // 3) During testing, assert stored sample output has not changed
+    // 4) warn when serializing using a type that is not allowed/tested serializer.
+
+    // We track the types by explicitly calling the `allow<type>` function.  This
+    // adds the type to a dictionary: at test-time we check all members of the
+    // dictionary are accounted for. At runtime we warn if we're attempting to serialize
+    // a type that hasn't been allowed. During development, we upgrade that warning
+    // to an exception.
+    //
+    // See also Serializers.Tests.fs and [/docs/serialization.md]
+
+    let mutable allowedTypes = Dictionary.T<string, string>()
+
+    let rec isSerializable (t : System.Type) : bool =
+      if isBaseType t then true else allowedTypes.ContainsKey(string t)
+
+    let allow<'a> (reason : string) : unit =
+      try
+        let key = string typeof<'a>
+        let reason =
+          if allowedTypes.ContainsKey key then
+            $"{reason}+{allowedTypes[key]}"
+          else
+            reason
+        allowedTypes[key] <- reason
+        ()
+      with
+      | _ -> System.Console.Write("error allowing Vanilla type")
+
+    let assertSerializable (t : System.Type) : unit =
+      if not (isSerializable t) then
+        Exception.raiseInternal
+          "Invalid serialization call to type not allowed: add `do Json.Vanilla.allow<type>()` to allow it to be serialized"
+          [ "type", string t ]
+
+
+
+    let serialize (data : 'a) : string =
+      assertSerializable typeof<'a>
+      JsonSerializer.Serialize(data, _options)
 
     let deserialize<'a> (json : string) : 'a =
+      assertSerializable typeof<'a>
       JsonSerializer.Deserialize<'a>(json, _options)
 
     let deserializeWithComments<'a> (json : string) : 'a =
+      assertSerializable typeof<'a>
       let options = getOptions ()
       options.ReadCommentHandling <- JsonCommentHandling.Skip
       JsonSerializer.Deserialize<'a>(json, options)
 
     let prettySerialize (data : 'a) : string =
+      assertSerializable typeof<'a>
       let options = getOptions ()
       options.WriteIndented <- true
       JsonSerializer.Serialize(data, options)
@@ -1147,21 +1210,6 @@ module Json =
         ) : unit =
         writer.WriteValue("Redacted")
 
-    type NonRedactedPasswordConverter() =
-      inherit JsonConverter<Password>()
-      // Corresponds to the PasswordBytes serializers in OCaml
-      override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode |> Password
-
-      override _.WriteJson
-        (
-          writer : JsonWriter,
-          (Password bytes) : Password,
-          _ : JsonSerializer
-        ) =
-        bytes |> Base64.urlEncodeToString |> writer.WriteValue
-
-
     type OCamlRawBytesConverter() =
       inherit JsonConverter<byte array>()
       // Corresponds to the RawBytes serializers in OCaml, and generates the url-safe
@@ -1283,8 +1331,7 @@ module Json =
         | _ -> writer.WriteValue value
 
 
-    let getSettings (redactPasswords : bool) =
-      // Do NOT redact passwords when calling the legacyServer
+    let getSettings () =
       let settings = JsonSerializerSettings()
       // This might be a potential vulnerability, turn it off anyway
       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
@@ -1293,10 +1340,7 @@ module Json =
       settings.MaxDepth <- System.Int32.MaxValue // infinite
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
-      if redactPasswords then
-        settings.Converters.Add(RedactedPasswordConverter())
-      else
-        settings.Converters.Add(NonRedactedPasswordConverter())
+      settings.Converters.Add(RedactedPasswordConverter())
       settings.Converters.Add(TLIDConverter())
       settings.Converters.Add(LocalDateTimeConverter())
       settings.Converters.Add(FSharpListConverter())
@@ -1307,34 +1351,49 @@ module Json =
       settings.Converters.Add(FSharpTupleConverter()) // gets tripped up so put last
       settings
 
-    let _settings = getSettings true
-    let _legacySettings = getSettings false
+    let _settings = getSettings ()
 
     let registerConverter (c : JsonConverter<'a>) =
       // insert in the front as the formatter will use the first converter that
       // supports the type, not the best one
       _settings.Converters.Insert(0, c)
-      _legacySettings.Converters.Insert(0, c)
 
     let prettySerialize (data : 'a) : string =
-      let settings = getSettings true
+      let settings = getSettings ()
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
+    let mutable allowedTypes = Dictionary.T<string, string>()
+
+    let rec isSerializable (t : System.Type) : bool =
+      if isBaseType t then true else allowedTypes.ContainsKey(string t)
+
+    let allow<'a> (reason : string) : unit =
+      try
+        let key = string typeof<'a>
+        let reason =
+          if allowedTypes.ContainsKey key then
+            $"{reason}+{allowedTypes[key]}"
+          else
+            reason
+        allowedTypes[key] <- reason
+        ()
+      with
+      | _ -> System.Console.Write("error allowing OCamlCompatible type")
+
+    let assertSerializable (t : System.Type) : unit =
+      if not (isSerializable t) then
+        Exception.raiseInternal
+          "Invalid serialization call to type not allowed: add `do Json.OCamlSerialiation.allow<type>()` to allow it to be serialized"
+          [ "type", string t ]
+
     /// Serialize to JSON
-    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
-
-    /// Serialize WITHOUT redacting passwords. Only used for communicating to the
-    /// legacy server, where passwords in Dvals not be redacted because we want to
-    /// interoperate on real values. This is only needed for fuzzing, as we don't
-    /// translate Dvals in the ordinary course of business.
-    let legacySerialize (data : 'a) : string =
-      JsonConvert.SerializeObject(data, _legacySettings)
-
-    let legacyDeserialize<'a> (json : string) : 'a =
-      JsonConvert.DeserializeObject<'a>(json, _legacySettings)
+    let serialize (data : 'a) : string =
+      assertSerializable typeof<'a>
+      JsonConvert.SerializeObject(data, _settings)
 
     let deserialize<'a> (json : string) : 'a =
+      assertSerializable typeof<'a>
       JsonConvert.DeserializeObject<'a>(json, _settings)
 
 
@@ -1958,3 +2017,7 @@ module HttpHeaders =
 
 
 let id (x : int) : id = uint64 x
+
+let init () =
+  // CLEANUP: move somewhere else, we shouldn't be serializing anything here
+  do Json.Vanilla.allow<pos> "Prelude"

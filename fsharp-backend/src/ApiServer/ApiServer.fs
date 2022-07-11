@@ -163,9 +163,7 @@ let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
   else
     app
 
-let rollbarCtxToMetadata
-  (ctx : HttpContext)
-  : (LibService.Rollbar.Person * Metadata) =
+let rollbarCtxToMetadata (ctx : HttpContext) : (Rollbar.Person * Metadata) =
   let person =
     try
       loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
@@ -181,13 +179,12 @@ let rollbarCtxToMetadata
 let configureApp (packages : Packages) (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
-  |> fun app ->
-       LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
+  |> fun app -> Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseHsts()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> LibService.Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
+  |> Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
   |> configureStaticContent
   |> addRoutes packages
   |> ignore<IApplicationBuilder>
@@ -196,11 +193,9 @@ let configureApp (packages : Packages) (appBuilder : WebApplication) =
 // For example, ServerTiming adds a ServerTiming value that is then used by the ServerTiming middleware
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> LibService.Rollbar.AspNet.addRollbarToServices
-  |> LibService.Telemetry.AspNet.addTelemetryToServices
-       "ApiServer"
-       LibService.Telemetry.TraceDBQueries
-  |> LibService.Kubernetes.configureServices []
+  |> Rollbar.AspNet.addRollbarToServices
+  |> Telemetry.AspNet.addTelemetryToServices "ApiServer" Telemetry.TraceDBQueries
+  |> Kubernetes.configureServices []
   |> fun s -> s.AddServerTiming()
   |> fun s -> s.AddHsts(LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
@@ -232,6 +227,36 @@ let run (packages : Packages) : unit =
   let k8sPort = LibService.Config.apiServerKubernetesPort
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
+let initSerializers () =
+  do Json.OCamlCompatible.allow<AddOps.Params> "ApiServer.AddOps"
+  do Json.OCamlCompatible.allow<AddOps.T> "ApiServer.AddOps"
+  do Json.OCamlCompatible.allow<DBs.DBStats.Params> "ApiServer.DBs"
+  do Json.OCamlCompatible.allow<DBs.DBStats.T> "ApiServer.DBs"
+  do Json.OCamlCompatible.allow<DBs.Unlocked.T> "ApiServer.DBs"
+  do Json.OCamlCompatible.allow<Execution.Function.Params> "ApiServer.Execution"
+  do Json.OCamlCompatible.allow<Execution.Function.T> "ApiServer.Execution"
+  do Json.OCamlCompatible.allow<Execution.Handler.Params> "ApiServer.Execution"
+  do Json.OCamlCompatible.allow<Execution.Handler.T> "ApiServer.Execution"
+  do Json.OCamlCompatible.allow<F404s.Delete.Params> "ApiServer.F404s"
+  do Json.OCamlCompatible.allow<F404s.Delete.T> "ApiServer.F404s"
+  do Json.OCamlCompatible.allow<F404s.List.T> "ApiServer.F404s"
+  do Json.Vanilla.allow<List<Functions.FunctionMetadata>> "ApiServer.Functions"
+  do Json.OCamlCompatible.allow<InitialLoad.T> "ApiServer.InitialLoad"
+  do Json.OCamlCompatible.allow<Packages.List.T> "ApiServer.Packages"
+  do Json.OCamlCompatible.allow<Secrets.Delete.Params> "ApiServer.Secrets"
+  do Json.OCamlCompatible.allow<Secrets.Delete.T> "ApiServer.Secrets"
+  do Json.OCamlCompatible.allow<Secrets.Insert.Params> "ApiServer.Secrets"
+  do Json.OCamlCompatible.allow<Secrets.Insert.T> "ApiServer.Secrets"
+  do Json.OCamlCompatible.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
+  do Json.OCamlCompatible.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
+  do Json.OCamlCompatible.allow<Traces.AllTraces.T> "ApiServer.Traces"
+  do Json.OCamlCompatible.allow<Traces.TraceData.Params> "ApiServer.Traces"
+  do Json.Vanilla.allow<Traces.TraceData.T> "ApiServer.Traces"
+  do Json.OCamlCompatible.allow<Workers.Scheduler.Params> "ApiServer.Workers"
+  do Json.OCamlCompatible.allow<Workers.Scheduler.T> "ApiServer.Workers"
+  do Json.OCamlCompatible.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
+  do Json.OCamlCompatible.allow<Workers.WorkerStats.T> "ApiServer.Workers"
+  do Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
 
 
@@ -240,12 +265,16 @@ let main _ =
   try
     let name = "ApiServer"
     print "Starting ApiServer"
+    Prelude.init ()
     LibService.Init.init name
+    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
     if Config.createAccounts then
       LibBackend.Account.initializeDevelopmentAccounts(name).Result
+
+    initSerializers ()
 
     let packages = LibBackend.PackageManager.allFunctions().Result
     run packages

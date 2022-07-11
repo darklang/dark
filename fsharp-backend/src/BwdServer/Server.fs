@@ -520,9 +520,12 @@ let main _ =
   try
     let name = "BwdServer"
     print "Starting BwdServer"
+    Prelude.init ()
     LibService.Init.init name
+    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
+
     run ()
     // CLEANUP I suspect this isn't called
     LibService.Init.shutdown name

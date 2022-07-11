@@ -62,101 +62,6 @@ let debugRollbarConfig () =
 
   ()
 
-
-let init (serviceName : string) : unit =
-  print "Configuring Rollbar"
-  let config =
-    Rollbar.RollbarInfrastructureConfig(
-      Config.rollbarServerAccessToken,
-      Config.rollbarEnvironment
-    )
-  // We don't have any settings here
-  // let _destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
-  // let _telemetryOptions = config.RollbarTelemetryOptions
-
-  // Offline storage
-  let offlineStoreOptions = config.RollbarOfflineStoreOptions
-  let osOpts = Rollbar.RollbarOfflineStoreOptions()
-  osOpts.EnableLocalPayloadStore <- false
-  offlineStoreOptions.Reconfigure osOpts
-  |> ignore<Rollbar.IRollbarOfflineStoreOptions>
-
-  // Main options
-  let iOpts = Rollbar.RollbarInfrastructureOptions()
-  iOpts.CaptureUncaughtExceptions <- true // doesn't seem to work afaict (true in v4, unclear in v5)
-  config.RollbarInfrastructureOptions.Reconfigure(iOpts)
-  |> ignore<Rollbar.IRollbarInfrastructureOptions>
-
-  let dOpts = Rollbar.RollbarDeveloperOptions()
-  dOpts.Enabled <- Config.rollbarEnabled
-  dOpts.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
-  dOpts.Transmit <- true
-  dOpts.RethrowExceptionsAfterReporting <- false
-  dOpts.WrapReportedExceptionWithRollbarException <- false
-  config.RollbarLoggerConfig.RollbarDeveloperOptions.Reconfigure(dOpts)
-  |> ignore<Rollbar.IRollbarDeveloperOptions>
-
-  // data options
-  let dsOpts = Rollbar.RollbarDataSecurityOptions()
-  dsOpts.ScrubFields <-
-    Array.append
-      config.RollbarLoggerConfig.RollbarDataSecurityOptions.ScrubFields
-      [| "Set-Cookie"; "Cookie"; "Authorization"; "x-csrf-token" |]
-  config.RollbarLoggerConfig.RollbarDataSecurityOptions.Reconfigure dsOpts
-  |> ignore<Rollbar.IRollbarDataSecurityOptions>
-
-  let paOpts = Rollbar.RollbarPayloadAdditionOptions()
-
-  let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
-  state["service"] <- serviceName
-  paOpts.Server <- Rollbar.DTOs.Server(state)
-  paOpts.Server.Host <- Config.hostName
-  paOpts.Server.Root <- Config.rootDir
-  paOpts.Server.CodeVersion <- Config.buildHash
-  config.RollbarLoggerConfig.RollbarPayloadAdditionOptions.Reconfigure paOpts
-  |> ignore<Rollbar.IRollbarPayloadAdditionOptions>
-
-
-  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
-  let pmOpts = Rollbar.RollbarPayloadManipulationOptions()
-  pmOpts.Transform <- (fun payload -> payload.Data.Language <- "f#")
-  config.RollbarLoggerConfig.RollbarPayloadManipulationOptions.Reconfigure pmOpts
-  |> ignore<Rollbar.IRollbarPayloadManipulationOptions>
-
-  // Initialize
-  Rollbar.RollbarInfrastructure.Instance.Init(config)
-
-  // Debug Rollbar internals - when a Rollbar log is made, we lose sight of it.
-  // Enabling this callback lets us see what actually happens when it's processed
-  Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
-    (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
-
-  // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
-  // We actually want to call
-  // Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor.Disable() to disable
-  // the ConnectivityMonitor. However, ConnectivityMonitor is an internal class, and
-  // we're only provided access to an IConnectivityMonitor, which does not have that
-  // method.
-  // We need to disable this because the ConnectivityMonitor checks for
-  // www.rollbar.com:80 instead of api.rollbar.com:443, and we firewall that off in
-  // production.
-  // let cm = Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor
-  // cm
-  //   .GetType()
-  //   .InvokeMember(
-  //     "Disable",
-  //     System.Reflection.BindingFlags.Public
-  //     ||| System.Reflection.BindingFlags.InvokeMethod
-  //     ||| System.Reflection.BindingFlags.Instance,
-  //     null,
-  //     cm,
-  //     [||]
-  //   )
-  // |> ignore<obj>
-
-  print " Configured rollbar"
-  ()
-
 // -------------------------------
 // Honeycomb
 // -------------------------------
@@ -452,3 +357,99 @@ module AspNet =
     app.UseMiddleware<DarkRollbarMiddleware>(
       { ctxMetadataFn = ctxMetadataFn; ignoreStartupPath = ignoreStartupPath }
     )
+
+
+let init (serviceName : string) : unit =
+  print "Configuring Rollbar"
+  do Json.Vanilla.allow<HoneycombJson> "Rollbar"
+  let config =
+    Rollbar.RollbarInfrastructureConfig(
+      Config.rollbarServerAccessToken,
+      Config.rollbarEnvironment
+    )
+  // We don't have any settings here
+  // let _destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
+  // let _telemetryOptions = config.RollbarTelemetryOptions
+
+  // Offline storage
+  let offlineStoreOptions = config.RollbarOfflineStoreOptions
+  let osOpts = Rollbar.RollbarOfflineStoreOptions()
+  osOpts.EnableLocalPayloadStore <- false
+  offlineStoreOptions.Reconfigure osOpts
+  |> ignore<Rollbar.IRollbarOfflineStoreOptions>
+
+  // Main options
+  let iOpts = Rollbar.RollbarInfrastructureOptions()
+  iOpts.CaptureUncaughtExceptions <- true // doesn't seem to work afaict (true in v4, unclear in v5)
+  config.RollbarInfrastructureOptions.Reconfigure(iOpts)
+  |> ignore<Rollbar.IRollbarInfrastructureOptions>
+
+  let dOpts = Rollbar.RollbarDeveloperOptions()
+  dOpts.Enabled <- Config.rollbarEnabled
+  dOpts.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
+  dOpts.Transmit <- true
+  dOpts.RethrowExceptionsAfterReporting <- false
+  dOpts.WrapReportedExceptionWithRollbarException <- false
+  config.RollbarLoggerConfig.RollbarDeveloperOptions.Reconfigure(dOpts)
+  |> ignore<Rollbar.IRollbarDeveloperOptions>
+
+  // data options
+  let dsOpts = Rollbar.RollbarDataSecurityOptions()
+  dsOpts.ScrubFields <-
+    Array.append
+      config.RollbarLoggerConfig.RollbarDataSecurityOptions.ScrubFields
+      [| "Set-Cookie"; "Cookie"; "Authorization"; "x-csrf-token" |]
+  config.RollbarLoggerConfig.RollbarDataSecurityOptions.Reconfigure dsOpts
+  |> ignore<Rollbar.IRollbarDataSecurityOptions>
+
+  let paOpts = Rollbar.RollbarPayloadAdditionOptions()
+
+  let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
+  state["service"] <- serviceName
+  paOpts.Server <- Rollbar.DTOs.Server(state)
+  paOpts.Server.Host <- Config.hostName
+  paOpts.Server.Root <- Config.rootDir
+  paOpts.Server.CodeVersion <- Config.buildHash
+  config.RollbarLoggerConfig.RollbarPayloadAdditionOptions.Reconfigure paOpts
+  |> ignore<Rollbar.IRollbarPayloadAdditionOptions>
+
+
+  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
+  let pmOpts = Rollbar.RollbarPayloadManipulationOptions()
+  pmOpts.Transform <- (fun payload -> payload.Data.Language <- "f#")
+  config.RollbarLoggerConfig.RollbarPayloadManipulationOptions.Reconfigure pmOpts
+  |> ignore<Rollbar.IRollbarPayloadManipulationOptions>
+
+  // Initialize
+  Rollbar.RollbarInfrastructure.Instance.Init(config)
+
+  // Debug Rollbar internals - when a Rollbar log is made, we lose sight of it.
+  // Enabling this callback lets us see what actually happens when it's processed
+  Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
+    (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
+
+  // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
+  // We actually want to call
+  // Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor.Disable() to disable
+  // the ConnectivityMonitor. However, ConnectivityMonitor is an internal class, and
+  // we're only provided access to an IConnectivityMonitor, which does not have that
+  // method.
+  // We need to disable this because the ConnectivityMonitor checks for
+  // www.rollbar.com:80 instead of api.rollbar.com:443, and we firewall that off in
+  // production.
+  // let cm = Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor
+  // cm
+  //   .GetType()
+  //   .InvokeMember(
+  //     "Disable",
+  //     System.Reflection.BindingFlags.Public
+  //     ||| System.Reflection.BindingFlags.InvokeMethod
+  //     ||| System.Reflection.BindingFlags.Instance,
+  //     null,
+  //     cm,
+  //     [||]
+  //   )
+  // |> ignore<obj>
+
+  print " Configured rollbar"
+  ()

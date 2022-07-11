@@ -41,6 +41,7 @@ type EventID = System.Guid
 
 /// Notifications are sent by PubSub to say that now would be a good time to try this
 /// event. We only load events in response to notifications.
+
 type NotificationData = { id : EventID; canvasID : CanvasID }
 
 type Notification =
@@ -334,6 +335,8 @@ let dequeue (count : int) : Task<List<Notification>> =
           pubSubAckID = envelope.AckId })
   }
 
+
+
 let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
   task {
     if ids <> [] then
@@ -435,6 +438,7 @@ let requeueSavedEvents (canvasID : CanvasID) (handlerName : string) : Task<unit>
   }
 
 let init () : Task<unit> =
+  do Json.Vanilla.allow<NotificationData> "eventqueue storage"
   task {
     let! (_ : PublisherServiceApiClient) = publisher.Force()
     let! (_ : SubscriberServiceApiClient) = subscriber.Force()
