@@ -255,7 +255,12 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "Date" "subtract" 0) }
 
 
-    { name = fn "Date" "subtract" 0
+    // Note: this was was previously named`Date::subtract_v0`.
+    // A new Date::subtract_v1 was created to replace this, and subtract_v0 got
+    // replaced with this ::subtractSeconds_v0. "Date::subtract" implies that
+    // you are subtracting one date from another, so subtracting anything else
+    // should include the name of the relevant unit in the fn name.
+    { name = fn "Date" "subtractSeconds" 0
       parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
       returnType = TDate
       description = "Returns a new Date `seconds` seconds before `d`"
@@ -576,5 +581,25 @@ let fns : List<BuiltInFn> =
           DDateTime.T(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    // TODO: when we have timespans in Dark, deprecate this
+    // in favor of a fn which returns a timespan rather than seconds
+    //
+    // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
+    // currently support such a complex sqlSpec in Dark fns.
+    { name = fn "Date" "subtract" 1
+      parameters = [ Param.make "end" TDate ""; Param.make "start" TDate "" ]
+      returnType = TInt
+      description = "Returns the difference of the two dates, in seconds"
+      fn =
+        (function
+        | _, [ DDate endDate; DDate startDate ] ->
+          let diff = (DDateTime.toInstant endDate) - (DDateTime.toInstant startDate)
+          diff.TotalSeconds |> System.Math.Round |> int64 |> DInt |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

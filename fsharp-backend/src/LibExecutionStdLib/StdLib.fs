@@ -18,7 +18,8 @@ let renames =
     fn "JSON" "read" 1, fn "JSON" "parse" 0
     fn "Object" "empty" 0, fn "Dict" "empty" 0
     fn "Object" "merge" 0, fn "Dict" "merge" 0
-    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0 ]
+    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0
+    fn "Date" "subtract" 0, fn "Date" "subtractSeconds" 0 ]
 
 
 let prefixFns : List<BuiltInFn> =
