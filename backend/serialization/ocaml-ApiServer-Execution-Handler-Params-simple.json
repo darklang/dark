@@ -3116,6 +3116,35 @@
               ]
             ]
           ],
+          "simple2Tuple": [
+            "DTuple",
+            [
+              "DInt",
+              1
+            ],
+            [
+              "DInt",
+              2
+            ],
+            []
+          ],
+          "simple3Tuple": [
+            "DTuple",
+            [
+              "DInt",
+              1
+            ],
+            [
+              "DInt",
+              2
+            ],
+            [
+              [
+                "DInt",
+                3
+              ]
+            ]
+          ],
           "skin tone": [
             "DStr",
             "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
@@ -3135,6 +3164,40 @@
           "true": [
             "DBool",
             true
+          ],
+          "tupleWithError": [
+            "DTuple",
+            [
+              "DInt",
+              1
+            ],
+            [
+              "DResult",
+              [
+                "ResError",
+                [
+                  "DStr",
+                  "error"
+                ]
+              ]
+            ],
+            []
+          ],
+          "tupleWithNull": [
+            "DTuple",
+            [
+              "DInt",
+              1
+            ],
+            [
+              "DInt",
+              2
+            ],
+            [
+              [
+                "DNull"
+              ]
+            ]
           ],
           "unicode4": [
             "DStr",

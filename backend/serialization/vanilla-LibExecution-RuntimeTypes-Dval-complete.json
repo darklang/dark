@@ -3151,6 +3151,35 @@
         ]
       ]
     ],
+    "simple2Tuple": [
+      "DTuple",
+      [
+        "DInt",
+        1
+      ],
+      [
+        "DInt",
+        2
+      ],
+      []
+    ],
+    "simple3Tuple": [
+      "DTuple",
+      [
+        "DInt",
+        1
+      ],
+      [
+        "DInt",
+        2
+      ],
+      [
+        [
+          "DInt",
+          3
+        ]
+      ]
+    ],
     "skin tone": [
       "DStr",
       "\uD83E\uDDD1\uD83C\uDFFD\u200D\uD83E\uDDB0\uD83E\uDDD1\uD83C\uDFFC\u200D\uD83D\uDCBB\uD83E\uDDD1\uD83C\uDFFB\u200D\uD83C\uDF7C\u270B\u270B\uD83C\uDFFB\u270B\uD83C\uDFFF"
@@ -3170,6 +3199,40 @@
     "true": [
       "DBool",
       true
+    ],
+    "tupleWithError": [
+      "DTuple",
+      [
+        "DInt",
+        1
+      ],
+      [
+        "DResult",
+        [
+          "Error",
+          [
+            "DStr",
+            "error"
+          ]
+        ]
+      ],
+      []
+    ],
+    "tupleWithNull": [
+      "DTuple",
+      [
+        "DInt",
+        1
+      ],
+      [
+        "DInt",
+        2
+      ],
+      [
+        [
+          "DNull"
+        ]
+      ]
     ],
     "unicode4": [
       "DStr",
