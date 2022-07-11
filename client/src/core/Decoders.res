@@ -175,6 +175,7 @@ let rec tipe = (j): tipe => {
   let dv0 = variant0
   let dv1 = variant1
   let dv2 = variant2
+  let dv3 = variant3
   variants(
     list{
       ("TInt", dv0(TInt)),
@@ -184,7 +185,7 @@ let rec tipe = (j): tipe => {
       ("TFloat", dv0(TFloat)),
       ("TObj", dv0(TObj)),
       ("TList", dv0(TList)),
-      ("TTuple", dv0(TTuple(TAny, TAny, list{}))),
+      ("TTuple", dv3((first, second, theRest) => TTuple(first, second, theRest), tipe, tipe, list(tipe))),
       ("TAny", dv0(TAny)),
       ("TNull", dv0(TNull)),
       ("TBlock", dv0(TBlock)),

@@ -28,14 +28,13 @@ let run = () => {
     })
   })
 
-  // This fails to roundtrip. Why? Is that expected?
-  // describe("tipe", () => {
-  //   let roundtrip = tipe => tipe |> Encoders.tipe |> Decoders.tipe
+  describe("tipe", () => {
+    let roundtrip = tipe => tipe |> Encoders.tipe |> Decoders.tipe
 
-  //   test("tuple tipe roundtrips", () => {
-  //     let tipe = TTuple(TInt, TFloat, list{TIncomplete})
+    test("tuple tipe roundtrips", () => {
+      let tipe = TTuple(TInt, TFloat, list{TIncomplete})
 
-  //     expect(tipe |> roundtrip) |> toEqual(tipe)
-  //   })
-  // })
+      expect(tipe |> roundtrip) |> toEqual(tipe)
+    })
+  })
 }
