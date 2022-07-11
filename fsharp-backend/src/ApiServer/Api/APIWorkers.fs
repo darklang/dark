@@ -32,7 +32,7 @@ module WorkerStats =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTag "tlid" p.tlid
 
       t.next "analyse-worker-stats"
@@ -50,7 +50,7 @@ module Scheduler =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "name", p.name; "schedule", p.schedule ]
 
       t.next "schedule-worker"

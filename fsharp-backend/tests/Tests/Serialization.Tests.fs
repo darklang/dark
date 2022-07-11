@@ -633,7 +633,7 @@ module GenericSerializersTests =
 
       // DBs
 
-      both<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
+      v<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
       both<ApiServer.DBs.DBStats.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
@@ -664,7 +664,7 @@ module GenericSerializersTests =
       v<ApiServer.F404s.List.T>
         "simple"
         { f404s = [ ("HTTP", "/", "GET", testInstant, testUuid) ] }
-      both<ApiServer.F404s.Delete.Params>
+      v<ApiServer.F404s.Delete.Params>
         "simple"
         { space = "HTTP"; path = "/"; modifier = "POST" }
       v<ApiServer.F404s.Delete.T> "simple" { result = "success" }
@@ -733,12 +733,12 @@ module GenericSerializersTests =
 
       // Secrets
 
-      both<ApiServer.Secrets.Delete.Params> "simple" { secret_name = "test" }
+      v<ApiServer.Secrets.Delete.Params> "simple" { secret_name = "test" }
       v<ApiServer.Secrets.Delete.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
-      both<ApiServer.Secrets.Insert.Params>
+      v<ApiServer.Secrets.Insert.Params>
         "simple"
         { secret_name = "test"; secret_value = "secret" }
       v<ApiServer.Secrets.Insert.T>
@@ -747,13 +747,13 @@ module GenericSerializersTests =
 
       // Toplevels
 
-      both<ApiServer.Toplevels.Delete.Params> "simple" { tlid = testTLID }
+      v<ApiServer.Toplevels.Delete.Params> "simple" { tlid = testTLID }
       v<ApiServer.Toplevels.Delete.T> "simple" { result = "success" }
 
       // Traces
 
       v<ApiServer.Traces.AllTraces.T> "simple" { traces = [ (testTLID, testUuid) ] }
-      both<ApiServer.Traces.TraceData.Params>
+      v<ApiServer.Traces.TraceData.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid }
       v<ApiServer.Traces.TraceData.T>
@@ -766,12 +766,12 @@ module GenericSerializersTests =
 
       // Workers
 
-      both<ApiServer.Workers.Scheduler.Params>
+      v<ApiServer.Workers.Scheduler.Params>
         "simple"
         { name = "x"; schedule = "pause" }
       v<ApiServer.Workers.Scheduler.T> "all" testWorkerStates
 
-      both<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
+      v<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
       v<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
 
       // ------------------

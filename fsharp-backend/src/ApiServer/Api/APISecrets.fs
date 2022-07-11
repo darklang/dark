@@ -33,7 +33,7 @@ module Insert =
       try
         t.next "read-api"
         let canvasInfo = loadCanvasInfo ctx
-        let! p = ctx.ReadJsonAsync<Params>()
+        let! p = ctx.ReadVanillaJsonAsync<Params>()
         Telemetry.addTags [ "secret_name", p.secret_name ]
 
         t.next "insert-secret"
@@ -74,7 +74,7 @@ module Delete =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "secret_name", p.secret_name ]
 
       // TODO: only do this if the secret is not used on the canvas
