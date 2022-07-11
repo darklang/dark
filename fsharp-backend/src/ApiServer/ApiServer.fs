@@ -116,23 +116,39 @@ let addRoutes
   addRoute "GET" "/a/{canvasName}/trigger-exception" std R exceptionFn
 
   ocamlCompatibleApi "add_op" RW AddOps.addOp
+  clientJsonApi "v1/add_op" RW AddOps.addOp
   ocamlCompatibleApi "all_traces" R Traces.AllTraces.fetchAll
+  clientJsonApi "v1/all_traces" R Traces.AllTraces.fetchAll
   ocamlCompatibleApi "delete_404" RW F404s.Delete.delete
+  clientJsonApi "v1/delete_404" RW F404s.Delete.delete
   ocamlCompatibleApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
+  clientJsonApiOption "v1/delete-toplevel-forever" RW Toplevels.Delete.delete
   ocamlCompatibleApi "delete_secret" RW Secrets.Delete.delete
+  clientJsonApi "v1/delete_secret" RW Secrets.Delete.delete
   ocamlCompatibleApi "execute_function" RW Execution.Function.execute
+  clientJsonApi "v1/execute_function" RW Execution.Function.execute
   ocamlCompatibleApi "get_404s" R F404s.List.get
+  clientJsonApi "v1/get_404s" R F404s.List.get
   ocamlCompatibleApi "get_db_stats" R DBs.DBStats.getStats
+  clientJsonApi "v1/get_db_stats" R DBs.DBStats.getStats
   clientJsonApiOption "get_trace_data" R Traces.TraceData.getTraceData
+  clientJsonApiOption "v1/get_trace_data" R Traces.TraceData.getTraceData
   ocamlCompatibleApi "get_unlocked_dbs" R DBs.Unlocked.get
+  clientJsonApi "v1/get_unlocked_dbs" R DBs.Unlocked.get
   ocamlCompatibleApi "get_worker_stats" R Workers.WorkerStats.getStats
+  clientJsonApi "v1/get_worker_stats" R Workers.WorkerStats.getStats
   ocamlCompatibleApi "initial_load" R InitialLoad.initialLoad
+  clientJsonApi "v1/initial_load" R InitialLoad.initialLoad
   ocamlCompatibleApi "insert_secret" RW Secrets.Insert.insert
+  clientJsonApi "v1/insert_secret" RW Secrets.Insert.insert
   ocamlCompatibleApi "packages" R (Packages.List.packages packages)
+  clientJsonApi "v1/packages" R (Packages.List.packages packages)
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
   ocamlCompatibleApi "trigger_handler" RW Execution.Handler.trigger
+  clientJsonApi "v1/trigger_handler" RW Execution.Handler.trigger
   ocamlCompatibleApi "worker_schedule" RW Workers.Scheduler.updateSchedule
+  clientJsonApi "v1/worker_schedule" RW Workers.Scheduler.updateSchedule
   app.UseRouter(builder.Build())
 
 
@@ -228,35 +244,61 @@ let run (packages : Packages) : unit =
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
 let initSerializers () =
-  do Json.OCamlCompatible.allow<AddOps.Params> "ApiServer.AddOps"
-  do Json.OCamlCompatible.allow<AddOps.T> "ApiServer.AddOps"
-  do Json.OCamlCompatible.allow<DBs.DBStats.Params> "ApiServer.DBs"
-  do Json.OCamlCompatible.allow<DBs.DBStats.T> "ApiServer.DBs"
-  do Json.OCamlCompatible.allow<DBs.Unlocked.T> "ApiServer.DBs"
-  do Json.OCamlCompatible.allow<Execution.Function.Params> "ApiServer.Execution"
-  do Json.OCamlCompatible.allow<Execution.Function.T> "ApiServer.Execution"
-  do Json.OCamlCompatible.allow<Execution.Handler.Params> "ApiServer.Execution"
-  do Json.OCamlCompatible.allow<Execution.Handler.T> "ApiServer.Execution"
-  do Json.OCamlCompatible.allow<F404s.Delete.Params> "ApiServer.F404s"
-  do Json.OCamlCompatible.allow<F404s.Delete.T> "ApiServer.F404s"
-  do Json.OCamlCompatible.allow<F404s.List.T> "ApiServer.F404s"
-  do Json.Vanilla.allow<List<Functions.FunctionMetadata>> "ApiServer.Functions"
-  do Json.OCamlCompatible.allow<InitialLoad.T> "ApiServer.InitialLoad"
-  do Json.OCamlCompatible.allow<Packages.List.T> "ApiServer.Packages"
-  do Json.OCamlCompatible.allow<Secrets.Delete.Params> "ApiServer.Secrets"
-  do Json.OCamlCompatible.allow<Secrets.Delete.T> "ApiServer.Secrets"
-  do Json.OCamlCompatible.allow<Secrets.Insert.Params> "ApiServer.Secrets"
-  do Json.OCamlCompatible.allow<Secrets.Insert.T> "ApiServer.Secrets"
-  do Json.OCamlCompatible.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
-  do Json.OCamlCompatible.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
-  do Json.OCamlCompatible.allow<Traces.AllTraces.T> "ApiServer.Traces"
-  do Json.OCamlCompatible.allow<Traces.TraceData.Params> "ApiServer.Traces"
-  do Json.Vanilla.allow<Traces.TraceData.T> "ApiServer.Traces"
-  do Json.OCamlCompatible.allow<Workers.Scheduler.Params> "ApiServer.Workers"
-  do Json.OCamlCompatible.allow<Workers.Scheduler.T> "ApiServer.Workers"
-  do Json.OCamlCompatible.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
-  do Json.OCamlCompatible.allow<Workers.WorkerStats.T> "ApiServer.Workers"
-  do Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
+  Json.OCamlCompatible.allow<AddOps.Params> "ApiServer.AddOps"
+  Json.Vanilla.allow<AddOps.Params> "ApiServer.AddOps"
+  Json.OCamlCompatible.allow<AddOps.T> "ApiServer.AddOps"
+  Json.Vanilla.allow<AddOps.T> "ApiServer.AddOps"
+  Json.OCamlCompatible.allow<DBs.DBStats.Params> "ApiServer.DBs"
+  Json.Vanilla.allow<DBs.DBStats.Params> "ApiServer.DBs"
+  Json.OCamlCompatible.allow<DBs.DBStats.T> "ApiServer.DBs"
+  Json.Vanilla.allow<DBs.DBStats.T> "ApiServer.DBs"
+  Json.OCamlCompatible.allow<DBs.Unlocked.T> "ApiServer.DBs"
+  Json.Vanilla.allow<DBs.Unlocked.T> "ApiServer.DBs"
+  Json.OCamlCompatible.allow<Execution.Function.Params> "ApiServer.Execution"
+  Json.Vanilla.allow<Execution.Function.Params> "ApiServer.Execution"
+  Json.OCamlCompatible.allow<Execution.Function.T> "ApiServer.Execution"
+  Json.Vanilla.allow<Execution.Function.T> "ApiServer.Execution"
+  Json.OCamlCompatible.allow<Execution.Handler.Params> "ApiServer.Execution"
+  Json.Vanilla.allow<Execution.Handler.Params> "ApiServer.Execution"
+  Json.OCamlCompatible.allow<Execution.Handler.T> "ApiServer.Execution"
+  Json.Vanilla.allow<Execution.Handler.T> "ApiServer.Execution"
+  Json.OCamlCompatible.allow<F404s.Delete.Params> "ApiServer.F404s"
+  Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"
+  Json.OCamlCompatible.allow<F404s.Delete.T> "ApiServer.F404s"
+  Json.Vanilla.allow<F404s.Delete.T> "ApiServer.F404s"
+  Json.OCamlCompatible.allow<F404s.List.T> "ApiServer.F404s"
+  Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
+  Json.Vanilla.allow<List<Functions.FunctionMetadata>> "ApiServer.Functions"
+  Json.OCamlCompatible.allow<InitialLoad.T> "ApiServer.InitialLoad"
+  Json.Vanilla.allow<InitialLoad.T> "ApiServer.InitialLoad"
+  Json.OCamlCompatible.allow<Packages.List.T> "ApiServer.Packages"
+  Json.Vanilla.allow<Packages.List.T> "ApiServer.Packages"
+  Json.OCamlCompatible.allow<Secrets.Delete.Params> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.Delete.Params> "ApiServer.Secrets"
+  Json.OCamlCompatible.allow<Secrets.Delete.T> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.Delete.T> "ApiServer.Secrets"
+  Json.OCamlCompatible.allow<Secrets.Insert.Params> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.Insert.Params> "ApiServer.Secrets"
+  Json.OCamlCompatible.allow<Secrets.Insert.T> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.Insert.T> "ApiServer.Secrets"
+  Json.OCamlCompatible.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
+  Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
+  Json.OCamlCompatible.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
+  Json.Vanilla.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
+  Json.OCamlCompatible.allow<Traces.AllTraces.T> "ApiServer.Traces"
+  Json.Vanilla.allow<Traces.AllTraces.T> "ApiServer.Traces"
+  Json.OCamlCompatible.allow<Traces.TraceData.Params> "ApiServer.Traces"
+  Json.Vanilla.allow<Traces.TraceData.Params> "ApiServer.Traces"
+  Json.Vanilla.allow<Traces.TraceData.T> "ApiServer.Traces"
+  Json.OCamlCompatible.allow<Workers.Scheduler.Params> "ApiServer.Workers"
+  Json.Vanilla.allow<Workers.Scheduler.Params> "ApiServer.Workers"
+  Json.OCamlCompatible.allow<Workers.Scheduler.T> "ApiServer.Workers"
+  Json.Vanilla.allow<Workers.Scheduler.T> "ApiServer.Workers"
+  Json.OCamlCompatible.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
+  Json.Vanilla.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
+  Json.OCamlCompatible.allow<Workers.WorkerStats.T> "ApiServer.Workers"
+  Json.Vanilla.allow<Workers.WorkerStats.T> "ApiServer.Workers"
+  Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
 
 

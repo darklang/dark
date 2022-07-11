@@ -625,49 +625,49 @@ module GenericSerializersTests =
       // ------------------
 
       // AddOps
-      oc<ApiServer.AddOps.Params>
+      both<ApiServer.AddOps.Params>
         "simple"
         { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
-      oc<ApiServer.AddOps.T> "simple" testAddOpEvent
+      both<ApiServer.AddOps.T> "simple" testAddOpEvent
 
 
       // DBs
 
-      oc<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
-      oc<ApiServer.DBs.DBStats.T>
+      both<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
+      both<ApiServer.DBs.DBStats.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
                       "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
-      oc<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
+      both<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
 
       // Execution
-      oc<ApiServer.Execution.Function.Params>
+      both<ApiServer.Execution.Function.Params>
         "simple"
         { tlid = testTLID
           trace_id = testUuid
           caller_id = 7UL
           args = [ testOCamlDval ]
           fnname = "Int::mod_v0" }
-      oc<ApiServer.Execution.Function.T>
+      both<ApiServer.Execution.Function.T>
         "simple"
         { result = testOCamlDval
           hash = "abcd"
           hashVersion = 0
           touched_tlids = [ testTLID ]
           unlocked_dbs = [ testTLID ] }
-      oc<ApiServer.Execution.Handler.Params>
+      both<ApiServer.Execution.Handler.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
-      oc<ApiServer.Execution.Handler.T> "simple" { touched_tlids = [ testTLID ] }
+      both<ApiServer.Execution.Handler.T> "simple" { touched_tlids = [ testTLID ] }
 
       // F404s
-      oc<ApiServer.F404s.List.T>
+      both<ApiServer.F404s.List.T>
         "simple"
         { f404s = [ ("HTTP", "/", "GET", testInstant, testUuid) ] }
-      oc<ApiServer.F404s.Delete.Params>
+      both<ApiServer.F404s.Delete.Params>
         "simple"
         { space = "HTTP"; path = "/"; modifier = "POST" }
-      oc<ApiServer.F404s.Delete.T> "simple" { result = "success" }
+      both<ApiServer.F404s.Delete.T> "simple" { result = "success" }
 
       // Functions
 
@@ -688,7 +688,7 @@ module GenericSerializersTests =
             is_supported_in_query = false } ]
 
       // InitialLoad
-      oc<ApiServer.InitialLoad.T>
+      both<ApiServer.InitialLoad.T>
         "initial"
         { toplevels = testOCamlToplevels
           deleted_toplevels = testOCamlToplevels
@@ -715,7 +715,7 @@ module GenericSerializersTests =
 
       // Packages
 
-      oc<ApiServer.Packages.List.T>
+      both<ApiServer.Packages.List.T>
         "simple"
         [ { user = "dark"
             package = "stdlib"
@@ -733,27 +733,29 @@ module GenericSerializersTests =
 
       // Secrets
 
-      oc<ApiServer.Secrets.Delete.Params> "simple" { secret_name = "test" }
-      oc<ApiServer.Secrets.Delete.T>
+      both<ApiServer.Secrets.Delete.Params> "simple" { secret_name = "test" }
+      both<ApiServer.Secrets.Delete.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
-      oc<ApiServer.Secrets.Insert.Params>
+      both<ApiServer.Secrets.Insert.Params>
         "simple"
         { secret_name = "test"; secret_value = "secret" }
-      oc<ApiServer.Secrets.Insert.T>
+      both<ApiServer.Secrets.Insert.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
       // Toplevels
 
-      oc<ApiServer.Toplevels.Delete.Params> "simple" { tlid = testTLID }
-      oc<ApiServer.Toplevels.Delete.T> "simple" { result = "success" }
+      both<ApiServer.Toplevels.Delete.Params> "simple" { tlid = testTLID }
+      both<ApiServer.Toplevels.Delete.T> "simple" { result = "success" }
 
       // Traces
 
-      oc<ApiServer.Traces.AllTraces.T> "simple" { traces = [ (testTLID, testUuid) ] }
-      oc<ApiServer.Traces.TraceData.Params>
+      both<ApiServer.Traces.AllTraces.T>
+        "simple"
+        { traces = [ (testTLID, testUuid) ] }
+      both<ApiServer.Traces.TraceData.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid }
       v<ApiServer.Traces.TraceData.T>
@@ -766,13 +768,13 @@ module GenericSerializersTests =
 
       // Workers
 
-      oc<ApiServer.Workers.Scheduler.Params>
+      both<ApiServer.Workers.Scheduler.Params>
         "simple"
         { name = "x"; schedule = "pause" }
-      oc<ApiServer.Workers.Scheduler.T> "all" testWorkerStates
+      both<ApiServer.Workers.Scheduler.T> "all" testWorkerStates
 
-      oc<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
-      oc<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
+      both<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
+      both<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
 
       // ------------------
       // LibAnalysis
