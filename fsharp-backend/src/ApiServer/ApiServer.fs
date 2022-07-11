@@ -119,10 +119,8 @@ let addRoutes
   clientJsonApi "v1/add_op" RW AddOps.addOp
   ocamlCompatibleApi "all_traces" R Traces.AllTraces.fetchAll
   clientJsonApi "v1/all_traces" R Traces.AllTraces.fetchAll
-  ocamlCompatibleApi "delete_404" RW F404s.Delete.delete
-  clientJsonApi "v1/delete_404" RW F404s.Delete.delete
-  ocamlCompatibleApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
-  clientJsonApiOption "v1/delete-toplevel-forever" RW Toplevels.Delete.delete
+  clientJsonApi "delete_404" RW F404s.Delete.delete
+  clientJsonApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
   clientJsonApi "delete_secret" RW Secrets.Delete.delete
   ocamlCompatibleApi "execute_function" RW Execution.Function.execute
   clientJsonApi "v1/execute_function" RW Execution.Function.execute
@@ -258,7 +256,6 @@ let initSerializers () =
   Json.Vanilla.allow<Execution.Handler.T> "ApiServer.Execution"
   Json.OCamlCompatible.allow<F404s.Delete.Params> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"
-  Json.OCamlCompatible.allow<F404s.Delete.T> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.Delete.T> "ApiServer.F404s"
   Json.OCamlCompatible.allow<F404s.List.T> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
@@ -275,7 +272,6 @@ let initSerializers () =
   Json.Vanilla.allow<Secrets.Insert.T> "ApiServer.Secrets"
   Json.OCamlCompatible.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
   Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
-  Json.OCamlCompatible.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
   Json.Vanilla.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
   Json.OCamlCompatible.allow<Traces.AllTraces.T> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.AllTraces.T> "ApiServer.Traces"

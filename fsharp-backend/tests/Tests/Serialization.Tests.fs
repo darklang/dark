@@ -667,7 +667,7 @@ module GenericSerializersTests =
       both<ApiServer.F404s.Delete.Params>
         "simple"
         { space = "HTTP"; path = "/"; modifier = "POST" }
-      both<ApiServer.F404s.Delete.T> "simple" { result = "success" }
+      v<ApiServer.F404s.Delete.T> "simple" { result = "success" }
 
       // Functions
 
@@ -748,7 +748,7 @@ module GenericSerializersTests =
       // Toplevels
 
       both<ApiServer.Toplevels.Delete.Params> "simple" { tlid = testTLID }
-      both<ApiServer.Toplevels.Delete.T> "simple" { result = "success" }
+      v<ApiServer.Toplevels.Delete.T> "simple" { result = "success" }
 
       // Traces
 
