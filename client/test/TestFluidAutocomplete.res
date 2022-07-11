@@ -442,7 +442,7 @@ let run = () => {
         )
 
         let m = defaultModel(
-          ~analyses=list{(id, DStr("asd")), (id2, DInt(5))},
+          ~analyses=list{(id, DStr("asd")), (id2, DInt(5L))},
           ~handlers=list{
             aHandler(~space=Some("REPL" /* remove `request` var from valid */), ~expr, ()),
           },
@@ -455,7 +455,7 @@ let run = () => {
           List.filter(invalid, ~f=isVariable),
         )) |> toEqual((
           list{FACVariable("mystr", Some(DStr("asd")))},
-          list{FACVariable("myint", Some(DInt(5)))},
+          list{FACVariable("myint", Some(DInt(5L)))},
         ))
       })
       test("Method argument filters by fn return type ", () => {
@@ -502,7 +502,7 @@ let run = () => {
       test("functions with no arguments are invalid when piping", () => {
         let id = gid()
         let expr = pipe(int(~id, 5), partial("string", b), list{})
-        let m = defaultModel(~analyses=list{(id, DInt(5))}, ~handlers=list{aHandler(~expr, ())}, ())
+        let m = defaultModel(~analyses=list{(id, DInt(5L))}, ~handlers=list{aHandler(~expr, ())}, ())
 
         let (_valid, invalid) = filterFor(m, ~pos=10)
         expect(
