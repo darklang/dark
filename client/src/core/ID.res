@@ -1,7 +1,6 @@
 module T = {
   module Nested = {
-    // IDs are 31 bit positive ints
-    @ppx.deriving(show({with_path: false})) type rec t = ID(U.UInt64.t)
+    @ppx.deriving(show({with_path: false})) type rec t = ID(int64)
     let compare = (ID(id1): t, ID(id2): t) => compare(id1, id2)
     let cmp = compare
   }
@@ -9,10 +8,16 @@ module T = {
   include Nested
   include Tablecloth.Comparator.Make(Nested)
 
-  let toString = (ID(id): t) => U.UInt64.toString(id)
-  let parse = (id: string) => id->U.UInt64.ofString->Tablecloth.Option.map(~f=(id => ID(id)))
-  let fromInt = (i : int) => ID(U.UInt64.ofInt(i))
-  let fromInt64 = (i : int64) => ID(U.UInt64.ofInt64(i))
+  let fromInt = (i : int) => ID(UInt64.fromInt(i))
+  let fromInt64 = (i : int64) => ID(UInt64.fromInt64(i))
+
+  let toString = (ID(id): t) => UInt64.toString(id)
+  let fromString = (s : string) =>
+    switch UInt64.fromString(s) {
+      | None => None
+      | Some(i) => Some(ID(i))
+    }
+
 
   let encode = (ID(id)) => Json_encode_extended.uint64(id)
   let decode = (j) => ID(Json_decode_extended.uint64(j))
@@ -51,9 +56,11 @@ module Map = {
 
   let fromList = l => Tc.Map.fromList(module(T), l)
 
-  let decode = (decoder: Js.Json.t => 'value, j: Js.Json.t) =>
+  let decode = (decoder: Js.Json.t => 'value, j: Js.Json.t) => {
+    let parse = (s:string) : T.t => T.fromString(s)->Tablecloth.Option.unwrap(~default=T.fromInt(0))
     Json.Decode.dict(decoder, j)
     |> Js.Dict.entries
-    |> Array.map(((k, v)) => (T.parse(k), v))
+    |> Array.map(((k, v)) => (parse(k), v))
     |> fromArray
+  }
 }

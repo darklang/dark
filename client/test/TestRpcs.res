@@ -21,6 +21,8 @@ let run = () => {
       )
     )
     describe("roundtrips", () => {
+      let int64Max = Int64.max_int
+      let uint64Max = Int64.min_int
       rtDval("int", DInt(5L))
       rtDval("int_max_31_bits", DInt(1073741823L)) // 2^30-1
       rtDval("int_min_31_bits", DInt(-1073741824L)) // -2^30
@@ -35,7 +37,7 @@ let run = () => {
       rtDval("obj", DObj(Belt.Map.String.fromArray([("foo", DInt(5L))])))
       rtDval("date", DDate("can be anything atm"))
       rtDval("incomplete", DIncomplete(SourceNone))
-      rtDval("incomplete2", DIncomplete(SourceId(TLID.fromInt64(7219007199254740993L), ID.fromInt64(7219007199254740993L))))
+      rtDval("incomplete2", DIncomplete(SourceId(TLID.fromInt64(int64Max), ID.fromInt64(uint64Max))))
       rtDval("float", DFloat(7.2))
       rtDval("true", DBool(true))
       rtDval("false", DBool(false))

@@ -13,5 +13,5 @@ let tcStrDict: ('a => Js.Json.t, Tc.Map.String.t<'a>) => Js.Json.t
 
 let beltStrDict: ('a => Js.Json.t, Belt.Map.String.t<'a>) => Js.Json.t
 
-let uint64: U.UInt64.t => Js.Json.t
+let uint64: UInt64.t => Js.Json.t
 let int64: int64 => Js.Json.t

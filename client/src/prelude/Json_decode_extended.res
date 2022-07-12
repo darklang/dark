@@ -99,15 +99,15 @@ let int64 = (j: Js.Json.t) =>
     Int64.of_float(Json.Decode.float(j))
   }
 
-let uint64 = (j: Js.Json.t) =>
+let uint64 = (j: Js.Json.t) : UInt64.t =>
   if Js.typeof(j) == "string" {
-    j->string->U.UInt64.ofString->Option.unwrapUnsafe
+    j->string->UInt64.fromString->Option.unwrapUnsafe
   } else {
     // We use `float` as `int` is 32bit, and can't handle the space between 2^32 and
     // 2^53. `float` here can be considered to be `int53`, since we know we're
     // getting whole integers as anything that doesn't fit in the integer portion of
     // a float is expected to be encoded as a string
-    j->Json.Decode.float->Int64.of_float->U.UInt64.ofInt64
+    j->Json.Decode.float->Int64.of_float
   }
 
 

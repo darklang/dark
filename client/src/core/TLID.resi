@@ -1,12 +1,12 @@
 module T: {
-  @ppx.deriving(show({with_path: false})) type rec t = TLID(U.UInt64.t)
+  @ppx.deriving(show({with_path: false})) type rec t = TLID(int64)
 
   type identity
 
   let comparator: Tablecloth.Comparator.t<t, identity>
 
   let toString: t => string
-  let parse: string => option<t>
+  let fromString: string => option<t>
   let fromInt: int => t
   let fromInt64: int64 => t
 

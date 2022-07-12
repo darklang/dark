@@ -1,5 +1,5 @@
 module T: {
-  @ppx.deriving(show({with_path: false})) type rec t = ID(U.UInt64.t)
+  @ppx.deriving(show({with_path: false})) type rec t = ID(int64)
 
   type identity
 
@@ -7,7 +7,7 @@ module T: {
   let cmp: (t, t) => int
 
   let toString: t => string
-  let parse: string => option<t>
+  let fromString: string => option<t>
   let fromInt: int => t
   let fromInt64: int64 => t
 

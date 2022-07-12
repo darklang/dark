@@ -1,19 +1,25 @@
 module T = {
   module Nested = {
-    @ppx.deriving(show({with_path: false})) type rec t = TLID(U.UInt64.t)
+    @ppx.deriving(show({with_path: false})) type rec t = TLID(int64)
     let compare = (TLID(id1): t, TLID(id2): t) => compare(id1, id2)
   }
 
   include Nested
   include Tablecloth.Comparator.Make(Nested)
 
-  let toString = (TLID(id): t) => U.UInt64.toString(id)
-  let parse = (tlid: string) => tlid->U.UInt64.ofString->Tablecloth.Option.map(~f=(tlid => TLID(tlid)))
-  let fromInt = (i : int) => TLID(U.UInt64.ofInt(i))
-  let fromInt64 = (i : int64) => TLID(U.UInt64.ofInt64(i))
+  let fromInt = (i : int) => TLID(UInt64.fromInt(i))
+  let fromInt64 = (i : int64) => TLID(UInt64.fromInt64(i))
+
+  let toString = (TLID(id): t) => UInt64.toString(id)
+  let fromString = (s : string) =>
+    switch UInt64.fromString(s) {
+      | None => None
+      | Some(i) => Some(TLID(i))
+    }
 
   let encode = (TLID(tlid)) => Json_encode_extended.uint64(tlid)
   let decode = (j) => TLID(Json_decode_extended.uint64(j))
+
 }
 
 include T
@@ -50,10 +56,12 @@ module Dict = {
 
   let fromList = l => fromArray(Array.of_list(l))
 
-  let decode = (decoder: Js.Json.t => 'value, j: Js.Json.t) =>
+  let decode = (decoder: Js.Json.t => 'value, j: Js.Json.t) => {
+    let parse = (s:string) : T.t => T.fromString(s)->Tablecloth.Option.unwrap(~default=T.fromInt(0))
     Json.Decode.dict(decoder, j)
     |> Js.Dict.entries
-    |> Array.map(((k, v)) => (T.parse(k), v))
+    |> Array.map(((k, v)) => (parse(k), v))
     |> fromArray
+  }
 }
 

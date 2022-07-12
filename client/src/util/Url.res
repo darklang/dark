@@ -67,7 +67,7 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
     }
 
   let getTLID = (key : string) : option<TLID.t> =>
-    Map.get(~key, unstructured) |> Option.andThen(~f=TLID.parse)
+    Map.get(~key, unstructured) |> Option.andThen(~f=TLID.fromString)
 
   let trace = Map.get(~key="trace", unstructured)
 
