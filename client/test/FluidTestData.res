@@ -580,6 +580,8 @@ let compoundExpr = if'(
   fn("Http::Forbidden", list{}),
 )
 
+/// When updating this, also update SerializationTests.Tests.Values.testExpr in the
+/// backend
 let complexExpr = {
   let e = int(-5)
   let'(
@@ -664,11 +666,15 @@ let complexExpr = {
                           let'(
                             "f",
                             flag(~name="test", bool(true), int(5), int(6)),
-                            list(list{
-                              partial("some 🤬 string", e),
-                              rightPartial("some 😭 string", e),
-                              leftPartial("some 👨‍👩‍👧‍👦 string", e),
-                            }),
+                            let'(
+                              "partials",
+                              list(list{
+                                partial("some 🤬 string", e),
+                                rightPartial("some 😭 string", e),
+                                leftPartial("some 👨‍👩‍👧‍👦 string", e),
+                              }),
+                              let'("tuples", tuple(e, e, list{e}), e),
+                            ),
                           ),
                         ),
                       ),
