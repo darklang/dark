@@ -29,7 +29,7 @@ module Values =
       PT.ELet(
         620028536UL,
         "x2",
-        PT.EInteger(452247642UL, 6L),
+        PT.EInteger(452247642UL, 9223372036854775807L),
         PT.ELet(
           68205955UL,
           "bool",
@@ -188,7 +188,7 @@ module Values =
                                  ),
                                  PT.EVariable(863810169UL, "v"))
                                 (PT.PInteger(928253813UL, 5L),
-                                 PT.EInteger(342670561UL, 6L))
+                                 PT.EInteger(342670561UL, -9223372036854775808L))
                                 (PT.PBool(435227293UL, true),
                                  PT.EInteger(232748650UL, 7L))
                                 (PT.PCharacter(387662539UL, "c"),

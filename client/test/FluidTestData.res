@@ -653,6 +653,7 @@ let complexExpr = {
                               (pConstructor("Ok", list{pVar("x")}), var("v")),
                               (pInt(5), int64(-9223372036854775808L)),
                               (pBool(true), int(7)),
+                              // (pChar("c"), char("c")),
                               (pString("string"), str("string")),
                               (pNull(), null),
                               (pVar("var"), binop("+", int(6), var("var"))),
