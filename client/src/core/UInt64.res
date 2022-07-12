@@ -17,7 +17,6 @@ module BigInt = ReScriptJs.Js.BigInt
 type rec t = int64
 
 let isValidFloat = (t: t) => t > 0L && t < 9007199254740992L
-// let isValidInt = (t: t) => t > 0L && t <= 2147483647L
 
 let fromInt = (i: int) => Int64.of_int(i)
 let fromFloat = (f: float) => Int64.of_float(f)
@@ -33,27 +32,26 @@ module BI = {
   let maxInt64 = BigInt.fromString("9223372036854775807")
 }
 
-// module I64 = {
-//   let maxUInt32 = Int64.of_float(4294967295.0)
-// }
-
-/* This is the very important section. It turns the int64 into JS BigInt types that
- * can be used for actual UInt64 operations, like toString */
 let toString = (i: t) =>
   if i >= 0L {
     Int64.to_string(i)
   } else {
+    // Convert numbers above MAX_INT64 from negative numbers, which is how they're stored. This is the opposite operation to `fromString`: negative, then add MAX_INT64
     Int64.neg(i)->Int64.to_string->BigInt.fromString->BigInt.add(BI.maxInt64)->BigInt.toString
   }
 
-/* This is the very important section. It turns the int64 into JS BigInt types that
- * can be used for actual UInt64 operations, like toString */
+// Polymorphic compare doesn't work for BigInts (or other non-rescript types) so use
+// the JS > operator directly, which does
+let greaterThan: (BigInt.t, BigInt.t) => bool = %raw(`function(a,b) { return a > b }`)
+
 let fromString = (str: string) =>
   try {
+    // Convert numbers above MAX_INT64 into negative numbers (simple: subtract
+    // MAX_INT64 then negate)
     let bi = str->BigInt.fromString
-    if bi > BI.maxInt64 {
-      let bi = BigInt.sub(bi, BI.maxInt64)
-      let i64 = bi->BigInt.toString->Int64.of_string
+    if greaterThan(bi, BI.maxInt64) {
+      let bi = BigInt.sub(BI.maxInt64, bi)
+      let i64 = bi->BigInt.toString->Int64.of_string // simplest convert from int64 to BigInt
       Some(Int64.neg(i64))
     } else {
       Some(bi->BigInt.toString->Int64.of_string)
