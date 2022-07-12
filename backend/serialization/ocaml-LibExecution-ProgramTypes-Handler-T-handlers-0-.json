@@ -534,38 +534,74 @@
                               ]
                             ],
                             [
-                              "EList",
-                              23423423,
+                              "ELet",
+                              6345345,
+                              "partials",
                               [
+                                "EList",
+                                23423423,
                                 [
-                                  "EPartial",
-                                  2949606,
-                                  "some 🤬 string",
+                                  [
+                                    "EPartial",
+                                    2949606,
+                                    "some 🤬 string",
+                                    [
+                                      "EInteger",
+                                      34545,
+                                      5
+                                    ]
+                                  ],
+                                  [
+                                    "ERightPartial",
+                                    9239755,
+                                    "some 😭 string",
+                                    [
+                                      "EInteger",
+                                      34545,
+                                      5
+                                    ]
+                                  ],
+                                  [
+                                    "ELeftPartial",
+                                    234885,
+                                    "some 👨‍👩‍👧‍👦 string",
+                                    [
+                                      "EInteger",
+                                      34545,
+                                      5
+                                    ]
+                                  ]
+                                ]
+                              ],
+                              [
+                                "ELet",
+                                883434,
+                                "tuples",
+                                [
+                                  "ETuple",
+                                  72333,
                                   [
                                     "EInteger",
                                     34545,
                                     5
+                                  ],
+                                  [
+                                    "EInteger",
+                                    34545,
+                                    5
+                                  ],
+                                  [
+                                    [
+                                      "EInteger",
+                                      34545,
+                                      5
+                                    ]
                                   ]
                                 ],
                                 [
-                                  "ERightPartial",
-                                  9239755,
-                                  "some 😭 string",
-                                  [
-                                    "EInteger",
-                                    34545,
-                                    5
-                                  ]
-                                ],
-                                [
-                                  "ELeftPartial",
-                                  234885,
-                                  "some 👨‍👩‍👧‍👦 string",
-                                  [
-                                    "EInteger",
-                                    34545,
-                                    5
-                                  ]
+                                  "EInteger",
+                                  34545,
+                                  5
                                 ]
                               ]
                             ]

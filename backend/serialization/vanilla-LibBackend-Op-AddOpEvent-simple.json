@@ -500,38 +500,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -1075,38 +1111,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -1652,38 +1724,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -2229,38 +2337,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -2806,38 +2950,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -3382,38 +3562,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -3959,38 +4175,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -4537,38 +4789,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -5112,38 +5400,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -5689,38 +6013,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -6266,38 +6626,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -6843,38 +7239,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -7419,38 +7851,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -7996,38 +8464,74 @@
                                         ]
                                       ],
                                       [
-                                        "EList",
-                                        23423423,
+                                        "ELet",
+                                        6345345,
+                                        "partials",
                                         [
+                                          "EList",
+                                          23423423,
                                           [
-                                            "EPartial",
-                                            2949606,
-                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EPartial",
+                                              2949606,
+                                              "some \uD83E\uDD2C string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ERightPartial",
+                                              9239755,
+                                              "some \uD83D\uDE2D string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ],
+                                            [
+                                              "ELeftPartial",
+                                              234885,
+                                              "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
+                                            ]
+                                          ]
+                                        ],
+                                        [
+                                          "ELet",
+                                          883434,
+                                          "tuples",
+                                          [
+                                            "ETuple",
+                                            72333,
                                             [
                                               "EInteger",
                                               34545,
                                               "5"
+                                            ],
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ],
+                                            [
+                                              [
+                                                "EInteger",
+                                                34545,
+                                                "5"
+                                              ]
                                             ]
                                           ],
                                           [
-                                            "ERightPartial",
-                                            9239755,
-                                            "some \uD83D\uDE2D string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
-                                          ],
-                                          [
-                                            "ELeftPartial",
-                                            234885,
-                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                            [
-                                              "EInteger",
-                                              34545,
-                                              "5"
-                                            ]
+                                            "EInteger",
+                                            34545,
+                                            "5"
                                           ]
                                         ]
                                       ]
@@ -8659,38 +9163,74 @@
                                       ]
                                     ],
                                     [
-                                      "EList",
-                                      23423423,
+                                      "ELet",
+                                      6345345,
+                                      "partials",
                                       [
+                                        "EList",
+                                        23423423,
                                         [
-                                          "EPartial",
-                                          2949606,
-                                          "some \uD83E\uDD2C string",
+                                          [
+                                            "EPartial",
+                                            2949606,
+                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ]
+                                          ],
+                                          [
+                                            "ERightPartial",
+                                            9239755,
+                                            "some \uD83D\uDE2D string",
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ]
+                                          ],
+                                          [
+                                            "ELeftPartial",
+                                            234885,
+                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ]
+                                          ]
+                                        ]
+                                      ],
+                                      [
+                                        "ELet",
+                                        883434,
+                                        "tuples",
+                                        [
+                                          "ETuple",
+                                          72333,
                                           [
                                             "EInteger",
                                             34545,
                                             "5"
+                                          ],
+                                          [
+                                            "EInteger",
+                                            34545,
+                                            "5"
+                                          ],
+                                          [
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ]
                                           ]
                                         ],
                                         [
-                                          "ERightPartial",
-                                          9239755,
-                                          "some \uD83D\uDE2D string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            "5"
-                                          ]
-                                        ],
-                                        [
-                                          "ELeftPartial",
-                                          234885,
-                                          "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            "5"
-                                          ]
+                                          "EInteger",
+                                          34545,
+                                          "5"
                                         ]
                                       ]
                                     ]
@@ -9317,38 +9857,74 @@
                                       ]
                                     ],
                                     [
-                                      "EList",
-                                      23423423,
+                                      "ELet",
+                                      6345345,
+                                      "partials",
                                       [
+                                        "EList",
+                                        23423423,
                                         [
-                                          "EPartial",
-                                          2949606,
-                                          "some \uD83E\uDD2C string",
+                                          [
+                                            "EPartial",
+                                            2949606,
+                                            "some \uD83E\uDD2C string",
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ]
+                                          ],
+                                          [
+                                            "ERightPartial",
+                                            9239755,
+                                            "some \uD83D\uDE2D string",
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ]
+                                          ],
+                                          [
+                                            "ELeftPartial",
+                                            234885,
+                                            "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ]
+                                          ]
+                                        ]
+                                      ],
+                                      [
+                                        "ELet",
+                                        883434,
+                                        "tuples",
+                                        [
+                                          "ETuple",
+                                          72333,
                                           [
                                             "EInteger",
                                             34545,
                                             "5"
+                                          ],
+                                          [
+                                            "EInteger",
+                                            34545,
+                                            "5"
+                                          ],
+                                          [
+                                            [
+                                              "EInteger",
+                                              34545,
+                                              "5"
+                                            ]
                                           ]
                                         ],
                                         [
-                                          "ERightPartial",
-                                          9239755,
-                                          "some \uD83D\uDE2D string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            "5"
-                                          ]
-                                        ],
-                                        [
-                                          "ELeftPartial",
-                                          234885,
-                                          "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            "5"
-                                          ]
+                                          "EInteger",
+                                          34545,
+                                          "5"
                                         ]
                                       ]
                                     ]
@@ -9880,38 +10456,74 @@
                                     ]
                                   ],
                                   [
-                                    "EList",
-                                    23423423,
+                                    "ELet",
+                                    6345345,
+                                    "partials",
                                     [
+                                      "EList",
+                                      23423423,
                                       [
-                                        "EPartial",
-                                        2949606,
-                                        "some \uD83E\uDD2C string",
+                                        [
+                                          "EPartial",
+                                          2949606,
+                                          "some \uD83E\uDD2C string",
+                                          [
+                                            "EInteger",
+                                            34545,
+                                            "5"
+                                          ]
+                                        ],
+                                        [
+                                          "ERightPartial",
+                                          9239755,
+                                          "some \uD83D\uDE2D string",
+                                          [
+                                            "EInteger",
+                                            34545,
+                                            "5"
+                                          ]
+                                        ],
+                                        [
+                                          "ELeftPartial",
+                                          234885,
+                                          "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
+                                          [
+                                            "EInteger",
+                                            34545,
+                                            "5"
+                                          ]
+                                        ]
+                                      ]
+                                    ],
+                                    [
+                                      "ELet",
+                                      883434,
+                                      "tuples",
+                                      [
+                                        "ETuple",
+                                        72333,
                                         [
                                           "EInteger",
                                           34545,
                                           "5"
+                                        ],
+                                        [
+                                          "EInteger",
+                                          34545,
+                                          "5"
+                                        ],
+                                        [
+                                          [
+                                            "EInteger",
+                                            34545,
+                                            "5"
+                                          ]
                                         ]
                                       ],
                                       [
-                                        "ERightPartial",
-                                        9239755,
-                                        "some \uD83D\uDE2D string",
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          "5"
-                                        ]
-                                      ],
-                                      [
-                                        "ELeftPartial",
-                                        234885,
-                                        "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          "5"
-                                        ]
+                                        "EInteger",
+                                        34545,
+                                        "5"
                                       ]
                                     ]
                                   ]
