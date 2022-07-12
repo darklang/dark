@@ -6,6 +6,25 @@ let testRoundtrip = (decoder, encoder, name: string, v: 'a) =>
   test("roundtrip " ++ name, () => expect(v) |> toEqual(v |> encoder |> decoder))
 
 let run = () => {
+  describe("decoding", () => {
+    module Decode = Json_decode_extended
+    test("infinity", () =>
+      expect(Decode.decodeString(Decoders.ocamlDval, `[ "DFloat", "Infinity" ]`)) |> toEqual(
+        Belt.Result.Ok(DFloat(Float.infinity)),
+      )
+    )
+    test("negativeInfinity", () =>
+      expect(Decode.decodeString(Decoders.ocamlDval, `[ "DFloat", "-Infinity" ]`)) |> toEqual(
+        Belt.Result.Ok(DFloat(Float.negativeInfinity)),
+      )
+    )
+    test("notANumber", () => {
+      switch Decode.decodeString(Decoders.ocamlDval, `[ "DFloat", "NaN" ]`) {
+      | Ok(DFloat(flt)) => expect(Float.isNaN(flt)) |> toEqual(true)
+      | _ => expect("A valid dfloat dval") |> toEqual("something invalid, or not a dfloat")
+      }
+    })
+  })
   describe("dval misc tests", () => {
     describe("compatible with server JSON encoding", () => {
       test("obj uses list", () =>
