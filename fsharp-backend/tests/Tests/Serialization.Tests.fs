@@ -833,11 +833,15 @@ module GenericSerializersTests =
 
       let vanillaFilenames = filenamesFor Json.Vanilla.allowedTypes "vanilla"
       let vanillaActual = File.lsPattern Config.Serialization "vanilla-*.json" |> Set
+      printfn "Vanilla, extras: %A" (Set.difference vanillaActual vanillaFilenames)
+      printfn "Vanilla, missing: %A" (Set.difference vanillaFilenames vanillaActual)
       Expect.equal vanillaFilenames vanillaActual "vanilla-files"
 
       let ocamlFilenames = filenamesFor Json.OCamlCompatible.allowedTypes "ocaml"
       let ocamlActual = File.lsPattern Config.Serialization "ocaml-*.json" |> Set
-      Expect.equal ocamlFilenames ocamlActual "vanilla-files"
+      printfn "OCaml, extras: %A" (Set.difference ocamlActual ocamlFilenames)
+      printfn "OCaml, missing: %A" (Set.difference ocamlFilenames ocamlActual)
+      Expect.equal ocamlFilenames ocamlActual "ocaml-files"
     }
 
   let testTestFiles : List<Test> =
@@ -854,6 +858,7 @@ module GenericSerializersTests =
             let expected = File.readfile Config.Serialization filename
             Expect.equal actualSerializedData expected "matches")
         })
+
     (testsFor Json.Vanilla.allowedTypes "vanilla")
     @ (testsFor Json.OCamlCompatible.allowedTypes "ocaml")
 
@@ -867,6 +872,7 @@ module GenericSerializersTests =
         |> List.iter (fun (name, serializedData) ->
           let filename = SampleData.fileNameFor typeName serializerName name
           File.writefile Config.Serialization filename serializedData))
+
     generate Json.Vanilla.allowedTypes "vanilla"
     generate Json.OCamlCompatible.allowedTypes "ocaml"
 
@@ -989,4 +995,4 @@ let tests =
       BinarySerializationRoundtripTests.oplistRoundtripTest
       GenericSerializersTests.testNoExtraTestFiles
       testList "customer test formats" CustomSerializersTests.testTestFiles
-      testList "generic vanilla test formats" GenericSerializersTests.testTestFiles ]
+      testList "generic test formats" GenericSerializersTests.testTestFiles ]
