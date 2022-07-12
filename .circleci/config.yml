@@ -302,7 +302,7 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v12-fsharp-backend-{{ checksum "../checksum" }}
+            - v13-fsharp-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -333,7 +333,7 @@ jobs:
           paths:
             - fsharp-backend/Build/obj
             - /home/dark/.nuget
-          key: v12-fsharp-backend-{{ checksum "../checksum" }}
+          key: v13-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
