@@ -88,12 +88,6 @@ let run = () => {
   describe("fluidExpr", () => {
     let t = testRoundtrip(Decoders.fluidExpr, Encoders.fluidExpr)
     t("complex", FluidTestData.complexExpr)
-
-    // test("tuple expr roundtrips", () => {
-    //   let expr = tuple(int(56), FluidExpression.newB(), list{int(78)})
-
-    //   expect(expr |> roundtrip) |> toEqual(expr)
-    // })
   })
 
   describe("tipe", () => {
