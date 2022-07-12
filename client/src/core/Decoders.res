@@ -631,7 +631,7 @@ let intermediateResultStore = (j: Js.Json.t): intermediateResultStore =>
 let dvalDict = (j: Js.Json.t): dvalDict => strDict(dval, j)
 
 let analysisEnvelope = (j: Js.Json.t): (traceID, intermediateResultStore) =>
-  tuple2(string, intermediateResultStore)(Debug.log("x", j))
+  tuple2(string, intermediateResultStore)(j)
 
 let handlerSpec = (j): handlerSpec => {
   space: field("module", blankOr(string), j),
