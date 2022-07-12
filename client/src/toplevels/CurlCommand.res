@@ -21,7 +21,7 @@ let rec to_url_string = (dv: dval): option<string> =>
   // but someone has added code for those cases anyway
   // CLEANUP we can probably remove types that cannot be created as part of
   // a HTTP request
-  | DInt(i) => Some(string_of_int(i))
+  | DInt(i) => Some(Int64.to_string(i))
   | DBool(true) => Some("true")
   | DBool(false) => Some("false")
   | DStr(s) => Some(s)

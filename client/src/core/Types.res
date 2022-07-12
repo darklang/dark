@@ -373,7 +373,7 @@ and dblock_args = {
 
 @ppx.deriving(show({with_path: false}))
 and dval =
-  | DInt(int)
+  | DInt(int64)
   | DFloat(float)
   | DBool(bool)
   | DNull

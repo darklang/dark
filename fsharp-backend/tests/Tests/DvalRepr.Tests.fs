@@ -262,19 +262,7 @@ module ToHashableRepr =
 let allRoundtrips =
   let t = testListUsingProperty
 
-  let all =
-    sampleDvals
-    |> List.filter (fun (_, dval) ->
-      match dval with
-      // interoperable tests do not support passwords because it's very
-      // hard/risky to get legacyserver to roundtrip them correctly without
-      // compromising the redaction protections. We do password tests in the
-      // rest of the file so lets not confuse these tests.
-      | RT.DPassword _ -> false
-      // These can't be parsed by the roundtrip tests so skip
-      | RT.DInt i -> i > -4611686018427387904L && i < 4611686018427387904L
-      | _ -> true)
-
+  let all = sampleDvals
   let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all
 
   testList
@@ -286,7 +274,28 @@ let allRoundtrips =
       t
         "queryable v0"
         FuzzTests.InternalJson.Queryable.canV1Roundtrip
-        (dvs DvalReprInternalDeprecated.Test.isQueryableDval) ]
+        (dvs DvalReprInternalDeprecated.Test.isQueryableDval)
+      t
+        "vanilla"
+        (fun dv ->
+          dv
+          |> Prelude.Json.Vanilla.serialize
+          |> Prelude.Json.Vanilla.deserialize
+          |> Expect.dvalEquality dv)
+        (dvs (function
+          | RT.DPassword _ -> false
+          | _ -> true))
+      t
+        "ocamlcompatible"
+        (fun dv ->
+          dv
+          |> Prelude.Json.OCamlCompatible.serialize
+          |> Prelude.Json.OCamlCompatible.deserialize
+          |> Expect.dvalEquality dv)
+        (dvs (function
+          | RT.DPassword _ -> false
+          | _ -> true)) ]
+
 
 let testInternalRoundtrippableV0 =
   testList
@@ -334,7 +343,6 @@ let testToPrettyMachineJsonStringV1 =
         let actual =
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
           |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1
-
         Expect.equal actual expected ""
       } ]
 

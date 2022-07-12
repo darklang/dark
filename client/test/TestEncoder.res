@@ -3,13 +3,12 @@ open FluidShortcuts
 
 open Tester
 
-
 let run = () => {
   describe("dval", () => {
     let roundtrip = d => d |> Encoders.dval |> Decoders.dval
 
     test("tuple dval roundtrips", () => {
-      let dval = DTuple(DInt(56), DIncomplete(SourceNone), list{DInt(78)})
+      let dval = DTuple(DInt(56L), DIncomplete(SourceNone), list{DInt(78L)})
 
       expect(dval |> roundtrip) |> toEqual(dval)
     })

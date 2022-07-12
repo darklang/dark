@@ -839,7 +839,7 @@ let defaultTestModel = {
         Belt.Map.String.fromArray([
           ("fake-acdata1", ExecutedResult(Dval.obj(list{("body", DNull), ("formBody", DNull)}))),
           ("fake-acdata2", ExecutedResult(Dval.obj(list{("title", DNull), ("author", DNull)}))),
-          ("fake-acdata3", ExecutedResult(Dval.obj(list{("body", DInt(5))}))),
+          ("fake-acdata3", ExecutedResult(Dval.obj(list{("body", DInt(5L))}))),
         ]),
       ),
     ),
