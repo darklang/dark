@@ -29,7 +29,7 @@
     "bs-fetch",
     "bs-uuid",
     "bs-deriving",
-    "bs-zarith"
+    "rescript-js"
   ],
   "bs-dev-dependencies": [],
   "bsc-flags": [

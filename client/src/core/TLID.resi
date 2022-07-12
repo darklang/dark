@@ -1,5 +1,5 @@
 module T: {
-  @ppx.deriving(show({with_path: false})) type rec t = TLID(int64)
+  @ppx.deriving(show({with_path: false})) type rec t = TLID(UInt64.t)
 
   type identity
 
@@ -8,7 +8,7 @@ module T: {
   let toString: t => string
   let fromString: string => option<t>
   let fromInt: int => t
-  let fromInt64: int64 => t
+  let fromUInt64: UInt64.t => t
 
   let encode: t => Js.Json.t
   let decode: Js.Json.t => t

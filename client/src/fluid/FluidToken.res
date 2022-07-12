@@ -4,7 +4,7 @@ type t = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
-let fakeid = ID.fromInt64(Int64.min_int)
+let fakeid = ID.fromUInt64(UInt64.max)
 
 let tid = (t: t): id =>
   switch t {

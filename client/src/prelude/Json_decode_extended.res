@@ -107,7 +107,7 @@ let uint64 = (j: Js.Json.t) : UInt64.t =>
     // 2^53. `float` here can be considered to be `int53`, since we know we're
     // getting whole integers as anything that doesn't fit in the integer portion of
     // a float is expected to be encoded as a string
-    j->Json.Decode.float->Int64.of_float
+    j->Json.Decode.float->UInt64.fromFloat
   }
 
 

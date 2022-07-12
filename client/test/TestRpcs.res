@@ -20,9 +20,15 @@ let run = () => {
         DResp(Response(401, list{}), DNull) |> Encoders.ocamlDval |> Js.Json.stringify,
       )
     )
-    describe("roundtrips", () => {
-      let int64Max = Int64.max_int
-      let uint64Max = Int64.min_int
+    describe("tlid roundtrips", () => {
+      let t = testRoundtrip(TLID.decode, TLID.encode)
+      t("zero", TLID.fromInt(0))
+      t("zero", TLID.fromInt(1))
+      t("zero", TLID.fromInt(2))
+      t("above uint63max", TLID.fromString("15223423459603010931")->Option.unwrapUnsafe)
+    })
+    describe("dval roundtrips", () => {
+      let id = UInt64.fromString("15223423459603010931")->Tc.Option.unwrapUnsafe
       rtDval("int", DInt(5L))
       rtDval("int_max_31_bits", DInt(1073741823L)) // 2^30-1
       rtDval("int_min_31_bits", DInt(-1073741824L)) // -2^30
@@ -37,7 +43,7 @@ let run = () => {
       rtDval("obj", DObj(Belt.Map.String.fromArray([("foo", DInt(5L))])))
       rtDval("date", DDate("can be anything atm"))
       rtDval("incomplete", DIncomplete(SourceNone))
-      rtDval("incomplete2", DIncomplete(SourceId(TLID.fromInt64(int64Max), ID.fromInt64(uint64Max))))
+      rtDval("incomplete2", DIncomplete(SourceId(TLID.fromUInt64(id), ID.fromUInt64(id))))
       rtDval("float", DFloat(7.2))
       rtDval("true", DBool(true))
       rtDval("false", DBool(false))
