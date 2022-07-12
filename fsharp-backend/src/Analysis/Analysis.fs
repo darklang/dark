@@ -35,7 +35,9 @@ type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
 type EvalWorker =
   static member GetGlobalObject(_globalObjectName : string) : unit = ()
 
-  static member InitializeDarkRuntime() : unit = LibAnalysis.initSerializers ()
+  static member InitializeDarkRuntime() : unit =
+    Environment.SetEnvironmentVariable("TZ", "UTC")
+    LibAnalysis.initSerializers ()
 
   static member selfDelegate =
     let typ =
