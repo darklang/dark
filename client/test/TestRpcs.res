@@ -20,13 +20,6 @@ let run = () => {
         DResp(Response(401, list{}), DNull) |> Encoders.ocamlDval |> Js.Json.stringify,
       )
     )
-    describe("tlid roundtrips", () => {
-      let t = testRoundtrip(TLID.decode, TLID.encode)
-      t("zero", TLID.fromInt(0))
-      t("zero", TLID.fromInt(1))
-      t("zero", TLID.fromInt(2))
-      t("above uint63max", TLID.fromString("15223423459603010931")->Option.unwrapUnsafe)
-    })
     describe("dval roundtrips", () => {
       let id = UInt64.fromString("15223423459603010931")->Tc.Option.unwrapUnsafe
       rtDval("int", DInt(5L))
