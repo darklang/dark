@@ -50,7 +50,6 @@ let () = {
   describe("TestIntrospect", TestIntrospect.run)
   describe("TestPorting", TestPorting.run)
   describe("TestRefactor", TestRefactor.run)
-  describe("TestRpc", TestRpcs.run)
   describe("TestRuntime", TestRuntime.run)
   describe("TestUserFn", TestUserfn.run)
   describe("TestViewBlankOr", TestViewBlankor.run)
