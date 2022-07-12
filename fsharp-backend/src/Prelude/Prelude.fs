@@ -898,8 +898,38 @@ module Json =
     open System.Text.Json.Serialization
     open NodaTime.Serialization.SystemTextJson
 
-    type TLIDConverter() =
-      inherit JsonConverter<tlid>()
+    type Int64Converter() =
+      // We serialize int64s as valid JSON numbers for as long as we're allowed, and
+      // then we switch to strings. Since the deserialization is type-directed, we
+      // always know we're looking to convert them to uint64s, so if we see a string
+      // we know exactly what it means
+      inherit JsonConverter<int64>()
+
+      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+        if reader.TokenType = JsonTokenType.String then
+          let str = reader.GetString()
+          parseInt64 str
+        else
+          reader.GetInt64()
+
+      override _.Write(writer : Utf8JsonWriter, value : int64, _options) =
+        // largest int64 for which all smaller ints can be represented in a double
+        // without losing precision
+        if value > 9007199254740992L then
+          writer.WriteStringValue(value.ToString())
+        else if value < -9007199254740992L then
+          writer.WriteStringValue(value.ToString())
+        else
+          writer.WriteNumberValue(value)
+
+
+
+    type UInt64Converter() =
+      // We serialize uint64s as valid JSON numbers for as long as we're allowed, and
+      // then we switch to strings. Since the deserialization is type-directed, we
+      // always know we're looking to convert them to uint64s, so if we see a string
+      // we know exactly what it means
+      inherit JsonConverter<uint64>()
 
       override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
         if reader.TokenType = JsonTokenType.String then
@@ -908,8 +938,13 @@ module Json =
         else
           reader.GetUInt64()
 
-      override _.Write(writer : Utf8JsonWriter, value : tlid, _options) =
-        writer.WriteNumberValue(value)
+      override _.Write(writer : Utf8JsonWriter, value : uint64, _options) =
+        // largest uint64 for which all smaller ints can be represented in a double
+        // without losing precision
+        if value > 9007199254740992UL then
+          writer.WriteStringValue(value.ToString())
+        else
+          writer.WriteNumberValue(value)
 
     type PasswordConverter() =
       inherit JsonConverter<Password>()
@@ -975,10 +1010,10 @@ module Json =
       let options = JsonSerializerOptions()
       options.MaxDepth <- System.Int32.MaxValue // infinite
       options.NumberHandling <- JsonNumberHandling.AllowNamedFloatingPointLiterals
-      // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(NodaConverters.InstantConverter)
       options.Converters.Add(LocalDateTimeConverter())
-      options.Converters.Add(TLIDConverter())
+      options.Converters.Add(UInt64Converter())
+      options.Converters.Add(Int64Converter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
       options.Converters.Add(fsharpConverter)
@@ -1185,15 +1220,41 @@ module Json =
         | _ ->
           Exception.raiseInternal "Invalid token" [ "existingValue", existingValue ]
 
-    type TLIDConverter() =
-      inherit JsonConverter<tlid>()
+    type UInt64Converter() =
+
+      // We serialize uint64s as valid JSON numbers for as long as we're allowed, and
+      // then we switch to strings. Since the deserialization is type-directed, we
+      // always know we're looking to convert them to uint64s, so if we see a string
+      // we know exactly what it means
+      inherit JsonConverter<uint64>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
         let rawToken = string reader.Value
         parseUInt64 rawToken
 
-      override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
-        writer.WriteValue(value)
+      override _.WriteJson(writer : JsonWriter, value : uint64, _ : JsonSerializer) =
+        if value > 9007199254740992UL then
+          writer.WriteValue(string value)
+        else
+          writer.WriteValue(value)
+
+    type Int64Converter() =
+
+      // We serialize int64s as valid JSON numbers for as long as we're allowed, and
+      // then we switch to strings. Since the deserialization is type-directed, we
+      // always know we're looking to convert them to int64s, so if we see a string
+      // we know exactly what it means
+      inherit JsonConverter<int64>()
+
+      override _.ReadJson(reader : JsonReader, _, _, _, _) =
+        let rawToken = string reader.Value
+        parseInt64 rawToken
+
+      override _.WriteJson(writer : JsonWriter, value : int64, _ : JsonSerializer) =
+        if value > 9007199254740992L then writer.WriteValue(string value)
+        else if value < -9007199254740992L then writer.WriteValue(string value)
+        else writer.WriteValue(value)
+
 
     type RedactedPasswordConverter() =
       inherit JsonConverter<Password>()
@@ -1341,7 +1402,8 @@ module Json =
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
       settings.Converters.Add(RedactedPasswordConverter())
-      settings.Converters.Add(TLIDConverter())
+      settings.Converters.Add(UInt64Converter())
+      settings.Converters.Add(Int64Converter())
       settings.Converters.Add(LocalDateTimeConverter())
       settings.Converters.Add(FSharpListConverter())
       settings.Converters.Add(OCamlOptionConverter())

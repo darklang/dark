@@ -134,7 +134,7 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
     |> (s => "{" ++ (inl ++ (s ++ (nl ++ "}"))))
 
   switch dv {
-  | DInt(i) => string_of_int(i)
+  | DInt(i) => Int64.to_string(i)
   | DFloat(f) => Js.Float.toString(f)
   | DStr(s) => "\"" ++ (s ++ "\"")
   | DBool(true) => "true"

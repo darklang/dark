@@ -119,6 +119,17 @@ let valid_rfc4648_b64_or_exn = (str: string) => {
 let bytes_from_base64url = (b64: string): Bytes.t =>
   b64 |> valid_rfc4648_b64_or_exn |> dark_arrayBuffer_from_b64url |> _bytes_from_uint8Array
 
+let int64 = (j: Js.Json.t) =>
+  if Js.typeof(j) == "string" {
+    Int64.of_string(string(j))
+  } else {
+    // We use `float` as `int` is 32bit, and can't handle the space between 2^32 and
+    // 2^53. `float` here can be considered to be `int53`, since we know we're
+    // getting whole integers as anything that doesn't fit in the integer portion of
+    // a float is expected to be encoded as a string
+    Int64.of_float(Json.Decode.float(j))
+  }
+
 /* IDs are strings in the client. The server serializes IDs to ints, while the
  * client serializes them to strings, so they could actually be either.
  *
@@ -163,6 +174,7 @@ let tlidDict = (decoder: Js.Json.t => 'value, j: Js.Json.t): TLIDDict.t<'value> 
 let pos = (j): pos => {x: field("x", int, j), y: field("y", int, j)}
 
 let vPos = (j): vPos => {vx: field("vx", int, j), vy: field("vy", int, j)}
+
 
 let blankOr = d =>
   variants(list{
@@ -268,7 +280,7 @@ let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
   let dv1 = variant1
   variants(
     list{
-      ("EInteger", dv2((x, y) => E.EInteger(x, y), id, i => i |> string |> Int64.of_string)),
+      ("EInteger", dv2((x, y) => E.EInteger(x, y), id, int64)),
       ("EBool", dv2((x, y) => E.EBool(x, y), id, bool)),
       ("EString", dv2((x, y) => E.EString(x, y), id, string)),
       ("EFloat", dv3((x, whole, fraction) => {
@@ -415,7 +427,7 @@ let rec dval = (j): dval => {
 
   variants(
     list{
-      ("DInt", dv1(x => DInt(x), int)),
+      ("DInt", dv1(x => DInt(x), int64)),
       ("DFloat", dv1(x => DFloat(x), encodedFloat)),
       ("DBool", dv1(x => DBool(x), bool)),
       ("DNull", dv0(DNull)),
@@ -999,7 +1011,7 @@ let saveTestAPIResult = (j): saveTestAPIResult => string(j)
 let parseBasicDval = (str): dval =>
   oneOf(
     list{
-      map(x => DInt(x), int),
+      map(x => DInt(x), int64),
       map(x => DFloat(x), Json.Decode.float),
       map(x => DBool(x), bool),
       nullAs(DNull),

@@ -296,7 +296,7 @@ let run = () => {
     test("with Some DObj input", () => {
       let dobj = Dval.obj(list{
         ("str", DStr("foo")),
-        ("int", DInt(1)),
+        ("int", DInt(1L)),
         ("float", DFloat(1.0)),
         ("obj", Dval.obj(list{})),
         ("date", DDate("2019-07-10T20:42:11Z")),

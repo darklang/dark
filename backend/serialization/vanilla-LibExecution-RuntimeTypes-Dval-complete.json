@@ -383,7 +383,7 @@
       "DIncomplete",
       [
         "SourceID",
-        7,
+        "14219007199254740993",
         8
       ]
     ],
@@ -407,33 +407,45 @@
       "DInt",
       0
     ],
-    "int int_above_31_bits - 1": [
-      "DInt",
-      1073741824
-    ],
-    "int int_above_32_bits - 1": [
-      "DInt",
-      2147483647
-    ],
-    "int int_above_53_bits - 1": [
-      "DInt",
-      4503599627370496
-    ],
     "int int_max_31_bits - 1": [
       "DInt",
-      1073741823
+      1073741822
     ],
     "int int_max_32_bits - 1": [
       "DInt",
       2147483646
     ],
-    "int int_max_53_bits - 1": [
-      "DInt",
-      4503599627370495
-    ],
     "int int_max_63_bits - 1": [
       "DInt",
-      4611686018427387902
+      "4611686018427387902"
+    ],
+    "int int_max_64_bits - 1": [
+      "DInt",
+      "9223372036854775806"
+    ],
+    "int int_max_double - 1": [
+      "DInt",
+      9007199254740991
+    ],
+    "int int_min_31_bits - 1": [
+      "DInt",
+      -1073741825
+    ],
+    "int int_min_32_bits - 1": [
+      "DInt",
+      -2147483649
+    ],
+    "int int_min_63_bits - 1": [
+      "DInt",
+      "-4611686018427387905"
+    ],
+    "int int_min_64_bits - 1": [
+      "DInt",
+      "9223372036854775807"
+    ],
+    "int int_min_double - 1": [
+      "DInt",
+      "-9007199254740993"
     ],
     "int string": [
       "DStr",
@@ -475,37 +487,13 @@
       "DInt",
       5
     ],
-    "int_above_31_bits \u002B 0": [
-      "DInt",
-      1073741825
-    ],
-    "int_above_31_bits \u002B 1": [
-      "DInt",
-      1073741826
-    ],
-    "int_above_32_bits \u002B 0": [
-      "DInt",
-      2147483648
-    ],
-    "int_above_32_bits \u002B 1": [
-      "DInt",
-      2147483649
-    ],
-    "int_above_53_bits \u002B 0": [
-      "DInt",
-      4503599627370497
-    ],
-    "int_above_53_bits \u002B 1": [
-      "DInt",
-      4503599627370498
-    ],
     "int_max_31_bits \u002B 0": [
       "DInt",
-      1073741824
+      1073741823
     ],
     "int_max_31_bits \u002B 1": [
       "DInt",
-      1073741825
+      1073741824
     ],
     "int_max_32_bits \u002B 0": [
       "DInt",
@@ -515,21 +503,69 @@
       "DInt",
       2147483648
     ],
-    "int_max_53_bits \u002B 0": [
-      "DInt",
-      4503599627370496
-    ],
-    "int_max_53_bits \u002B 1": [
-      "DInt",
-      4503599627370497
-    ],
     "int_max_63_bits \u002B 0": [
       "DInt",
-      4611686018427387903
+      "4611686018427387903"
     ],
     "int_max_63_bits \u002B 1": [
       "DInt",
-      4611686018427387904
+      "4611686018427387904"
+    ],
+    "int_max_64_bits \u002B 0": [
+      "DInt",
+      "9223372036854775807"
+    ],
+    "int_max_64_bits \u002B 1": [
+      "DInt",
+      "-9223372036854775808"
+    ],
+    "int_max_double \u002B 0": [
+      "DInt",
+      9007199254740992
+    ],
+    "int_max_double \u002B 1": [
+      "DInt",
+      "9007199254740993"
+    ],
+    "int_min_31_bits \u002B 0": [
+      "DInt",
+      -1073741824
+    ],
+    "int_min_31_bits \u002B 1": [
+      "DInt",
+      -1073741823
+    ],
+    "int_min_32_bits \u002B 0": [
+      "DInt",
+      -2147483648
+    ],
+    "int_min_32_bits \u002B 1": [
+      "DInt",
+      -2147483647
+    ],
+    "int_min_63_bits \u002B 0": [
+      "DInt",
+      "-4611686018427387904"
+    ],
+    "int_min_63_bits \u002B 1": [
+      "DInt",
+      "-4611686018427387903"
+    ],
+    "int_min_64_bits \u002B 0": [
+      "DInt",
+      "-9223372036854775808"
+    ],
+    "int_min_64_bits \u002B 1": [
+      "DInt",
+      "-9223372036854775807"
+    ],
+    "int_min_double \u002B 0": [
+      "DInt",
+      -9007199254740992
+    ],
+    "int_min_double \u002B 1": [
+      "DInt",
+      -9007199254740991
     ],
     "list": [
       "DList",

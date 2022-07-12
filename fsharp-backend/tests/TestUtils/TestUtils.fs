@@ -906,13 +906,16 @@ let interestingInts : List<string * int64> =
   [ ("int0", 0L)
     ("int1", 1L)
     ("int-1", -1L)
-    ("int_max_31_bits", 1073741824L)
-    ("int_above_31_bits", 1073741825L)
-    ("int_max_32_bits", 2147483647L)
-    ("int_above_32_bits", 2147483648L)
-    ("int_max_53_bits", 4503599627370496L)
-    ("int_above_53_bits", 4503599627370497L)
-    ("int_max_63_bits", 4611686018427387903L) ]
+    ("int_max_31_bits", 1073741823L) // 2^30-1
+    ("int_min_31_bits", -1073741824L) // -2^30
+    ("int_max_32_bits", 2147483647L) // 2^31-1
+    ("int_min_32_bits", -2147483648L) // 2^31-1
+    ("int_max_63_bits", 4611686018427387903L) // 2^62-1
+    ("int_min_63_bits", -4611686018427387904L) // -2^62
+    ("int_max_64_bits", 9223372036854775807L) // 2^63-1
+    ("int_min_64_bits", -9223372036854775808L) // -2^63
+    ("int_max_double", 9007199254740992L) // 2^53
+    ("int_min_double", -9007199254740992L) ] // -2^53
   |> List.flatMap (fun (doc, v) ->
     [ ($"int {doc} - 1", v - 1L); ($"{doc} + 0", v); ($"{doc} + 1", v + 1L) ])
 
@@ -955,7 +958,7 @@ let interestingDvals =
     ("obj with error",
      DObj(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
     ("incomplete", DIncomplete SourceNone)
-    ("incomplete2", DIncomplete(SourceID(7UL, 8UL)))
+    ("incomplete2", DIncomplete(SourceID(14219007199254740993UL, 8UL)))
     ("error", DError(SourceNone, "some error string"))
     ("block",
      DFnVal(
