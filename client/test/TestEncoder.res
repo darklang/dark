@@ -5,7 +5,7 @@ open Tester
 
 let run = () => {
   describe("dval", () => {
-    let roundtrip = d => d |> Encoders.dval |> Decoders.dval
+    let roundtrip = d => d |> Encoders.ocamlDval |> Decoders.ocamlDval
 
     test("tuple dval roundtrips", () => {
       let dval = DTuple(DInt(56L), DIncomplete(SourceNone), list{DInt(78L)})

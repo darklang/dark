@@ -590,8 +590,7 @@ let executionResult = (j: Js.Json.t): executionResult =>
     j,
   )
 
-let intermediateResultStore = (j: Js.Json.t): intermediateResultStore =>
-  idMap(executionResult, j)
+let intermediateResultStore = (j: Js.Json.t): intermediateResultStore => idMap(executionResult, j)
 
 let dvalDict = (j: Js.Json.t): dvalDict => strDict(ocamlDval, j)
 
@@ -858,7 +857,7 @@ let op = (j): op =>
         variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
       ),
       ("SetType", variant1(t => SetType(t), userTipe)),
-      ("DeleteType", variant1(t => DeleteType(t), tlid))
+      ("DeleteType", variant1(t => DeleteType(t), tlid)),
     },
     j,
   )
