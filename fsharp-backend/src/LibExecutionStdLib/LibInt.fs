@@ -213,7 +213,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "negate" 0
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
-      description = "Returns the negation of <param a>, {{-a}}."
+      description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
         | _, [ DInt a ] -> Ply(DInt(-a))

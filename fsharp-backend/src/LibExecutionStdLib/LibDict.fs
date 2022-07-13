@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "key" TStr ""; Param.make "value" varA "" ]
       returnType = TDict varA
       description =
-        "Returns a dictionary with a single entry <param key>: <param value>"
+        "Returns a dictionary with a single entry {{<param key>: <param value>}}"
       fn =
         (function
         | _, [ DStr k; v ] -> Ply(DObj(Map.ofList [ (k, v) ]))
@@ -104,9 +104,14 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "entries" (TList varA) "" ]
       returnType = TDict varA
       description =
-        "Returns a <type dict> with <param entries>. Each value in <param entries> must be a {{[key, value]}} list, where <var key> is a <type String>.
-        If <param entries> contains duplicate <var key>s, the last entry with that key will be used in the resulting dictionary (use <fn Dict::fromList> if you want to enforce unique keys).
-        This function is the opposite of <fn Dict::toList>."
+        "Returns a <type dict> with <param entries>. Each value in <param entries>
+         must be a {{[key, value]}} list, where <var key> is a <type String>.
+
+         If <param entries> contains duplicate <var key>s, the last entry with that
+         key will be used in the resulting dictionary (use <fn Dict::fromList> if you
+         want to enforce unique keys).
+
+         This function is the opposite of <fn Dict::toList>."
       fn =
         (function
         | state, [ DList l ] ->
@@ -119,7 +124,7 @@ let fns : List<BuiltInFn> =
             | (DIncomplete _
             | DErrorRail _
             | DError _) as dv -> Errors.foundFakeDval dv
-            | _ -> Exception.raiseCode "All list items must be {{[key, value]}}"
+            | _ -> Exception.raiseCode "All list items must be `[key, value]`"
 
           let result = List.fold Map.empty f l
           Ply(DObj result)
@@ -133,9 +138,14 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "entries" (TList varA) "" ]
       returnType = TOption(TDict varA)
       description =
-        "Each value in <param entries> must be a {{[key, value]}} list, where <var key> is a <type String>.
-         If <param entries> contains no duplicate keys, returns {{Just <var dict>}} where <var dict> has <param entries>.
-         Otherwise, returns {{Nothing}} (use <fn Dict::fromListOverwritingDuplicates> if you want to overwrite duplicate keys)."
+        "Each value in <param entries> must be a {{[key, value]}} list, where <var
+         key> is a <type String>.
+
+         If <param entries> contains no duplicate keys, returns {{Just <var dict>}}
+         where <var dict> has <param entries>.
+
+         Otherwise, returns {{Nothing}} (use <fn Dict::fromListOverwritingDuplicates>
+         if you want to overwrite duplicate keys)."
       fn =
         (function
         | _, [ DList l ] ->
@@ -199,7 +209,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TOption varA
       description =
-        "If the <param dict> contains <param key>, returns the corresponding value, wrapped in an <type option>: {{Just value}}. Otherwise, returns {{Nothing}}."
+        "If the <param dict> contains <param key>, returns the corresponding value,
+         wrapped in an <type option>: {{Just value}}. Otherwise, returns {{Nothing}}."
       fn =
         (function
         | _, [ DObj o; DStr s ] -> Map.tryFind s o |> Dval.option |> Ply
@@ -213,7 +224,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TBool
       description =
-        "Returns {{true}} if the <param dict> contains an entry with <param key>, and {{false}} otherwise"
+        "Returns {{true}} if the <param dict> contains an entry with <param key>, and
+         {{false}} otherwise"
       fn =
         (function
         | _, [ DObj o; DStr s ] -> Ply(DBool(Map.containsKey s o))
@@ -229,7 +241,9 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TDict varB
       description =
-        "Returns a <type Dict> that contains the same keys as the original <param dict> with values that have been transformed by {{fn}}, which operates on each value."
+        "Returns a <type Dict> that contains the same keys as the original <param
+         dict> with values that have been transformed by {{fn}}, which operates on
+         each value."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
@@ -254,8 +268,11 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
       returnType = TDict varB
       description =
-        "Returns a new dictionary that contains the same keys as the original <param dict> with values that have been transformed by {{fn}}, which operates on each key-value pair.
-          Consider <fn Dict::filterMap> if you also want to drop some of the entries."
+        "Returns a new dictionary that contains the same keys as the original <param
+         dict> with values that have been transformed by {{fn}}, which operates on
+         each key-value pair.
+
+         Consider <fn Dict::filterMap> if you also want to drop some of the entries."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
@@ -288,8 +305,10 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varA
       description =
-        "Calls <param fn> on every entry in <param dict>, returning a <type dict> of only those entries for which {{fn key value}} returns {{true}}.
-              Consider <fn Dict::filterMap> if you also want to transform the entries."
+        "Calls <param fn> on every entry in <param dict>, returning a <type dict> of
+         only those entries for which {{fn key value}} returns {{true}}.
+
+         Consider <fn Dict::filterMap> if you also want to transform the entries."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
@@ -334,7 +353,9 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varB
       description =
-        "Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type dict> that contains only the entries of <param dict> for which <param fn> returned {{true}}."
+        "Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type
+         dict> that contains only the entries of <param dict> for which <param fn>
+         returned {{true}}."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
@@ -450,7 +471,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "empty" 0
       parameters = []
       returnType = TDict varA
-      description = "Returns an empty dictionary."
+      description = "Returns an empty dictionary"
       fn =
         (function
         | _, [] -> Ply(DObj Map.empty)
@@ -463,7 +484,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "isEmpty" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TBool
-      description = "Returns {{true}} if the <param dict> contains no entries."
+      description = "Returns {{true}} if the <param dict> contains no entries"
       fn =
         (function
         | _, [ DObj dict ] -> Ply(DBool(Map.isEmpty dict))
@@ -492,7 +513,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "toJSON" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TStr
-      description = "Returns <param dict> as a JSON string."
+      description = "Returns <param dict> as a JSON string"
       fn =
         (function
         | _, [ DObj o ] ->
@@ -510,7 +531,7 @@ let fns : List<BuiltInFn> =
           Param.make "val" varA "" ]
       returnType = (TDict(TVariable "a"))
       description =
-        "Returns a copy of <param dict> with the <param key> set to <param val>."
+        "Returns a copy of <param dict> with the <param key> set to <param val>"
       fn =
         (function
         | _, [ DObj o; DStr k; v ] -> Ply(DObj(Map.add k v o))

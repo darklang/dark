@@ -131,7 +131,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "List" "singleton" 0
       parameters = [ Param.make "val" (TVariable "a") "" ]
       returnType = TList(TVariable "a")
-      description = "Returns a one-element list containing the given <param val>."
+      description = "Returns a one-element list containing the given <param val>"
       fn =
         (function
         | _, [ v ] -> Ply(DList [ v ])

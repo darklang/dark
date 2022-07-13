@@ -182,7 +182,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Result" "toOption" 0
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
-      description = "Turn a result into an option."
+      description = "Turn a result into an option"
       fn =
         (function
         | _, [ DResult o ] ->
@@ -198,7 +198,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Result" "toOption" 1
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
-      description = "Turn a result into an option."
+      description = "Turn a result into an option"
       fn =
         (function
         | _, [ DResult o ] ->
