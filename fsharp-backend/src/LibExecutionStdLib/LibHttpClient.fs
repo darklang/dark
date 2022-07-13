@@ -21,7 +21,8 @@ let fns : List<BuiltInFn> =
       parameters = []
       returnType = TDict TStr
       description =
-        "Returns an object with 'Content-Type' for url-encoded HTML forms"
+        "Returns a header <type Dict> with {{Content-Type}} set for HTML form
+         requests or responses"
       fn =
         (function
         | _, [] ->
@@ -39,7 +40,9 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "jsonContentType" 0
       parameters = []
       returnType = TDict TStr
-      description = "Returns an object with 'Content-Type' for JSON"
+      description =
+        "Returns a header <type dict> with {{Content-Type}} set for JSON requests or
+         responses"
       fn =
         (function
         | _, [] ->
@@ -57,7 +60,9 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "plainTextContentType" 0
       parameters = []
       returnType = TDict TStr
-      description = "Returns an object with 'Content-Type' for plain text"
+      description =
+        "Returns a header <type Dict> with {{'Content-Type'}} set for plain text
+         requests or responses"
       fn =
         (function
         | _, [] ->
@@ -71,7 +76,9 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "htmlContentType" 0
       parameters = []
       returnType = TDict TStr
-      description = "Returns an object with 'Content-Type' for html"
+      description =
+        "Returns a header <type Dict> with {{'Content-Type'}} set for html requests
+         or responses"
       fn =
         (function
         | _, [] ->
@@ -85,7 +92,8 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "bearerToken" 0
       parameters = [ Param.make "token" TStr "" ]
       returnType = TDict TStr
-      description = "Returns an object with 'Authorization' set to the passed token"
+      description =
+        "Returns a header <type Dict> with {{'Authorization'}} set to <param token>"
       fn =
         (function
         | _, [ DStr token ] ->
@@ -100,7 +108,8 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "bearerToken" 1
       parameters = [ Param.make "token" TStr "" ]
       returnType = TDict TStr
-      description = "Returns an object with 'Authorization' set to the passed token"
+      description =
+        "Returns a header <type Dict> with {{'Authorization'}} set to <param token>"
       fn =
         (function
         | _, [ DStr token ] ->

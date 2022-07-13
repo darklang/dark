@@ -24,7 +24,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with HTTP status <param code> and <param response> body."
       fn =
         (function
         | _, [ dv; DInt code ] -> Ply(DHttpResponse(Response(code, [], dv)))
@@ -37,11 +38,13 @@ let fns : List<BuiltInFn> =
     { name = fn "Http" "responseWithHeaders" 0
       parameters =
         [ Param.make "response" varA ""
-          Param.make "headers" (TDict varA) ""
+          Param.make "headers" (TDict TStr) ""
           Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with HTTP status <param code>, <param response> body, and <param
+         headers>."
       fn =
         (function
         | _, [ dv; DObj o; DInt code ] ->
@@ -64,7 +67,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "response" varA "" ]
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with HTTP status 200 and <param response> body."
       fn =
         (function
         | _, [ dv ] -> Ply(DHttpResponse(Response(200L, [], dv)))
@@ -78,7 +82,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with HTTP status <param code> and <param response> body, with
+         {{content-type}} set to {{\"text/html\"}}"
       fn =
         (function
         | _, [ dv; DInt code ] ->
@@ -93,7 +99,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with HTTP status <param code> and <param response> body, with
+         {{content-type}} set to {{\"text/plain\"}}"
       fn =
         (function
         | _, [ dv; DInt code ] ->
@@ -108,7 +116,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with HTTP status <param code> and <param response> body, with
+         {{content-type}} set to {{\"application/json\"}}"
       fn =
         (function
         | _, [ dv; DInt code ] ->
@@ -127,7 +137,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "url" TStr "" ]
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with a {{302}} redirect to <param url>"
       fn =
         (function
         | _, [ DStr url ] -> Ply(DHttpResponse(Redirect url))
@@ -141,7 +152,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "error" TStr "" ]
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with a {{400}} status and string <param error> message"
       fn =
         (function
         | _, [ DStr _ as msg ] -> Ply(DHttpResponse(Response(400L, [], msg)))
@@ -155,7 +167,8 @@ let fns : List<BuiltInFn> =
       parameters = []
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with {{404}} status code (not found)"
       fn =
         (function
         | _, [] -> Ply(DHttpResponse(Response(404L, [], DNull)))
@@ -169,7 +182,8 @@ let fns : List<BuiltInFn> =
       parameters = []
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with {{401}} status code (unauthorized)"
       fn =
         (function
         | _, [] -> Ply(DHttpResponse(Response(401L, [], DNull)))
@@ -183,7 +197,8 @@ let fns : List<BuiltInFn> =
       parameters = []
       returnType = THttpResponse varA
       description =
-        "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with {{403}} status code (forbidden)"
       fn =
         (function
         | _, [] -> Ply(DHttpResponse(Response(403L, [], DNull)))
@@ -200,7 +215,9 @@ let fns : List<BuiltInFn> =
           Param.make "params" (TDict varA) "" ]
       returnType = TDict varA
       description =
-        "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
+        "Generate an HTTP Set-Cookie header value suitable for <fn
+         Http::responseWithHeaders> given a cookie name, a string value for it, and a
+         <type dict> of Set-Cookie parameters."
       fn =
         (function
         | _, [ DStr name; DStr value; DObj o ] ->
@@ -246,7 +263,9 @@ let fns : List<BuiltInFn> =
           Param.make "params" (TDict varA) "" ]
       returnType = TDict varA
       description =
-        "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
+        "Generate an HTTP Set-Cookie header value suitable for <fn
+         Http::responseWithHeaders> given a cookie name, a string value for it, and an
+         <type dict> of Set-Cookie parameters."
       fn =
         (function
         | _, [ DStr name; DStr value; DObj o ] ->
@@ -299,7 +318,11 @@ let fns : List<BuiltInFn> =
           Param.make "params" (TDict varA) "" ]
       returnType = TDict varA
       description =
-        "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
+        "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn
+         Http::responseWithHeaders>, given a cookie <param name>, a <type String>
+         <param value> for it, and a <type Dict> of Set-Cookie <param params>
+         ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}},
+         and/or {{SameSite}})."
       fn =
         (function
         | state, [ DStr name; DStr value; DObj o ] ->

@@ -13,7 +13,7 @@ let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Ply(Dval.errStr str)
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 
 let fns : List<BuiltInFn> =
@@ -21,9 +21,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description =
-        "Returns the result of wrapping `a` around so that `0 <= res < b`.
-         The modulus `b` must be 0 or negative.
-         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+
+         The modulus <param b> must be 0 or negative.
+
+         Use <fn Int::remainder> if you want the remainder after division, which has
+         a different behavior for negative numbers."
       fn =
         (function
         | state, [ DInt v; DInt m as mdv ] ->
@@ -37,49 +40,59 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
-      // TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
+      // TODO: Deprecate this when we can version infix operators and when infix operators support Result return types (https://github.com/darklang/dark/issues/4267)
       // The current function returns DError (it used to rollbar) on negative `b`.
       deprecated = NotDeprecated }
-    (*  (* See above for when to uncomment this *)
-  ; { name = fn "Int" "mod" 1
-    ; infix_names = ["%_v1"]
-    ; parameters = [Param.make "value" TInt ""; Param.make "modulus" TInt ""]
-    ; returnType = TResult
-    ; description =
-        "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
-         If `modulus` is positive, returns `Ok res`. Returns an `Error` if `modulus` is 0 or negative.
-        Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
-    ; fn =
-        (* TODO: A future version should support all non-zero modulus values and should include the infix "%" *)
 
-          (function
-          | _, [DInt v; DInt m] ->
-            ( try DResult (Ok (DInt (Dint.modulo_exn v m)))
-              with e ->
-                if m <= Dint.of_int 0
-                then
-                  DResult
-                    (Error
-                       (DStr
-                          ( "`modulus` must be positive but was "
-                          ^ Dval.to_developer_repr_v0 (DInt m) )))
-                else (* In case there's another failure mode, rollbar *)
-                  raise e )
-          | _ ->
-              incorrectArgs ())
-    ; sqlSpec = NotYetImplementedTODO
-    ; previewable = Pure
-    ; deprecated = NotDeprecated } *)
+
+    // See above for when to uncomment this
+    // TODO: A future version should support all non-zero modulus values and should include the infix "%"
+    // { name = fn "Int" "mod" 1
+    //   parameters = [ Param.make "value" TInt ""; Param.make "modulus" TInt "" ]
+    //   returnType = TResult(TInt, TStr)
+    //   description =
+    //     "Returns the result of wrapping <param value> around so that {{0 <= res < modulus}}, as a <type Result>.
+    //      If <param modulus> is positive, returns {{Ok res}}. Returns an {{Error}} if <param modulus> is {{0}} or negative.
+    //     Use <fn Int::remainder> if you want the remainder after division, which has a different behavior for negative numbers."
+    //   fn =
+    //     (function
+    //     | _, [ DInt v; DInt m ] ->
+    //       (try
+    //         Ply(DResult(Ok(DInt(v % m))))
+    //        with
+    //        | e ->
+    //          if m <= 0L then
+    //            Ply(
+    //              DResult(
+    //                Error(
+    //                  DStr(
+    //                    "`modulus` must be positive but was "
+    //                    + LibExecution.DvalReprDeveloper.toRepr (DInt m)
+    //                  )
+    //                )
+    //              )
+    //            )
+    //          else // In case there's another failure mode, rollbar
+    //            Exception.raiseInternal "Unexpected failiure mode" [] e)
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotYetImplementedTODO
+    //   previewable = Pure
+    //   deprecated = NotDeprecated }
 
 
     { name = fn "Int" "remainder" 0
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
       returnType = TResult(TInt, TStr)
       description =
-        "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
-          For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
-          The sign of `divisor` doesn't influence the outcome.
-          Returns an `Error` if `divisor` is 0."
+        "Returns the integer remainder left over after dividing <param value> by
+         <param divisor>, as a <type Result>.
+
+         For example, {{Int::remainder 15 6 == Ok 3}}. The remainder will be
+         negative only if {{<var value> < 0}}.
+
+         The sign of <param divisor> doesn't influence the outcome.
+
+         Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
         (function
         | _, [ DInt v; DInt d ] ->
@@ -89,9 +102,11 @@ let fns : List<BuiltInFn> =
            | e ->
              if d = 0L then
                Ply(DResult(Error(DStr($"`divisor` must be non-zero"))))
-
-             else // In case there's another failure mode, rollbar
-               raise e)
+             else
+               Exception.raiseInternal
+                 "unexpected failure case in Int::remainder"
+                 [ "v", v; "d", d ]
+                 e)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -140,7 +155,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "power" 0
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
       returnType = TInt
-      description = "Raise `base` to the power of `exponent`"
+      description = "Raise <param base> to the power of <param exponent>"
       fn =
         (function
         | _, [ DInt number; DInt exp as expdv ] ->
@@ -185,7 +200,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
       description =
-        "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+        "Returns the absolute value of <param a> (turning negative inputs into positive outputs)"
       fn =
         (function
         | _, [ DInt a ] -> Ply(DInt(abs a))
@@ -198,7 +213,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "negate" 0
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
-      description = "Returns the negation of `a`, `-a`."
+      description = "Returns the negation of <param a>, {{-a}}."
       fn =
         (function
         | _, [ DInt a ] -> Ply(DInt(-a))
@@ -211,7 +226,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "greaterThan" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
-      description = "Returns true if a is greater than b"
+      description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Ply(DBool(a > b))
@@ -224,7 +239,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "greaterThanOrEqualTo" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
-      description = "Returns true if a is greater than or equal to b"
+      description =
+        "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Ply(DBool(a >= b))
@@ -237,7 +253,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "lessThan" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
-      description = "Returns true if a is less than b"
+      description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Ply(DBool(a < b))
@@ -250,7 +266,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "lessThanOrEqualTo" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
-      description = "Returns true if a is less than or equal to b"
+      description =
+        "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Ply(DBool(a <= b))
@@ -263,7 +280,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "random" 0
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt
-      description = "Returns a random integer between a and b (inclusive)"
+      description =
+        "Returns a random integer between <param a> and <param b> (inclusive)"
       fn =
         (function
         | _, [ DInt a; DInt b ] -> a + randomSeeded().NextInt64(b - a) |> DInt |> Ply
@@ -276,7 +294,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "random" 1
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt
-      description = "Returns a random integer between `start` and `end` (inclusive)."
+      description =
+        "Returns a random integer between <param start> and <param end> (inclusive)"
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
@@ -291,7 +310,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "sqrt" 0
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
-      description = "Get the square root of an Int"
+      description = "Get the square root of an <type Int>"
       fn =
         (function
         | _, [ DInt a ] -> Ply(DFloat(sqrt (float a)))
@@ -304,7 +323,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "toFloat" 0
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
-      description = "Converts an Int to a Float"
+      description = "Converts an <type Int> to a <type Float>"
       fn =
         (function
         | _, [ DInt a ] -> Ply(DFloat(float a))
@@ -341,7 +360,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "max" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
-      description = "Returns the higher of a and b"
+      description = "Returns the higher of <param a> and <param b>"
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Ply(DInt(max a b))
@@ -354,7 +373,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "min" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
-      description = "Returns the lower of `a` and `b`"
+      description = "Returns the lower of <param a> and <param b>"
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Ply(DInt(min a b))
@@ -371,9 +390,13 @@ let fns : List<BuiltInFn> =
           Param.make "limitB" TInt "" ]
       returnType = TInt
       description =
-        "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
-   If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
-   `limitA` and `limitB` can be provided in any order."
+        "If <param value> is within the range given by <param limitA> and <param
+         limitB>, returns <param value>.
+
+         If <param value> is outside the range, returns <param limitA> or <param
+         limitB>, whichever is closer to <param value>.
+
+         <param limitA> and <param limitB> can be provided in any order."
       fn =
         (function
         | _, [ DInt v; DInt a; DInt b ] ->
@@ -391,7 +414,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "parse" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TInt, TStr)
-      description = "Returns the int value of the string"
+      description = "Returns the <type int> value of a <type string>"
       fn =
         (function
         | _, [ DStr s ] ->

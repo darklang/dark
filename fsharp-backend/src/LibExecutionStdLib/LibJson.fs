@@ -12,7 +12,7 @@ module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 let fn = FQFnName.stdlibFnName
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 
 let varErr = TVariable "err"
@@ -23,7 +23,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "json" TStr "" ]
       returnType = varA
       description =
-        "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
+        "Parses a json string and returns its value.
+
+         HTTPClient functions, and our request handler, automatically parse JSON into
+         the {{body}} and {{jsonBody}} fields, so you probably won't need this.
+         However, if you need to consume bad JSON, you can use string functions to
+         fix the JSON and then use this function to parse it."
       fn =
         (function
         | _, [ DStr json ] ->
@@ -36,7 +41,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      // a.k.a. Json::parse_v0
       deprecated = ReplacedBy(fn "JSON" "read" 1) }
 
 
@@ -44,7 +48,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "json" TStr "" ]
       returnType = varA
       description =
-        "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
+        "Parses a json string and returns its value.
+
+         HTTPClient functions, and our request handler, automatically parse JSON into
+         the {{body}} and {{jsonBody}} fields, so you probably won't need this.
+         However, if you need to consume bad JSON, you can use string functions to
+         fix the JSON and then use this function to parse it."
       fn =
         (function
         | _, [ DStr json ] ->
@@ -61,7 +70,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "json" TStr "" ]
       returnType = TResult(varA, varErr)
       description =
-        "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
+        "Parses a json string and returns its value.
+
+         HTTPClient functions, and our request handler, automatically parse JSON into
+         the {{body}} and {{jsonBody}} fields, so you probably won't need this.
+         However, if you need to consume bad JSON, you can use string functions to
+         fix the JSON and then use this function to parse it."
       fn =
         (function
         | _, [ DStr json ] ->
