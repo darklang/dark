@@ -18,7 +18,6 @@ Result.fromOption_v1 Nothing "test" = Error "test"
 Result.fromOption_v1 (Just (Error "test")) "test" = Ok (Error "test")
 Result.fromOption_v1 blank "test" = blank
 Result.fromOption_v1 (Test.justWithTypeError_v0 "err") "msg" = Test.typeError_v0 "err"
-Result.fromOption_v1 (Test.justWithTypeError_v0 "err") 1 = Test.typeError_v0 "Result::fromOption_v1 was called with a Int (1), but `error` expected a Str."
 
 Result.fromOption_v2 (Just 6) "test" = Ok 6
 Result.fromOption_v2 Nothing "test" = Error "test"
@@ -28,8 +27,6 @@ Result.fromOption_v2 blank 1 = blank
 Result.fromOption_v2 blank (1,2,3) = blank
 Result.fromOption_v2 Nothing (1,2,3) = Error (1,2,3)
 Result.fromOption_v2 Nothing Nothing = Error Nothing
-Result.fromOption_v2 (Test.justWithTypeError_v0 "err") "msg" = Test.typeError_v0 "err"
-Result.fromOption_v2 (Test.justWithTypeError_v0 "err") 1 = Test.typeError_v0 "err"
 
 
 Result.map2_v0 (Error "error1") (Error "error2") (fun (a, b) -> a - b) = Error "error1"
