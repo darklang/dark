@@ -18,7 +18,7 @@ let pToString = Printer.pToString
 
 let h = expr => {
   ast: FluidAST.ofExpr(expr),
-  hTLID: TLID.fromString("7"),
+  hTLID: TLID.fromInt(7),
   spec: {
     space: BlankOr.newF("HTTP"),
     name: BlankOr.newF("/test"),
@@ -75,7 +75,7 @@ let run = () => {
       let h = FluidUtils.h(FluidAST.toExpr(astInfo.ast))
       let m = {...FluidTestData.defaultTestModel, handlers: Handlers.fromList(list{h})}
 
-      let astInfo = Fluid.updateAutocomplete(m, TLID.fromString("7"), astInfo)
+      let astInfo = Fluid.updateAutocomplete(m, TLID.fromInt(7), astInfo)
       List.fold(inputs, ~initial=astInfo, ~f=(astInfo: ASTInfo.t, input) =>
         Fluid.updateMsg'(m, h.hTLID, astInfo, FluidInputEvent(input))
       )

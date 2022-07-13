@@ -46,9 +46,10 @@ module Json = {
   module Encode = Json_encode_extended
 }
 
-let gid = () => Js_math.random_int(0, 2147483647) |> string_of_int |> ID.fromString
+// When we move to support larger numbers here, do not allow UInt64.max, as we use that as FluidToken.fakeid
+let gid = (): ID.t => ID.fromInt(Js_math.random_int(0, 2147483647))
 
-let gtlid = (): TLID.t => Util.random() |> string_of_int |> TLID.fromString
+let gtlid = (): TLID.t => TLID.fromInt(Js_math.random_int(0, 2147483647))
 
 module Debug = {
   let log = (~f: 'a => 'b=x => Obj.magic(x), msg: string, data: 'a): 'a => {

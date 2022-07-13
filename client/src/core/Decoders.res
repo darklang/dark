@@ -5,8 +5,6 @@ open Json.Decode
 module TL = Toplevel
 module RT = Runtime
 
-type id = id
-
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
 // This and tuple5 are adapted from ReScript - see tuple4 for the original
@@ -130,51 +128,15 @@ let int64 = (j: Js.Json.t) =>
     Int64.of_float(Json.Decode.float(j))
   }
 
-/* IDs are strings in the client. The server serializes IDs to ints, while the
- * client serializes them to strings, so they could actually be either.
- *
- * This is actually a really important path for responsiveness of the client.
- * In the past we used tried one decoder, then the other, using an exception.
- * This is very very slow. It's possible that testing it isn't the fastest
- * approach, but it no longer appears in profiles, so it's at least good
- * enough. If you change this, profile the changes (expression decoding) to
- * ensure it's still fast.
- *
- * We should change the formats so that we always know what we're getting. */
-let wireIdentifier = (j: Js.Json.t) =>
-  if Js.typeof(j) == "string" {
-    string(j)
-  } else {
-    string_of_int((Obj.magic(j): int))
-  }
-
-let id = \"<<"(ID.fromString, wireIdentifier)
-
-let tlid = \"<<"(TLID.fromString, wireIdentifier)
-
-let wireIdentifierOption = (j: Js.Json.t): option<string> =>
-  if Js.typeof(j) == "object" {
-    None
-  } else {
-    Some(string_of_int((Obj.magic(j): int)))
-  }
-
-let tlidOption = (j: Js.Json.t): option<TLID.t> =>
-  switch wireIdentifierOption(j) {
-  | Some(x) => Some(TLID.fromString(x))
-  | None => None
-  }
-
-let tlidDict = (decoder: Js.Json.t => 'value, j: Js.Json.t): TLIDDict.t<'value> =>
-  dict(decoder, j)
-  |> Js.Dict.entries
-  |> Array.map(~f=((k, v)) => (TLID.fromString(k), v))
-  |> TLID.Dict.fromArray
+let id = ID.decode
+let tlid = TLID.decode
+let tlidOption = (j: Js.Json.t): option<TLID.t> => optional(tlid, j)
+let tlidDict = TLID.Dict.decode
+let idMap = ID.Map.decode
 
 let pos = (j): pos => {x: field("x", int, j), y: field("y", int, j)}
 
 let vPos = (j): vPos => {vx: field("vx", int, j), vy: field("vy", int, j)}
-
 
 let blankOr = d =>
   variants(list{
@@ -197,7 +159,10 @@ let rec tipe = (j): tipe => {
       ("TFloat", dv0(TFloat)),
       ("TObj", dv0(TObj)),
       ("TList", dv0(TList)),
-      ("TTuple", dv3((first, second, theRest) => TTuple(first, second, theRest), tipe, tipe, list(tipe))),
+      (
+        "TTuple",
+        dv3((first, second, theRest) => TTuple(first, second, theRest), tipe, tipe, list(tipe)),
+      ),
       ("TAny", dv0(TAny)),
       ("TNull", dv0(TNull)),
       ("TBlock", dv0(TBlock)),
@@ -219,7 +184,7 @@ let rec tipe = (j): tipe => {
   )
 }
 
-let traceID = (j): traceID => wireIdentifier(j)
+let traceID = (j): traceID => string(j)
 
 let jsDate = (j): Js.Date.t => Js.Date.fromString(string(j))
 
@@ -353,12 +318,12 @@ let blankOrData = (j): blankOrData => {
   )
 }
 
-let rec dval = (j): dval => {
+let rec ocamlDval = (j): dval => {
   let dv0 = variant0
   let dv1 = variant1
   let dv2 = variant2
   let dv3 = variant3
-  let dd = dval
+  let dd = ocamlDval
 
   let optionT = variants(list{
     ("OptJust", dv1(x => OptJust(x), dd)),
@@ -383,7 +348,7 @@ let rec dval = (j): dval => {
   let dblock_args = j => {
     params: field("params", list(pair(id, string)), j),
     body: field("body", fluidExpr, j),
-    symtable: field("symtable", beltStrDict(dval), j),
+    symtable: field("symtable", beltStrDict(ocamlDval), j),
   }
 
   let encodedFloat = j =>
@@ -533,9 +498,9 @@ and savedSettings = (
     ),
   },
   cursorState: withDefault(Deselected, field("cursorState", cursorState), j),
-  tlTraceIDs: withDefault(TLIDDict.empty, field("tlTraceIDs", tlidDict(traceID)), j),
+  tlTraceIDs: withDefault(TLID.Dict.empty, field("tlTraceIDs", tlidDict(traceID)), j),
   featureFlags: withDefault(Map.String.empty, field("featureFlags", strDict(bool)), j),
-  handlerProps: withDefault(TLIDDict.empty, field("handlerProps", tlidDict(handlerProp)), j),
+  handlerProps: withDefault(TLID.Dict.empty, field("handlerProps", tlidDict(handlerProp)), j),
   canvasPos: withDefault(Defaults.origin, field("canvasPos", pos), j),
   lastReload: optional(field("lastReload", jsDate), j),
   sidebarState: withDefault(Defaults.defaultSidebar, field("sidebarState", sidebarState), j),
@@ -619,16 +584,15 @@ and loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
 let executionResult = (j: Js.Json.t): executionResult =>
   variants(
     list{
-      ("ExecutedResult", variant1(a => ExecutedResult(a), dval)),
-      ("NonExecutedResult", variant1(a => NonExecutedResult(a), dval)),
+      ("ExecutedResult", variant1(a => ExecutedResult(a), ocamlDval)),
+      ("NonExecutedResult", variant1(a => NonExecutedResult(a), ocamlDval)),
     },
     j,
   )
 
-let intermediateResultStore = (j: Js.Json.t): intermediateResultStore =>
-  beltStrDict(executionResult, j)
+let intermediateResultStore = (j: Js.Json.t): intermediateResultStore => idMap(executionResult, j)
 
-let dvalDict = (j: Js.Json.t): dvalDict => strDict(dval, j)
+let dvalDict = (j: Js.Json.t): dvalDict => strDict(ocamlDval, j)
 
 let analysisEnvelope = (j: Js.Json.t): (traceID, intermediateResultStore) =>
   tuple2(string, intermediateResultStore)(j)
@@ -775,10 +739,17 @@ let presenceMsg = (j): avatar => {
 }
 
 let inputValueDict = (j): inputValueDict =>
-  j |> array(tuple2(string, dval)) |> Belt.Map.String.fromArray
+  j |> array(tuple2(string, ocamlDval)) |> Belt.Map.String.fromArray
 
 let functionResult = (j): functionResult => {
-  let (fnName, callerID, argHash, argHashVersion, value) = tuple5(string, id, string, int, dval, j)
+  let (fnName, callerID, argHash, argHashVersion, value) = tuple5(
+    string,
+    id,
+    string,
+    int,
+    ocamlDval,
+    j,
+  )
 
   {
     fnName: fnName,
@@ -804,7 +775,7 @@ let trace = (j): trace =>
       }
   )
 
-let traces = (j): traces => j |> list(tuple2(wireIdentifier, list(trace))) |> Map.String.fromList
+let traces = (j): traces => j |> list(tuple2(TLID.decode, list(trace))) |> TLID.Dict.fromList
 
 let userRecordField = j => {
   urfName: field("name", blankOr(string), j),
@@ -887,11 +858,6 @@ let op = (j): op =>
       ),
       ("SetType", variant1(t => SetType(t), userTipe)),
       ("DeleteType", variant1(t => DeleteType(t), tlid)),
-      // deprecated, can't happen
-      ("DeprecatedInitDbm", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
-      ("DeleteFunctionForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
-      ("DeleteTLForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
-      ("DeleteTypeForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
     },
     j,
   )
@@ -925,7 +891,7 @@ let addOpAPIPusherMsg = (j: Js.Json.t): addOpPusherMsg => {
 }
 
 let getUnlockedDBsAPIResult = (j): getUnlockedDBsAPIResult =>
-  j |> field("unlocked_dbs", list(wireIdentifier)) |> Set.String.fromList
+  j |> field("unlocked_dbs", list(tlid)) |> TLID.Set.fromList
 
 let get404sAPIResult = (j): get404sAPIResult => j |> field("f404s", list(fof))
 
@@ -935,7 +901,7 @@ let getTraceDataAPIResult = (j): getTraceDataAPIResult => {trace: field("trace",
 
 let dbStats = (j): dbStats => {
   count: field("count", int, j),
-  example: field("example", optional(tuple2(dval, string)), j),
+  example: field("example", optional(tuple2(ocamlDval, string)), j),
 }
 
 let dbStatsStore = (j): dbStatsStore => strDict(dbStats, j)
@@ -966,7 +932,7 @@ let initialLoadAPIResult = (j): initialLoadAPIResult => {
     deletedDBs: List.filterMap(~f=TL.asDB, dtls),
     userFunctions: field("user_functions", list(userFunction), j),
     deletedUserFunctions: field("deleted_user_functions", list(userFunction), j),
-    unlockedDBs: j |> field("unlocked_dbs", list(wireIdentifier)) |> Set.String.fromList,
+    unlockedDBs: j |> field("unlocked_dbs", list(tlid)) |> TLID.Set.fromList,
     staticDeploys: field("assets", list(sDeploy), j),
     userTipes: field("user_tipes", list(userTipe), j),
     deletedUserTipes: field("deleted_user_tipes", list(userTipe), j),
@@ -989,11 +955,11 @@ let allTracesResult = (j): allTracesAPIResult => {
 }
 
 let executeFunctionAPIResult = (j): executeFunctionAPIResult => (
-  field("result", dval, j),
+  field("result", ocamlDval, j),
   field("hash", string, j),
   field("hashVersion", int, j),
   field("touched_tlids", list(tlid), j),
-  j |> field("unlocked_dbs", list(wireIdentifier)) |> Set.String.fromList,
+  field("unlocked_dbs", list(tlid), j) |> TLID.Set.fromList,
 )
 
 let uploadFnAPIResult = (_): uploadFnAPIResult => ()

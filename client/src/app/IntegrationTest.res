@@ -4,7 +4,7 @@ open Prelude
 module B = BlankOr
 module P = Pointer
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = FluidExpression
 
 let pass: testResult = Ok()
@@ -362,7 +362,7 @@ let function_analysis_works = (_m: model): testResult =>
 
 let jump_to_error = (m: model): testResult => {
   let focusedPass = switch m.currentPage {
-  | FocusedHandler(tlid, _, _) if tlid == TLID.fromString("123") => pass
+  | FocusedHandler(tlid, _, _) if tlid == TLID.fromInt(123) => pass
   | _ => fail("function is not focused")
   }
 
@@ -408,7 +408,7 @@ let autocomplete_visible_height = (_m: model): testResult =>
   pass
 
 let fn_page_returns_to_lastpos = (m: model): testResult =>
-  switch TL.get(m, TLID.fromString("123")) {
+  switch TL.get(m, TLID.fromInt(123)) {
   | Some(tl) =>
     let centerPos = Viewport.centerCanvasOn(tl)
     if m.canvasProps.offset == centerPos {
@@ -424,7 +424,7 @@ let fn_page_to_handler_pos = (_m: model): testResult => pass
 let load_with_unnamed_function = (_m: model): testResult => pass
 
 let create_new_function_from_autocomplete = (m: model): testResult => {
-  module TD = TLIDDict
+  module TD = TLID.Dict
   switch (Map.toList(m.userFunctions), Map.toList(m.handlers)) {
   | (
       list{(
@@ -453,7 +453,7 @@ let create_new_function_from_autocomplete = (m: model): testResult => {
 
 let extract_from_function = (m: model): testResult =>
   switch m.cursorState {
-  | FluidEntering(tlid) if tlid == TLID.fromString("123") =>
+  | FluidEntering(tlid) if tlid == TLID.fromInt(123) =>
     if Map.length(m.userFunctions) == 2 {
       pass
     } else {
@@ -518,13 +518,13 @@ let fluid_doubleclick_selects_entire_fnname = (m: model): testResult =>
 
 let fluid_single_click_on_token_in_deselected_handler_focuses = (m: model): testResult =>
   switch m.currentPage {
-  | FocusedHandler(tlid, _, _) if tlid == TLID.fromString("598813411") => pass
+  | FocusedHandler(tlid, _, _) if tlid == TLID.fromInt(598813411) => pass
   | _ => fail("handler is not focused")
   }
 
 let fluid_click_2x_on_token_places_cursor = (m: model): testResult => {
   let focusedPass = switch m.currentPage {
-  | FocusedHandler(tlid, _, _) if tlid == TLID.fromString("1835485706") => pass
+  | FocusedHandler(tlid, _, _) if tlid == TLID.fromInt(1835485706) => pass
   | _ => fail("handler is not focused")
   }
 
@@ -550,7 +550,7 @@ let fluid_click_2x_on_token_places_cursor = (m: model): testResult => {
 
 let fluid_click_2x_in_function_places_cursor = (m: model): testResult => {
   let focusedPass = switch m.currentPage {
-  | FocusedFn(tlid, _) if tlid == TLID.fromString("1352039682") => pass
+  | FocusedFn(tlid, _) if tlid == TLID.fromInt(1352039682) => pass
   | _ => fail("function is not focused")
   }
 
@@ -680,8 +680,8 @@ let fluid_test_copy_request_as_curl = (m: model): testResult => {
   // CLEANUP
   let curl = CurlCommand.curlFromHttpClientCall(
     m,
-    TLID.fromString("91390945"),
-    ID("753586717"),
+    TLID.fromInt(91390945),
+    ID.fromInt(753586717),
     "HttpClient::post",
   )
 

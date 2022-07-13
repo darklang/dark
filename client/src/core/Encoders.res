@@ -55,24 +55,8 @@ let _bytes_to_uint8Array = (input: Bytes.t): jsUint8Array => {
 let base64url_bytes = (input: Bytes.t): string =>
   input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 
-let int64 = i =>
-  if i > 9007199254740992L {
-    i->Int64.to_string->string
-  } else if i < -9007199254740992L {
-    i->Int64.to_string->string
-  } else {
-    // We use `float` as `int` is 32bit, and can't handle the space between 2^32 and
-    // 2^53.
-    i->Int64.to_float->Json.Encode.float
-  }
-
-/* Don't attempt to encode these as integers, because we're not capable
- * of expressing all existing ids as ints because ReScript is strict
- * about int == 32 bit. As far as we're concerned, ids are strings and
- * we know nothing about their parseability as ints */
-let id = \">>"(ID.toString, string)
-
-let tlid = \">>"(TLID.toString, string)
+let id = ID.encode
+let tlid = TLID.encode
 
 let pos = (p: Types.pos) => object_(list{("x", int(p.x)), ("y", int(p.y))})
 
@@ -92,7 +76,7 @@ let dval_source = (s: Types.dval_source): Js.Json.t => {
   }
 }
 
-let rec dval = (dv: Types.dval): Js.Json.t => {
+let rec ocamlDval = (dv: Types.dval): Js.Json.t => {
   let ev = variant
   let dhttp = h =>
     switch h {
@@ -107,17 +91,17 @@ let rec dval = (dv: Types.dval): Js.Json.t => {
   | DBool(b) => ev("DBool", list{bool(b)})
   | DNull => ev("DNull", list{})
   | DStr(s) => ev("DStr", list{string(s)})
-  | DList(l) => ev("DList", list{array(dval, l)})
+  | DList(l) => ev("DList", list{array(ocamlDval, l)})
   | DTuple(first, second, theRest) =>
-    ev("DTuple", list{dval(first), dval(second), array(dval, List.toArray(theRest))})
+    ev("DTuple", list{ocamlDval(first), ocamlDval(second), array(ocamlDval, List.toArray(theRest))})
   | DObj(o) =>
-    o->Belt.Map.String.map(dval)->Belt.Map.String.toList
+    o->Belt.Map.String.map(ocamlDval)->Belt.Map.String.toList
     |> Js.Dict.fromList
     |> jsonDict
     |> (x => list{x} |> ev("DObj"))
   | DBlock({body, params, symtable}) =>
     let dblock_args = object_(list{
-      ("symtable", beltStrDict(dval, symtable)),
+      ("symtable", beltStrDict(ocamlDval, symtable)),
       ("params", list(pair(id, string), params)),
       ("body", fluidExpr(body)),
     })
@@ -127,7 +111,7 @@ let rec dval = (dv: Types.dval): Js.Json.t => {
   // user-ish types
   | DCharacter(c) => ev("DCharacter", list{string(c)})
   | DError(ds, msg) => ev("DError", list{pair(dval_source, string, (ds, msg))})
-  | DResp(h, hdv) => ev("DResp", list{tuple2(dhttp, dval, (h, hdv))})
+  | DResp(h, hdv) => ev("DResp", list{tuple2(dhttp, ocamlDval, (h, hdv))})
   | DDB(name) => ev("DDB", list{string(name)})
   | DDate(date) => ev("DDate", list{string(date)})
   | DPassword(hashed) => ev("DPassword", list{string(hashed)})
@@ -138,18 +122,18 @@ let rec dval = (dv: Types.dval): Js.Json.t => {
       list{
         switch opt {
         | OptNothing => ev("OptNothing", list{})
-        | OptJust(dv) => ev("OptJust", list{dval(dv)})
+        | OptJust(dv) => ev("OptJust", list{ocamlDval(dv)})
         },
       },
     )
-  | DErrorRail(dv) => ev("DErrorRail", list{dval(dv)})
+  | DErrorRail(dv) => ev("DErrorRail", list{ocamlDval(dv)})
   | DResult(res) =>
     ev(
       "DResult",
       list{
         switch res {
-        | ResOk(dv) => ev("ResOk", list{dval(dv)})
-        | ResError(dv) => ev("ResError", list{dval(dv)})
+        | ResOk(dv) => ev("ResOk", list{ocamlDval(dv)})
+        | ResError(dv) => ev("ResError", list{ocamlDval(dv)})
         },
       },
     )
@@ -330,7 +314,7 @@ and executeFunctionAPIParams = (params: Types.executeFunctionAPIParams): Js.Json
     ("tlid", tlid(params.efpTLID)),
     ("trace_id", string(params.efpTraceID)),
     ("caller_id", id(params.efpCallerID)),
-    ("args", list(dval, params.efpArgs)),
+    ("args", list(ocamlDval, params.efpArgs)),
     ("fnname", string(params.efpFnName)),
   })
 
@@ -367,7 +351,7 @@ and triggerHandlerAPIParams = (params: Types.triggerHandlerAPIParams): Js.Json.t
   object_(list{
     ("tlid", tlid(params.thTLID)),
     ("trace_id", string(params.thTraceID)),
-    ("input", list(tuple2(string, dval), Belt.Map.String.toList(params.thInput))),
+    ("input", list(tuple2(string, ocamlDval), Belt.Map.String.toList(params.thInput))),
   })
 
 and sendPresenceParams = (params: Types.sendPresenceParams): Js.Json.t =>
@@ -475,7 +459,7 @@ and tipe = (t: Types.tipe): Js.Json.t => {
   | TObj => ev("TObj", list{})
   | TList => ev("TList", list{})
   | TTuple(first, second, theRest) =>
-    let otherTipes = Array.map(~f = (t) => tipe(t), List.toArray(theRest))
+    let otherTipes = Array.map(~f=t => tipe(t), List.toArray(theRest))
     ev("TTuple", list{tipe(first), tipe(second), jsonArray(otherTipes)})
   | TAny => ev("TAny", list{})
   | TNull => ev("TNull", list{})
@@ -565,7 +549,7 @@ and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
   | EVariable(id', name) => ev("EVariable", list{id(id'), string(name)})
   | EList(id', exprs) => ev("EList", list{id(id'), list(fe, exprs)})
   | ETuple(id', first, second, theRest) =>
-    ev("ETuple", list{id(id'), fe(first), fe(second), list(fe,  theRest)})
+    ev("ETuple", list{id(id'), fe(first), fe(second), list(fe, theRest)})
   | ERecord(id', pairs) => ev("ERecord", list{id(id'), list(pair(string, fe), pairs)})
   | EFeatureFlag(id', name, cond, a, b) =>
     ev("EFeatureFlag", list{id(id'), string(name), fe(cond), fe(a), fe(b)})
@@ -615,7 +599,7 @@ and functionResult = (fr: Types.functionResult): Js.Json.t =>
       id(fr.callerID),
       string(fr.argHash),
       int(fr.argHashVersion),
-      dval(fr.value),
+      ocamlDval(fr.value),
     },
   )
 
@@ -623,7 +607,7 @@ and traceID = string
 
 and traceData = (t: Types.traceData): Js.Json.t =>
   object_(list{
-    ("input", list(tuple2(string, dval), Belt.Map.String.toList(t.input))),
+    ("input", list(tuple2(string, ocamlDval), Belt.Map.String.toList(t.input))),
     ("timestamp", string(t.timestamp)),
     ("function_results", list(functionResult, t.functionResults)),
   })
@@ -659,7 +643,7 @@ let savedUserSettings = (se: Types.savedUserSettings): Js.Json.t =>
     ("recordConsent", Option.map(~f=bool, se.recordConsent) |> Option.unwrap(~default=null)),
   })
 
-let tlidDict = (valueEncoder: 'value => Js.Json.t, t: TLIDDict.t<'value>): Js.Json.t =>
+let tlidDict = (valueEncoder: 'value => Js.Json.t, t: TLID.Dict.t<'value>): Js.Json.t =>
   t |> Map.toList |> List.map(~f=((k, v)) => (TLID.toString(k), valueEncoder(v))) |> object_
 
 let savedSettings = (se: Types.savedSettings): Js.Json.t =>

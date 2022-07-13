@@ -1,13 +1,17 @@
 module T: {
-  @ppx.deriving(show) type rec t
+  @ppx.deriving(show({with_path: false})) type rec t = TLID(UInt64.t)
 
   type identity
 
-  let fromString: string => t
+  let comparator: Tablecloth.Comparator.t<t, identity>
 
   let toString: t => string
+  let fromString: string => option<t>
+  let fromInt: int => t
+  let fromUInt64: UInt64.t => t
 
-  let comparator: Tablecloth.Comparator.t<t, identity>
+  let encode: t => Js.Json.t
+  let decode: Js.Json.t => t
 }
 
 include module type of {
@@ -40,4 +44,7 @@ module Dict: {
   let fromArray: array<(T.t, 'value)> => t<'value>
 
   let fromList: list<(T.t, 'value)> => t<'value>
+
+  let decode: (Js.Json.t => 'value, Js.Json.t) => t<'value>
+
 }

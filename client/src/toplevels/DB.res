@@ -2,7 +2,7 @@ open Prelude
 
 // Dark
 module B = BlankOr
-module TD = TLIDDict
+module TD = TLID.Dict
 
 let toID = (db: db): TLID.t => db.dbTLID
 
@@ -15,8 +15,8 @@ let update = (m: model, ~tlid: TLID.t, ~f: db => db): model => {
 
 let remove = (m: model, db: db): model => {...m, dbs: Map.remove(~key=db.dbTLID, m.dbs)}
 
-let fromList = (dbs: list<db>): TLIDDict.t<db> =>
-  dbs |> List.map(~f=db => (db.dbTLID, db)) |> TLIDDict.fromList
+let fromList = (dbs: list<db>): TLID.Dict.t<db> =>
+  dbs |> List.map(~f=db => (db.dbTLID, db)) |> TLID.Dict.fromList
 
 let blankOrData = (db: db): list<blankOrData> => {
   let cols = switch db.activeMigration {
@@ -39,7 +39,7 @@ let hasCol = (db: db, name: string): bool =>
   )
 
 let isLocked = (m: model, tlid: TLID.t): bool =>
-  !Set.member(~value=TLID.toString(tlid), m.unlockedDBs)
+  !Set.member(~value=tlid, m.unlockedDBs)
 
 let isMigrationCol = (db: db, id: id): bool =>
   switch db.activeMigration {

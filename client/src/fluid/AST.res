@@ -193,11 +193,16 @@ let freeVariables = (ast: E.t): list<(id, string)> => {
 }
 
 module VarDict = Map.String
-module IDTable = Belt.MutableMap.String
+module IDComparable = Belt.Id.MakeComparable({
+  type t = ID.t
+  let cmp = ID.cmp
+})
+
+module IDTable = Belt.MutableMap
 
 type sym_set = VarDict.t<id>
 
-type sym_store = IDTable.t<sym_set>
+type sym_store = IDTable.t<ID.t, sym_set, IDComparable.t>
 
 let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): unit => {
   let sexe = sym_exec(~trace)
@@ -275,10 +280,10 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
 @ocaml.doc(" [variablesIn ast] produces a map of every expression id in the [ast] to its corresponding symbol table.
  * Each symbol table maps from every available variable name to the id of the corresponding value expression bound to that name. ")
 let variablesIn = (ast: E.t): avDict => {
-  let sym_store = IDTable.make()
-  let trace = (expr, st) => IDTable.set(sym_store, ID.toString(E.toID(expr)), st)
+  let sym_store = IDTable.make(~id=module(IDComparable))
+  let trace = (expr, st) => IDTable.set(sym_store, E.toID(expr), st)
   sym_exec(~trace, VarDict.empty, ast)
-  sym_store |> IDTable.toList |> Map.String.fromList
+  sym_store |> IDTable.toList |> ID.Map.fromList
 }
 
 let removePartials = (expr: E.t): E.t =>

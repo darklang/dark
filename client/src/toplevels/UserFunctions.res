@@ -3,9 +3,9 @@ open Prelude
 // Dark
 module B = BlankOr
 module P = Pointer
-module TD = TLIDDict
+module TD = TLID.Dict
 
-let allNames = (fns: TLIDDict.t<userFunction>): list<string> =>
+let allNames = (fns: TLID.Dict.t<userFunction>): list<string> =>
   fns |> Map.filterMapValues(~f=fn => B.toOption(fn.ufMetadata.ufmName))
 
 let toID = (uf: userFunction): TLID.t => uf.ufTLID
@@ -25,8 +25,8 @@ let remove = (m: model, userFunction: userFunction): model => {
   userFunctions: Map.remove(~key=userFunction.ufTLID, m.userFunctions),
 }
 
-let fromList = (ufs: list<userFunction>): TLIDDict.t<userFunction> =>
-  ufs |> List.map(~f=uf => (uf.ufTLID, uf)) |> TLIDDict.fromList
+let fromList = (ufs: list<userFunction>): TLID.Dict.t<userFunction> =>
+  ufs |> List.map(~f=uf => (uf.ufTLID, uf)) |> TLID.Dict.fromList
 
 let ufpToP = (ufp: userFunctionParameter): option<parameter> =>
   switch (ufp.ufpName, ufp.ufpTipe) {

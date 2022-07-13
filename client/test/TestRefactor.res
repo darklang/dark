@@ -72,7 +72,7 @@ let sampleFunctions = {
   }
 }
 
-let defaultTLID = TLID.fromString("handler1")
+let defaultTLID = TLID.fromInt(7)
 
 let defaultHandler = {
   hTLID: defaultTLID,
@@ -126,7 +126,7 @@ let run = () => {
     }
 
     let handlerWithPointer = (fnName, fnRail) => {
-      let id = ID.fromString("ast1")
+      let id = ID.fromInt(1231241)
       let ast = FluidAST.ofExpr(EFnCall(id, fnName, list{}, fnRail))
       ({...defaultHandler, ast: ast}, id)
     }
@@ -201,7 +201,7 @@ let run = () => {
   })
   describe("renameDBReferences", () => {
     let db0 = {
-      dbTLID: TLID.fromString("db0"),
+      dbTLID: gtlid(),
       dbName: B.newF("ElmCode"),
       cols: list{},
       version: 0,
@@ -212,18 +212,18 @@ let run = () => {
 
     test("datastore renamed, handler updates variable", () => {
       let h = {
-        ast: FluidAST.ofExpr(EVariable(ID("ast1"), "ElmCode")),
+        ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
         spec: {
           space: B.newF("HTTP"),
           name: B.newF("/src"),
           modifier: B.newF("POST"),
         },
-        hTLID: defaultTLID,
+        hTLID: TLID.fromInt(5),
         pos: {x: 0, y: 0},
       }
 
       let f = {
-        ufTLID: TLID.fromString("tl-3"),
+        ufTLID: TLID.fromInt(6),
         ufMetadata: {
           ufmName: B.newF("f-1"),
           ufmParameters: list{},
@@ -231,7 +231,7 @@ let run = () => {
           ufmReturnTipe: B.new_(),
           ufmInfix: false,
         },
-        ufAST: FluidAST.ofExpr(EVariable(ID("ast3"), "ElmCode")),
+        ufAST: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
       }
 
       let model = {
@@ -255,7 +255,7 @@ let run = () => {
     })
     test("datastore renamed, handler does not change", () => {
       let h = {
-        ast: FluidAST.ofExpr(EVariable(ID("ast1"), "request")),
+        ast: FluidAST.ofExpr(EVariable(gid(), "request")),
         spec: {
           space: B.newF("HTTP"),
           name: B.newF("/src"),
@@ -357,7 +357,7 @@ let run = () => {
       let m = {
         ...D.defaultModel,
         functions: Functions.empty |> Functions.setBuiltins(sampleFunctions, defaultFunctionsProps),
-        handlers: list{(hTLID, tl)} |> TLIDDict.fromList,
+        handlers: list{(hTLID, tl)} |> TLID.Dict.fromList,
         fluidState: {...Defaults.defaultFluidState, ac: FluidAutocomplete.init},
       }
 
@@ -540,7 +540,7 @@ let run = () => {
         aFn("callsUnsafeUserfn", fn("callsUnsafeBuiltin", list{})),
       }
       |> List.map(~f=fn => (fn.ufTLID, fn))
-      |> TLIDDict.fromList
+      |> TLID.Dict.fromList
 
     test("simple example", () => {
       let props = {userFunctions: userFunctions, usedFns: Map.String.empty}
@@ -562,15 +562,15 @@ let run = () => {
     }
 
     let handlerWithPointer = cond => {
-      let id = ID.fromString("ast1")
+      let id = gid()
       let ast = FluidAST.ofExpr(
-        EIf(id, cond, EBool(ID.fromString("bool1"), true), EBool(ID.fromString("bool2"), false)),
+        EIf(id, cond, EBool(gid(), true), EBool(gid(), false)),
       )
 
       ({...defaultHandler, ast: ast}, id)
     }
 
-    let binOp = (which, lhs, rhs) => EBinOp(ID.fromString("binop1"), which, lhs, rhs, NoRail)
+    let binOp = (which, lhs, rhs) => EBinOp(gid(), which, lhs, rhs, NoRail)
 
     let init = cond => {
       let (h, pd) = handlerWithPointer(cond)

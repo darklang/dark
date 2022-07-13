@@ -3,7 +3,7 @@ open Prelude
 // Dark
 module TL = Toplevel
 module P = Pointer
-module TD = TLIDDict
+module TD = TLID.Dict
 
 let viewBrowserMessage: Html.html<msg> = Html.div(
   list{Html.class'("warning")},

@@ -2,7 +2,7 @@ open Prelude
 open ViewUtils
 module B = BlankOr
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module Cmd = Tea.Cmd
 
 let missingEventSpaceDesc: string = "Undefined"

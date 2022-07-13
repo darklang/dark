@@ -87,3 +87,27 @@ let decodeString = (decoder: decoder<'a>, str: string): Tc.Result.t<'a, string> 
     // Debug.loG ("unknown json parsing error: '" ^ errStr ^ "'") str;
     Error(str)
   }
+
+let int64 = (j: Js.Json.t) =>
+  if Js.typeof(j) == "string" {
+    Int64.of_string(string(j))
+  } else {
+    // We use `float` as `int` is 32bit, and can't handle the space between 2^32 and
+    // 2^53. `float` here can be considered to be `int53`, since we know we're
+    // getting whole integers as anything that doesn't fit in the integer portion of
+    // a float is expected to be encoded as a string
+    Int64.of_float(Json.Decode.float(j))
+  }
+
+let uint64 = (j: Js.Json.t) : UInt64.t =>
+  if Js.typeof(j) == "string" {
+    j->string->UInt64.fromString->Option.unwrapUnsafe
+  } else {
+    // We use `float` as `int` is 32bit, and can't handle the space between 2^32 and
+    // 2^53. `float` here can be considered to be `int53`, since we know we're
+    // getting whole integers as anything that doesn't fit in the integer portion of
+    // a float is expected to be encoded as a string
+    j->Json.Decode.float->UInt64.fromFloat
+  }
+
+

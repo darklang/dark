@@ -3,7 +3,7 @@ open Prelude
 // Dark
 module TL = Toplevel
 module P = Pointer
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = FluidExpression
 
 open ProgramTypes.Expr

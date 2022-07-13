@@ -143,9 +143,9 @@ let defaultModel = (
 ): model => {
   let analyses =
     analyses
-    |> List.map(~f=((id, value)) => (ID.toString(id), ExecutedResult(value)))
+    |> List.map(~f=((id, value)) => (id, ExecutedResult(value)))
     |> List.toArray
-    |> Belt.Map.String.fromArray
+    |> ID.Map.fromArray
 
   let default = FluidTestData.defaultTestModel
   {
@@ -367,9 +367,9 @@ let run = () => {
         }) |> toEqual((list{FACVariable("request", None)}, list{FACVariable("event", None)}))
       )
       test("functions have DB names in the autocomplete", () => {
-        let blankid = ID.fromString("123")
+        let blankid = gid()
         let dbNameBlank = EBlank(blankid)
-        let fntlid = TLID.fromString("fn123")
+        let fntlid = gtlid()
         let fn = aFunction(
           ~tlid=fntlid,
           ~expr=EFnCall(gid(), "DB::deleteAll", list{dbNameBlank}, NoRail),
@@ -378,7 +378,7 @@ let run = () => {
 
         let m = defaultModel(
           ~tlid=fntlid,
-          ~dbs=list{aDB(~tlid=TLID.fromString("db123"), ())},
+          ~dbs=list{aDB(~tlid=gtlid(), ())},
           ~userFunctions=list{fn},
           (),
         )
@@ -412,7 +412,7 @@ let run = () => {
         let expr = fn("Int::add", list{EBlank(id), b})
         let m = defaultModel(
           ~analyses=list{(id, DDB("MyDB"))},
-          ~dbs=list{aDB(~tlid=TLID.fromString("23"), ())},
+          ~dbs=list{aDB(~tlid=TLID.fromInt(23), ())},
           ~handlers=list{aHandler(~expr, ())},
           (),
         )
@@ -510,8 +510,8 @@ let run = () => {
         ) |> toEqual(list{"String::newline"})
       })
       test("Pattern expressions are available in pattern blank", () => {
-        let tlid = TLID.fromString("789")
-        let patID = ID.fromString("456")
+        let tlid = gtlid()
+        let patID = gid()
         let pattern = PVariable(patID, "o")
         let expr = match'(b, list{(pattern, b)})
         let m =
@@ -555,12 +555,12 @@ let run = () => {
         | FACLiteral(_) => true
         | _ => false
         }
-      let tlid = TLID.fromString("123")
+      let tlid = gtlid()
       let expr = fn("DB::query_v4", list{str("MyDB"), lambda(list{"value"}, blank())})
 
       let m = defaultModel(
         ~tlid,
-        ~dbs=list{aDB(~tlid=TLID.fromString("db123"), ())},
+        ~dbs=list{aDB(~tlid=gtlid(), ())},
         ~handlers=list{aHandler(~expr, ())},
         (),
       )
@@ -604,12 +604,12 @@ let run = () => {
         | FACFunction(_) => true
         | _ => false
         }
-      let tlid = TLID.fromString("123")
+      let tlid = gtlid()
       let expr = fn("DB::queryWithKey_v3", list{str("MyDB"), lambda(list{"value"}, blank())})
 
       let m = defaultModel(
         ~tlid,
-        ~dbs=list{aDB(~tlid=TLID.fromString("db123"), ())},
+        ~dbs=list{aDB(~tlid=gtlid(), ())},
         ~handlers=list{aHandler(~expr, ())},
         (),
       )
@@ -629,12 +629,12 @@ let run = () => {
         | FACFunction(_) => true
         | _ => false
         }
-      let tlid = TLID.fromString("123")
+      let tlid = gtlid()
       let expr = fn("DB::queryOne_v4", list{str("MyDB"), lambda(list{"value"}, blank())})
 
       let m = defaultModel(
         ~tlid,
-        ~dbs=list{aDB(~tlid=TLID.fromString("db123"), ())},
+        ~dbs=list{aDB(~tlid=gtlid(), ())},
         ~handlers=list{aHandler(~expr, ())},
         (),
       )
@@ -654,12 +654,12 @@ let run = () => {
         | FACFunction(_) => true
         | _ => false
         }
-      let tlid = TLID.fromString("123")
+      let tlid = gtlid()
       let expr = fn("DB::queryOneWithKey_v3", list{str("MyDB"), lambda(list{"value"}, blank())})
 
       let m = defaultModel(
         ~tlid,
-        ~dbs=list{aDB(~tlid=TLID.fromString("db123"), ())},
+        ~dbs=list{aDB(~tlid=gtlid(), ())},
         ~handlers=list{aHandler(~expr, ())},
         (),
       )
@@ -679,12 +679,12 @@ let run = () => {
         | FACFunction(_) => true
         | _ => false
         }
-      let tlid = TLID.fromString("123")
+      let tlid = gtlid()
       let expr = fn("DB::queryCount", list{str("MyDB"), lambda(list{"value"}, blank())})
 
       let m = defaultModel(
         ~tlid,
-        ~dbs=list{aDB(~tlid=TLID.fromString("db123"), ())},
+        ~dbs=list{aDB(~tlid=gtlid(), ())},
         ~handlers=list{aHandler(~expr, ())},
         (),
       )

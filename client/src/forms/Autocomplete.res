@@ -6,7 +6,7 @@ module RT = Runtime
 module TL = Toplevel
 module B = BlankOr
 module Regex = Util.Regex
-module TD = TLIDDict
+module TD = TLID.Dict
 
 // ----------------------------
 // Focus

@@ -52,9 +52,6 @@ type rec clipboardContents = /* Clipboard supports both text and encoded fluidEx
 // Standard types
 // -------------------
 
-module /* == legacy aliases == */ TLIDDict = TLID.Dict
-module TLIDSet = TLID.Set
-
 @ppx.deriving(show) type rec id = ID.t
 
 @ppx.deriving(show) type rec analysisID = id
@@ -342,7 +339,7 @@ and toplevel =
   | TLFunc(userFunction)
   | TLTipe(userTipe)
 
-and packageFns = TLIDDict.t<packageFn>
+and packageFns = TLID.Dict.t<packageFn>
 
 // ----------------------
 // dvals
@@ -610,11 +607,11 @@ and executionResult =
   | ExecutedResult(dval)
   | NonExecutedResult(dval)
 
-and intermediateResultStore = Belt.Map.String.t<executionResult>
+and intermediateResultStore = ID.Map.t<executionResult>
 
-/* map from expression ids to symbol table, which maps from varname strings to
- * the ids of the expressions that represent their values */
-and avDict = Map.String.t<Map.String.t<id>>
+// map from expression ids to symbol table, which maps from varname strings to
+// the ids of the expressions that represent their values
+and avDict = ID.Map.t<Map.String.t<id>>
 
 and inputValueDict = Belt.Map.String.t<dval>
 
@@ -675,10 +672,7 @@ and traceError =
 
 and trace = (traceID, Result.t<traceData, traceError>)
 
-and traces = // indexed by TLID.t
-Map.String.t<
-  list<trace>,
->
+and traces = TLID.Dict.t<list<trace>>
 
 and fourOhFour = {
   space: string,
@@ -862,7 +856,7 @@ and loadPackagesAPIResult = list<packageFn>
 
 and triggerHandlerAPIResult = list<TLID.t>
 
-and unlockedDBs = Set.String.t
+and unlockedDBs = TLID.Set.t
 
 and getUnlockedDBsAPIResult = unlockedDBs
 
@@ -1038,7 +1032,7 @@ and functionsType = {
 
 and functionsProps = {
   usedFns: Map.String.t<int>,
-  userFunctions: TLIDDict.t<userFunction>,
+  userFunctions: TLID.Dict.t<userFunction>,
 }
 
 // ---------------
@@ -1212,8 +1206,8 @@ and modification =
   | DeleteToplevelForeverAPICall(TLID.t)
   // End API Calls
   | Select(TLID.t, tlidSelectTarget)
-  | SetHover(TLID.t, id)
-  | ClearHover(TLID.t, id)
+  | SetHover(TLID.t, idOrTraceID)
+  | ClearHover(TLID.t, idOrTraceID)
   | Deselect
   | RemoveToplevel(toplevel)
   | SetToplevels(list<handler>, list<db>, bool)
@@ -1349,6 +1343,14 @@ and heapioTrack =
   | InviteUser
   | OpenFnRef
   | OpenKeyboardRef
+
+// Somehow we allowed SetHover and ClearHover to use both traceIDs and regular IDs,
+// and it looks like different parts of the app rely on both. Since changing the
+// types of ID to no longer be a string, we can't support just hack it in anymore, so
+// this wraps around it.
+and idOrTraceID =
+  | AnID(ID.t)
+  | ATraceID(traceID)
 
 and msg =
   | IgnoreMsg(/* debug string so you know where it came from */ string)
@@ -1518,7 +1520,7 @@ and handlerProp = {
   execution: exeState,
 }
 
-and tlTraceIDs = TLIDDict.t<traceID>
+and tlTraceIDs = TLID.Dict.t<traceID>
 
 // Testing
 and testResult = Result.t<unit, string>
@@ -1778,15 +1780,15 @@ and model = {
   complete: autocomplete,
   cursorState: cursorState,
   currentPage: page,
-  hovering: list<(TLID.t, id)>,
-  handlers: TLIDDict.t<handler>,
-  deletedHandlers: TLIDDict.t<handler>,
-  dbs: TLIDDict.t<db>,
-  deletedDBs: TLIDDict.t<db>,
-  userFunctions: TLIDDict.t<userFunction>,
-  deletedUserFunctions: TLIDDict.t<userFunction>,
-  userTipes: TLIDDict.t<userTipe>,
-  deletedUserTipes: TLIDDict.t<userTipe>,
+  hovering: list<(TLID.t, idOrTraceID)>,
+  handlers: TLID.Dict.t<handler>,
+  deletedHandlers: TLID.Dict.t<handler>,
+  dbs: TLID.Dict.t<db>,
+  deletedDBs: TLID.Dict.t<db>,
+  userFunctions: TLID.Dict.t<userFunction>,
+  deletedUserFunctions: TLID.Dict.t<userFunction>,
+  userTipes: TLID.Dict.t<userTipe>,
+  deletedUserTipes: TLID.Dict.t<userTipe>,
   traces: traces,
   analyses: analyses,
   f404s: list<fourOhFour>,
@@ -1807,7 +1809,7 @@ and model = {
   usedDBs: Map.String.t<int>,
   usedFns: Map.String.t<int>,
   usedTipes: Map.String.t<int>,
-  handlerProps: TLIDDict.t<handlerProp>,
+  handlerProps: TLID.Dict.t<handlerProp>,
   staticDeploys: list<staticDeploy>,
   /* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
    * if myFunc was called in Repl2 at id, then the dict would be:
@@ -1816,17 +1818,17 @@ and model = {
    *
    * which you can read as "repl2 refersTo myfunc". So a TLID.t points to the TLs
    * it uses. */
-  tlRefersTo: TLIDDict.t<list<(TLID.t, id)>>,
+  tlRefersTo: TLID.Dict.t<list<(TLID.t, id)>>,
   /* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
    * if myFunc was called in Repl2, the dict would
    *
    *   { myfunc.tlid: { repl2.tlid }}
    *
    * which you can read as "myfunc is used in repl2". */
-  tlUsedIn: TLIDDict.t<TLIDSet.t>,
+  tlUsedIn: TLID.Dict.t<TLID.Set.t>,
   fluidState: fluidState,
   dbStats: dbStatsStore,
-  workerStats: TLIDDict.t<workerStats>,
+  workerStats: TLID.Dict.t<workerStats>,
   avatarsList: list<avatar>,
   browserId: string,
   sidebarState: sidebarState,
@@ -1841,11 +1843,11 @@ and model = {
   username: string,
   account: account,
   workerSchedules: Map.String.t<string>,
-  searchCache: TLIDDict.t<string>,
+  searchCache: TLID.Dict.t<string>,
   editorSettings: editorSettings,
   teaDebuggerEnabled: bool,
   unsupportedBrowser: bool,
-  tlMenus: TLIDDict.t<menuState>,
+  tlMenus: TLID.Dict.t<menuState>,
   firstVisitToDark: bool,
   // indicates if it is the users first time visiting any dark canvas
   tooltipState: tooltipState,
@@ -1868,7 +1870,7 @@ and savedSettings = {
   cursorState: cursorState,
   tlTraceIDs: tlTraceIDs,
   featureFlags: flagsVS,
-  handlerProps: TLIDDict.t<handlerProp>,
+  handlerProps: TLID.Dict.t<handlerProp>,
   canvasPos: pos,
   lastReload: option<@opaque Js.Date.t>,
   sidebarState: sidebarState,

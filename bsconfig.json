@@ -28,7 +28,8 @@
     "tablecloth-bucklescript",
     "bs-fetch",
     "bs-uuid",
-    "bs-deriving"
+    "bs-deriving",
+    "rescript-js"
   ],
   "bs-dev-dependencies": [],
   "bsc-flags": [

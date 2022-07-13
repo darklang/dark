@@ -3,7 +3,7 @@ open Prelude
 // Dark
 module B = BlankOr
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = ProgramTypes.Expr
 module P = ProgramTypes.Pattern
 
@@ -512,7 +512,7 @@ let createNewDB = (m: model, maybeName: option<dbName>, pos: pos): modification 
     }
 
     Many(list{
-      AppendUnlockedDBs(Set.String.fromList(list{TLID.toString(tlid)})),
+      AppendUnlockedDBs(TLID.Set.singleton(tlid)),
       AddOps(rpcCalls, FocusExact(tlid, next)),
       ...pageChanges,
     })

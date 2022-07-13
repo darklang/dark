@@ -1,7 +1,7 @@
 open Prelude
 module B = BlankOr
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 
 let keyForHandlerSpec = (space: string, name: string): string => space ++ (":" ++ name)
 
@@ -124,7 +124,7 @@ let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<id>)> =>
 let allUsedIn = (tlid: TLID.t, m: model): list<toplevel> =>
   m.tlUsedIn
   |> Map.get(~key=tlid)
-  |> Option.unwrap(~default=TLIDSet.empty)
+  |> Option.unwrap(~default=TLID.Set.empty)
   |> Set.toList
   |> List.filterMap(~f=tlid => TL.get(m, tlid))
 
@@ -235,7 +235,7 @@ let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
 
       let newUsedIn =
         Map.get(~key=usage.usedIn, usedIn)
-        |> Option.unwrap(~default=TLIDSet.empty)
+        |> Option.unwrap(~default=TLID.Set.empty)
         |> Set.add(~value=usage.refersTo)
         |> (value => Map.add(~key=usage.usedIn, ~value, usedIn))
 

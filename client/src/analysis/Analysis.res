@@ -8,7 +8,7 @@ module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = FluidExpression
 
 // ----------------------
@@ -27,7 +27,7 @@ let defaultTraceIDForTL = (~tlid: TLID.t) =>
   ) |> BsUuid.Uuid.V5.toString
 
 let getTraces = (m: model, tlid: TLID.t): list<trace> =>
-  Map.get(~key=TLID.toString(tlid), m.traces) |> Option.unwrapLazy(~default=() => list{
+  Map.get(~key=tlid, m.traces) |> Option.unwrapLazy(~default=() => list{
     (defaultTraceIDForTL(~tlid), Error(NoneYet)),
   })
 
@@ -61,7 +61,7 @@ let replaceFunctionResult = (
     value: dval,
   }
 
-  let traces = m.traces |> Map.update(~key=TLID.toString(tlid), ~f=ml =>
+  let traces = m.traces |> Map.update(~key=tlid, ~f=ml =>
     ml
     |> Option.unwrap(
       ~default=list{
@@ -91,25 +91,25 @@ let replaceFunctionResult = (
   {...m, traces: traces}
 }
 
-let getLiveValueLoadable = (analysisStore: analysisStore, ID(id): id): loadable<executionResult> =>
+let getLiveValueLoadable = (analysisStore: analysisStore, id: id): loadable<executionResult> =>
   switch analysisStore {
   | LoadableSuccess(dvals) =>
-    Belt.Map.String.get(dvals, id)
+    Map.get(~key=id, dvals)
     |> Option.map(~f=dv => LoadableSuccess(dv))
     |> Option.unwrap(~default=LoadableNotInitialized)
   | LoadableNotInitialized => LoadableNotInitialized
   | LoadableLoading(oldDvals) =>
     oldDvals
-    |> Option.andThen(~f=m => Belt.Map.String.get(m, id))
+    |> Option.andThen(~f=m => Map.get(~key=id, m))
     |> Option.map(~f=dv => LoadableSuccess(dv))
     |> Option.unwrap(~default=LoadableLoading(None))
   | LoadableError(error) => LoadableError(error)
   }
 
-let getLiveValue' = (analysisStore: analysisStore, ID(id): id): option<dval> =>
+let getLiveValue' = (analysisStore: analysisStore, id: id): option<dval> =>
   switch analysisStore {
   | LoadableSuccess(dvals) =>
-    switch Belt.Map.String.get(dvals, id) {
+    switch Map.get(~key=id, dvals) {
     | Some(ExecutedResult(dval)) | Some(NonExecutedResult(dval)) => Some(dval)
     | _ => None
     }
@@ -159,7 +159,7 @@ let getAvailableVarnames = (m: model, tl: toplevel, id: id, traceID: traceID): l
     ast
     |> FluidAST.toExpr
     |> AST.variablesIn
-    |> Map.get(~key=ID.toString(id))
+    |> Map.get(~key=id)
     |> Option.unwrap(~default=Map.String.empty)
     |> Map.toList
     |> List.map(~f=((varname, id)) => (varname, getLiveValue(m, id, traceID)))
@@ -237,7 +237,7 @@ module NewTracePush = {
   let decode = {
     open Tea.Json.Decoder
     let traceID = map((id): traceID => id, string)
-    let tlids = list(map(TLID.fromString, Native.Decoder.wireIdentifier))
+    let tlids = list(map((tlid) => TLID.fromInt(tlid), Tea.Json.Decoder.int))
     field("detail", Native.Decoder.tuple2(traceID, tlids))
   }
 
@@ -392,10 +392,7 @@ let mergeTraces = (
        * guaranteeing that we won't duplicate the selected trace and
        * that we preserve the relative order
        */
-      let selectedTraceID = {
-        let tlid = TLID.fromString(tlid)
-        Map.get(~key=tlid, selectedTraceIDs)
-      }
+      let selectedTraceID = Map.get(~key=tlid, selectedTraceIDs)
 
       let maxNonSelectedTraces = maxTracesPerHandler - 1
       let (preserved, _) = List.fold(merged, ~initial=(list{}, 0), ~f=(

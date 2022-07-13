@@ -20,6 +20,8 @@ module Values =
   /// The test values below are used to check the exact output of test file. So we need
   /// the test inputs to be consistent, which is why we never use `gid ()` below, or
   /// FSharpToExpr functions.
+  ///
+  /// When updating this, also update FluidTestData.complexExpr in the client
   let testExpr =
     let e = PT.EInteger(34545UL, 5)
     PT.ELet(
@@ -29,7 +31,7 @@ module Values =
       PT.ELet(
         620028536UL,
         "x2",
-        PT.EInteger(452247642UL, 6L),
+        PT.EInteger(452247642UL, 9223372036854775807L),
         PT.ELet(
           68205955UL,
           "bool",
@@ -188,7 +190,7 @@ module Values =
                                  ),
                                  PT.EVariable(863810169UL, "v"))
                                 (PT.PInteger(928253813UL, 5L),
-                                 PT.EInteger(342670561UL, 6L))
+                                 PT.EInteger(342670561UL, -9223372036854775808L))
                                 (PT.PBool(435227293UL, true),
                                  PT.EInteger(232748650UL, 7L))
                                 (PT.PCharacter(387662539UL, "c"),
@@ -218,15 +220,25 @@ module Values =
                                 PT.EInteger(578528886UL, 5L),
                                 PT.EInteger(562930224UL, 6L)
                               ),
-                              PT.EList(
-                                23423423UL,
-                                [ PT.EPartial(2949606UL, "some 🤬 string", e)
-                                  PT.ERightPartial(9239755UL, "some 😭 string", e)
-                                  PT.ELeftPartial(
-                                    234885UL,
-                                    "some 👨‍👩‍👧‍👦 string",
-                                    e
-                                  ) ]
+                              PT.ELet(
+                                6345345UL,
+                                "partials",
+                                PT.EList(
+                                  23423423UL,
+                                  [ PT.EPartial(2949606UL, "some 🤬 string", e)
+                                    PT.ERightPartial(9239755UL, "some 😭 string", e)
+                                    PT.ELeftPartial(
+                                      234885UL,
+                                      "some 👨‍👩‍👧‍👦 string",
+                                      e
+                                    ) ]
+                                ),
+                                PT.ELet(
+                                  883434UL,
+                                  "tuples",
+                                  PT.ETuple(72333UL, e, e, [ e ]),
+                                  e
+                                )
                               )
                             )
                           )

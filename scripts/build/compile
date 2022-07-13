@@ -588,6 +588,7 @@ def mark(should, f):
   elif ("/client/" in f) \
           and ((".resi" in f) \
                   or (".res" in f)
+                  or (".resi" in f)
                   or (".js" in f)):
     # This correctly handles tests and other dirs, which need to be built
     # as part of this step.

@@ -580,6 +580,8 @@ let compoundExpr = if'(
   fn("Http::Forbidden", list{}),
 )
 
+/// When updating this, also update SerializationTests.Tests.Values.testExpr in the
+/// backend
 let complexExpr = {
   let e = int(-5)
   let'(
@@ -653,6 +655,7 @@ let complexExpr = {
                               (pConstructor("Ok", list{pVar("x")}), var("v")),
                               (pInt(5), int64(-9223372036854775808L)),
                               (pBool(true), int(7)),
+                              // (pChar("c"), char("c")),
                               (pString("string"), str("string")),
                               (pNull(), null),
                               (pVar("var"), binop("+", int(6), var("var"))),
@@ -663,11 +666,15 @@ let complexExpr = {
                           let'(
                             "f",
                             flag(~name="test", bool(true), int(5), int(6)),
-                            list(list{
-                              partial("some 🤬 string", e),
-                              rightPartial("some 😭 string", e),
-                              leftPartial("some 👨‍👩‍👧‍👦 string", e),
-                            }),
+                            let'(
+                              "partials",
+                              list(list{
+                                partial("some 🤬 string", e),
+                                rightPartial("some 😭 string", e),
+                                leftPartial("some 👨‍👩‍👧‍👦 string", e),
+                              }),
+                              let'("tuples", tuple(e, e, list{e}), e),
+                            ),
                           ),
                         ),
                       ),
@@ -686,7 +693,7 @@ let complexExpr = {
 // ----------------
 // Some useful defaults
 // ----------------
-let defaultTLID = TLID.fromString("7")
+let defaultTLID = TLID.fromInt(7)
 
 let defaultTestFunctions = {
   let fnParam = (name: string, t: tipe, ~blockArgs=list{}, opt: bool): Types.parameter => {
@@ -821,25 +828,29 @@ let defaultTestFunctions = {
 
 let defaultTestState = {...Defaults.defaultFluidState, activeEditor: MainEditor(defaultTLID)}
 
-let defaultFunctionsProps = {usedFns: Map.String.empty, userFunctions: TLIDDict.empty}
+let defaultFunctionsProps = {usedFns: Map.String.empty, userFunctions: TLID.Dict.empty}
 
 let defaultTestProps: Types.fluidProps = {
   functions: Functions.empty |> Functions.setBuiltins(defaultTestFunctions, defaultFunctionsProps),
   variants: list{LeftPartialVariant},
 }
 
+let fakeID1 = ID.fromInt(77777771)
+let fakeID2 = ID.fromInt(77777772)
+let fakeID3 = ID.fromInt(77777773)
+
 let defaultTestModel = {
   ...Defaults.defaultModel,
   tests: defaultTestProps.variants,
   functions: defaultTestProps.functions,
-  analyses: Map.String.fromList /* The default traceID for TLID 7 */(list{
+  analyses: Map.String.fromList (list{
     (
-      "94167980-f909-527e-a4af-bc3155f586d3",
+      "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
       LoadableSuccess(
-        Belt.Map.String.fromArray([
-          ("fake-acdata1", ExecutedResult(Dval.obj(list{("body", DNull), ("formBody", DNull)}))),
-          ("fake-acdata2", ExecutedResult(Dval.obj(list{("title", DNull), ("author", DNull)}))),
-          ("fake-acdata3", ExecutedResult(Dval.obj(list{("body", DInt(5L))}))),
+        ID.Map.fromArray([
+          (fakeID1, ExecutedResult(Dval.obj(list{("body", DNull), ("formBody", DNull)}))),
+          (fakeID2, ExecutedResult(Dval.obj(list{("title", DNull), ("author", DNull)}))),
+          (fakeID3, ExecutedResult(Dval.obj(list{("body", DInt(5L))}))),
         ]),
       ),
     ),

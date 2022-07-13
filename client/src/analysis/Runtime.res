@@ -320,7 +320,7 @@ let pathFromInputVars = (iv: inputValueDict): option<string> =>
   |> Option.andThen(~f=Native.Url.make)
   |> Option.map(~f=url => url["pathname"] ++ url["search"])
 
-let setHandlerExeState = (tlid: TLID.t, state: exeState, hp: TLIDDict.t<handlerProp>): TLIDDict.t<
+let setHandlerExeState = (tlid: TLID.t, state: exeState, hp: TLID.Dict.t<handlerProp>): TLID.Dict.t<
   handlerProp,
 > =>
   hp |> Map.update(~key=tlid, ~f=old => {

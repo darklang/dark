@@ -1,7 +1,7 @@
 open Prelude
 module Regex = Util.Regex
 module TL = Toplevel
-module TD = TLIDDict
+module TD = TLID.Dict
 module E = FluidExpression
 module ASTInfo = FluidTokenizer.ASTInfo
 
@@ -12,7 +12,7 @@ type viewProps = {
   cursorState: cursorState,
   tlid: TLID.t,
   isAdmin: bool,
-  hovering: option<(TLID.t, id)>,
+  hovering: option<(TLID.t, idOrTraceID)>,
   ac: autocomplete,
   showEntry: bool,
   showLivevalue: bool,
@@ -71,12 +71,12 @@ let createVS = (m: model, tl: toplevel): viewProps => {
     tlid: tlid,
     cursorState: CursorState.unwrap(m.cursorState),
     hovering: m.hovering
-    |> List.filter(~f=((tlid, _)) => tlid == tlid)
+    |> List.filter(~f=((tlid, _)) => tlid == tlid) // CLEANUP: this looks wrong
     |> List.head
     |> Option.andThen(~f=((_, i) as res) =>
       switch CursorState.idOf(m.cursorState) {
       | Some(cur) =>
-        if cur == i {
+        if AnID(cur) == i {
           None
         } else {
           Some(res)

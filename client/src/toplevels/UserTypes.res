@@ -3,7 +3,7 @@ open Prelude
 // Dark
 module B = BlankOr
 module P = Pointer
-module TD = TLIDDict
+module TD = TLID.Dict
 
 let blankOrData = (t: userTipe): list<blankOrData> => {
   let namePointer = PTypeName(t.utName)
@@ -37,10 +37,10 @@ let remove = (m: model, ut: userTipe): model => {
   userTipes: Map.remove(~key=ut.utTLID, m.userTipes),
 }
 
-let fromList = (uts: list<userTipe>): TLIDDict.t<userTipe> =>
-  uts |> List.map(~f=ut => (ut.utTLID, ut)) |> TLIDDict.fromList
+let fromList = (uts: list<userTipe>): TLID.Dict.t<userTipe> =>
+  uts |> List.map(~f=ut => (ut.utTLID, ut)) |> TLID.Dict.fromList
 
-let allNames = (tipes: TLIDDict.t<userTipe>): list<string> =>
+let allNames = (tipes: TLID.Dict.t<userTipe>): list<string> =>
   tipes |> Map.filterMapValues(~f=t => B.toOption(t.utName))
 
 let toTUserType = (tipe: userTipe): option<tipe> =>
