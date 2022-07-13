@@ -21,14 +21,14 @@ let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Ply(Dval.errStr str)
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 
 let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TBool
-      description = "Returns `true` if `s` is the empty string \"\"."
+      description = "Returns {{true}} if <param s> is the empty string {{\"\"}}"
       fn =
         (function
         | _, [ DStr s ] -> Ply(DBool(s = ""))
@@ -48,7 +48,8 @@ let fns : List<BuiltInFn> =
             [ "char" ] ]
       returnType = TStr
       description =
-        "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
+        "Iterate over each character (byte, not EGC) in the string, performing the
+         operation in the block on each one"
       fn =
         function
         | state, [ s; f ] -> Errors.removedFunction state "String::foreach"
@@ -64,7 +65,8 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ TChar ], TChar)) "" [ "character" ] ]
       returnType = TStr
       description =
-        "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
+        "Iterate over each Character (EGC, not byte) in the string, performing the
+         operation in <param fn> on each one."
       fn =
         (function
         | state, [ DStr s; DFnVal b ] ->
@@ -154,7 +156,9 @@ let fns : List<BuiltInFn> =
           Param.make "searchFor" TStr "The string to search for within <param s>"
           Param.make "replaceWith" TStr "" ]
       returnType = TStr
-      description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
+      description =
+        "Replace all instances on <param searchFor> in <param s> with <param
+         replaceWith>"
       fn =
         (function
         | _, [ DStr s; DStr search; DStr replace ] ->
@@ -181,7 +185,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "toInt" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
-      description = "Returns the int value of the string"
+      description = "Returns the <type int> value of the <type string>"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -207,7 +211,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TInt, TStr)
       description =
-        "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
+        "Returns the <type int> value of the string, wrapped in a {{Ok}}, or {{Error
+         <msg>}} if the string contains characters other than numeric digits"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -257,7 +262,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "toFloat" 1
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TFloat, TStr)
-      description = "Returns the float value of the string"
+      description = "Returns the <type float> value of the <type string>"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -280,8 +285,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        // CLEANUP "Returns the string, uppercased (only ASCII characters are uppercased)"
-        "Returns the string, uppercased"
+        "Returns the string, uppercased (only ASCII characters are uppercased)"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -314,8 +318,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        // CLEANUP "Returns the string, lowercased (only ASCII characters are lowercased)"
-        "Returns the string, lowercased"
+        "Returns the string, lowercased (only ASCII characters are lowercased)"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -347,7 +350,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "length" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
-      description = "Returns the length of the string"
+      description = "Returns the number of bytes in the string"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -372,11 +375,10 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "append" 0
-      (* This used to provide "++" as an infix op.
-       * It was moved to [String::append_v1] instead,
-       * because we do not yet support versioning infix operators.
-       * We decided this was safe under the assumption that no one should be
-       * (and very likely no one is) relying on broken normalization. *)
+      // This used to provide "++" as an infix op. It was moved to
+      // [String::append_v1] instead, because we do not yet support versioning infix
+      // operators.  We decided this was safe under the assumption that no one should
+      // be (and very likely no one is) relying on broken normalization.
       parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
       returnType = TStr
       description = "Concatenates the two strings and returns the joined string"
@@ -406,7 +408,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
       returnType = TStr
       description =
-        "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
+        "Concatenates the two strings by appending <param s2> to <param s1> and
+         returns the joined string."
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
@@ -421,7 +424,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
       returnType = TStr
       description =
-        "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
+        "Concatenates the two strings by prepending <param s2> to <param s1> and
+         returns the joined string."
       fn =
         (function
         | _, [ DStr s1; DStr s2 ] -> Ply(DStr(s2 + s1))
@@ -490,7 +494,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "string" TStr "" ]
       returnType = TStr
       description =
-        "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
+        "Turns a string into a prettified slug, including only lowercased
+         alphanumeric characters, joined by hyphens"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -518,7 +523,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "reverse" 0
       parameters = [ Param.make "string" TStr "" ]
       returnType = TStr
-      description = "Reverses `string`"
+      description = "Reverses <param string>"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -668,7 +673,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "fromChar" 0
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
-      description = "Converts a char to a string"
+      description = "Converts a <type char> to a <type string>"
       fn =
         function
         | state, [ c ] -> Errors.removedFunction state "String::fromChar"
@@ -681,7 +686,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "fromChar" 1
       parameters = [ Param.make "c" TChar "" ]
       returnType = TStr
-      description = "Converts a char to a string"
+      description = "Converts a <type char> to a <type string>"
       fn =
         (function
         | _, [ DChar c ] -> Ply(DStr(c))
@@ -695,7 +700,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
+        "URLBase64 encodes a string without padding. Uses URL-safe encoding with
+        {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
+        [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -714,7 +721,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
+        "Base64 decodes a string. Works with both the URL-safe and standard Base64
+         alphabets defined in [RFC 4648
+         sections](https://www.rfc-editor.org/rfc/rfc4648.html)
+         [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
+         [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
         | _, [ DStr s ] ->
@@ -779,7 +790,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        "Take a string and hash it using SHA384. Please use Crypto::sha384 instead."
+        "Take a string and hash it using SHA384. Please use <fn Crypto::sha384>
+         instead."
       fn =
         (function
         | _, [ DStr s ] ->
@@ -802,7 +814,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        "Take a string and hash it using SHA256. Please use Crypto::sha256 instead."
+        "Take a string and hash it using SHA256. Please use <fn Crypto::sha256>
+         instead."
       fn =
         (function
         | _, [ DStr s ] ->
@@ -824,7 +837,8 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "random" 0
       parameters = [ Param.make "length" TInt "" ]
       returnType = TStr
-      description = "Generate a string of length `length` from random characters."
+      description =
+        "Generate a <type string> of length <param length> from random characters."
       fn =
         (function
         | _, [ DInt l as dv ] ->
@@ -854,7 +868,8 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "random" 1
       parameters = [ Param.make "length" TInt "" ]
       returnType = TResult(TStr, TStr)
-      description = "Generate a string of length `length` from random characters."
+      description =
+        "Generate a <type string> of length <param length> from random characters"
       fn =
         (function
         | _, [ DInt l ] ->
@@ -884,7 +899,8 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "random" 2
       parameters = [ Param.make "length" TInt "" ]
       returnType = TResult(TStr, TStr)
-      description = "Generate a string of length `length` from random characters."
+      description =
+        "Generate a <type string> of length <param length> from random characters"
       fn =
         (function
         | _, [ DInt l as dv ] ->
@@ -920,7 +936,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "html" TStr "" ]
       returnType = TStr
       description =
-        "Escape an untrusted string in order to include it safely in HTML output."
+        "Escape an untrusted string in order to include it safely in HTML output"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -953,7 +969,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "uuid" TStr "" ]
       returnType = TUuid
       description =
-        "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
+        "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -974,7 +990,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "uuid" TStr "" ]
       returnType = TResult(TUuid, TStr)
       description =
-        "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
+        "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -996,7 +1012,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "searchingFor" TStr ""; Param.make "lookingIn" TStr "" ]
       returnType = TBool
-      description = "Checks if `lookingIn` contains `searchingFor`"
+      description = "Checks if <param lookingIn> contains <param searchingFor>"
       fn =
         (function
         | _, [ DStr needle; DStr haystack ] -> DBool(haystack.Contains needle) |> Ply
@@ -1010,7 +1026,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
       returnType = TBool
-      description = "Checks if `lookingIn` contains `searchingFor`"
+      description = "Checks if <param lookingIn> contains <param searchingFor>"
       fn =
         (function
         | _, [ DStr haystack; DStr needle ] -> DBool(haystack.Contains needle) |> Ply
@@ -1027,7 +1043,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
       returnType = TBool
-      description = "Checks if `lookingIn` contains `searchingFor`"
+      description = "Checks if <param lookingIn> contains <param searchingFor>"
       fn =
         (function
         | _, [ DStr haystack; DStr needle ] -> Ply(DBool(haystack.Contains needle))
@@ -1047,9 +1063,10 @@ let fns : List<BuiltInFn> =
           Param.make "to" TInt "" ]
       returnType = TStr
       description =
-        "Returns the substring of `string` between the `from` and `to` indices.
-       Negative indices start counting from the end of `string`.
-       Indices represent characters."
+        "Returns the substring of <param string> between the <param from> and <param
+         to> indices.
+
+         Negative indices start counting from the end of <param string>."
       fn =
         (function
         | _, [ DStr s; DInt first; DInt last ] ->
@@ -1086,9 +1103,13 @@ let fns : List<BuiltInFn> =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
       description =
-        "Returns the first `characterCount` characters of `string`, as a String.
-      If `characterCount` is longer than `string`, returns `string`.
-      If `characterCount` is negative, returns the empty string."
+        "Returns the first <param characterCount> characters of <param string>, as a
+         String.
+
+         If <param characterCount> is longer than <param string>, returns <param
+         string>.
+
+         If <param characterCount> is negative, returns the empty string."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
@@ -1112,9 +1133,13 @@ let fns : List<BuiltInFn> =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
       description =
-        "Returns the last `characterCount` characters of `string`, as a String.
-      If `characterCount` is longer than `string`, returns `string`.
-      If `characterCount` is negative, returns the empty string."
+        "Returns the last <param characterCount> characters of <param string>, as a
+         String.
+
+         If <param characterCount> is longer than <param string>, returns <param
+         string>.
+
+         If <param characterCount> is negative, returns the empty string."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
@@ -1160,9 +1185,12 @@ let fns : List<BuiltInFn> =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
       description =
-        "Returns all but the last `characterCount` characters of `string`, as a String.
-      If `characterCount` is longer than `string`, returns the empty string.
-      If `characterCount` is negative, returns `string`."
+        "Returns all but the last <param characterCount> characters of <param
+         string>, as a String.
+
+         If <param characterCount> is longer than <param string>, returns the empty string.
+
+         If <param characterCount> is negative, returns <param string>."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
@@ -1206,9 +1234,13 @@ let fns : List<BuiltInFn> =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
       description =
-        "Returns all but the first `characterCount` characters of `string`, as a String.
-        If `characterCount` is longer than `string`, returns the empty string.
-        If `characterCount` is negative, returns `string`."
+        "Returns all but the first <param characterCount> characters of <param
+         string>, as a <type String>.
+
+         If <param characterCount> is longer than <param string>, returns the empty
+         string.
+
+         If <param characterCount> is negative, returns <param string>."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
@@ -1247,8 +1279,11 @@ let fns : List<BuiltInFn> =
           Param.make "goalLength" TInt "" ]
       returnType = TStr
       description =
-        "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
-      If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
+        "If <param string> is shorter than <param goalLength> characters, returns a
+         copy of <param string> starting with enough copies of <param padWith> for the
+         result have <param goalLength>.
+
+         If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>"
       fn =
         (function
         | _, [ DStr s; DStr padWith as dv; DInt l ] ->
@@ -1280,8 +1315,12 @@ let fns : List<BuiltInFn> =
           Param.make "goalLength" TInt "" ]
       returnType = TStr
       description =
-        "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
-      If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
+        "If <param string> is shorter than <param goalLength> characters, returns a
+         copy of <param string> ending with enough copies of <param padWith> for the
+         result have <param goalLength>.
+
+         If the <param string> is longer than <param goalLength>, returns an unchanged copy of
+         <param string>."
       fn =
         (function
         | _, [ DStr s; DStr padWith as dv; DInt l ] ->
@@ -1310,7 +1349,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description =
-        "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+        "Returns a copy of <param str> with all leading and trailing whitespace
+         removed. 'whitespace' here means all Unicode characters with the
+         {{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and
+         {{\"\\n\"}}"
       fn =
         (function
         | _, [ DStr toTrim ] -> toTrim |> String.trim |> DStr |> Ply
@@ -1324,7 +1366,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description =
-        "Returns a copy of `str` with all leading whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+        "Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
+         here means all Unicode characters with the {{White_Space}} property, which
+         includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}"
       fn =
         (function
         | _, [ DStr toTrim ] -> Ply(DStr(toTrim.TrimStart()))
@@ -1338,7 +1382,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description =
-        "Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+        "Returns a copy of <param str> with all trailing whitespace removed.
+         'whitespace' here means all Unicode characters with the {{White_Space}}
+         property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}."
       fn =
         (function
         | _, [ DStr toTrim ] -> Ply(DStr(toTrim.TrimEnd()))
@@ -1352,7 +1398,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "str" TStr "" ]
       returnType = TBytes
       description =
-        "Converts the given unicode string to a utf8-encoded byte sequence."
+        "Converts the given unicode string to a UTF8-encoded byte sequence."
       fn =
         (function
         | _, [ DStr str ] ->
@@ -1367,7 +1413,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "startsWith" 0
       parameters = [ Param.make "subject" TStr ""; Param.make "prefix" TStr "" ]
       returnType = TBool
-      description = "Checks if `subject` starts with `prefix`"
+      description = "Checks if <param subject> starts with <param prefix>"
       fn =
         (function
         | _, [ DStr subject; DStr prefix ] ->
@@ -1382,7 +1428,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "subject" TStr "String to test"; Param.make "suffix" TStr "" ]
       returnType = TBool
-      description = "Checks if `subject` ends with `suffix`"
+      description = "Checks if <param subject> ends with <param suffix>"
       fn =
         (function
         | _, [ DStr subject; DStr suffix ] ->

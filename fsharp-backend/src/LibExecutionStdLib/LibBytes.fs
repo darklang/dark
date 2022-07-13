@@ -16,7 +16,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TBytes, TStr)
       description =
-        "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html) sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
+        "Base64 decodes a string. Works with both the URL-safe and standard Base64
+         alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
+         sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
+         [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
         | _, [ DStr s ] ->
@@ -52,7 +55,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =
-        "Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648 section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
+        "Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
+         with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648
+         section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
         | _, [ DBytes bytes ] ->
@@ -70,7 +75,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =
-        "Hex (Base16) encodes <param bytes> using an uppercase alphabet. Complies with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
+        "Hex (Base16) encodes <param bytes> using an uppercase alphabet. Complies
+         with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
       fn =
         (function
         | _, [ DBytes bytes ] ->
