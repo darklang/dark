@@ -296,8 +296,12 @@ jobs:
       # Set the timestamp to the commit time. This allows timestamp-based build tools
       # like .NET to use their incremental build feature. Without this, the checkout
       # time is always newer than the cached object file, and files are always
-      # rebuilt.
-      - run: git restore-mtime
+      # rebuilt
+      # Currently disabled, as it was causing issues failures within
+      # Serialization.Tests.fs where the allowedTypes for serializers did not match
+      # what tests expected (and what files were persisted in backend/serialization).
+      # TODO: think through an alternative or more nuanced approach.
+      #- run: git restore-mtime
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
