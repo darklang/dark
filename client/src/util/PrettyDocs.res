@@ -1,7 +1,7 @@
 open Prelude
 module Regex = Util.Regex
 
-let tagEx = "^(.*)\\<(\\w+)\\s(.+)\\>(.*)$"
+let tagEx = "^(.*)\\<(\\w+)\\s(.+?)\\>(.*)$"
 
 let codeEx = "^(.*)\\{\\{(.+)\\}\\}(.*)$"
 
