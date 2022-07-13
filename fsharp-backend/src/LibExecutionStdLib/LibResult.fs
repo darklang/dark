@@ -19,8 +19,8 @@ let incorrectArgs = Errors.incorrectArgs
 
 let varOk = TVariable "ok"
 let varErr = TVariable "err"
-let varB = TVariable "b"
 let varA = TVariable "a"
+let varB = TVariable "b"
 let varC = TVariable "c"
 
 let fns : List<BuiltInFn> =
@@ -173,6 +173,24 @@ let fns : List<BuiltInFn> =
           match o with
           | Some dv -> Ply(Dval.resultOk dv)
           | None -> Ply(DResult(Error(DStr error)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Result" "fromOption" 2) }
+
+
+    { name = fn "Result" "fromOption" 2
+      parameters =
+        [ Param.make "option" (TOption(varOk)) ""; Param.make "error" varErr "" ]
+      returnType = TResult(varOk, varErr)
+      description =
+        "Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise."
+      fn =
+        (function
+        | _, [ DOption o; error ] ->
+          match o with
+          | Some dv -> Ply(Dval.resultOk dv)
+          | None -> Ply(DResult(Error(error)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
