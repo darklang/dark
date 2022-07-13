@@ -41,7 +41,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
-        "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
+        "Round down to an integer value.
+
+        Consider <fn Float::truncate> if your goal
+        is to discard the fractional part of a number: {{Float::floor -1.9 == -2.0}}
+        but {{Float::truncate -1.9 == -1.0}}"
       fn =
         (function
         | _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
@@ -55,7 +59,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
-        "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
+        "Round down to an integer value.
+
+         Consider <fn Float::truncate> if your goal is to discard the fractional part
+         of a number: {{Float::floor -1.9 == -2.0}} but {{Float::truncate -1.9 ==
+         -1.0}}"
+
       fn =
         (function
         | _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
@@ -82,7 +91,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
-        "Discard the fractional portion of the float, rounding towards zero."
+        "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
         | _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
@@ -96,7 +105,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+        "Returns the absolute value of <param a> (turning negative inputs into positive outputs)"
       fn =
         (function
         | _, [ DFloat a ] -> DFloat(Math.Abs a) |> Ply
@@ -109,7 +118,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "negate" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
-      description = "Returns the negation of `a`, `-a`."
+      description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
         | _, [ DFloat a ] -> DFloat(a * -1.0) |> Ply
@@ -135,7 +144,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "power" 0
       parameters = [ Param.make "base" TFloat ""; Param.make "exponent" TFloat "" ]
       returnType = TFloat
-      description = "Returns `base` raised to the power of `exponent`"
+      description = "Returns <param base> raised to the power of <param exponent>"
       fn =
         (function
         | _, [ DFloat base_; DFloat exp ] -> Ply(DFloat(base_ ** exp))
@@ -148,7 +157,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "divide" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Divide float `a` by float `b`"
+      description = "Divide <type float> <param a> by <type float> <param b>"
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a / b))
@@ -161,7 +170,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "add" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Add float `a` to float `b`"
+      description = "Add <type float> <param a> to <type float> <param b>"
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a + b))
@@ -174,7 +183,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "multiply" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Multiply float `a` by float `b`"
+      description = "Multiply <type float> <param a> by <type float> <param b>"
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a * b))
@@ -187,7 +196,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "subtract" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Subtract float `b` from float `a`"
+      description = "Subtract `float` `b` from `float` `a`"
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a - b))
@@ -278,7 +287,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "min" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Returns the lesser of float `a` and float `b`"
+      description =
+        "Returns the lesser of <type float> <param a> and <type float> <param b>"
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Min(a, b)))
@@ -291,7 +301,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "max" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Returns the greater of float `a` and float `b`"
+      description =
+        "Returns the greater of <type float> <param a> and <type float> <param b>"
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Max(a, b)))
@@ -308,9 +319,13 @@ let fns : List<BuiltInFn> =
           Param.make "limitB" TFloat "" ]
       returnType = TFloat
       description =
-        "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
-         If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
-         `limitA` and `limitB` can be provided in any order."
+        "If <param value> is within the range given by <param limitA> and <param
+         limitB>, returns <param value>.
+
+         If <param value> is outside the range, returns <param limitA> or <param
+         limitB>, whichever is closer to <param value>.
+
+         <param limitA> and <param limitB> can be provided in any order."
       fn =
         (function
         | _, [ DFloat v; DFloat a; DFloat b ] ->
@@ -329,7 +344,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
-        "Discard the fractional portion of the float, rounding towards zero."
+        "Discard the fractional portion of <type float> <param a>, rounding towards zero."
       fn =
         (function
         | _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply

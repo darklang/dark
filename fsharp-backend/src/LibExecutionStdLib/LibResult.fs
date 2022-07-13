@@ -30,7 +30,9 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
       returnType = TResult(varB, varErr)
       description =
-        "If `result` is `Ok value`, returns `Ok (fn value)` (the lambda `fn` is applied to `value` and the result is wrapped in `Ok`). If `result` is `Error msg`, returns `result` unchanged."
+        "If <param result> is {{Ok value}}, returns {{Ok (fn value)}} (the lambda
+         <param fn> is applied to <param value> and the result is wrapped in {{Ok}}).
+         If <var result> is {{Error msg}}, returns {{result}} unchanged."
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
@@ -55,7 +57,10 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
       returnType = TResult(varB, varErr)
       description =
-        "If <param result> is {{Ok <var value>}}, returns {{Ok (fn <var value>)}}. The lambda <param fn> is applied to <var value> and the result is wrapped in {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
+        "If <param result> is {{Ok <var value>}}, returns {{Ok (fn <var value>)}}.
+         The lambda <param fn> is applied to <var value> and the result is wrapped in
+         {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result>
+         unchanged."
       fn =
         (function
         | state, [ DResult r; DFnVal d ] ->
@@ -80,7 +85,9 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
       returnType = (TResult(varB, varErr))
       description =
-        "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `fn` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
+        "If <param result> is <var Error msg>, returns {{Error (fn msg)}} (the lambda
+         <param fn> is applied to <var msg> and the result is wrapped in {{Error}}).
+         If <param result> is {{Ok value}}, returns <param result> unchanged."
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
@@ -105,7 +112,10 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
       returnType = (TResult(varB, varErr))
       description =
-        "If <param result> is {{Error <var msg>}}, returns {{Error (fn <var msg>)}}. The lambda <var fn> is applied to <var msg> and the result is wrapped in {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result> unchanged."
+        "If <param result> is {{Error <var msg>}}, returns {{Error (fn <var msg>)}}.
+         The lambda <var fn> is applied to <var msg> and the result is wrapped in
+         {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result>
+         unchanged."
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
@@ -130,7 +140,8 @@ let fns : List<BuiltInFn> =
           Param.make "default" varB "" ]
       returnType = varB
       description =
-        "If <param result> is {{Ok <var value>}}, returns <var value>. Returns <param default> otherwise."
+        "If <param result> is {{Ok <var value>}}, returns <var value>. Returns <param
+         default> otherwise."
       fn =
         (function
         | _, [ DResult o; default' ] ->
@@ -148,7 +159,9 @@ let fns : List<BuiltInFn> =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
       returnType = (TResult(varB, TStr))
       description =
-        "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just value`, returns `Ok value`. Returns `Error error` otherwise."
+        "Turn an <type option> into a <type result>, using <param error> as the error
+         message for {{Error}}.  Specifically, if <param option> is {{Just value}},
+         returns {{Ok value}}. Returns {{Error error}} otherwise."
       fn =
         (function
         | _, [ DOption o; DStr error ] ->
@@ -166,7 +179,10 @@ let fns : List<BuiltInFn> =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
       returnType = (TResult(varB, TStr))
       description =
-        "Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise."
+        "Turn an <type option> into a <type result>, using <param error> as the error
+         message for {{Error}}. Specifically, if <param option> is {{Just <var
+         value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}}
+         otherwise."
       fn =
         (function
         | _, [ DOption o; DStr error ] ->
@@ -200,7 +216,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Result" "toOption" 0
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
-      description = "Turn a result into an option."
+      description = "Turn a result into an option"
       fn =
         (function
         | _, [ DResult o ] ->
@@ -216,7 +232,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Result" "toOption" 1
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
-      description = "Turn a result into an option."
+      description = "Turn a <type result> into an <type option>"
       fn =
         (function
         | _, [ DResult o ] ->
@@ -236,7 +252,11 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "v1"; "v2" ] ]
       returnType = (TResult(varC, varErr))
       description =
-        "If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var v2>}}, returns {{Ok (fn <var v1> <var v2>)}} -- the lambda <var fn> is applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param result1> and <param result2> that is an error."
+        "If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
+         v2>}}, returns {{Ok (fn <var v1> <var v2>)}} -- the lambda <param fn> is
+         applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}.
+         Otherwise, returns the first of <param result1> and <param result2> that is
+         an error."
       fn =
         (function
         | state, [ DResult r1; DResult r2; DFnVal b ] ->
@@ -262,7 +282,10 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
       returnType = (TResult(varB, varErr))
       description =
-        "If `result` is `Ok value`, returns `fn value` (the lambda `fn` is applied to `value` and must return `Error msg` or `Ok newValue`). If `result` is `Error msg`, returns `result` unchanged."
+        "If <param result> is {{Ok value}}, returns {{fn value}} (the lambda <param
+         fn> is applied to <var value> and must return {{Error msg}} or {{Ok
+         newValue}}). If <param result> is {{Error msg}}, returns <param result>
+         unchanged."
       fn =
         (function
         | state, [ DResult o; DFnVal b ] ->
@@ -293,7 +316,10 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
       returnType = (TResult(varOk, varErr))
       description =
-        "If <param result> is {{Ok <var value>}}, returns {{fn <var value>}}. The lambda <param fn> is applied to <var value> and must return {{Error <var msg>}} or {{Ok <var newValue>}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
+        "If <param result> is {{Ok <var value>}}, returns {{fn <var value>}}. The
+         lambda <param fn> is applied to <var value> and must return {{Error <var
+         msg>}} or {{Ok <var newValue>}}. If <param result> is {{Error <var msg>}},
+         returns <param result> unchanged."
       fn =
         (function
         | state, [ DResult o; DFnVal b ] ->

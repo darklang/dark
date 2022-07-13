@@ -24,7 +24,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "Test" "errorRailValue" 0
       parameters = [ Param.make "value" varA "" ]
       returnType = varA
-      description = "Return an errorRail wrapping a value."
+      description = "Return an <type ErrorRail> wrapping <param value>"
       fn =
         (function
         | state, [ value ] -> Ply(DErrorRail(value))

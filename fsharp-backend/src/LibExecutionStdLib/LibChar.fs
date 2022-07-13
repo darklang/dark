@@ -11,14 +11,14 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Char" "toASCIICode" 0
       parameters = [ Param.make "c" TChar "" ]
       returnType = TInt
-      description = "Return `c`'s ASCII code"
+      description = "Return <param c>'s ASCII code"
       fn =
         function
         | state, [ c ] -> Errors.removedFunction state "Char::toASCIICode"
@@ -32,7 +32,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Char" "toASCIIChar" 0
       parameters = [ Param.make "i" TInt "" ]
       returnType = TChar
-      description = "convert an int to an ASCII character"
+      description = "Convert <param i> to an ASCII character"
       fn =
         function
         | state, [ i ] -> Errors.removedFunction state "Char::toASCIIChar"
@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Char" "toLowercase" 0
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
-      description = "Return the lowercase value of `c`"
+      description = "Return the lowercase value of <param c>"
       fn =
         function
         | state, [ c ] -> Errors.removedFunction state "Char::toLowercase"
@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Char" "toUppercase" 0
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
-      description = "Return the uppercase value of `c`"
+      description = "Return the uppercase value of <param c>"
       fn =
         function
         | state, [ c ] -> Errors.removedFunction state "Char::toUppercase"

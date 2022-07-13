@@ -23,7 +23,8 @@ let varA = TVariable "a"
 // Note: this is used outside of this fn!
 module PrettyResponseJsonV0 =
 
-  // At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change.
+  // At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being
+  // copied to be certain this format doesn't change.
   let writePrettyJson (f : JsonWriter -> unit) : string =
     let stream = new System.IO.StringWriter()
     let w = new JsonTextWriter(stream)
@@ -157,7 +158,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "Object" "toJSON" 0
       parameters = [ Param.make "obj" (TDict varA) "" ]
       returnType = TStr
-      description = "Dumps `obj` to a JSON string"
+      description = "Dumps <param obj> to a JSON string"
       fn =
         (function
         | _, [ DObj o ] ->

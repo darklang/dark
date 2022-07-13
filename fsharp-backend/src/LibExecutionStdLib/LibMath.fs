@@ -20,7 +20,8 @@ let fns : List<BuiltInFn> =
       parameters = []
       returnType = TFloat
       description =
-        "Returns an approximation for the mathematical constant π, the ratio of a circle's circumference to its diameter."
+        "Returns an approximation for the mathematical constant {{π}}, the ratio of a
+         circle's circumference to its diameter."
       fn =
         (function
         | _, [] -> Ply(DFloat System.Math.PI)
@@ -34,7 +35,8 @@ let fns : List<BuiltInFn> =
       parameters = []
       returnType = TFloat
       description =
-        "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply Math::pi 2`."
+        "Returns an approximation for the mathematical constant {{τ}}, the number of
+         radians in one turn. Equivalent to {{Float::multiply Math::pi 2}}."
       fn =
         (function
         | _, [] -> Ply(DFloat System.Math.Tau)
@@ -48,7 +50,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "angleInDegrees" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the equivalent of `angleInDegrees` in radians, the unit used by all of Dark's trigonometry functions.
+        "Returns the equivalent of <param angleInDegrees> in radians, the unit used
+         by all of Dark's trigonometry functions.
+
          There are 360 degrees in a circle."
       fn =
         (function
@@ -63,7 +67,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "angleInTurns" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the equivalent of `angleInTurns` in radians, the unit used by all of Dark's trigonometry functions.
+        "Returns the equivalent of <param angleInTurns> in radians, the unit used by all of
+         Dark's trigonometry functions.
+
          There is 1 turn in a circle."
       fn =
         (function
@@ -78,8 +84,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns `angleInRadians` in radians, the unit used by all of Dark's trigonometry functions.
-        There are `Float::multiply 2 Math::pi` radians in a circle."
+        "Returns <param angleInRadians> in radians, the unit used by all of Dark's
+         trigonometry functions.
+
+         There are {{Float::multiply 2 Math::pi}} radians in a
+         circle."
       fn =
         (function
         | _, [ DFloat rads ] -> Ply(DFloat rads)
@@ -93,8 +102,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the cosine of the given `angleInRadians`.
-         One interpretation of the result relates to a right triangle: the cosine is the ratio of the lengths of the side adjacent to the angle and the hypotenuse."
+        "Returns the cosine of the given <param angleInRadians>.
+
+         One interpretation of the result relates to a right triangle: the cosine is
+         the ratio of the lengths of the side adjacent to the angle and the
+         hypotenuse."
       fn =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Cos a))
@@ -108,8 +120,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the sine of the given `angleInRadians`.
-         One interpretation of the result relates to a right triangle: the sine is the ratio of the lengths of the side opposite the angle and the hypotenuse."
+        "Returns the sine of the given <param angleInRadians>.
+
+         One interpretation of the result relates to a right triangle: the sine is
+         the ratio of the lengths of the side opposite the angle and the hypotenuse"
       fn =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sin a))
@@ -123,8 +137,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the tangent of the given `angleInRadians`.
-         One interpretation of the result relates to a right triangle: the tangent is the ratio of the lengths of the side opposite the angle and the side adjacent to the angle."
+        "Returns the tangent of the given <param angleInRadians>.
+
+         One interpretation of the result relates to a right triangle: the tangent is
+         the ratio of the lengths of the side opposite the angle and the side
+         adjacent to the angle."
       fn =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Tan a))
@@ -138,10 +155,13 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TOption varA
       description =
-        "Returns the arc cosine of `ratio`, as an Option.
-         If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
-         `Just result` where `result` is in radians and is between `0.0` and `Math::pi`. Otherwise, returns `Nothing`.
-         This function is the inverse of `Math::cos`."
+        "Returns the arc cosine of <param ratio>, as an <type Option>.
+
+         If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
+         result}} where <var result> is in radians and is between {{0.0}} and <fn
+         Math::pi>. Otherwise, returns {{Nothing}}.
+
+         This function is the inverse of <fn Math::cos>."
       fn =
         (function
         | _, [ DFloat r ] ->
@@ -161,10 +181,13 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TOption varA
       description =
-        "Returns the arc sine of `ratio`, as an Option.
-         If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
-         `Just result` where `result` is in radians and is between `-Math::pi/2` and `Math::pi/2`. Otherwise, returns `Nothing`.
-         This function is the inverse of `Math::sin`."
+        "Returns the arc sine of <param ratio>, as an <type Option>.
+
+         If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
+         result}} where <var result> is in radians and is between {{-Math::pi/2}} and
+         {{Math::pi/2}}. Otherwise, returns {{Nothing}}.
+
+         This function is the inverse of <fn Math::sin>."
       fn =
         (function
         | _, [ DFloat r ] ->
@@ -184,8 +207,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the arc tangent of `ratio`. The result is in radians and is between `-Math::pi/2` and `Math::pi/2`.
-         This function is the inverse of `Math::tan`. Use `Math::atan2` to expand the output range, if you know the numerator and denominator of `ratio`."
+        "Returns the arc tangent of <param ratio>. The result is in radians and is between
+         {{-Math::pi/2}} and {{Math::pi/2}}.
+
+         This function is the inverse of <fn Math::tan>. Use <fn Math::atan2> to expand the
+         output range, if you know the numerator and denominator of <param ratio>."
       fn =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Atan a))
@@ -199,8 +225,13 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "y" TFloat ""; Param.make "x" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the arc tangent of `y / x`, using the signs of `y` and `x` to determine the quadrant of the result.
-         The result is in radians and is between `-Math::pi` and `Math::pi`. Consider `Math::atan` if you know the value of `y / x` but not the individual values `x` and `y`."
+        "Returns the arc tangent of {{y / x}}, using the signs of <param y> and
+         <param x> to determine the quadrant of the result.
+
+         The result is in radians and is between {{-Math::pi}} and {{Math::pi}}.
+
+         Consider <fn Math::atan> if you know the value of {{y / x}} but not the
+         individual values <param x> and <param y>."
       fn =
         (function
         | _, [ DFloat y; DFloat x ] -> Ply(DFloat(System.Math.Atan2(y, x)))
@@ -213,7 +244,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Math" "cosh" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
-      description = "Returns the hyperbolic cosine of `angleInRadians`."
+      description = "Returns the hyperbolic cosine of <param angleInRadians>"
       fn =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Cosh a))
@@ -226,7 +257,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Math" "sinh" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
-      description = "Returns the hyperbolic sine of `angleInRadians`."
+      description = "Returns the hyperbolic sine of <param angleInRadians>"
       fn =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
@@ -239,7 +270,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Math" "tanh" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
-      description = "Returns the hyperbolic tangent of `angleInRadians`."
+      description = "Returns the hyperbolic tangent of <param angleInRadians>"
       fn =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))

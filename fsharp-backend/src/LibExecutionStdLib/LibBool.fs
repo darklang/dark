@@ -16,7 +16,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "b" TBool "" ]
       returnType = TBool
       description =
-        "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
+        "Returns the inverse of <param b>: {{true}} if <param b> is {{false}} and {{false}} if <param b> is {{true}}"
       fn =
         (function
         | _, [ DBool b ] -> Ply(DBool(not b))
@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Bool" "and" 0
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
-      description = "Returns true if both a and b are true"
+      description = "Returns {{true}} if both <param a> and <param b> are {{true}}"
       fn =
         (function
         | _, [ DBool a; DBool b ] -> Ply(DBool(a && b))
@@ -42,7 +42,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Bool" "or" 0
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
-      description = "Returns true if either a is true or b is true"
+      description =
+        "Returns {{true}} if either <param a> is true or <param b> is {{true}}"
       fn =
         (function
         | _, [ DBool a; DBool b ] -> Ply(DBool(a || b))
@@ -56,7 +57,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
       description =
-        "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
+        "Returns {{true}} if exactly one of <param a> and <param b> is {{true}}. Returns {{false}} if both are {{true}} or neither is {{true}}."
       fn =
         (function
         | _, [ DBool a; DBool b ] -> Ply(DBool(a <> b))
@@ -69,7 +70,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Bool" "isNull" 0
       parameters = [ Param.make "check" varA "" ]
       returnType = TBool
-      description = "Returns true if the `check` parameter is null"
+      description = "Returns {{true}} if the <param check> parameter is {{null}}"
       fn =
         (function
         | _, [ value ] ->
@@ -87,7 +88,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Bool" "isError" 0
       parameters = [ Param.make "check" varA "" ]
       returnType = TBool
-      description = "Returns `true` if the `check` parameter is an error"
+      description = "Returns {{true}} if the <param check> parameter is an error"
       fn =
         (function
         | _, [ value ] ->

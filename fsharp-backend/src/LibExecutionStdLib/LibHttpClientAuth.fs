@@ -10,7 +10,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 /// Base64-encodes username/password combination for basic authentication
 ///
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
       returnType = TDict TStr
       description =
-        "Returns an object with 'Authorization' created using HTTP basic auth"
+        "Returns a header <type Dict> with {{'Authorization'}} created using HTTP basic auth"
       fn =
         (function
         | _, [ DStr u; DStr p ] ->
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
       returnType = TDict TStr
       description =
-        "Returns an object with 'Authorization' created using HTTP basic auth"
+        "Returns a header <type Dict> with {{'Authorization'}} created using HTTP basic auth"
       fn =
         (function
         | _, [ DStr u; DStr p ] ->

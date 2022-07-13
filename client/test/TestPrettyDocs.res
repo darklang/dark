@@ -37,6 +37,12 @@ let run = () => {
         ParseFail(list{("<type <var bad bunny>>", "contains nested tags")}),
       )
     )
+    test("convert_ parses nested tags correctly", () =>
+      expect(convert("{{<param d1> > <param d2>}}")) |> toEqual(list{
+        tag("code", list{tag("param", list{txt("d1")}), txt(" > "), tag("param", list{txt("d2")})}),
+      })
+    )
+
     test("convert_ catches nested code blocks", () =>
       expect(convert_("{{Just {{ok}} }}")) |> toEqual(
         ParseFail(list{("{{Just {{ok}} }}", "contains nested code blocks")}),

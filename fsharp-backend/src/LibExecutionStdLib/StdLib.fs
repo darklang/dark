@@ -8,6 +8,7 @@ module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 let fn = FQFnName.stdlibFnName
 
 let renames =
+  // old names, new names
   [ fn "Http" "respond" 0, fn "Http" "response" 0
     fn "Http" "respondWithHtml" 0, fn "Http" "responseWithHtml" 0
     fn "Http" "respondWithText" 0, fn "Http" "responseWithText" 0
@@ -19,7 +20,8 @@ let renames =
     fn "Object" "empty" 0, fn "Dict" "empty" 0
     fn "Object" "merge" 0, fn "Dict" "merge" 0
     fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0
-    fn "Date" "subtract" 0, fn "Date" "subtractSeconds" 0 ]
+    fn "Date" "subtract" 0, fn "Date" "subtractSeconds" 0
+    fn "List" "contains" 0, fn "List" "member" 0 ]
 
 
 let prefixFns : List<BuiltInFn> =

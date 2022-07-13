@@ -496,7 +496,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "getAll" 2
       parameters = [ tableParam ]
       returnType = TList varA
-      description = "Fetch all the values in `table`."
+      description = "Fetch all the values in <param table>"
       fn =
         (function
         | state, [ DDB dbname ] ->
@@ -514,7 +514,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "getAll" 3
       parameters = [ tableParam ]
       returnType = TList varA
-      description = "Fetch all the values in `table`."
+      description = "Fetch all the values in <param table>"
       fn =
         (function
         | state, [ DDB dbname ] ->

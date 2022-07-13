@@ -19,7 +19,8 @@ let varB = TVariable "b"
 let fns : List<BuiltInFn> =
   [ { name = fn "" "toString" 0
       description =
-        "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
+        "Returns a string representation of <param v>, suitable for displaying to a
+         user. Redacts passwords."
       parameters = [ Param.make "v" (TVariable "a") "" ]
       returnType = TStr
       fn =
@@ -36,7 +37,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "v" varA "" ]
       returnType = TStr
       description =
-        "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
+        "Returns an adorned string representation of <param v>, suitable for internal
+         developer usage. Not designed for sending to end-users, use <fn toString>
+         instead.  Redacts passwords."
       fn =
         (function
         | _, [ a ] -> Ply(DStr(DvalReprDeveloper.toRepr a))
@@ -78,7 +81,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "obj" (TDict varA) ""; Param.make "submit" TStr "" ]
       returnType = TStr
       description =
-        "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
+        "For demonstration only. Returns a HTML form with the labels and types
+         described in <param obj>. <param submit> is the form's action."
       fn =
         (function
         | _, [ DObj o; DStr uri ] ->

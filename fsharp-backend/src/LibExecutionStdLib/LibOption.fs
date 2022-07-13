@@ -15,7 +15,7 @@ let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Ply(Dval.errStr str)
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -28,8 +28,10 @@ let fns : List<BuiltInFn> =
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB
       description =
-        "If `option` is `Just value`, returns `Just (fn value)` (the lambda `fn` is applied to `value` and the result is wrapped in `Just`).
-        If `result` is `Nothing`, returns `Nothing`."
+        "If <param option> is {{Just value}}, returns {{Just (fn value)}} (the lambda <param fn> is
+         applied to <var val> and the result is wrapped in {{Just}}).
+
+         If <param option> is {{Nothing}}, returns {{Nothing}}."
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
@@ -52,7 +54,10 @@ let fns : List<BuiltInFn> =
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB
       description =
-        "If <var option> is {{Just <var value>}}, then return {{Just (f <var value>)}}. The lambda <var f> applied to <var value> and the result is wrapped in {{Just}}. Otherwise if the result is {{Nothing}}, then return {{Nothing}}."
+        "If <param option> is {{Just <var val>}}, then return {{Just (f <var
+         val>)}}. The lambda <fn fn> applied to <var val> and the result is
+         wrapped in {{Just}}. Otherwise if the result is {{Nothing}}, then return
+         {{Nothing}}."
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
@@ -78,7 +83,11 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "v1"; "v2" ] ]
       returnType = TOption varC
       description =
-        "If both arguments are {{Just}} (<param option1> is {{Just <var v1>}} and <param option2> is {{Just <var v2>}}), then return {{Just (fn <var v1> <var v2>)}} -- The lambda <param fn> should have two parameters, representing <var v1> and <var v2>. But if either <param option1> or <param option2> are {{Nothing}}, returns {{Nothing}} without applying <param fn>."
+        "If both arguments are {{Just}} (<param option1> is {{Just <var v1>}} and
+         <param option2> is {{Just <var v2>}}), then return {{Just (fn <var v1> <var
+         v2>)}}. The lambda <param fn> should have two parameters, representing <var
+         v1> and <var v2>. But if either <param option1> or <param option2> are
+         {{Nothing}}, returns {{Nothing}} without applying <param fn>."
       fn =
         (function
         | state, [ DOption o1; DOption o2; DFnVal b ] ->
@@ -104,7 +113,10 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ TOption varA ], TOption varB)) "" [ "val" ] ]
       returnType = TOption varB
       description =
-        "If <param option> is {{Just <var input>}}, returns {{fn <var input>}}. Where the lambda <param fn> is applied to <var input> and must return {{Just <var output>}} or {{Nothing}}. Otherwise if <param option> is {{Nothing}}, returns {{Nothing}}."
+        "If <param option> is {{Just <var input>}}, returns {{fn <var input>}}. Where
+         the lambda <param fn> is applied to <var input> and must return {{Just <var
+         output>}} or {{Nothing}}. Otherwise if <param option> is {{Nothing}}, returns
+         {{Nothing}}."
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
@@ -133,7 +145,8 @@ let fns : List<BuiltInFn> =
       parameters = [ optionA; Param.make "default" varA "" ]
       returnType = varA
       description =
-        "If <param option> is {{Just <var value>}}, returns <var value>. Returns <param default> otherwise."
+        "If <param option> is {{Just <var value>}}, returns <var value>. Returns
+         <param default> otherwise."
       fn =
         (function
         | _, [ DOption o; default' ] ->
