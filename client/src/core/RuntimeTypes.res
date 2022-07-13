@@ -110,6 +110,7 @@ and expr =
   | EApply(id, expr, list<expr>, isInPipe, sendToRail)
   | EFQFnValue(id, FQFnName.t)
   | EList(id, list<expr>)
+  | ETuple(id, expr, expr, list<expr>)
   | ERecord(id, list<(string, expr)>)
   | EConstructor(id, string, list<expr>)
   | EMatch(id, expr, list<(pattern, expr)>)
@@ -123,6 +124,7 @@ type rec dtype =
   | TNull
   | TStr
   | TList
+  // | TTuple deliberately left out for now
   | TObj
   | TIncomplete
   | TError
@@ -172,8 +174,9 @@ and dval =
   | DStr(string)
   | DChar(string)
   | DList(list<dval>)
-  /* We use Belt.Map.String as Map.String.t has a comparator that doesn't work
-   with the cloning algorithm of web workers */
+  | DTuple(dval, dval, list<dval>)
+  // We use Belt.Map.String as Map.String.t has a comparator that doesn't work
+  // with the cloning algorithm of web workers
   | DObj(Belt.Map.String.t<dval>)
   | DFnVal(fnValImpl)
   | DError((dvalSource, string))
