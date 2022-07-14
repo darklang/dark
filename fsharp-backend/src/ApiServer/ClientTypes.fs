@@ -4,6 +4,11 @@ module ApiServer.ClientTypes
 open Prelude
 open Tablecloth
 
+// ProgramTypes can be used in APIs, because that's kinda what they do. But
+// RuntimeTypes are designed for the interpreter, and it's important that we're able
+// to change the types without affecting APIs. So we add types here that we can
+// standardize in the API without affecting the RuntimeTypes.
+
 module RT = LibExecution.RuntimeTypes
 
 module DType =
