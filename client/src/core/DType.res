@@ -73,6 +73,7 @@ let rec decodeOld = (j): t => {
   variants(
     list{
       ("TInt", dv0(TInt)),
+      ("TFloat", dv0(TFloat)),
       ("TStr", dv0(TStr)),
       ("TCharacter", dv0(TCharacter)),
       ("TBool", dv0(TBool)),
