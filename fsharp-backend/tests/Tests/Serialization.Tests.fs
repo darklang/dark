@@ -731,11 +731,11 @@ module GenericSerializersTests =
         ([ { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters =
                [ { name = "a"
-                   ``type`` = ApiServer.Functions.DType.TInt
+                   ``type`` = ApiServer.ClientTypes.DType.TInt
                    args = []
                    description = "param description" } ]
              returnType =
-               ApiServer.Functions.DType.TList(ApiServer.Functions.DType.TInt)
+               ApiServer.ClientTypes.DType.TList(ApiServer.ClientTypes.DType.TInt)
              description = "basic"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -743,7 +743,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "impure"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Impure
@@ -751,7 +751,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "impurepreviewable"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.ImpurePreviewable
@@ -759,7 +759,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "replacedBy"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -770,7 +770,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "renamedTo"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -781,7 +781,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "deprecatedBecause"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
