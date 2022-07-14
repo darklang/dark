@@ -152,145 +152,145 @@ let getInitialLoad (client : C) (canvasName : CanvasName.T) : Task<InitialLoad.T
 
 
 
-let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
-  task {
-    let! (ocamlResponse : HttpResponseMessage) =
-      try
-        getAsync OCaml client $"/a/{canvas}/"
-      with
-      | e ->
-        Exception.raiseInternal "exception getting ocaml data" [ "canvas", canvas ] e
+// let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
+//   task {
+//     let! (ocamlResponse : HttpResponseMessage) =
+//       try
+//         getAsync OCaml client $"/a/{canvas}/"
+//       with
+//       | e ->
+//         Exception.raiseInternal "exception getting ocaml data" [ "canvas", canvas ] e
 
-    let! (fsharpResponse : HttpResponseMessage) =
-      try
-        getAsync FSharp client $"/a/{canvas}/"
-      with
-      | e ->
-        Exception.raiseInternal
-          "exception getting fsharp data"
-          [ "canvas", canvas ]
-          e
+//     let! (fsharpResponse : HttpResponseMessage) =
+//       try
+//         getAsync FSharp client $"/a/{canvas}/"
+//       with
+//       | e ->
+//         Exception.raiseInternal
+//           "exception getting fsharp data"
+//           [ "canvas", canvas ]
+//           e
 
-    Expect.equal
-      ocamlResponse.StatusCode
-      fsharpResponse.StatusCode
-      $"status code in {canvas}"
+//     Expect.equal
+//       ocamlResponse.StatusCode
+//       fsharpResponse.StatusCode
+//       $"status code in {canvas}"
 
-    let! ocamlContent = ocamlResponse.Content.ReadAsStringAsync()
-    let! fsharpContent = fsharpResponse.Content.ReadAsStringAsync()
+//     let! ocamlContent = ocamlResponse.Content.ReadAsStringAsync()
+//     let! fsharpContent = fsharpResponse.Content.ReadAsStringAsync()
 
-    let parseFns (s : string) : string * List<Functions.FunctionMetadata> =
-      match s with
-      | RegexAny "(.*const complete = )(\[.*\])(;\n.*)" [ before; fns; after ] ->
-        let text = $"{before}{after}"
+//     let parseFns (s : string) : string * List<Functions.FunctionMetadata> =
+//       match s with
+//       | RegexAny "(.*const complete = )(\[.*\])(;\n.*)" [ before; fns; after ] ->
+//         let text = $"{before}{after}"
 
-        let fns =
-          fns
-          |> FsRegEx.replace "\\s+" " " // ignore differences in string spacing in docstrings
-          |> Json.Vanilla.deserialize<List<Functions.FunctionMetadata>>
+//         let fns =
+//           fns
+//           |> FsRegEx.replace "\\s+" " " // ignore differences in string spacing in docstrings
+//           |> Json.Vanilla.deserialize<List<Functions.FunctionMetadata>>
 
-        (text, fns)
-      | _ -> Exception.raiseInternal "doesn't match" [ "string", s ]
+//         (text, fns)
+//       | _ -> Exception.raiseInternal "doesn't match" [ "string", s ]
 
-    let ocamlContent, ocamlFns = parseFns ocamlContent
-    let actualFsharpContent, fsharpFns = parseFns fsharpContent
+//     let ocamlContent, ocamlFns = parseFns ocamlContent
+//     let actualFsharpContent, fsharpFns = parseFns fsharpContent
 
-    let port = portFor OCaml
+//     let port = portFor OCaml
 
-    // There have been some tiny changes, let's work around them.
-    // The values here are the NEW values
-    let ocamlFns =
-      ocamlFns
-      |> List.map (fun (fn : Functions.FunctionMetadata) ->
-        match fn.name with
-        | "assoc" ->
-          { fn with
-              description = "Returns a copy of `dict` with the `key` set to `val`."
-              parameters =
-                [ { name = "dict"
-                    tipe = "Dict"
-                    block_args = []
-                    optional = false
-                    description = "" }
-                  { name = "key"
-                    tipe = "Str"
-                    block_args = []
-                    optional = false
-                    description = "" }
-                  { name = "val"
-                    tipe = "Any"
-                    block_args = []
-                    optional = false
-                    description = "" } ] }
-        | "dissoc" ->
-          { fn with
-              parameters =
-                [ { name = "dict"
-                    tipe = "Dict"
-                    block_args = []
-                    optional = false
-                    description = "" }
-                  { name = "key"
-                    tipe = "Str"
-                    block_args = []
-                    optional = false
-                    description = "" } ]
-              description =
-                "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged." }
-        | "Object::empty" -> { fn with description = "Returns an empty dictionary." }
-        | "Object::merge" ->
-          { fn with
-              description =
-                "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`." }
-        | "Object::toJSON_v1" ->
-          { fn with
-              description = "Returns `dict` as a JSON string."
-              parameters =
-                [ { name = "dict"
-                    tipe = "Dict"
-                    block_args = []
-                    optional = false
-                    description = "" } ] }
-        | "DB::queryOneWithKey_v2" ->
-          { fn with
-              description =
-                fn.description + ". Previously called DB::queryOnewithKey_v2" }
-        | "DB::queryWithKey_v2" ->
-          { fn with
-              description = fn.description + ". Previous called DB::queryWithKey_v2" }
-        | "DB::query_v3" ->
-          { fn with description = fn.description + ". Previously called DB::query_v3" }
-        | "DB::query_v2" ->
-          { fn with description = fn.description + ". Previously called DB::query_v3" }
-        | "DB::queryOne_v2" ->
-          { fn with
-              description = fn.description + ". Previously called DB::queryOne_v2" }
-        | _ -> fn)
+//     // There have been some tiny changes, let's work around them.
+//     // The values here are the NEW values
+//     let ocamlFns =
+//       ocamlFns
+//       |> List.map (fun (fn : Functions.FunctionMetadata) ->
+//         match fn.name with
+//         | "assoc" ->
+//           { fn with
+//               description = "Returns a copy of `dict` with the `key` set to `val`."
+//               parameters =
+//                 [ { name = "dict"
+//                     tipe = "Dict"
+//                     block_args = []
+//                     optional = false
+//                     description = "" }
+//                   { name = "key"
+//                     tipe = "Str"
+//                     block_args = []
+//                     optional = false
+//                     description = "" }
+//                   { name = "val"
+//                     tipe = "Any"
+//                     block_args = []
+//                     optional = false
+//                     description = "" } ] }
+//         | "dissoc" ->
+//           { fn with
+//               parameters =
+//                 [ { name = "dict"
+//                     tipe = "Dict"
+//                     block_args = []
+//                     optional = false
+//                     description = "" }
+//                   { name = "key"
+//                     tipe = "Str"
+//                     block_args = []
+//                     optional = false
+//                     description = "" } ]
+//               description =
+//                 "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged." }
+//         | "Object::empty" -> { fn with description = "Returns an empty dictionary." }
+//         | "Object::merge" ->
+//           { fn with
+//               description =
+//                 "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`." }
+//         | "Object::toJSON_v1" ->
+//           { fn with
+//               description = "Returns `dict` as a JSON string."
+//               parameters =
+//                 [ { name = "dict"
+//                     tipe = "Dict"
+//                     block_args = []
+//                     optional = false
+//                     description = "" } ] }
+//         | "DB::queryOneWithKey_v2" ->
+//           { fn with
+//               description =
+//                 fn.description + ". Previously called DB::queryOnewithKey_v2" }
+//         | "DB::queryWithKey_v2" ->
+//           { fn with
+//               description = fn.description + ". Previous called DB::queryWithKey_v2" }
+//         | "DB::query_v3" ->
+//           { fn with description = fn.description + ". Previously called DB::query_v3" }
+//         | "DB::query_v2" ->
+//           { fn with description = fn.description + ". Previously called DB::query_v3" }
+//         | "DB::queryOne_v2" ->
+//           { fn with
+//               description = fn.description + ". Previously called DB::queryOne_v2" }
+//         | _ -> fn)
 
-    let expectedFsharpContent =
-      ocamlContent
-        // a couple of specific ones
-        .Replace(
-          $"static.darklang.localhost:{port}",
-          $"static.darklang.localhost:{LibService.Config.apiServerNginxPort}"
-        )
-        .Replace(
-          $"builtwithdark.localhost:{port}",
-          $"builtwithdark.localhost:{LibService.Config.bwdServerPort}"
-        )
-        // get the rest
-        .Replace(
-          $"localhost:{port}",
-          $"localhost:{LibService.Config.apiServerNginxPort}"
-        )
+//     let expectedFsharpContent =
+//       ocamlContent
+//         // a couple of specific ones
+//         .Replace(
+//           $"static.darklang.localhost:{port}",
+//           $"static.darklang.localhost:{LibService.Config.apiServerNginxPort}"
+//         )
+//         .Replace(
+//           $"builtwithdark.localhost:{port}",
+//           $"builtwithdark.localhost:{LibService.Config.bwdServerPort}"
+//         )
+//         // get the rest
+//         .Replace(
+//           $"localhost:{port}",
+//           $"localhost:{LibService.Config.apiServerNginxPort}"
+//         )
 
-    Expect.equal actualFsharpContent expectedFsharpContent ""
+//     Expect.equal actualFsharpContent expectedFsharpContent ""
 
-    List.iter2
-      (fun (ffn : Functions.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
-      fsharpFns
-      ocamlFns
-  }
+//     List.iter2
+//       (fun (ffn : Functions.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
+//       fsharpFns
+//       ocamlFns
+//   }
 
 type ApiResponse<'a> = Task<'a * System.Net.HttpStatusCode * Map<string, string>>
 
@@ -835,7 +835,7 @@ let localOnlyTests =
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
-      [ "ui", testUiReturnsTheSame
+      [ //"ui", testUiReturnsTheSame
         "initial load", testInitialLoadReturnsTheSame
         // TODO add_ops
         "all traces", testAllTraces

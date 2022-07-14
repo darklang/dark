@@ -102,7 +102,7 @@ let viewKillParameterBtn = (uf: userFunction, p: userFunctionParameter): Html.ht
 let viewParamName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
   ViewBlankOr.viewText(~enterable=true, ~classes, ParamName, vp, v)
 
-let viewParamTipe = (~classes: list<string>, vp: viewProps, v: blankOr<tipe>): Html.html<msg> =>
+let viewParamTipe = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<msg> =>
   ViewBlankOr.viewTipe(~classes, ~enterable=true, ParamTipe, vp, v)
 
 let jsDragStart: Web.Node.event => unit = %raw(

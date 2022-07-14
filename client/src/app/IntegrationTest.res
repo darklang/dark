@@ -720,10 +720,10 @@ let abridged_sidebar_category_icon_click_disabled = (_m: model): testResult => p
 
 let function_docstrings_are_valid = (m: model): testResult => {
   open PrettyDocs
-  let failed = m.functions.builtinFunctions |> List.filterMap(~f=fn =>
-    switch convert_(fn.fnDescription) {
+  let failed = m.functions.builtinFunctions |> List.filterMap(~f=(fn: RT.BuiltInFn.t) =>
+    switch convert_(fn.description) {
     | ParseSuccess(_) => None
-    | ParseFail(messages) => Some(fn.fnName, messages)
+    | ParseFail(messages) => Some(fn.name->RT.FQFnName.StdlibFnName.toString, messages)
     }
   )
 

@@ -22,7 +22,7 @@ let viewTipeName = (vp: viewProps, t: userTipe): Html.html<msg> => {
 let viewFieldName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
   ViewBlankOr.viewText(~enterable=true, ~classes, TypeFieldName, vp, v)
 
-let viewFieldType = (~classes: list<string>, vp: viewProps, v: blankOr<tipe>): Html.html<msg> =>
+let viewFieldType = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<msg> =>
   ViewBlankOr.viewTipe(~enterable=true, ~classes, TypeFieldTipe, vp, v)
 
 let viewKillFieldBtn = (t: userTipe, field: userRecordField): Html.html<msg> =>

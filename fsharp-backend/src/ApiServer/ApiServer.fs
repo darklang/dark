@@ -252,7 +252,7 @@ let initSerializers () =
   Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.Delete.T> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
-  Json.Vanilla.allow<List<Functions.FunctionMetadata>> "ApiServer.Functions"
+  Json.Vanilla.allow<List<Functions.BuiltInFn.T>> "ApiServer.Functions"
   Json.OCamlCompatible.allow<InitialLoad.T> "ApiServer.InitialLoad"
   Json.Vanilla.allow<InitialLoad.T> "ApiServer.InitialLoad"
   Json.OCamlCompatible.allow<Packages.List.T> "ApiServer.Packages"

@@ -60,7 +60,7 @@ let packageFnParamsView = (params: list<packageFnParameter>): Html.html<msg> => 
   Html.div(list{Html.class'("fields")}, List.map(~f=paramView, params))
 }
 
-let fnReturnTipeView = (returnTipe: blankOr<tipe>): Html.html<msg> =>
+let fnReturnTipeView = (returnTipe: blankOr<DType.t>): Html.html<msg> =>
   switch returnTipe {
   | F(_, v) =>
     let typeStr = Runtime.tipe2str(v)
@@ -152,7 +152,7 @@ let fnView = (
   tlid: TLID.t,
   name: string,
   params: list<userFunctionParameter>,
-  returnTipe: blankOr<tipe>,
+  returnTipe: blankOr<DType.t>,
   direction: string,
 ): Html.html<msg> => {
   let header = list{
@@ -184,7 +184,7 @@ let packageFnView = (
   tlid: TLID.t,
   name: string,
   params: list<packageFnParameter>,
-  returnTipe: blankOr<tipe>,
+  returnTipe: blankOr<DType.t>,
   direction: string,
 ): Html.html<msg> => {
   // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f

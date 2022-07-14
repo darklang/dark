@@ -548,24 +548,23 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
 - TUserType: added later
 - TTuple: currently awkward to support parameterized types. TODO
  */
-let allowedParamTipes =
-  list{
-    TInt,
-    TStr,
-    TBool,
-    TFloat,
-    TObj,
-    TList,
-    TAny,
-    TBlock,
-    TDB,
-    TDate,
-    TPassword,
-    TUuid,
-    TOption,
-    TResult,
-    TBytes,
-  }
+let allowedParamTipes = list{
+  DType.TInt,
+  TStr,
+  TBool,
+  TFloat,
+  TObj,
+  TList,
+  TAny,
+  TBlock,
+  TDB,
+  TDate,
+  TPassword,
+  TUuid,
+  TOption,
+  TResult,
+  TBytes,
+}
 
 let allowedReturnTipes = allowedParamTipes
 
@@ -576,7 +575,7 @@ let allowedDBColTipes = {
   Belt.List.concat(builtins, compounds)
 }
 
-let allowedUserTypeFieldTipes = list{TStr, TInt, TBool, TFloat, TDate, TPassword, TUuid}
+let allowedUserTypeFieldTipes = list{DType.TStr, TInt, TBool, TFloat, TDate, TPassword, TUuid}
 
 let generate = (m: model, a: autocomplete): autocomplete => {
   let space =

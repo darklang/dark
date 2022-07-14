@@ -67,7 +67,7 @@ let aFunction = (
     ufmName: B.newF(name),
     ufmParameters: params,
     ufmDescription: "",
-    ufmReturnTipe: B.newF(TStr),
+    ufmReturnTipe: B.newF(DType.TStr),
     ufmInfix: false,
   },
   ufAST: FluidAST.ofExpr(expr),
@@ -228,14 +228,14 @@ let run = () => {
         ~params=list{
           {
             ufpName: pn1,
-            ufpTipe: B.newF(TStr),
+            ufpTipe: B.newF(DType.TStr),
             ufpBlock_args: list{},
             ufpOptional: false,
             ufpDescription: "",
           },
           {
             ufpName: pn2,
-            ufpTipe: B.newF(TStr),
+            ufpTipe: B.newF(DType.TStr),
             ufpBlock_args: list{},
             ufpOptional: false,
             ufpDescription: "",

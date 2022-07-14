@@ -145,45 +145,6 @@ let blankOr = d =>
     ("Partial", variant2((id, _) => Blank(id), id, string)),
   })
 
-let rec tipe = (j): tipe => {
-  let dv0 = variant0
-  let dv1 = variant1
-  let dv2 = variant2
-  let dv3 = variant3
-  variants(
-    list{
-      ("TInt", dv0(TInt)),
-      ("TStr", dv0(TStr)),
-      ("TCharacter", dv0(TCharacter)),
-      ("TBool", dv0(TBool)),
-      ("TFloat", dv0(TFloat)),
-      ("TObj", dv0(TObj)),
-      ("TList", dv0(TList)),
-      (
-        "TTuple",
-        dv3((first, second, theRest) => TTuple(first, second, theRest), tipe, tipe, list(tipe)),
-      ),
-      ("TAny", dv0(TAny)),
-      ("TNull", dv0(TNull)),
-      ("TBlock", dv0(TBlock)),
-      ("TIncomplete", dv0(TIncomplete)),
-      ("TError", dv0(TError)),
-      ("TResp", dv0(TResp)),
-      ("TDB", dv0(TDB)),
-      ("TDate", dv0(TDate)),
-      ("TDbList", dv1(x => TDbList(x), tipe)),
-      ("TPassword", dv0(TPassword)),
-      ("TUuid", dv0(TUuid)),
-      ("TOption", dv0(TOption)),
-      ("TErrorRail", dv0(TErrorRail)),
-      ("TResult", dv0(TResult)),
-      ("TUserType", dv2((n, v) => TUserType(n, v), string, int)),
-      ("TBytes", dv0(TBytes)),
-    },
-    j,
-  )
-}
-
 let traceID = (j): traceID => string(j)
 
 let jsDate = (j): Js.Date.t => Js.Date.fromString(string(j))
@@ -310,9 +271,9 @@ let blankOrData = (j): blankOrData => {
       ("PDBColType", dv1(x => PDBColType(x), blankOr(string))),
       ("PFnName", dv1(x => PFnName(x), blankOr(string))),
       ("PParamName", dv1(x => PParamName(x), blankOr(string))),
-      ("PParamTipe", dv1(x => PParamTipe(x), blankOr(tipe))),
+      ("PParamTipe", dv1(x => PParamTipe(x), blankOr(DType.decodeOld))),
       ("PTypeFieldName", dv1(x => PTypeFieldName(x), blankOr(string))),
-      ("PTypeFieldTipe", dv1(x => PTypeFieldTipe(x), blankOr(tipe))),
+      ("PTypeFieldTipe", dv1(x => PTypeFieldTipe(x), blankOr(DType.decodeOld))),
     },
     j,
   )
@@ -610,7 +571,7 @@ let handler = (pos, j): handler => {
   pos: pos,
 }
 
-let tipeString = (j): string => map(RT.tipe2str, tipe, j)
+let tipeString = (j): string => map(RT.tipe2str, DType.decodeOld, j)
 
 let dbColList = (j): list<dbColumn> => list(tuple2(blankOr(string), blankOr(tipeString)), j)
 
@@ -658,7 +619,7 @@ let toplevel = (j): toplevel => {
 
 let userFunctionParameter = (j): userFunctionParameter => {
   ufpName: field("name", blankOr(string), j),
-  ufpTipe: field("tipe", blankOr(tipe), j),
+  ufpTipe: field("tipe", blankOr(DType.decodeOld), j),
   ufpBlock_args: field("block_args", list(string), j),
   ufpOptional: field("optional", bool, j),
   ufpDescription: field("description", string, j),
@@ -668,7 +629,7 @@ let userFunctionMetadata = (j): userFunctionMetadata => {
   ufmName: field("name", blankOr(string), j),
   ufmParameters: field("parameters", list(userFunctionParameter), j),
   ufmDescription: field("description", string, j),
-  ufmReturnTipe: field("return_type", blankOr(tipe), j),
+  ufmReturnTipe: field("return_type", blankOr(DType.decodeOld), j),
   ufmInfix: field("infix", bool, j),
 }
 
@@ -680,7 +641,7 @@ let userFunction = (j): userFunction => {
 
 let packageFnParameter = (j: Js.Json.t): Types.packageFnParameter => {
   name: field("name", string, j),
-  tipe: field("tipe", tipe, j),
+  tipe: field("tipe", DType.decodeOld, j),
   description: field("description", string, j),
 }
 
@@ -692,7 +653,7 @@ let packageFn = (j: Js.Json.t): Types.packageFn => {
   version: field("version", int, j),
   body: field("body", fluidExpr, j),
   parameters: field("parameters", list(packageFnParameter), j),
-  return_type: field("return_type", tipe, j),
+  return_type: field("return_type", DType.decodeOld, j),
   description: field("description", string, j),
   author: field("author", string, j),
   deprecated: field("deprecated", bool, j),
@@ -779,7 +740,7 @@ let traces = (j): traces => j |> list(tuple2(TLID.decode, list(trace))) |> TLID.
 
 let userRecordField = j => {
   urfName: field("name", blankOr(string), j),
-  urfTipe: field("tipe", blankOr(tipe), j),
+  urfTipe: field("tipe", blankOr(DType.decodeOld), j),
 }
 
 let userTipeDefinition = j =>

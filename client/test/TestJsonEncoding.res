@@ -91,10 +91,10 @@ let run = () => {
   })
 
   describe("tipe", () => {
-    let roundtrip = tipe => tipe |> Encoders.tipe |> Decoders.tipe
+    let roundtrip = typ => typ |> DType.encode |> DType.decodeNew
 
     test("tuple tipe roundtrips", () => {
-      let tipe = TTuple(TInt, TFloat, list{TIncomplete})
+      let tipe = DType.TTuple(TInt, TFloat, list{TIncomplete})
 
       expect(tipe |> roundtrip) |> toEqual(tipe)
     })

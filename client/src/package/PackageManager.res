@@ -38,8 +38,6 @@ let fn_of_packageFn = (pkgFn: packageFn): function_ => {
     paramTipe: pkgFnParam.tipe,
     paramDescription: pkgFnParam.description,
     paramBlock_args: list{},
-    /* We don't currently support block args in package
-     fns */
     paramOptional: false,
   }
 

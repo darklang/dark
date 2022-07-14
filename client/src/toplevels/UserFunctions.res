@@ -4,6 +4,7 @@ open Prelude
 module B = BlankOr
 module P = Pointer
 module TD = TLID.Dict
+module RT = RuntimeTypes
 
 let allNames = (fns: TLID.Dict.t<userFunction>): list<string> =>
   fns |> Map.filterMapValues(~f=fn => B.toOption(fn.ufMetadata.ufmName))

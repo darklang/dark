@@ -254,7 +254,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
           text("Your code needs to return a value in the last expression")
         | (_, TLFunc(f)) =>
           let actualType = dval |> Runtime.typeOf
-          let declaredType = BlankOr.valueWithDefault(TAny, f.ufMetadata.ufmReturnTipe)
+          let declaredType = BlankOr.valueWithDefault(DType.TAny, f.ufMetadata.ufmReturnTipe)
 
           if Runtime.isCompatible(actualType, declaredType) {
             Vdom.noNode

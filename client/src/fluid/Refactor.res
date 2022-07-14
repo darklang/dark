@@ -11,7 +11,7 @@ let generateFnName = (_: unit): string => "fn_" ++ (() |> Util.random |> string_
 
 let generateTipeName = (): string => "Type_" ++ (() |> Util.random |> string_of_int)
 
-let convertTipe = (tipe: tipe): tipe =>
+let convertTipe = (tipe: DType.t): DType.t =>
   switch tipe {
   | TIncomplete => TAny
   | TError => TAny
@@ -202,7 +202,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
       let tipe =
         Analysis.getSelectedTraceID(m, tlid)
         |> Option.andThen(~f=Analysis.getTipeOf(m, id))
-        |> Option.unwrap(~default=TAny)
+        |> Option.unwrap(~default=DType.TAny)
         |> convertTipe
 
       {

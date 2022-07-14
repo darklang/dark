@@ -9,65 +9,54 @@ module E = FluidExpression
 open FluidShortcuts
 open ProgramTypes.Expr
 
-let sampleFunctions = {
-  let par = (
-    ~paramDescription="",
-    ~args=list{},
-    ~paramOptional=false,
-    paramName,
-    paramTipe,
-  ): parameter => {
-    paramName: paramName,
-    paramTipe: paramTipe,
-    paramOptional: paramOptional,
-    paramBlock_args: args,
-    paramDescription: paramDescription,
+let sampleFunctions: list<RT.BuiltInFn.t> = {
+  let par = (~description="", ~args=list{}, name, typ): RT.BuiltInFn.Param.t => {
+    name: name,
+    typ: typ,
+    args: args,
+    description: description,
   }
 
   list{
     {
-      fnName: "Int::add",
-      fnParameters: list{par("a", TInt), par("b", TInt)},
-      fnDescription: "",
-      fnReturnTipe: TInt,
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "Int", function: "add", version: 0},
+      parameters: list{par("a", TInt), par("b", TInt)},
+      returnType: TInt,
+      description: "",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "List::getAt_v1",
-      fnParameters: list{par("list", TList), par("index", TInt)},
-      fnDescription: "",
-      fnReturnTipe: TOption,
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "List", function: "getAt", version: 2},
+      parameters: list{par("list", TList), par("index", TInt)},
+      returnType: TOption,
+      description: "",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "Dict::map",
-      fnParameters: list{par("dict", TObj), par("f", TBlock, ~args=list{"key", "value"})},
-      fnDescription: "",
-      fnReturnTipe: TObj,
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "Dict", function: "map", version: 2},
+      parameters: list{par("dict", TObj), par("f", TBlock, ~args=list{"key", "value"})},
+      returnType: TObj,
+      description: "",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "DB::set_v1",
-      fnParameters: list{par("val", TObj), par("key", TStr), par("table", TDB)},
-      fnDescription: "",
-      fnReturnTipe: TObj,
-      fnPreviewSafety: Unsafe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "DB", function: "set", version: 1},
+      parameters: list{par("val", TObj), par("key", TStr), par("table", TDB)},
+      returnType: TObj,
+      description: "",
+      previewable: Impure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
   }
 }
@@ -95,28 +84,26 @@ let aFn = (name, expr): userFunction => {
 
 let run = () => {
   describe("takeOffRail & putOnRail", () => {
-    let f1 = {
-      fnName: "Result::resulty",
-      fnParameters: list{},
-      fnDescription: "",
-      fnReturnTipe: TResult,
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+    let f1: RT.BuiltInFn.t = {
+      name: {module_: "Result", function: "resulty", version: 0},
+      parameters: list{},
+      description: "",
+      returnType: TResult,
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     }
 
-    let f2 = {
-      fnName: "Int::notResulty",
-      fnParameters: list{},
-      fnDescription: "",
-      fnReturnTipe: TInt,
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+    let f2: RT.BuiltInFn.t = {
+      name: {module_: "Int", function: "notResulty", version: 0},
+      parameters: list{},
+      description: "",
+      returnType: TInt,
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     }
 
     let model = hs => {
@@ -308,7 +295,7 @@ let run = () => {
       let expectedFields =
         // Note: datestr and uuidstr are TDate and TUuid respectively, _not_ TStr
         list{
-          ("str", TStr),
+          ("str", DType.TStr),
           ("int", TInt),
           ("float", TFloat),
           ("obj", TObj),
@@ -563,9 +550,7 @@ let run = () => {
 
     let handlerWithPointer = cond => {
       let id = gid()
-      let ast = FluidAST.ofExpr(
-        EIf(id, cond, EBool(gid(), true), EBool(gid(), false)),
-      )
+      let ast = FluidAST.ofExpr(EIf(id, cond, EBool(gid(), true), EBool(gid(), false)))
 
       ({...defaultHandler, ast: ast}, id)
     }

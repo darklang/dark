@@ -151,12 +151,12 @@ and blankOrData = (pd: Types.blankOrData): Js.Json.t => {
   | PDBColName(colname) => ev("PDBColName", list{blankOr(string, colname)})
   | PDBColType(coltype) => ev("PDBColType", list{blankOr(string, coltype)})
   | PFnName(msg) => ev("PFnName", list{blankOr(string, msg)})
-  | PFnReturnTipe(msg) => ev("PFnReturnTipe", list{blankOr(tipe, msg)})
+  | PFnReturnTipe(msg) => ev("PFnReturnTipe", list{blankOr(DType.encode, msg)})
   | PParamName(msg) => ev("PParamName", list{blankOr(string, msg)})
-  | PParamTipe(msg) => ev("PParamTipe", list{blankOr(tipe, msg)})
+  | PParamTipe(msg) => ev("PParamTipe", list{blankOr(DType.encode, msg)})
   | PTypeName(n) => ev("PTypeName", list{blankOr(string, n)})
   | PTypeFieldName(n) => ev("PTypeFieldName", list{blankOr(string, n)})
-  | PTypeFieldTipe(t) => ev("PTypeFieldTipe", list{blankOr(tipe, t)})
+  | PTypeFieldTipe(t) => ev("PTypeFieldTipe", list{blankOr(DType.encode, t)})
   }
 }
 
@@ -324,7 +324,7 @@ and deleteToplevelForeverAPIParams = (params: Types.deleteToplevelForeverAPIPara
 and packageFnParameter = (pfp: Types.packageFnParameter): Js.Json.t =>
   object_(list{
     ("name", string(pfp.name)),
-    ("tipe", tipe(pfp.tipe)),
+    ("tipe", DType.encode(pfp.tipe)),
     ("description", string(pfp.description)),
   })
 
@@ -337,7 +337,7 @@ and packageFn = (pf: Types.packageFn): Js.Json.t =>
     ("version", int(pf.version)),
     ("body", fluidExpr(pf.body)),
     ("parameters", list(packageFnParameter, pf.parameters)),
-    ("return_type", tipe(pf.return_type)),
+    ("return_type", DType.encode(pf.return_type)),
     ("description", string(pf.description)),
     ("author", string(pf.author)),
     ("deprecated", bool(pf.deprecated)),
@@ -426,7 +426,7 @@ and userFunctionMetadata = (f: Types.userFunctionMetadata): Js.Json.t =>
     ("name", blankOr(string, f.ufmName)),
     ("parameters", list(userFunctionParameter, f.ufmParameters)),
     ("description", string(f.ufmDescription)),
-    ("return_type", blankOr(tipe, f.ufmReturnTipe)),
+    ("return_type", blankOr(DType.encode, f.ufmReturnTipe)),
     ("infix", bool(f.ufmInfix)),
   })
 
@@ -446,44 +446,15 @@ and userTipeDefinition = (utd: Types.userTipeDefinition): Js.Json.t => {
 }
 
 and userRecordField = (urf: Types.userRecordField): Js.Json.t =>
-  object_(list{("name", blankOr(string, urf.urfName)), ("tipe", blankOr(tipe, urf.urfTipe))})
-
-and tipe = (t: Types.tipe): Js.Json.t => {
-  let ev = variant
-  switch t {
-  | TInt => ev("TInt", list{})
-  | TStr => ev("TStr", list{})
-  | TCharacter => ev("TCharacter", list{})
-  | TBool => ev("TBool", list{})
-  | TFloat => ev("TFloat", list{})
-  | TObj => ev("TObj", list{})
-  | TList => ev("TList", list{})
-  | TTuple(first, second, theRest) =>
-    let otherTipes = Array.map(~f=t => tipe(t), List.toArray(theRest))
-    ev("TTuple", list{tipe(first), tipe(second), jsonArray(otherTipes)})
-  | TAny => ev("TAny", list{})
-  | TNull => ev("TNull", list{})
-  | TBlock => ev("TBlock", list{})
-  | TIncomplete => ev("TIncomplete", list{})
-  | TError => ev("TError", list{})
-  | TResp => ev("TResp", list{})
-  | TDB => ev("TDB", list{})
-  | TDate => ev("TDate", list{})
-  | TDbList(a) => ev("TDbList", list{tipe(a)})
-  | TPassword => ev("TPassword", list{})
-  | TUuid => ev("TUuid", list{})
-  | TOption => ev("TOption", list{})
-  | TErrorRail => ev("TErrorRail", list{})
-  | TResult => ev("TResult", list{})
-  | TUserType(name, version) => ev("TUserType", list{string(name), int(version)})
-  | TBytes => ev("TBytes", list{})
-  }
-}
+  object_(list{
+    ("name", blankOr(string, urf.urfName)),
+    ("tipe", blankOr(DType.encode, urf.urfTipe)),
+  })
 
 and userFunctionParameter = (p: Types.userFunctionParameter): Js.Json.t =>
   object_(list{
     ("name", blankOr(string, p.ufpName)),
-    ("tipe", blankOr(tipe, p.ufpTipe)),
+    ("tipe", blankOr(DType.encode, p.ufpTipe)),
     ("block_args", list(string, p.ufpBlock_args)),
     ("optional", bool(p.ufpOptional)),
     ("description", string(p.ufpDescription)),
