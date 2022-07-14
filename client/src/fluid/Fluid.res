@@ -667,7 +667,7 @@ let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
   /* takes a caretTarget and tokenInfo and produces the corresponding
    * token-stream-global caretPos within the token stream, or None if the
    * passed token isn't one we care about. The function will be used below
-     as part of a List.findMap */
+   as part of a List.findMap */
   let targetAndTokenInfoToMaybeCaretPos = ((ct, ti): (caretTarget, T.tokenInfo)): option<int> =>
     switch (ct.astRef, ti.token) {
     | (ARBinOp(id), TBinOp(id', _, _))
@@ -1335,9 +1335,12 @@ let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, caretTarget)> =>
         (EString(newID, ""), CT.forARStringOpenQuote(newID, 1))
       } else if ins == "[" {
         (EList(newID, list{}), {astRef: ARList(newID, LPOpen), offset: 1})
-      // TODO: prior to PR merge, disable below (until tuples functionality fuller)
+        // TODO: prior to PR merge, disable below (until tuples functionality fuller)
       } else if ins == "(" && allowUserToCreateTuple {
-        (ETuple(newID, EBlank(gid()), EBlank(gid()), list{}), {astRef: ARTuple(newID, TPOpen), offset: 1})
+        (
+          ETuple(newID, EBlank(gid()), EBlank(gid()), list{}),
+          {astRef: ARTuple(newID, TPOpen), offset: 1},
+        )
       } else if ins == "{" {
         (ERecord(newID, list{}), {astRef: ARRecord(newID, RPOpen), offset: 1})
       } else if Util.isNumber(ins) {
@@ -2048,9 +2051,9 @@ let insertInTuple = (~index: int, ~newExpr: E.t, id: id, ast: FluidAST.t): Fluid
     switch e {
     | ETuple(id, first, second, theRest) =>
       switch index {
-        | 0 => ETuple(id, newExpr, first, List.insertAt(~index=0, ~value=second, theRest))
-        | 1 => ETuple(id, first, newExpr, List.insertAt(~index=0, ~value=second, theRest))
-        | i => ETuple(id, first, second, List.insertAt(~index=i-2, ~value=newExpr, theRest))
+      | 0 => ETuple(id, newExpr, first, List.insertAt(~index=0, ~value=second, theRest))
+      | 1 => ETuple(id, first, newExpr, List.insertAt(~index=0, ~value=second, theRest))
+      | i => ETuple(id, first, second, List.insertAt(~index=i - 2, ~value=newExpr, theRest))
       }
 
     | _ => recover("not a tuple in insertInTuple", ~debug=e, e)
@@ -2065,7 +2068,6 @@ let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
     | _ => recover("not a tuple in insertAtTupleEnd", ~debug=e, e)
     }
   )
-
 
 // --------------------
 // Autocomplete
@@ -2708,7 +2710,6 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       })
       |> recoverOpt("doExplicitBackspace - LPComma", ~debug=(varAndSepIdx, oldVars), ~default=None)
 
-
     // Lists
     | (ARList(_, LPComma(elemAndSepIdx)), EList(id, exprs)) =>
       let (newExpr, target) =
@@ -2728,23 +2729,20 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
     | (ARList(_, LPOpen), EList(_, list{item})) =>
       Some(Expr(item), caretTargetForStartOfExpr'(item))
 
-
     // Tuples
     | (ARTuple(_, TPOpen), ETuple(id, first, second, theRest)) =>
       // When we're trying to delete the ( in a tuple,
       // - normally, don't do anything, and leave cursor at left of (
       // - if there are only blanks in the tuple, replace with blank
       // - if there's only 1 non-blank item, replace with that item
-      let nonBlanks =
-        list{first, second, ...theRest}
-        |> List.filter(~f= expr => !isBlank(expr))
+      let nonBlanks = list{first, second, ...theRest} |> List.filter(~f=expr => !isBlank(expr))
 
       switch nonBlanks {
-        | list{} => Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
-        | list{single} => Some(Expr(single), caretTargetForStartOfExpr'(single))
-        | _ =>
-          let target = {astRef: ARTuple(id, TPOpen), offset: 0}
-          Some(Expr(ETuple(id, first, second, theRest)), target)
+      | list{} => Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
+      | list{single} => Some(Expr(single), caretTargetForStartOfExpr'(single))
+      | _ =>
+        let target = {astRef: ARTuple(id, TPOpen), offset: 0}
+        Some(Expr(ETuple(id, first, second, theRest)), target)
       }
 
     | (ARTuple(_, TPComma(elemAndSepIdx)), ETuple(id, first, second, theRest)) =>
@@ -2752,36 +2750,45 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       // - normally, remove the element just after the comma
       // - if that leaves only one element, replace with that item
       let withoutDeleted =
-        list{first, second, ...theRest}
-        |> List.removeAt(~index=elemAndSepIdx + 1)
+        list{first, second, ...theRest} |> List.removeAt(~index=elemAndSepIdx + 1)
 
       switch withoutDeleted {
-        | list{} => recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=show_astRef(currAstRef), None)
-        | list{single} =>
-          let newTarget = caretTargetForEndOfExpr(toID(single), ast)
-          Some(Expr(single), newTarget)
-        | list{first, second, ...theRest} =>
+      | list{} =>
+        recover(
+          "Deletion unexpectedly resulted in tuple with 0 elements",
+          ~debug=show_astRef(currAstRef),
+          None,
+        )
+      | list{single} =>
+        let newTarget = caretTargetForEndOfExpr(toID(single), ast)
+        Some(Expr(single), newTarget)
+      | list{first, second, ...theRest} =>
+        let newExpr = Expr(ETuple(id, first, second, theRest))
 
-          let newExpr = Expr(ETuple(id, first, second, theRest))
+        // set target to RHS of the item to left of ,
+        // something is broken about this. We're currently ending up on the LHS of the thing before the deleted item
+        switch Belt.List.get(withoutDeleted, elemAndSepIdx) {
+        | None =>
+          recover(
+            "Deletion unexpectedly resulted in tuple with 0 elements",
+            ~debug=show_astRef(currAstRef),
+            None,
+          )
+        | Some(elementLeftOfDeletion) =>
+          let newTarget = caretTargetForEndOfExpr(toID(elementLeftOfDeletion), ast)
 
-          // set target to RHS of the item to left of ,
-          // something is broken about this. We're currently ending up on the LHS of the thing before the deleted item
-          switch Belt.List.get(withoutDeleted, elemAndSepIdx) {
-            | None => recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=show_astRef(currAstRef), None)
-            | Some(elementLeftOfDeletion) =>
-              let newTarget = caretTargetForEndOfExpr(toID(elementLeftOfDeletion), ast)
-
-              Some(newExpr, newTarget)
-          }
+          Some(newExpr, newTarget)
+        }
       }
 
     | (ARTuple(_, TPClose), ETuple(id, first, second, theRest)) =>
       let target = {astRef: ARTuple(id, TPClose), offset: 0}
       Some(Expr(ETuple(id, first, second, theRest)), target)
 
-
     // Records
-    | (ARRecord(_, RPOpen), expr) | (ARList(_, LPOpen), expr) | (ARTuple(_, TPOpen), expr) if E.isEmpty(expr) => mkEBlank()
+    | (ARRecord(_, RPOpen), expr) | (ARList(_, LPOpen), expr) | (ARTuple(_, TPOpen), expr)
+      if E.isEmpty(expr) =>
+      mkEBlank()
     | (ARRecord(_, RPFieldname(index)), ERecord(id, nameValPairs)) =>
       List.getAt(~index, nameValPairs) |> Option.map(~f=x =>
         switch x {
@@ -2789,7 +2796,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
           let target = switch recordExprIdAtIndex(id, index - 1, FluidAST.toExpr(ast)) {
           | None => {
               astRef: ARRecord(id, RPOpen),
-              offset: 1 // right after the {
+              offset: 1, // right after the {
             }
           | Some(exprId) => caretTargetForEndOfExpr(exprId, ast)
           }
@@ -4353,7 +4360,8 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   // Pressing ] to go over the last ]
   | (InsertText("]"), _, R(TListClose(_), ti)) if pos == ti.endPos - 1 => moveOneRight(pos, astInfo)
   // Pressing ) to go over the last )
-  | (InsertText(")"), _, R(TTupleClose(_), ti)) if pos == ti.endPos - 1 => moveOneRight(pos, astInfo)
+  | (InsertText(")"), _, R(TTupleClose(_), ti)) if pos == ti.endPos - 1 =>
+    moveOneRight(pos, astInfo)
   // Pressing quote to go over the last quote
   | (InsertText("\""), _, R(TPatternString(_), ti))
   | (InsertText("\""), _, R(TString(_), ti))
@@ -4368,7 +4376,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     if false /* disable for now */ && pos - ti.startPos !== 0 =>
     startEscapingString(pos, ti, astInfo)
 
-
   // Add another element to a List by inserting a `,`
   | (InsertText(","), L(TListOpen(id, _), _), _) if onEdge =>
     let bID = gid()
@@ -4379,14 +4386,14 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
 
   | (InsertText(","), L(TListComma(id, index), _), R(_, ti))
   | (InsertText(","), L(_, ti), R(TListComma(id, index), _)) if onEdge => {
-    let astInfo = acEnter(ti, K.Enter, astInfo)
+      let astInfo = acEnter(ti, K.Enter, astInfo)
 
-    let blankID = gid()
-    let newExpr = EBlank(blankID)
+      let blankID = gid()
+      let newExpr = EBlank(blankID)
 
-    astInfo
-    |> ASTInfo.setAST(insertInList(~index=index + 1, id, ~newExpr, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
+      astInfo
+      |> ASTInfo.setAST(insertInList(~index=index + 1, id, ~newExpr, astInfo.ast))
+      |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
     }
 
   | (InsertText(","), L(_, ti), R(TListClose(id, _), _)) if onEdge =>
@@ -4398,7 +4405,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     newAstInfo
     |> ASTInfo.setAST(insertAtListEnd(id, ~newExpr, newAstInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
-
 
   // Add another element to a tuple by inserting a `,`
   | (InsertText(","), L(TTupleOpen(id), _), _) if onEdge =>
@@ -4438,7 +4444,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     |> ASTInfo.setAST(insertAtTupleEnd(id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
-
   // Add another param to a lambda
   | (InsertText(","), L(TLambdaSymbol(id, _), _), _) if onEdge =>
     astInfo
@@ -4452,7 +4457,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     astInfo
     |> ASTInfo.setAST(insertLambdaVar(~index, id, ~name="", astInfo.ast))
     |> moveToCaretTarget({astRef: ARLambda(id, LBPVarName(index)), offset: 0})
-
 
   // Field access
   | (InsertText("."), L(TFieldPartial(id, _, _, _, _), _), _) =>
@@ -4478,7 +4482,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
 
     astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(target)
 
-
   // Wrap the current expression in a list
   | (InsertText("["), _, R(TInteger(id, _, _), _))
   | (InsertText("["), _, R(TTrue(id, _), _))
@@ -4503,7 +4506,6 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
     astInfo
     |> ASTInfo.setAST(FluidAST.update(~f=var => EList(newID, list{var}), id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
-
 
   // Infix symbol insertion to create partials
   | (InsertText(infixTxt), L(TPipe(_), ti), _)
@@ -4960,7 +4962,6 @@ let getExpressionRangeAtCaret = (astInfo: ASTInfo.t): option<(int, int)> =>
   })
   |> Option.map(~f=((eStartPos, eEndPos)) => (eStartPos, eEndPos))
 
-
 let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
   FluidExpression.t,
 > => {
@@ -5277,15 +5278,12 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       let newExprs = List.map(exprs, ~f=reconstructExpr) |> Option.values
       Some(EList(id, newExprs))
     | ETuple(_, first, second, theRest) =>
-      let results =
-        List.map(list{first, second, ...theRest}, ~f=reconstructExpr)
-        |> Option.values
+      let results = List.map(list{first, second, ...theRest}, ~f=reconstructExpr) |> Option.values
 
       switch results {
-        | list{} => recover("unexpected reconstruction of invalid empty tuple", None)
-        | list{el} => Some(el)
-        | list{fst, snd, ...tail} =>
-          Some(ETuple(id, fst, snd, tail))
+      | list{} => recover("unexpected reconstruction of invalid empty tuple", None)
+      | list{el} => Some(el)
+      | list{fst, snd, ...tail} => Some(ETuple(id, fst, snd, tail))
       }
     | ERecord(id, entries) =>
       let newEntries =

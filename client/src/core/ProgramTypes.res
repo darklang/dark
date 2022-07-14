@@ -5,10 +5,10 @@
 
 module FQFnName = {
   @ppx.deriving(show({with_path: false}))
-  type rec stdlibFnName = {module_: string, function_: string, version: int}
+  type rec stdlibFnName = {module_: string, function: string, version: int}
 
   @ppx.deriving(show({with_path: false}))
-  type rec infixStdlibFnName = {module_: option<string>, function_: string}
+  type rec infixStdlibFnName = {module_: option<string>, function: string}
 
   @ppx.deriving(show({with_path: false})) type rec userFnName = string
 
@@ -17,7 +17,7 @@ module FQFnName = {
     owner: string,
     package: string,
     module_: string,
-    function_: string,
+    function: string,
     version: int,
   }
 
@@ -101,34 +101,6 @@ module Expr = {
     | EMatch(id, t, list<(Pattern.t, t)>)
     | EPipeTarget(id)
     | EFeatureFlag(id, string, t, t, t)
-}
-
-module DType = {
-  @ppx.deriving(show({with_path: false}))
-  type rec t =
-    | TInt
-    | TFloat
-    | TBool
-    | TNull
-    | TStr
-    | TList
-    | TObj
-    | TIncomplete
-    | TError
-    | TResp
-    | TDB
-    | TDate
-    | TCharacter
-    | TPassword
-    | TUuid
-    | TOption
-    | TErrorRail
-    | TUserType(string, int)
-    | TBytes
-    | TResult
-    | TAny
-    | TBlock
-    | TDbList(t)
 }
 
 module AST = {

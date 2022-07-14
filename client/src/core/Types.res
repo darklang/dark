@@ -1,4 +1,6 @@
 open Tc
+module PT = ProgramTypes
+module RT = RuntimeTypes
 
 module Belt = {
   include (Belt: module type of Belt with module Map := Belt.Map)
@@ -102,6 +104,7 @@ and blankOr<'a> =
 // within the viewport and we map Absolute positions back to the
 // viewport to display in the browser.
 // TODO: Can we depreciate VPos?
+@ppx.deriving(show({with_path: false}))
 type rec pos = {
   x: int,
   y: int,
@@ -112,42 +115,12 @@ and vPos = {
   vy: int,
 }
 
-// ----------------------
-// Types
-// ----------------------
-@ppx.deriving(show)
-and tipe =
-  | TInt
-  | TStr
-  | TCharacter
-  | TBool
-  | TFloat
-  | TObj
-  | TList
-  | TTuple(tipe, tipe, list<tipe>)
-  | TAny
-  | TNull
-  | TBlock
-  | TIncomplete
-  | TError
-  | TResp
-  | TDB
-  | TDate
-  | TPassword
-  | TUuid
-  | TOption
-  | TErrorRail
-  | TResult
-  | TDbList(tipe)
-  | TUserType(string, int)
-  | TBytes
-
 module TypeInformation = {
   @ppx.deriving(show)
   type rec t = {
     fnName: string,
     paramName: string,
-    returnType: tipe,
+    returnType: DType.t,
   }
 
   let default: t = {fnName: "Unknown", paramName: "Unknown", returnType: TAny}
@@ -173,12 +146,12 @@ and blankOrData =
   | PDBColName(blankOr<string>)
   | PDBColType(blankOr<string>)
   | PFnName(blankOr<string>)
-  | PFnReturnTipe(blankOr<tipe>)
+  | PFnReturnTipe(blankOr<DType.t>)
   | PParamName(blankOr<string>)
-  | PParamTipe(blankOr<tipe>)
+  | PParamTipe(blankOr<DType.t>)
   | PTypeName(blankOr<string>)
   | PTypeFieldName(blankOr<string>)
-  | PTypeFieldTipe(blankOr<tipe>)
+  | PTypeFieldTipe(blankOr<DType.t>)
 
 @ppx.deriving(show({with_path: false}))
 and blankOrType =
@@ -275,7 +248,7 @@ and functionTypes =
 // userFunctions
 and userFunctionParameter = {
   ufpName: blankOr<string>,
-  ufpTipe: blankOr<tipe>,
+  ufpTipe: blankOr<DType.t>,
   ufpBlock_args: list<string>,
   ufpOptional: bool,
   ufpDescription: string,
@@ -285,7 +258,7 @@ and userFunctionMetadata = {
   ufmName: blankOr<string>,
   ufmParameters: list<userFunctionParameter>,
   ufmDescription: string,
-  ufmReturnTipe: blankOr<tipe>,
+  ufmReturnTipe: blankOr<DType.t>,
   ufmInfix: bool,
 }
 
@@ -297,7 +270,7 @@ and userFunction = {
 
 and userRecordField = {
   urfName: blankOr<string>,
-  urfTipe: blankOr<tipe>,
+  urfTipe: blankOr<DType.t>,
 }
 
 and userTipeDefinition = UTRecord(list<userRecordField>)
@@ -312,7 +285,7 @@ and userTipe = {
 // Package manager Functions
 and packageFnParameter = {
   name: string,
-  tipe: tipe,
+  tipe: DType.t,
   description: string,
 }
 
@@ -324,7 +297,7 @@ and packageFn = {
   version: int,
   body: fluidExpr,
   parameters: list<packageFnParameter>,
-  return_type: tipe,
+  return_type: DType.t,
   description: string,
   author: string,
   deprecated: bool,
@@ -900,7 +873,7 @@ and saveTestAPIResult = string
 // functions
 and parameter = {
   paramName: string,
-  paramTipe: tipe,
+  paramTipe: DType.t,
   paramBlock_args: list<string>,
   paramOptional: bool,
   paramDescription: string,
@@ -919,7 +892,7 @@ and function_ = {
   fnName: string,
   fnParameters: list<parameter>,
   fnDescription: string,
-  fnReturnTipe: tipe,
+  fnReturnTipe: DType.t,
   fnPreviewSafety: previewSafety,
   fnDeprecated: bool,
   fnInfix: bool,
@@ -934,14 +907,12 @@ and literal = string
 
 and displayText = string
 
-/* Some AC items needs to be dynamically added to the list,
-   while others can be filtered in and out of the list.
-  For example: Goto will take you to focus on a toplevel.
-  In the case of "Jump to", results are filtered by name,
-    and do not need to be dynamically generated.
-  But in the case of "Found in", results are dynamically generated,
-    based on the content that is insID.t *e.
-*/
+// Some AC items needs to be dynamically added to the list, while others can be
+// filtered in and out of the list.  For example: Goto will take you to focus on a
+// toplevel.  In the case of "Jump to", results are filtered by name, and do not need
+// to be dynamically generated.  But in the case of "Found in", results are
+// dynamically generated, based on the content that is inside.
+
 and isDynamic = bool
 
 and keyword =
@@ -988,10 +959,10 @@ and autocompleteItem =
   // User functions
   | ACFnName(string)
   | ACParamName(string)
-  | ACParamTipe(tipe)
-  | ACReturnTipe(tipe)
+  | ACParamTipe(DType.t)
+  | ACReturnTipe(DType.t)
   // User types
-  | ACTypeFieldTipe(tipe)
+  | ACTypeFieldTipe(DType.t)
   | ACTypeName(string)
   | ACTypeFieldName(string)
 
@@ -1019,10 +990,10 @@ and autocompleteMod =
   | ACSetVisible(bool)
 
 // -------------------
-// Functions.ml
+// Functions.res
 // -------------------
 and functionsType = {
-  builtinFunctions: list<function_>,
+  builtinFunctions: list<RT.BuiltInFn.t>,
   packageFunctions: packageFns,
   previewUnsafeFunctions: /* We do analysis to determine which functions are safe and which are not.
    * This stores the result */
@@ -1677,7 +1648,7 @@ and fluidAutocompleteData = {
 and fluidAutocompleteValidity =
   | FACItemValid
   | FACItemInvalidReturnType(TypeInformation.t)
-  | FACItemInvalidPipedArg(tipe)
+  | FACItemInvalidPipedArg(DType.t)
 
 and fluidAutocompleteState = {
   // -------------------------------

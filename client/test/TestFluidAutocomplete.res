@@ -10,51 +10,57 @@ open ProgramTypes.Pattern
 open FluidTestData
 open FluidShortcuts
 
-let sampleFunctions: list<function_> = list{
-  ("Twit::somefunc", list{TObj}, TAny),
-  ("Twit::someOtherFunc", list{TObj}, TAny),
-  ("Twit::yetAnother", list{TObj}, TAny),
-  ("+", list{TInt, TInt}, TInt),
-  ("Int::add", list{TInt, TInt}, TInt),
-  ("Dict::keys", list{TObj}, TList),
-  ("List::head", list{TList}, TAny),
-  ("withlower", list{TObj}, TObj),
-  ("withLower", list{TObj}, TObj),
-  ("SomeModule::withLower", list{TObj}, TObj),
-  ("SomeOtherModule::withlower", list{TObj}, TObj),
-  ("HTTP::post", list{TAny}, TAny),
-  ("HTTP::head", list{TAny}, TAny),
-  ("HTTP::get", list{TAny}, TAny),
-  ("HTTP::options", list{TAny}, TAny),
-  ("Some::deprecated", list{TAny}, TAny),
-  ("DB::deleteAll", list{TDB}, TNull),
-  ("DB::generateKey", list{}, TStr),
-  ("DB::getAll_v2", list{TDB}, TList),
-  ("DB::getAll_v1", list{TDB}, TList),
+let sampleFunctions: list<RT.BuiltInFn.t> = list{
+  ("Twit", "somefunc", 0, list{DType.TObj}, DType.TAny),
+  ("Twit", "someOtherFunc", 0, list{TObj}, TAny),
+  ("Twit", "yetAnother", 0, list{TObj}, TAny),
+  ("", "+", 0, list{TInt, TInt}, TInt),
+  ("Int", "add", 0, list{TInt, TInt}, TInt),
+  ("Dict", "keys", 0, list{TObj}, TList),
+  ("List", "head", 0, list{TList}, TAny),
+  ("", "withlower", 0, list{TObj}, TObj),
+  ("", "withLower", 0, list{TObj}, TObj),
+  ("SomeModule", "withLower", 0, list{TObj}, TObj),
+  ("SomeOtherModule", "withlower", 0, list{TObj}, TObj),
+  ("HTTP", "post", 0, list{TAny}, TAny),
+  ("HTTP", "head", 0, list{TAny}, TAny),
+  ("HTTP", "get", 0, list{TAny}, TAny),
+  ("HTTP", "options", 0, list{TAny}, TAny),
+  ("Some", "deprecated", 0, list{TAny}, TAny),
+  ("DB", "deleteAll", 0, list{TDB}, TNull),
+  ("DB", "generateKey", 0, list{}, TStr),
+  ("DB", "getAll", 2, list{TDB}, TList),
+  ("DB", "getAll", 1, list{TDB}, TList),
   // ordering is deliberate - we want the query to order s.t. get is before getAll
-  ("DB::get_v1", list{TDB}, TList),
-  ("String::append", list{TStr, TStr}, TStr),
-  ("List::append", list{TList, TList}, TList),
-  ("String::newline", list{}, TStr),
-  ("Option::withDefault", list{TOption}, TAny),
-  ("Result::withDefault", list{TResult}, TAny),
-  ("InQuery::whatever", list{TObj}, TAny),
-} |> List.map(~f=((fnName, paramTipes, fnReturnTipe)) => {
-  fnName: fnName,
-  fnParameters: List.map(paramTipes, ~f=paramTipe => {
-    paramName: "x",
-    paramTipe: paramTipe,
-    paramBlock_args: list{},
-    paramOptional: false,
-    paramDescription: "",
+  ("DB", "get", 1, list{TDB}, TList),
+  ("String", "append", 0, list{TStr, TStr}, TStr),
+  ("List", "append", 0, list{TList, TList}, TList),
+  ("String", "newline", 0, list{}, TStr),
+  ("Option", "withDefault", 0, list{TOption}, TAny),
+  ("Result", "withDefault", 0, list{TResult}, TAny),
+  ("InQuery", "whatever", 0, list{TObj}, TAny),
+} |> List.map(~f=((module_, function, version, paramTipes, returnType)): RT.BuiltInFn.t => {
+  name: {module_: module_, function: function, version: version},
+  parameters: List.map(paramTipes, ~f=(paramType): RT.BuiltInFn.Param.t => {
+    name: "x",
+    typ: paramType,
+    args: list{},
+    description: "",
   }),
-  fnReturnTipe: fnReturnTipe,
-  fnPreviewSafety: Unsafe,
-  fnDescription: "",
-  fnInfix: true,
-  fnDeprecated: fnName == "Some::deprecated",
-  fnIsSupportedInQuery: fnName == "InQuery::whatever",
-  fnOrigin: Builtin,
+  returnType: returnType,
+  previewable: Impure,
+  description: "",
+  isInfix: true,
+  deprecated: if function == "deprecated" {
+    DeprecatedBecause("")
+  } else {
+    NotDeprecated
+  },
+  sqlSpec: if module_ == "InQuery" {
+    SqlUnaryOp("+")
+  } else {
+    NotQueryable
+  },
 })
 
 let defaultTraceID = "94167980-f909-527e-a4af-bc3155f586d3"
@@ -115,7 +121,7 @@ let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): userFunction => {
     ufmName: B.newF("myFunc"),
     ufmParameters: list{},
     ufmDescription: "",
-    ufmReturnTipe: B.newF(TStr),
+    ufmReturnTipe: B.newF(DType.TStr),
     ufmInfix: false,
   },
   ufAST: FluidAST.ofExpr(expr),
@@ -502,7 +508,11 @@ let run = () => {
       test("functions with no arguments are invalid when piping", () => {
         let id = gid()
         let expr = pipe(int(~id, 5), partial("string", b), list{})
-        let m = defaultModel(~analyses=list{(id, DInt(5L))}, ~handlers=list{aHandler(~expr, ())}, ())
+        let m = defaultModel(
+          ~analyses=list{(id, DInt(5L))},
+          ~handlers=list{aHandler(~expr, ())},
+          (),
+        )
 
         let (_valid, invalid) = filterFor(m, ~pos=10)
         expect(

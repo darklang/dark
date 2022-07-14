@@ -15,6 +15,7 @@ module ORT = LibExecution.OCamlTypes.RuntimeT
 module OT = LibExecution.OCamlTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
+
 module Values =
 
   /// The test values below are used to check the exact output of test file. So we need
@@ -683,21 +684,67 @@ module GenericSerializersTests =
 
       // Functions
 
-      v<List<ApiServer.Functions.FunctionMetadata>>
+      v<List<ApiServer.Functions.BuiltInFn.T>>
         "all"
-        [ { name = "Int::mod_v0"
-            parameters =
-              [ { name = "a"
-                  tipe = "TInt"
-                  block_args = []
-                  optional = false
-                  description = "param description" } ]
-            description = "Some function description"
-            return_type = "bool"
-            infix = false
-            preview_safety = ApiServer.Functions.Safe
-            deprecated = false
-            is_supported_in_query = false } ]
+        ([ { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+             parameters =
+               [ { name = "a"
+                   ``type`` = ApiServer.Functions.DType.TInt
+                   args = []
+                   description = "param description" } ]
+             returnType =
+               ApiServer.Functions.DType.TList(ApiServer.Functions.DType.TInt)
+             description = "basic"
+             isInfix = false
+             previewable = ApiServer.Functions.Previewable.Pure
+             deprecated = ApiServer.Functions.Deprecation.NotDeprecated
+             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+             parameters = []
+             returnType = ApiServer.Functions.DType.TInt
+             description = "impure"
+             isInfix = false
+             previewable = ApiServer.Functions.Previewable.Impure
+             deprecated = ApiServer.Functions.Deprecation.NotDeprecated
+             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+             parameters = []
+             returnType = ApiServer.Functions.DType.TInt
+             description = "impurepreviewable"
+             isInfix = false
+             previewable = ApiServer.Functions.Previewable.ImpurePreviewable
+             deprecated = ApiServer.Functions.Deprecation.NotDeprecated
+             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+             parameters = []
+             returnType = ApiServer.Functions.DType.TInt
+             description = "replacedBy"
+             isInfix = false
+             previewable = ApiServer.Functions.Previewable.Pure
+             deprecated =
+               ApiServer.Functions.Deprecation.ReplacedBy(
+                 { ``module`` = "Int"; ``function`` = "mod"; version = 1 }
+               )
+             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+             parameters = []
+             returnType = ApiServer.Functions.DType.TInt
+             description = "renamedTo"
+             isInfix = false
+             previewable = ApiServer.Functions.Previewable.Pure
+             deprecated =
+               ApiServer.Functions.Deprecation.RenamedTo(
+                 { ``module`` = "Int"; ``function`` = "mod"; version = 1 }
+               )
+             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+             parameters = []
+             returnType = ApiServer.Functions.DType.TInt
+             description = "deprecatedBecause"
+             isInfix = false
+             previewable = ApiServer.Functions.Previewable.Pure
+             deprecated = ApiServer.Functions.Deprecation.DeprecatedBecause "reason"
+             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable } ])
 
       // InitialLoad
       both<ApiServer.InitialLoad.T>
@@ -845,11 +892,17 @@ module GenericSerializersTests =
 
       let vanillaFilenames = filenamesFor Json.Vanilla.allowedTypes "vanilla"
       let vanillaActual = File.lsPattern Config.Serialization "vanilla-*.json" |> Set
-      Expect.equal vanillaFilenames vanillaActual "vanilla-files"
+      let vanillaMissingFiles = Set.difference vanillaFilenames vanillaActual
+      let vanillaExtraFiles = Set.difference vanillaActual vanillaFilenames
+      Expect.equal vanillaMissingFiles Set.empty "missing vanilla files"
+      Expect.equal vanillaExtraFiles Set.empty "extra vanilla files"
 
       let ocamlFilenames = filenamesFor Json.OCamlCompatible.allowedTypes "ocaml"
       let ocamlActual = File.lsPattern Config.Serialization "ocaml-*.json" |> Set
-      Expect.equal ocamlFilenames ocamlActual "vanilla-files"
+      let ocamlMissingFiles = Set.difference ocamlFilenames ocamlActual
+      let ocamlExtraFiles = Set.difference ocamlActual ocamlFilenames
+      Expect.equal ocamlMissingFiles Set.empty "missing ocaml files"
+      Expect.equal ocamlExtraFiles Set.empty "extra ocaml files"
     }
 
   let testTestFiles : List<Test> =

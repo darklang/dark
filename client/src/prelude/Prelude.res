@@ -62,7 +62,7 @@ module Debug = {
 
 // Needs a better home
 
-let rec tipe2str = (t: tipe): string =>
+let rec tipe2str = (t: DType.t): string =>
   switch t {
   | TAny => "Any"
   | TInt => "Int"

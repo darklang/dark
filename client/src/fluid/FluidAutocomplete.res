@@ -250,7 +250,7 @@ let findExpectedType = (
 
 // Checks whether an autocomplete item matches the expected types
 let typeCheck = (
-  pipedType: option<tipe>,
+  pipedType: option<DType.t>,
   expectedReturnType: TypeInformation.t,
   item: item,
 ): data => {

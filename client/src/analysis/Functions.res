@@ -6,6 +6,31 @@ module E = FluidExpression
 
 @ppx.deriving(show({with_path: false})) type rec props = Types.functionsProps
 
+let builtinFunctionsToFn = (fn: RT.BuiltInFn.t): function_ => {
+  let toParam = (p: RT.BuiltInFn.Param.t): parameter => {
+    paramName: p.name,
+    paramTipe: p.typ,
+    paramDescription: p.description,
+    paramBlock_args: p.args,
+    paramOptional: false,
+  }
+  {
+    fnName: fn.name |> RT.FQFnName.StdlibFnName.toString,
+    fnParameters: fn.parameters |> List.map(~f=toParam),
+    fnDescription: fn.description,
+    fnReturnTipe: fn.returnType,
+    fnPreviewSafety: switch fn.previewable {
+    | Pure => Safe
+    | Impure => Unsafe
+    | ImpurePreviewable => Unsafe
+    },
+    fnDeprecated: fn.deprecated != NotDeprecated,
+    fnInfix: fn.isInfix,
+    fnIsSupportedInQuery: RT.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec),
+    fnOrigin: Builtin,
+  }
+}
+
 /* Returns the function named `name`. Returns Nothing if the function
  * can't be found - this shouldn't happen in theory but often does
  * in practice; for example, someone might delete a function and
@@ -70,9 +95,9 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
 
   // Get the initial set of unsafe functions
   // TODO: what about unsafe packagemanager functions
-  let unsafeBuiltins = t.builtinFunctions |> List.filterMap(~f=f =>
-    if f.fnPreviewSafety == Unsafe {
-      Some(f.fnName)
+  let unsafeBuiltins = t.builtinFunctions |> List.filterMap(~f=(f: RT.BuiltInFn.t) =>
+    if f.previewable != Pure {
+      Some(f.name |> RT.FQFnName.StdlibFnName.toString)
     } else {
       None
     }
@@ -110,7 +135,7 @@ let testCalculateUnsafeUserFunctions = calculateUnsafeUserFunctions
 
 let asFunctions = (t: t): list<function_> => t.allowedFunctions
 
-let builtins = (t: t): list<function_> => t.builtinFunctions
+let builtins = (t: t): list<function_> => t.builtinFunctions |> List.map(~f=builtinFunctionsToFn)
 
 let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
   // We hide functions that are deprecated unless they are in use
@@ -157,11 +182,7 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
   let packageFunctions =
     t.packageFunctions |> Map.values |> List.map(~f=PackageManager.fn_of_packageFn)
 
-  Belt.List.concatMany([
-    t.builtinFunctions,
-    userFunctionMetadata,
-    packageFunctions,
-  ]) |> filterAndSort
+  Belt.List.concatMany([builtins(t), userFunctionMetadata, packageFunctions]) |> filterAndSort
 }
 
 let update = (props: props, t: t): t => {
@@ -177,7 +198,7 @@ let update = (props: props, t: t): t => {
   result
 }
 
-let setBuiltins = (builtins: list<function_>, props: props, t: t): t =>
+let setBuiltins = (builtins: list<RT.BuiltInFn.t>, props: props, t: t): t =>
   {...t, builtinFunctions: builtins} |> update(props)
 
 let setPackages = (fns: packageFns, props: props, t: t): t =>

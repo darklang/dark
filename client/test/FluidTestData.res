@@ -404,7 +404,6 @@ let tuple2WithBothBlank = tuple(b, b, list{})
 let tuple2WithFirstBlank = tuple(b, seventyEight, list{})
 let tuple2WithSecondBlank = tuple(fiftySix, b, list{})
 
-
 let tuple3WithNoBlanks = tuple(fiftySix, seventyEight, list{fiftySix})
 let tuple3WithAllBlank = tuple(b, b, list{b})
 
@@ -416,18 +415,16 @@ let tuple3WithFirstFilled = tuple(fiftySix, b, list{b})
 let tuple3WithSecondFilled = tuple(b, fiftySix, list{b})
 let tuple3WithThirdFilled = tuple(b, b, list{fiftySix})
 
-
-let tuple6 =
-  tuple(fiftySix, seventyEight, list{fiftySix, seventyEight, fiftySix, seventyEight})
+let tuple6 = tuple(fiftySix, seventyEight, list{fiftySix, seventyEight, fiftySix, seventyEight})
 
 let tupleWithRecord = tuple(emptyRecord, b, list{})
 
 let tuple3WithStrs = tuple(str("ab"), str("cd"), list{str("ef")})
 
-let tupleHuge =
-  tuple(fiftySix,
-    seventyEight,
-    list{
+let tupleHuge = tuple(
+  fiftySix,
+  seventyEight,
+  list{
     fiftySix,
     seventyEight,
     fiftySix,
@@ -493,8 +490,9 @@ let tupleHuge =
     fiftySix,
     seventyEight,
     fiftySix,
-    seventyEight})
-
+    seventyEight,
+  },
+)
 
 // ----------------
 // Fields
@@ -695,25 +693,23 @@ let complexExpr = {
 // ----------------
 let defaultTLID = TLID.fromInt(7)
 
-let defaultTestFunctions = {
-  let fnParam = (name: string, t: tipe, ~blockArgs=list{}, opt: bool): Types.parameter => {
-    paramName: name,
-    paramTipe: t,
-    paramBlock_args: blockArgs,
-    paramOptional: opt,
-    paramDescription: "",
+let defaultTestFunctions: list<RT.BuiltInFn.t> = {
+  let fnParam = (name: string, ~args=list{}, typ: DType.t): RT.BuiltInFn.Param.t => {
+    name: name,
+    typ: typ,
+    args: args,
+    description: "",
   }
 
-  let infixFn = (op, tipe, rtTipe) => {
-    fnName: op,
-    fnParameters: list{fnParam("a", tipe, false), fnParam("b", tipe, false)},
-    fnReturnTipe: rtTipe,
-    fnDescription: "Some binop",
-    fnPreviewSafety: Safe,
-    fnDeprecated: false,
-    fnInfix: true,
-    fnIsSupportedInQuery: false,
-    fnOrigin: Builtin,
+  let infixFn = (op, typ, rtType): RT.BuiltInFn.t => {
+    name: {module_: "", function: op, version: 0},
+    parameters: list{fnParam("a", typ), fnParam("b", typ)},
+    returnType: rtType,
+    description: "Some binop",
+    previewable: Pure,
+    deprecated: NotDeprecated,
+    isInfix: true,
+    sqlSpec: NotQueryable,
   }
 
   list{
@@ -724,104 +720,89 @@ let defaultTestFunctions = {
     infixFn("<=", TInt, TBool),
     infixFn("||", TBool, TBool),
     {
-      fnName: "Int::add",
-      fnParameters: list{fnParam("a", TInt, false), fnParam("b", TInt, false)},
-      fnReturnTipe: TInt,
-      fnDescription: "Add two ints",
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "Int", function: "add", version: 0},
+      parameters: list{fnParam("a", TInt), fnParam("b", TInt)},
+      returnType: TInt,
+      description: "Add two ints",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "Int::sqrt",
-      fnParameters: list{fnParam("a", TInt, false)},
-      fnReturnTipe: TInt,
-      fnDescription: "Get the square root of an Int",
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "Int", function: "sqrt", version: 0},
+      parameters: list{fnParam("a", TInt)},
+      returnType: TInt,
+      description: "Get the square root of an Int",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "HttpClient::post_v4",
-      fnParameters: list{
-        fnParam("url", TStr, false),
-        fnParam("body", TAny, false),
-        fnParam("query", TObj, false),
-        fnParam("headers", TObj, false),
+      name: {module_: "HttpClient", function: "post", version: 4},
+      parameters: list{
+        fnParam("url", TStr),
+        fnParam("body", TAny),
+        fnParam("query", TObj),
+        fnParam("headers", TObj),
       },
-      fnReturnTipe: TResult,
-      fnDescription: "Make blocking HTTP POST call to `uri`.",
-      fnPreviewSafety: Unsafe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      returnType: TResult,
+      description: "Make blocking HTTP POST call to `uri`.",
+      previewable: Impure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "HttpClient::get_v3",
-      fnParameters: list{
-        fnParam("url", TStr, false),
-        fnParam("query", TObj, false),
-        fnParam("headers", TObj, false),
-      },
-      fnReturnTipe: TResult,
-      fnDescription: "Make blocking HTTP GET call to `uri`.",
-      fnPreviewSafety: Unsafe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "HttpClient", function: "get", version: 3},
+      parameters: list{fnParam("url", TStr), fnParam("query", TObj), fnParam("headers", TObj)},
+      returnType: TResult,
+      description: "Make blocking HTTP GET call to `uri`.",
+      previewable: Impure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "DB::getAll_v1",
-      fnParameters: list{fnParam("table", TDB, false)},
-      fnReturnTipe: TList,
-      fnDescription: "get all",
-      fnPreviewSafety: Unsafe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "DB", function: "getAll", version: 1},
+      parameters: list{fnParam("table", TDB)},
+      returnType: TList,
+      description: "get all",
+      previewable: Impure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "Dict::map",
-      fnParameters: list{
-        fnParam("dict", TObj, false),
-        fnParam("f", TBlock, false, ~blockArgs=list{"key", "value"}),
-      },
-      fnReturnTipe: TObj,
-      fnDescription: "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda",
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "Dict", function: "map", version: 0},
+      parameters: list{fnParam("dict", TObj), fnParam("f", TBlock, ~args=list{"key", "value"})},
+      returnType: TObj,
+      description: "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "List::append",
-      fnParameters: list{fnParam("l1", TList, false), fnParam("l2", TList, false)},
-      fnReturnTipe: TList,
-      fnDescription: "append list",
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "List", function: "append", version: 0},
+      parameters: list{fnParam("l1", TList), fnParam("l2", TList)},
+      returnType: TList,
+      description: "append list",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
     {
-      fnName: "List::empty",
-      fnParameters: list{},
-      fnReturnTipe: TList,
-      fnDescription: "empty list",
-      fnPreviewSafety: Safe,
-      fnDeprecated: false,
-      fnInfix: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: Builtin,
+      name: {module_: "List", function: "empty", version: 0},
+      parameters: list{},
+      returnType: TList,
+      description: "empty list",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
     },
   }
 }
@@ -843,7 +824,7 @@ let defaultTestModel = {
   ...Defaults.defaultModel,
   tests: defaultTestProps.variants,
   functions: defaultTestProps.functions,
-  analyses: Map.String.fromList (list{
+  analyses: Map.String.fromList(list{
     (
       "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
       LoadableSuccess(

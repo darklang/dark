@@ -119,10 +119,10 @@ let getLiveValue' = (analysisStore: analysisStore, id: id): option<dval> =>
 let getLiveValue = (m: model, id: id, traceID: traceID): option<dval> =>
   getLiveValue'(getStoredAnalysis(m, traceID), id)
 
-let getTipeOf' = (analysisStore: analysisStore, id: id): option<tipe> =>
+let getTipeOf' = (analysisStore: analysisStore, id: id): option<DType.t> =>
   getLiveValue'(analysisStore, id) |> Option.map(~f=RT.typeOf)
 
-let getTipeOf = (m: model, id: id, traceID: traceID): option<tipe> =>
+let getTipeOf = (m: model, id: id, traceID: traceID): option<DType.t> =>
   getLiveValue(m, id, traceID) |> Option.map(~f=RT.typeOf)
 
 let getArguments = (m: model, tl: toplevel, callerID: id, traceID: traceID): option<list<dval>> =>
@@ -237,7 +237,7 @@ module NewTracePush = {
   let decode = {
     open Tea.Json.Decoder
     let traceID = map((id): traceID => id, string)
-    let tlids = list(map((tlid) => TLID.fromInt(tlid), Tea.Json.Decoder.int))
+    let tlids = list(map(tlid => TLID.fromInt(tlid), Tea.Json.Decoder.int))
     field("detail", Native.Decoder.tuple2(traceID, tlids))
   }
 

@@ -1,4 +1,7 @@
+/// Types used to send functions to the client
 ///
+/// Many of these types exactly match runtime types, but often there are small
+/// changes
 module ApiServer.Functions
 
 open Prelude
@@ -7,87 +10,163 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-// CLEANUP
-// These types are to match the existing OCaml serializations that the frontend
-// can read
-type ParamMetadata =
-  { name : string
-    tipe : string
-    block_args : string list
-    optional : bool
-    description : string }
+module DType =
+  type T =
+    | TInt
+    | TFloat
+    | TBool
+    | TNull
+    | TStr
+    | TList of T
+    | TTuple of T * T * List<T>
+    | TDict of T
+    | TIncomplete
+    | TError
+    | THttpResponse of T
+    | TDB of T
+    | TDate
+    | TChar
+    | TPassword
+    | TUuid
+    | TOption of T
+    | TErrorRail
+    | TUserType of string * int
+    | TBytes
+    | TResult of T * T
+    | TVariable of string
+    | TFn of List<T> * T
+    | TRecord of List<string * T>
 
-type PreviewSafety =
-  | Safe
-  | Unsafe
+  let rec fromRT (t : RT.DType) =
+    let r = fromRT
+    let rl = List.map fromRT
+    match t with
+    | RT.TInt -> TInt
+    | RT.TFloat -> TFloat
+    | RT.TBool -> TBool
+    | RT.TNull -> TNull
+    | RT.TStr -> TStr
+    | RT.TList t -> TList(r t)
+    | RT.TTuple (t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
+    | RT.TDict t -> TDict(r t)
+    | RT.TIncomplete -> TIncomplete
+    | RT.TError -> TError
+    | RT.THttpResponse t -> THttpResponse(r t)
+    | RT.TDB t -> TDB(r t)
+    | RT.TDate -> TDate
+    | RT.TChar -> TChar
+    | RT.TPassword -> TPassword
+    | RT.TUuid -> TUuid
+    | RT.TOption t -> TOption(r t)
+    | RT.TErrorRail -> TErrorRail
+    | RT.TUserType (str, version) -> TUserType(str, version)
+    | RT.TBytes -> TBytes
+    | RT.TResult (ok, error) -> TResult(r ok, r error)
+    | RT.TVariable (name) -> TVariable(name)
+    | RT.TFn (ts, returnType) -> TFn(rl ts, r returnType)
+    | RT.TRecord (pairs) -> TRecord(List.map (fun (k, t) -> (k, r t)) pairs)
 
-type FunctionMetadata =
-  { name : string
-    parameters : ParamMetadata list
-    description : string
-    return_type : string
-    infix : bool
-    preview_safety : PreviewSafety
-    deprecated : bool
-    is_supported_in_query : bool }
+module Param =
+  type T =
+    { name : string
+      ``type`` : DType.T
+      args : List<string>
+      description : string }
+
+  let fromRT (p : RT.Param) : T =
+    { name = p.name
+      ``type`` = DType.fromRT p.typ
+      args = p.blockArgs
+      description = p.description }
+
+module Previewable =
+  type T =
+    | Pure
+    | ImpurePreviewable
+    | Impure
+
+  let fromRT (p : RT.Previewable) =
+    match p with
+    | RT.Pure -> Pure
+    | RT.ImpurePreviewable -> ImpurePreviewable
+    | RT.Impure -> Impure
+
+module StdlibFnName =
+  type T = { ``module`` : string; ``function`` : string; version : int }
+
+  let fromRT (fnName : RT.FQFnName.StdlibFnName) =
+    { ``function`` = fnName.function_
+      ``module`` = fnName.module_
+      version = fnName.version }
+
+module Deprecation =
+  type T =
+    | NotDeprecated
+    | RenamedTo of StdlibFnName.T
+    | ReplacedBy of StdlibFnName.T
+    | DeprecatedBecause of string
+
+  let fromRT (p : RT.Deprecation) =
+    match p with
+    | RT.NotDeprecated -> NotDeprecated
+    | RT.RenamedTo f -> RenamedTo(StdlibFnName.fromRT f)
+    | RT.ReplacedBy f -> ReplacedBy(StdlibFnName.fromRT f)
+    | RT.DeprecatedBecause str -> DeprecatedBecause str
+
+module SqlSpec =
+  type T =
+    | Unknown
+    | NotQueryable
+    | QueryFunction
+    | SqlUnaryOp of string
+    | SqlBinOp of string
+    | SqlFunction of string
+    | SqlFunctionWithPrefixArgs of string * List<string>
+    | SqlFunctionWithSuffixArgs of string * List<string>
+    | SqlCallback2
+
+  let fromRT (s : RT.SqlSpec) : T =
+    match s with
+    | RT.NotYetImplementedTODO -> Unknown
+    | RT.NotQueryable -> NotQueryable
+    | RT.QueryFunction -> QueryFunction
+    | RT.SqlUnaryOp str -> SqlUnaryOp str
+    | RT.SqlBinOp str -> SqlBinOp str
+    | RT.SqlFunction str -> SqlFunction str
+    | RT.SqlFunctionWithPrefixArgs (name, args) ->
+      SqlFunctionWithPrefixArgs(name, args)
+    | RT.SqlFunctionWithSuffixArgs (name, args) ->
+      SqlFunctionWithSuffixArgs(name, args)
+    | RT.SqlCallback2 _ -> SqlCallback2
 
 
-let typToApiString (typ : RT.DType) : string =
-  match typ with
-  | RT.TVariable _ -> "Any"
-  | RT.TInt -> "Int"
-  | RT.TFloat -> "Float"
-  | RT.TBool -> "Bool"
-  | RT.TNull -> "Nothing"
-  | RT.TChar -> "Character"
-  | RT.TStr -> "Str"
-  | RT.TList _ -> "List"
-  | RT.TTuple _ -> "Tuple"
-  | RT.TRecord _
-  | RT.TDict _ -> "Dict"
-  | RT.TFn _ -> "Block"
-  | RT.TIncomplete -> "Incomplete"
-  | RT.TError -> "Error"
-  | RT.THttpResponse _ -> "Response"
-  | RT.TDB _ -> "Datastore"
-  | RT.TDate -> "Date"
-  | RT.TPassword -> "Password"
-  | RT.TUuid -> "UUID"
-  | RT.TOption _ -> "Option"
-  | RT.TErrorRail -> "ErrorRail"
-  | RT.TResult _ -> "Result"
-  | RT.TUserType (name, _) -> name
-  | RT.TBytes -> "Bytes"
+module BuiltInFn =
+  type T =
+    { name : StdlibFnName.T
+      parameters : List<Param.T>
+      returnType : DType.T
+      description : string
+      previewable : Previewable.T
+      deprecated : Deprecation.T
+      isInfix : bool
+      sqlSpec : SqlSpec.T }
 
-let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
-  { name =
-      // CLEANUP: this is difficult to change in OCaml, but is trivial in F# (we
-      // should just be able to remove this line with no other change)
-      let n = RT.FQFnName.StdlibFnName.toString fn.name
 
-      if n = "DB::add" then "DB::add_v0"
-      else if n = "JSON::parse" then "JSON::parse_v0"
-      else n
-    parameters =
-      List.map
-        (fun (p : RT.Param) ->
-          ({ name = p.name
-             tipe = typToApiString p.typ
-             block_args = p.blockArgs
-             optional = false
-             description = p.description } : ParamMetadata))
-        fn.parameters
-    description = fn.description
-    return_type = typToApiString fn.returnType
-    preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
-    infix = LibExecutionStdLib.StdLib.isInfixName fn.name.module_ fn.name.function_
-    deprecated = fn.deprecated <> RT.NotDeprecated
-    is_supported_in_query = fn.sqlSpec.isQueryable () }
+  let fromRT (fn : RT.BuiltInFn) : T =
+    { name = StdlibFnName.fromRT fn.name
+      parameters = List.map Param.fromRT fn.parameters
+      description = fn.description
+      returnType = DType.fromRT fn.returnType
+      previewable = Previewable.fromRT fn.previewable
+      isInfix =
+        LibExecutionStdLib.StdLib.isInfixName fn.name.module_ fn.name.function_
+      deprecated = Deprecation.fromRT fn.deprecated
+      sqlSpec = SqlSpec.fromRT fn.sqlSpec }
 
 
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
-  |> List.map convertFn
+  |> List.map BuiltInFn.fromRT
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize
 

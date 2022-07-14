@@ -43,8 +43,8 @@ let fromList = (uts: list<userTipe>): TLID.Dict.t<userTipe> =>
 let allNames = (tipes: TLID.Dict.t<userTipe>): list<string> =>
   tipes |> Map.filterMapValues(~f=t => B.toOption(t.utName))
 
-let toTUserType = (tipe: userTipe): option<tipe> =>
-  tipe.utName |> B.toOption |> Option.map(~f=n => TUserType(n, tipe.utVersion))
+let toTUserType = (tipe: userTipe): option<DType.t> =>
+  tipe.utName |> B.toOption |> Option.map(~f=n => DType.TUserType(n, tipe.utVersion))
 
 let replaceDefinitionElement = (old: blankOrData, new_: blankOrData, tipe: userTipe): userTipe => {
   let sId = P.toID(old)

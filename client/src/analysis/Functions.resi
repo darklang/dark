@@ -19,7 +19,7 @@ let asFunctions: t => list<Types.function_>
 
 let builtins: t => list<Types.function_>
 
-let setBuiltins: (list<Types.function_>, props, t) => t
+let setBuiltins: (list<RuntimeTypes.BuiltInFn.t>, props, t) => t
 
 let setPackages: (Types.packageFns, props, t) => t
 

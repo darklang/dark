@@ -1,15 +1,15 @@
 open Prelude
 
-let isCompatible = (t1: tipe, t2: tipe): bool => t1 == TAny || (t2 == TAny || t1 == t2)
+let isCompatible = (t1: DType.t, t2: DType.t): bool => t1 == TAny || (t2 == TAny || t1 == t2)
 
-let errorRailTypes: list<tipe> = list{TOption, TResult}
+let errorRailTypes: list<DType.t> = list{TOption, TResult}
 
 let tipe2str = Prelude.tipe2str
 
-let str2tipe = (t: string): tipe => {
+let str2tipe = (t: string): DType.t => {
   let parseListTipe = lt =>
     switch lt {
-    | "str" => TStr
+    | "str" => DType.TStr
     | "string" => TStr
     | "int" => TInt
     | "integer" => TInt
@@ -32,7 +32,7 @@ let str2tipe = (t: string): tipe => {
     | "error" => TError
     | "nothing" => TNull
     | "dict" => TObj
-    | other => recover(~debug=other, "invalid type in str2tipe", TAny)
+    | other => recover(~debug=other, "invalid type in str2tipe", DType.TAny)
     }
 
   switch String.toLowercase(t) {
@@ -65,12 +65,12 @@ let str2tipe = (t: string): tipe => {
     if String.startsWith(~prefix="[", other) && String.endsWith(~suffix="]", other) {
       other |> String.dropLeft(~count=1) |> String.dropRight(~count=1) |> parseListTipe
     } else {
-      recover("invalid list type in str2tipe", ~debug=other, TAny)
+      recover("invalid list type in str2tipe", ~debug=other, DType.TAny)
     }
   }
 }
 
-let rec typeOf = (dv: dval): tipe =>
+let rec typeOf = (dv: dval): DType.t =>
   switch dv {
   | DInt(_) => TInt
   | DFloat(_) => TFloat
@@ -80,7 +80,7 @@ let rec typeOf = (dv: dval): tipe =>
   | DStr(_) => TStr
   | DList(_) => TList
   | DTuple(first, second, theRest) =>
-    TTuple(typeOf(first), typeOf(second), List.map(~f = (t) => typeOf(t), theRest))
+    TTuple(typeOf(first), typeOf(second), List.map(~f=t => typeOf(t), theRest))
   | DObj(_) => TObj
   | DBlock(_) => TBlock
   | DIncomplete(_) => TIncomplete
