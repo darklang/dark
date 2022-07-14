@@ -38,6 +38,9 @@ type StaticDeploy =
     lastUpdate : NodaTime.Instant
     status : DeployStatus }
 
+// The `static_asset_deploys` table has a `branch` column, but it's currently
+// always set to `"main"`. There were plans to use this, but they haven't been
+// followed through yet.
 let branch = "main"
 
 // let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
@@ -51,7 +54,6 @@ let branch = "main"
 //              sd.last_update
 //              ~zone:Core.Time.Zone.utc) )
 //     ; ("status", deploy_status_to_yojson sd.status) ]
-
 
 let appHash (canvasName : CanvasName.T) : string =
   // enough of a hash to make this not easily discoverable
@@ -148,7 +150,6 @@ let startStaticAssetDeploy
       url = url canvasName deployHash Short
       lastUpdate = lastUpdate
       status = Deploying })
-
 
 // TODO: what should happen if the deploy hash doesn't exist?
 // TODO: what if the deploy is already finished?
