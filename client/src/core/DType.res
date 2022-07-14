@@ -62,7 +62,7 @@ let rec decodeNew = (j): t => {
   )
 }
 
-// Decode the old OCamlformat that was no polymorphic
+// Decode the old OCaml format that was not polymorphic
 let rec decodeOld = (j): t => {
   open Json_decode_extended
   let d = decodeOld
