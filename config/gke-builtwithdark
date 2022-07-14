@@ -10,7 +10,6 @@ DARK_CONFIG_ROOT_DIR=/home/dark
 # Important dirs
 DARK_CONFIG_TEMPLATES_DIR=/home/dark/templates
 DARK_CONFIG_WEBROOT_DIR=/home/dark/webroot/static
-DARK_CONFIG_SWAGGER_DIR=/home/dark/swagger
 DARK_CONFIG_MIGRATIONS_DIR=/home/dark/migrations
 DARK_CONFIG_BIN_ROOT_DIR=/home/dark/bin
 DARK_CONFIG_SCRIPTS_DIR=/home/dark/scripts

@@ -17,8 +17,5 @@ mkdir -p "$DIR/bin"
 mkdir -p "$DIR/webroot"
 cp -R backend/static "$DIR/webroot/"
 
-mkdir -p "$DIR/swagger"
-cp -R backend/swagger/*  "$DIR/swagger/"
-
 mkdir -p "$DIR/migrations"
 cp -R backend/migrations/* "$DIR/migrations/"

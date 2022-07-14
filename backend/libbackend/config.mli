@@ -9,7 +9,6 @@ type root =
   | Testdata
   | Testresults
   | Bin_root
-  | Swagger
   | Migrations
   | No_check
 

@@ -33,8 +33,6 @@ let templates_dir = absolute_dir "DARK_CONFIG_TEMPLATES_DIR"
 
 let webroot_dir = absolute_dir "DARK_CONFIG_WEBROOT_DIR"
 
-let swagger_dir = absolute_dir "DARK_CONFIG_SWAGGER_DIR"
-
 let migrations_dir = absolute_dir "DARK_CONFIG_MIGRATIONS_DIR"
 
 let bin_root_dir = absolute_dir "DARK_CONFIG_BIN_ROOT_DIR"
@@ -70,7 +68,6 @@ type root =
   | Testdata
   | Testresults
   | Bin_root
-  | Swagger
   | Migrations
   | No_check
 
@@ -88,8 +85,6 @@ let dir root =
       completed_test_dir
   | Bin_root ->
       bin_root_dir
-  | Swagger ->
-      swagger_dir
   | Testdata ->
       testdata_dir
   | Testresults ->

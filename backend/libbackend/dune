@@ -122,7 +122,6 @@
            stored_function_arguments
            stored_function_result
            stored_function_result_v3_migration
-           swagger
            undo
            webserver
            worker_util
