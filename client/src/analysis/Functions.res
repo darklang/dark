@@ -11,7 +11,7 @@ let builtinFunctionsToFn = (fn: RT.BuiltInFn.t): function_ => {
     paramName: p.name,
     paramTipe: p.typ,
     paramDescription: p.description,
-    paramBlock_args: list{},
+    paramBlock_args: p.args,
     paramOptional: false,
   }
   {
