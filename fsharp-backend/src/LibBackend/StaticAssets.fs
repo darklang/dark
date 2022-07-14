@@ -129,35 +129,39 @@ let allDeploysInCanvas
       status = status
       lastUpdate = lastUpdate })
 
-// let start_static_asset_deploy
-//     ~(user : Account.user_info) (canvas_id : Uuidm.t) (branch : string) :
-//     static_deploy =
-//   let deploy_hash =
-//     Nocrypto.Hash.SHA1.digest
-//       (Cstruct.of_string
-//          (Uuidm.to_string canvas_id ^ Time.to_string (Time.now ())))
-//     |> Cstruct.to_string
-//     |> B64.encode ~alphabet:B64.uri_safe_alphabet
-//     |> Util.maybe_chop_suffix ~suffix:"="
-//     |> String.lowercase
-//     |> fun s -> String.prefix s 10
-//   in
-//   let last_update =
-//     Db.fetch_one
-//       ~name:"add static_asset_deploy record"
-//       ~subject:deploy_hash
-//       "INSERT INTO static_asset_deploys
-//         (canvas_id, branch, deploy_hash, uploaded_by_account_id)
-//         VALUES ($1, $2, $3, $4) RETURNING created_at"
-//       ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid user.id]
-//     |> List.hd_exn
-//     |> Db.date_of_sqlstring
-//   in
-//   { deploy_hash
-//   ; url = url canvas_id deploy_hash `Short
-//   ; last_update
-//   ; status = Deploying }
-//
+let startStaticAssetDeploy
+  (user : Account.UserInfo)
+  (canvasID : CanvasID)
+  (canvasName : CanvasName.T)
+  : Task<StaticDeploy> =
+
+  let branch = "main"
+
+  let deployHash =
+    $"{canvasID}{System.DateTime.Now.ToString()}"
+    |> sha1digest
+    |> Base64.urlEncodeToString
+    |> String.removeSuffix "="
+    |> String.toLowercase
+    |> String.take 10
+
+  Sql.query
+    "INSERT INTO static_asset_deploys
+      (canvas_id, branch, deploy_hash, uploaded_by_account_id)
+    VALUES (@canvasID, @branch, @deployHash, @uploadedBy)
+    RETURNING created_at"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "branch", Sql.string branch
+                      "deployHash", Sql.string deployHash
+                      "uploadedBy", Sql.uuid user.id ]
+  |> Sql.executeRowAsync (fun reader -> reader.instant "created_at")
+  |> Task.map (fun lastUpdate ->
+    { deployHash = deployHash
+      url = url canvasName deployHash Short
+      lastUpdate = lastUpdate
+      status = Deploying })
+
+
 // (* since postgres doesn't have named transactions, we just delete the db
 //  * record in question. For now, we're leaving files where they are; the right
 //  * thing to do here would be to shell out to `gsutil -m rm -r`, but shelling out
@@ -271,5 +275,3 @@ let allDeploysInCanvas
 //             (`FailureUploadingStaticAsset
 //               ( "Failure uploading static asset: "
 //               ^ Cohttp.Code.string_of_status s )))
-
-
