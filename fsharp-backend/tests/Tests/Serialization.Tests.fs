@@ -351,7 +351,7 @@ module Values =
 
   let testOCamlTipe = OT.Convert.pt2ocamlTipe testType
 
-  let testDB : List<PT.DB.T> =
+  let testDBs : List<PT.DB.T> =
     [ { tlid = 0UL
         pos = testPos
         nameID = 2399545UL
@@ -372,7 +372,7 @@ module Values =
               nameID = 923982352UL
               typeID = 289429232UL } ] } ]
 
-  let testFunctions : List<PT.UserFunction.T> =
+  let testUserFunctions : List<PT.UserFunction.T> =
     [ { tlid = 0UL
         name = "myFunc"
         nameID = 1828332UL
@@ -411,8 +411,8 @@ module Values =
 
   let testToplevels : List<PT.Toplevel.T> =
     [ List.map PT.Toplevel.TLHandler testHandlers
-      List.map PT.Toplevel.TLDB testDB
-      List.map PT.Toplevel.TLFunction testFunctions
+      List.map PT.Toplevel.TLDB testDBs
+      List.map PT.Toplevel.TLFunction testUserFunctions
       List.map PT.Toplevel.TLType testUserTypes ]
     |> List.concat
 
@@ -433,7 +433,7 @@ module Values =
       PT.SetDBColType(tlid, id, "int")
       PT.DeleteTL tlid
       PT.MoveTL(tlid, testPos)
-      PT.SetFunction(testFunctions[0])
+      PT.SetFunction(testUserFunctions[0])
       PT.ChangeDBColName(tlid, id, "name")
       PT.ChangeDBColType(tlid, id, "int")
       PT.UndoTL tlid
@@ -466,14 +466,16 @@ module Values =
           deleted_user_tipes = testOCamlUserTipes } }
 
   let testAddOpEventV1 : LibBackend.Op.AddOpEventV1 =
-    { ``params`` = { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
+    { ``params`` = { ops = testOplist; opCtr = 0; clientOpCtrId = None }
       result =
-        { toplevels = testOCamlToplevels
-          deleted_toplevels = testOCamlToplevels
-          user_functions = testOCamlUserFns
-          deleted_user_functions = testOCamlUserFns
-          user_tipes = testOCamlUserTipes
-          deleted_user_tipes = testOCamlUserTipes } }
+        { handlers = testHandlers
+          deleted_handlers = testHandlers
+          dbs = testDBs
+          deleted_dbs = testDBs
+          user_functions = testUserFunctions
+          deleted_user_functions = testUserFunctions
+          user_tipes = testUserTypes
+          deleted_user_tipes = testUserTypes } }
 
 
   let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
@@ -655,7 +657,7 @@ module GenericSerializersTests =
       // AddOps
       v<ApiServer.AddOps.V1.Params>
         "simple"
-        { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
+        { ops = testOplist; opCtr = 0; clientOpCtrId = None }
       v<ApiServer.AddOps.V1.T> "simple" testAddOpEventV1
       oc<ApiServer.AddOps.V0.Params>
         "simple"
@@ -939,7 +941,7 @@ module GenericSerializersTests =
                   version = 1L
                   old_migrations = []
                   active_migration = None } ]
-            user_fns = List.map OT.Convert.pt2ocamlUserFunction testFunctions
+            user_fns = List.map OT.Convert.pt2ocamlUserFunction testUserFunctions
             user_tipes = List.map OT.Convert.pt2ocamlUserType testUserTypes
             secrets = [ { secret_name = "z"; secret_value = "y" } ] })
 

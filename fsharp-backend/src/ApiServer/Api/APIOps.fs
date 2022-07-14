@@ -178,8 +178,10 @@ module V1 =
   type Params = Op.AddOpParamsV1
 
   let empty : Op.AddOpResultV1 =
-    { toplevels = []
-      deleted_toplevels = []
+    { handlers = []
+      deleted_handlers = []
+      dbs = []
+      deleted_dbs = []
       user_functions = []
       deleted_user_functions = []
       user_tipes = []
@@ -196,13 +198,13 @@ module V1 =
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
 
-      let! p = ctx.ReadJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       let canvasID = canvasInfo.id
 
       let! isLatest =
         Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
 
-      let newOps = Convert.ocamlOplist2PT p.ops
+      let newOps = p.ops
       let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
       let opTLIDs = List.map Op.tlidOf newOps
       Telemetry.addTags [ "opCtr", p.opCtr
@@ -229,21 +231,17 @@ module V1 =
 
       let c = C.fromOplist canvasInfo oldOps newOps
 
-
       t.next "to-frontend"
-      let toplevels = C.toplevels c
-      let deletedToplevels = C.deletedToplevels c
-
-      let (tls, fns, types) = Convert.pt2ocamlToplevels toplevels
-      let (dTLs, dFns, dTypes) = Convert.pt2ocamlToplevels deletedToplevels
 
       let result : Op.AddOpResultV1 =
-        { toplevels = tls
-          deleted_toplevels = dTLs
-          user_functions = fns
-          deleted_user_functions = dFns
-          user_tipes = types
-          deleted_user_tipes = dTypes }
+        { handlers = Map.values c.handlers
+          deleted_handlers = Map.values c.deletedHandlers
+          dbs = Map.values c.dbs
+          deleted_dbs = Map.values c.deletedDBs
+          user_functions = Map.values c.userFunctions
+          deleted_user_functions = Map.values c.deletedUserFunctions
+          user_tipes = Map.values c.userTypes
+          deleted_user_tipes = Map.values c.deletedUserTypes }
 
       let emptyHandler (tlid : tlid) : PT.Toplevel.T =
         let ids : PT.Handler.ids =
@@ -264,10 +262,10 @@ module V1 =
           |> Op.oplist2TLIDOplists
           |> List.filterMap (fun (tlid, oplists) ->
             let tlPair =
-              match Map.get tlid toplevels with
+              match Map.get tlid (C.toplevels c) with
               | Some tl -> Some(tl, C.NotDeleted)
               | None ->
-                match Map.get tlid deletedToplevels with
+                match Map.get tlid (C.deletedToplevels c) with
                 | Some tl -> Some(tl, C.Deleted)
                 | None ->
                   Telemetry.addEvent "Undone handler" [ "tlid", tlid ]

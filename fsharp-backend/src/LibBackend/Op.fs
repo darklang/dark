@@ -199,18 +199,20 @@ let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
     | PT.DeleteType _ -> true)
 
 type AddOpResultV1 =
-  { toplevels : ORT.toplevel list // replace
-    deleted_toplevels : ORT.toplevel list // replace, see note above
-    user_functions : ORT.user_fn list // replace
-    deleted_user_functions : ORT.user_fn list
-    user_tipes : ORT.user_tipe list
-    deleted_user_tipes : ORT.user_tipe list } // replace, see deleted_toplevels
+  { handlers : List<PT.Handler.T> // replace
+    deleted_handlers : List<PT.Handler.T> // replace, see note above
+    dbs : List<PT.DB.T> // replace
+    deleted_dbs : List<PT.DB.T> // replace, see note above
+    user_functions : List<PT.UserFunction.T> // replace
+    deleted_user_functions : List<PT.UserFunction.T>
+    user_tipes : List<PT.UserType.T>
+    deleted_user_tipes : List<PT.UserType.T> } // replace, see deleted_toplevels
 
 type AddOpParamsV1 =
-  { ops : OT.oplist
+  { ops : List<PT.Op>
     opCtr : int
     // option means that we can still deserialize if this field is null
-    clientOpCtrId : string option }
+    clientOpCtrId : Option<string> }
 
 type AddOpEventV1 = { result : AddOpResultV1; ``params`` : AddOpParamsV1 }
 
