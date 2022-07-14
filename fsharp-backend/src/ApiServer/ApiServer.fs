@@ -115,30 +115,34 @@ let addRoutes
     Exception.raiseInternal "triggered test exception" [ "user", userInfo.username ]
   addRoute "GET" "/a/{canvasName}/trigger-exception" std R exceptionFn
 
-  ocamlCompatibleApi "add_op" RW AddOps.V0.addOp
   clientJsonApi "v1/add_op" RW AddOps.V1.addOp
   clientJsonApi "all_traces" R Traces.AllTraces.fetchAll
   clientJsonApi "delete_404" RW F404s.Delete.delete
   clientJsonApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
   clientJsonApi "delete_secret" RW Secrets.Delete.delete
-  ocamlCompatibleApi "execute_function" RW Execution.FunctionV0.execute
   clientJsonApi "v1/execute_function" RW Execution.FunctionV1.execute
   clientJsonApi "get_404s" R F404s.List.get
-  ocamlCompatibleApi "get_db_stats" R DBs.DBStatsV0.getStats
   clientJsonApi "v1/get_db_stats" R DBs.DBStatsV1.getStats
   clientJsonApiOption "get_trace_data" R Traces.TraceData.getTraceData
   clientJsonApiOption "v1/get_trace_data" R Traces.TraceData.getTraceData
   clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
   clientJsonApi "get_worker_stats" R Workers.WorkerStats.getStats
-  ocamlCompatibleApi "initial_load" R InitialLoad.V0.initialLoad
   clientJsonApi "v1/initial_load" R InitialLoad.V1.initialLoad
   clientJsonApi "insert_secret" RW Secrets.Insert.insert
-  ocamlCompatibleApi "packages" R (Packages.ListV0.packages packages)
   clientJsonApi "v1/packages" R (Packages.ListV1.packages packages)
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
   clientJsonApi "trigger_handler" RW Execution.HandlerV1.trigger
   clientJsonApi "worker_schedule" RW Workers.Scheduler.updateSchedule
+
+  // These ocamlCompatible APIs can be removed once we've switched the client fully
+  // over to using v1 routes
+  ocamlCompatibleApi "add_op" RW AddOps.V0.addOp
+  ocamlCompatibleApi "execute_function" RW Execution.FunctionV0.execute
+  ocamlCompatibleApi "get_db_stats" R DBs.DBStatsV0.getStats
+  ocamlCompatibleApi "initial_load" R InitialLoad.V0.initialLoad
+  ocamlCompatibleApi "packages" R (Packages.ListV0.packages packages)
+
   app.UseRouter(builder.Build())
 
 
