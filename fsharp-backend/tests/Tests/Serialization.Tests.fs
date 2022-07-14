@@ -892,11 +892,17 @@ module GenericSerializersTests =
 
       let vanillaFilenames = filenamesFor Json.Vanilla.allowedTypes "vanilla"
       let vanillaActual = File.lsPattern Config.Serialization "vanilla-*.json" |> Set
-      Expect.equal vanillaFilenames vanillaActual "vanilla-files"
+      let vanillaMissingFiles = Set.difference vanillaFilenames vanillaActual
+      let vanillaExtraFiles = Set.difference vanillaActual vanillaFilenames
+      Expect.equal vanillaMissingFiles Set.empty "missing vanilla files"
+      Expect.equal vanillaExtraFiles Set.empty "extra vanilla files"
 
       let ocamlFilenames = filenamesFor Json.OCamlCompatible.allowedTypes "ocaml"
       let ocamlActual = File.lsPattern Config.Serialization "ocaml-*.json" |> Set
-      Expect.equal ocamlFilenames ocamlActual "vanilla-files"
+      let ocamlMissingFiles = Set.difference ocamlFilenames ocamlActual
+      let ocamlExtraFiles = Set.difference ocamlActual ocamlFilenames
+      Expect.equal ocamlMissingFiles Set.empty "missing ocaml files"
+      Expect.equal ocamlExtraFiles Set.empty "extra ocaml files"
     }
 
   let testTestFiles : List<Test> =
