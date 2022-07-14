@@ -30,136 +30,282 @@ open LibBackend.Db
 // * deleted_toplevels. The server announces it is no longer deleted by it
 // * appearing in toplevels again.
 
-// A subset of responses to be merged in
-type T = Op.AddOpEvent
+module V0 =
 
-type Params = Op.AddOpParams
+  // A subset of responses to be merged in
+  type T = Op.AddOpEvent
 
-let empty : Op.AddOpResult =
-  { toplevels = []
-    deleted_toplevels = []
-    user_functions = []
-    deleted_user_functions = []
-    user_tipes = []
-    deleted_user_tipes = [] }
+  type Params = Op.AddOpParams
 
-let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
+  let empty : Op.AddOpResult =
+    { toplevels = []
+      deleted_toplevels = []
+      user_functions = []
+      deleted_user_functions = []
+      user_tipes = []
+      deleted_user_tipes = [] }
 
-/// API endpoint to add a set of Op in a Canvas
-///
-/// The Ops usually relate to a single Toplevel within the Canvas,
-/// but can technically include Ops against several TLIDs
-let addOp (ctx : HttpContext) : Task<T> =
-  task {
-    use t = startTimer "read-api" ctx
-    let canvasInfo = loadCanvasInfo ctx
+  let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
-    let! p = ctx.ReadJsonAsync<Params>()
-    let canvasID = canvasInfo.id
+  /// API endpoint to add a set of Op in a Canvas
+  ///
+  /// The Ops usually relate to a single Toplevel within the Canvas,
+  /// but can technically include Ops against several TLIDs
+  let addOp (ctx : HttpContext) : Task<T> =
+    task {
+      use t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
 
-    let! isLatest = Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
+      let! p = ctx.ReadJsonAsync<Params>()
+      let canvasID = canvasInfo.id
 
-    let newOps = Convert.ocamlOplist2PT p.ops
-    let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
-    let opTLIDs = List.map Op.tlidOf newOps
-    Telemetry.addTags [ "opCtr", p.opCtr
-                        "clientOpCtrId", p.clientOpCtrId
-                        "opTLIDs", opTLIDs ]
+      let! isLatest =
+        Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
 
-    t.next "load-saved-ops"
-    let! dbTLIDs =
-      match Op.requiredContextToValidateOplist newOps with
-      | Op.NoContext -> Task.FromResult []
-      // NOTE: Because we run canvas-wide validation logic, it's important that
-      // we load _at least_ the context (ie. datastores, functions, types, etc)
-      // and not just the tlids in the API payload.
-      | Op.AllDatastores -> Serialize.fetchTLIDsForAllDBs canvasInfo.id
+      let newOps = Convert.ocamlOplist2PT p.ops
+      let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
+      let opTLIDs = List.map Op.tlidOf newOps
+      Telemetry.addTags [ "opCtr", p.opCtr
+                          "clientOpCtrId", p.clientOpCtrId
+                          "opTLIDs", opTLIDs ]
 
-    let allTLIDs = opTLIDs @ dbTLIDs
-    // We're going to save this, so we need all the ops
-    let! oldOps =
-      Serialize.loadOplists Serialize.IncludeDeletedToplevels canvasInfo.id allTLIDs
-    let oldOps = oldOps |> List.map Tuple2.second |> List.concat
+      t.next "load-saved-ops"
+      let! dbTLIDs =
+        match Op.requiredContextToValidateOplist newOps with
+        | Op.NoContext -> Task.FromResult []
+        // NOTE: Because we run canvas-wide validation logic, it's important that
+        // we load _at least_ the context (ie. datastores, functions, types, etc)
+        // and not just the tlids in the API payload.
+        | Op.AllDatastores -> Serialize.fetchTLIDsForAllDBs canvasInfo.id
 
-    let c = C.fromOplist canvasInfo oldOps newOps
+      let allTLIDs = opTLIDs @ dbTLIDs
+      // We're going to save this, so we need all the ops
+      let! oldOps =
+        Serialize.loadOplists
+          Serialize.IncludeDeletedToplevels
+          canvasInfo.id
+          allTLIDs
+      let oldOps = oldOps |> List.map Tuple2.second |> List.concat
 
-
-    t.next "to-frontend"
-    let toplevels = C.toplevels c
-    let deletedToplevels = C.deletedToplevels c
-
-    let (tls, fns, types) = Convert.pt2ocamlToplevels toplevels
-    let (dTLs, dFns, dTypes) = Convert.pt2ocamlToplevels deletedToplevels
-
-    let result : Op.AddOpResult =
-      { toplevels = tls
-        deleted_toplevels = dTLs
-        user_functions = fns
-        deleted_user_functions = dFns
-        user_tipes = types
-        deleted_user_tipes = dTypes }
-
-    let emptyHandler (tlid : tlid) : PT.Toplevel.T =
-      let ids : PT.Handler.ids =
-        { moduleID = gid (); nameID = gid (); modifierID = gid () }
-      PT.Toplevel.TLHandler
-        { pos = { x = 0; y = 0 }
-          tlid = tlid
-          ast = PT.EBlank(gid ())
-          spec = PT.Handler.HTTP("", "", ids) }
+      let c = C.fromOplist canvasInfo oldOps newOps
 
 
-    t.next "save-to-disk"
-    // work out the result before we save it, in case it has a
-    // stackoverflow or other crashing bug
-    if causesAnyChanges newOps then
-      do!
-        (oldOps @ newOps)
-        |> Op.oplist2TLIDOplists
-        |> List.filterMap (fun (tlid, oplists) ->
-          let tlPair =
-            match Map.get tlid toplevels with
-            | Some tl -> Some(tl, C.NotDeleted)
-            | None ->
-              match Map.get tlid deletedToplevels with
-              | Some tl -> Some(tl, C.Deleted)
-              | None ->
-                Telemetry.addEvent "Undone handler" [ "tlid", tlid ]
-                // If we don't find anything, this was Undo-ed completely. Let's not
-                // do anything.
-                // https://github.com/darklang/dark/issues/3675 for discussion.
-                None
-          Option.map (fun (tl, deleted) -> (tlid, oplists, tl, deleted)) tlPair)
-        |> C.saveTLIDs canvasInfo
+      t.next "to-frontend"
+      let toplevels = C.toplevels c
+      let deletedToplevels = C.deletedToplevels c
+
+      let (tls, fns, types) = Convert.pt2ocamlToplevels toplevels
+      let (dTLs, dFns, dTypes) = Convert.pt2ocamlToplevels deletedToplevels
+
+      let result : Op.AddOpResult =
+        { toplevels = tls
+          deleted_toplevels = dTLs
+          user_functions = fns
+          deleted_user_functions = dFns
+          user_tipes = types
+          deleted_user_tipes = dTypes }
+
+      let emptyHandler (tlid : tlid) : PT.Toplevel.T =
+        let ids : PT.Handler.ids =
+          { moduleID = gid (); nameID = gid (); modifierID = gid () }
+        PT.Toplevel.TLHandler
+          { pos = { x = 0; y = 0 }
+            tlid = tlid
+            ast = PT.EBlank(gid ())
+            spec = PT.Handler.HTTP("", "", ids) }
 
 
-    t.next "send-ops-to-pusher"
-    let event =
-      // To make this work with prodclone, we might want to have it specify
-      // more ... else people's prodclones will stomp on each other ...
+      t.next "save-to-disk"
+      // work out the result before we save it, in case it has a
+      // stackoverflow or other crashing bug
       if causesAnyChanges newOps then
-        let event : Op.AddOpEvent = { result = result; ``params`` = p }
-        LibBackend.Pusher.pushAddOpEvent canvasID event
-        event
-      else
-        { result = empty; ``params`` = p }
+        do!
+          (oldOps @ newOps)
+          |> Op.oplist2TLIDOplists
+          |> List.filterMap (fun (tlid, oplists) ->
+            let tlPair =
+              match Map.get tlid toplevels with
+              | Some tl -> Some(tl, C.NotDeleted)
+              | None ->
+                match Map.get tlid deletedToplevels with
+                | Some tl -> Some(tl, C.Deleted)
+                | None ->
+                  Telemetry.addEvent "Undone handler" [ "tlid", tlid ]
+                  // If we don't find anything, this was Undo-ed completely. Let's not
+                  // do anything.
+                  // https://github.com/darklang/dark/issues/3675 for discussion.
+                  None
+            Option.map (fun (tl, deleted) -> (tlid, oplists, tl, deleted)) tlPair)
+          |> C.saveTLIDs canvasInfo
 
-    t.next "send-event-to-heapio"
-    // NB: I believe we only send one op at a time, but the type is op list
-    newOps
-    // MoveTL and TLSavepoint make for noisy data, so exclude it from heapio
-    |> List.filter (fun op ->
-      match op with
-      | PT.MoveTL _
-      | PT.TLSavepoint _ -> false
-      | _ -> true)
-    |> List.iter (fun op ->
-      LibService.HeapAnalytics.track
-        canvasInfo.id
-        canvasInfo.name
-        canvasInfo.owner
-        (Op.eventNameOfOp op)
-        Map.empty)
 
-    return event
-  }
+      t.next "send-ops-to-pusher"
+      let event =
+        // To make this work with prodclone, we might want to have it specify
+        // more ... else people's prodclones will stomp on each other ...
+        if causesAnyChanges newOps then
+          let event : Op.AddOpEvent = { result = result; ``params`` = p }
+          LibBackend.Pusher.pushAddOpEvent canvasID event
+          event
+        else
+          { result = empty; ``params`` = p }
+
+      t.next "send-event-to-heapio"
+      // NB: I believe we only send one op at a time, but the type is op list
+      newOps
+      // MoveTL and TLSavepoint make for noisy data, so exclude it from heapio
+      |> List.filter (fun op ->
+        match op with
+        | PT.MoveTL _
+        | PT.TLSavepoint _ -> false
+        | _ -> true)
+      |> List.iter (fun op ->
+        LibService.HeapAnalytics.track
+          canvasInfo.id
+          canvasInfo.name
+          canvasInfo.owner
+          (Op.eventNameOfOp op)
+          Map.empty)
+
+      return event
+    }
+
+module V1 =
+
+  // A subset of responses to be merged in
+  type T = Op.AddOpEvent
+
+  type Params = Op.AddOpParams
+
+  let empty : Op.AddOpResult =
+    { toplevels = []
+      deleted_toplevels = []
+      user_functions = []
+      deleted_user_functions = []
+      user_tipes = []
+      deleted_user_tipes = [] }
+
+  let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
+
+  /// API endpoint to add a set of Op in a Canvas
+  ///
+  /// The Ops usually relate to a single Toplevel within the Canvas,
+  /// but can technically include Ops against several TLIDs
+  let addOp (ctx : HttpContext) : Task<T> =
+    task {
+      use t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
+
+      let! p = ctx.ReadJsonAsync<Params>()
+      let canvasID = canvasInfo.id
+
+      let! isLatest =
+        Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
+
+      let newOps = Convert.ocamlOplist2PT p.ops
+      let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
+      let opTLIDs = List.map Op.tlidOf newOps
+      Telemetry.addTags [ "opCtr", p.opCtr
+                          "clientOpCtrId", p.clientOpCtrId
+                          "opTLIDs", opTLIDs ]
+
+      t.next "load-saved-ops"
+      let! dbTLIDs =
+        match Op.requiredContextToValidateOplist newOps with
+        | Op.NoContext -> Task.FromResult []
+        // NOTE: Because we run canvas-wide validation logic, it's important that
+        // we load _at least_ the context (ie. datastores, functions, types, etc)
+        // and not just the tlids in the API payload.
+        | Op.AllDatastores -> Serialize.fetchTLIDsForAllDBs canvasInfo.id
+
+      let allTLIDs = opTLIDs @ dbTLIDs
+      // We're going to save this, so we need all the ops
+      let! oldOps =
+        Serialize.loadOplists
+          Serialize.IncludeDeletedToplevels
+          canvasInfo.id
+          allTLIDs
+      let oldOps = oldOps |> List.map Tuple2.second |> List.concat
+
+      let c = C.fromOplist canvasInfo oldOps newOps
+
+
+      t.next "to-frontend"
+      let toplevels = C.toplevels c
+      let deletedToplevels = C.deletedToplevels c
+
+      let (tls, fns, types) = Convert.pt2ocamlToplevels toplevels
+      let (dTLs, dFns, dTypes) = Convert.pt2ocamlToplevels deletedToplevels
+
+      let result : Op.AddOpResult =
+        { toplevels = tls
+          deleted_toplevels = dTLs
+          user_functions = fns
+          deleted_user_functions = dFns
+          user_tipes = types
+          deleted_user_tipes = dTypes }
+
+      let emptyHandler (tlid : tlid) : PT.Toplevel.T =
+        let ids : PT.Handler.ids =
+          { moduleID = gid (); nameID = gid (); modifierID = gid () }
+        PT.Toplevel.TLHandler
+          { pos = { x = 0; y = 0 }
+            tlid = tlid
+            ast = PT.EBlank(gid ())
+            spec = PT.Handler.HTTP("", "", ids) }
+
+
+      t.next "save-to-disk"
+      // work out the result before we save it, in case it has a
+      // stackoverflow or other crashing bug
+      if causesAnyChanges newOps then
+        do!
+          (oldOps @ newOps)
+          |> Op.oplist2TLIDOplists
+          |> List.filterMap (fun (tlid, oplists) ->
+            let tlPair =
+              match Map.get tlid toplevels with
+              | Some tl -> Some(tl, C.NotDeleted)
+              | None ->
+                match Map.get tlid deletedToplevels with
+                | Some tl -> Some(tl, C.Deleted)
+                | None ->
+                  Telemetry.addEvent "Undone handler" [ "tlid", tlid ]
+                  // If we don't find anything, this was Undo-ed completely. Let's not
+                  // do anything.
+                  // https://github.com/darklang/dark/issues/3675 for discussion.
+                  None
+            Option.map (fun (tl, deleted) -> (tlid, oplists, tl, deleted)) tlPair)
+          |> C.saveTLIDs canvasInfo
+
+
+      t.next "send-ops-to-pusher"
+      let event =
+        // To make this work with prodclone, we might want to have it specify
+        // more ... else people's prodclones will stomp on each other ...
+        if causesAnyChanges newOps then
+          let event : Op.AddOpEvent = { result = result; ``params`` = p }
+          LibBackend.Pusher.pushAddOpEvent canvasID event
+          event
+        else
+          { result = empty; ``params`` = p }
+
+      t.next "send-event-to-heapio"
+      // NB: I believe we only send one op at a time, but the type is op list
+      newOps
+      // MoveTL and TLSavepoint make for noisy data, so exclude it from heapio
+      |> List.filter (fun op ->
+        match op with
+        | PT.MoveTL _
+        | PT.TLSavepoint _ -> false
+        | _ -> true)
+      |> List.iter (fun op ->
+        LibService.HeapAnalytics.track
+          canvasInfo.id
+          canvasInfo.name
+          canvasInfo.owner
+          (Op.eventNameOfOp op)
+          Map.empty)
+
+      return event
+    }

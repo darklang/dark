@@ -638,40 +638,65 @@ module GenericSerializersTests =
       // ------------------
 
       // AddOps
-      both<ApiServer.AddOps.Params>
+      v<ApiServer.AddOps.V1.Params>
         "simple"
         { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
-      both<ApiServer.AddOps.T> "simple" testAddOpEvent
+      v<ApiServer.AddOps.V1.T> "simple" testAddOpEvent
+      oc<ApiServer.AddOps.V0.Params>
+        "simple"
+        { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
+      oc<ApiServer.AddOps.V0.T> "simple" testAddOpEvent
 
 
       // DBs
 
-      v<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
-      both<ApiServer.DBs.DBStats.T>
+      v<ApiServer.DBs.DBStatsV1.Params> "simple" { tlids = testTLIDs }
+      v<ApiServer.DBs.DBStatsV1.T>
+        "simple"
+        (Map.ofList [ "db1", { count = 0; example = None }
+                      "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
+      oc<ApiServer.DBs.DBStatsV0.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
                       "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
       v<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
 
       // Execution
-      both<ApiServer.Execution.Function.Params>
+      v<ApiServer.Execution.FunctionV1.Params>
         "simple"
         { tlid = testTLID
           trace_id = testUuid
           caller_id = 7UL
           args = [ testOCamlDval ]
           fnname = "Int::mod_v0" }
-      both<ApiServer.Execution.Function.T>
+      oc<ApiServer.Execution.FunctionV0.Params>
+        "simple"
+        { tlid = testTLID
+          trace_id = testUuid
+          caller_id = 7UL
+          args = [ testOCamlDval ]
+          fnname = "Int::mod_v0" }
+      v<ApiServer.Execution.FunctionV1.T>
         "simple"
         { result = testOCamlDval
           hash = "abcd"
           hashVersion = 0
           touched_tlids = [ testTLID ]
           unlocked_dbs = [ testTLID ] }
-      both<ApiServer.Execution.Handler.Params>
+      oc<ApiServer.Execution.FunctionV0.T>
+        "simple"
+        { result = testOCamlDval
+          hash = "abcd"
+          hashVersion = 0
+          touched_tlids = [ testTLID ]
+          unlocked_dbs = [ testTLID ] }
+      v<ApiServer.Execution.HandlerV1.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
-      v<ApiServer.Execution.Handler.T> "simple" { touched_tlids = [ testTLID ] }
+      oc<ApiServer.Execution.HandlerV0.Params>
+        "simple"
+        { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
+      v<ApiServer.Execution.HandlerV1.T> "simple" { touched_tlids = [ testTLID ] }
 
       // F404s
       v<ApiServer.F404s.List.T>
@@ -747,7 +772,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable } ])
 
       // InitialLoad
-      both<ApiServer.InitialLoad.T>
+      v<ApiServer.InitialLoad.V1.T>
         "initial"
         { toplevels = testOCamlToplevels
           deleted_toplevels = testOCamlToplevels
@@ -756,7 +781,31 @@ module GenericSerializersTests =
           unlocked_dbs = [ testTLID ]
           user_tipes = testOCamlUserTipes
           deleted_user_tipes = testOCamlUserTipes
-          assets = [ ApiServer.InitialLoad.toApiStaticDeploys testStaticDeploy ]
+          assets = [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
+          op_ctrs = [ testUuid, 7 ]
+          canvas_list = [ "test"; "test-canvas2" ]
+          org_canvas_list = [ "testorg"; "testorg-canvas2" ]
+          permission = Some(LibBackend.Authorization.ReadWrite)
+          orgs = [ "test"; "testorg" ]
+          account =
+            { username = "test"
+              name = "Test Name"
+              admin = false
+              email = "test@darklang.com"
+              id = testUuid }
+          creation_date = testInstant
+          worker_schedules = testWorkerStates
+          secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+      oc<ApiServer.InitialLoad.V0.T>
+        "initial"
+        { toplevels = testOCamlToplevels
+          deleted_toplevels = testOCamlToplevels
+          user_functions = testOCamlUserFns
+          deleted_user_functions = testOCamlUserFns
+          unlocked_dbs = [ testTLID ]
+          user_tipes = testOCamlUserTipes
+          deleted_user_tipes = testOCamlUserTipes
+          assets = [ ApiServer.InitialLoad.V0.toApiStaticDeploys testStaticDeploy ]
           op_ctrs = [ testUuid, 7 ]
           canvas_list = [ "test"; "test-canvas2" ]
           org_canvas_list = [ "testorg"; "testorg-canvas2" ]
@@ -772,9 +821,25 @@ module GenericSerializersTests =
           worker_schedules = testWorkerStates
           secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
-      // Packages
 
-      both<ApiServer.Packages.List.T>
+
+      // Packages
+      v<ApiServer.Packages.ListV1.T>
+        "simple"
+        [ { user = "dark"
+            package = "stdlib"
+            ``module`` = "Int"
+            fnname = "mod"
+            version = 0
+            body = testOCamlExpr
+            parameters =
+              [ { name = "param"; tipe = testOCamlTipe; description = "desc" } ]
+            return_type = testOCamlTipe
+            description = "test"
+            author = "test"
+            deprecated = false
+            tlid = testTLID } ]
+      oc<ApiServer.Packages.ListV0.T>
         "simple"
         [ { user = "dark"
             package = "stdlib"
