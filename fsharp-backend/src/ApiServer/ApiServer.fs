@@ -124,7 +124,6 @@ let addRoutes
   clientJsonApi "get_404s" R F404s.List.get
   clientJsonApi "v1/get_db_stats" R DBs.DBStatsV1.getStats
   clientJsonApiOption "get_trace_data" R Traces.TraceData.getTraceData
-  clientJsonApiOption "v1/get_trace_data" R Traces.TraceData.getTraceData
   clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
   clientJsonApi "get_worker_stats" R Workers.WorkerStats.getStats
   clientJsonApi "v1/initial_load" R InitialLoad.V1.initialLoad
