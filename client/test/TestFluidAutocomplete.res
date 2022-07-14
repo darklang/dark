@@ -39,8 +39,8 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("Option", "withDefault", 0, list{TOption}, TAny),
   ("Result", "withDefault", 0, list{TResult}, TAny),
   ("InQuery", "whatever", 0, list{TObj}, TAny),
-} |> List.map(~f=((module_, function_, version, paramTipes, returnType)): RT.BuiltInFn.t => {
-  name: {module_: module_, function: function_, version: version},
+} |> List.map(~f=((module_, function, version, paramTipes, returnType)): RT.BuiltInFn.t => {
+  name: {module_: module_, function: function, version: version},
   parameters: List.map(paramTipes, ~f=(paramType): RT.BuiltInFn.Param.t => {
     name: "x",
     typ: paramType,
@@ -51,7 +51,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   previewable: Impure,
   description: "",
   isInfix: true,
-  deprecated: if function_ == "deprecated" {
+  deprecated: if function == "deprecated" {
     DeprecatedBecause("")
   } else {
     NotDeprecated
