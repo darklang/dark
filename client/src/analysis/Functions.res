@@ -24,7 +24,7 @@ let builtinFunctionsToFn = (fn: RT.BuiltInFn.t): function_ => {
     | Impure => Unsafe
     | ImpurePreviewable => Unsafe
     },
-    fnDeprecated: fn.deprecated == NotDeprecated,
+    fnDeprecated: fn.deprecated != NotDeprecated,
     fnInfix: fn.isInfix,
     fnIsSupportedInQuery: RT.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec),
     fnOrigin: Builtin,
