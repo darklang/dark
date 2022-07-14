@@ -791,13 +791,15 @@ module GenericSerializersTests =
       // InitialLoad
       v<ApiServer.InitialLoad.V1.T>
         "initial"
-        { toplevels = testOCamlToplevels
-          deleted_toplevels = testOCamlToplevels
-          user_functions = testOCamlUserFns
-          deleted_user_functions = testOCamlUserFns
+        { handlers = testHandlers
+          deleted_handlers = testHandlers
+          dbs = testDBs
+          deleted_dbs = testDBs
+          user_functions = testUserFunctions
+          deleted_user_functions = testUserFunctions
           unlocked_dbs = [ testTLID ]
-          user_tipes = testOCamlUserTipes
-          deleted_user_tipes = testOCamlUserTipes
+          user_types = testUserTypes
+          deleted_user_types = testUserTypes
           assets = [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
           op_ctrs = [ testUuid, 7 ]
           canvas_list = [ "test"; "test-canvas2" ]

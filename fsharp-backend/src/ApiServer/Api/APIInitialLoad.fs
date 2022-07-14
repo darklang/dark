@@ -167,19 +167,21 @@ module V1 =
   type ApiSecret = { secret_name : string; secret_value : string }
 
   type T =
-    { toplevels : ORT.toplevels
-      deleted_toplevels : ORT.toplevels
-      user_functions : ORT.user_fn list
-      deleted_user_functions : ORT.user_fn list
-      unlocked_dbs : tlid list
-      user_tipes : ORT.user_tipe list
-      deleted_user_tipes : ORT.user_tipe list
+    { handlers : List<PT.Handler.T>
+      deleted_handlers : List<PT.Handler.T>
+      dbs : List<PT.DB.T>
+      deleted_dbs : List<PT.DB.T>
+      user_functions : List<PT.UserFunction.T>
+      deleted_user_functions : List<PT.UserFunction.T>
+      user_types : List<PT.UserType.T>
+      deleted_user_types : List<PT.UserType.T>
+      unlocked_dbs : List<tlid>
       assets : List<ApiStaticDeploy>
-      op_ctrs : (System.Guid * int) list
-      canvas_list : string list
-      org_canvas_list : string list
-      permission : Auth.Permission option
-      orgs : string list
+      op_ctrs : List<System.Guid * int>
+      canvas_list : List<string>
+      org_canvas_list : List<string>
+      permission : Option<Auth.Permission>
+      orgs : List<string>
       account : ApiUserInfo
       creation_date : NodaTime.Instant
       worker_schedules : SchedulingRules.WorkerStates.T
@@ -236,12 +238,14 @@ module V1 =
         canvas |> Canvas.deletedToplevels |> Convert.pt2ocamlToplevels
 
       let result =
-        { toplevels = Tuple3.first ocamlToplevels
-          deleted_toplevels = Tuple3.first ocamlDeletedToplevels
-          user_functions = Tuple3.second ocamlToplevels
-          deleted_user_functions = Tuple3.second ocamlDeletedToplevels
-          user_tipes = Tuple3.third ocamlToplevels
-          deleted_user_tipes = Tuple3.third ocamlDeletedToplevels
+        { handlers = Map.values canvas.handlers
+          deleted_handlers = Map.values canvas.deletedHandlers
+          dbs = Map.values canvas.dbs
+          deleted_dbs = Map.values canvas.deletedDBs
+          user_functions = Map.values canvas.userFunctions
+          deleted_user_functions = Map.values canvas.userFunctions
+          user_types = Map.values canvas.userTypes
+          deleted_user_types = Map.values canvas.deletedUserTypes
           unlocked_dbs = unlocked
           assets = List.map toApiStaticDeploys staticAssets
           op_ctrs = opCtrs
@@ -258,10 +262,8 @@ module V1 =
               id = user.id }
           creation_date = creationDate
           secrets =
-            List.map
-              (fun (s : PT.Secret.T) ->
-                { secret_name = s.name; secret_value = s.value })
-              secrets }
+            secrets
+            |> List.map (fun s -> { secret_name = s.name; secret_value = s.value }) }
 
       return result
     }
