@@ -368,41 +368,41 @@ let postApiTest
   }
 
 
-// let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
-//   task {
-//     let! (o : HttpResponseMessage) =
-//       postAsync OCaml client $"/api/{canvasName}/all_traces" ""
+let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
+  task {
+    let! (o : HttpResponseMessage) =
+      postAsync OCaml client $"/api/{canvasName}/all_traces" ""
 
-//     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
-//     let! body = o.Content.ReadAsStringAsync()
+    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
+    let! body = o.Content.ReadAsStringAsync()
 
-//     let canonicalize (t : Traces.TraceData.T) : Traces.TraceData.T =
-//       { t with
-//           trace =
-//             t.trace
-//             |> Tuple2.mapSecond (fun td ->
-//               { td with
-//                   timestamp = td.timestamp.truncate ()
-//                   input = td.input |> List.sortBy (fun (k, v) -> k) }) }
+    let canonicalize (t : Traces.TraceData.T) : Traces.TraceData.T =
+      { t with
+          trace =
+            t.trace
+            |> Tuple2.mapSecond (fun td ->
+              { td with
+                  timestamp = td.timestamp.truncate ()
+                  input = td.input |> List.sortBy (fun (k, v) -> k) }) }
 
-//     do!
-//       body
-//       |> deserialize<Traces.AllTraces.T>
-//       |> fun ts -> ts.traces
-//       |> Task.iterInParallel (fun (tlid, traceID) ->
-//         task {
-//           let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
+    do!
+      body
+      |> deserialize<Traces.AllTraces.T>
+      |> fun ts -> ts.traces
+      |> Task.iterInParallel (fun (tlid, traceID) ->
+        task {
+          let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
 
-//           do!
-//             postApiTest
-//               "get_trace_data"
-//               (serialize ps)
-//               (deserialize<Traces.TraceData.T>)
-//               canonicalize
-//               client
-//               canvasName
-//         })
-//   }
+          do!
+            postApiTest
+              "get_trace_data"
+              (serialize ps)
+              (deserialize<Traces.TraceData.T>)
+              canonicalize
+              client
+              canvasName
+        })
+  }
 
 // let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
 //   task {
