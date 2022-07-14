@@ -209,11 +209,14 @@ let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
 deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deploying"]
 
 [test.finishing a started static asset deploy changes the status]
-(let deployHash =
+(let deployHashMaybe =
   (DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID)
-  |> Option.withDefault {}
+  |> Result.withDefault {}
   |> Dict.get_v2 "deployHash" in
-let hmm = DarkInternal.finishStaticAssetDeploy Test.getCanvasID deployHash in
-let _ = Test.inspect hmm "hmm" in
-let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deployed"]
+
+match deployHashMaybe with
+| None -> []
+| Just deployHash ->
+  let _ = DarkInternal.finishStaticAssetDeploy Test.getCanvasID deployHash in
+  let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
+  deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deployed"]
