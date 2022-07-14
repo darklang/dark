@@ -528,9 +528,6 @@ def mark(should, f):
     else:
       should.fsharp_backend_quick_build = True
 
-  elif ("/backend/templates/" in f) and (".html" in f):
-    should.backend_build = True
-
   elif ("/fsharp-backend/global.json" in f or \
         "/fsharp-backend/.config/dotnet-tools.json" in f or \
         "/fsharp-backend/Directory.Build.props" in f):
@@ -558,6 +555,9 @@ def mark(should, f):
 
   elif ("/fsharp-backend/" in f) and ("/tests/" in f):
     should.fsharp_backend_test = True
+
+  elif ("/fsharp-backend/src/ApiServer/Templates/" in f) and (".html" in f):
+    should.backend_build = True
 
   elif "run-nginx-server" in f:
     should.shellcheck += [f]

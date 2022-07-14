@@ -29,8 +29,6 @@ let completed_test_dir = run_dir ^ "completed_tests/"
 (* ------------------------- *)
 (* Configurable dirs *)
 (* ------------------------- *)
-let templates_dir = absolute_dir "DARK_CONFIG_TEMPLATES_DIR"
-
 let webroot_dir = absolute_dir "DARK_CONFIG_WEBROOT_DIR"
 
 let swagger_dir = absolute_dir "DARK_CONFIG_SWAGGER_DIR"
@@ -64,7 +62,6 @@ let curl_tunnel_url = string "DARK_CONFIG_CURL_TUNNEL_URL"
 type root =
   | Log
   | Serialization
-  | Templates
   | Webroot
   | Completed_test
   | Testdata
@@ -80,8 +77,6 @@ let dir root =
       log_dir
   | Serialization ->
       serialization_dir
-  | Templates ->
-      templates_dir
   | Webroot ->
       webroot_dir
   | Completed_test ->

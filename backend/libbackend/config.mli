@@ -3,7 +3,6 @@ open Core_kernel
 type root =
   | Log
   | Serialization
-  | Templates
   | Webroot
   | Completed_test
   | Testdata

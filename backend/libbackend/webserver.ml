@@ -1430,94 +1430,6 @@ let to_assoc_list etags_json : (string * string) list =
       Exception.internal "etags.json must be a top-level object."
 
 
-let admin_ui_template = File.readfile ~root:Templates "ui.html"
-
-let admin_ui_html
-    ~(canvas_id : Uuidm.t)
-    ~(canvas : string)
-    ~(csrf_token : string)
-    ~(local : string option)
-    ~(account_created : Core_kernel.Time.t)
-    (user : Account.user_info) =
-  let account_created_msts =
-    account_created
-    |> Core_kernel.Time.to_span_since_epoch
-    |> Core_kernel.Time.Span.to_ms
-    |> Float.iround_exn
-  in
-  let static_host =
-    match local with
-    (* TODO: if you want access, we can make this more general *)
-    | Some username ->
-        "darklang-" ^ username ^ ".ngrok.io"
-    | _ ->
-        Config.static_host
-  in
-  let hash_static_filenames =
-    if local = None then Config.hash_static_filenames else false
-  in
-  (* TODO: allow APPSUPPORT in here *)
-  admin_ui_template
-  |> Util.string_replace
-       "{{ALLFUNCTIONS}}"
-       (Api.functions ~username:user.username)
-  |> Util.string_replace
-       "{{LIVERELOADJS}}"
-       ( if Config.browser_reload_enabled
-       then
-         "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-       else "" )
-  |> Util.string_replace "{{STATIC}}" static_host
-  |> Util.string_replace "{{HEAPIO_ID}}" Config.heapio_id
-  |> Util.string_replace "{{ROLLBARCONFIG}}" Config.rollbar_js
-  |> Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
-  |> Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
-  |> Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
-  |> Util.string_replace "{{USER_USERNAME}}" user.username
-  |> Util.string_replace "{{USER_EMAIL}}" user.email
-  |> Util.string_replace "{{USER_FULLNAME}}" user.name
-  |> Util.string_replace
-       "{{USER_CREATED_AT_UNIX_MSTS}}"
-       (string_of_int account_created_msts)
-  |> Util.string_replace "{{USER_IS_ADMIN}}" (string_of_bool user.admin)
-  |> Util.string_replace "{{USER_ID}}" (Uuidm.to_string user.id)
-  |> Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
-  |> Util.string_replace "{{CANVAS_NAME}}" canvas
-  |> Util.string_replace
-       "{{APPSUPPORT}}"
-       (File.readfile ~root:Webroot "appsupport.js")
-  |> Util.string_replace "{{STATIC}}" static_host
-  |> (fun x ->
-       if not hash_static_filenames
-       then Util.string_replace "{{HASH_REPLACEMENTS}}" "{}" x
-       else
-         let etags_str = File.readfile ~root:Webroot "etags.json" in
-         let etags_json = Yojson.Safe.from_string etags_str in
-         let etag_assoc_list =
-           to_assoc_list etags_json
-           |> List.filter ~f:(fun (file, _) -> not (String.equal "__date" file))
-           |> List.filter (* Only hash our assets, not vendored assets *)
-                ~f:(fun (file, _) ->
-                  not (String.is_substring ~substring:"vendor/" file))
-         in
-         x
-         |> fun instr ->
-         etag_assoc_list
-         |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
-                (Util.string_replace file (hashed_filename file hash)) acc)
-         |> fun instr ->
-         Util.string_replace
-           "{{HASH_REPLACEMENTS}}"
-           ( etag_assoc_list
-           |> List.map ~f:(fun (k, v) ->
-                  ("/" ^ k, `String ("/" ^ hashed_filename k v)))
-           |> (fun x -> `Assoc x)
-           |> Yojson.Safe.to_string )
-           instr)
-  |> Util.string_replace "{{CSRF_TOKEN}}" csrf_token
-  |> Util.string_replace "{{BUILD_HASH}}" Config.build_hash
-
-
 let save_test_handler ~(execution_id : Types.id) (parent : Span.t) host =
   let c = C.load_all host [] in
   match c with
@@ -1546,109 +1458,6 @@ let check_csrf_then_handle ~execution_id ~session (parent : Span.t) handler req
 (* used to provide information to honeycomb *)
 let username_header username = ("x-dark-username", username)
 
-(* get the domain of a request *)
-let domain req =
-  (* For why we use 'darklang.com' and not '.darklang.com', see
-   * https://www.mxsasha.eu/blog/2014/03/04/definitive-guide-to-cookie-domains/
-   * tl;dr: with a leading-dot was the specified behavior prior to
-   * RFC6265 (2011), and in theory is still okay because the leading
-   * dot is ignored, but .darklang.localhost doesn't work and
-   * darklang.localhost does, so ... no leading dot works better for
-   * us. *)
-  req
-  |> CRequest.headers
-  |> fun h ->
-  Header.get h "host"
-  |> Option.value ~default:"darklang.com"
-  (* Host: darklang.localhost:8000 is properly set in-cookie as
-                   * "darklang.localhost", the cookie domain doesn't want the
-                   * port *)
-  |> String.substr_replace_all ~pattern:":8000" ~with_:""
-
-
-type login_page =
-  { username : string
-  ; password : string }
-[@@deriving yojson]
-
-let login_template = File.readfile ~root:Templates "login.html"
-
-(* handle_local_login is used to handle GET/POST to /login for local
- * development, bypassing Auth0. *)
-let handle_local_login ~execution_id (parent : Span.t) req body =
-  if CRequest.meth req = `GET || CRequest.meth req = `HEAD
-  then respond ~execution_id parent `OK login_template
-  else
-    (* Responds to a form submitted from login.html *)
-    let params = Uri.query_of_encoded body in
-    (*  the username form param may be username _or_ email; we get the username
-     *  back from the DB when we call authenticate *)
-    let username_or_email, password, redirect =
-      List.fold params ~init:(None, None, None) ~f:(fun (u, p, r) (k, vs) ->
-          if k = "username"
-          then (List.hd vs, p, r)
-          else if k = "password"
-          then (u, List.hd vs, r)
-          else if k = "redirect"
-          then (u, p, List.hd vs)
-          else (u, p, r))
-    in
-    let username =
-      Option.map2 username_or_email password ~f:(fun u p -> (u, p))
-      |> Option.bind ~f:(fun (username_or_email, password) ->
-             Account.authenticate ~username_or_email ~password)
-    in
-    match username with
-    | Some username ->
-        Log.add_log_annotations
-          [("username", `String username)]
-          (fun _ ->
-            let%lwt session = Auth.SessionLwt.new_for_username username in
-            let https_only_cookie = req |> CRequest.uri |> should_use_https in
-            let headers =
-              username_header username
-              :: Auth.SessionLwt.to_cookie_hdrs
-                   ~http_only:true
-                   ~secure:https_only_cookie
-                   ~domain:(domain req)
-                   ~path:"/"
-                   Auth.SessionLwt.cookie_key
-                   session
-            in
-            let redirect_to =
-              ( match redirect with
-              | None | Some "" ->
-                  "/a/" ^ Uri.pct_encode username
-              | Some redir ->
-                  Uri.pct_decode redir )
-              |> Uri.of_string
-              |> Uri.path_and_query
-              (* Strip the host; that also means we'll use
-                                       the port of the incoming request, solving
-                                       the local login bug where we redirect to
-                                       darklang.localhost:80/something when we
-                                       want to hit :8000 *)
-            in
-            over_headers_promise
-              ~f:(fun h -> Header.add_list h headers)
-              (S.respond_redirect ~uri:(Uri.of_string redirect_to) ()))
-    | None ->
-        let uri = Uri.of_string "/login" in
-        let uri =
-          match redirect with
-          | Some redirect ->
-              Uri.add_query_param' uri ("redirect", redirect)
-          | None ->
-              uri
-        in
-        let uri =
-          Uri.add_query_param'
-            uri
-            ("error", "Invalid username or password" |> Uri.pct_encode)
-        in
-        S.respond_redirect ~uri ()
-
-
 (* Checks for a cookie, prompts for basic auth if there isn't one,
    returns Unauthorized if basic auth doesn't work.
 
@@ -1674,24 +1483,6 @@ let authenticate_then_handle
   in
   let%lwt session = Auth.SessionLwt.of_request req in
   match (live_login, path, session) with
-  | `Live, "/login", _ ->
-      (* old, pre-Auth0 login route. support it for a while, just in case *)
-      S.respond_redirect ~uri:login_uri ()
-  | `Live, "/logout", _ ->
-      (* login.darklang.com will clear the cookie and the postgres session *)
-      S.respond_redirect ~uri:logout_uri ()
-  | `Local, "/login", _ ->
-      (* locally, support a login form to bypass Auth0 *)
-      handle_local_login ~execution_id parent req body
-  | `Local, "/logout", Ok (Some session) ->
-      (* Fallback for local env, where we don't have
-       * login.darklang.com/logout, we just need to clear the session *)
-      Auth.SessionLwt.clear Auth.SessionLwt.backend session ;%lwt
-      let headers =
-        Header.of_list (Auth.SessionLwt.clear_hdrs Auth.SessionLwt.cookie_key)
-      in
-      let uri = Uri.of_string "https://darklang.com" in
-      S.respond_redirect ~headers ~uri ()
   | _, _, Ok (Some session) ->
       (* all other authenticated requsets should run the handler *)
       let username = Auth.SessionLwt.username_for session in
@@ -1712,89 +1503,6 @@ let authenticate_then_handle
           ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
       in
       S.respond_redirect ~uri ()
-
-
-let is_canvas_name_valid (canvas : string) : bool =
-  Re2.matches (Re2.create_exn "^([a-z0-9]+[_-]?)*[a-z0-9]$") canvas
-
-
-let admin_ui_handler
-    ~(execution_id : Types.id)
-    ~(path : string list)
-    ~(canvasname : string)
-    ~(body : string)
-    ~(account_created : Core_kernel.Time.t)
-    ~(user : Account.user_info)
-    ~(csrf_token : string)
-    (parent : Span.t)
-    (req : CRequest.t) =
-  let verb = req |> CRequest.meth in
-  let uri = req |> CRequest.uri in
-  let query_param_set name =
-    match Uri.get_query_param uri name with
-    | Some v when v <> "0" && v <> "false" ->
-        true
-    | _ ->
-        false
-  in
-  let integration_test =
-    query_param_set "integration-test" && Config.allow_test_routes
-  in
-  let local = Uri.get_query_param uri "localhost-assets" in
-  let html_hdrs =
-    [ ("Content-type", "text/html; charset=utf-8")
-      (* Don't allow any other websites to put this in an iframe;
-       this prevents "clickjacking" attacks.
-       https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-       It would be nice to use CSP to limit where we can load scripts etc from,
-       but right now we load from CDNs, <script> tags, etc. So the only thing
-       we could do is script-src: 'unsafe-inline', which doesn't offer us
-       any additional security. *)
-    ; ("Content-security-policy", "frame-ancestors 'none';") ]
-  in
-  let html_hdrs =
-    if local = None
-    then html_hdrs
-    else ("Access-Control-Allow-Origin", "*") :: html_hdrs
-  in
-  let html_hdrs = Header.of_list html_hdrs in
-  (* this could be more middleware like in the future *if and only if* we
-     only make changes in promises .*)
-  let when_can_view ~canvas f =
-    let auth_domain = Account.auth_domain_for canvas in
-    if Authorization.can_view_canvas ~canvas ~username:user.username
-    then
-      match Account.owner ~auth_domain with
-      | Some owner ->
-          Log.add_log_annotations
-            [("canvas", `String canvas)]
-            (fun _ -> f (Serialize.fetch_canvas_id owner canvasname))
-      | None ->
-          respond ~execution_id parent `Not_found "Not found"
-    else respond ~execution_id parent `Unauthorized "Unauthorized"
-  in
-  match (verb, path) with
-  | `GET, ["a"; canvas] when is_canvas_name_valid canvas ->
-      when_can_view ~canvas (fun canvas_id ->
-          if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-          let html =
-            admin_ui_html
-              ~canvas_id
-              ~canvas
-              ~csrf_token
-              ~local
-              ~account_created
-              user
-          in
-          respond ~resp_headers:html_hdrs ~execution_id parent `OK html)
-  | `GET, ["a"; canvas] ->
-      respond
-        ~execution_id
-        parent
-        `Bad_request
-        "Your canvas name must:\n - Consist of lowercase alphanumeric characters, '-', and '_'\n - Start and end with an alphanumeric character (no initial/final '-' or '_')"
-  | _ ->
-      respond ~execution_id parent `Not_found "Not found"
 
 
 let admin_api_handler
@@ -1953,23 +1661,6 @@ let admin_handler
         ~session
         parent
         (admin_api_handler ~execution_id ~path ~body ~user)
-        req
-  | Some user, "a" :: canvasname :: _ ->
-      Span.set_attrs
-        parent
-        [ ("is_admin", `Bool user.admin)
-        ; ("username", `String user.username)
-        ; ("canvas", `String canvasname) ] ;
-      let account_created = Account.get_user_created_at_exn username in
-      admin_ui_handler
-        ~execution_id
-        ~path
-        ~canvasname
-        ~body
-        ~account_created
-        ~user
-        ~csrf_token
-        parent
         req
   | _ ->
       respond ~execution_id parent `Not_found "Not found"
