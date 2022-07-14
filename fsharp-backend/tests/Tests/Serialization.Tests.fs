@@ -306,8 +306,8 @@ module Values =
     |> Map
     |> RT.DObj
 
-  let testClientDval : ApiServer.ClientTypes.Dval =
-    ApiServer.ClientTypes.fromRT testDval
+  let testClientDval : ApiServer.ClientTypes.Dval.T =
+    ApiServer.ClientTypes.Dval.fromRT testDval
 
   let testOCamlDval = LibExecution.OCamlTypes.Convert.rt2ocamlDval testDval
 

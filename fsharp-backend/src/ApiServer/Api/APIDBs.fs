@@ -77,7 +77,7 @@ module DBStatsV0 =
 module DBStatsV1 =
   type Params = { tlids : tlid list }
 
-  type Stat = { count : int; example : Option<ClientTypes.Dval * string> }
+  type Stat = { count : int; example : Option<ClientTypes.Dval.T * string> }
 
   type T = Map<string, Stat>
 
@@ -103,7 +103,7 @@ module DBStatsV1 =
           (string k),
           { count = s.count
             example =
-              Option.map (fun (dv, s) -> (ClientTypes.fromRT dv, s)) s.example })
+              Option.map (fun (dv, s) -> (ClientTypes.Dval.fromRT dv, s)) s.example })
         |> Map
 
       return result
