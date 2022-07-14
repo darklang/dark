@@ -33,11 +33,11 @@ open LibBackend.Db
 module V0 =
 
   // A subset of responses to be merged in
-  type T = Op.AddOpEvent
+  type T = Op.AddOpEventV0
 
-  type Params = Op.AddOpParams
+  type Params = Op.AddOpParamsV0
 
-  let empty : Op.AddOpResult =
+  let empty : Op.AddOpResultV0 =
     { toplevels = []
       deleted_toplevels = []
       user_functions = []
@@ -97,7 +97,7 @@ module V0 =
       let (tls, fns, types) = Convert.pt2ocamlToplevels toplevels
       let (dTLs, dFns, dTypes) = Convert.pt2ocamlToplevels deletedToplevels
 
-      let result : Op.AddOpResult =
+      let result : Op.AddOpResultV0 =
         { toplevels = tls
           deleted_toplevels = dTLs
           user_functions = fns
@@ -144,8 +144,8 @@ module V0 =
         // To make this work with prodclone, we might want to have it specify
         // more ... else people's prodclones will stomp on each other ...
         if causesAnyChanges newOps then
-          let event : Op.AddOpEvent = { result = result; ``params`` = p }
-          LibBackend.Pusher.pushAddOpEvent canvasID event
+          let event : Op.AddOpEventV0 = { result = result; ``params`` = p }
+          LibBackend.Pusher.pushAddOpEventV0 canvasID event
           event
         else
           { result = empty; ``params`` = p }
@@ -173,11 +173,11 @@ module V0 =
 module V1 =
 
   // A subset of responses to be merged in
-  type T = Op.AddOpEvent
+  type T = Op.AddOpEventV1
 
-  type Params = Op.AddOpParams
+  type Params = Op.AddOpParamsV1
 
-  let empty : Op.AddOpResult =
+  let empty : Op.AddOpResultV1 =
     { toplevels = []
       deleted_toplevels = []
       user_functions = []
@@ -237,7 +237,7 @@ module V1 =
       let (tls, fns, types) = Convert.pt2ocamlToplevels toplevels
       let (dTLs, dFns, dTypes) = Convert.pt2ocamlToplevels deletedToplevels
 
-      let result : Op.AddOpResult =
+      let result : Op.AddOpResultV1 =
         { toplevels = tls
           deleted_toplevels = dTLs
           user_functions = fns
@@ -284,8 +284,8 @@ module V1 =
         // To make this work with prodclone, we might want to have it specify
         // more ... else people's prodclones will stomp on each other ...
         if causesAnyChanges newOps then
-          let event : Op.AddOpEvent = { result = result; ``params`` = p }
-          LibBackend.Pusher.pushAddOpEvent canvasID event
+          let event : Op.AddOpEventV1 = { result = result; ``params`` = p }
+          LibBackend.Pusher.pushAddOpEventV1 canvasID event
           event
         else
           { result = empty; ``params`` = p }

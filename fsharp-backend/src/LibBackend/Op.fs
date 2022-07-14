@@ -198,7 +198,7 @@ let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
     | PT.CreateDBWithBlankOr _
     | PT.DeleteType _ -> true)
 
-type AddOpResult =
+type AddOpResultV1 =
   { toplevels : ORT.toplevel list // replace
     deleted_toplevels : ORT.toplevel list // replace, see note above
     user_functions : ORT.user_fn list // replace
@@ -206,10 +206,26 @@ type AddOpResult =
     user_tipes : ORT.user_tipe list
     deleted_user_tipes : ORT.user_tipe list } // replace, see deleted_toplevels
 
-type AddOpParams =
+type AddOpParamsV1 =
   { ops : OT.oplist
     opCtr : int
     // option means that we can still deserialize if this field is null
     clientOpCtrId : string option }
 
-type AddOpEvent = { result : AddOpResult; ``params`` : AddOpParams }
+type AddOpEventV1 = { result : AddOpResultV1; ``params`` : AddOpParamsV1 }
+
+type AddOpResultV0 =
+  { toplevels : ORT.toplevel list // replace
+    deleted_toplevels : ORT.toplevel list // replace, see note above
+    user_functions : ORT.user_fn list // replace
+    deleted_user_functions : ORT.user_fn list
+    user_tipes : ORT.user_tipe list
+    deleted_user_tipes : ORT.user_tipe list } // replace, see deleted_toplevels
+
+type AddOpParamsV0 =
+  { ops : OT.oplist
+    opCtr : int
+    // option means that we can still deserialize if this field is null
+    clientOpCtrId : string option }
+
+type AddOpEventV0 = { result : AddOpResultV0; ``params`` : AddOpParamsV0 }

@@ -76,7 +76,7 @@ let pushNewStaticDeploy (canvasID : CanvasID) (asset : StaticAssets.StaticDeploy
 type AddOpEventTooBigPayload = { tlids : List<tlid> }
 
 // For exposure as a DarkInternal function
-let pushAddOpEvent (canvasID : CanvasID) (event : Op.AddOpEvent) =
+let pushAddOpEventV0 (canvasID : CanvasID) (event : Op.AddOpEventV0) =
   let payload = Json.OCamlCompatible.serialize event
   if String.length payload > 10240 then
     let tlids = List.map LibExecution.OCamlTypes.tlidOf event.``params``.ops
@@ -88,6 +88,21 @@ let pushAddOpEvent (canvasID : CanvasID) (event : Op.AddOpEvent) =
     ()
   else
     push canvasID "add_op" payload
+
+let pushAddOpEventV1 (canvasID : CanvasID) (event : Op.AddOpEventV1) =
+  let payload = Json.Vanilla.serialize event
+  if String.length payload > 10240 then
+    let tlids = List.map LibExecution.OCamlTypes.tlidOf event.``params``.ops
+    let tooBigPayload = { tlids = tlids } |> Json.Vanilla.serialize
+    // CLEANUP: when changes are too big, notify the client to reload them. We'll
+    // have to add support to the client before enabling this. The client would
+    // reload after this.
+    // push canvasID "addOpTooBig" tooBigPayload
+    ()
+  else
+    push canvasID "v1/add_op" payload
+
+
 
 let pushWorkerStates
   (canvasID : CanvasID)
@@ -102,7 +117,8 @@ let jsConfigString =
   $"{{enabled: true, key: '{Config.pusherKey}', cluster: '{Config.pusherCluster}'}}"
 
 let init () =
-  do Json.OCamlCompatible.allow<Op.AddOpEvent> "LibBackend.Pusher"
+  do Json.OCamlCompatible.allow<Op.AddOpEventV0> "LibBackend.Pusher"
+  do Json.Vanilla.allow<Op.AddOpEventV1> "LibBackend.Pusher"
   do Json.Vanilla.allow<TraceInputs.F404> "LibBackend.Pusher"
   do Json.Vanilla.allow<AddOpEventTooBigPayload> "LibBackend.Pusher"
   do Json.Vanilla.allow<NewTraceID> "LibBackend.Pusher"

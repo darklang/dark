@@ -306,6 +306,9 @@ module Values =
     |> Map
     |> RT.DObj
 
+  let testClientDval : ApiServer.ClientTypes.Dval =
+    ApiServer.ClientTypes.fromRT testDval
+
   let testOCamlDval = LibExecution.OCamlTypes.Convert.rt2ocamlDval testDval
 
   let testInstant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
@@ -452,7 +455,7 @@ module Values =
       status = LibBackend.StaticAssets.Deployed
       lastUpdate = testInstant }
 
-  let testAddOpEvent : LibBackend.Op.AddOpEvent =
+  let testAddOpEventV0 : LibBackend.Op.AddOpEventV0 =
     { ``params`` = { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
       result =
         { toplevels = testOCamlToplevels
@@ -461,6 +464,17 @@ module Values =
           deleted_user_functions = testOCamlUserFns
           user_tipes = testOCamlUserTipes
           deleted_user_tipes = testOCamlUserTipes } }
+
+  let testAddOpEventV1 : LibBackend.Op.AddOpEventV1 =
+    { ``params`` = { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
+      result =
+        { toplevels = testOCamlToplevels
+          deleted_toplevels = testOCamlToplevels
+          user_functions = testOCamlUserFns
+          deleted_user_functions = testOCamlUserFns
+          user_tipes = testOCamlUserTipes
+          deleted_user_tipes = testOCamlUserTipes } }
+
 
   let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
     (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
@@ -623,7 +637,8 @@ module GenericSerializersTests =
 
       // Used by Pusher
       v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
-      oc<LibBackend.Op.AddOpEvent> "simple" testAddOpEvent
+      oc<LibBackend.Op.AddOpEventV0> "simple" testAddOpEventV0
+      v<LibBackend.Op.AddOpEventV1> "simple" testAddOpEventV1
       v<LibBackend.StaticAssets.StaticDeploy> "simple" testStaticDeploy
       v<LibBackend.Pusher.NewTraceID> "simple" (testUuid, testTLIDs)
       v<LibBackend.TraceInputs.F404>
@@ -641,11 +656,11 @@ module GenericSerializersTests =
       v<ApiServer.AddOps.V1.Params>
         "simple"
         { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
-      v<ApiServer.AddOps.V1.T> "simple" testAddOpEvent
+      v<ApiServer.AddOps.V1.T> "simple" testAddOpEventV1
       oc<ApiServer.AddOps.V0.Params>
         "simple"
         { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
-      oc<ApiServer.AddOps.V0.T> "simple" testAddOpEvent
+      oc<ApiServer.AddOps.V0.T> "simple" testAddOpEventV0
 
 
       // DBs
@@ -654,7 +669,7 @@ module GenericSerializersTests =
       v<ApiServer.DBs.DBStatsV1.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
-                      "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
+                      "db2", { count = 5; example = Some(testClientDval, "myKey") } ])
       oc<ApiServer.DBs.DBStatsV0.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
@@ -667,7 +682,7 @@ module GenericSerializersTests =
         { tlid = testTLID
           trace_id = testUuid
           caller_id = 7UL
-          args = [ testOCamlDval ]
+          args = [ testClientDval ]
           fnname = "Int::mod_v0" }
       oc<ApiServer.Execution.FunctionV0.Params>
         "simple"
@@ -678,7 +693,7 @@ module GenericSerializersTests =
           fnname = "Int::mod_v0" }
       v<ApiServer.Execution.FunctionV1.T>
         "simple"
-        { result = testOCamlDval
+        { result = testClientDval
           hash = "abcd"
           hashVersion = 0
           touched_tlids = [ testTLID ]
@@ -692,7 +707,7 @@ module GenericSerializersTests =
           unlocked_dbs = [ testTLID ] }
       v<ApiServer.Execution.HandlerV1.Params>
         "simple"
-        { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
+        { tlid = testTLID; trace_id = testUuid; input = [ "v", testClientDval ] }
       oc<ApiServer.Execution.HandlerV0.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
