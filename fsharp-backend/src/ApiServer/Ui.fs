@@ -76,7 +76,7 @@ let prodHashReplacementsString : Lazy<string> =
 let uiHtml
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
-  (isCanvasOwnerAdmin: bool)
+  (isCanvasOwnerAdmin : bool)
   (csrfToken : string)
   (localhostAssets : string option)
   (accountCreated : NodaTime.Instant)
@@ -153,15 +153,12 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     if integrationTests && Config.allowTestRoutes then
       do! LibBackend.Canvas.loadAndResaveFromTestFile canvasInfo
 
-    let! canvasOwnerUsername = Account.usernameForUserID canvasInfo.owner
-    let! canvasOwnerMaybe =
-      match canvasOwnerUsername with
-      | None -> Task.FromResult None
-      | Some username -> Account.getUser username
-    let isCanvasOwnerAdmin =
-      match canvasOwnerMaybe with
-      | None -> false
-      | Some canvasOwner -> canvasOwner.admin
+    let! isCanvasOwnerAdmin =
+      Account.usernameForUserID canvasInfo.owner
+      |> Task.bind (fun u ->
+        match u with
+        | Some u -> Account.canAccessOperations u
+        | None -> Task.FromResult false)
 
     t.next "html-response"
     let result =
