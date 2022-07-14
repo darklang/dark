@@ -27,7 +27,7 @@ module ListV0 =
     }
 
 module ListV1 =
-  type T = List<OT.PackageManager.fn>
+  type T = List<PT.Package.Fn>
 
   /// API endpoint to fetch a list of available Packages
   let packages (packages : List<PT.Package.Fn>) (ctx : HttpContext) : Task<T> =
@@ -35,7 +35,7 @@ module ListV1 =
       use t = startTimer "read-api" ctx
 
       t.next "convert"
-      return packages |> List.map Convert.pt2ocamlPackageManagerFn
+      return packages
     }
 
 

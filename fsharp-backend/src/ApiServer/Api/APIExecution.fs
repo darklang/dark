@@ -134,11 +134,11 @@ module FunctionV1 =
     { tlid : tlid
       trace_id : AT.TraceID
       caller_id : id
-      args : ORT.dval list
+      args : ClientTypes.Dval list
       fnname : string }
 
   type T =
-    { result : ORT.dval
+    { result : ClientTypes.Dval
       hash : string
       hashVersion : int
       touched_tlids : tlid list
@@ -149,8 +149,8 @@ module FunctionV1 =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadJsonAsync<Params>()
-      let args = List.map Convert.ocamlDval2rt p.args
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let args = List.map ClientTypes.toRT p.args
       Telemetry.addTags [ "tlid", p.tlid
                           "trace_id", p.trace_id
                           "caller_id", p.caller_id
@@ -182,7 +182,7 @@ module FunctionV1 =
       let hash = DvalReprInternalDeprecated.hash hashVersion args
 
       let result =
-        { result = Convert.rt2ocamlDval result
+        { result = ClientTypes.fromRT result
           hash = hash
           hashVersion = hashVersion
           touched_tlids = HashSet.toList traceResults.tlids
@@ -195,7 +195,7 @@ module HandlerV1 =
   type Params =
     { tlid : tlid
       trace_id : AT.TraceID
-      input : List<string * ORT.dval> }
+      input : List<string * ClientTypes.Dval> }
 
   type T = { touched_tlids : tlid list }
 
@@ -207,13 +207,11 @@ module HandlerV1 =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       let inputVars =
-        p.input
-        |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
-        |> Map
+        p.input |> List.map (fun (name, var) -> (name, ClientTypes.toRT var)) |> Map
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]

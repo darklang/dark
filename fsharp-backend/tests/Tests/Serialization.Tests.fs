@@ -821,20 +821,18 @@ module GenericSerializersTests =
           worker_schedules = testWorkerStates
           secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
-
-
       // Packages
       v<ApiServer.Packages.ListV1.T>
         "simple"
-        [ { user = "dark"
-            package = "stdlib"
-            ``module`` = "Int"
-            fnname = "mod"
-            version = 0
-            body = testOCamlExpr
-            parameters =
-              [ { name = "param"; tipe = testOCamlTipe; description = "desc" } ]
-            return_type = testOCamlTipe
+        [ { name =
+              { owner = "dark"
+                package = "stdlib"
+                module_ = "Int"
+                function_ = "mod"
+                version = 0 }
+            body = testExpr
+            parameters = [ { name = "param"; typ = testType; description = "desc" } ]
+            returnType = testType
             description = "test"
             author = "test"
             deprecated = false

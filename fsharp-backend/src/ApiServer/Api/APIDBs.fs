@@ -77,7 +77,7 @@ module DBStatsV0 =
 module DBStatsV1 =
   type Params = { tlids : tlid list }
 
-  type Stat = { count : int; example : Option<ORT.dval * string> }
+  type Stat = { count : int; example : Option<ClientTypes.Dval * string> }
 
   type T = Map<string, Stat>
 
@@ -96,7 +96,6 @@ module DBStatsV1 =
       let! result = Stats.dbStats c p.tlids
 
       t.next "write-api"
-      // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
       let (result : T) =
         result
         |> Map.toList
@@ -104,7 +103,7 @@ module DBStatsV1 =
           (string k),
           { count = s.count
             example =
-              Option.map (fun (dv, s) -> (Convert.rt2ocamlDval dv, s)) s.example })
+              Option.map (fun (dv, s) -> (ClientTypes.fromRT dv, s)) s.example })
         |> Map
 
       return result
