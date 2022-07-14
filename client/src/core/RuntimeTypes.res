@@ -344,7 +344,7 @@ module BuiltInFn = {
       open Json.Decode
       {
         name: field("name", string, j),
-        typ: field("type", DType.decodeNew, j), // Note: type
+        typ: field("type", DType.decodeNew, j), // Note: "type", not "typ"
         args: field("args", list(string), j),
         description: field("description", string, j),
       }
