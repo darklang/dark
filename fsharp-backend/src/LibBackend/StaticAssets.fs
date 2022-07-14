@@ -180,23 +180,26 @@ let startStaticAssetDeploy
 //     WHERE canvas_id=$1 AND branch=$2 AND deploy_hash=$3 AND uploaded_by_account_id=$4"
 //     ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid user.id]
 
-// let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
-//     static_deploy =
-//   let last_update =
-//     Db.fetch_one
-//       ~name:"finish static_asset_deploy record"
-//       ~subject:deploy_hash
-//       "UPDATE static_asset_deploys
-//       SET live_at = NOW()
-//       WHERE canvas_id = $1 AND deploy_hash = $2 RETURNING live_at"
-//       ~params:[Uuid canvas_id; String deploy_hash]
-//     |> List.hd_exn
-//     |> Db.date_of_sqlstring
-//   in
-//   { deploy_hash
-//   ; url = url canvas_id deploy_hash `Short
-//   ; last_update
-//   ; status = Deployed }
+// TODO: what should happen if the deploy hash doesn't exist?
+// TODO: what if the deploy is already finished?
+let finishStaticAssetDeploy
+  (canvasID : CanvasID)
+  (canvasName : CanvasName.T)
+  (deployHash : string)
+  : Task<StaticDeploy> =
+  Sql.query
+    "UPDATE static_asset_deploys
+      SET live_at = NOW()
+      WHERE canvas_id = @canvasID AND deploy_hash = @deployHash
+      RETURNING live_at"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "deployHash", Sql.string deployHash ]
+  |> Sql.executeRowAsync (fun reader -> reader.instant "live_at")
+  |> Task.map (fun lastUpdate ->
+    { deployHash = deployHash
+      url = url canvasName deployHash Short
+      lastUpdate = lastUpdate
+      status = Deployed })
 
 // TODO: this code is to be ported to Dark code, and is here only for reference
 // let upload_to_bucket

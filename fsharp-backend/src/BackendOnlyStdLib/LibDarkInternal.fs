@@ -804,6 +804,46 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated }
 
+
+    // TODO: re-evaluate access control of this fn. (might need some work)
+    // though likely such access control should be in the Dark code which uses this!
+    { name = fn "DarkInternal" "finishStaticAssetDeploy" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
+      returnType =
+        TResult(
+          TRecord [ "deployHash", TStr
+                    "url", TStr
+                    "status", TStr
+                    "lastUpdate", TDate ],
+          TStr
+        )
+      description = "Marks an in-progress static asset deployment as finished"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr deployHash ] ->
+            uply {
+              let! canvasMeta = Canvas.getMetaFromID canvasID
+              let! deploy =
+                StaticAssets.finishStaticAssetDeploy
+                  canvasID
+                  canvasMeta.name
+                  deployHash
+              return
+                DObj(
+                  Map [ "deployHash", DStr deploy.deployHash
+                        "url", DStr deploy.url
+                        "status", DStr(string deploy.status)
+                        "lastUpdate", DDate(DDateTime.fromInstant deploy.lastUpdate) ]
+                )
+                |> Ok
+                |> DResult
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
     // ---------------------
     // Apis - 404s
     // ---------------------
