@@ -291,44 +291,6 @@ let t_authenticate_then_handle_code_and_cookie () =
     ; (200, (None, None)) ]
 
 
-let t_check_csrf_then_handle () =
-  (* csrf header *)
-  let csrf token = Header.of_list [("X-CSRF-Token", token)] in
-  let test_session = Lwt_main.run (Auth.SessionLwt.new_for_username "test") in
-  let correct_token = Auth.SessionLwt.csrf_token_for test_session in
-  (* sample execution id, makes grepping test logs easier *)
-  let test_id = Types.id_of_int 1234 in
-  (* Fake URL; this should be url-agnostic *)
-  let url = Uri.of_string "http://darklang.com/a/test" in
-  let ccth ((username, req) : string * Req.t) : int =
-    Lwt_main.run
-      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
-       let%lwt resp, _ =
-         Telemetry.with_root "test" (fun span ->
-             Webserver.check_csrf_then_handle
-               ~execution_id:test_id
-               ~session:test_session
-               span
-               (fun span req ->
-                 Webserver.respond ~execution_id:test_id span `OK "test handler")
-               req)
-       in
-       resp |> Resp.status |> Code.code_of_status |> return)
-  in
-  AT.check
-    (AT.list AT.int)
-    "authenticate_then_handle sets status codes and cookies correctly"
-    (List.map
-       ~f:ccth
-       (* GET works, with no token *)
-       [ ("test", Req.make ~meth:`GET url) (* POST works with the right token *)
-       ; ("test", Req.make ~headers:(csrf correct_token) ~meth:`POST url)
-         (* But not with no token *)
-       ; ("test", Req.make ~meth:`POST url) (* And not with the wrong token. *)
-       ; ("test", Req.make ~headers:(csrf "x") ~meth:`POST url) ])
-    [200; 200; 401; 401]
-
-
 let admin_handler_code
     ?(meth = `GET) ?(body = "") ?(csrf = true) (username, endpoint) =
   (* sample execution id, makes grepping test logs easier *)
@@ -357,24 +319,6 @@ let admin_handler_code
              (Req.make ~meth ~headers uri))
      in
      resp |> Resp.status |> Code.code_of_status |> return)
-
-
-let t_admin_handler_ui () =
-  let ah_ui_response (username, canvas) =
-    admin_handler_code (username, "/a/" ^ canvas ^ "/")
-  in
-  AT.check
-    (AT.list AT.int)
-    "UI routes in admin_handler check authorization correctly."
-    (List.map
-       ~f:ah_ui_response
-       [ ("test", "test") (* everyone can edit sample *)
-       ; ("test", "sample") (* a la dabblefox *)
-       ; ("test", "test-something")
-         (* arbitrary canvas belonging to another user *)
-       ; ("test", "test_admin") (* admin can look at test *)
-       ; ("test_admin", "test") ])
-    [200; 200; 200; 401; 200]
 
 
 let t_admin_handler_api () =
@@ -504,13 +448,6 @@ let suite =
   [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
   ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
   ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
-  ; ( "authenticate_then_handle sets status codes and cookies correctly "
-    , `Quick
-    , t_authenticate_then_handle_code_and_cookie )
-  ; ( "check_csrf_then_handle checks CSRF authentication correctly  "
-    , `Quick
-    , t_check_csrf_then_handle )
-  ; ("UI routes in admin_handler work ", `Quick, t_admin_handler_ui)
   ; ("/api/ routes in admin_handler work ", `Quick, t_admin_handler_api)
   ; ( "head and get requests are coalsced"
     , `Quick
