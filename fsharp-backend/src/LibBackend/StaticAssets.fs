@@ -38,6 +38,8 @@ type StaticDeploy =
     lastUpdate : NodaTime.Instant
     status : DeployStatus }
 
+let branch = "main"
+
 // let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
 //   `Assoc
 //     [ ("deploy_hash", `String sd.deploy_hash)
@@ -49,17 +51,7 @@ type StaticDeploy =
 //              sd.last_update
 //              ~zone:Core.Time.Zone.utc) )
 //     ; ("status", deploy_status_to_yojson sd.status) ]
-//
-//
-// let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
-//   let scopes = ["https://www.googleapis.com/auth/devstorage.read_write"] in
-//   let r = Gcloud.Auth.get_access_token ~scopes () in
-//   match%lwt r with
-//   | Ok token_info ->
-//       Lwt_result.return token_info.token.access_token
-//   | Error x ->
-//       Caml.print_endline ("Gcloud oauth error: " ^ pp_gcloud_err x) ;
-//       Lwt_result.fail (`GcloudAuthError (pp_gcloud_err x))
+
 
 let appHash (canvasName : CanvasName.T) : string =
   // enough of a hash to make this not easily discoverable
@@ -95,8 +87,6 @@ let urlFor
   url canvasName deployHash variant + "/" + file
 
 let getLatestDeployHash (canvasID : CanvasID) : Task<Option<string>> =
-  let branch = "main"
-
   Sql.query
     "SELECT deploy_hash FROM static_asset_deploys
        WHERE canvas_id=@canvasID AND branch=@branch AND live_at IS NOT NULL
@@ -135,8 +125,6 @@ let startStaticAssetDeploy
   (canvasName : CanvasName.T)
   : Task<StaticDeploy> =
 
-  let branch = "main"
-
   let deployHash =
     $"{canvasID}{System.DateTime.Now.ToString()}"
     |> sha1digest
@@ -162,24 +150,6 @@ let startStaticAssetDeploy
       status = Deploying })
 
 
-// (* since postgres doesn't have named transactions, we just delete the db
-//  * record in question. For now, we're leaving files where they are; the right
-//  * thing to do here would be to shell out to `gsutil -m rm -r`, but shelling out
-//  * from ocaml causes ECHILD errors, so leaving this for a later round of
-//  * 'garbage collection' work, in which we can query for files/dirs not known to
-//  * the db and delete them *)
-// let delete_static_asset_deploy
-//     ~(user : Account.user_info)
-//     (canvas_id : Uuidm.t)
-//     (branch : string)
-//     (deploy_hash : string) : unit =
-//   Db.run
-//     ~name:"delete static_asset_deploy record"
-//     ~subject:deploy_hash
-//     "DELETE FROM static_asset_deploys
-//     WHERE canvas_id=$1 AND branch=$2 AND deploy_hash=$3 AND uploaded_by_account_id=$4"
-//     ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid user.id]
-
 // TODO: what should happen if the deploy hash doesn't exist?
 // TODO: what if the deploy is already finished?
 let finishStaticAssetDeploy
@@ -201,7 +171,51 @@ let finishStaticAssetDeploy
       lastUpdate = lastUpdate
       status = Deployed })
 
-// TODO: this code is to be ported to Dark code, and is here only for reference
+
+/// <summary>Removes references to a canvas' static asset deploy</summary>
+/// <remarks>
+/// Since postgres doesn't have named transactions, we just delete the db
+/// record in question. For now, we're leaving files where they are; the right
+/// thing to do here would be to shell out to `gsutil -m rm -r` - leaving  this
+/// for a later round of 'garbage collection' work, in which we can query for
+/// files/dirs not known to the DB and delete them. TODO.
+/// </remarks>
+let deleteStaticAssetDeploy
+  (user : Account.UserInfo)
+  (canvasID : CanvasID)
+  (deployHash : string)
+  : Task<unit> =
+
+  // TODO the query here only allows someone to delete a deploy if they're the
+  // one who uploaded it (via `AND uploaded_by_account_id=@userId`). If more
+  // than one user are working within a canvas, shouldn't we allow anyone
+  // involved to delete the deploy?
+  Sql.query
+    "DELETE FROM static_asset_deploys
+    WHERE canvas_id=@canvasID
+      AND branch=@branch
+      AND deploy_hash=@deployHash
+      AND uploaded_by_account_id=@uploadedBy"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "branch", Sql.string branch
+                      "deployHash", Sql.string deployHash
+                      "uploadedBy", Sql.uuid user.id ]
+  |> Sql.executeStatementAsync
+
+
+// TODO: the below code will be ported to Dark code, and is here only for
+// reference.
+//
+// let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
+//   let scopes = ["https://www.googleapis.com/auth/devstorage.read_write"] in
+//   let r = Gcloud.Auth.get_access_token ~scopes () in
+//   match%lwt r with
+//   | Ok token_info ->
+//       Lwt_result.return token_info.token.access_token
+//   | Error x ->
+//       Caml.print_endline ("Gcloud oauth error: " ^ pp_gcloud_err x) ;
+//       Lwt_result.fail (`GcloudAuthError (pp_gcloud_err x))
+
 // let upload_to_bucket
 //     (filename : string)
 //     (body : string)

@@ -805,8 +805,8 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    // TODO: re-evaluate access control of this fn. (might need some work)
-    // though likely such access control should be in the Dark code which uses this!
+    // TODO should this take username as a parameter?
+    // should user B be able to finish user A's upload?
     { name = fn "DarkInternal" "finishStaticAssetDeploy" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
@@ -838,6 +838,33 @@ human-readable data."
                 )
                 |> Ok
                 |> DResult
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "deleteStaticAssetDeploy" 0
+      parameters =
+        [ Param.make "username" TStr ""
+          Param.make "canvasID" TUuid ""
+          Param.make "deployHash" TStr "" ]
+      returnType =
+        // TODO what should the return type be here? I basically want an empty result.
+        TResult(TNull, TStr)
+      description = "Deletes a static asset deployment"
+      fn =
+        internalFn (function
+          | _, [ DStr username; DUuid canvasID; DStr deployHash ] ->
+            uply {
+              match! Account.getUser (UserName.create username) with
+              | None ->
+                Exception.raiseInternal $"User not found" [ "username", username ]
+                return DResult(Error(DStr "User not found"))
+              | Some user ->
+                do! StaticAssets.deleteStaticAssetDeploy user canvasID deployHash
+                return DResult(Ok DNull)
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
