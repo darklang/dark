@@ -306,6 +306,9 @@ module Values =
     |> Map
     |> RT.DObj
 
+  let testClientDval : ApiServer.ClientTypes.Dval.T =
+    ApiServer.ClientTypes.Dval.fromRT testDval
+
   let testOCamlDval = LibExecution.OCamlTypes.Convert.rt2ocamlDval testDval
 
   let testInstant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
@@ -348,7 +351,7 @@ module Values =
 
   let testOCamlTipe = OT.Convert.pt2ocamlTipe testType
 
-  let testDB : List<PT.DB.T> =
+  let testDBs : List<PT.DB.T> =
     [ { tlid = 0UL
         pos = testPos
         nameID = 2399545UL
@@ -369,7 +372,7 @@ module Values =
               nameID = 923982352UL
               typeID = 289429232UL } ] } ]
 
-  let testFunctions : List<PT.UserFunction.T> =
+  let testUserFunctions : List<PT.UserFunction.T> =
     [ { tlid = 0UL
         name = "myFunc"
         nameID = 1828332UL
@@ -408,8 +411,8 @@ module Values =
 
   let testToplevels : List<PT.Toplevel.T> =
     [ List.map PT.Toplevel.TLHandler testHandlers
-      List.map PT.Toplevel.TLDB testDB
-      List.map PT.Toplevel.TLFunction testFunctions
+      List.map PT.Toplevel.TLDB testDBs
+      List.map PT.Toplevel.TLFunction testUserFunctions
       List.map PT.Toplevel.TLType testUserTypes ]
     |> List.concat
 
@@ -430,7 +433,7 @@ module Values =
       PT.SetDBColType(tlid, id, "int")
       PT.DeleteTL tlid
       PT.MoveTL(tlid, testPos)
-      PT.SetFunction(testFunctions[0])
+      PT.SetFunction(testUserFunctions[0])
       PT.ChangeDBColName(tlid, id, "name")
       PT.ChangeDBColType(tlid, id, "int")
       PT.UndoTL tlid
@@ -452,7 +455,7 @@ module Values =
       status = LibBackend.StaticAssets.Deployed
       lastUpdate = testInstant }
 
-  let testAddOpEvent : LibBackend.Op.AddOpEvent =
+  let testAddOpEventV0 : LibBackend.Op.AddOpEventV0 =
     { ``params`` = { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
       result =
         { toplevels = testOCamlToplevels
@@ -461,6 +464,19 @@ module Values =
           deleted_user_functions = testOCamlUserFns
           user_tipes = testOCamlUserTipes
           deleted_user_tipes = testOCamlUserTipes } }
+
+  let testAddOpEventV1 : LibBackend.Op.AddOpEventV1 =
+    { ``params`` = { ops = testOplist; opCtr = 0; clientOpCtrId = None }
+      result =
+        { handlers = testHandlers
+          deleted_handlers = testHandlers
+          dbs = testDBs
+          deleted_dbs = testDBs
+          user_functions = testUserFunctions
+          deleted_user_functions = testUserFunctions
+          user_tipes = testUserTypes
+          deleted_user_tipes = testUserTypes } }
+
 
   let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
     (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
@@ -623,7 +639,8 @@ module GenericSerializersTests =
 
       // Used by Pusher
       v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
-      oc<LibBackend.Op.AddOpEvent> "simple" testAddOpEvent
+      oc<LibBackend.Op.AddOpEventV0> "simple" testAddOpEventV0
+      v<LibBackend.Op.AddOpEventV1> "simple" testAddOpEventV1
       v<LibBackend.StaticAssets.StaticDeploy> "simple" testStaticDeploy
       v<LibBackend.Pusher.NewTraceID> "simple" (testUuid, testTLIDs)
       v<LibBackend.TraceInputs.F404>
@@ -638,40 +655,65 @@ module GenericSerializersTests =
       // ------------------
 
       // AddOps
-      both<ApiServer.AddOps.Params>
+      v<ApiServer.AddOps.V1.Params>
+        "simple"
+        { ops = testOplist; opCtr = 0; clientOpCtrId = None }
+      v<ApiServer.AddOps.V1.T> "simple" testAddOpEventV1
+      oc<ApiServer.AddOps.V0.Params>
         "simple"
         { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
-      both<ApiServer.AddOps.T> "simple" testAddOpEvent
+      oc<ApiServer.AddOps.V0.T> "simple" testAddOpEventV0
 
 
       // DBs
 
-      v<ApiServer.DBs.DBStats.Params> "simple" { tlids = testTLIDs }
-      both<ApiServer.DBs.DBStats.T>
+      v<ApiServer.DBs.DBStatsV1.Params> "simple" { tlids = testTLIDs }
+      v<ApiServer.DBs.DBStatsV1.T>
+        "simple"
+        (Map.ofList [ "db1", { count = 0; example = None }
+                      "db2", { count = 5; example = Some(testClientDval, "myKey") } ])
+      oc<ApiServer.DBs.DBStatsV0.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
                       "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
       v<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
 
       // Execution
-      both<ApiServer.Execution.Function.Params>
+      v<ApiServer.Execution.FunctionV1.Params>
+        "simple"
+        { tlid = testTLID
+          trace_id = testUuid
+          caller_id = 7UL
+          args = [ testClientDval ]
+          fnname = "Int::mod_v0" }
+      oc<ApiServer.Execution.FunctionV0.Params>
         "simple"
         { tlid = testTLID
           trace_id = testUuid
           caller_id = 7UL
           args = [ testOCamlDval ]
           fnname = "Int::mod_v0" }
-      both<ApiServer.Execution.Function.T>
+      v<ApiServer.Execution.FunctionV1.T>
+        "simple"
+        { result = testClientDval
+          hash = "abcd"
+          hashVersion = 0
+          touched_tlids = [ testTLID ]
+          unlocked_dbs = [ testTLID ] }
+      oc<ApiServer.Execution.FunctionV0.T>
         "simple"
         { result = testOCamlDval
           hash = "abcd"
           hashVersion = 0
           touched_tlids = [ testTLID ]
           unlocked_dbs = [ testTLID ] }
-      both<ApiServer.Execution.Handler.Params>
+      v<ApiServer.Execution.HandlerV1.Params>
+        "simple"
+        { tlid = testTLID; trace_id = testUuid; input = [ "v", testClientDval ] }
+      oc<ApiServer.Execution.HandlerV0.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
-      v<ApiServer.Execution.Handler.T> "simple" { touched_tlids = [ testTLID ] }
+      v<ApiServer.Execution.HandlerV1.T> "simple" { touched_tlids = [ testTLID ] }
 
       // F404s
       v<ApiServer.F404s.List.T>
@@ -689,11 +731,11 @@ module GenericSerializersTests =
         ([ { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters =
                [ { name = "a"
-                   ``type`` = ApiServer.Functions.DType.TInt
+                   ``type`` = ApiServer.ClientTypes.DType.TInt
                    args = []
                    description = "param description" } ]
              returnType =
-               ApiServer.Functions.DType.TList(ApiServer.Functions.DType.TInt)
+               ApiServer.ClientTypes.DType.TList(ApiServer.ClientTypes.DType.TInt)
              description = "basic"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -701,7 +743,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "impure"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Impure
@@ -709,7 +751,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "impurepreviewable"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.ImpurePreviewable
@@ -717,7 +759,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "replacedBy"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -728,7 +770,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "renamedTo"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -739,7 +781,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.Functions.DType.TInt
+             returnType = ApiServer.ClientTypes.DType.TInt
              description = "deprecatedBecause"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -747,7 +789,33 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable } ])
 
       // InitialLoad
-      both<ApiServer.InitialLoad.T>
+      v<ApiServer.InitialLoad.V1.T>
+        "initial"
+        { handlers = testHandlers
+          deleted_handlers = testHandlers
+          dbs = testDBs
+          deleted_dbs = testDBs
+          user_functions = testUserFunctions
+          deleted_user_functions = testUserFunctions
+          unlocked_dbs = [ testTLID ]
+          user_types = testUserTypes
+          deleted_user_types = testUserTypes
+          assets = [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
+          op_ctrs = [ testUuid, 7 ]
+          canvas_list = [ "test"; "test-canvas2" ]
+          org_canvas_list = [ "testorg"; "testorg-canvas2" ]
+          permission = Some(LibBackend.Authorization.ReadWrite)
+          orgs = [ "test"; "testorg" ]
+          account =
+            { username = "test"
+              name = "Test Name"
+              admin = false
+              email = "test@darklang.com"
+              id = testUuid }
+          creation_date = testInstant
+          worker_schedules = testWorkerStates
+          secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+      oc<ApiServer.InitialLoad.V0.T>
         "initial"
         { toplevels = testOCamlToplevels
           deleted_toplevels = testOCamlToplevels
@@ -756,7 +824,7 @@ module GenericSerializersTests =
           unlocked_dbs = [ testTLID ]
           user_tipes = testOCamlUserTipes
           deleted_user_tipes = testOCamlUserTipes
-          assets = [ ApiServer.InitialLoad.toApiStaticDeploys testStaticDeploy ]
+          assets = [ ApiServer.InitialLoad.V0.toApiStaticDeploys testStaticDeploy ]
           op_ctrs = [ testUuid, 7 ]
           canvas_list = [ "test"; "test-canvas2" ]
           org_canvas_list = [ "testorg"; "testorg-canvas2" ]
@@ -773,8 +841,22 @@ module GenericSerializersTests =
           secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
       // Packages
-
-      both<ApiServer.Packages.List.T>
+      v<ApiServer.Packages.ListV1.T>
+        "simple"
+        [ { name =
+              { owner = "dark"
+                package = "stdlib"
+                module_ = "Int"
+                function_ = "mod"
+                version = 0 }
+            body = testExpr
+            parameters = [ { name = "param"; typ = testType; description = "desc" } ]
+            returnType = testType
+            description = "test"
+            author = "test"
+            deprecated = false
+            tlid = testTLID } ]
+      oc<ApiServer.Packages.ListV0.T>
         "simple"
         [ { user = "dark"
             package = "stdlib"
@@ -861,7 +943,7 @@ module GenericSerializersTests =
                   version = 1L
                   old_migrations = []
                   active_migration = None } ]
-            user_fns = List.map OT.Convert.pt2ocamlUserFunction testFunctions
+            user_fns = List.map OT.Convert.pt2ocamlUserFunction testUserFunctions
             user_tipes = List.map OT.Convert.pt2ocamlUserType testUserTypes
             secrets = [ { secret_name = "z"; secret_value = "y" } ] })
 

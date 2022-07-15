@@ -17,6 +17,7 @@
     <Compile Include="Http.fs" />
     <Compile Include="Middleware.fs" />
     <Compile Include="Login.fs" />
+    <Compile Include="ClientTypes.fs" />
     <Compile Include="Api/APIOps.fs" />
     <Compile Include="Api/APIDBs.fs" />
     <Compile Include="Api/APIExecution.fs" />
