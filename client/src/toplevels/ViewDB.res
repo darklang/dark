@@ -9,7 +9,7 @@ type domEventList = ViewUtils.domEventList
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let dbName2String = (name: blankOr<dbName>): dbName => B.valueWithDefault("", name)
+let dbName2String = (name: blankOr<string>): string => B.valueWithDefault("", name)
 
 let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(

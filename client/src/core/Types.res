@@ -208,17 +208,11 @@ and handler = {
 }
 
 // dbs
-and dbName = string
-
-and dbColName = string
-
-and dbColType = string
-
-and dbColumn = (blankOr<dbColName>, blankOr<dbColType>)
+and dbColumn = (blankOr<string>, blankOr<string>)
 
 and db = {
   dbTLID: TLID.t,
-  dbName: blankOr<dbName>,
+  dbName: blankOr<string>,
   cols: list<dbColumn>,
   version: int,
   pos: pos,
@@ -664,29 +658,26 @@ and workerStats = {
 // -------------------
 // ops
 // -------------------
-and rollbackID = id
-
-and rollforwardID = id
 
 and op =
   | SetHandler(TLID.t, pos, handler)
-  | CreateDB(TLID.t, pos, dbName)
+  | CreateDB(TLID.t, pos, string)
   | AddDBCol(TLID.t, id, id)
-  | SetDBColName(TLID.t, id, dbColName)
-  | SetDBColType(TLID.t, id, dbColType)
+  | SetDBColName(TLID.t, id, string)
+  | SetDBColType(TLID.t, id, string)
   | DeleteTL(TLID.t)
   | MoveTL(TLID.t, pos)
   | SetFunction(userFunction)
-  | ChangeDBColName(TLID.t, id, dbColName)
-  | ChangeDBColType(TLID.t, id, dbColType)
+  | ChangeDBColName(TLID.t, id, string)
+  | ChangeDBColType(TLID.t, id, string)
   | UndoTL(TLID.t)
   | RedoTL(TLID.t)
   | SetExpr(TLID.t, id, fluidExpr)
   | TLSavepoint(TLID.t)
   | DeleteFunction(TLID.t)
   | DeleteDBCol(TLID.t, id)
-  | RenameDBname(TLID.t, dbName)
-  | CreateDBWithBlankOr(TLID.t, pos, id, dbName)
+  | RenameDBname(TLID.t, string)
+  | CreateDBWithBlankOr(TLID.t, pos, id, string)
   | SetType(userTipe)
   | DeleteType(TLID.t)
 
@@ -906,7 +897,7 @@ and command = {
 }
 
 and omniAction =
-  | NewDB(option<dbName>)
+  | NewDB(option<string>)
   | NewFunction(option<string>)
   | NewHTTPHandler(option<string>)
   | NewWorkerHandler(option<string>)

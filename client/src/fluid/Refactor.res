@@ -447,7 +447,7 @@ let generateUserType = (dv: option<dval>): Result.t<userTipe, string> =>
   | None => Error("No live value.")
   }
 
-let renameDBReferences = (m: model, oldName: dbName, newName: dbName): list<op> =>
+let renameDBReferences = (m: model, oldName: string, newName: string): list<op> =>
   m
   |> TL.all
   |> Map.filterMapValues(~f=tl =>
@@ -494,7 +494,7 @@ let hasExistingFunctionNamed = (m: model, name: string): bool => {
   Map.has(fns, ~key=name)
 }
 
-let createNewDB = (m: model, maybeName: option<dbName>, pos: pos): modification => {
+let createNewDB = (m: model, maybeName: option<string>, pos: pos): modification => {
   let name = maybeName |> Option.unwrap(~default=DB.generateDBName())
   if Autocomplete.assertValid(Autocomplete.dbNameValidator, name) != name {
     Model.updateErrorMod(
