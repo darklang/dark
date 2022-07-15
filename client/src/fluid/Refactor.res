@@ -412,7 +412,7 @@ let generateEmptyFunction = (_: unit): userFunction => {
 let generateEmptyUserType = (): PT.UserType.t => {
   let tipeName = generateTipeName()
   let tlid = gtlid()
-  let definition = PT.UserType.Definition.UTRecord(list{{urfName: B.new_(), urfTipe: B.new_()}})
+  let definition = PT.UserType.Definition.UTRecord(list{{name: B.new_(), typ: B.new_()}})
   {
     utTLID: tlid,
     utName: F(gid(), tipeName),
@@ -436,7 +436,7 @@ let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
          * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
          * let tipe = v |> coerceType in
          */
-        {PT.UserType.RecordField.urfName: k |> BlankOr.newF, urfTipe: tipe |> BlankOr.newF}
+        {PT.UserType.RecordField.name: k |> BlankOr.newF, typ: tipe |> BlankOr.newF}
       })
 
     Ok({

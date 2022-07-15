@@ -319,8 +319,8 @@ let run = () => {
         switch ut.utDefinition {
         | PT.UserType.Definition.UTRecord(utr) =>
           utr |> List.map(~f=(urf: PT.UserType.RecordField.t) => (
-            urf.urfName |> B.toOption,
-            urf.urfTipe |> B.toOption,
+            urf.name |> B.toOption,
+            urf.typ |> B.toOption,
           ))
         }
       }
