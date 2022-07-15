@@ -232,10 +232,6 @@ module V1 =
       let! secrets = LibBackend.Secret.getCanvasSecrets canvas.meta.id
 
       t.next "write-api"
-      let ocamlToplevels = canvas |> Canvas.toplevels |> Convert.pt2ocamlToplevels
-
-      let ocamlDeletedToplevels =
-        canvas |> Canvas.deletedToplevels |> Convert.pt2ocamlToplevels
 
       let result =
         { handlers = Map.values canvas.handlers
