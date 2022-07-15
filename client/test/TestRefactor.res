@@ -187,7 +187,7 @@ let run = () => {
     })
   })
   describe("renameDBReferences", () => {
-    let db0 = {
+    let db0: PT.DB.t = {
       dbTLID: gtlid(),
       dbName: B.newF("ElmCode"),
       cols: list{},

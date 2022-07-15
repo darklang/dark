@@ -70,7 +70,7 @@ let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
       ...h,
       pos: newPos(h.pos),
     }),
-    dbs: Map.updateIfPresent(m.dbs, ~key=tlid, ~f=(db: db) => {...db, pos: newPos(db.pos)}),
+    dbs: Map.updateIfPresent(m.dbs, ~key=tlid, ~f=(db: PT.DB.t) => {...db, pos: newPos(db.pos)}),
   }
 }
 
@@ -110,7 +110,7 @@ let asHandler = (tl: toplevel): option<handler> =>
   | _ => None
   }
 
-let asDB = (tl: toplevel): option<db> =>
+let asDB = (tl: toplevel): option<PT.DB.t> =>
   switch tl {
   | TLDB(h) => Some(h)
   | _ => None
@@ -130,7 +130,7 @@ let isHandler = (tl: toplevel): bool =>
 
 let handlers = (tls: list<toplevel>): list<handler> => List.filterMap(~f=asHandler, tls)
 
-let dbs = (tls: TD.t<toplevel>): list<db> => tls |> Map.filterMapValues(~f=asDB)
+let dbs = (tls: TD.t<toplevel>): list<PT.DB.t> => tls |> Map.filterMapValues(~f=asDB)
 
 let spaceOfHandler = (h: handler): handlerSpace => SpecHeaders.spaceOf(h.spec)
 
@@ -257,7 +257,7 @@ let replace = (p: blankOrData, replacement: blankOrData, tl: toplevel): toplevel
 
 let combine = (
   handlers: TD.t<handler>,
-  dbs: TD.t<db>,
+  dbs: TD.t<PT.DB.t>,
   userFunctions: TD.t<userFunction>,
   packageFn: TD.t<packageFn>,
   userTipes: TD.t<userTipe>,
@@ -289,15 +289,15 @@ let getPD = (m: model, tlid: TLID.t, id: id): option<blankOrData> =>
 let getTLAndPD = (m: model, tlid: TLID.t, id: id): option<(toplevel, option<blankOrData>)> =>
   get(m, tlid) |> Option.map(~f=tl => (tl, find(tl, id)))
 
-let allDBNames = (dbs: TD.t<db>): list<string> =>
-  dbs |> Map.filterMapValues(~f=db =>
+let allDBNames = (dbs: TD.t<PT.DB.t>): list<string> =>
+  dbs |> Map.filterMapValues(~f=(db: PT.DB.t) =>
     switch db.dbName {
     | F(_, name) => Some(name)
     | Blank(_) => None
     }
   )
 
-let allGloballyScopedVarnames = (dbs: TD.t<db>): list<string> => allDBNames(dbs)
+let allGloballyScopedVarnames = (dbs: TD.t<PT.DB.t>): list<string> => allDBNames(dbs)
 
 let asPage = (tl: toplevel, center: bool): page =>
   switch tl {

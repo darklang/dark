@@ -50,7 +50,7 @@ let onlyTL = (m: model): option<toplevel> => {
 
 let onlyHandler = (m: model): option<handler> => m |> onlyTL |> Option.andThen(~f=TL.asHandler)
 
-let onlyDB = (m: model): option<db> => m |> onlyTL |> Option.andThen(~f=TL.asDB)
+let onlyDB = (m: model): option<PT.DB.t> => m |> onlyTL |> Option.andThen(~f=TL.asDB)
 
 let onlyExpr = (m: model): option<E.t> =>
   m |> onlyTL |> Option.andThen(~f=TL.getAST) |> Option.map(~f=FluidAST.toExpr)
@@ -195,7 +195,7 @@ let tabbing_through_let = (m: model): testResult =>
 
 let rename_db_fields = (m: model): testResult =>
   m.dbs
-  |> Map.mapValues(~f=({cols, _}) =>
+  |> Map.mapValues(~f=({cols, _}: PT.DB.t) =>
     switch cols {
     | list{
         (F(_, "field6"), F(_, "String")),
@@ -206,7 +206,7 @@ let rename_db_fields = (m: model): testResult =>
       | Selecting(_) => pass
       | _ => fail(~f=show_cursorState, m.cursorState)
       }
-    | _ => fail(~f=show_list(~f=show_dbColumn), cols)
+    | _ => fail(~f=show_list(~f=PT.DB.Col.show), cols)
     }
   )
   |> Result.combine
@@ -214,7 +214,7 @@ let rename_db_fields = (m: model): testResult =>
 
 let rename_db_type = (m: model): testResult =>
   m.dbs
-  |> Map.mapValues(~f=({cols, dbTLID, _}) =>
+  |> Map.mapValues(~f=({cols, dbTLID, _}: PT.DB.t) =>
     switch cols {
     // this was previously an Int
     | list{(F(_, "field1"), F(_, "String")), (F(_, "field2"), F(_, "Int")), (Blank(_), Blank(_))} =>
@@ -223,11 +223,11 @@ let rename_db_type = (m: model): testResult =>
         if tlid == dbTLID {
           pass
         } else {
-          fail(show_list(~f=show_dbColumn, cols) ++ (", " ++ show_cursorState(m.cursorState)))
+          fail(show_list(~f=PT.DB.Col.show, cols) ++ (", " ++ show_cursorState(m.cursorState)))
         }
       | _ => fail(~f=show_cursorState, m.cursorState)
       }
-    | _ => fail(~f=show_list(~f=show_dbColumn), cols)
+    | _ => fail(~f=show_list(~f=PT.DB.Col.show), cols)
     }
   )
   |> Result.combine
@@ -321,10 +321,10 @@ let function_version_renders = (_: model): testResult =>
   pass
 
 let delete_db_col = (m: model): testResult => {
-  let db = onlyDB(m) |> Option.map(~f=d => d.cols)
+  let db = onlyDB(m) |> Option.map(~f=(d: PT.DB.t) => d.cols)
   switch db {
   | Some(list{(Blank(_), Blank(_))}) => pass
-  | cols => fail(~f=showOption(show_list(~f=show_dbColumn)), cols)
+  | cols => fail(~f=showOption(show_list(~f=PT.DB.Col.show)), cols)
   }
 }
 
@@ -334,13 +334,13 @@ let cant_delete_locked_col = (m: model): testResult => {
       if Map.length(dbs) > 1 {
         None
       } else {
-        Map.values(dbs) |> List.head |> Option.map(~f=x => x.cols)
+        Map.values(dbs) |> List.head |> Option.map(~f=(db: PT.DB.t) => db.cols)
       }
   )
 
   switch db {
   | Some(list{(F(_, "cantDelete"), F(_, "Int")), (Blank(_), Blank(_))}) => pass
-  | cols => fail(~f=showOption(show_list(~f=show_dbColumn)), cols)
+  | cols => fail(~f=showOption(show_list(~f=PT.DB.Col.show)), cols)
   }
 }
 

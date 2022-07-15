@@ -2,6 +2,8 @@ open Tc
 module PT = ProgramTypes
 module RT = RuntimeTypes
 
+open BaseTypes
+
 module Belt = {
   include (Belt: module type of Belt with module Map := Belt.Map)
 
@@ -78,6 +80,7 @@ module PageVisibility = {
     | Visible
 }
 
+@ppx.deriving(show({with_path: false}))
 type rec exception_ = {
   short: string,
   long: option<string>,
@@ -94,22 +97,20 @@ type rec exception_ = {
 // ----------------------
 // Basic types
 // ----------------------
-@ppx.deriving(show({with_path: false}))
-and blankOr<'a> =
-  | Blank(id)
-  | F(id, 'a)
-
 // There are two coordinate systems. Pos is an absolute position in the
 // canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
 // within the viewport and we map Absolute positions back to the
 // viewport to display in the browser.
 // TODO: Can we depreciate VPos?
+<<<<<<< HEAD
 @ppx.deriving(show({with_path: false}))
 type rec pos = {
   x: int,
   y: int,
 }
 
+=======
+>>>>>>> fce32349c... Move DB type to ProgramTypes
 and vPos = {
   vx: int,
   vy: int,
@@ -208,16 +209,6 @@ and handler = {
 }
 
 // dbs
-and dbColumn = (blankOr<string>, blankOr<string>)
-
-and db = {
-  dbTLID: TLID.t,
-  dbName: blankOr<string>,
-  cols: list<dbColumn>,
-  version: int,
-  pos: pos,
-}
-
 and functionTypes =
   | UserFunction(userFunction)
   | PackageFn(packageFn)
@@ -284,7 +275,7 @@ and packageFn = {
 // toplevels
 and toplevel =
   | TLHandler(handler)
-  | TLDB(db)
+  | TLDB(PT.DB.t)
   | TLPmFunc(packageFn)
   | TLFunc(userFunction)
   | TLTipe(userTipe)
@@ -731,7 +722,7 @@ and performHandlerAnalysisParams = {
   handler: handler,
   traceID: traceID,
   traceData: traceData,
-  dbs: list<db>,
+  dbs: list<PT.DB.t>,
   userFns: list<userFunction>,
   userTipes: list<userTipe>,
   secrets: list<SecretTypes.t>,
@@ -741,7 +732,7 @@ and performFunctionAnalysisParams = {
   func: userFunction,
   traceID: traceID,
   traceData: traceData,
-  dbs: list<db>,
+  dbs: list<PT.DB.t>,
   userFns: list<userFunction>,
   userTipes: list<userTipe>,
   secrets: list<SecretTypes.t>,
@@ -771,8 +762,8 @@ and account = {
 and addOpAPIResult = {
   handlers: list<handler>,
   deletedHandlers: list<handler>,
-  dbs: list<db>,
-  deletedDBs: list<db>,
+  dbs: list<PT.DB.t>,
+  deletedDBs: list<PT.DB.t>,
   userFunctions: list<userFunction>,
   deletedUserFunctions: list<userFunction>,
   userTipes: list<userTipe>,
@@ -813,8 +804,8 @@ and allTracesAPIResult = {traces: list<(TLID.t, traceID)>}
 and initialLoadAPIResult = {
   handlers: list<handler>,
   deletedHandlers: list<handler>,
-  dbs: list<db>,
-  deletedDBs: list<db>,
+  dbs: list<PT.DB.t>,
+  deletedDBs: list<PT.DB.t>,
   userFunctions: list<userFunction>,
   deletedUserFunctions: list<userFunction>,
   unlockedDBs: unlockedDBs,
@@ -1147,10 +1138,10 @@ and modification =
   | ClearHover(TLID.t, idOrTraceID)
   | Deselect
   | RemoveToplevel(toplevel)
-  | SetToplevels(list<handler>, list<db>, bool)
-  | UpdateToplevels(list<handler>, list<db>, bool)
-  | SetDeletedToplevels(list<handler>, list<db>)
-  | UpdateDeletedToplevels(list<handler>, list<db>)
+  | SetToplevels(list<handler>, list<PT.DB.t>, bool)
+  | UpdateToplevels(list<handler>, list<PT.DB.t>, bool)
+  | SetDeletedToplevels(list<handler>, list<PT.DB.t>)
+  | UpdateDeletedToplevels(list<handler>, list<PT.DB.t>)
   | UpdateAnalysis(analysisEnvelope)
   | SetUserFunctions(list<userFunction>, list<userFunction>, bool)
   | SetUnlockedDBs(unlockedDBs)
@@ -1713,8 +1704,8 @@ and model = {
   hovering: list<(TLID.t, idOrTraceID)>,
   handlers: TLID.Dict.t<handler>,
   deletedHandlers: TLID.Dict.t<handler>,
-  dbs: TLID.Dict.t<db>,
-  deletedDBs: TLID.Dict.t<db>,
+  dbs: TLID.Dict.t<PT.DB.t>,
+  deletedDBs: TLID.Dict.t<PT.DB.t>,
   userFunctions: TLID.Dict.t<userFunction>,
   deletedUserFunctions: TLID.Dict.t<userFunction>,
   userTipes: TLID.Dict.t<userTipe>,

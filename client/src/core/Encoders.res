@@ -60,13 +60,9 @@ let tlid = TLID.encode
 
 let pos = (p: Types.pos) => object_(list{("x", int(p.x)), ("y", int(p.y))})
 
-let vPos = (vp: Types.vPos) => object_(list{("vx", int(vp.vx)), ("vy", int(vp.vy))})
+let vPos = (vp: vPos) => object_(list{("vx", int(vp.vx)), ("vy", int(vp.vy))})
 
-let blankOr = (encoder: 'a => Js.Json.t, v: Types.blankOr<'a>) =>
-  switch v {
-  | F(i, s) => variant("Filled", list{id(i), encoder(s)})
-  | Blank(i) => variant("Blank", list{id(i)})
-  }
+let blankOr = BaseTypes.encodeBlankOr
 
 let dval_source = (s: Types.dval_source): Js.Json.t => {
   let ev = variant
@@ -215,19 +211,6 @@ and spec = (spec: Types.handlerSpec): Js.Json.t =>
 and handler = (h: Types.handler): Js.Json.t =>
   object_(list{("tlid", tlid(h.hTLID)), ("spec", spec(h.spec)), ("ast", fluidAST(h.ast))})
 
-and colList = (cols: list<Types.dbColumn>): Js.Json.t =>
-  list(pair(blankOr(string), blankOr(string)), cols)
-
-and db = (db: Types.db): Js.Json.t =>
-  object_(list{
-    ("tlid", tlid(db.dbTLID)),
-    ("name", blankOr(string, db.dbName)),
-    ("cols", colList(db.cols)),
-    ("version", int(db.version)),
-    ("old_migrations", list(int, list{})),
-    ("active_migration", null),
-  })
-
 and op = (call: Types.op): Js.Json.t => {
   let ev = variant
   switch call {
@@ -342,7 +325,7 @@ and performHandlerAnalysisParams = (params: Types.performHandlerAnalysisParams):
     ("handler", handler(params.handler)),
     ("trace_id", traceID(params.traceID)),
     ("trace_data", traceData(params.traceData)),
-    ("dbs", list(db, params.dbs)),
+    ("dbs", list(PT.DB.encode, params.dbs)),
     ("user_fns", list(userFunction, params.userFns)),
     ("user_tipes", list(userTipe, params.userTipes)),
     ("secrets", list(secret, params.secrets)),
@@ -353,7 +336,7 @@ and performFunctionAnalysisParams = (params: Types.performFunctionAnalysisParams
     ("func", userFunction(params.func)),
     ("trace_id", traceID(params.traceID)),
     ("trace_data", traceData(params.traceData)),
-    ("dbs", list(db, params.dbs)),
+    ("dbs", list(PT.DB.encode, params.dbs)),
     ("user_fns", list(userFunction, params.userFns)),
     ("user_tipes", list(userTipe, params.userTipes)),
     ("secrets", list(secret, params.secrets)),

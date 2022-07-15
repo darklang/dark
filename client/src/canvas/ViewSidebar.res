@@ -177,7 +177,7 @@ let workerCategory = (handlers: list<handler>): category => handlerCategory(tl =
     TL.isDeprecatedCustomHandler(tl)
   , "Worker", NewWorkerHandler(None), Some(GoToArchitecturalView), Worker, handlers)
 
-let dbCategory = (m: model, dbs: list<db>): category => {
+let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   let entries = List.map(dbs, ~f=db => {
     let uses = switch db.dbName {
     | Blank(_) => 0
@@ -1177,13 +1177,13 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
 let rtCacheKey = m =>
   (
     m.handlers |> Map.mapValues(~f=(h: handler) => (h.pos, TL.sortkey(TLHandler(h)))),
-    m.dbs |> Map.mapValues(~f=(db: db) => (db.pos, TL.sortkey(TLDB(db)))),
+    m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.userFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
     m.userTipes |> Map.mapValues(~f=t => t.utName),
     m.f404s,
     m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: handler) => TL.sortkey(TLHandler(h))),
-    m.deletedDBs |> Map.mapValues(~f=(db: db) => (db.pos, TL.sortkey(TLDB(db)))),
+    m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.deletedUserFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
     m.deletedUserTipes |> Map.mapValues(~f=t => t.utName),
     m.staticDeploys,

@@ -573,21 +573,11 @@ let handler = (pos, j): handler => {
 
 let tipeString = (j): string => map(RT.tipe2str, DType.decodeOld, j)
 
-let dbColList = (j): list<dbColumn> => list(tuple2(blankOr(string), blankOr(tipeString)), j)
-
-let db = (pos, j): db => {
-  dbTLID: field("tlid", tlid, j),
-  dbName: field("name", blankOr(string), j),
-  cols: field("cols", dbColList, j),
-  version: field("version", int, j),
-  pos: pos,
-}
-
 let toplevel = (j): toplevel => {
   let pos = field("pos", pos, j)
   let variant = variants(list{
     ("Handler", variant1(x => TLHandler(x), handler(pos))),
-    ("DB", variant1(x => TLDB(x), db(pos))),
+    ("DB", variant1(x => TLDB(x), PT.DB.decode(pos))),
   })
 
   field("data", variant, j)

@@ -7,9 +7,9 @@ let keyForHandlerSpec = (space: string, name: string): string => space ++ (":" +
 
 let keyForTipe = (name: string, version: int): string => name ++ (":" ++ Int.toString(version))
 
-let dbsByName = (dbs: TD.t<db>): Map.String.t<TLID.t> =>
+let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   dbs
-  |> Map.filterMapValues(~f=db =>
+  |> Map.filterMapValues(~f=(db: PT.DB.t) =>
     db.dbName |> B.toOption |> Option.map(~f=name => (name, db.dbTLID))
   )
   |> Map.String.fromList

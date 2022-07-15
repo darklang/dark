@@ -1,5 +1,7 @@
 // The types that the user sees. For all type definitions, see ProgramTypes.fs
 
+open BaseTypes
+
 module FQFnName = {
   @ppx.deriving(show({with_path: false}))
   type rec stdlibFnName = {module_: string, function: string, version: int}
@@ -103,4 +105,80 @@ module Expr = {
 module AST = {
   @ppx.deriving(show({with_path: false}))
   type rec t = Root(Expr.t)
+}
+
+module DB = {
+  module Col = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = (blankOr<string>, blankOr<string>)
+
+    let encode = (col: t): Js.Json.t => {
+      open Json.Encode
+      pair(BaseTypes.encodeBlankOr(string), BaseTypes.encodeBlankOr(string), col)
+    }
+
+    let decode = (j): t => {
+      open Json.Decode
+      // CLEANUP: this is really ugly. Copied from Prelude. We should have a DType here, not a string
+      let rec tipe2str = (t: DType.t): string =>
+        switch t {
+        | TAny => "Any"
+        | TInt => "Int"
+        | TFloat => "Float"
+        | TBool => "Bool"
+        | TNull => "Null"
+        | TCharacter => "Character"
+        | TStr => "String"
+        | TList => "List"
+        | TTuple(_, _, _) => "Tuple"
+        | TObj => "Dict"
+        | TBlock => "Block"
+        | TIncomplete => "Incomplete"
+        | TError => "Error"
+        | TResp => "Response"
+        | TDB => "Datastore"
+        | TDate => "Date"
+        | TOption => "Option"
+        | TPassword => "Password"
+        | TUuid => "UUID"
+        | TErrorRail => "ErrorRail"
+        | TResult => "Result"
+        | TDbList(a) => "[" ++ (tipe2str(a) ++ "]")
+        | TUserType(name, _) => name
+        | TBytes => "Bytes"
+        }
+
+      let tipeString = (j): string => map(tipe2str, DType.decodeOld, j)
+      tuple2(BaseTypes.decodeBlankOr(string), BaseTypes.decodeBlankOr(tipeString), j)
+    }
+  }
+
+  @ppx.deriving(show({with_path: false}))
+  type rec t = {
+    dbTLID: TLID.t,
+    dbName: blankOr<string>,
+    cols: list<Col.t>,
+    version: int,
+    pos: pos,
+  }
+
+  let encode = (db: t): Js.Json.t => {
+    open Json.Encode
+    object_(list{
+      ("tlid", TLID.encode(db.dbTLID)),
+      ("name", BaseTypes.encodeBlankOr(string, db.dbName)),
+      ("cols", list(Col.encode, db.cols)),
+      ("version", int(db.version)),
+    })
+  }
+  let decode = (pos, j): t => {
+    open Json.Decode
+    {
+      dbTLID: field("tlid", TLID.decode, j),
+      dbName: field("name", BaseTypes.decodeBlankOr(string), j),
+      cols: field("cols", list(Col.decode), j),
+      version: field("version", int, j),
+      pos: pos,
+    }
+  }
 }

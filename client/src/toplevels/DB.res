@@ -4,28 +4,31 @@ open Prelude
 module B = BlankOr
 module TD = TLID.Dict
 
-let toID = (db: db): TLID.t => db.dbTLID
+let toID = (db: PT.DB.t): TLID.t => db.dbTLID
 
-let upsert = (m: model, db: db): model => {...m, dbs: Map.add(~key=db.dbTLID, ~value=db, m.dbs)}
+let upsert = (m: model, db: PT.DB.t): model => {
+  ...m,
+  dbs: Map.add(~key=db.dbTLID, ~value=db, m.dbs),
+}
 
-let update = (m: model, ~tlid: TLID.t, ~f: db => db): model => {
+let update = (m: model, ~tlid: TLID.t, ~f: PT.DB.t => PT.DB.t): model => {
   ...m,
   dbs: Map.updateIfPresent(~key=tlid, ~f, m.dbs),
 }
 
-let remove = (m: model, db: db): model => {...m, dbs: Map.remove(~key=db.dbTLID, m.dbs)}
+let remove = (m: model, db: PT.DB.t): model => {...m, dbs: Map.remove(~key=db.dbTLID, m.dbs)}
 
-let fromList = (dbs: list<db>): TLID.Dict.t<db> =>
-  dbs |> List.map(~f=db => (db.dbTLID, db)) |> TLID.Dict.fromList
+let fromList = (dbs: list<PT.DB.t>): TLID.Dict.t<PT.DB.t> =>
+  dbs |> List.map(~f=(db: PT.DB.t) => (db.dbTLID, db)) |> TLID.Dict.fromList
 
-let blankOrData = (db: db): list<blankOrData> => {
+let blankOrData = (db: PT.DB.t): list<blankOrData> => {
   let colpointers =
     db.cols |> List.map(~f=((lhs, rhs)) => list{PDBColName(lhs), PDBColType(rhs)}) |> List.flatten
 
   list{PDBName(db.dbName), ...colpointers}
 }
 
-let hasCol = (db: db, name: string): bool =>
+let hasCol = (db: PT.DB.t, name: string): bool =>
   db.cols |> List.any(~f=((colname, _)) =>
     switch colname {
     | Blank(_) => false

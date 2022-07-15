@@ -73,7 +73,13 @@ let aFunction = (
   ufAST: FluidAST.ofExpr(expr),
 }
 
-let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ~name="MyDB", ()): db => {
+let aDB = (
+  ~tlid=defaultTLID,
+  ~fieldid=defaultID,
+  ~typeid=defaultID2,
+  ~name="MyDB",
+  (),
+): PT.DB.t => {
   dbTLID: tlid,
   dbName: B.newF(name),
   cols: list{(Blank(fieldid), Blank(typeid))},
@@ -172,7 +178,7 @@ let run = () => {
     describe("validate httpName varnames", () => {
       let space = Some("HTTP")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventName(Types.F(ID.fromInt(0), "foo"))
+      let pd = PEventName(BaseTypes.F(ID.fromInt(0), "foo"))
       test("/foo/bar is valid, no variables", () => {
         let value = "/foo/bar"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -191,7 +197,7 @@ let run = () => {
     describe("validate Worker names", () => {
       let space = Some("WORKER")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventName(Types.F(ID.fromInt(0), "foo"))
+      let pd = PEventName(BaseTypes.F(ID.fromInt(0), "foo"))
       test("foo is valid", () => {
         let value = "/foo/bar"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -206,7 +212,7 @@ let run = () => {
     describe("validate CRON intervals", () => {
       let space = Some("CRON")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventModifier(Types.F(ID.fromInt(0), "5mins"))
+      let pd = PEventModifier(BaseTypes.F(ID.fromInt(0), "5mins"))
       test("Every 1hr is valid", () => {
         let value = "Every 1hr"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)

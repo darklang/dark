@@ -34,7 +34,7 @@ let run = () => {
     }
 
     let dbtlid = gtlid()
-    let dbdata = {
+    let dbdata: PT.DB.t = {
       dbTLID: dbtlid,
       dbName: B.newF("Books"),
       cols: list{},

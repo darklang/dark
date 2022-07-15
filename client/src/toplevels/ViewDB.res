@@ -48,7 +48,7 @@ let viewDbLatestEntry = (stats: dbStats): Html.html<msg> => {
   Html.div(list{Html.class'("db db-liveVal")}, list{title, exampleHtml})
 }
 
-let viewDBData = (vp: viewProps, db: db): Html.html<msg> =>
+let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<msg> =>
   switch Map.get(~key=TLID.toString(db.dbTLID), vp.dbStats) {
   | Some(stats) if CursorState.tlidOf(vp.cursorState) == Some(db.dbTLID) =>
     let liveVal = viewDbLatestEntry(stats)
@@ -57,7 +57,7 @@ let viewDBData = (vp: viewProps, db: db): Html.html<msg> =>
   | _ => Vdom.noNode
   }
 
-let viewDBHeader = (vp: viewProps, db: db): list<Html.html<msg>> => {
+let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
   let typeView = Html.span(
     list{Html.class'("toplevel-type")},
     list{fontAwesome("database"), Html.text("DB")},
@@ -114,7 +114,9 @@ let viewDBColType = (~classes: list<string>, vp: viewProps, v: blankOr<string>):
   ViewBlankOr.viewText(~enterable, ~classes, DBColType, vp, v)
 }
 
-let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): dbColumn): Html.html<msg> => {
+let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): PT.DB.Col.t): Html.html<
+  msg,
+> => {
   let deleteButton = if (
     vp.permission == Some(ReadWrite) && ((isMigra || !vp.dbLocked) && (B.isF(n) || B.isF(t)))
   ) {
@@ -144,7 +146,7 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): dbColumn): 
   )
 }
 
-let viewDB = (vp: viewProps, db: db, dragEvents: domEventList): list<Html.html<msg>> => {
+let viewDB = (vp: viewProps, db: PT.DB.t, dragEvents: domEventList): list<Html.html<msg>> => {
   let lockClass = if vp.dbLocked {
     "lock"
   } else {

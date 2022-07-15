@@ -2,7 +2,7 @@ open Prelude
 module TL = Toplevel
 module B = BlankOr
 
-let dbColsView = (cols: list<dbColumn>): Html.html<msg> => {
+let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   let colView = col =>
     switch col {
     | (F(_, nm), F(_, ty)) =>
@@ -89,7 +89,7 @@ let dbView = (
   originIDs: list<id>,
   tlid: TLID.t,
   name: string,
-  cols: list<dbColumn>,
+  cols: list<PT.DB.Col.t>,
   direction: string,
 ): Html.html<msg> =>
   Html.div(

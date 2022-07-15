@@ -127,7 +127,7 @@ let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): userFunction => {
   ufAST: FluidAST.ofExpr(expr),
 }
 
-let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): db => {
+let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): PT.DB.t => {
   dbTLID: tlid,
   dbName: B.newF("MyDB"),
   cols: list{(Blank(fieldid), Blank(typeid))},
