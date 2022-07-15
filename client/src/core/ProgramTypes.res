@@ -1,8 +1,5 @@
 // The types that the user sees. For all type definitions, see ProgramTypes.fs
 
-@ppx.deriving(show) type rec id = ID.t
-@ppx.deriving(show) type rec tlid = TLID.t
-
 module FQFnName = {
   @ppx.deriving(show({with_path: false}))
   type rec stdlibFnName = {module_: string, function: string, version: int}
@@ -58,15 +55,15 @@ module Pattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
     // match id, then pattern id
-    | PVariable(id, string)
-    | PConstructor(id, string, list<t>)
+    | PVariable(ID.t, string)
+    | PConstructor(ID.t, string, list<t>)
     // TODO: support char
-    | PInteger(id, int64)
-    | PBool(id, bool)
-    | PString(id, string)
-    | PFloat(id, sign, string, string)
-    | PNull(id)
-    | PBlank(id)
+    | PInteger(ID.t, int64)
+    | PBool(ID.t, bool)
+    | PString(ID.t, string)
+    | PFloat(ID.t, sign, string, string)
+    | PNull(ID.t)
+    | PBlank(ID.t)
 }
 
 module Expr = {
@@ -77,30 +74,30 @@ module Expr = {
 
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    | EInteger(id, int64)
-    | EBool(id, bool)
-    | EString(id, string)
-    | EFloat(id, sign, string, string)
-    | ENull(id)
-    | EBlank(id)
-    | ELet(id, string, t, t)
-    | EIf(id, t, t, t)
-    | EBinOp(id, string, t, t, sendToRail)
-    | ELambda(id, list<(id, string)>, t)
-    | EFieldAccess(id, t, string)
-    | EVariable(id, string)
-    | EFnCall(id, string, list<t>, sendToRail)
-    | EPartial(id, string, t)
-    | ERightPartial(id, string, t)
-    | ELeftPartial(id, string, t)
-    | EList(id, list<t>)
-    | ETuple(id, t, t, list<t>)
-    | ERecord(id, list<(string, t)>)
-    | EPipe(id, t, t, list<t>)
-    | EConstructor(id, string, list<t>)
-    | EMatch(id, t, list<(Pattern.t, t)>)
-    | EPipeTarget(id)
-    | EFeatureFlag(id, string, t, t, t)
+    | EInteger(ID.t, int64)
+    | EBool(ID.t, bool)
+    | EString(ID.t, string)
+    | EFloat(ID.t, sign, string, string)
+    | ENull(ID.t)
+    | EBlank(ID.t)
+    | ELet(ID.t, string, t, t)
+    | EIf(ID.t, t, t, t)
+    | EBinOp(ID.t, string, t, t, sendToRail)
+    | ELambda(ID.t, list<(ID.t, string)>, t)
+    | EFieldAccess(ID.t, t, string)
+    | EVariable(ID.t, string)
+    | EFnCall(ID.t, string, list<t>, sendToRail)
+    | EPartial(ID.t, string, t)
+    | ERightPartial(ID.t, string, t)
+    | ELeftPartial(ID.t, string, t)
+    | EList(ID.t, list<t>)
+    | ETuple(ID.t, t, t, list<t>)
+    | ERecord(ID.t, list<(string, t)>)
+    | EPipe(ID.t, t, t, list<t>)
+    | EConstructor(ID.t, string, list<t>)
+    | EMatch(ID.t, t, list<(Pattern.t, t)>)
+    | EPipeTarget(ID.t)
+    | EFeatureFlag(ID.t, string, t, t, t)
 }
 
 module AST = {
