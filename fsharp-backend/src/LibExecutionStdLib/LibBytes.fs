@@ -48,6 +48,47 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = ReplacedBy(fn "Bytes" "base64Decode" 1) }
+
+    { name = fn "Bytes" "base64Decode" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TResult(TBytes, TStr)
+      description =
+        "Base64 decodes a string. Works with both the URL-safe and standard Base64
+         alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
+         sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
+         [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+          let base64FromUrlEncoded (str : string) : string =
+            let initial = str.Replace('-', '+').Replace('_', '/')
+            let length = initial.Length
+
+            if length % 4 = 2 then $"{initial}=="
+            else if length % 4 = 3 then $"{initial}="
+            else initial
+
+          if s = "" then
+            // This seems like we should allow it
+            [||] |> DBytes |> Ok |> DResult |> Ply
+          elif Regex.IsMatch(s, @"\s") then
+            // dotnet ignores whitespace but we don't allow it
+            "Not a valid base64 string" |> DStr |> Error |> DResult |> Ply
+          else
+            try
+              s
+              |> base64FromUrlEncoded
+              |> Convert.FromBase64String
+              |> DBytes
+              |> Ok
+              |> DResult
+              |> Ply
+            with
+            | e -> Ply(DResult(Error(DStr("Not a valid base64 string"))))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated }
 
 
