@@ -169,6 +169,8 @@ module DB = {
       ("name", BaseTypes.encodeBlankOr(string, db.dbName)),
       ("cols", list(Col.encode, db.cols)),
       ("version", int(db.version)),
+      ("old_migrations", list(int, list{})),
+      ("active_migration", null),
     })
   }
   let decode = (pos, j): t => {
