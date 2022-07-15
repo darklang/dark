@@ -577,33 +577,11 @@ let dbColList = (j): list<dbColumn> => list(tuple2(blankOr(string), blankOr(tipe
 
 let dbmColList = (j): list<dbColumn> => list(tuple2(blankOr(string), blankOr(string)), j)
 
-let dbMigrationState = (j): dbMigrationState => {
-  let dv0 = variant0
-  variants(
-    list{
-      ("DBMigrationAbandoned", dv0(DBMigrationAbandoned)),
-      ("DBMigrationInitialized", dv0(DBMigrationInitialized)),
-    },
-    j,
-  )
-}
-
-let dbMigration = (j): dbMigration => {
-  startingVersion: field("starting_version", int, j),
-  version: field("version", int, j),
-  state: field("state", dbMigrationState, j),
-  cols: field("cols", dbColList, j),
-  rollforward: field("rollforward", fluidExpr, j),
-  rollback: field("rollback", fluidExpr, j),
-}
-
 let db = (pos, j): db => {
   dbTLID: field("tlid", tlid, j),
   dbName: field("name", blankOr(string), j),
   cols: field("cols", dbColList, j),
   version: field("version", int, j),
-  oldMigrations: field("old_migrations", list(dbMigration), j),
-  activeMigration: field("active_migration", optional(dbMigration), j),
   pos: pos,
 }
 
@@ -775,35 +753,6 @@ let op = (j): op =>
       ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
       ("ChangeDBColType", variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string)),
       ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
-      (
-        "CreateDBMigration",
-        variant4(
-          (t, rbid, rfid, cols) => CreateDBMigration(t, rbid, rfid, cols),
-          tlid,
-          id,
-          id,
-          dbmColList,
-        ),
-      ),
-      (
-        "AddDBColToDBMigration",
-        variant3(
-          (t, colnameid, coltypeid) => AddDBColToDBMigration(t, colnameid, coltypeid),
-          tlid,
-          id,
-          id,
-        ),
-      ),
-      (
-        "SetDBColNameInDBMigration",
-        variant3((t, i, name) => SetDBColNameInDBMigration(t, i, name), tlid, id, string),
-      ),
-      (
-        "SetDBColTypeInDBMigration",
-        variant3((t, i, tipe) => SetDBColTypeInDBMigration(t, i, tipe), tlid, id, string),
-      ),
-      ("AbandonDBMigration", variant1(t => AbandonDBMigration(t), tlid)),
-      ("DeleteColInDBMigration", variant2((t, i) => DeleteColInDBMigration(t, i), tlid, id)),
       ("TLSavepoint", variant1(t => TLSavepoint(t), tlid)),
       ("UndoTL", variant1(t => UndoTL(t), tlid)),
       ("RedoTL", variant1(t => RedoTL(t), tlid)),

@@ -39,8 +39,6 @@ let run = () => {
       dbName: B.newF("Books"),
       cols: list{},
       version: 0,
-      oldMigrations: list{},
-      activeMigration: None,
       pos: {x: 0, y: 0},
     }
 

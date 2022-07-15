@@ -159,59 +159,8 @@ let viewMigraFuncs = (vp: viewProps, desc: string, varName: string): Html.html<m
     },
   )
 
-let viewDBMigration = (migra: dbMigration, db: db, vp: viewProps): Html.html<msg> => {
-  let name = Html.text(dbName2String(db.dbName))
-  let cols = List.map(~f=viewDBCol(vp, true, db.dbTLID), migra.cols)
-  let funcs = /* this AST expr stuff is kind of a hack but until we reintroduce migration
-   * fields I don't know what else to do with it -- @dstrelau 2020-02-25 */
-  list{// viewMigraFuncs
-  // {vp with ast = FluidAST.ofExpr migra.rollforward}
-  // "Rollforward"
-  // "oldObj"
-  // ; viewMigraFuncs
-  // {vp with ast = FluidAST.ofExpr migra.rollback}
-  // "Rollback"
-  /* "newObj" */}
-
-  let lockReady = DB.isMigrationLockReady(migra)
-  let errorMsg = if !lockReady {
-    list{
-      Html.div(
-        list{Html.class'("col err")},
-        list{Html.text("Fill in rollback and rollforward functions to activate your migration")},
-      ),
-    }
-  } else {
-    list{}
-  }
-
-  let cancelBtn = Html.button(
-    list{
-      Html.Attributes.disabled(false),
-      ViewUtils.eventNoPropagation(
-        ~key="am-" ++ TLID.toString(db.dbTLID),
-        "click",
-        _ => AbandonMigration(db.dbTLID),
-      ),
-    },
-    list{Html.text("cancel")},
-  )
-
-  let migrateBtn = Html.button(
-    list{Html.Attributes.disabled(!lockReady)},
-    list{Html.text("activate")},
-  )
-
-  let actions = list{Html.div(list{Html.class'("col actions")}, list{cancelBtn, migrateBtn})}
-
-  Html.div(
-    list{Html.class'("db migration-view")},
-    Belt.List.concatMany([list{name}, cols, funcs, errorMsg, actions]),
-  )
-}
-
 let viewDB = (vp: viewProps, db: db, dragEvents: domEventList): list<Html.html<msg>> => {
-  let lockClass = if vp.dbLocked && db.activeMigration == None {
+  let lockClass = if vp.dbLocked {
     "lock"
   } else {
     "unlock"
@@ -230,21 +179,10 @@ let viewDB = (vp: viewProps, db: db, dragEvents: domEventList): list<Html.html<m
 
   let coldivs = List.map(~f=viewDBCol(vp, false, db.dbTLID), cols)
   let data = viewDBData(vp, db)
-  let migrationView = switch db.activeMigration {
-  | Some(migra) =>
-    if migra.state != DBMigrationAbandoned {
-      list{viewDBMigration(migra, db, vp)}
-    } else {
-      list{}
-    }
-  | None => list{}
-  }
-
   let headerView = Html.div(list{Html.class'("spec-header " ++ lockClass)}, viewDBHeader(vp, db))
 
   Belt.List.concatMany([
     list{Html.div(list{Html.class'("db"), ...dragEvents}, list{headerView, keyView, ...coldivs})},
-    migrationView,
     list{data},
   ])
 }

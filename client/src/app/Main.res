@@ -1093,7 +1093,7 @@ let update_ = (msg: msg, m: model): modification => {
     | _ => list{}
     }
 
-    Many(Belt.List.concat(traceCmd, list{SetHover(tlid,ATraceID(traceID))}))
+    Many(Belt.List.concat(traceCmd, list{SetHover(tlid, ATraceID(traceID))}))
   | TraceMouseLeave(tlid, traceID, _) => ClearHover(tlid, ATraceID(traceID))
   | TriggerHandler(tlid) => TriggerHandlerAPICall(tlid)
   | DragToplevel(_, mousePos) =>
@@ -1207,22 +1207,10 @@ let update_ = (msg: msg, m: model): modification => {
     | Deselected => Many(list{Select(tlid, STTopLevelRoot), SetTLTraceID(tlid, traceID)})
     | _ => SetTLTraceID(tlid, traceID)
     }
-  | StartMigration(tlid) =>
-    let mdb = tlid |> TL.get(m) |> Option.andThen(~f=TL.asDB)
-    switch mdb {
-    | Some(db) => DB.startMigration(tlid, db.cols)
-    | None => NoChange
-    }
-  | AbandonMigration(tlid) => AddOps(list{AbandonDBMigration(tlid)}, FocusNothing)
   | DeleteColInDB(tlid, nameId) =>
     let mdb = tlid |> TL.get(m) |> Option.andThen(~f=TL.asDB)
     switch mdb {
-    | Some(db) =>
-      if DB.isMigrationCol(db, nameId) {
-        AddOps(list{DeleteColInDBMigration(tlid, nameId)}, FocusNothing)
-      } else {
-        AddOps(list{DeleteDBCol(tlid, nameId)}, FocusNothing)
-      }
+    | Some(_) => AddOps(list{DeleteDBCol(tlid, nameId)}, FocusNothing)
     | None => NoChange
     }
   | ToggleEditorSetting(fn) =>
@@ -1435,10 +1423,7 @@ let update_ = (msg: msg, m: model): modification => {
     })
   | SaveTestAPICallback(Ok(msg)) => Model.updateErrorMod(Error.set("Success! " ++ msg))
   | ExecuteFunctionAPICallback(params, Ok(dval, hash, hashVersion, tlids, unlockedDBs)) =>
-    let traces = List.map(
-      ~f=tlid => (tlid, list{(params.efpTraceID, Error(NoneYet))}),
-      tlids,
-    )
+    let traces = List.map(~f=tlid => (tlid, list{(params.efpTraceID, Error(NoneYet))}), tlids)
 
     Many(list{
       UpdateTraceFunctionResult(

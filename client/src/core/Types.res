@@ -216,28 +216,11 @@ and dbColType = string
 
 and dbColumn = (blankOr<dbColName>, blankOr<dbColType>)
 
-and dbMigrationKind = DeprecatedMigrationKind
-
-and dbMigrationState =
-  | DBMigrationAbandoned
-  | DBMigrationInitialized
-
-and dbMigration = {
-  startingVersion: int,
-  version: int,
-  state: dbMigrationState,
-  rollforward: fluidExpr,
-  rollback: fluidExpr,
-  cols: list<dbColumn>,
-}
-
 and db = {
   dbTLID: TLID.t,
   dbName: blankOr<dbName>,
   cols: list<dbColumn>,
   version: int,
-  oldMigrations: list<dbMigration>,
-  activeMigration: option<dbMigration>,
   pos: pos,
 }
 
@@ -693,21 +676,14 @@ and op =
   | SetDBColType(TLID.t, id, dbColType)
   | DeleteTL(TLID.t)
   | MoveTL(TLID.t, pos)
-  | TLSavepoint(TLID.t)
-  | UndoTL(TLID.t)
-  | RedoTL(TLID.t)
   | SetFunction(userFunction)
-  | DeleteFunction(TLID.t)
   | ChangeDBColName(TLID.t, id, dbColName)
   | ChangeDBColType(TLID.t, id, dbColType)
-  | DeprecatedInitDbm(TLID.t, id, rollbackID, rollforwardID, dbMigrationKind)
+  | UndoTL(TLID.t)
+  | RedoTL(TLID.t)
   | SetExpr(TLID.t, id, fluidExpr)
-  | CreateDBMigration(TLID.t, rollbackID, rollforwardID, list<dbColumn>)
-  | AddDBColToDBMigration(TLID.t, id, id)
-  | SetDBColNameInDBMigration(TLID.t, id, dbColName)
-  | SetDBColTypeInDBMigration(TLID.t, id, dbColType)
-  | DeleteColInDBMigration(TLID.t, id)
-  | AbandonDBMigration(TLID.t)
+  | TLSavepoint(TLID.t)
+  | DeleteFunction(TLID.t)
   | DeleteDBCol(TLID.t, id)
   | RenameDBname(TLID.t, dbName)
   | CreateDBWithBlankOr(TLID.t, pos, id, dbName)
@@ -1419,8 +1395,6 @@ and msg =
   | ReceiveAnalysis(performAnalysisResult)
   | ReceiveFetch(fetchResult)
   | EnablePanning(bool)
-  | StartMigration(TLID.t)
-  | AbandonMigration(TLID.t)
   | DeleteColInDB(TLID.t, id)
   | CreateDBTable
   | ClipboardCopyEvent(clipboardEvent)

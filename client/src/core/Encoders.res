@@ -169,7 +169,6 @@ and tlidOf = (op: Types.op): TLID.t =>
   | ChangeDBColName(tlid, _, _) => tlid
   | SetDBColType(tlid, _, _) => tlid
   | ChangeDBColType(tlid, _, _) => tlid
-  | DeprecatedInitDbm(tlid, _, _, _, _) => tlid
   | TLSavepoint(tlid) => tlid
   | UndoTL(tlid) => tlid
   | RedoTL(tlid) => tlid
@@ -178,12 +177,6 @@ and tlidOf = (op: Types.op): TLID.t =>
   | SetFunction(f) => f.ufTLID
   | DeleteFunction(tlid) => tlid
   | SetExpr(tlid, _, _) => tlid
-  | CreateDBMigration(tlid, _, _, _) => tlid
-  | AddDBColToDBMigration(tlid, _, _) => tlid
-  | SetDBColNameInDBMigration(tlid, _, _) => tlid
-  | SetDBColTypeInDBMigration(tlid, _, _) => tlid
-  | AbandonDBMigration(tlid) => tlid
-  | DeleteColInDBMigration(tlid, _) => tlid
   | DeleteDBCol(tlid, _) => tlid
   | RenameDBname(tlid, _) => tlid
   | CreateDBWithBlankOr(tlid, _, _, _) => tlid
@@ -222,33 +215,8 @@ and spec = (spec: Types.handlerSpec): Js.Json.t =>
 and handler = (h: Types.handler): Js.Json.t =>
   object_(list{("tlid", tlid(h.hTLID)), ("spec", spec(h.spec)), ("ast", fluidAST(h.ast))})
 
-and dbMigrationKind = (k: Types.dbMigrationKind): Js.Json.t => {
-  let ev = variant
-  switch k {
-  | DeprecatedMigrationKind => ev("DeprecatedMigrationKind", list{})
-  }
-}
-
 and colList = (cols: list<Types.dbColumn>): Js.Json.t =>
   list(pair(blankOr(string), blankOr(string)), cols)
-
-and dbMigrationState = (s: Types.dbMigrationState): Js.Json.t => {
-  let ev = variant
-  switch s {
-  | DBMigrationAbandoned => ev("DBMigrationAbandoned", list{})
-  | DBMigrationInitialized => ev("DBMigrationInitialized", list{})
-  }
-}
-
-and dbMigration = (dbm: Types.dbMigration): Js.Json.t =>
-  object_(list{
-    ("starting_version", int(dbm.startingVersion)),
-    ("version", int(dbm.version)),
-    ("state", dbMigrationState(dbm.state)),
-    ("cols", colList(dbm.cols)),
-    ("rollforward", dbm.rollforward |> fluidExpr),
-    ("rollback", dbm.rollback |> fluidExpr),
-  })
 
 and db = (db: Types.db): Js.Json.t =>
   object_(list{
@@ -256,11 +224,6 @@ and db = (db: Types.db): Js.Json.t =>
     ("name", blankOr(string, db.dbName)),
     ("cols", colList(db.cols)),
     ("version", int(db.version)),
-    ("old_migrations", list(dbMigration, db.oldMigrations)),
-    (
-      "active_migration",
-      Option.map(~f=dbMigration, db.activeMigration) |> Option.unwrap(~default=null),
-    ),
   })
 
 and op = (call: Types.op): Js.Json.t => {
@@ -274,18 +237,6 @@ and op = (call: Types.op): Js.Json.t => {
   | SetDBColType(t, i, tipe) => ev("SetDBColType", list{tlid(t), id(i), string(tipe)})
   | ChangeDBColType(t, i, name) => ev("ChangeDBColType", list{tlid(t), id(i), string(name)})
   | DeleteDBCol(t, i) => ev("DeleteDBCol", list{tlid(t), id(i)})
-  | DeprecatedInitDbm(t, i, rbid, rfid, kind) =>
-    ev("DeprecatedInitDbm", list{tlid(t), id(i), id(rbid), id(rfid), dbMigrationKind(kind)})
-  | CreateDBMigration(t, rbid, rfid, cols) =>
-    ev("CreateDBMigration", list{tlid(t), id(rbid), id(rfid), colList(cols)})
-  | AddDBColToDBMigration(t, colnameid, coltypeid) =>
-    ev("AddDBColToDBMigration", list{tlid(t), id(colnameid), id(coltypeid)})
-  | SetDBColNameInDBMigration(t, i, name) =>
-    ev("SetDBColNameInDBMigration", list{tlid(t), id(i), string(name)})
-  | SetDBColTypeInDBMigration(t, i, tipe) =>
-    ev("SetDBColTypeInDBMigration", list{tlid(t), id(i), string(tipe)})
-  | AbandonDBMigration(t) => ev("AbandonDBMigration", list{tlid(t)})
-  | DeleteColInDBMigration(t, i) => ev("DeleteColInDBMigration", list{tlid(t), id(i)})
   | TLSavepoint(t) => ev("TLSavepoint", list{tlid(t)})
   | UndoTL(t) => ev("UndoTL", list{tlid(t)})
   | RedoTL(t) => ev("RedoTL", list{tlid(t)})

@@ -132,8 +132,6 @@ let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): db =>
   dbName: B.newF("MyDB"),
   cols: list{(Blank(fieldid), Blank(typeid))},
   version: 0,
-  oldMigrations: list{},
-  activeMigration: None,
   pos: {x: 0, y: 0},
 }
 
