@@ -2,8 +2,8 @@
 
 @ppx.deriving(show({with_path: false}))
 type rec pos = {
-  x: int64,
-  y: int64,
+  x: int,
+  y: int,
 }
 
 // CLEANUP: Move BlankOr to own module and file. Right now there's already a BlankOr

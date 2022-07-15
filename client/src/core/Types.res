@@ -102,15 +102,6 @@ type rec exception_ = {
 // within the viewport and we map Absolute positions back to the
 // viewport to display in the browser.
 // TODO: Can we depreciate VPos?
-<<<<<<< HEAD
-@ppx.deriving(show({with_path: false}))
-type rec pos = {
-  x: int,
-  y: int,
-}
-
-=======
->>>>>>> fce32349c... Move DB type to ProgramTypes
 and vPos = {
   vx: int,
   vy: int,

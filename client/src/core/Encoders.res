@@ -58,7 +58,7 @@ let base64url_bytes = (input: Bytes.t): string =>
 let id = ID.encode
 let tlid = TLID.encode
 
-let pos = (p: Types.pos) => object_(list{("x", int(p.x)), ("y", int(p.y))})
+let pos = (p: BaseTypes.pos) => object_(list{("x", int(p.x)), ("y", int(p.y))})
 
 let vPos = (vp: vPos) => object_(list{("vx", int(vp.vx)), ("vy", int(vp.vy))})
 
