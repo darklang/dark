@@ -35,6 +35,7 @@ let rec decodeNew = (j): t => {
   variants(
     list{
       ("TInt", dv0(TInt)),
+      ("TAny", dv0(TAny)),
       ("TFloat", dv0(TFloat)),
       ("TBool", dv0(TBool)),
       ("TNull", dv0(TNull)),
