@@ -957,7 +957,6 @@ and autocomplete = {
 
 and autocompleteMod =
   | ACSetQuery(string)
-  | ACAppendQuery(string)
   | ACReset
   | ACSelectDown
   | ACSelectUp
@@ -1414,7 +1413,6 @@ and msg =
   | ResetToast
   | GoToArchitecturalView
   | HideTopbar
-  | LogoutOfDark
   | DismissErrorBar
   | PauseWorker(string)
   | RunWorker(string)
@@ -1441,10 +1439,6 @@ and variantTest =
 // FeatureFlags
 // -----------------------------
 and ffIsExpanded = bool
-
-and pick =
-  | PickA
-  | PickB
 
 and flagsVS = Map.String.t<ffIsExpanded>
 

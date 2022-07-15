@@ -1944,10 +1944,6 @@ let update_ = (msg: msg, m: model): modification => {
   | ResetToast =>
     ReplaceAllModificationsWithThisOne(m => ({...m, toast: Defaults.defaultToast}, Cmd.none))
   | HideTopbar => ReplaceAllModificationsWithThisOne(m => ({...m, showTopbar: false}, Cmd.none))
-  | LogoutOfDark =>
-    ReplaceAllModificationsWithThisOne(
-      m => ({...m, editorSettings: {...m.editorSettings, runTimers: false}}, API.logout(m)),
-    )
   | LogoutAPICallback =>
     // For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work
     Native.Ext.redirect("/login")

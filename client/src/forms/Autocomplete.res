@@ -780,11 +780,6 @@ let selectUp = (a: autocomplete): autocomplete => {
 //
 let setQuery = (m: model, q: string, a: autocomplete): autocomplete => refilter(m, q, a)
 
-let appendQuery = (m: model, str: string, a: autocomplete): autocomplete => {
-  let q = a.value ++ str
-  setQuery(m, q, a)
-}
-
 let documentationForItem = (aci: autocompleteItem): option<list<Vdom.t<'a>>> => {
   let p = (text: string) => Html.p(list{}, list{Html.text(text)})
   let simpleDoc = (text: string) => Some(list{p(text)})
@@ -829,7 +824,6 @@ let setVisible = (visible: bool, a: autocomplete): autocomplete => {...a, visibl
 let update = (m: model, mod_: autocompleteMod, a: autocomplete): autocomplete =>
   switch mod_ {
   | ACSetQuery(str) => setQuery(m, str, a)
-  | ACAppendQuery(str) => appendQuery(m, str, a)
   | ACReset => reset(m)
   | ACSelectDown => selectDown(a)
   | ACSelectUp => selectUp(a)
