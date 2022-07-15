@@ -269,8 +269,8 @@ let inputVariables = (tl: toplevel): list<string> =>
       list{"request", "event"}
     }
   | TLFunc(f) =>
-    f.ufMetadata.ufmParameters |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
-      BlankOr.toOption(p.ufpName)
+    f.metadata.parameters |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
+      BlankOr.toOption(p.name)
     )
   | TLTipe(_) | TLDB(_) | TLPmFunc(_) => list{}
   }

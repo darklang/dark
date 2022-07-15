@@ -545,7 +545,7 @@ let submitACItem = (
 
         saveH({...h, spec: replacedName}, PEventSpace(new_))
       | (PFnName(_), ACFnName(value), TLFunc(old)) =>
-        if B.isFilledValue(old.ufMetadata.ufmName, value) {
+        if B.isFilledValue(old.metadata.name, value) {
           NoChange
         } else if List.member(~value, UserFunctions.allNames(m.userFunctions)) {
           Model.updateErrorMod(Error.set("There is already a Function named " ++ value))
@@ -553,7 +553,7 @@ let submitACItem = (
           let newPD = PFnName(F(id, value))
           let new_ = {
             ...old,
-            ufMetadata: {...old.ufMetadata, ufmName: F(id, value)},
+            metadata: {...old.metadata, name: F(id, value)},
           }
 
           let changedNames = Refactor.renameFunction(m, old, value)

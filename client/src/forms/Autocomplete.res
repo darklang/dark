@@ -394,7 +394,7 @@ let handlerDisplayName = (h: handler): string => {
 }
 
 let fnDisplayName = (f: PT.UserFunction.t): string =>
-  f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default="undefinedFunction")
+  f.metadata.name |> B.toOption |> Option.unwrap(~default="undefinedFunction")
 
 let foundHandlerOmniAction = (h: handler): omniAction => {
   let name = "Found in " ++ handlerDisplayName(h)
@@ -403,7 +403,7 @@ let foundHandlerOmniAction = (h: handler): omniAction => {
 
 let foundFnOmniAction = (f: PT.UserFunction.t): omniAction => {
   let name = "Found in function " ++ fnDisplayName(f)
-  Goto(FocusedFn(f.ufTLID, None), f.ufTLID, name, true)
+  Goto(FocusedFn(f.tlid, None), f.tlid, name, true)
 }
 
 let qSearch = (m: model, s: string): list<omniAction> =>
@@ -527,7 +527,7 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
 
   let ufs = m.userFunctions |> Map.filterMapValues(~f=fn => {
     let name = "Jump to function: " ++ fnDisplayName(fn)
-    Some(Goto(FocusedFn(fn.ufTLID, None), fn.ufTLID, name, false))
+    Some(Goto(FocusedFn(fn.tlid, None), fn.tlid, name, false))
   })
 
   List.map(~f=x => ACOmniAction(x), Belt.List.concat(tls, ufs))

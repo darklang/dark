@@ -62,15 +62,15 @@ let aFunction = (
   ~name="myFunc",
   (),
 ): PT.UserFunction.t => {
-  ufTLID: tlid,
-  ufMetadata: {
-    ufmName: B.newF(name),
-    ufmParameters: params,
-    ufmDescription: "",
-    ufmReturnTipe: B.newF(DType.TStr),
-    ufmInfix: false,
+  tlid: tlid,
+  metadata: {
+    name: B.newF(name),
+    parameters: params,
+    description: "",
+    returnType: B.newF(DType.TStr),
+    infix: false,
   },
-  ufAST: FluidAST.ofExpr(expr),
+  ast: FluidAST.ofExpr(expr),
 }
 
 let aDB = (
@@ -231,18 +231,18 @@ let run = () => {
       let fnAsTL = aFunction(
         ~params=list{
           {
-            ufpName: pn1,
-            ufpTipe: B.newF(DType.TStr),
-            ufpBlock_args: list{},
-            ufpOptional: false,
-            ufpDescription: "",
+            name: pn1,
+            typ: B.newF(DType.TStr),
+            args: list{},
+            optional: false,
+            description: "",
           },
           {
-            ufpName: pn2,
-            ufpTipe: B.newF(DType.TStr),
-            ufpBlock_args: list{},
-            ufpOptional: false,
-            ufpDescription: "",
+            name: pn2,
+            typ: B.newF(DType.TStr),
+            args: list{},
+            optional: false,
+            description: "",
           },
         },
         (),
@@ -559,15 +559,12 @@ let run = () => {
           ~key=repl.hTLID,
           ~value=repl.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString,
         )
-        |> Map.add(
-          ~key=fn.ufTLID,
-          ~value=fn.ufAST |> FluidAST.toExpr |> FluidPrinter.eToHumanString,
-        )
+        |> Map.add(~key=fn.tlid, ~value=fn.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
 
       let m = {...m, searchCache: searchCache}
       test("find variable", () => {
         let foundActions = switch qSearch(m, "bunny") {
-        | list{Goto(FocusedFn(_), tlid, "Found in function fn1", true)} if tlid == fn.ufTLID => true
+        | list{Goto(FocusedFn(_), tlid, "Found in function fn1", true)} if tlid == fn.tlid => true
         | _ => false
         }
 
@@ -575,7 +572,7 @@ let run = () => {
       })
       test("find string literal", () => {
         let foundActions = switch qSearch(m, "hello") {
-        | list{Goto(FocusedFn(_), tlid, "Found in function fn1", true)} if tlid == fn.ufTLID => true
+        | list{Goto(FocusedFn(_), tlid, "Found in function fn1", true)} if tlid == fn.tlid => true
         | _ => false
         }
 

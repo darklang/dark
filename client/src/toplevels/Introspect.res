@@ -27,7 +27,7 @@ let handlersByName = (hs: TD.t<handler>): Map.String.t<TLID.t> =>
 let functionsByName = (fns: TD.t<PT.UserFunction.t>): Map.String.t<TLID.t> =>
   fns
   |> Map.filterMapValues(~f=(uf: PT.UserFunction.t) =>
-    uf.ufMetadata.ufmName |> B.toOption |> Option.map(~f=name => (name, uf.ufTLID))
+    uf.metadata.name |> B.toOption |> Option.map(~f=name => (name, uf.tlid))
   )
   |> Map.String.fromList
 
@@ -56,7 +56,7 @@ let tlidsToUpdateUsage = (ops: list<op>): list<TLID.t> =>
   |> List.filterMap(~f=op =>
     switch op {
     | SetHandler(tlid, _, _) | SetExpr(tlid, _, _) => Some(tlid)
-    | SetFunction(f) => Some(f.ufTLID)
+    | SetFunction(f) => Some(f.tlid)
     | CreateDB(_)
     | DeleteTL(_)
     | MoveTL(_)
@@ -159,16 +159,16 @@ let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: PT.UserFuncti
   // Versions are slightly aspirational, and we don't have them in most of
   // the places we use tipes, including here
   let version = 0
-  fn.ufMetadata.ufmParameters
+  fn.metadata.parameters
   |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
-    p.ufpTipe
+    p.typ
     |> B.toOption
     |> Option.map(~f=Runtime.tipe2str)
     |> Option.map(~f=t => keyForTipe(t, version))
     |> Option.andThen(~f=key => Map.get(~key, tipes))
-    |> Option.thenAlso(~f=_ => Some(B.toID(p.ufpTipe)))
+    |> Option.thenAlso(~f=_ => Some(B.toID(p.typ)))
   )
-  |> List.map(~f=((usedIn, id)) => {refersTo: fn.ufTLID, usedIn: usedIn, id: id})
+  |> List.map(~f=((usedIn, id)) => {refersTo: fn.tlid, usedIn: usedIn, id: id})
 }
 
 let getUsageFor = (

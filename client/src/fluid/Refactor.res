@@ -27,7 +27,7 @@ let transformFnCalls = (
   let transformCallsInAst = (ast: FluidAST.t) => {
     let rec run = e =>
       switch e {
-      | E.EFnCall(_, name, _, _) if Some(name) == BlankOr.toOption(uf.ufMetadata.ufmName) => f(e)
+      | E.EFnCall(_, name, _, _) if Some(name) == BlankOr.toOption(uf.metadata.name) => f(e)
       | other => FluidExpression.deprecatedWalk(~f=run, other)
       }
 
@@ -44,9 +44,9 @@ let transformFnCalls = (
   })
 
   let newFunctions = m.userFunctions |> Map.filterMapValues(~f=(uf_: PT.UserFunction.t) => {
-    let newAst = uf_.ufAST |> transformCallsInAst
-    if newAst != uf_.ufAST {
-      Some(SetFunction({...uf_, ufAST: newAst}))
+    let newAst = uf_.ast |> transformCallsInAst
+    if newAst != uf_.ast {
+      Some(SetFunction({...uf_, ast: newAst}))
     } else {
       None
     }
@@ -206,26 +206,26 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
         |> convertTipe
 
       {
-        PT.UserFunction.Parameter.ufpName: F(gid(), name_),
-        ufpTipe: F(gid(), tipe),
-        ufpBlock_args: list{},
-        ufpOptional: false,
-        ufpDescription: "",
+        PT.UserFunction.Parameter.name: F(gid(), name_),
+        typ: F(gid(), tipe),
+        args: list{},
+        optional: false,
+        description: "",
       }
     })
 
     let metadata = {
-      PT.UserFunction.Metadata.ufmName: F(gid(), name),
-      ufmParameters: params,
-      ufmDescription: "",
-      ufmReturnTipe: F(gid(), TAny),
-      ufmInfix: false,
+      PT.UserFunction.Metadata.name: F(gid(), name),
+      parameters: params,
+      description: "",
+      returnType: F(gid(), TAny),
+      infix: false,
     }
 
     let newF = {
-      PT.UserFunction.ufTLID: gtlid(),
-      ufMetadata: metadata,
-      ufAST: FluidExpression.clone(body) |> FluidAST.ofExpr,
+      PT.UserFunction.tlid: gtlid(),
+      metadata: metadata,
+      ast: FluidExpression.clone(body) |> FluidAST.ofExpr,
     }
 
     Many(list{
@@ -361,7 +361,7 @@ let removeFunctionParameter = (
 ): list<op> => {
   open ProgramTypes.Expr
   let indexInList =
-    List.findIndex(~f=(_, p) => p == ufp, uf.ufMetadata.ufmParameters)
+    List.findIndex(~f=(_, p) => p == ufp, uf.metadata.parameters)
     |> Option.map(~f=Tuple2.first)
     |> recoverOpt("removing invalid fnparam", ~default=-1)
 
@@ -390,24 +390,24 @@ let addFunctionParameter = (m: model, f: PT.UserFunction.t, currentBlankId: id):
 
   let replacement = UserFunctions.extend(f)
   let newCalls = transformOp(f)
-  AddOps(list{SetFunction(replacement), ...newCalls}, FocusNext(f.ufTLID, Some(currentBlankId)))
+  AddOps(list{SetFunction(replacement), ...newCalls}, FocusNext(f.tlid, Some(currentBlankId)))
 }
 
 let generateEmptyFunction = (_: unit): PT.UserFunction.t => {
   let funcName = generateFnName()
   let tlid = gtlid()
   let metadata: PT.UserFunction.Metadata.t = {
-    ufmName: F(gid(), funcName),
-    ufmParameters: list{},
-    ufmDescription: "",
-    ufmReturnTipe: F(gid(), TAny),
-    ufmInfix: false,
+    name: F(gid(), funcName),
+    parameters: list{},
+    description: "",
+    returnType: F(gid(), TAny),
+    infix: false,
   }
 
   {
-    ufTLID: tlid,
-    ufMetadata: metadata,
-    ufAST: FluidAST.ofExpr(EBlank(gid())),
+    tlid: tlid,
+    metadata: metadata,
+    ast: FluidAST.ofExpr(EBlank(gid())),
   }
 }
 
@@ -463,11 +463,10 @@ let renameDBReferences = (m: model, oldName: string, newName: string): list<op> 
         None
       }
     | TLFunc(f) =>
-      let newAST =
-        f.ufAST |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
+      let newAST = f.ast |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
 
-      if newAST != f.ufAST {
-        Some(SetFunction({...f, ufAST: newAST}))
+      if newAST != f.ast {
+        Some(SetFunction({...f, ast: newAST}))
       } else {
         None
       }
@@ -525,7 +524,7 @@ let createNewDB = (m: model, maybeName: option<string>, pos: pos): modification 
 let createNewFunction = (m: model, newFnName: option<string>): modification => {
   let fn = generateEmptyFunction()
   let newFn = switch newFnName {
-  | Some(name) => {...fn, ufMetadata: {...fn.ufMetadata, ufmName: F(gid(), name)}}
+  | Some(name) => {...fn, metadata: {...fn.metadata, name: F(gid(), name)}}
   | None => fn
   }
 
@@ -538,7 +537,7 @@ let createNewFunction = (m: model, newFnName: option<string>): modification => {
       ReplaceAllModificationsWithThisOne(m => (UserFunctions.upsert(m, newFn), Tea.Cmd.none)),
       // Both ops in a single transaction
       AddOps(list{SetFunction(newFn)}, FocusNothing),
-      MakeCmd(Url.navigateTo(FocusedFn(newFn.ufTLID, None))),
+      MakeCmd(Url.navigateTo(FocusedFn(newFn.tlid, None))),
     })
   }
 }
@@ -557,7 +556,7 @@ let createAndInsertNewFunction = (
     let fn = generateEmptyFunction()
     let newFn = {
       ...fn,
-      ufMetadata: {...fn.ufMetadata, ufmName: F(gid(), newFnName)},
+      metadata: {...fn.metadata, name: F(gid(), newFnName)},
     }
 
     let op = SetFunction(newFn)
@@ -582,7 +581,7 @@ let createAndInsertNewFunction = (
           ),
           // Both ops in a single transaction
           TL.setASTMod(~ops=list{op}, tl, newAST),
-          MakeCmd(Url.navigateTo(FocusedFn(newFn.ufTLID, None))),
+          MakeCmd(Url.navigateTo(FocusedFn(newFn.tlid, None))),
         })
       }
     }

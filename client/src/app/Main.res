@@ -901,9 +901,9 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         cache,
         f: PT.UserFunction.t,
       ) => {
-        let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.ufAST))
+        let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.ast))
 
-        cache |> Map.add(~key=f.ufTLID, ~value)
+        cache |> Map.add(~key=f.tlid, ~value)
       })
 
       ({...m, searchCache: searchCache}, Cmd.none)
@@ -1236,7 +1236,7 @@ let update_ = (msg: msg, m: model): modification => {
     | Some(uf) =>
       let replacement = UserFunctions.removeParameter(uf, upf)
       let newCalls = Refactor.removeFunctionParameter(m, uf, upf)
-      AddOps(list{SetFunction(replacement), ...newCalls}, FocusNext(uf.ufTLID, None))
+      AddOps(list{SetFunction(replacement), ...newCalls}, FocusNext(uf.tlid, None))
     | None => NoChange
     }
   | AddUserFunctionParameter(uftlid) =>

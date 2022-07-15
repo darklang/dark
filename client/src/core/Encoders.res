@@ -170,7 +170,7 @@ and tlidOf = (op: Types.op): TLID.t =>
   | RedoTL(tlid) => tlid
   | DeleteTL(tlid) => tlid
   | MoveTL(tlid, _) => tlid
-  | SetFunction(f) => f.ufTLID
+  | SetFunction(f) => f.tlid
   | DeleteFunction(tlid) => tlid
   | SetExpr(tlid, _, _) => tlid
   | DeleteDBCol(tlid, _) => tlid

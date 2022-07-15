@@ -24,15 +24,15 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
 let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.UserFunction.Parameter.t) => {
     let name = Html.span(
-      list{Html.classList(list{("name", true), ("has-blanks", BlankOr.isBlank(p.ufpName))})},
-      list{Html.text(BlankOr.valueWithDefault("no name", p.ufpName))},
+      list{Html.classList(list{("name", true), ("has-blanks", BlankOr.isBlank(p.name))})},
+      list{Html.text(BlankOr.valueWithDefault("no name", p.name))},
     )
 
     let ptype = Html.span(
-      list{Html.classList(list{("type", true), ("has-blanks", BlankOr.isBlank(p.ufpTipe))})},
+      list{Html.classList(list{("type", true), ("has-blanks", BlankOr.isBlank(p.typ))})},
       list{
         Html.text(
-          switch p.ufpTipe {
+          switch p.typ {
           | F(_, v) => Runtime.tipe2str(v)
           | Blank(_) => "no type"
           },
@@ -244,12 +244,8 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
     dbView(originalTLID, originalIDs, tlid, name, cols, direction)
   | TLHandler({hTLID, spec: {space: F(_, space), name: F(_, name), modifier}, _}) =>
     handlerView(originalTLID, originalIDs, hTLID, space, name, B.toOption(modifier), direction)
-  | TLFunc({
-      ufTLID,
-      ufMetadata: {ufmName: F(_, name), ufmParameters, ufmReturnTipe, _},
-      ufAST: _,
-    }) =>
-    fnView(originalTLID, originalIDs, ufTLID, name, ufmParameters, ufmReturnTipe, direction)
+  | TLFunc({tlid, metadata: {name: F(_, name), parameters, returnType, _}, ast: _}) =>
+    fnView(originalTLID, originalIDs, tlid, name, parameters, returnType, direction)
   | TLPmFunc(pFn) =>
     let name = pFn |> PackageManager.extendedName
     packageFnView(

@@ -13,7 +13,7 @@ let name = (tl: toplevel): string =>
   | TLHandler(h) => "H: " ++ (h.spec.name |> B.toOption |> Option.unwrap(~default=""))
   | TLDB(db) => "DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default=""))
   | TLPmFunc(f) => "Package Manager Func: " ++ f.fnname
-  | TLFunc(f) => "Func: " ++ (f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default=""))
+  | TLFunc(f) => "Func: " ++ (f.metadata.name |> B.toOption |> Option.unwrap(~default=""))
   | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
   }
 
@@ -25,7 +25,7 @@ let sortkey = (tl: toplevel): string =>
       (h.spec.modifier |> B.toOption |> Option.unwrap(~default="")))
   | TLDB(db) => db.name |> B.toOption |> Option.unwrap(~default="Undefined")
   | TLPmFunc(f) => f.fnname
-  | TLFunc(f) => f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default="")
+  | TLFunc(f) => f.metadata.name |> B.toOption |> Option.unwrap(~default="")
   | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
   }
 
@@ -33,7 +33,7 @@ let id = tl =>
   switch tl {
   | TLHandler(h) => h.hTLID
   | TLDB(db) => db.tlid
-  | TLFunc(f) => f.ufTLID
+  | TLFunc(f) => f.tlid
   | TLPmFunc(f) => f.pfTLID
   | TLTipe(t) => t.tlid
   }
@@ -43,7 +43,7 @@ let pos = tl =>
   | TLHandler(h) => h.pos
   | TLDB(db) => db.pos
   | TLPmFunc(f) => recover("no pos in a func", ~debug=f.pfTLID, {x: 0, y: 0})
-  | TLFunc(f) => recover("no pos in a func", ~debug=f.ufTLID, {x: 0, y: 0})
+  | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, {x: 0, y: 0})
   | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, {x: 0, y: 0})
   }
 
@@ -179,7 +179,7 @@ let isValidBlankOrID = (tl: toplevel, id: id): bool =>
 let getAST = (tl: toplevel): option<FluidAST.t> =>
   switch tl {
   | TLHandler(h) => Some(h.ast)
-  | TLFunc(f) => Some(f.ufAST)
+  | TLFunc(f) => Some(f.ast)
   | TLPmFunc(fn) => Some(FluidAST.ofExpr(fn.body))
   | _ => None
   }
@@ -187,7 +187,7 @@ let getAST = (tl: toplevel): option<FluidAST.t> =>
 let setAST = (tl: toplevel, newAST: FluidAST.t): toplevel =>
   switch tl {
   | TLHandler(h) => TLHandler({...h, ast: newAST})
-  | TLFunc(uf) => TLFunc({...uf, ufAST: newAST})
+  | TLFunc(uf) => TLFunc({...uf, ast: newAST})
   | TLDB(_) | TLTipe(_) | TLPmFunc(_) => tl
   }
 
@@ -196,7 +196,7 @@ let withAST = (m: model, tlid: TLID.t, ast: FluidAST.t): model => {
   handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=h => {...h, ast: ast}),
   userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=(uf: PT.UserFunction.t) => {
     ...uf,
-    ufAST: ast,
+    ast: ast,
   }),
 }
 
@@ -214,10 +214,10 @@ let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): modification =>
       )
     }
   | TLFunc(f) =>
-    if f.ufAST == ast {
+    if f.ast == ast {
       NoChange
     } else {
-      AddOps(Belt.List.concat(ops, list{SetFunction({...f, ufAST: ast})}), FocusNoChange)
+      AddOps(Belt.List.concat(ops, list{SetFunction({...f, ast: ast})}), FocusNoChange)
     }
   | TLPmFunc(_) => recover("cannot change ast in package manager", ~debug=tl, NoChange)
   | TLTipe(_) => recover("no ast in Tipes", ~debug=tl, NoChange)

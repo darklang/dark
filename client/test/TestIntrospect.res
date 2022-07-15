@@ -78,15 +78,15 @@ let run = () => {
         SetHandler(h1tlid, {x: 0, y: 0}, h1data),
         SetExpr(h1tlid, gid(), EBlank(gid())),
         SetFunction({
-          ufTLID: fntlid,
-          ufMetadata: {
-            ufmName: B.newF("trollClean"),
-            ufmParameters: list{},
-            ufmDescription: "can users put docs here?",
-            ufmReturnTipe: B.new_(),
-            ufmInfix: false,
+          tlid: fntlid,
+          metadata: {
+            name: B.newF("trollClean"),
+            parameters: list{},
+            description: "can users put docs here?",
+            returnType: B.new_(),
+            infix: false,
           },
-          ufAST: FluidAST.ofExpr(FluidExpression.newB()),
+          ast: FluidAST.ofExpr(FluidExpression.newB()),
         }),
       }
 

@@ -35,15 +35,15 @@ let aFn = (
   ~expr=defaultFluidExpr,
   (),
 ): toplevel => TLFunc({
-  ufTLID: tlid,
-  ufMetadata: {
-    ufmName: F(gid(), name),
-    ufmParameters: params,
-    ufmDescription: "",
-    ufmReturnTipe: F(gid(), TAny),
-    ufmInfix: false,
+  tlid: tlid,
+  metadata: {
+    name: F(gid(), name),
+    parameters: params,
+    description: "",
+    returnType: F(gid(), TAny),
+    infix: false,
   },
-  ufAST: FluidAST.ofExpr(expr),
+  ast: FluidAST.ofExpr(expr),
 })
 
 let run = () => {

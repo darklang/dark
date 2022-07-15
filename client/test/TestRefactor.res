@@ -71,15 +71,15 @@ let defaultHandler = {
 }
 
 let aFn = (name, expr): PT.UserFunction.t => {
-  ufTLID: gtlid(),
-  ufMetadata: {
-    ufmName: F(gid(), name),
-    ufmParameters: list{},
-    ufmDescription: "",
-    ufmReturnTipe: F(gid(), TAny),
-    ufmInfix: false,
+  tlid: gtlid(),
+  metadata: {
+    name: F(gid(), name),
+    parameters: list{},
+    description: "",
+    returnType: F(gid(), TAny),
+    infix: false,
   },
-  ufAST: FluidAST.ofExpr(expr),
+  ast: FluidAST.ofExpr(expr),
 }
 
 let run = () => {
@@ -208,15 +208,15 @@ let run = () => {
       }
 
       let f: PT.UserFunction.t = {
-        ufTLID: TLID.fromInt(6),
-        ufMetadata: {
-          ufmName: B.newF("f-1"),
-          ufmParameters: list{},
-          ufmDescription: "",
-          ufmReturnTipe: B.new_(),
-          ufmInfix: false,
+        tlid: TLID.fromInt(6),
+        metadata: {
+          name: B.newF("f-1"),
+          parameters: list{},
+          description: "",
+          returnType: B.new_(),
+          infix: false,
         },
-        ufAST: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
+        ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
       }
 
       let model = {
@@ -229,7 +229,7 @@ let run = () => {
       let ops = R.renameDBReferences(model, "ElmCode", "WeirdCode")
       let res = switch List.sortBy(~f=Encoders.tlidOf, ops) {
       | list{SetHandler(_, _, h), SetFunction(f)} =>
-        switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.ufAST)) {
+        switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.ast)) {
         | (EVariable(_, "WeirdCode"), EVariable(_, "WeirdCode")) => true
         | _ => false
         }
@@ -527,7 +527,7 @@ let run = () => {
         aFn("callsSafeUserfn", fn("callsSafeBuiltin", list{})),
         aFn("callsUnsafeUserfn", fn("callsUnsafeBuiltin", list{})),
       }
-      |> List.map(~f=(uf: PT.UserFunction.t) => (uf.ufTLID, uf))
+      |> List.map(~f=(uf: PT.UserFunction.t) => (uf.tlid, uf))
       |> TLID.Dict.fromList
 
     test("simple example", () => {

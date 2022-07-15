@@ -422,86 +422,86 @@ module UserFunction = {
   module Parameter = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      ufpName: blankOr<string>,
-      ufpTipe: blankOr<DType.t>,
-      ufpBlock_args: list<string>,
-      ufpOptional: bool,
-      ufpDescription: string,
+      name: blankOr<string>,
+      typ: blankOr<DType.t>,
+      args: list<string>,
+      optional: bool,
+      description: string,
     }
     let encode = (p: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, p.ufpName)),
-        ("tipe", BaseTypes.encodeBlankOr(DType.encode, p.ufpTipe)),
-        ("block_args", list(string, p.ufpBlock_args)),
-        ("optional", bool(p.ufpOptional)),
-        ("description", string(p.ufpDescription)),
+        ("name", BaseTypes.encodeBlankOr(string, p.name)),
+        ("tipe", BaseTypes.encodeBlankOr(DType.encode, p.typ)),
+        ("block_args", list(string, p.args)),
+        ("optional", bool(p.optional)),
+        ("description", string(p.description)),
       })
     }
     let decode = (j): t => {
       open Json_decode_extended
       {
-        ufpName: field("name", BaseTypes.decodeBlankOr(string), j),
-        ufpTipe: field("tipe", BaseTypes.decodeBlankOr(DType.decodeOld), j),
-        ufpBlock_args: field("block_args", list(string), j),
-        ufpOptional: field("optional", bool, j),
-        ufpDescription: field("description", string, j),
+        name: field("name", BaseTypes.decodeBlankOr(string), j),
+        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decodeOld), j),
+        args: field("block_args", list(string), j),
+        optional: field("optional", bool, j),
+        description: field("description", string, j),
       }
     }
   }
   module Metadata = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      ufmName: blankOr<string>,
-      ufmParameters: list<Parameter.t>,
-      ufmDescription: string,
-      ufmReturnTipe: blankOr<DType.t>,
-      ufmInfix: bool,
+      name: blankOr<string>,
+      parameters: list<Parameter.t>,
+      description: string,
+      returnType: blankOr<DType.t>,
+      infix: bool,
     }
     let encode = (f: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, f.ufmName)),
-        ("parameters", list(Parameter.encode, f.ufmParameters)),
-        ("description", string(f.ufmDescription)),
-        ("return_type", BaseTypes.encodeBlankOr(DType.encode, f.ufmReturnTipe)),
-        ("infix", bool(f.ufmInfix)),
+        ("name", BaseTypes.encodeBlankOr(string, f.name)),
+        ("parameters", list(Parameter.encode, f.parameters)),
+        ("description", string(f.description)),
+        ("return_type", BaseTypes.encodeBlankOr(DType.encode, f.returnType)),
+        ("infix", bool(f.infix)),
       })
     }
 
     let decode = (j): t => {
       open Json_decode_extended
       {
-        ufmName: field("name", BaseTypes.decodeBlankOr(string), j),
-        ufmParameters: field("parameters", list(Parameter.decode), j),
-        ufmDescription: field("description", string, j),
-        ufmReturnTipe: field("return_type", BaseTypes.decodeBlankOr(DType.decodeOld), j),
-        ufmInfix: field("infix", bool, j),
+        name: field("name", BaseTypes.decodeBlankOr(string), j),
+        parameters: field("parameters", list(Parameter.decode), j),
+        description: field("description", string, j),
+        returnType: field("return_type", BaseTypes.decodeBlankOr(DType.decodeOld), j),
+        infix: field("infix", bool, j),
       }
     }
   }
 
   @ppx.deriving(show({with_path: false}))
   type rec t = {
-    ufTLID: TLID.t,
-    ufMetadata: Metadata.t,
-    ufAST: AST.t,
+    tlid: TLID.t,
+    metadata: Metadata.t,
+    ast: AST.t,
   }
 
   let encode = (uf: t): Js.Json.t => {
     open Json.Encode
     object_(list{
-      ("tlid", TLID.encode(uf.ufTLID)),
-      ("metadata", Metadata.encode(uf.ufMetadata)),
-      ("ast", AST.encode(uf.ufAST)),
+      ("tlid", TLID.encode(uf.tlid)),
+      ("metadata", Metadata.encode(uf.metadata)),
+      ("ast", AST.encode(uf.ast)),
     })
   }
   let decode = (j): t => {
     open Json.Decode
     {
-      ufTLID: field("tlid", TLID.decode, j),
-      ufMetadata: field("metadata", Metadata.decode, j),
-      ufAST: field("ast", AST.decode, j),
+      tlid: field("tlid", TLID.decode, j),
+      metadata: field("metadata", Metadata.decode, j),
+      ast: field("ast", AST.decode, j),
     }
   }
 }

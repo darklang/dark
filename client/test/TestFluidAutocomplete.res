@@ -93,7 +93,7 @@ let defaultTokenInfo = {
 
 let defaultFullQuery = (~tl=defaultToplevel, ac: AC.t, queryString: string): AC.fullQuery => {
   let ti = switch tl {
-  | TLHandler({ast, _}) | TLFunc({ufAST: ast, _}) =>
+  | TLHandler({ast, _}) | TLFunc({ast, _}) =>
     ast
     |> FluidAST.toExpr
     |> Printer.tokenize
@@ -116,15 +116,15 @@ let aHandler = (~tlid=defaultTLID, ~expr=defaultExpr, ~space: option<string>=Non
 }
 
 let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): PT.UserFunction.t => {
-  ufTLID: tlid,
-  ufMetadata: {
-    ufmName: B.newF("myFunc"),
-    ufmParameters: list{},
-    ufmDescription: "",
-    ufmReturnTipe: B.newF(DType.TStr),
-    ufmInfix: false,
+  tlid: tlid,
+  metadata: {
+    name: B.newF("myFunc"),
+    parameters: list{},
+    description: "",
+    returnType: B.newF(DType.TStr),
+    infix: false,
   },
-  ufAST: FluidAST.ofExpr(expr),
+  ast: FluidAST.ofExpr(expr),
 }
 
 let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): PT.DB.t => {
