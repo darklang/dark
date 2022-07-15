@@ -35,14 +35,14 @@ let run = () => {
 
     let dbtlid = gtlid()
     let dbdata: PT.DB.t = {
-      dbTLID: dbtlid,
-      dbName: B.newF("Books"),
+      tlid: dbtlid,
+      name: B.newF("Books"),
       cols: list{},
       version: 0,
       pos: {x: 0, y: 0},
     }
 
-    let dbs = TD.fromList(list{(dbdata.dbTLID, dbdata)})
+    let dbs = TD.fromList(list{(dbdata.tlid, dbdata)})
     let handlers = TD.fromList(list{(h1data.hTLID, h1data), (h2data.hTLID, h2data)})
 
     test("dbsByName", () =>

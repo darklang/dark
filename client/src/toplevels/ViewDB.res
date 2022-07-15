@@ -49,8 +49,8 @@ let viewDbLatestEntry = (stats: dbStats): Html.html<msg> => {
 }
 
 let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<msg> =>
-  switch Map.get(~key=TLID.toString(db.dbTLID), vp.dbStats) {
-  | Some(stats) if CursorState.tlidOf(vp.cursorState) == Some(db.dbTLID) =>
+  switch Map.get(~key=TLID.toString(db.tlid), vp.dbStats) {
+  | Some(stats) if CursorState.tlidOf(vp.cursorState) == Some(db.tlid) =>
     let liveVal = viewDbLatestEntry(stats)
     let count = viewDbCount(stats)
     Html.div(list{Html.class'("dbdata")}, list{count, liveVal})
@@ -65,9 +65,9 @@ let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
 
   let titleView = {
     let nameField = if vp.dbLocked {
-      Html.text(dbName2String(db.dbName))
+      Html.text(dbName2String(db.name))
     } else {
-      ViewBlankOr.viewText(~enterable=true, ~classes=list{"dbname"}, DBName, vp, db.dbName)
+      ViewBlankOr.viewText(~enterable=true, ~classes=list{"dbname"}, DBName, vp, db.name)
     }
 
     Html.span(
@@ -164,7 +164,7 @@ let viewDB = (vp: viewProps, db: PT.DB.t, dragEvents: domEventList): list<Html.h
     list{Html.text("All entries are identified by a unique string `key`.")},
   )
 
-  let coldivs = List.map(~f=viewDBCol(vp, false, db.dbTLID), cols)
+  let coldivs = List.map(~f=viewDBCol(vp, false, db.tlid), cols)
   let data = viewDBData(vp, db)
   let headerView = Html.div(list{Html.class'("spec-header " ++ lockClass)}, viewDBHeader(vp, db))
 

@@ -240,8 +240,8 @@ let tipeView = (
 
 let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   switch tl {
-  | TLDB({dbTLID, dbName: F(_, name), cols, _}) =>
-    dbView(originalTLID, originalIDs, dbTLID, name, cols, direction)
+  | TLDB({tlid, name: F(_, name), cols, _}) =>
+    dbView(originalTLID, originalIDs, tlid, name, cols, direction)
   | TLHandler({hTLID, spec: {space: F(_, space), name: F(_, name), modifier}, _}) =>
     handlerView(originalTLID, originalIDs, hTLID, space, name, B.toOption(modifier), direction)
   | TLFunc({

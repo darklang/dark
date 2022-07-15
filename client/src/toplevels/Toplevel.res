@@ -11,7 +11,7 @@ module TD = TLID.Dict
 let name = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) => "H: " ++ (h.spec.name |> B.toOption |> Option.unwrap(~default=""))
-  | TLDB(db) => "DB: " ++ (db.dbName |> B.toOption |> Option.unwrap(~default=""))
+  | TLDB(db) => "DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default=""))
   | TLPmFunc(f) => "Package Manager Func: " ++ f.fnname
   | TLFunc(f) => "Func: " ++ (f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default=""))
   | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
@@ -23,7 +23,7 @@ let sortkey = (tl: toplevel): string =>
     (h.spec.space |> B.toOption |> Option.unwrap(~default="Undefined")) ++
       ((h.spec.name |> B.toOption |> Option.unwrap(~default="Undefined")) ++
       (h.spec.modifier |> B.toOption |> Option.unwrap(~default="")))
-  | TLDB(db) => db.dbName |> B.toOption |> Option.unwrap(~default="Undefined")
+  | TLDB(db) => db.name |> B.toOption |> Option.unwrap(~default="Undefined")
   | TLPmFunc(f) => f.fnname
   | TLFunc(f) => f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default="")
   | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
@@ -32,7 +32,7 @@ let sortkey = (tl: toplevel): string =>
 let id = tl =>
   switch tl {
   | TLHandler(h) => h.hTLID
-  | TLDB(db) => db.dbTLID
+  | TLDB(db) => db.tlid
   | TLFunc(f) => f.ufTLID
   | TLPmFunc(f) => f.pfTLID
   | TLTipe(t) => t.tlid
@@ -291,7 +291,7 @@ let getTLAndPD = (m: model, tlid: TLID.t, id: id): option<(toplevel, option<blan
 
 let allDBNames = (dbs: TD.t<PT.DB.t>): list<string> =>
   dbs |> Map.filterMapValues(~f=(db: PT.DB.t) =>
-    switch db.dbName {
+    switch db.name {
     | F(_, name) => Some(name)
     | Blank(_) => None
     }

@@ -548,7 +548,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       }
       let m = {
         let hTLIDs = List.map(~f=h => h.hTLID, handlers)
-        let dbTLIDs = List.map(~f=db => db.dbTLID, dbs)
+        let dbTLIDs = List.map(~f=db => db.tlid, dbs)
         {
           ...m,
           deletedHandlers: Map.removeMany(m.deletedHandlers, ~keys=hTLIDs),
@@ -585,7 +585,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       updateMod(SetDeletedToplevels(Map.values(dhandlers), Map.values(ddbs)), (m, cmd))
     | SetDeletedToplevels(dhandlers, ddbs) =>
       let hTLIDs = List.map(~f=h => h.hTLID, dhandlers)
-      let dbTLIDs = List.map(~f=db => db.dbTLID, ddbs)
+      let dbTLIDs = List.map(~f=db => db.tlid, ddbs)
       let m = {
         ...m,
         deletedHandlers: Handlers.fromList(dhandlers),

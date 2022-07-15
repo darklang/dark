@@ -10,7 +10,7 @@ let keyForTipe = (name: string, version: int): string => name ++ (":" ++ Int.toS
 let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   dbs
   |> Map.filterMapValues(~f=(db: PT.DB.t) =>
-    db.dbName |> B.toOption |> Option.map(~f=name => (name, db.dbTLID))
+    db.name |> B.toOption |> Option.map(~f=name => (name, db.tlid))
   )
   |> Map.String.fromList
 
@@ -132,7 +132,7 @@ let findUsagesInAST = (
   FluidAST.toExpr(ast)
   |> FluidExpression.filterMap(~f=e =>
     switch e {
-    | EVariable(id, name) => Map.get(~key=name, datastores) |> Option.map(~f=dbTLID => (dbTLID, id))
+    | EVariable(id, name) => Map.get(~key=name, datastores) |> Option.map(~f=tlid => (tlid, id))
     | EFnCall(id, "emit", list{_, EString(_, space_), EString(_, name_)}, _) =>
       let name = Util.removeQuotes(name_)
       let space = Util.removeQuotes(space_)

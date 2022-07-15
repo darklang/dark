@@ -80,8 +80,8 @@ let aDB = (
   ~name="MyDB",
   (),
 ): PT.DB.t => {
-  dbTLID: tlid,
-  dbName: B.newF(name),
+  tlid: tlid,
+  name: B.newF(name),
   cols: list{(Blank(fieldid), Blank(typeid))},
   version: 0,
   pos: {x: 0, y: 0},

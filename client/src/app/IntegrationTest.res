@@ -214,7 +214,7 @@ let rename_db_fields = (m: model): testResult =>
 
 let rename_db_type = (m: model): testResult =>
   m.dbs
-  |> Map.mapValues(~f=({cols, dbTLID, _}: PT.DB.t) =>
+  |> Map.mapValues(~f=({cols, tlid: dbTLID, _}: PT.DB.t) =>
     switch cols {
     // this was previously an Int
     | list{(F(_, "field1"), F(_, "String")), (F(_, "field2"), F(_, "Int")), (Blank(_), Blank(_))} =>

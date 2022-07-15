@@ -128,8 +128,8 @@ let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): userFunction => {
 }
 
 let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): PT.DB.t => {
-  dbTLID: tlid,
-  dbName: B.newF("MyDB"),
+  tlid: tlid,
+  name: B.newF("MyDB"),
   cols: list{(Blank(fieldid), Blank(typeid))},
   version: 0,
   pos: {x: 0, y: 0},
