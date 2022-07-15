@@ -738,8 +738,7 @@ let regenerate = (m: model, a: autocomplete): autocomplete => generate(m, a) |> 
 // Autocomplete state
 // ----------------------------
 let reset = (m: model): autocomplete => {
-  let admin = m.isAdmin
-  {...Defaults.defaultModel.complete, admin: admin, visible: true} |> regenerate(m)
+  {...Defaults.defaultModel.complete, visible: true} |> regenerate(m)
 }
 
 let init = m => reset(m)

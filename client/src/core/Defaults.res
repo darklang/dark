@@ -96,7 +96,6 @@ let defaultModel: model = {
   clientOpCtrId: "",
   complete: // this is awkward, but avoids circular deps
   {
-    admin: false,
     completions: list{},
     target: None,
     allCompletions: list{},

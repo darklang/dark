@@ -32,7 +32,6 @@ let run = () => {
         isAdmin: false,
         hovering: None,
         ac: {
-          admin: false,
           completions: list{},
           allCompletions: list{},
           index: -1,
