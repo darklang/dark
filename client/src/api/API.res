@@ -342,7 +342,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
         List.member(~value=uf.ufTLID, opTlids)
       ),
       userTipes: result.userTipes |> List.filter(~f=(ut: PT.UserType.t) =>
-        List.member(~value=ut.utTLID, opTlids)
+        List.member(~value=ut.tlid, opTlids)
       ),
     })
 

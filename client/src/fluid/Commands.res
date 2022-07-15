@@ -118,8 +118,8 @@ let commands: list<command> = {
 
         switch tipe {
         | Ok(tipe) =>
-          let nameId = BlankOr.toID(tipe.utName)
-          AddOps(list{SetType(tipe)}, FocusNext(tipe.utTLID, Some(nameId)))
+          let nameId = BlankOr.toID(tipe.name)
+          AddOps(list{SetType(tipe)}, FocusNext(tipe.tlid, Some(nameId)))
         | Error(s) => Model.updateErrorMod(Error.set("Can't create-type: " ++ s))
         }
       },

@@ -255,12 +255,12 @@ let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<o
       | _ => oldUse
       }
 
-    let (origName, uses) = switch oldTipe.utName {
+    let (origName, uses) = switch oldTipe.name {
     | Blank(_) => (None, list{})
-    | F(_, n) => (Some(n), UserFunctions.usesOfTipe(n, oldTipe.utVersion, fn))
+    | F(_, n) => (Some(n), UserFunctions.usesOfTipe(n, oldTipe.version, fn))
     }
 
-    let newName = switch newTipe.utName {
+    let newName = switch newTipe.name {
     | Blank(_) => None
     | F(_, n) => Some(n)
     }
@@ -414,10 +414,10 @@ let generateEmptyUserType = (): PT.UserType.t => {
   let tlid = gtlid()
   let definition = PT.UserType.Definition.UTRecord(list{{name: B.new_(), typ: B.new_()}})
   {
-    utTLID: tlid,
-    utName: F(gid(), tipeName),
-    utVersion: 0,
-    utDefinition: definition,
+    tlid: tlid,
+    name: F(gid(), tipeName),
+    version: 0,
+    definition: definition,
   }
 }
 
@@ -441,7 +441,7 @@ let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
 
     Ok({
       ...generateEmptyUserType(),
-      utDefinition: UTRecord(userTipeDefinition),
+      definition: UTRecord(userTipeDefinition),
     })
   | Some(_) => Error("Live value is not an object.")
   | None => Error("No live value.")

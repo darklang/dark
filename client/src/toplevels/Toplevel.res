@@ -14,7 +14,7 @@ let name = (tl: toplevel): string =>
   | TLDB(db) => "DB: " ++ (db.dbName |> B.toOption |> Option.unwrap(~default=""))
   | TLPmFunc(f) => "Package Manager Func: " ++ f.fnname
   | TLFunc(f) => "Func: " ++ (f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default=""))
-  | TLTipe(t) => "Type: " ++ (t.utName |> B.toOption |> Option.unwrap(~default=""))
+  | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
   }
 
 let sortkey = (tl: toplevel): string =>
@@ -26,7 +26,7 @@ let sortkey = (tl: toplevel): string =>
   | TLDB(db) => db.dbName |> B.toOption |> Option.unwrap(~default="Undefined")
   | TLPmFunc(f) => f.fnname
   | TLFunc(f) => f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default="")
-  | TLTipe(t) => t.utName |> B.toOption |> Option.unwrap(~default="")
+  | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
   }
 
 let id = tl =>
@@ -35,7 +35,7 @@ let id = tl =>
   | TLDB(db) => db.dbTLID
   | TLFunc(f) => f.ufTLID
   | TLPmFunc(f) => f.pfTLID
-  | TLTipe(t) => t.utTLID
+  | TLTipe(t) => t.tlid
   }
 
 let pos = tl =>
@@ -44,7 +44,7 @@ let pos = tl =>
   | TLDB(db) => db.pos
   | TLPmFunc(f) => recover("no pos in a func", ~debug=f.pfTLID, {x: 0, y: 0})
   | TLFunc(f) => recover("no pos in a func", ~debug=f.ufTLID, {x: 0, y: 0})
-  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.utTLID, {x: 0, y: 0})
+  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, {x: 0, y: 0})
   }
 
 let remove = (m: model, tl: toplevel): model => {

@@ -13,7 +13,7 @@ let viewTipeName = (vp: viewProps, t: PT.UserType.t): Html.html<msg> => {
     ~classes=list{"ut-name"},
     TypeName,
     vp,
-    t.utName,
+    t.name,
   )
 
   Html.div(list{Html.class'("typetitle")}, list{nameField})
@@ -30,9 +30,9 @@ let viewKillFieldBtn = (t: PT.UserType.t, field: PT.UserType.RecordField.t): Htm
     list{
       Html.class'("field-btn allowed"),
       ViewUtils.eventNoPropagation(
-        ~key="dutf-" ++ (TLID.toString(t.utTLID) ++ ("-" ++ (field.name |> B.toID |> ID.toString))),
+        ~key="dutf-" ++ (TLID.toString(t.tlid) ++ ("-" ++ (field.name |> B.toID |> ID.toString))),
         "click",
-        _ => DeleteUserTypeField(t.utTLID, field),
+        _ => DeleteUserTypeField(t.tlid, field),
       ),
     },
     list{fontAwesome("times-circle")},
@@ -60,7 +60,7 @@ let viewTipeField = (
 }
 
 let viewUserTipe = (vp: viewProps, t: PT.UserType.t): Html.html<msg> =>
-  switch t.utDefinition {
+  switch t.definition {
   | UTRecord(fields) =>
     let nameDiv = viewTipeName(vp, t)
     let fieldDivs = {

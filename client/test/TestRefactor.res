@@ -316,7 +316,7 @@ let run = () => {
       let fields = switch tipe {
       | Error(_) => list{}
       | Ok(ut) =>
-        switch ut.utDefinition {
+        switch ut.definition {
         | PT.UserType.Definition.UTRecord(utr) =>
           utr |> List.map(~f=(urf: PT.UserType.RecordField.t) => (
             urf.name |> B.toOption,

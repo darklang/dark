@@ -40,14 +40,14 @@ let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
   uts
   |> Map.mapValues(~f=(ut: PT.UserType.t) => {
     let name =
-      ut.utName
+      ut.name
       |> B.toOption
       |> // Shouldn't happen: all tipes have a default name
       recoverOpt("tipes should have default names", ~default="_")
 
-    let version = ut.utVersion
+    let version = ut.version
     let key = keyForTipe(name, version)
-    (key, ut.utTLID)
+    (key, ut.tlid)
   })
   |> Map.String.fromList
 

@@ -290,22 +290,22 @@ let userFunctionCategory = (m: model, ufs: list<userFunction>): category => {
 }
 
 let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
-  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => B.isF(ut.utName))
+  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => B.isF(ut.name))
   let entries = List.filterMap(tipes, ~f=tipe =>
-    Option.map(B.toOption(tipe.utName), ~f=name => {
+    Option.map(B.toOption(tipe.name), ~f=name => {
       let minusButton = if Refactor.usedTipe(m, name) {
         None
       } else {
-        Some(DeleteUserType(tipe.utTLID))
+        Some(DeleteUserType(tipe.tlid))
       }
 
       Entry({
         name: name,
-        identifier: Tlid(tipe.utTLID),
+        identifier: Tlid(tipe.tlid),
         uses: Some(Refactor.tipeUseCount(m, name)),
         minusButton: minusButton,
-        killAction: Some(DeleteUserTypeForever(tipe.utTLID)),
-        onClick: Destination(FocusedType(tipe.utTLID)),
+        killAction: Some(DeleteUserTypeForever(tipe.tlid)),
+        onClick: Destination(FocusedType(tipe.tlid)),
         plusButton: None,
         verb: None,
       })
@@ -1179,20 +1179,20 @@ let rtCacheKey = m =>
     m.handlers |> Map.mapValues(~f=(h: handler) => (h.pos, TL.sortkey(TLHandler(h)))),
     m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.userFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
-    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.utName),
+    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
     m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: handler) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.deletedUserFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
-    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.utName),
+    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.staticDeploys,
     m.unlockedDBs,
     m.usedDBs,
     m.usedFns,
     // CLEANUP do these need to be here twice
-    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.utName),
-    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.utName),
+    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     CursorState.tlidOf(m.cursorState),
     m.environment,
     m.editorSettings,

@@ -229,27 +229,27 @@ module UserType = {
 
   @ppx.deriving(show({with_path: false}))
   type rec t = {
-    utTLID: TLID.t,
-    utName: blankOr<string>,
-    utVersion: int,
-    utDefinition: Definition.t,
+    tlid: TLID.t,
+    name: blankOr<string>,
+    version: int,
+    definition: Definition.t,
   }
   let encode = (t: t): Js.Json.t => {
     open Json_encode_extended
     object_(list{
-      ("tlid", TLID.encode(t.utTLID)),
-      ("name", BaseTypes.encodeBlankOr(string, t.utName)),
-      ("version", int(t.utVersion)),
-      ("definition", Definition.encode(t.utDefinition)),
+      ("tlid", TLID.encode(t.tlid)),
+      ("name", BaseTypes.encodeBlankOr(string, t.name)),
+      ("version", int(t.version)),
+      ("definition", Definition.encode(t.definition)),
     })
   }
   let decode = j => {
     open Json.Decode
     {
-      utTLID: field("tlid", TLID.decode, j),
-      utName: field("name", BaseTypes.decodeBlankOr(string), j),
-      utVersion: field("version", int, j),
-      utDefinition: field("definition", Definition.decode, j),
+      tlid: field("tlid", TLID.decode, j),
+      name: field("name", BaseTypes.decodeBlankOr(string), j),
+      version: field("version", int, j),
+      definition: field("definition", Definition.decode, j),
     }
   }
 }

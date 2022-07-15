@@ -1247,7 +1247,7 @@ let update_ = (msg: msg, m: model): modification => {
     switch TL.get(m, tipetlid) |> Option.andThen(~f=TL.asUserTipe) {
     | Some(tipe) =>
       let replacement = UserTypes.removeField(tipe, field)
-      AddOps(list{SetType(replacement)}, FocusNext(tipe.utTLID, None))
+      AddOps(list{SetType(replacement)}, FocusNext(tipe.tlid, None))
     | None => NoChange
     }
   | ToplevelDelete(tlid) =>
@@ -1832,7 +1832,7 @@ let update_ = (msg: msg, m: model): modification => {
     let tipe = Refactor.generateEmptyUserType()
     Many(list{
       AddOps(list{SetType(tipe)}, FocusNothing),
-      MakeCmd(Url.navigateTo(FocusedType(tipe.utTLID))),
+      MakeCmd(Url.navigateTo(FocusedType(tipe.tlid))),
     })
   | EnablePanning(pan) => ReplaceAllModificationsWithThisOne(Viewport.enablePan(pan))
   | ClipboardCopyEvent(e) =>

@@ -261,8 +261,8 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
       BlankOr.newF(pFn.return_type),
       direction,
     )
-  | TLTipe({utTLID, utName: F(_, name), utVersion, utDefinition: _}) =>
-    tipeView(originalTLID, originalIDs, utTLID, name, utVersion, direction)
+  | TLTipe({tlid, name: F(_, name), version, definition: _}) =>
+    tipeView(originalTLID, originalIDs, tlid, name, version, direction)
   | _ => Vdom.noNode
   }
 

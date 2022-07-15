@@ -176,7 +176,7 @@ and tlidOf = (op: Types.op): TLID.t =>
   | DeleteDBCol(tlid, _) => tlid
   | RenameDBname(tlid, _) => tlid
   | CreateDBWithBlankOr(tlid, _, _, _) => tlid
-  | SetType(ut) => ut.utTLID
+  | SetType(ut) => ut.tlid
   | DeleteType(tlid) => tlid
   }
 
