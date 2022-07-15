@@ -575,8 +575,6 @@ let tipeString = (j): string => map(RT.tipe2str, DType.decodeOld, j)
 
 let dbColList = (j): list<dbColumn> => list(tuple2(blankOr(string), blankOr(tipeString)), j)
 
-let dbmColList = (j): list<dbColumn> => list(tuple2(blankOr(string), blankOr(string)), j)
-
 let db = (pos, j): db => {
   dbTLID: field("tlid", tlid, j),
   dbName: field("name", blankOr(string), j),
