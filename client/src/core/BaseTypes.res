@@ -2,6 +2,8 @@
 
 @ppx.deriving(show({with_path: false}))
 type rec pos = {
+  // The backend uses int (which is 64bit) for this, but it's a hassle to deal with
+  // on the client, and no one should be scrolling 2B pixels anyway.
   x: int,
   y: int,
 }
