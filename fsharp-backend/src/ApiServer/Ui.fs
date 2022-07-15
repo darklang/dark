@@ -153,6 +153,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     if integrationTests && Config.allowTestRoutes then
       do! LibBackend.Canvas.loadAndResaveFromTestFile canvasInfo
 
+    // CLEANUP this results in 2 DB queries, but could be reduced to 1
     let! canAccessOperations =
       Account.usernameForUserID canvasInfo.owner
       |> Task.bind (fun u ->
