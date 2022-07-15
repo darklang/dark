@@ -335,6 +335,7 @@ window.Dark = {
   fullstory: {
     init: function (canvas) {
       const maxAccountAgeToRecordMs =
+        // 2 days =
         48 /* hrs */ * 60 /* min/hr */ * 60 /* sec/min */ * 1000; /* ms/sec */
       const msSinceAccountCreated = new Date() - userCreatedAt;
 
