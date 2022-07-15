@@ -61,7 +61,7 @@ let aFunction = (
   ~params=list{},
   ~name="myFunc",
   (),
-): userFunction => {
+): PT.UserFunction.t => {
   ufTLID: tlid,
   ufMetadata: {
     ufmName: B.newF(name),

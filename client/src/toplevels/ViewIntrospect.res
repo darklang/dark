@@ -21,8 +21,8 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   Html.div(list{Html.class'("fields")}, List.filterMap(~f=colView, cols))
 }
 
-let fnParamsView = (params: list<userFunctionParameter>): Html.html<msg> => {
-  let paramView = p => {
+let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
+  let paramView = (p: PT.UserFunction.Parameter.t) => {
     let name = Html.span(
       list{Html.classList(list{("name", true), ("has-blanks", BlankOr.isBlank(p.ufpName))})},
       list{Html.text(BlankOr.valueWithDefault("no name", p.ufpName))},
@@ -151,7 +151,7 @@ let fnView = (
   originIDs: list<id>,
   tlid: TLID.t,
   name: string,
-  params: list<userFunctionParameter>,
+  params: list<PT.UserFunction.Parameter.t>,
   returnTipe: blankOr<DType.t>,
   direction: string,
 ): Html.html<msg> => {

@@ -70,7 +70,7 @@ let defaultHandler = {
   spec: {space: B.newF("HTTP"), name: B.newF("/src"), modifier: B.newF("POST")},
 }
 
-let aFn = (name, expr): userFunction => {
+let aFn = (name, expr): PT.UserFunction.t => {
   ufTLID: gtlid(),
   ufMetadata: {
     ufmName: F(gid(), name),
@@ -207,7 +207,7 @@ let run = () => {
         pos: {x: 0, y: 0},
       }
 
-      let f = {
+      let f: PT.UserFunction.t = {
         ufTLID: TLID.fromInt(6),
         ufMetadata: {
           ufmName: B.newF("f-1"),
@@ -527,7 +527,7 @@ let run = () => {
         aFn("callsSafeUserfn", fn("callsSafeBuiltin", list{})),
         aFn("callsUnsafeUserfn", fn("callsUnsafeBuiltin", list{})),
       }
-      |> List.map(~f=fn => (fn.ufTLID, fn))
+      |> List.map(~f=(uf: PT.UserFunction.t) => (uf.ufTLID, uf))
       |> TLID.Dict.fromList
 
     test("simple example", () => {

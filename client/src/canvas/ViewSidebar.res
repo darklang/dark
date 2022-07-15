@@ -258,8 +258,8 @@ let f404Category = (m: model): category => {
   }
 }
 
-let userFunctionCategory = (m: model, ufs: list<userFunction>): category => {
-  let fns = ufs |> List.filter(~f=fn => B.isF(fn.ufMetadata.ufmName))
+let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
+  let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => B.isF(fn.ufMetadata.ufmName))
   let entries = List.filterMap(fns, ~f=fn =>
     Option.map(B.toOption(fn.ufMetadata.ufmName), ~f=name => {
       let tlid = fn.ufTLID
@@ -1178,13 +1178,13 @@ let rtCacheKey = m =>
   (
     m.handlers |> Map.mapValues(~f=(h: handler) => (h.pos, TL.sortkey(TLHandler(h)))),
     m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
-    m.userFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
+    m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.ufMetadata.ufmName),
     m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
     m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: handler) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
-    m.deletedUserFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
+    m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.ufMetadata.ufmName),
     m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.staticDeploys,
     m.unlockedDBs,

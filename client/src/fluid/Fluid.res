@@ -1730,7 +1730,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     | _ => recover("impossible", ~debug=expr, list{})
     }
 
-  let chooseSter = (~oldName: string, ~oldExpr: E.t, newAllowed: sendToRail) => {
+  let chooseSter = (~oldName: string, ~oldExpr: E.t, newAllowed: SendToRail.t) => {
     /* decides whether the new function is on the rails. Note that are checking
      * if we should prefer the old setting. */
     let oldSter = switch oldExpr {
@@ -1743,18 +1743,18 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
       |> Functions.find(oldName)
       |> Option.map(~f=fn =>
         if List.member(~value=fn.fnReturnTipe, Runtime.errorRailTypes) {
-          Rail
+          SendToRail.Rail
         } else {
           NoRail
         }
       )
-      |> Option.unwrap(~default=NoRail)
+      |> Option.unwrap(~default=SendToRail.NoRail)
 
-    /* The new function should be on the error rail if it was on the error rail
-     * and the new function allows it, or if it wasn't on the error rail, but
-     * the old function didn't allow it and the new one does */
+    // The new function should be on the error rail if it was on the error rail and
+    // the new function allows it, or if it wasn't on the error rail, but the old
+    // function didn't allow it and the new one does
     if newAllowed == Rail && (oldSter == Rail || oldAllowed == NoRail) {
-      Rail
+      SendToRail.Rail
     } else {
       NoRail
     }
@@ -2083,7 +2083,7 @@ let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> 
   | FACFunction(fn) =>
     let count = List.length(fn.fnParameters)
     let r = if List.member(~value=fn.fnReturnTipe, Runtime.errorRailTypes) {
-      Rail
+      SendToRail.Rail
     } else {
       NoRail
     }
@@ -2096,9 +2096,9 @@ let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> 
       | _ => recover("BinOp doesn't have 2 args", ~debug=args, None)
       }
     } else {
-      /* functions with arguments should place the caret into the first argument
-       * while functions without should place it just after the function name
-       * List::head |_list_ [vs] List::empty| */
+      // functions with arguments should place the caret into the first argument
+      // while functions without should place it just after the function name
+      // List::head |_list_ [vs] List::empty|
       let fID = gid()
       let target =
         args

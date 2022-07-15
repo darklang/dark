@@ -21,7 +21,7 @@ let convertTipe = (tipe: DType.t): DType.t =>
 // Call f on calls to uf across the whole AST
 let transformFnCalls = (
   m: model,
-  uf: userFunction,
+  uf: PT.UserFunction.t,
   f: FluidExpression.t => FluidExpression.t,
 ): list<op> => {
   let transformCallsInAst = (ast: FluidAST.t) => {
@@ -43,7 +43,7 @@ let transformFnCalls = (
     }
   })
 
-  let newFunctions = m.userFunctions |> Map.filterMapValues(~f=uf_ => {
+  let newFunctions = m.userFunctions |> Map.filterMapValues(~f=(uf_: PT.UserFunction.t) => {
     let newAst = uf_.ufAST |> transformCallsInAst
     if newAst != uf_.ufAST {
       Some(SetFunction({...uf_, ufAST: newAst}))
@@ -206,7 +206,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
         |> convertTipe
 
       {
-        ufpName: F(gid(), name_),
+        PT.UserFunction.Parameter.ufpName: F(gid(), name_),
         ufpTipe: F(gid(), tipe),
         ufpBlock_args: list{},
         ufpOptional: false,
@@ -215,7 +215,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
     })
 
     let metadata = {
-      ufmName: F(gid(), name),
+      PT.UserFunction.Metadata.ufmName: F(gid(), name),
       ufmParameters: params,
       ufmDescription: "",
       ufmReturnTipe: F(gid(), TAny),
@@ -223,7 +223,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
     }
 
     let newF = {
-      ufTLID: gtlid(),
+      PT.UserFunction.ufTLID: gtlid(),
       ufMetadata: metadata,
       ufAST: FluidExpression.clone(body) |> FluidAST.ofExpr,
     }
@@ -236,7 +236,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   }
 }
 
-let renameFunction = (m: model, uf: userFunction, newName: string): list<op> => {
+let renameFunction = (m: model, uf: PT.UserFunction.t, newName: string): list<op> => {
   open ProgramTypes.Expr
   let fn = e =>
     switch e {
@@ -354,9 +354,11 @@ let updateUsageCounts = (m: model): model => {
   {...m, usedDBs: usedDBs, usedFns: usedFns, usedTipes: usedTipes}
 }
 
-let removeFunctionParameter = (m: model, uf: userFunction, ufp: userFunctionParameter): list<
-  op,
-> => {
+let removeFunctionParameter = (
+  m: model,
+  uf: PT.UserFunction.t,
+  ufp: PT.UserFunction.Parameter.t,
+): list<op> => {
   open ProgramTypes.Expr
   let indexInList =
     List.findIndex(~f=(_, p) => p == ufp, uf.ufMetadata.ufmParameters)
@@ -373,7 +375,7 @@ let removeFunctionParameter = (m: model, uf: userFunction, ufp: userFunctionPara
   transformFnCalls(m, uf, fn)
 }
 
-let addFunctionParameter = (m: model, f: userFunction, currentBlankId: id): modification => {
+let addFunctionParameter = (m: model, f: PT.UserFunction.t, currentBlankId: id): modification => {
   open ProgramTypes.Expr
   let transformOp = old => {
     let fn = e =>
@@ -391,10 +393,10 @@ let addFunctionParameter = (m: model, f: userFunction, currentBlankId: id): modi
   AddOps(list{SetFunction(replacement), ...newCalls}, FocusNext(f.ufTLID, Some(currentBlankId)))
 }
 
-let generateEmptyFunction = (_: unit): userFunction => {
+let generateEmptyFunction = (_: unit): PT.UserFunction.t => {
   let funcName = generateFnName()
   let tlid = gtlid()
-  let metadata = {
+  let metadata: PT.UserFunction.Metadata.t = {
     ufmName: F(gid(), funcName),
     ufmParameters: list{},
     ufmDescription: "",

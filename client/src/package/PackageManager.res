@@ -1,6 +1,6 @@
 open Prelude
 
-let pmParamsToUserFnParams = (p: packageFnParameter): userFunctionParameter => {
+let pmParamsToUserFnParams = (p: packageFnParameter): PT.UserFunction.Parameter.t => {
   ufpName: BlankOr.newF(p.name),
   ufpTipe: BlankOr.newF(p.tipe),
   ufpBlock_args: list{},

@@ -13,6 +13,7 @@ module T: {
 
   let encode: t => Js.Json.t
   let decode: Js.Json.t => t
+  let generate: unit => t
 }
 
 include module type of {

@@ -115,7 +115,7 @@ let aHandler = (~tlid=defaultTLID, ~expr=defaultExpr, ~space: option<string>=Non
   {ast: FluidAST.ofExpr(expr), spec: spec, hTLID: tlid, pos: {x: 0, y: 0}}
 }
 
-let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): userFunction => {
+let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): PT.UserFunction.t => {
   ufTLID: tlid,
   ufMetadata: {
     ufmName: B.newF("myFunc"),

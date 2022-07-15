@@ -24,10 +24,10 @@ let handlersByName = (hs: TD.t<handler>): Map.String.t<TLID.t> =>
   })
   |> Map.String.fromList
 
-let functionsByName = (fns: TD.t<userFunction>): Map.String.t<TLID.t> =>
+let functionsByName = (fns: TD.t<PT.UserFunction.t>): Map.String.t<TLID.t> =>
   fns
-  |> Map.filterMapValues(~f=fn =>
-    fn.ufMetadata.ufmName |> B.toOption |> Option.map(~f=name => (name, fn.ufTLID))
+  |> Map.filterMapValues(~f=(uf: PT.UserFunction.t) =>
+    uf.ufMetadata.ufmName |> B.toOption |> Option.map(~f=name => (name, uf.ufTLID))
   )
   |> Map.String.fromList
 
@@ -153,12 +153,14 @@ let findUsagesInAST = (
   )
   |> List.map(~f=((usedIn, id)) => {refersTo: tlid, usedIn: usedIn, id: id})
 
-let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: userFunction): list<usage> => {
-  /* Versions are slightly aspirational, and we don't have them in most of
-   * the places we use tipes, including here */
+let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: PT.UserFunction.t): list<
+  usage,
+> => {
+  // Versions are slightly aspirational, and we don't have them in most of
+  // the places we use tipes, including here
   let version = 0
   fn.ufMetadata.ufmParameters
-  |> List.filterMap(~f=p =>
+  |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
     p.ufpTipe
     |> B.toOption
     |> Option.map(~f=Runtime.tipe2str)

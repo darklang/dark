@@ -12,6 +12,7 @@ module T: {
 
   let encode: t => Js.Json.t
   let decode: Js.Json.t => t
+  let generate: unit => t
 }
 
 include module type of {
@@ -46,5 +47,4 @@ module Dict: {
   let fromList: list<(T.t, 'value)> => t<'value>
 
   let decode: (Js.Json.t => 'value, Js.Json.t) => t<'value>
-
 }

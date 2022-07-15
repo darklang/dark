@@ -201,31 +201,8 @@ and handler = {
 
 // dbs
 and functionTypes =
-  | UserFunction(userFunction)
+  | UserFunction(PT.UserFunction.t)
   | PackageFn(packageFn)
-
-// userFunctions
-and userFunctionParameter = {
-  ufpName: blankOr<string>,
-  ufpTipe: blankOr<DType.t>,
-  ufpBlock_args: list<string>,
-  ufpOptional: bool,
-  ufpDescription: string,
-}
-
-and userFunctionMetadata = {
-  ufmName: blankOr<string>,
-  ufmParameters: list<userFunctionParameter>,
-  ufmDescription: string,
-  ufmReturnTipe: blankOr<DType.t>,
-  ufmInfix: bool,
-}
-
-and userFunction = {
-  ufTLID: TLID.t,
-  ufMetadata: userFunctionMetadata,
-  ufAST: fluidAST,
-}
 
 // Package manager Functions
 and packageFnParameter = {
@@ -254,7 +231,7 @@ and toplevel =
   | TLHandler(handler)
   | TLDB(PT.DB.t)
   | TLPmFunc(packageFn)
-  | TLFunc(userFunction)
+  | TLFunc(PT.UserFunction.t)
   | TLTipe(PT.UserType.t)
 
 and packageFns = TLID.Dict.t<packageFn>
@@ -635,7 +612,7 @@ and op =
   | SetDBColType(TLID.t, id, string)
   | DeleteTL(TLID.t)
   | MoveTL(TLID.t, pos)
-  | SetFunction(userFunction)
+  | SetFunction(PT.UserFunction.t)
   | ChangeDBColName(TLID.t, id, string)
   | ChangeDBColType(TLID.t, id, string)
   | UndoTL(TLID.t)
@@ -673,7 +650,7 @@ and executeFunctionAPIParams = {
 
 and deleteToplevelForeverAPIParams = {dtfTLID: TLID.t}
 
-and uploadFnAPIParams = {uplFn: userFunction}
+and uploadFnAPIParams = {uplFn: PT.UserFunction.t}
 
 and triggerHandlerAPIParams = {
   thTLID: TLID.t,
@@ -700,17 +677,17 @@ and performHandlerAnalysisParams = {
   traceID: traceID,
   traceData: traceData,
   dbs: list<PT.DB.t>,
-  userFns: list<userFunction>,
+  userFns: list<PT.UserFunction.t>,
   userTipes: list<PT.UserType.t>,
   secrets: list<SecretTypes.t>,
 }
 
 and performFunctionAnalysisParams = {
-  func: userFunction,
+  func: PT.UserFunction.t,
   traceID: traceID,
   traceData: traceData,
   dbs: list<PT.DB.t>,
-  userFns: list<userFunction>,
+  userFns: list<PT.UserFunction.t>,
   userTipes: list<PT.UserType.t>,
   secrets: list<SecretTypes.t>,
 }
@@ -741,8 +718,8 @@ and addOpAPIResult = {
   deletedHandlers: list<handler>,
   dbs: list<PT.DB.t>,
   deletedDBs: list<PT.DB.t>,
-  userFunctions: list<userFunction>,
-  deletedUserFunctions: list<userFunction>,
+  userFunctions: list<PT.UserFunction.t>,
+  deletedUserFunctions: list<PT.UserFunction.t>,
   userTipes: list<PT.UserType.t>,
   deletedUserTipes: list<PT.UserType.t>,
 }
@@ -783,8 +760,8 @@ and initialLoadAPIResult = {
   deletedHandlers: list<handler>,
   dbs: list<PT.DB.t>,
   deletedDBs: list<PT.DB.t>,
-  userFunctions: list<userFunction>,
-  deletedUserFunctions: list<userFunction>,
+  userFunctions: list<PT.UserFunction.t>,
+  deletedUserFunctions: list<PT.UserFunction.t>,
   unlockedDBs: unlockedDBs,
   staticDeploys: list<staticDeploy>,
   userTipes: list<PT.UserType.t>,
@@ -937,7 +914,7 @@ and functionsType = {
 
 and functionsProps = {
   usedFns: Map.String.t<int>,
-  userFunctions: TLID.Dict.t<userFunction>,
+  userFunctions: TLID.Dict.t<PT.UserFunction.t>,
 }
 
 // ---------------
@@ -1117,7 +1094,7 @@ and modification =
   | SetDeletedToplevels(list<handler>, list<PT.DB.t>)
   | UpdateDeletedToplevels(list<handler>, list<PT.DB.t>)
   | UpdateAnalysis(analysisEnvelope)
-  | SetUserFunctions(list<userFunction>, list<userFunction>, bool)
+  | SetUserFunctions(list<PT.UserFunction.t>, list<PT.UserFunction.t>, bool)
   | SetUnlockedDBs(unlockedDBs)
   | AppendUnlockedDBs(unlockedDBs)
   | Append404s(list<fourOhFour>)
@@ -1168,7 +1145,7 @@ and modification =
   | ExpireAvatars
   | SetClipboardContents(clipboardContents, clipboardEvent)
   | UpdateASTCache(TLID.t, string)
-  | InitASTCache(list<handler>, list<userFunction>)
+  | InitASTCache(list<handler>, list<PT.UserFunction.t>)
   | FluidSetState(fluidState)
   | TLMenuUpdate(TLID.t, menuMsg)
   | SettingsViewUpdate(SettingsViewTypes.settingsMsg)
@@ -1319,7 +1296,7 @@ and msg =
   | @printer(opaque("TimerFire")) TimerFire(timerAction, Tea.Time.t)
   | JSError(string)
   | PageVisibilityChange(PageVisibility.visibility)
-  | DeleteUserFunctionParameter(TLID.t, userFunctionParameter)
+  | DeleteUserFunctionParameter(TLID.t, PT.UserFunction.Parameter.t)
   | AddUserFunctionParameter(TLID.t)
   | UploadFn(TLID.t)
   | DeleteUserTypeField(TLID.t, PT.UserType.RecordField.t)
@@ -1486,7 +1463,7 @@ and fluidToken =
     )
   | TVariable(id, string, option<parentBlockID>)
   // id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail
-  | TFnName(id, string, string, string, ProgramTypes.Expr.sendToRail)
+  | TFnName(id, string, string, string, ProgramTypes.Expr.SendToRail.t)
   // id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3')
   | TFnVersion(id, string, string, string)
   | TLambdaComma(id, int, option<parentBlockID>)
@@ -1675,8 +1652,8 @@ and model = {
   deletedHandlers: TLID.Dict.t<handler>,
   dbs: TLID.Dict.t<PT.DB.t>,
   deletedDBs: TLID.Dict.t<PT.DB.t>,
-  userFunctions: TLID.Dict.t<userFunction>,
-  deletedUserFunctions: TLID.Dict.t<userFunction>,
+  userFunctions: TLID.Dict.t<PT.UserFunction.t>,
+  deletedUserFunctions: TLID.Dict.t<PT.UserFunction.t>,
   userTipes: TLID.Dict.t<PT.UserType.t>,
   deletedUserTipes: TLID.Dict.t<PT.UserType.t>,
   traces: traces,

@@ -17,7 +17,7 @@ type exeFunction =
 let viewUserFnName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
   ViewBlankOr.viewText(~classes, ~enterable=true, FnName, vp, v)
 
-let viewExecuteBtn = (vp: viewProps, fn: userFunction): Html.html<msg> => {
+let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
   let exeStatus = if vp.isExecuting {
     IsExecuting
   } else {

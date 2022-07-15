@@ -7,7 +7,7 @@ let onEvent = ViewUtils.onEvent
 
 type viewProps = ViewUtils.viewProps
 
-let moveParams = (fn: userFunction, oldPos: int, newPos: int): userFunction => {
+let moveParams = (fn: PT.UserFunction.t, oldPos: int, newPos: int): PT.UserFunction.t => {
   let ufmParameters = fn.ufMetadata.ufmParameters |> List.moveInto(~oldPos, ~newPos)
 
   {...fn, ufMetadata: {...fn.ufMetadata, ufmParameters: ufmParameters}}
@@ -32,9 +32,10 @@ let update = (m: model, msg: fnpMsg): modification => {
       }
 
       let justMovedParam =
-        List.getAt(~index=newPos, newFn.ufMetadata.ufmParameters) |> Option.map(~f=p =>
-          B.toID(p.ufpName)
-        )
+        List.getAt(
+          ~index=newPos,
+          newFn.ufMetadata.ufmParameters,
+        ) |> Option.map(~f=(p: PT.UserFunction.Parameter.t) => B.toID(p.ufpName))
 
       let fnM = {
         justMovedParam: justMovedParam,
@@ -63,7 +64,9 @@ let update = (m: model, msg: fnpMsg): modification => {
   }
 }
 
-let viewKillParameterBtn = (uf: userFunction, p: userFunctionParameter): Html.html<msg> => {
+let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.t): Html.html<
+  msg,
+> => {
   let freeVariables = uf.ufAST |> FluidAST.toExpr |> AST.freeVariables |> List.map(~f=Tuple2.second)
 
   let canDeleteParameter = pname => List.member(~value=pname, freeVariables) |> not
@@ -148,9 +151,12 @@ let viewParamSpace = (index: int, fs: fnProps): Html.html<msg> => {
   )
 }
 
-let viewParam = (fn: functionTypes, vp: viewProps, index: int, p: userFunctionParameter): list<
-  Html.html<msg>,
-> => {
+let viewParam = (
+  fn: functionTypes,
+  vp: viewProps,
+  index: int,
+  p: PT.UserFunction.Parameter.t,
+): list<Html.html<msg>> => {
   let nameId = p.ufpName |> B.toID
   let strId = ID.toString(nameId)
   let dragStart = evt => {

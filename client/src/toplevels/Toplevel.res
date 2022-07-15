@@ -74,13 +74,13 @@ let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
   }
 }
 
-let ufToTL = (uf: userFunction): toplevel => TLFunc(uf)
+let ufToTL = (uf: PT.UserFunction.t): toplevel => TLFunc(uf)
 
 let pmfToTL = (pmf: packageFn): toplevel => TLPmFunc(pmf)
 
 let utToTL = (ut: PT.UserType.t): toplevel => TLTipe(ut)
 
-let asUserFunction = (tl: toplevel): option<userFunction> =>
+let asUserFunction = (tl: toplevel): option<PT.UserFunction.t> =>
   switch tl {
   | TLFunc(f) => Some(f)
   | _ => None
@@ -194,7 +194,10 @@ let setAST = (tl: toplevel, newAST: FluidAST.t): toplevel =>
 let withAST = (m: model, tlid: TLID.t, ast: FluidAST.t): model => {
   ...m,
   handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=h => {...h, ast: ast}),
-  userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=uf => {...uf, ufAST: ast}),
+  userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=(uf: PT.UserFunction.t) => {
+    ...uf,
+    ufAST: ast,
+  }),
 }
 
 /* Create the modification to set the AST in this toplevel. `ops` is optional
@@ -258,7 +261,7 @@ let replace = (p: blankOrData, replacement: blankOrData, tl: toplevel): toplevel
 let combine = (
   handlers: TD.t<handler>,
   dbs: TD.t<PT.DB.t>,
-  userFunctions: TD.t<userFunction>,
+  userFunctions: TD.t<PT.UserFunction.t>,
   packageFn: TD.t<packageFn>,
   userTipes: TD.t<PT.UserType.t>,
 ): TD.t<toplevel> =>

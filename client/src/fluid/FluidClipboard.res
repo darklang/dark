@@ -18,7 +18,7 @@ type ast = E.t
 
 let exprToClipboardContents = (expr: FluidExpression.t): Js.Json.t =>
   // The text here comes from the selected text
-  Encoders.fluidExpr(expr)
+  ProgramTypes.Expr.encode(expr)
 
 let jsonToExpr = (jsonStr: string): option<E.t> => {
   open Js.Json
@@ -72,7 +72,7 @@ let clipboardContentsToExpr = ((text, json): clipboardContents): option<E.t> =>
   switch json {
   | Some(json) =>
     try {
-      let expr = Decoders.fluidExpr(json)
+      let expr = ProgramTypes.Expr.decode(json)
       Some(FluidExpression.clone(expr))
     } catch {
     | _ => recover("could not decode", ~debug=json, None)

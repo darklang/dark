@@ -393,7 +393,7 @@ let handlerDisplayName = (h: handler): string => {
   space ++ (name ++ modi)
 }
 
-let fnDisplayName = (f: userFunction): string =>
+let fnDisplayName = (f: PT.UserFunction.t): string =>
   f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default="undefinedFunction")
 
 let foundHandlerOmniAction = (h: handler): omniAction => {
@@ -401,7 +401,7 @@ let foundHandlerOmniAction = (h: handler): omniAction => {
   Goto(FocusedHandler(h.hTLID, None, true), h.hTLID, name, true)
 }
 
-let foundFnOmniAction = (f: userFunction): omniAction => {
+let foundFnOmniAction = (f: PT.UserFunction.t): omniAction => {
   let name = "Found in function " ++ fnDisplayName(f)
   Goto(FocusedFn(f.ufTLID, None), f.ufTLID, name, true)
 }

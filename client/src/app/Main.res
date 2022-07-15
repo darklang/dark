@@ -897,7 +897,10 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         cache |> Map.add(~key=h.hTLID, ~value)
       })
 
-      let searchCache = userFunctions |> List.fold(~initial=hcache, ~f=(cache, f) => {
+      let searchCache = userFunctions |> List.fold(~initial=hcache, ~f=(
+        cache,
+        f: PT.UserFunction.t,
+      ) => {
         let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.ufAST))
 
         cache |> Map.add(~key=f.ufTLID, ~value)
