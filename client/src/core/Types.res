@@ -1090,20 +1090,17 @@ and editorSettings = {
   runTimers: bool,
 }
 
-/* tlidSelectTarget represents a target insID.t *e a TLID for use
+/* tlidSelectTarget represents a target inside a TLID for use
    by the `Select` modification.
 
-   In Fluid, we should probably use STCaret in all cases --
-   knowing the id *of an ast node (via STID) is insufficient
-   to know where to place the caret within that node.
-   In non-fluid, the concept of a caret doesn't really exist;
-   we select nodes at any nesting level as a whole, so STID is
-   sufficient.
+   In Fluid, we should probably use STCaret in all cases -- knowing the id of an ast
+   node (via STID) is insufficient to know where to place the caret within that node.
+   In non-fluid, the concept of a caret doesn't really exist; we select nodes at any
+   nesting level as a whole, so STID is sufficient.
 
-   If we want to select a toplevel as a whole but don't have a
-   specific id *in mind, we use STTopLevelRoot. There's a few
-   places where we do this as a fallback when we expected to find
-   an id but couldn't (they used to use Some(id) with an implicit
+   If we want to select a toplevel as a whole but don't have a specific id *in mind,
+   we use STTopLevelRoot. There's a few places where we do this as a fallback when we
+   expected to find an id but couldn't (they used to use Some(id) with an implicit
    fallback to None). */
 and tlidSelectTarget =
   | STCaret(caretTarget)
@@ -1148,14 +1145,9 @@ and modification =
   | AppendUnlockedDBs(unlockedDBs)
   | Append404s(list<fourOhFour>)
   | Delete404(fourOhFour)
-  | Enter /* Enter a blankOr */(TLID.t, id)
-  | EnterWithOffset(
-      // Entering a blankOr with a desired caret offset
-      TLID.t,
-      id,
-      int,
-    )
-  | OpenOmnibox /* Open the omnibox */(option<pos>)
+  | Enter(TLID.t, id) // Enter a blankOr
+  | EnterWithOffset(TLID.t, id, int) // Entering a blankOr with a desired caret offset
+  | OpenOmnibox(option<pos>) // Open the omnibox
   | UpdateWorkerSchedules(Map.String.t<string>)
   | NoChange
   | @printer(opaque("MakeCmd")) MakeCmd(Tea.Cmd.t<msg>)
