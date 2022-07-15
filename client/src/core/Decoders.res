@@ -704,21 +704,6 @@ let trace = (j): trace =>
 
 let traces = (j): traces => j |> list(tuple2(TLID.decode, list(trace))) |> TLID.Dict.fromList
 
-let userRecordField = j => {
-  urfName: field("name", blankOr(string), j),
-  urfTipe: field("tipe", blankOr(DType.decodeOld), j),
-}
-
-let userTipeDefinition = j =>
-  variants(list{("UTRecord", variant1(x => UTRecord(x), list(userRecordField)))}, j)
-
-let userTipe = j => {
-  utTLID: field("tlid", tlid, j),
-  utName: field("name", blankOr(string), j),
-  utVersion: field("version", int, j),
-  utDefinition: field("definition", userTipeDefinition, j),
-}
-
 let permission = j =>
   variants(list{("Read", variant0(Read)), ("ReadWrite", variant0(ReadWrite))}, j)
 
@@ -754,7 +739,7 @@ let op = (j): op =>
         "CreateDBWithBlankOr",
         variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
       ),
-      ("SetType", variant1(t => SetType(t), userTipe)),
+      ("SetType", variant1(t => SetType(t), PT.UserType.decode)),
       ("DeleteType", variant1(t => DeleteType(t), tlid)),
     },
     j,
@@ -770,8 +755,8 @@ let addOpAPIResult = (j): addOpAPIResult => {
     deletedDBs: List.filterMap(~f=TL.asDB, dtls),
     userFunctions: field("user_functions", list(userFunction), j),
     deletedUserFunctions: field("deleted_user_functions", list(userFunction), j),
-    userTipes: field("user_tipes", list(userTipe), j),
-    deletedUserTipes: field("deleted_user_tipes", list(userTipe), j),
+    userTipes: field("user_tipes", list(PT.UserType.decode), j),
+    deletedUserTipes: field("deleted_user_tipes", list(PT.UserType.decode), j),
   }
 }
 
@@ -832,8 +817,8 @@ let initialLoadAPIResult = (j): initialLoadAPIResult => {
     deletedUserFunctions: field("deleted_user_functions", list(userFunction), j),
     unlockedDBs: j |> field("unlocked_dbs", list(tlid)) |> TLID.Set.fromList,
     staticDeploys: field("assets", list(sDeploy), j),
-    userTipes: field("user_tipes", list(userTipe), j),
-    deletedUserTipes: field("deleted_user_tipes", list(userTipe), j),
+    userTipes: field("user_tipes", list(PT.UserType.decode), j),
+    deletedUserTipes: field("deleted_user_tipes", list(PT.UserType.decode), j),
     opCtrs: j
     |> withDefault(list{}, field("op_ctrs", list(tuple2(string, int))))
     |> Map.String.fromList,

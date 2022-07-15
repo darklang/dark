@@ -247,8 +247,8 @@ let renameFunction = (m: model, uf: userFunction, newName: string): list<op> => 
   transformFnCalls(m, uf, fn)
 }
 
-let renameUserTipe = (m: model, old: userTipe, new_: userTipe): list<op> => {
-  let renameUserTipeInFnParameters = (fn, oldTipe, newTipe) => {
+let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<op> => {
+  let renameUserTipeInFnParameters = (fn, oldTipe: PT.UserType.t, newTipe: PT.UserType.t) => {
     let transformUse = (newName_, oldUse) =>
       switch oldUse {
       | PParamTipe(F(id, TUserType(_, v))) => PParamTipe(F(id, TUserType(newName_, v)))
@@ -409,10 +409,10 @@ let generateEmptyFunction = (_: unit): userFunction => {
   }
 }
 
-let generateEmptyUserType = (): userTipe => {
+let generateEmptyUserType = (): PT.UserType.t => {
   let tipeName = generateTipeName()
   let tlid = gtlid()
-  let definition = UTRecord(list{{urfName: B.new_(), urfTipe: B.new_()}})
+  let definition = PT.UserType.Definition.UTRecord(list{{urfName: B.new_(), urfTipe: B.new_()}})
   {
     utTLID: tlid,
     utName: F(gid(), tipeName),
@@ -421,7 +421,7 @@ let generateEmptyUserType = (): userTipe => {
   }
 }
 
-let generateUserType = (dv: option<dval>): Result.t<userTipe, string> =>
+let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
   switch dv {
   | Some(DObj(dvalmap)) =>
     let userTipeDefinition =
@@ -436,7 +436,7 @@ let generateUserType = (dv: option<dval>): Result.t<userTipe, string> =>
          * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
          * let tipe = v |> coerceType in
          */
-        {urfName: k |> BlankOr.newF, urfTipe: tipe |> BlankOr.newF}
+        {PT.UserType.RecordField.urfName: k |> BlankOr.newF, urfTipe: tipe |> BlankOr.newF}
       })
 
     Ok({

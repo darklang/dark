@@ -78,7 +78,7 @@ let ufToTL = (uf: userFunction): toplevel => TLFunc(uf)
 
 let pmfToTL = (pmf: packageFn): toplevel => TLPmFunc(pmf)
 
-let utToTL = (ut: userTipe): toplevel => TLTipe(ut)
+let utToTL = (ut: PT.UserType.t): toplevel => TLTipe(ut)
 
 let asUserFunction = (tl: toplevel): option<userFunction> =>
   switch tl {
@@ -86,7 +86,7 @@ let asUserFunction = (tl: toplevel): option<userFunction> =>
   | _ => None
   }
 
-let asUserTipe = (tl: toplevel): option<userTipe> =>
+let asUserTipe = (tl: toplevel): option<PT.UserType.t> =>
   switch tl {
   | TLTipe(t) => Some(t)
   | _ => None
@@ -260,7 +260,7 @@ let combine = (
   dbs: TD.t<PT.DB.t>,
   userFunctions: TD.t<userFunction>,
   packageFn: TD.t<packageFn>,
-  userTipes: TD.t<userTipe>,
+  userTipes: TD.t<PT.UserType.t>,
 ): TD.t<toplevel> =>
   Map.map(~f=h => TLHandler(h), handlers)
   |> Map.mergeLeft(Map.map(~f=db => TLDB(db), dbs))

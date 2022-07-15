@@ -7,7 +7,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 type viewProps = ViewUtils.viewProps
 
-let viewTipeName = (vp: viewProps, t: userTipe): Html.html<msg> => {
+let viewTipeName = (vp: viewProps, t: PT.UserType.t): Html.html<msg> => {
   let nameField = ViewBlankOr.viewText(
     ~enterable=true,
     ~classes=list{"ut-name"},
@@ -25,7 +25,7 @@ let viewFieldName = (~classes: list<string>, vp: viewProps, v: blankOr<string>):
 let viewFieldType = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<msg> =>
   ViewBlankOr.viewTipe(~enterable=true, ~classes, TypeFieldTipe, vp, v)
 
-let viewKillFieldBtn = (t: userTipe, field: userRecordField): Html.html<msg> =>
+let viewKillFieldBtn = (t: PT.UserType.t, field: PT.UserType.RecordField.t): Html.html<msg> =>
   Html.div(
     list{
       Html.class'("field-btn allowed"),
@@ -42,9 +42,9 @@ let viewKillFieldBtn = (t: userTipe, field: userRecordField): Html.html<msg> =>
 
 let viewTipeField = (
   vp: viewProps,
-  t: userTipe,
+  t: PT.UserType.t,
   fieldCount: int,
-  field: userRecordField,
+  field: PT.UserType.RecordField.t,
 ): Html.html<msg> => {
   let button = if fieldCount > 1 && vp.permission == Some(ReadWrite) {
     viewKillFieldBtn(t, field)
@@ -61,7 +61,7 @@ let viewTipeField = (
   Html.div(list{Html.class'("field")}, row)
 }
 
-let viewUserTipe = (vp: viewProps, t: userTipe): Html.html<msg> =>
+let viewUserTipe = (vp: viewProps, t: PT.UserType.t): Html.html<msg> =>
   switch t.utDefinition {
   | UTRecord(fields) =>
     let nameDiv = viewTipeName(vp, t)

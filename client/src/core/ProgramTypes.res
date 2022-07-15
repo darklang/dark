@@ -184,3 +184,72 @@ module DB = {
     }
   }
 }
+
+module UserType = {
+  module RecordField = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      urfName: blankOr<string>,
+      urfTipe: blankOr<DType.t>,
+    }
+    let encode = (f: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("name", BaseTypes.encodeBlankOr(string, f.urfName)),
+        ("tipe", BaseTypes.encodeBlankOr(DType.encode, f.urfTipe)),
+      })
+    }
+
+    let decode = j => {
+      open Json.Decode
+      {
+        urfName: field("name", BaseTypes.decodeBlankOr(string), j),
+        urfTipe: field("tipe", BaseTypes.decodeBlankOr(DType.decodeOld), j),
+      }
+    }
+  }
+
+  module Definition = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = UTRecord(list<RecordField.t>)
+
+    let encode = (d: t): Js.Json.t => {
+      open Json_encode_extended
+      let ev = variant
+      switch d {
+      | UTRecord(fields) => ev("UTRecord", list{list(RecordField.encode)(fields)})
+      }
+    }
+
+    let decode = j => {
+      open Json_decode_extended
+      variants(list{("UTRecord", variant1(x => UTRecord(x), list(RecordField.decode)))}, j)
+    }
+  }
+
+  @ppx.deriving(show({with_path: false}))
+  type rec t = {
+    utTLID: TLID.t,
+    utName: blankOr<string>,
+    utVersion: int,
+    utDefinition: Definition.t,
+  }
+  let encode = (t: t): Js.Json.t => {
+    open Json_encode_extended
+    object_(list{
+      ("tlid", TLID.encode(t.utTLID)),
+      ("name", BaseTypes.encodeBlankOr(string, t.utName)),
+      ("version", int(t.utVersion)),
+      ("definition", Definition.encode(t.utDefinition)),
+    })
+  }
+  let decode = j => {
+    open Json.Decode
+    {
+      utTLID: field("tlid", TLID.decode, j),
+      utName: field("name", BaseTypes.decodeBlankOr(string), j),
+      utVersion: field("version", int, j),
+      utDefinition: field("definition", Definition.decode, j),
+    }
+  }
+}

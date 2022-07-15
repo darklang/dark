@@ -36,9 +36,9 @@ let packageFunctionsByName = (fns: TD.t<packageFn>): Map.String.t<TLID.t> =>
   |> Map.mapValues(~f=fn => (fn |> PackageManager.extendedName, fn.pfTLID))
   |> Map.String.fromList
 
-let tipesByName = (uts: TD.t<userTipe>): Map.String.t<TLID.t> =>
+let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
   uts
-  |> Map.mapValues(~f=ut => {
+  |> Map.mapValues(~f=(ut: PT.UserType.t) => {
     let name =
       ut.utName
       |> B.toOption

@@ -289,8 +289,8 @@ let userFunctionCategory = (m: model, ufs: list<userFunction>): category => {
   }
 }
 
-let userTipeCategory = (m: model, tipes: list<userTipe>): category => {
-  let tipes = tipes |> List.filter(~f=t => B.isF(t.utName))
+let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
+  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => B.isF(ut.utName))
   let entries = List.filterMap(tipes, ~f=tipe =>
     Option.map(B.toOption(tipe.utName), ~f=name => {
       let minusButton = if Refactor.usedTipe(m, name) {
@@ -1179,19 +1179,20 @@ let rtCacheKey = m =>
     m.handlers |> Map.mapValues(~f=(h: handler) => (h.pos, TL.sortkey(TLHandler(h)))),
     m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.userFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
-    m.userTipes |> Map.mapValues(~f=t => t.utName),
+    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.utName),
     m.f404s,
     m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: handler) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.deletedUserFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
-    m.deletedUserTipes |> Map.mapValues(~f=t => t.utName),
+    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.utName),
     m.staticDeploys,
     m.unlockedDBs,
     m.usedDBs,
     m.usedFns,
-    m.userTipes |> Map.mapValues(~f=t => t.utName),
-    m.deletedUserTipes |> Map.mapValues(~f=t => t.utName),
+    // CLEANUP do these need to be here twice
+    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.utName),
+    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.utName),
     CursorState.tlidOf(m.cursorState),
     m.environment,
     m.editorSettings,

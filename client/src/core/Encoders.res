@@ -233,7 +233,7 @@ and op = (call: Types.op): Js.Json.t => {
   | RenameDBname(t, name) => ev("RenameDBname", list{tlid(t), string(name)})
   | CreateDBWithBlankOr(t, p, i, name) =>
     ev("CreateDBWithBlankOr", list{tlid(t), pos(p), id(i), string(name)})
-  | SetType(t) => ev("SetType", list{userTipe(t)})
+  | SetType(t) => ev("SetType", list{PT.UserType.encode(t)})
   | DeleteType(t) => ev("DeleteType", list{tlid(t)})
   }
 }
@@ -327,7 +327,7 @@ and performHandlerAnalysisParams = (params: Types.performHandlerAnalysisParams):
     ("trace_data", traceData(params.traceData)),
     ("dbs", list(PT.DB.encode, params.dbs)),
     ("user_fns", list(userFunction, params.userFns)),
-    ("user_tipes", list(userTipe, params.userTipes)),
+    ("user_tipes", list(PT.UserType.encode, params.userTipes)),
     ("secrets", list(secret, params.secrets)),
   })
 
@@ -338,7 +338,7 @@ and performFunctionAnalysisParams = (params: Types.performFunctionAnalysisParams
     ("trace_data", traceData(params.traceData)),
     ("dbs", list(PT.DB.encode, params.dbs)),
     ("user_fns", list(userFunction, params.userFns)),
-    ("user_tipes", list(userTipe, params.userTipes)),
+    ("user_tipes", list(PT.UserType.encode, params.userTipes)),
     ("secrets", list(secret, params.secrets)),
   })
 
@@ -364,27 +364,6 @@ and userFunctionMetadata = (f: Types.userFunctionMetadata): Js.Json.t =>
     ("description", string(f.ufmDescription)),
     ("return_type", blankOr(DType.encode, f.ufmReturnTipe)),
     ("infix", bool(f.ufmInfix)),
-  })
-
-and userTipe = (ut: Types.userTipe): Js.Json.t =>
-  object_(list{
-    ("tlid", tlid(ut.utTLID)),
-    ("name", blankOr(string, ut.utName)),
-    ("version", int(ut.utVersion)),
-    ("definition", userTipeDefinition(ut.utDefinition)),
-  })
-
-and userTipeDefinition = (utd: Types.userTipeDefinition): Js.Json.t => {
-  let ev = variant
-  switch utd {
-  | UTRecord(fields) => ev("UTRecord", list{list(userRecordField)(fields)})
-  }
-}
-
-and userRecordField = (urf: Types.userRecordField): Js.Json.t =>
-  object_(list{
-    ("name", blankOr(string, urf.urfName)),
-    ("tipe", blankOr(DType.encode, urf.urfTipe)),
   })
 
 and userFunctionParameter = (p: Types.userFunctionParameter): Js.Json.t =>

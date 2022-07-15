@@ -227,20 +227,6 @@ and userFunction = {
   ufAST: fluidAST,
 }
 
-and userRecordField = {
-  urfName: blankOr<string>,
-  urfTipe: blankOr<DType.t>,
-}
-
-and userTipeDefinition = UTRecord(list<userRecordField>)
-
-and userTipe = {
-  utTLID: TLID.t,
-  utName: blankOr<string>,
-  utVersion: int,
-  utDefinition: userTipeDefinition,
-}
-
 // Package manager Functions
 and packageFnParameter = {
   name: string,
@@ -269,7 +255,7 @@ and toplevel =
   | TLDB(PT.DB.t)
   | TLPmFunc(packageFn)
   | TLFunc(userFunction)
-  | TLTipe(userTipe)
+  | TLTipe(PT.UserType.t)
 
 and packageFns = TLID.Dict.t<packageFn>
 
@@ -660,7 +646,7 @@ and op =
   | DeleteDBCol(TLID.t, id)
   | RenameDBname(TLID.t, string)
   | CreateDBWithBlankOr(TLID.t, pos, id, string)
-  | SetType(userTipe)
+  | SetType(PT.UserType.t)
   | DeleteType(TLID.t)
 
 // -------------------
@@ -715,7 +701,7 @@ and performHandlerAnalysisParams = {
   traceData: traceData,
   dbs: list<PT.DB.t>,
   userFns: list<userFunction>,
-  userTipes: list<userTipe>,
+  userTipes: list<PT.UserType.t>,
   secrets: list<SecretTypes.t>,
 }
 
@@ -725,7 +711,7 @@ and performFunctionAnalysisParams = {
   traceData: traceData,
   dbs: list<PT.DB.t>,
   userFns: list<userFunction>,
-  userTipes: list<userTipe>,
+  userTipes: list<PT.UserType.t>,
   secrets: list<SecretTypes.t>,
 }
 
@@ -757,8 +743,8 @@ and addOpAPIResult = {
   deletedDBs: list<PT.DB.t>,
   userFunctions: list<userFunction>,
   deletedUserFunctions: list<userFunction>,
-  userTipes: list<userTipe>,
-  deletedUserTipes: list<userTipe>,
+  userTipes: list<PT.UserType.t>,
+  deletedUserTipes: list<PT.UserType.t>,
 }
 
 and addOpAPIResponse = {result: addOpAPIResult}
@@ -801,8 +787,8 @@ and initialLoadAPIResult = {
   deletedUserFunctions: list<userFunction>,
   unlockedDBs: unlockedDBs,
   staticDeploys: list<staticDeploy>,
-  userTipes: list<userTipe>,
-  deletedUserTipes: list<userTipe>,
+  userTipes: list<PT.UserType.t>,
+  deletedUserTipes: list<PT.UserType.t>,
   permission: option<permission>,
   opCtrs: Map.String.t<int>,
   account: account,
@@ -1167,7 +1153,7 @@ and modification =
        * so that the latest model is use. */
       model => modification,
     )
-  | SetTypes(list<userTipe>, list<userTipe>, bool)
+  | SetTypes(list<PT.UserType.t>, list<PT.UserType.t>, bool)
   | SetPermission(option<permission>)
   | CenterCanvasOn(TLID.t)
   | InitIntrospect(list<toplevel>)
@@ -1336,7 +1322,7 @@ and msg =
   | DeleteUserFunctionParameter(TLID.t, userFunctionParameter)
   | AddUserFunctionParameter(TLID.t)
   | UploadFn(TLID.t)
-  | DeleteUserTypeField(TLID.t, userRecordField)
+  | DeleteUserTypeField(TLID.t, PT.UserType.RecordField.t)
   | BlankOrClick(TLID.t, id, mouseEvent)
   | BlankOrDoubleClick(TLID.t, id, mouseEvent)
   | BlankOrMouseEnter(TLID.t, id, mouseEvent)
@@ -1691,8 +1677,8 @@ and model = {
   deletedDBs: TLID.Dict.t<PT.DB.t>,
   userFunctions: TLID.Dict.t<userFunction>,
   deletedUserFunctions: TLID.Dict.t<userFunction>,
-  userTipes: TLID.Dict.t<userTipe>,
-  deletedUserTipes: TLID.Dict.t<userTipe>,
+  userTipes: TLID.Dict.t<PT.UserType.t>,
+  deletedUserTipes: TLID.Dict.t<PT.UserType.t>,
   traces: traces,
   analyses: analyses,
   f404s: list<fourOhFour>,

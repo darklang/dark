@@ -341,7 +341,9 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
       userFunctions: result.userFunctions |> List.filter(~f=uf =>
         List.member(~value=uf.ufTLID, opTlids)
       ),
-      userTipes: result.userTipes |> List.filter(~f=ut => List.member(~value=ut.utTLID, opTlids)),
+      userTipes: result.userTipes |> List.filter(~f=(ut: PT.UserType.t) =>
+        List.member(~value=ut.utTLID, opTlids)
+      ),
     })
 
     (m2, ops, result)
