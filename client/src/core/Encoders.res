@@ -224,6 +224,8 @@ and db = (db: Types.db): Js.Json.t =>
     ("name", blankOr(string, db.dbName)),
     ("cols", colList(db.cols)),
     ("version", int(db.version)),
+    ("old_migrations", list(int, list{})),
+    ("active_migration", null),
   })
 
 and op = (call: Types.op): Js.Json.t => {
