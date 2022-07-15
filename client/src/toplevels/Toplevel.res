@@ -66,7 +66,7 @@ let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
   let newPos = p => {x: p.x + xOffset, y: p.y + yOffset}
   {
     ...m,
-    handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=(h: handler) => {
+    handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=(h: PT.Handler.t) => {
       ...h,
       pos: newPos(h.pos),
     }),
@@ -104,7 +104,7 @@ let isUserTipe = (tl: toplevel): bool =>
   | _ => false
   }
 
-let asHandler = (tl: toplevel): option<handler> =>
+let asHandler = (tl: toplevel): option<PT.Handler.t> =>
   switch tl {
   | TLHandler(h) => Some(h)
   | _ => None
@@ -128,11 +128,11 @@ let isHandler = (tl: toplevel): bool =>
   | _ => false
   }
 
-let handlers = (tls: list<toplevel>): list<handler> => List.filterMap(~f=asHandler, tls)
+let handlers = (tls: list<toplevel>): list<PT.Handler.t> => List.filterMap(~f=asHandler, tls)
 
 let dbs = (tls: TD.t<toplevel>): list<PT.DB.t> => tls |> Map.filterMapValues(~f=asDB)
 
-let spaceOfHandler = (h: handler): handlerSpace => SpecHeaders.spaceOf(h.spec)
+let spaceOfHandler = (h: PT.Handler.t): handlerSpace => SpecHeaders.spaceOf(h.spec)
 
 let spaceOf = (tl: toplevel): option<handlerSpace> =>
   tl |> asHandler |> Option.map(~f=spaceOfHandler)
@@ -193,7 +193,7 @@ let setAST = (tl: toplevel, newAST: FluidAST.t): toplevel =>
 
 let withAST = (m: model, tlid: TLID.t, ast: FluidAST.t): model => {
   ...m,
-  handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=h => {...h, ast: ast}),
+  handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=(h: PT.Handler.t) => {...h, ast: ast}),
   userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=(uf: PT.UserFunction.t) => {
     ...uf,
     ast: ast,
@@ -259,7 +259,7 @@ let replace = (p: blankOrData, replacement: blankOrData, tl: toplevel): toplevel
 }
 
 let combine = (
-  handlers: TD.t<handler>,
+  handlers: TD.t<PT.Handler.t>,
   dbs: TD.t<PT.DB.t>,
   userFunctions: TD.t<PT.UserFunction.t>,
   packageFn: TD.t<packageFn>,

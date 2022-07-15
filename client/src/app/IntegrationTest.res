@@ -48,7 +48,7 @@ let onlyTL = (m: model): option<toplevel> => {
   }
 }
 
-let onlyHandler = (m: model): option<handler> => m |> onlyTL |> Option.andThen(~f=TL.asHandler)
+let onlyHandler = (m: model): option<PT.Handler.t> => m |> onlyTL |> Option.andThen(~f=TL.asHandler)
 
 let onlyDB = (m: model): option<PT.DB.t> => m |> onlyTL |> Option.andThen(~f=TL.asDB)
 
@@ -103,7 +103,8 @@ let no_request_global_in_non_http_space = (m: model): testResult =>
   }
 
 let ellen_hello_world_demo = (m: model): testResult => {
-  let spec = onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=x => x.spec)
+  let spec =
+    onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
   | Some(spec) =>
@@ -116,7 +117,8 @@ let ellen_hello_world_demo = (m: model): testResult => {
 }
 
 let editing_headers = (m: model): testResult => {
-  let spec = onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=x => x.spec)
+  let spec =
+    onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
   | Some(s) =>
@@ -132,7 +134,8 @@ let editing_headers = (m: model): testResult => {
 type rec handler_triple = (blankOr<string>, blankOr<string>, blankOr<string>)
 
 let switching_from_http_space_removes_leading_slash = (m: model): testResult => {
-  let spec = onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=x => x.spec)
+  let spec =
+    onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
   | Some(s) =>
@@ -149,7 +152,8 @@ let switching_from_http_to_cron_space_removes_leading_slash = switching_from_htt
 let switching_from_http_to_repl_space_removes_leading_slash = switching_from_http_space_removes_leading_slash
 
 let switching_from_http_space_removes_variable_colons = (m: model): testResult => {
-  let spec = onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=x => x.spec)
+  let spec =
+    onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
   | Some(s) =>
@@ -162,7 +166,8 @@ let switching_from_http_space_removes_variable_colons = (m: model): testResult =
 }
 
 let switching_to_http_space_adds_slash = (m: model): testResult => {
-  let spec = onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=x => x.spec)
+  let spec =
+    onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
   | Some(s) =>
@@ -175,7 +180,8 @@ let switching_to_http_space_adds_slash = (m: model): testResult => {
 }
 
 let switching_from_default_repl_space_removes_name = (m: model): testResult => {
-  let spec = onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=x => x.spec)
+  let spec =
+    onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
   | Some(s) =>
@@ -235,7 +241,7 @@ let rename_db_type = (m: model): testResult =>
 
 let feature_flag_works = (m: model): testResult => {
   let h = onlyHandler(m)
-  let ast = h |> Option.map(~f=h => h.ast |> FluidAST.toExpr)
+  let ast = h |> Option.map(~f=(h: PT.Handler.t) => h.ast |> FluidAST.toExpr)
   switch ast {
   | Some(ELet(
       _,
@@ -251,7 +257,7 @@ let feature_flag_works = (m: model): testResult => {
     )) =>
     let res =
       h
-      |> Option.map(~f=x => x.hTLID)
+      |> Option.map(~f=(h: PT.Handler.t) => h.hTLID)
       |> Option.andThen(~f=Analysis.getSelectedTraceID(m))
       |> Option.andThen(~f=Analysis.getLiveValue(m, id))
 
@@ -294,7 +300,10 @@ let feature_flag_in_function = (m: model): testResult => {
 }
 
 let rename_function = (m: model): testResult =>
-  switch m.handlers |> Map.values |> List.head |> Option.map(~f=h => h.ast |> FluidAST.toExpr) {
+  switch m.handlers
+  |> Map.values
+  |> List.head
+  |> Option.map(~f=(h: PT.Handler.t) => h.ast |> FluidAST.toExpr) {
   | Some(EFnCall(_, "hello", _, _)) => pass
   | Some(expr) => fail(show_fluidExpr(expr))
   | None => fail("no handlers")

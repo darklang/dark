@@ -41,7 +41,7 @@ let handlerIsExeFail = (vp: viewProps): bool =>
     |> Option.unwrap(~default=false)
   }
 
-let triggerHandlerButton = (vp: viewProps, spec: handlerSpec): Html.html<msg> =>
+let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> =>
   switch (spec.space, spec.name, spec.modifier) {
   /* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. */
@@ -111,7 +111,7 @@ let externalLink = (vp: viewProps, name: string) => {
   "//" ++ (Tea.Http.encodeUri(vp.canvasName) ++ ("." ++ (vp.userContentHost ++ urlPath)))
 }
 
-let viewMenu = (vp: viewProps, spec: handlerSpec): Html.html<msg> => {
+let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> => {
   let tlid = vp.tlid
   let actions = {
     let commonAction: TLMenu.menuItem = {
@@ -154,7 +154,7 @@ let viewMenu = (vp: viewProps, spec: handlerSpec): Html.html<msg> => {
   TLMenu.viewMenu(vp.menuState, tlid, actions)
 }
 
-let viewEventSpec = (vp: viewProps, spec: handlerSpec, dragEvents: domEventList): Html.html<
+let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEventList): Html.html<
   msg,
 > => {
   let viewEventName = viewText(
@@ -216,7 +216,7 @@ let handlerAttrs: list<Vdom.property<msg>> = list{
   Vdom.noProp,
 }
 
-let view = (vp: viewProps, h: handler, dragEvents: domEventList): list<Html.html<msg>> => {
+let view = (vp: viewProps, h: PT.Handler.t, dragEvents: domEventList): list<Html.html<msg>> => {
   let attrs = handlerAttrs
   let ast = Html.div(attrs, FluidView.view(vp, dragEvents))
   let header = viewEventSpec(vp, h.spec, dragEvents)

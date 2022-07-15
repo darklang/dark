@@ -118,7 +118,7 @@ let handlerCategory = (
   action: omniAction,
   iconAction: option<msg>,
   tooltip: tooltipSource,
-  hs: list<handler>,
+  hs: list<PT.Handler.t>,
 ): category => {
   let handlers = hs |> List.filter(~f=h => filter(TLHandler(h)))
   {
@@ -148,7 +148,7 @@ let handlerCategory = (
   }
 }
 
-let httpCategory = (handlers: list<handler>): category =>
+let httpCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(
     TL.isHTTPHandler,
     "HTTP",
@@ -158,7 +158,7 @@ let httpCategory = (handlers: list<handler>): category =>
     handlers,
   )
 
-let cronCategory = (handlers: list<handler>): category =>
+let cronCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(
     TL.isCronHandler,
     "Cron",
@@ -168,10 +168,10 @@ let cronCategory = (handlers: list<handler>): category =>
     handlers,
   )
 
-let replCategory = (handlers: list<handler>): category =>
+let replCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(TL.isReplHandler, "REPL", NewReplHandler(None), None, Repl, handlers)
 
-let workerCategory = (handlers: list<handler>): category => handlerCategory(tl =>
+let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory(tl =>
     TL.isWorkerHandler(tl) ||
     // Show the old workers here for now
     TL.isDeprecatedCustomHandler(tl)
@@ -214,7 +214,7 @@ let f404Category = (m: model): category => {
     let deletedHandlerSpecs =
       m.deletedHandlers
       |> Map.values
-      |> List.map(~f=h => {
+      |> List.map(~f=(h: PT.Handler.t) => {
         let space = B.valueWithDefault("", h.spec.space)
         let name = B.valueWithDefault("", h.spec.name)
         let modifier = B.valueWithDefault("", h.spec.modifier)
@@ -1176,13 +1176,13 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
 
 let rtCacheKey = m =>
   (
-    m.handlers |> Map.mapValues(~f=(h: handler) => (h.pos, TL.sortkey(TLHandler(h)))),
+    m.handlers |> Map.mapValues(~f=(h: PT.Handler.t) => (h.pos, TL.sortkey(TLHandler(h)))),
     m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
     m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
     m.sidebarState,
-    m.deletedHandlers |> Map.mapValues(~f=(h: handler) => TL.sortkey(TLHandler(h))),
+    m.deletedHandlers |> Map.mapValues(~f=(h: PT.Handler.t) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
     m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),

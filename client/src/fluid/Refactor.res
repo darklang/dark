@@ -34,7 +34,7 @@ let transformFnCalls = (
     FluidAST.map(ast, ~f=run)
   }
 
-  let newHandlers = m.handlers |> Map.filterMapValues(~f=h => {
+  let newHandlers = m.handlers |> Map.filterMapValues(~f=(h: PT.Handler.t) => {
     let newAst = h.ast |> transformCallsInAst
     if newAst != h.ast {
       Some(SetHandler(h.hTLID, h.pos, {...h, ast: newAst}))

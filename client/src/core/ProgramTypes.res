@@ -340,6 +340,67 @@ module AST = {
   let decode = j => Root(Expr.decode(j))
 }
 
+module Handler = {
+  module Spec = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      space: blankOr<string>,
+      name: blankOr<string>,
+      modifier: blankOr<string>,
+    }
+
+    let encode = (spec: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("name", BaseTypes.encodeBlankOr(string, spec.name)),
+        ("module", BaseTypes.encodeBlankOr(string, spec.space)),
+        ("modifier", BaseTypes.encodeBlankOr(string, spec.modifier)),
+        (
+          "types",
+          object_(list{
+            ("input", BaseTypes.encodeBlankOr(int, BaseTypes.Blank(ID.generate()))),
+            ("output", BaseTypes.encodeBlankOr(int, BaseTypes.Blank(ID.generate()))),
+          }),
+        ),
+      })
+    }
+    let decode = (j): t => {
+      open Json_decode_extended
+      {
+        space: field("module", BaseTypes.decodeBlankOr(string), j),
+        name: field("name", BaseTypes.decodeBlankOr(string), j),
+        modifier: field("modifier", BaseTypes.decodeBlankOr(string), j),
+      }
+    }
+  }
+
+  @ppx.deriving(show({with_path: false}))
+  type rec t = {
+    ast: AST.t,
+    spec: Spec.t,
+    hTLID: TLID.t,
+    pos: pos,
+  }
+  let encode = (h: t): Js.Json.t => {
+    open Json.Encode
+    object_(list{
+      ("tlid", TLID.encode(h.hTLID)),
+      ("spec", Spec.encode(h.spec)),
+      ("ast", AST.encode(h.ast)),
+    })
+  }
+
+  let decode = (pos, j): t => {
+    open Json.Decode
+    {
+      ast: field("ast", AST.decode, j),
+      spec: field("spec", Spec.decode, j),
+      hTLID: field("tlid", TLID.decode, j),
+      pos: pos,
+    }
+  }
+}
+
 module DB = {
   module Col = {
     @ppx.deriving(show({with_path: false}))

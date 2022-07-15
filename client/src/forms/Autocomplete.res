@@ -373,7 +373,7 @@ let qHTTPHandler = (s: string): omniAction => {
   }
 }
 
-let handlerDisplayName = (h: handler): string => {
+let handlerDisplayName = (h: PT.Handler.t): string => {
   let space =
     h.spec.space |> B.toOption |> Option.map(~f=x => x ++ "::") |> Option.unwrap(~default="")
 
@@ -396,7 +396,7 @@ let handlerDisplayName = (h: handler): string => {
 let fnDisplayName = (f: PT.UserFunction.t): string =>
   f.metadata.name |> B.toOption |> Option.unwrap(~default="undefinedFunction")
 
-let foundHandlerOmniAction = (h: handler): omniAction => {
+let foundHandlerOmniAction = (h: PT.Handler.t): omniAction => {
   let name = "Found in " ++ handlerDisplayName(h)
   Goto(FocusedHandler(h.hTLID, None, true), h.hTLID, name, true)
 }

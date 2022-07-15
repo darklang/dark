@@ -106,12 +106,17 @@ let defaultFullQuery = (~tl=defaultToplevel, ac: AC.t, queryString: string): AC.
   {tl: tl, ti: ti, fieldList: list{}, pipedDval: None, queryString: queryString}
 }
 
-let aHandler = (~tlid=defaultTLID, ~expr=defaultExpr, ~space: option<string>=None, ()): handler => {
+let aHandler = (
+  ~tlid=defaultTLID,
+  ~expr=defaultExpr,
+  ~space: option<string>=None,
+  (),
+): PT.Handler.t => {
   let space = switch space {
   | None => B.new_()
   | Some(name) => B.newF(name)
   }
-  let spec = {space: space, name: B.new_(), modifier: B.new_()}
+  let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
   {ast: FluidAST.ofExpr(expr), spec: spec, hTLID: tlid, pos: {x: 0, y: 0}}
 }
 

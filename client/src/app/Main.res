@@ -891,7 +891,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
 
       ({...m, searchCache: searchCache}, Cmd.none)
     | InitASTCache(handlers, userFunctions) =>
-      let hcache = handlers |> List.fold(~initial=m.searchCache, ~f=(cache, h) => {
+      let hcache = handlers |> List.fold(~initial=m.searchCache, ~f=(cache, h: PT.Handler.t) => {
         let value = FluidPrinter.eToHumanString(FluidAST.toExpr(h.ast))
 
         cache |> Map.add(~key=h.hTLID, ~value)
@@ -1772,7 +1772,7 @@ let update_ = (msg: msg, m: model): modification => {
     let tlid = gtlid()
     let pos = center
     let ast = ProgramTypes.Expr.EBlank(gid())
-    let aHandler = {
+    let aHandler: PT.Handler.t = {
       ast: FluidAST.ofExpr(ast),
       spec: {
         space: B.newF(space),

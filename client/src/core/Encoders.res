@@ -194,27 +194,10 @@ and ops = (ops: list<Types.op>): Js.Json.t =>
     },
   )
 
-and spec = (spec: Types.handlerSpec): Js.Json.t =>
-  object_(list{
-    ("name", blankOr(string, spec.name)),
-    ("module", blankOr(string, spec.space)),
-    ("modifier", blankOr(string, spec.modifier)),
-    (
-      "types",
-      object_(list{
-        ("input", blankOr(int, BlankOr.new_())),
-        ("output", blankOr(int, BlankOr.new_())),
-      }),
-    ),
-  })
-
-and handler = (h: Types.handler): Js.Json.t =>
-  object_(list{("tlid", tlid(h.hTLID)), ("spec", spec(h.spec)), ("ast", PT.AST.encode(h.ast))})
-
 and op = (call: Types.op): Js.Json.t => {
   let ev = variant
   switch call {
-  | SetHandler(t, p, h) => ev("SetHandler", list{tlid(t), pos(p), handler(h)})
+  | SetHandler(t, p, h) => ev("SetHandler", list{tlid(t), pos(p), PT.Handler.encode(h)})
   | CreateDB(t, p, name) => ev("CreateDB", list{tlid(t), pos(p), string(name)})
   | AddDBCol(t, cn, ct) => ev("AddDBCol", list{tlid(t), id(cn), id(ct)})
   | SetDBColName(t, i, name) => ev("SetDBColName", list{tlid(t), id(i), string(name)})
@@ -322,7 +305,7 @@ and secret = (s: SecretTypes.t): Js.Json.t =>
 
 and performHandlerAnalysisParams = (params: Types.performHandlerAnalysisParams): Js.Json.t =>
   object_(list{
-    ("handler", handler(params.handler)),
+    ("handler", PT.Handler.encode(params.handler)),
     ("trace_id", traceID(params.traceID)),
     ("trace_data", traceData(params.traceData)),
     ("dbs", list(PT.DB.encode, params.dbs)),

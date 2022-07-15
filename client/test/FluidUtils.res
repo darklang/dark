@@ -14,7 +14,7 @@ let debugState = s =>
     },
   })
 
-let h = (expr: FluidExpression.t): handler => {
+let h = (expr: FluidExpression.t): PT.Handler.t => {
   ast: FluidAST.ofExpr(expr),
   hTLID: TLID.fromInt(7),
   pos: {x: 0, y: 0},

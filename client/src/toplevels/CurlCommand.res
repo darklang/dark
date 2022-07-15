@@ -68,7 +68,7 @@ let objAsHeaderCurl = (dv: dval): option<string> =>
 let curlFromSpec = (m: model, tlid: TLID.t): option<string> =>
   TL.get(m, tlid)
   |> Option.andThen(~f=TL.asHandler)
-  |> Option.andThen(~f=h => {
+  |> Option.andThen(~f=(h: PT.Handler.t) => {
     let s = h.spec
     switch (s.space, s.name, s.modifier) {
     | (F(_, "HTTP"), F(_, path), F(_, meth)) =>
@@ -118,7 +118,7 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
         let meth =
           TL.get(m, tlid)
           |> Option.andThen(~f=TL.asHandler)
-          |> Option.andThen(~f=h => B.toOption(h.spec.modifier))
+          |> Option.andThen(~f=(h: PT.Handler.t) => B.toOption(h.spec.modifier))
           |> Option.andThen(~f=s => Some("-X " ++ s))
           |> wrapInList
 

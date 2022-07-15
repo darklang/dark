@@ -7,7 +7,7 @@ module B = BlankOr
 let run = () => {
   describe("Introspect", () => {
     let h1tlid = gtlid()
-    let h1data = {
+    let h1data: PT.Handler.t = {
       ast: FluidAST.ofExpr(EBlank(gid())),
       spec: {
         space: B.newF("WORKER"),
@@ -20,7 +20,7 @@ let run = () => {
 
     let h2tlid = gtlid()
     let dbRefID = gid()
-    let h2data = {
+    let h2data: PT.Handler.t = {
       ast: FluidAST.ofExpr(
         EFnCall(gid(), "DB::deleteAll_v1", list{EVariable(dbRefID, "Books")}, NoRail),
       ),

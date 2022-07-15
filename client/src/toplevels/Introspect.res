@@ -14,9 +14,9 @@ let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   )
   |> Map.String.fromList
 
-let handlersByName = (hs: TD.t<handler>): Map.String.t<TLID.t> =>
+let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> =>
   hs
-  |> Map.mapValues(~f=h => {
+  |> Map.mapValues(~f=(h: PT.Handler.t) => {
     let space = h.spec.space |> B.toOption |> Option.unwrap(~default="_")
     let name = h.spec.name |> B.toOption |> Option.unwrap(~default="_")
     let key = keyForHandlerSpec(space, name)

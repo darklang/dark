@@ -45,8 +45,8 @@ let aHandler = (
   ~name: option<string>=None,
   ~modifier: option<string>=None,
   (),
-): handler => {
-  let spec = {
+): PT.Handler.t => {
+  let spec: PT.Handler.Spec.t = {
     space: B.ofOption(space),
     name: B.ofOption(name),
     modifier: B.ofOption(modifier),

@@ -63,7 +63,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
 
 let defaultTLID = TLID.fromInt(7)
 
-let defaultHandler = {
+let defaultHandler: PT.Handler.t = {
   hTLID: defaultTLID,
   pos: {x: 0, y: 0},
   ast: FluidAST.ofExpr(EBlank(gid())),
@@ -196,7 +196,7 @@ let run = () => {
     }
 
     test("datastore renamed, handler updates variable", () => {
-      let h = {
+      let h: PT.Handler.t = {
         ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
         spec: {
           space: B.newF("HTTP"),
@@ -239,7 +239,7 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("datastore renamed, handler does not change", () => {
-      let h = {
+      let h: PT.Handler.t = {
         ast: FluidAST.ofExpr(EVariable(gid(), "request")),
         spec: {
           space: B.newF("HTTP"),
@@ -331,7 +331,7 @@ let run = () => {
   describe("extractVarInAst", () => {
     let modelAndTl = (ast: FluidAST.t) => {
       let hTLID = defaultTLID
-      let tl = {
+      let tl: PT.Handler.t = {
         hTLID: hTLID,
         ast: ast,
         pos: {x: 0, y: 0},

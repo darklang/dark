@@ -21,7 +21,7 @@ let aHandler = (
   | None => B.new_()
   | Some(name) => B.newF(name)
   }
-  let spec = {space: space, name: B.new_(), modifier: B.new_()}
+  let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
   TLHandler({ast: FluidAST.ofExpr(expr), spec: spec, hTLID: tlid, pos: pos})
 }
 

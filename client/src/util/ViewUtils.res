@@ -280,8 +280,8 @@ let inCh = (w: int): string => w |> string_of_int |> (s => s ++ "ch")
 
 let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Html.style("width")
 
-let createHandlerProp = (hs: list<handler>): TD.t<handlerProp> =>
-  hs |> List.map(~f=h => (h.hTLID, Defaults.defaultHandlerProp)) |> TD.fromList
+let createHandlerProp = (hs: list<PT.Handler.t>): TD.t<handlerProp> =>
+  hs |> List.map(~f=(h: PT.Handler.t) => (h.hTLID, Defaults.defaultHandlerProp)) |> TD.fromList
 
 let isHoverOverTL = (vp: viewProps): bool =>
   switch vp.hovering {

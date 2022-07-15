@@ -16,7 +16,7 @@ let eToTestString = Printer.eToTestString
 
 let pToString = Printer.pToString
 
-let h = expr => {
+let h = (expr): PT.Handler.t => {
   ast: FluidAST.ofExpr(expr),
   hTLID: TLID.fromInt(7),
   spec: {

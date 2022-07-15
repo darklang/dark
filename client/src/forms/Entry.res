@@ -263,7 +263,7 @@ let unsupportedBrowser = (): bool =>
 let newHandler = (m, space, name, modifier, pos) => {
   let tlid = gtlid()
   let spaceid = gid()
-  let handler = {
+  let handler: PT.Handler.t = {
     ast: FluidAST.ofExpr(EBlank(gid())),
     spec: {
       space: F(spaceid, space),
@@ -488,7 +488,7 @@ let submitACItem = (
             h.spec.modifier
           }
 
-          let specInfo: handlerSpec = {
+          let specInfo: PT.Handler.Spec.t = {
             space: h.spec.space,
             name: B.newF(f404.path),
             modifier: modifier,

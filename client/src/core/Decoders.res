@@ -448,25 +448,12 @@ let dvalDict = (j: Js.Json.t): dvalDict => strDict(ocamlDval, j)
 let analysisEnvelope = (j: Js.Json.t): (traceID, intermediateResultStore) =>
   tuple2(string, intermediateResultStore)(j)
 
-let handlerSpec = (j): handlerSpec => {
-  space: field("module", blankOr(string), j),
-  name: field("name", blankOr(string), j),
-  modifier: field("modifier", blankOr(string), j),
-}
-
-let handler = (pos, j): handler => {
-  ast: field("ast", PT.AST.decode, j),
-  spec: field("spec", handlerSpec, j),
-  hTLID: field("tlid", tlid, j),
-  pos: pos,
-}
-
 let tipeString = (j): string => map(RT.tipe2str, DType.decodeOld, j)
 
 let toplevel = (j): toplevel => {
   let pos = field("pos", pos, j)
   let variant = variants(list{
-    ("Handler", variant1(x => TLHandler(x), handler(pos))),
+    ("Handler", variant1(x => TLHandler(x), PT.Handler.decode(pos))),
     ("DB", variant1(x => TLDB(x), PT.DB.decode(pos))),
   })
 
@@ -584,7 +571,7 @@ let op = (j): op =>
           (t, p, h) => SetHandler(t, p, {...h, pos: p}),
           tlid,
           pos,
-          handler({x: -1286, y: -467}),
+          PT.Handler.decode({x: -1286, y: -467}),
         ),
       ),
       ("CreateDB", variant3((t, p, name) => CreateDB(t, p, name), tlid, pos, string)),
