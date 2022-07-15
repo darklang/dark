@@ -76,6 +76,7 @@ let prodHashReplacementsString : Lazy<string> =
 let uiHtml
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
+  (canAccessOperations : bool)
   (csrfToken : string)
   (localhostAssets : string option)
   (accountCreated : NodaTime.Instant)
@@ -113,7 +114,7 @@ let uiHtml
   // CLEANUP move functions into an API call, or even to the CDN
   // CLEANUP move the user info into an API call
   t
-    .Replace("{{ALLFUNCTIONS}}", Functions.functions user.admin)
+    .Replace("{{ALLFUNCTIONS}}", Functions.functions canAccessOperations)
     .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
     .Replace("{{USER_USERNAME}}", string user.username)
     .Replace("{{USER_EMAIL}}", user.email)
@@ -152,11 +153,20 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     if integrationTests && Config.allowTestRoutes then
       do! LibBackend.Canvas.loadAndResaveFromTestFile canvasInfo
 
+    // CLEANUP this results in 2 DB queries, but could be reduced to 1
+    let! canAccessOperations =
+      Account.usernameForUserID canvasInfo.owner
+      |> Task.bind (fun u ->
+        match u with
+        | Some u -> Account.canAccessOperations u
+        | None -> Task.FromResult false)
+
     t.next "html-response"
     let result =
       uiHtml
         canvasInfo.id
         canvasInfo.name
+        canAccessOperations
         sessionData.csrfToken
         localhostAssets
         createdAt
