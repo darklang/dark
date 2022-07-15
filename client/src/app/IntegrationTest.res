@@ -40,8 +40,6 @@ let testInt = (~errMsg: string, ~expected: int, ~actual: int): testResult =>
     )
   }
 
-let showToplevels = tls => tls |> Map.values |> show_list(~f=show_toplevel)
-
 let onlyTL = (m: model): option<toplevel> => {
   let tls = TL.structural(m)
   switch Map.values(tls) {
