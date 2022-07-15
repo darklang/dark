@@ -969,7 +969,6 @@ and autocompleteItem =
 and target = (TLID.t, blankOrData)
 
 and autocomplete = {
-  admin: bool,
   completions: list<autocompleteItem>,
   allCompletions: list<autocompleteItem>,
   index: int,
