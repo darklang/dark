@@ -144,21 +144,6 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): dbColumn): 
   )
 }
 
-let viewMigraFuncs = (vp: viewProps, desc: string, varName: string): Html.html<msg> =>
-  Html.div(
-    list{Html.class'("col roll-fn")},
-    list{
-      Html.div(
-        list{Html.class'("fn-title")},
-        list{
-          Html.span(list{}, list{Html.text(desc ++ " : ")}),
-          Html.span(list{Html.class'("varname")}, list{Html.text(varName)}),
-        },
-      ),
-      ...FluidView.view(vp, list{}),
-    },
-  )
-
 let viewDB = (vp: viewProps, db: db, dragEvents: domEventList): list<Html.html<msg>> => {
   let lockClass = if vp.dbLocked {
     "lock"
