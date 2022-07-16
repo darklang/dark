@@ -71,8 +71,10 @@ let rec eToTestcase = (e: E.t): string => {
   | EPartial(_, str, e) => spaced(list{"partial", quoted(str), r(e)})
   | ERightPartial(_, str, e) => spaced(list{"rightPartial", quoted(str), r(e)})
   | ELeftPartial(_, str, e) => spaced(list{"prefixPartial", quoted(str), r(e)})
-  | EFnCall(_, name, exprs, _) => spaced(list{"fn", quoted(name), listed(List.map(~f=r, exprs))})
-  | EBinOp(_, name, lhs, rhs, _) => spaced(list{"binop", quoted(name), r(lhs), r(rhs)})
+  | EFnCall(_, name, exprs, _) =>
+    spaced(list{"fn", quoted(PT.FQFnName.toString(name)), listed(List.map(~f=r, exprs))})
+  | EBinOp(_, name, lhs, rhs, _) =>
+    spaced(list{"binop", quoted(PT.FQFnName.InfixStdlibFnName.toString(name)), r(lhs), r(rhs)})
   | EVariable(_, name) => spaced(list{"var", quoted(name)})
   | EFieldAccess(_, expr, fieldname) => spaced(list{"fieldAccess", r(expr), quoted(fieldname)})
   | EMatch(_, cond, matches) =>
@@ -109,7 +111,7 @@ let rec eToTestcase = (e: E.t): string => {
   | ETuple(_, first, second, theRest) =>
     let exprs = list{first, second, ...theRest}
     spaced(list{"tuple", listed(List.map(~f=r, exprs))})
-  | EPipe(_, e1, e2, rest) => spaced(list{"pipe", r(e1),  r(e2), listed(List.map(~f=r, rest))})
+  | EPipe(_, e1, e2, rest) => spaced(list{"pipe", r(e1), r(e2), listed(List.map(~f=r, rest))})
   | EConstructor(_, name, exprs) =>
     spaced(list{"constructor", quoted(name), listed(List.map(exprs, ~f=r))})
   | EIf(_, cond, thenExpr, elseExpr) => spaced(list{"if'", r(cond), r(thenExpr), r(elseExpr)})

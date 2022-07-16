@@ -27,7 +27,7 @@ let transformFnCalls = (
   let transformCallsInAst = (ast: FluidAST.t) => {
     let rec run = e =>
       switch e {
-      | E.EFnCall(_, name, _, _) if Some(name) == BlankOr.toOption(uf.metadata.name) => f(e)
+      | E.EFnCall(_, User(name), _, _) if Some(name) == BlankOr.toOption(uf.metadata.name) => f(e)
       | other => FluidExpression.deprecatedWalk(~f=run, other)
       }
 
@@ -112,7 +112,7 @@ let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
   )
   |> Option.unwrap(~default=NoChange)
 
-let isRailable = (m: model, name: string) =>
+let isRailable = (m: model, name: PT.FQFnName.t) =>
   m.functions
   |> Functions.find(name)
   |> Option.map(~f=fn => fn.fnReturnTipe == TOption || fn.fnReturnTipe == TResult)
@@ -195,7 +195,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
 
     let paramExprs = List.map(~f=((_, name_)) => E.EVariable(gid(), name_), freeVars)
 
-    let replacement = E.EFnCall(gid(), name, paramExprs, NoRail)
+    let replacement = E.EFnCall(gid(), User(name), paramExprs, NoRail)
     let newAST = FluidAST.replace(~replacement, id, ast)
     let astOp = TL.setASTMod(tl, newAST)
     let params = List.map(freeVars, ~f=((id, name_)) => {
@@ -236,7 +236,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   }
 }
 
-let renameFunction = (m: model, uf: PT.UserFunction.t, newName: string): list<PT.Op.t> => {
+let renameFunction = (m: model, uf: PT.UserFunction.t, newName: PT.FQFnName.t): list<PT.Op.t> => {
   open ProgramTypes.Expr
   let fn = e =>
     switch e {
@@ -322,7 +322,8 @@ let updateUsageCounts = (m: model): model => {
     bigAst
     |> FluidExpression.filterMap(~f=x =>
       switch x {
-      | EFnCall(_, name, _, _) | EBinOp(_, name, _, _, _) => Some(name)
+      | EFnCall(_, name, _, _) => Some(PT.FQFnName.toString(name))
+      | EBinOp(_, name, _, _, _) => Some(PT.FQFnName.InfixStdlibFnName.toString(name))
       | _ => None
       }
     )
@@ -476,9 +477,13 @@ let renameDBReferences = (m: model, oldName: string, newName: string): list<PT.O
     }
   )
 
-let reorderFnCallArgs = (m: model, tlid: TLID.t, fnName: string, oldPos: int, newPos: int): list<
-  modification,
-> =>
+let reorderFnCallArgs = (
+  m: model,
+  tlid: TLID.t,
+  fnName: PT.FQFnName.t,
+  oldPos: int,
+  newPos: int,
+): list<modification> =>
   Introspect.allUsedIn(tlid, m)
   |> List.filterMap(~f=tl =>
     switch TL.getAST(tl) {
@@ -561,7 +566,7 @@ let createAndInsertNewFunction = (
 
     let op = PT.Op.SetFunction(newFn)
     // Update the old ast
-    let replacement = E.EFnCall(partialID, newFnName, list{}, NoRail)
+    let replacement = E.EFnCall(partialID, User(newFnName), list{}, NoRail)
     let newAST = FluidAST.replace(partialID, ast, ~replacement)
     // We need to update both the model and the backend
     let alreadyExists = hasExistingFunctionNamed(m, newFnName)

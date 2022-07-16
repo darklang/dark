@@ -296,6 +296,6 @@ let fnForToken = (functions: Functions.t, token): option<function_> =>
   | TBinOp(_, fnName, _)
   | TFnVersion(_, _, _, fnName)
   | TFnName(_, _, _, fnName, _) =>
-    Functions.find(fnName, functions)
+    Functions.findByStr(fnName, functions)
   | _ => None
   }

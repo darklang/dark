@@ -273,15 +273,36 @@ let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
         ERightPartial(id, newName, expr)
       }
     | EFnCall(id, name, exprs, ster) as e =>
-      let newName = fStr(id, name)
-      if newName == "" {
+      let newName = switch name {
+      | Stdlib({module_, function, version}) =>
+        PT.FQFnName.Stdlib({
+          module_: fStr(id, module_),
+          function: fStr(id, function),
+          version: version,
+        })
+      | User(name) => User(fStr(id, name))
+      | Package({owner, package, module_, function, version}) =>
+        PT.FQFnName.Package({
+          owner: fStr(id, owner),
+          package: fStr(id, package),
+          module_: fStr(id, module_),
+          function: fStr(id, function),
+          version: version,
+        })
+      }
+      if PT.FQFnName.toString(newName) == "" {
         e
       } else {
         EFnCall(id, newName, exprs, ster)
       }
     | EBinOp(id, name, lhs, rhs, ster) as e =>
-      let newName = fStr(id, name)
-      if newName == "" {
+      let newName = switch name {
+      | {module_: None, function} =>
+        ({module_: None, function: fStr(id, function)}: PT.FQFnName.InfixStdlibFnName.t)
+      | {module_: Some(mod), function} => {module_: Some(fStr(id, mod)), function: function}
+      }
+
+      if newName.module_ == None && newName.function == "" {
         e
       } else {
         EBinOp(id, newName, lhs, rhs, ster)

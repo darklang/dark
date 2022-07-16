@@ -106,7 +106,7 @@ let fetch = (context: Types.fetchContext, request: Types.fetchRequest) => {
       Encoders.getTraceDataAPIParams(gdtp),
     )
   | DbStatsFetch(dbsParams) =>
-    let url = urlRoot ++ "/get_db_stats"
+    let url = urlRoot ++ "/v1/get_db_stats"
 
     fetch_(
       ~decoder=Decoders.dbStatsAPIResult,

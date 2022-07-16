@@ -42,7 +42,7 @@ let run = () => {
     test("getArguments of fncall works", () => {
       let arg1 = int(4)
       let arg2 = str("asf")
-      let e = fn("Int::add", list{arg1, arg2})
+      let e = fn(~mod="Int", "add", list{arg1, arg2})
       let ast = FluidAST.ofExpr(e)
       expect(getArguments(E.toID(e), ast)) |> toEqual(list{arg1, arg2})
     })
@@ -59,7 +59,11 @@ let run = () => {
     test("getParamIndex of pipe works", () => {
       let id1 = gid()
       let id2 = gid()
-      let e = pipe(str(~id=id1, "asd"), fn("String::append", list{pipeTarget, EBlank(id2)}), list{})
+      let e = pipe(
+        str(~id=id1, "asd"),
+        fn(~mod="String", "append", list{pipeTarget, EBlank(id2)}),
+        list{},
+      )
 
       let ast = FluidAST.ofExpr(e)
       expect((getParamIndex(id1, ast), getParamIndex(id2, ast))) |> toEqual((
@@ -114,7 +118,7 @@ let run = () => {
       expect(removePartials(expr)) |> toEqual(expr)
     })
     test("No changes when not-partial", () => {
-      let expr = EFnCall(gid(), "+", list{EInteger(gid(), 3L), EInteger(gid(), 9L)}, NoRail)
+      let expr = fn("+", list{EInteger(gid(), 3L), EInteger(gid(), 9L)})
 
       expect(removePartials(expr)) |> toEqual(expr)
     })
@@ -122,24 +126,17 @@ let run = () => {
       let fnid = gid()
       let argid = gid()
       let blank = b()
-      let expr = EFnCall(
-        fnid,
-        "+",
-        list{EInteger(argid, 3L), EPartial(gid(), "abc", blank)},
-        NoRail,
-      )
+      let expr = fn(~id=fnid, "+", list{EInteger(argid, 3L), EPartial(gid(), "abc", blank)})
 
-      expect(removePartials(expr)) |> toEqual(
-        EFnCall(fnid, "+", list{EInteger(argid, 3L), blank}, NoRail),
-      )
+      expect(removePartials(expr)) |> toEqual(fn(~id=fnid, "+", list{EInteger(argid, 3L), blank}))
     })
     test("Updates AST when there's a fn rename partial", () => {
       let fnid = gid()
       let b1 = b()
       let b2 = b()
-      let expr = ERightPartial(gid(), "Int::a", EFnCall(fnid, "Int::add", list{b1, b2}, NoRail))
+      let expr = ERightPartial(gid(), "Int::a", fn(~id=fnid, ~mod="Int", "add", list{b1, b2}))
 
-      expect(removePartials(expr)) |> toEqual(EFnCall(fnid, "Int::add", list{b1, b2}, NoRail))
+      expect(removePartials(expr)) |> toEqual(fn(~id=fnid, ~mod="Int", "add", list{b1, b2}))
     })
     test("Updates AST when there is a left partial", () => {
       let str = EString(gid(), "a string")

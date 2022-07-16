@@ -535,7 +535,7 @@ let run = () => {
         ~space=Some("REPL"),
         ~name=Some("findingDori"),
         ~modifier=Some("_"),
-        ~expr=EFnCall(gid(), "Int::add", list{}, NoRail),
+        ~expr=FluidShortcuts.fn(~mod="Int", "add", list{}),
         (),
       )
 

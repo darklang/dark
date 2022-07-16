@@ -91,14 +91,19 @@ let tabbing_works = (m: model): testResult =>
 
 let autocomplete_highlights_on_partial_match = (m: model): testResult =>
   switch onlyExpr(m) {
-  | Some(EFnCall(_, "Int::add", _, _)) => pass
+  | Some(EFnCall(_, Stdlib({module_: "Int", function: "add", version: 0}), _, _)) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
 let no_request_global_in_non_http_space = (m: model): testResult =>
   // this might change but this is the answer for now.
   switch onlyExpr(m) {
-  | Some(EFnCall(_, "Http::badRequest", _, _)) => pass
+  | Some(EFnCall(
+      _,
+      Stdlib({module_: "HttpClient", function: "badRequest", version: 0}),
+      _,
+      _,
+    )) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
@@ -250,7 +255,12 @@ let feature_flag_works = (m: model): testResult => {
       EFeatureFlag(
         id,
         "myflag",
-        EFnCall(_, "Int::greaterThan", list{EVariable(_, "a"), EInteger(_, 10L)}, _),
+        EFnCall(
+          _,
+          Stdlib({module_: "Int", function: "greaterThan", version: 0}),
+          list{EVariable(_, "a"), EInteger(_, 10L)},
+          _,
+        ),
         EString(_, "\"A\""),
         EString(_, "\"B\""),
       ),
@@ -281,7 +291,7 @@ let feature_flag_in_function = (m: model): testResult => {
     switch f.ast |> FluidAST.toExpr {
     | EFnCall(
         _,
-        "+",
+        Stdlib({module_: "", function: "+", version: 0}),
         list{
           EFeatureFlag(_, "myflag", EBool(_, true), EInteger(_, 5L), EInteger(_, 3L)),
           EInteger(_, 5L),
@@ -304,7 +314,7 @@ let rename_function = (m: model): testResult =>
   |> Map.values
   |> List.head
   |> Option.map(~f=(h: PT.Handler.t) => h.ast |> FluidAST.toExpr) {
-  | Some(EFnCall(_, "hello", _, _)) => pass
+  | Some(EFnCall(_, User("hello"), _, _)) => pass
   | Some(expr) => fail(show_fluidExpr(expr))
   | None => fail("no handlers")
   }
@@ -451,7 +461,7 @@ let create_new_function_from_autocomplete = (m: model): testResult => {
       list{(_, {ast: ufAST, _})},
     ) =>
     switch (FluidAST.toExpr(ast), FluidAST.toExpr(ufAST)) {
-    | (EBlank(_), EFnCall(_, "myFunctionName", list{}, _)) => pass
+    | (EBlank(_), EFnCall(_, User("myFunctionName"), list{}, _)) => pass
     | _ => fail("bad asts")
     }
   | (fns, hs) => fail((fns, hs))
@@ -689,7 +699,7 @@ let fluid_test_copy_request_as_curl = (m: model): testResult => {
     m,
     TLID.fromInt(91390945),
     ID.fromInt(753586717),
-    "HttpClient::post",
+    PT.FQFnName.stdlib("HttpClient", "post", 0),
   )
 
   let expected = "curl -H 'h:3' -d 'some body' -X post 'https://foo.com?q=1'"

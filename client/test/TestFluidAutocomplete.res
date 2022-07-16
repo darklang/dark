@@ -379,11 +379,7 @@ let run = () => {
         let blankid = gid()
         let dbNameBlank = EBlank(blankid)
         let fntlid = gtlid()
-        let fn = aFunction(
-          ~tlid=fntlid,
-          ~expr=EFnCall(gid(), "DB::deleteAll", list{dbNameBlank}, NoRail),
-          (),
-        )
+        let fn = aFunction(~tlid=fntlid, ~expr=fn(~mod="DB", "deleteAll", list{dbNameBlank}), ())
 
         let m = defaultModel(
           ~tlid=fntlid,
@@ -418,7 +414,7 @@ let run = () => {
 
       test("Cannot use DB variable when type of blank isn't TDB", () => {
         let id = gid()
-        let expr = fn("Int::add", list{EBlank(id), b})
+        let expr = fn(~mod="Int", "add", list{EBlank(id), b})
         let m = defaultModel(
           ~analyses=list{(id, DDB("MyDB"))},
           ~dbs=list{aDB(~tlid=TLID.fromInt(23), ())},
@@ -447,7 +443,7 @@ let run = () => {
         let expr = let'(
           "mystr",
           str(~id, "asd"),
-          let'("myint", int(~id=id2, 5), fn("String::append", list{b, b})),
+          let'("myint", int(~id=id2, 5), fn(~mod="String", "append", list{b, b})),
         )
 
         let m = defaultModel(
@@ -468,7 +464,7 @@ let run = () => {
         ))
       })
       test("Method argument filters by fn return type ", () => {
-        let expr = fn("String::append", list{b, b})
+        let expr = fn(~mod="String", "append", list{b, b})
         let m = defaultModel(~handlers=list{aHandler(~expr, ())}, ())
         let (valid, invalid) = filterFor(m, ~pos=15)
         expect((
@@ -477,7 +473,7 @@ let run = () => {
         )) |> toEqual((true, true))
       })
       test("Only Just and Nothing are allowed in Option-blank", () => {
-        let expr = fn("Option::withDefault", list{b})
+        let expr = fn(~mod="Option", "withDefault", list{b})
         let m = defaultModel(~handlers=list{aHandler(~expr, ())}, ())
         let (valid, _invalid) = filterFor(m, ~pos=20)
         expect(valid |> List.filter(~f=isConstructor)) |> toEqual(list{
@@ -486,7 +482,7 @@ let run = () => {
         })
       })
       test("Only Ok and Error are allowed in Result blank", () => {
-        let expr = fn("Result::withDefault", list{b})
+        let expr = fn(~mod="Result", "withDefault", list{b})
         let m = defaultModel(~handlers=list{aHandler(~expr, ())}, ())
         let (valid, _invalid) = filterFor(m, ~pos=20)
         expect(valid |> List.filter(~f=isConstructor)) |> toEqual(list{
@@ -569,7 +565,12 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::query_v4", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(
+        ~mod="DB",
+        "query",
+        ~version=4,
+        list{str("MyDB"), lambda(list{"value"}, blank())},
+      )
 
       let m = defaultModel(
         ~tlid,
@@ -618,7 +619,12 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::queryWithKey_v3", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(
+        ~mod="DB",
+        "queryWithKey",
+        ~version=3,
+        list{str("MyDB"), lambda(list{"value"}, blank())},
+      )
 
       let m = defaultModel(
         ~tlid,
@@ -643,7 +649,12 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::queryOne_v4", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(
+        ~mod="DB",
+        "queryOne",
+        ~version=4,
+        list{str("MyDB"), lambda(list{"value"}, blank())},
+      )
 
       let m = defaultModel(
         ~tlid,
@@ -668,7 +679,12 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::queryOneWithKey_v3", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(
+        ~mod="DB",
+        "queryOneWithKey",
+        ~version=3,
+        list{str("MyDB"), lambda(list{"value"}, blank())},
+      )
 
       let m = defaultModel(
         ~tlid,
@@ -693,7 +709,7 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::queryCount", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(~mod="DB", "queryCount", list{str("MyDB"), lambda(list{"value"}, blank())})
 
       let m = defaultModel(
         ~tlid,

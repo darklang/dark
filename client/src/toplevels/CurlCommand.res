@@ -132,7 +132,7 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
   }
 }
 
-let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): option<string> => {
+let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: PT.FQFnName.t) => {
   let traces =
     Map.get(~key=tlid, m.traces) |> recoverOption(
       ~debug=TLID.toString(tlid),
@@ -143,8 +143,7 @@ let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): opt
     traces
     |> Option.andThen(~f=traces => Analysis.selectedTraceID(m.tlTraceIDs, traces, tlid))
     |> (
-      /* We don't recover here b/c it's very possible we don't have an analysis
-       * yet */
+      // We don't recover here b/c it's very possible we don't have an analysis yet
       tid => {
         switch tid {
         | Some(_) => ()
@@ -184,15 +183,13 @@ let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): opt
     let headers = objAsHeaderCurl(headers) |> Option.unwrap(~default="")
     let body = strAsBodyCurl(body |> Option.unwrap(~default=DNull)) |> Option.unwrap(~default="")
 
-    let meth =
-      name
-      |> Util.Regex.matches(~re=Util.Regex.regex("HttpClient::([^_]*)"))
-      |> Option.map(~f=Js.Re.captures)
-      |> Option.andThen(~f=captures =>
-        Array.getAt(captures, ~index=1) |> Option.andThen(~f=Js.Nullable.toOption)
-      )
-      |> Option.map(~f=meth => "-X " ++ meth)
-      |> recoverOpt(~debug=name, ~default="", "Expected a fn name matching HttpClient::[^_]*")
+    let meth = switch name {
+    | Stdlib({module_: "HttpClient", function, version: _}) => "-X " ++ function
+    | Stdlib(_)
+    | User(_)
+    | Package(_) =>
+      recoverOpt(~debug=name, ~default="", "Expected a HttpClient fn", None)
+    }
 
     let base_url = switch url {
     | DStr(s) => s

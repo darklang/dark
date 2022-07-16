@@ -22,7 +22,12 @@ let run = () => {
     let dbRefID = gid()
     let h2data: PT.Handler.t = {
       ast: FluidAST.ofExpr(
-        EFnCall(gid(), "DB::deleteAll_v1", list{EVariable(dbRefID, "Books")}, NoRail),
+        EFnCall(
+          gid(),
+          Stdlib({module_: "DB", function: "deleteAll", version: 1}),
+          list{EVariable(dbRefID, "Books")},
+          NoRail,
+        ),
       ),
       spec: {
         space: B.newF("HTTP"),

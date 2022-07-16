@@ -6,7 +6,9 @@
  * can't be found - this shouldn't happen in theory but often does
  * in practice; for example, someone might delete a function and
  * then do a local undo. */
-let find: (string, t) => option<Types.function_>
+let find: (ProgramTypes.FQFnName.t, t) => option<Types.function_>
+
+let findByStr: (string, t) => option<Types.function_>
 
 /* For legacy reasons, we stash a global reference to the result of the latest
  * update. This was only to be used by OldExpr, but it snuck in elsewhere. DO

@@ -112,25 +112,32 @@ let run = () => {
       handlers: Handlers.fromList(hs),
     }
 
-    let handlerWithPointer = (fnName, fnRail) => {
+    let handlerWithPointer = (mod, fn, v, fnRail) => {
       let id = ID.fromInt(1231241)
-      let ast = FluidAST.ofExpr(EFnCall(id, fnName, list{}, fnRail))
+      let ast = FluidAST.ofExpr(
+        EFnCall(id, Stdlib({module_: mod, function: fn, version: v}), list{}, fnRail),
+      )
       ({...defaultHandler, ast: ast}, id)
     }
 
-    let init = (fnName, fnRail) => {
-      let (h, pd) = handlerWithPointer(fnName, fnRail)
+    let init = (mod, fn, v, fnRail) => {
+      let (h, pd) = handlerWithPointer(mod, fn, v, fnRail)
       let m = model(list{h})
       (m, h, pd)
     }
 
     test("toggles any fncall off rail", () => {
-      let (m, h, id) = init("Int::notResulty", Rail)
+      let (m, h, id) = init("Int", "notResulty", 0, Rail)
       let mod' = Refactor.takeOffRail(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
         switch FluidAST.toExpr(h.ast) {
-        | EFnCall(_, "Int::notResulty", list{}, NoRail) => true
+        | EFnCall(
+            _,
+            Stdlib({module_: "Int", function: "notResulty", version: _}),
+            list{},
+            NoRail,
+          ) => true
         | _ => false
         }
       | _ => false
@@ -139,7 +146,7 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("toggles any fncall off rail in a thread", () => {
-      let fn = fn(~ster=Rail, "List::getAt_v2", list{pipeTarget, int(5)})
+      let fn = fn(~ster=Rail, ~mod="List", "getAt", ~version=2, list{pipeTarget, int(5)})
       let ast = pipe(emptyList, fn, list{}) |> FluidAST.ofExpr
       let h = {...defaultHandler, ast: ast}
       let m = model(list{h})
@@ -152,7 +159,12 @@ let run = () => {
         | EPipe(
             _,
             EList(_, list{}),
-            EFnCall(_, "List::getAt_v2", list{EPipeTarget(_), EInteger(_, 5L)}, NoRail),
+            EFnCall(
+              _,
+              Stdlib({module_: "List", function: "getAt", version: 2}),
+              list{EPipeTarget(_), EInteger(_, 5L)},
+              NoRail,
+            ),
             list{},
           ) => true
         | _ => false
@@ -163,12 +175,17 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("toggles error-rail-y function onto rail", () => {
-      let (m, h, pd) = init("Result::resulty", NoRail)
+      let (m, h, pd) = init("Result", "resulty", 0, NoRail)
       let mod' = Refactor.putOnRail(m, TLHandler(h), pd)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
         switch FluidAST.toExpr(h.ast) {
-        | EFnCall(_, "Result::resulty", list{}, Rail) => true
+        | EFnCall(
+            _,
+            Stdlib({module_: "Result", function: "resulty", version: 0}),
+            list{},
+            Rail,
+          ) => true
         | _ => false
         }
       | _ => false
@@ -177,7 +194,7 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("does not put non-error-rail-y function onto rail", () => {
-      let (m, h, pd) = init("Int::notResulty", NoRail)
+      let (m, h, pd) = init("Int", "notResulty", 0, NoRail)
       let mod' = Refactor.putOnRail(m, TLHandler(h), pd)
       let res = switch mod' {
       | NoChange => true
@@ -362,7 +379,7 @@ let run = () => {
       ) |> toEqual("let var = 4\nvar")
     })
     test("with expression inside let", () => {
-      let expr = fn("Int::add", list{var("b"), int(4)})
+      let expr = fn(~mod="Int", "add", list{var("b"), int(4)})
       let ast = FluidAST.ofExpr(let'("b", int(5), expr))
       let (m, tl) = modelAndTl(ast)
       expect(
@@ -377,9 +394,9 @@ let run = () => {
         list{fieldAccess(var("request"), "body"), fn("toString", list{var("id")}), b},
       )
 
-      let threadedExpr = fn("Dict::set", list{str("id"), var("id")})
+      let threadedExpr = fn(~mod="Dict", "set", list{str("id"), var("id")})
       let exprInThread = pipe(expr, threadedExpr, list{})
-      let ast = FluidAST.ofExpr(let'("id", fn("Uuid::generate", list{}), exprInThread))
+      let ast = FluidAST.ofExpr(let'("id", fn(~mod="Uuid", "generate", list{}), exprInThread))
 
       let (m, tl) = modelAndTl(ast)
       expect(
@@ -393,32 +410,33 @@ let run = () => {
     ()
   })
   describe("reorderFnCallArgs", () => {
+    let fnFor = (str): PT.FQFnName.t => Stdlib({function: str, module_: "", version: 0})
     let matchExpr = (a, e) =>
       expect(e |> FluidPrinter.eToTestString) |> toEqual(a |> FluidPrinter.eToTestString)
 
     test("simple example", () =>
       fn("myFn", list{int(1), int(2), int(3)})
-      |> AST.reorderFnCallArgs("myFn", 0, 2)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 2)
       |> matchExpr(fn("myFn", list{int(2), int(1), int(3)}))
     )
     test("inside another function's arguments", () =>
       fn("anotherFn", list{int(0), fn("myFn", list{int(1), int(2), int(3)})})
-      |> AST.reorderFnCallArgs("myFn", 0, 2)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 2)
       |> matchExpr(fn("anotherFn", list{int(0), fn("myFn", list{int(2), int(1), int(3)})}))
     )
     test("inside its own arguments", () =>
       fn("myFn", list{int(0), fn("myFn", list{int(1), int(2), int(3)}), int(4)})
-      |> AST.reorderFnCallArgs("myFn", 1, 0)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 1, 0)
       |> matchExpr(fn("myFn", list{fn("myFn", list{int(2), int(1), int(3)}), int(0), int(4)}))
     )
     test("simple pipe first argument not moved", () =>
       pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
-      |> AST.reorderFnCallArgs("myFn", 2, 1)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 2, 1)
       |> matchExpr(pipe(int(1), fn("myFn", list{pipeTarget, int(3), int(2)}), list{}))
     )
     test("simple pipe first argument moved", () =>
       pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
-      |> AST.reorderFnCallArgs("myFn", 0, 3)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 3)
       |> matchExpr(
         pipe(int(1), lambdaWithBinding("x", fn("myFn", list{int(2), int(3), var("x")})), list{}),
       )
@@ -433,7 +451,7 @@ let run = () => {
           fn("other3", list{pipeTarget}),
         },
       )
-      |> AST.reorderFnCallArgs("myFn", 2, 1)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 2, 1)
       |> matchExpr(
         pipe(
           int(1),
@@ -456,7 +474,7 @@ let run = () => {
           fn("other3", list{pipeTarget}),
         },
       )
-      |> AST.reorderFnCallArgs("myFn", 1, 0)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 1, 0)
       |> matchExpr(
         pipe(
           int(1),
@@ -471,8 +489,8 @@ let run = () => {
     )
     test("recurse into piped lambda exprs", () =>
       pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
-      |> AST.reorderFnCallArgs("myFn", 0, 1)
-      |> AST.reorderFnCallArgs("myFn", 0, 1)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 1)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 1)
       |> matchExpr(
         pipe(int(1), lambdaWithBinding("x", fn("myFn", list{var("x"), int(2), int(3)})), list{}),
       )
@@ -483,7 +501,7 @@ let run = () => {
         fn("anotherFn", list{pipeTarget, int(1), fn("myFn", list{int(2), int(3), int(4)})}),
         list{},
       )
-      |> AST.reorderFnCallArgs("myFn", 1, 0)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 1, 0)
       |> matchExpr(
         pipe(
           int(0),
@@ -501,7 +519,7 @@ let run = () => {
         ),
         list{},
       )
-      |> AST.reorderFnCallArgs("myFn", 0, 3)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 3)
       |> matchExpr(
         pipe(
           int(1),
@@ -522,8 +540,8 @@ let run = () => {
   describe("calculateUserUnsafeFunctions", () => {
     let userFunctions =
       list{
-        aFn("callsUnsafeBuiltin", fn("DB::set_v1", list{})),
-        aFn("callsSafeBuiltin", fn("List::getAt_v1", list{})),
+        aFn("callsUnsafeBuiltin", fn(~mod="DB", "set", ~version=1, list{})),
+        aFn("callsSafeBuiltin", fn(~mod="List", "getAt", ~version=1, list{})),
         aFn("callsSafeUserfn", fn("callsSafeBuiltin", list{})),
         aFn("callsUnsafeUserfn", fn("callsUnsafeBuiltin", list{})),
       }
@@ -556,8 +574,6 @@ let run = () => {
       ({...defaultHandler, ast: ast}, id)
     }
 
-    let binOp = (which, lhs, rhs) => EBinOp(gid(), which, lhs, rhs, NoRail)
-
     let init = cond => {
       let (h, pd) = handlerWithPointer(cond)
       let m = model(list{h})
@@ -565,14 +581,14 @@ let run = () => {
     }
 
     test("generic true false arms", () => {
-      let (m, h, id) = init(binOp("<", int(3), int(4)))
+      let (m, h, id) = init(binop("<", int(3), int(4)))
       let mod' = IfToMatch.refactor(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
         switch FluidAST.toExpr(h.ast) {
         | EMatch(
             _,
-            EBinOp(_, "<", _, _, _),
+            EBinOp(_, {module_: None, function: "<"}, _, _, _),
             list{(PBool(_, true), EBool(_, true)), (PBool(_, false), EBool(_, false))},
           ) => true
         | _ => false
@@ -583,14 +599,14 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("fallback true false arms", () => {
-      let (m, h, id) = init(binOp("==", aFnCall, aFnCall))
+      let (m, h, id) = init(binop("==", aFnCall, aFnCall))
       let mod' = IfToMatch.refactor(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
         switch FluidAST.toExpr(h.ast) {
         | EMatch(
             _,
-            EBinOp(_, "==", _, _, _),
+            EBinOp(_, {function: "==", _}, _, _, _),
             list{(PBool(_, true), EBool(_, true)), (PBool(_, false), EBool(_, false))},
           ) => true
         | _ => false
@@ -601,7 +617,7 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("pattern in arm", () => {
-      let (m, h, id) = init(binOp("==", int(3), aFnCall))
+      let (m, h, id) = init(binop("==", int(3), aFnCall))
       let mod' = IfToMatch.refactor(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>

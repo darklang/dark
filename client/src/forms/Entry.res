@@ -556,7 +556,7 @@ let submitACItem = (
             metadata: {...old.metadata, name: F(id, value)},
           }
 
-          let changedNames = Refactor.renameFunction(m, old, value)
+          let changedNames = Refactor.renameFunction(m, old, User(value))
           wrapNew(list{SetFunction(new_), ...changedNames}, newPD)
         }
       | (PFnReturnTipe(_), ACReturnTipe(tipe), _) => replace(PFnReturnTipe(F(id, tipe)))

@@ -430,7 +430,7 @@ let tokensView = (p: props): Html.html<Types.msg> => {
 
 let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> => {
   let returnTipe = (name: string) =>
-    Functions.find(name, p.functions)
+    Functions.findByStr(name, p.functions)
     |> Option.map(~f=fn => fn.fnReturnTipe)
     |> Option.unwrap(~default=DType.TAny)
 

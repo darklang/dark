@@ -1841,21 +1841,21 @@ let run = () => {
     )
     t(
       "renaming a function maintains unaligned params in let scope",
-      partial("Int::", fn("Int::add", list{five, six})),
+      partial("Int::", fn(~mod="Int", "add", list{five, six})),
       ~pos=5,
       inputs(list{InsertText("s"), InsertText("q"), keypress(K.Enter)}),
       "let b = 6\nInt::sqrt ~5",
     )
     t(
       "renaming a function doesn't maintain unaligned params if they're already set to variables",
-      partial("Int::", fn("Int::add", list{var("a"), var("b")})),
+      partial("Int::", fn(~mod="Int", "add", list{var("a"), var("b")})),
       ~pos=5,
       inputs(list{InsertText("s"), InsertText("q"), keypress(K.Enter)}),
       "Int::sqrt ~a",
     )
     t(
       "renaming a function doesn't maintain unaligned params if they're not set (blanks)",
-      partial("Int::", fn("Int::add", list{b, b})),
+      partial("Int::", fn(~mod="Int", "add", list{b, b})),
       ~pos=5,
       inputs(list{InsertText("s"), InsertText("q"), keypress(K.Enter)}),
       "Int::sqrt ~_________",
@@ -1864,7 +1864,12 @@ let run = () => {
       "renaming a function maintains aligned params to correct positions",
       partial(
         "HttpClient::",
-        fn("HttpClient::get_v3", list{EString(gid(), "someurl"), emptyRecord, emptyRecord}),
+        fn(
+          ~mod="HttpClient",
+          "get",
+          ~version=3,
+          list{EString(gid(), "someurl"), emptyRecord, emptyRecord},
+        ),
       ),
       ~pos=12,
       inputs(list{
@@ -1938,7 +1943,7 @@ let run = () => {
     )
     t(
       "backspacing a fn arg's separator goes to the right place",
-      fn("Int::add", list{five, six}),
+      fn(~mod="Int", "add", list{five, six}),
       ~pos=11,
       bs,
       "Int::add 5~ 6",
@@ -1988,26 +1993,26 @@ let run = () => {
     )
     t(
       "reflows work for functions with long strings",
-      fn("HttpClient::post_v4", list{str(string160), b, b, b}),
+      fn(~mod="HttpClient", "post", ~version=4, list{str(string160), b, b, b}),
       render,
       "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________",
     )
     t(
       ~expectsPartial=true,
       "reflows work for partials too ",
-      partial("TEST", fn("HttpClient::post_v4", list{str(string160), b, b, b})),
+      partial("TEST", fn(~mod="HttpClient", "post", ~version=4, list{str(string160), b, b, b})),
       render,
       "~TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________",
     )
     t(
       "reflows happen for functions whose arguments have newlines",
-      fn("HttpClient::post_v4", list{emptyStr, emptyRowRecord, b, b}),
+      fn(~mod="HttpClient", "post", ~version=4, list{emptyStr, emptyRowRecord, b, b}),
       render,
       "~HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________",
     )
     t(
       "reflows don't happen for functions whose only newline is in the last argument",
-      fn("HttpClient::post_v4", list{emptyStr, b, b, emptyRowRecord}),
+      fn(~mod="HttpClient", "post", ~version=4, list{emptyStr, b, b, emptyRowRecord}),
       render,
       "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }",
     )
@@ -2075,7 +2080,7 @@ let run = () => {
     t(
       "backspace after selecting a versioned 0-arg fnCall deletes all",
       ~wrap=/* wrap false because else we delete the wrapper */ false,
-      fn("HttpClient::post_v4", list{}),
+      fn(~mod="HttpClient", "post", ~version=4, list{}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
       "~___",
@@ -2328,7 +2333,7 @@ let run = () => {
     )
     t(
       "changing fn to binops should work",
-      partial("+", fn("Int::add", list{anInt, anInt})),
+      partial("+", fn(~mod="Int", "add", list{anInt, anInt})),
       ~pos=1,
       keys(list{K.Enter}),
       "~12345 + 12345",
@@ -2525,7 +2530,7 @@ let run = () => {
       "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all",
       ~wrap=/* wrap false because else we delete the wrapper */ false,
       ~pos=0,
-      binop("/", fn("HttpClient::post_v4", list{}), int(5)),
+      binop("/", fn(~mod="HttpClient", "post", ~version=4, list{}), int(5)),
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
       "~___",
     )
@@ -3206,8 +3211,8 @@ let run = () => {
         blank(),
         pipe(
           list(list{}),
-          fn("List::append", list{pipeTarget, list(list{int(5)})}),
-          list{fn("List::append", list{pipeTarget, list(list{int(5)})})},
+          fn(~mod="List", "append", list{pipeTarget, list(list{int(5)})}),
+          list{fn(~mod="List", "append", list{pipeTarget, list(list{int(5)})})},
         ),
       ),
     )
@@ -3247,14 +3252,14 @@ let run = () => {
     )
     t(
       "enter at the end of non-final arg, should just go to next line: #1",
-      let'("x", fn("Int::add", list{record(list{("", int(5))}), int(6)}), b),
+      let'("x", fn(~mod="Int", "add", list{record(list{("", int(5))}), int(6)}), b),
       ~pos=60,
       enter,
       "let x = Int::add\n          {\n            *** : 5\n          }\n          ~6\n___",
     )
     t(
       "enter at the end of a non-final arg should just go to next line: #2",
-      fn("Int::add", list{record(list{("", int(5))}), int(6)}),
+      fn(~mod="Int", "add", list{record(list{("", int(5))}), int(6)}),
       ~pos=28,
       enter,
       "Int::add\n  {\n    *** : 5\n  }\n  ~6",
@@ -3599,7 +3604,7 @@ let run = () => {
     t(
       "bsing a blank pipe after a piped 1-arg function deletes all",
       ~wrap=/* wrap false because else we delete the wrapper */ false,
-      pipe(aList5, fn("List::length", list{pipeTarget}), list{b}),
+      pipe(aList5, fn(~mod="List", "length", list{pipeTarget}), list{b}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
       "~___",

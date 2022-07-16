@@ -77,7 +77,9 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
     FluidAST.find(id, ast)
     |> Option.andThen(~f=expr =>
       switch expr {
-      | EFnCall(_, name, _, _) | EBinOp(_, name, _, _, _) => Functions.find(name, vp.functions)
+      | EFnCall(_, name, _, _) => Functions.find(name, vp.functions)
+      | EBinOp(_, name, _, _, _) =>
+        Functions.find(Stdlib(PT.FQFnName.InfixStdlibFnName.toStdlib(name)), vp.functions)
       | _ => None
       }
     )

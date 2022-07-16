@@ -110,12 +110,12 @@ and vPos = {
 module TypeInformation = {
   @ppx.deriving(show)
   type rec t = {
-    fnName: string,
+    fnName: option<PT.FQFnName.t>,
     paramName: string,
     returnType: DType.t,
   }
 
-  let default: t = {fnName: "Unknown", paramName: "Unknown", returnType: TAny}
+  let default: t = {fnName: None, paramName: "Unknown", returnType: TAny}
 }
 
 // ----------------------
@@ -755,7 +755,7 @@ and fnOrigin =
   | Builtin
 
 and function_ = {
-  fnName: string,
+  fnName: PT.FQFnName.t,
   fnParameters: list<parameter>,
   fnDescription: string,
   fnReturnTipe: DType.t,

@@ -42,7 +42,13 @@ let fn_of_packageFn = (pkgFn: packageFn): function_ => {
   }
 
   {
-    fnName: pkgFn |> extendedName,
+    fnName: Package({
+      owner: pkgFn.user,
+      package: pkgFn.package,
+      module_: pkgFn.module_,
+      function: pkgFn.module_,
+      version: pkgFn.version,
+    }),
     fnParameters: pkgFn.parameters |> List.map(~f=paramOfPkgFnParam),
     fnDescription: pkgFn.description,
     fnReturnTipe: pkgFn.return_type,

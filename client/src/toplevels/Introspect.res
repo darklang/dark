@@ -133,20 +133,36 @@ let findUsagesInAST = (
   |> FluidExpression.filterMap(~f=e =>
     switch e {
     | EVariable(id, name) => Map.get(~key=name, datastores) |> Option.map(~f=tlid => (tlid, id))
-    | EFnCall(id, "emit", list{_, EString(_, space_), EString(_, name_)}, _) =>
+    | EFnCall(
+        id,
+        Stdlib({module_: "", function: "emit", version: 0}),
+        list{_, EString(_, space_), EString(_, name_)},
+        _,
+      ) =>
       let name = Util.removeQuotes(name_)
       let space = Util.removeQuotes(space_)
       let key = keyForHandlerSpec(space, name)
       Map.get(~key, handlers) |> Option.map(~f=fnTLID => (fnTLID, id))
-    | EFnCall(id, "emit_v1", list{_, EString(_, name_)}, _) =>
+    | EFnCall(
+        id,
+        Stdlib({module_: "", function: "emit", version: 1}),
+        list{_, EString(_, name_)},
+        _,
+      ) =>
       let name = Util.removeQuotes(name_)
       let space = "WORKER"
       let key = keyForHandlerSpec(space, name)
       Map.get(~key, handlers) |> Option.map(~f=fnTLID => (fnTLID, id))
     | EFnCall(id, name, _, _) =>
       Option.orElse(
-        Map.get(~key=name, functions) |> Option.map(~f=fnTLID => (fnTLID, id)),
-        Map.get(~key=name, packageFunctions) |> Option.map(~f=fnTLID => (fnTLID, id)),
+        Map.get(~key=PT.FQFnName.toString(name), functions) |> Option.map(~f=fnTLID => (
+          fnTLID,
+          id,
+        )),
+        Map.get(~key=PT.FQFnName.toString(name), packageFunctions) |> Option.map(~f=fnTLID => (
+          fnTLID,
+          id,
+        )),
       )
     | _ => None
     }

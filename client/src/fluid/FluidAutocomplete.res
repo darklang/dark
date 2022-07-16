@@ -53,7 +53,7 @@ let focusItem = (i: int): Tea.Cmd.t<msg> =>
 // ----------------------------
 let asName = (aci: item): string =>
   switch aci {
-  | FACFunction(fn) => fn.fnName
+  | FACFunction(fn) => PT.FQFnName.toString(fn.fnName)
   | FACField(name) => name
   | FACVariable(name, _) => name
   | FACLiteral(lit) => lit
@@ -233,7 +233,7 @@ let findExpectedType = (
   |> Option.andThen(~f=AST.getParamIndex(id))
   |> Option.andThen(~f=((name, index)) =>
     functions
-    |> List.find(~f=f => name == f.fnName)
+    |> List.find(~f=f => name == PT.FQFnName.toString(f.fnName))
     |> Option.map(~f=fn => {
       let param = List.getAt(~index, fn.fnParameters)
       let returnType =
@@ -242,7 +242,7 @@ let findExpectedType = (
       let paramName =
         Option.map(param, ~f=p => p.paramName) |> Option.unwrap(~default=default.paramName)
 
-      ({fnName: fn.fnName, returnType: returnType, paramName: paramName}: TypeInformation.t)
+      ({fnName: Some(fn.fnName), returnType: returnType, paramName: paramName}: TypeInformation.t)
     })
   )
   |> Option.unwrap(~default)
@@ -340,15 +340,23 @@ let secretToACItem = (s: SecretTypes.t): fluidAutocompleteItem => {
 }
 
 let lookupIsInQuery = (tl: toplevel, ti) => {
-  let isQueryFn = name =>
-    list{
-      "DB::query_v4",
-      "DB::queryWithKey_v3",
-      "DB::queryOne_v3",
-      "DB::queryOne_v4",
-      "DB::queryOneWithKey_v3",
-      "DB::queryCount",
-    } |> List.any(~f=q => q == name)
+  // CLEANUP: use builtin query attribute in the global function list
+  let isQueryFn = (name: PT.FQFnName.t) =>
+    switch name {
+    | Stdlib({module_: "DB", function, version}) =>
+      switch (function, version) {
+      | ("query", 4)
+      | ("queryWithKey", 3)
+      | ("queryOne", 3)
+      | ("queryOne", 4)
+      | ("queryOneWithKey", 3)
+      | ("queryCount", 0) => true
+      | _ => false
+      }
+    | Stdlib(_) => false
+    | User(_) => false
+    | Package(_) => false
+    }
 
   let ast' = TL.getAST(tl)
   switch ast' {
@@ -678,7 +686,10 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<msg> => {
       list{},
       list{
         Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
-        Html.span(list{Html.class'("fn")}, list{Html.text(fnName)}),
+        Html.span(
+          list{Html.class'("fn")},
+          list{Html.text(fnName->Option.map(~f=PT.FQFnName.toString)->Option.unwrap(~default=""))},
+        ),
         Html.text(" expects "),
         Html.span(list{Html.class'("param")}, list{Html.text(paramName)}),
         Html.text(" to be a "),

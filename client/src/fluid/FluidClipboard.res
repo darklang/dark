@@ -35,7 +35,7 @@ let jsonToExpr = (jsonStr: string): option<E.t> => {
       | None =>
         if Regex.exactly(~re="[0-9]+\\.[0-9]+", str) {
           switch String.split(~on=".", str) {
-          | list{whole, fraction} => EFloat(gid(), ProgramTypes.Positive, whole, fraction)
+          | list{whole, fraction} => EFloat(gid(), PT.Sign.Positive, whole, fraction)
           | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), 0L))
           }
         } else if Regex.exactly(~re="-[0-9]+\\.[0-9]+", str) {

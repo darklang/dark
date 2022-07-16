@@ -27,7 +27,7 @@ let update = (m: model, msg: fnpMsg): modification => {
     |> Option.map(~f=((oldPos, fn)) => {
       let newFn = moveParams(fn, oldPos, newPos)
       let updateArgs = switch fn.metadata.name {
-      | F(_, name) => Refactor.reorderFnCallArgs(m, fn.tlid, name, oldPos, newPos)
+      | F(_, name) => Refactor.reorderFnCallArgs(m, fn.tlid, User(name), oldPos, newPos)
       | Blank(_) => list{}
       }
 

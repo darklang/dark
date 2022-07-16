@@ -83,7 +83,7 @@ let opsParams = (ops: list<PT.Op.t>, opCtr: int, clientOpCtrId: string): addOpAP
 let addOp = (m: model, focus: focus, params: addOpAPIParams): Tea.Cmd.t<msg> =>
   apiCall(
     m,
-    "/add_op",
+    "/v1/add_op",
     ~decoder=Decoders.addOpAPI,
     ~encoder=Encoders.addOpAPIParams,
     ~params,
@@ -93,7 +93,7 @@ let addOp = (m: model, focus: focus, params: addOpAPIParams): Tea.Cmd.t<msg> =>
 let executeFunction = (m: model, params: executeFunctionAPIParams): Tea.Cmd.t<msg> =>
   apiCall(
     m,
-    "/execute_function",
+    "/v1/execute_function",
     ~decoder=Decoders.executeFunctionAPIResult,
     ~encoder=Encoders.executeFunctionAPIParams,
     ~params,
@@ -113,7 +113,7 @@ let uploadFn = (m: model, params: uploadFnAPIParams): Tea.Cmd.t<msg> =>
 let loadPackages = (m: model): Tea.Cmd.t<msg> =>
   apiCallNoParams(
     m,
-    "/packages",
+    "/v1/packages",
     ~decoder=Decoders.loadPackagesAPIResult,
     ~callback=x => LoadPackagesAPICallback(x),
   )
@@ -187,7 +187,7 @@ let insertSecret = (m: model, params: SecretTypes.t): Tea.Cmd.t<msg> =>
 let initialLoad = (m: model, focus: focus): Tea.Cmd.t<msg> =>
   apiCallNoParams(
     m,
-    "/initial_load",
+    "/v1/initial_load",
     ~decoder=Decoders.initialLoadAPIResult,
     ~callback=x => InitialLoadAPICallback(focus, NoChange, x),
   )

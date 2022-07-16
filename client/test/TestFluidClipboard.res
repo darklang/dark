@@ -296,7 +296,7 @@ let run = () => {
     testCopy("copying a bool adds a bool to clipboard", bool(true), (0, 4), "true")
     testCopy(
       "copying a bool adds a bool to clipboard 2",
-      fn("Bool::not", list{bool(true)}),
+      fn(~mod="Bool", "not", list{bool(true)}),
       (10, 14),
       "true",
     )
@@ -308,7 +308,7 @@ let run = () => {
     )
     testCut(
       "cutting a bool adds a bool to clipboard 2",
-      fn("Bool::not", list{bool(true)}),
+      fn(~mod="Bool", "not", list{bool(true)}),
       (10, 14),
       ("Bool::not ~___", "true"),
     )
@@ -325,7 +325,7 @@ let run = () => {
     testCopy("copying a null adds a null to clipboard", null, (0, 4), "null")
     testCopy(
       "copying a null adds a null to clipboard 2",
-      fn("Bool::isNull", list{null}),
+      fn(~mod="Bool", "isNull", list{null}),
       (13, 17),
       "null",
     )
@@ -337,7 +337,7 @@ let run = () => {
     )
     testCut(
       "cutting a null adds a null to clipboard 2",
-      fn("Bool::isNull", list{null}),
+      fn(~mod="Bool", "isNull", list{null}),
       (13, 17),
       ("Bool::isNull ~___", "null"),
     )
@@ -348,7 +348,7 @@ let run = () => {
     testCopy("copying an int adds an int to clipboard", int(1000), (0, 4), "1000")
     testCopy(
       "copying an int adds an int to clipboard 2",
-      fn("Int::sqrt", list{int(1000)}),
+      fn(~mod="Int", "sqrt", list{int(1000)}),
       (10, 14),
       "1000",
     )
@@ -361,7 +361,7 @@ let run = () => {
     )
     testCut(
       "cutting an int adds an int to clipboard and leaves a blank 2",
-      fn("Int::sqrt", list{int(1000)}),
+      fn(~mod="Int", "sqrt", list{int(1000)}),
       (10, 14),
       ("Int::sqrt ~_________", "1000"),
     )
@@ -459,7 +459,7 @@ let run = () => {
     )
     testCopy(
       "copying a string adds a string to clipboard 2",
-      fn("String::reverse", list{str("abcd EFGH ijkl 1234")}),
+      fn(~mod="String", "reverse", list{str("abcd EFGH ijkl 1234")}),
       (16, 37),
       "\"abcd EFGH ijkl 1234\"",
     )
@@ -477,7 +477,7 @@ let run = () => {
     )
     testCut(
       "cutting a string adds a string to clipboard 2",
-      fn("String::reverse", list{str("abcd EFGH ijkl 1234")}),
+      fn(~mod="String", "reverse", list{str("abcd EFGH ijkl 1234")}),
       (16, 37),
       ("String::reverse ~___", "\"abcd EFGH ijkl 1234\""),
     )
@@ -574,7 +574,7 @@ let run = () => {
     )
     testCopy(
       "copying a float adds a float to clipboard 2",
-      fn("Float::round", list{float'(Positive, 1234, 5678)}),
+      fn(~mod="Float", "round", list{float'(Positive, 1234, 5678)}),
       (13, 22),
       "1234.5678",
     )
@@ -616,7 +616,7 @@ let run = () => {
     )
     testCut(
       "cutting a float adds a float to clipboard 2",
-      fn("Float::round", list{float'(Positive, 1234, 5678)}),
+      fn(~mod="Float", "round", list{float'(Positive, 1234, 5678)}),
       (13, 22),
       ("Float::round ~___", "1234.5678"),
     )
@@ -958,43 +958,43 @@ let run = () => {
   describe("Functions", () => {
     testCopy(
       "copying a function name adds a fn w blank arguments to clipboard",
-      fn("Int::sqrt", list{int(122)}),
+      fn(~mod="Int", "sqrt", list{int(122)}),
       (0, 9),
       "Int::sqrt _________",
     )
     testCopy(
       "copying a function name with a version adds a fn, not a partial",
-      fn("HttpClient::post_v4", list{str("")}),
+      fn(~mod="HttpClient", "post", ~version=4, list{str("")}),
       (0, 18),
       "HttpClient::postv4 ______________",
     )
     testCopy(
       "copying part of a function name adds a partial fn w blank arguments to clipboard",
-      fn("Int::sqrt", list{int(122)}),
+      fn(~mod="Int", "sqrt", list{int(122)}),
       (0, 4),
       "Int:@sqr@ _________",
     )
     testCopy(
       "copying a function's argument adds the argument's expression to clipboard",
-      fn("Int::sqrt", list{int(122)}),
+      fn(~mod="Int", "sqrt", list{int(122)}),
       (10, 13),
       "122",
     )
     testCut(
       "cutting a function name adds a fn w blank arguments to clipboard and leaves a blank",
-      fn("Int::sqrt", list{int(122)}),
+      fn(~mod="Int", "sqrt", list{int(122)}),
       (0, 9),
       ("~___", "Int::sqrt _________"),
     )
     testCut(
       "cutting part of a fn name adds a partial fn w blank arguments to clipboard and leaves a partial",
-      fn("Int::sqrt", list{int(122)}),
+      fn(~mod="Int", "sqrt", list{int(122)}),
       (0, 4),
       ("~:sqrt@qr@ 122", "Int:@sqr@ _________"),
     )
     testCut(
       "cutting a function's argument adds the argument's expression to clipboard and leaves a blank there",
-      fn("Int::sqrt", list{int(122)}),
+      fn(~mod="Int", "sqrt", list{int(122)}),
       (10, 13),
       ("Int::sqrt ~_________", "122"),
     )
@@ -1005,8 +1005,8 @@ let run = () => {
       "copying first expression of pipe adds it to clipboard",
       pipe(
         list(list{}),
-        fn("List::append", list{pipeTarget, list(list{int(5)})}),
-        list{fn("List::append", list{pipeTarget, list(list{int(6)})})},
+        fn(~mod="List", "append", list{pipeTarget, list(list{int(5)})}),
+        list{fn(~mod="List", "append", list{pipeTarget, list(list{int(6)})})},
       ),
       (0, 2),
       "[]",
@@ -1015,8 +1015,8 @@ let run = () => {
       "copying pipe adds it to clipboard",
       pipe(
         list(list{}),
-        fn("List::append", list{pipeTarget, list(list{int(5)})}),
-        list{fn("List::append", list{pipeTarget, list(list{int(6)})})},
+        fn(~mod="List", "append", list{pipeTarget, list(list{int(5)})}),
+        list{fn(~mod="List", "append", list{pipeTarget, list(list{int(6)})})},
       ),
       (0, 41),
       "[]\n|>List::append [5]\n|>List::append [6]\n",
@@ -1025,14 +1025,14 @@ let run = () => {
       "pasting a function with a pipe target outside of a pipe strips the pipe target",
       blank(),
       (0, 0),
-      fn("List::append", list{pipeTarget, list(list{int(5)})}),
+      fn(~mod="List", "append", list{pipeTarget, list(list{int(5)})}),
       "List::append ___________ [5]~",
     )
     testPasteExpr(
       "pasting a function into a pipe adds a pipe target",
       pipe(blank(), blank(), list{}),
       (6, 6),
-      fn("Int::add", list{int(4), int(5)}),
+      fn(~mod="Int", "add", list{int(4), int(5)}),
       "___\n|>Int::add 5~\n",
     )
     testPasteExpr(
@@ -1060,21 +1060,21 @@ let run = () => {
       "pasting a function with a pipe target into the head of a pipe strips the pipe target",
       pipe(blank(), blank(), list{}),
       (0, 0),
-      fn("List::append", list{pipeTarget, list(list{int(5)})}),
+      fn(~mod="List", "append", list{pipeTarget, list(list{int(5)})}),
       "List::append ___________ [5]~\n|>___\n",
     )
     testPasteExpr(
       "pasting a partial with a pipe target outside of a pipe strips the pipe target",
       blank(),
       (0, 0),
-      partial("test", fn("List::append", list{pipeTarget, list(list{int(5)})})),
+      partial("test", fn(~mod="List", "append", list{pipeTarget, list(list{int(5)})})),
       "test~@:appen@ ___________ [5]",
     )
     testPasteExpr(
       "pasting a partial into a pipe adds a pipe target",
       pipe(blank(), blank(), list{}),
       (6, 6),
-      partial("test", fn("Int::add", list{int(4), int(5)})),
+      partial("test", fn(~mod="Int", "add", list{int(4), int(5)})),
       "___\n|>test~@ad@ 5\n",
     )
     ()
@@ -1383,12 +1383,12 @@ let run = () => {
     roundtrip(str("[1 , 5]"))
     roundtrip(str("12345678987654321.12345678987654321"))
     roundtrip(pipe(str("a"), binop("++", pipeTarget, str("b")), list{}))
-    roundtrip(pipe(str("a"), fn("String::append", list{pipeTarget, str("b")}), list{}))
+    roundtrip(pipe(str("a"), fn(~mod="String", "append", list{pipeTarget, str("b")}), list{}))
     roundtrip(aPipe)
     roundtrip(binop("+", if'(int(5), int(5), int(5)), int(5)))
     roundtrip(partial("D", constructor("d", list{fn("k", list{})})))
     roundtrip(partial("D", fn("X", list{str("F")})))
-    roundtrip(fn("HttpClient::post_v4", list{str("")}))
+    roundtrip(fn(~mod="HttpClient", "post", ~version=4, list{str("")}))
     roundtrip(longString)
     roundtrip(let'("myVariable", longString, b))
     roundtrip(record(list{("a", record(list{("b", str("c"))}))}))

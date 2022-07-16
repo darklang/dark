@@ -2,6 +2,7 @@ open Tester
 open Prelude
 open FluidTestData
 open ProgramTypes.Expr
+open FluidShortcuts
 
 let makeTL = ast => TLHandler({
   ast: ast,
@@ -46,7 +47,7 @@ let run = () =>
     )
     test("no copy as curl for normal function", () => expectNoCmd("copy-request-as-curl", aFnCall))
     test("has copy as curl for Http function", () => {
-      let expr = EFnCall(gid(), "HttpClient::get", list{aStr, emptyRecord, emptyRecord}, Rail)
+      let expr = fn(~mod="HttpClient", "get", list{aStr, emptyRecord, emptyRecord})
 
       expectCmd("copy-request-as-curl", expr)
     })

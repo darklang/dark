@@ -129,19 +129,18 @@ let commands: list<command> = {
     {
       commandName: "copy-request-as-curl",
       action: (m, tl, id) => {
-        let name =
+        let tlid = Toplevel.id(tl)
+        let data =
           TL.getAST(tl)
           |> Option.andThen(~f=FluidAST.find(id))
           |> Option.andThen(~f=x =>
             switch x {
-            | EFnCall(_, fluidName, _, _) => Some(fluidName)
+            | EFnCall(_, name, _, _) => Some(name)
             | _ => None
             }
           )
-          |> Option.unwrap(~default="")
+          |> Option.andThen(~f=name => CurlCommand.curlFromHttpClientCall(m, tlid, id, name))
 
-        let tlid = Toplevel.id(tl)
-        let data = CurlCommand.curlFromHttpClientCall(m, tlid, id, name)
         let toastMessage = switch data {
         | Some(data) =>
           Native.Clipboard.copyToClipboard(data)
@@ -156,10 +155,9 @@ let commands: list<command> = {
         )
       },
       shouldShow: (_, _, e) => {
-        let re = Util.Regex.regex("HttpClient::(delete|get|head|options|patch|post|put)")
-
         switch e {
-        | EFnCall(_, name, _, _) => Util.Regex.contains(~re, name)
+        | EFnCall(_, Stdlib({module_: "HttpClient", function: f, _}), _, _) =>
+          List.member(~value=f, list{"delete", "get", "head", "options", "patch", "post", "put"})
         | _ => false
         }
       },

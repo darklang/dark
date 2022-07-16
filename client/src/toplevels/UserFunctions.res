@@ -48,7 +48,7 @@ let ufmToF = (ufm: PT.UserFunction.Metadata.t): option<function_> => {
   switch (ufm.name, ufm.returnType, sameLength) {
   | (F(_, name), F(_, tipe), true) =>
     {
-      fnName: name,
+      fnName: User(name),
       fnParameters: ps,
       fnDescription: ufm.description,
       fnReturnTipe: tipe,

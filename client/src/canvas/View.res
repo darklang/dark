@@ -136,9 +136,9 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           |> Option.andThen(~f=ast => FluidAST.find(id, ast))
           |> Option.andThen(~f=x =>
             switch x {
-            | EFnCall(_, name, _, sendToRail)
+            | EFnCall(_, name, _, sendToRail) => Some(name, sendToRail)
             | EBinOp(_, name, _, _, sendToRail) =>
-              Some(name, sendToRail)
+              Some(Stdlib(PT.FQFnName.InfixStdlibFnName.toStdlib(name)), sendToRail)
             | _ => None
             }
           )
@@ -167,7 +167,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           |> Option.andThen(~f=AST.getParamIndex(id))
           |> Option.andThen(~f=((name, index)) =>
             m.functions
-            |> Functions.find(name)
+            |> Functions.findByStr(name)
             |> Option.map(~f=f => {
               let param = f.fnParameters |> List.getAt(~index)
               (param, f.fnDescription)

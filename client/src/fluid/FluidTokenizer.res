@@ -54,7 +54,7 @@ module Builder = {
 
   let listLimit = 60
 
-  /** # of items in a tuple before we should wrap*/
+  /* * # of items in a tuple before we should wrap */
   let tupleLimit = 60
 
   let add = (token: fluidToken, b: t): t => {
@@ -190,7 +190,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       | (EBlank(id), Some(fnID, fnname, pos)) =>
         let name =
           Functions.global()
-          |> Functions.find(fnname)
+          |> Functions.findByStr(fnname)
           |> Option.andThen(~f=fn => List.getAt(~index=pos, fn.fnParameters))
           |> Option.map(~f=p => {name: p.paramName, tipe: tipe2str(p.paramTipe)})
 
@@ -340,6 +340,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TNewline(Some(E.toID(else'), id, None)))
     |> nest(~indent=2, else')
   | EBinOp(id, op, lexpr, rexpr, _ster) =>
+    let op = PT.FQFnName.InfixStdlibFnName.toString(op)
     let start = b =>
       switch lexpr {
       | EPipeTarget(_) => b
@@ -354,6 +355,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addMany(list{TBinOp(id, op, parentID), TSep(id, parentID)})
     |> nest(~indent=0, ~placeholderFor=Some(id, op, 1), rexpr)
   | EPartial(id, newName, EBinOp(_, oldName, lexpr, rexpr, _ster)) =>
+    let oldName = PT.FQFnName.InfixStdlibFnName.toString(oldName)
     let ghost = ghostPartial(id, newName, FluidUtil.ghostPartialName(oldName))
 
     let start = b =>
@@ -372,20 +374,22 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TSep(id, parentID))
     |> nest(~indent=2, ~placeholderFor=Some(id, oldName, 1), rexpr)
   | EFnCall(id, fnName, args, ster) =>
-    let displayName = FluidUtil.fnDisplayName(fnName)
-    let versionDisplayName = FluidUtil.versionDisplayName(fnName)
-    let partialName = FluidUtil.fnDisplayNameWithVersion(fnName)
+    let fnNameStr = PT.FQFnName.toString(fnName)
+    let displayName = FluidUtil.fnDisplayName(fnNameStr)
+    let versionDisplayName = FluidUtil.versionDisplayName(fnNameStr)
+    let partialName = FluidUtil.fnDisplayNameWithVersion(fnNameStr)
     let versionToken = if versionDisplayName == "" {
       list{}
     } else {
-      list{TFnVersion(id, partialName, versionDisplayName, fnName)}
+      list{TFnVersion(id, partialName, versionDisplayName, fnNameStr)}
     }
 
     b
-    |> add(TFnName(id, partialName, displayName, fnName, ster))
+    |> add(TFnName(id, partialName, displayName, fnNameStr, ster))
     |> addMany(versionToken)
-    |> addArgs(fnName, id, args)
+    |> addArgs(PT.FQFnName.toString(fnName), id, args)
   | EPartial(id, newName, EFnCall(_, oldName, args, _)) =>
+    let oldName = PT.FQFnName.toString(oldName)
     let partial = TPartial(id, newName, parentID)
     let newText = T.toText(partial)
     let oldText = FluidUtil.ghostPartialName(oldName)

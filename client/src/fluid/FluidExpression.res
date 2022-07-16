@@ -1,15 +1,15 @@
 include Prelude
 
-open ProgramTypes.Expr
+open PT.Expr
 
-@ppx.deriving(show({with_path: false})) type rec t = ProgramTypes.Expr.t
+@ppx.deriving(show({with_path: false})) type rec t = PT.Expr.t
 
 @ppx.deriving(show({with_path: false}))
 type rec fluidPatOrExpr =
   | Expr(t)
   | Pat(id, fluidPattern)
 
-let newB = () => ProgramTypes.Expr.EBlank(gid())
+let newB = () => PT.Expr.EBlank(gid())
 
 let toID = (expr: t): id =>
   switch expr {
@@ -69,7 +69,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | EList(id, exprs)
     | EConstructor(id, _, exprs) => (id, List.map(exprs, ~f=e1 => Expr(e1)))
     | ETuple(id, first, second, theRest) =>
-      let childExprs = List.map(list{first, second, ...theRest}, ~f = e1 => Expr(e1))
+      let childExprs = List.map(list{first, second, ...theRest}, ~f=e1 => Expr(e1))
       (id, childExprs)
     | ERecord(id, nameAndExprs) => (id, List.map(nameAndExprs, ~f=((_, e1)) => Expr(e1)))
     | EMatch(id, e1, pairs) => (
@@ -207,7 +207,7 @@ let isEmpty = (expr: t): bool =>
   | EList(_, l) => l |> List.filter(~f=\"<<"(not, isBlank)) |> List.isEmpty
   | ETuple(_, first, second, theRest) =>
     let exprs = list{first, second, ...theRest}
-    exprs |> List.filter(~f = e => not(isBlank(e))) |> List.isEmpty
+    exprs |> List.filter(~f=e => !isBlank(e)) |> List.isEmpty
   | _ => false
   }
 
@@ -663,9 +663,16 @@ let toHumanReadable = (expr: t): string => {
     | EPartial(_, str, e) => Printf.sprintf(`(partial "%s" %s)`, str, r(e))
     | ERightPartial(_, str, e) => Printf.sprintf(`(rpartial "%s" %s)`, str, r(e))
     | ELeftPartial(_, str, e) => Printf.sprintf(`(lpartial "%s" %s)`, str, r(e))
-    | EFnCall(_, name, list{}, _) => Printf.sprintf("(fn \"%s\")", name)
-    | EFnCall(_, name, exprs, _) => Printf.sprintf("(fn \"%s\"\n%s)", name, newlineList(exprs))
-    | EBinOp(_, name, lhs, rhs, _) => Printf.sprintf("(binop \"%s\"\n%s\n%s)", name, r(lhs), r(rhs))
+    | EFnCall(_, name, list{}, _) => Printf.sprintf("(fn \"%s\")", PT.FQFnName.toString(name))
+    | EFnCall(_, name, exprs, _) =>
+      Printf.sprintf("(fn \"%s\"\n%s)", PT.FQFnName.toString(name), newlineList(exprs))
+    | EBinOp(_, name, lhs, rhs, _) =>
+      Printf.sprintf(
+        "(binop \"%s\"\n%s\n%s)",
+        PT.FQFnName.InfixStdlibFnName.toString(name),
+        r(lhs),
+        r(rhs),
+      )
     | EVariable(_, name) => Printf.sprintf(`(%s)`, name)
     | EFieldAccess(_, e, name) => Printf.sprintf("(fieldAccess \"%s\"\n%s)", name, r(e))
     | EMatch(_, cond, matches) =>
