@@ -42,6 +42,12 @@ let toOption = (b: blankOr<'a>): option<'a> =>
   | Blank(_) => None
   }
 
+let map = (~f: 'a => 'b, bo: blankOr<'a>): blankOr<'b> =>
+  switch bo {
+  | F(id, v) => F(id, f(v))
+  | Blank(id) => Blank(id)
+  }
+
 let ofOption = (o: option<'a>): blankOr<'a> =>
   switch o {
   | Some(v) => newF(v)

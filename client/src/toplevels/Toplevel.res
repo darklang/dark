@@ -12,7 +12,7 @@ let name = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) => "H: " ++ (h.spec.name |> B.toOption |> Option.unwrap(~default=""))
   | TLDB(db) => "DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default=""))
-  | TLPmFunc(f) => "Package Manager Func: " ++ f.fnname
+  | TLPmFunc(fn) => "Package Manager Func: " ++ PT.FQFnName.PackageFnName.toString(fn.name)
   | TLFunc(f) => "Func: " ++ (f.metadata.name |> B.toOption |> Option.unwrap(~default=""))
   | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
   }
@@ -24,7 +24,7 @@ let sortkey = (tl: toplevel): string =>
       ((h.spec.name |> B.toOption |> Option.unwrap(~default="Undefined")) ++
       (h.spec.modifier |> B.toOption |> Option.unwrap(~default="")))
   | TLDB(db) => db.name |> B.toOption |> Option.unwrap(~default="Undefined")
-  | TLPmFunc(f) => f.fnname
+  | TLPmFunc(f) => PT.FQFnName.PackageFnName.toString(f.name)
   | TLFunc(f) => f.metadata.name |> B.toOption |> Option.unwrap(~default="")
   | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
   }
@@ -34,7 +34,7 @@ let id = tl =>
   | TLHandler(h) => h.tlid
   | TLDB(db) => db.tlid
   | TLFunc(f) => f.tlid
-  | TLPmFunc(f) => f.pfTLID
+  | TLPmFunc(f) => f.tlid
   | TLTipe(t) => t.tlid
   }
 
@@ -42,7 +42,7 @@ let pos = tl =>
   switch tl {
   | TLHandler(h) => h.pos
   | TLDB(db) => db.pos
-  | TLPmFunc(f) => recover("no pos in a func", ~debug=f.pfTLID, {x: 0, y: 0})
+  | TLPmFunc(f) => recover("no pos in a func", ~debug=f.tlid, {x: 0, y: 0})
   | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, {x: 0, y: 0})
   | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, {x: 0, y: 0})
   }

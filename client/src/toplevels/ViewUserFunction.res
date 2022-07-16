@@ -123,7 +123,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
   let titleRow = {
     let titleText = switch fn {
     | UserFunction(fn) => fn.metadata.name
-    | PackageFn(fn) => BlankOr.newF(fn.fnname ++ ("_v" ++ string_of_int(fn.version)))
+    | PackageFn(fn) => BlankOr.newF(PT.FQFnName.PackageFnName.toString(fn.name))
     }
 
     let executeBtn = switch fn {
@@ -194,7 +194,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
   let returnRow = {
     let returnType = switch fn {
     | UserFunction(fn) => fn.metadata.returnType
-    | PackageFn(fn) => BlankOr.newF(fn.return_type)
+    | PackageFn(fn) => BlankOr.newF(fn.returnType)
     }
 
     Html.div(

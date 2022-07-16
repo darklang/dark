@@ -357,13 +357,13 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   let getFnnameEntries = (moduleList: list<PT.Package.Fn.t>): list<item> => {
     let fnnames =
       moduleList
-      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.module_)
-      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.fnname)
+      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.module_)
+      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.function)
 
     fnnames |> List.map(~f=(fn: PT.Package.Fn.t) => Entry({
-      name: fn.module_ ++ ("::" ++ (fn.fnname ++ ("_v" ++ string_of_int(fn.version)))),
-      identifier: Tlid(fn.pfTLID),
-      onClick: Destination(FocusedPackageManagerFn(fn.pfTLID)),
+      name: fn.name.module_ ++ "::" ++ fn.name.function ++ "_v" ++ string_of_int(fn.name.version),
+      identifier: Tlid(fn.tlid),
+      onClick: Destination(FocusedPackageManagerFn(fn.tlid)),
       uses: None,
       minusButton: None,
       plusButton: None,
@@ -375,18 +375,19 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   let getPackageEntries = (userList: list<PT.Package.Fn.t>): list<item> => {
     let uniquePackages =
       userList
-      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.package)
-      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.package)
+      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
+      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
 
     uniquePackages |> List.map(~f=(fn: PT.Package.Fn.t) => {
-      let packageList = userList |> List.filter(~f=(f: PT.Package.Fn.t) => fn.package == f.package)
+      let packageList =
+        userList |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.package == f.name.package)
 
       Category({
         count: List.length(uniquePackages),
-        name: fn.package,
+        name: fn.name.package,
         plusButton: None,
         iconAction: None,
-        classname: "pm-package" ++ fn.package,
+        classname: "pm-package" ++ fn.name.package,
         tooltip: None,
         entries: getFnnameEntries(packageList),
       })
@@ -396,19 +397,19 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   let uniqueauthors =
     pmfns
     |> Map.values
-    |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.user)
-    |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.user)
+    |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
+    |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
 
   let getAuthorEntries = uniqueauthors |> List.map(~f=(fn: PT.Package.Fn.t) => {
     let authorList =
-      pmfns |> Map.values |> List.filter(~f=(f: PT.Package.Fn.t) => fn.user == f.user)
+      pmfns |> Map.values |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.owner == f.name.owner)
 
     Category({
       count: List.length(uniqueauthors),
-      name: fn.user,
+      name: fn.name.owner,
       plusButton: None,
       iconAction: None,
-      classname: "pm-author" ++ fn.user,
+      classname: "pm-author" ++ fn.name.owner,
       tooltip: None,
       entries: getPackageEntries(authorList),
     })
@@ -1209,7 +1210,7 @@ let rtCacheKey = m =>
     m.currentPage,
     m.tooltipState.tooltipSource,
     m.secrets,
-    m.functions.packageFunctions |> Map.mapValues(~f=(t: PT.Package.Fn.t) => t.user),
+    m.functions.packageFunctions |> Map.mapValues(~f=(t: PT.Package.Fn.t) => t.name.owner),
   ) |> Option.some
 
 let viewSidebar = m => ViewCache.cache1m(rtCacheKey, viewSidebar_, m)

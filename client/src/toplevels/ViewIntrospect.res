@@ -247,14 +247,14 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   | TLFunc({tlid, metadata: {name: F(_, name), parameters, returnType, _}, ast: _}) =>
     fnView(originalTLID, originalIDs, tlid, name, parameters, returnType, direction)
   | TLPmFunc(pFn) =>
-    let name = pFn |> PackageManager.extendedName
+    let name = PT.FQFnName.PackageFnName.toString(pFn.name)
     packageFnView(
       originalTLID,
       originalIDs,
-      pFn.pfTLID,
+      pFn.tlid,
       name,
       pFn.parameters,
-      BlankOr.newF(pFn.return_type),
+      BlankOr.newF(pFn.returnType),
       direction,
     )
   | TLTipe({tlid, name: F(_, name), version, definition: _}) =>

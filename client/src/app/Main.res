@@ -1472,7 +1472,7 @@ let update_ = (msg: msg, m: model): modification => {
       m => {
         let pkgs =
           loadedPackages
-          |> List.map(~f=(pkg: PT.Package.Fn.t) => (pkg.pfTLID, pkg))
+          |> List.map(~f=(pkg: PT.Package.Fn.t) => (pkg.tlid, pkg))
           |> TLID.Dict.fromList
 
         let props = {usedFns: m.usedFns, userFunctions: m.userFunctions}

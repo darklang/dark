@@ -33,7 +33,10 @@ let functionsByName = (fns: TD.t<PT.UserFunction.t>): Map.String.t<TLID.t> =>
 
 let packageFunctionsByName = (fns: TD.t<PT.Package.Fn.t>): Map.String.t<TLID.t> =>
   fns
-  |> Map.mapValues(~f=fn => (fn |> PackageManager.extendedName, fn.pfTLID))
+  |> Map.mapValues(~f=(fn: PT.Package.Fn.t) => (
+    PT.FQFnName.PackageFnName.toString(fn.name),
+    fn.tlid,
+  ))
   |> Map.String.fromList
 
 let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>

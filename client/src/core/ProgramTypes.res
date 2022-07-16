@@ -901,54 +901,28 @@ module Package = {
   module Fn = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      user: string,
-      package: string,
-      module_: string,
-      fnname: string,
-      version: int,
+      name: FQFnName.PackageFnName.t,
       body: Expr.t,
       parameters: list<Parameter.t>,
-      return_type: DType.t,
+      returnType: DType.t,
       description: string,
       author: string,
       deprecated: bool,
-      pfTLID: TLID.t,
+      tlid: TLID.t,
     }
 
     let decode = (j: Js.Json.t): t => {
       open Json.Decode
       {
-        user: field("user", string, j),
-        package: field("package", string, j),
-        module_: field("module", string, j),
-        fnname: field("fnname", string, j),
-        version: field("version", int, j),
+        name: field("name", FQFnName.PackageFnName.decode, j),
         body: field("body", Expr.decode, j),
         parameters: field("parameters", list(Parameter.decode), j),
-        return_type: field("return_type", DType.decode, j),
+        returnType: field("returnType", DType.decode, j),
         description: field("description", string, j),
         author: field("author", string, j),
         deprecated: field("deprecated", bool, j),
-        pfTLID: field("tlid", TLID.decode, j),
+        tlid: field("tlid", TLID.decode, j),
       }
-    }
-
-    let encode = (pf: t): Js.Json.t => {
-      open Json.Encode
-      object_(list{
-        ("user", string(pf.user)),
-        ("package", string(pf.package)),
-        ("module", string(pf.module_)),
-        ("fnname", string(pf.fnname)),
-        ("version", int(pf.version)),
-        ("body", Expr.encode(pf.body)),
-        ("parameters", list(Parameter.encode, pf.parameters)),
-        ("return_type", DType.encode(pf.return_type)),
-        ("description", string(pf.description)),
-        ("author", string(pf.author)),
-        ("deprecated", bool(pf.deprecated)),
-        ("tlid", TLID.encode(pf.pfTLID)),
-      })
     }
   }
 }

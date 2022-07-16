@@ -18,19 +18,9 @@ let allParamData = (pmf: PT.Package.Fn.t): list<blankOrData> =>
   List.flatten(List.map(~f=paramData, pmf.parameters))
 
 let blankOrData = (pmf: PT.Package.Fn.t): list<blankOrData> => {
-  let fnname = BlankOr.newF(pmf.fnname)
+  let fnname = BlankOr.newF(PT.FQFnName.PackageFnName.toString(pmf.name))
   list{PFnName(fnname), ...allParamData(pmf)}
 }
-
-let extendedName = (pkgFn: PT.Package.Fn.t): string =>
-  Printf.sprintf(
-    "%s/%s/%s::%s_v%d",
-    pkgFn.user,
-    pkgFn.package,
-    pkgFn.module_,
-    pkgFn.fnname,
-    pkgFn.version,
-  )
 
 let fn_of_packageFn = (pkgFn: PT.Package.Fn.t): function_ => {
   let paramOfPkgFnParam = (pkgFnParam: PT.Package.Parameter.t): parameter => {
@@ -42,16 +32,10 @@ let fn_of_packageFn = (pkgFn: PT.Package.Fn.t): function_ => {
   }
 
   {
-    fnName: Package({
-      owner: pkgFn.user,
-      package: pkgFn.package,
-      module_: pkgFn.module_,
-      function: pkgFn.module_,
-      version: pkgFn.version,
-    }),
+    fnName: Package(pkgFn.name),
     fnParameters: pkgFn.parameters |> List.map(~f=paramOfPkgFnParam),
     fnDescription: pkgFn.description,
-    fnReturnTipe: pkgFn.return_type,
+    fnReturnTipe: pkgFn.returnType,
     fnPreviewSafety: Unsafe,
     fnDeprecated: pkgFn.deprecated,
     fnInfix: false,
