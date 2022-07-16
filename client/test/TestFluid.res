@@ -391,7 +391,7 @@ let processMsg = (inputs: list<fluidInputEvent>, astInfo: ASTInfo.t): ASTInfo.t 
   let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
   let astInfo = Fluid.updateAutocomplete(m, TLID.fromInt(7), astInfo)
   List.fold(inputs, ~initial=astInfo, ~f=(astInfo: ASTInfo.t, input) =>
-    Fluid.updateMsg'(m, h.hTLID, astInfo, FluidInputEvent(input))
+    Fluid.updateMsg'(m, h.tlid, astInfo, FluidInputEvent(input))
   )
 }
 
@@ -3758,7 +3758,13 @@ let run = () => {
     t("insert space into multi list", multiList, ~pos=6, key(K.Space), "[56,78~]")
     t("insert space into single list", singleElementList, ~pos=3, key(K.Space), "[56~]")
     t("insert into existing list item", singleElementList, ~pos=1, ins("4"), "[4~56]")
-    t("insert separator before item creates blank", singleElementList, ~pos=1, ins(","), "[~___,56]")
+    t(
+      "insert separator before item creates blank",
+      singleElementList,
+      ~pos=1,
+      ins(","),
+      "[~___,56]",
+    )
     t("insert separator after item creates blank", singleElementList, ~pos=3, ins(","), "[56,~___]")
     t(
       "insert separator after separator creates blank",
@@ -3785,7 +3791,13 @@ let run = () => {
     // t "insert separator mid integer makes two items" single (ins ',' 2)
     // ("[5,6]", 3) ;
     // TODO: when on a separator in a nested list, pressing comma makes an entry outside the list.
-    t("insert separator mid string does nothing special ", listWithStr, ~pos=3, ins(","), "[\"a,~b\"]")
+    t(
+      "insert separator mid string does nothing special ",
+      listWithStr,
+      ~pos=3,
+      ins(","),
+      "[\"a,~b\"]",
+    )
     t("backspacing open bracket of empty list dels list", emptyList, ~pos=1, bs, "~___")
     t("backspacing close bracket of empty list moves inside list", emptyList, ~pos=2, bs, "[~]")
     t("deleting open bracket of empty list dels list", emptyList, ~pos=0, del, "~___")
@@ -3992,43 +4004,41 @@ let run = () => {
     )
     ()
   })
-  describe("Tuples",  () => {
+  describe("Tuples", () => {
     describe("render", () => {
-      t(
-        "blank tuple",
-        tuple2WithBothBlank,
-        render,
-        "~(___,___)"
-      )
-      t(
-        "simple tuple",
-        tuple2WithNoBlank,
-        render,
-        "~(56,78)"
-      )
+      t("blank tuple", tuple2WithBothBlank, render, "~(___,___)")
+      t("simple tuple", tuple2WithNoBlank, render, "~(56,78)")
       t(
         "a very long tuple wraps",
         tupleHuge,
         render,
-        "~(56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n 56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78)"
+        "~(56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n 56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78)",
       )
       t(
         "a tuple of long floats does not break upon wrap",
         tuple(
-          EFloat(gid (), Positive, "4611686018427387", "12345678901234567989048290381902830912830912830912830912309128901234567890123456789"),
-          EFloat(gid (), Positive, "4611686018427387", "1234567890183918309183091809183091283019832345678901234567890123456789"),
-          list{
-            EFloat(gid (), Positive, "4611686018427387", "123456")
-          }
+          EFloat(
+            gid(),
+            Positive,
+            "4611686018427387",
+            "12345678901234567989048290381902830912830912830912830912309128901234567890123456789",
+          ),
+          EFloat(
+            gid(),
+            Positive,
+            "4611686018427387",
+            "1234567890183918309183091809183091283019832345678901234567890123456789",
+          ),
+          list{EFloat(gid(), Positive, "4611686018427387", "123456")},
         ),
         render,
-        "~(4611686018427387.12345678901234567989048290381902830912830912830912830912309128901234567890123456789,\n 4611686018427387.1234567890183918309183091809183091283019832345678901234567890123456789,\n 4611686018427387.123456)"
+        "~(4611686018427387.12345678901234567989048290381902830912830912830912830912309128901234567890123456789,\n 4611686018427387.1234567890183918309183091809183091283019832345678901234567890123456789,\n 4611686018427387.123456)",
       )
       t(
         "a nested very tuple wraps with proper indents",
         let'("a", tupleHuge, b),
         render,
-        "~let a = (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78)\n___"
+        "~let a = (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78)\n___",
       )
       ()
     })
@@ -4038,18 +4048,17 @@ let run = () => {
         tuple(fiftySix, seventyEight, list{fiftySix, seventyEight, fiftySix, seventyEight}),
         ~pos=10, // after the third comma, before the 2nd 78
         ctrlLeft,
-        "(56,78,~56,78,56,78)"
+        "(56,78,~56,78,56,78)",
       )
       t(
         "ctrl+right at the end of tuple item moves to end of next tuple item",
         tuple6,
         ~pos=12,
         ctrlRight,
-        "(56,78,56,78,56~,78)"
+        "(56,78,56,78,56~,78)",
       )
       ()
     })
-
 
     if Fluid.allowUserToCreateTuple {
       describe("create", () => {
@@ -4066,70 +4075,70 @@ let run = () => {
         tuple2WithBothBlank,
         ~pos=0,
         list{InsertText("c")},
-        tuple2WithBothBlank
+        tuple2WithBothBlank,
       )
       t(
         "insert space into multi tuple does nothing",
         tuple2WithNoBlank,
         ~pos=6, // right before closing )
         key(K.Space),
-        "(56,78~)"
+        "(56,78~)",
       )
       t(
         "insert separator after opening parens creates blank",
         tuple(int(1), int(2), list{int(3)}),
         ~pos=1, // after the (
         ins(","),
-        "(~___,1,2,3)"
+        "(~___,1,2,3)",
       )
       t(
         "insert separator before closing parens creates blank",
         tuple(int(1), int(2), list{int(3)}), // (1,2,3)
         ~pos=6, // before the )
         ins(","),
-        "(1,2,3,~___)"
+        "(1,2,3,~___)",
       )
       t(
         "insert separator after separator creates blank",
         tuple(int(1), int(2), list{int(3)}),
         ~pos=5, // after the second comma
         ins(","),
-        "(1,2,~___,3)"
+        "(1,2,~___,3)",
       )
       t(
         "inserting space into simple tuple does nothing",
         tuple2WithNoBlank,
         ~pos=3,
         key(K.Space),
-        "(56~,78)"
+        "(56~,78)",
       )
       t(
         "insert separator before item creates blank",
         tuple2WithNoBlank,
         ~pos=1,
         ins(","),
-        "(~___,56,78)"
+        "(~___,56,78)",
       )
       t(
         "insert separator after item creates blank",
         tuple2WithNoBlank,
         ~pos=6, // after 78
         ins(","),
-        "(56,78,~___)"
+        "(56,78,~___)",
       )
       t(
         "insert , in string in tuple types ,",
         tuple(str("01234567890123456789012345678901234567890"), fiftySix, list{}),
         ~pos=44, // right before the last 0
         ins(","),
-        "(\"0123456789012345678901234567890123456789\n ,~0\",56)"
+        "(\"0123456789012345678901234567890123456789\n ,~0\",56)",
       )
       t(
         "insert separator after item creates blank when tuple is in match",
-        match'(tuple2WithNoBlank, list{(pBlank (), b)}),
+        match'(tuple2WithNoBlank, list{(pBlank(), b)}),
         ~pos=12, // before the closing )
         ins(","),
-        "match (56,78,~___)\n  *** -> ___\n"
+        "match (56,78,~___)\n  *** -> ___\n",
       )
 
       t(
@@ -4137,14 +4146,14 @@ let run = () => {
         tuple2WithNoBlank,
         ~pos=3, // before the first comma
         ins(","),
-        "(56,~78)"
+        "(56,~78)",
       )
       t(
         "insert separator just after another creates blank",
         tuple2WithNoBlank,
         ~pos=4, // just after the comma
         ins(","),
-        "(56,~___,78)"
+        "(56,~___,78)",
       )
 
       t(
@@ -4152,47 +4161,41 @@ let run = () => {
         tuple2WithNoBlank,
         ~pos=2, // halfway through `56`
         ins(","),
-        "(5~6,78)"
+        "(5~6,78)",
       )
       t(
         "insert separator mid string does nothing special ",
         tuple3WithStrs,
         ~pos=3, // in between the a and b of the first str
         ins(","),
-        "(\"a,~b\",\"cd\",\"ef\")"
+        "(\"a,~b\",\"cd\",\"ef\")",
       )
       t(
         "close bracket at end of tuple is swallowed",
         tuple2WithNoBlank,
         ~pos=6, // right before closing )
         ins(")"),
-        "(56,78)~"
+        "(56,78)~",
       )
       ()
     })
 
     describe("delete", () => {
       // 2-tuple, no blanks
-      t(
-        "deleting ( from a filled 2-tuple does nothing",
-        tuple2WithNoBlank,
-        ~pos=0,
-        del,
-        "~(56,78)"
-      )
+      t("deleting ( from a filled 2-tuple does nothing", tuple2WithNoBlank, ~pos=0, del, "~(56,78)")
       t(
         "deleting ) from a filled 2-tuple just moves cursor left",
         tuple2WithNoBlank,
         ~pos=7,
         bs,
-        "(56,78~)"
+        "(56,78~)",
       )
       t(
         "deleting , from a filled 2-tuple leaves only the first item",
         tuple2WithNoBlank, // (56,78)
         ~pos=4, // at the ,
         bs,
-        "56~"
+        "56~",
       )
 
       // 2-tuple, first blank
@@ -4201,21 +4204,21 @@ let run = () => {
         tuple2WithFirstBlank,
         ~pos=0,
         del,
-        "~78"
+        "~78",
       )
       t(
         "deleting ) from a 2-tuple with first value blank just moves the cursor to left of )",
         tuple2WithFirstBlank,
         ~pos=8, // just after )
         bs,
-        "(___,78~)"
+        "(___,78~)",
       )
       t(
         "deleting , from a 2-tuple with first value blank converts to a blank",
         tuple2WithFirstBlank,
         ~pos=4, // just after ,
         del,
-        "~___"
+        "~___",
       )
 
       // 2-tuple, second blank
@@ -4224,21 +4227,21 @@ let run = () => {
         tuple2WithSecondBlank,
         ~pos=0,
         del,
-        "~56"
+        "~56",
       )
       t(
         "deleting ) from a 2-tuple with second value blank just moves the cursor left",
         tuple2WithSecondBlank,
         ~pos=7, // just before )
         del,
-        "(56,___~)"
+        "(56,___~)",
       )
       t(
         "deleting , from a 2-tuple with second value blank converts to the non-blank value",
         tuple2WithSecondBlank,
         ~pos=3, // just before ,
         del,
-        "56~"
+        "56~",
       )
 
       // 2-tuple, both blank
@@ -4247,21 +4250,21 @@ let run = () => {
         tuple2WithBothBlank,
         ~pos=0,
         del,
-        "~___"
+        "~___",
       )
       t(
         "deleting ) from a blank 2-tuple just moves the cursor left",
         tuple2WithBothBlank,
         ~pos=9,
         bs,
-        "(___,___~)"
+        "(___,___~)",
       )
       t(
         "deleting , from a blank 2-tuple replaces the tuple with a blank",
         tuple2WithBothBlank,
         ~pos=5,
         bs,
-        "~___"
+        "~___",
       )
 
       // 3-tuple, no blanks
@@ -4270,28 +4273,28 @@ let run = () => {
         tuple3WithNoBlanks,
         ~pos=0,
         del,
-        "~(56,78,56)"
+        "~(56,78,56)",
       )
       t(
         "deleting ) from a filled 3-tuple just moves cursor left",
         tuple3WithNoBlanks,
         ~pos=10, // just after )
         bs,
-        "(56,78,56~)"
+        "(56,78,56~)",
       )
       t(
         "deleting first , from a filled 3-tuple removes 2nd item",
         tuple3WithNoBlanks,
         ~pos=3, // just before ,
         del,
-        "(56~,56)"
+        "(56~,56)",
       )
       t(
         "deleting second , from a filled 3-tuple removes 3rd item",
         tuple3WithNoBlanks,
         ~pos=6, // just before ,
         del,
-        "(56,78~)"
+        "(56,78~)",
       )
 
       // 3-tuple, first blank
@@ -4300,28 +4303,28 @@ let run = () => {
         tuple3WithFirstBlank,
         ~pos=0,
         del,
-        "~(___,78,56)"
+        "~(___,78,56)",
       )
       t(
         "deleting first , from a 3-tuple with first item blank removes 2nd item",
         tuple3WithFirstBlank,
         ~pos=4, // just before ,
         del,
-        "(~___,56)"
+        "(~___,56)",
       )
       t(
         "deleting second , from a 3-tuple with first item blank removes 3rd item",
         tuple3WithFirstBlank,
         ~pos=8, // just after ,
         bs,
-        "(___,78~)"
+        "(___,78~)",
       )
       t(
         "deleting ) from a 3-tuple with first item blank just moves cursor left",
         tuple3WithFirstBlank,
         ~pos=11, // just after )
         bs,
-        "(___,78,56~)"
+        "(___,78,56~)",
       )
 
       // 3-tuple, second blank
@@ -4330,28 +4333,28 @@ let run = () => {
         tuple3WithSecondBlank,
         ~pos=0,
         del,
-        "~(56,___,78)"
+        "~(56,___,78)",
       )
       t(
         "deleting first , from a 3-tuple with the second item blank removes the blank",
         tuple3WithSecondBlank,
         ~pos=3, // just before ,
         del,
-        "(56~,78)"
+        "(56~,78)",
       )
       t(
         "deleting second , from a 3-tuple with the second item blank removes 3rd item",
         tuple3WithSecondBlank, // (56,___,78)
         ~pos=7, // just before ,
         del,
-        "(56,~___)"
+        "(56,~___)",
       )
       t(
         "deleting ) from a 3-tuple with the second item blank just moves cursor left",
         tuple3WithSecondBlank,
         ~pos=11, // just after )
         bs,
-        "(56,___,78~)"
+        "(56,___,78~)",
       )
 
       // 3-tuple, third blank `(56,78,___)`
@@ -4360,28 +4363,28 @@ let run = () => {
         tuple3WithThirdBlank,
         ~pos=0,
         del,
-        "~(56,78,___)"
+        "~(56,78,___)",
       )
       t(
         "deleting first , from a 3-tuple with the third item blank removes the second item",
         tuple3WithThirdBlank,
         ~pos=3, // just before ,
         del,
-        "(56~,___)" // or maybe 1char to the right of this
+        "(56~,___)", // or maybe 1char to the right of this
       )
       t(
         "deleting second , from a 3-tuple with the third item blank removes the blank",
         tuple3WithThirdBlank,
         ~pos=7, // just after ,
         bs,
-        "(56,78~)"
+        "(56,78~)",
       )
       t(
         "deleting ) from a 3-tuple with the third item blank just moves the cursor left",
         tuple3WithThirdBlank,
         ~pos=11, // just after )
         bs,
-        "(56,78,___~)"
+        "(56,78,___~)",
       )
 
       // 3-tuple, first non-blank `(56,___,___)`
@@ -4390,28 +4393,28 @@ let run = () => {
         tuple3WithFirstFilled,
         ~pos=0,
         del,
-        "~56"
+        "~56",
       )
       t(
         "deleting first , from a 3-tuple with only first item filled ___",
         tuple3WithFirstFilled,
         ~pos=3, // just before ,
         del,
-        "(56~,___)"
+        "(56~,___)",
       )
       t(
         "deleting second , from a 3-tuple with only first item filled ___",
         tuple3WithFirstFilled,
         ~pos=8, // just after ,
         bs,
-        "(56,~___)"
+        "(56,~___)",
       )
       t(
         "deleting ) from a 3-tuple with only first item filled just moves cursor left",
         tuple3WithFirstFilled,
         ~pos=12, // just after )
         bs,
-        "(56,___,___~)"
+        "(56,___,___~)",
       )
 
       // 3-tuple, second non-blank `(___,56,___)`
@@ -4420,28 +4423,28 @@ let run = () => {
         tuple3WithSecondFilled,
         ~pos=0,
         del,
-        "~56"
+        "~56",
       )
       t(
         "deleting first , from a 3-tuple with only second item filled removes the second item",
         tuple3WithSecondFilled,
         ~pos=4, // just before ,
         del,
-        "(~___,___)"
+        "(~___,___)",
       )
       t(
         "deleting second , from a 3-tuple with only second item filled removes the ending blank",
         tuple3WithSecondFilled,
         ~pos=8, // just after ,
         bs,
-        "(___,56~)"
+        "(___,56~)",
       )
       t(
         "deleting ) from a 3-tuple with only second item filled just moves the cursor left",
         tuple3WithSecondFilled,
         ~pos=12, // just after )
         bs,
-        "(___,56,___~)"
+        "(___,56,___~)",
       )
 
       // 3-tuple, third non-blank `(___,___,56)`
@@ -4450,28 +4453,28 @@ let run = () => {
         tuple3WithThirdFilled,
         ~pos=0,
         del,
-        "~56"
+        "~56",
       )
       t(
         "deleting first , from a 3-tuple with only third item filled removes the second blank",
         tuple3WithThirdFilled,
         ~pos=4, // just before ,
         del,
-        "(~___,56)"
+        "(~___,56)",
       )
       t(
         "deleting second , from a 3-tuple with only third item filled removes the filled item",
         tuple3WithThirdFilled,
         ~pos=9, // just after ,
         bs,
-        "(___,~___)"
+        "(___,~___)",
       )
       t(
         "deleting ) from a 3-tuple with only third item filled just moves the cursor left",
         tuple3WithThirdFilled,
         ~pos=12, // just after )
         bs,
-        "(___,___,56~)"
+        "(___,___,56~)",
       )
 
       // 3-tuple, all blank `(___,___,___)`
@@ -4480,28 +4483,28 @@ let run = () => {
         tuple3WithAllBlank,
         ~pos=0,
         del,
-        "~___"
+        "~___",
       )
       t(
         "deleting first , from a 3-tuple of all blanks removes the second blank",
         tuple3WithAllBlank,
         ~pos=4, // just before ,
         del,
-        "(~___,___)"
+        "(~___,___)",
       )
       t(
         "deleting second , from a 3-tuple of all blanks removes the third blank",
         tuple3WithAllBlank,
         ~pos=9, // just after ,
         bs,
-        "(___,~___)"
+        "(___,~___)",
       )
       t(
         "deleting ) from a 3-tuple of all blanks just moves left",
         tuple3WithAllBlank,
         ~pos=13, // just after )
         bs,
-        "(___,___,___~)" // I could see this instead turning into `~___`
+        "(___,___,___~)", // I could see this instead turning into `~___`
       )
       ()
     })
@@ -4893,11 +4896,7 @@ let run = () => {
     t(
       "autocomplete for field autocommits",
       ~clone=false,
-      let'(
-        "x",
-        partial("body", fieldAccess(EVariable(fakeID1, "request"), "longfield")),
-        b,
-      ),
+      let'("x", partial("body", fieldAccess(EVariable(fakeID1, "request"), "longfield")), b),
       // Right should make it commit
       ~pos=20,
       key(K.Right),
@@ -4906,11 +4905,7 @@ let run = () => {
     t(
       "down works on autocomplete for fields",
       ~clone=false,
-      let'(
-        "x",
-        partial("body", fieldAccess(EVariable(fakeID1, "request"), "longfield")),
-        b,
-      ),
+      let'("x", partial("body", fieldAccess(EVariable(fakeID1, "request"), "longfield")), b),
       ~pos=16,
       keys(list{K.Down, K.Enter}),
       "let x = request.formBody~\n___",
@@ -4919,11 +4914,7 @@ let run = () => {
       "autocomplete for field is committed by dot",
       ~clone=false,
       ~expectsPartial=true,
-      EPartial(
-        gid(),
-        "bod",
-        EFieldAccess(gid(), EVariable(fakeID1, "request"), "longfield"),
-      ),
+      EPartial(gid(), "bod", EFieldAccess(gid(), EVariable(fakeID1, "request"), "longfield")),
       // Dot should select the autocomplete
       ~pos=11,
       ins("."),
@@ -4998,7 +4989,7 @@ let run = () => {
       let ast = let'("request", aShortInt, aPartialVar)
       let h = FluidUtils.h(ast)
       let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
-      let tlid = h.hTLID
+      let tlid = h.tlid
       expect({
         let (_, newState, _) = updateMsg(
           m,
@@ -5019,7 +5010,7 @@ let run = () => {
       let ast = binop("+", aShortInt, b)
       let h = FluidUtils.h(ast)
       let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
-      let tlid = h.hTLID
+      let tlid = h.tlid
       expect({
         let (_, newState, _) = updateMsg(
           m,
@@ -5189,7 +5180,7 @@ let run = () => {
           let h = FluidUtils.h(FluidAST.toExpr(astInfo.ast))
           let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
 
-          updateAutocomplete(m, h.hTLID, astInfo)
+          updateAutocomplete(m, h.tlid, astInfo)
         })
         |> updateMouseClick(0)
         |> (

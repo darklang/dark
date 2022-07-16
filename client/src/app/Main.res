@@ -547,7 +547,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         bringBackCurrentTL(oldM, m)
       }
       let m = {
-        let hTLIDs = List.map(~f=h => h.hTLID, handlers)
+        let hTLIDs = List.map(~f=h => h.tlid, handlers)
         let dbTLIDs = List.map(~f=db => db.tlid, dbs)
         {
           ...m,
@@ -584,7 +584,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       let ddbs = Map.mergeRight(m.deletedDBs, DB.fromList(ddbs))
       updateMod(SetDeletedToplevels(Map.values(dhandlers), Map.values(ddbs)), (m, cmd))
     | SetDeletedToplevels(dhandlers, ddbs) =>
-      let hTLIDs = List.map(~f=h => h.hTLID, dhandlers)
+      let hTLIDs = List.map(~f=h => h.tlid, dhandlers)
       let dbTLIDs = List.map(~f=db => db.tlid, ddbs)
       let m = {
         ...m,
@@ -894,7 +894,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       let hcache = handlers |> List.fold(~initial=m.searchCache, ~f=(cache, h: PT.Handler.t) => {
         let value = FluidPrinter.eToHumanString(FluidAST.toExpr(h.ast))
 
-        cache |> Map.add(~key=h.hTLID, ~value)
+        cache |> Map.add(~key=h.tlid, ~value)
       })
 
       let searchCache = userFunctions |> List.fold(~initial=hcache, ~f=(
@@ -1779,7 +1779,7 @@ let update_ = (msg: msg, m: model): modification => {
         name: B.newF(path),
         modifier: B.newF(modifier),
       },
-      hTLID: tlid,
+      tlid: tlid,
       pos: pos,
     }
 

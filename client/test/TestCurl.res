@@ -7,7 +7,7 @@ let defaultTLID = TLID.fromInt(7)
 
 let http = (~path: string, ~meth="GET", ()): PT.Handler.t => {
   ast: FluidAST.ofExpr(EBlank(gid())),
-  hTLID: defaultTLID,
+  tlid: defaultTLID,
   pos: {x: 0, y: 0},
   spec: {space: B.newF("HTTP"), name: B.newF(path), modifier: B.newF(meth)},
 }
@@ -75,7 +75,7 @@ let run = () => {
       let cronTLID = gtlid()
       let cron: PT.Handler.t = {
         ast: FluidAST.ofExpr(EBlank(gid())),
-        hTLID: cronTLID,
+        tlid: cronTLID,
         pos: {x: 0, y: 0},
         spec: {
           space: B.newF("CRON"),

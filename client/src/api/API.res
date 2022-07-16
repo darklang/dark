@@ -338,7 +338,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
     let result = Option.map(result, ~f=(result: addOpAPIResult) => {
       ...result,
       handlers: result.handlers |> List.filter(~f=(h: PT.Handler.t) =>
-        List.member(~value=h.hTLID, opTlids)
+        List.member(~value=h.tlid, opTlids)
       ),
       userFunctions: result.userFunctions |> List.filter(~f=(uf: PT.UserFunction.t) =>
         List.member(~value=uf.tlid, opTlids)

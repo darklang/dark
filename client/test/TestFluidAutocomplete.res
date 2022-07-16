@@ -78,7 +78,7 @@ let defaultToplevel = TLHandler({
     name: Blank(gid()),
     modifier: Blank(gid()),
   },
-  hTLID: defaultTLID,
+  tlid: defaultTLID,
   pos: Defaults.origin,
 })
 
@@ -117,7 +117,7 @@ let aHandler = (
   | Some(name) => B.newF(name)
   }
   let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
-  {ast: FluidAST.ofExpr(expr), spec: spec, hTLID: tlid, pos: {x: 0, y: 0}}
+  {ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: {x: 0, y: 0}}
 }
 
 let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): PT.UserFunction.t => {

@@ -14,7 +14,7 @@ let run = () => {
         name: B.newF("processOrder"),
         modifier: B.new_(),
       },
-      hTLID: h1tlid,
+      tlid: h1tlid,
       pos: {x: 0, y: 0},
     }
 
@@ -29,7 +29,7 @@ let run = () => {
         name: B.newF("/hello"),
         modifier: B.newF("GET"),
       },
-      hTLID: h2tlid,
+      tlid: h2tlid,
       pos: {x: 0, y: 0},
     }
 
@@ -43,7 +43,7 @@ let run = () => {
     }
 
     let dbs = TD.fromList(list{(dbdata.tlid, dbdata)})
-    let handlers = TD.fromList(list{(h1data.hTLID, h1data), (h2data.hTLID, h2data)})
+    let handlers = TD.fromList(list{(h1data.tlid, h1data), (h2data.tlid, h2data)})
 
     test("dbsByName", () =>
       expect(dbsByName(dbs)) |> toEqual(Map.add(~key="Books", ~value=dbtlid, Map.String.empty))

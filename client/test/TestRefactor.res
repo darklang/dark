@@ -64,7 +64,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
 let defaultTLID = TLID.fromInt(7)
 
 let defaultHandler: PT.Handler.t = {
-  hTLID: defaultTLID,
+  tlid: defaultTLID,
   pos: {x: 0, y: 0},
   ast: FluidAST.ofExpr(EBlank(gid())),
   spec: {space: B.newF("HTTP"), name: B.newF("/src"), modifier: B.newF("POST")},
@@ -203,7 +203,7 @@ let run = () => {
           name: B.newF("/src"),
           modifier: B.newF("POST"),
         },
-        hTLID: TLID.fromInt(5),
+        tlid: TLID.fromInt(5),
         pos: {x: 0, y: 0},
       }
 
@@ -246,7 +246,7 @@ let run = () => {
           name: B.newF("/src"),
           modifier: B.newF("POST"),
         },
-        hTLID: defaultTLID,
+        tlid: defaultTLID,
         pos: {x: 0, y: 0},
       }
 
@@ -330,9 +330,9 @@ let run = () => {
   })
   describe("extractVarInAst", () => {
     let modelAndTl = (ast: FluidAST.t) => {
-      let hTLID = defaultTLID
+      let tlid = defaultTLID
       let tl: PT.Handler.t = {
-        hTLID: hTLID,
+        tlid: tlid,
         ast: ast,
         pos: {x: 0, y: 0},
         spec: {
@@ -345,7 +345,7 @@ let run = () => {
       let m = {
         ...D.defaultModel,
         functions: Functions.empty |> Functions.setBuiltins(sampleFunctions, defaultFunctionsProps),
-        handlers: list{(hTLID, tl)} |> TLID.Dict.fromList,
+        handlers: list{(tlid, tl)} |> TLID.Dict.fromList,
         fluidState: {...Defaults.defaultFluidState, ac: FluidAutocomplete.init},
       }
 

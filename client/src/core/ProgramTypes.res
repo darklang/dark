@@ -378,13 +378,13 @@ module Handler = {
   type rec t = {
     ast: AST.t,
     spec: Spec.t,
-    hTLID: TLID.t,
+    tlid: TLID.t,
     pos: pos,
   }
   let encode = (h: t): Js.Json.t => {
     open Json.Encode
     object_(list{
-      ("tlid", TLID.encode(h.hTLID)),
+      ("tlid", TLID.encode(h.tlid)),
       ("spec", Spec.encode(h.spec)),
       ("ast", AST.encode(h.ast)),
     })
@@ -395,7 +395,7 @@ module Handler = {
     {
       ast: field("ast", AST.decode, j),
       spec: field("spec", Spec.decode, j),
-      hTLID: field("tlid", TLID.decode, j),
+      tlid: field("tlid", TLID.decode, j),
       pos: pos,
     }
   }

@@ -398,7 +398,7 @@ let fnDisplayName = (f: PT.UserFunction.t): string =>
 
 let foundHandlerOmniAction = (h: PT.Handler.t): omniAction => {
   let name = "Found in " ++ handlerDisplayName(h)
-  Goto(FocusedHandler(h.hTLID, None, true), h.hTLID, name, true)
+  Goto(FocusedHandler(h.tlid, None, true), h.tlid, name, true)
 }
 
 let foundFnOmniAction = (f: PT.UserFunction.t): omniAction => {

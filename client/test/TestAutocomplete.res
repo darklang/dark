@@ -52,7 +52,7 @@ let aHandler = (
     modifier: B.ofOption(modifier),
   }
 
-  {ast: FluidAST.ofExpr(expr), spec: spec, hTLID: tlid, pos: {x: 0, y: 0}}
+  {ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: {x: 0, y: 0}}
 }
 
 let aFunction = (
@@ -552,11 +552,11 @@ let run = () => {
       let searchCache =
         m.searchCache
         |> Map.add(
-          ~key=http.hTLID,
+          ~key=http.tlid,
           ~value=http.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString,
         )
         |> Map.add(
-          ~key=repl.hTLID,
+          ~key=repl.tlid,
           ~value=repl.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString,
         )
         |> Map.add(~key=fn.tlid, ~value=fn.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
@@ -581,7 +581,7 @@ let run = () => {
       test("find field access", () => {
         let foundActions = switch qSearch(m, "request.query") {
         | list{Goto(FocusedHandler(_), tlid, "Found in HTTP::/hello - GET", true)}
-          if tlid == http.hTLID => true
+          if tlid == http.tlid => true
         | _ => false
         }
 
@@ -590,7 +590,7 @@ let run = () => {
       test("find function call", () => {
         let foundActions = switch qSearch(m, "Int::add") {
         | list{Goto(FocusedHandler(_), tlid, "Found in REPL::findingDori", true)}
-          if tlid == repl.hTLID => true
+          if tlid == repl.tlid => true
         | _ => false
         }
 

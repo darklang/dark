@@ -37,7 +37,7 @@ let execute_roundtrip = (ast: fluidExpr) => {
     {
       ...defaultTestModel,
       handlers: Handlers.fromList(list{h}),
-      cursorState: FluidEntering(h.hTLID),
+      cursorState: FluidEntering(h.tlid),
       fluidState: {
         ...defaultTestState,
         selectionStart: Some(0),
@@ -75,7 +75,7 @@ let run = () => {
       ...defaultTestModel,
       handlers: Handlers.fromList(list{h}),
       functions: Functions.update(defaultFunctionsProps, defaultTestModel.functions),
-      cursorState: FluidEntering(h.hTLID),
+      cursorState: FluidEntering(h.tlid),
       fluidState: {
         ...defaultTestState,
         selectionStart: Some(start),
@@ -201,7 +201,7 @@ let run = () => {
       let preCopyModel = {
         ...defaultTestModel,
         handlers: Handlers.fromList(list{h}),
-        cursorState: FluidEntering(h.hTLID),
+        cursorState: FluidEntering(h.tlid),
         fluidState: {
           ...defaultTestState,
           selectionStart: Some(start),
@@ -1201,14 +1201,14 @@ let run = () => {
       b,
       (0, 0),
       "(12,34)",
-      "(12,34)~"
+      "(12,34)~",
     )
     testPasteText(
       "pasting a 3-tuple from clipboard on a blank should paste it",
       b,
       (0, 0),
       "(12,34,56)",
-      "(12,34,56)~"
+      "(12,34,56)~",
     )
 
     ()

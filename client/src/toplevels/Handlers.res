@@ -6,11 +6,11 @@ module P = Pointer
 module TD = TLID.Dict
 
 let fromList = (handlers: list<PT.Handler.t>): TLID.Dict.t<PT.Handler.t> =>
-  handlers |> List.map(~f=(h: PT.Handler.t) => (h.hTLID, h)) |> TLID.Dict.fromList
+  handlers |> List.map(~f=(h: PT.Handler.t) => (h.tlid, h)) |> TLID.Dict.fromList
 
 let upsert = (m: model, h: PT.Handler.t): model => {
   ...m,
-  handlers: Map.add(~key=h.hTLID, ~value=h, m.handlers),
+  handlers: Map.add(~key=h.tlid, ~value=h, m.handlers),
 }
 
 let update = (m: model, ~tlid: TLID.t, ~f: PT.Handler.t => PT.Handler.t): model => {
@@ -20,7 +20,7 @@ let update = (m: model, ~tlid: TLID.t, ~f: PT.Handler.t => PT.Handler.t): model 
 
 let remove = (m: model, h: PT.Handler.t): model => {
   ...m,
-  handlers: Map.remove(~key=h.hTLID, m.handlers),
+  handlers: Map.remove(~key=h.tlid, m.handlers),
 }
 
 let getWorkerSchedule = (m: model, h: PT.Handler.t): option<string> =>

@@ -129,7 +129,7 @@ let handlerCategory = (
     iconAction: iconAction,
     tooltip: setTooltips(tooltip, handlers),
     entries: List.map(handlers, ~f=h => {
-      let tlid = h.hTLID
+      let tlid = h.tlid
       Entry({
         name: h.spec.name |> B.toOption |> Option.unwrap(~default=missingEventRouteDesc),
         uses: None,

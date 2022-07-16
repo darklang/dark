@@ -31,7 +31,7 @@ let sortkey = (tl: toplevel): string =>
 
 let id = tl =>
   switch tl {
-  | TLHandler(h) => h.hTLID
+  | TLHandler(h) => h.tlid
   | TLDB(db) => db.tlid
   | TLFunc(f) => f.tlid
   | TLPmFunc(f) => f.pfTLID
@@ -150,7 +150,7 @@ let isDeprecatedCustomHandler = (tl: toplevel): bool =>
 
 let toOp = (tl: toplevel): list<op> =>
   switch tl {
-  | TLHandler(h) => list{SetHandler(h.hTLID, h.pos, h)}
+  | TLHandler(h) => list{SetHandler(h.tlid, h.pos, h)}
   | TLFunc(fn) => list{SetFunction(fn)}
   | TLTipe(t) => list{SetType(t)}
   | TLPmFunc(_) => recover("Package Manager functions are not editable", ~debug=id(tl), list{})

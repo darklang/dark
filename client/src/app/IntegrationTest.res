@@ -257,7 +257,7 @@ let feature_flag_works = (m: model): testResult => {
     )) =>
     let res =
       h
-      |> Option.map(~f=(h: PT.Handler.t) => h.hTLID)
+      |> Option.map(~f=(h: PT.Handler.t) => h.tlid)
       |> Option.andThen(~f=Analysis.getSelectedTraceID(m))
       |> Option.andThen(~f=Analysis.getLiveValue(m, id))
 

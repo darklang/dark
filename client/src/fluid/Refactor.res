@@ -37,7 +37,7 @@ let transformFnCalls = (
   let newHandlers = m.handlers |> Map.filterMapValues(~f=(h: PT.Handler.t) => {
     let newAst = h.ast |> transformCallsInAst
     if newAst != h.ast {
-      Some(SetHandler(h.hTLID, h.pos, {...h, ast: newAst}))
+      Some(SetHandler(h.tlid, h.pos, {...h, ast: newAst}))
     } else {
       None
     }
@@ -458,7 +458,7 @@ let renameDBReferences = (m: model, oldName: string, newName: string): list<op> 
       let newAST = h.ast |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
 
       if newAST != h.ast {
-        Some(SetHandler(h.hTLID, h.pos, {...h, ast: newAST}))
+        Some(SetHandler(h.tlid, h.pos, {...h, ast: newAST}))
       } else {
         None
       }

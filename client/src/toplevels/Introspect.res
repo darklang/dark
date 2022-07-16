@@ -20,7 +20,7 @@ let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> =>
     let space = h.spec.space |> B.toOption |> Option.unwrap(~default="_")
     let name = h.spec.name |> B.toOption |> Option.unwrap(~default="_")
     let key = keyForHandlerSpec(space, name)
-    (key, h.hTLID)
+    (key, h.tlid)
   })
   |> Map.String.fromList
 

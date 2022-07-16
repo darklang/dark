@@ -270,7 +270,7 @@ let newHandler = (m, space, name, modifier, pos) => {
       name: B.ofOption(name),
       modifier: B.ofOption(modifier),
     },
-    hTLID: tlid,
+    tlid: tlid,
     pos: pos,
   }
 
