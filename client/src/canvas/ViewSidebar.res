@@ -354,10 +354,13 @@ let standardCategories = (m, hs, dbs, ufns, tipes) => {
 }
 
 let packageManagerCategory = (pmfns: packageFns): category => {
-  let getFnnameEntries = (moduleList: list<packageFn>): list<item> => {
-    let fnnames = moduleList |> List.sortBy(~f=f => f.module_) |> List.uniqueBy(~f=fn => fn.fnname)
+  let getFnnameEntries = (moduleList: list<PT.Package.Fn.t>): list<item> => {
+    let fnnames =
+      moduleList
+      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.module_)
+      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.fnname)
 
-    fnnames |> List.map(~f=fn => Entry({
+    fnnames |> List.map(~f=(fn: PT.Package.Fn.t) => Entry({
       name: fn.module_ ++ ("::" ++ (fn.fnname ++ ("_v" ++ string_of_int(fn.version)))),
       identifier: Tlid(fn.pfTLID),
       onClick: Destination(FocusedPackageManagerFn(fn.pfTLID)),
@@ -369,12 +372,14 @@ let packageManagerCategory = (pmfns: packageFns): category => {
     }))
   }
 
-  let getPackageEntries = (userList: list<packageFn>): list<item> => {
+  let getPackageEntries = (userList: list<PT.Package.Fn.t>): list<item> => {
     let uniquePackages =
-      userList |> List.sortBy(~f=f => f.package) |> List.uniqueBy(~f=fn => fn.package)
+      userList
+      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.package)
+      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.package)
 
-    uniquePackages |> List.map(~f=fn => {
-      let packageList = userList |> List.filter(~f=f => fn.package == f.package)
+    uniquePackages |> List.map(~f=(fn: PT.Package.Fn.t) => {
+      let packageList = userList |> List.filter(~f=(f: PT.Package.Fn.t) => fn.package == f.package)
 
       Category({
         count: List.length(uniquePackages),
@@ -389,10 +394,14 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   }
 
   let uniqueauthors =
-    pmfns |> Map.values |> List.sortBy(~f=f => f.user) |> List.uniqueBy(~f=fn => fn.user)
+    pmfns
+    |> Map.values
+    |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.user)
+    |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.user)
 
-  let getAuthorEntries = uniqueauthors |> List.map(~f=fn => {
-    let authorList = pmfns |> Map.values |> List.filter(~f=f => fn.user == f.user)
+  let getAuthorEntries = uniqueauthors |> List.map(~f=(fn: PT.Package.Fn.t) => {
+    let authorList =
+      pmfns |> Map.values |> List.filter(~f=(f: PT.Package.Fn.t) => fn.user == f.user)
 
     Category({
       count: List.length(uniqueauthors),
@@ -1200,7 +1209,7 @@ let rtCacheKey = m =>
     m.currentPage,
     m.tooltipState.tooltipSource,
     m.secrets,
-    m.functions.packageFunctions |> Map.mapValues(~f=t => t.user),
+    m.functions.packageFunctions |> Map.mapValues(~f=(t: PT.Package.Fn.t) => t.user),
   ) |> Option.some
 
 let viewSidebar = m => ViewCache.cache1m(rtCacheKey, viewSidebar_, m)

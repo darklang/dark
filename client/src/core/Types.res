@@ -182,39 +182,17 @@ and handlerSpace =
 
 and functionTypes =
   | UserFunction(PT.UserFunction.t)
-  | PackageFn(packageFn)
-
-// Package manager Functions
-and packageFnParameter = {
-  name: string,
-  tipe: DType.t,
-  description: string,
-}
-
-and packageFn = {
-  user: string,
-  package: string,
-  module_: string,
-  fnname: string,
-  version: int,
-  body: fluidExpr,
-  parameters: list<packageFnParameter>,
-  return_type: DType.t,
-  description: string,
-  author: string,
-  deprecated: bool,
-  pfTLID: TLID.t,
-}
+  | PackageFn(PT.Package.Fn.t)
 
 // toplevels
 and toplevel =
   | TLHandler(PT.Handler.t)
   | TLDB(PT.DB.t)
-  | TLPmFunc(packageFn)
+  | TLPmFunc(PT.Package.Fn.t)
   | TLFunc(PT.UserFunction.t)
   | TLTipe(PT.UserType.t)
 
-and packageFns = TLID.Dict.t<packageFn>
+and packageFns = TLID.Dict.t<PT.Package.Fn.t>
 
 // ----------------------
 // dvals
@@ -691,7 +669,7 @@ and executeFunctionAPIResult = (dval, dvalArgsHash, int, list<TLID.t>, unlockedD
 
 and uploadFnAPIResult = unit
 
-and loadPackagesAPIResult = list<packageFn>
+and loadPackagesAPIResult = list<PT.Package.Fn.t>
 
 and triggerHandlerAPIResult = list<TLID.t>
 

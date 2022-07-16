@@ -862,3 +862,93 @@ module Op = {
     )
   }
 }
+
+module Package = {
+  module Parameter = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      name: string,
+      tipe: DType.t,
+      description: string,
+    }
+    let decode = (j: Js.Json.t): t => {
+      open Json.Decode
+      {
+        name: field("name", string, j),
+        tipe: field("tipe", DType.decode, j),
+        description: field("description", string, j),
+      }
+    }
+    let encode = (pfp: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("name", string(pfp.name)),
+        ("tipe", DType.encode(pfp.tipe)),
+        ("description", string(pfp.description)),
+      })
+    }
+  }
+
+  // type Fn =
+  //   { name : FQFnName.PackageFnName
+  //     body : Expr
+  //     parameters : List<Parameter>
+  //     returnType : DType
+  //     description : string
+  //     author : string
+  //     deprecated : bool
+  //     tlid : tlid }
+  module Fn = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      user: string,
+      package: string,
+      module_: string,
+      fnname: string,
+      version: int,
+      body: Expr.t,
+      parameters: list<Parameter.t>,
+      return_type: DType.t,
+      description: string,
+      author: string,
+      deprecated: bool,
+      pfTLID: TLID.t,
+    }
+
+    let decode = (j: Js.Json.t): t => {
+      open Json.Decode
+      {
+        user: field("user", string, j),
+        package: field("package", string, j),
+        module_: field("module", string, j),
+        fnname: field("fnname", string, j),
+        version: field("version", int, j),
+        body: field("body", Expr.decode, j),
+        parameters: field("parameters", list(Parameter.decode), j),
+        return_type: field("return_type", DType.decode, j),
+        description: field("description", string, j),
+        author: field("author", string, j),
+        deprecated: field("deprecated", bool, j),
+        pfTLID: field("tlid", TLID.decode, j),
+      }
+    }
+
+    let encode = (pf: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("user", string(pf.user)),
+        ("package", string(pf.package)),
+        ("module", string(pf.module_)),
+        ("fnname", string(pf.fnname)),
+        ("version", int(pf.version)),
+        ("body", Expr.encode(pf.body)),
+        ("parameters", list(Parameter.encode, pf.parameters)),
+        ("return_type", DType.encode(pf.return_type)),
+        ("description", string(pf.description)),
+        ("author", string(pf.author)),
+        ("deprecated", bool(pf.deprecated)),
+        ("tlid", TLID.encode(pf.pfTLID)),
+      })
+    }
+  }
+}

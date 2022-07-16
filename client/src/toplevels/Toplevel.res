@@ -76,7 +76,7 @@ let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
 
 let ufToTL = (uf: PT.UserFunction.t): toplevel => TLFunc(uf)
 
-let pmfToTL = (pmf: packageFn): toplevel => TLPmFunc(pmf)
+let pmfToTL = (pmf: PT.Package.Fn.t): toplevel => TLPmFunc(pmf)
 
 let utToTL = (ut: PT.UserType.t): toplevel => TLTipe(ut)
 
@@ -262,7 +262,7 @@ let combine = (
   handlers: TD.t<PT.Handler.t>,
   dbs: TD.t<PT.DB.t>,
   userFunctions: TD.t<PT.UserFunction.t>,
-  packageFn: TD.t<packageFn>,
+  packageFn: TD.t<PT.Package.Fn.t>,
   userTipes: TD.t<PT.UserType.t>,
 ): TD.t<toplevel> =>
   Map.map(~f=h => TLHandler(h), handlers)

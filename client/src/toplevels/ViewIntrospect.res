@@ -46,8 +46,8 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
   Html.div(list{Html.class'("fields")}, List.map(~f=paramView, params))
 }
 
-let packageFnParamsView = (params: list<packageFnParameter>): Html.html<msg> => {
-  let paramView = (p: packageFnParameter) => {
+let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg> => {
+  let paramView = (p: PT.Package.Parameter.t) => {
     let name = Html.span(list{Html.classList(list{("name", true)})}, list{Html.text(p.name)})
     let ptype = Html.span(
       list{Html.classList(list{("type", true)})},
@@ -183,7 +183,7 @@ let packageFnView = (
   originIDs: list<id>,
   tlid: TLID.t,
   name: string,
-  params: list<packageFnParameter>,
+  params: list<PT.Package.Parameter.t>,
   returnTipe: blankOr<DType.t>,
   direction: string,
 ): Html.html<msg> => {

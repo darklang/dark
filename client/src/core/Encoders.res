@@ -189,29 +189,6 @@ and executeFunctionAPIParams = (params: Types.executeFunctionAPIParams): Js.Json
 and deleteToplevelForeverAPIParams = (params: Types.deleteToplevelForeverAPIParams): Js.Json.t =>
   object_(list{("tlid", tlid(params.dtfTLID))})
 
-and packageFnParameter = (pfp: Types.packageFnParameter): Js.Json.t =>
-  object_(list{
-    ("name", string(pfp.name)),
-    ("tipe", DType.encode(pfp.tipe)),
-    ("description", string(pfp.description)),
-  })
-
-and packageFn = (pf: Types.packageFn): Js.Json.t =>
-  object_(list{
-    ("user", string(pf.user)),
-    ("package", string(pf.package)),
-    ("module", string(pf.module_)),
-    ("fnname", string(pf.fnname)),
-    ("version", int(pf.version)),
-    ("body", PT.Expr.encode(pf.body)),
-    ("parameters", list(packageFnParameter, pf.parameters)),
-    ("return_type", DType.encode(pf.return_type)),
-    ("description", string(pf.description)),
-    ("author", string(pf.author)),
-    ("deprecated", bool(pf.deprecated)),
-    ("tlid", tlid(pf.pfTLID)),
-  })
-
 and uploadFnAPIParams = (params: Types.uploadFnAPIParams): Js.Json.t =>
   object_(list{("fn", PT.UserFunction.encode(params.uplFn))})
 

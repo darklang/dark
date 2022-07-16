@@ -1470,7 +1470,10 @@ let update_ = (msg: msg, m: model): modification => {
   | LoadPackagesAPICallback(Ok(loadedPackages)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let pkgs = loadedPackages |> List.map(~f=pkg => (pkg.pfTLID, pkg)) |> TLID.Dict.fromList
+        let pkgs =
+          loadedPackages
+          |> List.map(~f=(pkg: PT.Package.Fn.t) => (pkg.pfTLID, pkg))
+          |> TLID.Dict.fromList
 
         let props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
         let m = {...m, functions: Functions.setPackages(pkgs, props, m.functions)}

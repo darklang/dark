@@ -460,27 +460,6 @@ let toplevel = (j): toplevel => {
   field("data", variant, j)
 }
 
-let packageFnParameter = (j: Js.Json.t): Types.packageFnParameter => {
-  name: field("name", string, j),
-  tipe: field("tipe", DType.decodeOld, j),
-  description: field("description", string, j),
-}
-
-let packageFn = (j: Js.Json.t): Types.packageFn => {
-  user: field("user", string, j),
-  package: field("package", string, j),
-  module_: field("module", string, j),
-  fnname: field("fnname", string, j),
-  version: field("version", int, j),
-  body: field("body", PT.Expr.decode, j),
-  parameters: field("parameters", list(packageFnParameter), j),
-  return_type: field("return_type", DType.decodeOld, j),
-  description: field("description", string, j),
-  author: field("author", string, j),
-  deprecated: field("deprecated", bool, j),
-  pfTLID: field("tlid", tlid, j),
-}
-
 let fof = (j): fourOhFour => {
   space: index(0, string, j),
   path: index(1, string, j),
@@ -664,7 +643,7 @@ let executeFunctionAPIResult = (j): executeFunctionAPIResult => (
 
 let uploadFnAPIResult = (_): uploadFnAPIResult => ()
 
-let loadPackagesAPIResult = (j): loadPackagesAPIResult => list(packageFn, j)
+let loadPackagesAPIResult = (j): loadPackagesAPIResult => list(PT.Package.Fn.decode, j)
 
 let triggerHandlerAPIResult = (j): triggerHandlerAPIResult => field("touched_tlids", list(tlid), j)
 
