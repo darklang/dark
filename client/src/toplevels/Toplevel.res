@@ -148,7 +148,7 @@ let isReplHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSRepl))
 let isDeprecatedCustomHandler = (tl: toplevel): bool =>
   tl |> spaceOf |> \"="(Some(HSDeprecatedOther))
 
-let toOp = (tl: toplevel): list<op> =>
+let toOp = (tl: toplevel): list<PT.Op.t> =>
   switch tl {
   | TLHandler(h) => list{SetHandler(h.tlid, h.pos, h)}
   | TLFunc(fn) => list{SetFunction(fn)}
@@ -209,7 +209,7 @@ let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): modification =>
       NoChange
     } else {
       AddOps(
-        Belt.List.concat(ops, list{SetHandler(id(tl), h.pos, {...h, ast: ast})}),
+        Belt.List.concat(ops, list{PT.Op.SetHandler(id(tl), h.pos, {...h, ast: ast})}),
         FocusNoChange,
       )
     }

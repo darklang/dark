@@ -58,7 +58,7 @@ let base64url_bytes = (input: Bytes.t): string =>
 let id = ID.encode
 let tlid = TLID.encode
 
-let pos = (p: BaseTypes.pos) => object_(list{("x", int(p.x)), ("y", int(p.y))})
+let pos = BaseTypes.encodePos
 
 let vPos = (vp: vPos) => object_(list{("vx", int(vp.vx)), ("vy", int(vp.vy))})
 
@@ -156,70 +156,19 @@ and blankOrData = (pd: Types.blankOrData): Js.Json.t => {
   }
 }
 
-and tlidOf = (op: Types.op): TLID.t =>
-  switch op {
-  | SetHandler(tlid, _, _) => tlid
-  | CreateDB(tlid, _, _) => tlid
-  | AddDBCol(tlid, _, _) => tlid
-  | SetDBColName(tlid, _, _) => tlid
-  | ChangeDBColName(tlid, _, _) => tlid
-  | SetDBColType(tlid, _, _) => tlid
-  | ChangeDBColType(tlid, _, _) => tlid
-  | TLSavepoint(tlid) => tlid
-  | UndoTL(tlid) => tlid
-  | RedoTL(tlid) => tlid
-  | DeleteTL(tlid) => tlid
-  | MoveTL(tlid, _) => tlid
-  | SetFunction(f) => f.tlid
-  | DeleteFunction(tlid) => tlid
-  | SetExpr(tlid, _, _) => tlid
-  | DeleteDBCol(tlid, _) => tlid
-  | RenameDBname(tlid, _) => tlid
-  | CreateDBWithBlankOr(tlid, _, _, _) => tlid
-  | SetType(ut) => ut.tlid
-  | DeleteType(tlid) => tlid
-  }
-
-and ops = (ops: list<Types.op>): Js.Json.t =>
+and ops = (ops: list<PT.Op.t>): Js.Json.t =>
   list(
-    op,
+    PT.Op.encode,
     switch ops {
     | list{UndoTL(_)} => ops
     | list{RedoTL(_)} => ops
     | list{} => ops
     | _ =>
-      let savepoints = List.map(~f=op => Types.TLSavepoint(tlidOf(op)), ops)
+      let savepoints = List.map(~f=op => PT.Op.TLSavepoint(PT.Op.tlidOf(op)), ops)
 
       Belt.List.concat(savepoints, ops)
     },
   )
-
-and op = (call: Types.op): Js.Json.t => {
-  let ev = variant
-  switch call {
-  | SetHandler(t, p, h) => ev("SetHandler", list{tlid(t), pos(p), PT.Handler.encode(h)})
-  | CreateDB(t, p, name) => ev("CreateDB", list{tlid(t), pos(p), string(name)})
-  | AddDBCol(t, cn, ct) => ev("AddDBCol", list{tlid(t), id(cn), id(ct)})
-  | SetDBColName(t, i, name) => ev("SetDBColName", list{tlid(t), id(i), string(name)})
-  | ChangeDBColName(t, i, name) => ev("ChangeDBColName", list{tlid(t), id(i), string(name)})
-  | SetDBColType(t, i, tipe) => ev("SetDBColType", list{tlid(t), id(i), string(tipe)})
-  | ChangeDBColType(t, i, name) => ev("ChangeDBColType", list{tlid(t), id(i), string(name)})
-  | DeleteDBCol(t, i) => ev("DeleteDBCol", list{tlid(t), id(i)})
-  | TLSavepoint(t) => ev("TLSavepoint", list{tlid(t)})
-  | UndoTL(t) => ev("UndoTL", list{tlid(t)})
-  | RedoTL(t) => ev("RedoTL", list{tlid(t)})
-  | DeleteTL(t) => ev("DeleteTL", list{tlid(t)})
-  | MoveTL(t, p) => ev("MoveTL", list{tlid(t), pos(p)})
-  | SetFunction(uf) => ev("SetFunction", list{PT.UserFunction.encode(uf)})
-  | DeleteFunction(t) => ev("DeleteFunction", list{tlid(t)})
-  | SetExpr(t, i, e) => ev("SetExpr", list{tlid(t), id(i), PT.Expr.encode(e)})
-  | RenameDBname(t, name) => ev("RenameDBname", list{tlid(t), string(name)})
-  | CreateDBWithBlankOr(t, p, i, name) =>
-    ev("CreateDBWithBlankOr", list{tlid(t), pos(p), id(i), string(name)})
-  | SetType(t) => ev("SetType", list{PT.UserType.encode(t)})
-  | DeleteType(t) => ev("DeleteType", list{tlid(t)})
-  }
-}
 
 and addOpAPIParams = (params: Types.addOpAPIParams): Js.Json.t =>
   object_(list{

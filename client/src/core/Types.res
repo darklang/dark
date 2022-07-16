@@ -581,32 +581,6 @@ and workerStats = {
 }
 
 // -------------------
-// ops
-// -------------------
-
-and op =
-  | SetHandler(TLID.t, pos, PT.Handler.t)
-  | CreateDB(TLID.t, pos, string)
-  | AddDBCol(TLID.t, id, id)
-  | SetDBColName(TLID.t, id, string)
-  | SetDBColType(TLID.t, id, string)
-  | DeleteTL(TLID.t)
-  | MoveTL(TLID.t, pos)
-  | SetFunction(PT.UserFunction.t)
-  | ChangeDBColName(TLID.t, id, string)
-  | ChangeDBColType(TLID.t, id, string)
-  | UndoTL(TLID.t)
-  | RedoTL(TLID.t)
-  | SetExpr(TLID.t, id, fluidExpr)
-  | TLSavepoint(TLID.t)
-  | DeleteFunction(TLID.t)
-  | DeleteDBCol(TLID.t, id)
-  | RenameDBname(TLID.t, string)
-  | CreateDBWithBlankOr(TLID.t, pos, id, string)
-  | SetType(PT.UserType.t)
-  | DeleteType(TLID.t)
-
-// -------------------
 // APIs
 // -------------------
 // params
@@ -615,7 +589,7 @@ and sendPresenceParams = avatarModelMessage
 and sendInviteParams = SettingsViewTypes.inviteFormMessage
 
 and addOpAPIParams = {
-  ops: list<op>,
+  ops: list<PT.Op.t>,
   opCtr: int,
   clientOpCtrId: string,
 }
@@ -1053,7 +1027,7 @@ and modification =
   ReplaceAllModificationsWithThisOne(model => (model, Tea.Cmd.t<msg>))
 
   // API Calls
-  | AddOps((list<op>, focus))
+  | AddOps((list<PT.Op.t>, focus))
   | HandleAPIError(apiError)
   | GetUnlockedDBsAPICall
   | Get404sAPICall

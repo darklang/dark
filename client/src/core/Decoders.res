@@ -134,7 +134,7 @@ let tlidOption = (j: Js.Json.t): option<TLID.t> => optional(tlid, j)
 let tlidDict = TLID.Dict.decode
 let idMap = ID.Map.decode
 
-let pos = (j): pos => {x: field("x", int, j), y: field("y", int, j)}
+let pos = BaseTypes.decodePos
 
 let vPos = (j): vPos => {vx: field("vx", int, j), vy: field("vy", int, j)}
 
@@ -562,44 +562,6 @@ let traces = (j): traces => j |> list(tuple2(TLID.decode, list(trace))) |> TLID.
 let permission = j =>
   variants(list{("Read", variant0(Read)), ("ReadWrite", variant0(ReadWrite))}, j)
 
-let op = (j): op =>
-  variants(
-    list{
-      (
-        "SetHandler",
-        variant3(
-          (t, p, h) => SetHandler(t, p, {...h, pos: p}),
-          tlid,
-          pos,
-          PT.Handler.decode({x: -1286, y: -467}),
-        ),
-      ),
-      ("CreateDB", variant3((t, p, name) => CreateDB(t, p, name), tlid, pos, string)),
-      ("AddDBCol", variant3((t, cn, ct) => AddDBCol(t, cn, ct), tlid, id, id)),
-      ("SetDBColName", variant3((t, i, name) => SetDBColName(t, i, name), tlid, id, string)),
-      ("ChangeDBColName", variant3((t, i, name) => ChangeDBColName(t, i, name), tlid, id, string)),
-      ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
-      ("ChangeDBColType", variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string)),
-      ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
-      ("TLSavepoint", variant1(t => TLSavepoint(t), tlid)),
-      ("UndoTL", variant1(t => UndoTL(t), tlid)),
-      ("RedoTL", variant1(t => RedoTL(t), tlid)),
-      ("DeleteTL", variant1(t => DeleteTL(t), tlid)),
-      ("MoveTL", variant2((t, p) => MoveTL(t, p), tlid, pos)),
-      ("SetFunction", variant1(uf => SetFunction(uf), PT.UserFunction.decode)),
-      ("DeleteFunction", variant1(t => DeleteFunction(t), tlid)),
-      ("SetExpr", variant3((t, i, e) => SetExpr(t, i, e), tlid, id, PT.Expr.decode)),
-      ("RenameDBname", variant2((t, name) => RenameDBname(t, name), tlid, string)),
-      (
-        "CreateDBWithBlankOr",
-        variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
-      ),
-      ("SetType", variant1(t => SetType(t), PT.UserType.decode)),
-      ("DeleteType", variant1(t => DeleteType(t), tlid)),
-    },
-    j,
-  )
-
 let addOpAPIResult = (j): addOpAPIResult => {
   let tls = field("toplevels", list(toplevel), j)
   let dtls = field("deleted_toplevels", list(toplevel), j)
@@ -618,7 +580,7 @@ let addOpAPIResult = (j): addOpAPIResult => {
 let addOpAPI = (j: Js.Json.t): addOpAPIResponse => {result: field("result", addOpAPIResult, j)}
 
 let addOpAPIParams = (j): addOpAPIParams => {
-  ops: field("ops", list(op), j),
+  ops: field("ops", list(PT.Op.decode), j),
   opCtr: field("opCtr", int, j),
   clientOpCtrId: field("clientOpCtrId", string)(j),
 }

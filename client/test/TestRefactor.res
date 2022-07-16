@@ -227,7 +227,7 @@ let run = () => {
       }
 
       let ops = R.renameDBReferences(model, "ElmCode", "WeirdCode")
-      let res = switch List.sortBy(~f=Encoders.tlidOf, ops) {
+      let res = switch List.sortBy(~f=PT.Op.tlidOf, ops) {
       | list{SetHandler(_, _, h), SetFunction(f)} =>
         switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.ast)) {
         | (EVariable(_, "WeirdCode"), EVariable(_, "WeirdCode")) => true

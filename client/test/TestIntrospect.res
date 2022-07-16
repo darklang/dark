@@ -75,7 +75,7 @@ let run = () => {
     test("tlidsToUpdateUsage", () => {
       let fntlid = gtlid()
       let ops = list{
-        SetHandler(h1tlid, {x: 0, y: 0}, h1data),
+        PT.Op.SetHandler(h1tlid, {x: 0, y: 0}, h1data),
         SetExpr(h1tlid, gid(), EBlank(gid())),
         SetFunction({
           tlid: fntlid,

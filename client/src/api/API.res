@@ -70,7 +70,7 @@ let apiCall = (
   Tea.Http.send(callback, request)
 }
 
-let opsParams = (ops: list<op>, opCtr: int, clientOpCtrId: string): addOpAPIParams => {
+let opsParams = (ops: list<PT.Op.t>, opCtr: int, clientOpCtrId: string): addOpAPIParams => {
   ops: ops,
   opCtr: opCtr,
   clientOpCtrId: clientOpCtrId,
@@ -282,7 +282,7 @@ let sendInvite = (m: model, invite: SettingsViewTypes.inviteFormMessage): Tea.Cm
  * */
 let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOpAPIResult>): (
   model,
-  list<op>,
+  list<PT.Op.t>,
   option<addOpAPIResult>,
 ) => {
   let newOpCtrs = /* if the opCtr in params is greater than the one in the map, we'll create
@@ -309,7 +309,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
     // NOTE: DO NOT UPDATE WITHOUT UPDATING THE SERVER-SIDE LIST
     let filter_ops_received_out_of_order = List.filter(~f=op =>
       switch op {
-      | SetHandler(_)
+      | PT.Op.SetHandler(_)
       | SetFunction(_)
       | SetType(_)
       | MoveTL(_)
@@ -333,7 +333,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
     )
 
     let ops = params.ops |> filter_ops_received_out_of_order
-    let opTlids = ops |> List.map(~f=op => Encoders.tlidOf(op))
+    let opTlids = ops |> List.map(~f=op => PT.Op.tlidOf(op))
     // We also want to ignore the result of ops we ignored
     let result = Option.map(result, ~f=(result: addOpAPIResult) => {
       ...result,
