@@ -58,15 +58,11 @@ let base64url_bytes = (input: Bytes.t): string =>
 let id = ID.encode
 let tlid = TLID.encode
 
-let pos = (p: Types.pos) => object_(list{("x", int(p.x)), ("y", int(p.y))})
+let pos = (p: BaseTypes.pos) => object_(list{("x", int(p.x)), ("y", int(p.y))})
 
-let vPos = (vp: Types.vPos) => object_(list{("vx", int(vp.vx)), ("vy", int(vp.vy))})
+let vPos = (vp: vPos) => object_(list{("vx", int(vp.vx)), ("vy", int(vp.vy))})
 
-let blankOr = (encoder: 'a => Js.Json.t, v: Types.blankOr<'a>) =>
-  switch v {
-  | F(i, s) => variant("Filled", list{id(i), encoder(s)})
-  | Blank(i) => variant("Blank", list{id(i)})
-  }
+let blankOr = BaseTypes.encodeBlankOr
 
 let dval_source = (s: Types.dval_source): Js.Json.t => {
   let ev = variant
@@ -103,7 +99,7 @@ let rec ocamlDval = (dv: Types.dval): Js.Json.t => {
     let dblock_args = object_(list{
       ("symtable", beltStrDict(ocamlDval, symtable)),
       ("params", list(pair(id, string), params)),
-      ("body", fluidExpr(body)),
+      ("body", PT.Expr.encode(body)),
     })
 
     ev("DBlock", list{dblock_args})
@@ -169,25 +165,18 @@ and tlidOf = (op: Types.op): TLID.t =>
   | ChangeDBColName(tlid, _, _) => tlid
   | SetDBColType(tlid, _, _) => tlid
   | ChangeDBColType(tlid, _, _) => tlid
-  | DeprecatedInitDbm(tlid, _, _, _, _) => tlid
   | TLSavepoint(tlid) => tlid
   | UndoTL(tlid) => tlid
   | RedoTL(tlid) => tlid
   | DeleteTL(tlid) => tlid
   | MoveTL(tlid, _) => tlid
-  | SetFunction(f) => f.ufTLID
+  | SetFunction(f) => f.tlid
   | DeleteFunction(tlid) => tlid
   | SetExpr(tlid, _, _) => tlid
-  | CreateDBMigration(tlid, _, _, _) => tlid
-  | AddDBColToDBMigration(tlid, _, _) => tlid
-  | SetDBColNameInDBMigration(tlid, _, _) => tlid
-  | SetDBColTypeInDBMigration(tlid, _, _) => tlid
-  | AbandonDBMigration(tlid) => tlid
-  | DeleteColInDBMigration(tlid, _) => tlid
   | DeleteDBCol(tlid, _) => tlid
   | RenameDBname(tlid, _) => tlid
   | CreateDBWithBlankOr(tlid, _, _, _) => tlid
-  | SetType(ut) => ut.utTLID
+  | SetType(ut) => ut.tlid
   | DeleteType(tlid) => tlid
   }
 
@@ -220,48 +209,7 @@ and spec = (spec: Types.handlerSpec): Js.Json.t =>
   })
 
 and handler = (h: Types.handler): Js.Json.t =>
-  object_(list{("tlid", tlid(h.hTLID)), ("spec", spec(h.spec)), ("ast", fluidAST(h.ast))})
-
-and dbMigrationKind = (k: Types.dbMigrationKind): Js.Json.t => {
-  let ev = variant
-  switch k {
-  | DeprecatedMigrationKind => ev("DeprecatedMigrationKind", list{})
-  }
-}
-
-and colList = (cols: list<Types.dbColumn>): Js.Json.t =>
-  list(pair(blankOr(string), blankOr(string)), cols)
-
-and dbMigrationState = (s: Types.dbMigrationState): Js.Json.t => {
-  let ev = variant
-  switch s {
-  | DBMigrationAbandoned => ev("DBMigrationAbandoned", list{})
-  | DBMigrationInitialized => ev("DBMigrationInitialized", list{})
-  }
-}
-
-and dbMigration = (dbm: Types.dbMigration): Js.Json.t =>
-  object_(list{
-    ("starting_version", int(dbm.startingVersion)),
-    ("version", int(dbm.version)),
-    ("state", dbMigrationState(dbm.state)),
-    ("cols", colList(dbm.cols)),
-    ("rollforward", dbm.rollforward |> fluidExpr),
-    ("rollback", dbm.rollback |> fluidExpr),
-  })
-
-and db = (db: Types.db): Js.Json.t =>
-  object_(list{
-    ("tlid", tlid(db.dbTLID)),
-    ("name", blankOr(string, db.dbName)),
-    ("cols", colList(db.cols)),
-    ("version", int(db.version)),
-    ("old_migrations", list(dbMigration, db.oldMigrations)),
-    (
-      "active_migration",
-      Option.map(~f=dbMigration, db.activeMigration) |> Option.unwrap(~default=null),
-    ),
-  })
+  object_(list{("tlid", tlid(h.hTLID)), ("spec", spec(h.spec)), ("ast", PT.AST.encode(h.ast))})
 
 and op = (call: Types.op): Js.Json.t => {
   let ev = variant
@@ -274,30 +222,18 @@ and op = (call: Types.op): Js.Json.t => {
   | SetDBColType(t, i, tipe) => ev("SetDBColType", list{tlid(t), id(i), string(tipe)})
   | ChangeDBColType(t, i, name) => ev("ChangeDBColType", list{tlid(t), id(i), string(name)})
   | DeleteDBCol(t, i) => ev("DeleteDBCol", list{tlid(t), id(i)})
-  | DeprecatedInitDbm(t, i, rbid, rfid, kind) =>
-    ev("DeprecatedInitDbm", list{tlid(t), id(i), id(rbid), id(rfid), dbMigrationKind(kind)})
-  | CreateDBMigration(t, rbid, rfid, cols) =>
-    ev("CreateDBMigration", list{tlid(t), id(rbid), id(rfid), colList(cols)})
-  | AddDBColToDBMigration(t, colnameid, coltypeid) =>
-    ev("AddDBColToDBMigration", list{tlid(t), id(colnameid), id(coltypeid)})
-  | SetDBColNameInDBMigration(t, i, name) =>
-    ev("SetDBColNameInDBMigration", list{tlid(t), id(i), string(name)})
-  | SetDBColTypeInDBMigration(t, i, tipe) =>
-    ev("SetDBColTypeInDBMigration", list{tlid(t), id(i), string(tipe)})
-  | AbandonDBMigration(t) => ev("AbandonDBMigration", list{tlid(t)})
-  | DeleteColInDBMigration(t, i) => ev("DeleteColInDBMigration", list{tlid(t), id(i)})
   | TLSavepoint(t) => ev("TLSavepoint", list{tlid(t)})
   | UndoTL(t) => ev("UndoTL", list{tlid(t)})
   | RedoTL(t) => ev("RedoTL", list{tlid(t)})
   | DeleteTL(t) => ev("DeleteTL", list{tlid(t)})
   | MoveTL(t, p) => ev("MoveTL", list{tlid(t), pos(p)})
-  | SetFunction(uf) => ev("SetFunction", list{userFunction(uf)})
+  | SetFunction(uf) => ev("SetFunction", list{PT.UserFunction.encode(uf)})
   | DeleteFunction(t) => ev("DeleteFunction", list{tlid(t)})
-  | SetExpr(t, i, e) => ev("SetExpr", list{tlid(t), id(i), e |> fluidExpr})
+  | SetExpr(t, i, e) => ev("SetExpr", list{tlid(t), id(i), PT.Expr.encode(e)})
   | RenameDBname(t, name) => ev("RenameDBname", list{tlid(t), string(name)})
   | CreateDBWithBlankOr(t, p, i, name) =>
     ev("CreateDBWithBlankOr", list{tlid(t), pos(p), id(i), string(name)})
-  | SetType(t) => ev("SetType", list{userTipe(t)})
+  | SetType(t) => ev("SetType", list{PT.UserType.encode(t)})
   | DeleteType(t) => ev("DeleteType", list{tlid(t)})
   }
 }
@@ -335,7 +271,7 @@ and packageFn = (pf: Types.packageFn): Js.Json.t =>
     ("module", string(pf.module_)),
     ("fnname", string(pf.fnname)),
     ("version", int(pf.version)),
-    ("body", fluidExpr(pf.body)),
+    ("body", PT.Expr.encode(pf.body)),
     ("parameters", list(packageFnParameter, pf.parameters)),
     ("return_type", DType.encode(pf.return_type)),
     ("description", string(pf.description)),
@@ -345,7 +281,7 @@ and packageFn = (pf: Types.packageFn): Js.Json.t =>
   })
 
 and uploadFnAPIParams = (params: Types.uploadFnAPIParams): Js.Json.t =>
-  object_(list{("fn", userFunction(params.uplFn))})
+  object_(list{("fn", PT.UserFunction.encode(params.uplFn))})
 
 and triggerHandlerAPIParams = (params: Types.triggerHandlerAPIParams): Js.Json.t =>
   object_(list{
@@ -389,20 +325,20 @@ and performHandlerAnalysisParams = (params: Types.performHandlerAnalysisParams):
     ("handler", handler(params.handler)),
     ("trace_id", traceID(params.traceID)),
     ("trace_data", traceData(params.traceData)),
-    ("dbs", list(db, params.dbs)),
-    ("user_fns", list(userFunction, params.userFns)),
-    ("user_tipes", list(userTipe, params.userTipes)),
+    ("dbs", list(PT.DB.encode, params.dbs)),
+    ("user_fns", list(PT.UserFunction.encode, params.userFns)),
+    ("user_tipes", list(PT.UserType.encode, params.userTipes)),
     ("secrets", list(secret, params.secrets)),
   })
 
 and performFunctionAnalysisParams = (params: Types.performFunctionAnalysisParams): Js.Json.t =>
   object_(list{
-    ("func", userFunction(params.func)),
+    ("func", PT.UserFunction.encode(params.func)),
     ("trace_id", traceID(params.traceID)),
     ("trace_data", traceData(params.traceData)),
-    ("dbs", list(db, params.dbs)),
-    ("user_fns", list(userFunction, params.userFns)),
-    ("user_tipes", list(userTipe, params.userTipes)),
+    ("dbs", list(PT.DB.encode, params.dbs)),
+    ("user_fns", list(PT.UserFunction.encode, params.userFns)),
+    ("user_tipes", list(PT.UserType.encode, params.userTipes)),
     ("secrets", list(secret, params.secrets)),
   })
 
@@ -411,126 +347,6 @@ and performAnalysisParams = (params: Types.performAnalysisParams): Js.Json.t => 
   switch params {
   | AnalyzeHandler(h) => ev("AnalyzeHandler", list{performHandlerAnalysisParams(h)})
   | AnalyzeFunction(h) => ev("AnalyzeFunction", list{performFunctionAnalysisParams(h)})
-  }
-}
-
-and userFunction = (uf: Types.userFunction): Js.Json.t =>
-  object_(list{
-    ("tlid", tlid(uf.ufTLID)),
-    ("metadata", userFunctionMetadata(uf.ufMetadata)),
-    ("ast", fluidAST(uf.ufAST)),
-  })
-
-and userFunctionMetadata = (f: Types.userFunctionMetadata): Js.Json.t =>
-  object_(list{
-    ("name", blankOr(string, f.ufmName)),
-    ("parameters", list(userFunctionParameter, f.ufmParameters)),
-    ("description", string(f.ufmDescription)),
-    ("return_type", blankOr(DType.encode, f.ufmReturnTipe)),
-    ("infix", bool(f.ufmInfix)),
-  })
-
-and userTipe = (ut: Types.userTipe): Js.Json.t =>
-  object_(list{
-    ("tlid", tlid(ut.utTLID)),
-    ("name", blankOr(string, ut.utName)),
-    ("version", int(ut.utVersion)),
-    ("definition", userTipeDefinition(ut.utDefinition)),
-  })
-
-and userTipeDefinition = (utd: Types.userTipeDefinition): Js.Json.t => {
-  let ev = variant
-  switch utd {
-  | UTRecord(fields) => ev("UTRecord", list{list(userRecordField)(fields)})
-  }
-}
-
-and userRecordField = (urf: Types.userRecordField): Js.Json.t =>
-  object_(list{
-    ("name", blankOr(string, urf.urfName)),
-    ("tipe", blankOr(DType.encode, urf.urfTipe)),
-  })
-
-and userFunctionParameter = (p: Types.userFunctionParameter): Js.Json.t =>
-  object_(list{
-    ("name", blankOr(string, p.ufpName)),
-    ("tipe", blankOr(DType.encode, p.ufpTipe)),
-    ("block_args", list(string, p.ufpBlock_args)),
-    ("optional", bool(p.ufpOptional)),
-    ("description", string(p.ufpDescription)),
-  })
-
-and sendToRail = (sendToRail: ProgramTypes.Expr.sendToRail): Js.Json.t => {
-  let ev = variant
-  switch sendToRail {
-  | Rail => ev("Rail", list{})
-  | NoRail => ev("NoRail", list{})
-  }
-}
-
-and fluidPattern = (mid: id, pattern: FluidPattern.t): Js.Json.t => {
-  let fp = fluidPattern(mid)
-  let ev = variant
-  switch pattern {
-  /* Warning: A bunch of stuff here seems to expect that the
-    second element of the tuples are match id but they are actually
-    pattern ids. */
-  | PVariable(id', name) => ev("FPVariable", list{id(mid), id(id'), string(name)})
-  | PConstructor(id', name, patterns) =>
-    ev("FPConstructor", list{id(mid), id(id'), string(name), list(fp, patterns)})
-  | PInteger(id', v) => ev("FPInteger", list{id(mid), id(id'), string(Int64.to_string(v))})
-  | PBool(id', v) => ev("FPBool", list{id(mid), id(id'), bool(v)})
-  | PFloat(id', sign, whole, fraction) =>
-    ev(
-      "FPFloat",
-      list{id(mid), id(id'), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)},
-    )
-  | PString(id', v) =>
-    ev(
-      "FPString",
-      list{object_(list{("matchID", id(mid)), ("patternID", id(id')), ("str", string(v))})},
-    )
-  | PNull(id') => ev("FPNull", list{id(mid), id(id')})
-  | PBlank(id') => ev("FPBlank", list{id(mid), id(id')})
-  }
-}
-
-and fluidAST = (ast: FluidAST.t): Js.Json.t => ast |> FluidAST.toExpr |> fluidExpr
-
-and fluidExpr = (expr: FluidExpression.t): Js.Json.t => {
-  let fe = fluidExpr
-  let ev = variant
-  switch expr {
-  | ELet(id', lhs, rhs, body) => ev("ELet", list{id(id'), string(lhs), fe(rhs), fe(body)})
-  | EIf(id', cond, ifbody, elsebody) => ev("EIf", list{id(id'), fe(cond), fe(ifbody), fe(elsebody)})
-  | EFnCall(id', name, exprs, r) =>
-    ev("EFnCall", list{id(id'), string(name), list(fe, exprs), sendToRail(r)})
-  | EBinOp(id', name, left, right, r) =>
-    ev("EBinOp", list{id(id'), string(name), fe(left), fe(right), sendToRail(r)})
-  | ELambda(id', vars, body) => ev("ELambda", list{id(id'), list(pair(id, string), vars), fe(body)})
-  | EPipe(id', e1, e2, rest) => ev("EPipe", list{id(id'), list(fe, list{e1, e2, ...rest})})
-  | EFieldAccess(id', obj, field) => ev("EFieldAccess", list{id(id'), fe(obj), string(field)})
-  | EString(id', v) => ev("EString", list{id(id'), string(v)})
-  | EInteger(id', v) => ev("EInteger", list{id(id'), string(Int64.to_string(v))})
-  | EBool(id', v) => ev("EBool", list{id(id'), bool(v)})
-  | EFloat(id', sign, whole, fraction) =>
-    ev("EFloat", list{id(id'), string(ProgramTypes.Sign.combine(sign, whole)), string(fraction)})
-  | ENull(id') => ev("ENull", list{id(id')})
-  | EBlank(id') => ev("EBlank", list{id(id')})
-  | EVariable(id', name) => ev("EVariable", list{id(id'), string(name)})
-  | EList(id', exprs) => ev("EList", list{id(id'), list(fe, exprs)})
-  | ETuple(id', first, second, theRest) =>
-    ev("ETuple", list{id(id'), fe(first), fe(second), list(fe, theRest)})
-  | ERecord(id', pairs) => ev("ERecord", list{id(id'), list(pair(string, fe), pairs)})
-  | EFeatureFlag(id', name, cond, a, b) =>
-    ev("EFeatureFlag", list{id(id'), string(name), fe(cond), fe(a), fe(b)})
-  | EMatch(id', matchExpr, cases) =>
-    ev("EMatch", list{id(id'), fe(matchExpr), list(pair(fluidPattern(id'), fe), cases)})
-  | EConstructor(id', name, args) => ev("EConstructor", list{id(id'), string(name), list(fe, args)})
-  | EPartial(id', str, oldExpr) => ev("EPartial", list{id(id'), string(str), fe(oldExpr)})
-  | ERightPartial(id', str, oldExpr) => ev("ERightPartial", list{id(id'), string(str), fe(oldExpr)})
-  | ELeftPartial(id', str, oldExpr) => ev("ELeftPartial", list{id(id'), string(str), fe(oldExpr)})
-  | EPipeTarget(id') => ev("EPipeTarget", list{id(id')})
   }
 }
 

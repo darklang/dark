@@ -2,6 +2,8 @@ open Tc
 module PT = ProgramTypes
 module RT = RuntimeTypes
 
+open BaseTypes
+
 module Belt = {
   include (Belt: module type of Belt with module Map := Belt.Map)
 
@@ -78,6 +80,7 @@ module PageVisibility = {
     | Visible
 }
 
+@ppx.deriving(show({with_path: false}))
 type rec exception_ = {
   short: string,
   long: option<string>,
@@ -94,22 +97,11 @@ type rec exception_ = {
 // ----------------------
 // Basic types
 // ----------------------
-@ppx.deriving(show({with_path: false}))
-and blankOr<'a> =
-  | Blank(id)
-  | F(id, 'a)
-
 // There are two coordinate systems. Pos is an absolute position in the
 // canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
 // within the viewport and we map Absolute positions back to the
 // viewport to display in the browser.
 // TODO: Can we depreciate VPos?
-@ppx.deriving(show({with_path: false}))
-type rec pos = {
-  x: int,
-  y: int,
-}
-
 and vPos = {
   vx: int,
   vy: int,
@@ -208,79 +200,9 @@ and handler = {
 }
 
 // dbs
-and dbName = string
-
-and dbColName = string
-
-and dbColType = string
-
-and dbColumn = (blankOr<dbColName>, blankOr<dbColType>)
-
-and dbMigrationKind = DeprecatedMigrationKind
-
-and dbMigrationState =
-  | DBMigrationAbandoned
-  | DBMigrationInitialized
-
-and dbMigration = {
-  startingVersion: int,
-  version: int,
-  state: dbMigrationState,
-  rollforward: fluidExpr,
-  rollback: fluidExpr,
-  cols: list<dbColumn>,
-}
-
-and db = {
-  dbTLID: TLID.t,
-  dbName: blankOr<dbName>,
-  cols: list<dbColumn>,
-  version: int,
-  oldMigrations: list<dbMigration>,
-  activeMigration: option<dbMigration>,
-  pos: pos,
-}
-
 and functionTypes =
-  | UserFunction(userFunction)
+  | UserFunction(PT.UserFunction.t)
   | PackageFn(packageFn)
-
-// userFunctions
-and userFunctionParameter = {
-  ufpName: blankOr<string>,
-  ufpTipe: blankOr<DType.t>,
-  ufpBlock_args: list<string>,
-  ufpOptional: bool,
-  ufpDescription: string,
-}
-
-and userFunctionMetadata = {
-  ufmName: blankOr<string>,
-  ufmParameters: list<userFunctionParameter>,
-  ufmDescription: string,
-  ufmReturnTipe: blankOr<DType.t>,
-  ufmInfix: bool,
-}
-
-and userFunction = {
-  ufTLID: TLID.t,
-  ufMetadata: userFunctionMetadata,
-  ufAST: fluidAST,
-}
-
-and userRecordField = {
-  urfName: blankOr<string>,
-  urfTipe: blankOr<DType.t>,
-}
-
-and userTipeDefinition = UTRecord(list<userRecordField>)
-
-and userTipe = {
-  utTLID: TLID.t,
-  utName: blankOr<string>,
-  utVersion: int,
-  utDefinition: userTipeDefinition,
-}
 
 // Package manager Functions
 and packageFnParameter = {
@@ -307,10 +229,10 @@ and packageFn = {
 // toplevels
 and toplevel =
   | TLHandler(handler)
-  | TLDB(db)
+  | TLDB(PT.DB.t)
   | TLPmFunc(packageFn)
-  | TLFunc(userFunction)
-  | TLTipe(userTipe)
+  | TLFunc(PT.UserFunction.t)
+  | TLTipe(PT.UserType.t)
 
 and packageFns = TLID.Dict.t<packageFn>
 
@@ -681,37 +603,27 @@ and workerStats = {
 // -------------------
 // ops
 // -------------------
-and rollbackID = id
-
-and rollforwardID = id
 
 and op =
   | SetHandler(TLID.t, pos, handler)
-  | CreateDB(TLID.t, pos, dbName)
+  | CreateDB(TLID.t, pos, string)
   | AddDBCol(TLID.t, id, id)
-  | SetDBColName(TLID.t, id, dbColName)
-  | SetDBColType(TLID.t, id, dbColType)
+  | SetDBColName(TLID.t, id, string)
+  | SetDBColType(TLID.t, id, string)
   | DeleteTL(TLID.t)
   | MoveTL(TLID.t, pos)
-  | TLSavepoint(TLID.t)
+  | SetFunction(PT.UserFunction.t)
+  | ChangeDBColName(TLID.t, id, string)
+  | ChangeDBColType(TLID.t, id, string)
   | UndoTL(TLID.t)
   | RedoTL(TLID.t)
-  | SetFunction(userFunction)
-  | DeleteFunction(TLID.t)
-  | ChangeDBColName(TLID.t, id, dbColName)
-  | ChangeDBColType(TLID.t, id, dbColType)
-  | DeprecatedInitDbm(TLID.t, id, rollbackID, rollforwardID, dbMigrationKind)
   | SetExpr(TLID.t, id, fluidExpr)
-  | CreateDBMigration(TLID.t, rollbackID, rollforwardID, list<dbColumn>)
-  | AddDBColToDBMigration(TLID.t, id, id)
-  | SetDBColNameInDBMigration(TLID.t, id, dbColName)
-  | SetDBColTypeInDBMigration(TLID.t, id, dbColType)
-  | DeleteColInDBMigration(TLID.t, id)
-  | AbandonDBMigration(TLID.t)
+  | TLSavepoint(TLID.t)
+  | DeleteFunction(TLID.t)
   | DeleteDBCol(TLID.t, id)
-  | RenameDBname(TLID.t, dbName)
-  | CreateDBWithBlankOr(TLID.t, pos, id, dbName)
-  | SetType(userTipe)
+  | RenameDBname(TLID.t, string)
+  | CreateDBWithBlankOr(TLID.t, pos, id, string)
+  | SetType(PT.UserType.t)
   | DeleteType(TLID.t)
 
 // -------------------
@@ -738,7 +650,7 @@ and executeFunctionAPIParams = {
 
 and deleteToplevelForeverAPIParams = {dtfTLID: TLID.t}
 
-and uploadFnAPIParams = {uplFn: userFunction}
+and uploadFnAPIParams = {uplFn: PT.UserFunction.t}
 
 and triggerHandlerAPIParams = {
   thTLID: TLID.t,
@@ -764,19 +676,19 @@ and performHandlerAnalysisParams = {
   handler: handler,
   traceID: traceID,
   traceData: traceData,
-  dbs: list<db>,
-  userFns: list<userFunction>,
-  userTipes: list<userTipe>,
+  dbs: list<PT.DB.t>,
+  userFns: list<PT.UserFunction.t>,
+  userTipes: list<PT.UserType.t>,
   secrets: list<SecretTypes.t>,
 }
 
 and performFunctionAnalysisParams = {
-  func: userFunction,
+  func: PT.UserFunction.t,
   traceID: traceID,
   traceData: traceData,
-  dbs: list<db>,
-  userFns: list<userFunction>,
-  userTipes: list<userTipe>,
+  dbs: list<PT.DB.t>,
+  userFns: list<PT.UserFunction.t>,
+  userTipes: list<PT.UserType.t>,
   secrets: list<SecretTypes.t>,
 }
 
@@ -804,12 +716,12 @@ and account = {
 and addOpAPIResult = {
   handlers: list<handler>,
   deletedHandlers: list<handler>,
-  dbs: list<db>,
-  deletedDBs: list<db>,
-  userFunctions: list<userFunction>,
-  deletedUserFunctions: list<userFunction>,
-  userTipes: list<userTipe>,
-  deletedUserTipes: list<userTipe>,
+  dbs: list<PT.DB.t>,
+  deletedDBs: list<PT.DB.t>,
+  userFunctions: list<PT.UserFunction.t>,
+  deletedUserFunctions: list<PT.UserFunction.t>,
+  userTipes: list<PT.UserType.t>,
+  deletedUserTipes: list<PT.UserType.t>,
 }
 
 and addOpAPIResponse = {result: addOpAPIResult}
@@ -846,14 +758,14 @@ and allTracesAPIResult = {traces: list<(TLID.t, traceID)>}
 and initialLoadAPIResult = {
   handlers: list<handler>,
   deletedHandlers: list<handler>,
-  dbs: list<db>,
-  deletedDBs: list<db>,
-  userFunctions: list<userFunction>,
-  deletedUserFunctions: list<userFunction>,
+  dbs: list<PT.DB.t>,
+  deletedDBs: list<PT.DB.t>,
+  userFunctions: list<PT.UserFunction.t>,
+  deletedUserFunctions: list<PT.UserFunction.t>,
   unlockedDBs: unlockedDBs,
   staticDeploys: list<staticDeploy>,
-  userTipes: list<userTipe>,
-  deletedUserTipes: list<userTipe>,
+  userTipes: list<PT.UserType.t>,
+  deletedUserTipes: list<PT.UserType.t>,
   permission: option<permission>,
   opCtrs: Map.String.t<int>,
   account: account,
@@ -930,7 +842,7 @@ and command = {
 }
 
 and omniAction =
-  | NewDB(option<dbName>)
+  | NewDB(option<string>)
   | NewFunction(option<string>)
   | NewHTTPHandler(option<string>)
   | NewWorkerHandler(option<string>)
@@ -980,7 +892,6 @@ and autocomplete = {
 
 and autocompleteMod =
   | ACSetQuery(string)
-  | ACAppendQuery(string)
   | ACReset
   | ACSelectDown
   | ACSelectUp
@@ -1002,7 +913,7 @@ and functionsType = {
 
 and functionsProps = {
   usedFns: Map.String.t<int>,
-  userFunctions: TLID.Dict.t<userFunction>,
+  userFunctions: TLID.Dict.t<PT.UserFunction.t>,
 }
 
 // ---------------
@@ -1132,20 +1043,17 @@ and editorSettings = {
   runTimers: bool,
 }
 
-/* tlidSelectTarget represents a target insID.t *e a TLID for use
+/* tlidSelectTarget represents a target inside a TLID for use
    by the `Select` modification.
 
-   In Fluid, we should probably use STCaret in all cases --
-   knowing the id *of an ast node (via STID) is insufficient
-   to know where to place the caret within that node.
-   In non-fluid, the concept of a caret doesn't really exist;
-   we select nodes at any nesting level as a whole, so STID is
-   sufficient.
+   In Fluid, we should probably use STCaret in all cases -- knowing the id of an ast
+   node (via STID) is insufficient to know where to place the caret within that node.
+   In non-fluid, the concept of a caret doesn't really exist; we select nodes at any
+   nesting level as a whole, so STID is sufficient.
 
-   If we want to select a toplevel as a whole but don't have a
-   specific id *in mind, we use STTopLevelRoot. There's a few
-   places where we do this as a fallback when we expected to find
-   an id but couldn't (they used to use Some(id) with an implicit
+   If we want to select a toplevel as a whole but don't have a specific id *in mind,
+   we use STTopLevelRoot. There's a few places where we do this as a fallback when we
+   expected to find an id but couldn't (they used to use Some(id) with an implicit
    fallback to None). */
 and tlidSelectTarget =
   | STCaret(caretTarget)
@@ -1180,24 +1088,19 @@ and modification =
   | ClearHover(TLID.t, idOrTraceID)
   | Deselect
   | RemoveToplevel(toplevel)
-  | SetToplevels(list<handler>, list<db>, bool)
-  | UpdateToplevels(list<handler>, list<db>, bool)
-  | SetDeletedToplevels(list<handler>, list<db>)
-  | UpdateDeletedToplevels(list<handler>, list<db>)
+  | SetToplevels(list<handler>, list<PT.DB.t>, bool)
+  | UpdateToplevels(list<handler>, list<PT.DB.t>, bool)
+  | SetDeletedToplevels(list<handler>, list<PT.DB.t>)
+  | UpdateDeletedToplevels(list<handler>, list<PT.DB.t>)
   | UpdateAnalysis(analysisEnvelope)
-  | SetUserFunctions(list<userFunction>, list<userFunction>, bool)
+  | SetUserFunctions(list<PT.UserFunction.t>, list<PT.UserFunction.t>, bool)
   | SetUnlockedDBs(unlockedDBs)
   | AppendUnlockedDBs(unlockedDBs)
   | Append404s(list<fourOhFour>)
   | Delete404(fourOhFour)
-  | Enter /* Enter a blankOr */(TLID.t, id)
-  | EnterWithOffset(
-      // Entering a blankOr with a desired caret offset
-      TLID.t,
-      id,
-      int,
-    )
-  | OpenOmnibox /* Open the omnibox */(option<pos>)
+  | Enter(TLID.t, id) // Enter a blankOr
+  | EnterWithOffset(TLID.t, id, int) // Entering a blankOr with a desired caret offset
+  | OpenOmnibox(option<pos>) // Open the omnibox
   | UpdateWorkerSchedules(Map.String.t<string>)
   | NoChange
   | @printer(opaque("MakeCmd")) MakeCmd(Tea.Cmd.t<msg>)
@@ -1226,7 +1129,7 @@ and modification =
        * so that the latest model is use. */
       model => modification,
     )
-  | SetTypes(list<userTipe>, list<userTipe>, bool)
+  | SetTypes(list<PT.UserType.t>, list<PT.UserType.t>, bool)
   | SetPermission(option<permission>)
   | CenterCanvasOn(TLID.t)
   | InitIntrospect(list<toplevel>)
@@ -1241,7 +1144,7 @@ and modification =
   | ExpireAvatars
   | SetClipboardContents(clipboardContents, clipboardEvent)
   | UpdateASTCache(TLID.t, string)
-  | InitASTCache(list<handler>, list<userFunction>)
+  | InitASTCache(list<handler>, list<PT.UserFunction.t>)
   | FluidSetState(fluidState)
   | TLMenuUpdate(TLID.t, menuMsg)
   | SettingsViewUpdate(SettingsViewTypes.settingsMsg)
@@ -1392,10 +1295,10 @@ and msg =
   | @printer(opaque("TimerFire")) TimerFire(timerAction, Tea.Time.t)
   | JSError(string)
   | PageVisibilityChange(PageVisibility.visibility)
-  | DeleteUserFunctionParameter(TLID.t, userFunctionParameter)
+  | DeleteUserFunctionParameter(TLID.t, PT.UserFunction.Parameter.t)
   | AddUserFunctionParameter(TLID.t)
   | UploadFn(TLID.t)
-  | DeleteUserTypeField(TLID.t, userRecordField)
+  | DeleteUserTypeField(TLID.t, PT.UserType.RecordField.t)
   | BlankOrClick(TLID.t, id, mouseEvent)
   | BlankOrDoubleClick(TLID.t, id, mouseEvent)
   | BlankOrMouseEnter(TLID.t, id, mouseEvent)
@@ -1418,8 +1321,6 @@ and msg =
   | ReceiveAnalysis(performAnalysisResult)
   | ReceiveFetch(fetchResult)
   | EnablePanning(bool)
-  | StartMigration(TLID.t)
-  | AbandonMigration(TLID.t)
   | DeleteColInDB(TLID.t, id)
   | CreateDBTable
   | ClipboardCopyEvent(clipboardEvent)
@@ -1439,7 +1340,6 @@ and msg =
   | ResetToast
   | GoToArchitecturalView
   | HideTopbar
-  | LogoutOfDark
   | DismissErrorBar
   | PauseWorker(string)
   | RunWorker(string)
@@ -1466,10 +1366,6 @@ and variantTest =
 // FeatureFlags
 // -----------------------------
 and ffIsExpanded = bool
-
-and pick =
-  | PickA
-  | PickB
 
 and flagsVS = Map.String.t<ffIsExpanded>
 
@@ -1566,7 +1462,7 @@ and fluidToken =
     )
   | TVariable(id, string, option<parentBlockID>)
   // id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail
-  | TFnName(id, string, string, string, ProgramTypes.Expr.sendToRail)
+  | TFnName(id, string, string, string, ProgramTypes.Expr.SendToRail.t)
   // id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3')
   | TFnVersion(id, string, string, string)
   | TLambdaComma(id, int, option<parentBlockID>)
@@ -1753,12 +1649,12 @@ and model = {
   hovering: list<(TLID.t, idOrTraceID)>,
   handlers: TLID.Dict.t<handler>,
   deletedHandlers: TLID.Dict.t<handler>,
-  dbs: TLID.Dict.t<db>,
-  deletedDBs: TLID.Dict.t<db>,
-  userFunctions: TLID.Dict.t<userFunction>,
-  deletedUserFunctions: TLID.Dict.t<userFunction>,
-  userTipes: TLID.Dict.t<userTipe>,
-  deletedUserTipes: TLID.Dict.t<userTipe>,
+  dbs: TLID.Dict.t<PT.DB.t>,
+  deletedDBs: TLID.Dict.t<PT.DB.t>,
+  userFunctions: TLID.Dict.t<PT.UserFunction.t>,
+  deletedUserFunctions: TLID.Dict.t<PT.UserFunction.t>,
+  userTipes: TLID.Dict.t<PT.UserType.t>,
+  deletedUserTipes: TLID.Dict.t<PT.UserType.t>,
   traces: traces,
   analyses: analyses,
   f404s: list<fourOhFour>,

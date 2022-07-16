@@ -317,9 +317,6 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
       | ChangeDBColName(_)
       | ChangeDBColType(_)
       | SetExpr(_)
-      | CreateDBMigration(_)
-      | SetDBColNameInDBMigration(_)
-      | SetDBColTypeInDBMigration(_)
       | UndoTL(_)
       | RedoTL(_)
       | TLSavepoint(_)
@@ -328,11 +325,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
       | AddDBCol(_)
       | SetDBColType(_)
       | DeleteTL(_)
-      | DeprecatedInitDbm(_)
       | DeleteFunction(_)
-      | AddDBColToDBMigration(_)
-      | AbandonDBMigration(_)
-      | DeleteColInDBMigration(_)
       | DeleteDBCol(_)
       | CreateDBWithBlankOr(_)
       | DeleteType(_) => true
@@ -345,10 +338,12 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
     let result = Option.map(result, ~f=(result: addOpAPIResult) => {
       ...result,
       handlers: result.handlers |> List.filter(~f=h => List.member(~value=h.hTLID, opTlids)),
-      userFunctions: result.userFunctions |> List.filter(~f=uf =>
-        List.member(~value=uf.ufTLID, opTlids)
+      userFunctions: result.userFunctions |> List.filter(~f=(uf: PT.UserFunction.t) =>
+        List.member(~value=uf.tlid, opTlids)
       ),
-      userTipes: result.userTipes |> List.filter(~f=ut => List.member(~value=ut.utTLID, opTlids)),
+      userTipes: result.userTipes |> List.filter(~f=(ut: PT.UserType.t) =>
+        List.member(~value=ut.tlid, opTlids)
+      ),
     })
 
     (m2, ops, result)

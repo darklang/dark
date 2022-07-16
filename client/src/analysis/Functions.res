@@ -65,15 +65,15 @@ let global = () => globalRef.contents
  * and mark any callers of those functions as unsafe. And that's the whole
  * algorithm. */
 let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
-  /* Construct a dependency tree (which is a reverse callgraph) so that we get
-   * from a callee to a caller */
+  // Construct a dependency tree (which is a reverse callgraph) so that we get
+  // from a callee to a caller
   let dependencyTree =
     props.userFunctions
-    |> Map.mapValues(~f=uf =>
-      uf.ufMetadata.ufmName
+    |> Map.mapValues(~f=(uf: PT.UserFunction.t) =>
+      uf.metadata.name
       |> B.toOption
       |> Option.map(~f=caller =>
-        E.filterMap(FluidAST.toExpr(uf.ufAST), ~f=x =>
+        E.filterMap(FluidAST.toExpr(uf.ast), ~f=x =>
           switch x {
           | EBinOp(_, callee, _, _, _) => Some(callee, caller)
           | EFnCall(_, callee, _, _) => Some(callee, caller)
@@ -168,7 +168,7 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
 
   let userFunctionMetadata =
     props.userFunctions
-    |> Map.mapValues(~f=x => x.ufMetadata)
+    |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata)
     |> List.filterMap(~f=UserFunctions.ufmToF)
     |> List.map(~f=f => {
       ...f,

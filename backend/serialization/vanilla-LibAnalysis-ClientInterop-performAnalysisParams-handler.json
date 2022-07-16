@@ -7165,9 +7165,7 @@
             ]
           ]
         ],
-        "version": 1,
-        "old_migrations": [],
-        "active_migration": null
+        "version": 1
       }
     ],
     "user_fns": [

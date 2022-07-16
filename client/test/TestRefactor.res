@@ -70,16 +70,16 @@ let defaultHandler = {
   spec: {space: B.newF("HTTP"), name: B.newF("/src"), modifier: B.newF("POST")},
 }
 
-let aFn = (name, expr): userFunction => {
-  ufTLID: gtlid(),
-  ufMetadata: {
-    ufmName: F(gid(), name),
-    ufmParameters: list{},
-    ufmDescription: "",
-    ufmReturnTipe: F(gid(), TAny),
-    ufmInfix: false,
+let aFn = (name, expr): PT.UserFunction.t => {
+  tlid: gtlid(),
+  metadata: {
+    name: F(gid(), name),
+    parameters: list{},
+    description: "",
+    returnType: F(gid(), TAny),
+    infix: false,
   },
-  ufAST: FluidAST.ofExpr(expr),
+  ast: FluidAST.ofExpr(expr),
 }
 
 let run = () => {
@@ -187,13 +187,11 @@ let run = () => {
     })
   })
   describe("renameDBReferences", () => {
-    let db0 = {
-      dbTLID: gtlid(),
-      dbName: B.newF("ElmCode"),
+    let db0: PT.DB.t = {
+      tlid: gtlid(),
+      name: B.newF("ElmCode"),
       cols: list{},
       version: 0,
-      oldMigrations: list{},
-      activeMigration: None,
       pos: {x: 0, y: 0},
     }
 
@@ -209,16 +207,16 @@ let run = () => {
         pos: {x: 0, y: 0},
       }
 
-      let f = {
-        ufTLID: TLID.fromInt(6),
-        ufMetadata: {
-          ufmName: B.newF("f-1"),
-          ufmParameters: list{},
-          ufmDescription: "",
-          ufmReturnTipe: B.new_(),
-          ufmInfix: false,
+      let f: PT.UserFunction.t = {
+        tlid: TLID.fromInt(6),
+        metadata: {
+          name: B.newF("f-1"),
+          parameters: list{},
+          description: "",
+          returnType: B.new_(),
+          infix: false,
         },
-        ufAST: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
+        ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
       }
 
       let model = {
@@ -231,7 +229,7 @@ let run = () => {
       let ops = R.renameDBReferences(model, "ElmCode", "WeirdCode")
       let res = switch List.sortBy(~f=Encoders.tlidOf, ops) {
       | list{SetHandler(_, _, h), SetFunction(f)} =>
-        switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.ufAST)) {
+        switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.ast)) {
         | (EVariable(_, "WeirdCode"), EVariable(_, "WeirdCode")) => true
         | _ => false
         }
@@ -318,9 +316,12 @@ let run = () => {
       let fields = switch tipe {
       | Error(_) => list{}
       | Ok(ut) =>
-        switch ut.utDefinition {
-        | UTRecord(utr) =>
-          utr |> List.map(~f=urf => (urf.urfName |> B.toOption, urf.urfTipe |> B.toOption))
+        switch ut.definition {
+        | PT.UserType.Definition.UTRecord(utr) =>
+          utr |> List.map(~f=(urf: PT.UserType.RecordField.t) => (
+            urf.name |> B.toOption,
+            urf.typ |> B.toOption,
+          ))
         }
       }
 
@@ -526,7 +527,7 @@ let run = () => {
         aFn("callsSafeUserfn", fn("callsSafeBuiltin", list{})),
         aFn("callsUnsafeUserfn", fn("callsUnsafeBuiltin", list{})),
       }
-      |> List.map(~f=fn => (fn.ufTLID, fn))
+      |> List.map(~f=(uf: PT.UserFunction.t) => (uf.tlid, uf))
       |> TLID.Dict.fromList
 
     test("simple example", () => {

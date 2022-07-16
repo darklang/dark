@@ -268,7 +268,10 @@ let inputVariables = (tl: toplevel): list<string> =>
     | Blank(_) => // we used to be allowed unknown
       list{"request", "event"}
     }
-  | TLFunc(f) => f.ufMetadata.ufmParameters |> List.filterMap(~f=p => BlankOr.toOption(p.ufpName))
+  | TLFunc(f) =>
+    f.metadata.parameters |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
+      BlankOr.toOption(p.name)
+    )
   | TLTipe(_) | TLDB(_) | TLPmFunc(_) => list{}
   }
 

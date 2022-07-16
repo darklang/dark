@@ -15,7 +15,7 @@ open PrettyDocs
  ")
 let hintForFunction = (
   fn: Prelude.function_,
-  sendToRail: option<ProgramTypes.Expr.sendToRail>,
+  sendToRail: option<ProgramTypes.Expr.SendToRail.t>,
 ): Vdom.t<'a> => {
   let errorRail = Html.a(
     list{

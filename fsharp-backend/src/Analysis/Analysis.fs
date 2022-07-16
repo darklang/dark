@@ -79,7 +79,7 @@ type EvalWorker =
         $"caught exception: \"{errorMessage}\" \"{metadata}\""
       )
 
-      Error($"exception: {errorMessage}, metdata: {metadata}")
+      Error($"exception: {errorMessage}, metadata: {metadata}")
 
     // parse an analysis request, in JSON, from the JS world (BlazorWorker)
     let args : Result<ClientInterop.performAnalysisParams, string> =

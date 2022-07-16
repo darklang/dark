@@ -101,7 +101,7 @@ let encodingRoundtrip: FuzzTest.t = {
   name: "encoder/decoder roundtrips successfully",
   check: (~testcase, ~newAST, _) => testcase == newAST,
   ignore: _ => false,
-  fn: testcase => (testcase |> Encoders.fluidExpr |> Decoders.fluidExpr, defaultTestState),
+  fn: testcase => (testcase |> PT.Expr.encode |> PT.Expr.decode, defaultTestState),
 }
 
 let longLines: FuzzTest.t = {

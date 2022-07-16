@@ -25,21 +25,11 @@ module ClientInterop =
   // type should be a DType, but the client gives us a string instead.
   type client_col = string OT.or_blank * string OT.or_blank
 
-  type client_db_migration =
-    { starting_version : int64
-      version : int64
-      state : ORT.DbT.db_migration_state
-      rollforward : ORT.fluidExpr
-      rollback : ORT.fluidExpr
-      cols : client_col list }
-
   type client_db =
     { tlid : tlid
       name : string OT.or_blank
       cols : client_col list
-      version : int64
-      old_migrations : client_db_migration list
-      active_migration : client_db_migration option }
+      version : int64 }
 
 
   let convert_col ((name, tipe) : client_col) : ORT.DbT.col =
@@ -53,22 +43,14 @@ module ClientInterop =
         |> OT.Convert.pt2ocamlTipe
       (name, (OT.Filled(id, typ)))
 
-  let convert_migration (m : client_db_migration) : ORT.DbT.db_migration =
-    { starting_version = m.starting_version
-      version = m.version
-      state = m.state
-      rollforward = m.rollforward
-      rollback = m.rollback
-      cols = List.map convert_col m.cols }
-
 
   let convert_db (db : client_db) : ORT.DbT.db =
     { tlid = db.tlid
       name = db.name
       cols = List.map convert_col db.cols
       version = db.version
-      old_migrations = List.map convert_migration db.old_migrations
-      active_migration = Option.map convert_migration db.active_migration }
+      old_migrations = []
+      active_migration = None }
 
   // -----------------------
   // Analysis types

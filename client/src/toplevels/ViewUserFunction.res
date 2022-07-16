@@ -17,7 +17,7 @@ type exeFunction =
 let viewUserFnName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
   ViewBlankOr.viewText(~classes, ~enterable=true, FnName, vp, v)
 
-let viewExecuteBtn = (vp: viewProps, fn: userFunction): Html.html<msg> => {
+let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
   let exeStatus = if vp.isExecuting {
     IsExecuting
   } else {
@@ -48,14 +48,14 @@ let viewExecuteBtn = (vp: viewProps, fn: userFunction): Html.html<msg> => {
   }
 
   let events = // If function is ready for re-execution, attach onClick listener
-  switch (fn.ufMetadata.ufmName, exeStatus) {
+  switch (fn.metadata.name, exeStatus) {
   | (F(_, fnName), CanExecute(traceID, args)) =>
     ViewUtils.eventNoPropagation(
-      ~key="run-fun" ++ ("-" ++ (TLID.toString(fn.ufTLID) ++ ("-" ++ traceID))),
+      ~key="run-fun" ++ ("-" ++ (TLID.toString(fn.tlid) ++ ("-" ++ traceID))),
       "click",
       _ => ExecuteFunctionFromWithin({
-        efpTLID: fn.ufTLID,
-        efpCallerID: FluidAST.toID(fn.ufAST),
+        efpTLID: fn.tlid,
+        efpCallerID: FluidAST.toID(fn.ast),
         efpTraceID: traceID,
         efpFnName: fnName,
         efpArgs: args,
@@ -96,7 +96,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
   | UserFunction(fn) =>
     switch vp.permission {
     | Some(ReadWrite) =>
-      let strTLID = TLID.toString(fn.ufTLID)
+      let strTLID = TLID.toString(fn.tlid)
       Html.div(
         ~unique="add-param-col-" ++ strTLID,
         list{
@@ -104,7 +104,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
           ViewUtils.eventNoPropagation(
             ~key="aufp-" ++ strTLID,
             "click",
-            _ => AddUserFunctionParameter(fn.ufTLID),
+            _ => AddUserFunctionParameter(fn.tlid),
           ),
         },
         list{
@@ -122,7 +122,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
 
   let titleRow = {
     let titleText = switch fn {
-    | UserFunction(fn) => fn.ufMetadata.ufmName
+    | UserFunction(fn) => fn.metadata.name
     | PackageFn(fn) => BlankOr.newF(fn.fnname ++ ("_v" ++ string_of_int(fn.version)))
     }
 
@@ -133,12 +133,12 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
           title: "Upload Function",
           key: "upload-ufn-",
           icon: Some("upload"),
-          action: _ => UploadFn(fn.ufTLID),
+          action: _ => UploadFn(fn.tlid),
           disableMsg: None,
         }
 
         let delAct: TLMenu.menuItem = {
-          let disableMsg = if !UserFunctions.canDelete(vp.usedInRefs, fn.ufTLID) {
+          let disableMsg = if !UserFunctions.canDelete(vp.usedInRefs, fn.tlid) {
             Some(
               "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it.",
             )
@@ -150,7 +150,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
             title: "Delete",
             key: "del-ufn-",
             icon: Some("times"),
-            action: _ => DeleteUserFunction(fn.ufTLID),
+            action: _ => DeleteUserFunction(fn.tlid),
             disableMsg: disableMsg,
           }
         }
@@ -193,7 +193,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
 
   let returnRow = {
     let returnType = switch fn {
-    | UserFunction(fn) => fn.ufMetadata.ufmReturnTipe
+    | UserFunction(fn) => fn.metadata.returnType
     | PackageFn(fn) => BlankOr.newF(fn.return_type)
     }
 

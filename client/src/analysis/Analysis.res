@@ -174,7 +174,7 @@ let getAvailableVarnames = (m: model, tl: toplevel, id: id, traceID: traceID): l
 
   switch tl {
   | TLHandler(h) => Belt.List.concatMany([varsFor(h.ast), glob, inputVariables])
-  | TLFunc(fn) => Belt.List.concatMany([varsFor(fn.ufAST), glob, inputVariables])
+  | TLFunc(fn) => Belt.List.concatMany([varsFor(fn.ast), glob, inputVariables])
   | TLPmFunc(_) | TLDB(_) | TLTipe(_) => list{}
   }
 }

@@ -246,7 +246,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
         switch (dval, vp.tl) {
         | (DIncomplete(_), TLHandler(h)) if SpecHeaders.spaceOf(h.spec) == HSHTTP =>
           text("Your code needs to return a value in the last expression")
-        | (DIncomplete(_), TLFunc(f)) if onDefaultTrace(f.ufTLID) =>
+        | (DIncomplete(_), TLFunc(f)) if onDefaultTrace(f.tlid) =>
           text(
             "This function has not yet been called, so there are no values assigned to the parameters. Call this function in another handler.",
           )
@@ -254,7 +254,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
           text("Your code needs to return a value in the last expression")
         | (_, TLFunc(f)) =>
           let actualType = dval |> Runtime.typeOf
-          let declaredType = BlankOr.valueWithDefault(DType.TAny, f.ufMetadata.ufmReturnTipe)
+          let declaredType = BlankOr.valueWithDefault(DType.TAny, f.metadata.returnType)
 
           if Runtime.isCompatible(actualType, declaredType) {
             Vdom.noNode

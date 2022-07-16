@@ -149,116 +149,6 @@ let traceID = (j): traceID => string(j)
 
 let jsDate = (j): Js.Date.t => Js.Date.fromString(string(j))
 
-let sendToRail = j => {
-  let dv0 = variant0
-  variants(
-    list{("Rail", dv0(ProgramTypes.Expr.Rail)), ("NoRail", dv0(ProgramTypes.Expr.NoRail))},
-    j,
-  )
-}
-
-let rec fluidPattern = (j): FluidPattern.t => {
-  module P = ProgramTypes.Pattern
-  let dp = fluidPattern
-  let dv4 = variant4
-  let dv3 = variant3
-  let dv2 = variant2
-  variants(
-    list{
-      ("FPVariable", dv3((_, b, c) => P.PVariable(b, c), id, id, string)),
-      ("FPConstructor", dv4((_, b, c, d) => P.PConstructor(b, c, d), id, id, string, list(dp))),
-      (
-        "FPInteger",
-        dv3((_, b, c) => P.PInteger(b, c), id, id, i => i |> string |> Int64.of_string),
-      ),
-      ("FPBool", dv3((_, b, c) => P.PBool(b, c), id, id, bool)),
-      (
-        "FPString",
-        recordVariant3(
-          (_, patternID, str) => P.PString(patternID, str),
-          ("matchID", id),
-          ("patternID", id),
-          ("str", string),
-        ),
-      ),
-      ("FPFloat", dv4((_, id2, whole, fraction) => {
-          let (sign, whole) = if String.startsWith(~prefix="-", whole) {
-            (ProgramTypes.Negative, String.dropLeft(~count=1, whole))
-          } else {
-            (ProgramTypes.Positive, whole)
-          }
-          P.PFloat(id2, sign, whole, fraction)
-        }, id, id, string, string)),
-      ("FPNull", dv2((_, b) => P.PNull(b), id, id)),
-      ("FPBlank", dv2((_, b) => P.PBlank(b), id, id)),
-    },
-    j,
-  )
-}
-
-let rec fluidExpr = (j: Js.Json.t): FluidExpression.t => {
-  module E = ProgramTypes.Expr
-  let de = fluidExpr
-  let dv5 = variant5
-  let dv4 = variant4
-  let dv3 = variant3
-  let dv2 = variant2
-  let dv1 = variant1
-  variants(
-    list{
-      ("EInteger", dv2((x, y) => E.EInteger(x, y), id, int64)),
-      ("EBool", dv2((x, y) => E.EBool(x, y), id, bool)),
-      ("EString", dv2((x, y) => E.EString(x, y), id, string)),
-      ("EFloat", dv3((x, whole, fraction) => {
-          let (sign, whole) = if String.startsWith(~prefix="-", whole) {
-            (ProgramTypes.Negative, String.dropLeft(~count=1, whole))
-          } else {
-            (ProgramTypes.Positive, whole)
-          }
-          E.EFloat(x, sign, whole, fraction)
-        }, id, string, string)),
-      ("ENull", dv1(x => E.ENull(x), id)),
-      ("EBlank", dv1(x => E.EBlank(x), id)),
-      ("ELet", dv4((a, b, c, d) => E.ELet(a, b, c, d), id, string, de, de)),
-      ("EIf", dv4((a, b, c, d) => E.EIf(a, b, c, d), id, de, de, de)),
-      ("EBinOp", dv5((a, b, c, d, e) => E.EBinOp(a, b, c, d, e), id, string, de, de, sendToRail)),
-      ("ELambda", dv3((a, b, c) => E.ELambda(a, b, c), id, list(pair(id, string)), de)),
-      ("EFieldAccess", dv3((a, b, c) => E.EFieldAccess(a, b, c), id, de, string)),
-      ("EVariable", dv2((x, y) => E.EVariable(x, y), id, string)),
-      ("EFnCall", dv4((a, b, c, d) => E.EFnCall(a, b, c, d), id, string, list(de), sendToRail)),
-      ("EPartial", dv3((a, b, c) => E.EPartial(a, b, c), id, string, de)),
-      ("ELeftPartial", dv3((a, b, c) => E.ELeftPartial(a, b, c), id, string, de)),
-      ("ERightPartial", dv3((a, b, c) => E.ERightPartial(a, b, c), id, string, de)),
-      ("EList", dv2((x, y) => E.EList(x, y), id, list(de))),
-      ("ETuple", dv4((x, y1, y2, yRest) => E.ETuple(x, y1, y2, yRest), id, de, de, list(de))),
-      ("ERecord", dv2((x, y) => E.ERecord(x, y), id, list(pair(string, de)))),
-      ("EPipe", dv2((x, y) =>
-          switch y {
-          | list{} =>
-            let (e1, e2) = recover(
-              "decoding a pipe with no exprs",
-              ~debug=x,
-              (E.EBlank(gid()), E.EBlank(gid())),
-            )
-            E.EPipe(x, e1, e2, list{})
-          | list{e1} =>
-            let e2 = recover("decoding a pipe with only one expr", ~debug=x, E.EBlank(gid()))
-            E.EPipe(x, e1, e2, list{})
-          | list{e1, e2, ...rest} => E.EPipe(x, e1, e2, rest)
-          }
-        , id, list(de))),
-      ("EConstructor", dv3((a, b, c) => E.EConstructor(a, b, c), id, string, list(de))),
-      ("EMatch", dv3((a, b, c) => E.EMatch(a, b, c), id, de, list(pair(fluidPattern, de)))),
-      ("EPipeTarget", dv1(a => E.EPipeTarget(a), id)),
-      (
-        "EFeatureFlag",
-        dv5((a, b, c, d, e) => E.EFeatureFlag(a, b, c, d, e), id, string, de, de, de),
-      ),
-    },
-    j,
-  )
-}
-
 let blankOrData = (j): blankOrData => {
   let dv1 = variant1
   variants(
@@ -308,7 +198,7 @@ let rec ocamlDval = (j): dval => {
 
   let dblock_args = j => {
     params: field("params", list(pair(id, string)), j),
-    body: field("body", fluidExpr, j),
+    body: field("body", PT.Expr.decode, j),
     symtable: field("symtable", beltStrDict(ocamlDval), j),
   }
 
@@ -565,7 +455,7 @@ let handlerSpec = (j): handlerSpec => {
 }
 
 let handler = (pos, j): handler => {
-  ast: field("ast", j => fluidExpr(j) |> FluidAST.ofExpr, j),
+  ast: field("ast", PT.AST.decode, j),
   spec: field("spec", handlerSpec, j),
   hTLID: field("tlid", tlid, j),
   pos: pos,
@@ -573,70 +463,14 @@ let handler = (pos, j): handler => {
 
 let tipeString = (j): string => map(RT.tipe2str, DType.decodeOld, j)
 
-let dbColList = (j): list<dbColumn> => list(tuple2(blankOr(string), blankOr(tipeString)), j)
-
-let dbmColList = (j): list<dbColumn> => list(tuple2(blankOr(string), blankOr(string)), j)
-
-let dbMigrationState = (j): dbMigrationState => {
-  let dv0 = variant0
-  variants(
-    list{
-      ("DBMigrationAbandoned", dv0(DBMigrationAbandoned)),
-      ("DBMigrationInitialized", dv0(DBMigrationInitialized)),
-    },
-    j,
-  )
-}
-
-let dbMigration = (j): dbMigration => {
-  startingVersion: field("starting_version", int, j),
-  version: field("version", int, j),
-  state: field("state", dbMigrationState, j),
-  cols: field("cols", dbColList, j),
-  rollforward: field("rollforward", fluidExpr, j),
-  rollback: field("rollback", fluidExpr, j),
-}
-
-let db = (pos, j): db => {
-  dbTLID: field("tlid", tlid, j),
-  dbName: field("name", blankOr(string), j),
-  cols: field("cols", dbColList, j),
-  version: field("version", int, j),
-  oldMigrations: field("old_migrations", list(dbMigration), j),
-  activeMigration: field("active_migration", optional(dbMigration), j),
-  pos: pos,
-}
-
 let toplevel = (j): toplevel => {
   let pos = field("pos", pos, j)
   let variant = variants(list{
     ("Handler", variant1(x => TLHandler(x), handler(pos))),
-    ("DB", variant1(x => TLDB(x), db(pos))),
+    ("DB", variant1(x => TLDB(x), PT.DB.decode(pos))),
   })
 
   field("data", variant, j)
-}
-
-let userFunctionParameter = (j): userFunctionParameter => {
-  ufpName: field("name", blankOr(string), j),
-  ufpTipe: field("tipe", blankOr(DType.decodeOld), j),
-  ufpBlock_args: field("block_args", list(string), j),
-  ufpOptional: field("optional", bool, j),
-  ufpDescription: field("description", string, j),
-}
-
-let userFunctionMetadata = (j): userFunctionMetadata => {
-  ufmName: field("name", blankOr(string), j),
-  ufmParameters: field("parameters", list(userFunctionParameter), j),
-  ufmDescription: field("description", string, j),
-  ufmReturnTipe: field("return_type", blankOr(DType.decodeOld), j),
-  ufmInfix: field("infix", bool, j),
-}
-
-let userFunction = (j): userFunction => {
-  ufTLID: field("tlid", tlid, j),
-  ufMetadata: field("metadata", userFunctionMetadata, j),
-  ufAST: field("ast", fluidExpr, j) |> FluidAST.ofExpr,
 }
 
 let packageFnParameter = (j: Js.Json.t): Types.packageFnParameter => {
@@ -651,7 +485,7 @@ let packageFn = (j: Js.Json.t): Types.packageFn => {
   module_: field("module", string, j),
   fnname: field("fnname", string, j),
   version: field("version", int, j),
-  body: field("body", fluidExpr, j),
+  body: field("body", PT.Expr.decode, j),
   parameters: field("parameters", list(packageFnParameter), j),
   return_type: field("return_type", DType.decodeOld, j),
   description: field("description", string, j),
@@ -738,21 +572,6 @@ let trace = (j): trace =>
 
 let traces = (j): traces => j |> list(tuple2(TLID.decode, list(trace))) |> TLID.Dict.fromList
 
-let userRecordField = j => {
-  urfName: field("name", blankOr(string), j),
-  urfTipe: field("tipe", blankOr(DType.decodeOld), j),
-}
-
-let userTipeDefinition = j =>
-  variants(list{("UTRecord", variant1(x => UTRecord(x), list(userRecordField)))}, j)
-
-let userTipe = j => {
-  utTLID: field("tlid", tlid, j),
-  utName: field("name", blankOr(string), j),
-  utVersion: field("version", int, j),
-  utDefinition: field("definition", userTipeDefinition, j),
-}
-
 let permission = j =>
   variants(list{("Read", variant0(Read)), ("ReadWrite", variant0(ReadWrite))}, j)
 
@@ -775,49 +594,20 @@ let op = (j): op =>
       ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
       ("ChangeDBColType", variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string)),
       ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
-      (
-        "CreateDBMigration",
-        variant4(
-          (t, rbid, rfid, cols) => CreateDBMigration(t, rbid, rfid, cols),
-          tlid,
-          id,
-          id,
-          dbmColList,
-        ),
-      ),
-      (
-        "AddDBColToDBMigration",
-        variant3(
-          (t, colnameid, coltypeid) => AddDBColToDBMigration(t, colnameid, coltypeid),
-          tlid,
-          id,
-          id,
-        ),
-      ),
-      (
-        "SetDBColNameInDBMigration",
-        variant3((t, i, name) => SetDBColNameInDBMigration(t, i, name), tlid, id, string),
-      ),
-      (
-        "SetDBColTypeInDBMigration",
-        variant3((t, i, tipe) => SetDBColTypeInDBMigration(t, i, tipe), tlid, id, string),
-      ),
-      ("AbandonDBMigration", variant1(t => AbandonDBMigration(t), tlid)),
-      ("DeleteColInDBMigration", variant2((t, i) => DeleteColInDBMigration(t, i), tlid, id)),
       ("TLSavepoint", variant1(t => TLSavepoint(t), tlid)),
       ("UndoTL", variant1(t => UndoTL(t), tlid)),
       ("RedoTL", variant1(t => RedoTL(t), tlid)),
       ("DeleteTL", variant1(t => DeleteTL(t), tlid)),
       ("MoveTL", variant2((t, p) => MoveTL(t, p), tlid, pos)),
-      ("SetFunction", variant1(uf => SetFunction(uf), userFunction)),
+      ("SetFunction", variant1(uf => SetFunction(uf), PT.UserFunction.decode)),
       ("DeleteFunction", variant1(t => DeleteFunction(t), tlid)),
-      ("SetExpr", variant3((t, i, e) => SetExpr(t, i, e), tlid, id, fluidExpr)),
+      ("SetExpr", variant3((t, i, e) => SetExpr(t, i, e), tlid, id, PT.Expr.decode)),
       ("RenameDBname", variant2((t, name) => RenameDBname(t, name), tlid, string)),
       (
         "CreateDBWithBlankOr",
         variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
       ),
-      ("SetType", variant1(t => SetType(t), userTipe)),
+      ("SetType", variant1(t => SetType(t), PT.UserType.decode)),
       ("DeleteType", variant1(t => DeleteType(t), tlid)),
     },
     j,
@@ -831,10 +621,10 @@ let addOpAPIResult = (j): addOpAPIResult => {
     deletedHandlers: List.filterMap(~f=TL.asHandler, dtls),
     dbs: List.filterMap(~f=TL.asDB, tls),
     deletedDBs: List.filterMap(~f=TL.asDB, dtls),
-    userFunctions: field("user_functions", list(userFunction), j),
-    deletedUserFunctions: field("deleted_user_functions", list(userFunction), j),
-    userTipes: field("user_tipes", list(userTipe), j),
-    deletedUserTipes: field("deleted_user_tipes", list(userTipe), j),
+    userFunctions: field("user_functions", list(PT.UserFunction.decode), j),
+    deletedUserFunctions: field("deleted_user_functions", list(PT.UserFunction.decode), j),
+    userTipes: field("user_tipes", list(PT.UserType.decode), j),
+    deletedUserTipes: field("deleted_user_tipes", list(PT.UserType.decode), j),
   }
 }
 
@@ -891,12 +681,12 @@ let initialLoadAPIResult = (j): initialLoadAPIResult => {
     deletedHandlers: List.filterMap(~f=TL.asHandler, dtls),
     dbs: List.filterMap(~f=TL.asDB, tls),
     deletedDBs: List.filterMap(~f=TL.asDB, dtls),
-    userFunctions: field("user_functions", list(userFunction), j),
-    deletedUserFunctions: field("deleted_user_functions", list(userFunction), j),
+    userFunctions: field("user_functions", list(PT.UserFunction.decode), j),
+    deletedUserFunctions: field("deleted_user_functions", list(PT.UserFunction.decode), j),
     unlockedDBs: j |> field("unlocked_dbs", list(tlid)) |> TLID.Set.fromList,
     staticDeploys: field("assets", list(sDeploy), j),
-    userTipes: field("user_tipes", list(userTipe), j),
-    deletedUserTipes: field("deleted_user_tipes", list(userTipe), j),
+    userTipes: field("user_tipes", list(PT.UserType.decode), j),
+    deletedUserTipes: field("deleted_user_tipes", list(PT.UserType.decode), j),
     opCtrs: j
     |> withDefault(list{}, field("op_ctrs", list(tuple2(string, int))))
     |> Map.String.fromList,

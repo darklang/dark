@@ -9,7 +9,7 @@ type domEventList = ViewUtils.domEventList
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let dbName2String = (name: blankOr<dbName>): dbName => B.valueWithDefault("", name)
+let dbName2String = (name: blankOr<string>): string => B.valueWithDefault("", name)
 
 let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(
@@ -48,16 +48,16 @@ let viewDbLatestEntry = (stats: dbStats): Html.html<msg> => {
   Html.div(list{Html.class'("db db-liveVal")}, list{title, exampleHtml})
 }
 
-let viewDBData = (vp: viewProps, db: db): Html.html<msg> =>
-  switch Map.get(~key=TLID.toString(db.dbTLID), vp.dbStats) {
-  | Some(stats) if CursorState.tlidOf(vp.cursorState) == Some(db.dbTLID) =>
+let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<msg> =>
+  switch Map.get(~key=TLID.toString(db.tlid), vp.dbStats) {
+  | Some(stats) if CursorState.tlidOf(vp.cursorState) == Some(db.tlid) =>
     let liveVal = viewDbLatestEntry(stats)
     let count = viewDbCount(stats)
     Html.div(list{Html.class'("dbdata")}, list{count, liveVal})
   | _ => Vdom.noNode
   }
 
-let viewDBHeader = (vp: viewProps, db: db): list<Html.html<msg>> => {
+let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
   let typeView = Html.span(
     list{Html.class'("toplevel-type")},
     list{fontAwesome("database"), Html.text("DB")},
@@ -65,9 +65,9 @@ let viewDBHeader = (vp: viewProps, db: db): list<Html.html<msg>> => {
 
   let titleView = {
     let nameField = if vp.dbLocked {
-      Html.text(dbName2String(db.dbName))
+      Html.text(dbName2String(db.name))
     } else {
-      ViewBlankOr.viewText(~enterable=true, ~classes=list{"dbname"}, DBName, vp, db.dbName)
+      ViewBlankOr.viewText(~enterable=true, ~classes=list{"dbname"}, DBName, vp, db.name)
     }
 
     Html.span(
@@ -114,7 +114,9 @@ let viewDBColType = (~classes: list<string>, vp: viewProps, v: blankOr<string>):
   ViewBlankOr.viewText(~enterable, ~classes, DBColType, vp, v)
 }
 
-let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): dbColumn): Html.html<msg> => {
+let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): PT.DB.Col.t): Html.html<
+  msg,
+> => {
   let deleteButton = if (
     vp.permission == Some(ReadWrite) && ((isMigra || !vp.dbLocked) && (B.isF(n) || B.isF(t)))
   ) {
@@ -144,74 +146,8 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): dbColumn): 
   )
 }
 
-let viewMigraFuncs = (vp: viewProps, desc: string, varName: string): Html.html<msg> =>
-  Html.div(
-    list{Html.class'("col roll-fn")},
-    list{
-      Html.div(
-        list{Html.class'("fn-title")},
-        list{
-          Html.span(list{}, list{Html.text(desc ++ " : ")}),
-          Html.span(list{Html.class'("varname")}, list{Html.text(varName)}),
-        },
-      ),
-      ...FluidView.view(vp, list{}),
-    },
-  )
-
-let viewDBMigration = (migra: dbMigration, db: db, vp: viewProps): Html.html<msg> => {
-  let name = Html.text(dbName2String(db.dbName))
-  let cols = List.map(~f=viewDBCol(vp, true, db.dbTLID), migra.cols)
-  let funcs = /* this AST expr stuff is kind of a hack but until we reintroduce migration
-   * fields I don't know what else to do with it -- @dstrelau 2020-02-25 */
-  list{// viewMigraFuncs
-  // {vp with ast = FluidAST.ofExpr migra.rollforward}
-  // "Rollforward"
-  // "oldObj"
-  // ; viewMigraFuncs
-  // {vp with ast = FluidAST.ofExpr migra.rollback}
-  // "Rollback"
-  /* "newObj" */}
-
-  let lockReady = DB.isMigrationLockReady(migra)
-  let errorMsg = if !lockReady {
-    list{
-      Html.div(
-        list{Html.class'("col err")},
-        list{Html.text("Fill in rollback and rollforward functions to activate your migration")},
-      ),
-    }
-  } else {
-    list{}
-  }
-
-  let cancelBtn = Html.button(
-    list{
-      Html.Attributes.disabled(false),
-      ViewUtils.eventNoPropagation(
-        ~key="am-" ++ TLID.toString(db.dbTLID),
-        "click",
-        _ => AbandonMigration(db.dbTLID),
-      ),
-    },
-    list{Html.text("cancel")},
-  )
-
-  let migrateBtn = Html.button(
-    list{Html.Attributes.disabled(!lockReady)},
-    list{Html.text("activate")},
-  )
-
-  let actions = list{Html.div(list{Html.class'("col actions")}, list{cancelBtn, migrateBtn})}
-
-  Html.div(
-    list{Html.class'("db migration-view")},
-    Belt.List.concatMany([list{name}, cols, funcs, errorMsg, actions]),
-  )
-}
-
-let viewDB = (vp: viewProps, db: db, dragEvents: domEventList): list<Html.html<msg>> => {
-  let lockClass = if vp.dbLocked && db.activeMigration == None {
+let viewDB = (vp: viewProps, db: PT.DB.t, dragEvents: domEventList): list<Html.html<msg>> => {
+  let lockClass = if vp.dbLocked {
     "lock"
   } else {
     "unlock"
@@ -228,23 +164,12 @@ let viewDB = (vp: viewProps, db: db, dragEvents: domEventList): list<Html.html<m
     list{Html.text("All entries are identified by a unique string `key`.")},
   )
 
-  let coldivs = List.map(~f=viewDBCol(vp, false, db.dbTLID), cols)
+  let coldivs = List.map(~f=viewDBCol(vp, false, db.tlid), cols)
   let data = viewDBData(vp, db)
-  let migrationView = switch db.activeMigration {
-  | Some(migra) =>
-    if migra.state != DBMigrationAbandoned {
-      list{viewDBMigration(migra, db, vp)}
-    } else {
-      list{}
-    }
-  | None => list{}
-  }
-
   let headerView = Html.div(list{Html.class'("spec-header " ++ lockClass)}, viewDBHeader(vp, db))
 
   Belt.List.concatMany([
     list{Html.div(list{Html.class'("db"), ...dragEvents}, list{headerView, keyView, ...coldivs})},
-    migrationView,
     list{data},
   ])
 }

@@ -1,4 +1,5 @@
 include Tc
+include BaseTypes
 include Types
 include Recover
 
@@ -6,8 +7,8 @@ type jsonType = Js.Json.t
 
 let reportError = ErrorReporting.reportError
 
-/* Every other module should have `open Prelude` as its first statement.
- * You don't need to open/include Tc or Types, Prelude includes them. */
+// Every other module should have `open Prelude` as its first statement.
+// You don't need to open/include Tc or Types, Prelude includes them.
 
 module Tea = {
   // Extend Tea functions
@@ -47,9 +48,9 @@ module Json = {
 }
 
 // When we move to support larger numbers here, do not allow UInt64.max, as we use that as FluidToken.fakeid
-let gid = (): ID.t => ID.fromInt(Js_math.random_int(0, 2147483647))
+let gid = ID.generate
 
-let gtlid = (): TLID.t => TLID.fromInt(Js_math.random_int(0, 2147483647))
+let gtlid = TLID.generate
 
 module Debug = {
   let log = (~f: 'a => 'b=x => Obj.magic(x), msg: string, data: 'a): 'a => {

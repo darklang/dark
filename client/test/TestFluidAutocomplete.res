@@ -93,7 +93,7 @@ let defaultTokenInfo = {
 
 let defaultFullQuery = (~tl=defaultToplevel, ac: AC.t, queryString: string): AC.fullQuery => {
   let ti = switch tl {
-  | TLHandler({ast, _}) | TLFunc({ufAST: ast, _}) =>
+  | TLHandler({ast, _}) | TLFunc({ast, _}) =>
     ast
     |> FluidAST.toExpr
     |> Printer.tokenize
@@ -115,25 +115,23 @@ let aHandler = (~tlid=defaultTLID, ~expr=defaultExpr, ~space: option<string>=Non
   {ast: FluidAST.ofExpr(expr), spec: spec, hTLID: tlid, pos: {x: 0, y: 0}}
 }
 
-let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): userFunction => {
-  ufTLID: tlid,
-  ufMetadata: {
-    ufmName: B.newF("myFunc"),
-    ufmParameters: list{},
-    ufmDescription: "",
-    ufmReturnTipe: B.newF(DType.TStr),
-    ufmInfix: false,
+let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): PT.UserFunction.t => {
+  tlid: tlid,
+  metadata: {
+    name: B.newF("myFunc"),
+    parameters: list{},
+    description: "",
+    returnType: B.newF(DType.TStr),
+    infix: false,
   },
-  ufAST: FluidAST.ofExpr(expr),
+  ast: FluidAST.ofExpr(expr),
 }
 
-let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): db => {
-  dbTLID: tlid,
-  dbName: B.newF("MyDB"),
+let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): PT.DB.t => {
+  tlid: tlid,
+  name: B.newF("MyDB"),
   cols: list{(Blank(fieldid), Blank(typeid))},
   version: 0,
-  oldMigrations: list{},
-  activeMigration: None,
   pos: {x: 0, y: 0},
 }
 

@@ -5,14 +5,13 @@ module B = BlankOr
 module P = Pointer
 module TD = TLID.Dict
 
-let blankOrData = (t: userTipe): list<blankOrData> => {
-  let namePointer = PTypeName(t.utName)
-  let definitionPointers = switch t.utDefinition {
+let blankOrData = (t: PT.UserType.t): list<blankOrData> => {
+  let namePointer = PTypeName(t.name)
+  let definitionPointers = switch t.definition {
   | UTRecord(fields) =>
     List.fold(
       ~initial=list{},
-      ~f=(acc, f) =>
-        Belt.List.concat(acc, list{PTypeFieldName(f.urfName), PTypeFieldTipe(f.urfTipe)}),
+      ~f=(acc, f) => Belt.List.concat(acc, list{PTypeFieldName(f.name), PTypeFieldTipe(f.typ)}),
       fields,
     )
   }
@@ -20,45 +19,49 @@ let blankOrData = (t: userTipe): list<blankOrData> => {
   list{namePointer, ...definitionPointers}
 }
 
-let toID = (ut: userTipe): TLID.t => ut.utTLID
+let toID = (ut: PT.UserType.t): TLID.t => ut.tlid
 
-let upsert = (m: model, ut: userTipe): model => {
+let upsert = (m: model, ut: PT.UserType.t): model => {
   ...m,
-  userTipes: Map.add(~key=ut.utTLID, ~value=ut, m.userTipes),
+  userTipes: Map.add(~key=ut.tlid, ~value=ut, m.userTipes),
 }
 
-let update = (m: model, ~tlid: TLID.t, ~f: userTipe => userTipe): model => {
+let update = (m: model, ~tlid: TLID.t, ~f: PT.UserType.t => PT.UserType.t): model => {
   ...m,
   userTipes: Map.updateIfPresent(~key=tlid, ~f, m.userTipes),
 }
 
-let remove = (m: model, ut: userTipe): model => {
+let remove = (m: model, ut: PT.UserType.t): model => {
   ...m,
-  userTipes: Map.remove(~key=ut.utTLID, m.userTipes),
+  userTipes: Map.remove(~key=ut.tlid, m.userTipes),
 }
 
-let fromList = (uts: list<userTipe>): TLID.Dict.t<userTipe> =>
-  uts |> List.map(~f=ut => (ut.utTLID, ut)) |> TLID.Dict.fromList
+let fromList = (uts: list<PT.UserType.t>): TLID.Dict.t<PT.UserType.t> =>
+  uts |> List.map(~f=(ut: PT.UserType.t) => (ut.tlid, ut)) |> TLID.Dict.fromList
 
-let allNames = (tipes: TLID.Dict.t<userTipe>): list<string> =>
-  tipes |> Map.filterMapValues(~f=t => B.toOption(t.utName))
+let allNames = (tipes: TLID.Dict.t<PT.UserType.t>): list<string> =>
+  tipes |> Map.filterMapValues(~f=(ut: PT.UserType.t) => B.toOption(ut.name))
 
-let toTUserType = (tipe: userTipe): option<DType.t> =>
-  tipe.utName |> B.toOption |> Option.map(~f=n => DType.TUserType(n, tipe.utVersion))
+let toTUserType = (tipe: PT.UserType.t): option<DType.t> =>
+  tipe.name |> B.toOption |> Option.map(~f=n => DType.TUserType(n, tipe.version))
 
-let replaceDefinitionElement = (old: blankOrData, new_: blankOrData, tipe: userTipe): userTipe => {
+let replaceDefinitionElement = (
+  old: blankOrData,
+  new_: blankOrData,
+  tipe: PT.UserType.t,
+): PT.UserType.t => {
   let sId = P.toID(old)
-  switch tipe.utDefinition {
+  switch tipe.definition {
   | UTRecord(fields) =>
     let newFields = List.map(~f=f =>
-      if B.toID(f.urfName) == sId {
+      if B.toID(f.name) == sId {
         switch new_ {
-        | PTypeFieldName(new_) => {...f, urfName: B.replace(sId, new_, f.urfName)}
+        | PTypeFieldName(new_) => {...f, name: B.replace(sId, new_, f.name)}
         | _ => f
         }
-      } else if B.toID(f.urfTipe) == sId {
+      } else if B.toID(f.typ) == sId {
         switch new_ {
-        | PTypeFieldTipe(new_) => {...f, urfTipe: B.replace(sId, new_, f.urfTipe)}
+        | PTypeFieldTipe(new_) => {...f, typ: B.replace(sId, new_, f.typ)}
         | _ => f
         }
       } else {
@@ -66,15 +69,15 @@ let replaceDefinitionElement = (old: blankOrData, new_: blankOrData, tipe: userT
       }
     , fields)
 
-    {...tipe, utDefinition: UTRecord(newFields)}
+    {...tipe, definition: UTRecord(newFields)}
   }
 }
 
-let replaceTypeName = (old: blankOrData, new_: blankOrData, tipe: userTipe): userTipe => {
+let replaceTypeName = (old: blankOrData, new_: blankOrData, tipe: PT.UserType.t): PT.UserType.t => {
   let sId = P.toID(old)
-  if B.toID(tipe.utName) == sId {
+  if B.toID(tipe.name) == sId {
     switch new_ {
-    | PTypeName(new_) => {...tipe, utName: B.replace(sId, new_, tipe.utName)}
+    | PTypeName(new_) => {...tipe, name: B.replace(sId, new_, tipe.name)}
     | _ => tipe
     }
   } else {
@@ -82,19 +85,19 @@ let replaceTypeName = (old: blankOrData, new_: blankOrData, tipe: userTipe): use
   }
 }
 
-let replace = (old: blankOrData, new_: blankOrData, tipe: userTipe): userTipe =>
+let replace = (old: blankOrData, new_: blankOrData, tipe: PT.UserType.t): PT.UserType.t =>
   tipe |> replaceTypeName(old, new_) |> replaceDefinitionElement(old, new_)
 
-let extend = (tipe: userTipe): userTipe =>
-  switch tipe.utDefinition {
+let extend = (tipe: PT.UserType.t): PT.UserType.t =>
+  switch tipe.definition {
   | UTRecord(fields) =>
-    let newFields = Belt.List.concat(fields, list{{urfName: B.new_(), urfTipe: B.new_()}})
-    {...tipe, utDefinition: UTRecord(newFields)}
+    let newFields = Belt.List.concat(fields, list{{name: B.new_(), typ: B.new_()}})
+    {...tipe, definition: UTRecord(newFields)}
   }
 
-let removeField = (tipe: userTipe, field: userRecordField): userTipe =>
-  switch tipe.utDefinition {
+let removeField = (tipe: PT.UserType.t, field: PT.UserType.RecordField.t): PT.UserType.t =>
+  switch tipe.definition {
   | UTRecord(fields) =>
     let newFields = List.filter(~f=f => field != f, fields)
-    {...tipe, utDefinition: UTRecord(newFields)}
+    {...tipe, definition: UTRecord(newFields)}
   }

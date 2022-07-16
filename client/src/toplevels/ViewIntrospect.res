@@ -2,7 +2,7 @@ open Prelude
 module TL = Toplevel
 module B = BlankOr
 
-let dbColsView = (cols: list<dbColumn>): Html.html<msg> => {
+let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   let colView = col =>
     switch col {
     | (F(_, nm), F(_, ty)) =>
@@ -21,18 +21,18 @@ let dbColsView = (cols: list<dbColumn>): Html.html<msg> => {
   Html.div(list{Html.class'("fields")}, List.filterMap(~f=colView, cols))
 }
 
-let fnParamsView = (params: list<userFunctionParameter>): Html.html<msg> => {
-  let paramView = p => {
+let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
+  let paramView = (p: PT.UserFunction.Parameter.t) => {
     let name = Html.span(
-      list{Html.classList(list{("name", true), ("has-blanks", BlankOr.isBlank(p.ufpName))})},
-      list{Html.text(BlankOr.valueWithDefault("no name", p.ufpName))},
+      list{Html.classList(list{("name", true), ("has-blanks", BlankOr.isBlank(p.name))})},
+      list{Html.text(BlankOr.valueWithDefault("no name", p.name))},
     )
 
     let ptype = Html.span(
-      list{Html.classList(list{("type", true), ("has-blanks", BlankOr.isBlank(p.ufpTipe))})},
+      list{Html.classList(list{("type", true), ("has-blanks", BlankOr.isBlank(p.typ))})},
       list{
         Html.text(
-          switch p.ufpTipe {
+          switch p.typ {
           | F(_, v) => Runtime.tipe2str(v)
           | Blank(_) => "no type"
           },
@@ -89,7 +89,7 @@ let dbView = (
   originIDs: list<id>,
   tlid: TLID.t,
   name: string,
-  cols: list<dbColumn>,
+  cols: list<PT.DB.Col.t>,
   direction: string,
 ): Html.html<msg> =>
   Html.div(
@@ -151,7 +151,7 @@ let fnView = (
   originIDs: list<id>,
   tlid: TLID.t,
   name: string,
-  params: list<userFunctionParameter>,
+  params: list<PT.UserFunction.Parameter.t>,
   returnTipe: blankOr<DType.t>,
   direction: string,
 ): Html.html<msg> => {
@@ -240,16 +240,12 @@ let tipeView = (
 
 let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   switch tl {
-  | TLDB({dbTLID, dbName: F(_, name), cols, _}) =>
-    dbView(originalTLID, originalIDs, dbTLID, name, cols, direction)
+  | TLDB({tlid, name: F(_, name), cols, _}) =>
+    dbView(originalTLID, originalIDs, tlid, name, cols, direction)
   | TLHandler({hTLID, spec: {space: F(_, space), name: F(_, name), modifier}, _}) =>
     handlerView(originalTLID, originalIDs, hTLID, space, name, B.toOption(modifier), direction)
-  | TLFunc({
-      ufTLID,
-      ufMetadata: {ufmName: F(_, name), ufmParameters, ufmReturnTipe, _},
-      ufAST: _,
-    }) =>
-    fnView(originalTLID, originalIDs, ufTLID, name, ufmParameters, ufmReturnTipe, direction)
+  | TLFunc({tlid, metadata: {name: F(_, name), parameters, returnType, _}, ast: _}) =>
+    fnView(originalTLID, originalIDs, tlid, name, parameters, returnType, direction)
   | TLPmFunc(pFn) =>
     let name = pFn |> PackageManager.extendedName
     packageFnView(
@@ -261,8 +257,8 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
       BlankOr.newF(pFn.return_type),
       direction,
     )
-  | TLTipe({utTLID, utName: F(_, name), utVersion, utDefinition: _}) =>
-    tipeView(originalTLID, originalIDs, utTLID, name, utVersion, direction)
+  | TLTipe({tlid, name: F(_, name), version, definition: _}) =>
+    tipeView(originalTLID, originalIDs, tlid, name, version, direction)
   | _ => Vdom.noNode
   }
 

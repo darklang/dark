@@ -86,7 +86,7 @@ let run = () => {
   })
 
   describe("fluidExpr", () => {
-    let t = testRoundtrip(Decoders.fluidExpr, Encoders.fluidExpr)
+    let t = testRoundtrip(PT.Expr.decode, PT.Expr.encode)
     t("complex", FluidTestData.complexExpr)
   })
 

@@ -451,15 +451,10 @@ let submitACItem = (
           let varrefs = Refactor.renameDBReferences(m, oldName, value)
           AddOps(list{RenameDBname(tlid, value), ...varrefs}, FocusNothing)
         }
-      | (PDBColType(ct), ACDBColType(value), TLDB(db)) =>
+      | (PDBColType(ct), ACDBColType(value), TLDB(_)) =>
         if B.toOption(ct) == Some(value) {
           // TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item?
           Select(tlid, STID(id))
-        } else if DB.isMigrationCol(db, id) {
-          wrapID(list{
-            SetDBColTypeInDBMigration(tlid, id, value),
-            AddDBColToDBMigration(tlid, gid(), gid()),
-          })
         } else if B.isBlank(ct) {
           wrapID(list{SetDBColType(tlid, id, value), AddDBCol(tlid, gid(), gid())})
         } else {
@@ -469,8 +464,6 @@ let submitACItem = (
         if B.toOption(cn) == Some(value) {
           // TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item?
           Select(tlid, STID(id))
-        } else if DB.isMigrationCol(db, id) {
-          wrapID(list{SetDBColNameInDBMigration(tlid, id, value)})
         } else if DB.hasCol(db, value) {
           Model.updateErrorMod(Error.set("Can't have two DB fields with the same name: " ++ value))
         } else if B.isBlank(cn) {
@@ -552,7 +545,7 @@ let submitACItem = (
 
         saveH({...h, spec: replacedName}, PEventSpace(new_))
       | (PFnName(_), ACFnName(value), TLFunc(old)) =>
-        if B.isFilledValue(old.ufMetadata.ufmName, value) {
+        if B.isFilledValue(old.metadata.name, value) {
           NoChange
         } else if List.member(~value, UserFunctions.allNames(m.userFunctions)) {
           Model.updateErrorMod(Error.set("There is already a Function named " ++ value))
@@ -560,7 +553,7 @@ let submitACItem = (
           let newPD = PFnName(F(id, value))
           let new_ = {
             ...old,
-            ufMetadata: {...old.ufMetadata, ufmName: F(id, value)},
+            metadata: {...old.metadata, name: F(id, value)},
           }
 
           let changedNames = Refactor.renameFunction(m, old, value)

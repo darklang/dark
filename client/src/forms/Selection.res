@@ -34,10 +34,9 @@ let moveToNewerTrace = (m: model, tlid: TLID.t): modification => {
 // Entering
 // -------------------------------
 
-let enterDB = (m: model, db: db, tl: toplevel, id: id): modification => {
+let enterDB = (m: model, tl: toplevel, id: id): modification => {
   let tlid = TL.id(tl)
   let isLocked = DB.isLocked(m, tlid)
-  let isMigrationCol = DB.isMigrationCol(db, id)
   let pd = TL.find(tl, id)
   let enterField = Many(list{
     Enter(tlid, id),
@@ -52,25 +51,24 @@ let enterDB = (m: model, db: db, tl: toplevel, id: id): modification => {
       enterField
     }
   | Some(PDBColName(_)) =>
-    if isLocked && !isMigrationCol {
+    if isLocked {
       NoChange
     } else {
       enterField
     }
   | Some(PDBColType(_)) =>
-    if isLocked && !isMigrationCol {
+    if isLocked {
       NoChange
     } else {
       enterField
     }
-  // TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress
   | _ => NoChange
   }
 }
 
 let enterWithOffset = (m: model, tlid: TLID.t, id: id, offset: option<int>): modification =>
   switch TL.get(m, tlid) {
-  | Some(TLDB(db) as tl) => enterDB(m, db, tl, id)
+  | Some(TLDB(_) as tl) => enterDB(m, tl, id)
   | Some(tl) =>
     switch TL.find(tl, id) {
     | Some(pd) =>

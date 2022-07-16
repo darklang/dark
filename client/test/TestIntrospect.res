@@ -34,17 +34,15 @@ let run = () => {
     }
 
     let dbtlid = gtlid()
-    let dbdata = {
-      dbTLID: dbtlid,
-      dbName: B.newF("Books"),
+    let dbdata: PT.DB.t = {
+      tlid: dbtlid,
+      name: B.newF("Books"),
       cols: list{},
       version: 0,
-      oldMigrations: list{},
-      activeMigration: None,
       pos: {x: 0, y: 0},
     }
 
-    let dbs = TD.fromList(list{(dbdata.dbTLID, dbdata)})
+    let dbs = TD.fromList(list{(dbdata.tlid, dbdata)})
     let handlers = TD.fromList(list{(h1data.hTLID, h1data), (h2data.hTLID, h2data)})
 
     test("dbsByName", () =>
@@ -80,15 +78,15 @@ let run = () => {
         SetHandler(h1tlid, {x: 0, y: 0}, h1data),
         SetExpr(h1tlid, gid(), EBlank(gid())),
         SetFunction({
-          ufTLID: fntlid,
-          ufMetadata: {
-            ufmName: B.newF("trollClean"),
-            ufmParameters: list{},
-            ufmDescription: "can users put docs here?",
-            ufmReturnTipe: B.new_(),
-            ufmInfix: false,
+          tlid: fntlid,
+          metadata: {
+            name: B.newF("trollClean"),
+            parameters: list{},
+            description: "can users put docs here?",
+            returnType: B.new_(),
+            infix: false,
           },
-          ufAST: FluidAST.ofExpr(FluidExpression.newB()),
+          ast: FluidAST.ofExpr(FluidExpression.newB()),
         }),
       }
 

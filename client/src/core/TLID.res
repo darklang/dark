@@ -14,6 +14,7 @@ module T = {
 
   let encode = (TLID(tlid)) => Json_encode_extended.uint64(tlid)
   let decode = j => TLID(Json_decode_extended.uint64(j))
+  let generate = (): t => fromInt(Js_math.random_int(0, 2147483647))
 }
 
 include T

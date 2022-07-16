@@ -393,17 +393,17 @@ let handlerDisplayName = (h: handler): string => {
   space ++ (name ++ modi)
 }
 
-let fnDisplayName = (f: userFunction): string =>
-  f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default="undefinedFunction")
+let fnDisplayName = (f: PT.UserFunction.t): string =>
+  f.metadata.name |> B.toOption |> Option.unwrap(~default="undefinedFunction")
 
 let foundHandlerOmniAction = (h: handler): omniAction => {
   let name = "Found in " ++ handlerDisplayName(h)
   Goto(FocusedHandler(h.hTLID, None, true), h.hTLID, name, true)
 }
 
-let foundFnOmniAction = (f: userFunction): omniAction => {
+let foundFnOmniAction = (f: PT.UserFunction.t): omniAction => {
   let name = "Found in function " ++ fnDisplayName(f)
-  Goto(FocusedFn(f.ufTLID, None), f.ufTLID, name, true)
+  Goto(FocusedFn(f.tlid, None), f.tlid, name, true)
 }
 
 let qSearch = (m: model, s: string): list<omniAction> =>
@@ -512,7 +512,7 @@ let withDynamicItems = (
 let tlGotoName = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) => "Jump to handler: " ++ handlerDisplayName(h)
-  | TLDB(db) => "Jump to DB: " ++ (db.dbName |> B.toOption |> Option.unwrap(~default="Unnamed DB"))
+  | TLDB(db) => "Jump to DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default="Unnamed DB"))
   | TLPmFunc(_) | TLFunc(_) => recover("can't goto function", ~debug=tl, "<invalid state>")
   | TLTipe(_) => recover("can't goto tipe ", ~debug=tl, "<invalid state>")
   }
@@ -527,7 +527,7 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
 
   let ufs = m.userFunctions |> Map.filterMapValues(~f=fn => {
     let name = "Jump to function: " ++ fnDisplayName(fn)
-    Some(Goto(FocusedFn(fn.ufTLID, None), fn.ufTLID, name, false))
+    Some(Goto(FocusedFn(fn.tlid, None), fn.tlid, name, false))
   })
 
   List.map(~f=x => ACOmniAction(x), Belt.List.concat(tls, ufs))
@@ -779,11 +779,6 @@ let selectUp = (a: autocomplete): autocomplete => {
 //
 let setQuery = (m: model, q: string, a: autocomplete): autocomplete => refilter(m, q, a)
 
-let appendQuery = (m: model, str: string, a: autocomplete): autocomplete => {
-  let q = a.value ++ str
-  setQuery(m, q, a)
-}
-
 let documentationForItem = (aci: autocompleteItem): option<list<Vdom.t<'a>>> => {
   let p = (text: string) => Html.p(list{}, list{Html.text(text)})
   let simpleDoc = (text: string) => Some(list{p(text)})
@@ -828,7 +823,6 @@ let setVisible = (visible: bool, a: autocomplete): autocomplete => {...a, visibl
 let update = (m: model, mod_: autocompleteMod, a: autocomplete): autocomplete =>
   switch mod_ {
   | ACSetQuery(str) => setQuery(m, str, a)
-  | ACAppendQuery(str) => appendQuery(m, str, a)
   | ACReset => reset(m)
   | ACSelectDown => selectDown(a)
   | ACSelectUp => selectUp(a)

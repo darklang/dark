@@ -11,10 +11,10 @@ module TD = TLID.Dict
 let name = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) => "H: " ++ (h.spec.name |> B.toOption |> Option.unwrap(~default=""))
-  | TLDB(db) => "DB: " ++ (db.dbName |> B.toOption |> Option.unwrap(~default=""))
+  | TLDB(db) => "DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default=""))
   | TLPmFunc(f) => "Package Manager Func: " ++ f.fnname
-  | TLFunc(f) => "Func: " ++ (f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default=""))
-  | TLTipe(t) => "Type: " ++ (t.utName |> B.toOption |> Option.unwrap(~default=""))
+  | TLFunc(f) => "Func: " ++ (f.metadata.name |> B.toOption |> Option.unwrap(~default=""))
+  | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
   }
 
 let sortkey = (tl: toplevel): string =>
@@ -23,19 +23,19 @@ let sortkey = (tl: toplevel): string =>
     (h.spec.space |> B.toOption |> Option.unwrap(~default="Undefined")) ++
       ((h.spec.name |> B.toOption |> Option.unwrap(~default="Undefined")) ++
       (h.spec.modifier |> B.toOption |> Option.unwrap(~default="")))
-  | TLDB(db) => db.dbName |> B.toOption |> Option.unwrap(~default="Undefined")
+  | TLDB(db) => db.name |> B.toOption |> Option.unwrap(~default="Undefined")
   | TLPmFunc(f) => f.fnname
-  | TLFunc(f) => f.ufMetadata.ufmName |> B.toOption |> Option.unwrap(~default="")
-  | TLTipe(t) => t.utName |> B.toOption |> Option.unwrap(~default="")
+  | TLFunc(f) => f.metadata.name |> B.toOption |> Option.unwrap(~default="")
+  | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
   }
 
 let id = tl =>
   switch tl {
   | TLHandler(h) => h.hTLID
-  | TLDB(db) => db.dbTLID
-  | TLFunc(f) => f.ufTLID
+  | TLDB(db) => db.tlid
+  | TLFunc(f) => f.tlid
   | TLPmFunc(f) => f.pfTLID
-  | TLTipe(t) => t.utTLID
+  | TLTipe(t) => t.tlid
   }
 
 let pos = tl =>
@@ -43,8 +43,8 @@ let pos = tl =>
   | TLHandler(h) => h.pos
   | TLDB(db) => db.pos
   | TLPmFunc(f) => recover("no pos in a func", ~debug=f.pfTLID, {x: 0, y: 0})
-  | TLFunc(f) => recover("no pos in a func", ~debug=f.ufTLID, {x: 0, y: 0})
-  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.utTLID, {x: 0, y: 0})
+  | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, {x: 0, y: 0})
+  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, {x: 0, y: 0})
   }
 
 let remove = (m: model, tl: toplevel): model => {
@@ -70,23 +70,23 @@ let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
       ...h,
       pos: newPos(h.pos),
     }),
-    dbs: Map.updateIfPresent(m.dbs, ~key=tlid, ~f=(db: db) => {...db, pos: newPos(db.pos)}),
+    dbs: Map.updateIfPresent(m.dbs, ~key=tlid, ~f=(db: PT.DB.t) => {...db, pos: newPos(db.pos)}),
   }
 }
 
-let ufToTL = (uf: userFunction): toplevel => TLFunc(uf)
+let ufToTL = (uf: PT.UserFunction.t): toplevel => TLFunc(uf)
 
 let pmfToTL = (pmf: packageFn): toplevel => TLPmFunc(pmf)
 
-let utToTL = (ut: userTipe): toplevel => TLTipe(ut)
+let utToTL = (ut: PT.UserType.t): toplevel => TLTipe(ut)
 
-let asUserFunction = (tl: toplevel): option<userFunction> =>
+let asUserFunction = (tl: toplevel): option<PT.UserFunction.t> =>
   switch tl {
   | TLFunc(f) => Some(f)
   | _ => None
   }
 
-let asUserTipe = (tl: toplevel): option<userTipe> =>
+let asUserTipe = (tl: toplevel): option<PT.UserType.t> =>
   switch tl {
   | TLTipe(t) => Some(t)
   | _ => None
@@ -110,7 +110,7 @@ let asHandler = (tl: toplevel): option<handler> =>
   | _ => None
   }
 
-let asDB = (tl: toplevel): option<db> =>
+let asDB = (tl: toplevel): option<PT.DB.t> =>
   switch tl {
   | TLDB(h) => Some(h)
   | _ => None
@@ -130,7 +130,7 @@ let isHandler = (tl: toplevel): bool =>
 
 let handlers = (tls: list<toplevel>): list<handler> => List.filterMap(~f=asHandler, tls)
 
-let dbs = (tls: TD.t<toplevel>): list<db> => tls |> Map.filterMapValues(~f=asDB)
+let dbs = (tls: TD.t<toplevel>): list<PT.DB.t> => tls |> Map.filterMapValues(~f=asDB)
 
 let spaceOfHandler = (h: handler): handlerSpace => SpecHeaders.spaceOf(h.spec)
 
@@ -179,7 +179,7 @@ let isValidBlankOrID = (tl: toplevel, id: id): bool =>
 let getAST = (tl: toplevel): option<FluidAST.t> =>
   switch tl {
   | TLHandler(h) => Some(h.ast)
-  | TLFunc(f) => Some(f.ufAST)
+  | TLFunc(f) => Some(f.ast)
   | TLPmFunc(fn) => Some(FluidAST.ofExpr(fn.body))
   | _ => None
   }
@@ -187,14 +187,17 @@ let getAST = (tl: toplevel): option<FluidAST.t> =>
 let setAST = (tl: toplevel, newAST: FluidAST.t): toplevel =>
   switch tl {
   | TLHandler(h) => TLHandler({...h, ast: newAST})
-  | TLFunc(uf) => TLFunc({...uf, ufAST: newAST})
+  | TLFunc(uf) => TLFunc({...uf, ast: newAST})
   | TLDB(_) | TLTipe(_) | TLPmFunc(_) => tl
   }
 
 let withAST = (m: model, tlid: TLID.t, ast: FluidAST.t): model => {
   ...m,
   handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=h => {...h, ast: ast}),
-  userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=uf => {...uf, ufAST: ast}),
+  userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=(uf: PT.UserFunction.t) => {
+    ...uf,
+    ast: ast,
+  }),
 }
 
 /* Create the modification to set the AST in this toplevel. `ops` is optional
@@ -211,10 +214,10 @@ let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): modification =>
       )
     }
   | TLFunc(f) =>
-    if f.ufAST == ast {
+    if f.ast == ast {
       NoChange
     } else {
-      AddOps(Belt.List.concat(ops, list{SetFunction({...f, ufAST: ast})}), FocusNoChange)
+      AddOps(Belt.List.concat(ops, list{SetFunction({...f, ast: ast})}), FocusNoChange)
     }
   | TLPmFunc(_) => recover("cannot change ast in package manager", ~debug=tl, NoChange)
   | TLTipe(_) => recover("no ast in Tipes", ~debug=tl, NoChange)
@@ -257,10 +260,10 @@ let replace = (p: blankOrData, replacement: blankOrData, tl: toplevel): toplevel
 
 let combine = (
   handlers: TD.t<handler>,
-  dbs: TD.t<db>,
-  userFunctions: TD.t<userFunction>,
+  dbs: TD.t<PT.DB.t>,
+  userFunctions: TD.t<PT.UserFunction.t>,
   packageFn: TD.t<packageFn>,
-  userTipes: TD.t<userTipe>,
+  userTipes: TD.t<PT.UserType.t>,
 ): TD.t<toplevel> =>
   Map.map(~f=h => TLHandler(h), handlers)
   |> Map.mergeLeft(Map.map(~f=db => TLDB(db), dbs))
@@ -289,15 +292,15 @@ let getPD = (m: model, tlid: TLID.t, id: id): option<blankOrData> =>
 let getTLAndPD = (m: model, tlid: TLID.t, id: id): option<(toplevel, option<blankOrData>)> =>
   get(m, tlid) |> Option.map(~f=tl => (tl, find(tl, id)))
 
-let allDBNames = (dbs: TD.t<db>): list<string> =>
-  dbs |> Map.filterMapValues(~f=db =>
-    switch db.dbName {
+let allDBNames = (dbs: TD.t<PT.DB.t>): list<string> =>
+  dbs |> Map.filterMapValues(~f=(db: PT.DB.t) =>
+    switch db.name {
     | F(_, name) => Some(name)
     | Blank(_) => None
     }
   )
 
-let allGloballyScopedVarnames = (dbs: TD.t<db>): list<string> => allDBNames(dbs)
+let allGloballyScopedVarnames = (dbs: TD.t<PT.DB.t>): list<string> => allDBNames(dbs)
 
 let asPage = (tl: toplevel, center: bool): page =>
   switch tl {

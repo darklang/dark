@@ -7,10 +7,10 @@ let onEvent = ViewUtils.onEvent
 
 type viewProps = ViewUtils.viewProps
 
-let moveParams = (fn: userFunction, oldPos: int, newPos: int): userFunction => {
-  let ufmParameters = fn.ufMetadata.ufmParameters |> List.moveInto(~oldPos, ~newPos)
+let moveParams = (fn: PT.UserFunction.t, oldPos: int, newPos: int): PT.UserFunction.t => {
+  let parameters = fn.metadata.parameters |> List.moveInto(~oldPos, ~newPos)
 
-  {...fn, ufMetadata: {...fn.ufMetadata, ufmParameters: ufmParameters}}
+  {...fn, metadata: {...fn.metadata, parameters: parameters}}
 }
 
 let update = (m: model, msg: fnpMsg): modification => {
@@ -26,15 +26,16 @@ let update = (m: model, msg: fnpMsg): modification => {
     |> Option.pair(m.currentUserFn.draggingParamIndex)
     |> Option.map(~f=((oldPos, fn)) => {
       let newFn = moveParams(fn, oldPos, newPos)
-      let updateArgs = switch fn.ufMetadata.ufmName {
-      | F(_, name) => Refactor.reorderFnCallArgs(m, fn.ufTLID, name, oldPos, newPos)
+      let updateArgs = switch fn.metadata.name {
+      | F(_, name) => Refactor.reorderFnCallArgs(m, fn.tlid, name, oldPos, newPos)
       | Blank(_) => list{}
       }
 
       let justMovedParam =
-        List.getAt(~index=newPos, newFn.ufMetadata.ufmParameters) |> Option.map(~f=p =>
-          B.toID(p.ufpName)
-        )
+        List.getAt(
+          ~index=newPos,
+          newFn.metadata.parameters,
+        ) |> Option.map(~f=(p: PT.UserFunction.Parameter.t) => B.toID(p.name))
 
       let fnM = {
         justMovedParam: justMovedParam,
@@ -63,8 +64,10 @@ let update = (m: model, msg: fnpMsg): modification => {
   }
 }
 
-let viewKillParameterBtn = (uf: userFunction, p: userFunctionParameter): Html.html<msg> => {
-  let freeVariables = uf.ufAST |> FluidAST.toExpr |> AST.freeVariables |> List.map(~f=Tuple2.second)
+let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.t): Html.html<
+  msg,
+> => {
+  let freeVariables = uf.ast |> FluidAST.toExpr |> AST.freeVariables |> List.map(~f=Tuple2.second)
 
   let canDeleteParameter = pname => List.member(~value=pname, freeVariables) |> not
 
@@ -74,11 +77,9 @@ let viewKillParameterBtn = (uf: userFunction, p: userFunctionParameter): Html.ht
         list{
           Html.class'("parameter-btn allowed"),
           ViewUtils.eventNoPropagation(
-            ~key="dufp-" ++
-            (TLID.toString(uf.ufTLID) ++
-            ("-" ++ (p.ufpName |> B.toID |> ID.toString))),
+            ~key="dufp-" ++ (TLID.toString(uf.tlid) ++ ("-" ++ (p.name |> B.toID |> ID.toString))),
             "click",
-            _ => DeleteUserFunctionParameter(uf.ufTLID, p),
+            _ => DeleteUserFunctionParameter(uf.tlid, p),
           ),
         },
         list{fontAwesome("times-circle")},
@@ -93,7 +94,7 @@ let viewKillParameterBtn = (uf: userFunction, p: userFunctionParameter): Html.ht
       )
     }
 
-  switch p.ufpName {
+  switch p.name {
   | F(_, pname) => buttonContent(canDeleteParameter(pname))
   | _ => buttonContent(true)
   }
@@ -148,10 +149,13 @@ let viewParamSpace = (index: int, fs: fnProps): Html.html<msg> => {
   )
 }
 
-let viewParam = (fn: functionTypes, vp: viewProps, index: int, p: userFunctionParameter): list<
-  Html.html<msg>,
-> => {
-  let nameId = p.ufpName |> B.toID
+let viewParam = (
+  fn: functionTypes,
+  vp: viewProps,
+  index: int,
+  p: PT.UserFunction.Parameter.t,
+): list<Html.html<msg>> => {
+  let nameId = p.name |> B.toID
   let strId = ID.toString(nameId)
   let dragStart = evt => {
     jsDragStart(evt)
@@ -201,8 +205,8 @@ let viewParam = (fn: functionTypes, vp: viewProps, index: int, p: userFunctionPa
       },
       list{
         killParamBtn,
-        viewParamName(vp, ~classes=list{"name"}, p.ufpName),
-        viewParamTipe(vp, ~classes=list{"type"}, p.ufpTipe),
+        viewParamName(vp, ~classes=list{"name"}, p.name),
+        viewParamTipe(vp, ~classes=list{"type"}, p.typ),
         dragIcon,
       },
     )
@@ -215,7 +219,7 @@ let viewParam = (fn: functionTypes, vp: viewProps, index: int, p: userFunctionPa
 let view = (fn: functionTypes, vp: viewProps): list<Html.html<msg>> => {
   let params = switch fn {
   | UserFunction(f) =>
-    f.ufMetadata.ufmParameters |> List.mapWithIndex(~f=viewParam(fn, vp)) |> List.flatten
+    f.metadata.parameters |> List.mapWithIndex(~f=viewParam(fn, vp)) |> List.flatten
   | PackageFn(f) =>
     f.parameters
     |> List.map(~f=PackageManager.pmParamsToUserFnParams)

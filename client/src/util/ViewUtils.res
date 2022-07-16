@@ -71,7 +71,7 @@ let createVS = (m: model, tl: toplevel): viewProps => {
     tlid: tlid,
     cursorState: CursorState.unwrap(m.cursorState),
     hovering: m.hovering
-    |> List.filter(~f=((tlid, _)) => tlid == tlid) // CLEANUP: this looks wrong
+    |> List.filter(~f=((thisTLID, _)) => thisTLID == tlid)
     |> List.head
     |> Option.andThen(~f=((_, i) as res) =>
       switch CursorState.idOf(m.cursorState) {

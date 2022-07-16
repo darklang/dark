@@ -940,9 +940,7 @@ module GenericSerializersTests =
               [ { tlid = testTLIDs[0]
                   name = OT.Filled(7UL, "dbname")
                   cols = [ OT.Filled(7UL, "colname"), OT.Filled(7UL, "int") ]
-                  version = 1L
-                  old_migrations = []
-                  active_migration = None } ]
+                  version = 1L } ]
             user_fns = List.map OT.Convert.pt2ocamlUserFunction testUserFunctions
             user_tipes = List.map OT.Convert.pt2ocamlUserType testUserTypes
             secrets = [ { secret_name = "z"; secret_value = "y" } ] })

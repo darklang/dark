@@ -39,9 +39,14 @@ let tuple = (~id=gid(), first, second, theRest: list<t>): t => ETuple(id, first,
 
 let pipeTarget = EPipeTarget(gid())
 
-let fn = (~id=gid(), ~ster=NoRail, name: string, args: list<t>) => EFnCall(id, name, args, ster)
+let fn = (~id=gid(), ~ster=SendToRail.NoRail, name: string, args: list<t>) => EFnCall(
+  id,
+  name,
+  args,
+  ster,
+)
 
-let binop = (~id=gid(), ~ster=NoRail, name: string, arg0: t, arg1: t) => EBinOp(
+let binop = (~id=gid(), ~ster=SendToRail.NoRail, name: string, arg0: t, arg1: t) => EBinOp(
   id,
   name,
   arg0,

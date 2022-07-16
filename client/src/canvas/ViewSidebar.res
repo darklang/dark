@@ -177,21 +177,21 @@ let workerCategory = (handlers: list<handler>): category => handlerCategory(tl =
     TL.isDeprecatedCustomHandler(tl)
   , "Worker", NewWorkerHandler(None), Some(GoToArchitecturalView), Worker, handlers)
 
-let dbCategory = (m: model, dbs: list<db>): category => {
+let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   let entries = List.map(dbs, ~f=db => {
-    let uses = switch db.dbName {
+    let uses = switch db.name {
     | Blank(_) => 0
     | F(_, name) => Refactor.dbUseCount(m, name)
     }
 
     let minusButton = None
     Entry({
-      name: B.valueWithDefault("Untitled DB", db.dbName),
-      identifier: Tlid(db.dbTLID),
+      name: B.valueWithDefault("Untitled DB", db.name),
+      identifier: Tlid(db.tlid),
       uses: Some(uses),
-      onClick: Destination(FocusedDB(db.dbTLID, true)),
+      onClick: Destination(FocusedDB(db.tlid, true)),
       minusButton: minusButton,
-      killAction: Some(ToplevelDeleteForever(db.dbTLID)),
+      killAction: Some(ToplevelDeleteForever(db.tlid)),
       verb: None,
       plusButton: None,
     })
@@ -258,11 +258,11 @@ let f404Category = (m: model): category => {
   }
 }
 
-let userFunctionCategory = (m: model, ufs: list<userFunction>): category => {
-  let fns = ufs |> List.filter(~f=fn => B.isF(fn.ufMetadata.ufmName))
+let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
+  let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => B.isF(fn.metadata.name))
   let entries = List.filterMap(fns, ~f=fn =>
-    Option.map(B.toOption(fn.ufMetadata.ufmName), ~f=name => {
-      let tlid = fn.ufTLID
+    Option.map(B.toOption(fn.metadata.name), ~f=name => {
+      let tlid = fn.tlid
       let usedIn = Introspect.allUsedIn(tlid, m)
       let minusButton = None
       Entry({
@@ -289,23 +289,23 @@ let userFunctionCategory = (m: model, ufs: list<userFunction>): category => {
   }
 }
 
-let userTipeCategory = (m: model, tipes: list<userTipe>): category => {
-  let tipes = tipes |> List.filter(~f=t => B.isF(t.utName))
+let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
+  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => B.isF(ut.name))
   let entries = List.filterMap(tipes, ~f=tipe =>
-    Option.map(B.toOption(tipe.utName), ~f=name => {
+    Option.map(B.toOption(tipe.name), ~f=name => {
       let minusButton = if Refactor.usedTipe(m, name) {
         None
       } else {
-        Some(DeleteUserType(tipe.utTLID))
+        Some(DeleteUserType(tipe.tlid))
       }
 
       Entry({
         name: name,
-        identifier: Tlid(tipe.utTLID),
+        identifier: Tlid(tipe.tlid),
         uses: Some(Refactor.tipeUseCount(m, name)),
         minusButton: minusButton,
-        killAction: Some(DeleteUserTypeForever(tipe.utTLID)),
-        onClick: Destination(FocusedType(tipe.utTLID)),
+        killAction: Some(DeleteUserTypeForever(tipe.tlid)),
+        onClick: Destination(FocusedType(tipe.tlid)),
         plusButton: None,
         verb: None,
       })
@@ -1177,21 +1177,22 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
 let rtCacheKey = m =>
   (
     m.handlers |> Map.mapValues(~f=(h: handler) => (h.pos, TL.sortkey(TLHandler(h)))),
-    m.dbs |> Map.mapValues(~f=(db: db) => (db.pos, TL.sortkey(TLDB(db)))),
-    m.userFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
-    m.userTipes |> Map.mapValues(~f=t => t.utName),
+    m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
+    m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
+    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
     m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: handler) => TL.sortkey(TLHandler(h))),
-    m.deletedDBs |> Map.mapValues(~f=(db: db) => (db.pos, TL.sortkey(TLDB(db)))),
-    m.deletedUserFunctions |> Map.mapValues(~f=f => f.ufMetadata.ufmName),
-    m.deletedUserTipes |> Map.mapValues(~f=t => t.utName),
+    m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
+    m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
+    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.staticDeploys,
     m.unlockedDBs,
     m.usedDBs,
     m.usedFns,
-    m.userTipes |> Map.mapValues(~f=t => t.utName),
-    m.deletedUserTipes |> Map.mapValues(~f=t => t.utName),
+    // CLEANUP do these need to be here twice
+    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     CursorState.tlidOf(m.cursorState),
     m.environment,
     m.editorSettings,

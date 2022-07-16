@@ -7,10 +7,10 @@ let keyForHandlerSpec = (space: string, name: string): string => space ++ (":" +
 
 let keyForTipe = (name: string, version: int): string => name ++ (":" ++ Int.toString(version))
 
-let dbsByName = (dbs: TD.t<db>): Map.String.t<TLID.t> =>
+let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   dbs
-  |> Map.filterMapValues(~f=db =>
-    db.dbName |> B.toOption |> Option.map(~f=name => (name, db.dbTLID))
+  |> Map.filterMapValues(~f=(db: PT.DB.t) =>
+    db.name |> B.toOption |> Option.map(~f=name => (name, db.tlid))
   )
   |> Map.String.fromList
 
@@ -24,10 +24,10 @@ let handlersByName = (hs: TD.t<handler>): Map.String.t<TLID.t> =>
   })
   |> Map.String.fromList
 
-let functionsByName = (fns: TD.t<userFunction>): Map.String.t<TLID.t> =>
+let functionsByName = (fns: TD.t<PT.UserFunction.t>): Map.String.t<TLID.t> =>
   fns
-  |> Map.filterMapValues(~f=fn =>
-    fn.ufMetadata.ufmName |> B.toOption |> Option.map(~f=name => (name, fn.ufTLID))
+  |> Map.filterMapValues(~f=(uf: PT.UserFunction.t) =>
+    uf.metadata.name |> B.toOption |> Option.map(~f=name => (name, uf.tlid))
   )
   |> Map.String.fromList
 
@@ -36,18 +36,18 @@ let packageFunctionsByName = (fns: TD.t<packageFn>): Map.String.t<TLID.t> =>
   |> Map.mapValues(~f=fn => (fn |> PackageManager.extendedName, fn.pfTLID))
   |> Map.String.fromList
 
-let tipesByName = (uts: TD.t<userTipe>): Map.String.t<TLID.t> =>
+let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
   uts
-  |> Map.mapValues(~f=ut => {
+  |> Map.mapValues(~f=(ut: PT.UserType.t) => {
     let name =
-      ut.utName
+      ut.name
       |> B.toOption
       |> // Shouldn't happen: all tipes have a default name
       recoverOpt("tipes should have default names", ~default="_")
 
-    let version = ut.utVersion
+    let version = ut.version
     let key = keyForTipe(name, version)
-    (key, ut.utTLID)
+    (key, ut.tlid)
   })
   |> Map.String.fromList
 
@@ -56,7 +56,7 @@ let tlidsToUpdateUsage = (ops: list<op>): list<TLID.t> =>
   |> List.filterMap(~f=op =>
     switch op {
     | SetHandler(tlid, _, _) | SetExpr(tlid, _, _) => Some(tlid)
-    | SetFunction(f) => Some(f.ufTLID)
+    | SetFunction(f) => Some(f.tlid)
     | CreateDB(_)
     | DeleteTL(_)
     | MoveTL(_)
@@ -66,13 +66,6 @@ let tlidsToUpdateUsage = (ops: list<op>): list<TLID.t> =>
     | DeleteFunction(_)
     | ChangeDBColName(_)
     | ChangeDBColType(_)
-    | DeprecatedInitDbm(_)
-    | CreateDBMigration(_)
-    | AddDBColToDBMigration(_)
-    | SetDBColNameInDBMigration(_)
-    | SetDBColTypeInDBMigration(_)
-    | DeleteColInDBMigration(_)
-    | AbandonDBMigration(_)
     | CreateDBWithBlankOr(_)
     | SetType(_)
     | DeleteType(_)
@@ -139,7 +132,7 @@ let findUsagesInAST = (
   FluidAST.toExpr(ast)
   |> FluidExpression.filterMap(~f=e =>
     switch e {
-    | EVariable(id, name) => Map.get(~key=name, datastores) |> Option.map(~f=dbTLID => (dbTLID, id))
+    | EVariable(id, name) => Map.get(~key=name, datastores) |> Option.map(~f=tlid => (tlid, id))
     | EFnCall(id, "emit", list{_, EString(_, space_), EString(_, name_)}, _) =>
       let name = Util.removeQuotes(name_)
       let space = Util.removeQuotes(space_)
@@ -160,20 +153,22 @@ let findUsagesInAST = (
   )
   |> List.map(~f=((usedIn, id)) => {refersTo: tlid, usedIn: usedIn, id: id})
 
-let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: userFunction): list<usage> => {
-  /* Versions are slightly aspirational, and we don't have them in most of
-   * the places we use tipes, including here */
+let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: PT.UserFunction.t): list<
+  usage,
+> => {
+  // Versions are slightly aspirational, and we don't have them in most of
+  // the places we use tipes, including here
   let version = 0
-  fn.ufMetadata.ufmParameters
-  |> List.filterMap(~f=p =>
-    p.ufpTipe
+  fn.metadata.parameters
+  |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
+    p.typ
     |> B.toOption
     |> Option.map(~f=Runtime.tipe2str)
     |> Option.map(~f=t => keyForTipe(t, version))
     |> Option.andThen(~f=key => Map.get(~key, tipes))
-    |> Option.thenAlso(~f=_ => Some(B.toID(p.ufpTipe)))
+    |> Option.thenAlso(~f=_ => Some(B.toID(p.typ)))
   )
-  |> List.map(~f=((usedIn, id)) => {refersTo: fn.ufTLID, usedIn: usedIn, id: id})
+  |> List.map(~f=((usedIn, id)) => {refersTo: fn.tlid, usedIn: usedIn, id: id})
 }
 
 let getUsageFor = (

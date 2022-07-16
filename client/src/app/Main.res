@@ -548,7 +548,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       }
       let m = {
         let hTLIDs = List.map(~f=h => h.hTLID, handlers)
-        let dbTLIDs = List.map(~f=db => db.dbTLID, dbs)
+        let dbTLIDs = List.map(~f=db => db.tlid, dbs)
         {
           ...m,
           deletedHandlers: Map.removeMany(m.deletedHandlers, ~keys=hTLIDs),
@@ -585,7 +585,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       updateMod(SetDeletedToplevels(Map.values(dhandlers), Map.values(ddbs)), (m, cmd))
     | SetDeletedToplevels(dhandlers, ddbs) =>
       let hTLIDs = List.map(~f=h => h.hTLID, dhandlers)
-      let dbTLIDs = List.map(~f=db => db.dbTLID, ddbs)
+      let dbTLIDs = List.map(~f=db => db.tlid, ddbs)
       let m = {
         ...m,
         deletedHandlers: Handlers.fromList(dhandlers),
@@ -897,10 +897,13 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         cache |> Map.add(~key=h.hTLID, ~value)
       })
 
-      let searchCache = userFunctions |> List.fold(~initial=hcache, ~f=(cache, f) => {
-        let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.ufAST))
+      let searchCache = userFunctions |> List.fold(~initial=hcache, ~f=(
+        cache,
+        f: PT.UserFunction.t,
+      ) => {
+        let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.ast))
 
-        cache |> Map.add(~key=f.ufTLID, ~value)
+        cache |> Map.add(~key=f.tlid, ~value)
       })
 
       ({...m, searchCache: searchCache}, Cmd.none)
@@ -1093,7 +1096,7 @@ let update_ = (msg: msg, m: model): modification => {
     | _ => list{}
     }
 
-    Many(Belt.List.concat(traceCmd, list{SetHover(tlid,ATraceID(traceID))}))
+    Many(Belt.List.concat(traceCmd, list{SetHover(tlid, ATraceID(traceID))}))
   | TraceMouseLeave(tlid, traceID, _) => ClearHover(tlid, ATraceID(traceID))
   | TriggerHandler(tlid) => TriggerHandlerAPICall(tlid)
   | DragToplevel(_, mousePos) =>
@@ -1207,22 +1210,10 @@ let update_ = (msg: msg, m: model): modification => {
     | Deselected => Many(list{Select(tlid, STTopLevelRoot), SetTLTraceID(tlid, traceID)})
     | _ => SetTLTraceID(tlid, traceID)
     }
-  | StartMigration(tlid) =>
-    let mdb = tlid |> TL.get(m) |> Option.andThen(~f=TL.asDB)
-    switch mdb {
-    | Some(db) => DB.startMigration(tlid, db.cols)
-    | None => NoChange
-    }
-  | AbandonMigration(tlid) => AddOps(list{AbandonDBMigration(tlid)}, FocusNothing)
   | DeleteColInDB(tlid, nameId) =>
     let mdb = tlid |> TL.get(m) |> Option.andThen(~f=TL.asDB)
     switch mdb {
-    | Some(db) =>
-      if DB.isMigrationCol(db, nameId) {
-        AddOps(list{DeleteColInDBMigration(tlid, nameId)}, FocusNothing)
-      } else {
-        AddOps(list{DeleteDBCol(tlid, nameId)}, FocusNothing)
-      }
+    | Some(_) => AddOps(list{DeleteDBCol(tlid, nameId)}, FocusNothing)
     | None => NoChange
     }
   | ToggleEditorSetting(fn) =>
@@ -1245,7 +1236,7 @@ let update_ = (msg: msg, m: model): modification => {
     | Some(uf) =>
       let replacement = UserFunctions.removeParameter(uf, upf)
       let newCalls = Refactor.removeFunctionParameter(m, uf, upf)
-      AddOps(list{SetFunction(replacement), ...newCalls}, FocusNext(uf.ufTLID, None))
+      AddOps(list{SetFunction(replacement), ...newCalls}, FocusNext(uf.tlid, None))
     | None => NoChange
     }
   | AddUserFunctionParameter(uftlid) =>
@@ -1259,7 +1250,7 @@ let update_ = (msg: msg, m: model): modification => {
     switch TL.get(m, tipetlid) |> Option.andThen(~f=TL.asUserTipe) {
     | Some(tipe) =>
       let replacement = UserTypes.removeField(tipe, field)
-      AddOps(list{SetType(replacement)}, FocusNext(tipe.utTLID, None))
+      AddOps(list{SetType(replacement)}, FocusNext(tipe.tlid, None))
     | None => NoChange
     }
   | ToplevelDelete(tlid) =>
@@ -1435,10 +1426,7 @@ let update_ = (msg: msg, m: model): modification => {
     })
   | SaveTestAPICallback(Ok(msg)) => Model.updateErrorMod(Error.set("Success! " ++ msg))
   | ExecuteFunctionAPICallback(params, Ok(dval, hash, hashVersion, tlids, unlockedDBs)) =>
-    let traces = List.map(
-      ~f=tlid => (tlid, list{(params.efpTraceID, Error(NoneYet))}),
-      tlids,
-    )
+    let traces = List.map(~f=tlid => (tlid, list{(params.efpTraceID, Error(NoneYet))}), tlids)
 
     Many(list{
       UpdateTraceFunctionResult(
@@ -1847,7 +1835,7 @@ let update_ = (msg: msg, m: model): modification => {
     let tipe = Refactor.generateEmptyUserType()
     Many(list{
       AddOps(list{SetType(tipe)}, FocusNothing),
-      MakeCmd(Url.navigateTo(FocusedType(tipe.utTLID))),
+      MakeCmd(Url.navigateTo(FocusedType(tipe.tlid))),
     })
   | EnablePanning(pan) => ReplaceAllModificationsWithThisOne(Viewport.enablePan(pan))
   | ClipboardCopyEvent(e) =>
@@ -1959,10 +1947,6 @@ let update_ = (msg: msg, m: model): modification => {
   | ResetToast =>
     ReplaceAllModificationsWithThisOne(m => ({...m, toast: Defaults.defaultToast}, Cmd.none))
   | HideTopbar => ReplaceAllModificationsWithThisOne(m => ({...m, showTopbar: false}, Cmd.none))
-  | LogoutOfDark =>
-    ReplaceAllModificationsWithThisOne(
-      m => ({...m, editorSettings: {...m.editorSettings, runTimers: false}}, API.logout(m)),
-    )
   | LogoutAPICallback =>
     // For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work
     Native.Ext.redirect("/login")
