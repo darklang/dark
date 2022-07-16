@@ -91,7 +91,7 @@ let run = () => {
   })
 
   describe("tipe", () => {
-    let roundtrip = typ => typ |> DType.encode |> DType.decodeNew
+    let roundtrip = typ => typ |> DType.encode |> DType.decode
 
     test("tuple tipe roundtrips", () => {
       let tipe = DType.TTuple(TInt, TFloat, list{TIncomplete})

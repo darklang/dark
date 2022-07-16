@@ -344,7 +344,7 @@ module BuiltInFn = {
       open Json.Decode
       {
         name: field("name", string, j),
-        typ: field("type", DType.decodeNew, j), // Note: "type", not "typ"
+        typ: field("type", DType.decode, j), // Note: "type", not "typ"
         args: field("args", list(string), j),
         description: field("description", string, j),
       }
@@ -369,7 +369,7 @@ module BuiltInFn = {
       name: field("name", FQFnName.StdlibFnName.decode, j),
       parameters: field("parameters", list(Param.decode), j),
       description: field("description", string, j),
-      returnType: field("returnType", DType.decodeNew, j),
+      returnType: field("returnType", DType.decode, j),
       previewable: field("previewable", Previewable.decode, j),
       deprecated: field("deprecated", Deprecation.decode, j),
       isInfix: field("isInfix", bool, j),

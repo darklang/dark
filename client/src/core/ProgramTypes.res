@@ -541,7 +541,7 @@ module DB = {
         | TBytes => "Bytes"
         }
 
-      let tipeString = (j): string => map(tipe2str, DType.decodeOld, j)
+      let tipeString = (j): string => map(tipe2str, DType.decode, j)
       tuple2(BaseTypes.decodeBlankOr(string), BaseTypes.decodeBlankOr(tipeString), j)
     }
   }
@@ -602,7 +602,7 @@ module UserFunction = {
       open Json_decode_extended
       {
         name: field("name", BaseTypes.decodeBlankOr(string), j),
-        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decodeOld), j),
+        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decode), j),
         args: field("block_args", list(string), j),
         optional: field("optional", bool, j),
         description: field("description", string, j),
@@ -635,7 +635,7 @@ module UserFunction = {
         name: field("name", BaseTypes.decodeBlankOr(string), j),
         parameters: field("parameters", list(Parameter.decode), j),
         description: field("description", string, j),
-        returnType: field("return_type", BaseTypes.decodeBlankOr(DType.decodeOld), j),
+        returnType: field("return_type", BaseTypes.decodeBlankOr(DType.decode), j),
         infix: field("infix", bool, j),
       }
     }
@@ -685,7 +685,7 @@ module UserType = {
       open Json.Decode
       {
         name: field("name", BaseTypes.decodeBlankOr(string), j),
-        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decodeOld), j),
+        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decode), j),
       }
     }
   }

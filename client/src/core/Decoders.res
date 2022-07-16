@@ -161,9 +161,9 @@ let blankOrData = (j): blankOrData => {
       ("PDBColType", dv1(x => PDBColType(x), blankOr(string))),
       ("PFnName", dv1(x => PFnName(x), blankOr(string))),
       ("PParamName", dv1(x => PParamName(x), blankOr(string))),
-      ("PParamTipe", dv1(x => PParamTipe(x), blankOr(DType.decodeOld))),
+      ("PParamTipe", dv1(x => PParamTipe(x), blankOr(DType.decode))),
       ("PTypeFieldName", dv1(x => PTypeFieldName(x), blankOr(string))),
-      ("PTypeFieldTipe", dv1(x => PTypeFieldTipe(x), blankOr(DType.decodeOld))),
+      ("PTypeFieldTipe", dv1(x => PTypeFieldTipe(x), blankOr(DType.decode))),
     },
     j,
   )
@@ -448,7 +448,7 @@ let dvalDict = (j: Js.Json.t): dvalDict => strDict(ocamlDval, j)
 let analysisEnvelope = (j: Js.Json.t): (traceID, intermediateResultStore) =>
   tuple2(string, intermediateResultStore)(j)
 
-let tipeString = (j): string => map(RT.tipe2str, DType.decodeOld, j)
+let tipeString = (j): string => map(RT.tipe2str, DType.decode, j)
 
 let toplevel = (j): toplevel => {
   let pos = field("pos", pos, j)
