@@ -63,8 +63,8 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
 
 let defaultTLID = TLID.fromInt(7)
 
-let defaultHandler = {
-  hTLID: defaultTLID,
+let defaultHandler: PT.Handler.t = {
+  tlid: defaultTLID,
   pos: {x: 0, y: 0},
   ast: FluidAST.ofExpr(EBlank(gid())),
   spec: {space: B.newF("HTTP"), name: B.newF("/src"), modifier: B.newF("POST")},
@@ -196,14 +196,14 @@ let run = () => {
     }
 
     test("datastore renamed, handler updates variable", () => {
-      let h = {
+      let h: PT.Handler.t = {
         ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
         spec: {
           space: B.newF("HTTP"),
           name: B.newF("/src"),
           modifier: B.newF("POST"),
         },
-        hTLID: TLID.fromInt(5),
+        tlid: TLID.fromInt(5),
         pos: {x: 0, y: 0},
       }
 
@@ -227,7 +227,7 @@ let run = () => {
       }
 
       let ops = R.renameDBReferences(model, "ElmCode", "WeirdCode")
-      let res = switch List.sortBy(~f=Encoders.tlidOf, ops) {
+      let res = switch List.sortBy(~f=PT.Op.tlidOf, ops) {
       | list{SetHandler(_, _, h), SetFunction(f)} =>
         switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.ast)) {
         | (EVariable(_, "WeirdCode"), EVariable(_, "WeirdCode")) => true
@@ -239,14 +239,14 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("datastore renamed, handler does not change", () => {
-      let h = {
+      let h: PT.Handler.t = {
         ast: FluidAST.ofExpr(EVariable(gid(), "request")),
         spec: {
           space: B.newF("HTTP"),
           name: B.newF("/src"),
           modifier: B.newF("POST"),
         },
-        hTLID: defaultTLID,
+        tlid: defaultTLID,
         pos: {x: 0, y: 0},
       }
 
@@ -330,9 +330,9 @@ let run = () => {
   })
   describe("extractVarInAst", () => {
     let modelAndTl = (ast: FluidAST.t) => {
-      let hTLID = defaultTLID
-      let tl = {
-        hTLID: hTLID,
+      let tlid = defaultTLID
+      let tl: PT.Handler.t = {
+        tlid: tlid,
         ast: ast,
         pos: {x: 0, y: 0},
         spec: {
@@ -345,7 +345,7 @@ let run = () => {
       let m = {
         ...D.defaultModel,
         functions: Functions.empty |> Functions.setBuiltins(sampleFunctions, defaultFunctionsProps),
-        handlers: list{(hTLID, tl)} |> TLID.Dict.fromList,
+        handlers: list{(tlid, tl)} |> TLID.Dict.fromList,
         fluidState: {...Defaults.defaultFluidState, ac: FluidAutocomplete.init},
       }
 

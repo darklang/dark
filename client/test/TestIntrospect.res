@@ -7,20 +7,20 @@ module B = BlankOr
 let run = () => {
   describe("Introspect", () => {
     let h1tlid = gtlid()
-    let h1data = {
+    let h1data: PT.Handler.t = {
       ast: FluidAST.ofExpr(EBlank(gid())),
       spec: {
         space: B.newF("WORKER"),
         name: B.newF("processOrder"),
         modifier: B.new_(),
       },
-      hTLID: h1tlid,
+      tlid: h1tlid,
       pos: {x: 0, y: 0},
     }
 
     let h2tlid = gtlid()
     let dbRefID = gid()
-    let h2data = {
+    let h2data: PT.Handler.t = {
       ast: FluidAST.ofExpr(
         EFnCall(gid(), "DB::deleteAll_v1", list{EVariable(dbRefID, "Books")}, NoRail),
       ),
@@ -29,7 +29,7 @@ let run = () => {
         name: B.newF("/hello"),
         modifier: B.newF("GET"),
       },
-      hTLID: h2tlid,
+      tlid: h2tlid,
       pos: {x: 0, y: 0},
     }
 
@@ -43,7 +43,7 @@ let run = () => {
     }
 
     let dbs = TD.fromList(list{(dbdata.tlid, dbdata)})
-    let handlers = TD.fromList(list{(h1data.hTLID, h1data), (h2data.hTLID, h2data)})
+    let handlers = TD.fromList(list{(h1data.tlid, h1data), (h2data.tlid, h2data)})
 
     test("dbsByName", () =>
       expect(dbsByName(dbs)) |> toEqual(Map.add(~key="Books", ~value=dbtlid, Map.String.empty))
@@ -75,7 +75,7 @@ let run = () => {
     test("tlidsToUpdateUsage", () => {
       let fntlid = gtlid()
       let ops = list{
-        SetHandler(h1tlid, {x: 0, y: 0}, h1data),
+        PT.Op.SetHandler(h1tlid, {x: 0, y: 0}, h1data),
         SetExpr(h1tlid, gid(), EBlank(gid())),
         SetFunction({
           tlid: fntlid,

@@ -340,6 +340,67 @@ module AST = {
   let decode = j => Root(Expr.decode(j))
 }
 
+module Handler = {
+  module Spec = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      space: blankOr<string>,
+      name: blankOr<string>,
+      modifier: blankOr<string>,
+    }
+
+    let encode = (spec: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("name", BaseTypes.encodeBlankOr(string, spec.name)),
+        ("module", BaseTypes.encodeBlankOr(string, spec.space)),
+        ("modifier", BaseTypes.encodeBlankOr(string, spec.modifier)),
+        (
+          "types",
+          object_(list{
+            ("input", BaseTypes.encodeBlankOr(int, BaseTypes.Blank(ID.generate()))),
+            ("output", BaseTypes.encodeBlankOr(int, BaseTypes.Blank(ID.generate()))),
+          }),
+        ),
+      })
+    }
+    let decode = (j): t => {
+      open Json_decode_extended
+      {
+        space: field("module", BaseTypes.decodeBlankOr(string), j),
+        name: field("name", BaseTypes.decodeBlankOr(string), j),
+        modifier: field("modifier", BaseTypes.decodeBlankOr(string), j),
+      }
+    }
+  }
+
+  @ppx.deriving(show({with_path: false}))
+  type rec t = {
+    ast: AST.t,
+    spec: Spec.t,
+    tlid: TLID.t,
+    pos: pos,
+  }
+  let encode = (h: t): Js.Json.t => {
+    open Json.Encode
+    object_(list{
+      ("tlid", TLID.encode(h.tlid)),
+      ("spec", Spec.encode(h.spec)),
+      ("ast", AST.encode(h.ast)),
+    })
+  }
+
+  let decode = (pos, j): t => {
+    open Json.Decode
+    {
+      ast: field("ast", AST.decode, j),
+      spec: field("spec", Spec.decode, j),
+      tlid: field("tlid", TLID.decode, j),
+      pos: pos,
+    }
+  }
+}
+
 module DB = {
   module Col = {
     @ppx.deriving(show({with_path: false}))
@@ -572,5 +633,133 @@ module UserType = {
       version: field("version", int, j),
       definition: field("definition", Definition.decode, j),
     }
+  }
+}
+
+module Op = {
+  @ppx.deriving(show({with_path: false}))
+  type rec t =
+    | SetHandler(TLID.t, pos, Handler.t)
+    | CreateDB(TLID.t, pos, string)
+    | AddDBCol(TLID.t, ID.t, ID.t)
+    | SetDBColName(TLID.t, ID.t, string)
+    | SetDBColType(TLID.t, ID.t, string)
+    | DeleteTL(TLID.t)
+    | MoveTL(TLID.t, pos)
+    | SetFunction(UserFunction.t)
+    | ChangeDBColName(TLID.t, ID.t, string)
+    | ChangeDBColType(TLID.t, ID.t, string)
+    | UndoTL(TLID.t)
+    | RedoTL(TLID.t)
+    | SetExpr(TLID.t, ID.t, Expr.t)
+    | TLSavepoint(TLID.t)
+    | DeleteFunction(TLID.t)
+    | DeleteDBCol(TLID.t, ID.t)
+    | RenameDBname(TLID.t, string)
+    | CreateDBWithBlankOr(TLID.t, pos, ID.t, string)
+    | SetType(UserType.t)
+    | DeleteType(TLID.t)
+
+  let tlidOf = (op: t): TLID.t =>
+    switch op {
+    | SetHandler(tlid, _, _) => tlid
+    | CreateDB(tlid, _, _) => tlid
+    | AddDBCol(tlid, _, _) => tlid
+    | SetDBColName(tlid, _, _) => tlid
+    | ChangeDBColName(tlid, _, _) => tlid
+    | SetDBColType(tlid, _, _) => tlid
+    | ChangeDBColType(tlid, _, _) => tlid
+    | TLSavepoint(tlid) => tlid
+    | UndoTL(tlid) => tlid
+    | RedoTL(tlid) => tlid
+    | DeleteTL(tlid) => tlid
+    | MoveTL(tlid, _) => tlid
+    | SetFunction(f) => f.tlid
+    | DeleteFunction(tlid) => tlid
+    | SetExpr(tlid, _, _) => tlid
+    | DeleteDBCol(tlid, _) => tlid
+    | RenameDBname(tlid, _) => tlid
+    | CreateDBWithBlankOr(tlid, _, _, _) => tlid
+    | SetType(ut) => ut.tlid
+    | DeleteType(tlid) => tlid
+    }
+
+  let encode = (op: t): Js.Json.t => {
+    open Json_encode_extended
+    let ev = variant
+    let tlid = TLID.encode
+    let id = ID.encode
+    let pos = BaseTypes.encodePos
+    switch op {
+    | SetHandler(t, p, h) => ev("SetHandler", list{tlid(t), pos(p), Handler.encode(h)})
+    | CreateDB(t, p, name) => ev("CreateDB", list{tlid(t), pos(p), string(name)})
+    | AddDBCol(t, cn, ct) => ev("AddDBCol", list{tlid(t), id(cn), id(ct)})
+    | SetDBColName(t, i, name) => ev("SetDBColName", list{tlid(t), id(i), string(name)})
+    | ChangeDBColName(t, i, name) => ev("ChangeDBColName", list{tlid(t), id(i), string(name)})
+    | SetDBColType(t, i, tipe) => ev("SetDBColType", list{tlid(t), id(i), string(tipe)})
+    | ChangeDBColType(t, i, name) => ev("ChangeDBColType", list{tlid(t), id(i), string(name)})
+    | DeleteDBCol(t, i) => ev("DeleteDBCol", list{tlid(t), id(i)})
+    | TLSavepoint(t) => ev("TLSavepoint", list{tlid(t)})
+    | UndoTL(t) => ev("UndoTL", list{tlid(t)})
+    | RedoTL(t) => ev("RedoTL", list{tlid(t)})
+    | DeleteTL(t) => ev("DeleteTL", list{tlid(t)})
+    | MoveTL(t, p) => ev("MoveTL", list{tlid(t), pos(p)})
+    | SetFunction(uf) => ev("SetFunction", list{UserFunction.encode(uf)})
+    | DeleteFunction(t) => ev("DeleteFunction", list{tlid(t)})
+    | SetExpr(t, i, e) => ev("SetExpr", list{tlid(t), id(i), Expr.encode(e)})
+    | RenameDBname(t, name) => ev("RenameDBname", list{tlid(t), string(name)})
+    | CreateDBWithBlankOr(t, p, i, name) =>
+      ev("CreateDBWithBlankOr", list{tlid(t), pos(p), id(i), string(name)})
+    | SetType(t) => ev("SetType", list{UserType.encode(t)})
+    | DeleteType(t) => ev("DeleteType", list{tlid(t)})
+    }
+  }
+  let decode = (j): t => {
+    open Json_decode_extended
+    let tlid = TLID.decode
+    let id = ID.decode
+    let pos = BaseTypes.decodePos
+    variants(
+      list{
+        (
+          "SetHandler",
+          variant3(
+            (t, p, h) => SetHandler(t, p, {...h, pos: p}),
+            tlid,
+            pos,
+            Handler.decode({x: -1286, y: -467}),
+          ),
+        ),
+        ("CreateDB", variant3((t, p, name) => CreateDB(t, p, name), tlid, pos, string)),
+        ("AddDBCol", variant3((t, cn, ct) => AddDBCol(t, cn, ct), tlid, id, id)),
+        ("SetDBColName", variant3((t, i, name) => SetDBColName(t, i, name), tlid, id, string)),
+        (
+          "ChangeDBColName",
+          variant3((t, i, name) => ChangeDBColName(t, i, name), tlid, id, string),
+        ),
+        ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
+        (
+          "ChangeDBColType",
+          variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string),
+        ),
+        ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
+        ("TLSavepoint", variant1(t => TLSavepoint(t), tlid)),
+        ("UndoTL", variant1(t => UndoTL(t), tlid)),
+        ("RedoTL", variant1(t => RedoTL(t), tlid)),
+        ("DeleteTL", variant1(t => DeleteTL(t), tlid)),
+        ("MoveTL", variant2((t, p) => MoveTL(t, p), tlid, pos)),
+        ("SetFunction", variant1(uf => SetFunction(uf), UserFunction.decode)),
+        ("DeleteFunction", variant1(t => DeleteFunction(t), tlid)),
+        ("SetExpr", variant3((t, i, e) => SetExpr(t, i, e), tlid, id, Expr.decode)),
+        ("RenameDBname", variant2((t, name) => RenameDBname(t, name), tlid, string)),
+        (
+          "CreateDBWithBlankOr",
+          variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
+        ),
+        ("SetType", variant1(t => SetType(t), UserType.decode)),
+        ("DeleteType", variant1(t => DeleteType(t), tlid)),
+      },
+      j,
+    )
   }
 }

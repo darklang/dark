@@ -10,7 +10,7 @@ let makeTL = ast => TLHandler({
     name: Blank(gid()),
     modifier: Blank(gid()),
   },
-  hTLID: TLID.fromInt(7),
+  tlid: TLID.fromInt(7),
   pos: Defaults.origin,
 })
 

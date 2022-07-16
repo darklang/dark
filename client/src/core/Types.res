@@ -164,11 +164,6 @@ and blankOrType =
 // ----------------------
 // Toplevels
 // ----------------------
-type rec handlerSpaceName = string
-
-and handlerName = string
-
-and handlerModifer = string
 
 // usedIn is a TL that's refered to in the refersTo tl at id
 // refersTo is a TL that uses the usedIn tl at id
@@ -178,13 +173,6 @@ and usage = {
   id: id,
 }
 
-// handlers
-and handlerSpec = {
-  space: blankOr<handlerSpaceName>,
-  name: blankOr<handlerName>,
-  modifier: blankOr<handlerModifer>,
-}
-
 and handlerSpace =
   | HSHTTP
   | HSCron
@@ -192,14 +180,6 @@ and handlerSpace =
   | HSRepl
   | HSDeprecatedOther
 
-and handler = {
-  ast: fluidAST,
-  spec: handlerSpec,
-  hTLID: TLID.t,
-  pos: pos,
-}
-
-// dbs
 and functionTypes =
   | UserFunction(PT.UserFunction.t)
   | PackageFn(packageFn)
@@ -228,7 +208,7 @@ and packageFn = {
 
 // toplevels
 and toplevel =
-  | TLHandler(handler)
+  | TLHandler(PT.Handler.t)
   | TLDB(PT.DB.t)
   | TLPmFunc(packageFn)
   | TLFunc(PT.UserFunction.t)
@@ -601,32 +581,6 @@ and workerStats = {
 }
 
 // -------------------
-// ops
-// -------------------
-
-and op =
-  | SetHandler(TLID.t, pos, handler)
-  | CreateDB(TLID.t, pos, string)
-  | AddDBCol(TLID.t, id, id)
-  | SetDBColName(TLID.t, id, string)
-  | SetDBColType(TLID.t, id, string)
-  | DeleteTL(TLID.t)
-  | MoveTL(TLID.t, pos)
-  | SetFunction(PT.UserFunction.t)
-  | ChangeDBColName(TLID.t, id, string)
-  | ChangeDBColType(TLID.t, id, string)
-  | UndoTL(TLID.t)
-  | RedoTL(TLID.t)
-  | SetExpr(TLID.t, id, fluidExpr)
-  | TLSavepoint(TLID.t)
-  | DeleteFunction(TLID.t)
-  | DeleteDBCol(TLID.t, id)
-  | RenameDBname(TLID.t, string)
-  | CreateDBWithBlankOr(TLID.t, pos, id, string)
-  | SetType(PT.UserType.t)
-  | DeleteType(TLID.t)
-
-// -------------------
 // APIs
 // -------------------
 // params
@@ -635,7 +589,7 @@ and sendPresenceParams = avatarModelMessage
 and sendInviteParams = SettingsViewTypes.inviteFormMessage
 
 and addOpAPIParams = {
-  ops: list<op>,
+  ops: list<PT.Op.t>,
   opCtr: int,
   clientOpCtrId: string,
 }
@@ -673,7 +627,7 @@ and updateWorkerScheduleAPIParams = {
 }
 
 and performHandlerAnalysisParams = {
-  handler: handler,
+  handler: PT.Handler.t,
   traceID: traceID,
   traceData: traceData,
   dbs: list<PT.DB.t>,
@@ -714,8 +668,8 @@ and account = {
 
 // results
 and addOpAPIResult = {
-  handlers: list<handler>,
-  deletedHandlers: list<handler>,
+  handlers: list<PT.Handler.t>,
+  deletedHandlers: list<PT.Handler.t>,
   dbs: list<PT.DB.t>,
   deletedDBs: list<PT.DB.t>,
   userFunctions: list<PT.UserFunction.t>,
@@ -756,8 +710,8 @@ and workerStatsAPIResult = workerStats
 and allTracesAPIResult = {traces: list<(TLID.t, traceID)>}
 
 and initialLoadAPIResult = {
-  handlers: list<handler>,
-  deletedHandlers: list<handler>,
+  handlers: list<PT.Handler.t>,
+  deletedHandlers: list<PT.Handler.t>,
   dbs: list<PT.DB.t>,
   deletedDBs: list<PT.DB.t>,
   userFunctions: list<PT.UserFunction.t>,
@@ -1073,7 +1027,7 @@ and modification =
   ReplaceAllModificationsWithThisOne(model => (model, Tea.Cmd.t<msg>))
 
   // API Calls
-  | AddOps((list<op>, focus))
+  | AddOps((list<PT.Op.t>, focus))
   | HandleAPIError(apiError)
   | GetUnlockedDBsAPICall
   | Get404sAPICall
@@ -1088,10 +1042,10 @@ and modification =
   | ClearHover(TLID.t, idOrTraceID)
   | Deselect
   | RemoveToplevel(toplevel)
-  | SetToplevels(list<handler>, list<PT.DB.t>, bool)
-  | UpdateToplevels(list<handler>, list<PT.DB.t>, bool)
-  | SetDeletedToplevels(list<handler>, list<PT.DB.t>)
-  | UpdateDeletedToplevels(list<handler>, list<PT.DB.t>)
+  | SetToplevels(list<PT.Handler.t>, list<PT.DB.t>, bool)
+  | UpdateToplevels(list<PT.Handler.t>, list<PT.DB.t>, bool)
+  | SetDeletedToplevels(list<PT.Handler.t>, list<PT.DB.t>)
+  | UpdateDeletedToplevels(list<PT.Handler.t>, list<PT.DB.t>)
   | UpdateAnalysis(analysisEnvelope)
   | SetUserFunctions(list<PT.UserFunction.t>, list<PT.UserFunction.t>, bool)
   | SetUnlockedDBs(unlockedDBs)
@@ -1144,7 +1098,7 @@ and modification =
   | ExpireAvatars
   | SetClipboardContents(clipboardContents, clipboardEvent)
   | UpdateASTCache(TLID.t, string)
-  | InitASTCache(list<handler>, list<PT.UserFunction.t>)
+  | InitASTCache(list<PT.Handler.t>, list<PT.UserFunction.t>)
   | FluidSetState(fluidState)
   | TLMenuUpdate(TLID.t, menuMsg)
   | SettingsViewUpdate(SettingsViewTypes.settingsMsg)
@@ -1647,8 +1601,8 @@ and model = {
   cursorState: cursorState,
   currentPage: page,
   hovering: list<(TLID.t, idOrTraceID)>,
-  handlers: TLID.Dict.t<handler>,
-  deletedHandlers: TLID.Dict.t<handler>,
+  handlers: TLID.Dict.t<PT.Handler.t>,
+  deletedHandlers: TLID.Dict.t<PT.Handler.t>,
   dbs: TLID.Dict.t<PT.DB.t>,
   deletedDBs: TLID.Dict.t<PT.DB.t>,
   userFunctions: TLID.Dict.t<PT.UserFunction.t>,

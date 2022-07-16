@@ -14,13 +14,13 @@ let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   )
   |> Map.String.fromList
 
-let handlersByName = (hs: TD.t<handler>): Map.String.t<TLID.t> =>
+let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> =>
   hs
-  |> Map.mapValues(~f=h => {
+  |> Map.mapValues(~f=(h: PT.Handler.t) => {
     let space = h.spec.space |> B.toOption |> Option.unwrap(~default="_")
     let name = h.spec.name |> B.toOption |> Option.unwrap(~default="_")
     let key = keyForHandlerSpec(space, name)
-    (key, h.hTLID)
+    (key, h.tlid)
   })
   |> Map.String.fromList
 
@@ -51,11 +51,11 @@ let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
   })
   |> Map.String.fromList
 
-let tlidsToUpdateUsage = (ops: list<op>): list<TLID.t> =>
+let tlidsToUpdateUsage = (ops: list<PT.Op.t>): list<TLID.t> =>
   ops
   |> List.filterMap(~f=op =>
     switch op {
-    | SetHandler(tlid, _, _) | SetExpr(tlid, _, _) => Some(tlid)
+    | PT.Op.SetHandler(tlid, _, _) | SetExpr(tlid, _, _) => Some(tlid)
     | SetFunction(f) => Some(f.tlid)
     | CreateDB(_)
     | DeleteTL(_)

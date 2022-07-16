@@ -23,7 +23,7 @@ let transformFnCalls = (
   m: model,
   uf: PT.UserFunction.t,
   f: FluidExpression.t => FluidExpression.t,
-): list<op> => {
+): list<PT.Op.t> => {
   let transformCallsInAst = (ast: FluidAST.t) => {
     let rec run = e =>
       switch e {
@@ -34,10 +34,10 @@ let transformFnCalls = (
     FluidAST.map(ast, ~f=run)
   }
 
-  let newHandlers = m.handlers |> Map.filterMapValues(~f=h => {
+  let newHandlers = m.handlers |> Map.filterMapValues(~f=(h: PT.Handler.t) => {
     let newAst = h.ast |> transformCallsInAst
     if newAst != h.ast {
-      Some(SetHandler(h.hTLID, h.pos, {...h, ast: newAst}))
+      Some(PT.Op.SetHandler(h.tlid, h.pos, {...h, ast: newAst}))
     } else {
       None
     }
@@ -46,7 +46,7 @@ let transformFnCalls = (
   let newFunctions = m.userFunctions |> Map.filterMapValues(~f=(uf_: PT.UserFunction.t) => {
     let newAst = uf_.ast |> transformCallsInAst
     if newAst != uf_.ast {
-      Some(SetFunction({...uf_, ast: newAst}))
+      Some(PT.Op.SetFunction({...uf_, ast: newAst}))
     } else {
       None
     }
@@ -236,7 +236,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   }
 }
 
-let renameFunction = (m: model, uf: PT.UserFunction.t, newName: string): list<op> => {
+let renameFunction = (m: model, uf: PT.UserFunction.t, newName: string): list<PT.Op.t> => {
   open ProgramTypes.Expr
   let fn = e =>
     switch e {
@@ -247,7 +247,7 @@ let renameFunction = (m: model, uf: PT.UserFunction.t, newName: string): list<op
   transformFnCalls(m, uf, fn)
 }
 
-let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<op> => {
+let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<PT.Op.t> => {
   let renameUserTipeInFnParameters = (fn, oldTipe: PT.UserType.t, newTipe: PT.UserType.t) => {
     let transformUse = (newName_, oldUse) =>
       switch oldUse {
@@ -279,7 +279,7 @@ let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<o
   let newFunctions = m.userFunctions |> Map.filterMapValues(~f=uf => {
     let newFn = renameUserTipeInFnParameters(uf, old, new_)
     if newFn != uf {
-      Some(SetFunction(newFn))
+      Some(PT.Op.SetFunction(newFn))
     } else {
       None
     }
@@ -358,7 +358,7 @@ let removeFunctionParameter = (
   m: model,
   uf: PT.UserFunction.t,
   ufp: PT.UserFunction.Parameter.t,
-): list<op> => {
+): list<PT.Op.t> => {
   open ProgramTypes.Expr
   let indexInList =
     List.findIndex(~f=(_, p) => p == ufp, uf.metadata.parameters)
@@ -449,7 +449,7 @@ let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
   | None => Error("No live value.")
   }
 
-let renameDBReferences = (m: model, oldName: string, newName: string): list<op> =>
+let renameDBReferences = (m: model, oldName: string, newName: string): list<PT.Op.t> =>
   m
   |> TL.all
   |> Map.filterMapValues(~f=tl =>
@@ -458,7 +458,7 @@ let renameDBReferences = (m: model, oldName: string, newName: string): list<op> 
       let newAST = h.ast |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
 
       if newAST != h.ast {
-        Some(SetHandler(h.hTLID, h.pos, {...h, ast: newAST}))
+        Some(PT.Op.SetHandler(h.tlid, h.pos, {...h, ast: newAST}))
       } else {
         None
       }
@@ -508,7 +508,7 @@ let createNewDB = (m: model, maybeName: option<string>, pos: pos): modification 
     let tlid = gtlid()
     let pageChanges = list{SetPage(FocusedDB(tlid, true))}
     let rpcCalls = list{
-      CreateDBWithBlankOr(tlid, pos, Prelude.gid(), name),
+      PT.Op.CreateDBWithBlankOr(tlid, pos, Prelude.gid(), name),
       AddDBCol(tlid, next, Prelude.gid()),
     }
 
@@ -559,7 +559,7 @@ let createAndInsertNewFunction = (
       metadata: {...fn.metadata, name: F(gid(), newFnName)},
     }
 
-    let op = SetFunction(newFn)
+    let op = PT.Op.SetFunction(newFn)
     // Update the old ast
     let replacement = E.EFnCall(partialID, newFnName, list{}, NoRail)
     let newAST = FluidAST.replace(partialID, ast, ~replacement)

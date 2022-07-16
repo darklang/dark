@@ -7,6 +7,14 @@ type rec pos = {
   x: int,
   y: int,
 }
+let encodePos = (p: pos) => {
+  open Json_encode_extended
+  object_(list{("x", int(p.x)), ("y", int(p.y))})
+}
+let decodePos = (j): pos => {
+  open Json.Decode
+  {x: field("x", int, j), y: field("y", int, j)}
+}
 
 // CLEANUP: Move BlankOr to own module and file. Right now there's already a BlankOr
 // files with functions in it.
@@ -17,7 +25,6 @@ type rec blankOr<'a> =
 
 let encodeBlankOr = (encoder: 'a => Js.Json.t, v: blankOr<'a>) => {
   open Json_encode_extended
-
   switch v {
   | F(i, s) => variant("Filled", list{ID.encode(i), encoder(s)})
   | Blank(i) => variant("Blank", list{ID.encode(i)})
