@@ -316,17 +316,15 @@ let run = () => {
           ("obj", TObj),
           ("date", TDate),
           ("datestr", TStr),
-          /* for now, TStr; in future, maybe we coerce to
-           TDate */
+          // for now, TStr; in future, maybe we coerce to TDate
           ("uuid", TUuid),
           ("uuidstr", TStr),
-          /* for now, TStr; in future, maybe we coerce to
-           TUuid */
+          // for now, TStr; in future, maybe we coerce to TUuid
         }
-        |> List.map(~f=((k, v)) => (Some(k), Some(v)))
-        |> /* sortBy here because the dobj gets sorted - not sure exactly
-         where, but order doesn't matter except in this test */
-        List.sortBy(~f=((k, _)) => k)
+        |> List.map(~f=((k, v)) => (k, Some(v)))
+        // sortBy here because the dobj gets sorted - not sure exactly where, but
+        // order doesn't matter except in this test
+        |> List.sortBy(~f=((k, _)) => k)
 
       let _ = (dobj, expectedFields)
       let tipe = R.generateUserType(Some(dobj))
@@ -335,10 +333,7 @@ let run = () => {
       | Ok(ut) =>
         switch ut.definition {
         | PT.UserType.Definition.UTRecord(utr) =>
-          utr |> List.map(~f=(urf: PT.UserType.RecordField.t) => (
-            urf.name |> B.toOption,
-            urf.typ |> B.toOption,
-          ))
+          utr |> List.map(~f=(urf: PT.UserType.RecordField.t) => (urf.name, urf.typ))
         }
       }
 

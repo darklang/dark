@@ -30,7 +30,7 @@ let viewKillFieldBtn = (t: PT.UserType.t, field: PT.UserType.RecordField.t): Htm
     list{
       Html.class'("field-btn allowed"),
       ViewUtils.eventNoPropagation(
-        ~key="dutf-" ++ (TLID.toString(t.tlid) ++ ("-" ++ (field.name |> B.toID |> ID.toString))),
+        ~key="dutf-" ++ TLID.toString(t.tlid) ++ "-" ++ field.nameID->ID.toString,
         "click",
         _ => DeleteUserTypeField(t.tlid, field),
       ),
@@ -51,8 +51,8 @@ let viewTipeField = (
   }
 
   let row = list{
-    viewFieldName(vp, ~classes=list{"name"}, field.name),
-    viewFieldType(vp, ~classes=list{"type"}, field.typ),
+    viewFieldName(vp, ~classes=list{"name"}, BlankOr.fromStringID(field.name, field.nameID)),
+    viewFieldType(vp, ~classes=list{"type"}, BlankOr.fromOptionID(field.typ, field.typeID)),
     button,
   }
 

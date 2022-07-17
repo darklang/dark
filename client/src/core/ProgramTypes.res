@@ -670,22 +670,28 @@ module UserType = {
   module RecordField = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      name: blankOr<string>,
-      typ: blankOr<DType.t>,
+      name: string,
+      typ: option<DType.t>,
+      nameID: ID.t,
+      typeID: ID.t,
     }
     let encode = (f: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, f.name)),
-        ("tipe", BaseTypes.encodeBlankOr(DType.encode, f.typ)),
+        ("name", string(f.name)),
+        ("typ", nullable(DType.encode, f.typ)),
+        ("nameID", ID.encode(f.nameID)),
+        ("typeID", ID.encode(f.typeID)),
       })
     }
 
     let decode = j => {
       open Json.Decode
       {
-        name: field("name", BaseTypes.decodeBlankOr(string), j),
-        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decode), j),
+        name: field("name", string, j),
+        typ: field("typ", optional(DType.decode), j),
+        nameID: field("nameID", ID.decode, j),
+        typeID: field("typeID", ID.decode, j),
       }
     }
   }

@@ -11,7 +11,14 @@ let blankOrData = (t: PT.UserType.t): list<blankOrData> => {
   | UTRecord(fields) =>
     List.fold(
       ~initial=list{},
-      ~f=(acc, f) => Belt.List.concat(acc, list{PTypeFieldName(f.name), PTypeFieldTipe(f.typ)}),
+      ~f=(acc, f) =>
+        Belt.List.concat(
+          acc,
+          list{
+            PTypeFieldName(BlankOr.fromStringID(f.name, f.nameID)),
+            PTypeFieldTipe(BlankOr.fromOptionID(f.typ, f.typeID)),
+          },
+        ),
       fields,
     )
   }
@@ -53,21 +60,25 @@ let replaceDefinitionElement = (
   let sId = P.toID(old)
   switch tipe.definition {
   | UTRecord(fields) =>
-    let newFields = List.map(~f=f =>
-      if B.toID(f.name) == sId {
+    let newFields = fields->List.map(~f=f =>
+      if f.nameID == sId {
         switch new_ {
-        | PTypeFieldName(new_) => {...f, name: B.replace(sId, new_, f.name)}
+        | PTypeFieldName(new) =>
+          let (name, nameID) = B.toStringID(new)
+          {...f, name: name, nameID: nameID}
         | _ => f
         }
-      } else if B.toID(f.typ) == sId {
+      } else if f.typeID == sId {
         switch new_ {
-        | PTypeFieldTipe(new_) => {...f, typ: B.replace(sId, new_, f.typ)}
+        | PTypeFieldTipe(new) =>
+          let (typ, typeID) = B.toOptionID(new)
+          {...f, typ: typ, typeID: typeID}
         | _ => f
         }
       } else {
         f
       }
-    , fields)
+    )
 
     {...tipe, definition: UTRecord(newFields)}
   }
@@ -91,7 +102,10 @@ let replace = (old: blankOrData, new_: blankOrData, tipe: PT.UserType.t): PT.Use
 let extend = (tipe: PT.UserType.t): PT.UserType.t =>
   switch tipe.definition {
   | UTRecord(fields) =>
-    let newFields = Belt.List.concat(fields, list{{name: B.new_(), typ: B.new_()}})
+    let newFields = Belt.List.concat(
+      fields,
+      list{{name: "", nameID: gid(), typ: None, typeID: gid()}},
+    )
     {...tipe, definition: UTRecord(newFields)}
   }
 

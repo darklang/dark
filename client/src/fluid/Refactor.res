@@ -415,7 +415,9 @@ let generateEmptyFunction = (_: unit): PT.UserFunction.t => {
 let generateEmptyUserType = (): PT.UserType.t => {
   let tipeName = generateTipeName()
   let tlid = gtlid()
-  let definition = PT.UserType.Definition.UTRecord(list{{name: B.new_(), typ: B.new_()}})
+  let definition = PT.UserType.Definition.UTRecord(list{
+    {name: "", nameID: gid(), typ: None, typeID: gid()},
+  })
   {
     tlid: tlid,
     name: F(gid(), tipeName),
@@ -431,7 +433,7 @@ let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
       dvalmap
       |> Belt.Map.String.toList
       |> List.map(~f=((k, v)) => {
-        let tipe = v |> Runtime.typeOf
+        let typ = Runtime.typeOf(v)
         /*
          * In the future, we may want to recognize stringified UUIDs and
          * Dates, but we decided that today is not that day. See
@@ -439,7 +441,7 @@ let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
          * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
          * let tipe = v |> coerceType in
          */
-        {PT.UserType.RecordField.name: k |> BlankOr.newF, typ: tipe |> BlankOr.newF}
+        {PT.UserType.RecordField.name: k, nameID: gid(), typ: Some(typ), typeID: gid()}
       })
 
     Ok({
