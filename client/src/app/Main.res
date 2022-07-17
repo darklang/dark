@@ -1444,10 +1444,9 @@ let update_ = (msg: msg, m: model): modification => {
     })
   | TriggerHandlerAPICallback(params, Ok(tlids)) =>
     let traces: Prelude.traces =
-      List.map(
-        ~f=tlid => (tlid, list{(params.thTraceID, Error(NoneYet))}),
-        tlids,
-      ) |> TLID.Dict.fromList
+      tlids
+      |> List.map(~f=tlid => (tlid, list{(params.thTraceID, Error(NoneYet))}))
+      |> TLID.Dict.fromList
 
     Many(list{
       OverrideTraces(traces),
