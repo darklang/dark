@@ -889,15 +889,6 @@ module Package = {
     }
   }
 
-  // type Fn =
-  //   { name : FQFnName.PackageFnName
-  //     body : Expr
-  //     parameters : List<Parameter>
-  //     returnType : DType
-  //     description : string
-  //     author : string
-  //     deprecated : bool
-  //     tlid : tlid }
   module Fn = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
