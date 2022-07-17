@@ -214,6 +214,7 @@ type AddOpParamsV1 =
     // option means that we can still deserialize if this field is null
     clientOpCtrId : Option<string> }
 
+// CLEANUP The params field is not used by the client
 type AddOpEventV1 = { result : AddOpResultV1; ``params`` : AddOpParamsV1 }
 
 type AddOpResultV0 =

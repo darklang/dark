@@ -168,23 +168,23 @@ module V1 =
 
   type T =
     { handlers : List<PT.Handler.T>
-      deleted_handlers : List<PT.Handler.T>
+      deletedHandlers : List<PT.Handler.T>
       dbs : List<PT.DB.T>
-      deleted_dbs : List<PT.DB.T>
-      user_functions : List<PT.UserFunction.T>
-      deleted_user_functions : List<PT.UserFunction.T>
-      user_types : List<PT.UserType.T>
-      deleted_user_types : List<PT.UserType.T>
-      unlocked_dbs : List<tlid>
-      assets : List<ApiStaticDeploy>
-      op_ctrs : List<System.Guid * int>
-      canvas_list : List<string>
-      org_canvas_list : List<string>
+      deletedDBs : List<PT.DB.T>
+      userFunctions : List<PT.UserFunction.T>
+      deletedUserFunctions : List<PT.UserFunction.T>
+      userTypes : List<PT.UserType.T>
+      deletedUserTypes : List<PT.UserType.T>
+      unlockedDBs : List<tlid>
+      staticDeploys : List<ApiStaticDeploy>
       permission : Option<Auth.Permission>
-      orgs : List<string>
+      opCtrs : List<System.Guid * int>
       account : ApiUserInfo
-      creation_date : NodaTime.Instant
-      worker_schedules : SchedulingRules.WorkerStates.T
+      canvasList : List<string>
+      orgs : List<string>
+      orgCanvasList : List<string>
+      workerSchedules : SchedulingRules.WorkerStates.T
+      creationDate : NodaTime.Instant
       secrets : List<ApiSecret> }
 
   /// API endpoint called when client initially loads a Canvas
@@ -235,28 +235,28 @@ module V1 =
 
       let result =
         { handlers = Map.values canvas.handlers
-          deleted_handlers = Map.values canvas.deletedHandlers
+          deletedHandlers = Map.values canvas.deletedHandlers
           dbs = Map.values canvas.dbs
-          deleted_dbs = Map.values canvas.deletedDBs
-          user_functions = Map.values canvas.userFunctions
-          deleted_user_functions = Map.values canvas.userFunctions
-          user_types = Map.values canvas.userTypes
-          deleted_user_types = Map.values canvas.deletedUserTypes
-          unlocked_dbs = unlocked
-          assets = List.map toApiStaticDeploys staticAssets
-          op_ctrs = opCtrs
-          canvas_list = List.map string canvasList
-          org_canvas_list = List.map string orgCanvasList
+          deletedDBs = Map.values canvas.deletedDBs
+          userFunctions = Map.values canvas.userFunctions
+          deletedUserFunctions = Map.values canvas.userFunctions
+          userTypes = Map.values canvas.userTypes
+          deletedUserTypes = Map.values canvas.deletedUserTypes
+          unlockedDBs = unlocked
+          staticDeploys = List.map toApiStaticDeploys staticAssets
+          opCtrs = opCtrs
+          canvasList = List.map string canvasList
+          orgCanvasList = List.map string orgCanvasList
           permission = permission
           orgs = List.map string orgList
-          worker_schedules = workerSchedules
+          workerSchedules = workerSchedules
           account =
             { username = string user.username
               name = user.name
               email = user.email
               admin = user.admin
               id = user.id }
-          creation_date = creationDate
+          creationDate = creationDate
           secrets =
             secrets
             |> List.map (fun s -> { secret_name = s.name; secret_value = s.value }) }

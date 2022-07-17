@@ -794,18 +794,19 @@ module GenericSerializersTests =
       v<ApiServer.InitialLoad.V1.T>
         "initial"
         { handlers = testHandlers
-          deleted_handlers = testHandlers
+          deletedHandlers = testHandlers
           dbs = testDBs
-          deleted_dbs = testDBs
-          user_functions = testUserFunctions
-          deleted_user_functions = testUserFunctions
-          unlocked_dbs = [ testTLID ]
-          user_types = testUserTypes
-          deleted_user_types = testUserTypes
-          assets = [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
-          op_ctrs = [ testUuid, 7 ]
-          canvas_list = [ "test"; "test-canvas2" ]
-          org_canvas_list = [ "testorg"; "testorg-canvas2" ]
+          deletedDBs = testDBs
+          userFunctions = testUserFunctions
+          deletedUserFunctions = testUserFunctions
+          unlockedDBs = [ testTLID ]
+          userTypes = testUserTypes
+          deletedUserTypes = testUserTypes
+          staticDeploys =
+            [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
+          opCtrs = [ testUuid, 7 ]
+          canvasList = [ "test"; "test-canvas2" ]
+          orgCanvasList = [ "testorg"; "testorg-canvas2" ]
           permission = Some(LibBackend.Authorization.ReadWrite)
           orgs = [ "test"; "testorg" ]
           account =
@@ -814,8 +815,8 @@ module GenericSerializersTests =
               admin = false
               email = "test@darklang.com"
               id = testUuid }
-          creation_date = testInstant
-          worker_schedules = testWorkerStates
+          creationDate = testInstant
+          workerSchedules = testWorkerStates
           secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
       oc<ApiServer.InitialLoad.V0.T>
         "initial"

@@ -4418,7 +4418,7 @@
       ]
     }
   ],
-  "deleted_handlers": [
+  "deletedHandlers": [
     {
       "tlid": 92987663,
       "pos": {
@@ -9010,7 +9010,7 @@
       ]
     }
   ],
-  "deleted_dbs": [
+  "deletedDBs": [
     {
       "tlid": 0,
       "pos": {
@@ -9183,7 +9183,7 @@
       ]
     }
   ],
-  "user_functions": [
+  "userFunctions": [
     {
       "tlid": 0,
       "name": "myFunc",
@@ -10090,7 +10090,7 @@
       ]
     }
   ],
-  "deleted_user_functions": [
+  "deletedUserFunctions": [
     {
       "tlid": 0,
       "name": "myFunc",
@@ -10997,7 +10997,7 @@
       ]
     }
   ],
-  "user_types": [
+  "userTypes": [
     {
       "tlid": 0,
       "name": "User",
@@ -11155,7 +11155,7 @@
       ]
     }
   ],
-  "deleted_user_types": [
+  "deletedUserTypes": [
     {
       "tlid": 0,
       "name": "User",
@@ -11313,10 +11313,10 @@
       ]
     }
   ],
-  "unlocked_dbs": [
+  "unlockedDBs": [
     7
   ],
-  "assets": [
+  "staticDeploys": [
     {
       "deploy_hash": "zf2ttsgwln",
       "url": "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln",
@@ -11326,26 +11326,14 @@
       ]
     }
   ],
-  "op_ctrs": [
+  "permission": [
+    "ReadWrite"
+  ],
+  "opCtrs": [
     [
       "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
       7
     ]
-  ],
-  "canvas_list": [
-    "test",
-    "test-canvas2"
-  ],
-  "org_canvas_list": [
-    "testorg",
-    "testorg-canvas2"
-  ],
-  "permission": [
-    "ReadWrite"
-  ],
-  "orgs": [
-    "test",
-    "testorg"
   ],
   "account": {
     "username": "test",
@@ -11354,8 +11342,19 @@
     "email": "test@darklang.com",
     "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
   },
-  "creation_date": "2022-07-04T17:46:57Z",
-  "worker_schedules": {
+  "canvasList": [
+    "test",
+    "test-canvas2"
+  ],
+  "orgs": [
+    "test",
+    "testorg"
+  ],
+  "orgCanvasList": [
+    "testorg",
+    "testorg-canvas2"
+  ],
+  "workerSchedules": {
     "blocked": [
       "Blocked"
     ],
@@ -11366,6 +11365,7 @@
       "Running"
     ]
   },
+  "creationDate": "2022-07-04T17:46:57Z",
   "secrets": [
     {
       "secret_name": "test",
