@@ -78,7 +78,7 @@ let url (canvasName : CanvasName.T) (deployHash : string) (t : UrlType) : string
 
   $"https://{canvasName}{domain}/{apphash}/{deployHash}"
 
-// TODO [polish] could instrument this to error on bad deploy hash, maybe also
+// CLEANUP could instrument this to error on bad deploy hash, maybe also
 // unknown file
 let urlFor
   (canvasName : CanvasName.T)
@@ -127,8 +127,12 @@ let startStaticAssetDeploy
   (canvasName : CanvasName.T)
   : Task<StaticDeploy> =
 
+  // we include .fff (milliseconds) to ensure we don't encoutner conflicts,
+  // especially relevant to unit tests which record multiple deploys quickly.
+  let now = System.DateTime.Now.ToString("MM/dd/yyyy hh:mm:ss.fff tt")
+
   let deployHash =
-    $"{canvasID}{System.DateTime.Now.ToString()}"
+    $"{canvasID}{now}"
     |> sha1digest
     |> Base64.urlEncodeToString
     |> String.removeSuffix "="
@@ -151,8 +155,8 @@ let startStaticAssetDeploy
       lastUpdate = lastUpdate
       status = Deploying })
 
-// TODO: what should happen if the deploy hash doesn't exist?
-// TODO: what if the deploy is already finished?
+// CLEANUP: return an Error if the deploy hash doesn't exist
+// CLEANUP: decide what to do if the deploy is already finished
 let finishStaticAssetDeploy
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
@@ -187,10 +191,12 @@ let deleteStaticAssetDeploy
   (deployHash : string)
   : Task<unit> =
 
-  // TODO the query here only allows someone to delete a deploy if they're the
-  // one who uploaded it (via `AND uploaded_by_account_id=@userId`). If more
-  // than one user are working within a canvas, shouldn't we allow anyone
-  // involved to delete the deploy?
+  // CLEANUP the query here only allows someone to delete a deploy if they're
+  // the one who uploaded it (via `AND uploaded_by_account_id=@userId`). If
+  // more than one user are working within a canvas, shouldn't we allow anyone
+  // involved to delete the deploy? I believe so.
+  // If/when we adjust for such, ensure canvas access of relevant user in
+  // StdLib fn.
   Sql.query
     "DELETE FROM static_asset_deploys
     WHERE canvas_id=@canvasID

@@ -805,8 +805,6 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    // TODO should this take username as a parameter?
-    // should user B be able to finish user A's upload?
     { name = fn "DarkInternal" "finishStaticAssetDeploy" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
@@ -851,7 +849,7 @@ human-readable data."
           Param.make "canvasID" TUuid ""
           Param.make "deployHash" TStr "" ]
       returnType =
-        // TODO what should the return type be here? I basically want an empty result.
+        // CLEANUP reconsider this return type (get away from `null`).
         TResult(TNull, TStr)
       description = "Deletes a static asset deployment"
       fn =

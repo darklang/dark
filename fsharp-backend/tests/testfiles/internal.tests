@@ -185,6 +185,7 @@ DarkInternal.unlockedDBs Test.getCanvasID = [1]
 (let _ = DB.set_v1 { x = "str" } "test" X in
  DarkInternal.unlockedDBs Test.getCanvasID) = []
 
+
 // ---------------
 // static assets
 // ---------------
@@ -196,12 +197,11 @@ DarkInternal.staticAssetsDeploys Test.getCanvasID = []
 let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
 List.length_v0 deploys) = 1
 
-// TODO this currently fails - somehow we have a deployHash conflict.
-//[test.static assets contains as many elements as deploys]
-//(let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-//let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-//let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-//List.length_v0 deploys) = 2
+[test.static assets contains as many elements as deploys]
+(let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
+let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
+let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
+List.length_v0 deploys) = 2
 
 [test.static assets deploy is 'deploying' after just started]
 (let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
@@ -221,33 +221,27 @@ match deployHashMaybe with
   let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
   deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deployed"]
 
-
 [test.static asset deploys can be deleted]
 (let deployHashMaybe =
   (DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID)
   |> Result.withDefault {}
   |> Dict.get_v2 "deployHash" in
-
 match deployHashMaybe with
 | None -> ["not empty"]
 | Just deployHash ->
   let _ = DarkInternal.deleteStaticAssetDeploy "test" Test.getCanvasID deployHash in
   DarkInternal.staticAssetsDeploys Test.getCanvasID) = []
 
-
-// TODO should this fail?
+// CLEANUP this should fail
 [test.trying to delete a non-existant static asset deploy doesn't fail]
 (DarkInternal.deleteStaticAssetDeploy "test" Test.getCanvasID "fake-deployhash") = Ok null
-
 
 [test.trying to delete a static asset deploy as the non-uploader fails]
 (let deployHashMaybe =
   (DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID)
   |> Result.withDefault {}
   |> Dict.get_v2 "deployHash" in
-
 let countAfterDeploy = (DarkInternal.staticAssetsDeploys Test.getCanvasID) |> List.length_v0 in
-
 match deployHashMaybe with
 | None -> false
 | Just deployHash ->
