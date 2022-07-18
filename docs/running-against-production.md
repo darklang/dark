@@ -7,7 +7,7 @@ If you want to run your local client against the production server, we have a wa
   https://ngrok.com/download for Linux. (The snap installer is broken.)
 - authorize your ngrok client: `ngrok authtoken YOURTOKEN` (found at
   https://dashboard.ngrok.com/auth)
-- run your tunnel: `ngrok http 8000 -hostname=darklang-<username>.ngrok.io`
+- run your tunnel: `ngrok http 8000 --hostname=darklang-<username>.ngrok.io`
 - You can simplify this to `ngrok start darklang` by adding to your
   `~/.ngrok2/ngrok.yml`:
 ```yaml
