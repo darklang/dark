@@ -186,6 +186,6 @@ These can be rolled back: `kubectl rollout undo ...` TODO
 
 ## Other services:
 
-- user signup happen on the ops-adduser canvas (accounts.darklang.com)
+- user signup happen on the `ops-adduser` canvas (accounts.darklang.com)
 - user signin happens via login.darklang.com
-- presence notifcations are on the ops-presence canvas (presence.darklang.com)
+- presence notifications are on the `dark-editor` canvas (editor.darklang.com)
