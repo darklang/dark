@@ -6,6 +6,11 @@ Tuple2.first (1, "two") = 1
 Tuple2.second ("one", 2) = 2
 Tuple2.second (1, "two") = "two"
 
+Tuple2.swap ("one", 2) = (2, "one")
+Tuple2.swap (1, "two") = ("two", 1)
+
+Tuple2.swap(Tuple2.swap ("two swaps", "back to original")) = ("two swaps", "back to original")
+
 
 // Tuple3
 

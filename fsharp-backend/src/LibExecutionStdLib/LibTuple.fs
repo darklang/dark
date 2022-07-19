@@ -42,6 +42,21 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "Tuple2" "swap" 0
+      parameters =
+        [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
+      returnType = TTuple(TVariable "b", TVariable "a", [])
+      description = "Returns a 2-tuple with the elements swapped."
+      fn =
+        (function
+        | state, [ DTuple (first, second, []) ] ->
+          Ply(DTuple (second, first, []))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     // Tuple3
     { name = fn "Tuple3" "first" 0
       parameters =
