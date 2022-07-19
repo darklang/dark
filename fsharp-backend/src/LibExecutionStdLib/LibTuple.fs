@@ -14,6 +14,21 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ // Tuple2
+    { name = fn "Tuple2" "pair" 0
+      parameters =
+        [ Param.make "first" (TVariable "a") ""
+          Param.make "second" (TVariable "b") "" ]
+      returnType = TTuple(TVariable "a", TVariable "b", [])
+      description = "Returns a new 2-tuple with the given values."
+      fn =
+        (function
+        | state, [ first; second ] -> Ply(DTuple(first, second, []))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "Tuple2" "first" 0
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
@@ -49,8 +64,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a 2-tuple with the elements swapped."
       fn =
         (function
-        | state, [ DTuple (first, second, []) ] ->
-          Ply(DTuple (second, first, []))
+        | state, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
