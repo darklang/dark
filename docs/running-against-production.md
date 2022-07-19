@@ -1,6 +1,11 @@
 # Running the client against production
 
-If you want to run your local client against the production server, we have a way to do that using ngrok:
+If you want to run your local client against the production server, we have a way to do that using ngrok
+
+Note: `<your-username>` below should be your Darklang username.
+It's intended to disambiguate between users so we don't run over each other's
+tunnels. It might also be a good idea to use some random digits as a suffix so
+people can't get access to our local servers by guessing our usernames.
 
 ## Set up `ngrok` to connect to the server
 
