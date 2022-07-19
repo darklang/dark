@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TVariable "a"
-      description = "Returns the first part of a 2-tuple."
+      description = "Returns the first value of a 2-tuple."
       fn =
         (function
         | state, [ DTuple (first, _second, []) ] -> Ply(first)
@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TVariable "b"
-      description = "Returns the second part of a 2-tuple."
+      description = "Returns the second value of a 2-tuple."
       fn =
         (function
         | state, [ DTuple (_first, second, []) ] -> Ply(second)
@@ -79,7 +79,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TVariable "a"
-      description = "Returns the first part of a 3-tuple."
+      description = "Returns the first value of a 3-tuple."
       fn =
         (function
         | state, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
@@ -96,7 +96,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TVariable "b"
-      description = "Returns the second part of a 3-tuple."
+      description = "Returns the second value of a 3-tuple."
       fn =
         (function
         | state, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
@@ -113,7 +113,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TVariable "c"
-      description = "Returns the third part of a 3-tuple."
+      description = "Returns the third value of a 3-tuple."
       fn =
         (function
         | state, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
