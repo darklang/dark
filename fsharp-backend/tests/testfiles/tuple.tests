@@ -1,0 +1,7 @@
+Tuple2.first (1, 2) = 1
+Tuple2.first ("one", 2) = "one"
+Tuple2.first (1, "two") = 1
+
+Tuple2.second (1, 2) = 2
+Tuple2.second ("one", 2) = 2
+Tuple2.second (1, "two") = "two"
