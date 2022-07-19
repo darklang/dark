@@ -16,11 +16,11 @@ Tuple2.swap(Tuple2.swap ("two swaps", "back to original")) = ("two swaps", "back
 Tuple2.mapFirst (fun x -> String.toUppercase_v1 x) ("one", 2) = ("ONE", 2)
 Tuple2.mapFirst (fun x -> x - 2) (1, "two") = (-1, "two")
 
-//Tuple2.mapSecond (TODO) ("one", 2) = ("one", TODO)
-//Tuple2.mapSecond (TODO) (1, "two") = (1, TODO)
+Tuple2.mapSecond (fun x -> x - 2) ("one", 2) = ("one", 0)
+Tuple2.mapSecond (fun x -> String.toUppercase_v1 x) (1, "two") = (1, "TWO")
 
-//Tuple2.mapBoth (TODO) ("one", 2) = (TODO, TODO)
-//Tuple2.mapBoth (TODO) (1, "two") = (TODO, TODO)
+Tuple2.mapBoth (fun x -> String.toUppercase_v1 x) (fun x -> x - 2) ("one", 2) = ("ONE", 0)
+Tuple2.mapBoth (fun x -> x - 2) (fun x -> String.toUppercase_v1 x) (1, "two") = (-1, "TWO")
 
 
 

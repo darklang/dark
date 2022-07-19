@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
             [ "val" ]
           Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TTuple(TVariable "c", TVariable "b", [])
-      description = "Transform the first value in a 3-tuple."
+      description = "Transform the first value in a 2-tuple."
       fn =
         (function
         | state, [ DFnVal fn; DTuple (first, second, []) ] ->
@@ -90,6 +90,65 @@ let fns : List<BuiltInFn> =
             let! newFirst =
               Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe NoRail
             return DTuple(newFirst, second, [])
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Tuple2" "mapSecond" 0
+      parameters =
+        [ Param.makeWithArgs
+            "fn"
+            (TFn([ TVariable "b" ], TVariable "c"))
+            ""
+            [ "val" ]
+          Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
+      returnType = TTuple(TVariable "a", TVariable "c", [])
+      description = "Transform the second value in a 2-tuple."
+      fn =
+        (function
+        | state, [ DFnVal fn; DTuple (first, second, []) ] ->
+          uply {
+            let! newSecond =
+              Interpreter.applyFnVal state (id 0) fn [ second ] NotInPipe NoRail
+            return DTuple(first, newSecond, [])
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Tuple2" "mapBoth" 0
+      parameters =
+        [ Param.makeWithArgs
+            "fnFirst"
+            (TFn([ TVariable "a" ], TVariable "c"))
+            "used to map the first value in the tuple"
+            [ "val" ]
+
+          Param.makeWithArgs
+            "fnSecond"
+            (TFn([ TVariable "b" ], TVariable "d"))
+            "used to map the second value in the tuple"
+            [ "val" ]
+
+          Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
+      returnType = TTuple(TVariable "c", TVariable "d", [])
+      description = "Transform both values in a 2-tuple."
+      fn =
+        (function
+        | state, [ DFnVal fnFst; DFnVal fnSnd; DTuple (first, second, []) ] ->
+          uply {
+            let! newFirst =
+              Interpreter.applyFnVal state (id 0) fnFst [ first ] NotInPipe NoRail
+
+            let! newSecond =
+              Interpreter.applyFnVal state (id 0) fnSnd [ second ] NotInPipe NoRail
+
+            return DTuple(newFirst, newSecond, [])
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
