@@ -1,7 +1,19 @@
-Tuple2.first (1, 2) = 1
+// Tuple2
+
 Tuple2.first ("one", 2) = "one"
 Tuple2.first (1, "two") = 1
 
-Tuple2.second (1, 2) = 2
 Tuple2.second ("one", 2) = 2
 Tuple2.second (1, "two") = "two"
+
+
+// Tuple3
+
+Tuple3.first (1, "two", 3.14) = 1
+Tuple3.first ("one", 2, "pi") = "one"
+
+Tuple3.second (1, "two", 3.14) = "two"
+Tuple3.second ("one", 2, "pi") = 2
+
+Tuple3.third (1, "two", 3.14) = 3.14
+Tuple3.third ("one", 2, "pi") = "pi"
