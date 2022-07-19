@@ -1,6 +1,6 @@
 // Tuple2
-Tuple2.pair "one" 2 = ("one", 2)
-Tuple2.pair 1 "two" = (1, "two")
+Tuple2.create "one" 2 = ("one", 2)
+Tuple2.create 1 "two" = (1, "two")
 
 Tuple2.first ("one", 2) = "one"
 Tuple2.first (1, "two") = 1
@@ -27,6 +27,9 @@ Tuple2.mapBoth (fun x -> x - 2) (fun x -> String.toUppercase_v1 x) (1, "two") = 
 
 
 // Tuple3
+
+Tuple3.create "one" 2 "pi" = ("one", 2, "pi")
+Tuple3.create 1 "two" 3.14 = (1, "two", 3.14)
 
 Tuple3.first (1, "two", 3.14) = 1
 Tuple3.first ("one", 2, "pi") = "one"

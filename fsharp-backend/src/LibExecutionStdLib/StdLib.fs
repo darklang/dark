@@ -46,7 +46,8 @@ let prefixFns : List<BuiltInFn> =
     LibResult.fns
     LibCrypto.fns
     LibString.fns
-    LibTuple.fns ]
+    LibTuple2.fns
+    LibTuple3.fns ]
   |> List.concat
   |> renameFunctions renames
 
