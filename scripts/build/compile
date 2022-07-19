@@ -557,7 +557,7 @@ def mark(should, f):
     should.fsharp_backend_test = True
 
   elif ("/fsharp-backend/src/ApiServer/Templates/" in f) and (".html" in f):
-    should.fsharp_backend_test = True
+    should.fsharp_backend_quick_build = True
 
   elif "run-nginx-server" in f:
     should.shellcheck += [f]
