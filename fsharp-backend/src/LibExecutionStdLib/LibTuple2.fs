@@ -15,8 +15,6 @@ let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = Errors.incorrectArgs
 
-// TODO consider breaking this into `tuple2fns` and `tuple3fns` in-code,
-// and then `let fns = tuple2fns @ tuple3fns. (may help with legibility?)
 let fns : List<BuiltInFn> =
   [ { name = fn "Tuple2" "create" 0
       parameters =
