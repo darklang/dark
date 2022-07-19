@@ -4,6 +4,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
 
+module Interpreter = LibExecution.Interpreter
+
 module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
@@ -65,6 +67,30 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Tuple2" "mapFirst" 0
+      parameters =
+        [ Param.makeWithArgs
+            "fn"
+            (TFn([ TVariable "a" ], TVariable "c"))
+            ""
+            [ "val" ]
+          Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
+      returnType = TTuple(TVariable "c", TVariable "b", [])
+      description = "Transform the first value in a 3-tuple."
+      fn =
+        (function
+        | state, [ DFnVal fn; DTuple (first, second, []) ] ->
+          uply {
+            let! newFirst =
+              Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe NoRail
+            return DTuple(newFirst, second, [])
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

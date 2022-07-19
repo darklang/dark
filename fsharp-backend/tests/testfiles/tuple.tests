@@ -13,6 +13,16 @@ Tuple2.swap (1, "two") = ("two", 1)
 
 Tuple2.swap(Tuple2.swap ("two swaps", "back to original")) = ("two swaps", "back to original")
 
+Tuple2.mapFirst (fun x -> String.toUppercase_v1 x) ("one", 2) = ("ONE", 2)
+Tuple2.mapFirst (fun x -> x - 2) (1, "two") = (-1, "two")
+
+//Tuple2.mapSecond (TODO) ("one", 2) = ("one", TODO)
+//Tuple2.mapSecond (TODO) (1, "two") = (1, TODO)
+
+//Tuple2.mapBoth (TODO) ("one", 2) = (TODO, TODO)
+//Tuple2.mapBoth (TODO) (1, "two") = (TODO, TODO)
+
+
 
 // Tuple3
 
@@ -24,3 +34,16 @@ Tuple3.second ("one", 2, "pi") = 2
 
 Tuple3.third (1, "two", 3.14) = 3.14
 Tuple3.third ("one", 2, "pi") = "pi"
+
+
+//Tuple3.mapFirst (TODO) ("one", 2, "pi") = (TODO, 2, "pi")
+//Tuple3.mapFirst (TODO) (1, "two", "3.14") = (TODO, "two", 3.14)
+
+//Tuple3.mapSecond (TODO) ("one", 2, "pi") = ("one", TODO, "pi")
+//Tuple3.mapSecond (TODO) (1, "two", 3.14) = (1, TODO, 3.14)
+
+//Tuple3.mapThird (TODO) ("one", 2, "pi") = ("one", 2, TODO)
+//Tuple3.mapThird (TODO) (1, "two", 3.14) = (1, "two", TODO)
+
+//Tuple3.mapAllThree (TODO) ("one", 2, "pi") = (TODO, TODO, TODO)
+//Tuple3.mapAllThree (TODO) (1, "two", 3.14) = (TODO, TODO, TODO)
