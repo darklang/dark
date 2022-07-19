@@ -24,7 +24,7 @@ let fns : List<BuiltInFn> =
           Param.make "second" (TVariable "b") ""
           Param.make "third" (TVariable "c") "" ]
       returnType = TTuple(TVariable "a", TVariable "b", [ TVariable "c" ])
-      description = "Returns a 3-tuple with the given values."
+      description = "Returns a 3-tuple with the given values"
       fn =
         (function
         | state, [ first; second; third ] -> Ply(DTuple(first, second, [ third ]))
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TVariable "a"
-      description = "Returns the first value of a 3-tuple."
+      description = "Returns the first value of a 3-tuple"
       fn =
         (function
         | state, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
@@ -58,7 +58,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TVariable "b"
-      description = "Returns the second value of a 3-tuple."
+      description = "Returns the second value of a 3-tuple"
       fn =
         (function
         | state, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
@@ -75,7 +75,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TVariable "c"
-      description = "Returns the third value of a 3-tuple."
+      description = "Returns the third value of a 3-tuple"
       fn =
         (function
         | state, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
@@ -97,7 +97,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TTuple(TVariable "d", TVariable "b", [ TVariable "c" ])
-      description = "Transform the first value in a 3-tuple."
+      description = "Transform the first value in a 3-tuple"
       fn =
         (function
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
@@ -124,7 +124,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TTuple(TVariable "a", TVariable "d", [ TVariable "c" ])
-      description = "Transform the second value in a 3-tuple."
+      description = "Transform the second value in a 3-tuple"
       fn =
         (function
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
@@ -151,7 +151,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TTuple(TVariable "a", TVariable "b", [ TVariable "d" ])
-      description = "Transform the third value in a 3-tuple."
+      description = "Transform the third value in a 3-tuple"
       fn =
         (function
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
@@ -191,7 +191,7 @@ let fns : List<BuiltInFn> =
             (TTuple(TVariable "a", TVariable "b", [ TVariable "c" ]))
             "" ]
       returnType = TTuple(TVariable "d", TVariable "e", [ TVariable "f" ])
-      description = "Transform all values in a 3-tuple."
+      description = "Transform all values in a 3-tuple"
       fn =
         (function
         | state,

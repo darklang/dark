@@ -23,7 +23,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "first" (TVariable "a") ""
           Param.make "second" (TVariable "b") "" ]
       returnType = TTuple(TVariable "a", TVariable "b", [])
-      description = "Returns a 2-tuple with the given values."
+      description = "Returns a 2-tuple with the given values"
       fn =
         (function
         | state, [ first; second ] -> Ply(DTuple(first, second, []))
@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TVariable "a"
-      description = "Returns the first value of a 2-tuple."
+      description = "Returns the first value of a 2-tuple"
       fn =
         (function
         | state, [ DTuple (first, _second, []) ] -> Ply(first)
@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TVariable "b"
-      description = "Returns the second value of a 2-tuple."
+      description = "Returns the second value of a 2-tuple"
       fn =
         (function
         | state, [ DTuple (_first, second, []) ] -> Ply(second)
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TTuple(TVariable "b", TVariable "a", [])
-      description = "Returns a 2-tuple with the elements swapped."
+      description = "Returns a 2-tuple with the elements swapped"
       fn =
         (function
         | state, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
             [ "val" ]
           Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TTuple(TVariable "c", TVariable "b", [])
-      description = "Transform the first value in a 2-tuple."
+      description = "Transform the first value in a 2-tuple"
       fn =
         (function
         | state, [ DFnVal fn; DTuple (first, second, []) ] ->
@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
             [ "val" ]
           Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TTuple(TVariable "a", TVariable "c", [])
-      description = "Transform the second value in a 2-tuple."
+      description = "Transform the second value in a 2-tuple"
       fn =
         (function
         | state, [ DFnVal fn; DTuple (first, second, []) ] ->
@@ -139,7 +139,7 @@ let fns : List<BuiltInFn> =
 
           Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TTuple(TVariable "c", TVariable "d", [])
-      description = "Transform both values in a 2-tuple."
+      description = "Transform both values in a 2-tuple"
       fn =
         (function
         | state, [ DFnVal fnFst; DFnVal fnSnd; DTuple (first, second, []) ] ->
