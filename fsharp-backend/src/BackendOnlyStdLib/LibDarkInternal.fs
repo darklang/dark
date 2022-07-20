@@ -775,8 +775,7 @@ human-readable data."
           | _, [ DStr username; DUuid canvasID ] ->
             uply {
               match! Account.getUser (UserName.create username) with
-              | None ->
-                return DResult(Error(DStr "User not found"))
+              | None -> return DResult(Error(DStr "User not found"))
               | Some user ->
                 let! canvasMeta = Canvas.getMetaFromID canvasID
                 let! deployHash =
@@ -831,7 +830,7 @@ human-readable data."
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
       returnType = TNull
-      description = "Deletes a static asset deployment"
+      description = "Deletes references to a now-deleted static asset deploy"
       fn =
         internalFn (function
           | _, [ DUuid canvasID; DStr deployHash ] ->

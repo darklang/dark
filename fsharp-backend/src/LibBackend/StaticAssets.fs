@@ -121,6 +121,8 @@ let allDeploysInCanvas
       status = status
       lastUpdate = lastUpdate })
 
+/// Creates a record of a new static asset deploy, returning a deployHash to be
+/// used by the actual upload process.
 let startStaticAssetDeploy
   (user : Account.UserInfo)
   (canvasID : CanvasID)
@@ -172,14 +174,9 @@ let finishStaticAssetDeploy
       status = Deployed })
 
 
-/// <summary>Removes references to a canvas' static asset deploy</summary>
-/// <remarks>
-/// Since postgres doesn't have named transactions, we just delete the db
-/// record in question. For now, we're leaving files where they are; the right
-/// thing to do here would be to shell out to `gsutil -m rm -r` - leaving  this
-/// for a later round of 'garbage collection' work, in which we can query for
-/// files/dirs not known to the DB and delete them. TODO.
-/// </remarks>
+/// Deletes references to a canvas' static asset deploy from the database.
+///
+/// The deletion of actual assets should be handled prior to calling this.
 let deleteStaticAssetDeploy
   (canvasID : CanvasID)
   (deployHash : string)
