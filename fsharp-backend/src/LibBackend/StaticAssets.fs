@@ -88,7 +88,7 @@ let urlFor
   : string =
   url canvasName deployHash variant + "/" + file
 
-let getLatestDeployHash (canvasID : CanvasID) : Task<Option<string>> =
+let latestDeployHash (canvasID : CanvasID) : Task<Option<string>> =
   Sql.query
     "SELECT deploy_hash FROM static_asset_deploys
        WHERE canvas_id=@canvasID AND branch=@branch AND live_at IS NOT NULL

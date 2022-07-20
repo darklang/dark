@@ -152,7 +152,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [] ->
           uply {
-            match! SA.getLatestDeployHash state.program.canvasID with
+            match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some deployHash ->
               let url = SA.url state.program.canvasName deployHash SA.Short
@@ -173,7 +173,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [] ->
           uply {
-            match! SA.getLatestDeployHash state.program.canvasID with
+            match! SA.latestDeployHash state.program.canvasID with
             | None -> return DOption None
             | Some deployHash ->
               let url = SA.url state.program.canvasName deployHash SA.Short
@@ -207,7 +207,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            match! SA.getLatestDeployHash state.program.canvasID with
+            match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some hash ->
               let url = SA.urlFor state.program.canvasName hash SA.Short file
@@ -289,7 +289,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            match! SA.getLatestDeployHash state.program.canvasID with
+            match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some deployHash ->
               let url = SA.urlFor state.program.canvasName deployHash SA.Short file
@@ -313,7 +313,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            match! SA.getLatestDeployHash state.program.canvasID with
+            match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some deployHash ->
               let url = SA.urlFor state.program.canvasName deployHash SA.Short file
@@ -336,7 +336,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            match! SA.getLatestDeployHash state.program.canvasID with
+            match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some deployHash ->
               let url = SA.urlFor state.program.canvasName deployHash SA.Short file
@@ -424,7 +424,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            match! SA.getLatestDeployHash state.program.canvasID with
+            match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some deployHash ->
               let url = SA.urlFor state.program.canvasName deployHash SA.Short file
@@ -458,7 +458,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            match! SA.getLatestDeployHash state.program.canvasID with
+            match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some deployHash ->
               let url = SA.urlFor state.program.canvasName deployHash SA.Short file
