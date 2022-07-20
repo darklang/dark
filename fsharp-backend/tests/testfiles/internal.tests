@@ -193,42 +193,35 @@ DarkInternal.unlockedDBs Test.getCanvasID = [1]
 DarkInternal.staticAssetsDeploys Test.getCanvasID = []
 
 [test.static assets non-empty after starting a deploy]
-(let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
+(let _deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
 let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
 List.length_v0 deploys) = 1
 
 [test.static assets contains as many elements as deploys]
-(let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
+(let _firstDeployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
+let _secondDeployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
 let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
 List.length_v0 deploys) = 2
 
 [test.static assets deploy is 'deploying' after just started]
-(let _ = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
+(let _deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
 let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
 deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deploying"]
 
 [test.finishing a started static asset deploy changes the status]
-(let deployHashMaybe =
-  (DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID)
-  |> Result.withDefault {}
-  |> Dict.get_v2 "deployHash" in
-
+(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
 match deployHashMaybe with
-| None -> []
-| Just deployHash ->
+| Error -> []
+| Ok deployHash ->
   let _ = DarkInternal.finishStaticAssetDeploy Test.getCanvasID deployHash in
   let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
   deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deployed"]
 
 [test.static asset deploys can be deleted]
-(let deployHashMaybe =
-  (DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID)
-  |> Result.withDefault {}
-  |> Dict.get_v2 "deployHash" in
+(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
 match deployHashMaybe with
-| None -> ["not empty"]
-| Just deployHash ->
+| Error -> ["not deployed"]
+| Ok deployHash ->
   let _ = DarkInternal.deleteStaticAssetDeploy Test.getCanvasID deployHash in
   DarkInternal.staticAssetsDeploys Test.getCanvasID) = []
 

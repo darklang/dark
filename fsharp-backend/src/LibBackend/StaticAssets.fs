@@ -125,7 +125,7 @@ let startStaticAssetDeploy
   (user : Account.UserInfo)
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
-  : Task<StaticDeploy> =
+  : Task<string> =
 
   // we include .fff (milliseconds) to ensure we don't encoutner conflicts,
   // especially relevant to unit tests which record multiple deploys quickly.
@@ -142,18 +142,13 @@ let startStaticAssetDeploy
   Sql.query
     "INSERT INTO static_asset_deploys
       (canvas_id, branch, deploy_hash, uploaded_by_account_id)
-    VALUES (@canvasID, @branch, @deployHash, @uploadedBy)
-    RETURNING created_at"
+    VALUES (@canvasID, @branch, @deployHash, @uploadedBy)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "branch", Sql.string branch
                       "deployHash", Sql.string deployHash
                       "uploadedBy", Sql.uuid user.id ]
-  |> Sql.executeRowAsync (fun reader -> reader.instant "created_at")
-  |> Task.map (fun lastUpdate ->
-    { deployHash = deployHash
-      url = url canvasName deployHash Short
-      lastUpdate = lastUpdate
-      status = Deploying })
+  |> Sql.executeNonQueryAsync
+  |> Task.map (fun _ -> deployHash)
 
 // CLEANUP: return an Error if the deploy hash doesn't exist
 // CLEANUP: decide what to do if the deploy is already finished

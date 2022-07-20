@@ -767,15 +767,9 @@ human-readable data."
 
     { name = fn "DarkInternal" "startStaticAssetDeploy" 0
       parameters = [ Param.make "username" TStr ""; Param.make "canvasID" TUuid "" ]
-      returnType =
-        TResult(
-          TRecord [ "deployHash", TStr
-                    "url", TStr
-                    "status", TStr
-                    "lastUpdate", TDate ],
-          TStr
-        )
-      description = "Records an in-progress static asset deployment"
+      returnType = TResult(TStr, TStr)
+      description =
+        "Records an in-progress static asset deployment, returning the deployHash"
       fn =
         internalFn (function
           | _, [ DStr username; DUuid canvasID ] ->
@@ -786,18 +780,9 @@ human-readable data."
                 return DResult(Error(DStr "User not found"))
               | Some user ->
                 let! canvasMeta = Canvas.getMetaFromID canvasID
-                let! deploy =
+                let! deployHash =
                   StaticAssets.startStaticAssetDeploy user canvasID canvasMeta.name
-                return
-                  DObj(
-                    Map [ "deployHash", DStr deploy.deployHash
-                          "url", DStr deploy.url
-                          "status", DStr(string deploy.status)
-                          "lastUpdate",
-                          DDate(DDateTime.fromInstant deploy.lastUpdate) ]
-                  )
-                  |> Ok
-                  |> DResult
+                return DStr deployHash |> Ok |> DResult
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
