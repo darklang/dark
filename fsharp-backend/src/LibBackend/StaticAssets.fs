@@ -186,27 +186,18 @@ let finishStaticAssetDeploy
 /// files/dirs not known to the DB and delete them. TODO.
 /// </remarks>
 let deleteStaticAssetDeploy
-  (user : Account.UserInfo)
   (canvasID : CanvasID)
   (deployHash : string)
   : Task<unit> =
 
-  // CLEANUP the query here only allows someone to delete a deploy if they're
-  // the one who uploaded it (via `AND uploaded_by_account_id=@userId`). If
-  // more than one user are working within a canvas, shouldn't we allow anyone
-  // involved to delete the deploy? I believe so.
-  // If/when we adjust for such, ensure canvas access of relevant user in
-  // StdLib fn.
   Sql.query
     "DELETE FROM static_asset_deploys
     WHERE canvas_id=@canvasID
       AND branch=@branch
-      AND deploy_hash=@deployHash
-      AND uploaded_by_account_id=@uploadedBy"
+      AND deploy_hash=@deployHash"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "branch", Sql.string branch
-                      "deployHash", Sql.string deployHash
-                      "uploadedBy", Sql.uuid user.id ]
+                      "deployHash", Sql.string deployHash ]
   |> Sql.executeStatementAsync
 
 

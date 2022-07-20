@@ -229,22 +229,8 @@ match deployHashMaybe with
 match deployHashMaybe with
 | None -> ["not empty"]
 | Just deployHash ->
-  let _ = DarkInternal.deleteStaticAssetDeploy "test" Test.getCanvasID deployHash in
+  let _ = DarkInternal.deleteStaticAssetDeploy Test.getCanvasID deployHash in
   DarkInternal.staticAssetsDeploys Test.getCanvasID) = []
 
-// CLEANUP this should fail
 [test.trying to delete a non-existant static asset deploy doesn't fail]
-(DarkInternal.deleteStaticAssetDeploy "test" Test.getCanvasID "fake-deployhash") = Ok null
-
-[test.trying to delete a static asset deploy as the non-uploader fails]
-(let deployHashMaybe =
-  (DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID)
-  |> Result.withDefault {}
-  |> Dict.get_v2 "deployHash" in
-let countAfterDeploy = (DarkInternal.staticAssetsDeploys Test.getCanvasID) |> List.length_v0 in
-match deployHashMaybe with
-| None -> false
-| Just deployHash ->
-  let _ = DarkInternal.deleteStaticAssetDeploy "test_unhashed" Test.getCanvasID deployHash in
-  let countAfterDeleteAttempt = (DarkInternal.staticAssetsDeploys Test.getCanvasID) |> List.length_v0 in
-  countAfterDeploy = countAfterDeleteAttempt)
+(DarkInternal.deleteStaticAssetDeploy Test.getCanvasID "fake-deployhash") = null

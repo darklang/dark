@@ -845,29 +845,21 @@ human-readable data."
 
     { name = fn "DarkInternal" "deleteStaticAssetDeploy" 0
       parameters =
-        [ Param.make "username" TStr ""
-          Param.make "canvasID" TUuid ""
-          Param.make "deployHash" TStr "" ]
-      returnType =
-        // CLEANUP reconsider this return type (get away from `null`).
-        TResult(TNull, TStr)
+        [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
+      returnType = TNull
       description = "Deletes a static asset deployment"
       fn =
         internalFn (function
-          | _, [ DStr username; DUuid canvasID; DStr deployHash ] ->
+          | _, [ DUuid canvasID; DStr deployHash ] ->
             uply {
-              match! Account.getUser (UserName.create username) with
-              | None ->
-                Exception.raiseInternal $"User not found" [ "username", username ]
-                return DResult(Error(DStr "User not found"))
-              | Some user ->
-                do! StaticAssets.deleteStaticAssetDeploy user canvasID deployHash
-                return DResult(Ok DNull)
+              do! StaticAssets.deleteStaticAssetDeploy canvasID deployHash
+              return DNull
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
 
     // ---------------------
     // Apis - 404s
