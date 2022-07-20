@@ -153,15 +153,15 @@ module V1 =
       id : UserID }
 
   type ApiStaticDeploy =
-    { deploy_hash : string
+    { deployHash : string
       url : string
-      last_update : NodaTime.Instant
+      lastUpdate : NodaTime.Instant
       status : SA.DeployStatus }
 
   let toApiStaticDeploys (d : SA.StaticDeploy) : ApiStaticDeploy =
-    { deploy_hash = d.deployHash
+    { deployHash = d.deployHash
       url = d.url
-      last_update = d.lastUpdate
+      lastUpdate = d.lastUpdate
       status = d.status }
 
   type ApiSecret = { secret_name : string; secret_value : string }
@@ -178,7 +178,7 @@ module V1 =
       unlockedDBs : List<tlid>
       staticDeploys : List<ApiStaticDeploy>
       permission : Option<Auth.Permission>
-      opCtrs : List<System.Guid * int>
+      opCtrs : Map<System.Guid, int>
       account : ApiUserInfo
       canvasList : List<string>
       orgs : List<string>
@@ -209,6 +209,8 @@ module V1 =
         Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
         |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
         |> Sql.executeAsync (fun read -> (read.uuid "browser_id", read.int "ctr"))
+        |> Task.map Map
+
 
       t.next "get-unlocked-dbs"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id

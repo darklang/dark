@@ -200,21 +200,20 @@ let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
 
 type AddOpResultV1 =
   { handlers : List<PT.Handler.T> // replace
-    deleted_handlers : List<PT.Handler.T> // replace, see note above
+    deletedHandlers : List<PT.Handler.T> // replace, see note above
     dbs : List<PT.DB.T> // replace
-    deleted_dbs : List<PT.DB.T> // replace, see note above
-    user_functions : List<PT.UserFunction.T> // replace
-    deleted_user_functions : List<PT.UserFunction.T>
-    user_tipes : List<PT.UserType.T>
-    deleted_user_tipes : List<PT.UserType.T> } // replace, see deleted_toplevels
+    deletedDBs : List<PT.DB.T> // replace, see note above
+    userFunctions : List<PT.UserFunction.T> // replace
+    deletedUserFunctions : List<PT.UserFunction.T>
+    userTypes : List<PT.UserType.T>
+    deletedUserTypes : List<PT.UserType.T> } // replace, see deleted_toplevels
 
 type AddOpParamsV1 =
   { ops : List<PT.Op>
     opCtr : int
     // option means that we can still deserialize if this field is null
-    clientOpCtrId : Option<string> }
+    clientOpCtrID : Option<string> }
 
-// CLEANUP The params field is not used by the client
 type AddOpEventV1 = { result : AddOpResultV1; ``params`` : AddOpParamsV1 }
 
 type AddOpResultV0 =

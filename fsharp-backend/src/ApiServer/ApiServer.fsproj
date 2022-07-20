@@ -18,7 +18,7 @@
     <Compile Include="Middleware.fs" />
     <Compile Include="Login.fs" />
     <Compile Include="ClientTypes.fs" />
-    <Compile Include="Api/APIOps.fs" />
+    <Compile Include="Api/APIAddOps.fs" />
     <Compile Include="Api/APIDBs.fs" />
     <Compile Include="Api/APIExecution.fs" />
     <Compile Include="Api/API404.fs" />

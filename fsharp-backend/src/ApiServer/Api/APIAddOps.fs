@@ -169,13 +169,13 @@ module V1 =
 
   let empty : Op.AddOpResultV1 =
     { handlers = []
-      deleted_handlers = []
+      deletedHandlers = []
       dbs = []
-      deleted_dbs = []
-      user_functions = []
-      deleted_user_functions = []
-      user_tipes = []
-      deleted_user_tipes = [] }
+      deletedDBs = []
+      userFunctions = []
+      deletedUserFunctions = []
+      userTypes = []
+      deletedUserTypes = [] }
 
   let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
@@ -192,13 +192,13 @@ module V1 =
       let canvasID = canvasInfo.id
 
       let! isLatest =
-        Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
+        Serialize.isLatestOpRequest p.clientOpCtrID p.opCtr canvasInfo.id
 
       let newOps = p.ops
       let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
       let opTLIDs = List.map Op.tlidOf newOps
       Telemetry.addTags [ "opCtr", p.opCtr
-                          "clientOpCtrId", p.clientOpCtrId
+                          "clientOpCtrID", p.clientOpCtrID
                           "opTLIDs", opTLIDs ]
 
       t.next "load-saved-ops"
@@ -225,13 +225,13 @@ module V1 =
 
       let result : Op.AddOpResultV1 =
         { handlers = Map.values c.handlers
-          deleted_handlers = Map.values c.deletedHandlers
+          deletedHandlers = Map.values c.deletedHandlers
           dbs = Map.values c.dbs
-          deleted_dbs = Map.values c.deletedDBs
-          user_functions = Map.values c.userFunctions
-          deleted_user_functions = Map.values c.deletedUserFunctions
-          user_tipes = Map.values c.userTypes
-          deleted_user_tipes = Map.values c.deletedUserTypes }
+          deletedDBs = Map.values c.deletedDBs
+          userFunctions = Map.values c.userFunctions
+          deletedUserFunctions = Map.values c.deletedUserFunctions
+          userTypes = Map.values c.userTypes
+          deletedUserTypes = Map.values c.deletedUserTypes }
 
       t.next "save-to-disk"
       // work out the result before we save it, in case it has a

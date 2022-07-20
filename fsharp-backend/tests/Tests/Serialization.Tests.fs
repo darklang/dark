@@ -467,16 +467,16 @@ module Values =
           deleted_user_tipes = testOCamlUserTipes } }
 
   let testAddOpEventV1 : LibBackend.Op.AddOpEventV1 =
-    { ``params`` = { ops = testOplist; opCtr = 0; clientOpCtrId = None }
+    { ``params`` = { ops = testOplist; opCtr = 0; clientOpCtrID = None }
       result =
         { handlers = testHandlers
-          deleted_handlers = testHandlers
+          deletedHandlers = testHandlers
           dbs = testDBs
-          deleted_dbs = testDBs
-          user_functions = testUserFunctions
-          deleted_user_functions = testUserFunctions
-          user_tipes = testUserTypes
-          deleted_user_tipes = testUserTypes } }
+          deletedDBs = testDBs
+          userFunctions = testUserFunctions
+          deletedUserFunctions = testUserFunctions
+          userTypes = testUserTypes
+          deletedUserTypes = testUserTypes } }
 
 
   let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
@@ -659,7 +659,7 @@ module GenericSerializersTests =
       // AddOps
       v<ApiServer.AddOps.V1.Params>
         "simple"
-        { ops = testOplist; opCtr = 0; clientOpCtrId = None }
+        { ops = testOplist; opCtr = 0; clientOpCtrID = None }
       v<ApiServer.AddOps.V1.T> "simple" testAddOpEventV1
       oc<ApiServer.AddOps.V0.Params>
         "simple"
@@ -804,7 +804,7 @@ module GenericSerializersTests =
           deletedUserTypes = testUserTypes
           staticDeploys =
             [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
-          opCtrs = [ testUuid, 7 ]
+          opCtrs = Map [ testUuid, 7 ]
           canvasList = [ "test"; "test-canvas2" ]
           orgCanvasList = [ "testorg"; "testorg-canvas2" ]
           permission = Some(LibBackend.Authorization.ReadWrite)
@@ -875,19 +875,34 @@ module GenericSerializersTests =
             deprecated = false
             tlid = testTLID } ]
 
-      // Secrets
+      // SecretsV0
 
-      v<ApiServer.Secrets.Delete.Params> "simple" { secret_name = "test" }
-      v<ApiServer.Secrets.Delete.T>
+      v<ApiServer.Secrets.DeleteV0.Params> "simple" { secret_name = "test" }
+      v<ApiServer.Secrets.DeleteV0.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
-      v<ApiServer.Secrets.Insert.Params>
+      v<ApiServer.Secrets.InsertV0.Params>
         "simple"
         { secret_name = "test"; secret_value = "secret" }
-      v<ApiServer.Secrets.Insert.T>
+      v<ApiServer.Secrets.InsertV0.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+
+
+      // SecretsV1
+
+      v<ApiServer.Secrets.DeleteV1.Params> "simple" { name = "test" }
+      v<ApiServer.Secrets.DeleteV1.T>
+        "simple"
+        { secrets = [ { name = "test"; value = "secret" } ] }
+
+      v<ApiServer.Secrets.InsertV1.Params>
+        "simple"
+        { name = "test"; value = "secret" }
+      v<ApiServer.Secrets.InsertV1.T>
+        "simple"
+        { secrets = [ { name = "test"; value = "secret" } ] }
 
       // Toplevels
 
