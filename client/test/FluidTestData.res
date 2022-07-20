@@ -816,7 +816,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
   }
 }
 
-let defaultTestState = {...Defaults.defaultFluidState, activeEditor: MainEditor(defaultTLID)}
+let defaultTestState = {...FluidTypes.State.default, activeEditor: MainEditor(defaultTLID)}
 
 let defaultFunctionsProps = {usedFns: Map.String.empty, userFunctions: TLID.Dict.empty}
 
@@ -830,7 +830,7 @@ let fakeID2 = ID.fromInt(77777772)
 let fakeID3 = ID.fromInt(77777773)
 
 let defaultTestModel = {
-  ...Defaults.defaultModel,
+  ...AppTypes.Model.default,
   tests: defaultTestProps.variants,
   functions: defaultTestProps.functions,
   analyses: Map.String.fromList(list{

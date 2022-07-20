@@ -13,8 +13,8 @@ let http = (~path: string, ~meth="GET", ()): PT.Handler.t => {
 }
 
 // Sets the model with the appropriate toplevels
-let makeModel = (~handlers=list{}, ~traces=TLID.Dict.empty, ~cursorState, ()): model => {
-  let default = Defaults.defaultModel
+let makeModel = (~handlers=list{}, ~traces=TLID.Dict.empty, ~cursorState, ()): AppTypes.model => {
+  let default = AppTypes.Model.default
   {
     ...default,
     handlers: Handlers.fromList(handlers),

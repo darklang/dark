@@ -149,7 +149,7 @@ let defaultModel = (
   ~userFunctions=list{},
   ~userTipes=list{},
   (),
-): model => {
+): AppTypes.model => {
   let analyses =
     analyses
     |> List.map(~f=((id, value)) => (id, ExecutedResult(value)))
@@ -172,7 +172,7 @@ let defaultModel = (
 }
 
 // AC targeting a tlid and pointer
-let acFor = (~tlid=defaultTLID, ~pos=0, m: model): AC.t => {
+let acFor = (~tlid=defaultTLID, ~pos=0, m: AppTypes.model): AC.t => {
   let ti =
     TL.get(m, tlid)
     |> Option.andThen(~f=TL.getAST)

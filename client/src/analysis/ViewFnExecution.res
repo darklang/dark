@@ -19,7 +19,7 @@ type props = {
   analysisStore: analysisStore,
   ast: FluidAST.t,
   executingFunctions: list<id>,
-  permission: option<permission>,
+  permission: option<AccountTypes.Permission.t>,
   tlid: TLID.t,
 }
 

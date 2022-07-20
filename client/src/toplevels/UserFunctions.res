@@ -11,17 +11,21 @@ let allNames = (fns: TLID.Dict.t<PT.UserFunction.t>): list<string> =>
 
 let toID = (uf: PT.UserFunction.t): TLID.t => uf.tlid
 
-let upsert = (m: model, userFunction: PT.UserFunction.t): model => {
+let upsert = (m: AppTypes.model, userFunction: PT.UserFunction.t): AppTypes.model => {
   ...m,
   userFunctions: Map.add(~key=userFunction.tlid, ~value=userFunction, m.userFunctions),
 }
 
-let update = (m: model, ~tlid: TLID.t, ~f: PT.UserFunction.t => PT.UserFunction.t): model => {
+let update = (
+  m: AppTypes.model,
+  ~tlid: TLID.t,
+  ~f: PT.UserFunction.t => PT.UserFunction.t,
+): AppTypes.model => {
   ...m,
   userFunctions: Map.updateIfPresent(~key=tlid, ~f, m.userFunctions),
 }
 
-let remove = (m: model, userFunction: PT.UserFunction.t): model => {
+let remove = (m: AppTypes.model, userFunction: PT.UserFunction.t): AppTypes.model => {
   ...m,
   userFunctions: Map.remove(~key=userFunction.tlid, m.userFunctions),
 }

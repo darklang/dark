@@ -7,7 +7,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 type viewProps = ViewUtils.viewProps
 
-let viewTipeName = (vp: viewProps, t: PT.UserType.t): Html.html<msg> => {
+let viewTipeName = (vp: viewProps, t: PT.UserType.t): Html.html<AppTypes.msg> => {
   let nameField = ViewBlankOr.viewText(
     ~enterable=true,
     ~classes=list{"ut-name"},
@@ -19,13 +19,17 @@ let viewTipeName = (vp: viewProps, t: PT.UserType.t): Html.html<msg> => {
   Html.div(list{Html.class'("typetitle")}, list{nameField})
 }
 
-let viewFieldName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
-  ViewBlankOr.viewText(~enterable=true, ~classes, TypeFieldName, vp, v)
+let viewFieldName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<
+  AppTypes.msg,
+> => ViewBlankOr.viewText(~enterable=true, ~classes, TypeFieldName, vp, v)
 
-let viewFieldType = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<msg> =>
-  ViewBlankOr.viewTipe(~enterable=true, ~classes, TypeFieldTipe, vp, v)
+let viewFieldType = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<
+  AppTypes.msg,
+> => ViewBlankOr.viewTipe(~enterable=true, ~classes, TypeFieldTipe, vp, v)
 
-let viewKillFieldBtn = (t: PT.UserType.t, field: PT.UserType.RecordField.t): Html.html<msg> =>
+let viewKillFieldBtn = (t: PT.UserType.t, field: PT.UserType.RecordField.t): Html.html<
+  AppTypes.msg,
+> =>
   Html.div(
     list{
       Html.class'("field-btn allowed"),
@@ -43,7 +47,7 @@ let viewTipeField = (
   t: PT.UserType.t,
   fieldCount: int,
   field: PT.UserType.RecordField.t,
-): Html.html<msg> => {
+): Html.html<AppTypes.msg> => {
   let button = if fieldCount > 1 && vp.permission == Some(ReadWrite) {
     viewKillFieldBtn(t, field)
   } else {
@@ -59,7 +63,7 @@ let viewTipeField = (
   Html.div(list{Html.class'("field")}, row)
 }
 
-let viewUserTipe = (vp: viewProps, t: PT.UserType.t): Html.html<msg> =>
+let viewUserTipe = (vp: viewProps, t: PT.UserType.t): Html.html<AppTypes.msg> =>
   switch t.definition {
   | UTRecord(fields) =>
     let nameDiv = viewTipeName(vp, t)

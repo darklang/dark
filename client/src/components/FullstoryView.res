@@ -8,7 +8,7 @@ module Html = Tea_html_extended
 module FullstoryJs = {
   @val @scope(("window", "Dark", "fullstory")) external _setConsent: bool => unit = "setConsent"
 
-  let setConsent = (allow: bool): Cmd.t<Types.msg> => Cmd.call(_ => _setConsent(allow))
+  let setConsent = (allow: bool): AppTypes.cmd => Cmd.call(_ => _setConsent(allow))
 }
 
 let explanation = "To help us understand how people learn Dark, is it okay if we track your session in a replayable format (using Fullstory)."
@@ -20,7 +20,7 @@ let radio = (
   ~label: string,
   ~msg: SettingsViewTypes.settingsMsg,
   ~checked: bool,
-): Html.html<Types.msg> => {
+): Html.html<AppTypes.msg> => {
   let key = "fs-consent-" ++ value
   Html.div(
     list{Html.class'("choice"), disableOmniOpen},
@@ -41,7 +41,7 @@ let radio = (
   )
 }
 
-let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<Types.msg> => {
+let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<AppTypes.msg> => {
   let (yes, no) = if longLabels {
     ("Yes, please go ahead", "No, please don't")
   } else {
@@ -79,7 +79,7 @@ let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<Typ
   )
 }
 
-let html = (m: Types.model): Html.html<Types.msg> => {
+let html = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let content = list{consentRow(m.settingsView.privacy.recordConsent, ~longLabels=true)}
 
   let cls = if m.settingsView.privacy.recordConsent == None {

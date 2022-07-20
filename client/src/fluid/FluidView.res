@@ -18,7 +18,7 @@ type viewProps = ViewUtils.viewProps
 
 type token = T.t
 
-let viewCopyButton = (tlid, value): Html.html<msg> =>
+let viewCopyButton = (tlid, value): Html.html<AppTypes.msg> =>
   Html.div(
     list{
       Html.class'("copy-value"),
@@ -32,7 +32,7 @@ let viewCopyButton = (tlid, value): Html.html<msg> =>
     list{ViewUtils.fontAwesome("copy")},
   )
 
-let viewArrow = (curID: id, srcID: id): Html.html<Types.msg> => {
+let viewArrow = (curID: id, srcID: id): Html.html<AppTypes.msg> => {
   let curSelector = ".id-" ++ ID.toString(curID)
   let srcSelector = ".id-" ++ ID.toString(srcID)
   switch (Native.Ext.querySelector(curSelector), Native.Ext.querySelector(srcSelector)) {
@@ -134,7 +134,7 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
   }
 }
 
-let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
+let viewLiveValue = (vp: viewProps): Html.html<AppTypes.msg> => {
   /* isLoaded will be set to false later if we are in the middle of loading
    * results. All other states are considered loaded. This is used to apply
    * a class ".loaded" purely for integration tests being able to know when
@@ -322,7 +322,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
   }
 
 let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): list<
-  Html.html<Types.msg>,
+  Html.html<AppTypes.msg>,
 > => {
   let liveValue = if vp.cursorState == FluidEntering(vp.tlid) {
     viewLiveValue(vp)

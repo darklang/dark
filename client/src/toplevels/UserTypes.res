@@ -28,17 +28,21 @@ let blankOrData = (t: PT.UserType.t): list<blankOrData> => {
 
 let toID = (ut: PT.UserType.t): TLID.t => ut.tlid
 
-let upsert = (m: model, ut: PT.UserType.t): model => {
+let upsert = (m: AppTypes.model, ut: PT.UserType.t): AppTypes.model => {
   ...m,
   userTipes: Map.add(~key=ut.tlid, ~value=ut, m.userTipes),
 }
 
-let update = (m: model, ~tlid: TLID.t, ~f: PT.UserType.t => PT.UserType.t): model => {
+let update = (
+  m: AppTypes.model,
+  ~tlid: TLID.t,
+  ~f: PT.UserType.t => PT.UserType.t,
+): AppTypes.model => {
   ...m,
   userTipes: Map.updateIfPresent(~key=tlid, ~f, m.userTipes),
 }
 
-let remove = (m: model, ut: PT.UserType.t): model => {
+let remove = (m: AppTypes.model, ut: PT.UserType.t): AppTypes.model => {
   ...m,
   userTipes: Map.remove(~key=ut.tlid, m.userTipes),
 }

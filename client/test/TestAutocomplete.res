@@ -3,6 +3,8 @@ open Autocomplete
 open Prelude
 module B = BlankOr
 
+module AC = AppTypes.AutoComplete
+
 let defaultTLID = gtlid()
 
 let defaultID = gid()
@@ -13,9 +15,12 @@ let defaultBlankOr = Blank(defaultID)
 
 let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
-let enteringCS = (~tlid=defaultTLID, ~id=defaultID, ()): cursorState => Entering(tlid, id)
+let enteringCS = (~tlid=defaultTLID, ~id=defaultID, ()): AppTypes.CursorState.t => Entering(
+  tlid,
+  id,
+)
 
-let omniboxCS: cursorState = Omnibox(None)
+let omniboxCS: AppTypes.CursorState.t = Omnibox(None)
 
 // Sets the model with the appropriate toplevels
 let defaultModel = (
@@ -25,8 +30,8 @@ let defaultModel = (
   ~userTipes=list{},
   ~cursorState,
   (),
-): model => {
-  let default = Defaults.defaultModel
+): AppTypes.model => {
+  let default = AppTypes.Model.default
   {
     ...default,
     handlers: Handlers.fromList(handlers),
@@ -34,7 +39,7 @@ let defaultModel = (
     userFunctions: UserFunctions.fromList(userFunctions),
     userTipes: UserTypes.fromList(userTipes),
     cursorState: cursorState,
-    fluidState: Defaults.defaultFluidState,
+    fluidState: FluidTypes.State.default,
   }
 }
 
@@ -93,7 +98,7 @@ let enteringFunction = (
   ~userFunctions=list{},
   ~userTipes=list{},
   (),
-): model =>
+): AppTypes.model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs,
@@ -109,7 +114,7 @@ let enteringDBField = (
   ~userFunctions=list{},
   ~userTipes=list{},
   (),
-): model =>
+): AppTypes.model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs=list{aDB(), ...dbs},
@@ -125,7 +130,7 @@ let enteringDBType = (
   ~userFunctions=list{},
   ~userTipes=list{},
   (),
-): model =>
+): AppTypes.model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs=list{aDB(~fieldid=defaultID2, ~typeid=defaultID, ()), ...dbs},
@@ -135,30 +140,29 @@ let enteringDBType = (
     (),
   )
 
-let enteringHandler = (~space: option<string>=None, ()): model =>
+let enteringHandler = (~space: option<string>=None, ()): AppTypes.model =>
   defaultModel(~cursorState=enteringCS(), ~handlers=list{aHandler(~space, ())}, ())
 
-let enteringEventNameHandler = (~space: option<string>=None, ()): model => {
+let enteringEventNameHandler = (~space: option<string>=None, ()): AppTypes.model => {
   let handler = aHandler(~space, ())
   let id = B.toID(handler.spec.name)
   defaultModel(~cursorState=enteringCS(~id, ()), ~handlers=list{handler}, ())
 }
 
-let creatingOmni: model = {...Defaults.defaultModel, cursorState: Omnibox(None)}
+let creatingOmni: AppTypes.model = {...AppTypes.Model.default, cursorState: Omnibox(None)}
 
 // AC targeting a tlid and pointer
-let acFor = (~target=Some(defaultTLID, PDBColType(defaultBlankOr)), m: model): autocomplete =>
+let acFor = (~target=Some(defaultTLID, PDBColType(defaultBlankOr)), m: AppTypes.model): AC.t =>
   switch m.cursorState {
   | Omnibox(_) => init(m) |> setTarget(m, None)
   | Entering(_) => init(m) |> setTarget(m, target)
   | _ => init(m) |> setTarget(m, target)
   }
 
-let acForDB = (): autocomplete =>
+let acForDB = (): AC.t =>
   enteringDBType() |> acFor(~target=Some(defaultTLID, PDBColType(Blank(defaultID))))
 
-let itemPresent = (aci: autocompleteItem, ac: autocomplete): bool =>
-  List.member(~value=aci, ac.completions)
+let itemPresent = (aci: AC.item, ac: AC.t): bool => List.member(~value=aci, ac.completions)
 
 let run = () => {
   describe("autocomplete", () => {

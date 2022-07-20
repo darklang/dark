@@ -4,11 +4,18 @@ module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module K = FluidKeyboard
 
+type modification = AppTypes.modification
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+module Msg = AppTypes.Msg
+type command = AppTypes.fluidCmd
+type cmdState = AppTypes.fluidCmdState
+
 let filterInputID: string = "cmd-filter"
 
 let fluidCommands = (_m: model) => Commands.commands
 
-let reset = (m: model): fluidCommandState => {
+let reset = (m: model): cmdState => {
   index: 0,
   commands: fluidCommands(m),
   location: None,
@@ -16,7 +23,7 @@ let reset = (m: model): fluidCommandState => {
 }
 
 let commandsFor = (m: model, tl: toplevel, expr: fluidExpr): list<command> =>
-  fluidCommands(m) |> List.filter(~f=cmd => cmd.shouldShow(m, tl, expr))
+  fluidCommands(m) |> List.filter(~f=(cmd: command) => cmd.shouldShow(m, tl, expr))
 
 let show = (m: model, tlid: TLID.t, id: id): model => {
   let tl = TL.get(m, tlid)
@@ -24,7 +31,7 @@ let show = (m: model, tlid: TLID.t, id: id): model => {
   |> Option.andThen(~f=TL.getAST)
   |> Option.andThen(~f=FluidAST.find(id))
   |> Option.map2(tl, ~f=(tl, expr) => {
-    let cp = {
+    let cp: cmdState = {
       index: 0,
       commands: commandsFor(m, tl, expr),
       location: Some(tlid, id),
@@ -39,7 +46,7 @@ let show = (m: model, tlid: TLID.t, id: id): model => {
 let executeCommand = (m: model, tlid: TLID.t, id: id, cmd: command): modification =>
   switch TL.get(m, tlid) {
   | Some(tl) => cmd.action(m, tl, id)
-  | _ => recover("No pd for the command", ~debug=(tlid, id, cmd), NoChange)
+  | _ => recover("No pd for the command", ~debug=(tlid, id, cmd), Mod.NoChange)
   }
 
 let runCommand = (m: model, cmd: command): modification => {
@@ -50,11 +57,11 @@ let runCommand = (m: model, cmd: command): modification => {
   }
 }
 
-let highlighted = (s: fluidCommandState): option<command> => List.getAt(~index=s.index, s.commands)
+let highlighted = (s: cmdState): option<command> => List.getAt(~index=s.index, s.commands)
 
 let asName = (cmd: command): string => cmd.commandName
 
-let moveUp = (s: fluidCommandState): fluidCommandState => {
+let moveUp = (s: cmdState): cmdState => {
   let i = s.index - 1
   {
     ...s,
@@ -66,7 +73,7 @@ let moveUp = (s: fluidCommandState): fluidCommandState => {
   }
 }
 
-let moveDown = (s: fluidCommandState): fluidCommandState => {
+let moveDown = (s: cmdState): cmdState => {
   let i = s.index + 1
   let max = List.length(s.commands)
   {
@@ -79,9 +86,9 @@ let moveDown = (s: fluidCommandState): fluidCommandState => {
   }
 }
 
-let focusItem = (i: int): Tea.Cmd.t<msg> =>
+let focusItem = (i: int): AppTypes.cmd =>
   Tea_task.attempt(
-    _ => IgnoreMsg("fluid-commands-focus"),
+    _ => Msg.IgnoreMsg("fluid-commands-focus"),
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
       open Native.Ext
@@ -114,7 +121,7 @@ let focusItem = (i: int): Tea.Cmd.t<msg> =>
     }),
   )
 
-let filter = (m: model, query: string, cp: fluidCommandState): fluidCommandState => {
+let filter = (m: model, query: string, cp: cmdState): cmdState => {
   let allCmds = switch cp.location {
   | Some(tlid, id) =>
     let tl = TL.get(m, tlid)
@@ -136,7 +143,7 @@ let filter = (m: model, query: string, cp: fluidCommandState): fluidCommandState
   }
 
   let (filter, commands) = if String.length(query) > 0 {
-    let isMatched = c => String.includes(~substring=query, c.commandName)
+    let isMatched = (c: command) => String.includes(~substring=query, c.commandName)
     (Some(query), List.filter(~f=isMatched, allCmds))
   } else {
     (None, fluidCommands(m))
@@ -145,7 +152,7 @@ let filter = (m: model, query: string, cp: fluidCommandState): fluidCommandState
   {...cp, filter: filter, commands: commands, index: 0}
 }
 
-let isOpenOnTL = (s: fluidCommandState, tlid: TLID.t): bool =>
+let isOpenOnTL = (s: cmdState, tlid: TLID.t): bool =>
   switch s.location {
   | Some(ltlid, _) if tlid == ltlid => true
   | _ => false
@@ -157,21 +164,23 @@ let isOpenOnTL = (s: fluidCommandState, tlid: TLID.t): bool =>
   * We can't use the generic FluidKeyboard keydown handler for this, as it's
   * too agreessive in capturing keys that we want delegated to the palette's
   * input element for default handling (like backspace and left/right arrows). ")
-let onKeydown = (evt: Web.Node.event): option<Types.msg> =>
+let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
   K.eventToKeyEvent(evt) |> Option.andThen(~f=e =>
     switch e {
     | {K.key: K.Enter, _}
     | {key: K.Up, _}
     | {key: K.Down, _}
     | {key: K.Escape, _} =>
-      Some(FluidMsg(FluidInputEvent(Keypress(e))))
+      Some(Msg.FluidMsg(FluidInputEvent(Keypress(e))))
     | _ => None
     }
   )
 
-let onLoseFocus = (_evt: Web.Node.event): option<Types.msg> => Some(FluidMsg(FluidCloseCmdPalette))
+let onLoseFocus = (_evt: Web.Node.event): option<AppTypes.msg> => Some(
+  FluidMsg(FluidCloseCmdPalette),
+)
 
-let viewCommandPalette = (cp: Types.fluidCommandState): Html.html<Types.msg> => {
+let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
   let viewCommands = (i, item) => {
     let highlighted = cp.index == i
     let name = asName(item)
@@ -200,7 +209,7 @@ let viewCommandPalette = (cp: Types.fluidCommandState): Html.html<Types.msg> => 
       Attrs.id(filterInputID),
       Vdom.attribute("", "spellcheck", "false"),
       Attrs.autocomplete(false),
-      Events.onInput(query => FluidMsg(FluidCommandsFilter(query))),
+      Events.onInput(query => Msg.FluidMsg(FluidCommandsFilter(query))),
       Html.onCB("keydown", "command-keydown", onKeydown),
       Html.onCB("blur", "lose focus", onLoseFocus),
     },
@@ -215,10 +224,7 @@ let viewCommandPalette = (cp: Types.fluidCommandState): Html.html<Types.msg> => 
   Html.div(list{Html.class'("command-palette")}, list{filterInput, cmdsView})
 }
 
-let cpSetIndex = (
-  _m: Types.model,
-  i: int,
-): Types.modification => ReplaceAllModificationsWithThisOne(
+let cpSetIndex = (_m: model, i: int): modification => ReplaceAllModificationsWithThisOne(
   m => {
     let cp = {...m.fluidState.cp, index: i}
     let fluidState = {...m.fluidState, cp: cp, upDownCol: None}
@@ -226,7 +232,7 @@ let cpSetIndex = (
   },
 )
 
-let updateCmds = (m: Types.model, keyEvt: K.keyEvent): Types.modification => {
+let updateCmds = (m: model, keyEvt: K.keyEvent): modification => {
   let key = keyEvt.key
   switch key {
   | K.Enter =>
@@ -259,7 +265,7 @@ let updateCmds = (m: Types.model, keyEvt: K.keyEvent): Types.modification => {
   }
 }
 
-let isOpened = (cp: fluidCommandState): bool => cp.location != None
+let isOpened = (cp: cmdState): bool => cp.location != None
 
 let updateCommandPaletteVisibility = (m: model): model => {
   let oldTlid = switch m.fluidState.cp.location {

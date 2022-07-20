@@ -2,14 +2,13 @@ open Prelude
 
 let canonicalizeCursorState = CursorState.unwrap
 
-let toModel = (e: savedSettings): model => {
-  let m = Defaults.defaultModel
+let toModel = (e: AppTypes.SavedSettings.t): AppTypes.model => {
+  let m = AppTypes.Model.default
   {
     ...m,
     editorSettings: e.editorSettings,
     cursorState: e.cursorState |> canonicalizeCursorState,
     tlTraceIDs: e.tlTraceIDs,
-    featureFlags: e.featureFlags,
     handlerProps: e.handlerProps,
     canvasProps: {...m.canvasProps, offset: e.canvasPos},
     lastReload: e.lastReload,
@@ -23,13 +22,11 @@ let toModel = (e: savedSettings): model => {
   }
 }
 
-let model2editor = (m: model): savedSettings => {
+let model2editor = (m: AppTypes.model): AppTypes.SavedSettings.t => {
   editorSettings: m.editorSettings,
   cursorState: m.cursorState,
   tlTraceIDs: // what trace is selected
   m.tlTraceIDs,
-  featureFlags: // which flags are expanded
-  m.featureFlags,
   handlerProps: m.handlerProps,
   canvasPos: m.canvasProps.offset,
   lastReload: m.lastReload,
@@ -40,25 +37,26 @@ let model2editor = (m: model): savedSettings => {
   userTutorialTLID: m.tooltipState.userTutorial.tlid,
 }
 
-let fromString = (json: option<string>): savedSettings =>
+let fromString = (json: option<string>): AppTypes.SavedSettings.t =>
   switch json {
   | None =>
     Debug.loG("no serialized editor", None)
-    Defaults.defaultSavedSettings
+    AppTypes.SavedSettings.default
   | Some(json) =>
-    try json |> Json.parseOrRaise |> Decoders.savedSettings catch {
+    try json |> Json.parseOrRaise |> AppTypes.SavedSettings.decode catch {
     | e =>
       Debug.loG("error parsing serialized editor", (e, json))
-      Defaults.defaultSavedSettings
+      AppTypes.SavedSettings.default
     }
   }
 
-let toString = (se: savedSettings): string => se |> Encoders.savedSettings |> Json.stringify
+let toString = (se: AppTypes.SavedSettings.t): string =>
+  se |> AppTypes.SavedSettings.encode |> Json.stringify
 
-let save = (m: model): unit => {
+let save = (m: AppTypes.Model.t): unit => {
   let state = m |> model2editor |> toString
   Dom.Storage.setItem("editorState-" ++ m.canvasName, state, Dom.Storage.localStorage)
 }
 
-let load = (canvasName: string): savedSettings =>
+let load = (canvasName: string): AppTypes.SavedSettings.t =>
   Dom.Storage.localStorage |> Dom.Storage.getItem("editorState-" ++ canvasName) |> fromString

@@ -15,7 +15,7 @@ let findIf = (ast: FluidAST.t, e: E.t): option<E.t> =>
     )
   }
 
-let refactor = (_: model, tl: toplevel, id: id): modification => {
+let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification => {
   let makeGenericMatch = (ifID, cond, then_, else_) => E.EMatch(
     ifID,
     cond,
@@ -74,7 +74,7 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
     }
   }
 
-  let replaceIf = ((ast: FluidAST.t, ifexpr: E.t)): option<modification> => {
+  let replaceIf = ((ast: FluidAST.t, ifexpr: E.t)): option<AppTypes.modification> => {
     let ifExprToMatchExpr: option<FluidExpression.t> = switch ifexpr {
     | E.EIf(ifID, EBinOp(binopID, {module_: None, function: "=="}, lhs, rhs, rail), then_, else_) =>
       Some(makeBinOpMatch(ifID, binopID, lhs, rhs, rail, then_, else_))
@@ -94,5 +94,5 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
   TL.getAST(tl)
   |> Option.thenAlso(~f=ast => FluidAST.find(id, ast) |> Option.andThen(~f=findIf(ast)))
   |> Option.andThen(~f=replaceIf)
-  |> Option.unwrap(~default=NoChange)
+  |> Option.unwrap(~default=AppTypes.Modification.NoChange)
 }

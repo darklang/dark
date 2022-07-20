@@ -103,7 +103,7 @@ let rec updateAssocList = (~key: 'k, ~f: option<'v> => option<'v>, assoc: list<(
     }
   }
 
-let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<id>)> =>
+let allRefersTo = (tlid: TLID.t, m: AppTypes.model): list<(toplevel, list<id>)> =>
   m.tlRefersTo
   |> Map.get(~key=tlid)
   |> Option.unwrap(~default=list{})
@@ -117,7 +117,7 @@ let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<id>)> =>
   )
   |> List.filterMap(~f=((tlid, ids)) => TL.get(m, tlid) |> Option.map(~f=tl => (tl, ids)))
 
-let allUsedIn = (tlid: TLID.t, m: model): list<toplevel> =>
+let allUsedIn = (tlid: TLID.t, m: AppTypes.model): list<toplevel> =>
   m.tlUsedIn
   |> Map.get(~key=tlid)
   |> Option.unwrap(~default=TLID.Set.empty)
@@ -214,7 +214,7 @@ let getUsageFor = (
   Belt.List.concat(astUsages, fnUsages)
 }
 
-let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
+let refreshUsages = (m: AppTypes.model, tlids: list<TLID.t>): AppTypes.model => {
   let datastores = dbsByName(m.dbs)
   let handlers = handlersByName(m.handlers)
   let functions = functionsByName(m.userFunctions)
@@ -259,10 +259,10 @@ let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
   {...m, tlUsedIn: newTlUsedIn, tlRefersTo: newTlRefersTo}
 }
 
-let setHoveringReferences = (tlid: TLID.t, ids: list<id>): modification => {
+let setHoveringReferences = (tlid: TLID.t, ids: list<id>): AppTypes.modification => {
   let new_props = x =>
     switch x {
-    | None => Some({...Defaults.defaultHandlerProp, hoveringReferences: ids})
+    | None => Some({...AppTypes.HandlerProperty.default, hoveringReferences: ids})
     | Some(v) => Some({...v, hoveringReferences: ids})
     }
 

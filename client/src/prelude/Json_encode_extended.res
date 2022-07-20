@@ -11,6 +11,8 @@ let tcStrDict = (f, dict) =>
 let beltStrDict = (f, dict) =>
   dict |> Belt.Map.String.toList |> Tc.List.map(~f=((k, v)) => (k, f(v))) |> object_
 
+let date = (d: Js.Date.t) => string(Js.Date.toString(d))
+
 let int64 = (i: int64) =>
   if i > 9007199254740992L {
     i->Int64.to_string->string

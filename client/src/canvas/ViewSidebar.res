@@ -5,6 +5,10 @@ module TL = Toplevel
 module TD = TLID.Dict
 module Cmd = Tea.Cmd
 
+type modification = AppTypes.modification
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+
 let missingEventSpaceDesc: string = "Undefined"
 
 let missingEventRouteDesc: string = "Undefined"
@@ -16,8 +20,8 @@ type identifier =
   | Other(string)
 
 type onClickAction =
-  | Destination(page)
-  | SendMsg(msg)
+  | Destination(AppTypes.Page.t)
+  | SendMsg(AppTypes.msg)
   | DoNothing
 
 let tlidOfIdentifier = (identifier): option<TLID.t> =>
@@ -37,9 +41,9 @@ type rec entry = {
   identifier: identifier,
   onClick: onClickAction,
   uses: option<int>,
-  minusButton: option<msg>,
-  plusButton: option<msg>,
-  killAction: option<msg>,
+  minusButton: option<AppTypes.msg>,
+  plusButton: option<AppTypes.msg>,
+  killAction: option<AppTypes.msg>,
   // if this is in the deleted section, what does minus do?
   verb: option<string>,
 }
@@ -47,10 +51,10 @@ type rec entry = {
 and category = {
   count: int,
   name: string,
-  plusButton: option<msg>,
-  iconAction: option<msg>,
+  plusButton: option<AppTypes.msg>,
+  iconAction: option<AppTypes.msg>,
   classname: string,
-  tooltip: option<tooltipSource>,
+  tooltip: option<AppTypes.Tooltip.source>,
   entries: list<item>,
 }
 
@@ -64,14 +68,17 @@ let rec count = (s: item): int =>
   | Category(c) => (c.entries |> List.map(~f=count))->List.sum(module(Int))
   }
 
-let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg): Html.html<
-  msg,
-> => {
+let iconButton = (
+  ~key: string,
+  ~icon: string,
+  ~classname: string,
+  handler: AppTypes.msg,
+): Html.html<AppTypes.msg> => {
   let event = ViewUtils.eventNeither(~key, "click", _ => handler)
   Html.div(list{event, Html.class'("icon-button " ++ classname)}, list{fontAwesome(icon)})
 }
 
-let categoryIcon_ = (name: string): list<Html.html<msg>> => {
+let categoryIcon_ = (name: string): list<Html.html<AppTypes.msg>> => {
   let darkIcon = ViewUtils.darkIcon
   // Deleted categories have a deleted- prefix, with which are not valid fontaweome icons
   switch name |> String.toLowercase |> Regex.replace(~re=Regex.regex(delPrefix), ~repl="") {
@@ -93,7 +100,7 @@ let categoryIcon_ = (name: string): list<Html.html<msg>> => {
   }
 }
 
-let categoryButton = (~props=list{}, name: string, description: string): Html.html<msg> =>
+let categoryButton = (~props=list{}, name: string, description: string): Html.html<AppTypes.msg> =>
   Html.div(
     list{
       Html.class'("category-icon"),
@@ -105,7 +112,9 @@ let categoryButton = (~props=list{}, name: string, description: string): Html.ht
     categoryIcon_(name),
   )
 
-let setTooltips = (tooltip: tooltipSource, entries: list<'a>): option<tooltipSource> =>
+let setTooltips = (tooltip: AppTypes.Tooltip.source, entries: list<'a>): option<
+  AppTypes.Tooltip.source,
+> =>
   if entries == list{} {
     Some(tooltip)
   } else {
@@ -115,9 +124,9 @@ let setTooltips = (tooltip: tooltipSource, entries: list<'a>): option<tooltipSou
 let handlerCategory = (
   filter: toplevel => bool,
   name: string,
-  action: omniAction,
-  iconAction: option<msg>,
-  tooltip: tooltipSource,
+  action: AppTypes.AutoComplete.omniAction,
+  iconAction: option<AppTypes.msg>,
+  tooltip: AppTypes.Tooltip.source,
   hs: list<PT.Handler.t>,
 ): category => {
   let handlers = hs |> List.filter(~f=h => filter(TLHandler(h)))
@@ -177,7 +186,7 @@ let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory
     TL.isDeprecatedCustomHandler(tl)
   , "Worker", NewWorkerHandler(None), Some(GoToArchitecturalView), Worker, handlers)
 
-let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
+let dbCategory = (m: AppTypes.model, dbs: list<PT.DB.t>): category => {
   let entries = List.map(dbs, ~f=db => {
     let uses = switch db.name {
     | Blank(_) => 0
@@ -208,7 +217,7 @@ let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   }
 }
 
-let f404Category = (m: model): category => {
+let f404Category = (m: AppTypes.model): category => {
   let f404s = {
     // Generate set of deleted handler specs, stringified
     let deletedHandlerSpecs =
@@ -258,7 +267,7 @@ let f404Category = (m: model): category => {
   }
 }
 
-let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
+let userFunctionCategory = (m: AppTypes.model, ufs: list<PT.UserFunction.t>): category => {
   let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => B.isF(fn.metadata.name))
   let entries = List.filterMap(fns, ~f=fn =>
     Option.map(B.toOption(fn.metadata.name), ~f=name => {
@@ -289,14 +298,14 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
   }
 }
 
-let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
+let userTipeCategory = (m: AppTypes.model, tipes: list<PT.UserType.t>): category => {
   let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => B.isF(ut.name))
   let entries = List.filterMap(tipes, ~f=tipe =>
     Option.map(B.toOption(tipe.name), ~f=name => {
       let minusButton = if Refactor.usedTipe(m, name) {
         None
       } else {
-        Some(DeleteUserType(tipe.tlid))
+        Some(Msg.DeleteUserType(tipe.tlid))
       }
 
       Entry({
@@ -426,7 +435,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   }
 }
 
-let deletedCategory = (m: model): category => {
+let deletedCategory = (m: AppTypes.model): category => {
   let cats = standardCategories(
     m,
     m.deletedHandlers,
@@ -442,7 +451,7 @@ let deletedCategory = (m: model): category => {
       switch x {
       | Entry(e) =>
         let actionOpt =
-          e.identifier |> tlidOfIdentifier |> Option.map(~f=tlid => RestoreToplevel(tlid))
+          e.identifier |> tlidOfIdentifier |> Option.map(~f=tlid => Msg.RestoreToplevel(tlid))
 
         Entry({
           ...e,
@@ -470,7 +479,7 @@ let deletedCategory = (m: model): category => {
   }
 }
 
-let viewEmptyCategory = (c: category): Html.html<msg> => {
+let viewEmptyCategory = (c: category): Html.html<AppTypes.msg> => {
   let name = switch c.classname {
   | "http" => "HTTP handlers"
   | "cron" | "worker" | "repl" => c.name ++ "s"
@@ -480,7 +489,7 @@ let viewEmptyCategory = (c: category): Html.html<msg> => {
   Html.div(list{Html.class'("simple-item empty")}, list{Html.text("No " ++ name)})
 }
 
-let viewEntry = (m: model, e: entry): Html.html<msg> => {
+let viewEntry = (m: AppTypes.model, e: entry): Html.html<AppTypes.msg> => {
   let name = e.name
   let isSelected = tlidOfIdentifier(e.identifier) == CursorState.tlidOf(m.cursorState)
 
@@ -556,7 +565,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   Html.div(list{Html.class'("simple-item")}, list{minuslink, linkItem, pluslink})
 }
 
-let viewDeploy = (d: staticDeploy): Html.html<msg> => {
+let viewDeploy = (d: staticDeploy): Html.html<AppTypes.msg> => {
   let statusString = switch d.status {
   | Deployed => "Deployed"
   | Deploying => "Deploying"
@@ -603,12 +612,12 @@ let viewDeploy = (d: staticDeploy): Html.html<msg> => {
   )
 }
 
-let categoryName = (name: string): Html.html<msg> =>
+let categoryName = (name: string): Html.html<AppTypes.msg> =>
   Html.span(list{Html.class'("category-name")}, list{Html.text(name)})
 
-let categoryOpenCloseHelpers = (s: sidebarState, classname: string, count: int): (
-  Vdom.property<msg>,
-  Vdom.property<msg>,
+let categoryOpenCloseHelpers = (s: AppTypes.Sidebar.State.t, classname: string, count: int): (
+  Vdom.property<AppTypes.msg>,
+  Vdom.property<AppTypes.msg>,
 ) => {
   let isOpen = Set.member(s.openedCategories, ~value=classname)
   let isDetailed = s.mode == DetailedMode
@@ -637,7 +646,7 @@ let categoryOpenCloseHelpers = (s: sidebarState, classname: string, count: int):
   (openEventHandler, openAttr)
 }
 
-let viewDeployStats = (m: model): Html.html<msg> => {
+let viewDeployStats = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let entries = m.staticDeploys
   let count = List.length(entries)
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "deploys", count)
@@ -704,7 +713,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   Html.details(~unique="deploys", list{classes, openAttr}, list{summary, content})
 }
 
-let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
+let viewSecret = (s: SecretTypes.t): Html.html<AppTypes.msg> => {
   let copyBtn = Html.div(
     list{
       Html.class'("icon-button copy-secret-name"),
@@ -745,7 +754,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   )
 }
 
-let viewSecretKeys = (m: model): Html.html<msg> => {
+let viewSecretKeys = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let count = List.length(m.secrets)
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
 
@@ -812,7 +821,7 @@ let viewSecretKeys = (m: model): Html.html<msg> => {
   Html.details(~unique="secrets", list{classes, openAttr}, list{summary, content})
 }
 
-let rec viewItem = (m: model, s: item): Html.html<msg> =>
+let rec viewItem = (m: AppTypes.model, s: item): Html.html<AppTypes.msg> =>
   switch s {
   | Category(c) =>
     if c.count > 0 {
@@ -823,7 +832,7 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
   | Entry(e) => viewEntry(m, e)
   }
 
-and viewCategory = (m: model, c: category): Html.html<msg> => {
+and viewCategory = (m: AppTypes.model, c: category): Html.html<AppTypes.msg> => {
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, c.classname, c.count)
 
   let (openTooltip, tooltipView) = switch c.tooltip {
@@ -900,7 +909,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
           if !isSubCat {
             SidebarMsg(ResetSidebar)
           } else {
-            IgnoreMsg("sidebar-category-close")
+            Msg.IgnoreMsg("sidebar-category-close")
           }
         ),
       },
@@ -917,7 +926,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
   Html.details(~unique=c.classname, list{classes, openAttr}, list{summary, content})
 }
 
-let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
+let viewToggleBtn = (isDetailed: bool): Html.html<AppTypes.msg> => {
   let event = ViewUtils.eventNeither(~key="toggle-sidebar", "click", _ => SidebarMsg(
     ToggleSidebarMode,
   ))
@@ -948,7 +957,7 @@ let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
   Html.div(list{event, Html.class'("toggle-sidebar-btn"), alt}, list{label, icon})
 }
 
-let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
+let stateInfoTohtml = (key: string, value: Html.html<AppTypes.msg>): Html.html<AppTypes.msg> =>
   Html.div(
     list{Html.class'("state-info-row")},
     list{
@@ -958,7 +967,7 @@ let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
     },
   )
 
-let adminDebuggerView = (m: model): Html.html<msg> => {
+let adminDebuggerView = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let environmentName = if m.environment === "prodclone" {
     "clone"
   } else {
@@ -967,7 +976,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let pageToString = pg =>
     switch pg {
-    | Architecture => "Architecture"
+    | AppTypes.Page.Architecture => "Architecture"
     | FocusedPackageManagerFn(tlid) =>
       Printf.sprintf("Package Manager Fn (TLID %s)", TLID.toString(tlid))
     | FocusedFn(tlid, _) => Printf.sprintf("Fn (TLID %s)", TLID.toString(tlid))
@@ -992,7 +1001,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       stateInfoTohtml("env", Html.text(m.environment)),
       stateInfoTohtml("flags", Html.text(flagText)),
       stateInfoTohtml("page", Html.text(pageToString(m.currentPage))),
-      stateInfoTohtml("cursorState", Html.text(show_cursorState(m.cursorState))),
+      stateInfoTohtml("cursorState", Html.text(AppTypes.CursorState.show(m.cursorState))),
     },
   )
 
@@ -1107,13 +1116,13 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   Html.div(list{Html.class'("sidebar-category admin")}, list{sectionIcon, hoverView})
 }
 
-let update = (msg: sidebarMsg): modification =>
+let update = (msg: AppTypes.Sidebar.msg): modification =>
   switch msg {
   | ToggleSidebarMode =>
     ReplaceAllModificationsWithThisOne(
       m => {
         let mode = switch m.sidebarState.mode {
-        | DetailedMode => AbridgedMode
+        | DetailedMode => AppTypes.Sidebar.Mode.AbridgedMode
         | AbridgedMode => DetailedMode
         }
 
@@ -1135,7 +1144,7 @@ let update = (msg: sidebarMsg): modification =>
     )
   }
 
-let viewSidebar_ = (m: model): Html.html<msg> => {
+let viewSidebar_ = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let cats = Belt.List.concat(
     standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTipes),
     list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},
@@ -1184,7 +1193,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   )
 }
 
-let rtCacheKey = m =>
+let rtCacheKey = (m: model) =>
   (
     m.handlers |> Map.mapValues(~f=(h: PT.Handler.t) => (h.pos, TL.sortkey(TLHandler(h)))),
     m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),

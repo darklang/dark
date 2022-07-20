@@ -6,8 +6,12 @@ module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module Regex = Util.Regex
 module Dom = Webapi.Dom
+
+type modification = AppTypes.modification
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+module Msg = AppTypes.Msg
 
 let openOmnibox = (~openAt: option<pos>=None, ()): modification => OpenOmnibox(openAt)
 
@@ -260,7 +264,7 @@ external jsUnsupportedBrowser: unit => Js.Nullable.t<bool> = "unsupportedBrowser
 let unsupportedBrowser = (): bool =>
   jsUnsupportedBrowser() |> Js.Nullable.toOption |> Option.unwrap(~default=false)
 
-let newHandler = (m, space, name, modifier, pos) => {
+let newHandler = (m: AppTypes.model, space, name, modifier, pos) => {
   let tlid = gtlid()
   let spaceid = gid()
   let handler: PT.Handler.t = {
@@ -288,14 +292,14 @@ let newHandler = (m, space, name, modifier, pos) => {
     let s = m.fluidState
     let newS = {...s, newPos: 0}
     let cursorState = if idToEnter == astID {
-      FluidEntering(tlid)
+      AppTypes.CursorState.FluidEntering(tlid)
     } else {
       Entering(tlid, idToEnter)
     }
 
     list{
-      ReplaceAllModificationsWithThisOne(
-        m =>
+      Mod.ReplaceAllModificationsWithThisOne(
+        (m: model) =>
           {...m, fluidState: newS, tooltipState: tooltipState} |> CursorState.setCursorState(
             cursorState,
           ),
@@ -303,13 +307,17 @@ let newHandler = (m, space, name, modifier, pos) => {
     }
   }
 
-  let pageChanges = list{SetPage(FocusedHandler(tlid, None, true))}
-  let rpc = AddOps(list{SetHandler(tlid, pos, handler)}, FocusNext(tlid, Some(spaceid)))
+  let pageChanges = list{Mod.SetPage(FocusedHandler(tlid, None, true))}
+  let rpc = Mod.AddOps(list{SetHandler(tlid, pos, handler)}, FocusNext(tlid, Some(spaceid)))
 
-  Many(list{rpc, ...Belt.List.concat(pageChanges, fluidMods)})
+  Mod.Many(list{rpc, ...Belt.List.concat(pageChanges, fluidMods)})
 }
 
-let submitOmniAction = (m: model, pos: pos, action: omniAction): modification => {
+let submitOmniAction = (
+  m: AppTypes.model,
+  pos: pos,
+  action: AppTypes.AutoComplete.omniAction,
+): modification => {
   let pos = {x: pos.x - 17, y: pos.y - 70}
   let unused = Some("_")
   switch action {
@@ -384,10 +392,10 @@ let validate = (tl: toplevel, pd: blankOrData, value: string): option<string> =>
 }
 
 let submitACItem = (
-  m: model,
+  m: AppTypes.model,
   tlid: TLID.t,
   id: id,
-  item: autocompleteItem,
+  item: AppTypes.AutoComplete.item,
   move: nextMove,
 ): modification => {
   let stringValue = AC.getValue(m.complete)
@@ -408,28 +416,28 @@ let submitACItem = (
         let wasEditing = P.isBlank(pd) |> not
         let focus = if wasEditing && move == StayHere {
           switch next {
-          | None => FocusSame
+          | None => AppTypes.Focus.FocusSame
           | Some(nextID) => FocusExact(tlid, nextID)
           }
         } else {
           FocusNext(tlid, next)
         }
 
-        AddOps(ops, focus)
+        Mod.AddOps(ops, focus)
       }
 
       let wrapID = ops => wrap(ops, Some(id))
       let wrapNew = (ops, new_) => wrap(ops, Some(P.toID(new_)))
       let save = (newtl, next) =>
         if newtl == tl {
-          NoChange
+          Mod.NoChange
         } else {
           switch newtl {
           | TLHandler(h) => wrapNew(list{SetHandler(tlid, h.pos, h)}, next)
           | TLFunc(f) => wrapNew(list{SetFunction(f)}, next)
           | TLTipe(t) => wrapNew(list{SetType(t)}, next)
-          | TLPmFunc(_) => recover("no vars in pmfn", ~debug=tl, NoChange)
-          | TLDB(_) => recover("no vars in DBs", ~debug=tl, NoChange)
+          | TLPmFunc(_) => recover("no vars in pmfn", ~debug=tl, Mod.NoChange)
+          | TLDB(_) => recover("no vars in DBs", ~debug=tl, Mod.NoChange)
           }
         }
 
@@ -576,20 +584,22 @@ let submitACItem = (
       | (pd, item, _) =>
         ReplaceAllModificationsWithThisOne(
           m => {
-            let custom = Types.show_blankOrData(pd) ++ (", " ++ Types.show_autocompleteItem(item))
+            let custom =
+              Types.show_blankOrData(pd) ++ (", " ++ AppTypes.AutoComplete.show_item(item))
 
             Rollbar.displayAndReportError(m, "Invalid autocomplete option", None, Some(custom))
           },
         )
       }
     }
-  | _ => recover("Missing tl/pd", ~debug=(tlid, id), NoChange)
+  | _ => recover("Missing tl/pd", ~debug=(tlid, id), Mod.NoChange)
   }
 }
 
-let submit = (m: model, tlid: TLID.t, id: id, move: nextMove): modification =>
+let submit = (m: AppTypes.model, tlid: TLID.t, id: id, move: nextMove): modification =>
   switch AC.highlighted(m.complete) {
-  | Some(ACOmniAction(_)) => recover("Shouldnt allow omniactions here", ~debug=(tlid, id), NoChange)
+  | Some(ACOmniAction(_)) =>
+    recover("Shouldnt allow omniactions here", ~debug=(tlid, id), Mod.NoChange)
   | Some(item) => submitACItem(m, tlid, id, item, move)
   | None =>
     // We removed ACExtra to define more specific autocomplete items.
@@ -599,7 +609,7 @@ let submit = (m: model, tlid: TLID.t, id: id, move: nextMove): modification =>
       switch m.complete.target {
       | Some(_, p) =>
         switch P.typeOf(p) {
-        | DBColName => Some(ACDBColName(value))
+        | DBColName => Some(AppTypes.AutoComplete.ACDBColName(value))
         | FnName => Some(ACFnName(value))
         | ParamName => Some(ACParamName(value))
         | TypeName => Some(ACTypeName(value))
@@ -631,4 +641,4 @@ let submit = (m: model, tlid: TLID.t, id: id, move: nextMove): modification =>
  * This was added to to cleanly express "commit the state of an input box when I click away",
  * but is more generally intended to express "commit the state and I'll handle the cursor"
  * */
-let commit = (m: model, tlid: TLID.t, id: id) => submit(m, tlid, id, StayHere)
+let commit = (m: AppTypes.model, tlid: TLID.t, id: id) => submit(m, tlid, id, StayHere)

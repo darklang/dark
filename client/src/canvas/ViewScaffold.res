@@ -33,9 +33,11 @@ let flagLinkLoc = (flag: string, currentlyEnabled: bool) => {
   Printf.sprintf("%s//%s%s%s%s", loc.protocol, loc.host, loc.pathname, newSearch, loc.hash)
 }
 
-let debuggerLinkLoc = m => flagLinkLoc("debugger", m.teaDebuggerEnabled)
+let debuggerLinkLoc = (m: AppTypes.model) => flagLinkLoc("debugger", m.teaDebuggerEnabled)
 
-let viewIntegrationTestButton = (testState: integrationTestState): Html.html<msg> => {
+let viewIntegrationTestButton = (testState: AppTypes.IntegrationTests.t<AppTypes.model>): Html.html<
+  AppTypes.msg,
+> => {
   let integrationTestButton = switch testState {
   | IntegrationTestExpectation(_) => list{
       Html.a(
@@ -72,7 +74,7 @@ let viewIntegrationTestButton = (testState: integrationTestState): Html.html<msg
   Html.div(list{Html.id("buttons")}, integrationTestButton)
 }
 
-let viewError = (message: Error.t): Html.html<msg> => {
+let viewError = (message: Error.t): Html.html<AppTypes.msg> => {
   let message = Error.asOption(message)
   let viewErrorMsg = switch message {
   | None => list{Vdom.noNode}
@@ -100,7 +102,7 @@ let viewError = (message: Error.t): Html.html<msg> => {
   )
 }
 
-let readOnlyMessage = (m: model): Html.html<msg> =>
+let readOnlyMessage = (m: AppTypes.model): Html.html<AppTypes.msg> =>
   Html.div(
     list{
       Html.classList(list{

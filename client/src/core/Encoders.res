@@ -60,8 +60,6 @@ let tlid = TLID.encode
 
 let pos = BaseTypes.encodePos
 
-let vPos = (vp: vPos) => object_(list{("vx", int(vp.vx)), ("vy", int(vp.vy))})
-
 let blankOr = BaseTypes.encodeBlankOr
 
 let dval_source = (s: Types.dval_source): Js.Json.t => {
@@ -170,13 +168,6 @@ and ops = (ops: list<PT.Op.t>): Js.Json.t =>
     },
   )
 
-and addOpAPIParams = (params: Types.addOpAPIParams): Js.Json.t =>
-  object_(list{
-    ("ops", ops(params.ops)),
-    ("opCtr", int(params.opCtr)),
-    ("clientOpCtrId", string(params.clientOpCtrId)),
-  })
-
 and executeFunctionAPIParams = (params: Types.executeFunctionAPIParams): Js.Json.t =>
   object_(list{
     ("tlid", tlid(params.efpTLID)),
@@ -259,34 +250,6 @@ and performAnalysisParams = (params: Types.performAnalysisParams): Js.Json.t => 
   }
 }
 
-and userTutorial = (ut: Types.tutorialStep): Js.Json.t => {
-  let ev = variant
-  switch ut {
-  | Welcome => ev("Welcome", list{})
-  | VerbChange => ev("VerbChange", list{})
-  | ReturnValue => ev("ReturnValue", list{})
-  | OpenTab => ev("OpenTab", list{})
-  | GettingStarted => ev("GettingStarted", list{})
-  }
-}
-
-and cursorState = (cs: Types.cursorState): Js.Json.t => {
-  let ev = variant
-  switch cs {
-  | Selecting(tlid_, mId) => ev("Selecting", list{tlid(tlid_), nullable(id, mId)})
-  | Omnibox(maybePos) => ev("OmniBox", list{nullable(pos, maybePos)})
-  | Entering(tlid_, id_) => ev("Entering", list{tlid(tlid_), id(id_)})
-  | DraggingTL(tlid_, vpos_, hasMoved, cursor) =>
-    ev("DraggingTL", list{tlid(tlid_), vPos(vpos_), bool(hasMoved), cursorState(cursor)})
-  | PanningCanvas({viewportStart, viewportCurr, prevCursorState}) =>
-    /* TODO: There's a danger of mismatching the decoder order here because we're using an inline record.
-     * An order-independent encoding would alleviate this. */
-    ev("PanningCanvas", list{vPos(viewportStart), vPos(viewportCurr), cursorState(prevCursorState)})
-  | Deselected => ev("Deselected", list{})
-  | FluidEntering(tlid_) => ev("FluidEntering", list{tlid(tlid_)})
-  }
-}
-
 and functionResult = (fr: Types.functionResult): Js.Json.t =>
   list(
     identity,
@@ -313,50 +276,6 @@ and trace = (t: Types.trace): Js.Json.t => {
 
   pair(traceID, data, t)
 }
-
-let handlerProp = (_p: Types.handlerProp): Js.Json.t => object_(list{})
-
-let sidebarMode = (s: Types.sidebarMode): Js.Json.t =>
-  switch s {
-  | DetailedMode => variant("DetailedMode", list{})
-  | AbridgedMode => variant("AbridgedMode", list{})
-  }
-
-let sidebarState = (s: Types.sidebarState): Js.Json.t =>
-  object_(list{("mode", sidebarMode(s.mode)), ("openedCategories", tcStrSet(s.openedCategories))})
-
-let editorSettings = (es: Types.editorSettings): Js.Json.t =>
-  object_(list{
-    ("runTimers", bool(es.runTimers)),
-    ("showHandlerASTs", bool(es.showHandlerASTs)),
-    ("showFluidDebugger", bool(es.showFluidDebugger)),
-  })
-
-let savedUserSettings = (se: Types.savedUserSettings): Js.Json.t =>
-  object_(list{
-    ("showUserWelcomeModal", bool(se.firstVisitToDark)),
-    ("firstVisitToDark", bool(se.firstVisitToDark)),
-    ("recordConsent", Option.map(~f=bool, se.recordConsent) |> Option.unwrap(~default=null)),
-  })
-
-let tlidDict = (valueEncoder: 'value => Js.Json.t, t: TLID.Dict.t<'value>): Js.Json.t =>
-  t |> Map.toList |> List.map(~f=((k, v)) => (TLID.toString(k), valueEncoder(v))) |> object_
-
-let savedSettings = (se: Types.savedSettings): Js.Json.t =>
-  object_(list{
-    ("editorSettings", editorSettings(se.editorSettings)),
-    ("cursorState", cursorState(se.cursorState)),
-    ("tlTraceIDs", tlidDict(traceID, se.tlTraceIDs)),
-    ("featureFlags", tcStrDict(bool, se.featureFlags)),
-    ("handlerProps", tlidDict(handlerProp, se.handlerProps)),
-    ("canvasPos", pos(se.canvasPos)),
-    ("lastReload", nullable(string, Option.map(~f=Js.Date.toString, se.lastReload))),
-    ("sidebarState", sidebarState(se.sidebarState)),
-    ("showTopbar1", bool(se.showTopbar)),
-    ("firstVisitToThisCanvas", bool(se.firstVisitToThisCanvas)),
-    ("userTutorial", Option.map(~f=userTutorial, se.userTutorial) |> Option.unwrap(~default=null)),
-    ("userTutorialTLID", nullable(tlid, se.userTutorialTLID)),
-  })
 
 let fof = (fof: Types.fourOhFour): Js.Json.t =>
   object_(list{

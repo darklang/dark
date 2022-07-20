@@ -1,7 +1,9 @@
 open Prelude
 
-let filterAvatarsByTlid = (avatars: list<avatar>, tlid: TLID.t): list<avatar> =>
-  avatars |> List.filter(~f=(av: Types.avatar) =>
+module Avatar = AppTypes.Avatar
+
+let filterAvatarsByTlid = (avatars: list<Avatar.t>, tlid: TLID.t): list<Avatar.t> =>
+  avatars |> List.filter(~f=(av: Avatar.t) =>
     switch av.tlid {
     | None => false
     | Some(avTlid) => avTlid === (tlid |> TLID.toString)
@@ -35,7 +37,7 @@ let avatarUrl = (email: string, name: option<string>): string => {
   ("?d=" ++ Js_global.encodeURI(fallback(name))))
 }
 
-let avatarDiv = (avatar: avatar): Html.html<msg> => {
+let avatarDiv = (avatar: Avatar.t): Html.html<AppTypes.msg> => {
   let name: option<string> = avatar.fullname
   let email: string = avatar.email
   let username: string = avatar.username
@@ -52,21 +54,21 @@ let avatarDiv = (avatar: avatar): Html.html<msg> => {
   )
 }
 
-let viewAvatars = (avatars: list<avatar>, tlid: TLID.t): Html.html<msg> => {
+let viewAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<AppTypes.msg> => {
   let avList = filterAvatarsByTlid(avatars, tlid)
-  let renderAvatar = (a: avatar) => avatarDiv(a)
+  let renderAvatar = (a: Avatar.t) => avatarDiv(a)
   let avatars = List.map(~f=renderAvatar, avList)
   Html.div(list{Html.class'("avatars")}, avatars)
 }
 
-let viewAllAvatars = (avatars: list<avatar>): Html.html<msg> => {
+let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<AppTypes.msg> => {
   /* Sort by serverTime desc, then unique by avatar - gets us the most recent
    * avatar for a given username */
   let avatars =
     avatars
-    |> List.sortBy(~f=avatar => avatar.serverTime)
+    |> List.sortBy(~f=(avatar: Avatar.t) => avatar.serverTime)
     |> List.reverse
-    |> List.uniqueBy(~f=(avatar: avatar) => avatar.username)
+    |> List.uniqueBy(~f=(avatar: Avatar.t) => avatar.username)
 
   let avatarView = List.map(~f=avatarDiv, avatars)
   Html.div(
@@ -75,7 +77,7 @@ let viewAllAvatars = (avatars: list<avatar>): Html.html<msg> => {
   )
 }
 
-let myAvatar = (m: model): avatar => {
+let myAvatar = (m: AppTypes.model): Avatar.t => {
   canvasId: m.canvasName,
   canvasName: m.canvasName,
   serverTime: Js.Date.make(),

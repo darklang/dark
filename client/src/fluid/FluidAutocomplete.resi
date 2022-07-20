@@ -1,12 +1,12 @@
-let focusItem: int => Tea.Cmd.t<Types.msg>
+let focusItem: int => AppTypes.cmd
 
-@ppx.deriving(show) type rec t = Types.fluidAutocompleteState
+@ppx.deriving(show) type rec t = AppTypes.fluidState
 
-@ppx.deriving(show) type rec item = Types.fluidAutocompleteItem
+@ppx.deriving(show) type rec item = FluidTypes.AutoComplete.item
 
-@ppx.deriving(show) type rec data = Types.fluidAutocompleteData
+@ppx.deriving(show) type rec data = FluidTypes.AutoComplete.data
 
-@ppx.deriving(show) type rec query = (TLID.t, Types.fluidTokenInfo)
+@ppx.deriving(show) type rec query = (TLID.t, FluidTypes.TokenInfo.t)
 
 type props = {functions: Types.functionsType}
 
@@ -30,7 +30,7 @@ let highlighted: t => option<item>
 
 let init: t
 
-let regenerate: (Types.model, t, (TLID.t, Types.fluidTokenInfo)) => t
+let regenerate: (AppTypes.model, t, query) => t
 
 let numCompletions: t => int
 
@@ -38,16 +38,16 @@ let selectUp: t => t
 
 let selectDown: t => t
 
-let documentationForItem: Types.fluidAutocompleteData => option<list<Vdom.t<Types.msg>>>
+let documentationForItem: data => option<list<Vdom.t<AppTypes.msg>>>
 
 let isOpened: t => bool
 
-let updateAutocompleteVisibility: Types.model => Types.model
+let updateAutocompleteVisibility: AppTypes.model => AppTypes.model
 
 /* only exposed for tests */
 type fullQuery = {
   tl: Types.toplevel,
-  ti: Types.fluidTokenInfo,
+  ti: FluidTypes.TokenInfo.t,
   fieldList: list<string>,
   pipedDval: option<Types.dval>,
   queryString: string,

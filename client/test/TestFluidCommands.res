@@ -20,7 +20,7 @@ let run = () =>
     let hasCmd = (name: string, expr: FluidExpression.t, ast: FluidAST.t) => {
       let tl = makeTL(ast)
       FluidCommands.commandsFor(defaultTestModel, tl, expr)
-      |> List.find(~f=(c: Types.command) => c.commandName == name)
+      |> List.find(~f=(c: AppTypes.fluidCmd) => c.commandName == name)
       |> Option.isSome
     }
 

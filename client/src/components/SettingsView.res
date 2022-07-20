@@ -7,6 +7,7 @@ module Events = Tea.Html2.Events
 module K = FluidKeyboard
 module Html = Tea_html_extended
 module T = SettingsViewTypes
+module Msg = AppTypes.Msg
 
 type settingsViewState = T.settingsViewState
 
@@ -42,7 +43,7 @@ let validateForm = (tab: T.settingsTab): (bool, T.settingsTab) =>
     (false, tab)
   }
 
-let submitForm = (m: Types.model): (Types.model, Cmd.t<Types.msg>) => {
+let submitForm = (m: AppTypes.model): (AppTypes.model, AppTypes.cmd) => {
   let tab = m.settingsView.tab
   switch tab {
   | InviteUser(info) =>
@@ -87,7 +88,7 @@ let update = (settingsView: T.settingsViewState, msg: T.settingsMsg): T.settings
   | SetRecordConsent(allow) => {...settingsView, privacy: {recordConsent: Some(allow)}}
   }
 
-let getModifications = (m: Types.model, msg: T.settingsMsg): list<Types.modification> =>
+let getModifications = (m: AppTypes.model, msg: T.settingsMsg): list<AppTypes.modification> =>
   switch msg {
   | TriggerSendInviteCallback(Error(err)) => list{
       SettingsViewUpdate(msg),
@@ -163,7 +164,7 @@ let settingsTabToText = (tab: T.settingsTab): string =>
 
 // View code
 
-let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<Types.msg>> => {
+let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<AppTypes.msg>> => {
   let canvasLink = c => {
     let url = "/a/" ++ c
     Html.li(~unique=c, list{}, list{Html.a(list{Html.href(url)}, list{Html.text(url)})})
@@ -194,7 +195,7 @@ let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<Types.msg>> =>
   Belt.List.concat(orgView, canvasView)
 }
 
-let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<Types.msg>> => {
+let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<AppTypes.msg>> => {
   let introText = list{
     Html.h2(list{}, list{Html.text("Share Dark with a friend or colleague")}),
     Html.p(
@@ -235,7 +236,7 @@ let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<Types.msg>
           ViewUtils.eventNoPropagation(
             ~key="close-settings-modal",
             "click",
-            _ => Types.SettingsViewMsg(SubmitForm),
+            _ => Msg.SettingsViewMsg(SubmitForm),
           ),
         },
         btn,
@@ -256,7 +257,7 @@ let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<Types.msg>
                   Html.input'(
                     list{
                       Vdom.attribute("", "spellcheck", "false"),
-                      Events.onInput(str => Types.SettingsViewMsg(UpdateInviteForm(str))),
+                      Events.onInput(str => Msg.SettingsViewMsg(UpdateInviteForm(str))),
                       Attributes.value(inputVal),
                     },
                     list{},
@@ -275,7 +276,7 @@ let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<Types.msg>
   Belt.List.concat(introText, inviteform)
 }
 
-let viewNewCanvas = (svs: settingsViewState): list<Html.html<Types.msg>> => {
+let viewNewCanvas = (svs: settingsViewState): list<Html.html<AppTypes.msg>> => {
   let text = Printf.sprintf(
     "Create a new canvas (or go to it if it already exists) by visiting /a/%s-canvasname",
     svs.username,
@@ -299,11 +300,11 @@ let viewNewCanvas = (svs: settingsViewState): list<Html.html<Types.msg>> => {
   introText
 }
 
-let viewPrivacy = (s: T.privacySettings): list<Html.html<Types.msg>> => list{
+let viewPrivacy = (s: T.privacySettings): list<Html.html<AppTypes.msg>> => list{
   FullstoryView.consentRow(s.recordConsent, ~longLabels=false),
 }
 
-let settingsTabToHtml = (svs: settingsViewState): list<Html.html<Types.msg>> => {
+let settingsTabToHtml = (svs: settingsViewState): list<Html.html<AppTypes.msg>> => {
   let tab = svs.tab
   switch tab {
   | NewCanvas => viewNewCanvas(svs)
@@ -313,7 +314,7 @@ let settingsTabToHtml = (svs: settingsViewState): list<Html.html<Types.msg>> => 
   }
 }
 
-let tabTitleView = (tab: settingsTab): Html.html<Types.msg> => {
+let tabTitleView = (tab: settingsTab): Html.html<AppTypes.msg> => {
   let tabTitle = (t: settingsTab) => {
     let isSameTab = switch (tab, t) {
     | (InviteUser(_), InviteUser(_)) => true
@@ -323,11 +324,9 @@ let tabTitleView = (tab: settingsTab): Html.html<Types.msg> => {
     Html.h3(
       list{
         Html.classList(list{("tab-title", true), ("selected", isSameTab)}),
-        ViewUtils.eventNoPropagation(
-          ~key="close-settings-modal",
-          "click",
-          _ => Types.SettingsViewMsg(SwitchSettingsTabs(t)),
-        ),
+        ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsViewMsg(
+          SwitchSettingsTabs(t),
+        )),
       },
       list{Html.text(settingsTabToText(t))},
     )
@@ -336,15 +335,15 @@ let tabTitleView = (tab: settingsTab): Html.html<Types.msg> => {
   Html.div(list{Html.class'("settings-tab-titles")}, List.map(allTabs, ~f=tabTitle))
 }
 
-let onKeydown = (evt: Web.Node.event): option<Types.msg> =>
+let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
   K.eventToKeyEvent(evt) |> Option.andThen(~f=e =>
     switch e {
-    | {K.key: K.Enter, _} => Some(Types.SettingsViewMsg(SubmitForm))
+    | {K.key: K.Enter, _} => Some(Msg.SettingsViewMsg(SubmitForm))
     | _ => None
     }
   )
 
-let settingViewWrapper = (acc: settingsViewState): Html.html<Types.msg> => {
+let settingViewWrapper = (acc: settingsViewState): Html.html<AppTypes.msg> => {
   let tabView = settingsTabToHtml(acc)
   Html.div(
     list{Html.class'("settings-tab-wrapper")},
@@ -352,12 +351,12 @@ let settingViewWrapper = (acc: settingsViewState): Html.html<Types.msg> => {
   )
 }
 
-let html = (m: Types.model): Html.html<Types.msg> => {
+let html = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let svs = m.settingsView
   let closingBtn = Html.div(
     list{
       Html.class'("close-btn"),
-      ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => Types.SettingsViewMsg(
+      ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsViewMsg(
         CloseSettingsView(svs.tab),
       )),
     },
@@ -369,7 +368,7 @@ let html = (m: Types.model): Html.html<Types.msg> => {
       Html.class'("settings modal-overlay"),
       ViewUtils.nothingMouseEvent("mousedown"),
       ViewUtils.nothingMouseEvent("mouseup"),
-      ViewUtils.eventNoPropagation(~key="close-setting-modal", "click", _ => Types.SettingsViewMsg(
+      ViewUtils.eventNoPropagation(~key="close-setting-modal", "click", _ => Msg.SettingsViewMsg(
         CloseSettingsView(svs.tab),
       )),
     },

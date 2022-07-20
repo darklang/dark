@@ -1,6 +1,13 @@
 open Prelude
 module B = BlankOr
 
+module FnParams = AppTypes.FunctionParams
+
+type modification = AppTypes.modification
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+module Msg = AppTypes.Msg
+
 let fontAwesome = ViewUtils.fontAwesome
 
 let onEvent = ViewUtils.onEvent
@@ -13,13 +20,13 @@ let moveParams = (fn: PT.UserFunction.t, oldPos: int, newPos: int): PT.UserFunct
   {...fn, metadata: {...fn.metadata, parameters: parameters}}
 }
 
-let update = (m: model, msg: fnpMsg): modification => {
+let update = (m: AppTypes.model, msg: FnParams.msg): modification => {
   let (currentUserFn, mods) = switch msg {
   | ParamDragStart(index) => ({...m.currentUserFn, draggingParamIndex: Some(index)}, list{})
   | ParamDragDone => ({...m.currentUserFn, draggingParamIndex: None}, list{})
   | ParamEntersSpace(index) => ({...m.currentUserFn, dragOverSpaceIndex: Some(index)}, list{})
   | ParamLeavesSpace => ({...m.currentUserFn, dragOverSpaceIndex: None}, list{})
-  | Reset => (Defaults.defaultFnSpace, list{})
+  | Reset => (FnParams.default, list{})
   | ParamDropIntoSpace(newPos) =>
     Page.tlidOf(m.currentPage)
     |> Option.andThen(~f=tlid => Map.get(~key=tlid, m.userFunctions))
@@ -37,13 +44,13 @@ let update = (m: model, msg: fnpMsg): modification => {
           newFn.metadata.parameters,
         ) |> Option.map(~f=(p: PT.UserFunction.Parameter.t) => B.toID(p.name))
 
-      let fnM = {
+      let fnM: FnParams.t = {
         justMovedParam: justMovedParam,
         draggingParamIndex: None,
         dragOverSpaceIndex: None,
       }
 
-      (fnM, list{AddOps(list{SetFunction(newFn)}, FocusNoChange), ...updateArgs})
+      (fnM, list{Mod.AddOps(list{SetFunction(newFn)}, FocusNoChange), ...updateArgs})
     })
     |> Option.unwrap(~default=(m.currentUserFn, list{}))
   }
@@ -65,7 +72,7 @@ let update = (m: model, msg: fnpMsg): modification => {
 }
 
 let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.t): Html.html<
-  msg,
+  AppTypes.msg,
 > => {
   let freeVariables = uf.ast |> FluidAST.toExpr |> AST.freeVariables |> List.map(~f=Tuple2.second)
 
@@ -100,11 +107,13 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
   }
 }
 
-let viewParamName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
-  ViewBlankOr.viewText(~enterable=true, ~classes, ParamName, vp, v)
+let viewParamName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<
+  AppTypes.msg,
+> => ViewBlankOr.viewText(~enterable=true, ~classes, ParamName, vp, v)
 
-let viewParamTipe = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<msg> =>
-  ViewBlankOr.viewTipe(~classes, ~enterable=true, ParamTipe, vp, v)
+let viewParamTipe = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<
+  AppTypes.msg,
+> => ViewBlankOr.viewTipe(~classes, ~enterable=true, ParamTipe, vp, v)
 
 let jsDragStart: Web.Node.event => unit = %raw(
   "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); e.dataTransfer.effectAllowed = 'move'; }"
@@ -112,17 +121,17 @@ let jsDragStart: Web.Node.event => unit = %raw(
 
 let jsDragOver: Web.Node.event => unit = %raw("function(e){e.dataTransfer.dropEffect = 'move';}")
 
-let viewParamSpace = (index: int, fs: fnProps): Html.html<msg> => {
+let viewParamSpace = (index: int, fs: FnParams.t): Html.html<AppTypes.msg> => {
   let dragOver = e => {
     jsDragOver(e)
-    IgnoreMsg("view-param-space")
+    Msg.IgnoreMsg("view-param-space")
   }
 
-  let dragEnter = _ => FnParamMsg(ParamEntersSpace(index))
-  let dragLeave = _ => FnParamMsg(ParamLeavesSpace)
+  let dragEnter = _ => Msg.FnParamMsg(ParamEntersSpace(index))
+  let dragLeave = _ => Msg.FnParamMsg(ParamLeavesSpace)
   let drop = e => {
     e["stopPropagation"]()
-    FnParamMsg(ParamDropIntoSpace(index))
+    Msg.FnParamMsg(ParamDropIntoSpace(index))
   }
 
   let keyId = string_of_int(index)
@@ -154,20 +163,20 @@ let viewParam = (
   vp: viewProps,
   index: int,
   p: PT.UserFunction.Parameter.t,
-): list<Html.html<msg>> => {
+): list<Html.html<AppTypes.msg>> => {
   let nameId = p.name |> B.toID
   let strId = ID.toString(nameId)
   let dragStart = evt => {
     jsDragStart(evt)
-    FnParamMsg(ParamDragStart(index))
+    Msg.FnParamMsg(ParamDragStart(index))
   }
 
-  let dragEnd = _ => FnParamMsg(ParamDragDone)
+  let dragEnd = _ => Msg.FnParamMsg(ParamDragDone)
   let flashFade = str =>
     if str == "blinkGlow" {
-      FnParamMsg(Reset)
+      Msg.FnParamMsg(Reset)
     } else {
-      IgnoreMsg("viewparam-flash-fade")
+      Msg.IgnoreMsg("viewparam-flash-fade")
     }
 
   let conditionalClasses = list{
@@ -216,7 +225,7 @@ let viewParam = (
   list{space, param}
 }
 
-let view = (fn: functionTypes, vp: viewProps): list<Html.html<msg>> => {
+let view = (fn: functionTypes, vp: viewProps): list<Html.html<AppTypes.msg>> => {
   let params = switch fn {
   | UserFunction(f) =>
     f.metadata.parameters |> List.mapWithIndex(~f=viewParam(fn, vp)) |> List.flatten

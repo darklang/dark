@@ -3,6 +3,12 @@ module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
 
+type page = AppTypes.Page.t
+
+type modification = AppTypes.modification
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+
 let tlidOf = (page: page): option<TLID.t> =>
   switch page {
   | SettingsModal(_) | Architecture => None
@@ -14,7 +20,7 @@ let tlidOf = (page: page): option<TLID.t> =>
     Some(tlid)
   }
 
-let calculatePanOffset = (m: model, tl: toplevel, page: page): model => {
+let calculatePanOffset = (m: AppTypes.model, tl: toplevel, page: page): AppTypes.model => {
   let center = switch page {
   | FocusedHandler(_, _, center) | FocusedDB(_, center) => center
   | _ => false
@@ -27,7 +33,7 @@ let calculatePanOffset = (m: model, tl: toplevel, page: page): model => {
   }
 
   let panAnimation = if offset != m.canvasProps.offset {
-    AnimateTransition
+    AppTypes.CanvasProps.AnimateTransition
   } else {
     DontAnimateTransition
   }
@@ -75,7 +81,7 @@ let getTraceID = (page: page): option<traceID> =>
   | FocusedFn(_, traceId) | FocusedHandler(_, traceId, _) => traceId
   }
 
-let updatePossibleTrace = (m: model, page: page): (model, Cmd.t<msg>) => {
+let updatePossibleTrace = (m: AppTypes.model, page: page): (AppTypes.model, AppTypes.cmd) => {
   let tlid = tlidOf(page) |> Option.unwrap(~default=gtlid())
   switch getTraceID(page) {
   | Some(tid) =>
@@ -91,7 +97,7 @@ let updatePossibleTrace = (m: model, page: page): (model, Cmd.t<msg>) => {
   }
 }
 
-let setPage = (m: model, oldPage: page, newPage: page): model =>
+let setPage = (m: AppTypes.model, oldPage: page, newPage: page): AppTypes.model =>
   switch (oldPage, newPage) {
   | (SettingsModal(_), FocusedPackageManagerFn(tlid))
   | (Architecture, FocusedPackageManagerFn(tlid))
@@ -228,7 +234,7 @@ let maybeChangeFromPage = (tlid: TLID.t, page: page): list<modification> =>
   | _ => list{}
   }
 
-let getPageFromTLID = (m: model, tlid: TLID.t): page => {
+let getPageFromTLID = (m: AppTypes.model, tlid: TLID.t): page => {
   let hasKey = dict => List.any(~f=key => key == tlid, Map.keys(dict))
   if hasKey(m.deletedHandlers) || hasKey(m.handlers) {
     FocusedHandler(tlid, None, true)

@@ -10,7 +10,7 @@ type props = {
   editor: fluidEditor,
   hoveringRefs: list<id>,
   fluidState: fluidState,
-  permission: option<permission>,
+  permission: option<AppTypes.Permission.t>,
   tlid: TLID.t,
   tokens: list<FluidToken.tokenInfo>,
 }
@@ -30,7 +30,7 @@ let propsToFnExecutionProps = (p: props): ViewFnExecution.props => {
   tlid: p.tlid,
 }
 
-let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> =>
+let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<AppTypes.msg> =>
   switch ViewUtils.fnForToken(p.functions, ti.token) {
   | Some({fnOrigin: UserFunction, _} as fn)
   | /* HACK: UserFunctions need to be executable so that the user can get a value
@@ -57,7 +57,7 @@ let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> =>
   }
 
 let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
-  Html.html<Types.msg>,
+  Html.html<AppTypes.msg>,
 > => {
   let exeFlow = ti => {
     let id = FluidToken.analysisID(ti.token)
@@ -309,7 +309,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
   }) |> List.flatten
 }
 
-let tokensView = (p: props): Html.html<Types.msg> => {
+let tokensView = (p: props): Html.html<AppTypes.msg> => {
   let tlidStr = TLID.toString(p.tlid)
   let textInputListeners = /* the command palette is inside div.fluid-editor but has it's own input
    * handling, so don't do normal fluid input stuff if it's open */
@@ -342,7 +342,7 @@ let tokensView = (p: props): Html.html<Types.msg> => {
         }
 
         FluidMsg(FluidMouseDoubleClick({tlid: p.tlid, editor: p.editor, selection: selection}))
-      | None => IgnoreMsg("fluid-dblclick-noselection")
+      | None => Msg.IgnoreMsg("fluid-dblclick-noselection")
       }
     ),
     ViewUtils.eventNoPropagation(
@@ -369,7 +369,7 @@ let tokensView = (p: props): Html.html<Types.msg> => {
       if msg == "flashError" || msg == "flashIncomplete" {
         FluidMsg(FluidClearErrorDvSrc)
       } else {
-        IgnoreMsg("fluid-animation-end")
+        Msg.IgnoreMsg("fluid-animation-end")
       }
     ),
   }
@@ -428,7 +428,7 @@ let tokensView = (p: props): Html.html<Types.msg> => {
   )
 }
 
-let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> => {
+let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<AppTypes.msg> => {
   let returnTipe = (name: string) =>
     Functions.findByStr(name, p.functions)
     |> Option.map(~f=fn => fn.fnReturnTipe)
@@ -468,7 +468,7 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.m
   }
 }
 
-let errorRailView = (p: props): Html.html<Types.msg> => {
+let errorRailView = (p: props): Html.html<AppTypes.msg> => {
   let indicators = List.map(p.tokens, ~f=viewErrorIndicator(p))
   let hasMaybeErrors = List.any(~f=e => e != Vdom.noNode, indicators)
   Html.div(
@@ -478,5 +478,5 @@ let errorRailView = (p: props): Html.html<Types.msg> => {
 }
 
 @ocaml.doc(" [view] builds a fluid editor ")
-let view = (p: props): Html.html<Types.msg> =>
+let view = (p: props): Html.html<AppTypes.msg> =>
   Html.div(list{Html.class'("fluid-editor")}, list{tokensView(p), errorRailView(p)})

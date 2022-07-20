@@ -6,6 +6,7 @@ module P = Pointer
 module TL = Toplevel
 module TD = TLID.Dict
 module E = FluidExpression
+type testResult = AppTypes.IntegrationTests.testResult
 
 let pass: testResult = Ok()
 
@@ -40,7 +41,7 @@ let testInt = (~errMsg: string, ~expected: int, ~actual: int): testResult =>
     )
   }
 
-let onlyTL = (m: model): option<toplevel> => {
+let onlyTL = (m: AppTypes.model): option<toplevel> => {
   let tls = TL.structural(m)
   switch Map.values(tls) {
   | list{a} => Some(a)
@@ -48,11 +49,12 @@ let onlyTL = (m: model): option<toplevel> => {
   }
 }
 
-let onlyHandler = (m: model): option<PT.Handler.t> => m |> onlyTL |> Option.andThen(~f=TL.asHandler)
+let onlyHandler = (m: AppTypes.model): option<PT.Handler.t> =>
+  m |> onlyTL |> Option.andThen(~f=TL.asHandler)
 
-let onlyDB = (m: model): option<PT.DB.t> => m |> onlyTL |> Option.andThen(~f=TL.asDB)
+let onlyDB = (m: AppTypes.model): option<PT.DB.t> => m |> onlyTL |> Option.andThen(~f=TL.asDB)
 
-let onlyExpr = (m: model): option<E.t> =>
+let onlyExpr = (m: AppTypes.model): option<E.t> =>
   m |> onlyTL |> Option.andThen(~f=TL.getAST) |> Option.map(~f=FluidAST.toExpr)
 
 let showOption = (f: 'e => string, o: option<'e>): string =>
@@ -61,41 +63,41 @@ let showOption = (f: 'e => string, o: option<'e>): string =>
   | None => "None"
   }
 
-let enter_changes_state = (m: model): testResult =>
+let enter_changes_state = (m: AppTypes.model): testResult =>
   switch m.cursorState {
   | Omnibox(_) => pass
-  | _ => fail(~f=show_cursorState, m.cursorState)
+  | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
   }
 
-let field_access_closes = (m: model): testResult =>
+let field_access_closes = (m: AppTypes.model): testResult =>
   switch m.cursorState {
   | FluidEntering(_) =>
     switch onlyExpr(m) {
     | Some(EFieldAccess(_, EVariable(_, "request"), "body")) => pass
     | expr => fail(~f=showOption(E.show), expr)
     }
-  | _ => fail(~f=show_cursorState, m.cursorState)
+  | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
   }
 
-let field_access_pipes = (m: model): testResult =>
+let field_access_pipes = (m: AppTypes.model): testResult =>
   switch onlyExpr(m) {
   | Some(EPipe(_, EFieldAccess(_, EVariable(_, "request"), "body"), EBlank(_), list{})) => pass
   | expr => fail(~f=showOption(show_fluidExpr), expr)
   }
 
-let tabbing_works = (m: model): testResult =>
+let tabbing_works = (m: AppTypes.model): testResult =>
   switch onlyExpr(m) {
   | Some(EIf(_, EBlank(_), EInteger(_, 5L), EBlank(_))) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
-let autocomplete_highlights_on_partial_match = (m: model): testResult =>
+let autocomplete_highlights_on_partial_match = (m: AppTypes.model): testResult =>
   switch onlyExpr(m) {
   | Some(EFnCall(_, Stdlib({module_: "Int", function: "add", version: 0}), _, _)) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
-let no_request_global_in_non_http_space = (m: model): testResult =>
+let no_request_global_in_non_http_space = (m: AppTypes.model): testResult =>
   // this might change but this is the answer for now.
   switch onlyExpr(m) {
   | Some(EFnCall(
@@ -107,7 +109,7 @@ let no_request_global_in_non_http_space = (m: model): testResult =>
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
-let ellen_hello_world_demo = (m: model): testResult => {
+let ellen_hello_world_demo = (m: AppTypes.model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
@@ -121,7 +123,7 @@ let ellen_hello_world_demo = (m: model): testResult => {
   }
 }
 
-let editing_headers = (m: model): testResult => {
+let editing_headers = (m: AppTypes.model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
@@ -138,7 +140,7 @@ let editing_headers = (m: model): testResult => {
 @ppx.deriving(show)
 type rec handler_triple = (blankOr<string>, blankOr<string>, blankOr<string>)
 
-let switching_from_http_space_removes_leading_slash = (m: model): testResult => {
+let switching_from_http_space_removes_leading_slash = (m: AppTypes.model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
@@ -156,7 +158,7 @@ let switching_from_http_to_cron_space_removes_leading_slash = switching_from_htt
 
 let switching_from_http_to_repl_space_removes_leading_slash = switching_from_http_space_removes_leading_slash
 
-let switching_from_http_space_removes_variable_colons = (m: model): testResult => {
+let switching_from_http_space_removes_variable_colons = (m: AppTypes.model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
@@ -170,7 +172,7 @@ let switching_from_http_space_removes_variable_colons = (m: model): testResult =
   }
 }
 
-let switching_to_http_space_adds_slash = (m: model): testResult => {
+let switching_to_http_space_adds_slash = (m: AppTypes.model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
@@ -184,7 +186,7 @@ let switching_to_http_space_adds_slash = (m: model): testResult => {
   }
 }
 
-let switching_from_default_repl_space_removes_name = (m: model): testResult => {
+let switching_from_default_repl_space_removes_name = (m: AppTypes.model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
@@ -198,13 +200,13 @@ let switching_from_default_repl_space_removes_name = (m: model): testResult => {
   }
 }
 
-let tabbing_through_let = (m: model): testResult =>
+let tabbing_through_let = (m: AppTypes.model): testResult =>
   switch onlyExpr(m) {
   | Some(ELet(_, "myvar", EInteger(_, 5L), EInteger(_, 5L))) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
-let rename_db_fields = (m: model): testResult =>
+let rename_db_fields = (m: AppTypes.model): testResult =>
   m.dbs
   |> Map.mapValues(~f=({cols, _}: PT.DB.t) =>
     switch cols {
@@ -215,7 +217,7 @@ let rename_db_fields = (m: model): testResult =>
       } =>
       switch m.cursorState {
       | Selecting(_) => pass
-      | _ => fail(~f=show_cursorState, m.cursorState)
+      | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
       }
     | _ => fail(~f=show_list(~f=PT.DB.Col.show), cols)
     }
@@ -223,7 +225,7 @@ let rename_db_fields = (m: model): testResult =>
   |> Result.combine
   |> Result.map(~f=_ => ())
 
-let rename_db_type = (m: model): testResult =>
+let rename_db_type = (m: AppTypes.model): testResult =>
   m.dbs
   |> Map.mapValues(~f=({cols, tlid: dbTLID, _}: PT.DB.t) =>
     switch cols {
@@ -234,9 +236,13 @@ let rename_db_type = (m: model): testResult =>
         if tlid == dbTLID {
           pass
         } else {
-          fail(show_list(~f=PT.DB.Col.show, cols) ++ (", " ++ show_cursorState(m.cursorState)))
+          fail(
+            show_list(~f=PT.DB.Col.show, cols) ++
+            (", " ++
+            AppTypes.CursorState.show(m.cursorState)),
+          )
         }
-      | _ => fail(~f=show_cursorState, m.cursorState)
+      | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
       }
     | _ => fail(~f=show_list(~f=PT.DB.Col.show), cols)
     }
@@ -244,7 +250,7 @@ let rename_db_type = (m: model): testResult =>
   |> Result.combine
   |> Result.map(~f=_ => ())
 
-let feature_flag_works = (m: model): testResult => {
+let feature_flag_works = (m: AppTypes.model): testResult => {
   let h = onlyHandler(m)
   let ast = h |> Option.map(~f=(h: PT.Handler.t) => h.ast |> FluidAST.toExpr)
   switch ast {
@@ -280,11 +286,11 @@ let feature_flag_works = (m: model): testResult => {
       }
     | _ => fail((showOption(show_fluidExpr, ast), res))
     }
-  | _ => fail((showOption(show_fluidExpr, ast), show_cursorState(m.cursorState)))
+  | _ => fail((showOption(show_fluidExpr, ast), AppTypes.CursorState.show(m.cursorState)))
   }
 }
 
-let feature_flag_in_function = (m: model): testResult => {
+let feature_flag_in_function = (m: AppTypes.model): testResult => {
   let fun_ = m.userFunctions |> Map.values |> List.head
   switch fun_ {
   | Some(f) =>
@@ -309,7 +315,7 @@ let feature_flag_in_function = (m: model): testResult => {
   }
 }
 
-let rename_function = (m: model): testResult =>
+let rename_function = (m: AppTypes.model): testResult =>
   switch m.handlers
   |> Map.values
   |> List.head
@@ -319,27 +325,27 @@ let rename_function = (m: model): testResult =>
   | None => fail("no handlers")
   }
 
-let execute_function_works = (_: model): testResult =>
+let execute_function_works = (_: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let correct_field_livevalue = (_: model): testResult =>
+let correct_field_livevalue = (_: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let int_add_with_float_error_includes_fnname = (_: model): testResult =>
+let int_add_with_float_error_includes_fnname = (_: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let fluid_execute_function_shows_live_value = (_: model): testResult =>
+let fluid_execute_function_shows_live_value = (_: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let function_version_renders = (_: model): testResult =>
+let function_version_renders = (_: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let delete_db_col = (m: model): testResult => {
+let delete_db_col = (m: AppTypes.model): testResult => {
   let db = onlyDB(m) |> Option.map(~f=(d: PT.DB.t) => d.cols)
   switch db {
   | Some(list{(Blank(_), Blank(_))}) => pass
@@ -347,7 +353,7 @@ let delete_db_col = (m: model): testResult => {
   }
 }
 
-let cant_delete_locked_col = (m: model): testResult => {
+let cant_delete_locked_col = (m: AppTypes.model): testResult => {
   let db = m.dbs |> (
     dbs =>
       if Map.length(dbs) > 1 {
@@ -363,21 +369,21 @@ let cant_delete_locked_col = (m: model): testResult => {
   }
 }
 
-let passwords_are_redacted = (_m: model): testResult =>
+let passwords_are_redacted = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let select_route = (m: model): testResult =>
+let select_route = (m: AppTypes.model): testResult =>
   switch m.cursorState {
   | Selecting(_, None) => pass
-  | _ => fail(~f=show_cursorState, m.cursorState)
+  | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
   }
 
-let function_analysis_works = (_m: model): testResult =>
+let function_analysis_works = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let jump_to_error = (m: model): testResult => {
+let jump_to_error = (m: AppTypes.model): testResult => {
   let focusedPass = switch m.currentPage {
   | FocusedHandler(tlid, _, _) if tlid == TLID.fromInt(123) => pass
   | _ => fail("function is not focused")
@@ -403,7 +409,7 @@ let jump_to_error = (m: model): testResult => {
   Result.combine(list{focusedPass, browserCursorPass, cursorPass}) |> Result.map(~f=_ => ())
 }
 
-let fourohfours_parse = (m: model): testResult =>
+let fourohfours_parse = (m: AppTypes.model): testResult =>
   switch m.f404s {
   | list{x} =>
     if (
@@ -420,11 +426,11 @@ let fourohfours_parse = (m: model): testResult =>
   | _ => fail(~f=show_list(~f=show_fourOhFour), m.f404s)
   }
 
-let autocomplete_visible_height = (_m: model): testResult =>
+let autocomplete_visible_height = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let fn_page_returns_to_lastpos = (m: model): testResult =>
+let fn_page_returns_to_lastpos = (m: AppTypes.model): testResult =>
   switch TL.get(m, TLID.fromInt(123)) {
   | Some(tl) =>
     let centerPos = Viewport.centerCanvasOn(tl)
@@ -436,11 +442,11 @@ let fn_page_returns_to_lastpos = (m: model): testResult =>
   | None => fail("no tl found")
   }
 
-let fn_page_to_handler_pos = (_m: model): testResult => pass
+let fn_page_to_handler_pos = (_m: AppTypes.model): testResult => pass
 
-let load_with_unnamed_function = (_m: model): testResult => pass
+let load_with_unnamed_function = (_m: AppTypes.model): testResult => pass
 
-let create_new_function_from_autocomplete = (m: model): testResult => {
+let create_new_function_from_autocomplete = (m: AppTypes.model): testResult => {
   module TD = TLID.Dict
   switch (Map.toList(m.userFunctions), Map.toList(m.handlers)) {
   | (
@@ -468,7 +474,7 @@ let create_new_function_from_autocomplete = (m: model): testResult => {
   }
 }
 
-let extract_from_function = (m: model): testResult =>
+let extract_from_function = (m: AppTypes.model): testResult =>
   switch m.cursorState {
   | FluidEntering(tlid) if tlid == TLID.fromInt(123) =>
     if Map.length(m.userFunctions) == 2 {
@@ -476,16 +482,16 @@ let extract_from_function = (m: model): testResult =>
     } else {
       fail(m.userFunctions)
     }
-  | _ => fail(show_cursorState(m.cursorState))
+  | _ => fail(AppTypes.CursorState.show(m.cursorState))
   }
 
-let fluidGetSelectionRange = (s: fluidState): option<(int, int)> =>
+let fluidGetSelectionRange = (s: AppTypes.fluidState): option<(int, int)> =>
   switch s.selectionStart {
   | Some(beginIdx) => Some(beginIdx, s.newPos)
   | None => None
   }
 
-let fluid_doubleclick_selects_token = (m: model): testResult =>
+let fluid_doubleclick_selects_token = (m: AppTypes.model): testResult =>
   switch fluidGetSelectionRange(m.fluidState) {
   | Some(34, 39) => pass
   | Some(a, b) =>
@@ -497,7 +503,7 @@ let fluid_doubleclick_selects_token = (m: model): testResult =>
   | None => fail("no selection range")
   }
 
-let fluid_doubleclick_with_alt_selects_expression = (m: model): testResult =>
+let fluid_doubleclick_with_alt_selects_expression = (m: AppTypes.model): testResult =>
   switch fluidGetSelectionRange(m.fluidState) {
   | Some(34, 965) => pass
   | Some(a, b) =>
@@ -509,7 +515,7 @@ let fluid_doubleclick_with_alt_selects_expression = (m: model): testResult =>
   | None => fail("no selection range")
   }
 
-let fluid_doubleclick_selects_word_in_string = (m: model): testResult =>
+let fluid_doubleclick_selects_word_in_string = (m: AppTypes.model): testResult =>
   switch fluidGetSelectionRange(m.fluidState) {
   | Some(13, 22) => pass
   | Some(a, b) =>
@@ -521,7 +527,7 @@ let fluid_doubleclick_selects_word_in_string = (m: model): testResult =>
   | None => fail("no selection range")
   }
 
-let fluid_doubleclick_selects_entire_fnname = (m: model): testResult =>
+let fluid_doubleclick_selects_entire_fnname = (m: AppTypes.model): testResult =>
   switch fluidGetSelectionRange(m.fluidState) {
   | Some(0, 14) => pass
   | Some(a, b) =>
@@ -533,13 +539,13 @@ let fluid_doubleclick_selects_entire_fnname = (m: model): testResult =>
   | None => fail("no selection range")
   }
 
-let fluid_single_click_on_token_in_deselected_handler_focuses = (m: model): testResult =>
+let fluid_single_click_on_token_in_deselected_handler_focuses = (m: AppTypes.model): testResult =>
   switch m.currentPage {
   | FocusedHandler(tlid, _, _) if tlid == TLID.fromInt(598813411) => pass
   | _ => fail("handler is not focused")
   }
 
-let fluid_click_2x_on_token_places_cursor = (m: model): testResult => {
+let fluid_click_2x_on_token_places_cursor = (m: AppTypes.model): testResult => {
   let focusedPass = switch m.currentPage {
   | FocusedHandler(tlid, _, _) if tlid == TLID.fromInt(1835485706) => pass
   | _ => fail("handler is not focused")
@@ -565,7 +571,7 @@ let fluid_click_2x_on_token_places_cursor = (m: model): testResult => {
   Result.combine(list{focusedPass, browserCursorPass, cursorPass}) |> Result.map(~f=_ => ())
 }
 
-let fluid_click_2x_in_function_places_cursor = (m: model): testResult => {
+let fluid_click_2x_in_function_places_cursor = (m: AppTypes.model): testResult => {
   let focusedPass = switch m.currentPage {
   | FocusedFn(tlid, _) if tlid == TLID.fromInt(1352039682) => pass
   | _ => fail("function is not focused")
@@ -591,7 +597,7 @@ let fluid_click_2x_in_function_places_cursor = (m: model): testResult => {
   Result.combine(list{focusedPass, browserCursorPass, cursorPass}) |> Result.map(~f=_ => ())
 }
 
-let fluid_shift_right_selects_chars_in_front = (m: model): testResult =>
+let fluid_shift_right_selects_chars_in_front = (m: AppTypes.model): testResult =>
   switch fluidGetSelectionRange(m.fluidState) {
   | Some(262, 341) => pass
   | Some(a, b) =>
@@ -603,7 +609,7 @@ let fluid_shift_right_selects_chars_in_front = (m: model): testResult =>
   | None => fail("no selection range")
   }
 
-let fluid_shift_left_selects_chars_at_back = (m: model): testResult =>
+let fluid_shift_left_selects_chars_at_back = (m: AppTypes.model): testResult =>
   switch fluidGetSelectionRange(m.fluidState) {
   | Some(339, 261) => pass
   | Some(a, b) =>
@@ -615,11 +621,11 @@ let fluid_shift_left_selects_chars_at_back = (m: model): testResult =>
   | None => fail("no selection range")
   }
 
-let fluid_undo_redo_happen_exactly_once = (_m: model): testResult =>
+let fluid_undo_redo_happen_exactly_once = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let fluid_ctrl_left_on_string = (_m: model): testResult => {
+let fluid_ctrl_left_on_string = (_m: AppTypes.model): testResult => {
   let expectedPos = 7
   testIntOption(
     ~errMsg="incorrect browser cursor position, expected: " ++
@@ -630,7 +636,7 @@ let fluid_ctrl_left_on_string = (_m: model): testResult => {
   )
 }
 
-let fluid_ctrl_right_on_string = (_m: model): testResult => {
+let fluid_ctrl_right_on_string = (_m: AppTypes.model): testResult => {
   let expectedPos = 14
   testIntOption(
     ~errMsg="incorrect browser cursor position, expected: " ++
@@ -641,7 +647,7 @@ let fluid_ctrl_right_on_string = (_m: model): testResult => {
   )
 }
 
-let fluid_ctrl_left_on_empty_match = (_m: model): testResult => {
+let fluid_ctrl_left_on_empty_match = (_m: AppTypes.model): testResult => {
   let expectedPos = 6
   testIntOption(
     ~errMsg="incorrect browser cursor position, expected: " ++
@@ -652,47 +658,47 @@ let fluid_ctrl_left_on_empty_match = (_m: model): testResult => {
   )
 }
 
-let varnames_are_incomplete = (_m: model): testResult =>
+let varnames_are_incomplete = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let center_toplevel = (_m: model): testResult =>
+let center_toplevel = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let max_callstack_bug = (_m: model): testResult =>
+let max_callstack_bug = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let sidebar_opens_function = (_m: model): testResult =>
+let sidebar_opens_function = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let empty_fn_never_called_result = (_m: model): testResult =>
+let empty_fn_never_called_result = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let empty_fn_been_called_result = (_m: model): testResult =>
+let empty_fn_been_called_result = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let sha256hmac_for_aws = (_m: model): testResult =>
+let sha256hmac_for_aws = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let fluid_fn_pg_change = (_m: model): testResult =>
+let fluid_fn_pg_change = (_m: AppTypes.model): testResult =>
   // The test logic is in tests.js
   pass
 
-let fluid_creating_an_http_handler_focuses_the_verb = (_m: model): testResult => pass
+let fluid_creating_an_http_handler_focuses_the_verb = (_m: AppTypes.model): testResult => pass
 
-let fluid_tabbing_from_an_http_handler_spec_to_ast = (_m: model): testResult => pass
+let fluid_tabbing_from_an_http_handler_spec_to_ast = (_m: AppTypes.model): testResult => pass
 
-let fluid_tabbing_from_handler_spec_past_ast_back_to_verb = (_m: model): testResult => pass
+let fluid_tabbing_from_handler_spec_past_ast_back_to_verb = (_m: AppTypes.model): testResult => pass
 
-let fluid_shift_tabbing_from_handler_ast_back_to_route = (_m: model): testResult => pass
+let fluid_shift_tabbing_from_handler_ast_back_to_route = (_m: AppTypes.model): testResult => pass
 
-let fluid_test_copy_request_as_curl = (m: model): testResult => {
+let fluid_test_copy_request_as_curl = (m: AppTypes.model): testResult => {
   // test logic is here b/c testcafe couldn't get clipboard data
   // CLEANUP
   let curl = CurlCommand.curlFromHttpClientCall(
@@ -714,28 +720,28 @@ let fluid_test_copy_request_as_curl = (m: model): testResult => {
   }
 }
 
-let fluid_ac_validate_on_lose_focus = (m: model): testResult =>
+let fluid_ac_validate_on_lose_focus = (m: AppTypes.model): testResult =>
   switch onlyExpr(m) {
   | Some(EFieldAccess(_, EVariable(_, "request"), "body")) => pass
   | e =>
     fail("Expected: `request.body`, got `" ++ (showOption(FluidPrinter.eToHumanString, e) ++ "`"))
   }
 
-let upload_pkg_fn_as_admin = (_m: model): testResult => pass
+let upload_pkg_fn_as_admin = (_m: AppTypes.model): testResult => pass
 
-let use_pkg_fn = (_m: model): testResult => pass
+let use_pkg_fn = (_m: AppTypes.model): testResult => pass
 
-let fluid_show_docs_for_command_on_selected_code = (_m: model): testResult => pass
+let fluid_show_docs_for_command_on_selected_code = (_m: AppTypes.model): testResult => pass
 
-let fluid_bytes_response = (_m: model): testResult => pass
+let fluid_bytes_response = (_m: AppTypes.model): testResult => pass
 
-let double_clicking_blankor_selects_it = (_m: model): testResult => pass
+let double_clicking_blankor_selects_it = (_m: AppTypes.model): testResult => pass
 
-let abridged_sidebar_content_visible_on_hover = (_m: model): testResult => pass
+let abridged_sidebar_content_visible_on_hover = (_m: AppTypes.model): testResult => pass
 
-let abridged_sidebar_category_icon_click_disabled = (_m: model): testResult => pass
+let abridged_sidebar_category_icon_click_disabled = (_m: AppTypes.model): testResult => pass
 
-let function_docstrings_are_valid = (m: model): testResult => {
+let function_docstrings_are_valid = (m: AppTypes.model): testResult => {
   open PrettyDocs
   let failed = m.functions.builtinFunctions |> List.filterMap(~f=(fn: RT.BuiltInFn.t) =>
     switch convert_(fn.description) {
@@ -764,27 +770,27 @@ let function_docstrings_are_valid = (m: model): testResult => {
   }
 }
 
-let record_consent_saved_across_canvases = (_m: model): testResult => pass
+let record_consent_saved_across_canvases = (_m: AppTypes.model): testResult => pass
 
-// let exe_flow_fades (_m : model) : testResult = pass
+// let exe_flow_fades (_m : AppTypes.model) : testResult = pass
 
-let unexe_code_unfades_on_focus = (_m: model): testResult => pass
+let unexe_code_unfades_on_focus = (_m: AppTypes.model): testResult => pass
 
-let create_from_404 = (_m: model) => pass
+let create_from_404 = (_m: AppTypes.model) => pass
 
-let unfade_command_palette = (_m: model): testResult => pass
+let unfade_command_palette = (_m: AppTypes.model): testResult => pass
 
-let redo_analysis_on_toggle_erail = (_m: model): testResult => pass
+let redo_analysis_on_toggle_erail = (_m: AppTypes.model): testResult => pass
 
-let redo_analysis_on_commit_ff = (_m: model): testResult => pass
+let redo_analysis_on_commit_ff = (_m: AppTypes.model): testResult => pass
 
-let package_function_references_work = (_m: model): testResult => pass
+let package_function_references_work = (_m: AppTypes.model): testResult => pass
 
-let focus_on_secret_field_on_insert_modal_open = (_m: model): testResult => pass
+let focus_on_secret_field_on_insert_modal_open = (_m: AppTypes.model): testResult => pass
 
-let analysis_performed_in_appropriate_timezone = (_m: model): testResult => pass
+let analysis_performed_in_appropriate_timezone = (_m: AppTypes.model): testResult => pass
 
-let trigger = (test_name: string): integrationTestState => {
+let trigger = (test_name: string): AppTypes.IntegrationTests.t<AppTypes.model> => {
   let name = String.dropLeft(~count=5, test_name)
   IntegrationTestExpectation(
     switch name {

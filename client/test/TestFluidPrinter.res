@@ -4,8 +4,11 @@ open FluidTestData
 module E = ProgramTypes.Expr
 module T = FluidToken
 
+type tokenInfo = FluidTypes.TokenInfo.t
+
 let run = () => {
-  let tokensFor = (e: E.t): list<T.t> => FluidTokenizer.tokenize(e) |> List.map(~f=ti => ti.token)
+  let tokensFor = (e: E.t): list<T.t> =>
+    FluidTokenizer.tokenize(e) |> List.map(~f=(ti: tokenInfo) => ti.token)
 
   let hasTokenMatch = (~f: T.t => bool, e: E.t) => {
     let tokens = tokensFor(e)

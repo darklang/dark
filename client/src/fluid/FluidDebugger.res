@@ -4,7 +4,7 @@ module Printer = FluidTokenizer
 module Expression = FluidExpression
 module Token = FluidToken
 
-let view = (m: model, ast: FluidAST.t): Html.html<Types.msg> => {
+let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
   let s = m.fluidState
   let tokens = FluidTokenizer.tokensForEditor(m.fluidState.activeEditor, ast)
   let ddText = txt => Html.dd(list{}, list{Html.text(txt)})
@@ -121,7 +121,7 @@ let view = (m: model, ast: FluidAST.t): Html.html<Types.msg> => {
     ),
   }
 
-  let cursorState = list{dtText("cursorState"), ddText(show_cursorState(m.cursorState))}
+  let cursorState = list{dtText("cursorState"), ddText(AppTypes.CursorState.show(m.cursorState))}
 
   let status = List.flatten(list{posData, error, tokenData, actions, cursorState})
   Html.div(list{Attrs.id("fluid-status")}, list{Html.dl(list{}, status)})

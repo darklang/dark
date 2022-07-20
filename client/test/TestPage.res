@@ -4,6 +4,8 @@ open Prelude
 module B = BlankOr
 module D = Defaults
 
+open AppTypes.Page
+
 let defaultTLID = gtlid()
 
 let defaultFluidExpr = ProgramTypes.Expr.EBlank(gid())
@@ -27,7 +29,7 @@ let aHandler = (
 
 let run = () => {
   describe("calculatePanOffset", () => {
-    let m = D.defaultModel
+    let m = AppTypes.Model.default
     let tl = aHandler(~pos={x: 500, y: 500}, ())
     test("do not update canvasProps if center=false", () => {
       let page = FocusedHandler(defaultTLID, None, false)

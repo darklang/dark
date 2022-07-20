@@ -5,7 +5,7 @@ module TL = Toplevel
 module P = Pointer
 module TD = TLID.Dict
 
-let viewBrowserMessage: Html.html<msg> = Html.div(
+let viewBrowserMessage: Html.html<AppTypes.msg> = Html.div(
   list{Html.class'("warning")},
   list{
     Html.p(
@@ -32,7 +32,7 @@ let viewBrowserMessage: Html.html<msg> = Html.div(
   },
 )
 
-let unsupportedBrowser = (~show: bool): Html.html<msg> =>
+let unsupportedBrowser = (~show: bool): Html.html<AppTypes.msg> =>
   if show {
     Html.div(
       list{

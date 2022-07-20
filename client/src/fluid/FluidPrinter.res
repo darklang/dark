@@ -5,22 +5,22 @@ module Pattern = FluidPattern
 module Util = FluidUtil
 open FluidTokenizer
 
-type token = Types.fluidToken
+type token = FluidTypes.Token.t
 
-type tokenInfo = Types.fluidTokenInfo
+type tokenInfo = FluidTypes.TokenInfo.t
 
 let tokensToString = (tis: list<tokenInfo>): string =>
-  tis |> List.map(~f=ti => T.toText(ti.token)) |> String.join(~sep="")
+  tis |> List.map(~f=(ti: tokenInfo) => T.toText(ti.token)) |> String.join(~sep="")
 
 let eToTestString = (e: E.t): string =>
-  e |> tokenize |> List.map(~f=ti => T.toTestText(ti.token)) |> String.join(~sep="")
+  e |> tokenize |> List.map(~f=(ti: tokenInfo) => T.toTestText(ti.token)) |> String.join(~sep="")
 
 let eToHumanString = (e: E.t): string => e |> tokenize |> tokensToString
 
 let eToStructure = (~includeIDs=false, e: E.t): string =>
   e
   |> tokenize
-  |> List.map(~f=ti =>
+  |> List.map(~f=(ti: tokenInfo) =>
     "<" ++
     (T.toTypeName(ti.token) ++
     (if includeIDs {

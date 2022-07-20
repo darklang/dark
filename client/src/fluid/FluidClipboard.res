@@ -2,7 +2,6 @@ open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
 module TL = Toplevel
-module Regex = Util.Regex
 
 // Tea
 module Cmd = Tea.Cmd

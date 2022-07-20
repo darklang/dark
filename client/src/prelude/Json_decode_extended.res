@@ -99,7 +99,7 @@ let int64 = (j: Js.Json.t) =>
     Int64.of_float(Json.Decode.float(j))
   }
 
-let uint64 = (j: Js.Json.t) : UInt64.t =>
+let uint64 = (j: Js.Json.t): UInt64.t =>
   if Js.typeof(j) == "string" {
     j->string->UInt64.fromString->Option.unwrapUnsafe
   } else {
@@ -109,5 +109,3 @@ let uint64 = (j: Js.Json.t) : UInt64.t =>
     // a float is expected to be encoded as a string
     j->Json.Decode.float->UInt64.fromFloat
   }
-
-

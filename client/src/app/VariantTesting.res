@@ -1,6 +1,6 @@
 open Prelude
 
-let variantIsActive = (m: model, vt: variantTest): bool => List.member(~value=vt, m.tests)
+let variantIsActive = (m: AppTypes.model, vt: variantTest): bool => List.member(~value=vt, m.tests)
 
 let variantIsActive' = (vs: list<variantTest>, t: variantTest): bool => List.member(~value=t, vs)
 
@@ -25,7 +25,7 @@ let toCSSClass = (vt: variantTest): string => nameOf(vt) ++ "-variant"
 
 let availableAdminVariants: list<variantTest> = list{NgrokVariant}
 
-let activeCSSClasses = (m: model): string =>
+let activeCSSClasses = (m: AppTypes.model): string =>
   m.tests |> List.map(~f=toCSSClass) |> String.join(~sep=" ")
 
 let enabledVariantTests = (isAdmin: bool): list<variantTest> => {

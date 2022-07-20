@@ -484,18 +484,19 @@ module Handler = {
     open Json.Encode
     object_(list{
       ("tlid", TLID.encode(h.tlid)),
+      ("pos", BaseTypes.encodePos(h.pos)),
       ("spec", Spec.encode(h.spec)),
       ("ast", AST.encode(h.ast)),
     })
   }
 
-  let decode = (pos, j): t => {
+  let decode = (j): t => {
     open Json.Decode
     {
+      tlid: field("tlid", TLID.decode, j),
+      pos: field("pos", BaseTypes.decodePos, j),
       ast: field("ast", AST.decode, j),
       spec: field("spec", Spec.decode, j),
-      tlid: field("tlid", TLID.decode, j),
-      pos: pos,
     }
   }
 }
@@ -557,23 +558,34 @@ module DB = {
 
   let encode = (db: t): Js.Json.t => {
     open Json.Encode
+    let (name, nameID) = switch db.name {
+    | F(id, str) => (str, id)
+    | Blank(id) => ("", id)
+    }
     object_(list{
       ("tlid", TLID.encode(db.tlid)),
-      ("name", BaseTypes.encodeBlankOr(string, db.name)),
+      ("name", string(name)),
+      ("nameID", ID.encode(nameID)),
       ("cols", list(Col.encode, db.cols)),
       ("version", int(db.version)),
-      ("old_migrations", list(int, list{})),
-      ("active_migration", null),
     })
   }
-  let decode = (pos, j): t => {
+
+  let decode = (j): t => {
     open Json.Decode
+    let name = field("name", string, j)
+    let nameID = field("nameID", ID.decode, j)
+    let name = if name == "" {
+      Blank(nameID)
+    } else {
+      F(nameID, name)
+    }
     {
       tlid: field("tlid", TLID.decode, j),
-      name: field("name", BaseTypes.decodeBlankOr(string), j),
+      pos: field("pos", BaseTypes.decodePos, j),
+      name: name,
       cols: field("cols", list(Col.decode), j),
       version: field("version", int, j),
-      pos: pos,
     }
   }
 }
@@ -828,12 +840,7 @@ module Op = {
       list{
         (
           "SetHandler",
-          variant3(
-            (t, p, h) => SetHandler(t, p, {...h, pos: p}),
-            tlid,
-            pos,
-            Handler.decode({x: -1286, y: -467}),
-          ),
+          variant3((t, p, h) => SetHandler(t, p, {...h, pos: p}), tlid, pos, Handler.decode),
         ),
         ("CreateDB", variant3((t, p, name) => CreateDB(t, p, name), tlid, pos, string)),
         ("AddDBCol", variant3((t, cn, ct) => AddDBCol(t, cn, ct), tlid, id, id)),

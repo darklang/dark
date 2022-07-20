@@ -1,5 +1,7 @@
 open Prelude
 
+module HandlerProperty = AppTypes.HandlerProperty
+
 let isCompatible = (t1: DType.t, t2: DType.t): bool => t1 == TAny || (t2 == TAny || t1 == t2)
 
 let errorRailTypes: list<DType.t> = list{TOption, TResult}
@@ -323,10 +325,12 @@ let pathFromInputVars = (iv: inputValueDict): option<string> =>
   |> Option.andThen(~f=Native.Url.make)
   |> Option.map(~f=url => url["pathname"] ++ url["search"])
 
-let setHandlerExeState = (tlid: TLID.t, state: exeState, hp: TLID.Dict.t<handlerProp>): TLID.Dict.t<
-  handlerProp,
-> =>
+let setHandlerExeState = (
+  tlid: TLID.t,
+  state: HandlerProperty.ExecutionState.t,
+  hp: TLID.Dict.t<HandlerProperty.t>,
+): TLID.Dict.t<HandlerProperty.t> =>
   hp |> Map.update(~key=tlid, ~f=old => {
-    let p = old |> Option.unwrap(~default=Defaults.defaultHandlerProp)
+    let p = old |> Option.unwrap(~default=HandlerProperty.default)
     Some({...p, execution: state})
   })

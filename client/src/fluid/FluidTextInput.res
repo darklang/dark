@@ -1,5 +1,7 @@
 open Prelude
 
+module Msg = AppTypes.Msg
+
 type inputEvent = {
   data: option<string>,
   inputType: string,
@@ -11,7 +13,7 @@ let isInfixSymbol = (s: string): bool =>
   | _ => false
   }
 
-let fromInputEvent = (evt: Web.Node.event): option<msg> => {
+let fromInputEvent = (evt: Web.Node.event): option<AppTypes.msg> => {
   open Tea.Json.Decoder
   let decoder = map2(
     (data, inputType) => {data: data, inputType: inputType},
@@ -30,7 +32,7 @@ let fromInputEvent = (evt: Web.Node.event): option<msg> => {
       None
     | {inputType: "insertText", data: Some(txt)} =>
       evt["preventDefault"]()
-      Some(FluidMsg(FluidInputEvent(InsertText(txt))))
+      Some(Msg.FluidMsg(FluidInputEvent(InsertText(txt))))
     | {inputType: "deleteContentBackward", _} =>
       evt["preventDefault"]()
       Some(FluidMsg(FluidInputEvent(DeleteContentBackward)))
@@ -55,12 +57,12 @@ let fromInputEvent = (evt: Web.Node.event): option<msg> => {
   )
 }
 
-let fromCompositionEndEvent = (evt: Web.Node.event): option<msg> => {
+let fromCompositionEndEvent = (evt: Web.Node.event): option<AppTypes.msg> => {
   open Tea.Json.Decoder
   decodeEvent(field("data", string), evt)
   |> Tea_result.result_to_option
   |> Option.map(~f=data => {
     evt["preventDefault"]()
-    FluidMsg(FluidInputEvent(InsertText(data)))
+    Msg.FluidMsg(FluidInputEvent(InsertText(data)))
   })
 }

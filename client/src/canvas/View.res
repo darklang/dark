@@ -18,7 +18,7 @@ let functionRefsURL = "https://ops-documentation.builtwithdark.com/?pretty=1"
 
 let keyboardRefsURL = "https://docs.darklang.com/reference/keyboard-mapping"
 
-let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
+let viewTL_ = (m: AppTypes.model, tl: toplevel): Html.html<AppTypes.msg> => {
   let tlid = TL.id(tl)
   let vs = ViewUtils.createVS(m, tl)
   let dragEvents = list{
@@ -250,7 +250,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
   ViewUtils.placeHtml(pos, boxClasses, html)
 }
 
-let tlCacheKey = (m: model, tl) => {
+let tlCacheKey = (m: AppTypes.model, tl) => {
   let tlid = TL.id(tl)
   if Some(tlid) == CursorState.tlidOf(m.cursorState) {
     None
@@ -287,7 +287,7 @@ let tlCacheKey = (m: model, tl) => {
   }
 }
 
-let tlCacheKeyDB = (m: model, tl) => {
+let tlCacheKeyDB = (m: AppTypes.model, tl) => {
   let tlid = TL.id(tl)
   if Some(tlid) == CursorState.tlidOf(m.cursorState) {
     None
@@ -298,7 +298,7 @@ let tlCacheKeyDB = (m: model, tl) => {
   }
 }
 
-let tlCacheKeyTipe = (m: model, tl) => {
+let tlCacheKeyTipe = (m: AppTypes.model, tl) => {
   let tlid = TL.id(tl)
   if Some(tlid) == CursorState.tlidOf(m.cursorState) {
     None
@@ -328,7 +328,7 @@ let zeroOutAppScrollImmediate = (): unit => {
  * We need the invariant of #app scrolled to 0,0 to be maintained in order for #canvas translate to work.
  * See https://www.notion.so/darklang/Positioning-Bug-8831a3e00a234e55856a85861512876e
  * for more information about this constraint and what happens if it is broken. ")
-let zeroOutAppScroll: Tea.Cmd.t<msg> = Tea.Cmd.call(_ => zeroOutAppScrollImmediate())
+let zeroOutAppScroll: AppTypes.cmd = Tea.Cmd.call(_ => zeroOutAppScrollImmediate())
 
 @ocaml.doc(" [isAppScrollZero ()] returns true if the scroll of #app is 0,0 and false otherwise.
  * We need the invariant of #app scrolled to 0,0 to be maintained in order for #canvas translate to work.
@@ -342,7 +342,7 @@ let isAppScrollZero = (): bool => {
   Option.unwrap(~default=true)
 }
 
-let viewCanvas = (m: model): Html.html<msg> => {
+let viewCanvas = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let allDivs = switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) =>
     m
@@ -453,7 +453,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
         if prop == "transform" {
           CanvasPanAnimationEnd
         } else {
-          IgnoreMsg("canvas-pan-end")
+          Msg.IgnoreMsg("canvas-pan-end")
         }
       ),
     },
@@ -461,7 +461,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
   )
 }
 
-let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<msg> =>
+let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<AppTypes.msg> =>
   switch currentPage {
   | FocusedFn(_) =>
     let helpIcon = Html.div(
@@ -504,7 +504,7 @@ let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<msg> =>
   | _ => Vdom.noNode
   }
 
-let viewToast = (t: toast): Html.html<msg> => {
+let viewToast = (t: toast): Html.html<AppTypes.msg> => {
   let msg = Option.unwrap(~default="", t.toastMessage)
   let classes = if Option.isSome(t.toastMessage) {
     "toast show"
@@ -531,7 +531,7 @@ let viewToast = (t: toast): Html.html<msg> => {
   )
 }
 
-let accountView = (m: model): Html.html<msg> => {
+let accountView = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let logout = Html.a(
     list{Html.class'("account-action-btn"), Html.href("https://login.darklang.com/logout")},
     list{Html.text("Logout")},
@@ -679,7 +679,7 @@ let accountView = (m: model): Html.html<msg> => {
   )
 }
 
-let view = (m: model): Html.html<msg> => {
+let view = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   let eventListeners = /* We don't want propagation because we don't want to double-handle these events and
    * window has its own listeners. */
   list{

@@ -149,7 +149,7 @@ let run = () => {
       let fn = fn(~ster=Rail, ~mod="List", "getAt", ~version=2, list{pipeTarget, int(5)})
       let ast = pipe(emptyList, fn, list{}) |> FluidAST.ofExpr
       let h = {...defaultHandler, ast: ast}
-      let m = model(list{h})
+      let m = AppTypes.Model.t(list{h})
       let id = E.toID(fn)
       // this used to crash or just lose all its arguments
       let mod' = Refactor.takeOffRail(m, TLHandler(h), id)

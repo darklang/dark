@@ -3,7 +3,7 @@ module TL = Toplevel
 
 let alwaysShow = (_, _, _) => true
 
-let commands: list<command> = {
+let commands: list<AppTypes.fluidCmd> = {
   open ProgramTypes.Expr
   list{
     {
@@ -150,7 +150,7 @@ let commands: list<command> = {
 
         ReplaceAllModificationsWithThisOne(
           m => /* TODO: toastPos is a vPos, how do we get a vPos without a
-           * mouseEvent? */
+           * AppTypes.MouseEvent.t? */
           ({...m, toast: {toastMessage: toastMessage, toastPos: None}}, Tea.Cmd.none),
         )
       },

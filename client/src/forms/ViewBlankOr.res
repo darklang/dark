@@ -11,8 +11,8 @@ let div = (
   ~enterable: bool,
   ~classes: list<string>,
   vp: ViewUtils.viewProps,
-  content: list<Html.html<msg>>,
-): Html.html<msg> => {
+  content: list<Html.html<AppTypes.msg>>,
+): Html.html<AppTypes.msg> => {
   let selected = switch vp.cursorState {
   | Selecting(_, Some(selectingID)) => id == selectingID
   | _ => false
@@ -98,11 +98,11 @@ let placeHolderFor = (vp: ViewUtils.viewProps, pt: blankOrType): string =>
 let viewBlankOr = (
   ~enterable: bool,
   ~classes: list<string>,
-  htmlFn: 'a => Html.html<msg>,
+  htmlFn: 'a => Html.html<AppTypes.msg>,
   pt: blankOrType,
   vp: ViewUtils.viewProps,
   bo: blankOr<'a>,
-): Html.html<msg> => {
+): Html.html<AppTypes.msg> => {
   let id = B.toID(bo)
   let thisText = switch bo {
   | F(_, fill) => div(~id, ~enterable, ~classes, vp, list{htmlFn(fill)})
@@ -139,7 +139,7 @@ let viewText = (
   pt: blankOrType,
   vp: ViewUtils.viewProps,
   str: blankOr<string>,
-): Html.html<msg> => viewBlankOr(~enterable, ~classes, Html.text, pt, vp, str)
+): Html.html<AppTypes.msg> => viewBlankOr(~enterable, ~classes, Html.text, pt, vp, str)
 
 let viewTipe = (
   ~enterable: bool,
@@ -147,7 +147,7 @@ let viewTipe = (
   pt: blankOrType,
   vp: ViewUtils.viewProps,
   str: blankOr<DType.t>,
-): Html.html<msg> => {
+): Html.html<AppTypes.msg> => {
   let fn = t => Html.text(Runtime.tipe2str(t))
   viewBlankOr(~enterable, ~classes, fn, pt, vp, str)
 }

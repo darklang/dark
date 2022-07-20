@@ -1,21 +1,24 @@
 open Prelude
-module RT = Runtime
+
+module RT = RuntimeTypes
 module TL = Toplevel
-module Regex = Util.Regex
 
-@ppx.deriving(show) type rec t = fluidAutocompleteState
+module FT = FluidTypes
+module Msg = AppTypes.Msg
 
-@ppx.deriving(show) type rec item = fluidAutocompleteItem
+@ppx.deriving(show) type rec t = FT.AutoComplete.t
 
-@ppx.deriving(show) type rec data = fluidAutocompleteData
+@ppx.deriving(show) type rec item = FT.AutoComplete.item
+
+@ppx.deriving(show) type rec data = FT.AutoComplete.data
 
 type props = {functions: Types.functionsType}
 
-@ppx.deriving(show) type rec tokenInfo = fluidTokenInfo
+@ppx.deriving(show) type rec tokenInfo = FluidTypes.TokenInfo.t
 
-let focusItem = (i: int): Tea.Cmd.t<msg> =>
+let focusItem = (i: int): AppTypes.cmd =>
   Tea_task.attempt(
-    _ => IgnoreMsg("fluid-autocomplete-focus"),
+    _ => Msg.IgnoreMsg("fluid-autocomplete-focus"),
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
       open Native.Ext
@@ -83,12 +86,12 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACFunction(f) =>
     f.fnParameters
     |> List.map(~f=x => x.paramTipe)
-    |> List.map(~f=RT.tipe2str)
-    |> (s => (s, RT.tipe2str(f.fnReturnTipe)))
+    |> List.map(~f=Runtime.tipe2str)
+    |> (s => (s, Runtime.tipe2str(f.fnReturnTipe)))
   | FACField(_) => (list{}, "field")
   | FACVariable(_, odv) =>
     odv
-    |> Option.map(~f=dv => dv |> RT.typeOf |> RT.tipe2str)
+    |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.typeOf |> Runtime.tipe2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
   | FACPattern(FPAVariable(_)) => (list{}, "variable")
@@ -184,7 +187,7 @@ let rec containsOrdered = (needle: string, haystack: string): bool =>
 // ------------------------------------
 
 // Return the value being piped into the token at ti, if there is one
-let findPipedDval = (m: model, tl: toplevel, ti: tokenInfo): option<dval> => {
+let findPipedDval = (m: AppTypes.model, tl: toplevel, ti: tokenInfo): option<dval> => {
   let id =
     TL.getAST(tl)
     |> Option.andThen(~f=AST.pipePrevious(FluidToken.tid(ti.token)))
@@ -202,7 +205,7 @@ let findPipedDval = (m: model, tl: toplevel, ti: tokenInfo): option<dval> => {
 }
 
 // Return the fields of the object being referenced at ti, if there is one
-let findFields = (m: model, tl: toplevel, ti: tokenInfo): list<string> => {
+let findFields = (m: AppTypes.model, tl: toplevel, ti: tokenInfo): list<string> => {
   let tlid = TL.id(tl)
   let id = switch ti.token {
   | TFieldOp(_, lhsID, _)
@@ -385,7 +388,7 @@ let filterToDbSupportedFns = (isInQuery, functions) =>
     )
   }
 
-let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
+let generateExprs = (m: AppTypes.model, props: props, tl: toplevel, ti) => {
   let isInQuery = lookupIsInQuery(tl, ti)
   let functions' = Functions.asFunctions(props.functions) |> List.map(~f=x => FACFunction(x))
 
@@ -479,7 +482,7 @@ let generateCommands = (_name, _tlid, _id) =>
 
 let generateFields = fieldList => List.map(~f=x => FACField(x), fieldList)
 
-let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
+let generate = (m: AppTypes.model, props: props, a: t, query: fullQuery): list<item> => {
   let tlid = TL.id(query.tl)
   switch query.ti.token {
   | TPatternBlank(_) | TPatternVariable(_) => generatePatterns(query.ti, a, query.queryString)
@@ -597,7 +600,7 @@ let refilter = (props: props, query: fullQuery, old: t, items: list<item>): t =>
 
 /* Regenerate calls generate, except that it adapts the result using the
  * existing state (mostly putting the index in the right place. */
-let regenerate = (m: model, a: t, (tlid, ti): query): t =>
+let regenerate = (m: AppTypes.model, a: t, (tlid, ti): query): t =>
   switch TL.get(m, tlid) {
   | None => init
   | Some(tl) =>
@@ -651,7 +654,7 @@ let selectUp = (a: t): t =>
 
 let isOpened = (ac: fluidAutocompleteState): bool => Option.isSome(ac.index)
 
-let typeErrorDoc = ({item, validity}: data): Vdom.t<msg> => {
+let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
   let _types = asTypeStrings(item)
   let _validity = validity
   switch validity {
@@ -763,7 +766,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   }
 }
 
-let updateAutocompleteVisibility = (m: model): model => {
+let updateAutocompleteVisibility = (m: AppTypes.model): AppTypes.model => {
   let oldTlid = switch m.fluidState.ac.query {
   | Some(tlid, _) => Some(tlid)
   | None => CursorState.tlidOf(m.cursorState)

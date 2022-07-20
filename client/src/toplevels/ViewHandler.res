@@ -41,7 +41,7 @@ let handlerIsExeFail = (vp: viewProps): bool =>
     |> Option.unwrap(~default=false)
   }
 
-let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> =>
+let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<AppTypes.msg> =>
   switch (spec.space, spec.name, spec.modifier) {
   /* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. */
@@ -78,7 +78,7 @@ let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<m
             if name == "fadeIn" {
               SetHandlerExeIdle(vp.tlid)
             } else {
-              IgnoreMsg("trigger-animation-end")
+              Msg.IgnoreMsg("trigger-animation-end")
             }
           ),
         }
@@ -111,7 +111,7 @@ let externalLink = (vp: viewProps, name: string) => {
   "//" ++ (Tea.Http.encodeUri(vp.canvasName) ++ ("." ++ (vp.userContentHost ++ urlPath)))
 }
 
-let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> => {
+let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<AppTypes.msg> => {
   let tlid = vp.tlid
   let actions = {
     let commonAction: TLMenu.menuItem = {
@@ -210,13 +210,15 @@ let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEven
   Html.div(list{Html.class'(classes), ...dragEvents}, list{viewType, viewEventName, viewActions})
 }
 
-let handlerAttrs: list<Vdom.property<msg>> = list{
+let handlerAttrs: list<Vdom.property<AppTypes.msg>> = list{
   Html.class'("handler-body expand"),
   Html.style("height", "auto"),
   Vdom.noProp,
 }
 
-let view = (vp: viewProps, h: PT.Handler.t, dragEvents: domEventList): list<Html.html<msg>> => {
+let view = (vp: viewProps, h: PT.Handler.t, dragEvents: domEventList): list<
+  Html.html<AppTypes.msg>,
+> => {
   let attrs = handlerAttrs
   let ast = Html.div(attrs, FluidView.view(vp, dragEvents))
   let header = viewEventSpec(vp, h.spec, dragEvents)

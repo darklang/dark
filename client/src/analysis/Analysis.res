@@ -26,15 +26,15 @@ let defaultTraceIDForTL = (~tlid: TLID.t) =>
     ~namespace=#Uuid("00000000-0000-0000-0000-000000000000"),
   ) |> BsUuid.Uuid.V5.toString
 
-let getTraces = (m: model, tlid: TLID.t): list<trace> =>
+let getTraces = (m: AppTypes.model, tlid: TLID.t): list<trace> =>
   Map.get(~key=tlid, m.traces) |> Option.unwrapLazy(~default=() => list{
     (defaultTraceIDForTL(~tlid), Error(NoneYet)),
   })
 
-let getTrace = (m: model, tlid: TLID.t, traceID: traceID): option<trace> =>
+let getTrace = (m: AppTypes.model, tlid: TLID.t, traceID: traceID): option<trace> =>
   getTraces(m, tlid) |> List.find(~f=((id, _)) => id == traceID)
 
-let getStoredAnalysis = (m: model, traceID: traceID): analysisStore =>
+let getStoredAnalysis = (m: AppTypes.model, traceID: traceID): analysisStore =>
   // only handlers have analysis results, but lots of stuff expect this
   // data to exist. It may be better to not do that, but this is fine
   // for now.
@@ -44,7 +44,7 @@ let record = (old: analyses, id: traceID, result: analysisStore): analyses =>
   Map.add(~key=id, ~value=result, old)
 
 let replaceFunctionResult = (
-  m: model,
+  m: AppTypes.model,
   tlid: TLID.t,
   traceID: traceID,
   callerID: id,
@@ -52,7 +52,7 @@ let replaceFunctionResult = (
   hash: dvalArgsHash,
   hashVersion: int,
   dval: dval,
-): model => {
+): AppTypes.model => {
   let newResult = {
     fnName: fnName,
     callerID: callerID,
@@ -116,16 +116,18 @@ let getLiveValue' = (analysisStore: analysisStore, id: id): option<dval> =>
   | _ => None
   }
 
-let getLiveValue = (m: model, id: id, traceID: traceID): option<dval> =>
+let getLiveValue = (m: AppTypes.model, id: id, traceID: traceID): option<dval> =>
   getLiveValue'(getStoredAnalysis(m, traceID), id)
 
 let getTipeOf' = (analysisStore: analysisStore, id: id): option<DType.t> =>
   getLiveValue'(analysisStore, id) |> Option.map(~f=RT.typeOf)
 
-let getTipeOf = (m: model, id: id, traceID: traceID): option<DType.t> =>
+let getTipeOf = (m: AppTypes.model, id: id, traceID: traceID): option<DType.t> =>
   getLiveValue(m, id, traceID) |> Option.map(~f=RT.typeOf)
 
-let getArguments = (m: model, tl: toplevel, callerID: id, traceID: traceID): option<list<dval>> =>
+let getArguments = (m: AppTypes.model, tl: toplevel, callerID: id, traceID: traceID): option<
+  list<dval>,
+> =>
   switch TL.getAST(tl) {
   | Some(ast) =>
     let argIDs = ast |> AST.getArguments(callerID) |> List.map(~f=E.toID)
@@ -142,7 +144,7 @@ let getArguments = (m: model, tl: toplevel, callerID: id, traceID: traceID): opt
 @ocaml.doc(" [getAvailableVarnames m tl id traceID] gets a list of (varname, dval option)s that are in scope
  * at an expression with the given [id] within the ast of the [tl]. The dval for a given varname
  * comes from the trace with [traceID]. ")
-let getAvailableVarnames = (m: model, tl: toplevel, id: id, traceID: traceID): list<(
+let getAvailableVarnames = (m: AppTypes.model, tl: toplevel, id: id, traceID: traceID): list<(
   string,
   option<dval>,
 )> => {
@@ -200,12 +202,12 @@ let selectedTrace = (tlTraceIDs: tlTraceIDs, traces: list<trace>, tlid: TLID.t):
     List.find(~f=((id, _)) => id == traceID, traces)
   )
 
-let setSelectedTraceID = (m: model, tlid: TLID.t, traceID: traceID): model => {
+let setSelectedTraceID = (m: AppTypes.model, tlid: TLID.t, traceID: traceID): AppTypes.model => {
   let newCursors = Map.add(~key=tlid, ~value=traceID, m.tlTraceIDs)
   {...m, tlTraceIDs: newCursors}
 }
 
-let getSelectedTraceID = (m: model, tlid: TLID.t): option<traceID> => {
+let getSelectedTraceID = (m: AppTypes.model, tlid: TLID.t): option<traceID> => {
   let traces = getTraces(m, tlid)
   selectedTraceID(m.tlTraceIDs, traces, tlid)
 }
@@ -257,7 +259,7 @@ module New404Push = {
 module NewPresencePush = {
   let decode = {
     open Tea.Json.Decoder
-    field("detail", list(Decoders.wrapDecoder(Decoders.presenceMsg)))
+    field("detail", list(Decoders.wrapDecoder(AppTypes.Avatar.decode)))
   }
 
   let listen = (~key, tagger) =>
@@ -267,7 +269,7 @@ module NewPresencePush = {
 module AddOps = {
   let decode = {
     open Tea.Json.Decoder
-    field("detail", Decoders.wrapDecoder(Decoders.addOpAPIPusherMsg))
+    field("detail", Decoders.wrapDecoder(PusherTypes.AddOps.decode))
   }
 
   let listen = (~key, tagger) => BrowserListeners.registerGlobal("addOp", key, tagger, decode)
@@ -296,7 +298,7 @@ module Fetcher = {
 
 @val @scope(("window", "location")) external origin: string = "origin"
 
-let contextFromModel = (m: model): fetchContext => {
+let contextFromModel = (m: AppTypes.model): fetchContext => {
   canvasName: m.canvasName,
   csrfToken: m.csrfToken,
   origin: origin,
@@ -414,7 +416,7 @@ let mergeTraces = (
   )
 }
 
-let requestTrace = (~force=false, m, tlid, traceID): (model, Cmd.t<msg>) => {
+let requestTrace = (~force=false, m, tlid, traceID): (AppTypes.model, AppTypes.cmd) => {
   let should =
     // DBs + Types dont have traces
     TL.get(m, tlid)
@@ -435,7 +437,7 @@ let requestTrace = (~force=false, m, tlid, traceID): (model, Cmd.t<msg>) => {
   }
 }
 
-let requestAnalysis = (m, tlid, traceID): Cmd.t<msg> => {
+let requestAnalysis = (m: AppTypes.model, tlid, traceID): AppTypes.cmd => {
   let dbs = Map.values(m.dbs)
   let userFns = Map.values(m.userFunctions)
   let userTipes = Map.values(m.userTipes)
@@ -475,7 +477,7 @@ let requestAnalysis = (m, tlid, traceID): Cmd.t<msg> => {
   }
 }
 
-let updateTraces = (m: model, traces: traces): model => {
+let updateTraces = (m: AppTypes.model, traces: traces): AppTypes.model => {
   let newTraces = mergeTraces(
     ~selectedTraceIDs=m.tlTraceIDs,
     ~onConflict=((oldID, oldData), (newID, newData)) =>
@@ -495,7 +497,7 @@ let updateTraces = (m: model, traces: traces): model => {
   {...m, traces: newTraces}
 }
 
-let analyzeFocused = (m: model): (model, Cmd.t<msg>) =>
+let analyzeFocused = (m: AppTypes.model): (AppTypes.model, AppTypes.cmd) =>
   switch CursorState.tlidOf(m.cursorState) {
   | Some(tlid) =>
     let trace =

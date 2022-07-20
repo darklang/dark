@@ -1,6 +1,14 @@
 // NOTE: This will change in the future to pretty tool tips, this is just an inbetween state
 open Prelude
 
+type msg = AppTypes.msg
+type modification = AppTypes.modification
+module Mod = AppTypes.Modification
+
+type tutorialStep = AppTypes.Tutorial.Step.t
+type tooltipState = AppTypes.Tooltip.t
+type tooltipMsg = AppTypes.Tooltip.msg
+
 type rec toolTipDirection =
   | Left
   | Right
@@ -81,7 +89,7 @@ let assignTutorialToHTTPHandler = (
     tooltipState
   }
 
-let update = (tooltipState: tooltipState, msg: toolTipMsg): modification => {
+let update = (tooltipState: tooltipState, msg: tooltipMsg): modification => {
   let (tooltipState, mods) = {
     let currentTooltip = tooltipState.tooltipSource
     switch msg {
@@ -103,8 +111,8 @@ let update = (tooltipState: tooltipState, msg: toolTipMsg): modification => {
           (
             tooltipState.userTutorial,
             list{
-              ReplaceAllModificationsWithThisOne(
-                m => (
+              Mod.ReplaceAllModificationsWithThisOne(
+                (m: AppTypes.model) => (
                   {
                     ...m,
                     toast: {
@@ -162,7 +170,7 @@ let update = (tooltipState: tooltipState, msg: toolTipMsg): modification => {
   }
 }
 
-let generateContent = (t: tooltipSource): tooltipContent =>
+let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
   switch t {
   | Http => {
       title: "Click the plus sign to create a REST API endpoint.",
@@ -354,7 +362,9 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
   Html.div(list{Html.class'("btn-container")}, list{prevBtn, nextBtn})
 }
 
-let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent): Html.html<msg> =>
+let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent): Html.html<
+  AppTypes.msg,
+> =>
   if shouldShow {
     let uniqueStr = switch tlid {
     | Some(id) => TLID.toString(id)

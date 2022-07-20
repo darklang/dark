@@ -1,6 +1,8 @@
-open Prelude
+// open Prelude
 open Tester
 open FluidToken
+
+open FluidTypes.Token
 
 let run = () => {
   describe("analysisID of token", () => {

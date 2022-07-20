@@ -11,10 +11,9 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module Key = Keyboard
-module Regex = Util.Regex
 module TD = TLID.Dict
 
-let incOpCtr = (m: model): model => {
+let incOpCtr = (m: AppTypes.model): AppTypes.model => {
   ...m,
   opCtrs: Map.update(m.opCtrs, ~key=m.clientOpCtrId, ~f=x =>
     switch x {
@@ -24,7 +23,7 @@ let incOpCtr = (m: model): model => {
   ),
 }
 
-let opCtr = (m: model): int =>
+let opCtr = (m: AppTypes.model): int =>
   switch Map.get(~key=m.clientOpCtrId, m.opCtrs) {
   | Some(ctr) => ctr
   | None => 0
@@ -63,7 +62,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
 
   let variants = VariantTesting.enabledVariantTests(isAdmin)
   let m = SavedSettings.load(canvasName) |> SavedSettings.toModel
-  let m = SavedUserSettings.load(username) |> SavedUserSettings.toModel(m)
+  let m = AppTypes.SavedSettings.User.load(username) |> AppTypes.SavedSettings.User.toModel(m)
   let userTutorial = if m.firstVisitToDark && m.tooltipState.userTutorial.step == None {
     UserTutorial.defaultTutorial
   } else {
@@ -126,7 +125,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   }
 }
 
-let processFocus = (m: model, focus: focus): modification =>
+let processFocus = (m: AppTypes.model, focus: focus): modification =>
   switch focus {
   | FocusNext(tlid, pred) =>
     switch TL.get(m, tlid) {
@@ -215,7 +214,10 @@ let processFocus = (m: model, focus: focus): modification =>
   | FocusNoChange => NoChange
   }
 
-let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, Cmd.t<msg>) => {
+let processAutocompleteMods = (m: AppTypes.model, mods: list<autocompleteMod>): (
+  AppTypes.model,
+  AppTypes.cmd,
+) => {
   if m.integrationTestState != NoIntegrationTest {
     Debug.loG("autocompletemod update", show_list(~f=show_autocompleteMod, mods))
   }
@@ -250,17 +252,20 @@ let applyOpsToClient = (updateCurrent, p: addOpAPIParams, r: addOpAPIResult): li
   RefreshUsages(Introspect.tlidsToUpdateUsage(p.ops)),
 }
 
-let isACOpened = (m: model): bool =>
+let isACOpened = (m: AppTypes.model): bool =>
   FluidAutocomplete.isOpened(m.fluidState.ac) ||
   (FluidCommands.isOpened(m.fluidState.cp) ||
   AC.isOpened(m.complete))
 
-let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model, Cmd.t<msg>) => {
+let rec updateMod = (mod_: modification, (m, cmd): (AppTypes.model, AppTypes.cmd)): (
+  AppTypes.model,
+  AppTypes.cmd,
+) => {
   if m.integrationTestState != NoIntegrationTest {
     Debug.loG("mod update", show_modification(mod_))
   }
   let (newm, newcmd) = {
-    let bringBackCurrentTL = (oldM: model, newM: model): model =>
+    let bringBackCurrentTL = (oldM: AppTypes.model, newM: AppTypes.model): AppTypes.model =>
       /* used with updateCurrent - if updateCurrent is false, we want to restore
        * the current TL so we don't lose local changes made since the API call */
       switch CursorState.tlidOf(oldM.cursorState) {
@@ -276,7 +281,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       }
 
     let handleAPI = (params, focus) => {
-      /* immediately update the model based on SetHandler and focus, if
+      /* immediately update the AppTypes.model based on SetHandler and focus, if
        possible */
       let m = m |> incOpCtr
       let hasNonHandlers = List.any(~f=c =>
@@ -350,7 +355,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
          * only the first got called, unclear why. */
         Cmd.call(_ => {
           SavedSettings.save(m)
-          SavedUserSettings.save(m)
+          AppTypes.SavedSettings.User.save(m)
           Native.Location.reload(true)
         })
       } else if !ignore && APIError.shouldRollbar(apiError) {
@@ -427,7 +432,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         (Page.setPage(m, m.currentPage, Architecture), Url.updateUrl(Architecture))
       }
     | Select(tlid, p) =>
-      let (cursorState: cursorState, maybeNewFluidState: option<fluidState>) = switch p {
+      let (cursorState: AppTypes.CursorState.t, maybeNewFluidState: option<fluidState>) = switch p {
       | STTopLevelRoot =>
         switch TL.get(m, tlid) {
         | Some(TLDB(_)) | Some(TLTipe(_)) => (Selecting(tlid, None), None)
@@ -461,7 +466,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
 
       let m = {
         ...m,
-        cursorState: cursorState,
+        cursorState: AppTypes.CursorState.t,
         fluidState: maybeNewFluidState |> Option.unwrap(~default=m.fluidState),
       }
 
@@ -512,7 +517,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
     | OpenOmnibox(pos) =>
       let (cursorState, target) = (Omnibox(pos), None)
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState: cursorState}
+      let m = {...m, cursorState: AppTypes.CursorState.t}
       (m, Cmd.batch(list{acCmd, CursorState.focusEntry(m)}))
     | Enter(tlid, id) =>
       let (cursorState, target) = switch TL.getPD(m, tlid, id) {
@@ -521,7 +526,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       }
 
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState: cursorState}
+      let m = {...m, cursorState: AppTypes.CursorState.t}
       let (m, afCmd) = Analysis.analyzeFocused(m)
       (m, Cmd.batch(list{afCmd, acCmd, CursorState.focusEntry(m)}))
     | EnterWithOffset(tlid, id, offset) =>
@@ -531,7 +536,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       }
 
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState: cursorState}
+      let m = {...m, cursorState: AppTypes.CursorState.t}
       let (m, afCmd) = Analysis.analyzeFocused(m)
       (m, Cmd.batch(list{afCmd, acCmd, CursorState.focusEntryWithOffset(m, offset)}))
     | RemoveToplevel(tl) => (Toplevel.remove(m, tl), Cmd.none)
@@ -613,7 +618,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       let (m, acCmd) = processAutocompleteMods(m, list{ACRegenerate})
       (m, Cmd.batch(list{afCmd, acCmd}))
     | OverrideTraces(traces) =>
-      /* OverrideTraces takes a set of traces and merges it with the model, but if
+      /* OverrideTraces takes a set of traces and merges it with the AppTypes.model, but if
        * the (tlid, traceID) pair occurs in both, the result will have its data
        * blown away.
        *
@@ -934,7 +939,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
   }
 }
 
-let update_ = (msg: msg, m: model): modification => {
+let update_ = (msg: msg, m: AppTypes.model): modification => {
   if m.integrationTestState != NoIntegrationTest {
     Debug.loG("msg update", show_msg(msg))
   }
@@ -1687,7 +1692,7 @@ let update_ = (msg: msg, m: model): modification => {
       APIError.make(
         ~context="AddOps",
         ~importance=ImportantError,
-        ~requestParams=Encoders.addOpAPIParams(params),
+        ~requestParams=APITypes.AddOpsParams.encode(params),
         ~reload=false,
         err,
       ),
@@ -1762,9 +1767,9 @@ let update_ = (msg: msg, m: model): modification => {
     | RefreshAvatars => ExpireAvatars
     | _ => NoChange
     }
-  | IgnoreMsg(_) =>
+  | Msg.IgnoreMsg(_) =>
     /* Many times we have to receive a Msg and we don't actually do anything.
-     * To lower to conceptual load, we send an IgnoreMsg, rather than a
+     * To lower the conceptual load, we send an Msg.IgnoreMsg, rather than a
      * different msg each time that we have to understand. */
     NoChange
   | PageVisibilityChange(vis) =>
@@ -1979,7 +1984,7 @@ let update_ = (msg: msg, m: model): modification => {
   }
 }
 
-let rec filter_read_only = (m: model, modification: modification) =>
+let rec filter_read_only = (m: AppTypes.model, modification: modification) =>
   if m.permission == Some(ReadWrite) {
     modification
   } else {
@@ -1991,7 +1996,11 @@ let rec filter_read_only = (m: model, modification: modification) =>
   }
 
 // Checks to see if AST has changed, if so make requestAnalysis command.
-let maybeRequestAnalysis = (oldM: model, newM: model, otherCommands: Cmd.t<msg>): Cmd.t<msg> =>
+let maybeRequestAnalysis = (
+  oldM: AppTypes.model,
+  newM: AppTypes.model,
+  otherCommands: AppTypes.cmd,
+): AppTypes.cmd =>
   switch (TL.selected(oldM), TL.selected(newM)) {
   | (Some(prevTL), Some(newTL)) if TL.id(prevTL) == TL.id(newTL) =>
     switch (TL.getAST(prevTL), TL.getAST(newTL)) {
@@ -2007,7 +2016,7 @@ let maybeRequestAnalysis = (oldM: model, newM: model, otherCommands: Cmd.t<msg>)
   | (_, _) => otherCommands
   }
 
-let update = (m: model, msg: msg): (model, Cmd.t<msg>) => {
+let update = (m: AppTypes.model, msg: msg): (AppTypes.model, AppTypes.cmd) => {
   let mods = update_(msg, m) |> filter_read_only(m)
   let (newm, newc) = updateMod(mods, (m, Cmd.none))
   let newc = maybeRequestAnalysis(m, newm, newc)
@@ -2024,11 +2033,11 @@ let update = (m: model, msg: msg): (model, Cmd.t<msg>) => {
 
   // END HACK
   SavedSettings.save(m)
-  SavedUserSettings.save(m)
+  AppTypes.SavedSettings.User.save(m)
   ({...newm, lastMsg: msg, fluidState: {...newm.fluidState, activeEditor: activeEditor}}, newc)
 }
 
-let subscriptions = (m: model): Tea.Sub.t<msg> => {
+let subscriptions = (m: AppTypes.model): Tea.Sub.t<AppTypes.msg> => {
   let keySubs = list{Keyboard.downs(x => GlobalKeyPress(x))}
   let dragSubs = switch m.cursorState {
   // we use IDs here because the node will change
@@ -2088,7 +2097,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     DarkStorage.NewStaticDeployPush.listen(~key="new_static_deploy", s => NewStaticDeployPush(s)),
     Analysis.ReceiveFetch.listen(~key="receive_fetch", s => ReceiveFetch(s)),
     Analysis.NewPresencePush.listen(~key="new_presence_push", s => NewPresencePush(s)),
-    Analysis.AddOps.listen(~key="add_op", s => AddOpsPusherMsg(s)),
+    Analysis.AddOps.listen(~key="v1/add_op", s => AddOpsPusherMsg(s)),
     Analysis.WorkerStatePush.listen(~key="worker_state_push", s => WorkerStatePush(s)),
   }
 
@@ -2149,7 +2158,7 @@ let debugging = {
 }
 
 let normal = {
-  let program: Tea.Navigation.navigationProgram<string, model, msg> = {
+  let program: Tea.Navigation.navigationProgram<string, AppTypes.model, msg> = {
     init: init,
     view: View.view,
     update: update,

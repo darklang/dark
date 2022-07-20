@@ -5,8 +5,9 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module B = BlankOr
-module Regex = Util.Regex
 module TD = TLID.Dict
+module Msg = AppTypes.Msg
+module A = AppTypes.AutoComplete
 
 // ----------------------------
 // Focus
@@ -20,9 +21,9 @@ let height = (i: int): int =>
     14 * (i - 4)
   }
 
-let focusItem = (i: int): Tea.Cmd.t<msg> =>
+let focusItem = (i: int): AppTypes.cmd =>
   Tea_task.attempt(
-    _ => IgnoreMsg("autocomplete-focus"),
+    _ => Msg.IgnoreMsg("autocomplete-focus"),
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
       switch Document.getElementById("autocomplete-holder", document) {
@@ -35,7 +36,7 @@ let focusItem = (i: int): Tea.Cmd.t<msg> =>
 // ----------------------------
 // display
 // ----------------------------
-let asName = (aci: autocompleteItem): string =>
+let asName = (aci: A.item): string =>
   switch aci {
   | ACOmniAction(ac) =>
     switch ac {
@@ -90,7 +91,7 @@ let asName = (aci: autocompleteItem): string =>
   | ACReturnTipe(tipe) | ACTypeFieldTipe(tipe) => RT.tipe2str(tipe)
   }
 
-let asTypeString = (item: autocompleteItem): string =>
+let asTypeString = (item: A.item): string =>
   switch item {
   | ACOmniAction(_) => ""
   | ACHTTPModifier(_) => "method"
@@ -116,7 +117,7 @@ let asTypeString = (item: autocompleteItem): string =>
     }
   }
 
-let asTypeClass = (item: autocompleteItem): string =>
+let asTypeClass = (item: A.item): string =>
   switch item {
   | ACOmniAction(NewDB(_))
   | ACOmniAction(NewFunction(_))
@@ -129,17 +130,16 @@ let asTypeClass = (item: autocompleteItem): string =>
   | _ => ""
   }
 
-let asString = (aci: autocompleteItem): string => asName(aci) ++ asTypeString(aci)
+let asString = (aci: A.item): string => asName(aci) ++ asTypeString(aci)
 
 // ----------------------------
 // External: utils
 // ----------------------------
 
 // Return different type if possible
-let highlighted = (a: autocomplete): option<autocompleteItem> =>
-  List.getAt(~index=a.index, a.completions)
+let highlighted = (a: A.t): option<A.item> => List.getAt(~index=a.index, a.completions)
 
-let getValue = (a: autocomplete): string =>
+let getValue = (a: A.t): string =>
   switch highlighted(a) {
   | Some(item) => asName(item)
   | None => a.value
@@ -315,7 +315,7 @@ let cleanHTTPname = (s: string): string =>
 let cleanDBName = (s: string): string =>
   s |> stripChars("[^a-zA-Z0-9_]") |> stripCharsFromFront("[^a-zA-Z]") |> String.capitalize
 
-let qNewDB = (s: string): omniAction => {
+let qNewDB = (s: string): A.omniAction => {
   let name = cleanDBName(s)
   if name == "" {
     NewDB(None)
@@ -324,7 +324,7 @@ let qNewDB = (s: string): omniAction => {
   }
 }
 
-let qFunction = (s: string): omniAction => {
+let qFunction = (s: string): A.omniAction => {
   let name =
     s |> stripChars("[^a-zA-Z0-9_]") |> stripCharsFromFront("[^a-zA-Z]") |> String.uncapitalize
 
@@ -335,7 +335,7 @@ let qFunction = (s: string): omniAction => {
   }
 }
 
-let qWorkerHandler = (s: string): omniAction => {
+let qWorkerHandler = (s: string): A.omniAction => {
   let name = s |> cleanEventName |> String.uncapitalize
   if name == "" {
     NewWorkerHandler(None)
@@ -344,7 +344,7 @@ let qWorkerHandler = (s: string): omniAction => {
   }
 }
 
-let qCronHandler = (s: string): omniAction => {
+let qCronHandler = (s: string): A.omniAction => {
   let name = s |> cleanEventName |> String.uncapitalize
   if name == "" {
     NewCronHandler(None)
@@ -353,7 +353,7 @@ let qCronHandler = (s: string): omniAction => {
   }
 }
 
-let qReplHandler = (s: string): omniAction => {
+let qReplHandler = (s: string): A.omniAction => {
   let name = s |> cleanEventName |> String.uncapitalize
   if name == "" {
     NewReplHandler(None)
@@ -362,7 +362,7 @@ let qReplHandler = (s: string): omniAction => {
   }
 }
 
-let qHTTPHandler = (s: string): omniAction => {
+let qHTTPHandler = (s: string): A.omniAction => {
   let name = cleanEventName(s)
   if name == "" {
     NewHTTPHandler(None)
@@ -396,17 +396,17 @@ let handlerDisplayName = (h: PT.Handler.t): string => {
 let fnDisplayName = (f: PT.UserFunction.t): string =>
   f.metadata.name |> B.toOption |> Option.unwrap(~default="undefinedFunction")
 
-let foundHandlerOmniAction = (h: PT.Handler.t): omniAction => {
+let foundHandlerOmniAction = (h: PT.Handler.t): A.omniAction => {
   let name = "Found in " ++ handlerDisplayName(h)
   Goto(FocusedHandler(h.tlid, None, true), h.tlid, name, true)
 }
 
-let foundFnOmniAction = (f: PT.UserFunction.t): omniAction => {
+let foundFnOmniAction = (f: PT.UserFunction.t): A.omniAction => {
   let name = "Found in function " ++ fnDisplayName(f)
   Goto(FocusedFn(f.tlid, None), f.tlid, name, true)
 }
 
-let qSearch = (m: model, s: string): list<omniAction> =>
+let qSearch = (m: AppTypes.model, s: string): list<A.omniAction> =>
   if String.length(s) > 3 {
     let maxResults = 20
     let results = Map.toList(m.searchCache) |> List.filterMap(~f=((tlid, code)) =>
@@ -428,7 +428,7 @@ let qSearch = (m: model, s: string): list<omniAction> =>
     list{}
   }
 
-let isDynamicItem = (item: autocompleteItem): bool =>
+let isDynamicItem = (item: A.item): bool =>
   switch item {
   | ACOmniAction(Goto(_, _, _, dyna)) => dyna
   | ACOmniAction(_) => true
@@ -439,14 +439,14 @@ let isDynamicItem = (item: autocompleteItem): bool =>
   | _ => false
   }
 
-let isStaticItem = (item: autocompleteItem): bool => !isDynamicItem(item)
+let isStaticItem = (item: A.item): bool => !isDynamicItem(item)
 
 let toDynamicItems = (
-  m: model,
+  m: AppTypes.model,
   space: option<handlerSpace>,
-  target: option<target>,
+  target: option<A.target>,
   q: string,
-): list<autocompleteItem> =>
+): list<A.item> =>
   switch target {
   | None =>
     // omnicompletion
@@ -460,7 +460,7 @@ let toDynamicItems = (
       ...qSearch(m, q),
     }
 
-    List.map(~f=o => ACOmniAction(o), standard)
+    List.map(~f=o => A.ACOmniAction(o), standard)
   | Some(_, PEventName(_)) =>
     switch space {
     | Some(HSHTTP) => list{ACHTTPRoute(cleanHTTPname(q))}
@@ -493,11 +493,11 @@ let toDynamicItems = (
   }
 
 let withDynamicItems = (
-  m: model,
-  target: option<target>,
+  m: AppTypes.model,
+  target: option<A.target>,
   query: string,
-  acis: list<autocompleteItem>,
-): list<autocompleteItem> => {
+  acis: list<A.item>,
+): list<A.item> => {
   let space =
     target
     |> Option.map(~f=Tuple2.first)
@@ -517,20 +517,20 @@ let tlGotoName = (tl: toplevel): string =>
   | TLTipe(_) => recover("can't goto tipe ", ~debug=tl, "<invalid state>")
   }
 
-let tlDestinations = (m: model): list<autocompleteItem> => {
+let tlDestinations = (m: AppTypes.model): list<A.item> => {
   let tls =
     m
     |> TL.structural
     |> Map.values
     |> List.sortBy(~f=tlGotoName)
-    |> List.map(~f=tl => Goto(TL.asPage(tl, true), TL.id(tl), tlGotoName(tl), false))
+    |> List.map(~f=tl => A.Goto(TL.asPage(tl, true), TL.id(tl), tlGotoName(tl), false))
 
   let ufs = m.userFunctions |> Map.filterMapValues(~f=fn => {
     let name = "Jump to function: " ++ fnDisplayName(fn)
-    Some(Goto(FocusedFn(fn.tlid, None), fn.tlid, name, false))
+    Some(A.Goto(FocusedFn(fn.tlid, None), fn.tlid, name, false))
   })
 
-  List.map(~f=x => ACOmniAction(x), Belt.List.concat(tls, ufs))
+  List.map(~f=x => A.ACOmniAction(x), Belt.List.concat(tls, ufs))
 }
 
 // ------------------------------------
@@ -538,15 +538,15 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
 // ------------------------------------
 
 /* Types from Types.tipe that aren't included:
-- TCharacter: TODO include once Characters are more easily add-able within code
-- TNull: trying to get rid of this, so don't spread it
-- TIncomplete: makes no sense to pass to a function
-- TError: makes no sense to pass to a function
-- TResp: these aren't really exposed to users as real things, but maybe should?
-- TErrorRail: doesn't make sense pass to function
-- TDbList: only for DB schemas
-- TUserType: added later
-- TTuple: currently awkward to support parameterized types. TODO
+  - TCharacter: TODO include once Characters are more easily add-able within code
+  - TNull: trying to get rid of this, so don't spread it
+  - TIncomplete: makes no sense to pass to a function
+  - TError: makes no sense to pass to a function
+  - TResp: these aren't really exposed to users as real things, but maybe should?
+  - TErrorRail: doesn't make sense pass to function
+  - TDbList: only for DB schemas
+  - TUserType: added later
+  - TTuple: currently awkward to support parameterized types. TODO
  */
 let allowedParamTipes = list{
   DType.TInt,
@@ -577,7 +577,7 @@ let allowedDBColTipes = {
 
 let allowedUserTypeFieldTipes = list{DType.TStr, TInt, TBool, TFloat, TDate, TPassword, TUuid}
 
-let generate = (m: model, a: autocomplete): autocomplete => {
+let generate = (m: AppTypes.model, a: A.t): A.t => {
   let space =
     a.target
     |> Option.map(~f=Tuple2.first)
@@ -591,7 +591,7 @@ let generate = (m: model, a: autocomplete): autocomplete => {
     | EventModifier =>
       switch space {
       | Some(HSHTTP) => list{
-          ACHTTPModifier("GET"),
+          A.ACHTTPModifier("GET"),
           ACHTTPModifier("POST"),
           ACHTTPModifier("PUT"),
           ACHTTPModifier("DELETE"),
@@ -617,7 +617,7 @@ let generate = (m: model, a: autocomplete): autocomplete => {
           |> List.sortBy(~f=f404 => f404.path)
           |> List.filterMap(~f=f404 =>
             if f404.path !== "/" {
-              Some(ACHTTPRoute(cleanHTTPname(f404.path)))
+              Some(A.ACHTTPRoute(cleanHTTPname(f404.path)))
             } else {
               None
             }
@@ -628,16 +628,16 @@ let generate = (m: model, a: autocomplete): autocomplete => {
       }
     | EventSpace => // Other spaces aren't allowed anymore
       list{ACEventSpace("HTTP"), ACEventSpace("CRON"), ACEventSpace("WORKER"), ACEventSpace("REPL")}
-    | DBColType => List.map(~f=x => ACDBColType(x), allowedDBColTipes)
+    | DBColType => List.map(~f=x => A.ACDBColType(x), allowedDBColTipes)
     | ParamTipe =>
       let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
-      Belt.List.concat(allowedParamTipes, userTypes) |> List.map(~f=t => ACParamTipe(t))
-    | TypeFieldTipe => allowedUserTypeFieldTipes |> List.map(~f=t => ACTypeFieldTipe(t))
+      Belt.List.concat(allowedParamTipes, userTypes) |> List.map(~f=t => A.ACParamTipe(t))
+    | TypeFieldTipe => allowedUserTypeFieldTipes |> List.map(~f=t => A.ACTypeFieldTipe(t))
     | FnReturnTipe =>
       let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
-      Belt.List.concat(allowedReturnTipes, userTypes) |> List.map(~f=t => ACReturnTipe(t))
+      Belt.List.concat(allowedReturnTipes, userTypes) |> List.map(~f=t => A.ACReturnTipe(t))
     | DBName | DBColName | FnName | ParamName | TypeName | TypeFieldName => list{}
     }
   | _ => list{}
@@ -651,7 +651,7 @@ let generate = (m: model, a: autocomplete): autocomplete => {
   {...a, allCompletions: items}
 }
 
-let filter = (list: list<autocompleteItem>, query: string): list<autocompleteItem> => {
+let filter = (list: list<A.item>, query: string): list<A.item> => {
   let lcq = query |> String.toLowercase
   let stringify = i =>
     if 1 >= String.length(lcq) {
@@ -701,7 +701,7 @@ let filter = (list: list<autocompleteItem>, query: string): list<autocompleteIte
   allMatches
 }
 
-let refilter = (m: model, query: string, old: autocomplete): autocomplete => {
+let refilter = (m: AppTypes.model, query: string, old: A.t): A.t => {
   // add or replace the literal the user is typing to the completions
   let fudgedCompletions = withDynamicItems(m, old.target, query, old.allCompletions)
 
@@ -732,27 +732,27 @@ let refilter = (m: model, query: string, old: autocomplete): autocomplete => {
   }
 }
 
-let regenerate = (m: model, a: autocomplete): autocomplete => generate(m, a) |> refilter(m, a.value)
+let regenerate = (m: AppTypes.model, a: A.t): A.t => generate(m, a) |> refilter(m, a.value)
 
 // ----------------------------
 // Autocomplete state
 // ----------------------------
-let reset = (m: model): autocomplete => {
-  {...Defaults.defaultModel.complete, visible: true} |> regenerate(m)
+let reset = (m: AppTypes.model): A.t => {
+  {...A.default, visible: true} |> regenerate(m)
 }
 
 let init = m => reset(m)
 
-let numCompletions = (a: autocomplete): int => List.length(a.completions)
+let numCompletions = (a: A.t): int => List.length(a.completions)
 
-let selectDown = (a: autocomplete): autocomplete => {
+let selectDown = (a: A.t): A.t => {
   let max_ = numCompletions(a)
   let max = max(max_, 1)
   let new_ = mod(a.index + 1, max)
   {...a, index: new_}
 }
 
-let selectUp = (a: autocomplete): autocomplete => {
+let selectUp = (a: A.t): A.t => {
   let max = numCompletions(a) - 1
   {
     ...a,
@@ -777,9 +777,9 @@ let selectUp = (a: autocomplete): autocomplete => {
 // y Press enter to select
 // y Press right to fill as much as is definitive
 //
-let setQuery = (m: model, q: string, a: autocomplete): autocomplete => refilter(m, q, a)
+let setQuery = (m: AppTypes.model, q: string, a: A.t): A.t => refilter(m, q, a)
 
-let documentationForItem = (aci: autocompleteItem): option<list<Vdom.t<'a>>> => {
+let documentationForItem = (aci: A.item): option<list<Vdom.t<'a>>> => {
   let p = (text: string) => Html.p(list{}, list{Html.text(text)})
   let simpleDoc = (text: string) => Some(list{p(text)})
   switch aci {
@@ -811,16 +811,16 @@ let documentationForItem = (aci: autocompleteItem): option<list<Vdom.t<'a>>> => 
   }
 }
 
-let setTarget = (m: model, t: option<target>, a: autocomplete): autocomplete =>
+let setTarget = (m: AppTypes.model, t: option<A.target>, a: A.t): A.t =>
   {...a, target: t} |> regenerate(m)
 
-let setVisible = (visible: bool, a: autocomplete): autocomplete => {...a, visible: visible}
+let setVisible = (visible: bool, a: A.t): A.t => {...a, visible: visible}
 
 // ------------------------------------
 // Commands
 // ------------------------------------
 
-let update = (m: model, mod_: autocompleteMod, a: autocomplete): autocomplete =>
+let update = (m: AppTypes.model, mod_: A.mod, a: A.t): A.t =>
   switch mod_ {
   | ACSetQuery(str) => setQuery(m, str, a)
   | ACReset => reset(m)
@@ -834,6 +834,6 @@ let update = (m: model, mod_: autocompleteMod, a: autocomplete): autocomplete =>
 /* Checks to see if autocomplete or command palette is opened
  * but not omnibox since it's not scrollable
  */
-let isOpened = (ac: autocomplete): bool => Option.isSome(ac.target)
+let isOpened = (ac: A.t): bool => Option.isSome(ac.target)
 
-let isOmnibox = (ac: autocomplete): bool => ac.target == None && ac.visible
+let isOmnibox = (ac: A.t): bool => ac.target == None && ac.visible

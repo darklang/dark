@@ -1,19 +1,19 @@
 open Prelude
-module Regex = Util.Regex
 module TL = Toplevel
 module TD = TLID.Dict
 module E = FluidExpression
 module ASTInfo = FluidTokenizer.ASTInfo
+module Msg = AppTypes.Msg
 
 type viewProps = {
   tl: toplevel,
   functions: Functions.t,
   astInfo: ASTInfo.t,
-  cursorState: cursorState,
+  cursorState: AppTypes.CursorState.t,
   tlid: TLID.t,
   isAdmin: bool,
   hovering: option<(TLID.t, idOrTraceID)>,
-  ac: autocomplete,
+  ac: AppTypes.AutoComplete.t,
   showEntry: bool,
   showLivevalue: bool,
   dbLocked: bool,
@@ -23,20 +23,19 @@ type viewProps = {
   executingFunctions: list<id>,
   tlTraceIDs: tlTraceIDs,
   testVariants: list<variantTest>,
-  featureFlags: flagsVS,
-  handlerProp: option<handlerProp>,
+  handlerProp: option<AppTypes.HandlerProperty.t>,
   canvasName: string,
   userContentHost: string,
   refersToRefs: list<(toplevel, list<id>)>,
   usedInRefs: list<toplevel>,
   hoveringRefs: list<id>,
-  fluidState: fluidState,
-  avatarsList: list<avatar>,
-  permission: option<permission>,
+  fluidState: AppTypes.fluidState,
+  avatarsList: list<AppTypes.Avatar.t>,
+  permission: option<AccountTypes.Permission.t>,
   workerStats: option<workerStats>,
-  menuState: menuState,
+  menuState: AppTypes.Menu.t,
   isExecuting: bool,
-  fnProps: fnProps,
+  fnProps: AppTypes.FunctionParams.t,
   showHandlerASTs: bool,
   secretValues: list<string>,
 }
@@ -44,11 +43,11 @@ type viewProps = {
 // -----------------------------
 // Events
 // -----------------------------
-type domEvent = Vdom.property<msg>
+type domEvent = Vdom.property<AppTypes.msg>
 
 type domEventList = list<domEvent>
 
-let createVS = (m: model, tl: toplevel): viewProps => {
+let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
   let tlid = TL.id(tl)
   let hp = switch tl {
   | TLHandler(_) => Map.get(~key=tlid, m.handlerProps)
@@ -99,7 +98,6 @@ let createVS = (m: model, tl: toplevel): viewProps => {
     ) |> List.map(~f=((_, id)) => id),
     tlTraceIDs: m.tlTraceIDs,
     testVariants: m.tests,
-    featureFlags: m.featureFlags,
     handlerProp: hp,
     canvasName: m.canvasName,
     userContentHost: m.userContentHost,
@@ -114,7 +112,7 @@ let createVS = (m: model, tl: toplevel): viewProps => {
       list{}
     },
     hoveringRefs: Map.get(~key=tlid, m.handlerProps)
-    |> Option.map(~f=x => x.hoveringReferences)
+    |> Option.map(~f=(hp: AppTypes.HandlerProperty.t) => hp.hoveringReferences)
     |> Option.unwrap(~default=list{}),
     fluidState: m.fluidState,
     avatarsList: switch m.currentPage {
@@ -140,7 +138,7 @@ let createVS = (m: model, tl: toplevel): viewProps => {
       | (Some(c), Some(_)) => Some({...c, schedule: schedule})
       }
     },
-    menuState: Map.get(~key=tlid, m.tlMenus) |> Option.unwrap(~default=Defaults.defaultMenu),
+    menuState: Map.get(~key=tlid, m.tlMenus) |> Option.unwrap(~default=AppTypes.Menu.default),
     isExecuting: // Converge can execute for functions & handlers
     switch tl {
     | TLFunc(_) => List.any(~f=((fTLID, _)) => fTLID == tlid, m.executingFunctions)
@@ -158,10 +156,11 @@ let createVS = (m: model, tl: toplevel): viewProps => {
   }
 }
 
-let fontAwesome = (name: string): Html.html<msg> =>
+let fontAwesome = (name: string): Html.html<AppTypes.msg> =>
   Html.i(list{Html.class'("fa fa-" ++ name)}, list{})
 
-let darkIcon = (name: string): Html.html<msg> => Html.i(list{Html.class'("di di-" ++ name)}, list{})
+let darkIcon = (name: string): Html.html<AppTypes.msg> =>
+  Html.i(list{Html.class'("di di-" ++ name)}, list{})
 
 let decodeTransEvent = (fn: string => 'a, j): 'a => {
   open Json.Decode
@@ -178,8 +177,8 @@ let onEvent = (
   ~event: string,
   ~key: string,
   ~preventDefault=true,
-  listener: Web.Node.event => msg,
-): Vdom.property<msg> =>
+  listener: Web.Node.event => AppTypes.msg,
+): Vdom.property<AppTypes.msg> =>
   Tea.Html.onCB(event, key, evt => {
     if preventDefault {
       evt["preventDefault"]()
@@ -187,61 +186,69 @@ let onEvent = (
     Some(listener(evt))
   })
 
-let eventBoth = (~key: string, event: string, constructor: mouseEvent => msg): Vdom.property<msg> =>
+let eventBoth = (
+  ~key: string,
+  event: string,
+  constructor: AppTypes.MouseEvent.t => AppTypes.msg,
+): Vdom.property<AppTypes.msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
     {stopPropagation: false, preventDefault: false},
-    Decoders.wrapDecoder(Decoders.clickEvent(constructor)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
   )
 
 let eventPreventDefault = (
   ~key: string,
   event: string,
-  constructor: mouseEvent => msg,
-): Vdom.property<msg> =>
+  constructor: AppTypes.MouseEvent.t => AppTypes.msg,
+): Vdom.property<AppTypes.msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
     {stopPropagation: false, preventDefault: true},
-    Decoders.wrapDecoder(Decoders.clickEvent(constructor)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
   )
 
-let eventNeither = (~key: string, event: string, constructor: mouseEvent => msg): Vdom.property<
-  msg,
-> =>
+let eventNeither = (
+  ~key: string,
+  event: string,
+  constructor: AppTypes.MouseEvent.t => AppTypes.msg,
+): Vdom.property<AppTypes.msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: true},
-    Decoders.wrapDecoder(Decoders.clickEvent(constructor)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
   )
 
 let scrollEventNeither = (
   ~key: string,
   event: string,
-  constructor: scrollEvent => msg,
-): Vdom.property<msg> =>
+  constructor: AppTypes.ScrollEvent.t => AppTypes.msg,
+): Vdom.property<AppTypes.msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: true},
-    Decoders.wrapDecoder(Decoders.scrollEvent(constructor)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.ScrollEvent.decode)),
   )
 
 let eventNoPropagation = (
   ~key: string,
   event: string,
-  constructor: mouseEvent => msg,
-): Vdom.property<msg> =>
+  constructor: AppTypes.MouseEvent.t => AppTypes.msg,
+): Vdom.property<AppTypes.msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: false},
-    Decoders.wrapDecoder(Decoders.clickEvent(constructor)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
   )
 
-let onTransitionEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
+let onTransitionEnd = (~key: string, ~listener: string => AppTypes.msg): Vdom.property<
+  AppTypes.msg,
+> =>
   Tea.Html.onWithOptions(
     ~key,
     "transitionend",
@@ -249,7 +256,9 @@ let onTransitionEnd = (~key: string, ~listener: string => msg): Vdom.property<ms
     Decoders.wrapDecoder(decodeTransEvent(listener)),
   )
 
-let onAnimationEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
+let onAnimationEnd = (~key: string, ~listener: string => AppTypes.msg): Vdom.property<
+  AppTypes.msg,
+> =>
   Tea.Html.onWithOptions(
     ~key,
     "animationend",
@@ -257,17 +266,19 @@ let onAnimationEnd = (~key: string, ~listener: string => msg): Vdom.property<msg
     Decoders.wrapDecoder(decodeAnimEvent(listener)),
   )
 
-let nothingMouseEvent = (name: string): Vdom.property<msg> =>
+let nothingMouseEvent = (name: string): Vdom.property<AppTypes.msg> =>
   eventNoPropagation(~key="", name, _ =>
     // For fluid, we need to know about most (all?) mouseups
     if name == "mouseup" {
       IgnoreMouseUp
     } else {
-      IgnoreMsg(name)
+      Msg.IgnoreMsg(name)
     }
   )
 
-let placeHtml = (pos: pos, classes: list<'a>, html: list<Html.html<msg>>): Html.html<msg> => {
+let placeHtml = (pos: pos, classes: list<'a>, html: list<Html.html<AppTypes.msg>>): Html.html<
+  AppTypes.msg,
+> => {
   let styles = Html.styles(list{
     ("left", string_of_int(pos.x) ++ "px"),
     ("top", string_of_int(pos.y) ++ "px"),
@@ -278,10 +289,10 @@ let placeHtml = (pos: pos, classes: list<'a>, html: list<Html.html<msg>>): Html.
 
 let inCh = (w: int): string => w |> string_of_int |> (s => s ++ "ch")
 
-let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Html.style("width")
+let widthInCh = (w: int): Vdom.property<AppTypes.msg> => w |> inCh |> Html.style("width")
 
-let createHandlerProp = (hs: list<PT.Handler.t>): TD.t<handlerProp> =>
-  hs |> List.map(~f=(h: PT.Handler.t) => (h.tlid, Defaults.defaultHandlerProp)) |> TD.fromList
+let createHandlerProp = (hs: list<PT.Handler.t>): TD.t<AppTypes.HandlerProperty.t> =>
+  hs |> List.map(~f=(h: PT.Handler.t) => (h.tlid, AppTypes.HandlerProperty.default)) |> TD.fromList
 
 let isHoverOverTL = (vp: viewProps): bool =>
   switch vp.hovering {
@@ -293,7 +304,7 @@ let intAsUnit = (i: int, u: string): string => string_of_int(i) ++ u
 
 let fnForToken = (functions: Functions.t, token): option<function_> =>
   switch token {
-  | TBinOp(_, fnName, _)
+  | FluidTypes.Token.TBinOp(_, fnName, _)
   | TFnVersion(_, _, _, fnName)
   | TFnName(_, _, _, fnName, _) =>
     Functions.findByStr(fnName, functions)

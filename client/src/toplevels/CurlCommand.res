@@ -46,7 +46,7 @@ let rec to_url_string = (dv: dval): option<string> =>
 let strAsBodyCurl = (dv: dval): option<string> =>
   switch dv {
   | DStr(s) =>
-    let body = s |> Util.Regex.replace(~re=Util.Regex.regex("\n"), ~repl="")
+    let body = s |> Regex.replace(~re=Regex.regex("\n"), ~repl="")
     Some("-d '" ++ (body ++ "'"))
   | _ => None
   }
@@ -65,7 +65,7 @@ let objAsHeaderCurl = (dv: dval): option<string> =>
   | _ => None
   }
 
-let curlFromSpec = (m: model, tlid: TLID.t): option<string> =>
+let curlFromSpec = (m: AppTypes.model, tlid: TLID.t): option<string> =>
   TL.get(m, tlid)
   |> Option.andThen(~f=TL.asHandler)
   |> Option.andThen(~f=(h: PT.Handler.t) => {
@@ -93,7 +93,7 @@ let curlFromSpec = (m: model, tlid: TLID.t): option<string> =>
   fullBody (for both formBody and jsonBody),
   url (which includes queryParams)
 */
-let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
+let curlFromCurrentTrace = (m: AppTypes.model, tlid: TLID.t): option<string> => {
   let wrapInList = o => o |> Option.andThen(~f=v => Some(list{v})) |> Option.unwrap(~default=list{})
 
   let trace = Analysis.getSelectedTraceID(m, tlid) |> Option.andThen(~f=Analysis.getTrace(m, tlid))
@@ -132,7 +132,7 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
   }
 }
 
-let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: PT.FQFnName.t) => {
+let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: PT.FQFnName.t) => {
   let traces =
     Map.get(~key=tlid, m.traces) |> recoverOption(
       ~debug=TLID.toString(tlid),
@@ -221,10 +221,10 @@ let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: PT.FQFnName.
   data
 }
 
-let makeCommand = (m: model, tlid: TLID.t): option<string> =>
+let makeCommand = (m: AppTypes.model, tlid: TLID.t): option<string> =>
   curlFromCurrentTrace(m, tlid) |> Option.orElse(curlFromSpec(m, tlid))
 
-let copyCurlMod = (m: model, tlid: TLID.t, pos: vPos): modification =>
+let copyCurlMod = (m: AppTypes.model, tlid: TLID.t, pos: AppTypes.VPos.t): AppTypes.modification =>
   switch makeCommand(m, tlid) {
   | Some(data) =>
     Native.Clipboard.copyToClipboard(data)

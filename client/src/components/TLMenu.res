@@ -3,28 +3,33 @@ open Prelude
 let onClick = (key, fn) => ViewUtils.eventNoPropagation(~key, "click", fn)
 
 let fontAwesome = ViewUtils.fontAwesome
+module M = AppTypes.Menu
+type t = AppTypes.Menu.t
 
 type menuItem = {
   title: string,
   key: string,
   icon: option<string>,
-  action: mouseEvent => msg,
+  action: AppTypes.MouseEvent.t => AppTypes.msg,
   disableMsg: option<string>,
 }
 
-let isOpen = (m: model, tlid: TLID.t): bool =>
-  m.tlMenus |> Map.get(~key=tlid) |> Option.map(~f=o => o.isOpen) |> Option.unwrap(~default=false)
+let isOpen = (m: AppTypes.model, tlid: TLID.t): bool =>
+  m.tlMenus
+  |> Map.get(~key=tlid)
+  |> Option.map(~f=(menu: t) => menu.isOpen)
+  |> Option.unwrap(~default=false)
 
-let resetMenu = (tlid: TLID.t, m: model): model => {
-  let tlMenus = m.tlMenus |> Map.update(~key=tlid, ~f=_ => Some(Defaults.defaultMenu))
+let resetMenu = (tlid: TLID.t, m: AppTypes.model): AppTypes.model => {
+  let tlMenus = m.tlMenus |> Map.update(~key=tlid, ~f=_ => Some(M.default))
 
   {...m, tlMenus: tlMenus}
 }
 
-let update = (m: model, tlid: TLID.t, msg: menuMsg): model => {
+let update = (m: AppTypes.model, tlid: TLID.t, msg: M.msg): AppTypes.model => {
   let tlMenus = m.tlMenus |> Map.update(~key=tlid, ~f=_s => {
     let newS = switch msg {
-    | OpenMenu => {isOpen: true}
+    | OpenMenu => ({isOpen: true}: t)
     | CloseMenu => {isOpen: false}
     }
 
@@ -34,13 +39,13 @@ let update = (m: model, tlid: TLID.t, msg: menuMsg): model => {
   {...m, tlMenus: tlMenus}
 }
 
-let closeMenu = (m: model): model =>
+let closeMenu = (m: AppTypes.model): AppTypes.model =>
   switch CursorState.tlidOf(m.cursorState) {
   | Some(tlid) => update(m, tlid, CloseMenu)
   | None => m
   }
 
-let viewItem = (keyID: string, i: menuItem): Html.html<msg> => {
+let viewItem = (keyID: string, i: menuItem): Html.html<AppTypes.msg> => {
   let icon = switch i.icon {
   | Some(iconName) => fontAwesome(iconName)
   | None => Vdom.noNode
@@ -57,7 +62,7 @@ let viewItem = (keyID: string, i: menuItem): Html.html<msg> => {
   Html.div(attrs, list{icon, Html.text(i.title)})
 }
 
-let viewMenu = (s: menuState, tlid: TLID.t, items: list<menuItem>): Html.html<msg> => {
+let viewMenu = (s: M.t, tlid: TLID.t, items: list<menuItem>): Html.html<AppTypes.msg> => {
   let strTLID = TLID.toString(tlid)
   let showMenu = s.isOpen
   let actions = List.map(~f=viewItem(strTLID), items)

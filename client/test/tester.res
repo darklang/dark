@@ -95,7 +95,7 @@ let shouldRun = name =>
   | None => true
   | Some(pattern) =>
     let fullname = String.join(~sep=" ", list{name, ...Private.categories.contents})
-    Util.Regex.contains(~re=pattern, fullname)
+    Regex.contains(~re=pattern, fullname)
   }
 
 let describe = (name: string, testFn: unit => unit): unit => {

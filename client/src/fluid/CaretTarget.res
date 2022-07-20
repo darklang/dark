@@ -1,6 +1,7 @@
 open Prelude
 
-type t = caretTarget
+@ppx.deriving(show({with_path: false}))
+type rec t = FluidCursorTypes.CaretTarget.t
 
 @ocaml.doc(" [forARStringOpenQuote id offset] produces an ARString caretTarget
 * pointing to an [offset] into the open quote of the string with [id].

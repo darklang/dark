@@ -12,7 +12,6 @@ open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
 module TL = Toplevel
-module Regex = Util.Regex
 module DUtil = Util
 module AC = FluidAutocomplete
 module Commands = FluidCommands
@@ -40,7 +39,7 @@ type token = T.t
 
 type tokenInfos = list<T.tokenInfo>
 
-type state = Types.fluidState
+type state = AppTypes.fluidState
 
 type props = Types.fluidProps
 
@@ -56,7 +55,7 @@ let deselectFluidEditor = (s: fluidState): fluidState => {
 // Nearby tokens
 // --------------------
 
-let astInfoFromModelAndTLID = (~removeTransientState=true, m: model, tlid: TLID.t): option<
+let astInfoFromModelAndTLID = (~removeTransientState=true, m: AppTypes.model, tlid: TLID.t): option<
   ASTInfo.t,
 > => {
   /* TODO: codify removeHandlerTransientState as an external function,
@@ -84,7 +83,7 @@ let astInfoFromModelAndTLID = (~removeTransientState=true, m: model, tlid: TLID.
   })
 }
 
-let astInfoFromModel = (m: model): option<ASTInfo.t> =>
+let astInfoFromModel = (m: AppTypes.model): option<ASTInfo.t> =>
   CursorState.tlidOf(m.cursorState) |> Option.andThen(~f=astInfoFromModelAndTLID(m))
 
 let getStringIndexMaybe = (ti: T.tokenInfo, pos: int): option<int> =>
@@ -4105,7 +4104,7 @@ let getSelectedExprID = (astInfo: ASTInfo.t): option<id> =>
     getTopmostSelectionID(startPos, endPos, astInfo)
   )
 
-let maybeOpenCmd = (m: Types.model): Types.modification => {
+let maybeOpenCmd = (m: AppTypes.model): Types.modification => {
   let getExprIDOnCaret = (astInfo: ASTInfo.t) =>
     switch ASTInfo.getTokenNotWhitespace(astInfo) {
     | Some(ti) =>
@@ -4913,7 +4912,7 @@ and deleteSelection = (astInfo: ASTInfo.t): ASTInfo.t =>
 and replaceText = (str: string, astInfo: ASTInfo.t): ASTInfo.t =>
   astInfo |> deleteSelection |> updateKey(InsertText(str))
 
-let updateAutocomplete = (m: model, tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
+let updateAutocomplete = (m: AppTypes.model, tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
   switch ASTInfo.getToken(astInfo) {
   | Some(ti) if T.isAutocompletable(ti.token) =>
     let m = TL.withAST(m, tlid, astInfo.ast)
@@ -5596,7 +5595,7 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
   }
 }
 
-let getCopySelection = (m: model): clipboardContents =>
+let getCopySelection = (m: AppTypes.model): clipboardContents =>
   astInfoFromModel(m)
   |> Option.andThen(~f=(astInfo: ASTInfo.t) => {
     let (from, to_) = FluidUtil.getSelectionRange(astInfo.state)
@@ -5697,7 +5696,12 @@ let updateMouseUpExternal = (tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
   | None => astInfo
   }
 
-let updateMsg' = (m: model, tlid: TLID.t, astInfo: ASTInfo.t, msg: Types.fluidMsg): ASTInfo.t => {
+let updateMsg' = (
+  m: AppTypes.model,
+  tlid: TLID.t,
+  astInfo: ASTInfo.t,
+  msg: Types.fluidMsg,
+): ASTInfo.t => {
   let astInfo = switch msg {
   | FluidCloseCmdPalette
   | FluidUpdateAutocomplete => // updateAutocomplete has already been run, so nothing more to do
@@ -5802,18 +5806,20 @@ let updateMsg' = (m: model, tlid: TLID.t, astInfo: ASTInfo.t, msg: Types.fluidMs
   astInfo
 }
 
-let updateMsg = (m: model, tlid: TLID.t, ast: FluidAST.t, s: fluidState, msg: Types.fluidMsg): (
-  FluidAST.t,
-  fluidState,
-  tokenInfos,
-) => {
+let updateMsg = (
+  m: AppTypes.model,
+  tlid: TLID.t,
+  ast: FluidAST.t,
+  s: fluidState,
+  msg: Types.fluidMsg,
+): (FluidAST.t, fluidState, tokenInfos) => {
   let props = FluidUtil.propsFromModel(m)
   let astInfo = ASTInfo.make(props, ast, s)
   let astInfo = updateMsg'(m, tlid, astInfo, msg)
   (astInfo.ast, astInfo.state, ASTInfo.activeTokenInfos(astInfo))
 }
 
-let update = (m: Types.model, msg: Types.fluidMsg): Types.modification => {
+let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
   let s = m.fluidState
   let s = {...s, error: None, oldPos: s.newPos, actions: list{}}
   switch msg {
@@ -5993,14 +5999,14 @@ let update = (m: Types.model, msg: Types.fluidMsg): Types.modification => {
           astCacheMod,
         })
       } else {
-        Types.NoChange
+        Mod.NoChange
       }
 
-      Types.Many(list{
+      Mod.Many(list{
         ReplaceAllModificationsWithThisOne(m => ({...m, fluidState: newState}, Tea.Cmd.none)),
         astMod,
         eventSpecMod,
-        Types.MakeCmd(cmd),
+        Mod.MakeCmd(cmd),
       })
     | _ => NoChange
     }
@@ -6011,7 +6017,7 @@ let update = (m: Types.model, msg: Types.fluidMsg): Types.modification => {
 // Scaffolidng
 // --------------------
 
-let renderCallback = (m: model): unit =>
+let renderCallback = (m: AppTypes.model): unit =>
   switch m.cursorState {
   | FluidEntering(_) if m.fluidState.midClick == false =>
     if FluidCommands.isOpened(m.fluidState.cp) {
@@ -6035,7 +6041,7 @@ let renderCallback = (m: model): unit =>
   | _ => ()
   }
 
-let cleanUp = (m: model, tlid: option<TLID.t>): (model, modification) => {
+let cleanUp = (m: AppTypes.model, tlid: option<TLID.t>): (AppTypes.model, modification) => {
   let rmPartialsMod =
     tlid
     |> Option.andThen(~f=TL.get(m))

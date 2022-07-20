@@ -2,14 +2,17 @@ open Prelude
 
 let apiRoot = "/api/"
 
-let clientVersionHeader = (m): Tea_http.header => Header("x-darklang-client-version", m.buildHash)
+let clientVersionHeader = (m: AppTypes.model): Tea_http.header => Header(
+  "x-darklang-client-version",
+  m.buildHash,
+)
 
 let apiCallNoParams = (
-  m: model,
+  m: AppTypes.model,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => AppTypes.msg,
   endpoint: string,
-): Tea.Cmd.t<msg> => {
+): AppTypes.cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = Tea.Http.request({
     method': "POST",
@@ -51,13 +54,13 @@ let postJson = (
   })
 
 let apiCall = (
-  m: model,
+  m: AppTypes.model,
   ~encoder: 'paramtype => Js.Json.t,
   ~params: 'paramtype,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => AppTypes.msg,
   endpoint: string,
-): Tea.Cmd.t<msg> => {
+): AppTypes.cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},
@@ -70,27 +73,35 @@ let apiCall = (
   Tea.Http.send(callback, request)
 }
 
-let opsParams = (ops: list<PT.Op.t>, opCtr: int, clientOpCtrId: string): addOpAPIParams => {
+let opsParams = (
+  ops: list<PT.Op.t>,
+  opCtr: int,
+  clientOpCtrID: string,
+): APITypes.AddOps.Params.t => {
   ops: ops,
   opCtr: opCtr,
-  clientOpCtrId: clientOpCtrId,
+  clientOpCtrID: clientOpCtrID,
 }
 
 // -------------
 // API calls
 // -------------
 
-let addOp = (m: model, focus: focus, params: addOpAPIParams): Tea.Cmd.t<msg> =>
+let addOp = (
+  m: AppTypes.model,
+  focus: AppTypes.Focus.t,
+  params: APITypes.AddOps.Params.t,
+): AppTypes.cmd =>
   apiCall(
     m,
     "/v1/add_op",
-    ~decoder=Decoders.addOpAPI,
-    ~encoder=Encoders.addOpAPIParams,
+    ~decoder=APITypes.AddOps.Response.decode,
+    ~encoder=APITypes.AddOps.Params.encode,
     ~params,
     ~callback=x => AddOpsAPICallback(focus, params, x),
   )
 
-let executeFunction = (m: model, params: executeFunctionAPIParams): Tea.Cmd.t<msg> =>
+let executeFunction = (m: AppTypes.model, params: executeFunctionAPIParams): AppTypes.cmd =>
   apiCall(
     m,
     "/v1/execute_function",
@@ -100,7 +111,7 @@ let executeFunction = (m: model, params: executeFunctionAPIParams): Tea.Cmd.t<ms
     ~callback=x => ExecuteFunctionAPICallback(params, x),
   )
 
-let uploadFn = (m: model, params: uploadFnAPIParams): Tea.Cmd.t<msg> =>
+let uploadFn = (m: AppTypes.model, params: uploadFnAPIParams): AppTypes.cmd =>
   apiCall(
     m,
     "/packages/upload_function",
@@ -110,7 +121,7 @@ let uploadFn = (m: model, params: uploadFnAPIParams): Tea.Cmd.t<msg> =>
     ~callback=x => UploadFnAPICallback(params, x),
   )
 
-let loadPackages = (m: model): Tea.Cmd.t<msg> =>
+let loadPackages = (m: AppTypes.Model.t): AppTypes.cmd =>
   apiCallNoParams(
     m,
     "/v1/packages",
@@ -118,7 +129,7 @@ let loadPackages = (m: model): Tea.Cmd.t<msg> =>
     ~callback=x => LoadPackagesAPICallback(x),
   )
 
-let triggerHandler = (m: model, params: triggerHandlerAPIParams): Tea.Cmd.t<msg> =>
+let triggerHandler = (m: AppTypes.model, params: triggerHandlerAPIParams): AppTypes.cmd =>
   apiCall(
     m,
     "/trigger_handler",
@@ -128,7 +139,7 @@ let triggerHandler = (m: model, params: triggerHandlerAPIParams): Tea.Cmd.t<msg>
     ~callback=x => TriggerHandlerAPICallback(params, x),
   )
 
-let getUnlockedDBs = (m: model): Tea.Cmd.t<msg> =>
+let getUnlockedDBs = (m: AppTypes.model): AppTypes.cmd =>
   apiCallNoParams(
     m,
     "/get_unlocked_dbs",
@@ -136,7 +147,10 @@ let getUnlockedDBs = (m: model): Tea.Cmd.t<msg> =>
     ~callback=x => GetUnlockedDBsAPICallback(x),
   )
 
-let updateWorkerSchedule = (m: model, params: updateWorkerScheduleAPIParams): Tea.Cmd.t<msg> =>
+let updateWorkerSchedule = (
+  m: AppTypes.model,
+  params: updateWorkerScheduleAPIParams,
+): AppTypes.cmd =>
   apiCall(
     m,
     "/worker_schedule",
@@ -146,7 +160,7 @@ let updateWorkerSchedule = (m: model, params: updateWorkerScheduleAPIParams): Te
     ~callback=x => UpdateWorkerScheduleCallback(x),
   )
 
-let get404s = (m: model): Tea.Cmd.t<msg> =>
+let get404s = (m: AppTypes.model): AppTypes.cmd =>
   apiCallNoParams(
     m,
     "/get_404s",
@@ -154,7 +168,7 @@ let get404s = (m: model): Tea.Cmd.t<msg> =>
     ~callback=x => Get404sAPICallback(x),
   )
 
-let delete404 = (m: model, params: delete404APIParams): Tea.Cmd.t<msg> =>
+let delete404 = (m: AppTypes.model, params: delete404APIParams): AppTypes.cmd =>
   apiCall(
     m,
     "/delete_404",
@@ -164,7 +178,9 @@ let delete404 = (m: model, params: delete404APIParams): Tea.Cmd.t<msg> =>
     ~callback=x => Delete404APICallback(params, x),
   )
 
-let deleteToplevelForever = (m: model, params: deleteToplevelForeverAPIParams): Tea.Cmd.t<msg> =>
+let deleteToplevelForever = (m: AppTypes.model, params: deleteToplevelForeverAPIParams): Tea.Cmd.t<
+  AppTypes.msg,
+> =>
   apiCall(
     m,
     "/delete-toplevel-forever",
@@ -174,25 +190,25 @@ let deleteToplevelForever = (m: model, params: deleteToplevelForeverAPIParams): 
     ~callback=x => DeleteToplevelForeverAPICallback(params, x),
   )
 
-let insertSecret = (m: model, params: SecretTypes.t): Tea.Cmd.t<msg> =>
+let insertSecret = (m: AppTypes.model, params: SecretTypes.t): AppTypes.cmd =>
   apiCall(
     m,
-    "/insert_secret",
-    ~encoder=Encoders.secret,
-    ~decoder=Decoders.insertSecretResult,
+    "/v1/insert_secret",
+    ~encoder=SecretTypes.encode,
+    ~decoder=APITypes.InsertSecrets.decode,
     ~params,
     ~callback=x => InsertSecretCallback(x),
   )
 
-let initialLoad = (m: model, focus: focus): Tea.Cmd.t<msg> =>
+let initialLoad = (m: AppTypes.model, focus: AppTypes.Focus.t): AppTypes.cmd =>
   apiCallNoParams(
     m,
     "/v1/initial_load",
-    ~decoder=Decoders.initialLoadAPIResult,
+    ~decoder=APITypes.InitialLoad.decode,
     ~callback=x => InitialLoadAPICallback(focus, NoChange, x),
   )
 
-let fetchAllTraces = (m: model): Tea.Cmd.t<msg> =>
+let fetchAllTraces = (m: AppTypes.model): AppTypes.cmd =>
   apiCallNoParams(
     m,
     "/all_traces",
@@ -200,10 +216,10 @@ let fetchAllTraces = (m: model): Tea.Cmd.t<msg> =>
     ~callback=x => FetchAllTracesAPICallback(x),
   )
 
-let logout = (m: model): Tea.Cmd.t<msg> =>
+let logout = (m: AppTypes.model): AppTypes.cmd =>
   apiCallNoParams(m, "/logout", ~decoder=_ => (), ~callback=_ => LogoutAPICallback)
 
-let saveTest = (m: model): Tea.Cmd.t<msg> =>
+let saveTest = (m: AppTypes.model): AppTypes.cmd =>
   apiCallNoParams(
     m,
     "/save_test",
@@ -211,15 +227,15 @@ let saveTest = (m: model): Tea.Cmd.t<msg> =>
     ~callback=x => SaveTestAPICallback(x),
   )
 
-let integration = (m: model, name: string): Tea.Cmd.t<msg> =>
+let integration = (m: AppTypes.model, name: string): AppTypes.cmd =>
   apiCallNoParams(
     m,
     "/initial_load",
-    ~decoder=Decoders.initialLoadAPIResult,
+    ~decoder=APITypes.InitialLoad.decode,
     ~callback=x => InitialLoadAPICallback(FocusNothing, TriggerIntegrationTest(name), x),
   )
 
-let sendPresence = (m: model, av: avatarModelMessage): Tea.Cmd.t<msg> => {
+let sendPresence = (m: AppTypes.model, av: avatarModelMessage): AppTypes.cmd => {
   let url = "https://editor.darklang.com/presence"
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},
@@ -238,13 +254,13 @@ let sendPresence = (m: model, av: avatarModelMessage): Tea.Cmd.t<msg> => {
    * beginning of the function, we still exercise the message and request
    * generating code locally. */
   if m.origin == "https://darklang.com" {
-    Tea.Http.send(x => TriggerSendPresenceCallback(x), request)
+    Tea.Http.send(x => AppTypes.Msg.TriggerSendPresenceCallback(x), request)
   } else {
     Tea.Cmd.none
   }
 }
 
-let sendInvite = (m: model, invite: SettingsViewTypes.inviteFormMessage): Tea.Cmd.t<msg> => {
+let sendInvite = (m: AppTypes.model, invite: SettingsViewTypes.inviteFormMessage): AppTypes.cmd => {
   let url = "https://accounts.darklang.com/send-invite"
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},
@@ -263,7 +279,7 @@ let sendInvite = (m: model, invite: SettingsViewTypes.inviteFormMessage): Tea.Cm
    * beginning of the function, we still exercise the message and request
    * generating code locally. */
   if m.origin == "https://darklang.com" {
-    Tea.Http.send(x => SettingsViewMsg(TriggerSendInviteCallback(x)), request)
+    Tea.Http.send(x => AppTypes.Msg.SettingsViewMsg(TriggerSendInviteCallback(x)), request)
   } else {
     Tea.Cmd.none
   }
@@ -277,17 +293,17 @@ let sendInvite = (m: model, invite: SettingsViewTypes.inviteFormMessage): Tea.Cm
  * client-side, since messages coming in from Pusher are not
  * guaranteed to be delivered in order.
  *
- * Ordering is determined by model.opCtrs, and we return a model so we can also
+ * Ordering is determined by AppTypes.model.opCtrs, and we return a AppTypes.model so we can also
  * update the opCtrs map.
  * */
-let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOpAPIResult>): (
-  model,
-  list<PT.Op.t>,
-  option<addOpAPIResult>,
-) => {
+let filterOpsAndResult = (
+  m: AppTypes.model,
+  params: APITypes.AddOps.Params.t,
+  result: option<APITypes.AddOps.Result.t>,
+): (AppTypes.model, list<PT.Op.t>, option<APITypes.AddOps.Result.t>) => {
   let newOpCtrs = /* if the opCtr in params is greater than the one in the map, we'll create
    * an updated map */
-  Map.update(m.opCtrs, ~key=params.clientOpCtrId, ~f=oldCtr =>
+  Map.update(m.opCtrs, ~key=params.clientOpCtrID, ~f=oldCtr =>
     switch (oldCtr, params.opCtr) {
     | (Some(oldCtr), paramsOpCtr) => Some(max(oldCtr, paramsOpCtr))
     | _ => Some(params.opCtr)
@@ -298,7 +314,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
   /* if the new opCtrs map was updated by params.opCtr, then this msg was the
    * latest; otherwise, we need to filter out some ops from params */
   // temporarily _don't_ filter ops
-  if Map.get(~key=params.clientOpCtrId, m2.opCtrs) == Some(params.opCtr) {
+  if Map.get(~key=params.clientOpCtrID, m2.opCtrs) == Some(params.opCtr) {
     (m2, params.ops, result)
   } else {
     /* filter down to only those ops which can be applied out of order without
@@ -335,7 +351,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
     let ops = params.ops |> filter_ops_received_out_of_order
     let opTlids = ops |> List.map(~f=op => PT.Op.tlidOf(op))
     // We also want to ignore the result of ops we ignored
-    let result = Option.map(result, ~f=(result: addOpAPIResult) => {
+    let result = Option.map(result, ~f=(result: APITypes.AddOps.Result.t) => {
       ...result,
       handlers: result.handlers |> List.filter(~f=(h: PT.Handler.t) =>
         List.member(~value=h.tlid, opTlids)
@@ -343,7 +359,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
       userFunctions: result.userFunctions |> List.filter(~f=(uf: PT.UserFunction.t) =>
         List.member(~value=uf.tlid, opTlids)
       ),
-      userTipes: result.userTipes |> List.filter(~f=(ut: PT.UserType.t) =>
+      userTypes: result.userTypes |> List.filter(~f=(ut: PT.UserType.t) =>
         List.member(~value=ut.tlid, opTlids)
       ),
     })

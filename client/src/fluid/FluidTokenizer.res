@@ -4,7 +4,10 @@ module Expr = ProgramTypes.Expr
 module E = FluidExpression
 module Pattern = FluidPattern
 
-type tokenInfo = Types.fluidTokenInfo
+open FluidTypes.Token
+type tokenInfo = FluidTypes.TokenInfo.t
+type fluidToken = FluidTypes.Token.t
+type fluidState = AppTypes.fluidState
 
 type featureFlagTokenization =
   | @ocaml.doc(" FeatureFlagOnlyDisabled is used in the main editor panel to only
@@ -125,7 +128,8 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
-let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> =>
+let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
+  open FluidTypes.Token
   switch p {
   | PVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
   | PConstructor(id, name, args) =>
@@ -162,6 +166,7 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
   | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
   | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
   }
+}
 
 let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   open Builder
@@ -192,7 +197,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
           Functions.global()
           |> Functions.findByStr(fnname)
           |> Option.andThen(~f=fn => List.getAt(~index=pos, fn.fnParameters))
-          |> Option.map(~f=p => {name: p.paramName, tipe: tipe2str(p.paramTipe)})
+          |> Option.map(~f=(p): Placeholder.t => {name: p.paramName, tipe: tipe2str(p.paramTipe)})
 
         switch name {
         | None => toTokens'(e, b)
@@ -621,7 +626,7 @@ let infoize = (tokens): list<tokenInfo> => {
   let (row, col, pos) = (ref(0), ref(0), ref(0))
   List.map(tokens, ~f=token => {
     let length = String.length(T.toText(token))
-    let ti = {
+    let ti: tokenInfo = {
       token: token,
       startRow: row.contents,
       startCol: col.contents,
@@ -673,7 +678,7 @@ let tokenize: E.t => list<FluidToken.tokenInfo> = tokenizeWithFFTokenization(
   FeatureFlagOnlyDisabled,
 )
 
-let tokensForEditor = (e: fluidEditor, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
+let tokensForEditor = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
   switch e {
   | NoEditor => list{}
   | MainEditor(_) => tokenize(FluidAST.toExpr(ast))
@@ -686,7 +691,9 @@ let tokensForEditor = (e: fluidEditor, ast: FluidAST.t): list<FluidToken.tokenIn
     )
   }
 
-let tokenizeForEditor = (e: fluidEditor, expr: FluidExpression.t): list<FluidToken.tokenInfo> =>
+let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
+  FluidToken.tokenInfo,
+> =>
   switch e {
   | NoEditor => list{}
   | MainEditor(_) => tokenize(expr)
@@ -761,7 +768,7 @@ let getNeighbours = (~pos: int, tokens: tokenInfos): (
   (toTheLeft, toTheRight, mNext)
 }
 
-let getTokenNotWhitespace = (tokens: tokenInfos, s: fluidState): option<T.tokenInfo> => {
+let getTokenNotWhitespace = (tokens: tokenInfos, s: AppTypes.fluidState): option<T.tokenInfo> => {
   let (left, right, _) = getNeighbours(~pos=s.newPos, tokens)
   switch (left, right) {
   | (L(_, lti), R(TNewline(_), _)) => Some(lti)
@@ -772,7 +779,7 @@ let getTokenNotWhitespace = (tokens: tokenInfos, s: fluidState): option<T.tokenI
   }
 }
 
-let getToken' = (tokens: tokenInfos, s: fluidState): option<T.tokenInfo> => {
+let getToken' = (tokens: tokenInfos, s: AppTypes.fluidState): option<T.tokenInfo> => {
   let (toTheLeft, toTheRight, _) = getNeighbours(~pos=s.newPos, tokens)
 
   /* The algorithm that decides what token on when a certain key is pressed is
@@ -807,7 +814,7 @@ let getToken' = (tokens: tokenInfos, s: fluidState): option<T.tokenInfo> => {
 module ASTInfo = {
   type t = {
     ast: FluidAST.t,
-    state: fluidState,
+    state: AppTypes.fluidState,
     mainTokenInfos: tokenInfos,
     featureFlagTokenInfos: list<(id, tokenInfos)>,
     props: fluidProps,

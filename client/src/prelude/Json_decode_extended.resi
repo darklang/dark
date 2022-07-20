@@ -67,3 +67,5 @@ let decodeString: (decoder<'a>, string) => Tc.Result.t<'a, string>
 
 let int64: decoder<int64>
 let uint64: decoder<UInt64.t>
+
+let date: decoder<Js.Date.t>
