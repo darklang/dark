@@ -197,6 +197,9 @@ DarkInternal.staticAssetsDeploys Test.getCanvasID = []
 let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
 List.length_v0 deploys) = 1
 
+[test.starting a static asset deploy for a non-existant user fails]
+(DarkInternal.startStaticAssetDeploy "fake_username" Test.getCanvasID) = Error "User not found"
+
 [test.static assets contains as many elements as deploys]
 (let _firstDeployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
 let _secondDeployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in

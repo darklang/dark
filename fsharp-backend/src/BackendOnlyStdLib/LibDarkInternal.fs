@@ -776,13 +776,12 @@ human-readable data."
             uply {
               match! Account.getUser (UserName.create username) with
               | None ->
-                Exception.raiseInternal $"User not found" [ "username", username ]
                 return DResult(Error(DStr "User not found"))
               | Some user ->
                 let! canvasMeta = Canvas.getMetaFromID canvasID
                 let! deployHash =
                   StaticAssets.startStaticAssetDeploy user canvasID canvasMeta.name
-                return DStr deployHash |> Ok |> DResult
+                return DResult(Ok(DStr deployHash))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
