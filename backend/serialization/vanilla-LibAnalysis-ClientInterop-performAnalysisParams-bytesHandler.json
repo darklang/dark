@@ -2,7 +2,7 @@
   "AnalyzeHandler",
   {
     "handler": {
-      "tlid": 92987663,
+      "tlid": 92947563,
       "ast": [
         "ELet",
         "14219007199254740992",
@@ -580,12 +580,12 @@
         "module": [
           "Filled",
           129952,
-          "HTTP"
+          "HTTPBytes"
         ],
         "name": [
           "Filled",
           33052,
-          "/path-legacy"
+          "/path-bytes"
         ],
         "modifier": [
           "Filled",

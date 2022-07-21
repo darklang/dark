@@ -620,7 +620,7 @@
   ],
   "spec": [
     "HTTPLegacy",
-    "/path",
+    "/path-legacy",
     "GET",
     {
       "moduleID": 129952,

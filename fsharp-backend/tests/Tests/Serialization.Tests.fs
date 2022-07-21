@@ -263,8 +263,12 @@ module Values =
     { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
 
   let testLegacyHttpHandler : PT.Handler.T =
-    let spec = PT.Handler.HTTPLegacy("/path", "GET", testHandlerIDs)
+    let spec = PT.Handler.HTTPLegacy("/path-legacy", "GET", testHandlerIDs)
     { spec = spec; tlid = 92987663UL; ast = testExpr; pos = testPos }
+
+  let testBytesHttpHandler : PT.Handler.T =
+    let spec = PT.Handler.HTTPBytes("/path-bytes", "GET", testHandlerIDs)
+    { spec = spec; tlid = 92947563UL; ast = testExpr; pos = testPos }
 
   let testWorker : PT.Handler.T =
     let spec = PT.Handler.Worker("name", testHandlerIDs)
@@ -299,6 +303,10 @@ module Values =
       testRepl
       testUnknownHandler
       testOldWorker ]
+
+  // HttpBytesTODO for some reason adding this to the above list makes the
+  // serialization output odd.
+  //testBytesHttpHandler
 
   let testDval =
     sampleDvals
@@ -445,7 +453,8 @@ module Values =
       PT.RenameDBname(tlid, "newname")
       PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
       PT.SetType(testUserTypes[0])
-      PT.DeleteType tlid ]
+      PT.DeleteType tlid
+      PT.SetHandler(testBytesHttpHandler.tlid, testPos, testBytesHttpHandler) ]
 
   let testOCamlOplist : OT.oplist = OT.Convert.pt2ocamlOplist testOplist
 
@@ -932,6 +941,24 @@ module GenericSerializersTests =
         "handler"
         (LibAnalysis.ClientInterop.AnalyzeHandler
           { handler = OT.Convert.pt2ocamlHandler testLegacyHttpHandler
+            trace_id = testUuid
+            trace_data =
+              { input = [ "var", testOCamlDval ]
+                timestamp = testInstant
+                function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }
+            dbs =
+              [ { tlid = testTLIDs[0]
+                  name = OT.Filled(7UL, "dbname")
+                  cols = [ OT.Filled(7UL, "colname"), OT.Filled(7UL, "int") ]
+                  version = 1L } ]
+            user_fns = List.map OT.Convert.pt2ocamlUserFunction testUserFunctions
+            user_tipes = List.map OT.Convert.pt2ocamlUserType testUserTypes
+            secrets = [ { secret_name = "z"; secret_value = "y" } ] })
+
+      v<LibAnalysis.ClientInterop.performAnalysisParams>
+        "bytesHandler"
+        (LibAnalysis.ClientInterop.AnalyzeHandler
+          { handler = OT.Convert.pt2ocamlHandler testBytesHttpHandler
             trace_id = testUuid
             trace_data =
               { input = [ "var", testOCamlDval ]

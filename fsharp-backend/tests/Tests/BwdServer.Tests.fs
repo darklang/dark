@@ -28,7 +28,9 @@ open TestUtils.TestUtils
 open System.Text.Json
 
 type Test =
-  { handlers : List<string * string * string>
+  { // HttpBytesTODO maybe rename to legacyHandlers
+    // and create byteHandlers or something?
+    handlers : List<string * string * string>
     cors : Option<string>
     secrets : List<string * string>
     /// Allow testing of a specific canvas name
