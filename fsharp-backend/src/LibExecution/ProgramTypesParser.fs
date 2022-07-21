@@ -242,7 +242,7 @@ module Handler =
     let toModule (s : PT.Handler.Spec) =
       match s with
       | PT.Handler.HTTPLegacy _ -> "HTTP"
-      | PT.Handler.HTTPBytes _ -> "HTTPBYTES" // maybe HTTP_BYTES?
+      | PT.Handler.HTTPBytes _ -> "HTTPBYTES" // HttpBytesTODO: consider changing to `"HTTP_BYTES"`
       | PT.Handler.Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
       | PT.Handler.OldWorker (modulename, _name, _ids) -> modulename
       | PT.Handler.Cron _ -> "CRON" // CLEANUP the DB relies on the casing
@@ -253,6 +253,8 @@ module Handler =
       match s with
       | PT.Handler.HTTPLegacy ("", _, _) -> false
       | PT.Handler.HTTPLegacy (_, "", _) -> false
+      | PT.Handler.HTTPBytes ("", _, _) -> false
+      | PT.Handler.HTTPBytes (_, "", _) -> false
       | PT.Handler.Worker ("", _) -> false
       | PT.Handler.OldWorker ("", _, _) -> false
       | PT.Handler.OldWorker (_, "", _) -> false
