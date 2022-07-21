@@ -15,6 +15,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="HttpMiddlewareV0.fs" />
+    <Compile Include="HttpMiddlewareV1.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

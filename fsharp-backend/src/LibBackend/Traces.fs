@@ -213,9 +213,9 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
             |> Option.bind (fun matching ->
               if matching.tlid = h.tlid then Some traceID else None)
 
-           // HttpBytesTODO we eventually need to actually load traces
+          // HttpBytesTODO we eventually need to actually load traces
           | PT.Handler.Spec.HTTPBytes _ -> Some traceID
-          
+
           | PT.Handler.Spec.Worker _
           | PT.Handler.Spec.OldWorker _
           | PT.Handler.Spec.Cron _

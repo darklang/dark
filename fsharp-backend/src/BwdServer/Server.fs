@@ -38,6 +38,7 @@ module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
 module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
+module HttpMiddlewareV1 = HttpMiddleware.HttpMiddlewareV1
 
 module RealExe = LibRealExecution.RealExecution
 
@@ -328,7 +329,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         Routing.filterMatchingHandlers requestPath (Map.values canvas.handlers)
 
       match pages with
-      // matching handler found - process normally
+      // matching legacy handler found - process normally
       | [ { spec = PT.Handler.HTTPLegacy (route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
@@ -386,11 +387,60 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           return! unmatchedRouteResponse ctx requestPath route
 
+      // matching bytes-friendly handler found - process normally
+      | [ { spec = PT.Handler.HTTPBytes (route = route); tlid = tlid } as handler ] ->
+        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
+
+        // TODO: I think we could put this into the middleware
+        let routeVars = Routing.routeInputVars route requestPath
+
+        let! reqBody = getBody ctx
+        let reqHeaders = getHeaders ctx
+        let reqQuery = getQuery ctx
+
+        match routeVars with
+        | Some routeVars ->
+          Telemetry.addTag "handler.routeVars" routeVars
+
+          // Do request
+          use _ = Telemetry.child "executeHandler" []
+
+          let request =
+            HttpMiddlewareV1.Request.fromRequest url reqHeaders reqQuery reqBody
+          let inputVars = routeVars |> Map |> Map.add "request" request
+          let! (result, _) =
+            RealExe.executeHandler
+              canvas.meta
+              (PT2RT.Handler.toRT handler)
+              (Canvas.toProgram canvas)
+              traceID
+              inputVars
+              (RealExe.InitialExecution(desc, request))
+
+          // Execute - note that these are outside the handler
+          let result = HttpMiddlewareV1.Response.toHttpResponse result
+          let result = HttpMiddlewareV1.Cors.addCorsHeaders reqHeaders result
+
+          do! writeResponseToContext ctx result.statusCode result.headers result.body
+          Telemetry.addTag "http.completion_reason" "success"
+
+          return ctx
+
+        | None -> // vars didnt parse
+          FireAndForget.fireAndForgetTask "store-event" (fun () ->
+            let request =
+              HttpMiddlewareV1.Request.fromRequest url reqHeaders reqQuery reqBody
+            TI.storeEvent meta.id traceID desc request)
+
+          return! unmatchedRouteResponse ctx requestPath route
+
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
 
       | [] when ctx.Request.Method = "OPTIONS" ->
         let reqHeaders = getHeaders ctx
+
+        // HttpBytesTODO: this shouldn't be v0-specific
         match HttpMiddlewareV0.Cors.optionsResponse reqHeaders meta.name with
         | Some response ->
           Telemetry.addTag "http.completion_reason" "options response"
@@ -409,6 +459,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
         let event =
+          // HttpBytesTODO: this shouldn't be v0-specific
           HttpMiddlewareV0.Request.fromRequest true url reqHeaders reqQuery reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
