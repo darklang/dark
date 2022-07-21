@@ -489,6 +489,8 @@ module Convert =
 
     match o.``module``, bo2String o.name, bo2String o.modifier with
     | Filled (_, "HTTP"), route, method -> PT.Handler.HTTPLegacy(route, method, ids)
+    | Filled (_, "HTTPBYTES"), route, method ->
+      PT.Handler.HTTPBytes(route, method, ids)
     | Filled (_, "WORKER"), name, _ -> PT.Handler.Worker(name, ids)
     | Filled (_, "CRON"), name, interval ->
       PT.Handler.Cron(name, PTParser.Handler.CronInterval.parse interval, ids)
