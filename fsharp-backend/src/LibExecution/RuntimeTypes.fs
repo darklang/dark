@@ -671,7 +671,7 @@ module Handler =
     | EveryMinute
 
   type Spec =
-    | HTTP of path : string * method : string
+    | HTTPLegacy of path : string * method : string // HTTPBytesTODO: does this serialize OK?
     | Worker of name : string
     // Deprecated but still supported form
     | OldWorker of modulename : string * name : string

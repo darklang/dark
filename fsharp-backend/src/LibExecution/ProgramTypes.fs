@@ -176,7 +176,7 @@ module Handler =
   type ids = { moduleID : id; nameID : id; modifierID : id }
 
   type Spec =
-    | HTTP of route : string * method : string * ids : ids
+    | HTTPLegacy of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
     // Deprecated but still supported form
     // CLEANUP: convert these into regular workers (change module name to WORKER,

@@ -152,7 +152,7 @@ module Handler =
   module Spec =
     let toST (s : PT.Handler.Spec) : ST.Handler.Spec =
       match s with
-      | PT.Handler.HTTP (route, method, ids) ->
+      | PT.Handler.HTTPLegacy (route, method, ids) ->
         ST.Handler.HTTP(route, method, IDs.toST ids)
       | PT.Handler.Worker (name, ids) -> ST.Handler.Worker(name, IDs.toST ids)
       | PT.Handler.OldWorker (modulename, name, ids) ->

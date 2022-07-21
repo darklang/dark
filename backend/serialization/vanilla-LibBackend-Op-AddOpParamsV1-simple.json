@@ -628,7 +628,7 @@
           ]
         ],
         "spec": [
-          "HTTP",
+          "HTTPLegacy",
           "/path",
           "GET",
           {

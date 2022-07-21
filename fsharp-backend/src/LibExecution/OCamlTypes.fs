@@ -488,7 +488,7 @@ module Convert =
         modifierID = bo2ID o.modifier }
 
     match o.``module``, bo2String o.name, bo2String o.modifier with
-    | Filled (_, "HTTP"), route, method -> PT.Handler.HTTP(route, method, ids)
+    | Filled (_, "HTTP"), route, method -> PT.Handler.HTTPLegacy(route, method, ids)
     | Filled (_, "WORKER"), name, _ -> PT.Handler.Worker(name, ids)
     | Filled (_, "CRON"), name, interval ->
       PT.Handler.Cron(name, PTParser.Handler.CronInterval.parse interval, ids)
@@ -892,8 +892,8 @@ module Convert =
     let types : ORT.HandlerT.spec_types = { input = Blank(0UL); output = Blank(0UL) }
 
     match p with
-    | PT.Handler.HTTP (route, method, ids) ->
-      { ``module`` = string2bo ids.moduleID "HTTP"
+    | PT.Handler.HTTPLegacy (route, method, ids) ->
+      { ``module`` = string2bo ids.moduleID "HTTP" // I assume this has to stay as-is?
         name = string2bo ids.nameID route
         modifier = string2bo ids.modifierID method
         types = types }

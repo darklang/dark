@@ -38,6 +38,7 @@ module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
 module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
+
 module RealExe = LibRealExecution.RealExecution
 
 module FireAndForget = LibService.FireAndForget
@@ -137,15 +138,17 @@ type System.IO.Pipelines.PipeWriter with
 
 let writeResponseToContext
   (ctx : HttpContext)
-  (response : HttpMiddlewareV0.Response.HttpResponse)
+  (statusCode : int)
+  (headers : List<string * string>)
+  (body : array<byte>)
   : Task<unit> =
   task {
-    ctx.Response.StatusCode <- response.statusCode
-    response.headers |> List.iter (fun (k, v) -> setHeader ctx k v)
-    ctx.Response.ContentLength <- int64 response.body.Length
+    ctx.Response.StatusCode <- statusCode
+    headers |> List.iter (fun (k, v) -> setHeader ctx k v)
+    ctx.Response.ContentLength <- int64 body.Length
     if ctx.Request.Method <> "HEAD" then
       // TODO: benchmark - this is apparently faster than streams
-      do! ctx.Response.BodyWriter.WriteAsync(response.body)
+      do! ctx.Response.BodyWriter.WriteAsync(body)
   }
 
 let standardResponse
@@ -297,7 +300,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
     match canvasMeta with
     | Some meta ->
-
       ctx.Items[ "canvasName" ] <- meta.name // store for exception tracking
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
@@ -327,7 +329,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } as handler ] ->
+      | [ { spec = PT.Handler.HTTPLegacy (route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
@@ -366,7 +368,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let result =
             HttpMiddlewareV0.Cors.addCorsHeaders reqHeaders meta.name result
 
-          do! writeResponseToContext ctx result
+          do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
 
           return ctx
@@ -392,7 +394,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         match HttpMiddlewareV0.Cors.optionsResponse reqHeaders meta.name with
         | Some response ->
           Telemetry.addTag "http.completion_reason" "options response"
-          do! writeResponseToContext ctx response
+          do!
+            writeResponseToContext
+              ctx
+              response.statusCode
+              response.headers
+              response.body
         | None -> Telemetry.addTag "http.completion_reason" "options none"
         return ctx
 

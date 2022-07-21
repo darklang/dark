@@ -621,7 +621,7 @@
         ]
       ],
       "spec": [
-        "HTTP",
+        "HTTPLegacy",
         "/path",
         "GET",
         {
@@ -5040,7 +5040,7 @@
         ]
       ],
       "spec": [
-        "HTTP",
+        "HTTPLegacy",
         "/path",
         "GET",
         {

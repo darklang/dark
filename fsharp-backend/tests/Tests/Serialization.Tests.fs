@@ -262,8 +262,8 @@ module Values =
   let testHandlerIDs : PT.Handler.ids =
     { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
 
-  let testHttpHandler : PT.Handler.T =
-    let spec = PT.Handler.HTTP("/path", "GET", testHandlerIDs)
+  let testLegacyHttpHandler : PT.Handler.T =
+    let spec = PT.Handler.HTTPLegacy("/path", "GET", testHandlerIDs)
     { spec = spec; tlid = 92987663UL; ast = testExpr; pos = testPos }
 
   let testWorker : PT.Handler.T =
@@ -292,7 +292,7 @@ module Values =
 
 
   let testHandlers : List<PT.Handler.T> =
-    [ testHttpHandler
+    [ testLegacyHttpHandler
       testWorker
       testCron1
       testCron2
@@ -426,7 +426,7 @@ module Values =
   let testOplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(testHttpHandler.tlid, testPos, testHttpHandler)
+    [ PT.SetHandler(testLegacyHttpHandler.tlid, testPos, testLegacyHttpHandler)
       PT.CreateDB(tlid, testPos, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")
@@ -927,10 +927,11 @@ module GenericSerializersTests =
               (7UL, LibAnalysis.ClientInterop.NonExecutedResult testOCamlDval) ]
           )
         ))
+
       v<LibAnalysis.ClientInterop.performAnalysisParams>
         "handler"
         (LibAnalysis.ClientInterop.AnalyzeHandler
-          { handler = OT.Convert.pt2ocamlHandler testHttpHandler
+          { handler = OT.Convert.pt2ocamlHandler testLegacyHttpHandler
             trace_id = testUuid
             trace_data =
               { input = [ "var", testOCamlDval ]
