@@ -1,4 +1,6 @@
 /// Original Middleware - doesn't work with bytes requests, and does a lot
+///
+/// This middleware corresponds with `HTTPLegacy` handlers
 [<RequireQualifiedAccess>]
 module HttpMiddleware.HttpMiddlewareV0
 
