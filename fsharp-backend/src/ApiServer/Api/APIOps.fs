@@ -105,16 +105,6 @@ module V0 =
           user_tipes = types
           deleted_user_tipes = dTypes }
 
-      let emptyHandler (tlid : tlid) : PT.Toplevel.T =
-        let ids : PT.Handler.ids =
-          { moduleID = gid (); nameID = gid (); modifierID = gid () }
-        PT.Toplevel.TLHandler
-          { pos = { x = 0; y = 0 }
-            tlid = tlid
-            ast = PT.EBlank(gid ())
-            spec = PT.Handler.HTTP("", "", ids) }
-
-
       t.next "save-to-disk"
       // work out the result before we save it, in case it has a
       // stackoverflow or other crashing bug
@@ -242,16 +232,6 @@ module V1 =
           deleted_user_functions = Map.values c.deletedUserFunctions
           user_tipes = Map.values c.userTypes
           deleted_user_tipes = Map.values c.deletedUserTypes }
-
-      let emptyHandler (tlid : tlid) : PT.Toplevel.T =
-        let ids : PT.Handler.ids =
-          { moduleID = gid (); nameID = gid (); modifierID = gid () }
-        PT.Toplevel.TLHandler
-          { pos = { x = 0; y = 0 }
-            tlid = tlid
-            ast = PT.EBlank(gid ())
-            spec = PT.Handler.HTTP("", "", ids) }
-
 
       t.next "save-to-disk"
       // work out the result before we save it, in case it has a
