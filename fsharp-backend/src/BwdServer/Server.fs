@@ -37,9 +37,7 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module Resp = HttpMiddleware.ResponseV0
-module Req = HttpMiddleware.RequestV0
-module Cors = HttpMiddleware.Cors
+module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
 module RealExe = LibRealExecution.RealExecution
 
 module FireAndForget = LibService.FireAndForget
@@ -139,7 +137,7 @@ type System.IO.Pipelines.PipeWriter with
 
 let writeResponseToContext
   (ctx : HttpContext)
-  (response : Resp.HttpResponse)
+  (response : HttpMiddlewareV0.Response.HttpResponse)
   : Task<unit> =
   task {
     ctx.Response.StatusCode <- response.statusCode
@@ -346,7 +344,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Do request
           use _ = Telemetry.child "executeHandler" []
 
-          let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+          let request =
+            HttpMiddlewareV0.Request.fromRequest
+              false
+              url
+              reqHeaders
+              reqQuery
+              reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
@@ -358,8 +362,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               (RealExe.InitialExecution(desc, request))
 
           // Execute - note that these are outside the handler
-          let result = Resp.toHttpResponse result
-          let result = Cors.addCorsHeaders reqHeaders meta.name result
+          let result = HttpMiddlewareV0.Response.toHttpResponse result
+          let result =
+            HttpMiddlewareV0.Cors.addCorsHeaders reqHeaders meta.name result
 
           do! writeResponseToContext ctx result
           Telemetry.addTag "http.completion_reason" "success"
@@ -368,7 +373,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
-            let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+            let request =
+              HttpMiddlewareV0.Request.fromRequest
+                false
+                url
+                reqHeaders
+                reqQuery
+                reqBody
             TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
@@ -378,7 +389,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       | [] when ctx.Request.Method = "OPTIONS" ->
         let reqHeaders = getHeaders ctx
-        match Cors.optionsResponse reqHeaders meta.name with
+        match HttpMiddlewareV0.Cors.optionsResponse reqHeaders meta.name with
         | Some response ->
           Telemetry.addTag "http.completion_reason" "options response"
           do! writeResponseToContext ctx response
@@ -390,7 +401,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
-        let event = Req.fromRequest true url reqHeaders reqQuery reqBody
+        let event =
+          HttpMiddlewareV0.Request.fromRequest true url reqHeaders reqQuery reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
         // CLEANUP: move pusher into storeEvent
