@@ -221,6 +221,7 @@ module Handler =
     let toName (s : PT.Handler.Spec) =
       match s with
       | PT.Handler.HTTPLegacy (route, _method, _ids) -> route
+      | PT.Handler.HTTPBytes (route, _method, _ids) -> route
       | PT.Handler.Worker (name, _ids) -> name
       | PT.Handler.OldWorker (_modulename, name, _ids) -> name
       | PT.Handler.Cron (name, interval, _ids) -> name
@@ -230,6 +231,7 @@ module Handler =
     let toModifier (s : PT.Handler.Spec) =
       match s with
       | PT.Handler.HTTPLegacy (_route, method, _ids) -> method
+      | PT.Handler.HTTPBytes (_route, method, _ids) -> method
       | PT.Handler.Worker (_name, _ids) -> "_"
       | PT.Handler.OldWorker (_modulename, _name, _ids) -> "_"
       | PT.Handler.Cron (_name, interval, _ids) ->
@@ -240,6 +242,7 @@ module Handler =
     let toModule (s : PT.Handler.Spec) =
       match s with
       | PT.Handler.HTTPLegacy _ -> "HTTP"
+      | PT.Handler.HTTPBytes _ -> "HTTPBYTES" // maybe HTTP_BYTES?
       | PT.Handler.Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
       | PT.Handler.OldWorker (modulename, _name, _ids) -> modulename
       | PT.Handler.Cron _ -> "CRON" // CLEANUP the DB relies on the casing

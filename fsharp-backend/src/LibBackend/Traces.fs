@@ -37,6 +37,7 @@ let sampleEventInputVars : AT.InputVars = [ ("event", RT.DIncomplete RT.SourceNo
 let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
   | PT.Handler.HTTPLegacy _ -> sampleLegacyHttpRequestInputVars
+  | PT.Handler.HTTPBytes _ -> [] // HttpBytesTODO
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
   | PT.Handler.UnknownHandler _ ->
@@ -51,6 +52,7 @@ let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
     |> Routing.routeVariables
     |> List.map (fun k -> (k, RT.DIncomplete RT.SourceNone))
 
+  | PT.Handler.HTTPBytes _ // HttpBytesTODO
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _
   | PT.Handler.Cron _
@@ -92,6 +94,7 @@ let savedInputVars
 
     [ ("request", event) ] @ boundRouteVariables
 
+  | PT.Handler.HTTPBytes _ // HttpBytesTODO
   | PT.Handler.OldWorker _
   | PT.Handler.Worker _ -> [ ("event", event) ]
   | PT.Handler.Cron _ -> []
@@ -174,6 +177,7 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
             |> Option.bind (fun matching ->
               if matching.tlid = h.tlid then Some traceID else None)
 
+          | PT.Handler.HTTPBytes _ // HttpBytesTODO
           | PT.Handler.Spec.Worker _
           | PT.Handler.Spec.OldWorker _
           | PT.Handler.Spec.Cron _

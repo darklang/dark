@@ -678,6 +678,7 @@ module Handler =
     | Cron of name : string * interval : Option<CronInterval>
     | REPL of name : string
     | UnknownHandler // no useful info here
+    | HTTPBytes of path : string * method : string // HTTPBytesTODO: can we move this up?
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 

@@ -531,6 +531,7 @@ let saveTLIDs
                 Routing.routeToPostgresPattern (PTParser.Handler.Spec.toName spec),
                 PTParser.Handler.Spec.toModifier spec
               )
+            | PT.Handler.HTTPBytes _ -> None // HttpBytesTODO
             | PT.Handler.Worker _
             | PT.Handler.OldWorker _
             | PT.Handler.Cron _

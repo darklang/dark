@@ -201,6 +201,8 @@ module Handler =
       match s with
       | PT.Handler.HTTPLegacy (route, method, _ids) ->
         RT.Handler.HTTPLegacy(route, method)
+      | PT.Handler.HTTPBytes (route, method, _ids) ->
+        RT.Handler.HTTPBytes(route, method)
       | PT.Handler.Worker (name, _ids) -> RT.Handler.Worker(name)
       | PT.Handler.OldWorker (modulename, name, _ids) ->
         RT.Handler.OldWorker(modulename, name)

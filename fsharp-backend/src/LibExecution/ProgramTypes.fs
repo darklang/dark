@@ -187,6 +187,7 @@ module Handler =
     // If there's no module
     // CLEANUP: convert these into repl and get rid of this case
     | UnknownHandler of string * string * ids
+    | HTTPBytes of route : string * method : string * ids : ids // can we move this further up?
 
   type T = { tlid : tlid; pos : Position; ast : Expr; spec : Spec }
 
