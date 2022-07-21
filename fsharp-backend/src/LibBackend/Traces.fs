@@ -31,16 +31,29 @@ let sampleLegacyHttpRequestInputVars : AT.InputVars =
 
   [ ("request", sampleRequest) ]
 
+let sampleBytesHttpRequestInputVars : AT.InputVars =
+  let sampleRequest : RT.Dval =
+    [ ("body", incomplete)
+      ("queryParams", incomplete)
+      ("headers", incomplete)
+      ("url", incomplete) ]
+    |> Map
+    |> RT.Dval.DObj
+
+  [ ("request", sampleRequest) ]
 
 let sampleEventInputVars : AT.InputVars = [ ("event", RT.DIncomplete RT.SourceNone) ]
 
 let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
   | PT.Handler.HTTPLegacy _ -> sampleLegacyHttpRequestInputVars
-  | PT.Handler.HTTPBytes _ -> [] // HttpBytesTODO
+  | PT.Handler.HTTPBytes _ -> sampleBytesHttpRequestInputVars
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
   | PT.Handler.UnknownHandler _ ->
+    // HttpBytesTODO: sampleBytesHttpRequestInputVars is currently a subset of
+    // sampleLegacyHttpRequestInputVars. We could @ it here, but we'd then have
+    // 'duplicate' definitions of body, url, etc. What should we do?
     sampleLegacyHttpRequestInputVars @ sampleEventInputVars
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _ -> sampleEventInputVars
@@ -52,7 +65,10 @@ let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
     |> Routing.routeVariables
     |> List.map (fun k -> (k, RT.DIncomplete RT.SourceNone))
 
-  | PT.Handler.HTTPBytes _ // HttpBytesTODO
+  | PT.Handler.HTTPBytes (route, _, _) ->
+    route
+    |> Routing.routeVariables
+    |> List.map (fun k -> (k, RT.DIncomplete RT.SourceNone))
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _
   | PT.Handler.Cron _
@@ -94,7 +110,27 @@ let savedInputVars
 
     [ ("request", event) ] @ boundRouteVariables
 
-  | PT.Handler.HTTPBytes _ // HttpBytesTODO
+  | PT.Handler.HTTPBytes (route, _, _) ->
+    let boundRouteVariables =
+      if route <> "" then
+        // Check the trace actually matches the route, if not the client
+        // has made a mistake in matching the traceid to this handler, but
+        // that might happen due to a race condition. If it does, carry
+        // on, if it doesn't -- just don't do any bindings and inject the
+        // sample variables. Communicating to the frontend that this
+        // trace doesn't match the handler should be done in the future
+        // somehow. TODO
+        if Routing.requestPathMatchesRoute route requestPath then
+          Routing.routeInputVars route requestPath
+          |> Exception.unwrapOptionInternal
+               "invalid routeInputVars"
+               [ "route", route; "requestPath", requestPath ]
+        else
+          sampleRouteInputVars h
+      else
+        []
+
+    [ ("request", event) ] @ boundRouteVariables
   | PT.Handler.OldWorker _
   | PT.Handler.Worker _ -> [ ("event", event) ]
   | PT.Handler.Cron _ -> []
@@ -177,7 +213,9 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
             |> Option.bind (fun matching ->
               if matching.tlid = h.tlid then Some traceID else None)
 
-          | PT.Handler.HTTPBytes _ // HttpBytesTODO
+           // HttpBytesTODO we eventually need to actually load traces
+          | PT.Handler.Spec.HTTPBytes _ -> Some traceID
+          
           | PT.Handler.Spec.Worker _
           | PT.Handler.Spec.OldWorker _
           | PT.Handler.Spec.Cron _
