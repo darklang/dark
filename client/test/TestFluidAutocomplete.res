@@ -22,6 +22,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("", "withLower", 0, list{TObj}, TObj),
   ("SomeModule", "withLower", 0, list{TObj}, TObj),
   ("SomeOtherModule", "withlower", 0, list{TObj}, TObj),
+  // HttpBytesTODO consider replicating the below
   ("HTTP", "post", 0, list{TAny}, TAny),
   ("HTTP", "head", 0, list{TAny}, TAny),
   ("HTTP", "get", 0, list{TAny}, TAny),
@@ -362,6 +363,7 @@ let run = () => {
           Some(FACKeyword(KLambda)),
         )
       )
+      // HttpBytesTODO consider replicating the below
       test("http handlers have request", () => {
         let space = Some("HTTP")
         let m = defaultModel(~handlers=list{aHandler(~space, ())}, ())

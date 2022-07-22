@@ -315,7 +315,8 @@ let submitOmniAction = (m: model, pos: pos, action: omniAction): modification =>
   switch action {
   | NewDB(maybeName) => Refactor.createNewDB(m, maybeName, pos)
   | NewFunction(name) => Refactor.createNewFunction(m, name)
-  | NewHTTPHandler(route) => newHandler(m, "HTTP", route, None, pos)
+  | NewHTTPLegacyHandler(route) => newHandler(m, "HTTP", route, None, pos)
+  | NewHTTPBytesHandler(route) => newHandler(m, "HTTPBYTES", route, None, pos)
   | NewWorkerHandler(name) => newHandler(m, "WORKER", name, unused, pos)
   | NewCronHandler(name) => newHandler(m, "CRON", name, None, pos)
   | NewReplHandler(name) =>
@@ -528,7 +529,7 @@ let submitACItem = (
         /*
          * If from an HTTP, strip leading slash and any colons */
         | (F(_, newSpace), F(_, name))
-          if newSpace != "HTTP" && String.startsWith(~prefix="/", name) =>
+          if newSpace != "HTTP" && newSpace != "HTTPBYTES" && String.startsWith(~prefix="/", name) =>
           SpecHeaders.replaceEventName(
             B.toID(h.spec.name),
             B.newF(
@@ -539,6 +540,8 @@ let submitACItem = (
         /*
          * If becoming an HTTP, add a slash at beginning */
         | (F(_, "HTTP"), F(_, name)) if !String.startsWith(~prefix="/", name) =>
+          SpecHeaders.replaceEventName(B.toID(h.spec.name), B.newF("/" ++ name), replacedModifier)
+        | (F(_, "HTTPBYTES"), F(_, name)) if !String.startsWith(~prefix="/", name) =>
           SpecHeaders.replaceEventName(B.toID(h.spec.name), B.newF("/" ++ name), replacedModifier)
         | (_, _) => replacedModifier
         }

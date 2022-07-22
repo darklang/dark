@@ -174,7 +174,8 @@ and usage = {
 }
 
 and handlerSpace =
-  | HSHTTP
+  | HSHTTPLegacy
+  | HSHTTPBytes
   | HSCron
   | HSWorker
   | HSRepl
@@ -798,7 +799,8 @@ and command = {
 and omniAction =
   | NewDB(option<string>)
   | NewFunction(option<string>)
-  | NewHTTPHandler(option<string>)
+  | NewHTTPLegacyHandler(option<string>)
+  | NewHTTPBytesHandler(option<string>)
   | NewWorkerHandler(option<string>)
   | NewCronHandler(option<string>)
   | NewReplHandler(option<string>)

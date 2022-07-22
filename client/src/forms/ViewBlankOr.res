@@ -73,12 +73,12 @@ let placeHolderFor = (vp: ViewUtils.viewProps, pt: blankOrType): string =>
   switch pt {
   | EventName =>
     switch TL.spaceOf(vp.tl) |> Option.unwrap(~default=HSDeprecatedOther) {
-    | HSHTTP => "route"
+    | HSHTTPLegacy | HSHTTPBytes => "route"
     | HSWorker | HSDeprecatedOther | HSRepl | HSCron => "name"
     }
   | EventModifier =>
     switch TL.spaceOf(vp.tl) |> Option.unwrap(~default=HSDeprecatedOther) {
-    | HSHTTP => "verb"
+    | HSHTTPLegacy | HSHTTPBytes => "verb"
     | HSCron => "interval"
     | HSWorker | HSDeprecatedOther | HSRepl => "modifier"
     }

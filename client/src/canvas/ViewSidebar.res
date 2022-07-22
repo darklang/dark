@@ -148,11 +148,21 @@ let handlerCategory = (
   }
 }
 
-let httpCategory = (handlers: list<PT.Handler.t>): category =>
+let httpLegacyCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(
     TL.isHTTPHandler,
     "HTTP",
-    NewHTTPHandler(None),
+    NewHTTPLegacyHandler(None),
+    Some(GoToArchitecturalView),
+    Http,
+    handlers,
+  )
+
+let httpBytesCategory = (handlers: list<PT.Handler.t>): category =>
+  handlerCategory(
+    TL.isHTTPHandler, // HttpBytesTODO
+    "HTTPBYTES",
+    NewHTTPBytesHandler(None),
     Some(GoToArchitecturalView),
     Http,
     handlers,
@@ -238,7 +248,7 @@ let f404Category = (m: model): category => {
     iconAction: None,
     tooltip: setTooltips(FourOhFour, f404s),
     entries: List.map(f404s, ~f=({space, path, modifier, _} as fof) => Entry({
-      name: if space == "HTTP" {
+      name: if space == "HTTP" || space == "HTTPBYTES" { // HttpBytesTODO OK?
         path
       } else {
         space ++ ("::" ++ path)
@@ -341,7 +351,8 @@ let standardCategories = (m, hs, dbs, ufns, tipes) => {
     list{userTipeCategory(m, tipes)}
   }
   let catagories = list{
-    httpCategory(hs),
+    httpLegacyCategory(hs),
+    httpBytesCategory(hs),
     workerCategory(hs),
     cronCategory(hs),
     replCategory(hs),

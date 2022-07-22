@@ -244,7 +244,9 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
          * is likely to case and error, we only want to highlight those
          * cases. */
         switch (dval, vp.tl) {
-        | (DIncomplete(_), TLHandler(h)) if SpecHeaders.spaceOf(h.spec) == HSHTTP =>
+        | (DIncomplete(_), TLHandler(h)) if SpecHeaders.spaceOf(h.spec) == HSHTTPLegacy =>
+          text("Your code needs to return a value in the last expression")
+        | (DIncomplete(_), TLHandler(h)) if SpecHeaders.spaceOf(h.spec) == HSHTTPBytes =>
           text("Your code needs to return a value in the last expression")
         | (DIncomplete(_), TLFunc(f)) if onDefaultTrace(f.tlid) =>
           text(

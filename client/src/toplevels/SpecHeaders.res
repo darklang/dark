@@ -8,7 +8,8 @@ let spaceOf = (hs: PT.Handler.Spec.t): handlerSpace => {
   let spaceOfStr = s => {
     let lwr = String.toUppercase(s)
     switch lwr {
-    | "HTTP" => HSHTTP
+    | "HTTP" => HSHTTPLegacy
+    | "HTTPBYTES" => HSHTTPBytes
     | "CRON" => HSCron
     | "WORKER" => HSWorker
     | "REPL" => HSRepl

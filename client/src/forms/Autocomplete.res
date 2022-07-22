@@ -54,7 +54,13 @@ let asName = (aci: autocompleteItem): string =>
       | Some(name) => "New Function named " ++ name
       | None => "New Function"
       }
-    | NewHTTPHandler(maybeName) =>
+    | NewHTTPLegacyHandler(maybeName) =>
+      switch maybeName {
+      | Some(name) => "New HTTP handler named " ++ name
+      | None => "New HTTP handler"
+      }
+    | NewHTTPBytesHandler(maybeName) =>
+      // HttpBytesTODO
       switch maybeName {
       | Some(name) => "New HTTP handler named " ++ name
       | None => "New HTTP handler"
@@ -120,7 +126,8 @@ let asTypeClass = (item: autocompleteItem): string =>
   switch item {
   | ACOmniAction(NewDB(_))
   | ACOmniAction(NewFunction(_))
-  | ACOmniAction(NewHTTPHandler(_))
+  | ACOmniAction(NewHTTPLegacyHandler(_))
+  | ACOmniAction(NewHTTPBytesHandler(_))
   | ACOmniAction(NewWorkerHandler(_))
   | ACOmniAction(NewCronHandler(_))
   | ACOmniAction(NewReplHandler(_))
@@ -362,14 +369,15 @@ let qReplHandler = (s: string): omniAction => {
   }
 }
 
+// HttpBytesTODO: replicate?
 let qHTTPHandler = (s: string): omniAction => {
   let name = cleanEventName(s)
   if name == "" {
-    NewHTTPHandler(None)
+    NewHTTPLegacyHandler(None)
   } else if String.startsWith(~prefix="/", name) {
-    NewHTTPHandler(Some(assertValid(httpNameValidator, name)))
+    NewHTTPLegacyHandler(Some(assertValid(httpNameValidator, name)))
   } else {
-    NewHTTPHandler(Some(assertValid(httpNameValidator, "/" ++ name)))
+    NewHTTPLegacyHandler(Some(assertValid(httpNameValidator, "/" ++ name)))
   }
 }
 
@@ -463,7 +471,8 @@ let toDynamicItems = (
     List.map(~f=o => ACOmniAction(o), standard)
   | Some(_, PEventName(_)) =>
     switch space {
-    | Some(HSHTTP) => list{ACHTTPRoute(cleanHTTPname(q))}
+    | Some(HSHTTPLegacy) => list{ACHTTPRoute(cleanHTTPname(q))}
+    | Some(HSHTTPBytes) => list{ACHTTPRoute(cleanHTTPname(q))}
     | Some(HSCron) =>
       if q == "" {
         list{}
@@ -590,7 +599,15 @@ let generate = (m: model, a: autocomplete): autocomplete => {
     // autocomplete HTTP verbs if the handler is in the HTTP event space
     | EventModifier =>
       switch space {
-      | Some(HSHTTP) => list{
+      | Some(HSHTTPLegacy) => list{
+          ACHTTPModifier("GET"),
+          ACHTTPModifier("POST"),
+          ACHTTPModifier("PUT"),
+          ACHTTPModifier("DELETE"),
+          ACHTTPModifier("PATCH"),
+          ACHTTPModifier("OPTIONS"),
+        }
+      | Some(HSHTTPBytes) => list{
           ACHTTPModifier("GET"),
           ACHTTPModifier("POST"),
           ACHTTPModifier("PUT"),
@@ -610,7 +627,8 @@ let generate = (m: model, a: autocomplete): autocomplete => {
       }
     | EventName =>
       switch space {
-      | Some(HSHTTP) =>
+      | Some(HSHTTPLegacy)
+      | Some(HSHTTPBytes) =>
         let fourOhFourList =
           m.f404s
           |> List.uniqueBy(~f=f404 => f404.path)
@@ -627,7 +645,7 @@ let generate = (m: model, a: autocomplete): autocomplete => {
       | _ => list{}
       }
     | EventSpace => // Other spaces aren't allowed anymore
-      list{ACEventSpace("HTTP"), ACEventSpace("CRON"), ACEventSpace("WORKER"), ACEventSpace("REPL")}
+      list{ACEventSpace("HTTP"), ACEventSpace("HTTPBYTES"), ACEventSpace("CRON"), ACEventSpace("WORKER"), ACEventSpace("REPL")}
     | DBColType => List.map(~f=x => ACDBColType(x), allowedDBColTipes)
     | ParamTipe =>
       let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
@@ -786,7 +804,8 @@ let documentationForItem = (aci: autocompleteItem): option<list<Vdom.t<'a>>> => 
   | ACOmniAction(_) => None
   | ACHTTPModifier(verb) => simpleDoc("Make this handler match the " ++ (verb ++ " HTTP verb"))
   | ACCronTiming(timing) => simpleDoc("Request this handler to trigger " ++ timing)
-  | ACEventSpace("HTTP") => simpleDoc("This handler will respond to HTTP requests")
+  | ACEventSpace("HTTP") => simpleDoc("This handler will respond to HTTP requests (legacy)")
+  | ACEventSpace("HTTPBYTES") => simpleDoc("This handler will respond to HTTP requests (new)")
   | ACEventSpace("CRON") => simpleDoc("This handler will periodically trigger")
   | ACEventSpace("WORKER") => simpleDoc("This handler will run emitted events in the background")
   | ACEventSpace("REPL") => simpleDoc("This handler allows you run code in it")

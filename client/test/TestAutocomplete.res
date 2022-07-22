@@ -175,6 +175,7 @@ let run = () => {
       )
       ()
     })
+    // HttpBytesTODO consider replicating the below
     describe("validate httpName varnames", () => {
       let space = Some("HTTP")
       let tl = TLHandler(aHandler(~space, ()))
@@ -420,56 +421,56 @@ let run = () => {
         expect(
           acFor(~target=None, m)
           |> setQuery(m, "asdkkasd")
-          |> itemPresent(ACOmniAction(NewHTTPHandler(Some("/asdkkasd")))),
+          |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(Some("/asdkkasd")))),
         ) |> toEqual(true)
       )
       test("can create routes #1 (base case)", () =>
         expect(
           acFor(~target=None, m)
           |> setQuery(m, "/")
-          |> itemPresent(ACOmniAction(NewHTTPHandler(Some("/")))),
+          |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(Some("/")))),
         ) |> toEqual(true)
       )
       test("can create routes #2 (normal)", () =>
         expect(
           acFor(~target=None, m)
           |> setQuery(m, "/asasdasd")
-          |> itemPresent(ACOmniAction(NewHTTPHandler(Some("/asasdasd")))),
+          |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(Some("/asasdasd")))),
         ) |> toEqual(true)
       )
       test("can create routes #3 (parameterized)", () =>
         expect(
           acFor(~target=None, m)
           |> setQuery(m, "/user/:userid/card/:cardid")
-          |> itemPresent(ACOmniAction(NewHTTPHandler(Some("/user/:userid/card/:cardid")))),
+          |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(Some("/user/:userid/card/:cardid")))),
         ) |> toEqual(true)
       )
       test("entering an invalid route name works", () =>
         expect(
           acFor(~target=None, m)
           |> setQuery(m, "[]/31234myDB[]")
-          |> itemPresent(ACOmniAction(NewHTTPHandler(Some("/31234myDB")))),
+          |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(Some("/31234myDB")))),
         ) |> toEqual(true)
       )
       test("fix names for routes", () =>
         expect(
           acFor(~target=None, m)
           |> setQuery(m, "asasdasd")
-          |> itemPresent(ACOmniAction(NewHTTPHandler(Some("/asasdasd")))),
+          |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(Some("/asasdasd")))),
         ) |> toEqual(true)
       )
       test("fix slashes for routes", () =>
         expect(
           acFor(~target=None, m)
           |> setQuery(m, "//12//////345/6789//12/")
-          |> itemPresent(ACOmniAction(NewHTTPHandler(Some("/12/345/6789/12")))),
+          |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(Some("/12/345/6789/12")))),
         ) |> toEqual(true)
       )
       test("fix route name ", () =>
         expect(
           acFor(~target=None, m)
           |> setQuery(m, "^hello/[]world")
-          |> itemPresent(ACOmniAction(NewHTTPHandler(Some("/hello/world")))),
+          |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(Some("/hello/world")))),
         ) |> toEqual(true)
       )
       test("create DB from route name", () =>
@@ -508,7 +509,7 @@ let run = () => {
       )
       test("new HTTP option available by default", () =>
         expect(
-          acFor(~target=None, m) |> itemPresent(ACOmniAction(NewHTTPHandler(None))),
+          acFor(~target=None, m) |> itemPresent(ACOmniAction(NewHTTPLegacyHandler(None))),
         ) |> toEqual(true)
       )
       test("can create function with name from query", () =>
@@ -523,7 +524,7 @@ let run = () => {
     describe("code search", () => {
       let http = aHandler(
         ~tlid=TLID.fromInt(123),
-        ~space=Some("HTTP"),
+        ~space=Some("HTTP"), // HttpBytesTODO
         ~name=Some("/hello"),
         ~modifier=Some("GET"),
         ~expr=EFieldAccess(gid(), EVariable(gid(), "request"), "queryParams"),

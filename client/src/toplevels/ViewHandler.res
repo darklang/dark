@@ -123,6 +123,7 @@ let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> => {
     }
 
     switch (spec.space, spec.modifier, spec.name) {
+    // HttpBytesTODO consider replicating the below
     | (F(_, "HTTP"), F(_, meth), F(_, name)) =>
       let curlAction: TLMenu.menuItem = {
         title: "Copy request as cURL",
@@ -177,6 +178,7 @@ let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEven
     )
 
     switch (spec.space, spec.modifier, spec.name) {
+    // HttpBytesTODO consider replicating the below
     | (F(_, "HTTP"), _, _) | (F(_, "CRON"), _, _) =>
       Html.div(list{Html.class'("modifier")}, list{viewMod})
     | _ => Vdom.noNode
@@ -191,6 +193,7 @@ let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEven
   | (F(_, "HTTP"), F(_, "DELETE")) => baseClass ++ " http-delete"
   | (F(_, "HTTP"), F(_, "PATCH")) => baseClass ++ " http-patch"
   | (F(_, "HTTP"), F(_, "OPTIONS")) => baseClass ++ " http-options"
+  // HttpBytesTODO consider replicating all of the above
   | (F(_, "CRON"), _) => baseClass ++ " cron"
   | (F(_, "WORKER"), _) => baseClass ++ " worker"
   | (F(_, "REPL"), _) => baseClass ++ " repl"

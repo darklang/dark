@@ -7,6 +7,8 @@ module TL = Toplevel
 module TD = TLID.Dict
 module E = FluidExpression
 
+// HttpBytesTODO add some integration tests
+
 let pass: testResult = Ok()
 
 let stringify = (msg: 'a): string =>

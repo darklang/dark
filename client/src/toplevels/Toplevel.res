@@ -137,7 +137,8 @@ let spaceOfHandler = (h: PT.Handler.t): handlerSpace => SpecHeaders.spaceOf(h.sp
 let spaceOf = (tl: toplevel): option<handlerSpace> =>
   tl |> asHandler |> Option.map(~f=spaceOfHandler)
 
-let isHTTPHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSHTTP))
+// HttpByteTODO: should this also apply to the new one?
+let isHTTPHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSHTTPLegacy))
 
 let isCronHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSCron))
 
