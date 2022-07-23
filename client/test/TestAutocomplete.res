@@ -13,7 +13,7 @@ let defaultID = gid()
 
 let defaultID2 = gid()
 
-let defaultBlankOr = Blank(defaultID)
+let defaultBlankOr = B.Blank(defaultID)
 
 let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
@@ -186,7 +186,7 @@ let run = () => {
     describe("validate httpName varnames", () => {
       let space = Some("HTTP")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventName(BaseTypes.F(ID.fromInt(0), "foo"))
+      let pd = PEventName(B.F(ID.fromInt(0), "foo"))
       test("/foo/bar is valid, no variables", () => {
         let value = "/foo/bar"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -205,7 +205,7 @@ let run = () => {
     describe("validate Worker names", () => {
       let space = Some("WORKER")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventName(BaseTypes.F(ID.fromInt(0), "foo"))
+      let pd = PEventName(B.F(ID.fromInt(0), "foo"))
       test("foo is valid", () => {
         let value = "/foo/bar"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -220,7 +220,7 @@ let run = () => {
     describe("validate CRON intervals", () => {
       let space = Some("CRON")
       let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventModifier(BaseTypes.F(ID.fromInt(0), "5mins"))
+      let pd = PEventModifier(B.F(ID.fromInt(0), "5mins"))
       test("Every 1hr is valid", () => {
         let value = "Every 1hr"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)

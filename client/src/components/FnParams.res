@@ -108,11 +108,12 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
   }
 }
 
-let viewParamName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
+let viewParamName = (~classes: list<string>, vp: viewProps, v: BlankOr.t<string>): Html.html<msg> =>
   ViewBlankOr.viewText(~enterable=true, ~classes, ParamName, vp, v)
 
-let viewParamTipe = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<msg> =>
-  ViewBlankOr.viewTipe(~classes, ~enterable=true, ParamTipe, vp, v)
+let viewParamTipe = (~classes: list<string>, vp: viewProps, v: BlankOr.t<DType.t>): Html.html<
+  msg,
+> => ViewBlankOr.viewTipe(~classes, ~enterable=true, ParamTipe, vp, v)
 
 let jsDragStart: Web.Node.event => unit = %raw(
   "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); e.dataTransfer.effectAllowed = 'move'; }"

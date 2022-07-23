@@ -24,13 +24,13 @@ let spaceOf = (hs: PT.Handler.Spec.t): handlerSpace => {
 
 let replaceEventModifier = (
   search: id,
-  replacement: blankOr<string>,
+  replacement: BlankOr.t<string>,
   hs: PT.Handler.Spec.t,
 ): PT.Handler.Spec.t => {...hs, modifier: B.replace(search, replacement, hs.modifier)}
 
 let replaceEventName = (
   search: id,
-  replacement: blankOr<string>,
+  replacement: BlankOr.t<string>,
   hs: PT.Handler.Spec.t,
 ): PT.Handler.Spec.t => {
   ...hs,
@@ -39,13 +39,13 @@ let replaceEventName = (
 
 let replaceEventSpace = (
   search: id,
-  replacement: blankOr<string>,
+  replacement: BlankOr.t<string>,
   hs: PT.Handler.Spec.t,
 ): PT.Handler.Spec.t => {...hs, space: B.replace(search, replacement, hs.space)}
 
 let replace = (
   search: id,
-  replacement: blankOr<string>,
+  replacement: BlankOr.t<string>,
   hs: PT.Handler.Spec.t,
 ): PT.Handler.Spec.t =>
   hs

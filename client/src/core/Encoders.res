@@ -59,26 +59,7 @@ let tlid = TLID.encode
 
 let pos = Pos.encode
 
-let blankOr = BaseTypes.encodeBlankOr
-
-let blankOrData = (pd: Types.blankOrData): Js.Json.t => {
-  let ev = variant
-  switch pd {
-  | PEventName(name) => ev("PEventName", list{blankOr(string, name)})
-  | PEventModifier(modifier) => ev("PEventModifier", list{blankOr(string, modifier)})
-  | PEventSpace(space) => ev("PEventSpace", list{blankOr(string, space)})
-  | PDBName(name) => ev("PDBName", list{blankOr(string, name)})
-  | PDBColName(colname) => ev("PDBColName", list{blankOr(string, colname)})
-  | PDBColType(coltype) => ev("PDBColType", list{blankOr(string, coltype)})
-  | PFnName(msg) => ev("PFnName", list{blankOr(string, msg)})
-  | PFnReturnTipe(msg) => ev("PFnReturnTipe", list{blankOr(DType.encode, msg)})
-  | PParamName(msg) => ev("PParamName", list{blankOr(string, msg)})
-  | PParamTipe(msg) => ev("PParamTipe", list{blankOr(DType.encode, msg)})
-  | PTypeName(n) => ev("PTypeName", list{blankOr(string, n)})
-  | PTypeFieldName(n) => ev("PTypeFieldName", list{blankOr(string, n)})
-  | PTypeFieldTipe(t) => ev("PTypeFieldTipe", list{blankOr(DType.encode, t)})
-  }
-}
+let blankOr = BlankOr.encode
 
 and ops = (ops: list<PT.Op.t>): Js.Json.t =>
   list(

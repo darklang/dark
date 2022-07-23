@@ -257,7 +257,7 @@ let validateHttpNameValidVarnames = (httpName: string) => {
   }
 }
 
-let validateFnParamNameFree = (tl: toplevel, oldParam: blankOr<string>, value: string): option<
+let validateFnParamNameFree = (tl: toplevel, oldParam: BlankOr.t<string>, value: string): option<
   string,
 > =>
   switch tl {

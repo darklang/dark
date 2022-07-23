@@ -2,8 +2,6 @@ open Tc
 module PT = ProgramTypes
 module RT = RuntimeTypes
 
-open BaseTypes
-
 // -------------------
 // Clipboard
 // -------------------
@@ -86,19 +84,19 @@ and fluidAST = ProgramTypes.AST.t
 // Pointers
 // -----------------------------
 and blankOrData =
-  | PEventName(blankOr<string>)
-  | PEventModifier(blankOr<string>)
-  | PEventSpace(blankOr<string>)
-  | PDBName(blankOr<string>)
-  | PDBColName(blankOr<string>)
-  | PDBColType(blankOr<string>)
-  | PFnName(blankOr<string>)
-  | PFnReturnTipe(blankOr<DType.t>)
-  | PParamName(blankOr<string>)
-  | PParamTipe(blankOr<DType.t>)
-  | PTypeName(blankOr<string>)
-  | PTypeFieldName(blankOr<string>)
-  | PTypeFieldTipe(blankOr<DType.t>)
+  | PEventName(BlankOr.t<string>)
+  | PEventModifier(BlankOr.t<string>)
+  | PEventSpace(BlankOr.t<string>)
+  | PDBName(BlankOr.t<string>)
+  | PDBColName(BlankOr.t<string>)
+  | PDBColType(BlankOr.t<string>)
+  | PFnName(BlankOr.t<string>)
+  | PFnReturnTipe(BlankOr.t<DType.t>)
+  | PParamName(BlankOr.t<string>)
+  | PParamTipe(BlankOr.t<DType.t>)
+  | PTypeName(BlankOr.t<string>)
+  | PTypeFieldName(BlankOr.t<string>)
+  | PTypeFieldTipe(BlankOr.t<DType.t>)
 
 @ppx.deriving(show({with_path: false}))
 and blankOrType =

@@ -36,7 +36,7 @@ let blankOrData = (db: PT.DB.t): list<blankOrData> => {
 let hasCol = (db: PT.DB.t, name: string): bool =>
   db.cols |> List.any(~f=((colname, _)) =>
     switch colname {
-    | Blank(_) => false
+    | BlankOr.Blank(_) => false
     | F(_, n) => name == n
     }
   )

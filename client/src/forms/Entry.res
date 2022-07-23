@@ -515,7 +515,7 @@ let submitACItem = (
         replace(PEventModifier(F(id, value)))
       // allow arbitrary eventspaces
       | (PEventSpace(space), ACEventSpace(value), TLHandler(h)) =>
-        let new_ = F(id, value)
+        let new_ = B.F(id, value)
         let replacement = SpecHeaders.replaceEventSpace(id, new_, h.spec)
         let replacedModifier = switch (replacement.space, space) {
         | (F(_, newSpace), F(_, oldSpace)) if newSpace === oldSpace => replacement

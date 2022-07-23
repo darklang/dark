@@ -1,7 +1,5 @@
 // The types that the user sees. For all type definitions, see ProgramTypes.fs
 
-open BaseTypes
-
 module FQFnName = {
   module StdlibFnName = {
     @ppx.deriving(show({with_path: false}))
@@ -443,22 +441,22 @@ module Handler = {
   module Spec = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      space: blankOr<string>,
-      name: blankOr<string>,
-      modifier: blankOr<string>,
+      space: BlankOr.t<string>,
+      name: BlankOr.t<string>,
+      modifier: BlankOr.t<string>,
     }
 
     let encode = (spec: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, spec.name)),
-        ("module", BaseTypes.encodeBlankOr(string, spec.space)),
-        ("modifier", BaseTypes.encodeBlankOr(string, spec.modifier)),
+        ("name", BlankOr.encode(string, spec.name)),
+        ("module", BlankOr.encode(string, spec.space)),
+        ("modifier", BlankOr.encode(string, spec.modifier)),
         (
           "types",
           object_(list{
-            ("input", BaseTypes.encodeBlankOr(int, BaseTypes.Blank(ID.generate()))),
-            ("output", BaseTypes.encodeBlankOr(int, BaseTypes.Blank(ID.generate()))),
+            ("input", BlankOr.encode(int, BlankOr.Blank(ID.generate()))),
+            ("output", BlankOr.encode(int, BlankOr.Blank(ID.generate()))),
           }),
         ),
       })
@@ -466,9 +464,9 @@ module Handler = {
     let decode = (j): t => {
       open Json_decode_extended
       {
-        space: field("module", BaseTypes.decodeBlankOr(string), j),
-        name: field("name", BaseTypes.decodeBlankOr(string), j),
-        modifier: field("modifier", BaseTypes.decodeBlankOr(string), j),
+        space: field("module", BlankOr.decode(string), j),
+        name: field("name", BlankOr.decode(string), j),
+        modifier: field("modifier", BlankOr.decode(string), j),
       }
     }
   }
@@ -504,11 +502,11 @@ module Handler = {
 module DB = {
   module Col = {
     @ppx.deriving(show({with_path: false}))
-    type rec t = (blankOr<string>, blankOr<string>)
+    type rec t = (BlankOr.t<string>, BlankOr.t<string>)
 
     let encode = (col: t): Js.Json.t => {
       open Json.Encode
-      pair(BaseTypes.encodeBlankOr(string), BaseTypes.encodeBlankOr(string), col)
+      pair(BlankOr.encode(string), BlankOr.encode(string), col)
     }
 
     let decode = (j): t => {
@@ -544,14 +542,14 @@ module DB = {
         }
 
       let tipeString = (j): string => map(tipe2str, DType.decode, j)
-      tuple2(BaseTypes.decodeBlankOr(string), BaseTypes.decodeBlankOr(tipeString), j)
+      tuple2(BlankOr.decode(string), BlankOr.decode(tipeString), j)
     }
   }
 
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     tlid: TLID.t,
-    name: blankOr<string>,
+    name: BlankOr.t<string>,
     cols: list<Col.t>,
     version: int,
     pos: Pos.t,
@@ -577,7 +575,7 @@ module DB = {
     let name = field("name", string, j)
     let nameID = field("nameID", ID.decode, j)
     let name = if name == "" {
-      Blank(nameID)
+      BlankOr.Blank(nameID)
     } else {
       F(nameID, name)
     }
@@ -595,8 +593,8 @@ module UserFunction = {
   module Parameter = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      name: blankOr<string>,
-      typ: blankOr<DType.t>,
+      name: BlankOr.t<string>,
+      typ: BlankOr.t<DType.t>,
       args: list<string>,
       optional: bool,
       description: string,
@@ -604,8 +602,8 @@ module UserFunction = {
     let encode = (p: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, p.name)),
-        ("tipe", BaseTypes.encodeBlankOr(DType.encode, p.typ)),
+        ("name", BlankOr.encode(string, p.name)),
+        ("tipe", BlankOr.encode(DType.encode, p.typ)),
         ("block_args", list(string, p.args)),
         ("optional", bool(p.optional)),
         ("description", string(p.description)),
@@ -614,8 +612,8 @@ module UserFunction = {
     let decode = (j): t => {
       open Json_decode_extended
       {
-        name: field("name", BaseTypes.decodeBlankOr(string), j),
-        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decode), j),
+        name: field("name", BlankOr.decode(string), j),
+        typ: field("tipe", BlankOr.decode(DType.decode), j),
         args: field("block_args", list(string), j),
         optional: field("optional", bool, j),
         description: field("description", string, j),
@@ -625,19 +623,19 @@ module UserFunction = {
   module Metadata = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      name: blankOr<string>,
+      name: BlankOr.t<string>,
       parameters: list<Parameter.t>,
       description: string,
-      returnType: blankOr<DType.t>,
+      returnType: BlankOr.t<DType.t>,
       infix: bool,
     }
     let encode = (f: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, f.name)),
+        ("name", BlankOr.encode(string, f.name)),
         ("parameters", list(Parameter.encode, f.parameters)),
         ("description", string(f.description)),
-        ("return_type", BaseTypes.encodeBlankOr(DType.encode, f.returnType)),
+        ("return_type", BlankOr.encode(DType.encode, f.returnType)),
         ("infix", bool(f.infix)),
       })
     }
@@ -645,10 +643,10 @@ module UserFunction = {
     let decode = (j): t => {
       open Json_decode_extended
       {
-        name: field("name", BaseTypes.decodeBlankOr(string), j),
+        name: field("name", BlankOr.decode(string), j),
         parameters: field("parameters", list(Parameter.decode), j),
         description: field("description", string, j),
-        returnType: field("return_type", BaseTypes.decodeBlankOr(DType.decode), j),
+        returnType: field("return_type", BlankOr.decode(DType.decode), j),
         infix: field("infix", bool, j),
       }
     }
@@ -730,7 +728,7 @@ module UserType = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     tlid: TLID.t,
-    name: blankOr<string>,
+    name: BlankOr.t<string>,
     version: int,
     definition: Definition.t,
   }
@@ -738,7 +736,7 @@ module UserType = {
     open Json_encode_extended
     object_(list{
       ("tlid", TLID.encode(t.tlid)),
-      ("name", BaseTypes.encodeBlankOr(string, t.name)),
+      ("name", BlankOr.encode(string, t.name)),
       ("version", int(t.version)),
       ("definition", Definition.encode(t.definition)),
     })
@@ -747,7 +745,7 @@ module UserType = {
     open Json.Decode
     {
       tlid: field("tlid", TLID.decode, j),
-      name: field("name", BaseTypes.decodeBlankOr(string), j),
+      name: field("name", BlankOr.decode(string), j),
       version: field("version", int, j),
       definition: field("definition", Definition.decode, j),
     }

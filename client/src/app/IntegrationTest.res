@@ -139,7 +139,7 @@ let editing_headers = (m: model): testResult => {
 }
 
 @ppx.deriving(show)
-type rec handler_triple = (blankOr<string>, blankOr<string>, blankOr<string>)
+type rec handler_triple = (BlankOr.t<string>, BlankOr.t<string>, BlankOr.t<string>)
 
 let switching_from_http_space_removes_leading_slash = (m: model): testResult => {
   let spec =

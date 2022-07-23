@@ -7,7 +7,7 @@ type msg = AppTypes.msg
 let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   let colView = col =>
     switch col {
-    | (F(_, nm), F(_, ty)) =>
+    | (B.F(_, nm), B.F(_, ty)) =>
       let html = Html.div(
         list{Html.class'("field")},
         list{
@@ -62,7 +62,7 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg>
   Html.div(list{Html.class'("fields")}, List.map(~f=paramView, params))
 }
 
-let fnReturnTipeView = (returnTipe: blankOr<DType.t>): Html.html<msg> =>
+let fnReturnTipeView = (returnTipe: BlankOr.t<DType.t>): Html.html<msg> =>
   switch returnTipe {
   | F(_, v) =>
     let typeStr = Runtime.tipe2str(v)
@@ -154,7 +154,7 @@ let fnView = (
   tlid: TLID.t,
   name: string,
   params: list<PT.UserFunction.Parameter.t>,
-  returnTipe: blankOr<DType.t>,
+  returnTipe: BlankOr.t<DType.t>,
   direction: string,
 ): Html.html<msg> => {
   let header = list{
@@ -186,7 +186,7 @@ let packageFnView = (
   tlid: TLID.t,
   name: string,
   params: list<PT.Package.Parameter.t>,
-  returnTipe: blankOr<DType.t>,
+  returnTipe: BlankOr.t<DType.t>,
   direction: string,
 ): Html.html<msg> => {
   // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f

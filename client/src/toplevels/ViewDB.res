@@ -11,7 +11,7 @@ type dbStats = AnalysisTypes.dbStats
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let dbName2String = (name: blankOr<string>): string => B.valueWithDefault("", name)
+let dbName2String = (name: BlankOr.t<string>): string => B.valueWithDefault("", name)
 
 let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(
@@ -106,12 +106,16 @@ let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
   list{typeView, titleView, menuView}
 }
 
-let viewDBColName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> => {
+let viewDBColName = (~classes: list<string>, vp: viewProps, v: BlankOr.t<string>): Html.html<
+  msg,
+> => {
   let enterable = B.isBlank(v) || !vp.dbLocked
   ViewBlankOr.viewText(~enterable, ~classes, DBColName, vp, v)
 }
 
-let viewDBColType = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> => {
+let viewDBColType = (~classes: list<string>, vp: viewProps, v: BlankOr.t<string>): Html.html<
+  msg,
+> => {
   let enterable = B.isBlank(v) || !vp.dbLocked
   ViewBlankOr.viewText(~enterable, ~classes, DBColType, vp, v)
 }

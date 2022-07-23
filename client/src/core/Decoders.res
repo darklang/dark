@@ -29,36 +29,9 @@ let idMap = ID.Map.decode
 
 let pos = Pos.decode
 
-let blankOr = d =>
-  variants(list{
-    ("Filled", variant2((id, v) => F(id, v), id, d)),
-    ("Blank", variant1(id => Blank(id), id)),
-    ("Partial", variant2((id, _) => Blank(id), id, string)),
-  })
-
 let traceID = (j): traceID => string(j)
 
 let jsDate = (j): Js.Date.t => Js.Date.fromString(string(j))
-
-let blankOrData = (j): blankOrData => {
-  let dv1 = variant1
-  variants(
-    list{
-      ("PEventName", dv1(x => PEventName(x), blankOr(string))),
-      ("PEventSpace", dv1(x => PEventSpace(x), blankOr(string))),
-      ("PEventModifier", dv1(x => PEventModifier(x), blankOr(string))),
-      ("PDBName", dv1(x => PDBName(x), blankOr(string))),
-      ("PDBColName", dv1(x => PDBColName(x), blankOr(string))),
-      ("PDBColType", dv1(x => PDBColType(x), blankOr(string))),
-      ("PFnName", dv1(x => PFnName(x), blankOr(string))),
-      ("PParamName", dv1(x => PParamName(x), blankOr(string))),
-      ("PParamTipe", dv1(x => PParamTipe(x), blankOr(DType.decode))),
-      ("PTypeFieldName", dv1(x => PTypeFieldName(x), blankOr(string))),
-      ("PTypeFieldTipe", dv1(x => PTypeFieldTipe(x), blankOr(DType.decode))),
-    },
-    j,
-  )
-}
 
 and loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
   variants(
