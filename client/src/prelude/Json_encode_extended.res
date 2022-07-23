@@ -82,4 +82,6 @@ module Base64 = {
     input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 }
 
+let base64ToString = Base64.base64url_bytes
+
 let base64EncodedBytes = b => b |> Base64.base64url_bytes |> string

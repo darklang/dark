@@ -37,7 +37,7 @@ let rec to_url_string = (dv: RT.Dval.t): option<string> =>
   | DList(l) => Some("[ " ++ String.join(~sep=", ", List.filterMap(~f=to_url_string, l)) ++ " ]")
   | DOption(Some(v)) => to_url_string(v)
   | DResult(Ok(v)) => to_url_string(v)
-  | DBytes(bytes) => Some(bytes |> Encoders.base64url_bytes)
+  | DBytes(bytes) => Some(bytes |> Json_encode_extended.base64ToString)
   }
 
 let strAsBodyCurl = (dv: RT.Dval.t): option<string> =>

@@ -21,3 +21,4 @@ let int64: int64 => Js.Json.t
 let result: ('ok => Js.Json.t, 'err => Js.Json.t, result<'ok, 'err>) => Js.Json.t
 
 let base64EncodedBytes: Bytes.t => Js.Json.t
+let base64ToString: Bytes.t => string
