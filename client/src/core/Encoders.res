@@ -54,13 +54,6 @@ let _bytes_to_uint8Array = (input: Bytes.t): jsUint8Array => {
 let base64url_bytes = (input: Bytes.t): string =>
   input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 
-let id = ID.encode
-let tlid = TLID.encode
-
-let pos = Pos.encode
-
-let blankOr = BlankOr.encode
-
 and ops = (ops: list<PT.Op.t>): Js.Json.t =>
   list(
     PT.Op.encode,
