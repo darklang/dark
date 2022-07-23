@@ -760,68 +760,58 @@ module Msg = {
     | GlobalKeyPress(Keyboard.keyEvent)
     | AutocompleteClick(int)
     | @printer(opaque("AddOpsAPICallback"))
-    AddOpsAPICallback(
-        Focus.t,
-        APITypes.AddOps.Params.t,
-        Tea.Result.t<APITypes.AddOps.Response.t, Types.httpError>,
-      )
+    AddOpsAPICallback(Focus.t, APIAddOps.Params.t, Tea.Result.t<APIAddOps.t, Types.httpError>)
     | AddOpsPusherMsg(PusherTypes.AddOps.t)
     | @printer(opaque("SavetestAPICallback"))
-    SaveTestAPICallback(Tea.Result.t<Types.saveTestAPIResult, Types.httpError>)
+    SaveTestAPICallback(Tea.Result.t<APISaveTest.t, Types.httpError>)
     | @printer(opaque("GetUnlockedDBsAPICallback"))
-    GetUnlockedDBsAPICallback(Tea.Result.t<Types.getUnlockedDBsAPIResult, Types.httpError>)
+    GetUnlockedDBsAPICallback(Tea.Result.t<APIDBs.UnlockedDBs.t, Types.httpError>)
     | @printer(opaque("Get404sAPICallback"))
-    Get404sAPICallback(Tea.Result.t<Types.get404sAPIResult, Types.httpError>)
+    Get404sAPICallback(Tea.Result.t<API404.Get.t, Types.httpError>)
     | NewTracePush((Types.traceID, list<TLID.t>))
-    | New404Push(Types.fourOhFour)
-    | NewStaticDeployPush(Types.staticDeploy)
+    | New404Push(AnalysisTypes.FourOhFour.t)
+    | NewStaticDeployPush(StaticAssets.Deploy.t)
     | WorkerStatePush(Tc.Map.String.t<string>)
     | @printer(opaque("Delete404APICallback"))
-    Delete404APICallback(Types.delete404APIParams, Tea.Result.t<unit, Types.httpError>)
+    Delete404APICallback(API404.Delete.Params.t, Tea.Result.t<unit, Types.httpError>)
     | @printer(opaque("DeleteToplevelForeverAPICallback"))
     DeleteToplevelForeverAPICallback(
-        Types.deleteToplevelForeverAPIParams,
+        APIToplevels.DeleteForever.Params.t,
         Tea.Result.t<unit, Types.httpError>,
       )
     | @printer(opaque("InitialLoadAPICallback"))
-    InitialLoadAPICallback(
-        Focus.t,
-        'modification,
-        Tea.Result.t<APITypes.InitialLoad.t, Types.httpError>,
-      )
+    InitialLoadAPICallback(Focus.t, 'modification, Tea.Result.t<APIInitialLoad.t, Types.httpError>)
     | @printer(opaque("FetchAllTracesAPICallback"))
-    FetchAllTracesAPICallback(Tea.Result.t<Types.allTracesAPIResult, Types.httpError>)
+    FetchAllTracesAPICallback(Tea.Result.t<APITraces.AllTraces.t, Types.httpError>)
     | @printer(opaque("ExecuteFunctionAPICallback"))
     ExecuteFunctionAPICallback(
-        Types.executeFunctionAPIParams,
-        Tea.Result.t<Types.executeFunctionAPIResult, Types.httpError>,
+        APIExecution.Function.Params.t,
+        Tea.Result.t<APIExecution.Function.t, Types.httpError>,
       )
     | @printer(opaque("UploadFunctionAPICallback"))
-    UploadFnAPICallback(
-        Types.uploadFnAPIParams,
-        Tea.Result.t<Types.uploadFnAPIResult, Types.httpError>,
-      )
+    UploadFnAPICallback(APIPackages.UploadFn.Params.t, Tea.Result.t<unit, Types.httpError>)
     | @printer(opaque("TriggerHandlerAPICallback"))
     TriggerHandlerAPICallback(
-        Types.triggerHandlerAPIParams,
-        Tea.Result.t<Types.triggerHandlerAPIResult, Types.httpError>,
+        APIExecution.Handler.Params.t,
+        Tea.Result.t<APIExecution.Handler.t, Types.httpError>,
       )
     | @printer(opaque("LoadPackagesAPICallback"))
-    LoadPackagesAPICallback(Tea.Result.t<Types.loadPackagesAPIResult, Types.httpError>)
+    LoadPackagesAPICallback(Tea.Result.t<APIPackages.AllPackages.t, Types.httpError>)
     | @printer(opaque("InsertSecretCallback"))
     InsertSecretCallback(Tea.Result.t<list<SecretTypes.t>, Types.httpError>)
     | @printer(opaque("LogoutAPICallback")) LogoutAPICallback
-    | Delete404APICall(Types.fourOhFour)
+    | Delete404APICall(API404.Delete.Params.t)
     | NewPresencePush(list<Avatar.t>)
     | @printer(opaque("LocationChange")) LocationChange(Web.Location.location)
     | FinishIntegrationTest
     | SaveTestButton
     | ToggleEditorSetting(EditorSettings.t => EditorSettings.t)
     | ExecuteFunctionButton(TLID.t, ID.t, string)
-    | ExecuteFunctionFromWithin(Types.executeFunctionAPIParams)
-    | CreateHandlerFrom404(Types.fourOhFour)
+    | ExecuteFunctionFromWithin(APIExecution.Function.Params.t)
+    | CreateHandlerFrom404(AnalysisTypes.FourOhFour.t)
     | @printer(opaque("TimerFire")) TimerFire(Types.timerAction, Tea.Time.t)
     | JSError(string)
+    | PageVisibilityChange(PageVisibility.t)
     | DeleteUserFunctionParameter(TLID.t, PT.UserFunction.Parameter.t)
     | AddUserFunctionParameter(TLID.t)
     | UploadFn(TLID.t)
@@ -845,8 +835,8 @@ module Msg = {
     | DeleteUserType(TLID.t)
     | DeleteUserTypeForever(TLID.t)
     | RestoreToplevel(TLID.t)
-    | ReceiveAnalysis(Types.performAnalysisResult)
-    | ReceiveFetch(Types.fetchResult)
+    | ReceiveAnalysis(AnalysisTypes.PerformAnalysis.t)
+    | ReceiveFetch(APITypes.fetchResult)
     | EnablePanning(bool)
     | DeleteColInDB(TLID.t, ID.t)
     | CreateDBTable
@@ -933,12 +923,12 @@ module Modification = {
     | UpdateToplevels(list<PT.Handler.t>, list<PT.DB.t>, bool)
     | SetDeletedToplevels(list<PT.Handler.t>, list<PT.DB.t>)
     | UpdateDeletedToplevels(list<PT.Handler.t>, list<PT.DB.t>)
-    | UpdateAnalysis(Types.analysisEnvelope)
+    | UpdateAnalysis(AnalysisTypes.PerformAnalysis.Envelope.t)
     | SetUserFunctions(list<PT.UserFunction.t>, list<PT.UserFunction.t>, bool)
-    | SetUnlockedDBs(Types.unlockedDBs)
-    | AppendUnlockedDBs(Types.unlockedDBs)
-    | Append404s(list<Types.fourOhFour>)
-    | Delete404(Types.fourOhFour)
+    | SetUnlockedDBs(AnalysisTypes.unlockedDBs)
+    | AppendUnlockedDBs(AnalysisTypes.unlockedDBs)
+    | Append404s(list<AnalysisTypes.FourOhFour.t>)
+    | Delete404(AnalysisTypes.FourOhFour.t)
     | Enter(TLID.t, ID.t) // Enter a blankOr
     | EnterWithOffset(TLID.t, ID.t, int) // Entering a blankOr with a desired caret offset
     | OpenOmnibox(option<BaseTypes.pos>) // Open the omnibox
@@ -952,22 +942,22 @@ module Modification = {
     | TriggerIntegrationTest(string)
     | EndIntegrationTest
     | SetPage(Page.t)
-    | SetTLTraceID(TLID.t, Types.traceID)
+    | SetTLTraceID(TLID.t, AnalysisTypes.TraceID.t)
     | ExecutingFunctionBegan(TLID.t, ID.t)
     | ExecutingFunctionComplete(list<(TLID.t, ID.t)>)
     | MoveCanvasTo(BaseTypes.pos, CanvasProps.isTransitionAnimated)
-    | UpdateTraces(Types.traces)
-    | OverrideTraces(Types.traces)
+    | UpdateTraces(AnalysisTypes.Traces.t)
+    | OverrideTraces(AnalysisTypes.Traces.t)
     | UpdateTraceFunctionResult(
         TLID.t,
-        Types.traceID,
+        AnalysisTypes.TraceID.t,
         ID.t,
-        Types.fnName,
-        Types.dvalArgsHash,
+        string,
+        string,
         int,
-        Types.dval,
+        RuntimeTypes.Dval.t,
       )
-    | AppendStaticDeploy(list<Types.staticDeploy>)
+    | AppendStaticDeploy(list<StaticAssets.Deploy.t>)
     // designed for one-off small changes
     | Apply(
         /* It can be tempting to call a function which returns
@@ -1018,10 +1008,10 @@ module Model = {
     deletedUserFunctions: TLID.Dict.t<PT.UserFunction.t>,
     userTipes: TLID.Dict.t<PT.UserType.t>,
     deletedUserTipes: TLID.Dict.t<PT.UserType.t>,
-    traces: Types.traces,
-    analyses: Types.analyses,
-    f404s: list<Types.fourOhFour>,
-    unlockedDBs: Types.unlockedDBs,
+    traces: AnalysisTypes.Traces.t,
+    analyses: AnalysisTypes.analyses,
+    f404s: list<AnalysisTypes.FourOhFour.t>,
+    unlockedDBs: AnalysisTypes.unlockedDBs,
     // State of individual integration tests
     integrationTestState: IntegrationTests.t<t>,
     visibility: PageVisibility.t,
@@ -1038,7 +1028,7 @@ module Model = {
     usedFns: Tc.Map.String.t<int>,
     usedTipes: Tc.Map.String.t<int>,
     handlerProps: TLID.Dict.t<HandlerProperty.t>,
-    staticDeploys: list<Types.staticDeploy>,
+    staticDeploys: list<StaticAssets.Deploy.t>,
     /* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
      * if myFunc was called in Repl2 at id, then the dict would be:
      *
@@ -1055,8 +1045,8 @@ module Model = {
      * which you can read as "myfunc is used in repl2". */
     tlUsedIn: TLID.Dict.t<TLID.Set.t>,
     fluidState: FluidTypes.State.t<t, Modification.t<t>>,
-    dbStats: Types.dbStatsStore,
-    workerStats: TLID.Dict.t<Types.workerStats>,
+    dbStats: AnalysisTypes.dbStatsStore,
+    workerStats: TLID.Dict.t<AnalysisTypes.WorkerStats.t>,
     avatarsList: list<Avatar.t>,
     browserId: string,
     sidebarState: Sidebar.State.t,
@@ -1173,6 +1163,7 @@ and modification = Modification.t<model>
 and model = Model.t
 and fluidState = FluidTypes.State.t<model, modification>
 and fluidCmd = FluidTypes.Command.t<model, modification>
+and fluidMsg = FluidTypes.Msg.t<model, modification>
 and fluidCmdState = FluidTypes.Command.state<model, modification>
 
 type cmd = Tea.Cmd.t<msg>

@@ -1,7 +1,7 @@
 open Prelude
 module Decode = Json_decode_extended
 
-type event = Js.nullable<Types.performAnalysisParams>
+type event = Js.nullable<AnalysisTypes.PerformAnalysis.Params.t>
 
 type response = {
   responseType: string,
@@ -17,16 +17,20 @@ let stringifyInput = (event: event): response =>
     {responseType: "error", json: "Error: got null instead of an event"}
   | Some(params) => {
       responseType: "success",
-      json: Js.Json.stringify(Encoders.performAnalysisParams(params)),
+      json: Js.Json.stringify(AnalysisTypes.PerformAnalysis.Params.encode(params)),
     }
   }
 
 let decodeOutput = str => {
-  let result = Decode.result(Decoders.analysisEnvelope, Decode.string, Json.parseOrRaise(str))
+  let result = Decode.result(
+    AnalysisTypes.PerformAnalysis.Envelope.decode,
+    Decode.string,
+    Json.parseOrRaise(str),
+  )
   switch result {
   | Belt.Result.Ok(msg) => Belt.Result.Ok(msg)
   | Belt.Result.Error(msg) =>
     ErrorReporting.Rollbar.send(msg, None, Js.Json.null)
-    Belt.Result.Error(Types.AnalysisParseError(msg))
+    Belt.Result.Error(AnalysisTypes.PerformAnalysis.Error.ParseError(msg))
   }
 }

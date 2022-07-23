@@ -2,6 +2,8 @@ open Prelude
 open Tester
 open CurlCommand
 module B = BlankOr
+module RT = RuntimeTypes
+module AT = AnalysisTypes
 
 let defaultTLID = TLID.fromInt(7)
 
@@ -37,7 +39,7 @@ let run = () => {
   })
   describe("objAsHeaderCurl", () => {
     test("returns header curl flag string", () => {
-      let obj = Dval.obj(list{
+      let obj = RT.Dval.obj(list{
         ("Content-Type", DStr("application/json")),
         ("Authorization", DStr("Bearer abc123")),
       })
@@ -96,7 +98,7 @@ let run = () => {
           (
             "traceid",
             Ok({
-              input: input,
+              AT.TraceData.input: input,
               timestamp: "2019-09-17T12:00:30Z",
               functionResults: list{},
             }),
@@ -105,7 +107,7 @@ let run = () => {
       )
 
     test("returns command for /test GET with headers", () => {
-      let headers = Dval.obj(list{
+      let headers = RT.Dval.obj(list{
         ("Content-Type", DStr("application/json")),
         ("Authorization", DStr("Bearer abc123")),
       })
@@ -113,7 +115,7 @@ let run = () => {
       let input =
         Belt.Map.String.empty->Belt.Map.String.set(
           "request",
-          Dval.obj(list{
+          RT.Dval.obj(list{
             ("body", DNull),
             ("headers", headers),
             ("url", DStr("http://test-curl.builtwithdark.com/test")),
@@ -137,7 +139,7 @@ let run = () => {
       let input = Belt.Map.String.set(
         Belt.Map.String.empty,
         "request",
-        Dval.obj(list{
+        RT.Dval.obj(list{
           ("fullBody", DStr("{\"a\":1,\"b\":false}")),
           ("headers", DNull),
           ("url", DStr("http://test-curl.builtwithdark.com/test")),

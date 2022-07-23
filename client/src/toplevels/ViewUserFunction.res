@@ -10,7 +10,7 @@ let fontAwesome = ViewUtils.fontAwesome
 let onEvent = ViewUtils.onEvent
 
 type exeFunction =
-  | CanExecute(traceID, list<dval>)
+  | CanExecute(traceID, list<RT.Dval.t>)
   | CannotExecute(string)
   | IsExecuting
 

@@ -16,7 +16,7 @@ type fnExecutionStatus =
   | NoPermission
 
 type props = {
-  analysisStore: analysisStore,
+  analysisStore: AnalysisTypes.analysisStore,
   ast: FluidAST.t,
   executingFunctions: list<id>,
   permission: option<AccountTypes.Permission.t>,
@@ -42,8 +42,8 @@ let fnExecutionStatus = (p: props, fn: function_, id: id, args: list<id>) => {
 
   let fnIsComplete = id =>
     switch Analysis.getLiveValue'(p.analysisStore, id) {
-    | Some(DIncomplete(SourceId(srcTlid, srcId)))
-    | Some(DError(SourceId(srcTlid, srcId), _))
+    | Some(DIncomplete(SourceID(srcTlid, srcId)))
+    | Some(DError(SourceID(srcTlid, srcId), _))
       if // assume tlids are the same if the ids are
       (srcTlid, srcId) ==
         (p.tlid, id) => /* this means the live value is an error/incomplete created by this
@@ -54,7 +54,7 @@ let fnExecutionStatus = (p: props, fn: function_, id: id, args: list<id>) => {
     | Some(DIncomplete(_)) => /* this means the live value is an error/incomplete that was not
        * created by the current function (which means this function is not
        * responsible for it, hence this function is complete. Note that the
-       * Stored_function_result DB drops the SourceId from DIncompletes and
+       * Stored_function_result DB drops the SourceID from DIncompletes and
        * DErrors, which is why this specific implementation was necessary. */
       true
     | Some(_) => true

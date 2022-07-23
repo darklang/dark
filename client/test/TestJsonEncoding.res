@@ -9,17 +9,17 @@ let run = () => {
   describe("decoding", () => {
     module Decode = Json_decode_extended
     test("infinity", () =>
-      expect(Decode.decodeString(Decoders.ocamlDval, `[ "DFloat", "Infinity" ]`)) |> toEqual(
-        Belt.Result.Ok(DFloat(Float.infinity)),
+      expect(Decode.decodeString(RT.Dval.decode, `[ "DFloat", "Infinity" ]`)) |> toEqual(
+        Belt.Result.Ok(RT.Dval.DFloat(Float.infinity)),
       )
     )
     test("negativeInfinity", () =>
-      expect(Decode.decodeString(Decoders.ocamlDval, `[ "DFloat", "-Infinity" ]`)) |> toEqual(
-        Belt.Result.Ok(DFloat(Float.negativeInfinity)),
+      expect(Decode.decodeString(RT.Dval.decode, `[ "DFloat", "-Infinity" ]`)) |> toEqual(
+        Belt.Result.Ok(RT.Dval.DFloat(Float.negativeInfinity)),
       )
     )
     test("notANumber", () => {
-      switch Decode.decodeString(Decoders.ocamlDval, `[ "DFloat", "NaN" ]`) {
+      switch Decode.decodeString(RT.Dval.decode, `[ "DFloat", "NaN" ]`) {
       | Ok(DFloat(flt)) => expect(Float.isNaN(flt)) |> toEqual(true)
       | _ => expect("A valid dfloat dval") |> toEqual("something invalid, or not a dfloat")
       }
@@ -29,19 +29,20 @@ let run = () => {
     describe("compatible with server JSON encoding", () => {
       test("obj uses list", () =>
         expect("[\"DObj\",{\"foo\":[\"DInt\",5]}]") |> toEqual(
-          DObj(Belt.Map.String.fromArray([("foo", DInt(5L))]))
-          |> Encoders.ocamlDval
-          |> Js.Json.stringify,
+          RT.Dval.obj(list{("foo", DInt(5L))}) |> RT.Dval.encode |> Js.Json.stringify,
         )
       )
-      test("dresp shape", () =>
-        expect("[\"DResp\",[[\"Response\",401,[]],[\"DNull\"]]]") |> toEqual(
-          DResp(Response(401, list{}), DNull) |> Encoders.ocamlDval |> Js.Json.stringify,
+      test("DHttpResponse shape", () =>
+        expect("[\"DHttpResponse\",[[\"Response\",401,[]],[\"DNull\"]]]") |> toEqual(
+          RT.Dval.DHttpResponse(Response(401L, list{}, DNull))
+          |> RT.Dval.encode
+          |> Js.Json.stringify,
         )
       )
     })
     describe("dval roundtrips", () => {
-      let rtDval = testRoundtrip(Decoders.ocamlDval, Encoders.ocamlDval)
+      open RT.Dval
+      let rtDval = testRoundtrip(decode, encode)
       let id = UInt64.fromString("15223423459603010931")->Tc.Option.unwrapUnsafe
       rtDval("int", DInt(5L))
       rtDval("int_max_31_bits", DInt(1073741823L)) // 2^30-1
@@ -57,7 +58,7 @@ let run = () => {
       rtDval("obj", DObj(Belt.Map.String.fromArray([("foo", DInt(5L))])))
       rtDval("date", DDate("can be anything atm"))
       rtDval("incomplete", DIncomplete(SourceNone))
-      rtDval("incomplete2", DIncomplete(SourceId(TLID.fromUInt64(id), ID.fromUInt64(id))))
+      rtDval("incomplete2", DIncomplete(SourceID(TLID.fromUInt64(id), ID.fromUInt64(id))))
       rtDval("float", DFloat(7.2))
       rtDval("true", DBool(true))
       rtDval("false", DBool(false))
@@ -66,9 +67,9 @@ let run = () => {
       rtDval("null", DNull)
       rtDval("errorrail", DErrorRail(DInt(5L)))
       rtDval("db", DDB("Visitors"))
-      rtDval("list", DList([DDB("Visitors"), DInt(4L)]))
-      rtDval("redirect", DResp(Redirect("/home"), DNull))
-      rtDval("httpresponse", DResp(Response(200, list{}), DStr("success")))
+      rtDval("list", DList(list{DDB("Visitors"), DInt(4L)}))
+      rtDval("redirect", DHttpResponse(Redirect("/home")))
+      rtDval("httpresponse", DHttpResponse(Response(200L, list{}, DStr("success"))))
     })
   })
 

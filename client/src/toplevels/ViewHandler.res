@@ -34,7 +34,7 @@ let handlerIsExeFail = (vp: viewProps): bool =>
     |> Option.andThen(~f=Analysis.getLiveValue'(vp.analysisStore))
     |> Option.map(~f=outermostResult =>
       switch outermostResult {
-      | DIncomplete(_) | DError(_) | DErrorRail(_) => true
+      | RT.Dval.DIncomplete(_) | DError(_) | DErrorRail(_) => true
       | _ => false
       }
     )
@@ -78,7 +78,7 @@ let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<A
             if name == "fadeIn" {
               SetHandlerExeIdle(vp.tlid)
             } else {
-              Msg.IgnoreMsg("trigger-animation-end")
+              AppTypes.Msg.IgnoreMsg("trigger-animation-end")
             }
           ),
         }
@@ -155,7 +155,7 @@ let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<AppTypes.msg>
 }
 
 let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEventList): Html.html<
-  msg,
+  AppTypes.msg,
 > => {
   let viewEventName = viewText(
     ~enterable=true,

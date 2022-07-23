@@ -1,6 +1,6 @@
 let focusItem: int => AppTypes.cmd
 
-@ppx.deriving(show) type rec t = AppTypes.fluidState
+@ppx.deriving(show) type rec t = FluidTypes.AutoComplete.t
 
 @ppx.deriving(show) type rec item = FluidTypes.AutoComplete.item
 
@@ -49,7 +49,7 @@ type fullQuery = {
   tl: Types.toplevel,
   ti: FluidTypes.TokenInfo.t,
   fieldList: list<string>,
-  pipedDval: option<Types.dval>,
+  pipedDval: option<RuntimeTypes.Dval.t>,
   queryString: string,
 }
 

@@ -2,19 +2,20 @@ open Prelude
 
 // Dark
 module B = BlankOr
-module RT = Runtime
+module RT = RuntimeTypes
 module TL = Toplevel
 
-let rec to_url_string = (dv: dval): option<string> =>
+let rec to_url_string = (dv: RT.Dval.t): option<string> =>
   switch dv {
   // things that can't be parsed out of a HTTP request
-  | DBlock(_)
+  | DFnVal(_)
   | DIncomplete(_)
   | DPassword(_)
   | DObj(_)
-  | DOption(OptNothing)
+  | DOption(None)
   | DTuple(_)
-  | DResult(ResError(_)) =>
+  | DHttpResponse(_)
+  | DResult(Error(_)) =>
     None
 
   // some of these things also can't be parsed out of a HTTP request,
@@ -26,24 +27,20 @@ let rec to_url_string = (dv: dval): option<string> =>
   | DBool(false) => Some("false")
   | DStr(s) => Some(s)
   | DFloat(f) => Some(Tc.Float.toString(f))
-  | DCharacter(c) => Some(c)
+  | DChar(c) => Some(c)
   | DNull => Some("null")
   | DDate(d) => Some(d)
   | DDB(dbname) => Some(dbname)
   | DErrorRail(d) => to_url_string(d)
   | DError(_, msg) => Some("error=" ++ msg)
   | DUuid(uuid) => Some(uuid)
-  | DResp(_, hdv) => to_url_string(hdv)
-  | DList(l) =>
-    Some(
-      "[ " ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, Array.to_list(l))) ++ " ]"),
-    )
-  | DOption(OptJust(v)) => to_url_string(v)
-  | DResult(ResOk(v)) => to_url_string(v)
+  | DList(l) => Some("[ " ++ String.join(~sep=", ", List.filterMap(~f=to_url_string, l)) ++ " ]")
+  | DOption(Some(v)) => to_url_string(v)
+  | DResult(Ok(v)) => to_url_string(v)
   | DBytes(bytes) => Some(bytes |> Encoders.base64url_bytes)
   }
 
-let strAsBodyCurl = (dv: dval): option<string> =>
+let strAsBodyCurl = (dv: RT.Dval.t): option<string> =>
   switch dv {
   | DStr(s) =>
     let body = s |> Regex.replace(~re=Regex.regex("\n"), ~repl="")
@@ -51,15 +48,17 @@ let strAsBodyCurl = (dv: dval): option<string> =>
   | _ => None
   }
 
-let objAsHeaderCurl = (dv: dval): option<string> =>
+let objAsHeaderCurl = (dv: RT.Dval.t): option<string> =>
   switch dv {
   | DObj(o) =>
     Belt.Map.String.toList(o)
-    |> /* curl will add content-length automatically, and having it specified
-     * explicitly causes weird errors if the user, say, changes the body of
-     * the request without changing the value of this header */
-    List.filter(~f=((k, _)) => k !== "content-length")
-    |> List.map(~f=((k, v)) => "-H '" ++ (k ++ (":" ++ ((RT.toRepr(v) |> RT.stripQuotes) ++ "'"))))
+    // curl will add content-length automatically, and having it specified
+    // explicitly causes weird errors if the user, say, changes the body of
+    // the request without changing the value of this header
+    |> List.filter(~f=((k, _)) => k !== "content-length")
+    |> List.map(~f=((k, v)) =>
+      "-H '" ++ (k ++ (":" ++ ((Runtime.toRepr(v) |> Runtime.stripQuotes) ++ "'")))
+    )
     |> String.join(~sep=" ")
     |> (s => Some(s))
   | _ => None
@@ -103,14 +102,14 @@ let curlFromCurrentTrace = (m: AppTypes.model, tlid: TLID.t): option<string> => 
     Belt.Map.String.get(td.input, "request")
     |> Option.andThen(~f=obj =>
       switch obj {
-      | DObj(r) => Some(r)
+      | RT.Dval.DObj(r) => Some(r)
       | _ => None
       }
     )
     |> Option.andThen(~f=r => {
       let get = name => Belt.Map.String.get(r, name)
       switch get("url") {
-      | Some(DStr(url)) =>
+      | Some(RT.Dval.DStr(url)) =>
         let headers = get("headers") |> Option.andThen(~f=objAsHeaderCurl) |> wrapInList
 
         let body = get("fullBody") |> Option.andThen(~f=strAsBodyCurl) |> wrapInList
@@ -161,9 +160,10 @@ let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: PT.
 
   let args = Option.andThen2(tl, traceId, ~f=(tl, traceId) =>
     Analysis.getArguments(m, tl, id, traceId)
-  ) |> /* TODO this is what fails if we haven't clicked the ast yet; we should fix
-   * that, or make it toast instructions? */
-  recoverOption(
+  )
+  // TODO this is what fails if we haven't clicked the ast yet; we should fix
+  // that, or make it toast instructions?
+  |> recoverOption(
     "Args not found in model in curlFromHttpClientCall",
     ~debug=(TLID.toString(tlid), Option.map(~f=show_traceID, traceId)),
   )
@@ -176,12 +176,13 @@ let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: PT.
       recover(
         ~debug="arg count" ++ string_of_int(List.length(args)),
         "args in curlFromHttpClientCall espected 3 or 4, failed",
-        (DNull, None, DNull, DNull),
+        (RT.Dval.DNull, None, RT.Dval.DNull, RT.Dval.DNull),
       )
     }
 
     let headers = objAsHeaderCurl(headers) |> Option.unwrap(~default="")
-    let body = strAsBodyCurl(body |> Option.unwrap(~default=DNull)) |> Option.unwrap(~default="")
+    let body =
+      strAsBodyCurl(body |> Option.unwrap(~default=RT.Dval.DNull)) |> Option.unwrap(~default="")
 
     let meth = switch name {
     | Stdlib({module_: "HttpClient", function, version: _}) => "-X " ++ function
@@ -193,7 +194,7 @@ let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: PT.
 
     let base_url = switch url {
     | DStr(s) => s
-    | _ => recover(~debug=show_dval(url), "Expected url arg to be a DStr", url) |> show_dval
+    | _ => recover(~debug=RT.Dval.show(url), "Expected url arg to be a DStr", url) |> RT.Dval.show
     }
 
     let qps = switch query {
@@ -203,7 +204,7 @@ let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: PT.
       |> List.filterMap(~f=((k, v)) => to_url_string(v) |> Option.map(~f=v => k ++ ("=" ++ v)))
       |> String.join(~sep="&")
     | _ =>
-      ignore(query |> recover(~debug=show_dval(query), "Expected query arg to be a dobj"))
+      ignore(query |> recover(~debug=RT.Dval.show(query), "Expected query arg to be a dobj"))
       ""
     } |> (
       s =>

@@ -520,6 +520,7 @@ module DB = {
         | TInt => "Int"
         | TFloat => "Float"
         | TBool => "Bool"
+        | TChar => "Char"
         | TNull => "Null"
         | TCharacter => "Character"
         | TStr => "String"

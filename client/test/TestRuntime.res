@@ -1,13 +1,14 @@
 open Tester
 open! Tc
 open Runtime
+module RT = RuntimeTypes
 
 let run = () => {
   describe("pathFromInputVars", () => {
     let noRequest = Belt.Map.String.empty
-    let noURL = Belt.Map.String.fromArray([("request", Dval.obj(list{}))])
+    let noURL = Belt.Map.String.fromArray([("request", RT.Dval.obj(list{}))])
     let generate = url =>
-      Belt.Map.String.fromArray([("request", Dval.obj(list{("url", Types.DStr(url))}))])
+      Belt.Map.String.fromArray([("request", RT.Dval.obj(list{("url", RT.Dval.DStr(url))}))])
 
     test("returns None if no request object", () =>
       expect(pathFromInputVars(noRequest)) |> toEqual(None)

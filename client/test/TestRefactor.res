@@ -107,7 +107,7 @@ let run = () => {
     }
 
     let model = hs => {
-      ...D.defaultModel,
+      ...AppTypes.Model.default,
       functions: Functions.empty |> Functions.setBuiltins(list{f1, f2}, defaultFunctionsProps),
       handlers: Handlers.fromList(hs),
     }
@@ -149,7 +149,7 @@ let run = () => {
       let fn = fn(~ster=Rail, ~mod="List", "getAt", ~version=2, list{pipeTarget, int(5)})
       let ast = pipe(emptyList, fn, list{}) |> FluidAST.ofExpr
       let h = {...defaultHandler, ast: ast}
-      let m = AppTypes.Model.t(list{h})
+      let m = model(list{h})
       let id = E.toID(fn)
       // this used to crash or just lose all its arguments
       let mod' = Refactor.takeOffRail(m, TLHandler(h), id)
@@ -237,7 +237,7 @@ let run = () => {
       }
 
       let model = {
-        ...D.defaultModel,
+        ...AppTypes.Model.default,
         dbs: DB.fromList(list{db0}),
         handlers: Handlers.fromList(list{h}),
         userFunctions: UserFunctions.fromList(list{f}),
@@ -268,7 +268,7 @@ let run = () => {
       }
 
       let model = {
-        ...D.defaultModel,
+        ...AppTypes.Model.default,
         dbs: DB.fromList(list{db0}),
         handlers: Handlers.fromList(list{h}),
       }
@@ -296,11 +296,11 @@ let run = () => {
       ) |> toEqual(true)
     )
     test("with Some DObj input", () => {
-      let dobj = Dval.obj(list{
+      let dobj = RT.Dval.obj(list{
         ("str", DStr("foo")),
         ("int", DInt(1L)),
         ("float", DFloat(1.0)),
-        ("obj", Dval.obj(list{})),
+        ("obj", RT.Dval.obj(list{})),
         ("date", DDate("2019-07-10T20:42:11Z")),
         ("datestr", DStr("2019-07-10T20:42:11Z")),
         ("uuid", DUuid("0a18ca77-9bae-4dfb-816f-0d12cb81c17b")),
@@ -355,10 +355,10 @@ let run = () => {
       }
 
       let m = {
-        ...D.defaultModel,
+        ...AppTypes.Model.default,
         functions: Functions.empty |> Functions.setBuiltins(sampleFunctions, defaultFunctionsProps),
         handlers: list{(tlid, tl)} |> TLID.Dict.fromList,
-        fluidState: {...Defaults.defaultFluidState, ac: FluidAutocomplete.init},
+        fluidState: {...FluidTypes.State.default, ac: FluidAutocomplete.init},
       }
 
       (m, TLHandler(tl))
@@ -557,7 +557,7 @@ let run = () => {
   })
   describe("convert-if-to-match", () => {
     let model = hs => {
-      ...D.defaultModel,
+      ...AppTypes.Model.default,
       functions: Functions.empty,
       handlers: Handlers.fromList(hs),
     }

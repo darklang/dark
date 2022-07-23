@@ -72,22 +72,22 @@ let str2tipe = (t: string): DType.t => {
   }
 }
 
-let rec typeOf = (dv: dval): DType.t =>
+let rec typeOf = (dv: RT.Dval.t): DType.t =>
   switch dv {
   | DInt(_) => TInt
   | DFloat(_) => TFloat
   | DBool(_) => TBool
   | DNull => TNull
-  | DCharacter(_) => TCharacter
+  | DChar(_) => TCharacter
   | DStr(_) => TStr
   | DList(_) => TList
   | DTuple(first, second, theRest) =>
     TTuple(typeOf(first), typeOf(second), List.map(~f=t => typeOf(t), theRest))
   | DObj(_) => TObj
-  | DBlock(_) => TBlock
+  | DFnVal(_) => TBlock
   | DIncomplete(_) => TIncomplete
   | DError(_) => TError
-  | DResp(_, _) => TResp
+  | DHttpResponse(_) => TResp
   | DDB(_) => TDB
   | DDate(_) => TDate
   | DOption(_) => TOption
@@ -115,15 +115,47 @@ let stripQuotes = (s: string): string => {
   s
 }
 
-let isComplete = (dv: dval): bool =>
+let isComplete = (dv: RT.Dval.t): bool =>
   switch dv {
   | DError(_) | DIncomplete(_) => false
   | _ => true
   }
 
+let parseBasicDval = (str): RT.Dval.t => {
+  open Json.Decode
+  oneOf(
+    list{
+      map(x => RT.Dval.DInt(x), int64),
+      map(x => RT.Dval.DFloat(x), Json.Decode.float),
+      map(x => RT.Dval.DBool(x), bool),
+      nullAs(RT.Dval.DNull),
+      map(x => RT.Dval.DStr(x), string),
+    },
+    str,
+  )
+}
+
+let parseDvalLiteral = (str: string): option<RT.Dval.t> =>
+  switch String.toList(str) {
+  | list{'\'', c, '\''} => Some(DChar(String.fromList(list{c})))
+  | list{'"', ...rest} =>
+    if List.last(rest) == Some('"') {
+      List.initial(rest)
+      |> Option.unwrap(~default=list{})
+      |> String.fromList
+      |> (x => Some(RT.Dval.DStr(x)))
+    } else {
+      None
+    }
+  | _ =>
+    try Some(parseBasicDval(Json.parseOrRaise(str))) catch {
+    | _ => None
+    }
+  }
+
 // Copied from Dval.to_repr in backend code, but that's terrible and it should
 // be recopied from to_developer_repr_v0
-let rec toRepr_ = (oldIndent: int, dv: dval): string => {
+let rec toRepr_ = (oldIndent: int, dv: RT.Dval.t): string => {
   let wrap = value => "<" ++ ((dv |> typeOf |> tipe2str) ++ (": " ++ (value ++ ">")))
   let asType = "<" ++ ((dv |> typeOf |> tipe2str) ++ ">")
   let nl = "\n" ++ String.repeat(~count=oldIndent, " ")
@@ -141,7 +173,7 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
   | DStr(s) => "\"" ++ (s ++ "\"")
   | DBool(true) => "true"
   | DBool(false) => "false"
-  | DCharacter(c) => "'" ++ (c ++ "'")
+  | DChar(c) => "'" ++ (c ++ "'")
   | DNull => "null"
   | DDate(s) => wrap(s)
   | DDB(s) => wrap(s)
@@ -199,30 +231,29 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
     | _ => wrap(s)
     }
   | DPassword(s) => wrap(s)
-  | DBlock({params, body, _}) =>
-    // TODO: show relevant symtable entries
-    FluidPrinter.eToHumanString(ELambda(gid(), params, body))
+  | DFnVal(Lambda({parameters: _, body: _, _})) => // TODO: show relevant symtable entries
+    "TODO"
+  | DFnVal(FnName(_)) => // TODO: show relevant symtable entries
+    "TODO"
+  // FluidPrinter.eToHumanString(ELambda(gid(), parameters, body))
   | DIncomplete(_) => asType
-  | DResp(Redirect(url), dv_) => "302 " ++ (url ++ (nl ++ toRepr_(indent, dv_)))
-  | DResp(Response(code, hs), dv_) =>
-    let headers = objToString(List.map(~f=Tuple2.mapSecond(~f=s => DStr(s)), hs))
-
-    string_of_int(code) ++ (" " ++ (headers ++ (nl ++ toRepr(dv_))))
-  | DOption(OptNothing) => "Nothing"
-  | DOption(OptJust(dv_)) => "Just " ++ toRepr(dv_)
-  | DResult(ResOk(dv_)) => "Ok " ++ toRepr(dv_)
-  | DResult(ResError(dv_)) => "Error " ++ toRepr(dv_)
+  | DHttpResponse(Redirect(url)) => "302 " ++ url
+  | DHttpResponse(Response(code, hs, dv_)) =>
+    let headers = objToString(List.map(~f=Tuple2.mapSecond(~f=s => RT.Dval.DStr(s)), hs))
+    Int64.to_string(code) ++ " " ++ headers ++ nl ++ toRepr(dv_)
+  | DOption(None) => "Nothing"
+  | DOption(Some(dv_)) => "Just " ++ toRepr(dv_)
+  | DResult(Ok(dv_)) => "Ok " ++ toRepr(dv_)
+  | DResult(Error(dv_)) => "Error " ++ toRepr(dv_)
   | DErrorRail(dv_) => wrap(toRepr(dv_))
   // TODO: newlines and indentation
   | DList(l) =>
-    switch l |> Array.to_list {
+    switch l {
     | list{} => "[]"
     | list{DObj(_), ..._} =>
       "[" ++
       (inl ++
-      (String.join(~sep=inl ++ ", ", List.map(~f=toRepr_(indent), l |> Array.to_list)) ++
-      (nl ++
-      "]")))
+      (String.join(~sep=inl ++ ", ", List.map(~f=toRepr_(indent), l)) ++ (nl ++ "]")))
     | l => "[ " ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), l)) ++ " ]")
     }
   | DTuple(first, second, theRest) =>
@@ -236,7 +267,7 @@ let rec toRepr_ = (oldIndent: int, dv: dval): string => {
   }
 }
 
-and toRepr = (dv: dval): string => toRepr_(0, dv)
+and toRepr = (dv: RT.Dval.t): string => toRepr_(0, dv)
 
 // TODO: copied from Libexecution/http.ml
 let route_variables = (route: string): list<string> => {
@@ -277,14 +308,14 @@ let inputVariables = (tl: toplevel): list<string> =>
   | TLTipe(_) | TLDB(_) | TLPmFunc(_) => list{}
   }
 
-let sampleInputValue = (tl: toplevel): inputValueDict =>
+let sampleInputValue = (tl: toplevel): AnalysisTypes.InputValueDict.t =>
   tl
   |> inputVariables
   |> List.toArray
-  |> Array.map(~f=v => (v, DIncomplete(SourceNone)))
+  |> Array.map(~f=v => (v, RT.Dval.DIncomplete(SourceNone)))
   |> Belt.Map.String.fromArray
 
-let inputValueAsString = (tl: toplevel, iv: inputValueDict): string => {
+let inputValueAsString = (tl: toplevel, iv: AnalysisTypes.InputValueDict.t): string => {
   let dval = /* Merge sample + trace, preferring trace.
    *
    * This ensures newly added parameters show as incomplete.
@@ -296,7 +327,7 @@ let inputValueAsString = (tl: toplevel, iv: inputValueDict): string => {
     | (None, Some(v)) => Some(v)
     | (Some(_sample), Some(trace)) => Some(trace)
     }
-  ) |> (dict => DObj(dict))
+  ) |> (dict => RT.Dval.DObj(dict))
 
   dval
   |> toRepr
@@ -308,17 +339,17 @@ let inputValueAsString = (tl: toplevel, iv: inputValueDict): string => {
   |> String.join(~sep="\n")
 }
 
-let pathFromInputVars = (iv: inputValueDict): option<string> =>
+let pathFromInputVars = (iv: AnalysisTypes.InputValueDict.t): option<string> =>
   Belt.Map.String.get(iv, "request")
   |> Option.andThen(~f=obj =>
     switch obj {
-    | DObj(r) => Belt.Map.String.get(r, "url")
+    | RT.Dval.DObj(r) => Belt.Map.String.get(r, "url")
     | _ => None
     }
   )
   |> Option.andThen(~f=dv =>
     switch dv {
-    | DStr(s) => Some(s)
+    | RT.Dval.DStr(s) => Some(s)
     | _ => None
     }
   )

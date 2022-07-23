@@ -838,9 +838,22 @@ let defaultTestModel = {
       "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
       LoadableSuccess(
         ID.Map.fromArray([
-          (fakeID1, ExecutedResult(Dval.obj(list{("body", DNull), ("formBody", DNull)}))),
-          (fakeID2, ExecutedResult(Dval.obj(list{("title", DNull), ("author", DNull)}))),
-          (fakeID3, ExecutedResult(Dval.obj(list{("body", DInt(5L))}))),
+          (
+            fakeID1,
+            AnalysisTypes.ExecutionResult.ExecutedResult(
+              RT.Dval.obj(list{("body", DNull), ("formBody", DNull)}),
+            ),
+          ),
+          (
+            fakeID2,
+            AnalysisTypes.ExecutionResult.ExecutedResult(
+              RT.Dval.obj(list{("title", DNull), ("author", DNull)}),
+            ),
+          ),
+          (
+            fakeID3,
+            AnalysisTypes.ExecutionResult.ExecutedResult(RT.Dval.obj(list{("body", DInt(5L))})),
+          ),
         ]),
       ),
     ),

@@ -421,9 +421,9 @@ let fourohfours_parse = (m: AppTypes.model): testResult =>
     ) {
       pass
     } else {
-      fail(~f=show_fourOhFour, x)
+      fail(~f=AnalysisTypes.FourOhFour.show, x)
     }
-  | _ => fail(~f=show_list(~f=show_fourOhFour), m.f404s)
+  | _ => fail(~f=show_list(~f=AnalysisTypes.FourOhFour.show), m.f404s)
   }
 
 let autocomplete_visible_height = (_m: AppTypes.model): testResult =>

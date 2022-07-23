@@ -82,7 +82,7 @@ let defaultToplevel = TLHandler({
   pos: Defaults.origin,
 })
 
-let defaultTokenInfo = {
+let defaultTokenInfo: FluidToken.tokenInfo = {
   startRow: 0,
   startCol: 0,
   startPos: 0,
@@ -152,7 +152,7 @@ let defaultModel = (
 ): AppTypes.model => {
   let analyses =
     analyses
-    |> List.map(~f=((id, value)) => (id, ExecutedResult(value)))
+    |> List.map(~f=((id, value)) => (id, AnalysisTypes.ExecutionResult.ExecutedResult(value)))
     |> List.toArray
     |> ID.Map.fromArray
 
@@ -217,6 +217,7 @@ let filterInvalid = (a: AC.t): list<AC.item> =>
 
 let run = () => {
   describe("autocomplete", () => {
+    open FluidTypes.AutoComplete
     describe("queryWhenEntering", () => {
       let m = defaultModel()
       let acForQueries = (qs: list<string>) =>

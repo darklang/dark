@@ -1,3 +1,5 @@
+// CLEANUP: the naming scheme here doesn't match everything else
+
 @ppx.deriving(show)
 type rec t = {
   // CLEANUP: change field names

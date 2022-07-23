@@ -257,9 +257,11 @@ let idOfLastBlankor = (f: PT.UserFunction.t): id =>
   |> Option.andThen(~f=(p: PT.UserFunction.Parameter.t) => Some(B.toID(p.typ)))
   |> Option.unwrap(~default=B.toID(f.metadata.name))
 
-// Converts inputValueDict to executeFunctionAPIParams.efpArgs
-let inputToArgs = (f: PT.UserFunction.t, input: inputValueDict): list<dval> => {
-  let default = DIncomplete(SourceNone)
+// Converts AnalysisTypes.InputValueDict.t to executeFunctionAPIParams.efpArgs
+let inputToArgs = (f: PT.UserFunction.t, input: AnalysisTypes.InputValueDict.t): list<
+  RT.Dval.t,
+> => {
+  let default = RT.Dval.DIncomplete(SourceNone)
   f.metadata.parameters |> List.map(~f=(p: PT.UserFunction.Parameter.t) =>
     switch p.name {
     | F(_, name) => Belt.Map.String.get(input, name) |> Option.unwrap(~default)

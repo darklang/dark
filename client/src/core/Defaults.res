@@ -22,5 +22,3 @@ let defaultFunctionsType = {
   allowedFunctions: list{},
   previewUnsafeFunctions: Set.String.empty,
 }
-
-let defaultWorkerStats: workerStats = {count: 0, schedule: None}

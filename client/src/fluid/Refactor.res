@@ -436,7 +436,7 @@ let generateEmptyUserType = (): PT.UserType.t => {
   }
 }
 
-let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
+let generateUserType = (dv: option<RT.Dval.t>): Result.t<PT.UserType.t, string> =>
   switch dv {
   | Some(DObj(dvalmap)) =>
     let userTipeDefinition =

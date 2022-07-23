@@ -234,9 +234,11 @@ let f404Category = (m: AppTypes.model): category => {
       |> Set.String.fromList
 
     m.f404s
-    |> List.uniqueBy(~f=f => f.space ++ (f.path ++ f.modifier))
+    |> List.uniqueBy(~f=(f: AnalysisTypes.FourOhFour.t) => f.space ++ (f.path ++ f.modifier))
     |> // Don't show 404s for deleted handlers
-    List.filter(~f=f => !Set.member(~value=f.space ++ (f.path ++ f.modifier), deletedHandlerSpecs))
+    List.filter(~f=(f: AnalysisTypes.FourOhFour.t) =>
+      !Set.member(~value=f.space ++ (f.path ++ f.modifier), deletedHandlerSpecs)
+    )
   }
 
   {
@@ -565,7 +567,7 @@ let viewEntry = (m: AppTypes.model, e: entry): Html.html<AppTypes.msg> => {
   Html.div(list{Html.class'("simple-item")}, list{minuslink, linkItem, pluslink})
 }
 
-let viewDeploy = (d: staticDeploy): Html.html<AppTypes.msg> => {
+let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<AppTypes.msg> => {
   let statusString = switch d.status {
   | Deployed => "Deployed"
   | Deploying => "Deploying"

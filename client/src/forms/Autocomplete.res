@@ -613,9 +613,9 @@ let generate = (m: AppTypes.model, a: A.t): A.t => {
       | Some(HSHTTP) =>
         let fourOhFourList =
           m.f404s
-          |> List.uniqueBy(~f=f404 => f404.path)
-          |> List.sortBy(~f=f404 => f404.path)
-          |> List.filterMap(~f=f404 =>
+          |> List.uniqueBy(~f=(f404: AnalysisTypes.FourOhFour.t) => f404.path)
+          |> List.sortBy(~f=(f404: AnalysisTypes.FourOhFour.t) => f404.path)
+          |> List.filterMap(~f=(f404: AnalysisTypes.FourOhFour.t) =>
             if f404.path !== "/" {
               Some(A.ACHTTPRoute(cleanHTTPname(f404.path)))
             } else {

@@ -4,6 +4,8 @@ open FluidTestData
 open Tester
 open FluidShortcuts
 
+type fluidState = AppTypes.fluidState
+
 // See docs/fuzzer.md for documentation on how to use this.
 
 // ------------------
@@ -399,7 +401,8 @@ let simplify = (id: id, ast: E.t): E.t =>
 
 let reduce = (test: FuzzTest.t, ast: E.t) => {
   let runThrough = (msg, reducer, ast) => {
-    let tokenIDs = ast |> FluidTokenizer.tokenize |> List.map(~f=ti => T.tid(ti.token))
+    let tokenIDs =
+      ast |> FluidTokenizer.tokenize |> List.map(~f=(ti: T.tokenInfo) => T.tid(ti.token))
 
     let eIDs = ast |> E.filterMap(~f=e => Some(E.toID(e)))
     let ids =

@@ -8,7 +8,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<AppTy
   let strTLID = TLID.toString(vp.tlid)
   let schedule =
     vp.workerStats
-    |> Option.andThen(~f=(ws: Types.workerStats) => ws.schedule)
+    |> Option.andThen(~f=(ws: AnalysisTypes.WorkerStats.t) => ws.schedule)
     |> Option.unwrap(~default="run")
 
   switch schedule {
@@ -45,7 +45,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<AppTy
 let viewTrace = (
   vp: ViewUtils.viewProps,
   traceID: traceID,
-  value: option<inputValueDict>,
+  value: option<AnalysisTypes.InputValueDict.t>,
   timestamp: option<string>,
   isActive: bool,
   isHover: bool,
@@ -129,10 +129,13 @@ let viewTrace = (
 }
 
 let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<AppTypes.msg>> => {
-  let traceToHtml = ((traceID, traceData): trace) => {
+  let traceToHtml = ((traceID, traceData): AnalysisTypes.Trace.t) => {
     let value = Option.map(~f=td => td.input, traceData |> Result.to_option)
 
-    let timestamp = Option.map(~f=(td: traceData) => td.timestamp, traceData |> Result.toOption)
+    let timestamp = Option.map(
+      ~f=(td: AnalysisTypes.TraceData.t) => td.timestamp,
+      traceData |> Result.toOption,
+    )
 
     // Note: the isActive and hoverID tlcursors are very different things
     let isActive = Analysis.selectedTraceID(vp.tlTraceIDs, vp.traces, vp.tlid) == Some(traceID)
@@ -158,7 +161,10 @@ let viewData = (vp: ViewUtils.viewProps): list<Html.html<AppTypes.msg>> => {
 
   let showWorkerStats = tlSelected && Option.isSome(vp.workerStats)
   let workQStats = if showWorkerStats {
-    let count = vp.workerStats |> Option.map(~f=ws => ws.count) |> Option.unwrap(~default=0)
+    let count =
+      vp.workerStats
+      |> Option.map(~f=(ws: AnalysisTypes.WorkerStats.t) => ws.count)
+      |> Option.unwrap(~default=0)
 
     Html.div(
       list{Html.class'("worker-stats")},

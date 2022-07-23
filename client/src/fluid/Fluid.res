@@ -25,6 +25,9 @@ module Clipboard = FluidClipboard
 module CT = CaretTarget
 module ASTInfo = Tokenizer.ASTInfo
 module Sign = ProgramTypes.Sign
+module AstRef = FluidCursorTypes.AstRef
+module Mod = AppTypes.Modification
+module FT = FluidTypes
 
 open ProgramTypes.Expr
 open ProgramTypes.Pattern
@@ -39,11 +42,15 @@ type token = T.t
 
 type tokenInfos = list<T.tokenInfo>
 
+type astRef = AstRef.t
+
+type placeholder = FluidTypes.Token.Placeholder.t
+
 type state = AppTypes.fluidState
 
 type props = Types.fluidProps
 
-let deselectFluidEditor = (s: fluidState): fluidState => {
+let deselectFluidEditor = (s: state): state => {
   ...s,
   oldPos: 0,
   newPos: 0,
@@ -61,7 +68,7 @@ let astInfoFromModelAndTLID = (~removeTransientState=true, m: AppTypes.model, tl
   /* TODO: codify removeHandlerTransientState as an external function,
    * make `fromExpr` accept only the info it needs, and differentiate between
    * handler-specific and global fluid state. */
-  let removeHandlerTransientState = m =>
+  let removeHandlerTransientState = (m: AppTypes.model) =>
     if removeTransientState {
       {...m, fluidState: {...m.fluidState, ac: AC.init}}
     } else {
@@ -251,7 +258,7 @@ let getStartOfLineCaretPos = (ti: T.tokenInfo, astInfo: ASTInfo.t): int => {
   let token =
     astInfo
     |> ASTInfo.activeTokenInfos
-    |> List.find(~f=info =>
+    |> List.find(~f=(info: T.tokenInfo) =>
       if info.startRow == ti.startRow {
         switch info.token {
         // To prevent the result pos from being set inside TPipe or TIndent tokens
@@ -318,7 +325,7 @@ let getEndOfLineCaretPos = (ti: T.tokenInfo, astInfo: ASTInfo.t): int => {
     astInfo
     |> ASTInfo.activeTokenInfos
     |> List.reverse
-    |> List.find(~f=info => info.startRow == ti.startRow)
+    |> List.find(~f=(info: T.tokenInfo) => info.startRow == ti.startRow)
     |> Option.unwrap(~default=ti)
 
   let pos = switch token.token {
@@ -407,7 +414,7 @@ let moveToEndOfNonWhitespaceTarget = (target: id, astInfo: ASTInfo.t): ASTInfo.t
   switch astInfo
   |> ASTInfo.activeTokenInfos
   |> List.reverse
-  |> List.find(~f=ti => T.tid(ti.token) == target && !T.isWhitespace(ti.token)) {
+  |> List.find(~f=(ti: T.tokenInfo) => T.tid(ti.token) == target && !T.isWhitespace(ti.token)) {
   | None => recover("cannot find token to moveToEndOfNonWhitespaceTarget", ~debug=target, astInfo)
   | Some(lastToken) =>
     let newPos = if T.isBlank(lastToken.token) {
@@ -423,7 +430,7 @@ let moveToEndOfNonWhitespaceTarget = (target: id, astInfo: ASTInfo.t): ASTInfo.t
 let rec getNextBlank = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
   astInfo
   |> ASTInfo.activeTokenInfos
-  |> List.find(~f=ti => T.isBlank(ti.token) && ti.startPos > pos)
+  |> List.find(~f=(ti: T.tokenInfo) => T.isBlank(ti.token) && ti.startPos > pos)
   |> Option.orElseLazy(() =>
     if pos == 0 {
       None
@@ -433,7 +440,10 @@ let rec getNextBlank = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
   )
 
 let getNextBlankPos = (pos: int, astInfo: ASTInfo.t): int =>
-  astInfo |> getNextBlank(pos) |> Option.map(~f=ti => ti.startPos) |> Option.unwrap(~default=pos)
+  astInfo
+  |> getNextBlank(pos)
+  |> Option.map(~f=(ti: T.tokenInfo) => ti.startPos)
+  |> Option.unwrap(~default=pos)
 
 let moveToNextBlank = (pos: int, astInfo: ASTInfo.t): ASTInfo.t => {
   let pos = getNextBlankPos(pos, astInfo)
@@ -446,7 +456,7 @@ let moveToNextBlank = (pos: int, astInfo: ASTInfo.t): ASTInfo.t => {
 let rec getNextEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
   astInfo
   |> ASTInfo.activeTokenInfos
-  |> List.find(~f=ti => {
+  |> List.find(~f=(ti: T.tokenInfo) => {
     let isEditable = // Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination
     switch ti.token {
     | TStringMLEnd(_) | TStringMLMiddle(_) | TFnVersion(_) => false
@@ -464,7 +474,10 @@ let rec getNextEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
   )
 
 let getNextEditablePos = (pos: int, astInfo: ASTInfo.t): int =>
-  astInfo |> getNextEditable(pos) |> Option.map(~f=ti => ti.startPos) |> Option.unwrap(~default=pos)
+  astInfo
+  |> getNextEditable(pos)
+  |> Option.map(~f=(ti: T.tokenInfo) => ti.startPos)
+  |> Option.unwrap(~default=pos)
 
 let moveToNextEditable = (pos: int, astInfo: ASTInfo.t): ASTInfo.t => {
   let pos = getNextEditablePos(pos, astInfo)
@@ -478,7 +491,7 @@ let getPrevEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> => {
   let revTokens = astInfo |> ASTInfo.activeTokenInfos |> List.reverse
   let rec findEditable = (pos: int): option<T.tokenInfo> =>
     revTokens
-    |> List.find(~f=ti => {
+    |> List.find(~f=(ti: T.tokenInfo) => {
       let isEditable = // Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination
       switch ti.token {
       | TStringMLStart(_) | TStringMLMiddle(_) | TFnName(_) => false
@@ -506,7 +519,7 @@ let getPrevEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> => {
 let getPrevEditablePos = (pos: int, astInfo: ASTInfo.t): int =>
   astInfo
   |> getPrevEditable(pos)
-  |> Option.map(~f=ti =>
+  |> Option.map(~f=(ti: T.tokenInfo) =>
     if T.isBlank(ti.token) {
       ti.startPos
     } else {
@@ -523,14 +536,14 @@ let moveToPrevEditable = (pos: int, astInfo: ASTInfo.t): ASTInfo.t => {
 let rec getPrevBlank = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
   astInfo
   |> ASTInfo.activeTokenInfos
-  |> List.filter(~f=ti => T.isBlank(ti.token) && ti.endPos <= pos)
+  |> List.filter(~f=(ti: T.tokenInfo) => T.isBlank(ti.token) && ti.endPos <= pos)
   |> List.last
   |> Option.orElseLazy(() => {
     let lastPos =
       astInfo
       |> ASTInfo.activeTokenInfos
       |> List.last
-      |> Option.map(~f=ti => ti.endPos)
+      |> Option.map(~f=(ti: T.tokenInfo) => ti.endPos)
       |> Option.unwrap(~default=0)
 
     if pos == lastPos {
@@ -541,7 +554,10 @@ let rec getPrevBlank = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
   })
 
 let getPrevBlankPos = (pos: int, astInfo: ASTInfo.t): int =>
-  astInfo |> getPrevBlank(pos) |> Option.map(~f=ti => ti.startPos) |> Option.unwrap(~default=pos)
+  astInfo
+  |> getPrevBlank(pos)
+  |> Option.map(~f=(ti: T.tokenInfo) => ti.startPos)
+  |> Option.unwrap(~default=pos)
 
 let moveToPrevBlank = (pos: int, astInfo: ASTInfo.t): ASTInfo.t => {
   let pos = getPrevBlankPos(pos, astInfo)
@@ -643,7 +659,7 @@ let doDown = (~pos: int, astInfo: ASTInfo.t): ASTInfo.t => {
 
    This is useful for determining the precise position to which the caret should
    jump after a transformation. */
-let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
+let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
   /* Essentially we're using List.findMap to map a function that
    * matches across astref,token combinations (exhaustively matching astref but not token)
    * to determine the corresponding caretPos.
@@ -660,14 +676,16 @@ let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
     It only really makes sense for situations where there is a 1:1 correspondence
     between an ASTRef and a token. It does not make sense for ASTRefs that scan across
     multiple tokens (eg Multiline Strings) */
-  let posForTi = (ti): option<int> => Some(ti.startPos + min(ct.offset, ti.length))
-  let clampedPosForTi = (ti, pos): option<int> => Some(ti.startPos + max(0, min(pos, ti.length)))
+  let posForTi = (ti: T.tokenInfo): option<int> => Some(ti.startPos + min(ct.offset, ti.length))
+  let clampedPosForTi = (ti: T.tokenInfo, pos): option<int> => Some(
+    ti.startPos + max(0, min(pos, ti.length)),
+  )
 
   /* takes a caretTarget and tokenInfo and produces the corresponding
    * token-stream-global caretPos within the token stream, or None if the
    * passed token isn't one we care about. The function will be used below
    as part of a List.findMap */
-  let targetAndTokenInfoToMaybeCaretPos = ((ct, ti): (caretTarget, T.tokenInfo)): option<int> =>
+  let targetAndTokenInfoToMaybeCaretPos = ((ct, ti): (CT.t, T.tokenInfo)): option<int> =>
     switch (ct.astRef, ti.token) {
     | (ARBinOp(id), TBinOp(id', _, _))
     | (ARBlank(id), TBlank(id', _) | TPlaceholder({blankID: id', _}))
@@ -860,7 +878,7 @@ let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
     // Debug.loG(((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~incluID.toStrings:true ast)), ())
     recover(
       "We expected to find the given caretTarget in the token stream but couldn't.",
-      ~debug=show_caretTarget(ct),
+      ~debug=CT.show(ct),
       astInfo.state.newPos,
     )
   }
@@ -868,7 +886,7 @@ let posFromCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t): int => {
 
 @ocaml.doc(" moveToCaretTarget returns a modified fluidState with newPos set to reflect
     the caretTarget. ")
-let moveToCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t) => {
+let moveToCaretTarget = (ct: CT.t, astInfo: ASTInfo.t) => {
   ...astInfo,
   state: {...astInfo.state, newPos: posFromCaretTarget(ct, astInfo)},
 }
@@ -881,7 +899,7 @@ let moveToCaretTarget = (ct: caretTarget, astInfo: ASTInfo.t) => {
 
   * We attempt to ensure that a single caret target uniquely
   * identifies each pos.  ")
-let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<caretTarget> => {
+let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   let offset = pos - ti.startPos
   switch ti.token {
   | TString(id, _, _) | TStringMLStart(id, _, _, _) => Some(CT.forARStringOpenQuote(id, offset))
@@ -967,11 +985,11 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<caretTarget> 
   }
 }
 
-let caretTargetForNextNonWhitespaceToken = (~pos, tokens: tokenInfos): option<caretTarget> => {
+let caretTargetForNextNonWhitespaceToken = (~pos, tokens: tokenInfos): option<CT.t> => {
   let rec getNextWS = tokens =>
     switch tokens {
     | list{} => None
-    | list{ti, ...rest} =>
+    | list{ti: T.tokenInfo, ...rest} =>
       if T.isWhitespace(ti.token) || pos > ti.startPos {
         getNextWS(rest)
       } else {
@@ -994,7 +1012,7 @@ let moveToAstRef = (~offset=0, astRef: astRef, astInfo: ASTInfo.t): ASTInfo.t =>
  * to the very end of the expr. The concept of \"very end\" is related to an
  * understanding of the tokenization of the expr, even though this function
  * doesn't explicitly depend on any tokenization functions. ")
-let rec caretTargetForEndOfExpr': fluidExpr => caretTarget = x =>
+let rec caretTargetForEndOfExpr': fluidExpr => CT.t = x =>
   switch x {
   | EVariable(id, str) => {astRef: ARVariable(id), offset: String.length(str)}
   | EFieldAccess(id, _, fieldName) => {
@@ -1030,13 +1048,15 @@ let rec caretTargetForEndOfExpr': fluidExpr => caretTarget = x =>
     )
     |> Option.map(~f=lastNonPipeTarget => caretTargetForEndOfExpr'(lastNonPipeTarget))
     |> Option.unwrap(
-      ~default={
-        astRef: ARFnCall(id),
-        offset: fnName
-        |> PT.FQFnName.toString
-        |> FluidUtil.fnDisplayNameWithVersion
-        |> String.length,
-      },
+      ~default=(
+        {
+          astRef: ARFnCall(id),
+          offset: fnName
+          |> PT.FQFnName.toString
+          |> FluidUtil.fnDisplayNameWithVersion
+          |> String.length,
+        }: CT.t
+      ),
     )
   | EPartial(_, _, EBinOp(_, _, _, rhsExpr, _)) =>
     /* We need this so that (for example) when we backspace a binop containing a binop within a partial,
@@ -1080,7 +1100,7 @@ let rec caretTargetForEndOfExpr': fluidExpr => caretTarget = x =>
     recover(
       "we don't yet support caretTargetForEndOfExpr' for this",
       ~debug=show_fluidExpr(expr),
-      {astRef: ARInvalid, offset: 0},
+      ({astRef: ARInvalid, offset: 0}: CT.t),
     )
   }
 
@@ -1088,14 +1108,14 @@ let rec caretTargetForEndOfExpr': fluidExpr => caretTarget = x =>
  * to the "very end" of the expr identified by id within the [ast].
  * The concept of "very end" depends on caretTargetForEndOfExpr'.
  */
-let caretTargetForEndOfExpr = (astPartId: id, ast: FluidAST.t): caretTarget =>
+let caretTargetForEndOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
   switch FluidAST.find(astPartId, ast) {
   | Some(expr) => caretTargetForEndOfExpr'(expr)
   | None =>
     recover(
       "caretTargetForEndOfExpr got an id outside of the AST",
       ~debug=astPartId,
-      {astRef: ARInvalid, offset: 0},
+      ({astRef: ARInvalid, offset: 0}: CT.t),
     )
   }
 
@@ -1103,7 +1123,7 @@ let caretTargetForEndOfExpr = (astPartId: id, ast: FluidAST.t): caretTarget =>
  * to the very beginning of the [expr]. The concept of "very beginning" is related to an
  * understanding of the tokenization of the expr, even though this function
  * doesn't explicitly depend on any tokenization functions. */
-let rec caretTargetForStartOfExpr': fluidExpr => caretTarget = x =>
+let rec caretTargetForStartOfExpr': fluidExpr => CT.t = x =>
   switch x {
   | EInteger(id, _) => {astRef: ARInteger(id), offset: 0}
   | EBool(id, _) => {astRef: ARBool(id), offset: 0}
@@ -1131,7 +1151,7 @@ let rec caretTargetForStartOfExpr': fluidExpr => caretTarget = x =>
     recover(
       "unhandled expr in caretTargetForStartOfExpr'",
       ~debug=show_fluidExpr(expr),
-      {astRef: ARInvalid, offset: 0},
+      ({astRef: ARInvalid, offset: 0}: CT.t),
     )
   }
 
@@ -1139,20 +1159,20 @@ let rec caretTargetForStartOfExpr': fluidExpr => caretTarget = x =>
  * to the "very beginning" of the expr identified by [id] within the [ast].
  * The concept of "very beginning" depends on caretTargetForStartOfExpr'.
  */
-let caretTargetForStartOfExpr = (astPartId: id, ast: FluidAST.t): caretTarget =>
+let caretTargetForStartOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
   switch FluidAST.find(astPartId, ast) {
   | Some(expr) => caretTargetForStartOfExpr'(expr)
   | None =>
     recover(
       "caretTargetForStartOfExpr got an id outside of the AST",
       ~debug=astPartId,
-      {astRef: ARInvalid, offset: 0},
+      ({astRef: ARInvalid, offset: 0}: CT.t),
     )
   }
 
 /* caretTargetForStartOfPattern returns a caretTarget representing caret
  placement at the very start of the expression in `pattern` */
-let caretTargetForStartOfPattern = (pattern: fluidPattern): caretTarget =>
+let caretTargetForStartOfPattern = (pattern: fluidPattern): CT.t =>
   switch pattern {
   | PVariable(id, _) => {astRef: ARPattern(id, PPVariable), offset: 0}
   | PConstructor(id, _, _) => {astRef: ARPattern(id, PPConstructor), offset: 0}
@@ -1170,7 +1190,7 @@ let caretTargetForStartOfPattern = (pattern: fluidPattern): caretTarget =>
  * The concept of "very end" is related to an understanding of the
  * tokenization of the ast, even though this function doesn't explicitly depend
  * on any tokenization functions. */
-let rec caretTargetForEndOfPattern = (pattern: fluidPattern): caretTarget =>
+let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
   switch pattern {
   | PVariable(id, varName) => {
       astRef: ARPattern(id, PPVariable),
@@ -1204,11 +1224,7 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): caretTarget =>
  *
  * "very start" is based on the definition of caretTargetForStartOfPattern
  */
-let caretTargetForBeginningOfMatchBranch = (
-  matchID: id,
-  index: int,
-  ast: FluidAST.t,
-): caretTarget => {
+let caretTargetForBeginningOfMatchBranch = (matchID: id, index: int, ast: FluidAST.t): CT.t => {
   let maybeTarget = switch FluidAST.find(matchID, ast) {
   | Some(EMatch(_, _, branches)) =>
     branches
@@ -1220,7 +1236,7 @@ let caretTargetForBeginningOfMatchBranch = (
   maybeTarget |> recoverOpt(
     "caretTargetForBeginningOfMatchBranch got an invalid id/idx",
     ~debug=(matchID, index),
-    ~default={astRef: ARInvalid, offset: 0},
+    ~default=({astRef: ARInvalid, offset: 0}: CT.t),
   )
 }
 
@@ -1231,7 +1247,7 @@ let caretTargetForBeginningOfMatchBranch = (
  *
  * "end" is based on the definition of caretTargetForEndOfPattern
  */
-let caretTargetForEndOfMatchPattern = (ast: FluidAST.t, matchID: id, index: int): caretTarget => {
+let caretTargetForEndOfMatchPattern = (ast: FluidAST.t, matchID: id, index: int): CT.t => {
   let maybeTarget = switch FluidAST.find(matchID, ast) {
   | Some(EMatch(_, _, branches)) =>
     branches
@@ -1243,7 +1259,7 @@ let caretTargetForEndOfMatchPattern = (ast: FluidAST.t, matchID: id, index: int)
   maybeTarget |> recoverOpt(
     "caretTargetForEndOfMatchPattern got an invalid id/index",
     ~debug=(matchID, index),
-    ~default={astRef: ARInvalid, offset: 0},
+    ~default=({astRef: ARInvalid, offset: 0}: CT.t),
   )
 }
 
@@ -1322,7 +1338,7 @@ let addMatchPatternAt = (matchId: id, idx: int, astInfo: ASTInfo.t): ASTInfo.t =
  * blanks or placeholders, which are identical
  * except for when creating lambdas.
  */
-let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, caretTarget)> =>
+let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, CT.t)> =>
   if ins == " " || ins == "," {
     None
   } else if ins == "\\" {
@@ -1365,7 +1381,7 @@ let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, caretTarget)> =>
  * used to replace a blank when inserting the text [ins], or
  * None if the text shouldn't replace the blank.
  */
-let maybeInsertInBlankExpr = (ins: string): option<(E.t, caretTarget)> =>
+let maybeInsertInBlankExpr = (ins: string): option<(E.t, CT.t)> =>
   if ins == "\\" {
     let newID = gid()
     Some(
@@ -1380,11 +1396,11 @@ let maybeInsertInBlankExpr = (ins: string): option<(E.t, caretTarget)> =>
  * produces the (newExpr, newCaretTarget) tuple that should be
  * used to replace a blank when inserting the text [ins].
  */
-let insertInBlankExpr = (ins: string): (E.t, caretTarget) =>
+let insertInBlankExpr = (ins: string): (E.t, CT.t) =>
   maybeInsertInBlankExpr(ins) |> Option.unwrap(
     ~default={
       let newID = gid()
-      (EBlank(newID), {astRef: ARBlank(newID), offset: 0})
+      (EBlank(newID), ({astRef: ARBlank(newID), offset: 0}: CT.t))
     },
   )
 
@@ -1403,7 +1419,7 @@ let insertInPlaceholderExpr = (
   ~ins: string,
   ast: FluidAST.t,
   props: props,
-): (E.t, caretTarget) => {
+): (E.t, CT.t) => {
   let newID = gid()
   let lambdaArgs = () => {
     let fnname = switch FluidAST.find(fnID, ast) {
@@ -1424,14 +1440,16 @@ let insertInPlaceholderExpr = (
   let (newExpr, newTarget) = if ins == "\\" {
     (
       ELambda(newID, lambdaArgs(), EBlank(gid())),
-      // TODO: if lambdaArgs is a populated list, place caret at the end
-      {astRef: ARLambda(newID, LBPSymbol), offset: 1},
+      (
+        // TODO: if lambdaArgs is a populated list, place caret at the end
+        {astRef: ARLambda(newID, LBPSymbol), offset: 1}: CT.t
+      ),
     )
   } else {
     insBlankOrPlaceholderHelper'(
       ins,
     ) |> // Just replace with a new blank -- we were creating eg a new list item
-    Option.unwrap(~default=(EBlank(newID), {astRef: ARBlank(newID), offset: 0}))
+    Option.unwrap(~default=(EBlank(newID), ({astRef: ARBlank(newID), offset: 0}: CT.t)))
   }
 
   (newExpr, newTarget)
@@ -1521,27 +1539,28 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
   }
   |> Option.map(~f=oldStr => {
     let oldOffset = pos - ti.startPos
-    /* We might have shortened the string when we processed its
-     * escapes - but only the ones to the left of the cursor would
-     * move the cursor */
+    // We might have shortened the string when we processed its
+    // escapes - but only the ones to the left of the cursor would
+    // move the cursor
     let (oldlhs, _) = String.splitAt(~index=oldOffset, oldStr)
     let newlhs = processStr(oldlhs)
     let newOffset = oldOffset + (String.length(oldlhs) - String.length(newlhs))
 
     let astRef = switch FluidAST.find(id, newAST) {
-    | Some(EString(_)) => ARString(id, SPOpenQuote)
+    | Some(EString(_)) => AstRef.ARString(id, SPOpenQuote)
     | Some(EPartial(_)) => ARPartial(id)
-    | Some(expr) => recover("need an ASTRef match for ", ~debug=show_fluidExpr(expr), ARPartial(id))
-    | _ => recover("no expr found for ID", ~debug=id, ARPartial(id))
+    | Some(expr) =>
+      recover("need an ASTRef match for ", ~debug=show_fluidExpr(expr), AstRef.ARPartial(id))
+    | _ => recover("no expr found for ID", ~debug=id, AstRef.ARPartial(id))
     }
 
     let astInfo = ASTInfo.setAST(newAST, astInfo)
     moveToAstRef(~offset=newOffset + 1, astRef, astInfo)
   })
-  |> /* If origExpr wasn't an EPartial (_, _, EString _), then we didn't
-   * change the AST in the updateExpr call, so leave the newState as it
-   * was */
-  Option.unwrap(~default=astInfo)
+  // If origExpr wasn't an EPartial (_, _, EString _), then we didn't
+  // change the AST in the updateExpr call, so leave the newState as it
+  // was
+  |> Option.unwrap(~default=astInfo)
 }
 
 let startEscapingString = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
@@ -1575,7 +1594,7 @@ let startEscapingString = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTIn
  * the caretTarget represents the end of the partial. */
 let exprToFieldAccess = (id: id, ~partialID: id, ~fieldID: id, ast: FluidAST.t): (
   FluidAST.t,
-  caretTarget,
+  CT.t,
 ) => {
   let newAST = FluidAST.update(id, ast, ~f=e => EPartial(
     partialID,
@@ -1669,7 +1688,7 @@ let recordExprIdAtIndex = (recordID: id, index: int, ast: FluidExpression.t): op
  * An example of where this is useful is when deleting a binary operator.
  *   Given 12 + 34, deleting the + results in the EInteger 1234.
  */
-let rec mergeExprs = (e1: fluidExpr, e2: fluidExpr): (fluidExpr, caretTarget) =>
+let rec mergeExprs = (e1: fluidExpr, e2: fluidExpr): (fluidExpr, CT.t) =>
   switch (e1, e2) {
   | (EPipeTarget(_), e2) => (e2, caretTargetForStartOfExpr'(e2))
   | (_, EBinOp(id, op, lhs, rhs, rail)) =>
@@ -1701,7 +1720,7 @@ type compareParamsResult =
 
 let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: FluidAST.t): (
   FluidAST.t,
-  caretTarget,
+  CT.t,
 ) => {
   let getFunctionParams = (fnname: string, count, varExprs): list<
     option<(string, string, E.t, int)>,
@@ -1782,7 +1801,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     | (_, _) => CPNothingMatched
     }
 
-  let ctForExpr = (expr: fluidExpr): caretTarget =>
+  let ctForExpr = (expr: fluidExpr): CT.t =>
     switch expr {
     | EBinOp(_id, _opName, lhs, _, _) => caretTargetForStartOfExpr'(lhs)
     | EFnCall(id, fnName, argExprs, _ster) =>
@@ -1795,10 +1814,12 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
       )
       |> Option.map(~f=arg => caretTargetForStartOfExpr'(arg))
       |> Option.unwrap(
-        ~default={
-          astRef: ARFnCall(id),
-          offset: fnName |> PT.FQFnName.toString |> FluidUtil.ghostPartialName |> String.length,
-        },
+        ~default=(
+          {
+            astRef: ARFnCall(id),
+            offset: fnName |> PT.FQFnName.toString |> FluidUtil.ghostPartialName |> String.length,
+          }: CT.t
+        ),
       )
     | EConstructor(id, cName, argExprs) =>
       argExprs
@@ -1809,14 +1830,14 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
         }
       )
       |> Option.map(~f=arg => caretTargetForStartOfExpr'(arg))
-      |> Option.unwrap(~default={astRef: ARConstructor(id), offset: String.length(cName)})
+      |> Option.unwrap(~default=({astRef: ARConstructor(id), offset: String.length(cName)}: CT.t))
     | ELet(id, _, _, _) => {astRef: ARLet(id, LPVarName), offset: 0}
     | EIf(_, condExpr, _, _) => caretTargetForStartOfExpr'(condExpr)
     | EMatch(_, mExpr, _) => caretTargetForStartOfExpr'(mExpr)
     | expr => caretTargetForEndOfExpr'(expr)
     }
 
-  let mkExprAndTarget = (expr: fluidExpr): (fluidExpr, caretTarget) => (expr, ctForExpr(expr))
+  let mkExprAndTarget = (expr: fluidExpr): (fluidExpr, CT.t) => (expr, ctForExpr(expr))
 
   FluidAST.find(id, ast)
   |> Option.map(~f=e =>
@@ -1912,7 +1933,10 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     }
   )
   |> Option.map(~f=((newExpr, target)) => (FluidAST.replace(id, ~replacement=newExpr, ast), target))
-  |> recoverOpt("replacePartialWithArguments", ~default=(ast, {astRef: ARInvalid, offset: 0}))
+  |> recoverOpt(
+    "replacePartialWithArguments",
+    ~default=(ast, ({astRef: ARInvalid, offset: 0}: CT.t)),
+  )
 }
 
 // ----------------
@@ -2084,8 +2108,8 @@ let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
 // Autocomplete
 // --------------------
 
-let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> => {
-  let mkBlank = (): (E.t, caretTarget) => {
+let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
+  let mkBlank = (): (E.t, CT.t) => {
     let bID = gid()
     (EBlank(bID), {astRef: ARBlank(bID), offset: 0})
   }
@@ -2148,10 +2172,12 @@ let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> 
         )
         |> Option.map(~f=arg => caretTargetForStartOfExpr'(arg))
         |> Option.unwrap(
-          ~default={
-            astRef: ARFnCall(fID),
-            offset: fn.fnName |> PT.FQFnName.toString |> FluidUtil.partialName |> String.length,
-          },
+          ~default=(
+            {
+              astRef: ARFnCall(fID),
+              offset: fn.fnName |> PT.FQFnName.toString |> FluidUtil.partialName |> String.length,
+            }: CT.t
+          ),
         )
 
       Some(EFnCall(fID, fn.fnName, args, r), target)
@@ -2210,7 +2236,7 @@ let acToExpr = (entry: Types.fluidAutocompleteItem): option<(E.t, caretTarget)> 
   }
 }
 
-let acToPattern = (entry: Types.fluidAutocompleteItem): option<(id, fluidPattern, caretTarget)> => {
+let acToPattern = (entry: AC.item): option<(id, fluidPattern, CT.t)> => {
   let selectedPat: option<(id, P.t)> = switch entry {
   | FACPattern(p) =>
     switch p {
@@ -2227,7 +2253,7 @@ let acToPattern = (entry: Types.fluidAutocompleteItem): option<(id, fluidPattern
   selectedPat |> Option.map(~f=((mid, p)) => (mid, p, caretTargetForEndOfPattern(p)))
 }
 
-let acToPatternOrExpr = (entry: Types.fluidAutocompleteItem): (E.fluidPatOrExpr, caretTarget) =>
+let acToPatternOrExpr = (entry: AC.item): (E.fluidPatOrExpr, CT.t) =>
   acToPattern(entry)
   |> Option.map(~f=((mid, pat, target)) => (E.Pat(mid, pat), target))
   |> Option.orElseLazy(() =>
@@ -2236,7 +2262,7 @@ let acToPatternOrExpr = (entry: Types.fluidAutocompleteItem): (E.fluidPatOrExpr,
   |> recoverOpt(
     "acToPatternOrExpr",
     ~debug=entry,
-    ~default=(E.Expr(E.newB()), {astRef: ARInvalid, offset: 0}),
+    ~default=(E.Expr(E.newB()), ({astRef: ARInvalid, offset: 0}: CT.t)),
   )
 
 let initAC = (s: state): state => {...s, ac: AC.init}
@@ -2309,19 +2335,19 @@ let updatePosAndAC = (newPos: int, astInfo: ASTInfo.t): ASTInfo.t => {
       from there to where the caret would end up with no special handling,
    - the state after the completion has been added to the ast
    - the ast after the completion has been added */
-let acMoveBasedOnKey = (
-  key: K.key,
-  currCaretTarget: caretTarget,
-  astInfo: ASTInfo.t,
-): ASTInfo.t => {
-  let caretTarget: caretTarget = switch key {
+let acMoveBasedOnKey = (key: K.key, currCaretTarget: CT.t, astInfo: ASTInfo.t): ASTInfo.t => {
+  let caretTarget: CT.t = switch key {
   | K.Tab =>
     getNextBlank(astInfo.state.newPos, astInfo)
-    |> Option.andThen(~f=nextBlankTi => caretTargetFromTokenInfo(nextBlankTi.startPos, nextBlankTi))
+    |> Option.andThen(~f=(nextBlankTi: T.tokenInfo) =>
+      caretTargetFromTokenInfo(nextBlankTi.startPos, nextBlankTi)
+    )
     |> Option.unwrap(~default=currCaretTarget)
   | K.ShiftTab =>
     getPrevBlank(astInfo.state.newPos, astInfo)
-    |> Option.andThen(~f=prevBlankTi => caretTargetFromTokenInfo(prevBlankTi.startPos, prevBlankTi))
+    |> Option.andThen(~f=(prevBlankTi: T.tokenInfo) =>
+      caretTargetFromTokenInfo(prevBlankTi.startPos, prevBlankTi)
+    )
     |> Option.unwrap(~default=currCaretTarget)
   | K.Enter => currCaretTarget
   | K.Space =>
@@ -2347,7 +2373,7 @@ let acMoveBasedOnKey = (
 }
 
 let updateFromACItem = (
-  entry: fluidAutocompleteItem,
+  entry: AC.item,
   ti: T.tokenInfo,
   key: K.key,
   astInfo: ASTInfo.t,
@@ -2465,7 +2491,7 @@ let updateFromACItem = (
     recover(
       "updateFromACItem - unhandled pattern",
       ~debug=entry,
-      (ast, {astRef: ARInvalid, offset: 0}),
+      (ast, ({astRef: ARInvalid, offset: 0}: CT.t)),
     )
   }
 
@@ -2498,7 +2524,7 @@ let acEnter = (ti: T.tokenInfo, key: K.key, astInfo: ASTInfo.t): ASTInfo.t => {
   }
 }
 
-let acClick = (entry: fluidAutocompleteItem, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t =>
+let acClick = (entry: AC.item, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t =>
   updateFromACItem(entry, ti, K.Enter, astInfo)
 
 /* If `newPos` is outside `ti`, and `ti` matches the current autocomplete entry
@@ -2556,7 +2582,7 @@ type newPosition =
   | Exactly(int)
   /* The hope is that we can migrate everything to
    AtTarget and then remove this entirely */
-  | AtTarget(caretTarget)
+  | AtTarget(CT.t)
 
 let adjustPosForReflow = (
   oldTI: T.tokenInfo,
@@ -2574,7 +2600,9 @@ let adjustPosForReflow = (
    * adjustment. There are definitely places this won't work, but I haven't
    * found them yet. */
   let newTI =
-    astInfo |> ASTInfo.activeTokenInfos |> List.find(~f=x => T.matches(oldTI.token, x.token))
+    astInfo
+    |> ASTInfo.activeTokenInfos
+    |> List.find(~f=(x: T.tokenInfo) => T.matches(oldTI.token, x.token))
 
   let diff = switch newTI {
   | Some(newTI) => newTI.startPos - oldTI.startPos
@@ -2660,27 +2688,21 @@ let rec itemsAtCurrAndNextIndex = (lst: list<'a>, idx: int): option<('a, 'a)> =>
  * deleting rows in eg a match (see doBackspace in updateKey).
  * Ideally we wouldn't need these hacks.
  */
-let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
-  FluidAST.t,
-  newPosition,
-) => {
+let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t, newPosition) => {
   open FluidExpression
   let {astRef: currAstRef, offset: currOffset} = currCaretTarget
-  let currCTMinusOne = {astRef: currAstRef, offset: currOffset - 1}
+  let currCTMinusOne: CT.t = {astRef: currAstRef, offset: currOffset - 1}
   let mutation: string => string = str => Util.removeCharAt(str, currOffset - 1)
 
   let mutationAt = (str: string, ~index: int): string => Util.removeCharAt(str, index)
 
-  let doExprBackspace = (currAstRef: astRef, currExpr: E.t): option<(
-    E.fluidPatOrExpr,
-    caretTarget,
-  )> => {
-    let mkEBlank: unit => option<(E.fluidPatOrExpr, caretTarget)> = () => {
+  let doExprBackspace = (currAstRef: astRef, currExpr: E.t): option<(E.fluidPatOrExpr, CT.t)> => {
+    let mkEBlank: unit => option<(E.fluidPatOrExpr, CT.t)> = () => {
       let bID = gid()
       Some(Expr(EBlank(bID)), {astRef: ARBlank(bID), offset: 0})
     }
 
-    let mkPartialOrBlank = (str: string, e: E.t): option<(E.fluidPatOrExpr, caretTarget)> =>
+    let mkPartialOrBlank = (str: string, e: E.t): option<(E.fluidPatOrExpr, CT.t)> =>
       if str == "" {
         mkEBlank()
       } else {
@@ -2740,10 +2762,12 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         let newExpr = E.removeVariableUse(deleteVarName, oldExpr)
         Some(
           Expr(ELambda(id, newVars, newExpr)),
-          {
-            astRef: ARLambda(id, LBPVarName(varAndSepIdx)),
-            offset: String.length(keepVarName),
-          },
+          (
+            {
+              astRef: ARLambda(id, LBPVarName(varAndSepIdx)),
+              offset: String.length(keepVarName),
+            }: CT.t
+          ),
         )
       })
       |> recoverOpt("doExplicitBackspace - LPComma", ~debug=(varAndSepIdx, oldVars), ~default=None)
@@ -2753,7 +2777,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       let (newExpr, target) =
         itemsAtCurrAndNextIndex(exprs, elemAndSepIdx)
         |> Option.map(~f=((beforeComma, afterComma)) => mergeExprs(beforeComma, afterComma))
-        |> Option.unwrap(~default=(E.newB(), {astRef: ARList(id, LPOpen), offset: 1}))
+        |> Option.unwrap(~default=(E.newB(), ({astRef: ARList(id, LPOpen), offset: 1}: CT.t)))
 
       let newExprs =
         /* Considering a is the item at elemAndSepIdx and b is at elemAndSepIdx + 1,
@@ -2779,7 +2803,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       | list{} => Some(Expr(EBlank(id)), {astRef: ARBlank(id), offset: 0})
       | list{single} => Some(Expr(single), caretTargetForStartOfExpr'(single))
       | _ =>
-        let target = {astRef: ARTuple(id, TPOpen), offset: 0}
+        let target: CT.t = {astRef: ARTuple(id, TPOpen), offset: 0}
         Some(Expr(ETuple(id, first, second, theRest)), target)
       }
 
@@ -2794,7 +2818,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       | list{} =>
         recover(
           "Deletion unexpectedly resulted in tuple with 0 elements",
-          ~debug=show_astRef(currAstRef),
+          ~debug=AstRef.show(currAstRef),
           None,
         )
       | list{single} =>
@@ -2809,7 +2833,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         | None =>
           recover(
             "Deletion unexpectedly resulted in tuple with 0 elements",
-            ~debug=show_astRef(currAstRef),
+            ~debug=AstRef.show(currAstRef),
             None,
           )
         | Some(elementLeftOfDeletion) =>
@@ -2820,7 +2844,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       }
 
     | (ARTuple(_, TPClose), ETuple(id, first, second, theRest)) =>
-      let target = {astRef: ARTuple(id, TPClose), offset: 0}
+      let target: CT.t = {astRef: ARTuple(id, TPClose), offset: 0}
       Some(Expr(ETuple(id, first, second, theRest)), target)
 
     // Records
@@ -2832,10 +2856,14 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
         switch x {
         | ("", _) =>
           let target = switch recordExprIdAtIndex(id, index - 1, FluidAST.toExpr(ast)) {
-          | None => {
-              astRef: ARRecord(id, RPOpen),
-              offset: 1, // right after the {
-            }
+          | None =>
+            (
+              {
+                astRef: ARRecord(id, RPOpen),
+                offset: 1, // right after the {
+              }: CT.t
+            )
+
           | Some(exprId) => caretTargetForEndOfExpr(exprId, ast)
           }
 
@@ -3057,7 +3085,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
      */
     (ARPattern(_), _)
     | (ARInvalid, _) =>
-      recover("doExplicitBackspace - unexpected expr", ~debug=show_astRef(currAstRef), None)
+      recover("doExplicitBackspace - unexpected expr", ~debug=AstRef.show(currAstRef), None)
     }
   }
 
@@ -3066,8 +3094,8 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
     currAstRef: astRef,
     mID: id,
     pat: fluidPattern,
-  ): option<(E.fluidPatOrExpr, caretTarget)> => {
-    let mkPBlank = (): option<(E.fluidPatOrExpr, caretTarget)> => {
+  ): option<(E.fluidPatOrExpr, CT.t)> => {
+    let mkPBlank = (): option<(E.fluidPatOrExpr, CT.t)> => {
       let bID = gid()
       Some(Pat(mID, PBlank(bID)), {astRef: ARPattern(bID, PPBlank), offset: 0})
     }
@@ -3107,7 +3135,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
       patContainerRef := Some(mID)
       let newName = mutation(oldName)
       let (newPat, target) = if newName == "" {
-        (PBlank(pID), {astRef: ARPattern(pID, PPBlank), offset: 0})
+        (PBlank(pID), ({astRef: ARPattern(pID, PPBlank), offset: 0}: CT.t))
       } else {
         (PVariable(pID, newName), currCTMinusOne)
       }
@@ -3244,7 +3272,7 @@ let doExplicitBackspace = (currCaretTarget: caretTarget, ast: FluidAST.t): (
     | (ARVariable(_), _)
     | (ARFlag(_), _)
     | (ARInvalid, _) =>
-      recover("doExplicitBackspace - unexpected pat", ~debug=show_astRef(currAstRef), None)
+      recover("doExplicitBackspace - unexpected pat", ~debug=AstRef.show(currAstRef), None)
     }
   }
 
@@ -3335,12 +3363,12 @@ let doDelete = (~pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
 let doExplicitInsert = (
   props: props,
   extendedGraphemeCluster: string,
-  currCaretTarget: caretTarget,
+  currCaretTarget: CT.t,
   ast: FluidAST.t,
 ): (FluidAST.t, newPosition) => {
   let {astRef: currAstRef, offset: currOffset} = currCaretTarget
   let caretDelta = extendedGraphemeCluster |> String.length
-  let currCTPlusLen = {astRef: currAstRef, offset: currOffset + caretDelta}
+  let currCTPlusLen: CT.t = {astRef: currAstRef, offset: currOffset + caretDelta}
   let mutation: string => string = str =>
     str |> String.insertAt(~index=currOffset, ~value=extendedGraphemeCluster)
 
@@ -3349,11 +3377,11 @@ let doExplicitInsert = (
 
   let doExprInsert = (currAstRef: astRef, currExpr: FluidExpression.t): option<(
     FluidExpression.t,
-    caretTarget,
+    CT.t,
   )> => {
     let mkPartial = (str: string, oldExpr: FluidExpression.t): option<(
       FluidExpression.t,
-      caretTarget,
+      CT.t,
     )> => {
       let newID = gid()
       Some(
@@ -3362,7 +3390,7 @@ let doExplicitInsert = (
       )
     }
 
-    let mkLeftPartial: option<(E.t, caretTarget)> = {
+    let mkLeftPartial: option<(E.t, CT.t)> = {
       let id = gid()
       Some(
         ELeftPartial(id, extendedGraphemeCluster, currExpr),
@@ -3372,7 +3400,7 @@ let doExplicitInsert = (
 
     let maybeIntoLeftPartial: option<(
       E.t,
-      caretTarget,
+      CT.t,
     )> = /* maybeIntoLeftPartial wraps the expression in a left partial only if it
      * is either 1) the top-level expression in the AST or 2) the first
      * expression directly inside a let. This means it's on the "left edge"
@@ -3625,7 +3653,7 @@ let doExplicitInsert = (
      */
     (ARPattern(_), _)
     | (ARInvalid, _) =>
-      recover("doExplicitInsert - unexpected expr", ~debug=show_astRef(currAstRef), None)
+      recover("doExplicitInsert - unexpected expr", ~debug=AstRef.show(currAstRef), None)
     }
   }
 
@@ -3634,7 +3662,7 @@ let doExplicitInsert = (
     currAstRef: astRef,
     mID: id,
     pat: fluidPattern,
-  ): option<(E.fluidPatOrExpr, caretTarget)> =>
+  ): option<(E.fluidPatOrExpr, CT.t)> =>
     switch (currAstRef, pat) {
     | (ARPattern(_, PPFloat(kind)), PFloat(pID, sign, whole, frac)) =>
       if FluidUtil.isNumber(extendedGraphemeCluster) {
@@ -3839,7 +3867,7 @@ let doExplicitInsert = (
     | (ARVariable(_), _)
     | (ARFlag(_), _)
     | (ARInvalid, _) =>
-      recover("doExplicitInsert - unexpected pat", ~debug=show_astRef(currAstRef), None)
+      recover("doExplicitInsert - unexpected pat", ~debug=AstRef.show(currAstRef), None)
     }
 
   /* FIXME: This is an ugly hack so we can modify match branches when editing a pattern.
@@ -3915,7 +3943,7 @@ let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t
     |> ASTInfo.modifyState(~f=s => {...s, upDownCol: None})
 
   caretTargetFromTokenInfo(pos, ti)
-  |> Option.andThen(~f=ct =>
+  |> Option.andThen(~f=(ct: CT.t) =>
     idOfASTRef(ct.astRef) |> Option.andThen(~f=id =>
       switch FluidAST.find(id, astInfo.ast) {
       | Some(expr) => Some(id, ct, expr)
@@ -3923,7 +3951,7 @@ let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t
       }
     )
   )
-  |> Option.andThen(~f=((id, ct, expr)) =>
+  |> Option.andThen(~f=((id, ct: CT.t, expr)) =>
     switch (ct.astRef, expr) {
     | (ARInteger(_), expr)
     | (ARBool(_), expr)
@@ -3948,10 +3976,12 @@ let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t
         Some(
           id,
           ERightPartial(newID, infixTxt, expr),
-          {
-            astRef: ARRightPartial(newID),
-            offset: String.length(infixTxt),
-          },
+          (
+            {
+              astRef: ARRightPartial(newID),
+              offset: String.length(infixTxt),
+            }: CT.t
+          ),
         )
       } else {
         None
@@ -4052,7 +4082,7 @@ let updateSelectionRange = (newPos: int, astInfo: ASTInfo.t): ASTInfo.t =>
     selectionStart: Some(s.selectionStart |> Option.unwrap(~default=s.newPos)),
   })
 
-let getOptionalSelectionRange = (s: fluidState): option<(int, int)> => {
+let getOptionalSelectionRange = (s: state): option<(int, int)> => {
   let endIdx = s.newPos
   switch s.selectionStart {
   | Some(beginIdx) => Some(beginIdx, endIdx)
@@ -4064,7 +4094,7 @@ let tokensInRange = (selStartPos: int, selEndPos: int, astInfo: ASTInfo.t): toke
   astInfo
   |> ASTInfo.activeTokenInfos
   |> // this condition is a little flaky, sometimes selects wrong tokens
-  List.filter(~f=t =>
+  List.filter(~f=(t: T.tokenInfo) =>
     // selectionStart within token
     (t.startPos <= selStartPos && selStartPos < t.endPos) ||
       // selectionEnd within token
@@ -4079,8 +4109,8 @@ let getTopmostSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): op
   let (startPos, endPos) = orderRangeFromSmallToBig((startPos, endPos))
   // TODO: if there's multiple topmost IDs, return parent of those IDs
   tokensInRange(startPos, endPos, astInfo)
-  |> List.filter(~f=ti => !T.isNewline(ti.token))
-  |> List.fold(~initial=(None, 0), ~f=((topmostID, topmostDepth), ti) => {
+  |> List.filter(~f=(ti: T.tokenInfo) => !T.isNewline(ti.token))
+  |> List.fold(~initial=(None, 0), ~f=((topmostID, topmostDepth), ti: T.tokenInfo) => {
     let curID = T.parentExprID(ti.token)
     let curDepth = FluidAST.ancestors(curID, astInfo.ast) |> List.length
     if (
@@ -4104,7 +4134,7 @@ let getSelectedExprID = (astInfo: ASTInfo.t): option<id> =>
     getTopmostSelectionID(startPos, endPos, astInfo)
   )
 
-let maybeOpenCmd = (m: AppTypes.model): Types.modification => {
+let maybeOpenCmd = (m: AppTypes.model): AppTypes.modification => {
   let getExprIDOnCaret = (astInfo: ASTInfo.t) =>
     switch ASTInfo.getTokenNotWhitespace(astInfo) {
     | Some(ti) =>
@@ -4123,14 +4153,14 @@ let maybeOpenCmd = (m: AppTypes.model): Types.modification => {
     |> Option.andThen(~f=astInfo =>
       getSelectedExprID(astInfo) |> Option.orElseLazy(_ => getExprIDOnCaret(astInfo))
     )
-    |> Option.map(~f=id => FluidCommandsShow(tlid, id))
+    |> Option.map(~f=id => Mod.FluidCommandsShow(tlid, id))
   | None => None
   }
 
   Option.unwrap(mod', ~default=NoChange)
 }
 
-let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: ASTInfo.t) => {
+let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: ASTInfo.t) => {
   // These might be the same token
   let origAstInfo = astInfo
   let pos = astInfo.state.newPos
@@ -4672,7 +4702,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   | (Keypress({key: K.Enter, _}), L(_), R(TNewline(Some(id, _, _)), ti)) =>
     if (
       mNext
-      |> Option.map(~f=n =>
+      |> Option.map(~f=(n: T.tokenInfo) =>
         switch n.token {
         | TBlank(_) => true
         | _ => false
@@ -4774,7 +4804,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   | (Keypress({key: K.Enter, _}), L(token, ti), No) if !T.isLet(token) => wrapInLet(ti, astInfo)
   | _ =>
     // Unknown
-    report("Unknown action: " ++ show_fluidInputEvent(inputEvent), astInfo)
+    report("Unknown action: " ++ FT.Msg.show_inputEvent(inputEvent), astInfo)
   }
 
   let astInfo = ASTInfo.modifyState(astInfo, ~f=s => {...s, lastInput: inputEvent})
@@ -4846,7 +4876,7 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
         // if the partial is a valid function name, don't commit
         let newQueryString = str ++ txt
         astInfo.state.ac.completions
-        |> List.filter(~f=({item, _}) =>
+        |> List.filter(~f=({item, _}: FT.AutoComplete.data) =>
           String.includes(~substring=newQueryString, AC.asName(item))
         )
         |> \"=="(list{})
@@ -4928,7 +4958,7 @@ let updateMouseClick = (newPos: int, astInfo: ASTInfo.t): ASTInfo.t => {
     astInfo
     |> ASTInfo.activeTokenInfos
     |> List.last
-    |> Option.map(~f=ti => ti.endPos)
+    |> Option.map(~f=(ti: T.tokenInfo) => ti.endPos)
     |> Option.unwrap(~default=0)
 
   let newPos = if newPos > lastPos {
@@ -4985,10 +5015,10 @@ let expressionRange = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> => {
   let (exprStartToken, exprEndToken) = (
     List.head(exprTokens),
     List.last(exprTokens),
-  ) |> Tuple2.mapAll(~f=x =>
+  ) |> Tuple2.mapAll(~f=(x: option<T.tokenInfo>) =>
     switch x {
     | Some(exprTok) =>
-      List.find(containingTokens, ~f=tk => T.matchesContent(exprTok.token, tk.token))
+      List.find(containingTokens, ~f=(tk: T.tokenInfo) => T.matchesContent(exprTok.token, tk.token))
     | _ => None
     }
   )
@@ -5004,7 +5034,7 @@ let expressionRange = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> => {
 let getExpressionRangeAtCaret = (astInfo: ASTInfo.t): option<(int, int)> =>
   ASTInfo.getToken(astInfo)
   |> // get token that the cursor is currently on
-  Option.andThen(~f=t => {
+  Option.andThen(~f=(t: T.tokenInfo) => {
     // get expression that the token belongs to
     let exprID = T.tid(t.token)
     expressionRange(exprID, astInfo)
@@ -5044,7 +5074,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       |> Option.unwrap(~default=EBlank(gid()))
 
     let tokens = // simplify tokens to make them homogenous, easier to parse
-    tokensInRange(startPos, endPos, astInfo) |> List.map(~f=ti => {
+    tokensInRange(startPos, endPos, astInfo) |> List.map(~f=(ti: T.tokenInfo) => {
       let t = ti.token
       let text =
         // trim tokens if they're on the edge of the range
@@ -5338,7 +5368,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       let newEntries =
         /* looping through original set of tokens (before transforming them into tuples)
          * so we can get the index field */
-        tokensInRange(startPos, endPos, astInfo) |> List.filterMap(~f=ti =>
+        tokensInRange(startPos, endPos, astInfo) |> List.filterMap(~f=(ti: T.tokenInfo) =>
           switch ti.token {
           | TRecordFieldname({recordID, index, fieldName: newKey, exprID: _, parentBlockID: _})
             if recordID == id /* watch out for nested records */ =>
@@ -5445,7 +5475,7 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
   let astInfo = deleteSelection(astInfo)
   let ast = astInfo.ast
   let mTi = ASTInfo.getToken(astInfo)
-  let exprID = mTi |> Option.map(~f=ti => ti.token |> T.tid)
+  let exprID = mTi |> Option.map(~f=(ti: T.tokenInfo) => ti.token |> T.tid)
   let expr = Option.andThen(exprID, ~f=id => FluidAST.find(id, ast))
   let clipboardExpr = Clipboard.clipboardContentsToExpr(data)
   let text = Clipboard.clipboardContentsToString(data)
@@ -5580,7 +5610,7 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
         }
 
         let enter = {...space, key: K.Enter}
-        let action = if str == " " {
+        let action: FT.Msg.inputEvent = if str == " " {
           Keypress(space)
         } else if str == "\n" {
           Keypress(enter)
@@ -5611,14 +5641,17 @@ let getCopySelection = (m: AppTypes.model): clipboardContents =>
   })
   |> Option.unwrap(~default=("", None))
 
-let buildFeatureFlagEditors = (tlid: TLID.t, ast: FluidAST.t): list<fluidEditor> =>
-  ast |> FluidAST.getFeatureFlags |> List.map(~f=e => FeatureFlagEditor(tlid, E.toID(e)))
+let buildFeatureFlagEditors = (tlid: TLID.t, ast: FluidAST.t): list<FT.Editor.t> =>
+  ast |> FluidAST.getFeatureFlags |> List.map(~f=e => FT.Editor.FeatureFlagEditor(tlid, E.toID(e)))
 
 // ------------------------
 // update functions
 // ------------------------
 
-let updateMouseDoubleClick = (eventData: fluidMouseDoubleClick, astInfo: ASTInfo.t): ASTInfo.t => {
+let updateMouseDoubleClick = (
+  eventData: FT.Msg.mouseDoubleClick,
+  astInfo: ASTInfo.t,
+): ASTInfo.t => {
   let astInfo = ASTInfo.modifyState(astInfo, ~f=s => {
     ...s,
     midClick: false,
@@ -5660,7 +5693,7 @@ let updateMouseDoubleClick = (eventData: fluidMouseDoubleClick, astInfo: ASTInfo
 }
 
 // Handle either a click or the end of a selection drag
-let updateMouseUp = (eventData: fluidMouseUp, astInfo: ASTInfo.t): ASTInfo.t => {
+let updateMouseUp = (eventData: FT.Msg.mouseUp, astInfo: ASTInfo.t): ASTInfo.t => {
   let astInfo =
     astInfo |> ASTInfo.modifyState(~f=s => {...s, midClick: false, activeEditor: eventData.editor})
 
@@ -5681,12 +5714,12 @@ let updateMouseUpExternal = (tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
   switch Entry.getFluidSelectionRange() {
   | Some(startPos, endPos) =>
     let selection = if startPos == endPos {
-      ClickAt(startPos)
+      FT.Msg.ClickAt(startPos)
     } else {
       SelectText(startPos, endPos)
     }
 
-    let eventData: fluidMouseUp = {
+    let eventData: FT.Msg.mouseUp = {
       tlid: tlid,
       editor: astInfo.state.activeEditor,
       selection: selection,
@@ -5700,7 +5733,7 @@ let updateMsg' = (
   m: AppTypes.model,
   tlid: TLID.t,
   astInfo: ASTInfo.t,
-  msg: Types.fluidMsg,
+  msg: AppTypes.fluidMsg,
 ): ASTInfo.t => {
   let astInfo = switch msg {
   | FluidCloseCmdPalette
@@ -5810,16 +5843,16 @@ let updateMsg = (
   m: AppTypes.model,
   tlid: TLID.t,
   ast: FluidAST.t,
-  s: fluidState,
-  msg: Types.fluidMsg,
-): (FluidAST.t, fluidState, tokenInfos) => {
+  s: AppTypes.fluidState,
+  msg: AppTypes.fluidMsg,
+): (FluidAST.t, AppTypes.fluidState, tokenInfos) => {
   let props = FluidUtil.propsFromModel(m)
   let astInfo = ASTInfo.make(props, ast, s)
   let astInfo = updateMsg'(m, tlid, astInfo, msg)
   (astInfo.ast, astInfo.state, ASTInfo.activeTokenInfos(astInfo))
 }
 
-let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
+let update = (m: AppTypes.model, msg: AppTypes.fluidMsg): AppTypes.modification => {
   let s = m.fluidState
   let s = {...s, error: None, oldPos: s.newPos, actions: list{}}
   switch msg {
@@ -5836,8 +5869,8 @@ let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
   | FluidInputEvent(Keypress({key: K.Redo, _})) => KeyPress.undo_redo(m, true)
   | FluidInputEvent(Keypress({key: K.CommandPalette(heritage), _})) =>
     let maybeOpen = maybeOpenCmd(m)
-    let showToast = ReplaceAllModificationsWithThisOne(
-      m => (
+    let showToast = Mod.ReplaceAllModificationsWithThisOne(
+      (m: AppTypes.model) => (
         {
           ...m,
           toast: {
@@ -5864,7 +5897,7 @@ let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
     |> Option.thenAlso(~f=TL.getAST)
     |> Option.map(~f=((tl, ast)) => {
       let pageMod = if CursorState.tlidOf(m.cursorState) != Some(tlid) {
-        SetPage(TL.asPage(tl, true))
+        Mod.SetPage(TL.asPage(tl, true))
       } else {
         NoChange
       }
@@ -5874,23 +5907,23 @@ let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
 
         let {state, _}: ASTInfo.t = moveToEndOfNonWhitespaceTarget(id, astInfo)
 
-        {...state, errorDvSrc: SourceId(tlid, id)}
+        {...state, errorDvSrc: SourceID(tlid, id)}
       }
 
       let moveMod = switch Viewport.moveToToken(id, tl) {
-      | (Some(dx), Some(dy)) => MoveCanvasTo({x: dx, y: dy}, AnimateTransition)
+      | (Some(dx), Some(dy)) => Mod.MoveCanvasTo({x: dx, y: dy}, AnimateTransition)
       | (Some(dx), None) => MoveCanvasTo({x: dx, y: m.canvasProps.offset.y}, AnimateTransition)
       | (None, Some(dy)) => MoveCanvasTo({x: m.canvasProps.offset.x, y: dy}, AnimateTransition)
       | (None, None) => NoChange
       }
 
       if moveMod == NoChange && pageMod == NoChange {
-        FluidSetState(fluidState)
+        Mod.FluidSetState(fluidState)
       } else {
         Many(list{pageMod, moveMod, FluidSetState(fluidState)})
       }
     })
-    |> Option.unwrap(~default=NoChange)
+    |> Option.unwrap(~default=Mod.NoChange)
   | FluidCloseCmdPalette => FluidCommandsClose
   | FluidAutocompleteClick(FACCreateFunction(name, tlid, id)) =>
     Refactor.createAndInsertNewFunction(m, tlid, id, name)
@@ -5903,7 +5936,7 @@ let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
     switch AC.highlighted(s.ac) {
     | Some(FACCreateFunction(name, tlid, id)) =>
       Refactor.createAndInsertNewFunction(m, tlid, id, name)
-    | _ => recover("this should not have happened", NoChange)
+    | _ => recover("this should not have happened", Mod.NoChange)
     }
   | FluidMouseDown(_)
   | FluidInputEvent(_)
@@ -5935,7 +5968,7 @@ let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
         | _ => false
         }
 
-        let enter = id => Enter(tlid, id)
+        let enter = id => Mod.Enter(tlid, id)
         // if tab is wrapping...
         let lastKey = switch newState.lastInput {
         | Keypress({key, _}) => Some(key)
@@ -5978,7 +6011,7 @@ let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
         let requestAnalysis = switch Analysis.getSelectedTraceID(m, tlid) {
         | Some(traceID) =>
           let m = TL.withAST(m, tlid, newAST)
-          MakeCmd(Analysis.requestAnalysis(m, tlid, traceID))
+          Mod.MakeCmd(Analysis.requestAnalysis(m, tlid, traceID))
         | None => NoChange
         }
 
@@ -5987,12 +6020,12 @@ let update = (m: AppTypes.model, msg: Types.fluidMsg): Types.modification => {
          * be putting the wrong information into the cache. As a simple
          * solution for now, only update if we're in the main editor. */
         if s.activeEditor == MainEditor(tlid) {
-          UpdateASTCache(tlid, Printer.tokensToString(newTokens))
+          Mod.UpdateASTCache(tlid, Printer.tokensToString(newTokens))
         } else {
           NoChange
         }
 
-        Many(list{
+        Mod.Many(list{
           ReplaceAllModificationsWithThisOne(m => (TL.withAST(m, tlid, newAST), Tea.Cmd.none)),
           Toplevel.setSelectedAST(m, newAST),
           requestAnalysis,
@@ -6041,7 +6074,10 @@ let renderCallback = (m: AppTypes.model): unit =>
   | _ => ()
   }
 
-let cleanUp = (m: AppTypes.model, tlid: option<TLID.t>): (AppTypes.model, modification) => {
+let cleanUp = (m: AppTypes.model, tlid: option<TLID.t>): (
+  AppTypes.model,
+  AppTypes.modification,
+) => {
   let rmPartialsMod =
     tlid
     |> Option.andThen(~f=TL.get(m))
@@ -6058,7 +6094,7 @@ let cleanUp = (m: AppTypes.model, tlid: option<TLID.t>): (AppTypes.model, modifi
         None
       }
     })
-    |> Option.unwrap(~default=NoChange)
+    |> Option.unwrap(~default=Mod.NoChange)
 
   let acVisibilityModel = if AC.isOpened(m.fluidState.ac) {
     AC.updateAutocompleteVisibility(m)

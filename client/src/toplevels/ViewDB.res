@@ -6,6 +6,7 @@ module B = BlankOr
 type viewProps = ViewUtils.viewProps
 
 type domEventList = ViewUtils.domEventList
+type dbStats = AnalysisTypes.dbStats
 
 let fontAwesome = ViewUtils.fontAwesome
 

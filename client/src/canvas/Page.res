@@ -86,7 +86,9 @@ let updatePossibleTrace = (m: AppTypes.model, page: page): (AppTypes.model, AppT
   switch getTraceID(page) {
   | Some(tid) =>
     let m = {
-      let trace = TLID.Dict.fromList(list{(tlid, list{(tid, Error(NoneYet))})})
+      let trace = TLID.Dict.fromList(list{
+        (tlid, list{(tid, Error(AnalysisTypes.TraceError.NoneYet))}),
+      })
 
       Analysis.updateTraces(m, trace)
     }

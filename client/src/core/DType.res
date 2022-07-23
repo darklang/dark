@@ -5,13 +5,14 @@ type rec t =
   | TBool
   | TNull
   | TStr
-  | TList
+  | TChar
+  | TList //(t)
   | TTuple(t, t, list<t>)
-  | TObj
+  | TObj //TDict(t)
   | TIncomplete
   | TError
-  | TResp
-  | TDB
+  | TResp //| THttpResponse(t)
+  | TDB //(t)
   | TDate
   | TCharacter
   | TPassword
@@ -20,10 +21,11 @@ type rec t =
   | TErrorRail
   | TUserType(string, int)
   | TBytes
-  | TResult
-  | TAny
-  | TBlock
-  | TDbList(t)
+  | TResult //(t, t)
+  | TAny //TVariable(string)
+  | TBlock //TFn of List<DType> * DType
+  | TDbList(t) // remove
+// | TRecord of List<string * DType>
 
 let rec decode = (j): t => {
   open Json_decode_extended
@@ -38,6 +40,7 @@ let rec decode = (j): t => {
       ("TAny", dv0(TAny)),
       ("TFloat", dv0(TFloat)),
       ("TBool", dv0(TBool)),
+      ("TChar", dv0(TChar)),
       ("TNull", dv0(TNull)),
       ("TStr", dv0(TStr)),
       ("TList", dv1(_ => TList, d)),
@@ -71,6 +74,7 @@ let rec encode = (t: t): Js.Json.t => {
   | TStr => ev("TStr", list{})
   | TCharacter => ev("TCharacter", list{})
   | TBool => ev("TBool", list{})
+  | TChar => ev("TChar", list{})
   | TFloat => ev("TFloat", list{})
   | TObj => ev("TObj", list{})
   | TList => ev("TList", list{})

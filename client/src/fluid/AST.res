@@ -286,7 +286,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
 
 @ocaml.doc(" [variablesIn ast] produces a map of every expression id in the [ast] to its corresponding symbol table.
  * Each symbol table maps from every available variable name to the id of the corresponding value expression bound to that name. ")
-let variablesIn = (ast: E.t): avDict => {
+let variablesIn = (ast: E.t): AnalysisTypes.avDict => {
   let sym_store = IDTable.make(~id=module(IDComparable))
   let trace = (expr, st) => IDTable.set(sym_store, E.toID(expr), st)
   sym_exec(~trace, VarDict.empty, ast)

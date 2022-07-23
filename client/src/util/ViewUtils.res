@@ -17,9 +17,9 @@ type viewProps = {
   showEntry: bool,
   showLivevalue: bool,
   dbLocked: bool,
-  analysisStore: analysisStore /* for current selected trace */,
-  traces: list<trace>,
-  dbStats: dbStatsStore,
+  analysisStore: AnalysisTypes.analysisStore /* for current selected trace */,
+  traces: list<AnalysisTypes.Trace.t>,
+  dbStats: AnalysisTypes.dbStatsStore,
   executingFunctions: list<id>,
   tlTraceIDs: tlTraceIDs,
   testVariants: list<variantTest>,
@@ -32,7 +32,7 @@ type viewProps = {
   fluidState: AppTypes.fluidState,
   avatarsList: list<AppTypes.Avatar.t>,
   permission: option<AccountTypes.Permission.t>,
-  workerStats: option<workerStats>,
+  workerStats: option<AnalysisTypes.WorkerStats.t>,
   menuState: AppTypes.Menu.t,
   isExecuting: bool,
   fnProps: AppTypes.FunctionParams.t,
@@ -134,7 +134,7 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
       switch (count, schedule) {
       | (None, None) => None
       | (Some(c), None) => Some(c)
-      | (None, Some(_)) => Some({...Defaults.defaultWorkerStats, schedule: schedule})
+      | (None, Some(_)) => Some({...AnalysisTypes.WorkerStats.default, schedule: schedule})
       | (Some(c), Some(_)) => Some({...c, schedule: schedule})
       }
     },

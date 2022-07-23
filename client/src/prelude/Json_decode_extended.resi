@@ -69,3 +69,13 @@ let int64: decoder<int64>
 let uint64: decoder<UInt64.t>
 
 let date: decoder<Js.Date.t>
+
+let tuple5: (
+  decoder<'a>,
+  decoder<'b>,
+  decoder<'c>,
+  decoder<'d>,
+  decoder<'e>,
+) => decoder<('a, 'b, 'c, 'd, 'e)>
+
+let base64EncodedBytes: decoder<Bytes.t>

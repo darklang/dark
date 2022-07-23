@@ -40,7 +40,7 @@ module Token = {
   type rec t =
     | TInteger(ID.t, int64, option<parentBlockID>)
     | TString(ID.t, string, option<parentBlockID>)
-    // multi-line strings: id *, segment, start offset, full-string
+    // multi-line strings: id, segment, start offset, full-string
     | TStringMLStart(ID.t, string, int, string)
     | TStringMLMiddle(ID.t, string, int, string)
     | TStringMLEnd(ID.t, string, int, string)
@@ -207,6 +207,7 @@ module AutoComplete = {
     // -------------------------------
     completions: list<data>,
   }
+  let default = {index: None, query: None, completions: list{}}
 }
 
 module Msg = {
@@ -293,7 +294,7 @@ module State = {
     midClick: bool,
     // The source id of an error-dval of where the cursor is on and we might
     // have recently jumped to
-    errorDvSrc: Types.dval_source,
+    errorDvSrc: RuntimeTypes.Dval.DvalSource.t,
     activeEditor: Editor.t,
   }
 
@@ -310,7 +311,7 @@ module State = {
       metaKey: false,
       ctrlKey: false,
     }),
-    ac: {index: None, query: None, completions: list{}},
+    ac: AutoComplete.default,
     cp: {index: 0, commands: list{}, location: None, filter: None},
     selectionStart: None,
     errorDvSrc: SourceNone,

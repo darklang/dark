@@ -99,7 +99,7 @@ let viewTL_ = (m: AppTypes.model, tl: toplevel): Html.html<AppTypes.msg> => {
 
   let id =
     FluidTokenizer.ASTInfo.getToken(vs.astInfo)
-    |> Option.map(~f=ti => FluidToken.tid(ti.token))
+    |> Option.map(~f=(ti: FluidToken.tokenInfo) => FluidToken.tid(ti.token))
     |> Option.orElse(CursorState.idOf(m.cursorState))
 
   let top = {
@@ -195,7 +195,9 @@ let viewTL_ = (m: AppTypes.model, tl: toplevel): Html.html<AppTypes.msg> => {
       }
 
       let cmdDocString = if FluidCommands.isOpenOnTL(m.fluidState.cp, tlid) {
-        FluidCommands.highlighted(m.fluidState.cp) |> Option.map(~f=c => viewDoc(list{p(c.doc)}))
+        FluidCommands.highlighted(m.fluidState.cp) |> Option.map(~f=(c: AppTypes.fluidCmd) =>
+          viewDoc(list{p(c.doc)})
+        )
       } else {
         None
       }
@@ -262,7 +264,7 @@ let tlCacheKey = (m: AppTypes.model, tl) => {
 
     let tracesLoaded = Analysis.getTraces(m, tlid) |> List.map(~f=((_, traceData)) =>
       switch traceData {
-      | Ok(_) | Error(MaximumCallStackError) => true
+      | Ok(_) | Error(AnalysisTypes.TraceError.MaximumCallStackError) => true
       | _ => false
       }
     )
@@ -453,7 +455,7 @@ let viewCanvas = (m: AppTypes.model): Html.html<AppTypes.msg> => {
         if prop == "transform" {
           CanvasPanAnimationEnd
         } else {
-          Msg.IgnoreMsg("canvas-pan-end")
+          AppTypes.Msg.IgnoreMsg("canvas-pan-end")
         }
       ),
     },
@@ -461,7 +463,7 @@ let viewCanvas = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   )
 }
 
-let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<AppTypes.msg> =>
+let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.html<AppTypes.msg> =>
   switch currentPage {
   | FocusedFn(_) =>
     let helpIcon = Html.div(
@@ -504,7 +506,7 @@ let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<AppType
   | _ => Vdom.noNode
   }
 
-let viewToast = (t: toast): Html.html<AppTypes.msg> => {
+let viewToast = (t: AppTypes.Toast.t): Html.html<AppTypes.msg> => {
   let msg = Option.unwrap(~default="", t.toastMessage)
   let classes = if Option.isSome(t.toastMessage) {
     "toast show"

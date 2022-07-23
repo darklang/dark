@@ -485,7 +485,8 @@ let submitACItem = (
         replace(PEventName(F(id, value)))
       | (PEventName(_), ACHTTPRoute(value), TLHandler(h)) =>
         // Check if the ACHTTPRoute value is a 404 path
-        let f404s = m.f404s |> List.find(~f=f404 => f404.path == value)
+        let f404s =
+          m.f404s |> List.find(~f=(f404: AnalysisTypes.FourOhFour.t) => f404.path == value)
 
         switch f404s {
         | Some(f404) =>

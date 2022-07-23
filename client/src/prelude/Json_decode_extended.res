@@ -109,3 +109,108 @@ let uint64 = (j: Js.Json.t): UInt64.t =>
     // a float is expected to be encoded as a string
     j->Json.Decode.float->UInt64.fromFloat
   }
+
+let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
+  if Js.Array.isArray(json) {
+    let source: array<Js.Json.t> = Obj.magic((json: Js.Json.t))
+    let length = Js.Array.length(source)
+    if length == 5 {
+      try (
+        decodeA(Caml.Array.unsafe_get(source, 0)),
+        decodeB(Caml.Array.unsafe_get(source, 1)),
+        decodeC(Caml.Array.unsafe_get(source, 2)),
+        decodeD(Caml.Array.unsafe_get(source, 3)),
+        decodeE(Caml.Array.unsafe_get(source, 4)),
+      ) catch {
+      | DecodeError(msg) => \"@@"(raise, DecodeError(msg ++ "\n\tin tuple5"))
+      }
+    } else {
+      \"@@"(raise, DecodeError(j`Expected array of length 5, got array of length $length`))
+    }
+  } else {
+    \"@@"(raise, DecodeError("Expected array, got not-an-array"))
+  }
+
+module Base64 = {
+  @deriving(abstract) type jsArrayBuffer = {byteLength: int}
+
+  @deriving(abstract) type jsUint8Array
+
+  @new external createUint8Array: jsArrayBuffer => jsUint8Array = "Uint8Array"
+
+  @get_index external getUint8ArrayIdx: (jsUint8Array, int) => int = ""
+
+  // @set_index external setUint8ArrayIdx: (jsUint8Array, int, int) => unit = ""
+
+  // Note: unsafe. Wrap in bytes_from_base64url, which validates the input
+  let dark_arrayBuffer_from_b64url = %raw(`
+  function (base64) {
+    // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
+    // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    // Use a lookup table to find the index.
+    var lookup = new Uint8Array(256);
+    for (var i = 0; i < chars.length; i++) {
+      lookup[chars.charCodeAt(i)] = i;
+    }
+
+
+    var bufferLength = base64.length * 0.75, len = base64.length, i, p = 0, encoded1, encoded2, encoded3, encoded4;
+
+    if (base64[base64.length - 1] === "=") {
+      bufferLength--;
+      if (base64[base64.length - 2] === "=") {
+        bufferLength--;
+      }
+    }
+
+    var arraybuffer = new ArrayBuffer(bufferLength),
+    bytes = new Uint8Array(arraybuffer);
+
+    for (i = 0; i < len; i+=4) {
+      encoded1 = lookup[base64.charCodeAt(i)];
+      encoded2 = lookup[base64.charCodeAt(i+1)];
+      encoded3 = lookup[base64.charCodeAt(i+2)];
+      encoded4 = lookup[base64.charCodeAt(i+3)];
+
+      bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+      bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+      bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+    }
+
+    return arraybuffer;
+  }
+`)
+
+  let _bytes_from_uint8Array = (input: jsArrayBuffer): Bytes.t => {
+    let len = byteLengthGet(input)
+    let bytes = Bytes.create(len)
+    let reader = createUint8Array(input)
+    for i in 0 to len - 1 {
+      let char = getUint8ArrayIdx(reader, i)
+      Bytes.unsafe_set(bytes, i, char_of_int(char))
+    }
+    bytes
+  }
+
+  exception Invalid_B64(string)
+
+  let valid_rfc4648_b64_or_exn = (str: string) => {
+    let rfc4648_section5_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\\-_"
+
+    // '=' isn't in the alphabet, but we allow it as padding
+    if Regex.exactly(~re="[" ++ (rfc4648_section5_alphabet ++ ("=" ++ "]*")), str) {
+      str
+    } else {
+      raise(Invalid_B64("Expected B64 input matching RFC4648 alphabet."))
+    }
+  }
+
+  let bytes_from_base64url = (b64: string): Bytes.t =>
+    b64 |> valid_rfc4648_b64_or_exn |> dark_arrayBuffer_from_b64url |> _bytes_from_uint8Array
+}
+let base64EncodedBytes: decoder<Bytes.t> = Json.Decode.map(
+  Base64.bytes_from_base64url,
+  Json.Decode.string,
+)

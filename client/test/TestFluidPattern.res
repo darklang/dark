@@ -51,10 +51,12 @@ let run = () => {
   let aVar = PVariable(gid(), "variable")
   let aShortVar = PVariable(gid(), "v")
   let aConstructor = PConstructor(gid(), "Just", list{b()})
-  let process = (~debug: bool, inputs: list<fluidInputEvent>, pos: int, pat: FluidPattern.t): (
-    string,
-    int,
-  ) => {
+  let process = (
+    ~debug: bool,
+    inputs: list<FluidTypes.Msg.inputEvent>,
+    pos: int,
+    pat: FluidPattern.t,
+  ): (string, int) => {
     let ast = EMatch(mID, EBlank(gid()), list{(pat, EBlank(gid()))})
     let extra = 12
     let pos = pos + extra
@@ -93,7 +95,7 @@ let run = () => {
     (pToString(resultPat), max(0, result.state.newPos - extra))
   }
 
-  let keypress = (key: K.key): fluidInputEvent => Keypress({
+  let keypress = (key: K.key): FluidTypes.Msg.inputEvent => Keypress({
     key: key,
     shiftKey: false,
     altKey: false,
@@ -119,10 +121,12 @@ let run = () => {
   let press = (~debug=false, key: K.key, pos: int, pat: fluidPattern): (string, int) =>
     process(~debug, list{keypress(key)}, pos, pat)
 
-  let inputs = (~debug=false, inputs: list<fluidInputEvent>, pos: int, pat: fluidPattern): (
-    string,
-    int,
-  ) => process(~debug, inputs, pos, pat)
+  let inputs = (
+    ~debug=false,
+    inputs: list<FluidTypes.Msg.inputEvent>,
+    pos: int,
+    pat: fluidPattern,
+  ): (string, int) => process(~debug, inputs, pos, pat)
 
   let insert = (~debug=false, s: string, pos: int, pat: fluidPattern): (string, int) =>
     process(~debug, list{InsertText(s)}, pos, pat)

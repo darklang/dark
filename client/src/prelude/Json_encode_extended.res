@@ -31,3 +31,55 @@ let uint64 = (i: UInt64.t) =>
   | Some(f) => f->Json.Encode.float
   | None => i->UInt64.toString->string
   }
+
+let result = (fOk, fErr, result): Js.Json.t =>
+  switch result {
+  | Ok(v) => variant("Ok", list{fOk(v)})
+  | Error(v) => variant("Error", list{fErr(v)})
+  }
+
+module Base64 = {
+  @deriving(abstract) type jsUint8Array
+  @new external createUint8Array: int => jsUint8Array = "Uint8Array"
+  @set_index external setUint8ArrayIdx: (jsUint8Array, int, int) => unit = ""
+
+  let _bytes_to_uint8Array = (input: Bytes.t): jsUint8Array => {
+    let len = Bytes.length(input)
+    let buf = createUint8Array(len)
+    for i in 0 to len - 1 {
+      setUint8ArrayIdx(buf, i, int_of_char(Bytes.get(input, i)))
+    }
+    buf
+  }
+
+  let dark_arrayBuffer_to_b64url = %raw(`
+  function (arraybuffer) {
+    // TODO: Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use encode here
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    // Use a lookup table to find the index.
+    var lookup = new Uint8Array(256);
+    for (var i = 0; i < chars.length; i++) {
+      lookup[chars.charCodeAt(i)] = i;
+    }
+      var bytes = new Uint8Array(arraybuffer),
+      i, len = bytes.length, base64 = "";
+      for (i = 0; i < len; i+=3) {
+        base64 += chars[bytes[i] >> 2];
+        base64 += chars[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
+        base64 += chars[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
+        base64 += chars[bytes[i + 2] & 63];
+      }
+      if ((len % 3) === 2) {
+        base64 = base64.substring(0, base64.length - 1) + "=";
+      } else if (len % 3 === 1) {
+        base64 = base64.substring(0, base64.length - 2) + "==";
+      }
+      return base64;
+  }
+  `)
+
+  let base64url_bytes = (input: Bytes.t): string =>
+    input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
+}
+
+let base64EncodedBytes = b => b |> Base64.base64url_bytes |> string

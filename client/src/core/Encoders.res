@@ -3,7 +3,6 @@ open Json.Encode
 
 // Dark
 
-// XXX(JULIAN): All of this should be cleaned up and moved somewhere nice!
 @deriving(abstract) type jsArrayBuffer = {byteLength: int}
 
 @deriving(abstract) type jsUint8Array
@@ -14,7 +13,7 @@ open Json.Encode
 
 let dark_arrayBuffer_to_b64url = %raw(`
   function (arraybuffer) {
-    // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use encode here
+    // TODO: Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use encode here
     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
     // Use a lookup table to find the index.
@@ -62,80 +61,7 @@ let pos = BaseTypes.encodePos
 
 let blankOr = BaseTypes.encodeBlankOr
 
-let dval_source = (s: Types.dval_source): Js.Json.t => {
-  let ev = variant
-  switch s {
-  | SourceNone => ev("SourceNone", list{})
-  | SourceId(t, i) => ev("SourceId", list{tlid(t), id(i)})
-  }
-}
-
-let rec ocamlDval = (dv: Types.dval): Js.Json.t => {
-  let ev = variant
-  let dhttp = h =>
-    switch h {
-    | Redirect(s) => ev("Redirect", list{string(s)})
-    | Response(code, headers) =>
-      ev("Response", list{int(code), list(tuple2(string, string), headers)})
-    }
-
-  switch dv {
-  | DInt(i) => ev("DInt", list{int64(i)})
-  | DFloat(f) => ev("DFloat", list{Json.Encode.float(f)})
-  | DBool(b) => ev("DBool", list{bool(b)})
-  | DNull => ev("DNull", list{})
-  | DStr(s) => ev("DStr", list{string(s)})
-  | DList(l) => ev("DList", list{array(ocamlDval, l)})
-  | DTuple(first, second, theRest) =>
-    ev("DTuple", list{ocamlDval(first), ocamlDval(second), array(ocamlDval, List.toArray(theRest))})
-  | DObj(o) =>
-    o->Belt.Map.String.map(ocamlDval)->Belt.Map.String.toList
-    |> Js.Dict.fromList
-    |> jsonDict
-    |> (x => list{x} |> ev("DObj"))
-  | DBlock({body, params, symtable}) =>
-    let dblock_args = object_(list{
-      ("symtable", beltStrDict(ocamlDval, symtable)),
-      ("params", list(pair(id, string), params)),
-      ("body", PT.Expr.encode(body)),
-    })
-
-    ev("DBlock", list{dblock_args})
-  | DIncomplete(ds) => ev("DIncomplete", list{dval_source(ds)})
-  // user-ish types
-  | DCharacter(c) => ev("DCharacter", list{string(c)})
-  | DError(ds, msg) => ev("DError", list{pair(dval_source, string, (ds, msg))})
-  | DResp(h, hdv) => ev("DResp", list{tuple2(dhttp, ocamlDval, (h, hdv))})
-  | DDB(name) => ev("DDB", list{string(name)})
-  | DDate(date) => ev("DDate", list{string(date)})
-  | DPassword(hashed) => ev("DPassword", list{string(hashed)})
-  | DUuid(uuid) => ev("DUuid", list{string(uuid)})
-  | DOption(opt) =>
-    ev(
-      "DOption",
-      list{
-        switch opt {
-        | OptNothing => ev("OptNothing", list{})
-        | OptJust(dv) => ev("OptJust", list{ocamlDval(dv)})
-        },
-      },
-    )
-  | DErrorRail(dv) => ev("DErrorRail", list{ocamlDval(dv)})
-  | DResult(res) =>
-    ev(
-      "DResult",
-      list{
-        switch res {
-        | ResOk(dv) => ev("ResOk", list{ocamlDval(dv)})
-        | ResError(dv) => ev("ResError", list{ocamlDval(dv)})
-        },
-      },
-    )
-  | DBytes(bin) => ev("DBytes", list{string(bin |> base64url_bytes)})
-  }
-}
-
-and blankOrData = (pd: Types.blankOrData): Js.Json.t => {
+let blankOrData = (pd: Types.blankOrData): Js.Json.t => {
   let ev = variant
   switch pd {
   | PEventName(name) => ev("PEventName", list{blankOr(string, name)})
@@ -167,122 +93,6 @@ and ops = (ops: list<PT.Op.t>): Js.Json.t =>
       Belt.List.concat(savepoints, ops)
     },
   )
-
-and executeFunctionAPIParams = (params: Types.executeFunctionAPIParams): Js.Json.t =>
-  object_(list{
-    ("tlid", tlid(params.efpTLID)),
-    ("trace_id", string(params.efpTraceID)),
-    ("caller_id", id(params.efpCallerID)),
-    ("args", list(ocamlDval, params.efpArgs)),
-    ("fnname", string(params.efpFnName)),
-  })
-
-and deleteToplevelForeverAPIParams = (params: Types.deleteToplevelForeverAPIParams): Js.Json.t =>
-  object_(list{("tlid", tlid(params.dtfTLID))})
-
-and uploadFnAPIParams = (params: Types.uploadFnAPIParams): Js.Json.t =>
-  object_(list{("fn", PT.UserFunction.encode(params.uplFn))})
-
-and triggerHandlerAPIParams = (params: Types.triggerHandlerAPIParams): Js.Json.t =>
-  object_(list{
-    ("tlid", tlid(params.thTLID)),
-    ("trace_id", string(params.thTraceID)),
-    ("input", list(tuple2(string, ocamlDval), Belt.Map.String.toList(params.thInput))),
-  })
-
-and sendPresenceParams = (params: Types.sendPresenceParams): Js.Json.t =>
-  object_(list{
-    ("canvasName", string(params.canvasName)),
-    ("browserId", string(params.browserId)),
-    ("tlid", nullable(tlid, params.tlid)),
-    ("timestamp", Json.Encode.float(params.timestamp)),
-  })
-
-and sendInviteParams = (params: Types.sendInviteParams): Js.Json.t =>
-  object_(list{
-    ("email", string(params.email)),
-    ("inviterUsername", string(params.inviterUsername)),
-    ("inviterName", string(params.inviterName)),
-  })
-
-and getTraceDataAPIParams = (params: Types.getTraceDataAPIParams): Js.Json.t =>
-  object_(list{("tlid", tlid(params.gtdrpTlid)), ("trace_id", traceID(params.gtdrpTraceID))})
-
-and dbStatsAPIParams = (params: Types.dbStatsAPIParams): Js.Json.t =>
-  object_(list{("tlids", list(tlid, params.dbStatsTlids))})
-
-and workerStatsAPIParams = (params: Types.workerStatsAPIParams): Js.Json.t =>
-  object_(list{("tlid", tlid(params.workerStatsTlid))})
-
-and updateWorkerScheduleAPIParams = (params: Types.updateWorkerScheduleAPIParams): Js.Json.t =>
-  object_(list{("name", string(params.workerName)), ("schedule", string(params.schedule))})
-
-and secret = (s: SecretTypes.t): Js.Json.t =>
-  object_(list{("secret_name", string(s.secretName)), ("secret_value", string(s.secretValue))})
-
-and performHandlerAnalysisParams = (params: Types.performHandlerAnalysisParams): Js.Json.t =>
-  object_(list{
-    ("handler", PT.Handler.encode(params.handler)),
-    ("trace_id", traceID(params.traceID)),
-    ("trace_data", traceData(params.traceData)),
-    ("dbs", list(PT.DB.encode, params.dbs)),
-    ("user_fns", list(PT.UserFunction.encode, params.userFns)),
-    ("user_tipes", list(PT.UserType.encode, params.userTipes)),
-    ("secrets", list(secret, params.secrets)),
-  })
-
-and performFunctionAnalysisParams = (params: Types.performFunctionAnalysisParams): Js.Json.t =>
-  object_(list{
-    ("func", PT.UserFunction.encode(params.func)),
-    ("trace_id", traceID(params.traceID)),
-    ("trace_data", traceData(params.traceData)),
-    ("dbs", list(PT.DB.encode, params.dbs)),
-    ("user_fns", list(PT.UserFunction.encode, params.userFns)),
-    ("user_tipes", list(PT.UserType.encode, params.userTipes)),
-    ("secrets", list(secret, params.secrets)),
-  })
-
-and performAnalysisParams = (params: Types.performAnalysisParams): Js.Json.t => {
-  let ev = variant
-  switch params {
-  | AnalyzeHandler(h) => ev("AnalyzeHandler", list{performHandlerAnalysisParams(h)})
-  | AnalyzeFunction(h) => ev("AnalyzeFunction", list{performFunctionAnalysisParams(h)})
-  }
-}
-
-and functionResult = (fr: Types.functionResult): Js.Json.t =>
-  list(
-    identity,
-    list{
-      string(fr.fnName),
-      id(fr.callerID),
-      string(fr.argHash),
-      int(fr.argHashVersion),
-      ocamlDval(fr.value),
-    },
-  )
-
-and traceID = string
-
-and traceData = (t: Types.traceData): Js.Json.t =>
-  object_(list{
-    ("input", list(tuple2(string, ocamlDval), Belt.Map.String.toList(t.input))),
-    ("timestamp", string(t.timestamp)),
-    ("function_results", list(functionResult, t.functionResults)),
-  })
-
-and trace = (t: Types.trace): Js.Json.t => {
-  let data = v => Result.map(~f=traceData, v) |> Result.toOption |> Option.unwrap(~default=null)
-
-  pair(traceID, data, t)
-}
-
-let fof = (fof: Types.fourOhFour): Js.Json.t =>
-  object_(list{
-    ("space", string(fof.space)),
-    ("path", string(fof.path)),
-    ("modifier", string(fof.modifier)),
-  })
 
 let httpError = (e: Tea.Http.error<string>): Js.Json.t => {
   module Http = Tea.Http
