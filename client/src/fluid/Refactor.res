@@ -6,6 +6,8 @@ module TL = Toplevel
 module TD = TLID.Dict
 module E = ProgramTypes.Expr
 module P = ProgramTypes.Pattern
+
+type model = AppTypes.model
 module Mod = AppTypes.Modification
 type modification = AppTypes.modification
 
@@ -22,7 +24,7 @@ let convertTipe = (tipe: DType.t): DType.t =>
 
 // Call f on calls to uf across the whole AST
 let transformFnCalls = (
-  m: AppTypes.model,
+  m: model,
   uf: PT.UserFunction.t,
   f: FluidExpression.t => FluidExpression.t,
 ): list<PT.Op.t> => {
@@ -66,7 +68,7 @@ type wrapLoc =
   | WMatchExpr
   | WMatchArm
 
-let wrap = (wl: wrapLoc, _: AppTypes.model, tl: toplevel, id: id): AppTypes.modification => {
+let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): AppTypes.modification => {
   let replacement = (e): FluidExpression.t => {
     let newB = FluidExpression.newB
     switch wl {
@@ -100,7 +102,7 @@ let wrap = (wl: wrapLoc, _: AppTypes.model, tl: toplevel, id: id): AppTypes.modi
   |> Option.unwrap(~default=Mod.NoChange)
 }
 
-let takeOffRail = (_m: AppTypes.model, tl: toplevel, id: id): modification =>
+let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
   TL.getAST(tl)
   |> Option.map(~f=ast =>
     ast
@@ -114,13 +116,13 @@ let takeOffRail = (_m: AppTypes.model, tl: toplevel, id: id): modification =>
   )
   |> Option.unwrap(~default=Mod.NoChange)
 
-let isRailable = (m: AppTypes.model, name: PT.FQFnName.t) =>
+let isRailable = (m: model, name: PT.FQFnName.t) =>
   m.functions
   |> Functions.find(name)
   |> Option.map(~f=fn => fn.fnReturnTipe == TOption || fn.fnReturnTipe == TResult)
   |> Option.unwrap(~default=false)
 
-let putOnRail = (m: AppTypes.model, tl: toplevel, id: id): modification =>
+let putOnRail = (m: model, tl: toplevel, id: id): modification =>
   // Only toggle onto rail iff. return tipe is TOption or TResult
   TL.modifyASTMod(tl, ~f=ast =>
     FluidAST.update(id, ast, ~f=x =>
@@ -132,7 +134,7 @@ let putOnRail = (m: AppTypes.model, tl: toplevel, id: id): modification =>
   )
 
 let extractVarInAst = (
-  m: AppTypes.model,
+  m: model,
   tl: toplevel,
   id: id,
   varname: string,
@@ -180,12 +182,12 @@ let extractVarInAst = (
   }
 }
 
-let extractVariable = (m: AppTypes.model, tl: toplevel, id: id): modification => {
+let extractVariable = (m: model, tl: toplevel, id: id): modification => {
   let varname = "var" ++ string_of_int(Util.random())
   TL.modifyASTMod(tl, ~f=extractVarInAst(m, tl, id, varname))
 }
 
-let extractFunction = (m: AppTypes.model, tl: toplevel, id: id): modification => {
+let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   let tlid = TL.id(tl)
   let ast = TL.getAST(tl)
   switch (ast, Option.andThen(ast, ~f=FluidAST.find(id))) {
@@ -238,9 +240,7 @@ let extractFunction = (m: AppTypes.model, tl: toplevel, id: id): modification =>
   }
 }
 
-let renameFunction = (m: AppTypes.model, uf: PT.UserFunction.t, newName: PT.FQFnName.t): list<
-  PT.Op.t,
-> => {
+let renameFunction = (m: model, uf: PT.UserFunction.t, newName: PT.FQFnName.t): list<PT.Op.t> => {
   open ProgramTypes.Expr
   let fn = e =>
     switch e {
@@ -251,9 +251,7 @@ let renameFunction = (m: AppTypes.model, uf: PT.UserFunction.t, newName: PT.FQFn
   transformFnCalls(m, uf, fn)
 }
 
-let renameUserTipe = (m: AppTypes.model, old: PT.UserType.t, new_: PT.UserType.t): list<
-  PT.Op.t,
-> => {
+let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<PT.Op.t> => {
   let renameUserTipeInFnParameters = (fn, oldTipe: PT.UserType.t, newTipe: PT.UserType.t) => {
     let transformUse = (newName_, oldUse) =>
       switch oldUse {
@@ -294,20 +292,20 @@ let renameUserTipe = (m: AppTypes.model, old: PT.UserType.t, new_: PT.UserType.t
   newFunctions
 }
 
-let fnUseCount = (m: AppTypes.model, name: string): int =>
+let fnUseCount = (m: model, name: string): int =>
   Map.get(m.usedFns, ~key=name) |> Option.unwrap(~default=0)
 
-let usedFn = (m: AppTypes.model, name: string): bool => fnUseCount(m, name) != 0
+let usedFn = (m: model, name: string): bool => fnUseCount(m, name) != 0
 
-let tipeUseCount = (m: AppTypes.model, name: string): int =>
+let tipeUseCount = (m: model, name: string): int =>
   Map.get(m.usedTipes, ~key=name) |> Option.unwrap(~default=0)
 
-let usedTipe = (m: AppTypes.model, name: string): bool => tipeUseCount(m, name) != 0
+let usedTipe = (m: model, name: string): bool => tipeUseCount(m, name) != 0
 
-let dbUseCount = (m: AppTypes.model, name: string): int =>
+let dbUseCount = (m: model, name: string): int =>
   Map.get(m.usedDBs, ~key=name) |> Option.unwrap(~default=0)
 
-let updateUsageCounts = (m: AppTypes.model): AppTypes.model => {
+let updateUsageCounts = (m: model): model => {
   open ProgramTypes.Expr
   let countFromList = names =>
     List.fold(names, ~initial=Map.String.empty, ~f=(dict, name) =>
@@ -362,7 +360,7 @@ let updateUsageCounts = (m: AppTypes.model): AppTypes.model => {
 }
 
 let removeFunctionParameter = (
-  m: AppTypes.model,
+  m: model,
   uf: PT.UserFunction.t,
   ufp: PT.UserFunction.Parameter.t,
 ): list<PT.Op.t> => {
@@ -382,11 +380,7 @@ let removeFunctionParameter = (
   transformFnCalls(m, uf, fn)
 }
 
-let addFunctionParameter = (
-  m: AppTypes.model,
-  f: PT.UserFunction.t,
-  currentBlankId: id,
-): modification => {
+let addFunctionParameter = (m: model, f: PT.UserFunction.t, currentBlankId: id): modification => {
   open ProgramTypes.Expr
   let transformOp = old => {
     let fn = e =>
@@ -462,7 +456,7 @@ let generateUserType = (dv: option<RT.Dval.t>): Result.t<PT.UserType.t, string> 
   | None => Error("No live value.")
   }
 
-let renameDBReferences = (m: AppTypes.model, oldName: string, newName: string): list<PT.Op.t> =>
+let renameDBReferences = (m: model, oldName: string, newName: string): list<PT.Op.t> =>
   m
   |> TL.all
   |> Map.filterMapValues(~f=tl =>
@@ -490,7 +484,7 @@ let renameDBReferences = (m: AppTypes.model, oldName: string, newName: string): 
   )
 
 let reorderFnCallArgs = (
-  m: AppTypes.model,
+  m: model,
   tlid: TLID.t,
   fnName: PT.FQFnName.t,
   oldPos: int,
@@ -507,12 +501,12 @@ let reorderFnCallArgs = (
     ast |> FluidAST.map(~f=AST.reorderFnCallArgs(fnName, oldPos, newPos)) |> TL.setASTMod(tl)
   )
 
-let hasExistingFunctionNamed = (m: AppTypes.model, name: string): bool => {
+let hasExistingFunctionNamed = (m: model, name: string): bool => {
   let fns = Introspect.functionsByName(m.userFunctions)
   Map.has(fns, ~key=name)
 }
 
-let createNewDB = (m: AppTypes.model, maybeName: option<string>, pos: pos): modification => {
+let createNewDB = (m: model, maybeName: option<string>, pos: pos): modification => {
   let name = maybeName |> Option.unwrap(~default=DB.generateDBName())
   if Autocomplete.assertValid(Autocomplete.dbNameValidator, name) != name {
     Model.updateErrorMod(
@@ -538,7 +532,7 @@ let createNewDB = (m: AppTypes.model, maybeName: option<string>, pos: pos): modi
 }
 
 // Create a new function, update the server, and go to the new function
-let createNewFunction = (m: AppTypes.model, newFnName: option<string>): modification => {
+let createNewFunction = (m: model, newFnName: option<string>): modification => {
   let fn = generateEmptyFunction()
   let newFn = switch newFnName {
   | Some(name) => {...fn, metadata: {...fn.metadata, name: F(gid(), name)}}
@@ -549,7 +543,7 @@ let createNewFunction = (m: AppTypes.model, newFnName: option<string>): modifica
   | Some(name) if hasExistingFunctionNamed(m, name) =>
     Model.updateErrorMod(Error.set("Function named " ++ (name ++ " already exists")))
   | _ =>
-    // We need to update both the AppTypes.model and the backend
+    // We need to update both the model and the backend
     Many(list{
       ReplaceAllModificationsWithThisOne(m => (UserFunctions.upsert(m, newFn), Tea.Cmd.none)),
       // Both ops in a single transaction
@@ -562,7 +556,7 @@ let createNewFunction = (m: AppTypes.model, newFnName: option<string>): modifica
 /* Create a new function, update the expression (tlid, id) to call the new
  * function, update the server about both functions, and go to the new function */
 let createAndInsertNewFunction = (
-  m: AppTypes.model,
+  m: model,
   tlid: TLID.t,
   partialID: id,
   newFnName: string,

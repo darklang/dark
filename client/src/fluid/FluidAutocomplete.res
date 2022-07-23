@@ -6,6 +6,8 @@ module TL = Toplevel
 module FT = FluidTypes
 module Msg = AppTypes.Msg
 
+type model = AppTypes.model
+
 @ppx.deriving(show) type rec t = FT.AutoComplete.t
 
 @ppx.deriving(show) type rec item = FT.AutoComplete.item
@@ -188,7 +190,7 @@ let rec containsOrdered = (needle: string, haystack: string): bool =>
 // ------------------------------------
 
 // Return the value being piped into the token at ti, if there is one
-let findPipedDval = (m: AppTypes.model, tl: toplevel, ti: tokenInfo): option<RT.Dval.t> => {
+let findPipedDval = (m: model, tl: toplevel, ti: tokenInfo): option<RT.Dval.t> => {
   let id =
     TL.getAST(tl)
     |> Option.andThen(~f=AST.pipePrevious(FluidToken.tid(ti.token)))
@@ -206,7 +208,7 @@ let findPipedDval = (m: AppTypes.model, tl: toplevel, ti: tokenInfo): option<RT.
 }
 
 // Return the fields of the object being referenced at ti, if there is one
-let findFields = (m: AppTypes.model, tl: toplevel, ti: tokenInfo): list<string> => {
+let findFields = (m: model, tl: toplevel, ti: tokenInfo): list<string> => {
   let tlid = TL.id(tl)
   let id = switch ti.token {
   | TFieldOp(_, lhsID, _)
@@ -392,7 +394,7 @@ let filterToDbSupportedFns = (isInQuery, functions) =>
     )
   }
 
-let generateExprs = (m: AppTypes.model, props: props, tl: toplevel, ti) => {
+let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   open FT.AutoComplete
   let isInQuery = lookupIsInQuery(tl, ti)
   let functions' = Functions.asFunctions(props.functions) |> List.map(~f=x => FACFunction(x))
@@ -487,7 +489,7 @@ let generateCommands = (_name, _tlid, _id) =>
 
 let generateFields = fieldList => List.map(~f=x => FT.AutoComplete.FACField(x), fieldList)
 
-let generate = (m: AppTypes.model, props: props, a: t, query: fullQuery): list<item> => {
+let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
   let tlid = TL.id(query.tl)
   switch query.ti.token {
   | TPatternBlank(_) | TPatternVariable(_) => generatePatterns(query.ti, a, query.queryString)
@@ -605,7 +607,7 @@ let refilter = (props: props, query: fullQuery, old: t, items: list<item>): t =>
 
 /* Regenerate calls generate, except that it adapts the result using the
  * existing state (mostly putting the index in the right place. */
-let regenerate = (m: AppTypes.model, a: t, (tlid, ti): query): t =>
+let regenerate = (m: model, a: t, (tlid, ti): query): t =>
   switch TL.get(m, tlid) {
   | None => init
   | Some(tl) =>
@@ -771,7 +773,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   }
 }
 
-let updateAutocompleteVisibility = (m: AppTypes.model): AppTypes.model => {
+let updateAutocompleteVisibility = (m: model): model => {
   let oldTlid = switch m.fluidState.ac.query {
   | Some(tlid, _) => Some(tlid)
   | None => CursorState.tlidOf(m.cursorState)

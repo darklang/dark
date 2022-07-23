@@ -5,6 +5,8 @@ module B = BlankOr
 module RT = RuntimeTypes
 module AT = AnalysisTypes
 
+type model = AppTypes.model
+
 let defaultTLID = TLID.fromInt(7)
 
 let http = (~path: string, ~meth="GET", ()): PT.Handler.t => {
@@ -15,10 +17,9 @@ let http = (~path: string, ~meth="GET", ()): PT.Handler.t => {
 }
 
 // Sets the model with the appropriate toplevels
-let makeModel = (~handlers=list{}, ~traces=TLID.Dict.empty, ~cursorState, ()): AppTypes.model => {
-  let default = AppTypes.Model.default
+let makeModel = (~handlers=list{}, ~traces=TLID.Dict.empty, ~cursorState, ()): model => {
   {
-    ...default,
+    ...AppTypes.Model.default,
     handlers: Handlers.fromList(handlers),
     canvasName: "test-curl",
     cursorState: cursorState,

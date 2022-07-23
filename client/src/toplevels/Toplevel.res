@@ -4,7 +4,9 @@ open Prelude
 module B = BlankOr
 module P = Pointer
 module TD = TLID.Dict
+
 module Mod = AppTypes.Modification
+type model = AppTypes.model
 
 // -------------------------
 // Toplevel manipulation
@@ -48,7 +50,7 @@ let pos = tl =>
   | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, {x: 0, y: 0})
   }
 
-let remove = (m: AppTypes.model, tl: toplevel): AppTypes.model => {
+let remove = (m: model, tl: toplevel): model => {
   let m = {...m, cursorState: Deselected, currentPage: Architecture}
   switch tl {
   | TLHandler(h) => Handlers.remove(m, h)
@@ -63,7 +65,7 @@ let remove = (m: AppTypes.model, tl: toplevel): AppTypes.model => {
 let fromList = (tls: list<toplevel>): TLID.Dict.t<toplevel> =>
   tls |> List.map(~f=tl => (id(tl), tl)) |> TD.fromList
 
-let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: AppTypes.model): AppTypes.model => {
+let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
   let newPos = p => {x: p.x + xOffset, y: p.y + yOffset}
   {
     ...m,
@@ -192,7 +194,7 @@ let setAST = (tl: toplevel, newAST: FluidAST.t): toplevel =>
   | TLDB(_) | TLTipe(_) | TLPmFunc(_) => tl
   }
 
-let withAST = (m: AppTypes.model, tlid: TLID.t, ast: FluidAST.t): AppTypes.model => {
+let withAST = (m: model, tlid: TLID.t, ast: FluidAST.t): model => {
   ...m,
   handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=(h: PT.Handler.t) => {...h, ast: ast}),
   userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=(uf: PT.UserFunction.t) => {
@@ -272,13 +274,13 @@ let combine = (
   |> Map.mergeLeft(Map.map(~f=pmfToTL, packageFn))
   |> Map.mergeLeft(Map.map(~f=utToTL, userTipes))
 
-let all = (m: AppTypes.model): TD.t<toplevel> =>
+let all = (m: model): TD.t<toplevel> =>
   combine(m.handlers, m.dbs, m.userFunctions, m.functions.packageFunctions, m.userTipes)
 
-let structural = (m: AppTypes.model): TD.t<toplevel> =>
+let structural = (m: model): TD.t<toplevel> =>
   Map.map(~f=h => TLHandler(h), m.handlers) |> Map.mergeLeft(Map.map(~f=db => TLDB(db), m.dbs))
 
-let get = (m: AppTypes.model, tlid: TLID.t): option<toplevel> => Map.get(~key=tlid, all(m))
+let get = (m: model, tlid: TLID.t): option<toplevel> => Map.get(~key=tlid, all(m))
 
 let find = (tl: toplevel, id_: id): option<blankOrData> =>
   blankOrData(tl)
@@ -287,13 +289,11 @@ let find = (tl: toplevel, id_: id): option<blankOrData> =>
   |> // guard against dups
   List.head
 
-let getPD = (m: AppTypes.model, tlid: TLID.t, id: id): option<blankOrData> =>
+let getPD = (m: model, tlid: TLID.t, id: id): option<blankOrData> =>
   get(m, tlid) |> Option.andThen(~f=tl => find(tl, id))
 
-let getTLAndPD = (m: AppTypes.model, tlid: TLID.t, id: id): option<(
-  toplevel,
-  option<blankOrData>,
-)> => get(m, tlid) |> Option.map(~f=tl => (tl, find(tl, id)))
+let getTLAndPD = (m: model, tlid: TLID.t, id: id): option<(toplevel, option<blankOrData>)> =>
+  get(m, tlid) |> Option.map(~f=tl => (tl, find(tl, id)))
 
 let allDBNames = (dbs: TD.t<PT.DB.t>): list<string> =>
   dbs |> Map.filterMapValues(~f=(db: PT.DB.t) =>
@@ -313,13 +313,12 @@ let asPage = (tl: toplevel, center: bool): AppTypes.Page.t =>
   | TLTipe(_) => FocusedType(id(tl))
   }
 
-let selected = (m: AppTypes.model): option<toplevel> =>
+let selected = (m: model): option<toplevel> =>
   m.cursorState |> CursorState.tlidOf |> Option.andThen(~f=get(m))
 
-let selectedAST = (m: AppTypes.model): option<FluidAST.t> =>
-  selected(m) |> Option.andThen(~f=getAST)
+let selectedAST = (m: model): option<FluidAST.t> => selected(m) |> Option.andThen(~f=getAST)
 
-let setSelectedAST = (m: AppTypes.model, ast: FluidAST.t): AppTypes.modification =>
+let setSelectedAST = (m: model, ast: FluidAST.t): AppTypes.modification =>
   switch selected(m) {
   | None => NoChange
   | Some(tl) => setASTMod(tl, ast)

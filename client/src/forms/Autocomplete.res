@@ -9,6 +9,8 @@ module TD = TLID.Dict
 module Msg = AppTypes.Msg
 module A = AppTypes.AutoComplete
 
+type model = AppTypes.model
+
 // ----------------------------
 // Focus
 // ----------------------------
@@ -406,7 +408,7 @@ let foundFnOmniAction = (f: PT.UserFunction.t): A.omniAction => {
   Goto(FocusedFn(f.tlid, None), f.tlid, name, true)
 }
 
-let qSearch = (m: AppTypes.model, s: string): list<A.omniAction> =>
+let qSearch = (m: model, s: string): list<A.omniAction> =>
   if String.length(s) > 3 {
     let maxResults = 20
     let results = Map.toList(m.searchCache) |> List.filterMap(~f=((tlid, code)) =>
@@ -442,7 +444,7 @@ let isDynamicItem = (item: A.item): bool =>
 let isStaticItem = (item: A.item): bool => !isDynamicItem(item)
 
 let toDynamicItems = (
-  m: AppTypes.model,
+  m: model,
   space: option<handlerSpace>,
   target: option<A.target>,
   q: string,
@@ -493,7 +495,7 @@ let toDynamicItems = (
   }
 
 let withDynamicItems = (
-  m: AppTypes.model,
+  m: model,
   target: option<A.target>,
   query: string,
   acis: list<A.item>,
@@ -517,7 +519,7 @@ let tlGotoName = (tl: toplevel): string =>
   | TLTipe(_) => recover("can't goto tipe ", ~debug=tl, "<invalid state>")
   }
 
-let tlDestinations = (m: AppTypes.model): list<A.item> => {
+let tlDestinations = (m: model): list<A.item> => {
   let tls =
     m
     |> TL.structural
@@ -577,7 +579,7 @@ let allowedDBColTipes = {
 
 let allowedUserTypeFieldTipes = list{DType.TStr, TInt, TBool, TFloat, TDate, TPassword, TUuid}
 
-let generate = (m: AppTypes.model, a: A.t): A.t => {
+let generate = (m: model, a: A.t): A.t => {
   let space =
     a.target
     |> Option.map(~f=Tuple2.first)
@@ -701,7 +703,7 @@ let filter = (list: list<A.item>, query: string): list<A.item> => {
   allMatches
 }
 
-let refilter = (m: AppTypes.model, query: string, old: A.t): A.t => {
+let refilter = (m: model, query: string, old: A.t): A.t => {
   // add or replace the literal the user is typing to the completions
   let fudgedCompletions = withDynamicItems(m, old.target, query, old.allCompletions)
 
@@ -732,12 +734,12 @@ let refilter = (m: AppTypes.model, query: string, old: A.t): A.t => {
   }
 }
 
-let regenerate = (m: AppTypes.model, a: A.t): A.t => generate(m, a) |> refilter(m, a.value)
+let regenerate = (m: model, a: A.t): A.t => generate(m, a) |> refilter(m, a.value)
 
 // ----------------------------
 // Autocomplete state
 // ----------------------------
-let reset = (m: AppTypes.model): A.t => {
+let reset = (m: model): A.t => {
   {...A.default, visible: true} |> regenerate(m)
 }
 
@@ -777,7 +779,7 @@ let selectUp = (a: A.t): A.t => {
 // y Press enter to select
 // y Press right to fill as much as is definitive
 //
-let setQuery = (m: AppTypes.model, q: string, a: A.t): A.t => refilter(m, q, a)
+let setQuery = (m: model, q: string, a: A.t): A.t => refilter(m, q, a)
 
 let documentationForItem = (aci: A.item): option<list<Vdom.t<'a>>> => {
   let p = (text: string) => Html.p(list{}, list{Html.text(text)})
@@ -811,8 +813,7 @@ let documentationForItem = (aci: A.item): option<list<Vdom.t<'a>>> => {
   }
 }
 
-let setTarget = (m: AppTypes.model, t: option<A.target>, a: A.t): A.t =>
-  {...a, target: t} |> regenerate(m)
+let setTarget = (m: model, t: option<A.target>, a: A.t): A.t => {...a, target: t} |> regenerate(m)
 
 let setVisible = (visible: bool, a: A.t): A.t => {...a, visible: visible}
 
@@ -820,7 +821,7 @@ let setVisible = (visible: bool, a: A.t): A.t => {...a, visible: visible}
 // Commands
 // ------------------------------------
 
-let update = (m: AppTypes.model, mod_: A.mod, a: A.t): A.t =>
+let update = (m: model, mod_: A.mod, a: A.t): A.t =>
   switch mod_ {
   | ACSetQuery(str) => setQuery(m, str, a)
   | ACReset => reset(m)

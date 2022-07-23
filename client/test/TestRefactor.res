@@ -9,6 +9,8 @@ module E = FluidExpression
 open FluidShortcuts
 open ProgramTypes.Expr
 
+type model = AppTypes.model
+
 let sampleFunctions: list<RT.BuiltInFn.t> = {
   let par = (~description="", ~args=list{}, name, typ): RT.BuiltInFn.Param.t => {
     name: name,

@@ -1,12 +1,15 @@
 open Prelude
+
 module TL = Toplevel
 module Cmd = Tea.Cmd
+
+type model = AppTypes.model
 
 let addPos = (a: pos, b: pos): pos => {x: a.x + b.x, y: a.y + b.y}
 
 let subPos = (a: pos, b: pos): pos => {x: a.x - b.x, y: a.y - b.y}
 
-let toAbsolute = (m: AppTypes.model, pos: AppTypes.VPos.t): pos => {
+let toAbsolute = (m: model, pos: AppTypes.VPos.t): pos => {
   let topleft = m.canvasProps.offset
   addPos({x: pos.vx, y: pos.vy}, topleft)
 }
@@ -15,32 +18,28 @@ let toCenteredOn = (pos: pos): pos => subPos(pos, Defaults.centerPos)
 
 let toCenter = (pos: pos): pos => addPos(pos, Defaults.centerPos)
 
-let moveCanvasBy = (m: AppTypes.model, x: int, y: int): AppTypes.modification => {
+let moveCanvasBy = (m: model, x: int, y: int): AppTypes.modification => {
   let (dx, dy) = (x, y)
   let offset = m.canvasProps.offset
   let pos = addPos(offset, {x: dx, y: dy})
   MoveCanvasTo(pos, DontAnimateTransition)
 }
 
-let pageUp = (m: AppTypes.model): AppTypes.modification =>
-  moveCanvasBy(m, 0, -1 * Defaults.pageHeight)
+let pageUp = (m: model): AppTypes.modification => moveCanvasBy(m, 0, -1 * Defaults.pageHeight)
 
-let pageDown = (m: AppTypes.model): AppTypes.modification => moveCanvasBy(m, 0, Defaults.pageHeight)
+let pageDown = (m: model): AppTypes.modification => moveCanvasBy(m, 0, Defaults.pageHeight)
 
-let pageLeft = (m: AppTypes.model): AppTypes.modification =>
-  moveCanvasBy(m, -1 * Defaults.pageWidth, 0)
+let pageLeft = (m: model): AppTypes.modification => moveCanvasBy(m, -1 * Defaults.pageWidth, 0)
 
-let pageRight = (m: AppTypes.model): AppTypes.modification => moveCanvasBy(m, Defaults.pageWidth, 0)
+let pageRight = (m: model): AppTypes.modification => moveCanvasBy(m, Defaults.pageWidth, 0)
 
-let moveUp = (m: AppTypes.model): AppTypes.modification =>
-  moveCanvasBy(m, 0, -1 * Defaults.moveSize)
+let moveUp = (m: model): AppTypes.modification => moveCanvasBy(m, 0, -1 * Defaults.moveSize)
 
-let moveDown = (m: AppTypes.model): AppTypes.modification => moveCanvasBy(m, 0, Defaults.moveSize)
+let moveDown = (m: model): AppTypes.modification => moveCanvasBy(m, 0, Defaults.moveSize)
 
-let moveLeft = (m: AppTypes.model): AppTypes.modification =>
-  moveCanvasBy(m, -1 * Defaults.moveSize, 0)
+let moveLeft = (m: model): AppTypes.modification => moveCanvasBy(m, -1 * Defaults.moveSize, 0)
 
-let moveRight = (m: AppTypes.model): AppTypes.modification => moveCanvasBy(m, Defaults.moveSize, 0)
+let moveRight = (m: model): AppTypes.modification => moveCanvasBy(m, Defaults.moveSize, 0)
 
 /* Centers the toplevel on canvas based on windowWidth and sidebarWidth
   Default values (when we can't find get elements from dom) are based on
@@ -114,7 +113,7 @@ let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
   }
 }
 
-let findNewPos = (m: AppTypes.model): pos => {
+let findNewPos = (m: model): pos => {
   open Native
   switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) =>
@@ -145,7 +144,7 @@ let findNewPos = (m: AppTypes.model): pos => {
   }
 }
 
-let enablePan = (enablePan: bool, m: AppTypes.model): (AppTypes.model, AppTypes.cmd) => (
+let enablePan = (enablePan: bool, m: model): (model, AppTypes.cmd) => (
   {...m, canvasProps: {...m.canvasProps, enablePan: enablePan}},
   Cmd.none,
 )

@@ -13,13 +13,14 @@ module TL = Toplevel
 module Key = Keyboard
 module TD = TLID.Dict
 module CS = AppTypes.CursorState
+module TraceError = AnalysisTypes.TraceError
 
 type modification = AppTypes.modification
 open AppTypes.Modification
 type autocompleteMod = AppTypes.AutoComplete.mod
 type model = AppTypes.model
 
-let incOpCtr = (m: AppTypes.model): AppTypes.model => {
+let incOpCtr = (m: model): model => {
   ...m,
   opCtrs: Map.update(m.opCtrs, ~key=m.clientOpCtrId, ~f=x =>
     switch x {
@@ -29,7 +30,7 @@ let incOpCtr = (m: AppTypes.model): AppTypes.model => {
   ),
 }
 
-let opCtr = (m: AppTypes.model): int =>
+let opCtr = (m: model): int =>
   switch Map.get(~key=m.clientOpCtrId, m.opCtrs) {
   | Some(ctr) => ctr
   | None => 0
@@ -131,7 +132,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   }
 }
 
-let processFocus = (m: AppTypes.model, focus: AppTypes.Focus.t): modification =>
+let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
   switch focus {
   | FocusNext(tlid, pred) =>
     switch TL.get(m, tlid) {
@@ -220,10 +221,7 @@ let processFocus = (m: AppTypes.model, focus: AppTypes.Focus.t): modification =>
   | FocusNoChange => NoChange
   }
 
-let processAutocompleteMods = (m: AppTypes.model, mods: list<autocompleteMod>): (
-  AppTypes.model,
-  AppTypes.cmd,
-) => {
+let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, AppTypes.cmd) => {
   if m.integrationTestState != NoIntegrationTest {
     Debug.loG("autocompletemod update", show_list(~f=AppTypes.AutoComplete.show_mod, mods))
   }
@@ -258,20 +256,20 @@ let applyOpsToClient = (updateCurrent, p: APIAddOps.Params.t, r: APIAddOps.Resul
   RefreshUsages(Introspect.tlidsToUpdateUsage(p.ops)),
 }
 
-let isACOpened = (m: AppTypes.model): bool =>
+let isACOpened = (m: model): bool =>
   FluidAutocomplete.isOpened(m.fluidState.ac) ||
   (FluidCommands.isOpened(m.fluidState.cp) ||
   AC.isOpened(m.complete))
 
-let rec updateMod = (mod_: modification, (m, cmd): (AppTypes.model, AppTypes.cmd)): (
-  AppTypes.model,
+let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
+  model,
   AppTypes.cmd,
 ) => {
   if m.integrationTestState != NoIntegrationTest {
     Debug.loG("mod update", AppTypes.show_modification(mod_))
   }
   let (newm, newcmd) = {
-    let bringBackCurrentTL = (oldM: AppTypes.model, newM: AppTypes.model): AppTypes.model =>
+    let bringBackCurrentTL = (oldM: model, newM: model): model =>
       /* used with updateCurrent - if updateCurrent is false, we want to restore
        * the current TL so we don't lose local changes made since the API call */
       switch CursorState.tlidOf(oldM.cursorState) {
@@ -287,7 +285,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (AppTypes.model, AppTypes.cmd
       }
 
     let handleAPI = (params: APIAddOps.Params.t, focus) => {
-      /* immediately update the AppTypes.model based on SetHandler and focus, if
+      /* immediately update the model based on SetHandler and focus, if
        possible */
       let m = m |> incOpCtr
       let hasNonHandlers = List.any(~f=c =>
@@ -627,7 +625,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (AppTypes.model, AppTypes.cmd
       let (m, acCmd) = processAutocompleteMods(m, list{ACRegenerate})
       (m, Cmd.batch(list{afCmd, acCmd}))
     | OverrideTraces(traces) =>
-      /* OverrideTraces takes a set of traces and merges it with the AppTypes.model, but if
+      /* OverrideTraces takes a set of traces and merges it with the model, but if
        * the (tlid, traceID) pair occurs in both, the result will have its data
        * blown away.
        *
@@ -637,7 +635,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (AppTypes.model, AppTypes.cmd
        * stored function results */
       let newTraces = Analysis.mergeTraces(
         ~selectedTraceIDs=m.tlTraceIDs,
-        ~onConflict=(_old, (newID, _)) => (newID, Error(AnalysisTypes.TraceError.NoneYet)),
+        ~onConflict=(_old, (newID, _)) => (newID, Error(TraceError.NoneYet)),
         ~oldTraces=m.traces,
         ~newTraces=traces,
       )
@@ -948,7 +946,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (AppTypes.model, AppTypes.cmd
   }
 }
 
-let update_ = (msg: AppTypes.msg, m: AppTypes.model): modification => {
+let update_ = (msg: AppTypes.msg, m: model): modification => {
   if m.integrationTestState != NoIntegrationTest {
     Debug.loG("msg update", AppTypes.show_msg(msg))
   }
@@ -1378,7 +1376,7 @@ let update_ = (msg: AppTypes.msg, m: AppTypes.model): modification => {
     }
   | FetchAllTracesAPICallback(Ok(x)) =>
     let traces = List.fold(x.traces, ~initial=TLID.Dict.empty, ~f=(dict, (tlid, traceid)) => {
-      let trace = (traceid, Error(AnalysisTypes.TraceError.NoneYet))
+      let trace = (traceid, Error(TraceError.NoneYet))
       Map.update(dict, ~key=tlid, ~f=x =>
         switch x {
         | Some(existing) => Some(Belt.List.concat(existing, list{trace}))
@@ -1443,7 +1441,7 @@ let update_ = (msg: AppTypes.msg, m: AppTypes.model): modification => {
   | SaveTestAPICallback(Ok(msg)) => Model.updateErrorMod(Error.set("Success! " ++ msg))
   | ExecuteFunctionAPICallback(params, Ok(dval, hash, hashVersion, tlids, unlockedDBs)) =>
     let traces = List.map(
-      ~f=tlid => (tlid, list{(params.efpTraceID, Error(AnalysisTypes.TraceError.NoneYet))}),
+      ~f=tlid => (tlid, list{(params.efpTraceID, Error(TraceError.NoneYet))}),
       tlids,
     )
 
@@ -1464,10 +1462,7 @@ let update_ = (msg: AppTypes.msg, m: AppTypes.model): modification => {
   | TriggerHandlerAPICallback(params, Ok(tlids)) =>
     let traces =
       tlids
-      |> List.map(~f=tlid => (
-        tlid,
-        list{(params.thTraceID, Error(AnalysisTypes.TraceError.NoneYet))},
-      ))
+      |> List.map(~f=tlid => (tlid, list{(params.thTraceID, Error(TraceError.NoneYet))}))
       |> TLID.Dict.fromList
 
     Many(list{
@@ -1508,10 +1503,7 @@ let update_ = (msg: AppTypes.msg, m: AppTypes.model): modification => {
   | InsertSecretCallback(Ok(secrets)) =>
     ReplaceAllModificationsWithThisOne(m => ({...m, secrets: secrets}, Cmd.none))
   | NewTracePush(traceID, tlids) =>
-    let traces = List.map(
-      ~f=tlid => (tlid, list{(traceID, Error(AnalysisTypes.TraceError.NoneYet))}),
-      tlids,
-    )
+    let traces = List.map(~f=tlid => (tlid, list{(traceID, Error(TraceError.NoneYet))}), tlids)
 
     UpdateTraces(TLID.Dict.fromList(traces))
   | New404Push(f404) => Append404s(list{f404})
@@ -1580,10 +1572,7 @@ let update_ = (msg: AppTypes.msg, m: AppTypes.model): modification => {
   | ReceiveFetch(TraceFetchFailure(params, url, error))
     if error == "Selected trace too large for the editor to load, maybe try another?" =>
     let traces = TLID.Dict.fromList(list{
-      (
-        params.gtdrpTlid,
-        list{(params.gtdrpTraceID, Error(AnalysisTypes.TraceError.MaximumCallStackError))},
-      ),
+      (params.gtdrpTlid, list{(params.gtdrpTraceID, Error(TraceError.MaximumCallStackError))}),
     })
 
     Many(list{
@@ -1823,7 +1812,7 @@ let update_ = (msg: AppTypes.msg, m: AppTypes.model): modification => {
         if (
           search.space == fof.space && (search.path == fof.path && search.modifier == fof.modifier)
         ) {
-          list{(search.traceID, Error(AnalysisTypes.TraceError.NoneYet)), ...acc}
+          list{(search.traceID, Error(TraceError.NoneYet)), ...acc}
         } else {
           acc
         },
@@ -2011,7 +2000,7 @@ let update_ = (msg: AppTypes.msg, m: AppTypes.model): modification => {
   }
 }
 
-let rec filter_read_only = (m: AppTypes.model, modification: modification) =>
+let rec filter_read_only = (m: model, modification: modification) =>
   if m.permission == Some(ReadWrite) {
     modification
   } else {
@@ -2023,11 +2012,7 @@ let rec filter_read_only = (m: AppTypes.model, modification: modification) =>
   }
 
 // Checks to see if AST has changed, if so make requestAnalysis command.
-let maybeRequestAnalysis = (
-  oldM: AppTypes.model,
-  newM: AppTypes.model,
-  otherCommands: AppTypes.cmd,
-): AppTypes.cmd =>
+let maybeRequestAnalysis = (oldM: model, newM: model, otherCommands: AppTypes.cmd): AppTypes.cmd =>
   switch (TL.selected(oldM), TL.selected(newM)) {
   | (Some(prevTL), Some(newTL)) if TL.id(prevTL) == TL.id(newTL) =>
     switch (TL.getAST(prevTL), TL.getAST(newTL)) {
@@ -2043,7 +2028,7 @@ let maybeRequestAnalysis = (
   | (_, _) => otherCommands
   }
 
-let update = (m: AppTypes.model, msg: AppTypes.msg): (AppTypes.model, AppTypes.cmd) => {
+let update = (m: model, msg: AppTypes.msg): (model, AppTypes.cmd) => {
   let mods = update_(msg, m) |> filter_read_only(m)
   let (newm, newc) = updateMod(mods, (m, Cmd.none))
   let newc = maybeRequestAnalysis(m, newm, newc)
@@ -2064,7 +2049,7 @@ let update = (m: AppTypes.model, msg: AppTypes.msg): (AppTypes.model, AppTypes.c
   ({...newm, lastMsg: msg, fluidState: {...newm.fluidState, activeEditor: activeEditor}}, newc)
 }
 
-let subscriptions = (m: AppTypes.model): Tea.Sub.t<AppTypes.msg> => {
+let subscriptions = (m: model): Tea.Sub.t<AppTypes.msg> => {
   let keySubs = list{Keyboard.downs(x => AppTypes.Msg.GlobalKeyPress(x))}
   let dragSubs = switch m.cursorState {
   // we use IDs here because the node will change
@@ -2193,7 +2178,7 @@ let debugging = {
 }
 
 let normal = {
-  let program: Tea.Navigation.navigationProgram<string, AppTypes.model, AppTypes.msg> = {
+  let program: Tea.Navigation.navigationProgram<string, model, AppTypes.msg> = {
     init: init,
     view: View.view,
     update: update,

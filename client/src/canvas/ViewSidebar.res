@@ -186,7 +186,7 @@ let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory
     TL.isDeprecatedCustomHandler(tl)
   , "Worker", NewWorkerHandler(None), Some(GoToArchitecturalView), Worker, handlers)
 
-let dbCategory = (m: AppTypes.model, dbs: list<PT.DB.t>): category => {
+let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   let entries = List.map(dbs, ~f=db => {
     let uses = switch db.name {
     | Blank(_) => 0
@@ -217,7 +217,7 @@ let dbCategory = (m: AppTypes.model, dbs: list<PT.DB.t>): category => {
   }
 }
 
-let f404Category = (m: AppTypes.model): category => {
+let f404Category = (m: model): category => {
   let f404s = {
     // Generate set of deleted handler specs, stringified
     let deletedHandlerSpecs =
@@ -269,7 +269,7 @@ let f404Category = (m: AppTypes.model): category => {
   }
 }
 
-let userFunctionCategory = (m: AppTypes.model, ufs: list<PT.UserFunction.t>): category => {
+let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
   let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => B.isF(fn.metadata.name))
   let entries = List.filterMap(fns, ~f=fn =>
     Option.map(B.toOption(fn.metadata.name), ~f=name => {
@@ -300,7 +300,7 @@ let userFunctionCategory = (m: AppTypes.model, ufs: list<PT.UserFunction.t>): ca
   }
 }
 
-let userTipeCategory = (m: AppTypes.model, tipes: list<PT.UserType.t>): category => {
+let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
   let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => B.isF(ut.name))
   let entries = List.filterMap(tipes, ~f=tipe =>
     Option.map(B.toOption(tipe.name), ~f=name => {
@@ -437,7 +437,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   }
 }
 
-let deletedCategory = (m: AppTypes.model): category => {
+let deletedCategory = (m: model): category => {
   let cats = standardCategories(
     m,
     m.deletedHandlers,
@@ -491,7 +491,7 @@ let viewEmptyCategory = (c: category): Html.html<AppTypes.msg> => {
   Html.div(list{Html.class'("simple-item empty")}, list{Html.text("No " ++ name)})
 }
 
-let viewEntry = (m: AppTypes.model, e: entry): Html.html<AppTypes.msg> => {
+let viewEntry = (m: model, e: entry): Html.html<AppTypes.msg> => {
   let name = e.name
   let isSelected = tlidOfIdentifier(e.identifier) == CursorState.tlidOf(m.cursorState)
 
@@ -648,7 +648,7 @@ let categoryOpenCloseHelpers = (s: AppTypes.Sidebar.State.t, classname: string, 
   (openEventHandler, openAttr)
 }
 
-let viewDeployStats = (m: AppTypes.model): Html.html<AppTypes.msg> => {
+let viewDeployStats = (m: model): Html.html<AppTypes.msg> => {
   let entries = m.staticDeploys
   let count = List.length(entries)
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "deploys", count)
@@ -756,7 +756,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<AppTypes.msg> => {
   )
 }
 
-let viewSecretKeys = (m: AppTypes.model): Html.html<AppTypes.msg> => {
+let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   let count = List.length(m.secrets)
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
 
@@ -823,7 +823,7 @@ let viewSecretKeys = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   Html.details(~unique="secrets", list{classes, openAttr}, list{summary, content})
 }
 
-let rec viewItem = (m: AppTypes.model, s: item): Html.html<AppTypes.msg> =>
+let rec viewItem = (m: model, s: item): Html.html<AppTypes.msg> =>
   switch s {
   | Category(c) =>
     if c.count > 0 {
@@ -834,7 +834,7 @@ let rec viewItem = (m: AppTypes.model, s: item): Html.html<AppTypes.msg> =>
   | Entry(e) => viewEntry(m, e)
   }
 
-and viewCategory = (m: AppTypes.model, c: category): Html.html<AppTypes.msg> => {
+and viewCategory = (m: model, c: category): Html.html<AppTypes.msg> => {
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, c.classname, c.count)
 
   let (openTooltip, tooltipView) = switch c.tooltip {
@@ -969,7 +969,7 @@ let stateInfoTohtml = (key: string, value: Html.html<AppTypes.msg>): Html.html<A
     },
   )
 
-let adminDebuggerView = (m: AppTypes.model): Html.html<AppTypes.msg> => {
+let adminDebuggerView = (m: model): Html.html<AppTypes.msg> => {
   let environmentName = if m.environment === "prodclone" {
     "clone"
   } else {
@@ -1146,7 +1146,7 @@ let update = (msg: AppTypes.Sidebar.msg): modification =>
     )
   }
 
-let viewSidebar_ = (m: AppTypes.model): Html.html<AppTypes.msg> => {
+let viewSidebar_ = (m: model): Html.html<AppTypes.msg> => {
   let cats = Belt.List.concat(
     standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTipes),
     list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},

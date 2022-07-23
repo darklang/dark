@@ -20,7 +20,7 @@ let tlidOf = (page: page): option<TLID.t> =>
     Some(tlid)
   }
 
-let calculatePanOffset = (m: AppTypes.model, tl: toplevel, page: page): AppTypes.model => {
+let calculatePanOffset = (m: model, tl: toplevel, page: page): model => {
   let center = switch page {
   | FocusedHandler(_, _, center) | FocusedDB(_, center) => center
   | _ => false
@@ -81,7 +81,7 @@ let getTraceID = (page: page): option<traceID> =>
   | FocusedFn(_, traceId) | FocusedHandler(_, traceId, _) => traceId
   }
 
-let updatePossibleTrace = (m: AppTypes.model, page: page): (AppTypes.model, AppTypes.cmd) => {
+let updatePossibleTrace = (m: model, page: page): (model, AppTypes.cmd) => {
   let tlid = tlidOf(page) |> Option.unwrap(~default=gtlid())
   switch getTraceID(page) {
   | Some(tid) =>
@@ -99,7 +99,7 @@ let updatePossibleTrace = (m: AppTypes.model, page: page): (AppTypes.model, AppT
   }
 }
 
-let setPage = (m: AppTypes.model, oldPage: page, newPage: page): AppTypes.model =>
+let setPage = (m: model, oldPage: page, newPage: page): model =>
   switch (oldPage, newPage) {
   | (SettingsModal(_), FocusedPackageManagerFn(tlid))
   | (Architecture, FocusedPackageManagerFn(tlid))
@@ -236,7 +236,7 @@ let maybeChangeFromPage = (tlid: TLID.t, page: page): list<modification> =>
   | _ => list{}
   }
 
-let getPageFromTLID = (m: AppTypes.model, tlid: TLID.t): page => {
+let getPageFromTLID = (m: model, tlid: TLID.t): page => {
   let hasKey = dict => List.any(~f=key => key == tlid, Map.keys(dict))
   if hasKey(m.deletedHandlers) || hasKey(m.handlers) {
     FocusedHandler(tlid, None, true)

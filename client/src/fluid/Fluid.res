@@ -46,6 +46,8 @@ type astRef = AstRef.t
 
 type placeholder = FluidTypes.Token.Placeholder.t
 
+type model = AppTypes.model
+
 type state = AppTypes.fluidState
 
 type props = Types.fluidProps
@@ -62,13 +64,13 @@ let deselectFluidEditor = (s: state): state => {
 // Nearby tokens
 // --------------------
 
-let astInfoFromModelAndTLID = (~removeTransientState=true, m: AppTypes.model, tlid: TLID.t): option<
+let astInfoFromModelAndTLID = (~removeTransientState=true, m: model, tlid: TLID.t): option<
   ASTInfo.t,
 > => {
   /* TODO: codify removeHandlerTransientState as an external function,
    * make `fromExpr` accept only the info it needs, and differentiate between
    * handler-specific and global fluid state. */
-  let removeHandlerTransientState = (m: AppTypes.model) =>
+  let removeHandlerTransientState = (m: model) =>
     if removeTransientState {
       {...m, fluidState: {...m.fluidState, ac: AC.init}}
     } else {
@@ -90,7 +92,7 @@ let astInfoFromModelAndTLID = (~removeTransientState=true, m: AppTypes.model, tl
   })
 }
 
-let astInfoFromModel = (m: AppTypes.model): option<ASTInfo.t> =>
+let astInfoFromModel = (m: model): option<ASTInfo.t> =>
   CursorState.tlidOf(m.cursorState) |> Option.andThen(~f=astInfoFromModelAndTLID(m))
 
 let getStringIndexMaybe = (ti: T.tokenInfo, pos: int): option<int> =>
@@ -4134,7 +4136,7 @@ let getSelectedExprID = (astInfo: ASTInfo.t): option<id> =>
     getTopmostSelectionID(startPos, endPos, astInfo)
   )
 
-let maybeOpenCmd = (m: AppTypes.model): AppTypes.modification => {
+let maybeOpenCmd = (m: model): AppTypes.modification => {
   let getExprIDOnCaret = (astInfo: ASTInfo.t) =>
     switch ASTInfo.getTokenNotWhitespace(astInfo) {
     | Some(ti) =>
@@ -4942,7 +4944,7 @@ and deleteSelection = (astInfo: ASTInfo.t): ASTInfo.t =>
 and replaceText = (str: string, astInfo: ASTInfo.t): ASTInfo.t =>
   astInfo |> deleteSelection |> updateKey(InsertText(str))
 
-let updateAutocomplete = (m: AppTypes.model, tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
+let updateAutocomplete = (m: model, tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
   switch ASTInfo.getToken(astInfo) {
   | Some(ti) if T.isAutocompletable(ti.token) =>
     let m = TL.withAST(m, tlid, astInfo.ast)
@@ -5625,7 +5627,7 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
   }
 }
 
-let getCopySelection = (m: AppTypes.model): clipboardContents =>
+let getCopySelection = (m: model): clipboardContents =>
   astInfoFromModel(m)
   |> Option.andThen(~f=(astInfo: ASTInfo.t) => {
     let (from, to_) = FluidUtil.getSelectionRange(astInfo.state)
@@ -5730,7 +5732,7 @@ let updateMouseUpExternal = (tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
   }
 
 let updateMsg' = (
-  m: AppTypes.model,
+  m: model,
   tlid: TLID.t,
   astInfo: ASTInfo.t,
   msg: AppTypes.fluidMsg,
@@ -5840,7 +5842,7 @@ let updateMsg' = (
 }
 
 let updateMsg = (
-  m: AppTypes.model,
+  m: model,
   tlid: TLID.t,
   ast: FluidAST.t,
   s: AppTypes.fluidState,
@@ -5852,7 +5854,7 @@ let updateMsg = (
   (astInfo.ast, astInfo.state, ASTInfo.activeTokenInfos(astInfo))
 }
 
-let update = (m: AppTypes.model, msg: AppTypes.fluidMsg): AppTypes.modification => {
+let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
   let s = m.fluidState
   let s = {...s, error: None, oldPos: s.newPos, actions: list{}}
   switch msg {
@@ -5870,7 +5872,7 @@ let update = (m: AppTypes.model, msg: AppTypes.fluidMsg): AppTypes.modification 
   | FluidInputEvent(Keypress({key: K.CommandPalette(heritage), _})) =>
     let maybeOpen = maybeOpenCmd(m)
     let showToast = Mod.ReplaceAllModificationsWithThisOne(
-      (m: AppTypes.model) => (
+      (m: model) => (
         {
           ...m,
           toast: {
@@ -6050,7 +6052,7 @@ let update = (m: AppTypes.model, msg: AppTypes.fluidMsg): AppTypes.modification 
 // Scaffolidng
 // --------------------
 
-let renderCallback = (m: AppTypes.model): unit =>
+let renderCallback = (m: model): unit =>
   switch m.cursorState {
   | FluidEntering(_) if m.fluidState.midClick == false =>
     if FluidCommands.isOpened(m.fluidState.cp) {
@@ -6074,10 +6076,7 @@ let renderCallback = (m: AppTypes.model): unit =>
   | _ => ()
   }
 
-let cleanUp = (m: AppTypes.model, tlid: option<TLID.t>): (
-  AppTypes.model,
-  AppTypes.modification,
-) => {
+let cleanUp = (m: model, tlid: option<TLID.t>): (model, AppTypes.modification) => {
   let rmPartialsMod =
     tlid
     |> Option.andThen(~f=TL.get(m))

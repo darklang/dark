@@ -6,7 +6,7 @@ module Function = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
       efpTLID: TLID.t,
-      efpTraceID: AnalysisTypes.TraceID.t,
+      efpTraceID: TraceID.t,
       efpCallerID: ID.t,
       efpArgs: list<RT.Dval.t>,
       efpFnName: string,
@@ -43,7 +43,7 @@ module Handler = {
   module Params = {
     type rec t = {
       thTLID: TLID.t,
-      thTraceID: AnalysisTypes.TraceID.t,
+      thTraceID: TraceID.t,
       thInput: AnalysisTypes.InputValueDict.t,
     }
 

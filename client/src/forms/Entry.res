@@ -264,7 +264,7 @@ external jsUnsupportedBrowser: unit => Js.Nullable.t<bool> = "unsupportedBrowser
 let unsupportedBrowser = (): bool =>
   jsUnsupportedBrowser() |> Js.Nullable.toOption |> Option.unwrap(~default=false)
 
-let newHandler = (m: AppTypes.model, space, name, modifier, pos) => {
+let newHandler = (m: model, space, name, modifier, pos) => {
   let tlid = gtlid()
   let spaceid = gid()
   let handler: PT.Handler.t = {
@@ -314,7 +314,7 @@ let newHandler = (m: AppTypes.model, space, name, modifier, pos) => {
 }
 
 let submitOmniAction = (
-  m: AppTypes.model,
+  m: model,
   pos: pos,
   action: AppTypes.AutoComplete.omniAction,
 ): modification => {
@@ -392,7 +392,7 @@ let validate = (tl: toplevel, pd: blankOrData, value: string): option<string> =>
 }
 
 let submitACItem = (
-  m: AppTypes.model,
+  m: model,
   tlid: TLID.t,
   id: id,
   item: AppTypes.AutoComplete.item,
@@ -597,7 +597,7 @@ let submitACItem = (
   }
 }
 
-let submit = (m: AppTypes.model, tlid: TLID.t, id: id, move: nextMove): modification =>
+let submit = (m: model, tlid: TLID.t, id: id, move: nextMove): modification =>
   switch AC.highlighted(m.complete) {
   | Some(ACOmniAction(_)) =>
     recover("Shouldnt allow omniactions here", ~debug=(tlid, id), Mod.NoChange)
@@ -642,4 +642,4 @@ let submit = (m: AppTypes.model, tlid: TLID.t, id: id, move: nextMove): modifica
  * This was added to to cleanly express "commit the state of an input box when I click away",
  * but is more generally intended to express "commit the state and I'll handle the cursor"
  * */
-let commit = (m: AppTypes.model, tlid: TLID.t, id: id) => submit(m, tlid, id, StayHere)
+let commit = (m: model, tlid: TLID.t, id: id) => submit(m, tlid, id, StayHere)

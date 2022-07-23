@@ -8,6 +8,8 @@ module E = FluidExpression
 
 open ProgramTypes.Expr
 
+type model = AppTypes.model
+
 let appID = "app"
 
 let fontAwesome = ViewUtils.fontAwesome
@@ -18,7 +20,7 @@ let functionRefsURL = "https://ops-documentation.builtwithdark.com/?pretty=1"
 
 let keyboardRefsURL = "https://docs.darklang.com/reference/keyboard-mapping"
 
-let viewTL_ = (m: AppTypes.model, tl: toplevel): Html.html<AppTypes.msg> => {
+let viewTL_ = (m: model, tl: toplevel): Html.html<AppTypes.msg> => {
   let tlid = TL.id(tl)
   let vs = ViewUtils.createVS(m, tl)
   let dragEvents = list{
@@ -252,7 +254,7 @@ let viewTL_ = (m: AppTypes.model, tl: toplevel): Html.html<AppTypes.msg> => {
   ViewUtils.placeHtml(pos, boxClasses, html)
 }
 
-let tlCacheKey = (m: AppTypes.model, tl) => {
+let tlCacheKey = (m: model, tl) => {
   let tlid = TL.id(tl)
   if Some(tlid) == CursorState.tlidOf(m.cursorState) {
     None
@@ -289,7 +291,7 @@ let tlCacheKey = (m: AppTypes.model, tl) => {
   }
 }
 
-let tlCacheKeyDB = (m: AppTypes.model, tl) => {
+let tlCacheKeyDB = (m: model, tl) => {
   let tlid = TL.id(tl)
   if Some(tlid) == CursorState.tlidOf(m.cursorState) {
     None
@@ -300,7 +302,7 @@ let tlCacheKeyDB = (m: AppTypes.model, tl) => {
   }
 }
 
-let tlCacheKeyTipe = (m: AppTypes.model, tl) => {
+let tlCacheKeyTipe = (m: model, tl) => {
   let tlid = TL.id(tl)
   if Some(tlid) == CursorState.tlidOf(m.cursorState) {
     None
@@ -344,7 +346,7 @@ let isAppScrollZero = (): bool => {
   Option.unwrap(~default=true)
 }
 
-let viewCanvas = (m: AppTypes.model): Html.html<AppTypes.msg> => {
+let viewCanvas = (m: model): Html.html<AppTypes.msg> => {
   let allDivs = switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) =>
     m
@@ -533,7 +535,7 @@ let viewToast = (t: AppTypes.Toast.t): Html.html<AppTypes.msg> => {
   )
 }
 
-let accountView = (m: AppTypes.model): Html.html<AppTypes.msg> => {
+let accountView = (m: model): Html.html<AppTypes.msg> => {
   let logout = Html.a(
     list{Html.class'("account-action-btn"), Html.href("https://login.darklang.com/logout")},
     list{Html.text("Logout")},
@@ -681,7 +683,7 @@ let accountView = (m: AppTypes.model): Html.html<AppTypes.msg> => {
   )
 }
 
-let view = (m: AppTypes.model): Html.html<AppTypes.msg> => {
+let view = (m: model): Html.html<AppTypes.msg> => {
   let eventListeners = /* We don't want propagation because we don't want to double-handle these events and
    * window has its own listeners. */
   list{

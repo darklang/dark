@@ -5,6 +5,8 @@ module B = BlankOr
 
 module AC = AppTypes.AutoComplete
 
+type model = AppTypes.model
+
 let defaultTLID = gtlid()
 
 let defaultID = gid()
@@ -30,10 +32,9 @@ let defaultModel = (
   ~userTipes=list{},
   ~cursorState,
   (),
-): AppTypes.model => {
-  let default = AppTypes.Model.default
+): model => {
   {
-    ...default,
+    ...AppTypes.Model.default,
     handlers: Handlers.fromList(handlers),
     dbs: DB.fromList(dbs),
     userFunctions: UserFunctions.fromList(userFunctions),
@@ -98,7 +99,7 @@ let enteringFunction = (
   ~userFunctions=list{},
   ~userTipes=list{},
   (),
-): AppTypes.model =>
+): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs,
@@ -114,7 +115,7 @@ let enteringDBField = (
   ~userFunctions=list{},
   ~userTipes=list{},
   (),
-): AppTypes.model =>
+): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs=list{aDB(), ...dbs},
@@ -130,7 +131,7 @@ let enteringDBType = (
   ~userFunctions=list{},
   ~userTipes=list{},
   (),
-): AppTypes.model =>
+): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs=list{aDB(~fieldid=defaultID2, ~typeid=defaultID, ()), ...dbs},
@@ -140,19 +141,22 @@ let enteringDBType = (
     (),
   )
 
-let enteringHandler = (~space: option<string>=None, ()): AppTypes.model =>
+let enteringHandler = (~space: option<string>=None, ()): model =>
   defaultModel(~cursorState=enteringCS(), ~handlers=list{aHandler(~space, ())}, ())
 
-let enteringEventNameHandler = (~space: option<string>=None, ()): AppTypes.model => {
+let enteringEventNameHandler = (~space: option<string>=None, ()): model => {
   let handler = aHandler(~space, ())
   let id = B.toID(handler.spec.name)
   defaultModel(~cursorState=enteringCS(~id, ()), ~handlers=list{handler}, ())
 }
 
-let creatingOmni: AppTypes.model = {...AppTypes.Model.default, cursorState: Omnibox(None)}
+let creatingOmni: model = {
+  ...AppTypes.Model.default,
+  cursorState: Omnibox(None),
+}
 
 // AC targeting a tlid and pointer
-let acFor = (~target=Some(defaultTLID, PDBColType(defaultBlankOr)), m: AppTypes.model): AC.t =>
+let acFor = (~target=Some(defaultTLID, PDBColType(defaultBlankOr)), m: model): AC.t =>
   switch m.cursorState {
   | Omnibox(_) => init(m) |> setTarget(m, None)
   | Entering(_) => init(m) |> setTarget(m, target)

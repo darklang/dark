@@ -5,6 +5,8 @@ module B = BlankOr
 module P = Pointer
 module TD = TLID.Dict
 
+type model = AppTypes.model
+
 let blankOrData = (t: PT.UserType.t): list<blankOrData> => {
   let namePointer = PTypeName(t.name)
   let definitionPointers = switch t.definition {
@@ -28,21 +30,17 @@ let blankOrData = (t: PT.UserType.t): list<blankOrData> => {
 
 let toID = (ut: PT.UserType.t): TLID.t => ut.tlid
 
-let upsert = (m: AppTypes.model, ut: PT.UserType.t): AppTypes.model => {
+let upsert = (m: model, ut: PT.UserType.t): model => {
   ...m,
   userTipes: Map.add(~key=ut.tlid, ~value=ut, m.userTipes),
 }
 
-let update = (
-  m: AppTypes.model,
-  ~tlid: TLID.t,
-  ~f: PT.UserType.t => PT.UserType.t,
-): AppTypes.model => {
+let update = (m: model, ~tlid: TLID.t, ~f: PT.UserType.t => PT.UserType.t): model => {
   ...m,
   userTipes: Map.updateIfPresent(~key=tlid, ~f, m.userTipes),
 }
 
-let remove = (m: AppTypes.model, ut: PT.UserType.t): AppTypes.model => {
+let remove = (m: model, ut: PT.UserType.t): model => {
   ...m,
   userTipes: Map.remove(~key=ut.tlid, m.userTipes),
 }

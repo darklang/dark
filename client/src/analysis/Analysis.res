@@ -11,6 +11,12 @@ module TL = Toplevel
 module TD = TLID.Dict
 module E = FluidExpression
 
+type model = AppTypes.model
+module Trace = AnalysisTypes.Trace
+module TraceData = AnalysisTypes.TraceData
+module TraceID = TraceID
+module TraceError = AnalysisTypes.TraceError
+
 // ----------------------
 // Analyses
 // ----------------------
@@ -26,19 +32,15 @@ let defaultTraceIDForTL = (~tlid: TLID.t) =>
     ~namespace=#Uuid("00000000-0000-0000-0000-000000000000"),
   ) |> BsUuid.Uuid.V5.toString
 
-let getTraces = (m: AppTypes.model, tlid: TLID.t): list<AnalysisTypes.Trace.t> =>
+let getTraces = (m: model, tlid: TLID.t): list<Trace.t> =>
   Map.get(~key=tlid, m.traces) |> Option.unwrapLazy(~default=() => list{
-    (defaultTraceIDForTL(~tlid), Error(AnalysisTypes.TraceError.NoneYet)),
+    (defaultTraceIDForTL(~tlid), Error(TraceError.NoneYet)),
   })
 
-let getTrace = (m: AppTypes.model, tlid: TLID.t, traceID: AnalysisTypes.TraceID.t): option<
-  AnalysisTypes.Trace.t,
-> => getTraces(m, tlid) |> List.find(~f=((id, _)) => id == traceID)
+let getTrace = (m: model, tlid: TLID.t, traceID: TraceID.t): option<Trace.t> =>
+  getTraces(m, tlid) |> List.find(~f=((id, _)) => id == traceID)
 
-let getStoredAnalysis = (
-  m: AppTypes.model,
-  traceID: AnalysisTypes.TraceID.t,
-): AnalysisTypes.analysisStore =>
+let getStoredAnalysis = (m: model, traceID: TraceID.t): AnalysisTypes.analysisStore =>
   // only handlers have analysis results, but lots of stuff expect this
   // data to exist. It may be better to not do that, but this is fine
   // for now.
@@ -46,12 +48,12 @@ let getStoredAnalysis = (
 
 let record = (
   old: AnalysisTypes.analyses,
-  id: AnalysisTypes.TraceID.t,
+  id: TraceID.t,
   result: AnalysisTypes.analysisStore,
 ): AnalysisTypes.analyses => Map.add(~key=id, ~value=result, old)
 
 let replaceFunctionResult = (
-  m: AppTypes.model,
+  m: model,
   tlid: TLID.t,
   traceID: traceID,
   callerID: id,
@@ -59,7 +61,7 @@ let replaceFunctionResult = (
   hash: string,
   hashVersion: int,
   dval: RT.Dval.t,
-): AppTypes.model => {
+): model => {
   let newResult: AnalysisTypes.FunctionResult.t = {
     fnName: fnName,
     callerID: callerID,
@@ -75,7 +77,7 @@ let replaceFunctionResult = (
         (
           traceID,
           Ok({
-            AnalysisTypes.TraceData.input: Belt.Map.String.empty,
+            TraceData.input: Belt.Map.String.empty,
             timestamp: "",
             functionResults: list{newResult},
           }),
@@ -84,7 +86,7 @@ let replaceFunctionResult = (
     )
     |> List.map(~f=((tid, tdata) as t) =>
       if tid == traceID {
-        (tid, Result.map(~f=(tdata: AnalysisTypes.TraceData.t) => {
+        (tid, Result.map(~f=(tdata: TraceData.t) => {
             ...tdata,
             functionResults: list{newResult, ...tdata.functionResults},
           }, tdata))
@@ -125,16 +127,16 @@ let getLiveValue' = (analysisStore: AnalysisTypes.analysisStore, id: id): option
   | _ => None
   }
 
-let getLiveValue = (m: AppTypes.model, id: id, traceID: traceID): option<RT.Dval.t> =>
+let getLiveValue = (m: model, id: id, traceID: traceID): option<RT.Dval.t> =>
   getLiveValue'(getStoredAnalysis(m, traceID), id)
 
 let getTipeOf' = (analysisStore: AnalysisTypes.analysisStore, id: id): option<DType.t> =>
   getLiveValue'(analysisStore, id) |> Option.map(~f=Runtime.typeOf)
 
-let getTipeOf = (m: AppTypes.model, id: id, traceID: traceID): option<DType.t> =>
+let getTipeOf = (m: model, id: id, traceID: traceID): option<DType.t> =>
   getLiveValue(m, id, traceID) |> Option.map(~f=Runtime.typeOf)
 
-let getArguments = (m: AppTypes.model, tl: toplevel, callerID: id, traceID: traceID): option<
+let getArguments = (m: model, tl: toplevel, callerID: id, traceID: traceID): option<
   list<RT.Dval.t>,
 > =>
   switch TL.getAST(tl) {
@@ -153,7 +155,7 @@ let getArguments = (m: AppTypes.model, tl: toplevel, callerID: id, traceID: trac
 @ocaml.doc(" [getAvailableVarnames m tl id traceID] gets a list of (varname, dval option)s that are in scope
  * at an expression with the given [id] within the ast of the [tl]. The dval for a given varname
  * comes from the trace with [traceID]. ")
-let getAvailableVarnames = (m: AppTypes.model, tl: toplevel, id: id, traceID: traceID): list<(
+let getAvailableVarnames = (m: model, tl: toplevel, id: id, traceID: traceID): list<(
   string,
   option<RT.Dval.t>,
 )> => {
@@ -163,7 +165,7 @@ let getAvailableVarnames = (m: AppTypes.model, tl: toplevel, id: id, traceID: tr
   let traceDict =
     getTrace(m, tlid, traceID)
     |> Option.andThen(~f=((_tid, td)) => td |> Result.toOption)
-    |> Option.andThen(~f=(t: AnalysisTypes.TraceData.t) => Some(t.input))
+    |> Option.andThen(~f=(t: TraceData.t) => Some(t.input))
     |> Option.unwrap(~default=Belt.Map.String.empty)
 
   let varsFor = (ast: FluidAST.t) =>
@@ -194,11 +196,9 @@ let getAvailableVarnames = (m: AppTypes.model, tl: toplevel, id: id, traceID: tr
 // Which trace is selected
 // ----------------------
 
-let selectedTraceID = (
-  tlTraceIDs: tlTraceIDs,
-  traces: list<AnalysisTypes.Trace.t>,
-  tlid: TLID.t,
-): option<traceID> =>
+let selectedTraceID = (tlTraceIDs: tlTraceIDs, traces: list<Trace.t>, tlid: TLID.t): option<
+  traceID,
+> =>
   // We briefly do analysis on a toplevel which does not have an
   // analysis available, so be careful here.
   switch Map.get(~key=tlid, tlTraceIDs) {
@@ -208,21 +208,19 @@ let selectedTraceID = (
     List.head(traces) |> Option.map(~f=Tuple2.first)
   }
 
-let selectedTrace = (
-  tlTraceIDs: tlTraceIDs,
-  traces: list<AnalysisTypes.Trace.t>,
-  tlid: TLID.t,
-): option<AnalysisTypes.Trace.t> =>
+let selectedTrace = (tlTraceIDs: tlTraceIDs, traces: list<Trace.t>, tlid: TLID.t): option<
+  Trace.t,
+> =>
   selectedTraceID(tlTraceIDs, traces, tlid) |> Option.andThen(~f=traceID =>
     List.find(~f=((id, _)) => id == traceID, traces)
   )
 
-let setSelectedTraceID = (m: AppTypes.model, tlid: TLID.t, traceID: traceID): AppTypes.model => {
+let setSelectedTraceID = (m: model, tlid: TLID.t, traceID: traceID): model => {
   let newCursors = Map.add(~key=tlid, ~value=traceID, m.tlTraceIDs)
   {...m, tlTraceIDs: newCursors}
 }
 
-let getSelectedTraceID = (m: AppTypes.model, tlid: TLID.t): option<traceID> => {
+let getSelectedTraceID = (m: model, tlid: TLID.t): option<traceID> => {
   let traces = getTraces(m, tlid)
   selectedTraceID(m.tlTraceIDs, traces, tlid)
 }
@@ -313,7 +311,7 @@ module Fetcher = {
 
 @val @scope(("window", "location")) external origin: string = "origin"
 
-let contextFromModel = (m: AppTypes.model): APITypes.fetchContext => {
+let contextFromModel = (m: model): APITypes.fetchContext => {
   canvasName: m.canvasName,
   csrfToken: m.csrfToken,
   origin: origin,
@@ -353,7 +351,7 @@ let getWorkerStats = (m, tlid) =>
  */
 let mergeTraces = (
   ~selectedTraceIDs: tlTraceIDs,
-  ~onConflict: (AnalysisTypes.Trace.t, AnalysisTypes.Trace.t) => AnalysisTypes.Trace.t,
+  ~onConflict: (Trace.t, Trace.t) => Trace.t,
   ~oldTraces: AnalysisTypes.Traces.t,
   ~newTraces: AnalysisTypes.Traces.t,
 ): AnalysisTypes.Traces.t => {
@@ -431,7 +429,7 @@ let mergeTraces = (
   )
 }
 
-let requestTrace = (~force=false, m, tlid, traceID): (AppTypes.model, AppTypes.cmd) => {
+let requestTrace = (~force=false, m, tlid, traceID): (model, AppTypes.cmd) => {
   let should =
     // DBs + Types dont have traces
     TL.get(m, tlid)
@@ -452,7 +450,7 @@ let requestTrace = (~force=false, m, tlid, traceID): (AppTypes.model, AppTypes.c
   }
 }
 
-let requestAnalysis = (m: AppTypes.model, tlid, traceID): AppTypes.cmd => {
+let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
   let dbs = Map.values(m.dbs)
   let userFns = Map.values(m.userFunctions)
   let userTipes = Map.values(m.userTipes)
@@ -492,7 +490,7 @@ let requestAnalysis = (m: AppTypes.model, tlid, traceID): AppTypes.cmd => {
   }
 }
 
-let updateTraces = (m: AppTypes.model, traces: AnalysisTypes.Traces.t): AppTypes.model => {
+let updateTraces = (m: model, traces: AnalysisTypes.Traces.t): model => {
   let newTraces = mergeTraces(
     ~selectedTraceIDs=m.tlTraceIDs,
     ~onConflict=((oldID, oldData), (newID, newData)) =>
@@ -512,14 +510,12 @@ let updateTraces = (m: AppTypes.model, traces: AnalysisTypes.Traces.t): AppTypes
   {...m, traces: newTraces}
 }
 
-let analyzeFocused = (m: AppTypes.model): (AppTypes.model, AppTypes.cmd) =>
+let analyzeFocused = (m: model): (model, AppTypes.cmd) =>
   switch CursorState.tlidOf(m.cursorState) {
   | Some(tlid) =>
     let trace =
       getSelectedTraceID(m, tlid) |> Option.andThen(~f=traceID =>
-        getTrace(m, tlid, traceID) |> Option.orElse(
-          Some(traceID, Error(AnalysisTypes.TraceError.NoneYet)),
-        )
+        getTrace(m, tlid, traceID) |> Option.orElse(Some(traceID, Error(TraceError.NoneYet)))
       )
 
     switch trace {

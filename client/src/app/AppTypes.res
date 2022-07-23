@@ -942,21 +942,13 @@ module Modification = {
     | TriggerIntegrationTest(string)
     | EndIntegrationTest
     | SetPage(Page.t)
-    | SetTLTraceID(TLID.t, AnalysisTypes.TraceID.t)
+    | SetTLTraceID(TLID.t, TraceID.t)
     | ExecutingFunctionBegan(TLID.t, ID.t)
     | ExecutingFunctionComplete(list<(TLID.t, ID.t)>)
     | MoveCanvasTo(BaseTypes.pos, CanvasProps.isTransitionAnimated)
     | UpdateTraces(AnalysisTypes.Traces.t)
     | OverrideTraces(AnalysisTypes.Traces.t)
-    | UpdateTraceFunctionResult(
-        TLID.t,
-        AnalysisTypes.TraceID.t,
-        ID.t,
-        string,
-        string,
-        int,
-        RuntimeTypes.Dval.t,
-      )
+    | UpdateTraceFunctionResult(TLID.t, TraceID.t, ID.t, string, string, int, RuntimeTypes.Dval.t)
     | AppendStaticDeploy(list<StaticAssets.Deploy.t>)
     // designed for one-off small changes
     | Apply(
