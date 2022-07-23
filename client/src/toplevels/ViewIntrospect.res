@@ -2,7 +2,9 @@ open Prelude
 module TL = Toplevel
 module B = BlankOr
 
-let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<AppTypes.msg> => {
+type msg = AppTypes.msg
+
+let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   let colView = col =>
     switch col {
     | (F(_, nm), F(_, ty)) =>
@@ -21,7 +23,7 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<AppTypes.msg> => {
   Html.div(list{Html.class'("fields")}, List.filterMap(~f=colView, cols))
 }
 
-let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<AppTypes.msg> => {
+let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.UserFunction.Parameter.t) => {
     let name = Html.span(
       list{Html.classList(list{("name", true), ("has-blanks", BlankOr.isBlank(p.name))})},
@@ -46,7 +48,7 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<AppTyp
   Html.div(list{Html.class'("fields")}, List.map(~f=paramView, params))
 }
 
-let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<AppTypes.msg> => {
+let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.Package.Parameter.t) => {
     let name = Html.span(list{Html.classList(list{("name", true)})}, list{Html.text(p.name)})
     let ptype = Html.span(
@@ -60,7 +62,7 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<AppT
   Html.div(list{Html.class'("fields")}, List.map(~f=paramView, params))
 }
 
-let fnReturnTipeView = (returnTipe: blankOr<DType.t>): Html.html<AppTypes.msg> =>
+let fnReturnTipeView = (returnTipe: blankOr<DType.t>): Html.html<msg> =>
   switch returnTipe {
   | F(_, v) =>
     let typeStr = Runtime.tipe2str(v)
@@ -91,7 +93,7 @@ let dbView = (
   name: string,
   cols: list<PT.DB.Col.t>,
   direction: string,
-): Html.html<AppTypes.msg> =>
+): Html.html<msg> =>
   Html.div(
     Belt.List.concat(
       list{
@@ -122,7 +124,7 @@ let handlerView = (
   name: string,
   modifier: option<string>,
   direction: string,
-): Html.html<AppTypes.msg> => {
+): Html.html<msg> => {
   let modifier_ = switch modifier {
   | Some("_") | None => Vdom.noNode
   | Some(m) => Html.div(list{Html.class'("spec")}, list{Html.text(m)})
@@ -154,7 +156,7 @@ let fnView = (
   params: list<PT.UserFunction.Parameter.t>,
   returnTipe: blankOr<DType.t>,
   direction: string,
-): Html.html<AppTypes.msg> => {
+): Html.html<msg> => {
   let header = list{
     ViewUtils.darkIcon("fn"),
     Html.span(list{Html.class'("fnname")}, list{Html.text(name)}),
@@ -186,7 +188,7 @@ let packageFnView = (
   params: list<PT.Package.Parameter.t>,
   returnTipe: blankOr<DType.t>,
   direction: string,
-): Html.html<AppTypes.msg> => {
+): Html.html<msg> => {
   // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f
   let header = list{
     ViewUtils.fontAwesome("box-open"),
@@ -216,7 +218,7 @@ let tipeView = (
   name: string,
   _version: int,
   direction: string,
-): Html.html<AppTypes.msg> => {
+): Html.html<msg> => {
   let header = list{
     ViewUtils.darkIcon("type"),
     Html.span(list{Html.class'("tipename")}, list{Html.text(name)}),
@@ -263,7 +265,7 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   }
 
 let allUsagesView = (tlid: TLID.t, uses: list<toplevel>, refs: list<(toplevel, list<id>)>): list<
-  Html.html<AppTypes.msg>,
+  Html.html<msg>,
 > => {
   let refersTo = List.map(~f=renderView(tlid, "refers-to"), refs)
   let usedIn = List.map(~f=use => renderView(tlid, "used-in")((use, list{})), uses)

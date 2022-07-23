@@ -2,6 +2,8 @@ open Prelude
 
 module Avatar = AppTypes.Avatar
 
+type msg = AppTypes.msg
+
 let filterAvatarsByTlid = (avatars: list<Avatar.t>, tlid: TLID.t): list<Avatar.t> =>
   avatars |> List.filter(~f=(av: Avatar.t) =>
     switch av.tlid {
@@ -37,7 +39,7 @@ let avatarUrl = (email: string, name: option<string>): string => {
   ("?d=" ++ Js_global.encodeURI(fallback(name))))
 }
 
-let avatarDiv = (avatar: Avatar.t): Html.html<AppTypes.msg> => {
+let avatarDiv = (avatar: Avatar.t): Html.html<msg> => {
   let name: option<string> = avatar.fullname
   let email: string = avatar.email
   let username: string = avatar.username
@@ -54,14 +56,14 @@ let avatarDiv = (avatar: Avatar.t): Html.html<AppTypes.msg> => {
   )
 }
 
-let viewAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<AppTypes.msg> => {
+let viewAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<msg> => {
   let avList = filterAvatarsByTlid(avatars, tlid)
   let renderAvatar = (a: Avatar.t) => avatarDiv(a)
   let avatars = List.map(~f=renderAvatar, avList)
   Html.div(list{Html.class'("avatars")}, avatars)
 }
 
-let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<AppTypes.msg> => {
+let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
   /* Sort by serverTime desc, then unique by avatar - gets us the most recent
    * avatar for a given username */
   let avatars =

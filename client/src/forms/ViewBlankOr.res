@@ -4,6 +4,8 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 
+type msg = AppTypes.msg
+
 // Create a Html.div for this ID, incorporating all ID-related data,
 // such as whether it's selected, appropriate events, mouseover, etc.
 let div = (
@@ -11,8 +13,8 @@ let div = (
   ~enterable: bool,
   ~classes: list<string>,
   vp: ViewUtils.viewProps,
-  content: list<Html.html<AppTypes.msg>>,
-): Html.html<AppTypes.msg> => {
+  content: list<Html.html<msg>>,
+): Html.html<msg> => {
   let selected = switch vp.cursorState {
   | Selecting(_, Some(selectingID)) => id == selectingID
   | _ => false
@@ -98,11 +100,11 @@ let placeHolderFor = (vp: ViewUtils.viewProps, pt: blankOrType): string =>
 let viewBlankOr = (
   ~enterable: bool,
   ~classes: list<string>,
-  htmlFn: 'a => Html.html<AppTypes.msg>,
+  htmlFn: 'a => Html.html<msg>,
   pt: blankOrType,
   vp: ViewUtils.viewProps,
   bo: blankOr<'a>,
-): Html.html<AppTypes.msg> => {
+): Html.html<msg> => {
   let id = B.toID(bo)
   let thisText = switch bo {
   | F(_, fill) => div(~id, ~enterable, ~classes, vp, list{htmlFn(fill)})
@@ -139,7 +141,7 @@ let viewText = (
   pt: blankOrType,
   vp: ViewUtils.viewProps,
   str: blankOr<string>,
-): Html.html<AppTypes.msg> => viewBlankOr(~enterable, ~classes, Html.text, pt, vp, str)
+): Html.html<msg> => viewBlankOr(~enterable, ~classes, Html.text, pt, vp, str)
 
 let viewTipe = (
   ~enterable: bool,
@@ -147,7 +149,7 @@ let viewTipe = (
   pt: blankOrType,
   vp: ViewUtils.viewProps,
   str: blankOr<DType.t>,
-): Html.html<AppTypes.msg> => {
+): Html.html<msg> => {
   let fn = t => Html.text(Runtime.tipe2str(t))
   viewBlankOr(~enterable, ~classes, fn, pt, vp, str)
 }

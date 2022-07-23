@@ -19,6 +19,7 @@ type modification = AppTypes.modification
 open AppTypes.Modification
 type autocompleteMod = AppTypes.AutoComplete.mod
 type model = AppTypes.model
+type msg = AppTypes.msg
 
 let incOpCtr = (m: model): model => {
   ...m,
@@ -946,7 +947,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
   }
 }
 
-let update_ = (msg: AppTypes.msg, m: model): modification => {
+let update_ = (msg: msg, m: model): modification => {
   if m.integrationTestState != NoIntegrationTest {
     Debug.loG("msg update", AppTypes.show_msg(msg))
   }
@@ -2028,7 +2029,7 @@ let maybeRequestAnalysis = (oldM: model, newM: model, otherCommands: AppTypes.cm
   | (_, _) => otherCommands
   }
 
-let update = (m: model, msg: AppTypes.msg): (model, AppTypes.cmd) => {
+let update = (m: model, msg: msg): (model, AppTypes.cmd) => {
   let mods = update_(msg, m) |> filter_read_only(m)
   let (newm, newc) = updateMod(mods, (m, Cmd.none))
   let newc = maybeRequestAnalysis(m, newm, newc)
@@ -2049,7 +2050,7 @@ let update = (m: model, msg: AppTypes.msg): (model, AppTypes.cmd) => {
   ({...newm, lastMsg: msg, fluidState: {...newm.fluidState, activeEditor: activeEditor}}, newc)
 }
 
-let subscriptions = (m: model): Tea.Sub.t<AppTypes.msg> => {
+let subscriptions = (m: model): Tea.Sub.t<msg> => {
   let keySubs = list{Keyboard.downs(x => AppTypes.Msg.GlobalKeyPress(x))}
   let dragSubs = switch m.cursorState {
   // we use IDs here because the node will change

@@ -4,7 +4,9 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 
-let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<AppTypes.msg> => {
+type msg = AppTypes.msg
+
+let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> => {
   let strTLID = TLID.toString(vp.tlid)
   let schedule =
     vp.workerStats
@@ -50,7 +52,7 @@ let viewTrace = (
   isActive: bool,
   isHover: bool,
   isUnfetchable: bool,
-): Html.html<AppTypes.msg> => {
+): Html.html<msg> => {
   let tl = vp.tl
   let tlid = TL.id(tl)
   let classes = list{
@@ -128,7 +130,7 @@ let viewTrace = (
   Html.li(props, Belt.List.concat(dotHtml, list{viewData}))
 }
 
-let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<AppTypes.msg>> => {
+let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
   let traceToHtml = ((traceID, traceData): AnalysisTypes.Trace.t) => {
     let value = Option.map(~f=td => td.input, traceData |> Result.to_option)
 
@@ -152,7 +154,7 @@ let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<AppTypes.msg>> => {
   List.map(~f=traceToHtml, vp.traces)
 }
 
-let viewData = (vp: ViewUtils.viewProps): list<Html.html<AppTypes.msg>> => {
+let viewData = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
   let requestEls = viewTraces(vp)
   let tlSelected = switch CursorState.tlidOf(vp.cursorState) {
   | Some(tlid) if tlid == vp.tlid => true

@@ -5,6 +5,7 @@ module FnParams = AppTypes.FunctionParams
 
 type modification = AppTypes.modification
 type model = AppTypes.model
+type msg = AppTypes.msg
 module Mod = AppTypes.Modification
 module Msg = AppTypes.Msg
 
@@ -72,7 +73,7 @@ let update = (m: AppTypes.model, msg: FnParams.msg): modification => {
 }
 
 let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.t): Html.html<
-  AppTypes.msg,
+  msg,
 > => {
   let freeVariables = uf.ast |> FluidAST.toExpr |> AST.freeVariables |> List.map(~f=Tuple2.second)
 
@@ -107,13 +108,11 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
   }
 }
 
-let viewParamName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<
-  AppTypes.msg,
-> => ViewBlankOr.viewText(~enterable=true, ~classes, ParamName, vp, v)
+let viewParamName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
+  ViewBlankOr.viewText(~enterable=true, ~classes, ParamName, vp, v)
 
-let viewParamTipe = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<
-  AppTypes.msg,
-> => ViewBlankOr.viewTipe(~classes, ~enterable=true, ParamTipe, vp, v)
+let viewParamTipe = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<msg> =>
+  ViewBlankOr.viewTipe(~classes, ~enterable=true, ParamTipe, vp, v)
 
 let jsDragStart: Web.Node.event => unit = %raw(
   "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); e.dataTransfer.effectAllowed = 'move'; }"
@@ -121,7 +120,7 @@ let jsDragStart: Web.Node.event => unit = %raw(
 
 let jsDragOver: Web.Node.event => unit = %raw("function(e){e.dataTransfer.dropEffect = 'move';}")
 
-let viewParamSpace = (index: int, fs: FnParams.t): Html.html<AppTypes.msg> => {
+let viewParamSpace = (index: int, fs: FnParams.t): Html.html<msg> => {
   let dragOver = e => {
     jsDragOver(e)
     Msg.IgnoreMsg("view-param-space")
@@ -163,7 +162,7 @@ let viewParam = (
   vp: viewProps,
   index: int,
   p: PT.UserFunction.Parameter.t,
-): list<Html.html<AppTypes.msg>> => {
+): list<Html.html<msg>> => {
   let nameId = p.name |> B.toID
   let strId = ID.toString(nameId)
   let dragStart = evt => {
@@ -225,7 +224,7 @@ let viewParam = (
   list{space, param}
 }
 
-let view = (fn: functionTypes, vp: viewProps): list<Html.html<AppTypes.msg>> => {
+let view = (fn: functionTypes, vp: viewProps): list<Html.html<msg>> => {
   let params = switch fn {
   | UserFunction(f) =>
     f.metadata.parameters |> List.mapWithIndex(~f=viewParam(fn, vp)) |> List.flatten

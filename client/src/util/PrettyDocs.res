@@ -1,5 +1,8 @@
 open Prelude
 
+module Msg = AppTypes.Msg
+type msg = AppTypes.msg
+
 let tagEx = "^(.*)\\<(\\w+)\\s(.+?)\\>(.*)$"
 
 let codeEx = "^(.*)\\{\\{(.+)\\}\\}(.*)$"
@@ -15,15 +18,15 @@ let nestedCodeBlock = Regex.regex(`{{[^}]+{{`)
 let validTags = list{"param", "fn", "var", "type", "err", "cmd"}
 
 type parseResult =
-  | ParseSuccess(list<Html.html<AppTypes.msg>>)
+  | ParseSuccess(list<Html.html<msg>>)
   | ParseFail(/* input * errorMsg */ list<(string, string)>)
 
-let txt = (s: string): Html.html<AppTypes.msg> => Html.text(s)
+let txt = (s: string): Html.html<msg> => Html.text(s)
 
-let tag = (cls: string, content: list<Html.html<AppTypes.msg>>): Html.html<AppTypes.msg> =>
+let tag = (cls: string, content: list<Html.html<msg>>): Html.html<msg> =>
   Html.span(list{Html.class'(cls)}, content)
 
-let link = (name: string, url: string): Html.html<AppTypes.msg> =>
+let link = (name: string, url: string): Html.html<msg> =>
   Html.a(list{Html.href(url), Html.target("_blank")}, list{Html.text(name)})
 
 let justErrors = results =>
@@ -112,7 +115,7 @@ let rec convert_ = (s: string): parseResult => {
   }
 }
 
-let convert = (s: string): list<Html.html<AppTypes.msg>> =>
+let convert = (s: string): list<Html.html<msg>> =>
   switch convert_(s) {
   | ParseSuccess(code) => code
   | ParseFail(_) => list{txt(s)}

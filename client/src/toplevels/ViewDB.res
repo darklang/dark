@@ -3,6 +3,7 @@ open Prelude
 // Dark
 module B = BlankOr
 
+type msg = AppTypes.msg
 type viewProps = ViewUtils.viewProps
 
 type domEventList = ViewUtils.domEventList
@@ -12,7 +13,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let dbName2String = (name: blankOr<string>): string => B.valueWithDefault("", name)
 
-let viewDbCount = (stats: dbStats): Html.html<AppTypes.msg> =>
+let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(
     list{Html.class'("db db-count")},
     list{
@@ -23,7 +24,7 @@ let viewDbCount = (stats: dbStats): Html.html<AppTypes.msg> =>
     },
   )
 
-let viewDbLatestEntry = (stats: dbStats): Html.html<AppTypes.msg> => {
+let viewDbLatestEntry = (stats: dbStats): Html.html<msg> => {
   let title = Html.div(
     list{Html.class'("title")},
     list{
@@ -49,7 +50,7 @@ let viewDbLatestEntry = (stats: dbStats): Html.html<AppTypes.msg> => {
   Html.div(list{Html.class'("db db-liveVal")}, list{title, exampleHtml})
 }
 
-let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<AppTypes.msg> =>
+let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<msg> =>
   switch Map.get(~key=TLID.toString(db.tlid), vp.dbStats) {
   | Some(stats) if CursorState.tlidOf(vp.cursorState) == Some(db.tlid) =>
     let liveVal = viewDbLatestEntry(stats)
@@ -58,7 +59,7 @@ let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<AppTypes.msg> =>
   | _ => Vdom.noNode
   }
 
-let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<AppTypes.msg>> => {
+let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
   let typeView = Html.span(
     list{Html.class'("toplevel-type")},
     list{fontAwesome("database"), Html.text("DB")},
@@ -105,22 +106,18 @@ let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<AppTypes.msg>> =
   list{typeView, titleView, menuView}
 }
 
-let viewDBColName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<
-  AppTypes.msg,
-> => {
+let viewDBColName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> => {
   let enterable = B.isBlank(v) || !vp.dbLocked
   ViewBlankOr.viewText(~enterable, ~classes, DBColName, vp, v)
 }
 
-let viewDBColType = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<
-  AppTypes.msg,
-> => {
+let viewDBColType = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> => {
   let enterable = B.isBlank(v) || !vp.dbLocked
   ViewBlankOr.viewText(~enterable, ~classes, DBColType, vp, v)
 }
 
 let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): PT.DB.Col.t): Html.html<
-  AppTypes.msg,
+  msg,
 > => {
   let deleteButton = if (
     vp.permission == Some(ReadWrite) && ((isMigra || !vp.dbLocked) && (B.isF(n) || B.isF(t)))
@@ -151,9 +148,7 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): PT.DB.Col.t
   )
 }
 
-let viewDB = (vp: viewProps, db: PT.DB.t, dragEvents: domEventList): list<
-  Html.html<AppTypes.msg>,
-> => {
+let viewDB = (vp: viewProps, db: PT.DB.t, dragEvents: domEventList): list<Html.html<msg>> => {
   let lockClass = if vp.dbLocked {
     "lock"
   } else {

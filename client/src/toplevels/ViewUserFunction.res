@@ -3,6 +3,7 @@ open Prelude
 // Dark
 module B = BlankOr
 
+type msg = AppTypes.msg
 type viewProps = ViewUtils.viewProps
 
 let fontAwesome = ViewUtils.fontAwesome
@@ -14,11 +15,10 @@ type exeFunction =
   | CannotExecute(string)
   | IsExecuting
 
-let viewUserFnName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<
-  AppTypes.msg,
-> => ViewBlankOr.viewText(~classes, ~enterable=true, FnName, vp, v)
+let viewUserFnName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
+  ViewBlankOr.viewText(~classes, ~enterable=true, FnName, vp, v)
 
-let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<AppTypes.msg> => {
+let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
   let exeStatus = if vp.isExecuting {
     IsExecuting
   } else {
@@ -92,9 +92,7 @@ let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<AppTypes.
   )
 }
 
-let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Html.html<
-  AppTypes.msg,
-> => {
+let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Html.html<msg> => {
   let addParamBtn = switch fn {
   | UserFunction(fn) =>
     switch vp.permission {
@@ -212,7 +210,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
   Html.div(list{Html.class'("fn-header")}, list{titleRow, paramRows, returnRow})
 }
 
-let view = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Html.html<AppTypes.msg> =>
+let view = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Html.html<msg> =>
   Html.div(
     list{
       Html.class'(

@@ -7,6 +7,7 @@ module Cmd = Tea.Cmd
 
 type modification = AppTypes.modification
 type model = AppTypes.model
+type msg = AppTypes.msg
 module Mod = AppTypes.Modification
 
 let missingEventSpaceDesc: string = "Undefined"
@@ -21,7 +22,7 @@ type identifier =
 
 type onClickAction =
   | Destination(AppTypes.Page.t)
-  | SendMsg(AppTypes.msg)
+  | SendMsg(msg)
   | DoNothing
 
 let tlidOfIdentifier = (identifier): option<TLID.t> =>
@@ -41,9 +42,9 @@ type rec entry = {
   identifier: identifier,
   onClick: onClickAction,
   uses: option<int>,
-  minusButton: option<AppTypes.msg>,
-  plusButton: option<AppTypes.msg>,
-  killAction: option<AppTypes.msg>,
+  minusButton: option<msg>,
+  plusButton: option<msg>,
+  killAction: option<msg>,
   // if this is in the deleted section, what does minus do?
   verb: option<string>,
 }
@@ -51,8 +52,8 @@ type rec entry = {
 and category = {
   count: int,
   name: string,
-  plusButton: option<AppTypes.msg>,
-  iconAction: option<AppTypes.msg>,
+  plusButton: option<msg>,
+  iconAction: option<msg>,
   classname: string,
   tooltip: option<AppTypes.Tooltip.source>,
   entries: list<item>,
@@ -68,17 +69,14 @@ let rec count = (s: item): int =>
   | Category(c) => (c.entries |> List.map(~f=count))->List.sum(module(Int))
   }
 
-let iconButton = (
-  ~key: string,
-  ~icon: string,
-  ~classname: string,
-  handler: AppTypes.msg,
-): Html.html<AppTypes.msg> => {
+let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg): Html.html<
+  msg,
+> => {
   let event = ViewUtils.eventNeither(~key, "click", _ => handler)
   Html.div(list{event, Html.class'("icon-button " ++ classname)}, list{fontAwesome(icon)})
 }
 
-let categoryIcon_ = (name: string): list<Html.html<AppTypes.msg>> => {
+let categoryIcon_ = (name: string): list<Html.html<msg>> => {
   let darkIcon = ViewUtils.darkIcon
   // Deleted categories have a deleted- prefix, with which are not valid fontaweome icons
   switch name |> String.toLowercase |> Regex.replace(~re=Regex.regex(delPrefix), ~repl="") {
@@ -100,7 +98,7 @@ let categoryIcon_ = (name: string): list<Html.html<AppTypes.msg>> => {
   }
 }
 
-let categoryButton = (~props=list{}, name: string, description: string): Html.html<AppTypes.msg> =>
+let categoryButton = (~props=list{}, name: string, description: string): Html.html<msg> =>
   Html.div(
     list{
       Html.class'("category-icon"),
@@ -125,7 +123,7 @@ let handlerCategory = (
   filter: toplevel => bool,
   name: string,
   action: AppTypes.AutoComplete.omniAction,
-  iconAction: option<AppTypes.msg>,
+  iconAction: option<msg>,
   tooltip: AppTypes.Tooltip.source,
   hs: list<PT.Handler.t>,
 ): category => {
@@ -481,7 +479,7 @@ let deletedCategory = (m: model): category => {
   }
 }
 
-let viewEmptyCategory = (c: category): Html.html<AppTypes.msg> => {
+let viewEmptyCategory = (c: category): Html.html<msg> => {
   let name = switch c.classname {
   | "http" => "HTTP handlers"
   | "cron" | "worker" | "repl" => c.name ++ "s"
@@ -491,7 +489,7 @@ let viewEmptyCategory = (c: category): Html.html<AppTypes.msg> => {
   Html.div(list{Html.class'("simple-item empty")}, list{Html.text("No " ++ name)})
 }
 
-let viewEntry = (m: model, e: entry): Html.html<AppTypes.msg> => {
+let viewEntry = (m: model, e: entry): Html.html<msg> => {
   let name = e.name
   let isSelected = tlidOfIdentifier(e.identifier) == CursorState.tlidOf(m.cursorState)
 
@@ -567,7 +565,7 @@ let viewEntry = (m: model, e: entry): Html.html<AppTypes.msg> => {
   Html.div(list{Html.class'("simple-item")}, list{minuslink, linkItem, pluslink})
 }
 
-let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<AppTypes.msg> => {
+let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   let statusString = switch d.status {
   | Deployed => "Deployed"
   | Deploying => "Deploying"
@@ -614,12 +612,12 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<AppTypes.msg> => {
   )
 }
 
-let categoryName = (name: string): Html.html<AppTypes.msg> =>
+let categoryName = (name: string): Html.html<msg> =>
   Html.span(list{Html.class'("category-name")}, list{Html.text(name)})
 
 let categoryOpenCloseHelpers = (s: AppTypes.Sidebar.State.t, classname: string, count: int): (
-  Vdom.property<AppTypes.msg>,
-  Vdom.property<AppTypes.msg>,
+  Vdom.property<msg>,
+  Vdom.property<msg>,
 ) => {
   let isOpen = Set.member(s.openedCategories, ~value=classname)
   let isDetailed = s.mode == DetailedMode
@@ -648,7 +646,7 @@ let categoryOpenCloseHelpers = (s: AppTypes.Sidebar.State.t, classname: string, 
   (openEventHandler, openAttr)
 }
 
-let viewDeployStats = (m: model): Html.html<AppTypes.msg> => {
+let viewDeployStats = (m: model): Html.html<msg> => {
   let entries = m.staticDeploys
   let count = List.length(entries)
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "deploys", count)
@@ -715,7 +713,7 @@ let viewDeployStats = (m: model): Html.html<AppTypes.msg> => {
   Html.details(~unique="deploys", list{classes, openAttr}, list{summary, content})
 }
 
-let viewSecret = (s: SecretTypes.t): Html.html<AppTypes.msg> => {
+let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
       Html.class'("icon-button copy-secret-name"),
@@ -756,7 +754,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<AppTypes.msg> => {
   )
 }
 
-let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
+let viewSecretKeys = (m: model): Html.html<msg> => {
   let count = List.length(m.secrets)
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
 
@@ -823,7 +821,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   Html.details(~unique="secrets", list{classes, openAttr}, list{summary, content})
 }
 
-let rec viewItem = (m: model, s: item): Html.html<AppTypes.msg> =>
+let rec viewItem = (m: model, s: item): Html.html<msg> =>
   switch s {
   | Category(c) =>
     if c.count > 0 {
@@ -834,7 +832,7 @@ let rec viewItem = (m: model, s: item): Html.html<AppTypes.msg> =>
   | Entry(e) => viewEntry(m, e)
   }
 
-and viewCategory = (m: model, c: category): Html.html<AppTypes.msg> => {
+and viewCategory = (m: model, c: category): Html.html<msg> => {
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, c.classname, c.count)
 
   let (openTooltip, tooltipView) = switch c.tooltip {
@@ -928,7 +926,7 @@ and viewCategory = (m: model, c: category): Html.html<AppTypes.msg> => {
   Html.details(~unique=c.classname, list{classes, openAttr}, list{summary, content})
 }
 
-let viewToggleBtn = (isDetailed: bool): Html.html<AppTypes.msg> => {
+let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
   let event = ViewUtils.eventNeither(~key="toggle-sidebar", "click", _ => SidebarMsg(
     ToggleSidebarMode,
   ))
@@ -959,7 +957,7 @@ let viewToggleBtn = (isDetailed: bool): Html.html<AppTypes.msg> => {
   Html.div(list{event, Html.class'("toggle-sidebar-btn"), alt}, list{label, icon})
 }
 
-let stateInfoTohtml = (key: string, value: Html.html<AppTypes.msg>): Html.html<AppTypes.msg> =>
+let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
   Html.div(
     list{Html.class'("state-info-row")},
     list{
@@ -969,7 +967,7 @@ let stateInfoTohtml = (key: string, value: Html.html<AppTypes.msg>): Html.html<A
     },
   )
 
-let adminDebuggerView = (m: model): Html.html<AppTypes.msg> => {
+let adminDebuggerView = (m: model): Html.html<msg> => {
   let environmentName = if m.environment === "prodclone" {
     "clone"
   } else {
@@ -1146,7 +1144,7 @@ let update = (msg: AppTypes.Sidebar.msg): modification =>
     )
   }
 
-let viewSidebar_ = (m: model): Html.html<AppTypes.msg> => {
+let viewSidebar_ = (m: model): Html.html<msg> => {
   let cats = Belt.List.concat(
     standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTipes),
     list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},

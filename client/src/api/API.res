@@ -1,6 +1,9 @@
 open Prelude
 
 type model = AppTypes.model
+type cmd = AppTypes.cmd
+type msg = AppTypes.msg
+
 let apiRoot = "/api/"
 
 let clientVersionHeader = (m: model): Tea_http.header => Header(
@@ -11,9 +14,9 @@ let clientVersionHeader = (m: model): Tea_http.header => Header(
 let apiCallNoParams = (
   m: model,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => AppTypes.msg,
+  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
-): AppTypes.cmd => {
+): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = Tea.Http.request({
     method': "POST",
@@ -59,9 +62,9 @@ let apiCall = (
   ~encoder: 'paramtype => Js.Json.t,
   ~params: 'paramtype,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => AppTypes.msg,
+  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
-): AppTypes.cmd => {
+): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},
@@ -84,7 +87,7 @@ let opsParams = (ops: list<PT.Op.t>, opCtr: int, clientOpCtrID: string): APIAddO
 // API calls
 // -------------
 
-let addOp = (m: model, focus: AppTypes.Focus.t, params: APIAddOps.Params.t): AppTypes.cmd =>
+let addOp = (m: model, focus: AppTypes.Focus.t, params: APIAddOps.Params.t): cmd =>
   apiCall(
     m,
     "/v1/add_op",
@@ -94,7 +97,7 @@ let addOp = (m: model, focus: AppTypes.Focus.t, params: APIAddOps.Params.t): App
     ~callback=x => AddOpsAPICallback(focus, params, x),
   )
 
-let executeFunction = (m: model, params: APIExecution.Function.Params.t): AppTypes.cmd =>
+let executeFunction = (m: model, params: APIExecution.Function.Params.t): cmd =>
   apiCall(
     m,
     "/v1/execute_function",
@@ -104,7 +107,7 @@ let executeFunction = (m: model, params: APIExecution.Function.Params.t): AppTyp
     ~callback=x => ExecuteFunctionAPICallback(params, x),
   )
 
-let uploadFn = (m: model, params: APIPackages.UploadFn.Params.t): AppTypes.cmd =>
+let uploadFn = (m: model, params: APIPackages.UploadFn.Params.t): cmd =>
   apiCall(
     m,
     "/packages/upload_function",
@@ -114,7 +117,7 @@ let uploadFn = (m: model, params: APIPackages.UploadFn.Params.t): AppTypes.cmd =
     ~callback=x => UploadFnAPICallback(params, x),
   )
 
-let loadPackages = (m: model): AppTypes.cmd =>
+let loadPackages = (m: model): cmd =>
   apiCallNoParams(
     m,
     "/v1/packages",
@@ -122,7 +125,7 @@ let loadPackages = (m: model): AppTypes.cmd =>
     ~callback=x => LoadPackagesAPICallback(x),
   )
 
-let triggerHandler = (m: model, params: APIExecution.Handler.Params.t): AppTypes.cmd =>
+let triggerHandler = (m: model, params: APIExecution.Handler.Params.t): cmd =>
   apiCall(
     m,
     "/trigger_handler",
@@ -132,7 +135,7 @@ let triggerHandler = (m: model, params: APIExecution.Handler.Params.t): AppTypes
     ~callback=x => TriggerHandlerAPICallback(params, x),
   )
 
-let getUnlockedDBs = (m: model): AppTypes.cmd =>
+let getUnlockedDBs = (m: model): cmd =>
   apiCallNoParams(
     m,
     "/get_unlocked_dbs",
@@ -140,7 +143,7 @@ let getUnlockedDBs = (m: model): AppTypes.cmd =>
     ~callback=x => GetUnlockedDBsAPICallback(x),
   )
 
-let updateWorkerSchedule = (m: model, params: APIWorkers.Scheduler.Params.t): AppTypes.cmd =>
+let updateWorkerSchedule = (m: model, params: APIWorkers.Scheduler.Params.t): cmd =>
   apiCall(
     m,
     "/worker_schedule",
@@ -150,10 +153,10 @@ let updateWorkerSchedule = (m: model, params: APIWorkers.Scheduler.Params.t): Ap
     ~callback=x => UpdateWorkerScheduleCallback(x),
   )
 
-let get404s = (m: model): AppTypes.cmd =>
+let get404s = (m: model): cmd =>
   apiCallNoParams(m, "/get_404s", ~decoder=API404.Get.decode, ~callback=x => Get404sAPICallback(x))
 
-let delete404 = (m: model, params: API404.Delete.Params.t): AppTypes.cmd =>
+let delete404 = (m: model, params: API404.Delete.Params.t): cmd =>
   apiCall(
     m,
     "/delete_404",
@@ -164,7 +167,7 @@ let delete404 = (m: model, params: API404.Delete.Params.t): AppTypes.cmd =>
   )
 
 let deleteToplevelForever = (m: model, params: APIToplevels.DeleteForever.Params.t): Tea.Cmd.t<
-  AppTypes.msg,
+  msg,
 > =>
   apiCall(
     m,
@@ -175,7 +178,7 @@ let deleteToplevelForever = (m: model, params: APIToplevels.DeleteForever.Params
     ~callback=x => DeleteToplevelForeverAPICallback(params, x),
   )
 
-let insertSecret = (m: model, params: APISecrets.Insert.Params.t): AppTypes.cmd =>
+let insertSecret = (m: model, params: APISecrets.Insert.Params.t): cmd =>
   apiCall(
     m,
     "/v1/insert_secret",
@@ -185,7 +188,7 @@ let insertSecret = (m: model, params: APISecrets.Insert.Params.t): AppTypes.cmd 
     ~callback=x => InsertSecretCallback(x),
   )
 
-let initialLoad = (m: model, focus: AppTypes.Focus.t): AppTypes.cmd =>
+let initialLoad = (m: model, focus: AppTypes.Focus.t): cmd =>
   apiCallNoParams(
     m,
     "/v1/initial_load",
@@ -193,7 +196,7 @@ let initialLoad = (m: model, focus: AppTypes.Focus.t): AppTypes.cmd =>
     ~callback=x => InitialLoadAPICallback(focus, NoChange, x),
   )
 
-let fetchAllTraces = (m: model): AppTypes.cmd =>
+let fetchAllTraces = (m: model): cmd =>
   apiCallNoParams(
     m,
     "/all_traces",
@@ -201,15 +204,15 @@ let fetchAllTraces = (m: model): AppTypes.cmd =>
     ~callback=x => FetchAllTracesAPICallback(x),
   )
 
-let logout = (m: model): AppTypes.cmd =>
+let logout = (m: model): cmd =>
   apiCallNoParams(m, "/logout", ~decoder=_ => (), ~callback=_ => LogoutAPICallback)
 
-let saveTest = (m: model): AppTypes.cmd =>
+let saveTest = (m: model): cmd =>
   apiCallNoParams(m, "/save_test", ~decoder=APISaveTest.decode, ~callback=x => SaveTestAPICallback(
     x,
   ))
 
-let integration = (m: model, name: string): AppTypes.cmd =>
+let integration = (m: model, name: string): cmd =>
   apiCallNoParams(
     m,
     "/initial_load",
@@ -217,7 +220,7 @@ let integration = (m: model, name: string): AppTypes.cmd =>
     ~callback=x => InitialLoadAPICallback(FocusNothing, TriggerIntegrationTest(name), x),
   )
 
-let sendPresence = (m: model, av: APIPresence.Params.t): AppTypes.cmd => {
+let sendPresence = (m: model, av: APIPresence.Params.t): cmd => {
   let url = "https://editor.darklang.com/presence"
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},
@@ -241,7 +244,7 @@ let sendPresence = (m: model, av: APIPresence.Params.t): AppTypes.cmd => {
   }
 }
 
-let sendInvite = (m: model, params: APISendInvite.Params.t): AppTypes.cmd => {
+let sendInvite = (m: model, params: APISendInvite.Params.t): cmd => {
   let url = "https://accounts.darklang.com/send-invite"
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},

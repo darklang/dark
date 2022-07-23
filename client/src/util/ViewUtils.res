@@ -4,6 +4,7 @@ module TD = TLID.Dict
 module E = FluidExpression
 module ASTInfo = FluidTokenizer.ASTInfo
 module Msg = AppTypes.Msg
+type msg = AppTypes.msg
 
 type viewProps = {
   tl: toplevel,
@@ -43,7 +44,7 @@ type viewProps = {
 // -----------------------------
 // Events
 // -----------------------------
-type domEvent = Vdom.property<AppTypes.msg>
+type domEvent = Vdom.property<msg>
 
 type domEventList = list<domEvent>
 
@@ -156,11 +157,10 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
   }
 }
 
-let fontAwesome = (name: string): Html.html<AppTypes.msg> =>
+let fontAwesome = (name: string): Html.html<msg> =>
   Html.i(list{Html.class'("fa fa-" ++ name)}, list{})
 
-let darkIcon = (name: string): Html.html<AppTypes.msg> =>
-  Html.i(list{Html.class'("di di-" ++ name)}, list{})
+let darkIcon = (name: string): Html.html<msg> => Html.i(list{Html.class'("di di-" ++ name)}, list{})
 
 let decodeTransEvent = (fn: string => 'a, j): 'a => {
   open Json.Decode
@@ -177,8 +177,8 @@ let onEvent = (
   ~event: string,
   ~key: string,
   ~preventDefault=true,
-  listener: Web.Node.event => AppTypes.msg,
-): Vdom.property<AppTypes.msg> =>
+  listener: Web.Node.event => msg,
+): Vdom.property<msg> =>
   Tea.Html.onCB(event, key, evt => {
     if preventDefault {
       evt["preventDefault"]()
@@ -189,8 +189,8 @@ let onEvent = (
 let eventBoth = (
   ~key: string,
   event: string,
-  constructor: AppTypes.MouseEvent.t => AppTypes.msg,
-): Vdom.property<AppTypes.msg> =>
+  constructor: AppTypes.MouseEvent.t => msg,
+): Vdom.property<msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
@@ -201,8 +201,8 @@ let eventBoth = (
 let eventPreventDefault = (
   ~key: string,
   event: string,
-  constructor: AppTypes.MouseEvent.t => AppTypes.msg,
-): Vdom.property<AppTypes.msg> =>
+  constructor: AppTypes.MouseEvent.t => msg,
+): Vdom.property<msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
@@ -213,8 +213,8 @@ let eventPreventDefault = (
 let eventNeither = (
   ~key: string,
   event: string,
-  constructor: AppTypes.MouseEvent.t => AppTypes.msg,
-): Vdom.property<AppTypes.msg> =>
+  constructor: AppTypes.MouseEvent.t => msg,
+): Vdom.property<msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
@@ -225,8 +225,8 @@ let eventNeither = (
 let scrollEventNeither = (
   ~key: string,
   event: string,
-  constructor: AppTypes.ScrollEvent.t => AppTypes.msg,
-): Vdom.property<AppTypes.msg> =>
+  constructor: AppTypes.ScrollEvent.t => msg,
+): Vdom.property<msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
@@ -237,8 +237,8 @@ let scrollEventNeither = (
 let eventNoPropagation = (
   ~key: string,
   event: string,
-  constructor: AppTypes.MouseEvent.t => AppTypes.msg,
-): Vdom.property<AppTypes.msg> =>
+  constructor: AppTypes.MouseEvent.t => msg,
+): Vdom.property<msg> =>
   Tea.Html.onWithOptions(
     ~key,
     event,
@@ -246,9 +246,7 @@ let eventNoPropagation = (
     Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
   )
 
-let onTransitionEnd = (~key: string, ~listener: string => AppTypes.msg): Vdom.property<
-  AppTypes.msg,
-> =>
+let onTransitionEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
   Tea.Html.onWithOptions(
     ~key,
     "transitionend",
@@ -256,9 +254,7 @@ let onTransitionEnd = (~key: string, ~listener: string => AppTypes.msg): Vdom.pr
     Decoders.wrapDecoder(decodeTransEvent(listener)),
   )
 
-let onAnimationEnd = (~key: string, ~listener: string => AppTypes.msg): Vdom.property<
-  AppTypes.msg,
-> =>
+let onAnimationEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
   Tea.Html.onWithOptions(
     ~key,
     "animationend",
@@ -266,7 +262,7 @@ let onAnimationEnd = (~key: string, ~listener: string => AppTypes.msg): Vdom.pro
     Decoders.wrapDecoder(decodeAnimEvent(listener)),
   )
 
-let nothingMouseEvent = (name: string): Vdom.property<AppTypes.msg> =>
+let nothingMouseEvent = (name: string): Vdom.property<msg> =>
   eventNoPropagation(~key="", name, _ =>
     // For fluid, we need to know about most (all?) mouseups
     if name == "mouseup" {
@@ -276,9 +272,7 @@ let nothingMouseEvent = (name: string): Vdom.property<AppTypes.msg> =>
     }
   )
 
-let placeHtml = (pos: pos, classes: list<'a>, html: list<Html.html<AppTypes.msg>>): Html.html<
-  AppTypes.msg,
-> => {
+let placeHtml = (pos: pos, classes: list<'a>, html: list<Html.html<msg>>): Html.html<msg> => {
   let styles = Html.styles(list{
     ("left", string_of_int(pos.x) ++ "px"),
     ("top", string_of_int(pos.y) ++ "px"),
@@ -289,7 +283,7 @@ let placeHtml = (pos: pos, classes: list<'a>, html: list<Html.html<AppTypes.msg>
 
 let inCh = (w: int): string => w |> string_of_int |> (s => s ++ "ch")
 
-let widthInCh = (w: int): Vdom.property<AppTypes.msg> => w |> inCh |> Html.style("width")
+let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Html.style("width")
 
 let createHandlerProp = (hs: list<PT.Handler.t>): TD.t<AppTypes.HandlerProperty.t> =>
   hs |> List.map(~f=(h: PT.Handler.t) => (h.tlid, AppTypes.HandlerProperty.default)) |> TD.fromList

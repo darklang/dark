@@ -7,7 +7,9 @@ module Events = Tea.Html2.Events
 module K = FluidKeyboard
 module Html = Tea_html_extended
 module T = SettingsViewTypes
+
 module Msg = AppTypes.Msg
+type msg = AppTypes.msg
 
 type settingsViewState = T.settingsViewState
 
@@ -164,7 +166,7 @@ let settingsTabToText = (tab: T.settingsTab): string =>
 
 // View code
 
-let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<AppTypes.msg>> => {
+let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<msg>> => {
   let canvasLink = c => {
     let url = "/a/" ++ c
     Html.li(~unique=c, list{}, list{Html.a(list{Html.href(url)}, list{Html.text(url)})})
@@ -195,7 +197,7 @@ let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<AppTypes.msg>>
   Belt.List.concat(orgView, canvasView)
 }
 
-let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<AppTypes.msg>> => {
+let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<msg>> => {
   let introText = list{
     Html.h2(list{}, list{Html.text("Share Dark with a friend or colleague")}),
     Html.p(
@@ -276,7 +278,7 @@ let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<AppTypes.m
   Belt.List.concat(introText, inviteform)
 }
 
-let viewNewCanvas = (svs: settingsViewState): list<Html.html<AppTypes.msg>> => {
+let viewNewCanvas = (svs: settingsViewState): list<Html.html<msg>> => {
   let text = Printf.sprintf(
     "Create a new canvas (or go to it if it already exists) by visiting /a/%s-canvasname",
     svs.username,
@@ -300,11 +302,11 @@ let viewNewCanvas = (svs: settingsViewState): list<Html.html<AppTypes.msg>> => {
   introText
 }
 
-let viewPrivacy = (s: T.privacySettings): list<Html.html<AppTypes.msg>> => list{
+let viewPrivacy = (s: T.privacySettings): list<Html.html<msg>> => list{
   FullstoryView.consentRow(s.recordConsent, ~longLabels=false),
 }
 
-let settingsTabToHtml = (svs: settingsViewState): list<Html.html<AppTypes.msg>> => {
+let settingsTabToHtml = (svs: settingsViewState): list<Html.html<msg>> => {
   let tab = svs.tab
   switch tab {
   | NewCanvas => viewNewCanvas(svs)
@@ -314,7 +316,7 @@ let settingsTabToHtml = (svs: settingsViewState): list<Html.html<AppTypes.msg>> 
   }
 }
 
-let tabTitleView = (tab: settingsTab): Html.html<AppTypes.msg> => {
+let tabTitleView = (tab: settingsTab): Html.html<msg> => {
   let tabTitle = (t: settingsTab) => {
     let isSameTab = switch (tab, t) {
     | (InviteUser(_), InviteUser(_)) => true
@@ -335,7 +337,7 @@ let tabTitleView = (tab: settingsTab): Html.html<AppTypes.msg> => {
   Html.div(list{Html.class'("settings-tab-titles")}, List.map(allTabs, ~f=tabTitle))
 }
 
-let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
+let onKeydown = (evt: Web.Node.event): option<msg> =>
   K.eventToKeyEvent(evt) |> Option.andThen(~f=e =>
     switch e {
     | {K.key: K.Enter, _} => Some(Msg.SettingsViewMsg(SubmitForm))
@@ -343,7 +345,7 @@ let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
     }
   )
 
-let settingViewWrapper = (acc: settingsViewState): Html.html<AppTypes.msg> => {
+let settingViewWrapper = (acc: settingsViewState): Html.html<msg> => {
   let tabView = settingsTabToHtml(acc)
   Html.div(
     list{Html.class'("settings-tab-wrapper")},
@@ -351,7 +353,7 @@ let settingViewWrapper = (acc: settingsViewState): Html.html<AppTypes.msg> => {
   )
 }
 
-let html = (m: AppTypes.model): Html.html<AppTypes.msg> => {
+let html = (m: AppTypes.model): Html.html<msg> => {
   let svs = m.settingsView
   let closingBtn = Html.div(
     list{

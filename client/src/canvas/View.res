@@ -9,6 +9,7 @@ module E = FluidExpression
 open ProgramTypes.Expr
 
 type model = AppTypes.model
+type msg = AppTypes.msg
 
 let appID = "app"
 
@@ -20,7 +21,7 @@ let functionRefsURL = "https://ops-documentation.builtwithdark.com/?pretty=1"
 
 let keyboardRefsURL = "https://docs.darklang.com/reference/keyboard-mapping"
 
-let viewTL_ = (m: model, tl: toplevel): Html.html<AppTypes.msg> => {
+let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
   let tlid = TL.id(tl)
   let vs = ViewUtils.createVS(m, tl)
   let dragEvents = list{
@@ -346,7 +347,7 @@ let isAppScrollZero = (): bool => {
   Option.unwrap(~default=true)
 }
 
-let viewCanvas = (m: model): Html.html<AppTypes.msg> => {
+let viewCanvas = (m: model): Html.html<msg> => {
   let allDivs = switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) =>
     m
@@ -465,7 +466,7 @@ let viewCanvas = (m: model): Html.html<AppTypes.msg> => {
   )
 }
 
-let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.html<AppTypes.msg> =>
+let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.html<msg> =>
   switch currentPage {
   | FocusedFn(_) =>
     let helpIcon = Html.div(
@@ -508,7 +509,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
   | _ => Vdom.noNode
   }
 
-let viewToast = (t: AppTypes.Toast.t): Html.html<AppTypes.msg> => {
+let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
   let msg = Option.unwrap(~default="", t.toastMessage)
   let classes = if Option.isSome(t.toastMessage) {
     "toast show"
@@ -535,7 +536,7 @@ let viewToast = (t: AppTypes.Toast.t): Html.html<AppTypes.msg> => {
   )
 }
 
-let accountView = (m: model): Html.html<AppTypes.msg> => {
+let accountView = (m: model): Html.html<msg> => {
   let logout = Html.a(
     list{Html.class'("account-action-btn"), Html.href("https://login.darklang.com/logout")},
     list{Html.text("Logout")},
@@ -683,7 +684,7 @@ let accountView = (m: model): Html.html<AppTypes.msg> => {
   )
 }
 
-let view = (m: model): Html.html<AppTypes.msg> => {
+let view = (m: model): Html.html<msg> => {
   let eventListeners = /* We don't want propagation because we don't want to double-handle these events and
    * window has its own listeners. */
   list{

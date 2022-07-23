@@ -1,6 +1,7 @@
 open Prelude
 
 module Msg = AppTypes.Msg
+type msg = AppTypes.msg
 
 type inputEvent = {
   data: option<string>,
@@ -13,7 +14,7 @@ let isInfixSymbol = (s: string): bool =>
   | _ => false
   }
 
-let fromInputEvent = (evt: Web.Node.event): option<AppTypes.msg> => {
+let fromInputEvent = (evt: Web.Node.event): option<msg> => {
   open Tea.Json.Decoder
   let decoder = map2(
     (data, inputType) => {data: data, inputType: inputType},
@@ -57,7 +58,7 @@ let fromInputEvent = (evt: Web.Node.event): option<AppTypes.msg> => {
   )
 }
 
-let fromCompositionEndEvent = (evt: Web.Node.event): option<AppTypes.msg> => {
+let fromCompositionEndEvent = (evt: Web.Node.event): option<msg> => {
   open Tea.Json.Decoder
   decodeEvent(field("data", string), evt)
   |> Tea_result.result_to_option

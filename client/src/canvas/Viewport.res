@@ -4,6 +4,7 @@ module TL = Toplevel
 module Cmd = Tea.Cmd
 
 type model = AppTypes.model
+type modification = AppTypes.modification
 
 let addPos = (a: pos, b: pos): pos => {x: a.x + b.x, y: a.y + b.y}
 
@@ -18,28 +19,28 @@ let toCenteredOn = (pos: pos): pos => subPos(pos, Defaults.centerPos)
 
 let toCenter = (pos: pos): pos => addPos(pos, Defaults.centerPos)
 
-let moveCanvasBy = (m: model, x: int, y: int): AppTypes.modification => {
+let moveCanvasBy = (m: model, x: int, y: int): modification => {
   let (dx, dy) = (x, y)
   let offset = m.canvasProps.offset
   let pos = addPos(offset, {x: dx, y: dy})
   MoveCanvasTo(pos, DontAnimateTransition)
 }
 
-let pageUp = (m: model): AppTypes.modification => moveCanvasBy(m, 0, -1 * Defaults.pageHeight)
+let pageUp = (m: model): modification => moveCanvasBy(m, 0, -1 * Defaults.pageHeight)
 
-let pageDown = (m: model): AppTypes.modification => moveCanvasBy(m, 0, Defaults.pageHeight)
+let pageDown = (m: model): modification => moveCanvasBy(m, 0, Defaults.pageHeight)
 
-let pageLeft = (m: model): AppTypes.modification => moveCanvasBy(m, -1 * Defaults.pageWidth, 0)
+let pageLeft = (m: model): modification => moveCanvasBy(m, -1 * Defaults.pageWidth, 0)
 
-let pageRight = (m: model): AppTypes.modification => moveCanvasBy(m, Defaults.pageWidth, 0)
+let pageRight = (m: model): modification => moveCanvasBy(m, Defaults.pageWidth, 0)
 
-let moveUp = (m: model): AppTypes.modification => moveCanvasBy(m, 0, -1 * Defaults.moveSize)
+let moveUp = (m: model): modification => moveCanvasBy(m, 0, -1 * Defaults.moveSize)
 
-let moveDown = (m: model): AppTypes.modification => moveCanvasBy(m, 0, Defaults.moveSize)
+let moveDown = (m: model): modification => moveCanvasBy(m, 0, Defaults.moveSize)
 
-let moveLeft = (m: model): AppTypes.modification => moveCanvasBy(m, -1 * Defaults.moveSize, 0)
+let moveLeft = (m: model): modification => moveCanvasBy(m, -1 * Defaults.moveSize, 0)
 
-let moveRight = (m: model): AppTypes.modification => moveCanvasBy(m, Defaults.moveSize, 0)
+let moveRight = (m: model): modification => moveCanvasBy(m, Defaults.moveSize, 0)
 
 /* Centers the toplevel on canvas based on windowWidth and sidebarWidth
   Default values (when we can't find get elements from dom) are based on
