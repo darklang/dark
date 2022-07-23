@@ -121,7 +121,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
       canvasProps: {
         ...m.canvasProps,
         lastOffset: Some(m.canvasProps.offset),
-        offset: Defaults.origin,
+        offset: Pos.origin,
       },
       cursorState: Selecting(tlid, None),
     }
@@ -149,7 +149,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
       {
         ...m,
         currentPage: newPage,
-        canvasProps: {...m.canvasProps, offset: Defaults.origin},
+        canvasProps: {...m.canvasProps, offset: Pos.origin},
         cursorState: Selecting(newtlid, None),
       }
     }

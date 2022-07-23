@@ -9,14 +9,12 @@ let defaultTLID = gtlid()
 
 let defaultFluidExpr = ProgramTypes.Expr.EBlank(gid())
 
-let defaultPos = {x: 0, y: 0}
-
 let defaultFnName = "myFun"
 
 let aHandler = (
   ~tlid=defaultTLID,
   ~expr=defaultFluidExpr,
-  ~pos=defaultPos,
+  ~pos=Pos.center,
   ~space: option<string>=None,
   (),
 ): toplevel => {

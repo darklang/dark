@@ -45,9 +45,9 @@ let pos = tl =>
   switch tl {
   | TLHandler(h) => h.pos
   | TLDB(db) => db.pos
-  | TLPmFunc(f) => recover("no pos in a func", ~debug=f.tlid, {x: 0, y: 0})
-  | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, {x: 0, y: 0})
-  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, {x: 0, y: 0})
+  | TLPmFunc(f) => recover("no pos in a func", ~debug=f.tlid, ({x: 0, y: 0}: Pos.t))
+  | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, ({x: 0, y: 0}: Pos.t))
+  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, ({x: 0, y: 0}: Pos.t))
   }
 
 let remove = (m: model, tl: toplevel): model => {
@@ -66,7 +66,7 @@ let fromList = (tls: list<toplevel>): TLID.Dict.t<toplevel> =>
   tls |> List.map(~f=tl => (id(tl), tl)) |> TD.fromList
 
 let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
-  let newPos = p => {x: p.x + xOffset, y: p.y + yOffset}
+  let newPos = (p: Pos.t) => {Pos.x: p.x + xOffset, y: p.y + yOffset}
   {
     ...m,
     handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=(h: PT.Handler.t) => {

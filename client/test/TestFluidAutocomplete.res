@@ -79,7 +79,7 @@ let defaultToplevel = TLHandler({
     modifier: Blank(gid()),
   },
   tlid: defaultTLID,
-  pos: Defaults.origin,
+  pos: Pos.origin,
 })
 
 let defaultTokenInfo: FluidToken.tokenInfo = {

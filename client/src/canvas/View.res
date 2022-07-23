@@ -216,7 +216,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
   let pos = switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) => TL.pos(tl)
-  | FocusedPackageManagerFn(_) | FocusedFn(_) | FocusedType(_) => Defaults.centerPos
+  | FocusedPackageManagerFn(_) | FocusedFn(_) | FocusedType(_) => Pos.center
   }
 
   let hasFF = vs.astInfo.featureFlagTokenInfos != list{}

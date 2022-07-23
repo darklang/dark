@@ -478,13 +478,13 @@ module Handler = {
     ast: AST.t,
     spec: Spec.t,
     tlid: TLID.t,
-    pos: pos,
+    pos: Pos.t,
   }
   let encode = (h: t): Js.Json.t => {
     open Json.Encode
     object_(list{
       ("tlid", TLID.encode(h.tlid)),
-      ("pos", BaseTypes.encodePos(h.pos)),
+      ("pos", Pos.encode(h.pos)),
       ("spec", Spec.encode(h.spec)),
       ("ast", AST.encode(h.ast)),
     })
@@ -494,7 +494,7 @@ module Handler = {
     open Json.Decode
     {
       tlid: field("tlid", TLID.decode, j),
-      pos: field("pos", BaseTypes.decodePos, j),
+      pos: field("pos", Pos.decode, j),
       ast: field("ast", AST.decode, j),
       spec: field("spec", Spec.decode, j),
     }
@@ -554,7 +554,7 @@ module DB = {
     name: blankOr<string>,
     cols: list<Col.t>,
     version: int,
-    pos: pos,
+    pos: Pos.t,
   }
 
   let encode = (db: t): Js.Json.t => {
@@ -583,7 +583,7 @@ module DB = {
     }
     {
       tlid: field("tlid", TLID.decode, j),
-      pos: field("pos", BaseTypes.decodePos, j),
+      pos: field("pos", Pos.decode, j),
       name: name,
       cols: field("cols", list(Col.decode), j),
       version: field("version", int, j),
@@ -757,13 +757,13 @@ module UserType = {
 module Op = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    | SetHandler(TLID.t, pos, Handler.t)
-    | CreateDB(TLID.t, pos, string)
+    | SetHandler(TLID.t, Pos.t, Handler.t)
+    | CreateDB(TLID.t, Pos.t, string)
     | AddDBCol(TLID.t, ID.t, ID.t)
     | SetDBColName(TLID.t, ID.t, string)
     | SetDBColType(TLID.t, ID.t, string)
     | DeleteTL(TLID.t)
-    | MoveTL(TLID.t, pos)
+    | MoveTL(TLID.t, Pos.t)
     | SetFunction(UserFunction.t)
     | ChangeDBColName(TLID.t, ID.t, string)
     | ChangeDBColType(TLID.t, ID.t, string)
@@ -774,7 +774,7 @@ module Op = {
     | DeleteFunction(TLID.t)
     | DeleteDBCol(TLID.t, ID.t)
     | RenameDBname(TLID.t, string)
-    | CreateDBWithBlankOr(TLID.t, pos, ID.t, string)
+    | CreateDBWithBlankOr(TLID.t, Pos.t, ID.t, string)
     | SetType(UserType.t)
     | DeleteType(TLID.t)
 
@@ -807,7 +807,7 @@ module Op = {
     let ev = variant
     let tlid = TLID.encode
     let id = ID.encode
-    let pos = BaseTypes.encodePos
+    let pos = Pos.encode
     switch op {
     | SetHandler(t, p, h) => ev("SetHandler", list{tlid(t), pos(p), Handler.encode(h)})
     | CreateDB(t, p, name) => ev("CreateDB", list{tlid(t), pos(p), string(name)})
@@ -836,7 +836,7 @@ module Op = {
     open Json_decode_extended
     let tlid = TLID.decode
     let id = ID.decode
-    let pos = BaseTypes.decodePos
+    let pos = Pos.decode
     variants(
       list{
         (

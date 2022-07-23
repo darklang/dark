@@ -13,7 +13,7 @@ type model = AppTypes.model
 module Mod = AppTypes.Modification
 module Msg = AppTypes.Msg
 
-let openOmnibox = (~openAt: option<pos>=None, ()): modification => OpenOmnibox(openAt)
+let openOmnibox = (~openAt: option<Pos.t>=None, ()): modification => OpenOmnibox(openAt)
 
 // ---------------------
 // Focus
@@ -315,10 +315,10 @@ let newHandler = (m: model, space, name, modifier, pos) => {
 
 let submitOmniAction = (
   m: model,
-  pos: pos,
+  pos: Pos.t,
   action: AppTypes.AutoComplete.omniAction,
 ): modification => {
-  let pos = {x: pos.x - 17, y: pos.y - 70}
+  let pos: Pos.t = {x: pos.x - 17, y: pos.y - 70}
   let unused = Some("_")
   switch action {
   | NewDB(maybeName) => Refactor.createNewDB(m, maybeName, pos)

@@ -57,7 +57,7 @@ let base64url_bytes = (input: Bytes.t): string =>
 let id = ID.encode
 let tlid = TLID.encode
 
-let pos = BaseTypes.encodePos
+let pos = Pos.encode
 
 let blankOr = BaseTypes.encodeBlankOr
 

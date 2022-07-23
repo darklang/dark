@@ -6,18 +6,18 @@ module Cmd = Tea.Cmd
 type model = AppTypes.model
 type modification = AppTypes.modification
 
-let addPos = (a: pos, b: pos): pos => {x: a.x + b.x, y: a.y + b.y}
+let addPos = (a: Pos.t, b: Pos.t): Pos.t => {x: a.x + b.x, y: a.y + b.y}
 
-let subPos = (a: pos, b: pos): pos => {x: a.x - b.x, y: a.y - b.y}
+let subPos = (a: Pos.t, b: Pos.t): Pos.t => {x: a.x - b.x, y: a.y - b.y}
 
-let toAbsolute = (m: model, pos: AppTypes.VPos.t): pos => {
+let toAbsolute = (m: model, pos: AppTypes.VPos.t): Pos.t => {
   let topleft = m.canvasProps.offset
   addPos({x: pos.vx, y: pos.vy}, topleft)
 }
 
-let toCenteredOn = (pos: pos): pos => subPos(pos, Defaults.centerPos)
+let toCenteredOn = (pos: Pos.t): Pos.t => subPos(pos, Pos.center)
 
-let toCenter = (pos: pos): pos => addPos(pos, Defaults.centerPos)
+let toCenter = (pos: Pos.t): Pos.t => addPos(pos, Pos.center)
 
 let moveCanvasBy = (m: model, x: int, y: int): modification => {
   let (dx, dy) = (x, y)
@@ -47,7 +47,7 @@ let moveRight = (m: model): modification => moveCanvasBy(m, Defaults.moveSize, 0
   min-widths defined in app.less. At some point we will want to find a
   less volatile method for the constant definitions.
 */
-let centerCanvasOn = (tl: toplevel): pos => {
+let centerCanvasOn = (tl: toplevel): Pos.t => {
   let windowWidth = Native.Window.viewportWidth
   let sidebarWidth =
     Native.Ext.querySelector("#sidebar-left")
@@ -114,7 +114,7 @@ let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
   }
 }
 
-let findNewPos = (m: model): pos => {
+let findNewPos = (m: model): Pos.t => {
   open Native
   switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) =>
@@ -140,8 +140,8 @@ let findNewPos = (m: model): pos => {
     | AbridgedMode => 0
     }
 
-    let offset = {x: xOffset, y: 0}
-    addPos(Defaults.centerPos, offset)
+    let offset: Pos.t = {x: xOffset, y: 0}
+    addPos(Pos.center, offset)
   }
 }
 

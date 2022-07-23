@@ -506,7 +506,7 @@ let hasExistingFunctionNamed = (m: model, name: string): bool => {
   Map.has(fns, ~key=name)
 }
 
-let createNewDB = (m: model, maybeName: option<string>, pos: pos): modification => {
+let createNewDB = (m: model, maybeName: option<string>, pos: Pos.t): modification => {
   let name = maybeName |> Option.unwrap(~default=DB.generateDBName())
   if Autocomplete.assertValid(Autocomplete.dbNameValidator, name) != name {
     Model.updateErrorMod(

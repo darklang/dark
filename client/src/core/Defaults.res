@@ -4,10 +4,6 @@ let entryID: string = "entry-box"
 
 let leftButton: int = 0
 
-let centerPos: pos = {x: 475, y: 200}
-
-let origin: pos = {x: 0, y: 0}
-
 let moveSize: int = 50
 
 let pageHeight: int = 400

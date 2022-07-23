@@ -27,7 +27,7 @@ let tlidOption = (j: Js.Json.t): option<TLID.t> => optional(tlid, j)
 let tlidDict = TLID.Dict.decode
 let idMap = ID.Map.decode
 
-let pos = BaseTypes.decodePos
+let pos = Pos.decode
 
 let blankOr = d =>
   variants(list{
@@ -60,19 +60,6 @@ let blankOrData = (j): blankOrData => {
   )
 }
 
-//
-// and entering j =
-// let dv1 = variant1 in
-// let dv2 = variant2 in
-// variants
-// [ ( "Creating"
-// , dv1
-// (fun x -> Creating (if x = Defaults.origin then None else Some x))
-// pos )
-// ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
-// j
-//
-//
 and loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
   variants(
     list{
@@ -83,40 +70,6 @@ and loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
     },
     j,
   )
-// --------------------------
-// Dval (some here because of cyclic dependencies)
-// -------------------------
-
-// let parseBasicDval = (str): RT.Dval.t =>
-//   oneOf(
-//     list{
-//       map(x => DInt(x), int64),
-//       map(x => DFloat(x), Json.Decode.float),
-//       map(x => DBool(x), bool),
-//       nullAs(DNull),
-//       map(x => DStr(x), string),
-//     },
-//     str,
-//   )
-
-// // Ported directly from Dval.parse in the backend
-// let parseDvalLiteral = (str: string): option<RT.Dval.t> =>
-//   switch String.toList(str) {
-//   | list{'\'', c, '\''} => Some(DCharacter(String.fromList(list{c})))
-//   | list{'"', ...rest} =>
-//     if List.last(rest) == Some('"') {
-//       List.initial(rest)
-//       |> Option.unwrap(~default=list{})
-//       |> String.fromList
-//       |> (x => Some(DStr(x)))
-//     } else {
-//       None
-//     }
-//   | _ =>
-//     try Some(parseBasicDval(Json.parseOrRaise(str))) catch {
-//     | _ => None
-//     }
-//   }
 
 let exception_ = (j): exception_ => {
   short: field("short", string, j),

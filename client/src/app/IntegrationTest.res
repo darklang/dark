@@ -438,7 +438,7 @@ let fn_page_returns_to_lastpos = (m: model): testResult =>
     if m.canvasProps.offset == centerPos {
       pass
     } else {
-      fail(~f=show_pos, m.canvasProps.offset)
+      fail(~f=Pos.show, m.canvasProps.offset)
     }
   | None => fail("no tl found")
   }

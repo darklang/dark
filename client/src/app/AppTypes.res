@@ -63,14 +63,14 @@ module CanvasProps = {
 
   @ppx.deriving(show({with_path: false}))
   type rec t = {
-    offset: BaseTypes.pos,
+    offset: Pos.t,
     enablePan: bool,
-    lastOffset: option<BaseTypes.pos>,
+    lastOffset: option<Pos.t>,
     panAnimation: isTransitionAnimated,
   }
 
   let default: t = {
-    offset: Defaults.origin,
+    offset: Pos.origin,
     enablePan: true,
     lastOffset: None,
     panAnimation: DontAnimateTransition,
@@ -180,7 +180,7 @@ module CursorState = {
      * to be at (presumably because they clicked there to get the omnibox),
      * then use it. Otherwise, if there's no position, we'll pick one for them
      * later */
-    | Omnibox(option<BaseTypes.pos>)
+    | Omnibox(option<Pos.t>)
     /* Partially deprecated. This used to indicate when you had selected a
      * blankOr, but were not "entering" it. However, this mostly only made
      * sense for code, and now that code is fluid this is just annoying and
@@ -203,7 +203,7 @@ module CursorState = {
     let ev = variant
     switch cs {
     | Selecting(tlid, mId) => ev("Selecting", list{TLID.encode(tlid), nullable(ID.encode, mId)})
-    | Omnibox(maybePos) => ev("OmniBox", list{nullable(BaseTypes.encodePos, maybePos)})
+    | Omnibox(maybePos) => ev("OmniBox", list{nullable(Pos.encode, maybePos)})
     | Entering(tlid, id) => ev("Entering", list{TLID.encode(tlid), ID.encode(id)})
     | DraggingTL(tlid_, vpos_, hasMoved, cursor) =>
       ev("DraggingTL", list{TLID.encode(tlid_), VPos.encode(vpos_), bool(hasMoved), encode(cursor)})
@@ -227,7 +227,7 @@ module CursorState = {
     variants(
       list{
         ("Selecting", dv2((a, b) => Selecting(a, b), TLID.decode, optional(ID.decode))),
-        ("Omnibox", dv1(x => Omnibox(x), optional(BaseTypes.decodePos))),
+        ("Omnibox", dv1(x => Omnibox(x), optional(Pos.decode))),
         ("Entering", dv2((x, y) => Entering(x, y), TLID.decode, ID.decode)),
         (
           "Dragging",
@@ -647,7 +647,7 @@ module SavedSettings = {
     cursorState: CursorState.t,
     tlTraceIDs: Types.tlTraceIDs,
     handlerProps: TLID.Dict.t<HandlerProperty.t>,
-    canvasPos: BaseTypes.pos,
+    canvasPos: Pos.t,
     lastReload: option<@opaque Js.Date.t>,
     sidebarState: Sidebar.State.t,
     showTopbar: bool,
@@ -660,7 +660,7 @@ module SavedSettings = {
     cursorState: Deselected,
     tlTraceIDs: TLID.Dict.empty,
     handlerProps: TLID.Dict.empty,
-    canvasPos: Defaults.origin,
+    canvasPos: Pos.origin,
     lastReload: None,
     sidebarState: Sidebar.State.default,
     showTopbar: false,
@@ -676,7 +676,7 @@ module SavedSettings = {
       ("cursorState", CursorState.encode(se.cursorState)),
       ("tlTraceIDs", TLID.Dict.encode(string, se.tlTraceIDs)),
       ("handlerProps", TLID.Dict.encode(HandlerProperty.encode, se.handlerProps)),
-      ("canvasPos", BaseTypes.encodePos(se.canvasPos)),
+      ("canvasPos", Pos.encode(se.canvasPos)),
       ("lastReload", nullable(date, se.lastReload)),
       ("sidebarState", Sidebar.State.encode(se.sidebarState)),
       ("showTopbar1", bool(se.showTopbar)),
@@ -710,7 +710,7 @@ module SavedSettings = {
         field("handlerProps", TLID.Dict.decode(HandlerProperty.decode)),
         j,
       ),
-      canvasPos: withDefault(Defaults.origin, field("canvasPos", BaseTypes.decodePos), j),
+      canvasPos: withDefault(Pos.origin, field("canvasPos", Pos.decode), j),
       lastReload: optional(field("lastReload", date), j),
       sidebarState: withDefault(
         Sidebar.State.default,
@@ -931,7 +931,7 @@ module Modification = {
     | Delete404(AnalysisTypes.FourOhFour.t)
     | Enter(TLID.t, ID.t) // Enter a blankOr
     | EnterWithOffset(TLID.t, ID.t, int) // Entering a blankOr with a desired caret offset
-    | OpenOmnibox(option<BaseTypes.pos>) // Open the omnibox
+    | OpenOmnibox(option<Pos.t>) // Open the omnibox
     | UpdateWorkerSchedules(Tc.Map.String.t<string>)
     | NoChange
     | @printer(opaque("MakeCmd")) MakeCmd(Tea.Cmd.t<Msg.t<'model, t<'model>>>)
@@ -945,7 +945,7 @@ module Modification = {
     | SetTLTraceID(TLID.t, TraceID.t)
     | ExecutingFunctionBegan(TLID.t, ID.t)
     | ExecutingFunctionComplete(list<(TLID.t, ID.t)>)
-    | MoveCanvasTo(BaseTypes.pos, CanvasProps.isTransitionAnimated)
+    | MoveCanvasTo(Pos.t, CanvasProps.isTransitionAnimated)
     | UpdateTraces(AnalysisTypes.Traces.t)
     | OverrideTraces(AnalysisTypes.Traces.t)
     | UpdateTraceFunctionResult(TLID.t, TraceID.t, ID.t, string, string, int, RuntimeTypes.Dval.t)

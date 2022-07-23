@@ -272,7 +272,7 @@ let nothingMouseEvent = (name: string): Vdom.property<msg> =>
     }
   )
 
-let placeHtml = (pos: pos, classes: list<'a>, html: list<Html.html<msg>>): Html.html<msg> => {
+let placeHtml = (pos: Pos.t, classes: list<'a>, html: list<Html.html<msg>>): Html.html<msg> => {
   let styles = Html.styles(list{
     ("left", string_of_int(pos.x) ++ "px"),
     ("top", string_of_int(pos.y) ++ "px"),
