@@ -5,35 +5,7 @@ open Json.Decode
 
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
-/* external jsGetFluidSelectionRange :
-  unit -> int array Js.Nullable.t
-  = "getFluidSelectionRange"
-  [@@bs.val] [@@bs.scope "window"] */
-
-let int64 = (j: Js.Json.t) =>
-  if Js.typeof(j) == "string" {
-    Int64.of_string(string(j))
-  } else {
-    // We use `float` as `int` is 32bit, and can't handle the space between 2^32 and
-    // 2^53. `float` here can be considered to be `int53`, since we know we're
-    // getting whole integers as anything that doesn't fit in the integer portion of
-    // a float is expected to be encoded as a string
-    Int64.of_float(Json.Decode.float(j))
-  }
-
-let id = ID.decode
-let tlid = TLID.decode
-let tlidOption = (j: Js.Json.t): option<TLID.t> => optional(tlid, j)
-let tlidDict = TLID.Dict.decode
-let idMap = ID.Map.decode
-
-let pos = Pos.decode
-
-let traceID = (j): traceID => string(j)
-
-let jsDate = (j): Js.Date.t => Js.Date.fromString(string(j))
-
-and loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
+let loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
   variants(
     list{
       ("LoadableSuccess", variant1(a => LoadableSuccess(a), decoder)),
