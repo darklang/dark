@@ -33,7 +33,7 @@ let run = () => {
         )
       )
       test("DHttpResponse shape", () =>
-        expect("[\"DHttpResponse\",[[\"Response\",401,[]],[\"DNull\"]]]") |> toEqual(
+        expect("[\"DHttpResponse\",[\"Response\",401,[],[\"DNull\"]]]") |> toEqual(
           RT.Dval.DHttpResponse(Response(401L, list{}, DNull))
           |> RT.Dval.encode
           |> Js.Json.stringify,
