@@ -4419,7 +4419,7 @@
         ]
       }
     ],
-    "deleted_handlers": [
+    "deletedHandlers": [
       {
         "tlid": 92987663,
         "pos": {
@@ -9011,7 +9011,7 @@
         ]
       }
     ],
-    "deleted_dbs": [
+    "deletedDBs": [
       {
         "tlid": 0,
         "pos": {
@@ -9184,7 +9184,7 @@
         ]
       }
     ],
-    "user_functions": [
+    "userFunctions": [
       {
         "tlid": 0,
         "name": "myFunc",
@@ -10091,7 +10091,7 @@
         ]
       }
     ],
-    "deleted_user_functions": [
+    "deletedUserFunctions": [
       {
         "tlid": 0,
         "name": "myFunc",
@@ -10998,7 +10998,7 @@
         ]
       }
     ],
-    "user_tipes": [
+    "userTypes": [
       {
         "tlid": 0,
         "name": "User",
@@ -11156,7 +11156,7 @@
         ]
       }
     ],
-    "deleted_user_tipes": [
+    "deletedUserTypes": [
       {
         "tlid": 0,
         "name": "User",
@@ -13735,6 +13735,6 @@
       ]
     ],
     "opCtr": 0,
-    "clientOpCtrId": null
+    "clientOpCtrID": null
   }
 }
