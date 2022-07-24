@@ -122,11 +122,11 @@ let isComplete = (dv: RT.Dval.t): bool =>
   }
 
 let parseBasicDval = (str): RT.Dval.t => {
-  open Json.Decode
+  open Json_decode_extended
   oneOf(
     list{
       map(x => RT.Dval.DInt(x), int64),
-      map(x => RT.Dval.DFloat(x), Json.Decode.float),
+      map(x => RT.Dval.DFloat(x), float'),
       map(x => RT.Dval.DBool(x), bool),
       nullAs(RT.Dval.DNull),
       map(x => RT.Dval.DStr(x), string),

@@ -110,6 +110,18 @@ let uint64 = (j: Js.Json.t): UInt64.t =>
     j->Json.Decode.float->UInt64.fromFloat
   }
 
+let float' = (j: Js.Json.t): float =>
+  if Js.typeof(j) == "string" {
+    switch Obj.magic(j) {
+    | "Infinity" => Float.infinity
+    | "-Infinity" => Float.negativeInfinity
+    | "NaN" => Float.nan
+    | _ => Recover.recover(~debug=j, "Unexpected float string", Float.nan)
+    }
+  } else {
+    Json.Decode.float(j)
+  }
+
 let tuple5 = (decodeA, decodeB, decodeC, decodeD, decodeE, json) =>
   if Js.Array.isArray(json) {
     let source: array<Js.Json.t> = Obj.magic((json: Js.Json.t))

@@ -70,6 +70,8 @@ let uint64: decoder<UInt64.t>
 
 let date: decoder<Js.Date.t>
 
+let float': decoder<float>
+
 let tuple5: (
   decoder<'a>,
   decoder<'b>,

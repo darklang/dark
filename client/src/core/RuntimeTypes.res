@@ -167,7 +167,7 @@ module Pattern = {
         ("PInteger", dv2((a, b) => PInteger(a, b), ID.decode, int64)),
         ("PBool", dv2((a, b) => PBool(a, b), ID.decode, bool)),
         ("PString", dv2((a, b) => PString(a, b), ID.decode, string)),
-        ("PFloat", dv2((a, b) => PFloat(a, b), ID.decode, Json.Decode.float)),
+        ("PFloat", dv2((a, b) => PFloat(a, b), ID.decode, Json_decode_extended.float')),
         ("PNull", dv1(a => PNull(a), ID.decode)),
         ("PBlank", dv1(a => PBlank(a), ID.decode)),
       },
@@ -260,7 +260,7 @@ module Expr = {
         ("EInteger", dv2((x, y) => EInteger(x, y), ID.decode, int64)),
         ("EBool", dv2((x, y) => EBool(x, y), ID.decode, bool)),
         ("EString", dv2((x, y) => EString(x, y), ID.decode, string)),
-        ("EFloat", dv2((a, b) => EFloat(a, b), ID.decode, Json.Decode.float)),
+        ("EFloat", dv2((a, b) => EFloat(a, b), ID.decode, Json_decode_extended.float')),
         ("ENull", dv1(x => ENull(x), ID.decode)),
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
         ("ELet", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, string, de, de)),
@@ -479,7 +479,7 @@ module Dval = {
     variants(
       list{
         ("DInt", dv1(x => DInt(x), int64)),
-        ("DFloat", dv1(x => DFloat(x), Json.Decode.float)),
+        ("DFloat", dv1(x => DFloat(x), Json_decode_extended.float')),
         ("DBool", dv1(x => DBool(x), bool)),
         ("DChar", dv1(x => DChar(x), string)),
         ("DNull", dv0(DNull)),
