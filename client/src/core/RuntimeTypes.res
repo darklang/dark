@@ -448,7 +448,7 @@ module Dval = {
     }
   }
 
-  and decode = (j): t => {
+  let rec decode = (j: Js.Json.t): t => {
     open Json_decode_extended
     let dv0 = variant0
     let dv1 = variant1
