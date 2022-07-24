@@ -148,7 +148,7 @@ module Pattern = {
       ev("PConstructor", list{ID.encode(id'), string(name), list(ep, patterns)})
     | PInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
     | PBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
-    | PFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json.Encode.float(v)})
+    | PFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
     | PString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
     | PNull(id') => ev("PNull", list{ID.encode(id')})
     | PBlank(id') => ev("PBlank", list{ID.encode(id')})
@@ -314,7 +314,7 @@ module Expr = {
     | EString(id, v) => ev("EString", list{ID.encode(id), string(v)})
     | EInteger(id, v) => ev("EInteger", list{ID.encode(id), int64(v)})
     | EBool(id, v) => ev("EBool", list{ID.encode(id), bool(v)})
-    | EFloat(id, v) => ev("EFloat", list{ID.encode(id), Json.Encode.float(v)})
+    | EFloat(id, v) => ev("EFloat", list{ID.encode(id), Json_encode_extended.float'(v)})
     | ENull(id) => ev("ENull", list{ID.encode(id)})
     | EBlank(id) => ev("EBlank", list{ID.encode(id)})
     | EVariable(id, name) => ev("EVariable", list{ID.encode(id), string(name)})
@@ -520,7 +520,7 @@ module Dval = {
 
     switch dv {
     | DInt(i) => ev("DInt", list{int64(i)})
-    | DFloat(f) => ev("DFloat", list{Json.Encode.float(f)})
+    | DFloat(f) => ev("DFloat", list{Json_encode_extended.float'(f)})
     | DBool(b) => ev("DBool", list{bool(b)})
     | DChar(b) => ev("DChar", list{string(b)})
     | DNull => ev("DNull", list{})

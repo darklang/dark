@@ -32,6 +32,17 @@ let uint64 = (i: UInt64.t) =>
   | None => i->UInt64.toString->string
   }
 
+let float' = (f: float): Js.Json.t =>
+  if Js.Float.isNaN(f) {
+    string("NaN")
+  } else if f == Tc.Float.infinity {
+    string("Infinity")
+  } else if f == Tc.Float.negativeInfinity {
+    string("-Infinity")
+  } else {
+    Json.Encode.float(f)
+  }
+
 let result = (fOk, fErr, result): Js.Json.t =>
   switch result {
   | Ok(v) => variant("Ok", list{fOk(v)})
