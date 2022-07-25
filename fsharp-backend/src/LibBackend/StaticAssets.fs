@@ -126,7 +126,6 @@ let allDeploysInCanvas
 let startStaticAssetDeploy
   (user : Account.UserInfo)
   (canvasID : CanvasID)
-  (canvasName : CanvasName.T)
   : Task<string> =
 
   // we include .fff (milliseconds) to ensure we don't encoutner conflicts,

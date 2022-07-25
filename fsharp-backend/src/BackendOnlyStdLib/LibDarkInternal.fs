@@ -777,9 +777,7 @@ human-readable data."
               match! Account.getUser (UserName.create username) with
               | None -> return DResult(Error(DStr "User not found"))
               | Some user ->
-                let! canvasMeta = Canvas.getMetaFromID canvasID
-                let! deployHash =
-                  StaticAssets.startStaticAssetDeploy user canvasID canvasMeta.name
+                let! deployHash = StaticAssets.startStaticAssetDeploy user canvasID
                 return DResult(Ok(DStr deployHash))
             }
           | _ -> incorrectArgs ())
