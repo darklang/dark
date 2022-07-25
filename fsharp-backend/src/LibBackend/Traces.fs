@@ -60,15 +60,12 @@ let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
 
 let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
-  | PT.Handler.HTTPLegacy (route, _, _) ->
-    route
-    |> Routing.routeVariables
-    |> List.map (fun k -> (k, RT.DIncomplete RT.SourceNone))
-
+  | PT.Handler.HTTPLegacy (route, _, _)
   | PT.Handler.HTTPBytes (route, _, _) ->
     route
     |> Routing.routeVariables
     |> List.map (fun k -> (k, RT.DIncomplete RT.SourceNone))
+
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _
   | PT.Handler.Cron _
@@ -88,28 +85,7 @@ let savedInputVars
   (event : RT.Dval)
   : AT.InputVars =
   match h.spec with
-  | PT.Handler.HTTPLegacy (route, _, _) ->
-    let boundRouteVariables =
-      if route <> "" then
-        // Check the trace actually matches the route, if not the client
-        // has made a mistake in matching the traceid to this handler, but
-        // that might happen due to a race condition. If it does, carry
-        // on, if it doesn't -- just don't do any bindings and inject the
-        // sample variables. Communicating to the frontend that this
-        // trace doesn't match the handler should be done in the future
-        // somehow. TODO
-        if Routing.requestPathMatchesRoute route requestPath then
-          Routing.routeInputVars route requestPath
-          |> Exception.unwrapOptionInternal
-               "invalid routeInputVars"
-               [ "route", route; "requestPath", requestPath ]
-        else
-          sampleRouteInputVars h
-      else
-        []
-
-    [ ("request", event) ] @ boundRouteVariables
-
+  | PT.Handler.HTTPLegacy (route, _, _)
   | PT.Handler.HTTPBytes (route, _, _) ->
     let boundRouteVariables =
       if route <> "" then
@@ -201,7 +177,8 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
         |> List.filterMap (fun (traceID, path) ->
 
           match h.spec with
-          | PT.Handler.Spec.HTTPLegacy _ ->
+          | PT.Handler.Spec.HTTPLegacy _
+          | PT.Handler.Spec.HTTPBytes _ ->
             // Ensure we only return trace_ids that would bind to this
             // handler if the trace was executed for real now. (There
             // may be other handlers which also match the route)
@@ -212,9 +189,6 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
             |> List.head
             |> Option.bind (fun matching ->
               if matching.tlid = h.tlid then Some traceID else None)
-
-          // HttpBytesTODO we eventually need to actually load traces
-          | PT.Handler.Spec.HTTPBytes _ -> Some traceID
 
           | PT.Handler.Spec.Worker _
           | PT.Handler.Spec.OldWorker _
