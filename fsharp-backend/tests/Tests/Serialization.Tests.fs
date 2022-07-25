@@ -290,15 +290,16 @@ module Values =
     let spec = PT.Handler.UnknownHandler("name", "", testHandlerIDs)
     { spec = spec; tlid = 13633UL; ast = testExpr; pos = testPos }
 
+  let testHandlersWithName : List<string * PT.Handler.T> =
+    [ "Http", testHttpHandler
+      "Worker", testWorker
+      "Cron1", testCron1
+      "Cron2", testCron2
+      "REPL", testRepl
+      "Unknown", testUnknownHandler
+      "OldWorker", testOldWorker ]
 
-  let testHandlers : List<PT.Handler.T> =
-    [ testHttpHandler
-      testWorker
-      testCron1
-      testCron2
-      testRepl
-      testUnknownHandler
-      testOldWorker ]
+  let testHandlers = List.map snd testHandlersWithName
 
   let testDval =
     sampleDvals
@@ -610,7 +611,8 @@ module GenericSerializersTests =
 
       both<ORT.dval> "complete" testOCamlDval
       both<RT.Dval> "complete" testDval
-      testHandlers |> List.iteri (fun i h -> oc<PT.Handler.T> $"handlers[{i}]" h)
+      testHandlersWithName
+      |> List.iter (fun (name, handler) -> oc<PT.Handler.T> name handler)
       // v<OT.oplist> "all" testOCamlOplist
 
       v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
