@@ -22,6 +22,16 @@ let enteringCS = (~tlid=defaultTLID, ~id=defaultID, ()): AppTypes.CursorState.t 
   id,
 )
 
+let defaultHTTPSpec = PT.Handler.Spec.newHTTP("/", "GET")
+
+let defaultREPLSpec = PT.Handler.Spec.newREPL("adjectiveNoun")
+
+let defaultCronSpec = PT.Handler.Spec.newCron("daily", Some(PT.Handler.Spec.CronInterval.EveryDay))
+
+let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
+
+let defaultSpec = defaultHTTPSpec
+
 let omniboxCS: AppTypes.CursorState.t = Omnibox(None)
 
 // Sets the model with the appropriate toplevels
@@ -44,20 +54,7 @@ let defaultModel = (
   }
 }
 
-let aHandler = (
-  ~tlid=defaultTLID,
-  ~expr=defaultExpr,
-  ~space: option<string>=None,
-  ~name: option<string>=None,
-  ~modifier: option<string>=None,
-  (),
-): PT.Handler.t => {
-  let spec: PT.Handler.Spec.t = {
-    space: B.ofOption(space),
-    name: B.ofOption(name),
-    modifier: B.ofOption(modifier),
-  }
-
+let aHandler = (~tlid=defaultTLID, ~expr=defaultExpr, ~spec=defaultSpec, ()): PT.Handler.t => {
   {ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: {x: 0, y: 0}}
 }
 
@@ -141,12 +138,12 @@ let enteringDBType = (
     (),
   )
 
-let enteringHandler = (~space: option<string>=None, ()): model =>
-  defaultModel(~cursorState=enteringCS(), ~handlers=list{aHandler(~space, ())}, ())
+let enteringHandler = (~spec=defaultSpec, ()): model =>
+  defaultModel(~cursorState=enteringCS(), ~handlers=list{aHandler(~spec, ())}, ())
 
-let enteringEventNameHandler = (~space: option<string>=None, ()): model => {
-  let handler = aHandler(~space, ())
-  let id = B.toID(handler.spec.name)
+let enteringEventNameHandler = (~spec=defaultSpec, ()): model => {
+  let handler = aHandler(~spec, ())
+  let id = PT.Handler.Spec.ids(spec).nameID
   defaultModel(~cursorState=enteringCS(~id, ()), ~handlers=list{handler}, ())
 }
 
@@ -184,8 +181,7 @@ let run = () => {
       ()
     })
     describe("validate httpName varnames", () => {
-      let space = Some("HTTP")
-      let tl = TLHandler(aHandler(~space, ()))
+      let tl = TLHandler(aHandler())
       let pd = PEventName(B.F(ID.fromInt(0), "foo"))
       test("/foo/bar is valid, no variables", () => {
         let value = "/foo/bar"
@@ -203,8 +199,7 @@ let run = () => {
       })
     })
     describe("validate Worker names", () => {
-      let space = Some("WORKER")
-      let tl = TLHandler(aHandler(~space, ()))
+      let tl = TLHandler(aHandler(~spec=defaultWorkerSpec, ()))
       let pd = PEventName(B.F(ID.fromInt(0), "foo"))
       test("foo is valid", () => {
         let value = "/foo/bar"
@@ -218,8 +213,7 @@ let run = () => {
       })
     })
     describe("validate CRON intervals", () => {
-      let space = Some("CRON")
-      let tl = TLHandler(aHandler(~space, ()))
+      let tl = TLHandler(aHandler(~spec=defaultCronSpec, ()))
       let pd = PEventModifier(B.F(ID.fromInt(0), "5mins"))
       test("Every 1hr is valid", () => {
         let value = "Every 1hr"
@@ -355,7 +349,7 @@ let run = () => {
         ) |> toEqual(list{"String", "[String]", "Password", "[Password]"})
       )
       test("autocomplete does not have slash when handler is not HTTP", () => {
-        let m = enteringEventNameHandler(~space=Some("HANDLER"), ())
+        let m = enteringEventNameHandler(~spec=defaultWorkerSpec, ())
         expect(acFor(m) |> setQuery(m, "") |> itemPresent(ACHTTPRoute("/")) |> not) |> toEqual(true)
       })
       test("autocomplete supports password type", () => {
@@ -531,18 +525,14 @@ let run = () => {
     describe("code search", () => {
       let http = aHandler(
         ~tlid=TLID.fromInt(123),
-        ~space=Some("HTTP"),
-        ~name=Some("/hello"),
-        ~modifier=Some("GET"),
+        ~spec=PT.Handler.Spec.newHTTP("/hello", "GET"),
         ~expr=EFieldAccess(gid(), EVariable(gid(), "request"), "queryParams"),
         (),
       )
 
       let repl = aHandler(
         ~tlid=TLID.fromInt(456),
-        ~space=Some("REPL"),
-        ~name=Some("findingDori"),
-        ~modifier=Some("_"),
+        ~spec=PT.Handler.Spec.newREPL("findingDori"),
         ~expr=FluidShortcuts.fn(~mod="Int", "add", list{}),
         (),
       )

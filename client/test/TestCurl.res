@@ -13,7 +13,7 @@ let http = (~path: string, ~meth="GET", ()): PT.Handler.t => {
   ast: FluidAST.ofExpr(EBlank(gid())),
   tlid: defaultTLID,
   pos: {x: 0, y: 0},
-  spec: {space: B.newF("HTTP"), name: B.newF(path), modifier: B.newF(meth)},
+  spec: PT.Handler.Spec.newHTTP(path, meth),
 }
 
 // Sets the model with the appropriate toplevels
@@ -80,11 +80,10 @@ let run = () => {
         ast: FluidAST.ofExpr(EBlank(gid())),
         tlid: cronTLID,
         pos: {x: 0, y: 0},
-        spec: {
-          space: B.newF("CRON"),
-          name: B.newF("cleanKitchen"),
-          modifier: B.newF("Fortnightly"),
-        },
+        spec: PT.Handler.Spec.newCron(
+          "cleanKitchen",
+          Some(PT.Handler.Spec.CronInterval.EveryFortnight),
+        ),
       }
 
       let m1 = {...m, handlers: Handlers.fromList(list{cron})}

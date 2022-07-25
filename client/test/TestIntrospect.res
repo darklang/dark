@@ -9,11 +9,7 @@ let run = () => {
     let h1tlid = gtlid()
     let h1data: PT.Handler.t = {
       ast: FluidAST.ofExpr(EBlank(gid())),
-      spec: {
-        space: B.newF("WORKER"),
-        name: B.newF("processOrder"),
-        modifier: B.new_(),
-      },
+      spec: PT.Handler.Spec.newWorker("processOrder"),
       tlid: h1tlid,
       pos: {x: 0, y: 0},
     }
@@ -29,11 +25,7 @@ let run = () => {
           NoRail,
         ),
       ),
-      spec: {
-        space: B.newF("HTTP"),
-        name: B.newF("/hello"),
-        modifier: B.newF("GET"),
-      },
+      spec: PT.Handler.Spec.newHTTP("/hello", "GET"),
       tlid: h2tlid,
       pos: {x: 0, y: 0},
     }

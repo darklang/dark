@@ -68,30 +68,26 @@ let curlFromSpec = (m: AppTypes.model, tlid: TLID.t): option<string> =>
   TL.get(m, tlid)
   |> Option.andThen(~f=TL.asHandler)
   |> Option.andThen(~f=(h: PT.Handler.t) => {
-    let s = h.spec
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, "HTTP"), F(_, path), F(_, meth)) =>
+    switch h.spec {
+    | PT.Handler.Spec.HTTP(path, method, _) =>
       let proto = if m.environment == "production" {
         "https"
       } else {
         "http"
       }
 
-      let route = proto ++ ("://" ++ (m.canvasName ++ ("." ++ (m.userContentHost ++ path))))
+      let route = `${proto}://${m.canvasName}.${m.userContentHost}${path}`
 
-      switch meth {
-      | "GET" => Some("curl " ++ route)
-      | _ => Some("curl -X " ++ (meth ++ (" -H 'Content-Type: application/json' " ++ route)))
+      switch method {
+      | "GET" => Some(`curl ${route}`)
+      | _ => Some(`curl -X ${method} -H 'Content-Type: application/json' ${route}`)
       }
     | _ => None
     }
   })
 
-/* Constructs curl command from analysis dict.
-  headers (which includes cookies),
-  fullBody (for both formBody and jsonBody),
-  url (which includes queryParams)
-*/
+// Constructs curl command from analysis dict, headers (which includes cookies),
+// fullBody (for both formBody and jsonBody), url (which includes queryParams)
 let curlFromCurrentTrace = (m: AppTypes.model, tlid: TLID.t): option<string> => {
   let wrapInList = o => o |> Option.andThen(~f=v => Some(list{v})) |> Option.unwrap(~default=list{})
 
@@ -117,7 +113,7 @@ let curlFromCurrentTrace = (m: AppTypes.model, tlid: TLID.t): option<string> => 
         let meth =
           TL.get(m, tlid)
           |> Option.andThen(~f=TL.asHandler)
-          |> Option.andThen(~f=(h: PT.Handler.t) => B.toOption(h.spec.modifier))
+          |> Option.andThen(~f=(h: PT.Handler.t) => PT.Handler.Spec.modifier(h.spec))
           |> Option.andThen(~f=s => Some("-X " ++ s))
           |> wrapInList
 

@@ -137,8 +137,14 @@ let handlerCategory = (
     tooltip: setTooltips(tooltip, handlers),
     entries: List.map(handlers, ~f=h => {
       let tlid = h.tlid
+      let name = PT.Handler.Spec.name(h.spec)
+      let name = if name == "" {
+        missingEventRouteDesc
+      } else {
+        name
+      }
       Entry({
-        name: h.spec.name |> B.toOption |> Option.unwrap(~default=missingEventRouteDesc),
+        name: name,
         uses: None,
         identifier: Tlid(tlid),
         onClick: Destination(FocusedHandler(tlid, None, true)),
@@ -146,7 +152,7 @@ let handlerCategory = (
         killAction: Some(ToplevelDeleteForever(tlid)),
         plusButton: None,
         verb: if TL.isHTTPHandler(TLHandler(h)) {
-          B.toOption(h.spec.modifier)
+          h.spec->PT.Handler.Spec.modifier
         } else {
           None
         },
@@ -222,12 +228,12 @@ let f404Category = (m: model): category => {
       m.deletedHandlers
       |> Map.values
       |> List.map(~f=(h: PT.Handler.t) => {
-        let space = B.valueWithDefault("", h.spec.space)
-        let name = B.valueWithDefault("", h.spec.name)
-        let modifier = B.valueWithDefault("", h.spec.modifier)
-        /* Note that this concatenated string gets compared to `space ^ path ^ modifier` later.
-         * h.spec.name and f404.path are the same thing, with different names. Yes this is confusing. */
-        space ++ (name ++ modifier)
+        let space = h.spec->PT.Handler.Spec.space->Belt.Option.getWithDefault("")
+        let name = h.spec->PT.Handler.Spec.name
+        let modifier = h.spec->PT.Handler.Spec.modifier->Belt.Option.getWithDefault("")
+        // Note that this concatenated string gets compared to `space ^ path ^ modifier` later.
+        // h.spec.name and f404.path are the same thing, with different names. Yes this is confusing.
+        space ++ name ++ modifier
       })
       |> Set.String.fromList
 

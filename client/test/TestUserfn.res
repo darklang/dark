@@ -11,19 +11,9 @@ let defaultFluidExpr = ProgramTypes.Expr.EBlank(gid())
 
 let defaultFnName = "myFun"
 
-let aHandler = (
-  ~tlid=defaultTLID,
-  ~expr=defaultFluidExpr,
-  ~pos=Pos.center,
-  ~space: option<string>=None,
-  (),
-): toplevel => {
-  let space = switch space {
-  | None => B.new_()
-  | Some(name) => B.newF(name)
-  }
-  let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
-  TLHandler({ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: pos})
+let aHandler = (~tlid=defaultTLID, ()): toplevel => {
+  let spec = PT.Handler.Spec.HTTP("", "", {moduleID: gid(), modifierID: gid(), nameID: gid()})
+  TLHandler({ast: FluidAST.ofExpr(defaultFluidExpr), spec: spec, tlid: tlid, pos: Pos.center})
 }
 
 let aFn = (

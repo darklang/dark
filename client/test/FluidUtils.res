@@ -22,9 +22,5 @@ let h = (expr: FluidExpression.t): PT.Handler.t => {
   ast: FluidAST.ofExpr(expr),
   tlid: TLID.fromInt(7),
   pos: {x: 0, y: 0},
-  spec: {
-    space: BlankOr.newF("HTTP"),
-    name: BlankOr.newF("/test"),
-    modifier: BlankOr.newF("GET"),
-  },
+  spec: HTTP("/test", "GET", {moduleID: gid(), modifierID: gid(), nameID: gid()}),
 }

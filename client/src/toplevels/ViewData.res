@@ -202,8 +202,8 @@ let viewData = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
     vp.tl
     |> TL.asHandler
     |> Option.andThen(~f=(h: PT.Handler.t) =>
-      switch (h.spec.space, h.spec.name) {
-      | (F(_, "WORKER"), F(_, name)) => Some(pauseWorkerButton(vp, name))
+      switch h.spec {
+      | PT.Handler.Spec.Worker(name, _) => Some(pauseWorkerButton(vp, name))
       | _ => None
       }
     )

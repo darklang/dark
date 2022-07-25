@@ -14,15 +14,17 @@ let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   )
   |> Map.String.fromList
 
-let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> =>
+let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> => {
+  module S = PT.Handler.Spec
   hs
   |> Map.mapValues(~f=(h: PT.Handler.t) => {
-    let space = h.spec.space |> B.toOption |> Option.unwrap(~default="_")
-    let name = h.spec.name |> B.toOption |> Option.unwrap(~default="_")
+    let space = S.space(h.spec)->Belt.Option.getWithDefault("")
+    let name = S.name(h.spec)
     let key = keyForHandlerSpec(space, name)
     (key, h.tlid)
   })
   |> Map.String.fromList
+}
 
 let functionsByName = (fns: TD.t<PT.UserFunction.t>): Map.String.t<TLID.t> =>
   fns

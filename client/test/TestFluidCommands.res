@@ -6,11 +6,7 @@ open FluidShortcuts
 
 let makeTL = ast => TLHandler({
   ast: ast,
-  spec: {
-    space: Blank(gid()),
-    name: Blank(gid()),
-    modifier: Blank(gid()),
-  },
+  spec: PT.Handler.Spec.newHTTP("", ""),
   tlid: TLID.fromInt(7),
   pos: Pos.origin,
 })

@@ -13,7 +13,7 @@ type model = AppTypes.model
 // -------------------------
 let name = (tl: toplevel): string =>
   switch tl {
-  | TLHandler(h) => "H: " ++ (h.spec.name |> B.toOption |> Option.unwrap(~default=""))
+  | TLHandler(h) => "H: " ++ PT.Handler.Spec.name(h.spec)
   | TLDB(db) => "DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default=""))
   | TLPmFunc(fn) => "Package Manager Func: " ++ PT.FQFnName.PackageFnName.toString(fn.name)
   | TLFunc(f) => "Func: " ++ (f.metadata.name |> B.toOption |> Option.unwrap(~default=""))
@@ -23,9 +23,9 @@ let name = (tl: toplevel): string =>
 let sortkey = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) =>
-    (h.spec.space |> B.toOption |> Option.unwrap(~default="Undefined")) ++
-      ((h.spec.name |> B.toOption |> Option.unwrap(~default="Undefined")) ++
-      (h.spec.modifier |> B.toOption |> Option.unwrap(~default="")))
+    PT.Handler.Spec.space(h.spec)->Belt.Option.getWithDefault("Undefined") ++
+    PT.Handler.Spec.name(h.spec) ++
+    PT.Handler.Spec.modifier(h.spec)->Belt.Option.getWithDefault("Undefined")
   | TLDB(db) => db.name |> B.toOption |> Option.unwrap(~default="Undefined")
   | TLPmFunc(f) => PT.FQFnName.PackageFnName.toString(f.name)
   | TLFunc(f) => f.metadata.name |> B.toOption |> Option.unwrap(~default="")
@@ -140,16 +140,54 @@ let spaceOfHandler = (h: PT.Handler.t): handlerSpace => SpecHeaders.spaceOf(h.sp
 let spaceOf = (tl: toplevel): option<handlerSpace> =>
   tl |> asHandler |> Option.map(~f=spaceOfHandler)
 
-let isHTTPHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSHTTP))
+let isHTTPHandler = (tl: toplevel): bool =>
+  switch asHandler(tl) {
+  | Some(h) =>
+    switch h.spec {
+    | PT.Handler.Spec.HTTP(_) => true
+    | _ => false
+    }
+  | None => false
+  }
 
-let isCronHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSCron))
-
-let isWorkerHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSWorker))
-
-let isReplHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSRepl))
+let isReplHandler = (tl: toplevel): bool =>
+  switch asHandler(tl) {
+  | Some(h) =>
+    switch h.spec {
+    | PT.Handler.Spec.REPL(_) => true
+    | _ => false
+    }
+  | None => false
+  }
+let isCronHandler = (tl: toplevel): bool =>
+  switch asHandler(tl) {
+  | Some(h) =>
+    switch h.spec {
+    | PT.Handler.Spec.Cron(_) => true
+    | _ => false
+    }
+  | None => false
+  }
+let isWorkerHandler = (tl: toplevel): bool =>
+  switch asHandler(tl) {
+  | Some(h) =>
+    switch h.spec {
+    | PT.Handler.Spec.Worker(_) => true
+    | _ => false
+    }
+  | None => false
+  }
 
 let isDeprecatedCustomHandler = (tl: toplevel): bool =>
-  tl |> spaceOf |> \"="(Some(HSDeprecatedOther))
+  switch asHandler(tl) {
+  | Some(h) =>
+    switch h.spec {
+    | PT.Handler.Spec.OldWorker(_) => true
+    | PT.Handler.Spec.UnknownHandler(_) => true
+    | _ => false
+    }
+  | None => false
+  }
 
 let toOp = (tl: toplevel): list<PT.Op.t> =>
   switch tl {

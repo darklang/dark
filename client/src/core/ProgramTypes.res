@@ -439,35 +439,196 @@ module AST = {
 
 module Handler = {
   module Spec = {
-    @ppx.deriving(show({with_path: false}))
-    type rec t = {
-      space: BlankOr.t<string>,
-      name: BlankOr.t<string>,
-      modifier: BlankOr.t<string>,
+    module CronInterval = {
+      @ppx.deriving(show({with_path: false}))
+      type rec t =
+        | EveryDay
+        | EveryWeek
+        | EveryFortnight
+        | EveryHour
+        | Every12Hours
+        | EveryMinute
+
+      let encode = (i: t): Js.Json.t => {
+        open Json_encode_extended
+        let ev = variant
+        switch i {
+        | EveryDay => ev("EveryDay", list{})
+        | EveryWeek => ev("EveryWeek", list{})
+        | EveryFortnight => ev("EveryFortnight", list{})
+        | EveryHour => ev("EveryHour", list{})
+        | Every12Hours => ev("Every12Hours", list{})
+        | EveryMinute => ev("EveryMinute", list{})
+        }
+      }
+
+      let decode = (j): t => {
+        open Json_decode_extended
+        let dv0 = variant0
+        variants(
+          list{
+            ("EveryDay", dv0(EveryDay)),
+            ("EveryWeek", dv0(EveryWeek)),
+            ("EveryFortnight", dv0(EveryFortnight)),
+            ("EveryHour", dv0(EveryHour)),
+            ("Every12Hours", dv0(Every12Hours)),
+            ("EveryMinute", dv0(EveryMinute)),
+          },
+          j,
+        )
+      }
+
+      let toString = (i: t): string => {
+        switch i {
+        | EveryDay => "EveryDay"
+        | EveryWeek => "EveryWeek"
+        | EveryFortnight => "EveryFortnight"
+        | EveryHour => "EveryHour"
+        | Every12Hours => "Every12Hours"
+        | EveryMinute => "EveryMinute"
+        }
+      }
+      let fromString = (i: string): option<t> => {
+        switch i {
+        | "EveryDay" => Some(EveryDay)
+        | "EveryWeek" => Some(EveryWeek)
+        | "EveryFortnight" => Some(EveryFortnight)
+        | "EveryHour" => Some(EveryHour)
+        | "Every12Hours" => Some(Every12Hours)
+        | "EveryMinute" => Some(EveryMinute)
+        | _ => None
+        }
+      }
     }
 
+    module IDs = {
+      @ppx.deriving(show({with_path: false}))
+      type rec t = {moduleID: ID.t, nameID: ID.t, modifierID: ID.t}
+
+      let encode = ({moduleID, nameID, modifierID}) => {
+        open Json_encode_extended
+        object_(list{
+          ("moduleID", ID.encode(moduleID)),
+          ("nameID", ID.encode(nameID)),
+          ("modifierID", ID.encode(modifierID)),
+        })
+      }
+
+      let decode = j => {
+        open Json_decode_extended
+        {
+          moduleID: field("moduleID", ID.decode, j),
+          nameID: field("nameID", ID.decode, j),
+          modifierID: field("modifierID", ID.decode, j),
+        }
+      }
+      let new = (): t => {
+        moduleID: ID.generate(),
+        nameID: ID.generate(),
+        modifierID: ID.generate(),
+      }
+    }
+
+    @ppx.deriving(show({with_path: false}))
+    type rec t =
+      | HTTP(string, string, IDs.t)
+      | Worker(string, IDs.t)
+      | OldWorker(string, string, IDs.t)
+      | Cron(string, option<CronInterval.t>, IDs.t)
+      | REPL(string, IDs.t)
+      | UnknownHandler(string, string, IDs.t)
+
     let encode = (spec: t): Js.Json.t => {
-      open Json.Encode
-      object_(list{
-        ("name", BlankOr.encode(string, spec.name)),
-        ("module", BlankOr.encode(string, spec.space)),
-        ("modifier", BlankOr.encode(string, spec.modifier)),
-        (
-          "types",
-          object_(list{
-            ("input", BlankOr.encode(int, BlankOr.Blank(ID.generate()))),
-            ("output", BlankOr.encode(int, BlankOr.Blank(ID.generate()))),
-          }),
-        ),
-      })
+      open Json_encode_extended
+      let ev = variant
+      switch spec {
+      | HTTP(name, mod, ids) => ev("HTTP", list{string(name), string(mod), IDs.encode(ids)})
+      | Worker(name, ids) => ev("Worker", list{string(name), IDs.encode(ids)})
+      | OldWorker(space, name, ids) =>
+        ev("OldWorker", list{string(space), string(name), IDs.encode(ids)})
+      | Cron(name, interval, ids) =>
+        ev("HTTP", list{string(name), nullable(CronInterval.encode, interval), IDs.encode(ids)})
+      | REPL(name, ids) => ev("REPL", list{string(name), IDs.encode(ids)})
+      | UnknownHandler(name, mod, ids) =>
+        ev("UnknownHandler", list{string(name), string(mod), IDs.encode(ids)})
+      }
     }
     let decode = (j): t => {
       open Json_decode_extended
-      {
-        space: field("module", BlankOr.decode(string), j),
-        name: field("name", BlankOr.decode(string), j),
-        modifier: field("modifier", BlankOr.decode(string), j),
+      let dv2 = variant2
+      let dv3 = variant3
+      variants(
+        list{
+          ("HTTP", dv3((a, b, c) => HTTP(a, b, c), string, string, IDs.decode)),
+          ("Worker", dv2((a, b) => Worker(a, b), string, IDs.decode)),
+          ("OldWorker", dv3((a, b, c) => OldWorker(a, b, c), string, string, IDs.decode)),
+          (
+            "Cron",
+            dv3((a, b, c) => Cron(a, b, c), string, optional(CronInterval.decode), IDs.decode),
+          ),
+          ("REPL", dv2((a, b) => REPL(a, b), string, IDs.decode)),
+          ("UnknownHandler", dv3((a, b, c) => UnknownHandler(a, b, c), string, string, IDs.decode)),
+        },
+        j,
+      )
+    }
+    let space = (spec: t): option<string> => {
+      switch spec {
+      | HTTP(_, _, _) => Some("HTTP")
+      | Worker(_, _) => Some("WORKER")
+      | OldWorker(space, _, _) => Some(space)
+      | Cron(_, _, _) => Some("CRON")
+      | REPL(_, _) => Some("REPL")
+      | UnknownHandler(_, _, _) => None
       }
+    }
+    let name = (spec: t): string => {
+      switch spec {
+      | HTTP(name, _, _)
+      | Worker(name, _)
+      | OldWorker(_, name, _)
+      | Cron(name, _, _)
+      | REPL(name, _)
+      | UnknownHandler(name, _, _) => name
+      }
+    }
+    let modifier = (spec: t): option<string> => {
+      switch spec {
+      | HTTP(_, mod, _)
+      | UnknownHandler(_, mod, _) =>
+        Some(mod)
+      | REPL(_, _)
+      | Worker(_, _)
+      | OldWorker(_, _, _) =>
+        None
+      | Cron(_, interval, _) => interval |> Tc.Option.map(~f=CronInterval.toString)
+      }
+    }
+    let ids = (spec: t): IDs.t => {
+      switch spec {
+      | HTTP(_, _, ids)
+      | Worker(_, ids)
+      | OldWorker(_, _, ids)
+      | Cron(_, _, ids)
+      | REPL(_, ids)
+      | UnknownHandler(_, _, ids) => ids
+      }
+    }
+
+    let newUnknown = (name: string, modifier: string): t => {
+      UnknownHandler(name, modifier, IDs.new())
+    }
+    let newHTTP = (path: string, modifier: string): t => {
+      HTTP(path, modifier, IDs.new())
+    }
+    let newCron = (name: string, interval: option<CronInterval.t>): t => {
+      Cron(name, interval, IDs.new())
+    }
+    let newWorker = (name: string): t => {
+      Worker(name, IDs.new())
+    }
+    let newREPL = (name: string): t => {
+      REPL(name, IDs.new())
     }
   }
 

@@ -10,6 +10,18 @@ open ProgramTypes.Pattern
 open FluidTestData
 open FluidShortcuts
 
+let defaultUnknownSpec = PT.Handler.Spec.newUnknown("", "")
+
+let defaultHTTPSpec = PT.Handler.Spec.newHTTP("/", "GET")
+
+let defaultREPLSpec = PT.Handler.Spec.newREPL("adjectiveNoun")
+
+let defaultCronSpec = PT.Handler.Spec.newCron("daily", Some(PT.Handler.Spec.CronInterval.EveryDay))
+
+let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
+
+let defaultSpec = defaultHTTPSpec
+
 let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("Twit", "somefunc", 0, list{DType.TObj}, DType.TAny),
   ("Twit", "someOtherFunc", 0, list{TObj}, TAny),
@@ -73,11 +85,7 @@ let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
 let defaultToplevel = TLHandler({
   ast: FluidAST.ofExpr(defaultExpr),
-  spec: {
-    space: Blank(gid()),
-    name: Blank(gid()),
-    modifier: Blank(gid()),
-  },
+  spec: defaultSpec,
   tlid: defaultTLID,
   pos: Pos.origin,
 })
@@ -106,17 +114,7 @@ let defaultFullQuery = (~tl=defaultToplevel, ac: AC.t, queryString: string): AC.
   {tl: tl, ti: ti, fieldList: list{}, pipedDval: None, queryString: queryString}
 }
 
-let aHandler = (
-  ~tlid=defaultTLID,
-  ~expr=defaultExpr,
-  ~space: option<string>=None,
-  (),
-): PT.Handler.t => {
-  let space = switch space {
-  | None => B.new_()
-  | Some(name) => B.newF(name)
-  }
-  let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
+let aHandler = (~tlid=defaultTLID, ~expr=defaultExpr, ~spec=defaultSpec, ()): PT.Handler.t => {
   {ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: {x: 0, y: 0}}
 }
 
@@ -364,14 +362,14 @@ let run = () => {
         )
       )
       test("http handlers have request", () => {
-        let space = Some("HTTP")
-        let m = defaultModel(~handlers=list{aHandler(~space, ())}, ())
+        let m = defaultModel(~handlers=list{aHandler(~spec=defaultHTTPSpec, ())}, ())
         expect(acFor(m) |> setQuery("request") |> filterValid) |> toEqual(list{
           FACVariable("request", None),
         })
       })
       test("handlers with no route have request and event", () =>
         expect({
+          let m = defaultModel(~handlers=list{aHandler(~spec=defaultUnknownSpec, ())}, ())
           let ac = acFor(m)
           (ac |> setQuery("request") |> filterValid, ac |> setQuery("event") |> filterValid)
         }) |> toEqual((list{FACVariable("request", None)}, list{FACVariable("event", None)}))
@@ -446,12 +444,10 @@ let run = () => {
           str(~id, "asd"),
           let'("myint", int(~id=id2, 5), fn(~mod="String", "append", list{b, b})),
         )
-
+        // remove `request` var from valid
         let m = defaultModel(
           ~analyses=list{(id, DStr("asd")), (id2, DInt(5L))},
-          ~handlers=list{
-            aHandler(~space=Some("REPL" /* remove `request` var from valid */), ~expr, ()),
-          },
+          ~handlers=list{aHandler(~spec=defaultREPLSpec, ~expr, ())},
           (),
         )
 

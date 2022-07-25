@@ -6,6 +6,16 @@ module D = Defaults
 
 open AppTypes.Page
 
+let defaultHTTPSpec = PT.Handler.Spec.newHTTP("/", "GET")
+
+let defaultREPLSpec = PT.Handler.Spec.newREPL("adjectiveNoun")
+
+let defaultCronSpec = PT.Handler.Spec.newCron("daily", Some(PT.Handler.Spec.CronInterval.EveryDay))
+
+let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
+
+let defaultSpec = defaultHTTPSpec
+
 let defaultTLID = gtlid()
 
 let defaultFluidExpr = ProgramTypes.Expr.EBlank(gid())
@@ -14,14 +24,9 @@ let aHandler = (
   ~tlid=defaultTLID,
   ~expr=defaultFluidExpr,
   ~pos=Pos.center,
-  ~space: option<string>=None,
+  ~spec=defaultSpec,
   (),
 ): toplevel => {
-  let space = switch space {
-  | None => B.new_()
-  | Some(name) => B.newF(name)
-  }
-  let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
   TLHandler({ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: pos})
 }
 

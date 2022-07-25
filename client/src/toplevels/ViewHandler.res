@@ -44,12 +44,19 @@ let handlerIsExeFail = (vp: viewProps): bool =>
   }
 
 let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> =>
-  switch (spec.space, spec.name, spec.modifier) {
+  switch spec {
   /* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. */
-  | (F(_, a), F(_, b), F(_, c))
-    if List.any(~f=s => String.length(s) == 0, list{a, b, c}) => Vdom.noNode
-  | (F(_), F(_), F(_)) =>
+  | PT.Handler.Spec.UnknownHandler(_)
+  | PT.Handler.Spec.HTTP("", _, _)
+  | PT.Handler.Spec.HTTP(_, "", _)
+  | PT.Handler.Spec.Worker("", _)
+  | PT.Handler.Spec.OldWorker("", _, _)
+  | PT.Handler.Spec.OldWorker(_, "", _)
+  | PT.Handler.Spec.Cron("", _, _)
+  | PT.Handler.Spec.Cron(_, None, _)
+  | PT.Handler.Spec.REPL("", _) => Vdom.noNode
+  | _ =>
     if vp.permission == Some(ReadWrite) {
       let hasData =
         Analysis.selectedTraceID(vp.tlTraceIDs, vp.traces, vp.tlid)
@@ -92,7 +99,6 @@ let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<m
     } else {
       Vdom.noNode
     }
-  | (_, _, _) => Vdom.noNode
   }
 
 let externalLink = (vp: viewProps, name: string) => {
@@ -124,8 +130,8 @@ let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> => {
       disableMsg: None,
     }
 
-    switch (spec.space, spec.modifier, spec.name) {
-    | (F(_, "HTTP"), F(_, meth), F(_, name)) =>
+    switch spec {
+    | PT.Handler.Spec.HTTP(name, meth, _) =>
       let curlAction: TLMenu.menuItem = {
         title: "Copy request as cURL",
         key: "copy-curl-",
@@ -159,43 +165,47 @@ let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> => {
 let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEventList): Html.html<
   msg,
 > => {
+  let ids = PT.Handler.Spec.ids(spec)
+  let eventName = PT.Handler.Spec.name(spec)->B.fromStringID(ids.nameID)
   let viewEventName = viewText(
     ~enterable=true,
     ~classes=list{"toplevel-name"},
     EventName,
     vp,
-    spec.name,
+    eventName,
   )
 
-  let viewEventSpace = viewText(~enterable=true, ~classes=list{"space"}, EventSpace, vp, spec.space)
+  let eventSpace = PT.Handler.Spec.space(spec)->B.fromOptionID(ids.moduleID)
+  let viewEventSpace = viewText(~enterable=true, ~classes=list{"space"}, EventSpace, vp, eventSpace)
 
+  let eventModifier = PT.Handler.Spec.modifier(spec)->B.fromOptionID(ids.modifierID)
   let viewEventModifier = {
     let viewMod = viewText(
       ~enterable=true,
       ~classes=list{"modifier"},
       EventModifier,
       vp,
-      spec.modifier,
+      eventModifier,
     )
 
-    switch (spec.space, spec.modifier, spec.name) {
-    | (F(_, "HTTP"), _, _) | (F(_, "CRON"), _, _) =>
+    switch spec {
+    | PT.Handler.Spec.HTTP(_) | PT.Handler.Spec.Cron(_) =>
       Html.div(list{Html.class'("modifier")}, list{viewMod})
     | _ => Vdom.noNode
     }
   }
 
   let baseClass = "spec-header"
-  let classes = switch (spec.space, spec.modifier) {
-  | (F(_, "HTTP"), F(_, "GET")) => baseClass ++ " http-get"
-  | (F(_, "HTTP"), F(_, "POST")) => baseClass ++ " http-post"
-  | (F(_, "HTTP"), F(_, "PUT")) => baseClass ++ " http-put"
-  | (F(_, "HTTP"), F(_, "DELETE")) => baseClass ++ " http-delete"
-  | (F(_, "HTTP"), F(_, "PATCH")) => baseClass ++ " http-patch"
-  | (F(_, "HTTP"), F(_, "OPTIONS")) => baseClass ++ " http-options"
-  | (F(_, "CRON"), _) => baseClass ++ " cron"
-  | (F(_, "WORKER"), _) => baseClass ++ " worker"
-  | (F(_, "REPL"), _) => baseClass ++ " repl"
+  let classes = switch spec {
+  | PT.Handler.Spec.HTTP(_, "GET", _) => baseClass ++ " http-get"
+  | PT.Handler.Spec.HTTP(_, "POST", _) => baseClass ++ " http-post"
+  | PT.Handler.Spec.HTTP(_, "PUT", _) => baseClass ++ " http-put"
+  | PT.Handler.Spec.HTTP(_, "DELETE", _) => baseClass ++ " http-delete"
+  | PT.Handler.Spec.HTTP(_, "PATCH", _) => baseClass ++ " http-patch"
+  | PT.Handler.Spec.HTTP(_, "OPTIONS", _) => baseClass ++ " http-options"
+  | PT.Handler.Spec.Cron(_) => baseClass ++ " cron"
+  | PT.Handler.Spec.Worker(_) => baseClass ++ " worker"
+  | PT.Handler.Spec.REPL(_) => baseClass ++ " repl"
   | _ => baseClass
   }
 

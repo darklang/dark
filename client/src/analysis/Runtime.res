@@ -285,21 +285,15 @@ let route_variables = (route: string): list<string> => {
 let inputVariables = (tl: toplevel): list<string> =>
   switch tl {
   | TLHandler(h) =>
-    switch h.spec.space {
-    | F(_, m) if String.toLowercase(m) == "http" =>
-      let fromRoute =
-        h.spec.name
-        |> BlankOr.toOption
-        |> Option.map(~f=route_variables)
-        |> Option.unwrap(~default=list{})
+    switch h.spec {
+    | HTTP(name, _, _) =>
+      let fromRoute = name |> route_variables
       list{"request", ...fromRoute}
-    | F(_, m) if String.toLowercase(m) == "cron" => list{}
-    | F(_, m) if String.toLowercase(m) == "repl" => list{}
-    | F(_, m) if String.toLowercase(m) == "worker" => list{"event"}
-    | F(_, _) => // workers, including old names
-      list{"event"}
-    | Blank(_) => // we used to be allowed unknown
-      list{"request", "event"}
+    | Cron(_)
+    | REPL(_) => list{}
+    | OldWorker(_)
+    | Worker(_) => list{"event"}
+    | UnknownHandler(_) => list{"request", "event"}
     }
   | TLFunc(f) =>
     f.metadata.parameters |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>

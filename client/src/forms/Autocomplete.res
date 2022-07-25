@@ -376,13 +376,11 @@ let qHTTPHandler = (s: string): A.omniAction => {
 }
 
 let handlerDisplayName = (h: PT.Handler.t): string => {
-  let space =
-    h.spec.space |> B.toOption |> Option.map(~f=x => x ++ "::") |> Option.unwrap(~default="")
-
-  let name = h.spec.name |> B.toOption |> Option.unwrap(~default="")
+  module S = PT.Handler.Spec
+  let space = h.spec->S.space->Belt.Option.map(x => x ++ "::")->Belt.Option.getWithDefault("")
+  let name = h.spec->S.name
   let modi =
-    h.spec.modifier
-    |> B.toOption
+    h.spec->S.modifier
     |> Option.map(~f=x =>
       if x == "_" {
         ""
@@ -392,7 +390,7 @@ let handlerDisplayName = (h: PT.Handler.t): string => {
     )
     |> Option.unwrap(~default="")
 
-  space ++ (name ++ modi)
+  space ++ name ++ modi
 }
 
 let fnDisplayName = (f: PT.UserFunction.t): string =>

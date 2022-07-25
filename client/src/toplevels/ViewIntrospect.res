@@ -120,15 +120,15 @@ let handlerView = (
   originTLID: TLID.t,
   originIDs: list<id>,
   tlid: TLID.t,
-  space: string,
-  name: string,
-  modifier: option<string>,
+  spec: PT.Handler.Spec.t,
   direction: string,
 ): Html.html<msg> => {
-  let modifier_ = switch modifier {
-  | Some("_") | None => Vdom.noNode
+  module Spec = PT.Handler.Spec
+  let modifier_ = switch Spec.modifier(spec) {
+  | Some("_") | Some("") | None => Vdom.noNode
   | Some(m) => Html.div(list{Html.class'("spec")}, list{Html.text(m)})
   }
+  let space = Spec.space(spec)->Belt.Option.getWithDefault("")
 
   Html.div(
     list{
@@ -142,7 +142,7 @@ let handlerView = (
     },
     list{
       Html.div(list{Html.class'("spec space")}, list{Html.text(space)}),
-      Html.div(list{Html.class'("spec")}, list{Html.text(name)}),
+      Html.div(list{Html.class'("spec")}, list{Html.text(Spec.name(spec))}),
       modifier_,
     },
   )
@@ -244,8 +244,7 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   switch tl {
   | TLDB({tlid, name: F(_, name), cols, _}) =>
     dbView(originalTLID, originalIDs, tlid, name, cols, direction)
-  | TLHandler({tlid, spec: {space: F(_, space), name: F(_, name), modifier}, _}) =>
-    handlerView(originalTLID, originalIDs, tlid, space, name, B.toOption(modifier), direction)
+  | TLHandler({tlid, spec, _}) => handlerView(originalTLID, originalIDs, tlid, spec, direction)
   | TLFunc({tlid, metadata: {name: F(_, name), parameters, returnType, _}, ast: _}) =>
     fnView(originalTLID, originalIDs, tlid, name, parameters, returnType, direction)
   | TLPmFunc(pFn) =>

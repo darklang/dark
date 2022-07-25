@@ -19,11 +19,7 @@ let pToString = Printer.pToString
 let h = (expr): PT.Handler.t => {
   ast: FluidAST.ofExpr(expr),
   tlid: TLID.fromInt(7),
-  spec: {
-    space: BlankOr.newF("HTTP"),
-    name: BlankOr.newF("/test"),
-    modifier: BlankOr.newF("GET"),
-  },
+  spec: PT.Handler.Spec.newHTTP("/test", "GET"),
   pos: {x: 0, y: 0},
 }
 

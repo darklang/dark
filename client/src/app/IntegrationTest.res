@@ -114,12 +114,8 @@ let ellen_hello_world_demo = (m: model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
-  switch spec {
-  | Some(spec) =>
-    switch ((spec.space, spec.name), (spec.modifier, onlyExpr(m))) {
-    | ((F(_, "HTTP"), F(_, "/hello")), (F(_, "GET"), Some(EString(_, "Hello world!")))) => pass
-    | other => fail(other)
-    }
+  switch (spec, onlyExpr(m)) {
+  | (Some(PT.Handler.Spec.HTTP("/hello", "GET", _)), Some(EString(_, "Hello world!"))) => pass
   | other => fail(other)
   }
 }
@@ -129,11 +125,7 @@ let editing_headers = (m: model): testResult => {
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, "HTTP"), F(_, "/myroute"), F(_, "GET")) => pass
-    | other => fail(other)
-    }
+  | Some(PT.Handler.Spec.HTTP("/myroute", "GET", _)) => pass
   | other => fail(other)
   }
 }
@@ -146,12 +138,14 @@ let switching_from_http_space_removes_leading_slash = (m: model): testResult => 
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, newSpace), F(_, "spec_name"), _) if newSpace !== "HTTP" => pass
-    | other => fail(~f=show_handler_triple, other)
+  | Some(PT.Handler.Spec.HTTP(_) as spec) => fail(~f=PT.Handler.Spec.show, spec)
+  | Some(spec) =>
+    if PT.Handler.Spec.name(spec) == "spec_name" {
+      pass
+    } else {
+      fail(~f=PT.Handler.Spec.show, spec)
     }
-  | other => fail(other)
+  | None => fail(None)
   }
 }
 
@@ -164,12 +158,14 @@ let switching_from_http_space_removes_variable_colons = (m: model): testResult =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, newSpace), F(_, "spec_name/variable"), _) if newSpace !== "HTTP" => pass
-    | other => fail(other)
+  | Some(PT.Handler.Spec.HTTP(_) as spec) => fail(~f=PT.Handler.Spec.show, spec)
+  | Some(spec) =>
+    if PT.Handler.Spec.name(spec) == "spec_name/variable" {
+      pass
+    } else {
+      fail(~f=PT.Handler.Spec.show, spec)
     }
-  | other => fail(other)
+  | None => fail(None)
   }
 }
 
@@ -178,12 +174,9 @@ let switching_to_http_space_adds_slash = (m: model): testResult => {
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, "HTTP"), F(_, "/spec_name"), _) => pass
-    | other => fail(other)
-    }
-  | other => fail(other)
+  | Some(PT.Handler.Spec.HTTP("/spec_name", _, _)) => pass
+  | Some(spec) => fail(~f=PT.Handler.Spec.show, spec)
+  | None => fail(None)
   }
 }
 
@@ -192,12 +185,9 @@ let switching_from_default_repl_space_removes_name = (m: model): testResult => {
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, newSpace), _, _) if newSpace !== "REPL" => pass
-    | other => fail(other)
-    }
-  | other => fail(other)
+  | Some(PT.Handler.Spec.REPL(_, _)) => pass
+  | Some(spec) => fail(~f=PT.Handler.Spec.show, spec)
+  | None => fail(None)
   }
 }
 

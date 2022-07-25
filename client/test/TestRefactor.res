@@ -69,7 +69,7 @@ let defaultHandler: PT.Handler.t = {
   tlid: defaultTLID,
   pos: {x: 0, y: 0},
   ast: FluidAST.ofExpr(EBlank(gid())),
-  spec: {space: B.newF("HTTP"), name: B.newF("/src"), modifier: B.newF("POST")},
+  spec: PT.Handler.Spec.newHTTP("/src", "POST"),
 }
 
 let aFn = (name, expr): PT.UserFunction.t => {
@@ -217,11 +217,7 @@ let run = () => {
     test("datastore renamed, handler updates variable", () => {
       let h: PT.Handler.t = {
         ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
-        spec: {
-          space: B.newF("HTTP"),
-          name: B.newF("/src"),
-          modifier: B.newF("POST"),
-        },
+        spec: PT.Handler.Spec.newHTTP("/src", "POST"),
         tlid: TLID.fromInt(5),
         pos: {x: 0, y: 0},
       }
@@ -260,11 +256,7 @@ let run = () => {
     test("datastore renamed, handler does not change", () => {
       let h: PT.Handler.t = {
         ast: FluidAST.ofExpr(EVariable(gid(), "request")),
-        spec: {
-          space: B.newF("HTTP"),
-          name: B.newF("/src"),
-          modifier: B.newF("POST"),
-        },
+        spec: PT.Handler.Spec.newHTTP("/src", "POST"),
         tlid: defaultTLID,
         pos: {x: 0, y: 0},
       }
@@ -349,11 +341,7 @@ let run = () => {
         tlid: tlid,
         ast: ast,
         pos: {x: 0, y: 0},
-        spec: {
-          space: B.newF("HTTP"),
-          name: B.newF("/src"),
-          modifier: B.newF("POST"),
-        },
+        spec: PT.Handler.Spec.newHTTP("/src", "POST"),
       }
 
       let m = {
