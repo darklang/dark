@@ -673,13 +673,13 @@ module Handler =
   type Spec =
     // HttpBytesTODO consider renaming to `HTTPLegacy`
     | HTTP of path : string * method : string
+    | HTTPBytes of path : string * method : string // HTTPBytesTODO: can we move this up?
     | Worker of name : string
     // Deprecated but still supported form
     | OldWorker of modulename : string * name : string
     | Cron of name : string * interval : Option<CronInterval>
     | REPL of name : string
     | UnknownHandler // no useful info here
-    | HTTPBytes of path : string * method : string // HTTPBytesTODO: can we move this up?
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
