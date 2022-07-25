@@ -673,7 +673,7 @@ module Handler =
   type Spec =
     // HttpBytesTODO consider renaming to `HTTPLegacy`
     | HTTP of path : string * method : string
-    | HTTPBytes of path : string * method : string // HTTPBytesTODO: can we move this up?
+    | HTTPBytes of path : string * method : string
     | Worker of name : string
     // Deprecated but still supported form
     | OldWorker of modulename : string * name : string
