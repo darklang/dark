@@ -61,7 +61,7 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   internalFn (function
-    | state, [ DUuid canvasID; DStr handlerName ] ->
+    | _, [ DUuid canvasID; DStr handlerName ] ->
       uply {
         do! fn canvasID handlerName
         let! s = SchedulingRules.getWorkerSchedules canvasID
@@ -106,7 +106,7 @@ let fns : List<BuiltInFn> =
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | state, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
+          | _, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
             uply {
               let username =
                 Exception.catchError (fun () ->
@@ -200,7 +200,7 @@ that's already taken, returns an error."
       description = "Set whether a user is an admin. Returns null."
       fn =
         internalFn (function
-          | state, [ DStr username; DBool admin ] ->
+          | _, [ DStr username; DBool admin ] ->
             uply {
               let username = UserName.create username
               do! Account.setAdmin admin username
@@ -301,7 +301,7 @@ that's already taken, returns an error."
       description = "Pushes an event to Honeycomb"
       fn =
         internalFn (function
-          | state, [ DStr canvasID; DStr event; payload ] ->
+          | _, [ DStr canvasID; DStr event; payload ] ->
             (try
               Pusher.push
                 (canvasID |> System.Guid.Parse)
@@ -695,7 +695,7 @@ in OCaml; its primary purpose is to send data to honeycomb, but also gives
 human-readable data."
       fn =
         internalFn (function
-          | state, [] ->
+          | _, [] ->
             uply {
               let! tableStats = Db.tableStats ()
               // Send events to honeycomb. We could save some events by sending
@@ -759,6 +759,68 @@ human-readable data."
             Exception.raiseInternal
               "DarkInternal::raiseInternalException"
               [ "arg", arg ]
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "startStaticAssetDeploy" 0
+      parameters = [ Param.make "username" TStr ""; Param.make "canvasID" TUuid "" ]
+      returnType = TResult(TStr, TStr)
+      description =
+        "Records an in-progress static asset deployment, returning the deployHash"
+      fn =
+        internalFn (function
+          | _, [ DStr username; DUuid canvasID ] ->
+            uply {
+              match! Account.getUser (UserName.create username) with
+              | None -> return DResult(Error(DStr "User not found"))
+              | Some user ->
+                let! deployHash = StaticAssets.startStaticAssetDeploy user canvasID
+                return DResult(Ok(DStr deployHash))
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "finishStaticAssetDeploy" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
+      returnType = TResult(TNull, TStr)
+      description = "Marks an in-progress static asset deployment as finished"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr deployHash ] ->
+            uply {
+              let! canvasMeta = Canvas.getMetaFromID canvasID
+              let! _updatedAt =
+                StaticAssets.finishStaticAssetDeploy
+                  canvasID
+                  canvasMeta.name
+                  deployHash
+              return DResult(Ok DNull)
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "deleteStaticAssetDeploy" 0
+      parameters =
+        [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
+      returnType = TNull
+      description = "Deletes references to a now-deleted static asset deploy"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DStr deployHash ] ->
+            uply {
+              do! StaticAssets.deleteStaticAssetDeploy canvasID deployHash
+              return DNull
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

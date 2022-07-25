@@ -38,6 +38,11 @@ type StaticDeploy =
     lastUpdate : NodaTime.Instant
     status : DeployStatus }
 
+// The `static_asset_deploys` table has a `branch` column, but it's currently
+// always set to `"main"`. There were plans to use this, but they haven't been
+// followed through yet.
+let branch = "main"
+
 // let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
 //   `Assoc
 //     [ ("deploy_hash", `String sd.deploy_hash)
@@ -49,18 +54,6 @@ type StaticDeploy =
 //              sd.last_update
 //              ~zone:Core.Time.Zone.utc) )
 //     ; ("status", deploy_status_to_yojson sd.status) ]
-//
-//
-// let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
-//   let scopes = ["https://www.googleapis.com/auth/devstorage.read_write"] in
-//   let r = Gcloud.Auth.get_access_token ~scopes () in
-//   match%lwt r with
-//   | Ok token_info ->
-//       Lwt_result.return token_info.token.access_token
-//   | Error x ->
-//       Caml.print_endline ("Gcloud oauth error: " ^ pp_gcloud_err x) ;
-//       Lwt_result.fail (`GcloudAuthError (pp_gcloud_err x))
-
 
 let appHash (canvasName : CanvasName.T) : string =
   // enough of a hash to make this not easily discoverable
@@ -85,7 +78,7 @@ let url (canvasName : CanvasName.T) (deployHash : string) (t : UrlType) : string
 
   $"https://{canvasName}{domain}/{apphash}/{deployHash}"
 
-// TODO [polish] could instrument this to error on bad deploy hash, maybe also
+// CLEANUP could instrument this to error on bad deploy hash, maybe also
 // unknown file
 let urlFor
   (canvasName : CanvasName.T)
@@ -95,10 +88,7 @@ let urlFor
   : string =
   url canvasName deployHash variant + "/" + file
 
-
 let latestDeployHash (canvasID : CanvasID) : Task<Option<string>> =
-  let branch = "main"
-
   Sql.query
     "SELECT deploy_hash FROM static_asset_deploys
        WHERE canvas_id=@canvasID AND branch=@branch AND live_at IS NOT NULL
@@ -107,7 +97,108 @@ let latestDeployHash (canvasID : CanvasID) : Task<Option<string>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "branch", Sql.string branch ]
   |> Sql.executeRowOptionAsync (fun read -> read.string "deploy_hash")
 
+let allDeploysInCanvas
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  : Task<List<StaticDeploy>> =
+  Sql.query
+    "SELECT deploy_hash, created_at, live_at
+     FROM static_asset_deploys
+     WHERE canvas_id=@canvasID
+     ORDER BY created_at
+     DESC LIMIT 25"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeAsync (fun read ->
+    let deployHash = read.string "deploy_hash"
 
+    let status, lastUpdate =
+      match read.instantOrNone "live_at" with
+      | Some datetime -> Deployed, datetime
+      | None -> Deploying, read.instant "created_at"
+
+    { deployHash = deployHash
+      url = url canvasName deployHash Short
+      status = status
+      lastUpdate = lastUpdate })
+
+/// Creates a record of a new static asset deploy, returning a deployHash to be
+/// used by the actual upload process.
+let startStaticAssetDeploy
+  (user : Account.UserInfo)
+  (canvasID : CanvasID)
+  : Task<string> =
+
+  // we include .fff (milliseconds) to ensure we don't encoutner conflicts,
+  // especially relevant to unit tests which record multiple deploys quickly.
+  let now = System.DateTime.Now.ToString("MM/dd/yyyy hh:mm:ss.fff tt")
+
+  let deployHash =
+    $"{canvasID}{now}"
+    |> sha1digest
+    |> Base64.urlEncodeToString
+    |> String.removeSuffix "="
+    |> String.toLowercase
+    |> String.take 10
+
+  Sql.query
+    "INSERT INTO static_asset_deploys
+      (canvas_id, branch, deploy_hash, uploaded_by_account_id)
+    VALUES (@canvasID, @branch, @deployHash, @uploadedBy)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "branch", Sql.string branch
+                      "deployHash", Sql.string deployHash
+                      "uploadedBy", Sql.uuid user.id ]
+  |> Sql.executeNonQueryAsync
+  |> Task.map (fun _ -> deployHash)
+
+// CLEANUP: return an Error if the deploy hash doesn't exist
+// CLEANUP: decide what to do if the deploy is already finished
+let finishStaticAssetDeploy
+  (canvasID : CanvasID)
+  (canvasName : CanvasName.T)
+  (deployHash : string)
+  : Task<NodaTime.Instant> =
+  Sql.query
+    "UPDATE static_asset_deploys
+      SET live_at = NOW()
+      WHERE canvas_id = @canvasID AND deploy_hash = @deployHash
+      RETURNING live_at"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "deployHash", Sql.string deployHash ]
+  |> Sql.executeRowAsync (fun reader -> reader.instant "live_at")
+
+
+/// Deletes references to a canvas' static asset deploy from the database.
+///
+/// The deletion of actual assets should be handled prior to calling this.
+let deleteStaticAssetDeploy
+  (canvasID : CanvasID)
+  (deployHash : string)
+  : Task<unit> =
+
+  Sql.query
+    "DELETE FROM static_asset_deploys
+    WHERE canvas_id=@canvasID
+      AND branch=@branch
+      AND deploy_hash=@deployHash"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "branch", Sql.string branch
+                      "deployHash", Sql.string deployHash ]
+  |> Sql.executeStatementAsync
+
+
+// TODO: the below code will be ported to Dark code, and is here only for
+// reference.
+//
+// let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
+//   let scopes = ["https://www.googleapis.com/auth/devstorage.read_write"] in
+//   let r = Gcloud.Auth.get_access_token ~scopes () in
+//   match%lwt r with
+//   | Ok token_info ->
+//       Lwt_result.return token_info.token.access_token
+//   | Error x ->
+//       Caml.print_endline ("Gcloud oauth error: " ^ pp_gcloud_err x) ;
+//       Lwt_result.fail (`GcloudAuthError (pp_gcloud_err x))
 
 // let upload_to_bucket
 //     (filename : string)
@@ -185,95 +276,3 @@ let latestDeployHash (canvasID : CanvasID) : Task<Option<string>> =
 //             (`FailureUploadingStaticAsset
 //               ( "Failure uploading static asset: "
 //               ^ Cohttp.Code.string_of_status s )))
-//
-//
-// let start_static_asset_deploy
-//     ~(user : Account.user_info) (canvas_id : Uuidm.t) (branch : string) :
-//     static_deploy =
-//   let deploy_hash =
-//     Nocrypto.Hash.SHA1.digest
-//       (Cstruct.of_string
-//          (Uuidm.to_string canvas_id ^ Time.to_string (Time.now ())))
-//     |> Cstruct.to_string
-//     |> B64.encode ~alphabet:B64.uri_safe_alphabet
-//     |> Util.maybe_chop_suffix ~suffix:"="
-//     |> String.lowercase
-//     |> fun s -> String.prefix s 10
-//   in
-//   let last_update =
-//     Db.fetch_one
-//       ~name:"add static_asset_deploy record"
-//       ~subject:deploy_hash
-//       "INSERT INTO static_asset_deploys
-//         (canvas_id, branch, deploy_hash, uploaded_by_account_id)
-//         VALUES ($1, $2, $3, $4) RETURNING created_at"
-//       ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid user.id]
-//     |> List.hd_exn
-//     |> Db.date_of_sqlstring
-//   in
-//   { deploy_hash
-//   ; url = url canvas_id deploy_hash `Short
-//   ; last_update
-//   ; status = Deploying }
-//
-// (* since postgres doesn't have named transactions, we just delete the db
-//  * record in question. For now, we're leaving files where they are; the right
-//  * thing to do here would be to shell out to `gsutil -m rm -r`, but shelling out
-//  * from ocaml causes ECHILD errors, so leaving this for a later round of
-//  * 'garbage collection' work, in which we can query for files/dirs not known to
-//  * the db and delete them *)
-// let delete_static_asset_deploy
-//     ~(user : Account.user_info)
-//     (canvas_id : Uuidm.t)
-//     (branch : string)
-//     (deploy_hash : string) : unit =
-//   Db.run
-//     ~name:"delete static_asset_deploy record"
-//     ~subject:deploy_hash
-//     "DELETE FROM static_asset_deploys
-//     WHERE canvas_id=$1 AND branch=$2 AND deploy_hash=$3 AND uploaded_by_account_id=$4"
-//     ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid user.id]
-//
-//
-// let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
-//     static_deploy =
-//   let last_update =
-//     Db.fetch_one
-//       ~name:"finish static_asset_deploy record"
-//       ~subject:deploy_hash
-//       "UPDATE static_asset_deploys
-//       SET live_at = NOW()
-//       WHERE canvas_id = $1 AND deploy_hash = $2 RETURNING live_at"
-//       ~params:[Uuid canvas_id; String deploy_hash]
-//     |> List.hd_exn
-//     |> Db.date_of_sqlstring
-//   in
-//   { deploy_hash
-//   ; url = url canvas_id deploy_hash `Short
-//   ; last_update
-//   ; status = Deployed }
-
-
-let allDeploysInCanvas
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
-  : Task<List<StaticDeploy>> =
-  Sql.query
-    "SELECT deploy_hash, created_at, live_at
-     FROM static_asset_deploys
-     WHERE canvas_id=@canvasID
-     ORDER BY created_at
-     DESC LIMIT 25"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read ->
-    let deployHash = read.string "deploy_hash"
-
-    let status, lastUpdate =
-      match read.instantOrNone "live_at" with
-      | Some datetime -> Deployed, datetime
-      | None -> Deploying, read.instant "created_at"
-
-    { deployHash = deployHash
-      url = url canvasName deployHash Short
-      status = status
-      lastUpdate = lastUpdate })
