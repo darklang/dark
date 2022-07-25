@@ -304,8 +304,8 @@ module Values =
       testUnknownHandler
       testOldWorker ]
 
-  // HttpBytesTODO for some reason adding this to the above list makes the
-  // serialization output odd.
+  // HttpBytesTODO for some reason adding this to the above list makes many
+  // `backend/serialization` files change, in unexpected ways.
   //testBytesHttpHandler
 
   let testDval =
