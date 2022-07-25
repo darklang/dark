@@ -297,6 +297,7 @@ module Values =
 
   let testHandlers : List<PT.Handler.T> =
     [ testLegacyHttpHandler
+      testBytesHttpHandler
       testWorker
       testCron1
       testCron2
@@ -304,9 +305,6 @@ module Values =
       testUnknownHandler
       testOldWorker ]
 
-  // HttpBytesTODO for some reason adding this to the above list makes many
-  // `backend/serialization` files change, in unexpected ways.
-  //testBytesHttpHandler
 
   let testDval =
     sampleDvals
