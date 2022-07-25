@@ -895,7 +895,7 @@ module Convert =
 
     match p with
     | PT.Handler.HTTPLegacy (route, method, ids) ->
-      { ``module`` = string2bo ids.moduleID "HTTP" // I assume this has to stay as-is?
+      { ``module`` = string2bo ids.moduleID "HTTP"
         name = string2bo ids.nameID route
         modifier = string2bo ids.modifierID method
         types = types }
