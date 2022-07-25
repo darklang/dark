@@ -330,7 +330,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching legacy handler found - process normally
-      | [ { spec = PT.Handler.HTTPLegacy (route = route); tlid = tlid } as handler ] ->
+      | [ { spec = PT.Handler.HTTP (route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware

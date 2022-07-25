@@ -671,7 +671,8 @@ module Handler =
     | EveryMinute
 
   type Spec =
-    | HTTPLegacy of path : string * method : string
+    // HttpBytesTODO consider renaming to `HTTPLegacy`
+    | HTTP of path : string * method : string
     | Worker of name : string
     // Deprecated but still supported form
     | OldWorker of modulename : string * name : string

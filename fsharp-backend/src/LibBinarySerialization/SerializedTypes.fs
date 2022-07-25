@@ -185,7 +185,6 @@ module Handler =
 
   [<MessagePack.MessagePackObject>]
   type Spec =
-    /// This is `HTTPLegacy` everywhere else now
     | HTTP of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
     // Deprecated but still supported form

@@ -1,5 +1,5 @@
 {
-  "tlid": 10438664321,
+  "tlid": 13633,
   "pos": {
     "x": 6,
     "y": 6
@@ -619,9 +619,9 @@
     ]
   ],
   "spec": [
-    "OldWorker",
-    "MODULE",
+    "UnknownHandler",
     "name",
+    "",
     {
       "moduleID": 129952,
       "nameID": 33052,

@@ -1,5 +1,5 @@
 {
-  "tlid": 294906673,
+  "tlid": 19930486,
   "pos": {
     "x": 6,
     "y": 6
@@ -619,9 +619,8 @@
     ]
   ],
   "spec": [
-    "Cron",
+    "Worker",
     "name",
-    null,
     {
       "moduleID": 129952,
       "nameID": 33052,

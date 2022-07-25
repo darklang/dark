@@ -179,7 +179,7 @@ let testHttpRouteHandler
   { pos = { x = 0; y = 0 }
     tlid = gid ()
     ast = ast
-    spec = PT.Handler.HTTPLegacy(route, method, ids) }
+    spec = PT.Handler.HTTP(route, method, ids) }
 
 let testCron
   (name : string)

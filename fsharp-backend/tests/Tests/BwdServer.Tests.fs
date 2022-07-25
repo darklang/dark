@@ -224,12 +224,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
           { tlid = gid ()
             pos = { x = 0; y = 0 }
             ast = source
-            spec =
-              PT.Handler.HTTPLegacy(
-                route = httpRoute,
-                method = httpMethod,
-                ids = ids
-              ) }
+            spec = PT.Handler.HTTP(route = httpRoute, method = httpMethod, ids = ids) }
 
         (h.tlid,
          [ PT.SetHandler(h.tlid, h.pos, h) ],

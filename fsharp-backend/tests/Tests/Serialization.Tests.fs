@@ -263,7 +263,7 @@ module Values =
     { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
 
   let testLegacyHttpHandler : PT.Handler.T =
-    let spec = PT.Handler.HTTPLegacy("/path-legacy", "GET", testHandlerIDs)
+    let spec = PT.Handler.HTTP("/path", "GET", testHandlerIDs)
     { spec = spec; tlid = 92987663UL; ast = testExpr; pos = testPos }
 
   let testBytesHttpHandler : PT.Handler.T =

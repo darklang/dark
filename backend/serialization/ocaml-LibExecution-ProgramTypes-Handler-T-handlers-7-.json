@@ -1,5 +1,5 @@
 {
-  "tlid": 92947563,
+  "tlid": 10438664321,
   "pos": {
     "x": 6,
     "y": 6
@@ -619,9 +619,9 @@
     ]
   ],
   "spec": [
-    "HTTPBytes",
-    "/path-bytes",
-    "GET",
+    "OldWorker",
+    "MODULE",
+    "name",
     {
       "moduleID": 129952,
       "nameID": 33052,

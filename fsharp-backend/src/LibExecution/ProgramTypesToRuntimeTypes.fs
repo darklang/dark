@@ -199,8 +199,7 @@ module Handler =
   module Spec =
     let toRT (s : PT.Handler.Spec) : RT.Handler.Spec =
       match s with
-      | PT.Handler.HTTPLegacy (route, method, _ids) ->
-        RT.Handler.HTTPLegacy(route, method)
+      | PT.Handler.HTTP (route, method, _ids) -> RT.Handler.HTTP(route, method)
       | PT.Handler.HTTPBytes (route, method, _ids) ->
         RT.Handler.HTTPBytes(route, method)
       | PT.Handler.Worker (name, _ids) -> RT.Handler.Worker(name)

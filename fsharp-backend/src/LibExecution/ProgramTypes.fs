@@ -176,7 +176,9 @@ module Handler =
   type ids = { moduleID : id; nameID : id; modifierID : id }
 
   type Spec =
-    | HTTPLegacy of route : string * method : string * ids : ids
+    // HttpBytesTODO: consider renaming to `HttpLegacy`
+    | HTTP of route : string * method : string * ids : ids
+    | HTTPBytes of route : string * method : string * ids : ids // can we move this further up?
     | Worker of name : string * ids : ids
     // Deprecated but still supported form
     // CLEANUP: convert these into regular workers (change module name to WORKER,
@@ -187,7 +189,6 @@ module Handler =
     // If there's no module
     // CLEANUP: convert these into repl and get rid of this case
     | UnknownHandler of string * string * ids
-    | HTTPBytes of route : string * method : string * ids : ids // can we move this further up?
 
   type T = { tlid : tlid; pos : Position; ast : Expr; spec : Spec }
 

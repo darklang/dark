@@ -1,5 +1,5 @@
 {
-  "tlid": 199385766,
+  "tlid": 294906673,
   "pos": {
     "x": 6,
     "y": 6
@@ -621,9 +621,7 @@
   "spec": [
     "Cron",
     "name",
-    [
-      "Every12Hours"
-    ],
+    null,
     {
       "moduleID": 129952,
       "nameID": 33052,
