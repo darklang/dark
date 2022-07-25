@@ -158,7 +158,7 @@ let finishStaticAssetDeploy
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
   (deployHash : string)
-  : Task<StaticDeploy> =
+  : Task<NodaTime.Instant> =
   Sql.query
     "UPDATE static_asset_deploys
       SET live_at = NOW()
@@ -167,11 +167,6 @@ let finishStaticAssetDeploy
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "deployHash", Sql.string deployHash ]
   |> Sql.executeRowAsync (fun reader -> reader.instant "live_at")
-  |> Task.map (fun lastUpdate ->
-    { deployHash = deployHash
-      url = url canvasName deployHash Short
-      lastUpdate = lastUpdate
-      status = Deployed })
 
 
 /// Deletes references to a canvas' static asset deploy from the database.

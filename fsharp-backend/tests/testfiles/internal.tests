@@ -211,6 +211,16 @@ List.length_v0 deploys) = 2
 let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
 deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deploying"]
 
+[test.finishing an invalid static asset deploy fails EXPECTED_EXCEPTION_COUNT: 1]
+DarkInternal.finishStaticAssetDeploy Test.getCanvasID "fakeHash" = Test.typeError_v0 "Unknown error"
+
+[test.finishing a started static asset deploy is OK]
+(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
+match deployHashMaybe with
+| Error -> []
+| Ok deployHash ->
+  DarkInternal.finishStaticAssetDeploy Test.getCanvasID deployHash) = Ok null
+
 [test.finishing a started static asset deploy changes the status]
 (let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
 match deployHashMaybe with

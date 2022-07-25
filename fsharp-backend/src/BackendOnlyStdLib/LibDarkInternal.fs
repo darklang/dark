@@ -791,34 +791,19 @@ human-readable data."
     { name = fn "DarkInternal" "finishStaticAssetDeploy" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
-      returnType =
-        TResult(
-          TRecord [ "deployHash", TStr
-                    "url", TStr
-                    "status", TStr
-                    "lastUpdate", TDate ],
-          TStr
-        )
+      returnType = TResult(TNull, TStr)
       description = "Marks an in-progress static asset deployment as finished"
       fn =
         internalFn (function
           | _, [ DUuid canvasID; DStr deployHash ] ->
             uply {
               let! canvasMeta = Canvas.getMetaFromID canvasID
-              let! deploy =
+              let! _updatedAt =
                 StaticAssets.finishStaticAssetDeploy
                   canvasID
                   canvasMeta.name
                   deployHash
-              return
-                DObj(
-                  Map [ "deployHash", DStr deploy.deployHash
-                        "url", DStr deploy.url
-                        "status", DStr(string deploy.status)
-                        "lastUpdate", DDate(DDateTime.fromInstant deploy.lastUpdate) ]
-                )
-                |> Ok
-                |> DResult
+              return DResult(Ok DNull)
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
