@@ -663,47 +663,37 @@ module Handler = {
 module DB = {
   module Col = {
     @ppx.deriving(show({with_path: false}))
-    type rec t = (BlankOr.t<string>, BlankOr.t<string>)
+    type rec t = {
+      name: option<string>,
+      typ: option<DType.t>,
+      nameID: ID.t,
+      typeID: ID.t,
+    }
+    let new = (): t => {
+      name: None,
+      typ: None,
+      nameID: ID.generate(),
+      typeID: ID.generate(),
+    }
 
     let encode = (col: t): Js.Json.t => {
       open Json.Encode
-      pair(BlankOr.encode(string), BlankOr.encode(string), col)
+      object_(list{
+        ("name", nullable(string, col.name)),
+        ("typ", nullable(DType.encode, col.typ)),
+        ("nameID", ID.encode(col.nameID)),
+        ("typeID", ID.encode(col.typeID)),
+      })
     }
 
     let decode = (j): t => {
       open Json.Decode
-      // CLEANUP: this is really ugly. Copied from Prelude. We should have a DType here, not a string
-      let rec tipe2str = (t: DType.t): string =>
-        switch t {
-        | TAny => "Any"
-        | TInt => "Int"
-        | TFloat => "Float"
-        | TBool => "Bool"
-        | TChar => "Char"
-        | TNull => "Null"
-        | TCharacter => "Character"
-        | TStr => "String"
-        | TList => "List"
-        | TTuple(_, _, _) => "Tuple"
-        | TObj => "Dict"
-        | TBlock => "Block"
-        | TIncomplete => "Incomplete"
-        | TError => "Error"
-        | TResp => "Response"
-        | TDB => "Datastore"
-        | TDate => "Date"
-        | TOption => "Option"
-        | TPassword => "Password"
-        | TUuid => "UUID"
-        | TErrorRail => "ErrorRail"
-        | TResult => "Result"
-        | TDbList(a) => "[" ++ (tipe2str(a) ++ "]")
-        | TUserType(name, _) => name
-        | TBytes => "Bytes"
-        }
-
-      let tipeString = (j): string => map(tipe2str, DType.decode, j)
-      tuple2(BlankOr.decode(string), BlankOr.decode(tipeString), j)
+      {
+        name: field("name", optional(string), j),
+        typ: field("typ", optional(DType.decode), j),
+        nameID: field("nameID", ID.decode, j),
+        typeID: field("typeID", ID.decode, j),
+      }
     }
   }
 

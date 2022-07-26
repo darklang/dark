@@ -202,9 +202,9 @@ let rename_db_fields = (m: model): testResult =>
   |> Map.mapValues(~f=({cols, _}: PT.DB.t) =>
     switch cols {
     | list{
-        (F(_, "field6"), F(_, "String")),
-        (F(_, "field2"), F(_, "String")),
-        (Blank(_), Blank(_)),
+        {name: Some("field6"), typ: Some(TStr), _},
+        {name: Some("field2"), typ: Some(TStr), _},
+        {name: None, typ: None, _},
       } =>
       switch m.cursorState {
       | Selecting(_) => pass
@@ -221,7 +221,11 @@ let rename_db_type = (m: model): testResult =>
   |> Map.mapValues(~f=({cols, tlid: dbTLID, _}: PT.DB.t) =>
     switch cols {
     // this was previously an Int
-    | list{(F(_, "field1"), F(_, "String")), (F(_, "field2"), F(_, "Int")), (Blank(_), Blank(_))} =>
+    | list{
+        {name: Some("field1"), typ: Some(TStr), _},
+        {name: Some("field2"), typ: Some(TInt), _},
+        {name: None, typ: None, _},
+      } =>
       switch m.cursorState {
       | Selecting(tlid, None) =>
         if tlid == dbTLID {
@@ -339,7 +343,7 @@ let function_version_renders = (_: model): testResult =>
 let delete_db_col = (m: model): testResult => {
   let db = onlyDB(m) |> Option.map(~f=(d: PT.DB.t) => d.cols)
   switch db {
-  | Some(list{(Blank(_), Blank(_))}) => pass
+  | Some(list{{name: None, typ: None, _}}) => pass
   | cols => fail(~f=showOption(show_list(~f=PT.DB.Col.show)), cols)
   }
 }
@@ -355,7 +359,7 @@ let cant_delete_locked_col = (m: model): testResult => {
   )
 
   switch db {
-  | Some(list{(F(_, "cantDelete"), F(_, "Int")), (Blank(_), Blank(_))}) => pass
+  | Some(list{{name: Some("cantDelete"), typ: Some(TInt), _}, {name: None, typ: None, _}}) => pass
   | cols => fail(~f=showOption(show_list(~f=PT.DB.Col.show)), cols)
   }
 }

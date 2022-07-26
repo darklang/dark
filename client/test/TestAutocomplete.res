@@ -86,7 +86,7 @@ let aDB = (
   tlid: tlid,
   name: name,
   nameID: gid(),
-  cols: list{(Blank(fieldid), Blank(typeid))},
+  cols: list{{name: None, typ: None, nameID: fieldid, typeID: typeid}},
   version: 0,
   pos: {x: 0, y: 0},
 }

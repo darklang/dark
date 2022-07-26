@@ -48,13 +48,16 @@ let isBlank = (pd: blankOrData): bool =>
   | PEventSpace(str)
   | PDBName(str)
   | PDBColName(str)
-  | PDBColType(str)
   | PFnName(str)
   | PParamName(str)
   | PTypeName(str)
   | PTypeFieldName(str) =>
     B.isBlank(str)
-  | PFnReturnTipe(t) | PTypeFieldTipe(t) | PParamTipe(t) => B.isBlank(t)
+  | PDBColType(t)
+  | PFnReturnTipe(t)
+  | PTypeFieldTipe(t)
+  | PParamTipe(t) =>
+    B.isBlank(t)
   }
 
 let toContent = (pd: blankOrData): string => {
@@ -65,13 +68,12 @@ let toContent = (pd: blankOrData): string => {
   | PEventSpace(d)
   | PDBName(d)
   | PDBColName(d)
-  | PDBColType(d)
   | PFnName(d)
   | PParamName(d)
   | PTypeName(d)
   | PTypeFieldName(d) =>
     bs2s(d)
-  | PFnReturnTipe(d) | PParamTipe(d) | PTypeFieldTipe(d) =>
+  | PFnReturnTipe(d) | PParamTipe(d) | PTypeFieldTipe(d) | PDBColType(d) =>
     d |> B.toOption |> Option.map(~f=Prelude.tipe2str) |> Option.unwrap(~default="")
   }
 }

@@ -5,14 +5,14 @@ module B = BlankOr
 type msg = AppTypes.msg
 
 let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
-  let colView = col =>
+  let colView = (col: PT.DB.Col.t) =>
     switch col {
-    | (B.F(_, nm), B.F(_, ty)) =>
+    | {name: Some(name), typ: Some(typ), _} =>
       let html = Html.div(
         list{Html.class'("field")},
         list{
-          Html.div(list{Html.class'("name")}, list{Html.text(nm)}),
-          Html.div(list{Html.class'("type")}, list{Html.text(ty)}),
+          Html.div(list{Html.class'("name")}, list{Html.text(name)}),
+          Html.div(list{Html.class'("type")}, list{Html.text(Prelude.tipe2str(typ))}),
         },
       )
 

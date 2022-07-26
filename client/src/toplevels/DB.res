@@ -28,16 +28,22 @@ let fromList = (dbs: list<PT.DB.t>): TLID.Dict.t<PT.DB.t> =>
 
 let blankOrData = (db: PT.DB.t): list<blankOrData> => {
   let colpointers =
-    db.cols |> List.map(~f=((lhs, rhs)) => list{PDBColName(lhs), PDBColType(rhs)}) |> List.flatten
+    db.cols
+    |> List.map(~f=(col: PT.DB.Col.t) => {
+      let lhs = B.fromOptionID(col.name, col.nameID)
+      let rhs = B.fromOptionID(col.typ, col.typeID)
+      list{PDBColName(lhs), PDBColType(rhs)}
+    })
+    |> List.flatten
 
   list{PDBName(B.fromStringID(db.name, db.nameID)), ...colpointers}
 }
 
 let hasCol = (db: PT.DB.t, name: string): bool =>
-  db.cols |> List.any(~f=((colname, _)) =>
-    switch colname {
-    | BlankOr.Blank(_) => false
-    | F(_, n) => name == n
+  db.cols |> List.any(~f=(col: PT.DB.Col.t) =>
+    switch col.name {
+    | Some(colName) => name == colName
+    | None => false
     }
   )
 

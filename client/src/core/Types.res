@@ -89,14 +89,14 @@ and blankOrData =
   | PEventSpace(BlankOr.t<string>)
   | PDBName(BlankOr.t<string>)
   | PDBColName(BlankOr.t<string>)
-  | PDBColType(BlankOr.t<string>)
+  | PDBColType(BlankOr.t<DType.t>)
   | PFnName(BlankOr.t<string>)
-  | PFnReturnTipe(BlankOr.t<DType.t>)
+  | PFnReturnTipe(BlankOr.t<DType.t>) // CLEANUP rename
   | PParamName(BlankOr.t<string>)
   | PParamTipe(BlankOr.t<DType.t>)
   | PTypeName(BlankOr.t<string>)
   | PTypeFieldName(BlankOr.t<string>)
-  | PTypeFieldTipe(BlankOr.t<DType.t>)
+  | PTypeFieldTipe(BlankOr.t<DType.t>) // CLEANUP rename
 
 @ppx.deriving(show({with_path: false}))
 and blankOrType =

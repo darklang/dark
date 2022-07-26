@@ -134,7 +134,7 @@ let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): PT.DB
   tlid: tlid,
   name: "MyDB",
   nameID: gid(),
-  cols: list{(Blank(fieldid), Blank(typeid))},
+  cols: list{{name: None, typ: None, nameID: fieldid, typeID: typeid}},
   version: 0,
   pos: {x: 0, y: 0},
 }
