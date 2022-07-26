@@ -242,8 +242,7 @@ let tipeView = (
 
 let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   switch tl {
-  | TLDB({tlid, name: F(_, name), cols, _}) =>
-    dbView(originalTLID, originalIDs, tlid, name, cols, direction)
+  | TLDB({tlid, name, cols, _}) => dbView(originalTLID, originalIDs, tlid, name, cols, direction)
   | TLHandler({tlid, spec, _}) => handlerView(originalTLID, originalIDs, tlid, spec, direction)
   | TLFunc({tlid, metadata: {name: F(_, name), parameters, returnType, _}, ast: _}) =>
     fnView(originalTLID, originalIDs, tlid, name, parameters, returnType, direction)

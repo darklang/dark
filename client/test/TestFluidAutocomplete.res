@@ -132,7 +132,8 @@ let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): PT.UserFunction.t =>
 
 let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): PT.DB.t => {
   tlid: tlid,
-  name: B.newF("MyDB"),
+  name: "MyDB",
+  nameID: gid(),
   cols: list{(Blank(fieldid), Blank(typeid))},
   version: 0,
   pos: {x: 0, y: 0},

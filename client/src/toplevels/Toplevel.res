@@ -14,7 +14,7 @@ type model = AppTypes.model
 let name = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) => "H: " ++ PT.Handler.Spec.name(h.spec)
-  | TLDB(db) => "DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default=""))
+  | TLDB(db) => "DB: " ++ db.name
   | TLPmFunc(fn) => "Package Manager Func: " ++ PT.FQFnName.PackageFnName.toString(fn.name)
   | TLFunc(f) => "Func: " ++ (f.metadata.name |> B.toOption |> Option.unwrap(~default=""))
   | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
@@ -26,7 +26,7 @@ let sortkey = (tl: toplevel): string =>
     PT.Handler.Spec.space(h.spec)->Belt.Option.getWithDefault("Undefined") ++
     PT.Handler.Spec.name(h.spec) ++
     PT.Handler.Spec.modifier(h.spec)->Belt.Option.getWithDefault("Undefined")
-  | TLDB(db) => db.name |> B.toOption |> Option.unwrap(~default="Undefined")
+  | TLDB(db) => db.name
   | TLPmFunc(f) => PT.FQFnName.PackageFnName.toString(f.name)
   | TLFunc(f) => f.metadata.name |> B.toOption |> Option.unwrap(~default="")
   | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
@@ -335,9 +335,10 @@ let getTLAndPD = (m: model, tlid: TLID.t, id: id): option<(toplevel, option<blan
 
 let allDBNames = (dbs: TD.t<PT.DB.t>): list<string> =>
   dbs |> Map.filterMapValues(~f=(db: PT.DB.t) =>
-    switch db.name {
-    | F(_, name) => Some(name)
-    | Blank(_) => None
+    if db.name == "" {
+      None
+    } else {
+      Some(db.name)
     }
   )
 

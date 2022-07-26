@@ -512,7 +512,7 @@ let withDynamicItems = (
 let tlGotoName = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) => "Jump to handler: " ++ handlerDisplayName(h)
-  | TLDB(db) => "Jump to DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default="Unnamed DB"))
+  | TLDB(db) => "Jump to DB: " ++ db.name
   | TLPmFunc(_) | TLFunc(_) => recover("can't goto function", ~debug=tl, "<invalid state>")
   | TLTipe(_) => recover("can't goto tipe ", ~debug=tl, "<invalid state>")
   }

@@ -710,7 +710,8 @@ module DB = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     tlid: TLID.t,
-    name: BlankOr.t<string>,
+    name: string,
+    nameID: ID.t,
     cols: list<Col.t>,
     version: int,
     pos: Pos.t,
@@ -718,14 +719,11 @@ module DB = {
 
   let encode = (db: t): Js.Json.t => {
     open Json.Encode
-    let (name, nameID) = switch db.name {
-    | F(id, str) => (str, id)
-    | Blank(id) => ("", id)
-    }
     object_(list{
       ("tlid", TLID.encode(db.tlid)),
-      ("name", string(name)),
-      ("nameID", ID.encode(nameID)),
+      ("pos", Pos.encode(db.pos)),
+      ("name", string(db.name)),
+      ("nameID", ID.encode(db.nameID)),
       ("cols", list(Col.encode, db.cols)),
       ("version", int(db.version)),
     })
@@ -733,19 +731,13 @@ module DB = {
 
   let decode = (j): t => {
     open Json.Decode
-    let name = field("name", string, j)
-    let nameID = field("nameID", ID.decode, j)
-    let name = if name == "" {
-      BlankOr.Blank(nameID)
-    } else {
-      F(nameID, name)
-    }
     {
       tlid: field("tlid", TLID.decode, j),
       pos: field("pos", Pos.decode, j),
-      name: name,
-      cols: field("cols", list(Col.decode), j),
+      name: field("name", string, j),
+      nameID: field("nameID", ID.decode, j),
       version: field("version", int, j),
+      cols: field("cols", list(Col.decode), j),
     }
   }
 }

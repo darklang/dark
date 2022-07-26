@@ -9,9 +9,9 @@ let keyForTipe = (name: string, version: int): string => name ++ (":" ++ Int.toS
 
 let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   dbs
-  |> Map.filterMapValues(~f=(db: PT.DB.t) =>
-    db.name |> B.toOption |> Option.map(~f=name => (name, db.tlid))
-  )
+  |> Map.filter(~f=(db: PT.DB.t) => db.name != "")
+  |> Map.map(~f=(db: PT.DB.t) => (db.name, db.tlid))
+  |> Map.values
   |> Map.String.fromList
 
 let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> => {

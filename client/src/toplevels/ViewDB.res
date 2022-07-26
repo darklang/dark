@@ -11,8 +11,6 @@ type dbStats = AnalysisTypes.dbStats
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let dbName2String = (name: BlankOr.t<string>): string => B.valueWithDefault("", name)
-
 let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(
     list{Html.class'("db db-count")},
@@ -67,9 +65,10 @@ let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
 
   let titleView = {
     let nameField = if vp.dbLocked {
-      Html.text(dbName2String(db.name))
+      Html.text(db.name)
     } else {
-      ViewBlankOr.viewText(~enterable=true, ~classes=list{"dbname"}, DBName, vp, db.name)
+      let blankOr = B.fromStringID(db.name, db.nameID)
+      ViewBlankOr.viewText(~enterable=true, ~classes=list{"dbname"}, DBName, vp, blankOr)
     }
 
     Html.span(

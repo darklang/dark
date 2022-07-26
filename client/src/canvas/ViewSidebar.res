@@ -192,14 +192,19 @@ let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory
 
 let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   let entries = List.map(dbs, ~f=db => {
-    let uses = switch db.name {
-    | Blank(_) => 0
-    | F(_, name) => Refactor.dbUseCount(m, name)
+    let uses = if db.name == "" {
+      0
+    } else {
+      Refactor.dbUseCount(m, db.name)
     }
 
     let minusButton = None
     Entry({
-      name: B.valueWithDefault("Untitled DB", db.name),
+      name: if db.name == "" {
+        "Untitled DB"
+      } else {
+        db.name
+      },
       identifier: Tlid(db.tlid),
       uses: Some(uses),
       onClick: Destination(FocusedDB(db.tlid, true)),

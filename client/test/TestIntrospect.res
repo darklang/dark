@@ -33,7 +33,8 @@ let run = () => {
     let dbtlid = gtlid()
     let dbdata: PT.DB.t = {
       tlid: dbtlid,
-      name: B.newF("Books"),
+      name: "Books",
+      nameID: gid(),
       cols: list{},
       version: 0,
       pos: {x: 0, y: 0},
