@@ -59,6 +59,8 @@ let tryDecode2: (decoder<'a>, decoder<'a>) => decoder<'a>
 
 let strDict: decoder<'a> => decoder<Tc.Map.String.t<'a>>
 
+let strListDict: decoder<'a> => decoder<Tc.Map.String.t<'a>>
+
 let beltStrDict: decoder<'a> => decoder<Belt.Map.String.t<'a>>
 
 let strSet: decoder<Tc.Set.String.t>

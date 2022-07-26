@@ -38,7 +38,7 @@ let decode = (j): t => {
     unlockedDBs: field("unlockedDBs", TLID.Set.decode, j),
     staticDeploys: field("staticDeploys", list(StaticAssets.Deploy.decode), j),
     permission: field("permission", optional(AccountTypes.Permission.decode), j),
-    opCtrs: field("opCtrs", strDict(int), j),
+    opCtrs: field("opCtrs", strListDict(int), j),
     account: field("account", AccountTypes.Account.decode, j),
     canvasList: field("canvasList", list(string), j),
     orgs: field("orgs", list(string), j),

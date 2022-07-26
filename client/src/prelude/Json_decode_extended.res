@@ -66,6 +66,9 @@ let tryDecode2 = (try1, try2, json) =>
   | DecodeError(_) => try2(json)
   }
 
+let strListDict = (decoder: Js.Json.t => 'a, json: Js.Json.t): Map.String.t<'a> =>
+  list(tuple2(string, decoder), json) |> Map.String.fromList
+
 let strDict = (decoder: Js.Json.t => 'a, json: Js.Json.t): Map.String.t<'a> =>
   dict(decoder, json) |> Js.Dict.entries |> Map.String.fromArray
 
