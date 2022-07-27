@@ -547,7 +547,7 @@ module Handler = {
       | OldWorker(space, name, ids) =>
         ev("OldWorker", list{string(space), string(name), IDs.encode(ids)})
       | Cron(name, interval, ids) =>
-        ev("HTTP", list{string(name), nullable(CronInterval.encode, interval), IDs.encode(ids)})
+        ev("Cron", list{string(name), nullable(CronInterval.encode, interval), IDs.encode(ids)})
       | REPL(name, ids) => ev("REPL", list{string(name), IDs.encode(ids)})
       | UnknownHandler(name, mod, ids) =>
         ev("UnknownHandler", list{string(name), string(mod), IDs.encode(ids)})

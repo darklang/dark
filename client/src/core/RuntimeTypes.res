@@ -27,8 +27,8 @@ module FQFnName = {
       open Json_decode_extended
       {
         // Note: module has no underscore in the API
-        module_: field("module", string, j),
-        function: field("function", string, j),
+        module_: field("module_", string, j),
+        function: field("function_", string, j),
         version: field("version", int, j),
       }
     }
@@ -69,9 +69,8 @@ module FQFnName = {
       {
         owner: field("owner", string, j),
         package: field("package", string, j),
-        // Note: module has no underscore in the API
-        module_: field("module", string, j),
-        function: field("function", string, j),
+        module_: field("module_", string, j),
+        function: field("function_", string, j),
         version: field("version", int, j),
       }
     }

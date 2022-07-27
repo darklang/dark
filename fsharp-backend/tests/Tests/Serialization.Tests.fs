@@ -731,7 +731,7 @@ module GenericSerializersTests =
 
       v<List<ApiServer.Functions.BuiltInFn.T>>
         "all"
-        ([ { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+        ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters =
                [ { name = "a"
                    ``type`` = ApiServer.ClientTypes.DType.TInt
@@ -744,7 +744,7 @@ module GenericSerializersTests =
              previewable = ApiServer.Functions.Previewable.Pure
              deprecated = ApiServer.Functions.Deprecation.NotDeprecated
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = ApiServer.ClientTypes.DType.TInt
              description = "impure"
@@ -752,7 +752,7 @@ module GenericSerializersTests =
              previewable = ApiServer.Functions.Previewable.Impure
              deprecated = ApiServer.Functions.Deprecation.NotDeprecated
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = ApiServer.ClientTypes.DType.TInt
              description = "impurepreviewable"
@@ -760,7 +760,7 @@ module GenericSerializersTests =
              previewable = ApiServer.Functions.Previewable.ImpurePreviewable
              deprecated = ApiServer.Functions.Deprecation.NotDeprecated
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = ApiServer.ClientTypes.DType.TInt
              description = "replacedBy"
@@ -768,10 +768,10 @@ module GenericSerializersTests =
              previewable = ApiServer.Functions.Previewable.Pure
              deprecated =
                ApiServer.Functions.Deprecation.ReplacedBy(
-                 { ``module`` = "Int"; ``function`` = "mod"; version = 1 }
+                 { module_ = "Int"; function_ = "mod"; version = 1 }
                )
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = ApiServer.ClientTypes.DType.TInt
              description = "renamedTo"
@@ -779,10 +779,10 @@ module GenericSerializersTests =
              previewable = ApiServer.Functions.Previewable.Pure
              deprecated =
                ApiServer.Functions.Deprecation.RenamedTo(
-                 { ``module`` = "Int"; ``function`` = "mod"; version = 1 }
+                 { module_ = "Int"; function_ = "mod"; version = 1 }
                )
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = ApiServer.ClientTypes.DType.TInt
              description = "deprecatedBecause"
