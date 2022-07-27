@@ -1,8 +1,8 @@
 [
   {
     "name": {
-      "module": "Int",
-      "function": "mod",
+      "module_": "Int",
+      "function_": "mod",
       "version": 0
     },
     "parameters": [
@@ -35,8 +35,8 @@
   },
   {
     "name": {
-      "module": "Int",
-      "function": "mod",
+      "module_": "Int",
+      "function_": "mod",
       "version": 0
     },
     "parameters": [],
@@ -57,8 +57,8 @@
   },
   {
     "name": {
-      "module": "Int",
-      "function": "mod",
+      "module_": "Int",
+      "function_": "mod",
       "version": 0
     },
     "parameters": [],
@@ -79,8 +79,8 @@
   },
   {
     "name": {
-      "module": "Int",
-      "function": "mod",
+      "module_": "Int",
+      "function_": "mod",
       "version": 0
     },
     "parameters": [],
@@ -94,8 +94,8 @@
     "deprecated": [
       "ReplacedBy",
       {
-        "module": "Int",
-        "function": "mod",
+        "module_": "Int",
+        "function_": "mod",
         "version": 1
       }
     ],
@@ -106,8 +106,8 @@
   },
   {
     "name": {
-      "module": "Int",
-      "function": "mod",
+      "module_": "Int",
+      "function_": "mod",
       "version": 0
     },
     "parameters": [],
@@ -121,8 +121,8 @@
     "deprecated": [
       "RenamedTo",
       {
-        "module": "Int",
-        "function": "mod",
+        "module_": "Int",
+        "function_": "mod",
         "version": 1
       }
     ],
@@ -133,8 +133,8 @@
   },
   {
     "name": {
-      "module": "Int",
-      "function": "mod",
+      "module_": "Int",
+      "function_": "mod",
       "version": 0
     },
     "parameters": [],
