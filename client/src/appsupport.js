@@ -207,7 +207,7 @@ window.Dark = {
       const worker = window.BlazorWorker;
       if (!analysis.initialized) {
         // We do some warm-up analysis that we don't need to send back to the user
-        console.log("Blazor: received warm-up callback");
+        console.log("Blazor: received warm-up callback", event.data);
         analysis.initialized = true;
       } else {
         var result = analysis.utils.decodeOutput(event.data);
@@ -248,7 +248,6 @@ window.Dark = {
       // OCaml would take a value that would be converted on the other side of
       // the worker, we need to stringify here to get the value to the worker.
       params = analysis.utils.stringifyInput(params);
-      console.log("params", params);
       if (params.responseType === "error") {
         console.log("error calling F# analysis", params.json, params);
       } else {
