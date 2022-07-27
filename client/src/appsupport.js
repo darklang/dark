@@ -205,23 +205,29 @@ window.Dark = {
     callback: function (event) {
       const analysis = window.Dark.analysis;
       const worker = window.BlazorWorker;
-      var result = analysis.utils.decodeOutput(event.data);
-
-      var event = new CustomEvent("receiveAnalysis", { detail: result });
-      document.dispatchEvent(event);
-
-      // analysis queue: run the next analysis or mark not busy
-      let params = analysis.next;
-      if (params === null) {
-        // no analyses waiting, we're done
-        analysis.busy = false;
+      if (!analysis.initialized) {
+        // We do some warm-up analysis that we don't need to send back to the user
+        console.log("Blazor: received warm-up callback");
+        analysis.initialized = true;
       } else {
-        // an analysis is waiting, run it
-        analysis.next = null;
-        worker.postMessage(params);
-      }
+        var result = analysis.utils.decodeOutput(event.data);
 
-      window.Dark.analysis.lastRun = new Date();
+        var event = new CustomEvent("receiveAnalysis", { detail: result });
+        document.dispatchEvent(event);
+
+        // analysis queue: run the next analysis or mark not busy
+        let params = analysis.next;
+        if (params === null) {
+          // no analyses waiting, we're done
+          analysis.busy = false;
+        } else {
+          // an analysis is waiting, run it
+          analysis.next = null;
+          worker.postMessage(params);
+        }
+
+        window.Dark.analysis.lastRun = new Date();
+      }
     },
     errorCallback: function (error) {
       window.onerror("Blazor worker failure", error);
@@ -242,6 +248,7 @@ window.Dark = {
       // OCaml would take a value that would be converted on the other side of
       // the worker, we need to stringify here to get the value to the worker.
       params = analysis.utils.stringifyInput(params);
+      console.log("params", params);
       if (params.responseType === "error") {
         console.log("error calling F# analysis", params.json, params);
       } else {
@@ -265,8 +272,8 @@ window.Dark = {
     initializeBlazorWorker: function () {
       const analysis = window.Dark.analysis;
       let initializedCallback = () => {
-        console.log("Blazor loaded");
-        analysis.initialized = true;
+        console.log("Blazor loaded, starting warm-up");
+        worker.postMessage(analysis.utils.warmupValue); // "warm up" the eval with a simple `2+3` expr
       };
       // Only load when asked for
       window.BlazorWorker.initWorker(

@@ -2,8 +2,6 @@
 
 open BaseTypes
 
-// CLEANUP: these are just here to allow deriving(show) to work on Belt types. In
-// theory we'd move these out, but in practice we actually just need to get rid of deriving(show)
 @ppx.deriving(show({with_path: false})) type rec id = ID.t
 @ppx.deriving(show({with_path: false})) type rec tlid = TLID.t
 

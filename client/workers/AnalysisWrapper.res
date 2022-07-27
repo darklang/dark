@@ -9,6 +9,36 @@ type response = {
   json: string,
 }
 
+let warmupValue = {
+  let params = PerformAnalysis.Params.AnalyzeHandler({
+    handler: {
+      tlid: TLID.generate(),
+      pos: {x: 0, y: 0},
+      spec: PT.Handler.Spec.newREPL("violentTamarin"),
+      ast: Root(
+        EBinOp(
+          ID.generate(),
+          {module_: None, function: "+"},
+          EInteger(ID.generate(), 2L),
+          EInteger(ID.generate(), 3L),
+          NoRail,
+        ),
+      ),
+    },
+    traceID: "7d495105-946f-5ad8-8db9-4fd70e6eff67",
+    traceData: {
+      input: Belt.Map.String.empty,
+      timestamp: "1970-01-01T00:00:00Z",
+      functionResults: list{},
+    },
+    dbs: list{},
+    userFns: list{},
+    userTipes: list{}, // CLEANUP REMOVE THE I
+    secrets: list{},
+  })
+  Js.Json.stringify(PerformAnalysis.Params.encode(params))
+}
+
 let stringifyInput = (event: event): response =>
   switch Js.Nullable.toOption(event) {
   | None =>

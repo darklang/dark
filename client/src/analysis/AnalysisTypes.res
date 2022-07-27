@@ -172,11 +172,11 @@ module PerformAnalysis = {
         open Json_encode_extended
         object_(list{
           ("handler", PT.Handler.encode(params.handler)),
-          ("trace_id", TraceID.encode(params.traceID)),
-          ("trace_data", TraceData.encode(params.traceData)),
+          ("traceID", TraceID.encode(params.traceID)),
+          ("traceData", TraceData.encode(params.traceData)),
           ("dbs", list(PT.DB.encode, params.dbs)),
-          ("user_fns", list(PT.UserFunction.encode, params.userFns)),
-          ("user_tipes", list(PT.UserType.encode, params.userTipes)),
+          ("userFns", list(PT.UserFunction.encode, params.userFns)),
+          ("userTypes", list(PT.UserType.encode, params.userTipes)),
           ("secrets", list(SecretTypes.encode, params.secrets)),
         })
       }
@@ -200,11 +200,11 @@ module PerformAnalysis = {
         open Json_encode_extended
         object_(list{
           ("func", PT.UserFunction.encode(params.func)),
-          ("trace_id", TraceID.encode(params.traceID)),
-          ("trace_data", TraceData.encode(params.traceData)),
+          ("traceID", TraceID.encode(params.traceID)),
+          ("traceData", TraceData.encode(params.traceData)),
           ("dbs", list(PT.DB.encode, params.dbs)),
-          ("user_fns", list(PT.UserFunction.encode, params.userFns)),
-          ("user_tipes", list(PT.UserType.encode, params.userTipes)),
+          ("userFns", list(PT.UserFunction.encode, params.userFns)),
+          ("userTypes", list(PT.UserType.encode, params.userTipes)),
           ("secrets", list(SecretTypes.encode, params.secrets)),
         })
       }

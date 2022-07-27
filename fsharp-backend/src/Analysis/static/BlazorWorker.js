@@ -885,42 +885,6 @@ D-REMOVED */
     // Initialize
     // =======================
 
-    const twoPlusThree = `[
-      "AnalyzeHandler",
-      {
-          "handler": {
-              "tlid": "163992584",
-              "spec": {
-                  "name": [ "Filled", "173388941", "violentTamarin" ],
-                  "module": [ "Filled", "2107282711", "REPL" ],
-                  "modifier": [ "Filled", "2133308295", "_" ],
-                  "types": {
-                      "input": [ "Blank", "848577556" ],
-                      "output": [ "Blank", "1904777602" ]
-                  }
-              },
-              "ast": [
-                  "EBinOp",
-                  "133960504",
-                  "+",
-                  [ "EInteger", "36273220", "2" ],
-                  [ "EInteger", "196615730", "3" ],
-                  ["NoRail" ]
-              ]
-          },
-          "trace_id": "7d495105-946f-5ad8-8db9-4fd70e6eff67",
-          "trace_data": {
-              "input": [],
-              "timestamp": "1970-01-01T00:00:00Z",
-              "function_results": []
-          },
-          "dbs": [],
-          "user_fns": [],
-          "user_tipes": [],
-          "secrets": []
-      }
-    ]`;
-
     const onReady = () => {
       console.log("Calling onReady");
 
@@ -940,9 +904,6 @@ D-REMOVED */
       self.onerror = msg => {
         self.postMessage({ type: "blazorError", err: msg });
       };
-
-      // "warm up" the eval with a simple `2+3` expr
-      messageHandler(twoPlusThree);
 
       // Send a message to indicate initialization complete
       self.postMessage("darkWebWorkerInitializedMessage");

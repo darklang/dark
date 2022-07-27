@@ -11,6 +11,7 @@ module File = LibBackend.File
 module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module AT = LibExecution.AnalysisTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module OT = LibExecution.OCamlTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
@@ -941,27 +942,33 @@ module GenericSerializersTests =
         (Ok(
           testUuid,
           Dictionary.fromList (
-            [ (7UL, LibAnalysis.ClientInterop.ExecutedResult testOCamlDval)
-              (7UL, LibAnalysis.ClientInterop.NonExecutedResult testOCamlDval) ]
+            [ (7UL, AT.ExecutedResult testDval)
+              (7UL, AT.NonExecutedResult testDval) ]
           )
         ))
-      v<LibAnalysis.ClientInterop.performAnalysisParams>
+      v<LibAnalysis.ClientInterop.PerformAnalysisParams>
         "handler"
         (LibAnalysis.ClientInterop.AnalyzeHandler
-          { handler = OT.Convert.pt2ocamlHandler testHttpHandler
-            trace_id = testUuid
-            trace_data =
-              { input = [ "var", testOCamlDval ]
+          { handler = testHttpHandler
+            traceID = testUuid
+            traceData =
+              { input = [ "var", testDval ]
                 timestamp = testInstant
-                function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }
+                function_results = [ ("fnName", 7UL, "hash", 0, testDval) ] }
             dbs =
               [ { tlid = testTLIDs[0]
-                  name = OT.Filled(7UL, "dbname")
-                  cols = [ OT.Filled(7UL, "colname"), OT.Filled(7UL, "int") ]
-                  version = 1L } ]
-            user_fns = List.map OT.Convert.pt2ocamlUserFunction testUserFunctions
-            user_tipes = List.map OT.Convert.pt2ocamlUserType testUserTypes
-            secrets = [ { secret_name = "z"; secret_value = "y" } ] })
+                  name = "dbname"
+                  nameID = 7UL
+                  pos = testPos
+                  cols =
+                    [ { name = Some("colname")
+                        nameID = 8UL
+                        typ = Some(PT.TInt)
+                        typeID = 9UL } ]
+                  version = 1 } ]
+            userFns = testUserFunctions
+            userTypes = testUserTypes
+            secrets = [ { name = "z"; value = "y" } ] })
 
 
       // ------------------

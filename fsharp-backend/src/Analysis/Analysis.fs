@@ -82,9 +82,9 @@ type EvalWorker =
       Error($"exception: {errorMessage}, metadata: {metadata}")
 
     // parse an analysis request, in JSON, from the JS world (BlazorWorker)
-    let args : Result<ClientInterop.performAnalysisParams, string> =
+    let args : Result<ClientInterop.PerformAnalysisParams, string> =
       try
-        Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> input)
+        Ok(Json.Vanilla.deserialize<ClientInterop.PerformAnalysisParams> input)
       with
       | e -> reportAndRollUpExceptionIntoError "Error parsing analysis request" e
 
