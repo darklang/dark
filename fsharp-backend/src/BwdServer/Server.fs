@@ -37,9 +37,8 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module Resp = HttpMiddleware.ResponseV0
-module Req = HttpMiddleware.RequestV0
-module Cors = HttpMiddleware.Cors
+module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
+
 module RealExe = LibRealExecution.RealExecution
 
 module FireAndForget = LibService.FireAndForget
@@ -139,15 +138,17 @@ type System.IO.Pipelines.PipeWriter with
 
 let writeResponseToContext
   (ctx : HttpContext)
-  (response : Resp.HttpResponse)
+  (statusCode : int)
+  (headers : List<string * string>)
+  (body : array<byte>)
   : Task<unit> =
   task {
-    ctx.Response.StatusCode <- response.statusCode
-    response.headers |> List.iter (fun (k, v) -> setHeader ctx k v)
-    ctx.Response.ContentLength <- int64 response.body.Length
+    ctx.Response.StatusCode <- statusCode
+    headers |> List.iter (fun (k, v) -> setHeader ctx k v)
+    ctx.Response.ContentLength <- int64 body.Length
     if ctx.Request.Method <> "HEAD" then
       // TODO: benchmark - this is apparently faster than streams
-      do! ctx.Response.BodyWriter.WriteAsync(response.body)
+      do! ctx.Response.BodyWriter.WriteAsync(body)
   }
 
 let standardResponse
@@ -299,7 +300,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
     match canvasMeta with
     | Some meta ->
-
       ctx.Items[ "canvasName" ] <- meta.name // store for exception tracking
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
@@ -329,7 +329,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } as handler ] ->
+      | [ { spec = PT.Handler.HTTP (route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
@@ -346,7 +346,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Do request
           use _ = Telemetry.child "executeHandler" []
 
-          let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+          let request =
+            HttpMiddlewareV0.Request.fromRequest
+              false
+              url
+              reqHeaders
+              reqQuery
+              reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
@@ -358,17 +364,24 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               (RealExe.InitialExecution(desc, request))
 
           // Execute - note that these are outside the handler
-          let result = Resp.toHttpResponse result
-          let result = Cors.addCorsHeaders reqHeaders meta.name result
+          let result = HttpMiddlewareV0.Response.toHttpResponse result
+          let result =
+            HttpMiddlewareV0.Cors.addCorsHeaders reqHeaders meta.name result
 
-          do! writeResponseToContext ctx result
+          do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
 
           return ctx
 
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
-            let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+            let request =
+              HttpMiddlewareV0.Request.fromRequest
+                false
+                url
+                reqHeaders
+                reqQuery
+                reqBody
             TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
@@ -378,10 +391,16 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       | [] when ctx.Request.Method = "OPTIONS" ->
         let reqHeaders = getHeaders ctx
-        match Cors.optionsResponse reqHeaders meta.name with
+
+        match HttpMiddlewareV0.Cors.optionsResponse reqHeaders meta.name with
         | Some response ->
           Telemetry.addTag "http.completion_reason" "options response"
-          do! writeResponseToContext ctx response
+          do!
+            writeResponseToContext
+              ctx
+              response.statusCode
+              response.headers
+              response.body
         | None -> Telemetry.addTag "http.completion_reason" "options none"
         return ctx
 
@@ -390,7 +409,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
-        let event = Req.fromRequest true url reqHeaders reqQuery reqBody
+        let event =
+          HttpMiddlewareV0.Request.fromRequest true url reqHeaders reqQuery reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
         // CLEANUP: move pusher into storeEvent
