@@ -39,7 +39,7 @@ let defaultModel = (
   ~dbs=list{},
   ~handlers=list{},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   ~cursorState,
   (),
 ): model => {
@@ -48,7 +48,7 @@ let defaultModel = (
     handlers: Handlers.fromList(handlers),
     dbs: DB.fromList(dbs),
     userFunctions: UserFunctions.fromList(userFunctions),
-    userTipes: UserTypes.fromList(userTipes),
+    userTypes: UserTypes.fromList(userTypes),
     cursorState: cursorState,
     fluidState: FluidTypes.State.default,
   }
@@ -95,14 +95,14 @@ let enteringFunction = (
   ~dbs=list{},
   ~handlers=list{},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   (),
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs,
     ~handlers,
-    ~userTipes,
+    ~userTypes,
     ~userFunctions=list{aFunction(), ...userFunctions},
     (),
   )
@@ -111,14 +111,14 @@ let enteringDBField = (
   ~dbs=list{},
   ~handlers=list{},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   (),
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs=list{aDB(), ...dbs},
     ~handlers,
-    ~userTipes,
+    ~userTypes,
     ~userFunctions,
     (),
   )
@@ -127,14 +127,14 @@ let enteringDBType = (
   ~dbs=list{},
   ~handlers=list{},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   (),
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs=list{aDB(~fieldid=defaultID2, ~typeid=defaultID, ()), ...dbs},
     ~handlers,
-    ~userTipes,
+    ~userTypes,
     ~userFunctions,
     (),
   )

@@ -581,7 +581,7 @@ let submitACItem = (
       | (PParamName(_), ACParamName(value), _) => replace(PParamName(F(id, value)))
       | (PParamTipe(_), ACParamTipe(tipe), _) => replace(PParamTipe(F(id, tipe)))
       | (PTypeName(_), ACTypeName(value), TLTipe(old)) =>
-        if List.member(~value, UserTypes.allNames(m.userTipes)) {
+        if List.member(~value, UserTypes.allNames(m.userTypes)) {
           Model.updateErrorMod(Error.set("There is already a Type named " ++ value))
         } else {
           let newPD = PTypeName(F(id, value))

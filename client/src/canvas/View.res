@@ -370,7 +370,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
     | None => list{}
     }
   | FocusedType(tlid) =>
-    switch Map.get(~key=tlid, m.userTipes) {
+    switch Map.get(~key=tlid, m.userTypes) {
     | Some(tipe) => list{viewTL(m, TL.utToTL(tipe))}
     | None => list{}
     }

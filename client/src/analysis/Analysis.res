@@ -453,7 +453,7 @@ let requestTrace = (~force=false, m, tlid, traceID): (model, AppTypes.cmd) => {
 let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
   let dbs = Map.values(m.dbs)
   let userFns = Map.values(m.userFunctions)
-  let userTipes = Map.values(m.userTipes)
+  let userTypes = Map.values(m.userTypes)
   let trace = getTrace(m, tlid, traceID)
   let tl = TL.get(m, tlid)
   let secrets = m.secrets
@@ -467,7 +467,7 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
           traceData: traceData,
           dbs: dbs,
           userFns: userFns,
-          userTipes: userTipes,
+          userTypes: userTypes,
           secrets: secrets,
         }),
       )
@@ -481,7 +481,7 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
           traceData: traceData,
           dbs: dbs,
           userFns: userFns,
-          userTipes: userTipes,
+          userTypes: userTypes,
           secrets: secrets,
         }),
       )

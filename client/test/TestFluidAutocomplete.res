@@ -146,7 +146,7 @@ let defaultModel = (
   ~dbs=list{},
   ~handlers=list{aHandler()},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   (),
 ): AppTypes.model => {
   let analyses =
@@ -161,7 +161,7 @@ let defaultModel = (
     handlers: Handlers.fromList(handlers),
     dbs: DB.fromList(dbs),
     userFunctions: UserFunctions.fromList(userFunctions),
-    userTipes: UserTypes.fromList(userTipes),
+    userTypes: UserTypes.fromList(userTypes),
     cursorState: FluidEntering(tlid),
     functions: {...Functions.empty, builtinFunctions: sampleFunctions} |> Functions.update(
       defaultFunctionsProps,

@@ -164,7 +164,7 @@ module PerformAnalysis = {
         traceData: TraceData.t,
         dbs: list<PT.DB.t>,
         userFns: list<PT.UserFunction.t>,
-        userTipes: list<PT.UserType.t>,
+        userTypes: list<PT.UserType.t>,
         secrets: list<SecretTypes.t>,
       }
 
@@ -176,7 +176,7 @@ module PerformAnalysis = {
           ("traceData", TraceData.encode(params.traceData)),
           ("dbs", list(PT.DB.encode, params.dbs)),
           ("userFns", list(PT.UserFunction.encode, params.userFns)),
-          ("userTypes", list(PT.UserType.encode, params.userTipes)),
+          ("userTypes", list(PT.UserType.encode, params.userTypes)),
           ("secrets", list(SecretTypes.encode, params.secrets)),
         })
       }
@@ -192,7 +192,7 @@ module PerformAnalysis = {
         traceData: TraceData.t,
         dbs: list<PT.DB.t>,
         userFns: list<PT.UserFunction.t>,
-        userTipes: list<PT.UserType.t>,
+        userTypes: list<PT.UserType.t>,
         secrets: list<SecretTypes.t>,
       }
 
@@ -204,7 +204,7 @@ module PerformAnalysis = {
           ("traceData", TraceData.encode(params.traceData)),
           ("dbs", list(PT.DB.encode, params.dbs)),
           ("userFns", list(PT.UserFunction.encode, params.userFns)),
-          ("userTypes", list(PT.UserType.encode, params.userTipes)),
+          ("userTypes", list(PT.UserType.encode, params.userTypes)),
           ("secrets", list(SecretTypes.encode, params.secrets)),
         })
       }

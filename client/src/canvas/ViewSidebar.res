@@ -452,7 +452,7 @@ let deletedCategory = (m: model): category => {
     m.deletedHandlers,
     m.deletedDBs,
     m.deletedUserFunctions,
-    m.deletedUserTipes,
+    m.deleteduserTypes,
   ) |> List.map(~f=c => {
     ...c,
     plusButton: None /* only allow new entries on the main category */,
@@ -1157,7 +1157,7 @@ let update = (msg: AppTypes.Sidebar.msg): modification =>
 
 let viewSidebar_ = (m: model): Html.html<msg> => {
   let cats = Belt.List.concat(
-    standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTipes),
+    standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTypes),
     list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},
   )
 
@@ -1209,20 +1209,20 @@ let rtCacheKey = (m: model) =>
     m.handlers |> Map.mapValues(~f=(h: PT.Handler.t) => (h.pos, TL.sortkey(TLHandler(h)))),
     m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
-    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
     m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: PT.Handler.t) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
-    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.deleteduserTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.staticDeploys,
     m.unlockedDBs,
     m.usedDBs,
     m.usedFns,
     // CLEANUP do these need to be here twice
-    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
-    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.deleteduserTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     CursorState.tlidOf(m.cursorState),
     m.environment,
     m.editorSettings,

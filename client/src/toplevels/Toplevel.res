@@ -304,16 +304,16 @@ let combine = (
   dbs: TD.t<PT.DB.t>,
   userFunctions: TD.t<PT.UserFunction.t>,
   packageFn: TD.t<PT.Package.Fn.t>,
-  userTipes: TD.t<PT.UserType.t>,
+  userTypes: TD.t<PT.UserType.t>,
 ): TD.t<toplevel> =>
   Map.map(~f=h => TLHandler(h), handlers)
   |> Map.mergeLeft(Map.map(~f=db => TLDB(db), dbs))
   |> Map.mergeLeft(Map.map(~f=ufToTL, userFunctions))
   |> Map.mergeLeft(Map.map(~f=pmfToTL, packageFn))
-  |> Map.mergeLeft(Map.map(~f=utToTL, userTipes))
+  |> Map.mergeLeft(Map.map(~f=utToTL, userTypes))
 
 let all = (m: model): TD.t<toplevel> =>
-  combine(m.handlers, m.dbs, m.userFunctions, m.functions.packageFunctions, m.userTipes)
+  combine(m.handlers, m.dbs, m.userFunctions, m.functions.packageFunctions, m.userTypes)
 
 let structural = (m: model): TD.t<toplevel> =>
   Map.map(~f=h => TLHandler(h), m.handlers) |> Map.mergeLeft(Map.map(~f=db => TLDB(db), m.dbs))

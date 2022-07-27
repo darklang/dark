@@ -33,7 +33,7 @@ let warmupValue = {
     },
     dbs: list{},
     userFns: list{},
-    userTipes: list{}, // CLEANUP REMOVE THE I
+    userTypes: list{}, // CLEANUP REMOVE THE I
     secrets: list{},
   })
   Js.Json.stringify(PerformAnalysis.Params.encode(params))

@@ -630,12 +630,12 @@ let generate = (m: model, a: A.t): A.t => {
       list{ACEventSpace("HTTP"), ACEventSpace("CRON"), ACEventSpace("WORKER"), ACEventSpace("REPL")}
     | DBColType => List.map(~f=x => A.ACDBColType(x), allowedDBColTipes)
     | ParamTipe =>
-      let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
+      let userTypes = m.userTypes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
       Belt.List.concat(allowedParamTipes, userTypes) |> List.map(~f=t => A.ACParamTipe(t))
     | TypeFieldTipe => allowedUserTypeFieldTipes |> List.map(~f=t => A.ACTypeFieldTipe(t))
     | FnReturnTipe =>
-      let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
+      let userTypes = m.userTypes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
       Belt.List.concat(allowedReturnTipes, userTypes) |> List.map(~f=t => A.ACReturnTipe(t))
     | DBName | DBColName | FnName | ParamName | TypeName | TypeFieldName => list{}

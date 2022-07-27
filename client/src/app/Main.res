@@ -694,16 +694,16 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
         let m = {...m, functions: Functions.update(props, m.functions)}
         processAutocompleteMods(m, list{ACRegenerate})
       }
-    | SetTypes(userTipes, deletedUserTipes, updateCurrent) =>
+    | SetTypes(userTypes, deleteduserTypes, updateCurrent) =>
       let m2 = {
         ...m,
-        userTipes: Map.mergeRight(m.userTipes, UserTypes.fromList(userTipes)) |> Map.removeMany(
-          ~keys=List.map(~f=UserTypes.toID, deletedUserTipes),
+        userTypes: Map.mergeRight(m.userTypes, UserTypes.fromList(userTypes)) |> Map.removeMany(
+          ~keys=List.map(~f=UserTypes.toID, deleteduserTypes),
         ),
-        deletedUserTipes: Map.mergeRight(
-          m.deletedUserTipes,
-          UserTypes.fromList(deletedUserTipes),
-        ) |> Map.removeMany(~keys=List.map(~f=UserTypes.toID, userTipes)),
+        deleteduserTypes: Map.mergeRight(
+          m.deleteduserTypes,
+          UserTypes.fromList(deleteduserTypes),
+        ) |> Map.removeMany(~keys=List.map(~f=UserTypes.toID, userTypes)),
       }
 
       /* Bring back the TL being edited, so we don't lose work done since the
@@ -1330,7 +1330,7 @@ let update_ = (msg: msg, m: model): modification => {
         m => (
           {
             ...m,
-            deletedUserTipes: Map.remove(~key=tlid, m.deletedUserTipes),
+            deleteduserTypes: Map.remove(~key=tlid, m.deleteduserTypes),
           },
           Cmd.none,
         ),
@@ -1353,7 +1353,7 @@ let update_ = (msg: msg, m: model): modification => {
           m.userFunctions,
           UserFunctions.fromList(r.result.userFunctions),
         ),
-        userTipes: Map.mergeRight(m.userTipes, UserTypes.fromList(r.result.userTypes)),
+        userTypes: Map.mergeRight(m.userTypes, UserTypes.fromList(r.result.userTypes)),
       }
 
       let newState = processFocus(m, focus)
@@ -1396,7 +1396,7 @@ let update_ = (msg: msg, m: model): modification => {
       handlers: Handlers.fromList(r.handlers),
       dbs: DB.fromList(r.dbs),
       userFunctions: UserFunctions.fromList(r.userFunctions),
-      userTipes: UserTypes.fromList(r.userTypes),
+      userTypes: UserTypes.fromList(r.userTypes),
       handlerProps: ViewUtils.createHandlerProp(r.handlers),
     }
 

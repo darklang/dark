@@ -244,7 +244,7 @@ let getPageFromTLID = (m: model, tlid: TLID.t): page => {
     FocusedDB(tlid, true)
   } else if hasKey(m.userFunctions) || hasKey(m.deletedUserFunctions) {
     FocusedFn(tlid, None)
-  } else if hasKey(m.userTipes) || hasKey(m.deletedUserTipes) {
+  } else if hasKey(m.userTypes) || hasKey(m.deleteduserTypes) {
     FocusedType(tlid)
   } else {
     Architecture

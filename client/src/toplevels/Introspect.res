@@ -221,7 +221,7 @@ let refreshUsages = (m: AppTypes.model, tlids: list<TLID.t>): AppTypes.model => 
   let handlers = handlersByName(m.handlers)
   let functions = functionsByName(m.userFunctions)
   let packageFunctions = packageFunctionsByName(m.functions.packageFunctions)
-  let tipes = tipesByName(m.userTipes)
+  let tipes = tipesByName(m.userTypes)
   /* We need to overwrite the already-stored results for the passed-in TLIDs.
    * So we clear tlRefers for these tlids, and remove them from the inner set
    * of tlUsedIn. */
