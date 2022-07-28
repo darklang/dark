@@ -60,6 +60,7 @@ module Pattern =
     | ST.PFloat (id, s, w, f) -> PT.PFloat(id, s, w, f)
     | ST.PNull id -> PT.PNull id
     | ST.PBlank id -> PT.PBlank id
+    | ST.PList (id, pats) -> PT.PList(id, List.map toPT pats)
 
 
 

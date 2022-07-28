@@ -82,6 +82,7 @@ module RuntimeT =
   type fluidPattern =
     | FPVariable of id * id * string
     | FPConstructor of id * id * string * fluidPattern list
+    | FPList of id * id * fluidPattern list
     | FPInteger of id * id * string
     | FPBool of id * id * bool
     | FPString of FPString
@@ -363,6 +364,7 @@ module Convert =
     | ORT.FPVariable (_, id, str) -> PT.PVariable(id, str)
     | ORT.FPConstructor (_, id, name, pats) ->
       PT.PConstructor(id, name, List.map r pats)
+    | ORT.FPList(_, id, pats) -> PT.PList(id, List.map r pats)
     | ORT.FPInteger (_, id, i) -> PT.PInteger(id, parseInt64 i)
     | ORT.FPBool (_, id, b) -> PT.PBool(id, b)
     | ORT.FPString fp -> PT.PString(fp.patternID, fp.str)
@@ -696,6 +698,7 @@ module Convert =
     | PT.PVariable (id, str) -> ORT.FPVariable(mid, id, str)
     | PT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
+    | PT.PList(id, pats) -> ORT.FPList(mid, id, List.map r pats)
     | PT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
     | PT.PCharacter (id, c) -> ORT.FPBlank(mid, id)
     // Exception.raiseInternal "Character patterns not supported" [ "id", id; "c", c ]
@@ -713,6 +716,7 @@ module Convert =
     | RT.PVariable (id, str) -> ORT.FPVariable(mid, id, str)
     | RT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
+    | RT.PList(id, pats) -> ORT.FPList(mid, id, List.map r pats)
     | RT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
     | RT.PCharacter (id, c) -> ORT.FPBlank(mid, id)
     // Exception.raiseInternal "Character patterns not supported" [ "id", id; "c", c ]

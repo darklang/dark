@@ -386,6 +386,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                    state.tracing.traceDval false id (incomplete id))
                  args
              })
+        | PList(pid, pats) ->
+          // todo: consider consolidating this partially with the PConstructor branch
+          uply {
+            // Trace each argument too. TODO: recurse
+            List.iter
+              (fun pat ->
+                let id = Pattern.toID pat
+                state.tracing.traceDval false id (incomplete id))
+              pats
+          }
 
       let! matchVal = eval state st matchExpr
 

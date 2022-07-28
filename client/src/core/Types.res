@@ -343,6 +343,7 @@ type rec astPatternPart =
   | PPFloat(astFloatPart)
   | PPNull
   | PPBlank
+  | PPList // it feels like this needs some more context attached to it, but idk
 
 @ppx.deriving(show({with_path: false}))
 type rec astFlagPart =
@@ -1441,8 +1442,11 @@ and fluidToken =
     })
   | TRecordSep(id, int, analysisID)
   | TRecordClose(id, option<parentBlockID>)
+
+
   | TMatchKeyword(id)
   | TMatchBranchArrow({matchID: id, patternID: id, index: int})
+
   /* for all these TPattern* variants:
    * - the first id *is the match id *
    * - the second id *is the pattern id *
@@ -1450,14 +1454,25 @@ and fluidToken =
   | TPatternVariable(id, id, string, int)
   | TPatternConstructorName(id, id, string, int)
   | TPatternInteger(id, id, int64, int)
+
   | TPatternString({matchID: id, patternID: id, str: string, branchIdx: int})
+
   | TPatternTrue(id, id, int)
   | TPatternFalse(id, id, int)
+
   | TPatternNullToken(id, id, int)
+
   | TPatternFloatWhole(id, id, string, int)
   | TPatternFloatPoint(id, id, int)
   | TPatternFloatFractional(id, id, string, int)
+
   | TPatternBlank(id, id, int)
+
+  | TPatternListLiteralStart(id, id, int)
+  | TPatternListLiteralSeparator(id, id, int, int) // the first int is the index of the separator
+  | TPatternListLiteralEnd(id, id, int)
+
+
   | TConstructorName(id, string)
   | TParenOpen(id)
   | TParenClose(id)
@@ -1478,6 +1493,7 @@ and fluidPatternAutocomplete =
   | FPAConstructor(id, id, string, list<fluidPattern>)
   | FPANull(id, id)
   | FPABool(id, id, bool)
+  // consider FPAList(id, id, list<fluidPattern>)
 
 and fluidAutocompleteItem =
   | FACFunction(function_)

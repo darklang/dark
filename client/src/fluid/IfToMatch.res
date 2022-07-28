@@ -25,7 +25,7 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
   let makeBinOpMatch = (ifID, binopID, lhs, rhs, rail, then_, else_) => {
     /* We need to make sure that whichever side we choose for the match condition,
      * we should be able to turn the other side into a pattern. So we try to make smart
-     * decision whether to choose the lhs or rhs here. We default to the eft hand side,
+     * decision whether to choose the lhs or rhs here. We default to the left hand side,
      * except when there's something on the rhs which cannot be turned into a pattern.
      */
     let (matchCond, arm) = switch rhs {
@@ -60,6 +60,7 @@ let refactor = (_: model, tl: toplevel, id: id): modification => {
     | ENull(pid) => Some(PNull(pid))
     | EBlank(pid) => Some(PBlank(pid))
     | EVariable(pid, name) => Some(PVariable(pid, name))
+    //| EList(pid, args) => Some(PList(pid, args)) // TODO
     | _ => None
     }
 

@@ -9,6 +9,7 @@ let toID = (p: t): id =>
   switch p {
   | PVariable(id, _)
   | PConstructor(id, _, _)
+  | PList(id, _) => id
   | PInteger(id, _)
   | PBool(id, _)
   | PString(id, _)
@@ -20,6 +21,7 @@ let toID = (p: t): id =>
 let rec ids = (p: t): list<id> =>
   switch p {
   | PConstructor(id, _, list) => list |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
+  | PList(id, patterns) => patterns |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
   | PVariable(_)
   | PInteger(_)
   | PBool(_)
@@ -34,6 +36,8 @@ let rec clone = (p: t): t =>
   | PVariable(_, name) => PVariable(gid(), name)
   | PConstructor(_, name, patterns) =>
     PConstructor(gid(), name, List.map(~f=p => clone(p), patterns))
+  | PList(_, patterns) =>
+    PList(gid(), List.map(~f=p => clone(p), patterns))
   | PInteger(_, i) => PInteger(gid(), i)
   | PBool(_, b) => PBool(gid(), b)
   | PString(_, str) => PString(gid(), str)
@@ -46,6 +50,7 @@ let rec variableNames = (p: t): list<string> =>
   switch p {
   | PVariable(_, name) => list{name}
   | PConstructor(_, _, patterns) => patterns |> List.map(~f=variableNames) |> List.flatten
+  | PList(_, patterns) => patterns |> List.map(~f=variableNames) |> List.flatten
   | PInteger(_) | PBool(_) | PString(_) | PBlank(_) | PNull(_) | PFloat(_) => list{}
   }
 
@@ -72,6 +77,12 @@ let rec findPattern = (patID: id, within: t): option<t> =>
     } else {
       List.findMap(pats, ~f=p => findPattern(patID, p))
     }
+  | PList(pid, pats) =>
+    if patID == pid {
+      Some(within)
+    } else {
+      List.findMap(pats, ~f=p => findPattern(patID, p))
+    }
   }
 
 let rec preTraversal = (~f: t => t, pattern: t): t => {
@@ -87,6 +98,8 @@ let rec preTraversal = (~f: t => t, pattern: t): t => {
   | PFloat(_) => pattern
   | PConstructor(patternID, name, patterns) =>
     PConstructor(patternID, name, List.map(patterns, ~f=p => r(p)))
+  | PList(patternID, patterns) =>
+    PList(patternID, List.map(patterns, ~f=p => r(p)))
   }
 }
 
@@ -102,6 +115,8 @@ let rec postTraversal = (~f: t => t, pattern: t): t => {
   | PFloat(_) => pattern
   | PConstructor(patternID, name, patterns) =>
     PConstructor(patternID, name, List.map(patterns, ~f=p => r(p)))
+  | PList(patternID, patterns) =>
+    PList(patternID, List.map(patterns, ~f=p => r(p)))
   }
 
   f(result)

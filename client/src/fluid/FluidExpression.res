@@ -90,6 +90,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | PFloat(pid, _, _, _)
     | PString(pid, _) => (pid, list{})
     | PConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
+    | PList(pid, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
     }
   }
 
@@ -548,6 +549,8 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     | (PVariable(_, name), PVariable(_, name')) => name == name'
     | (PConstructor(_, name, patterns), PConstructor(_, name', patterns')) =>
       name == name' && peqList(patterns, patterns')
+    | (PList(_, patterns), PList(_, patterns')) =>
+      peqList(patterns, patterns')
     | (PString(_, str), PString(_, str')) => str == str'
     | (PInteger(_, l), PInteger(_, l')) => l == l'
     | (PFloat(_, s, w, f), PFloat(_, s', w', f')) => (s, w, f) == (s', w', f')
@@ -556,6 +559,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     | (PBlank(_), PBlank(_)) => true
     | (PVariable(_), _)
     | (PConstructor(_), _)
+    | (PList(_), _)
     | (PString(_), _)
     | (PInteger(_), _)
     | (PFloat(_), _)
@@ -689,6 +693,8 @@ let toHumanReadable = (expr: t): string => {
         | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
         | PConstructor(_, name, args) =>
           spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
+        | PList(_, args) =>
+          spaced(list{"pList", listed(List.map(args, ~f=pToTestcase))})
         }
       }
 

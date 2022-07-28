@@ -40,6 +40,7 @@ module FQFnName =
 type Pattern =
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
+  | PList of id * List<Pattern>
   | PInteger of id * int64
   | PBool of id * bool
   | PCharacter of id * string

@@ -66,6 +66,9 @@ module Pattern = {
     | PFloat(ID.t, sign, string, string)
     | PNull(ID.t)
     | PBlank(ID.t)
+    // should this be `t` or `list<t>`
+    // (lists are currently heterogeneous)
+    | PList(ID.t, list<t>)
 
   let rec encode = (mid: ID.t, pattern: t): Js.Json.t => {
     open Json_encode_extended
@@ -99,6 +102,7 @@ module Pattern = {
       )
     | PNull(id') => ev("FPNull", list{ID.encode(mid), ID.encode(id')})
     | PBlank(id') => ev("FPBlank", list{ID.encode(mid), ID.encode(id')})
+    | PList(id', patterns) => ev("FPList", list{ID.encode(mid), ID.encode(id'), list(fp, patterns)})
     }
   }
 
@@ -115,6 +119,7 @@ module Pattern = {
           "FPConstructor",
           dv4((_, b, c, d) => PConstructor(b, c, d), ID.decode, ID.decode, string, list(dp)),
         ),
+        ("FPList", dv3((_, b, c) => PList(b, c), ID.decode, ID.decode, list(dp))),
         (
           "FPInteger",
           dv3(
@@ -144,6 +149,7 @@ module Pattern = {
           }, ID.decode, ID.decode, string, string)),
         ("FPNull", dv2((_, b) => PNull(b), ID.decode, ID.decode)),
         ("FPBlank", dv2((_, b) => PBlank(b), ID.decode, ID.decode)),
+
       },
       j,
     )

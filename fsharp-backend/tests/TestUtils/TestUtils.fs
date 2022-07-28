@@ -539,6 +539,8 @@ module Expect =
     | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
       check path name name'
       eqList (name :: path) patterns patterns'
+    | (PList(_, patterns), PList(_, patterns')) ->
+      eqList path patterns patterns' //?
     | PString (_, str), PString (_, str') -> check path str str'
     | PInteger (_, l), PInteger (_, l') -> check path l l'
     | PFloat (_, d), PFloat (_, d') -> check path d d'
@@ -549,6 +551,7 @@ module Expect =
     // exhaustiveness check
     | PVariable _, _
     | PConstructor _, _
+    | PList _, _
     | PString _, _
     | PInteger _, _
     | PFloat _, _

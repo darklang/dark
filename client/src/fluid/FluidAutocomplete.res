@@ -434,6 +434,7 @@ let generatePatterns = (ti, a, queryString): list<item> => {
         FPAConstructor(mid, gid(), "Ok", list{PBlank(gid())}),
         FPAConstructor(mid, gid(), "Error", list{PBlank(gid())}),
         FPANull(mid, gid()),
+        // list? probably a weird thing to show in autocomplete.
       } |> List.map(~f=p => FACPattern(p))
     } |> List.filter(~f=c =>
       // filter out old query string variable

@@ -54,6 +54,7 @@ let tid = (t: t): id =>
   | TRecordFieldname({recordID: id, _})
   | TRecordSep(id, _, _)
   | TConstructorName(id, _)
+
   | TMatchBranchArrow({matchID: id, _})
   | TMatchKeyword(id)
   | TPatternBlank(_, id, _)
@@ -67,6 +68,10 @@ let tid = (t: t): id =>
   | TPatternFloatWhole(_, id, _, _)
   | TPatternFloatPoint(_, id, _)
   | TPatternFloatFractional(_, id, _, _)
+  | TPatternListLiteralStart(_, id, _)
+  | TPatternListLiteralSeparator(_, id, _, _)
+  | TPatternListLiteralEnd(_, id, _)
+
   | TSep(id, _)
   | TParenOpen(id)
   | TParenClose(id)
@@ -166,6 +171,9 @@ let parentBlockID = (t: t): option<id> =>
   | TPatternFloatPoint(_)
   | TPatternFloatFractional(_)
   | TPatternBlank(_)
+  | TPatternListLiteralStart(_)
+  | TPatternListLiteralSeparator(_)
+  | TPatternListLiteralEnd(_)
   | TConstructorName(_)
   | TParenOpen(_)
   | TParenClose(_)
@@ -221,7 +229,12 @@ let isTextToken = (t: t): bool =>
   | TPatternNullToken(_)
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
-  | TPatternFloatFractional(_) => true
+  | TPatternFloatFractional(_)
+  | TPatternListLiteralStart(_)
+  | TPatternListLiteralSeparator(_)
+  | TPatternListLiteralEnd(_)
+    => true
+
   | TListOpen(_)
   | TListClose(_)
   | TListComma(_, _)
@@ -269,6 +282,7 @@ let isPipeable = (t: t): bool =>
   | TFloatWhole(_)
   | TFloatPoint(_)
   | TFloatFractional(_)
+
   | TPatternInteger(_)
   | TPatternVariable(_)
   | TPatternConstructorName(_)
@@ -280,8 +294,13 @@ let isPipeable = (t: t): bool =>
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
   | TPatternFloatFractional(_)
+  | TPatternListLiteralStart(_)
+  | TPatternListLiteralSeparator(_)
+  | TPatternListLiteralEnd(_)
   | TBlank(_)
-  | TPipe(_) => true
+  | TPipe(_)
+    => true
+
   | TFnVersion(_)
   | TPlaceholder(_)
   | TPartial(_)
@@ -373,6 +392,7 @@ let isKeyword = (t: t) =>
 let isWhitespace = (t: t): bool =>
   switch t {
   | TSep(_) | TNewline(_) | TIndent(_) => true
+
   | TInteger(_)
   | TFloatWhole(_)
   | TFloatPoint(_)
@@ -432,6 +452,9 @@ let isWhitespace = (t: t): bool =>
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
   | TPatternFloatFractional(_)
+  | TPatternListLiteralStart(_)
+  | TPatternListLiteralSeparator(_)
+  | TPatternListLiteralEnd(_)
   | TParenOpen(_)
   | TParenClose(_)
   | TFlagWhenKeyword(_)
@@ -592,6 +615,9 @@ let toText = (t: t): string => {
   | TPatternBlank(_) => "   "
   | TPatternVariable(_, _, name, _) => canBeEmpty(name)
   | TPatternConstructorName(_, _, name, _) => canBeEmpty(name)
+  | TPatternListLiteralStart(_, _, _) => "["
+  | TPatternListLiteralSeparator(_, _, _, _) => ","
+  | TPatternListLiteralEnd(_, _, _) => "]"
   | TParenOpen(_) => "("
   | TParenClose(_) => ")"
   | TFlagWhenKeyword(_) => "when "
@@ -648,8 +674,11 @@ let toIndex = (t: t): option<int> =>
   | TPatternNullToken(_, _, index)
   | TPatternFloatWhole(_, _, _, index)
   | TPatternFloatPoint(_, _, index)
-  | TPatternFloatFractional(_, _, _, index) =>
-    Some(index)
+  | TPatternFloatFractional(_, _, _, index)
+  | TPatternListLiteralStart(_, _, index)
+  | TPatternListLiteralSeparator(_, _, _, index)
+  | TPatternListLiteralEnd(_, _, index)
+    => Some(index)
   | _ => None
   }
 
@@ -666,8 +695,11 @@ let toParentID = (t: t): option<id> =>
   | TPatternNullToken(id, _, _)
   | TPatternFloatWhole(id, _, _, _)
   | TPatternFloatPoint(id, _, _)
-  | TPatternFloatFractional(id, _, _, _) =>
-    Some(id)
+  | TPatternFloatFractional(id, _, _, _)
+  | TPatternListLiteralStart(id, _, _)
+  | TPatternListLiteralSeparator(id, _, _, _)
+  | TPatternListLiteralEnd(id, _, _)
+    => Some(id)
   | _ => None
   }
 
@@ -735,6 +767,9 @@ let toTypeName = (t: t): string =>
   | TPatternFloatWhole(_) => "pattern-float-whole"
   | TPatternFloatPoint(_) => "pattern-float-point"
   | TPatternFloatFractional(_) => "pattern-float-fractional"
+  | TPatternListLiteralStart(_) => "pattern-list-literal-start"
+  | TPatternListLiteralSeparator(_) => "pattern-list-literal-separator"
+  | TPatternListLiteralEnd(_) => "pattern-list-literal-end"
   | TParenOpen(_) => "paren-open"
   | TParenClose(_) => "paren-close"
   | TFlagWhenKeyword(_) => "ff-cond"
@@ -772,7 +807,10 @@ let toCategoryName = (t: t): string =>
   | TPatternNullToken(_)
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
-  | TPatternFloatFractional(_) => "pattern"
+  | TPatternFloatFractional(_)
+  | TPatternListLiteralStart(_)
+  | TPatternListLiteralSeparator(_)
+  | TPatternListLiteralEnd(_) => "pattern"
   | TParenOpen(_) | TParenClose(_) => "paren"
   | TFlagWhenKeyword(_) | TFlagEnabledKeyword(_) => "flag"
   }
@@ -799,7 +837,10 @@ let toDebugInfo = (t: t): string =>
   | TPatternNullToken(mid, _, idx)
   | TPatternFloatWhole(mid, _, _, idx)
   | TPatternFloatPoint(mid, _, idx)
-  | TPatternFloatFractional(mid, _, _, idx) =>
+  | TPatternFloatFractional(mid, _, _, idx)
+  | TPatternListLiteralStart(mid, _, idx)
+  | TPatternListLiteralSeparator(mid, _, _, idx)
+  | TPatternListLiteralEnd(mid, _, idx) =>
     "match=" ++ (ID.toString(mid) ++ (" idx=" ++ string_of_int(idx)))
   | _ => ""
   }
@@ -920,6 +961,7 @@ let matchesContent = (t1: t, t2: t): bool =>
       (d1.exprID == d2.exprID &&
       (d1.index == d2.index && d1.fieldName == d2.fieldName))
   | (TNewline(props1), TNewline(props2)) => props1 == props2
+
   | (TMatchBranchArrow(d1), TMatchBranchArrow(d2)) =>
     d1.matchID == d2.matchID && (d1.patternID == d2.patternID && d1.index == d2.index)
   | (TPatternString(d1), TPatternString(d2)) =>
@@ -933,17 +975,27 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TPatternVariable(m1, p1, val1, ind1), TPatternVariable(m2, p2, val2, ind2))
   | (TPatternConstructorName(m1, p1, val1, ind1), TPatternConstructorName(m2, p2, val2, ind2)) =>
     m1 == m2 && (p1 == p2 && (val1 == val2 && ind1 == ind2))
+
+  | (TPatternListLiteralSeparator(p1, id1, val1, ind1), TPatternListLiteralSeparator(p2, id2, val2, ind2)) =>
+    (p1 == p2) && (id1 == id2) && (val1 == val2) && (ind1 == ind2)
+
   | (TPatternInteger(m1, p1, val1, ind1), TPatternInteger(m2, p2, val2, ind2)) =>
     m1 == m2 && (p1 == p2 && (val1 == val2 && ind1 == ind2))
   | (TPatternTrue(p1, id1, ind1), TPatternTrue(p2, id2, ind2))
   | (TPatternFalse(p1, id1, ind1), TPatternFalse(p2, id2, ind2))
   | (TPatternNullToken(p1, id1, ind1), TPatternNullToken(p2, id2, ind2))
+
+  // ?
+  | (TPatternListLiteralStart(p1, id1, ind1), TPatternListLiteralStart(p2, id2, ind2))
+  | (TPatternListLiteralEnd(p1, id1, ind1), TPatternListLiteralEnd(p2, id2, ind2))
+
   | (TPatternFloatPoint(p1, id1, ind1), TPatternFloatPoint(p2, id2, ind2))
   | (TPatternBlank(p1, id1, ind1), TPatternBlank(p2, id2, ind2)) =>
     p1 == p2 && (id1 == id2 && ind1 == ind2)
   | (TPatternFloatWhole(p1, id1, val1, ind1), TPatternFloatWhole(p2, id2, val2, ind2))
   | (TPatternFloatFractional(p1, id1, val1, ind1), TPatternFloatFractional(p2, id2, val2, ind2)) =>
     p1 == p2 && (id1 == id2 && (val1 == val2 && ind1 == ind2))
+
   | (TIndent(ind1), TIndent(ind2)) => ind1 == ind2
   | (TPlaceholder(d1), TPlaceholder(d2)) =>
     d1.blankID == d2.blankID && (d1.fnID == d2.fnID && d1.placeholder == d2.placeholder)
@@ -1008,6 +1060,9 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TPatternFloatPoint(_), _)
   | (TPatternFloatFractional(_), _)
   | (TPatternBlank(_), _)
+  | (TPatternListLiteralStart(_), _)
+  | (TPatternListLiteralSeparator(_), _)
+  | (TPatternListLiteralEnd(_), _)
   | (TConstructorName(_), _)
   | (TParenOpen(_), _)
   | (TParenClose(_), _)

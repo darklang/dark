@@ -132,6 +132,11 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
     let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(matchID, a, ~idx)})
 
     List.flatten(list{list{TPatternConstructorName(matchID, id, name, idx)}, ...args})
+  | PList(_id, _patterns) =>
+    // TODO: we still need to include the parts from `patterns`, including separators
+    // TODO: we need to pass some params into the Start() and End()
+    list{}
+    //list{TPatternListLiteralStart(), TPatternListLiteralEnd()}
   | PInteger(id, i) => list{TPatternInteger(matchID, id, i, idx)}
   | PBool(id, b) =>
     if b {

@@ -199,6 +199,7 @@ and IsInPipe =
 and Pattern =
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
+  | PList of id * List<Pattern>
   | PInteger of id * int64
   | PBool of id * bool
   | PCharacter of id * string
@@ -425,7 +426,8 @@ module Pattern =
     | PFloat (id, _)
     | PVariable (id, _)
     | PBlank id
-    | PConstructor (id, _, _) -> id
+    | PConstructor (id, _, _)
+    | PList (id, _) -> id
 
 /// Functions for working with Dark runtime values
 module Dval =

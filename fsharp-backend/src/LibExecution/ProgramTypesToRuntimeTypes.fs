@@ -40,6 +40,7 @@ module Pattern =
     | PT.PVariable (id, str) -> RT.PVariable(id, str)
     | PT.PConstructor (id, name, pats) ->
       RT.PConstructor(id, name, List.map toRT pats)
+    | PT.PList(id, pats) -> RT.PList(id, List.map toRT pats)
     | PT.PInteger (id, i) -> RT.PInteger(id, i)
     | PT.PBool (id, b) -> RT.PBool(id, b)
     | PT.PCharacter (id, c) -> RT.PCharacter(id, c)

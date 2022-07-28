@@ -253,6 +253,8 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
         | PBool(_)
         | PBlank(_) => list{}
         | PVariable(patternID, v) => list{(patternID, v)}
+
+        | PList(_, inner)
         | PConstructor(_, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
         }
 

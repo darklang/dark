@@ -104,6 +104,12 @@ let pConstructor = (
   patterns: list<FluidPattern.t>,
 ): FluidPattern.t => PConstructor(id, name, patterns)
 
+// todo: use this.
+let pList = (
+  ~id=gid(),
+  patterns: list<FluidPattern.t>,
+): FluidPattern.t => PList(id, patterns)
+
 let pJust = (~id=gid(), arg: FluidPattern.t): FluidPattern.t => PConstructor(id, "Just", list{arg})
 
 let pNothing = (~id=gid(), ()): FluidPattern.t => PConstructor(id, "Nothing", list{})
