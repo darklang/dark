@@ -491,7 +491,7 @@ module Dval = {
         ),
         ("DObj", dv1(x => DObj(x), beltStrDict(dd))),
         ("DIncomplete", dv1(x => DIncomplete(x), DvalSource.decode)),
-        ("DError", dv1(((i, msg)) => DError(i, msg), tuple2(DvalSource.decode, string))),
+        ("DError", dv2((i, msg) => DError(i, msg), DvalSource.decode, string)),
         ("DFnVal", dv1(x => DFnVal(x), fnValImpl)),
         ("DErrorRail", dv1(x => DErrorRail(x), dd)),
         ("DHttpResponse", dv1(a => DHttpResponse(a), dhttp)),
@@ -544,7 +544,7 @@ module Dval = {
 
     | DIncomplete(ds) => ev("DIncomplete", list{DvalSource.encode(ds)})
     // user-ish types
-    | DError(ds, msg) => ev("DError", list{pair(DvalSource.encode, string, (ds, msg))})
+    | DError(ds, msg) => ev("DError", list{DvalSource.encode(ds), string(msg)})
     | DHttpResponse(http) => ev("DHttpResponse", list{dhttp(http)})
     | DDB(name) => ev("DDB", list{string(name)})
     | DDate(date) => ev("DDate", list{string(date)})
