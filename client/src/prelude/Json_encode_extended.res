@@ -65,7 +65,7 @@ module Base64 = {
 
   let dark_arrayBuffer_to_b64url = %raw(`
   function (arraybuffer) {
-    // TODO: Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use encode here
+    // From https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     // Use a lookup table to find the index.
     var lookup = new Uint8Array(256);
@@ -80,10 +80,11 @@ module Base64 = {
         base64 += chars[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
         base64 += chars[bytes[i + 2] & 63];
       }
+      // Dont use padding, to match the backend's urlEncode fn
       if ((len % 3) === 2) {
-        base64 = base64.substring(0, base64.length - 1) + "=";
+        base64 = base64.substring(0, base64.length - 1);
       } else if (len % 3 === 1) {
-        base64 = base64.substring(0, base64.length - 2) + "==";
+        base64 = base64.substring(0, base64.length - 2);
       }
       return base64;
   }
