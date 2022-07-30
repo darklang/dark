@@ -29,7 +29,8 @@
     "bs-fetch",
     "bs-uuid",
     "bs-deriving",
-    "rescript-js"
+    "rescript-js",
+    "rescript-nodejs"
   ],
   "bs-dev-dependencies": [],
   "bsc-flags": [
