@@ -464,7 +464,7 @@ module Dval = {
 
     let lambdaImpl = j => {
       {
-        parameters: field("params", list(pair(ID.decode, string)), j),
+        parameters: field("parameters", list(pair(ID.decode, string)), j),
         body: field("body", Expr.decode, j),
         symtable: field("symtable", beltStrDict(decode), j),
       }
@@ -534,8 +534,8 @@ module Dval = {
       |> (x => list{x} |> ev("DObj"))
     | DFnVal(Lambda({body, parameters, symtable})) =>
       let dblock_args = object_(list{
+        ("parameters", list(pair(ID.encode, string), parameters)),
         ("symtable", beltStrDict(encode, symtable)),
-        ("params", list(pair(ID.encode, string), parameters)),
         ("body", Expr.encode(body)),
       })
 
