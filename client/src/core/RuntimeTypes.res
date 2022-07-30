@@ -291,6 +291,7 @@ module Expr = {
           dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(Pattern.decode, de))),
         ),
         ("EFeatureFlag", dv4((a, b, c, d) => EFeatureFlag(a, b, c, d), ID.decode, de, de, de)),
+        ("EFQFnValue", dv2((a, b) => EFQFnValue(a, b), ID.decode, FQFnName.decode)),
       },
       j,
     )
@@ -450,6 +451,7 @@ module Dval = {
     let dv0 = variant0
     let dv1 = variant1
     let dv3 = variant3
+    let dv2 = variant2
     let dd = decode
 
     let dhttp = variants(list{
