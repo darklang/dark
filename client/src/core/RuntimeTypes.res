@@ -482,7 +482,6 @@ module Dval = {
         ("DBool", dv1(x => DBool(x), bool)),
         ("DChar", dv1(x => DChar(x), string)),
         ("DNull", dv0(DNull)),
-        // ("DCharacter", dv1(x => DCharacter(x), string)),
         ("DStr", dv1(x => DStr(x), string)),
         ("DList", dv1(x => DList(x), list(dd))),
         (
@@ -538,10 +537,8 @@ module Dval = {
         ("symtable", beltStrDict(encode, symtable)),
         ("body", Expr.encode(body)),
       })
-
       ev("DFnVal", list{ev("Lambda", list{dblock_args})})
     | DFnVal(FnName(name)) => ev("DFnVal", list{ev("FnName", list{FQFnName.encode(name)})})
-
     | DIncomplete(ds) => ev("DIncomplete", list{DvalSource.encode(ds)})
     // user-ish types
     | DError(ds, msg) => ev("DError", list{DvalSource.encode(ds), string(msg)})
