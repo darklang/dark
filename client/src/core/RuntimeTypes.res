@@ -199,20 +199,20 @@ module Expr = {
     @ppx.deriving(show({with_path: false}))
     type rec t =
       | Pipe
-      | NoPipe
+      | NotInPipe
 
     let encode = (str: t): Js.Json.t => {
       open Json_encode_extended
       let ev = variant
       switch str {
       | Pipe => ev("Pipe", list{})
-      | NoPipe => ev("NoPipe", list{})
+      | NotInPipe => ev("NotInPipe", list{})
       }
     }
     let decode = j => {
       open Json_decode_extended
       let dv0 = variant0
-      variants(list{("Pipe", dv0(Pipe)), ("NoPipe", dv0(NoPipe))}, j)
+      variants(list{("Pipe", dv0(Pipe)), ("NotInPipe", dv0(NotInPipe))}, j)
     }
   }
 
