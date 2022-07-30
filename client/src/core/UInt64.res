@@ -16,7 +16,7 @@ module BigInt = ReScriptJs.Js.BigInt
 // places, rescript builtin equality and comparison has significant issues.
 type rec t = int64
 
-let isValidFloat = (t: t) => t > 0L && t < 9007199254740992L
+let isValidFloat = (t: t) => t >= 0L && t < 9007199254740992L
 
 let fromInt = (i: int) => Int64.of_int(i)
 let fromFloat = (f: float) => Int64.of_float(f)
@@ -30,14 +30,18 @@ let toFloat = (i: t) =>
 
 module BI = {
   let maxInt64 = BigInt.fromString("9223372036854775807")
+  let zero = BigInt.fromInt(0)
+  let neg = i => BigInt.sub(zero, i)
 }
 
 let toString = (i: t) =>
   if i >= 0L {
     Int64.to_string(i)
   } else {
-    // Convert numbers above MAX_INT64 from negative numbers, which is how they're stored. This is the opposite operation to `fromString`: negative, then add MAX_INT64
-    Int64.neg(i)->Int64.to_string->BigInt.fromString->BigInt.add(BI.maxInt64)->BigInt.toString
+    // Convert numbers above MAX_INT64 from negative numbers, which is how they're
+    // stored. This is the opposite operation to `fromString`: negative, then add
+    // MAX_INT64
+    i->Int64.to_string->BigInt.fromString->BI.neg->BigInt.add(BI.maxInt64)->BigInt.toString
   }
 
 // Polymorphic compare doesn't work for BigInts (or other non-rescript types) so use

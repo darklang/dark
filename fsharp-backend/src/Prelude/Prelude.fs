@@ -901,7 +901,7 @@ module Json =
     type Int64Converter() =
       // We serialize int64s as valid JSON numbers for as long as we're allowed, and
       // then we switch to strings. Since the deserialization is type-directed, we
-      // always know we're looking to convert them to uint64s, so if we see a string
+      // always know we're looking to convert them to int64s, so if we see a string
       // we know exactly what it means
       inherit JsonConverter<int64>()
 
