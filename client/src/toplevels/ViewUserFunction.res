@@ -56,11 +56,11 @@ let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
       ~key="run-fun" ++ ("-" ++ (TLID.toString(fn.tlid) ++ ("-" ++ traceID))),
       "click",
       _ => ExecuteFunctionFromWithin({
-        efpTLID: fn.tlid,
-        efpCallerID: FluidAST.toID(fn.ast),
-        efpTraceID: traceID,
-        efpFnName: fnName,
-        efpArgs: args,
+        tlid: fn.tlid,
+        callerID: FluidAST.toID(fn.ast),
+        traceID: traceID,
+        fnName: fnName,
+        args: args,
       }),
     )
   | _ => Vdom.noProp

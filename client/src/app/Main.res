@@ -818,11 +818,11 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
           switch Analysis.getArguments(m, tl, id, traceID) {
           | Some(args) =>
             let params: APIExecution.Function.Params.t = {
-              efpTLID: tlid,
-              efpCallerID: id,
-              efpTraceID: traceID,
-              efpFnName: name,
-              efpArgs: args,
+              tlid: tlid,
+              callerID: id,
+              traceID: traceID,
+              fnName: name,
+              args: args,
             }
 
             (m, API.executeFunction(m, params))
@@ -877,7 +877,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
         (
           {...m, handlerProps: handlerProps},
-          API.triggerHandler(m, {thTLID: tlid, thTraceID: traceID, thInput: traceData.input}),
+          API.triggerHandler(m, {tlid: tlid, traceID: traceID, input: traceData.input}),
         )
       | _ => (m, Cmd.none)
       }
@@ -1217,7 +1217,7 @@ let update_ = (msg: msg, m: model): modification => {
       Select(tlid, selectionTarget),
     })
   | ExecuteFunctionFromWithin(p) =>
-    Many(list{ExecutingFunctionBegan(p.efpTLID, p.efpCallerID), MakeCmd(API.executeFunction(m, p))})
+    Many(list{ExecutingFunctionBegan(p.tlid, p.callerID), MakeCmd(API.executeFunction(m, p))})
   | TraceClick(tlid, traceID, _) =>
     switch m.cursorState {
     | DraggingTL(_, _, _, origCursorState) =>
@@ -1442,35 +1442,35 @@ let update_ = (msg: msg, m: model): modification => {
   | SaveTestAPICallback(Ok(msg)) => Model.updateErrorMod(Error.set("Success! " ++ msg))
   | ExecuteFunctionAPICallback(params, Ok(dval, hash, hashVersion, tlids, unlockedDBs)) =>
     let traces = List.map(
-      ~f=tlid => (tlid, list{(params.efpTraceID, Error(TraceError.NoneYet))}),
+      ~f=tlid => (tlid, list{(params.traceID, Error(TraceError.NoneYet))}),
       tlids,
     )
 
     Many(list{
       UpdateTraceFunctionResult(
-        params.efpTLID,
-        params.efpTraceID,
-        params.efpCallerID,
-        params.efpFnName,
+        params.tlid,
+        params.traceID,
+        params.callerID,
+        params.fnName,
         hash,
         hashVersion,
         dval,
       ),
-      ExecutingFunctionComplete(list{(params.efpTLID, params.efpCallerID)}),
+      ExecutingFunctionComplete(list{(params.tlid, params.callerID)}),
       OverrideTraces(TLID.Dict.fromList(traces)),
       SetUnlockedDBs(unlockedDBs),
     })
   | TriggerHandlerAPICallback(params, Ok(tlids)) =>
     let traces =
       tlids
-      |> List.map(~f=tlid => (tlid, list{(params.thTraceID, Error(TraceError.NoneYet))}))
+      |> List.map(~f=tlid => (tlid, list{(params.traceID, Error(TraceError.NoneYet))}))
       |> TLID.Dict.fromList
 
     Many(list{
       OverrideTraces(traces),
       ReplaceAllModificationsWithThisOne(
         m => {
-          let handlerProps = RT.setHandlerExeState(params.thTLID, Complete, m.handlerProps)
+          let handlerProps = RT.setHandlerExeState(params.tlid, Complete, m.handlerProps)
 
           ({...m, handlerProps: handlerProps}, Cmd.none)
         },

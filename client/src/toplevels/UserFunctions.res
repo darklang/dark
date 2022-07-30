@@ -255,7 +255,7 @@ let idOfLastBlankor = (f: PT.UserFunction.t): id =>
   |> Option.andThen(~f=(p: PT.UserFunction.Parameter.t) => Some(B.toID(p.typ)))
   |> Option.unwrap(~default=B.toID(f.metadata.name))
 
-// Converts AnalysisTypes.InputValueDict.t to executeFunctionAPIParams.efpArgs
+// Converts AnalysisTypes.InputValueDict.t to executeFunctionAPIParams.args
 let inputToArgs = (f: PT.UserFunction.t, input: AnalysisTypes.InputValueDict.t): list<
   RT.Dval.t,
 > => {
