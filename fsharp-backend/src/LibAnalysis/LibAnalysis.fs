@@ -14,38 +14,6 @@ module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
-/// Used to map from F# types to the OCaml types that the Client expects
-module ClientInterop =
-
-  // -----------------------
-  // High-level defs
-  // -----------------------
-  type HandlerAnalysisParam =
-    { handler : PT.Handler.T
-      traceID : AT.TraceID
-      traceData : AT.TraceData
-      dbs : List<PT.DB.T>
-      userFns : list<PT.UserFunction.T>
-      userTypes : list<PT.UserType.T>
-      secrets : list<PT.Secret.T> }
-
-  type FunctionAnalysisParam =
-    { func : PT.UserFunction.T
-      traceID : AT.TraceID
-      traceData : AT.TraceData
-      dbs : List<PT.DB.T>
-      userFns : list<PT.UserFunction.T>
-      userTypes : list<PT.UserType.T>
-      secrets : list<PT.Secret.T> }
-
-  type PerformAnalysisParams =
-    /// This is called `performHandlerAnalysisParam` in the client
-    | AnalyzeHandler of HandlerAnalysisParam
-
-    /// This is called `performHandlerFunctionParam` in the client
-    | AnalyzeFunction of FunctionAnalysisParam
-
-  type AnalysisEnvelope = AT.TraceID * AT.AnalysisResults
 
 module Eval =
 
@@ -78,31 +46,22 @@ module Eval =
 
   let runAnalysis
     (tlid : tlid)
-    (traceID : AT.TraceID)
     (traceData : AT.TraceData)
-    (userFns : List<PT.UserFunction.T>)
-    (userTypes : List<PT.UserType.T>)
-    (dbs : List<PT.DB.T>)
-    (expr : PT.Expr)
-    (secrets : List<PT.Secret.T>)
-    : Task<ClientInterop.AnalysisEnvelope> =
+    (userFns : List<RT.UserFunction.T>)
+    (userTypes : List<RT.UserType.T>)
+    (dbs : List<RT.DB.T>)
+    (expr : RT.Expr)
+    (secrets : List<RT.Secret.T>)
+    : Task<AT.AnalysisResults> =
     task {
       let program : RT.ProgramContext =
         { accountID = System.Guid.NewGuid()
           canvasID = System.Guid.NewGuid()
           canvasName = CanvasName.createExn "todo"
-          userFns =
-            userFns
-            |> List.map PT2RT.UserFunction.toRT
-            |> List.map (fun fn -> fn.name, fn)
-            |> Map
-          userTypes =
-            userTypes
-            |> List.map PT2RT.UserType.toRT
-            |> List.map (fun t -> (t.name, t.version), t)
-            |> Map
-          dbs = dbs |> List.map PT2RT.DB.toRT |> List.map (fun t -> t.name, t) |> Map
-          secrets = secrets |> List.map (PT2RT.Secret.toRT) }
+          userFns = userFns |> List.map (fun fn -> fn.name, fn) |> Map
+          userTypes = userTypes |> List.map (fun t -> (t.name, t.version), t) |> Map
+          dbs = dbs |> List.map (fun t -> t.name, t) |> Map
+          secrets = secrets }
 
       let stdlib =
         LibExecutionStdLib.StdLib.fns
@@ -127,39 +86,64 @@ module Eval =
           tlid
           program
 
-      let ast = expr |> PT2RT.Expr.toRT
       let inputVars = Map traceData.input
-      let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
-      return (traceID, results)
+      let! (_result : RT.Dval) = Exe.executeExpr state inputVars expr
+      return results
     }
 
-  let performAnalysis
-    (args : ClientInterop.PerformAnalysisParams)
-    : Task<ClientInterop.AnalysisEnvelope> =
-    match args with
-    | ClientInterop.AnalyzeHandler ah ->
-      runAnalysis
-        ah.handler.tlid
-        ah.traceID
-        ah.traceData
-        ah.userFns
-        ah.userTypes
-        ah.dbs
-        ah.handler.ast
-        ah.secrets
-    | ClientInterop.AnalyzeFunction af ->
-      runAnalysis
-        af.func.tlid
-        af.traceID
-        af.traceData
-        af.userFns
-        af.userTypes
-        af.dbs
-        af.func.body
-        af.secrets
+module CT = ClientTypes
+module CTA = ClientTypes.Analysis
 
-type AnalysisResult = Result<ClientInterop.AnalysisEnvelope, string>
+let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelope> =
+  let runAnalysis
+    (tlid : tlid)
+    (traceID : CTA.TraceID)
+    (traceData : CTA.TraceData.T)
+    (userFns : List<PT.UserFunction.T>)
+    (userTypes : List<PT.UserType.T>)
+    (dbs : List<PT.DB.T>)
+    (expr : PT.Expr)
+    (secrets : List<PT.Secret.T>)
+    : Task<CTA.AnalysisEnvelope> =
+    task {
+      let traceData = CTA.TraceData.toAT traceData
+      let userFns = List.map PT2RT.UserFunction.toRT userFns
+      let userTypes = List.map PT2RT.UserType.toRT userTypes
+      let dbs = List.map PT2RT.DB.toRT dbs
+      let expr = PT2RT.Expr.toRT expr
+      let secrets = List.map PT2RT.Secret.toRT secrets
+      let! result =
+        Eval.runAnalysis tlid traceData userFns userTypes dbs expr secrets
+
+      return (traceID, CTA.AnalysisResults.fromAT result)
+    }
+
+  match args with
+  | CTA.AnalyzeHandler ah ->
+    runAnalysis
+      ah.handler.tlid
+      ah.traceID
+      ah.traceData
+      ah.userFns
+      ah.userTypes
+      ah.dbs
+      ah.handler.ast
+      ah.secrets
+
+  | CTA.AnalyzeFunction af ->
+    runAnalysis
+      af.func.tlid
+      af.traceID
+      af.traceData
+      af.userFns
+      af.userTypes
+      af.dbs
+      af.func.body
+      af.secrets
+
+
+type AnalysisResult = Result<CTA.AnalysisEnvelope, string>
 
 let initSerializers () =
   do Json.Vanilla.allow<AnalysisResult> "LibAnalysis"
-  do Json.Vanilla.allow<ClientInterop.PerformAnalysisParams> "LibAnalysis"
+  do Json.Vanilla.allow<CTA.PerformAnalysisParams> "LibAnalysis"

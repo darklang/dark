@@ -9,6 +9,8 @@ open TestUtils.TestUtils
 
 module File = LibBackend.File
 module Config = LibBackend.Config
+module CT = ClientTypes
+module CTA = CT.Analysis
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
@@ -308,8 +310,7 @@ module Values =
     |> Map
     |> RT.DObj
 
-  let testClientDval : ApiServer.ClientTypes.Dval.T =
-    ApiServer.ClientTypes.Dval.fromRT testDval
+  let testClientDval : CT.Dval.T = CT.Dval.fromRT testDval
 
   let testOCamlDval = LibExecution.OCamlTypes.Convert.rt2ocamlDval testDval
 
@@ -478,7 +479,6 @@ module Values =
           deletedUserFunctions = testUserFunctions
           userTypes = testUserTypes
           deletedUserTypes = testUserTypes } }
-
 
   let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
     (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
@@ -734,11 +734,10 @@ module GenericSerializersTests =
         ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters =
                [ { name = "a"
-                   ``type`` = ApiServer.ClientTypes.DType.TInt
+                   ``type`` = CT.DType.TInt
                    args = []
                    description = "param description" } ]
-             returnType =
-               ApiServer.ClientTypes.DType.TList(ApiServer.ClientTypes.DType.TInt)
+             returnType = CT.DType.TList(CT.DType.TInt)
              description = "basic"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -746,7 +745,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "impure"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Impure
@@ -754,7 +753,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "impurepreviewable"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.ImpurePreviewable
@@ -762,7 +761,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "replacedBy"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -773,7 +772,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "renamedTo"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -784,7 +783,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "deprecatedBecause"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -942,19 +941,19 @@ module GenericSerializersTests =
         (Ok(
           testUuid,
           Dictionary.fromList (
-            [ (7UL, AT.ExecutedResult testDval)
-              (7UL, AT.NonExecutedResult testDval) ]
+            [ (7UL, CTA.ExecutionResult.ExecutedResult testClientDval)
+              (7UL, CTA.ExecutionResult.NonExecutedResult testClientDval) ]
           )
         ))
-      v<LibAnalysis.ClientInterop.PerformAnalysisParams>
+      v<ClientTypes.Analysis.PerformAnalysisParams>
         "handler"
-        (LibAnalysis.ClientInterop.AnalyzeHandler
+        (ClientTypes.Analysis.AnalyzeHandler
           { handler = testHttpHandler
             traceID = testUuid
             traceData =
-              { input = [ "var", testDval ]
+              { input = [ "var", testClientDval ]
                 timestamp = testInstant
-                function_results = [ ("fnName", 7UL, "hash", 0, testDval) ] }
+                function_results = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }
             dbs =
               [ { tlid = testTLIDs[0]
                   name = "dbname"
