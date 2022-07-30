@@ -95,4 +95,9 @@ module Handler = {
     open Json_decode_extended
     field("touched_tlids", list(TLID.decode), j)
   }
+
+  let encode = (tlids: t): Js.Json.t => {
+    open Json_encode_extended
+    object_(list{("touched_tlids", list(TLID.encode, tlids))})
+  }
 }

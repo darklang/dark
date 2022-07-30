@@ -154,13 +154,13 @@ let run = () => {
     )
     t(
       "vanilla-ApiServer-Execution-HandlerV1-Params-simple.json",
-      APIExecution.Function.Params.decode,
-      APIExecution.Function.Params.encode,
+      APIExecution.Handler.Params.decode,
+      APIExecution.Handler.Params.encode,
     )
     t(
       "vanilla-ApiServer-Execution-HandlerV1-T-simple.json",
-      APIExecution.Function.Params.decode,
-      APIExecution.Function.Params.encode,
+      APIExecution.Handler.decode,
+      APIExecution.Handler.encode,
     )
     /* t(
       "vanilla-ApiServer-F404s-Delete-Params-simple.json",
