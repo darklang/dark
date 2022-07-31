@@ -365,10 +365,7 @@ module Sidebar = {
 
     let encode = (s: t): Js.Json.t => {
       open Json_encode_extended
-      object_(list{
-        ("mode", Mode.encode(s.mode)),
-        ("openedCategories", tcStrSet(s.openedCategories)),
-      })
+      object_(list{("mode", Mode.encode(s.mode)), ("openedCategories", strSet(s.openedCategories))})
     }
 
     let decode = (j: Js.Json.t): t => {

@@ -48,3 +48,28 @@ let decode = (j): t => {
     secrets: field("secrets", list(SecretTypes.decode), j),
   }
 }
+
+let encode = (l: t): Js.Json.t => {
+  open Json_encode_extended
+  object_(list{
+    ("handlers", list(PT.Handler.encode, l.handlers)),
+    ("deletedHandlers", list(PT.Handler.encode, l.deletedHandlers)),
+    ("dbs", list(PT.DB.encode, l.dbs)),
+    ("deletedDBs", list(PT.DB.encode, l.deletedDBs)),
+    ("userFunctions", list(PT.UserFunction.encode, l.userFunctions)),
+    ("deletedUserFunctions", list(PT.UserFunction.encode, l.deletedUserFunctions)),
+    ("userTypes", list(PT.UserType.encode, l.userTypes)),
+    ("deletedUserTypes", list(PT.UserType.encode, l.deletedUserTypes)),
+    ("unlockedDBs", TLID.Set.encode(l.unlockedDBs)),
+    ("staticDeploys", list(StaticAssets.Deploy.encode, l.staticDeploys)),
+    ("permission", nullable(AccountTypes.Permission.encode, l.permission)),
+    ("opCtrs", strListDict(int, l.opCtrs)),
+    ("account", AccountTypes.Account.encode(l.account)),
+    ("canvasList", list(string, l.canvasList)),
+    ("orgs", list(string, l.orgs)),
+    ("orgCanvasList", list(string, l.orgCanvasList)),
+    ("workerSchedules", strDict(string, l.workerSchedules)),
+    ("creationDate", date(l.creationDate)),
+    ("secrets", list(SecretTypes.encode, l.secrets)),
+  })
+}

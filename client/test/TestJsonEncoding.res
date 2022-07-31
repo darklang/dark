@@ -178,7 +178,11 @@ let run = () => {
     // No test because we don't check the response
     // t("vanilla-ApiServer-F404s-Delete-T-simple.json", API404.Delete.decode, API404.Delete.encode)
     t("vanilla-ApiServer-F404s-List-T-simple.json", API404.List.decode, API404.List.encode)
-    // t("vanilla-ApiServer-InitialLoad-V1-T-initial.json", APInitialLoad.decode, APInitialload.encode)
+    t(
+      "vanilla-ApiServer-InitialLoad-V1-T-initial.json",
+      APIInitialLoad.decode,
+      APIInitialLoad.encode,
+    )
     // t(
     //   "vanilla-ApiServer-Secrets-DeleteV0-Params-simple.json",
     //   APISecrets.Delete.Params.decode,
