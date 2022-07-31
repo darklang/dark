@@ -26,31 +26,36 @@ let run = () => {
       | _ => expect("A valid dfloat dval") |> toEqual("something invalid, or not a dfloat")
       }
     })
+    test("big tlid", () => {
+      let encoded = `["DIncomplete",["SourceID","14219007199254740993","14219007199254740993"]]`
+      expect(
+        encoded
+        |> Json.parse
+        |> Option.unwrapUnsafe
+        |> RT.Dval.decode
+        |> RT.Dval.encode
+        |> Js.Json.stringify,
+      ) |> toEqual(encoded)
+    })
   })
   describe("dval misc tests", () => {
     describe("compatible with server JSON encoding", () => {
-      test(
-        "obj",
-        () =>
-          expect(`["DObj",{"foo":["DInt",5]}]`) |> toEqual(
-            RT.Dval.obj(list{("foo", DInt(5L))}) |> RT.Dval.encode |> Js.Json.stringify,
-          ),
+      test("obj", () =>
+        expect(`["DObj",{"foo":["DInt",5]}]`) |> toEqual(
+          RT.Dval.obj(list{("foo", DInt(5L))}) |> RT.Dval.encode |> Js.Json.stringify,
+        )
       )
-      test(
-        "DHttpResponse shape",
-        () =>
-          expect(`["DHttpResponse",["Response",401,[],["DNull"]]]`) |> toEqual(
-            RT.Dval.DHttpResponse(Response(401L, list{}, DNull))
-            |> RT.Dval.encode
-            |> Js.Json.stringify,
-          ),
+      test("DHttpResponse shape", () =>
+        expect(`["DHttpResponse",["Response",401,[],["DNull"]]]`) |> toEqual(
+          RT.Dval.DHttpResponse(Response(401L, list{}, DNull))
+          |> RT.Dval.encode
+          |> Js.Json.stringify,
+        )
       )
-      test(
-        "nan shape",
-        () =>
-          expect(`["DFloat","NaN"]`) |> toEqual(
-            RT.Dval.DFloat(Tc.Float.nan) |> RT.Dval.encode |> Js.Json.stringify,
-          ),
+      test("nan shape", () =>
+        expect(`["DFloat","NaN"]`) |> toEqual(
+          RT.Dval.DFloat(Tc.Float.nan) |> RT.Dval.encode |> Js.Json.stringify,
+        )
       )
     })
   })
@@ -58,6 +63,7 @@ let run = () => {
     open RT.Dval
     let t = testRoundtrip(RT.Dval.decode, RT.Dval.encode)
     let id = UInt64.fromString("15223423459603010931")->Tc.Option.unwrapUnsafe
+    let id2 = UInt64.fromString("14219007199254740993")->Tc.Option.unwrapUnsafe
     t("int", DInt(5L))
     t("int_max_31_bits", DInt(1073741823L)) // 2^30-1
     t("int_min_31_bits", DInt(-1073741824L)) // -2^30
@@ -73,6 +79,7 @@ let run = () => {
     t("date", DDate("can be anything atm"))
     t("incomplete none", DIncomplete(SourceNone))
     t("incomplete id", DIncomplete(SourceID(TLID.fromUInt64(id), ID.fromUInt64(id))))
+    t("incomplete id2", DIncomplete(SourceID(TLID.fromUInt64(id2), ID.fromUInt64(id2))))
     t("float", DFloat(7.2))
     t("infinity", DFloat(Float.infinity))
     t("-infinity", DFloat(Float.negativeInfinity))
@@ -106,6 +113,8 @@ let run = () => {
     t("int_max_64_bits", TLID.fromString("9223372036854775807")->Option.unwrapUnsafe) // 2^63-1
     t("int_max_double", TLID.fromString("9007199254740992")->Option.unwrapUnsafe) // 2^53
     t("above uint63max", TLID.fromString("15223423459603010931")->Option.unwrapUnsafe)
+    t("bug 1", TLID.fromString("14219007199254740993")->Option.unwrapUnsafe)
+    t("bug 2", TLID.fromString("18446744073709551615")->Option.unwrapUnsafe)
   })
 
   describe("fluidExpr", () => {
@@ -118,7 +127,6 @@ let run = () => {
 
     test("tuple tipe roundtrips", () => {
       let tipe = DType.TTuple(TInt, TFloat, list{TIncomplete})
-
       expect(tipe |> roundtrip) |> toEqual(tipe)
     })
   })
