@@ -54,7 +54,7 @@ let fromString = (str: string) =>
     // MAX_INT64 then negate)
     let bi = str->BigInt.fromString
     if greaterThan(bi, BI.maxInt64) {
-      let bi = BigInt.sub(BI.maxInt64, bi)
+      let bi = BigInt.sub(bi, BI.maxInt64)
       let i64 = bi->BigInt.toString->Int64.of_string // simplest convert from int64 to BigInt
       Some(Int64.neg(i64))
     } else {
