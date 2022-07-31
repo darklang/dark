@@ -170,149 +170,150 @@ let run = () => {
       APIExecution.Handler.decode,
       APIExecution.Handler.encode,
     )
-    /* t(
+    t(
       "vanilla-ApiServer-F404s-Delete-Params-simple.json",
       API404.Delete.Params.decode,
       API404.Delete.Params.encode,
     )
-    t("vanilla-ApiServer-F404s-Delete-T-simple.json", API404.Delete.decode, API404.Delete.encode)
-    t("vanilla-ApiServer-F404s-List-T-simple.json", API404.Get.decode, API404.Get.encode)
-    t("vanilla-ApiServer-InitialLoad-V1-T-initial.json", APInitialLoad.decode, APInitialload.encode)
-    t(
-      "vanilla-ApiServer-Secrets-DeleteV0-Params-simple.json",
-      APISecrets.Delete.Params.decode,
-      APISecret.Delete.Params.encode,
-    )
-    t(
-      "vanilla-ApiServer-Secrets-DeleteV0-T-simple.json",
-      APISecrets.Delete.decode,
-      APISecrets.Delete.encode,
-    )
-    t(
-      "vanilla-ApiServer-Secrets-DeleteV1-Params-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-ApiServer-Secrets-DeleteV1-T-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-ApiServer-Secrets-InsertV1-Secret-simple.json",
-      APISecrets.Insert.decode,
-      APISecrets.Insert.encode,
-    )
-    t(
-      "vanilla-ApiServer-Secrets-InsertV1-T-simple.json",
-      APISecrets.Insert.decode,
-      APISecrets.Insert.encode,
-    )
-    t(
-      "vanilla-ApiServer-Toplevels-Delete-Params-simple.json",
-      APIToplevels.Delete.Params.decode,
-      APIToplevels.Delete.Params.encode,
-    )
-    t(
-      "vanilla-ApiServer-Toplevels-Delete-T-simple.json",
-      APIToplevels.Delete.decode,
-      APIToplevels.Delete.encode,
-    )
-    t(
-      "vanilla-ApiServer-Traces-AllTraces-T-simple.json",
-      APITraces.AllTraces.decode,
-      APITraces.AllTraces.encode,
-    )
-    t(
-      "vanilla-ApiServer-Traces-TraceData-Params-simple.json",
-      APITraces.TraceData.Params.decode,
-      APITraces.TraceData.Params.encode,
-    )
-    t(
-      "vanilla-ApiServer-Traces-TraceData-T-simple.json",
-      APITraces.TraceData.decode,
-      APITraces.TraceData.encode,
-    )
-    t(
-      "vanilla-ApiServer-Workers-Scheduler-Params-simple.json",
-      APIWorkers.Scheduler.Params.decode,
-      APIWorkers.Scheduler.Params.encode,
-    )
-    t(
-      "vanilla-ApiServer-Workers-WorkerStats-Params-simple.json",
-      APIWorkers.WorkerStats.Params.decode,
-      APIWorkers.WorkerStats.Params.encode,
-    )
-    t(
-      "vanilla-ApiServer-Workers-WorkerStats-T-simple.json",
-      APIWorker.WorkerStats.decode,
-      APIWorker.WorkerStats.encode,
-    )
-    t(
-      "vanilla-LibAnalysis-ClientInterop-PerformAnalysisParams-handler.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-LibBackend-Op-AddOpEventV1-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-LibBackend-Op-AddOpParamsV1-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-LibBackend-StaticAssets-StaticDeploy-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-LibExecution-ProgramTypes-Position-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-LibExecution-RuntimeTypes-Dval-complete.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-Microsoft-FSharp-Collections-FSharpList-1-ApiServer-Functions-BuiltInFn-T-all.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Package-Fn-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-ApiServer-DBs-DBStatsV1-Stat-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-2-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-LibExecution-AnalysisTypes-ExecutionResult-System-String-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t("vanilla-Prelude-pos-simple.json", APIDBs.Unlocked.decode, APIDBs.Unlocked.encode)
-    t(
-      "vanilla-System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )
-    t(
-      "vanilla-System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-simple.json",
-      APIDBs.Unlocked.decode,
-      APIDBs.Unlocked.encode,
-    )*/
+    // No test because we don't check the response
+    // t("vanilla-ApiServer-F404s-Delete-T-simple.json", API404.Delete.decode, API404.Delete.encode)
+    t("vanilla-ApiServer-F404s-List-T-simple.json", API404.List.decode, API404.List.encode)
+    // t("vanilla-ApiServer-InitialLoad-V1-T-initial.json", APInitialLoad.decode, APInitialload.encode)
+    // t(
+    //   "vanilla-ApiServer-Secrets-DeleteV0-Params-simple.json",
+    //   APISecrets.Delete.Params.decode,
+    //   APISecret.Delete.Params.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Secrets-DeleteV0-T-simple.json",
+    //   APISecrets.Delete.decode,
+    //   APISecrets.Delete.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Secrets-DeleteV1-Params-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Secrets-DeleteV1-T-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Secrets-InsertV1-Secret-simple.json",
+    //   APISecrets.Insert.decode,
+    //   APISecrets.Insert.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Secrets-InsertV1-T-simple.json",
+    //   APISecrets.Insert.decode,
+    //   APISecrets.Insert.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Toplevels-Delete-Params-simple.json",
+    //   APIToplevels.Delete.Params.decode,
+    //   APIToplevels.Delete.Params.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Toplevels-Delete-T-simple.json",
+    //   APIToplevels.Delete.decode,
+    //   APIToplevels.Delete.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Traces-AllTraces-T-simple.json",
+    //   APITraces.AllTraces.decode,
+    //   APITraces.AllTraces.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Traces-TraceData-Params-simple.json",
+    //   APITraces.TraceData.Params.decode,
+    //   APITraces.TraceData.Params.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Traces-TraceData-T-simple.json",
+    //   APITraces.TraceData.decode,
+    //   APITraces.TraceData.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Workers-Scheduler-Params-simple.json",
+    //   APIWorkers.Scheduler.Params.decode,
+    //   APIWorkers.Scheduler.Params.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Workers-WorkerStats-Params-simple.json",
+    //   APIWorkers.WorkerStats.Params.decode,
+    //   APIWorkers.WorkerStats.Params.encode,
+    // )
+    // t(
+    //   "vanilla-ApiServer-Workers-WorkerStats-T-simple.json",
+    //   APIWorker.WorkerStats.decode,
+    //   APIWorker.WorkerStats.encode,
+    // )
+    // t(
+    //   "vanilla-LibAnalysis-ClientInterop-PerformAnalysisParams-handler.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-LibBackend-Op-AddOpEventV1-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-LibBackend-Op-AddOpParamsV1-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-LibBackend-StaticAssets-StaticDeploy-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-LibExecution-ProgramTypes-Position-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-LibExecution-RuntimeTypes-Dval-complete.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-Microsoft-FSharp-Collections-FSharpList-1-ApiServer-Functions-BuiltInFn-T-all.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Package-Fn-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-ApiServer-DBs-DBStatsV1-Stat-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-2-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-LibExecution-AnalysisTypes-ExecutionResult-System-String-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t("vanilla-Prelude-pos-simple.json", APIDBs.Unlocked.decode, APIDBs.Unlocked.encode)
+    // t(
+    //   "vanilla-System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
+    // t(
+    //   "vanilla-System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-simple.json",
+    //   APIDBs.Unlocked.decode,
+    //   APIDBs.Unlocked.encode,
+    // )
   })
 }

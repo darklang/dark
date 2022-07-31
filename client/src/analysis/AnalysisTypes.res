@@ -256,6 +256,33 @@ module PerformAnalysis = {
 }
 
 module FourOhFour = {
+  module Spec = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      space: string,
+      path: string,
+      modifier: string,
+    }
+
+    let decode = (j): t => {
+      open Json_decode_extended
+      {
+        space: field("space", string, j),
+        path: field("path", string, j),
+        modifier: field("modifier", string, j),
+      }
+    }
+
+    let encode = (fof: t): Js.Json.t => {
+      open Json_encode_extended
+      object_(list{
+        ("space", string(fof.space)),
+        ("path", string(fof.path)),
+        ("modifier", string(fof.modifier)),
+      })
+    }
+  }
+
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     space: string,
@@ -278,13 +305,17 @@ module FourOhFour = {
 
   let encode = (fof: t): Js.Json.t => {
     open Json_encode_extended
-    object_(list{
-      ("space", string(fof.space)),
-      ("path", string(fof.path)),
-      ("modifier", string(fof.modifier)),
-    })
+    tuple5(
+      string,
+      string,
+      string,
+      string,
+      TraceID.encode,
+      (fof.space, fof.path, fof.modifier, fof.timestamp, fof.traceID),
+    )
   }
 }
+
 module WorkerStats = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {

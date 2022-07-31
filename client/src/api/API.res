@@ -154,17 +154,22 @@ let updateWorkerSchedule = (m: model, params: APIWorkers.Scheduler.Params.t): cm
   )
 
 let get404s = (m: model): cmd =>
-  apiCallNoParams(m, "/get_404s", ~decoder=API404.Get.decode, ~callback=x => Get404sAPICallback(x))
+  apiCallNoParams(m, "/get_404s", ~decoder=API404.List.decode, ~callback=x => Get404sAPICallback(x))
 
-let delete404 = (m: model, params: API404.Delete.Params.t): cmd =>
+let delete404 = (
+  m: model,
+  {space, path, modifier, _} as original: AnalysisTypes.FourOhFour.t,
+): cmd => {
+  let params: API404.Delete.Params.t = {space: space, path: path, modifier: modifier}
   apiCall(
     m,
     "/delete_404",
     ~decoder=_ => (),
     ~encoder=API404.Delete.Params.encode,
     ~params,
-    ~callback=x => Delete404APICallback(params, x),
+    ~callback=x => Delete404APICallback(original, params, x),
   )
+}
 
 let deleteToplevelForever = (m: model, params: APIToplevels.DeleteForever.Params.t): Tea.Cmd.t<
   msg,

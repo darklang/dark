@@ -1517,12 +1517,12 @@ let update_ = (msg: msg, m: model): modification => {
       Delete404(f404),
       MakeCmd(API.delete404(m, f404)),
     })
-  | Delete404APICallback(params, result) =>
+  | Delete404APICallback(original, params, result) =>
     switch result {
     | Ok(_) => NoChange
     | Error(err) =>
       Many(list{
-        Append404s(list{params}) /* Rollback the speculative deletion */,
+        Append404s(list{original}), // Rollback the speculative deletion
         HandleAPIError(
           APIError.make(
             ~context="Delete404",

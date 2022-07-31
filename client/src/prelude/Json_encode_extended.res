@@ -49,6 +49,9 @@ let result = (fOk, fErr, result): Js.Json.t =>
   | Error(v) => variant("Error", list{fErr(v)})
   }
 
+let tuple5 = (encodeA, encodeB, encodeC, encodeD, encodeE, (a, b, c, d, e)) =>
+  jsonArray([encodeA(a), encodeB(b), encodeC(c), encodeD(d), encodeE(e)])
+
 module Base64 = {
   @deriving(abstract) type jsUint8Array
   @new external createUint8Array: int => jsUint8Array = "Uint8Array"

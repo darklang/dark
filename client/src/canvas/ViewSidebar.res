@@ -264,7 +264,7 @@ let f404Category = (m: model): category => {
         space ++ ("::" ++ path)
       },
       uses: None,
-      identifier: Other(fof.space ++ (fof.path ++ fof.modifier)),
+      identifier: Other(fof.space ++ fof.path ++ fof.modifier),
       onClick: SendMsg(CreateHandlerFrom404(fof)),
       minusButton: Some(Delete404APICall(fof)),
       killAction: None,

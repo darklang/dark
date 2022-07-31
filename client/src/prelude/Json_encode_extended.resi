@@ -18,6 +18,13 @@ let date: Js.Date.t => Js.Json.t
 let uint64: UInt64.t => Js.Json.t
 let int64: int64 => Js.Json.t
 let float': float => Js.Json.t
+let tuple5: (
+  encoder<'a>,
+  encoder<'b>,
+  encoder<'c>,
+  encoder<'d>,
+  encoder<'e>,
+) => encoder<('a, 'b, 'c, 'd, 'e)>
 
 let result: ('ok => Js.Json.t, 'err => Js.Json.t, result<'ok, 'err>) => Js.Json.t
 

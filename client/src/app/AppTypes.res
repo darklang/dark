@@ -767,13 +767,17 @@ module Msg = {
     | @printer(opaque("GetUnlockedDBsAPICallback"))
     GetUnlockedDBsAPICallback(Tea.Result.t<APIDBs.UnlockedDBs.t, Types.httpError>)
     | @printer(opaque("Get404sAPICallback"))
-    Get404sAPICallback(Tea.Result.t<API404.Get.t, Types.httpError>)
+    Get404sAPICallback(Tea.Result.t<API404.List.t, Types.httpError>)
     | NewTracePush((Types.traceID, list<TLID.t>))
     | New404Push(AnalysisTypes.FourOhFour.t)
     | NewStaticDeployPush(StaticAssets.Deploy.t)
     | WorkerStatePush(Tc.Map.String.t<string>)
     | @printer(opaque("Delete404APICallback"))
-    Delete404APICallback(API404.Delete.Params.t, Tea.Result.t<unit, Types.httpError>)
+    Delete404APICallback(
+        AnalysisTypes.FourOhFour.t,
+        API404.Delete.Params.t,
+        Tea.Result.t<unit, Types.httpError>,
+      )
     | @printer(opaque("DeleteToplevelForeverAPICallback"))
     DeleteToplevelForeverAPICallback(
         APIToplevels.DeleteForever.Params.t,
@@ -800,7 +804,7 @@ module Msg = {
     | @printer(opaque("InsertSecretCallback"))
     InsertSecretCallback(Tea.Result.t<list<SecretTypes.t>, Types.httpError>)
     | @printer(opaque("LogoutAPICallback")) LogoutAPICallback
-    | Delete404APICall(API404.Delete.Params.t)
+    | Delete404APICall(AnalysisTypes.FourOhFour.t)
     | NewPresencePush(list<Avatar.t>)
     | @printer(opaque("LocationChange")) LocationChange(Web.Location.location)
     | FinishIntegrationTest
@@ -928,7 +932,7 @@ module Modification = {
     | SetUnlockedDBs(AnalysisTypes.unlockedDBs)
     | AppendUnlockedDBs(AnalysisTypes.unlockedDBs)
     | Append404s(list<AnalysisTypes.FourOhFour.t>)
-    | Delete404(AnalysisTypes.FourOhFour.t)
+    | Delete404(AnalysisTypes.FourOhFour.t) // Save the entire 404 in case we need to roll back
     | Enter(TLID.t, ID.t) // Enter a blankOr
     | EnterWithOffset(TLID.t, ID.t, int) // Entering a blankOr with a desired caret offset
     | OpenOmnibox(option<Pos.t>) // Open the omnibox
