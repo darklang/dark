@@ -289,7 +289,7 @@ let feature_flag_in_function = (m: model): testResult => {
   let fun_ = m.userFunctions |> Map.values |> List.head
   switch fun_ {
   | Some(f) =>
-    switch f.ast |> FluidAST.toExpr {
+    switch f.body |> FluidAST.toExpr {
     | EFnCall(
         _,
         Stdlib({module_: "", function: "+", version: 0}),
@@ -448,20 +448,18 @@ let create_new_function_from_autocomplete = (m: model): testResult => {
       list{(
         _,
         {
-          ast,
-          metadata: {
-            name: F(_, "myFunctionName"),
-            parameters: list{},
-            description: "",
-            returnType: F(_, TAny),
-            infix: false,
-          },
+          body,
+          name: "myFunctionName",
+          parameters: list{},
+          description: "",
+          returnType: TAny,
+          infix: false,
           _,
         },
       )},
       list{(_, {ast: ufAST, _})},
     ) =>
-    switch (FluidAST.toExpr(ast), FluidAST.toExpr(ufAST)) {
+    switch (FluidAST.toExpr(body), FluidAST.toExpr(ufAST)) {
     | (EBlank(_), EFnCall(_, User("myFunctionName"), list{}, _)) => pass
     | _ => fail("bad asts")
     }

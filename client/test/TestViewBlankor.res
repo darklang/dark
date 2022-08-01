@@ -7,15 +7,15 @@ let run = () => {
     test("shows placeholders in user functions", () => {
       let ast = ProgramTypes.Expr.EBlank(gid())
       let tlFunc = TLFunc({
-        ast: FluidAST.ofExpr(ast),
+        body: FluidAST.ofExpr(ast),
         tlid: gtlid(),
-        metadata: {
-          name: Blank(gid()),
-          parameters: list{},
-          description: "",
-          returnType: Blank(gid()),
-          infix: false,
-        },
+        name: "",
+        nameID: gid(),
+        parameters: list{},
+        description: "",
+        returnType: TAny,
+        returnTypeID: gid(),
+        infix: false,
       })
 
       let tl = tlFunc

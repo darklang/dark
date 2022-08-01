@@ -914,7 +914,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
         cache,
         f: PT.UserFunction.t,
       ) => {
-        let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.ast))
+        let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.body))
 
         cache |> Map.add(~key=f.tlid, ~value)
       })

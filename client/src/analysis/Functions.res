@@ -1,5 +1,4 @@
 open Prelude
-module B = BlankOr
 module E = FluidExpression
 
 @ppx.deriving(show({with_path: false})) type rec t = Types.functionsType
@@ -77,19 +76,18 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
   let dependencyTree =
     props.userFunctions
     |> Map.mapValues(~f=(uf: PT.UserFunction.t) =>
-      uf.metadata.name
-      |> B.toOption
-      |> Option.map(~f=caller =>
-        E.filterMap(FluidAST.toExpr(uf.ast), ~f=x =>
+      if uf.name != "" {
+        E.filterMap(FluidAST.toExpr(uf.body), ~f=x =>
           switch x {
           | EBinOp(_, callee, _, _, _) =>
-            Some(PT.FQFnName.InfixStdlibFnName.toString(callee), caller)
-          | EFnCall(_, callee, _, _) => Some(PT.FQFnName.toString(callee), caller)
+            Some(PT.FQFnName.InfixStdlibFnName.toString(callee), uf.name)
+          | EFnCall(_, callee, _, _) => Some(PT.FQFnName.toString(callee), uf.name)
           | _ => None
           }
         )
-      )
-      |> Option.unwrap(~default=list{})
+      } else {
+        list{}
+      }
     )
     |> List.flatten
     |> List.fold(~initial=Map.String.empty, ~f=(dict, (callee, caller)) =>
@@ -179,8 +177,8 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
 
   let userFunctionMetadata =
     props.userFunctions
-    |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata)
-    |> List.filterMap(~f=UserFunctions.ufmToF)
+    |> Map.values
+    |> List.filterMap(~f=UserFunctions.ufToF)
     |> List.map(~f=f => {
       ...f,
       fnPreviewSafety: if (

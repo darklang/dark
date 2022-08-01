@@ -77,14 +77,14 @@ let run = () => {
         SetExpr(h1tlid, gid(), EBlank(gid())),
         SetFunction({
           tlid: fntlid,
-          metadata: {
-            name: B.newF("trollClean"),
-            parameters: list{},
-            description: "can users put docs here?",
-            returnType: B.new_(),
-            infix: false,
-          },
-          ast: FluidAST.ofExpr(FluidExpression.newB()),
+          name: "trollClean",
+          nameID: gid(),
+          parameters: list{},
+          description: "can users put docs here?",
+          returnType: TAny,
+          returnTypeID: gid(),
+          infix: false,
+          body: FluidAST.ofExpr(FluidExpression.newB()),
         }),
       }
 

@@ -295,10 +295,7 @@ let inputVariables = (tl: toplevel): list<string> =>
     | Worker(_) => list{"event"}
     | UnknownHandler(_) => list{"request", "event"}
     }
-  | TLFunc(f) =>
-    f.metadata.parameters |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
-      BlankOr.toOption(p.name)
-    )
+  | TLFunc(f) => f.parameters |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) => Some(p.name))
   | TLTipe(_) | TLDB(_) | TLPmFunc(_) => list{}
   }
 

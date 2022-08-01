@@ -26,17 +26,25 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
 let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.UserFunction.Parameter.t) => {
     let name = Html.span(
-      list{Html.classList(list{("name", true), ("has-blanks", BlankOr.isBlank(p.name))})},
-      list{Html.text(BlankOr.valueWithDefault("no name", p.name))},
+      list{Html.classList(list{("name", true), ("has-blanks", p.name == "")})},
+      list{
+        Html.text(
+          if p.name == "" {
+            "no name"
+          } else {
+            p.name
+          },
+        ),
+      },
     )
 
     let ptype = Html.span(
-      list{Html.classList(list{("type", true), ("has-blanks", BlankOr.isBlank(p.typ))})},
+      list{Html.classList(list{("type", true), ("has-blanks", p.typ == None)})},
       list{
         Html.text(
           switch p.typ {
-          | F(_, v) => Runtime.tipe2str(v)
-          | Blank(_) => "no type"
+          | Some(v) => Runtime.tipe2str(v)
+          | None => "no type"
           },
         ),
       },
@@ -62,15 +70,15 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg>
   Html.div(list{Html.class'("fields")}, List.map(~f=paramView, params))
 }
 
-let fnReturnTipeView = (returnTipe: BlankOr.t<DType.t>): Html.html<msg> =>
-  switch returnTipe {
-  | F(_, v) =>
+let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
+  switch returnType {
+  | Some(v) =>
     let typeStr = Runtime.tipe2str(v)
     Html.div(
       list{},
       list{Html.text("Returns "), Html.span(list{Html.class'("type")}, list{Html.text(typeStr)})},
     )
-  | Blank(_) => Vdom.noNode
+  | None => Vdom.noNode
   }
 
 let hoveringRefProps = (originTLID: TLID.t, originIDs: list<id>, ~key: string) => list{
@@ -154,7 +162,7 @@ let fnView = (
   tlid: TLID.t,
   name: string,
   params: list<PT.UserFunction.Parameter.t>,
-  returnTipe: BlankOr.t<DType.t>,
+  returnType: option<DType.t>,
   direction: string,
 ): Html.html<msg> => {
   let header = list{
@@ -175,7 +183,7 @@ let fnView = (
     list{
       Html.div(list{Html.class'("fnheader fnheader-user")}, header),
       fnParamsView(params),
-      fnReturnTipeView(returnTipe),
+      fnReturnTypeView(returnType),
     },
   )
 }
@@ -206,7 +214,7 @@ let packageFnView = (
     list{
       Html.div(list{Html.class'("fnheader fnheader-pkg")}, header),
       packageFnParamsView(params),
-      fnReturnTipeView(returnTipe),
+      fnReturnTypeView(B.toOption(returnTipe)),
     },
   )
 }
@@ -244,8 +252,8 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   switch tl {
   | TLDB({tlid, name, cols, _}) => dbView(originalTLID, originalIDs, tlid, name, cols, direction)
   | TLHandler({tlid, spec, _}) => handlerView(originalTLID, originalIDs, tlid, spec, direction)
-  | TLFunc({tlid, metadata: {name: F(_, name), parameters, returnType, _}, ast: _}) =>
-    fnView(originalTLID, originalIDs, tlid, name, parameters, returnType, direction)
+  | TLFunc({tlid, name, parameters, returnType, _}) =>
+    fnView(originalTLID, originalIDs, tlid, name, parameters, Some(returnType), direction)
   | TLPmFunc(pFn) =>
     let name = PT.FQFnName.PackageFnName.toString(pFn.name)
     packageFnView(

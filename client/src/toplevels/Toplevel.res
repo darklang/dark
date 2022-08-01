@@ -16,7 +16,7 @@ let name = (tl: toplevel): string =>
   | TLHandler(h) => "H: " ++ PT.Handler.Spec.name(h.spec)
   | TLDB(db) => "DB: " ++ db.name
   | TLPmFunc(fn) => "Package Manager Func: " ++ PT.FQFnName.PackageFnName.toString(fn.name)
-  | TLFunc(f) => "Func: " ++ (f.metadata.name |> B.toOption |> Option.unwrap(~default=""))
+  | TLFunc(f) => "Func: " ++ f.name
   | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
   }
 
@@ -28,7 +28,7 @@ let sortkey = (tl: toplevel): string =>
     PT.Handler.Spec.modifier(h.spec)->Belt.Option.getWithDefault("Undefined")
   | TLDB(db) => db.name
   | TLPmFunc(f) => PT.FQFnName.PackageFnName.toString(f.name)
-  | TLFunc(f) => f.metadata.name |> B.toOption |> Option.unwrap(~default="")
+  | TLFunc(f) => f.name
   | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
   }
 
@@ -220,7 +220,7 @@ let isValidBlankOrID = (tl: toplevel, id: id): bool =>
 let getAST = (tl: toplevel): option<FluidAST.t> =>
   switch tl {
   | TLHandler(h) => Some(h.ast)
-  | TLFunc(f) => Some(f.ast)
+  | TLFunc(f) => Some(f.body)
   | TLPmFunc(fn) => Some(FluidAST.ofExpr(fn.body))
   | _ => None
   }
@@ -228,7 +228,7 @@ let getAST = (tl: toplevel): option<FluidAST.t> =>
 let setAST = (tl: toplevel, newAST: FluidAST.t): toplevel =>
   switch tl {
   | TLHandler(h) => TLHandler({...h, ast: newAST})
-  | TLFunc(uf) => TLFunc({...uf, ast: newAST})
+  | TLFunc(uf) => TLFunc({...uf, body: newAST})
   | TLDB(_) | TLTipe(_) | TLPmFunc(_) => tl
   }
 
@@ -237,7 +237,7 @@ let withAST = (m: model, tlid: TLID.t, ast: FluidAST.t): model => {
   handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=(h: PT.Handler.t) => {...h, ast: ast}),
   userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=(uf: PT.UserFunction.t) => {
     ...uf,
-    ast: ast,
+    body: ast,
   }),
 }
 
@@ -255,10 +255,10 @@ let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): AppTypes.modificat
       )
     }
   | TLFunc(f) =>
-    if f.ast == ast {
+    if f.body == ast {
       NoChange
     } else {
-      AddOps(Belt.List.concat(ops, list{SetFunction({...f, ast: ast})}), FocusNoChange)
+      AddOps(Belt.List.concat(ops, list{SetFunction({...f, body: ast})}), FocusNoChange)
     }
   | TLPmFunc(_) => recover("cannot change ast in package manager", ~debug=tl, Mod.NoChange)
   | TLTipe(_) => recover("no ast in Tipes", ~debug=tl, Mod.NoChange)

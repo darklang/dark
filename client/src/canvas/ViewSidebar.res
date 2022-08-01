@@ -279,24 +279,22 @@ let f404Category = (m: model): category => {
 }
 
 let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
-  let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => B.isF(fn.metadata.name))
-  let entries = List.filterMap(fns, ~f=fn =>
-    Option.map(B.toOption(fn.metadata.name), ~f=name => {
-      let tlid = fn.tlid
-      let usedIn = Introspect.allUsedIn(tlid, m)
-      let minusButton = None
-      Entry({
-        name: name,
-        identifier: Tlid(tlid),
-        uses: Some(List.length(usedIn)),
-        minusButton: minusButton,
-        killAction: Some(DeleteUserFunctionForever(tlid)),
-        onClick: Destination(FocusedFn(tlid, None)),
-        plusButton: None,
-        verb: None,
-      })
+  let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => fn.name != "")
+  let entries = List.map(fns, ~f=fn => {
+    let tlid = fn.tlid
+    let usedIn = Introspect.allUsedIn(tlid, m)
+    let minusButton = None
+    Entry({
+      name: fn.name,
+      identifier: Tlid(tlid),
+      uses: Some(List.length(usedIn)),
+      minusButton: minusButton,
+      killAction: Some(DeleteUserFunctionForever(tlid)),
+      onClick: Destination(FocusedFn(tlid, None)),
+      plusButton: None,
+      verb: None,
     })
-  )
+  })
 
   {
     count: List.length(fns),
@@ -1208,13 +1206,13 @@ let rtCacheKey = (m: model) =>
   (
     m.handlers |> Map.mapValues(~f=(h: PT.Handler.t) => (h.pos, TL.sortkey(TLHandler(h)))),
     m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
-    m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
+    m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.name),
     m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
     m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: PT.Handler.t) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
-    m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
+    m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.name),
     m.deleteduserTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.staticDeploys,
     m.unlockedDBs,

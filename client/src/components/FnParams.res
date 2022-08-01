@@ -16,9 +16,9 @@ let onEvent = ViewUtils.onEvent
 type viewProps = ViewUtils.viewProps
 
 let moveParams = (fn: PT.UserFunction.t, oldPos: int, newPos: int): PT.UserFunction.t => {
-  let parameters = fn.metadata.parameters |> List.moveInto(~oldPos, ~newPos)
+  let parameters = fn.parameters |> List.moveInto(~oldPos, ~newPos)
 
-  {...fn, metadata: {...fn.metadata, parameters: parameters}}
+  {...fn, parameters: parameters}
 }
 
 let update = (m: AppTypes.model, msg: FnParams.msg): modification => {
@@ -34,16 +34,17 @@ let update = (m: AppTypes.model, msg: FnParams.msg): modification => {
     |> Option.pair(m.currentUserFn.draggingParamIndex)
     |> Option.map(~f=((oldPos, fn)) => {
       let newFn = moveParams(fn, oldPos, newPos)
-      let updateArgs = switch fn.metadata.name {
-      | F(_, name) => Refactor.reorderFnCallArgs(m, fn.tlid, User(name), oldPos, newPos)
-      | Blank(_) => list{}
+      let updateArgs = if fn.name != "" {
+        Refactor.reorderFnCallArgs(m, fn.tlid, User(fn.name), oldPos, newPos)
+      } else {
+        list{}
       }
 
       let justMovedParam =
         List.getAt(
           ~index=newPos,
-          newFn.metadata.parameters,
-        ) |> Option.map(~f=(p: PT.UserFunction.Parameter.t) => B.toID(p.name))
+          newFn.parameters,
+        ) |> Option.map(~f=(p: PT.UserFunction.Parameter.t) => p.nameID)
 
       let fnM: FnParams.t = {
         justMovedParam: justMovedParam,
@@ -75,7 +76,7 @@ let update = (m: AppTypes.model, msg: FnParams.msg): modification => {
 let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.t): Html.html<
   msg,
 > => {
-  let freeVariables = uf.ast |> FluidAST.toExpr |> AST.freeVariables |> List.map(~f=Tuple2.second)
+  let freeVariables = uf.body |> FluidAST.toExpr |> AST.freeVariables |> List.map(~f=Tuple2.second)
 
   let canDeleteParameter = pname => List.member(~value=pname, freeVariables) |> not
 
@@ -85,7 +86,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
         list{
           Html.class'("parameter-btn allowed"),
           ViewUtils.eventNoPropagation(
-            ~key="dufp-" ++ (TLID.toString(uf.tlid) ++ ("-" ++ (p.name |> B.toID |> ID.toString))),
+            ~key="dufp-" ++ TLID.toString(uf.tlid) ++ "-" ++ (p.nameID |> ID.toString),
             "click",
             _ => DeleteUserFunctionParameter(uf.tlid, p),
           ),
@@ -102,9 +103,10 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
       )
     }
 
-  switch p.name {
-  | F(_, pname) => buttonContent(canDeleteParameter(pname))
-  | _ => buttonContent(true)
+  if p.name != "" {
+    buttonContent(canDeleteParameter(p.name))
+  } else {
+    buttonContent(true)
   }
 }
 
@@ -164,8 +166,7 @@ let viewParam = (
   index: int,
   p: PT.UserFunction.Parameter.t,
 ): list<Html.html<msg>> => {
-  let nameId = p.name |> B.toID
-  let strId = ID.toString(nameId)
+  let strId = ID.toString(p.nameID)
   let dragStart = evt => {
     jsDragStart(evt)
     Msg.FnParamMsg(ParamDragStart(index))
@@ -181,7 +182,7 @@ let viewParam = (
 
   let conditionalClasses = list{
     ("dragging", vp.fnProps.draggingParamIndex |> Option.isSomeEqualTo(~value=index)),
-    ("just-moved", vp.fnProps.justMovedParam |> Option.isSomeEqualTo(~value=nameId)),
+    ("just-moved", vp.fnProps.justMovedParam |> Option.isSomeEqualTo(~value=p.nameID)),
   }
 
   let param = {
@@ -214,8 +215,8 @@ let viewParam = (
       },
       list{
         killParamBtn,
-        viewParamName(vp, ~classes=list{"name"}, p.name),
-        viewParamTipe(vp, ~classes=list{"type"}, p.typ),
+        viewParamName(vp, ~classes=list{"name"}, B.fromStringID(p.name, p.nameID)),
+        viewParamTipe(vp, ~classes=list{"type"}, B.fromOptionID(p.typ, p.typeID)),
         dragIcon,
       },
     )
@@ -227,8 +228,7 @@ let viewParam = (
 
 let view = (fn: functionTypes, vp: viewProps): list<Html.html<msg>> => {
   let params = switch fn {
-  | UserFunction(f) =>
-    f.metadata.parameters |> List.mapWithIndex(~f=viewParam(fn, vp)) |> List.flatten
+  | UserFunction(f) => f.parameters |> List.mapWithIndex(~f=viewParam(fn, vp)) |> List.flatten
   | PackageFn(f) =>
     f.parameters
     |> List.map(~f=PackageManager.pmParamsToUserFnParams)

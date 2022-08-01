@@ -741,61 +741,31 @@ module UserFunction = {
   module Parameter = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      name: BlankOr.t<string>,
-      typ: BlankOr.t<DType.t>,
-      args: list<string>,
-      optional: bool,
+      name: string,
+      nameID: ID.t,
+      typ: option<DType.t>,
+      typeID: ID.t,
       description: string,
     }
+
     let encode = (p: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BlankOr.encode(string, p.name)),
-        ("tipe", BlankOr.encode(DType.encode, p.typ)),
-        ("block_args", list(string, p.args)),
-        ("optional", bool(p.optional)),
+        ("name", string(p.name)),
+        ("nameID", ID.encode(p.nameID)),
+        ("typ", nullable(DType.encode, p.typ)),
+        ("typeID", ID.encode(p.typeID)),
         ("description", string(p.description)),
       })
     }
     let decode = (j): t => {
       open Json_decode_extended
       {
-        name: field("name", BlankOr.decode(string), j),
-        typ: field("tipe", BlankOr.decode(DType.decode), j),
-        args: field("block_args", list(string), j),
-        optional: field("optional", bool, j),
+        name: field("name", string, j),
+        nameID: field("nameID", ID.decode, j),
+        typ: field("typ", optional(DType.decode), j),
+        typeID: field("typeID", ID.decode, j),
         description: field("description", string, j),
-      }
-    }
-  }
-  module Metadata = {
-    @ppx.deriving(show({with_path: false}))
-    type rec t = {
-      name: BlankOr.t<string>,
-      parameters: list<Parameter.t>,
-      description: string,
-      returnType: BlankOr.t<DType.t>,
-      infix: bool,
-    }
-    let encode = (f: t): Js.Json.t => {
-      open Json.Encode
-      object_(list{
-        ("name", BlankOr.encode(string, f.name)),
-        ("parameters", list(Parameter.encode, f.parameters)),
-        ("description", string(f.description)),
-        ("return_type", BlankOr.encode(DType.encode, f.returnType)),
-        ("infix", bool(f.infix)),
-      })
-    }
-
-    let decode = (j): t => {
-      open Json_decode_extended
-      {
-        name: field("name", BlankOr.decode(string), j),
-        parameters: field("parameters", list(Parameter.decode), j),
-        description: field("description", string, j),
-        returnType: field("return_type", BlankOr.decode(DType.decode), j),
-        infix: field("infix", bool, j),
       }
     }
   }
@@ -803,24 +773,42 @@ module UserFunction = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     tlid: TLID.t,
-    metadata: Metadata.t,
-    ast: AST.t,
+    name: string,
+    nameID: ID.t,
+    parameters: list<Parameter.t>,
+    returnType: DType.t,
+    returnTypeID: ID.t,
+    description: string,
+    infix: bool,
+    body: AST.t,
   }
 
-  let encode = (uf: t): Js.Json.t => {
+  let encode = (f: t): Js.Json.t => {
     open Json.Encode
     object_(list{
-      ("tlid", TLID.encode(uf.tlid)),
-      ("metadata", Metadata.encode(uf.metadata)),
-      ("ast", AST.encode(uf.ast)),
+      ("tlid", TLID.encode(f.tlid)),
+      ("name", string(f.name)),
+      ("nameID", ID.encode(f.nameID)),
+      ("parameters", list(Parameter.encode, f.parameters)),
+      ("returnType", DType.encode(f.returnType)),
+      ("returnTypeID", ID.encode(f.returnTypeID)),
+      ("description", string(f.description)),
+      ("infix", bool(f.infix)),
+      ("body", AST.encode(f.body)),
     })
   }
   let decode = (j): t => {
     open Json.Decode
     {
       tlid: field("tlid", TLID.decode, j),
-      metadata: field("metadata", Metadata.decode, j),
-      ast: field("ast", AST.decode, j),
+      name: field("name", string, j),
+      nameID: field("nameID", ID.decode, j),
+      parameters: field("parameters", list(Parameter.decode), j),
+      returnType: field("returnType", DType.decode, j),
+      returnTypeID: field("returnTypeID", ID.decode, j),
+      description: field("description", string, j),
+      infix: field("infix", bool, j),
+      body: field("body", AST.decode, j),
     }
   }
 }

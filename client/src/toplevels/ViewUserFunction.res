@@ -50,16 +50,16 @@ let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
   }
 
   let events = // If function is ready for re-execution, attach onClick listener
-  switch (fn.metadata.name, exeStatus) {
-  | (F(_, fnName), CanExecute(traceID, args)) =>
+  switch exeStatus {
+  | CanExecute(traceID, args) if fn.name != "" =>
     ViewUtils.eventNoPropagation(
       ~key="run-fun" ++ ("-" ++ (TLID.toString(fn.tlid) ++ ("-" ++ traceID))),
       "click",
       _ => ExecuteFunctionFromWithin({
         tlid: fn.tlid,
-        callerID: FluidAST.toID(fn.ast),
+        callerID: FluidAST.toID(fn.body),
         traceID: traceID,
-        fnName: fnName,
+        fnName: fn.name,
         args: args,
       }),
     )
@@ -124,7 +124,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
 
   let titleRow = {
     let titleText = switch fn {
-    | UserFunction(fn) => fn.metadata.name
+    | UserFunction(fn) => BlankOr.fromStringID(fn.name, fn.nameID)
     | PackageFn(fn) => BlankOr.newF(PT.FQFnName.PackageFnName.toString(fn.name))
     }
 
@@ -195,7 +195,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
 
   let returnRow = {
     let returnType = switch fn {
-    | UserFunction(fn) => fn.metadata.returnType
+    | UserFunction(fn) => BlankOr.F(fn.returnTypeID, fn.returnType)
     | PackageFn(fn) => BlankOr.newF(fn.returnType)
     }
 

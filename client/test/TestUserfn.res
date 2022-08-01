@@ -24,14 +24,14 @@ let aFn = (
   (),
 ): toplevel => TLFunc({
   tlid: tlid,
-  metadata: {
-    name: F(gid(), name),
-    parameters: params,
-    description: "",
-    returnType: F(gid(), TAny),
-    infix: false,
-  },
-  ast: FluidAST.ofExpr(expr),
+  name: name,
+  nameID: gid(),
+  parameters: params,
+  description: "",
+  returnType: TAny,
+  returnTypeID: gid(),
+  infix: false,
+  body: FluidAST.ofExpr(expr),
 })
 
 let run = () => {

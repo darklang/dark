@@ -74,14 +74,14 @@ let defaultHandler: PT.Handler.t = {
 
 let aFn = (name, expr): PT.UserFunction.t => {
   tlid: gtlid(),
-  metadata: {
-    name: F(gid(), name),
-    parameters: list{},
-    description: "",
-    returnType: F(gid(), TAny),
-    infix: false,
-  },
-  ast: FluidAST.ofExpr(expr),
+  name: name,
+  nameID: gid(),
+  parameters: list{},
+  description: "",
+  returnType: TAny,
+  returnTypeID: gid(),
+  infix: false,
+  body: FluidAST.ofExpr(expr),
 }
 
 let run = () => {
@@ -225,14 +225,14 @@ let run = () => {
 
       let f: PT.UserFunction.t = {
         tlid: TLID.fromInt(6),
-        metadata: {
-          name: B.newF("f-1"),
-          parameters: list{},
-          description: "",
-          returnType: B.new_(),
-          infix: false,
-        },
-        ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
+        name: "f-1",
+        nameID: gid(),
+        parameters: list{},
+        description: "",
+        returnType: TAny,
+        returnTypeID: gid(),
+        infix: false,
+        body: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
       }
 
       let model = {
@@ -245,7 +245,7 @@ let run = () => {
       let ops = R.renameDBReferences(model, "ElmCode", "WeirdCode")
       let res = switch List.sortBy(~f=PT.Op.tlidOf, ops) {
       | list{SetHandler(_, _, h), SetFunction(f)} =>
-        switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.ast)) {
+        switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.body)) {
         | (EVariable(_, "WeirdCode"), EVariable(_, "WeirdCode")) => true
         | _ => false
         }

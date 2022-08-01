@@ -66,14 +66,14 @@ let aFunction = (
   (),
 ): PT.UserFunction.t => {
   tlid: tlid,
-  metadata: {
-    name: B.newF(name),
-    parameters: params,
-    description: "",
-    returnType: B.newF(DType.TStr),
-    infix: false,
-  },
-  ast: FluidAST.ofExpr(expr),
+  name: name,
+  nameID: gid(),
+  parameters: params,
+  description: "",
+  returnType: DType.TStr,
+  returnTypeID: gid(),
+  infix: false,
+  body: FluidAST.ofExpr(expr),
 }
 
 let aDB = (
@@ -229,22 +229,23 @@ let run = () => {
       ()
     })
     describe("validate functions", () => {
-      let pn1 = B.newF("title")
-      let pn2 = B.newF("author")
+      let pn1 = "title"
+      let pn2id = gid()
+      let pn2 = "author"
       let fnAsTL = aFunction(
         ~params=list{
           {
             name: pn1,
-            typ: B.newF(DType.TStr),
-            args: list{},
-            optional: false,
+            nameID: gid(),
+            typ: Some(DType.TStr),
+            typeID: gid(),
             description: "",
           },
           {
             name: pn2,
-            typ: B.newF(DType.TStr),
-            args: list{},
-            optional: false,
+            nameID: pn2id,
+            typ: Some(DType.TStr),
+            typeID: gid(),
             description: "",
           },
         },
@@ -260,7 +261,7 @@ let run = () => {
         expect(validateFnParamNameFree(fnAsTL, B.new_(), "rating")) |> toEqual(None)
       )
       test("allow param name to be renamed the same", () =>
-        expect(validateFnParamNameFree(fnAsTL, pn2, "author")) |> toEqual(None)
+        expect(validateFnParamNameFree(fnAsTL, F(pn2id, pn2), "author")) |> toEqual(None)
       )
     })
     describe("queryWhenEntering", () => {
@@ -558,7 +559,7 @@ let run = () => {
           ~key=repl.tlid,
           ~value=repl.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString,
         )
-        |> Map.add(~key=fn.tlid, ~value=fn.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
+        |> Map.add(~key=fn.tlid, ~value=fn.body |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
 
       let m = {...m, searchCache: searchCache}
       test("find variable", () => {

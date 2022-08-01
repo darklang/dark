@@ -258,7 +258,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
           text("Your code needs to return a value in the last expression")
         | (_, TLFunc(f)) =>
           let actualType = dval |> Runtime.typeOf
-          let declaredType = BlankOr.valueWithDefault(DType.TAny, f.metadata.returnType)
+          let declaredType = ( f.returnType)
 
           if Runtime.isCompatible(actualType, declaredType) {
             Vdom.noNode

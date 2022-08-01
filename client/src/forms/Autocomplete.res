@@ -394,7 +394,11 @@ let handlerDisplayName = (h: PT.Handler.t): string => {
 }
 
 let fnDisplayName = (f: PT.UserFunction.t): string =>
-  f.metadata.name |> B.toOption |> Option.unwrap(~default="undefinedFunction")
+  if f.name == "" {
+    "undefinedFunction"
+  } else {
+    f.name
+  }
 
 let foundHandlerOmniAction = (h: PT.Handler.t): A.omniAction => {
   let name = "Found in " ++ handlerDisplayName(h)
