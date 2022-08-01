@@ -90,8 +90,8 @@ let parseDvalLiteral = (str: string): option<RT.Dval.t> =>
 // Copied from Dval.to_repr in backend code, but that's terrible and it should
 // be recopied from to_developer_repr_v0
 let rec toRepr_ = (oldIndent: int, dv: RT.Dval.t): string => {
-  let wrap = value => "<" ++ ((dv |> typeOf |> tipe2str) ++ (": " ++ (value ++ ">")))
-  let asType = "<" ++ ((dv |> typeOf |> tipe2str) ++ ">")
+  let wrap = value => "<" ++ ((dv |> typeOf |> DType.tipe2str) ++ (": " ++ (value ++ ">")))
+  let asType = "<" ++ ((dv |> typeOf |> DType.tipe2str) ++ ">")
   let nl = "\n" ++ String.repeat(~count=oldIndent, " ")
   let inl = "\n" ++ String.repeat(~count=oldIndent + 2, " ")
   let indent = oldIndent + 2
@@ -194,10 +194,7 @@ let rec toRepr_ = (oldIndent: int, dv: RT.Dval.t): string => {
     let exprs = list{first, second, ...theRest}
     "(" ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), exprs)) ++ ")")
   | DObj(o) => objToString(Belt.Map.String.toList(o))
-  | DBytes(s) =>
-    "<" ++
-    ((dv |> typeOf |> tipe2str) ++
-    (": length=" ++ ((Bytes.length(s) |> string_of_int) ++ ">")))
+  | DBytes(s) => "<Bytes: length=" ++ (Bytes.length(s) |> string_of_int) ++ ">"
   }
 }
 

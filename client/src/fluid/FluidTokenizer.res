@@ -198,7 +198,10 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
           Functions.global()
           |> Functions.findByStr(fnname)
           |> Option.andThen(~f=fn => List.getAt(~index=pos, fn.fnParameters))
-          |> Option.map(~f=(p): Placeholder.t => {name: p.paramName, tipe: tipe2str(p.paramTipe)})
+          |> Option.map(~f=(p): Placeholder.t => {
+            name: p.paramName,
+            tipe: DType.tipe2str(p.paramTipe),
+          })
 
         switch name {
         | None => toTokens'(e, b)

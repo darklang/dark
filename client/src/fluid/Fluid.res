@@ -1748,7 +1748,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
       |> Option.andThen(~f=fn => List.getAt(~index, fn.fnParameters))
       |> Option.map(~f=p => (
         p.paramName,
-        Runtime.tipe2str(p.paramTipe),
+        DType.tipe2str(p.paramTipe),
         List.getAt(~index, varExprs) |> Option.unwrap(~default=EBlank(gid())),
         index,
       ))
@@ -1940,7 +1940,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
         let oldParams = existingExprs |> List.mapWithIndex(~f=(i, p) => {
           // create ugly automatic variable name
           let name = "var_" ++ string_of_int(DUtil.random())
-          (name, Runtime.tipe2str(TAny), p, i)
+          (name, DType.tipe2str(TAny), p, i)
         })
 
         (wrapWithLets(~expr=newExpr, oldParams), ctForExpr(newExpr))

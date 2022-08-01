@@ -88,12 +88,12 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACFunction(f) =>
     f.fnParameters
     |> List.map(~f=x => x.paramTipe)
-    |> List.map(~f=Runtime.tipe2str)
-    |> (s => (s, Runtime.tipe2str(f.fnReturnTipe)))
+    |> List.map(~f=DType.tipe2str)
+    |> (s => (s, DType.tipe2str(f.fnReturnTipe)))
   | FACField(_) => (list{}, "field")
   | FACVariable(_, odv) =>
     odv
-    |> Option.map(~f=(dv: RT.Dval.t) => dv |> Runtime.typeOf |> Runtime.tipe2str)
+    |> Option.map(~f=(dv: RT.Dval.t) => dv |> Runtime.typeOf |> DType.tipe2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
   | FACPattern(FPAVariable(_)) => (list{}, "variable")
@@ -113,7 +113,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
       |> Runtime.parseDvalLiteral
       |> Option.unwrap(~default=RT.Dval.DIncomplete(SourceNone))
       |> Runtime.typeOf
-      |> Runtime.tipe2str
+      |> DType.tipe2str
 
     (list{}, tipe ++ " literal")
   | FACPattern(FPABool(_)) => (list{}, "boolean literal")
@@ -683,7 +683,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
       list{
         Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
         Html.text("A value of type "),
-        Html.span(list{Html.class'("type")}, list{Html.text(Runtime.tipe2str(tipe))}),
+        Html.span(list{Html.class'("type")}, list{Html.text(DType.tipe2str(tipe))}),
         Html.text(" is being piped into this function call, but "),
         Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
         ...typeInfo,
@@ -703,7 +703,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
         Html.text(" expects "),
         Html.span(list{Html.class'("param")}, list{Html.text(paramName)}),
         Html.text(" to be a "),
-        Html.span(list{Html.class'("type")}, list{Html.text(Runtime.tipe2str(returnType))}),
+        Html.span(list{Html.class'("type")}, list{Html.text(DType.tipe2str(returnType))}),
         Html.text(", but "),
         Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
         Html.text(" returns a "),

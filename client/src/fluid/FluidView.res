@@ -258,13 +258,13 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
           text("Your code needs to return a value in the last expression")
         | (_, TLFunc(f)) =>
           let actualType = dval |> Runtime.typeOf
-          let declaredType = ( f.returnType)
+          let declaredType = f.returnType
 
           if Runtime.isCompatible(actualType, declaredType) {
             Vdom.noNode
           } else {
-            let actualTypeString = Runtime.tipe2str(actualType)
-            let declaredTypeString = Runtime.tipe2str(declaredType)
+            let actualTypeString = DType.tipe2str(actualType)
+            let declaredTypeString = DType.tipe2str(declaredType)
             Html.div(
               list{warningAttr},
               list{

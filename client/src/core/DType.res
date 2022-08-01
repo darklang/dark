@@ -27,6 +27,35 @@ type rec t =
   | TDbList(t) // remove
 // | TRecord of List<string * DType>
 
+let rec tipe2str = (t: t): string =>
+  switch t {
+  | TAny => "Any"
+  | TInt => "Int"
+  | TFloat => "Float"
+  | TBool => "Bool"
+  | TChar => "Char"
+  | TNull => "Null"
+  | TCharacter => "Character"
+  | TStr => "String"
+  | TList => "List"
+  | TTuple(_, _, _) => "Tuple"
+  | TObj => "Dict"
+  | TBlock => "Block"
+  | TIncomplete => "Incomplete"
+  | TError => "Error"
+  | TResp => "Response"
+  | TDB => "Datastore"
+  | TDate => "Date"
+  | TOption => "Option"
+  | TPassword => "Password"
+  | TUuid => "UUID"
+  | TErrorRail => "ErrorRail"
+  | TResult => "Result"
+  | TDbList(a) => "[" ++ (tipe2str(a) ++ "]")
+  | TUserType(name, _) => name
+  | TBytes => "Bytes"
+  }
+
 let rec decode = (j): t => {
   open Json_decode_extended
   let d = decode

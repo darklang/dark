@@ -187,7 +187,7 @@ let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: PT.UserFuncti
   fn.parameters
   |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
     p.typ
-    |> Option.map(~f=Runtime.tipe2str)
+    |> Option.map(~f=DType.tipe2str)
     |> Option.map(~f=t => keyForTipe(t, version))
     |> Option.andThen(~f=key => Map.get(~key, tipes))
     |> Option.thenAlso(~f=_ => Some(p.typeID))

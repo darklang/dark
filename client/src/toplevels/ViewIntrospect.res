@@ -12,7 +12,7 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
         list{Html.class'("field")},
         list{
           Html.div(list{Html.class'("name")}, list{Html.text(name)}),
-          Html.div(list{Html.class'("type")}, list{Html.text(Prelude.tipe2str(typ))}),
+          Html.div(list{Html.class'("type")}, list{Html.text(DType.tipe2str(typ))}),
         },
       )
 
@@ -43,7 +43,7 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
       list{
         Html.text(
           switch p.typ {
-          | Some(v) => Runtime.tipe2str(v)
+          | Some(v) => DType.tipe2str(v)
           | None => "no type"
           },
         ),
@@ -61,7 +61,7 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg>
     let name = Html.span(list{Html.classList(list{("name", true)})}, list{Html.text(p.name)})
     let ptype = Html.span(
       list{Html.classList(list{("type", true)})},
-      list{Html.text(Runtime.tipe2str(p.tipe))},
+      list{Html.text(DType.tipe2str(p.tipe))},
     )
 
     Html.div(list{Html.class'("field")}, list{name, ptype})
@@ -73,7 +73,7 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg>
 let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
   switch returnType {
   | Some(v) =>
-    let typeStr = Runtime.tipe2str(v)
+    let typeStr = DType.tipe2str(v)
     Html.div(
       list{},
       list{Html.text("Returns "), Html.span(list{Html.class'("type")}, list{Html.text(typeStr)})},
