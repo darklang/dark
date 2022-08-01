@@ -24,7 +24,7 @@ type rec t =
   | TResult //(t, t)
   | TAny //TVariable(string)
   | TBlock //TFn of List<DType> * DType
-  | TDbList(t) // remove
+  | TDbList(t)
 // | TRecord of List<string * DType>
 
 let rec tipe2str = (t: t): string =>
@@ -73,6 +73,7 @@ let rec decode = (j): t => {
       ("TNull", dv0(TNull)),
       ("TStr", dv0(TStr)),
       ("TList", dv1(t => TList(t), d)),
+      ("TDbList", dv1(t => TDbList(t), d)),
       ("TTuple", dv3((first, second, theRest) => TTuple(first, second, theRest), d, d, list(d))),
       ("TDict", dv1(_ => TObj, d)),
       ("TIncomplete", dv0(TIncomplete)),
