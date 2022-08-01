@@ -30,14 +30,28 @@ let sampleHttpRequestInputVars : AT.InputVars =
 
   [ ("request", sampleRequest) ]
 
+let sampleHttpBytesRequestInputVars : AT.InputVars =
+  let sampleRequest : RT.Dval =
+    [ ("body", incomplete)
+      ("queryParams", incomplete)
+      ("headers", incomplete)
+      ("url", incomplete) ]
+    |> Map
+    |> RT.Dval.DObj
+
+  [ ("request", sampleRequest) ]
+
 let sampleEventInputVars : AT.InputVars = [ ("event", RT.DIncomplete RT.SourceNone) ]
 
 let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
   | PT.Handler.HTTP _ -> sampleHttpRequestInputVars
+  | PT.Handler.HTTPBytes _ -> sampleHttpBytesRequestInputVars
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
-  | PT.Handler.UnknownHandler _ -> sampleHttpRequestInputVars @ sampleEventInputVars
+  | PT.Handler.UnknownHandler _ ->
+    // HttpBytesTODO should this include sampleHttpBytesRequestInputVars?
+    sampleHttpRequestInputVars @ sampleEventInputVars
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _ -> sampleEventInputVars
 
@@ -62,7 +76,8 @@ let savedInputVars
   (event : RT.Dval)
   : AT.InputVars =
   match h.spec with
-  | PT.Handler.HTTP (route, _method, _) ->
+  | PT.Handler.HTTP (route, _method, _)
+  | PT.Handler.HTTPBytes (route, _method, _) ->
     let boundRouteVariables =
       if route <> "" then
         // Check the trace actually matches the route, if not the client
@@ -71,7 +86,7 @@ let savedInputVars
         // on, if it doesn't -- just don't do any bindings and inject the
         // sample variables. Communicating to the frontend that this
         // trace doesn't match the handler should be done in the future
-        // somehow.
+        // somehow. TODO
         if Routing.requestPathMatchesRoute route requestPath then
           Routing.routeInputVars route requestPath
           |> Exception.unwrapOptionInternal
@@ -151,9 +166,9 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
       return
         events
         |> List.filterMap (fun (traceID, path) ->
-
           match h.spec with
-          | PT.Handler.Spec.HTTP _ ->
+          | PT.Handler.Spec.HTTP _
+          | PT.Handler.Spec.HTTPBytes _ ->
             // Ensure we only return trace_ids that would bind to this
             // handler if the trace was executed for real now. (There
             // may be other handlers which also match the route)

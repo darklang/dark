@@ -671,12 +671,21 @@ module Handler =
     | EveryMinute
 
   type Spec =
+    /// Corresponds with HttpMiddlewareV0
     | HTTP of path : string * method : string
+
+    /// Corresponds with HttpMiddlewareV1
+    | HTTPBytes of path : string * method : string
+
     | Worker of name : string
-    // Deprecated but still supported form
+
+    /// This form is deprecated, but still supported
     | OldWorker of modulename : string * name : string
+
     | Cron of name : string * interval : Option<CronInterval>
+
     | REPL of name : string
+
     | UnknownHandler // no useful info here
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
