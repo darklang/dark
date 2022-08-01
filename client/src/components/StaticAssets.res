@@ -30,9 +30,9 @@ module Deploy = {
   let decode = (j): t => {
     open Json_decode_extended
     {
-      deployHash: field("deploy_hash", string, j),
+      deployHash: field("deployHash", string, j),
       url: field("url", string, j),
-      lastUpdate: field("last_update", date, j),
+      lastUpdate: field("lastUpdate", date, j),
       status: field("status", Status.decode, j),
     }
   }
@@ -40,9 +40,9 @@ module Deploy = {
   let encode = (d: t): Js.Json.t => {
     open Json_encode_extended
     object_(list{
-      ("deploy_hash", string(d.deployHash)),
+      ("deployHash", string(d.deployHash)),
       ("url", string(d.url)),
-      ("last_update", date(d.lastUpdate)),
+      ("lastUpdate", date(d.lastUpdate)),
       ("status", Status.encode(d.status)),
     })
   }
