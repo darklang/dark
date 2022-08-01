@@ -52,7 +52,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "DB", function: "set", version: 1},
-      parameters: list{par("val", TObj), par("key", TStr), par("table", TDB)},
+      parameters: list{par("val", TObj), par("key", TStr), par("table", TDB(TAny))},
       returnType: TObj,
       description: "",
       previewable: Impure,

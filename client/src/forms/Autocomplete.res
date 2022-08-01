@@ -561,7 +561,7 @@ let allowedParamTipes = list{
   TList(TAny),
   TAny,
   TBlock,
-  TDB,
+  TDB(TAny),
   TDate,
   TPassword,
   TUuid,

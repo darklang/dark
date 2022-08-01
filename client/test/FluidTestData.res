@@ -775,7 +775,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "DB", function: "getAll", version: 1},
-      parameters: list{fnParam("table", TDB)},
+      parameters: list{fnParam("table", TDB(TAny))},
       returnType: TList(TAny),
       description: "get all",
       previewable: Impure,
