@@ -16,27 +16,28 @@ module PTParser = LibExecution.ProgramTypesParser
 // -------------------------
 let incomplete = RT.DIncomplete RT.SourceNone
 
-let sampleRequest : RT.Dval =
-  ([ ("body", incomplete)
-     ("jsonBody", incomplete)
-     ("formBody", incomplete)
-     ("queryParams", incomplete)
-     ("headers", incomplete)
-     ("fullBody", incomplete)
-     ("url", incomplete) ])
-  |> Map
-  |> RT.Dval.DObj
+let sampleHttpRequestInputVars : AT.InputVars =
+  let sampleRequest : RT.Dval =
+    [ ("body", incomplete)
+      ("jsonBody", incomplete)
+      ("formBody", incomplete)
+      ("queryParams", incomplete)
+      ("headers", incomplete)
+      ("fullBody", incomplete)
+      ("url", incomplete) ]
+    |> Map
+    |> RT.Dval.DObj
 
-let sampleRequestInputVars : AT.InputVars = [ ("request", sampleRequest) ]
+  [ ("request", sampleRequest) ]
 
 let sampleEventInputVars : AT.InputVars = [ ("event", RT.DIncomplete RT.SourceNone) ]
 
 let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
-  | PT.Handler.HTTP _ -> sampleRequestInputVars
+  | PT.Handler.HTTP _ -> sampleHttpRequestInputVars
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
-  | PT.Handler.UnknownHandler _ -> sampleRequestInputVars @ sampleEventInputVars
+  | PT.Handler.UnknownHandler _ -> sampleHttpRequestInputVars @ sampleEventInputVars
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _ -> sampleEventInputVars
 
@@ -61,10 +62,8 @@ let savedInputVars
   (event : RT.Dval)
   : AT.InputVars =
   match h.spec with
-  | PT.Handler.HTTP (route, method, _) ->
-    let withR = [ ("request", event) ]
-
-    let bound =
+  | PT.Handler.HTTP (route, _method, _) ->
+    let boundRouteVariables =
       if route <> "" then
         // Check the trace actually matches the route, if not the client
         // has made a mistake in matching the traceid to this handler, but
@@ -83,7 +82,7 @@ let savedInputVars
       else
         []
 
-    withR @ bound
+    [ ("request", event) ] @ boundRouteVariables
   | PT.Handler.OldWorker _
   | PT.Handler.Worker _ -> [ ("event", event) ]
   | PT.Handler.Cron _ -> []
@@ -165,7 +164,11 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
             |> List.head
             |> Option.bind (fun matching ->
               if matching.tlid = h.tlid then Some traceID else None)
-          | _ ->
+          | PT.Handler.Spec.Worker _
+          | PT.Handler.Spec.OldWorker _
+          | PT.Handler.Spec.Cron _
+          | PT.Handler.Spec.REPL _
+          | PT.Handler.Spec.UnknownHandler _ ->
             // Don't use HTTP filtering stack for non-HTTP traces
             Some traceID)
         // If there's no matching traces, add the default trace
