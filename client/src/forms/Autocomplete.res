@@ -546,7 +546,7 @@ let tlDestinations = (m: model): list<A.item> => {
   - TNull: trying to get rid of this, so don't spread it
   - TIncomplete: makes no sense to pass to a function
   - TError: makes no sense to pass to a function
-  - TResp: these aren't really exposed to users as real things, but maybe should?
+  - THttpResponse(): these aren't really exposed to users as real things, but maybe should?
   - TErrorRail: doesn't make sense pass to function
   - TDbList: only for DB schemas
   - TUserType: added later

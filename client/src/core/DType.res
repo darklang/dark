@@ -11,7 +11,7 @@ type rec t =
   | TObj //TDict(t)
   | TIncomplete
   | TError
-  | TResp //| THttpResponse(t)
+  | THttpResponse(t)
   | TDB //(t)
   | TDate
   | TCharacter
@@ -43,7 +43,7 @@ let rec tipe2str = (t: t): string =>
   | TBlock => "Block"
   | TIncomplete => "Incomplete"
   | TError => "Error"
-  | TResp => "Response"
+  | THttpResponse(_) => "Response"
   | TDB => "Datastore"
   | TDate => "Date"
   | TOption => "Option"
@@ -77,7 +77,7 @@ let rec decode = (j): t => {
       ("TDict", dv1(_ => TObj, d)),
       ("TIncomplete", dv0(TIncomplete)),
       ("TError", dv0(TError)),
-      ("THttpResponse", dv1(_ => TResp, d)),
+      ("THttpResponse", dv1(t1 => THttpResponse(t1), d)),
       ("TDB", dv1(_ => TDB, d)),
       ("TDate", dv0(TDate)),
       ("TChar", dv0(TCharacter)),
@@ -114,7 +114,7 @@ let rec encode = (t: t): Js.Json.t => {
   | TBlock => ev("TBlock", list{})
   | TIncomplete => ev("TIncomplete", list{})
   | TError => ev("TError", list{})
-  | TResp => ev("TResp", list{})
+  | THttpResponse(t1) => ev("TResp", list{encode(t1)})
   | TDB => ev("TDB", list{})
   | TDate => ev("TDate", list{})
   | TDbList(a) => ev("TDbList", list{encode(a)})
