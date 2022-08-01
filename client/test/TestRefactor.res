@@ -327,7 +327,7 @@ let run = () => {
       | Error(_) => list{}
       | Ok(ut) =>
         switch ut.definition {
-        | PT.UserType.Definition.UTRecord(utr) =>
+        | PT.UserType.Definition.Record(utr) =>
           utr |> List.map(~f=(urf: PT.UserType.RecordField.t) => (urf.name, urf.typ))
         }
       }

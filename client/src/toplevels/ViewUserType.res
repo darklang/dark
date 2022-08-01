@@ -63,7 +63,7 @@ let viewTipeField = (
 
 let viewUserTipe = (vp: viewProps, t: PT.UserType.t): Html.html<msg> =>
   switch t.definition {
-  | UTRecord(fields) =>
+  | Record(fields) =>
     let nameDiv = viewTipeName(vp, t)
     let fieldDivs = {
       let fieldCount = List.length(fields)

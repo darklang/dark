@@ -10,7 +10,7 @@ type model = AppTypes.model
 let blankOrData = (t: PT.UserType.t): list<blankOrData> => {
   let namePointer = PTypeName(t.name)
   let definitionPointers = switch t.definition {
-  | UTRecord(fields) =>
+  | Record(fields) =>
     List.fold(
       ~initial=list{},
       ~f=(acc, f) =>
@@ -61,7 +61,7 @@ let replaceDefinitionElement = (
 ): PT.UserType.t => {
   let sId = P.toID(old)
   switch tipe.definition {
-  | UTRecord(fields) =>
+  | Record(fields) =>
     let newFields = fields->List.map(~f=f =>
       if f.nameID == sId {
         switch new_ {
@@ -82,7 +82,7 @@ let replaceDefinitionElement = (
       }
     )
 
-    {...tipe, definition: UTRecord(newFields)}
+    {...tipe, definition: Record(newFields)}
   }
 }
 
@@ -103,17 +103,17 @@ let replace = (old: blankOrData, new_: blankOrData, tipe: PT.UserType.t): PT.Use
 
 let extend = (tipe: PT.UserType.t): PT.UserType.t =>
   switch tipe.definition {
-  | UTRecord(fields) =>
+  | Record(fields) =>
     let newFields = Belt.List.concat(
       fields,
       list{{name: "", nameID: gid(), typ: None, typeID: gid()}},
     )
-    {...tipe, definition: UTRecord(newFields)}
+    {...tipe, definition: Record(newFields)}
   }
 
 let removeField = (tipe: PT.UserType.t, field: PT.UserType.RecordField.t): PT.UserType.t =>
   switch tipe.definition {
-  | UTRecord(fields) =>
+  | Record(fields) =>
     let newFields = List.filter(~f=f => field != f, fields)
-    {...tipe, definition: UTRecord(newFields)}
+    {...tipe, definition: Record(newFields)}
   }

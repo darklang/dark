@@ -845,19 +845,19 @@ module UserType = {
 
   module Definition = {
     @ppx.deriving(show({with_path: false}))
-    type rec t = UTRecord(list<RecordField.t>)
+    type rec t = Record(list<RecordField.t>)
 
     let encode = (d: t): Js.Json.t => {
       open Json_encode_extended
       let ev = variant
       switch d {
-      | UTRecord(fields) => ev("UTRecord", list{list(RecordField.encode)(fields)})
+      | Record(fields) => ev("Record", list{list(RecordField.encode)(fields)})
       }
     }
 
     let decode = j => {
       open Json_decode_extended
-      variants(list{("UTRecord", variant1(x => UTRecord(x), list(RecordField.decode)))}, j)
+      variants(list{("Record", variant1(x => Record(x), list(RecordField.decode)))}, j)
     }
   }
 

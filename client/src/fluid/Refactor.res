@@ -413,7 +413,7 @@ let generateEmptyFunction = (_: unit): PT.UserFunction.t => {
 let generateEmptyUserType = (): PT.UserType.t => {
   let tipeName = generateTipeName()
   let tlid = gtlid()
-  let definition = PT.UserType.Definition.UTRecord(list{
+  let definition = PT.UserType.Definition.Record(list{
     {name: "", nameID: gid(), typ: None, typeID: gid()},
   })
   {
@@ -444,7 +444,7 @@ let generateUserType = (dv: option<RT.Dval.t>): Result.t<PT.UserType.t, string> 
 
     Ok({
       ...generateEmptyUserType(),
-      definition: UTRecord(userTipeDefinition),
+      definition: Record(userTipeDefinition),
     })
   | Some(_) => Error("Live value is not an object.")
   | None => Error("No live value.")
