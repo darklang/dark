@@ -417,7 +417,7 @@ module Dval = {
   let rec toType = (dv: t): DType.t => {
     // CLEANUP this function is derived from the backend version, but avoid blowing
     // everything up I've kept it on the current types.
-    let _any = DType.TAny
+    let any = DType.TAny
 
     switch dv {
     | DInt(_) => TInt
@@ -426,8 +426,8 @@ module Dval = {
     | DNull => TNull
     | DChar(_) => TChar
     | DStr(_) => TStr
-    | DList(list{_head, ..._}) => TList //(toType(head))
-    | DList(list{}) => TList //(any)
+    | DList(list{head, ..._}) => TList(toType(head))
+    | DList(list{}) => TList(any)
     | DTuple(first, second, theRest) =>
       TTuple(toType(first), toType(second), List.map(toType, theRest))
     | DObj(_map) => TObj //map |> Map.toList |> List.map(fun(k, v)->(k, toType(v))) |> TRecord

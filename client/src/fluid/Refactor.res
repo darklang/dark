@@ -431,7 +431,7 @@ let generateUserType = (dv: option<RT.Dval.t>): Result.t<PT.UserType.t, string> 
       dvalmap
       |> Belt.Map.String.toList
       |> List.map(~f=((k, v)) => {
-        let typ = Runtime.typeOf(v)
+        let typ = RT.Dval.toType(v)
         /*
          * In the future, we may want to recognize stringified UUIDs and
          * Dates, but we decided that today is not that day. See

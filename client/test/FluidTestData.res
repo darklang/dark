@@ -776,7 +776,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     {
       name: {module_: "DB", function: "getAll", version: 1},
       parameters: list{fnParam("table", TDB)},
-      returnType: TList,
+      returnType: TList(TAny),
       description: "get all",
       previewable: Impure,
       deprecated: NotDeprecated,
@@ -795,8 +795,8 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "List", function: "append", version: 0},
-      parameters: list{fnParam("l1", TList), fnParam("l2", TList)},
-      returnType: TList,
+      parameters: list{fnParam("l1", TList(TAny)), fnParam("l2", TList(TAny))},
+      returnType: TList(TAny),
       description: "append list",
       previewable: Pure,
       deprecated: NotDeprecated,
@@ -806,7 +806,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     {
       name: {module_: "List", function: "empty", version: 0},
       parameters: list{},
-      returnType: TList,
+      returnType: TList(TAny),
       description: "empty list",
       previewable: Pure,
       deprecated: NotDeprecated,

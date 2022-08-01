@@ -93,7 +93,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACField(_) => (list{}, "field")
   | FACVariable(_, odv) =>
     odv
-    |> Option.map(~f=(dv: RT.Dval.t) => dv |> Runtime.typeOf |> DType.tipe2str)
+    |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.Dval.toType |> DType.tipe2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
   | FACPattern(FPAVariable(_)) => (list{}, "variable")
@@ -112,7 +112,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
       lit
       |> Runtime.parseDvalLiteral
       |> Option.unwrap(~default=RT.Dval.DIncomplete(SourceNone))
-      |> Runtime.typeOf
+      |> RT.Dval.toType
       |> DType.tipe2str
 
     (list{}, tipe ++ " literal")
@@ -289,7 +289,7 @@ let typeCheck = (
   | FACVariable(_, dval) =>
     switch dval {
     | Some(dv) =>
-      if Runtime.isCompatible(Runtime.typeOf(dv), expectedReturnType) {
+      if Runtime.isCompatible(RT.Dval.toType(dv), expectedReturnType) {
         valid
       } else {
         invalidReturnType
@@ -546,7 +546,7 @@ let filter = (functions: list<function_>, candidates0: list<item>, query: fullQu
     list{startsWith, startsWithCI, substring, substringCI, stringMatch} |> List.flatten
 
   // Now split list by type validity
-  let pipedType = Option.map(~f=Runtime.typeOf, query.pipedDval)
+  let pipedType = Option.map(~f=RT.Dval.toType, query.pipedDval)
   let expectedTypeInfo = findExpectedType(functions, query.tl, query.ti)
   List.map(allMatches, ~f=typeCheck(pipedType, expectedTypeInfo))
 }

@@ -6,32 +6,6 @@ let isCompatible = (t1: DType.t, t2: DType.t): bool => t1 == TAny || (t2 == TAny
 
 let errorRailTypes: list<DType.t> = list{TOption, TResult}
 
-let rec typeOf = (dv: RT.Dval.t): DType.t =>
-  switch dv {
-  | DInt(_) => TInt
-  | DFloat(_) => TFloat
-  | DBool(_) => TBool
-  | DNull => TNull
-  | DChar(_) => TCharacter
-  | DStr(_) => TStr
-  | DList(_) => TList
-  | DTuple(first, second, theRest) =>
-    TTuple(typeOf(first), typeOf(second), List.map(~f=t => typeOf(t), theRest))
-  | DObj(_) => TObj
-  | DFnVal(_) => TBlock
-  | DIncomplete(_) => TIncomplete
-  | DError(_) => TError
-  | DHttpResponse(_) => TResp
-  | DDB(_) => TDB
-  | DDate(_) => TDate
-  | DOption(_) => TOption
-  | DErrorRail(_) => TErrorRail
-  | DPassword(_) => TPassword
-  | DUuid(_) => TUuid
-  | DResult(_) => TResult
-  | DBytes(_) => TBytes
-  }
-
 // Drop initial/final '"'
 let stripQuotes = (s: string): string => {
   let s = if String.starts_with(~prefix="\"", s) {
@@ -90,8 +64,8 @@ let parseDvalLiteral = (str: string): option<RT.Dval.t> =>
 // Copied from Dval.to_repr in backend code, but that's terrible and it should
 // be recopied from to_developer_repr_v0
 let rec toRepr_ = (oldIndent: int, dv: RT.Dval.t): string => {
-  let wrap = value => "<" ++ ((dv |> typeOf |> DType.tipe2str) ++ (": " ++ (value ++ ">")))
-  let asType = "<" ++ ((dv |> typeOf |> DType.tipe2str) ++ ">")
+  let wrap = value => "<" ++ ((dv |> RT.Dval.toType |> DType.tipe2str) ++ (": " ++ (value ++ ">")))
+  let asType = "<" ++ ((dv |> RT.Dval.toType |> DType.tipe2str) ++ ">")
   let nl = "\n" ++ String.repeat(~count=oldIndent, " ")
   let inl = "\n" ++ String.repeat(~count=oldIndent + 2, " ")
   let indent = oldIndent + 2

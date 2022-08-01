@@ -131,10 +131,10 @@ let getLiveValue = (m: model, id: id, traceID: traceID): option<RT.Dval.t> =>
   getLiveValue'(getStoredAnalysis(m, traceID), id)
 
 let getTipeOf' = (analysisStore: AnalysisTypes.analysisStore, id: id): option<DType.t> =>
-  getLiveValue'(analysisStore, id) |> Option.map(~f=Runtime.typeOf)
+  getLiveValue'(analysisStore, id) |> Option.map(~f=RT.Dval.toType)
 
 let getTipeOf = (m: model, id: id, traceID: traceID): option<DType.t> =>
-  getLiveValue(m, id, traceID) |> Option.map(~f=Runtime.typeOf)
+  getLiveValue(m, id, traceID) |> Option.map(~f=RT.Dval.toType)
 
 let getArguments = (m: model, tl: toplevel, callerID: id, traceID: traceID): option<
   list<RT.Dval.t>,

@@ -32,7 +32,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "List", function: "getAt", version: 2},
-      parameters: list{par("list", TList), par("index", TInt)},
+      parameters: list{par("list", TList(TAny)), par("index", TInt)},
       returnType: TOption,
       description: "",
       previewable: Pure,

@@ -6,7 +6,7 @@ type rec t =
   | TNull
   | TStr
   | TChar
-  | TList //(t)
+  | TList(t)
   | TTuple(t, t, list<t>)
   | TObj //TDict(t)
   | TIncomplete
@@ -37,7 +37,7 @@ let rec tipe2str = (t: t): string =>
   | TNull => "Null"
   | TCharacter => "Character"
   | TStr => "String"
-  | TList => "List"
+  | TList(_) => "List"
   | TTuple(_, _, _) => "Tuple"
   | TObj => "Dict"
   | TBlock => "Block"
@@ -72,7 +72,7 @@ let rec decode = (j): t => {
       ("TChar", dv0(TChar)),
       ("TNull", dv0(TNull)),
       ("TStr", dv0(TStr)),
-      ("TList", dv1(_ => TList, d)),
+      ("TList", dv1(t => TList(t), d)),
       ("TTuple", dv3((first, second, theRest) => TTuple(first, second, theRest), d, d, list(d))),
       ("TDict", dv1(_ => TObj, d)),
       ("TIncomplete", dv0(TIncomplete)),
@@ -106,7 +106,7 @@ let rec encode = (t: t): Js.Json.t => {
   | TChar => ev("TChar", list{})
   | TFloat => ev("TFloat", list{})
   | TObj => ev("TObj", list{})
-  | TList => ev("TList", list{})
+  | TList(t1) => ev("TList", list{encode(t1)})
   | TTuple(first, second, theRest) =>
     ev("TTuple", list{encode(first), encode(second), list(encode, theRest)})
   | TAny => ev("TAny", list{})

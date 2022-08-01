@@ -257,7 +257,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
         | (DIncomplete(_), TLFunc(_)) =>
           text("Your code needs to return a value in the last expression")
         | (_, TLFunc(f)) =>
-          let actualType = dval |> Runtime.typeOf
+          let actualType = dval |> RT.Dval.toType
           let declaredType = f.returnType
 
           if Runtime.isCompatible(actualType, declaredType) {
