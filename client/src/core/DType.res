@@ -14,7 +14,6 @@ type rec t =
   | THttpResponse(t)
   | TDB(t)
   | TDate
-  | TCharacter
   | TPassword
   | TUuid
   | TOption
@@ -35,7 +34,6 @@ let rec tipe2str = (t: t): string =>
   | TBool => "Bool"
   | TChar => "Char"
   | TNull => "Null"
-  | TCharacter => "Character"
   | TStr => "String"
   | TList(_) => "List"
   | TTuple(_, _, _) => "Tuple"
@@ -69,7 +67,6 @@ let rec decode = (j): t => {
       ("TAny", dv0(TAny)),
       ("TFloat", dv0(TFloat)),
       ("TBool", dv0(TBool)),
-      ("TChar", dv0(TChar)),
       ("TNull", dv0(TNull)),
       ("TStr", dv0(TStr)),
       ("TList", dv1(t => TList(t), d)),
@@ -81,7 +78,7 @@ let rec decode = (j): t => {
       ("THttpResponse", dv1(t1 => THttpResponse(t1), d)),
       ("TDB", dv1(t1 => TDB(t1), d)),
       ("TDate", dv0(TDate)),
-      ("TChar", dv0(TCharacter)),
+      ("TChar", dv0(TChar)),
       ("TPassword", dv0(TPassword)),
       ("TUuid", dv0(TUuid)),
       ("TOption", dv1(_ => TOption, d)),
@@ -102,9 +99,8 @@ let rec encode = (t: t): Js.Json.t => {
   switch t {
   | TInt => ev("TInt", list{})
   | TStr => ev("TStr", list{})
-  | TCharacter => ev("TCharacter", list{})
-  | TBool => ev("TBool", list{})
   | TChar => ev("TChar", list{})
+  | TBool => ev("TBool", list{})
   | TFloat => ev("TFloat", list{})
   | TObj => ev("TObj", list{})
   | TList(t1) => ev("TList", list{encode(t1)})
@@ -115,7 +111,7 @@ let rec encode = (t: t): Js.Json.t => {
   | TBlock => ev("TBlock", list{})
   | TIncomplete => ev("TIncomplete", list{})
   | TError => ev("TError", list{})
-  | THttpResponse(t1) => ev("TResp", list{encode(t1)})
+  | THttpResponse(t1) => ev("THttpResponse", list{encode(t1)})
   | TDB(t1) => ev("TDB", list{encode(t1)})
   | TDate => ev("TDate", list{})
   | TDbList(a) => ev("TDbList", list{encode(a)})

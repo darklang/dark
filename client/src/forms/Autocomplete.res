@@ -542,7 +542,7 @@ let tlDestinations = (m: model): list<A.item> => {
 // ------------------------------------
 
 /* Types from Types.tipe that aren't included:
-  - TCharacter: TODO include once Characters are more easily add-able within code
+  - TChar: TODO include once Characters are more easily add-able within code
   - TNull: trying to get rid of this, so don't spread it
   - TIncomplete: makes no sense to pass to a function
   - TError: makes no sense to pass to a function
