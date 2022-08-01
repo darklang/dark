@@ -337,20 +337,29 @@ module Values =
                     )
                   ))
                  ("int", PT.TInt)
-                 ("int", PT.TFloat)
                  ("float", PT.TFloat)
                  ("bool", PT.TBool)
                  ("null", PT.TNull)
                  ("str", PT.TStr)
+                 ("list", PT.TList(PT.TInt))
+                 ("tuple", PT.TTuple(PT.TInt, PT.TStr, []))
+                 ("dict", PT.TDict(PT.TInt))
                  ("incomplete", PT.TIncomplete)
                  ("error", PT.TError)
+                 ("httpresponse", PT.THttpResponse(PT.TInt))
+                 ("db", PT.TDB(PT.TInt))
                  ("date", PT.TDate)
                  ("char", PT.TChar)
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
+                 ("option", PT.TOption(PT.TInt))
                  ("errorRail", PT.TErrorRail)
+                 ("usertype", PT.TUserType("name", 0))
                  ("bytes", PT.TBytes)
-                 ("variable ", PT.TVariable "v") ]
+                 ("result", PT.TResult(PT.TInt, PT.TStr))
+                 ("variable", PT.TVariable "v")
+                 ("fn", PT.TFn([ PT.TInt ], PT.TInt))
+                 ("record", PT.TRecord([ "field1", PT.TInt ])) ]
 
   let testOCamlTipe = OT.Convert.pt2ocamlTipe testType
 

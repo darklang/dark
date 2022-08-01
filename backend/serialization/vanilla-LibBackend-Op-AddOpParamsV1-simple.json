@@ -743,12 +743,6 @@
                   ]
                 ],
                 [
-                  "int",
-                  [
-                    "TFloat"
-                  ]
-                ],
-                [
                   "float",
                   [
                     "TFloat"
@@ -773,6 +767,37 @@
                   ]
                 ],
                 [
+                  "list",
+                  [
+                    "TList",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "tuple",
+                  [
+                    "TTuple",
+                    [
+                      "TInt"
+                    ],
+                    [
+                      "TStr"
+                    ],
+                    []
+                  ]
+                ],
+                [
+                  "dict",
+                  [
+                    "TDict",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
                   "incomplete",
                   [
                     "TIncomplete"
@@ -782,6 +807,24 @@
                   "error",
                   [
                     "TError"
+                  ]
+                ],
+                [
+                  "httpresponse",
+                  [
+                    "THttpResponse",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "db",
+                  [
+                    "TDB",
+                    [
+                      "TInt"
+                    ]
                   ]
                 ],
                 [
@@ -809,9 +852,26 @@
                   ]
                 ],
                 [
+                  "option",
+                  [
+                    "TOption",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
                   "errorRail",
                   [
                     "TErrorRail"
+                  ]
+                ],
+                [
+                  "usertype",
+                  [
+                    "TUserType",
+                    "name",
+                    0
                   ]
                 ],
                 [
@@ -821,10 +881,50 @@
                   ]
                 ],
                 [
-                  "variable ",
+                  "result",
+                  [
+                    "TResult",
+                    [
+                      "TInt"
+                    ],
+                    [
+                      "TStr"
+                    ]
+                  ]
+                ],
+                [
+                  "variable",
                   [
                     "TVariable",
                     "v"
+                  ]
+                ],
+                [
+                  "fn",
+                  [
+                    "TFn",
+                    [
+                      [
+                        "TInt"
+                      ]
+                    ],
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "record",
+                  [
+                    "TRecord",
+                    [
+                      [
+                        "field1",
+                        [
+                          "TInt"
+                        ]
+                      ]
+                    ]
                   ]
                 ]
               ]
@@ -881,12 +981,6 @@
               ]
             ],
             [
-              "int",
-              [
-                "TFloat"
-              ]
-            ],
-            [
               "float",
               [
                 "TFloat"
@@ -911,6 +1005,37 @@
               ]
             ],
             [
+              "list",
+              [
+                "TList",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "tuple",
+              [
+                "TTuple",
+                [
+                  "TInt"
+                ],
+                [
+                  "TStr"
+                ],
+                []
+              ]
+            ],
+            [
+              "dict",
+              [
+                "TDict",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
               "incomplete",
               [
                 "TIncomplete"
@@ -920,6 +1045,24 @@
               "error",
               [
                 "TError"
+              ]
+            ],
+            [
+              "httpresponse",
+              [
+                "THttpResponse",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "db",
+              [
+                "TDB",
+                [
+                  "TInt"
+                ]
               ]
             ],
             [
@@ -947,9 +1090,26 @@
               ]
             ],
             [
+              "option",
+              [
+                "TOption",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
               "errorRail",
               [
                 "TErrorRail"
+              ]
+            ],
+            [
+              "usertype",
+              [
+                "TUserType",
+                "name",
+                0
               ]
             ],
             [
@@ -959,10 +1119,50 @@
               ]
             ],
             [
-              "variable ",
+              "result",
+              [
+                "TResult",
+                [
+                  "TInt"
+                ],
+                [
+                  "TStr"
+                ]
+              ]
+            ],
+            [
+              "variable",
               [
                 "TVariable",
                 "v"
+              ]
+            ],
+            [
+              "fn",
+              [
+                "TFn",
+                [
+                  [
+                    "TInt"
+                  ]
+                ],
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "record",
+              [
+                "TRecord",
+                [
+                  [
+                    "field1",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ]
               ]
             ]
           ]
@@ -2319,12 +2519,6 @@
                     ]
                   ],
                   [
-                    "int",
-                    [
-                      "TFloat"
-                    ]
-                  ],
-                  [
                     "float",
                     [
                       "TFloat"
@@ -2349,6 +2543,37 @@
                     ]
                   ],
                   [
+                    "list",
+                    [
+                      "TList",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "tuple",
+                    [
+                      "TTuple",
+                      [
+                        "TInt"
+                      ],
+                      [
+                        "TStr"
+                      ],
+                      []
+                    ]
+                  ],
+                  [
+                    "dict",
+                    [
+                      "TDict",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
                     "incomplete",
                     [
                       "TIncomplete"
@@ -2358,6 +2583,24 @@
                     "error",
                     [
                       "TError"
+                    ]
+                  ],
+                  [
+                    "httpresponse",
+                    [
+                      "THttpResponse",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "db",
+                    [
+                      "TDB",
+                      [
+                        "TInt"
+                      ]
                     ]
                   ],
                   [
@@ -2385,9 +2628,26 @@
                     ]
                   ],
                   [
+                    "option",
+                    [
+                      "TOption",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
                     "errorRail",
                     [
                       "TErrorRail"
+                    ]
+                  ],
+                  [
+                    "usertype",
+                    [
+                      "TUserType",
+                      "name",
+                      0
                     ]
                   ],
                   [
@@ -2397,10 +2657,50 @@
                     ]
                   ],
                   [
-                    "variable ",
+                    "result",
+                    [
+                      "TResult",
+                      [
+                        "TInt"
+                      ],
+                      [
+                        "TStr"
+                      ]
+                    ]
+                  ],
+                  [
+                    "variable",
                     [
                       "TVariable",
                       "v"
+                    ]
+                  ],
+                  [
+                    "fn",
+                    [
+                      "TFn",
+                      [
+                        [
+                          "TInt"
+                        ]
+                      ],
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "record",
+                    [
+                      "TRecord",
+                      [
+                        [
+                          "field1",
+                          [
+                            "TInt"
+                          ]
+                        ]
+                      ]
                     ]
                   ]
                 ]
