@@ -117,9 +117,7 @@ let commands: list<AppTypes.fluidCmd> = {
           |> Refactor.generateUserType
 
         switch tipe {
-        | Ok(tipe) =>
-          let nameId = BlankOr.toID(tipe.name)
-          AddOps(list{SetType(tipe)}, FocusNext(tipe.tlid, Some(nameId)))
+        | Ok(tipe) => AddOps(list{SetType(tipe)}, FocusNext(tipe.tlid, Some(tipe.nameID)))
         | Error(s) => Model.updateErrorMod(Error.set("Can't create-type: " ++ s))
         }
       },

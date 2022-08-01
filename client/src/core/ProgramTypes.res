@@ -864,7 +864,8 @@ module UserType = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     tlid: TLID.t,
-    name: BlankOr.t<string>,
+    name: string,
+    nameID: ID.t,
     version: int,
     definition: Definition.t,
   }
@@ -872,7 +873,8 @@ module UserType = {
     open Json_encode_extended
     object_(list{
       ("tlid", TLID.encode(t.tlid)),
-      ("name", BlankOr.encode(string, t.name)),
+      ("name", string(t.name)),
+      ("nameID", ID.encode(t.nameID)),
       ("version", int(t.version)),
       ("definition", Definition.encode(t.definition)),
     })
@@ -881,7 +883,8 @@ module UserType = {
     open Json.Decode
     {
       tlid: field("tlid", TLID.decode, j),
-      name: field("name", BlankOr.decode(string), j),
+      name: field("name", string, j),
+      nameID: field("nameID", ID.decode, j),
       version: field("version", int, j),
       definition: field("definition", Definition.decode, j),
     }

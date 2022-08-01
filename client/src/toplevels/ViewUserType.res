@@ -14,7 +14,7 @@ let viewTipeName = (vp: viewProps, t: PT.UserType.t): Html.html<msg> => {
     ~classes=list{"ut-name"},
     TypeName,
     vp,
-    t.name,
+    B.fromStringID(t.name, t.nameID),
   )
 
   Html.div(list{Html.class'("typetitle")}, list{nameField})

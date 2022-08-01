@@ -48,12 +48,7 @@ let packageFunctionsByName = (fns: TD.t<PT.Package.Fn.t>): Map.String.t<TLID.t> 
 let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
   uts
   |> Map.mapValues(~f=(ut: PT.UserType.t) => {
-    let name =
-      ut.name
-      |> B.toOption
-      |> // Shouldn't happen: all tipes have a default name
-      recoverOpt("tipes should have default names", ~default="_")
-
+    let name = ut.name
     let version = ut.version
     let key = keyForTipe(name, version)
     (key, ut.tlid)

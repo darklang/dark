@@ -257,14 +257,16 @@ let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<P
       | _ => oldUse
       }
 
-    let (origName, uses) = switch oldTipe.name {
-    | Blank(_) => (None, list{})
-    | F(_, n) => (Some(n), UserFunctions.usesOfTipe(n, oldTipe.version, fn))
+    let (origName, uses) = if oldTipe.name == "" {
+      (None, list{})
+    } else {
+      (Some(oldTipe.name), UserFunctions.usesOfTipe(oldTipe.name, oldTipe.version, fn))
     }
 
-    let newName = switch newTipe.name {
-    | Blank(_) => None
-    | F(_, n) => Some(n)
+    let newName = if newTipe.name == "" {
+      None
+    } else {
+      Some(newTipe.name)
     }
 
     switch (origName, newName) {
@@ -418,7 +420,8 @@ let generateEmptyUserType = (): PT.UserType.t => {
   })
   {
     tlid: tlid,
-    name: F(gid(), tipeName),
+    name: tipeName,
+    nameID: gid(),
     version: 0,
     definition: definition,
   }

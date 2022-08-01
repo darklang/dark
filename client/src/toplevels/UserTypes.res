@@ -8,7 +8,7 @@ module TD = TLID.Dict
 type model = AppTypes.model
 
 let blankOrData = (t: PT.UserType.t): list<blankOrData> => {
-  let namePointer = PTypeName(t.name)
+  let namePointer = PTypeName(B.fromStringID(t.name, t.nameID))
   let definitionPointers = switch t.definition {
   | Record(fields) =>
     List.fold(
@@ -49,10 +49,17 @@ let fromList = (uts: list<PT.UserType.t>): TLID.Dict.t<PT.UserType.t> =>
   uts |> List.map(~f=(ut: PT.UserType.t) => (ut.tlid, ut)) |> TLID.Dict.fromList
 
 let allNames = (tipes: TLID.Dict.t<PT.UserType.t>): list<string> =>
-  tipes |> Map.filterMapValues(~f=(ut: PT.UserType.t) => B.toOption(ut.name))
+  tipes
+  |> Map.values
+  |> List.filter(~f=(ut: PT.UserType.t) => ut.name != "")
+  |> List.map(~f=(ut: PT.UserType.t) => ut.name)
 
 let toTUserType = (tipe: PT.UserType.t): option<DType.t> =>
-  tipe.name |> B.toOption |> Option.map(~f=n => DType.TUserType(n, tipe.version))
+  if tipe.name == "" {
+    None
+  } else {
+    Some(DType.TUserType(tipe.name, tipe.version))
+  }
 
 let replaceDefinitionElement = (
   old: blankOrData,
@@ -88,9 +95,10 @@ let replaceDefinitionElement = (
 
 let replaceTypeName = (old: blankOrData, new_: blankOrData, tipe: PT.UserType.t): PT.UserType.t => {
   let sId = P.toID(old)
-  if B.toID(tipe.name) == sId {
+  if tipe.nameID == sId {
     switch new_ {
-    | PTypeName(new_) => {...tipe, name: B.replace(sId, new_, tipe.name)}
+    | PTypeName(F(id, new_)) => {...tipe, name: new_, nameID: id}
+    | PTypeName(Blank(id)) => {...tipe, name: "", nameID: id}
     | _ => tipe
     }
   } else {

@@ -17,7 +17,7 @@ let name = (tl: toplevel): string =>
   | TLDB(db) => "DB: " ++ db.name
   | TLPmFunc(fn) => "Package Manager Func: " ++ PT.FQFnName.PackageFnName.toString(fn.name)
   | TLFunc(f) => "Func: " ++ f.name
-  | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
+  | TLTipe(t) => "Type: " ++ t.name
   }
 
 let sortkey = (tl: toplevel): string =>
@@ -29,7 +29,7 @@ let sortkey = (tl: toplevel): string =>
   | TLDB(db) => db.name
   | TLPmFunc(f) => PT.FQFnName.PackageFnName.toString(f.name)
   | TLFunc(f) => f.name
-  | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
+  | TLTipe(t) => t.name
   }
 
 let id = tl =>

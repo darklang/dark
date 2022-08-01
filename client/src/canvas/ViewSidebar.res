@@ -308,27 +308,25 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
 }
 
 let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
-  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => B.isF(ut.name))
-  let entries = List.filterMap(tipes, ~f=tipe =>
-    Option.map(B.toOption(tipe.name), ~f=name => {
-      let minusButton = if Refactor.usedTipe(m, name) {
-        None
-      } else {
-        Some(Msg.DeleteUserType(tipe.tlid))
-      }
+  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => ut.name != "")
+  let entries = List.map(tipes, ~f=tipe => {
+    let minusButton = if Refactor.usedTipe(m, tipe.name) {
+      None
+    } else {
+      Some(Msg.DeleteUserType(tipe.tlid))
+    }
 
-      Entry({
-        name: name,
-        identifier: Tlid(tipe.tlid),
-        uses: Some(Refactor.tipeUseCount(m, name)),
-        minusButton: minusButton,
-        killAction: Some(DeleteUserTypeForever(tipe.tlid)),
-        onClick: Destination(FocusedType(tipe.tlid)),
-        plusButton: None,
-        verb: None,
-      })
+    Entry({
+      name: tipe.name,
+      identifier: Tlid(tipe.tlid),
+      uses: Some(Refactor.tipeUseCount(m, tipe.name)),
+      minusButton: minusButton,
+      killAction: Some(DeleteUserTypeForever(tipe.tlid)),
+      onClick: Destination(FocusedType(tipe.tlid)),
+      plusButton: None,
+      verb: None,
     })
-  )
+  })
 
   {
     count: List.length(tipes),
