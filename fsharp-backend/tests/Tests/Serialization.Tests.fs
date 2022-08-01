@@ -269,6 +269,10 @@ module Values =
     let spec = PT.Handler.HTTP("/path", "GET", testHandlerIDs)
     { spec = spec; tlid = 92987663UL; ast = testExpr; pos = testPos }
 
+  let testHttpBytesHandler : PT.Handler.T =
+    let spec = PT.Handler.HTTPBytes("/path-bytes", "GET", testHandlerIDs)
+    { spec = spec; tlid = 42280663UL; ast = testExpr; pos = testPos }
+
   let testWorker : PT.Handler.T =
     let spec = PT.Handler.Worker("name", testHandlerIDs)
     { spec = spec; tlid = 19930486UL; ast = testExpr; pos = testPos }
@@ -295,6 +299,7 @@ module Values =
 
   let testHandlersWithName : List<string * PT.Handler.T> =
     [ "Http", testHttpHandler
+      "HttpBytes", testHttpBytesHandler
       "Worker", testWorker
       "Cron1", testCron1
       "Cron2", testCron2
