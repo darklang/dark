@@ -85,6 +85,7 @@ let rec decode = (j): t => {
       ("TErrorRail", dv0(TErrorRail)),
       ("TBytes", dv0(TBytes)),
       ("TResult", dv2((_t1, _t2) => TResult, d, d)),
+      ("TUserType", dv2((n, v) => TUserType(n, v), string, int)),
       ("TVariable", dv1(_ => TAny, string)),
       ("TFn", dv2((_, _) => TBlock, list(d), d)),
       ("TRecord", dv1(_ => TAny, list(pair(string, d)))),
