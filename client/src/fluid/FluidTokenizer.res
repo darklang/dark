@@ -146,6 +146,7 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
   | PString(id, str) => list{
       TPatternString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
+  | PCharacter(_) => recover("pchar not supported in patternToToken", list{})
   | PFloat(id, sign, whole, fraction) =>
     let whole = switch sign {
     | Positive => whole
@@ -307,6 +308,8 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNested(~f=toTokens'(rhs))
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))
     |> addNested(~f=toTokens'(next))
+  | ECharacter(id, _) =>
+    recover("tokenizing echaracter is not supported", b |> add(TBlank(id, parentID)))
   | EString(id, str) =>
     let strings = if String.length(str) > strLimit {
       String.segment(~size=strLimit, str)

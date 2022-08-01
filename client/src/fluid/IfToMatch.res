@@ -59,6 +59,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     | EInteger(pid, value) => Some(PInteger(pid, value))
     | EBool(pid, value) => Some(PBool(pid, value))
     | EString(pid, string) => Some(PString(pid, string))
+    | ECharacter(pid, string) => Some(PCharacter(pid, string))
     | EFloat(pid, sign, whole, frac) => Some(PFloat(pid, sign, whole, frac))
     | ENull(pid) => Some(PNull(pid))
     | EBlank(pid) => Some(PBlank(pid))

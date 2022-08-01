@@ -127,10 +127,10 @@ module Pattern = {
   type rec t =
     | PVariable(id, string)
     | PConstructor(id, string, list<t>)
-    // TODO: support char
     | PInteger(id, int64)
     | PBool(id, bool)
     | PString(id, string)
+    | PCharacter(id, string)
     | PFloat(id, float)
     | PNull(id)
     | PBlank(id)
@@ -147,6 +147,7 @@ module Pattern = {
     | PBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
     | PFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
     | PString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
+    | PCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
     | PNull(id') => ev("PNull", list{ID.encode(id')})
     | PBlank(id') => ev("PBlank", list{ID.encode(id')})
     }
@@ -226,7 +227,7 @@ module Expr = {
     | EInteger(id, int64)
     | EBool(id, bool)
     | EString(id, string)
-    // | ECharacter(id, string)
+    | ECharacter(id, string)
     | EFloat(id, float)
     | ENull(id)
     | EBlank(id)
@@ -257,6 +258,7 @@ module Expr = {
         ("EInteger", dv2((x, y) => EInteger(x, y), ID.decode, int64)),
         ("EBool", dv2((x, y) => EBool(x, y), ID.decode, bool)),
         ("EString", dv2((x, y) => EString(x, y), ID.decode, string)),
+        ("ECharacter", dv2((x, y) => ECharacter(x, y), ID.decode, string)),
         ("EFloat", dv2((a, b) => EFloat(a, b), ID.decode, Json_decode_extended.float')),
         ("ENull", dv1(x => ENull(x), ID.decode)),
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
@@ -310,6 +312,7 @@ module Expr = {
     | EFieldAccess(id, obj, field) =>
       ev("EFieldAccess", list{ID.encode(id), encode(obj), string(field)})
     | EString(id, v) => ev("EString", list{ID.encode(id), string(v)})
+    | ECharacter(id, v) => ev("ECharacter", list{ID.encode(id), string(v)})
     | EInteger(id, v) => ev("EInteger", list{ID.encode(id), int64(v)})
     | EBool(id, v) => ev("EBool", list{ID.encode(id), bool(v)})
     | EFloat(id, v) => ev("EFloat", list{ID.encode(id), Json_encode_extended.float'(v)})

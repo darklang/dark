@@ -1014,8 +1014,8 @@ let moveToAstRef = (~offset=0, astRef: astRef, astInfo: ASTInfo.t): ASTInfo.t =>
  * to the very end of the expr. The concept of \"very end\" is related to an
  * understanding of the tokenization of the expr, even though this function
  * doesn't explicitly depend on any tokenization functions. ")
-let rec caretTargetForEndOfExpr': fluidExpr => CT.t = x =>
-  switch x {
+let rec caretTargetForEndOfExpr': fluidExpr => CT.t = expr =>
+  switch expr {
   | EVariable(id, str) => {astRef: ARVariable(id), offset: String.length(str)}
   | EFieldAccess(id, _, fieldName) => {
       astRef: ARFieldAccess(id, FAPFieldname),
@@ -1098,7 +1098,9 @@ let rec caretTargetForEndOfExpr': fluidExpr => CT.t = x =>
     | Some(lastExpr) => caretTargetForEndOfExpr'(lastExpr)
     | None => {astRef: ARConstructor(id), offset: String.length(name)}
     }
-  | (EFeatureFlag(_, _, _, _, _) | EPipeTarget(_)) as expr =>
+  | ECharacter(_)
+  | EFeatureFlag(_, _, _, _, _)
+  | EPipeTarget(_) =>
     recover(
       "we don't yet support caretTargetForEndOfExpr' for this",
       ~debug=show_fluidExpr(expr),
@@ -1125,8 +1127,8 @@ let caretTargetForEndOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
  * to the very beginning of the [expr]. The concept of "very beginning" is related to an
  * understanding of the tokenization of the expr, even though this function
  * doesn't explicitly depend on any tokenization functions. */
-let rec caretTargetForStartOfExpr': fluidExpr => CT.t = x =>
-  switch x {
+let rec caretTargetForStartOfExpr': fluidExpr => CT.t = expr =>
+  switch expr {
   | EInteger(id, _) => {astRef: ARInteger(id), offset: 0}
   | EBool(id, _) => {astRef: ARBool(id), offset: 0}
   | EString(id, _) => CT.forARStringOpenQuote(id, 0)
@@ -1149,7 +1151,9 @@ let rec caretTargetForStartOfExpr': fluidExpr => CT.t = x =>
   | ERecord(id, _) => {astRef: ARRecord(id, RPOpen), offset: 0}
   | EPipe(_, e1, _, _) => caretTargetForStartOfExpr'(e1)
   | EConstructor(id, _, _) => {astRef: ARConstructor(id), offset: 0}
-  | (EFeatureFlag(_) | EPipeTarget(_)) as expr =>
+  | ECharacter(_)
+  | EFeatureFlag(_)
+  | EPipeTarget(_) =>
     recover(
       "unhandled expr in caretTargetForStartOfExpr'",
       ~debug=show_fluidExpr(expr),
@@ -1181,6 +1185,11 @@ let caretTargetForStartOfPattern = (pattern: fluidPattern): CT.t =>
   | PInteger(id, _) => {astRef: ARPattern(id, PPInteger), offset: 0}
   | PBool(id, _) => {astRef: ARPattern(id, PPBool), offset: 0}
   | PString(id, _) => CT.forPPStringOpenQuote(id, 0)
+  | PCharacter(_, _) =>
+    recover(
+      "echar unsupported in caretTargetForStartOfPattern",
+      {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
+    )
   | PFloat(id, _, _, _) => {astRef: ARPattern(id, PPFloat(FPWhole)), offset: 0}
   | PNull(id) => {astRef: ARPattern(id, PPNull), offset: 0}
   | PBlank(id) => {astRef: ARPattern(id, PPBlank), offset: 0}
@@ -1210,6 +1219,11 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
   | PBool(id, true) => {astRef: ARPattern(id, PPBool), offset: String.length("true")}
   | PBool(id, false) => {astRef: ARPattern(id, PPBool), offset: String.length("false")}
   | PString(id, str) => CT.forPPStringCloseQuote(id, 1, str) // end of close quote
+  | PCharacter(_) =>
+    recover(
+      "echar unsupported in caretTargetForStartOfPattern",
+      {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
+    )
   | PFloat(id, _, _, frac) => {
       astRef: ARPattern(id, PPFloat(FPFractional)),
       offset: String.length(frac),
@@ -1274,6 +1288,7 @@ let recursePattern = (~f: fluidPattern => fluidPattern, pat: fluidPattern): flui
   | PInteger(_)
   | PBlank(_)
   | PString(_)
+  | PCharacter(_)
   | PVariable(_)
   | PBool(_)
   | PNull(_)
@@ -1972,6 +1987,7 @@ let rec findAppropriateParentToWrap = (oldExpr: FluidExpression.t, ast: FluidAST
     | EInteger(_)
     | EBlank(_)
     | EString(_)
+    | ECharacter(_)
     | EVariable(_)
     | EBool(_)
     | ENull(_)
@@ -5160,6 +5176,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           EPartial(gid(), newValue, ENull(id))
         }
       )
+    | ECharacter(_) => recover("echaracter not supported in reconstruct expr", Some(topmostExpr))
     | EString(eID, _) =>
       let merged =
         tokens

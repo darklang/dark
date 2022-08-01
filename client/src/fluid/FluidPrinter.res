@@ -61,6 +61,7 @@ let rec eToTestcase = (e: E.t): string => {
   let result = switch e {
   | EBlank(_) => "b"
   | EString(_, str) => spaced(list{"str", quoted(str)})
+  | ECharacter(_, str) => spaced(list{"str", quoted(str)})
   | EBool(_, true) => spaced(list{"bool true"})
   | EBool(_, false) => spaced(list{"bool false"})
   | EFloat(_, sign, whole, fractional) =>
@@ -85,6 +86,7 @@ let rec eToTestcase = (e: E.t): string => {
       switch p {
       | PBlank(_) => "pBlank"
       | PString(_, str) => spaced(list{"pString", quoted(str)})
+      | PCharacter(_, str) => spaced(list{"pChar", quoted(str)})
       | PBool(_, true) => spaced(list{"pBool true"})
       | PBool(_, false) => spaced(list{"pBool false"})
       | PFloat(_, sign, whole, fractional) =>

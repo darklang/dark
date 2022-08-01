@@ -192,10 +192,10 @@ module Pattern = {
     // match id, then pattern id
     | PVariable(ID.t, string)
     | PConstructor(ID.t, string, list<t>)
-    // TODO: support char
     | PInteger(ID.t, int64)
     | PBool(ID.t, bool)
     | PString(ID.t, string)
+    | PCharacter(ID.t, string)
     | PFloat(ID.t, Sign.t, string, string)
     | PNull(ID.t)
     | PBlank(ID.t)
@@ -213,6 +213,7 @@ module Pattern = {
     | PFloat(id', sign, whole, fraction) =>
       ev("PFloat", list{ID.encode(id'), Sign.encode(sign), string(whole), string(fraction)})
     | PString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
+    | PCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
     | PNull(id') => ev("PNull", list{ID.encode(id')})
     | PBlank(id') => ev("PBlank", list{ID.encode(id')})
     }
@@ -231,6 +232,7 @@ module Pattern = {
         ("PInteger", dv2((a, b) => PInteger(a, b), ID.decode, int64)),
         ("PBool", dv2((a, b) => PBool(a, b), ID.decode, bool)),
         ("PString", dv2((a, b) => PString(a, b), ID.decode, string)),
+        ("PCharacter", dv2((a, b) => PCharacter(a, b), ID.decode, string)),
         ("PFloat", dv4((a, b, c, d) => PFloat(a, b, c, d), ID.decode, Sign.decode, string, string)),
         ("PNull", dv1(a => PNull(a), ID.decode)),
         ("PBlank", dv1(a => PBlank(a), ID.decode)),
@@ -267,6 +269,7 @@ module Expr = {
     | EInteger(ID.t, int64)
     | EBool(ID.t, bool)
     | EString(ID.t, string)
+    | ECharacter(ID.t, string)
     | EFloat(ID.t, Sign.t, string, string)
     | ENull(ID.t)
     | EBlank(ID.t)
@@ -320,6 +323,7 @@ module Expr = {
     | EFieldAccess(id, obj, field) =>
       ev("EFieldAccess", list{ID.encode(id), encode(obj), string(field)})
     | EString(id, v) => ev("EString", list{ID.encode(id), string(v)})
+    | ECharacter(id, v) => ev("ECharacter", list{ID.encode(id), string(v)})
     | EInteger(id, v) => ev("EInteger", list{ID.encode(id), int64(v)})
     | EBool(id, v) => ev("EBool", list{ID.encode(id), bool(v)})
     | EFloat(id, sign, whole, fraction) =>
@@ -363,6 +367,7 @@ module Expr = {
         ("EInteger", dv2((x, y) => EInteger(x, y), ID.decode, int64)),
         ("EBool", dv2((x, y) => EBool(x, y), ID.decode, bool)),
         ("EString", dv2((x, y) => EString(x, y), ID.decode, string)),
+        ("ECharacter", dv2((x, y) => ECharacter(x, y), ID.decode, string)),
         (
           "EFloat",
           dv4(

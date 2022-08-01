@@ -33,6 +33,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     switch expr {
     | EInteger(_)
     | EString(_)
+    | ECharacter(_)
     | EBool(_)
     | EFloat(_)
     | ENull(_)
@@ -216,6 +217,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     switch expr {
     | EInteger(_)
     | EString(_)
+    | ECharacter(_)
     | EBool(_)
     | EFloat(_)
     | ENull(_)
@@ -256,6 +258,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
         | PInteger(_)
         | PNull(_)
         | PString(_)
+        | PCharacter(_)
         | PFloat(_)
         | PBool(_)
         | PBlank(_) => list{}

@@ -12,6 +12,7 @@ let toID = (p: t): id =>
   | PInteger(id, _)
   | PBool(id, _)
   | PString(id, _)
+  | PCharacter(id, _)
   | PFloat(id, _, _, _)
   | PNull(id)
   | PBlank(id) => id
@@ -24,6 +25,7 @@ let rec ids = (p: t): list<id> =>
   | PInteger(_)
   | PBool(_)
   | PString(_)
+  | PCharacter(_)
   | PFloat(_)
   | PNull(_)
   | PBlank(_) => list{toID(p)}
@@ -37,6 +39,7 @@ let rec clone = (p: t): t =>
   | PInteger(_, i) => PInteger(gid(), i)
   | PBool(_, b) => PBool(gid(), b)
   | PString(_, str) => PString(gid(), str)
+  | PCharacter(_, str) => PCharacter(gid(), str)
   | PBlank(_) => PBlank(gid())
   | PNull(_) => PNull(gid())
   | PFloat(_, sign, whole, fraction) => PFloat(gid(), sign, whole, fraction)
@@ -46,7 +49,7 @@ let rec variableNames = (p: t): list<string> =>
   switch p {
   | PVariable(_, name) => list{name}
   | PConstructor(_, _, patterns) => patterns |> List.map(~f=variableNames) |> List.flatten
-  | PInteger(_) | PBool(_) | PString(_) | PBlank(_) | PNull(_) | PFloat(_) => list{}
+  | PInteger(_) | PBool(_) | PString(_) | PCharacter(_) | PBlank(_) | PNull(_) | PFloat(_) => list{}
   }
 
 let hasVariableNamed = (varName: string, p: t): bool =>
@@ -60,6 +63,7 @@ let rec findPattern = (patID: id, within: t): option<t> =>
   | PNull(pid)
   | PBlank(pid)
   | PFloat(pid, _, _, _)
+  | PCharacter(pid, _)
   | PString(pid, _) =>
     if patID == pid {
       Some(within)
@@ -82,6 +86,7 @@ let rec preTraversal = (~f: t => t, pattern: t): t => {
   | PInteger(_)
   | PBool(_)
   | PString(_)
+  | PCharacter(_)
   | PBlank(_)
   | PNull(_)
   | PFloat(_) => pattern
@@ -97,6 +102,7 @@ let rec postTraversal = (~f: t => t, pattern: t): t => {
   | PInteger(_)
   | PBool(_)
   | PString(_)
+  | PCharacter(_)
   | PBlank(_)
   | PNull(_)
   | PFloat(_) => pattern
