@@ -38,6 +38,7 @@ module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
 module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
+module HttpMiddlewareV1 = HttpMiddleware.HttpMiddlewareV1
 
 module RealExe = LibRealExecution.RealExecution
 
@@ -363,7 +364,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (RealExe.InitialExecution(desc, request))
 
-          // Execute - note that these are outside the handler
           let result = HttpMiddlewareV0.Response.toHttpResponse result
           let result =
             HttpMiddlewareV0.Cors.addCorsHeaders reqHeaders meta.name result
@@ -382,6 +382,50 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 reqHeaders
                 reqQuery
                 reqBody
+            TI.storeEvent meta.id traceID desc request)
+
+          return! unmatchedRouteResponse ctx requestPath route
+
+      | [ { spec = PT.Handler.HTTPBytes (route = route); tlid = tlid } as handler ] ->
+        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
+
+        let routeVars = Routing.routeInputVars route requestPath
+
+        let! reqBody = getBody ctx
+        let reqHeaders = getHeaders ctx
+        let reqQuery = getQuery ctx
+
+        match routeVars with
+        | Some routeVars ->
+          Telemetry.addTag "handler.routeVars" routeVars
+
+          // Do request
+          use _ = Telemetry.child "executeHandler" []
+
+          let request =
+            HttpMiddlewareV1.Request.fromRequest url reqHeaders reqQuery reqBody
+          let inputVars = routeVars |> Map |> Map.add "request" request
+          let! (result, _) =
+            RealExe.executeHandler
+              canvas.meta
+              (PT2RT.Handler.toRT handler)
+              (Canvas.toProgram canvas)
+              traceID
+              inputVars
+              (RealExe.InitialExecution(desc, request))
+
+          let result = HttpMiddlewareV1.Response.toHttpResponse result
+          let result = HttpMiddlewareV1.Cors.addCorsHeaders reqHeaders result
+
+          do! writeResponseToContext ctx result.statusCode result.headers result.body
+          Telemetry.addTag "http.completion_reason" "success"
+
+          return ctx
+
+        | None -> // vars didnt parse
+          FireAndForget.fireAndForgetTask "store-event" (fun () ->
+            let request =
+              HttpMiddlewareV1.Request.fromRequest url reqHeaders reqQuery reqBody
             TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route

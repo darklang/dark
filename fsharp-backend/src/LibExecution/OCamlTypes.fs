@@ -897,7 +897,12 @@ module Convert =
         name = string2bo ids.nameID route
         modifier = string2bo ids.modifierID method
         types = types }
-    | PT.Handler.HTTPBytes (route, method, ids) -> failwithf "YOLO"
+    | PT.Handler.HTTPBytes (route, method, ids) ->
+      // HttpBytesTODO find out what test requires this
+      { ``module`` = string2bo ids.moduleID "HTTP_BYTES"
+        name = string2bo ids.nameID route
+        modifier = string2bo ids.modifierID method
+        types = types }
     | PT.Handler.Worker (name, ids) ->
       { ``module`` = string2bo ids.moduleID "WORKER"
         name = string2bo ids.nameID name
