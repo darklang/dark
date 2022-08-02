@@ -426,29 +426,34 @@ module Dval = {
     | DNull => TNull
     | DChar(_) => TChar
     | DStr(_) => TStr
-    | DList(list{head, ..._}) => TList(toType(head))
-    | DList(list{}) => TList(any)
+    | DList(_) => TList(any)
+    // | DList(list{head, ..._}) => TList(toType(head))
+    // | DList(list{}) => TList(any)
     | DTuple(first, second, theRest) =>
       TTuple(toType(first), toType(second), List.map(toType, theRest))
-    | DObj(map) =>
-      switch map |> Belt.Map.String.toList |> Tc.List.head {
-      | Some(_, v1) => TDict(toType(v1))
-      | None => TDict(TAny)
-      }
+    // | DObj(map) =>
+    //   switch map |> Belt.Map.String.toList |> Tc.List.head {
+    //   | Some(_, v1) => TDict(toType(v1))
+    //   | None => TDict(TAny)
+    //   }
+    | DObj(_) => TDict(TAny)
     | DFnVal(_) => TBlock //TFn([], any) // CLEANUP: can do better here
     | DError(_) => TError
     | DIncomplete(_) => TIncomplete
     | DErrorRail(_) => TErrorRail
-    | DHttpResponse(Response(_, _, _dv)) => THttpResponse(toType(dv))
-    | DHttpResponse(Redirect(_)) => THttpResponse(TNull)
+    | DHttpResponse(_) => THttpResponse(TAny)
+    // | DHttpResponse(Response(_, _, _dv)) => THttpResponse(toType(dv))
+    // | DHttpResponse(Redirect(_)) => THttpResponse(TNull)
     | DDB(_) => TDB(any)
     | DDate(_) => TDate
     | DPassword(_) => TPassword
     | DUuid(_) => TUuid
-    | DOption(None) => TOption //(any)
-    | DOption(Some(_v)) => TOption //(toType(v))
-    | DResult(Ok(_v)) => TResult //(toType(v), any)
-    | DResult(Error(_v)) => TResult //(any, toType(v))
+    | DOption(_) => TOption(any)
+    // | DOption(None) => TOption(any)
+    // | DOption(Some(v)) => TOption(toType(v))
+    | DResult(_) => TResult //(any,any)
+    // | DResult(Ok(_v)) => TResult //(toType(v), any)
+    // | DResult(Error(_v)) => TResult //(any, toType(v))
     | DBytes(_) => TBytes
     }
   }
