@@ -148,9 +148,7 @@ module V1 =
   type ApiUserInfo =
     { username : string // as opposed to UserName.T
       name : string
-      admin : bool
-      email : string
-      id : UserID }
+      email : string }
 
   type ApiStaticDeploy =
     { deployHash : string
@@ -253,11 +251,7 @@ module V1 =
           orgs = List.map string orgList
           workerSchedules = workerSchedules
           account =
-            { username = string user.username
-              name = user.name
-              email = user.email
-              admin = user.admin
-              id = user.id }
+            { username = string user.username; name = user.name; email = user.email }
           creationDate = creationDate
           secrets = secrets |> List.map (fun s -> { name = s.name; value = s.value }) }
 

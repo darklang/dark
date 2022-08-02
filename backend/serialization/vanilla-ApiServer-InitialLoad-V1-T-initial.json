@@ -12138,9 +12138,7 @@
   "account": {
     "username": "test",
     "name": "Test Name",
-    "admin": false,
-    "email": "test@darklang.com",
-    "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+    "email": "test@darklang.com"
   },
   "canvasList": [
     "test",

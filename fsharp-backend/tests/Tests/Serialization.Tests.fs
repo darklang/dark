@@ -819,11 +819,7 @@ module GenericSerializersTests =
           permission = Some(LibBackend.Authorization.ReadWrite)
           orgs = [ "test"; "testorg" ]
           account =
-            { username = "test"
-              name = "Test Name"
-              admin = false
-              email = "test@darklang.com"
-              id = testUuid }
+            { username = "test"; name = "Test Name"; email = "test@darklang.com" }
           creationDate = testInstant
           workerSchedules = testWorkerStates
           secrets = [ { name = "test"; value = "secret" } ] }

@@ -37,9 +37,9 @@ module Account = {
   let encode = (a: t): Js.Json.t => {
     open Json_encode_extended
     object_(list{
+      ("username", string(a.username)),
       ("name", string(a.name)),
       ("email", string(a.email)),
-      ("username", string(a.username)),
     })
   }
 
