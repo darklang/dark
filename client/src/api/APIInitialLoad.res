@@ -19,7 +19,7 @@ type rec t = {
   canvasList: list<string>,
   orgs: list<string>,
   orgCanvasList: list<string>,
-  workerSchedules: Tc.Map.String.t<string>,
+  workerSchedules: Tc.Map.String.t<AnalysisTypes.WorkerState.t>,
   secrets: list<SecretTypes.t>,
   @opaque creationDate: Js.Date.t,
 }
@@ -43,7 +43,7 @@ let decode = (j): t => {
     canvasList: field("canvasList", list(string), j),
     orgs: field("orgs", list(string), j),
     orgCanvasList: field("orgCanvasList", list(string), j),
-    workerSchedules: field("workerSchedules", strDict(string), j),
+    workerSchedules: field("workerSchedules", strDict(AnalysisTypes.WorkerState.decode), j),
     creationDate: field("creationDate", date, j),
     secrets: field("secrets", list(SecretTypes.decode), j),
   }
@@ -68,7 +68,7 @@ let encode = (l: t): Js.Json.t => {
     ("canvasList", list(string, l.canvasList)),
     ("orgs", list(string, l.orgs)),
     ("orgCanvasList", list(string, l.orgCanvasList)),
-    ("workerSchedules", strDict(string, l.workerSchedules)),
+    ("workerSchedules", strDict(AnalysisTypes.WorkerState.encode, l.workerSchedules)),
     ("creationDate", date(l.creationDate)),
     ("secrets", list(SecretTypes.encode, l.secrets)),
   })

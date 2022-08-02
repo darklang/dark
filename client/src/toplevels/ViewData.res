@@ -11,10 +11,10 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
   let schedule =
     vp.workerStats
     |> Option.andThen(~f=(ws: AnalysisTypes.WorkerStats.t) => ws.schedule)
-    |> Option.unwrap(~default="run")
+    |> Option.unwrap(~default=AnalysisTypes.WorkerState.Running)
 
   switch schedule {
-  | "pause" =>
+  | Paused =>
     Html.div(
       list{
         ViewUtils.eventNoPropagation(~key="run-" ++ strTLID, "click", _ => RunWorker(name)),
@@ -23,7 +23,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
       },
       list{ViewUtils.fontAwesome("play-circle")},
     )
-  | "block" =>
+  | Blocked =>
     Html.div(
       list{
         Html.class'("blocked-worker"),
@@ -31,7 +31,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
       },
       list{ViewUtils.fontAwesome("ban")},
     )
-  | "run" =>
+  | Running =>
     Html.div(
       list{
         ViewUtils.eventNoPropagation(~key="pause-" ++ strTLID, "click", _ => PauseWorker(name)),
@@ -40,7 +40,6 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
       },
       list{ViewUtils.fontAwesome("pause-circle")},
     )
-  | _ => Vdom.noNode
   }
 }
 

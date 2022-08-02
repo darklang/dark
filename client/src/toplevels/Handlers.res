@@ -25,7 +25,7 @@ let remove = (m: model, h: PT.Handler.t): model => {
   handlers: Map.remove(~key=h.tlid, m.handlers),
 }
 
-let getWorkerSchedule = (m: model, h: PT.Handler.t): option<string> =>
+let getWorkerSchedule = (m: model, h: PT.Handler.t): option<AnalysisTypes.WorkerState.t> =>
   switch h.spec {
   | Worker(name, _) => Map.get(~key=name, m.workerSchedules)
   | _ => None

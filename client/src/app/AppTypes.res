@@ -768,7 +768,7 @@ module Msg = {
     | NewTracePush((Types.traceID, list<TLID.t>))
     | New404Push(AnalysisTypes.FourOhFour.t)
     | NewStaticDeployPush(StaticAssets.Deploy.t)
-    | WorkerStatePush(Tc.Map.String.t<string>)
+    | WorkerStatePush(Tc.Map.String.t<AnalysisTypes.WorkerState.t>)
     | @printer(opaque("Delete404APICallback"))
     Delete404APICallback(
         AnalysisTypes.FourOhFour.t,
@@ -862,7 +862,9 @@ module Msg = {
     | PauseWorker(string)
     | RunWorker(string)
     | @printer(opaque("UpdateWorkerScheduleCallback"))
-    UpdateWorkerScheduleCallback(Tea.Result.t<Tc.Map.String.t<string>, Types.httpError>)
+    UpdateWorkerScheduleCallback(
+        Tea.Result.t<Tc.Map.String.t<AnalysisTypes.WorkerState.t>, Types.httpError>,
+      )
     | NewTabFromTLMenu(string, TLID.t)
     | FnParamMsg(FunctionParams.msg)
     | ToolTipMsg(Tooltip.msg)
@@ -933,7 +935,7 @@ module Modification = {
     | Enter(TLID.t, ID.t) // Enter a blankOr
     | EnterWithOffset(TLID.t, ID.t, int) // Entering a blankOr with a desired caret offset
     | OpenOmnibox(option<Pos.t>) // Open the omnibox
-    | UpdateWorkerSchedules(Tc.Map.String.t<string>)
+    | UpdateWorkerSchedules(Tc.Map.String.t<AnalysisTypes.WorkerState.t>)
     | NoChange
     | @printer(opaque("MakeCmd")) MakeCmd(Tea.Cmd.t<Msg.t<'model, t<'model>>>)
     | AutocompleteMod(AutoComplete.mod)
@@ -1053,7 +1055,7 @@ module Model = {
     toast: Toast.t,
     username: string,
     account: AccountTypes.Account.t,
-    workerSchedules: Tc.Map.String.t<string>,
+    workerSchedules: Tc.Map.String.t<AnalysisTypes.WorkerState.t>,
     searchCache: TLID.Dict.t<string>,
     editorSettings: EditorSettings.t,
     teaDebuggerEnabled: bool,

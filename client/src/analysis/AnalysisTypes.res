@@ -315,12 +315,35 @@ module FourOhFour = {
     )
   }
 }
+module WorkerState = {
+  @ppx.deriving(show({with_path: false}))
+  type rec t = Running | Blocked | Paused
+  let encode = (ws: t): Js.Json.t => {
+    open Json_encode_extended
+    switch ws {
+    | Running => variant("Running", list{})
+    | Blocked => variant("Blocked", list{})
+    | Paused => variant("Paused", list{})
+    }
+  }
+  let decode = (j: Js.Json.t): t => {
+    open Json_decode_extended
+    variants(
+      list{
+        ("Running", variant0(Running)),
+        ("Blocked", variant0(Blocked)),
+        ("Paused", variant0(Paused)),
+      },
+      j,
+    )
+  }
+}
 
 module WorkerStats = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     count: int,
-    schedule: option<string>,
+    schedule: option<WorkerState.t>,
   }
   let default: t = {count: 0, schedule: None}
 }

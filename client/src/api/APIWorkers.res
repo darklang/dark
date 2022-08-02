@@ -23,20 +23,23 @@ module Scheduler = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
       workerName: string,
-      schedule: string,
+      schedule: AnalysisTypes.WorkerState.t,
     }
 
     let encode = (params: t): Js.Json.t => {
       open Json_encode_extended
-      object_(list{("name", string(params.workerName)), ("schedule", string(params.schedule))})
+      object_(list{
+        ("name", string(params.workerName)),
+        ("schedule", AnalysisTypes.WorkerState.encode(params.schedule)),
+      })
     }
   }
 
   @ppx.deriving(show({with_path: false}))
-  type rec t = Tc.Map.String.t<string>
+  type rec t = Tc.Map.String.t<AnalysisTypes.WorkerState.t>
 
   let decode = (j): t => {
     open Json_decode_extended
-    strDict(string)(j)
+    strDict(AnalysisTypes.WorkerState.decode)(j)
   }
 }
