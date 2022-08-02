@@ -193,16 +193,11 @@ let run = () => {
       APISecrets.Insert.decode,
       APISecrets.Insert.encode,
     )
-    // t(
-    //   "vanilla-ApiServer-Toplevels-Delete-Params-simple.json",
-    //   APIToplevels.Delete.Params.decode,
-    //   APIToplevels.Delete.Params.encode,
-    // )
-    // t(
-    //   "vanilla-ApiServer-Toplevels-Delete-T-simple.json",
-    //   APIToplevels.Delete.decode,
-    //   APIToplevels.Delete.encode,
-    // )
+    t(
+      "vanilla-ApiServer-Toplevels-Delete-Params-simple.json",
+      APIToplevels.DeleteForever.Params.decode,
+      APIToplevels.DeleteForever.Params.encode,
+    )
     // t(
     //   "vanilla-ApiServer-Traces-AllTraces-T-simple.json",
     //   APITraces.AllTraces.decode,
