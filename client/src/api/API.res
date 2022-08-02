@@ -220,7 +220,7 @@ let saveTest = (m: model): cmd =>
 let integration = (m: model, name: string): cmd =>
   apiCallNoParams(
     m,
-    "/initial_load",
+    "/v1/initial_load",
     ~decoder=APIInitialLoad.decode,
     ~callback=x => InitialLoadAPICallback(FocusNothing, TriggerIntegrationTest(name), x),
   )

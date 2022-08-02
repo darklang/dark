@@ -94,7 +94,7 @@ let fetch = (context: APITypes.fetchContext, request: APITypes.fetchRequest) => 
   let urlRoot = context.origin ++ API.apiRoot ++ context.canvasName
   switch request {
   | TraceFetch(gdtp) =>
-    let url = urlRoot ++ "/get_trace_data"
+    let url = urlRoot ++ "/v1/get_trace_data"
 
     fetch_(
       ~decoder=APITraces.TraceData.decode,
