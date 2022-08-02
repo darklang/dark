@@ -298,7 +298,7 @@ let typeCheck = (
     }
   | FACConstructorName(name, _) =>
     switch expectedReturnType {
-    | TOption =>
+    | TOption(_) =>
       if name == "Just" || name == "Nothing" {
         valid
       } else {

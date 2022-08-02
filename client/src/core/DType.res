@@ -16,7 +16,7 @@ type rec t =
   | TDate
   | TPassword
   | TUuid
-  | TOption
+  | TOption(t)
   | TErrorRail
   | TUserType(string, int)
   | TBytes
@@ -44,7 +44,7 @@ let rec tipe2str = (t: t): string =>
   | THttpResponse(_) => "Response"
   | TDB(_) => "Datastore"
   | TDate => "Date"
-  | TOption => "Option"
+  | TOption(_) => "Option"
   | TPassword => "Password"
   | TUuid => "UUID"
   | TErrorRail => "ErrorRail"
@@ -82,7 +82,7 @@ let rec decode = (j): t => {
       ("TChar", dv0(TChar)),
       ("TPassword", dv0(TPassword)),
       ("TUuid", dv0(TUuid)),
-      ("TOption", dv1(_ => TOption, d)),
+      ("TOption", dv1(t1 => TOption(t1), d)),
       ("TErrorRail", dv0(TErrorRail)),
       ("TBytes", dv0(TBytes)),
       ("TResult", dv2((_t1, _t2) => TResult, d, d)),
@@ -119,7 +119,7 @@ let rec encode = (t: t): Js.Json.t => {
   | TDbList(a) => ev("TDbList", list{encode(a)})
   | TPassword => ev("TPassword", list{})
   | TUuid => ev("TUuid", list{})
-  | TOption => ev("TOption", list{})
+  | TOption(t1) => ev("TOption", list{encode(t1)})
   | TErrorRail => ev("TErrorRail", list{})
   | TResult => ev("TResult", list{})
   | TUserType(name, version) => ev("TUserType", list{string(name), int(version)})

@@ -565,7 +565,7 @@ let allowedParamTipes = list{
   TDate,
   TPassword,
   TUuid,
-  TOption,
+  TOption(TAny),
   TResult,
   TBytes,
 }

@@ -48,7 +48,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("String", "append", 0, list{TStr, TStr}, TStr),
   ("List", "append", 0, list{TList(TAny), TList(TAny)}, TList(TAny)),
   ("String", "newline", 0, list{}, TStr),
-  ("Option", "withDefault", 0, list{TOption}, TAny),
+  ("Option", "withDefault", 0, list{TOption(TAny)}, TAny),
   ("Result", "withDefault", 0, list{TResult}, TAny),
   ("InQuery", "whatever", 0, list{TDict(TAny)}, TAny),
 } |> List.map(~f=((module_, function, version, paramTipes, returnType)): RT.BuiltInFn.t => {
