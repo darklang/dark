@@ -4,7 +4,7 @@ module HandlerProperty = AppTypes.HandlerProperty
 
 let isCompatible = (t1: DType.t, t2: DType.t): bool => t1 == TAny || (t2 == TAny || t1 == t2)
 
-let errorRailTypes: list<DType.t> = list{TOption(TAny), TResult}
+let errorRailTypes: list<DType.t> = list{TOption(TAny), TResult(TAny, TAny)}
 
 // Drop initial/final '"'
 let stripQuotes = (s: string): string => {

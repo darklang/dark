@@ -119,7 +119,7 @@ let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
 let isRailable = (m: model, name: PT.FQFnName.t) =>
   m.functions
   |> Functions.find(name)
-  |> Option.map(~f=fn => fn.fnReturnTipe == TOption(TAny) || fn.fnReturnTipe == TResult)
+  |> Option.map(~f=fn => fn.fnReturnTipe == TOption(TAny) || fn.fnReturnTipe == TResult(TAny, TAny))
   |> Option.unwrap(~default=false)
 
 let putOnRail = (m: model, tl: toplevel, id: id): modification =>

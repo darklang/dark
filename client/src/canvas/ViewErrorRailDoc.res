@@ -49,7 +49,7 @@ let hintForFunction = (
             },
           ),
         )
-      | TResult =>
+      | TResult(_, _) =>
         Some(
           Html.p(
             list{},
@@ -109,7 +109,7 @@ let hintForFunction = (
             },
           ),
         )
-      | (TResult, Rail) =>
+      | (TResult(_), Rail) =>
         Some(
           Html.p(
             list{},
@@ -130,7 +130,7 @@ let hintForFunction = (
             },
           ),
         )
-      | (TResult, NoRail) =>
+      | (TResult(_), NoRail) =>
         Some(
           Html.p(
             list{},

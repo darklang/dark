@@ -304,7 +304,7 @@ let typeCheck = (
       } else {
         invalidReturnType
       }
-    | TResult =>
+    | TResult(_) =>
       if name == "Ok" || name == "Error" {
         valid
       } else {

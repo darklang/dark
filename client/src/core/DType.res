@@ -20,7 +20,7 @@ type rec t =
   | TErrorRail
   | TUserType(string, int)
   | TBytes
-  | TResult //(t, t)
+  | TResult(t, t)
   | TAny //TVariable(string)
   | TBlock //TFn of List<DType> * DType
   | TDbList(t)
@@ -48,7 +48,7 @@ let rec tipe2str = (t: t): string =>
   | TPassword => "Password"
   | TUuid => "UUID"
   | TErrorRail => "ErrorRail"
-  | TResult => "Result"
+  | TResult(_) => "Result"
   | TDbList(a) => "[" ++ (tipe2str(a) ++ "]")
   | TUserType(name, _) => name
   | TBytes => "Bytes"
@@ -85,7 +85,7 @@ let rec decode = (j): t => {
       ("TOption", dv1(t1 => TOption(t1), d)),
       ("TErrorRail", dv0(TErrorRail)),
       ("TBytes", dv0(TBytes)),
-      ("TResult", dv2((_t1, _t2) => TResult, d, d)),
+      ("TResult", dv2((t1, t2) => TResult(t1, t2), d, d)),
       ("TUserType", dv2((n, v) => TUserType(n, v), string, int)),
       ("TVariable", dv1(_ => TAny, string)),
       ("TFn", dv2((_, _) => TBlock, list(d), d)),
@@ -121,7 +121,7 @@ let rec encode = (t: t): Js.Json.t => {
   | TUuid => ev("TUuid", list{})
   | TOption(t1) => ev("TOption", list{encode(t1)})
   | TErrorRail => ev("TErrorRail", list{})
-  | TResult => ev("TResult", list{})
+  | TResult(t1, t2) => ev("TResult", list{encode(t1), encode(t2)})
   | TUserType(name, version) => ev("TUserType", list{string(name), int(version)})
   | TBytes => ev("TBytes", list{})
   | TRecord(rows) => ev("TRecord", list{list(pair(string, encode), rows)})

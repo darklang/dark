@@ -49,7 +49,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("List", "append", 0, list{TList(TAny), TList(TAny)}, TList(TAny)),
   ("String", "newline", 0, list{}, TStr),
   ("Option", "withDefault", 0, list{TOption(TAny)}, TAny),
-  ("Result", "withDefault", 0, list{TResult}, TAny),
+  ("Result", "withDefault", 0, list{TResult(TAny, TAny)}, TAny),
   ("InQuery", "whatever", 0, list{TDict(TAny)}, TAny),
 } |> List.map(~f=((module_, function, version, paramTipes, returnType)): RT.BuiltInFn.t => {
   name: {module_: module_, function: function, version: version},

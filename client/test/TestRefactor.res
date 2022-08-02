@@ -90,7 +90,7 @@ let run = () => {
       name: {module_: "Result", function: "resulty", version: 0},
       parameters: list{},
       description: "",
-      returnType: TResult,
+      returnType: TResult(TAny, TAny),
       previewable: Pure,
       deprecated: NotDeprecated,
       isInfix: false,

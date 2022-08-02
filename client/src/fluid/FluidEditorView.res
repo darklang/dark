@@ -450,8 +450,8 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
   | TFnName(id, _, _, fnName, Rail) =>
     let offset = string_of_int(ti.startRow) ++ "rem"
     let icon = switch (returnTipe(fnName), liveValue(id)) {
-    | (TResult, Some(DErrorRail(DResult(Error(_))))) => ViewUtils.darkIcon("result-error")
-    | (TResult, v) if isEvalSuccess(v) => ViewUtils.darkIcon("result-ok")
+    | (TResult(_), Some(DErrorRail(DResult(Error(_))))) => ViewUtils.darkIcon("result-error")
+    | (TResult(_), v) if isEvalSuccess(v) => ViewUtils.darkIcon("result-ok")
     | (TOption(_), Some(DErrorRail(DOption(None)))) => ViewUtils.darkIcon("option-nothing")
     | (TOption(_), v) if isEvalSuccess(v) => ViewUtils.darkIcon("option-just")
     | _ => Vdom.noNode
