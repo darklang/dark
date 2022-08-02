@@ -77,7 +77,7 @@ module TraceData = {
     {
       input: field("input", InputValueDict.decode, j),
       timestamp: field("timestamp", string, j),
-      functionResults: field("function_results", list(FunctionResult.decode), j),
+      functionResults: field("functionResults", list(FunctionResult.decode), j),
     }
   }
 
@@ -86,7 +86,7 @@ module TraceData = {
     object_(list{
       ("input", list(tuple2(string, RT.Dval.encode), Belt.Map.String.toList(t.input))),
       ("timestamp", string(t.timestamp)),
-      ("function_results", list(FunctionResult.encode, t.functionResults)),
+      ("functionResults", list(FunctionResult.encode, t.functionResults)),
     })
   }
 }
