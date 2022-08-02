@@ -299,13 +299,13 @@ module Values =
 
   let testHandlersWithName : List<string * PT.Handler.T> =
     [ "Http", testHttpHandler
-      "HttpBytes", testHttpBytesHandler
       "Worker", testWorker
       "Cron1", testCron1
       "Cron2", testCron2
       "REPL", testRepl
       "Unknown", testUnknownHandler
-      "OldWorker", testOldWorker ]
+      "OldWorker", testOldWorker
+      "HttpBytes", testHttpBytesHandler ]
 
   let testHandlers = List.map snd testHandlersWithName
 
