@@ -42,8 +42,8 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "Dict", function: "map", version: 2},
-      parameters: list{par("dict", TObj), par("f", TBlock, ~args=list{"key", "value"})},
-      returnType: TObj,
+      parameters: list{par("dict", TDict(TAny)), par("f", TBlock, ~args=list{"key", "value"})},
+      returnType: TDict(TAny),
       description: "",
       previewable: Pure,
       deprecated: NotDeprecated,
@@ -52,8 +52,8 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "DB", function: "set", version: 1},
-      parameters: list{par("val", TObj), par("key", TStr), par("table", TDB(TAny))},
-      returnType: TObj,
+      parameters: list{par("val", TDict(TAny)), par("key", TStr), par("table", TDB(TAny))},
+      returnType: TDict(TAny),
       description: "",
       previewable: Impure,
       deprecated: NotDeprecated,
@@ -308,7 +308,7 @@ let run = () => {
           ("str", DType.TStr),
           ("int", TInt),
           ("float", TFloat),
-          ("obj", TObj),
+          ("obj", TDict(TAny)),
           ("date", TDate),
           ("datestr", TStr),
           // for now, TStr; in future, maybe we coerce to TDate

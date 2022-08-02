@@ -8,7 +8,7 @@ type rec t =
   | TChar
   | TList(t)
   | TTuple(t, t, list<t>)
-  | TObj //TDict(t)
+  | TDict(t)
   | TIncomplete
   | TError
   | THttpResponse(t)
@@ -24,7 +24,7 @@ type rec t =
   | TAny //TVariable(string)
   | TBlock //TFn of List<DType> * DType
   | TDbList(t)
-// | TRecord of List<string * DType>
+  | TRecord(list<(string, t)>)
 
 let rec tipe2str = (t: t): string =>
   switch t {
@@ -37,7 +37,7 @@ let rec tipe2str = (t: t): string =>
   | TStr => "String"
   | TList(_) => "List"
   | TTuple(_, _, _) => "Tuple"
-  | TObj => "Dict"
+  | TDict(_) => "Dict"
   | TBlock => "Block"
   | TIncomplete => "Incomplete"
   | TError => "Error"
@@ -52,6 +52,7 @@ let rec tipe2str = (t: t): string =>
   | TDbList(a) => "[" ++ (tipe2str(a) ++ "]")
   | TUserType(name, _) => name
   | TBytes => "Bytes"
+  | TRecord(_) => "Record"
   }
 
 let rec decode = (j): t => {
@@ -69,10 +70,10 @@ let rec decode = (j): t => {
       ("TBool", dv0(TBool)),
       ("TNull", dv0(TNull)),
       ("TStr", dv0(TStr)),
-      ("TList", dv1(t => TList(t), d)),
-      ("TDbList", dv1(t => TDbList(t), d)),
+      ("TList", dv1(t1 => TList(t1), d)),
+      ("TDbList", dv1(t1 => TDbList(t1), d)),
       ("TTuple", dv3((first, second, theRest) => TTuple(first, second, theRest), d, d, list(d))),
-      ("TDict", dv1(_ => TObj, d)),
+      ("TDict", dv1(t1 => TDict(t1), d)),
       ("TIncomplete", dv0(TIncomplete)),
       ("TError", dv0(TError)),
       ("THttpResponse", dv1(t1 => THttpResponse(t1), d)),
@@ -88,7 +89,7 @@ let rec decode = (j): t => {
       ("TUserType", dv2((n, v) => TUserType(n, v), string, int)),
       ("TVariable", dv1(_ => TAny, string)),
       ("TFn", dv2((_, _) => TBlock, list(d), d)),
-      ("TRecord", dv1(_ => TAny, list(pair(string, d)))),
+      ("TRecord", dv1(rows => TRecord(rows), list(pair(string, d)))),
     },
     j,
   )
@@ -103,7 +104,7 @@ let rec encode = (t: t): Js.Json.t => {
   | TChar => ev("TChar", list{})
   | TBool => ev("TBool", list{})
   | TFloat => ev("TFloat", list{})
-  | TObj => ev("TObj", list{})
+  | TDict(t1) => ev("TDict", list{encode(t1)})
   | TList(t1) => ev("TList", list{encode(t1)})
   | TTuple(first, second, theRest) =>
     ev("TTuple", list{encode(first), encode(second), list(encode, theRest)})
@@ -123,5 +124,6 @@ let rec encode = (t: t): Js.Json.t => {
   | TResult => ev("TResult", list{})
   | TUserType(name, version) => ev("TUserType", list{string(name), int(version)})
   | TBytes => ev("TBytes", list{})
+  | TRecord(rows) => ev("TRecord", list{list(pair(string, encode), rows)})
   }
 }

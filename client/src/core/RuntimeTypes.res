@@ -430,7 +430,11 @@ module Dval = {
     | DList(list{}) => TList(any)
     | DTuple(first, second, theRest) =>
       TTuple(toType(first), toType(second), List.map(toType, theRest))
-    | DObj(_map) => TObj //map |> Map.toList |> List.map(fun(k, v)->(k, toType(v))) |> TRecord
+    | DObj(map) =>
+      switch map |> Belt.Map.String.toList |> Tc.List.head {
+      | Some(_, v1) => TDict(toType(v1))
+      | None => TDict(TAny)
+      }
     | DFnVal(_) => TBlock //TFn([], any) // CLEANUP: can do better here
     | DError(_) => TError
     | DIncomplete(_) => TIncomplete

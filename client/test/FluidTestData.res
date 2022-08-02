@@ -753,8 +753,8 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
       parameters: list{
         fnParam("url", TStr),
         fnParam("body", TAny),
-        fnParam("query", TObj),
-        fnParam("headers", TObj),
+        fnParam("query", TDict(TAny)),
+        fnParam("headers", TDict(TAny)),
       },
       returnType: TResult,
       description: "Make blocking HTTP POST call to `uri`.",
@@ -765,7 +765,11 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "HttpClient", function: "get", version: 3},
-      parameters: list{fnParam("url", TStr), fnParam("query", TObj), fnParam("headers", TObj)},
+      parameters: list{
+        fnParam("url", TStr),
+        fnParam("query", TDict(TAny)),
+        fnParam("headers", TDict(TAny)),
+      },
       returnType: TResult,
       description: "Make blocking HTTP GET call to `uri`.",
       previewable: Impure,
@@ -785,8 +789,11 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "Dict", function: "map", version: 0},
-      parameters: list{fnParam("dict", TObj), fnParam("f", TBlock, ~args=list{"key", "value"})},
-      returnType: TObj,
+      parameters: list{
+        fnParam("dict", TDict(TAny)),
+        fnParam("f", TBlock, ~args=list{"key", "value"}),
+      },
+      returnType: TDict(TAny),
       description: "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda",
       previewable: Pure,
       deprecated: NotDeprecated,

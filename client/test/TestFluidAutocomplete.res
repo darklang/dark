@@ -23,17 +23,17 @@ let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
 let defaultSpec = defaultHTTPSpec
 
 let sampleFunctions: list<RT.BuiltInFn.t> = list{
-  ("Twit", "somefunc", 0, list{DType.TObj}, DType.TAny),
-  ("Twit", "someOtherFunc", 0, list{TObj}, TAny),
-  ("Twit", "yetAnother", 0, list{TObj}, TAny),
+  ("Twit", "somefunc", 0, list{DType.TDict(TAny)}, DType.TAny),
+  ("Twit", "someOtherFunc", 0, list{TDict(TAny)}, TAny),
+  ("Twit", "yetAnother", 0, list{TDict(TAny)}, TAny),
   ("", "+", 0, list{TInt, TInt}, TInt),
   ("Int", "add", 0, list{TInt, TInt}, TInt),
-  ("Dict", "keys", 0, list{TObj}, TList(TStr)),
+  ("Dict", "keys", 0, list{TDict(TAny)}, TList(TStr)),
   ("List", "head", 0, list{TList(TAny)}, TAny),
-  ("", "withlower", 0, list{TObj}, TObj),
-  ("", "withLower", 0, list{TObj}, TObj),
-  ("SomeModule", "withLower", 0, list{TObj}, TObj),
-  ("SomeOtherModule", "withlower", 0, list{TObj}, TObj),
+  ("", "withlower", 0, list{TDict(TAny)}, TDict(TAny)),
+  ("", "withLower", 0, list{TDict(TAny)}, TDict(TAny)),
+  ("SomeModule", "withLower", 0, list{TDict(TAny)}, TDict(TAny)),
+  ("SomeOtherModule", "withlower", 0, list{TDict(TAny)}, TDict(TAny)),
   ("HTTP", "post", 0, list{TAny}, TAny),
   ("HTTP", "head", 0, list{TAny}, TAny),
   ("HTTP", "get", 0, list{TAny}, TAny),
@@ -50,7 +50,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("String", "newline", 0, list{}, TStr),
   ("Option", "withDefault", 0, list{TOption}, TAny),
   ("Result", "withDefault", 0, list{TResult}, TAny),
-  ("InQuery", "whatever", 0, list{TObj}, TAny),
+  ("InQuery", "whatever", 0, list{TDict(TAny)}, TAny),
 } |> List.map(~f=((module_, function, version, paramTipes, returnType)): RT.BuiltInFn.t => {
   name: {module_: module_, function: function, version: version},
   parameters: List.map(paramTipes, ~f=(paramType): RT.BuiltInFn.Param.t => {

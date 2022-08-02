@@ -557,7 +557,7 @@ let allowedParamTipes = list{
   TStr,
   TBool,
   TFloat,
-  TObj,
+  TDict(TAny),
   TList(TAny),
   TAny,
   TBlock,
