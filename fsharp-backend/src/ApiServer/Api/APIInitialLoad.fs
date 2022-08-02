@@ -164,7 +164,7 @@ module V1 =
       lastUpdate = d.lastUpdate
       status = d.status }
 
-  type ApiSecret = { secret_name : string; secret_value : string }
+  type ApiSecret = { name : string; value : string }
 
   type T =
     { handlers : List<PT.Handler.T>
@@ -259,9 +259,7 @@ module V1 =
               admin = user.admin
               id = user.id }
           creationDate = creationDate
-          secrets =
-            secrets
-            |> List.map (fun s -> { secret_name = s.name; secret_value = s.value }) }
+          secrets = secrets |> List.map (fun s -> { name = s.name; value = s.value }) }
 
       return result
     }

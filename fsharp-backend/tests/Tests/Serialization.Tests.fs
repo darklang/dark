@@ -826,7 +826,7 @@ module GenericSerializersTests =
               id = testUuid }
           creationDate = testInstant
           workerSchedules = testWorkerStates
-          secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+          secrets = [ { name = "test"; value = "secret" } ] }
       oc<ApiServer.InitialLoad.V0.T>
         "initial"
         { toplevels = testOCamlToplevels

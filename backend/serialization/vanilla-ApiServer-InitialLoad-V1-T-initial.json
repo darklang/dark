@@ -12168,8 +12168,8 @@
   "creationDate": "2022-07-04T17:46:57Z",
   "secrets": [
     {
-      "secret_name": "test",
-      "secret_value": "secret"
+      "name": "test",
+      "value": "secret"
     }
   ]
 }
