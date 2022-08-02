@@ -31,7 +31,7 @@
     "mouse-wheel": "1.2.0",
     "pusher-js": "5.1.1",
     "rescript-js": "0.7.0",
-    "rollbar": "2.25.0",
+    "rollbar": "2.25.1",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "darklang/tablecloth#49cb938d1bb177a504de40de7d470615452e8d8d",
     "validator": "^13.7.0"
