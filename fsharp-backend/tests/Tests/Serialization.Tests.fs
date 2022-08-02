@@ -934,9 +934,9 @@ module GenericSerializersTests =
         "simple"
         { trace =
             (testUuid,
-             { input = [ "var", testDval ]
+             { input = [ "var", testClientDval ]
                timestamp = testInstant
-               functionResults = [ ("fnName", 7UL, "hash", 0, testDval) ] }) }
+               functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }) }
 
 
       // Workers

@@ -10,7 +10,7 @@ open Tablecloth
 open Http
 
 module PT = LibExecution.ProgramTypes
-module RT = LibExecution.RuntimeTypes
+module CT = ClientTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 
@@ -92,11 +92,11 @@ module TraceDataV0 =
 module TraceDataV1 =
   type Params = { tlid : tlid; traceID : AT.TraceID }
 
-  type InputVars = List<string * RT.Dval>
+  type InputVars = List<string * CT.Dval.T>
   type FunctionArgHash = string
   type HashVersion = int
   type FnName = string
-  type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval
+  type FunctionResult = FnName * id * FunctionArgHash * HashVersion * CT.Dval.T
 
   type TraceData =
     { input : InputVars
@@ -141,9 +141,13 @@ module TraceDataV1 =
         | Some (id, (traceData : AT.TraceData)) ->
           Some(
             id,
-            { input = traceData.input
+            { input =
+                List.map (fun (s, dv) -> (s, CT.Dval.fromRT dv)) traceData.input
               timestamp = traceData.timestamp
-              functionResults = traceData.function_results }
+              functionResults =
+                List.map
+                  (fun (r1, r2, r3, r4, dv) -> (r1, r2, r3, r4, CT.Dval.fromRT dv))
+                  traceData.function_results }
           )
         | None -> None
 
