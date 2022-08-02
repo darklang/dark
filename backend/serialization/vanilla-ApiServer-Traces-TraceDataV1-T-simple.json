@@ -33,92 +33,154 @@
                 "\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD"
               ],
               "block": [
-                "DBlock",
-                {
-                  "symtable": {},
-                  "params": [
-                    [
-                      5678,
-                      "a"
+                "DFnVal",
+                [
+                  "Lambda",
+                  {
+                    "parameters": [
+                      [
+                        5678,
+                        "a"
+                      ]
+                    ],
+                    "symtable": {},
+                    "body": [
+                      "EBlank",
+                      1234
                     ]
-                  ],
-                  "body": [
-                    "EBlank",
-                    1234
-                  ]
-                }
+                  }
+                ]
               ],
               "block with pipe": [
-                "DBlock",
-                {
-                  "symtable": {},
-                  "params": [
-                    [
-                      5678,
-                      "a"
-                    ]
-                  ],
-                  "body": [
-                    "EFnCall",
-                    92356985,
-                    "List::push",
-                    [
+                "DFnVal",
+                [
+                  "Lambda",
+                  {
+                    "parameters": [
                       [
-                        "EFnCall",
-                        93459985,
-                        "\u002B",
+                        5678,
+                        "a"
+                      ]
+                    ],
+                    "symtable": {},
+                    "body": [
+                      "EApply",
+                      92356985,
+                      [
+                        "EFQFnValue",
+                        700731989,
                         [
+                          "Stdlib",
+                          {
+                            "module_": "List",
+                            "function_": "push",
+                            "version": 0
+                          }
+                        ]
+                      ],
+                      [
+                        [
+                          "EApply",
+                          93459985,
                           [
-                            "EFnCall",
-                            394567785,
-                            "\u002B",
+                            "EFQFnValue",
+                            707841989,
                             [
-                              [
-                                "EFnCall",
-                                44444485,
-                                "\u002B",
-                                [
-                                  [
-                                    "EInteger",
-                                    234213618,
-                                    "5"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    923423468,
-                                    "6"
-                                  ]
-                                ],
-                                [
-                                  "NoRail"
-                                ]
-                              ],
-                              [
-                                "EInteger",
-                                648327618,
-                                "7"
-                              ]
-                            ],
-                            [
-                              "NoRail"
+                              "Stdlib",
+                              {
+                                "module_": "",
+                                "function_": "\u002B",
+                                "version": 0
+                              }
                             ]
                           ],
                           [
-                            "EInteger",
-                            325843618,
-                            "8"
+                            [
+                              "EApply",
+                              394567785,
+                              [
+                                "EFQFnValue",
+                                700766785,
+                                [
+                                  "Stdlib",
+                                  {
+                                    "module_": "",
+                                    "function_": "\u002B",
+                                    "version": 0
+                                  }
+                                ]
+                              ],
+                              [
+                                [
+                                  "EApply",
+                                  44444485,
+                                  [
+                                    "EFQFnValue",
+                                    893346989,
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "",
+                                        "function_": "\u002B",
+                                        "version": 0
+                                      }
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "EInteger",
+                                      234213618,
+                                      5
+                                    ],
+                                    [
+                                      "EInteger",
+                                      923423468,
+                                      6
+                                    ]
+                                  ],
+                                  [
+                                    "NotInPipe"
+                                  ],
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
+                                [
+                                  "EInteger",
+                                  648327618,
+                                  7
+                                ]
+                              ],
+                              [
+                                "NotInPipe"
+                              ],
+                              [
+                                "NoRail"
+                              ]
+                            ],
+                            [
+                              "EInteger",
+                              325843618,
+                              8
+                            ]
+                          ],
+                          [
+                            "NotInPipe"
+                          ],
+                          [
+                            "NoRail"
                           ]
-                        ],
-                        [
-                          "NoRail"
                         ]
+                      ],
+                      [
+                        "NotInPipe"
+                      ],
+                      [
+                        "NoRail"
                       ]
-                    ],
-                    [
-                      "NoRail"
                     ]
-                  ]
-                }
+                  }
+                ]
               ],
               "bytes": [
                 "DBytes",
@@ -129,7 +191,7 @@
                 "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAklEQVR4AewaftIAAAJmSURBVNXBS4iNYRjA8f_7fN85YxKymJASxVmg1IQ0iKTkm3OMJAsl10aYccuCWMhGNm5HNBomYyGpYW5HSWMsFFMuKxshCxol5bLgnO97H2pGZ2b3Hr0lvx__mqECO1bsrSmVktUSyOu2_vwjhm1d1jxR0VOqmhGRa239-TYcBTjavnzfpDhJXmDYpKrbaqcv-vri3cBjfps3bcFVYDMwXVUb5s-se_D87ZN3OBAcxUm8FpjCMKt2F38YahkhLsW1OBJcGaoZrZphxphuyn6m0ql7OArxIDDBEUvyxqpmgkButN4_-xJHIR5c6T8XA5f4CyEeRFE01hhzTFUzItLe09PTiSPBj_OqehhYZ63taGhoWIgjwY-llEmxWFyCI8GPPsqSdDr9EEchfuwXkQ_W2oyIXO_s7HyKoxAPCoXCD-AEfyHEg937C-PiODmuajMi0t6Sz93CkeBBqVS6oGoPAllr7c2dzd11OBL8WEyZSRJbhyPBD2EEY1RwJLgbZLRBPBAcjQmqOowx3Qz5JCKH8CDEUcuD00VgzZZlu2vCIPzS2ne-iAdCBZoO3K1KzV01N5izciqeCI4am7rG_ywWnwF91uqrxqaujXggOFKr64HZDAlU9SgeCI6M8I3RvuGB4MrIbTHmFqDAoDFyEA9CHF3O52JgQ2NT14QwJd8vnskmeBBSgSiKgssX1nzBI6EyW-vr6_dEUVSNJ0IFCoVCq6reMcaczGazMyhTRjGKI6ECuVxuMrADeG-t_cgfygAjiMgAjkIqkCTJcmNMvre39zMjpNLhnji231WTWSJBe0s-95D_xS8d7tveXKeXUQAAAABJRU5ErkJggg"
               ],
               "character": [
-                "DCharacter",
+                "DChar",
                 "s"
               ],
               "datastore": [
@@ -171,11 +233,9 @@
               "error": [
                 "DError",
                 [
-                  [
-                    "SourceNone"
-                  ],
-                  "some error string"
-                ]
+                  "SourceNone"
+                ],
+                "some error string"
               ],
               "errorrail": [
                 "DErrorRail",
@@ -304,16 +364,14 @@
                 "\u003Chtml\u003E\u003Chead\u003E\u003C/head\u003E\u003Cbody\u003E\u003Ch1\u003Etitle\u003C/h1\u003E\u003C/body\u003E\u003C/html\u003E"
               ],
               "httpresponse": [
-                "DResp",
+                "DHttpResponse",
                 [
+                  "Response",
+                  200,
                   [
-                    "Response",
-                    200,
                     [
-                      [
-                        "content-length",
-                        "9"
-                      ]
+                      "content-length",
+                      "9"
                     ]
                   ],
                   [
@@ -331,7 +389,7 @@
               "incomplete2": [
                 "DIncomplete",
                 [
-                  "SourceId",
+                  "SourceID",
                   "14219007199254740993",
                   8
                 ]
@@ -535,11 +593,9 @@
                   [
                     "DError",
                     [
-                      [
-                        "SourceNone"
-                      ],
-                      "some error string"
-                    ]
+                      "SourceNone"
+                    ],
+                    "some error string"
                   ],
                   [
                     "DInt",
@@ -3021,11 +3077,9 @@
                   "v": [
                     "DError",
                     [
-                      [
-                        "SourceNone"
-                      ],
-                      "some error string"
-                    ]
+                      "SourceNone"
+                    ],
+                    "some error string"
                   ]
                 }
               ],
@@ -3074,28 +3128,20 @@
               ],
               "option": [
                 "DOption",
-                [
-                  "OptNothing"
-                ]
+                null
               ],
               "option2": [
                 "DOption",
                 [
-                  "OptJust",
-                  [
-                    "DInt",
-                    15
-                  ]
+                  "DInt",
+                  15
                 ]
               ],
               "option3": [
                 "DOption",
                 [
-                  "OptJust",
-                  [
-                    "DStr",
-                    "a string"
-                  ]
+                  "DStr",
+                  "a string"
                 ]
               ],
               "pi \u002B 0": [
@@ -3107,21 +3153,16 @@
                 4.141592653589793
               ],
               "redirect": [
-                "DResp",
+                "DHttpResponse",
                 [
-                  [
-                    "Redirect",
-                    "/home"
-                  ],
-                  [
-                    "DNull"
-                  ]
+                  "Redirect",
+                  "/home"
                 ]
               ],
               "result": [
                 "DResult",
                 [
-                  "ResOk",
+                  "Ok",
                   [
                     "DInt",
                     15
@@ -3131,7 +3172,7 @@
               "result2": [
                 "DResult",
                 [
-                  "ResError",
+                  "Error",
                   [
                     "DList",
                     [
@@ -3146,7 +3187,7 @@
               "result3": [
                 "DResult",
                 [
-                  "ResOk",
+                  "Ok",
                   [
                     "DStr",
                     "a string"
@@ -3211,7 +3252,7 @@
                 [
                   "DResult",
                   [
-                    "ResError",
+                    "Error",
                     [
                       "DStr",
                       "error"
@@ -3269,7 +3310,7 @@
         ]
       ],
       "timestamp": "2022-07-04T17:46:57Z",
-      "function_results": [
+      "functionResults": [
         [
           "fnName",
           7,
@@ -3303,92 +3344,154 @@
                 "\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD"
               ],
               "block": [
-                "DBlock",
-                {
-                  "symtable": {},
-                  "params": [
-                    [
-                      5678,
-                      "a"
+                "DFnVal",
+                [
+                  "Lambda",
+                  {
+                    "parameters": [
+                      [
+                        5678,
+                        "a"
+                      ]
+                    ],
+                    "symtable": {},
+                    "body": [
+                      "EBlank",
+                      1234
                     ]
-                  ],
-                  "body": [
-                    "EBlank",
-                    1234
-                  ]
-                }
+                  }
+                ]
               ],
               "block with pipe": [
-                "DBlock",
-                {
-                  "symtable": {},
-                  "params": [
-                    [
-                      5678,
-                      "a"
-                    ]
-                  ],
-                  "body": [
-                    "EFnCall",
-                    92356985,
-                    "List::push",
-                    [
+                "DFnVal",
+                [
+                  "Lambda",
+                  {
+                    "parameters": [
                       [
-                        "EFnCall",
-                        93459985,
-                        "\u002B",
+                        5678,
+                        "a"
+                      ]
+                    ],
+                    "symtable": {},
+                    "body": [
+                      "EApply",
+                      92356985,
+                      [
+                        "EFQFnValue",
+                        700731989,
                         [
+                          "Stdlib",
+                          {
+                            "module_": "List",
+                            "function_": "push",
+                            "version": 0
+                          }
+                        ]
+                      ],
+                      [
+                        [
+                          "EApply",
+                          93459985,
                           [
-                            "EFnCall",
-                            394567785,
-                            "\u002B",
+                            "EFQFnValue",
+                            707841989,
                             [
-                              [
-                                "EFnCall",
-                                44444485,
-                                "\u002B",
-                                [
-                                  [
-                                    "EInteger",
-                                    234213618,
-                                    "5"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    923423468,
-                                    "6"
-                                  ]
-                                ],
-                                [
-                                  "NoRail"
-                                ]
-                              ],
-                              [
-                                "EInteger",
-                                648327618,
-                                "7"
-                              ]
-                            ],
-                            [
-                              "NoRail"
+                              "Stdlib",
+                              {
+                                "module_": "",
+                                "function_": "\u002B",
+                                "version": 0
+                              }
                             ]
                           ],
                           [
-                            "EInteger",
-                            325843618,
-                            "8"
+                            [
+                              "EApply",
+                              394567785,
+                              [
+                                "EFQFnValue",
+                                700766785,
+                                [
+                                  "Stdlib",
+                                  {
+                                    "module_": "",
+                                    "function_": "\u002B",
+                                    "version": 0
+                                  }
+                                ]
+                              ],
+                              [
+                                [
+                                  "EApply",
+                                  44444485,
+                                  [
+                                    "EFQFnValue",
+                                    893346989,
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "",
+                                        "function_": "\u002B",
+                                        "version": 0
+                                      }
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "EInteger",
+                                      234213618,
+                                      5
+                                    ],
+                                    [
+                                      "EInteger",
+                                      923423468,
+                                      6
+                                    ]
+                                  ],
+                                  [
+                                    "NotInPipe"
+                                  ],
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
+                                [
+                                  "EInteger",
+                                  648327618,
+                                  7
+                                ]
+                              ],
+                              [
+                                "NotInPipe"
+                              ],
+                              [
+                                "NoRail"
+                              ]
+                            ],
+                            [
+                              "EInteger",
+                              325843618,
+                              8
+                            ]
+                          ],
+                          [
+                            "NotInPipe"
+                          ],
+                          [
+                            "NoRail"
                           ]
-                        ],
-                        [
-                          "NoRail"
                         ]
+                      ],
+                      [
+                        "NotInPipe"
+                      ],
+                      [
+                        "NoRail"
                       ]
-                    ],
-                    [
-                      "NoRail"
                     ]
-                  ]
-                }
+                  }
+                ]
               ],
               "bytes": [
                 "DBytes",
@@ -3399,7 +3502,7 @@
                 "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAklEQVR4AewaftIAAAJmSURBVNXBS4iNYRjA8f_7fN85YxKymJASxVmg1IQ0iKTkm3OMJAsl10aYccuCWMhGNm5HNBomYyGpYW5HSWMsFFMuKxshCxol5bLgnO97H2pGZ2b3Hr0lvx__mqECO1bsrSmVktUSyOu2_vwjhm1d1jxR0VOqmhGRa239-TYcBTjavnzfpDhJXmDYpKrbaqcv-vri3cBjfps3bcFVYDMwXVUb5s-se_D87ZN3OBAcxUm8FpjCMKt2F38YahkhLsW1OBJcGaoZrZphxphuyn6m0ql7OArxIDDBEUvyxqpmgkButN4_-xJHIR5c6T8XA5f4CyEeRFE01hhzTFUzItLe09PTiSPBj_OqehhYZ63taGhoWIgjwY-llEmxWFyCI8GPPsqSdDr9EEchfuwXkQ_W2oyIXO_s7HyKoxAPCoXCD-AEfyHEg937C-PiODmuajMi0t6Sz93CkeBBqVS6oGoPAllr7c2dzd11OBL8WEyZSRJbhyPBD2EEY1RwJLgbZLRBPBAcjQmqOowx3Qz5JCKH8CDEUcuD00VgzZZlu2vCIPzS2ne-iAdCBZoO3K1KzV01N5izciqeCI4am7rG_ywWnwF91uqrxqaujXggOFKr64HZDAlU9SgeCI6M8I3RvuGB4MrIbTHmFqDAoDFyEA9CHF3O52JgQ2NT14QwJd8vnskmeBBSgSiKgssX1nzBI6EyW-vr6_dEUVSNJ0IFCoVCq6reMcaczGazMyhTRjGKI6ECuVxuMrADeG-t_cgfygAjiMgAjkIqkCTJcmNMvre39zMjpNLhnji231WTWSJBe0s-95D_xS8d7tveXKeXUQAAAABJRU5ErkJggg"
               ],
               "character": [
-                "DCharacter",
+                "DChar",
                 "s"
               ],
               "datastore": [
@@ -3441,11 +3544,9 @@
               "error": [
                 "DError",
                 [
-                  [
-                    "SourceNone"
-                  ],
-                  "some error string"
-                ]
+                  "SourceNone"
+                ],
+                "some error string"
               ],
               "errorrail": [
                 "DErrorRail",
@@ -3574,16 +3675,14 @@
                 "\u003Chtml\u003E\u003Chead\u003E\u003C/head\u003E\u003Cbody\u003E\u003Ch1\u003Etitle\u003C/h1\u003E\u003C/body\u003E\u003C/html\u003E"
               ],
               "httpresponse": [
-                "DResp",
+                "DHttpResponse",
                 [
+                  "Response",
+                  200,
                   [
-                    "Response",
-                    200,
                     [
-                      [
-                        "content-length",
-                        "9"
-                      ]
+                      "content-length",
+                      "9"
                     ]
                   ],
                   [
@@ -3601,7 +3700,7 @@
               "incomplete2": [
                 "DIncomplete",
                 [
-                  "SourceId",
+                  "SourceID",
                   "14219007199254740993",
                   8
                 ]
@@ -3805,11 +3904,9 @@
                   [
                     "DError",
                     [
-                      [
-                        "SourceNone"
-                      ],
-                      "some error string"
-                    ]
+                      "SourceNone"
+                    ],
+                    "some error string"
                   ],
                   [
                     "DInt",
@@ -6291,11 +6388,9 @@
                   "v": [
                     "DError",
                     [
-                      [
-                        "SourceNone"
-                      ],
-                      "some error string"
-                    ]
+                      "SourceNone"
+                    ],
+                    "some error string"
                   ]
                 }
               ],
@@ -6344,28 +6439,20 @@
               ],
               "option": [
                 "DOption",
-                [
-                  "OptNothing"
-                ]
+                null
               ],
               "option2": [
                 "DOption",
                 [
-                  "OptJust",
-                  [
-                    "DInt",
-                    15
-                  ]
+                  "DInt",
+                  15
                 ]
               ],
               "option3": [
                 "DOption",
                 [
-                  "OptJust",
-                  [
-                    "DStr",
-                    "a string"
-                  ]
+                  "DStr",
+                  "a string"
                 ]
               ],
               "pi \u002B 0": [
@@ -6377,21 +6464,16 @@
                 4.141592653589793
               ],
               "redirect": [
-                "DResp",
+                "DHttpResponse",
                 [
-                  [
-                    "Redirect",
-                    "/home"
-                  ],
-                  [
-                    "DNull"
-                  ]
+                  "Redirect",
+                  "/home"
                 ]
               ],
               "result": [
                 "DResult",
                 [
-                  "ResOk",
+                  "Ok",
                   [
                     "DInt",
                     15
@@ -6401,7 +6483,7 @@
               "result2": [
                 "DResult",
                 [
-                  "ResError",
+                  "Error",
                   [
                     "DList",
                     [
@@ -6416,7 +6498,7 @@
               "result3": [
                 "DResult",
                 [
-                  "ResOk",
+                  "Ok",
                   [
                     "DStr",
                     "a string"
@@ -6481,7 +6563,7 @@
                 [
                   "DResult",
                   [
-                    "ResError",
+                    "Error",
                     [
                       "DStr",
                       "error"

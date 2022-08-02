@@ -10,6 +10,7 @@ open Tablecloth
 open Http
 
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 
@@ -89,19 +90,18 @@ module TraceDataV0 =
     }
 
 module TraceDataV1 =
-  type Params = { tlid : tlid; trace_id : AT.TraceID }
+  type Params = { tlid : tlid; traceID : AT.TraceID }
 
-  // CLEANUP: this uses ORT.dval instead of RT.Dval
-  type InputVars = List<string * ORT.dval>
+  type InputVars = List<string * RT.Dval>
   type FunctionArgHash = string
   type HashVersion = int
   type FnName = string
-  type FunctionResult = FnName * id * FunctionArgHash * HashVersion * ORT.dval
+  type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval
 
   type TraceData =
     { input : InputVars
       timestamp : NodaTime.Instant
-      function_results : List<FunctionResult> }
+      functionResults : List<FunctionResult> }
 
   type Trace = AT.TraceID * TraceData
 
@@ -115,7 +115,7 @@ module TraceDataV1 =
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadVanillaJsonAsync<Params>()
-      Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
+      Telemetry.addTags [ "tlid", p.tlid; "traceID", p.traceID ]
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDs canvasInfo [ p.tlid ]
@@ -128,30 +128,22 @@ module TraceDataV1 =
 
       let! trace =
         match handler with
-        | Some h -> Traces.handlerTrace c.meta.id p.trace_id h |> Task.map Some
+        | Some h -> Traces.handlerTrace c.meta.id p.traceID h |> Task.map Some
         | None ->
           match c.userFunctions |> Map.get p.tlid with
-          | Some u -> Traces.userfnTrace c.meta.id p.trace_id u |> Task.map Some
+          | Some u -> Traces.userfnTrace c.meta.id p.traceID u |> Task.map Some
           | None -> Task.FromResult None
 
 
       t.next "write-api"
-      // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
       let (trace : Option<Trace>) =
         match trace with
         | Some (id, (traceData : AT.TraceData)) ->
           Some(
             id,
-            { input =
-                List.map
-                  (fun (s, dv) -> (s, Convert.rt2ocamlDval dv))
-                  traceData.input
+            { input = traceData.input
               timestamp = traceData.timestamp
-              function_results =
-                List.map
-                  (fun (r1, r2, r3, r4, dv) ->
-                    (r1, r2, r3, r4, Convert.rt2ocamlDval dv))
-                  traceData.function_results }
+              functionResults = traceData.function_results }
           )
         | None -> None
 

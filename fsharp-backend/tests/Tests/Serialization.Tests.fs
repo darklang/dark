@@ -929,14 +929,14 @@ module GenericSerializersTests =
                function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }) }
       v<ApiServer.Traces.TraceDataV1.Params>
         "simple"
-        { tlid = testTLID; trace_id = testUuid }
+        { tlid = testTLID; traceID = testUuid }
       v<ApiServer.Traces.TraceDataV1.T>
         "simple"
         { trace =
             (testUuid,
-             { input = [ "var", testOCamlDval ]
+             { input = [ "var", testDval ]
                timestamp = testInstant
-               function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }) }
+               functionResults = [ ("fnName", 7UL, "hash", 0, testDval) ] }) }
 
 
       // Workers
