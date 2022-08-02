@@ -1679,7 +1679,7 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(WorkerStatsFetchFailure(params, url, error)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let key = "get-worker-stats-" ++ TLID.toString(params.workerStatsTlid)
+        let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
         let m = Sync.markResponseInModel(m, ~key)
         Rollbar.displayAndReportError(m, "Error fetching db stats", Some(url), Some(error))
@@ -1688,7 +1688,7 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(WorkerStatsFetchMissing(params)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let key = "get-worker-stats-" ++ TLID.toString(params.workerStatsTlid)
+        let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
         (Sync.markResponseInModel(m, ~key), Cmd.none)
       },
@@ -1696,10 +1696,10 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(WorkerStatsFetchSuccess(params, result)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let key = "get-worker-stats-" ++ TLID.toString(params.workerStatsTlid)
+        let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
         let m = Sync.markResponseInModel(m, ~key)
-        let tlid = params.workerStatsTlid
+        let tlid = params.tlid
         let workerStats = Map.add(~key=tlid, ~value=result, m.workerStats)
         ({...m, workerStats: workerStats}, Cmd.none)
       },

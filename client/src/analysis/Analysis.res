@@ -330,9 +330,7 @@ let getWorkerStats = (m, tlid) =>
   Sync.attempt(
     ~key="get-worker-stats-" ++ TLID.toString(tlid),
     m,
-    Tea_cmd.call(_ =>
-      Fetcher.request((contextFromModel(m), WorkerStatsFetch({workerStatsTlid: tlid})))
-    ),
+    Tea_cmd.call(_ => Fetcher.request((contextFromModel(m), WorkerStatsFetch({tlid: tlid})))),
   )
 
 /* [mergeTraces ~selectedTraceIDs ~onConflict ~oldTraces ~newTraces]
