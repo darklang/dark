@@ -7260,8 +7260,8 @@
           "x": 6,
           "y": 6
         },
-        "nameID": 7,
         "name": "dbname",
+        "nameID": 7,
         "version": 1,
         "cols": [
           {

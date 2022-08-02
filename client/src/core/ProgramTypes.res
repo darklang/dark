@@ -649,8 +649,8 @@ module Handler = {
     object_(list{
       ("tlid", TLID.encode(h.tlid)),
       ("pos", Pos.encode(h.pos)),
-      ("spec", Spec.encode(h.spec)),
       ("ast", AST.encode(h.ast)),
+      ("spec", Spec.encode(h.spec)),
     })
   }
 
@@ -719,8 +719,8 @@ module DB = {
       ("pos", Pos.encode(db.pos)),
       ("name", string(db.name)),
       ("nameID", ID.encode(db.nameID)),
-      ("cols", list(Col.encode, db.cols)),
       ("version", int(db.version)),
+      ("cols", list(Col.encode, db.cols)),
     })
   }
 

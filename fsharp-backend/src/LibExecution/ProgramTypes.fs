@@ -197,8 +197,8 @@ module DB =
   type T =
     { tlid : tlid
       pos : Position
-      nameID : id
       name : string
+      nameID : id
       version : int
       cols : List<Col> }
 
