@@ -560,7 +560,7 @@ let allowedParamTipes = list{
   TDict(TAny),
   TList(TAny),
   TAny,
-  TBlock,
+  TFn(list{}, TAny),
   TDB(TAny),
   TDate,
   TPassword,

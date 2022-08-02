@@ -791,7 +791,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
       name: {module_: "Dict", function: "map", version: 0},
       parameters: list{
         fnParam("dict", TDict(TAny)),
-        fnParam("f", TBlock, ~args=list{"key", "value"}),
+        fnParam("f", TFn(list{TStr, TAny}, TAny), ~args=list{"key", "value"}),
       },
       returnType: TDict(TAny),
       description: "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda",

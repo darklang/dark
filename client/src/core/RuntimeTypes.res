@@ -437,7 +437,7 @@ module Dval = {
     //   | None => TDict(TAny)
     //   }
     | DObj(_) => TDict(TAny)
-    | DFnVal(_) => TBlock //TFn([], any) // CLEANUP: can do better here
+    | DFnVal(_) => TFn(list{}, any)
     | DError(_) => TError
     | DIncomplete(_) => TIncomplete
     | DErrorRail(_) => TErrorRail

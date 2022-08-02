@@ -42,7 +42,10 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "Dict", function: "map", version: 2},
-      parameters: list{par("dict", TDict(TAny)), par("f", TBlock, ~args=list{"key", "value"})},
+      parameters: list{
+        par("dict", TDict(TAny)),
+        par("f", TFn(list{TStr, TAny}, TAny), ~args=list{"key", "value"}),
+      },
       returnType: TDict(TAny),
       description: "",
       previewable: Pure,

@@ -22,7 +22,7 @@ type rec t =
   | TBytes
   | TResult(t, t)
   | TAny //TVariable(string)
-  | TBlock //TFn of List<DType> * DType
+  | TFn(list<t>, t)
   | TDbList(t)
   | TRecord(list<(string, t)>)
 
@@ -38,7 +38,7 @@ let rec tipe2str = (t: t): string =>
   | TList(_) => "List"
   | TTuple(_, _, _) => "Tuple"
   | TDict(_) => "Dict"
-  | TBlock => "Block"
+  | TFn(_) => "Block"
   | TIncomplete => "Incomplete"
   | TError => "Error"
   | THttpResponse(_) => "Response"
@@ -88,7 +88,7 @@ let rec decode = (j): t => {
       ("TResult", dv2((t1, t2) => TResult(t1, t2), d, d)),
       ("TUserType", dv2((n, v) => TUserType(n, v), string, int)),
       ("TVariable", dv1(_ => TAny, string)),
-      ("TFn", dv2((_, _) => TBlock, list(d), d)),
+      ("TFn", dv2((args, rt) => TFn(args, rt), list(d), d)),
       ("TRecord", dv1(rows => TRecord(rows), list(pair(string, d)))),
     },
     j,
@@ -110,7 +110,7 @@ let rec encode = (t: t): Js.Json.t => {
     ev("TTuple", list{encode(first), encode(second), list(encode, theRest)})
   | TAny => ev("TAny", list{})
   | TNull => ev("TNull", list{})
-  | TBlock => ev("TBlock", list{})
+  | TFn(args, rt) => ev("TFn", list{list(encode, args), encode(rt)})
   | TIncomplete => ev("TIncomplete", list{})
   | TError => ev("TError", list{})
   | THttpResponse(t1) => ev("THttpResponse", list{encode(t1)})
