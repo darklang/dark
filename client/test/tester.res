@@ -78,9 +78,26 @@ let print_test_end = (name, t: Private.t): unit => {
   if t.success == Passed {
     \"@@"(Js.log, testIndent() ++ (j`✅` ++ (" " ++ shortName)))
   } else if t.success == Failed {
-    \"@@"(Js.log, testIndent() ++ (j`❌` ++ (" " ++ name)))
-    \"@@"(Js.log, testIndent() ++ ("Expected: " ++ Option.unwrap(~default="None", t.expected)))
-    \"@@"(Js.log, testIndent() ++ ("  Actual: " ++ Option.unwrap(~default="None", t.actual)))
+    let actual = Option.unwrap(~default="None", t.actual)
+    let expected = Option.unwrap(~default="None", t.expected)
+    Js.log(testIndent() ++ j`❌ ` ++ name)
+    Js.log(testIndent() ++ `Expected: ${expected}`)
+    Js.log(testIndent() ++ `  Actual: ${actual}`)
+    let cont = ref(true)
+    let count = min(String.length(actual), String.length(expected))
+    for i in 0 to count {
+      if cont.contents && String.getAt(actual, ~index=i) != String.getAt(expected, ~index=i) {
+        Js.log(`Strings differ at char ${string_of_int(i)}`)
+        if count > 100 {
+          // Don't print for short strings
+          Js.log("  Expected (before): " ++ String.slice(~from=i - 50, ~to_=i, expected))
+          Js.log("  Actual   (before): " ++ String.slice(~from=i - 50, ~to_=i, actual))
+          Js.log("  Expected (after): " ++ String.slice(~from=i, ~to_=i + 50, expected))
+          Js.log("  Actual   (after): " ++ String.slice(~from=i, ~to_=i + 50, actual))
+        }
+        cont := false
+      }
+    }
   } else {
     print_test_skip(name)
   }
