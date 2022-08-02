@@ -442,7 +442,7 @@ let requestTrace = (~force=false, m, tlid, traceID): (model, AppTypes.cmd) => {
       ~key="tracefetch-" ++ traceID,
       m,
       Tea_cmd.call(_ =>
-        Fetcher.request((contextFromModel(m), TraceFetch({gtdrpTlid: tlid, gtdrpTraceID: traceID})))
+        Fetcher.request((contextFromModel(m), TraceFetch({tlid: tlid, traceID: traceID})))
       ),
     )
   } else {

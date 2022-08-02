@@ -1573,13 +1573,13 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(TraceFetchFailure(params, url, error))
     if error == "Selected trace too large for the editor to load, maybe try another?" =>
     let traces = TLID.Dict.fromList(list{
-      (params.gtdrpTlid, list{(params.gtdrpTraceID, Error(TraceError.MaximumCallStackError))}),
+      (params.tlid, list{(params.traceID, Error(TraceError.MaximumCallStackError))}),
     })
 
     Many(list{
       ReplaceAllModificationsWithThisOne(
         m => {
-          let key = "tracefetch-" ++ params.gtdrpTraceID
+          let key = "tracefetch-" ++ params.traceID
           let m = Sync.markResponseInModel(m, ~key)
           Rollbar.displayAndReportError(m, "Error fetching trace", Some(url), Some(error))
         },
@@ -1589,18 +1589,18 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(TraceFetchFailure(params, url, error)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let key = "tracefetch-" ++ params.gtdrpTraceID
+        let key = "tracefetch-" ++ params.traceID
         let m = Sync.markResponseInModel(m, ~key)
         Rollbar.displayAndReportError(m, "Error fetching trace", Some(url), Some(error))
       },
     )
   | ReceiveFetch(TraceFetchSuccess(params, result)) =>
-    let traces = TLID.Dict.fromList(list{(params.gtdrpTlid, list{result.trace})})
+    let traces = TLID.Dict.fromList(list{(params.tlid, list{result.trace})})
 
     Many(list{
       ReplaceAllModificationsWithThisOne(
         m => {
-          let key = "tracefetch-" ++ params.gtdrpTraceID
+          let key = "tracefetch-" ++ params.traceID
           (Sync.markResponseInModel(m, ~key), Cmd.none)
         },
       ),
@@ -1608,7 +1608,7 @@ let update_ = (msg: msg, m: model): modification => {
     })
   | ReceiveFetch(TraceFetchMissing(params)) =>
     // We'll force it so no need to update syncState
-    let (_, cmd) = Analysis.requestTrace(~force=true, m, params.gtdrpTlid, params.gtdrpTraceID)
+    let (_, cmd) = Analysis.requestTrace(~force=true, m, params.tlid, params.traceID)
 
     MakeCmd(cmd)
   | ReceiveFetch(DbStatsFetchFailure(params, _, "Bad credentials")) =>

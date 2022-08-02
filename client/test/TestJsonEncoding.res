@@ -198,11 +198,11 @@ let run = () => {
       APIToplevels.DeleteForever.Params.decode,
       APIToplevels.DeleteForever.Params.encode,
     )
-    // t(
-    //   "vanilla-ApiServer-Traces-AllTraces-T-simple.json",
-    //   APITraces.AllTraces.decode,
-    //   APITraces.AllTraces.encode,
-    // )
+    t(
+      "vanilla-ApiServer-Traces-AllTraces-T-simple.json",
+      APITraces.AllTraces.decode,
+      APITraces.AllTraces.encode,
+    )
     // t(
     //   "vanilla-ApiServer-Traces-TraceData-Params-simple.json",
     //   APITraces.TraceData.Params.decode,
