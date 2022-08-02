@@ -2,9 +2,15 @@ open Prelude
 
 module HandlerProperty = AppTypes.HandlerProperty
 
-let isCompatible = (t1: DType.t, t2: DType.t): bool => t1 == TAny || (t2 == TAny || t1 == t2)
+let isCompatible = (t1: DType.t, t2: DType.t): bool =>
+  switch (t1, t2) {
+  | (TVariable(n1), TVariable(n2)) => n1 == n2
+  | (TVariable(_), _) => true
+  | (_, TVariable(_)) => true
+  | _ => t1 == t2 // TODO recurse
+  }
 
-let errorRailTypes: list<DType.t> = list{TOption(TAny), TResult(TAny, TAny)}
+let errorRailTypes: list<DType.t> = list{TOption(DType.any), TResult(DType.any, DType.any)}
 
 // Drop initial/final '"'
 let stripQuotes = (s: string): string => {

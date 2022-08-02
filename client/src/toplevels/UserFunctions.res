@@ -96,7 +96,7 @@ let replaceFnReturn = (
         let (typ, id) = B.toOptionID(new_)
         {
           ...uf,
-          returnType: Option.unwrap(typ, ~default=TAny),
+          returnType: Option.unwrap(typ, ~default=DType.any),
           returnTypeID: id,
         }
       }

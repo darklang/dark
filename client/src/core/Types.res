@@ -68,7 +68,7 @@ module TypeInformation = {
     returnType: DType.t,
   }
 
-  let default: t = {fnName: None, paramName: "Unknown", returnType: TAny}
+  let default: t = {fnName: None, paramName: "Unknown", returnType: DType.any}
 }
 
 // ----------------------

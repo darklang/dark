@@ -21,14 +21,16 @@ type rec t =
   | TUserType(string, int)
   | TBytes
   | TResult(t, t)
-  | TAny //TVariable(string)
+  | TVariable(string)
   | TFn(list<t>, t)
   | TDbList(t)
   | TRecord(list<(string, t)>)
 
+let any = TVariable("any")
+
 let rec tipe2str = (t: t): string =>
   switch t {
-  | TAny => "Any"
+  | TVariable(_) => "Any"
   | TInt => "Int"
   | TFloat => "Float"
   | TBool => "Bool"
@@ -65,7 +67,6 @@ let rec decode = (j): t => {
   variants(
     list{
       ("TInt", dv0(TInt)),
-      ("TAny", dv0(TAny)),
       ("TFloat", dv0(TFloat)),
       ("TBool", dv0(TBool)),
       ("TNull", dv0(TNull)),
@@ -87,7 +88,7 @@ let rec decode = (j): t => {
       ("TBytes", dv0(TBytes)),
       ("TResult", dv2((t1, t2) => TResult(t1, t2), d, d)),
       ("TUserType", dv2((n, v) => TUserType(n, v), string, int)),
-      ("TVariable", dv1(_ => TAny, string)),
+      ("TVariable", dv1(name => TVariable(name), string)),
       ("TFn", dv2((args, rt) => TFn(args, rt), list(d), d)),
       ("TRecord", dv1(rows => TRecord(rows), list(pair(string, d)))),
     },
@@ -108,7 +109,7 @@ let rec encode = (t: t): Js.Json.t => {
   | TList(t1) => ev("TList", list{encode(t1)})
   | TTuple(first, second, theRest) =>
     ev("TTuple", list{encode(first), encode(second), list(encode, theRest)})
-  | TAny => ev("TAny", list{})
+  | TVariable(name) => ev("TVariable", list{string(name)})
   | TNull => ev("TNull", list{})
   | TFn(args, rt) => ev("TFn", list{list(encode, args), encode(rt)})
   | TIncomplete => ev("TIncomplete", list{})

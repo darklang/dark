@@ -310,7 +310,7 @@ let typeCheck = (
       } else {
         invalidReturnType
       }
-    | TAny => valid
+    | TVariable(_) => valid
     | _ => invalidReturnType
     }
   | _ => valid

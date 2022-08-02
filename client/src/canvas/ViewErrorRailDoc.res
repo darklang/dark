@@ -92,7 +92,7 @@ let hintForFunction = (
             },
           ),
         )
-      | (TOption(TAny), NoRail) =>
+      | (TOption(_), NoRail) =>
         Some(
           Html.p(
             list{},

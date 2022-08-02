@@ -81,7 +81,7 @@ let run = () => {
           nameID: gid(),
           parameters: list{},
           description: "can users put docs here?",
-          returnType: TAny,
+          returnType: DType.any,
           returnTypeID: gid(),
           infix: false,
           body: FluidAST.ofExpr(FluidExpression.newB()),

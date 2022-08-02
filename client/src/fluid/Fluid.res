@@ -1940,7 +1940,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
         let oldParams = existingExprs |> List.mapWithIndex(~f=(i, p) => {
           // create ugly automatic variable name
           let name = "var_" ++ string_of_int(DUtil.random())
-          (name, DType.tipe2str(TAny), p, i)
+          (name, DType.tipe2str(DType.any), p, i)
         })
 
         (wrapWithLets(~expr=newExpr, oldParams), ctForExpr(newExpr))

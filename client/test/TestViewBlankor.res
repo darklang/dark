@@ -13,7 +13,7 @@ let run = () => {
         nameID: gid(),
         parameters: list{},
         description: "",
-        returnType: TAny,
+        returnType: DType.any,
         returnTypeID: gid(),
         infix: false,
       })

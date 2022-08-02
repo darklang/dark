@@ -452,7 +452,7 @@ let create_new_function_from_autocomplete = (m: model): testResult => {
           name: "myFunctionName",
           parameters: list{},
           description: "",
-          returnType: TAny,
+          returnType: TVariable(_),
           infix: false,
           _,
         },

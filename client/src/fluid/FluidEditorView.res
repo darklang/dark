@@ -436,7 +436,7 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
   let returnTipe = (name: string) =>
     Functions.findByStr(name, p.functions)
     |> Option.map(~f=fn => fn.fnReturnTipe)
-    |> Option.unwrap(~default=DType.TAny)
+    |> Option.unwrap(~default=DType.any)
 
   let liveValue = (id: id) => Analysis.getLiveValue'(p.analysisStore, id)
   let isEvalSuccess = dv =>

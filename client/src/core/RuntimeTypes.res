@@ -417,7 +417,7 @@ module Dval = {
   let rec toType = (dv: t): DType.t => {
     // CLEANUP this function is derived from the backend version, but avoid blowing
     // everything up I've kept it on the current types.
-    let any = DType.TAny
+    let any = DType.any
 
     switch dv {
     | DInt(_) => TInt
@@ -436,12 +436,12 @@ module Dval = {
     //   | Some(_, v1) => TDict(toType(v1))
     //   | None => TDict(TAny)
     //   }
-    | DObj(_) => TDict(TAny)
+    | DObj(_) => TDict(any)
     | DFnVal(_) => TFn(list{}, any)
     | DError(_) => TError
     | DIncomplete(_) => TIncomplete
     | DErrorRail(_) => TErrorRail
-    | DHttpResponse(_) => THttpResponse(TAny)
+    | DHttpResponse(_) => THttpResponse(any)
     // | DHttpResponse(Response(_, _, _dv)) => THttpResponse(toType(dv))
     // | DHttpResponse(Redirect(_)) => THttpResponse(TNull)
     | DDB(_) => TDB(any)

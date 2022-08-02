@@ -17,8 +17,8 @@ let generateTipeName = (): string => "Type_" ++ (() |> Util.random |> string_of_
 
 let convertTipe = (tipe: DType.t): DType.t =>
   switch tipe {
-  | TIncomplete => TAny
-  | TError => TAny
+  | TIncomplete => DType.any
+  | TError => DType.any
   | _ => tipe
   }
 
@@ -119,7 +119,9 @@ let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
 let isRailable = (m: model, name: PT.FQFnName.t) =>
   m.functions
   |> Functions.find(name)
-  |> Option.map(~f=fn => fn.fnReturnTipe == TOption(TAny) || fn.fnReturnTipe == TResult(TAny, TAny))
+  |> Option.map(~f=fn =>
+    fn.fnReturnTipe == TOption(DType.any) || fn.fnReturnTipe == TResult(DType.any, DType.any)
+  )
   |> Option.unwrap(~default=false)
 
 let putOnRail = (m: model, tl: toplevel, id: id): modification =>
@@ -206,7 +208,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
       let tipe =
         Analysis.getSelectedTraceID(m, tlid)
         |> Option.andThen(~f=Analysis.getTipeOf(m, id))
-        |> Option.unwrap(~default=DType.TAny)
+        |> Option.unwrap(~default=DType.any)
         |> convertTipe
 
       {
@@ -223,7 +225,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
       name: name,
       nameID: gid(),
       parameters: params,
-      returnType: TAny,
+      returnType: DType.any,
       returnTypeID: gid(),
       description: "",
       infix: false,
@@ -405,7 +407,7 @@ let generateEmptyFunction = (_: unit): PT.UserFunction.t => {
     nameID: gid(),
     parameters: list{},
     description: "",
-    returnType: TAny,
+    returnType: DType.any,
     returnTypeID: gid(),
     infix: false,
     body: FluidAST.ofExpr(EBlank(gid())),
