@@ -192,7 +192,7 @@ module V1 =
       let canvasID = canvasInfo.id
 
       let! isLatest =
-        Serialize.isLatestOpRequest p.clientOpCtrID p.opCtr canvasInfo.id
+        Serialize.isLatestOpRequest (Some p.clientOpCtrID) p.opCtr canvasInfo.id
 
       let newOps = p.ops
       let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps

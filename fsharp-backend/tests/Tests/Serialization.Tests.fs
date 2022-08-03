@@ -493,7 +493,8 @@ module Values =
       deletedUserTypes = testUserTypes }
 
   let testAddOpEventV1 : LibBackend.Op.AddOpEventV1 =
-    { ``params`` = { ops = testOplist; opCtr = 0; clientOpCtrID = None }
+    { ``params`` =
+        { ops = testOplist; opCtr = 0; clientOpCtrID = testUuid.ToString() }
       result = testAddOpResultV1 }
 
 
@@ -677,11 +678,13 @@ module GenericSerializersTests =
       // AddOps
       v<ApiServer.AddOps.V1.Params>
         "simple"
-        { ops = testOplist; opCtr = 0; clientOpCtrID = None }
+        { ops = testOplist; opCtr = 0; clientOpCtrID = testUuid.ToString() }
       v<ApiServer.AddOps.V1.T> "simple" testAddOpResultV1
       oc<ApiServer.AddOps.V0.Params>
         "simple"
-        { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
+        { ops = testOCamlOplist
+          opCtr = 0
+          clientOpCtrId = Some(testUuid.ToString()) }
       oc<ApiServer.AddOps.V0.T> "simple" testAddOpEventV0
 
 

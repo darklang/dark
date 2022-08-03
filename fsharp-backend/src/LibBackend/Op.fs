@@ -208,11 +208,7 @@ type AddOpResultV1 =
     userTypes : List<PT.UserType.T>
     deletedUserTypes : List<PT.UserType.T> } // replace, see deleted_toplevels
 
-type AddOpParamsV1 =
-  { ops : List<PT.Op>
-    opCtr : int
-    // option means that we can still deserialize if this field is null
-    clientOpCtrID : Option<string> }
+type AddOpParamsV1 = { ops : List<PT.Op>; opCtr : int; clientOpCtrID : string }
 
 type AddOpEventV1 = { result : AddOpResultV1; ``params`` : AddOpParamsV1 }
 
