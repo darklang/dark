@@ -11,6 +11,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module CT = ClientTypes
 
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
@@ -121,9 +122,9 @@ let testDateMigrationHasCorrectFormats =
 // are able to be deserialized. The value here
 let testPreviousDateSerializionCompatibility =
   test "previous date serialization compatible" {
-    let expected = RT.DDate(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
+    let expected = CT.Dval.DDate(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
     let actual =
-      Json.Vanilla.deserialize<RT.Dval> """["DDate","1970-01-01T00:00:00"]"""
+      Json.Vanilla.deserialize<CT.Dval.T> """["DDate","1970-01-01T00:00:00"]"""
     Expect.equal expected actual "not deserializing correctly"
   }
 
@@ -279,18 +280,22 @@ let allRoundtrips =
         "vanilla"
         (fun dv ->
           dv
+          |> ClientTypes.Dval.fromRT
           |> Prelude.Json.Vanilla.serialize
           |> Prelude.Json.Vanilla.deserialize
+          |> ClientTypes.Dval.toRT
           |> Expect.dvalEquality dv)
         (dvs (function
           | RT.DPassword _ -> false
           | _ -> true))
       t
-        "ocamlcompatible"
+        "ocamlCompatible"
         (fun dv ->
           dv
+          |> ClientTypes.Dval.fromRT
           |> Prelude.Json.OCamlCompatible.serialize
           |> Prelude.Json.OCamlCompatible.deserialize
+          |> ClientTypes.Dval.toRT
           |> Expect.dvalEquality dv)
         (dvs (function
           | RT.DPassword _ -> false
@@ -417,8 +422,10 @@ module Password =
       doesRedact
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
-      doesRedact "Json.OCamlCompatible.serialize" Json.OCamlCompatible.serialize
-      doesRedact "Json.Vanilla.serialize" Json.Vanilla.serialize
+      doesRedact "Json.OCamlCompatible.serialize" (fun dv ->
+        dv |> CT.Dval.fromRT |> Json.OCamlCompatible.serialize)
+      doesRedact "Json.Vanilla.serialize" (fun dv ->
+        dv |> CT.Dval.fromRT |> Json.Vanilla.serialize)
       // These test that serializing via ocaml types will also omit the password.
       // This wasn't the case because these types are used for two contradictory
       // purposes: to communicate with the legacy server (where redacting passwords
@@ -466,24 +473,24 @@ module Password =
       "no auto serialization of passwords"
       [ test "vanilla" {
           let password =
-            RT.DPassword(Password(UTF8.toBytes "some password"))
+            CT.Dval.DPassword(Password(UTF8.toBytes "some password"))
             |> Json.Vanilla.serialize
             |> Json.Vanilla.deserialize
 
           Expect.equal
             password
-            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
+            (CT.Dval.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
         }
         test "ocamlcompatible" {
           let password =
-            RT.DPassword(Password(UTF8.toBytes "some password"))
+            CT.Dval.DPassword(Password(UTF8.toBytes "some password"))
             |> Json.OCamlCompatible.serialize
             |> Json.OCamlCompatible.deserialize
 
           Expect.equal
             password
-            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
+            (CT.Dval.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
         } ]
 

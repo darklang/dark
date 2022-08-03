@@ -12,8 +12,8 @@ module Telemetry = LibService.Telemetry
 let initSerializers () =
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
-  Json.Vanilla.allow<LibExecution.RuntimeTypes.Dval> "dvalrepr tests"
-  Json.OCamlCompatible.allow<LibExecution.RuntimeTypes.Dval> "dvalrepr tests"
+  Json.Vanilla.allow<ClientTypes.Dval.T> "dvalrepr tests"
+  Json.OCamlCompatible.allow<ClientTypes.Dval.T> "dvalrepr tests"
   Json.Vanilla.allow<LibExecution.OCamlTypes.RuntimeT.dval> "dvalrepr tests"
   Json.OCamlCompatible.allow<LibExecution.OCamlTypes.RuntimeT.dval> "dvalrepr tests"
   Json.OCamlCompatible.allow<LibExecution.ProgramTypes.Handler.T> "testCanvasClone"

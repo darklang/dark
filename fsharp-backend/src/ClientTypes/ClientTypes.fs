@@ -321,7 +321,7 @@ module Dval =
     | DHttpResponse of DHTTP
     | DDB of string
     | DDate of NodaTime.LocalDateTime
-    | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
+    | DPassword of Password
     | DUuid of System.Guid
     | DOption of Option<T>
     | DResult of Result<T, T>
@@ -351,7 +351,7 @@ module Dval =
     | DDate d -> RT.DDate d
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
-    | DPassword pw -> RT.DPassword(Password pw)
+    | DPassword pw -> RT.DPassword(pw)
     | DHttpResponse (Redirect url) -> RT.DHttpResponse(RT.Redirect url)
     | DHttpResponse (Response (code, headers, hdv)) ->
       RT.DHttpResponse(RT.Response(code, headers, toRT hdv))
@@ -391,7 +391,7 @@ module Dval =
     | RT.DDate d -> DDate d
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
-    | RT.DPassword (Password pw) -> DPassword pw
+    | RT.DPassword (Password pw) -> DPassword(Password pw)
     | RT.DHttpResponse (RT.Redirect url) -> DHttpResponse(Redirect url)
     | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
       DHttpResponse(Response(code, headers, fromRT hdv))

@@ -629,7 +629,7 @@ module GenericSerializersTests =
       // ------------------
 
       both<ORT.dval> "complete" testOCamlDval
-      both<RT.Dval> "complete" testDval
+      both<CT.Dval.T> "complete" testClientDval
       testHandlersWithName
       |> List.iter (fun (name, handler) -> oc<PT.Handler.T> name handler)
       // v<OT.oplist> "all" testOCamlOplist
