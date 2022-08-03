@@ -12153,15 +12153,9 @@
     "testorg-canvas2"
   ],
   "workerSchedules": {
-    "blocked": [
-      "Blocked"
-    ],
-    "paused": [
-      "Paused"
-    ],
-    "run": [
-      "Running"
-    ]
+    "blocked": "block",
+    "paused": "pause",
+    "run": "run"
   },
   "creationDate": "2022-07-04T17:46:57Z",
   "secrets": [

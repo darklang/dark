@@ -1001,7 +1001,7 @@ module Json =
     // frontend. It does handle F#-specific constructs, and prevents exposing
     // passwords (just in case).
 
-    let getOptions () =
+    let getDefaultOptions () =
       let fsharpConverter =
         JsonFSharpConverter(
           unionEncoding =
@@ -1020,12 +1020,24 @@ module Json =
 
       options
 
-    let _options = getOptions ()
+    let _options = getDefaultOptions ()
+
+    let _prettyOptions =
+      let options = getDefaultOptions ()
+      options.WriteIndented <- true
+      options
+
+    let _deserializeWithCommentsOptions =
+      let options = getDefaultOptions ()
+      options.ReadCommentHandling <- JsonCommentHandling.Skip
+      options
 
     let registerConverter (c : JsonConverter<'a>) =
       // insert in the front as the formatter will use the first converter that
       // supports the type, not the best one
       _options.Converters.Insert(0, c)
+      _prettyOptions.Converters.Insert(0, c)
+      _deserializeWithCommentsOptions.Converters.Insert(0, c)
 
     // ----------------------
     // Tracking serializers
@@ -1085,15 +1097,11 @@ module Json =
 
     let deserializeWithComments<'a> (json : string) : 'a =
       assertSerializable typeof<'a>
-      let options = getOptions ()
-      options.ReadCommentHandling <- JsonCommentHandling.Skip
-      JsonSerializer.Deserialize<'a>(json, options)
+      JsonSerializer.Deserialize<'a>(json, _deserializeWithCommentsOptions)
 
     let prettySerialize (data : 'a) : string =
       assertSerializable typeof<'a>
-      let options = getOptions ()
-      options.WriteIndented <- true
-      JsonSerializer.Serialize(data, options)
+      JsonSerializer.Serialize(data, _prettyOptions)
 
 
   module OCamlCompatible =
