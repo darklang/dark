@@ -282,11 +282,11 @@ let sendInvite = (m: model, params: APISendInvite.Params.t): cmd => {
 //
 // Ordering is determined by model.opCtrs, and we return a model so
 // we can also update the opCtrs map.
-let filterOpsAndResult = (
-  m: model,
-  params: APIAddOps.Params.t,
-  result: option<APIAddOps.Result.t>,
-): (model, list<PT.Op.t>, option<APIAddOps.Result.t>) => {
+let filterOpsAndResult = (m: model, params: APIAddOps.Params.t, result: option<APIAddOps.t>): (
+  model,
+  list<PT.Op.t>,
+  option<APIAddOps.t>,
+) => {
   // if the opCtr in params is greater than the one in the map, we'll create
   // an updated map
   let newOpCtrs = Map.update(m.opCtrs, ~key=params.clientOpCtrID, ~f=oldCtr =>
@@ -337,7 +337,7 @@ let filterOpsAndResult = (
     let ops = params.ops |> filter_ops_received_out_of_order
     let opTlids = ops |> List.map(~f=op => PT.Op.tlidOf(op))
     // We also want to ignore the result of ops we ignored
-    let result = Option.map(result, ~f=(result: APIAddOps.Result.t) => {
+    let result = Option.map(result, ~f=(result: APIAddOps.t) => {
       ...result,
       handlers: result.handlers |> List.filter(~f=(h: PT.Handler.t) =>
         List.member(~value=h.tlid, opTlids)

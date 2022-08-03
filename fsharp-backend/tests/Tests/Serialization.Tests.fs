@@ -481,17 +481,21 @@ module Values =
           user_tipes = testOCamlUserTipes
           deleted_user_tipes = testOCamlUserTipes } }
 
+
+  let testAddOpResultV1 : LibBackend.Op.AddOpResultV1 =
+    { handlers = testHandlers
+      deletedHandlers = testHandlers
+      dbs = testDBs
+      deletedDBs = testDBs
+      userFunctions = testUserFunctions
+      deletedUserFunctions = testUserFunctions
+      userTypes = testUserTypes
+      deletedUserTypes = testUserTypes }
+
   let testAddOpEventV1 : LibBackend.Op.AddOpEventV1 =
     { ``params`` = { ops = testOplist; opCtr = 0; clientOpCtrID = None }
-      result =
-        { handlers = testHandlers
-          deletedHandlers = testHandlers
-          dbs = testDBs
-          deletedDBs = testDBs
-          userFunctions = testUserFunctions
-          deletedUserFunctions = testUserFunctions
-          userTypes = testUserTypes
-          deletedUserTypes = testUserTypes } }
+      result = testAddOpResultV1 }
+
 
   let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
     (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
@@ -674,7 +678,7 @@ module GenericSerializersTests =
       v<ApiServer.AddOps.V1.Params>
         "simple"
         { ops = testOplist; opCtr = 0; clientOpCtrID = None }
-      v<ApiServer.AddOps.V1.T> "simple" testAddOpEventV1
+      v<ApiServer.AddOps.V1.T> "simple" testAddOpResultV1
       oc<ApiServer.AddOps.V0.Params>
         "simple"
         { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }

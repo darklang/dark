@@ -247,7 +247,7 @@ let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, A
   ({...m, complete: complete}, focus)
 }
 
-let applyOpsToClient = (updateCurrent, p: APIAddOps.Params.t, r: APIAddOps.Result.t): list<
+let applyOpsToClient = (updateCurrent, p: APIAddOps.Params.t, r: APIAddOps.t): list<
   modification,
 > => list{
   UpdateToplevels(r.handlers, r.dbs, updateCurrent),
@@ -1339,7 +1339,7 @@ let update_ = (msg: msg, m: model): modification => {
   | AddOpsAPICallback(focus, params, Ok(r: APIAddOps.t)) =>
     let (m, newOps, _) = API.filterOpsAndResult(m, params, None)
     let params = {...params, ops: newOps}
-    let initialMods = applyOpsToClient(focus !== FocusNoChange, params, r.result)
+    let initialMods = applyOpsToClient(focus !== FocusNoChange, params, r)
 
     let focusMods = if focus == FocusNoChange {
       list{}
@@ -1347,13 +1347,10 @@ let update_ = (msg: msg, m: model): modification => {
       let m = {
         ...m,
         opCtrs: Map.add(m.opCtrs, ~key=params.clientOpCtrID, ~value=params.opCtr),
-        handlers: Map.mergeRight(m.handlers, Handlers.fromList(r.result.handlers)),
-        dbs: Map.mergeRight(m.dbs, DB.fromList(r.result.dbs)),
-        userFunctions: Map.mergeRight(
-          m.userFunctions,
-          UserFunctions.fromList(r.result.userFunctions),
-        ),
-        userTypes: Map.mergeRight(m.userTypes, UserTypes.fromList(r.result.userTypes)),
+        handlers: Map.mergeRight(m.handlers, Handlers.fromList(r.handlers)),
+        dbs: Map.mergeRight(m.dbs, DB.fromList(r.dbs)),
+        userFunctions: Map.mergeRight(m.userFunctions, UserFunctions.fromList(r.userFunctions)),
+        userTypes: Map.mergeRight(m.userTypes, UserTypes.fromList(r.userTypes)),
       }
 
       let newState = processFocus(m, focus)

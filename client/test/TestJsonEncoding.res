@@ -238,11 +238,7 @@ let run = () => {
       AnalysisTypes.PerformAnalysis.Params.decode,
       AnalysisTypes.PerformAnalysis.Params.encode,
     )
-    // t(
-    //   "vanilla-LibBackend-Op-AddOpEventV1-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
+    t("vanilla-LibBackend-Op-AddOpResultV1-simple.json", APIAddOps.decode, APIAddOps.encode)
     // t(
     //   "vanilla-LibBackend-Op-AddOpParamsV1-simple.json",
     //   TODO.decode,

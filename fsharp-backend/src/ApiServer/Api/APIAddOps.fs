@@ -163,7 +163,7 @@ module V0 =
 module V1 =
 
   // A subset of responses to be merged in
-  type T = Op.AddOpEventV1
+  type T = Op.AddOpResultV1
 
   type Params = Op.AddOpParamsV1
 
@@ -258,15 +258,12 @@ module V1 =
 
 
       t.next "send-ops-to-pusher"
-      let event =
-        // To make this work with prodclone, we might want to have it specify
-        // more ... else people's prodclones will stomp on each other ...
-        if causesAnyChanges newOps then
-          let event : Op.AddOpEventV1 = { result = result; ``params`` = p }
-          LibBackend.Pusher.pushAddOpEventV1 canvasID event
-          event
-        else
-          { result = empty; ``params`` = p }
+      // To make this work with prodclone, we might want to have it specify
+      // more ... else people's prodclones will stomp on each other ...
+      if causesAnyChanges newOps then
+        LibBackend.Pusher.pushAddOpEventV1
+          canvasID
+          { result = result; ``params`` = p }
 
       t.next "send-event-to-heapio"
       // NB: I believe we only send one op at a time, but the type is op list
@@ -285,5 +282,5 @@ module V1 =
           (Op.eventNameOfOp op)
           Map.empty)
 
-      return event
+      return result
     }
