@@ -445,7 +445,7 @@ module Analysis =
     type T =
       { input : InputVars
         timestamp : NodaTime.Instant
-        function_results : List<FunctionResult> }
+        functionResults : List<FunctionResult> }
 
     let toAT (td : T) : AT.TraceData =
       { input = List.map (fun (k, v) -> (k, Dval.toRT v)) td.input
@@ -454,7 +454,7 @@ module Analysis =
           List.map
             (fun (name, id, hash, version, dval) ->
               (name, id, hash, version, Dval.toRT dval))
-            td.function_results }
+            td.functionResults }
 
 
   type Trace = TraceID * TraceData.T
