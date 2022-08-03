@@ -384,41 +384,45 @@ module Values =
               nameID = 923982352UL
               typeID = 289429232UL } ] } ]
 
-  let testUserFunctions : List<PT.UserFunction.T> =
-    [ { tlid = 0UL
-        name = "myFunc"
-        nameID = 1828332UL
-        parameters =
-          [ { name = "myparam1"
-              nameID = 23824935UL
-              typ = None
-              typeID = 38284244UL
-              description = "param1" }
-            { name = "myparam2"
-              nameID = 92837232UL
-              typ = Some testType
-              typeID = 239232UL
-              description = "param1" } ]
-        returnType = testType
-        returnTypeID = 23923423UL
-        description = "function description"
-        infix = false
-        body = testExpr } ]
+  let testUserFunction : PT.UserFunction.T =
+    { tlid = 0UL
+      name = "myFunc"
+      nameID = 1828332UL
+      parameters =
+        [ { name = "myparam1"
+            nameID = 23824935UL
+            typ = None
+            typeID = 38284244UL
+            description = "param1" }
+          { name = "myparam2"
+            nameID = 92837232UL
+            typ = Some testType
+            typeID = 239232UL
+            description = "param1" } ]
+      returnType = testType
+      returnTypeID = 23923423UL
+      description = "function description"
+      infix = false
+      body = testExpr }
 
-  let testUserTypes : List<PT.UserType.T> =
-    [ { tlid = 0UL
-        name = "User"
-        nameID = 92930232UL
-        version = 0
-        definition =
-          PT.UserType.Record [ { name = "prop1"
-                                 typ = None
-                                 nameID = 923942342UL
-                                 typeID = 3452342UL }
-                               { name = "prop1"
-                                 typ = Some testType
-                                 nameID = 0698978UL
-                                 typeID = 93494534UL } ] } ]
+  let testUserFunctions : List<PT.UserFunction.T> = [ testUserFunction ]
+
+  let testUserType : PT.UserType.T =
+    { tlid = 0UL
+      name = "User"
+      nameID = 92930232UL
+      version = 0
+      definition =
+        PT.UserType.Record [ { name = "prop1"
+                               typ = None
+                               nameID = 923942342UL
+                               typeID = 3452342UL }
+                             { name = "prop1"
+                               typ = Some testType
+                               nameID = 0698978UL
+                               typeID = 93494534UL } ] }
+
+  let testUserTypes : List<PT.UserType.T> = [ testUserType ]
 
 
   let testToplevels : List<PT.Toplevel.T> =
@@ -445,7 +449,7 @@ module Values =
       PT.SetDBColType(tlid, id, "int")
       PT.DeleteTL tlid
       PT.MoveTL(tlid, testPos)
-      PT.SetFunction(testUserFunctions[0])
+      PT.SetFunction(testUserFunction)
       PT.ChangeDBColName(tlid, id, "name")
       PT.ChangeDBColType(tlid, id, "int")
       PT.UndoTL tlid
@@ -456,7 +460,7 @@ module Values =
       PT.DeleteDBCol(tlid, id)
       PT.RenameDBname(tlid, "newname")
       PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
-      PT.SetType(testUserTypes[0])
+      PT.SetType(testUserType)
       PT.DeleteType tlid ]
 
   let testOCamlOplist : OT.oplist = OT.Convert.pt2ocamlOplist testOplist
@@ -971,7 +975,30 @@ module GenericSerializersTests =
                 timestamp = testInstant
                 functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }
             dbs =
-              [ { tlid = testTLIDs[0]
+              [ { tlid = testTLID
+                  name = "dbname"
+                  nameID = 7UL
+                  pos = testPos
+                  cols =
+                    [ { name = Some("colname")
+                        nameID = 8UL
+                        typ = Some(PT.TInt)
+                        typeID = 9UL } ]
+                  version = 1 } ]
+            userFns = testUserFunctions
+            userTypes = testUserTypes
+            secrets = [ { name = "z"; value = "y" } ] })
+      v<ClientTypes.Analysis.PerformAnalysisParams>
+        "function"
+        (ClientTypes.Analysis.AnalyzeFunction
+          { func = testUserFunction
+            traceID = testUuid
+            traceData =
+              { input = [ "var", testClientDval ]
+                timestamp = testInstant
+                functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }
+            dbs =
+              [ { tlid = testTLID
                   name = "dbname"
                   nameID = 7UL
                   pos = testPos
