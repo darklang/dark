@@ -223,11 +223,11 @@ let run = () => {
       APIWorkers.WorkerStats.Params.decode,
       APIWorkers.WorkerStats.Params.encode,
     )
-    // t(
-    //   "vanilla-ApiServer-Workers-WorkerStats-T-simple.json",
-    //   APIWorker.WorkerStats.decode,
-    //   APIWorker.WorkerStats.encode,
-    // )
+    t(
+      "vanilla-ApiServer-Workers-WorkerStats-T-simple.json",
+      APIWorkers.WorkerStats.decode,
+      APIWorkers.WorkerStats.encode,
+    )
     // t(
     //   "vanilla-LibAnalysis-ClientInterop-PerformAnalysisParams-handler.json",
     //   APIDBs.Unlocked.decode,

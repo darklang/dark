@@ -1700,7 +1700,11 @@ let update_ = (msg: msg, m: model): modification => {
 
         let m = Sync.markResponseInModel(m, ~key)
         let tlid = params.tlid
-        let workerStats = Map.add(~key=tlid, ~value=result, m.workerStats)
+        let workerStats = Map.add(
+          ~key=tlid,
+          ~value={count: result.count, schedule: None},
+          m.workerStats,
+        )
         ({...m, workerStats: workerStats}, Cmd.none)
       },
     )

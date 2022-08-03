@@ -15,11 +15,16 @@ module WorkerStats = {
   }
 
   @ppx.deriving(show({with_path: false}))
-  type rec t = AnalysisTypes.WorkerStats.t
+  type rec t = {count: int}
 
   let decode = (j): t => {
     open Json_decode_extended
-    {count: field("count", int, j), schedule: None}
+    {count: field("count", int, j)}
+  }
+
+  let encode = (ws: t): Js.Json.t => {
+    open Json_encode_extended
+    object_(list{("count", int(ws.count))})
   }
 }
 
