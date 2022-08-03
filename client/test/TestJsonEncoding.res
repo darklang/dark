@@ -244,21 +244,13 @@ let run = () => {
       APIAddOps.Params.decode,
       APIAddOps.Params.encode,
     )
-    // t(
-    //   "vanilla-LibBackend-StaticAssets-StaticDeploy-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
-    // t(
-    //   "vanilla-LibExecution-ProgramTypes-Position-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
-    // t(
-    //   "vanilla-LibExecution-RuntimeTypes-Dval-complete.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
+    t(
+      "vanilla-LibBackend-StaticAssets-StaticDeploy-simple.json",
+      StaticAssets.Deploy.decode,
+      StaticAssets.Deploy.encode,
+    )
+    t("vanilla-LibExecution-ProgramTypes-Position-simple.json", Pos.decode, Pos.encode)
+    t("vanilla-ClientTypes-Dval-T-complete.json", RT.Dval.decode, RT.Dval.encode)
     // t(
     //   "vanilla-Microsoft-FSharp-Collections-FSharpList-1-ApiServer-Functions-BuiltInFn-T-all.json",
     //   TODO.decode,
