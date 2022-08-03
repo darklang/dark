@@ -228,71 +228,71 @@ let run = () => {
       APIWorkers.WorkerStats.decode,
       APIWorkers.WorkerStats.encode,
     )
-    // t(
-    //   "vanilla-LibAnalysis-ClientInterop-PerformAnalysisParams-handler.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
-    // )
+    t(
+      "vanilla-ClientTypes-Analysis-PerformAnalysisParams-handler.json",
+      AnalysisTypes.PerformAnalysis.Params.decode,
+      AnalysisTypes.PerformAnalysis.Params.encode,
+    )
     // t(
     //   "vanilla-LibBackend-Op-AddOpEventV1-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-LibBackend-Op-AddOpParamsV1-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-LibBackend-StaticAssets-StaticDeploy-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-LibExecution-ProgramTypes-Position-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-LibExecution-RuntimeTypes-Dval-complete.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-Microsoft-FSharp-Collections-FSharpList-1-ApiServer-Functions-BuiltInFn-T-all.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Package-Fn-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-ApiServer-DBs-DBStatsV1-Stat-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-2-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-LibExecution-AnalysisTypes-ExecutionResult-System-String-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
-    // t("vanilla-Prelude-pos-simple.json", APIDBs.Unlocked.decode, APIDBs.Unlocked.encode)
+    // t("vanilla-Prelude-pos-simple.json", TODO.decode, TODO.encode)
     // t(
     //   "vanilla-System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
     // t(
     //   "vanilla-System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-simple.json",
-    //   APIDBs.Unlocked.decode,
-    //   APIDBs.Unlocked.encode,
+    //   TODO.decode,
+    //   TODO.encode,
     // )
   })
 }

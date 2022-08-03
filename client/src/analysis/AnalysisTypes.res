@@ -151,9 +151,6 @@ module ExecutionResult = {
   }
 }
 
-// map from expression ids to symbol table, which maps from varname strings to
-// the ids of the expressions that represent their values
-
 module PerformAnalysis = {
   module Handler = {
     module Params = {
@@ -179,6 +176,19 @@ module PerformAnalysis = {
           ("userTypes", list(PT.UserType.encode, params.userTypes)),
           ("secrets", list(SecretTypes.encode, params.secrets)),
         })
+      }
+
+      let decode = (j): t => {
+        open Json_decode_extended
+        {
+          handler: field("handler", PT.Handler.decode, j),
+          traceID: field("traceID", TraceID.decode, j),
+          traceData: field("traceData", TraceData.decode, j),
+          dbs: field("dbs", list(PT.DB.decode), j),
+          userFns: field("userFns", list(PT.UserFunction.decode), j),
+          userTypes: field("userTypes", list(PT.UserType.decode), j),
+          secrets: field("secrets", list(SecretTypes.decode), j),
+        }
       }
     }
   }
@@ -208,6 +218,19 @@ module PerformAnalysis = {
           ("secrets", list(SecretTypes.encode, params.secrets)),
         })
       }
+
+      let decode = (j): t => {
+        open Json_decode_extended
+        {
+          func: field("func", PT.UserFunction.decode, j),
+          traceID: field("traceID", TraceID.decode, j),
+          traceData: field("traceData", TraceData.decode, j),
+          dbs: field("dbs", list(PT.DB.decode), j),
+          userFns: field("userFns", list(PT.UserFunction.decode), j),
+          userTypes: field("userTypes", list(PT.UserType.decode), j),
+          secrets: field("secrets", list(SecretTypes.decode), j),
+        }
+      }
     }
   }
 
@@ -224,6 +247,17 @@ module PerformAnalysis = {
       | AnalyzeHandler(h) => ev("AnalyzeHandler", list{Handler.Params.encode(h)})
       | AnalyzeFunction(h) => ev("AnalyzeFunction", list{Function.Params.encode(h)})
       }
+    }
+
+    let decode = (j: Js.Json.t): t => {
+      open Json_decode_extended
+      variants(
+        list{
+          ("AnalyzeHandler", variant1(a => AnalyzeHandler(a), Handler.Params.decode)),
+          ("AnalyzeFunction", variant1(a => AnalyzeFunction(a), Function.Params.decode)),
+        },
+        j,
+      )
     }
   }
 
