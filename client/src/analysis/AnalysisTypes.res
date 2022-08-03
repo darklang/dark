@@ -318,24 +318,25 @@ module FourOhFour = {
 module WorkerState = {
   @ppx.deriving(show({with_path: false}))
   type rec t = Running | Blocked | Paused
+
+  // The backend has some serializers that make this hard to use the natural
+  // serialization for this
   let encode = (ws: t): Js.Json.t => {
     open Json_encode_extended
     switch ws {
-    | Running => variant("Running", list{})
-    | Blocked => variant("Blocked", list{})
-    | Paused => variant("Paused", list{})
+    | Running => string("run")
+    | Blocked => string("block")
+    | Paused => string("pause")
     }
   }
   let decode = (j: Js.Json.t): t => {
     open Json_decode_extended
-    variants(
-      list{
-        ("Running", variant0(Running)),
-        ("Blocked", variant0(Blocked)),
-        ("Paused", variant0(Paused)),
-      },
-      j,
-    )
+    switch string(j) {
+    | "run" => Running
+    | "block" => Blocked
+    | "pause" => Paused
+    | _ => Recover.recover("Invalid WorkerState encoding", Running)
+    }
   }
 }
 

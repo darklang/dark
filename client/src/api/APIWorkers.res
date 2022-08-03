@@ -7,6 +7,11 @@ module WorkerStats = {
       open Json_encode_extended
       object_(list{("tlid", TLID.encode(params.tlid))})
     }
+
+    let decode = (j): t => {
+      open Json_decode_extended
+      {tlid: field("tlid", TLID.decode, j)}
+    }
   }
 
   @ppx.deriving(show({with_path: false}))
@@ -22,16 +27,24 @@ module Scheduler = {
   module Params = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      workerName: string,
+      name: string,
       schedule: AnalysisTypes.WorkerState.t,
     }
 
     let encode = (params: t): Js.Json.t => {
       open Json_encode_extended
       object_(list{
-        ("name", string(params.workerName)),
+        ("name", string(params.name)),
         ("schedule", AnalysisTypes.WorkerState.encode(params.schedule)),
       })
+    }
+
+    let decode = (j): t => {
+      open Json_decode_extended
+      {
+        name: field("name", string, j),
+        schedule: field("schedule", AnalysisTypes.WorkerState.decode, j),
+      }
     }
   }
 

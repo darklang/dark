@@ -213,16 +213,16 @@ let run = () => {
       APITraces.TraceData.decode,
       APITraces.TraceData.encode,
     )
-    // t(
-    //   "vanilla-ApiServer-Workers-Scheduler-Params-simple.json",
-    //   APIWorkers.Scheduler.Params.decode,
-    //   APIWorkers.Scheduler.Params.encode,
-    // )
-    // t(
-    //   "vanilla-ApiServer-Workers-WorkerStats-Params-simple.json",
-    //   APIWorkers.WorkerStats.Params.decode,
-    //   APIWorkers.WorkerStats.Params.encode,
-    // )
+    t(
+      "vanilla-ApiServer-Workers-Scheduler-Params-simple.json",
+      APIWorkers.Scheduler.Params.decode,
+      APIWorkers.Scheduler.Params.encode,
+    )
+    t(
+      "vanilla-ApiServer-Workers-WorkerStats-Params-simple.json",
+      APIWorkers.WorkerStats.Params.decode,
+      APIWorkers.WorkerStats.Params.encode,
+    )
     // t(
     //   "vanilla-ApiServer-Workers-WorkerStats-T-simple.json",
     //   APIWorker.WorkerStats.decode,

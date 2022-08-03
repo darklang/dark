@@ -1974,9 +1974,9 @@ let update_ = (msg: msg, m: model): modification => {
   | GoToArchitecturalView => Many(list{Deselect, MakeCmd(Url.navigateTo(Architecture))})
   | DismissErrorBar => Model.updateErrorMod(Error.clear)
   | PauseWorker(workerName) =>
-    MakeCmd(API.updateWorkerSchedule(m, {workerName: workerName, schedule: Paused}))
+    MakeCmd(API.updateWorkerSchedule(m, {name: workerName, schedule: Paused}))
   | RunWorker(workerName) =>
-    MakeCmd(API.updateWorkerSchedule(m, {workerName: workerName, schedule: Running}))
+    MakeCmd(API.updateWorkerSchedule(m, {name: workerName, schedule: Running}))
   | UpdateWorkerScheduleCallback(Ok(schedules)) => UpdateWorkerSchedules(schedules)
   | UpdateWorkerScheduleCallback(Error(_)) =>
     Model.updateErrorMod(Error.set("Failed to update worker schedule"))
