@@ -29,7 +29,7 @@
     "minimist": ">=1.2.6",
     "moment": "^2.29.4",
     "mouse-wheel": "1.2.0",
-    "pusher-js": "5.1.1",
+    "pusher-js": "7.3.0",
     "rescript-js": "0.7.0",
     "rollbar": "2.25.1",
     "sha2": "1.0.2",
