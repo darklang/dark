@@ -990,7 +990,7 @@ module Op = {
         ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
         (
           "ChangeDBColType",
-          variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string),
+          variant3((t, i, tipe) => ChangeDBColType(t, i, tipe), tlid, id, string),
         ),
         ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
         ("TLSavepoint", variant1(t => TLSavepoint(t), tlid)),
