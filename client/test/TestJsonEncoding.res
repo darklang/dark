@@ -134,8 +134,34 @@ let run = () => {
     let processedSerializationFiles: Belt.MutableMap.String.t<bool> = Belt.MutableMap.String.make()
     let entries = NodeJs.Fs.readdirSync("backend/serialization")
     Belt.Array.forEach(entries, entry =>
-      Belt.MutableMap.String.set(processedSerializationFiles, entry, false)
+      // only need to check vanilla serializations
+      if String.startsWith(~prefix="vanilla", entry) {
+        Belt.MutableMap.String.set(processedSerializationFiles, entry, false)
+      }
     )
+    let ignores = [
+      "vanilla-System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-simple.json",
+      "vanilla-System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-simple.json",
+      "vanilla-Prelude-pos-simple.json",
+      "vanilla-Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-2-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-ClientTypes-Analysis-ExecutionResult-T-System-String-simple.json",
+      "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-simple.json",
+      "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-simple.json",
+      "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-all.json",
+      "vanilla-Microsoft-FSharp-Collections-FSharpList-1-LibExecution-OCamlTypes-op-simple.json",
+      "vanilla-LibService-Rollbar-HoneycombJson-simple.json",
+      "vanilla-LibExecution-OCamlTypes-RuntimeT-dval-complete.json",
+      "vanilla-LibExecution-DvalReprInternalNew-RoundtrippableSerializationFormatV0-Dval-complete.json",
+      "vanilla-LibBackend-Session-JsonData-simple.json",
+      "vanilla-LibBackend-Pusher-AddOpEventTooBigPayload-simple.json",
+      "vanilla-LibBackend-EventQueueV2-NotificationData-simple.json",
+      "vanilla-ApiServer-Traces-TraceDataV0-T-simple.json",
+      "vanilla-ApiServer-Traces-TraceDataV0-Params-simple.json",
+      "vanilla-ApiServer-Secrets-InsertV0-T-simple.json",
+      "vanilla-ApiServer-Secrets-InsertV0-Secret-simple.json",
+      "vanilla-ApiServer-Secrets-DeleteV0-T-simple.json",
+      "vanilla-ApiServer-Secrets-DeleteV0-Params-simple.json",
+    ]
+    Belt.MutableMap.String.removeMany(processedSerializationFiles, ignores)
 
     let t = (filename, decoder, encoder) => {
       test(`decoding ${filename}`, () => {
