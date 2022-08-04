@@ -298,11 +298,11 @@ let run = () => {
       Json.Decode.list(ProgramTypes.Package.Fn.decode),
       Json.Encode.list(ProgramTypes.Package.Fn.encode),
     )
-    // t(
-    //   "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-ApiServer-DBs-DBStatsV1-Stat-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
+    t(
+      "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-ApiServer-DBs-DBStatsV1-Stat-simple.json",
+      APIDBs.DBStats.decode,
+      APIDBs.DBStats.encode,
+    )
     // t(
     //   "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-simple.json",
     //   TODO.decode,

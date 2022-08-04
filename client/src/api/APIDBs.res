@@ -20,6 +20,7 @@ module DBStats = {
   module Params = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {dbStatsTlids: list<TLID.t>}
+
     let encode = (params: t): Js.Json.t => {
       open Json_encode_extended
       object_(list{("tlids", list(TLID.encode, params.dbStatsTlids))})
@@ -43,10 +44,23 @@ module DBStats = {
         example: field("example", optional(tuple2(RT.Dval.decode, string)), j),
       }
     }
+
+    let encode = (params: t): Js.Json.t => {
+      open Json_encode_extended
+      object_(list{
+        ("count", int(params.count)),
+        ("example", nullable(pair(RT.Dval.encode, string), params.example)),
+      })
+    }
   }
 
   @ppx.deriving(show({with_path: false}))
   type rec t = Tc.Map.String.t<Stat.t>
 
   let decode = (j): t => Json_decode_extended.strDict(Stat.decode, j)
+
+  let encode = (d: t): Js.Json.t => {
+    open Json_encode_extended
+    strDict(Stat.encode, d)
+  }
 }
