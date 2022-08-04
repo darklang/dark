@@ -549,15 +549,6 @@ module GenericSerializersTests =
     let keyFor (typeName : string) (serializerName : string) : string =
       $"{serializerName}-{typeName}"
 
-    let fileNameFor
-      (typeName : string)
-      (serializerName : string)
-      (dataName : string)
-      : string =
-      let original = $"{serializerName}-{typeName}-{dataName}"
-      let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
-      Regex.Replace(replaced, "[-]+", "-") + ".json"
-
     let get
       (typeName : string)
       (serializerName : string)
@@ -1032,6 +1023,16 @@ module GenericSerializersTests =
 
     generateTestData ()
 
+  let fileNameFor
+    (serializerName : string)
+    (reason : string)
+    (typeName : string)
+    (dataName : string)
+    : string =
+    let original = $"{serializerName}_{reason}_{typeName}_{dataName}"
+    let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
+    Regex.Replace(replaced, "[-]+", "-") + ".json"
+
   let testNoExtraTestFiles : Test =
     test "test no extra test files" {
       let filenamesFor dict serializerName =
@@ -1040,19 +1041,19 @@ module GenericSerializersTests =
         |> List.map (fun (typeName, reason) ->
           SampleData.get typeName serializerName reason
           |> List.map (fun (name, _) ->
-            SampleData.fileNameFor typeName serializerName name))
+            fileNameFor serializerName reason typeName name))
         |> List.concat
         |> Set
 
       let vanillaFilenames = filenamesFor Json.Vanilla.allowedTypes "vanilla"
-      let vanillaActual = File.lsPattern Config.Serialization "vanilla-*.json" |> Set
+      let vanillaActual = File.lsPattern Config.Serialization "vanilla_*.json" |> Set
       let vanillaMissingFiles = Set.difference vanillaFilenames vanillaActual
       let vanillaExtraFiles = Set.difference vanillaActual vanillaFilenames
       Expect.equal vanillaMissingFiles Set.empty "missing vanilla files"
       Expect.equal vanillaExtraFiles Set.empty "extra vanilla files"
 
       let ocamlFilenames = filenamesFor Json.OCamlCompatible.allowedTypes "ocaml"
-      let ocamlActual = File.lsPattern Config.Serialization "ocaml-*.json" |> Set
+      let ocamlActual = File.lsPattern Config.Serialization "ocaml_*.json" |> Set
       let ocamlMissingFiles = Set.difference ocamlFilenames ocamlActual
       let ocamlExtraFiles = Set.difference ocamlActual ocamlFilenames
       Expect.equal ocamlMissingFiles Set.empty "missing ocaml files"
@@ -1069,7 +1070,7 @@ module GenericSerializersTests =
           // For each type, compare the sample data to the file data
           SampleData.get typeName serializerName reason
           |> List.iter (fun (name, actualSerializedData) ->
-            let filename = SampleData.fileNameFor typeName serializerName name
+            let filename = fileNameFor serializerName reason typeName name
             let expected = File.readfile Config.Serialization filename
             Expect.equal actualSerializedData expected "matches")
         })
@@ -1084,7 +1085,7 @@ module GenericSerializersTests =
         // For each type, compare the sample data to the file data
         SampleData.get typeName serializerName reason
         |> List.iter (fun (name, serializedData) ->
-          let filename = SampleData.fileNameFor typeName serializerName name
+          let filename = fileNameFor serializerName reason typeName name
           File.writefile Config.Serialization filename serializedData))
     generate Json.Vanilla.allowedTypes "vanilla"
     generate Json.OCamlCompatible.allowedTypes "ocaml"
