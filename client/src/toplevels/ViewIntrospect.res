@@ -133,10 +133,11 @@ let handlerView = (
 ): Html.html<msg> => {
   module Spec = PT.Handler.Spec
   let modifier_ = switch Spec.modifier(spec) {
-  | Some("_") | Some("") | None => Vdom.noNode
-  | Some(m) => Html.div(list{Html.class'("spec")}, list{Html.text(m)})
+  | Some(F(_, "_")) | Some(F(_, "")) | Some(Blank(_)) | None => Vdom.noNode
+  | Some(F(_, m)) => Html.div(list{Html.class'("spec")}, list{Html.text(m)})
   }
-  let space = Spec.space(spec)->Belt.Option.getWithDefault("")
+  let space = Spec.space(spec)->B.toString
+  let name = Spec.name(spec)->B.toString
 
   Html.div(
     list{
@@ -150,7 +151,7 @@ let handlerView = (
     },
     list{
       Html.div(list{Html.class'("spec space")}, list{Html.text(space)}),
-      Html.div(list{Html.class'("spec")}, list{Html.text(Spec.name(spec))}),
+      Html.div(list{Html.class'("spec")}, list{Html.text(name)}),
       modifier_,
     },
   )

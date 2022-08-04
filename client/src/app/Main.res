@@ -1799,7 +1799,7 @@ let update_ = (msg: msg, m: model): modification => {
     let ast = ProgramTypes.Expr.EBlank(gid())
     let aHandler: PT.Handler.t = {
       ast: FluidAST.ofExpr(ast),
-      spec: SpecHeaders.fromBlankOrs((B.newF(space), B.newF(path), B.newF(modifier))),
+      spec: SpecHeaders.fromBlankOrs((B.newF(space), B.newF(path), Some(B.newF(modifier)))),
       tlid: tlid,
       pos: pos,
     }

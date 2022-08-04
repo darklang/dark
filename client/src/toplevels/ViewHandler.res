@@ -165,8 +165,7 @@ let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> => {
 let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEventList): Html.html<
   msg,
 > => {
-  let ids = PT.Handler.Spec.ids(spec)
-  let eventName = PT.Handler.Spec.name(spec)->B.fromStringID(ids.nameID)
+  let eventName = PT.Handler.Spec.name(spec)
   let viewEventName = viewText(
     ~enterable=true,
     ~classes=list{"toplevel-name"},
@@ -175,21 +174,13 @@ let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEven
     eventName,
   )
 
-  let eventSpace = PT.Handler.Spec.space(spec)->B.fromOptionID(ids.moduleID)
+  let eventSpace = PT.Handler.Spec.space(spec)
   let viewEventSpace = viewText(~enterable=true, ~classes=list{"space"}, EventSpace, vp, eventSpace)
 
-  let eventModifier = PT.Handler.Spec.modifier(spec)->B.fromOptionID(ids.modifierID)
   let viewEventModifier = {
-    let viewMod = viewText(
-      ~enterable=true,
-      ~classes=list{"modifier"},
-      EventModifier,
-      vp,
-      eventModifier,
-    )
-
-    switch spec {
-    | PT.Handler.Spec.HTTP(_) | PT.Handler.Spec.Cron(_) =>
+    switch PT.Handler.Spec.modifier(spec) {
+    | Some(mod) =>
+      let viewMod = viewText(~enterable=true, ~classes=list{"modifier"}, EventModifier, vp, mod)
       Html.div(list{Html.class'("modifier")}, list{viewMod})
     | _ => Vdom.noNode
     }

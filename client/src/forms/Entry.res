@@ -494,7 +494,7 @@ let submitACItem = (
           let new_ = B.newF(value)
           let modifier = switch PT.Handler.Spec.modifier(h.spec) {
           | None => f404.modifier
-          | Some(mod) => mod
+          | Some(mod) => B.toString(mod)
           }
           let specInfo: PT.Handler.Spec.t = PT.Handler.Spec.newHTTP(f404.path, modifier)
 
@@ -520,20 +520,20 @@ let submitACItem = (
           | Cron(_)
           | REPL(_)
           | UnknownHandler(_, _, _) => {
-              let name = Spec.name(h.spec)
+              let name = Spec.name(h.spec)->B.toString
               let newPath = if !String.startsWith(~prefix="/", name) {
                 "/" ++ name
               } else {
                 name
               }
-              let newModifier = Spec.modifier(h.spec)->Belt.Option.getWithDefault("")
+              let newModifier = Spec.modifier(h.spec)->B.optionToString
               HTTP(newPath, newModifier, Spec.ids(h.spec))
             }
           }
         } else {
           let name = switch h.spec {
           | HTTP(_) => {
-              let name = Spec.name(h.spec)
+              let name = Spec.name(h.spec)->B.toString
               // convert /projects => projects
               let name = if String.startsWith(~prefix="/", name) {
                 String.dropLeft(~count=1, name)
@@ -548,7 +548,7 @@ let submitACItem = (
           | Cron(_)
           | REPL(_)
           | UnknownHandler(_) =>
-            Spec.name(h.spec)
+            Spec.name(h.spec)->B.toString
           }
           switch newSpace {
           | "WORKER" => Worker(name, Spec.ids(h.spec))

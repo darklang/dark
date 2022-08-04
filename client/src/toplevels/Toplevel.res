@@ -13,7 +13,8 @@ type model = AppTypes.model
 // -------------------------
 let name = (tl: toplevel): string =>
   switch tl {
-  | TLHandler(h) => "H: " ++ PT.Handler.Spec.name(h.spec)
+  | TLHandler(h) =>
+    "H: " ++ PT.Handler.Spec.name(h.spec)->B.toOption->Belt.Option.getWithDefault("Undefined")
   | TLDB(db) => "DB: " ++ db.name
   | TLPmFunc(fn) => "Package Manager Func: " ++ PT.FQFnName.PackageFnName.toString(fn.name)
   | TLFunc(f) => "Func: " ++ f.name
@@ -23,9 +24,11 @@ let name = (tl: toplevel): string =>
 let sortkey = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) =>
-    PT.Handler.Spec.space(h.spec)->Belt.Option.getWithDefault("Undefined") ++
-    PT.Handler.Spec.name(h.spec) ++
-    PT.Handler.Spec.modifier(h.spec)->Belt.Option.getWithDefault("Undefined")
+    PT.Handler.Spec.space(h.spec)->B.toOption->Belt.Option.getWithDefault("Undefined") ++
+    PT.Handler.Spec.name(h.spec)->B.toOption->Belt.Option.getWithDefault("Undefined") ++
+    PT.Handler.Spec.modifier(h.spec)
+    ->Option.andThen(~f=B.toOption)
+    ->Belt.Option.getWithDefault("Undefined")
   | TLDB(db) => db.name
   | TLPmFunc(f) => PT.FQFnName.PackageFnName.toString(f.name)
   | TLFunc(f) => f.name

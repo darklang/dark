@@ -114,6 +114,7 @@ let curlFromCurrentTrace = (m: AppTypes.model, tlid: TLID.t): option<string> => 
           TL.get(m, tlid)
           |> Option.andThen(~f=TL.asHandler)
           |> Option.andThen(~f=(h: PT.Handler.t) => PT.Handler.Spec.modifier(h.spec))
+          |> Option.andThen(~f=B.toOption)
           |> Option.andThen(~f=s => Some("-X " ++ s))
           |> wrapInList
 

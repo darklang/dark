@@ -10,7 +10,7 @@ module CronInterval = Spec.CronInterval
 // HACK: the code for headers was really written around the blankOr paradigm. So to
 // avoid code changes getting out of control, let's simply convert it back into
 // blankOrs, do the operations, and change it back
-type triple = (BlankOr.t<string>, BlankOr.t<string>, BlankOr.t<string>)
+type triple = (BlankOr.t<string>, BlankOr.t<string>, option<BlankOr.t<string>>)
 
 let spaceOf = (hs: Spec.t): handlerSpace => {
   switch hs {
@@ -25,23 +25,24 @@ let spaceOf = (hs: Spec.t): handlerSpace => {
 }
 
 let toBlankOrs = (spec: Spec.t): triple => {
-  let ids = Spec.ids(spec)
-  (
-    Spec.space(spec)->B.fromOptionID(ids.moduleID),
-    Spec.name(spec)->B.fromStringID(ids.nameID),
-    Spec.modifier(spec)->B.fromOptionID(ids.modifierID),
-  )
+  (Spec.space(spec), Spec.name(spec), Spec.modifier(spec))
 }
 
 let fromBlankOrs = ((space, name, mod): triple): Spec.t => {
-  let ids: Spec.IDs.t = {moduleID: B.toID(space), nameID: B.toID(name), modifierID: B.toID(mod)}
+  let ids: Spec.IDs.t = {
+    moduleID: B.toID(space),
+    nameID: B.toID(name),
+    modifierID: Option.map(~f=B.toID, mod)->Belt.Option.getWithDefault(gid()),
+  }
+  let name = B.toString(name)
+  let mod = B.optionToString(mod)
   switch B.toString(space)->String.toLowercase {
-  | "http" => Spec.HTTP(B.toString(name), B.toString(mod), ids)
-  | "cron" => Spec.Cron(B.toString(name), B.toString(mod) |> CronInterval.fromString, ids)
-  | "repl" => Spec.REPL(B.toString(name), ids)
-  | "worker" => Spec.Worker(B.toString(name), ids)
-  | "" => Spec.UnknownHandler(B.toString(name), B.toString(mod), ids)
-  | space => Spec.OldWorker(space, B.toString(name), ids)
+  | "http" => Spec.HTTP(name, mod, ids)
+  | "cron" => Spec.Cron(name, mod |> CronInterval.fromString, ids)
+  | "repl" => Spec.REPL(name, ids)
+  | "worker" => Spec.Worker(name, ids)
+  | "" => Spec.UnknownHandler(name, mod, ids)
+  | space => Spec.OldWorker(space, name, ids)
   }
 }
 
@@ -50,7 +51,7 @@ let replaceEventModifier = (
   replacement: BlankOr.t<string>,
   (space, name, mod): triple,
 ): triple => {
-  (space, name, B.replace(search, replacement, mod))
+  (space, name, Option.map(~f=mod => B.replace(search, replacement, mod), mod))
 }
 
 let replaceEventName = (
@@ -79,7 +80,10 @@ let replace = (search: id, replacement: BlankOr.t<string>, hs: Spec.t): Spec.t =
 
 let blankOrData = (spec: PT.Handler.Spec.t): list<blankOrData> => {
   let (space, name, mod) = toBlankOrs(spec)
-  list{PEventSpace(space), PEventModifier(mod), PEventName(name)}
+  switch mod {
+  | Some(mod) => list{PEventSpace(space), PEventModifier(mod), PEventName(name)}
+  | None => list{PEventSpace(space), PEventName(name)}
+  }
 }
 
 let firstBlank = (spec: PT.Handler.Spec.t): option<id> =>

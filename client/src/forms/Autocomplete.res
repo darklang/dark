@@ -377,10 +377,11 @@ let qHTTPHandler = (s: string): A.omniAction => {
 
 let handlerDisplayName = (h: PT.Handler.t): string => {
   module S = PT.Handler.Spec
-  let space = h.spec->S.space->Belt.Option.map(x => x ++ "::")->Belt.Option.getWithDefault("")
-  let name = h.spec->S.name
+  let space =
+    h.spec->S.space->B.toOption->Belt.Option.map(x => x ++ "::")->Belt.Option.getWithDefault("")
+  let name = h.spec->S.name->B.toString
   let modi =
-    h.spec->S.modifier
+    h.spec->S.modifier->Option.andThen(~f=B.toOption)
     |> Option.map(~f=x =>
       if x == "_" {
         ""

@@ -577,36 +577,49 @@ module Handler = {
         j,
       )
     }
-    let space = (spec: t): option<string> => {
+    let space = (spec: t): BlankOr.t<string> => {
       switch spec {
-      | HTTP(_, _, _) => Some("HTTP")
-      | Worker(_, _) => Some("WORKER")
-      | OldWorker(space, _, _) => Some(space)
-      | Cron(_, _, _) => Some("CRON")
-      | REPL(_, _) => Some("REPL")
-      | UnknownHandler(_, _, _) => None
+      | HTTP(_, _, ids) => F(ids.moduleID, "HTTP")
+      | Worker(_, ids) => F(ids.moduleID, "WORKER")
+      | OldWorker(space, _, ids) => F(ids.moduleID, space)
+      | Cron(_, _, ids) => F(ids.moduleID, "CRON")
+      | REPL(_, ids) => F(ids.moduleID, "REPL")
+      | UnknownHandler(_, _, ids) => Blank(ids.moduleID)
       }
     }
-    let name = (spec: t): string => {
+    let name = (spec: t): BlankOr.t<string> => {
       switch spec {
-      | HTTP(name, _, _)
-      | Worker(name, _)
-      | OldWorker(_, name, _)
-      | Cron(name, _, _)
-      | REPL(name, _)
-      | UnknownHandler(name, _, _) => name
+      | HTTP(name, _, ids)
+      | Worker(name, ids)
+      | OldWorker(_, name, ids)
+      | Cron(name, _, ids)
+      | REPL(name, ids)
+      | UnknownHandler(name, _, ids) =>
+        if name == "" {
+          Blank(ids.nameID)
+        } else {
+          F(ids.nameID, name)
+        }
       }
     }
-    let modifier = (spec: t): option<string> => {
+    let modifier = (spec: t): option<BlankOr.t<string>> => {
       switch spec {
-      | HTTP(_, mod, _)
-      | UnknownHandler(_, mod, _) =>
-        Some(mod)
+      | HTTP(_, "", ids)
+      | UnknownHandler(_, "", ids) =>
+        Some(Blank(ids.modifierID))
+
+      | HTTP(_, mod, ids)
+      | UnknownHandler(_, mod, ids) =>
+        Some(F(ids.modifierID, mod))
+
+      | Cron(_, Some(interval), ids) => Some(F(ids.modifierID, CronInterval.toString(interval)))
+      | Cron(_, None, ids) => Some(Blank(ids.modifierID))
+
+      // These don't have modifiers
       | REPL(_, _)
       | Worker(_, _)
       | OldWorker(_, _, _) =>
         None
-      | Cron(_, interval, _) => interval |> Tc.Option.map(~f=CronInterval.toString)
       }
     }
     let ids = (spec: t): IDs.t => {

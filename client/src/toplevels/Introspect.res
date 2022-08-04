@@ -18,8 +18,8 @@ let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> => {
   module S = PT.Handler.Spec
   hs
   |> Map.mapValues(~f=(h: PT.Handler.t) => {
-    let space = S.space(h.spec)->Belt.Option.getWithDefault("")
-    let name = S.name(h.spec)
+    let space = S.space(h.spec)->B.toString
+    let name = S.name(h.spec)->B.toString
     let key = keyForHandlerSpec(space, name)
     (key, h.tlid)
   })

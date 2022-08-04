@@ -140,7 +140,7 @@ let switching_from_http_space_removes_leading_slash = (m: model): testResult => 
   switch spec {
   | Some(PT.Handler.Spec.HTTP(_) as spec) => fail(~f=PT.Handler.Spec.show, spec)
   | Some(spec) =>
-    if PT.Handler.Spec.name(spec) == "spec_name" {
+    if PT.Handler.Spec.name(spec)->B.toString == "spec_name" {
       pass
     } else {
       fail(~f=PT.Handler.Spec.show, spec)
@@ -160,7 +160,7 @@ let switching_from_http_space_removes_variable_colons = (m: model): testResult =
   switch spec {
   | Some(PT.Handler.Spec.HTTP(_) as spec) => fail(~f=PT.Handler.Spec.show, spec)
   | Some(spec) =>
-    if PT.Handler.Spec.name(spec) == "spec_name/variable" {
+    if PT.Handler.Spec.name(spec)->B.toString == "spec_name/variable" {
       pass
     } else {
       fail(~f=PT.Handler.Spec.show, spec)
@@ -185,7 +185,7 @@ let switching_from_default_repl_space_removes_name = (m: model): testResult => {
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(PT.Handler.Spec.REPL(_, _)) => pass
+  | Some(PT.Handler.Spec.Cron(_, _, _)) => pass
   | Some(spec) => fail(~f=PT.Handler.Spec.show, spec)
   | None => fail(None)
   }

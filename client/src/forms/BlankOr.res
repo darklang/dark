@@ -96,6 +96,12 @@ let fromStringID = (s: string, id: ID.t): t<string> =>
     F(id, s)
   }
 
+let optionToString = (bo: option<t<string>>): string =>
+  switch bo {
+  | Some(F(_, str)) => str
+  | None | Some(Blank(_)) => ""
+  }
+
 let toString = (bo: t<string>): string =>
   switch bo {
   | F(_, str) => str
