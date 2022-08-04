@@ -157,6 +157,7 @@ let run = () => {
       "vanilla-LibBackend-Session-JsonData-simple.json",
       "vanilla-LibBackend-Pusher-AddOpEventTooBigPayload-simple.json", // not used yet
       "vanilla-LibBackend-EventQueueV2-NotificationData-simple.json",
+      "vanilla-ApiServer-F404s-Delete-T-simple.json", // we don't check the response
       // V0 apis left in for old clients
       "vanilla-ApiServer-Traces-TraceDataV0-T-simple.json",
       "vanilla-ApiServer-Traces-TraceDataV0-Params-simple.json",
@@ -212,8 +213,6 @@ let run = () => {
       API404.Delete.Params.decode,
       API404.Delete.Params.encode,
     )
-    // No test because we don't check the response
-    // t("vanilla-ApiServer-F404s-Delete-T-simple.json", API404.Delete.decode, API404.Delete.encode)
     t("vanilla-ApiServer-F404s-List-T-simple.json", API404.List.decode, API404.List.encode)
     t(
       "vanilla-ApiServer-InitialLoad-V1-T-initial.json",
