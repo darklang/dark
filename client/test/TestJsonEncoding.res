@@ -131,10 +131,17 @@ let run = () => {
     })
   })
   describe("decode serializations", () => {
+    let processedSerializationFiles: Belt.MutableMap.String.t<bool> = Belt.MutableMap.String.make()
+    let entries = NodeJs.Fs.readdirSync("backend/serialization")
+    Belt.Array.forEach(entries, entry =>
+      Belt.MutableMap.String.set(processedSerializationFiles, entry, false)
+    )
+
     let t = (filename, decoder, encoder) => {
       test(`decoding ${filename}`, () => {
         let contents =
           NodeJs.Fs.readFileSync(`backend/serialization/${filename}`) |> NodeJs.Buffer.toString
+        Belt.MutableMap.String.set(processedSerializationFiles, filename, true)
         expect(contents |> Js.Json.parseExn |> decoder |> encoder) |> toEqual(
           contents |> Js.Json.parseExn,
         )
@@ -287,5 +294,10 @@ let run = () => {
     //   TODO.decode,
     //   TODO.encode,
     // )
+    describe("Check serialization files are tested", () => {
+      Belt.MutableMap.String.forEach(processedSerializationFiles, (k, v) =>
+        test(`${k} is checked`, () => expect(v) |> toEqual(true))
+      )
+    })
   })
 }
