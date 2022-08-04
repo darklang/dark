@@ -251,9 +251,7 @@ module ReceiveFetch = {
 module NewTracePush = {
   let decode = {
     open Tea.Json.Decoder
-    let traceID = map((id): traceID => id, string)
-    let tlids = list(map(tlid => TLID.fromInt(tlid), Tea.Json.Decoder.int))
-    field("detail", Native.Decoder.tuple2(traceID, tlids))
+    field("detail", Decoders.wrapDecoder(AnalysisTypes.NewTrace.decode))
   }
 
   let listen = (~key, tagger) =>

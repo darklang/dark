@@ -765,7 +765,7 @@ module Msg = {
     GetUnlockedDBsAPICallback(Tea.Result.t<APIDBs.UnlockedDBs.t, Types.httpError>)
     | @printer(opaque("Get404sAPICallback"))
     Get404sAPICallback(Tea.Result.t<API404.List.t, Types.httpError>)
-    | NewTracePush((Types.traceID, list<TLID.t>))
+    | NewTracePush(AnalysisTypes.NewTrace.t)
     | New404Push(AnalysisTypes.FourOhFour.t)
     | NewStaticDeployPush(StaticAssets.Deploy.t)
     | WorkerStatePush(Tc.Map.String.t<AnalysisTypes.WorkerState.t>)

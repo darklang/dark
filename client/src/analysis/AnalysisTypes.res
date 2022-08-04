@@ -122,6 +122,20 @@ module Trace = {
   }
 }
 
+module NewTrace = {
+  @ppx.deriving(show({with_path: false}))
+  type rec t = (TraceID.t, list<TLID.t>)
+
+  let decode = (j): t => {
+    open Json_decode_extended
+    tuple2(TraceID.decode, list(TLID.decode), j)
+  }
+  let encode = (nt: t): Js.Json.t => {
+    open Json_encode_extended
+    pair(TraceID.encode, list(TLID.encode), nt)
+  }
+}
+
 module Traces = {
   @ppx.deriving(show({with_path: false}))
   type rec t = TLID.Dict.t<list<Trace.t>>

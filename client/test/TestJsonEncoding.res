@@ -145,7 +145,7 @@ let run = () => {
     let ignores = [
       // Not used by client
       "vanilla_ApiServer-F404s_ApiServer-F404s-Delete-T_simple.json", // we don't check the response
-      "vanilla_LibBackend-Pusher-AddOpEventTooBigPayload_simple.json", // not used yet
+      "vanilla_LibBackend-Pusher_LibBackend-Pusher-AddOpEventTooBigPayload_simple.json", // not used yet
       // Internal to backend
       "vanilla_tests-ApiServer-UI-heapioMetadata_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_simple.json",
       "vanilla_eventqueue-storage_LibBackend-EventQueueV2-NotificationData_simple.json",
@@ -165,11 +165,7 @@ let run = () => {
       "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV0-Params_simple.json",
     ]
     Belt.MutableMap.String.removeMany(processedSerializationFiles, ignores)
-    // "vanilla_LibBackend-Pusher_System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid_simple.json",
-    // "vanilla_LibBackend-Pusher_System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64_simple.json",
     // "vanilla_ApiServer-UI-heapioMetadata_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String_simple.json",
-    // "vanilla_ApiServer-Workers_Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State_simple.json",
-    // "vanilla_ApiServer-Workers_Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-all.json",
 
     let t = (filename, decoder, encoder) => {
       test(`decoding ${filename}`, () => {
@@ -261,11 +257,7 @@ let run = () => {
       APITraces.TraceData.decode,
       APITraces.TraceData.encode,
     )
-    t(
-      "vanilla_ApiServer-Workers_ApiServer-Workers-Scheduler-Params_simple.json",
-      APIWorkers.Scheduler.Params.decode,
-      APIWorkers.Scheduler.Params.encode,
-    )
+
     t(
       "vanilla_ApiServer-Workers_ApiServer-Workers-WorkerStats-Params_simple.json",
       APIWorkers.WorkerStats.Params.decode,
@@ -275,6 +267,21 @@ let run = () => {
       "vanilla_ApiServer-Workers_ApiServer-Workers-WorkerStats-T_simple.json",
       APIWorkers.WorkerStats.decode,
       APIWorkers.WorkerStats.encode,
+    )
+    t(
+      "vanilla_ApiServer-Workers_ApiServer-Workers-Scheduler-Params_simple.json",
+      APIWorkers.Scheduler.Params.decode,
+      APIWorkers.Scheduler.Params.encode,
+    )
+    t(
+      "vanilla_ApiServer-Workers-LibBackend-Pusher_Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-_simple.json",
+      APIWorkers.Scheduler.decode,
+      APIWorkers.Scheduler.encode,
+    )
+    t(
+      "vanilla_ApiServer-Workers-LibBackend-Pusher_Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-_all.json",
+      APIWorkers.Scheduler.decode,
+      APIWorkers.Scheduler.encode,
     )
     t(
       "vanilla_LibAnalysis_ClientTypes-Analysis-PerformAnalysisParams_handler.json",
@@ -298,9 +305,24 @@ let run = () => {
       APIAddOps.Params.encode,
     )
     t(
+      "vanilla_LibBackend-Pusher_System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-_simple.json",
+      AnalysisTypes.FourOhFour.decode,
+      AnalysisTypes.FourOhFour.encode,
+    )
+    t(
+      "vanilla_LibBackend-Pusher_System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-_simple.json",
+      AnalysisTypes.NewTrace.decode,
+      AnalysisTypes.NewTrace.encode,
+    )
+    t(
       "vanilla_LibBackend-Pusher_LibBackend-StaticAssets-StaticDeploy_simple.json",
       StaticAssets.Deploy.decode,
       StaticAssets.Deploy.encode,
+    )
+    t(
+      "vanilla_LibBackend-Pusher_LibBackend-Op-AddOpEventV1_simple.json",
+      PusherTypes.AddOps.decode,
+      PusherTypes.AddOps.encode,
     )
     t(
       "vanilla_ApiServer-Functions_Microsoft-FSharp-Collections-FSharpList-1-ApiServer-Functions-BuiltInFn-T-_all.json",

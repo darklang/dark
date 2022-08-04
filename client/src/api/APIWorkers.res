@@ -60,4 +60,8 @@ module Scheduler = {
     open Json_decode_extended
     strDict(AnalysisTypes.WorkerState.decode)(j)
   }
+  let encode = (sr: t): Js.Json.t => {
+    open Json_encode_extended
+    strDict(AnalysisTypes.WorkerState.encode, sr)
+  }
 }
