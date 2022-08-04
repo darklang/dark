@@ -145,7 +145,10 @@ let run = () => {
     let ignores = [
       // Not used by client
       "vanilla_ApiServer-F404s_ApiServer-F404s-Delete-T_simple.json", // we don't check the response
+      "vanilla_ApiServer-Toplevels_ApiServer-Toplevels-Delete-T_simple.json", // we don't check the response
       "vanilla_LibBackend-Pusher_LibBackend-Pusher-AddOpEventTooBigPayload_simple.json", // not used yet
+      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-T_simple.json",
+      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-Params_simple.json",
       // Internal to backend
       "vanilla_tests-ApiServer-UI-heapioMetadata_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_simple.json",
       "vanilla_eventqueue-storage_LibBackend-EventQueueV2-NotificationData_simple.json",
