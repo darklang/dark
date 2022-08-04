@@ -588,6 +588,15 @@ module BuiltInFn = {
         j,
       )
     }
+    let encode = (s: t): Js.Json.t => {
+      open Json_encode_extended
+      let ev = variant
+      switch s {
+      | Pure => ev("Pure", list{})
+      | Impure => ev("Impure", list{})
+      | ImpurePreviewable => ev("ImpurePreviewable", list{})
+      }
+    }
   }
 
   module Deprecation = {
@@ -609,6 +618,17 @@ module BuiltInFn = {
         },
         j,
       )
+    }
+
+    let encode = (s: t): Js.Json.t => {
+      open Json_encode_extended
+      let ev = variant
+      switch s {
+      | NotDeprecated => ev("NotDeprecated", list{})
+      | RenamedTo(name) => ev("RenamedTo", list{FQFnName.StdlibFnName.encode(name)})
+      | ReplacedBy(name) => ev("ReplacedBy", list{FQFnName.StdlibFnName.encode(name)})
+      | DeprecatedBecause(str) => ev("DeprecatedBecause", list{string(str)})
+      }
     }
   }
 
@@ -660,6 +680,24 @@ module BuiltInFn = {
         j,
       )
     }
+
+    let encode = (s: t): Js.Json.t => {
+      open Json_encode_extended
+      let ev = variant
+      switch s {
+      | Unknown => ev("Unknown", list{})
+      | NotQueryable => ev("NotQueryable", list{})
+      | QueryFunction => ev("QueryFunction", list{})
+      | SqlUnaryOp(str) => ev("SqlUnaryOp", list{string(str)})
+      | SqlBinOp(str) => ev("SqlBinOp", list{string(str)})
+      | SqlFunction(str) => ev("SqlFunction", list{string(str)})
+      | SqlFunctionWithPrefixArgs(name, args) =>
+        ev("SqlFunctionWithPrefixArgs", list{string(name), list(string, args)})
+      | SqlFunctionWithSuffixArgs(name, args) =>
+        ev("SqlFunctionWithSuffixArgs", list{string(name), list(string, args)})
+      | SqlCallback2 => ev("SqlCallback2", list{})
+      }
+    }
   }
 
   module Param = {
@@ -678,6 +716,16 @@ module BuiltInFn = {
         args: field("args", list(string), j),
         description: field("description", string, j),
       }
+    }
+
+    let encode = (p: t): Js.Json.t => {
+      open Json_encode_extended
+      object_(list{
+        ("name", string(p.name)),
+        ("type", DType.encode(p.typ)),
+        ("args", list(string, p.args)),
+        ("description", string(p.description)),
+      })
     }
   }
 
@@ -705,5 +753,19 @@ module BuiltInFn = {
       isInfix: field("isInfix", bool, j),
       sqlSpec: field("sqlSpec", SqlSpec.decode, j),
     }
+  }
+
+  let encode = (f: t): Js.Json.t => {
+    open Json_encode_extended
+    object_(list{
+      ("name", FQFnName.StdlibFnName.encode(f.name)),
+      ("parameters", list(Param.encode, f.parameters)),
+      ("returnType", DType.encode(f.returnType)),
+      ("description", string(f.description)),
+      ("previewable", Previewable.encode(f.previewable)),
+      ("deprecated", Deprecation.encode(f.deprecated)),
+      ("isInfix", bool(f.isInfix)),
+      ("sqlSpec", SqlSpec.encode(f.sqlSpec)),
+    })
   }
 }

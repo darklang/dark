@@ -251,11 +251,11 @@ let run = () => {
     )
     t("vanilla-LibExecution-ProgramTypes-Position-simple.json", Pos.decode, Pos.encode)
     t("vanilla-ClientTypes-Dval-T-complete.json", RT.Dval.decode, RT.Dval.encode)
-    // t(
-    //   "vanilla-Microsoft-FSharp-Collections-FSharpList-1-ApiServer-Functions-BuiltInFn-T-all.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
+    t(
+      "vanilla-Microsoft-FSharp-Collections-FSharpList-1-ApiServer-Functions-BuiltInFn-T-all.json",
+      Json.Decode.list(RT.BuiltInFn.decode),
+      Json.Encode.list(RT.BuiltInFn.encode),
+    )
     // t(
     //   "vanilla-Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Package-Fn-simple.json",
     //   TODO.decode,
