@@ -256,11 +256,11 @@ let run = () => {
       Json.Decode.list(RT.BuiltInFn.decode),
       Json.Encode.list(RT.BuiltInFn.encode),
     )
-    // t(
-    //   "vanilla-Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Package-Fn-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
+    t(
+      "vanilla-Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Package-Fn-simple.json",
+      Json.Decode.list(ProgramTypes.Package.Fn.decode),
+      Json.Encode.list(ProgramTypes.Package.Fn.encode),
+    )
     // t(
     //   "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-ApiServer-DBs-DBStatsV1-Stat-simple.json",
     //   TODO.decode,

@@ -1026,16 +1026,16 @@ module Package = {
       open Json.Decode
       {
         name: field("name", string, j),
-        tipe: field("tipe", DType.decode, j),
+        tipe: field("typ", DType.decode, j),
         description: field("description", string, j),
       }
     }
-    let encode = (pfp: t): Js.Json.t => {
+    let encode = (p: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", string(pfp.name)),
-        ("tipe", DType.encode(pfp.tipe)),
-        ("description", string(pfp.description)),
+        ("name", string(p.name)),
+        ("typ", DType.encode(p.tipe)),
+        ("description", string(p.description)),
       })
     }
   }
@@ -1065,6 +1065,20 @@ module Package = {
         deprecated: field("deprecated", bool, j),
         tlid: field("tlid", TLID.decode, j),
       }
+    }
+
+    let encode = (f: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("name", FQFnName.PackageFnName.encode(f.name)),
+        ("body", Expr.encode(f.body)),
+        ("parameters", list(Parameter.encode, f.parameters)),
+        ("returnType", DType.encode(f.returnType)),
+        ("description", string(f.description)),
+        ("author", string(f.author)),
+        ("deprecated", bool(f.deprecated)),
+        ("tlid", TLID.encode(f.tlid)),
+      })
     }
   }
 }
