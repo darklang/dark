@@ -1,3 +1,7 @@
+/// <remarks>
+/// The HttpClient module is shared between this file and several LibHttpV_.fs
+/// files in BackendOnlyStdLib, where the impure fns live.
+/// </remarks>
 module LibExecutionStdLib.LibHttpClient
 
 open System.Threading.Tasks
