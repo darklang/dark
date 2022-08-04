@@ -146,7 +146,6 @@ let run = () => {
       "vanilla-System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-simple.json",
       "vanilla-System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-simple.json",
       "vanilla-Prelude-pos-simple.json",
-      "vanilla-Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-2-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-ClientTypes-Analysis-ExecutionResult-T-System-String-simple.json",
       "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-simple.json",
       "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-simple.json",
       "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-all.json",
@@ -302,27 +301,11 @@ let run = () => {
       APIDBs.DBStats.decode,
       APIDBs.DBStats.encode,
     )
-    // t(
-    //   "vanilla-Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
-    // t(
-    //   "vanilla-Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-2-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-LibExecution-AnalysisTypes-ExecutionResult-System-String-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
-    // t("vanilla-Prelude-pos-simple.json", TODO.decode, TODO.encode)
-    // t(
-    //   "vanilla-System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
-    // t(
-    //   "vanilla-System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-simple.json",
-    //   TODO.decode,
-    //   TODO.encode,
-    // )
+    t(
+      "vanilla-Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-2-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-ClientTypes-Analysis-ExecutionResult-T-System-String-simple.json",
+      Json.Decode.result(AnalysisTypes.PerformAnalysis.Envelope.decode, Json.Decode.string),
+      Json.Encode.result(AnalysisTypes.PerformAnalysis.Envelope.encode, Json.Encode.string),
+    )
     describe("Check serialization files are tested", () => {
       Belt.MutableMap.String.forEach(processedSerializationFiles, (k, v) =>
         test(`${k} is checked`, () => expect(v) |> toEqual(true))

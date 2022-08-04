@@ -149,6 +149,14 @@ module ExecutionResult = {
       j,
     )
   }
+  let encode = (er: t): Js.Json.t => {
+    open Json_encode_extended
+    let ev = variant
+    switch er {
+    | ExecutedResult(dv) => ev("ExecutedResult", list{RT.Dval.encode(dv)})
+    | NonExecutedResult(dv) => ev("NonExecutedResult", list{RT.Dval.encode(dv)})
+    }
+  }
 }
 
 module PerformAnalysis = {
@@ -266,6 +274,10 @@ module PerformAnalysis = {
     type rec t = ID.Map.t<ExecutionResult.t>
 
     let decode = (j: Js.Json.t): t => ID.Map.decode(ExecutionResult.decode, j)
+
+    let encode = (store: t): Js.Json.t => {
+      ID.Map.encode(ExecutionResult.encode, store)
+    }
   }
 
   module Envelope = {
@@ -275,6 +287,11 @@ module PerformAnalysis = {
     let decode = (j: Js.Json.t): t => {
       open Json_decode_extended
       tuple2(TraceID.decode, IntermediateResultStore.decode)(j)
+    }
+
+    let encode = (envelope: t): Js.Json.t => {
+      open Json_encode_extended
+      tuple2(TraceID.encode, IntermediateResultStore.encode, envelope)
     }
   }
 
