@@ -131,7 +131,7 @@ let addRoutes
   clientJsonApi "v1/packages" R (Packages.ListV1.packages packages)
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
-  clientJsonApi "trigger_handler" RW Execution.HandlerV1.trigger
+  clientJsonApi "v1/trigger_handler" RW Execution.HandlerV1.trigger
   clientJsonApi "worker_schedule" RW Workers.Scheduler.updateSchedule
 
   // These ocamlCompatible APIs can be removed once we've switched the client fully
