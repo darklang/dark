@@ -145,40 +145,24 @@ let spaceOf = (tl: toplevel): option<handlerSpace> =>
 
 let isHTTPHandler = (tl: toplevel): bool =>
   switch asHandler(tl) {
-  | Some(h) =>
-    switch h.spec {
-    | PT.Handler.Spec.HTTP(_) => true
-    | _ => false
-    }
-  | None => false
+  | Some({spec: PT.Handler.Spec.HTTP(_), _}) => true
+  | _ => false
   }
 
 let isReplHandler = (tl: toplevel): bool =>
   switch asHandler(tl) {
-  | Some(h) =>
-    switch h.spec {
-    | PT.Handler.Spec.REPL(_) => true
-    | _ => false
-    }
-  | None => false
+  | Some({spec: PT.Handler.Spec.REPL(_), _}) => true
+  | _ => false
   }
 let isCronHandler = (tl: toplevel): bool =>
   switch asHandler(tl) {
-  | Some(h) =>
-    switch h.spec {
-    | PT.Handler.Spec.Cron(_) => true
-    | _ => false
-    }
-  | None => false
+  | Some({spec: PT.Handler.Spec.Cron(_), _}) => true
+  | _ => false
   }
 let isWorkerHandler = (tl: toplevel): bool =>
   switch asHandler(tl) {
-  | Some(h) =>
-    switch h.spec {
-    | PT.Handler.Spec.Worker(_) => true
-    | _ => false
-    }
-  | None => false
+  | Some({spec: PT.Handler.Spec.Worker(_), _}) => true
+  | _ => false
   }
 
 let isDeprecatedCustomHandler = (tl: toplevel): bool =>
