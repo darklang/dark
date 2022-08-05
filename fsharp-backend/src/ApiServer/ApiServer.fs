@@ -119,7 +119,6 @@ let addRoutes
   clientJsonApi "all_traces" R Traces.AllTraces.fetchAll
   clientJsonApi "delete_404" RW F404s.Delete.delete
   clientJsonApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
-  clientJsonApi "delete_secret" RW Secrets.DeleteV0.delete
   clientJsonApi "v1/delete_secret" RW Secrets.DeleteV1.delete
   clientJsonApi "v1/execute_function" RW Execution.FunctionV1.execute
   clientJsonApi "get_404s" R F404s.List.get
@@ -128,7 +127,6 @@ let addRoutes
   clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
   clientJsonApi "get_worker_stats" R Workers.WorkerStats.getStats
   clientJsonApi "v1/initial_load" R InitialLoad.V1.initialLoad
-  clientJsonApi "insert_secret" RW Secrets.InsertV0.insert
   clientJsonApi "v1/insert_secret" RW Secrets.InsertV1.insert
   clientJsonApi "v1/packages" R (Packages.ListV1.packages packages)
   // CLEANUP: packages/upload_function
@@ -138,11 +136,14 @@ let addRoutes
 
   // These ocamlCompatible APIs can be removed once we've switched the client fully
   // over to using v1 routes
-  clientJsonApiOption "get_trace_data" R Traces.TraceDataV0.getTraceData
   ocamlCompatibleApi "add_op" RW AddOps.V0.addOp
+  clientJsonApi "delete_secret" RW Secrets.DeleteV0.delete
   ocamlCompatibleApi "execute_function" RW Execution.FunctionV0.execute
+  ocamlCompatibleApi "trigger_handler" RW Execution.HandlerV0.trigger
   ocamlCompatibleApi "get_db_stats" R DBs.DBStatsV0.getStats
+  clientJsonApiOption "get_trace_data" R Traces.TraceDataV0.getTraceData
   ocamlCompatibleApi "initial_load" R InitialLoad.V0.initialLoad
+  clientJsonApi "insert_secret" RW Secrets.InsertV0.insert
   ocamlCompatibleApi "packages" R (Packages.ListV0.packages packages)
 
   app.UseRouter(builder.Build())

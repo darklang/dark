@@ -128,7 +128,7 @@ let loadPackages = (m: model): cmd =>
 let triggerHandler = (m: model, params: APIExecution.Handler.Params.t): cmd =>
   apiCall(
     m,
-    "/trigger_handler",
+    "/v1/trigger_handler",
     ~decoder=APIExecution.Handler.decode,
     ~encoder=APIExecution.Handler.Params.encode,
     ~params,
