@@ -14,7 +14,6 @@ module E = FluidExpression
 type model = AppTypes.model
 module Trace = AnalysisTypes.Trace
 module TraceData = AnalysisTypes.TraceData
-module TraceID = TraceID
 module TraceError = AnalysisTypes.TraceError
 
 // ----------------------
