@@ -380,6 +380,7 @@ module FourOhFour = {
     )
   }
 }
+
 module WorkerState = {
   @ppx.deriving(show({with_path: false}))
   type rec t = Running | Blocked | Paused

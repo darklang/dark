@@ -298,7 +298,7 @@ let filterOpsAndResult = (m: model, params: APIAddOps.Params.t, result: option<A
 
   let m2 = {...m, opCtrs: newOpCtrs}
   // if the new opCtrs map was updated by params.opCtr, then this msg was the
-  // atest; otherwise, we need to filter out some ops from params */
+  // latest; otherwise, we need to filter out some ops from params
   // temporarily _don't_ filter ops
   if Map.get(~key=params.clientOpCtrID, m2.opCtrs) == Some(params.opCtr) {
     (m2, params.ops, result)
