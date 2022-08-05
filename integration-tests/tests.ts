@@ -375,7 +375,9 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, "field6");
     await page.keyboard.press("Enter");
-    await page.waitForResponse(`${BASE_URL}/api/test-rename_db_fields/add_op`);
+    await page.waitForResponse(
+      `${BASE_URL}/api/test-rename_db_fields/v1/add_op`,
+    );
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
@@ -394,7 +396,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, "String");
     await page.keyboard.press("Enter");
-    await page.waitForResponse(`${BASE_URL}/api/test-rename_db_type/add_op`);
+    await page.waitForResponse(`${BASE_URL}/api/test-rename_db_type/v1/add_op`);
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
