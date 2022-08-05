@@ -99,14 +99,8 @@ let autocomplete_highlights_on_partial_match = (m: model): testResult =>
   }
 
 let no_request_global_in_non_http_space = (m: model): testResult =>
-  // this might change but this is the answer for now.
   switch onlyExpr(m) {
-  | Some(EFnCall(
-      _,
-      Stdlib({module_: "HttpClient", function: "badRequest", version: 0}),
-      _,
-      _,
-    )) => pass
+  | Some(EFnCall(_, Stdlib({module_: "Http", function: "badRequest", version: 0}), _, _)) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
