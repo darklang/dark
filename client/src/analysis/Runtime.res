@@ -4,7 +4,6 @@ module HandlerProperty = AppTypes.HandlerProperty
 
 let isCompatible = (t1: DType.t, t2: DType.t): bool =>
   switch (t1, t2) {
-  | (TVariable(n1), TVariable(n2)) => n1 == n2
   | (TVariable(_), _) => true
   | (_, TVariable(_)) => true
   | _ => t1 == t2 // TODO recurse
