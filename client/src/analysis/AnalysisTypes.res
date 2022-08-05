@@ -144,7 +144,7 @@ module Traces = {
     open Json_decode_extended
     j |> list(tuple2(TLID.decode, list(Trace.decode))) |> TLID.Dict.fromList
   }
-  // CLEANUP TYPE DOES NOT MATCH ENCODING
+  // CLEANUP type does not match encoding
 }
 
 module ExecutionResult = {
