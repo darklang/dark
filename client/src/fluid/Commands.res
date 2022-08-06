@@ -3,7 +3,7 @@ module TL = Toplevel
 
 let alwaysShow = (_, _, _) => true
 
-let commands: list<command> = {
+let commands: list<AppTypes.fluidCmd> = {
   open ProgramTypes.Expr
   list{
     {
@@ -117,9 +117,7 @@ let commands: list<command> = {
           |> Refactor.generateUserType
 
         switch tipe {
-        | Ok(tipe) =>
-          let nameId = BlankOr.toID(tipe.name)
-          AddOps(list{SetType(tipe)}, FocusNext(tipe.tlid, Some(nameId)))
+        | Ok(tipe) => AddOps(list{SetType(tipe)}, FocusNext(tipe.tlid, Some(tipe.nameID)))
         | Error(s) => Model.updateErrorMod(Error.set("Can't create-type: " ++ s))
         }
       },
@@ -129,19 +127,18 @@ let commands: list<command> = {
     {
       commandName: "copy-request-as-curl",
       action: (m, tl, id) => {
-        let name =
+        let tlid = Toplevel.id(tl)
+        let data =
           TL.getAST(tl)
           |> Option.andThen(~f=FluidAST.find(id))
           |> Option.andThen(~f=x =>
             switch x {
-            | EFnCall(_, fluidName, _, _) => Some(fluidName)
+            | EFnCall(_, name, _, _) => Some(name)
             | _ => None
             }
           )
-          |> Option.unwrap(~default="")
+          |> Option.andThen(~f=name => CurlCommand.curlFromHttpClientCall(m, tlid, id, name))
 
-        let tlid = Toplevel.id(tl)
-        let data = CurlCommand.curlFromHttpClientCall(m, tlid, id, name)
         let toastMessage = switch data {
         | Some(data) =>
           Native.Clipboard.copyToClipboard(data)
@@ -151,15 +148,14 @@ let commands: list<command> = {
 
         ReplaceAllModificationsWithThisOne(
           m => /* TODO: toastPos is a vPos, how do we get a vPos without a
-           * mouseEvent? */
+           * AppTypes.MouseEvent.t? */
           ({...m, toast: {toastMessage: toastMessage, toastPos: None}}, Tea.Cmd.none),
         )
       },
       shouldShow: (_, _, e) => {
-        let re = Util.Regex.regex("HttpClient::(delete|get|head|options|patch|post|put)")
-
         switch e {
-        | EFnCall(_, name, _, _) => Util.Regex.contains(~re, name)
+        | EFnCall(_, Stdlib({module_: "HttpClient", function: f, _}), _, _) =>
+          List.member(~value=f, list{"delete", "get", "head", "options", "patch", "post", "put"})
         | _ => false
         }
       },

@@ -12,14 +12,14 @@ let int64 = (~id=gid(), int: int64): t => EInteger(id, int)
 
 let bool = (~id=gid(), b: bool): t => EBool(id, b)
 
-let float' = (~id=gid(), sign: sign, whole: int, fraction: int): t => EFloat(
+let float' = (~id=gid(), sign: Sign.t, whole: int, fraction: int): t => EFloat(
   id,
   sign,
   string_of_int(whole),
   string_of_int(fraction),
 )
 
-let floatStr = (~id=gid(), sign: sign, whole: string, fraction: string): t => EFloat(
+let floatStr = (~id=gid(), sign: Sign.t, whole: string, fraction: string): t => EFloat(
   id,
   sign,
   whole,
@@ -39,16 +39,18 @@ let tuple = (~id=gid(), first, second, theRest: list<t>): t => ETuple(id, first,
 
 let pipeTarget = EPipeTarget(gid())
 
-let fn = (~id=gid(), ~ster=SendToRail.NoRail, name: string, args: list<t>) => EFnCall(
-  id,
-  name,
-  args,
-  ster,
-)
+let fn = (
+  ~id=gid(),
+  ~ster=SendToRail.NoRail,
+  ~mod="",
+  function: string,
+  ~version=0,
+  args: list<t>,
+) => EFnCall(id, Stdlib({module_: mod, function: function, version: version}), args, ster)
 
-let binop = (~id=gid(), ~ster=SendToRail.NoRail, name: string, arg0: t, arg1: t) => EBinOp(
+let binop = (~id=gid(), ~ster=SendToRail.NoRail, function: string, arg0: t, arg1: t) => EBinOp(
   id,
-  name,
+  {module_: None, function: function},
   arg0,
   arg1,
   ster,
@@ -120,7 +122,7 @@ let pBool = (~id=gid(), b: bool): FluidPattern.t => PBool(id, b)
 
 let pString = (~id=gid(), str: string): FluidPattern.t => PString(id, str)
 
-let pFloatStr = (~id=gid(), sign: sign, whole: string, fraction: string): FluidPattern.t => {
+let pFloatStr = (~id=gid(), sign: Sign.t, whole: string, fraction: string): FluidPattern.t => {
   assert (int_of_string(whole) > 0)
   assert (int_of_string(fraction) > 0)
   PFloat(id, sign, whole, fraction)

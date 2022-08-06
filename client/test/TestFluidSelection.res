@@ -29,7 +29,7 @@ let run = () => {
     })
     test("select larger expressions", () => {
       let id = gid()
-      let ast = EFnCall(id, "+", list{int(1), int(2)}, NoRail)
+      let ast = fn(~id, "+", list{int(1), int(2)})
       let s = {
         ...defaultTestState,
         oldPos: 0,
@@ -41,7 +41,7 @@ let run = () => {
     })
     test("selects part of AST", () => {
       let id = gid()
-      let ast = let'("a", EFnCall(id, "+", list{int(1), int(2)}, NoRail), b)
+      let ast = let'("a", fn(~id, "+", list{int(1), int(2)}), b)
 
       let s = {
         ...defaultTestState,

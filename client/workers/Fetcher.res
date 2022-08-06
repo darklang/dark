@@ -6,7 +6,7 @@ open Prelude
 
 let () = Rollbar.init(Json.parseOrRaise(rollbarConfig))
 
-type event = {@get "data": (Types.fetchContext, Types.fetchRequest)}
+type event = {@get "data": (APITypes.fetchContext, APITypes.fetchRequest)}
 
 type self
 
@@ -14,7 +14,7 @@ type self
 
 @set external onmessage: (self, event => unit) => unit = "onmessage"
 
-type pushResult = Types.fetchResult
+type pushResult = APITypes.fetchResult
 
 @bs.send external postMessage: (self, pushResult) => unit = "postMessage"
 
@@ -28,7 +28,7 @@ let fetch_ = (
   ~on_missing,
   ~on_failure,
   url,
-  context: Types.fetchContext,
+  context: APITypes.fetchContext,
   data,
 ) => {
   open Js.Promise
@@ -90,44 +90,44 @@ let fetch_ = (
   )
 }
 
-let fetch = (context: Types.fetchContext, request: Types.fetchRequest) => {
+let fetch = (context: APITypes.fetchContext, request: APITypes.fetchRequest) => {
   let urlRoot = context.origin ++ API.apiRoot ++ context.canvasName
   switch request {
   | TraceFetch(gdtp) =>
-    let url = urlRoot ++ "/get_trace_data"
+    let url = urlRoot ++ "/v1/get_trace_data"
 
     fetch_(
-      ~decoder=Decoders.getTraceDataAPIResult,
+      ~decoder=APITraces.TraceData.decode,
       ~on_success=r => TraceFetchSuccess(gdtp, r),
       ~on_missing=_ => TraceFetchMissing(gdtp),
       ~on_failure=r => TraceFetchFailure(gdtp, url, r),
       url,
       context,
-      Encoders.getTraceDataAPIParams(gdtp),
+      APITraces.TraceData.Params.encode(gdtp),
     )
   | DbStatsFetch(dbsParams) =>
-    let url = urlRoot ++ "/get_db_stats"
+    let url = urlRoot ++ "/v1/get_db_stats"
 
     fetch_(
-      ~decoder=Decoders.dbStatsAPIResult,
+      ~decoder=APIDBs.DBStats.decode,
       ~on_success=r => DbStatsFetchSuccess(dbsParams, r),
       ~on_missing=_ => DbStatsFetchMissing(dbsParams),
       ~on_failure=r => DbStatsFetchFailure(dbsParams, url, r),
       url,
       context,
-      Encoders.dbStatsAPIParams(dbsParams),
+      APIDBs.DBStats.Params.encode(dbsParams),
     )
   | WorkerStatsFetch(workerParams) =>
     let url = urlRoot ++ "/get_worker_stats"
 
     fetch_(
-      ~decoder=Decoders.workerStatsAPIResult,
+      ~decoder=APIWorkers.WorkerStats.decode,
       ~on_success=r => WorkerStatsFetchSuccess(workerParams, r),
       ~on_missing=_ => WorkerStatsFetchMissing(workerParams),
       ~on_failure=r => WorkerStatsFetchFailure(workerParams, url, r),
       url,
       context,
-      Encoders.workerStatsAPIParams(workerParams),
+      APIWorkers.WorkerStats.Params.encode(workerParams),
     )
   }
 }

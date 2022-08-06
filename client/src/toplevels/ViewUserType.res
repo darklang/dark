@@ -3,6 +3,7 @@ open Prelude
 // Dark
 module B = BlankOr
 
+type msg = AppTypes.msg
 let fontAwesome = ViewUtils.fontAwesome
 
 type viewProps = ViewUtils.viewProps
@@ -13,24 +14,25 @@ let viewTipeName = (vp: viewProps, t: PT.UserType.t): Html.html<msg> => {
     ~classes=list{"ut-name"},
     TypeName,
     vp,
-    t.name,
+    B.fromStringID(t.name, t.nameID),
   )
 
   Html.div(list{Html.class'("typetitle")}, list{nameField})
 }
 
-let viewFieldName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
+let viewFieldName = (~classes: list<string>, vp: viewProps, v: BlankOr.t<string>): Html.html<msg> =>
   ViewBlankOr.viewText(~enterable=true, ~classes, TypeFieldName, vp, v)
 
-let viewFieldType = (~classes: list<string>, vp: viewProps, v: blankOr<DType.t>): Html.html<msg> =>
-  ViewBlankOr.viewTipe(~enterable=true, ~classes, TypeFieldTipe, vp, v)
+let viewFieldType = (~classes: list<string>, vp: viewProps, v: BlankOr.t<DType.t>): Html.html<
+  msg,
+> => ViewBlankOr.viewTipe(~enterable=true, ~classes, TypeFieldTipe, vp, v)
 
 let viewKillFieldBtn = (t: PT.UserType.t, field: PT.UserType.RecordField.t): Html.html<msg> =>
   Html.div(
     list{
       Html.class'("field-btn allowed"),
       ViewUtils.eventNoPropagation(
-        ~key="dutf-" ++ (TLID.toString(t.tlid) ++ ("-" ++ (field.name |> B.toID |> ID.toString))),
+        ~key="dutf-" ++ TLID.toString(t.tlid) ++ "-" ++ field.nameID->ID.toString,
         "click",
         _ => DeleteUserTypeField(t.tlid, field),
       ),
@@ -51,8 +53,8 @@ let viewTipeField = (
   }
 
   let row = list{
-    viewFieldName(vp, ~classes=list{"name"}, field.name),
-    viewFieldType(vp, ~classes=list{"type"}, field.typ),
+    viewFieldName(vp, ~classes=list{"name"}, BlankOr.fromStringID(field.name, field.nameID)),
+    viewFieldType(vp, ~classes=list{"type"}, BlankOr.fromOptionID(field.typ, field.typeID)),
     button,
   }
 
@@ -61,7 +63,7 @@ let viewTipeField = (
 
 let viewUserTipe = (vp: viewProps, t: PT.UserType.t): Html.html<msg> =>
   switch t.definition {
-  | UTRecord(fields) =>
+  | Record(fields) =>
     let nameDiv = viewTipeName(vp, t)
     let fieldDivs = {
       let fieldCount = List.length(fields)

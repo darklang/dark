@@ -4,12 +4,16 @@ module Events = Tea.Html2.Events
 module Html = Tea_html_extended
 module Cmd = Tea.Cmd
 module ST = SecretTypes
+module Mod = AppTypes.Modification
+module Msg = AppTypes.Msg
+type modification = AppTypes.modification
+type msg = AppTypes.msg
 
 let fontAwesome = ViewUtils.fontAwesome
 
 let nameValidator = "[A-Z0-9_]+"
 
-let validateName = (s: string): bool => Util.Regex.exactly(~re=nameValidator, s)
+let validateName = (s: string): bool => Regex.exactly(~re=nameValidator, s)
 
 let validateValue = (s: string): bool => s != ""
 
@@ -17,10 +21,10 @@ let isNameAlreadyUsed = (m: ST.insertModal, value: string): bool => List.member(
 
 let secretNameInputID = "new-secret-name-input"
 
-let update = (msg: ST.msg): Types.modification =>
+let update = (msg: ST.msg): modification =>
   switch msg {
   | OpenCreateModal =>
-    Types.ReplaceAllModificationsWithThisOne(
+    Mod.ReplaceAllModificationsWithThisOne(
       m => {
         let usedNames = List.map(~f=s => s.secretName, m.secrets)
         let insertSecretModal = {...m.insertSecretModal, visible: true, usedNames: usedNames}
@@ -32,14 +36,14 @@ let update = (msg: ST.msg): Types.modification =>
       },
     )
   | CloseCreateModal =>
-    Types.ReplaceAllModificationsWithThisOne(
+    ReplaceAllModificationsWithThisOne(
       m => {
         let insertSecretModal = SecretTypes.defaultInsertModal
         ({...m, insertSecretModal: insertSecretModal}, Cmd.none)
       },
     )
   | OnUpdateName(newSecretName) =>
-    Types.ReplaceAllModificationsWithThisOne(
+    ReplaceAllModificationsWithThisOne(
       m => {
         let error = if !validateName(newSecretName) {
           Some("Secret name can only contain uppercase alphanumeric characters and underscores")
@@ -61,7 +65,7 @@ let update = (msg: ST.msg): Types.modification =>
       },
     )
   | OnUpdateValue(newSecretValue) =>
-    Types.ReplaceAllModificationsWithThisOne(
+    ReplaceAllModificationsWithThisOne(
       m => {
         let isValueValid = validateValue(newSecretValue)
         let insertSecretModal = {
@@ -74,7 +78,7 @@ let update = (msg: ST.msg): Types.modification =>
       },
     )
   | SaveNewSecret =>
-    Types.ReplaceAllModificationsWithThisOne(
+    ReplaceAllModificationsWithThisOne(
       m => {
         let isValueValid = validateValue(m.insertSecretModal.newSecretValue)
         let isNameValid = validateName(m.insertSecretModal.newSecretName)
@@ -115,17 +119,17 @@ let update = (msg: ST.msg): Types.modification =>
     )
   }
 
-let onKeydown = (evt: Web.Node.event): option<Types.msg> =>
+let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
   switch FluidKeyboard.eventToKeyEvent(evt) {
   | Some({FluidKeyboard.key: FluidKeyboard.Enter, _}) =>
     evt["stopPropagation"]()
     evt["preventDefault"]()
     // prevents omnibox from opening
-    Some(Types.SecretMsg(SaveNewSecret))
+    Some(Msg.SecretMsg(SaveNewSecret))
   | _ => None
   }
 
-let view = (m: ST.insertModal): Html.html<Types.msg> =>
+let view = (m: ST.insertModal): Html.html<msg> =>
   if m.visible {
     let inside = {
       let closeBtn = Html.div(
@@ -134,7 +138,7 @@ let view = (m: ST.insertModal): Html.html<Types.msg> =>
           ViewUtils.eventNoPropagation(
             ~key="close-create-secret-modal",
             "click",
-            _ => Types.SecretMsg(CloseCreateModal),
+            _ => Msg.SecretMsg(CloseCreateModal),
           ),
         },
         list{fontAwesome("times")},
@@ -154,7 +158,7 @@ let view = (m: ST.insertModal): Html.html<Types.msg> =>
                 Attr.name("secret-name"),
                 Attr.value(m.newSecretName),
                 Html.classList(list{("modal-form-input", true), ("error", !m.isNameValid)}),
-                Events.onInput(str => Types.SecretMsg(OnUpdateName(Tc.String.toUppercase(str)))),
+                Events.onInput(str => Msg.SecretMsg(OnUpdateName(Tc.String.toUppercase(str)))),
               },
               list{},
             ),
@@ -163,7 +167,7 @@ let view = (m: ST.insertModal): Html.html<Types.msg> =>
                 Attr.placeholder("secret value"),
                 Attr.name("secret-value"),
                 Html.classList(list{("modal-form-input", true), ("error", !m.isValueValid)}),
-                Events.onInput(str => Types.SecretMsg(OnUpdateValue(str))),
+                Events.onInput(str => Msg.SecretMsg(OnUpdateValue(str))),
               },
               list{Html.text(m.newSecretValue)},
             ),
@@ -171,7 +175,7 @@ let view = (m: ST.insertModal): Html.html<Types.msg> =>
               list{
                 Html.type'("button"),
                 Html.class'("modal-form-button"),
-                ViewUtils.eventNoPropagation(~key="save-secret", "click", _ => Types.SecretMsg(
+                ViewUtils.eventNoPropagation(~key="save-secret", "click", _ => Msg.SecretMsg(
                   SaveNewSecret,
                 )),
               },

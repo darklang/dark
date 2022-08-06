@@ -8,6 +8,9 @@ module E = FluidExpression
 
 open ProgramTypes.Expr
 
+type model = AppTypes.model
+type msg = AppTypes.msg
+
 let appID = "app"
 
 let fontAwesome = ViewUtils.fontAwesome
@@ -99,7 +102,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
   let id =
     FluidTokenizer.ASTInfo.getToken(vs.astInfo)
-    |> Option.map(~f=ti => FluidToken.tid(ti.token))
+    |> Option.map(~f=(ti: FluidToken.tokenInfo) => FluidToken.tid(ti.token))
     |> Option.orElse(CursorState.idOf(m.cursorState))
 
   let top = {
@@ -136,9 +139,9 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           |> Option.andThen(~f=ast => FluidAST.find(id, ast))
           |> Option.andThen(~f=x =>
             switch x {
-            | EFnCall(_, name, _, sendToRail)
+            | EFnCall(_, name, _, sendToRail) => Some(name, sendToRail)
             | EBinOp(_, name, _, _, sendToRail) =>
-              Some(name, sendToRail)
+              Some(Stdlib(PT.FQFnName.InfixStdlibFnName.toStdlib(name)), sendToRail)
             | _ => None
             }
           )
@@ -167,7 +170,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           |> Option.andThen(~f=AST.getParamIndex(id))
           |> Option.andThen(~f=((name, index)) =>
             m.functions
-            |> Functions.find(name)
+            |> Functions.findByStr(name)
             |> Option.map(~f=f => {
               let param = f.fnParameters |> List.getAt(~index)
               (param, f.fnDescription)
@@ -178,7 +181,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
         | Some(param, fnDesc) =>
           switch param {
           | Some(pm) =>
-            let header = pm.paramName ++ (" : " ++ Runtime.tipe2str(pm.paramTipe))
+            let header = pm.paramName ++ (" : " ++ DType.tipe2str(pm.paramTipe))
 
             Some(
               viewDoc(
@@ -195,7 +198,9 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
       }
 
       let cmdDocString = if FluidCommands.isOpenOnTL(m.fluidState.cp, tlid) {
-        FluidCommands.highlighted(m.fluidState.cp) |> Option.map(~f=c => viewDoc(list{p(c.doc)}))
+        FluidCommands.highlighted(m.fluidState.cp) |> Option.map(~f=(c: AppTypes.fluidCmd) =>
+          viewDoc(list{p(c.doc)})
+        )
       } else {
         None
       }
@@ -211,7 +216,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
   let pos = switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) => TL.pos(tl)
-  | FocusedPackageManagerFn(_) | FocusedFn(_) | FocusedType(_) => Defaults.centerPos
+  | FocusedPackageManagerFn(_) | FocusedFn(_) | FocusedType(_) => Pos.center
   }
 
   let hasFF = vs.astInfo.featureFlagTokenInfos != list{}
@@ -262,7 +267,7 @@ let tlCacheKey = (m: model, tl) => {
 
     let tracesLoaded = Analysis.getTraces(m, tlid) |> List.map(~f=((_, traceData)) =>
       switch traceData {
-      | Ok(_) | Error(MaximumCallStackError) => true
+      | Ok(_) | Error(AnalysisTypes.TraceError.MaximumCallStackError) => true
       | _ => false
       }
     )
@@ -328,7 +333,7 @@ let zeroOutAppScrollImmediate = (): unit => {
  * We need the invariant of #app scrolled to 0,0 to be maintained in order for #canvas translate to work.
  * See https://www.notion.so/darklang/Positioning-Bug-8831a3e00a234e55856a85861512876e
  * for more information about this constraint and what happens if it is broken. ")
-let zeroOutAppScroll: Tea.Cmd.t<msg> = Tea.Cmd.call(_ => zeroOutAppScrollImmediate())
+let zeroOutAppScroll: AppTypes.cmd = Tea.Cmd.call(_ => zeroOutAppScrollImmediate())
 
 @ocaml.doc(" [isAppScrollZero ()] returns true if the scroll of #app is 0,0 and false otherwise.
  * We need the invariant of #app scrolled to 0,0 to be maintained in order for #canvas translate to work.
@@ -365,7 +370,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
     | None => list{}
     }
   | FocusedType(tlid) =>
-    switch Map.get(~key=tlid, m.userTipes) {
+    switch Map.get(~key=tlid, m.userTypes) {
     | Some(tipe) => list{viewTL(m, TL.utToTL(tipe))}
     | None => list{}
     }
@@ -453,7 +458,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
         if prop == "transform" {
           CanvasPanAnimationEnd
         } else {
-          IgnoreMsg("canvas-pan-end")
+          AppTypes.Msg.IgnoreMsg("canvas-pan-end")
         }
       ),
     },
@@ -461,7 +466,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
   )
 }
 
-let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<msg> =>
+let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.html<msg> =>
   switch currentPage {
   | FocusedFn(_) =>
     let helpIcon = Html.div(
@@ -504,7 +509,7 @@ let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<msg> =>
   | _ => Vdom.noNode
   }
 
-let viewToast = (t: toast): Html.html<msg> => {
+let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
   let msg = Option.unwrap(~default="", t.toastMessage)
   let classes = if Option.isSome(t.toastMessage) {
     "toast show"

@@ -3,6 +3,12 @@ module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
 
+type page = AppTypes.Page.t
+
+type modification = AppTypes.modification
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+
 let tlidOf = (page: page): option<TLID.t> =>
   switch page {
   | SettingsModal(_) | Architecture => None
@@ -27,7 +33,7 @@ let calculatePanOffset = (m: model, tl: toplevel, page: page): model => {
   }
 
   let panAnimation = if offset != m.canvasProps.offset {
-    AnimateTransition
+    AppTypes.CanvasProps.AnimateTransition
   } else {
     DontAnimateTransition
   }
@@ -75,12 +81,14 @@ let getTraceID = (page: page): option<traceID> =>
   | FocusedFn(_, traceId) | FocusedHandler(_, traceId, _) => traceId
   }
 
-let updatePossibleTrace = (m: model, page: page): (model, Cmd.t<msg>) => {
+let updatePossibleTrace = (m: model, page: page): (model, AppTypes.cmd) => {
   let tlid = tlidOf(page) |> Option.unwrap(~default=gtlid())
   switch getTraceID(page) {
   | Some(tid) =>
     let m = {
-      let trace = TLID.Dict.fromList(list{(tlid, list{(tid, Error(NoneYet))})})
+      let trace = TLID.Dict.fromList(list{
+        (tlid, list{(tid, Error(AnalysisTypes.TraceError.NoneYet))}),
+      })
 
       Analysis.updateTraces(m, trace)
     }
@@ -113,7 +121,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
       canvasProps: {
         ...m.canvasProps,
         lastOffset: Some(m.canvasProps.offset),
-        offset: Defaults.origin,
+        offset: Pos.origin,
       },
       cursorState: Selecting(tlid, None),
     }
@@ -141,7 +149,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
       {
         ...m,
         currentPage: newPage,
-        canvasProps: {...m.canvasProps, offset: Defaults.origin},
+        canvasProps: {...m.canvasProps, offset: Pos.origin},
         cursorState: Selecting(newtlid, None),
       }
     }
@@ -236,7 +244,7 @@ let getPageFromTLID = (m: model, tlid: TLID.t): page => {
     FocusedDB(tlid, true)
   } else if hasKey(m.userFunctions) || hasKey(m.deletedUserFunctions) {
     FocusedFn(tlid, None)
-  } else if hasKey(m.userTipes) || hasKey(m.deletedUserTipes) {
+  } else if hasKey(m.userTypes) || hasKey(m.deleteduserTypes) {
     FocusedType(tlid)
   } else {
     Architecture

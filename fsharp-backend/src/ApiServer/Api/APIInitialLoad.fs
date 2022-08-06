@@ -148,43 +148,41 @@ module V1 =
   type ApiUserInfo =
     { username : string // as opposed to UserName.T
       name : string
-      admin : bool
-      email : string
-      id : UserID }
+      email : string }
 
   type ApiStaticDeploy =
-    { deploy_hash : string
+    { deployHash : string
       url : string
-      last_update : NodaTime.Instant
+      lastUpdate : NodaTime.Instant
       status : SA.DeployStatus }
 
   let toApiStaticDeploys (d : SA.StaticDeploy) : ApiStaticDeploy =
-    { deploy_hash = d.deployHash
+    { deployHash = d.deployHash
       url = d.url
-      last_update = d.lastUpdate
+      lastUpdate = d.lastUpdate
       status = d.status }
 
-  type ApiSecret = { secret_name : string; secret_value : string }
+  type ApiSecret = { name : string; value : string }
 
   type T =
     { handlers : List<PT.Handler.T>
-      deleted_handlers : List<PT.Handler.T>
+      deletedHandlers : List<PT.Handler.T>
       dbs : List<PT.DB.T>
-      deleted_dbs : List<PT.DB.T>
-      user_functions : List<PT.UserFunction.T>
-      deleted_user_functions : List<PT.UserFunction.T>
-      user_types : List<PT.UserType.T>
-      deleted_user_types : List<PT.UserType.T>
-      unlocked_dbs : List<tlid>
-      assets : List<ApiStaticDeploy>
-      op_ctrs : List<System.Guid * int>
-      canvas_list : List<string>
-      org_canvas_list : List<string>
+      deletedDBs : List<PT.DB.T>
+      userFunctions : List<PT.UserFunction.T>
+      deletedUserFunctions : List<PT.UserFunction.T>
+      userTypes : List<PT.UserType.T>
+      deletedUserTypes : List<PT.UserType.T>
+      unlockedDBs : List<tlid>
+      staticDeploys : List<ApiStaticDeploy>
       permission : Option<Auth.Permission>
-      orgs : List<string>
+      opCtrs : Map<System.Guid, int>
       account : ApiUserInfo
-      creation_date : NodaTime.Instant
-      worker_schedules : SchedulingRules.WorkerStates.T
+      canvasList : List<string>
+      orgs : List<string>
+      orgCanvasList : List<string>
+      workerSchedules : SchedulingRules.WorkerStates.T
+      creationDate : NodaTime.Instant
       secrets : List<ApiSecret> }
 
   /// API endpoint called when client initially loads a Canvas
@@ -209,6 +207,8 @@ module V1 =
         Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
         |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
         |> Sql.executeAsync (fun read -> (read.uuid "browser_id", read.int "ctr"))
+        |> Task.map Map
+
 
       t.next "get-unlocked-dbs"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
@@ -235,31 +235,25 @@ module V1 =
 
       let result =
         { handlers = Map.values canvas.handlers
-          deleted_handlers = Map.values canvas.deletedHandlers
+          deletedHandlers = Map.values canvas.deletedHandlers
           dbs = Map.values canvas.dbs
-          deleted_dbs = Map.values canvas.deletedDBs
-          user_functions = Map.values canvas.userFunctions
-          deleted_user_functions = Map.values canvas.userFunctions
-          user_types = Map.values canvas.userTypes
-          deleted_user_types = Map.values canvas.deletedUserTypes
-          unlocked_dbs = unlocked
-          assets = List.map toApiStaticDeploys staticAssets
-          op_ctrs = opCtrs
-          canvas_list = List.map string canvasList
-          org_canvas_list = List.map string orgCanvasList
+          deletedDBs = Map.values canvas.deletedDBs
+          userFunctions = Map.values canvas.userFunctions
+          deletedUserFunctions = Map.values canvas.deletedUserFunctions
+          userTypes = Map.values canvas.userTypes
+          deletedUserTypes = Map.values canvas.deletedUserTypes
+          unlockedDBs = unlocked
+          staticDeploys = List.map toApiStaticDeploys staticAssets
+          opCtrs = opCtrs
+          canvasList = List.map string canvasList
+          orgCanvasList = List.map string orgCanvasList
           permission = permission
           orgs = List.map string orgList
-          worker_schedules = workerSchedules
+          workerSchedules = workerSchedules
           account =
-            { username = string user.username
-              name = user.name
-              email = user.email
-              admin = user.admin
-              id = user.id }
-          creation_date = creationDate
-          secrets =
-            secrets
-            |> List.map (fun s -> { secret_name = s.name; secret_value = s.value }) }
+            { username = string user.username; name = user.name; email = user.email }
+          creationDate = creationDate
+          secrets = secrets |> List.map (fun s -> { name = s.name; value = s.value }) }
 
       return result
     }

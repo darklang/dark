@@ -15,17 +15,17 @@ let tokenizeWithFFTokenization: (
 let tokenize: FluidExpression.t => list<FluidToken.tokenInfo>
 
 @ocaml.doc(" returns the tokens that should populate the given editor ")
-let tokensForEditor: (Types.fluidEditor, FluidAST.t) => list<FluidToken.tokenInfo>
+let tokensForEditor: (FluidTypes.Editor.t, FluidAST.t) => list<FluidToken.tokenInfo>
 
 @ocaml.doc(" returns the given expression, tokenized with the rules of the specified editor ")
-let tokenizeForEditor: (Types.fluidEditor, FluidExpression.t) => list<FluidToken.tokenInfo>
+let tokenizeForEditor: (FluidTypes.Editor.t, FluidExpression.t) => list<FluidToken.tokenInfo>
 
 @@ocaml.text(" patternToToken takes a match pattern `p` and converts it to a list of
     fluidTokens.
 
     ~idx is the zero-based index of the pattern in the enclosing match ")
 
-let patternToToken: (ID.t, FluidPattern.t, ~idx: int) => list<Types.fluidToken>
+let patternToToken: (ID.t, FluidPattern.t, ~idx: int) => list<FluidTypes.Token.t>
 
 let getTokensAtPosition: (
   ~prev: option<FluidToken.tokenInfo>=?,
@@ -43,7 +43,7 @@ let getNeighbours: (
   list<FluidToken.tokenInfo>,
 ) => (neighbour, neighbour, option<FluidToken.tokenInfo>)
 
-let getToken': (list<FluidToken.tokenInfo>, Types.fluidState) => option<FluidToken.tokenInfo>
+let getToken': (list<FluidToken.tokenInfo>, AppTypes.fluidState) => option<FluidToken.tokenInfo>
 
 /* This is slightly different from getToken. Here we simply want the token
  * closest to the caret that is a not TNewline nor TSep. It is used for
@@ -51,13 +51,13 @@ let getToken': (list<FluidToken.tokenInfo>, Types.fluidState) => option<FluidTok
  * behavior should be applicable */
 let getTokenNotWhitespace: (
   list<FluidToken.tokenInfo>,
-  Types.fluidState,
+  AppTypes.fluidState,
 ) => option<FluidToken.tokenInfo>
 
 module ASTInfo: {
   type t = {
     ast: FluidAST.t,
-    state: Types.fluidState,
+    state: AppTypes.fluidState,
     mainTokenInfos: list<FluidToken.tokenInfo>,
     featureFlagTokenInfos: list<(ID.t, list<FluidToken.tokenInfo>)>,
     props: Types.fluidProps,
@@ -69,15 +69,15 @@ module ASTInfo: {
 
   let activeTokenInfos: t => list<FluidToken.tokenInfo>
 
-  let modifyState: (~f: Types.fluidState => Types.fluidState, t) => t
+  let modifyState: (~f: AppTypes.fluidState => AppTypes.fluidState, t) => t
 
   let getToken: t => option<FluidToken.tokenInfo>
 
   let getTokenNotWhitespace: t => option<FluidToken.tokenInfo>
 
-  let emptyFor: (Types.fluidProps, Types.fluidState) => t
+  let emptyFor: (Types.fluidProps, AppTypes.fluidState) => t
 
-  let make: (Types.fluidProps, FluidAST.t, Types.fluidState) => t
+  let make: (Types.fluidProps, FluidAST.t, AppTypes.fluidState) => t
 
   let exprOfActiveEditor: t => FluidExpression.t
 }

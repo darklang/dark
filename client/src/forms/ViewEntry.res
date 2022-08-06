@@ -22,10 +22,12 @@ let defaultPasteHandler = Html.onWithOptions(
   ~key="paste",
   "paste",
   {stopPropagation: true, preventDefault: false},
-  Decoders.wrapDecoder(_ => IgnoreMsg("default-paste-handler")),
+  Decoders.wrapDecoder(_ => Msg.IgnoreMsg("default-paste-handler")),
 )
 
-let normalEntryHtml = (placeholder: string, ac: autocomplete): Html.html<msg> => {
+let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.html<
+  AppTypes.msg,
+> => {
   let toList = (acis, class', index) => List.mapWithIndex(~f=(i, item) => {
       let highlighted = index == i
       let name = Autocomplete.asName(item)
@@ -79,7 +81,7 @@ let normalEntryHtml = (placeholder: string, ac: autocomplete): Html.html<msg> =>
   let searchInput = Html.input'(
     list{
       Attributes.id(Defaults.entryID),
-      Events.onInput(x => EntryInputMsg(x)),
+      Events.onInput(x => Msg.EntryInputMsg(x)),
       defaultPasteHandler,
       Attributes.value(search),
       Attributes.placeholder(placeholder),
@@ -107,11 +109,13 @@ let normalEntryHtml = (placeholder: string, ac: autocomplete): Html.html<msg> =>
 
   Html.div(
     list{Html.class'("entry")},
-    list{Html.form(list{onSubmit(~key="esm2", _ => EntrySubmitMsg)}, list{input, autocomplete})},
+    list{
+      Html.form(list{onSubmit(~key="esm2", _ => Msg.EntrySubmitMsg)}, list{input, autocomplete}),
+    },
   )
 }
 
-let viewEntry = (m: model): Html.html<msg> =>
+let viewEntry = (m: AppTypes.model): Html.html<AppTypes.msg> =>
   switch CursorState.unwrap(m.cursorState) {
   | Omnibox(pos) =>
     let styleProp = switch pos {

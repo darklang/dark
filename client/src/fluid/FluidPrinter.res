@@ -5,22 +5,22 @@ module Pattern = FluidPattern
 module Util = FluidUtil
 open FluidTokenizer
 
-type token = Types.fluidToken
+type token = FluidTypes.Token.t
 
-type tokenInfo = Types.fluidTokenInfo
+type tokenInfo = FluidTypes.TokenInfo.t
 
 let tokensToString = (tis: list<tokenInfo>): string =>
-  tis |> List.map(~f=ti => T.toText(ti.token)) |> String.join(~sep="")
+  tis |> List.map(~f=(ti: tokenInfo) => T.toText(ti.token)) |> String.join(~sep="")
 
 let eToTestString = (e: E.t): string =>
-  e |> tokenize |> List.map(~f=ti => T.toTestText(ti.token)) |> String.join(~sep="")
+  e |> tokenize |> List.map(~f=(ti: tokenInfo) => T.toTestText(ti.token)) |> String.join(~sep="")
 
 let eToHumanString = (e: E.t): string => e |> tokenize |> tokensToString
 
 let eToStructure = (~includeIDs=false, e: E.t): string =>
   e
   |> tokenize
-  |> List.map(~f=ti =>
+  |> List.map(~f=(ti: tokenInfo) =>
     "<" ++
     (T.toTypeName(ti.token) ++
     (if includeIDs {
@@ -61,6 +61,7 @@ let rec eToTestcase = (e: E.t): string => {
   let result = switch e {
   | EBlank(_) => "b"
   | EString(_, str) => spaced(list{"str", quoted(str)})
+  | ECharacter(_, str) => spaced(list{"str", quoted(str)})
   | EBool(_, true) => spaced(list{"bool true"})
   | EBool(_, false) => spaced(list{"bool false"})
   | EFloat(_, sign, whole, fractional) =>
@@ -71,8 +72,10 @@ let rec eToTestcase = (e: E.t): string => {
   | EPartial(_, str, e) => spaced(list{"partial", quoted(str), r(e)})
   | ERightPartial(_, str, e) => spaced(list{"rightPartial", quoted(str), r(e)})
   | ELeftPartial(_, str, e) => spaced(list{"prefixPartial", quoted(str), r(e)})
-  | EFnCall(_, name, exprs, _) => spaced(list{"fn", quoted(name), listed(List.map(~f=r, exprs))})
-  | EBinOp(_, name, lhs, rhs, _) => spaced(list{"binop", quoted(name), r(lhs), r(rhs)})
+  | EFnCall(_, name, exprs, _) =>
+    spaced(list{"fn", quoted(PT.FQFnName.toString(name)), listed(List.map(~f=r, exprs))})
+  | EBinOp(_, name, lhs, rhs, _) =>
+    spaced(list{"binop", quoted(PT.FQFnName.InfixStdlibFnName.toString(name)), r(lhs), r(rhs)})
   | EVariable(_, name) => spaced(list{"var", quoted(name)})
   | EFieldAccess(_, expr, fieldname) => spaced(list{"fieldAccess", r(expr), quoted(fieldname)})
   | EMatch(_, cond, matches) =>
@@ -83,6 +86,7 @@ let rec eToTestcase = (e: E.t): string => {
       switch p {
       | PBlank(_) => "pBlank"
       | PString(_, str) => spaced(list{"pString", quoted(str)})
+      | PCharacter(_, str) => spaced(list{"pChar", quoted(str)})
       | PBool(_, true) => spaced(list{"pBool true"})
       | PBool(_, false) => spaced(list{"pBool false"})
       | PFloat(_, sign, whole, fractional) =>
@@ -109,7 +113,7 @@ let rec eToTestcase = (e: E.t): string => {
   | ETuple(_, first, second, theRest) =>
     let exprs = list{first, second, ...theRest}
     spaced(list{"tuple", listed(List.map(~f=r, exprs))})
-  | EPipe(_, e1, e2, rest) => spaced(list{"pipe", r(e1),  r(e2), listed(List.map(~f=r, rest))})
+  | EPipe(_, e1, e2, rest) => spaced(list{"pipe", r(e1), r(e2), listed(List.map(~f=r, rest))})
   | EConstructor(_, name, exprs) =>
     spaced(list{"constructor", quoted(name), listed(List.map(exprs, ~f=r))})
   | EIf(_, cond, thenExpr, elseExpr) => spaced(list{"if'", r(cond), r(thenExpr), r(elseExpr)})

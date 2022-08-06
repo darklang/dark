@@ -1,21 +1,26 @@
 open Prelude
-module RT = Runtime
+
+module RT = RuntimeTypes
 module TL = Toplevel
-module Regex = Util.Regex
 
-@ppx.deriving(show) type rec t = fluidAutocompleteState
+module FT = FluidTypes
+module Msg = AppTypes.Msg
 
-@ppx.deriving(show) type rec item = fluidAutocompleteItem
+type model = AppTypes.model
 
-@ppx.deriving(show) type rec data = fluidAutocompleteData
+@ppx.deriving(show) type rec t = FT.AutoComplete.t
+
+@ppx.deriving(show) type rec item = FT.AutoComplete.item
+
+@ppx.deriving(show) type rec data = FT.AutoComplete.data
 
 type props = {functions: Types.functionsType}
 
-@ppx.deriving(show) type rec tokenInfo = fluidTokenInfo
+@ppx.deriving(show) type rec tokenInfo = FluidTypes.TokenInfo.t
 
-let focusItem = (i: int): Tea.Cmd.t<msg> =>
+let focusItem = (i: int): AppTypes.cmd =>
   Tea_task.attempt(
-    _ => IgnoreMsg("fluid-autocomplete-focus"),
+    _ => Msg.IgnoreMsg("fluid-autocomplete-focus"),
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
       open Native.Ext
@@ -53,7 +58,7 @@ let focusItem = (i: int): Tea.Cmd.t<msg> =>
 // ----------------------------
 let asName = (aci: item): string =>
   switch aci {
-  | FACFunction(fn) => fn.fnName
+  | FACFunction(fn) => PT.FQFnName.toString(fn.fnName)
   | FACField(name) => name
   | FACVariable(name, _) => name
   | FACLiteral(lit) => lit
@@ -83,12 +88,12 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACFunction(f) =>
     f.fnParameters
     |> List.map(~f=x => x.paramTipe)
-    |> List.map(~f=RT.tipe2str)
-    |> (s => (s, RT.tipe2str(f.fnReturnTipe)))
+    |> List.map(~f=DType.tipe2str)
+    |> (s => (s, DType.tipe2str(f.fnReturnTipe)))
   | FACField(_) => (list{}, "field")
   | FACVariable(_, odv) =>
     odv
-    |> Option.map(~f=dv => dv |> RT.typeOf |> RT.tipe2str)
+    |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.Dval.toType |> DType.tipe2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
   | FACPattern(FPAVariable(_)) => (list{}, "variable")
@@ -105,10 +110,10 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACLiteral(lit) =>
     let tipe =
       lit
-      |> Decoders.parseDvalLiteral
-      |> Option.unwrap(~default=DIncomplete(SourceNone))
-      |> RT.typeOf
-      |> RT.tipe2str
+      |> Runtime.parseDvalLiteral
+      |> Option.unwrap(~default=RT.Dval.DIncomplete(SourceNone))
+      |> RT.Dval.toType
+      |> DType.tipe2str
 
     (list{}, tipe ++ " literal")
   | FACPattern(FPABool(_)) => (list{}, "boolean literal")
@@ -165,7 +170,8 @@ let highlightedWithValidity = (a: t): option<data> =>
 
 /* Return the item that is highlighted (at a.index position in the
  * list). */
-let highlighted = (a: t): option<item> => highlightedWithValidity(a) |> Option.map(~f=d => d.item)
+let highlighted = (a: t): option<item> =>
+  highlightedWithValidity(a) |> Option.map(~f=(d: data) => d.item)
 
 let rec containsOrdered = (needle: string, haystack: string): bool =>
   switch String.uncons(needle) {
@@ -184,7 +190,7 @@ let rec containsOrdered = (needle: string, haystack: string): bool =>
 // ------------------------------------
 
 // Return the value being piped into the token at ti, if there is one
-let findPipedDval = (m: model, tl: toplevel, ti: tokenInfo): option<dval> => {
+let findPipedDval = (m: model, tl: toplevel, ti: tokenInfo): option<RT.Dval.t> => {
   let id =
     TL.getAST(tl)
     |> Option.andThen(~f=AST.pipePrevious(FluidToken.tid(ti.token)))
@@ -195,7 +201,7 @@ let findPipedDval = (m: model, tl: toplevel, ti: tokenInfo): option<dval> => {
   |> Option.andThen2(id, ~f=Analysis.getLiveValue(m))
   |> Option.andThen(~f=dv =>
     switch dv {
-    | DIncomplete(_) => None
+    | RT.Dval.DIncomplete(_) => None
     | _ => Some(dv)
     }
   )
@@ -215,7 +221,7 @@ let findFields = (m: model, tl: toplevel, ti: tokenInfo): list<string> => {
   |> Option.andThen(~f=Analysis.getLiveValue(m, id))
   |> Option.map(~f=dv =>
     switch dv {
-    | DObj(dict) => Belt.Map.String.keysToArray(dict) |> Array.toList
+    | RT.Dval.DObj(dict) => Belt.Map.String.keysToArray(dict) |> Array.toList
     | _ => list{}
     }
   )
@@ -233,7 +239,7 @@ let findExpectedType = (
   |> Option.andThen(~f=AST.getParamIndex(id))
   |> Option.andThen(~f=((name, index)) =>
     functions
-    |> List.find(~f=f => name == f.fnName)
+    |> List.find(~f=f => name == PT.FQFnName.toString(f.fnName))
     |> Option.map(~f=fn => {
       let param = List.getAt(~index, fn.fnParameters)
       let returnType =
@@ -242,7 +248,7 @@ let findExpectedType = (
       let paramName =
         Option.map(param, ~f=p => p.paramName) |> Option.unwrap(~default=default.paramName)
 
-      ({fnName: fn.fnName, returnType: returnType, paramName: paramName}: TypeInformation.t)
+      ({fnName: Some(fn.fnName), returnType: returnType, paramName: paramName}: TypeInformation.t)
     })
   )
   |> Option.unwrap(~default)
@@ -254,19 +260,22 @@ let typeCheck = (
   expectedReturnType: TypeInformation.t,
   item: item,
 ): data => {
-  let valid = {item: item, validity: FACItemValid}
-  let invalidFirstArg = tipe => {item: item, validity: FACItemInvalidPipedArg(tipe)}
-  let invalidReturnType = {item: item, validity: FACItemInvalidReturnType(expectedReturnType)}
+  let valid: data = {item: item, validity: FACItemValid}
+  let invalidFirstArg = tipe => {FT.AutoComplete.item: item, validity: FACItemInvalidPipedArg(tipe)}
+  let invalidReturnType = {
+    FT.AutoComplete.item: item,
+    validity: FACItemInvalidReturnType(expectedReturnType),
+  }
 
   let expectedReturnType = expectedReturnType.returnType
   switch item {
   | FACFunction(fn) =>
-    if !RT.isCompatible(fn.fnReturnTipe, expectedReturnType) {
+    if !Runtime.isCompatible(fn.fnReturnTipe, expectedReturnType) {
       invalidReturnType
     } else {
       switch (List.head(fn.fnParameters), pipedType) {
       | (Some(param), Some(pipedType)) =>
-        if RT.isCompatible(param.paramTipe, pipedType) {
+        if Runtime.isCompatible(param.paramTipe, pipedType) {
           valid
         } else {
           invalidFirstArg(pipedType)
@@ -280,7 +289,7 @@ let typeCheck = (
   | FACVariable(_, dval) =>
     switch dval {
     | Some(dv) =>
-      if RT.isCompatible(Runtime.typeOf(dv), expectedReturnType) {
+      if Runtime.isCompatible(RT.Dval.toType(dv), expectedReturnType) {
         valid
       } else {
         invalidReturnType
@@ -289,19 +298,19 @@ let typeCheck = (
     }
   | FACConstructorName(name, _) =>
     switch expectedReturnType {
-    | TOption =>
+    | TOption(_) =>
       if name == "Just" || name == "Nothing" {
         valid
       } else {
         invalidReturnType
       }
-    | TResult =>
+    | TResult(_) =>
       if name == "Ok" || name == "Error" {
         valid
       } else {
         invalidReturnType
       }
-    | TAny => valid
+    | TVariable(_) => valid
     | _ => invalidReturnType
     }
   | _ => valid
@@ -314,7 +323,7 @@ type fullQuery = {
   tl: toplevel,
   ti: tokenInfo,
   fieldList: list<string>,
-  pipedDval: option<dval>,
+  pipedDval: option<RT.Dval.t>,
   queryString: string,
 }
 
@@ -328,27 +337,35 @@ let toQueryString = (ti: tokenInfo): string =>
 // ----------------------------
 // Autocomplete state
 // ----------------------------
-let init: t = Defaults.defaultModel.fluidState.ac
+let init: t = FluidTypes.AutoComplete.default
 
 // ------------------------------------
 // Create the list
 // ------------------------------------
 
-let secretToACItem = (s: SecretTypes.t): fluidAutocompleteItem => {
-  let asDval = DStr(Util.obscureString(s.secretValue))
+let secretToACItem = (s: SecretTypes.t): item => {
+  let asDval = RT.Dval.DStr(Util.obscureString(s.secretValue))
   FACVariable(s.secretName, Some(asDval))
 }
 
-let lookupIsInQuery = (tl: toplevel, ti) => {
-  let isQueryFn = name =>
-    list{
-      "DB::query_v4",
-      "DB::queryWithKey_v3",
-      "DB::queryOne_v3",
-      "DB::queryOne_v4",
-      "DB::queryOneWithKey_v3",
-      "DB::queryCount",
-    } |> List.any(~f=q => q == name)
+let lookupIsInQuery = (tl: toplevel, ti: tokenInfo) => {
+  // CLEANUP: use builtin query attribute in the global function list
+  let isQueryFn = (name: PT.FQFnName.t) =>
+    switch name {
+    | Stdlib({module_: "DB", function, version}) =>
+      switch (function, version) {
+      | ("query", 4)
+      | ("queryWithKey", 3)
+      | ("queryOne", 3)
+      | ("queryOne", 4)
+      | ("queryOneWithKey", 3)
+      | ("queryCount", 0) => true
+      | _ => false
+      }
+    | Stdlib(_) => false
+    | User(_) => false
+    | Package(_) => false
+    }
 
   let ast' = TL.getAST(tl)
   switch ast' {
@@ -371,13 +388,14 @@ let filterToDbSupportedFns = (isInQuery, functions) =>
   } else {
     functions |> List.filter(~f=f =>
       switch f {
-      | FACFunction(fn) => fn.fnIsSupportedInQuery
+      | FT.AutoComplete.FACFunction(fn) => fn.fnIsSupportedInQuery
       | _ => false
       }
     )
   }
 
 let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
+  open FT.AutoComplete
   let isInQuery = lookupIsInQuery(tl, ti)
   let functions' = Functions.asFunctions(props.functions) |> List.map(~f=x => FACFunction(x))
 
@@ -412,7 +430,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
 }
 
-let generatePatterns = (ti, a, queryString): list<item> => {
+let generatePatterns = (ti: tokenInfo, a: t, queryString: string): list<item> => {
   let alreadyHasPatterns = List.any(~f=v =>
     switch v {
     | {item: FACPattern(_), _} => true
@@ -421,24 +439,24 @@ let generatePatterns = (ti, a, queryString): list<item> => {
   , a.completions)
 
   let newStandardPatterns = mid =>
-    /* if patterns are in the autocomplete already, don't bother creating
-     * new FACPatterns with different mids and pids */
+    // if patterns are in the autocomplete already, don't bother creating
+    // new FACPatterns with different mids and pids
     if alreadyHasPatterns {
-      a.completions |> List.map(~f=({item, _}) => item)
+      a.completions |> List.map(~f=({item, _}: data) => item)
     } else {
       list{
-        FPABool(mid, gid(), true),
+        FT.AutoComplete.FPABool(mid, gid(), true),
         FPABool(mid, gid(), false),
         FPAConstructor(mid, gid(), "Just", list{PBlank(gid())}),
         FPAConstructor(mid, gid(), "Nothing", list{}),
         FPAConstructor(mid, gid(), "Ok", list{PBlank(gid())}),
         FPAConstructor(mid, gid(), "Error", list{PBlank(gid())}),
         FPANull(mid, gid()),
-      } |> List.map(~f=p => FACPattern(p))
+      } |> List.map(~f=p => FT.AutoComplete.FACPattern(p))
     } |> List.filter(~f=c =>
       // filter out old query string variable
       switch c {
-      | FACPattern(FPAVariable(_)) => false
+      | FT.AutoComplete.FACPattern(FPAVariable(_)) => false
       | _ => true
       }
     )
@@ -454,7 +472,7 @@ let generatePatterns = (ti, a, queryString): list<item> => {
     if isInvalidPatternVar(queryString) {
       list{}
     } else {
-      list{FACPattern(FPAVariable(mid, gid(), queryString))}
+      list{FT.AutoComplete.FACPattern(FPAVariable(mid, gid(), queryString))}
     }
 
   switch ti.token {
@@ -469,7 +487,7 @@ let generateCommands = (_name, _tlid, _id) =>
   // [FACCreateFunction (name, tlid, id)]
   list{}
 
-let generateFields = fieldList => List.map(~f=x => FACField(x), fieldList)
+let generateFields = fieldList => List.map(~f=x => FT.AutoComplete.FACField(x), fieldList)
 
 let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
   let tlid = TL.id(query.tl)
@@ -528,7 +546,7 @@ let filter = (functions: list<function_>, candidates0: list<item>, query: fullQu
     list{startsWith, startsWithCI, substring, substringCI, stringMatch} |> List.flatten
 
   // Now split list by type validity
-  let pipedType = Option.map(~f=RT.typeOf, query.pipedDval)
+  let pipedType = Option.map(~f=RT.Dval.toType, query.pipedDval)
   let expectedTypeInfo = findExpectedType(functions, query.tl, query.ti)
   List.map(allMatches, ~f=typeCheck(pipedType, expectedTypeInfo))
 }
@@ -641,9 +659,9 @@ let selectUp = (a: t): t =>
   | None => a
   }
 
-let isOpened = (ac: fluidAutocompleteState): bool => Option.isSome(ac.index)
+let isOpened = (ac: t): bool => Option.isSome(ac.index)
 
-let typeErrorDoc = ({item, validity}: data): Vdom.t<msg> => {
+let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
   let _types = asTypeStrings(item)
   let _validity = validity
   switch validity {
@@ -665,7 +683,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<msg> => {
       list{
         Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
         Html.text("A value of type "),
-        Html.span(list{Html.class'("type")}, list{Html.text(RT.tipe2str(tipe))}),
+        Html.span(list{Html.class'("type")}, list{Html.text(DType.tipe2str(tipe))}),
         Html.text(" is being piped into this function call, but "),
         Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
         ...typeInfo,
@@ -678,11 +696,14 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<msg> => {
       list{},
       list{
         Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
-        Html.span(list{Html.class'("fn")}, list{Html.text(fnName)}),
+        Html.span(
+          list{Html.class'("fn")},
+          list{Html.text(fnName->Option.map(~f=PT.FQFnName.toString)->Option.unwrap(~default=""))},
+        ),
         Html.text(" expects "),
         Html.span(list{Html.class'("param")}, list{Html.text(paramName)}),
         Html.text(" to be a "),
-        Html.span(list{Html.class'("type")}, list{Html.text(RT.tipe2str(returnType))}),
+        Html.span(list{Html.class'("type")}, list{Html.text(DType.tipe2str(returnType))}),
         Html.text(", but "),
         Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
         Html.text(" returns a "),

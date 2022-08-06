@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
     <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>

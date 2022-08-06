@@ -1,5 +1,7 @@
 open Types
 
+type cursorState = AppTypes.CursorState.t
+
 let rec unwrap = (s: cursorState): cursorState =>
   switch s {
   | DraggingTL(_, _, _, nested) | PanningCanvas({prevCursorState: nested, _}) => unwrap(nested)
@@ -28,7 +30,7 @@ let idOf = (s: cursorState): option<id> =>
   | DraggingTL(_) | PanningCanvas(_) => None
   }
 
-let focusEntry = (m: model): Tea.Cmd.t<msg> =>
+let focusEntry = (m: AppTypes.Model.t): AppTypes.cmd =>
   switch unwrap(m.cursorState) {
   | Entering(_) | Omnibox(_) => Tea_html_cmds.focus(Defaults.entryID)
   | Selecting(_) | Deselected | FluidEntering(_) | DraggingTL(_) | PanningCanvas(_) => Tea.Cmd.none
@@ -56,13 +58,16 @@ let focusWithOffset = (id, offset) =>
     ()
   })
 
-let focusEntryWithOffset = (m: model, offset: int): Tea.Cmd.t<msg> =>
+let focusEntryWithOffset = (m: AppTypes.model, offset: int): AppTypes.cmd =>
   switch unwrap(m.cursorState) {
   | Entering(_) | Omnibox(_) => focusWithOffset(Defaults.entryID, offset)
   | Selecting(_) | Deselected | FluidEntering(_) | DraggingTL(_) | PanningCanvas(_) => Tea.Cmd.none
   }
 
-let setCursorState = (cursorState: cursorState, m: model): (model, Tea.Cmd.t<msg>) => {
+let setCursorState = (cursorState: cursorState, m: AppTypes.model): (
+  AppTypes.model,
+  AppTypes.cmd,
+) => {
   let m = {...m, cursorState: cursorState}
   /* TODO: Move the focusEntry part of this out, to happen
    * once all modifications have been applied. It's currently

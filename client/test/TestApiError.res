@@ -1,6 +1,5 @@
 open Prelude
 open Tester
-module APIError = APIError
 module Http = Tea.Http
 module StringMap = Caml.Map.Make(Caml.String)
 

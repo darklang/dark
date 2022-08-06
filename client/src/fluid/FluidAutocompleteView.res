@@ -1,6 +1,8 @@
 open Prelude
+type data = FluidTypes.AutoComplete.data
+type state = FluidTypes.AutoComplete.t
 
-let viewAutocompleteItemTypes = ({item, validity}: fluidAutocompleteData): Html.html<Types.msg> => {
+let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg> => {
   let (args, rt) = FluidAutocomplete.asTypeStrings(item)
   let html = {
     let returnTypeHtml = {
@@ -36,7 +38,7 @@ let viewAutocompleteItemTypes = ({item, validity}: fluidAutocompleteData): Html.
   Html.span(list{Html.class'("types")}, html)
 }
 
-let view = (ac: Types.fluidAutocompleteState): Html.html<Types.msg> => {
+let view = (ac: state): Html.html<AppTypes.msg> => {
   let index = ac.index |> Option.unwrap(~default=-1)
   let autocompleteList = List.mapWithIndex(ac.completions, ~f=(i, {item, validity}) => {
     let class' = if validity == FACItemValid {

@@ -5,29 +5,61 @@ type rec t =
   | TBool
   | TNull
   | TStr
-  | TList
+  | TChar
+  | TList(t)
   | TTuple(t, t, list<t>)
-  | TObj
+  | TDict(t)
   | TIncomplete
   | TError
-  | TResp
-  | TDB
+  | THttpResponse(t)
+  | TDB(t)
   | TDate
-  | TCharacter
   | TPassword
   | TUuid
-  | TOption
+  | TOption(t)
   | TErrorRail
   | TUserType(string, int)
   | TBytes
-  | TResult
-  | TAny
-  | TBlock
+  | TResult(t, t)
+  | TVariable(string)
+  | TFn(list<t>, t)
   | TDbList(t)
+  | TRecord(list<(string, t)>)
 
-let rec decodeNew = (j): t => {
+let any = TVariable("any")
+
+let rec tipe2str = (t: t): string =>
+  switch t {
+  | TVariable(_) => "Any"
+  | TInt => "Int"
+  | TFloat => "Float"
+  | TBool => "Bool"
+  | TChar => "Char"
+  | TNull => "Null"
+  | TStr => "String"
+  | TList(_) => "List"
+  | TTuple(_, _, _) => "Tuple"
+  | TDict(_) => "Dict"
+  | TFn(_) => "Block"
+  | TIncomplete => "Incomplete"
+  | TError => "Error"
+  | THttpResponse(_) => "Response"
+  | TDB(_) => "Datastore"
+  | TDate => "Date"
+  | TOption(_) => "Option"
+  | TPassword => "Password"
+  | TUuid => "UUID"
+  | TErrorRail => "ErrorRail"
+  | TResult(_) => "Result"
+  | TDbList(a) => "[" ++ (tipe2str(a) ++ "]")
+  | TUserType(name, _) => name
+  | TBytes => "Bytes"
+  | TRecord(_) => "Record"
+  }
+
+let rec decode = (j): t => {
   open Json_decode_extended
-  let d = decodeNew
+  let d = decode
   let dv0 = variant0
   let dv1 = variant1
   let dv2 = variant2
@@ -35,68 +67,30 @@ let rec decodeNew = (j): t => {
   variants(
     list{
       ("TInt", dv0(TInt)),
-      ("TAny", dv0(TAny)),
       ("TFloat", dv0(TFloat)),
       ("TBool", dv0(TBool)),
       ("TNull", dv0(TNull)),
       ("TStr", dv0(TStr)),
-      ("TList", dv1(_ => TList, d)),
+      ("TList", dv1(t1 => TList(t1), d)),
+      ("TDbList", dv1(t1 => TDbList(t1), d)),
       ("TTuple", dv3((first, second, theRest) => TTuple(first, second, theRest), d, d, list(d))),
-      ("TDict", dv1(_ => TObj, d)),
+      ("TDict", dv1(t1 => TDict(t1), d)),
       ("TIncomplete", dv0(TIncomplete)),
       ("TError", dv0(TError)),
-      ("THttpResponse", dv1(_ => TResp, d)),
-      ("TDB", dv1(_ => TDB, d)),
+      ("THttpResponse", dv1(t1 => THttpResponse(t1), d)),
+      ("TDB", dv1(t1 => TDB(t1), d)),
       ("TDate", dv0(TDate)),
-      ("TChar", dv0(TCharacter)),
+      ("TChar", dv0(TChar)),
       ("TPassword", dv0(TPassword)),
       ("TUuid", dv0(TUuid)),
-      ("TOption", dv1(_ => TOption, d)),
+      ("TOption", dv1(t1 => TOption(t1), d)),
       ("TErrorRail", dv0(TErrorRail)),
       ("TBytes", dv0(TBytes)),
-      ("TResult", dv2((_t1, _t2) => TResult, d, d)),
-      ("TVariable", dv1(_ => TAny, string)),
-      ("TFn", dv2((_, _) => TBlock, list(d), d)),
-      ("TRecord", dv1(_ => TAny, list(pair(string, d)))),
-    },
-    j,
-  )
-}
-
-// Decode the old OCaml format that was not polymorphic
-let rec decodeOld = (j): t => {
-  open Json_decode_extended
-  let d = decodeOld
-  let dv0 = variant0
-  let dv1 = variant1
-  let dv2 = variant2
-  let dv3 = variant3
-  variants(
-    list{
-      ("TInt", dv0(TInt)),
-      ("TFloat", dv0(TFloat)),
-      ("TStr", dv0(TStr)),
-      ("TCharacter", dv0(TCharacter)),
-      ("TBool", dv0(TBool)),
-      ("TObj", dv0(TObj)),
-      ("TList", dv0(TList)),
-      ("TTuple", dv3((first, second, theRest) => TTuple(first, second, theRest), d, d, list(d))),
-      ("TAny", dv0(TAny)),
-      ("TNull", dv0(TNull)),
-      ("TBlock", dv0(TBlock)),
-      ("TIncomplete", dv0(TIncomplete)),
-      ("TError", dv0(TError)),
-      ("TResp", dv0(TResp)),
-      ("TDB", dv0(TDB)),
-      ("TDate", dv0(TDate)),
-      ("TDbList", dv1(x => TDbList(x), d)),
-      ("TPassword", dv0(TPassword)),
-      ("TUuid", dv0(TUuid)),
-      ("TOption", dv0(TOption)),
-      ("TErrorRail", dv0(TErrorRail)),
-      ("TResult", dv0(TResult)),
+      ("TResult", dv2((t1, t2) => TResult(t1, t2), d, d)),
       ("TUserType", dv2((n, v) => TUserType(n, v), string, int)),
-      ("TBytes", dv0(TBytes)),
+      ("TVariable", dv1(name => TVariable(name), string)),
+      ("TFn", dv2((args, rt) => TFn(args, rt), list(d), d)),
+      ("TRecord", dv1(rows => TRecord(rows), list(pair(string, d)))),
     },
     j,
   )
@@ -108,28 +102,29 @@ let rec encode = (t: t): Js.Json.t => {
   switch t {
   | TInt => ev("TInt", list{})
   | TStr => ev("TStr", list{})
-  | TCharacter => ev("TCharacter", list{})
+  | TChar => ev("TChar", list{})
   | TBool => ev("TBool", list{})
   | TFloat => ev("TFloat", list{})
-  | TObj => ev("TObj", list{})
-  | TList => ev("TList", list{})
+  | TDict(t1) => ev("TDict", list{encode(t1)})
+  | TList(t1) => ev("TList", list{encode(t1)})
   | TTuple(first, second, theRest) =>
     ev("TTuple", list{encode(first), encode(second), list(encode, theRest)})
-  | TAny => ev("TAny", list{})
+  | TVariable(name) => ev("TVariable", list{string(name)})
   | TNull => ev("TNull", list{})
-  | TBlock => ev("TBlock", list{})
+  | TFn(args, rt) => ev("TFn", list{list(encode, args), encode(rt)})
   | TIncomplete => ev("TIncomplete", list{})
   | TError => ev("TError", list{})
-  | TResp => ev("TResp", list{})
-  | TDB => ev("TDB", list{})
+  | THttpResponse(t1) => ev("THttpResponse", list{encode(t1)})
+  | TDB(t1) => ev("TDB", list{encode(t1)})
   | TDate => ev("TDate", list{})
   | TDbList(a) => ev("TDbList", list{encode(a)})
   | TPassword => ev("TPassword", list{})
   | TUuid => ev("TUuid", list{})
-  | TOption => ev("TOption", list{})
+  | TOption(t1) => ev("TOption", list{encode(t1)})
   | TErrorRail => ev("TErrorRail", list{})
-  | TResult => ev("TResult", list{})
+  | TResult(t1, t2) => ev("TResult", list{encode(t1), encode(t2)})
   | TUserType(name, version) => ev("TUserType", list{string(name), int(version)})
   | TBytes => ev("TBytes", list{})
+  | TRecord(rows) => ev("TRecord", list{list(pair(string, encode), rows)})
   }
 }

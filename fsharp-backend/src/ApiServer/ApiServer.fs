@@ -119,27 +119,31 @@ let addRoutes
   clientJsonApi "all_traces" R Traces.AllTraces.fetchAll
   clientJsonApi "delete_404" RW F404s.Delete.delete
   clientJsonApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
-  clientJsonApi "delete_secret" RW Secrets.Delete.delete
+  clientJsonApi "v1/delete_secret" RW Secrets.DeleteV1.delete
   clientJsonApi "v1/execute_function" RW Execution.FunctionV1.execute
   clientJsonApi "get_404s" R F404s.List.get
   clientJsonApi "v1/get_db_stats" R DBs.DBStatsV1.getStats
-  clientJsonApiOption "get_trace_data" R Traces.TraceData.getTraceData
+  clientJsonApiOption "v1/get_trace_data" R Traces.TraceDataV1.getTraceData
   clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
   clientJsonApi "get_worker_stats" R Workers.WorkerStats.getStats
   clientJsonApi "v1/initial_load" R InitialLoad.V1.initialLoad
-  clientJsonApi "insert_secret" RW Secrets.Insert.insert
+  clientJsonApi "v1/insert_secret" RW Secrets.InsertV1.insert
   clientJsonApi "v1/packages" R (Packages.ListV1.packages packages)
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
-  clientJsonApi "trigger_handler" RW Execution.HandlerV1.trigger
+  clientJsonApi "v1/trigger_handler" RW Execution.HandlerV1.trigger
   clientJsonApi "worker_schedule" RW Workers.Scheduler.updateSchedule
 
   // These ocamlCompatible APIs can be removed once we've switched the client fully
   // over to using v1 routes
   ocamlCompatibleApi "add_op" RW AddOps.V0.addOp
+  clientJsonApi "delete_secret" RW Secrets.DeleteV0.delete
   ocamlCompatibleApi "execute_function" RW Execution.FunctionV0.execute
+  ocamlCompatibleApi "trigger_handler" RW Execution.HandlerV0.trigger
   ocamlCompatibleApi "get_db_stats" R DBs.DBStatsV0.getStats
+  clientJsonApiOption "get_trace_data" R Traces.TraceDataV0.getTraceData
   ocamlCompatibleApi "initial_load" R InitialLoad.V0.initialLoad
+  clientJsonApi "insert_secret" RW Secrets.InsertV0.insert
   ocamlCompatibleApi "packages" R (Packages.ListV0.packages packages)
 
   app.UseRouter(builder.Build())
@@ -260,15 +264,21 @@ let initSerializers () =
   Json.Vanilla.allow<InitialLoad.V1.T> "ApiServer.InitialLoad"
   Json.OCamlCompatible.allow<Packages.ListV0.T> "ApiServer.Packages"
   Json.Vanilla.allow<Packages.ListV1.T> "ApiServer.Packages"
-  Json.Vanilla.allow<Secrets.Delete.Params> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.Delete.T> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.Insert.Params> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.Insert.T> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.DeleteV0.Params> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.DeleteV0.T> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.DeleteV1.Params> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.DeleteV1.T> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.InsertV0.Params> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.InsertV0.T> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.InsertV1.Params> "ApiServer.Secrets"
+  Json.Vanilla.allow<Secrets.InsertV1.T> "ApiServer.Secrets"
   Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
   Json.Vanilla.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
   Json.Vanilla.allow<Traces.AllTraces.T> "ApiServer.Traces"
-  Json.Vanilla.allow<Traces.TraceData.Params> "ApiServer.Traces"
-  Json.Vanilla.allow<Traces.TraceData.T> "ApiServer.Traces"
+  Json.Vanilla.allow<Traces.TraceDataV0.Params> "ApiServer.Traces"
+  Json.Vanilla.allow<Traces.TraceDataV0.T> "ApiServer.Traces"
+  Json.Vanilla.allow<Traces.TraceDataV1.Params> "ApiServer.Traces"
+  Json.Vanilla.allow<Traces.TraceDataV1.T> "ApiServer.Traces"
   Json.Vanilla.allow<Workers.Scheduler.Params> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.Scheduler.T> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.WorkerStats.Params> "ApiServer.Workers"

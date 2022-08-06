@@ -11,13 +11,17 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module Key = Keyboard
-module Regex = Util.Regex
 
-let undo_redo = (m: model, redo: bool): modification =>
+type modification = AppTypes.modification
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+module Msg = AppTypes.Msg
+
+let undo_redo = (m: AppTypes.model, redo: bool): modification =>
   switch CursorState.tlidOf(m.cursorState) {
   | Some(tlid) =>
     let undo = if redo {
-      AddOps(list{RedoTL(tlid)}, FocusSame)
+      Mod.AddOps(list{RedoTL(tlid)}, FocusSame)
     } else {
       AddOps(list{UndoTL(tlid)}, FocusSame)
     }
@@ -41,7 +45,7 @@ let undo_redo = (m: model, redo: bool): modification =>
   | None => NoChange
   }
 
-let openOmnibox = (m: model): modification =>
+let openOmnibox = (m: AppTypes.model): modification =>
   switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) => Many(list{Deselect, Entry.openOmnibox()})
   | FocusedFn(_) | FocusedType(_) | FocusedPackageManagerFn(_) => Entry.openOmnibox()
@@ -50,7 +54,7 @@ let openOmnibox = (m: model): modification =>
     NoChange
   }
 
-let defaultHandler = (event: Keyboard.keyEvent, m: model): modification => {
+let defaultHandler = (event: Keyboard.keyEvent, m: AppTypes.model): modification => {
   let isFluidState = switch m.cursorState {
   | FluidEntering(_) => true
   | _ => false
@@ -275,19 +279,19 @@ let defaultHandler = (event: Keyboard.keyEvent, m: model): modification => {
   }
 }
 
-let optionDefaultHandler = (event: Keyboard.keyEvent, m: model): option<modification> => Some(
-  defaultHandler(event, m),
-)
+let optionDefaultHandler = (event: Keyboard.keyEvent, m: AppTypes.model): option<
+  modification,
+> => Some(defaultHandler(event, m))
 
 // process handlers until one has a result or we're done
 // this is sort of the opposite of >>=
 /* NB: 'None' will allow subsequent handlers to run; 'Some NoChange' does not.
    (So if you wanted to _disable_ defaultHandler behavior for a given input,
    you could.) */
-let handler = (event: Keyboard.keyEvent, m: model): modification =>
+let handler = (event: Keyboard.keyEvent, m: AppTypes.model): modification =>
   list{optionDefaultHandler} |> List.fold(~f=(acc: option<modification>, h) =>
     switch acc {
     | None => h(event, m)
     | Some(_) => acc
     }
-  , ~initial=None) |> Option.unwrap(~default=NoChange)
+  , ~initial=None) |> Option.unwrap(~default=Mod.NoChange)

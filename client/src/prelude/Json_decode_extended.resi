@@ -59,6 +59,8 @@ let tryDecode2: (decoder<'a>, decoder<'a>) => decoder<'a>
 
 let strDict: decoder<'a> => decoder<Tc.Map.String.t<'a>>
 
+let strListDict: decoder<'a> => decoder<Tc.Map.String.t<'a>>
+
 let beltStrDict: decoder<'a> => decoder<Belt.Map.String.t<'a>>
 
 let strSet: decoder<Tc.Set.String.t>
@@ -67,3 +69,17 @@ let decodeString: (decoder<'a>, string) => Tc.Result.t<'a, string>
 
 let int64: decoder<int64>
 let uint64: decoder<UInt64.t>
+
+let date: decoder<Js.Date.t>
+
+let float': decoder<float>
+
+let tuple5: (
+  decoder<'a>,
+  decoder<'b>,
+  decoder<'c>,
+  decoder<'d>,
+  decoder<'e>,
+) => decoder<('a, 'b, 'c, 'd, 'e)>
+
+let base64EncodedBytes: decoder<Bytes.t>

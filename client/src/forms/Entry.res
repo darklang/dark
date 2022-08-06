@@ -6,10 +6,14 @@ module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module Regex = Util.Regex
 module Dom = Webapi.Dom
 
-let openOmnibox = (~openAt: option<pos>=None, ()): modification => OpenOmnibox(openAt)
+type modification = AppTypes.modification
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+module Msg = AppTypes.Msg
+
+let openOmnibox = (~openAt: option<Pos.t>=None, ()): modification => OpenOmnibox(openAt)
 
 // ---------------------
 // Focus
@@ -260,16 +264,12 @@ external jsUnsupportedBrowser: unit => Js.Nullable.t<bool> = "unsupportedBrowser
 let unsupportedBrowser = (): bool =>
   jsUnsupportedBrowser() |> Js.Nullable.toOption |> Option.unwrap(~default=false)
 
-let newHandler = (m, space, name, modifier, pos) => {
+let newHandler = (m: model, spec, pos) => {
   let tlid = gtlid()
   let spaceid = gid()
   let handler: PT.Handler.t = {
     ast: FluidAST.ofExpr(EBlank(gid())),
-    spec: {
-      space: F(spaceid, space),
-      name: B.ofOption(name),
-      modifier: B.ofOption(modifier),
-    },
+    spec: spec,
     tlid: tlid,
     pos: pos,
   }
@@ -288,14 +288,14 @@ let newHandler = (m, space, name, modifier, pos) => {
     let s = m.fluidState
     let newS = {...s, newPos: 0}
     let cursorState = if idToEnter == astID {
-      FluidEntering(tlid)
+      AppTypes.CursorState.FluidEntering(tlid)
     } else {
       Entering(tlid, idToEnter)
     }
 
     list{
-      ReplaceAllModificationsWithThisOne(
-        m =>
+      Mod.ReplaceAllModificationsWithThisOne(
+        (m: model) =>
           {...m, fluidState: newS, tooltipState: tooltipState} |> CursorState.setCursorState(
             cursorState,
           ),
@@ -303,29 +303,36 @@ let newHandler = (m, space, name, modifier, pos) => {
     }
   }
 
-  let pageChanges = list{SetPage(FocusedHandler(tlid, None, true))}
-  let rpc = AddOps(list{SetHandler(tlid, pos, handler)}, FocusNext(tlid, Some(spaceid)))
+  let pageChanges = list{Mod.SetPage(FocusedHandler(tlid, None, true))}
+  let rpc = Mod.AddOps(list{SetHandler(tlid, pos, handler)}, FocusNext(tlid, Some(spaceid)))
 
-  Many(list{rpc, ...Belt.List.concat(pageChanges, fluidMods)})
+  Mod.Many(list{rpc, ...Belt.List.concat(pageChanges, fluidMods)})
 }
 
-let submitOmniAction = (m: model, pos: pos, action: omniAction): modification => {
-  let pos = {x: pos.x - 17, y: pos.y - 70}
-  let unused = Some("_")
+let submitOmniAction = (
+  m: model,
+  pos: Pos.t,
+  action: AppTypes.AutoComplete.omniAction,
+): modification => {
+  let pos: Pos.t = {x: pos.x - 17, y: pos.y - 70}
+  module S = PT.Handler.Spec
+  let ids: S.IDs.t = {moduleID: gid(), nameID: gid(), modifierID: gid()}
   switch action {
   | NewDB(maybeName) => Refactor.createNewDB(m, maybeName, pos)
   | NewFunction(name) => Refactor.createNewFunction(m, name)
-  | NewHTTPHandler(route) => newHandler(m, "HTTP", route, None, pos)
-  | NewWorkerHandler(name) => newHandler(m, "WORKER", name, unused, pos)
-  | NewCronHandler(name) => newHandler(m, "CRON", name, None, pos)
+  | NewHTTPHandler(route) =>
+    newHandler(m, S.HTTP(Belt.Option.getWithDefault(route, ""), "", ids), pos)
+  | NewWorkerHandler(name) =>
+    newHandler(m, S.Worker(Belt.Option.getWithDefault(name, ""), ids), pos)
+  | NewCronHandler(name) =>
+    newHandler(m, S.Cron(Belt.Option.getWithDefault(name, ""), None, ids), pos)
   | NewReplHandler(name) =>
     // When creating a repl, dont ask the user for a name
     let name = Option.unwrap(
       name,
       ~default=Util.Namer.generateAnimalWithPersonality(~space="REPL", ()),
     )
-
-    newHandler(m, "REPL", Some(name), unused, pos)
+    newHandler(m, S.REPL(name, ids), pos)
   | Goto(page, tlid, _, _) => Many(list{SetPage(page), Select(tlid, STTopLevelRoot)})
   }
 }
@@ -387,7 +394,7 @@ let submitACItem = (
   m: model,
   tlid: TLID.t,
   id: id,
-  item: autocompleteItem,
+  item: AppTypes.AutoComplete.item,
   move: nextMove,
 ): modification => {
   let stringValue = AC.getValue(m.complete)
@@ -408,28 +415,28 @@ let submitACItem = (
         let wasEditing = P.isBlank(pd) |> not
         let focus = if wasEditing && move == StayHere {
           switch next {
-          | None => FocusSame
+          | None => AppTypes.Focus.FocusSame
           | Some(nextID) => FocusExact(tlid, nextID)
           }
         } else {
           FocusNext(tlid, next)
         }
 
-        AddOps(ops, focus)
+        Mod.AddOps(ops, focus)
       }
 
       let wrapID = ops => wrap(ops, Some(id))
       let wrapNew = (ops, new_) => wrap(ops, Some(P.toID(new_)))
       let save = (newtl, next) =>
         if newtl == tl {
-          NoChange
+          Mod.NoChange
         } else {
           switch newtl {
           | TLHandler(h) => wrapNew(list{SetHandler(tlid, h.pos, h)}, next)
           | TLFunc(f) => wrapNew(list{SetFunction(f)}, next)
           | TLTipe(t) => wrapNew(list{SetType(t)}, next)
-          | TLPmFunc(_) => recover("no vars in pmfn", ~debug=tl, NoChange)
-          | TLDB(_) => recover("no vars in DBs", ~debug=tl, NoChange)
+          | TLPmFunc(_) => recover("no vars in pmfn", ~debug=tl, Mod.NoChange)
+          | TLDB(_) => recover("no vars in DBs", ~debug=tl, Mod.NoChange)
           }
         }
 
@@ -443,7 +450,7 @@ let submitACItem = (
             Error.set("DB name must match " ++ (AC.dbNameValidator ++ " pattern")),
           )
         } else if oldName == value /* leave as is */ {
-          // TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item?
+          // TODO: I think this should actually be STCaret with a target indicating the end of the ac item?
           Select(tlid, STID(id))
         } else if List.member(~value, TL.allDBNames(m.dbs)) {
           Model.updateErrorMod(Error.set("There is already a DB named " ++ value))
@@ -452,17 +459,18 @@ let submitACItem = (
           AddOps(list{RenameDBname(tlid, value), ...varrefs}, FocusNothing)
         }
       | (PDBColType(ct), ACDBColType(value), TLDB(_)) =>
-        if B.toOption(ct) == Some(value) {
-          // TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item?
+        if B.toOption(ct) |> Option.map(~f=DType.tipe2str) == Some(value) {
+          // TODO: I think this should actually be STCaret with a target indicating the end of the ac item?
           Select(tlid, STID(id))
         } else if B.isBlank(ct) {
           wrapID(list{SetDBColType(tlid, id, value), AddDBCol(tlid, gid(), gid())})
         } else {
           wrapID(list{ChangeDBColType(tlid, id, value)})
         }
+
       | (PDBColName(cn), ACDBColName(value), TLDB(db)) =>
         if B.toOption(cn) == Some(value) {
-          // TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item?
+          // TODO: I think this should actually be STCaret with a target indicating the end of the ac item?
           Select(tlid, STID(id))
         } else if DB.hasCol(db, value) {
           Model.updateErrorMod(Error.set("Can't have two DB fields with the same name: " ++ value))
@@ -475,24 +483,20 @@ let submitACItem = (
       | (PEventName(_), ACReplName(value), _)
       | (PEventName(_), ACWorkerName(value), _) =>
         replace(PEventName(F(id, value)))
+
       | (PEventName(_), ACHTTPRoute(value), TLHandler(h)) =>
         // Check if the ACHTTPRoute value is a 404 path
-        let f404s = m.f404s |> List.find(~f=f404 => f404.path == value)
+        let f404s =
+          m.f404s |> List.find(~f=(f404: AnalysisTypes.FourOhFour.t) => f404.path == value)
 
         switch f404s {
         | Some(f404) =>
           let new_ = B.newF(value)
-          let modifier = if B.isBlank(h.spec.modifier) {
-            B.newF(f404.modifier)
-          } else {
-            h.spec.modifier
+          let modifier = switch PT.Handler.Spec.modifier(h.spec) {
+          | None => f404.modifier
+          | Some(mod) => B.toString(mod)
           }
-
-          let specInfo: PT.Handler.Spec.t = {
-            space: h.spec.space,
-            name: B.newF(f404.path),
-            modifier: modifier,
-          }
+          let specInfo: PT.Handler.Spec.t = PT.Handler.Spec.newHTTP(f404.path, modifier)
 
           // We do not delete the 404 on the server because the list of 404s is
           // generated by filtering through the unused HTTP handlers
@@ -504,48 +508,61 @@ let submitACItem = (
       | (PEventModifier(_), ACCronTiming(value), _)
       | (PEventModifier(_), ACEventModifier(value), _) =>
         replace(PEventModifier(F(id, value)))
-      // allow arbitrary eventspaces
-      | (PEventSpace(space), ACEventSpace(value), TLHandler(h)) =>
-        let new_ = F(id, value)
-        let replacement = SpecHeaders.replaceEventSpace(id, new_, h.spec)
-        let replacedModifier = switch (replacement.space, space) {
-        | (F(_, newSpace), F(_, oldSpace)) if newSpace === oldSpace => replacement
-        /*
-         * If becoming a WORKER or REPL, set modifier to "_" as it's invalid otherwise */
-        | (F(_, "REPL"), _) | (F(_, "WORKER"), _) =>
-          SpecHeaders.replaceEventModifier(B.toID(h.spec.modifier), B.newF("_"), replacement)
-        /*
-         * Remove modifier when switching between any other types */
-        | (_, _) => SpecHeaders.replaceEventModifier(B.toID(h.spec.modifier), B.new_(), replacement)
+
+      | (PEventSpace(_), ACEventSpace(newSpace), TLHandler(h)) =>
+        module Spec = PT.Handler.Spec
+        let newSpace = String.toUppercase(newSpace)
+        let newSpec = if newSpace == "HTTP" {
+          switch h.spec {
+          | HTTP(_) => h.spec
+          | Worker(_)
+          | OldWorker(_)
+          | Cron(_)
+          | REPL(_)
+          | UnknownHandler(_, _, _) => {
+              let name = Spec.name(h.spec)->B.toString
+              let newPath = if !String.startsWith(~prefix="/", name) {
+                "/" ++ name
+              } else {
+                name
+              }
+              let newModifier = Spec.modifier(h.spec)->B.optionToString
+              HTTP(newPath, newModifier, Spec.ids(h.spec))
+            }
+          }
+        } else {
+          let name = switch h.spec {
+          | HTTP(_) => {
+              let name = Spec.name(h.spec)->B.toString
+              // convert /projects => projects
+              let name = if String.startsWith(~prefix="/", name) {
+                String.dropLeft(~count=1, name)
+              } else {
+                name
+              }
+              // convert  /projects/:user/:id => /projects/user/id
+              name |> String.split(~on=":") |> String.join(~sep="")
+            }
+          | Worker(_)
+          | OldWorker(_)
+          | Cron(_)
+          | REPL(_)
+          | UnknownHandler(_) =>
+            Spec.name(h.spec)->B.toString
+          }
+          switch newSpace {
+          | "WORKER" => Worker(name, Spec.ids(h.spec))
+          | "CRON" => Cron(name, None, Spec.ids(h.spec))
+          | "REPL" => REPL(name, Spec.ids(h.spec))
+          | _ => h.spec
+          }
         }
 
-        let replacedName = switch (replacedModifier.space, h.spec.name) {
-        /*
-         * If from a REPL, drop repl_ prefix and lowercase */
-        | (F(_, newSpace), F(_, name))
-          if newSpace != "REPL" && String.startsWith(~prefix="repl_", String.toLowercase(name)) =>
-          SpecHeaders.replaceEventName(B.toID(h.spec.name), B.new_(), replacedModifier)
-        /*
-         * If from an HTTP, strip leading slash and any colons */
-        | (F(_, newSpace), F(_, name))
-          if newSpace != "HTTP" && String.startsWith(~prefix="/", name) =>
-          SpecHeaders.replaceEventName(
-            B.toID(h.spec.name),
-            B.newF(
-              String.dropLeft(~count=1, name) |> String.split(~on=":") |> String.join(~sep=""),
-            ),
-            replacedModifier,
-          )
-        /*
-         * If becoming an HTTP, add a slash at beginning */
-        | (F(_, "HTTP"), F(_, name)) if !String.startsWith(~prefix="/", name) =>
-          SpecHeaders.replaceEventName(B.toID(h.spec.name), B.newF("/" ++ name), replacedModifier)
-        | (_, _) => replacedModifier
-        }
+        let new = B.F(id, newSpace)
+        saveH({...h, spec: newSpec}, PEventSpace(new))
 
-        saveH({...h, spec: replacedName}, PEventSpace(new_))
       | (PFnName(_), ACFnName(value), TLFunc(old)) =>
-        if B.isFilledValue(old.metadata.name, value) {
+        if old.name == value {
           NoChange
         } else if List.member(~value, UserFunctions.allNames(m.userFunctions)) {
           Model.updateErrorMod(Error.set("There is already a Function named " ++ value))
@@ -553,17 +570,19 @@ let submitACItem = (
           let newPD = PFnName(F(id, value))
           let new_ = {
             ...old,
-            metadata: {...old.metadata, name: F(id, value)},
+            name: value,
+            nameID: id,
           }
 
-          let changedNames = Refactor.renameFunction(m, old, value)
+          let changedNames = Refactor.renameFunction(m, old, User(value))
           wrapNew(list{SetFunction(new_), ...changedNames}, newPD)
         }
+
       | (PFnReturnTipe(_), ACReturnTipe(tipe), _) => replace(PFnReturnTipe(F(id, tipe)))
       | (PParamName(_), ACParamName(value), _) => replace(PParamName(F(id, value)))
       | (PParamTipe(_), ACParamTipe(tipe), _) => replace(PParamTipe(F(id, tipe)))
       | (PTypeName(_), ACTypeName(value), TLTipe(old)) =>
-        if List.member(~value, UserTypes.allNames(m.userTipes)) {
+        if List.member(~value, UserTypes.allNames(m.userTypes)) {
           Model.updateErrorMod(Error.set("There is already a Type named " ++ value))
         } else {
           let newPD = PTypeName(F(id, value))
@@ -576,20 +595,22 @@ let submitACItem = (
       | (pd, item, _) =>
         ReplaceAllModificationsWithThisOne(
           m => {
-            let custom = Types.show_blankOrData(pd) ++ (", " ++ Types.show_autocompleteItem(item))
+            let custom =
+              Types.show_blankOrData(pd) ++ (", " ++ AppTypes.AutoComplete.show_item(item))
 
             Rollbar.displayAndReportError(m, "Invalid autocomplete option", None, Some(custom))
           },
         )
       }
     }
-  | _ => recover("Missing tl/pd", ~debug=(tlid, id), NoChange)
+  | _ => recover("Missing tl/pd", ~debug=(tlid, id), Mod.NoChange)
   }
 }
 
 let submit = (m: model, tlid: TLID.t, id: id, move: nextMove): modification =>
   switch AC.highlighted(m.complete) {
-  | Some(ACOmniAction(_)) => recover("Shouldnt allow omniactions here", ~debug=(tlid, id), NoChange)
+  | Some(ACOmniAction(_)) =>
+    recover("Shouldnt allow omniactions here", ~debug=(tlid, id), Mod.NoChange)
   | Some(item) => submitACItem(m, tlid, id, item, move)
   | None =>
     // We removed ACExtra to define more specific autocomplete items.
@@ -599,7 +620,7 @@ let submit = (m: model, tlid: TLID.t, id: id, move: nextMove): modification =>
       switch m.complete.target {
       | Some(_, p) =>
         switch P.typeOf(p) {
-        | DBColName => Some(ACDBColName(value))
+        | DBColName => Some(AppTypes.AutoComplete.ACDBColName(value))
         | FnName => Some(ACFnName(value))
         | ParamName => Some(ACParamName(value))
         | TypeName => Some(ACTypeName(value))

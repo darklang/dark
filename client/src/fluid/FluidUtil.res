@@ -1,6 +1,9 @@
 open Prelude
 
-let propsFromModel = (m: model): Types.fluidProps => {functions: m.functions, variants: m.tests}
+let propsFromModel = (m: AppTypes.model): Types.fluidProps => {
+  functions: m.functions,
+  variants: m.tests,
+}
 
 let orderRangeFromSmallToBig = ((rangeBegin, rangeEnd): (int, int)): (int, int) =>
   if rangeBegin > rangeEnd {
@@ -11,7 +14,7 @@ let orderRangeFromSmallToBig = ((rangeBegin, rangeEnd): (int, int)): (int, int) 
 
 /* Always returns a selection represented as two ints with the smaller int first.
  The numbers are identical if there is no selection. */
-let getSelectionRange = (s: fluidState): (int, int) =>
+let getSelectionRange = (s: AppTypes.fluidState): (int, int) =>
   switch s.selectionStart {
   | Some(beginIdx) if beginIdx < s.newPos => (beginIdx, s.newPos)
   | Some(endIdx) => (s.newPos, endIdx)

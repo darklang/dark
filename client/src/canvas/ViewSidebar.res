@@ -5,6 +5,11 @@ module TL = Toplevel
 module TD = TLID.Dict
 module Cmd = Tea.Cmd
 
+type modification = AppTypes.modification
+type model = AppTypes.model
+type msg = AppTypes.msg
+module Mod = AppTypes.Modification
+
 let missingEventSpaceDesc: string = "Undefined"
 
 let missingEventRouteDesc: string = "Undefined"
@@ -16,7 +21,7 @@ type identifier =
   | Other(string)
 
 type onClickAction =
-  | Destination(page)
+  | Destination(AppTypes.Page.t)
   | SendMsg(msg)
   | DoNothing
 
@@ -50,7 +55,7 @@ and category = {
   plusButton: option<msg>,
   iconAction: option<msg>,
   classname: string,
-  tooltip: option<tooltipSource>,
+  tooltip: option<AppTypes.Tooltip.source>,
   entries: list<item>,
 }
 
@@ -105,7 +110,9 @@ let categoryButton = (~props=list{}, name: string, description: string): Html.ht
     categoryIcon_(name),
   )
 
-let setTooltips = (tooltip: tooltipSource, entries: list<'a>): option<tooltipSource> =>
+let setTooltips = (tooltip: AppTypes.Tooltip.source, entries: list<'a>): option<
+  AppTypes.Tooltip.source,
+> =>
   if entries == list{} {
     Some(tooltip)
   } else {
@@ -115,9 +122,9 @@ let setTooltips = (tooltip: tooltipSource, entries: list<'a>): option<tooltipSou
 let handlerCategory = (
   filter: toplevel => bool,
   name: string,
-  action: omniAction,
+  action: AppTypes.AutoComplete.omniAction,
   iconAction: option<msg>,
-  tooltip: tooltipSource,
+  tooltip: AppTypes.Tooltip.source,
   hs: list<PT.Handler.t>,
 ): category => {
   let handlers = hs |> List.filter(~f=h => filter(TLHandler(h)))
@@ -131,7 +138,7 @@ let handlerCategory = (
     entries: List.map(handlers, ~f=h => {
       let tlid = h.tlid
       Entry({
-        name: h.spec.name |> B.toOption |> Option.unwrap(~default=missingEventRouteDesc),
+        name: PT.Handler.Spec.name(h.spec) |> B.valueWithDefault(missingEventRouteDesc),
         uses: None,
         identifier: Tlid(tlid),
         onClick: Destination(FocusedHandler(tlid, None, true)),
@@ -139,7 +146,7 @@ let handlerCategory = (
         killAction: Some(ToplevelDeleteForever(tlid)),
         plusButton: None,
         verb: if TL.isHTTPHandler(TLHandler(h)) {
-          B.toOption(h.spec.modifier)
+          h.spec->PT.Handler.Spec.modifier->Option.andThen(~f=B.toOption)
         } else {
           None
         },
@@ -179,14 +186,19 @@ let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory
 
 let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   let entries = List.map(dbs, ~f=db => {
-    let uses = switch db.name {
-    | Blank(_) => 0
-    | F(_, name) => Refactor.dbUseCount(m, name)
+    let uses = if db.name == "" {
+      0
+    } else {
+      Refactor.dbUseCount(m, db.name)
     }
 
     let minusButton = None
     Entry({
-      name: B.valueWithDefault("Untitled DB", db.name),
+      name: if db.name == "" {
+        "Untitled DB"
+      } else {
+        db.name
+      },
       identifier: Tlid(db.tlid),
       uses: Some(uses),
       onClick: Destination(FocusedDB(db.tlid, true)),
@@ -215,19 +227,21 @@ let f404Category = (m: model): category => {
       m.deletedHandlers
       |> Map.values
       |> List.map(~f=(h: PT.Handler.t) => {
-        let space = B.valueWithDefault("", h.spec.space)
-        let name = B.valueWithDefault("", h.spec.name)
-        let modifier = B.valueWithDefault("", h.spec.modifier)
-        /* Note that this concatenated string gets compared to `space ^ path ^ modifier` later.
-         * h.spec.name and f404.path are the same thing, with different names. Yes this is confusing. */
-        space ++ (name ++ modifier)
+        let space = h.spec->PT.Handler.Spec.space->B.toString
+        let name = h.spec->PT.Handler.Spec.name->B.toString
+        let modifier = h.spec->PT.Handler.Spec.modifier->B.optionToString
+        // Note that this concatenated string gets compared to `space ^ path ^ modifier` later.
+        // h.spec.name and f404.path are the same thing, with different names. Yes this is confusing.
+        space ++ name ++ modifier
       })
       |> Set.String.fromList
 
     m.f404s
-    |> List.uniqueBy(~f=f => f.space ++ (f.path ++ f.modifier))
+    |> List.uniqueBy(~f=(f: AnalysisTypes.FourOhFour.t) => f.space ++ (f.path ++ f.modifier))
     |> // Don't show 404s for deleted handlers
-    List.filter(~f=f => !Set.member(~value=f.space ++ (f.path ++ f.modifier), deletedHandlerSpecs))
+    List.filter(~f=(f: AnalysisTypes.FourOhFour.t) =>
+      !Set.member(~value=f.space ++ (f.path ++ f.modifier), deletedHandlerSpecs)
+    )
   }
 
   {
@@ -244,7 +258,7 @@ let f404Category = (m: model): category => {
         space ++ ("::" ++ path)
       },
       uses: None,
-      identifier: Other(fof.space ++ (fof.path ++ fof.modifier)),
+      identifier: Other(fof.space ++ fof.path ++ fof.modifier),
       onClick: SendMsg(CreateHandlerFrom404(fof)),
       minusButton: Some(Delete404APICall(fof)),
       killAction: None,
@@ -259,24 +273,22 @@ let f404Category = (m: model): category => {
 }
 
 let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
-  let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => B.isF(fn.metadata.name))
-  let entries = List.filterMap(fns, ~f=fn =>
-    Option.map(B.toOption(fn.metadata.name), ~f=name => {
-      let tlid = fn.tlid
-      let usedIn = Introspect.allUsedIn(tlid, m)
-      let minusButton = None
-      Entry({
-        name: name,
-        identifier: Tlid(tlid),
-        uses: Some(List.length(usedIn)),
-        minusButton: minusButton,
-        killAction: Some(DeleteUserFunctionForever(tlid)),
-        onClick: Destination(FocusedFn(tlid, None)),
-        plusButton: None,
-        verb: None,
-      })
+  let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => fn.name != "")
+  let entries = List.map(fns, ~f=fn => {
+    let tlid = fn.tlid
+    let usedIn = Introspect.allUsedIn(tlid, m)
+    let minusButton = None
+    Entry({
+      name: fn.name,
+      identifier: Tlid(tlid),
+      uses: Some(List.length(usedIn)),
+      minusButton: minusButton,
+      killAction: Some(DeleteUserFunctionForever(tlid)),
+      onClick: Destination(FocusedFn(tlid, None)),
+      plusButton: None,
+      verb: None,
     })
-  )
+  })
 
   {
     count: List.length(fns),
@@ -290,27 +302,25 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
 }
 
 let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
-  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => B.isF(ut.name))
-  let entries = List.filterMap(tipes, ~f=tipe =>
-    Option.map(B.toOption(tipe.name), ~f=name => {
-      let minusButton = if Refactor.usedTipe(m, name) {
-        None
-      } else {
-        Some(DeleteUserType(tipe.tlid))
-      }
+  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => ut.name != "")
+  let entries = List.map(tipes, ~f=tipe => {
+    let minusButton = if Refactor.usedTipe(m, tipe.name) {
+      None
+    } else {
+      Some(Msg.DeleteUserType(tipe.tlid))
+    }
 
-      Entry({
-        name: name,
-        identifier: Tlid(tipe.tlid),
-        uses: Some(Refactor.tipeUseCount(m, name)),
-        minusButton: minusButton,
-        killAction: Some(DeleteUserTypeForever(tipe.tlid)),
-        onClick: Destination(FocusedType(tipe.tlid)),
-        plusButton: None,
-        verb: None,
-      })
+    Entry({
+      name: tipe.name,
+      identifier: Tlid(tipe.tlid),
+      uses: Some(Refactor.tipeUseCount(m, tipe.name)),
+      minusButton: minusButton,
+      killAction: Some(DeleteUserTypeForever(tipe.tlid)),
+      onClick: Destination(FocusedType(tipe.tlid)),
+      plusButton: None,
+      verb: None,
     })
-  )
+  })
 
   {
     count: List.length(tipes),
@@ -354,13 +364,16 @@ let standardCategories = (m, hs, dbs, ufns, tipes) => {
 }
 
 let packageManagerCategory = (pmfns: packageFns): category => {
-  let getFnnameEntries = (moduleList: list<packageFn>): list<item> => {
-    let fnnames = moduleList |> List.sortBy(~f=f => f.module_) |> List.uniqueBy(~f=fn => fn.fnname)
+  let getFnnameEntries = (moduleList: list<PT.Package.Fn.t>): list<item> => {
+    let fnnames =
+      moduleList
+      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.module_)
+      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.function)
 
-    fnnames |> List.map(~f=fn => Entry({
-      name: fn.module_ ++ ("::" ++ (fn.fnname ++ ("_v" ++ string_of_int(fn.version)))),
-      identifier: Tlid(fn.pfTLID),
-      onClick: Destination(FocusedPackageManagerFn(fn.pfTLID)),
+    fnnames |> List.map(~f=(fn: PT.Package.Fn.t) => Entry({
+      name: fn.name.module_ ++ "::" ++ fn.name.function ++ "_v" ++ string_of_int(fn.name.version),
+      identifier: Tlid(fn.tlid),
+      onClick: Destination(FocusedPackageManagerFn(fn.tlid)),
       uses: None,
       minusButton: None,
       plusButton: None,
@@ -369,19 +382,22 @@ let packageManagerCategory = (pmfns: packageFns): category => {
     }))
   }
 
-  let getPackageEntries = (userList: list<packageFn>): list<item> => {
+  let getPackageEntries = (userList: list<PT.Package.Fn.t>): list<item> => {
     let uniquePackages =
-      userList |> List.sortBy(~f=f => f.package) |> List.uniqueBy(~f=fn => fn.package)
+      userList
+      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
+      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
 
-    uniquePackages |> List.map(~f=fn => {
-      let packageList = userList |> List.filter(~f=f => fn.package == f.package)
+    uniquePackages |> List.map(~f=(fn: PT.Package.Fn.t) => {
+      let packageList =
+        userList |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.package == f.name.package)
 
       Category({
         count: List.length(uniquePackages),
-        name: fn.package,
+        name: fn.name.package,
         plusButton: None,
         iconAction: None,
-        classname: "pm-package" ++ fn.package,
+        classname: "pm-package" ++ fn.name.package,
         tooltip: None,
         entries: getFnnameEntries(packageList),
       })
@@ -389,17 +405,21 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   }
 
   let uniqueauthors =
-    pmfns |> Map.values |> List.sortBy(~f=f => f.user) |> List.uniqueBy(~f=fn => fn.user)
+    pmfns
+    |> Map.values
+    |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
+    |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
 
-  let getAuthorEntries = uniqueauthors |> List.map(~f=fn => {
-    let authorList = pmfns |> Map.values |> List.filter(~f=f => fn.user == f.user)
+  let getAuthorEntries = uniqueauthors |> List.map(~f=(fn: PT.Package.Fn.t) => {
+    let authorList =
+      pmfns |> Map.values |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.owner == f.name.owner)
 
     Category({
       count: List.length(uniqueauthors),
-      name: fn.user,
+      name: fn.name.owner,
       plusButton: None,
       iconAction: None,
-      classname: "pm-author" ++ fn.user,
+      classname: "pm-author" ++ fn.name.owner,
       tooltip: None,
       entries: getPackageEntries(authorList),
     })
@@ -422,7 +442,7 @@ let deletedCategory = (m: model): category => {
     m.deletedHandlers,
     m.deletedDBs,
     m.deletedUserFunctions,
-    m.deletedUserTipes,
+    m.deleteduserTypes,
   ) |> List.map(~f=c => {
     ...c,
     plusButton: None /* only allow new entries on the main category */,
@@ -432,7 +452,7 @@ let deletedCategory = (m: model): category => {
       switch x {
       | Entry(e) =>
         let actionOpt =
-          e.identifier |> tlidOfIdentifier |> Option.map(~f=tlid => RestoreToplevel(tlid))
+          e.identifier |> tlidOfIdentifier |> Option.map(~f=tlid => Msg.RestoreToplevel(tlid))
 
         Entry({
           ...e,
@@ -546,7 +566,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   Html.div(list{Html.class'("simple-item")}, list{minuslink, linkItem, pluslink})
 }
 
-let viewDeploy = (d: staticDeploy): Html.html<msg> => {
+let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   let statusString = switch d.status {
   | Deployed => "Deployed"
   | Deploying => "Deploying"
@@ -596,7 +616,7 @@ let viewDeploy = (d: staticDeploy): Html.html<msg> => {
 let categoryName = (name: string): Html.html<msg> =>
   Html.span(list{Html.class'("category-name")}, list{Html.text(name)})
 
-let categoryOpenCloseHelpers = (s: sidebarState, classname: string, count: int): (
+let categoryOpenCloseHelpers = (s: AppTypes.Sidebar.State.t, classname: string, count: int): (
   Vdom.property<msg>,
   Vdom.property<msg>,
 ) => {
@@ -890,7 +910,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
           if !isSubCat {
             SidebarMsg(ResetSidebar)
           } else {
-            IgnoreMsg("sidebar-category-close")
+            Msg.IgnoreMsg("sidebar-category-close")
           }
         ),
       },
@@ -957,7 +977,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let pageToString = pg =>
     switch pg {
-    | Architecture => "Architecture"
+    | AppTypes.Page.Architecture => "Architecture"
     | FocusedPackageManagerFn(tlid) =>
       Printf.sprintf("Package Manager Fn (TLID %s)", TLID.toString(tlid))
     | FocusedFn(tlid, _) => Printf.sprintf("Fn (TLID %s)", TLID.toString(tlid))
@@ -982,7 +1002,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       stateInfoTohtml("env", Html.text(m.environment)),
       stateInfoTohtml("flags", Html.text(flagText)),
       stateInfoTohtml("page", Html.text(pageToString(m.currentPage))),
-      stateInfoTohtml("cursorState", Html.text(show_cursorState(m.cursorState))),
+      stateInfoTohtml("cursorState", Html.text(AppTypes.CursorState.show(m.cursorState))),
     },
   )
 
@@ -1097,13 +1117,13 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   Html.div(list{Html.class'("sidebar-category admin")}, list{sectionIcon, hoverView})
 }
 
-let update = (msg: sidebarMsg): modification =>
+let update = (msg: AppTypes.Sidebar.msg): modification =>
   switch msg {
   | ToggleSidebarMode =>
     ReplaceAllModificationsWithThisOne(
       m => {
         let mode = switch m.sidebarState.mode {
-        | DetailedMode => AbridgedMode
+        | DetailedMode => AppTypes.Sidebar.Mode.AbridgedMode
         | AbridgedMode => DetailedMode
         }
 
@@ -1127,7 +1147,7 @@ let update = (msg: sidebarMsg): modification =>
 
 let viewSidebar_ = (m: model): Html.html<msg> => {
   let cats = Belt.List.concat(
-    standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTipes),
+    standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTypes),
     list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},
   )
 
@@ -1174,25 +1194,25 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   )
 }
 
-let rtCacheKey = m =>
+let rtCacheKey = (m: model) =>
   (
     m.handlers |> Map.mapValues(~f=(h: PT.Handler.t) => (h.pos, TL.sortkey(TLHandler(h)))),
     m.dbs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
-    m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
-    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.name),
+    m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
     m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: PT.Handler.t) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
-    m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata.name),
-    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.name),
+    m.deleteduserTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.staticDeploys,
     m.unlockedDBs,
     m.usedDBs,
     m.usedFns,
     // CLEANUP do these need to be here twice
-    m.userTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
-    m.deletedUserTipes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.deleteduserTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     CursorState.tlidOf(m.cursorState),
     m.environment,
     m.editorSettings,
@@ -1200,7 +1220,7 @@ let rtCacheKey = m =>
     m.currentPage,
     m.tooltipState.tooltipSource,
     m.secrets,
-    m.functions.packageFunctions |> Map.mapValues(~f=t => t.user),
+    m.functions.packageFunctions |> Map.mapValues(~f=(t: PT.Package.Fn.t) => t.name.owner),
   ) |> Option.some
 
 let viewSidebar = m => ViewCache.cache1m(rtCacheKey, viewSidebar_, m)

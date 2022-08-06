@@ -7,14 +7,18 @@ module TD = TLID.Dict
 module E = ProgramTypes.Expr
 module P = ProgramTypes.Pattern
 
+type model = AppTypes.model
+module Mod = AppTypes.Modification
+type modification = AppTypes.modification
+
 let generateFnName = (_: unit): string => "fn_" ++ (() |> Util.random |> string_of_int)
 
 let generateTipeName = (): string => "Type_" ++ (() |> Util.random |> string_of_int)
 
 let convertTipe = (tipe: DType.t): DType.t =>
   switch tipe {
-  | TIncomplete => TAny
-  | TError => TAny
+  | TIncomplete => DType.any
+  | TError => DType.any
   | _ => tipe
   }
 
@@ -27,7 +31,7 @@ let transformFnCalls = (
   let transformCallsInAst = (ast: FluidAST.t) => {
     let rec run = e =>
       switch e {
-      | E.EFnCall(_, name, _, _) if Some(name) == BlankOr.toOption(uf.metadata.name) => f(e)
+      | E.EFnCall(_, User(name), _, _) if name != "" && name == uf.name => f(e)
       | other => FluidExpression.deprecatedWalk(~f=run, other)
       }
 
@@ -44,9 +48,9 @@ let transformFnCalls = (
   })
 
   let newFunctions = m.userFunctions |> Map.filterMapValues(~f=(uf_: PT.UserFunction.t) => {
-    let newAst = uf_.ast |> transformCallsInAst
-    if newAst != uf_.ast {
-      Some(PT.Op.SetFunction({...uf_, ast: newAst}))
+    let newAst = uf_.body |> transformCallsInAst
+    if newAst != uf_.body {
+      Some(PT.Op.SetFunction({...uf_, body: newAst}))
     } else {
       None
     }
@@ -64,7 +68,7 @@ type wrapLoc =
   | WMatchExpr
   | WMatchArm
 
-let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): modification => {
+let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): AppTypes.modification => {
   let replacement = (e): FluidExpression.t => {
     let newB = FluidExpression.newB
     switch wl {
@@ -95,7 +99,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): modification => {
 
   TL.getAST(tl)
   |> Option.map(~f=\">>"(FluidAST.update(~f=replacement, id), TL.setASTMod(tl)))
-  |> Option.unwrap(~default=NoChange)
+  |> Option.unwrap(~default=Mod.NoChange)
 }
 
 let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
@@ -110,12 +114,14 @@ let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
     )
     |> TL.setASTMod(tl)
   )
-  |> Option.unwrap(~default=NoChange)
+  |> Option.unwrap(~default=Mod.NoChange)
 
-let isRailable = (m: model, name: string) =>
+let isRailable = (m: model, name: PT.FQFnName.t) =>
   m.functions
   |> Functions.find(name)
-  |> Option.map(~f=fn => fn.fnReturnTipe == TOption || fn.fnReturnTipe == TResult)
+  |> Option.map(~f=fn =>
+    fn.fnReturnTipe == TOption(DType.any) || fn.fnReturnTipe == TResult(DType.any, DType.any)
+  )
   |> Option.unwrap(~default=false)
 
 let putOnRail = (m: model, tl: toplevel, id: id): modification =>
@@ -195,37 +201,35 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
 
     let paramExprs = List.map(~f=((_, name_)) => E.EVariable(gid(), name_), freeVars)
 
-    let replacement = E.EFnCall(gid(), name, paramExprs, NoRail)
+    let replacement = E.EFnCall(gid(), User(name), paramExprs, NoRail)
     let newAST = FluidAST.replace(~replacement, id, ast)
     let astOp = TL.setASTMod(tl, newAST)
     let params = List.map(freeVars, ~f=((id, name_)) => {
       let tipe =
         Analysis.getSelectedTraceID(m, tlid)
         |> Option.andThen(~f=Analysis.getTipeOf(m, id))
-        |> Option.unwrap(~default=DType.TAny)
+        |> Option.unwrap(~default=DType.any)
         |> convertTipe
 
       {
-        PT.UserFunction.Parameter.name: F(gid(), name_),
-        typ: F(gid(), tipe),
-        args: list{},
-        optional: false,
+        PT.UserFunction.Parameter.name: name_,
+        nameID: gid(),
+        typ: Some(tipe),
+        typeID: gid(),
         description: "",
       }
     })
 
-    let metadata = {
-      PT.UserFunction.Metadata.name: F(gid(), name),
-      parameters: params,
-      description: "",
-      returnType: F(gid(), TAny),
-      infix: false,
-    }
-
     let newF = {
       PT.UserFunction.tlid: gtlid(),
-      metadata: metadata,
-      ast: FluidExpression.clone(body) |> FluidAST.ofExpr,
+      name: name,
+      nameID: gid(),
+      parameters: params,
+      returnType: DType.any,
+      returnTypeID: gid(),
+      description: "",
+      infix: false,
+      body: FluidExpression.clone(body) |> FluidAST.ofExpr,
     }
 
     Many(list{
@@ -236,7 +240,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   }
 }
 
-let renameFunction = (m: model, uf: PT.UserFunction.t, newName: string): list<PT.Op.t> => {
+let renameFunction = (m: model, uf: PT.UserFunction.t, newName: PT.FQFnName.t): list<PT.Op.t> => {
   open ProgramTypes.Expr
   let fn = e =>
     switch e {
@@ -255,14 +259,16 @@ let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<P
       | _ => oldUse
       }
 
-    let (origName, uses) = switch oldTipe.name {
-    | Blank(_) => (None, list{})
-    | F(_, n) => (Some(n), UserFunctions.usesOfTipe(n, oldTipe.version, fn))
+    let (origName, uses) = if oldTipe.name == "" {
+      (None, list{})
+    } else {
+      (Some(oldTipe.name), UserFunctions.usesOfTipe(oldTipe.name, oldTipe.version, fn))
     }
 
-    let newName = switch newTipe.name {
-    | Blank(_) => None
-    | F(_, n) => Some(n)
+    let newName = if newTipe.name == "" {
+      None
+    } else {
+      Some(newTipe.name)
     }
 
     switch (origName, newName) {
@@ -322,7 +328,8 @@ let updateUsageCounts = (m: model): model => {
     bigAst
     |> FluidExpression.filterMap(~f=x =>
       switch x {
-      | EFnCall(_, name, _, _) | EBinOp(_, name, _, _, _) => Some(name)
+      | EFnCall(_, name, _, _) => Some(PT.FQFnName.toString(name))
+      | EBinOp(_, name, _, _, _) => Some(PT.FQFnName.InfixStdlibFnName.toString(name))
       | _ => None
       }
     )
@@ -361,7 +368,7 @@ let removeFunctionParameter = (
 ): list<PT.Op.t> => {
   open ProgramTypes.Expr
   let indexInList =
-    List.findIndex(~f=(_, p) => p == ufp, uf.metadata.parameters)
+    List.findIndex(~f=(_, p) => p == ufp, uf.parameters)
     |> Option.map(~f=Tuple2.first)
     |> recoverOpt("removing invalid fnparam", ~default=-1)
 
@@ -394,43 +401,42 @@ let addFunctionParameter = (m: model, f: PT.UserFunction.t, currentBlankId: id):
 }
 
 let generateEmptyFunction = (_: unit): PT.UserFunction.t => {
-  let funcName = generateFnName()
-  let tlid = gtlid()
-  let metadata: PT.UserFunction.Metadata.t = {
-    name: F(gid(), funcName),
+  {
+    tlid: gtlid(),
+    name: generateFnName(),
+    nameID: gid(),
     parameters: list{},
     description: "",
-    returnType: F(gid(), TAny),
+    returnType: DType.any,
+    returnTypeID: gid(),
     infix: false,
-  }
-
-  {
-    tlid: tlid,
-    metadata: metadata,
-    ast: FluidAST.ofExpr(EBlank(gid())),
+    body: FluidAST.ofExpr(EBlank(gid())),
   }
 }
 
 let generateEmptyUserType = (): PT.UserType.t => {
   let tipeName = generateTipeName()
   let tlid = gtlid()
-  let definition = PT.UserType.Definition.UTRecord(list{{name: B.new_(), typ: B.new_()}})
+  let definition = PT.UserType.Definition.Record(list{
+    {name: "", nameID: gid(), typ: None, typeID: gid()},
+  })
   {
     tlid: tlid,
-    name: F(gid(), tipeName),
+    name: tipeName,
+    nameID: gid(),
     version: 0,
     definition: definition,
   }
 }
 
-let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
+let generateUserType = (dv: option<RT.Dval.t>): Result.t<PT.UserType.t, string> =>
   switch dv {
   | Some(DObj(dvalmap)) =>
     let userTipeDefinition =
       dvalmap
       |> Belt.Map.String.toList
       |> List.map(~f=((k, v)) => {
-        let tipe = v |> Runtime.typeOf
+        let typ = RT.Dval.toType(v)
         /*
          * In the future, we may want to recognize stringified UUIDs and
          * Dates, but we decided that today is not that day. See
@@ -438,12 +444,12 @@ let generateUserType = (dv: option<dval>): Result.t<PT.UserType.t, string> =>
          * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
          * let tipe = v |> coerceType in
          */
-        {PT.UserType.RecordField.name: k |> BlankOr.newF, typ: tipe |> BlankOr.newF}
+        {PT.UserType.RecordField.name: k, nameID: gid(), typ: Some(typ), typeID: gid()}
       })
 
     Ok({
       ...generateEmptyUserType(),
-      definition: UTRecord(userTipeDefinition),
+      definition: Record(userTipeDefinition),
     })
   | Some(_) => Error("Live value is not an object.")
   | None => Error("No live value.")
@@ -463,10 +469,10 @@ let renameDBReferences = (m: model, oldName: string, newName: string): list<PT.O
         None
       }
     | TLFunc(f) =>
-      let newAST = f.ast |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
+      let newAST = f.body |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
 
-      if newAST != f.ast {
-        Some(SetFunction({...f, ast: newAST}))
+      if newAST != f.body {
+        Some(SetFunction({...f, body: newAST}))
       } else {
         None
       }
@@ -476,9 +482,13 @@ let renameDBReferences = (m: model, oldName: string, newName: string): list<PT.O
     }
   )
 
-let reorderFnCallArgs = (m: model, tlid: TLID.t, fnName: string, oldPos: int, newPos: int): list<
-  modification,
-> =>
+let reorderFnCallArgs = (
+  m: model,
+  tlid: TLID.t,
+  fnName: PT.FQFnName.t,
+  oldPos: int,
+  newPos: int,
+): list<modification> =>
   Introspect.allUsedIn(tlid, m)
   |> List.filterMap(~f=tl =>
     switch TL.getAST(tl) {
@@ -495,7 +505,7 @@ let hasExistingFunctionNamed = (m: model, name: string): bool => {
   Map.has(fns, ~key=name)
 }
 
-let createNewDB = (m: model, maybeName: option<string>, pos: pos): modification => {
+let createNewDB = (m: model, maybeName: option<string>, pos: Pos.t): modification => {
   let name = maybeName |> Option.unwrap(~default=DB.generateDBName())
   if Autocomplete.assertValid(Autocomplete.dbNameValidator, name) != name {
     Model.updateErrorMod(
@@ -506,7 +516,7 @@ let createNewDB = (m: model, maybeName: option<string>, pos: pos): modification 
   } else {
     let next = gid()
     let tlid = gtlid()
-    let pageChanges = list{SetPage(FocusedDB(tlid, true))}
+    let pageChanges = list{Mod.SetPage(FocusedDB(tlid, true))}
     let rpcCalls = list{
       PT.Op.CreateDBWithBlankOr(tlid, pos, Prelude.gid(), name),
       AddDBCol(tlid, next, Prelude.gid()),
@@ -524,7 +534,7 @@ let createNewDB = (m: model, maybeName: option<string>, pos: pos): modification 
 let createNewFunction = (m: model, newFnName: option<string>): modification => {
   let fn = generateEmptyFunction()
   let newFn = switch newFnName {
-  | Some(name) => {...fn, metadata: {...fn.metadata, name: F(gid(), name)}}
+  | Some(name) => {...fn, name: name}
   | None => fn
   }
 
@@ -556,12 +566,12 @@ let createAndInsertNewFunction = (
     let fn = generateEmptyFunction()
     let newFn = {
       ...fn,
-      metadata: {...fn.metadata, name: F(gid(), newFnName)},
+      name: newFnName,
     }
 
     let op = PT.Op.SetFunction(newFn)
     // Update the old ast
-    let replacement = E.EFnCall(partialID, newFnName, list{}, NoRail)
+    let replacement = E.EFnCall(partialID, User(newFnName), list{}, NoRail)
     let newAST = FluidAST.replace(partialID, ast, ~replacement)
     // We need to update both the model and the backend
     let alreadyExists = hasExistingFunctionNamed(m, newFnName)

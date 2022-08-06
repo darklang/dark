@@ -4,7 +4,10 @@ module Expr = ProgramTypes.Expr
 module E = FluidExpression
 module Pattern = FluidPattern
 
-type tokenInfo = Types.fluidTokenInfo
+open FluidTypes.Token
+type tokenInfo = FluidTypes.TokenInfo.t
+type fluidToken = FluidTypes.Token.t
+type fluidState = AppTypes.fluidState
 
 type featureFlagTokenization =
   | @ocaml.doc(" FeatureFlagOnlyDisabled is used in the main editor panel to only
@@ -54,7 +57,7 @@ module Builder = {
 
   let listLimit = 60
 
-  /** # of items in a tuple before we should wrap*/
+  /* * # of items in a tuple before we should wrap */
   let tupleLimit = 60
 
   let add = (token: fluidToken, b: t): t => {
@@ -125,7 +128,8 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
-let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> =>
+let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
+  open FluidTypes.Token
   switch p {
   | PVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
   | PConstructor(id, name, args) =>
@@ -142,6 +146,7 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
   | PString(id, str) => list{
       TPatternString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
+  | PCharacter(_) => recover("pchar not supported in patternToToken", list{})
   | PFloat(id, sign, whole, fraction) =>
     let whole = switch sign {
     | Positive => whole
@@ -162,6 +167,7 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
   | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
   | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
   }
+}
 
 let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   open Builder
@@ -190,9 +196,12 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       | (EBlank(id), Some(fnID, fnname, pos)) =>
         let name =
           Functions.global()
-          |> Functions.find(fnname)
+          |> Functions.findByStr(fnname)
           |> Option.andThen(~f=fn => List.getAt(~index=pos, fn.fnParameters))
-          |> Option.map(~f=p => {name: p.paramName, tipe: tipe2str(p.paramTipe)})
+          |> Option.map(~f=(p): Placeholder.t => {
+            name: p.paramName,
+            tipe: DType.tipe2str(p.paramTipe),
+          })
 
         switch name {
         | None => toTokens'(e, b)
@@ -302,6 +311,8 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNested(~f=toTokens'(rhs))
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))
     |> addNested(~f=toTokens'(next))
+  | ECharacter(id, _) =>
+    recover("tokenizing echaracter is not supported", b |> add(TBlank(id, parentID)))
   | EString(id, str) =>
     let strings = if String.length(str) > strLimit {
       String.segment(~size=strLimit, str)
@@ -340,6 +351,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TNewline(Some(E.toID(else'), id, None)))
     |> nest(~indent=2, else')
   | EBinOp(id, op, lexpr, rexpr, _ster) =>
+    let op = PT.FQFnName.InfixStdlibFnName.toString(op)
     let start = b =>
       switch lexpr {
       | EPipeTarget(_) => b
@@ -354,6 +366,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addMany(list{TBinOp(id, op, parentID), TSep(id, parentID)})
     |> nest(~indent=0, ~placeholderFor=Some(id, op, 1), rexpr)
   | EPartial(id, newName, EBinOp(_, oldName, lexpr, rexpr, _ster)) =>
+    let oldName = PT.FQFnName.InfixStdlibFnName.toString(oldName)
     let ghost = ghostPartial(id, newName, FluidUtil.ghostPartialName(oldName))
 
     let start = b =>
@@ -372,20 +385,22 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TSep(id, parentID))
     |> nest(~indent=2, ~placeholderFor=Some(id, oldName, 1), rexpr)
   | EFnCall(id, fnName, args, ster) =>
-    let displayName = FluidUtil.fnDisplayName(fnName)
-    let versionDisplayName = FluidUtil.versionDisplayName(fnName)
-    let partialName = FluidUtil.fnDisplayNameWithVersion(fnName)
+    let fnNameStr = PT.FQFnName.toString(fnName)
+    let displayName = FluidUtil.fnDisplayName(fnNameStr)
+    let versionDisplayName = FluidUtil.versionDisplayName(fnNameStr)
+    let partialName = FluidUtil.fnDisplayNameWithVersion(fnNameStr)
     let versionToken = if versionDisplayName == "" {
       list{}
     } else {
-      list{TFnVersion(id, partialName, versionDisplayName, fnName)}
+      list{TFnVersion(id, partialName, versionDisplayName, fnNameStr)}
     }
 
     b
-    |> add(TFnName(id, partialName, displayName, fnName, ster))
+    |> add(TFnName(id, partialName, displayName, fnNameStr, ster))
     |> addMany(versionToken)
-    |> addArgs(fnName, id, args)
+    |> addArgs(PT.FQFnName.toString(fnName), id, args)
   | EPartial(id, newName, EFnCall(_, oldName, args, _)) =>
+    let oldName = PT.FQFnName.toString(oldName)
     let partial = TPartial(id, newName, parentID)
     let newText = T.toText(partial)
     let oldText = FluidUtil.ghostPartialName(oldName)
@@ -617,7 +632,7 @@ let infoize = (tokens): list<tokenInfo> => {
   let (row, col, pos) = (ref(0), ref(0), ref(0))
   List.map(tokens, ~f=token => {
     let length = String.length(T.toText(token))
-    let ti = {
+    let ti: tokenInfo = {
       token: token,
       startRow: row.contents,
       startCol: col.contents,
@@ -669,7 +684,7 @@ let tokenize: E.t => list<FluidToken.tokenInfo> = tokenizeWithFFTokenization(
   FeatureFlagOnlyDisabled,
 )
 
-let tokensForEditor = (e: fluidEditor, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
+let tokensForEditor = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
   switch e {
   | NoEditor => list{}
   | MainEditor(_) => tokenize(FluidAST.toExpr(ast))
@@ -682,7 +697,9 @@ let tokensForEditor = (e: fluidEditor, ast: FluidAST.t): list<FluidToken.tokenIn
     )
   }
 
-let tokenizeForEditor = (e: fluidEditor, expr: FluidExpression.t): list<FluidToken.tokenInfo> =>
+let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
+  FluidToken.tokenInfo,
+> =>
   switch e {
   | NoEditor => list{}
   | MainEditor(_) => tokenize(expr)
@@ -757,7 +774,7 @@ let getNeighbours = (~pos: int, tokens: tokenInfos): (
   (toTheLeft, toTheRight, mNext)
 }
 
-let getTokenNotWhitespace = (tokens: tokenInfos, s: fluidState): option<T.tokenInfo> => {
+let getTokenNotWhitespace = (tokens: tokenInfos, s: AppTypes.fluidState): option<T.tokenInfo> => {
   let (left, right, _) = getNeighbours(~pos=s.newPos, tokens)
   switch (left, right) {
   | (L(_, lti), R(TNewline(_), _)) => Some(lti)
@@ -768,7 +785,7 @@ let getTokenNotWhitespace = (tokens: tokenInfos, s: fluidState): option<T.tokenI
   }
 }
 
-let getToken' = (tokens: tokenInfos, s: fluidState): option<T.tokenInfo> => {
+let getToken' = (tokens: tokenInfos, s: AppTypes.fluidState): option<T.tokenInfo> => {
   let (toTheLeft, toTheRight, _) = getNeighbours(~pos=s.newPos, tokens)
 
   /* The algorithm that decides what token on when a certain key is pressed is
@@ -803,7 +820,7 @@ let getToken' = (tokens: tokenInfos, s: fluidState): option<T.tokenInfo> => {
 module ASTInfo = {
   type t = {
     ast: FluidAST.t,
-    state: fluidState,
+    state: AppTypes.fluidState,
     mainTokenInfos: tokenInfos,
     featureFlagTokenInfos: list<(id, tokenInfos)>,
     props: fluidProps,

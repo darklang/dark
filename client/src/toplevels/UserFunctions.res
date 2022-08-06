@@ -6,8 +6,13 @@ module P = Pointer
 module TD = TLID.Dict
 module RT = RuntimeTypes
 
+type model = AppTypes.model
+
 let allNames = (fns: TLID.Dict.t<PT.UserFunction.t>): list<string> =>
-  fns |> Map.filterMapValues(~f=(fn: PT.UserFunction.t) => B.toOption(fn.metadata.name))
+  fns
+  |> Map.values
+  |> List.map(~f=(fn: PT.UserFunction.t) => fn.name)
+  |> List.filter(~f=(name: string) => name != "")
 
 let toID = (uf: PT.UserFunction.t): TLID.t => uf.tlid
 
@@ -31,54 +36,51 @@ let fromList = (ufs: list<PT.UserFunction.t>): TLID.Dict.t<PT.UserFunction.t> =>
 
 let ufpToP = (ufp: PT.UserFunction.Parameter.t): option<parameter> =>
   switch (ufp.name, ufp.typ) {
-  | (F(_, name), F(_, tipe)) =>
+  | ("", _) => None
+  | (_, None) => None
+  | (name, Some(typ)) =>
     {
       paramName: name,
-      paramTipe: tipe,
-      paramBlock_args: ufp.args,
-      paramOptional: ufp.optional,
+      paramTipe: typ,
+      paramBlock_args: list{},
+      paramOptional: false,
       paramDescription: ufp.description,
     } |> (x => Some(x))
-  | _ => None
   }
 
-let ufmToF = (ufm: PT.UserFunction.Metadata.t): option<function_> => {
-  let ps = List.filterMap(~f=ufpToP, ufm.parameters)
-  let sameLength = List.length(ps) == List.length(ufm.parameters)
-  switch (ufm.name, ufm.returnType, sameLength) {
-  | (F(_, name), F(_, tipe), true) =>
-    {
-      fnName: name,
+let ufToF = (f: PT.UserFunction.t): option<function_> => {
+  let ps = List.filterMap(~f=ufpToP, f.parameters)
+  let sameLength = List.length(ps) == List.length(f.parameters)
+  if sameLength && f.name != "" {
+    Some({
+      fnName: User(f.name),
       fnParameters: ps,
-      fnDescription: ufm.description,
-      fnReturnTipe: tipe,
-      fnInfix: ufm.infix,
+      fnDescription: f.description,
+      fnReturnTipe: f.returnType,
+      fnInfix: false,
       fnPreviewSafety: Unsafe,
       fnDeprecated: false,
       fnIsSupportedInQuery: false,
       fnOrigin: UserFunction,
-    } |> (x => Some(x))
-  | _ => None
+    })
+  } else {
+    None
   }
 }
 
-let sameName = (name: string, uf: PT.UserFunction.t): bool =>
-  switch uf.metadata.name {
-  | F(_, n) => n == name
-  | _ => false
-  }
+let sameName = (name: string, uf: PT.UserFunction.t): bool => uf.name == name
 
 let paramData = (ufp: PT.UserFunction.Parameter.t): list<blankOrData> => list{
-  PParamName(ufp.name),
-  PParamTipe(ufp.typ),
+  PParamName(BlankOr.fromStringID(ufp.name, ufp.nameID)),
+  PParamTipe(BlankOr.fromOptionID(ufp.typ, ufp.typeID)),
 }
 
 let allParamData = (uf: PT.UserFunction.t): list<blankOrData> =>
-  List.flatten(List.map(~f=paramData, uf.metadata.parameters))
+  List.flatten(List.map(~f=paramData, uf.parameters))
 
 let blankOrData = (uf: PT.UserFunction.t): list<blankOrData> => list{
-  PFnName(uf.metadata.name),
-  PFnReturnTipe(uf.metadata.returnType),
+  PFnName(BlankOr.fromStringID(uf.name, uf.nameID)),
+  PFnReturnTipe(F(uf.returnTypeID, uf.returnType)),
   ...allParamData(uf),
 }
 
@@ -87,18 +89,19 @@ let replaceFnReturn = (
   replacement: blankOrData,
   uf: PT.UserFunction.t,
 ): PT.UserFunction.t => {
-  let metadata = uf.metadata
   let sId = P.toID(search)
-  if B.toID(metadata.returnType) == sId {
-    let newMetadata = switch replacement {
+  if uf.returnTypeID == sId {
+    switch replacement {
     | PFnReturnTipe(new_) => {
-        ...metadata,
-        returnType: B.replace(sId, new_, metadata.returnType),
+        let (typ, id) = B.toOptionID(new_)
+        {
+          ...uf,
+          returnType: Option.unwrap(typ, ~default=DType.any),
+          returnTypeID: id,
+        }
       }
-    | _ => metadata
+    | _ => uf
     }
-
-    {...uf, metadata: newMetadata}
   } else {
     uf
   }
@@ -109,15 +112,15 @@ let replaceFnName = (
   replacement: blankOrData,
   uf: PT.UserFunction.t,
 ): PT.UserFunction.t => {
-  let metadata = uf.metadata
   let sId = P.toID(search)
-  if B.toID(metadata.name) == sId {
-    let newMetadata = switch replacement {
-    | PFnName(new_) => {...metadata, name: B.replace(sId, new_, metadata.name)}
-    | _ => metadata
+  if uf.nameID == sId {
+    switch replacement {
+    | PFnName(new_) => {
+        let (name, id) = B.toStringID(new_)
+        {...uf, name: name, nameID: id}
+      }
+    | _ => uf
     }
-
-    {...uf, metadata: newMetadata}
   } else {
     uf
   }
@@ -128,7 +131,6 @@ let replaceParamName = (
   replacement: blankOrData,
   uf: PT.UserFunction.t,
 ): PT.UserFunction.t => {
-  let metadata = uf.metadata
   let sId = P.toID(search)
   let paramNames =
     uf
@@ -141,24 +143,27 @@ let replaceParamName = (
     )
 
   if List.any(~f=p => B.toID(p) == sId, paramNames) {
-    let newMetadata = switch replacement {
+    let newParameters = switch replacement {
     | PParamName(new_) =>
-      let newP = metadata.parameters |> List.map(~f=(p: PT.UserFunction.Parameter.t) => {
-        ...p,
-        name: B.replace(sId, new_, p.name),
+      uf.parameters |> List.map(~f=(p: PT.UserFunction.Parameter.t) => {
+        if sId == p.nameID {
+          let (name, id) = B.toStringID(new_)
+          {...p, name: name, nameID: id}
+        } else {
+          p
+        }
       })
 
-      {...metadata, parameters: newP}
-    | _ => metadata
+    | _ => uf.parameters
     }
 
     let newBody = switch (search, replacement) {
     | (PParamName(F(_, oldName)), PParamName(F(_, newName))) =>
-      uf.ast |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
-    | _ => uf.ast
+      uf.body |> FluidAST.map(~f=FluidExpression.renameVariableUses(~oldName, ~newName))
+    | _ => uf.body
     }
 
-    {...uf, metadata: newMetadata, ast: newBody}
+    {...uf, parameters: newParameters, body: newBody}
   } else {
     uf
   }
@@ -169,7 +174,6 @@ let replaceParamTipe = (
   replacement: blankOrData,
   uf: PT.UserFunction.t,
 ): PT.UserFunction.t => {
-  let metadata = uf.metadata
   let sId = P.toID(search)
   let paramTipes =
     uf
@@ -182,18 +186,20 @@ let replaceParamTipe = (
     )
 
   if List.any(~f=p => B.toID(p) == sId, paramTipes) {
-    let newMetadata = switch replacement {
+    let newParameters = switch replacement {
     | PParamTipe(new_) =>
-      let newP = metadata.parameters |> List.map(~f=(p: PT.UserFunction.Parameter.t) => {
-        ...p,
-        typ: B.replace(sId, new_, p.typ),
+      uf.parameters |> List.map(~f=(p: PT.UserFunction.Parameter.t) => {
+        if sId == p.typeID {
+          let (typ, id) = B.toOptionID(new_)
+          {...p, typ: typ, typeID: id}
+        } else {
+          p
+        }
       })
 
-      {...metadata, parameters: newP}
-    | _ => metadata
+    | _ => uf.parameters
     }
-
-    {...uf, metadata: newMetadata}
+    {...uf, parameters: newParameters}
   } else {
     uf
   }
@@ -222,45 +228,39 @@ let replaceMetadataField = (
 
 let extend = (uf: PT.UserFunction.t): PT.UserFunction.t => {
   let newParam = {
-    PT.UserFunction.Parameter.name: B.new_(),
-    typ: B.new_(),
-    args: list{},
-    optional: false,
+    PT.UserFunction.Parameter.name: "",
+    nameID: gid(),
+    typ: None,
+    typeID: gid(),
     description: "",
   }
 
-  let metadata = uf.metadata
-  let newMetadata = {
-    ...metadata,
-    parameters: Belt.List.concat(uf.metadata.parameters, list{newParam}),
+  {
+    ...uf,
+    parameters: Belt.List.concat(uf.parameters, list{newParam}),
   }
-
-  {...uf, metadata: newMetadata}
 }
 
 let removeParameter = (
   uf: PT.UserFunction.t,
   ufp: PT.UserFunction.Parameter.t,
 ): PT.UserFunction.t => {
-  let metadata = uf.metadata
-  let params = List.filter(~f=p => p != ufp, metadata.parameters)
-  let newM = {...metadata, parameters: params}
-  {...uf, metadata: newM}
+  let params = List.filter(~f=p => p != ufp, uf.parameters)
+  {...uf, parameters: params}
 }
 
 let idOfLastBlankor = (f: PT.UserFunction.t): id =>
-  List.last(f.metadata.parameters)
-  |> Option.andThen(~f=(p: PT.UserFunction.Parameter.t) => Some(B.toID(p.typ)))
-  |> Option.unwrap(~default=B.toID(f.metadata.name))
+  List.last(f.parameters)
+  |> Option.andThen(~f=(p: PT.UserFunction.Parameter.t) => Some(p.typeID))
+  |> Option.unwrap(~default=f.nameID)
 
-// Converts inputValueDict to executeFunctionAPIParams.efpArgs
-let inputToArgs = (f: PT.UserFunction.t, input: inputValueDict): list<dval> => {
-  let default = DIncomplete(SourceNone)
-  f.metadata.parameters |> List.map(~f=(p: PT.UserFunction.Parameter.t) =>
-    switch p.name {
-    | F(_, name) => Belt.Map.String.get(input, name) |> Option.unwrap(~default)
-    | _ => default
-    }
+// Converts AnalysisTypes.InputValueDict.t to executeFunctionAPIParams.args
+let inputToArgs = (f: PT.UserFunction.t, input: AnalysisTypes.InputValueDict.t): list<
+  RT.Dval.t,
+> => {
+  let default = RT.Dval.DIncomplete(SourceNone)
+  f.parameters |> List.map(~f=(p: PT.UserFunction.Parameter.t) =>
+    Belt.Map.String.get(input, p.name) |> Option.unwrap(~default)
   )
 }
 

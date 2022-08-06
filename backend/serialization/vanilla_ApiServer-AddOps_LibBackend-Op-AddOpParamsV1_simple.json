@@ -9,6 +9,10 @@
       },
       {
         "tlid": 92987663,
+        "pos": {
+          "x": 6,
+          "y": 6
+        },
         "ast": [
           "ELet",
           "14219007199254740992",
@@ -16,7 +20,7 @@
           [
             "EInteger",
             929452387,
-            "5"
+            5
           ],
           [
             "ELet",
@@ -59,8 +63,9 @@
                     537517627,
                     "char",
                     [
-                      "EBlank",
-                      1031176330
+                      "ECharacter",
+                      1031176330,
+                      "a"
                     ],
                     [
                       "ELet",
@@ -69,7 +74,10 @@
                       [
                         "EFloat",
                         770715427,
-                        "-6",
+                        [
+                          "Negative"
+                        ],
+                        "6",
                         "5"
                       ],
                       [
@@ -98,12 +106,19 @@
                               [
                                 "EFnCall",
                                 898531080,
-                                "Bool::isError",
+                                [
+                                  "Stdlib",
+                                  {
+                                    "module_": "Bool",
+                                    "function_": "isError",
+                                    "version": 0
+                                  }
+                                ],
                                 [
                                   [
                                     "EInteger",
                                     160106123,
-                                    "6"
+                                    6
                                   ]
                                 ],
                                 [
@@ -116,16 +131,19 @@
                                 [
                                   "EBinOp",
                                   94793109,
-                                  "!=",
+                                  {
+                                    "module_": null,
+                                    "function_": "!="
+                                  },
                                   [
                                     "EInteger",
                                     264400705,
-                                    "5"
+                                    5
                                   ],
                                   [
                                     "EInteger",
                                     335743639,
-                                    "6"
+                                    6
                                   ],
                                   [
                                     "NoRail"
@@ -134,16 +152,19 @@
                                 [
                                   "EBinOp",
                                   775118986,
-                                  "+",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  },
                                   [
                                     "EInteger",
                                     803876589,
-                                    "5"
+                                    5
                                   ],
                                   [
                                     "EInteger",
                                     219131014,
-                                    "2"
+                                    2
                                   ],
                                   [
                                     "NoRail"
@@ -161,11 +182,14 @@
                                   [
                                     "EBinOp",
                                     140609068,
-                                    "+",
+                                    {
+                                      "module_": null,
+                                      "function_": "\u002B"
+                                    },
                                     [
                                       "EInteger",
                                       450951790,
-                                      "2"
+                                      2
                                     ],
                                     [
                                       "EVariable",
@@ -181,11 +205,17 @@
                               [
                                 "EBinOp",
                                 265463935,
-                                "+",
+                                {
+                                  "module_": null,
+                                  "function_": "\u002B"
+                                },
                                 [
                                   "EBinOp",
                                   312092282,
-                                  "+",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  },
                                   [
                                     "EFieldAccess",
                                     974664608,
@@ -199,17 +229,24 @@
                                   [
                                     "EFnCall",
                                     173079901,
-                                    "Int::add",
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "Int",
+                                        "function_": "add",
+                                        "version": 0
+                                      }
+                                    ],
                                     [
                                       [
                                         "EInteger",
                                         250221144,
-                                        "6"
+                                        6
                                       ],
                                       [
                                         "EInteger",
                                         298149318,
-                                        "2"
+                                        2
                                       ]
                                     ],
                                     [
@@ -227,17 +264,17 @@
                                     [
                                       "EInteger",
                                       267797631,
-                                      "5"
+                                      5
                                     ],
                                     [
                                       "EInteger",
                                       352138743,
-                                      "6"
+                                      6
                                     ],
                                     [
                                       "EInteger",
                                       430871955,
-                                      "7"
+                                      7
                                     ]
                                   ]
                                 ],
@@ -260,29 +297,31 @@
                                       "EPipe",
                                       786862131,
                                       [
+                                        "EInteger",
+                                        555880460,
+                                        5
+                                      ],
+                                      [
+                                        "EBinOp",
+                                        1021880969,
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        },
                                         [
-                                          "EInteger",
-                                          555880460,
-                                          "5"
+                                          "EPipeTarget",
+                                          936577032
                                         ],
                                         [
-                                          "EBinOp",
-                                          1021880969,
-                                          "+",
-                                          [
-                                            "EPipeTarget",
-                                            936577032
-                                          ],
-                                          [
-                                            "EInteger",
-                                            962393769,
-                                            "2"
-                                          ],
-                                          [
-                                            "NoRail"
-                                          ]
+                                          "EInteger",
+                                          962393769,
+                                          2
+                                        ],
+                                        [
+                                          "NoRail"
                                         ]
-                                      ]
+                                      ],
+                                      []
                                     ]
                                   ],
                                   [
@@ -327,7 +366,14 @@
                                   [
                                     "EFnCall",
                                     203239466,
-                                    "Mod::function_v2",
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "Mod",
+                                        "function_": "function",
+                                        "version": 2
+                                      }
+                                    ],
                                     [],
                                     [
                                       "NoRail"
@@ -336,14 +382,12 @@
                                   [
                                     [
                                       [
-                                        "FPConstructor",
-                                        889712088,
+                                        "PConstructor",
                                         1015986188,
                                         "Ok",
                                         [
                                           [
-                                            "FPVariable",
-                                            889712088,
+                                            "PVariable",
                                             334386852,
                                             "x"
                                           ]
@@ -357,10 +401,9 @@
                                     ],
                                     [
                                       [
-                                        "FPInteger",
-                                        889712088,
+                                        "PInteger",
                                         928253813,
-                                        "5"
+                                        5
                                       ],
                                       [
                                         "EInteger",
@@ -370,36 +413,33 @@
                                     ],
                                     [
                                       [
-                                        "FPBool",
-                                        889712088,
+                                        "PBool",
                                         435227293,
                                         true
                                       ],
                                       [
                                         "EInteger",
                                         232748650,
-                                        "7"
+                                        7
                                       ]
                                     ],
                                     [
                                       [
-                                        "FPBlank",
-                                        889712088,
-                                        387662539
+                                        "PCharacter",
+                                        387662539,
+                                        "c"
                                       ],
                                       [
-                                        "EBlank",
-                                        657848009
+                                        "ECharacter",
+                                        657848009,
+                                        "c"
                                       ]
                                     ],
                                     [
                                       [
-                                        "FPString",
-                                        {
-                                          "matchID": 889712088,
-                                          "patternID": 491115870,
-                                          "str": "string"
-                                        }
+                                        "PString",
+                                        491115870,
+                                        "string"
                                       ],
                                       [
                                         "EString",
@@ -409,8 +449,7 @@
                                     ],
                                     [
                                       [
-                                        "FPNull",
-                                        889712088,
+                                        "PNull",
                                         701616052
                                       ],
                                       [
@@ -420,19 +459,21 @@
                                     ],
                                     [
                                       [
-                                        "FPVariable",
-                                        889712088,
+                                        "PVariable",
                                         722099983,
                                         "var"
                                       ],
                                       [
                                         "EBinOp",
                                         275666765,
-                                        "+",
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        },
                                         [
                                           "EInteger",
                                           739193732,
-                                          "6"
+                                          6
                                         ],
                                         [
                                           "EVariable",
@@ -446,29 +487,33 @@
                                     ],
                                     [
                                       [
-                                        "FPFloat",
-                                        889712088,
+                                        "PFloat",
                                         409097457,
+                                        [
+                                          "Positive"
+                                        ],
                                         "5",
                                         "6"
                                       ],
                                       [
                                         "EFloat",
                                         131187958,
+                                        [
+                                          "Positive"
+                                        ],
                                         "5",
                                         "6"
                                       ]
                                     ],
                                     [
                                       [
-                                        "FPBlank",
-                                        889712088,
+                                        "PBlank",
                                         858594159
                                       ],
                                       [
                                         "EInteger",
                                         135348705,
-                                        "6"
+                                        6
                                       ]
                                     ]
                                   ]
@@ -489,12 +534,12 @@
                                     [
                                       "EInteger",
                                       578528886,
-                                      "5"
+                                      5
                                     ],
                                     [
                                       "EInteger",
                                       562930224,
-                                      "6"
+                                      6
                                     ]
                                   ],
                                   [
@@ -508,31 +553,31 @@
                                         [
                                           "EPartial",
                                           2949606,
-                                          "some 🤬 string",
+                                          "some \uD83E\uDD2C string",
                                           [
                                             "EInteger",
                                             34545,
-                                            "5"
+                                            5
                                           ]
                                         ],
                                         [
                                           "ERightPartial",
                                           9239755,
-                                          "some 😭 string",
+                                          "some \uD83D\uDE2D string",
                                           [
                                             "EInteger",
                                             34545,
-                                            "5"
+                                            5
                                           ]
                                         ],
                                         [
                                           "ELeftPartial",
                                           234885,
-                                          "some 👨‍👩‍👧‍👦 string",
+                                          "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
                                           [
                                             "EInteger",
                                             34545,
-                                            "5"
+                                            5
                                           ]
                                         ]
                                       ]
@@ -547,25 +592,25 @@
                                         [
                                           "EInteger",
                                           34545,
-                                          "5"
+                                          5
                                         ],
                                         [
                                           "EInteger",
                                           34545,
-                                          "5"
+                                          5
                                         ],
                                         [
                                           [
                                             "EInteger",
                                             34545,
-                                            "5"
+                                            5
                                           ]
                                         ]
                                       ],
                                       [
                                         "EInteger",
                                         34545,
-                                        "5"
+                                        5
                                       ]
                                     ]
                                   ]
@@ -582,33 +627,16 @@
             ]
           ]
         ],
-        "spec": {
-          "module": [
-            "Filled",
-            129952,
-            "HTTP"
-          ],
-          "name": [
-            "Filled",
-            33052,
-            "/path"
-          ],
-          "modifier": [
-            "Filled",
-            10038562,
-            "GET"
-          ],
-          "types": {
-            "input": [
-              "Blank",
-              0
-            ],
-            "output": [
-              "Blank",
-              0
-            ]
+        "spec": [
+          "HTTP",
+          "/path",
+          "GET",
+          {
+            "moduleID": 129952,
+            "nameID": 33052,
+            "modifierID": 10038562
           }
-        }
+        ]
       }
     ],
     [
@@ -654,63 +682,502 @@
       "SetFunction",
       {
         "tlid": 0,
-        "metadata": {
-          "name": [
-            "Filled",
-            1828332,
-            "myFunc"
-          ],
-          "parameters": [
-            {
-              "name": [
-                "Filled",
-                23824935,
-                "myparam1"
-              ],
-              "tipe": [
-                "Blank",
-                38284244
-              ],
-              "block_args": [],
-              "optional": false,
-              "description": "param1"
-            },
-            {
-              "name": [
-                "Filled",
-                92837232,
-                "myparam2"
-              ],
-              "tipe": [
-                "Filled",
-                239232,
+        "name": "myFunc",
+        "nameID": 1828332,
+        "parameters": [
+          {
+            "name": "myparam1",
+            "nameID": 23824935,
+            "typ": null,
+            "typeID": 38284244,
+            "description": "param1"
+          },
+          {
+            "name": "myparam2",
+            "nameID": 92837232,
+            "typ": [
+              "TRecord",
+              [
                 [
-                  "TObj"
+                  "nested",
+                  [
+                    "TList",
+                    [
+                      "TDict",
+                      [
+                        "TDB",
+                        [
+                          "THttpResponse",
+                          [
+                            "TOption",
+                            [
+                              "TDbList",
+                              [
+                                "TResult",
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TFloat"
+                                    ]
+                                  ],
+                                  [
+                                    "TNull"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ],
+                [
+                  "int",
+                  [
+                    "TInt"
+                  ]
+                ],
+                [
+                  "float",
+                  [
+                    "TFloat"
+                  ]
+                ],
+                [
+                  "bool",
+                  [
+                    "TBool"
+                  ]
+                ],
+                [
+                  "null",
+                  [
+                    "TNull"
+                  ]
+                ],
+                [
+                  "str",
+                  [
+                    "TStr"
+                  ]
+                ],
+                [
+                  "list",
+                  [
+                    "TList",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "tuple",
+                  [
+                    "TTuple",
+                    [
+                      "TInt"
+                    ],
+                    [
+                      "TStr"
+                    ],
+                    []
+                  ]
+                ],
+                [
+                  "dict",
+                  [
+                    "TDict",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "incomplete",
+                  [
+                    "TIncomplete"
+                  ]
+                ],
+                [
+                  "error",
+                  [
+                    "TError"
+                  ]
+                ],
+                [
+                  "httpresponse",
+                  [
+                    "THttpResponse",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "db",
+                  [
+                    "TDB",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "date",
+                  [
+                    "TDate"
+                  ]
+                ],
+                [
+                  "char",
+                  [
+                    "TChar"
+                  ]
+                ],
+                [
+                  "password",
+                  [
+                    "TPassword"
+                  ]
+                ],
+                [
+                  "uuid",
+                  [
+                    "TUuid"
+                  ]
+                ],
+                [
+                  "option",
+                  [
+                    "TOption",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "errorRail",
+                  [
+                    "TErrorRail"
+                  ]
+                ],
+                [
+                  "usertype",
+                  [
+                    "TUserType",
+                    "name",
+                    0
+                  ]
+                ],
+                [
+                  "bytes",
+                  [
+                    "TBytes"
+                  ]
+                ],
+                [
+                  "result",
+                  [
+                    "TResult",
+                    [
+                      "TInt"
+                    ],
+                    [
+                      "TStr"
+                    ]
+                  ]
+                ],
+                [
+                  "variable",
+                  [
+                    "TVariable",
+                    "v"
+                  ]
+                ],
+                [
+                  "fn",
+                  [
+                    "TFn",
+                    [
+                      [
+                        "TInt"
+                      ]
+                    ],
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "record",
+                  [
+                    "TRecord",
+                    [
+                      [
+                        "field1",
+                        [
+                          "TInt"
+                        ]
+                      ]
+                    ]
+                  ]
                 ]
-              ],
-              "block_args": [],
-              "optional": false,
-              "description": "param1"
-            }
-          ],
-          "return_type": [
-            "Filled",
-            23923423,
+              ]
+            ],
+            "typeID": 239232,
+            "description": "param1"
+          }
+        ],
+        "returnType": [
+          "TRecord",
+          [
             [
-              "TObj"
+              "nested",
+              [
+                "TList",
+                [
+                  "TDict",
+                  [
+                    "TDB",
+                    [
+                      "THttpResponse",
+                      [
+                        "TOption",
+                        [
+                          "TDbList",
+                          [
+                            "TResult",
+                            [
+                              "TInt"
+                            ],
+                            [
+                              "TFn",
+                              [
+                                [
+                                  "TFloat"
+                                ]
+                              ],
+                              [
+                                "TNull"
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ],
+            [
+              "int",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "float",
+              [
+                "TFloat"
+              ]
+            ],
+            [
+              "bool",
+              [
+                "TBool"
+              ]
+            ],
+            [
+              "null",
+              [
+                "TNull"
+              ]
+            ],
+            [
+              "str",
+              [
+                "TStr"
+              ]
+            ],
+            [
+              "list",
+              [
+                "TList",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "tuple",
+              [
+                "TTuple",
+                [
+                  "TInt"
+                ],
+                [
+                  "TStr"
+                ],
+                []
+              ]
+            ],
+            [
+              "dict",
+              [
+                "TDict",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "incomplete",
+              [
+                "TIncomplete"
+              ]
+            ],
+            [
+              "error",
+              [
+                "TError"
+              ]
+            ],
+            [
+              "httpresponse",
+              [
+                "THttpResponse",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "db",
+              [
+                "TDB",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "date",
+              [
+                "TDate"
+              ]
+            ],
+            [
+              "char",
+              [
+                "TChar"
+              ]
+            ],
+            [
+              "password",
+              [
+                "TPassword"
+              ]
+            ],
+            [
+              "uuid",
+              [
+                "TUuid"
+              ]
+            ],
+            [
+              "option",
+              [
+                "TOption",
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "errorRail",
+              [
+                "TErrorRail"
+              ]
+            ],
+            [
+              "usertype",
+              [
+                "TUserType",
+                "name",
+                0
+              ]
+            ],
+            [
+              "bytes",
+              [
+                "TBytes"
+              ]
+            ],
+            [
+              "result",
+              [
+                "TResult",
+                [
+                  "TInt"
+                ],
+                [
+                  "TStr"
+                ]
+              ]
+            ],
+            [
+              "variable",
+              [
+                "TVariable",
+                "v"
+              ]
+            ],
+            [
+              "fn",
+              [
+                "TFn",
+                [
+                  [
+                    "TInt"
+                  ]
+                ],
+                [
+                  "TInt"
+                ]
+              ]
+            ],
+            [
+              "record",
+              [
+                "TRecord",
+                [
+                  [
+                    "field1",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ]
+              ]
             ]
-          ],
-          "description": "function description",
-          "infix": false
-        },
-        "ast": [
+          ]
+        ],
+        "returnTypeID": 23923423,
+        "description": "function description",
+        "infix": false,
+        "body": [
           "ELet",
           "14219007199254740992",
           "x1",
           [
             "EInteger",
             929452387,
-            "5"
+            5
           ],
           [
             "ELet",
@@ -753,8 +1220,9 @@
                     537517627,
                     "char",
                     [
-                      "EBlank",
-                      1031176330
+                      "ECharacter",
+                      1031176330,
+                      "a"
                     ],
                     [
                       "ELet",
@@ -763,7 +1231,10 @@
                       [
                         "EFloat",
                         770715427,
-                        "-6",
+                        [
+                          "Negative"
+                        ],
+                        "6",
                         "5"
                       ],
                       [
@@ -792,12 +1263,19 @@
                               [
                                 "EFnCall",
                                 898531080,
-                                "Bool::isError",
+                                [
+                                  "Stdlib",
+                                  {
+                                    "module_": "Bool",
+                                    "function_": "isError",
+                                    "version": 0
+                                  }
+                                ],
                                 [
                                   [
                                     "EInteger",
                                     160106123,
-                                    "6"
+                                    6
                                   ]
                                 ],
                                 [
@@ -810,16 +1288,19 @@
                                 [
                                   "EBinOp",
                                   94793109,
-                                  "!=",
+                                  {
+                                    "module_": null,
+                                    "function_": "!="
+                                  },
                                   [
                                     "EInteger",
                                     264400705,
-                                    "5"
+                                    5
                                   ],
                                   [
                                     "EInteger",
                                     335743639,
-                                    "6"
+                                    6
                                   ],
                                   [
                                     "NoRail"
@@ -828,16 +1309,19 @@
                                 [
                                   "EBinOp",
                                   775118986,
-                                  "+",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  },
                                   [
                                     "EInteger",
                                     803876589,
-                                    "5"
+                                    5
                                   ],
                                   [
                                     "EInteger",
                                     219131014,
-                                    "2"
+                                    2
                                   ],
                                   [
                                     "NoRail"
@@ -855,11 +1339,14 @@
                                   [
                                     "EBinOp",
                                     140609068,
-                                    "+",
+                                    {
+                                      "module_": null,
+                                      "function_": "\u002B"
+                                    },
                                     [
                                       "EInteger",
                                       450951790,
-                                      "2"
+                                      2
                                     ],
                                     [
                                       "EVariable",
@@ -875,11 +1362,17 @@
                               [
                                 "EBinOp",
                                 265463935,
-                                "+",
+                                {
+                                  "module_": null,
+                                  "function_": "\u002B"
+                                },
                                 [
                                   "EBinOp",
                                   312092282,
-                                  "+",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  },
                                   [
                                     "EFieldAccess",
                                     974664608,
@@ -893,17 +1386,24 @@
                                   [
                                     "EFnCall",
                                     173079901,
-                                    "Int::add",
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "Int",
+                                        "function_": "add",
+                                        "version": 0
+                                      }
+                                    ],
                                     [
                                       [
                                         "EInteger",
                                         250221144,
-                                        "6"
+                                        6
                                       ],
                                       [
                                         "EInteger",
                                         298149318,
-                                        "2"
+                                        2
                                       ]
                                     ],
                                     [
@@ -921,17 +1421,17 @@
                                     [
                                       "EInteger",
                                       267797631,
-                                      "5"
+                                      5
                                     ],
                                     [
                                       "EInteger",
                                       352138743,
-                                      "6"
+                                      6
                                     ],
                                     [
                                       "EInteger",
                                       430871955,
-                                      "7"
+                                      7
                                     ]
                                   ]
                                 ],
@@ -954,29 +1454,31 @@
                                       "EPipe",
                                       786862131,
                                       [
+                                        "EInteger",
+                                        555880460,
+                                        5
+                                      ],
+                                      [
+                                        "EBinOp",
+                                        1021880969,
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        },
                                         [
-                                          "EInteger",
-                                          555880460,
-                                          "5"
+                                          "EPipeTarget",
+                                          936577032
                                         ],
                                         [
-                                          "EBinOp",
-                                          1021880969,
-                                          "+",
-                                          [
-                                            "EPipeTarget",
-                                            936577032
-                                          ],
-                                          [
-                                            "EInteger",
-                                            962393769,
-                                            "2"
-                                          ],
-                                          [
-                                            "NoRail"
-                                          ]
+                                          "EInteger",
+                                          962393769,
+                                          2
+                                        ],
+                                        [
+                                          "NoRail"
                                         ]
-                                      ]
+                                      ],
+                                      []
                                     ]
                                   ],
                                   [
@@ -1021,7 +1523,14 @@
                                   [
                                     "EFnCall",
                                     203239466,
-                                    "Mod::function_v2",
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "Mod",
+                                        "function_": "function",
+                                        "version": 2
+                                      }
+                                    ],
                                     [],
                                     [
                                       "NoRail"
@@ -1030,14 +1539,12 @@
                                   [
                                     [
                                       [
-                                        "FPConstructor",
-                                        889712088,
+                                        "PConstructor",
                                         1015986188,
                                         "Ok",
                                         [
                                           [
-                                            "FPVariable",
-                                            889712088,
+                                            "PVariable",
                                             334386852,
                                             "x"
                                           ]
@@ -1051,10 +1558,9 @@
                                     ],
                                     [
                                       [
-                                        "FPInteger",
-                                        889712088,
+                                        "PInteger",
                                         928253813,
-                                        "5"
+                                        5
                                       ],
                                       [
                                         "EInteger",
@@ -1064,36 +1570,33 @@
                                     ],
                                     [
                                       [
-                                        "FPBool",
-                                        889712088,
+                                        "PBool",
                                         435227293,
                                         true
                                       ],
                                       [
                                         "EInteger",
                                         232748650,
-                                        "7"
+                                        7
                                       ]
                                     ],
                                     [
                                       [
-                                        "FPBlank",
-                                        889712088,
-                                        387662539
+                                        "PCharacter",
+                                        387662539,
+                                        "c"
                                       ],
                                       [
-                                        "EBlank",
-                                        657848009
+                                        "ECharacter",
+                                        657848009,
+                                        "c"
                                       ]
                                     ],
                                     [
                                       [
-                                        "FPString",
-                                        {
-                                          "matchID": 889712088,
-                                          "patternID": 491115870,
-                                          "str": "string"
-                                        }
+                                        "PString",
+                                        491115870,
+                                        "string"
                                       ],
                                       [
                                         "EString",
@@ -1103,8 +1606,7 @@
                                     ],
                                     [
                                       [
-                                        "FPNull",
-                                        889712088,
+                                        "PNull",
                                         701616052
                                       ],
                                       [
@@ -1114,19 +1616,21 @@
                                     ],
                                     [
                                       [
-                                        "FPVariable",
-                                        889712088,
+                                        "PVariable",
                                         722099983,
                                         "var"
                                       ],
                                       [
                                         "EBinOp",
                                         275666765,
-                                        "+",
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        },
                                         [
                                           "EInteger",
                                           739193732,
-                                          "6"
+                                          6
                                         ],
                                         [
                                           "EVariable",
@@ -1140,29 +1644,33 @@
                                     ],
                                     [
                                       [
-                                        "FPFloat",
-                                        889712088,
+                                        "PFloat",
                                         409097457,
+                                        [
+                                          "Positive"
+                                        ],
                                         "5",
                                         "6"
                                       ],
                                       [
                                         "EFloat",
                                         131187958,
+                                        [
+                                          "Positive"
+                                        ],
                                         "5",
                                         "6"
                                       ]
                                     ],
                                     [
                                       [
-                                        "FPBlank",
-                                        889712088,
+                                        "PBlank",
                                         858594159
                                       ],
                                       [
                                         "EInteger",
                                         135348705,
-                                        "6"
+                                        6
                                       ]
                                     ]
                                   ]
@@ -1183,12 +1691,12 @@
                                     [
                                       "EInteger",
                                       578528886,
-                                      "5"
+                                      5
                                     ],
                                     [
                                       "EInteger",
                                       562930224,
-                                      "6"
+                                      6
                                     ]
                                   ],
                                   [
@@ -1202,31 +1710,31 @@
                                         [
                                           "EPartial",
                                           2949606,
-                                          "some 🤬 string",
+                                          "some \uD83E\uDD2C string",
                                           [
                                             "EInteger",
                                             34545,
-                                            "5"
+                                            5
                                           ]
                                         ],
                                         [
                                           "ERightPartial",
                                           9239755,
-                                          "some 😭 string",
+                                          "some \uD83D\uDE2D string",
                                           [
                                             "EInteger",
                                             34545,
-                                            "5"
+                                            5
                                           ]
                                         ],
                                         [
                                           "ELeftPartial",
                                           234885,
-                                          "some 👨‍👩‍👧‍👦 string",
+                                          "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
                                           [
                                             "EInteger",
                                             34545,
-                                            "5"
+                                            5
                                           ]
                                         ]
                                       ]
@@ -1241,25 +1749,25 @@
                                         [
                                           "EInteger",
                                           34545,
-                                          "5"
+                                          5
                                         ],
                                         [
                                           "EInteger",
                                           34545,
-                                          "5"
+                                          5
                                         ],
                                         [
                                           [
                                             "EInteger",
                                             34545,
-                                            "5"
+                                            5
                                           ]
                                         ]
                                       ],
                                       [
                                         "EInteger",
                                         34545,
-                                        "5"
+                                        5
                                       ]
                                     ]
                                   ]
@@ -1309,7 +1817,7 @@
         [
           "EInteger",
           929452387,
-          "5"
+          5
         ],
         [
           "ELet",
@@ -1352,8 +1860,9 @@
                   537517627,
                   "char",
                   [
-                    "EBlank",
-                    1031176330
+                    "ECharacter",
+                    1031176330,
+                    "a"
                   ],
                   [
                     "ELet",
@@ -1362,7 +1871,10 @@
                     [
                       "EFloat",
                       770715427,
-                      "-6",
+                      [
+                        "Negative"
+                      ],
+                      "6",
                       "5"
                     ],
                     [
@@ -1391,12 +1903,19 @@
                             [
                               "EFnCall",
                               898531080,
-                              "Bool::isError",
+                              [
+                                "Stdlib",
+                                {
+                                  "module_": "Bool",
+                                  "function_": "isError",
+                                  "version": 0
+                                }
+                              ],
                               [
                                 [
                                   "EInteger",
                                   160106123,
-                                  "6"
+                                  6
                                 ]
                               ],
                               [
@@ -1409,16 +1928,19 @@
                               [
                                 "EBinOp",
                                 94793109,
-                                "!=",
+                                {
+                                  "module_": null,
+                                  "function_": "!="
+                                },
                                 [
                                   "EInteger",
                                   264400705,
-                                  "5"
+                                  5
                                 ],
                                 [
                                   "EInteger",
                                   335743639,
-                                  "6"
+                                  6
                                 ],
                                 [
                                   "NoRail"
@@ -1427,16 +1949,19 @@
                               [
                                 "EBinOp",
                                 775118986,
-                                "+",
+                                {
+                                  "module_": null,
+                                  "function_": "\u002B"
+                                },
                                 [
                                   "EInteger",
                                   803876589,
-                                  "5"
+                                  5
                                 ],
                                 [
                                   "EInteger",
                                   219131014,
-                                  "2"
+                                  2
                                 ],
                                 [
                                   "NoRail"
@@ -1454,11 +1979,14 @@
                                 [
                                   "EBinOp",
                                   140609068,
-                                  "+",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  },
                                   [
                                     "EInteger",
                                     450951790,
-                                    "2"
+                                    2
                                   ],
                                   [
                                     "EVariable",
@@ -1474,11 +2002,17 @@
                             [
                               "EBinOp",
                               265463935,
-                              "+",
+                              {
+                                "module_": null,
+                                "function_": "\u002B"
+                              },
                               [
                                 "EBinOp",
                                 312092282,
-                                "+",
+                                {
+                                  "module_": null,
+                                  "function_": "\u002B"
+                                },
                                 [
                                   "EFieldAccess",
                                   974664608,
@@ -1492,17 +2026,24 @@
                                 [
                                   "EFnCall",
                                   173079901,
-                                  "Int::add",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Int",
+                                      "function_": "add",
+                                      "version": 0
+                                    }
+                                  ],
                                   [
                                     [
                                       "EInteger",
                                       250221144,
-                                      "6"
+                                      6
                                     ],
                                     [
                                       "EInteger",
                                       298149318,
-                                      "2"
+                                      2
                                     ]
                                   ],
                                   [
@@ -1520,17 +2061,17 @@
                                   [
                                     "EInteger",
                                     267797631,
-                                    "5"
+                                    5
                                   ],
                                   [
                                     "EInteger",
                                     352138743,
-                                    "6"
+                                    6
                                   ],
                                   [
                                     "EInteger",
                                     430871955,
-                                    "7"
+                                    7
                                   ]
                                 ]
                               ],
@@ -1553,29 +2094,31 @@
                                     "EPipe",
                                     786862131,
                                     [
+                                      "EInteger",
+                                      555880460,
+                                      5
+                                    ],
+                                    [
+                                      "EBinOp",
+                                      1021880969,
+                                      {
+                                        "module_": null,
+                                        "function_": "\u002B"
+                                      },
                                       [
-                                        "EInteger",
-                                        555880460,
-                                        "5"
+                                        "EPipeTarget",
+                                        936577032
                                       ],
                                       [
-                                        "EBinOp",
-                                        1021880969,
-                                        "+",
-                                        [
-                                          "EPipeTarget",
-                                          936577032
-                                        ],
-                                        [
-                                          "EInteger",
-                                          962393769,
-                                          "2"
-                                        ],
-                                        [
-                                          "NoRail"
-                                        ]
+                                        "EInteger",
+                                        962393769,
+                                        2
+                                      ],
+                                      [
+                                        "NoRail"
                                       ]
-                                    ]
+                                    ],
+                                    []
                                   ]
                                 ],
                                 [
@@ -1620,7 +2163,14 @@
                                 [
                                   "EFnCall",
                                   203239466,
-                                  "Mod::function_v2",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "function_": "function",
+                                      "version": 2
+                                    }
+                                  ],
                                   [],
                                   [
                                     "NoRail"
@@ -1629,14 +2179,12 @@
                                 [
                                   [
                                     [
-                                      "FPConstructor",
-                                      889712088,
+                                      "PConstructor",
                                       1015986188,
                                       "Ok",
                                       [
                                         [
-                                          "FPVariable",
-                                          889712088,
+                                          "PVariable",
                                           334386852,
                                           "x"
                                         ]
@@ -1650,10 +2198,9 @@
                                   ],
                                   [
                                     [
-                                      "FPInteger",
-                                      889712088,
+                                      "PInteger",
                                       928253813,
-                                      "5"
+                                      5
                                     ],
                                     [
                                       "EInteger",
@@ -1663,36 +2210,33 @@
                                   ],
                                   [
                                     [
-                                      "FPBool",
-                                      889712088,
+                                      "PBool",
                                       435227293,
                                       true
                                     ],
                                     [
                                       "EInteger",
                                       232748650,
-                                      "7"
+                                      7
                                     ]
                                   ],
                                   [
                                     [
-                                      "FPBlank",
-                                      889712088,
-                                      387662539
+                                      "PCharacter",
+                                      387662539,
+                                      "c"
                                     ],
                                     [
-                                      "EBlank",
-                                      657848009
+                                      "ECharacter",
+                                      657848009,
+                                      "c"
                                     ]
                                   ],
                                   [
                                     [
-                                      "FPString",
-                                      {
-                                        "matchID": 889712088,
-                                        "patternID": 491115870,
-                                        "str": "string"
-                                      }
+                                      "PString",
+                                      491115870,
+                                      "string"
                                     ],
                                     [
                                       "EString",
@@ -1702,8 +2246,7 @@
                                   ],
                                   [
                                     [
-                                      "FPNull",
-                                      889712088,
+                                      "PNull",
                                       701616052
                                     ],
                                     [
@@ -1713,19 +2256,21 @@
                                   ],
                                   [
                                     [
-                                      "FPVariable",
-                                      889712088,
+                                      "PVariable",
                                       722099983,
                                       "var"
                                     ],
                                     [
                                       "EBinOp",
                                       275666765,
-                                      "+",
+                                      {
+                                        "module_": null,
+                                        "function_": "\u002B"
+                                      },
                                       [
                                         "EInteger",
                                         739193732,
-                                        "6"
+                                        6
                                       ],
                                       [
                                         "EVariable",
@@ -1739,29 +2284,33 @@
                                   ],
                                   [
                                     [
-                                      "FPFloat",
-                                      889712088,
+                                      "PFloat",
                                       409097457,
+                                      [
+                                        "Positive"
+                                      ],
                                       "5",
                                       "6"
                                     ],
                                     [
                                       "EFloat",
                                       131187958,
+                                      [
+                                        "Positive"
+                                      ],
                                       "5",
                                       "6"
                                     ]
                                   ],
                                   [
                                     [
-                                      "FPBlank",
-                                      889712088,
+                                      "PBlank",
                                       858594159
                                     ],
                                     [
                                       "EInteger",
                                       135348705,
-                                      "6"
+                                      6
                                     ]
                                   ]
                                 ]
@@ -1782,12 +2331,12 @@
                                   [
                                     "EInteger",
                                     578528886,
-                                    "5"
+                                    5
                                   ],
                                   [
                                     "EInteger",
                                     562930224,
-                                    "6"
+                                    6
                                   ]
                                 ],
                                 [
@@ -1801,31 +2350,31 @@
                                       [
                                         "EPartial",
                                         2949606,
-                                        "some 🤬 string",
+                                        "some \uD83E\uDD2C string",
                                         [
                                           "EInteger",
                                           34545,
-                                          "5"
+                                          5
                                         ]
                                       ],
                                       [
                                         "ERightPartial",
                                         9239755,
-                                        "some 😭 string",
+                                        "some \uD83D\uDE2D string",
                                         [
                                           "EInteger",
                                           34545,
-                                          "5"
+                                          5
                                         ]
                                       ],
                                       [
                                         "ELeftPartial",
                                         234885,
-                                        "some 👨‍👩‍👧‍👦 string",
+                                        "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
                                         [
                                           "EInteger",
                                           34545,
-                                          "5"
+                                          5
                                         ]
                                       ]
                                     ]
@@ -1840,25 +2389,25 @@
                                       [
                                         "EInteger",
                                         34545,
-                                        "5"
+                                        5
                                       ],
                                       [
                                         "EInteger",
                                         34545,
-                                        "5"
+                                        5
                                       ],
                                       [
                                         [
                                           "EInteger",
                                           34545,
-                                          "5"
+                                          5
                                         ]
                                       ]
                                     ],
                                     [
                                       "EInteger",
                                       34545,
-                                      "5"
+                                      5
                                     ]
                                   ]
                                 ]
@@ -1908,39 +2457,256 @@
       "SetType",
       {
         "tlid": 0,
-        "name": [
-          "Filled",
-          92930232,
-          "User"
-        ],
+        "name": "User",
+        "nameID": 92930232,
         "version": 0,
         "definition": [
-          "UTRecord",
+          "Record",
           [
             {
-              "name": [
-                "Filled",
-                923942342,
-                "prop1"
-              ],
-              "tipe": [
-                "Blank",
-                3452342
-              ]
+              "name": "prop1",
+              "typ": null,
+              "nameID": 923942342,
+              "typeID": 3452342
             },
             {
-              "name": [
-                "Filled",
-                698978,
-                "prop1"
-              ],
-              "tipe": [
-                "Filled",
-                93494534,
+              "name": "prop1",
+              "typ": [
+                "TRecord",
                 [
-                  "TObj"
+                  [
+                    "nested",
+                    [
+                      "TList",
+                      [
+                        "TDict",
+                        [
+                          "TDB",
+                          [
+                            "THttpResponse",
+                            [
+                              "TOption",
+                              [
+                                "TDbList",
+                                [
+                                  "TResult",
+                                  [
+                                    "TInt"
+                                  ],
+                                  [
+                                    "TFn",
+                                    [
+                                      [
+                                        "TFloat"
+                                      ]
+                                    ],
+                                    [
+                                      "TNull"
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ],
+                  [
+                    "int",
+                    [
+                      "TInt"
+                    ]
+                  ],
+                  [
+                    "float",
+                    [
+                      "TFloat"
+                    ]
+                  ],
+                  [
+                    "bool",
+                    [
+                      "TBool"
+                    ]
+                  ],
+                  [
+                    "null",
+                    [
+                      "TNull"
+                    ]
+                  ],
+                  [
+                    "str",
+                    [
+                      "TStr"
+                    ]
+                  ],
+                  [
+                    "list",
+                    [
+                      "TList",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "tuple",
+                    [
+                      "TTuple",
+                      [
+                        "TInt"
+                      ],
+                      [
+                        "TStr"
+                      ],
+                      []
+                    ]
+                  ],
+                  [
+                    "dict",
+                    [
+                      "TDict",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "incomplete",
+                    [
+                      "TIncomplete"
+                    ]
+                  ],
+                  [
+                    "error",
+                    [
+                      "TError"
+                    ]
+                  ],
+                  [
+                    "httpresponse",
+                    [
+                      "THttpResponse",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "db",
+                    [
+                      "TDB",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "date",
+                    [
+                      "TDate"
+                    ]
+                  ],
+                  [
+                    "char",
+                    [
+                      "TChar"
+                    ]
+                  ],
+                  [
+                    "password",
+                    [
+                      "TPassword"
+                    ]
+                  ],
+                  [
+                    "uuid",
+                    [
+                      "TUuid"
+                    ]
+                  ],
+                  [
+                    "option",
+                    [
+                      "TOption",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "errorRail",
+                    [
+                      "TErrorRail"
+                    ]
+                  ],
+                  [
+                    "usertype",
+                    [
+                      "TUserType",
+                      "name",
+                      0
+                    ]
+                  ],
+                  [
+                    "bytes",
+                    [
+                      "TBytes"
+                    ]
+                  ],
+                  [
+                    "result",
+                    [
+                      "TResult",
+                      [
+                        "TInt"
+                      ],
+                      [
+                        "TStr"
+                      ]
+                    ]
+                  ],
+                  [
+                    "variable",
+                    [
+                      "TVariable",
+                      "v"
+                    ]
+                  ],
+                  [
+                    "fn",
+                    [
+                      "TFn",
+                      [
+                        [
+                          "TInt"
+                        ]
+                      ],
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "record",
+                    [
+                      "TRecord",
+                      [
+                        [
+                          "field1",
+                          [
+                            "TInt"
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
                 ]
-              ]
+              ],
+              "nameID": 698978,
+              "typeID": 93494534
             }
           ]
         ]
@@ -1952,5 +2718,5 @@
     ]
   ],
   "opCtr": 0,
-  "clientOpCtrId": null
+  "clientOpCtrID": "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
 }

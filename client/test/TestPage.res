@@ -4,30 +4,35 @@ open Prelude
 module B = BlankOr
 module D = Defaults
 
+open AppTypes.Page
+
+let defaultHTTPSpec = PT.Handler.Spec.newHTTP("/", "GET")
+
+let defaultREPLSpec = PT.Handler.Spec.newREPL("adjectiveNoun")
+
+let defaultCronSpec = PT.Handler.Spec.newCron("daily", Some(PT.Handler.Spec.CronInterval.EveryDay))
+
+let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
+
+let defaultSpec = defaultHTTPSpec
+
 let defaultTLID = gtlid()
 
 let defaultFluidExpr = ProgramTypes.Expr.EBlank(gid())
 
-let defaultPos = {x: 0, y: 0}
-
 let aHandler = (
   ~tlid=defaultTLID,
   ~expr=defaultFluidExpr,
-  ~pos=defaultPos,
-  ~space: option<string>=None,
+  ~pos=Pos.center,
+  ~spec=defaultSpec,
   (),
 ): toplevel => {
-  let space = switch space {
-  | None => B.new_()
-  | Some(name) => B.newF(name)
-  }
-  let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
   TLHandler({ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: pos})
 }
 
 let run = () => {
   describe("calculatePanOffset", () => {
-    let m = D.defaultModel
+    let m = AppTypes.Model.default
     let tl = aHandler(~pos={x: 500, y: 500}, ())
     test("do not update canvasProps if center=false", () => {
       let page = FocusedHandler(defaultTLID, None, false)

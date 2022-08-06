@@ -5,28 +5,34 @@ module B = BlankOr
 module P = Pointer
 module TD = TLID.Dict
 
+module Mod = AppTypes.Modification
+type model = AppTypes.model
+
 // -------------------------
 // Toplevel manipulation
 // -------------------------
 let name = (tl: toplevel): string =>
   switch tl {
-  | TLHandler(h) => "H: " ++ (h.spec.name |> B.toOption |> Option.unwrap(~default=""))
-  | TLDB(db) => "DB: " ++ (db.name |> B.toOption |> Option.unwrap(~default=""))
-  | TLPmFunc(f) => "Package Manager Func: " ++ f.fnname
-  | TLFunc(f) => "Func: " ++ (f.metadata.name |> B.toOption |> Option.unwrap(~default=""))
-  | TLTipe(t) => "Type: " ++ (t.name |> B.toOption |> Option.unwrap(~default=""))
+  | TLHandler(h) =>
+    "H: " ++ PT.Handler.Spec.name(h.spec)->B.toOption->Belt.Option.getWithDefault("Undefined")
+  | TLDB(db) => "DB: " ++ db.name
+  | TLPmFunc(fn) => "Package Manager Func: " ++ PT.FQFnName.PackageFnName.toString(fn.name)
+  | TLFunc(f) => "Func: " ++ f.name
+  | TLTipe(t) => "Type: " ++ t.name
   }
 
 let sortkey = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) =>
-    (h.spec.space |> B.toOption |> Option.unwrap(~default="Undefined")) ++
-      ((h.spec.name |> B.toOption |> Option.unwrap(~default="Undefined")) ++
-      (h.spec.modifier |> B.toOption |> Option.unwrap(~default="")))
-  | TLDB(db) => db.name |> B.toOption |> Option.unwrap(~default="Undefined")
-  | TLPmFunc(f) => f.fnname
-  | TLFunc(f) => f.metadata.name |> B.toOption |> Option.unwrap(~default="")
-  | TLTipe(t) => t.name |> B.toOption |> Option.unwrap(~default="")
+    PT.Handler.Spec.space(h.spec)->B.toOption->Belt.Option.getWithDefault("Undefined") ++
+    PT.Handler.Spec.name(h.spec)->B.toOption->Belt.Option.getWithDefault("Undefined") ++
+    PT.Handler.Spec.modifier(h.spec)
+    ->Option.andThen(~f=B.toOption)
+    ->Belt.Option.getWithDefault("Undefined")
+  | TLDB(db) => db.name
+  | TLPmFunc(f) => PT.FQFnName.PackageFnName.toString(f.name)
+  | TLFunc(f) => f.name
+  | TLTipe(t) => t.name
   }
 
 let id = tl =>
@@ -34,7 +40,7 @@ let id = tl =>
   | TLHandler(h) => h.tlid
   | TLDB(db) => db.tlid
   | TLFunc(f) => f.tlid
-  | TLPmFunc(f) => f.pfTLID
+  | TLPmFunc(f) => f.tlid
   | TLTipe(t) => t.tlid
   }
 
@@ -42,9 +48,9 @@ let pos = tl =>
   switch tl {
   | TLHandler(h) => h.pos
   | TLDB(db) => db.pos
-  | TLPmFunc(f) => recover("no pos in a func", ~debug=f.pfTLID, {x: 0, y: 0})
-  | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, {x: 0, y: 0})
-  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, {x: 0, y: 0})
+  | TLPmFunc(f) => recover("no pos in a func", ~debug=f.tlid, ({x: 0, y: 0}: Pos.t))
+  | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, ({x: 0, y: 0}: Pos.t))
+  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, ({x: 0, y: 0}: Pos.t))
   }
 
 let remove = (m: model, tl: toplevel): model => {
@@ -63,7 +69,7 @@ let fromList = (tls: list<toplevel>): TLID.Dict.t<toplevel> =>
   tls |> List.map(~f=tl => (id(tl), tl)) |> TD.fromList
 
 let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
-  let newPos = p => {x: p.x + xOffset, y: p.y + yOffset}
+  let newPos = (p: Pos.t) => {Pos.x: p.x + xOffset, y: p.y + yOffset}
   {
     ...m,
     handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=(h: PT.Handler.t) => {
@@ -76,7 +82,7 @@ let move = (tlid: TLID.t, xOffset: int, yOffset: int, m: model): model => {
 
 let ufToTL = (uf: PT.UserFunction.t): toplevel => TLFunc(uf)
 
-let pmfToTL = (pmf: packageFn): toplevel => TLPmFunc(pmf)
+let pmfToTL = (pmf: PT.Package.Fn.t): toplevel => TLPmFunc(pmf)
 
 let utToTL = (ut: PT.UserType.t): toplevel => TLTipe(ut)
 
@@ -137,16 +143,38 @@ let spaceOfHandler = (h: PT.Handler.t): handlerSpace => SpecHeaders.spaceOf(h.sp
 let spaceOf = (tl: toplevel): option<handlerSpace> =>
   tl |> asHandler |> Option.map(~f=spaceOfHandler)
 
-let isHTTPHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSHTTP))
+let isHTTPHandler = (tl: toplevel): bool =>
+  switch asHandler(tl) {
+  | Some({spec: PT.Handler.Spec.HTTP(_), _}) => true
+  | _ => false
+  }
 
-let isCronHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSCron))
-
-let isWorkerHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSWorker))
-
-let isReplHandler = (tl: toplevel): bool => tl |> spaceOf |> \"="(Some(HSRepl))
+let isReplHandler = (tl: toplevel): bool =>
+  switch asHandler(tl) {
+  | Some({spec: PT.Handler.Spec.REPL(_), _}) => true
+  | _ => false
+  }
+let isCronHandler = (tl: toplevel): bool =>
+  switch asHandler(tl) {
+  | Some({spec: PT.Handler.Spec.Cron(_), _}) => true
+  | _ => false
+  }
+let isWorkerHandler = (tl: toplevel): bool =>
+  switch asHandler(tl) {
+  | Some({spec: PT.Handler.Spec.Worker(_), _}) => true
+  | _ => false
+  }
 
 let isDeprecatedCustomHandler = (tl: toplevel): bool =>
-  tl |> spaceOf |> \"="(Some(HSDeprecatedOther))
+  switch asHandler(tl) {
+  | Some(h) =>
+    switch h.spec {
+    | PT.Handler.Spec.OldWorker(_) => true
+    | PT.Handler.Spec.UnknownHandler(_) => true
+    | _ => false
+    }
+  | None => false
+  }
 
 let toOp = (tl: toplevel): list<PT.Op.t> =>
   switch tl {
@@ -179,7 +207,7 @@ let isValidBlankOrID = (tl: toplevel, id: id): bool =>
 let getAST = (tl: toplevel): option<FluidAST.t> =>
   switch tl {
   | TLHandler(h) => Some(h.ast)
-  | TLFunc(f) => Some(f.ast)
+  | TLFunc(f) => Some(f.body)
   | TLPmFunc(fn) => Some(FluidAST.ofExpr(fn.body))
   | _ => None
   }
@@ -187,7 +215,7 @@ let getAST = (tl: toplevel): option<FluidAST.t> =>
 let setAST = (tl: toplevel, newAST: FluidAST.t): toplevel =>
   switch tl {
   | TLHandler(h) => TLHandler({...h, ast: newAST})
-  | TLFunc(uf) => TLFunc({...uf, ast: newAST})
+  | TLFunc(uf) => TLFunc({...uf, body: newAST})
   | TLDB(_) | TLTipe(_) | TLPmFunc(_) => tl
   }
 
@@ -196,13 +224,13 @@ let withAST = (m: model, tlid: TLID.t, ast: FluidAST.t): model => {
   handlers: Map.updateIfPresent(m.handlers, ~key=tlid, ~f=(h: PT.Handler.t) => {...h, ast: ast}),
   userFunctions: Map.updateIfPresent(m.userFunctions, ~key=tlid, ~f=(uf: PT.UserFunction.t) => {
     ...uf,
-    ast: ast,
+    body: ast,
   }),
 }
 
 /* Create the modification to set the AST in this toplevel. `ops` is optional
  * other ops to include in this modification. Does not change the model. */
-let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): modification =>
+let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): AppTypes.modification =>
   switch tl {
   | TLHandler(h) =>
     if h.ast == ast {
@@ -214,21 +242,21 @@ let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): modification =>
       )
     }
   | TLFunc(f) =>
-    if f.ast == ast {
+    if f.body == ast {
       NoChange
     } else {
-      AddOps(Belt.List.concat(ops, list{SetFunction({...f, ast: ast})}), FocusNoChange)
+      AddOps(Belt.List.concat(ops, list{SetFunction({...f, body: ast})}), FocusNoChange)
     }
-  | TLPmFunc(_) => recover("cannot change ast in package manager", ~debug=tl, NoChange)
-  | TLTipe(_) => recover("no ast in Tipes", ~debug=tl, NoChange)
-  | TLDB(_) => recover("no ast in DBs", ~debug=tl, NoChange)
+  | TLPmFunc(_) => recover("cannot change ast in package manager", ~debug=tl, Mod.NoChange)
+  | TLTipe(_) => recover("no ast in Tipes", ~debug=tl, Mod.NoChange)
+  | TLDB(_) => recover("no ast in DBs", ~debug=tl, Mod.NoChange)
   }
 
 @ocaml.doc(" modifyASTMod is a combination of getAST and setASTMod. It fetches the AST
   * for [tl] and passes it to [f], which should return a modified version of the
   * AST. An AddOps modification is returned, which updates the AST accordingly. ")
-let modifyASTMod = (tl: toplevel, ~f: FluidAST.t => FluidAST.t): modification =>
-  getAST(tl) |> Option.map(~f=\">>"(f, setASTMod(tl))) |> Option.unwrap(~default=NoChange)
+let modifyASTMod = (tl: toplevel, ~f: FluidAST.t => FluidAST.t): AppTypes.modification =>
+  getAST(tl)->Option.map(~f=ast => ast->f |> setASTMod(tl))->Option.unwrap(~default=Mod.NoChange)
 
 let replace = (p: blankOrData, replacement: blankOrData, tl: toplevel): toplevel => {
   let id = P.toID(p)
@@ -262,17 +290,17 @@ let combine = (
   handlers: TD.t<PT.Handler.t>,
   dbs: TD.t<PT.DB.t>,
   userFunctions: TD.t<PT.UserFunction.t>,
-  packageFn: TD.t<packageFn>,
-  userTipes: TD.t<PT.UserType.t>,
+  packageFn: TD.t<PT.Package.Fn.t>,
+  userTypes: TD.t<PT.UserType.t>,
 ): TD.t<toplevel> =>
   Map.map(~f=h => TLHandler(h), handlers)
   |> Map.mergeLeft(Map.map(~f=db => TLDB(db), dbs))
   |> Map.mergeLeft(Map.map(~f=ufToTL, userFunctions))
   |> Map.mergeLeft(Map.map(~f=pmfToTL, packageFn))
-  |> Map.mergeLeft(Map.map(~f=utToTL, userTipes))
+  |> Map.mergeLeft(Map.map(~f=utToTL, userTypes))
 
 let all = (m: model): TD.t<toplevel> =>
-  combine(m.handlers, m.dbs, m.userFunctions, m.functions.packageFunctions, m.userTipes)
+  combine(m.handlers, m.dbs, m.userFunctions, m.functions.packageFunctions, m.userTypes)
 
 let structural = (m: model): TD.t<toplevel> =>
   Map.map(~f=h => TLHandler(h), m.handlers) |> Map.mergeLeft(Map.map(~f=db => TLDB(db), m.dbs))
@@ -294,15 +322,16 @@ let getTLAndPD = (m: model, tlid: TLID.t, id: id): option<(toplevel, option<blan
 
 let allDBNames = (dbs: TD.t<PT.DB.t>): list<string> =>
   dbs |> Map.filterMapValues(~f=(db: PT.DB.t) =>
-    switch db.name {
-    | F(_, name) => Some(name)
-    | Blank(_) => None
+    if db.name == "" {
+      None
+    } else {
+      Some(db.name)
     }
   )
 
 let allGloballyScopedVarnames = (dbs: TD.t<PT.DB.t>): list<string> => allDBNames(dbs)
 
-let asPage = (tl: toplevel, center: bool): page =>
+let asPage = (tl: toplevel, center: bool): AppTypes.Page.t =>
   switch tl {
   | TLHandler(_) => FocusedHandler(id(tl), None, center)
   | TLDB(_) => FocusedDB(id(tl), center)
@@ -315,7 +344,7 @@ let selected = (m: model): option<toplevel> =>
 
 let selectedAST = (m: model): option<FluidAST.t> => selected(m) |> Option.andThen(~f=getAST)
 
-let setSelectedAST = (m: model, ast: FluidAST.t): modification =>
+let setSelectedAST = (m: model, ast: FluidAST.t): AppTypes.modification =>
   switch selected(m) {
   | None => NoChange
   | Some(tl) => setASTMod(tl, ast)

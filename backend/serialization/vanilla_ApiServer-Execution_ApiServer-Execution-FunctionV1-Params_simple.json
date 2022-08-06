@@ -31,10 +31,154 @@
           "\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD"
         ],
         "block": [
-          "DLambda"
+          "DFnVal",
+          [
+            "Lambda",
+            {
+              "parameters": [
+                [
+                  5678,
+                  "a"
+                ]
+              ],
+              "symtable": {},
+              "body": [
+                "EBlank",
+                1234
+              ]
+            }
+          ]
         ],
         "block with pipe": [
-          "DLambda"
+          "DFnVal",
+          [
+            "Lambda",
+            {
+              "parameters": [
+                [
+                  5678,
+                  "a"
+                ]
+              ],
+              "symtable": {},
+              "body": [
+                "EApply",
+                92356985,
+                [
+                  "EFQFnValue",
+                  700731989,
+                  [
+                    "Stdlib",
+                    {
+                      "module_": "List",
+                      "function_": "push",
+                      "version": 0
+                    }
+                  ]
+                ],
+                [
+                  [
+                    "EApply",
+                    93459985,
+                    [
+                      "EFQFnValue",
+                      707841989,
+                      [
+                        "Stdlib",
+                        {
+                          "module_": "",
+                          "function_": "\u002B",
+                          "version": 0
+                        }
+                      ]
+                    ],
+                    [
+                      [
+                        "EApply",
+                        394567785,
+                        [
+                          "EFQFnValue",
+                          700766785,
+                          [
+                            "Stdlib",
+                            {
+                              "module_": "",
+                              "function_": "\u002B",
+                              "version": 0
+                            }
+                          ]
+                        ],
+                        [
+                          [
+                            "EApply",
+                            44444485,
+                            [
+                              "EFQFnValue",
+                              893346989,
+                              [
+                                "Stdlib",
+                                {
+                                  "module_": "",
+                                  "function_": "\u002B",
+                                  "version": 0
+                                }
+                              ]
+                            ],
+                            [
+                              [
+                                "EInteger",
+                                234213618,
+                                5
+                              ],
+                              [
+                                "EInteger",
+                                923423468,
+                                6
+                              ]
+                            ],
+                            [
+                              "NotInPipe"
+                            ],
+                            [
+                              "NoRail"
+                            ]
+                          ],
+                          [
+                            "EInteger",
+                            648327618,
+                            7
+                          ]
+                        ],
+                        [
+                          "NotInPipe"
+                        ],
+                        [
+                          "NoRail"
+                        ]
+                      ],
+                      [
+                        "EInteger",
+                        325843618,
+                        8
+                      ]
+                    ],
+                    [
+                      "NotInPipe"
+                    ],
+                    [
+                      "NoRail"
+                    ]
+                  ]
+                ],
+                [
+                  "NotInPipe"
+                ],
+                [
+                  "NoRail"
+                ]
+              ]
+            }
+          ]
         ],
         "bytes": [
           "DBytes",

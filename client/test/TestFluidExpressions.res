@@ -2,6 +2,7 @@ open Prelude
 open Tester
 open FluidShortcuts
 module E = FluidExpression
+module PT = ProgramTypes
 
 let run = () => {
   describe("isEmpty", () => {
@@ -59,21 +60,9 @@ let run = () => {
 
     eq("int with same values", int(1), int(1))
     neq("int with diff values", int(1), int(2))
-    eq(
-      "float with same values",
-      float'(ProgramTypes.Positive, 1, 0),
-      float'(ProgramTypes.Positive, 1, 0),
-    )
-    neq(
-      "float with diff values",
-      float'(ProgramTypes.Positive, 1, 0),
-      float'(ProgramTypes.Positive, 2, 0),
-    )
-    neq(
-      "float with diff sign",
-      float'(ProgramTypes.Negative, 1, 0),
-      float'(ProgramTypes.Positive, 1, 0),
-    )
+    eq("float with same values", float'(PT.Sign.Positive, 1, 0), float'(PT.Sign.Positive, 1, 0))
+    neq("float with diff values", float'(PT.Sign.Positive, 1, 0), float'(PT.Sign.Positive, 2, 0))
+    neq("float with diff sign", float'(PT.Sign.Negative, 1, 0), float'(PT.Sign.Positive, 1, 0))
     eq("string with same values", str("a"), str("a"))
     neq("string with diff values", str("a"), str("b"))
     eq("bool with same values", bool(true), bool(true))
@@ -85,21 +74,25 @@ let run = () => {
     neq("list and empty list", list(list{}), list(list{int(2), str("a")}))
     neq("list with diff values", list(list{int(1), str("a")}), list(list{int(2), str("a")}))
 
-    eq("tuple with same values",
+    eq(
+      "tuple with same values",
       tuple(int(1), str("a"), list{tuple(int(2), str("b"), list{})}),
-      tuple(int(1), str("a"), list{tuple(int(2), str("b"), list{})})
-    )
-    neq("tuple with differing first value",
-      tuple(int(1), str("a"), list{}),
-      tuple(int(2), str("a"), list{})
-    )
-    neq("tuple with differing second value",
-      tuple(int(1), str("a"), list{}),
-      tuple(int(1), str("b"), list{})
-    )
-    neq("tuple with differing third value",
       tuple(int(1), str("a"), list{tuple(int(2), str("b"), list{})}),
-      tuple(int(1), str("a"), list{tuple(int(3), str("b"), list{})})
+    )
+    neq(
+      "tuple with differing first value",
+      tuple(int(1), str("a"), list{}),
+      tuple(int(2), str("a"), list{}),
+    )
+    neq(
+      "tuple with differing second value",
+      tuple(int(1), str("a"), list{}),
+      tuple(int(1), str("b"), list{}),
+    )
+    neq(
+      "tuple with differing third value",
+      tuple(int(1), str("a"), list{tuple(int(2), str("b"), list{})}),
+      tuple(int(1), str("a"), list{tuple(int(3), str("b"), list{})}),
     )
 
     eq("let with same values", let'("a", int(1), var("a")), let'("a", int(1), var("a")))
@@ -200,33 +193,33 @@ let run = () => {
     neq("constructor diff justs", just(int(1)), just(int(2)))
     eq(
       "partials with same values",
-      partial("List::", fn("List::empty", list{})),
-      partial("List::", fn("List::empty", list{})),
+      partial("List::", fn(~mod="List", "empty", list{})),
+      partial("List::", fn(~mod="List", "empty", list{})),
     )
     neq(
       "partials with diff strings",
-      partial("List::", fn("List::empty", list{})),
-      partial("Dict::", fn("List::empty", list{})),
+      partial("List::", fn(~mod="List", "empty", list{})),
+      partial("Dict::", fn(~mod="List", "empty", list{})),
     )
     neq(
       "partials with diff exprs",
-      partial("List::", fn("List::empty", list{})),
-      partial("Dict::", fn("List::singleton", list{int(1)})),
+      partial("List::", fn(~mod="List", "empty", list{})),
+      partial("Dict::", fn(~mod="List", "singleton", list{int(1)})),
     )
     eq(
       "left partials with same values",
-      leftPartial("List::", fn("List::empty", list{})),
-      leftPartial("List::", fn("List::empty", list{})),
+      leftPartial("List::", fn(~mod="List", "empty", list{})),
+      leftPartial("List::", fn(~mod="List", "empty", list{})),
     )
     neq(
       "left partials with diff strings",
-      leftPartial("List::", fn("List::empty", list{})),
-      leftPartial("Dict::", fn("List::empty", list{})),
+      leftPartial("List::", fn(~mod="List", "empty", list{})),
+      leftPartial("Dict::", fn(~mod="List", "empty", list{})),
     )
     neq(
       "left partials with diff exprs",
-      leftPartial("List::", fn("List::empty", list{})),
-      leftPartial("List::", fn("List::singleton", list{int(1)})),
+      leftPartial("List::", fn(~mod="List", "empty", list{})),
+      leftPartial("List::", fn(~mod="List", "singleton", list{int(1)})),
     )
     eq(
       "right partials with same values",
@@ -257,7 +250,7 @@ let run = () => {
         ) |> toEqual("let x = 6\nlet a = x\n___")
       })
       test("ith rebound let expression and used as variable in right hand side", () => {
-        let exprAst = let'("x", fn("Int::add", list{var("x"), int(6)}), E.newB())
+        let exprAst = let'("x", fn(~mod="Int", "add", list{var("x"), int(6)}), E.newB())
 
         expect(
           E.renameVariableUses(~oldName="x", ~newName="x1", exprAst) |> FluidPrinter.eToTestString,

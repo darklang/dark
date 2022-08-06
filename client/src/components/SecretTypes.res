@@ -1,7 +1,23 @@
+// CLEANUP: the naming scheme here doesn't match everything else
+
 @ppx.deriving(show)
 type rec t = {
+  // CLEANUP: change field names
   secretName: string,
   secretValue: string,
+}
+
+let decode = (j): t => {
+  open Json_decode_extended
+  {
+    secretName: field("name", string, j),
+    secretValue: field("value", string, j),
+  }
+}
+
+let encode = (secret: t): Js.Json.t => {
+  open Json_encode_extended
+  object_(list{("name", string(secret.secretName)), ("value", string(secret.secretValue))})
 }
 
 @ppx.deriving(show)

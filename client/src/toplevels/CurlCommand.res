@@ -2,19 +2,20 @@ open Prelude
 
 // Dark
 module B = BlankOr
-module RT = Runtime
+module RT = RuntimeTypes
 module TL = Toplevel
 
-let rec to_url_string = (dv: dval): option<string> =>
+let rec to_url_string = (dv: RT.Dval.t): option<string> =>
   switch dv {
   // things that can't be parsed out of a HTTP request
-  | DBlock(_)
+  | DFnVal(_)
   | DIncomplete(_)
   | DPassword(_)
   | DObj(_)
-  | DOption(OptNothing)
+  | DOption(None)
   | DTuple(_)
-  | DResult(ResError(_)) =>
+  | DHttpResponse(_)
+  | DResult(Error(_)) =>
     None
 
   // some of these things also can't be parsed out of a HTTP request,
@@ -26,74 +27,68 @@ let rec to_url_string = (dv: dval): option<string> =>
   | DBool(false) => Some("false")
   | DStr(s) => Some(s)
   | DFloat(f) => Some(Tc.Float.toString(f))
-  | DCharacter(c) => Some(c)
+  | DChar(c) => Some(c)
   | DNull => Some("null")
   | DDate(d) => Some(d)
   | DDB(dbname) => Some(dbname)
   | DErrorRail(d) => to_url_string(d)
   | DError(_, msg) => Some("error=" ++ msg)
   | DUuid(uuid) => Some(uuid)
-  | DResp(_, hdv) => to_url_string(hdv)
-  | DList(l) =>
-    Some(
-      "[ " ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, Array.to_list(l))) ++ " ]"),
-    )
-  | DOption(OptJust(v)) => to_url_string(v)
-  | DResult(ResOk(v)) => to_url_string(v)
-  | DBytes(bytes) => Some(bytes |> Encoders.base64url_bytes)
+  | DList(l) => Some("[ " ++ String.join(~sep=", ", List.filterMap(~f=to_url_string, l)) ++ " ]")
+  | DOption(Some(v)) => to_url_string(v)
+  | DResult(Ok(v)) => to_url_string(v)
+  | DBytes(bytes) => Some(bytes |> Json_encode_extended.base64ToString)
   }
 
-let strAsBodyCurl = (dv: dval): option<string> =>
+let strAsBodyCurl = (dv: RT.Dval.t): option<string> =>
   switch dv {
   | DStr(s) =>
-    let body = s |> Util.Regex.replace(~re=Util.Regex.regex("\n"), ~repl="")
+    let body = s |> Regex.replace(~re=Regex.regex("\n"), ~repl="")
     Some("-d '" ++ (body ++ "'"))
   | _ => None
   }
 
-let objAsHeaderCurl = (dv: dval): option<string> =>
+let objAsHeaderCurl = (dv: RT.Dval.t): option<string> =>
   switch dv {
   | DObj(o) =>
     Belt.Map.String.toList(o)
-    |> /* curl will add content-length automatically, and having it specified
-     * explicitly causes weird errors if the user, say, changes the body of
-     * the request without changing the value of this header */
-    List.filter(~f=((k, _)) => k !== "content-length")
-    |> List.map(~f=((k, v)) => "-H '" ++ (k ++ (":" ++ ((RT.toRepr(v) |> RT.stripQuotes) ++ "'"))))
+    // curl will add content-length automatically, and having it specified
+    // explicitly causes weird errors if the user, say, changes the body of
+    // the request without changing the value of this header
+    |> List.filter(~f=((k, _)) => k !== "content-length")
+    |> List.map(~f=((k, v)) =>
+      "-H '" ++ (k ++ (":" ++ ((Runtime.toRepr(v) |> Runtime.stripQuotes) ++ "'")))
+    )
     |> String.join(~sep=" ")
     |> (s => Some(s))
   | _ => None
   }
 
-let curlFromSpec = (m: model, tlid: TLID.t): option<string> =>
+let curlFromSpec = (m: AppTypes.model, tlid: TLID.t): option<string> =>
   TL.get(m, tlid)
   |> Option.andThen(~f=TL.asHandler)
   |> Option.andThen(~f=(h: PT.Handler.t) => {
-    let s = h.spec
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, "HTTP"), F(_, path), F(_, meth)) =>
+    switch h.spec {
+    | PT.Handler.Spec.HTTP(path, method, _) =>
       let proto = if m.environment == "production" {
         "https"
       } else {
         "http"
       }
 
-      let route = proto ++ ("://" ++ (m.canvasName ++ ("." ++ (m.userContentHost ++ path))))
+      let route = `${proto}://${m.canvasName}.${m.userContentHost}${path}`
 
-      switch meth {
-      | "GET" => Some("curl " ++ route)
-      | _ => Some("curl -X " ++ (meth ++ (" -H 'Content-Type: application/json' " ++ route)))
+      switch method {
+      | "GET" => Some(`curl ${route}`)
+      | _ => Some(`curl -X ${method} -H 'Content-Type: application/json' ${route}`)
       }
     | _ => None
     }
   })
 
-/* Constructs curl command from analysis dict.
-  headers (which includes cookies),
-  fullBody (for both formBody and jsonBody),
-  url (which includes queryParams)
-*/
-let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
+// Constructs curl command from analysis dict, headers (which includes cookies),
+// fullBody (for both formBody and jsonBody), url (which includes queryParams)
+let curlFromCurrentTrace = (m: AppTypes.model, tlid: TLID.t): option<string> => {
   let wrapInList = o => o |> Option.andThen(~f=v => Some(list{v})) |> Option.unwrap(~default=list{})
 
   let trace = Analysis.getSelectedTraceID(m, tlid) |> Option.andThen(~f=Analysis.getTrace(m, tlid))
@@ -103,14 +98,14 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
     Belt.Map.String.get(td.input, "request")
     |> Option.andThen(~f=obj =>
       switch obj {
-      | DObj(r) => Some(r)
+      | RT.Dval.DObj(r) => Some(r)
       | _ => None
       }
     )
     |> Option.andThen(~f=r => {
       let get = name => Belt.Map.String.get(r, name)
       switch get("url") {
-      | Some(DStr(url)) =>
+      | Some(RT.Dval.DStr(url)) =>
         let headers = get("headers") |> Option.andThen(~f=objAsHeaderCurl) |> wrapInList
 
         let body = get("fullBody") |> Option.andThen(~f=strAsBodyCurl) |> wrapInList
@@ -118,7 +113,8 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
         let meth =
           TL.get(m, tlid)
           |> Option.andThen(~f=TL.asHandler)
-          |> Option.andThen(~f=(h: PT.Handler.t) => B.toOption(h.spec.modifier))
+          |> Option.andThen(~f=(h: PT.Handler.t) => PT.Handler.Spec.modifier(h.spec))
+          |> Option.andThen(~f=B.toOption)
           |> Option.andThen(~f=s => Some("-X " ++ s))
           |> wrapInList
 
@@ -132,7 +128,7 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
   }
 }
 
-let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): option<string> => {
+let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: PT.FQFnName.t) => {
   let traces =
     Map.get(~key=tlid, m.traces) |> recoverOption(
       ~debug=TLID.toString(tlid),
@@ -143,8 +139,7 @@ let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): opt
     traces
     |> Option.andThen(~f=traces => Analysis.selectedTraceID(m.tlTraceIDs, traces, tlid))
     |> (
-      /* We don't recover here b/c it's very possible we don't have an analysis
-       * yet */
+      // We don't recover here b/c it's very possible we don't have an analysis yet
       tid => {
         switch tid {
         | Some(_) => ()
@@ -162,9 +157,10 @@ let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): opt
 
   let args = Option.andThen2(tl, traceId, ~f=(tl, traceId) =>
     Analysis.getArguments(m, tl, id, traceId)
-  ) |> /* TODO this is what fails if we haven't clicked the ast yet; we should fix
-   * that, or make it toast instructions? */
-  recoverOption(
+  )
+  // TODO this is what fails if we haven't clicked the ast yet; we should fix
+  // that, or make it toast instructions?
+  |> recoverOption(
     "Args not found in model in curlFromHttpClientCall",
     ~debug=(TLID.toString(tlid), Option.map(~f=show_traceID, traceId)),
   )
@@ -177,26 +173,25 @@ let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): opt
       recover(
         ~debug="arg count" ++ string_of_int(List.length(args)),
         "args in curlFromHttpClientCall espected 3 or 4, failed",
-        (DNull, None, DNull, DNull),
+        (RT.Dval.DNull, None, RT.Dval.DNull, RT.Dval.DNull),
       )
     }
 
     let headers = objAsHeaderCurl(headers) |> Option.unwrap(~default="")
-    let body = strAsBodyCurl(body |> Option.unwrap(~default=DNull)) |> Option.unwrap(~default="")
+    let body =
+      strAsBodyCurl(body |> Option.unwrap(~default=RT.Dval.DNull)) |> Option.unwrap(~default="")
 
-    let meth =
-      name
-      |> Util.Regex.matches(~re=Util.Regex.regex("HttpClient::([^_]*)"))
-      |> Option.map(~f=Js.Re.captures)
-      |> Option.andThen(~f=captures =>
-        Array.getAt(captures, ~index=1) |> Option.andThen(~f=Js.Nullable.toOption)
-      )
-      |> Option.map(~f=meth => "-X " ++ meth)
-      |> recoverOpt(~debug=name, ~default="", "Expected a fn name matching HttpClient::[^_]*")
+    let meth = switch name {
+    | Stdlib({module_: "HttpClient", function, version: _}) => "-X " ++ function
+    | Stdlib(_)
+    | User(_)
+    | Package(_) =>
+      recoverOpt(~debug=name, ~default="", "Expected a HttpClient fn", None)
+    }
 
     let base_url = switch url {
     | DStr(s) => s
-    | _ => recover(~debug=show_dval(url), "Expected url arg to be a DStr", url) |> show_dval
+    | _ => recover(~debug=RT.Dval.show(url), "Expected url arg to be a DStr", url) |> RT.Dval.show
     }
 
     let qps = switch query {
@@ -206,7 +201,7 @@ let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): opt
       |> List.filterMap(~f=((k, v)) => to_url_string(v) |> Option.map(~f=v => k ++ ("=" ++ v)))
       |> String.join(~sep="&")
     | _ =>
-      ignore(query |> recover(~debug=show_dval(query), "Expected query arg to be a dobj"))
+      ignore(query |> recover(~debug=RT.Dval.show(query), "Expected query arg to be a dobj"))
       ""
     } |> (
       s =>
@@ -224,10 +219,10 @@ let curlFromHttpClientCall = (m: model, tlid: TLID.t, id: id, name: string): opt
   data
 }
 
-let makeCommand = (m: model, tlid: TLID.t): option<string> =>
+let makeCommand = (m: AppTypes.model, tlid: TLID.t): option<string> =>
   curlFromCurrentTrace(m, tlid) |> Option.orElse(curlFromSpec(m, tlid))
 
-let copyCurlMod = (m: model, tlid: TLID.t, pos: vPos): modification =>
+let copyCurlMod = (m: AppTypes.model, tlid: TLID.t, pos: AppTypes.VPos.t): AppTypes.modification =>
   switch makeCommand(m, tlid) {
   | Some(data) =>
     Native.Clipboard.copyToClipboard(data)

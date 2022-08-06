@@ -1,5 +1,8 @@
 open Prelude
 
+module Msg = AppTypes.Msg
+type msg = AppTypes.msg
+
 type inputEvent = {
   data: option<string>,
   inputType: string,
@@ -30,7 +33,7 @@ let fromInputEvent = (evt: Web.Node.event): option<msg> => {
       None
     | {inputType: "insertText", data: Some(txt)} =>
       evt["preventDefault"]()
-      Some(FluidMsg(FluidInputEvent(InsertText(txt))))
+      Some(Msg.FluidMsg(FluidInputEvent(InsertText(txt))))
     | {inputType: "deleteContentBackward", _} =>
       evt["preventDefault"]()
       Some(FluidMsg(FluidInputEvent(DeleteContentBackward)))
@@ -61,6 +64,6 @@ let fromCompositionEndEvent = (evt: Web.Node.event): option<msg> => {
   |> Tea_result.result_to_option
   |> Option.map(~f=data => {
     evt["preventDefault"]()
-    FluidMsg(FluidInputEvent(InsertText(data)))
+    Msg.FluidMsg(FluidInputEvent(InsertText(data)))
   })
 }

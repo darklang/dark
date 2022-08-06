@@ -53,7 +53,7 @@ let process_cmdline_args = () => {
 // ------------------
 // Keyboard-based fuzzing
 // ------------------
-let keypress = (key: K.key): fluidInputEvent => Keypress({
+let keypress = (key: K.key): FluidTypes.Msg.inputEvent => Keypress({
   key: key,
   shiftKey: false,
   altKey: false,
@@ -61,7 +61,10 @@ let keypress = (key: K.key): fluidInputEvent => Keypress({
   ctrlKey: false,
 })
 
-let processMsg = (inputs: list<fluidInputEvent>, s: fluidState, ast: E.t): (E.t, fluidState) => {
+let processMsg = (inputs: list<FluidTypes.Msg.inputEvent>, s: fluidState, ast: E.t): (
+  E.t,
+  fluidState,
+) => {
   let h = FluidUtils.h(ast)
   let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
   List.fold(inputs, ~initial=(h.ast, s, list{}), ~f=((ast, s, _), input) =>

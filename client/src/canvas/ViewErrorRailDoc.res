@@ -32,7 +32,7 @@ let hintForFunction = (
     | None =>
       // If we don't know if the function is on the rail, return a generic message:
       switch fn.fnReturnTipe {
-      | TOption =>
+      | TOption(_) =>
         Some(
           Html.p(
             list{},
@@ -49,7 +49,7 @@ let hintForFunction = (
             },
           ),
         )
-      | TResult =>
+      | TResult(_, _) =>
         Some(
           Html.p(
             list{},
@@ -71,7 +71,7 @@ let hintForFunction = (
     | Some(sendToRail) =>
       // If we know if the function is on the rail, return a specific message:
       switch (fn.fnReturnTipe, sendToRail) {
-      | (TOption, Rail) =>
+      | (TOption(_), Rail) =>
         Some(
           Html.p(
             list{},
@@ -92,7 +92,7 @@ let hintForFunction = (
             },
           ),
         )
-      | (TOption, NoRail) =>
+      | (TOption(_), NoRail) =>
         Some(
           Html.p(
             list{},
@@ -109,7 +109,7 @@ let hintForFunction = (
             },
           ),
         )
-      | (TResult, Rail) =>
+      | (TResult(_), Rail) =>
         Some(
           Html.p(
             list{},
@@ -130,7 +130,7 @@ let hintForFunction = (
             },
           ),
         )
-      | (TResult, NoRail) =>
+      | (TResult(_), NoRail) =>
         Some(
           Html.p(
             list{},

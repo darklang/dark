@@ -32,6 +32,15 @@ module Set = {
   let singleton = value => Tc.Set.singleton(module(T), value)
 
   let fromList = l => Tc.Set.fromList(module(T), l)
+
+  let decode = (j: Js.Json.t): t => {
+    j |> Json.Decode.array(T.decode) |> fromArray
+  }
+
+  let encode = (t: t): Js.Json.t => {
+    open Json.Encode
+    t |> Tc.Set.toList |> list(T.encode)
+  }
 }
 
 module Map = {
@@ -57,5 +66,10 @@ module Map = {
     |> Js.Dict.entries
     |> Array.map(((k, v)) => (parse(k), v))
     |> fromArray
+  }
+
+  let encode = (f: 'value => Js.Json.t, t: t<'value>): Js.Json.t => {
+    open Json.Encode
+    t |> Tc.Map.toList |> List.map(((k, v)) => (T.toString(k), f(v))) |> object_
   }
 }

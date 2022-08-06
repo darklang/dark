@@ -11,8 +11,15 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module Key = Keyboard
-module Regex = Util.Regex
 module TD = TLID.Dict
+module CS = AppTypes.CursorState
+module TraceError = AnalysisTypes.TraceError
+
+type modification = AppTypes.modification
+open AppTypes.Modification
+type autocompleteMod = AppTypes.AutoComplete.mod
+type model = AppTypes.model
+type msg = AppTypes.msg
 
 let incOpCtr = (m: model): model => {
   ...m,
@@ -30,7 +37,7 @@ let opCtr = (m: model): int =>
   | None => 0
   }
 
-let expireAvatars = (avatars: list<Types.avatar>): list<Types.avatar> => {
+let expireAvatars = (avatars: list<AppTypes.Avatar.t>): list<AppTypes.Avatar.t> => {
   let fiveMinsAgo: float = Js.Date.now() -. 5.0 *. 60.0 *. 1000.0
   List.filter(~f=av => av.serverTime |> Js.Date.valueOf > fiveMinsAgo, avatars)
 }
@@ -65,13 +72,13 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   let m = SavedSettings.load(canvasName) |> SavedSettings.toModel
   let m = SavedUserSettings.load(username) |> SavedUserSettings.toModel(m)
   let userTutorial = if m.firstVisitToDark && m.tooltipState.userTutorial.step == None {
-    UserTutorial.defaultTutorial
+    AppTypes.Tutorial.default
   } else {
     m.tooltipState.userTutorial
   }
 
   let page =
-    Url.parseLocation(location) |> Option.unwrap(~default=Defaults.defaultModel.currentPage)
+    Url.parseLocation(location) |> Option.unwrap(~default=AppTypes.Model.default.currentPage)
 
   // these saved values may not be valid yet
   let savedCursorState = m.cursorState
@@ -105,7 +112,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   }
 
   let timeStamp = Js.Date.now() /. 1000.0
-  let avMessage: avatarModelMessage = {
+  let avMessage: APIPresence.Params.t = {
     canvasName: m.canvasName,
     browserId: m.browserId,
     tlid: None,
@@ -126,7 +133,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   }
 }
 
-let processFocus = (m: model, focus: focus): modification =>
+let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
   switch focus {
   | FocusNext(tlid, pred) =>
     switch TL.get(m, tlid) {
@@ -215,9 +222,9 @@ let processFocus = (m: model, focus: focus): modification =>
   | FocusNoChange => NoChange
   }
 
-let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, Cmd.t<msg>) => {
+let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, AppTypes.cmd) => {
   if m.integrationTestState != NoIntegrationTest {
-    Debug.loG("autocompletemod update", show_list(~f=show_autocompleteMod, mods))
+    Debug.loG("autocompletemod update", show_list(~f=AppTypes.AutoComplete.show_mod, mods))
   }
   let complete = List.fold(
     ~f=(complete_, mod_) => AC.update(m, mod_, complete_),
@@ -240,13 +247,13 @@ let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, C
   ({...m, complete: complete}, focus)
 }
 
-let applyOpsToClient = (updateCurrent, p: addOpAPIParams, r: addOpAPIResult): list<
-  Types.modification,
+let applyOpsToClient = (updateCurrent, p: APIAddOps.Params.t, r: APIAddOps.t): list<
+  modification,
 > => list{
   UpdateToplevels(r.handlers, r.dbs, updateCurrent),
   UpdateDeletedToplevels(r.deletedHandlers, r.deletedDBs),
   SetUserFunctions(r.userFunctions, r.deletedUserFunctions, updateCurrent),
-  SetTypes(r.userTipes, r.deletedUserTipes, updateCurrent),
+  SetTypes(r.userTypes, r.deletedUserTypes, updateCurrent),
   RefreshUsages(Introspect.tlidsToUpdateUsage(p.ops)),
 }
 
@@ -255,9 +262,12 @@ let isACOpened = (m: model): bool =>
   (FluidCommands.isOpened(m.fluidState.cp) ||
   AC.isOpened(m.complete))
 
-let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model, Cmd.t<msg>) => {
+let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
+  model,
+  AppTypes.cmd,
+) => {
   if m.integrationTestState != NoIntegrationTest {
-    Debug.loG("mod update", show_modification(mod_))
+    Debug.loG("mod update", AppTypes.show_modification(mod_))
   }
   let (newm, newcmd) = {
     let bringBackCurrentTL = (oldM: model, newM: model): model =>
@@ -275,7 +285,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       | None => newM
       }
 
-    let handleAPI = (params, focus) => {
+    let handleAPI = (params: APIAddOps.Params.t, focus) => {
       /* immediately update the model based on SetHandler and focus, if
        possible */
       let m = m |> incOpCtr
@@ -380,7 +390,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
     | Get404sAPICall => (m, API.get404s(m))
     | UpdateDBStatsAPICall(tlid) => Analysis.updateDBStats(m, tlid)
     | GetWorkerStatsAPICall(tlid) => Analysis.getWorkerStats(m, tlid)
-    | DeleteToplevelForeverAPICall(tlid) => (m, API.deleteToplevelForever(m, {dtfTLID: tlid}))
+    | DeleteToplevelForeverAPICall(tlid) => (m, API.deleteToplevelForever(m, {tlid: tlid}))
     | NoChange => (m, Cmd.none)
     | TriggerIntegrationTest(name) =>
       let expect = IntegrationTest.trigger(name)
@@ -412,7 +422,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       }
 
       if pagePresent {
-        let avMessage: avatarModelMessage = {
+        let avMessage: APIPresence.Params.t = {
           canvasName: m.canvasName,
           browserId: m.browserId,
           tlid: Page.tlidOf(page),
@@ -427,7 +437,10 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         (Page.setPage(m, m.currentPage, Architecture), Url.updateUrl(Architecture))
       }
     | Select(tlid, p) =>
-      let (cursorState: cursorState, maybeNewFluidState: option<fluidState>) = switch p {
+      let (
+        cursorState: AppTypes.CursorState.t,
+        maybeNewFluidState: option<AppTypes.fluidState>,
+      ) = switch p {
       | STTopLevelRoot =>
         switch TL.get(m, tlid) {
         | Some(TLDB(_)) | Some(TLTipe(_)) => (Selecting(tlid, None), None)
@@ -478,7 +491,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
 
       let (m, afCmd) = Analysis.analyzeFocused(m)
       let timeStamp = Js.Date.now() /. 1000.0
-      let avMessage: avatarModelMessage = {
+      let avMessage: APIPresence.Params.t = {
         canvasName: m.canvasName,
         browserId: m.browserId,
         tlid: Some(tlid),
@@ -497,7 +510,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         let m = {...m, fluidState: Fluid.deselectFluidEditor(m.fluidState)}
 
         let timeStamp = Js.Date.now() /. 1000.0
-        let avMessage: avatarModelMessage = {
+        let avMessage: APIPresence.Params.t = {
           canvasName: m.canvasName,
           browserId: m.browserId,
           tlid: None,
@@ -510,13 +523,13 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         (m, Cmd.none)
       }
     | OpenOmnibox(pos) =>
-      let (cursorState, target) = (Omnibox(pos), None)
+      let (cursorState, target) = (CS.Omnibox(pos), None)
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
       let m = {...m, cursorState: cursorState}
       (m, Cmd.batch(list{acCmd, CursorState.focusEntry(m)}))
     | Enter(tlid, id) =>
       let (cursorState, target) = switch TL.getPD(m, tlid, id) {
-      | Some(pd) => (Entering(tlid, id), Some(tlid, pd))
+      | Some(pd) => (CS.Entering(tlid, id), Some(tlid, pd))
       | None => (FluidEntering(tlid), None)
       }
 
@@ -526,7 +539,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       (m, Cmd.batch(list{afCmd, acCmd, CursorState.focusEntry(m)}))
     | EnterWithOffset(tlid, id, offset) =>
       let (cursorState, target) = switch TL.getPD(m, tlid, id) {
-      | Some(pd) => (Entering(tlid, id), Some(tlid, pd))
+      | Some(pd) => (CS.Entering(tlid, id), Some(tlid, pd))
       | None => (FluidEntering(tlid), None)
       }
 
@@ -623,7 +636,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
        * stored function results */
       let newTraces = Analysis.mergeTraces(
         ~selectedTraceIDs=m.tlTraceIDs,
-        ~onConflict=(_old, (newID, _)) => (newID, Error(NoneYet)),
+        ~onConflict=(_old, (newID, _)) => (newID, Error(TraceError.NoneYet)),
         ~oldTraces=m.traces,
         ~newTraces=traces,
       )
@@ -681,16 +694,16 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         let m = {...m, functions: Functions.update(props, m.functions)}
         processAutocompleteMods(m, list{ACRegenerate})
       }
-    | SetTypes(userTipes, deletedUserTipes, updateCurrent) =>
+    | SetTypes(userTypes, deleteduserTypes, updateCurrent) =>
       let m2 = {
         ...m,
-        userTipes: Map.mergeRight(m.userTipes, UserTypes.fromList(userTipes)) |> Map.removeMany(
-          ~keys=List.map(~f=UserTypes.toID, deletedUserTipes),
+        userTypes: Map.mergeRight(m.userTypes, UserTypes.fromList(userTypes)) |> Map.removeMany(
+          ~keys=List.map(~f=UserTypes.toID, deleteduserTypes),
         ),
-        deletedUserTipes: Map.mergeRight(
-          m.deletedUserTipes,
-          UserTypes.fromList(deletedUserTipes),
-        ) |> Map.removeMany(~keys=List.map(~f=UserTypes.toID, userTipes)),
+        deleteduserTypes: Map.mergeRight(
+          m.deleteduserTypes,
+          UserTypes.fromList(deleteduserTypes),
+        ) |> Map.removeMany(~keys=List.map(~f=UserTypes.toID, userTypes)),
       }
 
       /* Bring back the TL being edited, so we don't lose work done since the
@@ -736,7 +749,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       )
     | Append404s(f404s) =>
       let new404s =
-        Belt.List.concat(f404s, m.f404s) |> List.uniqueBy(~f=f404 =>
+        Belt.List.concat(f404s, m.f404s) |> List.uniqueBy(~f=(f404: AnalysisTypes.FourOhFour.t) =>
           f404.space ++ (f404.path ++ (f404.modifier ++ (f404.timestamp ++ f404.traceID)))
         )
 
@@ -745,7 +758,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
     | UpdateAvatarList(avatarsList) =>
       let updatedAvatars =
         avatarsList
-        |> List.filter(~f=(avatar: Types.avatar) => avatar.browserId !== m.browserId)
+        |> List.filter(~f=(avatar: AppTypes.Avatar.t) => avatar.browserId !== m.browserId)
         |> expireAvatars
 
       ({...m, avatarsList: updatedAvatars}, Cmd.none)
@@ -804,12 +817,12 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         | Some(traceID, _) =>
           switch Analysis.getArguments(m, tl, id, traceID) {
           | Some(args) =>
-            let params = {
-              efpTLID: tlid,
-              efpCallerID: id,
-              efpTraceID: traceID,
-              efpFnName: name,
-              efpArgs: args,
+            let params: APIExecution.Function.Params.t = {
+              tlid: tlid,
+              callerID: id,
+              traceID: traceID,
+              fnName: name,
+              args: args,
             }
 
             (m, API.executeFunction(m, params))
@@ -864,7 +877,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
 
         (
           {...m, handlerProps: handlerProps},
-          API.triggerHandler(m, {thTLID: tlid, thTraceID: traceID, thInput: traceData.input}),
+          API.triggerHandler(m, {tlid: tlid, traceID: traceID, input: traceData.input}),
         )
       | _ => (m, Cmd.none)
       }
@@ -901,7 +914,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         cache,
         f: PT.UserFunction.t,
       ) => {
-        let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.ast))
+        let value = FluidPrinter.eToHumanString(FluidAST.toExpr(f.body))
 
         cache |> Map.add(~key=f.tlid, ~value)
       })
@@ -936,7 +949,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
 
 let update_ = (msg: msg, m: model): modification => {
   if m.integrationTestState != NoIntegrationTest {
-    Debug.loG("msg update", show_msg(msg))
+    Debug.loG("msg update", AppTypes.show_msg(msg))
   }
   switch msg {
   | GlobalKeyPress(event) => KeyPress.handler(event, m)
@@ -981,7 +994,7 @@ let update_ = (msg: msg, m: model): modification => {
   | AppMouseDrag(mousePos) =>
     switch m.cursorState {
     | PanningCanvas({viewportStart, viewportCurr, prevCursorState}) =>
-      let viewportNext = {vx: mousePos.x, vy: mousePos.y}
+      let viewportNext: AppTypes.VPos.t = {vx: mousePos.x, vy: mousePos.y}
       let dx = viewportCurr.vx - viewportNext.vx
       let dy = viewportCurr.vy - viewportNext.vy
       Many(list{
@@ -1041,7 +1054,7 @@ let update_ = (msg: msg, m: model): modification => {
 
     switch m.cursorState {
     | PanningCanvas({viewportStart, viewportCurr, prevCursorState}) =>
-      let distSquared = (a: vPos, b: vPos): int => {
+      let distSquared = (a: AppTypes.VPos.t, b: AppTypes.VPos.t): int => {
         let dx = b.vx - a.vx
         let dy = b.vy - a.vy
         dx * dx + dy * dy
@@ -1092,7 +1105,9 @@ let update_ = (msg: msg, m: model): modification => {
     let traceCmd = switch Analysis.getTrace(m, tlid, traceID) {
     | Some(_, Error(_)) =>
       let (m, cmd) = Analysis.requestTrace(m, tlid, traceID)
-      list{ReplaceAllModificationsWithThisOne(old => ({...old, syncState: m.syncState}, cmd))}
+      list{
+        ReplaceAllModificationsWithThisOne(old => (({...old, syncState: m.syncState}: model), cmd)),
+      }
     | _ => list{}
     }
 
@@ -1202,7 +1217,7 @@ let update_ = (msg: msg, m: model): modification => {
       Select(tlid, selectionTarget),
     })
   | ExecuteFunctionFromWithin(p) =>
-    Many(list{ExecutingFunctionBegan(p.efpTLID, p.efpCallerID), MakeCmd(API.executeFunction(m, p))})
+    Many(list{ExecutingFunctionBegan(p.tlid, p.callerID), MakeCmd(API.executeFunction(m, p))})
   | TraceClick(tlid, traceID, _) =>
     switch m.cursorState {
     | DraggingTL(_, _, _, origCursorState) =>
@@ -1315,30 +1330,27 @@ let update_ = (msg: msg, m: model): modification => {
         m => (
           {
             ...m,
-            deletedUserTipes: Map.remove(~key=tlid, m.deletedUserTipes),
+            deleteduserTypes: Map.remove(~key=tlid, m.deleteduserTypes),
           },
           Cmd.none,
         ),
       ),
     })
-  | AddOpsAPICallback(focus, params, Ok(r: addOpAPIResponse)) =>
+  | AddOpsAPICallback(focus, params, Ok(r: APIAddOps.t)) =>
     let (m, newOps, _) = API.filterOpsAndResult(m, params, None)
     let params = {...params, ops: newOps}
-    let initialMods = applyOpsToClient(focus !== FocusNoChange, params, r.result)
+    let initialMods = applyOpsToClient(focus !== FocusNoChange, params, r)
 
     let focusMods = if focus == FocusNoChange {
       list{}
     } else {
       let m = {
         ...m,
-        opCtrs: Map.add(m.opCtrs, ~key=params.clientOpCtrId, ~value=params.opCtr),
-        handlers: Map.mergeRight(m.handlers, Handlers.fromList(r.result.handlers)),
-        dbs: Map.mergeRight(m.dbs, DB.fromList(r.result.dbs)),
-        userFunctions: Map.mergeRight(
-          m.userFunctions,
-          UserFunctions.fromList(r.result.userFunctions),
-        ),
-        userTipes: Map.mergeRight(m.userTipes, UserTypes.fromList(r.result.userTipes)),
+        opCtrs: Map.add(m.opCtrs, ~key=params.clientOpCtrID, ~value=params.opCtr),
+        handlers: Map.mergeRight(m.handlers, Handlers.fromList(r.handlers)),
+        dbs: Map.mergeRight(m.dbs, DB.fromList(r.dbs)),
+        userFunctions: Map.mergeRight(m.userFunctions, UserFunctions.fromList(r.userFunctions)),
+        userTypes: Map.mergeRight(m.userTypes, UserTypes.fromList(r.userTypes)),
       }
 
       let newState = processFocus(m, focus)
@@ -1347,7 +1359,7 @@ let update_ = (msg: msg, m: model): modification => {
 
     Many(Belt.List.concat(initialMods, focusMods))
   | AddOpsPusherMsg(msg) =>
-    if msg.params.clientOpCtrId == m.clientOpCtrId {
+    if msg.params.clientOpCtrID == m.clientOpCtrId {
       NoChange
     } else {
       /* msg was sent from this client, we've already handled it
@@ -1362,7 +1374,7 @@ let update_ = (msg: msg, m: model): modification => {
     }
   | FetchAllTracesAPICallback(Ok(x)) =>
     let traces = List.fold(x.traces, ~initial=TLID.Dict.empty, ~f=(dict, (tlid, traceid)) => {
-      let trace = (traceid, Error(NoneYet))
+      let trace = (traceid, Error(TraceError.NoneYet))
       Map.update(dict, ~key=tlid, ~f=x =>
         switch x {
         | Some(existing) => Some(Belt.List.concat(existing, list{trace}))
@@ -1381,7 +1393,7 @@ let update_ = (msg: msg, m: model): modification => {
       handlers: Handlers.fromList(r.handlers),
       dbs: DB.fromList(r.dbs),
       userFunctions: UserFunctions.fromList(r.userFunctions),
-      userTipes: UserTypes.fromList(r.userTipes),
+      userTypes: UserTypes.fromList(r.userTypes),
       handlerProps: ViewUtils.createHandlerProp(r.handlers),
     }
 
@@ -1410,7 +1422,7 @@ let update_ = (msg: msg, m: model): modification => {
       SetToplevels(r.handlers, r.dbs, true),
       SetDeletedToplevels(r.deletedHandlers, r.deletedDBs),
       SetUserFunctions(r.userFunctions, r.deletedUserFunctions, true),
-      SetTypes(r.userTipes, r.deletedUserTipes, true),
+      SetTypes(r.userTypes, r.deletedUserTypes, true),
       SetUnlockedDBs(r.unlockedDBs),
       UpdateWorkerSchedules(r.workerSchedules),
       SetPermission(r.permission),
@@ -1426,34 +1438,36 @@ let update_ = (msg: msg, m: model): modification => {
     })
   | SaveTestAPICallback(Ok(msg)) => Model.updateErrorMod(Error.set("Success! " ++ msg))
   | ExecuteFunctionAPICallback(params, Ok(dval, hash, hashVersion, tlids, unlockedDBs)) =>
-    let traces = List.map(~f=tlid => (tlid, list{(params.efpTraceID, Error(NoneYet))}), tlids)
+    let traces = List.map(
+      ~f=tlid => (tlid, list{(params.traceID, Error(TraceError.NoneYet))}),
+      tlids,
+    )
 
     Many(list{
       UpdateTraceFunctionResult(
-        params.efpTLID,
-        params.efpTraceID,
-        params.efpCallerID,
-        params.efpFnName,
+        params.tlid,
+        params.traceID,
+        params.callerID,
+        params.fnName,
         hash,
         hashVersion,
         dval,
       ),
-      ExecutingFunctionComplete(list{(params.efpTLID, params.efpCallerID)}),
+      ExecutingFunctionComplete(list{(params.tlid, params.callerID)}),
       OverrideTraces(TLID.Dict.fromList(traces)),
       SetUnlockedDBs(unlockedDBs),
     })
   | TriggerHandlerAPICallback(params, Ok(tlids)) =>
-    let traces: Prelude.traces =
-      List.map(
-        ~f=tlid => (tlid, list{(params.thTraceID, Error(NoneYet))}),
-        tlids,
-      ) |> TLID.Dict.fromList
+    let traces =
+      tlids
+      |> List.map(~f=tlid => (tlid, list{(params.traceID, Error(TraceError.NoneYet))}))
+      |> TLID.Dict.fromList
 
     Many(list{
       OverrideTraces(traces),
       ReplaceAllModificationsWithThisOne(
         m => {
-          let handlerProps = RT.setHandlerExeState(params.thTLID, Complete, m.handlerProps)
+          let handlerProps = RT.setHandlerExeState(params.tlid, Complete, m.handlerProps)
 
           ({...m, handlerProps: handlerProps}, Cmd.none)
         },
@@ -1470,7 +1484,10 @@ let update_ = (msg: msg, m: model): modification => {
   | LoadPackagesAPICallback(Ok(loadedPackages)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let pkgs = loadedPackages |> List.map(~f=pkg => (pkg.pfTLID, pkg)) |> TLID.Dict.fromList
+        let pkgs =
+          loadedPackages
+          |> List.map(~f=(pkg: PT.Package.Fn.t) => (pkg.tlid, pkg))
+          |> TLID.Dict.fromList
 
         let props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
         let m = {...m, functions: Functions.setPackages(pkgs, props, m.functions)}
@@ -1484,7 +1501,7 @@ let update_ = (msg: msg, m: model): modification => {
   | InsertSecretCallback(Ok(secrets)) =>
     ReplaceAllModificationsWithThisOne(m => ({...m, secrets: secrets}, Cmd.none))
   | NewTracePush(traceID, tlids) =>
-    let traces = List.map(~f=tlid => (tlid, list{(traceID, Error(NoneYet))}), tlids)
+    let traces = List.map(~f=tlid => (tlid, list{(traceID, Error(TraceError.NoneYet))}), tlids)
 
     UpdateTraces(TLID.Dict.fromList(traces))
   | New404Push(f404) => Append404s(list{f404})
@@ -1497,17 +1514,17 @@ let update_ = (msg: msg, m: model): modification => {
       Delete404(f404),
       MakeCmd(API.delete404(m, f404)),
     })
-  | Delete404APICallback(params, result) =>
+  | Delete404APICallback(original, params, result) =>
     switch result {
     | Ok(_) => NoChange
     | Error(err) =>
       Many(list{
-        Append404s(list{params}) /* Rollback the speculative deletion */,
+        Append404s(list{original}), // Rollback the speculative deletion
         HandleAPIError(
           APIError.make(
             ~context="Delete404",
             ~importance=ImportantError,
-            ~requestParams=Encoders.fof(params),
+            ~requestParams=API404.Delete.Params.encode(params),
             ~reload=false,
             err,
           ),
@@ -1524,7 +1541,7 @@ let update_ = (msg: msg, m: model): modification => {
           APIError.make(
             ~context="DeleteToplevelForeverAPICallback",
             ~importance=ImportantError,
-            ~requestParams=Encoders.deleteToplevelForeverAPIParams(params),
+            ~requestParams=APIToplevels.DeleteForever.Params.encode(params),
             ~reload=false,
             err,
           ),
@@ -1534,8 +1551,9 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveAnalysis(result) =>
     switch result {
     | Ok(id, analysisResults) => UpdateAnalysis(id, analysisResults)
-    | Error(AnalysisExecutionError(_, str)) => Model.updateErrorMod(Error.set(str))
-    | Error(AnalysisParseError(str)) => Model.updateErrorMod(Error.set(str))
+    | Error(AnalysisTypes.PerformAnalysis.Error.ExecutionError(_, str)) =>
+      Model.updateErrorMod(Error.set(str))
+    | Error(ParseError(str)) => Model.updateErrorMod(Error.set(str))
     }
   | ReceiveFetch(TraceFetchFailure(params, _, "Bad credentials")) =>
     HandleAPIError(
@@ -1543,7 +1561,7 @@ let update_ = (msg: msg, m: model): modification => {
         ~context="TraceFetch",
         ~importance=ImportantError,
         ~reload=true,
-        ~requestParams=Encoders.getTraceDataAPIParams(params),
+        ~requestParams=APITraces.TraceData.Params.encode(params),
         /* not a great error ... but this is an api error without a
          * corresponding actual http error */
         Tea.Http.Aborted,
@@ -1552,13 +1570,13 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(TraceFetchFailure(params, url, error))
     if error == "Selected trace too large for the editor to load, maybe try another?" =>
     let traces = TLID.Dict.fromList(list{
-      (params.gtdrpTlid, list{(params.gtdrpTraceID, Error(MaximumCallStackError))}),
+      (params.tlid, list{(params.traceID, Error(TraceError.MaximumCallStackError))}),
     })
 
     Many(list{
       ReplaceAllModificationsWithThisOne(
         m => {
-          let key = "tracefetch-" ++ params.gtdrpTraceID
+          let key = "tracefetch-" ++ params.traceID
           let m = Sync.markResponseInModel(m, ~key)
           Rollbar.displayAndReportError(m, "Error fetching trace", Some(url), Some(error))
         },
@@ -1568,18 +1586,18 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(TraceFetchFailure(params, url, error)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let key = "tracefetch-" ++ params.gtdrpTraceID
+        let key = "tracefetch-" ++ params.traceID
         let m = Sync.markResponseInModel(m, ~key)
         Rollbar.displayAndReportError(m, "Error fetching trace", Some(url), Some(error))
       },
     )
   | ReceiveFetch(TraceFetchSuccess(params, result)) =>
-    let traces = TLID.Dict.fromList(list{(params.gtdrpTlid, list{result.trace})})
+    let traces = TLID.Dict.fromList(list{(params.tlid, list{result.trace})})
 
     Many(list{
       ReplaceAllModificationsWithThisOne(
         m => {
-          let key = "tracefetch-" ++ params.gtdrpTraceID
+          let key = "tracefetch-" ++ params.traceID
           (Sync.markResponseInModel(m, ~key), Cmd.none)
         },
       ),
@@ -1587,7 +1605,7 @@ let update_ = (msg: msg, m: model): modification => {
     })
   | ReceiveFetch(TraceFetchMissing(params)) =>
     // We'll force it so no need to update syncState
-    let (_, cmd) = Analysis.requestTrace(~force=true, m, params.gtdrpTlid, params.gtdrpTraceID)
+    let (_, cmd) = Analysis.requestTrace(~force=true, m, params.tlid, params.traceID)
 
     MakeCmd(cmd)
   | ReceiveFetch(DbStatsFetchFailure(params, _, "Bad credentials")) =>
@@ -1596,7 +1614,7 @@ let update_ = (msg: msg, m: model): modification => {
         ~context="DbStatsFetch",
         ~importance=ImportantError,
         ~reload=true,
-        ~requestParams=Encoders.dbStatsAPIParams(params),
+        ~requestParams=APIDBs.DBStats.Params.encode(params),
         /* not a great error ... but this is an api error without a
          * corresponding actual http error */
         Tea.Http.Aborted,
@@ -1627,14 +1645,17 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne(
       m => {
         let m = Sync.markResponseInModel(m, ~key="update-db-stats-" ++ key)
-        let newStore = Map.merge(~f=(_k, v1, v2) =>
-          switch (v1, v2) {
-          | (None, None) => None
-          | (Some(l), None) => Some(l)
-          | (None, Some(r)) => Some(r)
-          | (Some(_), Some(r)) => Some(r)
-          }
-        , m.dbStats, result)
+        let newStore = Map.merge(
+          ~f=(_k, v1: option<AnalysisTypes.dbStats>, v2: option<AnalysisTypes.dbStats>) =>
+            switch (v1, v2) {
+            | (None, None) => None
+            | (Some(l), None) => Some(l)
+            | (None, Some(r)) => Some(r)
+            | (Some(_), Some(r)) => Some(r)
+            },
+          m.dbStats,
+          result,
+        )
 
         let m = {...m, dbStats: newStore}
         (m, Cmd.none)
@@ -1646,7 +1667,7 @@ let update_ = (msg: msg, m: model): modification => {
         ~context="WorkerStatsFetch",
         ~importance=ImportantError,
         ~reload=true,
-        ~requestParams=Encoders.workerStatsAPIParams(params),
+        ~requestParams=APIWorkers.WorkerStats.Params.encode(params),
         /* not a great error ... but this is an api error without a
          * corresponding actual http error */
         Tea.Http.Aborted,
@@ -1655,7 +1676,7 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(WorkerStatsFetchFailure(params, url, error)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let key = "get-worker-stats-" ++ TLID.toString(params.workerStatsTlid)
+        let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
         let m = Sync.markResponseInModel(m, ~key)
         Rollbar.displayAndReportError(m, "Error fetching db stats", Some(url), Some(error))
@@ -1664,7 +1685,7 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(WorkerStatsFetchMissing(params)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let key = "get-worker-stats-" ++ TLID.toString(params.workerStatsTlid)
+        let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
         (Sync.markResponseInModel(m, ~key), Cmd.none)
       },
@@ -1672,11 +1693,15 @@ let update_ = (msg: msg, m: model): modification => {
   | ReceiveFetch(WorkerStatsFetchSuccess(params, result)) =>
     ReplaceAllModificationsWithThisOne(
       m => {
-        let key = "get-worker-stats-" ++ TLID.toString(params.workerStatsTlid)
+        let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
         let m = Sync.markResponseInModel(m, ~key)
-        let tlid = params.workerStatsTlid
-        let workerStats = Map.add(~key=tlid, ~value=result, m.workerStats)
+        let tlid = params.tlid
+        let workerStats = Map.add(
+          ~key=tlid,
+          ~value={count: result.count, schedule: None},
+          m.workerStats,
+        )
         ({...m, workerStats: workerStats}, Cmd.none)
       },
     )
@@ -1685,7 +1710,7 @@ let update_ = (msg: msg, m: model): modification => {
       APIError.make(
         ~context="AddOps",
         ~importance=ImportantError,
-        ~requestParams=Encoders.addOpAPIParams(params),
+        ~requestParams=APIAddOps.Params.encode(params),
         ~reload=false,
         err,
       ),
@@ -1697,7 +1722,7 @@ let update_ = (msg: msg, m: model): modification => {
       APIError.make(
         ~context="ExecuteFunction",
         ~importance=ImportantError,
-        ~requestParams=Encoders.executeFunctionAPIParams(params),
+        ~requestParams=APIExecution.Function.Params.encode(params),
         ~reload=false,
         err,
       ),
@@ -1762,7 +1787,7 @@ let update_ = (msg: msg, m: model): modification => {
     }
   | IgnoreMsg(_) =>
     /* Many times we have to receive a Msg and we don't actually do anything.
-     * To lower to conceptual load, we send an IgnoreMsg, rather than a
+     * To lower the conceptual load, we send an Msg.IgnoreMsg, rather than a
      * different msg each time that we have to understand. */
     NoChange
   | PageVisibilityChange(vis) =>
@@ -1774,11 +1799,7 @@ let update_ = (msg: msg, m: model): modification => {
     let ast = ProgramTypes.Expr.EBlank(gid())
     let aHandler: PT.Handler.t = {
       ast: FluidAST.ofExpr(ast),
-      spec: {
-        space: B.newF(space),
-        name: B.newF(path),
-        modifier: B.newF(modifier),
-      },
+      spec: SpecHeaders.fromBlankOrs((B.newF(space), B.newF(path), Some(B.newF(modifier)))),
       tlid: tlid,
       pos: pos,
     }
@@ -1789,7 +1810,7 @@ let update_ = (msg: msg, m: model): modification => {
         if (
           search.space == fof.space && (search.path == fof.path && search.modifier == fof.modifier)
         ) {
-          list{(search.traceID, Error(NoneYet)), ...acc}
+          list{(search.traceID, Error(TraceError.NoneYet)), ...acc}
         } else {
           acc
         },
@@ -1840,7 +1861,7 @@ let update_ = (msg: msg, m: model): modification => {
   | EnablePanning(pan) => ReplaceAllModificationsWithThisOne(Viewport.enablePan(pan))
   | ClipboardCopyEvent(e) =>
     let toast = ReplaceAllModificationsWithThisOne(
-      m => ({...m, toast: {...m.toast, toastMessage: Some("Copied!")}}, Cmd.none),
+      (m: model) => ({...m, toast: {...m.toast, toastMessage: Some("Copied!")}}, Cmd.none),
     )
 
     let clipboardData = Fluid.getCopySelection(m)
@@ -1850,7 +1871,7 @@ let update_ = (msg: msg, m: model): modification => {
     Fluid.update(m, FluidPaste(data))
   | ClipboardCutEvent(e) =>
     let toast = ReplaceAllModificationsWithThisOne(
-      m => ({...m, toast: {...m.toast, toastMessage: Some("Copied!")}}, Cmd.none),
+      (m: model) => ({...m, toast: {...m.toast, toastMessage: Some("Copied!")}}, Cmd.none),
     )
 
     let (copyData, mod_) = (Fluid.getCopySelection(m), Apply(m => Fluid.update(m, FluidCut)))
@@ -1945,7 +1966,7 @@ let update_ = (msg: msg, m: model): modification => {
     // Handle all other messages
     Fluid.update(m, msg)
   | ResetToast =>
-    ReplaceAllModificationsWithThisOne(m => ({...m, toast: Defaults.defaultToast}, Cmd.none))
+    ReplaceAllModificationsWithThisOne(m => ({...m, toast: AppTypes.Toast.default}, Cmd.none))
   | HideTopbar => ReplaceAllModificationsWithThisOne(m => ({...m, showTopbar: false}, Cmd.none))
   | LogoutAPICallback =>
     // For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work
@@ -1954,9 +1975,9 @@ let update_ = (msg: msg, m: model): modification => {
   | GoToArchitecturalView => Many(list{Deselect, MakeCmd(Url.navigateTo(Architecture))})
   | DismissErrorBar => Model.updateErrorMod(Error.clear)
   | PauseWorker(workerName) =>
-    MakeCmd(API.updateWorkerSchedule(m, {workerName: workerName, schedule: "pause"}))
+    MakeCmd(API.updateWorkerSchedule(m, {name: workerName, schedule: Paused}))
   | RunWorker(workerName) =>
-    MakeCmd(API.updateWorkerSchedule(m, {workerName: workerName, schedule: "run"}))
+    MakeCmd(API.updateWorkerSchedule(m, {name: workerName, schedule: Running}))
   | UpdateWorkerScheduleCallback(Ok(schedules)) => UpdateWorkerSchedules(schedules)
   | UpdateWorkerScheduleCallback(Error(_)) =>
     Model.updateErrorMod(Error.set("Failed to update worker schedule"))
@@ -1989,7 +2010,7 @@ let rec filter_read_only = (m: model, modification: modification) =>
   }
 
 // Checks to see if AST has changed, if so make requestAnalysis command.
-let maybeRequestAnalysis = (oldM: model, newM: model, otherCommands: Cmd.t<msg>): Cmd.t<msg> =>
+let maybeRequestAnalysis = (oldM: model, newM: model, otherCommands: AppTypes.cmd): AppTypes.cmd =>
   switch (TL.selected(oldM), TL.selected(newM)) {
   | (Some(prevTL), Some(newTL)) if TL.id(prevTL) == TL.id(newTL) =>
     switch (TL.getAST(prevTL), TL.getAST(newTL)) {
@@ -2005,7 +2026,7 @@ let maybeRequestAnalysis = (oldM: model, newM: model, otherCommands: Cmd.t<msg>)
   | (_, _) => otherCommands
   }
 
-let update = (m: model, msg: msg): (model, Cmd.t<msg>) => {
+let update = (m: model, msg: msg): (model, AppTypes.cmd) => {
   let mods = update_(msg, m) |> filter_read_only(m)
   let (newm, newc) = updateMod(mods, (m, Cmd.none))
   let newc = maybeRequestAnalysis(m, newm, newc)
@@ -2015,7 +2036,7 @@ let update = (m: model, msg: msg): (model, Cmd.t<msg>) => {
    * activeEditor and modify cursorState
    * and make fluidState be per-handler */
   let activeEditor = switch (CursorState.tlidOf(newm.cursorState), newm.fluidState.activeEditor) {
-  | (None, _) => NoEditor
+  | (None, _) => FluidTypes.Editor.NoEditor
   | (Some(tl), NoEditor) => MainEditor(tl)
   | (Some(_), ed) => ed
   }
@@ -2027,7 +2048,7 @@ let update = (m: model, msg: msg): (model, Cmd.t<msg>) => {
 }
 
 let subscriptions = (m: model): Tea.Sub.t<msg> => {
-  let keySubs = list{Keyboard.downs(x => GlobalKeyPress(x))}
+  let keySubs = list{Keyboard.downs(x => AppTypes.Msg.GlobalKeyPress(x))}
   let dragSubs = switch m.cursorState {
   // we use IDs here because the node will change
   // before they're triggered
@@ -2048,11 +2069,14 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     switch m.visibility {
     | Hidden => list{}
     | Visible => list{
-        Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => TimerFire(
+        Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => AppTypes.Msg.TimerFire(
           RefreshAnalysis,
           f,
         )),
-        Tea.Time.every(~key="refresh_avatars", Tea.Time.second, f => TimerFire(RefreshAvatars, f)),
+        Tea.Time.every(~key="refresh_avatars", Tea.Time.second, f => AppTypes.Msg.TimerFire(
+          RefreshAvatars,
+          f,
+        )),
       }
     }
   } else {
@@ -2086,7 +2110,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     DarkStorage.NewStaticDeployPush.listen(~key="new_static_deploy", s => NewStaticDeployPush(s)),
     Analysis.ReceiveFetch.listen(~key="receive_fetch", s => ReceiveFetch(s)),
     Analysis.NewPresencePush.listen(~key="new_presence_push", s => NewPresencePush(s)),
-    Analysis.AddOps.listen(~key="add_op", s => AddOpsPusherMsg(s)),
+    Analysis.AddOps.listen(~key="v1/add_op", s => AddOpsPusherMsg(s)),
     Analysis.WorkerStatePush.listen(~key="worker_state_push", s => WorkerStatePush(s)),
   }
 
@@ -2095,11 +2119,16 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     list{}
   } else {
     list{
-      BrowserListeners.Clipboard.copyListener(~key="copy_event", e => ClipboardCopyEvent(e)),
-      BrowserListeners.Clipboard.cutListener(~key="cut_event", e => ClipboardCutEvent(e)),
+      BrowserListeners.Clipboard.copyListener(
+        ~key="copy_event",
+        e => AppTypes.Msg.ClipboardCopyEvent(e),
+      ),
+      BrowserListeners.Clipboard.cutListener(~key="cut_event", e => AppTypes.Msg.ClipboardCutEvent(
+        e,
+      )),
       BrowserListeners.Clipboard.pasteListener(~key="paste_event", e => {
         e["preventDefault"]()
-        ClipboardPasteEvent(e)
+        AppTypes.Msg.ClipboardPasteEvent(e)
       }),
     }
   }
@@ -2121,7 +2150,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
 
 let debugging = {
   let prog = Tea.Debug.debug(
-    show_msg,
+    AppTypes.show_msg,
     {
       init: a => init(a, Tea.Navigation.getLocation()),
       view: View.view,
@@ -2134,7 +2163,7 @@ let debugging = {
 
   let myInit = (flag, _) => prog.init(flag)
   Tea.Navigation.navigationProgram(
-    x => Tea.Debug.ClientMsg(LocationChange(x)),
+    x => Tea.Debug.ClientMsg(AppTypes.Msg.LocationChange(x)),
     {
       init: myInit,
       update: prog.update,
@@ -2147,7 +2176,7 @@ let debugging = {
 }
 
 let normal = {
-  let program: Tea.Navigation.navigationProgram<string, model, msg> = {
+  let program: Tea.Navigation.navigationProgram<string, model, AppTypes.msg> = {
     init: init,
     view: View.view,
     update: update,
@@ -2156,7 +2185,7 @@ let normal = {
     shutdown: _ => Cmd.none,
   }
 
-  Tea.Navigation.navigationProgram(x => LocationChange(x), program)
+  Tea.Navigation.navigationProgram(x => AppTypes.Msg.LocationChange(x), program)
 }
 
 let main = normal

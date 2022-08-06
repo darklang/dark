@@ -5,7 +5,7 @@ let registerGlobal = (eventName, key, tagger, decoder) => {
     let fn = event => {
       open Tea_json.Decoder
       switch decodeEvent(decoder, event) {
-      | Tea_result.Error(err) => Some(Types.EventDecoderError(eventName, key, err))
+      | Tea_result.Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
       | Tea_result.Ok(data) => Some(tagger(data))
       }
     }
@@ -54,7 +54,7 @@ module Window = {
       let fn = event => {
         open Tea_json.Decoder
         switch decodeEvent(decoder, event) {
-        | Tea_result.Error(err) => Some(Types.EventDecoderError(eventName, key, err))
+        | Tea_result.Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
         | Tea_result.Ok(data) => Some(data)
         }
       }
@@ -79,7 +79,11 @@ module Window = {
 
   module Mouse = {
     let ups = (~key, constructor) =>
-      registerListener("mouseup", key, Decoders.wrapDecoder(Decoders.clickEvent(constructor)))
+      registerListener(
+        "mouseup",
+        key,
+        Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
+      )
   }
 }
 

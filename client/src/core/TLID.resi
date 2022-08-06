@@ -31,6 +31,10 @@ module Set: {
   let fromArray: array<T.t> => t
 
   let fromList: list<T.t> => t
+
+  let decode: Js.Json.t => t
+
+  let encode: t => Js.Json.t
 }
 
 module Dict: {
@@ -47,4 +51,6 @@ module Dict: {
   let fromList: list<(T.t, 'value)> => t<'value>
 
   let decode: (Js.Json.t => 'value, Js.Json.t) => t<'value>
+
+  let encode: ('value => Js.Json.t, t<'value>) => Js.Json.t
 }

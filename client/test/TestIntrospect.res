@@ -9,11 +9,7 @@ let run = () => {
     let h1tlid = gtlid()
     let h1data: PT.Handler.t = {
       ast: FluidAST.ofExpr(EBlank(gid())),
-      spec: {
-        space: B.newF("WORKER"),
-        name: B.newF("processOrder"),
-        modifier: B.new_(),
-      },
+      spec: PT.Handler.Spec.newWorker("processOrder"),
       tlid: h1tlid,
       pos: {x: 0, y: 0},
     }
@@ -22,13 +18,14 @@ let run = () => {
     let dbRefID = gid()
     let h2data: PT.Handler.t = {
       ast: FluidAST.ofExpr(
-        EFnCall(gid(), "DB::deleteAll_v1", list{EVariable(dbRefID, "Books")}, NoRail),
+        EFnCall(
+          gid(),
+          Stdlib({module_: "DB", function: "deleteAll", version: 1}),
+          list{EVariable(dbRefID, "Books")},
+          NoRail,
+        ),
       ),
-      spec: {
-        space: B.newF("HTTP"),
-        name: B.newF("/hello"),
-        modifier: B.newF("GET"),
-      },
+      spec: PT.Handler.Spec.newHTTP("/hello", "GET"),
       tlid: h2tlid,
       pos: {x: 0, y: 0},
     }
@@ -36,7 +33,8 @@ let run = () => {
     let dbtlid = gtlid()
     let dbdata: PT.DB.t = {
       tlid: dbtlid,
-      name: B.newF("Books"),
+      name: "Books",
+      nameID: gid(),
       cols: list{},
       version: 0,
       pos: {x: 0, y: 0},
@@ -79,14 +77,14 @@ let run = () => {
         SetExpr(h1tlid, gid(), EBlank(gid())),
         SetFunction({
           tlid: fntlid,
-          metadata: {
-            name: B.newF("trollClean"),
-            parameters: list{},
-            description: "can users put docs here?",
-            returnType: B.new_(),
-            infix: false,
-          },
-          ast: FluidAST.ofExpr(FluidExpression.newB()),
+          name: "trollClean",
+          nameID: gid(),
+          parameters: list{},
+          description: "can users put docs here?",
+          returnType: DType.any,
+          returnTypeID: gid(),
+          infix: false,
+          body: FluidAST.ofExpr(FluidExpression.newB()),
         }),
       }
 

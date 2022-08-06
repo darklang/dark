@@ -5,6 +5,8 @@ module B = BlankOr
 module P = Pointer
 module TD = TLID.Dict
 
+type model = AppTypes.model
+
 let fromList = (handlers: list<PT.Handler.t>): TLID.Dict.t<PT.Handler.t> =>
   handlers |> List.map(~f=(h: PT.Handler.t) => (h.tlid, h)) |> TLID.Dict.fromList
 
@@ -23,8 +25,8 @@ let remove = (m: model, h: PT.Handler.t): model => {
   handlers: Map.remove(~key=h.tlid, m.handlers),
 }
 
-let getWorkerSchedule = (m: model, h: PT.Handler.t): option<string> =>
-  switch h.spec.name {
-  | F(_, name) => Map.get(~key=name, m.workerSchedules)
-  | Blank(_) => None
+let getWorkerSchedule = (m: model, h: PT.Handler.t): option<AnalysisTypes.WorkerState.t> =>
+  switch h.spec {
+  | Worker(name, _) => Map.get(~key=name, m.workerSchedules)
+  | _ => None
   }

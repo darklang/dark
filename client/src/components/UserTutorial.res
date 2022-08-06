@@ -1,9 +1,9 @@
 // Spec for User Tutorial : https://www.notion.so/darklang/Hello-World-Tutorial-9f0caa9890e74e47b5ac3e66ee826a4c
 // We will be implimenting pretty tooltips soon that replace this file so Sydney put the html for the temporary tooltips here since both will need to be deleted once pretty tooltips is impliented
 
-open Prelude
+// open Prelude
 
-let defaultTutorial: userTutorial = {step: Some(Welcome), tlid: None}
+type step = AppTypes.Tutorial.Step.t
 
 let isTutorialCanvas = (~username: string, ~canvasname: string): bool =>
   canvasname == username ++ "-crud"
@@ -22,10 +22,7 @@ let generateCRUDContent: Tooltips.tooltipContent = {
   tooltipStyle: Crud,
 }
 
-let generateTutorialContent = (
-  tutorialStep: tutorialStep,
-  username: string,
-): Tooltips.tooltipContent =>
+let generateTutorialContent = (tutorialStep: step, username: string): Tooltips.tooltipContent =>
   switch tutorialStep {
   | Welcome => {
       title: "Welcome to Dark! Let's get started by creating a \"Hello World\" endpoint.",

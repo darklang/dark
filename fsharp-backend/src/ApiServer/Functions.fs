@@ -37,11 +37,11 @@ module Previewable =
     | RT.Impure -> Impure
 
 module StdlibFnName =
-  type T = { ``module`` : string; ``function`` : string; version : int }
+  type T = { module_ : string; function_ : string; version : int }
 
   let fromRT (fnName : RT.FQFnName.StdlibFnName) =
-    { ``function`` = fnName.function_
-      ``module`` = fnName.module_
+    { function_ = fnName.function_
+      module_ = fnName.module_
       version = fnName.version }
 
 module Deprecation =

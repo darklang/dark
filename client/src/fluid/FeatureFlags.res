@@ -1,5 +1,8 @@
 open Prelude
 module E = ProgramTypes.Expr
+type tokenInfo = FluidTypes.TokenInfo.t
+type modification = AppTypes.modification
+module Mod = AppTypes.Modification
 
 type unwrapKeep =
   | KeepOld
@@ -20,7 +23,7 @@ let ancestorFlag = (ast: FluidAST.t, id: id): option<FluidExpression.t> =>
 
     Returns a Some of the ID of the newly created EFeatureFlag (or None if one
     wasn't created) and the new AST ")
-let wrap = (s: Types.fluidState, ast: FluidAST.t, id: id): (option<id>, FluidAST.t) =>
+let wrap = (s: AppTypes.fluidState, ast: FluidAST.t, id: id): (option<id>, FluidAST.t) =>
   switch ancestorFlag(ast, id) {
   | Some(_) => (None, ast) // don't nest flags!
   | None =>
@@ -32,7 +35,7 @@ let wrap = (s: Types.fluidState, ast: FluidAST.t, id: id): (option<id>, FluidAST
       let tokenInfos = FluidTokenizer.tokenize(expr)
       let (tokenStart, tokenEnd) =
         List.last(tokenInfos)
-        |> Option.map(~f=last => (0, last.endPos))
+        |> Option.map(~f=(last: tokenInfo) => (0, last.endPos))
         |> Option.unwrap(~default=(-1, -1))
 
       let (selectStart, selectEnd) = FluidUtil.getSelectionRange(s)
@@ -81,7 +84,7 @@ let hasFlag = (ast: FluidAST.t): bool =>
 
 @ocaml.doc(" [wrapCmd m tl id] returns a [modification] that calls [wrap] with the
     [tl]'s AST. ")
-let wrapCmd = (m: model, tl: toplevel, id: id): modification =>
+let wrapCmd = (m: AppTypes.model, tl: toplevel, id: id): modification =>
   switch Toplevel.getAST(tl) {
   | Some(ast) if !hasFlag(ast) =>
     let (maybeId, ast) = wrap(m.fluidState, ast, id)
@@ -144,10 +147,10 @@ let unwrap = (keep: unwrapKeep, ast: FluidAST.t, id: id): option<FluidAST.t> =>
 
 @ocaml.doc(" [unwrapCmd keep m tl id] returns a [modification] that calls [unwrap] with
  * the [tl]'s AST. ")
-let unwrapCmd = (keep: unwrapKeep, _: model, tl: toplevel, id: id): modification =>
+let unwrapCmd = (keep: unwrapKeep, _: AppTypes.model, tl: toplevel, id: id): modification =>
   Toplevel.getAST(tl)
   |> Option.andThen(~f=ast => unwrap(keep, ast, id))
-  |> Option.map(~f=ast => Many(list{
+  |> Option.map(~f=ast => Mod.Many(list{
     Toplevel.setASTMod(tl, ast),
     ReplaceAllModificationsWithThisOne(
       m => (
@@ -166,16 +169,16 @@ let unwrapCmd = (keep: unwrapKeep, _: model, tl: toplevel, id: id): modification
       ),
     ),
   }))
-  |> Option.unwrap(~default=NoChange)
+  |> Option.unwrap(~default=Mod.NoChange)
 
 @ocaml.doc(" shouldShowAddFlagCmd shows the add flag command as long as there is no
  * other feature flag in the AST ")
-let shouldShowAddFlagCmd = (_: model, tl: toplevel, _: E.t): bool =>
+let shouldShowAddFlagCmd = (_: AppTypes.model, tl: toplevel, _: E.t): bool =>
   Toplevel.getAST(tl) |> Option.map(~f=\">>"(hasFlag, not)) |> Option.unwrap(~default=false)
 
 @ocaml.doc(" shouldShowRemoveFlagCmds shows the flag removal commands when the
  * expression or one of it's ancestors is a feature flag ")
-let shouldShowRemoveFlagCmds = (_: model, tl: toplevel, e: E.t): bool =>
+let shouldShowRemoveFlagCmds = (_: AppTypes.model, tl: toplevel, e: E.t): bool =>
   switch e {
   | EFeatureFlag(_) => true
   | _ =>

@@ -9,6 +9,8 @@ module E = FluidExpression
 open FluidShortcuts
 open ProgramTypes.Expr
 
+type model = AppTypes.model
+
 let sampleFunctions: list<RT.BuiltInFn.t> = {
   let par = (~description="", ~args=list{}, name, typ): RT.BuiltInFn.Param.t => {
     name: name,
@@ -30,8 +32,8 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "List", function: "getAt", version: 2},
-      parameters: list{par("list", TList), par("index", TInt)},
-      returnType: TOption,
+      parameters: list{par("list", TList(DType.any)), par("index", TInt)},
+      returnType: TOption(TInt),
       description: "",
       previewable: Pure,
       deprecated: NotDeprecated,
@@ -40,8 +42,11 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "Dict", function: "map", version: 2},
-      parameters: list{par("dict", TObj), par("f", TBlock, ~args=list{"key", "value"})},
-      returnType: TObj,
+      parameters: list{
+        par("dict", TDict(DType.any)),
+        par("f", TFn(list{TStr, DType.any}, DType.any), ~args=list{"key", "value"}),
+      },
+      returnType: TDict(DType.any),
       description: "",
       previewable: Pure,
       deprecated: NotDeprecated,
@@ -50,8 +55,12 @@ let sampleFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "DB", function: "set", version: 1},
-      parameters: list{par("val", TObj), par("key", TStr), par("table", TDB)},
-      returnType: TObj,
+      parameters: list{
+        par("val", TDict(DType.any)),
+        par("key", TStr),
+        par("table", TDB(DType.any)),
+      },
+      returnType: TDict(DType.any),
       description: "",
       previewable: Impure,
       deprecated: NotDeprecated,
@@ -67,19 +76,19 @@ let defaultHandler: PT.Handler.t = {
   tlid: defaultTLID,
   pos: {x: 0, y: 0},
   ast: FluidAST.ofExpr(EBlank(gid())),
-  spec: {space: B.newF("HTTP"), name: B.newF("/src"), modifier: B.newF("POST")},
+  spec: PT.Handler.Spec.newHTTP("/src", "POST"),
 }
 
 let aFn = (name, expr): PT.UserFunction.t => {
   tlid: gtlid(),
-  metadata: {
-    name: F(gid(), name),
-    parameters: list{},
-    description: "",
-    returnType: F(gid(), TAny),
-    infix: false,
-  },
-  ast: FluidAST.ofExpr(expr),
+  name: name,
+  nameID: gid(),
+  parameters: list{},
+  description: "",
+  returnType: DType.any,
+  returnTypeID: gid(),
+  infix: false,
+  body: FluidAST.ofExpr(expr),
 }
 
 let run = () => {
@@ -88,7 +97,7 @@ let run = () => {
       name: {module_: "Result", function: "resulty", version: 0},
       parameters: list{},
       description: "",
-      returnType: TResult,
+      returnType: TResult(DType.any, DType.any),
       previewable: Pure,
       deprecated: NotDeprecated,
       isInfix: false,
@@ -107,30 +116,37 @@ let run = () => {
     }
 
     let model = hs => {
-      ...D.defaultModel,
+      ...AppTypes.Model.default,
       functions: Functions.empty |> Functions.setBuiltins(list{f1, f2}, defaultFunctionsProps),
       handlers: Handlers.fromList(hs),
     }
 
-    let handlerWithPointer = (fnName, fnRail) => {
+    let handlerWithPointer = (mod, fn, v, fnRail) => {
       let id = ID.fromInt(1231241)
-      let ast = FluidAST.ofExpr(EFnCall(id, fnName, list{}, fnRail))
+      let ast = FluidAST.ofExpr(
+        EFnCall(id, Stdlib({module_: mod, function: fn, version: v}), list{}, fnRail),
+      )
       ({...defaultHandler, ast: ast}, id)
     }
 
-    let init = (fnName, fnRail) => {
-      let (h, pd) = handlerWithPointer(fnName, fnRail)
+    let init = (mod, fn, v, fnRail) => {
+      let (h, pd) = handlerWithPointer(mod, fn, v, fnRail)
       let m = model(list{h})
       (m, h, pd)
     }
 
     test("toggles any fncall off rail", () => {
-      let (m, h, id) = init("Int::notResulty", Rail)
+      let (m, h, id) = init("Int", "notResulty", 0, Rail)
       let mod' = Refactor.takeOffRail(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
         switch FluidAST.toExpr(h.ast) {
-        | EFnCall(_, "Int::notResulty", list{}, NoRail) => true
+        | EFnCall(
+            _,
+            Stdlib({module_: "Int", function: "notResulty", version: _}),
+            list{},
+            NoRail,
+          ) => true
         | _ => false
         }
       | _ => false
@@ -139,7 +155,7 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("toggles any fncall off rail in a thread", () => {
-      let fn = fn(~ster=Rail, "List::getAt_v2", list{pipeTarget, int(5)})
+      let fn = fn(~ster=Rail, ~mod="List", "getAt", ~version=2, list{pipeTarget, int(5)})
       let ast = pipe(emptyList, fn, list{}) |> FluidAST.ofExpr
       let h = {...defaultHandler, ast: ast}
       let m = model(list{h})
@@ -152,7 +168,12 @@ let run = () => {
         | EPipe(
             _,
             EList(_, list{}),
-            EFnCall(_, "List::getAt_v2", list{EPipeTarget(_), EInteger(_, 5L)}, NoRail),
+            EFnCall(
+              _,
+              Stdlib({module_: "List", function: "getAt", version: 2}),
+              list{EPipeTarget(_), EInteger(_, 5L)},
+              NoRail,
+            ),
             list{},
           ) => true
         | _ => false
@@ -163,12 +184,17 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("toggles error-rail-y function onto rail", () => {
-      let (m, h, pd) = init("Result::resulty", NoRail)
+      let (m, h, pd) = init("Result", "resulty", 0, NoRail)
       let mod' = Refactor.putOnRail(m, TLHandler(h), pd)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
         switch FluidAST.toExpr(h.ast) {
-        | EFnCall(_, "Result::resulty", list{}, Rail) => true
+        | EFnCall(
+            _,
+            Stdlib({module_: "Result", function: "resulty", version: 0}),
+            list{},
+            Rail,
+          ) => true
         | _ => false
         }
       | _ => false
@@ -177,7 +203,7 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("does not put non-error-rail-y function onto rail", () => {
-      let (m, h, pd) = init("Int::notResulty", NoRail)
+      let (m, h, pd) = init("Int", "notResulty", 0, NoRail)
       let mod' = Refactor.putOnRail(m, TLHandler(h), pd)
       let res = switch mod' {
       | NoChange => true
@@ -189,7 +215,8 @@ let run = () => {
   describe("renameDBReferences", () => {
     let db0: PT.DB.t = {
       tlid: gtlid(),
-      name: B.newF("ElmCode"),
+      name: "ElmCode",
+      nameID: gid(),
       cols: list{},
       version: 0,
       pos: {x: 0, y: 0},
@@ -198,29 +225,25 @@ let run = () => {
     test("datastore renamed, handler updates variable", () => {
       let h: PT.Handler.t = {
         ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
-        spec: {
-          space: B.newF("HTTP"),
-          name: B.newF("/src"),
-          modifier: B.newF("POST"),
-        },
+        spec: PT.Handler.Spec.newHTTP("/src", "POST"),
         tlid: TLID.fromInt(5),
         pos: {x: 0, y: 0},
       }
 
       let f: PT.UserFunction.t = {
         tlid: TLID.fromInt(6),
-        metadata: {
-          name: B.newF("f-1"),
-          parameters: list{},
-          description: "",
-          returnType: B.new_(),
-          infix: false,
-        },
-        ast: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
+        name: "f-1",
+        nameID: gid(),
+        parameters: list{},
+        description: "",
+        returnType: DType.any,
+        returnTypeID: gid(),
+        infix: false,
+        body: FluidAST.ofExpr(EVariable(gid(), "ElmCode")),
       }
 
       let model = {
-        ...D.defaultModel,
+        ...AppTypes.Model.default,
         dbs: DB.fromList(list{db0}),
         handlers: Handlers.fromList(list{h}),
         userFunctions: UserFunctions.fromList(list{f}),
@@ -229,7 +252,7 @@ let run = () => {
       let ops = R.renameDBReferences(model, "ElmCode", "WeirdCode")
       let res = switch List.sortBy(~f=PT.Op.tlidOf, ops) {
       | list{SetHandler(_, _, h), SetFunction(f)} =>
-        switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.ast)) {
+        switch (FluidAST.toExpr(h.ast), FluidAST.toExpr(f.body)) {
         | (EVariable(_, "WeirdCode"), EVariable(_, "WeirdCode")) => true
         | _ => false
         }
@@ -241,17 +264,13 @@ let run = () => {
     test("datastore renamed, handler does not change", () => {
       let h: PT.Handler.t = {
         ast: FluidAST.ofExpr(EVariable(gid(), "request")),
-        spec: {
-          space: B.newF("HTTP"),
-          name: B.newF("/src"),
-          modifier: B.newF("POST"),
-        },
+        spec: PT.Handler.Spec.newHTTP("/src", "POST"),
         tlid: defaultTLID,
         pos: {x: 0, y: 0},
       }
 
       let model = {
-        ...D.defaultModel,
+        ...AppTypes.Model.default,
         dbs: DB.fromList(list{db0}),
         handlers: Handlers.fromList(list{h}),
       }
@@ -279,11 +298,11 @@ let run = () => {
       ) |> toEqual(true)
     )
     test("with Some DObj input", () => {
-      let dobj = Dval.obj(list{
+      let dobj = RT.Dval.obj(list{
         ("str", DStr("foo")),
         ("int", DInt(1L)),
         ("float", DFloat(1.0)),
-        ("obj", Dval.obj(list{})),
+        ("obj", RT.Dval.obj(list{})),
         ("date", DDate("2019-07-10T20:42:11Z")),
         ("datestr", DStr("2019-07-10T20:42:11Z")),
         ("uuid", DUuid("0a18ca77-9bae-4dfb-816f-0d12cb81c17b")),
@@ -296,20 +315,18 @@ let run = () => {
           ("str", DType.TStr),
           ("int", TInt),
           ("float", TFloat),
-          ("obj", TObj),
+          ("obj", TDict(DType.any)),
           ("date", TDate),
           ("datestr", TStr),
-          /* for now, TStr; in future, maybe we coerce to
-           TDate */
+          // for now, TStr; in future, maybe we coerce to TDate
           ("uuid", TUuid),
           ("uuidstr", TStr),
-          /* for now, TStr; in future, maybe we coerce to
-           TUuid */
+          // for now, TStr; in future, maybe we coerce to TUuid
         }
-        |> List.map(~f=((k, v)) => (Some(k), Some(v)))
-        |> /* sortBy here because the dobj gets sorted - not sure exactly
-         where, but order doesn't matter except in this test */
-        List.sortBy(~f=((k, _)) => k)
+        |> List.map(~f=((k, v)) => (k, Some(v)))
+        // sortBy here because the dobj gets sorted - not sure exactly where, but
+        // order doesn't matter except in this test
+        |> List.sortBy(~f=((k, _)) => k)
 
       let _ = (dobj, expectedFields)
       let tipe = R.generateUserType(Some(dobj))
@@ -317,11 +334,8 @@ let run = () => {
       | Error(_) => list{}
       | Ok(ut) =>
         switch ut.definition {
-        | PT.UserType.Definition.UTRecord(utr) =>
-          utr |> List.map(~f=(urf: PT.UserType.RecordField.t) => (
-            urf.name |> B.toOption,
-            urf.typ |> B.toOption,
-          ))
+        | PT.UserType.Definition.Record(utr) =>
+          utr |> List.map(~f=(urf: PT.UserType.RecordField.t) => (urf.name, urf.typ))
         }
       }
 
@@ -335,18 +349,14 @@ let run = () => {
         tlid: tlid,
         ast: ast,
         pos: {x: 0, y: 0},
-        spec: {
-          space: B.newF("HTTP"),
-          name: B.newF("/src"),
-          modifier: B.newF("POST"),
-        },
+        spec: PT.Handler.Spec.newHTTP("/src", "POST"),
       }
 
       let m = {
-        ...D.defaultModel,
+        ...AppTypes.Model.default,
         functions: Functions.empty |> Functions.setBuiltins(sampleFunctions, defaultFunctionsProps),
         handlers: list{(tlid, tl)} |> TLID.Dict.fromList,
-        fluidState: {...Defaults.defaultFluidState, ac: FluidAutocomplete.init},
+        fluidState: {...FluidTypes.State.default, ac: FluidAutocomplete.init},
       }
 
       (m, TLHandler(tl))
@@ -362,7 +372,7 @@ let run = () => {
       ) |> toEqual("let var = 4\nvar")
     })
     test("with expression inside let", () => {
-      let expr = fn("Int::add", list{var("b"), int(4)})
+      let expr = fn(~mod="Int", "add", list{var("b"), int(4)})
       let ast = FluidAST.ofExpr(let'("b", int(5), expr))
       let (m, tl) = modelAndTl(ast)
       expect(
@@ -377,9 +387,9 @@ let run = () => {
         list{fieldAccess(var("request"), "body"), fn("toString", list{var("id")}), b},
       )
 
-      let threadedExpr = fn("Dict::set", list{str("id"), var("id")})
+      let threadedExpr = fn(~mod="Dict", "set", list{str("id"), var("id")})
       let exprInThread = pipe(expr, threadedExpr, list{})
-      let ast = FluidAST.ofExpr(let'("id", fn("Uuid::generate", list{}), exprInThread))
+      let ast = FluidAST.ofExpr(let'("id", fn(~mod="Uuid", "generate", list{}), exprInThread))
 
       let (m, tl) = modelAndTl(ast)
       expect(
@@ -393,32 +403,33 @@ let run = () => {
     ()
   })
   describe("reorderFnCallArgs", () => {
+    let fnFor = (str): PT.FQFnName.t => Stdlib({function: str, module_: "", version: 0})
     let matchExpr = (a, e) =>
       expect(e |> FluidPrinter.eToTestString) |> toEqual(a |> FluidPrinter.eToTestString)
 
     test("simple example", () =>
       fn("myFn", list{int(1), int(2), int(3)})
-      |> AST.reorderFnCallArgs("myFn", 0, 2)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 2)
       |> matchExpr(fn("myFn", list{int(2), int(1), int(3)}))
     )
     test("inside another function's arguments", () =>
       fn("anotherFn", list{int(0), fn("myFn", list{int(1), int(2), int(3)})})
-      |> AST.reorderFnCallArgs("myFn", 0, 2)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 2)
       |> matchExpr(fn("anotherFn", list{int(0), fn("myFn", list{int(2), int(1), int(3)})}))
     )
     test("inside its own arguments", () =>
       fn("myFn", list{int(0), fn("myFn", list{int(1), int(2), int(3)}), int(4)})
-      |> AST.reorderFnCallArgs("myFn", 1, 0)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 1, 0)
       |> matchExpr(fn("myFn", list{fn("myFn", list{int(2), int(1), int(3)}), int(0), int(4)}))
     )
     test("simple pipe first argument not moved", () =>
       pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
-      |> AST.reorderFnCallArgs("myFn", 2, 1)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 2, 1)
       |> matchExpr(pipe(int(1), fn("myFn", list{pipeTarget, int(3), int(2)}), list{}))
     )
     test("simple pipe first argument moved", () =>
       pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
-      |> AST.reorderFnCallArgs("myFn", 0, 3)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 3)
       |> matchExpr(
         pipe(int(1), lambdaWithBinding("x", fn("myFn", list{int(2), int(3), var("x")})), list{}),
       )
@@ -433,7 +444,7 @@ let run = () => {
           fn("other3", list{pipeTarget}),
         },
       )
-      |> AST.reorderFnCallArgs("myFn", 2, 1)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 2, 1)
       |> matchExpr(
         pipe(
           int(1),
@@ -456,7 +467,7 @@ let run = () => {
           fn("other3", list{pipeTarget}),
         },
       )
-      |> AST.reorderFnCallArgs("myFn", 1, 0)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 1, 0)
       |> matchExpr(
         pipe(
           int(1),
@@ -471,8 +482,8 @@ let run = () => {
     )
     test("recurse into piped lambda exprs", () =>
       pipe(int(1), fn("myFn", list{pipeTarget, int(2), int(3)}), list{})
-      |> AST.reorderFnCallArgs("myFn", 0, 1)
-      |> AST.reorderFnCallArgs("myFn", 0, 1)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 1)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 1)
       |> matchExpr(
         pipe(int(1), lambdaWithBinding("x", fn("myFn", list{var("x"), int(2), int(3)})), list{}),
       )
@@ -483,7 +494,7 @@ let run = () => {
         fn("anotherFn", list{pipeTarget, int(1), fn("myFn", list{int(2), int(3), int(4)})}),
         list{},
       )
-      |> AST.reorderFnCallArgs("myFn", 1, 0)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 1, 0)
       |> matchExpr(
         pipe(
           int(0),
@@ -501,7 +512,7 @@ let run = () => {
         ),
         list{},
       )
-      |> AST.reorderFnCallArgs("myFn", 0, 3)
+      |> AST.reorderFnCallArgs(fnFor("myFn"), 0, 3)
       |> matchExpr(
         pipe(
           int(1),
@@ -522,8 +533,8 @@ let run = () => {
   describe("calculateUserUnsafeFunctions", () => {
     let userFunctions =
       list{
-        aFn("callsUnsafeBuiltin", fn("DB::set_v1", list{})),
-        aFn("callsSafeBuiltin", fn("List::getAt_v1", list{})),
+        aFn("callsUnsafeBuiltin", fn(~mod="DB", "set", ~version=1, list{})),
+        aFn("callsSafeBuiltin", fn(~mod="List", "getAt", ~version=1, list{})),
         aFn("callsSafeUserfn", fn("callsSafeBuiltin", list{})),
         aFn("callsUnsafeUserfn", fn("callsUnsafeBuiltin", list{})),
       }
@@ -544,7 +555,7 @@ let run = () => {
   })
   describe("convert-if-to-match", () => {
     let model = hs => {
-      ...D.defaultModel,
+      ...AppTypes.Model.default,
       functions: Functions.empty,
       handlers: Handlers.fromList(hs),
     }
@@ -556,8 +567,6 @@ let run = () => {
       ({...defaultHandler, ast: ast}, id)
     }
 
-    let binOp = (which, lhs, rhs) => EBinOp(gid(), which, lhs, rhs, NoRail)
-
     let init = cond => {
       let (h, pd) = handlerWithPointer(cond)
       let m = model(list{h})
@@ -565,14 +574,14 @@ let run = () => {
     }
 
     test("generic true false arms", () => {
-      let (m, h, id) = init(binOp("<", int(3), int(4)))
+      let (m, h, id) = init(binop("<", int(3), int(4)))
       let mod' = IfToMatch.refactor(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
         switch FluidAST.toExpr(h.ast) {
         | EMatch(
             _,
-            EBinOp(_, "<", _, _, _),
+            EBinOp(_, {module_: None, function: "<"}, _, _, _),
             list{(PBool(_, true), EBool(_, true)), (PBool(_, false), EBool(_, false))},
           ) => true
         | _ => false
@@ -583,14 +592,14 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("fallback true false arms", () => {
-      let (m, h, id) = init(binOp("==", aFnCall, aFnCall))
+      let (m, h, id) = init(binop("==", aFnCall, aFnCall))
       let mod' = IfToMatch.refactor(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
         switch FluidAST.toExpr(h.ast) {
         | EMatch(
             _,
-            EBinOp(_, "==", _, _, _),
+            EBinOp(_, {function: "==", _}, _, _, _),
             list{(PBool(_, true), EBool(_, true)), (PBool(_, false), EBool(_, false))},
           ) => true
         | _ => false
@@ -601,7 +610,7 @@ let run = () => {
       expect(res) |> toEqual(true)
     })
     test("pattern in arm", () => {
-      let (m, h, id) = init(binOp("==", int(3), aFnCall))
+      let (m, h, id) = init(binop("==", int(3), aFnCall))
       let mod' = IfToMatch.refactor(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>

@@ -1,45 +1,166 @@
 // The types that the user sees. For all type definitions, see ProgramTypes.fs
 
-open BaseTypes
-
 module FQFnName = {
-  @ppx.deriving(show({with_path: false}))
-  type rec stdlibFnName = {module_: string, function: string, version: int}
+  module StdlibFnName = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {module_: string, function: string, version: int}
+    let encode = (n: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("module_", string(n.module_)),
+        ("function_", string(n.function)),
+        ("version", int(n.version)),
+      })
+    }
+    let decode = j => {
+      open Json.Decode
+      {
+        module_: field("module_", string, j),
+        function: field("function_", string, j),
+        version: field("version", int, j),
+      }
+    }
+    let toString = (n: t): string => {
+      let name = if n.module_ == "" {
+        n.function
+      } else {
+        `${n.module_}::${n.function}`
+      }
+      if n.version == 0 {
+        name
+      } else {
+        `${name}_v${string_of_int(n.version)}`
+      }
+    }
+  }
 
-  @ppx.deriving(show({with_path: false}))
-  type rec infixStdlibFnName = {module_: option<string>, function: string}
+  module InfixStdlibFnName = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {module_: option<string>, function: string}
+    let encode = (n: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{("module_", nullable(string, n.module_)), ("function_", string(n.function))})
+    }
+    let decode = j => {
+      open Json.Decode
+      {
+        module_: field("module_", optional(string), j),
+        function: field("function_", string, j), // Note underscore
+      }
+    }
+    let toString = (n: t): string => {
+      switch n.module_ {
+      | None => n.function
+      | Some(m) => `${m}::${n.function}`
+      }
+    }
+    let toStdlib = (n: t): StdlibFnName.t => {
+      function: n.function,
+      version: 0,
+      module_: switch n.module_ {
+      | None => ""
+      | Some(m) => m
+      },
+    }
+  }
 
-  @ppx.deriving(show({with_path: false})) type rec userFnName = string
-
-  @ppx.deriving(show({with_path: false}))
-  type rec packageFnName = {
-    owner: string,
-    package: string,
-    module_: string,
-    function: string,
-    version: int,
+  module PackageFnName = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      owner: string,
+      package: string,
+      module_: string,
+      function: string,
+      version: int,
+    }
+    let encode = (n: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("owner", string(n.owner)),
+        ("package", string(n.package)),
+        ("module_", string(n.module_)),
+        ("function_", string(n.function)),
+        ("version", int(n.version)),
+      })
+    }
+    let decode = j => {
+      open Json.Decode
+      {
+        owner: field("owner", string, j),
+        package: field("package", string, j),
+        module_: field("module_", string, j),
+        function: field("function_", string, j),
+        version: field("version", int, j),
+      }
+    }
+    let toString = (n: t): string =>
+      `${n.owner}/${n.package}/${n.module_}::${n.function}_v${string_of_int(n.version)}`
   }
 
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    | User(userFnName)
-    | Stdlib(stdlibFnName)
-    | Package(packageFnName)
+    | User(string)
+    | Stdlib(StdlibFnName.t)
+    | Package(PackageFnName.t)
+
+  let encode = (n: t): Js.Json.t => {
+    open Json_encode_extended
+    let ev = variant
+    switch n {
+    | User(name) => ev("User", list{string(name)})
+    | Stdlib(name) => ev("Stdlib", list{StdlibFnName.encode(name)})
+    | Package(name) => ev("Package", list{PackageFnName.encode(name)})
+    }
+  }
+
+  let decode = (j): t => {
+    open Json_decode_extended
+    variants(
+      list{
+        ("User", variant1(name => User(name), string)),
+        ("Stdlib", variant1(name => Stdlib(name), StdlibFnName.decode)),
+        ("Package", variant1(name => Package(name), PackageFnName.decode)),
+      },
+      j,
+    )
+  }
+
+  let toString = (n): string => {
+    switch n {
+    | User(name) => name
+    | Stdlib(std) => StdlibFnName.toString(std)
+    | Package(pkg) => PackageFnName.toString(pkg)
+    }
+  }
+
+  let stdlib = (m: string, f: string, v: int): t => Stdlib({
+    module_: m,
+    function: f,
+    version: v,
+  })
+
+  let package = (o: string, p: string, m: string, f: string, v: int): t => Package({
+    owner: o,
+    package: p,
+    module_: m,
+    function: f,
+    version: v,
+  })
 }
 
-@ppx.deriving(show({with_path: false}))
-type rec sign =
-  | Positive
-  | Negative
-
 module Sign = {
-  let toString = (sign: sign): string =>
+  @ppx.deriving(show({with_path: false}))
+  type rec t =
+    | Positive
+    | Negative
+
+  let toString = (sign: t): string =>
     switch sign {
     | Positive => ""
     | Negative => "-"
     }
   // Split the string into a sign and a string (removes the sign if present and )
-  let split = (whole: string): (sign, string) => {
+  let split = (whole: string): (t, string) => {
     if Tc.String.startsWith(~prefix="-", whole) {
       (Negative, Tc.String.dropLeft(~count=1, whole))
     } else if Tc.String.startsWith(~prefix="+", whole) {
@@ -48,8 +169,20 @@ module Sign = {
       (Positive, whole)
     }
   }
-  let combine = (sign: sign, whole: string): string => {
+  let combine = (sign: t, whole: string): string => {
     toString(sign) ++ whole
+  }
+  let encode = (n: t): Js.Json.t => {
+    open Json_encode_extended
+    let ev = variant
+    switch n {
+    | Negative => ev("Negative", list{})
+    | Positive => ev("Positive", list{})
+    }
+  }
+  let decode = (j): t => {
+    open Json_decode_extended
+    variants(list{("Negative", variant0(Negative)), ("Positive", variant0(Positive))}, j)
   }
 }
 
@@ -59,91 +192,50 @@ module Pattern = {
     // match id, then pattern id
     | PVariable(ID.t, string)
     | PConstructor(ID.t, string, list<t>)
-    // TODO: support char
     | PInteger(ID.t, int64)
     | PBool(ID.t, bool)
     | PString(ID.t, string)
-    | PFloat(ID.t, sign, string, string)
+    | PCharacter(ID.t, string)
+    | PFloat(ID.t, Sign.t, string, string)
     | PNull(ID.t)
     | PBlank(ID.t)
 
-  let rec encode = (mid: ID.t, pattern: t): Js.Json.t => {
+  let rec encode = (pattern: t): Js.Json.t => {
     open Json_encode_extended
-    let fp = encode(mid)
+    let ep = encode
     let ev = variant
     switch pattern {
-    /* Warning: A bunch of stuff here seems to expect that the
-    second element of the tuples are match id but they are actually
-    pattern ids. */
-    | PVariable(id', name) => ev("FPVariable", list{ID.encode(mid), ID.encode(id'), string(name)})
+    | PVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
     | PConstructor(id', name, patterns) =>
-      ev("FPConstructor", list{ID.encode(mid), ID.encode(id'), string(name), list(fp, patterns)})
-    | PInteger(id', v) =>
-      ev("FPInteger", list{ID.encode(mid), ID.encode(id'), string(Int64.to_string(v))})
-    | PBool(id', v) => ev("FPBool", list{ID.encode(mid), ID.encode(id'), bool(v)})
+      ev("PConstructor", list{ID.encode(id'), string(name), list(ep, patterns)})
+    | PInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
+    | PBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
     | PFloat(id', sign, whole, fraction) =>
-      ev(
-        "FPFloat",
-        list{ID.encode(mid), ID.encode(id'), string(Sign.combine(sign, whole)), string(fraction)},
-      )
-    | PString(id', v) =>
-      ev(
-        "FPString",
-        list{
-          object_(list{
-            ("matchID", ID.encode(mid)),
-            ("patternID", ID.encode(id')),
-            ("str", string(v)),
-          }),
-        },
-      )
-    | PNull(id') => ev("FPNull", list{ID.encode(mid), ID.encode(id')})
-    | PBlank(id') => ev("FPBlank", list{ID.encode(mid), ID.encode(id')})
+      ev("PFloat", list{ID.encode(id'), Sign.encode(sign), string(whole), string(fraction)})
+    | PString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
+    | PCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
+    | PNull(id') => ev("PNull", list{ID.encode(id')})
+    | PBlank(id') => ev("PBlank", list{ID.encode(id')})
     }
   }
 
   let rec decode = (j): t => {
     open Json_decode_extended
-    let dp = decode
     let dv4 = variant4
     let dv3 = variant3
     let dv2 = variant2
+    let dv1 = variant1
     variants(
       list{
-        ("FPVariable", dv3((_, b, c) => PVariable(b, c), ID.decode, ID.decode, string)),
-        (
-          "FPConstructor",
-          dv4((_, b, c, d) => PConstructor(b, c, d), ID.decode, ID.decode, string, list(dp)),
-        ),
-        (
-          "FPInteger",
-          dv3(
-            (_, b, c) => PInteger(b, c),
-            ID.decode,
-            ID.decode,
-            i => i |> string |> Int64.of_string,
-          ),
-        ),
-        ("FPBool", dv3((_, b, c) => PBool(b, c), ID.decode, ID.decode, bool)),
-        (
-          "FPString",
-          recordVariant3(
-            (_, patternID, str) => PString(patternID, str),
-            ("matchID", ID.decode),
-            ("patternID", ID.decode),
-            ("str", string),
-          ),
-        ),
-        ("FPFloat", dv4((_, id2, whole, fraction) => {
-            let (sign, whole) = if Tc.String.startsWith(~prefix="-", whole) {
-              (Negative, Tc.String.dropLeft(~count=1, whole))
-            } else {
-              (Positive, whole)
-            }
-            PFloat(id2, sign, whole, fraction)
-          }, ID.decode, ID.decode, string, string)),
-        ("FPNull", dv2((_, b) => PNull(b), ID.decode, ID.decode)),
-        ("FPBlank", dv2((_, b) => PBlank(b), ID.decode, ID.decode)),
+        ("PVariable", dv2((a, b) => PVariable(a, b), ID.decode, string)),
+        ("PConstructor", dv3((a, b, c) => PConstructor(a, b, c), ID.decode, string, list(decode))),
+        ("PInteger", dv2((a, b) => PInteger(a, b), ID.decode, int64)),
+        ("PBool", dv2((a, b) => PBool(a, b), ID.decode, bool)),
+        ("PString", dv2((a, b) => PString(a, b), ID.decode, string)),
+        ("PCharacter", dv2((a, b) => PCharacter(a, b), ID.decode, string)),
+        ("PFloat", dv4((a, b, c, d) => PFloat(a, b, c, d), ID.decode, Sign.decode, string, string)),
+        ("PNull", dv1(a => PNull(a), ID.decode)),
+        ("PBlank", dv1(a => PBlank(a), ID.decode)),
       },
       j,
     )
@@ -177,16 +269,17 @@ module Expr = {
     | EInteger(ID.t, int64)
     | EBool(ID.t, bool)
     | EString(ID.t, string)
-    | EFloat(ID.t, sign, string, string)
+    | ECharacter(ID.t, string)
+    | EFloat(ID.t, Sign.t, string, string)
     | ENull(ID.t)
     | EBlank(ID.t)
     | ELet(ID.t, string, t, t)
     | EIf(ID.t, t, t, t)
-    | EBinOp(ID.t, string, t, t, SendToRail.t)
+    | EBinOp(ID.t, FQFnName.InfixStdlibFnName.t, t, t, SendToRail.t)
     | ELambda(ID.t, list<(ID.t, string)>, t)
     | EFieldAccess(ID.t, t, string)
     | EVariable(ID.t, string)
-    | EFnCall(ID.t, string, list<t>, SendToRail.t)
+    | EFnCall(ID.t, FQFnName.t, list<t>, SendToRail.t)
     | EPartial(ID.t, string, t)
     | ERightPartial(ID.t, string, t)
     | ELeftPartial(ID.t, string, t)
@@ -201,45 +294,63 @@ module Expr = {
 
   let rec encode = (expr: t): Js.Json.t => {
     open Json_encode_extended
-    let fe = encode
     let ev = variant
     switch expr {
-    | ELet(id', lhs, rhs, body) => ev("ELet", list{ID.encode(id'), string(lhs), fe(rhs), fe(body)})
+    | ELet(id, lhs, rhs, body) =>
+      ev("ELet", list{ID.encode(id), string(lhs), encode(rhs), encode(body)})
     | EIf(id', cond, ifbody, elsebody) =>
-      ev("EIf", list{ID.encode(id'), fe(cond), fe(ifbody), fe(elsebody)})
+      ev("EIf", list{ID.encode(id'), encode(cond), encode(ifbody), encode(elsebody)})
     | EFnCall(id', name, exprs, r) =>
-      ev("EFnCall", list{ID.encode(id'), string(name), list(fe, exprs), SendToRail.encode(r)})
+      ev(
+        "EFnCall",
+        list{ID.encode(id'), FQFnName.encode(name), list(encode, exprs), SendToRail.encode(r)},
+      )
     | EBinOp(id', name, left, right, r) =>
-      ev("EBinOp", list{ID.encode(id'), string(name), fe(left), fe(right), SendToRail.encode(r)})
-    | ELambda(id', vars, body) =>
-      ev("ELambda", list{ID.encode(id'), list(pair(ID.encode, string), vars), fe(body)})
-    | EPipe(id', e1, e2, rest) => ev("EPipe", list{ID.encode(id'), list(fe, list{e1, e2, ...rest})})
-    | EFieldAccess(id', obj, field) =>
-      ev("EFieldAccess", list{ID.encode(id'), fe(obj), string(field)})
-    | EString(id', v) => ev("EString", list{ID.encode(id'), string(v)})
-    | EInteger(id', v) => ev("EInteger", list{ID.encode(id'), string(Int64.to_string(v))})
-    | EBool(id', v) => ev("EBool", list{ID.encode(id'), bool(v)})
-    | EFloat(id', sign, whole, fraction) =>
-      ev("EFloat", list{ID.encode(id'), string(Sign.combine(sign, whole)), string(fraction)})
-    | ENull(id') => ev("ENull", list{ID.encode(id')})
-    | EBlank(id') => ev("EBlank", list{ID.encode(id')})
-    | EVariable(id', name) => ev("EVariable", list{ID.encode(id'), string(name)})
-    | EList(id', exprs) => ev("EList", list{ID.encode(id'), list(fe, exprs)})
-    | ETuple(id', first, second, theRest) =>
-      ev("ETuple", list{ID.encode(id'), fe(first), fe(second), list(fe, theRest)})
-    | ERecord(id', pairs) => ev("ERecord", list{ID.encode(id'), list(pair(string, fe), pairs)})
-    | EFeatureFlag(id', name, cond, a, b) =>
-      ev("EFeatureFlag", list{ID.encode(id'), string(name), fe(cond), fe(a), fe(b)})
-    | EMatch(id', matchExpr, cases) =>
-      ev("EMatch", list{ID.encode(id'), fe(matchExpr), list(pair(Pattern.encode(id'), fe), cases)})
-    | EConstructor(id', name, args) =>
-      ev("EConstructor", list{ID.encode(id'), string(name), list(fe, args)})
-    | EPartial(id', str, oldExpr) => ev("EPartial", list{ID.encode(id'), string(str), fe(oldExpr)})
-    | ERightPartial(id', str, oldExpr) =>
-      ev("ERightPartial", list{ID.encode(id'), string(str), fe(oldExpr)})
-    | ELeftPartial(id', str, oldExpr) =>
-      ev("ELeftPartial", list{ID.encode(id'), string(str), fe(oldExpr)})
-    | EPipeTarget(id') => ev("EPipeTarget", list{ID.encode(id')})
+      ev(
+        "EBinOp",
+        list{
+          ID.encode(id'),
+          FQFnName.InfixStdlibFnName.encode(name),
+          encode(left),
+          encode(right),
+          SendToRail.encode(r),
+        },
+      )
+    | ELambda(id, vars, body) =>
+      ev("ELambda", list{ID.encode(id), list(pair(ID.encode, string), vars), encode(body)})
+    | EPipe(id, e1, e2, rest) =>
+      ev("EPipe", list{ID.encode(id), encode(e1), encode(e2), list(encode, rest)})
+    | EFieldAccess(id, obj, field) =>
+      ev("EFieldAccess", list{ID.encode(id), encode(obj), string(field)})
+    | EString(id, v) => ev("EString", list{ID.encode(id), string(v)})
+    | ECharacter(id, v) => ev("ECharacter", list{ID.encode(id), string(v)})
+    | EInteger(id, v) => ev("EInteger", list{ID.encode(id), int64(v)})
+    | EBool(id, v) => ev("EBool", list{ID.encode(id), bool(v)})
+    | EFloat(id, sign, whole, fraction) =>
+      ev("EFloat", list{ID.encode(id), Sign.encode(sign), string(whole), string(fraction)})
+    | ENull(id) => ev("ENull", list{ID.encode(id)})
+    | EBlank(id) => ev("EBlank", list{ID.encode(id)})
+    | EVariable(id, name) => ev("EVariable", list{ID.encode(id), string(name)})
+    | EList(id, exprs) => ev("EList", list{ID.encode(id), list(encode, exprs)})
+    | ETuple(id, first, second, theRest) =>
+      ev("ETuple", list{ID.encode(id), encode(first), encode(second), list(encode, theRest)})
+    | ERecord(id, pairs) => ev("ERecord", list{ID.encode(id), list(pair(string, encode), pairs)})
+    | EFeatureFlag(id, name, cond, a, b) =>
+      ev("EFeatureFlag", list{ID.encode(id), string(name), encode(cond), encode(a), encode(b)})
+    | EMatch(id, matchExpr, cases) =>
+      ev(
+        "EMatch",
+        list{ID.encode(id), encode(matchExpr), list(pair(Pattern.encode, encode), cases)},
+      )
+    | EConstructor(id, name, args) =>
+      ev("EConstructor", list{ID.encode(id), string(name), list(encode, args)})
+    | EPartial(id, str, oldExpr) =>
+      ev("EPartial", list{ID.encode(id), string(str), encode(oldExpr)})
+    | ERightPartial(id, str, oldExpr) =>
+      ev("ERightPartial", list{ID.encode(id), string(str), encode(oldExpr)})
+    | ELeftPartial(id, str, oldExpr) =>
+      ev("ELeftPartial", list{ID.encode(id), string(str), encode(oldExpr)})
+    | EPipeTarget(id) => ev("EPipeTarget", list{ID.encode(id)})
     }
   }
 
@@ -256,14 +367,17 @@ module Expr = {
         ("EInteger", dv2((x, y) => EInteger(x, y), ID.decode, int64)),
         ("EBool", dv2((x, y) => EBool(x, y), ID.decode, bool)),
         ("EString", dv2((x, y) => EString(x, y), ID.decode, string)),
-        ("EFloat", dv3((x, whole, fraction) => {
-            let (sign, whole) = if Tc.String.startsWith(~prefix="-", whole) {
-              (Negative, Tc.String.dropLeft(~count=1, whole))
-            } else {
-              (Positive, whole)
-            }
-            EFloat(x, sign, whole, fraction)
-          }, ID.decode, string, string)),
+        ("ECharacter", dv2((x, y) => ECharacter(x, y), ID.decode, string)),
+        (
+          "EFloat",
+          dv4(
+            (a, sign, whole, fraction) => EFloat(a, sign, whole, fraction),
+            ID.decode,
+            Sign.decode,
+            string,
+            string,
+          ),
+        ),
         ("ENull", dv1(x => ENull(x), ID.decode)),
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
         ("ELet", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, string, de, de)),
@@ -273,7 +387,7 @@ module Expr = {
           dv5(
             (a, b, c, d, e) => EBinOp(a, b, c, d, e),
             ID.decode,
-            string,
+            FQFnName.InfixStdlibFnName.decode,
             de,
             de,
             SendToRail.decode,
@@ -287,7 +401,13 @@ module Expr = {
         ("EVariable", dv2((x, y) => EVariable(x, y), ID.decode, string)),
         (
           "EFnCall",
-          dv4((a, b, c, d) => EFnCall(a, b, c, d), ID.decode, string, list(de), SendToRail.decode),
+          dv4(
+            (a, b, c, d) => EFnCall(a, b, c, d),
+            ID.decode,
+            FQFnName.decode,
+            list(de),
+            SendToRail.decode,
+          ),
         ),
         ("EPartial", dv3((a, b, c) => EPartial(a, b, c), ID.decode, string, de)),
         ("ELeftPartial", dv3((a, b, c) => ELeftPartial(a, b, c), ID.decode, string, de)),
@@ -298,25 +418,7 @@ module Expr = {
           dv4((x, y1, y2, yRest) => ETuple(x, y1, y2, yRest), ID.decode, de, de, list(de)),
         ),
         ("ERecord", dv2((x, y) => ERecord(x, y), ID.decode, list(pair(string, de)))),
-        ("EPipe", dv2((x, y) =>
-            switch y {
-            | list{} =>
-              let (e1, e2) = Recover.recover(
-                "decoding a pipe with no exprs",
-                ~debug=x,
-                (EBlank(ID.generate()), EBlank(ID.generate())),
-              )
-              EPipe(x, e1, e2, list{})
-            | list{e1} =>
-              let e2 = Recover.recover(
-                "decoding a pipe with only one expr",
-                ~debug=x,
-                EBlank(ID.generate()),
-              )
-              EPipe(x, e1, e2, list{})
-            | list{e1, e2, ...rest} => EPipe(x, e1, e2, rest)
-            }
-          , ID.decode, list(de))),
+        ("EPipe", dv4((a, b, c, d) => EPipe(a, b, c, d), ID.decode, de, de, list(de))),
         ("EConstructor", dv3((a, b, c) => EConstructor(a, b, c), ID.decode, string, list(de))),
         (
           "EMatch",
@@ -342,35 +444,209 @@ module AST = {
 
 module Handler = {
   module Spec = {
-    @ppx.deriving(show({with_path: false}))
-    type rec t = {
-      space: blankOr<string>,
-      name: blankOr<string>,
-      modifier: blankOr<string>,
+    module CronInterval = {
+      @ppx.deriving(show({with_path: false}))
+      type rec t =
+        | EveryDay
+        | EveryWeek
+        | EveryFortnight
+        | EveryHour
+        | Every12Hours
+        | EveryMinute
+
+      let encode = (i: t): Js.Json.t => {
+        open Json_encode_extended
+        let ev = variant
+        switch i {
+        | EveryDay => ev("EveryDay", list{})
+        | EveryWeek => ev("EveryWeek", list{})
+        | EveryFortnight => ev("EveryFortnight", list{})
+        | EveryHour => ev("EveryHour", list{})
+        | Every12Hours => ev("Every12Hours", list{})
+        | EveryMinute => ev("EveryMinute", list{})
+        }
+      }
+
+      let decode = (j): t => {
+        open Json_decode_extended
+        let dv0 = variant0
+        variants(
+          list{
+            ("EveryDay", dv0(EveryDay)),
+            ("EveryWeek", dv0(EveryWeek)),
+            ("EveryFortnight", dv0(EveryFortnight)),
+            ("EveryHour", dv0(EveryHour)),
+            ("Every12Hours", dv0(Every12Hours)),
+            ("EveryMinute", dv0(EveryMinute)),
+          },
+          j,
+        )
+      }
+
+      let toString = (i: t): string => {
+        switch i {
+        | EveryDay => "EveryDay"
+        | EveryWeek => "EveryWeek"
+        | EveryFortnight => "EveryFortnight"
+        | EveryHour => "EveryHour"
+        | Every12Hours => "Every12Hours"
+        | EveryMinute => "EveryMinute"
+        }
+      }
+      let fromString = (i: string): option<t> => {
+        switch i {
+        | "EveryDay" => Some(EveryDay)
+        | "EveryWeek" => Some(EveryWeek)
+        | "EveryFortnight" => Some(EveryFortnight)
+        | "EveryHour" => Some(EveryHour)
+        | "Every12Hours" => Some(Every12Hours)
+        | "EveryMinute" => Some(EveryMinute)
+        | _ => None
+        }
+      }
     }
 
+    module IDs = {
+      @ppx.deriving(show({with_path: false}))
+      type rec t = {moduleID: ID.t, nameID: ID.t, modifierID: ID.t}
+
+      let encode = ({moduleID, nameID, modifierID}) => {
+        open Json_encode_extended
+        object_(list{
+          ("moduleID", ID.encode(moduleID)),
+          ("nameID", ID.encode(nameID)),
+          ("modifierID", ID.encode(modifierID)),
+        })
+      }
+
+      let decode = j => {
+        open Json_decode_extended
+        {
+          moduleID: field("moduleID", ID.decode, j),
+          nameID: field("nameID", ID.decode, j),
+          modifierID: field("modifierID", ID.decode, j),
+        }
+      }
+      let new = (): t => {
+        moduleID: ID.generate(),
+        nameID: ID.generate(),
+        modifierID: ID.generate(),
+      }
+    }
+
+    @ppx.deriving(show({with_path: false}))
+    type rec t =
+      | HTTP(string, string, IDs.t)
+      | Worker(string, IDs.t)
+      | OldWorker(string, string, IDs.t)
+      | Cron(string, option<CronInterval.t>, IDs.t)
+      | REPL(string, IDs.t)
+      | UnknownHandler(string, string, IDs.t)
+
     let encode = (spec: t): Js.Json.t => {
-      open Json.Encode
-      object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, spec.name)),
-        ("module", BaseTypes.encodeBlankOr(string, spec.space)),
-        ("modifier", BaseTypes.encodeBlankOr(string, spec.modifier)),
-        (
-          "types",
-          object_(list{
-            ("input", BaseTypes.encodeBlankOr(int, BaseTypes.Blank(ID.generate()))),
-            ("output", BaseTypes.encodeBlankOr(int, BaseTypes.Blank(ID.generate()))),
-          }),
-        ),
-      })
+      open Json_encode_extended
+      let ev = variant
+      switch spec {
+      | HTTP(name, mod, ids) => ev("HTTP", list{string(name), string(mod), IDs.encode(ids)})
+      | Worker(name, ids) => ev("Worker", list{string(name), IDs.encode(ids)})
+      | OldWorker(space, name, ids) =>
+        ev("OldWorker", list{string(space), string(name), IDs.encode(ids)})
+      | Cron(name, interval, ids) =>
+        ev("Cron", list{string(name), nullable(CronInterval.encode, interval), IDs.encode(ids)})
+      | REPL(name, ids) => ev("REPL", list{string(name), IDs.encode(ids)})
+      | UnknownHandler(name, mod, ids) =>
+        ev("UnknownHandler", list{string(name), string(mod), IDs.encode(ids)})
+      }
     }
     let decode = (j): t => {
       open Json_decode_extended
-      {
-        space: field("module", BaseTypes.decodeBlankOr(string), j),
-        name: field("name", BaseTypes.decodeBlankOr(string), j),
-        modifier: field("modifier", BaseTypes.decodeBlankOr(string), j),
+      let dv2 = variant2
+      let dv3 = variant3
+      variants(
+        list{
+          ("HTTP", dv3((a, b, c) => HTTP(a, b, c), string, string, IDs.decode)),
+          ("Worker", dv2((a, b) => Worker(a, b), string, IDs.decode)),
+          ("OldWorker", dv3((a, b, c) => OldWorker(a, b, c), string, string, IDs.decode)),
+          (
+            "Cron",
+            dv3((a, b, c) => Cron(a, b, c), string, optional(CronInterval.decode), IDs.decode),
+          ),
+          ("REPL", dv2((a, b) => REPL(a, b), string, IDs.decode)),
+          ("UnknownHandler", dv3((a, b, c) => UnknownHandler(a, b, c), string, string, IDs.decode)),
+        },
+        j,
+      )
+    }
+    let space = (spec: t): BlankOr.t<string> => {
+      switch spec {
+      | HTTP(_, _, ids) => F(ids.moduleID, "HTTP")
+      | Worker(_, ids) => F(ids.moduleID, "WORKER")
+      | OldWorker(space, _, ids) => F(ids.moduleID, space)
+      | Cron(_, _, ids) => F(ids.moduleID, "CRON")
+      | REPL(_, ids) => F(ids.moduleID, "REPL")
+      | UnknownHandler(_, _, ids) => Blank(ids.moduleID)
       }
+    }
+    let name = (spec: t): BlankOr.t<string> => {
+      switch spec {
+      | HTTP(name, _, ids)
+      | Worker(name, ids)
+      | OldWorker(_, name, ids)
+      | Cron(name, _, ids)
+      | REPL(name, ids)
+      | UnknownHandler(name, _, ids) =>
+        if name == "" {
+          Blank(ids.nameID)
+        } else {
+          F(ids.nameID, name)
+        }
+      }
+    }
+    let modifier = (spec: t): option<BlankOr.t<string>> => {
+      switch spec {
+      | HTTP(_, "", ids)
+      | UnknownHandler(_, "", ids) =>
+        Some(Blank(ids.modifierID))
+
+      | HTTP(_, mod, ids)
+      | UnknownHandler(_, mod, ids) =>
+        Some(F(ids.modifierID, mod))
+
+      | Cron(_, Some(interval), ids) => Some(F(ids.modifierID, CronInterval.toString(interval)))
+      | Cron(_, None, ids) => Some(Blank(ids.modifierID))
+
+      // These don't have modifiers
+      | REPL(_, _)
+      | Worker(_, _)
+      | OldWorker(_, _, _) =>
+        None
+      }
+    }
+    let ids = (spec: t): IDs.t => {
+      switch spec {
+      | HTTP(_, _, ids)
+      | Worker(_, ids)
+      | OldWorker(_, _, ids)
+      | Cron(_, _, ids)
+      | REPL(_, ids)
+      | UnknownHandler(_, _, ids) => ids
+      }
+    }
+
+    let newUnknown = (name: string, modifier: string): t => {
+      UnknownHandler(name, modifier, IDs.new())
+    }
+    let newHTTP = (path: string, modifier: string): t => {
+      HTTP(path, modifier, IDs.new())
+    }
+    let newCron = (name: string, interval: option<CronInterval.t>): t => {
+      Cron(name, interval, IDs.new())
+    }
+    let newWorker = (name: string): t => {
+      Worker(name, IDs.new())
+    }
+    let newREPL = (name: string): t => {
+      REPL(name, IDs.new())
     }
   }
 
@@ -379,24 +655,25 @@ module Handler = {
     ast: AST.t,
     spec: Spec.t,
     tlid: TLID.t,
-    pos: pos,
+    pos: Pos.t,
   }
   let encode = (h: t): Js.Json.t => {
     open Json.Encode
     object_(list{
       ("tlid", TLID.encode(h.tlid)),
-      ("spec", Spec.encode(h.spec)),
+      ("pos", Pos.encode(h.pos)),
       ("ast", AST.encode(h.ast)),
+      ("spec", Spec.encode(h.spec)),
     })
   }
 
-  let decode = (pos, j): t => {
+  let decode = (j): t => {
     open Json.Decode
     {
+      tlid: field("tlid", TLID.decode, j),
+      pos: field("pos", Pos.decode, j),
       ast: field("ast", AST.decode, j),
       spec: field("spec", Spec.decode, j),
-      tlid: field("tlid", TLID.decode, j),
-      pos: pos,
     }
   }
 }
@@ -404,77 +681,71 @@ module Handler = {
 module DB = {
   module Col = {
     @ppx.deriving(show({with_path: false}))
-    type rec t = (blankOr<string>, blankOr<string>)
+    type rec t = {
+      name: option<string>,
+      typ: option<DType.t>,
+      nameID: ID.t,
+      typeID: ID.t,
+    }
+    let new = (): t => {
+      name: None,
+      typ: None,
+      nameID: ID.generate(),
+      typeID: ID.generate(),
+    }
 
     let encode = (col: t): Js.Json.t => {
       open Json.Encode
-      pair(BaseTypes.encodeBlankOr(string), BaseTypes.encodeBlankOr(string), col)
+      object_(list{
+        ("name", nullable(string, col.name)),
+        ("typ", nullable(DType.encode, col.typ)),
+        ("nameID", ID.encode(col.nameID)),
+        ("typeID", ID.encode(col.typeID)),
+      })
     }
 
     let decode = (j): t => {
       open Json.Decode
-      // CLEANUP: this is really ugly. Copied from Prelude. We should have a DType here, not a string
-      let rec tipe2str = (t: DType.t): string =>
-        switch t {
-        | TAny => "Any"
-        | TInt => "Int"
-        | TFloat => "Float"
-        | TBool => "Bool"
-        | TNull => "Null"
-        | TCharacter => "Character"
-        | TStr => "String"
-        | TList => "List"
-        | TTuple(_, _, _) => "Tuple"
-        | TObj => "Dict"
-        | TBlock => "Block"
-        | TIncomplete => "Incomplete"
-        | TError => "Error"
-        | TResp => "Response"
-        | TDB => "Datastore"
-        | TDate => "Date"
-        | TOption => "Option"
-        | TPassword => "Password"
-        | TUuid => "UUID"
-        | TErrorRail => "ErrorRail"
-        | TResult => "Result"
-        | TDbList(a) => "[" ++ (tipe2str(a) ++ "]")
-        | TUserType(name, _) => name
-        | TBytes => "Bytes"
-        }
-
-      let tipeString = (j): string => map(tipe2str, DType.decodeOld, j)
-      tuple2(BaseTypes.decodeBlankOr(string), BaseTypes.decodeBlankOr(tipeString), j)
+      {
+        name: field("name", optional(string), j),
+        typ: field("typ", optional(DType.decode), j),
+        nameID: field("nameID", ID.decode, j),
+        typeID: field("typeID", ID.decode, j),
+      }
     }
   }
 
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     tlid: TLID.t,
-    name: blankOr<string>,
+    name: string,
+    nameID: ID.t,
     cols: list<Col.t>,
     version: int,
-    pos: pos,
+    pos: Pos.t,
   }
 
   let encode = (db: t): Js.Json.t => {
     open Json.Encode
     object_(list{
       ("tlid", TLID.encode(db.tlid)),
-      ("name", BaseTypes.encodeBlankOr(string, db.name)),
-      ("cols", list(Col.encode, db.cols)),
+      ("pos", Pos.encode(db.pos)),
+      ("name", string(db.name)),
+      ("nameID", ID.encode(db.nameID)),
       ("version", int(db.version)),
-      ("old_migrations", list(int, list{})),
-      ("active_migration", null),
+      ("cols", list(Col.encode, db.cols)),
     })
   }
-  let decode = (pos, j): t => {
+
+  let decode = (j): t => {
     open Json.Decode
     {
       tlid: field("tlid", TLID.decode, j),
-      name: field("name", BaseTypes.decodeBlankOr(string), j),
-      cols: field("cols", list(Col.decode), j),
+      pos: field("pos", Pos.decode, j),
+      name: field("name", string, j),
+      nameID: field("nameID", ID.decode, j),
       version: field("version", int, j),
-      pos: pos,
+      cols: field("cols", list(Col.decode), j),
     }
   }
 }
@@ -483,61 +754,31 @@ module UserFunction = {
   module Parameter = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      name: blankOr<string>,
-      typ: blankOr<DType.t>,
-      args: list<string>,
-      optional: bool,
+      name: string,
+      nameID: ID.t,
+      typ: option<DType.t>,
+      typeID: ID.t,
       description: string,
     }
+
     let encode = (p: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, p.name)),
-        ("tipe", BaseTypes.encodeBlankOr(DType.encode, p.typ)),
-        ("block_args", list(string, p.args)),
-        ("optional", bool(p.optional)),
+        ("name", string(p.name)),
+        ("nameID", ID.encode(p.nameID)),
+        ("typ", nullable(DType.encode, p.typ)),
+        ("typeID", ID.encode(p.typeID)),
         ("description", string(p.description)),
       })
     }
     let decode = (j): t => {
       open Json_decode_extended
       {
-        name: field("name", BaseTypes.decodeBlankOr(string), j),
-        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decodeOld), j),
-        args: field("block_args", list(string), j),
-        optional: field("optional", bool, j),
+        name: field("name", string, j),
+        nameID: field("nameID", ID.decode, j),
+        typ: field("typ", optional(DType.decode), j),
+        typeID: field("typeID", ID.decode, j),
         description: field("description", string, j),
-      }
-    }
-  }
-  module Metadata = {
-    @ppx.deriving(show({with_path: false}))
-    type rec t = {
-      name: blankOr<string>,
-      parameters: list<Parameter.t>,
-      description: string,
-      returnType: blankOr<DType.t>,
-      infix: bool,
-    }
-    let encode = (f: t): Js.Json.t => {
-      open Json.Encode
-      object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, f.name)),
-        ("parameters", list(Parameter.encode, f.parameters)),
-        ("description", string(f.description)),
-        ("return_type", BaseTypes.encodeBlankOr(DType.encode, f.returnType)),
-        ("infix", bool(f.infix)),
-      })
-    }
-
-    let decode = (j): t => {
-      open Json_decode_extended
-      {
-        name: field("name", BaseTypes.decodeBlankOr(string), j),
-        parameters: field("parameters", list(Parameter.decode), j),
-        description: field("description", string, j),
-        returnType: field("return_type", BaseTypes.decodeBlankOr(DType.decodeOld), j),
-        infix: field("infix", bool, j),
       }
     }
   }
@@ -545,24 +786,42 @@ module UserFunction = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     tlid: TLID.t,
-    metadata: Metadata.t,
-    ast: AST.t,
+    name: string,
+    nameID: ID.t,
+    parameters: list<Parameter.t>,
+    returnType: DType.t,
+    returnTypeID: ID.t,
+    description: string,
+    infix: bool,
+    body: AST.t,
   }
 
-  let encode = (uf: t): Js.Json.t => {
+  let encode = (f: t): Js.Json.t => {
     open Json.Encode
     object_(list{
-      ("tlid", TLID.encode(uf.tlid)),
-      ("metadata", Metadata.encode(uf.metadata)),
-      ("ast", AST.encode(uf.ast)),
+      ("tlid", TLID.encode(f.tlid)),
+      ("name", string(f.name)),
+      ("nameID", ID.encode(f.nameID)),
+      ("parameters", list(Parameter.encode, f.parameters)),
+      ("returnType", DType.encode(f.returnType)),
+      ("returnTypeID", ID.encode(f.returnTypeID)),
+      ("description", string(f.description)),
+      ("infix", bool(f.infix)),
+      ("body", AST.encode(f.body)),
     })
   }
   let decode = (j): t => {
     open Json.Decode
     {
       tlid: field("tlid", TLID.decode, j),
-      metadata: field("metadata", Metadata.decode, j),
-      ast: field("ast", AST.decode, j),
+      name: field("name", string, j),
+      nameID: field("nameID", ID.decode, j),
+      parameters: field("parameters", list(Parameter.decode), j),
+      returnType: field("returnType", DType.decode, j),
+      returnTypeID: field("returnTypeID", ID.decode, j),
+      description: field("description", string, j),
+      infix: field("infix", bool, j),
+      body: field("body", AST.decode, j),
     }
   }
 }
@@ -571,48 +830,55 @@ module UserType = {
   module RecordField = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
-      name: blankOr<string>,
-      typ: blankOr<DType.t>,
+      name: string,
+      typ: option<DType.t>,
+      nameID: ID.t,
+      typeID: ID.t,
     }
     let encode = (f: t): Js.Json.t => {
       open Json.Encode
       object_(list{
-        ("name", BaseTypes.encodeBlankOr(string, f.name)),
-        ("tipe", BaseTypes.encodeBlankOr(DType.encode, f.typ)),
+        ("name", string(f.name)),
+        ("typ", nullable(DType.encode, f.typ)),
+        ("nameID", ID.encode(f.nameID)),
+        ("typeID", ID.encode(f.typeID)),
       })
     }
 
     let decode = j => {
       open Json.Decode
       {
-        name: field("name", BaseTypes.decodeBlankOr(string), j),
-        typ: field("tipe", BaseTypes.decodeBlankOr(DType.decodeOld), j),
+        name: field("name", string, j),
+        typ: field("typ", optional(DType.decode), j),
+        nameID: field("nameID", ID.decode, j),
+        typeID: field("typeID", ID.decode, j),
       }
     }
   }
 
   module Definition = {
     @ppx.deriving(show({with_path: false}))
-    type rec t = UTRecord(list<RecordField.t>)
+    type rec t = Record(list<RecordField.t>)
 
     let encode = (d: t): Js.Json.t => {
       open Json_encode_extended
       let ev = variant
       switch d {
-      | UTRecord(fields) => ev("UTRecord", list{list(RecordField.encode)(fields)})
+      | Record(fields) => ev("Record", list{list(RecordField.encode)(fields)})
       }
     }
 
     let decode = j => {
       open Json_decode_extended
-      variants(list{("UTRecord", variant1(x => UTRecord(x), list(RecordField.decode)))}, j)
+      variants(list{("Record", variant1(x => Record(x), list(RecordField.decode)))}, j)
     }
   }
 
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     tlid: TLID.t,
-    name: blankOr<string>,
+    name: string,
+    nameID: ID.t,
     version: int,
     definition: Definition.t,
   }
@@ -620,7 +886,8 @@ module UserType = {
     open Json_encode_extended
     object_(list{
       ("tlid", TLID.encode(t.tlid)),
-      ("name", BaseTypes.encodeBlankOr(string, t.name)),
+      ("name", string(t.name)),
+      ("nameID", ID.encode(t.nameID)),
       ("version", int(t.version)),
       ("definition", Definition.encode(t.definition)),
     })
@@ -629,7 +896,8 @@ module UserType = {
     open Json.Decode
     {
       tlid: field("tlid", TLID.decode, j),
-      name: field("name", BaseTypes.decodeBlankOr(string), j),
+      name: field("name", string, j),
+      nameID: field("nameID", ID.decode, j),
       version: field("version", int, j),
       definition: field("definition", Definition.decode, j),
     }
@@ -639,13 +907,13 @@ module UserType = {
 module Op = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    | SetHandler(TLID.t, pos, Handler.t)
-    | CreateDB(TLID.t, pos, string)
+    | SetHandler(TLID.t, Pos.t, Handler.t)
+    | CreateDB(TLID.t, Pos.t, string)
     | AddDBCol(TLID.t, ID.t, ID.t)
     | SetDBColName(TLID.t, ID.t, string)
     | SetDBColType(TLID.t, ID.t, string)
     | DeleteTL(TLID.t)
-    | MoveTL(TLID.t, pos)
+    | MoveTL(TLID.t, Pos.t)
     | SetFunction(UserFunction.t)
     | ChangeDBColName(TLID.t, ID.t, string)
     | ChangeDBColType(TLID.t, ID.t, string)
@@ -656,7 +924,7 @@ module Op = {
     | DeleteFunction(TLID.t)
     | DeleteDBCol(TLID.t, ID.t)
     | RenameDBname(TLID.t, string)
-    | CreateDBWithBlankOr(TLID.t, pos, ID.t, string)
+    | CreateDBWithBlankOr(TLID.t, Pos.t, ID.t, string)
     | SetType(UserType.t)
     | DeleteType(TLID.t)
 
@@ -689,7 +957,7 @@ module Op = {
     let ev = variant
     let tlid = TLID.encode
     let id = ID.encode
-    let pos = BaseTypes.encodePos
+    let pos = Pos.encode
     switch op {
     | SetHandler(t, p, h) => ev("SetHandler", list{tlid(t), pos(p), Handler.encode(h)})
     | CreateDB(t, p, name) => ev("CreateDB", list{tlid(t), pos(p), string(name)})
@@ -718,17 +986,12 @@ module Op = {
     open Json_decode_extended
     let tlid = TLID.decode
     let id = ID.decode
-    let pos = BaseTypes.decodePos
+    let pos = Pos.decode
     variants(
       list{
         (
           "SetHandler",
-          variant3(
-            (t, p, h) => SetHandler(t, p, {...h, pos: p}),
-            tlid,
-            pos,
-            Handler.decode({x: -1286, y: -467}),
-          ),
+          variant3((t, p, h) => SetHandler(t, p, {...h, pos: p}), tlid, pos, Handler.decode),
         ),
         ("CreateDB", variant3((t, p, name) => CreateDB(t, p, name), tlid, pos, string)),
         ("AddDBCol", variant3((t, cn, ct) => AddDBCol(t, cn, ct), tlid, id, id)),
@@ -740,7 +1003,7 @@ module Op = {
         ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
         (
           "ChangeDBColType",
-          variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string),
+          variant3((t, i, tipe) => ChangeDBColType(t, i, tipe), tlid, id, string),
         ),
         ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
         ("TLSavepoint", variant1(t => TLSavepoint(t), tlid)),
@@ -761,5 +1024,74 @@ module Op = {
       },
       j,
     )
+  }
+}
+
+module Package = {
+  module Parameter = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      name: string,
+      tipe: DType.t,
+      description: string,
+    }
+    let decode = (j: Js.Json.t): t => {
+      open Json.Decode
+      {
+        name: field("name", string, j),
+        tipe: field("typ", DType.decode, j),
+        description: field("description", string, j),
+      }
+    }
+    let encode = (p: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("name", string(p.name)),
+        ("typ", DType.encode(p.tipe)),
+        ("description", string(p.description)),
+      })
+    }
+  }
+
+  module Fn = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      name: FQFnName.PackageFnName.t,
+      body: Expr.t,
+      parameters: list<Parameter.t>,
+      returnType: DType.t,
+      description: string,
+      author: string,
+      deprecated: bool,
+      tlid: TLID.t,
+    }
+
+    let decode = (j: Js.Json.t): t => {
+      open Json.Decode
+      {
+        name: field("name", FQFnName.PackageFnName.decode, j),
+        body: field("body", Expr.decode, j),
+        parameters: field("parameters", list(Parameter.decode), j),
+        returnType: field("returnType", DType.decode, j),
+        description: field("description", string, j),
+        author: field("author", string, j),
+        deprecated: field("deprecated", bool, j),
+        tlid: field("tlid", TLID.decode, j),
+      }
+    }
+
+    let encode = (f: t): Js.Json.t => {
+      open Json.Encode
+      object_(list{
+        ("name", FQFnName.PackageFnName.encode(f.name)),
+        ("body", Expr.encode(f.body)),
+        ("parameters", list(Parameter.encode, f.parameters)),
+        ("returnType", DType.encode(f.returnType)),
+        ("description", string(f.description)),
+        ("author", string(f.author)),
+        ("deprecated", bool(f.deprecated)),
+        ("tlid", TLID.encode(f.tlid)),
+      })
+    }
   }
 }

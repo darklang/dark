@@ -2,16 +2,13 @@ open Tester
 open Prelude
 open FluidTestData
 open ProgramTypes.Expr
+open FluidShortcuts
 
 let makeTL = ast => TLHandler({
   ast: ast,
-  spec: {
-    space: Blank(gid()),
-    name: Blank(gid()),
-    modifier: Blank(gid()),
-  },
+  spec: PT.Handler.Spec.newHTTP("", ""),
   tlid: TLID.fromInt(7),
-  pos: Defaults.origin,
+  pos: Pos.origin,
 })
 
 let run = () =>
@@ -19,7 +16,7 @@ let run = () =>
     let hasCmd = (name: string, expr: FluidExpression.t, ast: FluidAST.t) => {
       let tl = makeTL(ast)
       FluidCommands.commandsFor(defaultTestModel, tl, expr)
-      |> List.find(~f=(c: Types.command) => c.commandName == name)
+      |> List.find(~f=(c: AppTypes.fluidCmd) => c.commandName == name)
       |> Option.isSome
     }
 
@@ -46,7 +43,7 @@ let run = () =>
     )
     test("no copy as curl for normal function", () => expectNoCmd("copy-request-as-curl", aFnCall))
     test("has copy as curl for Http function", () => {
-      let expr = EFnCall(gid(), "HttpClient::get", list{aStr, emptyRecord, emptyRecord}, Rail)
+      let expr = fn(~mod="HttpClient", "get", list{aStr, emptyRecord, emptyRecord})
 
       expectCmd("copy-request-as-curl", expr)
     })

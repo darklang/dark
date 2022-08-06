@@ -1,5 +1,7 @@
 open Prelude
-module Regex = Util.Regex
+
+module Msg = AppTypes.Msg
+type msg = AppTypes.msg
 
 let tagEx = "^(.*)\\<(\\w+)\\s(.+?)\\>(.*)$"
 

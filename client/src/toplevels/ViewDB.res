@@ -3,13 +3,13 @@ open Prelude
 // Dark
 module B = BlankOr
 
+type msg = AppTypes.msg
 type viewProps = ViewUtils.viewProps
 
 type domEventList = ViewUtils.domEventList
+type dbStats = AnalysisTypes.dbStats
 
 let fontAwesome = ViewUtils.fontAwesome
-
-let dbName2String = (name: blankOr<string>): string => B.valueWithDefault("", name)
 
 let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(
@@ -65,9 +65,10 @@ let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
 
   let titleView = {
     let nameField = if vp.dbLocked {
-      Html.text(dbName2String(db.name))
+      Html.text(db.name)
     } else {
-      ViewBlankOr.viewText(~enterable=true, ~classes=list{"dbname"}, DBName, vp, db.name)
+      let blankOr = B.fromStringID(db.name, db.nameID)
+      ViewBlankOr.viewText(~enterable=true, ~classes=list{"dbname"}, DBName, vp, blankOr)
     }
 
     Html.span(
@@ -104,29 +105,42 @@ let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
   list{typeView, titleView, menuView}
 }
 
-let viewDBColName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> => {
-  let enterable = B.isBlank(v) || !vp.dbLocked
+let viewDBColName = (
+  ~classes: list<string>,
+  vp: viewProps,
+  name: option<string>,
+  nameID: ID.t,
+): Html.html<msg> => {
+  let enterable = name == None || !vp.dbLocked
+  let v = B.fromOptionID(name, nameID)
   ViewBlankOr.viewText(~enterable, ~classes, DBColName, vp, v)
 }
 
-let viewDBColType = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> => {
-  let enterable = B.isBlank(v) || !vp.dbLocked
+let viewDBColType = (
+  ~classes: list<string>,
+  vp: viewProps,
+  typ: option<DType.t>,
+  typeID: ID.t,
+): Html.html<msg> => {
+  let enterable = typ == None || !vp.dbLocked
+  let typ = Option.map(~f=DType.tipe2str, typ)
+  let v = B.fromOptionID(typ, typeID)
   ViewBlankOr.viewText(~enterable, ~classes, DBColType, vp, v)
 }
 
-let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): PT.DB.Col.t): Html.html<
-  msg,
-> => {
+let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, col: PT.DB.Col.t): Html.html<msg> => {
   let deleteButton = if (
-    vp.permission == Some(ReadWrite) && ((isMigra || !vp.dbLocked) && (B.isF(n) || B.isF(t)))
+    vp.permission == Some(ReadWrite) &&
+    (isMigra || !vp.dbLocked) &&
+    (Option.isSome(col.name) || Option.isSome(col.typ))
   ) {
     Html.div(
       list{
         Html.class'("delete-col"),
         ViewUtils.eventNoPropagation(
-          ~key="dcidb-" ++ (TLID.toString(tlid) ++ ("-" ++ (n |> B.toID |> ID.toString))),
+          ~key="dcidb-" ++ (TLID.toString(tlid) ++ ("-" ++ (col.nameID |> ID.toString))),
           "click",
-          _ => DeleteColInDB(tlid, B.toID(n)),
+          _ => DeleteColInDB(tlid, col.nameID),
         ),
       },
       list{fontAwesome("minus-circle")},
@@ -136,8 +150,8 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): PT.DB.Col.t
   }
 
   let row = list{
-    viewDBColName(vp, ~classes=list{"name"}, n),
-    viewDBColType(vp, ~classes=list{"type"}, t),
+    viewDBColName(vp, ~classes=list{"name"}, col.name, col.nameID),
+    viewDBColType(vp, ~classes=list{"type"}, col.typ, col.typeID),
   }
 
   Html.div(
@@ -154,7 +168,7 @@ let viewDB = (vp: viewProps, db: PT.DB.t, dragEvents: domEventList): list<Html.h
   }
 
   let cols = if !(vp.permission == Some(ReadWrite)) || vp.dbLocked {
-    List.filter(~f=((n, t)) => B.isF(n) && B.isF(t), db.cols)
+    List.filter(~f=col => Option.isSome(col.name) && Option.isSome(col.typ), db.cols)
   } else {
     db.cols
   }

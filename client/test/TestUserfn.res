@@ -9,23 +9,11 @@ let defaultTLID = gtlid()
 
 let defaultFluidExpr = ProgramTypes.Expr.EBlank(gid())
 
-let defaultPos = {x: 0, y: 0}
-
 let defaultFnName = "myFun"
 
-let aHandler = (
-  ~tlid=defaultTLID,
-  ~expr=defaultFluidExpr,
-  ~pos=defaultPos,
-  ~space: option<string>=None,
-  (),
-): toplevel => {
-  let space = switch space {
-  | None => B.new_()
-  | Some(name) => B.newF(name)
-  }
-  let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
-  TLHandler({ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: pos})
+let aHandler = (~tlid=defaultTLID, ()): toplevel => {
+  let spec = PT.Handler.Spec.HTTP("", "", {moduleID: gid(), modifierID: gid(), nameID: gid()})
+  TLHandler({ast: FluidAST.ofExpr(defaultFluidExpr), spec: spec, tlid: tlid, pos: Pos.center})
 }
 
 let aFn = (
@@ -36,14 +24,14 @@ let aFn = (
   (),
 ): toplevel => TLFunc({
   tlid: tlid,
-  metadata: {
-    name: F(gid(), name),
-    parameters: params,
-    description: "",
-    returnType: F(gid(), TAny),
-    infix: false,
-  },
-  ast: FluidAST.ofExpr(expr),
+  name: name,
+  nameID: gid(),
+  parameters: params,
+  description: "",
+  returnType: DType.any,
+  returnTypeID: gid(),
+  infix: false,
+  body: FluidAST.ofExpr(expr),
 })
 
 let run = () => {

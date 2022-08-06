@@ -9,42 +9,46 @@ let keyForTipe = (name: string, version: int): string => name ++ (":" ++ Int.toS
 
 let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   dbs
-  |> Map.filterMapValues(~f=(db: PT.DB.t) =>
-    db.name |> B.toOption |> Option.map(~f=name => (name, db.tlid))
-  )
+  |> Map.filter(~f=(db: PT.DB.t) => db.name != "")
+  |> Map.map(~f=(db: PT.DB.t) => (db.name, db.tlid))
+  |> Map.values
   |> Map.String.fromList
 
-let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> =>
+let handlersByName = (hs: TD.t<PT.Handler.t>): Map.String.t<TLID.t> => {
+  module S = PT.Handler.Spec
   hs
   |> Map.mapValues(~f=(h: PT.Handler.t) => {
-    let space = h.spec.space |> B.toOption |> Option.unwrap(~default="_")
-    let name = h.spec.name |> B.toOption |> Option.unwrap(~default="_")
+    let space = S.space(h.spec)->B.toString
+    let name = S.name(h.spec)->B.toString
     let key = keyForHandlerSpec(space, name)
     (key, h.tlid)
   })
   |> Map.String.fromList
+}
 
 let functionsByName = (fns: TD.t<PT.UserFunction.t>): Map.String.t<TLID.t> =>
   fns
   |> Map.filterMapValues(~f=(uf: PT.UserFunction.t) =>
-    uf.metadata.name |> B.toOption |> Option.map(~f=name => (name, uf.tlid))
+    if uf.name == "" {
+      None
+    } else {
+      Some(uf.name, uf.tlid)
+    }
   )
   |> Map.String.fromList
 
-let packageFunctionsByName = (fns: TD.t<packageFn>): Map.String.t<TLID.t> =>
+let packageFunctionsByName = (fns: TD.t<PT.Package.Fn.t>): Map.String.t<TLID.t> =>
   fns
-  |> Map.mapValues(~f=fn => (fn |> PackageManager.extendedName, fn.pfTLID))
+  |> Map.mapValues(~f=(fn: PT.Package.Fn.t) => (
+    PT.FQFnName.PackageFnName.toString(fn.name),
+    fn.tlid,
+  ))
   |> Map.String.fromList
 
 let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
   uts
   |> Map.mapValues(~f=(ut: PT.UserType.t) => {
-    let name =
-      ut.name
-      |> B.toOption
-      |> // Shouldn't happen: all tipes have a default name
-      recoverOpt("tipes should have default names", ~default="_")
-
+    let name = ut.name
     let version = ut.version
     let key = keyForTipe(name, version)
     (key, ut.tlid)
@@ -100,7 +104,7 @@ let rec updateAssocList = (~key: 'k, ~f: option<'v> => option<'v>, assoc: list<(
     }
   }
 
-let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<id>)> =>
+let allRefersTo = (tlid: TLID.t, m: AppTypes.model): list<(toplevel, list<id>)> =>
   m.tlRefersTo
   |> Map.get(~key=tlid)
   |> Option.unwrap(~default=list{})
@@ -114,7 +118,7 @@ let allRefersTo = (tlid: TLID.t, m: model): list<(toplevel, list<id>)> =>
   )
   |> List.filterMap(~f=((tlid, ids)) => TL.get(m, tlid) |> Option.map(~f=tl => (tl, ids)))
 
-let allUsedIn = (tlid: TLID.t, m: model): list<toplevel> =>
+let allUsedIn = (tlid: TLID.t, m: AppTypes.model): list<toplevel> =>
   m.tlUsedIn
   |> Map.get(~key=tlid)
   |> Option.unwrap(~default=TLID.Set.empty)
@@ -133,20 +137,36 @@ let findUsagesInAST = (
   |> FluidExpression.filterMap(~f=e =>
     switch e {
     | EVariable(id, name) => Map.get(~key=name, datastores) |> Option.map(~f=tlid => (tlid, id))
-    | EFnCall(id, "emit", list{_, EString(_, space_), EString(_, name_)}, _) =>
+    | EFnCall(
+        id,
+        Stdlib({module_: "", function: "emit", version: 0}),
+        list{_, EString(_, space_), EString(_, name_)},
+        _,
+      ) =>
       let name = Util.removeQuotes(name_)
       let space = Util.removeQuotes(space_)
       let key = keyForHandlerSpec(space, name)
       Map.get(~key, handlers) |> Option.map(~f=fnTLID => (fnTLID, id))
-    | EFnCall(id, "emit_v1", list{_, EString(_, name_)}, _) =>
+    | EFnCall(
+        id,
+        Stdlib({module_: "", function: "emit", version: 1}),
+        list{_, EString(_, name_)},
+        _,
+      ) =>
       let name = Util.removeQuotes(name_)
       let space = "WORKER"
       let key = keyForHandlerSpec(space, name)
       Map.get(~key, handlers) |> Option.map(~f=fnTLID => (fnTLID, id))
     | EFnCall(id, name, _, _) =>
       Option.orElse(
-        Map.get(~key=name, functions) |> Option.map(~f=fnTLID => (fnTLID, id)),
-        Map.get(~key=name, packageFunctions) |> Option.map(~f=fnTLID => (fnTLID, id)),
+        Map.get(~key=PT.FQFnName.toString(name), functions) |> Option.map(~f=fnTLID => (
+          fnTLID,
+          id,
+        )),
+        Map.get(~key=PT.FQFnName.toString(name), packageFunctions) |> Option.map(~f=fnTLID => (
+          fnTLID,
+          id,
+        )),
       )
     | _ => None
     }
@@ -159,14 +179,13 @@ let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: PT.UserFuncti
   // Versions are slightly aspirational, and we don't have them in most of
   // the places we use tipes, including here
   let version = 0
-  fn.metadata.parameters
+  fn.parameters
   |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
     p.typ
-    |> B.toOption
-    |> Option.map(~f=Runtime.tipe2str)
+    |> Option.map(~f=DType.tipe2str)
     |> Option.map(~f=t => keyForTipe(t, version))
     |> Option.andThen(~f=key => Map.get(~key, tipes))
-    |> Option.thenAlso(~f=_ => Some(B.toID(p.typ)))
+    |> Option.thenAlso(~f=_ => Some(p.typeID))
   )
   |> List.map(~f=((usedIn, id)) => {refersTo: fn.tlid, usedIn: usedIn, id: id})
 }
@@ -195,12 +214,12 @@ let getUsageFor = (
   Belt.List.concat(astUsages, fnUsages)
 }
 
-let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
+let refreshUsages = (m: AppTypes.model, tlids: list<TLID.t>): AppTypes.model => {
   let datastores = dbsByName(m.dbs)
   let handlers = handlersByName(m.handlers)
   let functions = functionsByName(m.userFunctions)
   let packageFunctions = packageFunctionsByName(m.functions.packageFunctions)
-  let tipes = tipesByName(m.userTipes)
+  let tipes = tipesByName(m.userTypes)
   /* We need to overwrite the already-stored results for the passed-in TLIDs.
    * So we clear tlRefers for these tlids, and remove them from the inner set
    * of tlUsedIn. */
@@ -240,10 +259,10 @@ let refreshUsages = (m: model, tlids: list<TLID.t>): model => {
   {...m, tlUsedIn: newTlUsedIn, tlRefersTo: newTlRefersTo}
 }
 
-let setHoveringReferences = (tlid: TLID.t, ids: list<id>): modification => {
+let setHoveringReferences = (tlid: TLID.t, ids: list<id>): AppTypes.modification => {
   let new_props = x =>
     switch x {
-    | None => Some({...Defaults.defaultHandlerProp, hoveringReferences: ids})
+    | None => Some({...AppTypes.HandlerProperty.default, hoveringReferences: ids})
     | Some(v) => Some({...v, hoveringReferences: ids})
     }
 

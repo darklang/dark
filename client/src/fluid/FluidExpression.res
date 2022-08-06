@@ -1,20 +1,21 @@
 include Prelude
 
-open ProgramTypes.Expr
+open PT.Expr
 
-@ppx.deriving(show({with_path: false})) type rec t = ProgramTypes.Expr.t
+@ppx.deriving(show({with_path: false})) type rec t = PT.Expr.t
 
 @ppx.deriving(show({with_path: false}))
 type rec fluidPatOrExpr =
   | Expr(t)
   | Pat(id, fluidPattern)
 
-let newB = () => ProgramTypes.Expr.EBlank(gid())
+let newB = () => PT.Expr.EBlank(gid())
 
 let toID = (expr: t): id =>
   switch expr {
   | EInteger(id, _)
   | EString(id, _)
+  | ECharacter(id, _)
   | EBool(id, _)
   | ENull(id)
   | EFloat(id, _, _, _)
@@ -46,6 +47,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | EInteger(id, _)
     | EBool(id, _)
     | EString(id, _)
+    | ECharacter(id, _)
     | EFloat(id, _, _, _)
     | ENull(id)
     | EBlank(id)
@@ -69,7 +71,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | EList(id, exprs)
     | EConstructor(id, _, exprs) => (id, List.map(exprs, ~f=e1 => Expr(e1)))
     | ETuple(id, first, second, theRest) =>
-      let childExprs = List.map(list{first, second, ...theRest}, ~f = e1 => Expr(e1))
+      let childExprs = List.map(list{first, second, ...theRest}, ~f=e1 => Expr(e1))
       (id, childExprs)
     | ERecord(id, nameAndExprs) => (id, List.map(nameAndExprs, ~f=((_, e1)) => Expr(e1)))
     | EMatch(id, e1, pairs) => (
@@ -88,6 +90,7 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | PNull(pid)
     | PBlank(pid)
     | PFloat(pid, _, _, _)
+    | PCharacter(pid, _)
     | PString(pid, _) => (pid, list{})
     | PConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
     }
@@ -109,6 +112,7 @@ let rec find = (target: id, expr: t): option<t> => {
     | EInteger(_)
     | EBlank(_)
     | EString(_)
+    | ECharacter(_)
     | EVariable(_)
     | EBool(_)
     | ENull(_)
@@ -148,6 +152,7 @@ let children = (expr: t): list<t> =>
   // None
   | EInteger(_)
   | EString(_)
+  | ECharacter(_)
   | EBool(_)
   | EFloat(_)
   | ENull(_)
@@ -207,7 +212,7 @@ let isEmpty = (expr: t): bool =>
   | EList(_, l) => l |> List.filter(~f=\"<<"(not, isBlank)) |> List.isEmpty
   | ETuple(_, first, second, theRest) =>
     let exprs = list{first, second, ...theRest}
-    exprs |> List.filter(~f = e => not(isBlank(e))) |> List.isEmpty
+    exprs |> List.filter(~f=e => !isBlank(e)) |> List.isEmpty
   | _ => false
   }
 
@@ -224,6 +229,7 @@ let rec preTraversal = (~f: t => t, expr: t): t => {
   | EInteger(_)
   | EBlank(_)
   | EString(_)
+  | ECharacter(_)
   | EVariable(_)
   | EBool(_)
   | ENull(_)
@@ -255,6 +261,7 @@ let rec postTraversal = (~f: t => t, expr: t): t => {
   | EInteger(_)
   | EBlank(_)
   | EString(_)
+  | ECharacter(_)
   | EVariable(_)
   | EBool(_)
   | ENull(_)
@@ -287,6 +294,7 @@ let deprecatedWalk = (~f: t => t, expr: t): t =>
   | EInteger(_)
   | EBlank(_)
   | EString(_)
+  | ECharacter(_)
   | EVariable(_)
   | EBool(_)
   | ENull(_)
@@ -463,6 +471,7 @@ let rec clone = (expr: t): t => {
   | EPipe(_, e1, e2, rest) => EPipe(gid(), c(e1), c(e2), cl(rest))
   | EFieldAccess(_, obj, field) => EFieldAccess(gid(), c(obj), field)
   | EString(_, v) => EString(gid(), v)
+  | ECharacter(_, v) => ECharacter(gid(), v)
   | EInteger(_, v) => EInteger(gid(), v)
   | EBool(_, v) => EBool(gid(), v)
   | EFloat(_, sign, whole, fraction) => EFloat(gid(), sign, whole, fraction)
@@ -499,6 +508,7 @@ let ancestors = (id: id, expr: t): list<t> => {
       switch exp {
       | EInteger(_)
       | EString(_)
+      | ECharacter(_)
       | EBool(_)
       | EFloat(_)
       | ENull(_)
@@ -549,6 +559,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     | (PConstructor(_, name, patterns), PConstructor(_, name', patterns')) =>
       name == name' && peqList(patterns, patterns')
     | (PString(_, str), PString(_, str')) => str == str'
+    | (PCharacter(_, str), PCharacter(_, str')) => str == str'
     | (PInteger(_, l), PInteger(_, l')) => l == l'
     | (PFloat(_, s, w, f), PFloat(_, s', w', f')) => (s, w, f) == (s', w', f')
     | (PBool(_, l), PBool(_, l')) => l == l'
@@ -557,6 +568,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     | (PVariable(_), _)
     | (PConstructor(_), _)
     | (PString(_), _)
+    | (PCharacter(_), _)
     | (PInteger(_), _)
     | (PFloat(_), _)
     | (PBool(_), _)
@@ -571,6 +583,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   // expressions with single string values
   | (EInteger(_, v), EInteger(_, v')) => v == v'
   | (EString(_, v), EString(_, v'))
+  | (ECharacter(_, v), ECharacter(_, v'))
   | (EVariable(_, v), EVariable(_, v')) =>
     v == v'
   | (EBool(_, v), EBool(_, v')) => v == v'
@@ -616,6 +629,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (EPipeTarget(_), _)
   | (EInteger(_), _)
   | (EString(_), _)
+  | (ECharacter(_), _)
   | (EVariable(_), _)
   | (EBool(_), _)
   | (EFloat(_), _)
@@ -647,6 +661,7 @@ let toHumanReadable = (expr: t): string => {
     let newlineList = exprs => exprs |> List.map(~f=rin) |> String.join(~sep="\n")
     let eStr = switch expr {
     | EBlank(_) => "(blank)"
+    | ECharacter(_, str) => `(char '${str}')`
     | EString(_, str) =>
       if String.length(str) > 20 {
         String.slice(~from=0, ~to_=20, str) ++ "..."
@@ -663,9 +678,16 @@ let toHumanReadable = (expr: t): string => {
     | EPartial(_, str, e) => Printf.sprintf(`(partial "%s" %s)`, str, r(e))
     | ERightPartial(_, str, e) => Printf.sprintf(`(rpartial "%s" %s)`, str, r(e))
     | ELeftPartial(_, str, e) => Printf.sprintf(`(lpartial "%s" %s)`, str, r(e))
-    | EFnCall(_, name, list{}, _) => Printf.sprintf("(fn \"%s\")", name)
-    | EFnCall(_, name, exprs, _) => Printf.sprintf("(fn \"%s\"\n%s)", name, newlineList(exprs))
-    | EBinOp(_, name, lhs, rhs, _) => Printf.sprintf("(binop \"%s\"\n%s\n%s)", name, r(lhs), r(rhs))
+    | EFnCall(_, name, list{}, _) => Printf.sprintf("(fn \"%s\")", PT.FQFnName.toString(name))
+    | EFnCall(_, name, exprs, _) =>
+      Printf.sprintf("(fn \"%s\"\n%s)", PT.FQFnName.toString(name), newlineList(exprs))
+    | EBinOp(_, name, lhs, rhs, _) =>
+      Printf.sprintf(
+        "(binop \"%s\"\n%s\n%s)",
+        PT.FQFnName.InfixStdlibFnName.toString(name),
+        r(lhs),
+        r(rhs),
+      )
     | EVariable(_, name) => Printf.sprintf(`(%s)`, name)
     | EFieldAccess(_, e, name) => Printf.sprintf("(fieldAccess \"%s\"\n%s)", name, r(e))
     | EMatch(_, cond, matches) =>
@@ -676,6 +698,7 @@ let toHumanReadable = (expr: t): string => {
         switch p {
         | PBlank(_) => "pBlank"
         | PString(_, str) => spaced(list{"pString", quoted(str)})
+        | PCharacter(_, str) => spaced(list{"pCharacter", quoted(str)})
         | PBool(_, true) => spaced(list{"pBool true"})
         | PBool(_, false) => spaced(list{"pBool false"})
         | PFloat(_, sign, whole, fractional) =>

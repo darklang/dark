@@ -1,5 +1,4 @@
 open Prelude
-module B = BlankOr
 module E = FluidExpression
 
 @ppx.deriving(show({with_path: false})) type rec t = Types.functionsType
@@ -15,7 +14,11 @@ let builtinFunctionsToFn = (fn: RT.BuiltInFn.t): function_ => {
     paramOptional: false,
   }
   {
-    fnName: fn.name |> RT.FQFnName.StdlibFnName.toString,
+    fnName: Stdlib({
+      module_: fn.name.module_,
+      function: fn.name.function,
+      version: fn.name.version,
+    }),
     fnParameters: fn.parameters |> List.map(~f=toParam),
     fnDescription: fn.description,
     fnReturnTipe: fn.returnType,
@@ -35,8 +38,11 @@ let builtinFunctionsToFn = (fn: RT.BuiltInFn.t): function_ => {
  * can't be found - this shouldn't happen in theory but often does
  * in practice; for example, someone might delete a function and
  * then do a local undo. */
-let find = (name: string, functions: t): option<function_> =>
+let find = (name: PT.FQFnName.t, functions: t): option<function_> =>
   List.find(functions.allowedFunctions, ~f=f => f.fnName == name)
+
+let findByStr = (name: string, functions: t): option<function_> =>
+  List.find(functions.allowedFunctions, ~f=f => PT.FQFnName.toString(f.fnName) == name)
 
 let empty: t = {
   builtinFunctions: list{},
@@ -70,18 +76,18 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
   let dependencyTree =
     props.userFunctions
     |> Map.mapValues(~f=(uf: PT.UserFunction.t) =>
-      uf.metadata.name
-      |> B.toOption
-      |> Option.map(~f=caller =>
-        E.filterMap(FluidAST.toExpr(uf.ast), ~f=x =>
+      if uf.name != "" {
+        E.filterMap(FluidAST.toExpr(uf.body), ~f=x =>
           switch x {
-          | EBinOp(_, callee, _, _, _) => Some(callee, caller)
-          | EFnCall(_, callee, _, _) => Some(callee, caller)
+          | EBinOp(_, callee, _, _, _) =>
+            Some(PT.FQFnName.InfixStdlibFnName.toString(callee), uf.name)
+          | EFnCall(_, callee, _, _) => Some(PT.FQFnName.toString(callee), uf.name)
           | _ => None
           }
         )
-      )
-      |> Option.unwrap(~default=list{})
+      } else {
+        list{}
+      }
     )
     |> List.flatten
     |> List.fold(~initial=Map.String.empty, ~f=(dict, (callee, caller)) =>
@@ -142,24 +148,27 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
   let filterAndSort = (fns: list<function_>): list<function_> => {
     let isUsedOrIsNotDeprecated = (f: function_): bool =>
       if f.fnDeprecated {
-        Map.get(~key=f.fnName, props.usedFns) |> Option.unwrap(~default=0) |> (count => count > 0)
+        Map.get(~key=PT.FQFnName.toString(f.fnName), props.usedFns)
+        |> Option.unwrap(~default=0)
+        |> (count => count > 0)
       } else {
         true
       }
 
     let fnNameWithoutVersion = (f: function_): string =>
       f.fnName
+      |> PT.FQFnName.toString
       |> String.toLowercase
       |> String.split(~on="_v")
       |> List.getAt(~index=0)
-      |> Option.unwrap(~default=f.fnName)
+      |> Option.unwrap(~default=PT.FQFnName.toString(f.fnName))
 
     fns
     |> List.filter(~f=isUsedOrIsNotDeprecated)
     |> List.sortBy(~f=f =>
-      /* don't call List.head here - if we have DB::getAll_v1 and
-       * DB::getAll_v2, we want those to sort accordingly! */
-      f.fnName |> String.toLowercase |> String.split(~on="_v")
+      // don't call List.head here - if we have DB::getAll_v1 and
+      // DB::getAll_v2, we want those to sort accordingly!
+      f.fnName |> PT.FQFnName.toString |> String.toLowercase |> String.split(~on="_v")
     )
     |> List.groupWhile(~f=(f1, f2) => fnNameWithoutVersion(f1) == fnNameWithoutVersion(f2))
     |> List.map(~f=List.reverse)
@@ -168,11 +177,13 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
 
   let userFunctionMetadata =
     props.userFunctions
-    |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.metadata)
-    |> List.filterMap(~f=UserFunctions.ufmToF)
+    |> Map.values
+    |> List.filterMap(~f=UserFunctions.ufToF)
     |> List.map(~f=f => {
       ...f,
-      fnPreviewSafety: if Set.member(t.previewUnsafeFunctions, ~value=f.fnName) {
+      fnPreviewSafety: if (
+        Set.member(t.previewUnsafeFunctions, ~value=PT.FQFnName.toString(f.fnName))
+      ) {
         Unsafe
       } else {
         Safe

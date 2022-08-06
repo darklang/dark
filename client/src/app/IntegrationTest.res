@@ -6,6 +6,9 @@ module P = Pointer
 module TL = Toplevel
 module TD = TLID.Dict
 module E = FluidExpression
+type testResult = AppTypes.IntegrationTests.testResult
+
+type model = AppTypes.model
 
 let pass: testResult = Ok()
 
@@ -64,7 +67,7 @@ let showOption = (f: 'e => string, o: option<'e>): string =>
 let enter_changes_state = (m: model): testResult =>
   switch m.cursorState {
   | Omnibox(_) => pass
-  | _ => fail(~f=show_cursorState, m.cursorState)
+  | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
   }
 
 let field_access_closes = (m: model): testResult =>
@@ -74,7 +77,7 @@ let field_access_closes = (m: model): testResult =>
     | Some(EFieldAccess(_, EVariable(_, "request"), "body")) => pass
     | expr => fail(~f=showOption(E.show), expr)
     }
-  | _ => fail(~f=show_cursorState, m.cursorState)
+  | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
   }
 
 let field_access_pipes = (m: model): testResult =>
@@ -91,14 +94,13 @@ let tabbing_works = (m: model): testResult =>
 
 let autocomplete_highlights_on_partial_match = (m: model): testResult =>
   switch onlyExpr(m) {
-  | Some(EFnCall(_, "Int::add", _, _)) => pass
+  | Some(EFnCall(_, Stdlib({module_: "Int", function: "add", version: 0}), _, _)) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
 let no_request_global_in_non_http_space = (m: model): testResult =>
-  // this might change but this is the answer for now.
   switch onlyExpr(m) {
-  | Some(EFnCall(_, "Http::badRequest", _, _)) => pass
+  | Some(EFnCall(_, Stdlib({module_: "Http", function: "badRequest", version: 0}), _, _)) => pass
   | e => fail(~f=showOption(show_fluidExpr), e)
   }
 
@@ -106,12 +108,8 @@ let ellen_hello_world_demo = (m: model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
-  switch spec {
-  | Some(spec) =>
-    switch ((spec.space, spec.name), (spec.modifier, onlyExpr(m))) {
-    | ((F(_, "HTTP"), F(_, "/hello")), (F(_, "GET"), Some(EString(_, "Hello world!")))) => pass
-    | other => fail(other)
-    }
+  switch (spec, onlyExpr(m)) {
+  | (Some(PT.Handler.Spec.HTTP("/hello", "GET", _)), Some(EString(_, "Hello world!"))) => pass
   | other => fail(other)
   }
 }
@@ -121,29 +119,27 @@ let editing_headers = (m: model): testResult => {
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, "HTTP"), F(_, "/myroute"), F(_, "GET")) => pass
-    | other => fail(other)
-    }
+  | Some(PT.Handler.Spec.HTTP("/myroute", "GET", _)) => pass
   | other => fail(other)
   }
 }
 
 @ppx.deriving(show)
-type rec handler_triple = (blankOr<string>, blankOr<string>, blankOr<string>)
+type rec handler_triple = (BlankOr.t<string>, BlankOr.t<string>, BlankOr.t<string>)
 
 let switching_from_http_space_removes_leading_slash = (m: model): testResult => {
   let spec =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, newSpace), F(_, "spec_name"), _) if newSpace !== "HTTP" => pass
-    | other => fail(~f=show_handler_triple, other)
+  | Some(PT.Handler.Spec.HTTP(_) as spec) => fail(~f=PT.Handler.Spec.show, spec)
+  | Some(spec) =>
+    if PT.Handler.Spec.name(spec)->B.toString == "spec_name" {
+      pass
+    } else {
+      fail(~f=PT.Handler.Spec.show, spec)
     }
-  | other => fail(other)
+  | None => fail(None)
   }
 }
 
@@ -156,12 +152,14 @@ let switching_from_http_space_removes_variable_colons = (m: model): testResult =
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, newSpace), F(_, "spec_name/variable"), _) if newSpace !== "HTTP" => pass
-    | other => fail(other)
+  | Some(PT.Handler.Spec.HTTP(_) as spec) => fail(~f=PT.Handler.Spec.show, spec)
+  | Some(spec) =>
+    if PT.Handler.Spec.name(spec)->B.toString == "spec_name/variable" {
+      pass
+    } else {
+      fail(~f=PT.Handler.Spec.show, spec)
     }
-  | other => fail(other)
+  | None => fail(None)
   }
 }
 
@@ -170,12 +168,9 @@ let switching_to_http_space_adds_slash = (m: model): testResult => {
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, "HTTP"), F(_, "/spec_name"), _) => pass
-    | other => fail(other)
-    }
-  | other => fail(other)
+  | Some(PT.Handler.Spec.HTTP("/spec_name", _, _)) => pass
+  | Some(spec) => fail(~f=PT.Handler.Spec.show, spec)
+  | None => fail(None)
   }
 }
 
@@ -184,12 +179,9 @@ let switching_from_default_repl_space_removes_name = (m: model): testResult => {
     onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=(h: PT.Handler.t) => h.spec)
 
   switch spec {
-  | Some(s) =>
-    switch (s.space, s.name, s.modifier) {
-    | (F(_, newSpace), _, _) if newSpace !== "REPL" => pass
-    | other => fail(other)
-    }
-  | other => fail(other)
+  | Some(PT.Handler.Spec.Cron(_, _, _)) => pass
+  | Some(spec) => fail(~f=PT.Handler.Spec.show, spec)
+  | None => fail(None)
   }
 }
 
@@ -204,13 +196,13 @@ let rename_db_fields = (m: model): testResult =>
   |> Map.mapValues(~f=({cols, _}: PT.DB.t) =>
     switch cols {
     | list{
-        (F(_, "field6"), F(_, "String")),
-        (F(_, "field2"), F(_, "String")),
-        (Blank(_), Blank(_)),
+        {name: Some("field6"), typ: Some(TStr), _},
+        {name: Some("field2"), typ: Some(TStr), _},
+        {name: None, typ: None, _},
       } =>
       switch m.cursorState {
       | Selecting(_) => pass
-      | _ => fail(~f=show_cursorState, m.cursorState)
+      | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
       }
     | _ => fail(~f=show_list(~f=PT.DB.Col.show), cols)
     }
@@ -223,15 +215,23 @@ let rename_db_type = (m: model): testResult =>
   |> Map.mapValues(~f=({cols, tlid: dbTLID, _}: PT.DB.t) =>
     switch cols {
     // this was previously an Int
-    | list{(F(_, "field1"), F(_, "String")), (F(_, "field2"), F(_, "Int")), (Blank(_), Blank(_))} =>
+    | list{
+        {name: Some("field1"), typ: Some(TStr), _},
+        {name: Some("field2"), typ: Some(TInt), _},
+        {name: None, typ: None, _},
+      } =>
       switch m.cursorState {
       | Selecting(tlid, None) =>
         if tlid == dbTLID {
           pass
         } else {
-          fail(show_list(~f=PT.DB.Col.show, cols) ++ (", " ++ show_cursorState(m.cursorState)))
+          fail(
+            show_list(~f=PT.DB.Col.show, cols) ++
+            (", " ++
+            AppTypes.CursorState.show(m.cursorState)),
+          )
         }
-      | _ => fail(~f=show_cursorState, m.cursorState)
+      | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
       }
     | _ => fail(~f=show_list(~f=PT.DB.Col.show), cols)
     }
@@ -250,7 +250,12 @@ let feature_flag_works = (m: model): testResult => {
       EFeatureFlag(
         id,
         "myflag",
-        EFnCall(_, "Int::greaterThan", list{EVariable(_, "a"), EInteger(_, 10L)}, _),
+        EFnCall(
+          _,
+          Stdlib({module_: "Int", function: "greaterThan", version: 0}),
+          list{EVariable(_, "a"), EInteger(_, 10L)},
+          _,
+        ),
         EString(_, "\"A\""),
         EString(_, "\"B\""),
       ),
@@ -270,7 +275,7 @@ let feature_flag_works = (m: model): testResult => {
       }
     | _ => fail((showOption(show_fluidExpr, ast), res))
     }
-  | _ => fail((showOption(show_fluidExpr, ast), show_cursorState(m.cursorState)))
+  | _ => fail((showOption(show_fluidExpr, ast), AppTypes.CursorState.show(m.cursorState)))
   }
 }
 
@@ -278,10 +283,10 @@ let feature_flag_in_function = (m: model): testResult => {
   let fun_ = m.userFunctions |> Map.values |> List.head
   switch fun_ {
   | Some(f) =>
-    switch f.ast |> FluidAST.toExpr {
+    switch f.body |> FluidAST.toExpr {
     | EFnCall(
         _,
-        "+",
+        Stdlib({module_: "", function: "+", version: 0}),
         list{
           EFeatureFlag(_, "myflag", EBool(_, true), EInteger(_, 5L), EInteger(_, 3L)),
           EInteger(_, 5L),
@@ -304,7 +309,7 @@ let rename_function = (m: model): testResult =>
   |> Map.values
   |> List.head
   |> Option.map(~f=(h: PT.Handler.t) => h.ast |> FluidAST.toExpr) {
-  | Some(EFnCall(_, "hello", _, _)) => pass
+  | Some(EFnCall(_, User("hello"), _, _)) => pass
   | Some(expr) => fail(show_fluidExpr(expr))
   | None => fail("no handlers")
   }
@@ -332,7 +337,7 @@ let function_version_renders = (_: model): testResult =>
 let delete_db_col = (m: model): testResult => {
   let db = onlyDB(m) |> Option.map(~f=(d: PT.DB.t) => d.cols)
   switch db {
-  | Some(list{(Blank(_), Blank(_))}) => pass
+  | Some(list{{name: None, typ: None, _}}) => pass
   | cols => fail(~f=showOption(show_list(~f=PT.DB.Col.show)), cols)
   }
 }
@@ -348,7 +353,7 @@ let cant_delete_locked_col = (m: model): testResult => {
   )
 
   switch db {
-  | Some(list{(F(_, "cantDelete"), F(_, "Int")), (Blank(_), Blank(_))}) => pass
+  | Some(list{{name: Some("cantDelete"), typ: Some(TInt), _}, {name: None, typ: None, _}}) => pass
   | cols => fail(~f=showOption(show_list(~f=PT.DB.Col.show)), cols)
   }
 }
@@ -360,7 +365,7 @@ let passwords_are_redacted = (_m: model): testResult =>
 let select_route = (m: model): testResult =>
   switch m.cursorState {
   | Selecting(_, None) => pass
-  | _ => fail(~f=show_cursorState, m.cursorState)
+  | _ => fail(~f=AppTypes.CursorState.show, m.cursorState)
   }
 
 let function_analysis_works = (_m: model): testResult =>
@@ -405,9 +410,9 @@ let fourohfours_parse = (m: model): testResult =>
     ) {
       pass
     } else {
-      fail(~f=show_fourOhFour, x)
+      fail(~f=AnalysisTypes.FourOhFour.show, x)
     }
-  | _ => fail(~f=show_list(~f=show_fourOhFour), m.f404s)
+  | _ => fail(~f=show_list(~f=AnalysisTypes.FourOhFour.show), m.f404s)
   }
 
 let autocomplete_visible_height = (_m: model): testResult =>
@@ -421,7 +426,7 @@ let fn_page_returns_to_lastpos = (m: model): testResult =>
     if m.canvasProps.offset == centerPos {
       pass
     } else {
-      fail(~f=show_pos, m.canvasProps.offset)
+      fail(~f=Pos.show, m.canvasProps.offset)
     }
   | None => fail("no tl found")
   }
@@ -437,21 +442,19 @@ let create_new_function_from_autocomplete = (m: model): testResult => {
       list{(
         _,
         {
-          ast,
-          metadata: {
-            name: F(_, "myFunctionName"),
-            parameters: list{},
-            description: "",
-            returnType: F(_, TAny),
-            infix: false,
-          },
+          body,
+          name: "myFunctionName",
+          parameters: list{},
+          description: "",
+          returnType: TVariable(_),
+          infix: false,
           _,
         },
       )},
       list{(_, {ast: ufAST, _})},
     ) =>
-    switch (FluidAST.toExpr(ast), FluidAST.toExpr(ufAST)) {
-    | (EBlank(_), EFnCall(_, "myFunctionName", list{}, _)) => pass
+    switch (FluidAST.toExpr(body), FluidAST.toExpr(ufAST)) {
+    | (EBlank(_), EFnCall(_, User("myFunctionName"), list{}, _)) => pass
     | _ => fail("bad asts")
     }
   | (fns, hs) => fail((fns, hs))
@@ -466,10 +469,10 @@ let extract_from_function = (m: model): testResult =>
     } else {
       fail(m.userFunctions)
     }
-  | _ => fail(show_cursorState(m.cursorState))
+  | _ => fail(AppTypes.CursorState.show(m.cursorState))
   }
 
-let fluidGetSelectionRange = (s: fluidState): option<(int, int)> =>
+let fluidGetSelectionRange = (s: AppTypes.fluidState): option<(int, int)> =>
   switch s.selectionStart {
   | Some(beginIdx) => Some(beginIdx, s.newPos)
   | None => None
@@ -689,7 +692,7 @@ let fluid_test_copy_request_as_curl = (m: model): testResult => {
     m,
     TLID.fromInt(91390945),
     ID.fromInt(753586717),
-    "HttpClient::post",
+    PT.FQFnName.stdlib("HttpClient", "post", 0),
   )
 
   let expected = "curl -H 'h:3' -d 'some body' -X post 'https://foo.com?q=1'"
@@ -774,7 +777,7 @@ let focus_on_secret_field_on_insert_modal_open = (_m: model): testResult => pass
 
 let analysis_performed_in_appropriate_timezone = (_m: model): testResult => pass
 
-let trigger = (test_name: string): integrationTestState => {
+let trigger = (test_name: string): AppTypes.IntegrationTests.t<model> => {
   let name = String.dropLeft(~count=5, test_name)
   IntegrationTestExpectation(
     switch name {

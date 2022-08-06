@@ -1,611 +1,7 @@
-[
-  "AnalyzeHandler",
-  {
-    "handler": {
-      "tlid": 92987663,
-      "ast": [
-        "ELet",
-        "14219007199254740992",
-        "x1",
-        [
-          "EInteger",
-          929452387,
-          "5"
-        ],
-        [
-          "ELet",
-          620028536,
-          "x2",
-          [
-            "EInteger",
-            452247642,
-            "9223372036854775807"
-          ],
-          [
-            "ELet",
-            68205955,
-            "bool",
-            [
-              "EBool",
-              43581311,
-              true
-            ],
-            [
-              "ELet",
-              755798860,
-              "bool",
-              [
-                "EBool",
-                97054530,
-                false
-              ],
-              [
-                "ELet",
-                244891515,
-                "str",
-                [
-                  "EString",
-                  446488682,
-                  "a string"
-                ],
-                [
-                  "ELet",
-                  537517627,
-                  "char",
-                  [
-                    "EBlank",
-                    1031176330
-                  ],
-                  [
-                    "ELet",
-                    399526184,
-                    "float",
-                    [
-                      "EFloat",
-                      770715427,
-                      "-6",
-                      "5"
-                    ],
-                    [
-                      "ELet",
-                      975263310,
-                      "n",
-                      [
-                        "ENull",
-                        923644248
-                      ],
-                      [
-                        "ELet",
-                        468988830,
-                        "b",
-                        [
-                          "EBlank",
-                          133368677
-                        ],
-                        [
-                          "ELet",
-                          43886336,
-                          "i",
-                          [
-                            "EIf",
-                            46231874,
-                            [
-                              "EFnCall",
-                              898531080,
-                              "Bool::isError",
-                              [
-                                [
-                                  "EInteger",
-                                  160106123,
-                                  "6"
-                                ]
-                              ],
-                              [
-                                "Rail"
-                              ]
-                            ],
-                            [
-                              "EIf",
-                              729246077,
-                              [
-                                "EBinOp",
-                                94793109,
-                                "!=",
-                                [
-                                  "EInteger",
-                                  264400705,
-                                  "5"
-                                ],
-                                [
-                                  "EInteger",
-                                  335743639,
-                                  "6"
-                                ],
-                                [
-                                  "NoRail"
-                                ]
-                              ],
-                              [
-                                "EBinOp",
-                                775118986,
-                                "\u002B",
-                                [
-                                  "EInteger",
-                                  803876589,
-                                  "5"
-                                ],
-                                [
-                                  "EInteger",
-                                  219131014,
-                                  "2"
-                                ],
-                                [
-                                  "NoRail"
-                                ]
-                              ],
-                              [
-                                "ELambda",
-                                947647446,
-                                [
-                                  [
-                                    180359194,
-                                    "y"
-                                  ]
-                                ],
-                                [
-                                  "EBinOp",
-                                  140609068,
-                                  "\u002B",
-                                  [
-                                    "EInteger",
-                                    450951790,
-                                    "2"
-                                  ],
-                                  [
-                                    "EVariable",
-                                    402203255,
-                                    "y"
-                                  ],
-                                  [
-                                    "NoRail"
-                                  ]
-                                ]
-                              ]
-                            ],
-                            [
-                              "EBinOp",
-                              265463935,
-                              "\u002B",
-                              [
-                                "EBinOp",
-                                312092282,
-                                "\u002B",
-                                [
-                                  "EFieldAccess",
-                                  974664608,
-                                  [
-                                    "EVariable",
-                                    1002893266,
-                                    "x"
-                                  ],
-                                  "y"
-                                ],
-                                [
-                                  "EFnCall",
-                                  173079901,
-                                  "Int::add",
-                                  [
-                                    [
-                                      "EInteger",
-                                      250221144,
-                                      "6"
-                                    ],
-                                    [
-                                      "EInteger",
-                                      298149318,
-                                      "2"
-                                    ]
-                                  ],
-                                  [
-                                    "NoRail"
-                                  ]
-                                ],
-                                [
-                                  "NoRail"
-                                ]
-                              ],
-                              [
-                                "EList",
-                                539797095,
-                                [
-                                  [
-                                    "EInteger",
-                                    267797631,
-                                    "5"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    352138743,
-                                    "6"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    430871955,
-                                    "7"
-                                  ]
-                                ]
-                              ],
-                              [
-                                "NoRail"
-                              ]
-                            ]
-                          ],
-                          [
-                            "ELet",
-                            831830073,
-                            "r",
-                            [
-                              "ERecord",
-                              109539183,
-                              [
-                                [
-                                  "field",
-                                  [
-                                    "EPipe",
-                                    786862131,
-                                    [
-                                      [
-                                        "EInteger",
-                                        555880460,
-                                        "5"
-                                      ],
-                                      [
-                                        "EBinOp",
-                                        1021880969,
-                                        "\u002B",
-                                        [
-                                          "EPipeTarget",
-                                          936577032
-                                        ],
-                                        [
-                                          "EInteger",
-                                          962393769,
-                                          "2"
-                                        ],
-                                        [
-                                          "NoRail"
-                                        ]
-                                      ]
-                                    ]
-                                  ]
-                                ],
-                                [
-                                  "constructor",
-                                  [
-                                    "EConstructor",
-                                    567764301,
-                                    "Ok",
-                                    [
-                                      [
-                                        "EConstructor",
-                                        646107057,
-                                        "Error",
-                                        [
-                                          [
-                                            "EConstructor",
-                                            689802831,
-                                            "Just",
-                                            [
-                                              [
-                                                "EConstructor",
-                                                957916875,
-                                                "Nothing",
-                                                []
-                                              ]
-                                            ]
-                                          ]
-                                        ]
-                                      ]
-                                    ]
-                                  ]
-                                ]
-                              ]
-                            ],
-                            [
-                              "ELet",
-                              745304029,
-                              "m",
-                              [
-                                "EMatch",
-                                889712088,
-                                [
-                                  "EFnCall",
-                                  203239466,
-                                  "Mod::function_v2",
-                                  [],
-                                  [
-                                    "NoRail"
-                                  ]
-                                ],
-                                [
-                                  [
-                                    [
-                                      "FPConstructor",
-                                      889712088,
-                                      1015986188,
-                                      "Ok",
-                                      [
-                                        [
-                                          "FPVariable",
-                                          889712088,
-                                          334386852,
-                                          "x"
-                                        ]
-                                      ]
-                                    ],
-                                    [
-                                      "EVariable",
-                                      863810169,
-                                      "v"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "FPInteger",
-                                      889712088,
-                                      928253813,
-                                      "5"
-                                    ],
-                                    [
-                                      "EInteger",
-                                      342670561,
-                                      "-9223372036854775808"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "FPBool",
-                                      889712088,
-                                      435227293,
-                                      true
-                                    ],
-                                    [
-                                      "EInteger",
-                                      232748650,
-                                      "7"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "FPBlank",
-                                      889712088,
-                                      387662539
-                                    ],
-                                    [
-                                      "EBlank",
-                                      657848009
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "FPString",
-                                      {
-                                        "matchID": 889712088,
-                                        "patternID": 491115870,
-                                        "str": "string"
-                                      }
-                                    ],
-                                    [
-                                      "EString",
-                                      820329949,
-                                      "string"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "FPNull",
-                                      889712088,
-                                      701616052
-                                    ],
-                                    [
-                                      "ENull",
-                                      731162955
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "FPVariable",
-                                      889712088,
-                                      722099983,
-                                      "var"
-                                    ],
-                                    [
-                                      "EBinOp",
-                                      275666765,
-                                      "\u002B",
-                                      [
-                                        "EInteger",
-                                        739193732,
-                                        "6"
-                                      ],
-                                      [
-                                        "EVariable",
-                                        880556562,
-                                        "var"
-                                      ],
-                                      [
-                                        "NoRail"
-                                      ]
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "FPFloat",
-                                      889712088,
-                                      409097457,
-                                      "5",
-                                      "6"
-                                    ],
-                                    [
-                                      "EFloat",
-                                      131187958,
-                                      "5",
-                                      "6"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "FPBlank",
-                                      889712088,
-                                      858594159
-                                    ],
-                                    [
-                                      "EInteger",
-                                      135348705,
-                                      "6"
-                                    ]
-                                  ]
-                                ]
-                              ],
-                              [
-                                "ELet",
-                                927055617,
-                                "f",
-                                [
-                                  "EFeatureFlag",
-                                  882488977,
-                                  "test",
-                                  [
-                                    "EBool",
-                                    349352147,
-                                    true
-                                  ],
-                                  [
-                                    "EInteger",
-                                    578528886,
-                                    "5"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    562930224,
-                                    "6"
-                                  ]
-                                ],
-                                [
-                                  "ELet",
-                                  6345345,
-                                  "partials",
-                                  [
-                                    "EList",
-                                    23423423,
-                                    [
-                                      [
-                                        "EPartial",
-                                        2949606,
-                                        "some \uD83E\uDD2C string",
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          "5"
-                                        ]
-                                      ],
-                                      [
-                                        "ERightPartial",
-                                        9239755,
-                                        "some \uD83D\uDE2D string",
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          "5"
-                                        ]
-                                      ],
-                                      [
-                                        "ELeftPartial",
-                                        234885,
-                                        "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          "5"
-                                        ]
-                                      ]
-                                    ]
-                                  ],
-                                  [
-                                    "ELet",
-                                    883434,
-                                    "tuples",
-                                    [
-                                      "ETuple",
-                                      72333,
-                                      [
-                                        "EInteger",
-                                        34545,
-                                        "5"
-                                      ],
-                                      [
-                                        "EInteger",
-                                        34545,
-                                        "5"
-                                      ],
-                                      [
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          "5"
-                                        ]
-                                      ]
-                                    ],
-                                    [
-                                      "EInteger",
-                                      34545,
-                                      "5"
-                                    ]
-                                  ]
-                                ]
-                              ]
-                            ]
-                          ]
-                        ]
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ]
-        ]
-      ],
-      "spec": {
-        "module": [
-          "Filled",
-          129952,
-          "HTTP"
-        ],
-        "name": [
-          "Filled",
-          33052,
-          "/path"
-        ],
-        "modifier": [
-          "Filled",
-          10038562,
-          "GET"
-        ],
-        "types": {
-          "input": [
-            "Blank",
-            0
-          ],
-          "output": [
-            "Blank",
-            0
-          ]
-        }
-      }
-    },
-    "trace_id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
-    "trace_data": {
+{
+  "trace": [
+    "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
+    {
       "input": [
         [
           "var",
@@ -637,92 +33,154 @@
                 "\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD"
               ],
               "block": [
-                "DBlock",
-                {
-                  "symtable": {},
-                  "params": [
-                    [
-                      5678,
-                      "a"
+                "DFnVal",
+                [
+                  "Lambda",
+                  {
+                    "parameters": [
+                      [
+                        5678,
+                        "a"
+                      ]
+                    ],
+                    "symtable": {},
+                    "body": [
+                      "EBlank",
+                      1234
                     ]
-                  ],
-                  "body": [
-                    "EBlank",
-                    1234
-                  ]
-                }
+                  }
+                ]
               ],
               "block with pipe": [
-                "DBlock",
-                {
-                  "symtable": {},
-                  "params": [
-                    [
-                      5678,
-                      "a"
-                    ]
-                  ],
-                  "body": [
-                    "EFnCall",
-                    92356985,
-                    "List::push",
-                    [
+                "DFnVal",
+                [
+                  "Lambda",
+                  {
+                    "parameters": [
                       [
-                        "EFnCall",
-                        93459985,
-                        "\u002B",
+                        5678,
+                        "a"
+                      ]
+                    ],
+                    "symtable": {},
+                    "body": [
+                      "EApply",
+                      92356985,
+                      [
+                        "EFQFnValue",
+                        700731989,
                         [
+                          "Stdlib",
+                          {
+                            "module_": "List",
+                            "function_": "push",
+                            "version": 0
+                          }
+                        ]
+                      ],
+                      [
+                        [
+                          "EApply",
+                          93459985,
                           [
-                            "EFnCall",
-                            394567785,
-                            "\u002B",
+                            "EFQFnValue",
+                            707841989,
                             [
-                              [
-                                "EFnCall",
-                                44444485,
-                                "\u002B",
-                                [
-                                  [
-                                    "EInteger",
-                                    234213618,
-                                    "5"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    923423468,
-                                    "6"
-                                  ]
-                                ],
-                                [
-                                  "NoRail"
-                                ]
-                              ],
-                              [
-                                "EInteger",
-                                648327618,
-                                "7"
-                              ]
-                            ],
-                            [
-                              "NoRail"
+                              "Stdlib",
+                              {
+                                "module_": "",
+                                "function_": "\u002B",
+                                "version": 0
+                              }
                             ]
                           ],
                           [
-                            "EInteger",
-                            325843618,
-                            "8"
+                            [
+                              "EApply",
+                              394567785,
+                              [
+                                "EFQFnValue",
+                                700766785,
+                                [
+                                  "Stdlib",
+                                  {
+                                    "module_": "",
+                                    "function_": "\u002B",
+                                    "version": 0
+                                  }
+                                ]
+                              ],
+                              [
+                                [
+                                  "EApply",
+                                  44444485,
+                                  [
+                                    "EFQFnValue",
+                                    893346989,
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "",
+                                        "function_": "\u002B",
+                                        "version": 0
+                                      }
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "EInteger",
+                                      234213618,
+                                      5
+                                    ],
+                                    [
+                                      "EInteger",
+                                      923423468,
+                                      6
+                                    ]
+                                  ],
+                                  [
+                                    "NotInPipe"
+                                  ],
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
+                                [
+                                  "EInteger",
+                                  648327618,
+                                  7
+                                ]
+                              ],
+                              [
+                                "NotInPipe"
+                              ],
+                              [
+                                "NoRail"
+                              ]
+                            ],
+                            [
+                              "EInteger",
+                              325843618,
+                              8
+                            ]
+                          ],
+                          [
+                            "NotInPipe"
+                          ],
+                          [
+                            "NoRail"
                           ]
-                        ],
-                        [
-                          "NoRail"
                         ]
+                      ],
+                      [
+                        "NotInPipe"
+                      ],
+                      [
+                        "NoRail"
                       ]
-                    ],
-                    [
-                      "NoRail"
                     ]
-                  ]
-                }
+                  }
+                ]
               ],
               "bytes": [
                 "DBytes",
@@ -733,7 +191,7 @@
                 "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAklEQVR4AewaftIAAAJmSURBVNXBS4iNYRjA8f_7fN85YxKymJASxVmg1IQ0iKTkm3OMJAsl10aYccuCWMhGNm5HNBomYyGpYW5HSWMsFFMuKxshCxol5bLgnO97H2pGZ2b3Hr0lvx__mqECO1bsrSmVktUSyOu2_vwjhm1d1jxR0VOqmhGRa239-TYcBTjavnzfpDhJXmDYpKrbaqcv-vri3cBjfps3bcFVYDMwXVUb5s-se_D87ZN3OBAcxUm8FpjCMKt2F38YahkhLsW1OBJcGaoZrZphxphuyn6m0ql7OArxIDDBEUvyxqpmgkButN4_-xJHIR5c6T8XA5f4CyEeRFE01hhzTFUzItLe09PTiSPBj_OqehhYZ63taGhoWIgjwY-llEmxWFyCI8GPPsqSdDr9EEchfuwXkQ_W2oyIXO_s7HyKoxAPCoXCD-AEfyHEg937C-PiODmuajMi0t6Sz93CkeBBqVS6oGoPAllr7c2dzd11OBL8WEyZSRJbhyPBD2EEY1RwJLgbZLRBPBAcjQmqOowx3Qz5JCKH8CDEUcuD00VgzZZlu2vCIPzS2ne-iAdCBZoO3K1KzV01N5izciqeCI4am7rG_ywWnwF91uqrxqaujXggOFKr64HZDAlU9SgeCI6M8I3RvuGB4MrIbTHmFqDAoDFyEA9CHF3O52JgQ2NT14QwJd8vnskmeBBSgSiKgssX1nzBI6EyW-vr6_dEUVSNJ0IFCoVCq6reMcaczGazMyhTRjGKI6ECuVxuMrADeG-t_cgfygAjiMgAjkIqkCTJcmNMvre39zMjpNLhnji231WTWSJBe0s-95D_xS8d7tveXKeXUQAAAABJRU5ErkJggg"
               ],
               "character": [
-                "DCharacter",
+                "DChar",
                 "s"
               ],
               "datastore": [
@@ -775,11 +233,9 @@
               "error": [
                 "DError",
                 [
-                  [
-                    "SourceNone"
-                  ],
-                  "some error string"
-                ]
+                  "SourceNone"
+                ],
+                "some error string"
               ],
               "errorrail": [
                 "DErrorRail",
@@ -908,16 +364,14 @@
                 "\u003Chtml\u003E\u003Chead\u003E\u003C/head\u003E\u003Cbody\u003E\u003Ch1\u003Etitle\u003C/h1\u003E\u003C/body\u003E\u003C/html\u003E"
               ],
               "httpresponse": [
-                "DResp",
+                "DHttpResponse",
                 [
+                  "Response",
+                  200,
                   [
-                    "Response",
-                    200,
                     [
-                      [
-                        "content-length",
-                        "9"
-                      ]
+                      "content-length",
+                      "9"
                     ]
                   ],
                   [
@@ -935,7 +389,7 @@
               "incomplete2": [
                 "DIncomplete",
                 [
-                  "SourceId",
+                  "SourceID",
                   "14219007199254740993",
                   8
                 ]
@@ -1139,11 +593,9 @@
                   [
                     "DError",
                     [
-                      [
-                        "SourceNone"
-                      ],
-                      "some error string"
-                    ]
+                      "SourceNone"
+                    ],
+                    "some error string"
                   ],
                   [
                     "DInt",
@@ -3625,11 +3077,9 @@
                   "v": [
                     "DError",
                     [
-                      [
-                        "SourceNone"
-                      ],
-                      "some error string"
-                    ]
+                      "SourceNone"
+                    ],
+                    "some error string"
                   ]
                 }
               ],
@@ -3678,28 +3128,20 @@
               ],
               "option": [
                 "DOption",
-                [
-                  "OptNothing"
-                ]
+                null
               ],
               "option2": [
                 "DOption",
                 [
-                  "OptJust",
-                  [
-                    "DInt",
-                    15
-                  ]
+                  "DInt",
+                  15
                 ]
               ],
               "option3": [
                 "DOption",
                 [
-                  "OptJust",
-                  [
-                    "DStr",
-                    "a string"
-                  ]
+                  "DStr",
+                  "a string"
                 ]
               ],
               "pi \u002B 0": [
@@ -3711,21 +3153,16 @@
                 4.141592653589793
               ],
               "redirect": [
-                "DResp",
+                "DHttpResponse",
                 [
-                  [
-                    "Redirect",
-                    "/home"
-                  ],
-                  [
-                    "DNull"
-                  ]
+                  "Redirect",
+                  "/home"
                 ]
               ],
               "result": [
                 "DResult",
                 [
-                  "ResOk",
+                  "Ok",
                   [
                     "DInt",
                     15
@@ -3735,7 +3172,7 @@
               "result2": [
                 "DResult",
                 [
-                  "ResError",
+                  "Error",
                   [
                     "DList",
                     [
@@ -3750,7 +3187,7 @@
               "result3": [
                 "DResult",
                 [
-                  "ResOk",
+                  "Ok",
                   [
                     "DStr",
                     "a string"
@@ -3815,7 +3252,7 @@
                 [
                   "DResult",
                   [
-                    "ResError",
+                    "Error",
                     [
                       "DStr",
                       "error"
@@ -3873,7 +3310,7 @@
         ]
       ],
       "timestamp": "2022-07-04T17:46:57Z",
-      "function_results": [
+      "functionResults": [
         [
           "fnName",
           7,
@@ -3907,92 +3344,154 @@
                 "\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD"
               ],
               "block": [
-                "DBlock",
-                {
-                  "symtable": {},
-                  "params": [
-                    [
-                      5678,
-                      "a"
+                "DFnVal",
+                [
+                  "Lambda",
+                  {
+                    "parameters": [
+                      [
+                        5678,
+                        "a"
+                      ]
+                    ],
+                    "symtable": {},
+                    "body": [
+                      "EBlank",
+                      1234
                     ]
-                  ],
-                  "body": [
-                    "EBlank",
-                    1234
-                  ]
-                }
+                  }
+                ]
               ],
               "block with pipe": [
-                "DBlock",
-                {
-                  "symtable": {},
-                  "params": [
-                    [
-                      5678,
-                      "a"
-                    ]
-                  ],
-                  "body": [
-                    "EFnCall",
-                    92356985,
-                    "List::push",
-                    [
+                "DFnVal",
+                [
+                  "Lambda",
+                  {
+                    "parameters": [
                       [
-                        "EFnCall",
-                        93459985,
-                        "\u002B",
+                        5678,
+                        "a"
+                      ]
+                    ],
+                    "symtable": {},
+                    "body": [
+                      "EApply",
+                      92356985,
+                      [
+                        "EFQFnValue",
+                        700731989,
                         [
+                          "Stdlib",
+                          {
+                            "module_": "List",
+                            "function_": "push",
+                            "version": 0
+                          }
+                        ]
+                      ],
+                      [
+                        [
+                          "EApply",
+                          93459985,
                           [
-                            "EFnCall",
-                            394567785,
-                            "\u002B",
+                            "EFQFnValue",
+                            707841989,
                             [
-                              [
-                                "EFnCall",
-                                44444485,
-                                "\u002B",
-                                [
-                                  [
-                                    "EInteger",
-                                    234213618,
-                                    "5"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    923423468,
-                                    "6"
-                                  ]
-                                ],
-                                [
-                                  "NoRail"
-                                ]
-                              ],
-                              [
-                                "EInteger",
-                                648327618,
-                                "7"
-                              ]
-                            ],
-                            [
-                              "NoRail"
+                              "Stdlib",
+                              {
+                                "module_": "",
+                                "function_": "\u002B",
+                                "version": 0
+                              }
                             ]
                           ],
                           [
-                            "EInteger",
-                            325843618,
-                            "8"
+                            [
+                              "EApply",
+                              394567785,
+                              [
+                                "EFQFnValue",
+                                700766785,
+                                [
+                                  "Stdlib",
+                                  {
+                                    "module_": "",
+                                    "function_": "\u002B",
+                                    "version": 0
+                                  }
+                                ]
+                              ],
+                              [
+                                [
+                                  "EApply",
+                                  44444485,
+                                  [
+                                    "EFQFnValue",
+                                    893346989,
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "",
+                                        "function_": "\u002B",
+                                        "version": 0
+                                      }
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "EInteger",
+                                      234213618,
+                                      5
+                                    ],
+                                    [
+                                      "EInteger",
+                                      923423468,
+                                      6
+                                    ]
+                                  ],
+                                  [
+                                    "NotInPipe"
+                                  ],
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
+                                [
+                                  "EInteger",
+                                  648327618,
+                                  7
+                                ]
+                              ],
+                              [
+                                "NotInPipe"
+                              ],
+                              [
+                                "NoRail"
+                              ]
+                            ],
+                            [
+                              "EInteger",
+                              325843618,
+                              8
+                            ]
+                          ],
+                          [
+                            "NotInPipe"
+                          ],
+                          [
+                            "NoRail"
                           ]
-                        ],
-                        [
-                          "NoRail"
                         ]
+                      ],
+                      [
+                        "NotInPipe"
+                      ],
+                      [
+                        "NoRail"
                       ]
-                    ],
-                    [
-                      "NoRail"
                     ]
-                  ]
-                }
+                  }
+                ]
               ],
               "bytes": [
                 "DBytes",
@@ -4003,7 +3502,7 @@
                 "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAklEQVR4AewaftIAAAJmSURBVNXBS4iNYRjA8f_7fN85YxKymJASxVmg1IQ0iKTkm3OMJAsl10aYccuCWMhGNm5HNBomYyGpYW5HSWMsFFMuKxshCxol5bLgnO97H2pGZ2b3Hr0lvx__mqECO1bsrSmVktUSyOu2_vwjhm1d1jxR0VOqmhGRa239-TYcBTjavnzfpDhJXmDYpKrbaqcv-vri3cBjfps3bcFVYDMwXVUb5s-se_D87ZN3OBAcxUm8FpjCMKt2F38YahkhLsW1OBJcGaoZrZphxphuyn6m0ql7OArxIDDBEUvyxqpmgkButN4_-xJHIR5c6T8XA5f4CyEeRFE01hhzTFUzItLe09PTiSPBj_OqehhYZ63taGhoWIgjwY-llEmxWFyCI8GPPsqSdDr9EEchfuwXkQ_W2oyIXO_s7HyKoxAPCoXCD-AEfyHEg937C-PiODmuajMi0t6Sz93CkeBBqVS6oGoPAllr7c2dzd11OBL8WEyZSRJbhyPBD2EEY1RwJLgbZLRBPBAcjQmqOowx3Qz5JCKH8CDEUcuD00VgzZZlu2vCIPzS2ne-iAdCBZoO3K1KzV01N5izciqeCI4am7rG_ywWnwF91uqrxqaujXggOFKr64HZDAlU9SgeCI6M8I3RvuGB4MrIbTHmFqDAoDFyEA9CHF3O52JgQ2NT14QwJd8vnskmeBBSgSiKgssX1nzBI6EyW-vr6_dEUVSNJ0IFCoVCq6reMcaczGazMyhTRjGKI6ECuVxuMrADeG-t_cgfygAjiMgAjkIqkCTJcmNMvre39zMjpNLhnji231WTWSJBe0s-95D_xS8d7tveXKeXUQAAAABJRU5ErkJggg"
               ],
               "character": [
-                "DCharacter",
+                "DChar",
                 "s"
               ],
               "datastore": [
@@ -4045,11 +3544,9 @@
               "error": [
                 "DError",
                 [
-                  [
-                    "SourceNone"
-                  ],
-                  "some error string"
-                ]
+                  "SourceNone"
+                ],
+                "some error string"
               ],
               "errorrail": [
                 "DErrorRail",
@@ -4178,16 +3675,14 @@
                 "\u003Chtml\u003E\u003Chead\u003E\u003C/head\u003E\u003Cbody\u003E\u003Ch1\u003Etitle\u003C/h1\u003E\u003C/body\u003E\u003C/html\u003E"
               ],
               "httpresponse": [
-                "DResp",
+                "DHttpResponse",
                 [
+                  "Response",
+                  200,
                   [
-                    "Response",
-                    200,
                     [
-                      [
-                        "content-length",
-                        "9"
-                      ]
+                      "content-length",
+                      "9"
                     ]
                   ],
                   [
@@ -4205,7 +3700,7 @@
               "incomplete2": [
                 "DIncomplete",
                 [
-                  "SourceId",
+                  "SourceID",
                   "14219007199254740993",
                   8
                 ]
@@ -4409,11 +3904,9 @@
                   [
                     "DError",
                     [
-                      [
-                        "SourceNone"
-                      ],
-                      "some error string"
-                    ]
+                      "SourceNone"
+                    ],
+                    "some error string"
                   ],
                   [
                     "DInt",
@@ -6895,11 +6388,9 @@
                   "v": [
                     "DError",
                     [
-                      [
-                        "SourceNone"
-                      ],
-                      "some error string"
-                    ]
+                      "SourceNone"
+                    ],
+                    "some error string"
                   ]
                 }
               ],
@@ -6948,28 +6439,20 @@
               ],
               "option": [
                 "DOption",
-                [
-                  "OptNothing"
-                ]
+                null
               ],
               "option2": [
                 "DOption",
                 [
-                  "OptJust",
-                  [
-                    "DInt",
-                    15
-                  ]
+                  "DInt",
+                  15
                 ]
               ],
               "option3": [
                 "DOption",
                 [
-                  "OptJust",
-                  [
-                    "DStr",
-                    "a string"
-                  ]
+                  "DStr",
+                  "a string"
                 ]
               ],
               "pi \u002B 0": [
@@ -6981,21 +6464,16 @@
                 4.141592653589793
               ],
               "redirect": [
-                "DResp",
+                "DHttpResponse",
                 [
-                  [
-                    "Redirect",
-                    "/home"
-                  ],
-                  [
-                    "DNull"
-                  ]
+                  "Redirect",
+                  "/home"
                 ]
               ],
               "result": [
                 "DResult",
                 [
-                  "ResOk",
+                  "Ok",
                   [
                     "DInt",
                     15
@@ -7005,7 +6483,7 @@
               "result2": [
                 "DResult",
                 [
-                  "ResError",
+                  "Error",
                   [
                     "DList",
                     [
@@ -7020,7 +6498,7 @@
               "result3": [
                 "DResult",
                 [
-                  "ResOk",
+                  "Ok",
                   [
                     "DStr",
                     "a string"
@@ -7085,7 +6563,7 @@
                 [
                   "DResult",
                   [
-                    "ResError",
+                    "Error",
                     [
                       "DStr",
                       "error"
@@ -7142,705 +6620,6 @@
           ]
         ]
       ]
-    },
-    "dbs": [
-      {
-        "tlid": 1,
-        "name": [
-          "Filled",
-          7,
-          "dbname"
-        ],
-        "cols": [
-          [
-            [
-              "Filled",
-              7,
-              "colname"
-            ],
-            [
-              "Filled",
-              7,
-              "int"
-            ]
-          ]
-        ],
-        "version": 1
-      }
-    ],
-    "user_fns": [
-      {
-        "tlid": 0,
-        "metadata": {
-          "name": [
-            "Filled",
-            1828332,
-            "myFunc"
-          ],
-          "parameters": [
-            {
-              "name": [
-                "Filled",
-                23824935,
-                "myparam1"
-              ],
-              "tipe": [
-                "Blank",
-                38284244
-              ],
-              "block_args": [],
-              "optional": false,
-              "description": "param1"
-            },
-            {
-              "name": [
-                "Filled",
-                92837232,
-                "myparam2"
-              ],
-              "tipe": [
-                "Filled",
-                239232,
-                [
-                  "TObj"
-                ]
-              ],
-              "block_args": [],
-              "optional": false,
-              "description": "param1"
-            }
-          ],
-          "return_type": [
-            "Filled",
-            23923423,
-            [
-              "TObj"
-            ]
-          ],
-          "description": "function description",
-          "infix": false
-        },
-        "ast": [
-          "ELet",
-          "14219007199254740992",
-          "x1",
-          [
-            "EInteger",
-            929452387,
-            "5"
-          ],
-          [
-            "ELet",
-            620028536,
-            "x2",
-            [
-              "EInteger",
-              452247642,
-              "9223372036854775807"
-            ],
-            [
-              "ELet",
-              68205955,
-              "bool",
-              [
-                "EBool",
-                43581311,
-                true
-              ],
-              [
-                "ELet",
-                755798860,
-                "bool",
-                [
-                  "EBool",
-                  97054530,
-                  false
-                ],
-                [
-                  "ELet",
-                  244891515,
-                  "str",
-                  [
-                    "EString",
-                    446488682,
-                    "a string"
-                  ],
-                  [
-                    "ELet",
-                    537517627,
-                    "char",
-                    [
-                      "EBlank",
-                      1031176330
-                    ],
-                    [
-                      "ELet",
-                      399526184,
-                      "float",
-                      [
-                        "EFloat",
-                        770715427,
-                        "-6",
-                        "5"
-                      ],
-                      [
-                        "ELet",
-                        975263310,
-                        "n",
-                        [
-                          "ENull",
-                          923644248
-                        ],
-                        [
-                          "ELet",
-                          468988830,
-                          "b",
-                          [
-                            "EBlank",
-                            133368677
-                          ],
-                          [
-                            "ELet",
-                            43886336,
-                            "i",
-                            [
-                              "EIf",
-                              46231874,
-                              [
-                                "EFnCall",
-                                898531080,
-                                "Bool::isError",
-                                [
-                                  [
-                                    "EInteger",
-                                    160106123,
-                                    "6"
-                                  ]
-                                ],
-                                [
-                                  "Rail"
-                                ]
-                              ],
-                              [
-                                "EIf",
-                                729246077,
-                                [
-                                  "EBinOp",
-                                  94793109,
-                                  "!=",
-                                  [
-                                    "EInteger",
-                                    264400705,
-                                    "5"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    335743639,
-                                    "6"
-                                  ],
-                                  [
-                                    "NoRail"
-                                  ]
-                                ],
-                                [
-                                  "EBinOp",
-                                  775118986,
-                                  "\u002B",
-                                  [
-                                    "EInteger",
-                                    803876589,
-                                    "5"
-                                  ],
-                                  [
-                                    "EInteger",
-                                    219131014,
-                                    "2"
-                                  ],
-                                  [
-                                    "NoRail"
-                                  ]
-                                ],
-                                [
-                                  "ELambda",
-                                  947647446,
-                                  [
-                                    [
-                                      180359194,
-                                      "y"
-                                    ]
-                                  ],
-                                  [
-                                    "EBinOp",
-                                    140609068,
-                                    "\u002B",
-                                    [
-                                      "EInteger",
-                                      450951790,
-                                      "2"
-                                    ],
-                                    [
-                                      "EVariable",
-                                      402203255,
-                                      "y"
-                                    ],
-                                    [
-                                      "NoRail"
-                                    ]
-                                  ]
-                                ]
-                              ],
-                              [
-                                "EBinOp",
-                                265463935,
-                                "\u002B",
-                                [
-                                  "EBinOp",
-                                  312092282,
-                                  "\u002B",
-                                  [
-                                    "EFieldAccess",
-                                    974664608,
-                                    [
-                                      "EVariable",
-                                      1002893266,
-                                      "x"
-                                    ],
-                                    "y"
-                                  ],
-                                  [
-                                    "EFnCall",
-                                    173079901,
-                                    "Int::add",
-                                    [
-                                      [
-                                        "EInteger",
-                                        250221144,
-                                        "6"
-                                      ],
-                                      [
-                                        "EInteger",
-                                        298149318,
-                                        "2"
-                                      ]
-                                    ],
-                                    [
-                                      "NoRail"
-                                    ]
-                                  ],
-                                  [
-                                    "NoRail"
-                                  ]
-                                ],
-                                [
-                                  "EList",
-                                  539797095,
-                                  [
-                                    [
-                                      "EInteger",
-                                      267797631,
-                                      "5"
-                                    ],
-                                    [
-                                      "EInteger",
-                                      352138743,
-                                      "6"
-                                    ],
-                                    [
-                                      "EInteger",
-                                      430871955,
-                                      "7"
-                                    ]
-                                  ]
-                                ],
-                                [
-                                  "NoRail"
-                                ]
-                              ]
-                            ],
-                            [
-                              "ELet",
-                              831830073,
-                              "r",
-                              [
-                                "ERecord",
-                                109539183,
-                                [
-                                  [
-                                    "field",
-                                    [
-                                      "EPipe",
-                                      786862131,
-                                      [
-                                        [
-                                          "EInteger",
-                                          555880460,
-                                          "5"
-                                        ],
-                                        [
-                                          "EBinOp",
-                                          1021880969,
-                                          "\u002B",
-                                          [
-                                            "EPipeTarget",
-                                            936577032
-                                          ],
-                                          [
-                                            "EInteger",
-                                            962393769,
-                                            "2"
-                                          ],
-                                          [
-                                            "NoRail"
-                                          ]
-                                        ]
-                                      ]
-                                    ]
-                                  ],
-                                  [
-                                    "constructor",
-                                    [
-                                      "EConstructor",
-                                      567764301,
-                                      "Ok",
-                                      [
-                                        [
-                                          "EConstructor",
-                                          646107057,
-                                          "Error",
-                                          [
-                                            [
-                                              "EConstructor",
-                                              689802831,
-                                              "Just",
-                                              [
-                                                [
-                                                  "EConstructor",
-                                                  957916875,
-                                                  "Nothing",
-                                                  []
-                                                ]
-                                              ]
-                                            ]
-                                          ]
-                                        ]
-                                      ]
-                                    ]
-                                  ]
-                                ]
-                              ],
-                              [
-                                "ELet",
-                                745304029,
-                                "m",
-                                [
-                                  "EMatch",
-                                  889712088,
-                                  [
-                                    "EFnCall",
-                                    203239466,
-                                    "Mod::function_v2",
-                                    [],
-                                    [
-                                      "NoRail"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      [
-                                        "FPConstructor",
-                                        889712088,
-                                        1015986188,
-                                        "Ok",
-                                        [
-                                          [
-                                            "FPVariable",
-                                            889712088,
-                                            334386852,
-                                            "x"
-                                          ]
-                                        ]
-                                      ],
-                                      [
-                                        "EVariable",
-                                        863810169,
-                                        "v"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "FPInteger",
-                                        889712088,
-                                        928253813,
-                                        "5"
-                                      ],
-                                      [
-                                        "EInteger",
-                                        342670561,
-                                        "-9223372036854775808"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "FPBool",
-                                        889712088,
-                                        435227293,
-                                        true
-                                      ],
-                                      [
-                                        "EInteger",
-                                        232748650,
-                                        "7"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "FPBlank",
-                                        889712088,
-                                        387662539
-                                      ],
-                                      [
-                                        "EBlank",
-                                        657848009
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "FPString",
-                                        {
-                                          "matchID": 889712088,
-                                          "patternID": 491115870,
-                                          "str": "string"
-                                        }
-                                      ],
-                                      [
-                                        "EString",
-                                        820329949,
-                                        "string"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "FPNull",
-                                        889712088,
-                                        701616052
-                                      ],
-                                      [
-                                        "ENull",
-                                        731162955
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "FPVariable",
-                                        889712088,
-                                        722099983,
-                                        "var"
-                                      ],
-                                      [
-                                        "EBinOp",
-                                        275666765,
-                                        "\u002B",
-                                        [
-                                          "EInteger",
-                                          739193732,
-                                          "6"
-                                        ],
-                                        [
-                                          "EVariable",
-                                          880556562,
-                                          "var"
-                                        ],
-                                        [
-                                          "NoRail"
-                                        ]
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "FPFloat",
-                                        889712088,
-                                        409097457,
-                                        "5",
-                                        "6"
-                                      ],
-                                      [
-                                        "EFloat",
-                                        131187958,
-                                        "5",
-                                        "6"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "FPBlank",
-                                        889712088,
-                                        858594159
-                                      ],
-                                      [
-                                        "EInteger",
-                                        135348705,
-                                        "6"
-                                      ]
-                                    ]
-                                  ]
-                                ],
-                                [
-                                  "ELet",
-                                  927055617,
-                                  "f",
-                                  [
-                                    "EFeatureFlag",
-                                    882488977,
-                                    "test",
-                                    [
-                                      "EBool",
-                                      349352147,
-                                      true
-                                    ],
-                                    [
-                                      "EInteger",
-                                      578528886,
-                                      "5"
-                                    ],
-                                    [
-                                      "EInteger",
-                                      562930224,
-                                      "6"
-                                    ]
-                                  ],
-                                  [
-                                    "ELet",
-                                    6345345,
-                                    "partials",
-                                    [
-                                      "EList",
-                                      23423423,
-                                      [
-                                        [
-                                          "EPartial",
-                                          2949606,
-                                          "some \uD83E\uDD2C string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            "5"
-                                          ]
-                                        ],
-                                        [
-                                          "ERightPartial",
-                                          9239755,
-                                          "some \uD83D\uDE2D string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            "5"
-                                          ]
-                                        ],
-                                        [
-                                          "ELeftPartial",
-                                          234885,
-                                          "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            "5"
-                                          ]
-                                        ]
-                                      ]
-                                    ],
-                                    [
-                                      "ELet",
-                                      883434,
-                                      "tuples",
-                                      [
-                                        "ETuple",
-                                        72333,
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          "5"
-                                        ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          "5"
-                                        ],
-                                        [
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            "5"
-                                          ]
-                                        ]
-                                      ],
-                                      [
-                                        "EInteger",
-                                        34545,
-                                        "5"
-                                      ]
-                                    ]
-                                  ]
-                                ]
-                              ]
-                            ]
-                          ]
-                        ]
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ]
-        ]
-      }
-    ],
-    "user_tipes": [
-      {
-        "tlid": 0,
-        "name": [
-          "Filled",
-          92930232,
-          "User"
-        ],
-        "version": 0,
-        "definition": [
-          "UTRecord",
-          [
-            {
-              "name": [
-                "Filled",
-                923942342,
-                "prop1"
-              ],
-              "tipe": [
-                "Blank",
-                3452342
-              ]
-            },
-            {
-              "name": [
-                "Filled",
-                698978,
-                "prop1"
-              ],
-              "tipe": [
-                "Filled",
-                93494534,
-                [
-                  "TObj"
-                ]
-              ]
-            }
-          ]
-        ]
-      }
-    ],
-    "secrets": [
-      {
-        "secret_name": "z",
-        "secret_value": "y"
-      }
-    ]
-  }
-]
+    }
+  ]
+}

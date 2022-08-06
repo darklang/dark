@@ -9,8 +9,11 @@ open TestUtils.TestUtils
 
 module File = LibBackend.File
 module Config = LibBackend.Config
+module CT = ClientTypes
+module CTA = CT.Analysis
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module AT = LibExecution.AnalysisTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module OT = LibExecution.OCamlTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
@@ -307,8 +310,7 @@ module Values =
     |> Map
     |> RT.DObj
 
-  let testClientDval : ApiServer.ClientTypes.Dval.T =
-    ApiServer.ClientTypes.Dval.fromRT testDval
+  let testClientDval : CT.Dval.T = CT.Dval.fromRT testDval
 
   let testOCamlDval = LibExecution.OCamlTypes.Convert.rt2ocamlDval testDval
 
@@ -335,20 +337,29 @@ module Values =
                     )
                   ))
                  ("int", PT.TInt)
-                 ("int", PT.TFloat)
                  ("float", PT.TFloat)
                  ("bool", PT.TBool)
                  ("null", PT.TNull)
                  ("str", PT.TStr)
+                 ("list", PT.TList(PT.TInt))
+                 ("tuple", PT.TTuple(PT.TInt, PT.TStr, []))
+                 ("dict", PT.TDict(PT.TInt))
                  ("incomplete", PT.TIncomplete)
                  ("error", PT.TError)
+                 ("httpresponse", PT.THttpResponse(PT.TInt))
+                 ("db", PT.TDB(PT.TInt))
                  ("date", PT.TDate)
                  ("char", PT.TChar)
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
+                 ("option", PT.TOption(PT.TInt))
                  ("errorRail", PT.TErrorRail)
+                 ("usertype", PT.TUserType("name", 0))
                  ("bytes", PT.TBytes)
-                 ("variable ", PT.TVariable "v") ]
+                 ("result", PT.TResult(PT.TInt, PT.TStr))
+                 ("variable", PT.TVariable "v")
+                 ("fn", PT.TFn([ PT.TInt ], PT.TInt))
+                 ("record", PT.TRecord([ "field1", PT.TInt ])) ]
 
   let testOCamlTipe = OT.Convert.pt2ocamlTipe testType
 
@@ -373,41 +384,45 @@ module Values =
               nameID = 923982352UL
               typeID = 289429232UL } ] } ]
 
-  let testUserFunctions : List<PT.UserFunction.T> =
-    [ { tlid = 0UL
-        name = "myFunc"
-        nameID = 1828332UL
-        parameters =
-          [ { name = "myparam1"
-              nameID = 23824935UL
-              typ = None
-              typeID = 38284244UL
-              description = "param1" }
-            { name = "myparam2"
-              nameID = 92837232UL
-              typ = Some testType
-              typeID = 239232UL
-              description = "param1" } ]
-        returnType = testType
-        returnTypeID = 23923423UL
-        description = "function description"
-        infix = false
-        body = testExpr } ]
+  let testUserFunction : PT.UserFunction.T =
+    { tlid = 0UL
+      name = "myFunc"
+      nameID = 1828332UL
+      parameters =
+        [ { name = "myparam1"
+            nameID = 23824935UL
+            typ = None
+            typeID = 38284244UL
+            description = "param1" }
+          { name = "myparam2"
+            nameID = 92837232UL
+            typ = Some testType
+            typeID = 239232UL
+            description = "param1" } ]
+      returnType = testType
+      returnTypeID = 23923423UL
+      description = "function description"
+      infix = false
+      body = testExpr }
 
-  let testUserTypes : List<PT.UserType.T> =
-    [ { tlid = 0UL
-        name = "User"
-        nameID = 92930232UL
-        version = 0
-        definition =
-          PT.UserType.Record [ { name = "prop1"
-                                 typ = None
-                                 nameID = 923942342UL
-                                 typeID = 3452342UL }
-                               { name = "prop1"
-                                 typ = Some testType
-                                 nameID = 0698978UL
-                                 typeID = 93494534UL } ] } ]
+  let testUserFunctions : List<PT.UserFunction.T> = [ testUserFunction ]
+
+  let testUserType : PT.UserType.T =
+    { tlid = 0UL
+      name = "User"
+      nameID = 92930232UL
+      version = 0
+      definition =
+        PT.UserType.Record [ { name = "prop1"
+                               typ = None
+                               nameID = 923942342UL
+                               typeID = 3452342UL }
+                             { name = "prop1"
+                               typ = Some testType
+                               nameID = 0698978UL
+                               typeID = 93494534UL } ] }
+
+  let testUserTypes : List<PT.UserType.T> = [ testUserType ]
 
 
   let testToplevels : List<PT.Toplevel.T> =
@@ -434,7 +449,7 @@ module Values =
       PT.SetDBColType(tlid, id, "int")
       PT.DeleteTL tlid
       PT.MoveTL(tlid, testPos)
-      PT.SetFunction(testUserFunctions[0])
+      PT.SetFunction(testUserFunction)
       PT.ChangeDBColName(tlid, id, "name")
       PT.ChangeDBColType(tlid, id, "int")
       PT.UndoTL tlid
@@ -445,7 +460,7 @@ module Values =
       PT.DeleteDBCol(tlid, id)
       PT.RenameDBname(tlid, "newname")
       PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
-      PT.SetType(testUserTypes[0])
+      PT.SetType(testUserType)
       PT.DeleteType tlid ]
 
   let testOCamlOplist : OT.oplist = OT.Convert.pt2ocamlOplist testOplist
@@ -466,17 +481,21 @@ module Values =
           user_tipes = testOCamlUserTipes
           deleted_user_tipes = testOCamlUserTipes } }
 
+
+  let testAddOpResultV1 : LibBackend.Op.AddOpResultV1 =
+    { handlers = testHandlers
+      deletedHandlers = testHandlers
+      dbs = testDBs
+      deletedDBs = testDBs
+      userFunctions = testUserFunctions
+      deletedUserFunctions = testUserFunctions
+      userTypes = testUserTypes
+      deletedUserTypes = testUserTypes }
+
   let testAddOpEventV1 : LibBackend.Op.AddOpEventV1 =
-    { ``params`` = { ops = testOplist; opCtr = 0; clientOpCtrId = None }
-      result =
-        { handlers = testHandlers
-          deleted_handlers = testHandlers
-          dbs = testDBs
-          deleted_dbs = testDBs
-          user_functions = testUserFunctions
-          deleted_user_functions = testUserFunctions
-          user_tipes = testUserTypes
-          deleted_user_tipes = testUserTypes } }
+    { ``params`` =
+        { ops = testOplist; opCtr = 0; clientOpCtrID = testUuid.ToString() }
+      result = testAddOpResultV1 }
 
 
   let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
@@ -529,15 +548,6 @@ module GenericSerializersTests =
 
     let keyFor (typeName : string) (serializerName : string) : string =
       $"{serializerName}-{typeName}"
-
-    let fileNameFor
-      (typeName : string)
-      (serializerName : string)
-      (dataName : string)
-      : string =
-      let original = $"{serializerName}-{typeName}-{dataName}"
-      let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
-      Regex.Replace(replaced, "[-]+", "-") + ".json"
 
     let get
       (typeName : string)
@@ -610,7 +620,7 @@ module GenericSerializersTests =
       // ------------------
 
       both<ORT.dval> "complete" testOCamlDval
-      both<RT.Dval> "complete" testDval
+      both<CT.Dval.T> "complete" testClientDval
       testHandlersWithName
       |> List.iter (fun (name, handler) -> oc<PT.Handler.T> name handler)
       // v<OT.oplist> "all" testOCamlOplist
@@ -659,11 +669,13 @@ module GenericSerializersTests =
       // AddOps
       v<ApiServer.AddOps.V1.Params>
         "simple"
-        { ops = testOplist; opCtr = 0; clientOpCtrId = None }
-      v<ApiServer.AddOps.V1.T> "simple" testAddOpEventV1
+        { ops = testOplist; opCtr = 0; clientOpCtrID = testUuid.ToString() }
+      v<ApiServer.AddOps.V1.T> "simple" testAddOpResultV1
       oc<ApiServer.AddOps.V0.Params>
         "simple"
-        { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
+        { ops = testOCamlOplist
+          opCtr = 0
+          clientOpCtrId = Some(testUuid.ToString()) }
       oc<ApiServer.AddOps.V0.T> "simple" testAddOpEventV0
 
 
@@ -730,60 +742,59 @@ module GenericSerializersTests =
 
       v<List<ApiServer.Functions.BuiltInFn.T>>
         "all"
-        ([ { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+        ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters =
                [ { name = "a"
-                   ``type`` = ApiServer.ClientTypes.DType.TInt
+                   ``type`` = CT.DType.TInt
                    args = []
                    description = "param description" } ]
-             returnType =
-               ApiServer.ClientTypes.DType.TList(ApiServer.ClientTypes.DType.TInt)
+             returnType = CT.DType.TList(CT.DType.TInt)
              description = "basic"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
              deprecated = ApiServer.Functions.Deprecation.NotDeprecated
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "impure"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Impure
              deprecated = ApiServer.Functions.Deprecation.NotDeprecated
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "impurepreviewable"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.ImpurePreviewable
              deprecated = ApiServer.Functions.Deprecation.NotDeprecated
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "replacedBy"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
              deprecated =
                ApiServer.Functions.Deprecation.ReplacedBy(
-                 { ``module`` = "Int"; ``function`` = "mod"; version = 1 }
+                 { module_ = "Int"; function_ = "mod"; version = 1 }
                )
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "renamedTo"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
              deprecated =
                ApiServer.Functions.Deprecation.RenamedTo(
-                 { ``module`` = "Int"; ``function`` = "mod"; version = 1 }
+                 { module_ = "Int"; function_ = "mod"; version = 1 }
                )
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
-           { name = { ``module`` = "Int"; ``function`` = "mod"; version = 0 }
+           { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = ApiServer.ClientTypes.DType.TInt
+             returnType = CT.DType.TInt
              description = "deprecatedBecause"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -794,29 +805,26 @@ module GenericSerializersTests =
       v<ApiServer.InitialLoad.V1.T>
         "initial"
         { handlers = testHandlers
-          deleted_handlers = testHandlers
+          deletedHandlers = testHandlers
           dbs = testDBs
-          deleted_dbs = testDBs
-          user_functions = testUserFunctions
-          deleted_user_functions = testUserFunctions
-          unlocked_dbs = [ testTLID ]
-          user_types = testUserTypes
-          deleted_user_types = testUserTypes
-          assets = [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
-          op_ctrs = [ testUuid, 7 ]
-          canvas_list = [ "test"; "test-canvas2" ]
-          org_canvas_list = [ "testorg"; "testorg-canvas2" ]
+          deletedDBs = testDBs
+          userFunctions = testUserFunctions
+          deletedUserFunctions = testUserFunctions
+          unlockedDBs = [ testTLID ]
+          userTypes = testUserTypes
+          deletedUserTypes = testUserTypes
+          staticDeploys =
+            [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
+          opCtrs = Map [ testUuid, 7 ]
+          canvasList = [ "test"; "test-canvas2" ]
+          orgCanvasList = [ "testorg"; "testorg-canvas2" ]
           permission = Some(LibBackend.Authorization.ReadWrite)
           orgs = [ "test"; "testorg" ]
           account =
-            { username = "test"
-              name = "Test Name"
-              admin = false
-              email = "test@darklang.com"
-              id = testUuid }
-          creation_date = testInstant
-          worker_schedules = testWorkerStates
-          secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+            { username = "test"; name = "Test Name"; email = "test@darklang.com" }
+          creationDate = testInstant
+          workerSchedules = testWorkerStates
+          secrets = [ { name = "test"; value = "secret" } ] }
       oc<ApiServer.InitialLoad.V0.T>
         "initial"
         { toplevels = testOCamlToplevels
@@ -874,19 +882,34 @@ module GenericSerializersTests =
             deprecated = false
             tlid = testTLID } ]
 
-      // Secrets
+      // SecretsV0
 
-      v<ApiServer.Secrets.Delete.Params> "simple" { secret_name = "test" }
-      v<ApiServer.Secrets.Delete.T>
+      v<ApiServer.Secrets.DeleteV0.Params> "simple" { secret_name = "test" }
+      v<ApiServer.Secrets.DeleteV0.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
-      v<ApiServer.Secrets.Insert.Params>
+      v<ApiServer.Secrets.InsertV0.Params>
         "simple"
         { secret_name = "test"; secret_value = "secret" }
-      v<ApiServer.Secrets.Insert.T>
+      v<ApiServer.Secrets.InsertV0.T>
         "simple"
         { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
+
+
+      // SecretsV1
+
+      v<ApiServer.Secrets.DeleteV1.Params> "simple" { name = "test" }
+      v<ApiServer.Secrets.DeleteV1.T>
+        "simple"
+        { secrets = [ { name = "test"; value = "secret" } ] }
+
+      v<ApiServer.Secrets.InsertV1.Params>
+        "simple"
+        { name = "test"; value = "secret" }
+      v<ApiServer.Secrets.InsertV1.T>
+        "simple"
+        { secrets = [ { name = "test"; value = "secret" } ] }
 
       // Toplevels
 
@@ -896,16 +919,27 @@ module GenericSerializersTests =
       // Traces
 
       v<ApiServer.Traces.AllTraces.T> "simple" { traces = [ (testTLID, testUuid) ] }
-      v<ApiServer.Traces.TraceData.Params>
+      v<ApiServer.Traces.TraceDataV0.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid }
-      v<ApiServer.Traces.TraceData.T>
+      v<ApiServer.Traces.TraceDataV0.T>
         "simple"
         { trace =
             (testUuid,
              { input = [ "var", testOCamlDval ]
                timestamp = testInstant
                function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }) }
+      v<ApiServer.Traces.TraceDataV1.Params>
+        "simple"
+        { tlid = testTLID; traceID = testUuid }
+      v<ApiServer.Traces.TraceDataV1.T>
+        "simple"
+        { trace =
+            (testUuid,
+             { input = [ "var", testClientDval ]
+               timestamp = testInstant
+               functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }) }
+
 
       // Workers
 
@@ -925,27 +959,56 @@ module GenericSerializersTests =
         (Ok(
           testUuid,
           Dictionary.fromList (
-            [ (7UL, LibAnalysis.ClientInterop.ExecutedResult testOCamlDval)
-              (7UL, LibAnalysis.ClientInterop.NonExecutedResult testOCamlDval) ]
+            [ (7UL, CTA.ExecutionResult.ExecutedResult testClientDval)
+              (7UL, CTA.ExecutionResult.NonExecutedResult testClientDval) ]
           )
         ))
-      v<LibAnalysis.ClientInterop.performAnalysisParams>
+      v<ClientTypes.Analysis.PerformAnalysisParams>
         "handler"
-        (LibAnalysis.ClientInterop.AnalyzeHandler
-          { handler = OT.Convert.pt2ocamlHandler testHttpHandler
-            trace_id = testUuid
-            trace_data =
-              { input = [ "var", testOCamlDval ]
+        (ClientTypes.Analysis.AnalyzeHandler
+          { handler = testHttpHandler
+            traceID = testUuid
+            traceData =
+              { input = [ "var", testClientDval ]
                 timestamp = testInstant
-                function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }
+                functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }
             dbs =
-              [ { tlid = testTLIDs[0]
-                  name = OT.Filled(7UL, "dbname")
-                  cols = [ OT.Filled(7UL, "colname"), OT.Filled(7UL, "int") ]
-                  version = 1L } ]
-            user_fns = List.map OT.Convert.pt2ocamlUserFunction testUserFunctions
-            user_tipes = List.map OT.Convert.pt2ocamlUserType testUserTypes
-            secrets = [ { secret_name = "z"; secret_value = "y" } ] })
+              [ { tlid = testTLID
+                  name = "dbname"
+                  nameID = 7UL
+                  pos = testPos
+                  cols =
+                    [ { name = Some("colname")
+                        nameID = 8UL
+                        typ = Some(PT.TInt)
+                        typeID = 9UL } ]
+                  version = 1 } ]
+            userFns = testUserFunctions
+            userTypes = testUserTypes
+            secrets = [ { name = "z"; value = "y" } ] })
+      v<ClientTypes.Analysis.PerformAnalysisParams>
+        "function"
+        (ClientTypes.Analysis.AnalyzeFunction
+          { func = testUserFunction
+            traceID = testUuid
+            traceData =
+              { input = [ "var", testClientDval ]
+                timestamp = testInstant
+                functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }
+            dbs =
+              [ { tlid = testTLID
+                  name = "dbname"
+                  nameID = 7UL
+                  pos = testPos
+                  cols =
+                    [ { name = Some("colname")
+                        nameID = 8UL
+                        typ = Some(PT.TInt)
+                        typeID = 9UL } ]
+                  version = 1 } ]
+            userFns = testUserFunctions
+            userTypes = testUserTypes
+            secrets = [ { name = "z"; value = "y" } ] })
 
 
       // ------------------
@@ -960,6 +1023,16 @@ module GenericSerializersTests =
 
     generateTestData ()
 
+  let fileNameFor
+    (serializerName : string)
+    (reason : string)
+    (typeName : string)
+    (dataName : string)
+    : string =
+    let original = $"{serializerName}_{reason}_{typeName}_{dataName}"
+    let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
+    Regex.Replace(replaced, "[-]+", "-") + ".json"
+
   let testNoExtraTestFiles : Test =
     test "test no extra test files" {
       let filenamesFor dict serializerName =
@@ -968,19 +1041,19 @@ module GenericSerializersTests =
         |> List.map (fun (typeName, reason) ->
           SampleData.get typeName serializerName reason
           |> List.map (fun (name, _) ->
-            SampleData.fileNameFor typeName serializerName name))
+            fileNameFor serializerName reason typeName name))
         |> List.concat
         |> Set
 
       let vanillaFilenames = filenamesFor Json.Vanilla.allowedTypes "vanilla"
-      let vanillaActual = File.lsPattern Config.Serialization "vanilla-*.json" |> Set
+      let vanillaActual = File.lsPattern Config.Serialization "vanilla_*.json" |> Set
       let vanillaMissingFiles = Set.difference vanillaFilenames vanillaActual
       let vanillaExtraFiles = Set.difference vanillaActual vanillaFilenames
       Expect.equal vanillaMissingFiles Set.empty "missing vanilla files"
       Expect.equal vanillaExtraFiles Set.empty "extra vanilla files"
 
       let ocamlFilenames = filenamesFor Json.OCamlCompatible.allowedTypes "ocaml"
-      let ocamlActual = File.lsPattern Config.Serialization "ocaml-*.json" |> Set
+      let ocamlActual = File.lsPattern Config.Serialization "ocaml_*.json" |> Set
       let ocamlMissingFiles = Set.difference ocamlFilenames ocamlActual
       let ocamlExtraFiles = Set.difference ocamlActual ocamlFilenames
       Expect.equal ocamlMissingFiles Set.empty "missing ocaml files"
@@ -997,7 +1070,7 @@ module GenericSerializersTests =
           // For each type, compare the sample data to the file data
           SampleData.get typeName serializerName reason
           |> List.iter (fun (name, actualSerializedData) ->
-            let filename = SampleData.fileNameFor typeName serializerName name
+            let filename = fileNameFor serializerName reason typeName name
             let expected = File.readfile Config.Serialization filename
             Expect.equal actualSerializedData expected "matches")
         })
@@ -1012,7 +1085,7 @@ module GenericSerializersTests =
         // For each type, compare the sample data to the file data
         SampleData.get typeName serializerName reason
         |> List.iter (fun (name, serializedData) ->
-          let filename = SampleData.fileNameFor typeName serializerName name
+          let filename = fileNameFor serializerName reason typeName name
           File.writefile Config.Serialization filename serializedData))
     generate Json.Vanilla.allowedTypes "vanilla"
     generate Json.OCamlCompatible.allowedTypes "ocaml"

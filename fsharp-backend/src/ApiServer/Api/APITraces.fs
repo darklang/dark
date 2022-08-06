@@ -10,6 +10,7 @@ open Tablecloth
 open Http
 
 module PT = LibExecution.ProgramTypes
+module CT = ClientTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 
@@ -18,7 +19,7 @@ module Canvas = LibBackend.Canvas
 module Convert = LibExecution.OCamlTypes.Convert
 module Telemetry = LibService.Telemetry
 
-module TraceData =
+module TraceDataV0 =
   type Params = { tlid : tlid; trace_id : AT.TraceID }
 
   // CLEANUP: this uses ORT.dval instead of RT.Dval
@@ -81,6 +82,71 @@ module TraceData =
                 List.map
                   (fun (r1, r2, r3, r4, dv) ->
                     (r1, r2, r3, r4, Convert.rt2ocamlDval dv))
+                  traceData.function_results }
+          )
+        | None -> None
+
+      return Option.map (fun t -> { trace = t }) trace
+    }
+
+module TraceDataV1 =
+  type Params = { tlid : tlid; traceID : AT.TraceID }
+
+  type InputVars = List<string * CT.Dval.T>
+  type FunctionArgHash = string
+  type HashVersion = int
+  type FnName = string
+  type FunctionResult = FnName * id * FunctionArgHash * HashVersion * CT.Dval.T
+
+  type TraceData =
+    { input : InputVars
+      timestamp : NodaTime.Instant
+      functionResults : List<FunctionResult> }
+
+  type Trace = AT.TraceID * TraceData
+
+  type T = { trace : Trace }
+
+  /// API endpoint to fetch data for a specific Trace
+  ///
+  /// Data returned includes input, timestamp, and results
+  let getTraceData (ctx : HttpContext) : Task<Option<T>> =
+    task {
+      use t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      Telemetry.addTags [ "tlid", p.tlid; "traceID", p.traceID ]
+
+      t.next "load-canvas"
+      let! c = Canvas.loadTLIDs canvasInfo [ p.tlid ]
+
+
+      // CLEANUP: we dont need the handlers or functions at all here, just for the sample
+      // values which we could do on the client instead
+      t.next "load-trace"
+      let handler = c.handlers |> Map.get p.tlid
+
+      let! trace =
+        match handler with
+        | Some h -> Traces.handlerTrace c.meta.id p.traceID h |> Task.map Some
+        | None ->
+          match c.userFunctions |> Map.get p.tlid with
+          | Some u -> Traces.userfnTrace c.meta.id p.traceID u |> Task.map Some
+          | None -> Task.FromResult None
+
+
+      t.next "write-api"
+      let (trace : Option<Trace>) =
+        match trace with
+        | Some (id, (traceData : AT.TraceData)) ->
+          Some(
+            id,
+            { input =
+                List.map (fun (s, dv) -> (s, CT.Dval.fromRT dv)) traceData.input
+              timestamp = traceData.timestamp
+              functionResults =
+                List.map
+                  (fun (r1, r2, r3, r4, dv) -> (r1, r2, r3, r4, CT.Dval.fromRT dv))
                   traceData.function_results }
           )
         | None -> None

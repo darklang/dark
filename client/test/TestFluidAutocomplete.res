@@ -10,35 +10,47 @@ open ProgramTypes.Pattern
 open FluidTestData
 open FluidShortcuts
 
+let defaultUnknownSpec = PT.Handler.Spec.newUnknown("", "")
+
+let defaultHTTPSpec = PT.Handler.Spec.newHTTP("/", "GET")
+
+let defaultREPLSpec = PT.Handler.Spec.newREPL("adjectiveNoun")
+
+let defaultCronSpec = PT.Handler.Spec.newCron("daily", Some(PT.Handler.Spec.CronInterval.EveryDay))
+
+let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
+
+let defaultSpec = defaultHTTPSpec
+
 let sampleFunctions: list<RT.BuiltInFn.t> = list{
-  ("Twit", "somefunc", 0, list{DType.TObj}, DType.TAny),
-  ("Twit", "someOtherFunc", 0, list{TObj}, TAny),
-  ("Twit", "yetAnother", 0, list{TObj}, TAny),
+  ("Twit", "somefunc", 0, list{DType.TDict(DType.any)}, DType.any),
+  ("Twit", "someOtherFunc", 0, list{TDict(DType.any)}, DType.any),
+  ("Twit", "yetAnother", 0, list{TDict(DType.any)}, DType.any),
   ("", "+", 0, list{TInt, TInt}, TInt),
   ("Int", "add", 0, list{TInt, TInt}, TInt),
-  ("Dict", "keys", 0, list{TObj}, TList),
-  ("List", "head", 0, list{TList}, TAny),
-  ("", "withlower", 0, list{TObj}, TObj),
-  ("", "withLower", 0, list{TObj}, TObj),
-  ("SomeModule", "withLower", 0, list{TObj}, TObj),
-  ("SomeOtherModule", "withlower", 0, list{TObj}, TObj),
-  ("HTTP", "post", 0, list{TAny}, TAny),
-  ("HTTP", "head", 0, list{TAny}, TAny),
-  ("HTTP", "get", 0, list{TAny}, TAny),
-  ("HTTP", "options", 0, list{TAny}, TAny),
-  ("Some", "deprecated", 0, list{TAny}, TAny),
-  ("DB", "deleteAll", 0, list{TDB}, TNull),
+  ("Dict", "keys", 0, list{TDict(DType.any)}, TList(TStr)),
+  ("List", "head", 0, list{TList(DType.any)}, DType.any),
+  ("", "withlower", 0, list{TDict(DType.any)}, TDict(DType.any)),
+  ("", "withLower", 0, list{TDict(DType.any)}, TDict(DType.any)),
+  ("SomeModule", "withLower", 0, list{TDict(DType.any)}, TDict(DType.any)),
+  ("SomeOtherModule", "withlower", 0, list{TDict(DType.any)}, TDict(DType.any)),
+  ("HTTP", "post", 0, list{DType.any}, DType.any),
+  ("HTTP", "head", 0, list{DType.any}, DType.any),
+  ("HTTP", "get", 0, list{DType.any}, DType.any),
+  ("HTTP", "options", 0, list{DType.any}, DType.any),
+  ("Some", "deprecated", 0, list{DType.any}, DType.any),
+  ("DB", "deleteAll", 0, list{TDB(DType.any)}, TNull),
   ("DB", "generateKey", 0, list{}, TStr),
-  ("DB", "getAll", 2, list{TDB}, TList),
-  ("DB", "getAll", 1, list{TDB}, TList),
+  ("DB", "getAll", 2, list{TDB(DType.any)}, TList(DType.any)),
+  ("DB", "getAll", 1, list{TDB(DType.any)}, TList(DType.any)),
   // ordering is deliberate - we want the query to order s.t. get is before getAll
-  ("DB", "get", 1, list{TDB}, TList),
+  ("DB", "get", 1, list{TDB(DType.any)}, TList(DType.any)),
   ("String", "append", 0, list{TStr, TStr}, TStr),
-  ("List", "append", 0, list{TList, TList}, TList),
+  ("List", "append", 0, list{TList(DType.any), TList(DType.any)}, TList(DType.any)),
   ("String", "newline", 0, list{}, TStr),
-  ("Option", "withDefault", 0, list{TOption}, TAny),
-  ("Result", "withDefault", 0, list{TResult}, TAny),
-  ("InQuery", "whatever", 0, list{TObj}, TAny),
+  ("Option", "withDefault", 0, list{TOption(DType.any)}, DType.any),
+  ("Result", "withDefault", 0, list{TResult(DType.any, DType.any)}, DType.any),
+  ("InQuery", "whatever", 0, list{TDict(DType.any)}, DType.any),
 } |> List.map(~f=((module_, function, version, paramTipes, returnType)): RT.BuiltInFn.t => {
   name: {module_: module_, function: function, version: version},
   parameters: List.map(paramTipes, ~f=(paramType): RT.BuiltInFn.Param.t => {
@@ -73,16 +85,12 @@ let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
 let defaultToplevel = TLHandler({
   ast: FluidAST.ofExpr(defaultExpr),
-  spec: {
-    space: Blank(gid()),
-    name: Blank(gid()),
-    modifier: Blank(gid()),
-  },
+  spec: defaultSpec,
   tlid: defaultTLID,
-  pos: Defaults.origin,
+  pos: Pos.origin,
 })
 
-let defaultTokenInfo = {
+let defaultTokenInfo: FluidToken.tokenInfo = {
   startRow: 0,
   startCol: 0,
   startPos: 0,
@@ -93,7 +101,7 @@ let defaultTokenInfo = {
 
 let defaultFullQuery = (~tl=defaultToplevel, ac: AC.t, queryString: string): AC.fullQuery => {
   let ti = switch tl {
-  | TLHandler({ast, _}) | TLFunc({ast, _}) =>
+  | TLHandler({ast, _}) | TLFunc({body: ast, _}) =>
     ast
     |> FluidAST.toExpr
     |> Printer.tokenize
@@ -106,36 +114,27 @@ let defaultFullQuery = (~tl=defaultToplevel, ac: AC.t, queryString: string): AC.
   {tl: tl, ti: ti, fieldList: list{}, pipedDval: None, queryString: queryString}
 }
 
-let aHandler = (
-  ~tlid=defaultTLID,
-  ~expr=defaultExpr,
-  ~space: option<string>=None,
-  (),
-): PT.Handler.t => {
-  let space = switch space {
-  | None => B.new_()
-  | Some(name) => B.newF(name)
-  }
-  let spec: PT.Handler.Spec.t = {space: space, name: B.new_(), modifier: B.new_()}
+let aHandler = (~tlid=defaultTLID, ~expr=defaultExpr, ~spec=defaultSpec, ()): PT.Handler.t => {
   {ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: {x: 0, y: 0}}
 }
 
 let aFunction = (~tlid=defaultTLID, ~expr=defaultExpr, ()): PT.UserFunction.t => {
   tlid: tlid,
-  metadata: {
-    name: B.newF("myFunc"),
-    parameters: list{},
-    description: "",
-    returnType: B.newF(DType.TStr),
-    infix: false,
-  },
-  ast: FluidAST.ofExpr(expr),
+  name: "myFunc",
+  nameID: gid(),
+  parameters: list{},
+  description: "",
+  returnType: DType.TStr,
+  returnTypeID: gid(),
+  infix: false,
+  body: FluidAST.ofExpr(expr),
 }
 
 let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): PT.DB.t => {
   tlid: tlid,
-  name: B.newF("MyDB"),
-  cols: list{(Blank(fieldid), Blank(typeid))},
+  name: "MyDB",
+  nameID: gid(),
+  cols: list{{name: None, typ: None, nameID: fieldid, typeID: typeid}},
   version: 0,
   pos: {x: 0, y: 0},
 }
@@ -147,12 +146,12 @@ let defaultModel = (
   ~dbs=list{},
   ~handlers=list{aHandler()},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   (),
-): model => {
+): AppTypes.model => {
   let analyses =
     analyses
-    |> List.map(~f=((id, value)) => (id, ExecutedResult(value)))
+    |> List.map(~f=((id, value)) => (id, AnalysisTypes.ExecutionResult.ExecutedResult(value)))
     |> List.toArray
     |> ID.Map.fromArray
 
@@ -162,7 +161,7 @@ let defaultModel = (
     handlers: Handlers.fromList(handlers),
     dbs: DB.fromList(dbs),
     userFunctions: UserFunctions.fromList(userFunctions),
-    userTipes: UserTypes.fromList(userTipes),
+    userTypes: UserTypes.fromList(userTypes),
     cursorState: FluidEntering(tlid),
     functions: {...Functions.empty, builtinFunctions: sampleFunctions} |> Functions.update(
       defaultFunctionsProps,
@@ -172,7 +171,7 @@ let defaultModel = (
 }
 
 // AC targeting a tlid and pointer
-let acFor = (~tlid=defaultTLID, ~pos=0, m: model): AC.t => {
+let acFor = (~tlid=defaultTLID, ~pos=0, m: AppTypes.model): AC.t => {
   let ti =
     TL.get(m, tlid)
     |> Option.andThen(~f=TL.getAST)
@@ -217,6 +216,7 @@ let filterInvalid = (a: AC.t): list<AC.item> =>
 
 let run = () => {
   describe("autocomplete", () => {
+    open FluidTypes.AutoComplete
     describe("queryWhenEntering", () => {
       let m = defaultModel()
       let acForQueries = (qs: list<string>) =>
@@ -363,14 +363,14 @@ let run = () => {
         )
       )
       test("http handlers have request", () => {
-        let space = Some("HTTP")
-        let m = defaultModel(~handlers=list{aHandler(~space, ())}, ())
+        let m = defaultModel(~handlers=list{aHandler(~spec=defaultHTTPSpec, ())}, ())
         expect(acFor(m) |> setQuery("request") |> filterValid) |> toEqual(list{
           FACVariable("request", None),
         })
       })
       test("handlers with no route have request and event", () =>
         expect({
+          let m = defaultModel(~handlers=list{aHandler(~spec=defaultUnknownSpec, ())}, ())
           let ac = acFor(m)
           (ac |> setQuery("request") |> filterValid, ac |> setQuery("event") |> filterValid)
         }) |> toEqual((list{FACVariable("request", None)}, list{FACVariable("event", None)}))
@@ -379,11 +379,7 @@ let run = () => {
         let blankid = gid()
         let dbNameBlank = EBlank(blankid)
         let fntlid = gtlid()
-        let fn = aFunction(
-          ~tlid=fntlid,
-          ~expr=EFnCall(gid(), "DB::deleteAll", list{dbNameBlank}, NoRail),
-          (),
-        )
+        let fn = aFunction(~tlid=fntlid, ~expr=fn(~mod="DB", "deleteAll", list{dbNameBlank}), ())
 
         let m = defaultModel(
           ~tlid=fntlid,
@@ -418,7 +414,7 @@ let run = () => {
 
       test("Cannot use DB variable when type of blank isn't TDB", () => {
         let id = gid()
-        let expr = fn("Int::add", list{EBlank(id), b})
+        let expr = fn(~mod="Int", "add", list{EBlank(id), b})
         let m = defaultModel(
           ~analyses=list{(id, DDB("MyDB"))},
           ~dbs=list{aDB(~tlid=TLID.fromInt(23), ())},
@@ -447,14 +443,12 @@ let run = () => {
         let expr = let'(
           "mystr",
           str(~id, "asd"),
-          let'("myint", int(~id=id2, 5), fn("String::append", list{b, b})),
+          let'("myint", int(~id=id2, 5), fn(~mod="String", "append", list{b, b})),
         )
-
+        // remove `request` var from valid
         let m = defaultModel(
           ~analyses=list{(id, DStr("asd")), (id2, DInt(5L))},
-          ~handlers=list{
-            aHandler(~space=Some("REPL" /* remove `request` var from valid */), ~expr, ()),
-          },
+          ~handlers=list{aHandler(~spec=defaultREPLSpec, ~expr, ())},
           (),
         )
 
@@ -468,7 +462,7 @@ let run = () => {
         ))
       })
       test("Method argument filters by fn return type ", () => {
-        let expr = fn("String::append", list{b, b})
+        let expr = fn(~mod="String", "append", list{b, b})
         let m = defaultModel(~handlers=list{aHandler(~expr, ())}, ())
         let (valid, invalid) = filterFor(m, ~pos=15)
         expect((
@@ -477,7 +471,7 @@ let run = () => {
         )) |> toEqual((true, true))
       })
       test("Only Just and Nothing are allowed in Option-blank", () => {
-        let expr = fn("Option::withDefault", list{b})
+        let expr = fn(~mod="Option", "withDefault", list{b})
         let m = defaultModel(~handlers=list{aHandler(~expr, ())}, ())
         let (valid, _invalid) = filterFor(m, ~pos=20)
         expect(valid |> List.filter(~f=isConstructor)) |> toEqual(list{
@@ -486,7 +480,7 @@ let run = () => {
         })
       })
       test("Only Ok and Error are allowed in Result blank", () => {
-        let expr = fn("Result::withDefault", list{b})
+        let expr = fn(~mod="Result", "withDefault", list{b})
         let m = defaultModel(~handlers=list{aHandler(~expr, ())}, ())
         let (valid, _invalid) = filterFor(m, ~pos=20)
         expect(valid |> List.filter(~f=isConstructor)) |> toEqual(list{
@@ -569,7 +563,12 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::query_v4", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(
+        ~mod="DB",
+        "query",
+        ~version=4,
+        list{str("MyDB"), lambda(list{"value"}, blank())},
+      )
 
       let m = defaultModel(
         ~tlid,
@@ -618,7 +617,12 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::queryWithKey_v3", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(
+        ~mod="DB",
+        "queryWithKey",
+        ~version=3,
+        list{str("MyDB"), lambda(list{"value"}, blank())},
+      )
 
       let m = defaultModel(
         ~tlid,
@@ -643,7 +647,12 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::queryOne_v4", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(
+        ~mod="DB",
+        "queryOne",
+        ~version=4,
+        list{str("MyDB"), lambda(list{"value"}, blank())},
+      )
 
       let m = defaultModel(
         ~tlid,
@@ -668,7 +677,12 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::queryOneWithKey_v3", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(
+        ~mod="DB",
+        "queryOneWithKey",
+        ~version=3,
+        list{str("MyDB"), lambda(list{"value"}, blank())},
+      )
 
       let m = defaultModel(
         ~tlid,
@@ -693,7 +707,7 @@ let run = () => {
         | _ => false
         }
       let tlid = gtlid()
-      let expr = fn("DB::queryCount", list{str("MyDB"), lambda(list{"value"}, blank())})
+      let expr = fn(~mod="DB", "queryCount", list{str("MyDB"), lambda(list{"value"}, blank())})
 
       let m = defaultModel(
         ~tlid,

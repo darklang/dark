@@ -4,6 +4,8 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 
+type msg = AppTypes.msg
+
 // Create a Html.div for this ID, incorporating all ID-related data,
 // such as whether it's selected, appropriate events, mouseover, etc.
 let div = (
@@ -101,7 +103,7 @@ let viewBlankOr = (
   htmlFn: 'a => Html.html<msg>,
   pt: blankOrType,
   vp: ViewUtils.viewProps,
-  bo: blankOr<'a>,
+  bo: BlankOr.t<'a>,
 ): Html.html<msg> => {
   let id = B.toID(bo)
   let thisText = switch bo {
@@ -138,7 +140,7 @@ let viewText = (
   ~classes: list<string>,
   pt: blankOrType,
   vp: ViewUtils.viewProps,
-  str: blankOr<string>,
+  str: BlankOr.t<string>,
 ): Html.html<msg> => viewBlankOr(~enterable, ~classes, Html.text, pt, vp, str)
 
 let viewTipe = (
@@ -146,8 +148,8 @@ let viewTipe = (
   ~classes: list<string>,
   pt: blankOrType,
   vp: ViewUtils.viewProps,
-  str: blankOr<DType.t>,
+  str: BlankOr.t<DType.t>,
 ): Html.html<msg> => {
-  let fn = t => Html.text(Runtime.tipe2str(t))
+  let fn = t => Html.text(DType.tipe2str(t))
   viewBlankOr(~enterable, ~classes, fn, pt, vp, str)
 }

@@ -3,6 +3,10 @@ module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
 
+module Page = AppTypes.Page
+module Mod = AppTypes.Modification
+type page = Page.t
+
 let hashUrlParams = (params: list<(string, string)>): string => {
   let merged = List.map(~f=((k, v)) => k ++ ("=" ++ v), params)
   if merged == list{} {
@@ -35,15 +39,16 @@ let urlFor = (page: page): string => {
   hashUrlParams(args)
 }
 
-let navigateTo = (page: page): Cmd.t<msg> => Navigation.newUrl(urlFor(page))
+let navigateTo = (page: page): AppTypes.cmd => Navigation.newUrl(urlFor(page))
 
-let updateUrl = (page: page): Cmd.t<msg> =>
+let updateUrl = (page: page): AppTypes.cmd =>
   Tea_cmd.call(_enqueue => {
     let () = Navigation.pushState(urlFor(page))
   })
 
-let linkFor = (page: page, class_: string, content: list<Html.html<msg>>): Html.html<msg> =>
-  Html.a(list{Html.href(urlFor(page)), Html.class'(class_)}, content)
+let linkFor = (page: page, class_: string, content: list<Html.html<AppTypes.msg>>): Html.html<
+  AppTypes.msg,
+> => Html.a(list{Html.href(urlFor(page)), Html.class'(class_)}, content)
 
 let parseLocation = (loc: Web.Location.location): option<page> => {
   let unstructured =
@@ -59,23 +64,25 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
     )
     |> Map.String.fromList
 
-  let architecture = () => Some(Architecture)
+  let architecture = () => Some(Page.Architecture)
   let settingModal = () =>
     switch Map.get(~key="settings", unstructured) {
-    | Some(tab) => Some(SettingsModal(SettingsViewTypes.settingsTabFromText(tab)))
+    | Some(tab) => Some(Page.SettingsModal(SettingsViewTypes.settingsTabFromText(tab)))
     | _ => None
     }
 
-  let getTLID = (key : string) : option<TLID.t> =>
+  let getTLID = (key: string): option<TLID.t> =>
     Map.get(~key, unstructured) |> Option.andThen(~f=TLID.fromString)
 
   let trace = Map.get(~key="trace", unstructured)
 
-  let pmfn = () => getTLID("packagemanagerfn")->Option.map(~f=(tlid) => FocusedPackageManagerFn(tlid))
-  let fn = () => getTLID("fn")->Option.map(~f=(tlid) => FocusedFn(tlid, trace))
-  let handler = () => getTLID("handler")->Option.map(~f=(tlid) => FocusedHandler(tlid, trace, true))
-  let db = () => getTLID("db")->Option.map(~f=(tlid) => FocusedDB(tlid, true))
-  let tipe = () => getTLID("type")->Option.map(~f=(tlid) => FocusedType(tlid))
+  let pmfn = () =>
+    getTLID("packagemanagerfn")->Option.map(~f=tlid => Page.FocusedPackageManagerFn(tlid))
+  let fn = () => getTLID("fn")->Option.map(~f=tlid => Page.FocusedFn(tlid, trace))
+  let handler = () =>
+    getTLID("handler")->Option.map(~f=tlid => Page.FocusedHandler(tlid, trace, true))
+  let db = () => getTLID("db")->Option.map(~f=tlid => Page.FocusedDB(tlid, true))
+  let tipe = () => getTLID("type")->Option.map(~f=tlid => Page.FocusedType(tlid))
 
   fn()
   |> Option.orElse(pmfn())
@@ -86,9 +93,9 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
   |> Option.orElse(architecture())
 }
 
-let changeLocation = (loc: Web.Location.location): modification => {
+let changeLocation = (loc: Web.Location.location): AppTypes.modification => {
   let mPage = parseLocation(loc)
-  Option.map(~f=x => SetPage(x), mPage) |> Option.unwrap(~default=NoChange)
+  Option.map(~f=x => Mod.SetPage(x), mPage) |> Option.unwrap(~default=Mod.NoChange)
 }
 
 let splitOnEquals = (s: string): option<(string, bool)> =>

@@ -1,16 +1,22 @@
 open Prelude
 
+module FT = FluidTypes
+module T = FluidToken
+
+type fluidState = AppTypes.fluidState
+
 open ProgramTypes.Expr
+type msg = AppTypes.msg
 
 type props = {
-  analysisStore: analysisStore,
+  analysisStore: AnalysisTypes.analysisStore,
   ast: FluidAST.t,
   functions: functionsType,
   executingFunctions: list<id>,
-  editor: fluidEditor,
+  editor: FT.Editor.t,
   hoveringRefs: list<id>,
   fluidState: fluidState,
-  permission: option<permission>,
+  permission: option<AccountTypes.Permission.t>,
   tlid: TLID.t,
   tokens: list<FluidToken.tokenInfo>,
 }
@@ -30,7 +36,7 @@ let propsToFnExecutionProps = (p: props): ViewFnExecution.props => {
   tlid: p.tlid,
 }
 
-let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> =>
+let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
   switch ViewUtils.fnForToken(p.functions, ti.token) {
   | Some({fnOrigin: UserFunction, _} as fn)
   | /* HACK: UserFunctions need to be executable so that the user can get a value
@@ -56,10 +62,8 @@ let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> =>
   | Some({fnPreviewSafety: Safe, _}) | None => Vdom.noNode
   }
 
-let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
-  Html.html<Types.msg>,
-> => {
-  let exeFlow = ti => {
+let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<Html.html<msg>> => {
+  let exeFlow = (ti: T.tokenInfo) => {
     let id = FluidToken.analysisID(ti.token)
     switch Analysis.getLiveValueLoadable(p.analysisStore, id) {
     | LoadableSuccess(ExecutedResult(_)) => CodeExecuted
@@ -79,7 +83,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
   )
 
   // Returns true if token is in the same block as the caret or on the same row
-  let isNearCaret = ti =>
+  let isNearCaret = (ti: T.tokenInfo) =>
     switch caretParentBlockID {
     | Some(pid) => FluidToken.parentBlockID(ti.token) == Some(pid) && exeFlow(ti) == CodeNotExecuted
     | None =>
@@ -92,7 +96,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
     }
 
   // Returns true if token is part of the expr the opened command palette will act on
-  let isInCPExpr = ti =>
+  let isInCPExpr = (ti: T.tokenInfo) =>
     switch p.fluidState.cp.location {
     | Some(_, id) if id == FluidToken.tid(ti.token) => true
     | _ => false
@@ -103,11 +107,11 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
     if FluidToken.validID(id) {
       // Only highlight incompletes and errors on executed paths
       switch Analysis.getLiveValueLoadable(p.analysisStore, id) {
-      | LoadableSuccess(ExecutedResult(DIncomplete(SourceId(tlid, id)))) => (
+      | LoadableSuccess(ExecutedResult(DIncomplete(SourceID(tlid, id)))) => (
           Some(tlid, id),
           "dark-incomplete",
         )
-      | LoadableSuccess(ExecutedResult(DError(SourceId(tlid, id), _))) => (
+      | LoadableSuccess(ExecutedResult(DError(SourceID(tlid, id), _))) => (
           Some(tlid, id),
           "dark-error",
         )
@@ -118,8 +122,8 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
     }
 
   let currentTokenInfo = FluidTokenizer.getToken'(p.tokens, p.fluidState)
-  let sourceOfCurrentToken = onTi =>
-    currentTokenInfo |> Option.andThen(~f=ti =>
+  let sourceOfCurrentToken = (onTi: T.tokenInfo) =>
+    currentTokenInfo |> Option.andThen(~f=(ti: T.tokenInfo) =>
       if FluidToken.isBlank(ti.token) || onTi.startRow == ti.startRow {
         None
       } else {
@@ -133,7 +137,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
   let cmdToken = switch p.fluidState.cp.location {
   | Some(ltlid, id) if p.tlid == ltlid =>
     // Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos
-    p.tokens |> List.reverse |> List.getBy(~f=ti => FluidToken.tid(ti.token) == id)
+    p.tokens |> List.reverse |> List.getBy(~f=(ti: T.tokenInfo) => FluidToken.tid(ti.token) == id)
   | _ => None
   }
 
@@ -243,7 +247,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
           ...Belt.List.concat(backingNestingClass, tokenClasses),
         } |> List.map(~f=s => (s, true))
 
-      let isInvalidToken = ti =>
+      let isInvalidToken = (ti: T.tokenInfo) =>
         switch ti.token {
         | TRecordFieldname({fieldName, recordID, _}) =>
           duplicatedRecordFields
@@ -281,7 +285,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
             "jumped-to",
             switch p.fluidState.errorDvSrc {
             | SourceNone => false
-            | SourceId(tlid, id) => id == tokenId && p.tlid == tlid
+            | SourceID(tlid, id) => id == tokenId && p.tlid == tlid
             },
           ),
           ("selected", isSelected(ti.startPos, ti.endPos)),
@@ -309,7 +313,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
   }) |> List.flatten
 }
 
-let tokensView = (p: props): Html.html<Types.msg> => {
+let tokensView = (p: props): Html.html<msg> => {
   let tlidStr = TLID.toString(p.tlid)
   let textInputListeners = /* the command palette is inside div.fluid-editor but has it's own input
    * handling, so don't do normal fluid input stuff if it's open */
@@ -320,7 +324,7 @@ let tokensView = (p: props): Html.html<Types.msg> => {
       Html.onCB(
         "keydown",
         "keydown" ++ tlidStr,
-        FluidKeyboard.onKeydown(x => FluidMsg(FluidInputEvent(Keypress(x)))),
+        FluidKeyboard.onKeydown(x => AppTypes.Msg.FluidMsg(FluidInputEvent(Keypress(x)))),
       ),
       Html.onCB("beforeinput", "beforeinput" ++ tlidStr, FluidTextInput.fromInputEvent),
       Html.onCB(
@@ -336,13 +340,13 @@ let tokensView = (p: props): Html.html<Types.msg> => {
       switch Entry.getFluidSelectionRange() {
       | Some(startPos, endPos) =>
         let selection = if altKey {
-          SelectExpressionAt(startPos)
+          FT.Msg.SelectExpressionAt(startPos)
         } else {
           SelectTokenAt(startPos, endPos)
         }
 
         FluidMsg(FluidMouseDoubleClick({tlid: p.tlid, editor: p.editor, selection: selection}))
-      | None => IgnoreMsg("fluid-dblclick-noselection")
+      | None => AppTypes.Msg.IgnoreMsg("fluid-dblclick-noselection")
       }
     ),
     ViewUtils.eventNoPropagation(
@@ -354,7 +358,7 @@ let tokensView = (p: props): Html.html<Types.msg> => {
       switch Entry.getFluidSelectionRange() {
       | Some(startPos, endPos) =>
         let selection = if startPos == endPos {
-          ClickAt(startPos)
+          FT.Msg.ClickAt(startPos)
         } else {
           SelectText(startPos, endPos)
         }
@@ -369,7 +373,7 @@ let tokensView = (p: props): Html.html<Types.msg> => {
       if msg == "flashError" || msg == "flashIncomplete" {
         FluidMsg(FluidClearErrorDvSrc)
       } else {
-        IgnoreMsg("fluid-animation-end")
+        AppTypes.Msg.IgnoreMsg("fluid-animation-end")
       }
     ),
   }
@@ -428,16 +432,16 @@ let tokensView = (p: props): Html.html<Types.msg> => {
   )
 }
 
-let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.msg> => {
+let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> => {
   let returnTipe = (name: string) =>
-    Functions.find(name, p.functions)
+    Functions.findByStr(name, p.functions)
     |> Option.map(~f=fn => fn.fnReturnTipe)
-    |> Option.unwrap(~default=DType.TAny)
+    |> Option.unwrap(~default=DType.any)
 
   let liveValue = (id: id) => Analysis.getLiveValue'(p.analysisStore, id)
   let isEvalSuccess = dv =>
     switch dv {
-    | Some(DIncomplete(_)) | Some(DError(_)) => false
+    | Some(RT.Dval.DIncomplete(_)) | Some(DError(_)) => false
     | Some(_) => true
     | _ => false
     }
@@ -446,10 +450,10 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.m
   | TFnName(id, _, _, fnName, Rail) =>
     let offset = string_of_int(ti.startRow) ++ "rem"
     let icon = switch (returnTipe(fnName), liveValue(id)) {
-    | (TResult, Some(DErrorRail(DResult(ResError(_))))) => ViewUtils.darkIcon("result-error")
-    | (TResult, v) if isEvalSuccess(v) => ViewUtils.darkIcon("result-ok")
-    | (TOption, Some(DErrorRail(DOption(OptNothing)))) => ViewUtils.darkIcon("option-nothing")
-    | (TOption, v) if isEvalSuccess(v) => ViewUtils.darkIcon("option-just")
+    | (TResult(_), Some(DErrorRail(DResult(Error(_))))) => ViewUtils.darkIcon("result-error")
+    | (TResult(_), v) if isEvalSuccess(v) => ViewUtils.darkIcon("result-ok")
+    | (TOption(_), Some(DErrorRail(DOption(None)))) => ViewUtils.darkIcon("option-nothing")
+    | (TOption(_), v) if isEvalSuccess(v) => ViewUtils.darkIcon("option-just")
     | _ => Vdom.noNode
     }
 
@@ -468,7 +472,7 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<Types.m
   }
 }
 
-let errorRailView = (p: props): Html.html<Types.msg> => {
+let errorRailView = (p: props): Html.html<msg> => {
   let indicators = List.map(p.tokens, ~f=viewErrorIndicator(p))
   let hasMaybeErrors = List.any(~f=e => e != Vdom.noNode, indicators)
   Html.div(
@@ -478,5 +482,5 @@ let errorRailView = (p: props): Html.html<Types.msg> => {
 }
 
 @ocaml.doc(" [view] builds a fluid editor ")
-let view = (p: props): Html.html<Types.msg> =>
+let view = (p: props): Html.html<msg> =>
   Html.div(list{Html.class'("fluid-editor")}, list{tokensView(p), errorRailView(p)})

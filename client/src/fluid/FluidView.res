@@ -11,12 +11,14 @@ module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
 module Printer = FluidPrinter
+module RT = RuntimeTypes
 
 open ProgramTypes.Expr
 
 type viewProps = ViewUtils.viewProps
 
 type token = T.t
+type msg = AppTypes.msg
 
 let viewCopyButton = (tlid, value): Html.html<msg> =>
   Html.div(
@@ -32,7 +34,7 @@ let viewCopyButton = (tlid, value): Html.html<msg> =>
     list{ViewUtils.fontAwesome("copy")},
   )
 
-let viewArrow = (curID: id, srcID: id): Html.html<Types.msg> => {
+let viewArrow = (curID: id, srcID: id): Html.html<msg> => {
   let curSelector = ".id-" ++ ID.toString(curID)
   let srcSelector = ".id-" ++ ID.toString(srcID)
   switch (Native.Ext.querySelector(curSelector), Native.Ext.querySelector(srcSelector)) {
@@ -65,9 +67,9 @@ let viewDval = (tlid, secrets, dval, ~canCopy: bool) => {
 
 type rec lvResult =
   | WithMessage(string)
-  | WithDval({value: dval, canCopy: bool})
-  | WithMessageAndDval({msg: string, value: dval, canCopy: bool})
-  | WithSource({tlid: TLID.t, srcID: id, propValue: dval, srcResult: lvResult})
+  | WithDval({value: RT.Dval.t, canCopy: bool})
+  | WithMessageAndDval({msg: string, value: RT.Dval.t, canCopy: bool})
+  | WithSource({tlid: TLID.t, srcID: id, propValue: RT.Dval.t, srcResult: lvResult})
   | Loading
 
 let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
@@ -77,7 +79,9 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
     FluidAST.find(id, ast)
     |> Option.andThen(~f=expr =>
       switch expr {
-      | EFnCall(_, name, _, _) | EBinOp(_, name, _, _, _) => Functions.find(name, vp.functions)
+      | EFnCall(_, name, _, _) => Functions.find(name, vp.functions)
+      | EBinOp(_, name, _, _, _) =>
+        Functions.find(Stdlib(PT.FQFnName.InfixStdlibFnName.toStdlib(name)), vp.functions)
       | _ => None
       }
     )
@@ -97,8 +101,8 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
   switch Analysis.getLiveValueLoadable(vp.analysisStore, id) {
   | LoadableSuccess(ExecutedResult(DIncomplete(_))) if Option.isSome(fnLoading) =>
     fnLoading |> Option.map(~f=msg => WithMessage(msg)) |> Option.unwrap(~default=Loading)
-  | LoadableSuccess(ExecutedResult(DIncomplete(SourceId(srcTlid, srcID)) as propValue))
-  | LoadableSuccess(ExecutedResult(DError(SourceId(srcTlid, srcID), _) as propValue))
+  | LoadableSuccess(ExecutedResult(DIncomplete(SourceID(srcTlid, srcID)) as propValue))
+  | LoadableSuccess(ExecutedResult(DError(SourceID(srcTlid, srcID), _) as propValue))
     if srcID != id || srcTlid != vp.tlid =>
     if recurred {
       WithDval({value: propValue, canCopy: false})
@@ -132,7 +136,7 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
   }
 }
 
-let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
+let viewLiveValue = (vp: viewProps): Html.html<msg> => {
   /* isLoaded will be set to false later if we are in the middle of loading
    * results. All other states are considered loaded. This is used to apply
    * a class ".loaded" purely for integration tests being able to know when
@@ -180,7 +184,7 @@ let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
     }
 
   FluidTokenizer.ASTInfo.getToken(vp.astInfo)
-  |> Option.andThen(~f=ti => {
+  |> Option.andThen(~f=(ti: T.tokenInfo) => {
     let row = ti.startRow
     let content = switch AC.highlighted(vp.fluidState.ac) {
     | Some(FACVariable(_, Some(dv))) =>
@@ -218,7 +222,7 @@ let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
 }
 
 let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): Html.html<
-  Types.msg,
+  msg,
 > =>
   if CursorState.tlidOf(vp.cursorState) == Some(vp.tlid) {
     let id = FluidAST.toID(vp.astInfo.ast)
@@ -253,14 +257,14 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
         | (DIncomplete(_), TLFunc(_)) =>
           text("Your code needs to return a value in the last expression")
         | (_, TLFunc(f)) =>
-          let actualType = dval |> Runtime.typeOf
-          let declaredType = BlankOr.valueWithDefault(DType.TAny, f.metadata.returnType)
+          let actualType = dval |> RT.Dval.toType
+          let declaredType = f.returnType
 
           if Runtime.isCompatible(actualType, declaredType) {
             Vdom.noNode
           } else {
-            let actualTypeString = Runtime.tipe2str(actualType)
-            let declaredTypeString = Runtime.tipe2str(declaredType)
+            let actualTypeString = DType.tipe2str(actualType)
+            let declaredTypeString = DType.tipe2str(declaredType)
             Html.div(
               list{warningAttr},
               list{
@@ -320,7 +324,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
   }
 
 let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): list<
-  Html.html<Types.msg>,
+  Html.html<msg>,
 > => {
   let liveValue = if vp.cursorState == FluidEntering(vp.tlid) {
     viewLiveValue(vp)
@@ -370,11 +374,11 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
       |> Option.andThen(~f=oldCodeID =>
         List.find(vp.astInfo.mainTokenInfos, ~f=ti => oldCodeID == T.tid(ti.token))
       )
-      |> Option.map(~f=ti => ti.startRow)
+      |> Option.map(~f=(ti: T.tokenInfo) => ti.startRow)
 
     Fluid.buildFeatureFlagEditors(vp.tlid, vp.astInfo.ast) |> List.map(~f=e =>
       switch e {
-      | NoEditor =>
+      | FluidTypes.Editor.NoEditor =>
         recover("got NoEditor when building feature flag editors", Html.div(list{}, list{}))
       | MainEditor(_) =>
         recover("got MainEditor when building feature flag editors", Html.div(list{}, list{}))

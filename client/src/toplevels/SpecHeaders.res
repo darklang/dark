@@ -4,59 +4,86 @@ open Prelude
 module B = BlankOr
 module P = Pointer
 
-let spaceOf = (hs: PT.Handler.Spec.t): handlerSpace => {
-  let spaceOfStr = s => {
-    let lwr = String.toUppercase(s)
-    switch lwr {
-    | "HTTP" => HSHTTP
-    | "CRON" => HSCron
-    | "WORKER" => HSWorker
-    | "REPL" => HSRepl
-    | _ => HSDeprecatedOther
-    }
-  }
+module Spec = PT.Handler.Spec
+module CronInterval = Spec.CronInterval
 
-  switch hs.space {
-  | Blank(_) => HSDeprecatedOther
-  | F(_, s) => spaceOfStr(s)
+// HACK: the code for headers was really written around the blankOr paradigm. So to
+// avoid code changes getting out of control, let's simply convert it back into
+// blankOrs, do the operations, and change it back
+type triple = (BlankOr.t<string>, BlankOr.t<string>, option<BlankOr.t<string>>)
+
+let spaceOf = (hs: Spec.t): handlerSpace => {
+  switch hs {
+  | HTTP(_) => HSHTTP
+  | Cron(_) => HSCron
+  | REPL(_) => HSRepl
+  | Worker(_) => HSWorker
+  | OldWorker(_)
+  | UnknownHandler(_) =>
+    HSDeprecatedOther
+  }
+}
+
+let toBlankOrs = (spec: Spec.t): triple => {
+  (Spec.space(spec), Spec.name(spec), Spec.modifier(spec))
+}
+
+let fromBlankOrs = ((space, name, mod): triple): Spec.t => {
+  let ids: Spec.IDs.t = {
+    moduleID: B.toID(space),
+    nameID: B.toID(name),
+    modifierID: Option.map(~f=B.toID, mod)->Belt.Option.getWithDefault(gid()),
+  }
+  let name = B.toString(name)
+  let mod = B.optionToString(mod)
+  switch B.toString(space)->String.toLowercase {
+  | "http" => Spec.HTTP(name, mod, ids)
+  | "cron" => Spec.Cron(name, mod |> CronInterval.fromString, ids)
+  | "repl" => Spec.REPL(name, ids)
+  | "worker" => Spec.Worker(name, ids)
+  | "" => Spec.UnknownHandler(name, mod, ids)
+  | space => Spec.OldWorker(space, name, ids)
   }
 }
 
 let replaceEventModifier = (
   search: id,
-  replacement: blankOr<string>,
-  hs: PT.Handler.Spec.t,
-): PT.Handler.Spec.t => {...hs, modifier: B.replace(search, replacement, hs.modifier)}
+  replacement: BlankOr.t<string>,
+  (space, name, mod): triple,
+): triple => {
+  (space, name, Option.map(~f=mod => B.replace(search, replacement, mod), mod))
+}
 
 let replaceEventName = (
   search: id,
-  replacement: blankOr<string>,
-  hs: PT.Handler.Spec.t,
-): PT.Handler.Spec.t => {
-  ...hs,
-  name: B.replace(search, replacement, hs.name),
+  replacement: BlankOr.t<string>,
+  (space, name, mod): triple,
+): triple => {
+  (space, B.replace(search, replacement, name), mod)
 }
 
 let replaceEventSpace = (
   search: id,
-  replacement: blankOr<string>,
-  hs: PT.Handler.Spec.t,
-): PT.Handler.Spec.t => {...hs, space: B.replace(search, replacement, hs.space)}
+  replacement: BlankOr.t<string>,
+  (space, name, mod): triple,
+): triple => {
+  (B.replace(search, replacement, space), name, mod)
+}
 
-let replace = (
-  search: id,
-  replacement: blankOr<string>,
-  hs: PT.Handler.Spec.t,
-): PT.Handler.Spec.t =>
+let replace = (search: id, replacement: BlankOr.t<string>, hs: Spec.t): Spec.t =>
   hs
+  |> toBlankOrs
   |> replaceEventModifier(search, replacement)
   |> replaceEventName(search, replacement)
   |> replaceEventSpace(search, replacement)
+  |> fromBlankOrs
 
-let blankOrData = (spec: PT.Handler.Spec.t): list<blankOrData> => list{
-  PEventSpace(spec.space),
-  PEventModifier(spec.modifier),
-  PEventName(spec.name),
+let blankOrData = (spec: PT.Handler.Spec.t): list<blankOrData> => {
+  let (space, name, mod) = toBlankOrs(spec)
+  switch mod {
+  | Some(mod) => list{PEventSpace(space), PEventModifier(mod), PEventName(name)}
+  | None => list{PEventSpace(space), PEventName(name)}
+  }
 }
 
 let firstBlank = (spec: PT.Handler.Spec.t): option<id> =>

@@ -1,11 +1,15 @@
 open Prelude
 
-let msgLink = (~key: string, content: Html.html<msg>, handler: msg): Html.html<msg> => {
+module Msg = AppTypes.Msg
+
+let msgLink = (~key: string, content: Html.html<AppTypes.msg>, handler: AppTypes.msg): Html.html<
+  AppTypes.msg,
+> => {
   let event = ViewUtils.eventNeither(~key, "mouseup", _ => handler)
   Html.a(list{event, Html.class'("")}, list{content})
 }
 
-let html = (_m: model) =>
+let html = (_m: AppTypes.model) =>
   /* If you need to add a topbar, the steps are:
    * - set the default in Defaults.ml
    * - edit the text and links below
@@ -27,7 +31,7 @@ let html = (_m: model) =>
           Html.a(
             list{
               Html.href(url),
-              ViewUtils.eventNoPropagation(~key="toggle-topbar", "mouseup", _ => IgnoreMsg(
+              ViewUtils.eventNoPropagation(~key="toggle-topbar", "mouseup", _ => Msg.IgnoreMsg(
                 "topbar",
               )),
             },

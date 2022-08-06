@@ -16,8 +16,7 @@ module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
-module Eval = LibAnalysis.Eval
-module ClientInterop = LibAnalysis.ClientInterop
+module CTA = ClientTypes.Analysis
 
 open System
 open System.Reflection
@@ -82,9 +81,9 @@ type EvalWorker =
       Error($"exception: {errorMessage}, metadata: {metadata}")
 
     // parse an analysis request, in JSON, from the JS world (BlazorWorker)
-    let args : Result<ClientInterop.performAnalysisParams, string> =
+    let args : Result<CTA.PerformAnalysisParams, string> =
       try
-        Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> input)
+        Ok(Json.Vanilla.deserialize<CTA.PerformAnalysisParams> input)
       with
       | e -> reportAndRollUpExceptionIntoError "Error parsing analysis request" e
 
@@ -94,7 +93,7 @@ type EvalWorker =
       | Error e -> Error e
       | Ok args ->
         try
-          let result = (Eval.performAnalysis args).Result
+          let result = (LibAnalysis.performAnalysis args).Result
           Ok result
         with
         | e -> reportAndRollUpExceptionIntoError "Error running analysis" e

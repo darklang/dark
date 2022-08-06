@@ -7,15 +7,15 @@ let run = () => {
     test("shows placeholders in user functions", () => {
       let ast = ProgramTypes.Expr.EBlank(gid())
       let tlFunc = TLFunc({
-        ast: FluidAST.ofExpr(ast),
+        body: FluidAST.ofExpr(ast),
         tlid: gtlid(),
-        metadata: {
-          name: Blank(gid()),
-          parameters: list{},
-          description: "",
-          returnType: Blank(gid()),
-          infix: false,
-        },
+        name: "",
+        nameID: gid(),
+        parameters: list{},
+        description: "",
+        returnType: DType.any,
+        returnTypeID: gid(),
+        infix: false,
       })
 
       let tl = tlFunc
@@ -24,10 +24,10 @@ let run = () => {
         astInfo: FluidTokenizer.ASTInfo.make(
           FluidTestData.defaultTestProps,
           FluidAST.ofExpr(ast),
-          Defaults.defaultFluidState,
+          FluidTypes.State.default,
         ),
         cursorState: Deselected,
-        fluidState: Defaults.defaultFluidState,
+        fluidState: FluidTypes.State.default,
         tlid: gtlid(),
         isAdmin: false,
         hovering: None,
@@ -50,7 +50,6 @@ let run = () => {
         executingFunctions: list{},
         tlTraceIDs: TLID.Dict.empty,
         testVariants: list{},
-        featureFlags: Map.String.empty,
         handlerProp: None,
         canvasName: "",
         userContentHost: "",

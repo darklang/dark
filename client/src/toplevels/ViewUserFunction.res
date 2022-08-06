@@ -3,6 +3,7 @@ open Prelude
 // Dark
 module B = BlankOr
 
+type msg = AppTypes.msg
 type viewProps = ViewUtils.viewProps
 
 let fontAwesome = ViewUtils.fontAwesome
@@ -10,12 +11,13 @@ let fontAwesome = ViewUtils.fontAwesome
 let onEvent = ViewUtils.onEvent
 
 type exeFunction =
-  | CanExecute(traceID, list<dval>)
+  | CanExecute(traceID, list<RT.Dval.t>)
   | CannotExecute(string)
   | IsExecuting
 
-let viewUserFnName = (~classes: list<string>, vp: viewProps, v: blankOr<string>): Html.html<msg> =>
-  ViewBlankOr.viewText(~classes, ~enterable=true, FnName, vp, v)
+let viewUserFnName = (~classes: list<string>, vp: viewProps, v: BlankOr.t<string>): Html.html<
+  msg,
+> => ViewBlankOr.viewText(~classes, ~enterable=true, FnName, vp, v)
 
 let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
   let exeStatus = if vp.isExecuting {
@@ -48,17 +50,17 @@ let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
   }
 
   let events = // If function is ready for re-execution, attach onClick listener
-  switch (fn.metadata.name, exeStatus) {
-  | (F(_, fnName), CanExecute(traceID, args)) =>
+  switch exeStatus {
+  | CanExecute(traceID, args) if fn.name != "" =>
     ViewUtils.eventNoPropagation(
       ~key="run-fun" ++ ("-" ++ (TLID.toString(fn.tlid) ++ ("-" ++ traceID))),
       "click",
       _ => ExecuteFunctionFromWithin({
-        efpTLID: fn.tlid,
-        efpCallerID: FluidAST.toID(fn.ast),
-        efpTraceID: traceID,
-        efpFnName: fnName,
-        efpArgs: args,
+        tlid: fn.tlid,
+        callerID: FluidAST.toID(fn.body),
+        traceID: traceID,
+        fnName: fn.name,
+        args: args,
       }),
     )
   | _ => Vdom.noProp
@@ -122,8 +124,8 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
 
   let titleRow = {
     let titleText = switch fn {
-    | UserFunction(fn) => fn.metadata.name
-    | PackageFn(fn) => BlankOr.newF(fn.fnname ++ ("_v" ++ string_of_int(fn.version)))
+    | UserFunction(fn) => BlankOr.fromStringID(fn.name, fn.nameID)
+    | PackageFn(fn) => BlankOr.newF(PT.FQFnName.PackageFnName.toString(fn.name))
     }
 
     let executeBtn = switch fn {
@@ -193,8 +195,8 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
 
   let returnRow = {
     let returnType = switch fn {
-    | UserFunction(fn) => fn.metadata.returnType
-    | PackageFn(fn) => BlankOr.newF(fn.return_type)
+    | UserFunction(fn) => BlankOr.F(fn.returnTypeID, fn.returnType)
+    | PackageFn(fn) => BlankOr.newF(fn.returnType)
     }
 
     Html.div(

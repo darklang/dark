@@ -3,55 +3,58 @@ open Autocomplete
 open Prelude
 module B = BlankOr
 
+module AC = AppTypes.AutoComplete
+
+type model = AppTypes.model
+
 let defaultTLID = gtlid()
 
 let defaultID = gid()
 
 let defaultID2 = gid()
 
-let defaultBlankOr = Blank(defaultID)
+let defaultBlankOr = B.Blank(defaultID)
 
 let defaultExpr = ProgramTypes.Expr.EBlank(defaultID)
 
-let enteringCS = (~tlid=defaultTLID, ~id=defaultID, ()): cursorState => Entering(tlid, id)
+let enteringCS = (~tlid=defaultTLID, ~id=defaultID, ()): AppTypes.CursorState.t => Entering(
+  tlid,
+  id,
+)
 
-let omniboxCS: cursorState = Omnibox(None)
+let defaultHTTPSpec = PT.Handler.Spec.newHTTP("/", "GET")
+
+let defaultREPLSpec = PT.Handler.Spec.newREPL("adjectiveNoun")
+
+let defaultCronSpec = PT.Handler.Spec.newCron("daily", Some(PT.Handler.Spec.CronInterval.EveryDay))
+
+let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
+
+let defaultSpec = defaultHTTPSpec
+
+let omniboxCS: AppTypes.CursorState.t = Omnibox(None)
 
 // Sets the model with the appropriate toplevels
 let defaultModel = (
   ~dbs=list{},
   ~handlers=list{},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   ~cursorState,
   (),
 ): model => {
-  let default = Defaults.defaultModel
   {
-    ...default,
+    ...AppTypes.Model.default,
     handlers: Handlers.fromList(handlers),
     dbs: DB.fromList(dbs),
     userFunctions: UserFunctions.fromList(userFunctions),
-    userTipes: UserTypes.fromList(userTipes),
+    userTypes: UserTypes.fromList(userTypes),
     cursorState: cursorState,
-    fluidState: Defaults.defaultFluidState,
+    fluidState: FluidTypes.State.default,
   }
 }
 
-let aHandler = (
-  ~tlid=defaultTLID,
-  ~expr=defaultExpr,
-  ~space: option<string>=None,
-  ~name: option<string>=None,
-  ~modifier: option<string>=None,
-  (),
-): PT.Handler.t => {
-  let spec: PT.Handler.Spec.t = {
-    space: B.ofOption(space),
-    name: B.ofOption(name),
-    modifier: B.ofOption(modifier),
-  }
-
+let aHandler = (~tlid=defaultTLID, ~expr=defaultExpr, ~spec=defaultSpec, ()): PT.Handler.t => {
   {ast: FluidAST.ofExpr(expr), spec: spec, tlid: tlid, pos: {x: 0, y: 0}}
 }
 
@@ -63,14 +66,14 @@ let aFunction = (
   (),
 ): PT.UserFunction.t => {
   tlid: tlid,
-  metadata: {
-    name: B.newF(name),
-    parameters: params,
-    description: "",
-    returnType: B.newF(DType.TStr),
-    infix: false,
-  },
-  ast: FluidAST.ofExpr(expr),
+  name: name,
+  nameID: gid(),
+  parameters: params,
+  description: "",
+  returnType: DType.TStr,
+  returnTypeID: gid(),
+  infix: false,
+  body: FluidAST.ofExpr(expr),
 }
 
 let aDB = (
@@ -81,8 +84,9 @@ let aDB = (
   (),
 ): PT.DB.t => {
   tlid: tlid,
-  name: B.newF(name),
-  cols: list{(Blank(fieldid), Blank(typeid))},
+  name: name,
+  nameID: gid(),
+  cols: list{{name: None, typ: None, nameID: fieldid, typeID: typeid}},
   version: 0,
   pos: {x: 0, y: 0},
 }
@@ -91,14 +95,14 @@ let enteringFunction = (
   ~dbs=list{},
   ~handlers=list{},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   (),
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs,
     ~handlers,
-    ~userTipes,
+    ~userTypes,
     ~userFunctions=list{aFunction(), ...userFunctions},
     (),
   )
@@ -107,14 +111,14 @@ let enteringDBField = (
   ~dbs=list{},
   ~handlers=list{},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   (),
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs=list{aDB(), ...dbs},
     ~handlers,
-    ~userTipes,
+    ~userTypes,
     ~userFunctions,
     (),
   )
@@ -123,42 +127,44 @@ let enteringDBType = (
   ~dbs=list{},
   ~handlers=list{},
   ~userFunctions=list{},
-  ~userTipes=list{},
+  ~userTypes=list{},
   (),
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
     ~dbs=list{aDB(~fieldid=defaultID2, ~typeid=defaultID, ()), ...dbs},
     ~handlers,
-    ~userTipes,
+    ~userTypes,
     ~userFunctions,
     (),
   )
 
-let enteringHandler = (~space: option<string>=None, ()): model =>
-  defaultModel(~cursorState=enteringCS(), ~handlers=list{aHandler(~space, ())}, ())
+let enteringHandler = (~spec=defaultSpec, ()): model =>
+  defaultModel(~cursorState=enteringCS(), ~handlers=list{aHandler(~spec, ())}, ())
 
-let enteringEventNameHandler = (~space: option<string>=None, ()): model => {
-  let handler = aHandler(~space, ())
-  let id = B.toID(handler.spec.name)
+let enteringEventNameHandler = (~spec=defaultSpec, ()): model => {
+  let handler = aHandler(~spec, ())
+  let id = PT.Handler.Spec.ids(spec).nameID
   defaultModel(~cursorState=enteringCS(~id, ()), ~handlers=list{handler}, ())
 }
 
-let creatingOmni: model = {...Defaults.defaultModel, cursorState: Omnibox(None)}
+let creatingOmni: model = {
+  ...AppTypes.Model.default,
+  cursorState: Omnibox(None),
+}
 
 // AC targeting a tlid and pointer
-let acFor = (~target=Some(defaultTLID, PDBColType(defaultBlankOr)), m: model): autocomplete =>
+let acFor = (~target=Some(defaultTLID, PDBColType(defaultBlankOr)), m: model): AC.t =>
   switch m.cursorState {
   | Omnibox(_) => init(m) |> setTarget(m, None)
   | Entering(_) => init(m) |> setTarget(m, target)
   | _ => init(m) |> setTarget(m, target)
   }
 
-let acForDB = (): autocomplete =>
+let acForDB = (): AC.t =>
   enteringDBType() |> acFor(~target=Some(defaultTLID, PDBColType(Blank(defaultID))))
 
-let itemPresent = (aci: autocompleteItem, ac: autocomplete): bool =>
-  List.member(~value=aci, ac.completions)
+let itemPresent = (aci: AC.item, ac: AC.t): bool => List.member(~value=aci, ac.completions)
 
 let run = () => {
   describe("autocomplete", () => {
@@ -176,9 +182,8 @@ let run = () => {
       ()
     })
     describe("validate httpName varnames", () => {
-      let space = Some("HTTP")
-      let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventName(BaseTypes.F(ID.fromInt(0), "foo"))
+      let tl = TLHandler(aHandler())
+      let pd = PEventName(B.F(ID.fromInt(0), "foo"))
       test("/foo/bar is valid, no variables", () => {
         let value = "/foo/bar"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -195,9 +200,8 @@ let run = () => {
       })
     })
     describe("validate Worker names", () => {
-      let space = Some("WORKER")
-      let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventName(BaseTypes.F(ID.fromInt(0), "foo"))
+      let tl = TLHandler(aHandler(~spec=defaultWorkerSpec, ()))
+      let pd = PEventName(B.F(ID.fromInt(0), "foo"))
       test("foo is valid", () => {
         let value = "/foo/bar"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -210,9 +214,8 @@ let run = () => {
       })
     })
     describe("validate CRON intervals", () => {
-      let space = Some("CRON")
-      let tl = TLHandler(aHandler(~space, ()))
-      let pd = PEventModifier(BaseTypes.F(ID.fromInt(0), "5mins"))
+      let tl = TLHandler(aHandler(~spec=defaultCronSpec, ()))
+      let pd = PEventModifier(B.F(ID.fromInt(0), "5mins"))
       test("Every 1hr is valid", () => {
         let value = "Every 1hr"
         expect(Entry.validate(tl, pd, value)) |> toEqual(None)
@@ -226,22 +229,23 @@ let run = () => {
       ()
     })
     describe("validate functions", () => {
-      let pn1 = B.newF("title")
-      let pn2 = B.newF("author")
+      let pn1 = "title"
+      let pn2id = gid()
+      let pn2 = "author"
       let fnAsTL = aFunction(
         ~params=list{
           {
             name: pn1,
-            typ: B.newF(DType.TStr),
-            args: list{},
-            optional: false,
+            nameID: gid(),
+            typ: Some(DType.TStr),
+            typeID: gid(),
             description: "",
           },
           {
             name: pn2,
-            typ: B.newF(DType.TStr),
-            args: list{},
-            optional: false,
+            nameID: pn2id,
+            typ: Some(DType.TStr),
+            typeID: gid(),
             description: "",
           },
         },
@@ -257,7 +261,7 @@ let run = () => {
         expect(validateFnParamNameFree(fnAsTL, B.new_(), "rating")) |> toEqual(None)
       )
       test("allow param name to be renamed the same", () =>
-        expect(validateFnParamNameFree(fnAsTL, pn2, "author")) |> toEqual(None)
+        expect(validateFnParamNameFree(fnAsTL, F(pn2id, pn2), "author")) |> toEqual(None)
       )
     })
     describe("queryWhenEntering", () => {
@@ -347,7 +351,7 @@ let run = () => {
         ) |> toEqual(list{"String", "[String]", "Password", "[Password]"})
       )
       test("autocomplete does not have slash when handler is not HTTP", () => {
-        let m = enteringEventNameHandler(~space=Some("HANDLER"), ())
+        let m = enteringEventNameHandler(~spec=defaultWorkerSpec, ())
         expect(acFor(m) |> setQuery(m, "") |> itemPresent(ACHTTPRoute("/")) |> not) |> toEqual(true)
       })
       test("autocomplete supports password type", () => {
@@ -523,19 +527,15 @@ let run = () => {
     describe("code search", () => {
       let http = aHandler(
         ~tlid=TLID.fromInt(123),
-        ~space=Some("HTTP"),
-        ~name=Some("/hello"),
-        ~modifier=Some("GET"),
+        ~spec=PT.Handler.Spec.newHTTP("/hello", "GET"),
         ~expr=EFieldAccess(gid(), EVariable(gid(), "request"), "queryParams"),
         (),
       )
 
       let repl = aHandler(
         ~tlid=TLID.fromInt(456),
-        ~space=Some("REPL"),
-        ~name=Some("findingDori"),
-        ~modifier=Some("_"),
-        ~expr=EFnCall(gid(), "Int::add", list{}, NoRail),
+        ~spec=PT.Handler.Spec.newREPL("findingDori"),
+        ~expr=FluidShortcuts.fn(~mod="Int", "add", list{}),
         (),
       )
 
@@ -559,7 +559,7 @@ let run = () => {
           ~key=repl.tlid,
           ~value=repl.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString,
         )
-        |> Map.add(~key=fn.tlid, ~value=fn.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
+        |> Map.add(~key=fn.tlid, ~value=fn.body |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
 
       let m = {...m, searchCache: searchCache}
       test("find variable", () => {

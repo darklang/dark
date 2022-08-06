@@ -376,7 +376,7 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
 
-    let canonicalize (t : Traces.TraceData.T) : Traces.TraceData.T =
+    let canonicalize (t : Traces.TraceDataV0.T) : Traces.TraceDataV0.T =
       { t with
           trace =
             t.trace
@@ -391,13 +391,13 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
       |> fun ts -> ts.traces
       |> Task.iterInParallel (fun (tlid, traceID) ->
         task {
-          let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
+          let (ps : Traces.TraceDataV0.Params) = { tlid = tlid; trace_id = traceID }
 
           do!
             postApiTest
               "get_trace_data"
               (serialize ps)
-              (deserialize<Traces.TraceData.T>)
+              (deserialize<Traces.TraceDataV0.T>)
               canonicalize
               client
               canvasName

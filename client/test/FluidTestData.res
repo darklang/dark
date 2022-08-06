@@ -257,25 +257,25 @@ let lambdaWith3UsedBindings = {
 // ----------------
 // Functions
 // ----------------
-let aFnCall = EFnCall(gid(), "Int::add", list{five, b}, NoRail)
+let aFnCall = fn(~mod="Int", "add", list{five, b})
 
 let aFullFnCall = fn(~id=gid(), "Int::add", list{int(5), int(5)})
 
-let aFnCallWithVersion = EFnCall(gid(), "DB::getAll_v1", list{b}, NoRail)
+let aFnCallWithVersion = fn(~mod="DB", "getAll", ~version=1, list{b})
 
-let aFnCallWithZeroArgs = EFnCall(gid(), "List::empty", list{}, NoRail)
+let aFnCallWithZeroArgs = fn(~mod="List", "empty", list{})
 
-let aFnCallWithZeroArgsAndVersion = EFnCall(gid(), "List::empty_v1", list{}, NoRail)
+let aFnCallWithZeroArgsAndVersion = fn(~mod="List", "empty", ~version=1, list{})
 
-let aFnCallWithBlockArg = EFnCall(gid(), "Dict::map", list{b, b}, NoRail)
+let aFnCallWithBlockArg = fn(~mod="Dict", "map", list{b, b})
 
-let aBinOp = EBinOp(gid(), "==", b, b, NoRail)
+let aBinOp = binop("==", b, b)
 
 let aFullBinOp = binop("||", var("myvar"), five)
 
-let aOnRailFnCall = EFnCall(gid(), "HttpClient::get_v3", list{b, b, b}, Rail)
+let aOnRailFnCall = fn(~mod="HttpClient", "get", ~version=3, list{b, b, b}, ~ster=Rail)
 
-let aRailableFnCall = EFnCall(gid(), "HttpClient::get_v3", list{b, b, b}, NoRail)
+let aRailableFnCall = fn(~mod="HttpClient", "get", ~version=3, list{b, b, b}, ~ster=NoRail)
 
 // ----------------
 // Constructors
@@ -299,7 +299,12 @@ let emptyRowRecord = ERecord(gid(), emptyRow)
 
 let emptyRecord = ERecord(gid(), list{})
 
-let functionWrappedEmptyRecord = fn("HttpClient::get_v4", list{emptyStr, emptyRecord, emptyRecord})
+let functionWrappedEmptyRecord = fn(
+  ~mod="HttpClient",
+  "get",
+  ~version=4,
+  list{emptyStr, emptyRecord, emptyRecord},
+)
 
 // ----------------
 // Lists
@@ -520,7 +525,7 @@ let aList6 = list(list{six})
 
 let aListNum = n => list(list{int(n)})
 
-let listFn = args => fn("List::append", list{pipeTarget, ...args})
+let listFn = args => fn(~mod="List", "append", list{pipeTarget, ...args})
 
 let aPipe = pipe(list(list{}), listFn(list{aList5}), list{listFn(list{aList5})})
 
@@ -544,7 +549,11 @@ let aNestedPipe = pipe(
   list{},
 )
 
-let aPipeWithFilledFunction = pipe(str("hello"), fn("String::length_v1", list{pipeTarget}), list{})
+let aPipeWithFilledFunction = pipe(
+  str("hello"),
+  fn(~mod="String", "length", ~version=1, list{pipeTarget}),
+  list{},
+)
 
 // -------------
 // Feature Flags
@@ -574,8 +583,8 @@ let compoundExpr = if'(
       str("https://localhost:3000"),
     ),
   ),
-  let'("", b, fn("Http::Forbidden", list{int(403)})),
-  fn("Http::Forbidden", list{}),
+  let'("", b, fn(~mod="Http", "Forbidden", list{int(403)})),
+  fn(~mod="Http", "Forbidden", list{}),
 )
 
 /// When updating this, also update SerializationTests.Tests.Values.testExpr in the
@@ -612,7 +621,7 @@ let complexExpr = {
                     let'(
                       "i",
                       if'(
-                        fn("Bool:isError", list{int(6)}, ~ster=Rail),
+                        fn(~mod="Bool", "isError", list{int(6)}, ~ster=Rail),
                         if'(
                           binop("!=", int(5), int(6)),
                           binop("+", int(5), int(2)),
@@ -623,7 +632,7 @@ let complexExpr = {
                           binop(
                             "+",
                             fieldAccess(var("x"), "y"),
-                            fn("Int::add", list{int(6), int(2)}),
+                            fn(~mod="Int", "add", list{int(6), int(2)}),
                           ),
                           list(list{int(5), int(6), int(7)}),
                         ),
@@ -648,7 +657,7 @@ let complexExpr = {
                         let'(
                           "m",
                           match'(
-                            fn("Mod::function_v2", list{}),
+                            fn(~mod="Mod", "function", ~version=2, list{}),
                             list{
                               (pConstructor("Ok", list{pVar("x")}), var("v")),
                               (pInt(5), int64(-9223372036854775808L)),
@@ -716,7 +725,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     infixFn("<", TInt, TBool),
     infixFn("+", TInt, TInt),
     infixFn("++", TStr, TStr),
-    infixFn("==", TAny, TBool),
+    infixFn("==", DType.any, TBool),
     infixFn("<=", TInt, TBool),
     infixFn("||", TBool, TBool),
     {
@@ -743,11 +752,11 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
       name: {module_: "HttpClient", function: "post", version: 4},
       parameters: list{
         fnParam("url", TStr),
-        fnParam("body", TAny),
-        fnParam("query", TObj),
-        fnParam("headers", TObj),
+        fnParam("body", DType.any),
+        fnParam("query", TDict(DType.any)),
+        fnParam("headers", TDict(DType.any)),
       },
-      returnType: TResult,
+      returnType: TResult(DType.any, DType.any),
       description: "Make blocking HTTP POST call to `uri`.",
       previewable: Impure,
       deprecated: NotDeprecated,
@@ -756,8 +765,12 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "HttpClient", function: "get", version: 3},
-      parameters: list{fnParam("url", TStr), fnParam("query", TObj), fnParam("headers", TObj)},
-      returnType: TResult,
+      parameters: list{
+        fnParam("url", TStr),
+        fnParam("query", TDict(DType.any)),
+        fnParam("headers", TDict(DType.any)),
+      },
+      returnType: TResult(DType.any, DType.any),
       description: "Make blocking HTTP GET call to `uri`.",
       previewable: Impure,
       deprecated: NotDeprecated,
@@ -766,8 +779,8 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "DB", function: "getAll", version: 1},
-      parameters: list{fnParam("table", TDB)},
-      returnType: TList,
+      parameters: list{fnParam("table", TDB(DType.any))},
+      returnType: TList(DType.any),
       description: "get all",
       previewable: Impure,
       deprecated: NotDeprecated,
@@ -776,8 +789,11 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "Dict", function: "map", version: 0},
-      parameters: list{fnParam("dict", TObj), fnParam("f", TBlock, ~args=list{"key", "value"})},
-      returnType: TObj,
+      parameters: list{
+        fnParam("dict", TDict(DType.any)),
+        fnParam("f", TFn(list{TStr, DType.any}, DType.any), ~args=list{"key", "value"}),
+      },
+      returnType: TDict(DType.any),
       description: "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda",
       previewable: Pure,
       deprecated: NotDeprecated,
@@ -786,8 +802,8 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     },
     {
       name: {module_: "List", function: "append", version: 0},
-      parameters: list{fnParam("l1", TList), fnParam("l2", TList)},
-      returnType: TList,
+      parameters: list{fnParam("l1", TList(DType.any)), fnParam("l2", TList(DType.any))},
+      returnType: TList(DType.any),
       description: "append list",
       previewable: Pure,
       deprecated: NotDeprecated,
@@ -797,7 +813,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     {
       name: {module_: "List", function: "empty", version: 0},
       parameters: list{},
-      returnType: TList,
+      returnType: TList(DType.any),
       description: "empty list",
       previewable: Pure,
       deprecated: NotDeprecated,
@@ -807,7 +823,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
   }
 }
 
-let defaultTestState = {...Defaults.defaultFluidState, activeEditor: MainEditor(defaultTLID)}
+let defaultTestState = {...FluidTypes.State.default, activeEditor: MainEditor(defaultTLID)}
 
 let defaultFunctionsProps = {usedFns: Map.String.empty, userFunctions: TLID.Dict.empty}
 
@@ -821,7 +837,7 @@ let fakeID2 = ID.fromInt(77777772)
 let fakeID3 = ID.fromInt(77777773)
 
 let defaultTestModel = {
-  ...Defaults.defaultModel,
+  ...AppTypes.Model.default,
   tests: defaultTestProps.variants,
   functions: defaultTestProps.functions,
   analyses: Map.String.fromList(list{
@@ -829,9 +845,22 @@ let defaultTestModel = {
       "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
       LoadableSuccess(
         ID.Map.fromArray([
-          (fakeID1, ExecutedResult(Dval.obj(list{("body", DNull), ("formBody", DNull)}))),
-          (fakeID2, ExecutedResult(Dval.obj(list{("title", DNull), ("author", DNull)}))),
-          (fakeID3, ExecutedResult(Dval.obj(list{("body", DInt(5L))}))),
+          (
+            fakeID1,
+            AnalysisTypes.ExecutionResult.ExecutedResult(
+              RT.Dval.obj(list{("body", DNull), ("formBody", DNull)}),
+            ),
+          ),
+          (
+            fakeID2,
+            AnalysisTypes.ExecutionResult.ExecutedResult(
+              RT.Dval.obj(list{("title", DNull), ("author", DNull)}),
+            ),
+          ),
+          (
+            fakeID3,
+            AnalysisTypes.ExecutionResult.ExecutedResult(RT.Dval.obj(list{("body", DInt(5L))})),
+          ),
         ]),
       ),
     ),

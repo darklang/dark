@@ -33,6 +33,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     switch expr {
     | EInteger(_)
     | EString(_)
+    | ECharacter(_)
     | EBool(_)
     | EFloat(_)
     | ENull(_)
@@ -53,7 +54,8 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | EPipe(_, e1, e2, rest) => list{e1, e2, ...rest} |> List.map(~f=u) |> List.flatten
     | EFieldAccess(_, obj, _) => u(obj)
     | EList(_, exprs) => exprs |> List.map(~f=u) |> List.flatten
-    | ETuple(_, first, second, theRest) => list{first, second, ...theRest} |> List.map(~f=u) |> List.flatten
+    | ETuple(_, first, second, theRest) =>
+      list{first, second, ...theRest} |> List.map(~f=u) |> List.flatten
     | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second) |> List.map(~f=u) |> List.flatten
     | EFeatureFlag(_, _, cond, a, b) => List.flatten(list{u(cond), u(a), u(b)})
     | EMatch(_, matchExpr, cases) =>
@@ -127,10 +129,15 @@ let getParamIndex = (id: id, ast: FluidAST.t): option<(string, int)> => {
   let parent = pipeNext(id, ast) |> Option.orElseLazy(() => FluidAST.findParent(id, ast))
 
   switch parent {
-  | Some(EFnCall(fnID, name, _, _)) | Some(EBinOp(fnID, name, _, _, _)) =>
+  | Some(EFnCall(fnID, name, _, _)) =>
     getArguments(fnID, ast)
     |> List.findIndex(~f=(_, e) => E.toID(e) == id)
-    |> Option.map(~f=((index, _)) => (name, index))
+    |> Option.map(~f=((index, _)) => (PT.FQFnName.toString(name), index))
+  | Some(EBinOp(fnID, name, _, _, _)) =>
+    getArguments(fnID, ast)
+    |> List.findIndex(~f=(_, e) => E.toID(e) == id)
+    |> Option.map(~f=((index, _)) => (PT.FQFnName.InfixStdlibFnName.toString(name), index))
+
   | _ => None
   }
 }
@@ -210,6 +217,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     switch expr {
     | EInteger(_)
     | EString(_)
+    | ECharacter(_)
     | EBool(_)
     | EFloat(_)
     | ENull(_)
@@ -242,13 +250,15 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     | EPipe(_, e1, e2, rest) => List.forEach(~f=sexe(st), list{e1, e2, ...rest})
     | EFieldAccess(_, obj, _) => sexe(st, obj)
     | EList(_, exprs) => List.forEach(~f=sexe(st), exprs)
-    | ETuple(_, first, second, theRest) => List.forEach(~f=sexe(st), list{first, second, ...theRest})
+    | ETuple(_, first, second, theRest) =>
+      List.forEach(~f=sexe(st), list{first, second, ...theRest})
     | EMatch(_, matchExpr, cases) =>
       let rec variablesInPattern = p =>
         switch p {
         | PInteger(_)
         | PNull(_)
         | PString(_)
+        | PCharacter(_)
         | PFloat(_)
         | PBool(_)
         | PBlank(_) => list{}
@@ -279,7 +289,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
 
 @ocaml.doc(" [variablesIn ast] produces a map of every expression id in the [ast] to its corresponding symbol table.
  * Each symbol table maps from every available variable name to the id of the corresponding value expression bound to that name. ")
-let variablesIn = (ast: E.t): avDict => {
+let variablesIn = (ast: E.t): AnalysisTypes.avDict => {
   let sym_store = IDTable.make(~id=module(IDComparable))
   let trace = (expr, st) => IDTable.set(sym_store, E.toID(expr), st)
   sym_exec(~trace, VarDict.empty, ast)
@@ -299,7 +309,7 @@ let removePartials = (expr: E.t): E.t =>
 @ocaml.doc(" Reorder function calls which call fnName, moving the argument at [oldPos] to [newPos],
  * pushing the element currently at [newPos] to [newPos+1]. It then handles situations
  * where the args may be in a different position due to pipes. ")
-let rec reorderFnCallArgs = (fnName: string, oldPos: int, newPos: int, ast: E.t): E.t => {
+let rec reorderFnCallArgs = (fnName: PT.FQFnName.t, oldPos: int, newPos: int, ast: E.t): E.t => {
   let rec replaceArgs = expr =>
     switch expr {
     | EFnCall(id, name, args, sendToRail) if name == fnName =>

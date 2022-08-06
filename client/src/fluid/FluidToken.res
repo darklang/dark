@@ -1,8 +1,8 @@
 open Prelude
 
-type t = Types.fluidToken
+type t = FluidTypes.Token.t
 
-type tokenInfo = Types.fluidTokenInfo
+type tokenInfo = FluidTypes.TokenInfo.t
 
 let fakeid = ID.fromUInt64(UInt64.max)
 
@@ -104,8 +104,6 @@ let parentBlockID = (t: t): option<id> =>
   | TStringMLStart(id, _, _, _)
   | TStringMLMiddle(id, _, _, _)
   | TStringMLEnd(id, _, _, _)
-
-  // The first ID in the separator token is the ID of the whole obj expression
   | TRecordSep(id, _, _) =>
     Some(id)
   // The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block.
@@ -149,7 +147,8 @@ let parentBlockID = (t: t): option<id> =>
   | TTupleOpen(id)
   | TTupleClose(id)
   | TListComma(id, _)
-  | TTupleComma(id, _) => Some(id)
+  | TTupleComma(id, _) =>
+    Some(id)
 
   | TFnName(_)
   | TFnVersion(_)
@@ -322,7 +321,7 @@ let isPipeable = (t: t): bool =>
   | TFlagEnabledKeyword(_) => false
   }
 
-let isStringToken = (t): bool =>
+let isStringToken = (t: t): bool =>
   switch t {
   | TStringMLStart(_) | TStringMLMiddle(_) | TStringMLEnd(_) | TString(_) => true
   | _ => false
@@ -330,16 +329,16 @@ let isStringToken = (t): bool =>
 
 /* if the cursor is at the end of this token, we take it as editing this
  * token, rather than writing the next token. */
-let isAppendable = (t): bool =>
+let isAppendable = (t: t): bool =>
   switch t {
-  /* String should really be directly editable, but the extra quote at the end
-   makes it not so; since there's no quote at the end of TStringMLStart or
-   TStringMLMiddle, then they are appendable */
+  // String should really be directly editable, but the extra quote at the end
+  // makes it not so; since there's no quote at the end of TStringMLStart or
+  // TStringMLMiddle, then they are appendable
   | TString(_) | TPatternString(_) | TStringMLEnd(_) => false
   | _ => isTextToken(t)
   }
 
-let isBlank = t =>
+let isBlank = (t: t): bool =>
   switch t {
   | TBlank(_)
   | TPlaceholder(_)
@@ -492,19 +491,19 @@ let isFieldPartial = (t: t): bool =>
   | _ => false
   }
 
-let isMultilineString = (t: fluidToken): bool =>
+let isMultilineString = (t: FluidTypes.Token.t): bool =>
   switch t {
   | TStringMLStart(_) | TStringMLMiddle(_) | TStringMLEnd(_) => true
   | _ => false
   }
 
-let isListSymbol = (t: fluidToken): bool =>
+let isListSymbol = (t: FluidTypes.Token.t): bool =>
   switch t {
   | TListOpen(_) | TListClose(_) | TListComma(_) => true
   | _ => false
   }
 
-let isTupleSymbol = (t: fluidToken): bool =>
+let isTupleSymbol = (t: FluidTypes.Token.t): bool =>
   switch t {
   | TTupleOpen(_) | TTupleClose(_) | TTupleComma(_) => true
   | _ => false
@@ -513,7 +512,7 @@ let isTupleSymbol = (t: fluidToken): bool =>
 let toText = (t: t): string => {
   let shouldntBeEmpty = name => {
     if name == "" {
-      asserT(~debug=show_fluidToken(t), "shouldn't be empty", name != "")
+      asserT(~debug=FluidTypes.Token.show(t), "shouldn't be empty", name != "")
     }
     name
   }
