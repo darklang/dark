@@ -44,7 +44,9 @@ module Pattern =
     | PT.PBool (id, b) -> RT.PBool(id, b)
     | PT.PCharacter (id, c) -> RT.PCharacter(id, c)
     | PT.PString (id, s) -> RT.PString(id, s)
-    | PT.PFloat (id, s, w, f) -> RT.PFloat(id, makeFloat s w f)
+    | PT.PFloat (id, s, w, f) ->
+      let w = if w = "" then "0" else w
+      RT.PFloat(id, makeFloat s w f)
     | PT.PNull id -> RT.PNull id
     | PT.PBlank id -> RT.PBlank id
 
@@ -58,6 +60,8 @@ module Expr =
     | PT.EInteger (id, num) -> RT.EInteger(id, num)
     | PT.EString (id, str) -> RT.EString(id, str)
     | PT.EFloat (id, sign, whole, fraction) ->
+      let whole = if whole = "" then "0" else whole
+      let fraction = if fraction = "" then "0" else fraction
       RT.EFloat(id, makeFloat sign whole fraction)
     | PT.EBool (id, b) -> RT.EBool(id, b)
     | PT.ENull id -> RT.ENull id
