@@ -199,21 +199,22 @@ module Expr = {
   module IsInPipe = {
     @ppx.deriving(show({with_path: false}))
     type rec t =
-      | Pipe
+      | InPipe(ID.t)
       | NotInPipe
 
     let encode = (str: t): Js.Json.t => {
       open Json_encode_extended
       let ev = variant
       switch str {
-      | Pipe => ev("Pipe", list{})
+      | InPipe(id) => ev("InPipe", list{ID.encode(id)})
       | NotInPipe => ev("NotInPipe", list{})
       }
     }
     let decode = j => {
       open Json_decode_extended
       let dv0 = variant0
-      variants(list{("Pipe", dv0(Pipe)), ("NotInPipe", dv0(NotInPipe))}, j)
+      let dv1 = variant1
+      variants(list{("InPipe", dv1(id => InPipe(id), ID.decode)), ("NotInPipe", dv0(NotInPipe))}, j)
     }
   }
 
