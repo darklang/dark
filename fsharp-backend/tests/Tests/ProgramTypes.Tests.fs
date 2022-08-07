@@ -157,6 +157,22 @@ let testPipesToRuntimeTypes =
     Expect.equalExprIgnoringIDs actual expected
   }
 
+let testProgramTypesToRuntimeTypes =
+  let b = PT.EBlank(8UL)
+  let rb = RT.EBlank(8UL)
+  testMany
+    "program types to runtime types"
+    PT2RT.Expr.toRT
+    [ PT.EFloat(7UL, Positive, "", "0"), RT.EFloat(7UL, 0.0)
+      PT.EFloat(7UL, Positive, "0", ""), RT.EFloat(7UL, 0.0)
+      PT.EFloat(7UL, Positive, "", ""), RT.EFloat(7UL, 0.0)
+      (PT.EMatch(9UL, b, [ PT.Pattern.PFloat(5UL, Positive, "", ""), b ]),
+       RT.EMatch(9UL, rb, [ RT.Pattern.PFloat(5UL, 0.0), rb ]))
+      (PT.EMatch(9UL, b, [ PT.Pattern.PFloat(5UL, Positive, "0", ""), b ]),
+       RT.EMatch(9UL, rb, [ RT.Pattern.PFloat(5UL, 0.0), rb ]))
+      (PT.EMatch(9UL, b, [ PT.Pattern.PFloat(5UL, Positive, "", "0"), b ]),
+       RT.EMatch(9UL, rb, [ RT.Pattern.PFloat(5UL, 0.0), rb ])) ]
+
 // We didn't use a special infix type in serialized types, so check it converts OK
 let testInfixSerializedTypesToProgramTypes =
   testMany
@@ -241,6 +257,7 @@ let tests =
     "ProgramTypes"
     [ parseTests
       testPipesToRuntimeTypes
+      testProgramTypesToRuntimeTypes
       ptFQFnName
       testInfixSerializedTypesToProgramTypes
       testInfixProgramTypesToSerializedTypes
