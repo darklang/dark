@@ -312,7 +312,17 @@ module Values =
 
   let testClientDval : CT.Dval.T = CT.Dval.fromRT testDval
 
-  let testOCamlDval = LibExecution.OCamlTypes.Convert.rt2ocamlDval testDval
+  let testOCamlDval =
+    match testDval with
+    | RT.DObj (map) ->
+      map
+      |> Map.toList
+      // Pipes get gids added to them un the OCaml representation, which makes tests fail due to randomness
+      |> List.filter (fun (k, v) -> k <> "block with pipe")
+      |> Map
+      |> RT.DObj
+      |> LibExecution.OCamlTypes.Convert.rt2ocamlDval
+    | _ -> Exception.raiseInternal "not supported" []
 
   let testInstant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
