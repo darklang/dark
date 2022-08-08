@@ -725,7 +725,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     infixFn("<", TInt, TBool),
     infixFn("+", TInt, TInt),
     infixFn("++", TStr, TStr),
-    infixFn("==", DType.any, TBool),
+    infixFn("==", TVariable("a"), TBool),
     infixFn("<=", TInt, TBool),
     infixFn("||", TBool, TBool),
     {

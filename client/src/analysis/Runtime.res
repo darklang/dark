@@ -9,7 +9,12 @@ let isCompatible = (t1: DType.t, t2: DType.t): bool =>
   | _ => t1 == t2 // TODO recurse
   }
 
-let errorRailTypes: list<DType.t> = list{TOption(DType.any), TResult(DType.any, DType.any)}
+let isErrorRailType = (typ: DType.t): bool =>
+  switch typ {
+  | TOption(_)
+  | TResult(_) => true
+  | _ => false
+  }
 
 // Drop initial/final '"'
 let stripQuotes = (s: string): string => {
