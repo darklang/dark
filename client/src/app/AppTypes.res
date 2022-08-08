@@ -569,38 +569,81 @@ module EditorSettings = {
   // Editor settings are global settings on the editor. Initially, these are
   // only things that contributors use for debugging - in the future they could
   // be extended to non-contributor editor settings (such as theming).
+
+  module ContributorSettings = {
+    @ppx.deriving(show({with_path: false}))
+    type rec t = {
+      showFluidDebugger: bool,
+      showHandlerASTs: bool,
+    }
+
+    let encode = (t: t): Js.Json.t => {
+      open Json_encode_extended
+      object_(list{
+        ("showHandlerASTs", bool(t.showHandlerASTs)),
+        ("showFluidDebugger", bool(t.showFluidDebugger)),
+      })
+    }
+    let decode = (j: Js.Json.t): t => {
+      open Json_decode_extended
+      {
+        showHandlerASTs: withDefault(
+          false,
+          field("editorSettings", field("showHandlerASTs", bool)),
+          j,
+        ),
+        showFluidDebugger: withDefault(
+          false,
+          field("editorSettings", field("showFluidDebugger", bool)),
+          j,
+        ),
+      }
+    }
+    let default: t = {
+      showHandlerASTs: false,
+      showFluidDebugger: false
+    }
+  }
+
   @ppx.deriving(show({with_path: false}))
   type rec t = {
-    showFluidDebugger: bool,
-    showHandlerASTs: bool,
     runTimers: bool,
+    contributorSettings: option<ContributorSettings.t>,
   }
 
   let encode = (es: t): Js.Json.t => {
     open Json_encode_extended
     object_(list{
       ("runTimers", bool(es.runTimers)),
-      ("showHandlerASTs", bool(es.showHandlerASTs)),
-      ("showFluidDebugger", bool(es.showFluidDebugger)),
+      ("contributorSettings", nullable(ContributorSettings.encode, es.contributorSettings)),
     })
   }
   let decode = (j): t => {
     open Json_decode_extended
     {
-      runTimers: withDefault(true, field("editorSettings", field("runTimers", bool)), j),
-      showHandlerASTs: withDefault(
-        false,
-        field("editorSettings", field("showHandlerASTs", bool)),
-        j,
-      ),
-      showFluidDebugger: withDefault(
-        false,
-        field("editorSettings", field("showFluidDebugger", bool)),
-        j,
-      ),
+      // todo: do I really need to reference 'editorSettings' here
+      runTimers: withDefault(true, field("runTimers", bool), j),
+      contributorSettings: optional(field("contributorSettings", ContributorSettings.decode), j)
     }
   }
-  let default: t = {runTimers: true, showHandlerASTs: false, showFluidDebugger: false}
+  let default: t = {runTimers: true, contributorSettings: None}
+
+  // Functions to help access and update contributor settings
+  // (otherwise, the wrapping and unwrapping can become extremely noisy)
+
+  let contribSettingsOrDefault = (es: t): ContributorSettings.t => {
+    switch es.contributorSettings {
+    | None => ContributorSettings.default
+    | Some(settings) => settings
+    }
+  }
+
+  let withUpdatedContribSettings = (~f: ContributorSettings.t => ContributorSettings.t, es: t): t => {
+    {
+      ...es,
+      contributorSettings: Belt.Option.map(es.contributorSettings, f)
+    }
+  }
 }
 
 module SavedSettings = {

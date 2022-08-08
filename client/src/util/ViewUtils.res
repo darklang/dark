@@ -152,7 +152,7 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
     | TLPmFunc(_) | TLDB(_) | TLTipe(_) => false
     },
     fnProps: m.currentUserFn,
-    showHandlerASTs: m.editorSettings.showHandlerASTs,
+    showHandlerASTs: AppTypes.EditorSettings.contribSettingsOrDefault(m.editorSettings).showHandlerASTs,
     secretValues: m.secrets |> List.map(~f=SecretTypes.getSecretValue),
   }
 }

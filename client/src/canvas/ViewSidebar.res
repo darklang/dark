@@ -1022,13 +1022,14 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   let toggleFluidDebugger = Html.div(
     list{
       ViewUtils.eventNoPropagation(~key="tt", "mouseup", _ => ToggleEditorSetting(
-        es => {...es, showFluidDebugger: !es.showFluidDebugger},
+        es => AppTypes.EditorSettings.withUpdatedContribSettings(es, ~f=cs => {...cs, showFluidDebugger: !cs.showFluidDebugger})
       )),
+
       Html.class'("checkbox-row"),
     },
     list{
       Html.input'(
-        list{Html.type'("checkbox"), Html.checked(m.editorSettings.showFluidDebugger)},
+        list{Html.type'("checkbox"), Html.checked(AppTypes.EditorSettings.contribSettingsOrDefault(m.editorSettings).showFluidDebugger)},
         list{},
       ),
       Html.label(list{}, list{Html.text("Show Fluid Debugger")}),
@@ -1038,13 +1039,13 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   let toggleHandlerASTs = Html.div(
     list{
       ViewUtils.eventNoPropagation(~key="tgast", "mouseup", _ => ToggleEditorSetting(
-        es => {...es, showHandlerASTs: !es.showHandlerASTs},
+        es => AppTypes.EditorSettings.withUpdatedContribSettings(es, ~f=cs => {...cs, showHandlerASTs: !cs.showHandlerASTs})
       )),
       Html.class'("checkbox-row"),
     },
     list{
       Html.input'(
-        list{Html.type'("checkbox"), Html.checked(m.editorSettings.showHandlerASTs)},
+        list{Html.type'("checkbox"), Html.checked(AppTypes.EditorSettings.contribSettingsOrDefault(m.editorSettings).showHandlerASTs)},
         list{},
       ),
       Html.label(list{}, list{Html.text("Show Handler ASTs")}),

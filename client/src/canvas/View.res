@@ -286,7 +286,7 @@ let tlCacheKey = (m: model, tl) => {
       props,
       menuIsOpen,
       workerSchedule,
-      m.editorSettings.showHandlerASTs,
+      AppTypes.EditorSettings.contribSettingsOrDefault(m.editorSettings).showHandlerASTs,
       m.tooltipState.userTutorial,
     )
   }
@@ -712,7 +712,8 @@ let view = (m: model): Html.html<msg> => {
   let activeAvatars = Avatar.viewAllAvatars(m.avatarsList)
   let ast = TL.selectedAST(m) |> Option.unwrap(~default=FluidAST.ofExpr(EBlank(gid())))
 
-  let fluidStatus = if m.editorSettings.showFluidDebugger {
+  let showFluidDebugger = AppTypes.EditorSettings.contribSettingsOrDefault(m.editorSettings).showFluidDebugger
+  let fluidStatus = if showFluidDebugger {
     list{FluidDebugger.view(m, ast)}
   } else {
     list{Vdom.noNode}
