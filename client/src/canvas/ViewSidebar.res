@@ -1157,7 +1157,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   | _ => false
   }
 
-  let showAdminDebugger = if !isDetailed && m.isAdmin {
+  let showContributorDebugger = if !isDetailed && Option.isSome(m.editorSettings.contributorSettings) {
     adminDebuggerView(m)
   } else {
     Vdom.noNode
@@ -1167,7 +1167,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   let content = {
     let categories = Belt.List.concat(
       List.map(~f=viewCategory(m), cats),
-      list{secretsView, viewDeployStats(m), showAdminDebugger},
+      list{secretsView, viewDeployStats(m), showContributorDebugger},
     )
 
     Html.div(
