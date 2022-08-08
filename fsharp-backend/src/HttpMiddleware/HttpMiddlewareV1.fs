@@ -103,32 +103,3 @@ module Response =
         body =
           UTF8.toBytes
             "Application error: the executed code did not result in a redirect or bytes response." }
-
-module Cors =
-  open Prelude
-  open Tablecloth
-
-  module Req = Request
-  module Resp = Response
-
-  let addCorsHeaders
-    (reqHeaders : HttpHeaders.T)
-    (response : Resp.HttpResponse)
-    : Resp.HttpResponse =
-
-    let defaultOrigins =
-      // what do these origins (copied from V0) correspond to? Can we remove any?
-      [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
-
-    match HttpHeaders.get "Origin" reqHeaders with
-    // if there's no supplied origin, don't do anything
-    | None -> response
-
-    // if there's no explicit canvas setting, allow common localhosts
-    // these are added in order, so make sure the user's setting wins
-    | Some origin ->
-      let headerValue =
-        if List.contains origin defaultOrigins then origin else "null"
-
-      { response with
-          headers = [ "Access-Control-Allow-Origin", headerValue ] @ response.headers }

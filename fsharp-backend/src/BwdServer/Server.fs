@@ -415,7 +415,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               (RealExe.InitialExecution(desc, request))
 
           let result = HttpMiddlewareV1.Response.toHttpResponse result
-          let result = HttpMiddlewareV1.Cors.addCorsHeaders reqHeaders result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
