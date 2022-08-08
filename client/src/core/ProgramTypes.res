@@ -537,6 +537,7 @@ module Handler = {
     @ppx.deriving(show({with_path: false}))
     type rec t =
       | HTTP(string, string, IDs.t)
+      | HTTPBytes(string, string, IDs.t)
       | Worker(string, IDs.t)
       | OldWorker(string, string, IDs.t)
       | Cron(string, option<CronInterval.t>, IDs.t)
@@ -548,6 +549,7 @@ module Handler = {
       let ev = variant
       switch spec {
       | HTTP(name, mod, ids) => ev("HTTP", list{string(name), string(mod), IDs.encode(ids)})
+      | HTTPBytes(name, mod, ids) => ev("HTTPBytes", list{string(name), string(mod), IDs.encode(ids)})
       | Worker(name, ids) => ev("Worker", list{string(name), IDs.encode(ids)})
       | OldWorker(space, name, ids) =>
         ev("OldWorker", list{string(space), string(name), IDs.encode(ids)})
@@ -565,6 +567,7 @@ module Handler = {
       variants(
         list{
           ("HTTP", dv3((a, b, c) => HTTP(a, b, c), string, string, IDs.decode)),
+          ("HTTPBytes", dv3((a, b, c) => HTTPBytes(a, b, c), string, string, IDs.decode)),
           ("Worker", dv2((a, b) => Worker(a, b), string, IDs.decode)),
           ("OldWorker", dv3((a, b, c) => OldWorker(a, b, c), string, string, IDs.decode)),
           (
@@ -580,6 +583,7 @@ module Handler = {
     let space = (spec: t): BlankOr.t<string> => {
       switch spec {
       | HTTP(_, _, ids) => F(ids.moduleID, "HTTP")
+      | HTTPBytes(_, _, ids) => F(ids.moduleID, "HTTP_BYTES")
       | Worker(_, ids) => F(ids.moduleID, "WORKER")
       | OldWorker(space, _, ids) => F(ids.moduleID, space)
       | Cron(_, _, ids) => F(ids.moduleID, "CRON")
@@ -590,6 +594,7 @@ module Handler = {
     let name = (spec: t): BlankOr.t<string> => {
       switch spec {
       | HTTP(name, _, ids)
+      | HTTPBytes(name, _, ids)
       | Worker(name, ids)
       | OldWorker(_, name, ids)
       | Cron(name, _, ids)
@@ -605,10 +610,12 @@ module Handler = {
     let modifier = (spec: t): option<BlankOr.t<string>> => {
       switch spec {
       | HTTP(_, "", ids)
+      | HTTPBytes(_, "", ids)
       | UnknownHandler(_, "", ids) =>
         Some(Blank(ids.modifierID))
 
       | HTTP(_, mod, ids)
+      | HTTPBytes(_, mod, ids)
       | UnknownHandler(_, mod, ids) =>
         Some(F(ids.modifierID, mod))
 
@@ -625,6 +632,7 @@ module Handler = {
     let ids = (spec: t): IDs.t => {
       switch spec {
       | HTTP(_, _, ids)
+      | HTTPBytes(_, _, ids)
       | Worker(_, ids)
       | OldWorker(_, _, ids)
       | Cron(_, _, ids)
