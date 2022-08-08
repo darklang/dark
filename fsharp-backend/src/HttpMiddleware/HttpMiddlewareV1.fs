@@ -11,11 +11,6 @@ module Request =
   module RT = LibExecution.RuntimeTypes
   module HttpQueryEncoding = BackendOnlyStdLib.HttpQueryEncoding
 
-  let private parseQueryString (query : string) : RT.Dval =
-    // Drop leading "?"
-    let query = if query.Length > 0 then String.dropLeft 1 query else query
-    HttpQueryEncoding.ofFormEncoding query
-
   let private parseHeaders (headers : (string * string) list) =
     headers
     |> List.map (fun (k, v) -> (String.toLowercase k, RT.DStr v))
@@ -60,7 +55,7 @@ module Request =
     (body : byte array)
     : RT.Dval =
     [ "body", RT.DBytes body
-      "queryParams", parseQueryString query
+      "queryParams", RT.DStr query
       "headers", parseHeaders headers
       "cookies", cookies headers
       "url", url headers uri ]
