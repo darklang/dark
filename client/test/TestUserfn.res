@@ -28,7 +28,7 @@ let aFn = (
   nameID: gid(),
   parameters: params,
   description: "",
-  returnType: DType.any,
+  returnType: TVariable("x"),
   returnTypeID: gid(),
   infix: false,
   body: FluidAST.ofExpr(expr),
