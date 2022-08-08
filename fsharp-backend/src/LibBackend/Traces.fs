@@ -50,7 +50,7 @@ let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
   | PT.Handler.UnknownHandler _ ->
-    // HttpBytesTODO should this include sampleHttpBytesRequestInputVars?
+    // HttpBytesHandlerTODO should this include sampleHttpBytesRequestInputVars?
     sampleHttpRequestInputVars @ sampleEventInputVars
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _ -> sampleEventInputVars
@@ -80,13 +80,13 @@ let savedInputVars
   | PT.Handler.HTTPBytes (route, _method, _) ->
     let boundRouteVariables =
       if route <> "" then
-        // Check the trace actually matches the route, if not the client
-        // has made a mistake in matching the traceid to this handler, but
-        // that might happen due to a race condition. If it does, carry
-        // on, if it doesn't -- just don't do any bindings and inject the
-        // sample variables. Communicating to the frontend that this
-        // trace doesn't match the handler should be done in the future
-        // somehow. TODO
+        // Check the trace actually matches the route, if not the client has
+        // made a mistake in matching the traceid to this handler, but that
+        // might happen due to a race condition. If it does, carry on, if it
+        // doesn't -- just don't do any bindings and inject the sample variables.
+        //
+        // TODO Communicating to the frontend that this trace doesn't match the
+        // handler should be done in the future somehow.
         if Routing.requestPathMatchesRoute route requestPath then
           Routing.routeInputVars route requestPath
           |> Exception.unwrapOptionInternal

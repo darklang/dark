@@ -898,7 +898,6 @@ module Convert =
         modifier = string2bo ids.modifierID method
         types = types }
     | PT.Handler.HTTPBytes (route, method, ids) ->
-      // HttpBytesTODO find out what test requires this
       { ``module`` = string2bo ids.moduleID "HTTP_BYTES"
         name = string2bo ids.nameID route
         modifier = string2bo ids.modifierID method
