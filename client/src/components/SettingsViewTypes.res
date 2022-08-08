@@ -12,7 +12,10 @@ type rec formField = {
   error: option<string>,
 }
 
+@ppx.deriving(show)
 type rec inviteFields = {email: formField}
+@ppx.deriving(show)
+type rec tunnelFields = {url: formField}
 
 @ppx.deriving(show)
 and settingsTab =
@@ -20,6 +23,7 @@ and settingsTab =
   | UserSettings
   | InviteUser(inviteFields)
   | Privacy
+  | Contributing(tunnelFields)
 
 @ppx.deriving(show)
 type rec inviteFormMessage = {
@@ -49,7 +53,9 @@ type rec settingsMsg =
   | OpenSettingsView(settingsTab)
   | SwitchSettingsTabs(settingsTab)
   | UpdateInviteForm(string)
-  | SubmitForm
+  | SubmitInviteForm
+  | UpdateTunnelForm(string)
+  | SubmitTunnelForm
   | @printer(opaque("TriggerSendInviteCallback"))
   TriggerSendInviteCallback(Tea.Result.t<unit, @opaque Tea.Http.error<string>>)
   | InitRecordConsent(option<bool>)
@@ -61,9 +67,11 @@ let settingsTabToText = (tab: settingsTab): string =>
   | UserSettings => "canvases"
   | InviteUser(_) => "share"
   | Privacy => "privacy"
+  | Contributing(_) => "contributing"
   }
 
 let defaultInviteFields: inviteFields = {email: {value: "", error: None}}
+let defaultTunnelFields: tunnelFields = {url: {value: "", error: None}}
 
 let settingsTabFromText = (tab: string): settingsTab =>
   switch String.toLowercase(tab) {
@@ -71,5 +79,6 @@ let settingsTabFromText = (tab: string): settingsTab =>
   | "canvases" => UserSettings
   | "share" => InviteUser(defaultInviteFields)
   | "privacy" => Privacy
+  | "contributing" => Contributing(defaultTunnelFields)
   | _ => UserSettings
   }

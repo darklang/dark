@@ -17,7 +17,12 @@ type settingsTab = T.settingsTab
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let allTabs = list{T.UserSettings, T.Privacy, T.InviteUser(T.defaultInviteFields)}
+let allTabs = list{
+  T.UserSettings,
+  T.Privacy,
+  T.InviteUser(T.defaultInviteFields),
+  T.Contributing(T.defaultTunnelFields),
+}
 
 let validateEmail = (email: T.formField): T.formField => {
   let error = {
@@ -75,6 +80,9 @@ let update = (settingsView: T.settingsViewState, msg: T.settingsMsg): T.settings
   | UpdateInviteForm(value) =>
     let form = {T.email: {value: value, error: None}}
     {...settingsView, tab: InviteUser(form)}
+  | UpdateTunnelForm(value) =>
+    let form = {T.email: {value: value, error: None}}
+    {...settingsView, tab: InviteUser(form)}
   | TriggerSendInviteCallback(Ok(_)) => {
       ...settingsView,
       tab: InviteUser(T.defaultInviteFields),
@@ -85,7 +93,8 @@ let update = (settingsView: T.settingsViewState, msg: T.settingsMsg): T.settings
       tab: InviteUser(T.defaultInviteFields),
       loading: false,
     }
-  | SubmitForm => settingsView
+  | SubmitInviteForm => settingsView
+  | SubmitTunnelForm => settingsView
   | InitRecordConsent(recordConsent) => {...settingsView, privacy: {recordConsent: recordConsent}}
   | SetRecordConsent(allow) => {...settingsView, privacy: {recordConsent: Some(allow)}}
   }
@@ -135,7 +144,7 @@ let getModifications = (m: AppTypes.model, msg: T.settingsMsg): list<AppTypes.mo
         },
       ),
     }
-  | SubmitForm =>
+  | SubmitInviteForm =>
     let (isInvalid, newTab) = validateForm(m.settingsView.tab)
     if isInvalid {
       list{
@@ -147,6 +156,7 @@ let getModifications = (m: AppTypes.model, msg: T.settingsMsg): list<AppTypes.mo
     } else {
       list{SettingsViewUpdate(msg), ReplaceAllModificationsWithThisOne(m => submitForm(m))}
     }
+  | SubmitTunnelForm => list{}
   | SetRecordConsent(allow) => list{
       SettingsViewUpdate(msg),
       MakeCmd(FullstoryView.FullstoryJs.setConsent(allow)),
@@ -162,6 +172,7 @@ let settingsTabToText = (tab: T.settingsTab): string =>
   | UserSettings => "Canvases"
   | InviteUser(_) => "Share"
   | Privacy => "Privacy"
+  | Contributing(_) => "Contributing"
   }
 
 // View code
@@ -238,7 +249,7 @@ let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<msg>> => {
           ViewUtils.eventNoPropagation(
             ~key="close-settings-modal",
             "click",
-            _ => Msg.SettingsViewMsg(SubmitForm),
+            _ => Msg.SettingsViewMsg(SubmitInviteForm),
           ),
         },
         btn,
@@ -279,19 +290,13 @@ let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<msg>> => {
 }
 
 let viewNewCanvas = (svs: settingsViewState): list<Html.html<msg>> => {
-  let text = Printf.sprintf(
-    "Create a new canvas (or go to it if it already exists) by visiting /a/%s-canvasname",
-    svs.username,
-  )
+  let text = `Create a new canvas (or go to it if it already exists) by visiting /a/${svs.username}-canvasname`
 
   let text = if List.isEmpty(svs.orgs) {
     text ++ "."
   } else {
-    text ++
-    Printf.sprintf(
-      " or /a/orgname-canvasname, where orgname may be any of (%s).",
-      svs.orgs |> String.join(~sep=", "),
-    )
+    let orgs = svs.orgs |> String.join(~sep=", ")
+    `${text} or /a/orgname-canvasname, where orgname may be any of (${orgs}).`
   }
 
   let introText = list{
@@ -306,6 +311,64 @@ let viewPrivacy = (s: T.privacySettings): list<Html.html<msg>> => list{
   FullstoryView.consentRow(s.recordConsent, ~longLabels=false),
 }
 
+let viewContributing = (_svs: T.settingsViewState): list<Html.html<msg>> => {
+  let introText = list{
+    Html.h2(list{}, list{Html.text("Tunnel your local client")}),
+    Html.p(
+      list{},
+      list{
+        Html.text(
+          "If you're working on the Darklang client, you can load it against this canvas by entering your tunnel link",
+          //  (the link provided by your tunneling proider, such as Ngrok or Localtunnel, such as |https://seven-wings-sniff-69-204-249-142.loca.lt)",
+        ),
+      },
+    ),
+  }
+
+  let form = {
+    let submitBtn = {
+      let btn = list{
+        Html.h3(
+          list{
+            ViewUtils.eventNoPropagation(
+              ~key="close-settings-modal",
+              "click",
+              _ => Msg.SettingsViewMsg(SubmitTunnelForm),
+            ),
+          },
+          list{Html.text("Reload with tunnel")},
+        ),
+      }
+
+      Html.button(list{Html.class'("submit-btn")}, btn)
+    }
+
+    list{
+      Html.div(
+        list{Html.class'("tunnel-form")},
+        list{
+          Html.div(
+            list{Html.class'("form-field")},
+            list{
+              Html.h3(list{}, list{Html.text("Tunnel URL:")}),
+              Html.div(
+                list{Events.onInput(str => Msg.SettingsViewMsg(UpdateTunnelForm(str)))},
+                list{
+                  Html.input'(list{Vdom.attribute("", "spellcheck", "false")}, list{}),
+                  Html.p(list{Html.class'("error-text")}, list{Html.text(" ")}),
+                },
+              ),
+            },
+          ),
+          submitBtn,
+        },
+      ),
+    }
+  }
+
+  Belt.List.concat(introText, form)
+}
+
 let settingsTabToHtml = (svs: settingsViewState): list<Html.html<msg>> => {
   let tab = svs.tab
   switch tab {
@@ -313,6 +376,7 @@ let settingsTabToHtml = (svs: settingsViewState): list<Html.html<msg>> => {
   | UserSettings => viewUserCanvases(svs)
   | InviteUser(_) => viewInviteUserToDark(svs)
   | Privacy => viewPrivacy(svs.privacy)
+  | Contributing(_) => viewContributing(svs)
   }
 }
 
@@ -340,7 +404,7 @@ let tabTitleView = (tab: settingsTab): Html.html<msg> => {
 let onKeydown = (evt: Web.Node.event): option<msg> =>
   K.eventToKeyEvent(evt) |> Option.andThen(~f=e =>
     switch e {
-    | {K.key: K.Enter, _} => Some(Msg.SettingsViewMsg(SubmitForm))
+    | {K.key: K.Enter, _} => Some(Msg.SettingsViewMsg(SubmitInviteForm))
     | _ => None
     }
   )
