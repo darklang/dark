@@ -17,24 +17,6 @@ module Request =
     |> Map
     |> RT.Dval.DObj
 
-  let private cookies (headers : HttpHeaders.T) : RT.Dval =
-    let parse (cookies : string) : RT.Dval =
-      let decode = System.Web.HttpUtility.UrlDecode
-      cookies
-      |> String.split ";"
-      |> List.map String.trim
-      |> List.map (fun s -> s.Split("=", 2) |> Array.toList)
-      |> List.map (fun cookie ->
-        match cookie with
-        | [] -> ("", RT.DNull) // skip empty rows
-        | [ _ ] -> ("", RT.DNull) // skip rows with only a key
-        | k :: v :: _ -> (decode k, RT.DStr(decode v)))
-      |> RT.Dval.obj
-
-    HttpHeaders.get "cookie" headers
-    |> Option.map parse
-    |> Option.defaultValue (RT.DObj Map.empty)
-
   let private url (headers : List<string * string>) (uri : string) =
     // .NET doesn't url-encode the query like we expect, so we're going to do it
     let parsed = System.UriBuilder(uri)
@@ -57,7 +39,6 @@ module Request =
     [ "body", RT.DBytes body
       "queryParams", RT.DStr query
       "headers", parseHeaders headers
-      "cookies", cookies headers
       "url", url headers uri ]
     |> RT.Dval.obj
 
