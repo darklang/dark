@@ -566,12 +566,6 @@ module IntegrationTests = {
 }
 
 module EditorSettings = {
-  @ppx.deriving(show({with_path: false}))
-  type rec ffIsExpanded = bool
-
-  @ppx.deriving(show({with_path: false}))
-  type rec flagsVS = Tc.Map.String.t<ffIsExpanded>
-
   // Editor settings are global settings on the editor. Initially, these are
   // only things that contributors use for debugging - in the future they could
   // be extended to non-contributor editor settings (such as theming).
