@@ -590,6 +590,22 @@ module EditorSettings = {
       ("showFluidDebugger", bool(es.showFluidDebugger)),
     })
   }
+  let decode = (j): t => {
+    open Json_decode_extended
+    {
+      runTimers: withDefault(true, field("editorSettings", field("runTimers", bool)), j),
+      showHandlerASTs: withDefault(
+        false,
+        field("editorSettings", field("showHandlerASTs", bool)),
+        j,
+      ),
+      showFluidDebugger: withDefault(
+        false,
+        field("editorSettings", field("showFluidDebugger", bool)),
+        j,
+      ),
+    }
+  }
   let default: t = {runTimers: true, showHandlerASTs: false, showFluidDebugger: false}
 }
 
@@ -687,19 +703,7 @@ module SavedSettings = {
     // always use withDefault or optional because the field might be missing due
     // to old editors or new fields.
     {
-      editorSettings: {
-        runTimers: withDefault(true, field("editorSettings", field("runTimers", bool)), j),
-        showHandlerASTs: withDefault(
-          false,
-          field("editorSettings", field("showHandlerASTs", bool)),
-          j,
-        ),
-        showFluidDebugger: withDefault(
-          false,
-          field("editorSettings", field("showFluidDebugger", bool)),
-          j,
-        ),
-      },
+      editorSettings: withDefault(EditorSettings.default, field("editorSettings", EditorSettings.decode), j),
       cursorState: withDefault(CursorState.Deselected, field("cursorState", CursorState.decode), j),
       tlTraceIDs: withDefault(TLID.Dict.empty, field("tlTraceIDs", TLID.Dict.decode(string)), j),
       handlerProps: withDefault(
