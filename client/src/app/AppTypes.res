@@ -1187,6 +1187,7 @@ module Model = {
       orgCanvasList: list{},
       loading: false,
       privacy: {recordConsent: None},
+      isContributor: false
     },
     insertSecretModal: SecretTypes.defaultInsertModal,
   }

@@ -17,7 +17,7 @@ type settingsTab = T.settingsTab
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let allTabs = list{T.UserSettings, T.Privacy, T.InviteUser(T.defaultInviteFields)}
+let allTabs = list{T.UserSettings, T.Privacy, T.InviteUser(T.defaultInviteFields), T.Editor}
 
 let validateEmail = (email: T.formField): T.formField => {
   let error = {
@@ -62,12 +62,13 @@ let submitForm = (m: AppTypes.model): (AppTypes.model, AppTypes.cmd) => {
 
 let update = (settingsView: T.settingsViewState, msg: T.settingsMsg): T.settingsViewState =>
   switch msg {
-  | SetSettingsView(canvasList, username, orgs, orgCanvasList) => {
+  | SetSettingsView(canvasList, username, orgs, orgCanvasList, isContributor) => {
       ...settingsView,
       canvasList: canvasList,
       username: username,
       orgs: orgs,
       orgCanvasList: orgCanvasList,
+      isContributor: isContributor
     }
   | OpenSettingsView(tab) => {...settingsView, opened: true, tab: tab, loading: false}
   | CloseSettingsView(_) => {...settingsView, opened: false, loading: false}
@@ -88,6 +89,7 @@ let update = (settingsView: T.settingsViewState, msg: T.settingsMsg): T.settings
   | SubmitForm => settingsView
   | InitRecordConsent(recordConsent) => {...settingsView, privacy: {recordConsent: recordConsent}}
   | SetRecordConsent(allow) => {...settingsView, privacy: {recordConsent: Some(allow)}}
+  | SetIsContributor(isContributor) => {...settingsView, isContributor: isContributor}
   }
 
 let getModifications = (m: AppTypes.model, msg: T.settingsMsg): list<AppTypes.modification> =>
@@ -151,6 +153,20 @@ let getModifications = (m: AppTypes.model, msg: T.settingsMsg): list<AppTypes.mo
       SettingsViewUpdate(msg),
       MakeCmd(FullstoryView.FullstoryJs.setConsent(allow)),
     }
+  | SetIsContributor(isContributor) => list{
+      SettingsViewUpdate(msg),
+      ReplaceAllModificationsWithThisOne(
+        m => {
+          let cmd = Cmd.none
+
+          if (isContributor) {
+            ({...m, editorSettings: { ...m.editorSettings, contributorSettings: Some(AppTypes.EditorSettings.ContributorSettings.default) }}, cmd)
+          } else{
+            ({...m, editorSettings: { ...m.editorSettings, contributorSettings: None } }, cmd)
+          }
+        }
+      )
+    }
   | _ => list{SettingsViewUpdate(msg)}
   }
 
@@ -162,6 +178,7 @@ let settingsTabToText = (tab: T.settingsTab): string =>
   | UserSettings => "Canvases"
   | InviteUser(_) => "Share"
   | Privacy => "Privacy"
+  | Editor => "Editor"
   }
 
 // View code
@@ -306,6 +323,75 @@ let viewPrivacy = (s: T.privacySettings): list<Html.html<msg>> => list{
   FullstoryView.consentRow(s.recordConsent, ~longLabels=false),
 }
 
+let viewEditorSettings = (isContributor: bool): list<Html.html<msg>> => {
+  let disableOmniOpen = ViewUtils.nothingMouseEvent("mousedown")
+
+  let radio = (
+    ~value: string,
+    ~label: string,
+    ~msg: SettingsViewTypes.settingsMsg,
+    ~checked: bool,
+  ): Html.html<msg> => {
+    let key = "dark-contributor-" ++ value
+    Html.div(
+      list{Html.class'("choice"), disableOmniOpen},
+      list{
+        Html.input'(
+          list{
+            Html.type'("radio"),
+            Html.id(key),
+            Html.name("dark-contributor"),
+            Html.value(value),
+            Html.checked(checked),
+            ViewUtils.eventNoPropagation(~key, "click", _ => SettingsViewMsg(msg)),
+          },
+          list{},
+        ),
+        Html.label(list{Html.for'(key)}, list{Html.text(label)}),
+      },
+    )
+  }
+
+  let (yes, no) = ("Yes", "No")
+
+  list{
+    Html.div(
+      list{Html.class'("setting-row")},
+      list{
+        Html.div(
+          list{Html.class'("setting-label")},
+          list{
+            Html.div(list{Html.class'("title")}, list{Html.text("I'm contributing to Dark's source code")}),
+            Html.div(
+              list{Html.class'("description")},
+              list{Html.text(
+                "Extra debugger tools are available to those who contribute to Dark's source code.
+                When set to true, the in-Editor debugger will show whenever the sidebar is collapsed."
+              )}),
+          },
+        ),
+        Html.div(
+          list{Html.class'("setting-control")},
+          list{
+            radio(
+              ~value="yes",
+              ~label=yes,
+              ~msg=SetIsContributor(true),
+              ~checked=isContributor == true,
+            ),
+            radio(
+              ~value="no",
+              ~label=no,
+              ~msg=SetIsContributor(false),
+              ~checked=isContributor == false,
+            ),
+          },
+        ),
+      },
+    )
+  }
+}
+
 let settingsTabToHtml = (svs: settingsViewState): list<Html.html<msg>> => {
   let tab = svs.tab
   switch tab {
@@ -313,6 +399,7 @@ let settingsTabToHtml = (svs: settingsViewState): list<Html.html<msg>> => {
   | UserSettings => viewUserCanvases(svs)
   | InviteUser(_) => viewInviteUserToDark(svs)
   | Privacy => viewPrivacy(svs.privacy)
+  | Editor => viewEditorSettings(svs.isContributor)
   }
 }
 

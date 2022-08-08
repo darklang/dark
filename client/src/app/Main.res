@@ -1404,7 +1404,7 @@ let update_ = (msg: msg, m: model): modification => {
         m => {
           let settingsView = SettingsView.update(
             m.settingsView,
-            SetSettingsView(r.canvasList, m.username, r.orgs, r.orgCanvasList),
+            SetSettingsView(r.canvasList, m.username, r.orgs, r.orgCanvasList, Option.isSome(m.editorSettings.contributorSettings)),
           )
 
           (

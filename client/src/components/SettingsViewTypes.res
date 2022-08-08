@@ -20,6 +20,7 @@ and settingsTab =
   | UserSettings
   | InviteUser(inviteFields)
   | Privacy
+  | Editor
 
 @ppx.deriving(show)
 type rec inviteFormMessage = {
@@ -40,12 +41,13 @@ type rec settingsViewState = {
   orgCanvasList: list<string> /* This is org canvases, not orgs themselves */,
   loading: bool,
   privacy: privacySettings,
+  isContributor: bool
 }
 
 @ppx.deriving(show)
 type rec settingsMsg =
   | CloseSettingsView(settingsTab)
-  | SetSettingsView(@opaque (list<string>, string, list<string>, list<string>))
+  | SetSettingsView(@opaque (list<string>, string, list<string>, list<string>, bool))
   | OpenSettingsView(settingsTab)
   | SwitchSettingsTabs(settingsTab)
   | UpdateInviteForm(string)
@@ -54,6 +56,7 @@ type rec settingsMsg =
   TriggerSendInviteCallback(Tea.Result.t<unit, @opaque Tea.Http.error<string>>)
   | InitRecordConsent(option<bool>)
   | SetRecordConsent(bool)
+  | SetIsContributor(bool)
 
 let settingsTabToText = (tab: settingsTab): string =>
   switch tab {
@@ -61,6 +64,7 @@ let settingsTabToText = (tab: settingsTab): string =>
   | UserSettings => "canvases"
   | InviteUser(_) => "share"
   | Privacy => "privacy"
+  | Editor => "editor"
   }
 
 let defaultInviteFields: inviteFields = {email: {value: "", error: None}}
@@ -71,5 +75,6 @@ let settingsTabFromText = (tab: string): settingsTab =>
   | "canvases" => UserSettings
   | "share" => InviteUser(defaultInviteFields)
   | "privacy" => Privacy
+  | "editor" => Editor
   | _ => UserSettings
   }
