@@ -587,16 +587,8 @@ module EditorSettings = {
     let decode = (j: Js.Json.t): t => {
       open Json_decode_extended
       {
-        showHandlerASTs: withDefault(
-          false,
-          field("editorSettings", field("showHandlerASTs", bool)),
-          j,
-        ),
-        showFluidDebugger: withDefault(
-          false,
-          field("editorSettings", field("showFluidDebugger", bool)),
-          j,
-        ),
+        showHandlerASTs: withDefault(false, field("showHandlerASTs", bool), j),
+        showFluidDebugger: withDefault(false, field("showFluidDebugger", bool), j),
       }
     }
     let default: t = {
@@ -621,7 +613,6 @@ module EditorSettings = {
   let decode = (j): t => {
     open Json_decode_extended
     {
-      // todo: do I really need to reference 'editorSettings' here
       runTimers: withDefault(true, field("runTimers", bool), j),
       contributorSettings: optional(field("contributorSettings", ContributorSettings.decode), j)
     }
