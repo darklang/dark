@@ -311,15 +311,14 @@ module Execution =
     (actualBody : byte array)
     : (string * string) list =
     match handlerVersion with
-    | Http ->
+    | Http
+    | HttpBytes ->
       headers
       |> List.map (fun (k, v) ->
         match k, v with
-        // JSON can be different lengths, this plugs in the expected length
         | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
         | _ -> (k, v))
       |> List.sortBy Tuple2.first
-    | HttpBytes -> List.sortBy Tuple2.first headers
 
   /// create a TCP client, used to make test HTTP requests
   let private createClient (port : int) : Task<TcpClient> =
@@ -497,7 +496,7 @@ module Execution =
             $"(bytes)"
     }
 
-let testsFromFiles =
+let tests =
   /// Makes a test to be run
   let t rootDir handlerType (filename : string) =
     testTask $"Http files: {filename}" {
@@ -530,16 +529,16 @@ let testsFromFiles =
 
   // TODO support tests with more than one type of handler
   // (the parser is ready, but the execution is not)
-  [ ("tests/httptestfiles", Http); ("tests/httpbytestestfiles", HttpBytes) ]
-  |> List.map (fun (dir, handlerType) ->
-    System.IO.Directory.GetFiles(dir, "*.test")
-    |> Array.map (System.IO.Path.GetFileName)
-    |> Array.toList
-    |> List.map (t dir handlerType))
-  |> List.concat
-
-
-let tests = testList "BwdServer" [ testList "httptestfiles" testsFromFiles ]
+  [ ("tests/httptestfiles", "http", Http)
+    ("tests/httpbytestestfiles", "httpbytes", HttpBytes) ]
+  |> List.map (fun (dir, testListName, handlerType) ->
+    let tests =
+      System.IO.Directory.GetFiles(dir, "*.test")
+      |> Array.map (System.IO.Path.GetFileName)
+      |> Array.toList
+      |> List.map (t dir handlerType)
+    testList testListName tests)
+  |> testList "BwdServer"
 
 open Microsoft.Extensions.Hosting
 
