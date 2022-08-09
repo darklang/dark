@@ -14,7 +14,7 @@ module Page = {
     | FocusedHandler(TLID.t, option<Types.traceID>, center)
     | FocusedDB(TLID.t, center)
     | FocusedType(TLID.t)
-    | SettingsModal(SettingsViewTypes.settingsTab)
+    | SettingsModal(SettingsState.Tab.t)
 }
 
 module VPos = {
@@ -869,7 +869,7 @@ module Msg = {
     | FnParamMsg(FunctionParams.msg)
     | ToolTipMsg(Tooltip.msg)
     | UpdateHeapio(Types.heapioTrack)
-    | SettingsViewMsg(SettingsViewTypes.settingsMsg)
+    | SettingsMsg(SettingsState.msg)
     | SecretMsg(SecretTypes.msg)
 }
 
@@ -981,7 +981,7 @@ module Modification = {
     | InitASTCache(list<PT.Handler.t>, list<PT.UserFunction.t>)
     | FluidSetState(FluidTypes.State.t<'model, t<'model>>)
     | TLMenuUpdate(TLID.t, Menu.msg)
-    | SettingsViewUpdate(SettingsViewTypes.settingsMsg)
+    | SettingsViewUpdate(SettingsState.msg)
 }
 
 module Model = {
@@ -1065,7 +1065,7 @@ module Model = {
     // indicates if it is the users first time visiting any dark canvas
     tooltipState: Tooltip.t,
     currentUserFn: FunctionParams.t,
-    settingsView: SettingsViewTypes.settingsViewState,
+    settingsView: SettingsState.t,
     firstVisitToThisCanvas: bool,
     // indicates if it is the users first time this canvas
     secrets: list<SecretTypes.t>,
@@ -1137,16 +1137,7 @@ module Model = {
     currentUserFn: FunctionParams.default,
     firstVisitToThisCanvas: true,
     secrets: list{},
-    settingsView: {
-      opened: false,
-      tab: UserSettings,
-      canvasList: list{},
-      username: "",
-      orgs: list{},
-      orgCanvasList: list{},
-      loading: false,
-      privacy: {recordConsent: None},
-    },
+    settingsView: SettingsState.default,
     insertSecretModal: SecretTypes.defaultInsertModal,
   }
 }

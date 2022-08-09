@@ -609,22 +609,10 @@ let accountView = (m: model): Html.html<msg> => {
   )
 
   let spacer = Html.div(list{Html.class'("account-action-spacer")}, list{})
-  let newCanvas = Html.p(
-    list{
-      Html.class'("account-action-btn"),
-      ViewUtils.eventNoPropagation(~key="open-settings", "click", _ => SettingsViewMsg(
-        OpenSettingsView(NewCanvas),
-      )),
-    },
-    list{Html.text("New Canvas")},
-  )
-
   let settings = Html.p(
     list{
       Html.class'("account-action-btn"),
-      ViewUtils.eventNoPropagation(~key="open-settings", "click", _ => SettingsViewMsg(
-        OpenSettingsView(UserSettings),
-      )),
+      ViewUtils.eventNoPropagation(~key="open-settings", "click", _ => SettingsMsg(Open(Canvases))),
     },
     list{Html.text("Settings")},
   )
@@ -632,9 +620,7 @@ let accountView = (m: model): Html.html<msg> => {
   let share = Html.p(
     list{
       Html.class'("account-action-btn invite"),
-      ViewUtils.eventNoPropagation(~key="open-invite", "click", _ => SettingsViewMsg(
-        OpenSettingsView(InviteUser(SettingsViewTypes.defaultInviteFields)),
-      )),
+      ViewUtils.eventNoPropagation(~key="open-invite", "click", _ => SettingsMsg(Open(Invite))),
     },
     list{Html.text("Share Dark")},
   )
@@ -667,7 +653,6 @@ let accountView = (m: model): Html.html<msg> => {
       Html.div(
         list{Html.class'("account-actions")},
         list{
-          newCanvas,
           settings,
           share,
           logout,

@@ -15,12 +15,9 @@ let explanation = "To help us understand how people learn Dark, is it okay if we
 
 let disableOmniOpen = ViewUtils.nothingMouseEvent("mousedown")
 
-let radio = (
-  ~value: string,
-  ~label: string,
-  ~msg: SettingsViewTypes.settingsMsg,
-  ~checked: bool,
-): Html.html<AppTypes.msg> => {
+let radio = (~value: string, ~label: string, ~msg: SettingsState.msg, ~checked: bool): Html.html<
+  AppTypes.msg,
+> => {
   let key = "fs-consent-" ++ value
   Html.div(
     list{Html.class'("choice"), disableOmniOpen},
@@ -32,7 +29,7 @@ let radio = (
           Html.name("fs-consent"),
           Html.value(value),
           Html.checked(checked),
-          ViewUtils.eventNoPropagation(~key, "click", _ => SettingsViewMsg(msg)),
+          ViewUtils.eventNoPropagation(~key, "click", _ => SettingsMsg(msg)),
         },
         list{},
       ),
@@ -64,13 +61,13 @@ let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<App
           radio(
             ~value="yes",
             ~label=yes,
-            ~msg=SetRecordConsent(true),
+            ~msg=SettingsState.PrivacyMsg(SettingsPrivacyState.SetRecordConsent(true)),
             ~checked=recordConsent == Some(true),
           ),
           radio(
             ~value="no",
             ~label=no,
-            ~msg=SetRecordConsent(false),
+            ~msg=SettingsState.PrivacyMsg(SettingsPrivacyState.SetRecordConsent(false)),
             ~checked=recordConsent == Some(false),
           ),
         },
@@ -80,9 +77,9 @@ let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<App
 }
 
 let html = (m: AppTypes.model): Html.html<AppTypes.msg> => {
-  let content = list{consentRow(m.settingsView.privacy.recordConsent, ~longLabels=true)}
+  let content = list{consentRow(m.settingsView.privacySettings.recordConsent, ~longLabels=true)}
 
-  let cls = if m.settingsView.privacy.recordConsent == None {
+  let cls = if m.settingsView.privacySettings.recordConsent == None {
     "ask"
   } else {
     "hide"
@@ -93,7 +90,7 @@ let html = (m: AppTypes.model): Html.html<AppTypes.msg> => {
       Html.classList(list{
         (
           "modal-overlay",
-          m.settingsView.privacy.recordConsent == None &&
+          m.settingsView.privacySettings.recordConsent == None &&
             m.integrationTestState == NoIntegrationTest,
         ),
       }),

@@ -984,8 +984,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     | FocusedHandler(tlid, _, _) => Printf.sprintf("Handler (TLID %s)", TLID.toString(tlid))
     | FocusedDB(tlid, _) => Printf.sprintf("DB (TLID %s)", TLID.toString(tlid))
     | FocusedType(tlid) => Printf.sprintf("Type (TLID %s)", TLID.toString(tlid))
-    | SettingsModal(tab) =>
-      Printf.sprintf("SettingsModal (tab %s)", SettingsViewTypes.settingsTabToText(tab))
+    | SettingsModal(tab) => Printf.sprintf("SettingsModal (tab %s)", SettingsState.Tab.toText(tab))
     }
 
   let flagText =

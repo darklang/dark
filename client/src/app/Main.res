@@ -213,7 +213,7 @@ let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
       })
     | (_, _) =>
       switch page {
-      | SettingsModal(tab) => Many(SettingsView.getModifications(m, OpenSettingsView(tab)))
+      | SettingsModal(tab) => Many(SettingsUpdate.getModifications(m, Open(tab)))
       | _ => NoChange
       }
     }
@@ -923,7 +923,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
     | FluidSetState(fluidState) => ({...m, fluidState: fluidState}, Cmd.none)
     | TLMenuUpdate(tlid, msg) => (TLMenu.update(m, tlid, msg), Cmd.none)
     | SettingsViewUpdate(msg) =>
-      let settingsView = SettingsView.update(m.settingsView, msg)
+      let settingsView = SettingsUpdate.update(m.settingsView, msg)
       ({...m, settingsView: settingsView}, cmd)
     // applied from left to right
     | Many(mods) =>
@@ -1402,11 +1402,18 @@ let update_ = (msg: msg, m: model): modification => {
     Many(list{
       ReplaceAllModificationsWithThisOne(
         m => {
-          let settingsView = SettingsView.update(
-            m.settingsView,
-            SetSettingsView(r.canvasList, m.username, r.orgs, r.orgCanvasList),
-          )
+          let inviteData: SettingsInviteState.initData = {
+            inviterUsername: m.username,
+            inviterName: r.account.name,
+          }
+          let canvasesData: SettingsCanvasesState.initData = {
+            canvasList: r.canvasList,
+            username: m.username,
+            orgs: r.orgs,
+            orgCanvasList: r.orgCanvasList,
+          }
 
+          let settingsView = SettingsUpdate.update(m.settingsView, Init(canvasesData, inviteData))
           (
             {
               ...m,
@@ -1984,8 +1991,8 @@ let update_ = (msg: msg, m: model): modification => {
   | NewTabFromTLMenu(url, tlid) =>
     Native.Window.openUrl(url, "_blank")
     TLMenuUpdate(tlid, CloseMenu)
-  | SettingsViewMsg(msg) =>
-    let mods = SettingsView.getModifications(m, msg)
+  | SettingsMsg(msg) =>
+    let mods = SettingsUpdate.getModifications(m, msg)
     Many(mods)
   | FnParamMsg(msg) => FnParams.update(m, msg)
   | UploadFnAPICallback(_, Error(err)) =>

@@ -219,7 +219,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
       canvasProps: {...m.canvasProps, offset: offset, lastOffset: None},
     }
   | (_, SettingsModal(tab)) =>
-    let settingsView = SettingsView.update(m.settingsView, OpenSettingsView(tab))
+    let settingsView = SettingsUpdate.update(m.settingsView, Open(tab))
 
     {...m, settingsView: settingsView}
   | (_, Architecture) => /* Anything else to Architecture
