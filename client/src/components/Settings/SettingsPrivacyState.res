@@ -10,5 +10,3 @@ type rec msg =
 let title = "Privacy"
 
 let default = {recordConsent: None}
-
-let init = () => default

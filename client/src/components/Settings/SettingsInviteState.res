@@ -3,10 +3,10 @@
 module Utils = SettingsUtils
 
 @ppx.deriving(show)
-type rec initData = {inviterUsername: string, inviterName: string}
+type rec inviter = {name: string, username: string}
 
 @ppx.deriving(show)
-type rec t = {email: Utils.formField, loading: bool, initData: initData}
+type rec t = {email: Utils.formField, loading: bool, inviter: inviter}
 
 module Params = {
   @ppx.deriving(show)
@@ -41,13 +41,13 @@ let title = "Share"
 let default = {
   email: Utils.defaultFormField,
   loading: false,
-  initData: {
-    inviterUsername: "",
-    inviterName: "",
+  inviter: {
+    username: "",
+    name: "",
   },
 }
 
-let init = (d: initData) => {
-  ...default,
-  initData: d,
+let setInviter = (state: t, username: string, name: string): t => {
+  ...state,
+  inviter: {username: username, name: name},
 }

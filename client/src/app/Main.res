@@ -1402,23 +1402,16 @@ let update_ = (msg: msg, m: model): modification => {
     Many(list{
       ReplaceAllModificationsWithThisOne(
         m => {
-          let inviteData: SettingsInviteState.initData = {
-            inviterUsername: m.username,
-            inviterName: r.account.name,
-          }
-          let canvasesData: SettingsCanvasesState.initData = {
-            canvasList: r.canvasList,
-            username: m.username,
-            orgs: r.orgs,
-            orgCanvasList: r.orgCanvasList,
-          }
-
+          let settings =
+            m.settingsView
+            ->SettingsState.setInviter(m.username, r.account.name)
+            ->SettingsState.setCanvasesInfo(r.canvasList, m.username, r.orgs, r.orgCanvasList)
           (
             {
               ...m,
               opCtrs: r.opCtrs,
               account: r.account,
-              settingsView: SettingsUpdate.init(canvasesData, inviteData),
+              settingsView: settings,
               secrets: r.secrets,
             },
             Cmd.none,

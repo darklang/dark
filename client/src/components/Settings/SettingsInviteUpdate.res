@@ -42,8 +42,8 @@ let validateForm = (i: T.t): (bool, T.t) => {
 let submitForm = (i: T.t): (T.t, T.effect) => {
   let sendInviteMsg = {
     T.Params.email: i.email.value,
-    inviterUsername: i.initData.inviterUsername,
-    inviterName: i.initData.inviterName,
+    inviterUsername: i.inviter.username,
+    inviterName: i.inviter.name,
   }
 
   ({...i, loading: true}, SendAPICall(sendInviteMsg))

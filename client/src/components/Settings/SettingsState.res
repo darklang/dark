@@ -54,3 +54,25 @@ type rec msg =
   | PrivacyMsg(SettingsPrivacyState.msg)
   | InviteMsg(SettingsInviteState.msg)
 // | ContributingMsg(SettingsContributing.msg)
+
+let setInviter = (state: t, username: string, name: string): t => {
+  ...state,
+  inviteSettings: SettingsInviteState.setInviter(state.inviteSettings, username, name),
+}
+
+let setCanvasesInfo = (
+  state: t,
+  canvasList: list<string>,
+  username: string,
+  orgs: list<string>,
+  orgCanvasList: list<string>,
+): t => {
+  ...state,
+  canvasesSettings: SettingsCanvasesState.setInfo(
+    state.canvasesSettings,
+    canvasList,
+    username,
+    orgs,
+    orgCanvasList,
+  ),
+}

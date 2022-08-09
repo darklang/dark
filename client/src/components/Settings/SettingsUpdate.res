@@ -2,17 +2,6 @@
 
 module T = SettingsState
 
-let init = (
-  canvasesData: SettingsCanvasesState.initData,
-  inviteData: SettingsInviteState.initData,
-): T.t => {
-  ...T.default,
-  canvasesSettings: SettingsCanvasesState.init(canvasesData),
-  inviteSettings: SettingsInviteState.init(inviteData),
-  privacySettings: SettingsPrivacyState.init(),
-  // contributingSettings: SettingsContributing.init(),
-}
-
 let update = (state: T.t, msg: T.msg): T.t =>
   switch msg {
   | Open(tab) => {...state, opened: true, tab: tab}

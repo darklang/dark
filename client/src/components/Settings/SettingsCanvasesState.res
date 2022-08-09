@@ -13,10 +13,17 @@ type rec t = {
 @ppx.deriving(show)
 type rec msg = unit
 
-// No extra data so just reuse `t`
-@ppx.deriving(show)
-type rec initData = t
-
 let default = {canvasList: list{}, username: "", orgs: list{}, orgCanvasList: list{}}
 
-let init = (d: initData) => d
+let setInfo = (
+  _state: t,
+  canvasList: list<string>,
+  username: string,
+  orgs: list<string>,
+  orgCanvasList: list<string>,
+): t => {
+  canvasList: canvasList,
+  username: username,
+  orgs: orgs,
+  orgCanvasList: orgCanvasList,
+}
