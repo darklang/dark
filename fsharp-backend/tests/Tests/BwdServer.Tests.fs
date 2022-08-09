@@ -3,6 +3,9 @@
 ///
 /// Test files are stored in the `tests/httptestfiles` directory,
 /// which includes a README.md of how these tests work.
+///
+/// Test files are also stored in the `tests/httpbytestestfiles` directory,
+/// which should be phased out. CLEANUP
 module Tests.BwdServer
 
 open Expecto
@@ -27,9 +30,7 @@ module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
 open Tests
 open TestUtils.TestUtils
 
-let rootDir = "tests/httptestfiles"
-
-type HandlerVersion = | Http
+type HandlerVersion = Http | HttpBytes
 
 type TestHandler =
   { Version : HandlerVersion
@@ -69,7 +70,7 @@ let splitAtNewlines (bytes : byte array) : byte list list =
 
 
 /// Used to parse a .test file
-/// See details in {rootDir}/README.md
+/// See details in httptestfiles/README.md
 module ParseTest =
   type private TestParsingState =
     | Limbo
@@ -79,7 +80,7 @@ module ParseTest =
 
   /// Parse the test line-by-line.
   /// We don't use regex here because we want to test more than strings
-  let parse (bytes : byte array) : Test =
+  let parse rootDir (bytes : byte array) : Test =
     let lines : List<List<byte>> = bytes |> splitAtNewlines
 
     let emptyTest =
@@ -123,6 +124,20 @@ module ParseTest =
                handlers =
                  { Version = Http; Route = route; Method = method; Code = "" }
                  :: result.handlers })
+        | Regex "\[http-bytes-handler (\S+) (\S+)\]" [ method; route ] ->
+          (InHttpHandler,
+           { result with
+               handlers =
+                 { Version = HttpBytes; Route = route; Method = method; Code = "" }
+                 :: result.handlers })
+        | Regex "\<INJECT_DATA=(\S+)\>" [ dataFileToInject ] ->
+          // TODO Consider doing this async...
+          // or maybe not as part of parse, but rather at 'run-time'
+          let injectedBytes =
+            System.IO.File.ReadAllBytes $"{rootDir}/data/{dataFileToInject}"
+          let updatedRequest =
+            Array.concat [| result.request; injectedBytes; [| newline |] |]
+          (state, { result with request = updatedRequest })
         | _ ->
           match state with
           | InHttpHandler ->
@@ -196,6 +211,12 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
               method = handler.Method,
               ids = ids
             )
+          | HttpBytes ->
+            PT.Handler.HTTPBytes(
+              route = handler.Route,
+              method = handler.Method,
+              ids = ids
+            )
 
         let h : PT.Handler.T =
           { tlid = gid (); pos = { x = 0; y = 0 }; ast = source; spec = spec }
@@ -235,34 +256,50 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
 /// Executes a test
 module Execution =
   let private normalizeActualHeaders
+    (handlerVersion: HandlerVersion)
     (hs : (string * string) list)
     : (string * string) list =
-    hs
-    |> List.filterMap (fun (k, v) ->
-      match k, v with
-      | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-      | "expires", _
-      | "Expires", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-      | "x-darklang-execution-id", _ -> Some(k, "0123456789")
-      | "age", _
-      | "Age", _ -> None
-      | "X-GUploader-UploadID", _
-      | "x-guploader-uploadid", _ -> Some(k, "xxxx")
-      | "x-goog-generation", _ -> Some(k, "xxxx")
-      | _other -> Some(k, v))
-    |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
+    match handlerVersion with
+    | Http ->
+      hs
+      |> List.filterMap (fun (k, v) ->
+        match k, v with
+        | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+        | "expires", _
+        | "Expires", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+        | "x-darklang-execution-id", _ -> Some(k, "0123456789")
+        | "age", _
+        | "Age", _ -> None
+        | "X-GUploader-UploadID", _
+        | "x-guploader-uploadid", _ -> Some(k, "xxxx")
+        | "x-goog-generation", _ -> Some(k, "xxxx")
+        | _other -> Some(k, v))
+      |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
+    | HttpBytes ->
+      hs
+      |> List.filterMap (fun (k, v) ->
+        match k, v with
+        | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+        | "x-darklang-execution-id", _ -> Some(k, "0123456789")
+        | _other -> Some(k, v))
+      |> List.sortBy Tuple2.first
 
   let private normalizeExpectedHeaders
+    (handlerVersion: HandlerVersion)
     (headers : (string * string) list)
     (actualBody : byte array)
     : (string * string) list =
-    headers
-    |> List.map (fun (k, v) ->
-      match k, v with
-      // JSON can be different lengths, this plugs in the expected length
-      | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
-      | _ -> (k, v))
-    |> List.sortBy Tuple2.first
+    match handlerVersion with
+    | Http ->
+      headers
+      |> List.map (fun (k, v) ->
+        match k, v with
+        // JSON can be different lengths, this plugs in the expected length
+        | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
+        | _ -> (k, v))
+      |> List.sortBy Tuple2.first
+    | HttpBytes ->
+      List.sortBy Tuple2.first headers
 
   /// create a TCP client, used to make test HTTP requests
   let private createClient (port : int) : Task<TcpClient> =
@@ -328,6 +365,7 @@ module Execution =
   /// Makes the test request to one of the servers,
   /// testing the response matches expectations
   let runTestRequest
+    (handlerVersion: HandlerVersion)
     (canvasName : string)
     (testRequest : byte array)
     (testExpectedResponse : byte array)
@@ -343,12 +381,12 @@ module Execution =
         |> replaceByteStrings "CANVAS" canvasName
         |> Http.setHeadersToCRLF
 
+
       // Check body matches content-length
       let incorrectContentTypeAllowed =
         testRequest
         |> UTF8.ofBytesWithReplacement
         |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
-
       if not incorrectContentTypeAllowed then
         let parsedTestRequest = Http.split request
         let contentLength =
@@ -399,8 +437,8 @@ module Execution =
       // Parse and normalize the response
       let actual = Http.split response
       let expected = Http.split expectedResponse
-      let expectedHeaders = normalizeExpectedHeaders expected.headers actual.body
-      let actualHeaders = normalizeActualHeaders actual.headers
+      let expectedHeaders = normalizeExpectedHeaders handlerVersion expected.headers actual.body
+      let actualHeaders = normalizeActualHeaders handlerVersion actual.headers
 
       // Test as json or strings
       let asJson =
@@ -438,45 +476,50 @@ module Execution =
             $"(bytes)"
     }
 
-
-/// Makes a test to be run
-let t (filename : string) =
-  testTask $"Http files: {filename}" {
-    let shouldSkip = String.startsWith "_" filename
-
-    // read and parse the test
-    let filename = $"{rootDir}/{filename}"
-    let! contents = System.IO.File.ReadAllBytesAsync filename
-
-    let test = ParseTest.parse contents
-    let testName =
-      let withoutPrefix = if shouldSkip then String.dropLeft 1 filename else filename
-      withoutPrefix |> String.dropRight (".test".Length)
-
-    // set up a test canvas
-    let! (meta : Canvas.Meta) = setupTestCanvas testName test
-
-    // execute the test
-    if shouldSkip then
-      skiptest $"underscore test - {testName}"
-    else
-      do!
-        Execution.runTestRequest
-          (string meta.name)
-          test.request
-          test.expectedResponse
-  }
-
 let testsFromFiles =
-  let dir = $"{rootDir}/"
+  /// Makes a test to be run
+  let t rootDir handlerType (filename : string) =
+    testTask $"Http files: {filename}" {
+      let shouldSkip = String.startsWith "_" filename
 
-  System.IO.Directory.GetFiles(dir, "*.test")
-  |> Array.map (System.IO.Path.GetFileName)
-  |> Array.toList
-  |> List.map t
+      // read and parse the test
+      let filename = $"{rootDir}/{filename}"
+      let! contents = System.IO.File.ReadAllBytesAsync filename
+
+      let test = ParseTest.parse rootDir contents
+      let testName =
+        let withoutPrefix = if shouldSkip then String.dropLeft 1 filename else filename
+        withoutPrefix |> String.dropRight (".test".Length)
+
+      // set up a test canvas
+      let! (meta : Canvas.Meta) = setupTestCanvas testName test
+
+      // execute the test
+      if shouldSkip then
+        skiptest $"underscore test - {testName}"
+      else
+        do!
+          Execution.runTestRequest
+            handlerType
+            (string meta.name)
+            test.request
+            test.expectedResponse
+    }
+
+  // TODO support tests with more than one type of handler
+  // (the parser is ready, but the execution is not)
+  [ ("tests/httptestfiles", Http)
+    ("tests/httpbytestestfiles", HttpBytes) ]
+  |> List.map(fun (dir, handlerType) ->
+    System.IO.Directory.GetFiles(dir, "*.test")
+    |> Array.map (System.IO.Path.GetFileName)
+    |> Array.toList
+    |> List.map (t dir handlerType)
+  )
+  |> List.concat
 
 
-let tests = testList "BwdServer.Http" [ testList "httptestfiles" testsFromFiles ]
+let tests = testList "BwdServer" [ testList "httptestfiles" testsFromFiles ]
 
 open Microsoft.Extensions.Hosting
 
@@ -487,5 +530,5 @@ let init (token : System.Threading.CancellationToken) : Task =
   // run our own webserver instead of relying on the dev webserver
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
-  let logger = configureLogging "test-bwdserver-http"
+  let logger = configureLogging "test-bwdserver"
   (BwdServer.Server.webserver logger port k8sPort).RunAsync(token)
