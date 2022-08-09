@@ -17,19 +17,6 @@ module Request =
     |> Map
     |> RT.Dval.DObj
 
-  let private url (headers : List<string * string>) (uri : string) =
-    // .NET doesn't url-encode the query like we expect, so we're going to do it
-    let parsed = System.UriBuilder(uri)
-    // FSTODO test this somehow (probably fuzz against old)
-    parsed.Query <- urlEncodeExcept "*$@!:()~?/.,&-_=\\" parsed.Query
-    // Set the scheme if it's passed by the load balancer
-    headers
-    |> List.find (fun (k, _) -> String.toLowercase k = "x-forwarded-proto")
-    |> Option.map (fun (_, v) -> parsed.Scheme <- v)
-    |> ignore<Option<unit>>
-    // Use .Uri or it will slip in a port number
-    RT.DStr(string parsed.Uri)
-
   let fromRequest
     (uri : string)
     (headers : List<string * string>)
@@ -39,7 +26,7 @@ module Request =
     [ "body", RT.DBytes body
       "queryParams", RT.DStr query
       "headers", parseHeaders headers
-      "url", url headers uri ]
+      "url", RT.DStr uri ]
     |> RT.Dval.obj
 
 
