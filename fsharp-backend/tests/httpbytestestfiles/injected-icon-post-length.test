@@ -7,7 +7,7 @@ Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 685
 
-<INJECT_DATA=favicon-32x32.png>
+<IMPORT_DATA_FROM_FILE=favicon-32x32.png>
 
 [response]
 HTTP/1.1 200 OK

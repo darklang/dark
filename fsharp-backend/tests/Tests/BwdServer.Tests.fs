@@ -30,7 +30,9 @@ module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
 open Tests
 open TestUtils.TestUtils
 
-type HandlerVersion = Http | HttpBytes
+type HandlerVersion =
+  | Http
+  | HttpBytes
 
 type TestHandler =
   { Version : HandlerVersion
@@ -118,26 +120,45 @@ module ParseTest =
           (Limbo, { result with canvasName = Some canvasName })
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
+
         | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
           (InHttpHandler,
            { result with
                handlers =
                  { Version = Http; Route = route; Method = method; Code = "" }
                  :: result.handlers })
+
         | Regex "\[http-bytes-handler (\S+) (\S+)\]" [ method; route ] ->
           (InHttpHandler,
            { result with
                handlers =
                  { Version = HttpBytes; Route = route; Method = method; Code = "" }
                  :: result.handlers })
-        | Regex "\<INJECT_DATA=(\S+)\>" [ dataFileToInject ] ->
-          // TODO Consider doing this async...
-          // or maybe not as part of parse, but rather at 'run-time'
+
+        | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
+          // TODO do this as part of run-time, not during parse-time
           let injectedBytes =
             System.IO.File.ReadAllBytes $"{rootDir}/data/{dataFileToInject}"
-          let updatedRequest =
-            Array.concat [| result.request; injectedBytes; [| newline |] |]
-          (state, { result with request = updatedRequest })
+
+          match state with
+          | InRequest ->
+            let updatedRequest =
+              Array.concat [| result.request; injectedBytes; [| newline |] |]
+            (InRequest, { result with request = updatedRequest })
+
+          | InResponse ->
+            let updatedResponse =
+              Array.concat [| result.expectedResponse
+                              injectedBytes
+                              [| newline |] |]
+            (InRequest, { result with expectedResponse = updatedResponse })
+
+          | InHttpHandler
+          | Limbo ->
+            Exception.raiseInternal
+              "Unexpected <IMPORT_DATA_FROM_FILE>"
+              [ "line", line ]
+
         | _ ->
           match state with
           | InHttpHandler ->
@@ -256,7 +277,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
 /// Executes a test
 module Execution =
   let private normalizeActualHeaders
-    (handlerVersion: HandlerVersion)
+    (handlerVersion : HandlerVersion)
     (hs : (string * string) list)
     : (string * string) list =
     match handlerVersion with
@@ -285,7 +306,7 @@ module Execution =
       |> List.sortBy Tuple2.first
 
   let private normalizeExpectedHeaders
-    (handlerVersion: HandlerVersion)
+    (handlerVersion : HandlerVersion)
     (headers : (string * string) list)
     (actualBody : byte array)
     : (string * string) list =
@@ -298,8 +319,7 @@ module Execution =
         | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
         | _ -> (k, v))
       |> List.sortBy Tuple2.first
-    | HttpBytes ->
-      List.sortBy Tuple2.first headers
+    | HttpBytes -> List.sortBy Tuple2.first headers
 
   /// create a TCP client, used to make test HTTP requests
   let private createClient (port : int) : Task<TcpClient> =
@@ -365,7 +385,7 @@ module Execution =
   /// Makes the test request to one of the servers,
   /// testing the response matches expectations
   let runTestRequest
-    (handlerVersion: HandlerVersion)
+    (handlerVersion : HandlerVersion)
     (canvasName : string)
     (testRequest : byte array)
     (testExpectedResponse : byte array)
@@ -437,7 +457,8 @@ module Execution =
       // Parse and normalize the response
       let actual = Http.split response
       let expected = Http.split expectedResponse
-      let expectedHeaders = normalizeExpectedHeaders handlerVersion expected.headers actual.body
+      let expectedHeaders =
+        normalizeExpectedHeaders handlerVersion expected.headers actual.body
       let actualHeaders = normalizeActualHeaders handlerVersion actual.headers
 
       // Test as json or strings
@@ -488,7 +509,8 @@ let testsFromFiles =
 
       let test = ParseTest.parse rootDir contents
       let testName =
-        let withoutPrefix = if shouldSkip then String.dropLeft 1 filename else filename
+        let withoutPrefix =
+          if shouldSkip then String.dropLeft 1 filename else filename
         withoutPrefix |> String.dropRight (".test".Length)
 
       // set up a test canvas
@@ -508,14 +530,12 @@ let testsFromFiles =
 
   // TODO support tests with more than one type of handler
   // (the parser is ready, but the execution is not)
-  [ ("tests/httptestfiles", Http)
-    ("tests/httpbytestestfiles", HttpBytes) ]
-  |> List.map(fun (dir, handlerType) ->
+  [ ("tests/httptestfiles", Http); ("tests/httpbytestestfiles", HttpBytes) ]
+  |> List.map (fun (dir, handlerType) ->
     System.IO.Directory.GetFiles(dir, "*.test")
     |> Array.map (System.IO.Path.GetFileName)
     |> Array.toList
-    |> List.map (t dir handlerType)
-  )
+    |> List.map (t dir handlerType))
   |> List.concat
 
 
