@@ -24,24 +24,32 @@ module Canvas = LibBackend.Canvas
 
 module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
 
+open Tests
 open TestUtils.TestUtils
-open System.Text.Json
+
+let rootDir = "tests/httptestfiles"
+
+type HandlerVersion = | Http
+
+type TestHandler =
+  { Version : HandlerVersion
+    Route : string
+    Method : string
+    Code : string }
+
+type TestSecret = string * string
 
 type Test =
-  { handlers : List<string * string * string>
+  { handlers : List<TestHandler>
+    /// Feature only supported for v1 handlers; intended to be deprecated
     cors : Option<string>
-    secrets : List<string * string>
+    secrets : List<TestSecret>
     /// Allow testing of a specific canvas name
     canvasName : Option<string>
     customDomain : Option<string>
     request : byte array
-    response : byte array }
+    expectedResponse : byte array }
 
-type TestParsingState =
-  | Limbo
-  | InHttpHandler
-  | InResponse
-  | InRequest
 
 let newline = byte '\n'
 
@@ -59,142 +67,104 @@ let splitAtNewlines (bytes : byte array) : byte list list =
   |> List.map List.reverse
   |> List.reverse
 
-let findIndex (pattern : 'a list) (list : 'a list) : int option =
-  if pattern.Length = 0 || list.Length < pattern.Length then
-    None
-  else
-    let mutable i = 0
-    let mutable result = None
-    while result = None && i <= list.Length - pattern.Length do
-      let mutable matches = true
-      let mutable j = 0
-      while matches && j < pattern.Length do
-        if list[i + j] <> pattern[j] then
-          matches <- false
-          j <- pattern.Length // stop early
-        else
-          j <- j + 1
-      if matches then result <- Some i else i <- i + 1
-    result
 
-let findLastIndex (pattern : 'a list) (list : 'a list) : int option =
-  findIndex (List.reverse pattern) (List.reverse list)
-  // The index we get back is the index of the LAST item
-  |> Option.map (fun i -> list.Length - i - pattern.Length)
+/// Used to parse a .test file
+/// See details in {rootDir}/README.md
+module ParseTest =
+  type private TestParsingState =
+    | Limbo
+    | InHttpHandler
+    | InResponse
+    | InRequest
 
+  /// Parse the test line-by-line.
+  /// We don't use regex here because we want to test more than strings
+  let parse (bytes : byte array) : Test =
+    let lines : List<List<byte>> = bytes |> splitAtNewlines
 
-/// Parse the test line-by-line. We don't use regex here because we want to test more than strings
-let parseTest (bytes : byte array) : Test =
-  let lines : List<List<byte>> = bytes |> splitAtNewlines
-  let emptyTest =
-    { handlers = []
-      cors = None
-      secrets = []
-      customDomain = None
-      canvasName = None
-      request = [||]
-      response = [||] }
-  lines
-  |> List.fold
-    (Limbo, emptyTest)
-    (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
-      let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
-      match asString with
-      | Regex "\[cors (\S+)]" [ cors ] -> (Limbo, { result with cors = Some cors })
-      | Regex "\[secrets (\S+)]" [ secrets ] ->
-        let secrets =
-          secrets
-          |> String.split ","
-          |> List.map (fun secret ->
-            match secret |> String.split ":" with
-            | [ key; value ] -> key, value
-            | _ ->
-              Exception.raiseInternal $"Could not parse secret" [ "secret", secret ])
+    let emptyTest =
+      { handlers = []
+        cors = None
+        secrets = []
+        customDomain = None
+        canvasName = None
+        request = [||]
+        expectedResponse = [||] }
 
-        (Limbo, { result with secrets = secrets @ result.secrets })
-      | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
-        (Limbo, { result with customDomain = Some customDomain })
-      | Regex "\[canvas-name (\S+)]" [ canvasName ] ->
-        (Limbo, { result with canvasName = Some canvasName })
-      | "[request]" -> (InRequest, result)
-      | "[response]" -> (InResponse, result)
-      | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
-        (InHttpHandler,
-         { result with handlers = result.handlers @ [ (method, route, "") ] })
-      | _ ->
-        match state with
-        | InHttpHandler ->
-          let newHandlers =
-            match List.reverse result.handlers with
-            | [] -> Exception.raiseInternal "There should be handlers already" []
-            | (method, route, text) :: other ->
-              List.reverse ((method, route, text + asString + "\n") :: other)
-          InHttpHandler, { result with handlers = newHandlers }
-        | InResponse ->
-          InResponse,
-          { result with
-              response =
-                Array.concat [| result.response; Array.ofList line; [| newline |] |] }
-        | InRequest ->
-          InRequest,
-          { result with
-              request =
-                Array.concat [| result.request; Array.ofList line; [| newline |] |] }
-        | Limbo ->
-          if line.Length = 0 then
-            (Limbo, result)
-          else
-            Exception.raiseInternal
-              $"Line received while not in any state"
-              [ "line", line ])
-  |> Tuple2.second
-  |> fun test ->
-       { test with
-           // Remove the superfluously added newline on response
-           response = Array.slice 0 -1 test.response
-           // Allow separation from the next section with a blank line
-           request = Array.slice 0 -2 test.request }
+    lines
+    |> List.fold
+      (Limbo, emptyTest)
+      (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
+        let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
+        match asString with
+        | Regex "\[cors (\S+)]" [ cors ] -> (Limbo, { result with cors = Some cors })
+        | Regex "\[secrets (\S+)]" [ secrets ] ->
+          let secrets =
+            secrets
+            |> String.split ","
+            |> List.map (fun secret ->
+              match secret |> String.split ":" with
+              | [ key; value ] -> key, value
+              | _ ->
+                Exception.raiseInternal
+                  $"Could not parse secret"
+                  [ "secret", secret ])
 
-/// Replace `pattern` in the byte array with `replacement` - both are provided as strings
-/// for convenience, but obviously both will be converted to bytes
-let replaceByteStrings
-  (pattern : string)
-  (replacement : string)
-  (bytes : byte array)
-  : byte array =
-  let patternBytes = UTF8.toBytes pattern
-  let replacementBytes = UTF8.toBytes replacement |> Array.toList |> List.reverse
+          (Limbo, { result with secrets = secrets @ result.secrets })
+        | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
+          (Limbo, { result with customDomain = Some customDomain })
+        | Regex "\[canvas-name (\S+)]" [ canvasName ] ->
+          (Limbo, { result with canvasName = Some canvasName })
+        | "[request]" -> (InRequest, result)
+        | "[response]" -> (InResponse, result)
+        | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
+          (InHttpHandler,
+           { result with
+               handlers =
+                 { Version = Http; Route = route; Method = method; Code = "" }
+                 :: result.handlers })
+        | _ ->
+          match state with
+          | InHttpHandler ->
+            let handlersWithUpdate =
+              match result.handlers with
+              | [] ->
+                Exception.raiseInternal
+                  "There should be at least one handler already"
+                  []
+              | handler :: other ->
+                let updatedHandler =
+                  { handler with Code = handler.Code + asString + "\n" }
 
-  if pattern.Length = 0 || bytes.Length < pattern.Length then
-    bytes
-  else
-    // For each element of bytes, try to match every element of pattern with it. If
-    // it matches, add in the relacement and skip the rest of the pattern, otherwise
-    // skip
-    let mutable result = [] // Add in reverse
-    let mutable i = 0
-    while i < bytes.Length - pattern.Length do
-      let mutable matches = true
-      let mutable j = 0
-      while j < pattern.Length do
-        if bytes[i + j] <> patternBytes[j] then
-          matches <- false
-          j <- pattern.Length // stop early
-        else
-          j <- j + 1
-      if matches then
-        // matched: save replacement, skip rest of pattern
-        result <- replacementBytes @ result
-        i <- i + pattern.Length
-      else
-        // not matched, char is in result, look at next char
-        result <- bytes[i] :: result
-        i <- i + 1
-    // Add the final ones we skipped above
-    for i = i to bytes.Length - 1 do
-      result <- bytes[i] :: result
-    // bytes are added in reverse, so one more reverse needed
-    result |> List.reverse |> List.toArray
+                updatedHandler :: other
+            InHttpHandler, { result with handlers = handlersWithUpdate }
+          | InResponse ->
+            InResponse,
+            { result with
+                expectedResponse =
+                  Array.concat [| result.expectedResponse
+                                  Array.ofList line
+                                  [| newline |] |] }
+          | InRequest ->
+            InRequest,
+            { result with
+                request =
+                  Array.concat [| result.request; Array.ofList line; [| newline |] |] }
+          | Limbo ->
+            if line.Length = 0 then
+              (Limbo, result)
+            else
+              Exception.raiseInternal
+                $"Line received while not in any state"
+                [ "line", line ])
+    |> Tuple2.second
+    |> fun test ->
+         { test with
+             // Remove the superfluously added newline on response
+             expectedResponse = Array.slice 0 -1 test.expectedResponse
+             // Allow separation from the next section with a blank line
+             request = Array.slice 0 -2 test.request }
+
 
 /// Initializes and sets up a test canvas (handlers, secrets, etc.)
 let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
@@ -209,20 +179,26 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
     // Handlers
     let oplists =
       test.handlers
-      |> List.map (fun (httpMethod, httpRoute, progString) ->
+      |> List.map (fun handler ->
         let (source : PT.Expr) =
-          progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
+          handler.Code |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
         let gid = Prelude.gid
 
         let ids : PT.Handler.ids =
           { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
+        let spec =
+          match handler.Version with
+          | Http ->
+            PT.Handler.HTTP(
+              route = handler.Route,
+              method = handler.Method,
+              ids = ids
+            )
+
         let h : PT.Handler.T =
-          { tlid = gid ()
-            pos = { x = 0; y = 0 }
-            ast = source
-            spec = PT.Handler.HTTP(route = httpRoute, method = httpMethod, ids = ids) }
+          { tlid = gid (); pos = { x = 0; y = 0 }; ast = source; spec = spec }
 
         (h.tlid,
          [ PT.SetHandler(h.tlid, h.pos, h) ],
@@ -255,176 +231,224 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
     return meta
   }
 
-let normalizeActualHeaders (hs : (string * string) list) : (string * string) list =
-  hs
-  |> List.filterMap (fun (k, v) ->
-    match k, v with
-    | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-    | "expires", _
-    | "Expires", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-    | "x-darklang-execution-id", _ -> Some(k, "0123456789")
-    | "age", _
-    | "Age", _ -> None
-    | "X-GUploader-UploadID", _
-    | "x-guploader-uploadid", _ -> Some(k, "xxxx")
-    | "x-goog-generation", _ -> Some(k, "xxxx")
-    | _other -> Some(k, v))
-  |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
 
-let normalizeExpectedHeaders
-  (headers : (string * string) list)
-  (actualBody : byte array)
-  : (string * string) list =
-  headers
-  |> List.map (fun (k, v) ->
-    match k, v with
-    // JSON can be different lengths, this plugs in the expected length
-    | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
-    | _ -> (k, v))
-  |> List.sortBy Tuple2.first
+/// Executes a test
+module Execution =
+  let private normalizeActualHeaders
+    (hs : (string * string) list)
+    : (string * string) list =
+    hs
+    |> List.filterMap (fun (k, v) ->
+      match k, v with
+      | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+      | "expires", _
+      | "Expires", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+      | "x-darklang-execution-id", _ -> Some(k, "0123456789")
+      | "age", _
+      | "Age", _ -> None
+      | "X-GUploader-UploadID", _
+      | "x-guploader-uploadid", _ -> Some(k, "xxxx")
+      | "x-goog-generation", _ -> Some(k, "xxxx")
+      | _other -> Some(k, v))
+    |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
 
-/// create a TCP client, used to make test HTTP requests
-let createClient (port : int) : Task<TcpClient> =
-  task {
-    let client = new TcpClient()
+  let private normalizeExpectedHeaders
+    (headers : (string * string) list)
+    (actualBody : byte array)
+    : (string * string) list =
+    headers
+    |> List.map (fun (k, v) ->
+      match k, v with
+      // JSON can be different lengths, this plugs in the expected length
+      | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
+      | _ -> (k, v))
+    |> List.sortBy Tuple2.first
 
-    // Web server might not be loaded yet
-    let mutable connected = false
-    for i in 1..10 do
-      try
-        if not connected then
-          do! client.ConnectAsync("127.0.0.1", port)
-          connected <- true
-      with
-      | _ when i <> 10 ->
-        print $"Server not ready on port {port}, maybe retry"
-        do! System.Threading.Tasks.Task.Delay 1000
-    return client
-  }
+  /// create a TCP client, used to make test HTTP requests
+  let private createClient (port : int) : Task<TcpClient> =
+    task {
+      let client = new TcpClient()
 
-/// Makes the test request to one of the servers,
-/// testing the response matches expectations
-let runTestRequest
-  (canvasName : string)
-  (testRequest : byte array)
-  (testResponse : byte array)
-  : Task<unit> =
-  task {
-    let port = TestConfig.bwdServerBackendPort
+      // Web server might not be loaded yet
+      let mutable connected = false
+      for i in 1..10 do
+        try
+          if not connected then
+            do! client.ConnectAsync("127.0.0.1", port)
+            connected <- true
+        with
+        | _ when i <> 10 ->
+          print $"Server not ready on port {port}, maybe retry"
+          do! System.Threading.Tasks.Task.Delay 1000
+      return client
+    }
 
-    let host = $"{canvasName}.builtwithdark.localhost:{port}"
+  /// Replace `pattern` in the byte array with `replacement` - both are
+  /// provided as strings for convenience, but obviously both will be
+  /// converted to bytes
+  let private replaceByteStrings
+    (pattern : string)
+    (replacement : string)
+    (bytes : byte array)
+    : byte array =
+    let patternBytes = UTF8.toBytes pattern
+    let replacementBytes = UTF8.toBytes replacement |> Array.toList |> List.reverse
 
-    let request =
-      testRequest
-      |> replaceByteStrings "HOST" host
-      |> replaceByteStrings "CANVAS" canvasName
-      |> Http.setHeadersToCRLF
-
-    // Check body matches content-length
-    let incorrectContentTypeAllowed =
-      testRequest
-      |> UTF8.ofBytesWithReplacement
-      |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
-
-    if not incorrectContentTypeAllowed then
-      let parsedTestRequest = Http.split request
-      let contentLength =
-        parsedTestRequest.headers
-        |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
-      match contentLength with
-      | None -> ()
-      | Some (_, v) ->
-        if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
-          ()
+    if pattern.Length = 0 || bytes.Length < pattern.Length then
+      bytes
+    else
+      // For each element of bytes, try to match every element of pattern with
+      // it. If it matches, add in the relacement and skip the rest of the
+      // pattern, otherwise skip
+      let mutable result = [] // Add in reverse
+      let mutable i = 0
+      while i < bytes.Length - pattern.Length do
+        let mutable matches = true
+        let mutable j = 0
+        while j < pattern.Length do
+          if bytes[i + j] <> patternBytes[j] then
+            matches <- false
+            j <- pattern.Length // stop early
+          else
+            j <- j + 1
+        if matches then
+          // matched: save replacement, skip rest of pattern
+          result <- replacementBytes @ result
+          i <- i + pattern.Length
         else
-          Expect.equal parsedTestRequest.body.Length (int v) ""
+          // not matched, char is in result, look at next char
+          result <- bytes[i] :: result
+          i <- i + 1
+      // Add the final ones we skipped above
+      for i = i to bytes.Length - 1 do
+        result <- bytes[i] :: result
+      // bytes are added in reverse, so one more reverse needed
+      result |> List.reverse |> List.toArray
 
-    // Check input LENGTH not set
-    if testRequest |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
-       && not incorrectContentTypeAllowed then // false alarm as also have LENGTH in it
-      Expect.isFalse true "LENGTH substitution not done on request"
+  /// Makes the test request to one of the servers,
+  /// testing the response matches expectations
+  let runTestRequest
+    (canvasName : string)
+    (testRequest : byte array)
+    (testExpectedResponse : byte array)
+    : Task<unit> =
+    task {
+      let port = TestConfig.bwdServerBackendPort
 
-    // Make the request
-    use! client = createClient (port)
-    use stream = client.GetStream()
-    stream.ReadTimeout <- 1000 // responses should be instant, right?
+      let host = $"{canvasName}.builtwithdark.localhost:{port}"
 
-    do! stream.WriteAsync(request, 0, request.Length)
-    do! stream.FlushAsync()
+      let request =
+        testRequest
+        |> replaceByteStrings "HOST" host
+        |> replaceByteStrings "CANVAS" canvasName
+        |> Http.setHeadersToCRLF
 
-    // Read the response
-    let length = 10000
-    let responseBuffer = Array.zeroCreate length
-    let! byteCount = stream.ReadAsync(responseBuffer, 0, length)
-    stream.Close()
-    client.Close()
-    let response = Array.take byteCount responseBuffer
+      // Check body matches content-length
+      let incorrectContentTypeAllowed =
+        testRequest
+        |> UTF8.ofBytesWithReplacement
+        |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
 
-    // Prepare expected response
-    let expectedResponse =
-      testResponse
-      |> splitAtNewlines
-      |> List.map (fun l -> List.append l [ newline ])
-      |> List.flatten
-      |> List.initial // remove final newline which we don't want
-      |> Exception.unwrapOptionInternal "cannot find newline" []
-      |> List.toArray
-      |> replaceByteStrings "HOST" host
-      |> replaceByteStrings "CANVAS" canvasName
-      |> Http.setHeadersToCRLF
+      if not incorrectContentTypeAllowed then
+        let parsedTestRequest = Http.split request
+        let contentLength =
+          parsedTestRequest.headers
+          |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
+        match contentLength with
+        | None -> ()
+        | Some (_, v) ->
+          if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
+            ()
+          else
+            Expect.equal parsedTestRequest.body.Length (int v) ""
 
-    // Parse and normalize the response
-    let actual = Http.split response
-    let expected = Http.split expectedResponse
-    let expectedHeaders = normalizeExpectedHeaders expected.headers actual.body
-    let actualHeaders = normalizeActualHeaders actual.headers
+      // Check input LENGTH not set
+      if testRequest |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
+         && not incorrectContentTypeAllowed then // false alarm as also have LENGTH in it
+        Expect.isFalse true "LENGTH substitution not done on request"
 
-    // Test as json or strings
-    let asJson =
-      try
-        Some(
-          LibExecution.DvalReprLegacyExternal.parseJson (
-            UTF8.ofBytesUnsafe actual.body
-          ),
-          LibExecution.DvalReprLegacyExternal.parseJson (
-            UTF8.ofBytesUnsafe expected.body
+      // Make the request
+      use! client = createClient (port)
+      use stream = client.GetStream()
+      stream.ReadTimeout <- 1000 // responses should be instant, right?
+
+      do! stream.WriteAsync(request, 0, request.Length)
+      do! stream.FlushAsync()
+
+      // Read the response
+      let length = 10000
+      let responseBuffer = Array.zeroCreate length
+      let! byteCount = stream.ReadAsync(responseBuffer, 0, length)
+      stream.Close()
+      client.Close()
+      let response = Array.take byteCount responseBuffer
+
+      // Prepare expected response
+      let expectedResponse =
+        testExpectedResponse
+        |> splitAtNewlines
+        |> List.map (fun l -> List.append l [ newline ])
+        |> List.flatten
+        |> List.initial // remove final newline which we don't want
+        |> Exception.unwrapOptionInternal "cannot find newline" []
+        |> List.toArray
+        |> replaceByteStrings "HOST" host
+        |> replaceByteStrings "CANVAS" canvasName
+        |> Http.setHeadersToCRLF
+
+      // Parse and normalize the response
+      let actual = Http.split response
+      let expected = Http.split expectedResponse
+      let expectedHeaders = normalizeExpectedHeaders expected.headers actual.body
+      let actualHeaders = normalizeActualHeaders actual.headers
+
+      // Test as json or strings
+      let asJson =
+        try
+          Some(
+            LibExecution.DvalReprLegacyExternal.parseJson (
+              UTF8.ofBytesUnsafe actual.body
+            ),
+            LibExecution.DvalReprLegacyExternal.parseJson (
+              UTF8.ofBytesUnsafe expected.body
+            )
           )
-        )
-      with
-      | e -> None
+        with
+        | e -> None
 
-    match asJson with
-    | Some (aJson, eJson) ->
-      let serialize (json : JsonDocument) =
-        LibExecution.DvalReprLegacyExternal.writePrettyJson json.WriteTo
-      Expect.equal
-        (actual.status, actualHeaders, serialize aJson)
-        (expected.status, expectedHeaders, serialize eJson)
-        $"(json)"
-    | None ->
-      match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
-      | Some actualBody, Some expectedBody ->
+      match asJson with
+      | Some (aJson, eJson) ->
+        let serialize (json : JsonDocument) =
+          LibExecution.DvalReprLegacyExternal.writePrettyJson json.WriteTo
         Expect.equal
-          (actual.status, actualHeaders, actualBody)
-          (expected.status, expectedHeaders, expectedBody)
-          $"(string)"
-      | _ ->
-        Expect.equal
-          (actual.status, actualHeaders, actual.body)
-          (expected.status, expectedHeaders, expected.body)
-          $"(bytes)"
-  }
+          (actual.status, actualHeaders, serialize aJson)
+          (expected.status, expectedHeaders, serialize eJson)
+          $"(json)"
+      | None ->
+        match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
+        | Some actualBody, Some expectedBody ->
+          Expect.equal
+            (actual.status, actualHeaders, actualBody)
+            (expected.status, expectedHeaders, expectedBody)
+            $"(string)"
+        | _ ->
+          Expect.equal
+            (actual.status, actualHeaders, actual.body)
+            (expected.status, expectedHeaders, expected.body)
+            $"(bytes)"
+    }
+
 
 /// Makes a test to be run
 let t (filename : string) =
-  testTask $"Httpfiles: {filename}" {
+  testTask $"Http files: {filename}" {
     let shouldSkip = String.startsWith "_" filename
 
     // read and parse the test
-    let filename = $"tests/httptestfiles/{filename}"
+    let filename = $"{rootDir}/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
 
-    let test = parseTest contents
+    let test = ParseTest.parse contents
     let testName =
       let withoutPrefix = if shouldSkip then String.dropLeft 1 filename else filename
       withoutPrefix |> String.dropRight (".test".Length)
@@ -432,14 +456,19 @@ let t (filename : string) =
     // set up a test canvas
     let! (meta : Canvas.Meta) = setupTestCanvas testName test
 
+    // execute the test
     if shouldSkip then
       skiptest $"underscore test - {testName}"
     else
-      do! runTestRequest (string meta.name) test.request test.response
+      do!
+        Execution.runTestRequest
+          (string meta.name)
+          test.request
+          test.expectedResponse
   }
 
 let testsFromFiles =
-  let dir = "tests/httptestfiles/"
+  let dir = $"{rootDir}/"
 
   System.IO.Directory.GetFiles(dir, "*.test")
   |> Array.map (System.IO.Path.GetFileName)
@@ -447,15 +476,16 @@ let testsFromFiles =
   |> List.map t
 
 
-let tests = testList "BwdServer" [ testList "httptestfiles" testsFromFiles ]
+let tests = testList "BwdServer.Http" [ testList "httptestfiles" testsFromFiles ]
 
 open Microsoft.Extensions.Hosting
 
 let init (token : System.Threading.CancellationToken) : Task =
   // Make sure cors tests work
   HttpMiddlewareV0.Cors.Test.initialize ()
+
   // run our own webserver instead of relying on the dev webserver
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
-  let logger = configureLogging "test-bwdserver"
+  let logger = configureLogging "test-bwdserver-http"
   (BwdServer.Server.webserver logger port k8sPort).RunAsync(token)
