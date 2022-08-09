@@ -48,7 +48,6 @@ let default = {
 @ppx.deriving(show)
 type rec msg =
   | Close(Tab.t)
-  | Init(SettingsCanvasesState.initData, SettingsInviteState.initData)
   | Open(Tab.t)
   | SwitchTab(Tab.t)
   | CanvasesMsg(SettingsCanvasesState.msg)

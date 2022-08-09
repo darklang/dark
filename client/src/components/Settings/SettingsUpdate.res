@@ -2,15 +2,19 @@
 
 module T = SettingsState
 
+let init = (
+  canvasesData: SettingsCanvasesState.initData,
+  inviteData: SettingsInviteState.initData,
+): T.t => {
+  ...T.default,
+  canvasesSettings: SettingsCanvasesState.init(canvasesData),
+  inviteSettings: SettingsInviteState.init(inviteData),
+  privacySettings: SettingsPrivacyState.init(),
+  // contributingSettings: SettingsContributing.init(),
+}
+
 let update = (state: T.t, msg: T.msg): T.t =>
   switch msg {
-  | Init(canvasesData, inviteData) => {
-      ...state,
-      canvasesSettings: SettingsCanvasesState.init(canvasesData),
-      inviteSettings: SettingsInviteState.init(inviteData),
-      privacySettings: SettingsPrivacyState.init(),
-      // contributingSettings: SettingsContributing.init(),
-    }
   | Open(tab) => {...state, opened: true, tab: tab}
   | Close(_) => {...state, opened: false}
   | SwitchTab(tab) => {...state, tab: tab}

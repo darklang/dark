@@ -1413,13 +1413,12 @@ let update_ = (msg: msg, m: model): modification => {
             orgCanvasList: r.orgCanvasList,
           }
 
-          let settingsView = SettingsUpdate.update(m.settingsView, Init(canvasesData, inviteData))
           (
             {
               ...m,
               opCtrs: r.opCtrs,
               account: r.account,
-              settingsView: settingsView,
+              settingsView: SettingsUpdate.init(canvasesData, inviteData),
               secrets: r.secrets,
             },
             Cmd.none,
