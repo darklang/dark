@@ -3,9 +3,7 @@
 @ppx.deriving(show) type rec t = {recordConsent: option<bool>}
 
 @ppx.deriving(show)
-type rec msg =
-  | InitRecordConsent(option<bool>)
-  | SetRecordConsent(bool)
+type rec msg = SetRecordConsent(bool)
 
 let title = "Privacy"
 
