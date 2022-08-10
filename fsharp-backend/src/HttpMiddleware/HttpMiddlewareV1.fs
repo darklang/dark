@@ -13,7 +13,7 @@ module Request =
 
   let private parseHeaders (headers : (string * string) list) =
     headers
-    |> List.map (fun (k, v) -> (String.toLowercase k, RT.DStr v))
+    |> List.map (fun (k, v) -> (String.toLowercase k, RT.DStr(String.toLowercase v)))
     |> Map
     |> RT.Dval.DObj
 
