@@ -1929,43 +1929,40 @@ let update_ = (msg: msg, m: model): modification => {
     Native.Window.openUrl(url, "_blank")
     TLMenuUpdate(tlid, CloseMenu)
   | SettingsMsg(msg) =>
-    Many(list{
-      ReplaceAllModificationsWithThisOne(
-        m => {
-          let (settingsView, effect) = SettingsUpdate.update(m.settingsView, msg)
-          let (m, cmd) = switch effect {
-          | Some(InviteEffect(Some(UpdateToast(toast)))) => (
-              CCC.setToast(m, Some(toast), None),
-              Cmd.none,
-            )
-          | Some(InviteEffect(Some(HandleAPIError(apiError)))) =>
-            APIErrorHandler.handle(m, apiError)
-          | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
-          | Some(InviteEffect(None))
-          | None => (m, Cmd.none)
-          | Some(PrivacyEffect(RecordConsent(allow))) => (
-              m,
-              FullstoryView.FullstoryJs.setConsent(allow),
-            )
-          | Some(OpenSettings(tab)) =>
-            let m = {...m, cursorState: Deselected, currentPage: SettingsModal(tab)}
-            let cmd = Url.navigateTo(SettingsModal(tab))
-            (m, cmd)
-          | Some(SetSettingsTab(tab)) =>
-            let m = {...m, currentPage: SettingsModal(tab)}
-            let cmd = Url.navigateTo(SettingsModal(tab))
-            (m, cmd)
-          | Some(CloseSettings) =>
-            let m = {...m, canvasProps: {...m.canvasProps, enablePan: true}}
-            let cmd = Url.navigateTo(Architecture)
-            // Deselect
-            (m, cmd)
-          }
+    ReplaceAllModificationsWithThisOne(
+      m => {
+        let (settingsView, effect) = Settings.update(m.settingsView, msg)
+        let (m, cmd) = switch effect {
+        | Some(InviteEffect(Some(UpdateToast(toast)))) => (
+            CCC.setToast(m, Some(toast), None),
+            Cmd.none,
+          )
+        | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
+        | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
+        | Some(InviteEffect(None))
+        | None => (m, Cmd.none)
+        | Some(PrivacyEffect(RecordConsent(allow))) => (
+            m,
+            FullstoryView.FullstoryJs.setConsent(allow),
+          )
+        | Some(OpenSettings(tab)) =>
+          let m = {...m, cursorState: Deselected, currentPage: SettingsModal(tab)}
+          let cmd = Url.navigateTo(SettingsModal(tab))
+          (m, cmd)
+        | Some(SetSettingsTab(tab)) =>
+          let m = {...m, currentPage: SettingsModal(tab)}
+          let cmd = Url.navigateTo(SettingsModal(tab))
+          (m, cmd)
+        | Some(CloseSettings) =>
+          let m = {...m, canvasProps: {...m.canvasProps, enablePan: true}}
+          let cmd = Url.navigateTo(Architecture)
+          // Deselect
+          (m, cmd)
+        }
 
-          ({...m, settingsView: settingsView}, cmd)
-        },
-      ),
-    })
+        ({...m, settingsView: settingsView}, cmd)
+      },
+    )
   | FnParamMsg(msg) => FnParams.update(m, msg)
   | UploadFnAPICallback(_, Error(err)) =>
     HandleAPIError(
