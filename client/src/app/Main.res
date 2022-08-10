@@ -134,6 +134,57 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   }
 }
 
+/// These Cross-Component Call functions are supposed to replace Modifications. We
+/// hope to get to a point where we have a small set of functions to allow
+/// Cross-component calls, and to have all modifications using
+/// ReplaceAllModificationsWithThisOne.
+///
+/// The first parameter to all CCC calls should be the (model,cmd) pair to we can
+/// pipe multiple cmds together. You should return the original cmd or use Cmd.batch
+/// to combine it with a new one
+module CrossComponentCalls = {
+  type t = (model, cmd)
+
+  let setToast = ((m, prevCmd): t, message: option<string>, pos: option<AppTypes.VPos.t>): t => {
+    ({...m, toast: {message: message, pos: pos}}, prevCmd)
+  }
+
+  let setPage = ((m, prevCmd): t, page: Url.page): t => {
+    let navigateCmd = Url.updateUrl(page)
+
+    let pagePresent = switch Page.tlidOf(page) {
+    | None => true
+    | Some(tlid) => TL.get(m, tlid) != None
+    }
+
+    if pagePresent {
+      let avMessage: APIPresence.Params.t = {
+        canvasName: m.canvasName,
+        browserId: m.browserId,
+        tlid: Page.tlidOf(page),
+        timestamp: Js.Date.now() /. 1000.0,
+      }
+
+      let (m, afCmd) = Page.updatePossibleTrace(m, page)
+      let cmds = Cmd.batch(list{prevCmd, navigateCmd, API.sendPresence(m, avMessage), afCmd})
+
+      (Page.setPage(m, m.currentPage, page), cmds)
+    } else {
+      (Page.setPage(m, m.currentPage, page), Cmd.batch(list{prevCmd, Url.updateUrl(page)}))
+    }
+  }
+
+  let setCursorState = ((m, prevCmd): t, cursorState: AppTypes.CursorState.t): t => {
+    ({...m, cursorState: cursorState}, prevCmd)
+  }
+
+  let setPanning = ((m, prevCmd): t, panning: bool): t => {
+    let m = {...m, canvasProps: {...m.canvasProps, enablePan: panning}}
+    (m, prevCmd)
+  }
+}
+module CCC = CrossComponentCalls
+
 let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
   switch focus {
   | FocusNext(tlid, pred) =>
@@ -214,7 +265,8 @@ let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
       })
     | (_, _) =>
       switch page {
-      // | SettingsModal(tab) => Many(SettingsUpdate.getModifications(m, Open(tab)))
+      | SettingsModal(_) =>
+        ReplaceAllModificationsWithThisOne(m => (m, Cmd.none)->CCC.setPage(page))
       | _ => NoChange
       }
     }
@@ -262,57 +314,6 @@ let isACOpened = (m: model): bool =>
   FluidAutocomplete.isOpened(m.fluidState.ac) ||
   (FluidCommands.isOpened(m.fluidState.cp) ||
   AC.isOpened(m.complete))
-
-/// These Cross-Component Call functions are supposed to replace Modifications. We
-/// hope to get to a point where we have a small set of functions to allow
-/// Cross-component calls, and to have all modifications using
-/// ReplaceAllModificationsWithThisOne.
-///
-/// The first parameter to all CCC calls should be the (model,cmd) pair to we can
-/// pipe multiple cmds together. You should return the original cmd or use Cmd.batch
-/// to combine it with a new one
-module CrossComponentCalls = {
-  type t = (model, cmd)
-
-  let setToast = ((m, prevCmd): t, message: option<string>, pos: option<AppTypes.VPos.t>): t => {
-    ({...m, toast: {message: message, pos: pos}}, prevCmd)
-  }
-
-  let setPage = ((m, prevCmd): t, page: Url.page): t => {
-    let navigateCmd = Url.updateUrl(page)
-
-    let pagePresent = switch Page.tlidOf(page) {
-    | None => true
-    | Some(tlid) => TL.get(m, tlid) != None
-    }
-
-    if pagePresent {
-      let avMessage: APIPresence.Params.t = {
-        canvasName: m.canvasName,
-        browserId: m.browserId,
-        tlid: Page.tlidOf(page),
-        timestamp: Js.Date.now() /. 1000.0,
-      }
-
-      let (m, afCmd) = Page.updatePossibleTrace(m, page)
-      let cmds = Cmd.batch(list{prevCmd, navigateCmd, API.sendPresence(m, avMessage), afCmd})
-
-      (Page.setPage(m, m.currentPage, page), cmds)
-    } else {
-      (Page.setPage(m, m.currentPage, page), Cmd.batch(list{prevCmd, Url.updateUrl(page)}))
-    }
-  }
-
-  let setCursorState = ((m, prevCmd): t, cursorState: AppTypes.CursorState.t): t => {
-    ({...m, cursorState: cursorState}, prevCmd)
-  }
-
-  let setPanning = ((m, prevCmd): t, panning: bool): t => {
-    let m = {...m, canvasProps: {...m.canvasProps, enablePan: panning}}
-    (m, prevCmd)
-  }
-}
-module CCC = CrossComponentCalls
 
 let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
   model,
