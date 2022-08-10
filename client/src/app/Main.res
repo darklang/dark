@@ -213,7 +213,7 @@ let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
       })
     | (_, _) =>
       switch page {
-      | SettingsModal(tab) => Many(SettingsUpdate.getModifications(m, Open(tab)))
+      // | SettingsModal(tab) => Many(SettingsUpdate.getModifications(m, Open(tab)))
       | _ => NoChange
       }
     }
@@ -922,9 +922,6 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       ({...m, searchCache: searchCache}, Cmd.none)
     | FluidSetState(fluidState) => ({...m, fluidState: fluidState}, Cmd.none)
     | TLMenuUpdate(tlid, msg) => (TLMenu.update(m, tlid, msg), Cmd.none)
-    | SettingsViewUpdate(msg) =>
-      let settingsView = SettingsUpdate.update(m.settingsView, msg)
-      ({...m, settingsView: settingsView}, cmd)
     // applied from left to right
     | Many(mods) =>
       List.fold(~f=(model, mod') => updateMod(mod', model), ~initial=(m, Cmd.none), mods)
@@ -1984,8 +1981,11 @@ let update_ = (msg: msg, m: model): modification => {
     Native.Window.openUrl(url, "_blank")
     TLMenuUpdate(tlid, CloseMenu)
   | SettingsMsg(msg) =>
-    let mods = SettingsUpdate.getModifications(m, msg)
-    Many(mods)
+    let (settingsView, mods) = SettingsUpdate.update(m.settingsView, msg)
+    Many(list{
+      ReplaceAllModificationsWithThisOne(m => ({...m, settingsView: settingsView}, Cmd.none)),
+      mods,
+    })
   | FnParamMsg(msg) => FnParams.update(m, msg)
   | UploadFnAPICallback(_, Error(err)) =>
     HandleAPIError(

@@ -981,7 +981,6 @@ module Modification = {
     | InitASTCache(list<PT.Handler.t>, list<PT.UserFunction.t>)
     | FluidSetState(FluidTypes.State.t<'model, t<'model>>)
     | TLMenuUpdate(TLID.t, Menu.msg)
-    | SettingsViewUpdate(SettingsState.msg)
 }
 
 module Model = {
