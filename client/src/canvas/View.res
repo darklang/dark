@@ -728,7 +728,7 @@ let view = (m: model): Html.html<msg> => {
   }
 
   let content = Belt.List.concatMany([
-    list{FullstoryView.html(m)},
+    list{SettingsPrivacyView.viewTopbar(m.settingsView.privacySettings)},
     ViewTopbar.html(m),
     list{
       sidebar,

@@ -1943,7 +1943,7 @@ let update_ = (msg: msg, m: model): modification => {
         | None => (m, Cmd.none)
         | Some(PrivacyEffect(RecordConsent(allow))) => (
             m,
-            FullstoryView.FullstoryJs.setConsent(allow),
+            SettingsPrivacy.FullstoryJs.setConsent(allow),
           )
         | Some(OpenSettings(tab)) =>
           let m = {...m, cursorState: Deselected, currentPage: SettingsModal(tab)}
