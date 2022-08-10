@@ -2,11 +2,12 @@
 
 module T = SettingsPrivacyState
 
-let update = (_: T.t, msg: T.msg): (T.t, AppTypes.modification) => {
+let update = (_: T.t, msg: T.msg): (T.t, T.effect) => {
   switch msg {
   | SetRecordConsent(allow) => (
       {recordConsent: Some(allow)},
-      MakeCmd(FullstoryView.FullstoryJs.setConsent(allow)),
+      RecordConsent(allow),
+      // MakeCmd(FullstoryView.FullstoryJs.setConsent(allow)),
     )
   }
 }

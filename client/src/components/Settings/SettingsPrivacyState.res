@@ -8,3 +8,6 @@ type rec msg = SetRecordConsent(bool)
 let title = "Privacy"
 
 let default = {recordConsent: None}
+
+@ppx.deriving(show)
+type rec effect = RecordConsent(bool)

@@ -35,31 +35,25 @@ let submitForm = (i: T.t): (T.t, T.effect) => {
   ({...i, loading: true}, SendAPICall(sendInviteMsg))
 }
 
-let update = (i: T.t, msg: T.msg): (T.t, AppTypes.modification) =>
+let update = (i: T.t, msg: T.msg): (T.t, option<T.effect>) =>
   switch msg {
-  | Update(value) => ({...i, T.email: {value: value, error: None}}, NoChange)
+  | Update(value) => ({...i, T.email: {value: value, error: None}}, None)
 
-  | TriggerSendCallback(Ok(_)) => (
-      {
-        ...T.default,
-        loading: false,
-      },
-      ReplaceAllModificationsWithThisOne(
-        m => ({...m, toast: {toastMessage: Some("Sent!"), toastPos: None}}, Tea.Cmd.none),
-      ),
-    )
+  | TriggerSendCallback(Ok(_)) => ({...T.default, loading: false}, Some(UpdateToast("Sent!")))
 
   | TriggerSendCallback(Error(err)) => (
       {
         ...T.default,
         loading: false,
       },
-      HandleAPIError(
-        APIError.make(
-          ~context="TriggerSendInviteCallback",
-          ~importance=ImportantError,
-          ~reload=false,
-          err,
+      Some(
+        HandleAPIError(
+          APIError.make(
+            ~context="TriggerSendInviteCallback",
+            ~importance=ImportantError,
+            ~reload=false,
+            err,
+          ),
         ),
       ),
     )
@@ -67,9 +61,9 @@ let update = (i: T.t, msg: T.msg): (T.t, AppTypes.modification) =>
   | Submit =>
     let (isInvalid, newForm) = validateForm(i)
     if isInvalid {
-      (newForm, NoChange)
+      (newForm, None)
     } else {
-      let (newState, _effect) = submitForm(i)
-      (newState, NoChange)
+      let (newState, effect) = submitForm(i)
+      (newState, Some(effect))
     }
   }

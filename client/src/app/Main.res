@@ -881,6 +881,17 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
   }
 }
 
+/// These Cross-Component Call functions are supposed to replace Modifications. We
+/// hope to get to a point where we have a small set of functions to allow
+/// Cross-component calls, and to have all modifications using
+/// ReplaceAllModificationsWithThisOne.
+module CCC = {
+  let setToast = (m: model, message: option<string>, pos: option<AppTypes.VPos.t>) => {
+    ...m,
+    toast: {message: message, pos: pos},
+  }
+}
+
 let update_ = (msg: msg, m: model): modification => {
   if m.integrationTestState != NoIntegrationTest {
     Debug.loG("msg update", AppTypes.show_msg(msg))
@@ -1918,10 +1929,41 @@ let update_ = (msg: msg, m: model): modification => {
     Native.Window.openUrl(url, "_blank")
     TLMenuUpdate(tlid, CloseMenu)
   | SettingsMsg(msg) =>
-    let (settingsView, mods) = SettingsUpdate.update(m.settingsView, msg)
     Many(list{
-      ReplaceAllModificationsWithThisOne(m => ({...m, settingsView: settingsView}, Cmd.none)),
-      mods,
+      ReplaceAllModificationsWithThisOne(
+        m => {
+          let (settingsView, effect) = SettingsUpdate.update(m.settingsView, msg)
+          let (m, cmd) = switch effect {
+          | Some(InviteEffect(Some(UpdateToast(toast)))) => (
+              CCC.setToast(m, Some(toast), None),
+              Cmd.none,
+            )
+          | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIError.handle(m, apiError)
+          | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
+          | Some(InviteEffect(None))
+          | None => (m, Cmd.none)
+          | Some(PrivacyEffect(RecordConsent(allow))) => (
+              m,
+              FullstoryView.FullstoryJs.setConsent(allow),
+            )
+          | Some(OpenSettings(tab)) =>
+            let m = {...m, cursorState: Deselected, currentPage: SettingsModal(tab)}
+            let cmd = Url.navigateTo(SettingsModal(tab))
+            (m, cmd)
+          | Some(SetSettingsTab(tab)) =>
+            let m = {...m, currentPage: SettingsModal(tab)}
+            let cmd = Url.navigateTo(SettingsModal(tab))
+            (m, cmd)
+          | Some(CloseSettings) =>
+            let m = {...m, canvasProps: {...m.canvasProps, enablePan: true}}
+            let cmd = Url.navigateTo(Architecture)
+            // Deselect
+            (m, cmd)
+          }
+
+          ({...m, settingsView: settingsView}, cmd)
+        },
+      ),
     })
   | FnParamMsg(msg) => FnParams.update(m, msg)
   | UploadFnAPICallback(_, Error(err)) =>

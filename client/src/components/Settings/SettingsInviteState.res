@@ -32,9 +32,11 @@ type rec msg =
   TriggerSendCallback(Tea_result.t<unit, Tea.Http.error<string>>)
   | Submit
 
+@ppx.deriving(show)
 type rec effect =
   | SendAPICall(Params.t)
-  | UpdateToast(option<string>)
+  | HandleAPIError(Prelude.apiError)
+  | UpdateToast(string)
 
 let title = "Share"
 

@@ -55,6 +55,14 @@ type rec msg =
   | InviteMsg(SettingsInviteState.msg)
 // | ContributingMsg(SettingsContributing.msg)
 
+@ppx.deriving(show)
+type rec effect =
+  | OpenSettings(Tab.t)
+  | CloseSettings
+  | SetSettingsTab(Tab.t)
+  | PrivacyEffect(SettingsPrivacyState.effect)
+  | InviteEffect(option<SettingsInviteState.effect>)
+
 let setInviter = (state: t, username: string, name: string): t => {
   ...state,
   inviteSettings: SettingsInviteState.setInviter(state.inviteSettings, username, name),
