@@ -273,16 +273,40 @@ let isACOpened = (m: model): bool =>
 /// to combine it with a new one
 module CrossComponentCalls = {
   type t = (model, cmd)
+
   let setToast = ((m, prevCmd): t, message: option<string>, pos: option<AppTypes.VPos.t>): t => {
     ({...m, toast: {message: message, pos: pos}}, prevCmd)
   }
+
   let setPage = ((m, prevCmd): t, page: Url.page): t => {
-    let cmd = Url.navigateTo(page)
-    ({...m, currentPage: page}, Cmd.batch(list{prevCmd, cmd}))
+    let navigateCmd = Url.updateUrl(page)
+
+    let pagePresent = switch Page.tlidOf(page) {
+    | None => true
+    | Some(tlid) => TL.get(m, tlid) != None
+    }
+
+    if pagePresent {
+      let avMessage: APIPresence.Params.t = {
+        canvasName: m.canvasName,
+        browserId: m.browserId,
+        tlid: Page.tlidOf(page),
+        timestamp: Js.Date.now() /. 1000.0,
+      }
+
+      let (m, afCmd) = Page.updatePossibleTrace(m, page)
+      let cmds = Cmd.batch(list{prevCmd, navigateCmd, API.sendPresence(m, avMessage), afCmd})
+
+      (Page.setPage(m, m.currentPage, page), cmds)
+    } else {
+      (Page.setPage(m, m.currentPage, page), Cmd.batch(list{prevCmd, Url.updateUrl(page)}))
+    }
   }
+
   let setCursorState = ((m, prevCmd): t, cursorState: AppTypes.CursorState.t): t => {
     ({...m, cursorState: cursorState}, prevCmd)
   }
+
   let setPanning = ((m, prevCmd): t, panning: bool): t => {
     let m = {...m, canvasProps: {...m.canvasProps, enablePan: panning}}
     (m, prevCmd)
@@ -380,27 +404,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       let result = expectationFn(m)
       ({...m, integrationTestState: IntegrationTestFinished(result)}, Cmd.none)
     | MakeCmd(cmd) => (m, cmd)
-    | SetPage(page) =>
-      let pagePresent = switch Page.tlidOf(page) {
-      | None => true
-      | Some(tlid) => TL.get(m, tlid) != None
-      }
-
-      if pagePresent {
-        let avMessage: APIPresence.Params.t = {
-          canvasName: m.canvasName,
-          browserId: m.browserId,
-          tlid: Page.tlidOf(page),
-          timestamp: Js.Date.now() /. 1000.0,
-        }
-
-        let (m, afCmd) = Page.updatePossibleTrace(m, page)
-        let cmds = Cmd.batch(list{API.sendPresence(m, avMessage), afCmd})
-
-        (Page.setPage(m, m.currentPage, page), cmds)
-      } else {
-        (Page.setPage(m, m.currentPage, Architecture), Url.updateUrl(Architecture))
-      }
+    | SetPage(page) => (m, Cmd.none)->CCC.setPage(page)
     | Select(tlid, p) =>
       let (
         cursorState: AppTypes.CursorState.t,
