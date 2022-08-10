@@ -1,5 +1,5 @@
 [http-bytes-handler GET /]
-(let relevantHeaders = Dict.filter_v1 request.headers (fun (k, _v) -> String.startsWith_v0 k "header") in
+(let relevantHeaders = List.filter_v1 request.headers (fun tpl -> String.startsWith_v0 (Tuple2.first tpl) "header") in
 let body = relevantHeaders |> toString |> String.toBytes_v0 in
 Http.response body 200)
 
@@ -22,11 +22,16 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
 Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Content-Length: 114
+Content-Length: 156
 
-{
-  header2: "value2",
-  header1: "value1",
-  header-with-casing-conflict: "test1,test2",
-  header-3: "value-3",
-}
+[
+  (
+    "header1", "value1"
+  ), (
+    "header2", "value2"
+  ), (
+    "header-3", "value-3"
+  ), (
+    "header-with-casing-conflict", "test1,test2"
+  )
+]

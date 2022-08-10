@@ -9,13 +9,6 @@ module Request =
   open LibExecution.VendoredTablecloth
 
   module RT = LibExecution.RuntimeTypes
-  module HttpQueryEncoding = BackendOnlyStdLib.HttpQueryEncoding
-
-  let private parseHeaders (headers : (string * string) list) =
-    headers
-    |> List.map (fun (k, v) -> (String.toLowercase k, RT.DStr(String.toLowercase v)))
-    |> Map
-    |> RT.Dval.DObj
 
   let fromRequest
     (uri : string)
@@ -23,9 +16,15 @@ module Request =
     (query : string)
     (body : byte array)
     : RT.Dval =
+    let headers =
+      headers
+      |> List.map (fun (k, v) ->
+        RT.DTuple(RT.DStr(String.toLowercase k), RT.DStr(String.toLowercase v), []))
+      |> RT.DList
+
     [ "body", RT.DBytes body
       "queryParams", RT.DStr query
-      "headers", parseHeaders headers
+      "headers", headers
       "url", RT.DStr uri ]
     |> RT.Dval.obj
 
