@@ -54,10 +54,6 @@ module Response =
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       { statusCode = int code; headers = headers; body = body }
 
-    | RT.DBytes body ->
-      Telemetry.addTags [ "response-type", "httpResponse response" ]
-      { statusCode = 200; headers = []; body = body }
-
     // Error responses
     | uncaughtResult ->
       Telemetry.addTags [ "response-type", "error"; "result", uncaughtResult ]

@@ -1,5 +1,5 @@
 [http-bytes-handler POST /]
-request.body
+Http.response request.body 200
 
 [request]
 POST / HTTP/1.1

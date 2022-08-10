@@ -1,5 +1,6 @@
 [http-bytes-handler POST /]
-request.body |> Bytes.length_v0 |> toString |> String.toBytes_v0
+(let body = request.body |> Bytes.length_v0 |> toString |> String.toBytes_v0 in
+Http.response body 200)
 
 [request]
 POST / HTTP/1.1
