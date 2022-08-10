@@ -7,7 +7,7 @@ module Attributes = Tea.Html2.Attributes
 
 module Utils = SettingsUtils
 
-module T = SettingsInviteState
+module T = SettingsInvite
 
 let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{

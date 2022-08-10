@@ -17,7 +17,7 @@ let update = (state: T.t, msg: T.msg): (T.t, option<T.effect>) =>
       ({...state, privacySettings: newSettings}, Some(PrivacyEffect(effect)))
     }
   | InviteMsg(msg) => {
-      let (newSettings, effect) = SettingsInviteUpdate.update(state.inviteSettings, msg)
+      let (newSettings, effect) = SettingsInvite.update(state.inviteSettings, msg)
       ({...state, inviteSettings: newSettings}, Some(InviteEffect(effect)))
     }
   }

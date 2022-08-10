@@ -321,7 +321,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
     switch mod_ {
     | ReplaceAllModificationsWithThisOne(f) => f(m)
-    | HandleAPIError(apiError) => APIError.handle(m, apiError)
+    | HandleAPIError(apiError) => APIErrorHandler.handle(m, apiError)
     | AddOps(ops, focus) => handleAPI(API.opsParams(ops, (m |> opCtr) + 1, m.clientOpCtrId), focus)
     | GetUnlockedDBsAPICall => Sync.attempt(~key="unlocked", m, API.getUnlockedDBs(m))
     | Get404sAPICall => (m, API.get404s(m))
@@ -1938,7 +1938,8 @@ let update_ = (msg: msg, m: model): modification => {
               CCC.setToast(m, Some(toast), None),
               Cmd.none,
             )
-          | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIError.handle(m, apiError)
+          | Some(InviteEffect(Some(HandleAPIError(apiError)))) =>
+            APIErrorHandler.handle(m, apiError)
           | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
           | Some(InviteEffect(None))
           | None => (m, Cmd.none)

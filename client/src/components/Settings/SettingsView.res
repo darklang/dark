@@ -25,7 +25,7 @@ let allTabs: list<T.Tab.t> = list{
 let settingsTabToText = (tab: T.Tab.t): string =>
   switch tab {
   | Canvases => SettingsCanvasesState.title
-  | Invite => SettingsInviteState.title
+  | Invite => SettingsInvite.title
   | Privacy => SettingsPrivacyState.title
   // | Contributing(_) => SettingsContributing.title
   }
@@ -69,7 +69,7 @@ let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
   K.eventToKeyEvent(evt) |> Option.andThen(~f=e =>
     switch e {
     | {K.key: K.Enter, _} =>
-      Some(AppTypes.Msg.SettingsMsg(SettingsState.InviteMsg(SettingsInviteState.Submit)))
+      Some(AppTypes.Msg.SettingsMsg(SettingsState.InviteMsg(SettingsInvite.Submit)))
     | _ => None
     }
   )

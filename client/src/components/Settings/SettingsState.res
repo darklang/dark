@@ -31,7 +31,7 @@ type rec t = {
   opened: bool,
   tab: Tab.t,
   canvasesSettings: SettingsCanvasesState.t,
-  inviteSettings: SettingsInviteState.t,
+  inviteSettings: SettingsInvite.t,
   // contributingSettings: SettingsContributing.t,
   privacySettings: SettingsPrivacyState.t,
 }
@@ -41,7 +41,7 @@ let default = {
   tab: Canvases,
   canvasesSettings: SettingsCanvasesState.default,
   privacySettings: SettingsPrivacyState.default,
-  inviteSettings: SettingsInviteState.default,
+  inviteSettings: SettingsInvite.default,
   // contributingSettings: SettingsContributing.default,
 }
 
@@ -52,7 +52,7 @@ type rec msg =
   | SwitchTab(Tab.t)
   | CanvasesMsg(SettingsCanvasesState.msg)
   | PrivacyMsg(SettingsPrivacyState.msg)
-  | InviteMsg(SettingsInviteState.msg)
+  | InviteMsg(SettingsInvite.msg)
 // | ContributingMsg(SettingsContributing.msg)
 
 @ppx.deriving(show)
@@ -61,11 +61,11 @@ type rec effect =
   | CloseSettings
   | SetSettingsTab(Tab.t)
   | PrivacyEffect(SettingsPrivacyState.effect)
-  | InviteEffect(option<SettingsInviteState.effect>)
+  | InviteEffect(option<SettingsInvite.effect>)
 
 let setInviter = (state: t, username: string, name: string): t => {
   ...state,
-  inviteSettings: SettingsInviteState.setInviter(state.inviteSettings, username, name),
+  inviteSettings: SettingsInvite.setInviter(state.inviteSettings, username, name),
 }
 
 let setCanvasesInfo = (

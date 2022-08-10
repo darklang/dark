@@ -236,8 +236,6 @@ type browserPlatform =
   | Windows
   | UnknownPlatform
 
-@val @scope("window") @scope("Dark") external validateEmail: string => bool = "validateEmail"
-
 @val @scope("window")
 external jsGetBrowserPlatform: unit => Js.Nullable.t<browserPlatform> = "getBrowserPlatform"
 

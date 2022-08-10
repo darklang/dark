@@ -4,7 +4,21 @@ open Prelude
 module Cmd = Tea.Cmd
 module Http = Tea.Http
 
-let serverVersionOf = (e: apiError): option<string> =>
+@ppx.deriving(show)
+type rec errorImportance =
+  | IgnorableError
+  | ImportantError
+
+@ppx.deriving(show)
+type rec t = {
+  context: string,
+  originalError: httpError /* the Tea_http error */,
+  requestParams: option<@opaque Js.Json.t>,
+  reload: bool,
+  importance: errorImportance,
+}
+
+let serverVersionOf = (e: t): option<string> =>
   switch e.originalError {
   | BadUrl(_) | Timeout | NetworkError | Aborted => None
   | BadStatus(response) | BadPayload(_, response) =>
@@ -14,14 +28,14 @@ let serverVersionOf = (e: apiError): option<string> =>
     |> Option.map(~f=Tuple2.second)
   }
 
-let urlOf = (e: apiError): option<string> =>
+let urlOf = (e: t): option<string> =>
   switch e.originalError {
   | Http.BadUrl(url) => Some(url)
   | Http.BadStatus(response) | Http.BadPayload(_, response) => Some(response.url)
   | Http.Aborted | Http.Timeout | Http.NetworkError => None
   }
 
-let shouldDisplayToUser = (e: apiError): bool =>
+let shouldDisplayToUser = (e: t): bool =>
   switch e.originalError {
   | Http.BadUrl(_) | Http.BadPayload(_) => true
   | Http.Timeout | Http.NetworkError | Http.Aborted => e.importance == ImportantError
@@ -33,7 +47,7 @@ let shouldDisplayToUser = (e: apiError): bool =>
     }
   }
 
-let shouldRollbar = (e: apiError): bool =>
+let shouldRollbar = (e: t): bool =>
   switch e.originalError {
   | Http.BadUrl(_) | Http.Timeout | Http.BadPayload(_) => true
   | Http.NetworkError => // Don't rollbar if the internet is down
@@ -101,7 +115,7 @@ let parseResponse = (body: Http.responseBody): string => {
   |> Option.unwrap(~default=str)
 }
 
-let isBadAuth = (e: apiError): bool =>
+let isBadAuth = (e: t): bool =>
   if e.reload {
     true
   } else {
@@ -111,7 +125,7 @@ let isBadAuth = (e: apiError): bool =>
     }
   }
 
-let msg = (e: apiError): string => {
+let msg = (e: t): string => {
   let (withoutContext, context) = switch e.originalError {
   | Http.BadUrl(str) => ("Bad url: " ++ str, e.context)
   | Http.Timeout => ("Timeout", e.context)
@@ -149,78 +163,4 @@ let make = (~requestParams=?, ~reload, ~context, ~importance, originalError) => 
   originalError: originalError,
   context: context,
   reload: reload,
-}
-
-let sendRollbar = (m: AppTypes.model, e: apiError): unit => {
-  let customContext = (e: apiError, state: AppTypes.CursorState.t): Js.Json.t => {
-    let parameters = Option.unwrap(~default=Js.Json.null, e.requestParams)
-    Json_encode_extended.object_(list{
-      ("httpResponse", Encoders.httpError(e.originalError)),
-      ("parameters", parameters),
-      ("cursorState", AppTypes.CursorState.encode(state)),
-    })
-  }
-  Rollbar.send(msg(e), urlOf(e), customContext(e, m.cursorState))
-}
-
-let handle = (m: AppTypes.model, apiError: Types.apiError): (AppTypes.model, AppTypes.cmd) => {
-  let now = Js.Date.now() |> Js.Date.fromFloat
-  let shouldReload = {
-    let buildHashMismatch =
-      serverVersionOf(apiError)
-      |> Option.map(~f=hash => hash != m.buildHash)
-      |> Option.unwrap(~default=false)
-
-    let reloadAllowed = switch m.lastReload {
-    | Some(time) =>
-      // if 60 seconds have elapsed
-      Js.Date.getTime(time) +. 60000.0 > Js.Date.getTime(now)
-    | None => true
-    }
-
-    // Reload if it's an auth failure or the frontend is out of date
-    isBadAuth(apiError) || (buildHashMismatch && reloadAllowed)
-  }
-
-  let ignore = {
-    // Ignore when using Ngrok
-    let usingNgrok = VariantTesting.variantIsActive(m, NgrokVariant)
-    // This message is deep in the server code and hard to pull
-    // out, so just ignore for now
-    Js.log("Already at latest redo - ignoring server error")
-    let redoError = String.includes(msg(apiError), ~substring="(client): Already at latest redo")
-
-    redoError || usingNgrok
-  }
-
-  let cmd = if shouldReload {
-    let m = {...m, lastReload: Some(now)}
-    // Previously, this was two calls to Tea_task.nativeBinding. But
-    // only the first got called, unclear why
-    Cmd.call(_ => {
-      SavedSettings.save(m)
-      SavedUserSettings.save(m)
-      Native.Location.reload(true)
-    })
-  } else if !ignore && shouldRollbar(apiError) {
-    Cmd.call(_ => sendRollbar(m, apiError))
-  } else {
-    Cmd.none
-  }
-
-  let newM = {
-    let error = if shouldDisplayToUser(apiError) && !ignore {
-      Error.set(msg(apiError), m.error)
-    } else {
-      m.error
-    }
-
-    let lastReload = if shouldReload {
-      Some(now)
-    } else {
-      m.lastReload
-    }
-    {...m, error: error, lastReload: lastReload}
-  }
-  (newM, cmd)
 }

@@ -1,9 +1,10 @@
 open Prelude
 open Tester
+
 module Http = Tea.Http
 module StringMap = Caml.Map.Make(Caml.String)
 
-let addOpsError = {
+let addOpsError: APIError.t = {
   context: "AddOps",
   originalError: Http.BadStatus({
     url: "url",
@@ -16,7 +17,7 @@ let addOpsError = {
   importance: IgnorableError,
 }
 
-let other502Error = {
+let other502Error: APIError.t = {
   context: "Error context",
   originalError: Http.BadStatus({
     url: "url",
@@ -29,7 +30,7 @@ let other502Error = {
   importance: IgnorableError,
 }
 
-let networkError = {
+let networkError: APIError.t = {
   context: "Network error context",
   originalError: Http.NetworkError,
   requestParams: None,

@@ -243,18 +243,6 @@ and functionsProps = {
 
 and httpError = @opaque Tea.Http.error<string>
 
-and errorImportance =
-  | IgnorableError
-  | ImportantError
-
-and apiError = {
-  context: string,
-  originalError: httpError /* the Tea_http error */,
-  requestParams: option<@opaque Js.Json.t>,
-  reload: bool,
-  importance: errorImportance,
-}
-
 // -------------------
 // Msgs
 // -------------------

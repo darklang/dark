@@ -908,7 +908,7 @@ module Modification = {
 
     // API Calls
     | AddOps((list<PT.Op.t>, Focus.t))
-    | HandleAPIError(Types.apiError)
+    | HandleAPIError(APIError.t)
     | GetUnlockedDBsAPICall
     | Get404sAPICall
     | GetWorkerStatsAPICall(TLID.t)
