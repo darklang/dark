@@ -510,14 +510,14 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
   }
 
 let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
-  let msg = Option.unwrap(~default="", t.toastMessage)
-  let classes = if Option.isSome(t.toastMessage) {
+  let msg = Option.unwrap(~default="", t.message)
+  let classes = if Option.isSome(t.message) {
     "toast show"
   } else {
     "toast"
   }
 
-  let styleOverrides = switch t.toastPos {
+  let styleOverrides = switch t.pos {
   | Some({vx, vy}) =>
     Html.styles(list{
       ("top", string_of_int(vy - 10) ++ "px"),

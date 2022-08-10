@@ -44,10 +44,10 @@ module Toast = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     // CLEANUP: remove prefixes
-    toastMessage: option<string>,
-    toastPos: option<VPos.t>,
+    message: option<string>,
+    pos: option<VPos.t>,
   }
-  let default: t = {toastMessage: None, toastPos: None}
+  let default: t = {message: None, pos: None}
 }
 
 module SyncState = {

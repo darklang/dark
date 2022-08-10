@@ -1857,7 +1857,7 @@ let update_ = (msg: msg, m: model): modification => {
   | EnablePanning(pan) => ReplaceAllModificationsWithThisOne(Viewport.enablePan(pan))
   | ClipboardCopyEvent(e) =>
     let toast = ReplaceAllModificationsWithThisOne(
-      (m: model) => ({...m, toast: {...m.toast, toastMessage: Some("Copied!")}}, Cmd.none),
+      (m: model) => ({...m, toast: {...m.toast, message: Some("Copied!")}}, Cmd.none),
     )
 
     let clipboardData = Fluid.getCopySelection(m)
@@ -1867,7 +1867,7 @@ let update_ = (msg: msg, m: model): modification => {
     Fluid.update(m, FluidPaste(data))
   | ClipboardCutEvent(e) =>
     let toast = ReplaceAllModificationsWithThisOne(
-      (m: model) => ({...m, toast: {...m.toast, toastMessage: Some("Copied!")}}, Cmd.none),
+      (m: model) => ({...m, toast: {...m.toast, message: Some("Copied!")}}, Cmd.none),
     )
 
     let (copyData, mod_) = (Fluid.getCopySelection(m), Apply(m => Fluid.update(m, FluidCut)))
@@ -1877,7 +1877,7 @@ let update_ = (msg: msg, m: model): modification => {
     let lv = lv |> Regex.replace(~re=Regex.regex("(^\")|(\"$)"), ~repl="")
     Native.Clipboard.copyToClipboard(lv)
     ReplaceAllModificationsWithThisOne(
-      m => ({...m, toast: {toastMessage: Some("Copied!"), toastPos: Some(pos)}}, Cmd.none),
+      m => ({...m, toast: {message: Some("Copied!"), pos: Some(pos)}}, Cmd.none),
     )
   | EventDecoderError(name, key, error) =>
     /* Consider rollbar'ing here, but consider the following before doing so:
