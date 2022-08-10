@@ -19,6 +19,7 @@ type modification = AppTypes.modification
 open AppTypes.Modification
 type autocompleteMod = AppTypes.AutoComplete.mod
 type model = AppTypes.model
+type cmd = AppTypes.cmd
 type msg = AppTypes.msg
 
 let incOpCtr = (m: model): model => {
@@ -133,6 +134,57 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   }
 }
 
+/// These Cross-Component Call functions are supposed to replace Modifications. We
+/// hope to get to a point where we have a small set of functions to allow
+/// Cross-component calls, and to have all modifications using
+/// ReplaceAllModificationsWithThisOne.
+///
+/// The first parameter to all CCC calls should be the (model,cmd) pair to we can
+/// pipe multiple cmds together. You should return the original cmd or use Cmd.batch
+/// to combine it with a new one
+module CrossComponentCalls = {
+  type t = (model, cmd)
+
+  let setToast = ((m, prevCmd): t, message: option<string>, pos: option<AppTypes.VPos.t>): t => {
+    ({...m, toast: {message: message, pos: pos}}, prevCmd)
+  }
+
+  let setPage = ((m, prevCmd): t, page: Url.page): t => {
+    let navigateCmd = Url.updateUrl(page)
+
+    let pagePresent = switch Page.tlidOf(page) {
+    | None => true
+    | Some(tlid) => TL.get(m, tlid) != None
+    }
+
+    if pagePresent {
+      let avMessage: APIPresence.Params.t = {
+        canvasName: m.canvasName,
+        browserId: m.browserId,
+        tlid: Page.tlidOf(page),
+        timestamp: Js.Date.now() /. 1000.0,
+      }
+
+      let (m, afCmd) = Page.updatePossibleTrace(m, page)
+      let cmds = Cmd.batch(list{prevCmd, navigateCmd, API.sendPresence(m, avMessage), afCmd})
+
+      (Page.setPage(m, m.currentPage, page), cmds)
+    } else {
+      (Page.setPage(m, m.currentPage, page), Cmd.batch(list{prevCmd, Url.updateUrl(page)}))
+    }
+  }
+
+  let setCursorState = ((m, prevCmd): t, cursorState: AppTypes.CursorState.t): t => {
+    ({...m, cursorState: cursorState}, prevCmd)
+  }
+
+  let setPanning = ((m, prevCmd): t, panning: bool): t => {
+    let m = {...m, canvasProps: {...m.canvasProps, enablePan: panning}}
+    (m, prevCmd)
+  }
+}
+module CCC = CrossComponentCalls
+
 let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
   switch focus {
   | FocusNext(tlid, pred) =>
@@ -213,7 +265,8 @@ let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
       })
     | (_, _) =>
       switch page {
-      | SettingsModal(tab) => Many(SettingsView.getModifications(m, OpenSettingsView(tab)))
+      | SettingsModal(_) =>
+        ReplaceAllModificationsWithThisOne(m => (m, Cmd.none)->CCC.setPage(page))
       | _ => NoChange
       }
     }
@@ -321,70 +374,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
     switch mod_ {
     | ReplaceAllModificationsWithThisOne(f) => f(m)
-    | HandleAPIError(apiError) =>
-      let now = Js.Date.now() |> Js.Date.fromFloat
-      let shouldReload = {
-        let buildHashMismatch =
-          APIError.serverVersionOf(apiError)
-          |> Option.map(~f=hash => hash != m.buildHash)
-          |> Option.unwrap(~default=false)
-
-        let reloadAllowed = switch m.lastReload {
-        | Some(time) =>
-          // if 60 seconds have elapsed
-          Js.Date.getTime(time) +. 60000.0 > Js.Date.getTime(now)
-        | None => true
-        }
-
-        // Reload if it's an auth failure or the frontend is out of date
-        APIError.isBadAuth(apiError) || (buildHashMismatch && reloadAllowed)
-      }
-
-      let ignore = {
-        // Ignore when using Ngrok
-        let usingNgrok = VariantTesting.variantIsActive(m, NgrokVariant)
-        /* This message is deep in the server code and hard to pull
-         * out, so just ignore for now */
-        Js.log("Already at latest redo - ignoring server error")
-        let redoError = String.includes(
-          APIError.msg(apiError),
-          ~substring="(client): Already at latest redo",
-        )
-
-        redoError || usingNgrok
-      }
-
-      let cmd = if shouldReload {
-        let m = {...m, lastReload: Some(now)}
-        /* Previously, this was two calls to Tea_task.nativeBinding. But
-         * only the first got called, unclear why. */
-        Cmd.call(_ => {
-          SavedSettings.save(m)
-          SavedUserSettings.save(m)
-          Native.Location.reload(true)
-        })
-      } else if !ignore && APIError.shouldRollbar(apiError) {
-        Cmd.call(_ => Rollbar.sendAPIError(m, apiError))
-      } else {
-        Cmd.none
-      }
-
-      let newM = {
-        let error = if APIError.shouldDisplayToUser(apiError) && !ignore {
-          Error.set(APIError.msg(apiError), m.error)
-        } else {
-          m.error
-        }
-
-        let lastReload = if shouldReload {
-          Some(now)
-        } else {
-          m.lastReload
-        }
-        {...m, error: error, lastReload: lastReload}
-      }
-
-      (newM, cmd)
+    | HandleAPIError(apiError) => APIErrorHandler.handle(m, apiError)
     | AddOps(ops, focus) => handleAPI(API.opsParams(ops, (m |> opCtr) + 1, m.clientOpCtrId), focus)
     | GetUnlockedDBsAPICall => Sync.attempt(~key="unlocked", m, API.getUnlockedDBs(m))
     | Get404sAPICall => (m, API.get404s(m))
@@ -415,27 +405,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       let result = expectationFn(m)
       ({...m, integrationTestState: IntegrationTestFinished(result)}, Cmd.none)
     | MakeCmd(cmd) => (m, cmd)
-    | SetPage(page) =>
-      let pagePresent = switch Page.tlidOf(page) {
-      | None => true
-      | Some(tlid) => TL.get(m, tlid) != None
-      }
-
-      if pagePresent {
-        let avMessage: APIPresence.Params.t = {
-          canvasName: m.canvasName,
-          browserId: m.browserId,
-          tlid: Page.tlidOf(page),
-          timestamp: Js.Date.now() /. 1000.0,
-        }
-
-        let (m, afCmd) = Page.updatePossibleTrace(m, page)
-        let cmds = Cmd.batch(list{API.sendPresence(m, avMessage), afCmd})
-
-        (Page.setPage(m, m.currentPage, page), cmds)
-      } else {
-        (Page.setPage(m, m.currentPage, Architecture), Url.updateUrl(Architecture))
-      }
+    | SetPage(page) => (m, Cmd.none)->CCC.setPage(page)
     | Select(tlid, p) =>
       let (
         cursorState: AppTypes.CursorState.t,
@@ -922,9 +892,6 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       ({...m, searchCache: searchCache}, Cmd.none)
     | FluidSetState(fluidState) => ({...m, fluidState: fluidState}, Cmd.none)
     | TLMenuUpdate(tlid, msg) => (TLMenu.update(m, tlid, msg), Cmd.none)
-    | SettingsViewUpdate(msg) =>
-      let settingsView = SettingsView.update(m.settingsView, msg)
-      ({...m, settingsView: settingsView}, cmd)
     // applied from left to right
     | Many(mods) =>
       List.fold(~f=(model, mod') => updateMod(mod', model), ~initial=(m, Cmd.none), mods)
@@ -1402,17 +1369,16 @@ let update_ = (msg: msg, m: model): modification => {
     Many(list{
       ReplaceAllModificationsWithThisOne(
         m => {
-          let settingsView = SettingsView.update(
-            m.settingsView,
-            SetSettingsView(r.canvasList, m.username, r.orgs, r.orgCanvasList),
-          )
-
+          let settings =
+            m.settingsView
+            ->Settings.setInviter(m.username, r.account.name)
+            ->Settings.setCanvasesInfo(r.canvasList, m.username, r.orgs, r.orgCanvasList)
           (
             {
               ...m,
               opCtrs: r.opCtrs,
               account: r.account,
-              settingsView: settingsView,
+              settingsView: settings,
               secrets: r.secrets,
             },
             Cmd.none,
@@ -1861,7 +1827,7 @@ let update_ = (msg: msg, m: model): modification => {
   | EnablePanning(pan) => ReplaceAllModificationsWithThisOne(Viewport.enablePan(pan))
   | ClipboardCopyEvent(e) =>
     let toast = ReplaceAllModificationsWithThisOne(
-      (m: model) => ({...m, toast: {...m.toast, toastMessage: Some("Copied!")}}, Cmd.none),
+      (m: model) => ({...m, toast: {...m.toast, message: Some("Copied!")}}, Cmd.none),
     )
 
     let clipboardData = Fluid.getCopySelection(m)
@@ -1871,7 +1837,7 @@ let update_ = (msg: msg, m: model): modification => {
     Fluid.update(m, FluidPaste(data))
   | ClipboardCutEvent(e) =>
     let toast = ReplaceAllModificationsWithThisOne(
-      (m: model) => ({...m, toast: {...m.toast, toastMessage: Some("Copied!")}}, Cmd.none),
+      (m: model) => ({...m, toast: {...m.toast, message: Some("Copied!")}}, Cmd.none),
     )
 
     let (copyData, mod_) = (Fluid.getCopySelection(m), Apply(m => Fluid.update(m, FluidCut)))
@@ -1881,7 +1847,7 @@ let update_ = (msg: msg, m: model): modification => {
     let lv = lv |> Regex.replace(~re=Regex.regex("(^\")|(\"$)"), ~repl="")
     Native.Clipboard.copyToClipboard(lv)
     ReplaceAllModificationsWithThisOne(
-      m => ({...m, toast: {toastMessage: Some("Copied!"), toastPos: Some(pos)}}, Cmd.none),
+      m => ({...m, toast: {message: Some("Copied!"), pos: Some(pos)}}, Cmd.none),
     )
   | EventDecoderError(name, key, error) =>
     /* Consider rollbar'ing here, but consider the following before doing so:
@@ -1984,9 +1950,29 @@ let update_ = (msg: msg, m: model): modification => {
   | NewTabFromTLMenu(url, tlid) =>
     Native.Window.openUrl(url, "_blank")
     TLMenuUpdate(tlid, CloseMenu)
-  | SettingsViewMsg(msg) =>
-    let mods = SettingsView.getModifications(m, msg)
-    Many(mods)
+  | SettingsMsg(msg) =>
+    ReplaceAllModificationsWithThisOne(
+      m => {
+        let (settingsView, effect) = Settings.update(m.settingsView, msg)
+        let m = {...m, settingsView: settingsView}
+        switch effect {
+        | Some(InviteEffect(Some(UpdateToast(toast)))) =>
+          (m, Cmd.none)->CCC.setToast(Some(toast), None)
+        | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
+        | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
+
+        | Some(InviteEffect(None))
+        | None => (m, Cmd.none)
+
+        | Some(PrivacyEffect(RecordConsent(cmd))) => (m, cmd)
+
+        | Some(OpenSettings(tab)) =>
+          (m, Cmd.none)->CCC.setPage(SettingsModal(tab))->CCC.setCursorState(Deselected)
+        | Some(SetSettingsTab(tab)) => (m, Cmd.none)->CCC.setPage(SettingsModal(tab))
+        | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
+        }
+      },
+    )
   | FnParamMsg(msg) => FnParams.update(m, msg)
   | UploadFnAPICallback(_, Error(err)) =>
     HandleAPIError(

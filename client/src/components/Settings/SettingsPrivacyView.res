@@ -1,26 +1,16 @@
 // open Tc
 
-module Cmd = Tea.Cmd
-module Attr = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
 module Html = Tea_html_extended
 
-module FullstoryJs = {
-  @val @scope(("window", "Dark", "fullstory")) external _setConsent: bool => unit = "setConsent"
-
-  let setConsent = (allow: bool): AppTypes.cmd => Cmd.call(_ => _setConsent(allow))
-}
+module T = SettingsPrivacy
 
 let explanation = "To help us understand how people learn Dark, is it okay if we track your session in a replayable format (using Fullstory)."
 
 let disableOmniOpen = ViewUtils.nothingMouseEvent("mousedown")
 
-let radio = (
-  ~value: string,
-  ~label: string,
-  ~msg: SettingsViewTypes.settingsMsg,
-  ~checked: bool,
-): Html.html<AppTypes.msg> => {
+let radio = (~value: string, ~label: string, ~msg: Settings.msg, ~checked: bool): Html.html<
+  AppTypes.msg,
+> => {
   let key = "fs-consent-" ++ value
   Html.div(
     list{Html.class'("choice"), disableOmniOpen},
@@ -32,7 +22,7 @@ let radio = (
           Html.name("fs-consent"),
           Html.value(value),
           Html.checked(checked),
-          ViewUtils.eventNoPropagation(~key, "click", _ => SettingsViewMsg(msg)),
+          ViewUtils.eventNoPropagation(~key, "click", _ => SettingsMsg(msg)),
         },
         list{},
       ),
@@ -64,13 +54,13 @@ let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<App
           radio(
             ~value="yes",
             ~label=yes,
-            ~msg=SetRecordConsent(true),
+            ~msg=Settings.PrivacyMsg(SettingsPrivacy.SetRecordConsent(true)),
             ~checked=recordConsent == Some(true),
           ),
           radio(
             ~value="no",
             ~label=no,
-            ~msg=SetRecordConsent(false),
+            ~msg=Settings.PrivacyMsg(SettingsPrivacy.SetRecordConsent(false)),
             ~checked=recordConsent == Some(false),
           ),
         },
@@ -79,25 +69,21 @@ let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<App
   )
 }
 
-let html = (m: AppTypes.model): Html.html<AppTypes.msg> => {
-  let content = list{consentRow(m.settingsView.privacy.recordConsent, ~longLabels=true)}
+let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
+  list{consentRow(state.recordConsent, ~longLabels=false)}
+}
 
-  let cls = if m.settingsView.privacy.recordConsent == None {
+let viewTopbar = (state: T.t): Html.html<AppTypes.msg> => {
+  let content = list{consentRow(state.recordConsent, ~longLabels=true)}
+
+  let cls = if state.recordConsent == None {
     "ask"
   } else {
     "hide"
   }
 
   Html.div(
-    list{
-      Html.classList(list{
-        (
-          "modal-overlay",
-          m.settingsView.privacy.recordConsent == None &&
-            m.integrationTestState == NoIntegrationTest,
-        ),
-      }),
-    },
+    list{Html.classList(list{("modal-overlay", state.recordConsent == None)})},
     list{Html.div(list{Html.class'("fullstory-modal " ++ cls)}, content)},
   )
 }

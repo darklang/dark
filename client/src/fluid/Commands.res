@@ -139,7 +139,7 @@ let commands: list<AppTypes.fluidCmd> = {
           )
           |> Option.andThen(~f=name => CurlCommand.curlFromHttpClientCall(m, tlid, id, name))
 
-        let toastMessage = switch data {
+        let message = switch data {
         | Some(data) =>
           Native.Clipboard.copyToClipboard(data)
           Some("Copied!")
@@ -147,9 +147,9 @@ let commands: list<AppTypes.fluidCmd> = {
         }
 
         ReplaceAllModificationsWithThisOne(
-          m => /* TODO: toastPos is a vPos, how do we get a vPos without a
+          m => /* TODO: pos is a vPos, how do we get a vPos without a
            * AppTypes.MouseEvent.t? */
-          ({...m, toast: {toastMessage: toastMessage, toastPos: None}}, Tea.Cmd.none),
+          ({...m, toast: {message: message, pos: None}}, Tea.Cmd.none),
         )
       },
       shouldShow: (_, _, e) => {

@@ -229,7 +229,7 @@ let copyCurlMod = (m: AppTypes.model, tlid: TLID.t, pos: AppTypes.VPos.t): AppTy
     ReplaceAllModificationsWithThisOne(
       m => {
         let m = TLMenu.update(m, tlid, CloseMenu)
-        ({...m, toast: {toastMessage: Some("Copied!"), toastPos: Some(pos)}}, Tea.Cmd.none)
+        ({...m, toast: {message: Some("Copied!"), pos: Some(pos)}}, Tea.Cmd.none)
       },
     )
   | None =>

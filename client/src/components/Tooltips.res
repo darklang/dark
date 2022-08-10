@@ -117,7 +117,7 @@ let update = (tooltipState: tooltipState, msg: tooltipMsg): modification => {
                     ...m,
                     toast: {
                       ...m.toast,
-                      toastMessage: Some("Create a new HTTP Handler to continue tutorial"),
+                      message: Some("Create a new HTTP Handler to continue tutorial"),
                     },
                   },
                   Tea.Cmd.none,

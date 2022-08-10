@@ -3,12 +3,12 @@ open Prelude
 let toModel = (m: AppTypes.model, e: AppTypes.SavedSettings.User.t): AppTypes.model => {
   ...m,
   firstVisitToDark: e.firstVisitToDark,
-  settingsView: {...m.settingsView, privacy: {recordConsent: e.recordConsent}},
+  settingsView: {...m.settingsView, privacySettings: {recordConsent: e.recordConsent}},
 }
 
 let model2editor = (m: AppTypes.model): AppTypes.SavedSettings.User.t => {
   firstVisitToDark: m.firstVisitToDark,
-  recordConsent: m.settingsView.privacy.recordConsent,
+  recordConsent: m.settingsView.privacySettings.recordConsent,
 }
 
 let fromString = (json: option<string>): AppTypes.SavedSettings.User.t =>

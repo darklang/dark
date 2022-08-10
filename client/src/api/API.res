@@ -249,7 +249,7 @@ let sendPresence = (m: model, av: APIPresence.Params.t): cmd => {
   }
 }
 
-let sendInvite = (m: model, params: APISendInvite.Params.t): cmd => {
+let sendInvite = (m: model, params: SettingsInvite.Params.t): cmd => {
   let url = "https://accounts.darklang.com/send-invite"
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},
@@ -257,7 +257,7 @@ let sendInvite = (m: model, params: APISendInvite.Params.t): cmd => {
     _ => (),
     m.csrfToken,
     url,
-    APISendInvite.Params.encode(params),
+    SettingsInvite.Params.encode(params),
   )
 
   // If origin is https://darklang.com, then we're in prod (or ngrok, running against
@@ -267,7 +267,10 @@ let sendInvite = (m: model, params: APISendInvite.Params.t): cmd => {
   // the beginning of the function, we still exercise the message and request
   // generating code locally.
   if m.origin == "https://darklang.com" {
-    Tea.Http.send(x => AppTypes.Msg.SettingsViewMsg(TriggerSendInviteCallback(x)), request)
+    Tea.Http.send(
+      x => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(TriggerSendCallback(x))),
+      request,
+    )
   } else {
     Tea.Cmd.none
   }

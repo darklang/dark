@@ -5893,8 +5893,8 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
         {
           ...m,
           toast: {
-            toastMessage: Some("Command Palette has been moved to Ctrl-\\."),
-            toastPos: None,
+            message: Some("Command Palette has been moved to Ctrl-\\."),
+            pos: None,
           },
         },
         Tea.Cmd.none,
