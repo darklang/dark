@@ -321,70 +321,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
     switch mod_ {
     | ReplaceAllModificationsWithThisOne(f) => f(m)
-    | HandleAPIError(apiError) =>
-      let now = Js.Date.now() |> Js.Date.fromFloat
-      let shouldReload = {
-        let buildHashMismatch =
-          APIError.serverVersionOf(apiError)
-          |> Option.map(~f=hash => hash != m.buildHash)
-          |> Option.unwrap(~default=false)
-
-        let reloadAllowed = switch m.lastReload {
-        | Some(time) =>
-          // if 60 seconds have elapsed
-          Js.Date.getTime(time) +. 60000.0 > Js.Date.getTime(now)
-        | None => true
-        }
-
-        // Reload if it's an auth failure or the frontend is out of date
-        APIError.isBadAuth(apiError) || (buildHashMismatch && reloadAllowed)
-      }
-
-      let ignore = {
-        // Ignore when using Ngrok
-        let usingNgrok = VariantTesting.variantIsActive(m, NgrokVariant)
-        /* This message is deep in the server code and hard to pull
-         * out, so just ignore for now */
-        Js.log("Already at latest redo - ignoring server error")
-        let redoError = String.includes(
-          APIError.msg(apiError),
-          ~substring="(client): Already at latest redo",
-        )
-
-        redoError || usingNgrok
-      }
-
-      let cmd = if shouldReload {
-        let m = {...m, lastReload: Some(now)}
-        /* Previously, this was two calls to Tea_task.nativeBinding. But
-         * only the first got called, unclear why. */
-        Cmd.call(_ => {
-          SavedSettings.save(m)
-          SavedUserSettings.save(m)
-          Native.Location.reload(true)
-        })
-      } else if !ignore && APIError.shouldRollbar(apiError) {
-        Cmd.call(_ => Rollbar.sendAPIError(m, apiError))
-      } else {
-        Cmd.none
-      }
-
-      let newM = {
-        let error = if APIError.shouldDisplayToUser(apiError) && !ignore {
-          Error.set(APIError.msg(apiError), m.error)
-        } else {
-          m.error
-        }
-
-        let lastReload = if shouldReload {
-          Some(now)
-        } else {
-          m.lastReload
-        }
-        {...m, error: error, lastReload: lastReload}
-      }
-
-      (newM, cmd)
+    | HandleAPIError(apiError) => APIError.handle(m, apiError)
     | AddOps(ops, focus) => handleAPI(API.opsParams(ops, (m |> opCtr) + 1, m.clientOpCtrId), focus)
     | GetUnlockedDBsAPICall => Sync.attempt(~key="unlocked", m, API.getUnlockedDBs(m))
     | Get404sAPICall => (m, API.get404s(m))
