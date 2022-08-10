@@ -61,13 +61,13 @@ let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<App
           radio(
             ~value="yes",
             ~label=yes,
-            ~msg=SettingsState.PrivacyMsg(SettingsPrivacyState.SetRecordConsent(true)),
+            ~msg=SettingsState.PrivacyMsg(SettingsPrivacy.SetRecordConsent(true)),
             ~checked=recordConsent == Some(true),
           ),
           radio(
             ~value="no",
             ~label=no,
-            ~msg=SettingsState.PrivacyMsg(SettingsPrivacyState.SetRecordConsent(false)),
+            ~msg=SettingsState.PrivacyMsg(SettingsPrivacy.SetRecordConsent(false)),
             ~checked=recordConsent == Some(false),
           ),
         },

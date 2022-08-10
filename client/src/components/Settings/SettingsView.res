@@ -26,7 +26,7 @@ let settingsTabToText = (tab: T.Tab.t): string =>
   switch tab {
   | Canvases => SettingsCanvasesState.title
   | Invite => SettingsInvite.title
-  | Privacy => SettingsPrivacyState.title
+  | Privacy => SettingsPrivacy.title
   // | Contributing(_) => SettingsContributing.title
   }
 

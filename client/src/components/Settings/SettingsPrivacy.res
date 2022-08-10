@@ -11,3 +11,9 @@ let default = {recordConsent: None}
 
 @ppx.deriving(show)
 type rec effect = RecordConsent(bool)
+
+let update = (_: t, msg: msg): (t, effect) => {
+  switch msg {
+  | SetRecordConsent(allow) => ({recordConsent: Some(allow)}, RecordConsent(allow))
+  }
+}

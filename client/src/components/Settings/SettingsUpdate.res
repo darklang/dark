@@ -13,7 +13,7 @@ let update = (state: T.t, msg: T.msg): (T.t, option<T.effect>) =>
       ({...state, canvasesSettings: newSettings}, None)
     }
   | PrivacyMsg(msg) => {
-      let (newSettings, effect) = SettingsPrivacyUpdate.update(state.privacySettings, msg)
+      let (newSettings, effect) = SettingsPrivacy.update(state.privacySettings, msg)
       ({...state, privacySettings: newSettings}, Some(PrivacyEffect(effect)))
     }
   | InviteMsg(msg) => {
