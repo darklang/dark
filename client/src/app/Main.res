@@ -263,6 +263,33 @@ let isACOpened = (m: model): bool =>
   (FluidCommands.isOpened(m.fluidState.cp) ||
   AC.isOpened(m.complete))
 
+/// These Cross-Component Call functions are supposed to replace Modifications. We
+/// hope to get to a point where we have a small set of functions to allow
+/// Cross-component calls, and to have all modifications using
+/// ReplaceAllModificationsWithThisOne.
+///
+/// The first parameter to all CCC calls should be the (model,cmd) pair to we can
+/// pipe multiple cmds together. You should return the original cmd or use Cmd.batch
+/// to combine it with a new one
+module CrossComponentCalls = {
+  type t = (model, cmd)
+  let setToast = ((m, prevCmd): t, message: option<string>, pos: option<AppTypes.VPos.t>): t => {
+    ({...m, toast: {message: message, pos: pos}}, prevCmd)
+  }
+  let setPage = ((m, prevCmd): t, page: Url.page): t => {
+    let cmd = Url.navigateTo(page)
+    ({...m, currentPage: page}, Cmd.batch(list{prevCmd, cmd}))
+  }
+  let setCursorState = ((m, prevCmd): t, cursorState: AppTypes.CursorState.t): t => {
+    ({...m, cursorState: cursorState}, prevCmd)
+  }
+  let setPanning = ((m, prevCmd): t, panning: bool): t => {
+    let m = {...m, canvasProps: {...m.canvasProps, enablePan: panning}}
+    (m, prevCmd)
+  }
+}
+module CCC = CrossComponentCalls
+
 let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
   model,
   AppTypes.cmd,
@@ -879,21 +906,6 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
   switch modi {
   | NoChange => (newm, cmds)
   | _ => updateMod(modi, (newm, cmds))
-  }
-}
-
-/// These Cross-Component Call functions are supposed to replace Modifications. We
-/// hope to get to a point where we have a small set of functions to allow
-/// Cross-component calls, and to have all modifications using
-/// ReplaceAllModificationsWithThisOne.
-///
-/// The first parameter to all CCC calls should be the (model,cmd) pair to we can
-/// pipe multiple cmds together. You should return the original cmd or use Cmd.batch
-/// to combine it with a new one
-module CCC = {
-  type t = (model, cmd)
-  let setToast = ((m, cmd): t, message: option<string>, pos: option<AppTypes.VPos.t>): t => {
-    ({...m, toast: {message: message, pos: pos}}, cmd)
   }
 }
 
@@ -1941,24 +1953,18 @@ let update_ = (msg: msg, m: model): modification => {
         switch effect {
         | Some(InviteEffect(Some(UpdateToast(toast)))) =>
           (m, Cmd.none)->CCC.setToast(Some(toast), None)
-
         | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
         | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
+
         | Some(InviteEffect(None))
         | None => (m, Cmd.none)
+
         | Some(PrivacyEffect(RecordConsent(cmd))) => (m, cmd)
+
         | Some(OpenSettings(tab)) =>
-          let m = {...m, cursorState: Deselected, currentPage: SettingsModal(tab)}
-          let cmd = Url.navigateTo(SettingsModal(tab))
-          (m, cmd)
-        | Some(SetSettingsTab(tab)) =>
-          let m = {...m, currentPage: SettingsModal(tab)}
-          let cmd = Url.navigateTo(SettingsModal(tab))
-          (m, cmd)
-        | Some(CloseSettings) =>
-          let m = {...m, canvasProps: {...m.canvasProps, enablePan: true}}
-          let cmd = Url.navigateTo(Architecture)
-          (m, cmd)
+          (m, Cmd.none)->CCC.setPage(SettingsModal(tab))->CCC.setCursorState(Deselected)
+        | Some(SetSettingsTab(tab)) => (m, Cmd.none)->CCC.setPage(SettingsModal(tab))
+        | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
         }
       },
     )
