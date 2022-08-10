@@ -24,7 +24,7 @@ let allTabs: list<T.Tab.t> = list{
 
 let settingsTabToText = (tab: T.Tab.t): string =>
   switch tab {
-  | Canvases => SettingsCanvasesState.title
+  | Canvases => SettingsCanvases.title
   | Invite => SettingsInvite.title
   | Privacy => SettingsPrivacy.title
   // | Contributing(_) => SettingsContributing.title

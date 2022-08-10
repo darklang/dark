@@ -30,7 +30,7 @@ module Tab = {
 type rec t = {
   opened: bool,
   tab: Tab.t,
-  canvasesSettings: SettingsCanvasesState.t,
+  canvasesSettings: SettingsCanvases.t,
   inviteSettings: SettingsInvite.t,
   // contributingSettings: SettingsContributing.t,
   privacySettings: SettingsPrivacy.t,
@@ -39,7 +39,7 @@ type rec t = {
 let default = {
   opened: false,
   tab: Canvases,
-  canvasesSettings: SettingsCanvasesState.default,
+  canvasesSettings: SettingsCanvases.default,
   privacySettings: SettingsPrivacy.default,
   inviteSettings: SettingsInvite.default,
   // contributingSettings: SettingsContributing.default,
@@ -50,7 +50,7 @@ type rec msg =
   | Close(Tab.t)
   | Open(Tab.t)
   | SwitchTab(Tab.t)
-  | CanvasesMsg(SettingsCanvasesState.msg)
+  | CanvasesMsg(SettingsCanvases.msg)
   | PrivacyMsg(SettingsPrivacy.msg)
   | InviteMsg(SettingsInvite.msg)
 // | ContributingMsg(SettingsContributing.msg)
@@ -76,7 +76,7 @@ let setCanvasesInfo = (
   orgCanvasList: list<string>,
 ): t => {
   ...state,
-  canvasesSettings: SettingsCanvasesState.setInfo(
+  canvasesSettings: SettingsCanvases.setInfo(
     state.canvasesSettings,
     canvasList,
     username,

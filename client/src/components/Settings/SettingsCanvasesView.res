@@ -4,7 +4,7 @@ module Html = Tea_html_extended
 
 module Utils = SettingsUtils
 
-module T = SettingsCanvasesState
+module T = SettingsCanvases
 
 let title = "Canvases"
 

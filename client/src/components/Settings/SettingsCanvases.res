@@ -27,3 +27,5 @@ let setInfo = (
   orgs: orgs,
   orgCanvasList: orgCanvasList,
 }
+
+let update = (state: t, ()) => state

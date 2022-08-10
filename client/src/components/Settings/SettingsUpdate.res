@@ -9,7 +9,7 @@ let update = (state: T.t, msg: T.msg): (T.t, option<T.effect>) =>
   | SwitchTab(tab) => ({...state, tab: tab}, Some(SetSettingsTab(tab)))
 
   | CanvasesMsg(msg) => {
-      let newSettings = SettingsCanvasesUpdate.update(state.canvasesSettings, msg)
+      let newSettings = SettingsCanvases.update(state.canvasesSettings, msg)
       ({...state, canvasesSettings: newSettings}, None)
     }
   | PrivacyMsg(msg) => {
