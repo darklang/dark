@@ -16,10 +16,13 @@ let title = "Privacy"
 let default = {recordConsent: None}
 
 @ppx.deriving(show)
-type rec effect = RecordConsent(bool)
+type rec effect<'cmd> = RecordConsent('cmd)
 
-let update = (_: t, msg: msg): (t, effect) => {
+let update = (_: t, msg: msg): (t, effect<'cmd>) => {
   switch msg {
-  | SetRecordConsent(allow) => ({recordConsent: Some(allow)}, RecordConsent(allow))
+  | SetRecordConsent(allow) => (
+      {recordConsent: Some(allow)},
+      RecordConsent(FullstoryJs.setConsent(allow)),
+    )
   }
 }

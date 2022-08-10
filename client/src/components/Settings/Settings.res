@@ -56,11 +56,11 @@ type rec msg =
 // | ContributingMsg(SettingsContributing.msg)
 
 @ppx.deriving(show)
-type rec effect =
+type rec effect<'cmd> =
   | OpenSettings(Tab.t)
   | CloseSettings
   | SetSettingsTab(Tab.t)
-  | PrivacyEffect(SettingsPrivacy.effect)
+  | PrivacyEffect(SettingsPrivacy.effect<'cmd>)
   | InviteEffect(option<SettingsInvite.effect>)
 
 let setInviter = (state: t, username: string, name: string): t => {
@@ -85,7 +85,7 @@ let setCanvasesInfo = (
   ),
 }
 
-let update = (state: t, msg: msg): (t, option<effect>) =>
+let update = (state: t, msg: msg): (t, option<effect<'cmd>>) =>
   switch msg {
   | Open(tab) => ({...state, opened: true, tab: tab}, Some(OpenSettings(tab)))
   | Close(_) => ({...state, opened: false}, Some(CloseSettings))

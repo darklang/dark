@@ -1932,7 +1932,8 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne(
       m => {
         let (settingsView, effect) = Settings.update(m.settingsView, msg)
-        let (m, cmd) = switch effect {
+        let m = {...m, settingsView: settingsView}
+        switch effect {
         | Some(InviteEffect(Some(UpdateToast(toast)))) => (
             CCC.setToast(m, Some(toast), None),
             Cmd.none,
@@ -1941,10 +1942,7 @@ let update_ = (msg: msg, m: model): modification => {
         | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
         | Some(InviteEffect(None))
         | None => (m, Cmd.none)
-        | Some(PrivacyEffect(RecordConsent(allow))) => (
-            m,
-            SettingsPrivacy.FullstoryJs.setConsent(allow),
-          )
+        | Some(PrivacyEffect(RecordConsent(cmd))) => (m, cmd)
         | Some(OpenSettings(tab)) =>
           let m = {...m, cursorState: Deselected, currentPage: SettingsModal(tab)}
           let cmd = Url.navigateTo(SettingsModal(tab))
@@ -1956,11 +1954,8 @@ let update_ = (msg: msg, m: model): modification => {
         | Some(CloseSettings) =>
           let m = {...m, canvasProps: {...m.canvasProps, enablePan: true}}
           let cmd = Url.navigateTo(Architecture)
-          // Deselect
           (m, cmd)
         }
-
-        ({...m, settingsView: settingsView}, cmd)
       },
     )
   | FnParamMsg(msg) => FnParams.update(m, msg)
