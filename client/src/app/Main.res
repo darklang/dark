@@ -19,6 +19,7 @@ type modification = AppTypes.modification
 open AppTypes.Modification
 type autocompleteMod = AppTypes.AutoComplete.mod
 type model = AppTypes.model
+type cmd = AppTypes.cmd
 type msg = AppTypes.msg
 
 let incOpCtr = (m: model): model => {
@@ -885,10 +886,14 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 /// hope to get to a point where we have a small set of functions to allow
 /// Cross-component calls, and to have all modifications using
 /// ReplaceAllModificationsWithThisOne.
+///
+/// The first parameter to all CCC calls should be the (model,cmd) pair to we can
+/// pipe multiple cmds together. You should return the original cmd or use Cmd.batch
+/// to combine it with a new one
 module CCC = {
-  let setToast = (m: model, message: option<string>, pos: option<AppTypes.VPos.t>) => {
-    ...m,
-    toast: {message: message, pos: pos},
+  type t = (model, cmd)
+  let setToast = ((m, cmd): t, message: option<string>, pos: option<AppTypes.VPos.t>): t => {
+    ({...m, toast: {message: message, pos: pos}}, cmd)
   }
 }
 
@@ -1934,10 +1939,9 @@ let update_ = (msg: msg, m: model): modification => {
         let (settingsView, effect) = Settings.update(m.settingsView, msg)
         let m = {...m, settingsView: settingsView}
         switch effect {
-        | Some(InviteEffect(Some(UpdateToast(toast)))) => (
-            CCC.setToast(m, Some(toast), None),
-            Cmd.none,
-          )
+        | Some(InviteEffect(Some(UpdateToast(toast)))) =>
+          (m, Cmd.none)->CCC.setToast(Some(toast), None)
+
         | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
         | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
         | Some(InviteEffect(None))
