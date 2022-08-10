@@ -84,3 +84,23 @@ let setCanvasesInfo = (
     orgCanvasList,
   ),
 }
+
+let update = (state: t, msg: msg): (t, option<effect>) =>
+  switch msg {
+  | Open(tab) => ({...state, opened: true, tab: tab}, Some(OpenSettings(tab)))
+  | Close(_) => ({...state, opened: false}, Some(CloseSettings))
+  | SwitchTab(tab) => ({...state, tab: tab}, Some(SetSettingsTab(tab)))
+
+  | CanvasesMsg(msg) => {
+      let newSettings = SettingsCanvases.update(state.canvasesSettings, msg)
+      ({...state, canvasesSettings: newSettings}, None)
+    }
+  | PrivacyMsg(msg) => {
+      let (newSettings, effect) = SettingsPrivacy.update(state.privacySettings, msg)
+      ({...state, privacySettings: newSettings}, Some(PrivacyEffect(effect)))
+    }
+  | InviteMsg(msg) => {
+      let (newSettings, effect) = SettingsInvite.update(state.inviteSettings, msg)
+      ({...state, inviteSettings: newSettings}, Some(InviteEffect(effect)))
+    }
+  }

@@ -14,7 +14,7 @@ module Page = {
     | FocusedHandler(TLID.t, option<Types.traceID>, center)
     | FocusedDB(TLID.t, center)
     | FocusedType(TLID.t)
-    | SettingsModal(SettingsState.Tab.t)
+    | SettingsModal(Settings.Tab.t)
 }
 
 module VPos = {
@@ -869,7 +869,7 @@ module Msg = {
     | FnParamMsg(FunctionParams.msg)
     | ToolTipMsg(Tooltip.msg)
     | UpdateHeapio(Types.heapioTrack)
-    | SettingsMsg(SettingsState.msg)
+    | SettingsMsg(Settings.msg)
     | SecretMsg(SecretTypes.msg)
 }
 
@@ -1064,7 +1064,7 @@ module Model = {
     // indicates if it is the users first time visiting any dark canvas
     tooltipState: Tooltip.t,
     currentUserFn: FunctionParams.t,
-    settingsView: SettingsState.t,
+    settingsView: Settings.t,
     firstVisitToThisCanvas: bool,
     // indicates if it is the users first time this canvas
     secrets: list<SecretTypes.t>,
@@ -1136,7 +1136,7 @@ module Model = {
     currentUserFn: FunctionParams.default,
     firstVisitToThisCanvas: true,
     secrets: list{},
-    settingsView: SettingsState.default,
+    settingsView: Settings.default,
     insertSecretModal: SecretTypes.defaultInsertModal,
   }
 }

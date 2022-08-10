@@ -33,7 +33,7 @@ let urlFor = (page: page): string => {
     }
   | FocusedDB(tlid, _) => list{("db", TLID.toString(tlid))}
   | FocusedType(tlid) => list{("type", TLID.toString(tlid))}
-  | SettingsModal(tab) => list{("settings", SettingsState.Tab.toText(tab))}
+  | SettingsModal(tab) => list{("settings", Settings.Tab.toText(tab))}
   }
 
   hashUrlParams(args)
@@ -67,7 +67,7 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
   let architecture = () => Some(Page.Architecture)
   let settingModal = () =>
     switch Map.get(~key="settings", unstructured) {
-    | Some(tab) => Some(Page.SettingsModal(SettingsState.Tab.parse(tab)))
+    | Some(tab) => Some(Page.SettingsModal(Settings.Tab.parse(tab)))
     | _ => None
     }
 

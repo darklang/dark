@@ -6,7 +6,7 @@ module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module K = FluidKeyboard
 module Html = Tea_html_extended
-module T = SettingsState
+module T = Settings
 
 module Msg = AppTypes.Msg
 type msg = AppTypes.msg
@@ -69,7 +69,7 @@ let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
   K.eventToKeyEvent(evt) |> Option.andThen(~f=e =>
     switch e {
     | {K.key: K.Enter, _} =>
-      Some(AppTypes.Msg.SettingsMsg(SettingsState.InviteMsg(SettingsInvite.Submit)))
+      Some(AppTypes.Msg.SettingsMsg(Settings.InviteMsg(SettingsInvite.Submit)))
     | _ => None
     }
   )

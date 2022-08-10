@@ -45,7 +45,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
           ViewUtils.eventNoPropagation(
             ~key="close-settings-modal",
             "click",
-            _ => AppTypes.Msg.SettingsMsg(SettingsState.InviteMsg(T.Submit)),
+            _ => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(T.Submit)),
           ),
         },
         btn,
@@ -67,7 +67,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
                     list{
                       Vdom.attribute("", "spellcheck", "false"),
                       Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                        SettingsState.InviteMsg(T.Update(str)),
+                        Settings.InviteMsg(T.Update(str)),
                       )),
                       Attributes.value(state.email.value),
                     },

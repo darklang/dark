@@ -15,7 +15,7 @@ let explanation = "To help us understand how people learn Dark, is it okay if we
 
 let disableOmniOpen = ViewUtils.nothingMouseEvent("mousedown")
 
-let radio = (~value: string, ~label: string, ~msg: SettingsState.msg, ~checked: bool): Html.html<
+let radio = (~value: string, ~label: string, ~msg: Settings.msg, ~checked: bool): Html.html<
   AppTypes.msg,
 > => {
   let key = "fs-consent-" ++ value
@@ -61,13 +61,13 @@ let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<App
           radio(
             ~value="yes",
             ~label=yes,
-            ~msg=SettingsState.PrivacyMsg(SettingsPrivacy.SetRecordConsent(true)),
+            ~msg=Settings.PrivacyMsg(SettingsPrivacy.SetRecordConsent(true)),
             ~checked=recordConsent == Some(true),
           ),
           radio(
             ~value="no",
             ~label=no,
-            ~msg=SettingsState.PrivacyMsg(SettingsPrivacy.SetRecordConsent(false)),
+            ~msg=Settings.PrivacyMsg(SettingsPrivacy.SetRecordConsent(false)),
             ~checked=recordConsent == Some(false),
           ),
         },

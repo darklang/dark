@@ -1349,8 +1349,8 @@ let update_ = (msg: msg, m: model): modification => {
         m => {
           let settings =
             m.settingsView
-            ->SettingsState.setInviter(m.username, r.account.name)
-            ->SettingsState.setCanvasesInfo(r.canvasList, m.username, r.orgs, r.orgCanvasList)
+            ->Settings.setInviter(m.username, r.account.name)
+            ->Settings.setCanvasesInfo(r.canvasList, m.username, r.orgs, r.orgCanvasList)
           (
             {
               ...m,
