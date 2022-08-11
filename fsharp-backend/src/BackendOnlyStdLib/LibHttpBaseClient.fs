@@ -96,6 +96,7 @@ module HttpBaseClient =
             new HttpRequestMessage(
               method,
               string reqUri,
+              // HttpBaseClientTODO does this mean 'use exactly 3.0
               Version = System.Net.HttpVersion.Version30,
               Content = new ByteArrayContent(reqBody)
             )
@@ -145,8 +146,7 @@ module HttpBaseClient =
           let headers =
             response
             |> HttpHeaders.headersForAspNetResponse
-            // TODO Should we really be manipulating (lowercasing) these?
-            |> List.map (fun (k : string, v) -> (String.toLowercase k, v))
+            |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
 
           return
             { body = respBody; code = int response.StatusCode; headers = headers }
