@@ -616,7 +616,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 let categoryName = (name: string): Html.html<msg> =>
   Html.span(list{Html.class'("category-name")}, list{Html.text(name)})
 
-let categoryOpenCloseHelpers = (s: AppTypes.Sidebar.State.t, classname: string, count: int): (
+let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: int): (
   Vdom.property<msg>,
   Vdom.property<msg>,
 ) => {
@@ -1116,13 +1116,13 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   Html.div(list{Html.class'("sidebar-category admin")}, list{sectionIcon, hoverView})
 }
 
-let update = (msg: AppTypes.Sidebar.msg): modification =>
+let update = (msg: Sidebar.msg): modification =>
   switch msg {
   | ToggleSidebarMode =>
     ReplaceAllModificationsWithThisOne(
       m => {
         let mode = switch m.sidebarState.mode {
-        | DetailedMode => AppTypes.Sidebar.Mode.AbridgedMode
+        | DetailedMode => Sidebar.Mode.AbridgedMode
         | AbridgedMode => DetailedMode
         }
 
