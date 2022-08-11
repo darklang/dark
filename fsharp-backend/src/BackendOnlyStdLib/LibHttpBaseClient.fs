@@ -74,7 +74,7 @@ module HttpBaseClient =
   let private httpCall
     (url : string)
     (method : HttpMethod)
-    (reqHeaders : HttpHeaders.T)
+    (reqHeaders : List<string * string>)
     (reqBody : byte array)
     : Task<Result<HttpResult, ClientError>> =
     task {
@@ -107,14 +107,11 @@ module HttpBaseClient =
             )
 
           // headers
-          // TODO is it still appropriate to include these default headers?
-          let defaultHeaders =
-            Map [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ]
-
-          Map reqHeaders
-          |> Map.mergeFavoringRight defaultHeaders
-          |> Map.iter (fun k v ->
-            // .NET is odd with content types; they're handled specially
+          reqHeaders
+          |> List.iter (fun (k, v) ->
+            // .NET handles "content headers" separately from other headers.
+            // They're put into `req.Content.Headers` rather than `req.Headers`
+            // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
             if String.equalsCaseInsensitive k "content-type" then
               try
                 req.Content.Headers.ContentType <-
@@ -123,17 +120,10 @@ module HttpBaseClient =
               | :? System.FormatException ->
                 Exception.raiseCode "Invalid content-type header"
             else
-              // Dark headers can only be added once, as they use a Dict.
-              // Remove them so they don't get added twice.
-              // TODO: re-evaluate if we need this. See logic in HttpClient.
-              // Also, consider that we could (do, in this draft) return headers
-              // as a list of tuples, so the Dict claim is false currently.
-              req.Headers.Remove(k) |> ignore<bool>
               let added = req.Headers.TryAddWithoutValidation(k, v)
 
               // Headers are split between req.Headers and req.Content.Headers so just try both
               if not added then
-                req.Content.Headers.Remove(k) |> ignore<bool>
                 req.Content.Headers.Add(k, v))
 
           // send request
