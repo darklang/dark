@@ -66,7 +66,8 @@ module HttpBaseClient =
       socketHandler,
       disposeHandler = false,
 
-      // These seem like reasonable defaults
+      // HttpBaseClientTODO are these appropriate defaults?
+      // Should users be able to override these somehow?
       Timeout = System.TimeSpan.FromSeconds 30.0,
       MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
     )
