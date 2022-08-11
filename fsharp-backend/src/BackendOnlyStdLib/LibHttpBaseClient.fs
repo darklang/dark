@@ -41,6 +41,11 @@ module HttpBaseClient =
 
       // HttpBaseClientTODO avail functions to compress/decompress with common
       // compression algorithms (gzip, brottli, deflate)
+      // HttpBaseClientTODO consider: is there any reason to think that ASP.NET
+      // does something fancy such that automatic .net httpclient -level
+      // decompression would be notably more efficient than doing so 'manually'
+      // via some function? There will certainly be more bytes passed around -
+      // probably not a big deal?
       AutomaticDecompression = System.Net.DecompressionMethods.None,
 
       // HttpBaseClientTODO avail function that handles redirect behaviour
