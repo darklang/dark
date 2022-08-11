@@ -209,11 +209,16 @@ let fn = FQFnName.stdlibFnName
 let headersType = TList(TTuple(TStr, TStr, []))
 
 let parameters =
-  // HttpBaseClientTODO consider method being a new type (DU)
-  // HttpBaseClientTODO consider URI being a new type (complex type)
-  [ Param.make "method" TStr ""
+  [ // HttpBaseClientTODO consider method being a new type (DU).
+    // Alternatively, leave it as a string, and don't try to parse it.
+    // (instead, just do `new HttpMethod(userInputMethod)`)
+    Param.make "method" TStr ""
+
+    // HttpBaseClientTODO consider URI being a new type (complex type)
     Param.make "uri" TStr ""
+
     Param.make "body" TBytes ""
+
     Param.make "headers" headersType "" ]
 
 let returnType =
