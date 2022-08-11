@@ -36,7 +36,6 @@
     <Compile Include="LibHttpClient4.fs" />
     <!-- "modern" HttpClient supports LibHttpClient5 -->
     <Compile Include="HttpClient.fs" />
-    <Compile Include="HttpBytesClient.fs" />
     <Compile Include="LibHttpClient5.fs" />
     <Compile Include="LibHttpBytesClient.fs" />
     <Compile Include="LibJwt.fs" />
