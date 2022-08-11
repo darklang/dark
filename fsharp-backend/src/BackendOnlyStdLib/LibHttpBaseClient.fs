@@ -206,36 +206,13 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fn = FQFnName.stdlibFnName
 
-// Converts an object to (string, string) pairs
-let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
-  match dv with
-  | DList tpls ->
-    tpls
-    |> List.map (fun pair ->
-      match pair with
-      | DTuple (DStr k, DStr v, []) ->
-        // TODO trim key and/or value here?
-        // TODO error on empty key?
-        Ok(k, v)
-      | other ->
-        Error
-          $"Expected a (string * string), but got: {DvalReprDeveloper.toRepr other}")
-    |> Tablecloth.Result.values
-  | _ -> Error $"Expected a list of tuples, but got: {DvalReprDeveloper.toRepr dv}"
-
-let call (method : HttpMethod) =
-  // HttpBaseClientTODO expose as non-internal fn
-  LibDarkInternal.internalFn (function
-  | _, [ DStr uri; DBytes body; headers ] ->
-    match toStringPairs headers with
-    | Ok headers -> HttpBaseClient.sendRequest uri method body headers
-    | _ -> incorrectArgs ()
-  | _ -> incorrectArgs ())
-
 let headersType = TList(TTuple(TStr, TStr, []))
 
 let parameters =
-  [ Param.make "uri" TStr ""
+  // HttpBaseClientTODO consider method being a new type (DU)
+  // HttpBaseClientTODO consider URI being a new type (complex type)
+  [ Param.make "method" TStr ""
+    Param.make "uri" TStr ""
     Param.make "body" TBytes ""
     Param.make "headers" headersType "" ]
 
@@ -249,33 +226,47 @@ let returnType =
 
 let fns : List<BuiltInFn> =
   [ // HttpBaseClientTODO expose as non-internal fn
-    { name = fn "DarkInternal" "httpBaseClientPost" 0
+    // HttpBaseClientTODO better name than 'call'?
+    // HttpBaseClientTODO thorough testing
+    { name = fn "DarkInternal" "baseHttpClientCall" 0
       parameters = parameters
       returnType = returnType
       description =
-        // TODO better description
-        "Make blocking HTTP POST call to `uri`. Returns a `Result` object where
+        // HttpBaseClientTODO better description
+        "Make blocking HTTP call to `uri`. Returns a `Result` object where
         the response object is wrapped in `Ok` if a response was successfully
         received and parsed, and is wrapped in `Error` otherwise"
-      fn = call HttpMethod.Post
+      fn =
+        // HttpBaseClientTODO expose as non-internal fn
+        LibDarkInternal.internalFn (function
+          | _, [ DStr method; DStr uri; DBytes body; DList headers ] ->
+            let method =
+              match String.toLowercase method with
+              | "get" -> Some HttpMethod.Get
+              | "post" -> Some HttpMethod.Post
+              | "put" -> Some HttpMethod.Put
+              | "patch" -> Some HttpMethod.Patch
+              | "delete" -> Some HttpMethod.Delete
+              | "head" -> Some HttpMethod.Head
+              | "options" -> Some HttpMethod.Options
+              | _ -> None
+
+            let headers =
+              headers
+              |> List.map (fun pair ->
+                match pair with
+                | DTuple (DStr k, DStr v, []) -> Ok(k, v)
+                | other ->
+                  Error
+                    $"Expected a (string * string), but got: {DvalReprDeveloper.toRepr other}")
+              |> Tablecloth.Result.values
+
+            // HttpBaseClientTODO return better error messages
+            match headers, method with
+            | Ok headers, Some method ->
+              HttpBaseClient.sendRequest uri method body headers
+            | _ -> incorrectArgs ()
+          | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    // HttpBaseClientTODO expose as non-internal fn
-    { name = fn "DarkInternal" "httpBaseClientGet" 0
-      parameters = parameters
-      returnType = returnType
-      description =
-        // TODO better description
-        "Make blocking HTTP GET call to `uri`. Returns a `Result` object where
-        the response object is wrapped in `Ok` if a response was successfully
-        received and parsed, and is wrapped in `Error` otherwise"
-      fn = call HttpMethod.Get
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-    // HttpBaseClientTODO expose as non-internal fn
-      ]
+      deprecated = NotDeprecated } ]
