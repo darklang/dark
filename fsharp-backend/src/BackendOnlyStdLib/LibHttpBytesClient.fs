@@ -32,12 +32,10 @@ let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
 
 let call (method : HttpMethod) =
   (function
-  | _, [ DStr uri; DBytes body; query; headers ] ->
+  | _, [ DStr uri; DBytes body; headers ] ->
     let headers = toStringPairs headers
-    let query = HttpQueryEncoding.toQuery query
-    match headers, query with
-    | Ok headers, Ok query ->
-      HttpBytesClient.sendRequest uri method body query headers
+    match headers with
+    | Ok headers -> HttpBytesClient.sendRequest uri method body headers
     | _ -> incorrectArgs ()
   | _ -> incorrectArgs ())
 
@@ -47,7 +45,6 @@ let headersType = TList(TTuple(TStr, TStr, []))
 let parameters =
   [ Param.make "uri" TStr ""
     Param.make "body" TBytes ""
-    Param.make "query" (TDict TStr) ""
     Param.make "headers" headersType "" ]
 
 let returnType =

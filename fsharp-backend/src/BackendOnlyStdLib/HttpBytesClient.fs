@@ -64,7 +64,6 @@ let private httpClient : HttpClient =
 
 let private httpCall
   (url : string)
-  (queryParams : (string * string list) list)
   (method : HttpMethod)
   (reqHeaders : HttpHeaders.T)
   (reqBody : byte array)
@@ -82,18 +81,11 @@ let private httpCall
         return Error { code = None; error = "Unsupported protocol" }
       else
         let reqUri =
-          let queryString =
-            let query =
-              // Remove the question mark
-              if uri.Query.Length > 0 then String.dropLeft 1 uri.Query else uri.Query
-            HttpQueryEncoding.createQueryString query queryParams
-
           System.UriBuilder(
             Scheme = uri.Scheme,
             Host = uri.Host,
             Port = uri.Port,
-            Path = uri.AbsolutePath,
-            Query = queryString
+            Path = uri.AbsolutePath
           )
 
         use req =
@@ -183,11 +175,10 @@ let sendRequest
   (uri : string)
   (verb : HttpMethod)
   (reqBody : byte array)
-  (query : List<string * List<string>>)
   (reqHeaders : List<string * string>)
   : Ply<Dval> =
   uply {
-    match! httpCall uri query verb reqHeaders reqBody with
+    match! httpCall uri verb reqHeaders reqBody with
     | Ok response ->
       let parsedResponseHeaders =
         response.headers
