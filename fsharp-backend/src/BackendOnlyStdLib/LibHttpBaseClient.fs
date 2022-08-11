@@ -1,5 +1,5 @@
-/// StdLib functions in the HttpBytesClient module
-module BackendOnlyStdLib.LibHttpBytesClient
+/// StdLib functions in the HttpBaseClient module
+module BackendOnlyStdLib.LibHttpBaseClient
 
 open System.IO
 open System.Net.Http
@@ -14,7 +14,7 @@ open LibBackend
 open VendoredTablecloth
 
 
-module HttpBytesClient =
+module HttpBaseClient =
   module Telemetry = LibService.Telemetry
 
   type private HttpResult = { body : byte []; code : int; headers : HttpHeaders.T }
@@ -231,7 +231,7 @@ let call (method : HttpMethod) =
   (function
   | _, [ DStr uri; DBytes body; headers ] ->
     match toStringPairs headers with
-    | Ok headers -> HttpBytesClient.sendRequest uri method body headers
+    | Ok headers -> HttpBaseClient.sendRequest uri method body headers
     | _ -> incorrectArgs ()
   | _ -> incorrectArgs ())
 
@@ -246,7 +246,7 @@ let returnType =
   TResult(TRecord [ "body", TBytes; "headers", headersType; "code", TInt ], TStr)
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "HttpBytesClient" "post" 0
+  [ { name = fn "HttpBaseClient" "post" 0
       parameters = parameters
       returnType = returnType
       description =
@@ -260,7 +260,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpBytesClient" "get" 0
+    { name = fn "HttpBaseClient" "get" 0
       parameters = parameters
       returnType = returnType
       description =
