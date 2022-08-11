@@ -224,7 +224,8 @@ let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
   | _ -> Error $"Expected a list of tuples, but got: {DvalReprDeveloper.toRepr dv}"
 
 let call (method : HttpMethod) =
-  (function
+  // HttpBaseClientTODO expose as non-internal fn
+  LibDarkInternal.internalFn (function
   | _, [ DStr uri; DBytes body; headers ] ->
     match toStringPairs headers with
     | Ok headers -> HttpBaseClient.sendRequest uri method body headers
@@ -247,7 +248,8 @@ let returnType =
 // In other words, `returnType` above may be adjusted significantly.
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "HttpBaseClient" "post" 0
+  [ // HttpBaseClientTODO expose as non-internal fn
+    { name = fn "DarkInternal" "httpBaseClientPost" 0
       parameters = parameters
       returnType = returnType
       description =
@@ -261,7 +263,8 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpBaseClient" "get" 0
+    // HttpBaseClientTODO expose as non-internal fn
+    { name = fn "DarkInternal" "httpBaseClientGet" 0
       parameters = parameters
       returnType = returnType
       description =
@@ -272,4 +275,7 @@ let fns : List<BuiltInFn> =
       fn = call HttpMethod.Get
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+    // HttpBaseClientTODO expose as non-internal fn
+      ]
