@@ -39,8 +39,11 @@ module HttpBaseClient =
       PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
       PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
 
+      // HttpBaseClientTODO avail functions to compress/decompress with common
+      // compression algorithms (gzip, brottli, deflate)
       AutomaticDecompression = System.Net.DecompressionMethods.None,
 
+      // HttpBaseClientTODO avail function that handles redirect behaviour
       AllowAutoRedirect = false,
 
       UseProxy = true,
@@ -72,7 +75,7 @@ module HttpBaseClient =
     task {
       use _ =
         Telemetry.child
-          "HttpClient.call"
+          "HttpBaseClient.call"
           [ "request.url", url; "request.method", method ]
       try
         let uri = System.Uri(url, System.UriKind.Absolute)
@@ -105,8 +108,7 @@ module HttpBaseClient =
           Map reqHeaders
           |> Map.mergeFavoringRight defaultHeaders
           |> Map.iter (fun k v ->
-            // TODO do we need this branch?
-            // I think so - .NET is odd with content types, to my memory
+            // .NET is odd with content types; they're handled specially
             if String.equalsCaseInsensitive k "content-type" then
               try
                 req.Content.Headers.ContentType <-
