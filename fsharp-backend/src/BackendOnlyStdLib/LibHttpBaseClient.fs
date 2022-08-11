@@ -71,6 +71,8 @@ module HttpBaseClient =
       MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
     )
 
+  // HttpBaseClientTODO test what happens when user credentials are included
+  // in the URL - adjust according to the results.
   let private httpCall
     (url : string)
     (method : HttpMethod)
@@ -101,7 +103,7 @@ module HttpBaseClient =
             new HttpRequestMessage(
               method,
               string reqUri,
-              // HttpBaseClientTODO does this mean 'use exactly 3.0
+              // HttpBaseClientTODO does this mean 'use exactly 3.0'?
               Version = System.Net.HttpVersion.Version30,
               Content = new ByteArrayContent(reqBody)
             )
@@ -123,13 +125,15 @@ module HttpBaseClient =
               let added = req.Headers.TryAddWithoutValidation(k, v)
 
               // Headers are split between req.Headers and req.Content.Headers so just try both
-              if not added then
-                req.Content.Headers.Add(k, v))
+              if not added then req.Content.Headers.Add(k, v))
 
           // send request
           Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
           Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
           use! response = httpClient.SendAsync req
+
+          // HttpBaseClientTODO: errors after an HTTP response is returned
+          // should include the status code. (right now they don't always).
 
           Telemetry.addTags [ "response.status_code", response.StatusCode
                               "response.version", response.Version ]
@@ -178,21 +182,15 @@ module HttpBaseClient =
     uply {
       match! httpCall uri verb reqHeaders reqBody with
       | Ok response ->
-        let parsedResponseHeaders =
+        let responseHeaders =
           response.headers
-
-          // TODO should we really be trimming these?
-          |> List.map (fun (k, v) -> (String.trim k, String.trim v))
-
-          // TODO should we really filter out headers of blank keys?
-          |> List.filter (fun (k, _) -> String.length k > 0)
-
-          |> List.map (fun (k, v) -> DTuple(DStr k, DStr v, []))
+          |> List.map (fun (k, v) ->
+            DTuple(DStr(String.toLowercase k), DStr(String.toLowercase v), []))
           |> DList
 
         return
           [ ("body", DBytes response.body)
-            ("headers", parsedResponseHeaders)
+            ("headers", responseHeaders)
             ("code", DInt(int64 response.code)) ]
           |> Dval.obj
           |> Ok
@@ -241,6 +239,11 @@ let parameters =
 
 let returnType =
   TResult(TRecord [ "body", TBytes; "headers", headersType; "code", TInt ], TStr)
+
+// HttpBaseClientTODO maybe the errors should be in the form of a 'custom' DU?
+// Elm's http response type is well thought out and could provide a good model
+// for us. https://package.elm-lang.org/packages/elm/http/latest/Http.
+// In other words, `returnType` above may be adjusted significantly.
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpBaseClient" "post" 0
