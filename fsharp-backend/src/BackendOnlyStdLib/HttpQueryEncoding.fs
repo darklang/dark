@@ -6,7 +6,7 @@ module BackendOnlyStdLib.HttpQueryEncoding
 /// prefer not to share code like this as we may need to mutate one and don't want to
 /// change how other parts of the framework and standard library work. If we do
 /// further work on any of this, we may want to split functionality out in some way,
-/// including dupliucating code.
+/// including duplicating code.
 ///
 /// CLEANUP: this isn't a great place for this file, at time of writing we don't have
 /// a better idea.
