@@ -20,6 +20,7 @@ module Request =
     (query : string)
     (body : byte array)
     : RT.Dval =
+    printfn "Headers %A" headers
     let headers =
       headers
       |> lowercaseHeaderKeys

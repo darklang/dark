@@ -11,6 +11,7 @@ Header2: Value2
 Header-3: Value-3
 Header-with-Casing-conflict: test1
 header-WITH-Casing-conflict: test2
+header-with-multiple-values: value1,value2
 
 ignored
 
@@ -20,7 +21,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
 Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Content-Length: 352
+Content-Length: 454
 
 [<SPACE>
   (
@@ -36,6 +37,10 @@ Content-Length: 352
   ), (
     "header-3", "Value-3"
   ), (
-    "header-with-casing-conflict", "test1,test2"
+    "header-with-casing-conflict", "test1"
+  ), (
+    "header-with-casing-conflict", "test2"
+  ), (
+    "header-with-multiple-values", "value1,value2"
   )
 ]

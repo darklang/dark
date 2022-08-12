@@ -185,7 +185,6 @@ module Handler =
 
   [<MessagePack.MessagePackObject>]
   type Spec =
-    /// Corresponds to HttpMiddlewareV0
     | HTTP of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
     // Deprecated but still supported form
@@ -197,8 +196,6 @@ module Handler =
     // If there's no module
     // CLEANUP: convert these into repl and get rid of this case
     | UnknownHandler of string * string * ids
-    /// Corresponds to HttpMiddlewareV1
-    /// HttpBasicTODO: rebrand to HTTPBase rather than HTTPBasic?
     | HTTPBasic of route : string * method : string * ids : ids
 
   [<MessagePack.MessagePackObject>]

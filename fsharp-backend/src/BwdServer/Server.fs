@@ -56,11 +56,22 @@ let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
 
-/// Reads the incoming headers and simplifies into a list of key*value pairs
-let getHeaders (ctx : HttpContext) : List<string * string> =
+/// Reads the incoming headers and simplifies into a list of key*values pairs
+///
+/// If 2 headers come in with the same key, it results in only one header, with
+/// the values concatonated (joined by commas)
+let getHeadersMergingKeys (ctx : HttpContext) : List<string * string> =
   ctx.Request.Headers
   |> Seq.map Tuple2.fromKeyValuePair
   |> Seq.map (fun (k, v) -> (k, v.ToArray() |> Array.toList |> String.concat ","))
+  |> Seq.toList
+
+/// Reads the incoming headers and simplifies into a list of key*value pairs
+let getHeadersWithoutMergingKeys (ctx : HttpContext) : List<string * string> =
+  ctx.Request.Headers
+  |> Seq.map Tuple2.fromKeyValuePair
+  |> Seq.map (fun (k, v) -> v.ToArray() |> Array.toList |> List.map (fun v -> (k, v)))
+  |> Seq.collect (fun pair -> pair)
   |> Seq.toList
 
 /// Reads the incoming query parameters and simplifies into a list of key*values pairs
@@ -337,7 +348,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let routeVars = Routing.routeInputVars route requestPath
 
         let! reqBody = getBody ctx
-        let reqHeaders = getHeaders ctx
+        let reqHeaders = getHeadersMergingKeys ctx
         let reqQuery = getQuery ctx
 
         match routeVars with
@@ -392,7 +403,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let routeVars = Routing.routeInputVars route requestPath
 
         let! reqBody = getBody ctx
-        let reqHeaders = getHeaders ctx
+        let reqHeaders = getHeadersWithoutMergingKeys ctx
         let reqQuery = getQuery ctx
 
         match routeVars with
@@ -433,7 +444,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         return! faviconResponse ctx
 
       | [] when ctx.Request.Method = "OPTIONS" ->
-        let reqHeaders = getHeaders ctx
+        let reqHeaders = getHeadersMergingKeys ctx
 
         match LegacyHttpMiddleware.Cors.optionsResponse reqHeaders meta.name with
         | Some response ->
@@ -450,7 +461,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       // no matching route found - store as 404
       | [] ->
         let! reqBody = getBody ctx
-        let reqHeaders = getHeaders ctx
+        let reqHeaders = getHeadersMergingKeys ctx
         let reqQuery = getQuery ctx
         let event =
           LegacyHttpMiddleware.Request.fromRequest
