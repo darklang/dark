@@ -17,20 +17,15 @@ module Request =
   let fromRequest
     (uri : string)
     (headers : HttpHeaders.T)
-    (query : string)
     (body : byte array)
     : RT.Dval =
-    printfn "Headers %A" headers
     let headers =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DStr(k), RT.DStr(v), []))
       |> RT.DList
 
-    [ "body", RT.DBytes body
-      "queryParams", RT.DStr query
-      "headers", headers
-      "url", RT.DStr uri ]
+    [ "body", RT.DBytes body; "headers", headers; "url", RT.DStr uri ]
     |> RT.Dval.obj
 
 

@@ -47,6 +47,18 @@ module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
 
+// HttpBasicTODO there are still a number of things in this file that were
+// written with the original Http handler+middleware in mind, and aren't
+// appropriate more generally. Much of this should be migrated to the module in
+// HttpMiddleware.Http.fs - for example, getHeadersMergingKeys.
+// Beyond those obvious things, there are also discussions to be had around
+// more ambiguous topics - for example, what should happen when we get a
+// request that doesn't match any handler. As a side effect, we can store a 404
+// in binary format such that it can be deserialized according to a middleware
+// chosen later, but what do we return? A legacy-style response (with extra
+// headers and such) or something else? Backwards compatibility here may be
+// tricky.
+
 // ---------------
 // Read from HttpContext
 // ---------------
@@ -404,7 +416,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         let! reqBody = getBody ctx
         let reqHeaders = getHeadersWithoutMergingKeys ctx
-        let reqQuery = getQuery ctx
 
         match routeVars with
         | Some routeVars ->
@@ -414,7 +425,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           use _ = Telemetry.child "executeHandler" []
 
           let request =
-            HttpBasicMiddleware.Request.fromRequest url reqHeaders reqQuery reqBody
+            HttpBasicMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
@@ -435,7 +446,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
             let request =
-              HttpBasicMiddleware.Request.fromRequest url reqHeaders reqQuery reqBody
+              HttpBasicMiddleware.Request.fromRequest url reqHeaders reqBody
             TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route

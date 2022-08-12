@@ -32,10 +32,7 @@ let sampleHttpRequestInputVars : AT.InputVars =
 
 let sampleHttpBasicRequestInputVars : AT.InputVars =
   let sampleRequest : RT.Dval =
-    [ ("body", incomplete)
-      ("queryParams", incomplete)
-      ("headers", incomplete)
-      ("url", incomplete) ]
+    [ ("body", incomplete); ("headers", incomplete); ("url", incomplete) ]
     |> Map
     |> RT.Dval.DObj
 
