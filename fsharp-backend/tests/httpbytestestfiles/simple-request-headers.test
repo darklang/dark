@@ -1,7 +1,5 @@
 [http-bytes-handler GET /]
-(let relevantHeaders = List.filter_v1 request.headers (fun tpl -> String.startsWith_v0 (Tuple2.first tpl) "header") in
-let body = relevantHeaders |> toString |> String.toBytes_v0 in
-Http.response body 200)
+Http.response (request.headers |> toString |> String.toBytes_v0) 200
 
 [request]
 GET / HTTP/1.1
@@ -22,10 +20,16 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
 Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Content-Length: 156
+Content-Length: 352
 
 [<SPACE>
   (
+    "host", "HOST"
+  ), (
+    "date", "Sun, 08 Nov 2020 15:38:01 GMT"
+  ), (
+    "content-length", "7"
+  ), (
     "header1", "value1"
   ), (
     "header2", "Value2"
