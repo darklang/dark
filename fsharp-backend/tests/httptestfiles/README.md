@@ -113,6 +113,10 @@ In case you're not well-versed in `vim`, here are some steps to follow:
 - hit `esc` to escape edit mode
 - type `:wq` and press `enter` to escape
 
+One of the automatic changes made by text editors is the trimming of whitespace
+at the end of lines of code. To handle this, any usages of `<SPACE>` within the
+request or response are replaced with a space character (` `).
+
 # Adjusting for minor differences
 
 # Configuration

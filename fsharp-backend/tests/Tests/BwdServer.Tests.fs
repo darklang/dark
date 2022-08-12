@@ -381,6 +381,10 @@ module Execution =
       // bytes are added in reverse, so one more reverse needed
       result |> List.reverse |> List.toArray
 
+  // This is to handle code editors (vs code) that trim whitespace at the end
+  // of a line of code, which can be annoying
+  let insertSpaces = replaceByteStrings "<SPACE>" " "
+
   /// Makes the test request to one of the servers,
   /// testing the response matches expectations
   let runTestRequest
@@ -396,6 +400,7 @@ module Execution =
 
       let request =
         testRequest
+        |> insertSpaces
         |> replaceByteStrings "HOST" host
         |> replaceByteStrings "CANVAS" canvasName
         |> Http.setHeadersToCRLF
@@ -449,6 +454,7 @@ module Execution =
         |> List.initial // remove final newline which we don't want
         |> Exception.unwrapOptionInternal "cannot find newline" []
         |> List.toArray
+        |> insertSpaces
         |> replaceByteStrings "HOST" host
         |> replaceByteStrings "CANVAS" canvasName
         |> Http.setHeadersToCRLF

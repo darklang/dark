@@ -4,22 +4,26 @@
 [<RequireQualifiedAccess>]
 module HttpMiddleware.HttpMiddlewareV1
 
+open Prelude
+open LibExecution.VendoredTablecloth
+
+module RT = LibExecution.RuntimeTypes
+module Telemetry = LibService.Telemetry
+
+let lowercaseHeaderKeys (headers : HttpHeaders.T) =
+  headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
+
 module Request =
-  open Prelude
-  open LibExecution.VendoredTablecloth
-
-  module RT = LibExecution.RuntimeTypes
-
   let fromRequest
     (uri : string)
-    (headers : List<string * string>)
+    (headers : HttpHeaders.T)
     (query : string)
     (body : byte array)
     : RT.Dval =
     let headers =
       headers
-      |> List.map (fun (k, v) ->
-        RT.DTuple(RT.DStr(String.toLowercase k), RT.DStr(String.toLowercase v), []))
+      |> lowercaseHeaderKeys
+      |> List.map (fun (k, v) -> RT.DTuple(RT.DStr(k), RT.DStr(v), []))
       |> RT.DList
 
     [ "body", RT.DBytes body
@@ -30,17 +34,10 @@ module Request =
 
 
 module Response =
-  open Prelude
-
-  module RT = LibExecution.RuntimeTypes
-
   type HttpResponse =
     { statusCode : int
       body : byte array
       headers : HttpHeaders.T }
-
-  module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
-  module Telemetry = LibService.Telemetry
 
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
@@ -51,7 +48,7 @@ module Response =
 
     | RT.DHttpResponse (RT.Response (code, headers, RT.DBytes body)) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
-      { statusCode = int code; headers = headers; body = body }
+      { statusCode = int code; headers = lowercaseHeaderKeys headers; body = body }
 
     // Error responses
     | uncaughtResult ->

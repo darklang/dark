@@ -24,13 +24,13 @@ Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Length: 156
 
-[
+[<SPACE>
   (
     "header1", "value1"
   ), (
-    "header2", "value2"
+    "header2", "Value2"
   ), (
-    "header-3", "value-3"
+    "header-3", "Value-3"
   ), (
     "header-with-casing-conflict", "test1,test2"
   )

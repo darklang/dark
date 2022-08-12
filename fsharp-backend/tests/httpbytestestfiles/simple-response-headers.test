@@ -14,8 +14,8 @@ ignored
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Header-3: Value-3
-Header2: Value2
+header-3: Value-3
+header2: Value2
 x-darklang-execution-id: 0123456789
 Server: darklang
 header1: value1
