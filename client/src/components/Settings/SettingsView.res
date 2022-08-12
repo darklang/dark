@@ -13,12 +13,7 @@ type msg = AppTypes.msg
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let allTabs: list<T.Tab.t> = list{
-  T.Tab.Canvases,
-  Privacy,
-  Invite,
-  // T.Contributing
-}
+let allTabs: list<T.Tab.t> = list{T.Tab.Canvases, Privacy, Invite, Contributing}
 
 // View
 
@@ -27,7 +22,7 @@ let settingsTabToText = (tab: T.Tab.t): string =>
   | Canvases => SettingsCanvases.title
   | Invite => SettingsInvite.title
   | Privacy => SettingsPrivacy.title
-  // | Contributing(_) => SettingsContributing.title
+  | Contributing => SettingsContributing.title
   }
 
 let settingsTabToHtml = (state: T.t): list<Html.html<msg>> => {
@@ -35,7 +30,7 @@ let settingsTabToHtml = (state: T.t): list<Html.html<msg>> => {
   | Canvases => SettingsCanvasesView.view(state.canvasesSettings)
   | Invite => SettingsInviteView.view(state.inviteSettings)
   | Privacy => SettingsPrivacyView.view(state.privacySettings)
-  // | Contributing) => viewContributing(svs)
+  | Contributing => SettingsContributingView.view(state.contributingSettings)
   }
 }
 

@@ -1961,15 +1961,18 @@ let update_ = (msg: msg, m: model): modification => {
         | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
         | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
 
-        | Some(InviteEffect(None))
-        | None => (m, Cmd.none)
-
         | Some(PrivacyEffect(RecordConsent(cmd))) => (m, cmd)
+
+        | Some(ContributingEffect(Some(SettingsContributing.Reload(cmd)))) => (m, cmd)
 
         | Some(OpenSettings(tab)) =>
           (m, Cmd.none)->CCC.setPage(SettingsModal(tab))->CCC.setCursorState(Deselected)
         | Some(SetSettingsTab(tab)) => (m, Cmd.none)->CCC.setPage(SettingsModal(tab))
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
+
+        | Some(ContributingEffect(None))
+        | Some(InviteEffect(None))
+        | None => (m, Cmd.none)
         }
       },
     )
