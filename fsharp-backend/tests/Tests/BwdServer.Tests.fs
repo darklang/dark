@@ -535,6 +535,10 @@ let tests =
 
   // TODO support tests with more than one type of handler
   // (the parser is ready, but the execution is not)
+
+  // TODO merge these directories into a `tests/httphandlertestfiles`
+  // directory, with a subfolder per handler/middleware type.
+
   [ ("tests/httptestfiles", "http", Http)
     ("tests/httpbytestestfiles", "httpbytes", HttpBytes) ]
   |> List.map (fun (dir, testListName, handlerType) ->
