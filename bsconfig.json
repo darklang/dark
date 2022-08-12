@@ -24,7 +24,7 @@
   "bs-dependencies": [
     "bucklescript-tea",
     "@glennsl/bs-json",
-    "bs-webapi",
+    "rescript-webapi",
     "tablecloth-bucklescript",
     "bs-fetch",
     "bs-uuid",

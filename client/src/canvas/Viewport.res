@@ -10,7 +10,7 @@ let addPos = (a: Pos.t, b: Pos.t): Pos.t => {x: a.x + b.x, y: a.y + b.y}
 
 let subPos = (a: Pos.t, b: Pos.t): Pos.t => {x: a.x - b.x, y: a.y - b.y}
 
-let toAbsolute = (m: model, pos: AppTypes.VPos.t): Pos.t => {
+let toAbsolute = (m: model, pos: VPos.t): Pos.t => {
   let topleft = m.canvasProps.offset
   addPos({x: pos.vx, y: pos.vy}, topleft)
 }

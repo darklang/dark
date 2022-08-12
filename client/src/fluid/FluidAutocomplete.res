@@ -24,7 +24,7 @@ let focusItem = (i: int): AppTypes.cmd =>
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
       open Native.Ext
-      let container = Document.getElementById("fluid-dropdown", document)
+      let container = Document.getElementById(document, "fluid-dropdown")
       let nthChild = querySelector(
         "#fluid-dropdown ul li:nth-child(" ++ (string_of_int(i + 1) ++ ")"),
       )
