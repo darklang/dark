@@ -198,6 +198,7 @@ module Handler =
     // CLEANUP: convert these into repl and get rid of this case
     | UnknownHandler of string * string * ids
     /// Corresponds to HttpMiddlewareV1
+    /// HttpBytesTODO: rebrand to HTTPBase rather than HTTPBytes?
     | HTTPBytes of route : string * method : string * ids : ids
 
   [<MessagePack.MessagePackObject>]

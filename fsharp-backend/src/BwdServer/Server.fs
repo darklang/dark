@@ -478,6 +478,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // included in HTTP Reponses as a result of these efforts. Here, we manually
       // work around this by setting it manually.
       // CLEANUP: replace this with the more traditional approach, if possible
+      // HttpBytesHandlerTODO lowercase keys for HttpBytes handler responses
       setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
       setHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())
