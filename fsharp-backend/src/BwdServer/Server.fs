@@ -386,7 +386,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           return! unmatchedRouteResponse ctx requestPath route
 
-      | [ { spec = PT.Handler.HTTPBytes (route = route); tlid = tlid } as handler ] ->
+      | [ { spec = PT.Handler.HTTPBasic (route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         let routeVars = Routing.routeInputVars route requestPath
@@ -478,7 +478,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // included in HTTP Reponses as a result of these efforts. Here, we manually
       // work around this by setting it manually.
       // CLEANUP: replace this with the more traditional approach, if possible
-      // HttpBytesHandlerTODO lowercase keys for HttpBytes handler responses
+      // HttpBasicHandlerTODO lowercase keys for HttpBasic handler responses
       setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
       setHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())

@@ -4,7 +4,7 @@
 /// Test files are stored in the `tests/httptestfiles` directory,
 /// which includes a README.md of how these tests work.
 ///
-/// Test files are also stored in the `tests/httpbytestestfiles` directory,
+/// Test files are also stored in the `tests/httpbasictestfiles` directory,
 /// which should be phased out. CLEANUP
 module Tests.BwdServer
 
@@ -32,7 +32,7 @@ open TestUtils.TestUtils
 
 type HandlerVersion =
   | Http
-  | HttpBytes
+  | HttpBasic
 
 type TestHandler =
   { Version : HandlerVersion
@@ -132,7 +132,7 @@ module ParseTest =
           (InHttpHandler,
            { result with
                handlers =
-                 { Version = HttpBytes; Route = route; Method = method; Code = "" }
+                 { Version = HttpBasic; Route = route; Method = method; Code = "" }
                  :: result.handlers })
 
         | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
@@ -232,8 +232,8 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
               method = handler.Method,
               ids = ids
             )
-          | HttpBytes ->
-            PT.Handler.HTTPBytes(
+          | HttpBasic ->
+            PT.Handler.HTTPBasic(
               route = handler.Route,
               method = handler.Method,
               ids = ids
@@ -296,7 +296,7 @@ module Execution =
         | "x-goog-generation", _ -> Some(k, "xxxx")
         | _other -> Some(k, v))
       |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
-    | HttpBytes ->
+    | HttpBasic ->
       hs
       |> List.filterMap (fun (k, v) ->
         match k, v with
@@ -312,7 +312,7 @@ module Execution =
     : (string * string) list =
     match handlerVersion with
     | Http
-    | HttpBytes ->
+    | HttpBasic ->
       headers
       |> List.map (fun (k, v) ->
         match k, v with
@@ -540,7 +540,7 @@ let tests =
   // directory, with a subfolder per handler/middleware type.
 
   [ ("tests/httptestfiles", "http", Http)
-    ("tests/httpbytestestfiles", "httpbytes", HttpBytes) ]
+    ("tests/httpbasictestfiles", "httpbasic", HttpBasic) ]
   |> List.map (fun (dir, testListName, handlerType) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")

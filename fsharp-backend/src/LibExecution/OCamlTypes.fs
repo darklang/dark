@@ -897,7 +897,7 @@ module Convert =
         name = string2bo ids.nameID route
         modifier = string2bo ids.modifierID method
         types = types }
-    | PT.Handler.HTTPBytes (route, method, ids) ->
+    | PT.Handler.HTTPBasic (route, method, ids) ->
       { ``module`` = string2bo ids.moduleID "HTTP_BYTES"
         name = string2bo ids.nameID route
         modifier = string2bo ids.modifierID method

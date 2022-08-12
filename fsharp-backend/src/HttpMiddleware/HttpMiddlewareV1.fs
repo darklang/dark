@@ -1,6 +1,6 @@
 /// Thin, bytes-friendly middleware
 ///
-/// This Middleware corresponds with `HTTPBytes` handlers
+/// This Middleware corresponds with `HTTPBasic` handlers
 [<RequireQualifiedAccess>]
 module HttpMiddleware.HttpMiddlewareV1
 

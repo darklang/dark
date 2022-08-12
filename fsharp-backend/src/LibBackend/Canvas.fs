@@ -526,7 +526,7 @@ let saveTLIDs
           | PT.Toplevel.TLHandler ({ spec = spec }) ->
             match spec with
             | PT.Handler.HTTP _
-            | PT.Handler.HTTPBytes _ ->
+            | PT.Handler.HTTPBasic _ ->
               Some(
                 PTParser.Handler.Spec.toModule spec,
                 Routing.routeToPostgresPattern (PTParser.Handler.Spec.toName spec),

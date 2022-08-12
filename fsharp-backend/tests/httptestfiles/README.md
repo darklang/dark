@@ -23,7 +23,7 @@ Multiple handlers are allowed.
 `http-bytes-handler` is also available, to test a new (thinner) HTTP handler
 and middleware. It behaves the same way has `http-handler`, apart from setting
 up the new type of HTTP handler. Tests around this functionality are in the
-adjacent directory of `httpbytestestfiles`.
+adjacent directory of `httpbasictestfiles`.
 
 # Requests
 
@@ -126,7 +126,7 @@ request or response are replaced with a space character (` `).
 
 Additionally, any usages of `<IMPORT_DATA_FROM_FILE=name>` will result in the
 test runner replacing this string with the contents of the referenced binary
-file - a file with the corresponding name should exist in `httpbytestestfiles/data`.
+file - a file with the corresponding name should exist in `httpbasictestfiles/data`.
 
 # Adjusting for minor differences
 

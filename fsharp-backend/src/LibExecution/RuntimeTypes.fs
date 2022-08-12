@@ -675,7 +675,7 @@ module Handler =
     | HTTP of path : string * method : string
 
     /// Corresponds with HttpMiddlewareV1
-    | HTTPBytes of path : string * method : string
+    | HTTPBasic of path : string * method : string
 
     | Worker of name : string
 

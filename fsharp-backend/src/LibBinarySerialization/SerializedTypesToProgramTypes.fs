@@ -180,8 +180,8 @@ module Handler =
       match s with
       | ST.Handler.HTTP (route, method, ids) ->
         PT.Handler.HTTP(route, method, IDs.toPT ids)
-      | ST.Handler.HTTPBytes (route, method, ids) ->
-        PT.Handler.HTTPBytes(route, method, IDs.toPT ids)
+      | ST.Handler.HTTPBasic (route, method, ids) ->
+        PT.Handler.HTTPBasic(route, method, IDs.toPT ids)
       | ST.Handler.Worker (name, ids) -> PT.Handler.Worker(name, IDs.toPT ids)
       | ST.Handler.OldWorker (modulename, name, ids) ->
         PT.Handler.OldWorker(modulename, name, IDs.toPT ids)

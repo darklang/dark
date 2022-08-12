@@ -512,10 +512,10 @@ let submitACItem = (
       | (PEventSpace(_), ACEventSpace(newSpace), TLHandler(h)) =>
         module Spec = PT.Handler.Spec
         let newSpace = String.toUppercase(newSpace)
-        // HttpBytesHandlerTODO: We'll likely need to adjust here; not sure how
+        // HttpBasicHandlerTODO: We'll likely need to adjust here; not sure how
         let newSpec = if newSpace == "HTTP" {
           switch h.spec {
-          | HTTP(_) | HTTPBytes(_) => h.spec
+          | HTTP(_) | HTTPBasic(_) => h.spec
           | Worker(_)
           | OldWorker(_)
           | Cron(_)
@@ -534,7 +534,7 @@ let submitACItem = (
         } else {
           let name = switch h.spec {
           | HTTP(_)
-          | HTTPBytes(_) => {
+          | HTTPBasic(_) => {
               let name = Spec.name(h.spec)->B.toString
               // convert /projects => projects
               let name = if String.startsWith(~prefix="/", name) {

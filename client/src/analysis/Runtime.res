@@ -202,7 +202,7 @@ let inputVariables = (tl: toplevel): list<string> =>
   | TLHandler(h) =>
     switch h.spec {
     | HTTP(name, _, _)
-    | HTTPBytes(name, _, _) =>
+    | HTTPBasic(name, _, _) =>
       let fromRoute = name |> route_variables
       list{"request", ...fromRoute}
     | Cron(_)
