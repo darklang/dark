@@ -16,7 +16,7 @@ let spaceOf = (hs: Spec.t): handlerSpace => {
   switch hs {
   | HTTP(_) => HSHTTP
   | HTTPBytes(_) =>
-    // HttpBytesHandlerTODO do we ened a separate handlerspace?
+    // HttpBytesHandlerTODO do we need a separate handlerspace?
     HSHTTP
   | Cron(_) => HSCron
   | REPL(_) => HSRepl
