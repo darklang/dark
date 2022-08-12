@@ -583,7 +583,7 @@ module Handler = {
     let space = (spec: t): BlankOr.t<string> => {
       switch spec {
       | HTTP(_, _, ids) => F(ids.moduleID, "HTTP")
-      | HTTPBasic(_, _, ids) => F(ids.moduleID, "HTTP_BYTES")
+      | HTTPBasic(_, _, ids) => F(ids.moduleID, "HTTP_BASIC")
       | Worker(_, ids) => F(ids.moduleID, "WORKER")
       | OldWorker(space, _, ids) => F(ids.moduleID, space)
       | Cron(_, _, ids) => F(ids.moduleID, "CRON")
