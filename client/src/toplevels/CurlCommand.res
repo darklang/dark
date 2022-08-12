@@ -222,7 +222,7 @@ let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: PT.
 let makeCommand = (m: AppTypes.model, tlid: TLID.t): option<string> =>
   curlFromCurrentTrace(m, tlid) |> Option.orElse(curlFromSpec(m, tlid))
 
-let copyCurlMod = (m: AppTypes.model, tlid: TLID.t, pos: AppTypes.VPos.t): AppTypes.modification =>
+let copyCurlMod = (m: AppTypes.model, tlid: TLID.t, pos: VPos.t): AppTypes.modification =>
   switch makeCommand(m, tlid) {
   | Some(data) =>
     Native.Clipboard.copyToClipboard(data)
