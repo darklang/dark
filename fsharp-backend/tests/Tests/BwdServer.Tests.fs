@@ -25,7 +25,7 @@ module PT = LibExecution.ProgramTypes
 module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
 
-module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
+module LegacyHttpMiddleware = HttpMiddleware.Http
 
 open Tests
 open TestUtils.TestUtils
@@ -253,10 +253,10 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
     match test.cors with
     | None -> ()
     | Some "" -> ()
-    | Some "*" -> HttpMiddlewareV0.Cors.Test.addAllOrigins meta.name
+    | Some "*" -> LegacyHttpMiddleware.Cors.Test.addAllOrigins meta.name
     | Some domains ->
       let domains = String.split "," domains
-      HttpMiddlewareV0.Cors.Test.addOrigins meta.name domains
+      LegacyHttpMiddleware.Cors.Test.addOrigins meta.name domains
 
     // Custom domains
     match test.customDomain with
@@ -554,7 +554,7 @@ open Microsoft.Extensions.Hosting
 
 let init (token : System.Threading.CancellationToken) : Task =
   // Make sure cors tests work
-  HttpMiddlewareV0.Cors.Test.initialize ()
+  LegacyHttpMiddleware.Cors.Test.initialize ()
 
   // run our own webserver instead of relying on the dev webserver
   let port = TestConfig.bwdServerBackendPort

@@ -37,8 +37,8 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
-module HttpMiddlewareV1 = HttpMiddleware.HttpMiddlewareV1
+module LegacyHttpMiddleware = HttpMiddleware.Http
+module HttpBasicMiddleware = HttpMiddleware.HttpBasic
 
 module RealExe = LibRealExecution.RealExecution
 
@@ -348,7 +348,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           use _ = Telemetry.child "executeHandler" []
 
           let request =
-            HttpMiddlewareV0.Request.fromRequest
+            LegacyHttpMiddleware.Request.fromRequest
               false
               url
               reqHeaders
@@ -364,9 +364,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (RealExe.InitialExecution(desc, request))
 
-          let result = HttpMiddlewareV0.Response.toHttpResponse result
+          let result = LegacyHttpMiddleware.Response.toHttpResponse result
           let result =
-            HttpMiddlewareV0.Cors.addCorsHeaders reqHeaders meta.name result
+            LegacyHttpMiddleware.Cors.addCorsHeaders reqHeaders meta.name result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
@@ -376,7 +376,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
             let request =
-              HttpMiddlewareV0.Request.fromRequest
+              LegacyHttpMiddleware.Request.fromRequest
                 false
                 url
                 reqHeaders
@@ -403,7 +403,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           use _ = Telemetry.child "executeHandler" []
 
           let request =
-            HttpMiddlewareV1.Request.fromRequest url reqHeaders reqQuery reqBody
+            HttpBasicMiddleware.Request.fromRequest url reqHeaders reqQuery reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
@@ -414,7 +414,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (RealExe.InitialExecution(desc, request))
 
-          let result = HttpMiddlewareV1.Response.toHttpResponse result
+          let result = HttpBasicMiddleware.Response.toHttpResponse result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
@@ -424,7 +424,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
             let request =
-              HttpMiddlewareV1.Request.fromRequest url reqHeaders reqQuery reqBody
+              HttpBasicMiddleware.Request.fromRequest url reqHeaders reqQuery reqBody
             TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
@@ -435,7 +435,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | [] when ctx.Request.Method = "OPTIONS" ->
         let reqHeaders = getHeaders ctx
 
-        match HttpMiddlewareV0.Cors.optionsResponse reqHeaders meta.name with
+        match LegacyHttpMiddleware.Cors.optionsResponse reqHeaders meta.name with
         | Some response ->
           Telemetry.addTag "http.completion_reason" "options response"
           do!
@@ -453,7 +453,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
         let event =
-          HttpMiddlewareV0.Request.fromRequest true url reqHeaders reqQuery reqBody
+          LegacyHttpMiddleware.Request.fromRequest
+            true
+            url
+            reqHeaders
+            reqQuery
+            reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
         // CLEANUP: move pusher into storeEvent

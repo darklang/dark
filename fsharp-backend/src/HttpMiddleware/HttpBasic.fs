@@ -2,7 +2,7 @@
 ///
 /// This Middleware corresponds with `HTTPBasic` handlers
 [<RequireQualifiedAccess>]
-module HttpMiddleware.HttpMiddlewareV1
+module HttpMiddleware.HttpBasic
 
 open Prelude
 open LibExecution.VendoredTablecloth

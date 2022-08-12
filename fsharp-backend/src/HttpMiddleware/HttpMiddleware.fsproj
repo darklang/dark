@@ -14,11 +14,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <!-- HttpMiddleware.Http.V0 -->
-    <Compile Include="HttpMiddlewareV0.fs" />
-
-    <!-- HttpMiddleware.HttpBasic.V0 -->
-    <Compile Include="HttpMiddlewareV1.fs" />
+    <Compile Include="Http.fs" />
+    <Compile Include="HttpBasic.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
