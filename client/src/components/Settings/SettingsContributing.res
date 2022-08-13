@@ -42,7 +42,7 @@ let update = (s: t, msg: msg): (t, option<effect<'cmd>>) =>
       } else {
         search ++ "&"
       }
-      let newSearch = `${search}use-tunnelled-assets}`
+      let newSearch = `${search}use-assets-tunnel`
 
       L.setSearch(location, newSearch)
     }
