@@ -116,7 +116,7 @@ let addRoutes
   addRoute "GET" "/a/{canvasName}/trigger-exception" std R exceptionFn
 
   clientJsonApi "v1/add_op" RW AddOps.V1.addOp
-  clientJsonApi "register_tunnel" RW Tunnels.Set.set
+  clientJsonApi "register_tunnel" RW Tunnels.Register.register
   clientJsonApi "all_traces" R Traces.AllTraces.fetchAll
   clientJsonApi "delete_404" RW F404s.Delete.delete
   clientJsonApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
@@ -280,6 +280,8 @@ let initSerializers () =
   Json.Vanilla.allow<Traces.TraceDataV0.T> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.TraceDataV1.Params> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.TraceDataV1.T> "ApiServer.Traces"
+  Json.Vanilla.allow<Tunnels.Register.Params> "ApiServer.Tunnels"
+  Json.Vanilla.allow<Tunnels.Register.T> "ApiServer.Tunnels"
   Json.Vanilla.allow<Workers.Scheduler.Params> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.Scheduler.T> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
