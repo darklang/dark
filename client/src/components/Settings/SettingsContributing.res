@@ -21,11 +21,21 @@ let update = (s: t, msg: msg): (t, option<effect<'cmd>>) =>
   | UpdateTunnelForm(value) => ({tunnelUrl: {value: value, error: None}}, None)
 
   | SubmitTunnelForm =>
-    module L = Webapi.Dom.Location
-    // let location = Tea.Navigation.getLocation()
-    let location = Webapi.Dom.location
-    let search = location->L.search
-    let newSearch = `${search}&x=y`
+    let setLocationFn = _ => {
+      module L = Webapi.Dom.Location
+      let location = Webapi.Dom.location // This is the window.dom.location object
 
-    (s, Some(Reload(Tea.Cmd.call(_ => L.setSearch(location, newSearch)))))
+      let search = location->L.search
+      let search = if search == "" {
+        ""
+      } else {
+        search ++ "&"
+      }
+      let tunnelUrl = Js.Global.encodeURIComponent(s.tunnelUrl.value)
+      let newSearch = `${search}localhost-assets=${tunnelUrl}`
+
+      L.setSearch(location, newSearch)
+    }
+    // Work out the URL late in case anything has changed since creating it
+    (s, Some(Reload(Tea.Cmd.call(setLocationFn))))
   }
