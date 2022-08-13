@@ -368,7 +368,7 @@ let setTunnelHostFor (userID : UserID) (tunnelHost : Option<string>) : Task<unit
     |> Sql.parameters [ "userID", Sql.uuid userID ]
     |> Sql.executeStatementAsync
 
-  | Some (tunnelHost) ->
+  | Some tunnelHost ->
     Sql.query
       "INSERT INTO registered_tunnelhosts
          (user_id, tunnel_host)
