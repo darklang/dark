@@ -375,11 +375,11 @@ let setTunnelHostFor (userID : UserID) (tunnelHost : Option<string>) : Task<unit
        VALUES (@userID, @tunnelHost)
          ON CONFLICT (user_id)
          DO UPDATE SET tunnel_host = @tunnelHost"
-    |> Sql.parameters [ "user_id", Sql.uuid userID
-                        "tunnel_host", Sql.string tunnelHost ]
+    |> Sql.parameters [ "userId", Sql.uuid userID
+                        "tunnelHost", Sql.string tunnelHost ]
     |> Sql.executeStatementAsync
 
-let validateTunnelHost (host : string) : bool = matches host "[\\.0-9a-z]*"
+let validateTunnelHost (host : string) : bool = matches "[-\\.0-9a-z]*" host
 
 // **********************
 // Local/test developement
