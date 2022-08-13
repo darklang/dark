@@ -1,27 +1,38 @@
 // open Tc
+open BaseTypes
 
 module Utils = SettingsUtils
 
 let title = "Contributing"
 @ppx.deriving(show)
-type rec t = {tunnelUrl: Utils.formField}
+type rec t = {tunnelHost: Utils.formField}
 
-let default = {tunnelUrl: Utils.defaultFormField}
+let default = {tunnelHost: Utils.defaultFormField}
 
 @ppx.deriving(show)
 type rec msg =
-  | UpdateTunnelForm(string)
-  | SubmitTunnelForm
+  | UpdateTunnelHostInput(string)
+  | SubmitTunnelHostForm
+  | RegisterTunnelHostAPICallback(Tea_result.t<APITunnelHost.t, Prelude.Tea.Http.error<string>>)
 
 @ppx.deriving(show)
-type rec effect<'cmd> = Reload('cmd)
+type rec effect<'cmd> = Reload('cmd) | RegisterTunnelHostAPICall(option<string>)
 
 let update = (s: t, msg: msg): (t, option<effect<'cmd>>) =>
   switch msg {
-  | UpdateTunnelForm(value) => ({tunnelUrl: {value: value, error: None}}, None)
+  | UpdateTunnelHostInput(value) => ({tunnelHost: {value: value, error: None}}, None)
 
-  | SubmitTunnelForm =>
-    let setLocationFn = _ => {
+  | SubmitTunnelHostForm =>
+    let param = if s.tunnelHost.value == "" {
+      None
+    } else {
+      Some(s.tunnelHost.value)
+    }
+    (s, Some(RegisterTunnelHostAPICall(param)))
+
+  | RegisterTunnelHostAPICallback(result) =>
+    let setLocation = _ => {
+      // Instantly reload with the new url
       module L = Webapi.Dom.Location
       let location = Webapi.Dom.location // This is the window.dom.location object
 
@@ -31,11 +42,17 @@ let update = (s: t, msg: msg): (t, option<effect<'cmd>>) =>
       } else {
         search ++ "&"
       }
-      let tunnelUrl = Js.Global.encodeURIComponent(s.tunnelUrl.value)
-      let newSearch = `${search}localhost-assets=${tunnelUrl}`
+      let newSearch = `${search}use-tunnelled-assets}`
 
       L.setSearch(location, newSearch)
     }
-    // Work out the URL late in case anything has changed since creating it
-    (s, Some(Reload(Tea.Cmd.call(setLocationFn))))
+
+    switch result {
+    | Tea.Result.Ok(true) => (s, Some(Reload(Tea.Cmd.call(setLocation))))
+    | Tea.Result.Ok(false) => ({tunnelHost: {...s.tunnelHost, error: Some("Invalid url")}}, None)
+    | Tea.Result.Error(e) => (
+        {tunnelHost: {...s.tunnelHost, error: Some(Tea.Http.string_of_error(e))}},
+        None,
+      )
+    }
   }

@@ -107,6 +107,18 @@ let executeFunction = (m: model, params: APIExecution.Function.Params.t): cmd =>
     ~callback=x => ExecuteFunctionAPICallback(params, x),
   )
 
+let registerTunnelHost = (m: model, params: APITunnelHost.Params.t): cmd =>
+  apiCall(
+    m,
+    "/register_tunnel",
+    ~decoder=APITunnelHost.decode,
+    ~encoder=APITunnelHost.Params.encode,
+    ~params,
+    ~callback=success => SettingsMsg(
+      Settings.ContributingMsg(SettingsContributing.RegisterTunnelHostAPICallback(success)),
+    ),
+  )
+
 let uploadFn = (m: model, params: APIPackages.UploadFn.Params.t): cmd =>
   apiCall(
     m,

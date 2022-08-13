@@ -27,7 +27,7 @@ let view = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
         Html.h3(
           list{
             ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
-              Settings.ContributingMsg(T.SubmitTunnelForm),
+              Settings.ContributingMsg(T.SubmitTunnelHostForm),
             )),
           },
           list{Html.text("Reload with tunnel")},
@@ -48,7 +48,7 @@ let view = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
               Html.div(
                 list{
                   Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                    Settings.ContributingMsg(T.UpdateTunnelForm(str)),
+                    Settings.ContributingMsg(T.UpdateTunnelHostInput(str)),
                   )),
                 },
                 list{

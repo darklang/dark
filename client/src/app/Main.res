@@ -1964,6 +1964,9 @@ let update_ = (msg: msg, m: model): modification => {
         | Some(PrivacyEffect(RecordConsent(cmd))) => (m, cmd)
 
         | Some(ContributingEffect(Some(SettingsContributing.Reload(cmd)))) => (m, cmd)
+        | Some(ContributingEffect(Some(SettingsContributing.RegisterTunnelHostAPICall(
+            tunnelHost,
+          )))) => (m, API.registerTunnelHost(m, {tunnelHost: tunnelHost}))
 
         | Some(OpenSettings(tab)) =>
           (m, Cmd.none)->CCC.setPage(SettingsModal(tab))->CCC.setCursorState(Deselected)
