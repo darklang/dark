@@ -86,9 +86,9 @@ let fromOptionID = (o: option<'a>, id: ID.t): t<'a> =>
   }
 
 /// We're trying to remove blankOrs, and instead use strings. However, for
-/// compatibility we need to switch between them somethings. This creates a blankOr
-/// from a string,id pair, taking into account if the string is empty when choosing
-/// whether to make it Blank or Filled.
+/// compatibility we need to switch between them sometimes. This creates a
+/// blankOr from a (string*id) pair, taking into account if the string is empty
+/// when choosing whether to make it Blank or Filled.
 let fromStringID = (s: string, id: ID.t): t<string> =>
   if s == "" {
     Blank(id)

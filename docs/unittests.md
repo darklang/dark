@@ -31,14 +31,13 @@ in `fsharp-backend/tests/FuzzTests`. Run them with `scripts/run-fsharp-fuzzer`.
 To run tests, run `scripts/run-client-tests` or `npm run test` (slower).
 Run `scripts/run-client-tests --help` for options.
 
-Tests are _not_ automatically discovered; they must be added to
-`run` in the file in question to run automatically, and new files
-need to be added to unittest.ml.
+Tests are _not_ automatically discovered; they must be added to `run` in the
+file in question to run automatically, and new files need to be added to
+`unittest.ml`.
 
-Our test harness is a tiny homegrown test suite, in
-client/test/tester.ml. We initially used jest; Unfortunately,
-it had such poor performance that a rewrite was faster than
-figuring out why it was bad.
+Our test harness is a tiny homegrown test suite, in `client/test/tester.ml`.
+We initially used jest; unfortunately, it had such poor performance that a
+rewrite was faster than figuring out why it was bad.
 
 ## Integration tests
 

@@ -1,4 +1,5 @@
-// We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue.
+// We never want to crash the app. Instead, send a rollbar notification of the
+// invalid state and try to continue.
 let recover = (
   ~sendToRollbar: bool=true,
   ~debug: option<'d>=?,
@@ -36,8 +37,8 @@ let recoverOption = (
   | None => recover(~sendToRollbar, ~debug, "Got None but expected something: " ++ msg, None)
   }
 
-/* Assert `cond`, returning val either way.  All assertion functions report
- * to rollbar if they fail. */
+/* Assert `cond`, returning val either way. All assertion functions report to
+ * rollbar if they fail. */
 let assert_ = (
   ~sendToRollbar: bool=true,
   ~debug: option<'d>=?,
@@ -51,8 +52,8 @@ let assert_ = (
     recover("Assertion failure: " ++ msg, ~sendToRollbar, ~debug, returnVal)
   }
 
-/* Assert `cond` as a statement.  All assertion functions report to rollbar
- * if they fail. */
+/* Assert `cond` as a statement. All assertion functions report to rollbar if
+ * they fail. */
 let asserT = (~sendToRollbar: bool=true, ~debug: option<'d>=?, msg: 'msg, cond: bool): unit =>
   assert_(~sendToRollbar, ~debug, msg, cond, ())
 

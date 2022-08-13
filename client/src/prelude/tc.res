@@ -1,5 +1,7 @@
-/* This file is a local variant of Tablecloth. It allows us to add, modify,
- * etc, tablecloth function and type definitions, to be upstreamed later. */
+// This file is a local variant of [Tablecloth](https://github.com/darklang/tablecloth).
+// It allows us to add, modify, etc, tablecloth function and type definitions,
+// to be upstreamed later.
+
 module Caml = {
   module String = String
   module List = List
@@ -23,6 +25,9 @@ include (
     and module Set := Tablecloth.Set
     and module Map := Tablecloth.Map
 )
+
+// I'm not a big fan of these quote-style functions
+// WHAT can we get rid of them? There really aren't many use cases.
 
 let \"<|" = (a, b) => a(b)
 
@@ -75,9 +80,9 @@ module Option = {
 
   let isSomeEqualTo = (~value: 'a, o: option<'a>): bool => Some(value) == o
 
-  /* If a is some, then apply fn to a, return both a and the result.
-    if either a or b is none, then return none
- */
+  // WHAT change comment style
+  // If `a` is some, then apply fn to a, return both a and the result.
+  // if either a or b is none, then return none
   let thenAlso = (a: option<'a>, ~f: 'a => option<'b>): option<('a, 'b)> => {
     let b = andThen(~f, a)
     pair(a, b)
@@ -157,10 +162,13 @@ module List = {
     loop(t)
   }
 
+  // WHAT I find this name a bit ambiguous - isMember would be better imo
   let member = (~value: 'v, l: list<'v>): bool => Tablecloth.List.includes(~equal=\"=", l, value)
 
+  // WHAT no usages - delete? If not, can we please rename to foldRight?
   let foldr = (~init, ~f, list) => Tablecloth.List.fold_right(~initial=init, ~f, list)
 
+  // WHAT no usages - delete?
   let findWithIndex = (~f: (int, 'a) => bool, l: list<'a>): option<int> => {
     let rec findIndexHelper = (~i: int, ~predicate: (int, 'a) => bool, l: list<'a>): option<int> =>
       switch l {
@@ -191,12 +199,13 @@ module List = {
     drop(~count=index + 1, l),
   )
 
-  /* Moves item in oldPos into the position at newPos, pushing the element already at newPos down. Ex:
-    l = [a b c d]
-    moveInto 3 1 l, takes d and moves it between a & b. => [a d b c]
-    NOTE: This is not swapping the elements in newPos & oldPos
- */
-
+  // WHAT change comment style
+  // Moves item in oldPos into the position at newPos, pushing the element already at newPos down.
+  // Ex:
+  //   l = [a, b, c, d]
+  //   moveInto 3 1 l
+  // takes d and moves it between a & b. => [a, d, b, c]
+  // NOTE: This is not swapping the elements in newPos & oldPos
   let moveInto = (~oldPos: int, ~newPos: int, l: list<'a>): list<'a> =>
     switch getAt(~index=oldPos, l) {
     | Some(value) =>
@@ -217,6 +226,7 @@ module List = {
     | None => l
     }
 
+  // WHAT change comment style
   /* Partition into two lists, of potentially different type, using function
    * `f`.  Returns value in the first list for `Left` and second list for
    * `Right`. */
@@ -231,6 +241,10 @@ module List = {
       items,
     )
 
+  // Returns the index of an element within the given list, if any
+  //
+  // Note: findIndex also returns the value - this is for when we just want the
+  // index
   let elemIndex = (~value: 'a, l: list<'a>): option<int> =>
     l |> Tablecloth.List.findIndex(~f=(_i, v) => v == value) |> Option.map(~f=Tuple2.first)
 }
@@ -241,8 +255,8 @@ module Result = {
   let combine = (l: list<t<'ok, 'err>>): t<list<'ok>, 'err> =>
     List.foldRight(~f=map2(~f=(accum, r) => list{r, ...accum}), ~initial=Ok(list{}), l)
 
-  @warning("-3")
-  let pp = (
+  @warning("-3") // WHAT is this @warning("-3")?
+  let pp = ( // WHAT is this `pp`
     okf: (Format.formatter, 'ok) => unit,
     errf: (Format.formatter, 'error) => unit,
     fmt: Format.formatter,
@@ -278,6 +292,8 @@ module String = {
 
   let left = (~count: int, s: string): string => slice(~from=0, ~to_=count, s)
 
+  // breaks a string into segments of ~size characters, at most
+  // WHAT change comment style
   let rec segment = (~size: int, s: string): list<string> => {
     let (front, back) = splitAt(~index=size, s)
     if back == "" {
@@ -290,12 +306,13 @@ module String = {
   let replaceChunk = (~from: int, ~to_: int, ~replacement: string, s): string =>
     slice(~from=0, ~to_=from, s) ++ (replacement ++ slice(~from=to_, ~to_=length(s), s))
 
-  // returns the index of the last occurrence of character c in string s before position i+1 or None if c does not occur in s before position i+1.
+  // returns the index of the last occurrence of character c in string s before
+  // position i+1 or None if c does not occur in s before position i+1.
   let rindex_from_opt = (~pos: int, s: string, c: char): option<int> =>
     String.rindex_from_opt(s, pos, c)
 
-  /* returns the index of the first occurrence of character c in string s after position i or None if c does not occur in s after position i.
-   */
+  // returns the index of the first occurrence of character c in string s after
+  // position i or None if c does not occur in s after position i.
   let index_from_opt = (~pos: int, s: string, c: char): option<int> =>
     String.index_from_opt(s, pos, c)
 

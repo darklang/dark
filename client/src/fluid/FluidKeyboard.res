@@ -16,6 +16,7 @@ let getBrowserPlatform = (): browserPlatform =>
  * characters. All keyboard keys are represented, but may be split into
  * multiple characters (eg 5 and percent are the same button, but it's
  * worthwhile knowing which is which).
+ * WHAT type/code is this comment referring to?
  */
 
 @ppx.deriving(show)

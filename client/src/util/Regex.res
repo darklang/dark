@@ -1,6 +1,4 @@
-type t = Js.Re.t
-
-type result = Js.Re.result
+// RegEx utility functions
 
 let regex = (~flags="g", s): Js.Re.t => Js.Re.fromStringWithFlags(~flags, s)
 

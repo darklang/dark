@@ -2,9 +2,13 @@
 
 open BaseTypes
 
-@ppx.deriving(show({with_path: false})) type rec id = ID.t
-@ppx.deriving(show({with_path: false})) type rec tlid = TLID.t
+@ppx.deriving(show({with_path: false}))
+type rec id = ID.t
 
+@ppx.deriving(show({with_path: false}))
+type rec tlid = TLID.t
+
+@ocaml.doc("Fully-qualified function name")
 module FQFnName = {
   module StdlibFnName = {
     @ppx.deriving(show({with_path: false}))
@@ -122,6 +126,7 @@ module FQFnName = {
   }
 }
 
+// WHAT consider renaming to MatchPattern, as opposed to an upcoming LetPattern/DeconstructPattern
 module Pattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
@@ -398,8 +403,8 @@ module Dval = {
     | DChar(string)
     | DList(list<t>)
     | DTuple(t, t, list<t>)
-    // We use Belt.Map.String as Map.String.t has a comparator that doesn't work
-    // with the cloning algorithm of web workers
+    // We use Belt.Map.String as Map.String.t has a comparator that doesn't
+    // work with the cloning algorithm of web workers
     | DObj(Belt.Map.String.t<t>)
     | DFnVal(fnValImpl)
     | DError((DvalSource.t, string))
@@ -414,10 +419,12 @@ module Dval = {
     | DResult(Belt.Result.t<t, t>)
     | DBytes(bytes)
 
-  /// Gets the Dark runtime type from a runtime value
+  @ocaml.doc("Gets the Dark runtime type from a runtime value")
   let rec toType = (dv: t): DType.t => {
-    // CLEANUP this function is derived from the backend version, but avoid blowing
-    // everything up I've kept it on the current types.
+    // CLEANUP this function is derived from the backend version, but to avoid
+    // blowing everything up I've kept it on the current types.
+    // WHAT could you please clarify?
+    // WHAT also, why are so many branches below commented? I assume that's relevant to ^ clarification.
     let any = DType.any
 
     switch dv {

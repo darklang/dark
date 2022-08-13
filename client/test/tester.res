@@ -8,7 +8,7 @@ module Private = {
     | Skipped
 
   type t = {
-    categories: list<string>,
+    categories: list<string>, // WHAT
     name: string,
     success: success,
     actual: option<string>,
@@ -42,7 +42,9 @@ let verbose: ref<bool> = ref(false)
 
 let categoryIndent = () => String.repeat(~count=List.length(Private.categories.contents), " ")
 
-let reset = j`\\x1b[0m`
+let reset = j`\\x1b[0m` // WHAT is this
+
+// WHAT maybe move to tiny `colours` object? maybe a DU?
 
 let grey = j`\\x1b[37m`
 
@@ -80,9 +82,11 @@ let print_test_end = (name, t: Private.t): unit => {
   } else if t.success == Failed {
     let actual = Option.unwrap(~default="None", t.actual)
     let expected = Option.unwrap(~default="None", t.expected)
+
     Js.log(testIndent() ++ j`❌ ` ++ name)
     Js.log(testIndent() ++ `Expected: ${expected}`)
     Js.log(testIndent() ++ `  Actual: ${actual}`)
+
     let cont = ref(true)
     let count = min(String.length(actual), String.length(expected))
     for i in 0 to count {

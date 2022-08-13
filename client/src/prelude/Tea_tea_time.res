@@ -1,9 +1,12 @@
 include Tea.Time
 
-/* TODO(alice): push to fork + upstream
-  Setting the key by associating it with interval,
-  will lead to rewrites of setInterval functions,
-  if two or more share the same interval.
+/* TODO: push to fork + upstream
+  WHAT we can probably remove the above comment?
+  
+  WHAT is this?
+
+  Note: Setting the key by associating it with interval, will lead to rewrites
+  of setInterval functions, if two or more share the same interval.
 */
 let every = (~key, interval, tagger) => {
   open Vdom

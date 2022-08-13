@@ -3,6 +3,7 @@
 module Utils = SettingsUtils
 
 let title = "Contributing"
+
 @ppx.deriving(show)
 type rec t = {tunnelUrl: Utils.formField}
 

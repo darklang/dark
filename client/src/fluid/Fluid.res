@@ -1,12 +1,15 @@
-/* Specs:
- * Pressing enter
- * https://trello.com/c/nyf3SyA4/1513-handle-pressing-enter-at-the-end-of-a-line
- * https://trello.com/c/27jn8uzF/1507-handle-pressing-enter-at-the-start-of-a-line
- * renaming functions:
- * https://trello.com/c/49TTRcad/973-renaming-functions
- * movement shortcuts:
- * https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
- */
+// Specs:
+// - Pressing enter
+//   - https://trello.com/c/nyf3SyA4/1513-handle-pressing-enter-at-the-end-of-a-line
+//   - https://trello.com/c/27jn8uzF/1507-handle-pressing-enter-at-the-start-of-a-line
+// - renaming functions:
+//   - https://trello.com/c/49TTRcad/973-renaming-functions
+// - movement shortcuts:
+//   - https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
+//
+// WHAT all of these links are inaccessible.
+
+// WHAT this file is just way too big.
 
 open Prelude
 module K = FluidKeyboard
@@ -5910,7 +5913,9 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
     FluidCommands.updateCmds(m, ke)
   | FluidClearErrorDvSrc => FluidSetState({...m.fluidState, errorDvSrc: SourceNone})
   | FluidFocusOnToken(tlid, id) =>
-    // Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch
+    // Spec for Show token of expression:
+    // WHAT inaccessible link
+    // https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch
     tlid
     |> TL.get(m)
     |> Option.thenAlso(~f=TL.getAST)

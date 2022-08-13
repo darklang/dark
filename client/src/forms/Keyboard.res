@@ -323,7 +323,7 @@ let keyEvent = j => {
   }
 }
 
-let registerGlobal = (name, key, tagger) => {
+let _registerGlobal = (name, key, tagger) => {
   let enableCall = callbacks_base => {
     let callbacks = ref(callbacks_base)
     let fn = ev =>
@@ -340,4 +340,5 @@ let registerGlobal = (name, key, tagger) => {
   Tea_sub.registration(key, enableCall)
 }
 
-let downs = (~key="", tagger) => registerGlobal("keydown", key, tagger)
+// WHAT better name?
+let downs = (~key="", tagger) => _registerGlobal("keydown", key, tagger)

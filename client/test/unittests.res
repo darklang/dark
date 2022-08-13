@@ -1,5 +1,7 @@
-// See docs/unittests.md for documentation on how to use this.
+// See `docs/unittests.md` for documentation on how to use this.
 
+// WHAT why are dom/TestPage tests special in any way?
+// (and why do we need to pass in a --dom flag for them to be evaluated/run?)
 let domTests = ref(false)
 
 let process_cmdline_args = () => {
@@ -11,7 +13,13 @@ let process_cmdline_args = () => {
     | (None, "--verbose") => Tester.verbose := true
     | (None, "--help") =>
       Js.log(
-        "Run Dark's client-side unit tests. Supported arguments:\n  --dom: run the DOM tests (slow)\n  --verbose: print test names\n  --help: Print this message\n  --pattern 'some-regex': Run any test that contains this regex",
+        // WHAT I need to verify that this still prints well now that I've added newlines here.
+        "Run Dark's client-side unit tests.
+        Supported arguments:\n
+          --dom: run the DOM tests (slow)\n
+          --verbose: print test names\n
+          --help: Print this message\n
+          --pattern 'some-regex': Run any test that contains this regex",
       )
       exit(0)
     | (Some("--pattern"), str) =>

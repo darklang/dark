@@ -1,5 +1,7 @@
 // open Tc
 
+// WHAT write description
+
 let title = "Canvases"
 
 @ppx.deriving(show)
@@ -15,6 +17,7 @@ type rec msg = unit
 
 let default = {canvasList: list{}, username: "", orgs: list{}, orgCanvasList: list{}}
 
+// WHAT 'create' (or simply defining the object at the usage sit) seems more idiomatic
 let setInfo = (
   _state: t,
   canvasList: list<string>,
@@ -28,4 +31,6 @@ let setInfo = (
   orgCanvasList: orgCanvasList,
 }
 
-let update = (state: t, ()) => state
+// WHAT if it's not appropriate to include _msg here, what is appropriate?
+// the only usage passes in a `msg`, seemingly to fit in with other 'update' fns like this.
+let update = (state: t, _msg) => state

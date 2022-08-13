@@ -12,7 +12,8 @@ module AstRef = {
     | FPPoint
     | FPFractional
 
-  @ppx.deriving(show({with_path: false})) type rec astStringPart = SPOpenQuote
+  @ppx.deriving(show({with_path: false}))
+  type rec astStringPart = SPOpenQuote
 
   @ppx.deriving(show({with_path: false}))
   type rec astLetPart =
@@ -49,13 +50,13 @@ module AstRef = {
   type rec astListPart =
     | LPOpen
     | LPClose
-    | LPComma(int)
+    | LPComma(int) // index of the ,
 
   @ppx.deriving(show({with_path: false}))
   type rec astTuplePart =
     | TPOpen
     | TPClose
-    | TPComma(int)
+    | TPComma(int) // index of the ,
 
   @ppx.deriving(show({with_path: false}))
   type rec astMatchPart =
@@ -78,23 +79,22 @@ module AstRef = {
     | FPWhenKeyword
     | FPEnabledKeyword
 
-  /* An astRef represents a reference to a specific part of an AST node,
-   such as a specific Record Fieldname rather than just the record.
-   Why not use a fluidToken for this purpose?
-   A single construct such as a string might map to multiple fluidTokens,
-   but when describing a part of the ast (for example with caretTarget),
-   we often don't want to care about the details of the tokenization;
-   we can represent concepts like "the caret position at the end of this
-   string" without needing to know if it is a TString relative to a combination
-   of TStringMLStart, TStringMLMiddle, TStringMLEnd.
+  // WHAT does this belong here, or on the module?
+  @ocaml.doc(" Represents a reference to a specific part of an AST node, such
+   as a specific Record Fieldname rather than just the record. Why not use a
+   fluidToken for this purpose? A single construct such as a string might map
+   to multiple fluidTokens, but when describing a part of the AST (for example
+   with caretTarget), we often don't want to care about the details of the
+   tokenization; we can represent concepts like 'the caret position at the end
+   of this string' without needing to know if it is a TString relative to a
+   combination of TStringMLStart, TStringMLMiddle, TStringMLEnd.
 
    The IDs below all refer to the AST node id
 
-   NOTE(JULIAN): We intentionally do not have any astRefs that include
-   parts that refer to an part of the AST that contains nested expressions.
-   In such cases (for example the value or body of a let), it makes more sense
-   to generate a more specific astRef within the nested expression.
- */
+   NOTE: We intentionally do not have any astRefs that include parts that refer
+   to an part of the AST that contains nested expressions. In such cases (for
+   example the value or body of a let), it makes more sense to generate a more
+   specific astRef within the nested expression.")
   @ppx.deriving(show({with_path: false}))
   type rec t =
     | ARInteger(id)

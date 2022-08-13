@@ -1,15 +1,21 @@
 include Json.Encode
 
+// WHAT encodes some Variant/Union value
+// e.g. type Colors = Green | Blue
 let variant = (constructor, vals) => jsonArray(Array.of_list(list{string(constructor), ...vals}))
 
+// encodes a Set<String>
 let strSet = set =>
   set |> Tc.Set.toList |> Tc.List.map(~f=Js.Json.string) |> Belt.List.toArray |> jsonArray
 
+// WHAT encodes a Dict<String, f>
 let strDict = (f, dict) => dict |> Tc.Map.toList |> Tc.List.map(~f=((k, v)) => (k, f(v))) |> object_
 
+// WHAT encodes a Dict<String, List<f>>
 let strListDict = (f, dict) =>
   dict |> Tc.Map.toArray |> Tc.Array.map(~f=((k, v)) => jsonArray([string(k), f(v)])) |> jsonArray
 
+// WHAT encodes a Dict<Belt.String, f>
 let beltStrDict = (f, dict) =>
   dict |> Belt.Map.String.toList |> Tc.List.map(~f=((k, v)) => (k, f(v))) |> object_
 
@@ -72,6 +78,9 @@ module Base64 = {
     buf
   }
 
+  // WHAT is this in raw JS because it's more efficient in JS, or because
+  // ReScript lacks the tools to write such code easily, or both, or other?
+  // WHAT should the be _-prefixed? (it's only used in this file)
   let dark_arrayBuffer_to_b64url = %raw(`
   function (arraybuffer) {
     // From https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
@@ -98,7 +107,7 @@ module Base64 = {
       return base64;
   }
   `)
-
+  // WHAT should the be _-prefixed? (it's only used in this file)
   let base64url_bytes = (input: Bytes.t): string =>
     input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 }

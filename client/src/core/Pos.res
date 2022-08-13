@@ -1,7 +1,12 @@
+// There are two coordinate systems. Pos is an absolute position in the canvas.
+// Nodes and Edges have Pos'. VPos is the viewport: clicks occur within the
+// viewport and we map Absolute positions back to the viewport to display in
+// the browser.
+
 @ppx.deriving(show({with_path: false}))
 type rec t = {
-  // The backend uses int (which is 64bit) for this, but it's a hassle to deal with
-  // on the client, and no one should be scrolling 2B pixels anyway.
+  // The backend uses int (which is 64bit) for this, but it's a hassle to deal
+  // with on the client, and no one should be scrolling 2B pixels anyway.
   x: int,
   y: int,
 }

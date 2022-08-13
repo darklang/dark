@@ -1,5 +1,6 @@
 open Tc
 
+// WHAT do we change this often? ever? maybe this should be a dev setting?
 let is_caching_enabled = true
 
 /* Explanatory comments:
@@ -12,11 +13,15 @@ let is_caching_enabled = true
  * don't use the cached value". (At the time this comment is being written, we
  * only use this cache functionality to wrap TL and sidebar rendering.) */
 
+// These functions differ from each other in that `cache1m` takes one arg,
+// while `cache2m` takes two.
+
 let cache1m = (keyFn: 'a => option<'b>, expensiveFn: 'a => Vdom.t<'msg>, arg1: 'a): Vdom.t<
   'msg,
 > => {
-  let eFn = () => expensiveFn(arg1)
   let keyFn = k => keyFn(k) |> Option.andThen(~f=Js.Json.stringifyAny)
+  let eFn = () => expensiveFn(arg1)
+
   switch (is_caching_enabled, keyFn(arg1)) {
   | (true, Some(k)) => Tea_html.lazy1(k, eFn)
   | _ => eFn()
@@ -31,6 +36,7 @@ let cache2m = (
 ): Vdom.t<'msg> => {
   let keyFn = (k1, k2) => keyFn(k1, k2) |> Option.andThen(~f=Js.Json.stringifyAny)
   let eFn = () => expensiveFn(arg1, arg2)
+
   switch (is_caching_enabled, keyFn(arg1, arg2)) {
   | (true, Some(k)) => Tea_html.lazy1(k, eFn)
   | _ => eFn()

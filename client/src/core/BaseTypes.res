@@ -1,11 +1,16 @@
 /// Basic types
+/// Does this *extend* basic types, or what? `pp` is a reall unclear fn name.
 
 module Belt = {
+  // what is this? Could it somehow be more clear?
   include (Belt: module type of Belt with module Map := Belt.Map and module Result := Belt.Result)
 
   module Result = {
     include Belt.Result
 
+    // what does this do?
+    // When I remove it, it errors in RuntimeTypes.res, but I can't figure out why/where.
+    // something related to all of these
     let pp = (
       okValueFormatter: (Format.formatter, 'okValue) => unit,
       errValueFormatter: (Format.formatter, 'errValue) => unit,

@@ -1,5 +1,6 @@
 // The types that the user sees. For all type definitions, see ProgramTypes.fs
 
+@ocaml.doc("Fully-qualified function name")
 module FQFnName = {
   module StdlibFnName = {
     @ppx.deriving(show({with_path: false}))
@@ -159,6 +160,24 @@ module Sign = {
     | Positive => ""
     | Negative => "-"
     }
+
+  // WHAT I reordered some fns here - I think it'd be nice to consistently have
+  // the encode/decode functions either _just after_ the type (t) def, or at
+  // the bottom of the module.
+
+  let encode = (n: t): Js.Json.t => {
+    open Json_encode_extended
+    let ev = variant
+    switch n {
+    | Negative => ev("Negative", list{})
+    | Positive => ev("Positive", list{})
+    }
+  }
+  let decode = (j): t => {
+    open Json_decode_extended
+    variants(list{("Negative", variant0(Negative)), ("Positive", variant0(Positive))}, j)
+  }
+
   // Split the string into a sign and a string (removes the sign if present and )
   let split = (whole: string): (t, string) => {
     if Tc.String.startsWith(~prefix="-", whole) {
@@ -172,20 +191,9 @@ module Sign = {
   let combine = (sign: t, whole: string): string => {
     toString(sign) ++ whole
   }
-  let encode = (n: t): Js.Json.t => {
-    open Json_encode_extended
-    let ev = variant
-    switch n {
-    | Negative => ev("Negative", list{})
-    | Positive => ev("Positive", list{})
-    }
-  }
-  let decode = (j): t => {
-    open Json_decode_extended
-    variants(list{("Negative", variant0(Negative)), ("Positive", variant0(Positive))}, j)
-  }
 }
 
+// WHAT consider renaming to MatchPattern
 module Pattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
@@ -438,6 +446,7 @@ module Expr = {
 module AST = {
   @ppx.deriving(show({with_path: false}))
   type rec t = Root(Expr.t)
+
   let encode = (Root(expr): t) => Expr.encode(expr)
   let decode = j => Root(Expr.decode(j))
 }
@@ -678,6 +687,7 @@ module Handler = {
   }
 }
 
+@ocaml.doc("User-defined data store")
 module DB = {
   module Col = {
     @ppx.deriving(show({with_path: false}))

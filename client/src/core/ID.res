@@ -18,6 +18,9 @@ module T = {
   let generate = (): t => fromInt(Js_math.random_int(0, 2147483647))
 }
 
+// WHAT why do we need these custom Set and Map modules here?
+// Some odd ReScript limitation thing?
+
 include T
 
 module Set = {

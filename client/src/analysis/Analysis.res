@@ -380,6 +380,7 @@ let mergeTraces = (
        ***
        */
       // Pass 1: merge the lists, using foldr to preserve the order of n
+      // WHAT comment outdated - foldr not used.
       let merged = List.foldRight(n, ~initial=o, ~f=(acc, (newID, newData) as new_) => {
         let found = ref(false)
         let updated = List.map(acc, ~f=((oldID, oldData) as old) =>
