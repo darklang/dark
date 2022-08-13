@@ -11,14 +11,14 @@ open Http
 
 module Telemetry = LibService.Telemetry
 
-module Set =
+module Register =
 
   type Params = { tunnelHost : Option<string> }
 
   type T = { success : bool }
 
   /// API endpoint to set or remove a tunnel
-  let set (ctx : HttpContext) : Task<T> =
+  let register (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
       t.next "read-api"
@@ -37,5 +37,4 @@ module Set =
         return { success = true }
       else
         return { success = false }
-
     }
