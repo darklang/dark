@@ -11,8 +11,6 @@ open Http
 
 module Telemetry = LibService.Telemetry
 
-open LibService.Exception
-
 module Set =
 
   type Params = { tunnelHost : Option<string> }
