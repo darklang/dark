@@ -97,8 +97,13 @@ let uiHtml
 
   let staticHost =
     match localhostAssets with
-    // TODO: can add other people to this for easier debugging
-    | Some username -> $"darklang-{username}.ngrok.io"
+    | Some urlPrefix ->
+      let url = System.Web.HttpUtility.UrlDecode(urlPrefix)
+      let url = System.Uri(url).ToString() // prevent XSS, etc
+      if (url.StartsWith("http://")) then String.dropLeft 7 url
+      else if (url.StartsWith("https://")) then String.dropLeft 8 url
+      else url
+
     | _ -> Config.apiServerStaticHost
 
 
