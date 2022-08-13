@@ -454,5 +454,6 @@ let initializeDevelopmentAccounts (serviceName : string) : Task<unit> =
     print $"Initing LibBackend.Account in {serviceName}"
     do! initTestAccounts ()
     do! initAdmins ()
+    print $"Inited  LibBackend.Account in {serviceName}"
     return ()
   }
