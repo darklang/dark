@@ -78,13 +78,12 @@ let uiHtml
   (canvasName : CanvasName.T)
   (canAccessOperations : bool)
   (csrfToken : string)
-  (localhostAssets : string option)
+  (tunnelHost : string option)
   (accountCreated : NodaTime.Instant)
   (user : Account.UserInfo)
   : string =
 
-  let shouldHash =
-    if localhostAssets = None then Config.hashStaticFilenames else false
+  let shouldHash = if tunnelHost = None then Config.hashStaticFilenames else false
 
   let hashReplacements =
     if shouldHash then Lazy.force prodHashReplacementsString else "{}"
@@ -96,14 +95,12 @@ let uiHtml
     |> string
 
   let staticHost =
-    match localhostAssets with
-    | Some urlPrefix ->
-      let url = System.Web.HttpUtility.UrlDecode(urlPrefix)
-      let url = System.Uri(url).ToString() // prevent XSS, etc
-      if (url.StartsWith("http://")) then String.dropLeft 7 url
-      else if (url.StartsWith("https://")) then String.dropLeft 8 url
-      else url
-
+    match tunnelHost with
+    | Some host ->
+      if Account.validateTunnelHost host then
+        host
+      else
+        Exception.raiseEditor ("Invalid tunnel host")
     | _ -> Config.apiServerStaticHost
 
 
@@ -145,7 +142,11 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     let user = loadUserInfo ctx
     let sessionData = loadSessionData ctx
     let canvasInfo = loadCanvasInfo ctx
-    let localhostAssets = ctx.GetQueryStringValue "localhost-assets"
+    let! tunnelHost =
+      if ctx.Request.Query.ContainsKey "use-assets-tunnel" then
+        Account.tunnelHostFor user.id
+      else
+        Task.FromResult None
 
     t.next "create-at"
     let! createdAt = Account.getUserCreatedAt user.username
@@ -173,7 +174,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
         canvasInfo.name
         canAccessOperations
         sessionData.csrfToken
-        localhostAssets
+        tunnelHost
         createdAt
         user
 

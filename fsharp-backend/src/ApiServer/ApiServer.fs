@@ -116,6 +116,7 @@ let addRoutes
   addRoute "GET" "/a/{canvasName}/trigger-exception" std R exceptionFn
 
   clientJsonApi "v1/add_op" RW AddOps.V1.addOp
+  clientJsonApi "register_tunnel" RW Tunnels.Set.set
   clientJsonApi "all_traces" R Traces.AllTraces.fetchAll
   clientJsonApi "delete_404" RW F404s.Delete.delete
   clientJsonApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete

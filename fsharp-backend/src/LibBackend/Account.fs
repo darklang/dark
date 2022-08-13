@@ -345,6 +345,40 @@ let orgs (userID : UserID) : Task<List<OrgName.T>> =
   |> Sql.executeAsync (fun read -> read.string "username" |> OrgName.create)
   |> Task.map List.sort
 
+// **********************
+// Tunnels
+//
+// We allow users to run their own JS/CSS assets, so they can help develop the
+// client. For security, uses must register the tunnel first.
+// **********************
+
+let tunnelHostFor (userID : UserID) : Task<Option<string>> =
+  Sql.query
+    "SELECT tunnel_host
+     FROM registered_tunnelhosts
+     WHERE user_id = @userID"
+  |> Sql.parameters [ "userID", Sql.uuid userID ]
+  |> Sql.executeRowOptionAsync (fun read -> read.string "tunnel_host")
+
+let setTunnelHostFor (userID : UserID) (tunnelHost : Option<string>) : Task<unit> =
+  match tunnelHost with
+  | None ->
+    Sql.query "DELETE FROM registered_tunnelhosts WHERE user_id = @userID"
+    |> Sql.parameters [ "userID", Sql.uuid userID ]
+    |> Sql.executeStatementAsync
+
+  | Some (tunnelHost) ->
+    Sql.query
+      "INSERT INTO registered_tunnelhosts
+         (user_id, tunnel_host)
+       VALUES (@userID, @tunnelHost)
+         ON CONFLICT (user_id)
+         DO UPDATE SET tunnel_host = @tunnelHost"
+    |> Sql.parameters [ "user_id", Sql.uuid userID
+                        "tunnel_host", Sql.string tunnelHost ]
+    |> Sql.executeStatementAsync
+
+let validateTunnelHost (host : string) : bool = matches host "[\\.0-9a-z]*"
 
 // **********************
 // Local/test developement
