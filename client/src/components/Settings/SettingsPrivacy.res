@@ -4,7 +4,7 @@
 
 module FullstoryJs = {
   // I assume this is some JS interop calling `window.Dark.fullstory`
-  // WHAT find the ReScript documentatino for this
+  // hmmm: find the ReScript documentatino for this
   @val
   @scope(("window", "Dark", "fullstory"))
   external _setConsent: bool => unit = "setConsent"

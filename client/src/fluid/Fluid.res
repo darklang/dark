@@ -7,9 +7,9 @@
 // - movement shortcuts:
 //   - https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
 //
-// WHAT all of these links are inaccessible.
+// hmmm: all of these links are inaccessible.
 
-// WHAT this file is just way too big.
+// hmmm: this file is just way too big.
 
 open Prelude
 module K = FluidKeyboard
@@ -5914,7 +5914,7 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
   | FluidClearErrorDvSrc => FluidSetState({...m.fluidState, errorDvSrc: SourceNone})
   | FluidFocusOnToken(tlid, id) =>
     // Spec for Show token of expression:
-    // WHAT inaccessible link
+    // hmmm: inaccessible link
     // https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch
     tlid
     |> TL.get(m)

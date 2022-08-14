@@ -1,6 +1,6 @@
 // See `docs/unittests.md` for documentation on how to use this.
 
-// WHAT why are dom/TestPage tests special in any way?
+// hmmm: why are dom/TestPage tests special in any way?
 // (and why do we need to pass in a --dom flag for them to be evaluated/run?)
 let domTests = ref(false)
 
@@ -13,7 +13,7 @@ let process_cmdline_args = () => {
     | (None, "--verbose") => Tester.verbose := true
     | (None, "--help") =>
       Js.log(
-        // WHAT I need to verify that this still prints well now that I've added newlines here.
+        // hmmm: I need to verify that this still prints well now that I've added newlines here.
         "Run Dark's client-side unit tests.
         Supported arguments:\n
           --dom: run the DOM tests (slow)\n

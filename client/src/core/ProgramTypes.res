@@ -161,7 +161,7 @@ module Sign = {
     | Negative => "-"
     }
 
-  // WHAT I reordered some fns here - I think it'd be nice to consistently have
+  // hmmm: I reordered some fns here - I think it'd be nice to consistently have
   // the encode/decode functions either _just after_ the type (t) def, or at
   // the bottom of the module.
 
@@ -193,7 +193,7 @@ module Sign = {
   }
 }
 
-// WHAT consider renaming to MatchPattern
+// hmmm: consider renaming to MatchPattern
 module Pattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =

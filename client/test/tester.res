@@ -8,7 +8,7 @@ module Private = {
     | Skipped
 
   type t = {
-    categories: list<string>, // WHAT
+    categories: list<string>, // hmmm:
     name: string,
     success: success,
     actual: option<string>,
@@ -42,9 +42,9 @@ let verbose: ref<bool> = ref(false)
 
 let categoryIndent = () => String.repeat(~count=List.length(Private.categories.contents), " ")
 
-let reset = j`\\x1b[0m` // WHAT is this
+let reset = j`\\x1b[0m` // hmmm: is this
 
-// WHAT maybe move to tiny `colours` object? maybe a DU?
+// hmmm: maybe move to tiny `colours` object? maybe a DU?
 
 let grey = j`\\x1b[37m`
 

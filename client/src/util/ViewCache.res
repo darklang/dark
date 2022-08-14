@@ -1,6 +1,6 @@
 open Tc
 
-// WHAT do we change this often? ever? maybe this should be a dev setting?
+// hmmm: do we change this often? ever? maybe this should be a dev setting?
 let is_caching_enabled = true
 
 /* Explanatory comments:

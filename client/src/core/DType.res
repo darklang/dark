@@ -1,4 +1,4 @@
-// WHAT does this belong in ProgramTypes?
+// hmmm: does this belong in ProgramTypes?
 
 @ppx.deriving(show({with_path: false}))
 type rec t =

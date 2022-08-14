@@ -27,7 +27,7 @@ include (
 )
 
 // I'm not a big fan of these quote-style functions
-// WHAT can we get rid of them? There really aren't many use cases.
+// hmmm: can we get rid of them? There really aren't many use cases.
 
 let \"<|" = (a, b) => a(b)
 
@@ -80,7 +80,7 @@ module Option = {
 
   let isSomeEqualTo = (~value: 'a, o: option<'a>): bool => Some(value) == o
 
-  // WHAT change comment style
+  // hmmm: change comment style
   // If `a` is some, then apply fn to a, return both a and the result.
   // if either a or b is none, then return none
   let thenAlso = (a: option<'a>, ~f: 'a => option<'b>): option<('a, 'b)> => {
@@ -162,13 +162,13 @@ module List = {
     loop(t)
   }
 
-  // WHAT I find this name a bit ambiguous - isMember would be better imo
+  // hmmm: I find this name a bit ambiguous - isMember would be better imo
   let member = (~value: 'v, l: list<'v>): bool => Tablecloth.List.includes(~equal=\"=", l, value)
 
-  // WHAT no usages - delete? If not, can we please rename to foldRight?
+  // hmmm: no usages - delete? If not, can we please rename to foldRight?
   let foldr = (~init, ~f, list) => Tablecloth.List.fold_right(~initial=init, ~f, list)
 
-  // WHAT no usages - delete?
+  // hmmm: no usages - delete?
   let findWithIndex = (~f: (int, 'a) => bool, l: list<'a>): option<int> => {
     let rec findIndexHelper = (~i: int, ~predicate: (int, 'a) => bool, l: list<'a>): option<int> =>
       switch l {
@@ -199,7 +199,7 @@ module List = {
     drop(~count=index + 1, l),
   )
 
-  // WHAT change comment style
+  // hmmm: change comment style
   // Moves item in oldPos into the position at newPos, pushing the element already at newPos down.
   // Ex:
   //   l = [a, b, c, d]
@@ -226,7 +226,7 @@ module List = {
     | None => l
     }
 
-  // WHAT change comment style
+  // hmmm: change comment style
   /* Partition into two lists, of potentially different type, using function
    * `f`.  Returns value in the first list for `Left` and second list for
    * `Right`. */
@@ -255,8 +255,8 @@ module Result = {
   let combine = (l: list<t<'ok, 'err>>): t<list<'ok>, 'err> =>
     List.foldRight(~f=map2(~f=(accum, r) => list{r, ...accum}), ~initial=Ok(list{}), l)
 
-  @warning("-3") // WHAT is this @warning("-3")?
-  let pp = ( // WHAT is this `pp`
+  @warning("-3") // hmmm: is this @warning("-3")?
+  let pp = ( // hmmm: is this `pp`
     okf: (Format.formatter, 'ok) => unit,
     errf: (Format.formatter, 'error) => unit,
     fmt: Format.formatter,
@@ -293,7 +293,7 @@ module String = {
   let left = (~count: int, s: string): string => slice(~from=0, ~to_=count, s)
 
   // breaks a string into segments of ~size characters, at most
-  // WHAT change comment style
+  // hmmm: change comment style
   let rec segment = (~size: int, s: string): list<string> => {
     let (front, back) = splitAt(~index=size, s)
     if back == "" {

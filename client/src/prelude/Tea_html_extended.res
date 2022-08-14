@@ -1,8 +1,8 @@
 include Tea.Html
 
 // TODO: push to fork + upstream
-// WHAT can we remove that comment? I think it's not useful at this piont.
-// WHAT is this? like .on(), but typed? `options` isn't an intuitive name here
+// hmmm: can we remove that comment? I think it's not useful at this piont.
+// hmmm: is this? like .on(), but typed? `options` isn't an intuitive name here
 //  (maybe even misleading - I thought it was referring to Option<>s)
 let onWithOptions = (~key="", eventName, options: Tea_html.options, decoder) =>
   Tea_html.onCB(eventName, key, event => {

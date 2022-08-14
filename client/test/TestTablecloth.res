@@ -1,5 +1,5 @@
 open Tester
-open! Tc // WHAT is `open!` ?
+open! Tc // hmmm: is `open!` ?
 
 let run = () => {
   describe("List", () => {

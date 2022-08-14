@@ -1,6 +1,8 @@
 open Prelude
 open Tester
 
+// hmmm: should this be renamed or something? it only tests String.dropRight
+
 let run = () => {
   describe("String.dropRight", () => {
     test("it returns the empty string when passed the empty string", () =>

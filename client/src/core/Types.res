@@ -2,6 +2,13 @@ open Tc
 module PT = ProgramTypes
 module RT = RuntimeTypes
 
+// hmmm: are these 'client-only types'?
+// (versus the 'shared' or 'interop' types)
+// I wonder if it'd be worth creating an `interop` folder and a `???` folder to
+// make these 2 worlds more clear. Or maybe renaming this file is sufficient.
+
+// hmmm: maybe a few fewer 'and's in this file, though it's nbd currently
+
 // -------------------
 // Clipboard
 // -------------------

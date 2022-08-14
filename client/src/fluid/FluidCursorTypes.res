@@ -79,7 +79,7 @@ module AstRef = {
     | FPWhenKeyword
     | FPEnabledKeyword
 
-  // WHAT does this belong here, or on the module?
+  // hmmm: does this belong here, or on the module?
   @ocaml.doc(" Represents a reference to a specific part of an AST node, such
    as a specific Record Fieldname rather than just the record. Why not use a
    fluidToken for this purpose? A single construct such as a string might map

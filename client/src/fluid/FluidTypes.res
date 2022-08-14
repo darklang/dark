@@ -6,6 +6,7 @@ module Editor = {
     | FeatureFlagEditor(TLID.t, ID.t)
 }
 
+@ocaml.doc("hmmm:")
 module Command = {
   @ppx.deriving(show({with_path: false}))
   type rec t<'model, 'modification> = {
@@ -23,10 +24,13 @@ module Command = {
   }
 }
 
+@ocaml.doc("hmmm:")
 module Token = {
-  @ppx.deriving(show) type rec analysisID = ID.t
+  @ppx.deriving(show)
+  type rec analysisID = ID.t
 
-  @ppx.deriving(show) type rec parentBlockID = ID.t
+  @ppx.deriving(show)
+  type rec parentBlockID = ID.t
 
   module Placeholder = {
     @ppx.deriving(show({with_path: false}))
@@ -39,24 +43,32 @@ module Token = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
     | TInteger(ID.t, int64, option<parentBlockID>)
+
     | TString(ID.t, string, option<parentBlockID>)
+
     // multi-line strings: id, segment, start offset, full-string
     | TStringMLStart(ID.t, string, int, string)
     | TStringMLMiddle(ID.t, string, int, string)
     | TStringMLEnd(ID.t, string, int, string)
+
     | TBlank(ID.t, option<parentBlockID>)
+
     | TPlaceholder({
         blankID: ID.t,
         fnID: ID.t,
         parentBlockID: option<parentBlockID>,
         placeholder: Placeholder.t,
       })
+
     | TTrue(ID.t, option<parentBlockID>)
     | TFalse(ID.t, option<parentBlockID>)
+
     | TNullToken(ID.t, option<parentBlockID>)
+
     | TFloatWhole(ID.t, string, option<parentBlockID>)
     | TFloatPoint(ID.t, option<parentBlockID>)
     | TFloatFractional(ID.t, string, option<parentBlockID>)
+
     /* If you're filling in an expr, but havent finished it. Not used for
      * non-expr names. */
     | TPartial(ID.t, string, option<parentBlockID>)
@@ -67,21 +79,28 @@ module Token = {
     /* When a partial used to be another thing, we want to show the name of the
      * old thing in a non-interactable way */
     | TPartialGhost(ID.t, string, option<parentBlockID>)
+
     // the id *here disambiguates with other separators for reflow
+    // hmmm: sort of separator is this?
     | TSep(ID.t, option<parentBlockID>)
+
     /* The first id is the id of the expression directly associated with the
      * newline. The second id is the id of that expression's parent. In an
      * expression with potentially many newlines (ie, a pipeline), the int holds
      * the relative line number (index) of this newline. */
     | TNewline(option<(ID.t, ID.t, option<int>)>)
+
     | TIndent(int)
+
     | TLetKeyword(ID.t, analysisID, option<parentBlockID>)
     // Let-expr id * rhs id * varname
     | TLetVarName(ID.t, analysisID, string, option<parentBlockID>)
     | TLetAssignment(ID.t, analysisID, option<parentBlockID>)
+
     | TIfKeyword(ID.t, option<parentBlockID>)
     | TIfThenKeyword(ID.t, option<parentBlockID>)
     | TIfElseKeyword(ID.t, option<parentBlockID>)
+
     | TBinOp(ID.t, string, option<parentBlockID>)
     | TFieldOp(/* fieldAccess */ ID.t, /* lhs */ ID.t, option<parentBlockID>)
     | TFieldName(ID.t /* fieldAccess */, ID.t /* lhs */, string, option<parentBlockID>)
@@ -97,18 +116,23 @@ module Token = {
     | TFnName(ID.t, string, string, string, ProgramTypes.Expr.SendToRail.t)
     // id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3')
     | TFnVersion(ID.t, string, string, string)
+
     | TLambdaComma(ID.t, int, option<parentBlockID>)
     | TLambdaArrow(ID.t, option<parentBlockID>)
     | TLambdaSymbol(ID.t, option<parentBlockID>)
     | TLambdaVar(ID.t, analysisID, int, string, option<parentBlockID>)
+
     | TListOpen(ID.t, option<parentBlockID>)
     | TListClose(ID.t, option<parentBlockID>)
     | TListComma(ID.t, int)
+
     | TTupleOpen(ID.t)
     | TTupleClose(ID.t)
     | TTupleComma(ID.t, int)
+
     // 2nd int is the number of pipe segments there are
     | TPipe(ID.t, int, int, option<parentBlockID>)
+
     | TRecordOpen(ID.t, option<parentBlockID>)
     | TRecordFieldname({
         recordID: ID.t,
@@ -119,8 +143,10 @@ module Token = {
       })
     | TRecordSep(ID.t, int, analysisID)
     | TRecordClose(ID.t, option<parentBlockID>)
+
     | TMatchKeyword(ID.t)
     | TMatchBranchArrow({matchID: ID.t, patternID: ID.t, index: int})
+
     /* for all these TPattern* variants:
      * - the first id *is the match id *
      * - the second id *is the pattern id *
@@ -136,9 +162,11 @@ module Token = {
     | TPatternFloatPoint(ID.t, ID.t, int)
     | TPatternFloatFractional(ID.t, ID.t, string, int)
     | TPatternBlank(ID.t, ID.t, int)
+
     | TConstructorName(ID.t, string)
-    | TParenOpen(ID.t)
+    | TParenOpen(ID.t) // what paren is this? constructor paren? general?
     | TParenClose(ID.t)
+
     | TFlagWhenKeyword(ID.t)
     | TFlagEnabledKeyword(ID.t)
 }
@@ -200,8 +228,9 @@ module AutoComplete = {
     // state
     // -------------------------------
     index: option<int>,
-    query: // We need to refer back to the previous one
+    query: // We need to refer back to the previous one hmmm:
     option<(TLID.t, TokenInfo.t)>,
+
     // -------------------------------
     // Cached results
     // -------------------------------
@@ -228,16 +257,21 @@ module Msg = {
   @ppx.deriving(show({with_path: false}))
   type rec mouseDoubleClickType =
     | SelectExpressionAt(int)
-    /* [selectTokenAt start end]: the two ints represent the selection when the
-     * double click happened, which might represent a token or a part of the
-     * token (in the case of strings, a word sometimes) */
-    | SelectTokenAt(int, int)
+
+    // hmmm: does this format OK? I don't have rescript formatter locally, at least automatically.
+    | @ocaml.doc("the two ints represent the a selection (start, end) when the
+      double-click happened, which might represent a token or a part of the
+      token (in the case of strings, a word sometimes)")
+      SelectTokenAt(int, int)
 
   @ppx.deriving(show({with_path: false}))
   type rec mouseDoubleClick = {
     tlid: TLID.t,
+
     // fluidEditor is either MainEditor or a FeatureFlagEditor
+    // hmmm: or None? if not, we should maybe re-model?
     editor: Editor.t,
+
     selection: mouseDoubleClickType,
   }
 

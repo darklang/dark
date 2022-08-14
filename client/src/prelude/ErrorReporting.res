@@ -1,6 +1,6 @@
 module Rollbar = {
-  // WHAT migrate to rollbarMod or RollbarMod or _rollbarMod?
-  // WHAT is this? esp. the @meth part
+  // hmmm: migrate to rollbarMod or RollbarMod or _rollbarMod?
+  // hmmm: is this? esp. the @meth part
   type rollbar_mod = {@meth "init": Js.Json.t => unit}
 
   type rollbar_instance = {
@@ -12,13 +12,13 @@ module Rollbar = {
 
   @module external rollbar: rollbar_mod = "rollbar"
 
-  // WHAT calls rollbar.init(config)
+  // hmmm: calls rollbar.init(config)
   let init = (rollbarConfig: Js.Json.t) => {
     rollbar["init"](rollbarConfig)
     Js.log("Inited rollbar")
   }
 
-  // WHAT
+  // hmmm:
   let send = (msg: string, url: option<string>, custom: Js.Json.t): unit => {
     let url = Js.Nullable.fromOption(url)
 
@@ -48,7 +48,7 @@ let reportError = (msg: string, msgVal: 'm): unit => {
 
   Rollbar.send(msg, None, custom)
 
-  // WHAT do we need this ()? .send returns nothing.
+  // hmmm: do we need this ()? .send returns nothing.
   // If I'm wrong, and .send does return something, let's _not_ return somethign?
   ()
 }

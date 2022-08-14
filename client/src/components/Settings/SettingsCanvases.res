@@ -1,6 +1,6 @@
 // open Tc
 
-// WHAT write description
+// hmmm: write description
 
 let title = "Canvases"
 
@@ -17,7 +17,7 @@ type rec msg = unit
 
 let default = {canvasList: list{}, username: "", orgs: list{}, orgCanvasList: list{}}
 
-// WHAT 'create' (or simply defining the object at the usage sit) seems more idiomatic
+// hmmm: 'create' (or simply defining the object at the usage sit) seems more idiomatic
 let setInfo = (
   _state: t,
   canvasList: list<string>,
@@ -31,6 +31,6 @@ let setInfo = (
   orgCanvasList: orgCanvasList,
 }
 
-// WHAT if it's not appropriate to include _msg here, what is appropriate?
+// hmmm: if it's not appropriate to include _msg here, what is appropriate?
 // the only usage passes in a `msg`, seemingly to fit in with other 'update' fns like this.
 let update = (state: t, _msg) => state

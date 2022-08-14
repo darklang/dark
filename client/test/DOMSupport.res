@@ -1,4 +1,4 @@
-// WHAT does this do?
+// hmmm: does this do?
 
 let init = () => {
   ignore(

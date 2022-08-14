@@ -1,4 +1,4 @@
-// WHAT this file seems wholly unused. Delete? or maybe it's new, and going
+// hmmm: this file seems wholly unused. Delete? or maybe it's new, and going
 // to be used soon.
 
 // type rec t =
