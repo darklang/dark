@@ -10,21 +10,10 @@ module Params = {
     opCtr: int,
     clientOpCtrID: string,
   }
-
-  let withSavepoints = (ops: list<PT.Op.t>): list<PT.Op.t> =>
-    switch ops {
-    | list{UndoTL(_)} => ops
-    | list{RedoTL(_)} => ops
-    | list{} => ops
-    | _ =>
-      let savepoints = List.map(ops, ~f=op => PT.Op.TLSavepoint(PT.Op.tlidOf(op)))
-      Belt.List.concat(savepoints, ops)
-    }
-
   let encode = (params: t): Js.Json.t => {
     open Json_encode_extended
     object_(list{
-      ("ops", list(PT.Op.encode, withSavepoints(params.ops))),
+      ("ops", list(PT.Op.encode, params.ops)),
       ("opCtr", int(params.opCtr)),
       ("clientOpCtrID", string(params.clientOpCtrID)),
     })
@@ -37,6 +26,22 @@ module Params = {
       clientOpCtrID: field("clientOpCtrID", string, j),
     }
   }
+
+  let withSavepoints = (ops: list<PT.Op.t>): list<PT.Op.t> =>
+    switch ops {
+    | list{UndoTL(_)} => ops
+    | list{RedoTL(_)} => ops
+    | list{} => ops
+    | _ =>
+      // CLEANUP should these savepoints be intersperced instead of prepended?
+      // i.e. should `withSavePoints([op1; op2])` result in
+      //   [savepoint; op1; savepoint; op2]
+      // rather than (now)
+      //   [savepoint; savepoint; op1; op2]
+      // ?
+      let savepoints = List.map(ops, ~f=op => PT.Op.TLSavepoint(PT.Op.tlidOf(op)))
+      Belt.List.concat(savepoints, ops)
+    }
 }
 
 @ppx.deriving(show({with_path: false}))
