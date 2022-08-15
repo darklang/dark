@@ -349,7 +349,7 @@ let orgs (userID : UserID) : Task<List<OrgName.T>> =
 // Tunnels
 // We allow users to run their own JS/CSS assets, so they can help develop the
 // client. For security, uses must register the tunnel first (allowing a tunnel to be
-// set from just a url would allow an attacjer to trick users into loading assets
+// set from just a url would allow an attacker to trick users into loading assets
 // from the attacker's machine)
 // **********************
 
