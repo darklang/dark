@@ -53,7 +53,7 @@ type selection = {
 let rec findFirstAncestorWithClass = (className: string, node: Dom.Node.t): option<Dom.Node.t> =>
   Dom.Element.ofNode(node)
   |> Option.andThen(~f=el =>
-    if el |> Dom.Element.classList |> Dom.DomTokenList.contains(className) {
+    if el->Dom.Element.classList->Dom.DomTokenList.contains(className) {
       Some(node)
     } else {
       None
@@ -106,38 +106,44 @@ let getFluidSelectionRange = (): option<(int, int)> => {
   module Node = Dom.Node
   module Window = Dom.Window
   module Selection = Dom.Selection
-  let sel = Dom.window |> Window.getSelection
-  Option.andThen2(Selection.anchorNode(sel), Selection.focusNode(sel), ~f=(anchorNode, focusNode) =>
-    findFirstAncestorWithClass("fluid-editor", anchorNode)
-    |> recoverOption("could not find fluid-editor")
-    |> Option.andThen(~f=editor => {
-      let cursor = ref(0)
-      let (anchorIdx, focusIdx) = (ref(None), ref(None))
-      preorderWalkUntil(editor, ~f=node => {
-        if Node.isSameNode(anchorNode, node) {
-          anchorIdx := Some(cursor.contents)
-        }
-        if Node.isSameNode(focusNode, node) {
-          focusIdx := Some(cursor.contents)
-        }
-        /* If node is not a leaf, then advance cursor. This is
-         * probably a span or other container element. We'll see the
-         * actual text node later, and we don't want to double-count
-         * the textContent. */
-        if !(Node.firstChild(node) |> Option.is_some) {
-          cursor := cursor.contents + (node |> Node.textContent |> String.length)
-        }
-        let have_both = Option.pair(anchorIdx.contents, focusIdx.contents) |> Option.is_some
+  Dom.window
+  ->Window.getSelection
+  ->Option.andThen(~f=sel =>
+    Option.andThen2(Selection.anchorNode(sel), Selection.focusNode(sel), ~f=(
+      anchorNode,
+      focusNode,
+    ) =>
+      findFirstAncestorWithClass("fluid-editor", anchorNode)
+      |> recoverOption("could not find fluid-editor")
+      |> Option.andThen(~f=editor => {
+        let cursor = ref(0)
+        let (anchorIdx, focusIdx) = (ref(None), ref(None))
+        preorderWalkUntil(editor, ~f=node => {
+          if anchorNode === node {
+            anchorIdx := Some(cursor.contents)
+          }
+          if focusNode === node {
+            focusIdx := Some(cursor.contents)
+          }
+          /* If node is not a leaf, then advance cursor. This is
+           * probably a span or other container element. We'll see the
+           * actual text node later, and we don't want to double-count
+           * the textContent. */
+          if !(Node.firstChild(node) |> Option.is_some) {
+            cursor := cursor.contents + (node |> Node.textContent |> String.length)
+          }
+          let have_both = Option.pair(anchorIdx.contents, focusIdx.contents) |> Option.is_some
 
-        !have_both
+          !have_both
+        })
+        let anchorOffset = sel |> Selection.anchorOffset
+        let focusOffset = sel |> Selection.focusOffset
+        Option.map2(anchorIdx.contents, focusIdx.contents, ~f=(anchor, focus) => (
+          anchor + anchorOffset,
+          focus + focusOffset,
+        ))
       })
-      let anchorOffset = sel |> Selection.anchorOffset
-      let focusOffset = sel |> Selection.focusOffset
-      Option.map2(anchorIdx.contents, focusIdx.contents, ~f=(anchor, focus) => (
-        anchor + anchorOffset,
-        focus + focusOffset,
-      ))
-    })
+    )
   )
 }
 
@@ -178,8 +184,7 @@ let setFluidSelectionRange = (beginIdx: int, endIdx: int): unit => {
       n
     }
 
-  Dom.document
-  |> Document.querySelector(".selected #active-editor")
+  Dom.document->Document.querySelector(".selected #active-editor")
   |> recoverOption(
     ~sendToRollbar=false,
     "setFluidSelectionRange querySelector failed to find #active-editor",
@@ -218,8 +223,10 @@ let setFluidSelectionRange = (beginIdx: int, endIdx: int): unit => {
     let (maybeFocus, focusOffset) = findNodeAndOffset(focusBound)
     Option.map2(maybeAnchor, maybeFocus, ~f=(anchorNode, focusNode) =>
       Dom.window
-      |> Window.getSelection
-      |> Selection.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset)
+      ->Window.getSelection
+      ->Option.map(~f=sel =>
+        Selection.setBaseAndExtent(sel, anchorNode, anchorOffset, focusNode, focusOffset)
+      )
     ) |> recoverOption(
       ~debug=(maybeAnchor, maybeFocus),
       "setFluidSelectionRange failed to find selection nodes",

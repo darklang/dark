@@ -324,8 +324,8 @@ let viewTL = (m, tl) =>
  * Prefer [zeroOutAppScroll] if possible. ")
 let zeroOutAppScrollImmediate = (): unit => {
   open Webapi.Dom
-  Document.getElementById(appID, document)
-  |> Option.map(~f=app => Element.scrollTo(0.0, 0.0, app))
+  Document.getElementById(document, appID)
+  |> Option.map(~f=app => Element.scrollTo(app, 0.0, 0.0))
   |> recoverOpt("zeroOutAppScroll", ~default=())
 }
 
@@ -341,7 +341,7 @@ let zeroOutAppScroll: AppTypes.cmd = Tea.Cmd.call(_ => zeroOutAppScrollImmediate
  * for more information about this constraint and what happens if it is broken. ")
 let isAppScrollZero = (): bool => {
   open Webapi.Dom
-  Document.getElementById(appID, document)
+  Document.getElementById(document, appID)
   |> Option.map(~f=app => Element.scrollLeft(app) == 0.0 && Element.scrollTop(app) == 0.0)
   |> // Technically recoverOpt might be better here, but in some situations, #app doesn't exist yet
   Option.unwrap(~default=true)

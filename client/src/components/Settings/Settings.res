@@ -6,14 +6,14 @@ module Tab = {
     | Canvases
     | Invite
     | Privacy
-  // | Contributing
+    | Contributing
 
   let toText = (tab: t): string =>
     switch tab {
     | Canvases => "canvases"
     | Invite => "share"
     | Privacy => "privacy"
-    // | Contributing => "contributing"
+    | Contributing => "contributing"
     }
 
   let parse = (tab: string): t =>
@@ -21,7 +21,7 @@ module Tab = {
     | "canvases" => Canvases
     | "share" => Invite
     | "privacy" => Privacy
-    // | "contributing" => Contributing
+    | "contributing" => Contributing
     | _ => Canvases
     }
 }
@@ -32,7 +32,7 @@ type rec t = {
   tab: Tab.t,
   canvasesSettings: SettingsCanvases.t,
   inviteSettings: SettingsInvite.t,
-  // contributingSettings: SettingsContributing.t,
+  contributingSettings: SettingsContributing.t,
   privacySettings: SettingsPrivacy.t,
 }
 
@@ -42,7 +42,7 @@ let default = {
   canvasesSettings: SettingsCanvases.default,
   privacySettings: SettingsPrivacy.default,
   inviteSettings: SettingsInvite.default,
-  // contributingSettings: SettingsContributing.default,
+  contributingSettings: SettingsContributing.default,
 }
 
 @ppx.deriving(show)
@@ -53,7 +53,7 @@ type rec msg =
   | CanvasesMsg(SettingsCanvases.msg)
   | PrivacyMsg(SettingsPrivacy.msg)
   | InviteMsg(SettingsInvite.msg)
-// | ContributingMsg(SettingsContributing.msg)
+  | ContributingMsg(SettingsContributing.msg)
 
 @ppx.deriving(show)
 type rec effect<'cmd> =
@@ -62,6 +62,7 @@ type rec effect<'cmd> =
   | SetSettingsTab(Tab.t)
   | PrivacyEffect(SettingsPrivacy.effect<'cmd>)
   | InviteEffect(option<SettingsInvite.effect>)
+  | ContributingEffect(option<SettingsContributing.effect<'cmd>>)
 
 let setInviter = (state: t, username: string, name: string): t => {
   ...state,
@@ -102,5 +103,9 @@ let update = (state: t, msg: msg): (t, option<effect<'cmd>>) =>
   | InviteMsg(msg) => {
       let (newSettings, effect) = SettingsInvite.update(state.inviteSettings, msg)
       ({...state, inviteSettings: newSettings}, Some(InviteEffect(effect)))
+    }
+  | ContributingMsg(msg) => {
+      let (newSettings, effect) = SettingsContributing.update(state.contributingSettings, msg)
+      ({...state, contributingSettings: newSettings}, Some(ContributingEffect(effect)))
     }
   }

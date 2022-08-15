@@ -28,7 +28,7 @@ let focusItem = (i: int): AppTypes.cmd =>
     _ => Msg.IgnoreMsg("autocomplete-focus"),
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
-      switch Document.getElementById("autocomplete-holder", document) {
+      switch Document.getElementById(document, "autocomplete-holder") {
       | Some(el) => Element.setScrollTop(el, i |> height |> float_of_int)
       | None => ()
       }

@@ -865,6 +865,13 @@ module GenericSerializersTests =
           worker_schedules = testWorkerStates
           secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
+      // Tunnels
+      v<ApiServer.Tunnels.Register.Params> "empty" { tunnelHost = None }
+      v<ApiServer.Tunnels.Register.Params>
+        "simple"
+        { tunnelHost = Some "host.tunnel.com" }
+      v<ApiServer.Tunnels.Register.T> "simple" { success = false }
+
       // Packages
       v<ApiServer.Packages.ListV1.T>
         "simple"

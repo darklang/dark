@@ -107,7 +107,7 @@ let splitOnEquals = (s: string): option<(string, bool)> =>
   }
 
 let queryParams = (): list<(string, bool)> => {
-  let search = Tea_navigation.getLocation().search
+  let search = Tea.Navigation.getLocation().search
   switch String.uncons(search) {
   | Some('?', rest) =>
     rest |> String.toLowercase |> String.split(~on="&") |> List.filterMap(~f=splitOnEquals)
