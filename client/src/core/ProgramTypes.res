@@ -485,23 +485,23 @@ module Handler = {
 
       let toString = (i: t): string => {
         switch i {
-        | EveryDay => "EveryDay"
-        | EveryWeek => "EveryWeek"
-        | EveryFortnight => "EveryFortnight"
-        | EveryHour => "EveryHour"
-        | Every12Hours => "Every12Hours"
-        | EveryMinute => "EveryMinute"
+        | EveryDay => "Daily"
+        | EveryWeek => "Weekly"
+        | EveryFortnight => "Fortnightly"
+        | EveryHour => "Every 1hr"
+        | Every12Hours => "Every 12hrs"
+        | EveryMinute => "Every 1min"
         }
       }
       let fromString = (i: string): option<t> => {
-        switch i {
-        | "EveryDay" => Some(EveryDay)
-        | "EveryWeek" => Some(EveryWeek)
-        | "EveryFortnight" => Some(EveryFortnight)
-        | "EveryHour" => Some(EveryHour)
-        | "Every12Hours" => Some(Every12Hours)
-        | "EveryMinute" => Some(EveryMinute)
-        | _ => None
+        switch String.lowercase_ascii(i) {
+        | "daily" => Some(EveryDay)
+        | "weekly" => Some(EveryWeek)
+        | "fortnightly" => Some(EveryFortnight)
+        | "every 1hr" => Some(EveryHour)
+        | "every 12hrs" => Some(Every12Hours)
+        | "every 1min" => Some(EveryMinute)
+        | _ => Recover.recover("invalid cron interval", ~debug=i, None)
         }
       }
     }
