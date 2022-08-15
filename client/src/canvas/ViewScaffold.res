@@ -1,7 +1,11 @@
 open Prelude
 
+// hmmm: what is this file for? 'scaffold' feels ambiguous to me. are these just utils?
+
+@ocaml.doc("hmmm")
 let flagLinkLoc = (flag: string, currentlyEnabled: bool) => {
   let loc = Tea_navigation.getLocation()
+
   let newSearch =
     Url.queryParams()
     |> List.filter(~f=((k, _)) => k != flag)

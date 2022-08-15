@@ -88,16 +88,16 @@ let analysisID = (t: t): id =>
   | _ => tid(t)
   }
 
-// TODO(alice) merge these two functions?
+// TODO merge these two functions?
 let parentExprID = (t: t): id =>
   switch t {
   | TNewline(Some(_, id, _)) => id
   | _ => tid(t)
   }
 
-/* List literals, object literals, and multiline strings are blocks.
- This function returns the ID of the whole list, object, or string expression that this token belongs to, if it does indeed live inside a block.
-*/
+@ocaml.doc("List literals, object literals, and multiline strings are blocks.
+  This function returns the ID of the whole list, object, or string expression
+  that this token belongs to, if it does indeed live inside a block.")
 let parentBlockID = (t: t): option<id> =>
   switch t {
   // The first ID is the ID of the whole string expression
@@ -106,7 +106,8 @@ let parentBlockID = (t: t): option<id> =>
   | TStringMLEnd(id, _, _, _)
   | TRecordSep(id, _, _) =>
     Some(id)
-  // The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block.
+  // The reason { } and [ ] gets a parentBlockID is so if the list/object is
+  // empty, then it's not a multiline block.
   | TRecordOpen(_, pid)
   | TRecordClose(_, pid)
   | TListOpen(_, pid)
@@ -178,9 +179,9 @@ let parentBlockID = (t: t): option<id> =>
 
 let validID = id => id != fakeid
 
-/* Tokens that are 'editable' are considered text tokens
- * If the cursor is to the left of a text token, then pressing a character
- * will append to the end of that token */
+@ocaml.doc("Tokens that are 'editable' are considered text tokens. If the
+  cursor is to the left of a text token, then pressing a character will append
+  to the end of that token")
 let isTextToken = (t: t): bool =>
   switch t {
   | TInteger(_)
@@ -327,8 +328,8 @@ let isStringToken = (t: t): bool =>
   | _ => false
   }
 
-/* if the cursor is at the end of this token, we take it as editing this
- * token, rather than writing the next token. */
+@ocaml.doc("if the cursor is at the end of this token, we interpret it as
+  editing this token, rather than writing the next token.")
 let isAppendable = (t: t): bool =>
   switch t {
   // String should really be directly editable, but the extra quote at the end
@@ -367,8 +368,8 @@ let isKeyword = (t: t) =>
   | _ => false
   }
 
-@ocaml.doc(" [isWhitespace t] returns [true] if the token [t] is a whitespace token (separator, newline, indent)
- * and [false] otherwise. ")
+@ocaml.doc("returns [true] if the token [t] is a whitespace token (separator,
+  newline, indent) and [false] otherwise.")
 let isWhitespace = (t: t): bool =>
   switch t {
   | TSep(_) | TNewline(_) | TIndent(_) => true
@@ -553,8 +554,8 @@ let toText = (t: t): string => {
   | TFieldOp(_) => "."
   | TFieldPartial(_, _, _, name, _) => canBeEmpty(name)
   | TFieldName(_, _, name, _) =>
-    /* Although we typically use TFieldPartial for empty fields, when
-     * there's a new field we won't have a fieldname for it. */
+    // Although we typically use TFieldPartial for empty fields, when
+    // there's a new field we won't have a fieldname for it.
     canBeEmpty(name)
   | TVariable(_, name, _) => canBeEmpty(name)
   | TFnName(_, _, displayName, _, _) | TFnVersion(_, _, displayName, _) =>
@@ -564,8 +565,8 @@ let toText = (t: t): string => {
   | TLambdaComma(_) => ","
   | TLambdaArrow(_) => " -> "
   | TIndent(indent) => shouldntBeEmpty(Caml.String.make(indent, ' '))
-  /* We dont want this to be transparent, so have these make their presence
-   * known */
+  // We dont want this to be transparent, so have these make their presence
+  // known. hmmm?
   | TListOpen(_) => "["
   | TListClose(_) => "]"
   | TListComma(_, _) => ","

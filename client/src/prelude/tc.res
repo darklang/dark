@@ -165,9 +165,6 @@ module List = {
   // hmmm: I find this name a bit ambiguous - isMember would be better imo
   let member = (~value: 'v, l: list<'v>): bool => Tablecloth.List.includes(~equal=\"=", l, value)
 
-  // hmmm: no usages - delete? If not, can we please rename to foldRight?
-  let foldr = (~init, ~f, list) => Tablecloth.List.fold_right(~initial=init, ~f, list)
-
   // hmmm: no usages - delete?
   let findWithIndex = (~f: (int, 'a) => bool, l: list<'a>): option<int> => {
     let rec findIndexHelper = (~i: int, ~predicate: (int, 'a) => bool, l: list<'a>): option<int> =>
@@ -255,7 +252,7 @@ module Result = {
   let combine = (l: list<t<'ok, 'err>>): t<list<'ok>, 'err> =>
     List.foldRight(~f=map2(~f=(accum, r) => list{r, ...accum}), ~initial=Ok(list{}), l)
 
-  @warning("-3") // hmmm: is this @warning("-3")?
+  @warning("-3")
   let pp = ( // hmmm: is this `pp`
     okf: (Format.formatter, 'ok) => unit,
     errf: (Format.formatter, 'error) => unit,

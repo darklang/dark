@@ -1,35 +1,40 @@
 module RT = RuntimeTypes
 module PT = ProgramTypes
 
+@ocaml.doc("A list of user DBs which are 'unlocked', meaning their structure
+  can safely change, as there's no data inside.")
 module UnlockedDBs = {
   @ppx.deriving(show({with_path: false}))
   type rec t = TLID.Set.t
-
-  let encode = (params: t): Js.Json.t => {
-    open Json_encode_extended
-    object_(list{("unlocked_dbs", list(TLID.encode, Tc.Set.toList(params)))})
-  }
 
   let decode = (j): t => {
     open Json_decode_extended
     j |> field("unlocked_dbs", list(TLID.decode)) |> TLID.Set.fromList
   }
+
+  let encode = (params: t): Js.Json.t => {
+    open Json_encode_extended
+    object_(list{("unlocked_dbs", list(TLID.encode, Tc.Set.toList(params)))})
+  }
 }
 
+@ocaml.doc("Mapping of DB->stats, where stats are metadata around the DB's
+  record count, usage, etc.")
 module DBStats = {
   module Params = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {dbStatsTlids: list<TLID.t>}
 
-    let encode = (params: t): Js.Json.t => {
-      open Json_encode_extended
-      object_(list{("tlids", list(TLID.encode, params.dbStatsTlids))})
-    }
     let decode = (j): t => {
       open Json_decode_extended
       {
         dbStatsTlids: field("tlids", list(TLID.decode), j),
       }
+    }
+
+    let encode = (params: t): Js.Json.t => {
+      open Json_encode_extended
+      object_(list{("tlids", list(TLID.encode, params.dbStatsTlids))})
     }
   }
 

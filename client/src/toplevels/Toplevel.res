@@ -154,11 +154,13 @@ let isReplHandler = (tl: toplevel): bool =>
   | Some({spec: PT.Handler.Spec.REPL(_), _}) => true
   | _ => false
   }
+
 let isCronHandler = (tl: toplevel): bool =>
   switch asHandler(tl) {
   | Some({spec: PT.Handler.Spec.Cron(_), _}) => true
   | _ => false
   }
+  
 let isWorkerHandler = (tl: toplevel): bool =>
   switch asHandler(tl) {
   | Some({spec: PT.Handler.Spec.Worker(_), _}) => true

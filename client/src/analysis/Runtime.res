@@ -222,18 +222,19 @@ let sampleInputValue = (tl: toplevel): AnalysisTypes.InputValueDict.t =>
   |> Belt.Map.String.fromArray
 
 let inputValueAsString = (tl: toplevel, iv: AnalysisTypes.InputValueDict.t): string => {
-  let dval = /* Merge sample + trace, preferring trace.
-   *
-   * This ensures newly added parameters show as incomplete.
-   * */
-  Belt.Map.String.merge(sampleInputValue(tl), iv, (_key, sampleVal, traceVal) =>
-    switch (sampleVal, traceVal) {
-    | (None, None) => None
-    | (Some(v), None) => Some(v)
-    | (None, Some(v)) => Some(v)
-    | (Some(_sample), Some(trace)) => Some(trace)
-    }
-  ) |> (dict => RT.Dval.DObj(dict))
+
+  // Merge sample + trace, preferring trace.
+  //
+  // This ensures newly added parameters show as incomplete.
+  let dval =
+    Belt.Map.String.merge(sampleInputValue(tl), iv, (_key, sampleVal, traceVal) =>
+      switch (sampleVal, traceVal) {
+      | (None, None) => None
+      | (Some(v), None) => Some(v)
+      | (None, Some(v)) => Some(v)
+      | (Some(_sample), Some(trace)) => Some(trace)
+      }
+    ) |> (dict => RT.Dval.DObj(dict))
 
   dval
   |> toRepr

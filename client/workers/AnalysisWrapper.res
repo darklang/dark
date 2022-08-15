@@ -9,6 +9,7 @@ type response = {
   json: string,
 }
 
+@ocaml.doc("A simple 2+3 expression, used to 'warm up' analysis/wasm")
 let warmupValue = {
   let params = PerformAnalysis.Params.AnalyzeHandler({
     handler: {

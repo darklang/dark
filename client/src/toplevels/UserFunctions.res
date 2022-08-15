@@ -265,9 +265,8 @@ let inputToArgs = (f: PT.UserFunction.t, input: AnalysisTypes.InputValueDict.t):
 }
 
 let canDelete = (usedInRefs: list<toplevel>, tlid: TLID.t): bool =>
-  /* Allow deletion if the only callers are itself or there are no references at all.
-    List.all returns true if the list is empty.
- */
+  // Allow deletion if the only callers are itself or there are no references at all.
+  // hmmm I wonder if this would be better framed in a List.noneMatch (or wahtever the name is, if any)
   usedInRefs |> List.all(~f=x =>
     switch x {
     | TLFunc(f) if f.tlid == tlid => true

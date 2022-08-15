@@ -80,7 +80,6 @@ module Base64 = {
 
   // hmmm: is this in raw JS because it's more efficient in JS, or because
   // ReScript lacks the tools to write such code easily, or both, or other?
-  // hmmm: should the be _-prefixed? (it's only used in this file)
   let dark_arrayBuffer_to_b64url = %raw(`
   function (arraybuffer) {
     // From https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
@@ -107,7 +106,7 @@ module Base64 = {
       return base64;
   }
   `)
-  // hmmm: should the be _-prefixed? (it's only used in this file)
+
   let base64url_bytes = (input: Bytes.t): string =>
     input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
 }

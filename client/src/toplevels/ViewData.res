@@ -4,6 +4,11 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 
+// hmmm: description? Really not sure what this file is for exaclty
+// used for both handlers and user functions
+// what kind of 'data' is this relating to?
+// I think there could be some refactoring here to make intent/usage more clear
+
 type msg = AppTypes.msg
 
 let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> => {
@@ -155,11 +160,13 @@ let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
 
 let viewData = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
   let requestEls = viewTraces(vp)
+
   let tlSelected = switch CursorState.tlidOf(vp.cursorState) {
   | Some(tlid) if tlid == vp.tlid => true
   | Some(_) | None => false
   }
 
+  // hmmm: this could just be an Option - shouldn't need two bindings?
   let showWorkerStats = tlSelected && Option.isSome(vp.workerStats)
   let workQStats = if showWorkerStats {
     let count =

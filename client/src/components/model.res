@@ -1,3 +1,5 @@
+// hmmm alternative file name? I don't find this very useful/intuitive.
+
 let updateError = (fn: Error.t => Error.t, (m, cmd): (AppTypes.model, AppTypes.cmd)) => (
   {...m, error: fn(m.error)},
   cmd,

@@ -1,6 +1,9 @@
 module PT = ProgramTypes
 module RT = RuntimeTypes
 
+// Used to manually execute some Function or Handler
+// Note: the decoders are only needed for round-tripping tests
+
 module Function = {
   module Params = {
     @ppx.deriving(show({with_path: false}))
@@ -12,16 +15,6 @@ module Function = {
       fnName: string,
     }
 
-    let encode = (params: t): Js.Json.t => {
-      open Json_encode_extended
-      object_(list{
-        ("tlid", TLID.encode(params.tlid)),
-        ("trace_id", TraceID.encode(params.traceID)),
-        ("caller_id", ID.encode(params.callerID)),
-        ("args", list(RT.Dval.encode, params.args)),
-        ("fnname", string(params.fnName)),
-      })
-    }
     let decode = (j): t => {
       open Json_decode_extended
       {
@@ -31,6 +24,16 @@ module Function = {
         args: field("args", list(RT.Dval.decode), j),
         fnName: field("fnname", string, j),
       }
+    }
+    let encode = (params: t): Js.Json.t => {
+      open Json_encode_extended
+      object_(list{
+        ("tlid", TLID.encode(params.tlid)),
+        ("trace_id", TraceID.encode(params.traceID)),
+        ("caller_id", ID.encode(params.callerID)),
+        ("args", list(RT.Dval.encode, params.args)),
+        ("fnname", string(params.fnName)),
+      })
     }
   }
 

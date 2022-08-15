@@ -1,8 +1,5 @@
 open Tc
 
-// hmmm: is the new 'system' for when there should/shouldn't be newlines between
-// modules here?
-
 module Html = Tea_html_extended
 
 module Utils = SettingsUtils

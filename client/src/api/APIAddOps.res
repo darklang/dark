@@ -1,10 +1,6 @@
 module PT = ProgramTypes
 module RT = RuntimeTypes
 
-// hmmm: where is the line drawn between an AddOp operation and something like
-// a toplevel being deleted? Are there some things that should be moved into
-// or out of 'addOp' space?
-
 module Params = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {

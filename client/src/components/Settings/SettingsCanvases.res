@@ -31,6 +31,4 @@ let setInfo = (
   orgCanvasList: orgCanvasList,
 }
 
-// hmmm: if it's not appropriate to include _msg here, what is appropriate?
-// the only usage passes in a `msg`, seemingly to fit in with other 'update' fns like this.
-let update = (state: t, _msg) => state
+let update = (state: t, ()) => state

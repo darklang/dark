@@ -32,6 +32,7 @@ let fetch_ = (
   data,
 ) => {
   open Js.Promise
+
   Fetch.fetchWithInit(
     url,
     Fetch.RequestInit.make(
@@ -48,8 +49,8 @@ let fetch_ = (
     ),
   )
   |> then_((resp: Fetch.response) =>
-    /* The result not be there because we haven't saved the handler yet.
-     * In that case, return TraceFetchMissing so we can try again. */
+    // The result may not be there because we haven't saved the handler yet.
+    // In that case, return TraceFetchMissing so we can try again.
     if Fetch.Response.status(resp) == 404 {
       reject(NoneFound)
     } else if Fetch.Response.status(resp) == 401 {
@@ -92,6 +93,7 @@ let fetch_ = (
 
 let fetch = (context: APITypes.fetchContext, request: APITypes.fetchRequest) => {
   let urlRoot = context.origin ++ API.apiRoot ++ context.canvasName
+
   switch request {
   | TraceFetch(gdtp) =>
     let url = urlRoot ++ "/v1/get_trace_data"

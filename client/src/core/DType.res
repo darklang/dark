@@ -1,4 +1,4 @@
-// hmmm: does this belong in ProgramTypes?
+// Dark types - used both in ProgramTypes and RuntimeTypes
 
 @ppx.deriving(show({with_path: false}))
 type rec t =

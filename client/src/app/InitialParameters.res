@@ -1,6 +1,7 @@
 open Prelude
 
-// The parameters passed from appsupport.js.
+// The parameters passed from appsupport.js, which are largely injected by the
+// backend (UI.fs) into the main template file `ui.html`.
 
 type t = {
   complete: list<RT.BuiltInFn.t>,

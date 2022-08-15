@@ -241,17 +241,17 @@ module Namer = {
   }
 }
 
-@ocaml.doc(
-  " Returns the indefinite article (either \"a\" or \"an\") depending on whether `subject` starts with a vowel. Only works for English vowels right now. "
-)
+@ocaml.doc("Returns the indefinite article (either \"a\" or \"an\") depending
+  on whether `subject` starts with a vowel. Only works for English vowels right
+  now.")
 let indefiniteArticleFor = (subject: string): string =>
   switch String.slice(~from=0, ~to_=1, subject) {
   | "A" | "E" | "I" | "O" | "U" | "a" | "e" | "i" | "o" | "u" => "an"
   | _ => "a"
   }
 
-/* Obscures string keeping only last n characters, and replacing everything else with X.
- If string length < n, then returns X of string length */
+@ocaml.doc("Obscures string keeping only last n characters, and replacing
+  everything else with X. If string length < n, then returns X of string length")
 let obscureString = (s: string): string => {
   let len = String.length(s)
   let n = Int.minimum(4, len / 4)
@@ -263,7 +263,8 @@ let obscureString = (s: string): string => {
 
 let hideSecrets = (secretValues: list<string>, s: string): string =>
   List.fold(secretValues, ~initial=s, ~f=(buildingStr, secretVal) =>
-    /* We are doing this instead of Regex.replace because it fails secretValues with regex characters
-     And Js.String.replace only replaces the first found string. */
+    // We are doing this instead of Regex.replace because it fails secretValues
+    // with regex characters, and Js.String.replace only replaces the first
+    // found string.
     buildingStr |> String.split(~on=secretVal) |> String.join(~sep=obscureString(secretVal))
   )

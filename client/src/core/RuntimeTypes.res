@@ -126,7 +126,6 @@ module FQFnName = {
   }
 }
 
-// hmmm: consider renaming to MatchPattern, as opposed to an upcoming LetPattern/DeconstructPattern
 module Pattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
@@ -423,8 +422,6 @@ module Dval = {
   let rec toType = (dv: t): DType.t => {
     // CLEANUP this function is derived from the backend version, but to avoid
     // blowing everything up I've kept it on the current types.
-    // hmmm: could you please clarify?
-    // hmmm: also, why are so many branches below commented? I assume that's relevant to ^ clarification.
     let any = DType.any
 
     switch dv {

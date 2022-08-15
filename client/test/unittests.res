@@ -1,7 +1,7 @@
 // See `docs/unittests.md` for documentation on how to use this.
 
-// hmmm: why are dom/TestPage tests special in any way?
-// (and why do we need to pass in a --dom flag for them to be evaluated/run?)
+// Tests on the DOM are quite slow to run, so we only run them when an explicit
+// `--dom` flag is included.
 let domTests = ref(false)
 
 let process_cmdline_args = () => {

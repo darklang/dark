@@ -1,4 +1,5 @@
 open Prelude
+
 module E = ProgramTypes.Expr
 type tokenInfo = FluidTypes.TokenInfo.t
 type modification = AppTypes.modification
@@ -8,8 +9,8 @@ type unwrapKeep =
   | KeepOld
   | KeepNew
 
-@ocaml.doc(" [ancestorFlag ast id] returns the first ancestor of the expression having
- * [id] that is a feature flag ")
+@ocaml.doc("[ancestorFlag ast id] returns the first ancestor of the expression
+  having [id] that is a feature flag")
 let ancestorFlag = (ast: FluidAST.t, id: id): option<FluidExpression.t> =>
   FluidAST.ancestors(id, ast) |> List.find(~f=x =>
     switch x {
@@ -18,11 +19,11 @@ let ancestorFlag = (ast: FluidAST.t, id: id): option<FluidExpression.t> =>
     }
   )
 
-@ocaml.doc(" [wrap fluidState ast id] finds the expression having [id] and wraps it in a feature * *
-    flag (making it into the \"old code\" of the flag.
+@ocaml.doc("[wrap fluidState ast id] finds the expression having [id] and
+  wraps it in a feature flag (making it into the \"old code\" of the flag.
 
-    Returns a Some of the ID of the newly created EFeatureFlag (or None if one
-    wasn't created) and the new AST ")
+  Returns a Some of the ID of the newly created EFeatureFlag (or None if one
+  wasn't created) and the new AST")
 let wrap = (s: AppTypes.fluidState, ast: FluidAST.t, id: id): (option<id>, FluidAST.t) =>
   switch ancestorFlag(ast, id) {
   | Some(_) => (None, ast) // don't nest flags!

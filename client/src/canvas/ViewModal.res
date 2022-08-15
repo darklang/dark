@@ -5,6 +5,9 @@ module TL = Toplevel
 module P = Pointer
 module TD = TLID.Dict
 
+// hmmm: with the title as-is, I thought this was going to be the infra for
+// supporting a modal view, not a specific modal. maybe this should be ViewBrowserSupportModal?
+
 let viewBrowserMessage: Html.html<AppTypes.msg> = Html.div(
   list{Html.class'("warning")},
   list{
@@ -12,7 +15,12 @@ let viewBrowserMessage: Html.html<AppTypes.msg> = Html.div(
       list{Html.class'("title")},
       list{
         Html.text(
-          "Unfortunately we only support Dark on desktop Chrome right now. Between browser different input models, differences in scripting and rendering performance, and differing web platform support, we don't have the capacity to support other browsers at the moment. We hope to support Firefox, Safari, and mobile use once we've really nailed the experience on Chrome. Thanks for understanding!",
+          "Unfortunately we only support Dark on desktop Chrome right now.
+          Between browser different input models, differences in scripting and
+          rendering performance, and differing web platform support, we don't
+          have the capacity to support other browsers at the moment. We hope to
+          support Firefox, Safari, and mobile use once we've really nailed the
+          experience on Chrome. Thanks for understanding!",
         ),
       },
     ),

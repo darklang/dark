@@ -9,6 +9,8 @@ type modification = AppTypes.modification
 type model = AppTypes.model
 module Mod = AppTypes.Modification
 
+// hmmm: a 'selection' is...
+
 // -------------------------------
 // Traces
 // These used to have keyboard shortcuts to move between traces. When we

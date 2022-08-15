@@ -1,5 +1,8 @@
 open Prelude
 
+// hmmm: the purpose for these feels a bit vague to me - we're syncing some
+// sort of analysis state between ....?
+
 type model = AppTypes.model
 
 let markRequestInModel = (~key: string, m: model): model => {

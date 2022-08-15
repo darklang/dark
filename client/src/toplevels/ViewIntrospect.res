@@ -2,6 +2,9 @@ open Prelude
 module TL = Toplevel
 module B = BlankOr
 
+// hmmm: what is this?
+// Oh, I think it's to display usages!
+
 type msg = AppTypes.msg
 
 let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {

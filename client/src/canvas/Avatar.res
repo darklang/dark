@@ -15,10 +15,13 @@ let filterAvatarsByTlid = (avatars: list<Avatar.t>, tlid: TLID.t): list<Avatar.t
 let avatarUrl = (email: string, name: option<string>): string => {
   // Digest.string is ReScript's MD5
   let digestedEmail = Digest.to_hex(Digest.string(email))
+
+  // hmm should this be 'withFallback' or something?
   let fallback = (name: option<string>) =>
     switch name {
-    | None | Some("") => /* 'retro' is a fallback style:
-       * https://en.gravatar.com/site/implement/images/ */
+    | None | Some("") =>
+      // 'retro' is a fallback style:
+      // https://en.gravatar.com/site/implement/images/
       "retro"
     | Some(name) =>
       let initials =
@@ -26,10 +29,10 @@ let avatarUrl = (email: string, name: option<string>): string => {
         |> List.map(~f=s => s |> String.slice(~from=0, ~to_=1))
         |> String.join(~sep="+")
 
-      /* TODO: we can set bg/fg color, font size/color/weight, make it
-       * circular: https://ui-avatars.com/
-       * Note that since we're using this with gravatar, we want the
-       * nested-dir style format, not the query param format */
+      // TODO: we can set bg/fg color, font size/color/weight, make it
+      // circular: https://ui-avatars.com/
+      // Note that since we're using this with gravatar, we want the
+      // nested-dir style format, not the query param format
       "https://ui-avatars.com/api" ++ ("/" ++ initials)
     }
 
@@ -64,8 +67,8 @@ let viewAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<msg> => {
 }
 
 let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
-  /* Sort by serverTime desc, then unique by avatar - gets us the most recent
-   * avatar for a given username */
+  // Sort by serverTime desc, then unique by avatar - gets us the most recent
+  // avatar for a given username
   let avatars =
     avatars
     |> List.sortBy(~f=(avatar: Avatar.t) => avatar.serverTime)

@@ -1,5 +1,8 @@
 open Prelude
 
+// hmmm: the naming style is different here (DarkStorage.res) vs elsewhere
+// (StaticAssets.res). ideas to be more consistent?
+
 module NewStaticDeployPush = {
   let decode = {
     open Tea.Json.Decoder

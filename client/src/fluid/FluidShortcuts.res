@@ -2,6 +2,8 @@ open Prelude
 open ProgramTypes
 open ProgramTypes.Expr
 
+// 'Shortcuts' to concisely create parts of Dark programs (Exprs, Patterns)
+
 let blank = (~id=gid(), ()): t => EBlank(id)
 
 let str = (~id=gid(), str: string): t => EString(id, str)

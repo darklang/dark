@@ -6,6 +6,8 @@ module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module RT = Runtime
 
+// hmmm: what's "Entry" in this context?
+
 let onSubmit = (~key, fn) =>
   Html.onWithOptions(
     ~key,
@@ -14,10 +16,10 @@ let onSubmit = (~key, fn) =>
     Decoders.wrapDecoder(fn),
   )
 
-/* This is a paste handler that allows the default behaviour, ignores
- * the incoming Msg, and does _not_ propagate the event upwords.
- *
- * This is to prevent the paste handler on `document` from eating the event */
+@ocaml.doc("This is a paste handler that allows the default behaviour, ignores
+  the incoming Msg, and does _not_ propagate the event upwords.
+
+  This is to prevent the paste handler on `document` from eating the event")
 let defaultPasteHandler = Html.onWithOptions(
   ~key="paste",
   "paste",
@@ -91,9 +93,8 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
     list{},
   )
 
-  // TODO(ian): deliberately using an empty string here
-  // and changing absolutely nothing else re: the layout/width
-  // here because I have no idea what the effects will be
+  // TODO: an empty string is used here deliberately, not changing the layout
+  // or flow of page, as I have no idea what the effects will be if I do otherwise
   let suggestionSpan = Html.span(list{Attributes.id("suggestionBox")}, list{Html.text("")})
 
   // http://making.fiftythree.com/fluid-text-inputs/

@@ -1,9 +1,12 @@
 open Prelude
+
 module T = FluidToken
 module E = FluidExpression
 module Pattern = FluidPattern
 module Util = FluidUtil
 open FluidTokenizer
+
+// hmmm
 
 type token = FluidTypes.Token.t
 
@@ -48,11 +51,10 @@ let pToStructure = (p: fluidPattern): string =>
 // -----------------
 // Test cases
 // -----------------
-/* eToTestcase constructs testcases that we can enter in our
- * test suite. They are similar to `show` except that instead of the full code,
- * they use the shortcuts from FluidTestData. */
-// -----------------
 
+@ocaml.doc("constructs testcases that we can enter in our test suite. They are
+  similar to `show` except that instead of the full code, they use the
+  shortcuts from FluidTestData")
 let rec eToTestcase = (e: E.t): string => {
   let r = eToTestcase
   let quoted = str => "\"" ++ (str ++ "\"")

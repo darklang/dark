@@ -3,6 +3,10 @@ module B = BlankOr
 module TL = Toplevel
 module TD = TLID.Dict
 
+// hmmm: I'm not sure the central purpose for this file.
+// "Introspect" isn't clear to me, but be might with a little description here
+// Oh, I think it's to display usages!
+
 let keyForHandlerSpec = (space: string, name: string): string => space ++ (":" ++ name)
 
 let keyForTipe = (name: string, version: int): string => name ++ (":" ++ Int.toString(version))

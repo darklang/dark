@@ -3,6 +3,8 @@ module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
 
+// A page is... hmmm
+
 type page = AppTypes.Page.t
 
 type modification = AppTypes.modification

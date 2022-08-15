@@ -1,9 +1,11 @@
 open Prelude
 module E = FluidExpression
 
-@ppx.deriving(show({with_path: false})) type rec t = Types.functionsType
+@ppx.deriving(show({with_path: false}))
+type rec t = Types.functionsType
 
-@ppx.deriving(show({with_path: false})) type rec props = Types.functionsProps
+@ppx.deriving(show({with_path: false}))
+type rec props = Types.functionsProps
 
 let builtinFunctionsToFn = (fn: RT.BuiltInFn.t): function_ => {
   let toParam = (p: RT.BuiltInFn.Param.t): parameter => {
@@ -34,10 +36,9 @@ let builtinFunctionsToFn = (fn: RT.BuiltInFn.t): function_ => {
   }
 }
 
-/* Returns the function named `name`. Returns Nothing if the function
- * can't be found - this shouldn't happen in theory but often does
- * in practice; for example, someone might delete a function and
- * then do a local undo. */
+@ocaml.doc("Returns the function named `name`. Returns Nothing if the function
+ can't be found - this shouldn't happen in theory but often does in practice;
+ for example, someone might delete a function and then do a local undo.")
 let find = (name: PT.FQFnName.t, functions: t): option<function_> =>
   List.find(functions.allowedFunctions, ~f=f => f.fnName == name)
 
@@ -55,21 +56,21 @@ let globalRef = ref(empty)
 
 let global = () => globalRef.contents
 
-/* Return a set containing names of previewUnsafe user functions.
- *
- * A userfunction is unsafe if it calls an unsafe function (and so is also
- * unsafe if any of its callees (the functions it calls) itself calls an unsafe
- * function. The functions that we know are unsafe are the builtin functions
- * that are marked as unsafe.
- *
- * You can think of this as a callgraph. The bottom of the callgraph are
- * functions that dont call any more functions (and thus are safe) or are
- * builtins (and thus have a flag to tell us if they are safe).
- *
- * So to figure out the complete set of unsafe userfunctions, we start at the
- * bottom of the callgraph, from the unsafe builtins. Then we go up the tree,
- * and mark any callers of those functions as unsafe. And that's the whole
- * algorithm. */
+@ocaml.doc("Return a set containing names of previewUnsafe user functions.
+
+  A userfunction is unsafe if it calls an unsafe function (and so is also
+  unsafe if any of its callees (the functions it calls) itself calls an unsafe
+  function. The functions that we know are unsafe are the builtin functions
+  that are marked as unsafe.
+
+  You can think of this as a callgraph. The bottom of the callgraph are
+  functions that dont call any more functions (and thus are safe) or are
+  builtins (and thus have a flag to tell us if they are safe).
+
+  So to figure out the complete set of unsafe userfunctions, we start at the
+  bottom of the callgraph, from the unsafe builtins. Then we go up the tree,
+  and mark any callers of those functions as unsafe. And that's the whole
+  algorithm.")
 let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
   // Construct a dependency tree (which is a reverse callgraph) so that we get
   // from a callee to a caller
@@ -110,14 +111,15 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
   )
 
   let worklist = ref(unsafeBuiltins)
+
   // The result set
   let unsafeFns = ref(Set.String.empty)
-  /* The worklist algorithm:
-   *
-   * Go through worklist of unsafe functions, starting with known-unsafe builtins:
-   * - mark this function unsafe
-   * - add the callers to the worklist
-   */
+
+  // The worklist algorithm:
+  //
+  // Go through worklist of unsafe functions, starting with known-unsafe builtins:
+  // - mark this function unsafe
+  // - add the callers to the worklist
   while worklist.contents != list{} {
     switch worklist.contents {
     | list{callee, ...rest} =>

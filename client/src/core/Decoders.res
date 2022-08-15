@@ -3,8 +3,12 @@ open Json.Decode
 
 // Dark
 
+// hmmm: should this file be eventually broken down and removed?
+// same with Encoders? or maybe some 'util' fns remain.
+
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
+// hmmm: what is this?
 let loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
   variants(
     list{

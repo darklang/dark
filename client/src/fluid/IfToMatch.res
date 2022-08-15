@@ -3,6 +3,9 @@ module TL = Toplevel
 module E = ProgramTypes.Expr
 module P = FluidPattern
 
+// Refactors an 'if' expression into a 'match {bool}' expression
+// hmmm: should this be in some special 'refactor' section of code?
+
 let findIf = (ast: FluidAST.t, e: E.t): option<E.t> =>
   switch e {
   | EIf(_) => Some(e)
@@ -29,7 +32,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
   let makeBinOpMatch = (ifID, binopID, lhs, rhs, rail, then_, else_) => {
     // We need to make sure that whichever side we choose for the match condition,
     // we should be able to turn the other side into a pattern. So we try to make smart
-    // decision whether to choose the lhs or rhs here. We default to the eft hand side,
+    // decision whether to choose the lhs or rhs here. We default to the left hand side,
     // except when there's something on the rhs which cannot be turned into a pattern.
     let (matchCond, arm) = switch rhs {
     | E.ELet(_)
@@ -79,9 +82,13 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     let ifExprToMatchExpr: option<FluidExpression.t> = switch ifexpr {
     | E.EIf(ifID, EBinOp(binopID, {module_: None, function: "=="}, lhs, rhs, rail), then_, else_) =>
       Some(makeBinOpMatch(ifID, binopID, lhs, rhs, rail, then_, else_))
+
     | E.EIf(ifID, EBinOp(binopID, {module_: None, function: "!="}, lhs, rhs, rail), then_, else_) =>
       Some(makeBinOpMatch(ifID, binopID, lhs, rhs, rail, else_, then_))
-    | E.EIf(ifID, cond, then_, else_) => Some(makeGenericMatch(ifID, cond, then_, else_))
+
+    | E.EIf(ifID, cond, then_, else_) =>
+      Some(makeGenericMatch(ifID, cond, then_, else_))
+
     | _ => None
     }
 

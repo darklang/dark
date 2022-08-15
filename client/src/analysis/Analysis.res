@@ -16,10 +16,6 @@ module Trace = AnalysisTypes.Trace
 module TraceData = AnalysisTypes.TraceData
 module TraceError = AnalysisTypes.TraceError
 
-// ----------------------
-// Analyses
-// ----------------------
-
 @ocaml.doc(" [defaultTraceIDForTL ~tlid] returns the id of the \"default\" trace
  * for the top level with the given [tlid].
  *
@@ -379,8 +375,7 @@ let mergeTraces = (
        *
        ***
        */
-      // Pass 1: merge the lists, using foldr to preserve the order of n
-      // hmmm: comment outdated - foldr not used.
+      // Pass 1: merge the lists, using foldRight to preserve the order of n
       let merged = List.foldRight(n, ~initial=o, ~f=(acc, (newID, newData) as new_) => {
         let found = ref(false)
         let updated = List.map(acc, ~f=((oldID, oldData) as old) =>

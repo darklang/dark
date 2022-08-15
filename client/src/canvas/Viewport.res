@@ -6,6 +6,7 @@ module Cmd = Tea.Cmd
 type model = AppTypes.model
 type modification = AppTypes.modification
 
+// hmm feels like these should be moved Pos?
 let addPos = (a: Pos.t, b: Pos.t): Pos.t => {x: a.x + b.x, y: a.y + b.y}
 
 let subPos = (a: Pos.t, b: Pos.t): Pos.t => {x: a.x - b.x, y: a.y - b.y}
@@ -42,11 +43,10 @@ let moveLeft = (m: model): modification => moveCanvasBy(m, -1 * Defaults.moveSiz
 
 let moveRight = (m: model): modification => moveCanvasBy(m, Defaults.moveSize, 0)
 
-/* Centers the toplevel on canvas based on windowWidth and sidebarWidth
-  Default values (when we can't find get elements from dom) are based on
-  min-widths defined in app.less. At some point we will want to find a
-  less volatile method for the constant definitions.
-*/
+@ocaml.doc("Centers the toplevel on canvas based on windowWidth and
+  sidebarWidth. Default values (when we can't find get elements from DOM) are
+  based on min-widths defined in app.less. At some point we will want to find a
+  less volatile method for the constant definitions.")
 let centerCanvasOn = (tl: toplevel): Pos.t => {
   let windowWidth = Native.Window.viewportWidth
   let sidebarWidth =
@@ -68,7 +68,8 @@ let centerCanvasOn = (tl: toplevel): Pos.t => {
   {x: TL.pos(tl).x - offsetLeft, y: TL.pos(tl).y - 200}
 }
 
-// Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas
+// Checks to see is the token's dom element within viewport. If not, returns
+// the new targetX and/or targetY to move the user to, in the canvas.
 let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
   let tokenSelector = ".id-" ++ ID.toString(id)
   let tlSelector = ".tl-" ++ TLID.toString(TL.id(tl))
@@ -116,10 +117,12 @@ let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
 
 let findNewPos = (m: model): Pos.t => {
   open Native
+
   switch m.currentPage {
   | Architecture | FocusedHandler(_) | FocusedDB(_) | SettingsModal(_) =>
     let o = m.canvasProps.offset
-    // We add padding to the viewport range, to ensure we don't have new handlers too far from eachother.
+    // We add padding to the viewport range, to ensure we don't have new
+    // handlers too far from eachother.
     let padRight = 400
     let padBottom = 400
     let minX = switch m.sidebarState.mode {
@@ -132,9 +135,9 @@ let findNewPos = (m: model): Pos.t => {
     let maxY = minY + (Window.viewportHeight - padBottom)
     {x: Random.range(minX, maxX), y: Random.range(minY, maxY)}
   | FocusedPackageManagerFn(_) | FocusedFn(_) | FocusedType(_) =>
-    /* if the sidebar is open, the users can't see the livevalues, which
-     * confused new users. Given we can't get z-index to work, moving it to the
-     * side a little seems the best solution for now. */
+    // if the sidebar is open, the users can't see the livevalues, which
+    // confused new users. Given we can't get z-index to work, moving it to the
+    // side a little seems the best solution for now.
     let xOffset = switch m.sidebarState.mode {
     | DetailedMode => 320
     | AbridgedMode => 0

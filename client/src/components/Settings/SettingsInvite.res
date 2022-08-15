@@ -3,7 +3,7 @@ open Tc
 module Utils = SettingsUtils
 
 // --------------------------------
-/// Model
+// Model
 // --------------------------------
 @ppx.deriving(show)
 type rec inviter = {name: string, username: string}
@@ -32,7 +32,7 @@ module Params = {
 type rec msg =
   | Update(string)
   | @printer(Types.opaque("TriggerSendCallback"))
-  TriggerSendCallback(Tea_result.t<unit, Tea.Http.error<string>>)
+    TriggerSendCallback(Tea_result.t<unit, Tea.Http.error<string>>)
   | Submit
 
 @ppx.deriving(show)
@@ -53,7 +53,7 @@ let default = {
 }
 
 // --------------------------------
-/// Update
+// Update
 // --------------------------------
 
 let setInviter = (state: t, username: string, name: string): t => {
@@ -61,7 +61,8 @@ let setInviter = (state: t, username: string, name: string): t => {
   inviter: {username: username, name: name},
 }
 
-@val @scope("window") @scope("Dark") external validateEmail: string => bool = "validateEmail"
+@val @scope("window") @scope("Dark")
+external validateEmail: string => bool = "validateEmail"
 
 let validateEmail = (email: Utils.formField): Utils.formField => {
   let error = {
@@ -98,7 +99,8 @@ let update = (i: t, msg: msg): (t, option<effect>) =>
   switch msg {
   | Update(value) => ({...i, email: {value: value, error: None}}, None)
 
-  | TriggerSendCallback(Ok(_)) => ({...default, loading: false}, Some(UpdateToast("Sent!")))
+  | TriggerSendCallback(Ok(_)) =>
+    ({...default, loading: false}, Some(UpdateToast("Sent!")))
 
   | TriggerSendCallback(Error(err)) => (
       {

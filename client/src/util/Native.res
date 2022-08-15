@@ -55,16 +55,16 @@ module Ext = {
 }
 
 module OffsetEstimator = {
-  /* Takes a mouse event, ostensibly a `click` inside an BlankOr with id `elementID`
-   * and produces an 0-based integer offset from the beginning of the BlankOrs content where
-   * the click occurred on the DOM.
-   *
-   * ie. if the DOM element has "foobar" and the user clicks between the `o` and the `b`
-   * the return value should be `4`.
-   *
-   * TODO: It's a super hacky estimate based on our common screen size at Dark and the default
-   * font size and should be replaced with a proper implementation. But it's done us
-   * okay so far. */
+  @ocaml.doc("Takes a mouse event, ostensibly a `click` inside an BlankOr with
+    id `elementID` and produces an 0-based integer offset from the beginning of
+    the BlankOrs content where the click occurred on the DOM.
+
+     i.e. if the DOM element has 'foobar' and the user clicks between the `o`
+     and the `b` the return value should be `4`.
+
+     TODO: It's a super hacky estimate based on our common screen size at Dark
+     and the default font size and should be replaced with a proper
+     implementation. But it's done us okay so far.")
   let estimateClickOffset = (elementID: string, event: AppTypes.MouseEvent.t): option<int> =>
     switch Js.Nullable.toOption(Web_document.getElementById(elementID)) {
     | Some(elem) =>
@@ -90,44 +90,56 @@ module Random = {
 }
 
 module Location = {
-  @val @scope(("window", "location")) external queryString: string = "search"
+  @val @scope(("window", "location"))
+  external queryString: string = "search"
 
-  @val @scope(("window", "location")) external hashString: string = "hash"
+  @val @scope(("window", "location"))
+  external hashString: string = "hash"
 
-  @val @scope(("window", "location")) external reload: bool => unit = "reload"
+  @val @scope(("window", "location"))
+  external reload: bool => unit = "reload"
 
   // TODO write string query parser
 }
 
 module Window = {
-  @val @scope("window") external viewportWidth: int = "innerWidth"
+  @val @scope("window")
+  external viewportWidth: int = "innerWidth"
 
-  @val @scope("window") external viewportHeight: int = "innerHeight"
+  @val @scope("window")
+  external viewportHeight: int = "innerHeight"
 
-  @val @scope("window") external pageWidth: int = "outerWidth"
+  @val @scope("window")
+  external pageWidth: int = "outerWidth"
 
-  @val @scope("window") external pageHeight: int = "outerHeight"
+  @val @scope("window")
+  external pageHeight: int = "outerHeight"
 
-  @val @scope("window") external openUrl: (string, string) => unit = "open"
+  @val @scope("window")
+  external openUrl: (string, string) => unit = "open"
 }
 
 module Clipboard = {
-  @module external copyToClipboard: string => unit = "clipboard-copy"
+  @module
+  external copyToClipboard: string => unit = "clipboard-copy"
 }
 
 module BigInt = {
   type t
 
-  /* asUintNExn throws an exception when given stringified non-ints and truncates the most significant bits
-   of numbers with magnitude too large to be represented in the given # of bits */
-  @val @scope("BigInt") external asUintNExn: (int, string) => t = "asUintN"
+  @ocaml.doc("throws an exception when given stringified non-ints and truncates
+    the most significant bits of numbers with magnitude too large to be
+    represented in the given # of bits")
+  @val @scope("BigInt")
+  external asUintNExn: (int, string) => t = "asUintN"
 
   let asUintN = (~nBits: int, str: string): Option.t<t> =>
     try Some(asUintNExn(nBits, str)) catch {
     | _ => None
     }
 
-  @bs.send external toString: t => string = "toString"
+  @bs.send
+  external toString: t => string = "toString"
 }
 
 module Decoder = {

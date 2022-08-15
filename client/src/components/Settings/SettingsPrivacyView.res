@@ -4,7 +4,10 @@ module Html = Tea_html_extended
 
 module T = SettingsPrivacy
 
-let explanation = "To help us understand how people learn Dark, is it okay if we track your session in a replayable format (using Fullstory)."
+let explanation =
+  // hmm: make sure this renders OK, and the reformatter doesn't hate it
+  "To help us understand how people learn Dark, is it okay if we track your
+  session in a replayable format (using Fullstory)."
 
 let disableOmniOpen = ViewUtils.nothingMouseEvent("mousedown")
 
@@ -76,6 +79,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
 let viewTopbar = (state: T.t): Html.html<AppTypes.msg> => {
   let content = list{consentRow(state.recordConsent, ~longLabels=true)}
 
+  // hmmm: what does 'cls' stand for - close?
   let cls = if state.recordConsent == None {
     "ask"
   } else {

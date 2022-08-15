@@ -1,5 +1,4 @@
-// Defines an Error message type and related functions
-// Errors are currently represented as a simple option<string>
+// Supports the error bar (shown at the bottom of the editor when errors occur)
 
 @ppx.deriving(show) type rec t = option<string>
 

@@ -7,6 +7,8 @@ module P = Pointer
 module Spec = PT.Handler.Spec
 module CronInterval = Spec.CronInterval
 
+// "Spec Headers" are the top bar/headers shown ...hmmm
+
 // HACK: the code for headers was really written around the blankOr paradigm. So to
 // avoid code changes getting out of control, let's simply convert it back into
 // blankOrs, do the operations, and change it back

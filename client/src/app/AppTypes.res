@@ -1,5 +1,13 @@
 module PT = ProgramTypes
 
+// hmmm the name AppTypes + size of file feels like this is "other stuff we
+// haven't pulled into separate files yet." Is that fair?
+// e.g. AutoCompleteTypes.res feels appropriate to me.
+// If not, 'AppModel.res' may be more appropriate, if the intention is to say
+// "this is all the stuff in our state object." (which I think would be a lie
+// anyway? the line between 'stuff in app state' and 'types used generally'
+// feels a bit blurred)
+
 let opaque = Types.opaque
 
 module Page = {
@@ -268,6 +276,7 @@ module Focus = {
 module ScrollEvent = {
   @ppx.deriving(show({with_path: false}))
   type rec t = {timestamp: float}
+
   let decode = (j: Js.Json.t): t => {
     open Json.Decode
     {
@@ -286,6 +295,7 @@ module MouseEvent = {
     shiftKey: bool,
     detail: int,
   }
+
   let decode = (j: Js.Json.t): t => {
     open Json.Decode
     {
@@ -354,6 +364,7 @@ module Tutorial = {
     step: option<Step.t>,
     tlid: option<TLID.t>,
   }
+
   let default: t = {step: Some(Welcome), tlid: None}
 }
 
@@ -369,6 +380,7 @@ module Avatar = {
     fullname: option<string>,
     browserId: string,
   }
+
   let decode = (j): t => {
     open Json_decode_extended
     {
@@ -540,8 +552,8 @@ module SavedSettings = {
     }
 
     let decode = (j: Js.Json.t): t => {
-      // It's very important that this is generous in parsing old values and missing
-      // values and in general never failing.
+      // It's very important that this is generous in parsing old values and
+      // missing values and in general never failing.
       open Json_decode_extended
       let oldFirstVisitToDark = withDefault(
         default.firstVisitToDark,
@@ -665,7 +677,8 @@ module Msg = {
     | IgnoreMouseUp // for nothingMouseEvent
     | FluidMsg(FluidTypes.Msg.t<'model, 'modification>)
     | AppMouseDown(MouseEvent.t)
-    | @printer(opaque("AppMouseDrag")) AppMouseDrag(Tea.Mouse.position)
+    | @printer(opaque("AppMouseDrag"))
+      AppMouseDrag(Tea.Mouse.position)
     | AppMouseUp(MouseEvent.t)
     | AppScroll
     | WindowMouseUp(MouseEvent.t)
@@ -675,37 +688,38 @@ module Msg = {
     | TLDragRegionMouseUp(TLID.t, MouseEvent.t)
     | ToplevelDelete(TLID.t)
     | ToplevelDeleteForever(TLID.t)
-    | @printer(opaque("DragToplevel")) DragToplevel(TLID.t, Tea.Mouse.position)
+    | @printer(opaque("DragToplevel"))
+      DragToplevel(TLID.t, Tea.Mouse.position)
     | EntryInputMsg(string)
     | EntrySubmitMsg
     | GlobalKeyPress(Keyboard.keyEvent)
     | AutocompleteClick(int)
     | @printer(opaque("AddOpsAPICallback"))
-    AddOpsAPICallback(Focus.t, APIAddOps.Params.t, Tea.Result.t<APIAddOps.t, Types.httpError>)
+      AddOpsAPICallback(Focus.t, APIAddOps.Params.t, Tea.Result.t<APIAddOps.t, Types.httpError>)
     | AddOpsPusherMsg(PusherTypes.AddOps.t)
     | @printer(opaque("SavetestAPICallback"))
-    SaveTestAPICallback(Tea.Result.t<APISaveTest.t, Types.httpError>)
+      SaveTestAPICallback(Tea.Result.t<APISaveTest.t, Types.httpError>)
     | @printer(opaque("GetUnlockedDBsAPICallback"))
-    GetUnlockedDBsAPICallback(Tea.Result.t<APIDBs.UnlockedDBs.t, Types.httpError>)
+      GetUnlockedDBsAPICallback(Tea.Result.t<APIDBs.UnlockedDBs.t, Types.httpError>)
     | @printer(opaque("Get404sAPICallback"))
-    Get404sAPICallback(Tea.Result.t<API404.List.t, Types.httpError>)
+      Get404sAPICallback(Tea.Result.t<API404.List.t, Types.httpError>)
     | NewTracePush(AnalysisTypes.NewTrace.t)
     | New404Push(AnalysisTypes.FourOhFour.t)
     | NewStaticDeployPush(StaticAssets.Deploy.t)
     | WorkerStatePush(Tc.Map.String.t<AnalysisTypes.WorkerState.t>)
     | @printer(opaque("Delete404APICallback"))
-    Delete404APICallback(
+      Delete404APICallback(
         AnalysisTypes.FourOhFour.t,
         API404.Delete.Params.t,
         Tea.Result.t<unit, Types.httpError>,
       )
     | @printer(opaque("DeleteToplevelForeverAPICallback"))
-    DeleteToplevelForeverAPICallback(
+      DeleteToplevelForeverAPICallback(
         APIToplevels.DeleteForever.Params.t,
         Tea.Result.t<unit, Types.httpError>,
       )
     | @printer(opaque("InitialLoadAPICallback"))
-    InitialLoadAPICallback(Focus.t, 'modification, Tea.Result.t<APIInitialLoad.t, Types.httpError>)
+      InitialLoadAPICallback(Focus.t, 'modification, Tea.Result.t<APIInitialLoad.t, Types.httpError>)
     | @printer(opaque("FetchAllTracesAPICallback"))
     FetchAllTracesAPICallback(Tea.Result.t<APITraces.AllTraces.t, Types.httpError>)
     | @printer(opaque("ExecuteFunctionAPICallback"))
@@ -714,27 +728,30 @@ module Msg = {
         Tea.Result.t<APIExecution.Function.t, Types.httpError>,
       )
     | @printer(opaque("UploadFunctionAPICallback"))
-    UploadFnAPICallback(APIPackages.UploadFn.Params.t, Tea.Result.t<unit, Types.httpError>)
+      UploadFnAPICallback(APIPackages.UploadFn.Params.t, Tea.Result.t<unit, Types.httpError>)
     | @printer(opaque("TriggerHandlerAPICallback"))
-    TriggerHandlerAPICallback(
+      TriggerHandlerAPICallback(
         APIExecution.Handler.Params.t,
         Tea.Result.t<APIExecution.Handler.t, Types.httpError>,
       )
     | @printer(opaque("LoadPackagesAPICallback"))
-    LoadPackagesAPICallback(Tea.Result.t<APIPackages.AllPackages.t, Types.httpError>)
+      LoadPackagesAPICallback(Tea.Result.t<APIPackages.AllPackages.t, Types.httpError>)
     | @printer(opaque("InsertSecretCallback"))
-    InsertSecretCallback(Tea.Result.t<list<SecretTypes.t>, Types.httpError>)
-    | @printer(opaque("LogoutAPICallback")) LogoutAPICallback
+      InsertSecretCallback(Tea.Result.t<list<SecretTypes.t>, Types.httpError>)
+    | @printer(opaque("LogoutAPICallback"))
+      LogoutAPICallback
     | Delete404APICall(AnalysisTypes.FourOhFour.t)
     | NewPresencePush(list<Avatar.t>)
-    | @printer(opaque("LocationChange")) LocationChange(Web.Location.location)
+    | @printer(opaque("LocationChange"))
+      LocationChange(Web.Location.location)
     | FinishIntegrationTest
     | SaveTestButton
     | ToggleEditorSetting(EditorSettings.t => EditorSettings.t)
     | ExecuteFunctionButton(TLID.t, ID.t, string)
     | ExecuteFunctionFromWithin(APIExecution.Function.Params.t)
     | CreateHandlerFrom404(AnalysisTypes.FourOhFour.t)
-    | @printer(opaque("TimerFire")) TimerFire(Types.timerAction, Tea.Time.t)
+    | @printer(opaque("TimerFire"))
+      TimerFire(Types.timerAction, Tea.Time.t)
     | JSError(string)
     | PageVisibilityChange(PageVisibility.t)
     | DeleteUserFunctionParameter(TLID.t, PT.UserFunction.Parameter.t)
@@ -774,7 +791,7 @@ module Msg = {
     | GoTo(Page.t)
     | SetHoveringReferences(TLID.t, list<ID.t>)
     | @printer(opaque("TriggerSendPresenceCallback"))
-    TriggerSendPresenceCallback(Tea.Result.t<unit, Types.httpError>)
+      TriggerSendPresenceCallback(Tea.Result.t<unit, Types.httpError>)
     | TakeOffErrorRail(TLID.t, ID.t)
     | SetHandlerExeIdle(TLID.t)
     | CopyCurl(TLID.t, VPos.t)
@@ -786,7 +803,7 @@ module Msg = {
     | PauseWorker(string)
     | RunWorker(string)
     | @printer(opaque("UpdateWorkerScheduleCallback"))
-    UpdateWorkerScheduleCallback(
+      UpdateWorkerScheduleCallback(
         Tea.Result.t<Tc.Map.String.t<AnalysisTypes.WorkerState.t>, Types.httpError>,
       )
     | NewTabFromTLMenu(string, TLID.t)
@@ -798,8 +815,7 @@ module Msg = {
 }
 
 module Modification = {
-  /* tlidSelectTarget represents a target inside a TLID for use
-     by the `Select` modification.
+  @ocaml.doc("represents a target inside a TLID for use by the `Select` modification.
 
      In Fluid, we should probably use STCaret in all cases -- knowing the id of an ast
      node (via STID) is insufficient to know where to place the caret within that node.
@@ -809,7 +825,7 @@ module Modification = {
      If we want to select a toplevel as a whole but don't have a specific id *in mind,
      we use STTopLevelRoot. There's a few places where we do this as a fallback when we
      expected to find an id but couldn't (they used to use Some(id) with an implicit
-     fallback to None). */
+     fallback to None).")
   @ppx.deriving(show({with_path: false}))
   type rec tlidSelectTarget =
     | STCaret(FluidCursorTypes.CaretTarget.t)

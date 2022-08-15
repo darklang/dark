@@ -155,16 +155,10 @@ module Sign = {
     | Positive
     | Negative
 
-  let toString = (sign: t): string =>
-    switch sign {
-    | Positive => ""
-    | Negative => "-"
-    }
-
-  // hmmm: I reordered some fns here - I think it'd be nice to consistently have
-  // the encode/decode functions either _just after_ the type (t) def, or at
-  // the bottom of the module.
-
+  let decode = (j): t => {
+    open Json_decode_extended
+    variants(list{("Negative", variant0(Negative)), ("Positive", variant0(Positive))}, j)
+  }
   let encode = (n: t): Js.Json.t => {
     open Json_encode_extended
     let ev = variant
@@ -173,10 +167,12 @@ module Sign = {
     | Positive => ev("Positive", list{})
     }
   }
-  let decode = (j): t => {
-    open Json_decode_extended
-    variants(list{("Negative", variant0(Negative)), ("Positive", variant0(Positive))}, j)
-  }
+
+  let toString = (sign: t): string =>
+    switch sign {
+    | Positive => ""
+    | Negative => "-"
+    }
 
   // Split the string into a sign and a string (removes the sign if present and )
   let split = (whole: string): (t, string) => {

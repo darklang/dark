@@ -2,7 +2,11 @@ include Prelude
 
 open PT.Expr
 
-@ppx.deriving(show({with_path: false})) type rec t = PT.Expr.t
+// hmmm much of this file feels like 'PT Expr Utils,' not "Fluid Expression stuff"
+// can/should we move this for clarity?
+
+@ppx.deriving(show({with_path: false}))
+type rec t = PT.Expr.t
 
 @ppx.deriving(show({with_path: false}))
 type rec fluidPatOrExpr =
@@ -159,6 +163,7 @@ let children = (expr: t): list<t> =>
   | EBlank(_)
   | EPipeTarget(_)
   | EVariable(_) => list{}
+
   // One
   | EPartial(_, _, expr)
   | ERightPartial(_, _, expr)

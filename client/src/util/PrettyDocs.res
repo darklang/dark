@@ -39,8 +39,9 @@ let justErrors = results =>
   )
   |> List.flatten
 
-@ocaml.doc(" [convert_ s] attempts to parse [s] into html. If it succeeds, it returns the result wrapped in ParseSuccess.
-  Otherwise, it returns the input string and the error message as the errors list in ParseFail. ")
+@ocaml.doc(" [convert_ s] attempts to parse [s] into html. If it succeeds, it
+  returns the result wrapped in ParseSuccess. Otherwise, it returns the input
+  string and the error message as the errors list in ParseFail.")
 let rec convert_ = (s: string): parseResult => {
   let tryParseAsCodeBlock = (input: string): option<parseResult> =>
     switch Regex.captures(~re=Regex.regex(~flags="s", codeEx), input) {

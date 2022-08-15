@@ -1,5 +1,9 @@
 open Prelude
 
+// hmmm: the fact that these 2 names are basically the same, and the ' one is
+// used outisde of this file, makes me uneasy somehow. Could we please rename
+// one of them?
+
 let variantIsActive = (m: AppTypes.model, vt: variantTest): bool => List.member(~value=vt, m.tests)
 
 let variantIsActive' = (vs: list<variantTest>, t: variantTest): bool => List.member(~value=t, vs)
@@ -35,12 +39,18 @@ let enabledVariantTests = (isAdmin: bool): list<variantTest> => {
   } else {
     list{}
   }
+
   Url.queryParams()
-  |> /* convert a (string * bool) list to a (variantTest * bool) list,
-   * ignoring any unknown query params */
-  List.filterMap(~f=((k, enabled)) => toVariantTest(k) |> Option.map(~f=vt => (vt, enabled)))
-  |> // starting with the defaults above, either add or remove each variantTest
-  List.fold(~initial, ~f=(acc, (vt, enabled)) =>
+
+  // convert a (string * bool) list to a (variantTest * bool) list, ignoring
+  // any unknown query params
+  |> List.filterMap(~f=((k, enabled)) =>
+    toVariantTest(k)
+    |> Option.map(~f=vt => (vt, enabled))
+  )
+
+  // starting with the defaults above, either add or remove each variantTest
+  |> List.fold(~initial, ~f=(acc, (vt, enabled)) =>
     if enabled {
       list{vt, ...acc}
     } else {

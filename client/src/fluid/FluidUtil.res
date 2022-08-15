@@ -12,8 +12,8 @@ let orderRangeFromSmallToBig = ((rangeBegin, rangeEnd): (int, int)): (int, int) 
     (rangeBegin, rangeEnd)
   }
 
-/* Always returns a selection represented as two ints with the smaller int first.
- The numbers are identical if there is no selection. */
+@ocaml.doc("Always returns a selection represented as two ints with the smaller
+  int first. The numbers are identical if there is no selection.")
 let getSelectionRange = (s: AppTypes.fluidState): (int, int) =>
   switch s.selectionStart {
   | Some(beginIdx) if beginIdx < s.newPos => (beginIdx, s.newPos)
@@ -72,23 +72,24 @@ let truncateStringTo64BitInt = (s: string): Result.t<int64, string> => {
 let coerceStringTo64BitInt = (s: string): int64 =>
   Result.unwrap(truncateStringTo64BitInt(s), ~default=0L)
 
-let trimQuotes = (s): string => {
+let trimQuotes = (v): string => {
   open String
-  s |> (
-    v =>
-      if endsWith(~suffix="\"", v) {
-        dropRight(~count=1, v)
-      } else {
-        v
-      } |> (
-        v =>
-          if startsWith(~prefix="\"", v) {
-            dropLeft(~count=1, v)
-          } else {
-            v
-          }
-      )
-  )
+  // hmmm is there any reason the original code had all of those pipes?
+
+  // trim start
+  let v =
+    if endsWith(~suffix="\"", v) {
+      dropRight(~count=1, v)
+    } else {
+      v
+    }
+
+  // trim end
+  if startsWith(~prefix="\"", v) {
+    dropLeft(~count=1, v)
+  } else {
+    v
+  }
 }
 
 let removeCharAt = (str, offset): string =>
