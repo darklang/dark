@@ -198,9 +198,7 @@ let testTraceDataJsonFormatRedactsPasswords =
 
     // roundtrip serialization
     let actual =
-      traceData
-      |> Json.OCamlCompatible.serialize
-      |> Json.OCamlCompatible.deserialize<AT.TraceData>
+      traceData |> Json.Vanilla.serialize |> Json.Vanilla.deserialize<AT.TraceData>
 
     // check
     Expect.equal actual expected "traceData round trip"

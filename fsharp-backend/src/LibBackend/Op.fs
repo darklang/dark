@@ -5,8 +5,6 @@ open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
-module OT = LibExecution.OCamlTypes
-module ORT = LibExecution.OCamlTypes.RuntimeT
 
 
 let eventNameOfOp (op : PT.Op) : string =
@@ -211,19 +209,3 @@ type AddOpResultV1 =
 type AddOpParamsV1 = { ops : List<PT.Op>; opCtr : int; clientOpCtrID : string }
 
 type AddOpEventV1 = { result : AddOpResultV1; ``params`` : AddOpParamsV1 }
-
-type AddOpResultV0 =
-  { toplevels : ORT.toplevel list // replace
-    deleted_toplevels : ORT.toplevel list // replace, see note above
-    user_functions : ORT.user_fn list // replace
-    deleted_user_functions : ORT.user_fn list
-    user_tipes : ORT.user_tipe list
-    deleted_user_tipes : ORT.user_tipe list } // replace, see deleted_toplevels
-
-type AddOpParamsV0 =
-  { ops : OT.oplist
-    opCtr : int
-    // option means that we can still deserialize if this field is null
-    clientOpCtrId : string option }
-
-type AddOpEventV0 = { result : AddOpResultV0; ``params`` : AddOpParamsV0 }

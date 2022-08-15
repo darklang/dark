@@ -10,10 +10,7 @@ open Tablecloth
 open Http
 
 module PT = LibExecution.ProgramTypes
-module OT = LibExecution.OCamlTypes
-module ORT = LibExecution.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
-module Convert = LibExecution.OCamlTypes.Convert
 
 module Stats = LibBackend.Stats
 module EQ = LibBackend.EventQueueV2

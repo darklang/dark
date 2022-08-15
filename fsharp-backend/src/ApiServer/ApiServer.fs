@@ -83,19 +83,8 @@ let addRoutes
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
 
-  let ocamlCompatibleApi name perm f =
-    let handler = ocamlCompatibleJsonHandler f
-    let route = $"/api/{{canvasName}}/{name}"
-    addRoute "POST" route std perm handler
-
-
   let clientJsonApiOption name perm f =
     let handler = clientJsonOptionHandler f
-    let route = $"/api/{{canvasName}}/{name}"
-    addRoute "POST" route std perm handler
-
-  let ocamlCompatibleApiOption name perm f =
-    let handler = ocamlCompatibleJsonOptionHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
 
@@ -134,18 +123,6 @@ let addRoutes
   // CLEANUP: save_test handler
   clientJsonApi "v1/trigger_handler" RW Execution.HandlerV1.trigger
   clientJsonApi "worker_schedule" RW Workers.Scheduler.updateSchedule
-
-  // These ocamlCompatible APIs can be removed once we've switched the client fully
-  // over to using v1 routes
-  ocamlCompatibleApi "add_op" RW AddOps.V0.addOp
-  clientJsonApi "delete_secret" RW Secrets.DeleteV0.delete
-  ocamlCompatibleApi "execute_function" RW Execution.FunctionV0.execute
-  ocamlCompatibleApi "trigger_handler" RW Execution.HandlerV0.trigger
-  ocamlCompatibleApi "get_db_stats" R DBs.DBStatsV0.getStats
-  clientJsonApiOption "get_trace_data" R Traces.TraceDataV0.getTraceData
-  ocamlCompatibleApi "initial_load" R InitialLoad.V0.initialLoad
-  clientJsonApi "insert_secret" RW Secrets.InsertV0.insert
-  ocamlCompatibleApi "packages" R (Packages.ListV0.packages packages)
 
   app.UseRouter(builder.Build())
 
@@ -242,42 +219,28 @@ let run (packages : Packages) : unit =
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
 let initSerializers () =
-  Json.OCamlCompatible.allow<AddOps.V0.Params> "ApiServer.AddOps"
   Json.Vanilla.allow<AddOps.V1.Params> "ApiServer.AddOps"
-  Json.OCamlCompatible.allow<AddOps.V0.T> "ApiServer.AddOps"
   Json.Vanilla.allow<AddOps.V1.T> "ApiServer.AddOps"
   Json.Vanilla.allow<DBs.DBStatsV1.Params> "ApiServer.DBs"
-  Json.OCamlCompatible.allow<DBs.DBStatsV0.T> "ApiServer.DBs"
   Json.Vanilla.allow<DBs.DBStatsV1.T> "ApiServer.DBs"
   Json.Vanilla.allow<DBs.Unlocked.T> "ApiServer.DBs"
-  Json.OCamlCompatible.allow<Execution.FunctionV0.Params> "ApiServer.Execution"
   Json.Vanilla.allow<Execution.FunctionV1.Params> "ApiServer.Execution"
-  Json.OCamlCompatible.allow<Execution.FunctionV0.T> "ApiServer.Execution"
   Json.Vanilla.allow<Execution.FunctionV1.T> "ApiServer.Execution"
-  Json.OCamlCompatible.allow<Execution.HandlerV0.Params> "ApiServer.Execution"
   Json.Vanilla.allow<Execution.HandlerV1.Params> "ApiServer.Execution"
   Json.Vanilla.allow<Execution.HandlerV1.T> "ApiServer.Execution"
   Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.Delete.T> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
   Json.Vanilla.allow<List<Functions.BuiltInFn.T>> "ApiServer.Functions"
-  Json.OCamlCompatible.allow<InitialLoad.V0.T> "ApiServer.InitialLoad"
   Json.Vanilla.allow<InitialLoad.V1.T> "ApiServer.InitialLoad"
-  Json.OCamlCompatible.allow<Packages.ListV0.T> "ApiServer.Packages"
   Json.Vanilla.allow<Packages.ListV1.T> "ApiServer.Packages"
-  Json.Vanilla.allow<Secrets.DeleteV0.Params> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.DeleteV0.T> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.DeleteV1.Params> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.DeleteV1.T> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.InsertV0.Params> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.InsertV0.T> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.InsertV1.Params> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.InsertV1.T> "ApiServer.Secrets"
   Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
   Json.Vanilla.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
   Json.Vanilla.allow<Traces.AllTraces.T> "ApiServer.Traces"
-  Json.Vanilla.allow<Traces.TraceDataV0.Params> "ApiServer.Traces"
-  Json.Vanilla.allow<Traces.TraceDataV0.T> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.TraceDataV1.Params> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.TraceDataV1.T> "ApiServer.Traces"
   Json.Vanilla.allow<Tunnels.Register.Params> "ApiServer.Tunnels"

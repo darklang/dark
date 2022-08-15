@@ -173,11 +173,6 @@ let forEachCanvasWithClient
     fn client canvasName)
 
 
-let loadAllTraceData (concurrency : int) (failOnError : bool) =
-  forEachCanvasWithClient concurrency failOnError (fun client canvasName ->
-    Tests.ApiServer.testGetTraceData client canvasName)
-
-
 
 let validate
   (name : string)
