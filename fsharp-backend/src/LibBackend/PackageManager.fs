@@ -16,8 +16,6 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
-module OT = LibExecution.OCamlTypes
-module Convert = OT.Convert
 
 // ------------------
 // Uploading
@@ -298,7 +296,92 @@ let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
 // Fetching functions
 // ------------------
 
-type ParametersDBFormat = List<OT.PackageManager.parameter>
+// CLEANUP This is the OCaml Tipe, which is what's stored in the DB for parameter
+// function types. This is stored as jsonb in the parameters column of packages_v0.
+// While technically this is the OCaml tipe, in practice many of the types are the
+// same or nearly the same as ProgramTypes.DType.
+//
+// The code below is copied from the old OCamlTypes files. It can be simplified, and
+// it should be straightforward to remove it by looking at the parameters actually
+// stored in the DB.
+type tipe =
+  | TAny
+  | TInt
+  | TFloat
+  | TBool
+  | TNull
+  | TDeprecated1
+  | TStr
+  | TList
+  | TTuple of tipe * tipe * List<tipe>
+  | TObj
+  | TIncomplete
+  | TError
+  | TBlock
+  | TResp
+  | TDB
+  | TDeprecated6
+  | TDate
+  | TDeprecated2
+  | TDeprecated3
+  | TDeprecated4 of string
+  | TDeprecated5 of string
+  | TDbList of tipe
+  | TPassword
+  | TUuid
+  | TOption
+  | TErrorRail
+  | TCharacter
+  | TResult
+  | TUserType of string * int64
+  | TBytes
+
+let rec ocamlTipe2PT (o : tipe) : PT.DType =
+  let any = PT.TVariable "a"
+
+  match o with
+  | TAny -> any
+  | TInt -> PT.TInt
+  | TFloat -> PT.TFloat
+  | TBool -> PT.TBool
+  | TNull -> PT.TNull
+  | TDeprecated1 -> any
+  | TStr -> PT.TStr
+  | TList -> PT.TList any
+  | TTuple (firstType, secondType, otherTypes) ->
+    PT.TTuple(
+      ocamlTipe2PT firstType,
+      ocamlTipe2PT secondType,
+      List.map ocamlTipe2PT otherTypes
+    )
+  | TObj -> PT.TDict any
+  | TIncomplete -> PT.TIncomplete
+  | TError -> PT.TError
+  | TBlock -> PT.TFn([ any ], any)
+  | TResp -> PT.THttpResponse any
+  | TDB -> PT.TDB any
+  | TDeprecated6 -> any
+  | TDate -> PT.TDate
+  | TDeprecated2 -> any
+  | TDeprecated3 -> any
+  | TDeprecated4 string -> any
+  | TDeprecated5 string -> any
+  | TDbList tipe -> PT.TDbList(ocamlTipe2PT tipe)
+  | TPassword -> PT.TPassword
+  | TUuid -> PT.TUuid
+  | TOption -> PT.TOption any
+  | TErrorRail -> PT.TErrorRail
+  | TCharacter -> PT.TChar
+  | TResult -> PT.TResult(any, any)
+  | TUserType (name, version) -> PT.TUserType(name, int version)
+  | TBytes -> PT.TBytes
+
+type parameter = { name : string; tipe : tipe; description : string }
+
+let ocamlPackageManagerParameter2PT (o : parameter) : PT.Package.Parameter =
+  { name = o.name; description = o.description; typ = ocamlTipe2PT o.tipe }
+
+type ParametersDBFormat = List<parameter>
 
 let allFunctions () : Task<List<PT.Package.Fn>> =
   task {
@@ -348,10 +431,9 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
               version = version }
           let expr = BinarySerialization.deserializeExpr tlid body2
           let parameters =
-            // CLEANUP convert to non-ocaml format (in the DB)
             parameters
-            |> Json.OCamlCompatible.deserialize<ParametersDBFormat>
-            |> List.map Convert.ocamlPackageManagerParameter2PT
+            |> Json.Vanilla.deserialize<ParametersDBFormat>
+            |> List.map ocamlPackageManagerParameter2PT
           let returnType =
             PTParser.DType.parse returnType
             |> Exception.unwrapOptionInternal
@@ -367,4 +449,4 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
             tlid = tlid })
   }
 
-let init () = do Json.OCamlCompatible.allow<ParametersDBFormat> "PackageManager"
+let init () = do Json.Vanilla.allow<ParametersDBFormat> "PackageManager"
