@@ -287,6 +287,21 @@ let run = () => {
       APIWorkers.Scheduler.encode,
     )
     t(
+      "vanilla_ApiServer-Tunnels_ApiServer-Tunnels-Register-T_simple.json",
+      APITunnelHost.decode,
+      APITunnelHost.encode,
+    )
+    t(
+      "vanilla_ApiServer-Tunnels_ApiServer-Tunnels-Register-Params_simple.json",
+      APITunnelHost.Params.decode,
+      APITunnelHost.Params.encode,
+    )
+    t(
+      "vanilla_ApiServer-Tunnels_ApiServer-Tunnels-Register-Params_empty.json",
+      APITunnelHost.Params.decode,
+      APITunnelHost.Params.encode,
+    )
+    t(
       "vanilla_LibAnalysis_ClientTypes-Analysis-PerformAnalysisParams_handler.json",
       AnalysisTypes.PerformAnalysis.Params.decode,
       AnalysisTypes.PerformAnalysis.Params.encode,
