@@ -20,6 +20,7 @@ open Prelude
 open Tablecloth
 
 open LibService.Telemetry
+open LibService.Exception
 
 module Canvas = LibBackend.Canvas
 module Config = LibBackend.Config
@@ -173,7 +174,14 @@ type HttpContextExtensions() =
       do! ctx.Request.Body.CopyToAsync(ms)
       let body = ms.ToArray() |> UTF8.ofBytesUnsafe
       t.next "deserialize-json"
-      let response = Json.Vanilla.deserialize<'T> body
+      let response =
+        try
+          Json.Vanilla.deserialize<'T> body
+        with
+        | e ->
+          addTag "json-body" (String.take 1000 body)
+          e.Reraise()
+
       return response
     }
 
