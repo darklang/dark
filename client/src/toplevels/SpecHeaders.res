@@ -15,6 +15,9 @@ type triple = (BlankOr.t<string>, BlankOr.t<string>, option<BlankOr.t<string>>)
 let spaceOf = (hs: Spec.t): handlerSpace => {
   switch hs {
   | HTTP(_) => HSHTTP
+  | HTTPBasic(_) =>
+    // HttpBasicHandlerTODO do we need a separate handlerspace?
+    HSHTTP
   | Cron(_) => HSCron
   | REPL(_) => HSRepl
   | Worker(_) => HSWorker

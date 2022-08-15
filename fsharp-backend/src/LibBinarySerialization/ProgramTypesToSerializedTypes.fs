@@ -154,6 +154,8 @@ module Handler =
       match s with
       | PT.Handler.HTTP (route, method, ids) ->
         ST.Handler.HTTP(route, method, IDs.toST ids)
+      | PT.Handler.HTTPBasic (route, method, ids) ->
+        ST.Handler.HTTPBasic(route, method, IDs.toST ids)
       | PT.Handler.Worker (name, ids) -> ST.Handler.Worker(name, IDs.toST ids)
       | PT.Handler.OldWorker (modulename, name, ids) ->
         ST.Handler.OldWorker(modulename, name, IDs.toST ids)

@@ -37,7 +37,8 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module HttpMiddlewareV0 = HttpMiddleware.HttpMiddlewareV0
+module LegacyHttpMiddleware = HttpMiddleware.Http
+module HttpBasicMiddleware = HttpMiddleware.HttpBasic
 
 module RealExe = LibRealExecution.RealExecution
 
@@ -45,6 +46,18 @@ module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
+
+// HttpBasicTODO there are still a number of things in this file that were
+// written with the original Http handler+middleware in mind, and aren't
+// appropriate more generally. Much of this should be migrated to the module in
+// HttpMiddleware.Http.fs - for example, getHeadersMergingKeys.
+// Beyond those obvious things, there are also discussions to be had around
+// more ambiguous topics - for example, what should happen when we get a
+// request that doesn't match any handler. As a side effect, we can store a 404
+// in binary format such that it can be deserialized according to a middleware
+// chosen later, but what do we return? A legacy-style response (with extra
+// headers and such) or something else? Backwards compatibility here may be
+// tricky.
 
 // ---------------
 // Read from HttpContext
@@ -55,11 +68,22 @@ let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
 
-/// Reads the incoming headers and simplifies into a list of key*value pairs
-let getHeaders (ctx : HttpContext) : List<string * string> =
+/// Reads the incoming headers and simplifies into a list of key*values pairs
+///
+/// If 2 headers come in with the same key, it results in only one header, with
+/// the values concatonated (joined by commas)
+let getHeadersMergingKeys (ctx : HttpContext) : List<string * string> =
   ctx.Request.Headers
   |> Seq.map Tuple2.fromKeyValuePair
   |> Seq.map (fun (k, v) -> (k, v.ToArray() |> Array.toList |> String.concat ","))
+  |> Seq.toList
+
+/// Reads the incoming headers and simplifies into a list of key*value pairs
+let getHeadersWithoutMergingKeys (ctx : HttpContext) : List<string * string> =
+  ctx.Request.Headers
+  |> Seq.map Tuple2.fromKeyValuePair
+  |> Seq.map (fun (k, v) -> v.ToArray() |> Array.toList |> List.map (fun v -> (k, v)))
+  |> Seq.collect (fun pair -> pair)
   |> Seq.toList
 
 /// Reads the incoming query parameters and simplifies into a list of key*values pairs
@@ -336,7 +360,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let routeVars = Routing.routeInputVars route requestPath
 
         let! reqBody = getBody ctx
-        let reqHeaders = getHeaders ctx
+        let reqHeaders = getHeadersMergingKeys ctx
         let reqQuery = getQuery ctx
 
         match routeVars with
@@ -347,7 +371,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           use _ = Telemetry.child "executeHandler" []
 
           let request =
-            HttpMiddlewareV0.Request.fromRequest
+            LegacyHttpMiddleware.Request.fromRequest
               false
               url
               reqHeaders
@@ -363,10 +387,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (RealExe.InitialExecution(desc, request))
 
-          // Execute - note that these are outside the handler
-          let result = HttpMiddlewareV0.Response.toHttpResponse result
+          let result = LegacyHttpMiddleware.Response.toHttpResponse result
           let result =
-            HttpMiddlewareV0.Cors.addCorsHeaders reqHeaders meta.name result
+            LegacyHttpMiddleware.Cors.addCorsHeaders reqHeaders meta.name result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
@@ -376,7 +399,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
             let request =
-              HttpMiddlewareV0.Request.fromRequest
+              LegacyHttpMiddleware.Request.fromRequest
                 false
                 url
                 reqHeaders
@@ -386,13 +409,55 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           return! unmatchedRouteResponse ctx requestPath route
 
+      | [ { spec = PT.Handler.HTTPBasic (route = route); tlid = tlid } as handler ] ->
+        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
+
+        let routeVars = Routing.routeInputVars route requestPath
+
+        let! reqBody = getBody ctx
+        let reqHeaders = getHeadersWithoutMergingKeys ctx
+
+        match routeVars with
+        | Some routeVars ->
+          Telemetry.addTag "handler.routeVars" routeVars
+
+          // Do request
+          use _ = Telemetry.child "executeHandler" []
+
+          let request =
+            HttpBasicMiddleware.Request.fromRequest url reqHeaders reqBody
+          let inputVars = routeVars |> Map |> Map.add "request" request
+          let! (result, _) =
+            RealExe.executeHandler
+              canvas.meta
+              (PT2RT.Handler.toRT handler)
+              (Canvas.toProgram canvas)
+              traceID
+              inputVars
+              (RealExe.InitialExecution(desc, request))
+
+          let result = HttpBasicMiddleware.Response.toHttpResponse result
+
+          do! writeResponseToContext ctx result.statusCode result.headers result.body
+          Telemetry.addTag "http.completion_reason" "success"
+
+          return ctx
+
+        | None -> // vars didnt parse
+          FireAndForget.fireAndForgetTask "store-event" (fun () ->
+            let request =
+              HttpBasicMiddleware.Request.fromRequest url reqHeaders reqBody
+            TI.storeEvent meta.id traceID desc request)
+
+          return! unmatchedRouteResponse ctx requestPath route
+
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
 
       | [] when ctx.Request.Method = "OPTIONS" ->
-        let reqHeaders = getHeaders ctx
+        let reqHeaders = getHeadersMergingKeys ctx
 
-        match HttpMiddlewareV0.Cors.optionsResponse reqHeaders meta.name with
+        match LegacyHttpMiddleware.Cors.optionsResponse reqHeaders meta.name with
         | Some response ->
           Telemetry.addTag "http.completion_reason" "options response"
           do!
@@ -407,10 +472,15 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       // no matching route found - store as 404
       | [] ->
         let! reqBody = getBody ctx
-        let reqHeaders = getHeaders ctx
+        let reqHeaders = getHeadersMergingKeys ctx
         let reqQuery = getQuery ctx
         let event =
-          HttpMiddlewareV0.Request.fromRequest true url reqHeaders reqQuery reqBody
+          LegacyHttpMiddleware.Request.fromRequest
+            true
+            url
+            reqHeaders
+            reqQuery
+            reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
         // CLEANUP: move pusher into storeEvent
@@ -435,6 +505,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // included in HTTP Reponses as a result of these efforts. Here, we manually
       // work around this by setting it manually.
       // CLEANUP: replace this with the more traditional approach, if possible
+      // HttpBasicHandlerTODO lowercase keys for HttpBasic handler responses
       setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
       setHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())

@@ -3,7 +3,7 @@
 ///
 /// This middleware corresponds with `HTTP` handlers
 [<RequireQualifiedAccess>]
-module HttpMiddleware.HttpMiddlewareV0
+module HttpMiddleware.Http
 
 /// <summary>
 /// Header utilities for HttpMiddleware

@@ -158,7 +158,7 @@ let fetchReleventTLIDsForHTTP
     "SELECT tlid
      FROM toplevel_oplists
      WHERE canvas_id = @canvasID
-       AND ((module = 'HTTP'
+       AND (((module = 'HTTP' OR module = 'HTTP_BASIC')
              AND @path like name
              AND modifier = @method)
          OR tipe <> 'handler'::toplevel_type)

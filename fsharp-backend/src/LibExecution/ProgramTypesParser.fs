@@ -220,7 +220,8 @@ module Handler =
 
     let toName (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP (route, _method, _ids) -> route
+      | PT.Handler.HTTP (route, _method, _ids)
+      | PT.Handler.HTTPBasic (route, _method, _ids) -> route
       | PT.Handler.Worker (name, _ids) -> name
       | PT.Handler.OldWorker (_modulename, name, _ids) -> name
       | PT.Handler.Cron (name, interval, _ids) -> name
@@ -229,7 +230,8 @@ module Handler =
 
     let toModifier (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP (_route, method, _ids) -> method
+      | PT.Handler.HTTP (_route, method, _ids)
+      | PT.Handler.HTTPBasic (_route, method, _ids) -> method
       | PT.Handler.Worker (_name, _ids) -> "_"
       | PT.Handler.OldWorker (_modulename, _name, _ids) -> "_"
       | PT.Handler.Cron (_name, interval, _ids) ->
@@ -240,6 +242,7 @@ module Handler =
     let toModule (s : PT.Handler.Spec) =
       match s with
       | PT.Handler.HTTP _ -> "HTTP"
+      | PT.Handler.HTTPBasic _ -> "HTTP_BASIC"
       | PT.Handler.Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
       | PT.Handler.OldWorker (modulename, _name, _ids) -> modulename
       | PT.Handler.Cron _ -> "CRON" // CLEANUP the DB relies on the casing
@@ -250,6 +253,8 @@ module Handler =
       match s with
       | PT.Handler.HTTP ("", _, _) -> false
       | PT.Handler.HTTP (_, "", _) -> false
+      | PT.Handler.HTTPBasic ("", _, _) -> false
+      | PT.Handler.HTTPBasic (_, "", _) -> false
       | PT.Handler.Worker ("", _) -> false
       | PT.Handler.OldWorker ("", _, _) -> false
       | PT.Handler.OldWorker (_, "", _) -> false

@@ -897,6 +897,11 @@ module Convert =
         name = string2bo ids.nameID route
         modifier = string2bo ids.modifierID method
         types = types }
+    | PT.Handler.HTTPBasic (route, method, ids) ->
+      { ``module`` = string2bo ids.moduleID "HTTP_BASIC"
+        name = string2bo ids.nameID route
+        modifier = string2bo ids.modifierID method
+        types = types }
     | PT.Handler.Worker (name, ids) ->
       { ``module`` = string2bo ids.moduleID "WORKER"
         name = string2bo ids.nameID name
