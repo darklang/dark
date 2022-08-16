@@ -342,39 +342,9 @@ let rec ocamlTipe2PT (o : tipe) : PT.DType =
   match o with
   | TAny -> any
   | TInt -> PT.TInt
-  | TFloat -> PT.TFloat
-  | TBool -> PT.TBool
-  | TNull -> PT.TNull
-  | TDeprecated1 -> any
   | TStr -> PT.TStr
   | TList -> PT.TList any
-  | TTuple (firstType, secondType, otherTypes) ->
-    PT.TTuple(
-      ocamlTipe2PT firstType,
-      ocamlTipe2PT secondType,
-      List.map ocamlTipe2PT otherTypes
-    )
   | TObj -> PT.TDict any
-  | TIncomplete -> PT.TIncomplete
-  | TError -> PT.TError
-  | TBlock -> PT.TFn([ any ], any)
-  | TResp -> PT.THttpResponse any
-  | TDB -> PT.TDB any
-  | TDeprecated6 -> any
-  | TDate -> PT.TDate
-  | TDeprecated2 -> any
-  | TDeprecated3 -> any
-  | TDeprecated4 string -> any
-  | TDeprecated5 string -> any
-  | TDbList tipe -> PT.TDbList(ocamlTipe2PT tipe)
-  | TPassword -> PT.TPassword
-  | TUuid -> PT.TUuid
-  | TOption -> PT.TOption any
-  | TErrorRail -> PT.TErrorRail
-  | TCharacter -> PT.TChar
-  | TResult -> PT.TResult(any, any)
-  | TUserType (name, version) -> PT.TUserType(name, int version)
-  | TBytes -> PT.TBytes
 
 type parameter = { name : string; tipe : tipe; description : string }
 
