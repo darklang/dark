@@ -313,7 +313,7 @@ type tipe =
   | TList
   | TObj
 
-let rec ocamlTipe2PT (o : tipe) : PT.DType =
+let rec tipe2PT (o : tipe) : PT.DType =
   let any = PT.TVariable "a"
 
   match o with
@@ -323,12 +323,12 @@ let rec ocamlTipe2PT (o : tipe) : PT.DType =
   | TList -> PT.TList any
   | TObj -> PT.TDict any
 
-type parameter = { name : string; tipe : tipe; description : string }
+type Parameter = { name : string; tipe : tipe; description : string }
 
-let ocamlPackageManagerParameter2PT (o : parameter) : PT.Package.Parameter =
-  { name = o.name; description = o.description; typ = ocamlTipe2PT o.tipe }
+let parameter2PT (o : Parameter) : PT.Package.Parameter =
+  { name = o.name; description = o.description; typ = tipe2PT o.tipe }
 
-type ParametersDBFormat = List<parameter>
+type ParametersDBFormat = List<Parameter>
 
 let allFunctions () : Task<List<PT.Package.Fn>> =
   task {
@@ -380,7 +380,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
           let parameters =
             parameters
             |> Json.Vanilla.deserialize<ParametersDBFormat>
-            |> List.map ocamlPackageManagerParameter2PT
+            |> List.map parameter2PT
           let returnType =
             PTParser.DType.parse returnType
             |> Exception.unwrapOptionInternal
