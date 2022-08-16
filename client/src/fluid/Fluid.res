@@ -33,7 +33,7 @@ open ProgramTypes.Expr
 open ProgramTypes.Pattern
 
 // TUPLETODO re-enable
-let allowUserToCreateTuple = false
+let allowUserToCreateTuple = true
 
 // --------------------
 // Utils
@@ -4920,36 +4920,60 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
   }
 }
 
-/* deleteCaretRange is equivalent to pressing backspace starting from the
- * larger of the two caret positions until the caret reaches the smaller of the
- * caret positions or can no longer move.
- *
- * XXX(JULIAN): This actually moves the caret to the larger side of the range
- * and backspaces until the beginning, which means this hijacks the caret in
- * the state. */
+@ocaml.doc("This is intended to be equivalent to pressing backspace starting
+  from the larger of the two caret positions until the caret reaches the
+  smaller of the caret positions or can no longer move.
+
+ This actually moves the caret to the larger side of the range and backspaces
+ until the beginning, which means this hijacks the caret in the state.")
 and deleteCaretRange = (caretRange: (int, int), origInfo: ASTInfo.t): ASTInfo.t => {
   let (rangeStart, rangeEnd) = orderRangeFromSmallToBig(caretRange)
-  let origInfo = ASTInfo.modifyState(origInfo, ~f=s => {
+
+  let infoAsIfWeRestAtEndOfSelection = ASTInfo.modifyState(origInfo, ~f=s => {
     ...s,
+
     newPos: rangeEnd,
     oldPos: s.newPos,
+
+    // feels like ClearSelection should be a separate Msg, resulting in this change?
     selectionStart: None,
   })
+  let result = ref(infoAsIfWeRestAtEndOfSelection)
 
-  let oldInfo = ref(origInfo)
-  let nothingChanged = ref(false)
-  while !nothingChanged.contents && oldInfo.contents.state.newPos > rangeStart {
-    let newInfo = updateKey(DeleteContentBackward, oldInfo.contents)
-    if (
-      newInfo.state.newPos == oldInfo.contents.state.newPos && newInfo.ast == oldInfo.contents.ast
-    ) {
-      // stop if nothing changed--guarantees loop termination
-      nothingChanged := true
+  // how many chars to the left of the cursor got deleted because some wrapping
+  // structure (like a tuple) disappeared along the way?
+  let extraCharsRemovedLeftOfCursor = ref(0)
+
+  // what was our position last loop around?
+  let lastPos = ref(result.contents.state.newPos)
+
+  let somethingChanged = ref(true)
+
+  let shouldContinue = () =>
+    somethingChanged.contents
+    && result.contents.state.newPos > (rangeStart - extraCharsRemovedLeftOfCursor.contents)
+
+  while shouldContinue() {
+    // fetch the results as if we 'hit backspace'
+    let newInfo = updateKey(DeleteContentBackward, result.contents)
+    let newPos = newInfo.state.newPos
+    let positionsMoved = lastPos.contents - newPos // generally, we expect 1
+
+    if (positionsMoved == 0 && newInfo.ast == result.contents.ast) {
+      // stop if nothing changed -- guarantees loop termination
+      somethingChanged := false
     } else {
-      oldInfo := newInfo
+      // is this always the right evaluation for this?
+      if (positionsMoved > 1) {
+        extraCharsRemovedLeftOfCursor :=
+          extraCharsRemovedLeftOfCursor.contents + (positionsMoved - 1)
+      }
+
+      lastPos := newPos
+      result := newInfo
     }
   }
-  oldInfo.contents
+  result.contents
 }
 
 /* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
@@ -5644,17 +5668,27 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
   }
 }
 
+// this can move to a FluidClipboard, right?
 let getCopySelection = (m: model): clipboardContents =>
   astInfoFromModel(m)
   |> Option.andThen(~f=(astInfo: ASTInfo.t) => {
     let (from, to_) = FluidUtil.getSelectionRange(astInfo.state)
-    let text =
-      ASTInfo.exprOfActiveEditor(astInfo) |> Printer.eToHumanString |> String.slice(~from, ~to_)
+    Debug.loG("from, to", (from, to_))
 
-    let json =
-      reconstructExprFromRange((from, to_), astInfo) |> Option.map(
-        ~f=Clipboard.exprToClipboardContents,
-      )
+    let text =
+      // I'm sort of surprised this is using eToHumanString and not tokenizer
+      // followed by something else
+      ASTInfo.exprOfActiveEditor(astInfo)
+      |> Printer.eToHumanString
+      |> String.slice(~from, ~to_)
+    Debug.loG("text", text)
+
+    let reconstructed = reconstructExprFromRange((from, to_), astInfo)
+    switch reconstructed {
+      | Some(r) => Debug.loG("reconstructed", r)
+      | None => Debug.loG("not reconstructed", ())
+    }
+    let json = reconstructed |> Option.map(~f=Clipboard.exprToClipboardContents)
 
     Some(text, json)
   })
@@ -5874,6 +5908,7 @@ let updateMsg = (
 let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
   let s = m.fluidState
   let s = {...s, error: None, oldPos: s.newPos, actions: list{}}
+
   switch msg {
   | FluidUpdateDropdownIndex(index) if FluidCommands.isOpened(m.fluidState.cp) =>
     FluidCommands.cpSetIndex(m, index)

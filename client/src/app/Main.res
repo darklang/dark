@@ -1840,9 +1840,10 @@ let update_ = (msg: msg, m: model): modification => {
       (m: model) => ({...m, toast: {...m.toast, message: Some("Copied!")}}, Cmd.none),
     )
 
-    let (copyData, mod_) = (Fluid.getCopySelection(m), Apply(m => Fluid.update(m, FluidCut)))
+    let clipboardData = Fluid.getCopySelection(m)
+    let  mod_ = Apply(m => Fluid.update(m, FluidCut))
 
-    Many(list{SetClipboardContents(copyData, e), mod_, toast})
+    Many(list{SetClipboardContents(clipboardData, e), mod_, toast})
   | ClipboardCopyLivevalue(lv, pos) =>
     let lv = lv |> Regex.replace(~re=Regex.regex("(^\")|(\"$)"), ~repl="")
     Native.Clipboard.copyToClipboard(lv)

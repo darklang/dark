@@ -1188,12 +1188,12 @@ let run = () => {
       (5, 11),
       "(\"lo\",12)",
     )
-    // testCut( // TUPLETODO fix results - somehow an extra 'l' is being included.
-    //   "cutting halfway between tuple parts leaves a partial tuple and copies the data selected to clipboard",
-    //   tuple(str("hello"), int(1234), list{}), // ("hello",1234)
-    //   (5, 11),
-    //   ("(\"hel~\")", "(\"lo\",12)"),
-    // )
+    testCut( // TUPLETODO fix results - somehow an extra 'l' is being included.
+      "cutting halfway between tuple parts leaves a partial tuple and copies the data selected to clipboard",
+      tuple(str("hello"), int(1234), list{}), // ("hello",1234)
+      (5, 11),
+      ("(\"hel~\")", "(\"lo\",12)"),
+    )
 
     // pasting tuples
     testPasteText(
