@@ -1,25 +1,36 @@
 [
-  [ "TLSavepoint", 602952746 ],
+  [
+    "TLSavepoint",
+    602952746
+  ],
   [
     "SetFunction",
     {
       "tlid": 602952746,
-      "metadata": {
-        "name": [ "Filled", 1559944598, "fn_881219155" ],
-        "parameters": [
-          {
-            "name": [ "Filled", 1698751239, "x" ],
-            "tipe": [ "Filled", 763760730, [ "TInt" ] ],
-            "block_args": [],
-            "optional": false,
-            "description": ""
-          }
-        ],
-        "return_type": [ "Filled", 1057196671, [ "TAny" ] ],
-        "description": "",
-        "infix": false
-      },
-      "ast": [ "EBlank", 1276585567 ]
+      "name": "fn_881219155",
+      "nameID": 1559944598,
+      "parameters": [
+        {
+          "name": "x",
+          "nameID": 1698751239,
+          "typ": [
+            "TInt"
+          ],
+          "typeID": 763760730,
+          "description": ""
+        }
+      ],
+      "returnType": [
+        "TVariable",
+        "a"
+      ],
+      "returnTypeID": 1057196671,
+      "description": "",
+      "infix": false,
+      "body": [
+        "EBlank",
+        1276585567
+      ]
     }
   ]
 ]

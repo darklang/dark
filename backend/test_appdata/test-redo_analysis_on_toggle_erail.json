@@ -1,11 +1,21 @@
 [
-  [ "TLSavepoint", 68645951 ],
+  [
+    "TLSavepoint",
+    68645951
+  ],
   [
     "SetHandler",
     68645951,
-    { "x": 500, "y": 200 },
+    {
+      "x": 500,
+      "y": 200
+    },
     {
       "tlid": 68645951,
+      "pos": {
+        "x": 500,
+        "y": 200
+      },
       "ast": [
         "ELet",
         33969444,
@@ -13,7 +23,16 @@
         [
           "ERecord",
           457609365,
-          [ [ "a", [ "EInteger", 1421469168, "1" ] ] ]
+          [
+            [
+              "a",
+              [
+                "EInteger",
+                1421469168,
+                1
+              ]
+            ]
+          ]
         ],
         [
           "EMatch",
@@ -21,40 +40,75 @@
           [
             "EFnCall",
             108391798,
-            "Dict::get_v2",
             [
-              [ "EVariable", 1250937054, "d" ],
-              [ "EString", 521648194, "a" ]
+              "Stdlib",
+              {
+                "module_": "Dict",
+                "function_": "get",
+                "version": 2
+              }
             ],
-            [ "Rail" ]
+            [
+              [
+                "EVariable",
+                1250937054,
+                "d"
+              ],
+              [
+                "EString",
+                521648194,
+                "a"
+              ]
+            ],
+            [
+              "Rail"
+            ]
           ],
           [
             [
               [
-                "FPConstructor",
-                1227648616,
+                "PConstructor",
                 1897472926,
                 "Just",
-                [ [ "FPVariable", 1227648616, 470226319, "n" ] ]
+                [
+                  [
+                    "PVariable",
+                    470226319,
+                    "n"
+                  ]
+                ]
               ],
-              [ "EVariable", 21312903, "n" ]
+              [
+                "EVariable",
+                21312903,
+                "n"
+              ]
             ],
             [
-              [ "FPConstructor", 1227648616, 1462274190, "Nothing", [] ],
-              [ "EInteger", 1409226084, "0" ]
+              [
+                "PConstructor",
+                1462274190,
+                "Nothing",
+                []
+              ],
+              [
+                "EInteger",
+                1409226084,
+                0
+              ]
             ]
           ]
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 1173631147, "REPL" ],
-        "name": [ "Filled", 877564825, "cowardlyCapybara" ],
-        "modifier": [ "Filled", 555122767, "_" ],
-        "types": {
-          "input": [ "Blank", 540288206 ],
-          "output": [ "Blank", 1955852735 ]
+      "spec": [
+        "REPL",
+        "cowardlyCapybara",
+        {
+          "moduleID": 1173631147,
+          "nameID": 877564825,
+          "modifierID": 555122767
         }
-      }
+      ]
     }
   ]
 ]

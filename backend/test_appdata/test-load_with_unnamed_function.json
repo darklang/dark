@@ -1,23 +1,42 @@
 [
-  [ "TLSavepoint", 2296485551 ],
+  [
+    "TLSavepoint",
+    2296485551
+  ],
   [
     "SetFunction",
     {
       "tlid": 2296485551,
-      "metadata": {
-        "name": [ "Blank", 12399029 ],
-        "parameters": [],
-        "return_type": [ "Filled", 4137008247, [ "TAny" ] ],
-        "description": "",
-        "infix": false
-      },
-      "ast": [
+      "name": "",
+      "nameID": 12399029,
+      "parameters": [],
+      "returnType": [
+        "TVariable",
+        "a"
+      ],
+      "returnTypeID": 4137008247,
+      "description": "",
+      "infix": false,
+      "body": [
         "EBinOp",
         1894833988,
-        "+",
-        [ "EInteger", 1001241551, "5" ],
-        [ "EInteger", 540981105, "5" ],
-        [ "NoRail" ]
+        {
+          "module_": null,
+          "function_": "\u002B"
+        },
+        [
+          "EInteger",
+          1001241551,
+          5
+        ],
+        [
+          "EInteger",
+          540981105,
+          5
+        ],
+        [
+          "NoRail"
+        ]
       ]
     }
   ]

@@ -1,46 +1,100 @@
 [
-  [ "TLSavepoint", 91390945 ],
+  [
+    "TLSavepoint",
+    91390945
+  ],
   [
     "SetHandler",
     91390945,
-    { "x": 576, "y": 32 },
+    {
+      "x": 576,
+      "y": 32
+    },
     {
       "tlid": 91390945,
+      "pos": {
+        "x": 576,
+        "y": 32
+      },
       "ast": [
         "EFnCall",
         753586717,
-        "HttpClient::post_v5",
         [
-          [ "EString", 805471466, "https://foo.com" ],
-          [ "EString", 733590776, "some body" ],
+          "Stdlib",
+          {
+            "module_": "HttpClient",
+            "function_": "post",
+            "version": 5
+          }
+        ],
+        [
+          [
+            "EString",
+            805471466,
+            "https://foo.com"
+          ],
+          [
+            "EString",
+            733590776,
+            "some body"
+          ],
           [
             "ERecord",
             839465771,
             [
-              [ "q", [ "EInteger", 1072893106, "1" ] ],
-              [ "", [ "EBlank", 2054448601 ] ]
+              [
+                "q",
+                [
+                  "EInteger",
+                  1072893106,
+                  1
+                ]
+              ],
+              [
+                "",
+                [
+                  "EBlank",
+                  2054448601
+                ]
+              ]
             ]
           ],
           [
             "ERecord",
             1696775995,
             [
-              [ "h", [ "EInteger", 1701314740, "3" ] ],
-              [ "", [ "EBlank", 1638648966 ] ]
+              [
+                "h",
+                [
+                  "EInteger",
+                  1701314740,
+                  3
+                ]
+              ],
+              [
+                "",
+                [
+                  "EBlank",
+                  1638648966
+                ]
+              ]
             ]
           ]
         ],
-        [ "Rail" ]
+        [
+          "Rail"
+        ]
       ],
-      "spec": {
-        "module": [ "Filled", 334377242, "HTTP" ],
-        "name": [ "Blank", 393202809 ],
-        "modifier": [ "Blank", 514863200 ],
-        "types": {
-          "input": [ "Blank", 1695078136 ],
-          "output": [ "Blank", 318658092 ]
+      "spec": [
+        "HTTP",
+        "",
+        "",
+        {
+          "moduleID": 334377242,
+          "nameID": 393202809,
+          "modifierID": 514863200
         }
-      }
+      ]
     }
   ]
 ]

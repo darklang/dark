@@ -1,42 +1,83 @@
 [
-  [ "TLSavepoint", 298995498 ],
+  [
+    "TLSavepoint",
+    298995498
+  ],
   [
     "SetHandler",
     298995498,
-    { "x": 801, "y": 298 },
+    {
+      "x": 801,
+      "y": 298
+    },
     {
       "tlid": 298995498,
-      "ast": [ "EFnCall", 250165404, "fn_130590742", [], [ "NoRail" ] ],
-      "spec": {
-        "module": [ "Filled", 2142823572, "HTTP" ],
-        "name": [ "Blank", 1150318143 ],
-        "modifier": [ "Blank", 596800738 ],
-        "types": {
-          "input": [ "Blank", 1580391155 ],
-          "output": [ "Blank", 457454230 ]
+      "pos": {
+        "x": 801,
+        "y": 298
+      },
+      "ast": [
+        "EFnCall",
+        250165404,
+        [
+          "User",
+          "fn_130590742"
+        ],
+        [],
+        [
+          "NoRail"
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "",
+        "",
+        {
+          "moduleID": 2142823572,
+          "nameID": 1150318143,
+          "modifierID": 596800738
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 1039370895 ],
+  [
+    "TLSavepoint",
+    1039370895
+  ],
   [
     "SetFunction",
     {
       "tlid": 1039370895,
-      "metadata": {
-        "name": [ "Filled", 799460428, "fn_130590742" ],
-        "parameters": [],
-        "return_type": [ "Filled", 1516674037, [ "TAny" ] ],
-        "description": "",
-        "infix": false
-      },
-      "ast": [
+      "name": "fn_130590742",
+      "nameID": 799460428,
+      "parameters": [],
+      "returnType": [
+        "TVariable",
+        "a"
+      ],
+      "returnTypeID": 1516674037,
+      "description": "",
+      "infix": false,
+      "body": [
         "EBinOp",
         1332503377,
-        "+",
-        [ "EInteger", 709885361, "5" ],
-        [ "EInteger", 239559126, "5" ],
-        [ "NoRail" ]
+        {
+          "module_": null,
+          "function_": "\u002B"
+        },
+        [
+          "EInteger",
+          709885361,
+          5
+        ],
+        [
+          "EInteger",
+          239559126,
+          5
+        ],
+        [
+          "NoRail"
+        ]
       ]
     }
   ]
