@@ -33,12 +33,6 @@ module Params = {
     | list{RedoTL(_)} => ops
     | list{} => ops
     | _ =>
-      // CLEANUP should these savepoints be intersperced instead of prepended?
-      // i.e. should `withSavePoints([op1; op2])` result in
-      //   [savepoint; op1; savepoint; op2]
-      // rather than (now)
-      //   [savepoint; savepoint; op1; op2]
-      // ?
       let savepoints = List.map(ops, ~f=op => PT.Op.TLSavepoint(PT.Op.tlidOf(op)))
       Belt.List.concat(savepoints, ops)
     }
