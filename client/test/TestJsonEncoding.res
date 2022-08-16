@@ -157,7 +157,8 @@ let run = () => {
       "vanilla_Rollbar_LibService-Rollbar-HoneycombJson_simple.json",
       "vanilla_RoundtrippableSerializationFormatV0-Dval_LibExecution-DvalReprInternalNew-RoundtrippableSerializationFormatV0-Dval_complete.json",
       "vanilla_saveTLIDs_LibExecution-ProgramTypes-Position_simple.json",
-      "vanilla_PackageManager_Microsoft-FSharp-Collections-FSharpList-1-LibBackend-PackageManager-parameter-_all.json",
+      "vanilla_PackageManager_Microsoft-FSharp-Collections-FSharpList-1-LibBackend-PackageManager-Parameter-_all.json",
+      "vanilla_loadJsonFromDisk_Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Op-_complete.json",
     ]
     Belt.MutableMap.String.removeMany(processedSerializationFiles, ignores)
 
