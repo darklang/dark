@@ -1,0 +1,37 @@
+[
+  {
+    "name": "int",
+    "tipe": [
+      "TInt"
+    ],
+    "description": ""
+  },
+  {
+    "name": "string",
+    "tipe": [
+      "TStr"
+    ],
+    "description": ""
+  },
+  {
+    "name": "any",
+    "tipe": [
+      "TAny"
+    ],
+    "description": ""
+  },
+  {
+    "name": "List",
+    "tipe": [
+      "TList"
+    ],
+    "description": ""
+  },
+  {
+    "name": "obj",
+    "tipe": [
+      "TObj"
+    ],
+    "description": ""
+  }
+]

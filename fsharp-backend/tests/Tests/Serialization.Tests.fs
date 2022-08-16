@@ -591,6 +591,8 @@ module GenericSerializersTests =
         (testDval
          |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
 
+      v<LibExecution.ProgramTypes.Oplist> "complete" testOplist
+
       // ------------------
       // LibBackend
       // ------------------
