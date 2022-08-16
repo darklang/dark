@@ -137,7 +137,7 @@ let run = () => {
     let processedSerializationFiles: Belt.MutableMap.String.t<bool> = Belt.MutableMap.String.make()
     let entries = NodeJs.Fs.readdirSync("backend/serialization")
     Belt.Array.forEach(entries, entry =>
-      // only need to check vanilla serializations
+      // only check modern serialization files
       if String.startsWith(~prefix="vanilla", entry) {
         Belt.MutableMap.String.set(processedSerializationFiles, entry, false)
       }
@@ -153,22 +153,13 @@ let run = () => {
       "vanilla_tests-ApiServer-UI-heapioMetadata_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_simple.json",
       "vanilla_eventqueue-storage_LibBackend-EventQueueV2-NotificationData_simple.json",
       "vanilla_LibBackend-session-db-storage_LibBackend-Session-JsonData_simple.json",
-      "vanilla_dvalrepr-tests_LibExecution-OCamlTypes-RuntimeT-dval_complete.json",
       "vanilla_Prelude_Prelude-pos_simple.json",
       "vanilla_Rollbar_LibService-Rollbar-HoneycombJson_simple.json",
       "vanilla_RoundtrippableSerializationFormatV0-Dval_LibExecution-DvalReprInternalNew-RoundtrippableSerializationFormatV0-Dval_complete.json",
-      "vanilla_loadJsonFromDisk_Microsoft-FSharp-Collections-FSharpList-1-LibExecution-OCamlTypes-op-_simple.json",
       "vanilla_saveTLIDs_LibExecution-ProgramTypes-Position_simple.json",
-      // V0 apis left in for old clients
-      "vanilla_ApiServer-Traces_ApiServer-Traces-TraceDataV0-T_simple.json",
-      "vanilla_ApiServer-Traces_ApiServer-Traces-TraceDataV0-Params_simple.json",
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-InsertV0-T_simple.json",
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-InsertV0-Secret_simple.json",
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV0-T_simple.json",
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV0-Params_simple.json",
+      "vanilla_PackageManager_Microsoft-FSharp-Collections-FSharpList-1-LibBackend-PackageManager-parameter-_all.json",
     ]
     Belt.MutableMap.String.removeMany(processedSerializationFiles, ignores)
-    // "vanilla_ApiServer-UI-heapioMetadata_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String_simple.json",
 
     let t = (filename, decoder, encoder) => {
       test(`decoding ${filename}`, () => {
@@ -358,8 +349,9 @@ let run = () => {
       Json.Encode.result(AnalysisTypes.PerformAnalysis.Envelope.encode, Json.Encode.string),
     )
     describe("Check serialization files are tested", () => {
-      Belt.MutableMap.String.forEach(processedSerializationFiles, (k, v) =>
-        test(`${k} is checked`, () => expect(v) |> toEqual(true))
+      Belt.MutableMap.String.forEach(
+        processedSerializationFiles,
+        (k, v) => test(`${k} is checked`, () => expect(v) |> toEqual(true)),
       )
     })
   })
