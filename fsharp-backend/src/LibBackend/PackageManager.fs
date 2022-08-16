@@ -304,37 +304,14 @@ let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
 // The code below is copied from the old OCamlTypes files. It can be simplified, and
 // it should be straightforward to remove it by looking at the parameters actually
 // stored in the DB.
+
+// actual types used in the DB: TStr, TAny, TInt, TList, TObj
 type tipe =
   | TAny
   | TInt
-  | TFloat
-  | TBool
-  | TNull
-  | TDeprecated1
   | TStr
   | TList
-  | TTuple of tipe * tipe * List<tipe>
   | TObj
-  | TIncomplete
-  | TError
-  | TBlock
-  | TResp
-  | TDB
-  | TDeprecated6
-  | TDate
-  | TDeprecated2
-  | TDeprecated3
-  | TDeprecated4 of string
-  | TDeprecated5 of string
-  | TDbList of tipe
-  | TPassword
-  | TUuid
-  | TOption
-  | TErrorRail
-  | TCharacter
-  | TResult
-  | TUserType of string * int64
-  | TBytes
 
 let rec ocamlTipe2PT (o : tipe) : PT.DType =
   let any = PT.TVariable "a"
@@ -370,7 +347,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
          read.string "module",
          read.string "fnname",
          read.int "version",
-         read.bytea "body2",  // the F#-serialized version
+         read.bytea "body2",
          read.string "return_type",
          read.string "parameters",
          read.string "description",
