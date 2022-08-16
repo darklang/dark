@@ -1,3 +1,5 @@
+open Prelude
+
 module PT = ProgramTypes
 module RT = RuntimeTypes
 
@@ -24,6 +26,16 @@ module Params = {
       clientOpCtrID: field("clientOpCtrID", string, j),
     }
   }
+
+  let withSavepoints = (ops: list<PT.Op.t>): list<PT.Op.t> =>
+    switch ops {
+    | list{UndoTL(_)} => ops
+    | list{RedoTL(_)} => ops
+    | list{} => ops
+    | _ =>
+      let savepoints = List.map(ops, ~f=op => PT.Op.TLSavepoint(PT.Op.tlidOf(op)))
+      Belt.List.concat(savepoints, ops)
+    }
 }
 
 @ppx.deriving(show({with_path: false}))

@@ -3,20 +3,6 @@ open Json.Encode
 
 // Dark
 
-let ops = (ops: list<PT.Op.t>): Js.Json.t =>
-  list(
-    PT.Op.encode,
-    switch ops {
-    | list{UndoTL(_)} => ops
-    | list{RedoTL(_)} => ops
-    | list{} => ops
-    | _ =>
-      let savepoints = List.map(~f=op => PT.Op.TLSavepoint(PT.Op.tlidOf(op)), ops)
-
-      Belt.List.concat(savepoints, ops)
-    },
-  )
-
 let httpError = (e: Tea.Http.error<string>): Js.Json.t => {
   module Http = Tea.Http
   let responseBody = (r: Http.responseBody) =>

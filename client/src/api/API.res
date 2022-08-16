@@ -93,7 +93,7 @@ let addOp = (m: model, focus: AppTypes.Focus.t, params: APIAddOps.Params.t): cmd
     "/v1/add_op",
     ~decoder=APIAddOps.decode,
     ~encoder=APIAddOps.Params.encode,
-    ~params,
+    ~params={...params, ops: APIAddOps.Params.withSavepoints(params.ops)},
     ~callback=x => AddOpsAPICallback(focus, params, x),
   )
 
