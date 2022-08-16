@@ -603,6 +603,16 @@ module GenericSerializersTests =
         "simple"
         { username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abc1234" }
 
+      v<LibBackend.PackageManager.ParametersDBFormat>
+        "all"
+        [ { name = "int"; tipe = LibBackend.PackageManager.TInt; description = "" }
+          { name = "string"
+            tipe = LibBackend.PackageManager.TStr
+            description = "" }
+          { name = "any"; tipe = LibBackend.PackageManager.TAny; description = "" }
+          { name = "List"; tipe = LibBackend.PackageManager.TList; description = "" }
+          { name = "obj"; tipe = LibBackend.PackageManager.TObj; description = "" } ]
+
       v<PT.Position> "simple" { x = 10; y = -16 }
 
       // Used by Pusher
