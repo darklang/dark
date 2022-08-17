@@ -2,14 +2,14 @@
 
 module Html = Tea_html_extended
 module Events = Tea.Html2.Events
-module Attributes = Tea.Html2.Attributes
+module Attrs = Tea.Html2.Attributes
 
 module Utils = SettingsUtils
 module T = SettingsContributing
 
-let view = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
+let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
-    Html.h2(list{}, list{Html.text("Tunnel your local client")}),
+    Html.h3(list{}, list{Html.text("Tunnel your local client")}),
     Html.p(
       list{},
       list{
@@ -65,4 +65,23 @@ let view = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
   }
 
   Belt.List.concat(introText, form)
+}
+
+let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
+  let introText = list{
+    Html.p(
+      list{},
+      list{
+        Html.text("To contribute to Dark, check out the "),
+        Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("dark repo")}),
+        Html.text("and read the "),
+        Html.a(
+          list{Attrs.href("https://docs.darklang.com/contributing/getting-started")},
+          list{Html.text("contributor docs")},
+        ),
+      },
+    ),
+  }
+
+  Belt.List.concat(introText, viewTunnel(s))
 }
