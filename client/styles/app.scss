@@ -1,3 +1,8 @@
+// tailwindcss
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Variables & Animation Mixins */
 @import "variables";
 @import "anim";

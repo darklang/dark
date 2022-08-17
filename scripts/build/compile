@@ -599,7 +599,7 @@ def mark(should, f):
   elif "/bsconfig.json" in f:
     should.client_build = True
 
-  elif ".scss" in f:
+  elif ".scss" in f or "tailwind.config.js" in f:
     should.sass_compile = True
 
   elif "/client/static/" in f:
