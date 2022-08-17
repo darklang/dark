@@ -13,6 +13,7 @@ let initSerializers () =
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<ClientTypes.Dval.T> "dvalrepr tests"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Handler.T> "canvasClone"
 
 [<EntryPoint>]
 let main (args : string array) : int =
