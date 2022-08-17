@@ -533,6 +533,9 @@ def mark(should, f):
   elif ("/backend/templates/" in f) and (".html" in f):
     should.backend_build = True
 
+  elif ("/fsharp-backend/src/ApiServer/Templates/" in f) and (".html" in f):
+    should.reload_fsharp_server = True
+
   elif ("/fsharp-backend/global.json" in f or \
         "/fsharp-backend/.config/dotnet-tools.json" in f or \
         "/fsharp-backend/Directory.Build.props" in f):
