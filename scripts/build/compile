@@ -79,7 +79,8 @@ def sass_compile():
   start = time.time()
   return run_frontend(
       start,
-      "node_modules/.bin/sass client/styles/app.scss > backend/static/app.css")
+      "npx sass client/styles/app.scss > backend/static/app.css && npx postcss --map --output backend/static/app.css backend/static/app.css"
+  )
 
 
 def copy_static():
