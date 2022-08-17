@@ -14,9 +14,12 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
       list{},
       list{
         Html.text(
-          "If you're working on the Darklang client, you can load it against this canvas by entering your tunnel link",
-          //  (the link provided by your tunneling proider, such as Ngrok or Localtunnel, such as |https://seven-wings-sniff-69-204-249-142.loca.lt)",
+          "To use your local client against the Dark server, use a tunnel provider such as ",
         ),
+        Html.a(list{Attrs.href("https://locatunnel.me")}, list{Html.text("localtunnel")}),
+        Html.text(" or "),
+        Html.a(list{Attrs.href("https://ngrok.com")}, list{Html.text("ngrok")}),
+        Html.text(". After starting the tunnel, enter the url below"),
       },
     ),
   }
@@ -73,8 +76,8 @@ let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
       list{},
       list{
         Html.text("To contribute to Dark, check out the "),
-        Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("dark repo")}),
-        Html.text("and read the "),
+        Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("Dark repo")}),
+        Html.text(" and read the "),
         Html.a(
           list{Attrs.href("https://docs.darklang.com/contributing/getting-started")},
           list{Html.text("contributor docs")},
