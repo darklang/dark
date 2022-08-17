@@ -894,6 +894,18 @@ module GenericSerializersTests =
             userTypes = testUserTypes
             secrets = [ { name = "z"; value = "y" } ] })
 
+
+      // ------------------
+      // Tests
+      // ------------------
+
+      v<LibExecution.AnalysisTypes.TraceData>
+        "testTraceData"
+        { input = [ "var", testDval ]
+          timestamp = testInstant
+          function_results = [ ("fnName", 7UL, "hash", 0, testDval) ] }
+
+
     generateTestData ()
 
   let fileNameFor

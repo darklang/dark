@@ -154,6 +154,8 @@ let run = () => {
       "vanilla_eventqueue-storage_LibBackend-EventQueueV2-NotificationData_simple.json",
       "vanilla_LibBackend-session-db-storage_LibBackend-Session-JsonData_simple.json",
       "vanilla_Prelude_Prelude-pos_simple.json",
+      "vanilla_canvasClone_LibExecution-ProgramTypes-Handler-T_simple.json",
+      "vanilla_testTraceData_LibExecution-AnalysisTypes-TraceData_testTraceData.json",
       "vanilla_Rollbar_LibService-Rollbar-HoneycombJson_simple.json",
       "vanilla_RoundtrippableSerializationFormatV0-Dval_LibExecution-DvalReprInternalNew-RoundtrippableSerializationFormatV0-Dval_complete.json",
       "vanilla_saveTLIDs_LibExecution-ProgramTypes-Position_simple.json",

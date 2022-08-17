@@ -14,6 +14,7 @@ let initSerializers () =
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<ClientTypes.Dval.T> "dvalrepr tests"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Handler.T> "canvasClone"
+  Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
 
 [<EntryPoint>]
 let main (args : string array) : int =
