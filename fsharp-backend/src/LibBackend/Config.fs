@@ -9,7 +9,7 @@ open LibService.ConfigDsl
 // -------------------------
 
 // -------------------------
-// Root directories - see File.fs aand Root type below
+// Root directories - see File.fs and Root type below
 // -------------------------
 
 let runDir = absoluteDir "DARK_CONFIG_RUNDIR"
