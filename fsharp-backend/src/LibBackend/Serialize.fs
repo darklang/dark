@@ -64,7 +64,6 @@ let isLatestOpRequest
 // --------------------------------------------------------
 // Load serialized data from the DB
 // --------------------------------------------------------
-module OT = LibExecution.OCamlTypes
 
 type LoadAmount =
   | LiveToplevels

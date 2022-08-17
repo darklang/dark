@@ -14,8 +14,6 @@ module CTA = CT.Analysis
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
-module ORT = LibExecution.OCamlTypes.RuntimeT
-module OT = LibExecution.OCamlTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
@@ -258,8 +256,6 @@ module Values =
       )
     )
 
-  let testOCamlExpr = OT.Convert.pt2ocamlExpr testExpr
-
   let testPos : PT.Position = { x = 6; y = 6 }
 
   let testHandlerIDs : PT.Handler.ids =
@@ -317,18 +313,6 @@ module Values =
 
   let testClientDval : CT.Dval.T = CT.Dval.fromRT testDval
 
-  let testOCamlDval =
-    match testDval with
-    | RT.DObj (map) ->
-      map
-      |> Map.toList
-      // Pipes get gids added to them un the OCaml representation, which makes tests fail due to randomness
-      |> List.filter (fun (k, v) -> k <> "block with pipe")
-      |> Map
-      |> RT.DObj
-      |> LibExecution.OCamlTypes.Convert.rt2ocamlDval
-    | _ -> Exception.raiseInternal "not supported" []
-
   let testInstant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
   let testUuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
@@ -375,8 +359,6 @@ module Values =
                  ("variable", PT.TVariable "v")
                  ("fn", PT.TFn([ PT.TInt ], PT.TInt))
                  ("record", PT.TRecord([ "field1", PT.TInt ])) ]
-
-  let testOCamlTipe = OT.Convert.pt2ocamlTipe testType
 
   let testDBs : List<PT.DB.T> =
     [ { tlid = 0UL
@@ -447,13 +429,6 @@ module Values =
       List.map PT.Toplevel.TLType testUserTypes ]
     |> List.concat
 
-  let (testOCamlToplevels, testOCamlUserFns, testOCamlUserTipes) =
-    testToplevels
-    |> (List.map (fun tl -> PT.Toplevel.toTLID tl, tl))
-    |> Map
-    |> OT.Convert.pt2ocamlToplevels
-
-
   let testOplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
@@ -478,24 +453,11 @@ module Values =
       PT.SetType(testUserType)
       PT.DeleteType tlid ]
 
-  let testOCamlOplist : OT.oplist = OT.Convert.pt2ocamlOplist testOplist
-
   let testStaticDeploy : LibBackend.StaticAssets.StaticDeploy =
     { deployHash = "zf2ttsgwln"
       url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
       status = LibBackend.StaticAssets.Deployed
       lastUpdate = testInstant }
-
-  let testAddOpEventV0 : LibBackend.Op.AddOpEventV0 =
-    { ``params`` = { ops = testOCamlOplist; opCtr = 0; clientOpCtrId = None }
-      result =
-        { toplevels = testOCamlToplevels
-          deleted_toplevels = testOCamlToplevels
-          user_functions = testOCamlUserFns
-          deleted_user_functions = testOCamlUserFns
-          user_tipes = testOCamlUserTipes
-          deleted_user_tipes = testOCamlUserTipes } }
-
 
   let testAddOpResultV1 : LibBackend.Op.AddOpResultV1 =
     { handlers = testHandlers
@@ -595,20 +557,8 @@ module GenericSerializersTests =
       // non-pretty version is too hard to read and compare.
       generateSerializerData "vanilla" Json.Vanilla.prettySerialize dataName data
 
-    let generateOCamlCompatibleData<'t> (dataName : string) (data : 't) =
-      // Use prettySerialize even though we use serialize in practice, as the
-      // non-pretty version is too hard to read and compare.
-      let serializer = Json.OCamlCompatible.prettySerialize
-      generateSerializerData "ocaml" serializer dataName data
-
-    let generateBoth<'t> (dataName) (data : 't) =
-      generateVanillaData<'t> dataName data
-      generateOCamlCompatibleData<'t> dataName data
-
     // Shortcuts to make generateTestData more readable
     let private v<'t> = generateVanillaData<'t>
-    let private oc<'t> = generateOCamlCompatibleData<'t>
-    let private both<'t> = generateBoth<'t>
 
     let generateTestData () : unit =
 
@@ -634,16 +584,15 @@ module GenericSerializersTests =
       // LibExecution
       // ------------------
 
-      both<ORT.dval> "complete" testOCamlDval
-      both<CT.Dval.T> "complete" testClientDval
-      testHandlersWithName
-      |> List.iter (fun (name, handler) -> oc<PT.Handler.T> name handler)
-      // v<OT.oplist> "all" testOCamlOplist
+      v<CT.Dval.T> "complete" testClientDval
 
       v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
         "complete"
         (testDval
          |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
+
+      v<LibExecution.ProgramTypes.Oplist> "complete" testOplist
+      v<LibExecution.ProgramTypes.Handler.T> "simple" testHttpHandler
 
       // ------------------
       // LibBackend
@@ -657,16 +606,20 @@ module GenericSerializersTests =
         "simple"
         { username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abc1234" }
 
-      oc<LibBackend.PackageManager.ParametersDBFormat>
-        "simple"
-        [ { name = "a"; tipe = OT.TInt; description = "param1" } ]
+      v<LibBackend.PackageManager.ParametersDBFormat>
+        "all"
+        [ { name = "int"; tipe = LibBackend.PackageManager.TInt; description = "" }
+          { name = "string"
+            tipe = LibBackend.PackageManager.TStr
+            description = "" }
+          { name = "any"; tipe = LibBackend.PackageManager.TAny; description = "" }
+          { name = "List"; tipe = LibBackend.PackageManager.TList; description = "" }
+          { name = "obj"; tipe = LibBackend.PackageManager.TObj; description = "" } ]
 
       v<PT.Position> "simple" { x = 10; y = -16 }
-      v<OT.oplist> "simple" testOCamlOplist
 
       // Used by Pusher
       v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
-      oc<LibBackend.Op.AddOpEventV0> "simple" testAddOpEventV0
       v<LibBackend.Op.AddOpEventV1> "simple" testAddOpEventV1
       v<LibBackend.StaticAssets.StaticDeploy> "simple" testStaticDeploy
       v<LibBackend.Pusher.NewTraceID> "simple" (testUuid, testTLIDs)
@@ -686,12 +639,6 @@ module GenericSerializersTests =
         "simple"
         { ops = testOplist; opCtr = 0; clientOpCtrID = testUuid.ToString() }
       v<ApiServer.AddOps.V1.T> "simple" testAddOpResultV1
-      oc<ApiServer.AddOps.V0.Params>
-        "simple"
-        { ops = testOCamlOplist
-          opCtr = 0
-          clientOpCtrId = Some(testUuid.ToString()) }
-      oc<ApiServer.AddOps.V0.T> "simple" testAddOpEventV0
 
 
       // DBs
@@ -701,10 +648,6 @@ module GenericSerializersTests =
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
                       "db2", { count = 5; example = Some(testClientDval, "myKey") } ])
-      oc<ApiServer.DBs.DBStatsV0.T>
-        "simple"
-        (Map.ofList [ "db1", { count = 0; example = None }
-                      "db2", { count = 5; example = Some(testOCamlDval, "myKey") } ])
       v<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
 
       // Execution
@@ -715,13 +658,6 @@ module GenericSerializersTests =
           caller_id = 7UL
           args = [ testClientDval ]
           fnname = "Int::mod_v0" }
-      oc<ApiServer.Execution.FunctionV0.Params>
-        "simple"
-        { tlid = testTLID
-          trace_id = testUuid
-          caller_id = 7UL
-          args = [ testOCamlDval ]
-          fnname = "Int::mod_v0" }
       v<ApiServer.Execution.FunctionV1.T>
         "simple"
         { result = testClientDval
@@ -729,19 +665,9 @@ module GenericSerializersTests =
           hashVersion = 0
           touched_tlids = [ testTLID ]
           unlocked_dbs = [ testTLID ] }
-      oc<ApiServer.Execution.FunctionV0.T>
-        "simple"
-        { result = testOCamlDval
-          hash = "abcd"
-          hashVersion = 0
-          touched_tlids = [ testTLID ]
-          unlocked_dbs = [ testTLID ] }
       v<ApiServer.Execution.HandlerV1.Params>
         "simple"
         { tlid = testTLID; trace_id = testUuid; input = [ "v", testClientDval ] }
-      oc<ApiServer.Execution.HandlerV0.Params>
-        "simple"
-        { tlid = testTLID; trace_id = testUuid; input = [ "v", testOCamlDval ] }
       v<ApiServer.Execution.HandlerV1.T> "simple" { touched_tlids = [ testTLID ] }
 
       // F404s
@@ -840,30 +766,6 @@ module GenericSerializersTests =
           creationDate = testInstant
           workerSchedules = testWorkerStates
           secrets = [ { name = "test"; value = "secret" } ] }
-      oc<ApiServer.InitialLoad.V0.T>
-        "initial"
-        { toplevels = testOCamlToplevels
-          deleted_toplevels = testOCamlToplevels
-          user_functions = testOCamlUserFns
-          deleted_user_functions = testOCamlUserFns
-          unlocked_dbs = [ testTLID ]
-          user_tipes = testOCamlUserTipes
-          deleted_user_tipes = testOCamlUserTipes
-          assets = [ ApiServer.InitialLoad.V0.toApiStaticDeploys testStaticDeploy ]
-          op_ctrs = [ testUuid, 7 ]
-          canvas_list = [ "test"; "test-canvas2" ]
-          org_canvas_list = [ "testorg"; "testorg-canvas2" ]
-          permission = Some(LibBackend.Authorization.ReadWrite)
-          orgs = [ "test"; "testorg" ]
-          account =
-            { username = "test"
-              name = "Test Name"
-              admin = false
-              email = "test@darklang.com"
-              id = testUuid }
-          creation_date = testInstant
-          worker_schedules = testWorkerStates
-          secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
 
       // Tunnels
       v<ApiServer.Tunnels.Register.Params> "empty" { tunnelHost = None }
@@ -888,36 +790,6 @@ module GenericSerializersTests =
             author = "test"
             deprecated = false
             tlid = testTLID } ]
-      oc<ApiServer.Packages.ListV0.T>
-        "simple"
-        [ { user = "dark"
-            package = "stdlib"
-            ``module`` = "Int"
-            fnname = "mod"
-            version = 0
-            body = testOCamlExpr
-            parameters =
-              [ { name = "param"; tipe = testOCamlTipe; description = "desc" } ]
-            return_type = testOCamlTipe
-            description = "test"
-            author = "test"
-            deprecated = false
-            tlid = testTLID } ]
-
-      // SecretsV0
-
-      v<ApiServer.Secrets.DeleteV0.Params> "simple" { secret_name = "test" }
-      v<ApiServer.Secrets.DeleteV0.T>
-        "simple"
-        { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
-
-      v<ApiServer.Secrets.InsertV0.Params>
-        "simple"
-        { secret_name = "test"; secret_value = "secret" }
-      v<ApiServer.Secrets.InsertV0.T>
-        "simple"
-        { secrets = [ { secret_name = "test"; secret_value = "secret" } ] }
-
 
       // SecretsV1
 
@@ -941,16 +813,6 @@ module GenericSerializersTests =
       // Traces
 
       v<ApiServer.Traces.AllTraces.T> "simple" { traces = [ (testTLID, testUuid) ] }
-      v<ApiServer.Traces.TraceDataV0.Params>
-        "simple"
-        { tlid = testTLID; trace_id = testUuid }
-      v<ApiServer.Traces.TraceDataV0.T>
-        "simple"
-        { trace =
-            (testUuid,
-             { input = [ "var", testOCamlDval ]
-               timestamp = testInstant
-               function_results = [ ("fnName", 7UL, "hash", 0, testOCamlDval) ] }) }
       v<ApiServer.Traces.TraceDataV1.Params>
         "simple"
         { tlid = testTLID; traceID = testUuid }
@@ -1037,11 +899,12 @@ module GenericSerializersTests =
       // Tests
       // ------------------
 
-      oc<LibExecution.AnalysisTypes.TraceData>
+      v<LibExecution.AnalysisTypes.TraceData>
         "testTraceData"
         { input = [ "var", testDval ]
           timestamp = testInstant
           function_results = [ ("fnName", 7UL, "hash", 0, testDval) ] }
+
 
     generateTestData ()
 
@@ -1073,13 +936,6 @@ module GenericSerializersTests =
       let vanillaExtraFiles = Set.difference vanillaActual vanillaFilenames
       Expect.equal vanillaMissingFiles Set.empty "missing vanilla files"
       Expect.equal vanillaExtraFiles Set.empty "extra vanilla files"
-
-      let ocamlFilenames = filenamesFor Json.OCamlCompatible.allowedTypes "ocaml"
-      let ocamlActual = File.lsPattern Config.Serialization "ocaml_*.json" |> Set
-      let ocamlMissingFiles = Set.difference ocamlFilenames ocamlActual
-      let ocamlExtraFiles = Set.difference ocamlActual ocamlFilenames
-      Expect.equal ocamlMissingFiles Set.empty "missing ocaml files"
-      Expect.equal ocamlExtraFiles Set.empty "extra ocaml files"
     }
 
   let testTestFiles : List<Test> =
@@ -1097,7 +953,6 @@ module GenericSerializersTests =
             Expect.equal actualSerializedData expected "matches")
         })
     (testsFor Json.Vanilla.allowedTypes "vanilla")
-    @ (testsFor Json.OCamlCompatible.allowedTypes "ocaml")
 
   let generateTestFiles () : unit =
     let generate (dict : Dictionary.T<string, string>) (serializerName : string) =
@@ -1110,7 +965,6 @@ module GenericSerializersTests =
           let filename = fileNameFor serializerName reason typeName name
           File.writefile Config.Serialization filename serializedData))
     generate Json.Vanilla.allowedTypes "vanilla"
-    generate Json.OCamlCompatible.allowedTypes "ocaml"
 
 module CustomSerializersTests =
 

@@ -1,42 +1,78 @@
 [
-  [ "TLSavepoint", 1013604333 ],
+  [
+    "TLSavepoint",
+    1013604333
+  ],
   [
     "SetHandler",
     1013604333,
-    { "x": 614, "y": 70 },
+    {
+      "x": 614,
+      "y": 70
+    },
     {
       "tlid": 1013604333,
+      "pos": {
+        "x": 614,
+        "y": 70
+      },
       "ast": [
         "EFnCall",
         1334251057,
-        "Crypto::md5",
+        [
+          "Stdlib",
+          {
+            "module_": "Crypto",
+            "function_": "md5",
+            "version": 0
+          }
+        ],
         [
           [
             "EPipe",
             744235252,
             [
-              [ "EString", 1045574047, "hello" ],
+              "EString",
+              1045574047,
+              "hello"
+            ],
+            [
+              "EFnCall",
+              1623144612,
               [
-                "EFnCall",
-                1623144612,
-                "String::toBytes",
-                [ [ "EPipeTarget", 307946852 ] ],
-                [ "NoRail" ]
+                "Stdlib",
+                {
+                  "module_": "String",
+                  "function_": "toBytes",
+                  "version": 0
+                }
+              ],
+              [
+                [
+                  "EPipeTarget",
+                  307946852
+                ]
+              ],
+              [
+                "NoRail"
               ]
-            ]
+            ],
+            []
           ]
         ],
-        [ "NoRail" ]
+        [
+          "NoRail"
+        ]
       ],
-      "spec": {
-        "module": [ "Filled", 1861672265, "REPL" ],
-        "name": [ "Filled", 804531585, "violentLemur" ],
-        "modifier": [ "Filled", 764655620, "_" ],
-        "types": {
-          "input": [ "Blank", 1709621411 ],
-          "output": [ "Blank", 1623278628 ]
+      "spec": [
+        "REPL",
+        "violentLemur",
+        {
+          "moduleID": 1861672265,
+          "nameID": 804531585,
+          "modifierID": 764655620
         }
-      }
+      ]
     }
   ]
 ]

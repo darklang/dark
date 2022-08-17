@@ -17,7 +17,6 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module OT = LibExecution.OCamlTypes
 module Telemetry = LibService.Telemetry
 
 
@@ -631,10 +630,7 @@ let tryLoadJsonFromDisk
   |> jsonFilename
   |> File.tryReadFile root
   |> Option.map (fun json ->
-    json
-    |> Json.Vanilla.deserialize<OT.oplist>
-    |> OT.Convert.ocamlOplist2PT
-    |> Op.oplist2TLIDOplists)
+    json |> Json.Vanilla.deserialize<PT.Oplist> |> Op.oplist2TLIDOplists)
 
 
 
@@ -731,5 +727,5 @@ let toProgram (c : T) : RT.ProgramContext =
     secrets = secrets }
 
 let init () =
-  Json.Vanilla.allow<OT.oplist> "loadJsonFromDisk"
+  Json.Vanilla.allow<PT.Oplist> "loadJsonFromDisk"
   Json.Vanilla.allow<PT.Position> "saveTLIDs"

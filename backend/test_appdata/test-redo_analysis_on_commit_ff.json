@@ -1,11 +1,21 @@
 [
-  [ "TLSavepoint", 1825910366 ],
+  [
+    "TLSavepoint",
+    1825910366
+  ],
   [
     "SetHandler",
     1825910366,
-    { "x": 400, "y": 200 },
+    {
+      "x": 400,
+      "y": 200
+    },
     {
       "tlid": 1825910366,
+      "pos": {
+        "x": 400,
+        "y": 200
+      },
       "ast": [
         "ELet",
         818712402,
@@ -14,28 +24,53 @@
           "EFeatureFlag",
           1648879869,
           "flag-114573363",
-          [ "EBool", 1652980448, false ],
-          [ "EString", 1624550924, "Vanessa Ives" ],
-          [ "EString", 1916674282, "Dorian Gray" ]
+          [
+            "EBool",
+            1652980448,
+            false
+          ],
+          [
+            "EString",
+            1624550924,
+            "Vanessa Ives"
+          ],
+          [
+            "EString",
+            1916674282,
+            "Dorian Gray"
+          ]
         ],
         [
           "EBinOp",
           64986033,
-          "++",
-          [ "EString", 1643956865, "farewell " ],
-          [ "EVariable", 162918442, "name" ],
-          [ "NoRail" ]
+          {
+            "module_": null,
+            "function_": "\u002B\u002B"
+          },
+          [
+            "EString",
+            1643956865,
+            "farewell "
+          ],
+          [
+            "EVariable",
+            162918442,
+            "name"
+          ],
+          [
+            "NoRail"
+          ]
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 1880483820, "REPL" ],
-        "name": [ "Filled", 2013353319, "stubbornGoral" ],
-        "modifier": [ "Filled", 402801079, "_" ],
-        "types": {
-          "input": [ "Blank", 86867665 ],
-          "output": [ "Blank", 1493885034 ]
+      "spec": [
+        "REPL",
+        "stubbornGoral",
+        {
+          "moduleID": 1880483820,
+          "nameID": 2013353319,
+          "modifierID": 402801079
         }
-      }
+      ]
     }
   ]
 ]

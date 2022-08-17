@@ -9,7 +9,7 @@ open LibService.ConfigDsl
 // -------------------------
 
 // -------------------------
-// Root directories - see File.fs
+// Root directories - see File.fs and Root type below
 // -------------------------
 
 let runDir = absoluteDir "DARK_CONFIG_RUNDIR"
@@ -55,7 +55,7 @@ let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
 let httpclientProxyUrl = string "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL"
 
 // --------------------
-// For use in Util
+// File security
 // --------------------
 
 type Root =

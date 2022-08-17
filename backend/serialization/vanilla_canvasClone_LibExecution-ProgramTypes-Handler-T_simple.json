@@ -1,5 +1,5 @@
 {
-  "tlid": 294906673,
+  "tlid": 92987663,
   "pos": {
     "x": 6,
     "y": 6
@@ -145,7 +145,7 @@
                             775118986,
                             {
                               "module_": null,
-                              "function_": "+"
+                              "function_": "\u002B"
                             },
                             [
                               "EInteger",
@@ -175,7 +175,7 @@
                               140609068,
                               {
                                 "module_": null,
-                                "function_": "+"
+                                "function_": "\u002B"
                               },
                               [
                                 "EInteger",
@@ -198,14 +198,14 @@
                           265463935,
                           {
                             "module_": null,
-                            "function_": "+"
+                            "function_": "\u002B"
                           },
                           [
                             "EBinOp",
                             312092282,
                             {
                               "module_": null,
-                              "function_": "+"
+                              "function_": "\u002B"
                             },
                             [
                               "EFieldAccess",
@@ -297,7 +297,7 @@
                                   1021880969,
                                   {
                                     "module_": null,
-                                    "function_": "+"
+                                    "function_": "\u002B"
                                   },
                                   [
                                     "EPipeTarget",
@@ -459,7 +459,7 @@
                                   275666765,
                                   {
                                     "module_": null,
-                                    "function_": "+"
+                                    "function_": "\u002B"
                                   },
                                   [
                                     "EInteger",
@@ -544,7 +544,7 @@
                                   [
                                     "EPartial",
                                     2949606,
-                                    "some 🤬 string",
+                                    "some \uD83E\uDD2C string",
                                     [
                                       "EInteger",
                                       34545,
@@ -554,7 +554,7 @@
                                   [
                                     "ERightPartial",
                                     9239755,
-                                    "some 😭 string",
+                                    "some \uD83D\uDE2D string",
                                     [
                                       "EInteger",
                                       34545,
@@ -564,7 +564,7 @@
                                   [
                                     "ELeftPartial",
                                     234885,
-                                    "some 👨‍👩‍👧‍👦 string",
+                                    "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
                                     [
                                       "EInteger",
                                       34545,
@@ -619,9 +619,9 @@
     ]
   ],
   "spec": [
-    "Cron",
-    "name",
-    null,
+    "HTTP",
+    "/path",
+    "GET",
     {
       "moduleID": 129952,
       "nameID": 33052,

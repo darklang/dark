@@ -1,27 +1,45 @@
 [
-  [ "TLSavepoint", 598813411 ],
+  [
+    "TLSavepoint",
+    598813411
+  ],
   [
     "SetHandler",
     598813411,
-    { "x": 458, "y": 130 },
+    {
+      "x": 458,
+      "y": 130
+    },
     {
       "tlid": 598813411,
+      "pos": {
+        "x": 458,
+        "y": 130
+      },
       "ast": [
         "ELet",
         2068425241,
         "someVar",
-        [ "EString", 195624092, "Some Text" ],
-        [ "EBlank", 1071108287 ]
+        [
+          "EString",
+          195624092,
+          "Some Text"
+        ],
+        [
+          "EBlank",
+          1071108287
+        ]
       ],
-      "spec": {
-        "module": [ "Filled", 1619806723, "HTTP" ],
-        "name": [ "Blank", 650436342 ],
-        "modifier": [ "Blank", 1732275448 ],
-        "types": {
-          "input": [ "Blank", 1979464203 ],
-          "output": [ "Blank", 652301560 ]
+      "spec": [
+        "HTTP",
+        "",
+        "",
+        {
+          "moduleID": 1619806723,
+          "nameID": 650436342,
+          "modifierID": 1732275448
         }
-      }
+      ]
     }
   ]
 ]

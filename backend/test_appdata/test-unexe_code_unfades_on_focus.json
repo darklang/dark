@@ -1,15 +1,29 @@
 [
-  [ "TLSavepoint", 1072370335 ],
+  [
+    "TLSavepoint",
+    1072370335
+  ],
   [
     "SetHandler",
     1072370335,
-    { "x": 800, "y": 200 },
+    {
+      "x": 800,
+      "y": 200
+    },
     {
       "tlid": 1072370335,
+      "pos": {
+        "x": 800,
+        "y": 200
+      },
       "ast": [
         "EIf",
         1957311718,
-        [ "EBool", 553303682, false ],
+        [
+          "EBool",
+          553303682,
+          false
+        ],
         [
           "ELet",
           2073307217,
@@ -17,17 +31,31 @@
           [
             "EBinOp",
             1459002816,
-            "+",
-            [ "EInteger", 628377623, "9" ],
-            [ "EInteger", 1269906539, "8" ],
-            [ "NoRail" ]
+            {
+              "module_": null,
+              "function_": "\u002B"
+            },
+            [
+              "EInteger",
+              628377623,
+              9
+            ],
+            [
+              "EInteger",
+              1269906539,
+              8
+            ],
+            [
+              "NoRail"
+            ]
           ],
           [
             "ELet",
             1455507940,
             "b",
             [
-              "EString", 1520755076,
+              "EString",
+              1520755076,
               "averylongstrijdkfkjdsklfjdsklfj dklsfj kdlsjf lkdsjf lkdsj fkldsj flkdsjfkldsjfkldsjf lkdsjf kldsj fklsdjflksdjfs"
             ],
             [
@@ -38,14 +66,46 @@
                 "EList",
                 108205145,
                 [
-                  [ "EInteger", 338694850, "123456789" ],
-                  [ "EInteger", 1879423592, "123456789" ],
-                  [ "EInteger", 1835608595, "123456789" ],
-                  [ "EInteger", 2091229618, "123456789" ],
-                  [ "EInteger", 1290448019, "123456789" ],
-                  [ "EInteger", 1834615375, "123456789" ],
-                  [ "EInteger", 1848636759, "123456789" ],
-                  [ "EInteger", 281080654, "123456789" ]
+                  [
+                    "EInteger",
+                    338694850,
+                    123456789
+                  ],
+                  [
+                    "EInteger",
+                    1879423592,
+                    123456789
+                  ],
+                  [
+                    "EInteger",
+                    1835608595,
+                    123456789
+                  ],
+                  [
+                    "EInteger",
+                    2091229618,
+                    123456789
+                  ],
+                  [
+                    "EInteger",
+                    1290448019,
+                    123456789
+                  ],
+                  [
+                    "EInteger",
+                    1834615375,
+                    123456789
+                  ],
+                  [
+                    "EInteger",
+                    1848636759,
+                    123456789
+                  ],
+                  [
+                    "EInteger",
+                    281080654,
+                    123456789
+                  ]
                 ]
               ],
               [
@@ -55,24 +115,40 @@
                 [
                   "ERecord",
                   2097709403,
-                  [ [ "str", [ "EVariable", 2108109721, "b" ] ] ]
+                  [
+                    [
+                      "str",
+                      [
+                        "EVariable",
+                        2108109721,
+                        "b"
+                      ]
+                    ]
+                  ]
                 ],
-                [ "EBlank", 174430628 ]
+                [
+                  "EBlank",
+                  174430628
+                ]
               ]
             ]
           ]
         ],
-        [ "EString", 796813509, "otherwise" ]
+        [
+          "EString",
+          796813509,
+          "otherwise"
+        ]
       ],
-      "spec": {
-        "module": [ "Filled", 815709350, "REPL" ],
-        "name": [ "Filled", 1738992024, "sickenedHedgehog" ],
-        "modifier": [ "Filled", 1653797948, "_" ],
-        "types": {
-          "input": [ "Blank", 1363787322 ],
-          "output": [ "Blank", 1232256458 ]
+      "spec": [
+        "REPL",
+        "sickenedHedgehog",
+        {
+          "moduleID": 815709350,
+          "nameID": 1738992024,
+          "modifierID": 1653797948
         }
-      }
+      ]
     }
   ]
 ]

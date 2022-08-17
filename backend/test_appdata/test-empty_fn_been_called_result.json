@@ -1,50 +1,82 @@
 [
-  [ "TLSavepoint", 450203352 ],
+  [
+    "TLSavepoint",
+    450203352
+  ],
   [
     "SetHandler",
     450203352,
-    { "x": 458, "y": 130 },
+    {
+      "x": 458,
+      "y": 130
+    },
     {
       "tlid": 450203352,
+      "pos": {
+        "x": 458,
+        "y": 130
+      },
       "ast": [
         "EFnCall",
         695848481,
-        "fn_881219155",
-        [ [ "EInteger", 1524522644, "5" ] ],
-        [ "NoRail" ]
+        [
+          "User",
+          "fn_881219155"
+        ],
+        [
+          [
+            "EInteger",
+            1524522644,
+            5
+          ]
+        ],
+        [
+          "NoRail"
+        ]
       ],
-      "spec": {
-        "module": [ "Filled", 130346918, "REPL" ],
-        "name": [ "Filled", 892727734, "nighttimeKudu" ],
-        "modifier": [ "Filled", 1373889562, "_" ],
-        "types": {
-          "input": [ "Blank", 1212747727 ],
-          "output": [ "Blank", 2031171286 ]
+      "spec": [
+        "REPL",
+        "nighttimeKudu",
+        {
+          "moduleID": 130346918,
+          "nameID": 892727734,
+          "modifierID": 1373889562
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 602952746 ],
+  [
+    "TLSavepoint",
+    602952746
+  ],
   [
     "SetFunction",
     {
       "tlid": 602952746,
-      "metadata": {
-        "name": [ "Filled", 1559944598, "fn_881219155" ],
-        "parameters": [
-          {
-            "name": [ "Filled", 1698751239, "x" ],
-            "tipe": [ "Filled", 763760730, [ "TInt" ] ],
-            "block_args": [],
-            "optional": false,
-            "description": ""
-          }
-        ],
-        "return_type": [ "Filled", 1057196671, [ "TAny" ] ],
-        "description": "",
-        "infix": false
-      },
-      "ast": [ "EBlank", 1276585567 ]
+      "name": "fn_881219155",
+      "nameID": 1559944598,
+      "parameters": [
+        {
+          "name": "x",
+          "nameID": 1698751239,
+          "typ": [
+            "TInt"
+          ],
+          "typeID": 763760730,
+          "description": ""
+        }
+      ],
+      "returnType": [
+        "TVariable",
+        "a"
+      ],
+      "returnTypeID": 1057196671,
+      "description": "",
+      "infix": false,
+      "body": [
+        "EBlank",
+        1276585567
+      ]
     }
   ]
 ]

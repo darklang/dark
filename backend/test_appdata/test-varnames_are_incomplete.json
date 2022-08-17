@@ -1,21 +1,35 @@
 [
-  [ "TLSavepoint", 958721492 ],
+  [
+    "TLSavepoint",
+    958721492
+  ],
   [
     "SetHandler",
     958721492,
-    { "x": 411, "y": 231 },
+    {
+      "x": 411,
+      "y": 231
+    },
     {
       "tlid": 958721492,
-      "ast": [ "EBlank", 227251029 ],
-      "spec": {
-        "module": [ "Filled", 1789448925, "HTTP" ],
-        "name": [ "Filled", 1296076492, "/" ],
-        "modifier": [ "Filled", 334903341, "GET" ],
-        "types": {
-          "input": [ "Blank", 145192157 ],
-          "output": [ "Blank", 1332309268 ]
+      "pos": {
+        "x": 411,
+        "y": 231
+      },
+      "ast": [
+        "EBlank",
+        227251029
+      ],
+      "spec": [
+        "HTTP",
+        "/",
+        "GET",
+        {
+          "moduleID": 1789448925,
+          "nameID": 1296076492,
+          "modifierID": 334903341
         }
-      }
+      ]
     }
   ]
 ]

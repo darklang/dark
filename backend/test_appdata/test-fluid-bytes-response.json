@@ -1,11 +1,21 @@
 [
-  [ "TLSavepoint", 1723824638 ],
+  [
+    "TLSavepoint",
+    1723824638
+  ],
   [
     "SetHandler",
     1723824638,
-    { "x": 429, "y": 116 },
+    {
+      "x": 429,
+      "y": 116
+    },
     {
       "tlid": 1723824638,
+      "pos": {
+        "x": 429,
+        "y": 116
+      },
       "ast": [
         "ELet",
         1095348949,
@@ -13,30 +23,63 @@
         [
           "EFnCall",
           379121043,
-          "String::toBytes",
-          [ [ "EString", 931258363, "foo" ] ],
-          [ "NoRail" ]
+          [
+            "Stdlib",
+            {
+              "module_": "String",
+              "function_": "toBytes",
+              "version": 0
+            }
+          ],
+          [
+            [
+              "EString",
+              931258363,
+              "foo"
+            ]
+          ],
+          [
+            "NoRail"
+          ]
         ],
         [
           "EFnCall",
           1549926819,
-          "Http::respondWithJson",
           [
-            [ "EVariable", 1052606096, "val" ],
-            [ "EInteger", 730858672, "200" ]
+            "Stdlib",
+            {
+              "module_": "Http",
+              "function_": "respondWithJson",
+              "version": 0
+            }
           ],
-          [ "NoRail" ]
+          [
+            [
+              "EVariable",
+              1052606096,
+              "val"
+            ],
+            [
+              "EInteger",
+              730858672,
+              200
+            ]
+          ],
+          [
+            "NoRail"
+          ]
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 410771935, "HTTP" ],
-        "name": [ "Filled", 385967964, "/" ],
-        "modifier": [ "Filled", 1002045962, "GET" ],
-        "types": {
-          "input": [ "Blank", 859731620 ],
-          "output": [ "Blank", 1248048228 ]
+      "spec": [
+        "HTTP",
+        "/",
+        "GET",
+        {
+          "moduleID": 410771935,
+          "nameID": 385967964,
+          "modifierID": 1002045962
         }
-      }
+      ]
     }
   ]
 ]

@@ -52,10 +52,6 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     print $"Initing LibBackend in {serviceName}"
     Db.init ()
 
-    Json.OCamlCompatible.registerConverter (
-      QueueSchedulingRules.WorkerStates.JsonConverter.WorkerStateConverter()
-    )
-
     Json.Vanilla.registerConverter (
       QueueSchedulingRules.WorkerStates.STJJsonConverter.WorkerStateConverter()
     )
