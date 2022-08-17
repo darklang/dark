@@ -74,10 +74,6 @@ let addRoutes
   let std = standardMiddleware
   let html = htmlMiddleware
 
-  // CLEANUP: switch everything over to clientJson and get rid of
-  // ocamlCompatible. We want to get rid of both OCamlTypes and Serializers,
-  // both of which exist because of these APIs. We want to move these APIs
-  // to the `dark-editor` canvas
   let clientJsonApi name perm f =
     let handler = clientJsonHandler f
     let route = $"/api/{{canvasName}}/{name}"
