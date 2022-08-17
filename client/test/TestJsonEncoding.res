@@ -145,22 +145,22 @@ let run = () => {
     let ignores = [
       // Not used by client
       "vanilla_ApiServer-F404s_ApiServer-F404s-Delete-T_simple.json", // we don't check the response
+      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-Params_simple.json",
+      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-T_simple.json",
       "vanilla_ApiServer-Toplevels_ApiServer-Toplevels-Delete-T_simple.json", // we don't check the response
       "vanilla_LibBackend-Pusher_LibBackend-Pusher-AddOpEventTooBigPayload_simple.json", // not used yet
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-T_simple.json",
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-Params_simple.json",
       // Internal to backend
-      "vanilla_tests-ApiServer-UI-heapioMetadata_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_simple.json",
-      "vanilla_eventqueue-storage_LibBackend-EventQueueV2-NotificationData_simple.json",
       "vanilla_LibBackend-session-db-storage_LibBackend-Session-JsonData_simple.json",
+      "vanilla_PackageManager_Microsoft-FSharp-Collections-FSharpList-1-LibBackend-PackageManager-Parameter-_all.json",
       "vanilla_Prelude_Prelude-pos_simple.json",
-      "vanilla_canvasClone_LibExecution-ProgramTypes-Handler-T_simple.json",
-      "vanilla_testTraceData_LibExecution-AnalysisTypes-TraceData_testTraceData.json",
       "vanilla_Rollbar_LibService-Rollbar-HoneycombJson_simple.json",
       "vanilla_RoundtrippableSerializationFormatV0-Dval_LibExecution-DvalReprInternalNew-RoundtrippableSerializationFormatV0-Dval_complete.json",
-      "vanilla_saveTLIDs_LibExecution-ProgramTypes-Position_simple.json",
-      "vanilla_PackageManager_Microsoft-FSharp-Collections-FSharpList-1-LibBackend-PackageManager-Parameter-_all.json",
+      "vanilla_canvasClone_LibExecution-ProgramTypes-Handler-T_simple.json",
+      "vanilla_eventqueue-storage_LibBackend-EventQueueV2-NotificationData_simple.json",
       "vanilla_loadJsonFromDisk_Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Op-_complete.json",
+      "vanilla_saveTLIDs_LibExecution-ProgramTypes-Position_simple.json",
+      "vanilla_testTraceData_LibExecution-AnalysisTypes-TraceData_testTraceData.json",
+      "vanilla_tests-ApiServer-UI-heapioMetadata_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_simple.json",
     ]
     Belt.MutableMap.String.removeMany(processedSerializationFiles, ignores)
 
