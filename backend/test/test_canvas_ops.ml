@@ -476,5 +476,4 @@ let suite =
     , t_load_all_dbs_from_cache )
   ; ( "Adding a DB with a duplicate name fails to verify"
     , `Quick
-    , t_canvas_verification_duplicate_creation_off_disk )
-  ; ("Check canvas_clone", `Quick, t_canvas_clone) ]
+    , t_canvas_verification_duplicate_creation_off_disk ) ]
