@@ -386,6 +386,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                    state.tracing.traceDval false id (incomplete id))
                  args
              })
+        // TUPLETODO: handle tuple pattern matches properly - this requires a
+        // refactor to this functionality that can be done in a separate PR. As
+        // part of that refactor, fuzz test appropriately
+        | PTuple (pid, _first, _second, _theRest) ->
+          traceNonMatch st expr builtUpTraces pid dv
 
       let! matchVal = eval state st matchExpr
 
