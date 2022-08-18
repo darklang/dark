@@ -35,8 +35,8 @@ let modifySearchParamsAndReload = (f: Webapi.Url.URLSearchParams.t => unit): uni
   L.setSearch(location, searchParams->USP.toString)
 }
 
-let setTunnelQueryParam = (host: string): unit => {
-  modifySearchParamsAndReload(params => USP.set(params, tunnelQueryParamName, host))
+let setTunnelQueryParam = (): unit => {
+  modifySearchParamsAndReload(params => USP.set(params, tunnelQueryParamName, ""))
 }
 
 let clearTunnelQueryParam = (): unit => {
@@ -57,10 +57,8 @@ let update = (s: t, msg: msg): (t, option<effect<'cmd>>) =>
 
   | RegisterTunnelHostAPICallback(result) =>
     // Instantly reload with the new url
-    let setLocation = _ => setTunnelQueryParam("")
-
     switch result {
-    | Tea.Result.Ok(true) => (s, Some(Reload(Tea.Cmd.call(setLocation))))
+    | Tea.Result.Ok(true) => (s, Some(Reload(Tea.Cmd.call(setTunnelQueryParam()))))
     | Tea.Result.Ok(false) => ({tunnelHost: {...s.tunnelHost, error: Some("Invalid url")}}, None)
     | Tea.Result.Error(e) => (
         {tunnelHost: {...s.tunnelHost, error: Some(Tea.Http.string_of_error(e))}},
