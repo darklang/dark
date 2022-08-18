@@ -58,7 +58,7 @@ let update = (s: t, msg: msg): (t, option<effect<'cmd>>) =>
   | RegisterTunnelHostAPICallback(result) =>
     // Instantly reload with the new url
     switch result {
-    | Tea.Result.Ok(true) => (s, Some(Reload(Tea.Cmd.call(setTunnelQueryParam()))))
+    | Tea.Result.Ok(true) => (s, Some(Reload(Tea.Cmd.call(_ => setTunnelQueryParam()))))
     | Tea.Result.Ok(false) => ({tunnelHost: {...s.tunnelHost, error: Some("Invalid url")}}, None)
     | Tea.Result.Error(e) => (
         {tunnelHost: {...s.tunnelHost, error: Some(Tea.Http.string_of_error(e))}},
