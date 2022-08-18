@@ -1,8 +1,8 @@
 // open Tc
 
-module Html = Tea_html_extended
-module Events = Tea.Html2.Events
-module Attrs = Tea.Html2.Attributes
+module Html = Tea.Html
+module Events = Tea.Html.Events
+module Attrs = Tea.Html.Attributes
 
 module Utils = SettingsUtils
 module T = SettingsContributing

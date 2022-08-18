@@ -1,4 +1,9 @@
 open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 module B = BlankOr
 
 module FnParams = AppTypes.FunctionParams
@@ -97,7 +102,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
       Html.div(
         list{
           Attrs.class'("parameter-btn disallowed"),
-          Html.title("Can't delete parameter because it is used in the function body"),
+          Attrs.title("Can't delete parameter because it is used in the function body"),
         },
         list{fontAwesome("times-circle")},
       )
@@ -188,7 +193,7 @@ let viewParam = (
   let param = {
     let events = switch fn {
     | UserFunction(_) => list{
-        Tea.Html2.Attributes.draggable("true"),
+        Tea.Html.Attributes.draggable("true"),
         onEvent(~event="dragstart", ~key="fpds-" ++ strId, ~preventDefault=false, dragStart),
         onEvent(~event="dragend", ~key="fpde-" ++ strId, dragEnd),
         ViewUtils.onAnimationEnd(~key="fpdfaded-" ++ strId, ~listener=flashFade),
@@ -209,7 +214,7 @@ let viewParam = (
     Html.div(
       ~unique=strId,
       list{
-        Html.classList(list{("col param", true), ...conditionalClasses}),
+        Attrs.classList(list{("col param", true), ...conditionalClasses}),
         Vdom.attribute("", "data-pos", string_of_int(index)),
         ...events,
       },

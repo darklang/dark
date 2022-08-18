@@ -1,5 +1,9 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 // Dark
 module B = BlankOr
 
@@ -67,7 +71,7 @@ let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<m
         )
         |> Option.is_some
 
-      let classes = Html.classList(list{
+      let classes = Attrs.classList(list{
         ("handler-trigger", true),
         ("is-executing", vp.isExecuting),
         ("inactive", !hasData),
@@ -77,7 +81,7 @@ let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<m
 
       let attrs = if hasData {
         list{
-          Html.title("Replay this execution"),
+          Attrs.title("Replay this execution"),
           ViewUtils.eventNoPropagation(
             ~key="lh" ++ ("-" ++ TLID.toString(vp.tlid)),
             "click",
@@ -92,7 +96,7 @@ let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<m
           ),
         }
       } else {
-        list{Html.title("Need input data to replay execution"), Html.noProp, Html.noProp}
+        list{Attrs.title("Need input data to replay execution"), Attrs.noProp, Attrs.noProp}
       }
 
       Html.div(list{classes, ...attrs}, list{fontAwesome("redo")})
@@ -215,7 +219,7 @@ let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEven
 
 let handlerAttrs: list<Vdom.property<msg>> = list{
   Attrs.class'("handler-body expand"),
-  Html.style("height", "auto"),
+  Attrs.style("height", "auto"),
   Vdom.noProp,
 }
 

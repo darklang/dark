@@ -1,7 +1,10 @@
 open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 module TL = Toplevel
-module Attrs = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
 module K = FluidKeyboard
 
 type modification = AppTypes.modification
@@ -210,8 +213,8 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
       Vdom.attribute("", "spellcheck", "false"),
       Attrs.autocomplete(false),
       Events.onInput(query => Msg.FluidMsg(FluidCommandsFilter(query))),
-      Html.onCB("keydown", "command-keydown", onKeydown),
-      Html.onCB("blur", "lose focus", onLoseFocus),
+      Events.onCB("keydown", "command-keydown", onKeydown),
+      Events.onCB("blur", "lose focus", onLoseFocus),
     },
     list{},
   )

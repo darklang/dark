@@ -1,11 +1,12 @@
 open Prelude
 
 // Dark
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Html.Events
 module Cmd = Tea.Cmd
-module Attributes = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
+
 module K = FluidKeyboard
-module Html = Tea_html_extended
 module T = Settings
 
 module Msg = AppTypes.Msg
@@ -40,7 +41,7 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
 
     Html.h3(
       list{
-        Html.classList(list{("tab-title", true), ("selected", isSameTab)}),
+        Attrs.classList(list{("tab-title", true), ("selected", isSameTab)}),
         ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
           SwitchTab(t),
         )),
@@ -97,7 +98,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
           ViewUtils.nothingMouseEvent("click"),
           ViewUtils.eventNoPropagation(~key="ept", "mouseenter", _ => EnablePanning(false)),
           ViewUtils.eventNoPropagation(~key="epf", "mouseleave", _ => EnablePanning(true)),
-          Html.onCB("keydown", "keydown", onKeydown),
+          Events.onCB("keydown", "keydown", onKeydown),
         },
         list{settingViewWrapper(svs), closingBtn},
       ),

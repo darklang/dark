@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 // Dark
 module B = BlankOr
 module TL = Toplevel
@@ -19,7 +22,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
       list{
         ViewUtils.eventNoPropagation(~key="run-" ++ strTLID, "click", _ => RunWorker(name)),
         Attrs.class'("restart-worker"),
-        Html.title("Run worker"),
+        Attrs.title("Run worker"),
       },
       list{ViewUtils.fontAwesome("play-circle")},
     )
@@ -27,7 +30,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
     Html.div(
       list{
         Attrs.class'("blocked-worker"),
-        Html.title("Worker disabled by Dark. Please get in touch to discuss why."),
+        Attrs.title("Worker disabled by Dark. Please get in touch to discuss why."),
       },
       list{ViewUtils.fontAwesome("ban")},
     )
@@ -36,7 +39,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
       list{
         ViewUtils.eventNoPropagation(~key="pause-" ++ strTLID, "click", _ => PauseWorker(name)),
         Attrs.class'("pause-worker"),
-        Html.title("Pause worker"),
+        Attrs.title("Pause worker"),
       },
       list{ViewUtils.fontAwesome("pause-circle")},
     )
@@ -109,7 +112,7 @@ let viewTrace = (
   | Some(ts) =>
     let human = Js.Date.now() -. Js.Date.parseAsFloat(ts) |> Util.humanReadableTimeElapsed
 
-    Html.div(list{Html.title(ts)}, list{Html.text("Made " ++ (human ++ " ago"))})
+    Html.div(list{Attrs.title(ts)}, list{Html.text("Made " ++ (human ++ " ago"))})
   }
 
   let dotHtml = if isHover && !isActive {
@@ -120,12 +123,12 @@ let viewTrace = (
 
   let viewData = Html.div(list{Attrs.class'("data")}, list{timestampDiv, valueDiv})
   let unfetchableAltText = if isUnfetchable {
-    Html.title("Trace is too large for the editor to load")
+    Attrs.title("Trace is too large for the editor to load")
   } else {
     Vdom.noProp
   }
 
-  let props = list{Html.classList(classes), unfetchableAltText, ...events}
+  let props = list{Attrs.classList(classes), unfetchableAltText, ...events}
   Html.li(props, Belt.List.concat(dotHtml, list{viewData}))
 }
 
@@ -172,7 +175,7 @@ let viewData = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
       list{
         Html.span(list{Attrs.class'("label")}, list{Html.text("Pending events")}),
         Html.span(
-          list{Html.classList(list{("count", true), ("active", count > 0)})},
+          list{Attrs.classList(list{("count", true), ("active", count > 0)})},
           list{Html.text(string_of_int(count))},
         ),
       },
@@ -211,12 +214,12 @@ let viewData = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
   list{
     Html.div(
       list{
-        Html.classList(list{
+        Attrs.classList(list{
           ("view-data", true),
           ("show-worker-stats", showWorkerStats),
           ("live-view-selection-active", selectedValue != None),
         }),
-        Html.style("max-height", maxHeight),
+        Attrs.style("max-height", maxHeight),
       },
       list{pauseBtn, workQStats, Html.ul(list{Attrs.class'("request-cursor")}, requestEls)},
     ),

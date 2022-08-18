@@ -2,8 +2,10 @@ open Prelude
 open ViewUtils
 
 // Tea
-module Attributes = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 module RT = Runtime
 
 let onSubmit = (~key, fn) =>
@@ -36,7 +38,7 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
       Html.li(
         ~unique=name,
         list{
-          Attributes.classList(list{
+          Attrs.classList(list{
             ("autocomplete-item", true),
             ("highlighted", highlighted),
             (class', true),
@@ -56,7 +58,7 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
 
   let autocompleteList = toList(ac.completions, "valid", ac.index)
   let autocomplete = if ac.visible {
-    Html.ul(list{Attributes.id("autocomplete-holder")}, autocompleteList)
+    Html.ul(list{Attrs.id("autocomplete-holder")}, autocompleteList)
   } else {
     Vdom.noNode
   }
@@ -80,13 +82,13 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
 
   let searchInput = Html.input'(
     list{
-      Attributes.id(Defaults.entryID),
+      Attrs.id(Defaults.entryID),
       Events.onInput(x => Msg.EntryInputMsg(x)),
       defaultPasteHandler,
-      Attributes.value(search),
-      Attributes.placeholder(placeholder),
+      Attrs.value(search),
+      Attrs.placeholder(placeholder),
       Vdom.attribute("", "spellcheck", "false"),
-      Attributes.autocomplete(false),
+      Attrs.autocomplete(false),
     },
     list{},
   )
@@ -94,16 +96,16 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
   // TODO(ian): deliberately using an empty string here
   // and changing absolutely nothing else re: the layout/width
   // here because I have no idea what the effects will be
-  let suggestionSpan = Html.span(list{Attributes.id("suggestionBox")}, list{Html.text("")})
+  let suggestionSpan = Html.span(list{Attrs.id("suggestionBox")}, list{Html.text("")})
 
   // http://making.fiftythree.com/fluid-text-inputs/
   let fluidWidthSpan = Html.span(
-    list{Attributes.id("fluidWidthSpan"), Vdom.prop("contentEditable", "true")},
+    list{Attrs.id("fluidWidthSpan"), Vdom.prop("contentEditable", "true")},
     list{Html.text(search)},
   )
 
   let input = Html.fieldset(
-    list{Attributes.id("search-container"), widthInCh(searchWidth)},
+    list{Attrs.id("search-container"), widthInCh(searchWidth)},
     list{searchInput, suggestionSpan, fluidWidthSpan},
   )
 
@@ -122,7 +124,7 @@ let viewEntry = (m: AppTypes.model): Html.html<AppTypes.msg> =>
     | Some(p) =>
       let offset = m.canvasProps.offset
       let loc = Viewport.subPos(p, offset)
-      Html.styles(list{
+      Attrs.styles(list{
         ("left", string_of_int(loc.x) ++ "px"),
         ("top", string_of_int(loc.y) ++ "px"),
       })

@@ -1,4 +1,7 @@
-open Prelude
+// open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
 
 module Msg = AppTypes.Msg
 
@@ -26,11 +29,11 @@ let html = (_m: AppTypes.model) =>
 
     list{
       Html.div(
-        list{Html.styles(list{}), Html.classList(list{("topbar", true)})},
+        list{Attrs.styles(list{}), Attrs.classList(list{("topbar", true)})},
         list{
           Html.a(
             list{
-              Html.href(url),
+              Attrs.href(url),
               ViewUtils.eventNoPropagation(~key="toggle-topbar", "mouseup", _ => Msg.IgnoreMsg(
                 "topbar",
               )),

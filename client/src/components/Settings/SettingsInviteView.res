@@ -1,10 +1,10 @@
 open Tc
 
-module K = FluidKeyboard
-module Html = Tea_html_extended
-module Events = Tea.Html2.Events
-module Attributes = Tea.Html2.Attributes
+module Html = Tea.Html
+module Events = Tea.Html.Events
+module Attrs = Tea.Html.Attributes
 
+module K = FluidKeyboard
 module Utils = SettingsUtils
 
 module T = SettingsInvite
@@ -69,7 +69,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
                       Events.onInput(str => AppTypes.Msg.SettingsMsg(
                         Settings.InviteMsg(T.Update(str)),
                       )),
-                      Attributes.value(state.email.value),
+                      Attrs.value(state.email.value),
                     },
                     list{},
                   ),

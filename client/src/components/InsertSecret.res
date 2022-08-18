@@ -1,8 +1,10 @@
 open Prelude
-module Attr = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
-module Html = Tea_html_extended
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
 module Cmd = Tea.Cmd
+
 module ST = SecretTypes
 module Mod = AppTypes.Modification
 module Msg = AppTypes.Msg
@@ -152,28 +154,28 @@ let view = (m: ST.insertModal): Html.html<msg> =>
           list{
             Html.input'(
               list{
-                Html.id(secretNameInputID),
-                Html.autofocus(true),
-                Attr.placeholder("secret name"),
-                Attr.name("secret-name"),
-                Attr.value(m.newSecretName),
-                Html.classList(list{("modal-form-input", true), ("error", !m.isNameValid)}),
+                Attrs.id(secretNameInputID),
+                Attrs.autofocus(true),
+                Attrs.placeholder("secret name"),
+                Attrs.name("secret-name"),
+                Attrs.value(m.newSecretName),
+                Attrs.classList(list{("modal-form-input", true), ("error", !m.isNameValid)}),
                 Events.onInput(str => Msg.SecretMsg(OnUpdateName(Tc.String.toUppercase(str)))),
               },
               list{},
             ),
             Html.textarea(
               list{
-                Attr.placeholder("secret value"),
-                Attr.name("secret-value"),
-                Html.classList(list{("modal-form-input", true), ("error", !m.isValueValid)}),
+                Attrs.placeholder("secret value"),
+                Attrs.name("secret-value"),
+                Attrs.classList(list{("modal-form-input", true), ("error", !m.isValueValid)}),
                 Events.onInput(str => Msg.SecretMsg(OnUpdateValue(str))),
               },
               list{Html.text(m.newSecretValue)},
             ),
             Html.button(
               list{
-                Html.type'("button"),
+                Attrs.type'("button"),
                 Attrs.class'("modal-form-button"),
                 ViewUtils.eventNoPropagation(~key="save-secret", "click", _ => Msg.SecretMsg(
                   SaveNewSecret,
@@ -204,7 +206,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
         ViewUtils.nothingMouseEvent("mousedown"),
         ViewUtils.nothingMouseEvent("mouseup"),
         ViewUtils.nothingMouseEvent("click"),
-        Html.onCB("keydown", "keydown", onKeydown),
+        Events.onCB("keydown", "keydown", onKeydown),
       },
       list{Html.div(list{Attrs.class'("modal insert-secret")}, inside)},
     )

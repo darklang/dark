@@ -1,3 +1,7 @@
+// Extensions for Tea functionality
+// pp functions all deriving(show) to work
+// Others should be upstreamed
+
 module Result = {
   include Tea_result
   let pp = (
@@ -33,6 +37,7 @@ module Ex = Tea_ex
 
 module Http = {
   include Tea_http
+
   let pp_error = (
     _valueFormatter: (Format.formatter, 'v) => unit,
     fmt: Format.formatter,
@@ -44,6 +49,8 @@ module Http = {
 }
 
 module Html = {
+  // Html and Html2 are the same wuth a different organization. We use Html2, but we
+  // were using both, so for consistency let's rename it
   include Tea_html2
 
   // TODO: upstream
@@ -69,6 +76,8 @@ module Attrs = Tea_html2.Attributes
 module Events = Tea_html2.Events
 
 module Time = {
+  include Tea_time
+
   // TODO: upstream
   // Setting the key by associating it with interval,
   // will lead to rewrites of setInterval functions,

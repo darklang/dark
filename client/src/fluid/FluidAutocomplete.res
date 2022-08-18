@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 module RT = RuntimeTypes
 module TL = Toplevel
 

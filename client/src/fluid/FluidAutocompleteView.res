@@ -1,4 +1,8 @@
 open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 type data = FluidTypes.AutoComplete.data
 type state = FluidTypes.AutoComplete.t
 
@@ -60,7 +64,7 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
     Html.li(
       ~unique=name,
       list{
-        Html.classList(list{
+        Attrs.classList(list{
           ("autocomplete-item", true),
           ("fluid-selected", highlighted),
           (class', true),
@@ -79,5 +83,5 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
     )
   })
 
-  Html.div(list{Html.id("fluid-dropdown")}, list{Html.ul(list{}, autocompleteList)})
+  Html.div(list{Attrs.id("fluid-dropdown")}, list{Html.ul(list{}, autocompleteList)})
 }

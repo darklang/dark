@@ -1,4 +1,9 @@
 open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 module TL = Toplevel
 module B = BlankOr
 
@@ -26,7 +31,7 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
 let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.UserFunction.Parameter.t) => {
     let name = Html.span(
-      list{Html.classList(list{("name", true), ("has-blanks", p.name == "")})},
+      list{Attrs.classList(list{("name", true), ("has-blanks", p.name == "")})},
       list{
         Html.text(
           if p.name == "" {
@@ -39,7 +44,7 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
     )
 
     let ptype = Html.span(
-      list{Html.classList(list{("type", true), ("has-blanks", p.typ == None)})},
+      list{Attrs.classList(list{("type", true), ("has-blanks", p.typ == None)})},
       list{
         Html.text(
           switch p.typ {
@@ -58,9 +63,9 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
 
 let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.Package.Parameter.t) => {
-    let name = Html.span(list{Html.classList(list{("name", true)})}, list{Html.text(p.name)})
+    let name = Html.span(list{Attrs.classList(list{("name", true)})}, list{Html.text(p.name)})
     let ptype = Html.span(
-      list{Html.classList(list{("type", true)})},
+      list{Attrs.classList(list{("type", true)})},
       list{Html.text(DType.tipe2str(p.tipe))},
     )
 

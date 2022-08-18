@@ -1,6 +1,9 @@
 // NOTE: This will change in the future to pretty tool tips, this is just an inbetween state
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 type msg = AppTypes.msg
 type modification = AppTypes.modification
 module Mod = AppTypes.Modification

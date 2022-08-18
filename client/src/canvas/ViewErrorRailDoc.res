@@ -20,8 +20,8 @@ let hintForFunction = (
   let errorRail = Html.a(
     list{
       Attrs.class'("link"),
-      Html.href("https://docs.darklang.com/discussion/error-handling#error-rail"),
-      Html.target("_blank"),
+      Attrs.href("https://docs.darklang.com/discussion/error-handling#error-rail"),
+      Attrs.target("_blank"),
     },
     list{Html.text("error rail")},
   )

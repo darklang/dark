@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Html.Attributes
+
 module Avatar = AppTypes.Avatar
 
 type msg = AppTypes.msg
@@ -48,8 +51,8 @@ let avatarDiv = (avatar: Avatar.t): Html.html<msg> => {
   let inactive: bool = minusThreeMins > avActiveTimestamp
   Html.img(
     list{
-      Html.classList(list{("avatar", true), ("inactive", inactive)}),
-      Html.src(avatarUrl(email, name)),
+      Attrs.classList(list{("avatar", true), ("inactive", inactive)}),
+      Attrs.src(avatarUrl(email, name)),
       Vdom.prop("alt", username),
     },
     list{},
@@ -74,7 +77,7 @@ let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
 
   let avatarView = List.map(~f=avatarDiv, avatars)
   Html.div(
-    list{Html.classList(list{("all-avatars", true), ("hide", List.isEmpty(avatars))})},
+    list{Attrs.classList(list{("all-avatars", true), ("hide", List.isEmpty(avatars))})},
     list{Html.div(list{Attrs.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},
   )
 }

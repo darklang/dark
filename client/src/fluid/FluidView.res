@@ -1,8 +1,8 @@
 open Prelude
 
-// Tea
-module Attrs = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
 
 // Fluid
 module K = FluidKeyboard
@@ -24,7 +24,7 @@ let viewCopyButton = (tlid, value): Html.html<msg> =>
   Html.div(
     list{
       Attrs.class'("copy-value"),
-      Html.title("Copy this expression's value to the clipboard"),
+      Attrs.title("Copy this expression's value to the clipboard"),
       ViewUtils.eventNoPropagation(
         "click",
         ~key="copylivevalue-" ++ (value ++ TLID.toString(tlid)),
@@ -45,7 +45,7 @@ let viewArrow = (curID: id, srcID: id): Html.html<msg> => {
     Html.div(
       list{
         Attrs.class'("src-arrow"),
-        Html.styles(list{("height", "calc(" ++ (string_of_int(height) ++ "px - 2.5em)"))}),
+        Attrs.styles(list{("height", "calc(" ++ (string_of_int(height) ++ "px - 2.5em)"))}),
       },
       list{},
     )
@@ -173,7 +173,7 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
               _ => FluidMsg(FluidFocusOnToken(tlid, srcID)),
             ),
             Attrs.class'("jump-src"),
-            Html.title("Click here to go to the source of problem"),
+            Attrs.title("Click here to go to the source of problem"),
           },
           list{Html.text(msg), ViewUtils.fontAwesome("arrow-alt-circle-up")},
         ),
@@ -209,8 +209,8 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
     let offset = float_of_int(row)
     Html.div(
       list{
-        Html.classList(list{("live-value", true), ("loaded", isLoaded.contents)}),
-        Html.styles(list{("top", Js.Float.toString(offset) ++ "rem")}),
+        Attrs.classList(list{("live-value", true), ("loaded", isLoaded.contents)}),
+        Attrs.styles(list{("top", Js.Float.toString(offset) ++ "rem")}),
         Attrs.autofocus(false),
         Vdom.attribute("", "spellcheck", "false"),
       },
@@ -308,7 +308,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
 
       Html.div(
         list{
-          Html.classList(list{
+          Attrs.classList(list{
             ("return-value", true),
             ("refreshed", isRefreshed),
             ("draggable", dragEvents != list{}),
@@ -384,7 +384,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
         recover("got MainEditor when building feature flag editors", Html.div(list{}, list{}))
       | FeatureFlagEditor(_, flagID) =>
         let flagIcon = Html.div(
-          list{Attrs.class'("ff-icon"), Html.title("feature flag")},
+          list{Attrs.class'("ff-icon"), Attrs.title("feature flag")},
           list{ViewUtils.fontAwesome("flag")},
         )
 
@@ -412,7 +412,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
         Html.div(
           list{
             Attrs.class'("fluid-secondary-editor"),
-            Html.styles(list{("top", string_of_int(rowOffset) ++ ".5rem")}),
+            Attrs.styles(list{("top", string_of_int(rowOffset) ++ ".5rem")}),
           },
           list{flagIcon, FluidEditorView.view(editorProps)},
         )

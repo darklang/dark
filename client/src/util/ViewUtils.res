@@ -1,11 +1,13 @@
 open Prelude
 
-module Attrs = Tea.Html.Attributes
+module Html = Tea.Html
+module Attrs = Tea.Attrs
 
 module TL = Toplevel
 module TD = TLID.Dict
 module E = FluidExpression
 module ASTInfo = FluidTokenizer.ASTInfo
+
 module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
@@ -287,7 +289,7 @@ let placeHtml = (pos: Pos.t, classes: list<'a>, html: list<Html.html<msg>>): Htm
 
 let inCh = (w: int): string => w |> string_of_int |> (s => s ++ "ch")
 
-let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Html.style("width")
+let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Attrs.style("width")
 
 let createHandlerProp = (hs: list<PT.Handler.t>): TD.t<AppTypes.HandlerProperty.t> =>
   hs |> List.map(~f=(h: PT.Handler.t) => (h.tlid, AppTypes.HandlerProperty.default)) |> TD.fromList

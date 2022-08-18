@@ -102,7 +102,7 @@ let categoryButton = (~props=list{}, name: string, description: string): Html.ht
   Html.div(
     list{
       Attrs.class'("category-icon"),
-      Html.title(description),
+      Attrs.title(description),
       Vdom.attribute("", "role", "img"),
       Vdom.attribute("", "alt", description),
       ...props,
@@ -589,13 +589,13 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
       Html.div(
         list{Attrs.class'("hash")},
         list{
-          Html.a(list{Html.href(d.url), Html.target("_blank")}, list{Html.text(d.deployHash)}),
+          Html.a(list{Attrs.href(d.url), Attrs.target("_blank")}, list{Html.text(d.deployHash)}),
           copyBtn,
         },
       ),
       Html.div(
         list{
-          Html.classList(list{
+          Attrs.classList(list{
             ("status", true),
             (
               "success",
@@ -705,7 +705,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     list{title, ...deploys},
   )
 
-  let classes = Html.classList(list{
+  let classes = Attrs.classList(list{
     ("sidebar-category", true),
     ("deploys", true),
     ("empty", count == 0),
@@ -723,7 +723,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
         ~key="copy-secret-" ++ s.secretName,
         m => ClipboardCopyLivevalue(s.secretName, m.mePos),
       ),
-      Html.title("Click to copy secret name"),
+      Attrs.title("Click to copy secret name"),
     },
     list{fontAwesome("copy")},
   )
@@ -813,7 +813,7 @@ let viewSecretKeys = (m: model): Html.html<msg> => {
     list{title, ...entries},
   )
 
-  let classes = Html.classList(list{
+  let classes = Attrs.classList(list{
     ("sidebar-category", true),
     ("secrets", true),
     ("empty", count == 0),
@@ -918,7 +918,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     )
   }
 
-  let classes = Html.classList(list{
+  let classes = Attrs.classList(list{
     ("sidebar-category", true),
     (c.classname, true),
     ("empty", c.count == 0),
@@ -953,7 +953,7 @@ let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
   let alt = if isDetailed {
     Vdom.noProp
   } else {
-    Html.title(description)
+    Attrs.title(description)
   }
   Html.div(list{event, Attrs.class'("toggle-sidebar-btn"), alt}, list{label, icon})
 }
@@ -1013,7 +1013,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       Attrs.class'("checkbox-row"),
     },
     list{
-      Html.input'(list{Html.type'("checkbox"), Html.checked(m.editorSettings.runTimers)}, list{}),
+      Html.input'(list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.runTimers)}, list{}),
       Html.label(list{}, list{Html.text("Run Timers")}),
     },
   )
@@ -1027,7 +1027,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     },
     list{
       Html.input'(
-        list{Html.type'("checkbox"), Html.checked(m.editorSettings.showFluidDebugger)},
+        list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.showFluidDebugger)},
         list{},
       ),
       Html.label(list{}, list{Html.text("Show Fluid Debugger")}),
@@ -1043,7 +1043,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     },
     list{
       Html.input'(
-        list{Html.type'("checkbox"), Html.checked(m.editorSettings.showHandlerASTs)},
+        list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.showHandlerASTs)},
         list{},
       ),
       Html.label(list{}, list{Html.text("Show Handler ASTs")}),
@@ -1051,7 +1051,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   let debugger = Html.a(
-    list{Html.href(ViewScaffold.debuggerLinkLoc(m)), Attrs.class'("state-info-row debugger")},
+    list{Attrs.href(ViewScaffold.debuggerLinkLoc(m)), Attrs.class'("state-info-row debugger")},
     list{
       Html.text(
         if m.teaDebuggerEnabled {
@@ -1068,7 +1068,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       let name = VariantTesting.nameOf(variant)
       let enabled = VariantTesting.variantIsActive(m, variant)
       Html.a(
-        list{Html.href(ViewScaffold.flagLinkLoc(name, enabled)), Attrs.class'("state-info-row")},
+        list{Attrs.href(ViewScaffold.flagLinkLoc(name, enabled)), Attrs.class'("state-info-row")},
         list{
           Html.text(
             if enabled {
@@ -1104,7 +1104,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   let icon = Html.div(
     list{
       Attrs.class'("category-icon"),
-      Html.title("Admin"),
+      Attrs.title("Admin"),
       Vdom.attribute("", "role", "img"),
       Vdom.attribute("", "alt", "Admin"),
     },
@@ -1170,7 +1170,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
 
     Html.div(
       list{
-        Html.classList(list{
+        Attrs.classList(list{
           ("viewing-table", true),
           ("detailed", isDetailed),
           ("abridged", !isDetailed),
@@ -1182,7 +1182,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
 
   Html.div(
     list{
-      Html.id("sidebar-left"),
+      Attrs.id("sidebar-left"),
       // Block opening the omnibox here by preventing canvas pan start
       nothingMouseEvent("mousedown"),
       ViewUtils.eventNoPropagation(~key="click-sidebar", "click", _ => ToolTipMsg(Close)),

@@ -1,6 +1,6 @@
 // The types that are used for execution. For all type definitions, see RuntimeTypes.fs
 
-open BaseTypes
+open Belt_extended
 
 @ppx.deriving(show({with_path: false})) type rec id = ID.t
 @ppx.deriving(show({with_path: false})) type rec tlid = TLID.t

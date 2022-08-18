@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 // Dark
 module B = BlankOr
 
@@ -27,7 +30,7 @@ let viewDbLatestEntry = (stats: dbStats): Html.html<msg> => {
     list{Attrs.class'("title")},
     list{
       Html.span(
-        list{Html.classList(list{("label", true), ("show", Option.isSome(stats.example))})},
+        list{Attrs.classList(list{("label", true), ("show", Option.isSome(stats.example))})},
         list{Html.text("Latest Entry:")},
       ),
     },
@@ -158,7 +161,7 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, col: PT.DB.Col.t): 
   }
 
   Html.div(
-    list{Html.classList(list{("col", true), ("has-empty", deleteButton == Vdom.noNode)})},
+    list{Attrs.classList(list{("col", true), ("has-empty", deleteButton == Vdom.noNode)})},
     list{deleteButton, ...row},
   )
 }

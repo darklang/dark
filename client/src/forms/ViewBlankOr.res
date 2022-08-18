@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 // Dark
 module B = BlankOr
 module TL = Toplevel
@@ -59,7 +62,7 @@ let div = (
     list{Vdom.noProp, Vdom.noProp, Vdom.noProp, Vdom.noProp}
   }
 
-  let idAttr = Html.id(ID.toString(id))
+  let idAttr = Attrs.id(ID.toString(id))
   let attrs = list{idAttr, classAttr, ...events}
   Html.div(
     /* if the id of the blank_or changes, this whole node should be redrawn

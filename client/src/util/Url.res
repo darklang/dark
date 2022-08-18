@@ -1,8 +1,11 @@
 open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Html.Attributes
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
-module TL = Toplevel
 
+module TL = Toplevel
 module Page = AppTypes.Page
 module Mod = AppTypes.Modification
 type page = Page.t
@@ -48,7 +51,7 @@ let updateUrl = (page: page): AppTypes.cmd =>
 
 let linkFor = (page: page, class_: string, content: list<Html.html<AppTypes.msg>>): Html.html<
   AppTypes.msg,
-> => Html.a(list{Html.href(urlFor(page)), Attrs.class'(class_)}, content)
+> => Html.a(list{Attrs.href(urlFor(page)), Attrs.class'(class_)}, content)
 
 let parseLocation = (loc: Web.Location.location): option<page> => {
   let unstructured =

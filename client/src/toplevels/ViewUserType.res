@@ -1,5 +1,9 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 // Dark
 module B = BlankOr
 

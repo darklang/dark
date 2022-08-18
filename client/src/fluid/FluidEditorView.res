@@ -1,5 +1,9 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 module FT = FluidTypes
 module T = FluidToken
 
@@ -300,7 +304,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
       }
 
       Html.span(
-        list{Html.classList(Belt.List.concat(cls, conditionalClasses))},
+        list{Attrs.classList(Belt.List.concat(cls, conditionalClasses))},
         Belt.List.concat(innerNode, nested),
       )
     }
@@ -318,16 +322,16 @@ let tokensView = (p: props): Html.html<msg> => {
   let textInputListeners = /* the command palette is inside div.fluid-editor but has it's own input
    * handling, so don't do normal fluid input stuff if it's open */
   if FluidCommands.isOpened(p.fluidState.cp) {
-    (Html.noProp, Html.noProp, Html.noProp)
+    (Attrs.noProp, Attrs.noProp, Attrs.noProp)
   } else {
     (
-      Html.onCB(
+      Events.onCB(
         "keydown",
         "keydown" ++ tlidStr,
         FluidKeyboard.onKeydown(x => AppTypes.Msg.FluidMsg(FluidInputEvent(Keypress(x)))),
       ),
-      Html.onCB("beforeinput", "beforeinput" ++ tlidStr, FluidTextInput.fromInputEvent),
-      Html.onCB(
+      Events.onCB("beforeinput", "beforeinput" ++ tlidStr, FluidTextInput.fromInputEvent),
+      Events.onCB(
         "compositionend",
         "compositionend" ++ tlidStr,
         FluidTextInput.fromCompositionEndEvent,
@@ -379,9 +383,9 @@ let tokensView = (p: props): Html.html<msg> => {
   }
 
   let idAttr = if p.fluidState.activeEditor == p.editor {
-    Html.id("active-editor")
+    Attrs.id("active-editor")
   } else {
-    Html.noProp
+    Attrs.noProp
   }
 
   let duplicatedRecordFields = {
@@ -421,7 +425,7 @@ let tokensView = (p: props): Html.html<msg> => {
         idAttr,
         Attrs.class'("fluid-tokens"),
         Vdom.prop("contentEditable", "true"),
-        Html.autofocus(true),
+        Attrs.autofocus(true),
         Vdom.attribute("", "spellcheck", "false"),
         Vdom.attribute("", "data-gramm", "false"),
       },
@@ -465,7 +469,7 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
             (fun _ -> TakeOffErrorRail (tlid, id)) */
 
     Html.div(
-      list{Attrs.class'("error-indicator"), Html.styles(list{("top", offset)}), event},
+      list{Attrs.class'("error-indicator"), Attrs.styles(list{("top", offset)}), event},
       list{icon},
     )
   | _ => Vdom.noNode
@@ -476,7 +480,7 @@ let errorRailView = (p: props): Html.html<msg> => {
   let indicators = List.map(p.tokens, ~f=viewErrorIndicator(p))
   let hasMaybeErrors = List.any(~f=e => e != Vdom.noNode, indicators)
   Html.div(
-    list{Html.classList(list{("fluid-error-rail", true), ("show", hasMaybeErrors)})},
+    list{Attrs.classList(list{("fluid-error-rail", true), ("show", hasMaybeErrors)})},
     indicators,
   )
 }

@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 // Dark
 module B = BlankOr
 
@@ -118,10 +121,10 @@ let executionIcon = status =>
 let executionEvents = (status, tlid, id, name) =>
   switch status {
   | Unsafe | Executing | IncompleteArgs | NoPermission => list{
-      Html.noProp,
-      Html.noProp,
-      Html.noProp,
-      Html.noProp,
+      Attrs.noProp,
+      Attrs.noProp,
+      Attrs.noProp,
+      Attrs.noProp,
     }
   | Ready | Replayable => list{
       ViewUtils.eventNoPropagation(
@@ -147,7 +150,7 @@ let fnExecutionButton = (p: props, fn: function_, id: id, args: list<id>) => {
     let icon = executionIcon(status)
     let events = executionEvents(status, p.tlid, id, name)
     Html.div(
-      list{Attrs.class'("execution-button " ++ class_), Html.title(title), ...events},
+      list{Attrs.class'("execution-button " ++ class_), Attrs.title(title), ...events},
       list{fontAwesome(icon)},
     )
   }

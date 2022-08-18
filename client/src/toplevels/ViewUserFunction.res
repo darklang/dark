@@ -1,5 +1,9 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 // Dark
 module B = BlankOr
 
@@ -74,7 +78,7 @@ let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
 
   Html.div(
     list{
-      Html.classList(list{
+      Attrs.classList(list{
         ("execution-button", true),
         (
           "is-ready",
@@ -87,7 +91,7 @@ let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
         ("is-executing", exeStatus == IsExecuting),
       }),
       events,
-      Html.title(title),
+      Attrs.title(title),
     },
     list{fontAwesome("redo")},
   )
@@ -191,7 +195,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
       )
 
     Html.div(
-      list{Html.id("fnparams"), Attrs.class'("params")},
+      list{Attrs.id("fnparams"), Attrs.class'("params")},
       Belt.List.concat(FnParams.view(fn, vp), list{addParamBtn, fnParamTooltip}),
     )
   }
@@ -203,7 +207,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
     }
 
     Html.div(
-      list{Html.id("fnreturn"), Attrs.class'("col param")},
+      list{Attrs.id("fnreturn"), Attrs.class'("col param")},
       list{
         fontAwesome("level-down-alt"),
         ViewBlankOr.viewTipe(~classes=list{"type"}, ~enterable=true, FnReturnTipe, vp, returnType),

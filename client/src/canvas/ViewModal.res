@@ -1,4 +1,7 @@
-open Prelude
+// open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
 
 // Dark
 module TL = Toplevel
@@ -21,7 +24,7 @@ let viewBrowserMessage: Html.html<AppTypes.msg> = Html.div(
       list{
         Html.text("A "),
         Html.a(
-          list{Html.href("http://darklang.com/desktop-client"), Html.target("_blank")},
+          list{Attrs.href("http://darklang.com/desktop-client"), Attrs.target("_blank")},
           list{Html.text("desktop client")},
         ),
         Html.text(
@@ -37,11 +40,11 @@ let unsupportedBrowser = (~show: bool): Html.html<AppTypes.msg> =>
     Html.div(
       list{
         Attrs.class'("modal-overlay"),
-        Html.id("unsupportedBrowser"),
+        Attrs.id("unsupportedBrowser"),
         ViewUtils.nothingMouseEvent("mousedown"),
         ViewUtils.nothingMouseEvent("mouseup"),
       },
-      list{Html.div(list{Html.classList(list{("modal", true)})}, list{viewBrowserMessage})},
+      list{Html.div(list{Attrs.classList(list{("modal", true)})}, list{viewBrowserMessage})},
     )
   } else {
     Vdom.noNode
