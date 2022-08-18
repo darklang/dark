@@ -38,7 +38,7 @@ $arrow-height: 24px;
   &:before {
     position: absolute;
     font-size: $arrow-height;
-    top: calc(50% - #{math.div($arrow-height,2)});
+    top: calc(50% - #{math.div($arrow-height, 2)});
   }
 
   &.used-in::before {
