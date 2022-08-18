@@ -101,6 +101,7 @@ type Pattern =
   | PFloat of id * Sign * string * string
   | PNull of id
   | PBlank of id
+  | PTuple of id * Pattern * Pattern * List<Pattern>
 
 [<MessagePack.MessagePackObject>]
 type SendToRail =
