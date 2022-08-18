@@ -1,5 +1,7 @@
 open Prelude
 
+module Html = Tea.Html
+
 type t = FluidTypes.Token.t
 
 type tokenInfo = FluidTypes.TokenInfo.t

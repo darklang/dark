@@ -42,7 +42,7 @@ let div = (
     mouseoverClass,
   ])
 
-  let classAttr = Html.class'(String.join(~sep=" ", allClasses))
+  let classAttr = Attrs.class'(String.join(~sep=" ", allClasses))
   let events = if enterable {
     let tlid = TL.id(vp.tl)
     let keyStr = TLID.toString(tlid) ++ ("-" ++ ID.toString(id))
@@ -114,7 +114,7 @@ let viewBlankOr = (
       ~enterable,
       ~classes=list{"blank", ...classes},
       vp,
-      list{Html.div(list{Html.class'("blank-entry")}, list{Html.text(placeHolderFor(vp, pt))})},
+      list{Html.div(list{Attrs.class'("blank-entry")}, list{Html.text(placeHolderFor(vp, pt))})},
     )
   }
 

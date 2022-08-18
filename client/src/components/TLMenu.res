@@ -55,8 +55,8 @@ let viewItem = (keyID: string, i: menuItem): Html.html<AppTypes.msg> => {
   let attrs = switch i.disableMsg {
   | Some(msg) =>
     let classes = list{"disable", ...classes}
-    list{Html.class'(classes |> String.join(~sep=" ")), Html.title(msg)}
-  | None => list{Html.class'(classes |> String.join(~sep=" ")), onClick(i.key ++ keyID, i.action)}
+    list{Attrs.class'(classes |> String.join(~sep=" ")), Html.title(msg)}
+  | None => list{Attrs.class'(classes |> String.join(~sep=" ")), onClick(i.key ++ keyID, i.action)}
   }
 
   Html.div(attrs, list{icon, Html.text(i.title)})
@@ -95,6 +95,6 @@ let viewMenu = (s: M.t, tlid: TLID.t, items: list<menuItem>): Html.html<AppTypes
         CloseMenu,
       )),
     },
-    list{toggleMenu, Html.div(list{Html.class'("actions")}, actions)},
+    list{toggleMenu, Html.div(list{Attrs.class'("actions")}, actions)},
   )
 }

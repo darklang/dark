@@ -17,7 +17,7 @@ let viewTipeName = (vp: viewProps, t: PT.UserType.t): Html.html<msg> => {
     B.fromStringID(t.name, t.nameID),
   )
 
-  Html.div(list{Html.class'("typetitle")}, list{nameField})
+  Html.div(list{Attrs.class'("typetitle")}, list{nameField})
 }
 
 let viewFieldName = (~classes: list<string>, vp: viewProps, v: BlankOr.t<string>): Html.html<msg> =>
@@ -30,7 +30,7 @@ let viewFieldType = (~classes: list<string>, vp: viewProps, v: BlankOr.t<DType.t
 let viewKillFieldBtn = (t: PT.UserType.t, field: PT.UserType.RecordField.t): Html.html<msg> =>
   Html.div(
     list{
-      Html.class'("field-btn allowed"),
+      Attrs.class'("field-btn allowed"),
       ViewUtils.eventNoPropagation(
         ~key="dutf-" ++ TLID.toString(t.tlid) ++ "-" ++ field.nameID->ID.toString,
         "click",
@@ -58,7 +58,7 @@ let viewTipeField = (
     button,
   }
 
-  Html.div(list{Html.class'("field")}, row)
+  Html.div(list{Attrs.class'("field")}, row)
 }
 
 let viewUserTipe = (vp: viewProps, t: PT.UserType.t): Html.html<msg> =>
@@ -67,8 +67,8 @@ let viewUserTipe = (vp: viewProps, t: PT.UserType.t): Html.html<msg> =>
     let nameDiv = viewTipeName(vp, t)
     let fieldDivs = {
       let fieldCount = List.length(fields)
-      Html.div(list{Html.class'("fields")}, List.map(~f=viewTipeField(vp, t, fieldCount), fields))
+      Html.div(list{Attrs.class'("fields")}, List.map(~f=viewTipeField(vp, t, fieldCount), fields))
     }
 
-    Html.div(list{Html.class'("user-type")}, list{nameDiv, fieldDivs})
+    Html.div(list{Attrs.class'("user-type")}, list{nameDiv, fieldDivs})
   }

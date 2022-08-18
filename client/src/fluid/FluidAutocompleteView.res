@@ -11,7 +11,7 @@ let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg
       | _ => ""
       }
 
-      list{Html.span(list{Html.class'(returnTypeClass)}, list{Html.text(rt)})}
+      list{Html.span(list{Attrs.class'(returnTypeClass)}, list{Html.text(rt)})}
     }
 
     let argsHtml = switch args {
@@ -23,7 +23,7 @@ let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg
       }
 
       let args = list{
-        Html.span(list{Html.class'(arg0Class)}, list{Html.text(arg0)}),
+        Html.span(list{Attrs.class'(arg0Class)}, list{Html.text(arg0)}),
         ...List.map(~f=Html.text, rest),
       }
 
@@ -35,7 +35,7 @@ let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg
     Belt.List.concat(argsHtml, returnTypeHtml)
   }
 
-  Html.span(list{Html.class'("types")}, html)
+  Html.span(list{Attrs.class'("types")}, html)
 }
 
 let view = (ac: state): Html.html<AppTypes.msg> => {
@@ -51,7 +51,7 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
     let fnDisplayName = FluidUtil.fnDisplayName(name)
     let versionDisplayName = FluidUtil.versionDisplayName(name)
     let versionView = if String.length(versionDisplayName) > 0 {
-      Html.span(list{Html.class'("version")}, list{Html.text(versionDisplayName)})
+      Html.span(list{Attrs.class'("version")}, list{Html.text(versionDisplayName)})
     } else {
       Vdom.noNode
     }

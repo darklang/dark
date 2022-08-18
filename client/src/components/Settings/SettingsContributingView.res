@@ -25,27 +25,39 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
   }
 
   let form = {
-    let submitBtn = {
-      let btn = list{
-        Html.h3(
-          list{
-            ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
-              Settings.ContributingMsg(T.SubmitTunnelHostForm),
-            )),
-          },
-          list{Html.text("Reload with tunnel")},
-        ),
-      }
-
-      Html.button(list{Html.class'("submit-btn")}, btn)
+    let toggle = {
+      Html.button(
+        list{
+          Attrs.class'(
+            "bg-gray-200 relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+          ),
+          ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
+            Settings.ContributingMsg(T.SubmitTunnelHostForm),
+          )),
+          // Attrs.role("switch"),
+          // Attrs.ariaChecked(false),
+        },
+        list{
+          Html.span(list{Attrs.class'("sr-only")}, list{Html.text("Use setting")}),
+          Html.span(
+            list{
+              Attrs.class'(
+                "translate-x-0 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
+              ),
+              // Attrs.ariaHidden(true),
+            },
+            list{},
+          ),
+        },
+      )
     }
 
     list{
       Html.div(
-        list{Html.class'("tunnel-form")},
+        list{Attrs.class'("tunnel-form")},
         list{
           Html.div(
-            list{Html.class'("form-field")},
+            list{Attrs.class'("form-field")},
             list{
               Html.h3(list{}, list{Html.text("Tunnel URL:")}),
               Html.div(
@@ -56,12 +68,12 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
                 },
                 list{
                   Html.input'(list{Vdom.attribute("", "spellcheck", "false")}, list{}),
-                  Html.p(list{Html.class'("error-text")}, list{Html.text(" ")}),
+                  Html.p(list{Attrs.class'("error-text")}, list{Html.text(" ")}),
                 },
               ),
             },
           ),
-          submitBtn,
+          toggle,
         },
       ),
     }

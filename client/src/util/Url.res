@@ -48,7 +48,7 @@ let updateUrl = (page: page): AppTypes.cmd =>
 
 let linkFor = (page: page, class_: string, content: list<Html.html<AppTypes.msg>>): Html.html<
   AppTypes.msg,
-> => Html.a(list{Html.href(urlFor(page)), Html.class'(class_)}, content)
+> => Html.a(list{Html.href(urlFor(page)), Attrs.class'(class_)}, content)
 
 let parseLocation = (loc: Web.Location.location): option<page> => {
   let unstructured =

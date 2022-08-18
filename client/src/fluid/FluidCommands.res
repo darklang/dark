@@ -221,7 +221,7 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
     list{Html.ul(list{}, List.mapWithIndex(~f=viewCommands, cp.commands))},
   )
 
-  Html.div(list{Html.class'("command-palette")}, list{filterInput, cmdsView})
+  Html.div(list{Attrs.class'("command-palette")}, list{filterInput, cmdsView})
 }
 
 let cpSetIndex = (_m: model, i: int): modification => ReplaceAllModificationsWithThisOne(

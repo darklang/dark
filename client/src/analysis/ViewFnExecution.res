@@ -147,7 +147,7 @@ let fnExecutionButton = (p: props, fn: function_, id: id, args: list<id>) => {
     let icon = executionIcon(status)
     let events = executionEvents(status, p.tlid, id, name)
     Html.div(
-      list{Html.class'("execution-button " ++ class_), Html.title(title), ...events},
+      list{Attrs.class'("execution-button " ++ class_), Html.title(title), ...events},
       list{fontAwesome(icon)},
     )
   }

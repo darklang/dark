@@ -24,7 +24,7 @@ type parseResult =
 let txt = (s: string): Html.html<msg> => Html.text(s)
 
 let tag = (cls: string, content: list<Html.html<msg>>): Html.html<msg> =>
-  Html.span(list{Html.class'(cls)}, content)
+  Html.span(list{Attrs.class'(cls)}, content)
 
 let link = (name: string, url: string): Html.html<msg> =>
   Html.a(list{Html.href(url), Html.target("_blank")}, list{Html.text(name)})

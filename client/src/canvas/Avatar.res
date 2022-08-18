@@ -60,7 +60,7 @@ let viewAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<msg> => {
   let avList = filterAvatarsByTlid(avatars, tlid)
   let renderAvatar = (a: Avatar.t) => avatarDiv(a)
   let avatars = List.map(~f=renderAvatar, avList)
-  Html.div(list{Html.class'("avatars")}, avatars)
+  Html.div(list{Attrs.class'("avatars")}, avatars)
 }
 
 let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
@@ -75,7 +75,7 @@ let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
   let avatarView = List.map(~f=avatarDiv, avatars)
   Html.div(
     list{Html.classList(list{("all-avatars", true), ("hide", List.isEmpty(avatars))})},
-    list{Html.div(list{Html.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},
+    list{Html.div(list{Attrs.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},
   )
 }
 

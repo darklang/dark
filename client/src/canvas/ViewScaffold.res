@@ -51,20 +51,20 @@ let viewIntegrationTestButton = (testState: AppTypes.IntegrationTests.t<AppTypes
           ViewUtils.eventNoPropagation(~key="fit", "mouseup", _ => FinishIntegrationTest),
           Html.src(""),
           Html.id("finishIntegrationTest"),
-          Html.class'("specialButton"),
+          Attrs.class'("specialButton"),
         },
         list{Html.text("Finish integration tests")},
       ),
     }
   | IntegrationTestFinished(Ok()) => list{
       Html.div(
-        list{Html.id("integrationTestSignal"), Html.class'("specialButton success")},
+        list{Html.id("integrationTestSignal"), Attrs.class'("specialButton success")},
         list{Html.text("success")},
       ),
     }
   | IntegrationTestFinished(Error(msg)) => list{
       Html.div(
-        list{Html.id("integrationTestSignal"), Html.class'("specialButton failure")},
+        list{Html.id("integrationTestSignal"), Attrs.class'("specialButton failure")},
         list{\"<|"(Html.text, "failure: " ++ msg)},
       ),
     }
@@ -89,7 +89,7 @@ let viewError = (message: Error.t): Html.html<AppTypes.msg> => {
   let viewDismissBtn = list{
     Html.p(
       list{
-        Html.class'("dismissBtn"),
+        Attrs.class'("dismissBtn"),
         ViewUtils.eventNoPropagation("click", ~key="dismiss-error", _ => DismissErrorBar),
       },
       list{Html.text("Dismiss")},

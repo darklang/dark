@@ -134,7 +134,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
     let inside = {
       let closeBtn = Html.div(
         list{
-          Html.class'("close-btn"),
+          Attrs.class'("close-btn"),
           ViewUtils.eventNoPropagation(
             ~key="close-create-secret-modal",
             "click",
@@ -145,10 +145,10 @@ let view = (m: ST.insertModal): Html.html<msg> =>
       )
 
       let content = {
-        let title = Html.div(list{Html.class'("title")}, list{Html.text("Add Secret Key")})
+        let title = Html.div(list{Attrs.class'("title")}, list{Html.text("Add Secret Key")})
 
         let form = Html.form(
-          list{Html.class'("insert-secret-form")},
+          list{Attrs.class'("insert-secret-form")},
           list{
             Html.input'(
               list{
@@ -174,7 +174,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
             Html.button(
               list{
                 Html.type'("button"),
-                Html.class'("modal-form-button"),
+                Attrs.class'("modal-form-button"),
                 ViewUtils.eventNoPropagation(~key="save-secret", "click", _ => Msg.SecretMsg(
                   SaveNewSecret,
                 )),
@@ -189,10 +189,10 @@ let view = (m: ST.insertModal): Html.html<msg> =>
           | Some(msg) => msg
           | None => ""
           }
-          Html.p(list{Html.class'("form-error")}, list{Html.text(msg)})
+          Html.p(list{Attrs.class'("form-error")}, list{Html.text(msg)})
         }
 
-        Html.div(list{Html.class'("modal-content")}, list{title, form, errorMsg})
+        Html.div(list{Attrs.class'("modal-content")}, list{title, form, errorMsg})
       }
 
       list{content, closeBtn}
@@ -200,13 +200,13 @@ let view = (m: ST.insertModal): Html.html<msg> =>
 
     Html.div(
       list{
-        Html.class'("modal-overlay"),
+        Attrs.class'("modal-overlay"),
         ViewUtils.nothingMouseEvent("mousedown"),
         ViewUtils.nothingMouseEvent("mouseup"),
         ViewUtils.nothingMouseEvent("click"),
         Html.onCB("keydown", "keydown", onKeydown),
       },
-      list{Html.div(list{Html.class'("modal insert-secret")}, inside)},
+      list{Html.div(list{Attrs.class'("modal insert-secret")}, inside)},
     )
   } else {
     Vdom.noNode

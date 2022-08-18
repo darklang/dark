@@ -1,5 +1,4 @@
 // open Tc
-open BaseTypes
 
 module Utils = SettingsUtils
 
@@ -13,7 +12,7 @@ let default = {tunnelHost: Utils.defaultFormField}
 type rec msg =
   | UpdateTunnelHostInput(string)
   | SubmitTunnelHostForm
-  | RegisterTunnelHostAPICallback(Tea_result.t<APITunnelHost.t, Prelude.Tea.Http.error<string>>)
+  | RegisterTunnelHostAPICallback(Tea.Result.t<APITunnelHost.t, Tea.Http.error<string>>)
 
 @ppx.deriving(show)
 type rec effect<'cmd> = Reload('cmd) | RegisterTunnelHostAPICall(option<string>)
@@ -46,7 +45,7 @@ let clearTunnelQueryParam = (): unit => {
 
 let update = (s: t, msg: msg): (t, option<effect<'cmd>>) =>
   switch msg {
-  | UpdateTunnelHostInput(value) => ({tunnelHost: {value, error: None}}, None)
+  | UpdateTunnelHostInput(value) => ({tunnelHost: {value: value, error: None}}, None)
 
   | SubmitTunnelHostForm =>
     let param = if s.tunnelHost.value == "" {

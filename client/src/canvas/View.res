@@ -452,7 +452,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
   Html.div(
     list{
       Html.id("canvas"),
-      Html.class'("canvas " ++ pageClass),
+      Attrs.class'("canvas " ++ pageClass),
       Html.styles(canvasStyles),
       ViewUtils.onTransitionEnd(~key="canvas-pan-anim", ~listener=prop =>
         if prop == "transform" {
@@ -471,7 +471,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
   | FocusedFn(_) =>
     let helpIcon = Html.div(
       list{
-        Html.class'("help-icon"),
+        Attrs.class'("help-icon"),
         ViewUtils.eventNoPropagation(~key="ept", "mouseenter", _ => ToolTipMsg(
           OpenFnTooltip(true),
         )),
@@ -488,12 +488,12 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
       )
 
     Html.div(
-      list{Html.id("back-to-canvas"), Html.class'("back-to-canvas")},
+      list{Html.id("back-to-canvas"), Attrs.class'("back-to-canvas")},
       list{
         tooltip,
         Html.div(
           list{
-            Html.class'("back-to-canvas-content"),
+            Attrs.class'("back-to-canvas-content"),
             Vdom.prop("alt", "architecture preview"),
             ViewUtils.eventNoPropagation(~key="return-to-arch", "click", _ =>
               GoToArchitecturalView
@@ -501,7 +501,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
           },
           list{
             helpIcon,
-            Html.a(list{Html.class'("content")}, list{Vdom.text("Return to main canvas")}),
+            Html.a(list{Attrs.class'("content")}, list{Vdom.text("Return to main canvas")}),
           },
         ),
       },
@@ -528,7 +528,7 @@ let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
 
   Html.div(
     list{
-      Html.class'(classes),
+      Attrs.class'(classes),
       ViewUtils.onAnimationEnd(~key="toast", ~listener=_ => ResetToast),
       styleOverrides,
     },
@@ -538,13 +538,13 @@ let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
 
 let accountView = (m: model): Html.html<msg> => {
   let logout = Html.a(
-    list{Html.class'("account-action-btn"), Html.href("https://login.darklang.com/logout")},
+    list{Attrs.class'("account-action-btn"), Html.href("https://login.darklang.com/logout")},
     list{Html.text("Logout")},
   )
 
   let docs = Html.a(
     list{
-      Html.class'("account-action-btn"),
+      Attrs.class'("account-action-btn"),
       Html.href(docsURL),
       Html.target("_blank"),
       ViewUtils.eventNoPropagation(~key="account-doc", "click", _ => UpdateHeapio(OpenDocs)),
@@ -554,7 +554,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let functionRefs = Html.a(
     list{
-      Html.class'("account-action-btn"),
+      Attrs.class'("account-action-btn"),
       Html.href(functionRefsURL),
       Html.target("_blank"),
       ViewUtils.eventNoPropagation(~key="account-fn-ref", "click", _ => UpdateHeapio(OpenFnRef)),
@@ -564,7 +564,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let keyboardRefs = Html.a(
     list{
-      Html.class'("account-action-btn"),
+      Attrs.class'("account-action-btn"),
       Html.href(keyboardRefsURL),
       Html.target("_blank"),
       ViewUtils.eventNoPropagation(~key="account-fn-ref", "click", _ => UpdateHeapio(
@@ -576,7 +576,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let slackRef = Html.a(
     list{
-      Html.class'("account-action-btn"),
+      Attrs.class'("account-action-btn"),
       Html.href("https://darklang.com/slack-invite"),
       Html.target("_blank"),
       ViewUtils.eventNoPropagation(~key="slack-invite-ref", "click", _ => UpdateHeapio(
@@ -588,7 +588,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let contributeRef = Html.a(
     list{
-      Html.class'("account-action-btn"),
+      Attrs.class'("account-action-btn"),
       Html.href("https://docs.darklang.com/contributing/getting-started"),
       Html.target("_blank"),
       ViewUtils.eventNoPropagation(~key="contributor-ref", "click", _ => UpdateHeapio(
@@ -600,7 +600,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let tutorial = Html.p(
     list{
-      Html.class'("account-action-btn"),
+      Attrs.class'("account-action-btn"),
       ViewUtils.eventNoPropagation(~key="tutorial", "click", _ => ToolTipMsg(
         UpdateTutorial(ReopenTutorial),
       )),
@@ -608,10 +608,10 @@ let accountView = (m: model): Html.html<msg> => {
     list{Html.text("Hello World tutorial")},
   )
 
-  let spacer = Html.div(list{Html.class'("account-action-spacer")}, list{})
+  let spacer = Html.div(list{Attrs.class'("account-action-spacer")}, list{})
   let settings = Html.p(
     list{
-      Html.class'("account-action-btn"),
+      Attrs.class'("account-action-btn"),
       ViewUtils.eventNoPropagation(~key="open-settings", "click", _ => SettingsMsg(Open(Canvases))),
     },
     list{Html.text("Settings")},
@@ -619,7 +619,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let share = Html.p(
     list{
-      Html.class'("account-action-btn invite"),
+      Attrs.class'("account-action-btn invite"),
       ViewUtils.eventNoPropagation(~key="open-invite", "click", _ => SettingsMsg(Open(Invite))),
     },
     list{Html.text("Share Dark")},
@@ -643,7 +643,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   Html.div(
     list{
-      Html.class'("my-account"),
+      Attrs.class'("my-account"),
       // Block opening the omnibox here by preventing canvas pan start
       ViewUtils.nothingMouseEvent("mousedown"),
     },
@@ -651,7 +651,7 @@ let accountView = (m: model): Html.html<msg> => {
       m |> Avatar.myAvatar |> Avatar.avatarDiv,
       tooltip,
       Html.div(
-        list{Html.class'("account-actions")},
+        list{Attrs.class'("account-actions")},
         list{
           settings,
           share,
@@ -680,7 +680,7 @@ let view = (m: model): Html.html<msg> => {
 
   let attributes = list{
     Html.id(appID),
-    Html.class'("app " ++ VariantTesting.activeCSSClasses(m)),
+    Attrs.class'("app " ++ VariantTesting.activeCSSClasses(m)),
     ...eventListeners,
   }
 
@@ -706,7 +706,7 @@ let view = (m: model): Html.html<msg> => {
   let viewDocs = list{
     Html.a(
       list{
-        Html.class'("doc-container"),
+        Attrs.class'("doc-container"),
         Html.href(docsURL),
         Html.target("_blank"),
         // Block opening the omnibox here by preventing canvas pan start
