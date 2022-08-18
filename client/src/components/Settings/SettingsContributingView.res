@@ -25,7 +25,22 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
   }
 
   let form = {
-    let toggle = {
+    let submitBtn = {
+      let btn = list{
+        Html.h3(
+          list{
+            ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
+              Settings.ContributingMsg(T.SubmitTunnelHostForm),
+            )),
+          },
+          list{Html.text("Reload with tunnel")},
+        ),
+      }
+
+      Html.button(list{Attrs.class'("submit-btn")}, btn)
+    }
+
+    let _toggle = {
       Html.button(
         list{
           Attrs.class'(
@@ -73,7 +88,7 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
               ),
             },
           ),
-          toggle,
+          submitBtn,
         },
       ),
     }
