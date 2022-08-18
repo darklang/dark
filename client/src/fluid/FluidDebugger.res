@@ -1,5 +1,9 @@
 open Prelude
-module Attrs = Tea.Html2.Attributes
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 module Printer = FluidTokenizer
 module Expression = FluidExpression
 module Token = FluidToken
@@ -90,7 +94,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
 
   let tokenData = {
     let (left, right, next) = FluidTokenizer.getNeighbours(tokens, ~pos=s.newPos)
-    let ddNoProp1 = txt => Html.dd(list{Html.noProp}, list{Html.text(txt)})
+    let ddNoProp1 = txt => Html.dd(list{Attrs.noProp}, list{Html.text(txt)})
     let tokenInfo = tkn => Html.dd(list{Attrs.class'("tokenInfo")}, list{Token.show_tokenInfo(tkn)})
 
     let ddLeft = switch left {

@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 // Dark
 module B = BlankOr
 module TL = Toplevel
@@ -42,7 +45,7 @@ let div = (
     mouseoverClass,
   ])
 
-  let classAttr = Html.class'(String.join(~sep=" ", allClasses))
+  let classAttr = Attrs.class'(String.join(~sep=" ", allClasses))
   let events = if enterable {
     let tlid = TL.id(vp.tl)
     let keyStr = TLID.toString(tlid) ++ ("-" ++ ID.toString(id))
@@ -59,7 +62,7 @@ let div = (
     list{Vdom.noProp, Vdom.noProp, Vdom.noProp, Vdom.noProp}
   }
 
-  let idAttr = Html.id(ID.toString(id))
+  let idAttr = Attrs.id(ID.toString(id))
   let attrs = list{idAttr, classAttr, ...events}
   Html.div(
     /* if the id of the blank_or changes, this whole node should be redrawn
@@ -114,7 +117,7 @@ let viewBlankOr = (
       ~enterable,
       ~classes=list{"blank", ...classes},
       vp,
-      list{Html.div(list{Html.class'("blank-entry")}, list{Html.text(placeHolderFor(vp, pt))})},
+      list{Html.div(list{Attrs.class'("blank-entry")}, list{Html.text(placeHolderFor(vp, pt))})},
     )
   }
 

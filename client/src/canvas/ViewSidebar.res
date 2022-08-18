@@ -73,7 +73,7 @@ let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg)
   msg,
 > => {
   let event = ViewUtils.eventNeither(~key, "click", _ => handler)
-  Html.div(list{event, Html.class'("icon-button " ++ classname)}, list{fontAwesome(icon)})
+  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{fontAwesome(icon)})
 }
 
 let categoryIcon_ = (name: string): list<Html.html<msg>> => {
@@ -101,8 +101,8 @@ let categoryIcon_ = (name: string): list<Html.html<msg>> => {
 let categoryButton = (~props=list{}, name: string, description: string): Html.html<msg> =>
   Html.div(
     list{
-      Html.class'("category-icon"),
-      Html.title(description),
+      Attrs.class'("category-icon"),
+      Attrs.title(description),
       Vdom.attribute("", "role", "img"),
       Vdom.attribute("", "alt", description),
       ...props,
@@ -487,7 +487,7 @@ let viewEmptyCategory = (c: category): Html.html<msg> => {
   | _ => c.name
   }
 
-  Html.div(list{Html.class'("simple-item empty")}, list{Html.text("No " ++ name)})
+  Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No " ++ name)})
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
@@ -496,7 +496,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
 
   let linkItem = {
     let verb = switch e.verb {
-    | Some(v) => Html.span(list{Html.class'("verb " ++ v)}, list{Html.text(v)})
+    | Some(v) => Html.span(list{Attrs.class'("verb " ++ v)}, list{Html.text(v)})
     | _ => Vdom.noNode
     }
 
@@ -516,11 +516,11 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
         "toplevel-link" ++ (selected ++ unused)
       }
 
-      let path = Html.span(list{Html.class'("path")}, list{Html.text(name)})
-      Html.span(list{Html.class'("toplevel-name")}, list{Url.linkFor(dest, cls, list{path, verb})})
+      let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})
+      Html.span(list{Attrs.class'("toplevel-name")}, list{Url.linkFor(dest, cls, list{path, verb})})
     | SendMsg(msg) =>
       let cls = "toplevel-msg"
-      let path = Html.span(list{Html.class'("path")}, list{Html.text(name)})
+      let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})
       let action = if m.permission == Some(ReadWrite) {
         ViewUtils.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
       } else {
@@ -528,14 +528,14 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       }
 
       Html.span(
-        list{Html.class'("toplevel-name"), action},
-        list{Html.span(list{Html.class'(cls)}, list{path, verb})},
+        list{Attrs.class'("toplevel-name"), action},
+        list{Html.span(list{Attrs.class'(cls)}, list{path, verb})},
       )
-    | DoNothing => Html.span(list{Html.class'("toplevel-name")}, list{Html.text(name), verb})
+    | DoNothing => Html.span(list{Attrs.class'("toplevel-name")}, list{Html.text(name), verb})
     }
   }
 
-  let iconspacer = Html.div(list{Html.class'("icon-spacer")}, list{})
+  let iconspacer = Html.div(list{Attrs.class'("icon-spacer")}, list{})
   let minuslink = /* This prevents the delete button appearing in the hover view.
    * We'll add it back in for 404s specifically at some point */
   if m.permission == Some(Read) {
@@ -563,7 +563,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   | None => iconspacer
   }
 
-  Html.div(list{Html.class'("simple-item")}, list{minuslink, linkItem, pluslink})
+  Html.div(list{Attrs.class'("simple-item")}, list{minuslink, linkItem, pluslink})
 }
 
 let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
@@ -574,7 +574,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 
   let copyBtn = Html.div(
     list{
-      Html.class'("icon-button copy-hash"),
+      Attrs.class'("icon-button copy-hash"),
       ViewUtils.eventNeither("click", ~key="hash-" ++ d.deployHash, m => ClipboardCopyLivevalue(
         "\"" ++ (d.deployHash ++ "\""),
         m.mePos,
@@ -584,18 +584,18 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   )
 
   Html.div(
-    list{Html.class'("simple-item deploy")},
+    list{Attrs.class'("simple-item deploy")},
     list{
       Html.div(
-        list{Html.class'("hash")},
+        list{Attrs.class'("hash")},
         list{
-          Html.a(list{Html.href(d.url), Html.target("_blank")}, list{Html.text(d.deployHash)}),
+          Html.a(list{Attrs.href(d.url), Attrs.target("_blank")}, list{Html.text(d.deployHash)}),
           copyBtn,
         },
       ),
       Html.div(
         list{
-          Html.classList(list{
+          Attrs.classList(list{
             ("status", true),
             (
               "success",
@@ -608,13 +608,13 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
         },
         list{Html.text(statusString)},
       ),
-      Html.div(list{Html.class'("timestamp")}, list{Html.text(Js.Date.toUTCString(d.lastUpdate))}),
+      Html.div(list{Attrs.class'("timestamp")}, list{Html.text(Js.Date.toUTCString(d.lastUpdate))}),
     },
   )
 }
 
 let categoryName = (name: string): Html.html<msg> =>
-  Html.span(list{Html.class'("category-name")}, list{Html.text(name)})
+  Html.span(list{Attrs.class'("category-name")}, list{Html.text(name)})
 
 let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: int): (
   Vdom.property<msg>,
@@ -675,7 +675,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     }
 
     let header = Html.div(
-      list{Html.class'("category-header"), openTooltip},
+      list{Attrs.class'("category-header"), openTooltip},
       list{categoryButton("static", "Static Assets"), title},
     )
 
@@ -686,7 +686,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     }
 
     Html.summary(
-      list{openEventHandler, Html.class'("category-summary")},
+      list{openEventHandler, Attrs.class'("category-summary")},
       list{tooltip, header, ...deployLatest},
     )
   }
@@ -694,18 +694,18 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   let deploys = if List.length(entries) > 0 {
     entries |> List.map(~f=viewDeploy)
   } else {
-    list{Html.div(list{Html.class'("simple-item empty")}, list{Html.text("No Static deploys")})}
+    list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No Static deploys")})}
   }
 
   let content = Html.div(
     list{
-      Html.class'("category-content"),
+      Attrs.class'("category-content"),
       eventNoPropagation(~key="cat-close-deploy", "mouseleave", _ => SidebarMsg(ResetSidebar)),
     },
     list{title, ...deploys},
   )
 
-  let classes = Html.classList(list{
+  let classes = Attrs.classList(list{
     ("sidebar-category", true),
     ("deploys", true),
     ("empty", count == 0),
@@ -717,13 +717,13 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
-      Html.class'("icon-button copy-secret-name"),
+      Attrs.class'("icon-button copy-secret-name"),
       ViewUtils.eventNeither(
         "click",
         ~key="copy-secret-" ++ s.secretName,
         m => ClipboardCopyLivevalue(s.secretName, m.mePos),
       ),
-      Html.title("Click to copy secret name"),
+      Attrs.title("Click to copy secret name"),
     },
     list{fontAwesome("copy")},
   )
@@ -741,13 +741,13 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   }
 
   Html.div(
-    list{Html.class'("simple-item secret")},
+    list{Attrs.class'("simple-item secret")},
     list{
       Html.div(
-        list{Html.class'("key-block")},
+        list{Attrs.class'("key-block")},
         list{
-          Html.span(list{Html.class'("secret-name")}, list{Html.text(s.secretName)}),
-          Html.span(list{Html.class'("secret-value")}, list{Html.text(secretValue)}),
+          Html.span(list{Attrs.class'("secret-name")}, list{Html.text(s.secretName)}),
+          Html.span(list{Attrs.class'("secret-value")}, list{Html.text(secretValue)}),
         },
       ),
       copyBtn,
@@ -789,12 +789,12 @@ let viewSecretKeys = (m: model): Html.html<msg> => {
     )
 
     let header = Html.div(
-      list{Html.class'("category-header"), openTooltip},
+      list{Attrs.class'("category-header"), openTooltip},
       list{categoryButton("secrets", "Secret Keys"), title},
     )
 
     Html.summary(
-      list{openEventHandler, Html.class'("category-summary")},
+      list{openEventHandler, Attrs.class'("category-summary")},
       list{tooltip, header, plusBtn},
     )
   }
@@ -802,18 +802,18 @@ let viewSecretKeys = (m: model): Html.html<msg> => {
   let entries = if count > 0 {
     List.map(m.secrets, ~f=viewSecret)
   } else {
-    list{Html.div(list{Html.class'("simple-item empty")}, list{Html.text("No secret keys")})}
+    list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No secret keys")})}
   }
 
   let content = Html.div(
     list{
-      Html.class'("category-content"),
+      Attrs.class'("category-content"),
       eventNoPropagation(~key="cat-close-secret", "mouseleave", _ => SidebarMsg(ResetSidebar)),
     },
     list{title, ...entries},
   )
 
-  let classes = Html.classList(list{
+  let classes = Attrs.classList(list{
     ("sidebar-category", true),
     ("secrets", true),
     ("empty", count == 0),
@@ -888,10 +888,10 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
       categoryButton(c.classname, c.name, ~props)
     }
 
-    let header = Html.div(list{Html.class'("category-header"), openTooltip}, list{catIcon, title})
+    let header = Html.div(list{Attrs.class'("category-header"), openTooltip}, list{catIcon, title})
 
     Html.summary(
-      list{Html.class'("category-summary"), openEventHandler},
+      list{Attrs.class'("category-summary"), openEventHandler},
       list{tooltipView, header, plusButton},
     )
   }
@@ -905,7 +905,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
 
     Html.div(
       list{
-        Html.class'("category-content"),
+        Attrs.class'("category-content"),
         eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
           if !isSubCat {
             SidebarMsg(ResetSidebar)
@@ -918,7 +918,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     )
   }
 
-  let classes = Html.classList(list{
+  let classes = Attrs.classList(list{
     ("sidebar-category", true),
     (c.classname, true),
     ("empty", c.count == 0),
@@ -940,7 +940,7 @@ let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
 
   let icon = {
     let view' = iconName =>
-      Html.span(list{Html.class'("icon")}, list{fontAwesome(iconName), fontAwesome(iconName)})
+      Html.span(list{Attrs.class'("icon")}, list{fontAwesome(iconName), fontAwesome(iconName)})
 
     if isDetailed {
       view'("chevron-left")
@@ -949,22 +949,22 @@ let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
     }
   }
 
-  let label = Html.span(list{Html.class'("label")}, list{Html.text(description)})
+  let label = Html.span(list{Attrs.class'("label")}, list{Html.text(description)})
   let alt = if isDetailed {
     Vdom.noProp
   } else {
-    Html.title(description)
+    Attrs.title(description)
   }
-  Html.div(list{event, Html.class'("toggle-sidebar-btn"), alt}, list{label, icon})
+  Html.div(list{event, Attrs.class'("toggle-sidebar-btn"), alt}, list{label, icon})
 }
 
 let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
   Html.div(
-    list{Html.class'("state-info-row")},
+    list{Attrs.class'("state-info-row")},
     list{
-      Html.p(list{Html.class'("key")}, list{Html.text(key)}),
-      Html.p(list{Html.class'("sep")}, list{Html.text(":")}),
-      Html.p(list{Html.class'("value")}, list{value}),
+      Html.p(list{Attrs.class'("key")}, list{Html.text(key)}),
+      Html.p(list{Attrs.class'("sep")}, list{Html.text(":")}),
+      Html.p(list{Attrs.class'("value")}, list{value}),
     },
   )
 
@@ -991,12 +991,12 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     "[" ++ ((m.tests |> List.map(~f=show_variantTest) |> String.join(~sep=", ")) ++ "]")
 
   let environment = Html.div(
-    list{Html.class'("environment " ++ environmentName)},
+    list{Attrs.class'("environment " ++ environmentName)},
     list{Html.text(environmentName)},
   )
 
   let stateInfo = Html.div(
-    list{Html.class'("state-info")},
+    list{Attrs.class'("state-info")},
     list{
       stateInfoTohtml("env", Html.text(m.environment)),
       stateInfoTohtml("flags", Html.text(flagText)),
@@ -1010,10 +1010,10 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       ViewUtils.eventNoPropagation(~key="tt", "mouseup", _ => ToggleEditorSetting(
         es => {...es, runTimers: !es.runTimers},
       )),
-      Html.class'("checkbox-row"),
+      Attrs.class'("checkbox-row"),
     },
     list{
-      Html.input'(list{Html.type'("checkbox"), Html.checked(m.editorSettings.runTimers)}, list{}),
+      Html.input'(list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.runTimers)}, list{}),
       Html.label(list{}, list{Html.text("Run Timers")}),
     },
   )
@@ -1023,11 +1023,11 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       ViewUtils.eventNoPropagation(~key="tt", "mouseup", _ => ToggleEditorSetting(
         es => {...es, showFluidDebugger: !es.showFluidDebugger},
       )),
-      Html.class'("checkbox-row"),
+      Attrs.class'("checkbox-row"),
     },
     list{
       Html.input'(
-        list{Html.type'("checkbox"), Html.checked(m.editorSettings.showFluidDebugger)},
+        list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.showFluidDebugger)},
         list{},
       ),
       Html.label(list{}, list{Html.text("Show Fluid Debugger")}),
@@ -1039,11 +1039,11 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       ViewUtils.eventNoPropagation(~key="tgast", "mouseup", _ => ToggleEditorSetting(
         es => {...es, showHandlerASTs: !es.showHandlerASTs},
       )),
-      Html.class'("checkbox-row"),
+      Attrs.class'("checkbox-row"),
     },
     list{
       Html.input'(
-        list{Html.type'("checkbox"), Html.checked(m.editorSettings.showHandlerASTs)},
+        list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.showHandlerASTs)},
         list{},
       ),
       Html.label(list{}, list{Html.text("Show Handler ASTs")}),
@@ -1051,7 +1051,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   let debugger = Html.a(
-    list{Html.href(ViewScaffold.debuggerLinkLoc(m)), Html.class'("state-info-row debugger")},
+    list{Attrs.href(ViewScaffold.debuggerLinkLoc(m)), Attrs.class'("state-info-row debugger")},
     list{
       Html.text(
         if m.teaDebuggerEnabled {
@@ -1068,7 +1068,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       let name = VariantTesting.nameOf(variant)
       let enabled = VariantTesting.variantIsActive(m, variant)
       Html.a(
-        list{Html.href(ViewScaffold.flagLinkLoc(name, enabled)), Html.class'("state-info-row")},
+        list{Attrs.href(ViewScaffold.flagLinkLoc(name, enabled)), Attrs.class'("state-info-row")},
         list{
           Html.text(
             if enabled {
@@ -1087,13 +1087,13 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   let saveTestButton = Html.a(
     list{
       ViewUtils.eventNoPropagation(~key="stb", "mouseup", _ => SaveTestButton),
-      Html.class'("state-info-row save-state"),
+      Attrs.class'("state-info-row save-state"),
     },
     list{Html.text("SAVE STATE FOR INTEGRATION TEST")},
   )
 
   let hoverView = Html.div(
-    list{Html.class'("category-content")},
+    list{Attrs.class'("category-content")},
     Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
       variantLinks,
@@ -1103,17 +1103,17 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let icon = Html.div(
     list{
-      Html.class'("category-icon"),
-      Html.title("Admin"),
+      Attrs.class'("category-icon"),
+      Attrs.title("Admin"),
       Vdom.attribute("", "role", "img"),
       Vdom.attribute("", "alt", "Admin"),
     },
     list{fontAwesome("cog")},
   )
 
-  let sectionIcon = Html.div(list{Html.class'("category-summary")}, list{icon, environment})
+  let sectionIcon = Html.div(list{Attrs.class'("category-summary")}, list{icon, environment})
 
-  Html.div(list{Html.class'("sidebar-category admin")}, list{sectionIcon, hoverView})
+  Html.div(list{Attrs.class'("sidebar-category admin")}, list{sectionIcon, hoverView})
 }
 
 let update = (msg: Sidebar.msg): modification =>
@@ -1170,7 +1170,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
 
     Html.div(
       list{
-        Html.classList(list{
+        Attrs.classList(list{
           ("viewing-table", true),
           ("detailed", isDetailed),
           ("abridged", !isDetailed),
@@ -1182,7 +1182,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
 
   Html.div(
     list{
-      Html.id("sidebar-left"),
+      Attrs.id("sidebar-left"),
       // Block opening the omnibox here by preventing canvas pan start
       nothingMouseEvent("mousedown"),
       ViewUtils.eventNoPropagation(~key="click-sidebar", "click", _ => ToolTipMsg(Close)),

@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
@@ -24,10 +27,10 @@ type parseResult =
 let txt = (s: string): Html.html<msg> => Html.text(s)
 
 let tag = (cls: string, content: list<Html.html<msg>>): Html.html<msg> =>
-  Html.span(list{Html.class'(cls)}, content)
+  Html.span(list{Attrs.class'(cls)}, content)
 
 let link = (name: string, url: string): Html.html<msg> =>
-  Html.a(list{Html.href(url), Html.target("_blank")}, list{Html.text(name)})
+  Html.a(list{Attrs.href(url), Attrs.target("_blank")}, list{Html.text(name)})
 
 let justErrors = results =>
   results

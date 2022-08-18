@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Html.Attributes
+
 // Dark
 module P = Pointer
 module RT = Runtime

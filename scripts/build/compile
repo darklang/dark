@@ -78,7 +78,9 @@ def is_script(f):
 def sass_compile():
   start = time.time()
   return run_frontend(
-      start, "npx node-sass client/styles/app.scss > backend/static/app.css")
+      start,
+      "npx sass client/styles/app.scss > backend/static/app.css && npx postcss --map --output backend/static/app.css backend/static/app.css"
+  )
 
 
 def copy_static():
@@ -90,7 +92,8 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(
-      start, "cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/")
+      start,
+      "cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/")
   if optimize:
     wwwroot = run_backend(
         start,
@@ -531,6 +534,9 @@ def mark(should, f):
   elif ("/backend/templates/" in f) and (".html" in f):
     should.backend_build = True
 
+  elif ("/fsharp-backend/src/ApiServer/Templates/" in f) and (".html" in f):
+    should.reload_fsharp_server = True
+
   elif ("/fsharp-backend/global.json" in f or \
         "/fsharp-backend/.config/dotnet-tools.json" in f or \
         "/fsharp-backend/Directory.Build.props" in f):
@@ -593,11 +599,12 @@ def mark(should, f):
     # This correctly handles tests and other dirs, which need to be built
     # as part of this step.
     should.client_build = True
+    should.sass_compile = True  # tailwind reads source files to produce the right css
 
   elif "/bsconfig.json" in f:
     should.client_build = True
 
-  elif ".scss" in f:
+  elif ".scss" in f or "tailwind.config.js" in f:
     should.sass_compile = True
 
   elif "/client/static/" in f:

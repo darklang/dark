@@ -1,10 +1,10 @@
 open Tc
 
-module K = FluidKeyboard
-module Html = Tea_html_extended
-module Events = Tea.Html2.Events
-module Attributes = Tea.Html2.Attributes
+module Html = Tea.Html
+module Events = Tea.Html.Events
+module Attrs = Tea.Html.Attributes
 
+module K = FluidKeyboard
 module Utils = SettingsUtils
 
 module T = SettingsInvite
@@ -40,7 +40,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
 
       Html.button(
         list{
-          Html.class'("submit-btn"),
+          Attrs.class'("submit-btn"),
           Html.Attributes.disabled(state.loading),
           ViewUtils.eventNoPropagation(
             ~key="close-settings-modal",
@@ -54,10 +54,10 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
 
     list{
       Html.div(
-        list{Html.class'("invite-form")},
+        list{Attrs.class'("invite-form")},
         list{
           Html.div(
-            list{Html.class'("form-field")},
+            list{Attrs.class'("form-field")},
             list{
               Html.h3(list{}, list{Html.text("Email:")}),
               Html.div(
@@ -69,12 +69,12 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
                       Events.onInput(str => AppTypes.Msg.SettingsMsg(
                         Settings.InviteMsg(T.Update(str)),
                       )),
-                      Attributes.value(state.email.value),
+                      Attrs.value(state.email.value),
                     },
                     list{},
                   ),
                   Html.p(
-                    list{Html.class'("error-text")},
+                    list{Attrs.class'("error-text")},
                     list{Html.text(state.email.error |> Option.unwrap(~default=""))},
                   ),
                 },

@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 let flagLinkLoc = (flag: string, currentlyEnabled: bool) => {
   let loc = Tea_navigation.getLocation()
   let newSearch =
@@ -49,29 +52,29 @@ let viewIntegrationTestButton = (testState: AppTypes.IntegrationTests.t<AppTypes
           ViewUtils.nothingMouseEvent("mousedown"),
           ViewUtils.nothingMouseEvent("click"),
           ViewUtils.eventNoPropagation(~key="fit", "mouseup", _ => FinishIntegrationTest),
-          Html.src(""),
-          Html.id("finishIntegrationTest"),
-          Html.class'("specialButton"),
+          Attrs.src(""),
+          Attrs.id("finishIntegrationTest"),
+          Attrs.class'("specialButton"),
         },
         list{Html.text("Finish integration tests")},
       ),
     }
   | IntegrationTestFinished(Ok()) => list{
       Html.div(
-        list{Html.id("integrationTestSignal"), Html.class'("specialButton success")},
+        list{Attrs.id("integrationTestSignal"), Attrs.class'("specialButton success")},
         list{Html.text("success")},
       ),
     }
   | IntegrationTestFinished(Error(msg)) => list{
       Html.div(
-        list{Html.id("integrationTestSignal"), Html.class'("specialButton failure")},
+        list{Attrs.id("integrationTestSignal"), Attrs.class'("specialButton failure")},
         list{\"<|"(Html.text, "failure: " ++ msg)},
       ),
     }
   | NoIntegrationTest => list{}
   }
 
-  Html.div(list{Html.id("buttons")}, integrationTestButton)
+  Html.div(list{Attrs.id("buttons")}, integrationTestButton)
 }
 
 let viewError = (message: Error.t): Html.html<AppTypes.msg> => {
@@ -89,7 +92,7 @@ let viewError = (message: Error.t): Html.html<AppTypes.msg> => {
   let viewDismissBtn = list{
     Html.p(
       list{
-        Html.class'("dismissBtn"),
+        Attrs.class'("dismissBtn"),
         ViewUtils.eventNoPropagation("click", ~key="dismiss-error", _ => DismissErrorBar),
       },
       list{Html.text("Dismiss")},
@@ -97,7 +100,7 @@ let viewError = (message: Error.t): Html.html<AppTypes.msg> => {
   }
 
   Html.div(
-    list{Html.classList(list{("error-panel", true), ("show", message != None)})},
+    list{Attrs.classList(list{("error-panel", true), ("show", message != None)})},
     Belt.List.concat(viewErrorMsg, viewDismissBtn),
   )
 }
@@ -105,7 +108,7 @@ let viewError = (message: Error.t): Html.html<AppTypes.msg> => {
 let readOnlyMessage = (m: AppTypes.model): Html.html<AppTypes.msg> =>
   Html.div(
     list{
-      Html.classList(list{
+      Attrs.classList(list{
         ("message-panel", true),
         // Only show this on confirmed Read-only so it doesn't pop up before initial_load.
         ("show", m.permission == Some(Read)),
