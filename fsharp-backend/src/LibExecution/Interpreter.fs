@@ -31,10 +31,6 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 
 // fsharplint:disable FL0039
 
-type MatchResult =
-  | Matched of traces : List<id * Dval> * newVars : List<string * Dval>
-  | Unmatched of exprResult : Dval * traces : List<id * Dval>
-
 /// Interprets an expression and reduces to a Dark value
 /// (or task that should result in such)
 let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
@@ -53,7 +49,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return ()
     }
 
-  let evalMatch id matchExpr cases =
+  let evalMatchOld id matchExpr cases =
     uply {
       let hasMatched = ref false
       let matchResult = ref (incomplete id)
@@ -212,6 +208,119 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           cases
 
       return matchResult.Value
+    }
+
+  let evalMatchNew patternId matchExpr (cases : List<Pattern * Expr>) =
+    let rec patternPasses dv pattern : bool =
+      match pattern with
+      | PInteger (_, i) -> dv = DInt i
+      | PBool (_, b) -> dv = DBool b
+      | PCharacter (_, c) -> dv = DChar c
+      | PString (_, str) -> dv = DStr str
+      | PFloat (_, v) -> dv = DFloat v
+      | PNull (_) -> dv = DNull
+      | PVariable (_, _) -> not (Dval.isFake dv)
+      | PBlank (_) -> false
+      | PConstructor (_, name, args) ->
+        match (name, args, dv) with
+        | "Nothing", [], DOption None -> true
+
+        | "Just", [ p ], DOption (Some _v)
+        | "Ok", [ p ], DResult (Ok _v)
+        | "Error", [ p ], DResult (Error _v) -> patternPasses dv p
+
+        | "Nothing", [], _ -> false
+        | _ -> false
+
+    let tracePattern onExecutionPath dv pattern : List<string * Dval> =
+      let traceFn (id, dv) = state.tracing.traceDval onExecutionPath id dv
+      let traceIncomplete id = state.tracing.traceDval false id (incomplete id)
+
+      let rec r dv pattern =
+        match pattern with
+        | PInteger (id, i) ->
+          traceFn (id, DInt i)
+          []
+        | PBool (id, b) ->
+          traceFn (id, DBool b)
+          []
+        | PCharacter (id, c) ->
+          traceFn (id, DChar c)
+          []
+        | PString (id, s) ->
+          traceFn (id, DStr s)
+          []
+        | PFloat (id, f) ->
+          traceFn (id, DFloat f)
+          []
+        | PNull (id) ->
+          traceFn (id, DNull)
+          []
+        | PBlank (id) ->
+          traceFn (id, incomplete id)
+          []
+        | PVariable (id, varName) ->
+          traceFn (id, dv)
+          [ (varName, dv) ]
+        | PConstructor (id, name, args) ->
+          match (name, args, dv) with
+          | "Nothing", [], _ ->
+            traceFn (id, DOption None)
+            []
+
+          | "Just", [ p ], DOption (Some v)
+          | "Ok", [ p ], DResult (Ok v)
+          | "Error", [ p ], DResult (Error v) when patternPasses v p ->
+            traceFn (id, dv)
+
+            r v p
+
+          | _name, subPatterns, _ ->
+            traceIncomplete id
+
+            subPatterns
+            |> List.map Pattern.toID
+            |> List.iter (fun pId -> traceFn (pId, incomplete pId))
+
+            []
+
+      r dv pattern
+
+    uply {
+      // The value we're matching against
+      let! matchVal = eval state st matchExpr
+
+      let stWithNewVars newVars = Map.mergeFavoringRight st (Map.ofList newVars)
+
+      let mutable foundMatch : Option<Dval> = None
+
+      do!
+        cases
+        |> Ply.List.iterSequentially (fun (pattern, rhsExpr) ->
+          let passes = patternPasses matchVal pattern
+
+          match foundMatch, passes, state.tracing.realOrPreview with
+          // Found a match - persist traces and set the result
+          | None, true, _ ->
+            uply {
+              let newDefs = tracePattern state.onExecutionPath matchVal pattern
+              let! result = eval state (stWithNewVars newDefs) rhsExpr
+              foundMatch <- Some result
+              return ()
+            }
+
+          // Unless we've found the _first_ match, 'real' analysis ignores results
+          | _, _, Real -> uply { return () }
+
+          // If we're "previewing" (analysis), trace all patterns
+          | _ ->
+            uply {
+              let newDefs = tracePattern false matchVal pattern
+              do! preview (stWithNewVars newDefs) rhsExpr
+              return ()
+            })
+
+      return Option.defaultValue (incomplete patternId) foundMatch
     }
 
   uply {
@@ -403,7 +512,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // args and execute the body.
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
 
-    | EMatch (id, matchExpr, cases) -> return! evalMatch id matchExpr cases
+    | EMatch (id, matchExpr, cases) -> return! evalMatchNew id matchExpr cases
 
     | EIf (_id, cond, thenbody, elsebody) ->
       match! eval state st cond with
