@@ -54,6 +54,7 @@ let tid = (t: t): id =>
   | TRecordFieldname({recordID: id, _})
   | TRecordSep(id, _, _)
   | TConstructorName(id, _)
+
   | TMatchBranchArrow({matchID: id, _})
   | TMatchKeyword(id)
   | TPatternBlank(_, id, _)
@@ -67,6 +68,10 @@ let tid = (t: t): id =>
   | TPatternFloatWhole(_, id, _, _)
   | TPatternFloatPoint(_, id, _)
   | TPatternFloatFractional(_, id, _, _)
+  | TPatternTupleOpen(id)
+  | TPatternTupleClose(id)
+  | TPatternTupleComma(id, _)
+
   | TSep(id, _)
   | TParenOpen(id)
   | TParenClose(id)
@@ -152,6 +157,7 @@ let parentBlockID = (t: t): option<id> =>
 
   | TFnName(_)
   | TFnVersion(_)
+
   | TMatchKeyword(_)
   | TMatchBranchArrow(_)
   | TPatternVariable(_)
@@ -164,7 +170,11 @@ let parentBlockID = (t: t): option<id> =>
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
   | TPatternFloatFractional(_)
+  | TPatternTupleOpen(_)
+  | TPatternTupleClose(_)
+  | TPatternTupleComma(_)
   | TPatternBlank(_)
+
   | TConstructorName(_)
   | TParenOpen(_)
   | TParenClose(_)
@@ -220,7 +230,10 @@ let isTextToken = (t: t): bool =>
   | TPatternNullToken(_)
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
-  | TPatternFloatFractional(_) => true
+  | TPatternFloatFractional(_)
+  | TPatternTupleOpen(_)
+  | TPatternTupleClose(_)
+  | TPatternTupleComma(_) => true
   | TListOpen(_)
   | TListClose(_)
   | TListComma(_, _)
@@ -279,6 +292,9 @@ let isPipeable = (t: t): bool =>
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
   | TPatternFloatFractional(_)
+  | TPatternTupleOpen(_)
+  | TPatternTupleClose(_)
+  | TPatternTupleComma(_)
   | TBlank(_)
   | TPipe(_) => true
   | TFnVersion(_)
@@ -431,6 +447,9 @@ let isWhitespace = (t: t): bool =>
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
   | TPatternFloatFractional(_)
+  | TPatternTupleOpen(_)
+  | TPatternTupleClose(_)
+  | TPatternTupleComma(_)
   | TParenOpen(_)
   | TParenClose(_)
   | TFlagWhenKeyword(_)
@@ -580,6 +599,7 @@ let toText = (t: t): string => {
   | TPipe(_) => "|>"
   | TMatchKeyword(_) => "match "
   | TMatchBranchArrow(_) => " -> "
+
   | TPatternInteger(_, _, i, _) => Int64.to_string(i)
   | TPatternFloatWhole(_, _, w, _) => shouldntBeEmpty(w)
   | TPatternFloatPoint(_) => "."
@@ -591,6 +611,10 @@ let toText = (t: t): string => {
   | TPatternBlank(_) => "   "
   | TPatternVariable(_, _, name, _) => canBeEmpty(name)
   | TPatternConstructorName(_, _, name, _) => canBeEmpty(name)
+  | TPatternTupleOpen(_) => "("
+  | TPatternTupleComma(_) => ","
+  | TPatternTupleClose(_) => ")"
+
   | TParenOpen(_) => "("
   | TParenClose(_) => ")"
   | TFlagWhenKeyword(_) => "when "
@@ -723,6 +747,7 @@ let toTypeName = (t: t): string =>
   | TPipe(_) => "pipe-symbol"
   | TMatchKeyword(_) => "match-keyword"
   | TMatchBranchArrow(_) => "match-branch-arrow"
+
   | TPatternBlank(_) => "pattern-blank"
   | TPatternInteger(_) => "pattern-integer"
   | TPatternVariable(_) => "pattern-variable"
@@ -734,6 +759,10 @@ let toTypeName = (t: t): string =>
   | TPatternFloatWhole(_) => "pattern-float-whole"
   | TPatternFloatPoint(_) => "pattern-float-point"
   | TPatternFloatFractional(_) => "pattern-float-fractional"
+  | TPatternTupleOpen(_) => "pattern-tuple-open"
+  | TPatternTupleClose(_) => "pattern-tuple-close"
+  | TPatternTupleComma(_) => "pattern-tuple-comma"
+
   | TParenOpen(_) => "paren-open"
   | TParenClose(_) => "paren-close"
   | TFlagWhenKeyword(_) => "ff-cond"
@@ -771,6 +800,9 @@ let toCategoryName = (t: t): string =>
   | TPatternNullToken(_)
   | TPatternFloatWhole(_)
   | TPatternFloatPoint(_)
+  | TPatternTupleOpen(_)
+  | TPatternTupleClose(_)
+  | TPatternTupleComma(_)
   | TPatternFloatFractional(_) => "pattern"
   | TParenOpen(_) | TParenClose(_) => "paren"
   | TFlagWhenKeyword(_) | TFlagEnabledKeyword(_) => "flag"
@@ -940,9 +972,15 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TPatternFloatPoint(p1, id1, ind1), TPatternFloatPoint(p2, id2, ind2))
   | (TPatternBlank(p1, id1, ind1), TPatternBlank(p2, id2, ind2)) =>
     p1 == p2 && (id1 == id2 && ind1 == ind2)
+
   | (TPatternFloatWhole(p1, id1, val1, ind1), TPatternFloatWhole(p2, id2, val2, ind2))
   | (TPatternFloatFractional(p1, id1, val1, ind1), TPatternFloatFractional(p2, id2, val2, ind2)) =>
     p1 == p2 && (id1 == id2 && (val1 == val2 && ind1 == ind2))
+
+  | (TPatternTupleOpen(id1), TPatternTupleOpen(id2)) => id1 == id2
+  | (TPatternTupleClose(id1), TPatternTupleClose(id2)) => id1 == id2
+  | (TPatternTupleComma(id1, ind1), TPatternTupleComma(id2, ind2)) => id1 == id2 && ind1 == ind2
+
   | (TIndent(ind1), TIndent(ind2)) => ind1 == ind2
   | (TPlaceholder(d1), TPlaceholder(d2)) =>
     d1.blankID == d2.blankID && (d1.fnID == d2.fnID && d1.placeholder == d2.placeholder)
@@ -1007,6 +1045,9 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TPatternFloatPoint(_), _)
   | (TPatternFloatFractional(_), _)
   | (TPatternBlank(_), _)
+  | (TPatternTupleOpen(_), _)
+  | (TPatternTupleClose(_), _)
+  | (TPatternTupleComma(_), _)
   | (TConstructorName(_), _)
   | (TParenOpen(_), _)
   | (TParenClose(_), _)

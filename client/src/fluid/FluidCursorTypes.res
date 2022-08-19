@@ -12,7 +12,9 @@ module AstRef = {
     | FPPoint
     | FPFractional
 
-  @ppx.deriving(show({with_path: false})) type rec astStringPart = SPOpenQuote
+  @ppx.deriving(show({with_path: false}))
+  type rec astStringPart =
+    | SPOpenQuote
 
   @ppx.deriving(show({with_path: false}))
   type rec astLetPart =
@@ -53,9 +55,11 @@ module AstRef = {
 
   @ppx.deriving(show({with_path: false}))
   type rec astTuplePart =
+    // would it be better, somehow, to define separate astParts for tuple _patterns_ and _vals_?
     | TPOpen
     | TPClose
-    | TPComma(int)
+    | TPComma(int) // maybe separator
+    //| TPVal(int)
 
   @ppx.deriving(show({with_path: false}))
   type rec astMatchPart =
@@ -66,6 +70,7 @@ module AstRef = {
   type rec astPatternPart =
     | PPVariable
     | PPConstructor
+    | PPTuple(astTuplePart)
     | PPInteger
     | PPBool
     | PPString(astStringPart)

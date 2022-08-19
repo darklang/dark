@@ -138,6 +138,14 @@ let pNull = (~id=gid(), ()): FluidPattern.t => PNull(id)
 
 let pBlank = (~id=gid(), ()): FluidPattern.t => PBlank(id)
 
+// TUPLETODO use this
+let pTuple = (
+  ~id=gid(),
+  first: FluidPattern.t,
+  second: FluidPattern.t,
+  theRest: list<FluidPattern.t>,
+): FluidPattern.t => PTuple(id, first, second, theRest)
+
 let flag = (~id=gid(), ~name="flag-1", cond, oldCode, newCode) => EFeatureFlag(
   id,
   name,
