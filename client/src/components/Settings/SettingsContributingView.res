@@ -16,7 +16,7 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
         Html.text(
           "To use your local client against the Dark server, use a tunnel provider such as ",
         ),
-        Html.a(list{Attrs.href("https://locatunnel.me")}, list{Html.text("localtunnel")}),
+        Html.a(list{Attrs.href("https://localtunnel.me")}, list{Html.text("localtunnel")}),
         Html.text(" or "),
         Html.a(list{Attrs.href("https://ngrok.com")}, list{Html.text("ngrok")}),
         Html.text(". After starting the tunnel, enter the url below"),
