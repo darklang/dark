@@ -152,6 +152,13 @@ let matchWithConstructorPattern = {
   EMatch(mID, b, list{(PConstructor(gid(), "Just", list{}), b)})
 }
 
+// TUPLETODO use this
+let matchWithTuplePattern = {
+  let mID = gid()
+  // TUPLETODO is this reasonable?
+  ETuple(mID, b, b, list{})
+}
+
 let matchWithBinding = (bindingName: string, expr: t) => {
   let mID = gid()
   EMatch(mID, b, list{(PVariable(gid(), bindingName), expr)})

@@ -166,6 +166,7 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
     Belt.List.concatMany([whole, list{TPatternFloatPoint(matchID, id, idx)}, fraction])
   | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
   | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
+  | PTuple(_id, _first, _second, _theRest) => list{} // TUPLETODO: define tuple token parts, etc.
   }
 }
 
