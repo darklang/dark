@@ -49,31 +49,53 @@ module Http = {
 }
 
 module Html = {
-  // Html and Html2 are the same wuth a different organization. We use Html2, but we
+  // Html and Html2 are the same with a different organization. We use Html2, but we
   // were using both, so for consistency let's rename it
-  include Tea_html2
-
-  // TODO: upstream
-  let onWithOptions = (~key="", eventName, options: Tea_html.options, decoder) =>
-    Tea_html.onCB(eventName, key, event => {
-      if options.stopPropagation {
-        event["stopPropagation"]() |> ignore
-      }
-      if options.preventDefault {
-        event["preventDefault"]() |> ignore
-      }
-      event |> Tea_json.Decoder.decodeEvent(decoder) |> Tea_result.result_to_option
-    })
+  include (
+    Tea_html2: module type of Tea_html2
+    // Modules that we're extending
+      with module Attributes := Tea_html2.Attributes
+      and module Events := Tea_html2.Events
+  )
 
   type html<'a> = Vdom.t<'a>
 
-  type property<'a> = Vdom.property<'a>
-
   let noNode = Vdom.noNode
+
+  // Override so we can add our own attributes/properties
+  module Attributes = {
+    include Tea_html2.Attributes
+
+    type property<'a> = Vdom.property<'a>
+
+    // Standard properties that are not in rescript-tea
+    // TODO: upstream
+    let class = class'
+    let role = (name: string) => Vdom.prop("role", name)
+    let ariaChecked = (v: bool) => Vdom.prop("aria-checked", string_of_bool(v))
+    let ariaHidden = (v: bool) => Vdom.prop("aria-hidden", string_of_bool(v))
+  }
+  module Attrs = Attributes
+
+  module Events = {
+    include Tea_html2.Events
+
+    // TODO: upstream
+    let onWithOptions = (~key="", eventName, options: Tea_html.options, decoder) =>
+      Tea_html2.Events.onCB(eventName, key, event => {
+        if options.stopPropagation {
+          event["stopPropagation"]() |> ignore
+        }
+        if options.preventDefault {
+          event["preventDefault"]() |> ignore
+        }
+        event |> Tea_json.Decoder.decodeEvent(decoder) |> Tea_result.result_to_option
+      })
+  }
 }
 
-module Attrs = Tea_html2.Attributes
-module Events = Tea_html2.Events
+module Events = Html.Events
+module Attrs = Html.Attrs
 
 module Time = {
   include Tea_time
