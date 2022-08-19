@@ -49,8 +49,8 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
           ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
             Settings.ContributingMsg(T.SubmitTunnelHostForm),
           )),
-          // Attrs.role("switch"),
-          // Attrs.ariaChecked(false),
+          Attrs.role("switch"),
+          Attrs.ariaChecked(false),
         },
         list{
           Html.span(list{Attrs.class'("sr-only")}, list{Html.text("Use setting")}),
@@ -59,7 +59,7 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
               Attrs.class'(
                 "translate-x-0 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
               ),
-              // Attrs.ariaHidden(true),
+              Attrs.ariaHidden(true),
             },
             list{},
           ),

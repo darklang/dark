@@ -2,6 +2,7 @@ open Prelude
 
 module Html = Tea.Html
 module Attrs = Tea.Attrs
+module Events = Tea.Events
 
 module TL = Toplevel
 module TD = TLID.Dict
@@ -197,7 +198,7 @@ let eventBoth = (
   event: string,
   constructor: AppTypes.MouseEvent.t => msg,
 ): Vdom.property<msg> =>
-  Tea.Html.onWithOptions(
+  Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: false, preventDefault: false},
@@ -209,7 +210,7 @@ let eventPreventDefault = (
   event: string,
   constructor: AppTypes.MouseEvent.t => msg,
 ): Vdom.property<msg> =>
-  Tea.Html.onWithOptions(
+  Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: false, preventDefault: true},
@@ -221,7 +222,7 @@ let eventNeither = (
   event: string,
   constructor: AppTypes.MouseEvent.t => msg,
 ): Vdom.property<msg> =>
-  Tea.Html.onWithOptions(
+  Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: true},
@@ -233,7 +234,7 @@ let scrollEventNeither = (
   event: string,
   constructor: AppTypes.ScrollEvent.t => msg,
 ): Vdom.property<msg> =>
-  Tea.Html.onWithOptions(
+  Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: true},
@@ -245,7 +246,7 @@ let eventNoPropagation = (
   event: string,
   constructor: AppTypes.MouseEvent.t => msg,
 ): Vdom.property<msg> =>
-  Tea.Html.onWithOptions(
+  Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: false},
@@ -253,7 +254,7 @@ let eventNoPropagation = (
   )
 
 let onTransitionEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
-  Tea.Html.onWithOptions(
+  Events.onWithOptions(
     ~key,
     "transitionend",
     {stopPropagation: false, preventDefault: true},
@@ -261,7 +262,7 @@ let onTransitionEnd = (~key: string, ~listener: string => msg): Vdom.property<ms
   )
 
 let onAnimationEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
-  Tea.Html.onWithOptions(
+  Events.onWithOptions(
     ~key,
     "animationend",
     {stopPropagation: false, preventDefault: true},
