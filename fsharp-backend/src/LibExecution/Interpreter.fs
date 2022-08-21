@@ -295,18 +295,18 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // The value we're matching against
       let! matchVal = eval state st matchExpr
 
-      let mutable foundMatch : Option<Dval> = None
+      let mutable resultMaybe : Option<Dval> = None
 
       do!
         cases
         |> Ply.List.iterSequentially (fun (pattern, rhsExpr) ->
           let passes = patternPasses matchVal pattern
 
-          if Option.isNone foundMatch && passes then
+          if Option.isNone resultMaybe && passes then
             uply {
               let newDefs = tracePattern state.onExecutionPath matchVal pattern
-              let! result = eval state (stWithNewVars newDefs) rhsExpr
-              foundMatch <- Some result
+              let! r = eval state (stWithNewVars newDefs) rhsExpr
+              resultMaybe <- Some r
             }
           else
             match state.tracing.realOrPreview with
@@ -321,7 +321,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                 do! preview (stWithNewVars newDefs) rhsExpr
               })
 
-      return Option.defaultValue (incomplete patternId) foundMatch
+      return Option.defaultValue (incomplete patternId) resultMaybe
     }
 
   uply {
