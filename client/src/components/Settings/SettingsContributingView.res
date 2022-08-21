@@ -30,7 +30,7 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
         Html.h3(
           list{
             ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
-              Settings.ContributingMsg(T.SubmitTunnelHostForm),
+              Settings.ContributingMsg(T.Submit),
             )),
           },
           list{Html.text("Reload with tunnel")},
@@ -47,7 +47,7 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
             "bg-gray-200 relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
           ),
           ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
-            Settings.ContributingMsg(T.SubmitTunnelHostForm),
+            Settings.ContributingMsg(T.Submit),
           )),
           Attrs.role("switch"),
           Attrs.ariaChecked(false),
@@ -78,7 +78,7 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
               Html.div(
                 list{
                   Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                    Settings.ContributingMsg(T.UpdateTunnelHostInput(str)),
+                    Settings.ContributingMsg(T.InputEdit(str)),
                   )),
                 },
                 list{
