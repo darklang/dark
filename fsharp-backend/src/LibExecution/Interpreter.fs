@@ -211,6 +211,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     }
 
   let evalMatchNew patternId matchExpr (cases : List<Pattern * Expr>) =
+    /// Does the dval 'match' the given pattern?
     let rec patternPasses dv pattern : bool =
       match pattern with
       | PInteger (_, i) -> dv = DInt i
@@ -232,6 +233,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | "Nothing", [], _ -> false
         | _ -> false
 
+    // Recurse through the pattern, tracing.
+    // Returns a set of new bindings
     let tracePattern onExecutionPath dv pattern : List<string * Dval> =
       let traceFn (id, dv) = state.tracing.traceDval onExecutionPath id dv
       let traceIncomplete id = state.tracing.traceDval false id (incomplete id)
@@ -268,17 +271,17 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             traceFn (id, DOption None)
             []
 
-          | "Just", [ p ], DOption (Some v)
-          | "Ok", [ p ], DResult (Ok v)
-          | "Error", [ p ], DResult (Error v) when patternPasses v p ->
+          | "Just", [ argPat ], DOption (Some v)
+          | "Ok", [ argPat ], DResult (Ok v)
+          | "Error", [ argPat ], DResult (Error v) when patternPasses v argPat ->
             traceFn (id, dv)
 
-            r v p
+            r v argPat
 
-          | _name, subPatterns, _ ->
+          | _name, argPatterns, _ ->
             traceIncomplete id
 
-            subPatterns
+            argPatterns
             |> List.map Pattern.toID
             |> List.iter (fun pId -> traceFn (pId, incomplete pId))
 
@@ -286,11 +289,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       r dv pattern
 
+    let stWithNewVars newVars = Map.mergeFavoringRight st (Map.ofList newVars)
+
     uply {
       // The value we're matching against
       let! matchVal = eval state st matchExpr
-
-      let stWithNewVars newVars = Map.mergeFavoringRight st (Map.ofList newVars)
 
       let mutable foundMatch : Option<Dval> = None
 
@@ -299,26 +302,24 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         |> Ply.List.iterSequentially (fun (pattern, rhsExpr) ->
           let passes = patternPasses matchVal pattern
 
-          match foundMatch, passes, state.tracing.realOrPreview with
-          // Found a match - persist traces and set the result
-          | None, true, _ ->
+          if Option.isNone foundMatch && passes then
             uply {
               let newDefs = tracePattern state.onExecutionPath matchVal pattern
               let! result = eval state (stWithNewVars newDefs) rhsExpr
               foundMatch <- Some result
-              return ()
             }
+          else
+            match state.tracing.realOrPreview with
+            | Real ->
+              // Unless we've found the _first_ match, 'real' analysis ignores results
+              uply { return () }
 
-          // Unless we've found the _first_ match, 'real' analysis ignores results
-          | _, _, Real -> uply { return () }
-
-          // If we're "previewing" (analysis), trace all patterns
-          | _ ->
-            uply {
-              let newDefs = tracePattern false matchVal pattern
-              do! preview (stWithNewVars newDefs) rhsExpr
-              return ()
-            })
+            | Preview ->
+              // If we're "previewing" (analysis), trace all patterns
+              uply {
+                let newDefs = tracePattern false matchVal pattern
+                do! preview (stWithNewVars newDefs) rhsExpr
+              })
 
       return Option.defaultValue (incomplete patternId) foundMatch
     }
