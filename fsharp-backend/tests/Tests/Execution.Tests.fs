@@ -356,241 +356,239 @@ let testLambdaPreview : Test =
 /// for - up to one of the traces will be an Executed result, and the others
 /// should all be NonExecutedResults.
 let testMatchPreview : Test =
+  let matchId = gid ()
+  let pIntId, intRhsId = gid (), gid ()
+  let pFloatId, floatRhsId = gid (), gid ()
+  let pBoolId, boolRhsId = gid (), gid ()
+  let pStrId, strRhsId = gid (), gid ()
+  let pNullId, nullRhsId = gid (), gid ()
+  let pBlankId, blankRhsId = gid (), gid ()
+  let pOkBlankOkId, pOkBlankBlankId, okBlankRhsId = gid (), gid (), gid ()
+
+  let (pOkVarOkId,
+       pOkVarVarId,
+       okVarRhsId,
+       binopFnValId,
+       okVarRhsVarId,
+       okVarRhsStrId) =
+    gid (), gid (), gid (), gid (), gid (), gid ()
+
+  let pNothingId, nothingRhsId = gid (), gid ()
+  let pVarId, varRhsId = gid (), gid ()
+
+  let patternsToMatchAgainst =
+    [ // | 5 -> 17
+      (PInteger(pIntId, 5L), EInteger(intRhsId, 17L))
+
+      // | 5.6 -> "float"
+      (PFloat(pFloatId, 5.6), EString(floatRhsId, "float"))
+
+      // | false -> "bool"
+      (PBool(pBoolId, false), EString(boolRhsId, "bool"))
+
+      // | "myStr" -> "str"
+      (PString(pStrId, "myStr"), EString(strRhsId, "str"))
+
+      // | null -> "null"
+      (PNull(pNullId), EString(nullRhsId, "null"))
+
+      // | _ -> "blank" (should never been matched)
+      (PBlank(pBlankId), EString(blankRhsId, "blank"))
+
+      // | Ok _ -> "ok blank"
+      (PConstructor(pOkBlankOkId, "Ok", [ PBlank pOkBlankBlankId ]),
+       EString(okBlankRhsId, "ok blank"))
+
+      // | Ok x -> "ok: " ++ x
+      (PConstructor(pOkVarOkId, "Ok", [ PVariable(pOkVarVarId, "x") ]),
+       EApply(
+         okVarRhsId,
+         EFQFnValue(
+           binopFnValId,
+           PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+         ),
+         [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
+         NotInPipe,
+         NoRail
+       ))
+
+      // | None -> "constructor nothing"
+      (PConstructor(pNothingId, "Nothing", []),
+       EString(nothingRhsId, "constructor nothing"))
+
+      // | name -> name
+      // (everything should match this, except for 'fake' dvals such as errors)
+      (PVariable(pVarId, "name"), EVariable(varRhsId, "name")) ]
+
+  let getSubExprIds (arg : Expr) =
+    let mutable argIDs = []
+    arg
+    |> RuntimeTypesAst.postTraversal (fun e ->
+      argIDs <- (Expr.toID e) :: argIDs
+      e)
+    |> ignore<Expr>
+    argIDs
+
+  // Checks that the 'expected' list of results are all as expected.
+  // Then, checks that any patterns not explicitly called out are present in
+  // the results, as NotExecutedResults, ensuring that all patterns are
+  // accounted for.
+  // - `arg` is the expr we're matching against
+  // - `expected` is a list of explicitly called-out results to verify,
+  //   including at most one 'matched' pattern (ExecutedResult)
+  //   - the `string` in `expected` is the 'msg' to report in case of failure
+  let t
+    (msg : string)
+    (arg : Expr)
+    (expected : List<id * string * AT.ExecutionResult>)
+    =
+    testTask msg {
+      let ast = EMatch(matchId, arg, patternsToMatchAgainst)
+
+      let! results = execSaveDvals "match-preview" [] [] ast
+
+      // check expected values are there
+      List.iter
+        (fun (id, name, value) ->
+          Expect.equal
+            (Dictionary.get id results)
+            (Some value)
+            $"{msg}: {id}, {name}")
+        expected
+
+      // Check that all patterns not included in 'expected' were evaluated,
+      // and are NotExecutedResults
+
+      // we expect _some_ result for all of these exprs
+      let expectedIDs =
+        (matchId :: getSubExprIds arg) @ List.map Tuple3.first expected |> Set
+
+      // ensure we don't have more expected results than actual results
+      Expect.isGreaterThan results.Count (Set.count expectedIDs) "sanity check"
+
+      let resultsUnaccountedFor =
+        Set.ofSeq (Dictionary.keys results)
+        |> Set.difference expectedIDs
+        |> Seq.map (fun id -> id, Dictionary.get id results)
+
+      resultsUnaccountedFor
+      |> Seq.iter (fun (id, result) ->
+        match result with
+        | Some (AT.ExecutedResult dv) ->
+          Expect.isTrue
+            false
+            $"{msg}: found unexpected execution result ({id}: {dv})"
+        | None -> Expect.isTrue false "missing value"
+        | Some (AT.NonExecutedResult _) -> ())
+    }
+
+  // helpers
+  let er x = AT.ExecutedResult x
+  let ner x = AT.NonExecutedResult x
+  let inc iid = DIncomplete(SourceID(id 7, iid))
+
   testList
     "test match evaluation"
-    [ let matchId = gid ()
-      let pIntId, intRhsId = gid (), gid ()
-      let pFloatId, floatRhsId = gid (), gid ()
-      let pBoolId, boolRhsId = gid (), gid ()
-      let pStrId, strRhsId = gid (), gid ()
-      let pNullId, nullRhsId = gid (), gid ()
-      let pBlankId, blankRhsId = gid (), gid ()
-      let pOkBlankOkId, pOkBlankBlankId, okBlankRhsId = gid (), gid (), gid ()
+    [ t
+        "int match"
+        (eInt 5)
+        [ (pIntId, "matching pat", er (DInt 5L))
+          (intRhsId, "matching rhs", er (DInt 17L))
 
-      let (pOkVarOkId,
-           pOkVarVarId,
-           okVarRhsId,
-           binopFnValId,
-           okVarRhsVarId,
-           okVarRhsStrId) =
-        gid (), gid (), gid (), gid (), gid (), gid ()
+          (pVarId, "2nd matching pat", ner (DInt 5L))
+          (varRhsId, "2nd matching rhs", ner (DInt 5L)) ]
 
-      let pNothingId, nothingRhsId = gid (), gid ()
-      let pVarId, varRhsId = gid (), gid ()
+      t
+        "non match"
+        (eInt 6)
+        [ (pIntId, "non matching pat", ner (DInt 5L))
+          (intRhsId, "non matching rhs", ner (DInt 17L))
 
-      let patternsToMatchAgainst =
-        [ // | 5 -> 17
-          (PInteger(pIntId, 5L), EInteger(intRhsId, 17L))
+          (pFloatId, "float pat", ner (DFloat 5.6))
+          (floatRhsId, "float rhs", ner (DStr "float"))
 
-          // | 5.6 -> "float"
-          (PFloat(pFloatId, 5.6), EString(floatRhsId, "float"))
+          (pBoolId, "bool pat", ner (DBool false))
+          (boolRhsId, "bool rhs", ner (DStr "bool"))
 
-          // | false -> "bool"
-          (PBool(pBoolId, false), EString(boolRhsId, "bool"))
+          (pNullId, "null pat", ner DNull)
+          (nullRhsId, "null rhs", ner (DStr "null"))
 
-          // | "myStr" -> "str"
-          (PString(pStrId, "myStr"), EString(strRhsId, "str"))
+          (pOkVarOkId, "ok var pat ok", ner (inc pOkVarOkId))
+          (pOkVarVarId, "ok var pat var", ner (inc pOkVarVarId))
+          (okVarRhsId, "ok var pat rhs", ner (inc okVarRhsVarId))
+          (okVarRhsVarId, "ok var rhs var", ner (inc okVarRhsVarId))
+          (okVarRhsStrId, "ok var rhs str", ner (DStr "ok: "))
 
-          // | null -> "null"
-          (PNull(pNullId), EString(nullRhsId, "null"))
+          (pNothingId, "nothing pat", ner (DOption None))
+          (nothingRhsId, "nothing pat rhs", ner (DStr "constructor nothing"))
 
-          // | _ -> "blank" (should never been matched)
-          (PBlank(pBlankId), EString(blankRhsId, "blank"))
+          (pOkBlankOkId, "ok blank pat ok", ner (inc pOkBlankOkId))
+          (pOkBlankBlankId, "ok blank pat blank", ner (inc pOkBlankBlankId))
+          (okBlankRhsId, "ok blank rhs", ner (DStr "ok blank"))
 
-          // | Ok _ -> "ok blank"
-          (PConstructor(pOkBlankOkId, "Ok", [ PBlank pOkBlankBlankId ]),
-           EString(okBlankRhsId, "ok blank"))
+          (pVarId, "catch all pat", er (DInt 6L))
+          (varRhsId, "catch all rhs", er (DInt 6L)) ]
 
-          // | Ok x -> "ok: " ++ x
-          (PConstructor(pOkVarOkId, "Ok", [ PVariable(pOkVarVarId, "x") ]),
-           EApply(
-             okVarRhsId,
-             EFQFnValue(
-               binopFnValId,
-               PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
-             ),
-             [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
-             NotInPipe,
-             NoRail
+      t
+        "float"
+        (eFloat Positive "5" "6")
+        [ (pFloatId, "pat", er (DFloat 5.6))
+          (floatRhsId, "rhs", er (DStr "float")) ]
+
+      t
+        "bool"
+        (eBool false)
+        [ (pBoolId, "pat", er (DBool false)); (boolRhsId, "rhs", er (DStr "bool")) ]
+
+      t
+        "null"
+        (eNull ())
+        [ (pNullId, "pat", er DNull); (nullRhsId, "rhs", er (DStr "null")) ]
+
+      t
+        "ok: y"
+        (eConstructor "Ok" [ eStr "y" ])
+        [ (pOkBlankOkId, "ok pat 1", ner (inc pOkBlankOkId))
+          (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
+          (okBlankRhsId, "rhs", ner (DStr "ok blank"))
+          (pOkVarOkId, "ok pat 2", er (DResult(Ok(DStr "y"))))
+
+          (binopFnValId,
+           "fnval",
+           er (
+             DFnVal(
+               FnName(
+                 PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+               )
+             )
            ))
+          (pOkVarVarId, "var pat", er (DStr "y"))
+          (okVarRhsId, "rhs", er (DStr "ok: y"))
+          (okVarRhsVarId, "rhs", er (DStr "y"))
+          (okVarRhsStrId, "str", er (DStr "ok: ")) ]
 
-          // | None -> "constructor nothing"
-          (PConstructor(pNothingId, "Nothing", []),
-           EString(nothingRhsId, "constructor nothing"))
+      t
+        "ok: blank"
+        (eConstructor "Ok" [ EBlank(gid ()) ])
+        [ (pOkBlankOkId, "blank pat", ner (inc pOkBlankOkId))
+          (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
+          (okBlankRhsId, "blank rhs", ner (DStr "ok blank"))
+          (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
+          (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
+          (okVarRhsId, "rhs", ner (inc okVarRhsVarId))
+          (okVarRhsVarId, "rhs var", ner (inc okVarRhsVarId))
+          (okVarRhsStrId, "str", ner (DStr "ok: ")) ]
 
-          // | name -> name
-          // (everything should match this)
-          (PVariable(pVarId, "name"), EVariable(varRhsId, "name")) ]
+      t
+        "nothing"
+        (eConstructor "Nothing" [])
+        [ (pNothingId, "ok pat", er (DOption None))
+          (nothingRhsId, "rhs", er (DStr "constructor nothing")) ]
 
-      let getSubExprIds (arg : Expr) =
-        let mutable argIDs = []
-        arg
-        |> RuntimeTypesAst.postTraversal (fun e ->
-          argIDs <- (Expr.toID e) :: argIDs
-          e)
-        |> ignore<Expr>
-        argIDs
-
-      // Checks that the 'expected' list of results are all as expected.
-      // Then, checks that any patterns not explicitly called out are present in
-      // the results, as NotExecutedResults, ensuring that all patterns are
-      // accounted for.
-      // - `arg` is the expr we're matching against
-      // - `expected` is a list of explicitly called-out results to verify,
-      //   including at most one 'matched' pattern (ExecutedResult)
-      //   - the `string` in `expected` is the 'msg' to report in case of failure
-      let t
-        (msg : string)
-        (arg : Expr)
-        (expected : List<id * string * AT.ExecutionResult>)
-        =
-        testTask msg {
-          let ast = EMatch(matchId, arg, patternsToMatchAgainst)
-
-          let! results = execSaveDvals "match-preview" [] [] ast
-
-          // check expected values are there
-          List.iter
-            (fun (id, name, value) ->
-              Expect.equal
-                (Dictionary.get id results)
-                (Some value)
-                $"{msg}: {id}, {name}")
-            expected
-
-
-          // Check that all patterns not included in 'expected' were evaluated,
-          // and are NotExecutedResults
-
-          // we expect _some_ result for all of these exprs
-          let expectedIDs =
-            (matchId :: getSubExprIds arg) @ List.map Tuple3.first expected |> Set
-
-          // ensure we don't have more expected results than actual results
-          Expect.isGreaterThan results.Count (Set.count expectedIDs) "sanity check"
-
-          let resultsUnaccountedFor =
-            Set.ofSeq (Dictionary.keys results)
-            |> Set.difference expectedIDs
-            |> Seq.map (fun id -> id, Dictionary.get id results)
-
-          resultsUnaccountedFor
-          |> Seq.iter (fun (id, result) ->
-            match result with
-            | Some (AT.ExecutedResult dv) ->
-              Expect.isTrue
-                false
-                $"{msg}: found unexpected execution result ({id}: {dv})"
-            | None -> Expect.isTrue false "missing value"
-            | Some (AT.NonExecutedResult _) -> ())
-        }
-
-      let er x = AT.ExecutedResult x
-      let ner x = AT.NonExecutedResult x
-      let inc iid = DIncomplete(SourceID(id 7, iid))
-
-      yield!
-        [ t
-            "int match"
-            (eInt 5)
-            [ (pIntId, "matching pat", er (DInt 5L))
-              (intRhsId, "matching rhs", er (DInt 17L))
-
-              (pVarId, "2nd matching pat", ner (DInt 5L))
-              (varRhsId, "2nd matching rhs", ner (DInt 5L)) ]
-
-          t
-            "non match"
-            (eInt 6)
-            [ (pIntId, "non matching pat", ner (DInt 5L))
-              (intRhsId, "non matching rhs", ner (DInt 17L))
-
-              (pFloatId, "float pat", ner (DFloat 5.6))
-              (floatRhsId, "float rhs", ner (DStr "float"))
-
-              (pBoolId, "bool pat", ner (DBool false))
-              (boolRhsId, "bool rhs", ner (DStr "bool"))
-
-              (pNullId, "null pat", ner DNull)
-              (nullRhsId, "null rhs", ner (DStr "null"))
-
-              (pOkVarOkId, "ok var pat ok", ner (inc pOkVarOkId))
-              (pOkVarVarId, "ok var pat var", ner (inc pOkVarVarId))
-              (okVarRhsId, "ok var pat rhs", ner (inc okVarRhsVarId))
-              (okVarRhsVarId, "ok var rhs var", ner (inc okVarRhsVarId))
-              (okVarRhsStrId, "ok var rhs str", ner (DStr "ok: "))
-
-              (pNothingId, "nothing pat", ner (DOption None))
-              (nothingRhsId, "nothing pat rhs", ner (DStr "constructor nothing"))
-
-              (pOkBlankOkId, "ok blank pat ok", ner (inc pOkBlankOkId))
-              (pOkBlankBlankId, "ok blank pat blank", ner (inc pOkBlankBlankId))
-              (okBlankRhsId, "ok blank rhs", ner (DStr "ok blank"))
-
-              (pVarId, "catch all pat", er (DInt 6L))
-              (varRhsId, "catch all rhs", er (DInt 6L)) ]
-
-          t
-            "float"
-            (eFloat Positive "5" "6")
-            [ (pFloatId, "pat", er (DFloat 5.6))
-              (floatRhsId, "rhs", er (DStr "float")) ]
-
-          t
-            "bool"
-            (eBool false)
-            [ (pBoolId, "pat", er (DBool false))
-              (boolRhsId, "rhs", er (DStr "bool")) ]
-
-          t
-            "null"
-            (eNull ())
-            [ (pNullId, "pat", er DNull); (nullRhsId, "rhs", er (DStr "null")) ]
-
-          t
-            "ok: y"
-            (eConstructor "Ok" [ eStr "y" ])
-            [ (pOkBlankOkId, "ok pat 1", ner (inc pOkBlankOkId))
-              (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
-              (okBlankRhsId, "rhs", ner (DStr "ok blank"))
-              (pOkVarOkId, "ok pat 2", er (DResult(Ok(DStr "y"))))
-
-              (binopFnValId,
-               "fnval",
-               er (
-                 DFnVal(
-                   FnName(
-                     PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
-                   )
-                 )
-               ))
-              (pOkVarVarId, "var pat", er (DStr "y"))
-              (okVarRhsId, "rhs", er (DStr "ok: y"))
-              (okVarRhsVarId, "rhs", er (DStr "y"))
-              (okVarRhsStrId, "str", er (DStr "ok: ")) ]
-
-          t
-            "ok: blank"
-            (eConstructor "Ok" [ EBlank(gid ()) ])
-            [ (pOkBlankOkId, "blank pat", ner (inc pOkBlankOkId))
-              (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
-              (okBlankRhsId, "blank rhs", ner (DStr "ok blank"))
-              (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
-              (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
-              (okVarRhsId, "rhs", ner (inc okVarRhsVarId))
-              (okVarRhsVarId, "rhs var", ner (inc okVarRhsVarId))
-              (okVarRhsStrId, "str", ner (DStr "ok: ")) ]
-
-          t
-            "nothing"
-            (eConstructor "Nothing" [])
-            [ (pNothingId, "ok pat", er (DOption None))
-              (nothingRhsId, "rhs", er (DStr "constructor nothing")) ]
-
-          // TODO: test constructor around a literal
-          // TODO: constructor around a variable
-          // TODO: constructor around a constructor around a value
-          ] ]
+      // TODO: test constructor around a literal
+      // TODO: constructor around a variable
+      // TODO: constructor around a constructor around a value
+      ]
 
 let tests =
   testList
