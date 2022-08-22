@@ -255,40 +255,43 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           false, [], traces
 
     uply {
+      // This is to avoid checking `state.tracing.realOrPreview = Real` below.
+      // If RealOrPreview gets additional branches, reconsider what to do here.
+      let isRealExecution =
+        match state.tracing.realOrPreview with
+        | Real -> true
+        | Preview -> false
+
       // The value we're matching against
       let! matchVal = eval state st matchExpr
 
-      let mutable resultMaybe : Option<Dval> = None
+      let mutable hasMatched = false
+      let mutable matchResult = incomplete patternId
 
-      do!
-        cases
-        |> Ply.List.iterSequentially (fun (pattern, rhsExpr) ->
+      for (pattern, rhsExpr) in cases do
+        if hasMatched && isRealExecution then
+          ()
+        else
           let passes, newDefs, traces = checkPattern matchVal pattern
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
 
-          if Option.isNone resultMaybe && passes then
-            uply {
-              traces
-              |> List.iter (fun (id, dv) ->
-                state.tracing.traceDval state.onExecutionPath id dv)
-              let! r = eval state newSymtable rhsExpr
-              resultMaybe <- Some r
-            }
+          if not hasMatched && passes then
+            traces
+            |> List.iter (fun (id, dv) ->
+              state.tracing.traceDval state.onExecutionPath id dv)
+
+            let! r = eval state newSymtable rhsExpr
+            matchResult <- r
+            hasMatched <- true
+          else if isRealExecution then
+            // "Real" evaluations don't need to persist non-matched traces
+            ()
           else
-            match state.tracing.realOrPreview with
-            | Real ->
-              // "Real" evaluations don't need to persist non-matched traces
-              uply { return () }
+            // If we're "previewing" (analysis), persist traces for all patterns
+            traces |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
+            do! preview newSymtable rhsExpr
 
-            | Preview ->
-              // If we're "previewing" (analysis), persist traces for all patterns
-              uply {
-                traces
-                |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
-                do! preview newSymtable rhsExpr
-              })
-
-      return Option.defaultValue (incomplete patternId) resultMaybe
+      return matchResult
     }
 
   uply {
