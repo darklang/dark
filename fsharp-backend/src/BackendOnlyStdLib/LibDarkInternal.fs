@@ -1205,6 +1205,11 @@ human-readable data."
               match ops with
               | [ (_tlid, ops) ] -> return ops |> List.map (string >> DStr) |> DList
               | _ -> return DList []
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
 
     // ---------------------
