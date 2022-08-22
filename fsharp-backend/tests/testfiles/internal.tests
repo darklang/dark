@@ -263,3 +263,10 @@ match deployHashMaybe with
  let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
  let _ = DarkInternal.setTunnelHost userID Nothing
  DarkInternal.getTunnelHost userID) = Nothing
+
+
+// ---------------
+// Ops
+// ---------------
+[test.getOpsForToplevel returns empty list for nonexistant TL]
+DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []

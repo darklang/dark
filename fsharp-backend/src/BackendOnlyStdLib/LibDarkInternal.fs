@@ -1189,6 +1189,29 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
+    { name = fn "DarkInternal" "getOpsForToplevel" 0
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
+      returnType = TList TStr
+      description = "Returns all ops for a tlid in the given canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DInt tlid ] ->
+            uply {
+              let tlid = uint64 tlid
+              let! ops =
+                let loadAmount = Serialize.LoadAmount.IncludeDeletedToplevels
+                Serialize.loadOplists loadAmount canvasID [ tlid ]
+
+              match ops with
+              | [ (_tlid, ops) ] -> return ops |> List.map (string >> DStr) |> DList
+              | _ -> return DList []
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     // ---------------------
     // Apis - tunnels
     // ---------------------
