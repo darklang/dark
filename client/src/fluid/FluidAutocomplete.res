@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 module RT = RuntimeTypes
 module TL = Toplevel
 
@@ -24,7 +27,7 @@ let focusItem = (i: int): AppTypes.cmd =>
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
       open Native.Ext
-      let container = Document.getElementById("fluid-dropdown", document)
+      let container = Document.getElementById(document, "fluid-dropdown")
       let nthChild = querySelector(
         "#fluid-dropdown ul li:nth-child(" ++ (string_of_int(i + 1) ++ ")"),
       )
@@ -673,7 +676,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     | None => list{Html.text(" takes no arguments.")}
     | Some(tipeStr) => list{
         Html.text(" takes a "),
-        Html.span(list{Html.class'("type")}, list{Html.text(tipeStr)}),
+        Html.span(list{Attrs.class'("type")}, list{Html.text(tipeStr)}),
         Html.text(" as its first argument."),
       }
     }
@@ -681,11 +684,11 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     Html.div(
       list{},
       list{
-        Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
+        Html.span(list{Attrs.class'("err")}, list{Html.text("Type error: ")}),
         Html.text("A value of type "),
-        Html.span(list{Html.class'("type")}, list{Html.text(DType.tipe2str(tipe))}),
+        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.tipe2str(tipe))}),
         Html.text(" is being piped into this function call, but "),
-        Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
+        Html.span(list{Attrs.class'("fn")}, list{Html.text(acFunction)}),
         ...typeInfo,
       },
     )
@@ -695,19 +698,19 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     Html.div(
       list{},
       list{
-        Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
+        Html.span(list{Attrs.class'("err")}, list{Html.text("Type error: ")}),
         Html.span(
-          list{Html.class'("fn")},
+          list{Attrs.class'("fn")},
           list{Html.text(fnName->Option.map(~f=PT.FQFnName.toString)->Option.unwrap(~default=""))},
         ),
         Html.text(" expects "),
-        Html.span(list{Html.class'("param")}, list{Html.text(paramName)}),
+        Html.span(list{Attrs.class'("param")}, list{Html.text(paramName)}),
         Html.text(" to be a "),
-        Html.span(list{Html.class'("type")}, list{Html.text(DType.tipe2str(returnType))}),
+        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.tipe2str(returnType))}),
         Html.text(", but "),
-        Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
+        Html.span(list{Attrs.class'("fn")}, list{Html.text(acFunction)}),
         Html.text(" returns a "),
-        Html.span(list{Html.class'("type")}, list{Html.text(acReturnType)}),
+        Html.span(list{Attrs.class'("type")}, list{Html.text(acReturnType)}),
       },
     )
   }
@@ -717,7 +720,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   let p = (text: string) => Html.p(list{}, list{Html.text(text)})
   let typeDoc = typeErrorDoc({item: item, validity: validity})
   let simpleDoc = (text: string) => Some(list{p(text), typeDoc})
-  let deprecated = Html.span(list{Html.class'("err")}, list{Html.text("DEPRECATED: ")})
+  let deprecated = Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")})
   switch item {
   | FACFunction(f) =>
     let desc = if String.length(f.fnDescription) != 0 {

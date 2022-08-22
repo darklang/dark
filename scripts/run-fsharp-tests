@@ -55,7 +55,7 @@ cd fsharp-backend && \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-123456 \
-  "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log"
+  "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log" 2>&1
 cd ..
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"

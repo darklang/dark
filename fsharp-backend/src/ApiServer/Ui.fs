@@ -78,13 +78,12 @@ let uiHtml
   (canvasName : CanvasName.T)
   (canAccessOperations : bool)
   (csrfToken : string)
-  (localhostAssets : string option)
+  (tunnelHost : string option)
   (accountCreated : NodaTime.Instant)
   (user : Account.UserInfo)
   : string =
 
-  let shouldHash =
-    if localhostAssets = None then Config.hashStaticFilenames else false
+  let shouldHash = if tunnelHost = None then Config.hashStaticFilenames else false
 
   let hashReplacements =
     if shouldHash then Lazy.force prodHashReplacementsString else "{}"
@@ -96,9 +95,12 @@ let uiHtml
     |> string
 
   let staticHost =
-    match localhostAssets with
-    // TODO: can add other people to this for easier debugging
-    | Some username -> $"darklang-{username}.ngrok.io"
+    match tunnelHost with
+    | Some host ->
+      if Account.validateTunnelHost host then
+        host
+      else
+        Exception.raiseEditor ("Invalid tunnel host")
     | _ -> Config.apiServerStaticHost
 
 
@@ -140,7 +142,11 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     let user = loadUserInfo ctx
     let sessionData = loadSessionData ctx
     let canvasInfo = loadCanvasInfo ctx
-    let localhostAssets = ctx.GetQueryStringValue "localhost-assets"
+    let! tunnelHost =
+      if ctx.Request.Query.ContainsKey "use-assets-tunnel" then
+        Account.tunnelHostFor user.id
+      else
+        Task.FromResult None
 
     t.next "create-at"
     let! createdAt = Account.getUserCreatedAt user.username
@@ -168,7 +174,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
         canvasInfo.name
         canAccessOperations
         sessionData.csrfToken
-        localhostAssets
+        tunnelHost
         createdAt
         user
 

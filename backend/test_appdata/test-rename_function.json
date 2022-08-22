@@ -1,42 +1,83 @@
 [
-  [ "TLSavepoint", 180770093 ],
+  [
+    "TLSavepoint",
+    180770093
+  ],
   [
     "SetHandler",
     180770093,
-    { "x": 600, "y": 200 },
+    {
+      "x": 600,
+      "y": 200
+    },
     {
       "tlid": 180770093,
-      "ast": [ "EFnCall", 3981133572, "fn1", [], [ "NoRail" ] ],
-      "spec": {
-        "module": [ "Blank", 1013789043 ],
-        "name": [ "Blank", 1686646085 ],
-        "modifier": [ "Blank", 1312698291 ],
-        "types": {
-          "input": [ "Blank", 1985365542 ],
-          "output": [ "Blank", 2118262029 ]
+      "pos": {
+        "x": 600,
+        "y": 200
+      },
+      "ast": [
+        "EFnCall",
+        3981133572,
+        [
+          "User",
+          "fn1"
+        ],
+        [],
+        [
+          "NoRail"
+        ]
+      ],
+      "spec": [
+        "UnknownHandler",
+        "",
+        "",
+        {
+          "moduleID": 1013789043,
+          "nameID": 1686646085,
+          "modifierID": 1312698291
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 123 ],
+  [
+    "TLSavepoint",
+    123
+  ],
   [
     "SetFunction",
     {
       "tlid": 123,
-      "metadata": {
-        "name": [ "Filled", 12399029, "fn1" ],
-        "parameters": [],
-        "return_type": [ "Filled", 4137008247, [ "TAny" ] ],
-        "description": "",
-        "infix": false
-      },
-      "ast": [
+      "name": "fn1",
+      "nameID": 12399029,
+      "parameters": [],
+      "returnType": [
+        "TVariable",
+        "a"
+      ],
+      "returnTypeID": 4137008247,
+      "description": "",
+      "infix": false,
+      "body": [
         "EBinOp",
         1894833988,
-        "+",
-        [ "EInteger", 1001241551, "5" ],
-        [ "EInteger", 540981105, "5" ],
-        [ "NoRail" ]
+        {
+          "module_": null,
+          "function_": "\u002B"
+        },
+        [
+          "EInteger",
+          1001241551,
+          5
+        ],
+        [
+          "EInteger",
+          540981105,
+          5
+        ],
+        [
+          "NoRail"
+        ]
       ]
     }
   ]

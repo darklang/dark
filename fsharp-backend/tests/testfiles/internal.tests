@@ -3,7 +3,7 @@
 // ---------------
 // Misc
 // ---------------
-Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
+Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 24
 (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
 
 // ---------------
@@ -242,5 +242,31 @@ match deployHashMaybe with
 (DarkInternal.deleteStaticAssetDeploy Test.getCanvasID "fake-deployhash") = null
 
 
+// ---------------
+// Tunnels
+// ---------------
+[test.tunnel is unset]
+(let _ = DarkInternal.insertUser_v2_ster "tunnel0" "tunnel0-test-user@darklang.com" "tunnel0 test user" {}
+ let userID = DarkInternal.getUserID_v0_ster "tunnel0"
+ DarkInternal.getTunnelHost userID) = Nothing
+
+[test.setting tunnel works]
+(let _ = DarkInternal.insertUser_v2_ster "tunnel1" "tunnel1-test-user@darklang.com" "tunnel1 test user" {}
+ let userID = DarkInternal.getUserID_v0_ster "tunnel1"
+ let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
+ DarkInternal.getTunnelHost userID) = Just "myhost.com"
+
+
+[test.clearing tunnel works]
+(let _ = DarkInternal.insertUser_v2_ster "tunnel2" "tunnel2-test-user@darklang.com" "tunnel2 test user" {}
+ let userID = DarkInternal.getUserID_v0_ster "tunnel2"
+ let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
+ let _ = DarkInternal.setTunnelHost userID Nothing
+ DarkInternal.getTunnelHost userID) = Nothing
+
+
+// ---------------
+// Ops
+// ---------------
 [test.getOpsForToplevel returns empty list for nonexistant TL]
 DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []

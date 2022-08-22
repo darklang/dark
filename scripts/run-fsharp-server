@@ -61,7 +61,7 @@ echo "Done waiting for compiled servers"
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 echo "Running migrations"
-"${EXECHOST_EXE}" migrations run > "$LOGS/fsharp-migrations.log"
+"${EXECHOST_EXE}" migrations run > "$LOGS/fsharp-migrations.log" 2>&1
 echo "Running apiserver"
 "${APISERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
 echo "Running bwdserver"

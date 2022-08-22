@@ -145,7 +145,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
 module CrossComponentCalls = {
   type t = (model, cmd)
 
-  let setToast = ((m, prevCmd): t, message: option<string>, pos: option<AppTypes.VPos.t>): t => {
+  let setToast = ((m, prevCmd): t, message: option<string>, pos: option<VPos.t>): t => {
     ({...m, toast: {message: message, pos: pos}}, prevCmd)
   }
 
@@ -961,7 +961,7 @@ let update_ = (msg: msg, m: model): modification => {
   | AppMouseDrag(mousePos) =>
     switch m.cursorState {
     | PanningCanvas({viewportStart, viewportCurr, prevCursorState}) =>
-      let viewportNext: AppTypes.VPos.t = {vx: mousePos.x, vy: mousePos.y}
+      let viewportNext: VPos.t = {vx: mousePos.x, vy: mousePos.y}
       let dx = viewportCurr.vx - viewportNext.vx
       let dy = viewportCurr.vy - viewportNext.vy
       Many(list{
@@ -1021,7 +1021,7 @@ let update_ = (msg: msg, m: model): modification => {
 
     switch m.cursorState {
     | PanningCanvas({viewportStart, viewportCurr, prevCursorState}) =>
-      let distSquared = (a: AppTypes.VPos.t, b: AppTypes.VPos.t): int => {
+      let distSquared = (a: VPos.t, b: VPos.t): int => {
         let dx = b.vx - a.vx
         let dy = b.vy - a.vy
         dx * dx + dy * dy
@@ -1961,15 +1961,21 @@ let update_ = (msg: msg, m: model): modification => {
         | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
         | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
 
-        | Some(InviteEffect(None))
-        | None => (m, Cmd.none)
-
         | Some(PrivacyEffect(RecordConsent(cmd))) => (m, cmd)
+
+        | Some(ContributingEffect(Some(SettingsContributing.Reload(cmd)))) => (m, cmd)
+        | Some(ContributingEffect(Some(SettingsContributing.RegisterTunnelHostAPICall(
+            tunnelHost,
+          )))) => (m, API.registerTunnelHost(m, {tunnelHost: tunnelHost}))
 
         | Some(OpenSettings(tab)) =>
           (m, Cmd.none)->CCC.setPage(SettingsModal(tab))->CCC.setCursorState(Deselected)
         | Some(SetSettingsTab(tab)) => (m, Cmd.none)->CCC.setPage(SettingsModal(tab))
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
+
+        | Some(ContributingEffect(None))
+        | Some(InviteEffect(None))
+        | None => (m, Cmd.none)
         }
       },
     )

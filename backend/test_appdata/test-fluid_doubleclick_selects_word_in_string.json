@@ -1,21 +1,36 @@
 [
-  [ "TLSavepoint", 123 ],
+  [
+    "TLSavepoint",
+    123
+  ],
   [
     "SetHandler",
     123,
-    { "x": 624, "y": 125 },
+    {
+      "x": 624,
+      "y": 125
+    },
     {
       "tlid": 123,
-      "ast": [ "EString", 957208143, "a string of different words" ],
-      "spec": {
-        "module": [ "Filled", 879313153, "HTTP" ],
-        "name": [ "Blank", 528254680 ],
-        "modifier": [ "Blank", 1004009926 ],
-        "types": {
-          "input": [ "Blank", 298767376 ],
-          "output": [ "Blank", 864661767 ]
+      "pos": {
+        "x": 624,
+        "y": 125
+      },
+      "ast": [
+        "EString",
+        957208143,
+        "a string of different words"
+      ],
+      "spec": [
+        "HTTP",
+        "",
+        "",
+        {
+          "moduleID": 879313153,
+          "nameID": 528254680,
+          "modifierID": 1004009926
         }
-      }
+      ]
     }
   ]
 ]

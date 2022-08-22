@@ -485,23 +485,23 @@ module Handler = {
 
       let toString = (i: t): string => {
         switch i {
-        | EveryDay => "EveryDay"
-        | EveryWeek => "EveryWeek"
-        | EveryFortnight => "EveryFortnight"
-        | EveryHour => "EveryHour"
-        | Every12Hours => "Every12Hours"
-        | EveryMinute => "EveryMinute"
+        | EveryDay => "Daily"
+        | EveryWeek => "Weekly"
+        | EveryFortnight => "Fortnightly"
+        | EveryHour => "Every 1hr"
+        | Every12Hours => "Every 12hrs"
+        | EveryMinute => "Every 1min"
         }
       }
       let fromString = (i: string): option<t> => {
-        switch i {
-        | "EveryDay" => Some(EveryDay)
-        | "EveryWeek" => Some(EveryWeek)
-        | "EveryFortnight" => Some(EveryFortnight)
-        | "EveryHour" => Some(EveryHour)
-        | "Every12Hours" => Some(Every12Hours)
-        | "EveryMinute" => Some(EveryMinute)
-        | _ => None
+        switch String.lowercase_ascii(i) {
+        | "daily" => Some(EveryDay)
+        | "weekly" => Some(EveryWeek)
+        | "fortnightly" => Some(EveryFortnight)
+        | "every 1hr" => Some(EveryHour)
+        | "every 12hrs" => Some(Every12Hours)
+        | "every 1min" => Some(EveryMinute)
+        | _ => Recover.recover("invalid cron interval", ~debug=i, None)
         }
       }
     }
@@ -537,6 +537,7 @@ module Handler = {
     @ppx.deriving(show({with_path: false}))
     type rec t =
       | HTTP(string, string, IDs.t)
+      | HTTPBasic(string, string, IDs.t)
       | Worker(string, IDs.t)
       | OldWorker(string, string, IDs.t)
       | Cron(string, option<CronInterval.t>, IDs.t)
@@ -548,6 +549,7 @@ module Handler = {
       let ev = variant
       switch spec {
       | HTTP(name, mod, ids) => ev("HTTP", list{string(name), string(mod), IDs.encode(ids)})
+      | HTTPBasic(name, mod, ids) => ev("HTTPBasic", list{string(name), string(mod), IDs.encode(ids)})
       | Worker(name, ids) => ev("Worker", list{string(name), IDs.encode(ids)})
       | OldWorker(space, name, ids) =>
         ev("OldWorker", list{string(space), string(name), IDs.encode(ids)})
@@ -565,6 +567,7 @@ module Handler = {
       variants(
         list{
           ("HTTP", dv3((a, b, c) => HTTP(a, b, c), string, string, IDs.decode)),
+          ("HTTPBasic", dv3((a, b, c) => HTTPBasic(a, b, c), string, string, IDs.decode)),
           ("Worker", dv2((a, b) => Worker(a, b), string, IDs.decode)),
           ("OldWorker", dv3((a, b, c) => OldWorker(a, b, c), string, string, IDs.decode)),
           (
@@ -580,6 +583,7 @@ module Handler = {
     let space = (spec: t): BlankOr.t<string> => {
       switch spec {
       | HTTP(_, _, ids) => F(ids.moduleID, "HTTP")
+      | HTTPBasic(_, _, ids) => F(ids.moduleID, "HTTP_BASIC")
       | Worker(_, ids) => F(ids.moduleID, "WORKER")
       | OldWorker(space, _, ids) => F(ids.moduleID, space)
       | Cron(_, _, ids) => F(ids.moduleID, "CRON")
@@ -590,6 +594,7 @@ module Handler = {
     let name = (spec: t): BlankOr.t<string> => {
       switch spec {
       | HTTP(name, _, ids)
+      | HTTPBasic(name, _, ids)
       | Worker(name, ids)
       | OldWorker(_, name, ids)
       | Cron(name, _, ids)
@@ -605,10 +610,12 @@ module Handler = {
     let modifier = (spec: t): option<BlankOr.t<string>> => {
       switch spec {
       | HTTP(_, "", ids)
+      | HTTPBasic(_, "", ids)
       | UnknownHandler(_, "", ids) =>
         Some(Blank(ids.modifierID))
 
       | HTTP(_, mod, ids)
+      | HTTPBasic(_, mod, ids)
       | UnknownHandler(_, mod, ids) =>
         Some(F(ids.modifierID, mod))
 
@@ -625,6 +632,7 @@ module Handler = {
     let ids = (spec: t): IDs.t => {
       switch spec {
       | HTTP(_, _, ids)
+      | HTTPBasic(_, _, ids)
       | Worker(_, ids)
       | OldWorker(_, _, ids)
       | Cron(_, _, ids)

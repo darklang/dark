@@ -93,7 +93,7 @@ let addOp = (m: model, focus: AppTypes.Focus.t, params: APIAddOps.Params.t): cmd
     "/v1/add_op",
     ~decoder=APIAddOps.decode,
     ~encoder=APIAddOps.Params.encode,
-    ~params,
+    ~params={...params, ops: APIAddOps.Params.withSavepoints(params.ops)},
     ~callback=x => AddOpsAPICallback(focus, params, x),
   )
 
@@ -105,6 +105,18 @@ let executeFunction = (m: model, params: APIExecution.Function.Params.t): cmd =>
     ~encoder=APIExecution.Function.Params.encode,
     ~params,
     ~callback=x => ExecuteFunctionAPICallback(params, x),
+  )
+
+let registerTunnelHost = (m: model, params: APITunnelHost.Params.t): cmd =>
+  apiCall(
+    m,
+    "/register_tunnel",
+    ~decoder=APITunnelHost.decode,
+    ~encoder=APITunnelHost.Params.encode,
+    ~params,
+    ~callback=success => SettingsMsg(
+      Settings.ContributingMsg(SettingsContributing.RegisterTunnelHostAPICallback(success)),
+    ),
   )
 
 let uploadFn = (m: model, params: APIPackages.UploadFn.Params.t): cmd =>

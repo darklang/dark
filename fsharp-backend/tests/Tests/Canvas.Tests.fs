@@ -514,13 +514,13 @@ let testCanvasClone =
     let tweakedSourceHandlers =
       sourceCanvas.handlers
       |> Map.values
-      |> List.map Json.OCamlCompatible.serialize
+      |> List.map Json.Vanilla.serialize
       |> List.map (
         String.replace
           "http://sample-gettingstarted.builtwithdark.localhost"
           "http://clone-gettingstarted.builtwithdark.localhost"
       )
-      |> List.map Json.OCamlCompatible.deserialize<PT.Handler.T>
+      |> List.map Json.Vanilla.deserialize<PT.Handler.T>
 
     Expect.equal
       tweakedSourceHandlers

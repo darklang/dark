@@ -19,9 +19,9 @@ let hintForFunction = (
 ): Vdom.t<'a> => {
   let errorRail = Html.a(
     list{
-      Html.class'("link"),
-      Html.href("https://docs.darklang.com/discussion/error-handling#error-rail"),
-      Html.target("_blank"),
+      Attrs.class'("link"),
+      Attrs.href("https://docs.darklang.com/discussion/error-handling#error-rail"),
+      Attrs.target("_blank"),
     },
     list{Html.text("error rail")},
   )

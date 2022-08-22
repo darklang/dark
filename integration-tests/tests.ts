@@ -696,13 +696,28 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("fluid_undo_redo_happen_exactly_once", async ({ page }) => {
+    // Test that the undos in the test file are respected
+
     await page.waitForSelector(".tl-608699171");
     await page.click(".id-68470584.fluid-category-string");
     await page.waitForSelector(".selected #active-editor");
+
     await expectExactText(page, ".fluid-category-string", '"12345"');
+
     await pressShortcut(page, "z");
     await expectExactText(page, ".fluid-category-string", '"1234"');
+
     await pressShortcut(page, "Shift+z");
+    await expectExactText(page, ".fluid-category-string", '"12345"');
+
+    // Test that savepoints get saved appropriately
+
+    // go to end of expr - the cursor is in the middle of the expr above
+    await pressShortcut(page, "ArrowRight");
+    await page.keyboard.press("6");
+    await expectExactText(page, ".fluid-category-string", '"123456"');
+
+    await pressShortcut(page, "z");
     await expectExactText(page, ".fluid-category-string", '"12345"');
   });
 

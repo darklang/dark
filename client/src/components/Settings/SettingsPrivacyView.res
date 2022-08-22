@@ -1,6 +1,7 @@
 // open Tc
 
-module Html = Tea_html_extended
+module Html = Tea.Html
+module Attrs = Tea.Attrs
 
 module T = SettingsPrivacy
 
@@ -13,20 +14,20 @@ let radio = (~value: string, ~label: string, ~msg: Settings.msg, ~checked: bool)
 > => {
   let key = "fs-consent-" ++ value
   Html.div(
-    list{Html.class'("choice"), disableOmniOpen},
+    list{Attrs.class'("choice"), disableOmniOpen},
     list{
       Html.input'(
         list{
-          Html.type'("radio"),
-          Html.id(key),
-          Html.name("fs-consent"),
-          Html.value(value),
-          Html.checked(checked),
+          Attrs.type'("radio"),
+          Attrs.id(key),
+          Attrs.name("fs-consent"),
+          Attrs.value(value),
+          Attrs.checked(checked),
           ViewUtils.eventNoPropagation(~key, "click", _ => SettingsMsg(msg)),
         },
         list{},
       ),
-      Html.label(list{Html.for'(key)}, list{Html.text(label)}),
+      Html.label(list{Attrs.for'(key)}, list{Html.text(label)}),
     },
   )
 }
@@ -39,17 +40,17 @@ let consentRow = (recordConsent: option<bool>, ~longLabels: bool): Html.html<App
   }
 
   Html.div(
-    list{Html.class'("setting-row")},
+    list{Attrs.class'("setting-row")},
     list{
       Html.div(
-        list{Html.class'("setting-label")},
+        list{Attrs.class'("setting-label")},
         list{
-          Html.div(list{Html.class'("title")}, list{Html.text("Record me using Dark")}),
-          Html.div(list{Html.class'("description")}, list{Html.text(explanation)}),
+          Html.div(list{Attrs.class'("title")}, list{Html.text("Record me using Dark")}),
+          Html.div(list{Attrs.class'("description")}, list{Html.text(explanation)}),
         },
       ),
       Html.div(
-        list{Html.class'("setting-control")},
+        list{Attrs.class'("setting-control")},
         list{
           radio(
             ~value="yes",
@@ -83,7 +84,7 @@ let viewTopbar = (state: T.t): Html.html<AppTypes.msg> => {
   }
 
   Html.div(
-    list{Html.classList(list{("modal-overlay", state.recordConsent == None)})},
-    list{Html.div(list{Html.class'("fullstory-modal " ++ cls)}, content)},
+    list{Attrs.classList(list{("modal-overlay", state.recordConsent == None)})},
+    list{Html.div(list{Attrs.class'("fullstory-modal " ++ cls)}, content)},
   )
 }

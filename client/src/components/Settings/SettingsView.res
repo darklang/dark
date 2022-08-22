@@ -1,11 +1,12 @@
 open Prelude
 
 // Dark
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Html.Events
 module Cmd = Tea.Cmd
-module Attributes = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
+
 module K = FluidKeyboard
-module Html = Tea_html_extended
 module T = Settings
 
 module Msg = AppTypes.Msg
@@ -13,12 +14,7 @@ type msg = AppTypes.msg
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let allTabs: list<T.Tab.t> = list{
-  T.Tab.Canvases,
-  Privacy,
-  Invite,
-  // T.Contributing
-}
+let allTabs: list<T.Tab.t> = list{T.Tab.Canvases, Privacy, Invite, Contributing}
 
 // View
 
@@ -27,7 +23,7 @@ let settingsTabToText = (tab: T.Tab.t): string =>
   | Canvases => SettingsCanvases.title
   | Invite => SettingsInvite.title
   | Privacy => SettingsPrivacy.title
-  // | Contributing(_) => SettingsContributing.title
+  | Contributing => SettingsContributing.title
   }
 
 let settingsTabToHtml = (state: T.t): list<Html.html<msg>> => {
@@ -35,7 +31,7 @@ let settingsTabToHtml = (state: T.t): list<Html.html<msg>> => {
   | Canvases => SettingsCanvasesView.view(state.canvasesSettings)
   | Invite => SettingsInviteView.view(state.inviteSettings)
   | Privacy => SettingsPrivacyView.view(state.privacySettings)
-  // | Contributing) => viewContributing(svs)
+  | Contributing => SettingsContributingView.view(state.contributingSettings)
   }
 }
 
@@ -45,7 +41,7 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
 
     Html.h3(
       list{
-        Html.classList(list{("tab-title", true), ("selected", isSameTab)}),
+        Attrs.classList(list{("tab-title", true), ("selected", isSameTab)}),
         ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
           SwitchTab(t),
         )),
@@ -54,13 +50,13 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
     )
   }
 
-  Html.div(list{Html.class'("settings-tab-titles")}, List.map(allTabs, ~f=tabTitle))
+  Html.div(list{Attrs.class'("settings-tab-titles")}, List.map(allTabs, ~f=tabTitle))
 }
 
 let settingViewWrapper = (acc: T.t): Html.html<msg> => {
   let tabView = settingsTabToHtml(acc)
   Html.div(
-    list{Html.class'("settings-tab-wrapper")},
+    list{Attrs.class'("settings-tab-wrapper")},
     list{Html.h1(list{}, list{Html.text("Settings")}), tabTitleView(acc.tab), ...tabView},
   )
 }
@@ -78,7 +74,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
   let svs = m.settingsView
   let closingBtn = Html.div(
     list{
-      Html.class'("close-btn"),
+      Attrs.class'("close-btn"),
       ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
         Close(svs.tab),
       )),
@@ -88,7 +84,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
 
   Html.div(
     list{
-      Html.class'("settings modal-overlay"),
+      Attrs.class'("settings modal-overlay"),
       ViewUtils.nothingMouseEvent("mousedown"),
       ViewUtils.nothingMouseEvent("mouseup"),
       ViewUtils.eventNoPropagation(~key="close-setting-modal", "click", _ => Msg.SettingsMsg(
@@ -98,11 +94,11 @@ let html = (m: AppTypes.model): Html.html<msg> => {
     list{
       Html.div(
         list{
-          Html.class'("modal"),
+          Attrs.class'("modal"),
           ViewUtils.nothingMouseEvent("click"),
           ViewUtils.eventNoPropagation(~key="ept", "mouseenter", _ => EnablePanning(false)),
           ViewUtils.eventNoPropagation(~key="epf", "mouseleave", _ => EnablePanning(true)),
-          Html.onCB("keydown", "keydown", onKeydown),
+          Events.onCB("keydown", "keydown", onKeydown),
         },
         list{settingViewWrapper(svs), closingBtn},
       ),

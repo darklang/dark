@@ -16,8 +16,6 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
-module OT = LibExecution.OCamlTypes
-module Convert = OT.Convert
 
 // ------------------
 // Uploading
@@ -298,7 +296,39 @@ let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
 // Fetching functions
 // ------------------
 
-type ParametersDBFormat = List<OT.PackageManager.parameter>
+// CLEANUP This is the OCaml Tipe, which is what's stored in the DB for parameter
+// function types. This is stored as jsonb in the parameters column of packages_v0.
+// While technically this is the OCaml tipe, in practice many of the types are the
+// same or nearly the same as ProgramTypes.DType.
+//
+// The code below is copied from the old OCamlTypes files. It can be simplified, and
+// it should be straightforward to remove it by looking at the parameters actually
+// stored in the DB.
+
+// actual types used in the DB: TStr, TAny, TInt, TList, TObj
+type tipe =
+  | TAny
+  | TInt
+  | TStr
+  | TList
+  | TObj
+
+let rec tipe2PT (o : tipe) : PT.DType =
+  let any = PT.TVariable "a"
+
+  match o with
+  | TAny -> any
+  | TInt -> PT.TInt
+  | TStr -> PT.TStr
+  | TList -> PT.TList any
+  | TObj -> PT.TDict any
+
+type Parameter = { name : string; tipe : tipe; description : string }
+
+let parameter2PT (o : Parameter) : PT.Package.Parameter =
+  { name = o.name; description = o.description; typ = tipe2PT o.tipe }
+
+type ParametersDBFormat = List<Parameter>
 
 let allFunctions () : Task<List<PT.Package.Fn>> =
   task {
@@ -317,7 +347,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
          read.string "module",
          read.string "fnname",
          read.int "version",
-         read.bytea "body2",  // the F#-serialized version
+         read.bytea "body2",
          read.string "return_type",
          read.string "parameters",
          read.string "description",
@@ -348,10 +378,9 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
               version = version }
           let expr = BinarySerialization.deserializeExpr tlid body2
           let parameters =
-            // CLEANUP convert to non-ocaml format (in the DB)
             parameters
-            |> Json.OCamlCompatible.deserialize<ParametersDBFormat>
-            |> List.map Convert.ocamlPackageManagerParameter2PT
+            |> Json.Vanilla.deserialize<ParametersDBFormat>
+            |> List.map parameter2PT
           let returnType =
             PTParser.DType.parse returnType
             |> Exception.unwrapOptionInternal
@@ -367,4 +396,4 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
             tlid = tlid })
   }
 
-let init () = do Json.OCamlCompatible.allow<ParametersDBFormat> "PackageManager"
+let init () = do Json.Vanilla.allow<ParametersDBFormat> "PackageManager"

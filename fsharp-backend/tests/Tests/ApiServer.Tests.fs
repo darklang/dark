@@ -16,9 +16,6 @@ open LibService.Exception
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module OT = LibExecution.OCamlTypes
-module ORT = OT.RuntimeT
-module Convert = LibExecution.OCamlTypes.Convert
 module TI = LibBackend.TraceInputs
 module Canvas = LibBackend.Canvas
 
@@ -132,9 +129,9 @@ let postAsync
     return! client.http.SendAsync(message)
   }
 
-let deserialize<'a> (str : string) : 'a = Json.OCamlCompatible.deserialize<'a> str
+let deserialize<'a> (str : string) : 'a = Json.Vanilla.deserialize<'a> str
 
-let serialize = Json.OCamlCompatible.serialize
+let serialize = Json.Vanilla.serialize
 
 let noBody () = ""
 
@@ -368,41 +365,6 @@ let postApiTest
   }
 
 
-let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
-  task {
-    let! (o : HttpResponseMessage) =
-      postAsync OCaml client $"/api/{canvasName}/all_traces" ""
-
-    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
-    let! body = o.Content.ReadAsStringAsync()
-
-    let canonicalize (t : Traces.TraceDataV0.T) : Traces.TraceDataV0.T =
-      { t with
-          trace =
-            t.trace
-            |> Tuple2.mapSecond (fun td ->
-              { td with
-                  timestamp = td.timestamp.truncate ()
-                  input = td.input |> List.sortBy (fun (k, v) -> k) }) }
-
-    do!
-      body
-      |> deserialize<Traces.AllTraces.T>
-      |> fun ts -> ts.traces
-      |> Task.iterInParallel (fun (tlid, traceID) ->
-        task {
-          let (ps : Traces.TraceDataV0.Params) = { tlid = tlid; trace_id = traceID }
-
-          do!
-            postApiTest
-              "get_trace_data"
-              (serialize ps)
-              (deserialize<Traces.TraceDataV0.T>)
-              canonicalize
-              client
-              canvasName
-        })
-  }
 
 // let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
 //   task {
@@ -882,7 +844,7 @@ let permissions =
           getAsync FSharp testClient $"/a/{username}"
 
         let! (apiResp : HttpResponseMessage) =
-          postAsync FSharp testClient $"/api/{username}/initial_load" ""
+          postAsync FSharp testClient $"/api/{username}/v1/initial_load" ""
 
         return (int uiResp.StatusCode, int apiResp.StatusCode)
       })

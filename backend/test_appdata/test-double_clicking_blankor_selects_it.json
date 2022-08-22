@@ -2,20 +2,34 @@
   [
     "SetHandler",
     123,
-    { "x": 533, "y": 212 },
+    {
+      "x": 533,
+      "y": 212
+    },
     {
       "tlid": 123,
-      "ast": [ "EBlank", 843662222 ],
-      "spec": {
-        "module": [ "Filled", 2902715028, "HTTP" ],
-        "name": [ "Filled", 564603214, "/hello" ],
-        "modifier": [ "Filled", 3842249056, "GET" ],
-        "types": {
-          "input": [ "Blank", 3051109331 ],
-          "output": [ "Blank", 3911767253 ]
+      "pos": {
+        "x": 533,
+        "y": 212
+      },
+      "ast": [
+        "EBlank",
+        843662222
+      ],
+      "spec": [
+        "HTTP",
+        "/hello",
+        "GET",
+        {
+          "moduleID": 2902715028,
+          "nameID": 564603214,
+          "modifierID": 3842249056
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 123 ]
+  [
+    "TLSavepoint",
+    123
+  ]
 ]

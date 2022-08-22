@@ -1,4 +1,4 @@
-/// Handles requests for evaluating expressions
+// Handles requests for evaluating expressions
 namespace Analysis
 
 open System.Threading.Tasks
@@ -12,8 +12,6 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
-module OT = LibExecution.OCamlTypes
-module ORT = LibExecution.OCamlTypes.RuntimeT
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 module CTA = ClientTypes.Analysis

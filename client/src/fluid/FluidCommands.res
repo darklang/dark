@@ -1,7 +1,10 @@
 open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
+
 module TL = Toplevel
-module Attrs = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
 module K = FluidKeyboard
 
 type modification = AppTypes.modification
@@ -92,7 +95,7 @@ let focusItem = (i: int): AppTypes.cmd =>
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
       open Native.Ext
-      let container = Document.getElementById("fluid-dropdown", document)
+      let container = Document.getElementById(document, "fluid-dropdown")
       let nthChild = querySelector(
         "#fluid-dropdown ul li:nth-child(" ++ (string_of_int(i + 1) ++ ")"),
       )
@@ -210,8 +213,8 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
       Vdom.attribute("", "spellcheck", "false"),
       Attrs.autocomplete(false),
       Events.onInput(query => Msg.FluidMsg(FluidCommandsFilter(query))),
-      Html.onCB("keydown", "command-keydown", onKeydown),
-      Html.onCB("blur", "lose focus", onLoseFocus),
+      Events.onCB("keydown", "command-keydown", onKeydown),
+      Events.onCB("blur", "lose focus", onLoseFocus),
     },
     list{},
   )
@@ -221,7 +224,7 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
     list{Html.ul(list{}, List.mapWithIndex(~f=viewCommands, cp.commands))},
   )
 
-  Html.div(list{Html.class'("command-palette")}, list{filterInput, cmdsView})
+  Html.div(list{Attrs.class'("command-palette")}, list{filterInput, cmdsView})
 }
 
 let cpSetIndex = (_m: model, i: int): modification => ReplaceAllModificationsWithThisOne(

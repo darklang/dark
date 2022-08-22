@@ -1,11 +1,21 @@
 [
-  [ "TLSavepoint", 1343557616 ],
+  [
+    "TLSavepoint",
+    1343557616
+  ],
   [
     "SetHandler",
     1343557616,
-    { "x": 426, "y": 255 },
+    {
+      "x": 426,
+      "y": 255
+    },
     {
       "tlid": 1343557616,
+      "pos": {
+        "x": 426,
+        "y": 255
+      },
       "ast": [
         "ELet",
         1883218232,
@@ -14,8 +24,22 @@
           "ERecord",
           1712631735,
           [
-            [ "x", [ "EInteger", 974264663, "5" ] ],
-            [ "abcde", [ "EString", 1444938771, "asdasd" ] ],
+            [
+              "x",
+              [
+                "EInteger",
+                974264663,
+                5
+              ]
+            ],
+            [
+              "abcde",
+              [
+                "EString",
+                1444938771,
+                "asdasd"
+              ]
+            ],
             [
               "state",
               [
@@ -28,8 +52,22 @@
                       "ERecord",
                       1063836876,
                       [
-                        [ "gth", [ "EInteger", 869348102, "5" ] ],
-                        [ "dfghjjk", [ "EInteger", 1356958392, "7" ] ]
+                        [
+                          "gth",
+                          [
+                            "EInteger",
+                            869348102,
+                            5
+                          ]
+                        ],
+                        [
+                          "dfghjjk",
+                          [
+                            "EInteger",
+                            1356958392,
+                            7
+                          ]
+                        ]
                       ]
                     ]
                   ]
@@ -47,7 +85,11 @@
             [
               "EFieldAccess",
               186189693,
-              [ "EVariable", 1811895793, "a" ],
+              [
+                "EVariable",
+                1811895793,
+                "a"
+              ],
               "state"
             ],
             "state2"
@@ -55,15 +97,15 @@
           "gth"
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 994343686, "REPL" ],
-        "name": [ "Filled", 1929338507, "stickyLion" ],
-        "modifier": [ "Filled", 398185173, "_" ],
-        "types": {
-          "input": [ "Blank", 2053585144 ],
-          "output": [ "Blank", 125697871 ]
+      "spec": [
+        "REPL",
+        "stickyLion",
+        {
+          "moduleID": 994343686,
+          "nameID": 1929338507,
+          "modifierID": 398185173
         }
-      }
+      ]
     }
   ]
 ]

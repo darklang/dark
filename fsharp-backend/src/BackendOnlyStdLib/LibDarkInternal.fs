@@ -193,6 +193,22 @@ that's already taken, returns an error."
       previewable = Impure
       deprecated = NotDeprecated }
 
+    { name = fn "DarkInternal" "getUserID" 0
+      parameters = [ Param.make "username" TStr "" ]
+      returnType = TOption(TUuid)
+      description = "Return a user's userID"
+      fn =
+        internalFn (function
+          | _, [ DStr username ] ->
+            uply {
+              let! info = Account.getUser (UserName.create username)
+              return info |> Option.map (fun user -> DUuid user.id) |> DOption
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
 
     { name = fn "DarkInternal" "setAdmin" 0
       parameters = [ Param.make "username" TStr ""; Param.make "admin" TBool "" ]
@@ -1189,6 +1205,46 @@ human-readable data."
               match ops with
               | [ (_tlid, ops) ] -> return ops |> List.map (string >> DStr) |> DList
               | _ -> return DList []
+
+
+    // ---------------------
+    // Apis - tunnels
+    // ---------------------
+    { name = fn "DarkInternal" "getTunnelHost" 0
+      parameters = [ Param.make "userID" TUuid "" ]
+      returnType = TOption TStr
+      description = "Returns the tunnelhost for this user"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID ] ->
+            uply {
+              match! Account.tunnelHostFor userID with
+              | None -> return DOption None
+              | Some host -> return DOption(Some(DStr host))
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "setTunnelHost" 0
+      parameters =
+        [ Param.make "userID" TUuid ""; Param.make "host" (TOption TStr) "" ]
+      returnType = TNull
+      description = "Sets the tunnelhost for this user"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID; DOption (v) ] ->
+            uply {
+              match v with
+              | Some (DStr host) ->
+                do! Account.setTunnelHostFor userID (Some host)
+                return DNull
+              | None ->
+                do! Account.setTunnelHostFor userID None
+                return DNull
+              | _ -> return incorrectArgs ()
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -1,359 +1,684 @@
 [
-  [ "TLSavepoint", 1355461351 ],
+  [
+    "TLSavepoint",
+    1355461351
+  ],
   [
     "SetHandler",
     1355461351,
-    { "x": 1435, "y": 127 },
+    {
+      "x": 1435,
+      "y": 127
+    },
     {
       "tlid": 1355461351,
-      "ast": [ "EBlank", 1798690726 ],
-      "spec": {
-        "module": [ "Filled", 1747663703, "HTTP" ],
-        "name": [ "Blank", 2031164403 ],
-        "modifier": [ "Blank", 113272105 ],
-        "types": {
-          "input": [ "Blank", 1536415303 ],
-          "output": [ "Blank", 522946436 ]
+      "pos": {
+        "x": 1435,
+        "y": 127
+      },
+      "ast": [
+        "EBlank",
+        1798690726
+      ],
+      "spec": [
+        "HTTP",
+        "",
+        "",
+        {
+          "moduleID": 1747663703,
+          "nameID": 2031164403,
+          "modifierID": 113272105
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 1355461351 ],
+  [
+    "TLSavepoint",
+    1355461351
+  ],
   [
     "SetHandler",
     1355461351,
-    { "x": 1435, "y": 127 },
+    {
+      "x": 1435,
+      "y": 127
+    },
     {
       "tlid": 1355461351,
-      "ast": [ "EBlank", 1798690726 ],
-      "spec": {
-        "module": [ "Filled", 1747663703, "HTTP" ],
-        "name": [ "Blank", 2031164403 ],
-        "modifier": [ "Filled", 113272105, "GET" ],
-        "types": {
-          "input": [ "Blank", 992032454 ],
-          "output": [ "Blank", 1433363495 ]
+      "pos": {
+        "x": 1435,
+        "y": 127
+      },
+      "ast": [
+        "EBlank",
+        1798690726
+      ],
+      "spec": [
+        "HTTP",
+        "",
+        "GET",
+        {
+          "moduleID": 1747663703,
+          "nameID": 2031164403,
+          "modifierID": 113272105
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 1355461351 ],
+  [
+    "TLSavepoint",
+    1355461351
+  ],
   [
     "SetHandler",
     1355461351,
-    { "x": 1435, "y": 127 },
+    {
+      "x": 1435,
+      "y": 127
+    },
     {
       "tlid": 1355461351,
-      "ast": [ "EBlank", 1798690726 ],
-      "spec": {
-        "module": [ "Filled", 1747663703, "HTTP" ],
-        "name": [ "Filled", 2031164403, "/h" ],
-        "modifier": [ "Filled", 113272105, "GET" ],
-        "types": {
-          "input": [ "Blank", 615450201 ],
-          "output": [ "Blank", 1589649050 ]
+      "pos": {
+        "x": 1435,
+        "y": 127
+      },
+      "ast": [
+        "EBlank",
+        1798690726
+      ],
+      "spec": [
+        "HTTP",
+        "/h",
+        "GET",
+        {
+          "moduleID": 1747663703,
+          "nameID": 2031164403,
+          "modifierID": 113272105
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 1355461351 ],
+  [
+    "TLSavepoint",
+    1355461351
+  ],
   [
     "SetHandler",
     1355461351,
-    { "x": 1435, "y": 127 },
+    {
+      "x": 1435,
+      "y": 127
+    },
     {
       "tlid": 1355461351,
-      "ast": [ "EBlank", 1798690726 ],
-      "spec": {
-        "module": [ "Filled", 1747663703, "HTTP" ],
-        "name": [ "Filled", 2031164403, "/hello" ],
-        "modifier": [ "Filled", 113272105, "GET" ],
-        "types": {
-          "input": [ "Blank", 1880582705 ],
-          "output": [ "Blank", 1359521410 ]
+      "pos": {
+        "x": 1435,
+        "y": 127
+      },
+      "ast": [
+        "EBlank",
+        1798690726
+      ],
+      "spec": [
+        "HTTP",
+        "/hello",
+        "GET",
+        {
+          "moduleID": 1747663703,
+          "nameID": 2031164403,
+          "modifierID": 113272105
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 1355461351 ],
+  [
+    "TLSavepoint",
+    1355461351
+  ],
   [
     "SetHandler",
     1355461351,
-    { "x": 1435, "y": 127 },
+    {
+      "x": 1435,
+      "y": 127
+    },
     {
       "tlid": 1355461351,
-      "ast": [ "EString", 30739139, "" ],
-      "spec": {
-        "module": [ "Filled", 1747663703, "HTTP" ],
-        "name": [ "Filled", 2031164403, "/hello" ],
-        "modifier": [ "Filled", 113272105, "GET" ],
-        "types": {
-          "input": [ "Blank", 1350824268 ],
-          "output": [ "Blank", 1568204567 ]
+      "pos": {
+        "x": 1435,
+        "y": 127
+      },
+      "ast": [
+        "EString",
+        30739139,
+        ""
+      ],
+      "spec": [
+        "HTTP",
+        "/hello",
+        "GET",
+        {
+          "moduleID": 1747663703,
+          "nameID": 2031164403,
+          "modifierID": 113272105
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 1355461351 ],
+  [
+    "TLSavepoint",
+    1355461351
+  ],
   [
     "SetHandler",
     1355461351,
-    { "x": 1435, "y": 127 },
+    {
+      "x": 1435,
+      "y": 127
+    },
     {
       "tlid": 1355461351,
-      "ast": [ "EString", 30739139, "h" ],
-      "spec": {
-        "module": [ "Filled", 1747663703, "HTTP" ],
-        "name": [ "Filled", 2031164403, "/hello" ],
-        "modifier": [ "Filled", 113272105, "GET" ],
-        "types": {
-          "input": [ "Blank", 266566730 ],
-          "output": [ "Blank", 65203660 ]
+      "pos": {
+        "x": 1435,
+        "y": 127
+      },
+      "ast": [
+        "EString",
+        30739139,
+        "h"
+      ],
+      "spec": [
+        "HTTP",
+        "/hello",
+        "GET",
+        {
+          "moduleID": 1747663703,
+          "nameID": 2031164403,
+          "modifierID": 113272105
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 1355461351 ],
+  [
+    "TLSavepoint",
+    1355461351
+  ],
   [
     "SetHandler",
     1355461351,
-    { "x": 1435, "y": 127 },
+    {
+      "x": 1435,
+      "y": 127
+    },
     {
       "tlid": 1355461351,
-      "ast": [ "EString", 30739139, "hi" ],
-      "spec": {
-        "module": [ "Filled", 1747663703, "HTTP" ],
-        "name": [ "Filled", 2031164403, "/hello" ],
-        "modifier": [ "Filled", 113272105, "GET" ],
-        "types": {
-          "input": [ "Blank", 1377820445 ],
-          "output": [ "Blank", 667283712 ]
+      "pos": {
+        "x": 1435,
+        "y": 127
+      },
+      "ast": [
+        "EString",
+        30739139,
+        "hi"
+      ],
+      "spec": [
+        "HTTP",
+        "/hello",
+        "GET",
+        {
+          "moduleID": 1747663703,
+          "nameID": 2031164403,
+          "modifierID": 113272105
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 535, "y": 420 },
+    {
+      "x": 535,
+      "y": 420
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EBlank", 1683710940 ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Blank", 203036555 ],
-        "modifier": [ "Blank", 473153512 ],
-        "types": {
-          "input": [ "Blank", 25625609 ],
-          "output": [ "Blank", 875361726 ]
+      "pos": {
+        "x": 535,
+        "y": 420
+      },
+      "ast": [
+        "EBlank",
+        1683710940
+      ],
+      "spec": [
+        "HTTP",
+        "",
+        "",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
-  [ "MoveTL", 666433085, { "x": 1433, "y": 225 } ],
-  [ "TLSavepoint", 666433085 ],
-  [ "MoveTL", 666433085, { "x": 1434, "y": 224 } ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
+  [
+    "MoveTL",
+    666433085,
+    {
+      "x": 1433,
+      "y": 225
+    }
+  ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
+  [
+    "MoveTL",
+    666433085,
+    {
+      "x": 1434,
+      "y": 224
+    }
+  ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EBlank", 1683710940 ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Blank", 203036555 ],
-        "modifier": [ "Filled", 473153512, "PUT" ],
-        "types": {
-          "input": [ "Blank", 561451024 ],
-          "output": [ "Blank", 1591356563 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EBlank",
+        1683710940
+      ],
+      "spec": [
+        "HTTP",
+        "",
+        "PUT",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
-  [ "MoveTL", 666433085, { "x": 1434, "y": 224 } ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
+  [
+    "MoveTL",
+    666433085,
+    {
+      "x": 1434,
+      "y": 224
+    }
+  ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EBlank", 1683710940 ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Blank", 203036555 ],
-        "modifier": [ "Filled", 473153512, "GET" ],
-        "types": {
-          "input": [ "Blank", 1816121165 ],
-          "output": [ "Blank", 789489363 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EBlank",
+        1683710940
+      ],
+      "spec": [
+        "HTTP",
+        "",
+        "GET",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EBlank", 1683710940 ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Blank", 203036555 ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 1817586380 ],
-          "output": [ "Blank", 562889730 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EBlank",
+        1683710940
+      ],
+      "spec": [
+        "HTTP",
+        "",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EBlank", 1683710940 ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 1688573894 ],
-          "output": [ "Blank", 7125380 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EBlank",
+        1683710940
+      ],
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EPartial", 1107818129, "r", [ "EBlank", 1425268926 ] ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 416110364 ],
-          "output": [ "Blank", 2096472672 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EPartial",
+        1107818129,
+        "r",
+        [
+          "EBlank",
+          1425268926
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EPartial", 1107818129, "rq", [ "EBlank", 1425268926 ] ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 133678863 ],
-          "output": [ "Blank", 151579590 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EPartial",
+        1107818129,
+        "rq",
+        [
+          "EBlank",
+          1425268926
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EPartial", 1107818129, "rqu", [ "EBlank", 1425268926 ] ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 181040516 ],
-          "output": [ "Blank", 1209839043 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EPartial",
+        1107818129,
+        "rqu",
+        [
+          "EBlank",
+          1425268926
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EPartial", 1107818129, "rque", [ "EBlank", 1425268926 ] ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 2038939732 ],
-          "output": [ "Blank", 192998733 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EPartial",
+        1107818129,
+        "rque",
+        [
+          "EBlank",
+          1425268926
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EPartial", 1107818129, "rques", [ "EBlank", 1425268926 ] ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 2120082104 ],
-          "output": [ "Blank", 1935325295 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EPartial",
+        1107818129,
+        "rques",
+        [
+          "EBlank",
+          1425268926
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
-      "ast": [ "EPartial", 1107818129, "rquest", [ "EBlank", 1425268926 ] ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 37641543 ],
-          "output": [ "Blank", 545704675 ]
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
+      "ast": [
+        "EPartial",
+        1107818129,
+        "rquest",
+        [
+          "EBlank",
+          1425268926
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
       "ast": [
         "EPartial",
         714315755,
@@ -361,28 +686,43 @@
         [
           "EFieldAccess",
           1130637733,
-          [ "EVariable", 988401816, "request" ],
+          [
+            "EVariable",
+            988401816,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 1283300938 ],
-          "output": [ "Blank", 144952591 ]
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
       "ast": [
         "EPartial",
         714315755,
@@ -390,28 +730,43 @@
         [
           "EFieldAccess",
           1130637733,
-          [ "EVariable", 988401816, "request" ],
+          [
+            "EVariable",
+            988401816,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 1914043003 ],
-          "output": [ "Blank", 1197102724 ]
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
       "ast": [
         "EPartial",
         714315755,
@@ -419,28 +774,43 @@
         [
           "EFieldAccess",
           1130637733,
-          [ "EVariable", 988401816, "request" ],
+          [
+            "EVariable",
+            988401816,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 1104877861 ],
-          "output": [ "Blank", 1006931536 ]
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
       "ast": [
         "EPartial",
         714315755,
@@ -448,28 +818,43 @@
         [
           "EFieldAccess",
           1130637733,
-          [ "EVariable", 988401816, "request" ],
+          [
+            "EVariable",
+            988401816,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 1088640847 ],
-          "output": [ "Blank", 1839147020 ]
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
       "ast": [
         "EPartial",
         714315755,
@@ -477,223 +862,414 @@
         [
           "EFieldAccess",
           1130637733,
-          [ "EVariable", 988401816, "request" ],
+          [
+            "EVariable",
+            988401816,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 981549475 ],
-          "output": [ "Blank", 417982376 ]
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 666433085 ],
+  [
+    "TLSavepoint",
+    666433085
+  ],
   [
     "SetHandler",
     666433085,
-    { "x": 1434, "y": 224 },
+    {
+      "x": 1434,
+      "y": 224
+    },
     {
       "tlid": 666433085,
+      "pos": {
+        "x": 1434,
+        "y": 224
+      },
       "ast": [
         "EFieldAccess",
         1130637733,
-        [ "EVariable", 988401816, "request" ],
+        [
+          "EVariable",
+          988401816,
+          "request"
+        ],
         "body"
       ],
-      "spec": {
-        "module": [ "Filled", 763677026, "HTTP" ],
-        "name": [ "Filled", 203036555, "/greet" ],
-        "modifier": [ "Filled", 473153512, "POST" ],
-        "types": {
-          "input": [ "Blank", 520611266 ],
-          "output": [ "Blank", 1767434913 ]
+      "spec": [
+        "HTTP",
+        "/greet",
+        "POST",
+        {
+          "moduleID": 763677026,
+          "nameID": 203036555,
+          "modifierID": 473153512
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EBlank", 240054020 ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Blank", 1058824261 ],
-        "types": {
-          "input": [ "Blank", 1987759541 ],
-          "output": [ "Blank", 1670004053 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EBlank",
+        240054020
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EBlank", 240054020 ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 867524914 ],
-          "output": [ "Blank", 1829352554 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EBlank",
+        240054020
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EPartial", 1249507059, "r", [ "EBlank", 1584317419 ] ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 1615975911 ],
-          "output": [ "Blank", 1941439730 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EPartial",
+        1249507059,
+        "r",
+        [
+          "EBlank",
+          1584317419
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EPartial", 1249507059, "re", [ "EBlank", 1584317419 ] ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 1760904256 ],
-          "output": [ "Blank", 2146909519 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EPartial",
+        1249507059,
+        "re",
+        [
+          "EBlank",
+          1584317419
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EPartial", 1249507059, "req", [ "EBlank", 1584317419 ] ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 985523978 ],
-          "output": [ "Blank", 127943745 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EPartial",
+        1249507059,
+        "req",
+        [
+          "EBlank",
+          1584317419
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EPartial", 1249507059, "requ", [ "EBlank", 1584317419 ] ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 802323438 ],
-          "output": [ "Blank", 1250061743 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EPartial",
+        1249507059,
+        "requ",
+        [
+          "EBlank",
+          1584317419
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EPartial", 1249507059, "reque", [ "EBlank", 1584317419 ] ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 2043493896 ],
-          "output": [ "Blank", 554034164 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EPartial",
+        1249507059,
+        "reque",
+        [
+          "EBlank",
+          1584317419
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EPartial", 1249507059, "reques", [ "EBlank", 1584317419 ] ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 830594324 ],
-          "output": [ "Blank", 906320607 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EPartial",
+        1249507059,
+        "reques",
+        [
+          "EBlank",
+          1584317419
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
-      "ast": [ "EPartial", 1249507059, "request", [ "EBlank", 1584317419 ] ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 1947094323 ],
-          "output": [ "Blank", 1118801725 ]
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
+      "ast": [
+        "EPartial",
+        1249507059,
+        "request",
+        [
+          "EBlank",
+          1584317419
+        ]
+      ],
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
       "ast": [
         "EPartial",
         564987523,
@@ -701,28 +1277,43 @@
         [
           "EFieldAccess",
           2115087762,
-          [ "EVariable", 18315041, "request" ],
+          [
+            "EVariable",
+            18315041,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 1686373237 ],
-          "output": [ "Blank", 571051888 ]
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
       "ast": [
         "EPartial",
         564987523,
@@ -730,28 +1321,43 @@
         [
           "EFieldAccess",
           2115087762,
-          [ "EVariable", 18315041, "request" ],
+          [
+            "EVariable",
+            18315041,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 172117671 ],
-          "output": [ "Blank", 1769773562 ]
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
       "ast": [
         "EPartial",
         564987523,
@@ -759,28 +1365,43 @@
         [
           "EFieldAccess",
           2115087762,
-          [ "EVariable", 18315041, "request" ],
+          [
+            "EVariable",
+            18315041,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 328360559 ],
-          "output": [ "Blank", 1390231918 ]
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
       "ast": [
         "EPartial",
         564987523,
@@ -788,28 +1409,43 @@
         [
           "EFieldAccess",
           2115087762,
-          [ "EVariable", 18315041, "request" ],
+          [
+            "EVariable",
+            18315041,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 2049759029 ],
-          "output": [ "Blank", 1071759793 ]
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
       "ast": [
         "EPartial",
         564987523,
@@ -817,489 +1453,927 @@
         [
           "EFieldAccess",
           2115087762,
-          [ "EVariable", 18315041, "request" ],
+          [
+            "EVariable",
+            18315041,
+            "request"
+          ],
           ""
         ]
       ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 92582713 ],
-          "output": [ "Blank", 779857565 ]
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 262224779 ],
+  [
+    "TLSavepoint",
+    262224779
+  ],
   [
     "SetHandler",
     262224779,
-    { "x": 1432, "y": 292 },
+    {
+      "x": 1432,
+      "y": 292
+    },
     {
       "tlid": 262224779,
+      "pos": {
+        "x": 1432,
+        "y": 292
+      },
       "ast": [
         "EFieldAccess",
         2115087762,
-        [ "EVariable", 18315041, "request" ],
+        [
+          "EVariable",
+          18315041,
+          "request"
+        ],
         "body"
       ],
-      "spec": {
-        "module": [ "Filled", 57004324, "HTTP" ],
-        "name": [ "Filled", 310288190, "/sleep" ],
-        "modifier": [ "Filled", 1058824261, "PUT" ],
-        "types": {
-          "input": [ "Blank", 200931866 ],
-          "output": [ "Blank", 1547207760 ]
+      "spec": [
+        "HTTP",
+        "/sleep",
+        "PUT",
+        {
+          "moduleID": 57004324,
+          "nameID": 310288190,
+          "modifierID": 1058824261
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
   [
     "SetHandler",
     827637950,
-    { "x": 1409, "y": 322 },
+    {
+      "x": 1409,
+      "y": 322
+    },
     {
       "tlid": 827637950,
-      "ast": [ "EBlank", 130220307 ],
-      "spec": {
-        "module": [ "Filled", 1060218826, "HTTP" ],
-        "name": [ "Filled", 1957782423, "/kill" ],
-        "modifier": [ "Blank", 361587917 ],
-        "types": {
-          "input": [ "Blank", 1743080972 ],
-          "output": [ "Blank", 1126934370 ]
+      "pos": {
+        "x": 1409,
+        "y": 322
+      },
+      "ast": [
+        "EBlank",
+        130220307
+      ],
+      "spec": [
+        "HTTP",
+        "/kill",
+        "",
+        {
+          "moduleID": 1060218826,
+          "nameID": 1957782423,
+          "modifierID": 361587917
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
   [
     "SetHandler",
     827637950,
-    { "x": 1409, "y": 322 },
+    {
+      "x": 1409,
+      "y": 322
+    },
     {
       "tlid": 827637950,
-      "ast": [ "EBlank", 130220307 ],
-      "spec": {
-        "module": [ "Filled", 1060218826, "HTTP" ],
-        "name": [ "Filled", 1957782423, "/kill" ],
-        "modifier": [ "Filled", 361587917, "DELETE" ],
-        "types": {
-          "input": [ "Blank", 1716127967 ],
-          "output": [ "Blank", 1112755884 ]
+      "pos": {
+        "x": 1409,
+        "y": 322
+      },
+      "ast": [
+        "EBlank",
+        130220307
+      ],
+      "spec": [
+        "HTTP",
+        "/kill",
+        "DELETE",
+        {
+          "moduleID": 1060218826,
+          "nameID": 1957782423,
+          "modifierID": 361587917
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
   [
     "SetHandler",
     827637950,
-    { "x": 1409, "y": 322 },
+    {
+      "x": 1409,
+      "y": 322
+    },
     {
       "tlid": 827637950,
-      "ast": [ "EString", 327231969, "" ],
-      "spec": {
-        "module": [ "Filled", 1060218826, "HTTP" ],
-        "name": [ "Filled", 1957782423, "/kill" ],
-        "modifier": [ "Filled", 361587917, "DELETE" ],
-        "types": {
-          "input": [ "Blank", 526120777 ],
-          "output": [ "Blank", 993163119 ]
+      "pos": {
+        "x": 1409,
+        "y": 322
+      },
+      "ast": [
+        "EString",
+        327231969,
+        ""
+      ],
+      "spec": [
+        "HTTP",
+        "/kill",
+        "DELETE",
+        {
+          "moduleID": 1060218826,
+          "nameID": 1957782423,
+          "modifierID": 361587917
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
   [
     "SetHandler",
     827637950,
-    { "x": 1409, "y": 322 },
+    {
+      "x": 1409,
+      "y": 322
+    },
     {
       "tlid": 827637950,
-      "ast": [ "EString", 327231969, "b" ],
-      "spec": {
-        "module": [ "Filled", 1060218826, "HTTP" ],
-        "name": [ "Filled", 1957782423, "/kill" ],
-        "modifier": [ "Filled", 361587917, "DELETE" ],
-        "types": {
-          "input": [ "Blank", 752746583 ],
-          "output": [ "Blank", 1863970135 ]
+      "pos": {
+        "x": 1409,
+        "y": 322
+      },
+      "ast": [
+        "EString",
+        327231969,
+        "b"
+      ],
+      "spec": [
+        "HTTP",
+        "/kill",
+        "DELETE",
+        {
+          "moduleID": 1060218826,
+          "nameID": 1957782423,
+          "modifierID": 361587917
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
   [
     "SetHandler",
     827637950,
-    { "x": 1409, "y": 322 },
+    {
+      "x": 1409,
+      "y": 322
+    },
     {
       "tlid": 827637950,
-      "ast": [ "EString", 327231969, "by" ],
-      "spec": {
-        "module": [ "Filled", 1060218826, "HTTP" ],
-        "name": [ "Filled", 1957782423, "/kill" ],
-        "modifier": [ "Filled", 361587917, "DELETE" ],
-        "types": {
-          "input": [ "Blank", 340072638 ],
-          "output": [ "Blank", 1948359140 ]
+      "pos": {
+        "x": 1409,
+        "y": 322
+      },
+      "ast": [
+        "EString",
+        327231969,
+        "by"
+      ],
+      "spec": [
+        "HTTP",
+        "/kill",
+        "DELETE",
+        {
+          "moduleID": 1060218826,
+          "nameID": 1957782423,
+          "modifierID": 361587917
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
   [
     "SetHandler",
     827637950,
-    { "x": 1409, "y": 322 },
+    {
+      "x": 1409,
+      "y": 322
+    },
     {
       "tlid": 827637950,
-      "ast": [ "EString", 327231969, "bye" ],
-      "spec": {
-        "module": [ "Filled", 1060218826, "HTTP" ],
-        "name": [ "Filled", 1957782423, "/kill" ],
-        "modifier": [ "Filled", 361587917, "DELETE" ],
-        "types": {
-          "input": [ "Blank", 387305683 ],
-          "output": [ "Blank", 1788951118 ]
+      "pos": {
+        "x": 1409,
+        "y": 322
+      },
+      "ast": [
+        "EString",
+        327231969,
+        "bye"
+      ],
+      "spec": [
+        "HTTP",
+        "/kill",
+        "DELETE",
+        {
+          "moduleID": 1060218826,
+          "nameID": 1957782423,
+          "modifierID": 361587917
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
   [
     "SetHandler",
     827637950,
-    { "x": 1409, "y": 322 },
+    {
+      "x": 1409,
+      "y": 322
+    },
     {
       "tlid": 827637950,
-      "ast": [ "EString", 327231969, "bye " ],
-      "spec": {
-        "module": [ "Filled", 1060218826, "HTTP" ],
-        "name": [ "Filled", 1957782423, "/kill" ],
-        "modifier": [ "Filled", 361587917, "DELETE" ],
-        "types": {
-          "input": [ "Blank", 1810111769 ],
-          "output": [ "Blank", 1679675135 ]
+      "pos": {
+        "x": 1409,
+        "y": 322
+      },
+      "ast": [
+        "EString",
+        327231969,
+        "bye "
+      ],
+      "spec": [
+        "HTTP",
+        "/kill",
+        "DELETE",
+        {
+          "moduleID": 1060218826,
+          "nameID": 1957782423,
+          "modifierID": 361587917
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
   [
     "SetHandler",
     827637950,
-    { "x": 1409, "y": 322 },
+    {
+      "x": 1409,
+      "y": 322
+    },
     {
       "tlid": 827637950,
-      "ast": [ "EString", 327231969, "bye" ],
-      "spec": {
-        "module": [ "Filled", 1060218826, "HTTP" ],
-        "name": [ "Filled", 1957782423, "/kill" ],
-        "modifier": [ "Filled", 361587917, "DELETE" ],
-        "types": {
-          "input": [ "Blank", 1686215217 ],
-          "output": [ "Blank", 612104395 ]
+      "pos": {
+        "x": 1409,
+        "y": 322
+      },
+      "ast": [
+        "EString",
+        327231969,
+        "bye"
+      ],
+      "spec": [
+        "HTTP",
+        "/kill",
+        "DELETE",
+        {
+          "moduleID": 1060218826,
+          "nameID": 1957782423,
+          "modifierID": 361587917
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 827637950 ],
-  [ "MoveTL", 827637950, { "x": 1429, "y": 379 } ],
-  [ "TLSavepoint", 537441732 ],
-  [ "TLSavepoint", 537441732 ],
+  [
+    "TLSavepoint",
+    827637950
+  ],
+  [
+    "MoveTL",
+    827637950,
+    {
+      "x": 1429,
+      "y": 379
+    }
+  ],
+  [
+    "TLSavepoint",
+    537441732
+  ],
+  [
+    "TLSavepoint",
+    537441732
+  ],
   [
     "CreateDBWithBlankOr",
     537441732,
-    { "x": 955, "y": 365 },
+    {
+      "x": 955,
+      "y": 365
+    },
     1671437049,
     "Db2095249745"
   ],
-  [ "AddDBCol", 537441732, 1051585295, 1028349181 ],
-  [ "TLSavepoint", 537441732 ],
-  [ "MoveTL", 537441732, { "x": 974, "y": 102 } ],
-  [ "TLSavepoint", 537441732 ],
-  [ "RenameDBname", 537441732, "Books" ],
-  [ "TLSavepoint", 537441732 ],
-  [ "SetDBColName", 537441732, 1051585295, "title" ],
-  [ "TLSavepoint", 537441732 ],
-  [ "TLSavepoint", 537441732 ],
-  [ "SetDBColType", 537441732, 1028349181, "String" ],
-  [ "AddDBCol", 537441732, 1022112795, 1974003310 ],
-  [ "TLSavepoint", 1056395833 ],
-  [ "TLSavepoint", 1056395833 ],
+  [
+    "AddDBCol",
+    537441732,
+    1051585295,
+    1028349181
+  ],
+  [
+    "TLSavepoint",
+    537441732
+  ],
+  [
+    "MoveTL",
+    537441732,
+    {
+      "x": 974,
+      "y": 102
+    }
+  ],
+  [
+    "TLSavepoint",
+    537441732
+  ],
+  [
+    "RenameDBname",
+    537441732,
+    "Books"
+  ],
+  [
+    "TLSavepoint",
+    537441732
+  ],
+  [
+    "SetDBColName",
+    537441732,
+    1051585295,
+    "title"
+  ],
+  [
+    "TLSavepoint",
+    537441732
+  ],
+  [
+    "TLSavepoint",
+    537441732
+  ],
+  [
+    "SetDBColType",
+    537441732,
+    1028349181,
+    "String"
+  ],
+  [
+    "AddDBCol",
+    537441732,
+    1022112795,
+    1974003310
+  ],
+  [
+    "TLSavepoint",
+    1056395833
+  ],
+  [
+    "TLSavepoint",
+    1056395833
+  ],
   [
     "CreateDBWithBlankOr",
     1056395833,
-    { "x": 948, "y": 129 },
+    {
+      "x": 948,
+      "y": 129
+    },
     986068061,
     "Db149981311"
   ],
-  [ "AddDBCol", 1056395833, 724430412, 651327813 ],
-  [ "TLSavepoint", 1056395833 ],
-  [ "DeleteTL", 1056395833 ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "AddDBCol",
+    1056395833,
+    724430412,
+    651327813
+  ],
+  [
+    "TLSavepoint",
+    1056395833
+  ],
+  [
+    "DeleteTL",
+    1056395833
+  ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 967, "y": 187 },
+    {
+      "x": 967,
+      "y": 187
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EBlank", 1348766731 ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 1995724019 ],
-          "output": [ "Blank", 25305426 ]
+      "pos": {
+        "x": 967,
+        "y": 187
+      },
+      "ast": [
+        "EBlank",
+        1348766731
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
-  [ "MoveTL", 445834184, { "x": 983, "y": 217 } ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
+  [
+    "MoveTL",
+    445834184,
+    {
+      "x": 983,
+      "y": 217
+    }
+  ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EPartial", 1059346376, "c", [ "EBlank", 2072008417 ] ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 780741331 ],
-          "output": [ "Blank", 1049477078 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EPartial",
+        1059346376,
+        "c",
+        [
+          "EBlank",
+          2072008417
+        ]
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EPartial", 1059346376, "co", [ "EBlank", 2072008417 ] ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 416086030 ],
-          "output": [ "Blank", 629988292 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EPartial",
+        1059346376,
+        "co",
+        [
+          "EBlank",
+          2072008417
+        ]
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EPartial", 1059346376, "coo", [ "EBlank", 2072008417 ] ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 2030054671 ],
-          "output": [ "Blank", 1121670622 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EPartial",
+        1059346376,
+        "coo",
+        [
+          "EBlank",
+          2072008417
+        ]
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EPartial", 1059346376, "co", [ "EBlank", 2072008417 ] ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 1729243261 ],
-          "output": [ "Blank", 432821306 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EPartial",
+        1059346376,
+        "co",
+        [
+          "EBlank",
+          2072008417
+        ]
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EPartial", 1059346376, "c", [ "EBlank", 2072008417 ] ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 1414787941 ],
-          "output": [ "Blank", 1436311527 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EPartial",
+        1059346376,
+        "c",
+        [
+          "EBlank",
+          2072008417
+        ]
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EBlank", 639776258 ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 881154528 ],
-          "output": [ "Blank", 1763130870 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EBlank",
+        639776258
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EString", 1464654981, "" ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 1970227152 ],
-          "output": [ "Blank", 628891406 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EString",
+        1464654981,
+        ""
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EString", 1464654981, "c" ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 714672220 ],
-          "output": [ "Blank", 2120728274 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EString",
+        1464654981,
+        "c"
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EString", 1464654981, "co" ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 32529966 ],
-          "output": [ "Blank", 1394170503 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EString",
+        1464654981,
+        "co"
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EString", 1464654981, "coo" ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 1243783688 ],
-          "output": [ "Blank", 210745924 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EString",
+        1464654981,
+        "coo"
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 445834184 ],
+  [
+    "TLSavepoint",
+    445834184
+  ],
   [
     "SetHandler",
     445834184,
-    { "x": 983, "y": 217 },
+    {
+      "x": 983,
+      "y": 217
+    },
     {
       "tlid": 445834184,
-      "ast": [ "EString", 1464654981, "cool" ],
-      "spec": {
-        "module": [ "Filled", 1328478379, "REPL" ],
-        "name": [ "Filled", 1390293146, "angryZebra" ],
-        "modifier": [ "Filled", 1579957176, "_" ],
-        "types": {
-          "input": [ "Blank", 731853095 ],
-          "output": [ "Blank", 741756697 ]
+      "pos": {
+        "x": 983,
+        "y": 217
+      },
+      "ast": [
+        "EString",
+        1464654981,
+        "cool"
+      ],
+      "spec": [
+        "REPL",
+        "angryZebra",
+        {
+          "moduleID": 1328478379,
+          "nameID": 1390293146,
+          "modifierID": 1579957176
         }
-      }
+      ]
     }
   ],
-  [ "TLSavepoint", 1100431814 ],
+  [
+    "TLSavepoint",
+    1100431814
+  ],
   [
     "SetFunction",
     {
       "tlid": 1100431814,
-      "metadata": {
-        "name": [ "Filled", 1864731927, "funfun" ],
-        "parameters": [],
-        "return_type": [ "Filled", 259936454, [ "TAny" ] ],
-        "description": "",
-        "infix": false
-      },
-      "ast": [ "EBlank", 1805781393 ]
+      "name": "funfun",
+      "nameID": 1864731927,
+      "parameters": [],
+      "returnType": [
+        "TVariable",
+        "a"
+      ],
+      "returnTypeID": 259936454,
+      "description": "",
+      "infix": false,
+      "body": [
+        "EBlank",
+        1805781393
+      ]
     }
   ],
-  [ "TLSavepoint", 1100431814 ],
+  [
+    "TLSavepoint",
+    1100431814
+  ],
   [
     "SetFunction",
     {
       "tlid": 1100431814,
-      "metadata": {
-        "name": [ "Filled", 1864731927, "funfun" ],
-        "parameters": [],
-        "return_type": [ "Filled", 259936454, [ "TAny" ] ],
-        "description": "",
-        "infix": false
-      },
-      "ast": [ "EInteger", 145090856, "8" ]
+      "name": "funfun",
+      "nameID": 1864731927,
+      "parameters": [],
+      "returnType": [
+        "TVariable",
+        "a"
+      ],
+      "returnTypeID": 259936454,
+      "description": "",
+      "infix": false,
+      "body": [
+        "EInteger",
+        145090856,
+        8
+      ]
     }
   ]
 ]

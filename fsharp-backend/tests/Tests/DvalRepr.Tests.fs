@@ -287,18 +287,6 @@ let allRoundtrips =
           |> Expect.dvalEquality dv)
         (dvs (function
           | RT.DPassword _ -> false
-          | _ -> true))
-      t
-        "ocamlCompatible"
-        (fun dv ->
-          dv
-          |> ClientTypes.Dval.fromRT
-          |> Prelude.Json.OCamlCompatible.serialize
-          |> Prelude.Json.OCamlCompatible.deserialize
-          |> ClientTypes.Dval.toRT
-          |> Expect.dvalEquality dv)
-        (dvs (function
-          | RT.DPassword _ -> false
           | _ -> true)) ]
 
 
@@ -422,20 +410,8 @@ module Password =
       doesRedact
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
-      doesRedact "Json.OCamlCompatible.serialize" (fun dv ->
-        dv |> CT.Dval.fromRT |> Json.OCamlCompatible.serialize)
       doesRedact "Json.Vanilla.serialize" (fun dv ->
         dv |> CT.Dval.fromRT |> Json.Vanilla.serialize)
-      // These test that serializing via ocaml types will also omit the password.
-      // This wasn't the case because these types are used for two contradictory
-      // purposes: to communicate with the legacy server (where redacting passwords
-      // is bad), and to comminucate with the client (where redacting is good)
-      doesRedact "ocaml Json.OCamlCompatible.serialize" (fun dv ->
-        dv
-        |> LibExecution.OCamlTypes.Convert.rt2ocamlDval
-        |> Json.OCamlCompatible.serialize)
-      doesRedact "ocaml Json.Vanilla.serialize" (fun dv ->
-        dv |> LibExecution.OCamlTypes.Convert.rt2ocamlDval |> Json.Vanilla.serialize)
       ()
     }
 
@@ -476,17 +452,6 @@ module Password =
             CT.Dval.DPassword(Password(UTF8.toBytes "some password"))
             |> Json.Vanilla.serialize
             |> Json.Vanilla.deserialize
-
-          Expect.equal
-            password
-            (CT.Dval.DPassword(Password(UTF8.toBytes "Redacted")))
-            "should be redacted"
-        }
-        test "ocamlcompatible" {
-          let password =
-            CT.Dval.DPassword(Password(UTF8.toBytes "some password"))
-            |> Json.OCamlCompatible.serialize
-            |> Json.OCamlCompatible.deserialize
 
           Expect.equal
             password

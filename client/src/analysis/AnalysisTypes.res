@@ -1,7 +1,7 @@
 module RT = RuntimeTypes
 module PT = ProgramTypes
 
-open BaseTypes
+open Belt_extended
 
 // CLEANUP: find a better place for this
 @ppx.deriving(show({with_path: false}))

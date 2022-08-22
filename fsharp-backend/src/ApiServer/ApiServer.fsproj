@@ -25,6 +25,7 @@
     <Compile Include="Api/APISecrets.fs" />
     <Compile Include="Api/APIToplevels.fs" />
     <Compile Include="Api/APITraces.fs" />
+    <Compile Include="Api/APITunnels.fs" />
     <Compile Include="Api/APIWorkers.fs" />
     <Compile Include="Api/APIInitialLoad.fs" />
     <Compile Include="Functions.fs" />

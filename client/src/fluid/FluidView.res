@@ -1,8 +1,8 @@
 open Prelude
 
-// Tea
-module Attrs = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+module Events = Tea.Events
 
 // Fluid
 module K = FluidKeyboard
@@ -23,8 +23,8 @@ type msg = AppTypes.msg
 let viewCopyButton = (tlid, value): Html.html<msg> =>
   Html.div(
     list{
-      Html.class'("copy-value"),
-      Html.title("Copy this expression's value to the clipboard"),
+      Attrs.class'("copy-value"),
+      Attrs.title("Copy this expression's value to the clipboard"),
       ViewUtils.eventNoPropagation(
         "click",
         ~key="copylivevalue-" ++ (value ++ TLID.toString(tlid)),
@@ -44,8 +44,8 @@ let viewArrow = (curID: id, srcID: id): Html.html<msg> => {
     let height = curRect.bottom - srcRect.top
     Html.div(
       list{
-        Html.class'("src-arrow"),
-        Html.styles(list{("height", "calc(" ++ (string_of_int(height) ++ "px - 2.5em)"))}),
+        Attrs.class'("src-arrow"),
+        Attrs.styles(list{("height", "calc(" ++ (string_of_int(height) ++ "px - 2.5em)"))}),
       },
       list{},
     )
@@ -172,8 +172,8 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
               "click",
               _ => FluidMsg(FluidFocusOnToken(tlid, srcID)),
             ),
-            Html.class'("jump-src"),
-            Html.title("Click here to go to the source of problem"),
+            Attrs.class'("jump-src"),
+            Attrs.title("Click here to go to the source of problem"),
           },
           list{Html.text(msg), ViewUtils.fontAwesome("arrow-alt-circle-up")},
         ),
@@ -209,8 +209,8 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
     let offset = float_of_int(row)
     Html.div(
       list{
-        Html.classList(list{("live-value", true), ("loaded", isLoaded.contents)}),
-        Html.styles(list{("top", Js.Float.toString(offset) ++ "rem")}),
+        Attrs.classList(list{("live-value", true), ("loaded", isLoaded.contents)}),
+        Attrs.styles(list{("top", Js.Float.toString(offset) ++ "rem")}),
         Attrs.autofocus(false),
         Vdom.attribute("", "spellcheck", "false"),
       },
@@ -240,7 +240,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
           | _ => false
           }
 
-        let warningAttr = Html.class'("warning-message")
+        let warningAttr = Attrs.class'("warning-message")
         let text = contents =>
           Html.div(list{warningAttr}, list{Html.text(contents), Html.br(list{})})
 
@@ -268,19 +268,19 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
             Html.div(
               list{warningAttr},
               list{
-                Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
+                Html.span(list{Attrs.class'("err")}, list{Html.text("Type error: ")}),
                 Html.text(
                   "This function should return " ++
                   (Util.indefiniteArticleFor(declaredTypeString) ++
                   " "),
                 ),
-                Html.span(list{Html.class'("type")}, list{Html.text(declaredTypeString)}),
+                Html.span(list{Attrs.class'("type")}, list{Html.text(declaredTypeString)}),
                 Html.text(
                   ", but this trace returns " ++
                   (Util.indefiniteArticleFor(actualTypeString) ++
                   " "),
                 ),
-                Html.span(list{Html.class'("type")}, list{Html.text(actualTypeString)}),
+                Html.span(list{Attrs.class'("type")}, list{Html.text(actualTypeString)}),
               },
             )
           }
@@ -297,7 +297,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
         }
 
         Html.div(
-          list{Html.class'("value")},
+          list{Attrs.class'("value")},
           list{
             Html.text("This trace returns: "),
             newLine,
@@ -308,7 +308,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
 
       Html.div(
         list{
-          Html.classList(list{
+          Attrs.classList(list{
             ("return-value", true),
             ("refreshed", isRefreshed),
             ("draggable", dragEvents != list{}),
@@ -349,7 +349,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
   let returnValue = viewReturnValue(vp, dragEvents)
   let debugAST = if vp.showHandlerASTs {
     Html.div(
-      list{Html.class'("debug-ast")},
+      list{Attrs.class'("debug-ast")},
       list{Html.text(E.toHumanReadable(FluidAST.toExpr(vp.astInfo.ast)))},
     )
   } else {
@@ -384,7 +384,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
         recover("got MainEditor when building feature flag editors", Html.div(list{}, list{}))
       | FeatureFlagEditor(_, flagID) =>
         let flagIcon = Html.div(
-          list{Html.class'("ff-icon"), Html.title("feature flag")},
+          list{Attrs.class'("ff-icon"), Attrs.title("feature flag")},
           list{ViewUtils.fontAwesome("flag")},
         )
 
@@ -411,8 +411,8 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
 
         Html.div(
           list{
-            Html.class'("fluid-secondary-editor"),
-            Html.styles(list{("top", string_of_int(rowOffset) ++ ".5rem")}),
+            Attrs.class'("fluid-secondary-editor"),
+            Attrs.styles(list{("top", string_of_int(rowOffset) ++ ".5rem")}),
           },
           list{flagIcon, FluidEditorView.view(editorProps)},
         )
@@ -424,5 +424,5 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
 }
 
 let view = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList) => list{
-  Html.div(list{Html.class'("fluid-ast")}, viewAST(vp, dragEvents)),
+  Html.div(list{Attrs.class'("fluid-ast")}, viewAST(vp, dragEvents)),
 }
