@@ -1182,14 +1182,13 @@ human-readable data."
           | _, [ DUuid canvasID; DInt tlid ] ->
             uply {
               let tlid = uint64 tlid
-
               let! ops =
                 let loadAmount = Serialize.LoadAmount.IncludeDeletedToplevels
                 Serialize.loadOplists loadAmount canvasID [ tlid ]
 
               match ops with
               | [ (_tlid, ops) ] -> return ops |> List.map (string >> DStr) |> DList
-              | _ -> return incorrectArgs ()
+              | _ -> return DList []
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

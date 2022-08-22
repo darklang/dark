@@ -240,3 +240,7 @@ match deployHashMaybe with
 
 [test.trying to delete a non-existant static asset deploy doesn't fail]
 (DarkInternal.deleteStaticAssetDeploy Test.getCanvasID "fake-deployhash") = null
+
+
+[test.getOpsForToplevel returns empty list for nonexistant TL]
+DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []
