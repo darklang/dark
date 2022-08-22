@@ -27,9 +27,12 @@ let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
 
 let noTestContext : RT.TestContext =
   { sideEffectCount = 0
+
     exceptionReports = []
     expectedExceptionCount = 0
-    postTestExecutionHook = fun _ _ -> () }
+    postTestExecutionHook = fun _ _ -> ()
+
+    useNewPatternMatchLogic = false }
 
 let createState
   (libraries : RT.Libraries)

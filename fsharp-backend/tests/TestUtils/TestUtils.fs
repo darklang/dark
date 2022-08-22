@@ -282,6 +282,7 @@ let executionStateFor
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
+
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =
@@ -303,7 +304,9 @@ let executionStateFor
               Exception.raiseInternal
                 $"UNEXPECTED EXCEPTION COUNT in test {meta.name}"
                 [ "expectedExceptionCount", tc.expectedExceptionCount
-                  "actualExceptionCount", tc.exceptionReports.Length ] }
+                  "actualExceptionCount", tc.exceptionReports.Length ]
+
+        useNewPatternMatchLogic = false }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function

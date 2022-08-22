@@ -483,7 +483,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // args and execute the body.
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
 
-    | EMatch (id, matchExpr, cases) -> return! evalMatchNew id matchExpr cases
+    | EMatch (id, matchExpr, cases) ->
+      let evalMatch =
+        if state.test.useNewPatternMatchLogic then evalMatchNew else evalMatchOld
+
+      return! evalMatch id matchExpr cases
 
     | EIf (_id, cond, thenbody, elsebody) ->
       match! eval state st cond with
