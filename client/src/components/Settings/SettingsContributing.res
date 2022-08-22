@@ -24,6 +24,9 @@ module TunnelHost = {
   //   - if saving fails, show the error (same place)
 
   @ppx.deriving(show)
+  type rec values = option<string>
+
+  @ppx.deriving(show)
   type rec saveStatus =
     | Saved
     | Saving
@@ -32,7 +35,7 @@ module TunnelHost = {
   @ppx.deriving(show)
   type rec loadStatus =
     | Loading
-    | Loaded(Belt.Result.t<string, unit>)
+    | Loaded(Belt.Result.t<values, unit>)
 
   @ppx.deriving(show)
   type rec t = {
@@ -44,55 +47,65 @@ module TunnelHost = {
 
   @ppx.deriving(show)
   type rec msg =
-    | LoadAPICallback(Tea.Result.t<string, Tea.Http.error<string>>)
+    | LoadAPICallback(Tea.Result.t<values, Tea.Http.error<string>>)
     | InputEdit(string)
     | InputUnfocus
     | Submit
     // Track parameter in case user has changed it
-    | SaveAPICallback(string, Tea.Result.t<unit, Tea.Http.error<string>>)
+    | SaveAPICallback(values, Tea.Result.t<bool, Tea.Http.error<string>>)
 
   @ppx.deriving(show)
-  type rec effect<'cmd> = Cmd('cmd) | NoEffect
+  type rec intent<'cmd> = Cmd('cmd) | NoIntent
 
-  let init = () => (
-    {loadStatus: Loading, saveStatus: NotSaving, value: None, error: None},
-    Cmd(NoEffect),
-  )
+  let default = {loadStatus: Loading, saveStatus: NotSaving, value: None, error: None}
 
-  let loadTunnelUrl = "https://editor.darklang.com/api/tunnel"
+  let loadEndpoint = "https://editor.darklang.com/api/tunnel"
 
-  let validate = (host: string): result<string, string> => Ok(host)
+  let validate = (host: string): result<values, string> => {
+    if host == "" {
+      Ok(None)
+    } else {
+      Ok(Some(host))
+    }
+  }
 
-  let update = (state: t, msg: msg): (t, effect<'cmd>) => {
-    let loadCmd = NoEffect // Some(Cmd(ApiFramework.get(loadTunnelUrl)))
-    let saveCmd = NoEffect // Some(Cmd(ApiFramework.get(loadTunnelUrl)))
+  let update = (state: t, msg: msg): (t, intent<'cmd>) => {
+    let saveCmd = NoIntent // Some(Cmd(ApiFramework.post(loadEndpoint)))
 
     switch msg {
     | LoadAPICallback(Error(e)) =>
       let errorStr = Tea.Http.string_of_error(e)
-      ({...state, error: Some(`Load error: ${errorStr}`), loadStatus: Loaded(Error())}, NoEffect)
+      ({...state, error: Some(`Load error: ${errorStr}`), loadStatus: Loaded(Error())}, NoIntent)
 
-    | LoadAPICallback(Ok(original)) => ({...state, loadStatus: Loaded(Ok(original))}, NoEffect)
+    | LoadAPICallback(Ok(original)) => ({...state, loadStatus: Loaded(Ok(original))}, NoIntent)
 
-    | InputEdit(tunnelHost) => ({...state, value: Some(tunnelHost)}, NoEffect)
+    | InputEdit(tunnelHost) => ({...state, value: Some(tunnelHost)}, NoIntent)
 
     | InputUnfocus =>
       switch validate(state.value->Belt.Option.getWithDefault("")) {
-      | Ok(validated) => ({...state, error: None, value: Some(validated)}, NoEffect)
-      | Error(e) => ({...state, error: Some(e)}, NoEffect)
+      | Ok(validated) => ({...state, error: None, value: validated}, NoIntent)
+      | Error(e) => ({...state, error: Some(e)}, NoIntent)
       }
 
     | Submit =>
       switch validate(state.value->Belt.Option.getWithDefault("")) {
-      | Ok(validated) => ({...state, saveStatus: Saving}, saveCmd)
-      | Error(e) => ({...state, error: Some(e)}, NoEffect)
+      | Ok(validated) => ({...state, value: validated, saveStatus: Saving}, saveCmd)
+      | Error(e) => ({...state, error: Some(e)}, NoIntent)
       }
 
     | SaveAPICallback(_, Error(e)) =>
       let error = Some(Tea.Http.string_of_error(e))
-      ({...state, error, saveStatus: NotSaving}, NoEffect)
+      ({...state, error, saveStatus: NotSaving}, NoIntent)
 
-    | SaveAPICallback(savedValue, Ok()) => ({...state, error: None, saveStatus: Saved}, NoEffect)
+    | SaveAPICallback(savedValue, Ok(true)) => (
+        {...state, loadStatus: Loaded(Ok(savedValue)), error: None, saveStatus: Saved},
+        NoIntent,
+      )
+
+    | SaveAPICallback(_, Ok(false)) => (
+        {...state, error: Some("server rejected value"), saveStatus: NotSaving},
+        NoIntent,
+      )
     }
   }
 }
@@ -112,9 +125,9 @@ module UseAssets = {
   type rec msg = Set(t)
 
   @ppx.deriving(show)
-  type rec effect = unit
+  type rec intent = unit
 
-  let update = (state: t, msg: msg): (t, effect) => (state, ())
+  let update = (state: t, _msg: msg): (t, intent) => (state, ())
 }
 
 let title = "Contributing"
@@ -122,17 +135,16 @@ let title = "Contributing"
 @ppx.deriving(show)
 type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t}
 
-let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default}
-
 @ppx.deriving(show)
 type rec msg =
   | TunnelHostMsg(TunnelHost.msg)
   | UseAssetsMsg(UseAssets.msg)
 
 @ppx.deriving(show)
-type rec effect<'cmd> =
-  TunnelHostEffect(TunnelHost.effect<'cmd>) | UseAssetsEffect(UseAssets.effect)
-// Reload('cmd) | RegisterTunnelHostAPICall(option<string>)
+type rec intent<'cmd> =
+  TunnelHostIntent(TunnelHost.intent<'cmd>) | UseAssetsIntent(UseAssets.intent)
+
+let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default}
 
 let tunnelQueryParamName = "use-assets-tunnel"
 
@@ -160,24 +172,14 @@ let clearTunnelQueryParam = (): unit => {
   modifySearchParamsAndReload(params => USP.delete(params, tunnelQueryParamName))
 }
 
-let update = (s: t, msg: msg): (t, effect<'cmd>) =>
+let update = (s: t, msg: msg): (t, intent<'cmd>) =>
   switch msg {
   | UseAssetsMsg(msg) =>
     let (useAssets, effect) = UseAssets.update(s.useAssets, msg)
-    ({...s, useAssets}, UseAssetsEffect(effect))
+    ({...s, useAssets}, UseAssetsIntent(effect))
   | TunnelHostMsg(msg) =>
     let (tunnelHost, effect) = TunnelHost.update(s.tunnelHost, msg)
-    ({...s, tunnelHost}, TunnelHostEffect(effect))
-
-  // | UpdateTunnelHostInput(value) => ({tunnelHost: {value: value, error: None}}, None)
-
-  // | SubmitTunnelHostForm =>
-  //   let param = if s.tunnelHost.value == "" {
-  //     None
-  //   } else {
-  //     Some(s.tunnelHost.value)
-  //   }
-  //   (s, Some(RegisterTunnelHostAPICall(param)))
+    ({...s, tunnelHost}, TunnelHostIntent(effect))
 
   // | RegisterTunnelHostAPICallback(result) =>
   //   // Instantly reload with the new url

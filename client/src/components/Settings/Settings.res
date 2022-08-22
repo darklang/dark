@@ -56,13 +56,13 @@ type rec msg =
   | ContributingMsg(SettingsContributing.msg)
 
 @ppx.deriving(show)
-type rec effect<'cmd> =
+type rec intent<'cmd> =
   | OpenSettings(Tab.t)
   | CloseSettings
   | SetSettingsTab(Tab.t)
   | PrivacyEffect(SettingsPrivacy.effect<'cmd>)
   | InviteEffect(option<SettingsInvite.effect>)
-  | ContributingEffect(option<SettingsContributing.effect<'cmd>>)
+  | ContributingIntent(SettingsContributing.intent<'cmd>)
 
 let setInviter = (state: t, username: string, name: string): t => {
   ...state,
@@ -86,26 +86,29 @@ let setCanvasesInfo = (
   ),
 }
 
-let update = (state: t, msg: msg): (t, option<effect<'cmd>>) =>
+let update = (state: t, msg: msg): (t, option<intent<'cmd>>) =>
   switch msg {
-  | Open(tab) => ({...state, opened: true, tab: tab}, Some(OpenSettings(tab)))
+  | Open(tab) => ({...state, opened: true, tab}, Some(OpenSettings(tab)))
   | Close(_) => ({...state, opened: false}, Some(CloseSettings))
-  | SwitchTab(tab) => ({...state, tab: tab}, Some(SetSettingsTab(tab)))
+  | SwitchTab(tab) => ({...state, tab}, Some(SetSettingsTab(tab)))
 
   | CanvasesMsg(msg) => {
       let newSettings = SettingsCanvases.update(state.canvasesSettings, msg)
       ({...state, canvasesSettings: newSettings}, None)
     }
+
   | PrivacyMsg(msg) => {
       let (newSettings, effect) = SettingsPrivacy.update(state.privacySettings, msg)
       ({...state, privacySettings: newSettings}, Some(PrivacyEffect(effect)))
     }
+
   | InviteMsg(msg) => {
       let (newSettings, effect) = SettingsInvite.update(state.inviteSettings, msg)
       ({...state, inviteSettings: newSettings}, Some(InviteEffect(effect)))
     }
+
   | ContributingMsg(msg) => {
-      let (newSettings, effect) = SettingsContributing.update(state.contributingSettings, msg)
-      ({...state, contributingSettings: newSettings}, Some(ContributingEffect(effect)))
+      let (newSettings, intent) = SettingsContributing.update(state.contributingSettings, msg)
+      ({...state, contributingSettings: newSettings}, Some(ContributingIntent(intent)))
     }
   }
