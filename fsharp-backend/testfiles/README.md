@@ -26,11 +26,6 @@ All "Dark code" in tests is parsed by the F# parser, then converted from F# to
 Dark - the converseion is within `FSharpToExpr.fs`. The error messages around
 this are not very good, but there are a few things to be careful of:
 
-- all tests must be of the format `x = y` (or `x <> y`, though that's rarely
-  used), that is, they must have a single expression on the left, one on the
-  right, and an equals sign in between. You can use parens around multiple
-  expressions to group them into a single expression, eg `(5 |> toString)`.
-
 - be explicit around pipes, wrapping them in parens to make sure the right
   expression is being piped. Otherwise you will typically get type errors.
 

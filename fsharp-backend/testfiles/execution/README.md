@@ -6,12 +6,18 @@ libraries. A typical test is a single line, such as:
 `String.length_v0 "abcdef" = 6`
 
 This is written in a Dark-like syntax, and asserts that calling the function
-`String::length_v0` on `"abcdef"` is evaluated to 6.
+`String::length_v0` on `"abcdef"` is evaluated to 6. More details on the syntax
+of these tests may be found in `testfiles/README.md`.
 
 Most tests are written as single lines, however, we support multi-line tests,
 test groups, functions, Datastores and workers.
 
-The implementation of the tests is in Tests/LibExecution.Tests.fs.
+The implementation of the tests is in `LibExecution.Tests.fs`.
+
+All tests must be of the format `x = y` (or `x <> y`, though that's rarely
+used), that is, they must have a single expression on the left, one on the
+right, and an equals sign in between. You can use parens around multiple
+expressions to group them into a single expression, eg `(5 |> toString)`.
 
 # Test file format
 
