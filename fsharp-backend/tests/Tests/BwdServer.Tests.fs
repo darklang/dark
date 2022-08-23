@@ -8,6 +8,10 @@
 /// which should be phased out. CLEANUP
 module Tests.BwdServer
 
+let httpFilesBasePath = "tests/httptestfiles"
+let httpBasicFilesBasePath = "tests/httpbasictestfiles"
+let dataBasePath = "testfiles/data"
+
 open Expecto
 
 open System.Threading.Tasks
@@ -138,7 +142,7 @@ module ParseTest =
         | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
           // TODO do this as part of run-time, not during parse-time
           let injectedBytes =
-            System.IO.File.ReadAllBytes $"{rootDir}/data/{dataFileToInject}"
+            System.IO.File.ReadAllBytes $"{dataBasePath}/{dataFileToInject}"
 
           match state with
           | InRequest ->
@@ -539,8 +543,8 @@ let tests =
   // TODO merge these directories into a `tests/httphandlertestfiles`
   // directory, with a subfolder per handler/middleware type.
 
-  [ ("tests/httptestfiles", "http", Http)
-    ("tests/httpbasictestfiles", "httpbasic", HttpBasic) ]
+  [ (httpFilesBasePath, "http", Http)
+    (httpBasicFilesBasePath, "httpbasic", HttpBasic) ]
   |> List.map (fun (dir, testListName, handlerType) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")
