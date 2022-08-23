@@ -1,7 +1,11 @@
+/// Reads, parses, and runs the Dark test files in `testfiles/execution`.
+///
+/// `testfiles/execution/README.md` provides an outline for how the test files,
+/// along with `testfiles/README.md` providing additional context related to
+/// syntax.
 module Tests.LibExecution
 
-// Create test cases from .tests files in the tests/testfiles dir
-// A readme in that same directory exists to explain usage.
+let baseDir = "testfiles/execution/"
 
 open Expecto
 
@@ -279,9 +283,7 @@ let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras 
 
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
-  let dir = "tests/testfiles/"
-
-  System.IO.Directory.GetFiles(dir, "*.tests")
+  System.IO.Directory.GetFiles(baseDir, "*.tests")
   |> Array.filter ((<>) "README.md")
   |> Array.filter ((<>) ".gitattributes")
   |> Array.map (fun file ->
@@ -380,12 +382,12 @@ let fileTests () : Test =
       currentFn <- emptyFn
       currentGroup <- emptyGroup
 
-    (dir + filename)
+    (baseDir + filename)
     |> System.IO.File.ReadLines
     |> Seq.iteri (fun i line ->
       let i = i + 1
 
-      // This format is described in testfiles/README.md. If you make
+      // This format is described in testfiles/execution/README.md. If you make
       // any changes, update that file.
       match line with
       // [tests] indicator
