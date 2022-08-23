@@ -8,8 +8,7 @@
 /// which should be phased out. CLEANUP
 module Tests.BwdServer
 
-let httpFilesBasePath = "tests/httptestfiles"
-let httpBasicFilesBasePath = "tests/httpbasictestfiles"
+let basePath = "testfiles/httphandler"
 let dataBasePath = "testfiles/data"
 
 open Expecto
@@ -543,8 +542,8 @@ let tests =
   // TODO merge these directories into a `tests/httphandlertestfiles`
   // directory, with a subfolder per handler/middleware type.
 
-  [ (httpFilesBasePath, "http", Http)
-    (httpBasicFilesBasePath, "httpbasic", HttpBasic) ]
+  [ ($"{basePath}/http", "http", Http)
+    ($"{basePath}/httpbasic", "httpbasic", HttpBasic) ]
   |> List.map (fun (dir, testListName, handlerType) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")
