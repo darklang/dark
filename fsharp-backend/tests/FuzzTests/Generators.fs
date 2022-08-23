@@ -78,6 +78,15 @@ let safeInt64 =
 
 let SafeInt64 = Arb.fromGen safeInt64
 
+/// Helper function to generate allowed function name parts, bindings, etc.
+let simpleName (first : char list) (other : char list) : Gen<string> =
+  gen {
+    let! tailLength = Gen.choose (0, 20)
+    let! head = Gen.elements first
+    let! tail = Gen.arrayOfLength tailLength (Gen.elements other)
+    return System.String(Array.append [| head |] tail)
+  }
+
 module NodaTime =
   let instant =
     Arb.generate<System.DateTime>
@@ -89,6 +98,17 @@ module NodaTime =
 
   let Instant = instant |> Arb.fromGen
   let LocalDateTime = localDateTime |> Arb.fromGen
+
+module FQFnName =
+  let ownerName =
+    simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
+
+  let packageName =
+    simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
+
+  let modName = simpleName [ 'A' .. 'Z' ] alphaNumericCharacters
+
+  let fnName = simpleName [ 'a' .. 'z' ] alphaNumericCharacters
 
 module RuntimeTypes =
   let Dval : Arbitrary<RT.Dval> = Arb.Default.Derive()
@@ -131,3 +151,234 @@ module RuntimeTypes =
     Arb.Default.Derive() |> Arb.filter isSupportedType
 
   let dType = DType.Generator
+
+// TODO: figure out a way to ensure that these bottom-up generators exhaust all
+// cases (as opposed to the generate-then-filter ones). With this style, it's
+// easy to add a new DU case and then not add a corresponding generator here.
+
+// TODO: for things like strings, mostly generate a small-ish pool of random
+// values. That way, a generated PString pattern is more likely to match some
+// generated EString value.
+
+// TODO: clone all of this, and _really_ only generate a few values of each
+// type. For example, for ints we really only need a handful of different
+// options. That way, patterns are more likely to _actually_ match.
+
+module ProgramTypes =
+  // TODO: use this less over time
+  let simpleString =
+    simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
+
+  module Pattern =
+    let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.PInteger(gid (), i))
+    let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.PBool(gid (), b))
+    let genBlank = gen { return PT.PBlank(gid ()) }
+    let genNull = gen { return PT.PNull(gid ()) }
+    let genChar = char |> Gen.map (fun c -> PT.PCharacter(gid (), c))
+    let genStr = simpleString |> Gen.map (fun s -> PT.PString(gid (), s))
+
+    // TODO: genFloat
+    // let genFloat = gen {return PT.PBlank (gid()) }
+
+    let genVar = simpleString |> Gen.map (fun s -> PT.PVariable(gid (), s))
+
+    let constructor (s, genArg) : Gen<PT.Pattern> =
+      let withMostlyFixedArgLen (name, expectedParamCount) =
+        gen {
+          let! argCount =
+            Gen.frequency [ (95, Gen.constant expectedParamCount)
+                            (5, Gen.elements [ 1..20 ]) ]
+
+          let! args = Gen.listOfLength argCount (genArg (s / 2))
+
+          return PT.PConstructor(gid (), name, args)
+        }
+
+      let ok = withMostlyFixedArgLen ("Ok", 1)
+      let error = withMostlyFixedArgLen ("Error", 1)
+      let just = withMostlyFixedArgLen ("Just", 1)
+      let nothing = withMostlyFixedArgLen ("Nothing", 0)
+
+      Gen.frequency [ (24, ok) // OK [p] (usually 1 arg; rarely, more)
+                      (24, error) // Error [p] (usually 1 arg; rarely, more)
+
+                      (24, just) // Just [p] (usually 1 arg; rarely, more)
+                      (24, nothing) // Nothing [] (usually 0 args; rarely, more)
+
+                      //(4, ok) // TODO: random string, with 0-5 args
+                       ]
+
+  open Pattern
+
+  let pattern =
+    // TODO: consider adding 'weight' such that certain patterns are generated more often than others
+    let rec gen' s : Gen<PT.Pattern> =
+      let finitePatterns =
+        [ genInt; genBool; genBlank; genNull; genChar; genStr; genVar ]
+
+      let allPatterns = constructor (s, gen') :: finitePatterns
+
+      match s with
+      | 0 -> Gen.oneof finitePatterns
+      | n when n > 0 -> Gen.oneof allPatterns
+      | _ -> invalidArg "s" "Only positive arguments are allowed"
+
+    Gen.sized gen' // todo: depth of 20 seems kinda reasonable
+
+
+  let patternsForMatch : Gen<List<PT.Pattern>> =
+    gen {
+      let! len = Gen.choose (1, 20)
+      return! Gen.listOfLength len pattern
+    }
+
+  module Expr =
+    // Non-recursive exprs
+    let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.EInteger(gid (), i))
+
+    let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.EBool(gid (), b))
+
+    let genBlank = gen { return PT.EBlank(gid ()) }
+
+    let genNull = gen { return PT.ENull(gid ()) }
+
+    let genChar = char |> Gen.map (fun c -> PT.ECharacter(gid (), c))
+
+    let genStr = simpleString |> Gen.map (fun s -> PT.EString(gid (), s))
+
+    let genVar = simpleString |> Gen.map (fun s -> PT.EVariable(gid (), s))
+
+    // TODO: genFloat
+
+    // Recursive exprs
+    let genLet (s, genSubExpr) =
+      gen {
+        let! varName = simpleString
+        let! rhsExpr = genSubExpr (s / 2)
+        let! nextExpr = genSubExpr (s / 2)
+
+        return PT.ELet(gid (), varName, rhsExpr, nextExpr)
+      }
+
+    let genIf (s, genSubExpr) =
+      gen {
+        let! condExpr = Gen.frequency [ (90, genBool); (10, genSubExpr (s / 2)) ]
+        let! thenExpr = genSubExpr (s / 2)
+        let! elseExpr = genSubExpr (s / 2)
+
+        return PT.EIf(gid (), condExpr, thenExpr, elseExpr)
+      }
+
+    let genConstructor (s, genSubExpr) : Gen<PT.Expr> =
+      let withMostlyFixedArgLen (name, expectedParamCount) =
+        gen {
+          let! argCount =
+            Gen.frequency [ (95, Gen.constant expectedParamCount)
+                            (5, Gen.elements [ 1..20 ]) ]
+
+          let! args = Gen.listOfLength argCount (genSubExpr (s / 2))
+
+          return PT.EConstructor(gid (), name, args)
+        }
+
+      let ok = withMostlyFixedArgLen ("Ok", 1)
+      let error = withMostlyFixedArgLen ("Error", 1)
+      let just = withMostlyFixedArgLen ("Just", 1)
+      let nothing = withMostlyFixedArgLen ("Nothing", 0)
+
+      Gen.frequency [ (24, ok) // OK [p] (usually 1 arg; rarely, more)
+                      (24, error) // Error [p] (usually 1 arg; rarely, more)
+
+                      (24, just) // Just [p] (usually 1 arg; rarely, more)
+                      (24, nothing) // Nothing [] (usually 0 args; rarely, more)
+
+                      //(4, ok) // TODO: random string, with 0-5 args
+                       ]
+
+    let genTuple (s, genSubExpr) =
+      gen {
+        let! first = genSubExpr (s / 2)
+        let! second = genSubExpr (s / 2)
+
+        // 7-element tuples seem sufficient
+        let! tailLength = Gen.elements [ 0..5 ]
+        let! theRest = Gen.listOfLength tailLength (genSubExpr (s / 2))
+
+        return PT.ETuple(gid (), first, second, theRest)
+      }
+
+    let genList (s, genSubExpr) =
+      gen {
+        let! els = Gen.listOf (genSubExpr (s / 2))
+        return PT.EList(gid (), els)
+      }
+
+    let genRecord (s, genSubExpr) =
+      gen {
+        let! pairs =
+          gen {
+            let! name = simpleString
+            let! v = genSubExpr (s / 2)
+            return (name, v)
+          }
+          |> Gen.listOf
+
+        return PT.ERecord(gid (), pairs)
+      }
+
+    let genMatch genPattern (s, genSubExpr) =
+      gen {
+        // TODO: consider limiting the # of cases - something between 1 and 10?
+        let! cases =
+          gen {
+            let! p = genPattern
+            let! v = genSubExpr (s / 2)
+            return (p, v)
+          }
+          |> Gen.listOf
+
+        let! matchExpr = genSubExpr (s / 2)
+
+        return PT.EMatch(gid (), matchExpr, cases)
+      }
+
+
+  // We haven't yet created generators for these
+  // They eventually belong above in the Expr sub-module
+  // TODO: EBinOp
+  // TODO: ELambda
+  // TODO: EFieldAccess
+  // TODO: EFnCall
+  // TODO: EPartial
+  // TODO: ERightPartial
+  // TODO: ELeftPartial
+  // TODO: EPipe
+  // TODO: EPipeTarget
+  // TODO: EFeatureFlag
+
+  open Expr
+
+  let expr =
+    // TODO: consider adding 'weight' such that certain patterns are generated more often than others
+    let rec gen' s : Gen<PT.Expr> =
+      let finiteExprs =
+        [ genInt; genBool; genBlank; genNull; genChar; genStr; genVar ]
+
+      let recursiveExprs =
+        [ genConstructor
+          genLet
+          genIf
+          genTuple
+          genRecord
+          genList
+          genMatch pattern ]
+        |> List.map (fun g -> g (s, gen'))
+
+      let allExprs = recursiveExprs @ finiteExprs
+
+      match s with
+      | 0 -> Gen.oneof finiteExprs
+      | n when n > 0 -> Gen.oneof allExprs
+      | _ -> invalidArg "s" "Only positive arguments are allowed"
+
+    Gen.sized gen'
