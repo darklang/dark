@@ -55,7 +55,7 @@ module TunnelHost = {
     | SaveAPICallback(values, Tea.Result.t<bool, Tea.Http.error<string>>)
 
   module API = {
-    let endpoint = "https://editor.darklang.com/api/tunnel"
+    let endpoint = "tunnel"
 
     module Get = {
       type rec t = values
@@ -127,7 +127,10 @@ module TunnelHost = {
       let errorStr = Tea.Http.string_of_error(e)
       ({...state, error: Some(`Load error: ${errorStr}`), loadStatus: Loaded(Error())}, NoIntent)
 
-    | LoadAPICallback(Ok(original)) => ({...state, loadStatus: Loaded(Ok(original))}, NoIntent)
+    | LoadAPICallback(Ok(original)) => (
+        {...state, value: original, loadStatus: Loaded(Ok(original))},
+        NoIntent,
+      )
 
     | InputEdit(tunnelHost) => ({...state, value: Some(tunnelHost)}, NoIntent)
 

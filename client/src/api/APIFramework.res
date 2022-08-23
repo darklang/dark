@@ -31,7 +31,7 @@ let editorApiCall = (
   endpoint: string,
 ): Callable.t<'msg> => {
   (clientData: clientData) => {
-    let url = "https://editor.darklang.com/" ++ endpoint
+    let url = "https://editor.darklang.com/api/private/" ++ endpoint
     let body = switch encoder {
     | Some(encoder) =>
       let encodedBody = {
