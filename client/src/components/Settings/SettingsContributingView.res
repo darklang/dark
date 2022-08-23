@@ -7,7 +7,7 @@ module Attrs = Tea.Html.Attributes
 module Utils = SettingsUtils
 module T = SettingsContributing
 
-let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
+let viewTunnel = (s: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
     Html.h3(list{}, list{Html.text("Tunnel your local client")}),
     Html.p(
@@ -84,8 +84,17 @@ let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
                   )),
                 },
                 list{
-                  Html.input'(list{Vdom.attribute("", "spellcheck", "false")}, list{}),
-                  Html.p(list{Attrs.class'("error-text")}, list{Html.text(" ")}),
+                  Html.input'(
+                    list{
+                      Attrs.spellcheck(false),
+                      Attrs.value(s.value->Belt.Option.getWithDefault("")),
+                    },
+                    list{},
+                  ),
+                  Html.p(
+                    list{Attrs.class'("error-text")},
+                    list{Html.text(s.error->Belt.Option.getWithDefault(""))},
+                  ),
                 },
               ),
             },
@@ -115,5 +124,5 @@ let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
     ),
   }
 
-  Belt.List.concat(introText, viewTunnel(s))
+  Belt.List.concat(introText, viewTunnel(s.tunnelHost))
 }
