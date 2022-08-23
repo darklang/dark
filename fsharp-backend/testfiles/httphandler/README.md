@@ -16,7 +16,7 @@ An example HTTP handler looks like this:
 ```
 
 The header has the method and path. The body is Dark code using the same F#
-syntax we use elsewhere (see tests/testfiles/README.md for a guide).
+syntax we use elsewhere (see `testfiles/README.md` for a guide).
 
 Multiple handlers are allowed.
 
