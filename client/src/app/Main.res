@@ -1947,30 +1947,40 @@ let update_ = (msg: msg, m: model): modification => {
   | SettingsMsg(msg) =>
     ReplaceAllModificationsWithThisOne(
       m => {
+        let wrapCmd = cmd => Tea.Cmd.map(msg => AppTypes.Msg.SettingsMsg(msg), cmd)
+        let clientData: APIFramework.clientData = {
+          csrfToken: m.csrfToken,
+          canvasName: m.canvasName,
+          origin: m.origin,
+          version: m.buildHash,
+        }
         let (settingsView, effect) = Settings.update(m.settingsView, msg)
         let m = {...m, settingsView}
         switch effect {
-        | Some(InviteEffect(Some(UpdateToast(toast)))) =>
+        | Some(InviteIntent(Some(UpdateToast(toast)))) =>
           (m, Cmd.none)->CCC.setToast(Some(toast), None)
-        | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
-        | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
+        | Some(InviteIntent(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
+        | Some(InviteIntent(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
 
-        | Some(PrivacyEffect(RecordConsent(cmd))) => (m, cmd)
+        | Some(PrivacyIntent(RecordConsent(cmd))) => (m, wrapCmd(cmd))
 
-        | Some(ContributingIntent(SettingsContributing.TunnelHostIntent(SettingsContributing.TunnelHost.Cmd(
+        | Some(ContributingIntent(SettingsContributing.Intent.TunnelHostIntent(SettingsContributing.TunnelHost.Intent.Cmd(
             cmd,
-          )))) => (m, cmd)
-        | Some(ContributingIntent(SettingsContributing.TunnelHostIntent(SettingsContributing.TunnelHost.NoIntent))) => (
+          )))) => (m, wrapCmd(cmd(clientData)))
+        | Some(ContributingIntent(SettingsContributing.Intent.TunnelHostIntent(SettingsContributing.TunnelHost.Intent.NoIntent))) => (
             m,
             Cmd.none,
           )
-        | Some(OpenSettings(tab)) =>
-          (m, Cmd.none)->CCC.setPage(SettingsModal(tab))->CCC.setCursorState(Deselected)
-        | Some(SetSettingsTab(tab)) => (m, Cmd.none)->CCC.setPage(SettingsModal(tab))
+        | Some(OpenSettings(tab, initCmd)) =>
+          (m, wrapCmd(initCmd(clientData)))
+          ->CCC.setPage(SettingsModal(tab))
+          ->CCC.setCursorState(Deselected)
+        | Some(SetSettingsTab(tab, initCmd)) =>
+          (m, wrapCmd(initCmd(clientData)))->CCC.setPage(SettingsModal(tab))
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
 
-        | Some(ContributingIntent(SettingsContributing.UseAssetsIntent()))
-        | Some(InviteEffect(None))
+        | Some(ContributingIntent(SettingsContributing.Intent.UseAssetsIntent()))
+        | Some(InviteIntent(None))
         | None => (m, Cmd.none)
         }
       },

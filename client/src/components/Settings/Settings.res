@@ -55,14 +55,37 @@ type rec msg =
   | InviteMsg(SettingsInvite.msg)
   | ContributingMsg(SettingsContributing.msg)
 
-@ppx.deriving(show)
-type rec intent<'cmd> =
-  | OpenSettings(Tab.t)
-  | CloseSettings
-  | SetSettingsTab(Tab.t)
-  | PrivacyEffect(SettingsPrivacy.effect<'cmd>)
-  | InviteEffect(option<SettingsInvite.effect>)
-  | ContributingIntent(SettingsContributing.intent<'cmd>)
+let init = (clientData: APIFramework.clientData, tab: Tab.t): Tea.Cmd.t<msg> => {
+  let settings = switch tab {
+  | Contributing => SettingsContributing.init(clientData)
+  | Canvases
+  | Privacy
+  | Invite => Tea.Cmd.none
+  }
+  Tea.Cmd.map(msg => ContributingMsg(msg), settings)
+}
+
+module Intent = {
+  @ppx.deriving(show)
+  type rec t<'msg> =
+    | OpenSettings(Tab.t, APIFramework.Callable.t<'msg>)
+    | CloseSettings
+    | SetSettingsTab(Tab.t, APIFramework.Callable.t<'msg>)
+    | PrivacyIntent(SettingsPrivacy.Intent.t<'msg>)
+    | InviteIntent(option<SettingsInvite.intent>)
+    | ContributingIntent(SettingsContributing.Intent.t<'msg>)
+
+  let map = (i: t<'msg1>, f: 'msg1 => 'msg2): t<'msg2> => {
+    switch i {
+    | OpenSettings(tab, c) => OpenSettings(tab, APIFramework.Callable.map(c, f))
+    | CloseSettings => CloseSettings
+    | SetSettingsTab(tab, c) => SetSettingsTab(tab, APIFramework.Callable.map(c, f))
+    | PrivacyIntent(i) => PrivacyIntent(SettingsPrivacy.Intent.map(i, f))
+    | InviteIntent(i) => InviteIntent(i)
+    | ContributingIntent(i) => ContributingIntent(SettingsContributing.Intent.map(i, f))
+    }
+  }
+}
 
 let setInviter = (state: t, username: string, name: string): t => {
   ...state,
@@ -86,11 +109,17 @@ let setCanvasesInfo = (
   ),
 }
 
-let update = (state: t, msg: msg): (t, option<intent<'cmd>>) =>
+let update = (state: t, msg: msg): (t, option<Intent.t<msg>>) =>
   switch msg {
-  | Open(tab) => ({...state, opened: true, tab}, Some(OpenSettings(tab)))
+  | Open(tab) =>
+    let tabInit = clientData => init(clientData, tab)
+    ({...state, opened: true, tab}, Some(OpenSettings(tab, tabInit)))
+
   | Close(_) => ({...state, opened: false}, Some(CloseSettings))
-  | SwitchTab(tab) => ({...state, tab}, Some(SetSettingsTab(tab)))
+
+  | SwitchTab(tab) =>
+    let tabInit = clientData => init(clientData, tab)
+    ({...state, tab}, Some(SetSettingsTab(tab, tabInit)))
 
   | CanvasesMsg(msg) => {
       let newSettings = SettingsCanvases.update(state.canvasesSettings, msg)
@@ -98,17 +127,19 @@ let update = (state: t, msg: msg): (t, option<intent<'cmd>>) =>
     }
 
   | PrivacyMsg(msg) => {
-      let (newSettings, effect) = SettingsPrivacy.update(state.privacySettings, msg)
-      ({...state, privacySettings: newSettings}, Some(PrivacyEffect(effect)))
+      let (newSettings, intent) = SettingsPrivacy.update(state.privacySettings, msg)
+      let intent = SettingsPrivacy.Intent.map(intent, msg => PrivacyMsg(msg))
+      ({...state, privacySettings: newSettings}, Some(PrivacyIntent(intent)))
     }
 
   | InviteMsg(msg) => {
-      let (newSettings, effect) = SettingsInvite.update(state.inviteSettings, msg)
-      ({...state, inviteSettings: newSettings}, Some(InviteEffect(effect)))
+      let (newSettings, intent) = SettingsInvite.update(state.inviteSettings, msg)
+      ({...state, inviteSettings: newSettings}, Some(InviteIntent(intent)))
     }
 
   | ContributingMsg(msg) => {
       let (newSettings, intent) = SettingsContributing.update(state.contributingSettings, msg)
+      let intent = SettingsContributing.Intent.map(intent, msg => ContributingMsg(msg))
       ({...state, contributingSettings: newSettings}, Some(ContributingIntent(intent)))
     }
   }

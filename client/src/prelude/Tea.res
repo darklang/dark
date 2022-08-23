@@ -21,7 +21,14 @@ module Result = {
   }
 }
 
-module Cmd = Tea_cmd
+module Cmd = {
+  include Tea_cmd
+
+  let pp = (_msgFormatter: (Format.formatter, 'v) => unit, fmt: Format.formatter, _: t<'msg>) => {
+    Format.pp_print_string(fmt, "Cmd")
+  }
+}
+
 module Sub = Tea_sub
 module App = Tea_app
 module Debug = Tea_debug

@@ -54,12 +54,60 @@ module TunnelHost = {
     // Track parameter in case user has changed it
     | SaveAPICallback(values, Tea.Result.t<bool, Tea.Http.error<string>>)
 
-  @ppx.deriving(show)
-  type rec intent<'cmd> = Cmd('cmd) | NoIntent
+  module API = {
+    let endpoint = "https://editor.darklang.com/api/tunnel"
+
+    module Get = {
+      type rec t = values
+      let decode = (j: Js.Json.t): t => {
+        open Json.Decode
+        optional(string, j)
+      }
+
+      let callback = (v: Tea.Result.t<values, Tea.Http.error<string>>) => {
+        LoadAPICallback(v)
+      }
+
+      let load = clientData =>
+        APIFramework.editorGet(endpoint, ~callback, ~decoder=decode, clientData)
+    }
+
+    module Post = {
+      module Params = {
+        type rec t = values
+        let encode = (v: values): Js.Json.t => {
+          open Json.Encode
+          nullable(string, v)
+        }
+      }
+      type rec t = bool
+      let decode = (j: Js.Json.t): t => {
+        open Json.Decode
+        bool(j)
+      }
+
+      let callback = (params, v: Tea.Result.t<t, Tea.Http.error<string>>) => {
+        SaveAPICallback(params, v)
+      }
+
+      let save = params =>
+        APIFramework.editorGet(endpoint, ~callback=callback(params), ~decoder=decode)
+    }
+  }
+
+  module Intent = {
+    @ppx.deriving(show)
+    type rec t<'msg> = Cmd(APIFramework.Callable.t<'msg>) | NoIntent
+
+    let map = (i: t<'msg>, f: 'msg1 => 'msg2): t<'msg2> => {
+      switch i {
+      | Cmd(c) => Cmd(APIFramework.Callable.map(c, f))
+      | NoIntent => NoIntent
+      }
+    }
+  }
 
   let default = {loadStatus: Loading, saveStatus: NotSaving, value: None, error: None}
-
-  let loadEndpoint = "https://editor.darklang.com/api/tunnel"
 
   let validate = (host: string): result<values, string> => {
     if host == "" {
@@ -69,8 +117,10 @@ module TunnelHost = {
     }
   }
 
-  let update = (state: t, msg: msg): (t, intent<'cmd>) => {
-    let saveCmd = NoIntent // Some(Cmd(ApiFramework.post(loadEndpoint)))
+  let init = (clientData: APIFramework.clientData) => API.Get.load(clientData)
+
+  let update = (state: t, msg: msg): (t, Intent.t<'msg>) => {
+    let saveCmd = params => Intent.Cmd(API.Post.save(params))
 
     switch msg {
     | LoadAPICallback(Error(e)) =>
@@ -89,7 +139,7 @@ module TunnelHost = {
 
     | Submit =>
       switch validate(state.value->Belt.Option.getWithDefault("")) {
-      | Ok(validated) => ({...state, value: validated, saveStatus: Saving}, saveCmd)
+      | Ok(validated) => ({...state, value: validated, saveStatus: Saving}, saveCmd(validated))
       | Error(e) => ({...state, error: Some(e)}, NoIntent)
       }
 
@@ -140,9 +190,17 @@ type rec msg =
   | TunnelHostMsg(TunnelHost.msg)
   | UseAssetsMsg(UseAssets.msg)
 
-@ppx.deriving(show)
-type rec intent<'cmd> =
-  TunnelHostIntent(TunnelHost.intent<'cmd>) | UseAssetsIntent(UseAssets.intent)
+module Intent = {
+  @ppx.deriving(show)
+  type rec t<'msg> = TunnelHostIntent(TunnelHost.Intent.t<'msg>) | UseAssetsIntent(UseAssets.intent)
+
+  let map = (i: t<'msg>, f: 'msg1 => 'msg2): t<'msg2> => {
+    switch i {
+    | TunnelHostIntent(i) => TunnelHostIntent(TunnelHost.Intent.map(i, f))
+    | UseAssetsIntent(i) => UseAssetsIntent(i)
+    }
+  }
+}
 
 let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default}
 
@@ -172,14 +230,17 @@ let clearTunnelQueryParam = (): unit => {
   modifySearchParamsAndReload(params => USP.delete(params, tunnelQueryParamName))
 }
 
-let update = (s: t, msg: msg): (t, intent<'cmd>) =>
+let init = clientData => Tea.Cmd.map(msg => TunnelHostMsg(msg), TunnelHost.init(clientData))
+
+let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
   switch msg {
   | UseAssetsMsg(msg) =>
-    let (useAssets, effect) = UseAssets.update(s.useAssets, msg)
-    ({...s, useAssets}, UseAssetsIntent(effect))
+    let (useAssets, intent) = UseAssets.update(s.useAssets, msg)
+    ({...s, useAssets}, UseAssetsIntent(intent))
   | TunnelHostMsg(msg) =>
-    let (tunnelHost, effect) = TunnelHost.update(s.tunnelHost, msg)
-    ({...s, tunnelHost}, TunnelHostIntent(effect))
+    let (tunnelHost, intent) = TunnelHost.update(s.tunnelHost, msg)
+    let intent = TunnelHost.Intent.map(intent, msg => TunnelHostMsg(msg))
+    ({...s, tunnelHost}, TunnelHostIntent(intent))
 
   // | RegisterTunnelHostAPICallback(result) =>
   //   // Instantly reload with the new url
