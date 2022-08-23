@@ -98,40 +98,6 @@ module NodaTime =
   let LocalDateTime = localDateTime |> Arb.fromGen
 
 module RuntimeTypes =
-  /// Used to avoid `toString` on Dvals that contains bytes,
-  /// as OCaml backend raises an exception when attempted.
-  /// CLEANUP can be removed with OCaml
-  let rec containsBytes (dv : RT.Dval) =
-    match dv with
-    | RT.DBytes _ -> true
-
-    | RT.DDB _
-    | RT.DInt _
-    | RT.DBool _
-    | RT.DFloat _
-    | RT.DNull
-    | RT.DStr _
-    | RT.DChar _
-    | RT.DIncomplete _
-    | RT.DFnVal _
-    | RT.DError _
-    | RT.DDate _
-    | RT.DPassword _
-    | RT.DUuid _
-    | RT.DHttpResponse (RT.Redirect _)
-    | RT.DOption None -> false
-
-    | RT.DList dv -> List.any containsBytes dv
-    | RT.DTuple (first, second, theRest) ->
-      List.any containsBytes ([ first; second ] @ theRest)
-    | RT.DObj o -> o |> Map.values |> List.any containsBytes
-
-    | RT.DHttpResponse (RT.Response (_, _, dv))
-    | RT.DOption (Some dv)
-    | RT.DErrorRail dv
-    | RT.DResult (Ok dv)
-    | RT.DResult (Error dv) -> containsBytes dv
-
   let Dval =
     Arb.Default.Derive()
     |> Arb.filter (fun dval ->

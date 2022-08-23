@@ -371,8 +371,6 @@ type Generator =
           | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
           | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
             i <> 1L && i <> (-1L) && i <= 2000L
-          // Exception - don't try to stringify
-          | 0, _, _, "", "toString", 0 -> not (G.RuntimeTypes.containsBytes dv)
           | _ -> true)
 
       // When generating arguments, we sometimes make use of the previous params
