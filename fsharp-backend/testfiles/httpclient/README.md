@@ -1,4 +1,4 @@
-# Dark HTTP client tests
+# Dark HTTP client test files
 
 The files in this directory are tests of the HTTP client libraries. The test suite
 sets up a server that we can make HTTP requests against, using HttpClient. It then
@@ -10,7 +10,7 @@ compared to the expected test string, and if it is identical, the response will
 be sent back and parsed by the HTTP client. The test code then compares the
 response to the expected value, in the same way that testfiles do.
 
-The implementation of the tests is in Tests/HttpClient.Tests.fs.
+The implementation of the tests is in `HttpClient.Tests.fs`.
 
 # Code
 
