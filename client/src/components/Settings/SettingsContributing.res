@@ -91,7 +91,14 @@ module TunnelHost = {
       }
 
       let save = params =>
-        APIFramework.editorGet(endpoint, ~callback=callback(params), ~decoder=decode)
+        APIFramework.editorPost(
+          endpoint,
+          ~userAPI=true,
+          ~params,
+          ~encoder=Params.encode,
+          ~callback=callback(params),
+          ~decoder=decode,
+        )
     }
   }
 

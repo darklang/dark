@@ -24,22 +24,30 @@ module Callable = {
 
 let editorApiCall = (
   ~method: string,
-  ~encoder: option<'paramtype => Js.Json.t>=?,
-  ~params: 'paramtype=?,
-  ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => 'msg,
+  ~encoder: option<'param => Js.Json.t>=?,
+  ~params: option<'param>=?,
+  ~userAPI: bool=false,
+  ~decoder: Js.Json.t => 'result,
+  ~callback: Tea.Result.t<'result, Tea.Http.error<string>> => 'msg,
   endpoint: string,
 ): Callable.t<'msg> => {
   (clientData: clientData) => {
     let url = "https://editor.darklang.com/api/private/" ++ endpoint
-    let body = switch encoder {
-    | Some(encoder) =>
-      let encodedBody = {
-        open Json.Encode
-        object_(list{("canvasName", string(clientData.canvasName)), ("payload", encoder(params))})
+    let body = switch (encoder, params) {
+    | (Some(encoder), Some(params)) =>
+      if userAPI {
+        let encodedBody = encoder(params)
+        Web.XMLHttpRequest.StringBody(Json.stringify(encodedBody))
+      } else {
+        let encodedBody = {
+          open Json.Encode
+          object_(list{("canvasName", string(clientData.canvasName)), ("payload", encoder(params))})
+        }
+        Web.XMLHttpRequest.StringBody(Json.stringify(encodedBody))
       }
-      Web.XMLHttpRequest.StringBody(Json.stringify(encodedBody))
-    | None => Web.XMLHttpRequest.EmptyBody
+    | (Some(_), None) => Web.XMLHttpRequest.EmptyBody
+    | (None, Some(_)) => Web.XMLHttpRequest.EmptyBody
+    | (None, None) => Web.XMLHttpRequest.EmptyBody
     }
     let request = Tea.Http.request({
       method': method,
@@ -70,9 +78,20 @@ let editorApiCall = (
 }
 
 let editorGet = (
-  ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => 'msg,
+  ~decoder: Js.Json.t => 'result,
+  ~callback: Tea.Result.t<'result, Tea.Http.error<string>> => 'msg,
   endpoint: string,
 ) => {
   editorApiCall(~method="GET", ~decoder, ~callback, endpoint)
+}
+
+let editorPost = (
+  ~userAPI: bool=false,
+  ~encoder: 'params => Js.Json.t,
+  ~params: 'params,
+  ~decoder: Js.Json.t => 'result,
+  ~callback: Tea.Result.t<'result, Tea.Http.error<string>> => 'msg,
+  endpoint: string,
+) => {
+  editorApiCall(~method="POST", ~userAPI, ~encoder, ~params, ~decoder, ~callback, endpoint)
 }

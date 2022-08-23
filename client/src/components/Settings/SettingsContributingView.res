@@ -33,7 +33,7 @@ let viewTunnel = (s: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
               Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
             )),
           },
-          list{Html.text("Reload with tunnel")},
+          list{Html.text("Set tunnel")},
         ),
       }
 
