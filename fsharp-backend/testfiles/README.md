@@ -1,18 +1,24 @@
 # Dark Test Files (testfiles)
 
+Many backend Dark tests are written outside of F# code, so that they may be
+written more tersely and not require recompilation between executions. This
+directory houses those testfiles and data used within them.
+
+Refer to `docs/unittests.md` for instructions on running tests, and `README`s
+within the subdirectories on how to write types of tests.
+
 ## Subdirectories
 
-### Tests
+### Tests files
 
-- `execution` corresponds to
-- `httpclient` files are used to test the HTTP Client
+- `execution` files are used to test the Dark language and most of the standard library
+- `httpclient` files are used to test the HTTP Client in the standard library
 - `httphandler` files are used to test the HTTP handlers hosted by BwdServer
-- `staticassets` files ...
 
-### Accessory
+### Accessory/data
 
 - `data` houses static assets useful in tests
-- `json-suite`
+- `staticassets` files ... TODO
 
 ## Syntax (FSharpToExpr.fs)
 
