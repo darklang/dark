@@ -1,11 +1,8 @@
-/// Tests the builtwithdark.com server (`BwdServer`),
-/// which is the server that runs Dark users' HTTP handlers.
+/// Tests the builtwithdark.com server (`BwdServer`), which is the server that
+/// runs Dark users' HTTP handlers.
 ///
-/// Test files are stored in the `tests/httptestfiles` directory,
-/// which includes a README.md of how these tests work.
-///
-/// Test files are also stored in the `tests/httpbasictestfiles` directory,
-/// which should be phased out. CLEANUP
+/// Test files are stored in the `testfiles/httphandler` directory, which
+/// includes a relevant README.md.
 module Tests.BwdServer
 
 let basePath = "testfiles/httphandler"
