@@ -1,11 +1,11 @@
 module Tests.HttpClient
 
 // There are a variety of http client tests located in
-// "./tests/httpclienttestfiles".
+// "./testfiles/httpclient".
 // They all follow a standard format, and this file provides
 // a framework for loading, running, and assessing those tests
 
-let baseDirectory = "tests/httpclienttestfiles"
+let baseDirectory = "testfiles/httpclient"
 
 open Expecto
 
