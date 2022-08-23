@@ -55,51 +55,27 @@ module TunnelHost = {
     | SaveAPICallback(values, Tea.Result.t<bool, Tea.Http.error<string>>)
 
   module API = {
+    module JD = Json.Decode
+    module JE = Json.Encode
     let endpoint = "tunnel"
 
-    module Get = {
-      type rec t = values
-      let decode = (j: Js.Json.t): t => {
-        open Json.Decode
-        optional(string, j)
-      }
+    let load = clientData =>
+      APIFramework.editorGet(
+        endpoint,
+        ~callback=v => LoadAPICallback(v),
+        ~decoder=JD.optional(JD.string),
+        clientData,
+      )
 
-      let callback = (v: Tea.Result.t<values, Tea.Http.error<string>>) => {
-        LoadAPICallback(v)
-      }
-
-      let load = clientData =>
-        APIFramework.editorGet(endpoint, ~callback, ~decoder=decode, clientData)
-    }
-
-    module Post = {
-      module Params = {
-        type rec t = values
-        let encode = (v: values): Js.Json.t => {
-          open Json.Encode
-          nullable(string, v)
-        }
-      }
-      type rec t = bool
-      let decode = (j: Js.Json.t): t => {
-        open Json.Decode
-        bool(j)
-      }
-
-      let callback = (params, v: Tea.Result.t<t, Tea.Http.error<string>>) => {
-        SaveAPICallback(params, v)
-      }
-
-      let save = params =>
-        APIFramework.editorPost(
-          endpoint,
-          ~userAPI=true,
-          ~params,
-          ~encoder=Params.encode,
-          ~callback=callback(params),
-          ~decoder=decode,
-        )
-    }
+    let save = params =>
+      APIFramework.editorPost(
+        endpoint,
+        ~userAPI=true,
+        ~params,
+        ~encoder=JE.nullable(JE.string),
+        ~callback=v => SaveAPICallback(params, v),
+        ~decoder=JD.bool,
+      )
   }
 
   module Intent = {
@@ -124,10 +100,11 @@ module TunnelHost = {
     }
   }
 
-  let init = (clientData: APIFramework.clientData) => API.Get.load(clientData)
+  let init = (clientData: APIFramework.clientData) => API.load(clientData)
 
   let update = (state: t, msg: msg): (t, Intent.t<'msg>) => {
-    let saveCmd = params => Intent.Cmd(API.Post.save(params))
+    Prelude.Debug.loG("update: " ++ show(state) ++ " " ++ show_msg(msg), "")
+    let saveCmd = params => Intent.Cmd(API.save(params))
 
     switch msg {
     | LoadAPICallback(Error(e)) =>
