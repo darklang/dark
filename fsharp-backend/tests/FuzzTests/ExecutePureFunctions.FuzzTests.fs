@@ -1,3 +1,8 @@
+/// This used to test whether pure standard library functions (such as
+/// addition) resultsed in the same value against both the old OCaml backend
+/// and the current F# backend. The OCaml backend is no longer maintained, so
+/// the remains of this file are generally a placeholder for any similar test
+/// in the future.
 module FuzzTests.ExecutePureFunctions
 
 open System.Threading.Tasks
@@ -19,8 +24,6 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module G = Generators
-
-let allowedErrors = AllowedFuzzerErrors.allowedErrors
 
 module Generators =
   // Used to ensure we generate values of a consistent type
@@ -175,26 +178,7 @@ module Generators =
     Gen.sized (genExpr' typ')
 
   let StdLibFn : Gen<RT.BuiltInFn> =
-    LibRealExecution.RealExecution.stdlibFns
-    |> Map.values
-    |> List.filter (fun fn ->
-      let name = RT.FQFnName.StdlibFnName.toString fn.name
-
-      // FSTODO: reduce/resolve these
-      let isKnownDifference =
-        let has set = Set.contains name set
-        has allowedErrors.knownDifferingFunctions
-
-      if isKnownDifference then
-        false
-      elif allowedErrors.functionToTest = None then
-        // FSTODO: Add JWT and X509 functions here
-        fn.previewable = RT.Pure || fn.previewable = RT.ImpurePreviewable
-      elif Some name = allowedErrors.functionToTest then
-        true
-      else
-        false)
-    |> Gen.elements
+    LibRealExecution.RealExecution.stdlibFns |> Map.values |> Gen.elements
 
   /// <summary>
   /// Generates a valid Dval for a given type.
@@ -423,13 +407,12 @@ type Generator =
     |> Arb.fromGen
 
 
-/// Checks if a fn and some arguments result in the same Dval
-/// against both OCaml and F# backends.
+/// Checks if a fn and some arguments may be evaluated successfully.
 ///
-/// Some differences are OK, managed by `AllowedFuzzerErrors` module
+/// This used to ensure that the old OCaml backend and the current F#
+/// backend returned the same responses - this this basically just simply
+/// tests that execution doesn't fail outright.
 let isOk ((fn, args) : FnAndArgs) : bool =
-  let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed fn
-
   (task {
     // evaluate the fn call against both backends
     let! meta = initializeTestCanvas (Randomized "ExecutePureFunction")
@@ -451,39 +434,9 @@ let isOk ((fn, args) : FnAndArgs) : bool =
     let symtable = Map.ofList args
 
     let! state = executionStateFor meta Map.empty Map.empty
-    let! actual = LibExecution.Execution.executeExpr state symtable ast
+    let! _actual = LibExecution.Execution.executeExpr state symtable ast
 
-    // check if Dvals are (roughly) the same
-    let debugFn () =
-      debuG "\n\n\nfn" fn
-      debuG "args" (List.map (fun (_, v) -> debugDval v) args)
-
-    if not (Expect.isCanonical actual) then
-      debugFn ()
-      debuG "fsharp (actual) is not normalized" (debugDval actual)
-      return false
-    else
-      match actual with
-      | RT.DError (_, aMsg) ->
-        let allowed = isErrorAllowed false aMsg
-        if not allowed then
-          debugFn ()
-
-          print $"Got different error msgs:\n\"{aMsg}\"\n"
-
-        return allowed
-      | RT.DResult (Error (RT.DStr aMsg)) ->
-        let allowed = isErrorAllowed false aMsg
-        if not allowed then
-          debugFn ()
-
-          print $"Got different DError msgs:\n\"{aMsg}\"\n"
-
-        return allowed
-      | _ ->
-        debugFn ()
-        debuG "(actual) " (debugDval actual)
-        return false
+    return true
   })
     .Result
 
