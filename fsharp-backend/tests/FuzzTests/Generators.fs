@@ -1,20 +1,13 @@
 /// Generators
 module FuzzTests.Generators
 
-open Expecto
-open Expecto.ExpectoFsCheck
+open NodaTime
 open FsCheck
-
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-open System.Text.RegularExpressions
 
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
 open TestUtils.TestUtils
-open NodaTime
-open System
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -98,15 +91,7 @@ module NodaTime =
   let LocalDateTime = localDateTime |> Arb.fromGen
 
 module RuntimeTypes =
-  let Dval =
-    Arb.Default.Derive()
-    |> Arb.filter (fun dval ->
-      match dval with
-      // These all break the serialization to OCaml
-      // TODO allow all Dvals to be generated
-      | RT.DPassword _ -> false
-      | RT.DFnVal _ -> false
-      | _ -> true)
+  let Dval : Arbitrary<RT.Dval> = Arb.Default.Derive()
 
   let DType =
     let rec isSupportedType dtype =
