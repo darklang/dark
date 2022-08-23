@@ -51,7 +51,7 @@ let safeUnicodeString =
 
 let SafeUnicodeString = safeUnicodeString |> Arb.fromGen
 
-let char () : Gen<string> =
+let char : Gen<string> =
   safeUnicodeString
   |> Gen.map String.toEgcSeq
   |> Gen.map Seq.toList

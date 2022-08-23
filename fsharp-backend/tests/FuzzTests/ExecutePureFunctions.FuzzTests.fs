@@ -58,7 +58,7 @@ module Generators =
           return RT.EString(gid (), v)
         | RT.TChar ->
           // We don't have a construct for characters, so create code to generate the character
-          let! v = G.char ()
+          let! v = G.char
           return callFn "String" "toChar" 0 [ RT.EString(gid (), v) ]
         // Don't generate a random value as some random values are invalid
         // (e.g. constructor outside certain names). Ints should be fine for
@@ -251,7 +251,7 @@ module Generators =
 
               Arb.generate<RT.DDateTime.T>
         | RT.TChar ->
-          let! v = G.char ()
+          let! v = G.char
           return RT.DChar v
         | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
         | RT.TOption typ ->
@@ -360,7 +360,7 @@ type Generator =
               return v |> string |> RT.DStr
             | "String::padStart", 1
             | "String::padEnd", 1 ->
-              let! v = G.char ()
+              let! v = G.char
               return RT.DStr v
             | "JWT::signAndEncode", 0
             | "JWT::signAndEncode_v1", 0 ->
