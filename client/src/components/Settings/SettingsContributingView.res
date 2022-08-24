@@ -7,9 +7,11 @@ module Attrs = Tea.Html.Attributes
 module Utils = SettingsUtils
 module T = SettingsContributing
 
+let tw = Attrs.class // tailwind
+
 let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
-    Html.h3(list{}, list{Html.text("Tunnel your local client")}),
+    Html.span(list{tw("font-bold text-xl mt-3")}, list{Html.text("Tunnel your local client")}),
     Html.p(
       list{},
       list{
@@ -25,48 +27,54 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
   }
 
   let form = {
-    let value = th.value->Belt.Option.getWithDefault("")
-    let length = value->String.length->max(35)
-    let tunnelField = Html.div(
-      list{Attrs.class'("px-1 space-x-1 py-2")},
+    let tunnelRow = {
+      let value = th.value->Belt.Option.getWithDefault("")
+      let length = value->String.length->max(25)
+      let tunnelField = Html.span(
+        list{tw("px-2.5 space-x-1 py-2")},
+        list{
+          Html.span(list{tw("h-6 font-bold")}, list{Html.text("https://")}),
+          Html.input'(
+            list{
+              // TODO: move colors into theme
+              Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
+              Attrs.size(length),
+              Attrs.spellcheck(false),
+              Attrs.value(value),
+              Events.onInput(str => AppTypes.Msg.SettingsMsg(
+                Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
+              )),
+            },
+            list{},
+          ),
+        },
+      )
+      let tunnelButton = Html.button(
+        list{
+          tw(
+            "rounded h-9 px-2.5 py-1 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-xl font-bold align-top",
+          ),
+          ViewUtils.eventNoPropagation(~key="tunnel-button-set", "click", _ => SettingsMsg(
+            Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
+          )),
+        },
+        list{Html.text("Set")},
+      )
+
+      Html.div(list{tw("align-baseline")}, list{tunnelField, tunnelButton})
+    }
+
+    let tunnelError = Html.span(
+      list{},
       list{
-        Html.span(list{Attrs.class'("h-6 font-bold")}, list{Html.text("https://")}),
-        Html.input'(
-          list{
-            // TODO: move colors into theme
-            Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
-            Attrs.size(length),
-            Attrs.spellcheck(false),
-            Attrs.value(value),
-            Events.onInput(str => AppTypes.Msg.SettingsMsg(
-              Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
-            )),
-          },
-          list{},
-        ),
         Html.p(
-          list{Attrs.class'("error-text")},
+          list{Attrs.class("error-text")},
           list{Html.text(th.error->Belt.Option.getWithDefault(""))},
         ),
       },
     )
 
-    let submitBtn = {
-      let btn = list{
-        Html.h3(
-          list{
-            ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
-              Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
-            )),
-          },
-          list{Html.text("Set tunnel")},
-        ),
-      }
-
-      Html.button(list{Attrs.class'("submit-btn")}, btn)
-    }
-
-    list{Html.div(list{Attrs.class'("tunnel-form")}, list{tunnelField, submitBtn})}
+    list{Html.div(list{Attrs.class("tunnel-form")}, list{tunnelRow, tunnelError})}
   }
 
   Belt.List.concat(introText, form)
@@ -76,7 +84,7 @@ let viewToggle = (_: int): list<Html.html<AppTypes.msg>> => {
   let _toggle = {
     Html.button(
       list{
-        Attrs.class'(
+        tw(
           "bg-gray-200 relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
         ),
         ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
@@ -88,10 +96,10 @@ let viewToggle = (_: int): list<Html.html<AppTypes.msg>> => {
         Attrs.ariaChecked(false),
       },
       list{
-        Html.span(list{Attrs.class'("sr-only")}, list{Html.text("Use setting")}),
+        Html.span(list{tw("sr-only")}, list{Html.text("Use setting")}),
         Html.span(
           list{
-            Attrs.class'(
+            tw(
               "translate-x-0 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
             ),
             Attrs.ariaHidden(true),
