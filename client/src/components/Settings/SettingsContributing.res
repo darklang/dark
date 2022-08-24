@@ -93,6 +93,7 @@ module TunnelHost = {
   let default = {loadStatus: Loading, saveStatus: NotSaving, value: None, error: None}
 
   let validate = (host: string): result<values, string> => {
+    let host = String.trim(host)
     if host == "" {
       Ok(None)
     } else if Tc.String.startsWith(host, ~prefix="http://") {
