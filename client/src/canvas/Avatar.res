@@ -1,5 +1,8 @@
 open Prelude
 
+module Html = Tea.Html
+module Attrs = Tea.Html.Attributes
+
 module Avatar = AppTypes.Avatar
 
 type msg = AppTypes.msg
@@ -48,8 +51,8 @@ let avatarDiv = (avatar: Avatar.t): Html.html<msg> => {
   let inactive: bool = minusThreeMins > avActiveTimestamp
   Html.img(
     list{
-      Html.classList(list{("avatar", true), ("inactive", inactive)}),
-      Html.src(avatarUrl(email, name)),
+      Attrs.classList(list{("avatar", true), ("inactive", inactive)}),
+      Attrs.src(avatarUrl(email, name)),
       Vdom.prop("alt", username),
     },
     list{},
@@ -60,7 +63,7 @@ let viewAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<msg> => {
   let avList = filterAvatarsByTlid(avatars, tlid)
   let renderAvatar = (a: Avatar.t) => avatarDiv(a)
   let avatars = List.map(~f=renderAvatar, avList)
-  Html.div(list{Html.class'("avatars")}, avatars)
+  Html.div(list{Attrs.class'("avatars")}, avatars)
 }
 
 let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
@@ -74,8 +77,8 @@ let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
 
   let avatarView = List.map(~f=avatarDiv, avatars)
   Html.div(
-    list{Html.classList(list{("all-avatars", true), ("hide", List.isEmpty(avatars))})},
-    list{Html.div(list{Html.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},
+    list{Attrs.classList(list{("all-avatars", true), ("hide", List.isEmpty(avatars))})},
+    list{Html.div(list{Attrs.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},
   )
 }
 

@@ -1,8 +1,13 @@
 open Prelude
+
+module Html = Tea.Html
+module Attrs = Tea.Attrs
+
 module TL = Toplevel
 module TD = TLID.Dict
 module E = FluidExpression
 module ASTInfo = FluidTokenizer.ASTInfo
+
 module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
@@ -158,9 +163,10 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
 }
 
 let fontAwesome = (name: string): Html.html<msg> =>
-  Html.i(list{Html.class'("fa fa-" ++ name)}, list{})
+  Html.i(list{Attrs.class'("fa fa-" ++ name)}, list{})
 
-let darkIcon = (name: string): Html.html<msg> => Html.i(list{Html.class'("di di-" ++ name)}, list{})
+let darkIcon = (name: string): Html.html<msg> =>
+  Html.i(list{Attrs.class'("di di-" ++ name)}, list{})
 
 let decodeTransEvent = (fn: string => 'a, j): 'a => {
   open Json.Decode
@@ -179,7 +185,7 @@ let onEvent = (
   ~preventDefault=true,
   listener: Web.Node.event => msg,
 ): Vdom.property<msg> =>
-  Tea.Html.onCB(event, key, evt => {
+  Html.Events.onCB(event, key, evt => {
     if preventDefault {
       evt["preventDefault"]()
     }
@@ -273,17 +279,17 @@ let nothingMouseEvent = (name: string): Vdom.property<msg> =>
   )
 
 let placeHtml = (pos: Pos.t, classes: list<'a>, html: list<Html.html<msg>>): Html.html<msg> => {
-  let styles = Html.styles(list{
+  let styles = Html.Attributes.styles(list{
     ("left", string_of_int(pos.x) ++ "px"),
     ("top", string_of_int(pos.y) ++ "px"),
   })
 
-  Html.div(list{Html.classList(list{("node", true), ...classes}), styles}, html)
+  Html.div(list{Attrs.classList(list{("node", true), ...classes}), styles}, html)
 }
 
 let inCh = (w: int): string => w |> string_of_int |> (s => s ++ "ch")
 
-let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Html.style("width")
+let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Attrs.style("width")
 
 let createHandlerProp = (hs: list<PT.Handler.t>): TD.t<AppTypes.HandlerProperty.t> =>
   hs |> List.map(~f=(h: PT.Handler.t) => (h.tlid, AppTypes.HandlerProperty.default)) |> TD.fromList

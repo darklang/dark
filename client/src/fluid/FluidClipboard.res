@@ -5,8 +5,8 @@ module TL = Toplevel
 
 // Tea
 module Cmd = Tea.Cmd
-module Attrs = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
+module Attrs = Tea.Html.Attributes
+module Events = Tea.Html.Events
 module AC = FluidAutocomplete
 module T = FluidToken
 module E = ProgramTypes.Expr

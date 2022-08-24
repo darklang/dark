@@ -1,3 +1,8 @@
+/// This used to test whether pure standard library functions (such as
+/// addition) resultsed in the same value against both the old OCaml backend
+/// and the current F# backend. The OCaml backend is no longer maintained, so
+/// the remains of this file are generally a placeholder for any similar test
+/// in the future.
 module FuzzTests.ExecutePureFunctions
 
 open System.Threading.Tasks
@@ -19,8 +24,6 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module G = Generators
-
-let allowedErrors = AllowedFuzzerErrors.allowedErrors
 
 module Generators =
   // Used to ensure we generate values of a consistent type
@@ -58,7 +61,7 @@ module Generators =
           return RT.EString(gid (), v)
         | RT.TChar ->
           // We don't have a construct for characters, so create code to generate the character
-          let! v = G.char ()
+          let! v = G.char
           return callFn "String" "toChar" 0 [ RT.EString(gid (), v) ]
         // Don't generate a random value as some random values are invalid
         // (e.g. constructor outside certain names). Ints should be fine for
@@ -175,26 +178,7 @@ module Generators =
     Gen.sized (genExpr' typ')
 
   let StdLibFn : Gen<RT.BuiltInFn> =
-    LibRealExecution.RealExecution.stdlibFns
-    |> Map.values
-    |> List.filter (fun fn ->
-      let name = RT.FQFnName.StdlibFnName.toString fn.name
-
-      // FSTODO: reduce/resolve these
-      let isKnownDifference =
-        let has set = Set.contains name set
-        has allowedErrors.knownDifferingFunctions
-
-      if isKnownDifference then
-        false
-      elif allowedErrors.functionToTest = None then
-        // FSTODO: Add JWT and X509 functions here
-        fn.previewable = RT.Pure || fn.previewable = RT.ImpurePreviewable
-      elif Some name = allowedErrors.functionToTest then
-        true
-      else
-        false)
-    |> Gen.elements
+    LibRealExecution.RealExecution.stdlibFns |> Map.values |> Gen.elements
 
   /// <summary>
   /// Generates a valid Dval for a given type.
@@ -251,7 +235,7 @@ module Generators =
 
               Arb.generate<RT.DDateTime.T>
         | RT.TChar ->
-          let! v = G.char ()
+          let! v = G.char
           return RT.DChar v
         | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
         | RT.TOption typ ->
@@ -360,7 +344,7 @@ type Generator =
               return v |> string |> RT.DStr
             | "String::padStart", 1
             | "String::padEnd", 1 ->
-              let! v = G.char ()
+              let! v = G.char
               return RT.DStr v
             | "JWT::signAndEncode", 0
             | "JWT::signAndEncode_v1", 0 ->
@@ -387,8 +371,6 @@ type Generator =
           | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
           | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
             i <> 1L && i <> (-1L) && i <= 2000L
-          // Exception - don't try to stringify
-          | 0, _, _, "", "toString", 0 -> not (G.RuntimeTypes.containsBytes dv)
           | _ -> true)
 
       // When generating arguments, we sometimes make use of the previous params
@@ -423,13 +405,12 @@ type Generator =
     |> Arb.fromGen
 
 
-/// Checks if a fn and some arguments result in the same Dval
-/// against both OCaml and F# backends.
+/// Checks if a fn and some arguments may be evaluated successfully.
 ///
-/// Some differences are OK, managed by `AllowedFuzzerErrors` module
+/// This used to ensure that the old OCaml backend and the current F#
+/// backend returned the same responses - this this basically just simply
+/// tests that execution doesn't fail outright.
 let isOk ((fn, args) : FnAndArgs) : bool =
-  let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed fn
-
   (task {
     // evaluate the fn call against both backends
     let! meta = initializeTestCanvas (Randomized "ExecutePureFunction")
@@ -451,39 +432,9 @@ let isOk ((fn, args) : FnAndArgs) : bool =
     let symtable = Map.ofList args
 
     let! state = executionStateFor meta Map.empty Map.empty
-    let! actual = LibExecution.Execution.executeExpr state symtable ast
+    let! _actual = LibExecution.Execution.executeExpr state symtable ast
 
-    // check if Dvals are (roughly) the same
-    let debugFn () =
-      debuG "\n\n\nfn" fn
-      debuG "args" (List.map (fun (_, v) -> debugDval v) args)
-
-    if not (Expect.isCanonical actual) then
-      debugFn ()
-      debuG "fsharp (actual) is not normalized" (debugDval actual)
-      return false
-    else
-      match actual with
-      | RT.DError (_, aMsg) ->
-        let allowed = isErrorAllowed false aMsg
-        if not allowed then
-          debugFn ()
-
-          print $"Got different error msgs:\n\"{aMsg}\"\n"
-
-        return allowed
-      | RT.DResult (Error (RT.DStr aMsg)) ->
-        let allowed = isErrorAllowed false aMsg
-        if not allowed then
-          debugFn ()
-
-          print $"Got different DError msgs:\n\"{aMsg}\"\n"
-
-        return allowed
-      | _ ->
-        debugFn ()
-        debuG "(actual) " (debugDval actual)
-        return false
+    return true
   })
     .Result
 

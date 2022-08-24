@@ -1,11 +1,15 @@
+/// There are a variety of http client tests located in
+/// `../testfiles/httpclient`. They all follow a standard format; this module
+/// loads and runs the tests. See the README.md in that directory for how the
+/// tests are formatted and parsed.
 module Tests.HttpClient
 
 // There are a variety of http client tests located in
-// "./tests/httpclienttestfiles".
+// "./testfiles/httpclient".
 // They all follow a standard format, and this file provides
 // a framework for loading, running, and assessing those tests
 
-let baseDirectory = "tests/httpclienttestfiles"
+let baseDirectory = "testfiles/httpclient"
 
 open Expecto
 
@@ -18,8 +22,6 @@ open System.Text.RegularExpressions
 
 type ConcurrentDictionary<'a, 'b> =
   System.Collections.Concurrent.ConcurrentDictionary<'a, 'b>
-
-open NReco.Logging.File
 
 open Prelude
 open Tablecloth

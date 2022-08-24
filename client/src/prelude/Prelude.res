@@ -1,5 +1,5 @@
 include Tc
-include BaseTypes
+include Belt_extended
 include Types
 include Recover
 
@@ -9,8 +9,6 @@ let reportError = ErrorReporting.reportError
 
 // Every other module should have `open Prelude` as its first statement.
 // You don't need to open/include Tc or Types, Prelude includes them.
-
-module Html = Tea.Html
 
 module Json = {
   exception ParseError = Json.ParseError

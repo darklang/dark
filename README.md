@@ -205,7 +205,7 @@ Google Cloud services.
 - [Other ways to run the dev container](docs/builder-options.md)
 - [Setting up your editor](docs/editor-setup.md)
 - [Running unit tests](docs/unittests.md)
-- [Dark unit tests](fsharp-backend/tests/testfiles/README.md)
+- [Dark unit tests](fsharp-backend/testfiles/README.md)
 - [If you're interviewing at Dark, read this](docs/interviewing.md)
 
 ### Less important docs

@@ -193,6 +193,22 @@ that's already taken, returns an error."
       previewable = Impure
       deprecated = NotDeprecated }
 
+    { name = fn "DarkInternal" "getUserID" 0
+      parameters = [ Param.make "username" TStr "" ]
+      returnType = TOption(TUuid)
+      description = "Return a user's userID"
+      fn =
+        internalFn (function
+          | _, [ DStr username ] ->
+            uply {
+              let! info = Account.getUser (UserName.create username)
+              return info |> Option.map (fun user -> DUuid user.id) |> DOption
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
 
     { name = fn "DarkInternal" "setAdmin" 0
       parameters = [ Param.make "username" TStr ""; Param.make "admin" TBool "" ]
@@ -1166,6 +1182,74 @@ human-readable data."
             uply {
               let! canvasList = Account.orgs userID
               return canvasList |> List.map string |> List.map DStr |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getOpsForToplevel" 0
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
+      returnType = TList TStr
+      description = "Returns all ops for a tlid in the given canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID; DInt tlid ] ->
+            uply {
+              let tlid = uint64 tlid
+              let! ops =
+                let loadAmount = Serialize.LoadAmount.IncludeDeletedToplevels
+                Serialize.loadOplists loadAmount canvasID [ tlid ]
+
+              match ops with
+              | [ (_tlid, ops) ] -> return ops |> List.map (string >> DStr) |> DList
+              | _ -> return DList []
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ---------------------
+    // Apis - tunnels
+    // ---------------------
+    { name = fn "DarkInternal" "getTunnelHost" 0
+      parameters = [ Param.make "userID" TUuid "" ]
+      returnType = TOption TStr
+      description = "Returns the tunnelhost for this user"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID ] ->
+            uply {
+              match! Account.tunnelHostFor userID with
+              | None -> return DOption None
+              | Some host -> return DOption(Some(DStr host))
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "setTunnelHost" 0
+      parameters =
+        [ Param.make "userID" TUuid ""; Param.make "host" (TOption TStr) "" ]
+      returnType = TNull
+      description = "Sets the tunnelhost for this user"
+      fn =
+        internalFn (function
+          | _, [ DUuid userID; DOption (v) ] ->
+            uply {
+              match v with
+              | Some (DStr host) ->
+                do! Account.setTunnelHostFor userID (Some host)
+                return DNull
+              | None ->
+                do! Account.setTunnelHostFor userID None
+                return DNull
+              | _ -> return incorrectArgs ()
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
