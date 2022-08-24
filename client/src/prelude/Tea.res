@@ -81,10 +81,7 @@ module Html = {
     let role = (name: string) => Vdom.prop("role", name)
     let ariaChecked = (v: bool) => Vdom.prop("aria-checked", string_of_bool(v))
     let ariaHidden = (v: bool) => Vdom.prop("aria-hidden", string_of_bool(v))
-    let spellcheck = (b: bool) => {
-      Js.log2("spellcheck", string_of_bool(b))
-      Vdom.attribute("", "spellcheck", string_of_bool(b))
-    }
+    let spellcheck = (b: bool) => Vdom.attribute("", "spellcheck", string_of_bool(b))
   }
   module Attrs = Attributes
 
