@@ -1,4 +1,4 @@
-// Most of the httpclient tests are in tests/httpclienttestfiles.
+// Most of the httpclient tests are in testfiles/httpclient.
 
 // -----------------------
 // Tests that don't use the internet

@@ -4,7 +4,10 @@ The files in this directory are tests of the HTTP server known as BwdServer,
 which supports Dark users' handlers. A test typically comprises a request and a
 response, and may also include one or more handler.
 
-The implementation of the tests is in `Tests/BwdServer.Tests.fs`.
+The implementation of the tests is in `BwdServer.Tests.fs`.
+
+The `http` subdirectory tests the current HTTP handler+middleware, while the
+`httpbasic` subdirectory corresponds to a new handler+middleware, `HttpBasic`.
 
 # HTTP handlers
 
@@ -16,14 +19,13 @@ An example HTTP handler looks like this:
 ```
 
 The header has the method and path. The body is Dark code using the same F#
-syntax we use elsewhere (see tests/testfiles/README.md for a guide).
+syntax we use elsewhere (see `testfiles/README.md` for a guide).
 
-Multiple handlers are allowed.
+Multiple handlers may be defined within a single test file.
 
-`http-bytes-handler` is also available, to test a new (thinner) HTTP handler
-and middleware. It behaves the same way has `http-handler`, apart from setting
-up the new type of HTTP handler. Tests around this functionality are in the
-adjacent directory of `httpbasictestfiles`.
+`[http-bytes-handler POST /]` syntax is also available, to test a new (thinner)
+HTTP handler and middleware. It behaves the same way has `http-handler`, apart
+from setting up the new type of HTTP handler.
 
 # Requests
 

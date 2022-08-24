@@ -1,12 +1,12 @@
-/// Tests the builtwithdark.com server (`BwdServer`),
-/// which is the server that runs Dark users' HTTP handlers.
+/// Tests the builtwithdark.com server (`BwdServer`), which is the server that
+/// runs Dark users' HTTP handlers.
 ///
-/// Test files are stored in the `tests/httptestfiles` directory,
-/// which includes a README.md of how these tests work.
-///
-/// Test files are also stored in the `tests/httpbasictestfiles` directory,
-/// which should be phased out. CLEANUP
+/// Test files are stored in the `testfiles/httphandler` directory, which
+/// includes a relevant README.md.
 module Tests.BwdServer
+
+let basePath = "testfiles/httphandler"
+let dataBasePath = "testfiles/data"
 
 open Expecto
 
@@ -138,7 +138,7 @@ module ParseTest =
         | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
           // TODO do this as part of run-time, not during parse-time
           let injectedBytes =
-            System.IO.File.ReadAllBytes $"{rootDir}/data/{dataFileToInject}"
+            System.IO.File.ReadAllBytes $"{dataBasePath}/{dataFileToInject}"
 
           match state with
           | InRequest ->
@@ -539,8 +539,8 @@ let tests =
   // TODO merge these directories into a `tests/httphandlertestfiles`
   // directory, with a subfolder per handler/middleware type.
 
-  [ ("tests/httptestfiles", "http", Http)
-    ("tests/httpbasictestfiles", "httpbasic", HttpBasic) ]
+  [ ($"{basePath}/http", "http", Http)
+    ($"{basePath}/httpbasic", "httpbasic", HttpBasic) ]
   |> List.map (fun (dir, testListName, handlerType) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")
