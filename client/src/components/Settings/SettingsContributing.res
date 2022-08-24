@@ -121,7 +121,12 @@ module TunnelHost = {
         NoIntent,
       )
 
-    | InputEdit(tunnelHost) => ({...state, value: Some(tunnelHost)}, NoIntent)
+    | InputEdit(tunnelHost) =>
+      let saveStatus = switch state.saveStatus {
+      | Saved => NotSaving
+      | Saving | NotSaving => state.saveStatus
+      }
+      ({...state, value: Some(tunnelHost), saveStatus}, NoIntent)
 
     | InputUnfocus =>
       switch validate(state.value->Belt.Option.getWithDefault("")) {
