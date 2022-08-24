@@ -95,6 +95,10 @@ module TunnelHost = {
   let validate = (host: string): result<values, string> => {
     if host == "" {
       Ok(None)
+    } else if Tc.String.startsWith(host, ~prefix="http://") {
+      Ok(Some(Tc.String.dropLeft(~count=7, host)))
+    } else if Tc.String.startsWith(host, ~prefix="https://") {
+      Ok(Some(Tc.String.dropLeft(~count=8, host)))
     } else {
       Ok(Some(host))
     }

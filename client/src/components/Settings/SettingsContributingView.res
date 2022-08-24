@@ -77,25 +77,20 @@ let viewTunnel = (s: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
             list{Attrs.class'("form-field")},
             list{
               Html.h3(list{}, list{Html.text("Tunnel URL:")}),
-              Html.div(
+              Html.text("https://"),
+              Html.input'(
                 list{
+                  Attrs.spellcheck(false),
+                  Attrs.value(s.value->Belt.Option.getWithDefault("")),
                   Events.onInput(str => AppTypes.Msg.SettingsMsg(
                     Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
                   )),
                 },
-                list{
-                  Html.input'(
-                    list{
-                      Attrs.spellcheck(false),
-                      Attrs.value(s.value->Belt.Option.getWithDefault("")),
-                    },
-                    list{},
-                  ),
-                  Html.p(
-                    list{Attrs.class'("error-text")},
-                    list{Html.text(s.error->Belt.Option.getWithDefault(""))},
-                  ),
-                },
+                list{},
+              ),
+              Html.p(
+                list{Attrs.class'("error-text")},
+                list{Html.text(s.error->Belt.Option.getWithDefault(""))},
               ),
             },
           ),
