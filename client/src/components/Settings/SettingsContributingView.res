@@ -29,24 +29,36 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
   let form = {
     let tunnelRow = {
       let value = th.value->Belt.Option.getWithDefault("")
-      let length = value->String.length->max(25)
+      let loadingAttrs = switch th.loadStatus {
+      | Loading => list{Attrs.disabled(true)}
+      | Loaded(_) => list{Attrs.noProp}
+      }
+      let loadingSpinner = switch th.loadStatus {
+      | Loading => Html.i(list{Attrs.class("fa fa-spinner -ml-5 text-[#e8e8e8]")}, list{})
+      | Loaded(_) => Vdom.noNode
+      }
       let tunnelField = Html.span(
-        list{tw("px-2.5 space-x-1 py-2")},
+        list{tw("px-2.5 py-2")},
         list{
-          Html.span(list{tw("h-6 font-bold")}, list{Html.text("https://")}),
+          Html.span(list{tw("h-6 font-bold mr-1")}, list{Html.text("https://")}),
           Html.input'(
-            list{
-              // TODO: move colors into theme
-              Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
-              Attrs.size(length),
-              Attrs.spellcheck(false),
-              Attrs.value(value),
-              Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
-              )),
-            },
+            List.append(
+              loadingAttrs,
+              list{
+                // TODO: move colors into theme
+                Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
+                Attrs.placeholder("hostname"),
+                Attrs.size(25),
+                Attrs.spellcheck(false),
+                Attrs.value(value),
+                Events.onInput(str => AppTypes.Msg.SettingsMsg(
+                  Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
+                )),
+              },
+            ),
             list{},
           ),
+          loadingSpinner,
         },
       )
       let tunnelButton = Html.button(
