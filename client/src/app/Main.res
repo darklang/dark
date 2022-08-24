@@ -32,6 +32,13 @@ let incOpCtr = (m: model): model => {
   ),
 }
 
+let clientData = (m: model): APIFramework.clientData => {
+  csrfToken: m.csrfToken,
+  canvasName: m.canvasName,
+  origin: m.origin,
+  version: m.buildHash,
+}
+
 let opCtr = (m: model): int =>
   switch Map.get(~key=m.clientOpCtrId, m.opCtrs) {
   | Some(ctr) => ctr
@@ -112,6 +119,19 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     tooltipState: {...m.tooltipState, userTutorial},
   }
 
+  let initCmd = {
+    switch page {
+    | SettingsModal(tab) =>
+      Cmd.map(msg => AppTypes.Msg.SettingsMsg(msg), Settings.init(clientData(m), tab))
+    | Architecture => Cmd.none
+    | FocusedPackageManagerFn(_) => Cmd.none
+    | FocusedFn(_) => Cmd.none
+    | FocusedHandler(_) => Cmd.none
+    | FocusedDB(_) => Cmd.none
+    | FocusedType(_) => Cmd.none
+    }
+  }
+
   let timeStamp = Js.Date.now() /. 1000.0
   let avMessage: APIPresence.Params.t = {
     canvasName: m.canvasName,
@@ -129,6 +149,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
         API.loadPackages(m),
         API.initialLoad(m, FocusPageAndCursor(page, savedCursorState)),
         API.sendPresence(m, avMessage),
+        initCmd,
       }),
     )
   }
@@ -1948,12 +1969,6 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne(
       m => {
         let wrapCmd = cmd => Tea.Cmd.map(msg => AppTypes.Msg.SettingsMsg(msg), cmd)
-        let clientData: APIFramework.clientData = {
-          csrfToken: m.csrfToken,
-          canvasName: m.canvasName,
-          origin: m.origin,
-          version: m.buildHash,
-        }
         let (settingsView, effect) = Settings.update(m.settingsView, msg)
         let m = {...m, settingsView}
         switch effect {
@@ -1966,17 +1981,17 @@ let update_ = (msg: msg, m: model): modification => {
 
         | Some(ContributingIntent(SettingsContributing.Intent.TunnelHostIntent(SettingsContributing.TunnelHost.Intent.Cmd(
             cmd,
-          )))) => (m, wrapCmd(cmd(clientData)))
+          )))) => (m, wrapCmd(cmd(clientData(m))))
         | Some(ContributingIntent(SettingsContributing.Intent.TunnelHostIntent(SettingsContributing.TunnelHost.Intent.NoIntent))) => (
             m,
             Cmd.none,
           )
         | Some(OpenSettings(tab, initCmd)) =>
-          (m, wrapCmd(initCmd(clientData)))
+          (m, wrapCmd(initCmd(clientData(m))))
           ->CCC.setPage(SettingsModal(tab))
           ->CCC.setCursorState(Deselected)
         | Some(SetSettingsTab(tab, initCmd)) =>
-          (m, wrapCmd(initCmd(clientData)))->CCC.setPage(SettingsModal(tab))
+          (m, wrapCmd(initCmd(clientData(m))))->CCC.setPage(SettingsModal(tab))
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
 
         | Some(ContributingIntent(SettingsContributing.Intent.UseAssetsIntent()))
