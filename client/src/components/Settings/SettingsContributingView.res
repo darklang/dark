@@ -99,17 +99,19 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
   Belt.List.concat(introText, form)
 }
 
-let viewToggle = (_: int): list<Html.html<AppTypes.msg>> => {
+let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
   let toggle = {
+    let enabledClass = switch s {
+    | UseTunnelAssets => "translate-x-0"
+    | UseProductionAssets => "translate-x-5"
+    }
     Html.button(
       list{
         tw(
           "bg-gray-200 relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
         ),
-        ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
-          Settings.ContributingMsg(
-            T.UseAssetsMsg(T.UseAssets.Set(T.UseAssets.UseProductionAssets)),
-          ),
+        ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
+          Settings.ContributingMsg(T.UseAssetsMsg(T.UseAssets.Toggle)),
         )),
         Attrs.role("switch"),
         Attrs.ariaChecked(false),
@@ -119,7 +121,7 @@ let viewToggle = (_: int): list<Html.html<AppTypes.msg>> => {
         Html.span(
           list{
             tw(
-              "translate-x-0 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
+              `${enabledClass} translate-x-0 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`,
             ),
             Attrs.ariaHidden(true),
           },
@@ -147,5 +149,5 @@ let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
     ),
   }
 
-  Belt.List.concatMany([introText, viewToggle(5), viewTunnel(s.tunnelHost)])
+  Belt.List.concatMany([introText, viewTunnel(s.tunnelHost), viewToggle(s.useAssets)])
 }

@@ -161,57 +161,64 @@ module TunnelHost = {
 // Toggle to use assets
 // -------------------
 module UseAssets = {
+  // Unlike most parts of the app, this component works by directly getting and
+  // setting a query param in the URL
+
   @ppx.deriving(show)
   type rec t =
     | UseTunnelAssets
     | UseProductionAssets
 
-  let default = UseProductionAssets
-
   @ppx.deriving(show)
-  type rec msg = Set(t)
+  type rec msg = Toggle
 
   @ppx.deriving(show)
   type rec intent = unit
 
-  let tunnelQueryParamName = "use-assets-tunnel"
-
-  module USP = Webapi.Url.URLSearchParams
-
-  let getTunnelQueryParam = (): bool => {
-    module L = Webapi.Dom.Location
-    Webapi.Dom.location->L.search->USP.make->USP.has(tunnelQueryParamName)
-  }
-
-  let modifySearchParamsAndReload = (f: Webapi.Url.URLSearchParams.t => unit): unit => {
+  module QueryParam = {
+    module USP = Webapi.Url.URLSearchParams
     module L = Webapi.Dom.Location
 
-    let location = Webapi.Dom.location
-    let searchParams = location->L.search->USP.make
-    f(searchParams)
-    L.setSearch(location, searchParams->USP.toString)
+    let name = "use-assets-tunnel"
+
+    let get = (): t => {
+      if Webapi.Dom.location->L.search->USP.make->USP.has(name) {
+        UseTunnelAssets
+      } else {
+        UseProductionAssets
+      }
+    }
+
+    let modifyAndReload = (f: USP.t => unit): unit => {
+      let location = Webapi.Dom.location
+      let searchParams = location->L.search->USP.make
+      f(searchParams)
+      L.setSearch(location, searchParams->USP.toString)
+    }
+
+    let set = (): unit => {
+      modifyAndReload(params => USP.set(params, name, ""))
+    }
+
+    let clear = (): unit => {
+      modifyAndReload(params => USP.delete(params, name))
+    }
   }
 
-  let setTunnelQueryParam = (): unit => {
-    modifySearchParamsAndReload(params => USP.set(params, tunnelQueryParamName, ""))
-  }
+  let default = () => QueryParam.get()
 
-  let clearTunnelQueryParam = (): unit => {
-    modifySearchParamsAndReload(params => USP.delete(params, tunnelQueryParamName))
-  }
-
-  // | RegisterTunnelHostAPICallback(result) =>
-  //   // Instantly reload with the new url
-  //   switch result {
-  //   | Tea.Result.Ok(true) => (s, Some(Reload(Tea.Cmd.call(_ => setTunnelQueryParam()))))
-  //   | Tea.Result.Ok(false) => ({tunnelHost: {...s.tunnelHost, error: Some("Invalid url")}}, None)
-  //   | Tea.Result.Error(e) => (
-  //       {tunnelHost: {...s.tunnelHost, error: Some(Tea.Http.string_of_error(e))}},
-  //       None,
-  //     )
-  //   }
-
-  let update = (state: t, _msg: msg): (t, intent) => (state, ())
+  let update = (state: t, msg: msg): (t, intent) =>
+    switch msg {
+    | Toggle =>
+      switch state {
+      | UseTunnelAssets =>
+        QueryParam.clear() // reloads page
+        (UseProductionAssets, ())
+      | UseProductionAssets =>
+        QueryParam.set() // reloads page
+        (UseTunnelAssets, ())
+      }
+    }
 }
 
 let title = "Contributing"
@@ -236,7 +243,7 @@ module Intent = {
   }
 }
 
-let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default}
+let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default()}
 
 let init = clientData => Tea.Cmd.map(msg => TunnelHostMsg(msg), TunnelHost.init(clientData))
 
