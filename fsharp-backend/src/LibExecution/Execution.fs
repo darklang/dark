@@ -32,7 +32,7 @@ let noTestContext : RT.TestContext =
     expectedExceptionCount = 0
     postTestExecutionHook = fun _ _ -> ()
 
-    useNewPatternMatchLogic = false }
+    useNewLogic = false }
 
 let createState
   (libraries : RT.Libraries)

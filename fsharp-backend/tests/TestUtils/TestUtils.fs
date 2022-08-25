@@ -265,7 +265,8 @@ let libraries : Lazy<RT.Libraries> =
       |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
      { stdlib = testFns; packageFns = Map.empty })
 
-let executionStateFor
+let executionStateForABTest
+  (useNewLogic : bool)
   (meta : Canvas.Meta)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
@@ -282,7 +283,7 @@ let executionStateFor
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
-
+        useNewLogic = useNewLogic
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =
@@ -304,9 +305,7 @@ let executionStateFor
               Exception.raiseInternal
                 $"UNEXPECTED EXCEPTION COUNT in test {meta.name}"
                 [ "expectedExceptionCount", tc.expectedExceptionCount
-                  "actualExceptionCount", tc.exceptionReports.Length ]
-
-        useNewPatternMatchLogic = false }
+                  "actualExceptionCount", tc.exceptionReports.Length ] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function
@@ -324,7 +323,7 @@ let executionStateFor
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
-    let notifier : RT.Notifier = fun state msg tags -> ()
+    let notifier : RT.Notifier = fun _state _msg _tags -> ()
 
     let state =
       Exe.createState
@@ -337,6 +336,8 @@ let executionStateFor
     let state = { state with test = testContext }
     return state
   }
+
+let executionStateFor = executionStateForABTest false
 
 /// Saves and reloads the canvas for the Toplevels
 let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =

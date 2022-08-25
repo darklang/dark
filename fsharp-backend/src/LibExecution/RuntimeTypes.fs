@@ -919,7 +919,10 @@ and TestContext =
     expectedExceptionCount : int
     postTestExecutionHook : TestContext -> Dval -> unit
 
-    useNewPatternMatchLogic : bool }
+    /// This is to be used by a fuzztest to ensure some change in the
+    /// interpeter does not cause a regression.
+    /// ('false' is the A of an A/B test, while 'true' is the B side)
+    useNewLogic : bool }
 
 /// Non-user-specific functionality needed to run code
 and Libraries =

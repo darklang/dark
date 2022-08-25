@@ -23,6 +23,7 @@
     <Compile Include="NodaTime.FuzzTests.fs" />
     <Compile Include="InternalJson.FuzzTests.fs" />
     <Compile Include="ExecutePureFunctions.FuzzTests.fs" />
+    <Compile Include="ExecutionRegression.FuzzTests.fs" />
     <Compile Include="FuzzTests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
