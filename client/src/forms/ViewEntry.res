@@ -9,7 +9,7 @@ module Events = Tea.Events
 module RT = Runtime
 
 let onSubmit = (~key, fn) =>
-  Html.onWithOptions(
+  Events.onWithOptions(
     ~key,
     "submit",
     {stopPropagation: true, preventDefault: true},
@@ -20,7 +20,7 @@ let onSubmit = (~key, fn) =>
  * the incoming Msg, and does _not_ propagate the event upwords.
  *
  * This is to prevent the paste handler on `document` from eating the event */
-let defaultPasteHandler = Html.onWithOptions(
+let defaultPasteHandler = Events.onWithOptions(
   ~key="paste",
   "paste",
   {stopPropagation: true, preventDefault: false},

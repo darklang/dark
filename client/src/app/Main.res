@@ -32,6 +32,13 @@ let incOpCtr = (m: model): model => {
   ),
 }
 
+let clientData = (m: model): APIFramework.clientData => {
+  csrfToken: m.csrfToken,
+  canvasName: m.canvasName,
+  origin: m.origin,
+  version: m.buildHash,
+}
+
 let opCtr = (m: model): int =>
   switch Map.get(~key=m.clientOpCtrId, m.opCtrs) {
   | Some(ctr) => ctr
@@ -96,20 +103,33 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     tests: variants,
     handlers: TLID.Dict.empty,
     dbs: TLID.Dict.empty,
-    canvasName: canvasName,
-    userContentHost: userContentHost,
+    canvasName,
+    userContentHost,
     origin: location.origin,
-    environment: environment,
-    csrfToken: csrfToken,
+    environment,
+    csrfToken,
     browserId: manageBrowserId(),
     clientOpCtrId: createClientOpCtrId,
-    isAdmin: isAdmin,
-    buildHash: buildHash,
-    username: username,
+    isAdmin,
+    buildHash,
+    username,
     teaDebuggerEnabled: Url.isDebugging(),
     unsupportedBrowser: Entry.unsupportedBrowser(),
     fluidState: Fluid.initAC(m.fluidState),
-    tooltipState: {...m.tooltipState, userTutorial: userTutorial},
+    tooltipState: {...m.tooltipState, userTutorial},
+  }
+
+  let initCmd = {
+    switch page {
+    | SettingsModal(tab) =>
+      Cmd.map(msg => AppTypes.Msg.SettingsMsg(msg), Settings.init(clientData(m), tab))
+    | Architecture => Cmd.none
+    | FocusedPackageManagerFn(_) => Cmd.none
+    | FocusedFn(_) => Cmd.none
+    | FocusedHandler(_) => Cmd.none
+    | FocusedDB(_) => Cmd.none
+    | FocusedType(_) => Cmd.none
+    }
   }
 
   let timeStamp = Js.Date.now() /. 1000.0
@@ -129,6 +149,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
         API.loadPackages(m),
         API.initialLoad(m, FocusPageAndCursor(page, savedCursorState)),
         API.sendPresence(m, avMessage),
+        initCmd,
       }),
     )
   }
@@ -146,7 +167,7 @@ module CrossComponentCalls = {
   type t = (model, cmd)
 
   let setToast = ((m, prevCmd): t, message: option<string>, pos: option<VPos.t>): t => {
-    ({...m, toast: {message: message, pos: pos}}, prevCmd)
+    ({...m, toast: {message, pos}}, prevCmd)
   }
 
   let setPage = ((m, prevCmd): t, page: Url.page): t => {
@@ -175,7 +196,7 @@ module CrossComponentCalls = {
   }
 
   let setCursorState = ((m, prevCmd): t, cursorState: AppTypes.CursorState.t): t => {
-    ({...m, cursorState: cursorState}, prevCmd)
+    ({...m, cursorState}, prevCmd)
   }
 
   let setPanning = ((m, prevCmd): t, panning: bool): t => {
@@ -297,7 +318,7 @@ let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, A
       string_of_int(complete.index) ++ (" => '" ++ (val_ ++ "'")),
     )
   }
-  ({...m, complete: complete}, focus)
+  ({...m, complete}, focus)
 }
 
 let applyOpsToClient = (updateCurrent, p: APIAddOps.Params.t, r: APIAddOps.t): list<
@@ -444,7 +465,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
       let m = {
         ...m,
-        cursorState: cursorState,
+        cursorState,
         fluidState: maybeNewFluidState |> Option.unwrap(~default=m.fluidState),
       }
 
@@ -495,7 +516,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
     | OpenOmnibox(pos) =>
       let (cursorState, target) = (CS.Omnibox(pos), None)
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState: cursorState}
+      let m = {...m, cursorState}
       (m, Cmd.batch(list{acCmd, CursorState.focusEntry(m)}))
     | Enter(tlid, id) =>
       let (cursorState, target) = switch TL.getPD(m, tlid, id) {
@@ -504,7 +525,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       }
 
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState: cursorState}
+      let m = {...m, cursorState}
       let (m, afCmd) = Analysis.analyzeFocused(m)
       (m, Cmd.batch(list{afCmd, acCmd, CursorState.focusEntry(m)}))
     | EnterWithOffset(tlid, id, offset) =>
@@ -514,7 +535,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       }
 
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState: cursorState}
+      let m = {...m, cursorState}
       let (m, afCmd) = Analysis.analyzeFocused(m)
       (m, Cmd.batch(list{afCmd, acCmd, CursorState.focusEntryWithOffset(m, offset)}))
     | RemoveToplevel(tl) => (Toplevel.remove(m, tl), Cmd.none)
@@ -693,8 +714,8 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
       let m4 = Refactor.updateUsageCounts(m3)
       processAutocompleteMods(m4, list{ACRegenerate})
-    | SetPermission(permission) => ({...m, permission: permission}, Cmd.none)
-    | SetUnlockedDBs(unlockedDBs) => ({...m, unlockedDBs: unlockedDBs}, Cmd.none)
+    | SetPermission(permission) => ({...m, permission}, Cmd.none)
+    | SetUnlockedDBs(unlockedDBs) => ({...m, unlockedDBs}, Cmd.none)
     | AppendUnlockedDBs(
         newDBs,
       ) => /* You probably don't want to use this, you probably want to wait for the
@@ -769,9 +790,9 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
         {
           ...m,
           cursorState: PanningCanvas({
-            viewportStart: viewportStart,
-            viewportCurr: viewportCurr,
-            prevCursorState: prevCursorState,
+            viewportStart,
+            viewportCurr,
+            prevCursorState,
           }),
         },
         Cmd.none,
@@ -788,11 +809,11 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
           switch Analysis.getArguments(m, tl, id, traceID) {
           | Some(args) =>
             let params: APIExecution.Function.Params.t = {
-              tlid: tlid,
+              tlid,
               callerID: id,
-              traceID: traceID,
+              traceID,
               fnName: name,
-              args: args,
+              args,
             }
 
             (m, API.executeFunction(m, params))
@@ -818,8 +839,8 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
     | MoveCanvasTo(offset, panAnimation) =>
       let newCanvasProps = {
         ...m.canvasProps,
-        offset: offset,
-        panAnimation: panAnimation,
+        offset,
+        panAnimation,
         lastOffset: Some(m.canvasProps.offset),
       }
 
@@ -845,10 +866,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       | Some(traceID, Ok(traceData)) =>
         let handlerProps = RT.setHandlerExeState(tlid, Executing, m.handlerProps)
 
-        (
-          {...m, handlerProps: handlerProps},
-          API.triggerHandler(m, {tlid: tlid, traceID: traceID, input: traceData.input}),
-        )
+        ({...m, handlerProps}, API.triggerHandler(m, {tlid, traceID, input: traceData.input}))
       | _ => (m, Cmd.none)
       }
     | InitIntrospect(tls) => (Introspect.refreshUsages(m, List.map(~f=TL.id, tls)), Cmd.none)
@@ -859,7 +877,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       )
     | FluidCommandsClose =>
       let cp = FluidCommands.reset(m)
-      ({...m, fluidState: {...m.fluidState, cp: cp, selectionStart: None}}, Cmd.none)
+      ({...m, fluidState: {...m.fluidState, cp, selectionStart: None}}, Cmd.none)
     | FluidStartClick => ({...m, fluidState: {...m.fluidState, midClick: true}}, Cmd.none)
     | FluidEndClick => ({...m, fluidState: {...m.fluidState, midClick: false}}, Cmd.none)
     | Apply(fn) =>
@@ -872,7 +890,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
     | UpdateASTCache(tlid, str) =>
       let searchCache = m.searchCache |> Map.update(~key=tlid, ~f=_ => Some(str))
 
-      ({...m, searchCache: searchCache}, Cmd.none)
+      ({...m, searchCache}, Cmd.none)
     | InitASTCache(handlers, userFunctions) =>
       let hcache = handlers |> List.fold(~initial=m.searchCache, ~f=(cache, h: PT.Handler.t) => {
         let value = FluidPrinter.eToHumanString(FluidAST.toExpr(h.ast))
@@ -889,8 +907,8 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
         cache |> Map.add(~key=f.tlid, ~value)
       })
 
-      ({...m, searchCache: searchCache}, Cmd.none)
-    | FluidSetState(fluidState) => ({...m, fluidState: fluidState}, Cmd.none)
+      ({...m, searchCache}, Cmd.none)
+    | FluidSetState(fluidState) => ({...m, fluidState}, Cmd.none)
     | TLMenuUpdate(tlid, msg) => (TLMenu.update(m, tlid, msg), Cmd.none)
     // applied from left to right
     | Many(mods) =>
@@ -930,7 +948,7 @@ let update_ = (msg: msg, m: model): modification => {
   | AutocompleteClick(index) =>
     switch CursorState.unwrap(m.cursorState) {
     | Entering(tlid, id) =>
-      let newcomplete = {...m.complete, index: index}
+      let newcomplete = {...m.complete, index}
       let newm = {...m, complete: newcomplete}
       Entry.submit(newm, tlid, id, Entry.StayHere)
     | _ => NoChange
@@ -967,9 +985,9 @@ let update_ = (msg: msg, m: model): modification => {
       Many(list{
         Viewport.moveCanvasBy(m, dx, dy),
         PanCanvas({
-          viewportStart: viewportStart,
+          viewportStart,
           viewportCurr: viewportNext,
-          prevCursorState: prevCursorState,
+          prevCursorState,
         }),
       })
     | _ => NoChange
@@ -984,10 +1002,8 @@ let update_ = (msg: msg, m: model): modification => {
       // Clicking on the raw canvas should keep you selected to functions/types in their space
       let defaultBehaviour = Select(tlid, STTopLevelRoot)
       switch CursorState.unwrap(m.cursorState) {
-      | Entering(
-          tlid,
-          id,
-        ) => // If we click away from an entry box, commit it before doing the default behaviour
+      | Entering(tlid, id) =>
+        // If we click away from an entry box, commit it before doing the default behaviour
         list{Entry.commit(m, tlid, id), defaultBehaviour}
       | _ => list{defaultBehaviour}
       }
@@ -999,17 +1015,16 @@ let update_ = (msg: msg, m: model): modification => {
         | Deselected =>
           let openAt = Some(Viewport.toAbsolute(m, event.mePos))
           list{AutocompleteMod(ACReset), Entry.openOmnibox(~openAt, ())}
-        | Entering(
-            tlid,
-            id,
-          ) => // If we click away from an entry box, commit it before doing the default behaviour
+        | Entering(tlid, id) =>
+          // If we click away from an entry box, commit it before doing the default behaviour
           list{Entry.commit(m, tlid, id), defaultBehaviour}
         | _ => list{defaultBehaviour}
         }
       } else {
         list{}
       }
-    | SettingsModal(_) => // Click handled in component
+    | SettingsModal(_) =>
+      // Click handled in component
       list{}
     }
 
@@ -1435,7 +1450,7 @@ let update_ = (msg: msg, m: model): modification => {
         m => {
           let handlerProps = RT.setHandlerExeState(params.tlid, Complete, m.handlerProps)
 
-          ({...m, handlerProps: handlerProps}, Cmd.none)
+          ({...m, handlerProps}, Cmd.none)
         },
       ),
     })
@@ -1465,7 +1480,7 @@ let update_ = (msg: msg, m: model): modification => {
       },
     )
   | InsertSecretCallback(Ok(secrets)) =>
-    ReplaceAllModificationsWithThisOne(m => ({...m, secrets: secrets}, Cmd.none))
+    ReplaceAllModificationsWithThisOne(m => ({...m, secrets}, Cmd.none))
   | NewTracePush(traceID, tlids) =>
     let traces = List.map(~f=tlid => (tlid, list{(traceID, Error(TraceError.NoneYet))}), tlids)
 
@@ -1668,7 +1683,7 @@ let update_ = (msg: msg, m: model): modification => {
           ~value={count: result.count, schedule: None},
           m.workerStats,
         )
-        ({...m, workerStats: workerStats}, Cmd.none)
+        ({...m, workerStats}, Cmd.none)
       },
     )
   | AddOpsAPICallback(_, params, Error(err)) =>
@@ -1766,8 +1781,8 @@ let update_ = (msg: msg, m: model): modification => {
     let aHandler: PT.Handler.t = {
       ast: FluidAST.ofExpr(ast),
       spec: SpecHeaders.fromBlankOrs((B.newF(space), B.newF(path), Some(B.newF(modifier)))),
-      tlid: tlid,
-      pos: pos,
+      tlid,
+      pos,
     }
 
     let traces = List.fold(
@@ -1889,7 +1904,7 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne(
       m => {
         let cp = FluidCommands.filter(m, query, m.fluidState.cp)
-        ({...m, fluidState: {...m.fluidState, cp: cp}}, Cmd.none)
+        ({...m, fluidState: {...m.fluidState, cp}}, Cmd.none)
       },
     )
   | FluidMsg(FluidCommandsClick(cmd)) =>
@@ -1909,7 +1924,7 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne(
       m => {
         let handlerProps = RT.setHandlerExeState(tlid, Idle, m.handlerProps)
-        ({...m, handlerProps: handlerProps}, Cmd.none)
+        ({...m, handlerProps}, Cmd.none)
       },
     )
   | CopyCurl(tlid, pos) => CurlCommand.copyCurlMod(m, tlid, pos)
@@ -1953,28 +1968,34 @@ let update_ = (msg: msg, m: model): modification => {
   | SettingsMsg(msg) =>
     ReplaceAllModificationsWithThisOne(
       m => {
+        let wrapCmd = cmd => Tea.Cmd.map(msg => AppTypes.Msg.SettingsMsg(msg), cmd)
         let (settingsView, effect) = Settings.update(m.settingsView, msg)
-        let m = {...m, settingsView: settingsView}
+        let m = {...m, settingsView}
         switch effect {
-        | Some(InviteEffect(Some(UpdateToast(toast)))) =>
+        | Some(InviteIntent(Some(UpdateToast(toast)))) =>
           (m, Cmd.none)->CCC.setToast(Some(toast), None)
-        | Some(InviteEffect(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
-        | Some(InviteEffect(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
+        | Some(InviteIntent(Some(HandleAPIError(apiError)))) => APIErrorHandler.handle(m, apiError)
+        | Some(InviteIntent(Some(SendAPICall(params)))) => (m, API.sendInvite(m, params))
 
-        | Some(PrivacyEffect(RecordConsent(cmd))) => (m, cmd)
+        | Some(PrivacyIntent(RecordConsent(cmd))) => (m, wrapCmd(cmd))
 
-        | Some(ContributingEffect(Some(SettingsContributing.Reload(cmd)))) => (m, cmd)
-        | Some(ContributingEffect(Some(SettingsContributing.RegisterTunnelHostAPICall(
-            tunnelHost,
-          )))) => (m, API.registerTunnelHost(m, {tunnelHost: tunnelHost}))
-
-        | Some(OpenSettings(tab)) =>
-          (m, Cmd.none)->CCC.setPage(SettingsModal(tab))->CCC.setCursorState(Deselected)
-        | Some(SetSettingsTab(tab)) => (m, Cmd.none)->CCC.setPage(SettingsModal(tab))
+        | Some(ContributingIntent(SettingsContributing.Intent.TunnelHostIntent(SettingsContributing.TunnelHost.Intent.Cmd(
+            cmd,
+          )))) => (m, wrapCmd(cmd(clientData(m))))
+        | Some(ContributingIntent(SettingsContributing.Intent.TunnelHostIntent(SettingsContributing.TunnelHost.Intent.NoIntent))) => (
+            m,
+            Cmd.none,
+          )
+        | Some(OpenSettings(tab, initCmd)) =>
+          (m, wrapCmd(initCmd(clientData(m))))
+          ->CCC.setPage(SettingsModal(tab))
+          ->CCC.setCursorState(Deselected)
+        | Some(SetSettingsTab(tab, initCmd)) =>
+          (m, wrapCmd(initCmd(clientData(m))))->CCC.setPage(SettingsModal(tab))
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
 
-        | Some(ContributingEffect(None))
-        | Some(InviteEffect(None))
+        | Some(ContributingIntent(SettingsContributing.Intent.UseAssetsIntent()))
+        | Some(InviteIntent(None))
         | None => (m, Cmd.none)
         }
       },
@@ -2036,7 +2057,7 @@ let update = (m: model, msg: msg): (model, AppTypes.cmd) => {
   // END HACK
   SavedSettings.save(m)
   SavedUserSettings.save(m)
-  ({...newm, lastMsg: msg, fluidState: {...newm.fluidState, activeEditor: activeEditor}}, newc)
+  ({...newm, lastMsg: msg, fluidState: {...newm.fluidState, activeEditor}}, newc)
 }
 
 let subscriptions = (m: model): Tea.Sub.t<msg> => {
@@ -2060,7 +2081,8 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   let timers = if m.editorSettings.runTimers {
     switch m.visibility {
     | Hidden => list{}
-    | Visible => list{
+    | Visible =>
+      list{
         Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => AppTypes.Msg.TimerFire(
           RefreshAnalysis,
           f,
@@ -2147,8 +2169,8 @@ let debugging = {
       init: a => init(a, Tea.Navigation.getLocation()),
       view: View.view,
       renderCallback: Fluid.renderCallback,
-      update: update,
-      subscriptions: subscriptions,
+      update,
+      subscriptions,
       shutdown: _ => Cmd.none,
     },
   )
@@ -2169,11 +2191,11 @@ let debugging = {
 
 let normal = {
   let program: Tea.Navigation.navigationProgram<string, model, AppTypes.msg> = {
-    init: init,
+    init,
     view: View.view,
-    update: update,
+    update,
     renderCallback: Fluid.renderCallback,
-    subscriptions: subscriptions,
+    subscriptions,
     shutdown: _ => Cmd.none,
   }
 

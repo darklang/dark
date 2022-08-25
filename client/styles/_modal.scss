@@ -40,7 +40,8 @@ $light-grey: $grey2;
   align-items: center;
   justify-content: center;
   .modal {
-    width: 50%;
+    width: 75%;
+    max-width: 700px;
     background: $black2;
     border-radius: $radius;
     color: $white3;

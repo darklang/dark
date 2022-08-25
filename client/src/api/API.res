@@ -25,7 +25,7 @@ let apiCallNoParams = (
       Header("X-CSRF-Token", m.csrfToken),
       clientVersionHeader(m),
     },
-    url: url,
+    url,
     body: Web.XMLHttpRequest.EmptyBody,
     expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(decoder)),
     timeout: None,
@@ -50,11 +50,11 @@ let postJson = (
       Header("X-CSRF-Token", csrfToken),
       ...headers,
     },
-    url: url,
+    url,
     body: Web.XMLHttpRequest.StringBody(Json.stringify(body)),
     expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(decoder)),
     timeout: None,
-    withCredentials: withCredentials,
+    withCredentials,
   })
 
 let apiCall = (
@@ -78,9 +78,9 @@ let apiCall = (
 }
 
 let opsParams = (ops: list<PT.Op.t>, opCtr: int, clientOpCtrID: string): APIAddOps.Params.t => {
-  ops: ops,
-  opCtr: opCtr,
-  clientOpCtrID: clientOpCtrID,
+  ops,
+  opCtr,
+  clientOpCtrID,
 }
 
 // -------------
@@ -115,7 +115,11 @@ let registerTunnelHost = (m: model, params: APITunnelHost.Params.t): cmd =>
     ~encoder=APITunnelHost.Params.encode,
     ~params,
     ~callback=success => SettingsMsg(
-      Settings.ContributingMsg(SettingsContributing.RegisterTunnelHostAPICallback(success)),
+      Settings.ContributingMsg(
+        SettingsContributing.TunnelHostMsg(
+          SettingsContributing.TunnelHost.SaveAPICallback(params.tunnelHost, success),
+        ),
+      ),
     ),
   )
 
@@ -172,7 +176,7 @@ let delete404 = (
   m: model,
   {space, path, modifier, _} as original: AnalysisTypes.FourOhFour.t,
 ): cmd => {
-  let params: API404.Delete.Params.t = {space: space, path: path, modifier: modifier}
+  let params: API404.Delete.Params.t = {space, path, modifier}
   apiCall(
     m,
     "/delete_404",
@@ -312,6 +316,7 @@ let filterOpsAndResult = (m: model, params: APIAddOps.Params.t, result: option<A
   )
 
   let m2 = {...m, opCtrs: newOpCtrs}
+
   // if the new opCtrs map was updated by params.opCtr, then this msg was the
   // latest; otherwise, we need to filter out some ops from params
   // temporarily _don't_ filter ops

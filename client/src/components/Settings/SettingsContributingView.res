@@ -7,94 +7,147 @@ module Attrs = Tea.Html.Attributes
 module Utils = SettingsUtils
 module T = SettingsContributing
 
-let viewTunnel = (_svs: T.t): list<Html.html<AppTypes.msg>> => {
+let tw = Attrs.class // tailwind
+
+let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
-    Html.h3(list{}, list{Html.text("Tunnel your local client")}),
+    Html.span(list{tw("font-bold text-xl mt-3")}, list{Html.text("Tunnel your local client")}),
     Html.p(
       list{},
       list{
         Html.text(
           "To use your local client against the Dark server, use a tunnel provider such as ",
         ),
-        Html.a(list{Attrs.href("https://locatunnel.me")}, list{Html.text("localtunnel")}),
+        Html.a(list{Attrs.href("https://localtunnel.me")}, list{Html.text("localtunnel")}),
         Html.text(" or "),
         Html.a(list{Attrs.href("https://ngrok.com")}, list{Html.text("ngrok")}),
-        Html.text(". After starting the tunnel, enter the url below"),
+        Html.text(". Starting the tunnel provides a hostname, which you should enter below"),
       },
     ),
   }
 
   let form = {
-    let submitBtn = {
-      let btn = list{
-        Html.h3(
-          list{
-            ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
-              Settings.ContributingMsg(T.SubmitTunnelHostForm),
-            )),
-          },
-          list{Html.text("Reload with tunnel")},
-        ),
+    let tunnelRow = {
+      let value = th.value->Belt.Option.getWithDefault("")
+      let loadingAttrs = switch th.loadStatus {
+      | Loading => list{Attrs.disabled(true)}
+      | Loaded(_) => list{Attrs.noProp}
       }
-
-      Html.button(list{Attrs.class'("submit-btn")}, btn)
-    }
-
-    let _toggle = {
-      Html.button(
+      let loadingSpinner = switch th.loadStatus {
+      | Loading => Html.i(list{Attrs.class("fa fa-spinner -ml-5 text-[#e8e8e8]")}, list{})
+      | Loaded(_) => Vdom.noNode
+      }
+      let tunnelField = Html.span(
+        list{tw("px-2.5 py-2")},
         list{
-          Attrs.class'(
-            "bg-gray-200 relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
-          ),
-          ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => SettingsMsg(
-            Settings.ContributingMsg(T.SubmitTunnelHostForm),
-          )),
-          // Attrs.role("switch"),
-          // Attrs.ariaChecked(false),
-        },
-        list{
-          Html.span(list{Attrs.class'("sr-only")}, list{Html.text("Use setting")}),
-          Html.span(
-            list{
-              Attrs.class'(
-                "translate-x-0 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
-              ),
-              // Attrs.ariaHidden(true),
-            },
+          Html.span(list{tw("h-6 font-bold mr-1")}, list{Html.text("https://")}),
+          Html.input'(
+            List.append(
+              loadingAttrs,
+              list{
+                // TODO: move colors into theme
+                Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
+                Attrs.placeholder("hostname"),
+                Attrs.size(25),
+                Attrs.spellcheck(false),
+                Attrs.value(value),
+                Events.onInput(str => AppTypes.Msg.SettingsMsg(
+                  Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
+                )),
+              },
+            ),
             list{},
           ),
+          loadingSpinner,
         },
       )
+      let tunnelButton = {
+        let savingSpinner = switch th.saveStatus {
+        | Saving => Html.i(list{Attrs.class("fa fa-spinner text-[#e8e8e8] px-1")}, list{})
+        | Saved => Html.i(list{Attrs.class("fa fa-check text-[#a1b56c] px-1")}, list{})
+        | NotSaving => Vdom.noNode
+        }
+        Html.button(
+          list{
+            tw(
+              "rounded h-9 px-2.5 py-1 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-xl font-bold align-top",
+            ),
+            ViewUtils.eventNoPropagation(~key="tunnel-button-set", "click", _ => SettingsMsg(
+              Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
+            )),
+          },
+          list{savingSpinner, Html.text("Set")},
+        )
+      }
+
+      Html.div(list{tw("align-baseline")}, list{tunnelField, tunnelButton})
     }
 
-    list{
-      Html.div(
-        list{Attrs.class'("tunnel-form")},
-        list{
-          Html.div(
-            list{Attrs.class'("form-field")},
-            list{
-              Html.h3(list{}, list{Html.text("Tunnel URL:")}),
-              Html.div(
-                list{
-                  Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                    Settings.ContributingMsg(T.UpdateTunnelHostInput(str)),
-                  )),
-                },
-                list{
-                  Html.input'(list{Vdom.attribute("", "spellcheck", "false")}, list{}),
-                  Html.p(list{Attrs.class'("error-text")}, list{Html.text(" ")}),
-                },
-              ),
-            },
-          ),
-          submitBtn,
-        },
-      ),
-    }
+    let tunnelError = Html.span(
+      list{},
+      list{
+        Html.p(
+          list{Attrs.class("error-text")},
+          list{Html.text(th.error->Belt.Option.getWithDefault(""))},
+        ),
+      },
+    )
+
+    list{Html.div(list{Attrs.class("tunnel-form")}, list{tunnelRow, tunnelError})}
   }
 
   Belt.List.concat(introText, form)
+}
+
+let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
+  let toggle = {
+    let (enabledPosition, enabledColor) = switch s {
+    | UseTunnelAssets => ("translate-x-5", "bg-indigo-600")
+    | UseProductionAssets => ("translate-x-0", "bg-grey-200")
+    }
+    // https://tailwindui.com/components/application-ui/forms/toggles#component-92732eaa2a1e1af9d23939f08cabd44f
+    Html.button(
+      list{
+        tw(
+          `${enabledColor} relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`,
+        ),
+        ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
+          Settings.ContributingMsg(T.UseAssetsMsg(T.UseAssets.Toggle)),
+        )),
+        Attrs.role("switch"),
+        Attrs.ariaChecked(false),
+      },
+      list{
+        Html.span(list{tw("sr-only")}, list{Html.text("Use setting")}),
+        Html.span(
+          list{
+            tw(
+              `${enabledPosition} mt-0.5 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`,
+            ),
+            Attrs.ariaHidden(true),
+          },
+          list{},
+        ),
+      },
+    )
+  }
+  list{
+    Html.div(
+      list{tw("mt-8 flex justify-center")},
+      list{
+        Html.div(
+          list{tw("text-center bg-[#383838] py-4 px-16 rounded")},
+          list{
+            Html.span(
+              list{tw("inline-block align-top text-xl pr-8")},
+              list{Html.text("Use tunneled assets")},
+            ),
+            toggle,
+          },
+        ),
+      },
+    ),
+  }
 }
 
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
@@ -113,5 +166,5 @@ let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
     ),
   }
 
-  Belt.List.concat(introText, viewTunnel(s))
+  Belt.List.concatMany([introText, viewTunnel(s.tunnelHost), viewToggle(s.useAssets)])
 }

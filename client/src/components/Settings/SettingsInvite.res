@@ -31,12 +31,11 @@ module Params = {
 @ppx.deriving(show)
 type rec msg =
   | Update(string)
-  | @printer(Types.opaque("TriggerSendCallback"))
-  TriggerSendCallback(Tea_result.t<unit, Tea.Http.error<string>>)
+  | TriggerSendCallback(Tea.Result.t<unit, Tea.Http.error<string>>)
   | Submit
 
 @ppx.deriving(show)
-type rec effect =
+type rec intent =
   | SendAPICall(Params.t)
   | HandleAPIError(APIError.t)
   | UpdateToast(string)
@@ -58,7 +57,7 @@ let default = {
 
 let setInviter = (state: t, username: string, name: string): t => {
   ...state,
-  inviter: {username: username, name: name},
+  inviter: {username, name},
 }
 
 @val @scope("window") @scope("Dark") external validateEmail: string => bool = "validateEmail"
@@ -75,16 +74,16 @@ let validateEmail = (email: Utils.formField): Utils.formField => {
     }
   }
 
-  {...email, error: error}
+  {...email, error}
 }
 
 let validateForm = (i: t): (bool, t) => {
   let email = validateEmail(i.email)
   let isInvalid = Option.isSome(email.error)
-  (isInvalid, {...i, email: email})
+  (isInvalid, {...i, email})
 }
 
-let submitForm = (i: t): (t, effect) => {
+let submitForm = (i: t): (t, intent) => {
   let sendInviteMsg = {
     Params.email: i.email.value,
     inviterUsername: i.inviter.username,
@@ -94,9 +93,9 @@ let submitForm = (i: t): (t, effect) => {
   ({...i, loading: true}, SendAPICall(sendInviteMsg))
 }
 
-let update = (i: t, msg: msg): (t, option<effect>) =>
+let update = (i: t, msg: msg): (t, option<intent>) =>
   switch msg {
-  | Update(value) => ({...i, email: {value: value, error: None}}, None)
+  | Update(value) => ({...i, email: {value, error: None}}, None)
 
   | TriggerSendCallback(Ok(_)) => ({...default, loading: false}, Some(UpdateToast("Sent!")))
 
