@@ -219,29 +219,61 @@ module UseAssets = {
     }
 }
 
+// -------------------
+// Toggle to show contributor UI
+// -------------------
+module ContributorUI = {
+  @ppx.deriving(show)
+  type rec t = {showFluidDebugger: bool}
+
+  @ppx.deriving(show)
+  type rec msg = SetFluidDebugger(bool)
+
+  @ppx.deriving(show)
+  type rec intent = unit
+
+  let default = {showFluidDebugger: false}
+
+  let init = () => Tea.Cmd.none
+
+  let update = (_: t, msg: msg): (t, intent) =>
+    switch msg {
+    | SetFluidDebugger(v) => ({showFluidDebugger: v}, ())
+    }
+}
+
 let title = "Contributing"
 
 @ppx.deriving(show)
-type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t}
+type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t, contributorUI: ContributorUI.t}
 
 @ppx.deriving(show)
 type rec msg =
   | TunnelHostMsg(TunnelHost.msg)
   | UseAssetsMsg(UseAssets.msg)
+  | ContributorUIMsg(ContributorUI.msg)
 
 module Intent = {
   @ppx.deriving(show)
-  type rec t<'msg> = TunnelHostIntent(TunnelHost.Intent.t<'msg>) | UseAssetsIntent(UseAssets.intent)
+  type rec t<'msg> =
+    | TunnelHostIntent(TunnelHost.Intent.t<'msg>)
+    | UseAssetsIntent(UseAssets.intent)
+    | ContributorUIIntent(ContributorUI.intent)
 
   let map = (i: t<'msg>, f: 'msg1 => 'msg2): t<'msg2> => {
     switch i {
     | TunnelHostIntent(i) => TunnelHostIntent(TunnelHost.Intent.map(i, f))
     | UseAssetsIntent(i) => UseAssetsIntent(i)
+    | ContributorUIIntent(i) => ContributorUIIntent(i)
     }
   }
 }
 
-let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default}
+let default = {
+  tunnelHost: TunnelHost.default,
+  useAssets: UseAssets.default,
+  contributorUI: ContributorUI.default,
+}
 
 let init = clientData =>
   Tea.Cmd.batch(list{
@@ -258,4 +290,7 @@ let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
     let (tunnelHost, intent) = TunnelHost.update(s.tunnelHost, msg)
     let intent = TunnelHost.Intent.map(intent, msg => TunnelHostMsg(msg))
     ({...s, tunnelHost}, TunnelHostIntent(intent))
+  | ContributorUIMsg(msg) =>
+    let (contributorUI, intent) = ContributorUI.update(s.contributorUI, msg)
+    ({...s, contributorUI}, ContributorUIIntent(intent))
   }
