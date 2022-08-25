@@ -108,9 +108,6 @@ module TunnelHost = {
   let init = (clientData: APIFramework.clientData) => API.load(clientData)
 
   let update = (state: t, msg: msg): (t, Intent.t<'msg>) => {
-    Prelude.Debug.loG("update: " ++ show(state) ++ " " ++ show_msg(msg), "")
-    let saveCmd = params => Intent.Cmd(API.save(params))
-
     switch msg {
     | LoadAPICallback(Error(e)) =>
       let errorStr = Tea.Http.string_of_error(e)
@@ -135,6 +132,7 @@ module TunnelHost = {
       }
 
     | Submit =>
+      let saveCmd = params => Intent.Cmd(API.save(params))
       switch validate(state.value->Belt.Option.getWithDefault("")) {
       | Ok(validated) => ({...state, value: validated, saveStatus: Saving}, saveCmd(validated))
       | Error(e) => ({...state, error: Some(e)}, NoIntent)
