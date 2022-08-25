@@ -122,6 +122,12 @@ let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
   }
 }
 
+let viewUISettings = (_ui: T.ContributorUI.t): list<Html.html<AppTypes.msg>> => {
+  let introText = sectionHeading("UI settings")
+  let fluidDebugger = Html.noNode
+  list{introText, fluidDebugger}
+}
+
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
     Html.p(
@@ -138,5 +144,10 @@ let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
     ),
   }
 
-  Belt.List.concatMany([introText, viewTunnel(s.tunnelHost), viewToggle(s.useAssets)])
+  Belt.List.concatMany([
+    introText,
+    viewUISettings(s.contributorUI),
+    viewTunnel(s.tunnelHost),
+    viewToggle(s.useAssets),
+  ])
 }
