@@ -168,7 +168,7 @@ module UseAssets = {
     | UseProductionAssets
 
   @ppx.deriving(show)
-  type rec msg = Toggle
+  type rec msg = Toggle | ReadValue
 
   @ppx.deriving(show)
   type rec intent = unit
@@ -203,10 +203,13 @@ module UseAssets = {
     }
   }
 
-  let default = () => QueryParam.get()
+  let default = UseProductionAssets
+
+  let init = () => Tea.Cmd.msg(ReadValue)
 
   let update = (state: t, msg: msg): (t, intent) =>
     switch msg {
+    | ReadValue => (QueryParam.get(), ())
     | Toggle =>
       switch state {
       | UseTunnelAssets =>
@@ -241,9 +244,13 @@ module Intent = {
   }
 }
 
-let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default()}
+let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default}
 
-let init = clientData => Tea.Cmd.map(msg => TunnelHostMsg(msg), TunnelHost.init(clientData))
+let init = clientData =>
+  Tea.Cmd.batch(list{
+    Tea.Cmd.map(msg => TunnelHostMsg(msg), TunnelHost.init(clientData)),
+    Tea.Cmd.map(msg => UseAssetsMsg(msg), UseAssets.init()),
+  })
 
 let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
   switch msg {
