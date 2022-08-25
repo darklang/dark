@@ -101,14 +101,15 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
 
 let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
   let toggle = {
-    let enabledClass = switch s {
-    | UseTunnelAssets => "translate-x-0"
-    | UseProductionAssets => "translate-x-5"
+    let (enabledPosition, enabledColor) = switch s {
+    | UseTunnelAssets => ("translate-x-5", "bg-indigo-600")
+    | UseProductionAssets => ("translate-x-0", "bg-grey-200")
     }
+    // https://tailwindui.com/components/application-ui/forms/toggles#component-92732eaa2a1e1af9d23939f08cabd44f
     Html.button(
       list{
         tw(
-          "bg-gray-200 relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+          `${enabledColor} relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`,
         ),
         ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
           Settings.ContributingMsg(T.UseAssetsMsg(T.UseAssets.Toggle)),
@@ -121,7 +122,7 @@ let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
         Html.span(
           list{
             tw(
-              `${enabledClass} translate-x-0 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`,
+              `${enabledPosition} mt-0.5 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`,
             ),
             Attrs.ariaHidden(true),
           },
@@ -130,7 +131,23 @@ let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
       },
     )
   }
-  list{toggle}
+  list{
+    Html.div(
+      list{tw("mt-8 flex justify-center")},
+      list{
+        Html.div(
+          list{tw("text-center bg-[#383838] py-4 px-16 rounded")},
+          list{
+            Html.span(
+              list{tw("inline-block align-top text-xl pr-8")},
+              list{Html.text("Use tunneled assets")},
+            ),
+            toggle,
+          },
+        ),
+      },
+    ),
+  }
 }
 
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
