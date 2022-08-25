@@ -1,17 +1,13 @@
 // open Tc
 
-module Html = Tea.Html
-module Events = Tea.Html.Events
-module Attrs = Tea.Html.Attributes
-
 module Utils = SettingsUtils
 module T = SettingsContributing
 
-let tw = Attrs.class // tailwind
+open SettingsViewPrelude
 
 let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
-    Html.span(list{tw("font-bold text-xl mt-3")}, list{Html.text("Tunnel your local client")}),
+    sectionHeading("Tunnel your local client"),
     Html.p(
       list{},
       list{
@@ -101,35 +97,11 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
 
 let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
   let toggle = {
-    let (enabledPosition, enabledColor) = switch s {
-    | UseTunnelAssets => ("translate-x-5", "bg-indigo-600")
-    | UseProductionAssets => ("translate-x-0", "bg-grey-200")
-    }
-    // https://tailwindui.com/components/application-ui/forms/toggles#component-92732eaa2a1e1af9d23939f08cabd44f
-    Html.button(
-      list{
-        tw(
-          `${enabledColor} relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`,
-        ),
-        ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
-          Settings.ContributingMsg(T.UseAssetsMsg(T.UseAssets.Toggle)),
-        )),
-        Attrs.role("switch"),
-        Attrs.ariaChecked(false),
-      },
-      list{
-        Html.span(list{tw("sr-only")}, list{Html.text("Use setting")}),
-        Html.span(
-          list{
-            tw(
-              `${enabledPosition} mt-0.5 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`,
-            ),
-            Attrs.ariaHidden(true),
-          },
-          list{},
-        ),
-      },
-    )
+    let enabled = s == UseTunnelAssets
+    let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
+      Settings.ContributingMsg(T.UseAssetsMsg(T.UseAssets.Toggle)),
+    ))
+    toggleButton(attr, enabled)
   }
   list{
     Html.div(
