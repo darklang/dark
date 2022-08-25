@@ -10,17 +10,14 @@ module Utils = SettingsUtils
 module TunnelHost = {
   // UX:
   // - when we load the page, we should load the tunnelHost setting
-  //   - (maybe) if we previously loaded it, use that value while loading
   //   - show an animation while loading
-  //   - do not show the input box until the load is completed
-  // - show an indicator when the value is unsaved
+  // - (TODO) show an indicator when the value is unsaved
   // - when editing, update the model
   //   - when moving off the input, validate and show an error
   //   - don't save until the user presses save
   // - have a Save button
   //   - when saving, show indicator
   //   - after saving success, show the success icon until we edit again
-  //   - if saving successful, show "reload" if in tunnel mode
   //   - if saving fails, show the error (same place)
 
   @ppx.deriving(show)
