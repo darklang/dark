@@ -7,48 +7,6 @@ const mousewheel = function (callback) {
 };
 
 // ---------------------------
-// Check unsupported browser
-// ---------------------------
-function unsupportedBrowser() {
-  var isChrome =
-    /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-  var isMobile = /Android|BlackBerry|iPhone|iPad|iPod|Opera Mini|IEMobile/.test(
-    navigator.userAgent,
-  );
-  var isDesktopApp = /DarkLang\/Editor/.test(navigator.userAgent);
-  var isSupported = isDesktopApp || (isChrome && !isMobile);
-  return !isSupported;
-}
-
-window.unsupportedBrowser = unsupportedBrowser;
-
-if (unsupportedBrowser) {
-  // Reload page if user tries to delete overlay
-  addEventListener("DOMContentLoaded", e => {
-    let observer = new MutationObserver(records => {
-      let reload = false;
-
-      records.forEach(record => {
-        record.removedNodes.forEach(node => {
-          if (node.id === "unsupportedBrowser") {
-            reload = true;
-          }
-        });
-        if (reload) window.location.reload(true);
-      });
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      childList: true,
-      subtree: true,
-      attributeOldValue: true,
-      characterData: true,
-    });
-  });
-}
-
-// ---------------------------
 // Analytics
 // ---------------------------
 require("../static/vendor/heapio.js");

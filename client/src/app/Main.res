@@ -107,7 +107,6 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     buildHash: buildHash,
     username: username,
     teaDebuggerEnabled: Url.isDebugging(),
-    unsupportedBrowser: Entry.unsupportedBrowser(),
     fluidState: Fluid.initAC(m.fluidState),
     tooltipState: {...m.tooltipState, userTutorial: userTutorial},
   }

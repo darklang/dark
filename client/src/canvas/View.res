@@ -721,10 +721,6 @@ let view = (m: model): Html.html<msg> => {
     ),
   }
 
-  let modal = ViewModal.unsupportedBrowser(
-    ~show=m.integrationTestState == NoIntegrationTest && m.unsupportedBrowser,
-  )
-
   let settingsModal = if m.settingsView.opened {
     SettingsView.html(m)
   } else {
@@ -741,7 +737,6 @@ let view = (m: model): Html.html<msg> => {
       accountView(m),
       viewToast(m.toast),
       entry,
-      modal,
       settingsModal,
       InsertSecret.view(m.insertSecretModal),
     },

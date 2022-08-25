@@ -263,12 +263,6 @@ let string_of_heapio_track = (e: heapioTrack): string =>
 let sendHeapioMessage = (event: heapioTrack): unit =>
   string_of_heapio_track(event) |> jsSendHeapioMessage |> ignore
 
-@val @scope("window")
-external jsUnsupportedBrowser: unit => Js.Nullable.t<bool> = "unsupportedBrowser"
-
-let unsupportedBrowser = (): bool =>
-  jsUnsupportedBrowser() |> Js.Nullable.toOption |> Option.unwrap(~default=false)
-
 let newHandler = (m: model, spec, pos) => {
   let tlid = gtlid()
   let spaceid = gid()

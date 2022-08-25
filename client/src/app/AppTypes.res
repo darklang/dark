@@ -982,7 +982,6 @@ module Model = {
     searchCache: TLID.Dict.t<string>,
     editorSettings: EditorSettings.t,
     teaDebuggerEnabled: bool,
-    unsupportedBrowser: bool,
     tlMenus: TLID.Dict.t<Menu.t>,
     firstVisitToDark: bool,
     // indicates if it is the users first time visiting any dark canvas
@@ -1053,7 +1052,6 @@ module Model = {
     searchCache: TLID.Dict.empty,
     editorSettings: EditorSettings.default,
     teaDebuggerEnabled: false,
-    unsupportedBrowser: false,
     tlMenus: TLID.Dict.empty,
     firstVisitToDark: true,
     tooltipState: Tooltip.default,
