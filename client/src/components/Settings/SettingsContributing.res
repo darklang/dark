@@ -174,6 +174,43 @@ module UseAssets = {
   @ppx.deriving(show)
   type rec intent = unit
 
+  let tunnelQueryParamName = "use-assets-tunnel"
+
+  module USP = Webapi.Url.URLSearchParams
+
+  let getTunnelQueryParam = (): bool => {
+    module L = Webapi.Dom.Location
+    Webapi.Dom.location->L.search->USP.make->USP.has(tunnelQueryParamName)
+  }
+
+  let modifySearchParamsAndReload = (f: Webapi.Url.URLSearchParams.t => unit): unit => {
+    module L = Webapi.Dom.Location
+
+    let location = Webapi.Dom.location
+    let searchParams = location->L.search->USP.make
+    f(searchParams)
+    L.setSearch(location, searchParams->USP.toString)
+  }
+
+  let setTunnelQueryParam = (): unit => {
+    modifySearchParamsAndReload(params => USP.set(params, tunnelQueryParamName, ""))
+  }
+
+  let clearTunnelQueryParam = (): unit => {
+    modifySearchParamsAndReload(params => USP.delete(params, tunnelQueryParamName))
+  }
+
+  // | RegisterTunnelHostAPICallback(result) =>
+  //   // Instantly reload with the new url
+  //   switch result {
+  //   | Tea.Result.Ok(true) => (s, Some(Reload(Tea.Cmd.call(_ => setTunnelQueryParam()))))
+  //   | Tea.Result.Ok(false) => ({tunnelHost: {...s.tunnelHost, error: Some("Invalid url")}}, None)
+  //   | Tea.Result.Error(e) => (
+  //       {tunnelHost: {...s.tunnelHost, error: Some(Tea.Http.string_of_error(e))}},
+  //       None,
+  //     )
+  //   }
+
   let update = (state: t, _msg: msg): (t, intent) => (state, ())
 }
 
@@ -201,32 +238,6 @@ module Intent = {
 
 let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default}
 
-let tunnelQueryParamName = "use-assets-tunnel"
-
-module USP = Webapi.Url.URLSearchParams
-
-let getTunnelQueryParam = (): bool => {
-  module L = Webapi.Dom.Location
-  Webapi.Dom.location->L.search->USP.make->USP.has(tunnelQueryParamName)
-}
-
-let modifySearchParamsAndReload = (f: Webapi.Url.URLSearchParams.t => unit): unit => {
-  module L = Webapi.Dom.Location
-
-  let location = Webapi.Dom.location
-  let searchParams = location->L.search->USP.make
-  f(searchParams)
-  L.setSearch(location, searchParams->USP.toString)
-}
-
-let setTunnelQueryParam = (): unit => {
-  modifySearchParamsAndReload(params => USP.set(params, tunnelQueryParamName, ""))
-}
-
-let clearTunnelQueryParam = (): unit => {
-  modifySearchParamsAndReload(params => USP.delete(params, tunnelQueryParamName))
-}
-
 let init = clientData => Tea.Cmd.map(msg => TunnelHostMsg(msg), TunnelHost.init(clientData))
 
 let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
@@ -238,15 +249,4 @@ let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
     let (tunnelHost, intent) = TunnelHost.update(s.tunnelHost, msg)
     let intent = TunnelHost.Intent.map(intent, msg => TunnelHostMsg(msg))
     ({...s, tunnelHost}, TunnelHostIntent(intent))
-
-  // | RegisterTunnelHostAPICallback(result) =>
-  //   // Instantly reload with the new url
-  //   switch result {
-  //   | Tea.Result.Ok(true) => (s, Some(Reload(Tea.Cmd.call(_ => setTunnelQueryParam()))))
-  //   | Tea.Result.Ok(false) => ({tunnelHost: {...s.tunnelHost, error: Some("Invalid url")}}, None)
-  //   | Tea.Result.Error(e) => (
-  //       {tunnelHost: {...s.tunnelHost, error: Some(Tea.Http.string_of_error(e))}},
-  //       None,
-  //     )
-  //   }
   }
