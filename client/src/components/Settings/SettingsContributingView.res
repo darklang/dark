@@ -100,7 +100,7 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
 }
 
 let viewToggle = (_: int): list<Html.html<AppTypes.msg>> => {
-  let _toggle = {
+  let toggle = {
     Html.button(
       list{
         tw(
@@ -128,7 +128,7 @@ let viewToggle = (_: int): list<Html.html<AppTypes.msg>> => {
       },
     )
   }
-  list{}
+  list{toggle}
 }
 
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
