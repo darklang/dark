@@ -122,10 +122,21 @@ let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
   }
 }
 
-let viewUISettings = (_ui: T.ContributorUI.t): list<Html.html<AppTypes.msg>> => {
-  let introText = sectionHeading("UI settings")
-  let fluidDebugger = Html.noNode
-  list{introText, fluidDebugger}
+let viewUISettings = (ui: T.ContributorUI.t): list<Html.html<AppTypes.msg>> => {
+  let heading = sectionHeading("Tools")
+  let toggle = {
+    let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
+      Settings.ContributingMsg(
+        SettingsContributing.ContributorUIMsg(
+          T.ContributorUI.SetFluidDebugger(!ui.showFluidDebugger),
+        ),
+      ),
+    ))
+    toggleButton(attr, ui.showFluidDebugger)
+  }
+  let row = settingRow("Show debugging options", None, toggle)
+
+  list{heading, row}
 }
 
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {

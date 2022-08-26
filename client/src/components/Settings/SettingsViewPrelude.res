@@ -39,3 +39,20 @@ let toggleButton = (msgAttr: Vdom.property<'msg>, enabled: bool): Html.html<'msg
     },
   )
 }
+
+let infoIcon = (_text: string): Html.html<'msg> =>
+  Html.span(list{tw("text-indigo-600")}, list{Html.text("TODO")})
+
+let settingRow = (caption: string, info: option<string>, toggle: Html.html<'msg>): Html.html<
+  'msg,
+> => {
+  let _infoText: Html.html<'msg> =
+    info->Tc.Option.map(~f=infoIcon)->Tc.Option.unwrap(~default=Html.noNode)
+  Html.div(
+    list{tw("flex items-center justify-between")},
+    list{
+      Html.span(list{tw("flex-1")}, list{Html.text(caption)}),
+      Html.span(list{tw("flex-1")}, list{toggle}),
+    },
+  )
+}
