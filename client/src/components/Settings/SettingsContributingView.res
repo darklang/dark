@@ -6,21 +6,17 @@ module T = SettingsContributing
 open SettingsViewPrelude
 
 let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
-  let introText = list{
-    sectionHeading("Tunnel your local client"),
-    Html.p(
-      list{},
-      list{
-        Html.text(
-          "To use your local client against the Dark server, use a tunnel provider such as ",
-        ),
-        Html.a(list{Attrs.href("https://localtunnel.me")}, list{Html.text("localtunnel")}),
-        Html.text(" or "),
-        Html.a(list{Attrs.href("https://ngrok.com")}, list{Html.text("ngrok")}),
-        Html.text(". Starting the tunnel provides a hostname, which you should enter below"),
-      },
-    ),
-  }
+  let info = Html.p(
+    list{},
+    list{
+      Html.text("To use your local client against the Dark server, use a tunnel provider such as "),
+      Html.a(list{Attrs.href("https://localtunnel.me")}, list{Html.text("localtunnel")}),
+      Html.text(" or "),
+      Html.a(list{Attrs.href("https://ngrok.com")}, list{Html.text("ngrok")}),
+      Html.text(". Starting the tunnel provides a hostname, which you should enter below"),
+    },
+  )
+  let introText = list{sectionHeading("Tunnel", Some(info))}
 
   let form = {
     let tunnelRow = {
@@ -123,7 +119,7 @@ let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
 }
 
 let viewUISettings = (ui: T.ContributorUI.t): list<Html.html<AppTypes.msg>> => {
-  let heading = sectionHeading("Tools")
+  let heading = sectionHeading("Tools", None)
   let toggle = {
     let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
       Settings.ContributingMsg(
@@ -134,7 +130,10 @@ let viewUISettings = (ui: T.ContributorUI.t): list<Html.html<AppTypes.msg>> => {
     ))
     toggleButton(attr, ui.showFluidDebugger)
   }
-  let row = settingRow("Show debugging options", None, toggle)
+  let info = Some(
+    "Show a menu in the (closed) sidebar with debugging options useful when working on the Darklang client",
+  )
+  let row = settingRow("Show debugging options", info, toggle)
 
   list{heading, row}
 }

@@ -163,10 +163,10 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
   }
 }
 
-let fontAwesome = (name: string): Html.html<msg> =>
-  Html.i(list{Attrs.class'("fa fa-" ++ name)}, list{})
+let fontAwesome = (~tw="", name: string): Html.html<'msg> =>
+  Html.i(list{Attrs.class'(`fa fa-${name} ${tw}`)}, list{})
 
-let darkIcon = (name: string): Html.html<msg> =>
+let darkIcon = (name: string): Html.html<'msg> =>
   Html.i(list{Attrs.class'("di di-" ++ name)}, list{})
 
 let decodeTransEvent = (fn: string => 'a, j): 'a => {
