@@ -66,6 +66,8 @@ let rec patternPreTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Patte
   | PFloat _ -> pattern
   | PConstructor (patternID, name, patterns) ->
     PConstructor(patternID, name, List.map (fun p -> r p) patterns)
+  | PTuple (patternID, first, second, theRest) ->
+    PTuple(patternID, r first, r second, List.map r theRest)
 
 
 let rec patternPostTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Pattern =
@@ -81,5 +83,7 @@ let rec patternPostTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Patt
     | PNull _
     | PFloat _ -> pattern
     | PConstructor (patternID, name, patterns) ->
-      PConstructor(patternID, name, List.map (fun p -> r p) patterns)
+      PConstructor(patternID, name, List.map r patterns)
+    | PTuple (patternID, first, second, theRest) ->
+      PTuple(patternID, r first, r second, List.map r theRest)
   f result

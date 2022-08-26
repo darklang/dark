@@ -206,6 +206,7 @@ and Pattern =
   | PFloat of id * double
   | PNull of id
   | PBlank of id
+  | PTuple of id * Pattern * Pattern * List<Pattern>
 
 type DvalMap = Map<string, Dval>
 
@@ -425,6 +426,7 @@ module Pattern =
     | PFloat (id, _)
     | PVariable (id, _)
     | PBlank id
+    | PTuple (id, _, _, _)
     | PConstructor (id, _, _) -> id
 
 /// Functions for working with Dark runtime values

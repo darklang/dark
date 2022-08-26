@@ -265,6 +265,21 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | Ok x -> "ok: " ++ x
  | name -> name ++ "var") = "ok: x"
 
+[test.matchTuple]
+(let tpl = (1, 2) in
+match tpl with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Nothing -> "constructor nothing"
+ | (1, 1) -> "1 and 1"
+ | (1, 2) -> "1 and 2"
+ | (2, 2) -> "2 and 2"
+ | name -> name ++ "var") = "1 and 2"
+
 [test.matchEmptyConstructor]
 (match Nothing with
  | 5 -> "int"

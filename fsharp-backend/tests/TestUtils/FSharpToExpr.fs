@@ -88,7 +88,13 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
                         _) ->
       let args = List.map convertPattern args
       PT.PConstructor(id, constructorName.idText, args)
-
+    | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
+      PT.PTuple(
+        id,
+        convertPattern first,
+        convertPattern second,
+        List.map convertPattern theRest
+      )
     | _ -> Exception.raiseInternal "unhandled pattern" [ "pattern", pat ]
 
   let convertLambdaVar (var : SynSimplePat) : string =

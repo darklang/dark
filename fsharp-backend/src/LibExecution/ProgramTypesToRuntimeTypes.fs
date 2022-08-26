@@ -49,6 +49,8 @@ module Pattern =
       RT.PFloat(id, makeFloat s w f)
     | PT.PNull id -> RT.PNull id
     | PT.PBlank id -> RT.PBlank id
+    | PT.PTuple (id, first, second, theRest) ->
+      RT.PTuple(id, toRT first, toRT second, List.map toRT theRest)
 
 
 
