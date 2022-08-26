@@ -247,6 +247,15 @@ module RuntimeTypes =
         return RT.EIf(gid (), condExpr, thenExpr, elseExpr)
       }
 
+    let genFF genSubExpr s =
+      gen {
+        let! condExpr = Gen.frequency [ (90, genBool); (10, genSubExpr (s / 2)) ]
+        let! thenExpr = genSubExpr (s / 2)
+        let! elseExpr = genSubExpr (s / 2)
+
+        return RT.EFeatureFlag(gid (), condExpr, thenExpr, elseExpr)
+      }
+
     let genConstructor genSubExpr s : Gen<RT.Expr> =
       let withMostlyFixedArgLen (name, expectedParamCount) =
         gen {
@@ -325,7 +334,6 @@ module RuntimeTypes =
   // They eventually belong above in the Expr sub-module
   // TODO: ELambda
   // TODO: EFieldAccess
-  // TODO: EFeatureFlag
   // TODO: EApply
   // TODO: EFQFnValue
 
@@ -340,6 +348,7 @@ module RuntimeTypes =
       [ genConstructor
         genLet
         genIf
+        genFF
         genTuple
         genRecord
         genList
