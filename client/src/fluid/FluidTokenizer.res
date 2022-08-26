@@ -166,6 +166,27 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
     Belt.List.concatMany([whole, list{TPatternFloatPoint(matchID, id, idx)}, fraction])
   | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
   | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
+  | PTuple(id, first, second, theRest) =>
+    let subPatterns = list{first, second, ...theRest}
+
+    // CLEANUP: this is likely not the most efficient way to handle this.
+    // List.intersperce was _almost_ what I needed.
+
+    let middlePart =
+      subPatterns
+      |> List.mapWithIndex(~f=(i, p) => {
+        let isLastPattern = i == (List.length(subPatterns) - 1)
+        let subpatternTokens = patternToToken(matchID, p, ~idx)
+
+        if isLastPattern {
+          subpatternTokens
+        } else {
+          List.append(subpatternTokens, list{TPatternTupleComma(id, i)})
+        }
+      })
+      |> List.flatten
+
+    List.flatten(list{list{TPatternTupleOpen(id)}, middlePart, list{TPatternTupleClose(id)}})
   }
 }
 

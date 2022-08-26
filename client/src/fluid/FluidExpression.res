@@ -2,7 +2,8 @@ include Prelude
 
 open PT.Expr
 
-@ppx.deriving(show({with_path: false})) type rec t = PT.Expr.t
+@ppx.deriving(show({with_path: false}))
+type rec t = PT.Expr.t
 
 @ppx.deriving(show({with_path: false}))
 type rec fluidPatOrExpr =
@@ -93,6 +94,8 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | PCharacter(pid, _)
     | PString(pid, _) => (pid, list{})
     | PConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
+    | PTuple(pid, first, second, theRest) =>
+      (pid, List.map(list{first, second, ...theRest}, ~f=p1 => Pat(matchID, p1)))
     }
   }
 
@@ -565,6 +568,10 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     | (PBool(_, l), PBool(_, l')) => l == l'
     | (PNull(_), PNull(_)) => true
     | (PBlank(_), PBlank(_)) => true
+    | (PTuple(_, first, second, theRest), PTuple(_, first', second', theRest')) =>
+      peqList(list{first, second, ...theRest}, list{first', second', ...theRest'})
+
+    // exhaust pattern matching
     | (PVariable(_), _)
     | (PConstructor(_), _)
     | (PString(_), _)
@@ -573,7 +580,8 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     | (PFloat(_), _)
     | (PBool(_), _)
     | (PNull(_), _)
-    | (PBlank(_), _) => false
+    | (PBlank(_), _)
+    | (PTuple(_), _) => false
     }
   }
 
@@ -712,6 +720,9 @@ let toHumanReadable = (expr: t): string => {
         | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
         | PConstructor(_, name, args) =>
           spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
+        | PTuple(_, first, second, theRest) =>
+          let exprs = list{first, second, ...theRest} |> List.map(~f=pToTestcase)
+          spaced(list{"pTuple", "(" ++ (String.join(~sep=",", exprs) ++ ")")})
         }
       }
 
