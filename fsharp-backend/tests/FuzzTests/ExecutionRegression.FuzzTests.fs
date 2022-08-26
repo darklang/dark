@@ -1,7 +1,7 @@
 /// This fuzztest generates randomized PT.Exprs paired with and RT.Dvals, and
-/// uses the `useNewLogic` property of `RT.TestContext` to A/B test the
-/// execution (especially Interpreter) change, to ensure no regression should
-/// effect user programs.
+/// A/B tests changes in the interpreter for regressions. Note: there is
+/// currently no A/B testing mechanism committed, so this will need review the
+/// next time such a need comes up.
 module FuzzTests.ExecutionRegression
 
 open System.Threading.Tasks
@@ -121,11 +121,11 @@ module Generators =
     }
 
 
-let eval useNewLogic expr =
+let eval expr =
   task {
     let! meta = createTestCanvas (Randomized "ExecutionRegression")
 
-    let! state = executionStateForABTest useNewLogic meta Map.empty Map.empty
+    let! state = executionStateFor meta Map.empty Map.empty
 
     // Note - `traces` are mutated by Exe.executeExpr
     let traces, traceFn = Exe.traceDvals ()
@@ -142,39 +142,13 @@ let eval useNewLogic expr =
     return (result, traces)
   }
 
-let hasNoRegression (expr : RT.Expr) : bool =
+let isOK (expr : RT.Expr) : bool =
   (task {
-    let! (resultA, tracesA) = eval false expr
-    let! (resultB, tracesB) = eval true expr
+    let! (_resultA, _tracesA) = eval expr
 
-    if not (Expect.dvalEquality resultA resultB) then
-      printfn "Unmatching Dvals"
-      printfn "Expr %A" expr
-      printfn "resultA (%A)" resultA
-      printfn "resultB (%A)" resultB
-
-      return false
-    else
-      let tracesA = tracesA |> Dictionary.toList |> Set.ofList
-      let tracesB = tracesB |> Dictionary.toList |> Set.ofList
-
-      let extras = tracesB - tracesA
-      let missing = tracesA - tracesB
-
-      if errorOnTraceDifferences && tracesA <> tracesB then
-        printfn "Unmatching traces"
-        printfn "Expr %A" expr
-
-        if extras <> Set.empty then
-          printfn "traced in new impl. but not in old (extra)\n (%A)" extras
-
-        if missing <> Set.empty then
-          printfn "traced in old impl. but not in new (missing)\n (%A)" missing
-
-        return false
-      else
-        //printfn "Results and traces match - no regression!!"
-        return true
+    // Currently, this only tests that eval does not crash. If/when this test
+    // is useful again, some new A/B testing mechamism is likely to be needed.
+    return true
   })
     .Result
 
@@ -184,4 +158,4 @@ type Generator =
 let tests config =
   testList
     "executionRegression"
-    [ testProperty config typeof<Generator> "hasNoRegression" hasNoRegression ]
+    [ testProperty config typeof<Generator> "isOK" isOK ]

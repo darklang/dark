@@ -30,9 +30,7 @@ let noTestContext : RT.TestContext =
 
     exceptionReports = []
     expectedExceptionCount = 0
-    postTestExecutionHook = fun _ _ -> ()
-
-    useNewLogic = false }
+    postTestExecutionHook = fun _ _ -> () }
 
 let createState
   (libraries : RT.Libraries)

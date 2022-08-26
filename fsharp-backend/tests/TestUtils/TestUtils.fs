@@ -265,8 +265,7 @@ let libraries : Lazy<RT.Libraries> =
       |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
      { stdlib = testFns; packageFns = Map.empty })
 
-let executionStateForABTest
-  (useNewLogic : bool)
+let executionStateFor
   (meta : Canvas.Meta)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
@@ -283,7 +282,6 @@ let executionStateForABTest
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
-        useNewLogic = useNewLogic
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =
@@ -336,8 +334,6 @@ let executionStateForABTest
     let state = { state with test = testContext }
     return state
   }
-
-let executionStateFor = executionStateForABTest false
 
 /// Saves and reloads the canvas for the Toplevels
 let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
