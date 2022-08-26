@@ -322,7 +322,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           else
             // If we're "previewing" (analysis), persist traces for all patterns
             traces |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
-            state.tracing.traceDval false id matchVal
             do! preview newSymtable rhsExpr
 
       return matchResult
