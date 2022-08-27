@@ -37,12 +37,11 @@ module Tooltip = {
 
 module InfoIcon = {
   // Show an information icon: a small "i" that you can hover to see the passed information
-  let text = (text: string): Html.html<'msg> =>
-    Icons.fontAwesome(~tw="text-slate-400", "info-circle")->Tooltip.add(Tooltip.text(text))
+  let generic = (body: Html.html<'msg>): Html.html<'msg> =>
+    Icons.fontAwesome(~tw="text-sm px-1 text-[#484848]", "info-circle")->Tooltip.add(body)
 
   // Show an information icon: a small "i" that you can hover to see the passed information
-  let generic = (body: Html.html<'msg>): Html.html<'msg> =>
-    Icons.fontAwesome(~tw="text-slate-400", "info-circle")->Tooltip.add(body)
+  let text = (text: string): Html.html<'msg> => generic(Tooltip.text(text))
 }
 
 // -------------------
