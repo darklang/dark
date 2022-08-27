@@ -96,7 +96,7 @@ let button = (
   Html.button(
     list{
       tw(
-        "rounded h-9 px-2.5 py-1 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-xl font-bold align-top",
+        "rounded h-9 px-2.5 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-xl font-bold align-top",
       ),
       msgAttr,
     },
@@ -141,7 +141,7 @@ let settingRow = (
     list{},
     list{
       Html.div(
-        list{tw("flex items-center justify-between")},
+        list{tw("flex items-center justify-between h-9")},
         list{
           Html.span(list{tw("flex-1")}, list{Html.text(caption), infoText}),
           Html.span(list{tw("flex-3")}, contents),
