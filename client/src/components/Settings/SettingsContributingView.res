@@ -81,21 +81,8 @@ let viewTunnelToggle = (s: T.UseAssets.t): Html.html<AppTypes.msg> => {
     ))
     C.toggleButton(attr, enabled)
   }
-  Html.div(
-    list{C.tw("mt-8 flex justify-center")},
-    list{
-      Html.div(
-        list{C.tw("text-center bg-[#383838] py-4 px-16 rounded")},
-        list{
-          Html.span(
-            list{C.tw("inline-block align-top text-xl pr-8")},
-            list{Html.text("Use tunneled assets")},
-          ),
-          toggle,
-        },
-      ),
-    },
-  )
+
+  C.settingRow("Use tunneled assets", ~info=None, ~error=None, list{toggle})
 }
 
 let viewDebuggingOption = (ui: T.ContributorUI.t): Html.html<AppTypes.msg> => {

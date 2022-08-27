@@ -144,7 +144,7 @@ let settingRow = (
         list{tw("flex items-center justify-between")},
         list{
           Html.span(list{tw("flex-1")}, list{Html.text(caption), infoText}),
-          Html.span(list{tw("flex-1")}, contents),
+          Html.span(list{tw("flex-3")}, contents),
         },
       ),
       error,
