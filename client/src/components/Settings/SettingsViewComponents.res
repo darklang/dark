@@ -108,22 +108,46 @@ let button = (
 // Content components
 // -------------------
 
-let sectionHeading = (text: string, info: option<Html.html<'msg>>) => {
+let sectionHeading = (text: string, info: option<Html.html<'msg>>): Html.html<'msg> => {
   let info = info->Tc.Option.map(~f=InfoIcon.generic)->Tc.Option.unwrap(~default=Html.noNode)
 
   Html.span(list{tw("font-bold text-xl mt-3")}, list{Html.text(text), info})
 }
 
-let settingRow = (caption: string, info: option<string>, button: Html.html<'msg>): Html.html<
-  'msg,
-> => {
+let errorSpan = (error: string): Html.html<'msg> => {
+  Html.span(
+    list{},
+    list{
+      Html.p(
+        // TODO: use tailwind
+        list{Attrs.class("error-text")},
+        list{Html.text(error)},
+      ),
+    },
+  )
+}
+
+let settingRow = (
+  ~info: option<string>,
+  ~error: option<string>,
+  caption: string,
+  contents: list<Html.html<'msg>>,
+): Html.html<'msg> => {
   let infoText: Html.html<'msg> =
     info->Tc.Option.map(~f=InfoIcon.text)->Tc.Option.unwrap(~default=Html.noNode)
+  let error: Html.html<'msg> =
+    error->Tc.Option.map(~f=errorSpan)->Tc.Option.unwrap(~default=Html.noNode)
   Html.div(
-    list{tw("flex items-center justify-between")},
+    list{},
     list{
-      Html.span(list{tw("flex-1")}, list{Html.text(caption), infoText}),
-      Html.span(list{tw("flex-1")}, list{button}),
+      Html.div(
+        list{tw("flex items-center justify-between")},
+        list{
+          Html.span(list{tw("flex-1")}, list{Html.text(caption), infoText}),
+          Html.span(list{tw("flex-1")}, contents),
+        },
+      ),
+      error,
     },
   )
 }

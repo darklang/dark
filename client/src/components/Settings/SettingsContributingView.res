@@ -3,9 +3,13 @@
 module Utils = SettingsUtils
 module T = SettingsContributing
 
-open SettingsViewPrelude
+module Html = Tea.Html
+module Events = Tea.Html.Events
+module Attrs = Tea.Html.Attributes
 
-let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
+module C = SettingsViewComponents
+
+let viewTunnelSectionHeader = {
   let info = Html.p(
     list{},
     list{
@@ -16,104 +20,85 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
       Html.text(". Starting the tunnel provides a hostname, which you should enter below"),
     },
   )
-  let introText = list{sectionHeading("Tunnel", Some(info))}
-
-  let form = {
-    let tunnelRow = {
-      let value = th.value->Belt.Option.getWithDefault("")
-      let loadingAttrs = switch th.loadStatus {
-      | LoadStatus.Loading => list{Attrs.disabled(true)}
-      | LoadStatus.Success(_)
-      | LoadStatus.Error => list{Attrs.noProp}
-      }
-      let loadingSpinner = switch th.loadStatus {
-      | LoadStatus.Loading =>
-        Html.i(list{Attrs.class("fa fa-spinner -ml-5 text-[#e8e8e8]")}, list{})
-      | LoadStatus.Success(_)
-      | LoadStatus.Error => Vdom.noNode
-      }
-      let tunnelField = Html.span(
-        list{tw("px-2.5 py-2")},
-        list{
-          Html.span(list{tw("h-6 font-bold mr-1")}, list{Html.text("https://")}),
-          Html.input'(
-            List.append(
-              loadingAttrs,
-              list{
-                // TODO: move colors into theme
-                Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
-                Attrs.placeholder("hostname"),
-                Attrs.size(25),
-                Attrs.spellcheck(false),
-                Attrs.value(value),
-                Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                  Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
-                )),
-              },
-            ),
-            list{},
-          ),
-          loadingSpinner,
-        },
-      )
-      let tunnelButton = {
-        button(
-          ViewUtils.eventNoPropagation(~key="tunnel-button-set", "click", _ => SettingsMsg(
-            Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
-          )),
-          th.saveStatus,
-          list{Html.text("Set")},
-        )
-      }
-
-      Html.div(list{tw("align-baseline")}, list{tunnelField, tunnelButton})
-    }
-
-    let tunnelError = Html.span(
-      list{},
-      list{
-        Html.p(
-          list{Attrs.class("error-text")},
-          list{Html.text(th.error->Belt.Option.getWithDefault(""))},
-        ),
-      },
-    )
-
-    list{Html.div(list{Attrs.class("tunnel-form")}, list{tunnelRow, tunnelError})}
-  }
-
-  Belt.List.concat(introText, form)
+  C.sectionHeading("Tunnel", Some(info))
 }
 
-let viewToggle = (s: T.UseAssets.t): list<Html.html<AppTypes.msg>> => {
+let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
+  let value = th.value->Belt.Option.getWithDefault("")
+  let loadingAttrs = switch th.loadStatus {
+  | LoadStatus.Loading => list{Attrs.disabled(true)}
+  | LoadStatus.Success(_)
+  | LoadStatus.Error => list{Attrs.noProp}
+  }
+  let loadingSpinner = switch th.loadStatus {
+  | LoadStatus.Loading => Html.i(list{Attrs.class("fa fa-spinner -ml-5 text-[#e8e8e8]")}, list{})
+  | LoadStatus.Success(_)
+  | LoadStatus.Error => Vdom.noNode
+  }
+  let field = Html.span(
+    list{C.tw("px-2.5 py-2")},
+    list{
+      Html.span(list{C.tw("h-6 font-bold mr-1")}, list{Html.text("https://")}),
+      Html.input'(
+        List.append(
+          loadingAttrs,
+          list{
+            // TODO: move colors into theme
+            Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
+            Attrs.placeholder("hostname"),
+            Attrs.size(25),
+            Attrs.spellcheck(false),
+            Attrs.value(value),
+            Events.onInput(str => AppTypes.Msg.SettingsMsg(
+              Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
+            )),
+          },
+        ),
+        list{},
+      ),
+      loadingSpinner,
+    },
+  )
+  let button = {
+    C.button(
+      ViewUtils.eventNoPropagation(~key="tunnel-button-set", "click", _ => SettingsMsg(
+        Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
+      )),
+      th.saveStatus,
+      list{Html.text("Set")},
+    )
+  }
+  let row = C.settingRow(~info=None, ~error=None, "Tunnel url", list{field, button})
+
+  Html.div(list{C.tw("align-baseline")}, list{row})
+}
+
+let viewTunnelToggle = (s: T.UseAssets.t): Html.html<AppTypes.msg> => {
   let toggle = {
     let enabled = s == UseTunnelAssets
     let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
       Settings.ContributingMsg(T.UseAssetsMsg(T.UseAssets.Toggle)),
     ))
-    toggleButton(attr, enabled)
+    C.toggleButton(attr, enabled)
   }
-  list{
-    Html.div(
-      list{tw("mt-8 flex justify-center")},
-      list{
-        Html.div(
-          list{tw("text-center bg-[#383838] py-4 px-16 rounded")},
-          list{
-            Html.span(
-              list{tw("inline-block align-top text-xl pr-8")},
-              list{Html.text("Use tunneled assets")},
-            ),
-            toggle,
-          },
-        ),
-      },
-    ),
-  }
+  Html.div(
+    list{C.tw("mt-8 flex justify-center")},
+    list{
+      Html.div(
+        list{C.tw("text-center bg-[#383838] py-4 px-16 rounded")},
+        list{
+          Html.span(
+            list{C.tw("inline-block align-top text-xl pr-8")},
+            list{Html.text("Use tunneled assets")},
+          ),
+          toggle,
+        },
+      ),
+    },
+  )
 }
 
-let viewUISettings = (ui: T.ContributorUI.t): list<Html.html<AppTypes.msg>> => {
-  let heading = sectionHeading("Tools", None)
+let viewDebuggingOption = (ui: T.ContributorUI.t): Html.html<AppTypes.msg> => {
   let toggle = {
     let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
       Settings.ContributingMsg(
@@ -122,36 +107,36 @@ let viewUISettings = (ui: T.ContributorUI.t): list<Html.html<AppTypes.msg>> => {
         ),
       ),
     ))
-    toggleButton(attr, ui.showFluidDebugger)
+    C.toggleButton(attr, ui.showFluidDebugger)
   }
   let info = Some(
     "Show a menu in the (closed) sidebar with debugging options useful when working on the Darklang client",
   )
-  let row = settingRow("Show debugging options", info, toggle)
+  C.settingRow("Show debugging options", ~info, ~error=None, list{toggle})
+}
 
-  list{heading, row}
+let viewIntroText = {
+  Html.p(
+    list{},
+    list{
+      Html.text("To contribute to Dark, check out the "),
+      Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("Dark repo")}),
+      Html.text(" and read the "),
+      Html.a(
+        list{Attrs.href("https://docs.darklang.com/contributing/getting-started")},
+        list{Html.text("contributor docs")},
+      ),
+    },
+  )
 }
 
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
-  let introText = list{
-    Html.p(
-      list{},
-      list{
-        Html.text("To contribute to Dark, check out the "),
-        Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("Dark repo")}),
-        Html.text(" and read the "),
-        Html.a(
-          list{Attrs.href("https://docs.darklang.com/contributing/getting-started")},
-          list{Html.text("contributor docs")},
-        ),
-      },
-    ),
-  }
-
   Belt.List.concatMany([
-    introText,
-    viewUISettings(s.contributorUI),
-    viewTunnel(s.tunnelHost),
-    viewToggle(s.useAssets),
+    list{viewIntroText},
+    list{C.sectionHeading("Tools", None)},
+    list{viewDebuggingOption(s.contributorUI)},
+    list{viewTunnelSectionHeader},
+    list{viewTunnelHost(s.tunnelHost)},
+    list{viewTunnelToggle(s.useAssets)},
   ])
 }
