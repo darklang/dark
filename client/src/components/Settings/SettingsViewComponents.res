@@ -110,8 +110,11 @@ let button = (
 let sectionHeading = (text: string, info: option<Html.html<'msg>>): Html.html<'msg> => {
   let info = info->Tc.Option.map(~f=InfoIcon.generic)->Tc.Option.unwrap(~default=Html.noNode)
 
-  Html.span(list{tw("font-bold text-xl mt-3")}, list{Html.text(text), info})
+  Html.span(list{tw("font-bold text-xl mt-4")}, list{Html.text(text), info})
 }
+
+let sectionIntroText = contents =>
+  Html.p(list{tw("mx-2 mt-1 mb-2 text-sm text-[#b8b8b8]")}, contents)
 
 let errorSpan = (error: string): Html.html<'msg> => {
   Html.span(

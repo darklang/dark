@@ -9,18 +9,49 @@ module Attrs = Tea.Html.Attributes
 
 module C = SettingsViewComponents
 
-let viewTunnelSectionHeader = {
-  let info = Html.p(
+let viewIntroText = {
+  Html.p(
     list{},
     list{
-      Html.text("To use your local client against the Dark server, use a tunnel provider such as "),
+      Html.text("To contribute to Dark, check out the "),
+      Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("Dark repo")}),
+      Html.text(" and read the "),
+      Html.a(
+        list{Attrs.href("https://docs.darklang.com/contributing/getting-started")},
+        list{Html.text("contributor docs")},
+      ),
+    },
+  )
+}
+
+let viewDebuggingOption = (ui: T.ContributorUI.t): Html.html<AppTypes.msg> => {
+  let toggle = {
+    let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
+      Settings.ContributingMsg(
+        SettingsContributing.ContributorUIMsg(
+          T.ContributorUI.SetFluidDebugger(!ui.showFluidDebugger),
+        ),
+      ),
+    ))
+    C.toggleButton(attr, ui.showFluidDebugger)
+  }
+  let info = Some(
+    "Show a menu in the (closed) sidebar with debugging options useful when working on the Darklang client",
+  )
+  C.settingRow("Show debugging options", ~info, ~error=None, list{toggle})
+}
+
+let viewTunnelSectionHeader = {
+  list{
+    C.sectionHeading("Tunnel", None),
+    C.sectionIntroText(list{
+      Html.text("When working on the Darklang client, you can use a tunnel service (such as "),
       Html.a(list{Attrs.href("https://localtunnel.me")}, list{Html.text("localtunnel")}),
       Html.text(" or "),
       Html.a(list{Attrs.href("https://ngrok.com")}, list{Html.text("ngrok")}),
-      Html.text(". Starting the tunnel provides a hostname, which you should enter below"),
-    },
-  )
-  C.sectionHeading("Tunnel", Some(info))
+      Html.text(") to use your local client against the Darklang production API"),
+    }),
+  }
 }
 
 let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
@@ -46,7 +77,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
             // TODO: move colors into theme
             Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
             Attrs.placeholder("hostname"),
-            Attrs.size(25),
+            Attrs.size(50),
             Attrs.spellcheck(false),
             Attrs.value(value),
             Events.onInput(str => AppTypes.Msg.SettingsMsg(
@@ -68,7 +99,14 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
       list{Html.text("Set")},
     )
   }
-  let row = C.settingRow(~info=None, ~error=None, "Tunnel url", list{field, button})
+  let row = C.settingRow(
+    ~info=Some(
+      "Your tunnel provided (eg ngrok) will provide this hostname once you start the tunnel",
+    ),
+    ~error=None,
+    "Tunnel hostname",
+    list{field, button},
+  )
 
   Html.div(list{C.tw("align-baseline")}, list{row})
 }
@@ -85,44 +123,12 @@ let viewTunnelToggle = (s: T.UseAssets.t): Html.html<AppTypes.msg> => {
   C.settingRow("Use tunneled assets", ~info=None, ~error=None, list{toggle})
 }
 
-let viewDebuggingOption = (ui: T.ContributorUI.t): Html.html<AppTypes.msg> => {
-  let toggle = {
-    let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
-      Settings.ContributingMsg(
-        SettingsContributing.ContributorUIMsg(
-          T.ContributorUI.SetFluidDebugger(!ui.showFluidDebugger),
-        ),
-      ),
-    ))
-    C.toggleButton(attr, ui.showFluidDebugger)
-  }
-  let info = Some(
-    "Show a menu in the (closed) sidebar with debugging options useful when working on the Darklang client",
-  )
-  C.settingRow("Show debugging options", ~info, ~error=None, list{toggle})
-}
-
-let viewIntroText = {
-  Html.p(
-    list{},
-    list{
-      Html.text("To contribute to Dark, check out the "),
-      Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("Dark repo")}),
-      Html.text(" and read the "),
-      Html.a(
-        list{Attrs.href("https://docs.darklang.com/contributing/getting-started")},
-        list{Html.text("contributor docs")},
-      ),
-    },
-  )
-}
-
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
   Belt.List.concatMany([
     list{viewIntroText},
     list{C.sectionHeading("Tools", None)},
     list{viewDebuggingOption(s.contributorUI)},
-    list{viewTunnelSectionHeader},
+    viewTunnelSectionHeader,
     list{viewTunnelHost(s.tunnelHost)},
     list{viewTunnelToggle(s.useAssets)},
   ])
