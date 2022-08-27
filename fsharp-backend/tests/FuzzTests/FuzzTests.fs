@@ -8,16 +8,21 @@ open Tablecloth
 
 open Utils
 
+let disabled config =
+  // These used to be legitimate tests, but are currently useless
+  // (ExecutePureFunctions was specifically testing OCaml-backend regressions)
+  [ ExecutePureFunctions.tests ] |> List.map (fun fn -> fn config)
+
 /// FSTODO Tests we know to have some issues to work out
 let knownBad config =
-  [ FQFnName.tests // fails on `User "gm32_v6"`
-    ExecutePureFunctions.tests ]
+  [ FQFnName.tests ] // fails on `User "gm32_v6"`]
   |> List.map (fun fn -> fn config)
 
 /// Tests we generally know to be consistent
 let knownGood (config : FuzzTestConfig) =
   [ Passwords.tests // passes with 10,000; 8 tests/s
-    NodaTime.tests ] // passes with 1,000,000; 140k tests/s
+    NodaTime.tests // passes with 1,000,000; 140k tests/s
+    ExecutionRegression.tests ]
   |> List.map (fun fn -> fn config)
 
 let tests config =
@@ -39,7 +44,7 @@ let main args =
           |> List.tryFind (fun (l, r) -> l = "--fscheck-max-tests")
       with
     | Some (_l, maxTests) -> { MaxTests = int maxTests }
-    | _ -> { MaxTests = 1000 }
+    | _ -> { MaxTests = 100000 }
 
   // this does async stuff within it, so do not run it from a task/async
   // context or it may hang

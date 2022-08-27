@@ -20,8 +20,6 @@ open TestUtils.TestUtils
 
 open FuzzTests.Utils
 
-module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module G = Generators
 
@@ -314,7 +312,7 @@ type Generator =
   static member String() : Arbitrary<string> = G.SafeUnicodeString
   static member Float() : Arbitrary<float> = G.SafeFloat
   static member Int64() : Arbitrary<int64> = G.SafeInt64
-  static member Dval() : Arbitrary<RT.Dval> = G.RuntimeTypes.Dval
+  static member Dval() : Arbitrary<RT.Dval> = G.RuntimeTypes.Dval |> Arb.fromGen
   static member DType() : Arbitrary<RT.DType> = G.RuntimeTypes.DType
 
   // this is the type expected/generated for the below property
