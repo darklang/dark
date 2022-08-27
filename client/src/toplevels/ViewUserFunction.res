@@ -10,7 +10,7 @@ module B = BlankOr
 type msg = AppTypes.msg
 type viewProps = ViewUtils.viewProps
 
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 let onEvent = ViewUtils.onEvent
 
@@ -180,7 +180,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
     Html.div(
       list{Attrs.class'("spec-header")},
       list{
-        ViewUtils.darkIcon("fn"),
+        Icons.darkIcon("fn"),
         viewUserFnName(vp, ~classes=list{"fn-name-content"}, titleText),
         executeBtn,
       },

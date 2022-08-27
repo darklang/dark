@@ -8,8 +8,6 @@ module B = BlankOr
 
 type viewProps = ViewUtils.viewProps
 
-let fontAwesome = ViewUtils.fontAwesome
-
 type fnExecutionStatus =
   | Unsafe
   | IncompleteArgs
@@ -151,7 +149,7 @@ let fnExecutionButton = (p: props, fn: function_, id: id, args: list<id>) => {
     let events = executionEvents(status, p.tlid, id, name)
     Html.div(
       list{Attrs.class'("execution-button " ++ class_), Attrs.title(title), ...events},
-      list{fontAwesome(icon)},
+      list{Icons.fontAwesome(icon)},
     )
   }
 }

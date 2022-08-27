@@ -14,8 +14,6 @@ type msg = AppTypes.msg
 module Mod = AppTypes.Modification
 module Msg = AppTypes.Msg
 
-let fontAwesome = ViewUtils.fontAwesome
-
 let onEvent = ViewUtils.onEvent
 
 type viewProps = ViewUtils.viewProps
@@ -96,7 +94,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
             _ => DeleteUserFunctionParameter(uf.tlid, p),
           ),
         },
-        list{fontAwesome("times-circle")},
+        list{Icons.fontAwesome("times-circle")},
       )
     } else {
       Html.div(
@@ -104,7 +102,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
           Attrs.class'("parameter-btn disallowed"),
           Attrs.title("Can't delete parameter because it is used in the function body"),
         },
-        list{fontAwesome("times-circle")},
+        list{Icons.fontAwesome("times-circle")},
       )
     }
 
@@ -207,7 +205,7 @@ let viewParam = (
     }
 
     let dragIcon = switch fn {
-    | UserFunction(_) => fontAwesome("grip-lines")
+    | UserFunction(_) => Icons.fontAwesome("grip-lines")
     | PackageFn(_) => Vdom.noNode
     }
 

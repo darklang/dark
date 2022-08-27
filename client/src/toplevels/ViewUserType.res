@@ -8,7 +8,7 @@ module Events = Tea.Events
 module B = BlankOr
 
 type msg = AppTypes.msg
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 type viewProps = ViewUtils.viewProps
 

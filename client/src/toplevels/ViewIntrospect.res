@@ -121,7 +121,7 @@ let dbView = (
       Html.div(
         list{Attrs.class'("dbheader")},
         list{
-          ViewUtils.fontAwesome("database"),
+          Icons.fontAwesome("database"),
           Html.span(list{Attrs.class'("dbname")}, list{Html.text(name)}),
         },
       ),
@@ -172,7 +172,7 @@ let fnView = (
   direction: string,
 ): Html.html<msg> => {
   let header = list{
-    ViewUtils.darkIcon("fn"),
+    Icons.darkIcon("fn"),
     Html.span(list{Attrs.class'("fnname")}, list{Html.text(name)}),
   }
 
@@ -205,7 +205,7 @@ let packageFnView = (
 ): Html.html<msg> => {
   // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f
   let header = list{
-    ViewUtils.fontAwesome("box-open"),
+    Icons.fontAwesome("box-open"),
     Html.span(list{Attrs.class'("fnname")}, list{Html.text(name)}),
   }
 
@@ -234,7 +234,7 @@ let tipeView = (
   direction: string,
 ): Html.html<msg> => {
   let header = list{
-    ViewUtils.darkIcon("type"),
+    Icons.darkIcon("type"),
     Html.span(list{Attrs.class'("tipename")}, list{Html.text(name)}),
   }
 

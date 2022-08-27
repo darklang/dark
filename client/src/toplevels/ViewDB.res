@@ -12,7 +12,7 @@ type viewProps = ViewUtils.viewProps
 type domEventList = ViewUtils.domEventList
 type dbStats = AnalysisTypes.dbStats
 
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(

@@ -15,7 +15,7 @@ type domEventList = ViewUtils.domEventList
 
 let inUnit = ViewUtils.intAsUnit
 
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 let viewText = ViewBlankOr.viewText
 

@@ -163,12 +163,6 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
   }
 }
 
-let fontAwesome = (~tw="", name: string): Html.html<'msg> =>
-  Html.i(list{Attrs.class'(`fa fa-${name} ${tw}`)}, list{})
-
-let darkIcon = (name: string): Html.html<'msg> =>
-  Html.i(list{Attrs.class'("di di-" ++ name)}, list{})
-
 let decodeTransEvent = (fn: string => 'a, j): 'a => {
   open Json.Decode
   fn(field("propertyName", string, j))

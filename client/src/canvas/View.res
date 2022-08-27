@@ -17,7 +17,7 @@ type msg = AppTypes.msg
 
 let appID = "app"
 
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 let docsURL = "https://docs.darklang.com"
 

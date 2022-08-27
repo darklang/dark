@@ -31,7 +31,7 @@ let viewCopyButton = (tlid, value): Html.html<msg> =>
         m => ClipboardCopyLivevalue(value, m.mePos),
       ),
     },
-    list{ViewUtils.fontAwesome("copy")},
+    list{Icons.fontAwesome("copy")},
   )
 
 let viewArrow = (curID: id, srcID: id): Html.html<msg> => {
@@ -175,12 +175,12 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
             Attrs.class'("jump-src"),
             Attrs.title("Click here to go to the source of problem"),
           },
-          list{Html.text(msg), ViewUtils.fontAwesome("arrow-alt-circle-up")},
+          list{Html.text(msg), Icons.fontAwesome("arrow-alt-circle-up")},
         ),
       }
     | Loading =>
       isLoaded := false
-      list{ViewUtils.fontAwesome("spinner")}
+      list{Icons.fontAwesome("spinner")}
     }
 
   FluidTokenizer.ASTInfo.getToken(vp.astInfo)
@@ -385,7 +385,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
       | FeatureFlagEditor(_, flagID) =>
         let flagIcon = Html.div(
           list{Attrs.class'("ff-icon"), Attrs.title("feature flag")},
-          list{ViewUtils.fontAwesome("flag")},
+          list{Icons.fontAwesome("flag")},
         )
 
         let rowOffset = flagID |> findRowOffestOfMainTokenWithId |> Option.unwrap(~default=0)

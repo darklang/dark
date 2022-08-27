@@ -73,11 +73,12 @@ let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg)
   msg,
 > => {
   let event = ViewUtils.eventNeither(~key, "click", _ => handler)
-  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{fontAwesome(icon)})
+  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{Icons.fontAwesome(icon)})
 }
 
 let categoryIcon_ = (name: string): list<Html.html<msg>> => {
-  let darkIcon = ViewUtils.darkIcon
+  let darkIcon = Icons.darkIcon
+  let fontAwesome = Icons.fontAwesome
   // Deleted categories have a deleted- prefix, with which are not valid fontaweome icons
   switch name |> String.toLowercase |> Regex.replace(~re=Regex.regex(delPrefix), ~repl="") {
   | "http" => list{darkIcon("http")}
@@ -580,7 +581,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
         m.mePos,
       )),
     },
-    list{fontAwesome("copy")},
+    list{Icons.fontAwesome("copy")},
   )
 
   Html.div(
@@ -725,7 +726,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
       ),
       Attrs.title("Click to copy secret name"),
     },
-    list{fontAwesome("copy")},
+    list{Icons.fontAwesome("copy")},
   )
 
   let secretValue = Util.obscureString(s.secretValue)
@@ -940,7 +941,10 @@ let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
 
   let icon = {
     let view' = iconName =>
-      Html.span(list{Attrs.class'("icon")}, list{fontAwesome(iconName), fontAwesome(iconName)})
+      Html.span(
+        list{Attrs.class'("icon")},
+        list{Icons.fontAwesome(iconName), Icons.fontAwesome(iconName)},
+      )
 
     if isDetailed {
       view'("chevron-left")
@@ -1108,7 +1112,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       Vdom.attribute("", "role", "img"),
       Vdom.attribute("", "alt", "Admin"),
     },
-    list{fontAwesome("cog")},
+    list{Icons.fontAwesome("cog")},
   )
 
   let sectionIcon = Html.div(list{Attrs.class'("category-summary")}, list{icon, environment})

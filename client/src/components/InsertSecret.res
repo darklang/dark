@@ -11,8 +11,6 @@ module Msg = AppTypes.Msg
 type modification = AppTypes.modification
 type msg = AppTypes.msg
 
-let fontAwesome = ViewUtils.fontAwesome
-
 let nameValidator = "[A-Z0-9_]+"
 
 let validateName = (s: string): bool => Regex.exactly(~re=nameValidator, s)
@@ -143,7 +141,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
             _ => Msg.SecretMsg(CloseCreateModal),
           ),
         },
-        list{fontAwesome("times")},
+        list{Icons.fontAwesome("times")},
       )
 
       let content = {

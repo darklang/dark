@@ -12,8 +12,6 @@ module T = Settings
 module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
-let fontAwesome = ViewUtils.fontAwesome
-
 let allTabs: list<T.Tab.t> = list{T.Tab.Canvases, Privacy, Invite, Contributing}
 
 // View
@@ -79,7 +77,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
         Close(svs.tab),
       )),
     },
-    list{fontAwesome("times")},
+    list{Icons.fontAwesome("times")},
   )
 
   Html.div(

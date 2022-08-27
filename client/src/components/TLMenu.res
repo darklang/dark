@@ -5,7 +5,6 @@ module Attrs = Tea.Attrs
 
 let onClick = (key, fn) => ViewUtils.eventNoPropagation(~key, "click", fn)
 
-let fontAwesome = ViewUtils.fontAwesome
 module M = AppTypes.Menu
 type t = AppTypes.Menu.t
 
@@ -50,7 +49,7 @@ let closeMenu = (m: AppTypes.model): AppTypes.model =>
 
 let viewItem = (keyID: string, i: menuItem): Html.html<AppTypes.msg> => {
   let icon = switch i.icon {
-  | Some(iconName) => fontAwesome(iconName)
+  | Some(iconName) => Icons.fontAwesome(iconName)
   | None => Vdom.noNode
   }
 
@@ -84,7 +83,7 @@ let viewMenu = (s: M.t, tlid: TLID.t, items: list<menuItem>): Html.html<AppTypes
           },
         )),
       },
-      list{fontAwesome("bars")},
+      list{Icons.fontAwesome("bars")},
     )
   }
 
