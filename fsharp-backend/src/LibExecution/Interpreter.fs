@@ -288,8 +288,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let traces = (id, incomplete id) :: traceArgsIncomplete argPatterns
             false, [], traces
           // TUPLETODO: handle tuple pattern matches properly
-          | PTuple (pid, _first, _second, _theRest) ->
-            false, [], []
+        | PTuple (pid, _first, _second, _theRest) ->
+          false, [], []
 
       // This is to avoid checking `state.tracing.realOrPreview = Real` below.
       // If RealOrPreview gets additional branches, reconsider what to do here.
