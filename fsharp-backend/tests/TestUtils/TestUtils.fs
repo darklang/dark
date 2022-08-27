@@ -321,7 +321,7 @@ let executionStateFor
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
-    let notifier : RT.Notifier = fun state msg tags -> ()
+    let notifier : RT.Notifier = fun _state _msg _tags -> ()
 
     let state =
       Exe.createState

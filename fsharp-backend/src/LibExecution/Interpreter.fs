@@ -9,6 +9,7 @@ open Prelude
 open RuntimeTypes
 open Prelude
 
+
 /// Gathers any global data (Secrets, DBs, etc.)
 /// that may be needed to evaluate an expression
 let globalsFor (state : ExecutionState) : Symtable =
@@ -237,164 +238,93 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // It is the responsibility of wherever executes the DBlock to pass in
       // args and execute the body.
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
+
     | EMatch (id, matchExpr, cases) ->
-      let hasMatched = ref false
-      let matchResult = ref (incomplete id)
-
-      let executeMatch
-        (newDefs : (string * Dval) list)
-        (traces : (id * Dval) list)
-        (st : DvalMap)
-        (expr : Expr)
-        : Ply<unit> =
-        uply {
-          // Once a pattern is matched, this function is called to execute its
-          // `expr`. It tracks whether this is the first pattern to execute,
-          // and calls preview if it is not. Handles calling trace on the
-          // traces that have been collected by pattern matching.
-
-          let newVars = Map.ofList newDefs
-
-          let newSt = Map.mergeFavoringRight st newVars
-
-          if hasMatched.Value then
-            // We matched, but we've already matched a pattern previously
-            List.iter
-              (fun (id, dval) -> state.tracing.traceDval false id dval)
-              traces
-
-            do! preview newSt expr
-            return ()
-          else
-            List.iter
-              (fun (id, dval) ->
-                state.tracing.traceDval state.onExecutionPath id dval)
-              traces
-
-            hasMatched.Value <- true
-
-            let! result = eval state newSt expr
-            matchResult.Value <- result
-            return ()
-        }
-
-      let traceIncompletes traces =
-        List.iter
-          (fun (id, _) -> state.tracing.traceDval false id (incomplete id))
-          traces
-
-      let traceNonMatch
-        (st : DvalMap)
-        (expr : Expr)
-        (traces : (id * Dval) list)
-        (id : id)
-        (value : Dval)
-        : Ply<unit> =
-        uply {
-          do! preview st expr
-          traceIncompletes traces
-          state.tracing.traceDval false id value
-        }
-
-      let rec matchAndExecute
+      /// Does the dval 'match' the given pattern?
+      ///
+      /// Returns:
+      /// - whether or not the expr 'matches' the pattern
+      /// - new vars (name * value)
+      /// - traces
+      let rec checkPattern
         dv
-        (builtUpTraces : (id * Dval) list)
-        (pattern, expr)
-        : Ply<unit> =
-        // Compare `dv` to `pattern`, and execute the rhs `expr` of any
-        // matches. Tracks whether a branch has already been executed and
-        // will exceute later matches in preview mode.  Ensures all patterns
-        // and branches are properly traced.  Recurse on partial matches
-        // (constructors); builtUpTraces is the set of traces that have been
-        // built up by recursing: they can only be matched when the pattern
-        // is ready to match.
+        pattern
+        : bool * List<string * Dval> * List<id * Dval> =
         match pattern with
-        | PInteger (pid, i) ->
-          let v = DInt i
+        | PInteger (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
+        | PBool (id, b) -> (dv = DBool b), [], [ (id, DBool b) ]
+        | PCharacter (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
+        | PString (id, s) -> (dv = DStr s), [], [ (id, DStr s) ]
+        | PFloat (id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
+        | PNull (id) -> (dv = DNull), [], [ (id, DNull) ]
 
-          if v = dv then
-            executeMatch [] ((pid, v) :: builtUpTraces) st expr
-          else
-            traceNonMatch st expr builtUpTraces pid v
-        | PBool (pid, bool) ->
-          let v = DBool bool
+        | PBlank (id) -> false, [], [ (id, incomplete id) ]
 
-          if v = dv then
-            executeMatch [] ((pid, v) :: builtUpTraces) st expr
-          else
-            traceNonMatch st expr builtUpTraces pid v
-        | PCharacter (pid, c) ->
-          let v = DChar(c)
+        | PVariable (id, varName) ->
+          not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
-          if v = dv then
-            executeMatch [] ((pid, v) :: builtUpTraces) st expr
-          else
-            traceNonMatch st expr builtUpTraces pid v
-        | PString (pid, str) ->
-          let v = DStr(str)
+        | PConstructor (id, name, args) ->
+          let traceArgsIncomplete argPatterns =
+            argPatterns
+            |> List.map Pattern.toID
+            |> List.map (fun pId -> (pId, incomplete pId))
 
-          if v = dv then
-            executeMatch [] ((pid, v) :: builtUpTraces) st expr
-          else
-            traceNonMatch st expr builtUpTraces pid v
-        | PFloat (pid, v) ->
-          let v = DFloat v
+          match (name, args, dv) with
+          | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
 
-          if v = dv then
-            executeMatch [] ((pid, v) :: builtUpTraces) st expr
-          else
-            traceNonMatch st expr builtUpTraces pid v
-        | PNull (pid) ->
-          let v = DNull
+          | "Just", [ p ], DOption (Some v)
+          | "Ok", [ p ], DResult (Ok v)
+          | "Error", [ p ], DResult (Error v) ->
+            let (passes, newVars, traces) = checkPattern v p
 
-          if v = dv then
-            executeMatch [] ((pid, v) :: builtUpTraces) st expr
-          else
-            traceNonMatch st expr builtUpTraces pid v
-        | PVariable (pid, v) ->
-          // only matches allowed values
-          if Dval.isFake dv then
-            traceNonMatch st expr builtUpTraces pid dv
-          else
-            executeMatch [ (v, dv) ] ((pid, dv) :: builtUpTraces) st expr
-        | PBlank (pid) ->
-          // never matches
-          traceNonMatch st expr builtUpTraces pid (incomplete pid)
-        | PConstructor (pid, name, args) ->
-          (match (name, args, dv) with
-           | "Just", [ p ], DOption (Some v)
-           | "Ok", [ p ], DResult (Ok v)
-           | "Error", [ p ], DResult (Error v) ->
-             matchAndExecute v ((pid, dv) :: builtUpTraces) (p, expr)
-           | "Nothing", [], DOption None ->
-             executeMatch [] ((pid, dv) :: builtUpTraces) st expr
-           | "Nothing", [], _ ->
-             traceNonMatch st expr builtUpTraces pid (DOption None)
-           | _ ->
-             uply {
-               let error =
-                 if List.contains name [ "Just"; "Ok"; "Error"; "Nothing" ] then
-                   incomplete pid
-                 else
-                   DError(sourceID pid, $"Invalid constructor: {name}")
+            if passes then
+              true, newVars, [ (id, dv) ] @ traces
+            else
+              false,
+              newVars,
+              (id, incomplete id) :: traceArgsIncomplete [ p ] @ traces
 
-               do! traceNonMatch st expr builtUpTraces pid error
-               // Trace each argument too. TODO: recurse
-               List.iter
-                 (fun pat ->
-                   let id = Pattern.toID pat
-                   state.tracing.traceDval false id (incomplete id))
-                 args
-             })
+          | _name, argPatterns, _dv ->
+            let traces = (id, incomplete id) :: traceArgsIncomplete argPatterns
+            false, [], traces
 
+      // This is to avoid checking `state.tracing.realOrPreview = Real` below.
+      // If RealOrPreview gets additional branches, reconsider what to do here.
+      let isRealExecution =
+        match state.tracing.realOrPreview with
+        | Real -> true
+        | Preview -> false
+
+      // The value we're matching against
       let! matchVal = eval state st matchExpr
 
-      do!
-        Ply.List.iterSequentially
-          (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
-          cases
+      let mutable hasMatched = false
+      let mutable matchResult = incomplete id
 
-      return matchResult.Value
+      for (pattern, rhsExpr) in cases do
+        if hasMatched && isRealExecution then
+          ()
+        else
+          let passes, newDefs, traces = checkPattern matchVal pattern
+          let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
+
+          if not hasMatched && passes then
+            traces
+            |> List.iter (fun (id, dv) ->
+              state.tracing.traceDval state.onExecutionPath id dv)
+
+            let! r = eval state newSymtable rhsExpr
+            matchResult <- r
+            hasMatched <- true
+          else if isRealExecution then
+            // "Real" evaluations don't need to persist non-matched traces
+            ()
+          else
+            // If we're "previewing" (analysis), persist traces for all patterns
+            traces |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
+            do! preview newSymtable rhsExpr
+
+      return matchResult
 
     | EIf (_id, cond, thenbody, elsebody) ->
       match! eval state st cond with
