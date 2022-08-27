@@ -24,22 +24,11 @@ module TunnelHost = {
   type rec values = option<string>
 
   @ppx.deriving(show)
-  type rec saveStatus =
-    | Saved
-    | Saving
-    | NotSaving
-
-  @ppx.deriving(show)
-  type rec loadStatus =
-    | Loading
-    | Loaded(Belt.Result.t<values, unit>)
-
-  @ppx.deriving(show)
   type rec t = {
-    loadStatus: loadStatus, // if not initialized, don't use it
+    loadStatus: LoadStatus.t<values>, // if not initialized, don't use it
     value: option<string>, // only overwrite if user has not entered
     error: option<string>,
-    saveStatus: saveStatus,
+    saveStatus: SaveStatus.t,
   }
 
   @ppx.deriving(show)
@@ -87,7 +76,12 @@ module TunnelHost = {
     }
   }
 
-  let default = {loadStatus: Loading, saveStatus: NotSaving, value: None, error: None}
+  let default = {
+    loadStatus: LoadStatus.Loading,
+    saveStatus: NotSaving,
+    value: None,
+    error: None,
+  }
 
   let validate = (host: string): result<values, string> => {
     let host = String.trim(host)
@@ -108,19 +102,19 @@ module TunnelHost = {
     switch msg {
     | LoadAPICallback(Error(e)) =>
       let errorStr = Tea.Http.string_of_error(e)
-      ({...state, error: Some(`Load error: ${errorStr}`), loadStatus: Loaded(Error())}, NoIntent)
+      ({...state, error: Some(`Load error: ${errorStr}`), loadStatus: LoadStatus.Error}, NoIntent)
 
     | LoadAPICallback(Ok(original)) => (
-        {...state, value: original, loadStatus: Loaded(Ok(original))},
+        {...state, value: original, loadStatus: LoadStatus.Success(original)},
         NoIntent,
       )
 
     | InputEdit(tunnelHost) =>
       let saveStatus = switch state.saveStatus {
-      | Saved => NotSaving
+      | Saved => SaveStatus.NotSaving
       | Saving | NotSaving => state.saveStatus
       }
-      ({...state, value: Some(tunnelHost), saveStatus}, NoIntent)
+      ({...state, value: Some(tunnelHost), saveStatus: saveStatus}, NoIntent)
 
     | InputUnfocus =>
       switch validate(state.value->Belt.Option.getWithDefault("")) {
@@ -137,10 +131,10 @@ module TunnelHost = {
 
     | SaveAPICallback(_, Error(e)) =>
       let error = Some(Tea.Http.string_of_error(e))
-      ({...state, error, saveStatus: NotSaving}, NoIntent)
+      ({...state, error: error, saveStatus: NotSaving}, NoIntent)
 
     | SaveAPICallback(savedValue, Ok(true)) => (
-        {...state, loadStatus: Loaded(Ok(savedValue)), error: None, saveStatus: Saved},
+        {...state, loadStatus: LoadStatus.Success(savedValue), error: None, saveStatus: Saved},
         NoIntent,
       )
 
@@ -285,12 +279,12 @@ let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
   switch msg {
   | UseAssetsMsg(msg) =>
     let (useAssets, intent) = UseAssets.update(s.useAssets, msg)
-    ({...s, useAssets}, UseAssetsIntent(intent))
+    ({...s, useAssets: useAssets}, UseAssetsIntent(intent))
   | TunnelHostMsg(msg) =>
     let (tunnelHost, intent) = TunnelHost.update(s.tunnelHost, msg)
     let intent = TunnelHost.Intent.map(intent, msg => TunnelHostMsg(msg))
-    ({...s, tunnelHost}, TunnelHostIntent(intent))
+    ({...s, tunnelHost: tunnelHost}, TunnelHostIntent(intent))
   | ContributorUIMsg(msg) =>
     let (contributorUI, intent) = ContributorUI.update(s.contributorUI, msg)
-    ({...s, contributorUI}, ContributorUIIntent(intent))
+    ({...s, contributorUI: contributorUI}, ContributorUIIntent(intent))
   }

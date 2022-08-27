@@ -22,12 +22,15 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
     let tunnelRow = {
       let value = th.value->Belt.Option.getWithDefault("")
       let loadingAttrs = switch th.loadStatus {
-      | Loading => list{Attrs.disabled(true)}
-      | Loaded(_) => list{Attrs.noProp}
+      | LoadStatus.Loading => list{Attrs.disabled(true)}
+      | LoadStatus.Success(_)
+      | LoadStatus.Error => list{Attrs.noProp}
       }
       let loadingSpinner = switch th.loadStatus {
-      | Loading => Html.i(list{Attrs.class("fa fa-spinner -ml-5 text-[#e8e8e8]")}, list{})
-      | Loaded(_) => Vdom.noNode
+      | LoadStatus.Loading =>
+        Html.i(list{Attrs.class("fa fa-spinner -ml-5 text-[#e8e8e8]")}, list{})
+      | LoadStatus.Success(_)
+      | LoadStatus.Error => Vdom.noNode
       }
       let tunnelField = Html.span(
         list{tw("px-2.5 py-2")},
@@ -54,21 +57,12 @@ let viewTunnel = (th: T.TunnelHost.t): list<Html.html<AppTypes.msg>> => {
         },
       )
       let tunnelButton = {
-        let savingSpinner = switch th.saveStatus {
-        | Saving => Html.i(list{Attrs.class("fa fa-spinner text-[#e8e8e8] px-1")}, list{})
-        | Saved => Html.i(list{Attrs.class("fa fa-check text-[#a1b56c] px-1")}, list{})
-        | NotSaving => Vdom.noNode
-        }
-        Html.button(
-          list{
-            tw(
-              "rounded h-9 px-2.5 py-1 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-xl font-bold align-top",
-            ),
-            ViewUtils.eventNoPropagation(~key="tunnel-button-set", "click", _ => SettingsMsg(
-              Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
-            )),
-          },
-          list{savingSpinner, Html.text("Set")},
+        button(
+          ViewUtils.eventNoPropagation(~key="tunnel-button-set", "click", _ => SettingsMsg(
+            Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
+          )),
+          th.saveStatus,
+          list{Html.text("Set")},
         )
       }
 

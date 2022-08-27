@@ -82,6 +82,28 @@ let toggleButton = (msgAttr: Vdom.property<'msg>, enabled: bool): Html.html<'msg
   )
 }
 
+let button = (
+  msgAttr: Vdom.property<'msg>,
+  saveStatus: SaveStatus.t,
+  contents: list<Html.html<'msg>>,
+): Html.html<'msg> => {
+  let savingSpinner = switch saveStatus {
+  | Saving => Html.i(list{Attrs.class("fa fa-spinner text-[#e8e8e8] px-1")}, list{})
+  | Saved => Html.i(list{Attrs.class("fa fa-check text-[#a1b56c] px-1")}, list{})
+  | NotSaving => Vdom.noNode
+  }
+
+  Html.button(
+    list{
+      tw(
+        "rounded h-9 px-2.5 py-1 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-xl font-bold align-top",
+      ),
+      msgAttr,
+    },
+    list{savingSpinner, ...contents},
+  )
+}
+
 // -------------------
 // Content components
 // -------------------
