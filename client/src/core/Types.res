@@ -1,4 +1,5 @@
 open Tc
+
 module PT = ProgramTypes
 module RT = RuntimeTypes
 
@@ -159,12 +160,6 @@ and timerAction =
   | RefreshAnalysis
   | RefreshAvatars
   | CheckUrlHashPosition
-
-and loadable<'result> =
-  | LoadableSuccess('result)
-  | LoadableNotInitialized
-  | LoadableLoading(option<'result>)
-  | LoadableError(string)
 
 and traceID = string
 

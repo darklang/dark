@@ -43,7 +43,7 @@ let run = () => {
         showEntry: false,
         showLivevalue: false,
         dbLocked: false,
-        analysisStore: LoadableSuccess(ID.Map.empty),
+        analysisStore: Loadable.Success(ID.Map.empty),
         traces: list{},
         dbStats: Map.String.empty,
         functions: Functions.empty,

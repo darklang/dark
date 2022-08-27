@@ -843,7 +843,7 @@ let defaultTestModel = {
   analyses: Map.String.fromList(list{
     (
       "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
-      LoadableSuccess(
+      Loadable.Success(
         ID.Map.fromArray([
           (
             fakeID1,

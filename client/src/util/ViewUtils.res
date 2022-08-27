@@ -66,7 +66,7 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
 
   let analysisStore =
     Option.map(traceID, ~f=Analysis.getStoredAnalysis(m)) |> Option.unwrap(
-      ~default=LoadableNotInitialized,
+      ~default=Loadable.NotInitialized,
     )
 
   let props = FluidUtil.propsFromModel(m)

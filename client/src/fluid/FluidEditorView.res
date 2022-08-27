@@ -70,8 +70,8 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
   let exeFlow = (ti: T.tokenInfo) => {
     let id = FluidToken.analysisID(ti.token)
     switch Analysis.getLiveValueLoadable(p.analysisStore, id) {
-    | LoadableSuccess(ExecutedResult(_)) => CodeExecuted
-    | LoadableSuccess(NonExecutedResult(_)) => CodeNotExecuted
+    | Loadable.Success(ExecutedResult(_)) => CodeExecuted
+    | Loadable.Success(NonExecutedResult(_)) => CodeNotExecuted
     | _ => UnknownExecution
     }
   }
@@ -111,11 +111,11 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
     if FluidToken.validID(id) {
       // Only highlight incompletes and errors on executed paths
       switch Analysis.getLiveValueLoadable(p.analysisStore, id) {
-      | LoadableSuccess(ExecutedResult(DIncomplete(SourceID(tlid, id)))) => (
+      | Loadable.Success(ExecutedResult(DIncomplete(SourceID(tlid, id)))) => (
           Some(tlid, id),
           "dark-incomplete",
         )
-      | LoadableSuccess(ExecutedResult(DError(SourceID(tlid, id), _))) => (
+      | Loadable.Success(ExecutedResult(DError(SourceID(tlid, id), _))) => (
           Some(tlid, id),
           "dark-error",
         )
