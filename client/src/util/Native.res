@@ -64,7 +64,7 @@ module OffsetEstimator = {
    * TODO: It's a super hacky estimate based on our common screen size at Dark and the default
    * font size and should be replaced with a proper implementation. But it's done us
    * okay so far. */
-  let estimateClickOffset = (elementID: string, event: AppTypes.MouseEvent.t): option<int> =>
+  let estimateClickOffset = (elementID: string, event: MouseEvent.t): option<int> =>
     switch Js.Nullable.toOption(Web_document.getElementById(elementID)) {
     | Some(elem) =>
       let rect = elem["getBoundingClientRect"]()

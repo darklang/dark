@@ -12,7 +12,7 @@ type menuItem = {
   title: string,
   key: string,
   icon: option<string>,
-  action: AppTypes.MouseEvent.t => AppTypes.msg,
+  action: MouseEvent.t => AppTypes.msg,
   disableMsg: option<string>,
 }
 

@@ -187,64 +187,60 @@ let onEvent = (
     Some(listener(evt))
   })
 
-let eventBoth = (
-  ~key: string,
-  event: string,
-  constructor: AppTypes.MouseEvent.t => msg,
-): Vdom.property<msg> =>
+let eventBoth = (~key: string, event: string, constructor: MouseEvent.t => msg): Vdom.property<
+  msg,
+> =>
   Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: false, preventDefault: false},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
   )
 
 let eventPreventDefault = (
   ~key: string,
   event: string,
-  constructor: AppTypes.MouseEvent.t => msg,
+  constructor: MouseEvent.t => msg,
 ): Vdom.property<msg> =>
   Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: false, preventDefault: true},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
   )
 
-let eventNeither = (
-  ~key: string,
-  event: string,
-  constructor: AppTypes.MouseEvent.t => msg,
-): Vdom.property<msg> =>
+let eventNeither = (~key: string, event: string, constructor: MouseEvent.t => msg): Vdom.property<
+  msg,
+> =>
   Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: true},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
   )
 
 let scrollEventNeither = (
   ~key: string,
   event: string,
-  constructor: AppTypes.ScrollEvent.t => msg,
+  constructor: ScrollEvent.t => msg,
 ): Vdom.property<msg> =>
   Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: true},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.ScrollEvent.decode)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, ScrollEvent.decode)),
   )
 
 let eventNoPropagation = (
   ~key: string,
   event: string,
-  constructor: AppTypes.MouseEvent.t => msg,
+  constructor: MouseEvent.t => msg,
 ): Vdom.property<msg> =>
   Events.onWithOptions(
     ~key,
     event,
     {stopPropagation: true, preventDefault: false},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
+    Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
   )
 
 let onTransitionEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
