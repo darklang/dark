@@ -216,49 +216,49 @@ module UseAssets = {
 // -------------------
 // Toggle to show contributor UI
 // -------------------
-module ContributorUI = {
+module Tools = {
   @ppx.deriving(show)
-  type rec t = {showFluidDebugger: bool}
+  type rec t = {showSidebarPanel: bool}
 
   @ppx.deriving(show)
-  type rec msg = SetFluidDebugger(bool)
+  type rec msg = SetSidebarPanel(bool)
 
   @ppx.deriving(show)
   type rec intent = unit
 
-  let default = {showFluidDebugger: false}
+  let default = {showSidebarPanel: false}
 
   let init = () => Tea.Cmd.none
 
   let update = (_: t, msg: msg): (t, intent) =>
     switch msg {
-    | SetFluidDebugger(v) => ({showFluidDebugger: v}, ())
+    | SetSidebarPanel(v) => ({showSidebarPanel: v}, ())
     }
 }
 
 let title = "Contributing"
 
 @ppx.deriving(show)
-type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t, contributorUI: ContributorUI.t}
+type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t, tools: Tools.t}
 
 @ppx.deriving(show)
 type rec msg =
   | TunnelHostMsg(TunnelHost.msg)
   | UseAssetsMsg(UseAssets.msg)
-  | ContributorUIMsg(ContributorUI.msg)
+  | ToolsMsg(Tools.msg)
 
 module Intent = {
   @ppx.deriving(show)
   type rec t<'msg> =
     | TunnelHostIntent(TunnelHost.Intent.t<'msg>)
     | UseAssetsIntent(UseAssets.intent)
-    | ContributorUIIntent(ContributorUI.intent)
+    | ToolsIntent(Tools.intent)
 
   let map = (i: t<'msg>, f: 'msg1 => 'msg2): t<'msg2> => {
     switch i {
     | TunnelHostIntent(i) => TunnelHostIntent(TunnelHost.Intent.map(i, f))
     | UseAssetsIntent(i) => UseAssetsIntent(i)
-    | ContributorUIIntent(i) => ContributorUIIntent(i)
+    | ToolsIntent(i) => ToolsIntent(i)
     }
   }
 }
@@ -266,7 +266,7 @@ module Intent = {
 let default = {
   tunnelHost: TunnelHost.default,
   useAssets: UseAssets.default,
-  contributorUI: ContributorUI.default,
+  tools: Tools.default,
 }
 
 let init = clientData =>
@@ -284,7 +284,7 @@ let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
     let (tunnelHost, intent) = TunnelHost.update(s.tunnelHost, msg)
     let intent = TunnelHost.Intent.map(intent, msg => TunnelHostMsg(msg))
     ({...s, tunnelHost: tunnelHost}, TunnelHostIntent(intent))
-  | ContributorUIMsg(msg) =>
-    let (contributorUI, intent) = ContributorUI.update(s.contributorUI, msg)
-    ({...s, contributorUI: contributorUI}, ContributorUIIntent(intent))
+  | ToolsMsg(msg) =>
+    let (tools, intent) = Tools.update(s.tools, msg)
+    ({...s, tools: tools}, ToolsIntent(intent))
   }

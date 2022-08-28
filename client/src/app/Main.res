@@ -2002,7 +2002,7 @@ let update_ = (msg: msg, m: model): modification => {
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
 
         | Some(ContributingIntent(SettingsContributing.Intent.UseAssetsIntent()))
-        | Some(ContributingIntent(SettingsContributing.Intent.ContributorUIIntent()))
+        | Some(ContributingIntent(SettingsContributing.Intent.ToolsIntent()))
         | Some(InviteIntent(None))
         | None => (m, Cmd.none)
         }

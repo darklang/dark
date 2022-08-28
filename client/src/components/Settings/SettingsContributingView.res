@@ -26,20 +26,18 @@ let viewIntroText = {
   )
 }
 
-let viewDebuggingOption = (ui: T.ContributorUI.t): Html.html<AppTypes.msg> => {
+let viewTools = (ui: T.Tools.t): Html.html<AppTypes.msg> => {
   let toggle = {
     let attr = EventListeners.eventNoPropagation(
-      ~key=`toggle-settings-${string_of_bool(ui.showFluidDebugger)}`,
+      ~key=`toggle-settings-${string_of_bool(ui.showSidebarPanel)}`,
       "click",
       _ => Msg.SettingsMsg(
         Settings.ContributingMsg(
-          SettingsContributing.ContributorUIMsg(
-            T.ContributorUI.SetFluidDebugger(!ui.showFluidDebugger),
-          ),
+          SettingsContributing.ToolsMsg(T.Tools.SetSidebarPanel(!ui.showSidebarPanel)),
         ),
       ),
     )
-    C.toggleButton(attr, ui.showFluidDebugger)
+    C.toggleButton(attr, ui.showSidebarPanel)
   }
   let info = Some(
     "Show a menu in the (closed) sidebar with debugging options. These are useful when working on the Darklang client (note they are not typically useful for writing Darklang code)",
@@ -119,7 +117,7 @@ let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
   Belt.List.concatMany([
     list{viewIntroText},
     list{C.sectionHeading("Tools", None)},
-    list{viewDebuggingOption(s.contributorUI)},
+    list{viewTools(s.tools)},
     viewTunnelSectionHeader,
     list{viewTunnelHost(s.tunnelHost)},
     list{viewTunnelToggle(s.useAssets)},
