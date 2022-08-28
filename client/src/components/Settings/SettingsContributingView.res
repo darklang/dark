@@ -55,39 +55,22 @@ let viewTunnelSectionHeader = {
 }
 
 let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
-  let value = th.value->Belt.Option.getWithDefault("")
-  let loadingAttrs = switch th.loadStatus {
-  | LoadStatus.Loading => list{Attrs.disabled(true)}
-  | LoadStatus.Success(_)
-  | LoadStatus.Error => list{Attrs.noProp}
-  }
-  let loadingSpinner = switch th.loadStatus {
-  | LoadStatus.Loading => Html.i(list{Attrs.class("fa fa-spinner -ml-5 text-[#e8e8e8]")}, list{})
-  | LoadStatus.Success(_)
-  | LoadStatus.Error => Vdom.noNode
-  }
   let field = Html.span(
-    list{C.tw("px-2.5 py-2")},
+    list{},
     list{
       Html.span(list{C.tw("h-6 font-bold mr-1")}, list{Html.text("https://")}),
-      Html.input'(
-        List.append(
-          loadingAttrs,
-          list{
-            // TODO: move colors into theme
-            Attrs.class("px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]"),
-            Attrs.placeholder("hostname"),
-            Attrs.size(50),
-            Attrs.spellcheck(false),
-            Attrs.value(value),
-            Events.onInput(str => AppTypes.Msg.SettingsMsg(
-              Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
-            )),
-          },
-        ),
-        list{},
+      C.input(
+        ~loadStatus=th.loadStatus,
+        ~attrs=list{
+          Attrs.placeholder("hostname"),
+          Attrs.size(35),
+          Attrs.spellcheck(false),
+          Events.onInput(str => AppTypes.Msg.SettingsMsg(
+            Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.InputEdit(str))),
+          )),
+        },
+        th.value->Belt.Option.getWithDefault(""),
       ),
-      loadingSpinner,
     },
   )
   let button = {

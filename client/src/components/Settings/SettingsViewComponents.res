@@ -129,6 +129,39 @@ let errorSpan = (error: string): Html.html<'msg> => {
   )
 }
 
+let input = (
+  ~tw="",
+  ~loadStatus: LoadStatus.t<'v>,
+  ~attrs: list<Attrs.property<'msg>>,
+  value: string,
+) => {
+  let loadingAttrs = switch loadStatus {
+  | LoadStatus.Loading => list{Attrs.disabled(true)}
+  | LoadStatus.Success(_)
+  | LoadStatus.Error => list{Attrs.noProp}
+  }
+  let loadingSpinner = switch loadStatus {
+  | LoadStatus.Loading => Html.i(list{Attrs.class("fa fa-spinner -ml-5 text-[#e8e8e8]")}, list{})
+  | LoadStatus.Success(_)
+  | LoadStatus.Error => Vdom.noNode
+  }
+  Html.span(
+    list{},
+    list{
+      Html.input'(
+        list{
+          // TODO: move colors into theme
+          Attrs.class(`${tw} px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]`),
+          Attrs.value(value),
+          ...List.concat(list{loadingAttrs, attrs}),
+        },
+        list{},
+      ),
+      loadingSpinner,
+    },
+  )
+}
+
 let settingRow = (
   ~info: option<string>,
   ~error: option<string>,
