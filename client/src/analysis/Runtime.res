@@ -260,7 +260,11 @@ let pathFromInputVars = (iv: AnalysisTypes.InputValueDict.t): option<string> =>
     | _ => None
     }
   )
-  |> Option.map(~f=Webapi.Url.make)
+  |> Option.andThen(~f=url =>
+    try {Some(Webapi.Url.make(url))} catch {
+    | _ => None
+    }
+  )
   |> Option.map(~f=url => Webapi.Url.pathname(url) ++ Webapi.Url.search(url))
 
 let setHandlerExeState = (
