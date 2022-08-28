@@ -138,15 +138,4 @@ module Decoder = {
         },
     )
   }
-
-  let wireIdentifier = {
-    open Tea.Json.Decoder
-    Decoder(
-      j =>
-        switch decodeValue(string, j) {
-        | Ok(s) => Ok(s)
-        | Error(_) => Ok(Js.Json.stringify(j))
-        },
-    )
-  }
 }
