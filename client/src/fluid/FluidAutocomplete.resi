@@ -8,7 +8,7 @@ let focusItem: int => AppTypes.cmd
 
 @ppx.deriving(show) type rec query = (TLID.t, FluidTypes.TokenInfo.t)
 
-type props = {functions: Types.functionsType}
+type props = {functions: Functions.t}
 
 let asName: item => string
 

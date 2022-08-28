@@ -998,9 +998,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     | SettingsModal(tab) => Printf.sprintf("SettingsModal (tab %s)", Settings.Tab.toText(tab))
     }
 
-  let flagText =
-    "[" ++ ((m.tests |> List.map(~f=show_variantTest) |> String.join(~sep=", ")) ++ "]")
-
   let environment = Html.div(
     list{Attrs.class'("environment " ++ environmentName)},
     list{Html.text(environmentName)},
@@ -1010,7 +1007,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{Attrs.class'("state-info")},
     list{
       stateInfoTohtml("env", Html.text(m.environment)),
-      stateInfoTohtml("flags", Html.text(flagText)),
       stateInfoTohtml("page", Html.text(pageToString(m.currentPage))),
       stateInfoTohtml("cursorState", Html.text(AppTypes.CursorState.show(m.cursorState))),
     },
@@ -1074,23 +1070,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     },
   )
 
-  let variantLinks = List.map(VariantTesting.availableAdminVariants, ~f=variant => {
-    let name = VariantTesting.nameOf(variant)
-    let enabled = VariantTesting.variantIsActive(m, variant)
-    Html.a(
-      list{Attrs.href(ViewScaffold.flagLinkLoc(name, enabled)), Attrs.class'("state-info-row")},
-      list{
-        Html.text(
-          if enabled {
-            "Disable " ++ (name ++ " variant")
-          } else {
-            "Enable " ++ (name ++ " variant")
-          },
-        ),
-      },
-    )
-  })
-
   let saveTestButton = Html.a(
     list{
       EventListeners.eventNoPropagation(~key="stb", "mouseup", _ => Msg.SaveTestButton),
@@ -1103,7 +1082,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{Attrs.class'("category-content")},
     Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
-      variantLinks,
       list{saveTestButton},
     ]),
   )

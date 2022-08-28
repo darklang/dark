@@ -28,7 +28,6 @@ type viewProps = {
   dbStats: AnalysisTypes.dbStatsStore,
   executingFunctions: list<id>,
   tlTraceIDs: tlTraceIDs,
-  testVariants: list<variantTest>,
   handlerProp: option<AppTypes.HandlerProperty.t>,
   canvasName: string,
   userContentHost: string,
@@ -102,7 +101,6 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
       m.executingFunctions,
     ) |> List.map(~f=((_, id)) => id),
     tlTraceIDs: m.tlTraceIDs,
-    testVariants: m.tests,
     handlerProp: hp,
     canvasName: m.canvasName,
     userContentHost: m.userContentHost,
@@ -180,7 +178,7 @@ let isHoverOverTL = (vp: viewProps): bool =>
 
 let intAsUnit = (i: int, u: string): string => string_of_int(i) ++ u
 
-let fnForToken = (functions: Functions.t, token): option<function_> =>
+let fnForToken = (functions: Functions.t, token): option<Function.t> =>
   switch token {
   | FluidTypes.Token.TBinOp(_, fnName, _)
   | TFnVersion(_, _, _, fnName)

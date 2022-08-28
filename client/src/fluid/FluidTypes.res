@@ -173,7 +173,7 @@ module AutoComplete = {
 
   @ppx.deriving(show({with_path: false}))
   type rec item =
-    | FACFunction(Types.function_)
+    | FACFunction(Function.t)
     | FACConstructorName(string, int)
     | FACField(string)
     | FACVariable(string, option<RuntimeTypes.Dval.t>)
@@ -317,5 +317,12 @@ module State = {
     errorDvSrc: SourceNone,
     midClick: false,
     activeEditor: NoEditor,
+  }
+}
+
+module Props = {
+  type rec t = {
+    functions: Functions.t,
+    settings: Settings.t,
   }
 }

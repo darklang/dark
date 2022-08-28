@@ -64,7 +64,7 @@ type rec exception_ = {
 module TypeInformation = {
   @ppx.deriving(show)
   type rec t = {
-    fnName: option<PT.FQFnName.t>,
+    fnName: option<FQFnName.t>,
     paramName: string,
     returnType: DType.t,
   }
@@ -172,67 +172,6 @@ and idOrTraceID =
   | ATraceID(traceID)
 
 // -------------------
-// APIs
-// -------------------
-// -------------------
-// Autocomplete / entry
-// -------------------
-// functions
-and parameter = {
-  paramName: string,
-  paramTipe: DType.t,
-  paramBlock_args: list<string>,
-  paramOptional: bool,
-  paramDescription: string,
-}
-
-and previewSafety =
-  | Safe
-  | Unsafe
-
-and fnOrigin =
-  | UserFunction
-  | PackageManager
-  | Builtin
-
-and function_ = {
-  fnName: PT.FQFnName.t,
-  fnParameters: list<parameter>,
-  fnDescription: string,
-  fnReturnTipe: DType.t,
-  fnPreviewSafety: previewSafety,
-  fnDeprecated: bool,
-  fnInfix: bool,
-  fnIsSupportedInQuery: bool,
-  fnOrigin: /* This is a client-side only field to be able to give different UX to
-   * different functions */
-  fnOrigin,
-}
-
-// autocomplete items
-
-// -------------------
-// Functions.res
-// -------------------
-and functionsType = {
-  builtinFunctions: list<RT.BuiltInFn.t>,
-  packageFunctions: packageFns,
-  // We do analysis to determine which functions are safe and which are not.
-  // This stores the result
-  previewUnsafeFunctions: Set.String.t,
-  allowedFunctions: list<function_>,
-}
-
-and functionsProps = {
-  usedFns: Map.String.t<int>,
-  userFunctions: TLID.Dict.t<PT.UserFunction.t>,
-}
-
-// ---------------
-// Component Types
-// ---------------
-
-// -------------------
 // Modifications
 // -------------------
 
@@ -249,24 +188,6 @@ and heapioTrack =
   | OpenKeyboardRef
 
 // -----------------------------
-// AB tests
-// -----------------------------
-and variantTest =
-  | /* does nothing variant just so we can leave this in place
-   * if we're not testing anything else */
-  StubVariant
-  | NgrokVariant
-  | LeftPartialVariant
-
-// -----------------------------
 // Model
 // -----------------------------
 and tlTraceIDs = TLID.Dict.t<traceID>
-
-/*
- * Fluid
- */
-and fluidProps = {
-  functions: functionsType,
-  variants: list<variantTest>,
-}

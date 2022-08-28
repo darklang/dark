@@ -268,7 +268,7 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   | TLFunc({tlid, name, parameters, returnType, _}) =>
     fnView(originalTLID, originalIDs, tlid, name, parameters, Some(returnType), direction)
   | TLPmFunc(pFn) =>
-    let name = PT.FQFnName.PackageFnName.toString(pFn.name)
+    let name = FQFnName.PackageFnName.toString(pFn.name)
     packageFnView(
       originalTLID,
       originalIDs,

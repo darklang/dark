@@ -50,7 +50,7 @@ type model = AppTypes.model
 
 type state = AppTypes.fluidState
 
-type props = Types.fluidProps
+type props = FluidTypes.Props.t
 
 let deselectFluidEditor = (s: state): state => {
   ...s,
@@ -1054,7 +1054,7 @@ let rec caretTargetForEndOfExpr': fluidExpr => CT.t = expr =>
         {
           astRef: ARFnCall(id),
           offset: fnName
-          |> PT.FQFnName.toString
+          |> FQFnName.toString
           |> FluidUtil.fnDisplayNameWithVersion
           |> String.length,
         }: CT.t
@@ -1446,10 +1446,13 @@ let insertInPlaceholderExpr = (
 
     fnname
     |> Option.andThen(~f=name => Functions.find(name, props.functions))
-    |> Option.andThen(~f=fn =>
-      List.find(~f=({paramName, _}) => paramName == placeholder.name, fn.fnParameters)
+    |> Option.andThen(~f=(fn: Function.t) =>
+      List.find(
+        ~f=({paramName, _}: Function.parameter) => paramName == placeholder.name,
+        fn.fnParameters,
+      )
     )
-    |> Option.map(~f=p => p.paramBlock_args)
+    |> Option.map(~f=(p: Function.parameter) => p.paramBlock_args)
     |> Option.unwrap(~default=list{""})
     |> List.map(~f=str => (gid(), str))
   }
@@ -1745,8 +1748,8 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     List.map(List.range(0, count), ~f=index =>
       props.functions
       |> Functions.findByStr(fnname)
-      |> Option.andThen(~f=fn => List.getAt(~index, fn.fnParameters))
-      |> Option.map(~f=p => (
+      |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index, fn.fnParameters))
+      |> Option.map(~f=(p: Function.parameter) => (
         p.paramName,
         DType.tipe2str(p.paramTipe),
         List.getAt(~index, varExprs) |> Option.unwrap(~default=EBlank(gid())),
@@ -1781,7 +1784,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     let oldAllowed =
       props.functions
       |> Functions.findByStr(oldName)
-      |> Option.map(~f=fn =>
+      |> Option.map(~f=(fn: Function.t) =>
         if Runtime.isErrorRailType(fn.fnReturnTipe) {
           SendToRail.Rail
         } else {
@@ -1834,7 +1837,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
         ~default=(
           {
             astRef: ARFnCall(id),
-            offset: fnName |> PT.FQFnName.toString |> FluidUtil.ghostPartialName |> String.length,
+            offset: fnName |> FQFnName.toString |> FluidUtil.ghostPartialName |> String.length,
           }: CT.t
         ),
       )
@@ -1864,8 +1867,8 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     | EPartial(_, _, EBinOp(_, _, _, _, _) as oldExpr)
     | EPartial(_, _, EConstructor(_, _, _) as oldExpr) =>
       let oldName = switch oldExpr {
-      | EFnCall(_, name, _, _) => PT.FQFnName.toString(name)
-      | EBinOp(_, name, _, _, _) => PT.FQFnName.InfixStdlibFnName.toString(name)
+      | EFnCall(_, name, _, _) => FQFnName.toString(name)
+      | EBinOp(_, name, _, _, _) => PT.InfixStdlibFnName.toString(name)
       | EConstructor(_, name, _) => name
       | _ => recover("not possible", "")
       }
@@ -1914,7 +1917,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
 
       switch newExpr {
       | EBinOp(id, newName, lhs, rhs, newSter) =>
-        let newNameStr = PT.FQFnName.InfixStdlibFnName.toString(newName)
+        let newNameStr = PT.InfixStdlibFnName.toString(newName)
         let ster = chooseSter(~oldName, ~oldExpr, newSter)
         let (newParams, mismatchedParams) = fetchParams(newNameStr, list{lhs, rhs})
 
@@ -1930,7 +1933,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
 
         (wrapWithLets(~expr=newExpr, mismatchedParams), ctForExpr(newExpr))
       | EFnCall(id, newName, newExprs, newSter) =>
-        let newNameStr = PT.FQFnName.toString(newName)
+        let newNameStr = FQFnName.toString(newName)
         let ster = chooseSter(~oldName, ~oldExpr, newSter)
         let (newParams, mismatchedParams) = fetchParams(newNameStr, newExprs)
 
@@ -2147,28 +2150,28 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
       | list{lhs, rhs} =>
         // This is awkward as we don't have a way of representing infix operations in
         // the name. So we just have to trust that this works out
-        let name: PT.FQFnName.InfixStdlibFnName.t = switch fn.fnName {
+        let name: PT.InfixStdlibFnName.t = switch fn.fnName {
         | User(name) =>
           recover(
             "Got a UserFn in an infix FACFunction",
-            ({function: name, module_: None}: PT.FQFnName.InfixStdlibFnName.t),
+            ({function: name, module_: None}: PT.InfixStdlibFnName.t),
           )
         | Package(pkgFn) =>
           recover(
             "Got a Package in an infix FACFunction",
-            ({function: pkgFn.function, module_: None}: PT.FQFnName.InfixStdlibFnName.t),
+            ({function: pkgFn.function, module_: None}: PT.InfixStdlibFnName.t),
           )
         | Stdlib({version: 0, module_: "", function}) => {function: function, module_: None}
         | Stdlib({version: 0, module_, function}) => {function: function, module_: Some(module_)}
         | Stdlib({version: _, module_: "", function}) =>
           recover(
             "Got a non-v0 stdlibfn in an infix FACFunction",
-            ({function: function, module_: None}: PT.FQFnName.InfixStdlibFnName.t),
+            ({function: function, module_: None}: PT.InfixStdlibFnName.t),
           )
         | Stdlib({version: _, module_, function}) =>
           recover(
             "Got a non-v0 stdlibfn in an infix FACFunction",
-            ({function: function, module_: Some(module_)}: PT.FQFnName.InfixStdlibFnName.t),
+            ({function: function, module_: Some(module_)}: PT.InfixStdlibFnName.t),
           )
         }
 
@@ -2193,7 +2196,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
           ~default=(
             {
               astRef: ARFnCall(fID),
-              offset: fn.fnName |> PT.FQFnName.toString |> FluidUtil.partialName |> String.length,
+              offset: fn.fnName |> FQFnName.toString |> FluidUtil.partialName |> String.length,
             }: CT.t
           ),
         )
@@ -2908,7 +2911,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     // Function call
     | (ARFnCall(_), EFnCall(_, fnName, _, _)) =>
       mkPartialOrBlank(
-        fnName |> PT.FQFnName.toString |> FluidUtil.partialName |> mutation |> String.trim,
+        fnName |> FQFnName.toString |> FluidUtil.partialName |> mutation |> String.trim,
         currExpr,
       )
     // Bools
@@ -2924,11 +2927,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARVariable(_), EVariable(_, varName)) => mkPartialOrBlank(mutation(varName), currExpr)
     | (ARBinOp(_), EBinOp(_, op, lhsExpr, rhsExpr, _)) =>
       let str =
-        op
-        |> PT.FQFnName.InfixStdlibFnName.toString
-        |> FluidUtil.ghostPartialName
-        |> mutation
-        |> String.trim
+        op |> PT.InfixStdlibFnName.toString |> FluidUtil.ghostPartialName |> mutation |> String.trim
       if str == "" {
         // Delete the binop
         let (expr, target) = mergeExprs(lhsExpr, rhsExpr)
@@ -3378,12 +3377,10 @@ let doDelete = (~pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
  * Note that there are some special-case inserts that aren't handled by doExplicitInsert.
  * See doInsert and updateKey for these exceptional cases.
  */
-let doExplicitInsert = (
-  props: props,
-  extendedGraphemeCluster: string,
-  currCaretTarget: CT.t,
-  ast: FluidAST.t,
-): (FluidAST.t, newPosition) => {
+let doExplicitInsert = (extendedGraphemeCluster: string, currCaretTarget: CT.t, ast: FluidAST.t): (
+  FluidAST.t,
+  newPosition,
+) => {
   let {astRef: currAstRef, offset: currOffset} = currCaretTarget
   let caretDelta = extendedGraphemeCluster |> String.length
   let currCTPlusLen: CT.t = {astRef: currAstRef, offset: currOffset + caretDelta}
@@ -3423,7 +3420,8 @@ let doExplicitInsert = (
      * is either 1) the top-level expression in the AST or 2) the first
      * expression directly inside a let. This means it's on the "left edge"
      * of the editor. */
-    if VariantTesting.variantIsActive'(props.variants, LeftPartialVariant) {
+    if false {
+      // LeftPartial is disabled for now
       switch FluidAST.findParent(E.toID(currExpr), ast) {
       | None => mkLeftPartial
       | Some(ELet(_, _, _, body)) if currExpr == body => mkLeftPartial
@@ -3533,11 +3531,7 @@ let doExplicitInsert = (
       Some(ELeftPartial(id, str, expr), currCTPlusLen)
     | (ARBinOp(_), EBinOp(_, op, _, _, _) as oldExpr) =>
       let str =
-        op
-        |> PT.FQFnName.InfixStdlibFnName.toString
-        |> FluidUtil.partialName
-        |> mutation
-        |> String.trim
+        op |> PT.InfixStdlibFnName.toString |> FluidUtil.partialName |> mutation |> String.trim
       mkPartial(str, oldExpr)
     | (ARInteger(_), EInteger(id, int)) =>
       if currCaretTarget.offset == 0 && extendedGraphemeCluster == "0" {
@@ -3614,7 +3608,7 @@ let doExplicitInsert = (
     | (ARBlank(_), _) => maybeInsertInBlankExpr(extendedGraphemeCluster)
     | (ARFnCall(_), EFnCall(_, fnName, _, _)) =>
       // inserting in the middle or at the end of a fn call creates a partial
-      mkPartial(mutation(PT.FQFnName.toString(fnName)), currExpr)
+      mkPartial(mutation(FQFnName.toString(fnName)), currExpr)
     /*
      * Things you can't edit but probably should be able to edit
      */
@@ -3933,7 +3927,7 @@ let doInsert = (~pos: int, letter: string, ti: T.tokenInfo, astInfo: ASTInfo.t):
     |> ASTInfo.modifyState(~f=s => {...s, upDownCol: None})
 
   let (newAST, newPosition) = switch caretTargetFromTokenInfo(pos, ti) {
-  | Some(ct) => doExplicitInsert(astInfo.props, letter, ct, astInfo.ast)
+  | Some(ct) => doExplicitInsert(letter, ct, astInfo.ast)
   | None => (astInfo.ast, SamePlace)
   }
 
@@ -5255,7 +5249,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         let e = EBinOp(id, name, EBlank(gid()), e, ster)
         if newName == "" {
           None
-        } else if PT.FQFnName.InfixStdlibFnName.toString(name) != newName {
+        } else if PT.InfixStdlibFnName.toString(name) != newName {
           Some(EPartial(gid(), newName, e))
         } else {
           Some(e)
@@ -5264,7 +5258,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         let e = EBinOp(id, name, e, EBlank(gid()), ster)
         if newName == "" {
           None
-        } else if PT.FQFnName.InfixStdlibFnName.toString(name) != newName {
+        } else if PT.InfixStdlibFnName.toString(name) != newName {
           Some(EPartial(gid(), newName, e))
         } else {
           Some(e)
@@ -5273,7 +5267,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         let e = EBinOp(id, name, newExpr1, newExpr2, ster)
         if newName == "" {
           None
-        } else if PT.FQFnName.InfixStdlibFnName.toString(name) != newName {
+        } else if PT.InfixStdlibFnName.toString(name) != newName {
           Some(EPartial(gid(), newName, e))
         } else {
           Some(e)
@@ -5282,7 +5276,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         let e = EBinOp(id, name, EBlank(gid()), EBlank(gid()), ster)
         if newName == "" {
           None
-        } else if PT.FQFnName.InfixStdlibFnName.toString(name) != newName {
+        } else if PT.InfixStdlibFnName.toString(name) != newName {
           Some(EPartial(gid(), newName, e))
         } else {
           Some(e)
@@ -5348,7 +5342,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       let e = EFnCall(id, fnName, newArgs, ster)
       if newFnName == "" {
         None
-      } else if PT.FQFnName.toString(fnName) != newFnName {
+      } else if FQFnName.toString(fnName) != newFnName {
         Some(EPartial(gid(), newFnName, e))
       } else {
         Some(e)

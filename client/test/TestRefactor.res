@@ -403,7 +403,7 @@ let run = () => {
     ()
   })
   describe("reorderFnCallArgs", () => {
-    let fnFor = (str): PT.FQFnName.t => Stdlib({function: str, module_: "", version: 0})
+    let fnFor = (str): FQFnName.t => Stdlib({function: str, module_: "", version: 0})
     let matchExpr = (a, e) =>
       expect(e |> FluidPrinter.eToTestString) |> toEqual(a |> FluidPrinter.eToTestString)
 
@@ -542,7 +542,7 @@ let run = () => {
       |> TLID.Dict.fromList
 
     test("simple example", () => {
-      let props = {userFunctions: userFunctions, usedFns: Map.String.empty}
+      let props: Functions.props = {userFunctions: userFunctions, usedFns: Map.String.empty}
       expect(
         Functions.empty
         |> Functions.setBuiltins(sampleFunctions, props)

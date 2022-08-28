@@ -16,7 +16,7 @@ let name = (tl: toplevel): string =>
   | TLHandler(h) =>
     "H: " ++ PT.Handler.Spec.name(h.spec)->B.toOption->Belt.Option.getWithDefault("Undefined")
   | TLDB(db) => "DB: " ++ db.name
-  | TLPmFunc(fn) => "Package Manager Func: " ++ PT.FQFnName.PackageFnName.toString(fn.name)
+  | TLPmFunc(fn) => "Package Manager Func: " ++ FQFnName.PackageFnName.toString(fn.name)
   | TLFunc(f) => "Func: " ++ f.name
   | TLTipe(t) => "Type: " ++ t.name
   }
@@ -30,7 +30,7 @@ let sortkey = (tl: toplevel): string =>
     ->Option.andThen(~f=B.toOption)
     ->Belt.Option.getWithDefault("Undefined")
   | TLDB(db) => db.name
-  | TLPmFunc(f) => PT.FQFnName.PackageFnName.toString(f.name)
+  | TLPmFunc(f) => FQFnName.PackageFnName.toString(f.name)
   | TLFunc(f) => f.name
   | TLTipe(t) => t.name
   }

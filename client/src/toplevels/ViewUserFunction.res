@@ -130,7 +130,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
   let titleRow = {
     let titleText = switch fn {
     | UserFunction(fn) => BlankOr.fromStringID(fn.name, fn.nameID)
-    | PackageFn(fn) => BlankOr.newF(PT.FQFnName.PackageFnName.toString(fn.name))
+    | PackageFn(fn) => BlankOr.newF(FQFnName.PackageFnName.toString(fn.name))
     }
 
     let executeBtn = switch fn {

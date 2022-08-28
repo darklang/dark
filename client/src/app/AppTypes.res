@@ -862,8 +862,7 @@ module Model = {
   type rec t = {
     error: Error.t,
     lastMsg: Msg.t<t, Modification.t<t>>,
-    tests: list<Types.variantTest>,
-    functions: Types.functionsType,
+    functions: Functions.t,
     complete: AutoComplete.t,
     cursorState: CursorState.t,
     currentPage: Page.t,
@@ -945,14 +944,13 @@ module Model = {
   }
   let default: t = {
     error: Error.default,
-    functions: Defaults.defaultFunctionsType,
+    functions: Functions.empty,
     lastMsg: Msg.IgnoreMsg("default"),
     opCtrs: Tc.Map.String.empty,
     clientOpCtrId: "",
     complete: AutoComplete.default,
     currentPage: Architecture,
     hovering: list{},
-    tests: list{},
     handlers: TLID.Dict.empty,
     deletedHandlers: TLID.Dict.empty,
     dbs: TLID.Dict.empty,

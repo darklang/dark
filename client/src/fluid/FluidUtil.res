@@ -1,8 +1,8 @@
 open Prelude
 
-let propsFromModel = (m: AppTypes.model): Types.fluidProps => {
+let propsFromModel = (m: AppTypes.model): FluidTypes.Props.t => {
   functions: m.functions,
-  variants: m.tests,
+  settings: m.settings,
 }
 
 let orderRangeFromSmallToBig = ((rangeBegin, rangeEnd): (int, int)): (int, int) =>

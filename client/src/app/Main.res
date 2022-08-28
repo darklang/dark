@@ -75,7 +75,6 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     username,
   }: InitialParameters.t = InitialParameters.fromString(encodedParamString)
 
-  let variants = VariantTesting.enabledVariantTests()
   let m = SavedSettings.load(canvasName) |> SavedSettings.toModel
   let m = SavedUserSettings.load(username) |> SavedUserSettings.toModel(m)
   let userTutorial = if m.firstVisitToDark && m.tooltipState.userTutorial.step == None {
@@ -99,7 +98,6 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
       {usedFns: m.usedFns, userFunctions: m.userFunctions},
     ),
     complete: AC.init(m),
-    tests: variants,
     handlers: TLID.Dict.empty,
     dbs: TLID.Dict.empty,
     canvasName: canvasName,
@@ -679,7 +677,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
           bringBackCurrentTL(oldM, m)
         }
         let m = Refactor.updateUsageCounts(m)
-        let props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
+        let props: Functions.props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
         let m = {...m, functions: Functions.update(props, m.functions)}
         processAutocompleteMods(m, list{ACRegenerate})
       }
@@ -1474,7 +1472,7 @@ let update_ = (msg: msg, m: model): modification => {
           |> List.map(~f=(pkg: PT.Package.Fn.t) => (pkg.tlid, pkg))
           |> TLID.Dict.fromList
 
-        let props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
+        let props: Functions.props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
         let m = {...m, functions: Functions.setPackages(pkgs, props, m.functions)}
 
         /* We need to update the list of usages due to package manager functions.

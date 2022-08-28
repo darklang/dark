@@ -16,7 +16,7 @@ type msg = AppTypes.msg
 type props = {
   analysisStore: AnalysisTypes.analysisStore,
   ast: FluidAST.t,
-  functions: functionsType,
+  functions: Functions.t,
   executingFunctions: list<id>,
   editor: FT.Editor.t,
   hoveringRefs: list<id>,
@@ -443,7 +443,7 @@ let tokensView = (p: props): Html.html<msg> => {
 let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> => {
   let returnTipe = (name: string) =>
     Functions.findByStr(name, p.functions)
-    |> Option.map(~f=fn => fn.fnReturnTipe)
+    |> Option.map(~f=(fn: Function.t) => fn.fnReturnTipe)
     |> Option.unwrap(~default=DType.any)
 
   let liveValue = (id: id) => Analysis.getLiveValue'(p.analysisStore, id)

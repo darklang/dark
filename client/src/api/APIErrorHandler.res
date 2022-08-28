@@ -36,7 +36,8 @@ let handle = (m: AppTypes.model, apiError: t): (AppTypes.model, AppTypes.cmd) =>
 
   let ignore = {
     // Ignore when using Ngrok
-    let usingNgrok = VariantTesting.variantIsActive(m, NgrokVariant)
+    let usingTunnel =
+      m.settings.contributingSettings.useAssets == SettingsContributing.UseAssets.UseTunnelAssets
     // This message is deep in the server code and hard to pull
     // out, so just ignore for now
     Js.log("Already at latest redo - ignoring server error")
@@ -45,7 +46,7 @@ let handle = (m: AppTypes.model, apiError: t): (AppTypes.model, AppTypes.cmd) =>
       ~substring="(client): Already at latest redo",
     )
 
-    redoError || usingNgrok
+    redoError || usingTunnel
   }
 
   let cmd = if shouldReload {

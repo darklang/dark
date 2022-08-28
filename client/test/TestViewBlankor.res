@@ -48,7 +48,6 @@ let run = () => {
         functions: Functions.empty,
         executingFunctions: list{},
         tlTraceIDs: TLID.Dict.empty,
-        testVariants: list{},
         handlerProp: None,
         canvasName: "",
         userContentHost: "",

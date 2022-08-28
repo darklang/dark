@@ -83,11 +83,11 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
       switch expr {
       | EFnCall(_, name, _, _) => Functions.find(name, vp.functions)
       | EBinOp(_, name, _, _, _) =>
-        Functions.find(Stdlib(PT.FQFnName.InfixStdlibFnName.toStdlib(name)), vp.functions)
+        Functions.find(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), vp.functions)
       | _ => None
       }
     )
-    |> Option.andThen(~f=fn =>
+    |> Option.andThen(~f=(fn: Function.t) =>
       switch fn.fnPreviewSafety {
       | Safe => None
       | Unsafe =>

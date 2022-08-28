@@ -17,7 +17,7 @@ type model = AppTypes.model
 
 @ppx.deriving(show) type rec data = FT.AutoComplete.data
 
-type props = {functions: Types.functionsType}
+type props = {functions: Functions.t}
 
 @ppx.deriving(show) type rec tokenInfo = FluidTypes.TokenInfo.t
 
@@ -61,7 +61,7 @@ let focusItem = (i: int): AppTypes.cmd =>
 // ----------------------------
 let asName = (aci: item): string =>
   switch aci {
-  | FACFunction(fn) => PT.FQFnName.toString(fn.fnName)
+  | FACFunction(fn) => FQFnName.toString(fn.fnName)
   | FACField(name) => name
   | FACVariable(name, _) => name
   | FACLiteral(lit) => lit
@@ -90,7 +90,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   switch item {
   | FACFunction(f) =>
     f.fnParameters
-    |> List.map(~f=x => x.paramTipe)
+    |> List.map(~f=(x: Function.parameter) => x.paramTipe)
     |> List.map(~f=DType.tipe2str)
     |> (s => (s, DType.tipe2str(f.fnReturnTipe)))
   | FACField(_) => (list{}, "field")
@@ -232,7 +232,7 @@ let findFields = (m: model, tl: toplevel, ti: tokenInfo): list<string> => {
 }
 
 let findExpectedType = (
-  functions: list<function_>,
+  functions: list<Function.t>,
   tl: toplevel,
   ti: tokenInfo,
 ): TypeInformation.t => {
@@ -242,8 +242,8 @@ let findExpectedType = (
   |> Option.andThen(~f=AST.getParamIndex(id))
   |> Option.andThen(~f=((name, index)) =>
     functions
-    |> List.find(~f=f => name == PT.FQFnName.toString(f.fnName))
-    |> Option.map(~f=fn => {
+    |> List.find(~f=(f: Function.t) => name == FQFnName.toString(f.fnName))
+    |> Option.map(~f=(fn: Function.t) => {
       let param = List.getAt(~index, fn.fnParameters)
       let returnType =
         Option.map(param, ~f=p => p.paramTipe) |> Option.unwrap(~default=default.returnType)
@@ -353,7 +353,7 @@ let secretToACItem = (s: SecretTypes.t): item => {
 
 let lookupIsInQuery = (tl: toplevel, ti: tokenInfo) => {
   // CLEANUP: use builtin query attribute in the global function list
-  let isQueryFn = (name: PT.FQFnName.t) =>
+  let isQueryFn = (name: FQFnName.t) =>
     switch name {
     | Stdlib({module_: "DB", function, version}) =>
       switch (function, version) {
@@ -505,7 +505,7 @@ let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
   }
 }
 
-let filter = (functions: list<function_>, candidates0: list<item>, query: fullQuery): list<
+let filter = (functions: list<Function.t>, candidates0: list<item>, query: fullQuery): list<
   data,
 > => {
   let stripColons = Regex.replace(~re=Regex.regex("::"), ~repl="")
@@ -701,7 +701,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
         Html.span(list{Attrs.class'("err")}, list{Html.text("Type error: ")}),
         Html.span(
           list{Attrs.class'("fn")},
-          list{Html.text(fnName->Option.map(~f=PT.FQFnName.toString)->Option.unwrap(~default=""))},
+          list{Html.text(fnName->Option.map(~f=FQFnName.toString)->Option.unwrap(~default=""))},
         ),
         Html.text(" expects "),
         Html.span(list{Attrs.class'("param")}, list{Html.text(paramName)}),

@@ -146,7 +146,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
             switch x {
             | EFnCall(_, name, _, sendToRail) => Some(name, sendToRail)
             | EBinOp(_, name, _, _, sendToRail) =>
-              Some(Stdlib(PT.FQFnName.InfixStdlibFnName.toStdlib(name)), sendToRail)
+              Some(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), sendToRail)
             | _ => None
             }
           )
@@ -176,7 +176,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           |> Option.andThen(~f=((name, index)) =>
             m.functions
             |> Functions.findByStr(name)
-            |> Option.map(~f=f => {
+            |> Option.map(~f=(f: Function.t) => {
               let param = f.fnParameters |> List.getAt(~index)
               (param, f.fnDescription)
             })
@@ -693,11 +693,7 @@ let view = (m: model): Html.html<msg> => {
     EventListeners.scrollEventNeither(~key="app-scroll", "scroll", _ => Msg.AppScroll),
   }
 
-  let attributes = list{
-    Attrs.id(appID),
-    Attrs.class'("app " ++ VariantTesting.activeCSSClasses(m)),
-    ...eventListeners,
-  }
+  let attributes = list{Attrs.id(appID), ...eventListeners}
 
   let footer = list{
     ViewScaffold.viewIntegrationTestButton(m.integrationTestState),
