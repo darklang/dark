@@ -2075,15 +2075,15 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   // before they're triggered
   | DraggingTL(id, _, _, _) =>
     let listenerKey = "mouse_moves_" ++ TLID.toString(id)
-    list{BrowserListeners.DarkMouse.moves(~key=listenerKey, event => DragToplevel(id, event))}
+    list{BrowserSubscriptions.DarkMouse.moves(~key=listenerKey, event => DragToplevel(id, event))}
   | PanningCanvas(_) =>
     let listenerKey = "mouse_drag"
-    list{BrowserListeners.DarkMouse.moves(~key=listenerKey, event => AppMouseDrag(event))}
+    list{BrowserSubscriptions.DarkMouse.moves(~key=listenerKey, event => AppMouseDrag(event))}
   | _ => list{}
   }
 
   let windowMouseSubs = list{
-    BrowserListeners.Window.Mouse.ups(~key="win_mouse_up", event => WindowMouseUp(event)),
+    BrowserSubscriptions.Window.Mouse.ups(~key="win_mouse_up", event => WindowMouseUp(event)),
   }
 
   let timers = if m.editorSettings.runTimers {
@@ -2105,11 +2105,11 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let onError = list{
-    BrowserListeners.DisplayClientError.listen(~key="display_client_error", s => JSError(s)),
+    BrowserSubscriptions.DisplayClientError.listen(~key="display_client_error", s => JSError(s)),
   }
 
   let visibility = list{
-    BrowserListeners.Window.OnFocusChange.listen(~key="window_on_focus_change", v =>
+    BrowserSubscriptions.Window.OnFocusChange.listen(~key="window_on_focus_change", v =>
       if v {
         PageVisibilityChange(Visible)
       } else {
@@ -2119,7 +2119,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let mousewheelSubs = if m.canvasProps.enablePan && !isACOpened(m) {
-    list{BrowserListeners.OnWheel.listen(~key="on_wheel", ((dx, dy)) => MouseWheel(dx, dy))}
+    list{BrowserSubscriptions.OnWheel.listen(~key="on_wheel", ((dx, dy)) => MouseWheel(dx, dy))}
   } else {
     list{}
   }
@@ -2140,14 +2140,15 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     list{}
   } else {
     list{
-      BrowserListeners.Clipboard.copyListener(
+      BrowserSubscriptions.Clipboard.copyListener(
         ~key="copy_event",
         e => AppTypes.Msg.ClipboardCopyEvent(e),
       ),
-      BrowserListeners.Clipboard.cutListener(~key="cut_event", e => AppTypes.Msg.ClipboardCutEvent(
-        e,
-      )),
-      BrowserListeners.Clipboard.pasteListener(~key="paste_event", e => {
+      BrowserSubscriptions.Clipboard.cutListener(
+        ~key="cut_event",
+        e => AppTypes.Msg.ClipboardCutEvent(e),
+      ),
+      BrowserSubscriptions.Clipboard.pasteListener(~key="paste_event", e => {
         e["preventDefault"]()
         AppTypes.Msg.ClipboardPasteEvent(e)
       }),

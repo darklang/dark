@@ -235,7 +235,7 @@ module ReceiveAnalysis = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("receiveAnalysis", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("receiveAnalysis", key, tagger, decode)
 }
 
 module ReceiveFetch = {
@@ -245,7 +245,7 @@ module ReceiveFetch = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("receiveFetch", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("receiveFetch", key, tagger, decode)
 }
 
 module NewTracePush = {
@@ -255,7 +255,7 @@ module NewTracePush = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("newTracePush", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("newTracePush", key, tagger, decode)
 }
 
 module New404Push = {
@@ -264,7 +264,8 @@ module New404Push = {
     field("detail", Decoders.wrapDecoder(AnalysisTypes.FourOhFour.decode))
   }
 
-  let listen = (~key, tagger) => BrowserListeners.registerGlobal("new404Push", key, tagger, decode)
+  let listen = (~key, tagger) =>
+    BrowserSubscriptions.registerGlobal("new404Push", key, tagger, decode)
 }
 
 module NewPresencePush = {
@@ -274,7 +275,7 @@ module NewPresencePush = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("newPresencePush", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("newPresencePush", key, tagger, decode)
 }
 
 module AddOps = {
@@ -283,7 +284,7 @@ module AddOps = {
     field("detail", Decoders.wrapDecoder(PusherTypes.AddOps.decode))
   }
 
-  let listen = (~key, tagger) => BrowserListeners.registerGlobal("addOp", key, tagger, decode)
+  let listen = (~key, tagger) => BrowserSubscriptions.registerGlobal("addOp", key, tagger, decode)
 }
 
 module WorkerStatePush = {
@@ -293,7 +294,7 @@ module WorkerStatePush = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("workerStatePush", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("workerStatePush", key, tagger, decode)
 }
 
 // Request analysis
