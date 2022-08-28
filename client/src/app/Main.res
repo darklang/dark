@@ -76,7 +76,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     username,
   }: InitialParameters.t = InitialParameters.fromString(encodedParamString)
 
-  let variants = VariantTesting.enabledVariantTests(isAdmin)
+  let variants = VariantTesting.enabledVariantTests()
   let m = SavedSettings.load(canvasName) |> SavedSettings.toModel
   let m = SavedUserSettings.load(username) |> SavedUserSettings.toModel(m)
   let userTutorial = if m.firstVisitToDark && m.tooltipState.userTutorial.step == None {

@@ -28,13 +28,8 @@ let availableAdminVariants: list<variantTest> = list{NgrokVariant}
 let activeCSSClasses = (m: AppTypes.model): string =>
   m.tests |> List.map(~f=toCSSClass) |> String.join(~sep=" ")
 
-let enabledVariantTests = (isAdmin: bool): list<variantTest> => {
-  // admins have these enabled by default, but can opt-out via query param
-  let initial = if isAdmin {
-    list{}
-  } else {
-    list{}
-  }
+let enabledVariantTests = (): list<variantTest> => {
+  let initial = list{}
   Url.queryParams()
   |> /* convert a (string * bool) list to a (variantTest * bool) list,
    * ignoring any unknown query params */

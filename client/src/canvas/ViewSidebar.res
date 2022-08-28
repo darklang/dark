@@ -1074,26 +1074,22 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     },
   )
 
-  let variantLinks = if m.isAdmin {
-    List.map(VariantTesting.availableAdminVariants, ~f=variant => {
-      let name = VariantTesting.nameOf(variant)
-      let enabled = VariantTesting.variantIsActive(m, variant)
-      Html.a(
-        list{Attrs.href(ViewScaffold.flagLinkLoc(name, enabled)), Attrs.class'("state-info-row")},
-        list{
-          Html.text(
-            if enabled {
-              "Disable " ++ (name ++ " variant")
-            } else {
-              "Enable " ++ (name ++ " variant")
-            },
-          ),
-        },
-      )
-    })
-  } else {
-    list{}
-  }
+  let variantLinks = List.map(VariantTesting.availableAdminVariants, ~f=variant => {
+    let name = VariantTesting.nameOf(variant)
+    let enabled = VariantTesting.variantIsActive(m, variant)
+    Html.a(
+      list{Attrs.href(ViewScaffold.flagLinkLoc(name, enabled)), Attrs.class'("state-info-row")},
+      list{
+        Html.text(
+          if enabled {
+            "Disable " ++ (name ++ " variant")
+          } else {
+            "Enable " ++ (name ++ " variant")
+          },
+        ),
+      },
+    )
+  })
 
   let saveTestButton = Html.a(
     list{
