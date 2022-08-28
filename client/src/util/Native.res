@@ -115,21 +115,6 @@ module Clipboard = {
   @module external copyToClipboard: string => unit = "clipboard-copy"
 }
 
-module BigInt = {
-  type t
-
-  /* asUintNExn throws an exception when given stringified non-ints and truncates the most significant bits
-   of numbers with magnitude too large to be represented in the given # of bits */
-  @val @scope("BigInt") external asUintNExn: (int, string) => t = "asUintN"
-
-  let asUintN = (~nBits: int, str: string): Option.t<t> =>
-    try Some(asUintNExn(nBits, str)) catch {
-    | _ => None
-    }
-
-  @bs.send external toString: t => string = "toString"
-}
-
 module Decoder = {
   let tuple2 = (decodeA, decodeB) => {
     open Tea.Json.Decoder

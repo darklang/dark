@@ -35,10 +35,12 @@ let getSelectionRange = (s: AppTypes.fluidState): (int, int) =>
  * once fluid supports negative numbers.
  ")
 let truncateStringTo64BitInt = (s: string): Result.t<int64, string> => {
-  let is63BitInt = s =>
-    switch Native.BigInt.asUintN(~nBits=63, s) {
-    | Some(i) => Native.BigInt.toString(i) == s
-    | None => false
+  module BI = ReScriptJs.Js.BigInt
+  let is63BitInt = (s: string) =>
+    try {
+      s == s->BI.fromString->BI.asUintN(~width=63)->BI.toString
+    } catch {
+    | _ => false
     }
 
   // 9223372036854775807 is largest positive 63 bit number, which has 19 characters
