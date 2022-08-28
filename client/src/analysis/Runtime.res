@@ -260,8 +260,8 @@ let pathFromInputVars = (iv: AnalysisTypes.InputValueDict.t): option<string> =>
     | _ => None
     }
   )
-  |> Option.andThen(~f=Native.Url.make)
-  |> Option.map(~f=url => url["pathname"] ++ url["search"])
+  |> Option.map(~f=Webapi.Url.make)
+  |> Option.map(~f=url => Webapi.Url.pathname(url) ++ Webapi.Url.search(url))
 
 let setHandlerExeState = (
   tlid: TLID.t,

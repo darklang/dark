@@ -165,26 +165,3 @@ module Decoder = {
     )
   }
 }
-
-module Url = {
-  type t = {
-    "hash": string,
-    "host": string,
-    "hostname": string,
-    "href": string,
-    "origin": string,
-    "password": string,
-    "pathname": string,
-    "port": string,
-    "protocol": string,
-    "search": string,
-    "username": string,
-  }
-
-  @new external make_internal: string => t = "URL"
-
-  let make = s =>
-    try Some(make_internal(s)) catch {
-    | _ => None
-    }
-}
