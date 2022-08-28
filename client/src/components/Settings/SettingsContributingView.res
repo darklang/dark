@@ -36,7 +36,7 @@ let viewDebuggingOption = (ui: T.ContributorUI.t): Html.html<AppTypes.msg> => {
     C.toggleButton(attr, ui.showFluidDebugger)
   }
   let info = Some(
-    "Show a menu in the (closed) sidebar with debugging options useful when working on the Darklang client",
+    "Show a menu in the (closed) sidebar with debugging options. These are useful when working on the Darklang client (note they are not typically useful for writing Darklang code)",
   )
   C.settingRow("Show debugging options", ~info, ~error=None, list{toggle})
 }
@@ -85,7 +85,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
   }
   let row = C.settingRow(
     ~info=Some(
-      "Your tunnel provided (eg ngrok) will provide this hostname once you start the tunnel",
+      "Your tunnel provider (eg Ngrok) will provide this hostname once you start the tunnel",
     ),
     ~error=None,
     "Tunnel hostname",
