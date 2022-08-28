@@ -162,7 +162,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
           }
         }
 
-        let menuItems = if vp.isAdmin {
+        let menuItems = if false {
           list{delAct, uploadPackageFnAction}
         } else {
           list{delAct}

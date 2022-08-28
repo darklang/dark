@@ -29,7 +29,6 @@ let run = () => {
         cursorState: Deselected,
         fluidState: FluidTypes.State.default,
         tlid: gtlid(),
-        isAdmin: false,
         hovering: None,
         ac: {
           completions: list{},

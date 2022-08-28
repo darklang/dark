@@ -519,7 +519,6 @@ setTimeout(function () {
     userContentHost: userContentHost,
     environment: environmentName,
     csrfToken: csrfToken,
-    isAdmin: userIsAdmin,
     buildHash: buildHash,
     username: username,
   });

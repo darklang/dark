@@ -71,7 +71,6 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     userContentHost,
     environment,
     csrfToken,
-    isAdmin,
     buildHash,
     username,
   }: InitialParameters.t = InitialParameters.fromString(encodedParamString)
@@ -110,7 +109,6 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     csrfToken: csrfToken,
     browserId: manageBrowserId(),
     clientOpCtrId: createClientOpCtrId,
-    isAdmin: isAdmin,
     buildHash: buildHash,
     username: username,
     teaDebuggerEnabled: Url.isDebugging(),
