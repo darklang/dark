@@ -228,6 +228,17 @@ module Tools = {
 
   let default = {showSidebarPanel: false}
 
+  let toSaved = ({showSidebarPanel}: t) => {
+    open Json.Encode
+    object_(list{("showSidebarPanel", bool(showSidebarPanel))})
+  }
+  let fromSaved = (j: Js.Json.t) => {
+    open Json.Decode
+    {
+      showSidebarPanel: field("showSidebarPanel", bool, j),
+    }
+  }
+
   let init = () => Tea.Cmd.none
 
   let update = (_: t, msg: msg): (t, intent) =>
@@ -267,6 +278,19 @@ let default = {
   tunnelHost: TunnelHost.default,
   useAssets: UseAssets.default,
   tools: Tools.default,
+}
+
+let toSaved = ({tools, _}: t) => {
+  open Json.Encode
+  object_(list{("tools", Tools.toSaved(tools))})
+}
+
+let fromSaved = (j: Js.Json.t) => {
+  open Json.Decode
+  {
+    ...default,
+    tools: field("tools", Tools.fromSaved, j),
+  }
 }
 
 let init = clientData =>

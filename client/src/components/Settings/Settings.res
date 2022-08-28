@@ -45,6 +45,19 @@ let default = {
   contributingSettings: SettingsContributing.default,
 }
 
+let toSaved = (s: t): Js.Json.t => {
+  open Json.Encode
+  object_(list{("contributingSettings", SettingsContributing.toSaved(s.contributingSettings))})
+}
+
+let fromSaved = (j: Js.Json.t) => {
+  open Json.Decode
+  {
+    ...default,
+    contributingSettings: field("contributingSettings", SettingsContributing.fromSaved, j),
+  }
+}
+
 @ppx.deriving(show)
 type rec msg =
   | Close(Tab.t)
@@ -113,13 +126,13 @@ let update = (state: t, msg: msg): (t, option<Intent.t<msg>>) =>
   switch msg {
   | Open(tab) =>
     let tabInit = clientData => init(clientData, tab)
-    ({...state, opened: true, tab}, Some(OpenSettings(tab, tabInit)))
+    ({...state, opened: true, tab: tab}, Some(OpenSettings(tab, tabInit)))
 
   | Close(_) => ({...state, opened: false}, Some(CloseSettings))
 
   | SwitchTab(tab) =>
     let tabInit = clientData => init(clientData, tab)
-    ({...state, tab}, Some(SetSettingsTab(tab, tabInit)))
+    ({...state, tab: tab}, Some(SetSettingsTab(tab, tabInit)))
 
   | CanvasesMsg(msg) => {
       let newSettings = SettingsCanvases.update(state.canvasesSettings, msg)

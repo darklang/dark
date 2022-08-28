@@ -1205,6 +1205,7 @@ let rtCacheKey = (m: model) =>
     m.tooltipState.tooltipSource,
     m.secrets,
     m.functions.packageFunctions |> Map.mapValues(~f=(t: PT.Package.Fn.t) => t.name.owner),
+    m.settings.contributingSettings.tools.showSidebarPanel,
   ) |> Option.some
 
 let viewSidebar = m => ViewCache.cache1m(rtCacheKey, viewSidebar_, m)

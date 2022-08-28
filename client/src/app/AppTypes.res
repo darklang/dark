@@ -525,6 +525,7 @@ module SavedSettings = {
     firstVisitToThisCanvas: bool,
     userTutorial: option<Tutorial.Step.t>,
     userTutorialTLID: option<TLID.t>,
+    settings: Settings.t,
   }
   let default: t = {
     editorSettings: EditorSettings.default,
@@ -538,6 +539,7 @@ module SavedSettings = {
     firstVisitToThisCanvas: true,
     userTutorial: None,
     userTutorialTLID: None,
+    settings: Settings.default,
   }
 
   let encode = (se: t): Js.Json.t => {
@@ -554,6 +556,7 @@ module SavedSettings = {
       ("firstVisitToThisCanvas", bool(se.firstVisitToThisCanvas)),
       ("userTutorial", nullable(Tutorial.Step.encode, se.userTutorial)),
       ("userTutorialTLID", nullable(TLID.encode, se.userTutorialTLID)),
+      ("settings", Settings.toSaved(se.settings)),
     })
   }
   let decode = (j: Js.Json.t): t => {
@@ -604,6 +607,7 @@ module SavedSettings = {
         field("userTutorialTLID", optional(TLID.decode)),
         j,
       ),
+      settings: withDefault(Settings.default, field("settings", Settings.fromSaved), j),
     }
   }
 }
