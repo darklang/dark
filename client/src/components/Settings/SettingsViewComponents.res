@@ -52,15 +52,15 @@ let toggleButton = (msgAttr: Vdom.property<'msg>, enabled: bool): Html.html<'msg
   // https://tailwindui.com/components/application-ui/forms/toggles#component-92732eaa2a1e1af9d23939f08cabd44f
 
   let (enabledPosition, enabledColor) = if enabled {
-    ("translate-x-5", "bg-indigo-600")
+    ("translate-x-6 mr-1", "bg-indigo-600")
   } else {
-    ("translate-x-0", "bg-grey-200")
+    ("translate-x-0 ml-1", "bg-[#585858]")
   }
 
   Html.button(
     list{
       tailwind(
-        `${enabledColor} relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`,
+        `${enabledColor} relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none`,
       ),
       msgAttr,
       Attrs.role("switch"),
@@ -71,7 +71,7 @@ let toggleButton = (msgAttr: Vdom.property<'msg>, enabled: bool): Html.html<'msg
       Html.span(
         list{
           tailwind(
-            `${enabledPosition} mt-0.5 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`,
+            `${enabledPosition} mt-1 pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`,
           ),
           Attrs.ariaHidden(true),
         },
