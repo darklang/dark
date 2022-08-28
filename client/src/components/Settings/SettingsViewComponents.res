@@ -88,9 +88,14 @@ let button = (
   contents: list<Html.html<'msg>>,
 ): Html.html<'msg> => {
   let savingSpinner = switch saveStatus {
-  | Saving => Html.i(list{Attrs.class("fa fa-spinner text-[#e8e8e8] px-1")}, list{})
-  | Saved => Html.i(list{Attrs.class("fa fa-check text-[#a1b56c] px-1")}, list{})
+  | Saving => Html.i(list{Attrs.class("fa fa-spinner text-[#e8e8e8] pr-1")}, list{})
+  | Saved => Html.i(list{Attrs.class("fa fa-check text-[#a1b56c] pr-1")}, list{})
   | NotSaving => Vdom.noNode
+  }
+  let savingAttrs = switch saveStatus {
+  | Saving => list{Attrs.disabled(true)}
+  | Saved => list{Vdom.noProp}
+  | NotSaving => list{Vdom.noProp}
   }
 
   Html.button(
@@ -99,6 +104,7 @@ let button = (
         `rounded-lg h-9 px-2.5 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-large font-bold align-top ${tw}`,
       ),
       msgAttr,
+      ...savingAttrs,
     },
     list{savingSpinner, ...contents},
   )
