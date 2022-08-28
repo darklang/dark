@@ -1,5 +1,3 @@
-open Tc
-
 type rect = {
   id: string,
   top: int,
@@ -10,6 +8,7 @@ type rect = {
 
 exception NativeCodeError(string)
 
+// TODO: remove all this, and use Rescript-webapi instead
 module Ext = {
   let window: Dom.window = %raw("(typeof window === undefined) ? window : {}")
 
@@ -89,41 +88,16 @@ module Random = {
   let range = (min: int, max: int): int => Js_math.random_int(min, max)
 }
 
+// TODO: remove all this, and use Rescript-webapi instead
 module Location = {
   @val @scope(("window", "location")) external queryString: string = "search"
 
   @val @scope(("window", "location")) external hashString: string = "hash"
 
   @val @scope(("window", "location")) external reload: bool => unit = "reload"
-
-  // TODO write string query parser
 }
 
+// TODO: remove all this, and use Rescript-webapi instead
 module Clipboard = {
   @module external copyToClipboard: string => unit = "clipboard-copy"
-}
-
-module Decoder = {
-  let tuple2 = (decodeA, decodeB) => {
-    open Tea.Json.Decoder
-    Decoder(
-      j =>
-        switch Web.Json.classify(j) {
-        | JSONArray(arr) =>
-          if Js_array.length(arr) === 2 {
-            switch (
-              decodeValue(decodeA, Caml.Array.unsafe_get(arr, 0)),
-              decodeValue(decodeB, Caml.Array.unsafe_get(arr, 1)),
-            ) {
-            | (Ok(a), Ok(b)) => Ok(a, b)
-            | (Error(e1), _) => Error("tuple2[0] -> " ++ e1)
-            | (_, Error(e2)) => Error("tuple2[1] -> " ++ e2)
-            }
-          } else {
-            Error("tuple2 expected array with 2 elements")
-          }
-        | _ => Error("tuple2 expected array")
-        },
-    )
-  }
 }
