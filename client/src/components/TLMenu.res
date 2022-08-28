@@ -3,7 +3,9 @@ open Prelude
 module Html = Tea.Html
 module Attrs = Tea.Attrs
 
-let onClick = (key, fn) => ViewUtils.eventNoPropagation(~key, "click", fn)
+module Msg = AppTypes.Msg
+
+let onClick = (key, fn) => EventListeners.eventNoPropagation(~key, "click", fn)
 
 module M = AppTypes.Menu
 type t = AppTypes.Menu.t
@@ -74,7 +76,7 @@ let viewMenu = (s: M.t, tlid: TLID.t, items: list<menuItem>): Html.html<AppTypes
     Html.div(
       list{
         Attrs.classList(list{("toggle-btn", true), ("active", showMenu)}),
-        onClick(cacheKey, _ => TLMenuMsg(
+        onClick(cacheKey, _ => Msg.TLMenuMsg(
           tlid,
           if showMenu {
             CloseMenu
@@ -91,11 +93,12 @@ let viewMenu = (s: M.t, tlid: TLID.t, items: list<menuItem>): Html.html<AppTypes
     list{
       Attrs.classList(list{("more-actions", true), ("show", showMenu)}),
       // Block opening the omnibox here by preventing canvas pan start
-      ViewUtils.nothingMouseEvent("mousedown"),
-      ViewUtils.eventPreventDefault(~key="hide-tl-opts" ++ strTLID, "mouseleave", _ => TLMenuMsg(
-        tlid,
-        CloseMenu,
-      )),
+      EventListeners.nothingMouseEvent("mousedown"),
+      EventListeners.eventPreventDefault(
+        ~key="hide-tl-opts" ++ strTLID,
+        "mouseleave",
+        _ => Msg.TLMenuMsg(tlid, CloseMenu),
+      ),
     },
     list{toggleMenu, Html.div(list{Attrs.class'("actions")}, actions)},
   )

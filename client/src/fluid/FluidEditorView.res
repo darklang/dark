@@ -10,6 +10,7 @@ module T = FluidToken
 type fluidState = AppTypes.fluidState
 
 open ProgramTypes.Expr
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
 type props = {
@@ -340,7 +341,10 @@ let tokensView = (p: props): Html.html<msg> => {
   }
 
   let clickHandlers = list{
-    ViewUtils.eventNeither(~key="fluid-selection-dbl-click" ++ tlidStr, "dblclick", ({altKey, _}) =>
+    EventListeners.eventNeither(~key="fluid-selection-dbl-click" ++ tlidStr, "dblclick", ({
+      altKey,
+      _,
+    }) =>
       switch Entry.getFluidSelectionRange() {
       | Some(startPos, endPos) =>
         let selection = if altKey {
@@ -349,16 +353,16 @@ let tokensView = (p: props): Html.html<msg> => {
           SelectTokenAt(startPos, endPos)
         }
 
-        FluidMsg(FluidMouseDoubleClick({tlid: p.tlid, editor: p.editor, selection: selection}))
-      | None => AppTypes.Msg.IgnoreMsg("fluid-dblclick-noselection")
+        Msg.FluidMsg(FluidMouseDoubleClick({tlid: p.tlid, editor: p.editor, selection: selection}))
+      | None => Msg.IgnoreMsg("fluid-dblclick-noselection")
       }
     ),
-    ViewUtils.eventNoPropagation(
+    EventListeners.eventNoPropagation(
       ~key="fluid-selection-mousedown" ++ tlidStr,
       "mousedown",
-      _ => FluidMsg(FluidMouseDown(p.tlid)),
+      _ => Msg.FluidMsg(FluidMouseDown(p.tlid)),
     ),
-    ViewUtils.eventNoPropagation(~key="fluid-selection-mouseup" ++ tlidStr, "mouseup", _ =>
+    EventListeners.eventNoPropagation(~key="fluid-selection-mouseup" ++ tlidStr, "mouseup", _ =>
       switch Entry.getFluidSelectionRange() {
       | Some(startPos, endPos) =>
         let selection = if startPos == endPos {
@@ -367,17 +371,17 @@ let tokensView = (p: props): Html.html<msg> => {
           SelectText(startPos, endPos)
         }
 
-        FluidMsg(FluidMouseUp({tlid: p.tlid, editor: p.editor, selection: selection}))
+        Msg.FluidMsg(FluidMouseUp({tlid: p.tlid, editor: p.editor, selection: selection}))
       | None =>
         // Select the handler, if not selected
         FluidMsg(FluidMouseUp({tlid: p.tlid, editor: p.editor, selection: ClickAt(0)}))
       }
     ),
-    ViewUtils.onAnimationEnd(~key="anim-end" ++ tlidStr, ~listener=msg =>
+    EventListeners.onAnimationEnd(~key="anim-end" ++ tlidStr, ~listener=msg =>
       if msg == "flashError" || msg == "flashIncomplete" {
-        FluidMsg(FluidClearErrorDvSrc)
+        Msg.FluidMsg(FluidClearErrorDvSrc)
       } else {
-        AppTypes.Msg.IgnoreMsg("fluid-animation-end")
+        Msg.IgnoreMsg("fluid-animation-end")
       }
     ),
   }
@@ -463,7 +467,7 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
 
     let event = Vdom.noProp
     /* TEMPORARY DISABLE
-          ViewUtils.eventNoPropagation
+          EventListeners.eventNoPropagation
             ~key:("er-" ^ show_id id)
             "click"
             (fun _ -> TakeOffErrorRail (tlid, id)) */

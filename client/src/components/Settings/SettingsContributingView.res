@@ -7,6 +7,8 @@ module Html = Tea.Html
 module Events = Tea.Html.Events
 module Attrs = Tea.Html.Attributes
 
+module Msg = AppTypes.Msg
+
 module C = SettingsViewComponents
 
 let viewIntroText = {
@@ -26,13 +28,17 @@ let viewIntroText = {
 
 let viewDebuggingOption = (ui: T.ContributorUI.t): Html.html<AppTypes.msg> => {
   let toggle = {
-    let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
-      Settings.ContributingMsg(
-        SettingsContributing.ContributorUIMsg(
-          T.ContributorUI.SetFluidDebugger(!ui.showFluidDebugger),
+    let attr = EventListeners.eventNoPropagation(
+      ~key="toggle-settings",
+      "click",
+      _ => Msg.SettingsMsg(
+        Settings.ContributingMsg(
+          SettingsContributing.ContributorUIMsg(
+            T.ContributorUI.SetFluidDebugger(!ui.showFluidDebugger),
+          ),
         ),
       ),
-    ))
+    )
     C.toggleButton(attr, ui.showFluidDebugger)
   }
   let info = Some(
@@ -76,7 +82,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
   let button = {
     C.button(
       ~tw="ml-2",
-      ViewUtils.eventNoPropagation(~key="tunnel-button-set", "click", _ => SettingsMsg(
+      EventListeners.eventNoPropagation(~key="tunnel-button-set", "click", _ => Msg.SettingsMsg(
         Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
       )),
       th.saveStatus,
@@ -98,9 +104,11 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
 let viewTunnelToggle = (s: T.UseAssets.t): Html.html<AppTypes.msg> => {
   let toggle = {
     let enabled = s == UseTunnelAssets
-    let attr = ViewUtils.eventNoPropagation(~key="toggle-settings", "click", _ => SettingsMsg(
-      Settings.ContributingMsg(T.UseAssetsMsg(T.UseAssets.Toggle)),
-    ))
+    let attr = EventListeners.eventNoPropagation(
+      ~key="toggle-settings",
+      "click",
+      _ => Msg.SettingsMsg(Settings.ContributingMsg(T.UseAssetsMsg(T.UseAssets.Toggle))),
+    )
     C.toggleButton(attr, enabled)
   }
 

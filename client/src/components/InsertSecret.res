@@ -135,7 +135,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
       let closeBtn = Html.div(
         list{
           Attrs.class'("close-btn"),
-          ViewUtils.eventNoPropagation(
+          EventListeners.eventNoPropagation(
             ~key="close-create-secret-modal",
             "click",
             _ => Msg.SecretMsg(CloseCreateModal),
@@ -175,7 +175,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
               list{
                 Attrs.type'("button"),
                 Attrs.class'("modal-form-button"),
-                ViewUtils.eventNoPropagation(~key="save-secret", "click", _ => Msg.SecretMsg(
+                EventListeners.eventNoPropagation(~key="save-secret", "click", _ => Msg.SecretMsg(
                   SaveNewSecret,
                 )),
               },
@@ -201,9 +201,9 @@ let view = (m: ST.insertModal): Html.html<msg> =>
     Html.div(
       list{
         Attrs.class'("modal-overlay"),
-        ViewUtils.nothingMouseEvent("mousedown"),
-        ViewUtils.nothingMouseEvent("mouseup"),
-        ViewUtils.nothingMouseEvent("click"),
+        EventListeners.nothingMouseEvent("mousedown"),
+        EventListeners.nothingMouseEvent("mouseup"),
+        EventListeners.nothingMouseEvent("click"),
         Events.onCB("keydown", "keydown", onKeydown),
       },
       list{Html.div(list{Attrs.class'("modal insert-secret")}, inside)},

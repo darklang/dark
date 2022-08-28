@@ -5,9 +5,11 @@ module Attrs = Tea.Attrs
 
 module T = SettingsPrivacy
 
+module Msg = AppTypes.Msg
+
 let explanation = "To help us understand how people learn Dark, is it okay if we track your session in a replayable format (using Fullstory)."
 
-let disableOmniOpen = ViewUtils.nothingMouseEvent("mousedown")
+let disableOmniOpen = EventListeners.nothingMouseEvent("mousedown")
 
 let radio = (~value: string, ~label: string, ~msg: Settings.msg, ~checked: bool): Html.html<
   AppTypes.msg,
@@ -23,7 +25,7 @@ let radio = (~value: string, ~label: string, ~msg: Settings.msg, ~checked: bool)
           Attrs.name("fs-consent"),
           Attrs.value(value),
           Attrs.checked(checked),
-          ViewUtils.eventNoPropagation(~key, "click", _ => SettingsMsg(msg)),
+          EventListeners.eventNoPropagation(~key, "click", _ => Msg.SettingsMsg(msg)),
         },
         list{},
       ),

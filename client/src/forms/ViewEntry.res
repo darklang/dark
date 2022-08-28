@@ -44,10 +44,12 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
             (class', true),
             (specialClass, true),
           }),
-          nothingMouseEvent("mouseup"),
+          EventListeners.nothingMouseEvent("mouseup"),
           defaultPasteHandler,
-          nothingMouseEvent("mousedown"),
-          eventNoPropagation(~key="ac-" ++ name, "click", _ => AutocompleteClick(i)),
+          EventListeners.nothingMouseEvent("mousedown"),
+          EventListeners.eventNoPropagation(~key="ac-" ++ name, "click", _ => Msg.AutocompleteClick(
+            i,
+          )),
         },
         list{
           Html.span(list{Attrs.class'("name")}, list{Html.text(name)}),
@@ -103,6 +105,10 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
     list{Attrs.id("fluidWidthSpan"), Vdom.prop("contentEditable", "true")},
     list{Html.text(search)},
   )
+
+  let inCh = (w: int): string => w |> string_of_int |> (s => s ++ "ch")
+
+  let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Attrs.style("width")
 
   let input = Html.fieldset(
     list{Attrs.id("search-container"), widthInCh(searchWidth)},

@@ -72,7 +72,7 @@ let rec count = (s: item): int =>
 let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg): Html.html<
   msg,
 > => {
-  let event = ViewUtils.eventNeither(~key, "click", _ => handler)
+  let event = EventListeners.eventNeither(~key, "click", _ => handler)
   Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{Icons.fontAwesome(icon)})
 }
 
@@ -523,7 +523,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       let cls = "toplevel-msg"
       let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})
       let action = if m.permission == Some(ReadWrite) {
-        ViewUtils.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
+        EventListeners.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
       } else {
         Vdom.noProp
       }
@@ -576,10 +576,11 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
       Attrs.class'("icon-button copy-hash"),
-      ViewUtils.eventNeither("click", ~key="hash-" ++ d.deployHash, m => ClipboardCopyLivevalue(
-        "\"" ++ (d.deployHash ++ "\""),
-        m.mePos,
-      )),
+      EventListeners.eventNeither(
+        "click",
+        ~key="hash-" ++ d.deployHash,
+        m => Msg.ClipboardCopyLivevalue("\"" ++ (d.deployHash ++ "\""), m.mePos),
+      ),
     },
     list{Icons.fontAwesome("copy")},
   )
@@ -625,7 +626,7 @@ let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: in
   let isDetailed = s.mode == DetailedMode
   let isSubCat = String.includes(~substring=delPrefix, classname)
   let openEventHandler = if isDetailed || isSubCat {
-    ViewUtils.eventNoPropagation(
+    EventListeners.eventNoPropagation(
       ~key=if isOpen {
         "cheh-true-"
       } else {
@@ -633,7 +634,7 @@ let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: in
       } ++
       classname,
       "click",
-      _ => SidebarMsg(MarkCategoryOpen(!isOpen, classname)),
+      _ => Msg.SidebarMsg(MarkCategoryOpen(!isOpen, classname)),
     )
   } else {
     Vdom.noProp
@@ -668,7 +669,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
       )
 
     let openTooltip = if count == 0 {
-      ViewUtils.eventNoPropagation(~key="open-tooltip-deploys", "click", _ => ToolTipMsg(
+      EventListeners.eventNoPropagation(~key="open-tooltip-deploys", "click", _ => Msg.ToolTipMsg(
         OpenTooltip(StaticAssets),
       ))
     } else {
@@ -701,7 +702,9 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   let content = Html.div(
     list{
       Attrs.class'("category-content"),
-      eventNoPropagation(~key="cat-close-deploy", "mouseleave", _ => SidebarMsg(ResetSidebar)),
+      EventListeners.eventNoPropagation(~key="cat-close-deploy", "mouseleave", _ => Msg.SidebarMsg(
+        ResetSidebar,
+      )),
     },
     list{title, ...deploys},
   )
@@ -719,10 +722,10 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
       Attrs.class'("icon-button copy-secret-name"),
-      ViewUtils.eventNeither(
+      EventListeners.eventNeither(
         "click",
         ~key="copy-secret-" ++ s.secretName,
-        m => ClipboardCopyLivevalue(s.secretName, m.mePos),
+        m => Msg.ClipboardCopyLivevalue(s.secretName, m.mePos),
       ),
       Attrs.title("Click to copy secret name"),
     },
@@ -756,7 +759,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   )
 }
 
-let viewSecretKeys = (m: model): Html.html<msg> => {
+let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   let count = List.length(m.secrets)
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
 
@@ -775,7 +778,7 @@ let viewSecretKeys = (m: model): Html.html<msg> => {
       )
 
     let openTooltip = if count == 0 {
-      ViewUtils.eventNoPropagation(~key="open-tooltip-secrets", "click", _ => ToolTipMsg(
+      EventListeners.eventNoPropagation(~key="open-tooltip-secrets", "click", _ => Msg.ToolTipMsg(
         OpenTooltip(Secrets),
       ))
     } else {
@@ -809,7 +812,9 @@ let viewSecretKeys = (m: model): Html.html<msg> => {
   let content = Html.div(
     list{
       Attrs.class'("category-content"),
-      eventNoPropagation(~key="cat-close-secret", "mouseleave", _ => SidebarMsg(ResetSidebar)),
+      EventListeners.eventNoPropagation(~key="cat-close-secret", "mouseleave", _ => Msg.SidebarMsg(
+        ResetSidebar,
+      )),
     },
     list{title, ...entries},
   )
@@ -846,9 +851,11 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
       )
 
     (
-      ViewUtils.eventNoPropagation(~key="open-tooltip-" ++ c.classname, "click", _ => ToolTipMsg(
-        OpenTooltip(tt),
-      )),
+      EventListeners.eventNoPropagation(
+        ~key="open-tooltip-" ++ c.classname,
+        "click",
+        _ => Msg.ToolTipMsg(OpenTooltip(tt)),
+      ),
       view,
     )
   | None => (Vdom.noProp, Vdom.noNode)
@@ -881,7 +888,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     let catIcon = {
       let props = switch c.iconAction {
       | Some(ev) if m.sidebarState.mode == AbridgedMode && !isSubCat => list{
-          eventNeither(~key="return-to-arch", "click", _ => ev),
+          EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
         }
       | Some(_) | None => list{Vdom.noProp}
       }
@@ -907,9 +914,9 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     Html.div(
       list{
         Attrs.class'("category-content"),
-        eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
+        EventListeners.eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
           if !isSubCat {
-            SidebarMsg(ResetSidebar)
+            Msg.SidebarMsg(ResetSidebar)
           } else {
             Msg.IgnoreMsg("sidebar-category-close")
           }
@@ -929,7 +936,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
 }
 
 let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
-  let event = ViewUtils.eventNeither(~key="toggle-sidebar", "click", _ => SidebarMsg(
+  let event = EventListeners.eventNeither(~key="toggle-sidebar", "click", _ => Msg.SidebarMsg(
     ToggleSidebarMode,
   ))
 
@@ -1011,7 +1018,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let toggleTimer = Html.div(
     list{
-      ViewUtils.eventNoPropagation(~key="tt", "mouseup", _ => ToggleEditorSetting(
+      EventListeners.eventNoPropagation(~key="tt", "mouseup", _ => Msg.ToggleEditorSetting(
         es => {...es, runTimers: !es.runTimers},
       )),
       Attrs.class'("checkbox-row"),
@@ -1024,7 +1031,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let toggleFluidDebugger = Html.div(
     list{
-      ViewUtils.eventNoPropagation(~key="tt", "mouseup", _ => ToggleEditorSetting(
+      EventListeners.eventNoPropagation(~key="tt", "mouseup", _ => Msg.ToggleEditorSetting(
         es => {...es, showFluidDebugger: !es.showFluidDebugger},
       )),
       Attrs.class'("checkbox-row"),
@@ -1040,7 +1047,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let toggleHandlerASTs = Html.div(
     list{
-      ViewUtils.eventNoPropagation(~key="tgast", "mouseup", _ => ToggleEditorSetting(
+      EventListeners.eventNoPropagation(~key="tgast", "mouseup", _ => Msg.ToggleEditorSetting(
         es => {...es, showHandlerASTs: !es.showHandlerASTs},
       )),
       Attrs.class'("checkbox-row"),
@@ -1090,7 +1097,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let saveTestButton = Html.a(
     list{
-      ViewUtils.eventNoPropagation(~key="stb", "mouseup", _ => SaveTestButton),
+      EventListeners.eventNoPropagation(~key="stb", "mouseup", _ => Msg.SaveTestButton),
       Attrs.class'("state-info-row save-state"),
     },
     list{Html.text("SAVE STATE FOR INTEGRATION TEST")},
@@ -1188,10 +1195,10 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
     list{
       Attrs.id("sidebar-left"),
       // Block opening the omnibox here by preventing canvas pan start
-      nothingMouseEvent("mousedown"),
-      ViewUtils.eventNoPropagation(~key="click-sidebar", "click", _ => ToolTipMsg(Close)),
-      ViewUtils.eventNoPropagation(~key="ept", "mouseover", _ => EnablePanning(false)),
-      ViewUtils.eventNoPropagation(~key="epf", "mouseout", _ => EnablePanning(true)),
+      EventListeners.nothingMouseEvent("mousedown"),
+      EventListeners.eventNoPropagation(~key="click-sidebar", "click", _ => Msg.ToolTipMsg(Close)),
+      EventListeners.eventNoPropagation(~key="ept", "mouseover", _ => Msg.EnablePanning(false)),
+      EventListeners.eventNoPropagation(~key="epf", "mouseout", _ => Msg.EnablePanning(true)),
     },
     list{content},
   )

@@ -7,12 +7,13 @@ module Events = Tea.Events
 // Dark
 module B = BlankOr
 
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 type viewProps = ViewUtils.viewProps
 
 let fontAwesome = Icons.fontAwesome
 
-let onEvent = ViewUtils.onEvent
+let onEvent = EventListeners.onEvent
 
 type exeFunction =
   | CanExecute(traceID, list<RT.Dval.t>)
@@ -56,10 +57,10 @@ let viewExecuteBtn = (vp: viewProps, fn: PT.UserFunction.t): Html.html<msg> => {
   let events = // If function is ready for re-execution, attach onClick listener
   switch exeStatus {
   | CanExecute(traceID, args) if fn.name != "" =>
-    ViewUtils.eventNoPropagation(
+    EventListeners.eventNoPropagation(
       ~key="run-fun" ++ ("-" ++ (TLID.toString(fn.tlid) ++ ("-" ++ traceID))),
       "click",
-      _ => ExecuteFunctionFromWithin({
+      _ => Msg.ExecuteFunctionFromWithin({
         tlid: fn.tlid,
         callerID: FluidAST.toID(fn.body),
         traceID: traceID,
@@ -107,10 +108,10 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
         ~unique="add-param-col-" ++ strTLID,
         list{
           Attrs.class'("col new-parameter"),
-          ViewUtils.eventNoPropagation(
+          EventListeners.eventNoPropagation(
             ~key="aufp-" ++ strTLID,
             "click",
-            _ => AddUserFunctionParameter(fn.tlid),
+            _ => Msg.AddUserFunctionParameter(fn.tlid),
           ),
         },
         list{

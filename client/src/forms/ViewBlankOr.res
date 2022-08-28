@@ -7,6 +7,7 @@ module Attrs = Tea.Attrs
 module B = BlankOr
 module TL = Toplevel
 
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
 // Create a Html.div for this ID, incorporating all ID-related data,
@@ -49,12 +50,12 @@ let div = (
   let events = if enterable {
     let tlid = TL.id(vp.tl)
     let keyStr = TLID.toString(tlid) ++ ("-" ++ ID.toString(id))
-    let event = ViewUtils.eventNoPropagation
+    let event = EventListeners.eventNoPropagation
     list{
-      event("click", ~key="bcc-" ++ keyStr, x => BlankOrClick(tlid, id, x)),
-      event("dblclick", ~key="bcdc-" ++ keyStr, x => BlankOrDoubleClick(tlid, id, x)),
-      event("mouseenter", ~key="me-" ++ keyStr, x => BlankOrMouseEnter(tlid, id, x)),
-      event("mouseleave", ~key="ml-" ++ keyStr, x => BlankOrMouseLeave(tlid, id, x)),
+      event("click", ~key="bcc-" ++ keyStr, x => Msg.BlankOrClick(tlid, id, x)),
+      event("dblclick", ~key="bcdc-" ++ keyStr, x => Msg.BlankOrDoubleClick(tlid, id, x)),
+      event("mouseenter", ~key="me-" ++ keyStr, x => Msg.BlankOrMouseEnter(tlid, id, x)),
+      event("mouseleave", ~key="ml-" ++ keyStr, x => Msg.BlankOrMouseLeave(tlid, id, x)),
     }
   } else {
     /* Rather than relying on property lengths changing, we should use

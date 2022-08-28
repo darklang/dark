@@ -4,6 +4,7 @@ module Html = Tea.Html
 module Attrs = Tea.Attrs
 
 // Dark
+module Msg = AppTypes.Msg
 module B = BlankOr
 
 type viewProps = ViewUtils.viewProps
@@ -125,14 +126,14 @@ let executionEvents = (status, tlid, id, name) =>
       Attrs.noProp,
     }
   | Ready | Replayable => list{
-      ViewUtils.eventNoPropagation(
+      EventListeners.eventNoPropagation(
         ~key="efb-" ++ (TLID.toString(tlid) ++ ("-" ++ (ID.toString(id) ++ ("-" ++ name)))),
         "click",
-        _ => ExecuteFunctionButton(tlid, id, name),
+        _ => Msg.ExecuteFunctionButton(tlid, id, name),
       ),
-      ViewUtils.nothingMouseEvent("mouseup"),
-      ViewUtils.nothingMouseEvent("mousedown"),
-      ViewUtils.nothingMouseEvent("dblclick"),
+      EventListeners.nothingMouseEvent("mouseup"),
+      EventListeners.nothingMouseEvent("mousedown"),
+      EventListeners.nothingMouseEvent("dblclick"),
     }
   }
 

@@ -41,8 +41,8 @@ let unsupportedBrowser = (~show: bool): Html.html<AppTypes.msg> =>
       list{
         Attrs.class'("modal-overlay"),
         Attrs.id("unsupportedBrowser"),
-        ViewUtils.nothingMouseEvent("mousedown"),
-        ViewUtils.nothingMouseEvent("mouseup"),
+        EventListeners.nothingMouseEvent("mousedown"),
+        EventListeners.nothingMouseEvent("mouseup"),
       },
       list{Html.div(list{Attrs.classList(list{("modal", true)})}, list{viewBrowserMessage})},
     )

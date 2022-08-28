@@ -15,6 +15,8 @@ module RT = RuntimeTypes
 
 open ProgramTypes.Expr
 
+module Msg = AppTypes.Msg
+
 type viewProps = ViewUtils.viewProps
 
 type token = T.t
@@ -25,10 +27,10 @@ let viewCopyButton = (tlid, value): Html.html<msg> =>
     list{
       Attrs.class'("copy-value"),
       Attrs.title("Copy this expression's value to the clipboard"),
-      ViewUtils.eventNoPropagation(
+      EventListeners.eventNoPropagation(
         "click",
         ~key="copylivevalue-" ++ (value ++ TLID.toString(tlid)),
-        m => ClipboardCopyLivevalue(value, m.mePos),
+        m => Msg.ClipboardCopyLivevalue(value, m.mePos),
       ),
     },
     list{Icons.fontAwesome("copy")},
@@ -167,10 +169,10 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
         viewArrow(id, srcID),
         Html.div(
           list{
-            ViewUtils.eventNoPropagation(
+            EventListeners.eventNoPropagation(
               ~key="lv-src-" ++ (ID.toString(srcID) ++ TLID.toString(tlid)),
               "click",
-              _ => FluidMsg(FluidFocusOnToken(tlid, srcID)),
+              _ => Msg.FluidMsg(FluidFocusOnToken(tlid, srcID)),
             ),
             Attrs.class'("jump-src"),
             Attrs.title("Click here to go to the source of problem"),

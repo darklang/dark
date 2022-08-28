@@ -162,113 +162,6 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
     secretValues: m.secrets |> List.map(~f=SecretTypes.getSecretValue),
   }
 }
-
-let decodeTransEvent = (fn: string => 'a, j): 'a => {
-  open Json.Decode
-  fn(field("propertyName", string, j))
-}
-
-let decodeAnimEvent = (fn: string => 'a, j): 'a => {
-  open Json.Decode
-  fn(field("animationName", string, j))
-}
-
-// Generic event, the the listener handle and do what it wants with the event object
-let onEvent = (
-  ~event: string,
-  ~key: string,
-  ~preventDefault=true,
-  listener: Web.Node.event => msg,
-): Vdom.property<msg> =>
-  Html.Events.onCB(event, key, evt => {
-    if preventDefault {
-      evt["preventDefault"]()
-    }
-    Some(listener(evt))
-  })
-
-let eventBoth = (~key: string, event: string, constructor: MouseEvent.t => msg): Vdom.property<
-  msg,
-> =>
-  Events.onWithOptions(
-    ~key,
-    event,
-    {stopPropagation: false, preventDefault: false},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
-  )
-
-let eventPreventDefault = (
-  ~key: string,
-  event: string,
-  constructor: MouseEvent.t => msg,
-): Vdom.property<msg> =>
-  Events.onWithOptions(
-    ~key,
-    event,
-    {stopPropagation: false, preventDefault: true},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
-  )
-
-let eventNeither = (~key: string, event: string, constructor: MouseEvent.t => msg): Vdom.property<
-  msg,
-> =>
-  Events.onWithOptions(
-    ~key,
-    event,
-    {stopPropagation: true, preventDefault: true},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
-  )
-
-let scrollEventNeither = (
-  ~key: string,
-  event: string,
-  constructor: ScrollEvent.t => msg,
-): Vdom.property<msg> =>
-  Events.onWithOptions(
-    ~key,
-    event,
-    {stopPropagation: true, preventDefault: true},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, ScrollEvent.decode)),
-  )
-
-let eventNoPropagation = (
-  ~key: string,
-  event: string,
-  constructor: MouseEvent.t => msg,
-): Vdom.property<msg> =>
-  Events.onWithOptions(
-    ~key,
-    event,
-    {stopPropagation: true, preventDefault: false},
-    Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
-  )
-
-let onTransitionEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
-  Events.onWithOptions(
-    ~key,
-    "transitionend",
-    {stopPropagation: false, preventDefault: true},
-    Decoders.wrapDecoder(decodeTransEvent(listener)),
-  )
-
-let onAnimationEnd = (~key: string, ~listener: string => msg): Vdom.property<msg> =>
-  Events.onWithOptions(
-    ~key,
-    "animationend",
-    {stopPropagation: false, preventDefault: true},
-    Decoders.wrapDecoder(decodeAnimEvent(listener)),
-  )
-
-let nothingMouseEvent = (name: string): Vdom.property<msg> =>
-  eventNoPropagation(~key="", name, _ =>
-    // For fluid, we need to know about most (all?) mouseups
-    if name == "mouseup" {
-      IgnoreMouseUp
-    } else {
-      Msg.IgnoreMsg(name)
-    }
-  )
-
 let placeHtml = (pos: Pos.t, classes: list<'a>, html: list<Html.html<msg>>): Html.html<msg> => {
   let styles = Html.Attributes.styles(list{
     ("left", string_of_int(pos.x) ++ "px"),
@@ -277,10 +170,6 @@ let placeHtml = (pos: Pos.t, classes: list<'a>, html: list<Html.html<msg>>): Htm
 
   Html.div(list{Attrs.classList(list{("node", true), ...classes}), styles}, html)
 }
-
-let inCh = (w: int): string => w |> string_of_int |> (s => s ++ "ch")
-
-let widthInCh = (w: int): Vdom.property<msg> => w |> inCh |> Attrs.style("width")
 
 let createHandlerProp = (hs: list<PT.Handler.t>): TD.t<AppTypes.HandlerProperty.t> =>
   hs |> List.map(~f=(h: PT.Handler.t) => (h.tlid, AppTypes.HandlerProperty.default)) |> TD.fromList

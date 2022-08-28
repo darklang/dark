@@ -42,7 +42,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
         list{
           Attrs.class'("submit-btn"),
           Html.Attributes.disabled(state.loading),
-          ViewUtils.eventNoPropagation(
+          EventListeners.eventNoPropagation(
             ~key="close-settings-modal",
             "click",
             _ => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(T.Submit)),
