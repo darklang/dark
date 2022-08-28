@@ -2,7 +2,7 @@ module Html = Tea.Html
 module Events = Tea.Html.Events
 module Attrs = Tea.Html.Attributes
 
-let tw = Attrs.class // tailwind
+let tailwind = Attrs.class // tailwind
 
 // -------------------
 // Tooltips
@@ -14,12 +14,12 @@ module Tooltip = {
   let add = (node: Html.html<'msg>, body: Html.html<'msg>): Html.html<'msg> => {
     // A "top" tooltip, based on https://www.kindacode.com/article/tailwind-css-how-to-create-tooltips/
     Html.span(
-      list{tw("mt-20 group relative duration-300")},
+      list{tailwind("mt-20 group relative duration-300")},
       list{
         node,
         Html.span(
           list{
-            tw(
+            tailwind(
               "absolute hidden group-hover:flex -left-5 -top-2 -translate-y-full w-48 px-2 py-1 bg-gray-700 rounded-lg after:content-[''] after:absolute after:left-1/2 after:top-[100%] after:-translate-x-1/2 after:border-8 after:border-x-transparent after:border-b-transparent after:border-t-gray-700",
             ),
           },
@@ -31,7 +31,7 @@ module Tooltip = {
 
   // Returns a text node with approproate styling for a tooltip body
   let text = (text: string): Html.html<'msg> => {
-    Html.span(list{tw("text-sm text-center text-white text-left")}, list{Html.text(text)})
+    Html.span(list{tailwind("text-sm text-center text-white text-left")}, list{Html.text(text)})
   }
 }
 
@@ -59,7 +59,7 @@ let toggleButton = (msgAttr: Vdom.property<'msg>, enabled: bool): Html.html<'msg
 
   Html.button(
     list{
-      tw(
+      tailwind(
         `${enabledColor} relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`,
       ),
       msgAttr,
@@ -67,10 +67,10 @@ let toggleButton = (msgAttr: Vdom.property<'msg>, enabled: bool): Html.html<'msg
       Attrs.ariaChecked(false),
     },
     list{
-      Html.span(list{tw("sr-only")}, list{}),
+      Html.span(list{tailwind("sr-only")}, list{}),
       Html.span(
         list{
-          tw(
+          tailwind(
             `${enabledPosition} mt-0.5 pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`,
           ),
           Attrs.ariaHidden(true),
@@ -82,6 +82,7 @@ let toggleButton = (msgAttr: Vdom.property<'msg>, enabled: bool): Html.html<'msg
 }
 
 let button = (
+  ~tw="",
   msgAttr: Vdom.property<'msg>,
   saveStatus: SaveStatus.t,
   contents: list<Html.html<'msg>>,
@@ -94,8 +95,8 @@ let button = (
 
   Html.button(
     list{
-      tw(
-        "rounded h-9 px-2.5 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-xl font-bold align-top",
+      tailwind(
+        `rounded-lg h-9 px-2.5 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-large font-bold align-top ${tw}`,
       ),
       msgAttr,
     },
@@ -110,11 +111,11 @@ let button = (
 let sectionHeading = (text: string, info: option<Html.html<'msg>>): Html.html<'msg> => {
   let info = info->Tc.Option.map(~f=InfoIcon.generic)->Tc.Option.unwrap(~default=Html.noNode)
 
-  Html.span(list{tw("font-bold text-xl mt-5")}, list{Html.text(text), info})
+  Html.span(list{tailwind("font-bold text-xl mt-5")}, list{Html.text(text), info})
 }
 
 let sectionIntroText = contents =>
-  Html.p(list{tw("mx-2 mt-1 mb-3 text-sm text-[#b8b8b8]")}, contents)
+  Html.p(list{tailwind("mx-2 mt-1 mb-3 text-sm text-[#b8b8b8]")}, contents)
 
 let errorSpan = (error: string): Html.html<'msg> => {
   Html.span(
@@ -151,7 +152,7 @@ let input = (
       Html.input'(
         list{
           // TODO: move colors into theme
-          Attrs.class(`${tw} px-2 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]`),
+          Attrs.class(`${tw} rounded-sm px-2 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]`),
           Attrs.value(value),
           ...List.concat(list{loadingAttrs, attrs}),
         },
@@ -176,10 +177,10 @@ let settingRow = (
     list{},
     list{
       Html.div(
-        list{tw("flex items-center justify-between h-9")},
+        list{tailwind("mt-1 flex items-center justify-between h-9")},
         list{
-          Html.span(list{tw("flex-2")}, list{Html.text(caption), infoText}),
-          Html.span(list{tw("flex-3")}, contents),
+          Html.span(list{tailwind("flex-2")}, list{Html.text(caption), infoText}),
+          Html.span(list{tailwind("flex-3")}, contents),
         },
       ),
       error,

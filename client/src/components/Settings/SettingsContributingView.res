@@ -58,7 +58,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
   let field = Html.span(
     list{},
     list{
-      Html.span(list{C.tw("h-6 font-bold mr-1")}, list{Html.text("https://")}),
+      Html.span(list{C.tailwind("h-6 mr-1")}, list{Html.text("https://")}),
       C.input(
         ~loadStatus=th.loadStatus,
         ~attrs=list{
@@ -75,6 +75,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
   )
   let button = {
     C.button(
+      ~tw="ml-2",
       ViewUtils.eventNoPropagation(~key="tunnel-button-set", "click", _ => SettingsMsg(
         Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
       )),
@@ -91,7 +92,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
     list{field, button},
   )
 
-  Html.div(list{C.tw("align-baseline")}, list{row})
+  Html.div(list{C.tailwind("align-baseline")}, list{row})
 }
 
 let viewTunnelToggle = (s: T.UseAssets.t): Html.html<AppTypes.msg> => {
