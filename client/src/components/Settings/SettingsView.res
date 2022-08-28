@@ -71,12 +71,12 @@ let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
   )
 
 let html = (m: AppTypes.model): Html.html<msg> => {
-  let svs = m.settingsView
+  let s = m.settings
   let closingBtn = Html.div(
     list{
       Attrs.class'("close-btn"),
       EventListeners.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
-        Close(svs.tab),
+        Close(s.tab),
       )),
     },
     list{Icons.fontAwesome("times")},
@@ -88,7 +88,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
       EventListeners.nothingMouseEvent("mousedown"),
       EventListeners.nothingMouseEvent("mouseup"),
       EventListeners.eventNoPropagation(~key="close-setting-modal", "click", _ => Msg.SettingsMsg(
-        Close(svs.tab),
+        Close(s.tab),
       )),
     },
     list{
@@ -102,7 +102,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
           EventListeners.eventNoPropagation(~key="epf", "mouseleave", _ => Msg.EnablePanning(true)),
           Events.onCB("keydown", "keydown", onKeydown),
         },
-        list{settingViewWrapper(svs), closingBtn},
+        list{settingViewWrapper(s), closingBtn},
       ),
     },
   )

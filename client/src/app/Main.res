@@ -1391,7 +1391,7 @@ let update_ = (msg: msg, m: model): modification => {
       ReplaceAllModificationsWithThisOne(
         m => {
           let settings =
-            m.settingsView
+            m.settings
             ->Settings.setInviter(m.username, r.account.name)
             ->Settings.setCanvasesInfo(r.canvasList, m.username, r.orgs, r.orgCanvasList)
           (
@@ -1399,7 +1399,7 @@ let update_ = (msg: msg, m: model): modification => {
               ...m,
               opCtrs: r.opCtrs,
               account: r.account,
-              settingsView: settings,
+              settings: settings,
               secrets: r.secrets,
             },
             Cmd.none,
@@ -1976,8 +1976,8 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne(
       m => {
         let wrapCmd = cmd => Tea.Cmd.map(msg => AppTypes.Msg.SettingsMsg(msg), cmd)
-        let (settingsView, effect) = Settings.update(m.settingsView, msg)
-        let m = {...m, settingsView: settingsView}
+        let (settings, effect) = Settings.update(m.settings, msg)
+        let m = {...m, settings: settings}
         switch effect {
         | Some(InviteIntent(Some(UpdateToast(toast)))) =>
           (m, Cmd.none)->CCC.setToast(Some(toast), None)
@@ -2136,7 +2136,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let clipboardSubs = // We want the default copy/paste behaviors on the settings modal
-  if m.settingsView.opened || m.insertSecretModal.visible {
+  if m.settings.opened || m.insertSecretModal.visible {
     list{}
   } else {
     list{

@@ -938,7 +938,7 @@ module Model = {
     // indicates if it is the users first time visiting any dark canvas
     tooltipState: Tooltip.t,
     currentUserFn: FunctionParams.t,
-    settingsView: Settings.t,
+    settings: Settings.t,
     firstVisitToThisCanvas: bool,
     // indicates if it is the users first time this canvas
     secrets: list<SecretTypes.t>,
@@ -1010,7 +1010,7 @@ module Model = {
     currentUserFn: FunctionParams.default,
     firstVisitToThisCanvas: true,
     secrets: list{},
-    settingsView: Settings.default,
+    settings: Settings.default,
     insertSecretModal: SecretTypes.defaultInsertModal,
   }
 }

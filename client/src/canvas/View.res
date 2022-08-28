@@ -736,14 +736,14 @@ let view = (m: model): Html.html<msg> => {
     ~show=m.integrationTestState == NoIntegrationTest && m.unsupportedBrowser,
   )
 
-  let settingsModal = if m.settingsView.opened {
+  let settingsModal = if m.settings.opened {
     SettingsView.html(m)
   } else {
     Vdom.noNode
   }
 
   let content = Belt.List.concatMany([
-    list{SettingsPrivacyView.viewTopbar(m.settingsView.privacySettings)},
+    list{SettingsPrivacyView.viewTopbar(m.settings.privacySettings)},
     ViewTopbar.html(m),
     list{
       sidebar,
