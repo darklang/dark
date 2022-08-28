@@ -29,7 +29,7 @@ let viewIntroText = {
 let viewDebuggingOption = (ui: T.ContributorUI.t): Html.html<AppTypes.msg> => {
   let toggle = {
     let attr = EventListeners.eventNoPropagation(
-      ~key="toggle-settings",
+      ~key=`toggle-settings-${string_of_bool(ui.showFluidDebugger)}`,
       "click",
       _ => Msg.SettingsMsg(
         Settings.ContributingMsg(
