@@ -110,11 +110,11 @@ let button = (
 let sectionHeading = (text: string, info: option<Html.html<'msg>>): Html.html<'msg> => {
   let info = info->Tc.Option.map(~f=InfoIcon.generic)->Tc.Option.unwrap(~default=Html.noNode)
 
-  Html.span(list{tw("font-bold text-xl mt-4")}, list{Html.text(text), info})
+  Html.span(list{tw("font-bold text-xl mt-5")}, list{Html.text(text), info})
 }
 
 let sectionIntroText = contents =>
-  Html.p(list{tw("mx-2 mt-1 mb-2 text-sm text-[#b8b8b8]")}, contents)
+  Html.p(list{tw("mx-2 mt-1 mb-3 text-sm text-[#b8b8b8]")}, contents)
 
 let errorSpan = (error: string): Html.html<'msg> => {
   Html.span(
@@ -151,7 +151,7 @@ let input = (
       Html.input'(
         list{
           // TODO: move colors into theme
-          Attrs.class(`${tw} px-2.5 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]`),
+          Attrs.class(`${tw} px-2 h-9 bg-[#383838] text-[#d8d8d8] caret-[#b8b8b8]`),
           Attrs.value(value),
           ...List.concat(list{loadingAttrs, attrs}),
         },
@@ -178,7 +178,7 @@ let settingRow = (
       Html.div(
         list{tw("flex items-center justify-between h-9")},
         list{
-          Html.span(list{tw("flex-1")}, list{Html.text(caption), infoText}),
+          Html.span(list{tw("flex-2")}, list{Html.text(caption), infoText}),
           Html.span(list{tw("flex-3")}, contents),
         },
       ),
