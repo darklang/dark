@@ -1969,7 +1969,8 @@ let update_ = (msg: msg, m: model): modification => {
   | UpdateWorkerScheduleCallback(Error(_)) =>
     Model.updateErrorMod(Error.set("Failed to update worker schedule"))
   | NewTabFromTLMenu(url, tlid) =>
-    Native.Window.openUrl(url, "_blank")
+    let window = Webapi.Dom.window
+    let _: option<Webapi.Dom.Window.t> = window->Webapi.Dom.Window.open_(~url, ~name="_blank", ())
     TLMenuUpdate(tlid, CloseMenu)
   | SettingsMsg(msg) =>
     ReplaceAllModificationsWithThisOne(

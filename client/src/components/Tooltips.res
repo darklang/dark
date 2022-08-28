@@ -102,7 +102,8 @@ let update = (tooltipState: tooltipState, msg: tooltipMsg): modification => {
       )
     | OpenTooltip(_) | Close => ({...tooltipState, tooltipSource: None}, list{})
     | OpenLink(url) =>
-      Native.Window.openUrl(url, "_blank")
+      let window = Webapi.Dom.window
+      let _: option<Webapi.Dom.Window.t> = window->Webapi.Dom.Window.open_(~url, ~name="_blank", ())
       ({...tooltipState, tooltipSource: None}, list{})
     | OpenFnTooltip(fnSpace) => ({...tooltipState, fnSpace: fnSpace}, list{})
     | UpdateTutorial(tutorialMsg) =>

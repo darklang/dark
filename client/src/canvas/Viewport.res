@@ -48,7 +48,7 @@ let moveRight = (m: model): modification => moveCanvasBy(m, Defaults.moveSize, 0
   less volatile method for the constant definitions.
 */
 let centerCanvasOn = (tl: toplevel): Pos.t => {
-  let windowWidth = Native.Window.viewportWidth
+  let windowWidth = Webapi.Dom.window->Webapi.Dom.Window.innerWidth
   let sidebarWidth =
     Native.Ext.querySelector("#sidebar-left")
     |> Option.map(~f=Native.Ext.clientWidth)
@@ -79,12 +79,13 @@ let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
       |> Option.map(~f=Native.Ext.clientWidth)
       |> recoverOpt("can't find sidebar HTML body", ~default=320)
 
+    let window = Webapi.Dom.window
     let viewport: Native.rect = {
       id: "#canvas",
       top: 0,
       left: sidebarWidth,
-      right: Native.Window.viewportWidth,
-      bottom: Native.Window.viewportHeight,
+      right: Webapi.Dom.Window.innerWidth(window),
+      bottom: Webapi.Dom.Window.innerHeight(window),
     }
 
     let tokenBox = Native.Ext.getBoundingClient(tokenDom, tokenSelector)
@@ -127,9 +128,13 @@ let findNewPos = (m: model): Pos.t => {
     | AbridgedMode => o.x
     }
 
-    let maxX = minX + (Window.viewportWidth - padRight)
+    let window = Webapi.Dom.window
+    let viewportWidth = Webapi.Dom.Window.innerWidth(window)
+    let viewportHeight = Webapi.Dom.Window.innerHeight(window)
+
+    let maxX = minX + (viewportWidth - padRight)
     let minY = o.y
-    let maxY = minY + (Window.viewportHeight - padBottom)
+    let maxY = minY + (viewportHeight - padBottom)
     {x: Random.range(minX, maxX), y: Random.range(minY, maxY)}
   | FocusedPackageManagerFn(_) | FocusedFn(_) | FocusedType(_) =>
     /* if the sidebar is open, the users can't see the livevalues, which

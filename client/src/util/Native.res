@@ -99,18 +99,6 @@ module Location = {
   // TODO write string query parser
 }
 
-module Window = {
-  @val @scope("window") external viewportWidth: int = "innerWidth"
-
-  @val @scope("window") external viewportHeight: int = "innerHeight"
-
-  @val @scope("window") external pageWidth: int = "outerWidth"
-
-  @val @scope("window") external pageHeight: int = "outerHeight"
-
-  @val @scope("window") external openUrl: (string, string) => unit = "open"
-}
-
 module Clipboard = {
   @module external copyToClipboard: string => unit = "clipboard-copy"
 }
