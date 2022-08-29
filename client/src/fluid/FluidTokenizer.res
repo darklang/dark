@@ -128,6 +128,7 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
+// TODO: rename to `patternToTokens``
 let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
   open FluidTypes.Token
   switch p {
@@ -170,7 +171,13 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
     let subPatterns = list{first, second, ...theRest}
 
     // CLEANUP: this is likely not the most efficient way to handle this.
-    // List.intersperce was _almost_ what I needed.
+    // List.intersperce was _almost_ what I needed, but doesn't provide context
+    // of the index, needed for the `TPatternTupleComma`s. This is what I want:
+    // let middlePart' =
+    //   subPatterns
+    //   |> List.mapWithIndex(~f=(i, p) => patternToToken(matchID, p, ~idx))
+    //   |> List.intersperseWithIndex(~sepFn=(i) => TPatternTupleComma(id, i))
+    //   |> List.flatten
 
     let middlePart =
       subPatterns
