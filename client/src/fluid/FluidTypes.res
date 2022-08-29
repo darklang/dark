@@ -320,9 +320,21 @@ module State = {
   }
 }
 
+
+module FluidSettings = {
+  type t = {
+    allowTuples: bool
+  }
+
+  let default = {
+    allowTuples: false
+  }
+}
+
+
 module Props = {
   type rec t = {
     functions: Functions.t,
-    settings: Settings.t,
+    settings: FluidSettings.t,
   }
 }

@@ -1140,7 +1140,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   | _ => false
   }
 
-  let showAdminDebugger = if !isDetailed && m.settings.contributingSettings.tools.showSidebarPanel {
+  let showAdminDebugger = if !isDetailed && m.settings.contributingSettings.general.showSidebarDebuggerPanel {
     adminDebuggerView(m)
   } else {
     Vdom.noNode
@@ -1205,7 +1205,7 @@ let rtCacheKey = (m: model) =>
     m.tooltipState.tooltipSource,
     m.secrets,
     m.functions.packageFunctions |> Map.mapValues(~f=(t: PT.Package.Fn.t) => t.name.owner),
-    m.settings.contributingSettings.tools.showSidebarPanel,
+    m.settings.contributingSettings.general.showSidebarDebuggerPanel,
   ) |> Option.some
 
 let viewSidebar = m => ViewCache.cache1m(rtCacheKey, viewSidebar_, m)

@@ -216,60 +216,73 @@ module UseAssets = {
 // -------------------
 // Toggle to show contributor UI
 // -------------------
-module Tools = {
+module General = {
   @ppx.deriving(show)
-  type rec t = {showSidebarPanel: bool}
+  type rec t = {
+    showSidebarDebuggerPanel: bool,
+    allowTuples: bool
+  }
 
   @ppx.deriving(show)
-  type rec msg = SetSidebarPanel(bool)
+  type rec msg =
+    | SetSidebarPanel(bool)
+    | SetTuplesAllowed(bool)
 
   @ppx.deriving(show)
   type rec intent = unit
 
-  let default = {showSidebarPanel: false}
+  let default = {
+    showSidebarDebuggerPanel: false,
+    allowTuples: false
+  }
 
-  let toSaved = ({showSidebarPanel}: t) => {
+  let toSaved = (state: t) => {
     open Json.Encode
-    object_(list{("showSidebarPanel", bool(showSidebarPanel))})
+    object_(list{
+      ("showSidebarDebuggerPanel", bool(state.showSidebarDebuggerPanel)),
+      ("allowTuples", bool(state.allowTuples))
+    })
   }
   let fromSaved = (j: Js.Json.t) => {
     open Json.Decode
     {
-      showSidebarPanel: field("showSidebarPanel", bool, j),
+      showSidebarDebuggerPanel: field("showSidebarDebuggerPanel", bool, j),
+      allowTuples: field("allowTuples", bool, j),
     }
   }
 
   let init = () => Tea.Cmd.none
 
-  let update = (_: t, msg: msg): (t, intent) =>
+  let update = (state: t, msg: msg): (t, intent) =>
     switch msg {
-    | SetSidebarPanel(v) => ({showSidebarPanel: v}, ())
+    | SetSidebarPanel(v) => ({...state, showSidebarDebuggerPanel: v}, ())
+    | SetTuplesAllowed(v) => ({...state, allowTuples: v}, ())
     }
 }
 
 let title = "Contributing"
 
 @ppx.deriving(show)
-type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t, tools: Tools.t}
+type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t, general: General.t}
 
 @ppx.deriving(show)
 type rec msg =
   | TunnelHostMsg(TunnelHost.msg)
   | UseAssetsMsg(UseAssets.msg)
-  | ToolsMsg(Tools.msg)
+  | GeneralMsg(General.msg)
 
 module Intent = {
   @ppx.deriving(show)
   type rec t<'msg> =
     | TunnelHostIntent(TunnelHost.Intent.t<'msg>)
     | UseAssetsIntent(UseAssets.intent)
-    | ToolsIntent(Tools.intent)
+    | GeneralIntent(General.intent)
 
   let map = (i: t<'msg>, f: 'msg1 => 'msg2): t<'msg2> => {
     switch i {
     | TunnelHostIntent(i) => TunnelHostIntent(TunnelHost.Intent.map(i, f))
     | UseAssetsIntent(i) => UseAssetsIntent(i)
-    | ToolsIntent(i) => ToolsIntent(i)
+    | GeneralIntent(i) => GeneralIntent(i)
     }
   }
 }
@@ -277,19 +290,19 @@ module Intent = {
 let default = {
   tunnelHost: TunnelHost.default,
   useAssets: UseAssets.default,
-  tools: Tools.default,
+  general: General.default,
 }
 
-let toSaved = ({tools, _}: t) => {
+let toSaved = ({general, _}: t) => {
   open Json.Encode
-  object_(list{("tools", Tools.toSaved(tools))})
+  object_(list{("general", General.toSaved(general))})
 }
 
 let fromSaved = (j: Js.Json.t) => {
   open Json.Decode
   {
     ...default,
-    tools: field("tools", Tools.fromSaved, j),
+    general: field("general", General.fromSaved, j),
   }
 }
 
@@ -308,7 +321,7 @@ let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
     let (tunnelHost, intent) = TunnelHost.update(s.tunnelHost, msg)
     let intent = TunnelHost.Intent.map(intent, msg => TunnelHostMsg(msg))
     ({...s, tunnelHost: tunnelHost}, TunnelHostIntent(intent))
-  | ToolsMsg(msg) =>
-    let (tools, intent) = Tools.update(s.tools, msg)
-    ({...s, tools: tools}, ToolsIntent(intent))
+  | GeneralMsg(msg) =>
+    let (general, intent) = General.update(s.general, msg)
+    ({...s, general: general}, GeneralIntent(intent))
   }

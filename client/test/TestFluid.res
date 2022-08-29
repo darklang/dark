@@ -4069,13 +4069,11 @@ let run = () => {
       ()
     })
 
-    if Fluid.allowUserToCreateTuple {
-      describe("create", () => {
-        t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
-        t("create and fill in tuple", b, ~pos=0, insMany(list{"(", "1", ",", "2", ")"}), "(1,2)~")
-        ()
-      })
-    }
+    describe("create", () => {
+      t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
+      t("create and fill in tuple", b, ~pos=0, insMany(list{"(", "1", ",", "2", ")"}), "(1,2)~")
+      ()
+    })
     describe("insert", () => {
       t("insert into empty tuple inserts", tuple2WithBothBlank, ~pos=1, ins("5"), "(5~,___)")
       t("inserting before a tuple is no-op", tuple2WithBothBlank, ~pos=0, ins("5"), "~(___,___)")

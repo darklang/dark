@@ -32,9 +32,6 @@ module FT = FluidTypes
 open ProgramTypes.Expr
 open ProgramTypes.Pattern
 
-// TUPLETODO re-enable
-let allowUserToCreateTuple = false
-
 // --------------------
 // Utils
 // --------------------
@@ -1355,7 +1352,7 @@ let addMatchPatternAt = (matchId: id, idx: int, astInfo: ASTInfo.t): ASTInfo.t =
  * blanks or placeholders, which are identical
  * except for when creating lambdas.
  */
-let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, CT.t)> =>
+let insBlankOrPlaceholderHelper' = (settings: FluidTypes.FluidSettings.t ,ins: string): option<(E.t, CT.t)> =>
   if ins == " " || ins == "," {
     None
   } else if ins == "\\" {
@@ -1371,7 +1368,7 @@ let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, CT.t)> =>
       } else if ins == "[" {
         (EList(newID, list{}), {astRef: ARList(newID, LPOpen), offset: 1})
         // TODO: prior to PR merge, disable below (until tuples functionality fuller)
-      } else if ins == "(" && allowUserToCreateTuple {
+      } else if ins == "(" && settings.allowTuples {
         (
           ETuple(newID, EBlank(gid()), EBlank(gid()), list{}),
           {astRef: ARTuple(newID, TPOpen), offset: 1},
@@ -1398,7 +1395,7 @@ let insBlankOrPlaceholderHelper' = (ins: string): option<(E.t, CT.t)> =>
  * used to replace a blank when inserting the text [ins], or
  * None if the text shouldn't replace the blank.
  */
-let maybeInsertInBlankExpr = (ins: string): option<(E.t, CT.t)> =>
+let maybeInsertInBlankExpr = (settings: FluidTypes.FluidSettings.t, ins: string): option<(E.t, CT.t)> =>
   if ins == "\\" {
     let newID = gid()
     Some(
@@ -1406,15 +1403,15 @@ let maybeInsertInBlankExpr = (ins: string): option<(E.t, CT.t)> =>
       {astRef: ARLambda(newID, LBPVarName(0)), offset: 0},
     )
   } else {
-    insBlankOrPlaceholderHelper'(ins)
+    insBlankOrPlaceholderHelper'(settings, ins)
   }
 
 /* [insertInBlankExpr ins]
  * produces the (newExpr, newCaretTarget) tuple that should be
  * used to replace a blank when inserting the text [ins].
  */
-let insertInBlankExpr = (ins: string): (E.t, CT.t) =>
-  maybeInsertInBlankExpr(ins) |> Option.unwrap(
+let insertInBlankExpr = (settings: FluidTypes.FluidSettings.t, ins: string): (E.t, CT.t) =>
+  maybeInsertInBlankExpr(settings, ins) |> Option.unwrap(
     ~default={
       let newID = gid()
       (EBlank(newID), ({astRef: ARBlank(newID), offset: 0}: CT.t))
@@ -1467,6 +1464,7 @@ let insertInPlaceholderExpr = (
     )
   } else {
     insBlankOrPlaceholderHelper'(
+      props.settings,
       ins,
     ) |> // Just replace with a new blank -- we were creating eg a new list item
     Option.unwrap(~default=(EBlank(newID), ({astRef: ARBlank(newID), offset: 0}: CT.t)))
@@ -3377,7 +3375,12 @@ let doDelete = (~pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
  * Note that there are some special-case inserts that aren't handled by doExplicitInsert.
  * See doInsert and updateKey for these exceptional cases.
  */
-let doExplicitInsert = (extendedGraphemeCluster: string, currCaretTarget: CT.t, ast: FluidAST.t): (
+let doExplicitInsert = (
+  settings: FluidTypes.FluidSettings.t,
+  extendedGraphemeCluster: string,
+  currCaretTarget: CT.t,
+  ast: FluidAST.t
+): (
   FluidAST.t,
   newPosition,
 ) => {
@@ -3605,7 +3608,7 @@ let doExplicitInsert = (extendedGraphemeCluster: string, currCaretTarget: CT.t, 
       } else {
         None
       }
-    | (ARBlank(_), _) => maybeInsertInBlankExpr(extendedGraphemeCluster)
+    | (ARBlank(_), _) => maybeInsertInBlankExpr(settings, extendedGraphemeCluster)
     | (ARFnCall(_), EFnCall(_, fnName, _, _)) =>
       // inserting in the middle or at the end of a fn call creates a partial
       mkPartial(mutation(FQFnName.toString(fnName)), currExpr)
@@ -3927,7 +3930,7 @@ let doInsert = (~pos: int, letter: string, ti: T.tokenInfo, astInfo: ASTInfo.t):
     |> ASTInfo.modifyState(~f=s => {...s, upDownCol: None})
 
   let (newAST, newPosition) = switch caretTargetFromTokenInfo(pos, ti) {
-  | Some(ct) => doExplicitInsert(letter, ct, astInfo.ast)
+  | Some(ct) => doExplicitInsert(astInfo.props.settings, letter, ct, astInfo.ast)
   | None => (astInfo.ast, SamePlace)
   }
 
@@ -4607,7 +4610,7 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
 
   // Typing between empty list symbols []
   | (InsertText(txt), L(TListOpen(id, _), _), R(TListClose(_), _)) =>
-    let (newExpr, target) = insertInBlankExpr(txt)
+    let (newExpr, target) = insertInBlankExpr(astInfo.props.settings, txt)
     astInfo
     |> ASTInfo.setAST(insertInList(~index=0, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget(target)
