@@ -2,8 +2,8 @@
 type rec t = {
   builtinFunctions: list<RuntimeTypes.BuiltInFn.t>,
   packageFunctions: TLID.Dict.t<ProgramTypes.Package.Fn.t>,
-  // We do analysis to determine which functions are safe and which are not.
-  // This stores the result
+  // We do analysis to determine which functions are safe to preview and which are
+  // not. This stores the result
   previewUnsafeFunctions: Tc.Set.String.t,
   allowedFunctions: list<Function.t>,
 }

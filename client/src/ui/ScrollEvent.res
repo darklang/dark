@@ -2,6 +2,7 @@
 
 @ppx.deriving(show({with_path: false}))
 type rec t = {timestamp: float}
+
 let decode = (j: Js.Json.t): t => {
   open Json.Decode
   {
