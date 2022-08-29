@@ -55,11 +55,9 @@ module AstRef = {
 
   @ppx.deriving(show({with_path: false}))
   type rec astTuplePart =
-    // would it be better, somehow, to define separate astParts for tuple _patterns_ and _vals_?
     | TPOpen
     | TPClose
-    | TPComma(int) // maybe separator
-    //| TPVal(int)
+    | TPComma(int)
 
   @ppx.deriving(show({with_path: false}))
   type rec astMatchPart =

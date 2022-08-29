@@ -883,10 +883,9 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARInvalid, _) => None
     }
 
-  let activeTokensInfos = ASTInfo.activeTokenInfos(astInfo)
-
-  Debug.loG("activeTokensInfos", activeTokensInfos)
-  let newPosMaybe = activeTokensInfos |> List.findMap(~f=ti => targetAndTokenInfoToMaybeCaretPos((ct, ti)))
+  let newPosMaybe =
+    ASTInfo.activeTokenInfos(astInfo)
+    |> List.findMap(~f=ti => targetAndTokenInfoToMaybeCaretPos((ct, ti)))
 
   switch newPosMaybe {
   | Some(newPos) => newPos
