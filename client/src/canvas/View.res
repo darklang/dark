@@ -12,12 +12,13 @@ module E = FluidExpression
 
 open ProgramTypes.Expr
 
+module Msg = AppTypes.Msg
 type model = AppTypes.model
 type msg = AppTypes.msg
 
 let appID = "app"
 
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 let docsURL = "https://docs.darklang.com"
 
@@ -29,15 +30,15 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
   let tlid = TL.id(tl)
   let vs = ViewUtils.createVS(m, tl)
   let dragEvents = list{
-    ViewUtils.eventNoPropagation(
+    EventListeners.eventNoPropagation(
       ~key="tlmd-" ++ TLID.toString(tlid),
       "mousedown",
-      x => TLDragRegionMouseDown(tlid, x),
+      x => Msg.TLDragRegionMouseDown(tlid, x),
     ),
-    ViewUtils.eventNoPropagation(
+    EventListeners.eventNoPropagation(
       ~key="tlmu-" ++ TLID.toString(tlid),
       "mouseup",
-      x => TLDragRegionMouseUp(tlid, x),
+      x => Msg.TLDragRegionMouseUp(tlid, x),
     ),
   }
 
@@ -61,8 +62,8 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
    * our toplevel. Since we capture mouseup, we must capture mousedown as well,
    * otherwise mousedown will begin canvas panning, but mouseup won't stop it. */
   let events = list{
-    ViewUtils.nothingMouseEvent("mouseup"),
-    ViewUtils.nothingMouseEvent("mousedown"),
+    EventListeners.nothingMouseEvent("mouseup"),
+    EventListeners.nothingMouseEvent("mousedown"),
   }
 
   /* This is a bit ugly - DBs have a larger 'margin' (not CSS margin) between
@@ -145,7 +146,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
             switch x {
             | EFnCall(_, name, _, sendToRail) => Some(name, sendToRail)
             | EBinOp(_, name, _, _, sendToRail) =>
-              Some(Stdlib(PT.FQFnName.InfixStdlibFnName.toStdlib(name)), sendToRail)
+              Some(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), sendToRail)
             | _ => None
             }
           )
@@ -175,7 +176,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           |> Option.andThen(~f=((name, index)) =>
             m.functions
             |> Functions.findByStr(name)
-            |> Option.map(~f=f => {
+            |> Option.map(~f=(f: Function.t) => {
               let param = f.fnParameters |> List.getAt(~index)
               (param, f.fnDescription)
             })
@@ -249,7 +250,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
       list{
         Attrs.classList(list{("use-wrapper", true), ("fade", hasFF)}),
         // Block opening the omnibox here by preventing canvas pan start
-        ViewUtils.nothingMouseEvent("mousedown"),
+        EventListeners.nothingMouseEvent("mousedown"),
       },
       usages,
     ),
@@ -458,9 +459,9 @@ let viewCanvas = (m: model): Html.html<msg> => {
       Attrs.id("canvas"),
       Attrs.class'("canvas " ++ pageClass),
       Attrs.styles(canvasStyles),
-      ViewUtils.onTransitionEnd(~key="canvas-pan-anim", ~listener=prop =>
+      EventListeners.onTransitionEnd(~key="canvas-pan-anim", ~listener=prop =>
         if prop == "transform" {
-          CanvasPanAnimationEnd
+          Msg.CanvasPanAnimationEnd
         } else {
           AppTypes.Msg.IgnoreMsg("canvas-pan-end")
         }
@@ -476,10 +477,10 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
     let helpIcon = Html.div(
       list{
         Attrs.class'("help-icon"),
-        ViewUtils.eventNoPropagation(~key="ept", "mouseenter", _ => ToolTipMsg(
+        EventListeners.eventNoPropagation(~key="ept", "mouseenter", _ => Msg.ToolTipMsg(
           OpenFnTooltip(true),
         )),
-        ViewUtils.eventNoPropagation(~key="epf", "mouseleave", _ => ToolTipMsg(
+        EventListeners.eventNoPropagation(~key="epf", "mouseleave", _ => Msg.ToolTipMsg(
           OpenFnTooltip(false),
         )),
       },
@@ -499,8 +500,8 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
           list{
             Attrs.class'("back-to-canvas-content"),
             Vdom.prop("alt", "architecture preview"),
-            ViewUtils.eventNoPropagation(~key="return-to-arch", "click", _ =>
-              GoToArchitecturalView
+            EventListeners.eventNoPropagation(~key="return-to-arch", "click", _ =>
+              Msg.GoToArchitecturalView
             ),
           },
           list{
@@ -533,7 +534,7 @@ let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
   Html.div(
     list{
       Attrs.class'(classes),
-      ViewUtils.onAnimationEnd(~key="toast", ~listener=_ => ResetToast),
+      EventListeners.onAnimationEnd(~key="toast", ~listener=_ => Msg.ResetToast),
       styleOverrides,
     },
     list{Html.text(msg)},
@@ -551,7 +552,9 @@ let accountView = (m: model): Html.html<msg> => {
       Attrs.class'("account-action-btn"),
       Attrs.href(docsURL),
       Attrs.target("_blank"),
-      ViewUtils.eventNoPropagation(~key="account-doc", "click", _ => UpdateHeapio(OpenDocs)),
+      EventListeners.eventNoPropagation(~key="account-doc", "click", _ => Msg.UpdateHeapio(
+        OpenDocs,
+      )),
     },
     list{Html.text("Documentation")},
   )
@@ -561,7 +564,9 @@ let accountView = (m: model): Html.html<msg> => {
       Attrs.class'("account-action-btn"),
       Attrs.href(functionRefsURL),
       Attrs.target("_blank"),
-      ViewUtils.eventNoPropagation(~key="account-fn-ref", "click", _ => UpdateHeapio(OpenFnRef)),
+      EventListeners.eventNoPropagation(~key="account-fn-ref", "click", _ => Msg.UpdateHeapio(
+        OpenFnRef,
+      )),
     },
     list{Html.text("Function Reference")},
   )
@@ -571,7 +576,7 @@ let accountView = (m: model): Html.html<msg> => {
       Attrs.class'("account-action-btn"),
       Attrs.href(keyboardRefsURL),
       Attrs.target("_blank"),
-      ViewUtils.eventNoPropagation(~key="account-fn-ref", "click", _ => UpdateHeapio(
+      EventListeners.eventNoPropagation(~key="account-fn-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
@@ -583,7 +588,7 @@ let accountView = (m: model): Html.html<msg> => {
       Attrs.class'("account-action-btn"),
       Attrs.href("https://darklang.com/slack-invite"),
       Attrs.target("_blank"),
-      ViewUtils.eventNoPropagation(~key="slack-invite-ref", "click", _ => UpdateHeapio(
+      EventListeners.eventNoPropagation(~key="slack-invite-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
@@ -595,7 +600,7 @@ let accountView = (m: model): Html.html<msg> => {
       Attrs.class'("account-action-btn"),
       Attrs.href("https://docs.darklang.com/contributing/getting-started"),
       Attrs.target("_blank"),
-      ViewUtils.eventNoPropagation(~key="contributor-ref", "click", _ => UpdateHeapio(
+      EventListeners.eventNoPropagation(~key="contributor-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
@@ -605,7 +610,7 @@ let accountView = (m: model): Html.html<msg> => {
   let tutorial = Html.p(
     list{
       Attrs.class'("account-action-btn"),
-      ViewUtils.eventNoPropagation(~key="tutorial", "click", _ => ToolTipMsg(
+      EventListeners.eventNoPropagation(~key="tutorial", "click", _ => Msg.ToolTipMsg(
         UpdateTutorial(ReopenTutorial),
       )),
     },
@@ -616,7 +621,9 @@ let accountView = (m: model): Html.html<msg> => {
   let settings = Html.p(
     list{
       Attrs.class'("account-action-btn"),
-      ViewUtils.eventNoPropagation(~key="open-settings", "click", _ => SettingsMsg(Open(Canvases))),
+      EventListeners.eventNoPropagation(~key="open-settings", "click", _ => Msg.SettingsMsg(
+        Open(Canvases),
+      )),
     },
     list{Html.text("Settings")},
   )
@@ -624,7 +631,9 @@ let accountView = (m: model): Html.html<msg> => {
   let share = Html.p(
     list{
       Attrs.class'("account-action-btn invite"),
-      ViewUtils.eventNoPropagation(~key="open-invite", "click", _ => SettingsMsg(Open(Invite))),
+      EventListeners.eventNoPropagation(~key="open-invite", "click", _ => Msg.SettingsMsg(
+        Open(Invite),
+      )),
     },
     list{Html.text("Share Dark")},
   )
@@ -649,7 +658,7 @@ let accountView = (m: model): Html.html<msg> => {
     list{
       Attrs.class'("my-account"),
       // Block opening the omnibox here by preventing canvas pan start
-      ViewUtils.nothingMouseEvent("mousedown"),
+      EventListeners.nothingMouseEvent("mousedown"),
     },
     list{
       m |> Avatar.myAvatar |> Avatar.avatarDiv,
@@ -677,16 +686,14 @@ let view = (m: model): Html.html<msg> => {
   let eventListeners = /* We don't want propagation because we don't want to double-handle these events and
    * window has its own listeners. */
   list{
-    ViewUtils.eventNeither(~key="app-md", "mousedown", mouseEvent => AppMouseDown(mouseEvent)),
-    ViewUtils.eventNeither(~key="app-mu", "mouseup", mouseEvent => AppMouseUp(mouseEvent)),
-    ViewUtils.scrollEventNeither(~key="app-scroll", "scroll", _ => AppScroll),
+    EventListeners.eventNeither(~key="app-md", "mousedown", mouseEvent => Msg.AppMouseDown(
+      mouseEvent,
+    )),
+    EventListeners.eventNeither(~key="app-mu", "mouseup", mouseEvent => Msg.AppMouseUp(mouseEvent)),
+    EventListeners.scrollEventNeither(~key="app-scroll", "scroll", _ => Msg.AppScroll),
   }
 
-  let attributes = list{
-    Attrs.id(appID),
-    Attrs.class'("app " ++ VariantTesting.activeCSSClasses(m)),
-    ...eventListeners,
-  }
+  let attributes = list{Attrs.id(appID), ...eventListeners}
 
   let footer = list{
     ViewScaffold.viewIntegrationTestButton(m.integrationTestState),
@@ -714,8 +721,8 @@ let view = (m: model): Html.html<msg> => {
         Attrs.href(docsURL),
         Attrs.target("_blank"),
         // Block opening the omnibox here by preventing canvas pan start
-        ViewUtils.nothingMouseEvent("mousedown"),
-        ViewUtils.eventNoPropagation(~key="doc", "click", _ => UpdateHeapio(OpenDocs)),
+        EventListeners.nothingMouseEvent("mousedown"),
+        EventListeners.eventNoPropagation(~key="doc", "click", _ => Msg.UpdateHeapio(OpenDocs)),
       },
       list{fontAwesome("book"), Html.text("Docs")},
     ),
@@ -725,14 +732,14 @@ let view = (m: model): Html.html<msg> => {
     ~show=m.integrationTestState == NoIntegrationTest && m.unsupportedBrowser,
   )
 
-  let settingsModal = if m.settingsView.opened {
+  let settingsModal = if m.settings.opened {
     SettingsView.html(m)
   } else {
     Vdom.noNode
   }
 
   let content = Belt.List.concatMany([
-    list{SettingsPrivacyView.viewTopbar(m.settingsView.privacySettings)},
+    list{SettingsPrivacyView.viewTopbar(m.settings.privacySettings)},
     ViewTopbar.html(m),
     list{
       sidebar,

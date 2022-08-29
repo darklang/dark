@@ -8,7 +8,7 @@ module Msg = AppTypes.Msg
 let msgLink = (~key: string, content: Html.html<AppTypes.msg>, handler: AppTypes.msg): Html.html<
   AppTypes.msg,
 > => {
-  let event = ViewUtils.eventNeither(~key, "mouseup", _ => handler)
+  let event = EventListeners.eventNeither(~key, "mouseup", _ => handler)
   Html.a(list{event, Attrs.class'("")}, list{content})
 }
 
@@ -34,7 +34,7 @@ let html = (_m: AppTypes.model) =>
           Html.a(
             list{
               Attrs.href(url),
-              ViewUtils.eventNoPropagation(~key="toggle-topbar", "mouseup", _ => Msg.IgnoreMsg(
+              EventListeners.eventNoPropagation(~key="toggle-topbar", "mouseup", _ => Msg.IgnoreMsg(
                 "topbar",
               )),
             },

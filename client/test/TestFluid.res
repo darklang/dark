@@ -556,13 +556,13 @@ let run = () => {
     t("bs near-empty string", oneCharStr, ~pos=2, bs, "\"~\"")
     t("del near-empty string", oneCharStr, ~pos=1, del, "\"~\"")
     t("insert outside string is no-op", aStr, ins("c"), "~\"some string\"")
-    tStruct(
-      "insert outside string at top-level creates left partial",
-      aStr,
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", aStr),
-    )
+    // tStruct(
+    //   "insert outside string at top-level creates left partial",
+    //   aStr,
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", aStr),
+    // )
     t("del outside string", aStr, del, "~\"some string\"")
     t("bs outside string", aStr, bs, "~\"some string\"")
     t("insert start of string", aStr, ~pos=1, ins("c"), "\"c~some string\"")
@@ -766,13 +766,13 @@ let run = () => {
       ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
       "123456789_\""),
     )
-    tStruct(
-      "insert outside mlstring at top-level creates left partial",
-      mlStr,
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", mlStr),
-    )
+    // tStruct(
+    //   "insert outside mlstring at top-level creates left partial",
+    //   mlStr,
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", mlStr),
+    // )
     t(
       "del outside string",
       mlStr,
@@ -1184,13 +1184,13 @@ let run = () => {
     t("del end of number", anInt, ~pos=5, del, "12345~")
     t("bs end of number", anInt, ~pos=5, bs, "1234~")
     t("insert non-number at start is no-op", anInt, ins("c"), "~12345")
-    tStruct(
-      "insert non-number without wrapper creates left partial",
-      anInt,
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", anInt),
-    )
+    // tStruct(
+    //   "insert non-number without wrapper creates left partial",
+    //   anInt,
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", anInt),
+    // )
     t("insert number at scale", aHugeInt, ~pos=5, ins("9"), "300009~0000000000000")
     t("insert number at scale", aHugeInt, ins("9"), "9~30000000000000000")
     t("insert number at scale", aHugeInt, ins("8"), "8~300000000000000000")
@@ -1287,13 +1287,13 @@ let run = () => {
     t("bs dot converts to int", aFloat, ~pos=4, bs, "123~456")
     t("bs dot converts to int, no fraction", aPartialFloat, ~pos=2, bs, "1~")
     t("continue after adding dot", aPartialFloat, ~pos=2, ins("2"), "1.2~")
-    tStruct(
-      "insert letter at beginning of float at top-level creates left partial",
-      aFloat,
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", aFloat),
-    )
+    // tStruct(
+    //   "insert letter at beginning of float at top-level creates left partial",
+    //   aFloat,
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", aFloat),
+    // )
     t("ctrl+left start of whole moves to beg", aFloat, ~pos=0, ctrlLeft, "~123.456")
     t("ctrl+left middle of whole moves to beg", aFloat, ~pos=1, ctrlLeft, "~123.456")
     t("ctrl+left end of whole moves to beg", aFloat, ~pos=2, ctrlLeft, "~123.456")
@@ -1374,13 +1374,13 @@ let run = () => {
   })
   describe("Bools", () => {
     t("insert start of true is no-op", ~pos=0, bool(true), ins("c"), "~true")
-    tStruct(
-      "insert start of true at top-level creates left partial",
-      bool(true),
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", bool(true)),
-    )
+    // tStruct(
+    //   "insert start of true at top-level creates left partial",
+    //   bool(true),
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", bool(true)),
+    // )
     t(~expectsPartial=true, "del start of true", trueBool, del, "~rue")
     t("bs start of true", trueBool, bs, "~true")
     t(~expectsPartial=true, "insert end of true", trueBool, ~pos=4, ins("0"), "true0~")
@@ -1390,13 +1390,13 @@ let run = () => {
     t(~expectsPartial=true, "del middle of true", trueBool, ~pos=2, del, "tr~e")
     t(~expectsPartial=true, "bs middle of true", trueBool, ~pos=2, bs, "t~ue")
     t("insert start of false is no-op", ~pos=0, bool(false), ins("c"), "~false")
-    tStruct(
-      "insert start of false at top-level creates left partial",
-      bool(false),
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", bool(false)),
-    )
+    // tStruct(
+    //   "insert start of false at top-level creates left partial",
+    //   bool(false),
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", bool(false)),
+    // )
     t(~expectsPartial=true, "del start of false", falseBool, del, "~alse")
     t("bs start of false", falseBool, bs, "~false")
     t(~expectsPartial=true, "insert end of false", falseBool, ~pos=5, ins("0"), "false0~")
@@ -1480,13 +1480,13 @@ let run = () => {
     ()
   })
   describe("Nulls", () => {
-    tStruct(
-      "insert start of null at top-level creates left partial",
-      aNull,
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", aNull),
-    )
+    // tStruct(
+    //   "insert start of null at top-level creates left partial",
+    //   aNull,
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", aNull),
+    // )
     t("insert start of null is no-op", aNull, ~pos=0, ins("c"), "~null")
     t(~expectsPartial=true, "del start of null", aNull, ~pos=0, del, "~ull")
     t("bs start of null", aNull, ~pos=0, bs, "~null")
@@ -1796,13 +1796,13 @@ let run = () => {
       "Ix~nt::add 5 _________",
     )
     t("insert start of function is no-op", ~pos=0, aFnCall, ins("c"), "~Int::add 5 _________")
-    tStruct(
-      "inserting at beginning of function at top-level creates left partial",
-      aFnCall,
-      ~pos=0,
-      list{InsertText("i")},
-      leftPartial("i", aFnCall),
-    )
+    // tStruct(
+    //   "inserting at beginning of function at top-level creates left partial",
+    //   aFnCall,
+    //   ~pos=0,
+    //   list{InsertText("i")},
+    //   leftPartial("i", aFnCall),
+    // )
     t(
       ~expectsFnOnRail=true,
       "change a function keeps it on the error rail",
@@ -3757,13 +3757,13 @@ let run = () => {
     t("create list", b, ~pos=0, ins("["), "[~]")
     t("insert into empty list inserts", emptyList, ~pos=1, ins("5"), "[5~]")
     t("inserting before a list is no-op", emptyList, ~pos=0, ins("5"), "~[]")
-    tStruct(
-      "inserting before a list at top-level creates left partial",
-      emptyList,
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", emptyList),
-    )
+    // tStruct(
+    //   "inserting before a list at top-level creates left partial",
+    //   emptyList,
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", emptyList),
+    // )
     t("insert space into multi list", multiList, ~pos=6, key(K.Space), "[56,78~]")
     t("insert space into single list", singleElementList, ~pos=3, key(K.Space), "[56~]")
     t("insert into existing list item", singleElementList, ~pos=1, ins("4"), "[4~56]")
@@ -4523,13 +4523,13 @@ let run = () => {
   describe("Records", () => {
     t("create record", b, ~pos=0, ins("{"), "{~}")
     t("inserting before a record is no-op", emptyRecord, ~pos=0, ins("5"), "~{}")
-    tStruct(
-      "inserting before a record at top-level inserts left partial",
-      emptyRecord,
-      ~pos=0,
-      list{InsertText("c")},
-      leftPartial("c", emptyRecord),
-    )
+    // tStruct(
+    //   "inserting before a record at top-level inserts left partial",
+    //   emptyRecord,
+    //   ~pos=0,
+    //   list{InsertText("c")},
+    //   leftPartial("c", emptyRecord),
+    // )
     t("inserting space between empty record does nothing", emptyRecord, ~pos=1, space, "{~}")
     t(
       "inserting valid text in an empty record works",

@@ -14,9 +14,7 @@ type msg = AppTypes.msg
 module Mod = AppTypes.Modification
 module Msg = AppTypes.Msg
 
-let fontAwesome = ViewUtils.fontAwesome
-
-let onEvent = ViewUtils.onEvent
+let onEvent = EventListeners.onEvent
 
 type viewProps = ViewUtils.viewProps
 
@@ -90,13 +88,13 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
       Html.div(
         list{
           Attrs.class'("parameter-btn allowed"),
-          ViewUtils.eventNoPropagation(
+          EventListeners.eventNoPropagation(
             ~key="dufp-" ++ TLID.toString(uf.tlid) ++ "-" ++ (p.nameID |> ID.toString),
             "click",
-            _ => DeleteUserFunctionParameter(uf.tlid, p),
+            _ => Msg.DeleteUserFunctionParameter(uf.tlid, p),
           ),
         },
-        list{fontAwesome("times-circle")},
+        list{Icons.fontAwesome("times-circle")},
       )
     } else {
       Html.div(
@@ -104,7 +102,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
           Attrs.class'("parameter-btn disallowed"),
           Attrs.title("Can't delete parameter because it is used in the function body"),
         },
-        list{fontAwesome("times-circle")},
+        list{Icons.fontAwesome("times-circle")},
       )
     }
 
@@ -196,7 +194,7 @@ let viewParam = (
         Tea.Html.Attributes.draggable("true"),
         onEvent(~event="dragstart", ~key="fpds-" ++ strId, ~preventDefault=false, dragStart),
         onEvent(~event="dragend", ~key="fpde-" ++ strId, dragEnd),
-        ViewUtils.onAnimationEnd(~key="fpdfaded-" ++ strId, ~listener=flashFade),
+        EventListeners.onAnimationEnd(~key="fpdfaded-" ++ strId, ~listener=flashFade),
       }
     | PackageFn(_) => list{}
     }
@@ -207,7 +205,7 @@ let viewParam = (
     }
 
     let dragIcon = switch fn {
-    | UserFunction(_) => fontAwesome("grip-lines")
+    | UserFunction(_) => Icons.fontAwesome("grip-lines")
     | PackageFn(_) => Vdom.noNode
     }
 

@@ -132,11 +132,11 @@ let getParamIndex = (id: id, ast: FluidAST.t): option<(string, int)> => {
   | Some(EFnCall(fnID, name, _, _)) =>
     getArguments(fnID, ast)
     |> List.findIndex(~f=(_, e) => E.toID(e) == id)
-    |> Option.map(~f=((index, _)) => (PT.FQFnName.toString(name), index))
+    |> Option.map(~f=((index, _)) => (FQFnName.toString(name), index))
   | Some(EBinOp(fnID, name, _, _, _)) =>
     getArguments(fnID, ast)
     |> List.findIndex(~f=(_, e) => E.toID(e) == id)
-    |> Option.map(~f=((index, _)) => (PT.FQFnName.InfixStdlibFnName.toString(name), index))
+    |> Option.map(~f=((index, _)) => (PT.InfixStdlibFnName.toString(name), index))
 
   | _ => None
   }
@@ -309,7 +309,7 @@ let removePartials = (expr: E.t): E.t =>
 @ocaml.doc(" Reorder function calls which call fnName, moving the argument at [oldPos] to [newPos],
  * pushing the element currently at [newPos] to [newPos+1]. It then handles situations
  * where the args may be in a different position due to pipes. ")
-let rec reorderFnCallArgs = (fnName: PT.FQFnName.t, oldPos: int, newPos: int, ast: E.t): E.t => {
+let rec reorderFnCallArgs = (fnName: FQFnName.t, oldPos: int, newPos: int, ast: E.t): E.t => {
   let rec replaceArgs = expr =>
     switch expr {
     | EFnCall(id, name, args, sendToRail) if name == fnName =>

@@ -12,8 +12,6 @@ module T = Settings
 module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
-let fontAwesome = ViewUtils.fontAwesome
-
 let allTabs: list<T.Tab.t> = list{T.Tab.Canvases, Privacy, Invite, Contributing}
 
 // View
@@ -42,9 +40,11 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
     Html.h3(
       list{
         Attrs.classList(list{("tab-title", true), ("selected", isSameTab)}),
-        ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
-          SwitchTab(t),
-        )),
+        EventListeners.eventNoPropagation(
+          ~key="close-settings-modal",
+          "click",
+          _ => Msg.SettingsMsg(SwitchTab(t)),
+        ),
       },
       list{Html.text(settingsTabToText(t))},
     )
@@ -71,36 +71,38 @@ let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
   )
 
 let html = (m: AppTypes.model): Html.html<msg> => {
-  let svs = m.settingsView
+  let s = m.settings
   let closingBtn = Html.div(
     list{
       Attrs.class'("close-btn"),
-      ViewUtils.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
-        Close(svs.tab),
+      EventListeners.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
+        Close(s.tab),
       )),
     },
-    list{fontAwesome("times")},
+    list{Icons.fontAwesome("times")},
   )
 
   Html.div(
     list{
       Attrs.class'("settings modal-overlay"),
-      ViewUtils.nothingMouseEvent("mousedown"),
-      ViewUtils.nothingMouseEvent("mouseup"),
-      ViewUtils.eventNoPropagation(~key="close-setting-modal", "click", _ => Msg.SettingsMsg(
-        Close(svs.tab),
+      EventListeners.nothingMouseEvent("mousedown"),
+      EventListeners.nothingMouseEvent("mouseup"),
+      EventListeners.eventNoPropagation(~key="close-setting-modal", "click", _ => Msg.SettingsMsg(
+        Close(s.tab),
       )),
     },
     list{
       Html.div(
         list{
           Attrs.class'("modal"),
-          ViewUtils.nothingMouseEvent("click"),
-          ViewUtils.eventNoPropagation(~key="ept", "mouseenter", _ => EnablePanning(false)),
-          ViewUtils.eventNoPropagation(~key="epf", "mouseleave", _ => EnablePanning(true)),
+          EventListeners.nothingMouseEvent("click"),
+          EventListeners.eventNoPropagation(~key="ept", "mouseenter", _ => Msg.EnablePanning(
+            false,
+          )),
+          EventListeners.eventNoPropagation(~key="epf", "mouseleave", _ => Msg.EnablePanning(true)),
           Events.onCB("keydown", "keydown", onKeydown),
         },
-        list{settingViewWrapper(svs), closingBtn},
+        list{settingViewWrapper(s), closingBtn},
       ),
     },
   )

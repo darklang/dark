@@ -21,7 +21,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     cond,
     list{(PBool(gid(), true), then_), (PBool(gid(), false), else_)},
   )
-  let binOpName = (function: string): PT.FQFnName.InfixStdlibFnName.t => {
+  let binOpName = (function: string): PT.InfixStdlibFnName.t => {
     function: function,
     module_: None,
   }

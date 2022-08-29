@@ -1,5 +1,4 @@
 // Spec for User Tutorial : https://www.notion.so/darklang/Hello-World-Tutorial-9f0caa9890e74e47b5ac3e66ee826a4c
-// We will be implimenting pretty tooltips soon that replace this file so Sydney put the html for the temporary tooltips here since both will need to be deleted once pretty tooltips is impliented
 
 // open Prelude
 

@@ -184,7 +184,7 @@ let defaultModel = (
     functions: {...Functions.empty, builtinFunctions: sampleFunctions} |> Functions.update(
       defaultFunctionsProps,
     ),
-    analyses: Map.String.singleton(~key=defaultTraceID, ~value=LoadableSuccess(analyses)),
+    analyses: Map.String.singleton(~key=defaultTraceID, ~value=Loadable.Success(analyses)),
   }
 }
 

@@ -72,12 +72,13 @@ let rec count = (s: item): int =>
 let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg): Html.html<
   msg,
 > => {
-  let event = ViewUtils.eventNeither(~key, "click", _ => handler)
-  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{fontAwesome(icon)})
+  let event = EventListeners.eventNeither(~key, "click", _ => handler)
+  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{Icons.fontAwesome(icon)})
 }
 
 let categoryIcon_ = (name: string): list<Html.html<msg>> => {
-  let darkIcon = ViewUtils.darkIcon
+  let darkIcon = Icons.darkIcon
+  let fontAwesome = Icons.fontAwesome
   // Deleted categories have a deleted- prefix, with which are not valid fontaweome icons
   switch name |> String.toLowercase |> Regex.replace(~re=Regex.regex(delPrefix), ~repl="") {
   | "http" => list{darkIcon("http")}
@@ -522,7 +523,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       let cls = "toplevel-msg"
       let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})
       let action = if m.permission == Some(ReadWrite) {
-        ViewUtils.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
+        EventListeners.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
       } else {
         Vdom.noProp
       }
@@ -575,12 +576,13 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
       Attrs.class'("icon-button copy-hash"),
-      ViewUtils.eventNeither("click", ~key="hash-" ++ d.deployHash, m => ClipboardCopyLivevalue(
-        "\"" ++ (d.deployHash ++ "\""),
-        m.mePos,
-      )),
+      EventListeners.eventNeither(
+        "click",
+        ~key="hash-" ++ d.deployHash,
+        m => Msg.ClipboardCopyLivevalue("\"" ++ (d.deployHash ++ "\""), m.mePos),
+      ),
     },
-    list{fontAwesome("copy")},
+    list{Icons.fontAwesome("copy")},
   )
 
   Html.div(
@@ -624,7 +626,7 @@ let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: in
   let isDetailed = s.mode == DetailedMode
   let isSubCat = String.includes(~substring=delPrefix, classname)
   let openEventHandler = if isDetailed || isSubCat {
-    ViewUtils.eventNoPropagation(
+    EventListeners.eventNoPropagation(
       ~key=if isOpen {
         "cheh-true-"
       } else {
@@ -632,7 +634,7 @@ let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: in
       } ++
       classname,
       "click",
-      _ => SidebarMsg(MarkCategoryOpen(!isOpen, classname)),
+      _ => Msg.SidebarMsg(MarkCategoryOpen(!isOpen, classname)),
     )
   } else {
     Vdom.noProp
@@ -667,7 +669,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
       )
 
     let openTooltip = if count == 0 {
-      ViewUtils.eventNoPropagation(~key="open-tooltip-deploys", "click", _ => ToolTipMsg(
+      EventListeners.eventNoPropagation(~key="open-tooltip-deploys", "click", _ => Msg.ToolTipMsg(
         OpenTooltip(StaticAssets),
       ))
     } else {
@@ -700,7 +702,9 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   let content = Html.div(
     list{
       Attrs.class'("category-content"),
-      eventNoPropagation(~key="cat-close-deploy", "mouseleave", _ => SidebarMsg(ResetSidebar)),
+      EventListeners.eventNoPropagation(~key="cat-close-deploy", "mouseleave", _ => Msg.SidebarMsg(
+        ResetSidebar,
+      )),
     },
     list{title, ...deploys},
   )
@@ -718,14 +722,14 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
       Attrs.class'("icon-button copy-secret-name"),
-      ViewUtils.eventNeither(
+      EventListeners.eventNeither(
         "click",
         ~key="copy-secret-" ++ s.secretName,
-        m => ClipboardCopyLivevalue(s.secretName, m.mePos),
+        m => Msg.ClipboardCopyLivevalue(s.secretName, m.mePos),
       ),
       Attrs.title("Click to copy secret name"),
     },
-    list{fontAwesome("copy")},
+    list{Icons.fontAwesome("copy")},
   )
 
   let secretValue = Util.obscureString(s.secretValue)
@@ -755,7 +759,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   )
 }
 
-let viewSecretKeys = (m: model): Html.html<msg> => {
+let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   let count = List.length(m.secrets)
   let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
 
@@ -774,7 +778,7 @@ let viewSecretKeys = (m: model): Html.html<msg> => {
       )
 
     let openTooltip = if count == 0 {
-      ViewUtils.eventNoPropagation(~key="open-tooltip-secrets", "click", _ => ToolTipMsg(
+      EventListeners.eventNoPropagation(~key="open-tooltip-secrets", "click", _ => Msg.ToolTipMsg(
         OpenTooltip(Secrets),
       ))
     } else {
@@ -808,7 +812,9 @@ let viewSecretKeys = (m: model): Html.html<msg> => {
   let content = Html.div(
     list{
       Attrs.class'("category-content"),
-      eventNoPropagation(~key="cat-close-secret", "mouseleave", _ => SidebarMsg(ResetSidebar)),
+      EventListeners.eventNoPropagation(~key="cat-close-secret", "mouseleave", _ => Msg.SidebarMsg(
+        ResetSidebar,
+      )),
     },
     list{title, ...entries},
   )
@@ -845,9 +851,11 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
       )
 
     (
-      ViewUtils.eventNoPropagation(~key="open-tooltip-" ++ c.classname, "click", _ => ToolTipMsg(
-        OpenTooltip(tt),
-      )),
+      EventListeners.eventNoPropagation(
+        ~key="open-tooltip-" ++ c.classname,
+        "click",
+        _ => Msg.ToolTipMsg(OpenTooltip(tt)),
+      ),
       view,
     )
   | None => (Vdom.noProp, Vdom.noNode)
@@ -880,7 +888,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     let catIcon = {
       let props = switch c.iconAction {
       | Some(ev) if m.sidebarState.mode == AbridgedMode && !isSubCat => list{
-          eventNeither(~key="return-to-arch", "click", _ => ev),
+          EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
         }
       | Some(_) | None => list{Vdom.noProp}
       }
@@ -906,9 +914,9 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     Html.div(
       list{
         Attrs.class'("category-content"),
-        eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
+        EventListeners.eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
           if !isSubCat {
-            SidebarMsg(ResetSidebar)
+            Msg.SidebarMsg(ResetSidebar)
           } else {
             Msg.IgnoreMsg("sidebar-category-close")
           }
@@ -928,7 +936,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
 }
 
 let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
-  let event = ViewUtils.eventNeither(~key="toggle-sidebar", "click", _ => SidebarMsg(
+  let event = EventListeners.eventNeither(~key="toggle-sidebar", "click", _ => Msg.SidebarMsg(
     ToggleSidebarMode,
   ))
 
@@ -940,7 +948,10 @@ let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
 
   let icon = {
     let view' = iconName =>
-      Html.span(list{Attrs.class'("icon")}, list{fontAwesome(iconName), fontAwesome(iconName)})
+      Html.span(
+        list{Attrs.class'("icon")},
+        list{Icons.fontAwesome(iconName), Icons.fontAwesome(iconName)},
+      )
 
     if isDetailed {
       view'("chevron-left")
@@ -987,9 +998,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     | SettingsModal(tab) => Printf.sprintf("SettingsModal (tab %s)", Settings.Tab.toText(tab))
     }
 
-  let flagText =
-    "[" ++ ((m.tests |> List.map(~f=show_variantTest) |> String.join(~sep=", ")) ++ "]")
-
   let environment = Html.div(
     list{Attrs.class'("environment " ++ environmentName)},
     list{Html.text(environmentName)},
@@ -999,7 +1007,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{Attrs.class'("state-info")},
     list{
       stateInfoTohtml("env", Html.text(m.environment)),
-      stateInfoTohtml("flags", Html.text(flagText)),
       stateInfoTohtml("page", Html.text(pageToString(m.currentPage))),
       stateInfoTohtml("cursorState", Html.text(AppTypes.CursorState.show(m.cursorState))),
     },
@@ -1007,7 +1014,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let toggleTimer = Html.div(
     list{
-      ViewUtils.eventNoPropagation(~key="tt", "mouseup", _ => ToggleEditorSetting(
+      EventListeners.eventNoPropagation(~key="tt", "mouseup", _ => Msg.ToggleEditorSetting(
         es => {...es, runTimers: !es.runTimers},
       )),
       Attrs.class'("checkbox-row"),
@@ -1020,7 +1027,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let toggleFluidDebugger = Html.div(
     list{
-      ViewUtils.eventNoPropagation(~key="tt", "mouseup", _ => ToggleEditorSetting(
+      EventListeners.eventNoPropagation(~key="tt", "mouseup", _ => Msg.ToggleEditorSetting(
         es => {...es, showFluidDebugger: !es.showFluidDebugger},
       )),
       Attrs.class'("checkbox-row"),
@@ -1036,7 +1043,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let toggleHandlerASTs = Html.div(
     list{
-      ViewUtils.eventNoPropagation(~key="tgast", "mouseup", _ => ToggleEditorSetting(
+      EventListeners.eventNoPropagation(~key="tgast", "mouseup", _ => Msg.ToggleEditorSetting(
         es => {...es, showHandlerASTs: !es.showHandlerASTs},
       )),
       Attrs.class'("checkbox-row"),
@@ -1063,30 +1070,9 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     },
   )
 
-  let variantLinks = if m.isAdmin {
-    List.map(VariantTesting.availableAdminVariants, ~f=variant => {
-      let name = VariantTesting.nameOf(variant)
-      let enabled = VariantTesting.variantIsActive(m, variant)
-      Html.a(
-        list{Attrs.href(ViewScaffold.flagLinkLoc(name, enabled)), Attrs.class'("state-info-row")},
-        list{
-          Html.text(
-            if enabled {
-              "Disable " ++ (name ++ " variant")
-            } else {
-              "Enable " ++ (name ++ " variant")
-            },
-          ),
-        },
-      )
-    })
-  } else {
-    list{}
-  }
-
   let saveTestButton = Html.a(
     list{
-      ViewUtils.eventNoPropagation(~key="stb", "mouseup", _ => SaveTestButton),
+      EventListeners.eventNoPropagation(~key="stb", "mouseup", _ => Msg.SaveTestButton),
       Attrs.class'("state-info-row save-state"),
     },
     list{Html.text("SAVE STATE FOR INTEGRATION TEST")},
@@ -1096,7 +1082,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{Attrs.class'("category-content")},
     Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
-      variantLinks,
       list{saveTestButton},
     ]),
   )
@@ -1108,7 +1093,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       Vdom.attribute("", "role", "img"),
       Vdom.attribute("", "alt", "Admin"),
     },
-    list{fontAwesome("cog")},
+    list{Icons.fontAwesome("cog")},
   )
 
   let sectionIcon = Html.div(list{Attrs.class'("category-summary")}, list{icon, environment})
@@ -1155,7 +1140,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   | _ => false
   }
 
-  let showAdminDebugger = if !isDetailed && m.isAdmin {
+  let showAdminDebugger = if !isDetailed && m.settings.contributingSettings.tools.showSidebarPanel {
     adminDebuggerView(m)
   } else {
     Vdom.noNode
@@ -1184,10 +1169,10 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
     list{
       Attrs.id("sidebar-left"),
       // Block opening the omnibox here by preventing canvas pan start
-      nothingMouseEvent("mousedown"),
-      ViewUtils.eventNoPropagation(~key="click-sidebar", "click", _ => ToolTipMsg(Close)),
-      ViewUtils.eventNoPropagation(~key="ept", "mouseover", _ => EnablePanning(false)),
-      ViewUtils.eventNoPropagation(~key="epf", "mouseout", _ => EnablePanning(true)),
+      EventListeners.nothingMouseEvent("mousedown"),
+      EventListeners.eventNoPropagation(~key="click-sidebar", "click", _ => Msg.ToolTipMsg(Close)),
+      EventListeners.eventNoPropagation(~key="ept", "mouseover", _ => Msg.EnablePanning(false)),
+      EventListeners.eventNoPropagation(~key="epf", "mouseout", _ => Msg.EnablePanning(true)),
     },
     list{content},
   )
@@ -1220,6 +1205,7 @@ let rtCacheKey = (m: model) =>
     m.tooltipState.tooltipSource,
     m.secrets,
     m.functions.packageFunctions |> Map.mapValues(~f=(t: PT.Package.Fn.t) => t.name.owner),
+    m.settings.contributingSettings.tools.showSidebarPanel,
   ) |> Option.some
 
 let viewSidebar = m => ViewCache.cache1m(rtCacheKey, viewSidebar_, m)

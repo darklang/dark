@@ -34,40 +34,6 @@ let remove = (m: model, userFunction: PT.UserFunction.t): model => {
 let fromList = (ufs: list<PT.UserFunction.t>): TLID.Dict.t<PT.UserFunction.t> =>
   ufs |> List.map(~f=(uf: PT.UserFunction.t) => (uf.tlid, uf)) |> TLID.Dict.fromList
 
-let ufpToP = (ufp: PT.UserFunction.Parameter.t): option<parameter> =>
-  switch (ufp.name, ufp.typ) {
-  | ("", _) => None
-  | (_, None) => None
-  | (name, Some(typ)) =>
-    {
-      paramName: name,
-      paramTipe: typ,
-      paramBlock_args: list{},
-      paramOptional: false,
-      paramDescription: ufp.description,
-    } |> (x => Some(x))
-  }
-
-let ufToF = (f: PT.UserFunction.t): option<function_> => {
-  let ps = List.filterMap(~f=ufpToP, f.parameters)
-  let sameLength = List.length(ps) == List.length(f.parameters)
-  if sameLength && f.name != "" {
-    Some({
-      fnName: User(f.name),
-      fnParameters: ps,
-      fnDescription: f.description,
-      fnReturnTipe: f.returnType,
-      fnInfix: false,
-      fnPreviewSafety: Unsafe,
-      fnDeprecated: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: UserFunction,
-    })
-  } else {
-    None
-  }
-}
-
 let sameName = (name: string, uf: PT.UserFunction.t): bool => uf.name == name
 
 let paramData = (ufp: PT.UserFunction.Parameter.t): list<blankOrData> => list{

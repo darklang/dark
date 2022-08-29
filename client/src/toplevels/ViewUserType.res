@@ -7,8 +7,9 @@ module Events = Tea.Events
 // Dark
 module B = BlankOr
 
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 type viewProps = ViewUtils.viewProps
 
@@ -35,10 +36,10 @@ let viewKillFieldBtn = (t: PT.UserType.t, field: PT.UserType.RecordField.t): Htm
   Html.div(
     list{
       Attrs.class'("field-btn allowed"),
-      ViewUtils.eventNoPropagation(
+      EventListeners.eventNoPropagation(
         ~key="dutf-" ++ TLID.toString(t.tlid) ++ "-" ++ field.nameID->ID.toString,
         "click",
-        _ => DeleteUserTypeField(t.tlid, field),
+        _ => Msg.DeleteUserTypeField(t.tlid, field),
       ),
     },
     list{fontAwesome("times-circle")},

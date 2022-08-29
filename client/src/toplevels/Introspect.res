@@ -39,10 +39,7 @@ let functionsByName = (fns: TD.t<PT.UserFunction.t>): Map.String.t<TLID.t> =>
 
 let packageFunctionsByName = (fns: TD.t<PT.Package.Fn.t>): Map.String.t<TLID.t> =>
   fns
-  |> Map.mapValues(~f=(fn: PT.Package.Fn.t) => (
-    PT.FQFnName.PackageFnName.toString(fn.name),
-    fn.tlid,
-  ))
+  |> Map.mapValues(~f=(fn: PT.Package.Fn.t) => (FQFnName.PackageFnName.toString(fn.name), fn.tlid))
   |> Map.String.fromList
 
 let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
@@ -159,11 +156,8 @@ let findUsagesInAST = (
       Map.get(~key, handlers) |> Option.map(~f=fnTLID => (fnTLID, id))
     | EFnCall(id, name, _, _) =>
       Option.orElse(
-        Map.get(~key=PT.FQFnName.toString(name), functions) |> Option.map(~f=fnTLID => (
-          fnTLID,
-          id,
-        )),
-        Map.get(~key=PT.FQFnName.toString(name), packageFunctions) |> Option.map(~f=fnTLID => (
+        Map.get(~key=FQFnName.toString(name), functions) |> Option.map(~f=fnTLID => (fnTLID, id)),
+        Map.get(~key=FQFnName.toString(name), packageFunctions) |> Option.map(~f=fnTLID => (
           fnTLID,
           id,
         )),

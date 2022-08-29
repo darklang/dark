@@ -33,7 +33,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
   let inviteform = {
     let submitBtn = {
       let btn = if state.loading {
-        list{ViewUtils.fontAwesome("spinner"), Html.h3(list{}, list{Html.text("Loading")})}
+        list{Icons.fontAwesome("spinner"), Html.h3(list{}, list{Html.text("Loading")})}
       } else {
         list{Html.h3(list{}, list{Html.text("Send invite")})}
       }
@@ -42,7 +42,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
         list{
           Attrs.class'("submit-btn"),
           Html.Attributes.disabled(state.loading),
-          ViewUtils.eventNoPropagation(
+          EventListeners.eventNoPropagation(
             ~key="close-settings-modal",
             "click",
             _ => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(T.Submit)),

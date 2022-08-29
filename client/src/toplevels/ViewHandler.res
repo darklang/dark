@@ -7,15 +7,14 @@ module Events = Tea.Events
 // Dark
 module B = BlankOr
 
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
 type viewProps = ViewUtils.viewProps
 
 type domEventList = ViewUtils.domEventList
 
-let inUnit = ViewUtils.intAsUnit
-
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 let viewText = ViewBlankOr.viewText
 
@@ -82,17 +81,19 @@ let triggerHandlerButton = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<m
       let attrs = if hasData {
         list{
           Attrs.title("Replay this execution"),
-          ViewUtils.eventNoPropagation(
+          EventListeners.eventNoPropagation(
             ~key="lh" ++ ("-" ++ TLID.toString(vp.tlid)),
             "click",
-            _ => TriggerHandler(vp.tlid),
+            _ => Msg.TriggerHandler(vp.tlid),
           ),
-          ViewUtils.onAnimationEnd(~key="exe" ++ ("-" ++ TLID.toString(vp.tlid)), ~listener=name =>
-            if name == "fadeIn" {
-              SetHandlerExeIdle(vp.tlid)
-            } else {
-              AppTypes.Msg.IgnoreMsg("trigger-animation-end")
-            }
+          EventListeners.onAnimationEnd(
+            ~key="exe" ++ ("-" ++ TLID.toString(vp.tlid)),
+            ~listener=name =>
+              if name == "fadeIn" {
+                Msg.SetHandlerExeIdle(vp.tlid)
+              } else {
+                AppTypes.Msg.IgnoreMsg("trigger-animation-end")
+              },
           ),
         }
       } else {

@@ -194,12 +194,12 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
           ("fluid-selected", highlighted),
           ("valid", true),
         }),
-        ViewUtils.nothingMouseEvent("mouseup"),
+        EventListeners.nothingMouseEvent("mouseup"),
         ViewEntry.defaultPasteHandler,
-        ViewUtils.eventNoPropagation(~key="cp-" ++ name, "mousedown", _ => FluidMsg(
+        EventListeners.eventNoPropagation(~key="cp-" ++ name, "mousedown", _ => Msg.FluidMsg(
           FluidCommandsClick(item),
         )),
-        ViewUtils.eventBoth(~key="-mousemove" ++ name, "mousemove", _ => FluidMsg(
+        EventListeners.eventBoth(~key="-mousemove" ++ name, "mousemove", _ => Msg.FluidMsg(
           FluidUpdateDropdownIndex(i),
         )),
       },

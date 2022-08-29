@@ -3,6 +3,8 @@ open Prelude
 module Html = Tea.Html
 module Attrs = Tea.Attrs
 
+module Msg = AppTypes.Msg
+
 let flagLinkLoc = (flag: string, currentlyEnabled: bool) => {
   let loc = Tea_navigation.getLocation()
   let newSearch =
@@ -49,9 +51,9 @@ let viewIntegrationTestButton = (testState: AppTypes.IntegrationTests.t<AppTypes
            * because the integration tests click this button prior to
            * (in the OCaml portion of many integration tests) checking to see
            * if the cursorState matches what we expect. */
-          ViewUtils.nothingMouseEvent("mousedown"),
-          ViewUtils.nothingMouseEvent("click"),
-          ViewUtils.eventNoPropagation(~key="fit", "mouseup", _ => FinishIntegrationTest),
+          EventListeners.nothingMouseEvent("mousedown"),
+          EventListeners.nothingMouseEvent("click"),
+          EventListeners.eventNoPropagation(~key="fit", "mouseup", _ => Msg.FinishIntegrationTest),
           Attrs.src(""),
           Attrs.id("finishIntegrationTest"),
           Attrs.class'("specialButton"),
@@ -93,7 +95,7 @@ let viewError = (message: Error.t): Html.html<AppTypes.msg> => {
     Html.p(
       list{
         Attrs.class'("dismissBtn"),
-        ViewUtils.eventNoPropagation("click", ~key="dismiss-error", _ => DismissErrorBar),
+        EventListeners.eventNoPropagation("click", ~key="dismiss-error", _ => Msg.DismissErrorBar),
       },
       list{Html.text("Dismiss")},
     ),

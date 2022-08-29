@@ -5,17 +5,6 @@ open Json.Decode
 
 @val external stringify: Js.Json.t => string = "JSON.stringify"
 
-let loadable = (decoder: Js.Json.t => 'a, j: Js.Json.t): loadable<'a> =>
-  variants(
-    list{
-      ("LoadableSuccess", variant1(a => LoadableSuccess(a), decoder)),
-      ("LoadableNotInitialized", variant0(LoadableNotInitialized)),
-      ("LoadableLoading", variant1(a => LoadableLoading(a), optional(decoder))),
-      ("LoadableError", variant1(a => LoadableError(a), string)),
-    },
-    j,
-  )
-
 let exception_ = (j): exception_ => {
   short: field("short", string, j),
   long: field("long", optional(string), j),

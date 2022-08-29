@@ -4,11 +4,10 @@ module Html = Tea.Html
 module Attrs = Tea.Attrs
 
 // Dark
+module Msg = AppTypes.Msg
 module B = BlankOr
 
 type viewProps = ViewUtils.viewProps
-
-let fontAwesome = ViewUtils.fontAwesome
 
 type fnExecutionStatus =
   | Unsafe
@@ -34,7 +33,7 @@ let propsFromViewProps = (p: ViewUtils.viewProps): props => {
   tlid: p.tlid,
 }
 
-let fnExecutionStatus = (p: props, fn: function_, id: id, args: list<id>) => {
+let fnExecutionStatus = (p: props, fn: Function.t, id: id, args: list<id>) => {
   let functionIsExecuting = (fid: id): bool => List.member(~value=fid, p.executingFunctions)
 
   let isComplete = id =>
@@ -65,7 +64,7 @@ let fnExecutionStatus = (p: props, fn: function_, id: id, args: list<id>) => {
 
   let paramsComplete = List.all(~f=isComplete, args)
   let resultHasValue = fnIsComplete(id)
-  let name = PT.FQFnName.toString(fn.fnName)
+  let name = FQFnName.toString(fn.fnName)
   if p.permission != Some(ReadWrite) {
     NoPermission
   } else if name == "Password::check" || name == "Password::hash" {
@@ -127,19 +126,19 @@ let executionEvents = (status, tlid, id, name) =>
       Attrs.noProp,
     }
   | Ready | Replayable => list{
-      ViewUtils.eventNoPropagation(
+      EventListeners.eventNoPropagation(
         ~key="efb-" ++ (TLID.toString(tlid) ++ ("-" ++ (ID.toString(id) ++ ("-" ++ name)))),
         "click",
-        _ => ExecuteFunctionButton(tlid, id, name),
+        _ => Msg.ExecuteFunctionButton(tlid, id, name),
       ),
-      ViewUtils.nothingMouseEvent("mouseup"),
-      ViewUtils.nothingMouseEvent("mousedown"),
-      ViewUtils.nothingMouseEvent("dblclick"),
+      EventListeners.nothingMouseEvent("mouseup"),
+      EventListeners.nothingMouseEvent("mousedown"),
+      EventListeners.nothingMouseEvent("dblclick"),
     }
   }
 
-let fnExecutionButton = (p: props, fn: function_, id: id, args: list<id>) => {
-  let name = PT.FQFnName.toString(fn.fnName)
+let fnExecutionButton = (p: props, fn: Function.t, id: id, args: list<id>) => {
+  let name = FQFnName.toString(fn.fnName)
   let status = fnExecutionStatus(p, fn, id, args)
   switch fn.fnPreviewSafety {
   // UserFunctions always need play buttons to add the arguments to the trace
@@ -151,7 +150,7 @@ let fnExecutionButton = (p: props, fn: function_, id: id, args: list<id>) => {
     let events = executionEvents(status, p.tlid, id, name)
     Html.div(
       list{Attrs.class'("execution-button " ++ class_), Attrs.title(title), ...events},
-      list{fontAwesome(icon)},
+      list{Icons.fontAwesome(icon)},
     )
   }
 }

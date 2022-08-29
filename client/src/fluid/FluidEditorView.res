@@ -10,12 +10,13 @@ module T = FluidToken
 type fluidState = AppTypes.fluidState
 
 open ProgramTypes.Expr
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
 type props = {
   analysisStore: AnalysisTypes.analysisStore,
   ast: FluidAST.t,
-  functions: functionsType,
+  functions: Functions.t,
   executingFunctions: list<id>,
   editor: FT.Editor.t,
   hoveringRefs: list<id>,
@@ -70,8 +71,8 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
   let exeFlow = (ti: T.tokenInfo) => {
     let id = FluidToken.analysisID(ti.token)
     switch Analysis.getLiveValueLoadable(p.analysisStore, id) {
-    | LoadableSuccess(ExecutedResult(_)) => CodeExecuted
-    | LoadableSuccess(NonExecutedResult(_)) => CodeNotExecuted
+    | Loadable.Success(ExecutedResult(_)) => CodeExecuted
+    | Loadable.Success(NonExecutedResult(_)) => CodeNotExecuted
     | _ => UnknownExecution
     }
   }
@@ -111,11 +112,11 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
     if FluidToken.validID(id) {
       // Only highlight incompletes and errors on executed paths
       switch Analysis.getLiveValueLoadable(p.analysisStore, id) {
-      | LoadableSuccess(ExecutedResult(DIncomplete(SourceID(tlid, id)))) => (
+      | Loadable.Success(ExecutedResult(DIncomplete(SourceID(tlid, id)))) => (
           Some(tlid, id),
           "dark-incomplete",
         )
-      | LoadableSuccess(ExecutedResult(DError(SourceID(tlid, id), _))) => (
+      | Loadable.Success(ExecutedResult(DError(SourceID(tlid, id), _))) => (
           Some(tlid, id),
           "dark-error",
         )
@@ -340,7 +341,10 @@ let tokensView = (p: props): Html.html<msg> => {
   }
 
   let clickHandlers = list{
-    ViewUtils.eventNeither(~key="fluid-selection-dbl-click" ++ tlidStr, "dblclick", ({altKey, _}) =>
+    EventListeners.eventNeither(~key="fluid-selection-dbl-click" ++ tlidStr, "dblclick", ({
+      altKey,
+      _,
+    }) =>
       switch Entry.getFluidSelectionRange() {
       | Some(startPos, endPos) =>
         let selection = if altKey {
@@ -349,16 +353,16 @@ let tokensView = (p: props): Html.html<msg> => {
           SelectTokenAt(startPos, endPos)
         }
 
-        FluidMsg(FluidMouseDoubleClick({tlid: p.tlid, editor: p.editor, selection: selection}))
-      | None => AppTypes.Msg.IgnoreMsg("fluid-dblclick-noselection")
+        Msg.FluidMsg(FluidMouseDoubleClick({tlid: p.tlid, editor: p.editor, selection: selection}))
+      | None => Msg.IgnoreMsg("fluid-dblclick-noselection")
       }
     ),
-    ViewUtils.eventNoPropagation(
+    EventListeners.eventNoPropagation(
       ~key="fluid-selection-mousedown" ++ tlidStr,
       "mousedown",
-      _ => FluidMsg(FluidMouseDown(p.tlid)),
+      _ => Msg.FluidMsg(FluidMouseDown(p.tlid)),
     ),
-    ViewUtils.eventNoPropagation(~key="fluid-selection-mouseup" ++ tlidStr, "mouseup", _ =>
+    EventListeners.eventNoPropagation(~key="fluid-selection-mouseup" ++ tlidStr, "mouseup", _ =>
       switch Entry.getFluidSelectionRange() {
       | Some(startPos, endPos) =>
         let selection = if startPos == endPos {
@@ -367,17 +371,17 @@ let tokensView = (p: props): Html.html<msg> => {
           SelectText(startPos, endPos)
         }
 
-        FluidMsg(FluidMouseUp({tlid: p.tlid, editor: p.editor, selection: selection}))
+        Msg.FluidMsg(FluidMouseUp({tlid: p.tlid, editor: p.editor, selection: selection}))
       | None =>
         // Select the handler, if not selected
         FluidMsg(FluidMouseUp({tlid: p.tlid, editor: p.editor, selection: ClickAt(0)}))
       }
     ),
-    ViewUtils.onAnimationEnd(~key="anim-end" ++ tlidStr, ~listener=msg =>
+    EventListeners.onAnimationEnd(~key="anim-end" ++ tlidStr, ~listener=msg =>
       if msg == "flashError" || msg == "flashIncomplete" {
-        FluidMsg(FluidClearErrorDvSrc)
+        Msg.FluidMsg(FluidClearErrorDvSrc)
       } else {
-        AppTypes.Msg.IgnoreMsg("fluid-animation-end")
+        Msg.IgnoreMsg("fluid-animation-end")
       }
     ),
   }
@@ -439,7 +443,7 @@ let tokensView = (p: props): Html.html<msg> => {
 let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> => {
   let returnTipe = (name: string) =>
     Functions.findByStr(name, p.functions)
-    |> Option.map(~f=fn => fn.fnReturnTipe)
+    |> Option.map(~f=(fn: Function.t) => fn.fnReturnTipe)
     |> Option.unwrap(~default=DType.any)
 
   let liveValue = (id: id) => Analysis.getLiveValue'(p.analysisStore, id)
@@ -454,16 +458,16 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
   | TFnName(id, _, _, fnName, Rail) =>
     let offset = string_of_int(ti.startRow) ++ "rem"
     let icon = switch (returnTipe(fnName), liveValue(id)) {
-    | (TResult(_), Some(DErrorRail(DResult(Error(_))))) => ViewUtils.darkIcon("result-error")
-    | (TResult(_), v) if isEvalSuccess(v) => ViewUtils.darkIcon("result-ok")
-    | (TOption(_), Some(DErrorRail(DOption(None)))) => ViewUtils.darkIcon("option-nothing")
-    | (TOption(_), v) if isEvalSuccess(v) => ViewUtils.darkIcon("option-just")
+    | (TResult(_), Some(DErrorRail(DResult(Error(_))))) => Icons.darkIcon("result-error")
+    | (TResult(_), v) if isEvalSuccess(v) => Icons.darkIcon("result-ok")
+    | (TOption(_), Some(DErrorRail(DOption(None)))) => Icons.darkIcon("option-nothing")
+    | (TOption(_), v) if isEvalSuccess(v) => Icons.darkIcon("option-just")
     | _ => Vdom.noNode
     }
 
     let event = Vdom.noProp
     /* TEMPORARY DISABLE
-          ViewUtils.eventNoPropagation
+          EventListeners.eventNoPropagation
             ~key:("er-" ^ show_id id)
             "click"
             (fun _ -> TakeOffErrorRail (tlid, id)) */

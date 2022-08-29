@@ -418,7 +418,7 @@ module WorkerStats = {
 @ppx.deriving(show({with_path: false}))
 type rec avDict = ID.Map.t<Tc.Map.String.t<ID.t>>
 
-and analysisStore = Types.loadable<PerformAnalysis.IntermediateResultStore.t>
+and analysisStore = Loadable.t<PerformAnalysis.IntermediateResultStore.t, string>
 
 // indexed by traceID
 and analyses = Tc.Map.String.t<analysisStore>

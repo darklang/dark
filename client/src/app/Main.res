@@ -71,12 +71,10 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     userContentHost,
     environment,
     csrfToken,
-    isAdmin,
     buildHash,
     username,
   }: InitialParameters.t = InitialParameters.fromString(encodedParamString)
 
-  let variants = VariantTesting.enabledVariantTests(isAdmin)
   let m = SavedSettings.load(canvasName) |> SavedSettings.toModel
   let m = SavedUserSettings.load(username) |> SavedUserSettings.toModel(m)
   let userTutorial = if m.firstVisitToDark && m.tooltipState.userTutorial.step == None {
@@ -100,23 +98,21 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
       {usedFns: m.usedFns, userFunctions: m.userFunctions},
     ),
     complete: AC.init(m),
-    tests: variants,
     handlers: TLID.Dict.empty,
     dbs: TLID.Dict.empty,
-    canvasName,
-    userContentHost,
+    canvasName: canvasName,
+    userContentHost: userContentHost,
     origin: location.origin,
-    environment,
-    csrfToken,
+    environment: environment,
+    csrfToken: csrfToken,
     browserId: manageBrowserId(),
     clientOpCtrId: createClientOpCtrId,
-    isAdmin,
-    buildHash,
-    username,
+    buildHash: buildHash,
+    username: username,
     teaDebuggerEnabled: Url.isDebugging(),
     unsupportedBrowser: Entry.unsupportedBrowser(),
     fluidState: Fluid.initAC(m.fluidState),
-    tooltipState: {...m.tooltipState, userTutorial},
+    tooltipState: {...m.tooltipState, userTutorial: userTutorial},
   }
 
   let initCmd = {
@@ -167,7 +163,7 @@ module CrossComponentCalls = {
   type t = (model, cmd)
 
   let setToast = ((m, prevCmd): t, message: option<string>, pos: option<VPos.t>): t => {
-    ({...m, toast: {message, pos}}, prevCmd)
+    ({...m, toast: {message: message, pos: pos}}, prevCmd)
   }
 
   let setPage = ((m, prevCmd): t, page: Url.page): t => {
@@ -196,7 +192,7 @@ module CrossComponentCalls = {
   }
 
   let setCursorState = ((m, prevCmd): t, cursorState: AppTypes.CursorState.t): t => {
-    ({...m, cursorState}, prevCmd)
+    ({...m, cursorState: cursorState}, prevCmd)
   }
 
   let setPanning = ((m, prevCmd): t, panning: bool): t => {
@@ -318,7 +314,7 @@ let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, A
       string_of_int(complete.index) ++ (" => '" ++ (val_ ++ "'")),
     )
   }
-  ({...m, complete}, focus)
+  ({...m, complete: complete}, focus)
 }
 
 let applyOpsToClient = (updateCurrent, p: APIAddOps.Params.t, r: APIAddOps.t): list<
@@ -465,7 +461,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
       let m = {
         ...m,
-        cursorState,
+        cursorState: cursorState,
         fluidState: maybeNewFluidState |> Option.unwrap(~default=m.fluidState),
       }
 
@@ -516,7 +512,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
     | OpenOmnibox(pos) =>
       let (cursorState, target) = (CS.Omnibox(pos), None)
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState}
+      let m = {...m, cursorState: cursorState}
       (m, Cmd.batch(list{acCmd, CursorState.focusEntry(m)}))
     | Enter(tlid, id) =>
       let (cursorState, target) = switch TL.getPD(m, tlid, id) {
@@ -525,7 +521,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       }
 
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState}
+      let m = {...m, cursorState: cursorState}
       let (m, afCmd) = Analysis.analyzeFocused(m)
       (m, Cmd.batch(list{afCmd, acCmd, CursorState.focusEntry(m)}))
     | EnterWithOffset(tlid, id, offset) =>
@@ -535,7 +531,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       }
 
       let (m, acCmd) = processAutocompleteMods(m, list{ACSetTarget(target)})
-      let m = {...m, cursorState}
+      let m = {...m, cursorState: cursorState}
       let (m, afCmd) = Analysis.analyzeFocused(m)
       (m, Cmd.batch(list{afCmd, acCmd, CursorState.focusEntryWithOffset(m, offset)}))
     | RemoveToplevel(tl) => (Toplevel.remove(m, tl), Cmd.none)
@@ -602,7 +598,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
     | UpdateAnalysis(traceID, dvals) =>
       let m = {
         ...m,
-        analyses: Analysis.record(m.analyses, traceID, LoadableSuccess(dvals)),
+        analyses: Analysis.record(m.analyses, traceID, Loadable.Success(dvals)),
       }
 
       let (m, _) = updateMod(Fluid.update(m, FluidUpdateAutocomplete), (m, Cmd.none))
@@ -681,7 +677,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
           bringBackCurrentTL(oldM, m)
         }
         let m = Refactor.updateUsageCounts(m)
-        let props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
+        let props: Functions.props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
         let m = {...m, functions: Functions.update(props, m.functions)}
         processAutocompleteMods(m, list{ACRegenerate})
       }
@@ -714,8 +710,8 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
       let m4 = Refactor.updateUsageCounts(m3)
       processAutocompleteMods(m4, list{ACRegenerate})
-    | SetPermission(permission) => ({...m, permission}, Cmd.none)
-    | SetUnlockedDBs(unlockedDBs) => ({...m, unlockedDBs}, Cmd.none)
+    | SetPermission(permission) => ({...m, permission: permission}, Cmd.none)
+    | SetUnlockedDBs(unlockedDBs) => ({...m, unlockedDBs: unlockedDBs}, Cmd.none)
     | AppendUnlockedDBs(
         newDBs,
       ) => /* You probably don't want to use this, you probably want to wait for the
@@ -790,9 +786,9 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
         {
           ...m,
           cursorState: PanningCanvas({
-            viewportStart,
-            viewportCurr,
-            prevCursorState,
+            viewportStart: viewportStart,
+            viewportCurr: viewportCurr,
+            prevCursorState: prevCursorState,
           }),
         },
         Cmd.none,
@@ -809,11 +805,11 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
           switch Analysis.getArguments(m, tl, id, traceID) {
           | Some(args) =>
             let params: APIExecution.Function.Params.t = {
-              tlid,
+              tlid: tlid,
               callerID: id,
-              traceID,
+              traceID: traceID,
               fnName: name,
-              args,
+              args: args,
             }
 
             (m, API.executeFunction(m, params))
@@ -839,8 +835,8 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
     | MoveCanvasTo(offset, panAnimation) =>
       let newCanvasProps = {
         ...m.canvasProps,
-        offset,
-        panAnimation,
+        offset: offset,
+        panAnimation: panAnimation,
         lastOffset: Some(m.canvasProps.offset),
       }
 
@@ -866,7 +862,10 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       | Some(traceID, Ok(traceData)) =>
         let handlerProps = RT.setHandlerExeState(tlid, Executing, m.handlerProps)
 
-        ({...m, handlerProps}, API.triggerHandler(m, {tlid, traceID, input: traceData.input}))
+        (
+          {...m, handlerProps: handlerProps},
+          API.triggerHandler(m, {tlid: tlid, traceID: traceID, input: traceData.input}),
+        )
       | _ => (m, Cmd.none)
       }
     | InitIntrospect(tls) => (Introspect.refreshUsages(m, List.map(~f=TL.id, tls)), Cmd.none)
@@ -877,7 +876,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       )
     | FluidCommandsClose =>
       let cp = FluidCommands.reset(m)
-      ({...m, fluidState: {...m.fluidState, cp, selectionStart: None}}, Cmd.none)
+      ({...m, fluidState: {...m.fluidState, cp: cp, selectionStart: None}}, Cmd.none)
     | FluidStartClick => ({...m, fluidState: {...m.fluidState, midClick: true}}, Cmd.none)
     | FluidEndClick => ({...m, fluidState: {...m.fluidState, midClick: false}}, Cmd.none)
     | Apply(fn) =>
@@ -890,7 +889,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
     | UpdateASTCache(tlid, str) =>
       let searchCache = m.searchCache |> Map.update(~key=tlid, ~f=_ => Some(str))
 
-      ({...m, searchCache}, Cmd.none)
+      ({...m, searchCache: searchCache}, Cmd.none)
     | InitASTCache(handlers, userFunctions) =>
       let hcache = handlers |> List.fold(~initial=m.searchCache, ~f=(cache, h: PT.Handler.t) => {
         let value = FluidPrinter.eToHumanString(FluidAST.toExpr(h.ast))
@@ -907,8 +906,8 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
         cache |> Map.add(~key=f.tlid, ~value)
       })
 
-      ({...m, searchCache}, Cmd.none)
-    | FluidSetState(fluidState) => ({...m, fluidState}, Cmd.none)
+      ({...m, searchCache: searchCache}, Cmd.none)
+    | FluidSetState(fluidState) => ({...m, fluidState: fluidState}, Cmd.none)
     | TLMenuUpdate(tlid, msg) => (TLMenu.update(m, tlid, msg), Cmd.none)
     // applied from left to right
     | Many(mods) =>
@@ -948,7 +947,7 @@ let update_ = (msg: msg, m: model): modification => {
   | AutocompleteClick(index) =>
     switch CursorState.unwrap(m.cursorState) {
     | Entering(tlid, id) =>
-      let newcomplete = {...m.complete, index}
+      let newcomplete = {...m.complete, index: index}
       let newm = {...m, complete: newcomplete}
       Entry.submit(newm, tlid, id, Entry.StayHere)
     | _ => NoChange
@@ -985,9 +984,9 @@ let update_ = (msg: msg, m: model): modification => {
       Many(list{
         Viewport.moveCanvasBy(m, dx, dy),
         PanCanvas({
-          viewportStart,
+          viewportStart: viewportStart,
           viewportCurr: viewportNext,
-          prevCursorState,
+          prevCursorState: prevCursorState,
         }),
       })
     | _ => NoChange
@@ -1002,8 +1001,10 @@ let update_ = (msg: msg, m: model): modification => {
       // Clicking on the raw canvas should keep you selected to functions/types in their space
       let defaultBehaviour = Select(tlid, STTopLevelRoot)
       switch CursorState.unwrap(m.cursorState) {
-      | Entering(tlid, id) =>
-        // If we click away from an entry box, commit it before doing the default behaviour
+      | Entering(
+          tlid,
+          id,
+        ) => // If we click away from an entry box, commit it before doing the default behaviour
         list{Entry.commit(m, tlid, id), defaultBehaviour}
       | _ => list{defaultBehaviour}
       }
@@ -1015,16 +1016,17 @@ let update_ = (msg: msg, m: model): modification => {
         | Deselected =>
           let openAt = Some(Viewport.toAbsolute(m, event.mePos))
           list{AutocompleteMod(ACReset), Entry.openOmnibox(~openAt, ())}
-        | Entering(tlid, id) =>
-          // If we click away from an entry box, commit it before doing the default behaviour
+        | Entering(
+            tlid,
+            id,
+          ) => // If we click away from an entry box, commit it before doing the default behaviour
           list{Entry.commit(m, tlid, id), defaultBehaviour}
         | _ => list{defaultBehaviour}
         }
       } else {
         list{}
       }
-    | SettingsModal(_) =>
-      // Click handled in component
+    | SettingsModal(_) => // Click handled in component
       list{}
     }
 
@@ -1385,7 +1387,7 @@ let update_ = (msg: msg, m: model): modification => {
       ReplaceAllModificationsWithThisOne(
         m => {
           let settings =
-            m.settingsView
+            m.settings
             ->Settings.setInviter(m.username, r.account.name)
             ->Settings.setCanvasesInfo(r.canvasList, m.username, r.orgs, r.orgCanvasList)
           (
@@ -1393,7 +1395,7 @@ let update_ = (msg: msg, m: model): modification => {
               ...m,
               opCtrs: r.opCtrs,
               account: r.account,
-              settingsView: settings,
+              settings: settings,
               secrets: r.secrets,
             },
             Cmd.none,
@@ -1450,7 +1452,7 @@ let update_ = (msg: msg, m: model): modification => {
         m => {
           let handlerProps = RT.setHandlerExeState(params.tlid, Complete, m.handlerProps)
 
-          ({...m, handlerProps}, Cmd.none)
+          ({...m, handlerProps: handlerProps}, Cmd.none)
         },
       ),
     })
@@ -1470,7 +1472,7 @@ let update_ = (msg: msg, m: model): modification => {
           |> List.map(~f=(pkg: PT.Package.Fn.t) => (pkg.tlid, pkg))
           |> TLID.Dict.fromList
 
-        let props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
+        let props: Functions.props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
         let m = {...m, functions: Functions.setPackages(pkgs, props, m.functions)}
 
         /* We need to update the list of usages due to package manager functions.
@@ -1480,7 +1482,7 @@ let update_ = (msg: msg, m: model): modification => {
       },
     )
   | InsertSecretCallback(Ok(secrets)) =>
-    ReplaceAllModificationsWithThisOne(m => ({...m, secrets}, Cmd.none))
+    ReplaceAllModificationsWithThisOne(m => ({...m, secrets: secrets}, Cmd.none))
   | NewTracePush(traceID, tlids) =>
     let traces = List.map(~f=tlid => (tlid, list{(traceID, Error(TraceError.NoneYet))}), tlids)
 
@@ -1683,7 +1685,7 @@ let update_ = (msg: msg, m: model): modification => {
           ~value={count: result.count, schedule: None},
           m.workerStats,
         )
-        ({...m, workerStats}, Cmd.none)
+        ({...m, workerStats: workerStats}, Cmd.none)
       },
     )
   | AddOpsAPICallback(_, params, Error(err)) =>
@@ -1781,8 +1783,8 @@ let update_ = (msg: msg, m: model): modification => {
     let aHandler: PT.Handler.t = {
       ast: FluidAST.ofExpr(ast),
       spec: SpecHeaders.fromBlankOrs((B.newF(space), B.newF(path), Some(B.newF(modifier)))),
-      tlid,
-      pos,
+      tlid: tlid,
+      pos: pos,
     }
 
     let traces = List.fold(
@@ -1904,7 +1906,7 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne(
       m => {
         let cp = FluidCommands.filter(m, query, m.fluidState.cp)
-        ({...m, fluidState: {...m.fluidState, cp}}, Cmd.none)
+        ({...m, fluidState: {...m.fluidState, cp: cp}}, Cmd.none)
       },
     )
   | FluidMsg(FluidCommandsClick(cmd)) =>
@@ -1924,7 +1926,7 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne(
       m => {
         let handlerProps = RT.setHandlerExeState(tlid, Idle, m.handlerProps)
-        ({...m, handlerProps}, Cmd.none)
+        ({...m, handlerProps: handlerProps}, Cmd.none)
       },
     )
   | CopyCurl(tlid, pos) => CurlCommand.copyCurlMod(m, tlid, pos)
@@ -1963,14 +1965,15 @@ let update_ = (msg: msg, m: model): modification => {
   | UpdateWorkerScheduleCallback(Error(_)) =>
     Model.updateErrorMod(Error.set("Failed to update worker schedule"))
   | NewTabFromTLMenu(url, tlid) =>
-    Native.Window.openUrl(url, "_blank")
+    let window = Webapi.Dom.window
+    let _: option<Webapi.Dom.Window.t> = window->Webapi.Dom.Window.open_(~url, ~name="_blank", ())
     TLMenuUpdate(tlid, CloseMenu)
   | SettingsMsg(msg) =>
     ReplaceAllModificationsWithThisOne(
       m => {
         let wrapCmd = cmd => Tea.Cmd.map(msg => AppTypes.Msg.SettingsMsg(msg), cmd)
-        let (settingsView, effect) = Settings.update(m.settingsView, msg)
-        let m = {...m, settingsView}
+        let (settings, effect) = Settings.update(m.settings, msg)
+        let m = {...m, settings: settings}
         switch effect {
         | Some(InviteIntent(Some(UpdateToast(toast)))) =>
           (m, Cmd.none)->CCC.setToast(Some(toast), None)
@@ -1995,6 +1998,7 @@ let update_ = (msg: msg, m: model): modification => {
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
 
         | Some(ContributingIntent(SettingsContributing.Intent.UseAssetsIntent()))
+        | Some(ContributingIntent(SettingsContributing.Intent.ToolsIntent()))
         | Some(InviteIntent(None))
         | None => (m, Cmd.none)
         }
@@ -2057,7 +2061,7 @@ let update = (m: model, msg: msg): (model, AppTypes.cmd) => {
   // END HACK
   SavedSettings.save(m)
   SavedUserSettings.save(m)
-  ({...newm, lastMsg: msg, fluidState: {...newm.fluidState, activeEditor}}, newc)
+  ({...newm, lastMsg: msg, fluidState: {...newm.fluidState, activeEditor: activeEditor}}, newc)
 }
 
 let subscriptions = (m: model): Tea.Sub.t<msg> => {
@@ -2067,22 +2071,21 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   // before they're triggered
   | DraggingTL(id, _, _, _) =>
     let listenerKey = "mouse_moves_" ++ TLID.toString(id)
-    list{BrowserListeners.DarkMouse.moves(~key=listenerKey, event => DragToplevel(id, event))}
+    list{BrowserSubscriptions.DarkMouse.moves(~key=listenerKey, event => DragToplevel(id, event))}
   | PanningCanvas(_) =>
     let listenerKey = "mouse_drag"
-    list{BrowserListeners.DarkMouse.moves(~key=listenerKey, event => AppMouseDrag(event))}
+    list{BrowserSubscriptions.DarkMouse.moves(~key=listenerKey, event => AppMouseDrag(event))}
   | _ => list{}
   }
 
   let windowMouseSubs = list{
-    BrowserListeners.Window.Mouse.ups(~key="win_mouse_up", event => WindowMouseUp(event)),
+    BrowserSubscriptions.Window.Mouse.ups(~key="win_mouse_up", event => WindowMouseUp(event)),
   }
 
   let timers = if m.editorSettings.runTimers {
     switch m.visibility {
     | Hidden => list{}
-    | Visible =>
-      list{
+    | Visible => list{
         Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => AppTypes.Msg.TimerFire(
           RefreshAnalysis,
           f,
@@ -2098,11 +2101,11 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let onError = list{
-    BrowserListeners.DisplayClientError.listen(~key="display_client_error", s => JSError(s)),
+    BrowserSubscriptions.DisplayClientError.listen(~key="display_client_error", s => JSError(s)),
   }
 
   let visibility = list{
-    BrowserListeners.Window.OnFocusChange.listen(~key="window_on_focus_change", v =>
+    BrowserSubscriptions.Window.OnFocusChange.listen(~key="window_on_focus_change", v =>
       if v {
         PageVisibilityChange(Visible)
       } else {
@@ -2112,7 +2115,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let mousewheelSubs = if m.canvasProps.enablePan && !isACOpened(m) {
-    list{BrowserListeners.OnWheel.listen(~key="on_wheel", ((dx, dy)) => MouseWheel(dx, dy))}
+    list{BrowserSubscriptions.OnWheel.listen(~key="on_wheel", ((dx, dy)) => MouseWheel(dx, dy))}
   } else {
     list{}
   }
@@ -2129,18 +2132,19 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let clipboardSubs = // We want the default copy/paste behaviors on the settings modal
-  if m.settingsView.opened || m.insertSecretModal.visible {
+  if m.settings.opened || m.insertSecretModal.visible {
     list{}
   } else {
     list{
-      BrowserListeners.Clipboard.copyListener(
+      BrowserSubscriptions.Clipboard.copyListener(
         ~key="copy_event",
         e => AppTypes.Msg.ClipboardCopyEvent(e),
       ),
-      BrowserListeners.Clipboard.cutListener(~key="cut_event", e => AppTypes.Msg.ClipboardCutEvent(
-        e,
-      )),
-      BrowserListeners.Clipboard.pasteListener(~key="paste_event", e => {
+      BrowserSubscriptions.Clipboard.cutListener(
+        ~key="cut_event",
+        e => AppTypes.Msg.ClipboardCutEvent(e),
+      ),
+      BrowserSubscriptions.Clipboard.pasteListener(~key="paste_event", e => {
         e["preventDefault"]()
         AppTypes.Msg.ClipboardPasteEvent(e)
       }),
@@ -2169,8 +2173,8 @@ let debugging = {
       init: a => init(a, Tea.Navigation.getLocation()),
       view: View.view,
       renderCallback: Fluid.renderCallback,
-      update,
-      subscriptions,
+      update: update,
+      subscriptions: subscriptions,
       shutdown: _ => Cmd.none,
     },
   )
@@ -2191,11 +2195,11 @@ let debugging = {
 
 let normal = {
   let program: Tea.Navigation.navigationProgram<string, model, AppTypes.msg> = {
-    init,
+    init: init,
     view: View.view,
-    update,
+    update: update,
     renderCallback: Fluid.renderCallback,
-    subscriptions,
+    subscriptions: subscriptions,
     shutdown: _ => Cmd.none,
   }
 
