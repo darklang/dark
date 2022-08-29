@@ -3960,7 +3960,7 @@ let doExplicitInsert = (
     | (ARPattern(_, PPTuple(kind)), PTuple(_pID, first, second, theRest)) =>
       let allPats = list{first, second, ...theRest}
 
-      // CLEANUP: lots. I just hacked this until it worked, then walked away.
+      // CLEANUP TUPLETODO: this feels like it can be reasonably shorter
 
       let elIndex =
         switch kind {
@@ -3975,10 +3975,12 @@ let doExplicitInsert = (
         switch handlePatBlank() {
         | None => None
         | Some (newPat, ct) =>
-          let allPatsWithReplacement = allPats  |> List.updateAt (~f=(_p) => newPat, ~index=elIndex)
+          let allPatsWithReplacement =
+            allPats |> List.updateAt (~f=(_p) => newPat, ~index=elIndex)
 
           switch allPatsWithReplacement {
-          | list{first, second, ...theRest} => Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), ct)
+          | list{first, second, ...theRest} =>
+            Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), ct)
           | _ => None
           }
         }
@@ -5602,8 +5604,6 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           | list{(id, value, "pattern-variable")} => PVariable(id, value)
           | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
             // temporarily assuming that PConstructor's sub-pattern tokens are always copied as well
-
-            // I don't understand why there's a tested constructor pattern here?
             PConstructor(
               id,
               value,
