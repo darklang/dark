@@ -134,11 +134,12 @@ module Token = {
     | TPatternTrue(ID.t, ID.t, int)
     | TPatternFalse(ID.t, ID.t, int)
 
+    | TPatternNullToken(ID.t, ID.t, int)
 
-    | TPatternNullToken(ID.t, ID.t, int)// why is 'token' in this name
     | TPatternFloatWhole(ID.t, ID.t, string, int)
     | TPatternFloatPoint(ID.t, ID.t, int)
     | TPatternFloatFractional(ID.t, ID.t, string, int)
+    
     | TPatternBlank(ID.t, ID.t, int)
 
     | TPatternTupleOpen(ID.t)
@@ -147,7 +148,6 @@ module Token = {
 
     | TConstructorName(ID.t, string)
 
-    // do we even use these?
     | TParenOpen(ID.t)
     | TParenClose(ID.t)
 

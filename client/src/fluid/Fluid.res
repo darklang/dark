@@ -33,7 +33,7 @@ open ProgramTypes.Expr
 open ProgramTypes.Pattern
 
 // TUPLETODO re-enable
-let allowUserToCreateTuple = true
+let allowUserToCreateTuple = false
 
 // --------------------
 // Utils
