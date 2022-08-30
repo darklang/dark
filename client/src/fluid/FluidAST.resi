@@ -42,17 +42,24 @@ let map: (~f: FluidExpression.t => FluidExpression.t, t) => t
   * See FluidExpression.replace ")
 let replace: (~replacement: FluidExpression.t, ID.t, t) => t
 
-@ocaml.doc(" [update f target ast] recursively searches [ast] for the expression having
-  * an id of [target].
-  *
-  * If found, replaces the expression with the result of [f e] and returns the
-  * new AST. If not found, will asserT before returning the unmodified [ast].
-  *
-  * Passing failIfMissing=false will skip the asserT and silently return an
-  * unmodified AST.
-  *
-  * See FluidExpression.update ")
-let update: (~failIfMissing: bool=?, ~f: FluidExpression.t => FluidExpression.t, ID.t, t) => t
+@ocaml.doc(" [update fExpr fPat target ast] recursively searches [ast] for the
+  expression or pattern having an id of [target].
+
+  If found, replaces the expression/pattern with the result of [f e] and
+  returns the new AST. If not found, will asserT before returning the
+  unmodified [ast].
+
+  Passing failIfMissing=false will skip the asserT and silently return an
+  unmodified AST.
+
+  See FluidExpression.update ")
+let update: (
+  ~failIfMissing: bool=?,
+  ~fExpr: FluidExpression.t => FluidExpression.t,
+  //~fPat: FluidPattern.t => FluidPattern.t,
+  ID.t,
+  t,
+) => t
 
 @ocaml.doc(" [filter ast ~f] recursively calls [f] on every expression within [ast],
   * returning a list of all expressions for which [f e] is true.

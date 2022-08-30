@@ -98,7 +98,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): AppTypes.modification 
   }
 
   TL.getAST(tl)
-  |> Option.map(~f=\">>"(FluidAST.update(~f=replacement, id), TL.setASTMod(tl)))
+  |> Option.map(~f=\">>"(FluidAST.update(~fExpr=replacement, id), TL.setASTMod(tl)))
   |> Option.unwrap(~default=Mod.NoChange)
 }
 
@@ -106,11 +106,14 @@ let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
   TL.getAST(tl)
   |> Option.map(~f=ast =>
     ast
-    |> FluidAST.update(id, ~f=x =>
-      switch x {
-      | EFnCall(_, name, exprs, Rail) => EFnCall(id, name, exprs, NoRail)
-      | e => recover("incorrect id in takeoffRail", e)
-      }
+    |> FluidAST.update(
+      ~fExpr=x =>
+        switch x {
+        | EFnCall(_, name, exprs, Rail) => EFnCall(id, name, exprs, NoRail)
+        | e => recover("incorrect id in takeoffRail", e)
+        },
+      
+      id,
     )
     |> TL.setASTMod(tl)
   )
@@ -125,11 +128,15 @@ let isRailable = (m: model, name: FQFnName.t) =>
 let putOnRail = (m: model, tl: toplevel, id: id): modification =>
   // Only toggle onto rail iff. return tipe is TOption or TResult
   TL.modifyASTMod(tl, ~f=ast =>
-    FluidAST.update(id, ast, ~f=x =>
-      switch x {
-      | EFnCall(_, name, exprs, NoRail) if isRailable(m, name) => EFnCall(id, name, exprs, Rail)
-      | e => e
-      }
+    FluidAST.update(
+      ~fExpr=x =>
+        switch x {
+        | EFnCall(_, name, exprs, NoRail) if isRailable(m, name) => EFnCall(id, name, exprs, Rail)
+        | e => e
+        },
+
+      id,
+      ast,
     )
   )
 
@@ -170,10 +177,13 @@ let extractVarInAst = (
     switch lastPlaceWithSameVarsAndValues {
     | Some(last) =>
       ast
-      |> FluidAST.update(FluidExpression.toID(last), ~f=x =>
-        switch x {
-        | last => ELet(gid(), varname, FluidExpression.clone(e), last)
-        }
+      |> FluidAST.update(
+        ~fExpr=x =>
+          switch x {
+          | last => ELet(gid(), varname, FluidExpression.clone(e), last)
+          },
+
+        FluidExpression.toID(last),
       )
       |> FluidAST.replace(FluidExpression.toID(e), ~replacement=EVariable(gid(), varname))
     | None => ast
