@@ -218,58 +218,89 @@ module UseAssets = {
 // -------------------
 module General = {
   @ppx.deriving(show)
-  type rec t = {
-    showSidebarDebuggerPanel: bool,
-    allowTuples: bool
-  }
+  type rec t = {showSidebarDebuggerPanel: bool}
 
   @ppx.deriving(show)
-  type rec msg =
-    | SetSidebarPanel(bool)
-    | SetTuplesAllowed(bool)
+  type rec msg = SetSidebarPanel(bool)
 
   @ppx.deriving(show)
   type rec intent = unit
 
   let default = {
     showSidebarDebuggerPanel: false,
-    allowTuples: false
   }
 
   let toSaved = (state: t) => {
     open Json.Encode
-    object_(list{
-      ("showSidebarDebuggerPanel", bool(state.showSidebarDebuggerPanel)),
-      ("allowTuples", bool(state.allowTuples))
-    })
+    object_(list{("showSidebarDebuggerPanel", bool(state.showSidebarDebuggerPanel))})
   }
   let fromSaved = (j: Js.Json.t) => {
     open Json.Decode
     {
       showSidebarDebuggerPanel: field("showSidebarDebuggerPanel", bool, j),
+    }
+  }
+
+  let init = () => Tea.Cmd.none
+
+  let update = (_state: t, msg: msg): (t, intent) =>
+    switch msg {
+    | SetSidebarPanel(v) => ({showSidebarDebuggerPanel: v}, ())
+    }
+}
+
+// -------------------
+// Toggle to preview in-progress features
+// -------------------
+module InProgressFeatures = {
+  @ppx.deriving(show)
+  type rec t = {allowTuples: bool}
+
+  @ppx.deriving(show)
+  type rec msg = SetTuplesAllowed(bool)
+
+  @ppx.deriving(show)
+  type rec intent = unit
+
+  let default = {
+    allowTuples: false,
+  }
+
+  let toSaved = (state: t) => {
+    open Json.Encode
+    object_(list{("allowTuples", bool(state.allowTuples))})
+  }
+  let fromSaved = (j: Js.Json.t) => {
+    open Json.Decode
+    {
       allowTuples: field("allowTuples", bool, j),
     }
   }
 
   let init = () => Tea.Cmd.none
 
-  let update = (state: t, msg: msg): (t, intent) =>
+  let update = (_state: t, msg: msg): (t, intent) =>
     switch msg {
-    | SetSidebarPanel(v) => ({...state, showSidebarDebuggerPanel: v}, ())
-    | SetTuplesAllowed(v) => ({...state, allowTuples: v}, ())
+    | SetTuplesAllowed(v) => ({allowTuples: v}, ())
     }
 }
 
 let title = "Contributing"
 
 @ppx.deriving(show)
-type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t, general: General.t}
+type rec t = {
+  tunnelHost: TunnelHost.t,
+  useAssets: UseAssets.t,
+  general: General.t,
+  inProgressFeatures: InProgressFeatures.t,
+}
 
 @ppx.deriving(show)
 type rec msg =
   | TunnelHostMsg(TunnelHost.msg)
   | UseAssetsMsg(UseAssets.msg)
   | GeneralMsg(General.msg)
+  | InProgressFeaturesMsg(InProgressFeatures.msg)
 
 module Intent = {
   @ppx.deriving(show)
@@ -277,12 +308,14 @@ module Intent = {
     | TunnelHostIntent(TunnelHost.Intent.t<'msg>)
     | UseAssetsIntent(UseAssets.intent)
     | GeneralIntent(General.intent)
+    | InProgressFeaturesIntent(InProgressFeatures.intent)
 
   let map = (i: t<'msg>, f: 'msg1 => 'msg2): t<'msg2> => {
     switch i {
     | TunnelHostIntent(i) => TunnelHostIntent(TunnelHost.Intent.map(i, f))
     | UseAssetsIntent(i) => UseAssetsIntent(i)
     | GeneralIntent(i) => GeneralIntent(i)
+    | InProgressFeaturesIntent(i) => InProgressFeaturesIntent(i)
     }
   }
 }
@@ -291,6 +324,7 @@ let default = {
   tunnelHost: TunnelHost.default,
   useAssets: UseAssets.default,
   general: General.default,
+  inProgressFeatures: InProgressFeatures.default
 }
 
 let toSaved = ({general, _}: t) => {
@@ -324,4 +358,7 @@ let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
   | GeneralMsg(msg) =>
     let (general, intent) = General.update(s.general, msg)
     ({...s, general: general}, GeneralIntent(intent))
+  | InProgressFeaturesMsg(msg) =>
+    let (inProgressFeatures, intent) = InProgressFeatures.update(s.inProgressFeatures, msg)
+    ({...s, inProgressFeatures: inProgressFeatures}, InProgressFeaturesIntent(intent))
   }

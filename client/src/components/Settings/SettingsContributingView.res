@@ -39,11 +39,9 @@ let viewSidebarDebuggerToggle = (showSidebarDebuggerPanel: bool): Html.html<AppT
     )
     C.toggleButton(attr, showSidebarDebuggerPanel)
   }
-  let info = Some(
-    "Show a menu in the (closed) sidebar with debugging options. These are
+  let info = Some("Show a menu in the (closed) sidebar with debugging options. These are
     useful when working on the Darklang client (note they are not typically
-    useful for writing Darklang code)",
-  )
+    useful for writing Darklang code)")
   C.settingRow("Show debugging options", ~info, ~error=None, list{toggle})
 }
 
@@ -54,25 +52,26 @@ let viewAllowTuples = (allowTuples: bool): Html.html<AppTypes.msg> => {
       "click",
       _ => Msg.SettingsMsg(
         Settings.ContributingMsg(
-          SettingsContributing.GeneralMsg(T.General.SetTuplesAllowed(!allowTuples)),
+          SettingsContributing.InProgressFeaturesMsg(
+            T.InProgressFeatures.SetTuplesAllowed(!allowTuples),
+          ),
         ),
       ),
     )
     C.toggleButton(attr, allowTuples)
   }
-  let info = Some(
-    "Tuples are currently being added to the Dark language - with this setting
-    on, you'll be able to use tuples in your Dark code before the user
-    experience around them is stable.",
-  )
+  let info = Some("Tuples are currently being added to the Dark language - with
+    this setting on, you'll be able to use tuples in your Dark code before the
+    user experience around them is stable.")
   C.settingRow("Enable tuples", ~info, ~error=None, list{toggle})
 }
 
-let viewGeneral = (ui: T.General.t): list<Html.html<AppTypes.msg>> => {
-  list{
-    viewSidebarDebuggerToggle(ui.showSidebarDebuggerPanel),
-    viewAllowTuples(ui.allowTuples)
-  }
+let viewGeneral = (s: T.General.t): list<Html.html<AppTypes.msg>> => {
+  list{viewSidebarDebuggerToggle(s.showSidebarDebuggerPanel)}
+}
+
+let viewInProgressFeatures = (s: T.InProgressFeatures.t): list<Html.html<AppTypes.msg>> => {
+  list{viewAllowTuples(s.allowTuples)}
 }
 
 let viewTunnelSectionHeader = {
@@ -148,6 +147,8 @@ let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
     list{viewIntroText},
     list{C.sectionHeading("General", None)},
     viewGeneral(s.general),
+    list{C.sectionHeading("In-Progress Features", None)},
+    viewInProgressFeatures(s.inProgressFeatures),
     viewTunnelSectionHeader,
     list{viewTunnelHost(s.tunnelHost)},
     list{viewTunnelToggle(s.useAssets)},

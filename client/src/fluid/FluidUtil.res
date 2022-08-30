@@ -3,7 +3,7 @@ open Prelude
 let propsFromModel = (m: AppTypes.model): FluidTypes.Props.t => {
   functions: m.functions,
   settings: {
-    allowTuples: m.settings.contributingSettings.general.allowTuples
+    allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples
   },
 }
 
