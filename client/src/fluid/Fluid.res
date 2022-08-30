@@ -4358,7 +4358,7 @@ let rec updateKey = (
   props: FluidTypes.Props.t,
   inputEvent: FT.Msg.inputEvent,
   astInfo: ASTInfo.t,
-) => {
+): ASTInfo.t => {
   // These might be the same token
   let origAstInfo = astInfo
   let pos = astInfo.state.newPos
@@ -4732,6 +4732,42 @@ let rec updateKey = (
   // existing pattern.
   // We can probably borrow some things from doPatternBackspace, since it also
   // updates patterns?
+  | (InsertText(","), L(TPatternTupleOpen(id), _), _) if onEdge =>
+    // Case: right after a tuple pattern's opening `(`
+    let blankID = gid()
+    let newExpr = EBlank(blankID)
+
+    astInfo
+    |> ASTInfo.setAST(insertInTuple(~index=0, id, ~newExpr, astInfo.ast))
+    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
+
+  | (InsertText(","), L(_, _ti), R(TPatternTupleComma(_, _), _)) if onEdge =>
+    // Case: just to the left of a tuple pattern's separator `,`
+    moveOneRight(pos, astInfo)
+
+  | (InsertText(","), L(TPatternTupleComma(id, index), _), R(_, ti)) if onEdge =>
+    // Case: just to the right of a tuple's pattern's separator `,`
+    let indexToInsertInto = index + 1
+
+    let astInfo = acEnter(props, ti, K.Enter, astInfo)
+
+    let blankID = gid()
+    let newExpr = EBlank(blankID)
+
+    astInfo
+    |> ASTInfo.setAST(insertInTuple(~index=indexToInsertInto, id, ~newExpr, astInfo.ast))
+    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
+
+  | (InsertText(","), L(_, ti), R(TPatternTupleClose(id), _)) if onEdge =>
+    // Case: right before the tuple pattern's closing `)`
+    let astInfo = acEnter(props, ti, K.Enter, astInfo)
+
+    let blankID = gid()
+    let newExpr = EBlank(blankID)
+
+    astInfo
+    |> ASTInfo.setAST(insertAtTupleEnd(id, ~newExpr, astInfo.ast))
+    |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
   //
   // Add another param to a lambda

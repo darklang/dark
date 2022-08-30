@@ -128,13 +128,13 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
-// TODO: rename to `patternToTokens``
-let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
+// TODO: rename to `patternToTokens`
+let rec patternToTokens = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
   open FluidTypes.Token
   switch p {
   | PVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
   | PConstructor(id, name, args) =>
-    let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(matchID, a, ~idx)})
+    let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToTokens(matchID, a, ~idx)})
 
     List.flatten(list{list{TPatternConstructorName(matchID, id, name, idx)}, ...args})
   | PInteger(id, i) => list{TPatternInteger(matchID, id, i, idx)}
@@ -147,7 +147,7 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
   | PString(id, str) => list{
       TPatternString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
-  | PCharacter(_) => recover("pchar not supported in patternToToken", list{})
+  | PCharacter(_) => recover("pchar not supported in patternToTokens", list{})
   | PFloat(id, sign, whole, fraction) =>
     let whole = switch sign {
     | Positive => whole
@@ -176,7 +176,7 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
         let isLastPattern = i == subPatternCount - 1
-        let subpatternTokens = patternToToken(matchID, p, ~idx)
+        let subpatternTokens = patternToTokens(matchID, p, ~idx)
 
         if isLastPattern {
           subpatternTokens
@@ -613,7 +613,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       |> addIter(pairs, ~f=(i, (pattern, expr), b) =>
         b
         |> addNewlineIfNeeded(Some(id, id, Some(i)))
-        |> addMany(patternToToken(id, pattern, ~idx=i))
+        |> addMany(patternToTokens(id, pattern, ~idx=i))
         |> add(
           TMatchBranchArrow({
             matchID: id,
