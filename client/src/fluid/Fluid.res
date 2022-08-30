@@ -3804,7 +3804,7 @@ let doExplicitInsert = (
         PVariable(newID, extendedGraphemeCluster),
         {astRef: ARPattern(newID, PPVariable), offset: caretDelta},
       )
-    } else if extendedGraphemeCluster == "(" && allowUserToCreateTuple {
+    } else if extendedGraphemeCluster == "(" && settings.allowTuples {
       Some(
         PTuple(newID, PBlank(gid()), PBlank(gid()), list{}),
         {astRef: ARPattern(newID, PPTuple(TPOpen)), offset: 1},
