@@ -303,9 +303,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                 |> List.map (fun (dv, pat) -> checkPattern dv pat)
                 |> List.unzip3
 
-              let allPass = passResults |> List.forall (fun arg -> arg)
-              let allVars = newVarResults |> List.collect (fun arg -> arg)
-              let allSubTraces = traceResults |> List.collect (fun arg -> arg)
+              let allPass = passResults |> List.forall Fun.identity
+              let allVars = newVarResults |> List.collect Fun.identity
+              let allSubTraces = traceResults |> List.collect Fun.identity
 
               if allPass then
                 true, allVars, (id, dv) :: allSubTraces
