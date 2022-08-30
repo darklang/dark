@@ -170,19 +170,12 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
   | PTuple(id, first, second, theRest) =>
     let subPatterns = list{first, second, ...theRest}
 
-    // CLEANUP: this is likely not the most efficient way to handle this.
-    // List.intersperce was _almost_ what I needed, but doesn't provide context
-    // of the index, needed for the `TPatternTupleComma`s. This is what I want:
-    // let middlePart' =
-    //   subPatterns
-    //   |> List.mapWithIndex(~f=(i, p) => patternToToken(matchID, p, ~idx))
-    //   |> List.intersperseWithIndex(~sepFn=(i) => TPatternTupleComma(id, i))
-    //   |> List.flatten
+    let subPatternCount = List.length(subPatterns)
 
     let middlePart =
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
-        let isLastPattern = i == (List.length(subPatterns) - 1)
+        let isLastPattern = i == subPatternCount - 1
         let subpatternTokens = patternToToken(matchID, p, ~idx)
 
         if isLastPattern {
