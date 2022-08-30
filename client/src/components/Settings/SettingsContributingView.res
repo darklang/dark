@@ -26,23 +26,52 @@ let viewIntroText = {
   )
 }
 
-let viewTools = (ui: T.Tools.t): Html.html<AppTypes.msg> => {
+let viewSidebarDebuggerToggle = (showSidebarDebuggerPanel: bool): Html.html<AppTypes.msg> => {
   let toggle = {
     let attr = EventListeners.eventNoPropagation(
-      ~key=`toggle-settings-${string_of_bool(ui.showSidebarPanel)}`,
+      ~key=`toggle-sidebar-debugger-${string_of_bool(showSidebarDebuggerPanel)}`,
       "click",
       _ => Msg.SettingsMsg(
         Settings.ContributingMsg(
-          SettingsContributing.ToolsMsg(T.Tools.SetSidebarPanel(!ui.showSidebarPanel)),
+          SettingsContributing.GeneralMsg(T.General.SetSidebarPanel(!showSidebarDebuggerPanel)),
         ),
       ),
     )
-    C.toggleButton(attr, ui.showSidebarPanel)
+    C.toggleButton(attr, showSidebarDebuggerPanel)
   }
-  let info = Some(
-    "Show a menu in the (closed) sidebar with debugging options. These are useful when working on the Darklang client (note they are not typically useful for writing Darklang code)",
-  )
+  let info = Some("Show a menu in the (closed) sidebar with debugging options. These are
+    useful when working on the Darklang client (note they are not typically
+    useful for writing Darklang code)")
   C.settingRow("Show debugging options", ~info, ~error=None, list{toggle})
+}
+
+let viewAllowTuples = (allowTuples: bool): Html.html<AppTypes.msg> => {
+  let toggle = {
+    let attr = EventListeners.eventNoPropagation(
+      ~key=`toggle-allow-tuples-${string_of_bool(allowTuples)}`,
+      "click",
+      _ => Msg.SettingsMsg(
+        Settings.ContributingMsg(
+          SettingsContributing.InProgressFeaturesMsg(
+            T.InProgressFeatures.SetTuplesAllowed(!allowTuples),
+          ),
+        ),
+      ),
+    )
+    C.toggleButton(attr, allowTuples)
+  }
+  let info = Some("Tuples are currently being added to the Dark language - with
+    this setting on, you'll be able to use tuples in your Dark code before the
+    user experience around them is stable.")
+  C.settingRow("Enable tuples", ~info, ~error=None, list{toggle})
+}
+
+let viewGeneral = (s: T.General.t): list<Html.html<AppTypes.msg>> => {
+  list{C.sectionHeading("General", None), viewSidebarDebuggerToggle(s.showSidebarDebuggerPanel)}
+}
+
+let viewInProgressFeatures = (s: T.InProgressFeatures.t): list<Html.html<AppTypes.msg>> => {
+  list{C.sectionHeading("In-Progress Features", None),viewAllowTuples(s.allowTuples)}
 }
 
 let viewTunnelSectionHeader = {
@@ -113,13 +142,19 @@ let viewTunnelToggle = (s: T.UseAssets.t): Html.html<AppTypes.msg> => {
   C.settingRow("Use tunneled assets", ~info=None, ~error=None, list{toggle})
 }
 
+let viewTunnelSection = (s: T.t): list<Html.html<AppTypes.msg>> => {
+  Belt.List.concatMany([
+    viewTunnelSectionHeader,
+    list{viewTunnelHost(s.tunnelHost)},
+    list{viewTunnelToggle(s.useAssets)}
+  ])
+}
+
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
   Belt.List.concatMany([
     list{viewIntroText},
-    list{C.sectionHeading("Tools", None)},
-    list{viewTools(s.tools)},
-    viewTunnelSectionHeader,
-    list{viewTunnelHost(s.tunnelHost)},
-    list{viewTunnelToggle(s.useAssets)},
+    viewGeneral(s.general),
+    viewInProgressFeatures(s.inProgressFeatures),
+    viewTunnelSection(s)
   ])
 }

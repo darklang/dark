@@ -2,7 +2,9 @@ open Prelude
 
 let propsFromModel = (m: AppTypes.model): FluidTypes.Props.t => {
   functions: m.functions,
-  settings: m.settings,
+  settings: {
+    allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples
+  },
 }
 
 let orderRangeFromSmallToBig = ((rangeBegin, rangeEnd): (int, int)): (int, int) =>

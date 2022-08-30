@@ -216,9 +216,9 @@ module UseAssets = {
 // -------------------
 // Toggle to show contributor UI
 // -------------------
-module Tools = {
+module General = {
   @ppx.deriving(show)
-  type rec t = {showSidebarPanel: bool}
+  type rec t = {showSidebarDebuggerPanel: bool}
 
   @ppx.deriving(show)
   type rec msg = SetSidebarPanel(bool)
@@ -226,50 +226,96 @@ module Tools = {
   @ppx.deriving(show)
   type rec intent = unit
 
-  let default = {showSidebarPanel: false}
+  let default = {
+    showSidebarDebuggerPanel: false,
+  }
 
-  let toSaved = ({showSidebarPanel}: t) => {
+  let toSaved = (state: t) => {
     open Json.Encode
-    object_(list{("showSidebarPanel", bool(showSidebarPanel))})
+    object_(list{("showSidebarDebuggerPanel", bool(state.showSidebarDebuggerPanel))})
   }
   let fromSaved = (j: Js.Json.t) => {
     open Json.Decode
     {
-      showSidebarPanel: field("showSidebarPanel", bool, j),
+      showSidebarDebuggerPanel: field("showSidebarDebuggerPanel", bool, j),
     }
   }
 
   let init = () => Tea.Cmd.none
 
-  let update = (_: t, msg: msg): (t, intent) =>
+  let update = (_state: t, msg: msg): (t, intent) =>
     switch msg {
-    | SetSidebarPanel(v) => ({showSidebarPanel: v}, ())
+    | SetSidebarPanel(v) => ({showSidebarDebuggerPanel: v}, ())
+    }
+}
+
+// -------------------
+// Toggle to preview in-progress features
+// -------------------
+module InProgressFeatures = {
+  @ppx.deriving(show)
+  type rec t = {allowTuples: bool}
+
+  @ppx.deriving(show)
+  type rec msg = SetTuplesAllowed(bool)
+
+  @ppx.deriving(show)
+  type rec intent = unit
+
+  let default = {
+    allowTuples: false,
+  }
+
+  let toSaved = (state: t) => {
+    open Json.Encode
+    object_(list{("allowTuples", bool(state.allowTuples))})
+  }
+  let fromSaved = (j: Js.Json.t) => {
+    open Json.Decode
+    {
+      allowTuples: field("allowTuples", bool, j),
+    }
+  }
+
+  let init = () => Tea.Cmd.none
+
+  let update = (_state: t, msg: msg): (t, intent) =>
+    switch msg {
+    | SetTuplesAllowed(v) => ({allowTuples: v}, ())
     }
 }
 
 let title = "Contributing"
 
 @ppx.deriving(show)
-type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t, tools: Tools.t}
+type rec t = {
+  tunnelHost: TunnelHost.t,
+  useAssets: UseAssets.t,
+  general: General.t,
+  inProgressFeatures: InProgressFeatures.t,
+}
 
 @ppx.deriving(show)
 type rec msg =
   | TunnelHostMsg(TunnelHost.msg)
   | UseAssetsMsg(UseAssets.msg)
-  | ToolsMsg(Tools.msg)
+  | GeneralMsg(General.msg)
+  | InProgressFeaturesMsg(InProgressFeatures.msg)
 
 module Intent = {
   @ppx.deriving(show)
   type rec t<'msg> =
     | TunnelHostIntent(TunnelHost.Intent.t<'msg>)
     | UseAssetsIntent(UseAssets.intent)
-    | ToolsIntent(Tools.intent)
+    | GeneralIntent(General.intent)
+    | InProgressFeaturesIntent(InProgressFeatures.intent)
 
   let map = (i: t<'msg>, f: 'msg1 => 'msg2): t<'msg2> => {
     switch i {
     | TunnelHostIntent(i) => TunnelHostIntent(TunnelHost.Intent.map(i, f))
     | UseAssetsIntent(i) => UseAssetsIntent(i)
-    | ToolsIntent(i) => ToolsIntent(i)
+    | GeneralIntent(i) => GeneralIntent(i)
+    | InProgressFeaturesIntent(i) => InProgressFeaturesIntent(i)
     }
   }
 }
@@ -277,19 +323,24 @@ module Intent = {
 let default = {
   tunnelHost: TunnelHost.default,
   useAssets: UseAssets.default,
-  tools: Tools.default,
+  general: General.default,
+  inProgressFeatures: InProgressFeatures.default
 }
 
-let toSaved = ({tools, _}: t) => {
+let toSaved = (s: t) => {
   open Json.Encode
-  object_(list{("tools", Tools.toSaved(tools))})
+  object_(list{
+    ("general", General.toSaved(s.general)),
+    ("inProgressFeatures", InProgressFeatures.toSaved(s.inProgressFeatures))
+  })
 }
 
 let fromSaved = (j: Js.Json.t) => {
   open Json.Decode
   {
     ...default,
-    tools: field("tools", Tools.fromSaved, j),
+    general: field("general", General.fromSaved, j),
+    inProgressFeatures: field("inProgressFeatures", InProgressFeatures.fromSaved, j),
   }
 }
 
@@ -308,7 +359,10 @@ let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
     let (tunnelHost, intent) = TunnelHost.update(s.tunnelHost, msg)
     let intent = TunnelHost.Intent.map(intent, msg => TunnelHostMsg(msg))
     ({...s, tunnelHost: tunnelHost}, TunnelHostIntent(intent))
-  | ToolsMsg(msg) =>
-    let (tools, intent) = Tools.update(s.tools, msg)
-    ({...s, tools: tools}, ToolsIntent(intent))
+  | GeneralMsg(msg) =>
+    let (general, intent) = General.update(s.general, msg)
+    ({...s, general: general}, GeneralIntent(intent))
+  | InProgressFeaturesMsg(msg) =>
+    let (inProgressFeatures, intent) = InProgressFeatures.update(s.inProgressFeatures, msg)
+    ({...s, inProgressFeatures: inProgressFeatures}, InProgressFeaturesIntent(intent))
   }

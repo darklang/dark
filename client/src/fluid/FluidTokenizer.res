@@ -823,7 +823,6 @@ module ASTInfo = {
     state: AppTypes.fluidState,
     mainTokenInfos: tokenInfos,
     featureFlagTokenInfos: list<(id, tokenInfos)>,
-    props: FluidTypes.Props.t,
   }
 
   let setAST = (ast: FluidAST.t, astInfo: t): t =>
@@ -871,16 +870,15 @@ module ASTInfo = {
   let getTokenNotWhitespace = (astInfo: t): option<T.tokenInfo> =>
     getTokenNotWhitespace(activeTokenInfos(astInfo), astInfo.state)
 
-  let emptyFor = (props: FluidTypes.Props.t, state: fluidState): t => {
+  let emptyFor = (state: fluidState): t => {
     ast: FluidAST.ofExpr(Expr.EBlank(gid())),
     state: state,
     mainTokenInfos: list{},
     featureFlagTokenInfos: list{},
-    props: props,
   }
 
-  let make = (props: FluidTypes.Props.t, ast: FluidAST.t, s: fluidState): t =>
-    emptyFor(props, s) |> setAST(ast)
+  let make = (ast: FluidAST.t, s: fluidState): t =>
+    emptyFor(s) |> setAST(ast)
 
   let exprOfActiveEditor = (astInfo: t): FluidExpression.t =>
     switch astInfo.state.activeEditor {

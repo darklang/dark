@@ -404,7 +404,7 @@ let process = (inputs: list<FluidTypes.Msg.inputEvent>, tc: TestCase.t): TestRes
     Js.log2("state before ", FluidUtils.debugState(tc.state))
     Js.log2("expr before", FluidAST.toExpr(tc.ast) |> FluidPrinter.eToStructure(~includeIDs=true))
   }
-  let result = Fluid.ASTInfo.make(defaultTestProps, tc.ast, tc.state) |> processMsg(inputs)
+  let result = Fluid.ASTInfo.make(tc.ast, tc.state) |> processMsg(inputs)
 
   let resultAST = FluidAST.map(result.ast, ~f=x =>
     switch x {
@@ -534,7 +534,7 @@ let tStruct = (
   test(name, () => {
     let state = {...defaultTestState, oldPos: pos, newPos: pos, selectionStart: None}
 
-    let astInfo = Fluid.ASTInfo.make(defaultTestProps, FluidAST.ofExpr(ast), state)
+    let astInfo = Fluid.ASTInfo.make(FluidAST.ofExpr(ast), state)
 
     let astInfo = processMsg(inputs, astInfo)
     expect(FluidAST.toExpr(astInfo.ast))
@@ -4069,7 +4069,7 @@ let run = () => {
       ()
     })
 
-    if Fluid.allowUserToCreateTuple {
+    if defaultTestProps.settings.allowTuples {
       describe("create", () => {
         t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
         t("create and fill in tuple", b, ~pos=0, insMany(list{"(", "1", ",", "2", ")"}), "(1,2)~")
@@ -5037,9 +5037,9 @@ let run = () => {
     test("backspace on partial will open AC if query matches", () => {
       let ast = FluidAST.ofExpr(let'("request", aShortInt, aPartialVar))
       let astInfo =
-        ASTInfo.make(defaultTestProps, ast, defaultTestState)
+        ASTInfo.make(ast, defaultTestState)
         |> moveTo(19)
-        |> updateKey(keypress(K.Down))
+        |> updateKey(defaultTestProps, keypress(K.Down))
         |> processMsg(list{DeleteContentBackward})
 
       let result = ASTInfo.activeTokenInfos(astInfo) |> Printer.tokensToString
@@ -5064,7 +5064,7 @@ let run = () => {
     let tokens = FluidTokenizer.tokenize(compoundExpr)
     let len = tokens |> List.map(~f=(ti: T.tokenInfo) => ti.token) |> length
     let ast = compoundExpr |> FluidAST.ofExpr
-    let astInfo = ASTInfo.make(defaultTestProps, ast, defaultTestState)
+    let astInfo = ASTInfo.make(ast, defaultTestState)
     test("gridFor - 1", () => expect(gridFor(~pos=116, tokens)) |> toEqual({row: 2, col: 2}))
     test("gridFor - 2", () => expect(gridFor(~pos=70, tokens)) |> toEqual({row: 0, col: 70}))
     test("gridFor - 3", () => expect(gridFor(~pos=129, tokens)) |> toEqual({row: 2, col: 15}))
@@ -5165,18 +5165,18 @@ let run = () => {
       expect(
         astInfo
         |> moveTo(143)
-        |> updateKey(keypress(K.Up))
-        |> updateKey(keypress(K.Up))
-        |> updateKey(keypress(K.Up))
+        |> updateKey(defaultTestProps, keypress(K.Up))
+        |> updateKey(defaultTestProps, keypress(K.Up))
+        |> updateKey(defaultTestProps, keypress(K.Up))
         |> (astInfo => astInfo.state.newPos),
       ) |> toEqual(13)
     )
     test("down goes through the autocomplete", () =>
       expect(
         moveTo(14, astInfo)
-        |> updateKey(keypress(K.Down))
-        |> updateKey(keypress(K.Down))
-        |> updateKey(keypress(K.Down))
+        |> updateKey(defaultTestProps, keypress(K.Down))
+        |> updateKey(defaultTestProps, keypress(K.Down))
+        |> updateKey(defaultTestProps, keypress(K.Down))
         |> (astInfo => astInfo.state.newPos),
       ) |> toEqual(144)
     )
@@ -5191,7 +5191,7 @@ let run = () => {
 
           updateAutocomplete(m, h.tlid, astInfo)
         })
-        |> updateMouseClick(0)
+        |> updateMouseClick(defaultTestProps, 0)
         |> (
           astInfo =>
             switch FluidAST.toExpr(astInfo.ast) {
@@ -5233,19 +5233,19 @@ let run = () => {
     )
     test("escape hides autocomplete", () =>
       expect(
-        ASTInfo.make(defaultTestProps, FluidAST.ofExpr(b), s)
+        ASTInfo.make(FluidAST.ofExpr(b), s)
         |> moveTo(0)
-        |> updateKey(InsertText("r"))
-        |> updateKey(keypress(K.Escape))
+        |> updateKey(defaultTestProps, InsertText("r"))
+        |> updateKey(defaultTestProps, keypress(K.Escape))
         |> (astInfo => astInfo.state.ac.index),
       ) |> toEqual(None)
     )
     test("right/left brings back autocomplete", () => {
-      let astInfo = ASTInfo.make(defaultTestProps, FluidAST.ofExpr(b), s)
+      let astInfo = ASTInfo.make(FluidAST.ofExpr(b), s)
       expect(
         moveTo(0, astInfo)
-        |> updateKey(InsertText("r"))
-        |> updateKey(keypress(K.Escape))
+        |> updateKey(defaultTestProps, InsertText("r"))
+        |> updateKey(defaultTestProps, keypress(K.Escape))
         |> (astInfo => astInfo.state.ac.index),
       ) |> toEqual(None)
     })
