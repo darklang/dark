@@ -67,11 +67,11 @@ let viewAllowTuples = (allowTuples: bool): Html.html<AppTypes.msg> => {
 }
 
 let viewGeneral = (s: T.General.t): list<Html.html<AppTypes.msg>> => {
-  list{viewSidebarDebuggerToggle(s.showSidebarDebuggerPanel)}
+  list{C.sectionHeading("General", None), viewSidebarDebuggerToggle(s.showSidebarDebuggerPanel)}
 }
 
 let viewInProgressFeatures = (s: T.InProgressFeatures.t): list<Html.html<AppTypes.msg>> => {
-  list{viewAllowTuples(s.allowTuples)}
+  list{C.sectionHeading("In-Progress Features", None),viewAllowTuples(s.allowTuples)}
 }
 
 let viewTunnelSectionHeader = {
@@ -142,15 +142,19 @@ let viewTunnelToggle = (s: T.UseAssets.t): Html.html<AppTypes.msg> => {
   C.settingRow("Use tunneled assets", ~info=None, ~error=None, list{toggle})
 }
 
+let viewTunnelSection = (s: T.t): list<Html.html<AppTypes.msg>> => {
+  Belt.List.concatMany([
+    viewTunnelSectionHeader,
+    list{viewTunnelHost(s.tunnelHost)},
+    list{viewTunnelToggle(s.useAssets)}
+  ])
+}
+
 let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
   Belt.List.concatMany([
     list{viewIntroText},
-    list{C.sectionHeading("General", None)},
     viewGeneral(s.general),
-    list{C.sectionHeading("In-Progress Features", None)},
     viewInProgressFeatures(s.inProgressFeatures),
-    viewTunnelSectionHeader,
-    list{viewTunnelHost(s.tunnelHost)},
-    list{viewTunnelToggle(s.useAssets)},
+    viewTunnelSection(s)
   ])
 }
