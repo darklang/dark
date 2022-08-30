@@ -9,7 +9,6 @@ open Prelude
 open RuntimeTypes
 open Prelude
 
-
 /// Gathers any global data (Secrets, DBs, etc.)
 /// that may be needed to evaluate an expression
 let globalsFor (state : ExecutionState) : Symtable =
@@ -303,9 +302,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                 |> List.map (fun (dv, pat) -> checkPattern dv pat)
                 |> List.unzip3
 
-              let allPass = passResults |> List.forall Fun.identity
-              let allVars = newVarResults |> List.collect Fun.identity
-              let allSubTraces = traceResults |> List.collect Fun.identity
+              let allPass = passResults |> List.forall identity
+              let allVars = newVarResults |> List.collect identity
+              let allSubTraces = traceResults |> List.collect identity
 
               if allPass then
                 true, allVars, (id, dv) :: allSubTraces
