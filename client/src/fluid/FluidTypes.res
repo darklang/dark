@@ -320,7 +320,6 @@ module State = {
   }
 }
 
-
 module FluidSettings = {
   type t = {
     allowTuples: bool
@@ -330,7 +329,6 @@ module FluidSettings = {
     allowTuples: false
   }
 }
-
 
 module Props = {
   type rec t = {

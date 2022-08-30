@@ -85,7 +85,7 @@ let astInfoFromModelAndTLID = (~removeTransientState=true, m: model, tlid: TLID.
       newM.fluidState
     }
 
-    ASTInfo.make(FluidUtil.propsFromModel(m), ast, state)
+    ASTInfo.make(ast, state)
   })
 }
 
@@ -1352,7 +1352,10 @@ let addMatchPatternAt = (matchId: id, idx: int, astInfo: ASTInfo.t): ASTInfo.t =
  * blanks or placeholders, which are identical
  * except for when creating lambdas.
  */
-let insBlankOrPlaceholderHelper' = (settings: FluidTypes.FluidSettings.t ,ins: string): option<(E.t, CT.t)> =>
+let insBlankOrPlaceholderHelper' = (settings: FluidTypes.FluidSettings.t, ins: string): option<(
+  E.t,
+  CT.t,
+)> =>
   if ins == " " || ins == "," {
     None
   } else if ins == "\\" {
@@ -1395,7 +1398,10 @@ let insBlankOrPlaceholderHelper' = (settings: FluidTypes.FluidSettings.t ,ins: s
  * used to replace a blank when inserting the text [ins], or
  * None if the text shouldn't replace the blank.
  */
-let maybeInsertInBlankExpr = (settings: FluidTypes.FluidSettings.t, ins: string): option<(E.t, CT.t)> =>
+let maybeInsertInBlankExpr = (settings: FluidTypes.FluidSettings.t, ins: string): option<(
+  E.t,
+  CT.t,
+)> =>
   if ins == "\\" {
     let newID = gid()
     Some(
@@ -2392,6 +2398,7 @@ let acMoveBasedOnKey = (key: K.key, currCaretTarget: CT.t, astInfo: ASTInfo.t): 
 }
 
 let updateFromACItem = (
+  props: FluidTypes.Props.t,
   entry: AC.item,
   ti: T.tokenInfo,
   key: K.key,
@@ -2401,7 +2408,6 @@ let updateFromACItem = (
   let id = T.tid(ti.token)
   let (newPatOrExpr, newTarget) = acToPatternOrExpr(entry)
   let ast = astInfo.ast
-  let props = astInfo.props
   let oldExpr = FluidAST.find(id, ast)
   let parent = FluidAST.findParent(id, ast)
   let (newAST, target) = switch (ti.token, oldExpr, parent, newPatOrExpr) {
@@ -2520,7 +2526,12 @@ let updateFromACItem = (
   |> acMoveBasedOnKey(key, target)
 }
 
-let acEnter = (ti: T.tokenInfo, key: K.key, astInfo: ASTInfo.t): ASTInfo.t => {
+let acEnter = (
+  props: FluidTypes.Props.t,
+  ti: T.tokenInfo,
+  key: K.key,
+  astInfo: ASTInfo.t,
+): ASTInfo.t => {
   let astInfo = recordAction("acEnter", astInfo)
   switch AC.highlighted(astInfo.state.ac) {
   | None =>
@@ -2539,42 +2550,51 @@ let acEnter = (ti: T.tokenInfo, key: K.key, astInfo: ASTInfo.t): ASTInfo.t => {
     }
   | Some(FACCreateFunction(_)) =>
     recover("FACNewfunction should be dealt with outside fluid.ml", astInfo)
-  | Some(entry) => updateFromACItem(entry, ti, key, astInfo)
+  | Some(entry) => updateFromACItem(props, entry, ti, key, astInfo)
   }
 }
 
-let acClick = (entry: AC.item, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t =>
-  updateFromACItem(entry, ti, K.Enter, astInfo)
+let acClick = (
+  props: FluidTypes.Props.t,
+  entry: AC.item,
+  ti: T.tokenInfo,
+  astInfo: ASTInfo.t,
+): ASTInfo.t => updateFromACItem(props, entry, ti, K.Enter, astInfo)
 
 /* If `newPos` is outside `ti`, and `ti` matches the current autocomplete entry
  * perfectly, then select and commit that autocomplete entry */
-let commitIfValid = (newPos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
+let commitIfValid = (
+  props: FluidTypes.Props.t,
+  newPos: int,
+  ti: T.tokenInfo,
+  astInfo: ASTInfo.t,
+): ASTInfo.t => {
   let highlightedText = astInfo.state.ac |> AC.highlighted |> Option.map(~f=AC.asName)
 
   let isInside = newPos >= ti.startPos && newPos <= ti.endPos
   /* TODO: if we can't move off because it's the start/end etc of the ast, we
    * may want to commit anyway. */
   if !isInside && (Some(T.toText(ti.token)) == highlightedText || T.isFieldPartial(ti.token)) {
-    acEnter(ti, K.Enter, astInfo)
+    acEnter(props, ti, K.Enter, astInfo)
   } else {
     astInfo
   }
 }
 
-let acMaybeCommit = (newPos: int, astInfo: ASTInfo.t): ASTInfo.t =>
+let acMaybeCommit = (~newPos: int, props: FluidTypes.Props.t, astInfo: ASTInfo.t): ASTInfo.t =>
   switch astInfo.state.ac.query {
-  | Some(_, ti) => commitIfValid(newPos, ti, astInfo)
+  | Some(_, ti) => commitIfValid(props, newPos, ti, astInfo)
   | None => astInfo
   }
 
 /* Convert the expr ti into a FieldAccess, using the currently
  * selected Autocomplete value */
-let acStartField = (ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
+let acStartField = (props: FluidTypes.Props.t, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
   let astInfo = recordAction("acStartField", astInfo)
   switch (AC.highlighted(astInfo.state.ac), ti.token) {
   | (Some(FACField(_) as entry), TFieldName(faID, _, _, _))
   | (Some(FACField(_) as entry), TFieldPartial(_, faID, _, _, _)) =>
-    let astInfo = updateFromACItem(entry, ti, K.Enter, astInfo)
+    let astInfo = updateFromACItem(props, entry, ti, K.Enter, astInfo)
     let (ast, target) = exprToFieldAccess(faID, ~partialID=gid(), ~fieldID=gid(), astInfo.ast)
 
     astInfo |> ASTInfo.setAST(ast) |> moveToCaretTarget(target) |> acClear
@@ -3379,11 +3399,8 @@ let doExplicitInsert = (
   settings: FluidTypes.FluidSettings.t,
   extendedGraphemeCluster: string,
   currCaretTarget: CT.t,
-  ast: FluidAST.t
-): (
-  FluidAST.t,
-  newPosition,
-) => {
+  ast: FluidAST.t,
+): (FluidAST.t, newPosition) => {
   let {astRef: currAstRef, offset: currOffset} = currCaretTarget
   let caretDelta = extendedGraphemeCluster |> String.length
   let currCTPlusLen: CT.t = {astRef: currAstRef, offset: currOffset + caretDelta}
@@ -3923,14 +3940,20 @@ let doExplicitInsert = (
   |> Option.unwrap(~default=(ast, SamePlace))
 }
 
-let doInsert = (~pos: int, letter: string, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
+let doInsert = (
+  ~pos: int,
+  props: FluidTypes.Props.t,
+  letter: string,
+  ti: T.tokenInfo,
+  astInfo: ASTInfo.t,
+): ASTInfo.t => {
   let astInfo =
     astInfo
     |> recordAction(~pos, "doInsert")
     |> ASTInfo.modifyState(~f=s => {...s, upDownCol: None})
 
   let (newAST, newPosition) = switch caretTargetFromTokenInfo(pos, ti) {
-  | Some(ct) => doExplicitInsert(astInfo.props.settings, letter, ct, astInfo.ast)
+  | Some(ct) => doExplicitInsert(props.settings, letter, ct, astInfo.ast)
   | None => (astInfo.ast, SamePlace)
   }
 
@@ -3951,7 +3974,13 @@ let doInsert = (~pos: int, letter: string, ti: T.tokenInfo, astInfo: ASTInfo.t):
  * Otherwise (especially if we are in the middle of an expr), we
  * defer to the behavior of doInsert.
  ")
-let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
+let doInfixInsert = (
+  ~pos,
+  props: FluidTypes.Props.t,
+  infixTxt: string,
+  ti: T.tokenInfo,
+  astInfo: ASTInfo.t,
+): ASTInfo.t => {
   let astInfo =
     astInfo
     |> recordAction(~pos, "doInfixInsert")
@@ -4060,7 +4089,7 @@ let doInfixInsert = (~pos, infixTxt: string, ti: T.tokenInfo, astInfo: ASTInfo.t
     |> ASTInfo.setAST(FluidAST.replace(replaceID, ~replacement=newExpr, astInfo.ast))
     |> moveToCaretTarget(newCaretTarget)
   )
-  |> Option.orElseLazy(() => Some(doInsert(~pos, infixTxt, ti, astInfo)))
+  |> Option.orElseLazy(() => Some(doInsert(~pos, props, infixTxt, ti, astInfo)))
   |> recoverOpt("doInfixInsert - can't return None due to lazy Some", ~default=astInfo)
 }
 
@@ -4175,7 +4204,12 @@ let maybeOpenCmd = (m: model): AppTypes.modification => {
   Option.unwrap(mod', ~default=NoChange)
 }
 
-let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: ASTInfo.t) => {
+let rec updateKey = (
+  ~recursing=false,
+  props: FluidTypes.Props.t,
+  inputEvent: FT.Msg.inputEvent,
+  astInfo: ASTInfo.t,
+) => {
   // These might be the same token
   let origAstInfo = astInfo
   let pos = astInfo.state.newPos
@@ -4243,17 +4277,17 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
   | (Keypress({key, _}), L(_, ti), _)
     if isAutocompleting(ti, astInfo.state) &&
     list{K.Enter, K.Tab, K.ShiftTab, K.Space} |> List.member(~value=key) =>
-    acEnter(ti, key, astInfo)
+    acEnter(props, ti, key, astInfo)
   | (Keypress({key, _}), _, R(_, ti))
     if isAutocompleting(ti, astInfo.state) &&
     list{K.Enter, K.Tab, K.ShiftTab, K.Space} |> List.member(~value=key) =>
-    acEnter(ti, key, astInfo)
+    acEnter(props, ti, key, astInfo)
   /* When we type a letter/number after an infix operator, complete and
    * then enter the number/letter. */
   | (InsertText(txt), L(TRightPartial(_, _, _), ti), _) if onEdge && Util.isIdentifierChar(txt) =>
-    let astInfo = acEnter(ti, K.Tab, astInfo)
+    let astInfo = acEnter(props, ti, K.Tab, astInfo)
     getLeftTokenAt(astInfo.state.newPos, astInfo |> ASTInfo.activeTokenInfos |> List.reverse)
-    |> Option.map(~f=ti => doInsert(~pos, txt, ti, astInfo))
+    |> Option.map(~f=ti => doInsert(~pos, props, txt, ti, astInfo))
     |> Option.unwrap(~default=astInfo)
   /*
    * Special autocomplete entries
@@ -4292,17 +4326,17 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
     switch left {
     | L(TPartial(_), ti) | L(TFieldPartial(_), ti)
       if Option.is_some(AC.highlighted(astInfo.state.ac)) =>
-      astInfo |> acEnter(ti, K.Enter) |> doPipeline
+      astInfo |> acEnter(props, ti, K.Enter) |> doPipeline
     | _ => doPipeline(astInfo)
     }
   // press dot while in a variable entry
   | (InsertText("."), L(TPartial(_), ti), _)
     if Option.map(~f=AC.isVariable, AC.highlighted(astInfo.state.ac)) == Some(true) =>
-    acStartField(ti, astInfo)
+    acStartField(props, ti, astInfo)
   | (InsertText("."), L(TFieldPartial(_), ti), _)
   | (InsertText("."), _, R(TFieldPartial(_), ti))
     if Option.map(~f=AC.isField, AC.highlighted(astInfo.state.ac)) == Some(true) =>
-    acStartField(ti, astInfo)
+    acStartField(props, ti, astInfo)
   // ******************
   // CARET NAVIGATION
   // ******************
@@ -4355,14 +4389,14 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
   // ***********
   // OVERWRITE
   // ***********
-  | (ReplaceText(txt), _, _) => replaceText(txt, astInfo)
+  | (ReplaceText(txt), _, _) => replaceText(props, txt, astInfo)
   // ***********
   // DELETION
   // ***********
   // Delete selection
   | (DeleteContentBackward, _, _) | (DeleteContentForward, _, _)
     if Option.isSome(astInfo.state.selectionStart) =>
-    deleteSelection(astInfo)
+    deleteSelection(props, astInfo)
   // Special-case hack for deleting rows of a match or record
   | (DeleteContentBackward, _, R(TRecordFieldname({fieldName: "", _}), ti))
   | (DeleteContentBackward, L(TNewline(_), _), R(TPatternBlank(_), ti)) =>
@@ -4390,8 +4424,8 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
            For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
            K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. */
     switch getOptionalSelectionRange(astInfo.state) {
-    | Some(selRange) => deleteCaretRange(selRange, astInfo)
-    | None => deleteCaretRange((pos, getStartOfLineCaretPos(ti, astInfo)), astInfo)
+    | Some(selRange) => deleteCaretRange(props, selRange, astInfo)
+    | None => deleteCaretRange(props, (pos, getStartOfLineCaretPos(ti, astInfo)), astInfo)
     }
   | (DeleteSoftLineForward, _, R(_, ti)) | (DeleteSoftLineForward, L(_, ti), _) =>
     /* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
@@ -4399,15 +4433,15 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
            For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
            This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. */
     switch getOptionalSelectionRange(astInfo.state) {
-    | Some(selRange) => deleteCaretRange(selRange, astInfo)
-    | None => deleteCaretRange((pos, getEndOfLineCaretPos(ti, astInfo)), astInfo)
+    | Some(selRange) => deleteCaretRange(props, selRange, astInfo)
+    | None => deleteCaretRange(props, (pos, getEndOfLineCaretPos(ti, astInfo)), astInfo)
     }
   | (DeleteWordForward, _, R(_, ti)) =>
     switch getOptionalSelectionRange(astInfo.state) {
-    | Some(selRange) => deleteCaretRange(selRange, astInfo)
+    | Some(selRange) => deleteCaretRange(props, selRange, astInfo)
     | None =>
       let movedState = goToEndOfWord(pos, ti, astInfo)
-      let newAstInfo = deleteCaretRange((pos, movedState.state.newPos), astInfo)
+      let newAstInfo = deleteCaretRange(props, (pos, movedState.state.newPos), astInfo)
 
       if newAstInfo.ast == astInfo.ast && newAstInfo.state.newPos == pos {
         ASTInfo.modifyState(newAstInfo, ~f=_ => movedState.state)
@@ -4417,7 +4451,7 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
     }
   | (DeleteWordBackward, L(_, ti), _) =>
     switch getOptionalSelectionRange(astInfo.state) {
-    | Some(selRange) => deleteCaretRange(selRange, astInfo)
+    | Some(selRange) => deleteCaretRange(props, selRange, astInfo)
     | None =>
       let rangeStart = if T.isStringToken(ti.token) && pos !== ti.startPos {
         getBegOfWordInStrCaretPos(~pos, ti)
@@ -4425,7 +4459,7 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
         ti.startPos
       }
 
-      deleteCaretRange((rangeStart, pos), astInfo)
+      deleteCaretRange(props, (rangeStart, pos), astInfo)
     }
   // **************************************
   // SKIPPING OVER SYMBOLS BY TYPING THEM
@@ -4480,7 +4514,7 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
 
   | (InsertText(","), L(TListComma(id, index), _), R(_, ti))
   | (InsertText(","), L(_, ti), R(TListComma(id, index), _)) if onEdge => {
-      let astInfo = acEnter(ti, K.Enter, astInfo)
+      let astInfo = acEnter(props, ti, K.Enter, astInfo)
 
       let blankID = gid()
       let newExpr = EBlank(blankID)
@@ -4491,7 +4525,7 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
     }
 
   | (InsertText(","), L(_, ti), R(TListClose(id, _), _)) if onEdge =>
-    let newAstInfo = acEnter(ti, K.Enter, astInfo)
+    let newAstInfo = acEnter(props, ti, K.Enter, astInfo)
 
     let blankID = gid()
     let newExpr = EBlank(blankID)
@@ -4518,7 +4552,7 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
     // Case: just to the right of a tuple's `,`
     let indexToInsertInto = index + 1
 
-    let astInfo = acEnter(ti, K.Enter, astInfo)
+    let astInfo = acEnter(props, ti, K.Enter, astInfo)
 
     let blankID = gid()
     let newExpr = EBlank(blankID)
@@ -4529,7 +4563,7 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
 
   | (InsertText(","), L(_, ti), R(TTupleClose(id), _)) if onEdge =>
     // Case: right before the tuple's closing `)`
-    let astInfo = acEnter(ti, K.Enter, astInfo)
+    let astInfo = acEnter(props, ti, K.Enter, astInfo)
 
     let blankID = gid()
     let newExpr = EBlank(blankID)
@@ -4606,11 +4640,11 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
   | (InsertText(infixTxt), _, R(TPlaceholder(_), ti))
   | (InsertText(infixTxt), _, R(TBlank(_), ti))
   | (InsertText(infixTxt), L(_, ti), _) if keyIsInfix =>
-    doInfixInsert(~pos, infixTxt, ti, astInfo)
+    doInfixInsert(~pos, props, infixTxt, ti, astInfo)
 
   // Typing between empty list symbols []
   | (InsertText(txt), L(TListOpen(id, _), _), R(TListClose(_), _)) =>
-    let (newExpr, target) = insertInBlankExpr(astInfo.props.settings, txt)
+    let (newExpr, target) = insertInBlankExpr(props.settings, txt)
     astInfo
     |> ASTInfo.setAST(insertInList(~index=0, id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget(target)
@@ -4641,16 +4675,17 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
       ~placeholder,
       ~ins,
       astInfo.ast,
-      astInfo.props,
+      props,
     )
 
     astInfo
     |> ASTInfo.setAST(FluidAST.replace(blankID, ~replacement=newExpr, astInfo.ast))
     |> moveToCaretTarget(newTarget)
-  | (Keypress({key: K.Space, _}), _, R(_, toTheRight)) => doInsert(~pos, " ", toTheRight, astInfo)
+  | (Keypress({key: K.Space, _}), _, R(_, toTheRight)) =>
+    doInsert(~pos, props, " ", toTheRight, astInfo)
   | (InsertText(txt), L(_, toTheLeft), _) if T.isAppendable(toTheLeft.token) =>
-    doInsert(~pos, txt, toTheLeft, astInfo)
-  | (InsertText(txt), _, R(_, toTheRight)) => doInsert(~pos, txt, toTheRight, astInfo)
+    doInsert(~pos, props, txt, toTheLeft, astInfo)
+  | (InsertText(txt), _, R(_, toTheRight)) => doInsert(~pos, props, txt, toTheRight, astInfo)
 
   // *********
   // Handle K.Enter (hit Enter on keyboard)
@@ -4902,11 +4937,11 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
       if shouldCommit {
         /* To calculate the new AST, try to commit the old AST with the new
          * position. */
-        let committed = commitIfValid(astInfo.state.newPos, ti, origAstInfo)
+        let committed = commitIfValid(props, astInfo.state.newPos, ti, origAstInfo)
         /* To find out where the cursor should be, replay the movement
          * command from the old position. */
         let committed = {...committed, state: origAstInfo.state}
-        updateKey(~recursing=true, inputEvent, committed)
+        updateKey(~recursing=true, props, inputEvent, committed)
       } else {
         astInfo
       }
@@ -4924,7 +4959,11 @@ let rec updateKey = (~recursing=false, inputEvent: FT.Msg.inputEvent, astInfo: A
  * XXX(JULIAN): This actually moves the caret to the larger side of the range
  * and backspaces until the beginning, which means this hijacks the caret in
  * the state. */
-and deleteCaretRange = (caretRange: (int, int), origInfo: ASTInfo.t): ASTInfo.t => {
+and deleteCaretRange = (
+  props: FluidTypes.Props.t,
+  caretRange: (int, int),
+  origInfo: ASTInfo.t,
+): ASTInfo.t => {
   let (rangeStart, rangeEnd) = orderRangeFromSmallToBig(caretRange)
   let origInfo = ASTInfo.modifyState(origInfo, ~f=s => {
     ...s,
@@ -4936,7 +4975,7 @@ and deleteCaretRange = (caretRange: (int, int), origInfo: ASTInfo.t): ASTInfo.t 
   let oldInfo = ref(origInfo)
   let nothingChanged = ref(false)
   while !nothingChanged.contents && oldInfo.contents.state.newPos > rangeStart {
-    let newInfo = updateKey(DeleteContentBackward, oldInfo.contents)
+    let newInfo = updateKey(props, DeleteContentBackward, oldInfo.contents)
     if (
       newInfo.state.newPos == oldInfo.contents.state.newPos && newInfo.ast == oldInfo.contents.ast
     ) {
@@ -4951,11 +4990,11 @@ and deleteCaretRange = (caretRange: (int, int), origInfo: ASTInfo.t): ASTInfo.t 
 
 /* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
  forming the selection until the caret reaches the smaller of the caret positions or can no longer move. */
-and deleteSelection = (astInfo: ASTInfo.t): ASTInfo.t =>
-  deleteCaretRange(FluidUtil.getSelectionRange(astInfo.state), astInfo)
+and deleteSelection = (props: FluidTypes.Props.t, astInfo: ASTInfo.t): ASTInfo.t =>
+  deleteCaretRange(props, FluidUtil.getSelectionRange(astInfo.state), astInfo)
 
-and replaceText = (str: string, astInfo: ASTInfo.t): ASTInfo.t =>
-  astInfo |> deleteSelection |> updateKey(InsertText(str))
+and replaceText = (props: FluidTypes.Props.t, str: string, astInfo: ASTInfo.t): ASTInfo.t =>
+  astInfo |> deleteSelection(props) |> updateKey(props, InsertText(str))
 
 let updateAutocomplete = (m: model, tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
   switch ASTInfo.getToken(astInfo) {
@@ -4968,7 +5007,7 @@ let updateAutocomplete = (m: model, tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t
   | _ => astInfo
   }
 
-let updateMouseClick = (newPos: int, astInfo: ASTInfo.t): ASTInfo.t => {
+let updateMouseClick = (props: FluidTypes.Props.t, newPos: int, astInfo: ASTInfo.t): ASTInfo.t => {
   let lastPos =
     astInfo
     |> ASTInfo.activeTokenInfos
@@ -4988,7 +5027,7 @@ let updateMouseClick = (newPos: int, astInfo: ASTInfo.t): ASTInfo.t => {
   | _ => newPos
   }
 
-  astInfo |> acMaybeCommit(newPos) |> updatePosAndAC(newPos)
+  astInfo |> acMaybeCommit(~newPos, props) |> updatePosAndAC(newPos)
 }
 
 let shouldDoDefaultAction = (key: K.key): bool =>
@@ -5487,8 +5526,12 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
   reconstruct(~topmostID, (startPos, endPos))
 }
 
-let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.t => {
-  let astInfo = deleteSelection(astInfo)
+let pasteOverSelection = (
+  props: FluidTypes.Props.t,
+  data: clipboardContents,
+  astInfo: ASTInfo.t,
+): ASTInfo.t => {
+  let astInfo = deleteSelection(props, astInfo)
   let ast = astInfo.ast
   let mTi = ASTInfo.getToken(astInfo)
   let exprID = mTi |> Option.map(~f=(ti: T.tokenInfo) => ti.token |> T.tid)
@@ -5634,7 +5677,7 @@ let pasteOverSelection = (data: clipboardContents, astInfo: ASTInfo.t): ASTInfo.
           InsertText(str)
         }
 
-        updateKey(action, astInfo)
+        updateKey(props, action, astInfo)
       })
     }
   | _ => recover("pasting over non-existant handler", astInfo)
@@ -5709,12 +5752,16 @@ let updateMouseDoubleClick = (
 }
 
 // Handle either a click or the end of a selection drag
-let updateMouseUp = (eventData: FT.Msg.mouseUp, astInfo: ASTInfo.t): ASTInfo.t => {
+let updateMouseUp = (
+  props: FluidTypes.Props.t,
+  eventData: FT.Msg.mouseUp,
+  astInfo: ASTInfo.t,
+): ASTInfo.t => {
   let astInfo =
     astInfo |> ASTInfo.modifyState(~f=s => {...s, midClick: false, activeEditor: eventData.editor})
 
   switch eventData.selection {
-  | ClickAt(pos) => updateMouseClick(pos, astInfo)
+  | ClickAt(pos) => updateMouseClick(props, pos, astInfo)
   | SelectText(beginSel, endSel) =>
     ASTInfo.modifyState(astInfo, ~f=s => {
       ...s,
@@ -5726,7 +5773,11 @@ let updateMouseUp = (eventData: FT.Msg.mouseUp, astInfo: ASTInfo.t): ASTInfo.t =
 }
 
 // We completed a click outside: figure out how to complete it
-let updateMouseUpExternal = (tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
+let updateMouseUpExternal = (
+  props: FluidTypes.Props.t,
+  tlid: TLID.t,
+  astInfo: ASTInfo.t,
+): ASTInfo.t =>
   switch Entry.getFluidSelectionRange() {
   | Some(startPos, endPos) =>
     let selection = if startPos == endPos {
@@ -5741,7 +5792,7 @@ let updateMouseUpExternal = (tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t =>
       selection: selection,
     }
 
-    updateMouseUp(eventData, astInfo)
+    updateMouseUp(props, eventData, astInfo)
   | None => astInfo
   }
 
@@ -5751,15 +5802,17 @@ let updateMsg' = (
   astInfo: ASTInfo.t,
   msg: AppTypes.fluidMsg,
 ): ASTInfo.t => {
+  let props = FluidUtil.propsFromModel(m)
+
   let astInfo = switch msg {
   | FluidCloseCmdPalette
   | FluidUpdateAutocomplete => // updateAutocomplete has already been run, so nothing more to do
     astInfo
-  | FluidMouseUpExternal => updateMouseUpExternal(tlid, astInfo)
-  | FluidMouseUp(eventData) => updateMouseUp(eventData, astInfo)
+  | FluidMouseUpExternal => updateMouseUpExternal(props, tlid, astInfo)
+  | FluidMouseUp(eventData) => updateMouseUp(props, eventData, astInfo)
   | FluidMouseDoubleClick(eventData) => updateMouseDoubleClick(eventData, astInfo)
-  | FluidCut => deleteSelection(astInfo)
-  | FluidPaste(data) => pasteOverSelection(data, astInfo)
+  | FluidCut => deleteSelection(props, astInfo)
+  | FluidPaste(data) => pasteOverSelection(props, data, astInfo)
   // handle selection with direction key cases
   /* moving/selecting over expressions or tokens with shift-/alt-direction
    * or shift-/ctrl-direction */
@@ -5776,7 +5829,7 @@ let updateMsg' = (
      *
      * XXX(JULIAN): We need to be able to use alt and ctrl and meta to
      * change selection! */
-    let newAstInfo = updateKey(ievt, astInfo)
+    let newAstInfo = updateKey(props, ievt, astInfo)
     switch astInfo.state.selectionStart {
     | None =>
       let oldPos = astInfo.state.newPos
@@ -5822,7 +5875,7 @@ let updateMsg' = (
       ) => // To make sure no letters are entered if user is doing a browser default action
     astInfo
   | FluidInputEvent(Keypress({key, shiftKey, _}) as ievt) =>
-    let newAstInfo = updateKey(ievt, astInfo)
+    let newAstInfo = updateKey(props, ievt, astInfo)
     let selectionStart = if shouldSelect(key) {
       newAstInfo.state.selectionStart
     } else if shiftKey && !(key == K.ShiftEnter) {
@@ -5834,11 +5887,11 @@ let updateMsg' = (
 
     {...newAstInfo, state: {...newAstInfo.state, selectionStart: selectionStart}}
   | FluidInputEvent(InsertText(str)) if Option.is_some(astInfo.state.selectionStart) =>
-    updateKey(ReplaceText(str), astInfo)
-  | FluidInputEvent(ievt) => updateKey(ievt, astInfo)
+    updateKey(props, ReplaceText(str), astInfo)
+  | FluidInputEvent(ievt) => updateKey(props, ievt, astInfo)
   | FluidAutocompleteClick(entry) =>
     ASTInfo.getToken(astInfo)
-    |> Option.map(~f=ti => acClick(entry, ti, astInfo))
+    |> Option.map(~f=ti => acClick(props, entry, ti, astInfo))
     |> Option.unwrap(~default=astInfo)
   | FluidClearErrorDvSrc
   | FluidMouseDown(_)
@@ -5862,8 +5915,7 @@ let updateMsg = (
   s: AppTypes.fluidState,
   msg: AppTypes.fluidMsg,
 ): (FluidAST.t, AppTypes.fluidState, tokenInfos) => {
-  let props = FluidUtil.propsFromModel(m)
-  let astInfo = ASTInfo.make(props, ast, s)
+  let astInfo = ASTInfo.make(ast, s)
   let astInfo = updateMsg'(m, tlid, astInfo, msg)
   (astInfo.ast, astInfo.state, ASTInfo.activeTokenInfos(astInfo))
 }
@@ -5871,6 +5923,7 @@ let updateMsg = (
 let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
   let s = m.fluidState
   let s = {...s, error: None, oldPos: s.newPos, actions: list{}}
+
   switch msg {
   | FluidUpdateDropdownIndex(index) if FluidCommands.isOpened(m.fluidState.cp) =>
     FluidCommands.cpSetIndex(m, index)
@@ -5919,7 +5972,7 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
       }
 
       let fluidState = {
-        let astInfo = ASTInfo.make(FluidUtil.propsFromModel(m), ast, m.fluidState)
+        let astInfo = ASTInfo.make(ast, m.fluidState)
 
         let {state, _}: ASTInfo.t = moveToEndOfNonWhitespaceTarget(id, astInfo)
 
@@ -6099,7 +6152,7 @@ let cleanUp = (m: model, tlid: option<TLID.t>): (model, AppTypes.modification) =
       astInfoFromModelAndTLID(~removeTransientState=false, m, TL.id(tl))
     )
     |> Option.andThen(~f=((tl, astInfo)) => {
-      let newAstInfo = acMaybeCommit(0, astInfo)
+      let newAstInfo = acMaybeCommit(~newPos=0, FluidUtil.propsFromModel(m), astInfo)
       let newAST = newAstInfo.ast |> FluidAST.map(~f=AST.removePartials)
       if newAST != astInfo.ast {
         Some(TL.setASTMod(tl, newAST))

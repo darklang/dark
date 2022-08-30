@@ -195,7 +195,6 @@ let acFor = (~tlid=defaultTLID, ~pos=0, m: AppTypes.model): AC.t => {
     |> Option.andThen(~f=TL.getAST)
     |> Option.andThen(~f=ast =>
       Fluid.ASTInfo.make(
-        defaultTestProps,
         ast,
         {...m.fluidState, newPos: pos},
       ) |> Fluid.ASTInfo.getToken
