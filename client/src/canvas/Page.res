@@ -218,7 +218,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
       currentPage: newPage,
       canvasProps: {...m.canvasProps, offset: offset, lastOffset: None},
     }
-  | (_, SettingsModal(tab)) => {...m, settingsView: {...m.settingsView, opened: true, tab: tab}}
+  | (_, SettingsModal(tab)) => {...m, settings: {...m.settings, opened: true, tab: tab}}
   | (_, Architecture) => /* Anything else to Architecture
      * Stay where you are, Deselect
      */

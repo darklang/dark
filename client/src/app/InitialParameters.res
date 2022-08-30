@@ -8,7 +8,6 @@ type t = {
   userContentHost: string,
   environment: string,
   csrfToken: string,
-  isAdmin: bool,
   buildHash: string,
   username: string,
 }
@@ -22,7 +21,6 @@ let fromString = (strJ: string): t => {
     userContentHost: field("userContentHost", string, j),
     environment: field("environment", string, j),
     csrfToken: field("csrfToken", string, j),
-    isAdmin: field("isAdmin", bool, j),
     buildHash: field("buildHash", string, j),
     username: field("username", string, j),
   }

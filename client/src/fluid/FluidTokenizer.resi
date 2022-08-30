@@ -60,7 +60,6 @@ module ASTInfo: {
     state: AppTypes.fluidState,
     mainTokenInfos: list<FluidToken.tokenInfo>,
     featureFlagTokenInfos: list<(ID.t, list<FluidToken.tokenInfo>)>,
-    props: Types.fluidProps,
   }
 
   let setAST: (FluidAST.t, t) => t
@@ -75,9 +74,9 @@ module ASTInfo: {
 
   let getTokenNotWhitespace: t => option<FluidToken.tokenInfo>
 
-  let emptyFor: (Types.fluidProps, AppTypes.fluidState) => t
+  let emptyFor: (AppTypes.fluidState) => t
 
-  let make: (Types.fluidProps, FluidAST.t, AppTypes.fluidState) => t
+  let make: (FluidAST.t, AppTypes.fluidState) => t
 
   let exprOfActiveEditor: t => FluidExpression.t
 }

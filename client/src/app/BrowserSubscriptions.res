@@ -82,7 +82,7 @@ module Window = {
       registerListener(
         "mouseup",
         key,
-        Decoders.wrapDecoder(Json.Decode.map(constructor, AppTypes.MouseEvent.decode)),
+        Decoders.wrapDecoder(Json.Decode.map(constructor, MouseEvent.decode)),
       )
   }
 }

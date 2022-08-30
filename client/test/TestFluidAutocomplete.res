@@ -184,7 +184,7 @@ let defaultModel = (
     functions: {...Functions.empty, builtinFunctions: sampleFunctions} |> Functions.update(
       defaultFunctionsProps,
     ),
-    analyses: Map.String.singleton(~key=defaultTraceID, ~value=LoadableSuccess(analyses)),
+    analyses: Map.String.singleton(~key=defaultTraceID, ~value=Loadable.Success(analyses)),
   }
 }
 
@@ -195,7 +195,6 @@ let acFor = (~tlid=defaultTLID, ~pos=0, m: AppTypes.model): AC.t => {
     |> Option.andThen(~f=TL.getAST)
     |> Option.andThen(~f=ast =>
       Fluid.ASTInfo.make(
-        defaultTestProps,
         ast,
         {...m.fluidState, newPos: pos},
       ) |> Fluid.ASTInfo.getToken

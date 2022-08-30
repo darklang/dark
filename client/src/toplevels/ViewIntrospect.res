@@ -7,6 +7,7 @@ module Events = Tea.Events
 module TL = Toplevel
 module B = BlankOr
 
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
 let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
@@ -87,15 +88,15 @@ let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
   }
 
 let hoveringRefProps = (originTLID: TLID.t, originIDs: list<id>, ~key: string) => list{
-  ViewUtils.eventNoPropagation(
+  EventListeners.eventNoPropagation(
     ~key=key ++ ("-in_" ++ TLID.toString(originTLID)),
     "mouseenter",
-    _ => SetHoveringReferences(originTLID, originIDs),
+    _ => Msg.SetHoveringReferences(originTLID, originIDs),
   ),
-  ViewUtils.eventNoPropagation(
+  EventListeners.eventNoPropagation(
     ~key=key ++ ("-out_" ++ TLID.toString(originTLID)),
     "mouseleave",
-    _ => SetHoveringReferences(originTLID, list{}),
+    _ => Msg.SetHoveringReferences(originTLID, list{}),
   ),
 }
 
@@ -111,9 +112,11 @@ let dbView = (
     Belt.List.concat(
       list{
         Attrs.class'("ref-block db " ++ direction),
-        ViewUtils.eventNoPropagation(~key="ref-db-link" ++ TLID.toString(tlid), "click", _ => GoTo(
-          FocusedDB(tlid, true),
-        )),
+        EventListeners.eventNoPropagation(
+          ~key="ref-db-link" ++ TLID.toString(tlid),
+          "click",
+          _ => Msg.GoTo(FocusedDB(tlid, true)),
+        ),
       },
       hoveringRefProps(originTLID, originIDs, ~key="ref-db-hover"),
     ),
@@ -121,7 +124,7 @@ let dbView = (
       Html.div(
         list{Attrs.class'("dbheader")},
         list{
-          ViewUtils.fontAwesome("database"),
+          Icons.fontAwesome("database"),
           Html.span(list{Attrs.class'("dbname")}, list{Html.text(name)}),
         },
       ),
@@ -147,10 +150,10 @@ let handlerView = (
   Html.div(
     list{
       Attrs.class'("ref-block handler " ++ direction),
-      ViewUtils.eventNoPropagation(
+      EventListeners.eventNoPropagation(
         ~key="ref-handler-link" ++ TLID.toString(tlid),
         "click",
-        _ => GoTo(FocusedHandler(tlid, None, true)),
+        _ => Msg.GoTo(FocusedHandler(tlid, None, true)),
       ),
       ...hoveringRefProps(originTLID, originIDs, ~key="ref-handler-hover"),
     },
@@ -172,7 +175,7 @@ let fnView = (
   direction: string,
 ): Html.html<msg> => {
   let header = list{
-    ViewUtils.darkIcon("fn"),
+    Icons.darkIcon("fn"),
     Html.span(list{Attrs.class'("fnname")}, list{Html.text(name)}),
   }
 
@@ -180,9 +183,11 @@ let fnView = (
     Belt.List.concat(
       list{
         Attrs.class'("ref-block fn " ++ direction),
-        ViewUtils.eventNoPropagation(~key="ref-fn-link" ++ TLID.toString(tlid), "click", _ => GoTo(
-          FocusedFn(tlid, None),
-        )),
+        EventListeners.eventNoPropagation(
+          ~key="ref-fn-link" ++ TLID.toString(tlid),
+          "click",
+          _ => Msg.GoTo(FocusedFn(tlid, None)),
+        ),
       },
       hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     ),
@@ -205,16 +210,18 @@ let packageFnView = (
 ): Html.html<msg> => {
   // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f
   let header = list{
-    ViewUtils.fontAwesome("box-open"),
+    Icons.fontAwesome("box-open"),
     Html.span(list{Attrs.class'("fnname")}, list{Html.text(name)}),
   }
 
   Html.div(
     list{
       Attrs.class'("ref-block pkg-fn " ++ direction),
-      ViewUtils.eventNoPropagation(~key="ref-fn-link" ++ TLID.toString(tlid), "click", _ => GoTo(
-        FocusedPackageManagerFn(tlid),
-      )),
+      EventListeners.eventNoPropagation(
+        ~key="ref-fn-link" ++ TLID.toString(tlid),
+        "click",
+        _ => Msg.GoTo(FocusedPackageManagerFn(tlid)),
+      ),
       ...hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     },
     list{
@@ -234,7 +241,7 @@ let tipeView = (
   direction: string,
 ): Html.html<msg> => {
   let header = list{
-    ViewUtils.darkIcon("type"),
+    Icons.darkIcon("type"),
     Html.span(list{Attrs.class'("tipename")}, list{Html.text(name)}),
   }
 
@@ -242,10 +249,10 @@ let tipeView = (
     Belt.List.concat(
       list{
         Attrs.class'("ref-block tipe " ++ direction),
-        ViewUtils.eventNoPropagation(
+        EventListeners.eventNoPropagation(
           ~key="ref-tipe-link" ++ TLID.toString(tlid),
           "click",
-          _ => GoTo(FocusedType(tlid)),
+          _ => Msg.GoTo(FocusedType(tlid)),
         ),
       },
       hoveringRefProps(originTLID, originIDs, ~key="ref-tipe-hover"),
@@ -261,7 +268,7 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
   | TLFunc({tlid, name, parameters, returnType, _}) =>
     fnView(originalTLID, originalIDs, tlid, name, parameters, Some(returnType), direction)
   | TLPmFunc(pFn) =>
-    let name = PT.FQFnName.PackageFnName.toString(pFn.name)
+    let name = FQFnName.PackageFnName.toString(pFn.name)
     packageFnView(
       originalTLID,
       originalIDs,

@@ -15,6 +15,8 @@ type rec msg = unit
 
 let default = {canvasList: list{}, username: "", orgs: list{}, orgCanvasList: list{}}
 
+let toSaved = _ => Js.Json.null
+
 let setInfo = (
   _state: t,
   canvasList: list<string>,

@@ -60,7 +60,7 @@ let defaultHandler = (event: Keyboard.keyEvent, m: AppTypes.model): modification
   | _ => false
   }
 
-  let isSettingViewFocused = m.settingsView.opened
+  let isSettingViewFocused = m.settings.opened
   let isMac = Entry.getBrowserPlatform() == Mac
   let osCmdKeyHeld = if isMac {
     event.metaKey

@@ -218,8 +218,8 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         let name =
           Functions.global()
           |> Functions.findByStr(fnname)
-          |> Option.andThen(~f=fn => List.getAt(~index=pos, fn.fnParameters))
-          |> Option.map(~f=(p): Placeholder.t => {
+          |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index=pos, fn.fnParameters))
+          |> Option.map(~f=(p: Function.parameter): Placeholder.t => {
             name: p.paramName,
             tipe: DType.tipe2str(p.paramTipe),
           })
@@ -372,7 +372,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TNewline(Some(E.toID(else'), id, None)))
     |> nest(~indent=2, else')
   | EBinOp(id, op, lexpr, rexpr, _ster) =>
-    let op = PT.FQFnName.InfixStdlibFnName.toString(op)
+    let op = PT.InfixStdlibFnName.toString(op)
     let start = b =>
       switch lexpr {
       | EPipeTarget(_) => b
@@ -387,7 +387,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addMany(list{TBinOp(id, op, parentID), TSep(id, parentID)})
     |> nest(~indent=0, ~placeholderFor=Some(id, op, 1), rexpr)
   | EPartial(id, newName, EBinOp(_, oldName, lexpr, rexpr, _ster)) =>
-    let oldName = PT.FQFnName.InfixStdlibFnName.toString(oldName)
+    let oldName = PT.InfixStdlibFnName.toString(oldName)
     let ghost = ghostPartial(id, newName, FluidUtil.ghostPartialName(oldName))
 
     let start = b =>
@@ -406,7 +406,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TSep(id, parentID))
     |> nest(~indent=2, ~placeholderFor=Some(id, oldName, 1), rexpr)
   | EFnCall(id, fnName, args, ster) =>
-    let fnNameStr = PT.FQFnName.toString(fnName)
+    let fnNameStr = FQFnName.toString(fnName)
     let displayName = FluidUtil.fnDisplayName(fnNameStr)
     let versionDisplayName = FluidUtil.versionDisplayName(fnNameStr)
     let partialName = FluidUtil.fnDisplayNameWithVersion(fnNameStr)
@@ -419,9 +419,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     b
     |> add(TFnName(id, partialName, displayName, fnNameStr, ster))
     |> addMany(versionToken)
-    |> addArgs(PT.FQFnName.toString(fnName), id, args)
+    |> addArgs(FQFnName.toString(fnName), id, args)
   | EPartial(id, newName, EFnCall(_, oldName, args, _)) =>
-    let oldName = PT.FQFnName.toString(oldName)
+    let oldName = FQFnName.toString(oldName)
     let partial = TPartial(id, newName, parentID)
     let newText = T.toText(partial)
     let oldText = FluidUtil.ghostPartialName(oldName)
@@ -844,7 +844,6 @@ module ASTInfo = {
     state: AppTypes.fluidState,
     mainTokenInfos: tokenInfos,
     featureFlagTokenInfos: list<(id, tokenInfos)>,
-    props: fluidProps,
   }
 
   let setAST = (ast: FluidAST.t, astInfo: t): t =>
@@ -892,16 +891,15 @@ module ASTInfo = {
   let getTokenNotWhitespace = (astInfo: t): option<T.tokenInfo> =>
     getTokenNotWhitespace(activeTokenInfos(astInfo), astInfo.state)
 
-  let emptyFor = (props: fluidProps, state: fluidState): t => {
+  let emptyFor = (state: fluidState): t => {
     ast: FluidAST.ofExpr(Expr.EBlank(gid())),
     state: state,
     mainTokenInfos: list{},
     featureFlagTokenInfos: list{},
-    props: props,
   }
 
-  let make = (props: fluidProps, ast: FluidAST.t, s: fluidState): t =>
-    emptyFor(props, s) |> setAST(ast)
+  let make = (ast: FluidAST.t, s: fluidState): t =>
+    emptyFor(s) |> setAST(ast)
 
   let exprOfActiveEditor = (astInfo: t): FluidExpression.t =>
     switch astInfo.state.activeEditor {

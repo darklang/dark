@@ -3,6 +3,8 @@ open Prelude
 module Html = Tea.Html
 module Attrs = Tea.Attrs
 
+module Msg = AppTypes.Msg
+
 type data = FluidTypes.AutoComplete.data
 type state = FluidTypes.AutoComplete.t
 
@@ -69,13 +71,13 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
           ("fluid-selected", highlighted),
           (class', true),
         }),
-        ViewUtils.nothingMouseEvent("mouseup"),
+        EventListeners.nothingMouseEvent("mouseup"),
         ViewEntry.defaultPasteHandler,
-        ViewUtils.nothingMouseEvent("mousedown"),
-        ViewUtils.eventNoPropagation(~key="ac-" ++ name, "click", _ => FluidMsg(
+        EventListeners.nothingMouseEvent("mousedown"),
+        EventListeners.eventNoPropagation(~key="ac-" ++ name, "click", _ => Msg.FluidMsg(
           FluidAutocompleteClick(item),
         )),
-        ViewUtils.eventBoth(~key="ac-mousemove" ++ name, "mousemove", _ => FluidMsg(
+        EventListeners.eventBoth(~key="ac-mousemove" ++ name, "mousemove", _ => Msg.FluidMsg(
           FluidUpdateDropdownIndex(i),
         )),
       },

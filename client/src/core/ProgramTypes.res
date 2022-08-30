@@ -1,151 +1,32 @@
 // The types that the user sees. For all type definitions, see ProgramTypes.fs
-
-module FQFnName = {
-  module StdlibFnName = {
-    @ppx.deriving(show({with_path: false}))
-    type rec t = {module_: string, function: string, version: int}
-    let encode = (n: t): Js.Json.t => {
-      open Json.Encode
-      object_(list{
-        ("module_", string(n.module_)),
-        ("function_", string(n.function)),
-        ("version", int(n.version)),
-      })
-    }
-    let decode = j => {
-      open Json.Decode
-      {
-        module_: field("module_", string, j),
-        function: field("function_", string, j),
-        version: field("version", int, j),
-      }
-    }
-    let toString = (n: t): string => {
-      let name = if n.module_ == "" {
-        n.function
-      } else {
-        `${n.module_}::${n.function}`
-      }
-      if n.version == 0 {
-        name
-      } else {
-        `${name}_v${string_of_int(n.version)}`
-      }
-    }
-  }
-
-  module InfixStdlibFnName = {
-    @ppx.deriving(show({with_path: false}))
-    type rec t = {module_: option<string>, function: string}
-    let encode = (n: t): Js.Json.t => {
-      open Json.Encode
-      object_(list{("module_", nullable(string, n.module_)), ("function_", string(n.function))})
-    }
-    let decode = j => {
-      open Json.Decode
-      {
-        module_: field("module_", optional(string), j),
-        function: field("function_", string, j), // Note underscore
-      }
-    }
-    let toString = (n: t): string => {
-      switch n.module_ {
-      | None => n.function
-      | Some(m) => `${m}::${n.function}`
-      }
-    }
-    let toStdlib = (n: t): StdlibFnName.t => {
-      function: n.function,
-      version: 0,
-      module_: switch n.module_ {
-      | None => ""
-      | Some(m) => m
-      },
-    }
-  }
-
-  module PackageFnName = {
-    @ppx.deriving(show({with_path: false}))
-    type rec t = {
-      owner: string,
-      package: string,
-      module_: string,
-      function: string,
-      version: int,
-    }
-    let encode = (n: t): Js.Json.t => {
-      open Json.Encode
-      object_(list{
-        ("owner", string(n.owner)),
-        ("package", string(n.package)),
-        ("module_", string(n.module_)),
-        ("function_", string(n.function)),
-        ("version", int(n.version)),
-      })
-    }
-    let decode = j => {
-      open Json.Decode
-      {
-        owner: field("owner", string, j),
-        package: field("package", string, j),
-        module_: field("module_", string, j),
-        function: field("function_", string, j),
-        version: field("version", int, j),
-      }
-    }
-    let toString = (n: t): string =>
-      `${n.owner}/${n.package}/${n.module_}::${n.function}_v${string_of_int(n.version)}`
-  }
-
+module InfixStdlibFnName = {
   @ppx.deriving(show({with_path: false}))
-  type rec t =
-    | User(string)
-    | Stdlib(StdlibFnName.t)
-    | Package(PackageFnName.t)
-
+  type rec t = {module_: option<string>, function: string}
   let encode = (n: t): Js.Json.t => {
-    open Json_encode_extended
-    let ev = variant
-    switch n {
-    | User(name) => ev("User", list{string(name)})
-    | Stdlib(name) => ev("Stdlib", list{StdlibFnName.encode(name)})
-    | Package(name) => ev("Package", list{PackageFnName.encode(name)})
+    open Json.Encode
+    object_(list{("module_", nullable(string, n.module_)), ("function_", string(n.function))})
+  }
+  let decode = j => {
+    open Json.Decode
+    {
+      module_: field("module_", optional(string), j),
+      function: field("function_", string, j), // Note underscore
     }
   }
-
-  let decode = (j): t => {
-    open Json_decode_extended
-    variants(
-      list{
-        ("User", variant1(name => User(name), string)),
-        ("Stdlib", variant1(name => Stdlib(name), StdlibFnName.decode)),
-        ("Package", variant1(name => Package(name), PackageFnName.decode)),
-      },
-      j,
-    )
-  }
-
-  let toString = (n): string => {
-    switch n {
-    | User(name) => name
-    | Stdlib(std) => StdlibFnName.toString(std)
-    | Package(pkg) => PackageFnName.toString(pkg)
+  let toString = (n: t): string => {
+    switch n.module_ {
+    | None => n.function
+    | Some(m) => `${m}::${n.function}`
     }
   }
-
-  let stdlib = (m: string, f: string, v: int): t => Stdlib({
-    module_: m,
-    function: f,
-    version: v,
-  })
-
-  let package = (o: string, p: string, m: string, f: string, v: int): t => Package({
-    owner: o,
-    package: p,
-    module_: m,
-    function: f,
-    version: v,
-  })
+  let toStdlib = (n: t): FQFnName.StdlibFnName.t => {
+    function: n.function,
+    version: 0,
+    module_: switch n.module_ {
+    | None => ""
+    | Some(m) => m
+    },
+  }
 }
 
 module Sign = {
@@ -279,7 +160,7 @@ module Expr = {
     | EBlank(ID.t)
     | ELet(ID.t, string, t, t)
     | EIf(ID.t, t, t, t)
-    | EBinOp(ID.t, FQFnName.InfixStdlibFnName.t, t, t, SendToRail.t)
+    | EBinOp(ID.t, InfixStdlibFnName.t, t, t, SendToRail.t)
     | ELambda(ID.t, list<(ID.t, string)>, t)
     | EFieldAccess(ID.t, t, string)
     | EVariable(ID.t, string)
@@ -314,7 +195,7 @@ module Expr = {
         "EBinOp",
         list{
           ID.encode(id'),
-          FQFnName.InfixStdlibFnName.encode(name),
+          InfixStdlibFnName.encode(name),
           encode(left),
           encode(right),
           SendToRail.encode(r),
@@ -391,7 +272,7 @@ module Expr = {
           dv5(
             (a, b, c, d, e) => EBinOp(a, b, c, d, e),
             ID.decode,
-            FQFnName.InfixStdlibFnName.decode,
+            InfixStdlibFnName.decode,
             de,
             de,
             SendToRail.decode,
@@ -553,7 +434,8 @@ module Handler = {
       let ev = variant
       switch spec {
       | HTTP(name, mod, ids) => ev("HTTP", list{string(name), string(mod), IDs.encode(ids)})
-      | HTTPBasic(name, mod, ids) => ev("HTTPBasic", list{string(name), string(mod), IDs.encode(ids)})
+      | HTTPBasic(name, mod, ids) =>
+        ev("HTTPBasic", list{string(name), string(mod), IDs.encode(ids)})
       | Worker(name, ids) => ev("Worker", list{string(name), IDs.encode(ids)})
       | OldWorker(space, name, ids) =>
         ev("OldWorker", list{string(space), string(name), IDs.encode(ids)})

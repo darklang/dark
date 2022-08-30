@@ -9,7 +9,7 @@ open ProgramTypes.Expr
 
 let run = () => {
   describe("getSelectedExprID", () => {
-    let aiFor = (ast, s) => ASTInfo.make(defaultTestProps, FluidAST.ofExpr(ast), s)
+    let aiFor = (ast, s) => ASTInfo.make(FluidAST.ofExpr(ast), s)
     test("nothing selected", () => {
       let s = {...defaultTestState, newPos: 2}
       let ast = plainIf

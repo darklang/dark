@@ -825,11 +825,14 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
 
 let defaultTestState = {...FluidTypes.State.default, activeEditor: MainEditor(defaultTLID)}
 
-let defaultFunctionsProps = {usedFns: Map.String.empty, userFunctions: TLID.Dict.empty}
+let defaultFunctionsProps: Functions.props = {
+  usedFns: Map.String.empty,
+  userFunctions: TLID.Dict.empty,
+}
 
-let defaultTestProps: Types.fluidProps = {
+let defaultTestProps: FluidTypes.Props.t = {
   functions: Functions.empty |> Functions.setBuiltins(defaultTestFunctions, defaultFunctionsProps),
-  variants: list{LeftPartialVariant},
+  settings: FluidTypes.FluidSettings.default
 }
 
 let fakeID1 = ID.fromInt(77777771)
@@ -838,12 +841,11 @@ let fakeID3 = ID.fromInt(77777773)
 
 let defaultTestModel = {
   ...AppTypes.Model.default,
-  tests: defaultTestProps.variants,
   functions: defaultTestProps.functions,
   analyses: Map.String.fromList(list{
     (
       "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
-      LoadableSuccess(
+      Loadable.Success(
         ID.Map.fromArray([
           (
             fakeID1,

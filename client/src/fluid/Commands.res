@@ -148,7 +148,7 @@ let commands: list<AppTypes.fluidCmd> = {
 
         ReplaceAllModificationsWithThisOne(
           m => /* TODO: pos is a vPos, how do we get a vPos without a
-           * AppTypes.MouseEvent.t? */
+           * MouseEvent.t? */
           ({...m, toast: {message: message, pos: None}}, Tea.Cmd.none),
         )
       },

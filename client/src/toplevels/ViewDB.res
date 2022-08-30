@@ -6,13 +6,14 @@ module Attrs = Tea.Attrs
 // Dark
 module B = BlankOr
 
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 type viewProps = ViewUtils.viewProps
 
 type domEventList = ViewUtils.domEventList
 type dbStats = AnalysisTypes.dbStats
 
-let fontAwesome = ViewUtils.fontAwesome
+let fontAwesome = Icons.fontAwesome
 
 let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(
@@ -143,10 +144,10 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, col: PT.DB.Col.t): 
     Html.div(
       list{
         Attrs.class'("delete-col"),
-        ViewUtils.eventNoPropagation(
+        EventListeners.eventNoPropagation(
           ~key="dcidb-" ++ (TLID.toString(tlid) ++ ("-" ++ (col.nameID |> ID.toString))),
           "click",
-          _ => DeleteColInDB(tlid, col.nameID),
+          _ => Msg.DeleteColInDB(tlid, col.nameID),
         ),
       },
       list{fontAwesome("minus-circle")},

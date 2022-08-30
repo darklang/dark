@@ -7,6 +7,7 @@ module Attrs = Tea.Attrs
 module B = BlankOr
 module TL = Toplevel
 
+module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
 let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> => {
@@ -20,11 +21,13 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
   | Paused =>
     Html.div(
       list{
-        ViewUtils.eventNoPropagation(~key="run-" ++ strTLID, "click", _ => RunWorker(name)),
+        EventListeners.eventNoPropagation(~key="run-" ++ strTLID, "click", _ => Msg.RunWorker(
+          name,
+        )),
         Attrs.class'("restart-worker"),
         Attrs.title("Run worker"),
       },
-      list{ViewUtils.fontAwesome("play-circle")},
+      list{Icons.fontAwesome("play-circle")},
     )
   | Blocked =>
     Html.div(
@@ -32,16 +35,18 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
         Attrs.class'("blocked-worker"),
         Attrs.title("Worker disabled by Dark. Please get in touch to discuss why."),
       },
-      list{ViewUtils.fontAwesome("ban")},
+      list{Icons.fontAwesome("ban")},
     )
   | Running =>
     Html.div(
       list{
-        ViewUtils.eventNoPropagation(~key="pause-" ++ strTLID, "click", _ => PauseWorker(name)),
+        EventListeners.eventNoPropagation(~key="pause-" ++ strTLID, "click", _ => Msg.PauseWorker(
+          name,
+        )),
         Attrs.class'("pause-worker"),
         Attrs.title("Pause worker"),
       },
-      list{ViewUtils.fontAwesome("pause-circle")},
+      list{Icons.fontAwesome("pause-circle")},
     )
   }
 }
@@ -68,25 +73,29 @@ let viewTrace = (
 
   let events = if isUnfetchable {
     list{
-      ViewUtils.eventNoPropagation(~key=eventKey("dml"), "mouseleave", x => TraceMouseLeave(
-        tlid,
-        traceID,
-        x,
-      )),
+      EventListeners.eventNoPropagation(
+        ~key=eventKey("dml"),
+        "mouseleave",
+        x => Msg.TraceMouseLeave(tlid, traceID, x),
+      ),
     }
   } else {
     list{
-      ViewUtils.eventNoPropagation(~key=eventKey("dc"), "click", x => TraceClick(tlid, traceID, x)),
-      ViewUtils.eventNoPropagation(~key=eventKey("dme"), "mouseenter", x => TraceMouseEnter(
+      EventListeners.eventNoPropagation(~key=eventKey("dc"), "click", x => Msg.TraceClick(
         tlid,
         traceID,
         x,
       )),
-      ViewUtils.eventNoPropagation(~key=eventKey("dml"), "mouseleave", x => TraceMouseLeave(
-        tlid,
-        traceID,
-        x,
-      )),
+      EventListeners.eventNoPropagation(
+        ~key=eventKey("dme"),
+        "mouseenter",
+        x => Msg.TraceMouseEnter(tlid, traceID, x),
+      ),
+      EventListeners.eventNoPropagation(
+        ~key=eventKey("dml"),
+        "mouseleave",
+        x => Msg.TraceMouseLeave(tlid, traceID, x),
+      ),
     }
   }
 
@@ -94,7 +103,7 @@ let viewTrace = (
     Vdom.noNode
   } else {
     switch value {
-    | None => ViewUtils.fontAwesome("spinner")
+    | None => Icons.fontAwesome("spinner")
     | Some(v) =>
       let asString = Runtime.inputValueAsString(tl, v)
       let asString = if String.length(asString) == 0 {

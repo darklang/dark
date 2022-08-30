@@ -3,9 +3,10 @@ open Prelude
 module Html = Tea.Html
 module Attrs = Tea.Attrs
 
-let onClick = (key, fn) => ViewUtils.eventNoPropagation(~key, "click", fn)
+module Msg = AppTypes.Msg
 
-let fontAwesome = ViewUtils.fontAwesome
+let onClick = (key, fn) => EventListeners.eventNoPropagation(~key, "click", fn)
+
 module M = AppTypes.Menu
 type t = AppTypes.Menu.t
 
@@ -13,7 +14,7 @@ type menuItem = {
   title: string,
   key: string,
   icon: option<string>,
-  action: AppTypes.MouseEvent.t => AppTypes.msg,
+  action: MouseEvent.t => AppTypes.msg,
   disableMsg: option<string>,
 }
 
@@ -50,7 +51,7 @@ let closeMenu = (m: AppTypes.model): AppTypes.model =>
 
 let viewItem = (keyID: string, i: menuItem): Html.html<AppTypes.msg> => {
   let icon = switch i.icon {
-  | Some(iconName) => fontAwesome(iconName)
+  | Some(iconName) => Icons.fontAwesome(iconName)
   | None => Vdom.noNode
   }
 
@@ -75,7 +76,7 @@ let viewMenu = (s: M.t, tlid: TLID.t, items: list<menuItem>): Html.html<AppTypes
     Html.div(
       list{
         Attrs.classList(list{("toggle-btn", true), ("active", showMenu)}),
-        onClick(cacheKey, _ => TLMenuMsg(
+        onClick(cacheKey, _ => Msg.TLMenuMsg(
           tlid,
           if showMenu {
             CloseMenu
@@ -84,7 +85,7 @@ let viewMenu = (s: M.t, tlid: TLID.t, items: list<menuItem>): Html.html<AppTypes
           },
         )),
       },
-      list{fontAwesome("bars")},
+      list{Icons.fontAwesome("bars")},
     )
   }
 
@@ -92,11 +93,12 @@ let viewMenu = (s: M.t, tlid: TLID.t, items: list<menuItem>): Html.html<AppTypes
     list{
       Attrs.classList(list{("more-actions", true), ("show", showMenu)}),
       // Block opening the omnibox here by preventing canvas pan start
-      ViewUtils.nothingMouseEvent("mousedown"),
-      ViewUtils.eventPreventDefault(~key="hide-tl-opts" ++ strTLID, "mouseleave", _ => TLMenuMsg(
-        tlid,
-        CloseMenu,
-      )),
+      EventListeners.nothingMouseEvent("mousedown"),
+      EventListeners.eventPreventDefault(
+        ~key="hide-tl-opts" ++ strTLID,
+        "mouseleave",
+        _ => Msg.TLMenuMsg(tlid, CloseMenu),
+      ),
     },
     list{toggleMenu, Html.div(list{Attrs.class'("actions")}, actions)},
   )

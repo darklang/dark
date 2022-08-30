@@ -19,6 +19,7 @@ let toModel = (e: AppTypes.SavedSettings.t): AppTypes.model => {
       ...m.tooltipState,
       userTutorial: {step: e.userTutorial, tlid: e.userTutorialTLID},
     },
+    settings: e.settings,
   }
 }
 
@@ -35,6 +36,7 @@ let model2editor = (m: AppTypes.model): AppTypes.SavedSettings.t => {
   firstVisitToThisCanvas: m.firstVisitToThisCanvas,
   userTutorial: m.tooltipState.userTutorial.step,
   userTutorialTLID: m.tooltipState.userTutorial.tlid,
+  settings: m.settings,
 }
 
 let fromString = (json: option<string>): AppTypes.SavedSettings.t =>

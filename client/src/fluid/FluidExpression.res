@@ -686,16 +686,11 @@ let toHumanReadable = (expr: t): string => {
     | EPartial(_, str, e) => Printf.sprintf(`(partial "%s" %s)`, str, r(e))
     | ERightPartial(_, str, e) => Printf.sprintf(`(rpartial "%s" %s)`, str, r(e))
     | ELeftPartial(_, str, e) => Printf.sprintf(`(lpartial "%s" %s)`, str, r(e))
-    | EFnCall(_, name, list{}, _) => Printf.sprintf("(fn \"%s\")", PT.FQFnName.toString(name))
+    | EFnCall(_, name, list{}, _) => Printf.sprintf("(fn \"%s\")", FQFnName.toString(name))
     | EFnCall(_, name, exprs, _) =>
-      Printf.sprintf("(fn \"%s\"\n%s)", PT.FQFnName.toString(name), newlineList(exprs))
+      Printf.sprintf("(fn \"%s\"\n%s)", FQFnName.toString(name), newlineList(exprs))
     | EBinOp(_, name, lhs, rhs, _) =>
-      Printf.sprintf(
-        "(binop \"%s\"\n%s\n%s)",
-        PT.FQFnName.InfixStdlibFnName.toString(name),
-        r(lhs),
-        r(rhs),
-      )
+      Printf.sprintf("(binop \"%s\"\n%s\n%s)", PT.InfixStdlibFnName.toString(name), r(lhs), r(rhs))
     | EVariable(_, name) => Printf.sprintf(`(%s)`, name)
     | EFieldAccess(_, e, name) => Printf.sprintf("(fieldAccess \"%s\"\n%s)", name, r(e))
     | EMatch(_, cond, matches) =>

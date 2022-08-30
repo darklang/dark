@@ -15,6 +15,8 @@ module RT = RuntimeTypes
 
 open ProgramTypes.Expr
 
+module Msg = AppTypes.Msg
+
 type viewProps = ViewUtils.viewProps
 
 type token = T.t
@@ -25,13 +27,13 @@ let viewCopyButton = (tlid, value): Html.html<msg> =>
     list{
       Attrs.class'("copy-value"),
       Attrs.title("Copy this expression's value to the clipboard"),
-      ViewUtils.eventNoPropagation(
+      EventListeners.eventNoPropagation(
         "click",
         ~key="copylivevalue-" ++ (value ++ TLID.toString(tlid)),
-        m => ClipboardCopyLivevalue(value, m.mePos),
+        m => Msg.ClipboardCopyLivevalue(value, m.mePos),
       ),
     },
-    list{ViewUtils.fontAwesome("copy")},
+    list{Icons.fontAwesome("copy")},
   )
 
 let viewArrow = (curID: id, srcID: id): Html.html<msg> => {
@@ -81,11 +83,11 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
       switch expr {
       | EFnCall(_, name, _, _) => Functions.find(name, vp.functions)
       | EBinOp(_, name, _, _, _) =>
-        Functions.find(Stdlib(PT.FQFnName.InfixStdlibFnName.toStdlib(name)), vp.functions)
+        Functions.find(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), vp.functions)
       | _ => None
       }
     )
-    |> Option.andThen(~f=fn =>
+    |> Option.andThen(~f=(fn: Function.t) =>
       switch fn.fnPreviewSafety {
       | Safe => None
       | Unsafe =>
@@ -99,10 +101,10 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
   }
 
   switch Analysis.getLiveValueLoadable(vp.analysisStore, id) {
-  | LoadableSuccess(ExecutedResult(DIncomplete(_))) if Option.isSome(fnLoading) =>
+  | Loadable.Success(ExecutedResult(DIncomplete(_))) if Option.isSome(fnLoading) =>
     fnLoading |> Option.map(~f=msg => WithMessage(msg)) |> Option.unwrap(~default=Loading)
-  | LoadableSuccess(ExecutedResult(DIncomplete(SourceID(srcTlid, srcID)) as propValue))
-  | LoadableSuccess(ExecutedResult(DError(SourceID(srcTlid, srcID), _) as propValue))
+  | Loadable.Success(ExecutedResult(DIncomplete(SourceID(srcTlid, srcID)) as propValue))
+  | Loadable.Success(ExecutedResult(DError(SourceID(srcTlid, srcID), _) as propValue))
     if srcID != id || srcTlid != vp.tlid =>
     if recurred {
       WithDval({value: propValue, canCopy: false})
@@ -114,25 +116,25 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
         srcResult: lvResultForId(~recurred=true, vp, srcID),
       })
     }
-  | LoadableSuccess(ExecutedResult(DError(_) as dval))
-  | LoadableSuccess(ExecutedResult(DIncomplete(_) as dval)) =>
+  | Loadable.Success(ExecutedResult(DError(_) as dval))
+  | Loadable.Success(ExecutedResult(DIncomplete(_) as dval)) =>
     WithDval({value: dval, canCopy: false})
-  | LoadableSuccess(ExecutedResult(dval)) => WithDval({value: dval, canCopy: true})
-  | LoadableNotInitialized | LoadableLoading(_) => Loading
-  | LoadableSuccess(NonExecutedResult(DError(_) as dval))
-  | LoadableSuccess(NonExecutedResult(DIncomplete(_) as dval)) =>
+  | Loadable.Success(ExecutedResult(dval)) => WithDval({value: dval, canCopy: true})
+  | Loadable.NotInitialized | Loadable.Loading(_) => Loading
+  | Loadable.Success(NonExecutedResult(DError(_) as dval))
+  | Loadable.Success(NonExecutedResult(DIncomplete(_) as dval)) =>
     WithMessageAndDval({
       msg: "This code was not executed in this trace",
       value: dval,
       canCopy: false,
     })
-  | LoadableSuccess(NonExecutedResult(dval)) =>
+  | Loadable.Success(NonExecutedResult(dval)) =>
     WithMessageAndDval({
       msg: "This code was not executed in this trace",
       value: dval,
       canCopy: true,
     })
-  | LoadableError(err) => WithMessage("Error loading live value: " ++ err)
+  | Loadable.Error(err) => WithMessage("Error loading live value: " ++ err)
   }
 }
 
@@ -167,20 +169,20 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
         viewArrow(id, srcID),
         Html.div(
           list{
-            ViewUtils.eventNoPropagation(
+            EventListeners.eventNoPropagation(
               ~key="lv-src-" ++ (ID.toString(srcID) ++ TLID.toString(tlid)),
               "click",
-              _ => FluidMsg(FluidFocusOnToken(tlid, srcID)),
+              _ => Msg.FluidMsg(FluidFocusOnToken(tlid, srcID)),
             ),
             Attrs.class'("jump-src"),
             Attrs.title("Click here to go to the source of problem"),
           },
-          list{Html.text(msg), ViewUtils.fontAwesome("arrow-alt-circle-up")},
+          list{Html.text(msg), Icons.fontAwesome("arrow-alt-circle-up")},
         ),
       }
     | Loading =>
       isLoaded := false
-      list{ViewUtils.fontAwesome("spinner")}
+      list{Icons.fontAwesome("spinner")}
     }
 
   FluidTokenizer.ASTInfo.getToken(vp.astInfo)
@@ -227,7 +229,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
   if CursorState.tlidOf(vp.cursorState) == Some(vp.tlid) {
     let id = FluidAST.toID(vp.astInfo.ast)
     switch Analysis.getLiveValueLoadable(vp.analysisStore, id) {
-    | LoadableSuccess(ExecutedResult(dval)) =>
+    | Loadable.Success(ExecutedResult(dval)) =>
       let isRefreshed = switch vp.handlerProp {
       | Some({execution: Complete, _}) => true
       | _ => false
@@ -385,7 +387,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
       | FeatureFlagEditor(_, flagID) =>
         let flagIcon = Html.div(
           list{Attrs.class'("ff-icon"), Attrs.title("feature flag")},
-          list{ViewUtils.fontAwesome("flag")},
+          list{Icons.fontAwesome("flag")},
         )
 
         let rowOffset = flagID |> findRowOffestOfMainTokenWithId |> Option.unwrap(~default=0)

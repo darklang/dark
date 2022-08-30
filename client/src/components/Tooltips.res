@@ -7,6 +7,7 @@ module Attrs = Tea.Attrs
 type msg = AppTypes.msg
 type modification = AppTypes.modification
 module Mod = AppTypes.Modification
+module Msg = AppTypes.Msg
 
 type tutorialStep = AppTypes.Tutorial.Step.t
 type tooltipState = AppTypes.Tooltip.t
@@ -102,7 +103,8 @@ let update = (tooltipState: tooltipState, msg: tooltipMsg): modification => {
       )
     | OpenTooltip(_) | Close => ({...tooltipState, tooltipSource: None}, list{})
     | OpenLink(url) =>
-      Native.Window.openUrl(url, "_blank")
+      let window = Webapi.Dom.window
+      let _: option<Webapi.Dom.Window.t> = window->Webapi.Dom.Window.open_(~url, ~name="_blank", ())
       ({...tooltipState, tooltipSource: None}, list{})
     | OpenFnTooltip(fnSpace) => ({...tooltipState, fnSpace: fnSpace}, list{})
     | UpdateTutorial(tutorialMsg) =>
@@ -318,10 +320,10 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
     let clickEvent = switch getPrevStep(Some(step)) {
     | Some(_) =>
       let (stepNum, _) = currentStepFraction(step)
-      ViewUtils.eventNoPropagation(
+      EventListeners.eventNoPropagation(
         ~key="prev-step-" ++ (string_of_int(stepNum) ++ ("-" ++ uniqueStr)),
         "click",
-        _ => ToolTipMsg(UpdateTutorial(PrevStep)),
+        _ => Msg.ToolTipMsg(UpdateTutorial(PrevStep)),
       )
     | None => Vdom.noProp
     }
@@ -329,8 +331,8 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
     Html.button(
       list{
         Attrs.class'("page-btn"),
-        ViewUtils.nothingMouseEvent("mousedown"),
-        ViewUtils.nothingMouseEvent("mouseup"),
+        EventListeners.nothingMouseEvent("mousedown"),
+        EventListeners.nothingMouseEvent("mouseup"),
         clickEvent,
         Html.Attributes.disabled(clickEvent == Vdom.noProp),
       },
@@ -342,10 +344,10 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
     let clickEvent = switch getNextStep(Some(step)) {
     | Some(_) if Option.isSome(tlid) =>
       let (stepNum, _) = currentStepFraction(step)
-      ViewUtils.eventNoPropagation(
+      EventListeners.eventNoPropagation(
         ~key="next-step-" ++ (string_of_int(stepNum) ++ ("-" ++ uniqueStr)),
         "click",
-        _ => ToolTipMsg(UpdateTutorial(NextStep)),
+        _ => Msg.ToolTipMsg(UpdateTutorial(NextStep)),
       )
     | Some(_) | None => Vdom.noProp
     }
@@ -353,8 +355,8 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
     Html.button(
       list{
         Attrs.class'("page-btn"),
-        ViewUtils.nothingMouseEvent("mousedown"),
-        ViewUtils.nothingMouseEvent("mouseup"),
+        EventListeners.nothingMouseEvent("mousedown"),
+        EventListeners.nothingMouseEvent("mouseup"),
         clickEvent,
         Html.Attributes.disabled(clickEvent == Vdom.noProp),
       },
@@ -392,7 +394,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
       Html.button(
         list{
           Attrs.class'("action-button"),
-          ViewUtils.eventNoPropagation(~key="close-settings" ++ text, "click", _ => action),
+          EventListeners.eventNoPropagation(~key="close-settings" ++ text, "click", _ => action),
         },
         list{Html.p(list{}, list{Html.text(text)})},
       )
@@ -404,12 +406,12 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
       Html.button(
         list{
           Attrs.class'("page-btn"),
-          ViewUtils.nothingMouseEvent("mousedown"),
-          ViewUtils.nothingMouseEvent("mouseup"),
-          ViewUtils.eventNoPropagation(
+          EventListeners.nothingMouseEvent("mousedown"),
+          EventListeners.nothingMouseEvent("mouseup"),
+          EventListeners.eventNoPropagation(
             ~key="close-tutorial-" ++ uniqueStr,
             "click",
-            _ => ToolTipMsg(UpdateTutorial(CloseTutorial)),
+            _ => Msg.ToolTipMsg(UpdateTutorial(CloseTutorial)),
           ),
         },
         list{Html.text("End tutorial")},

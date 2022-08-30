@@ -692,7 +692,7 @@ let fluid_test_copy_request_as_curl = (m: model): testResult => {
     m,
     TLID.fromInt(91390945),
     ID.fromInt(753586717),
-    PT.FQFnName.stdlib("HttpClient", "post", 0),
+    FQFnName.stdlib("HttpClient", "post", 0),
   )
 
   let expected = "curl -H 'h:3' -d 'some body' -X post 'https://foo.com?q=1'"
@@ -733,7 +733,7 @@ let function_docstrings_are_valid = (m: model): testResult => {
   let failed = m.functions.builtinFunctions |> List.filterMap(~f=(fn: RT.BuiltInFn.t) =>
     switch convert_(fn.description) {
     | ParseSuccess(_) => None
-    | ParseFail(messages) => Some(fn.name->RT.FQFnName.StdlibFnName.toString, messages)
+    | ParseFail(messages) => Some(fn.name->FQFnName.StdlibFnName.toString, messages)
     }
   )
 

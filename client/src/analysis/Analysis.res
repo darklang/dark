@@ -43,7 +43,7 @@ let getStoredAnalysis = (m: model, traceID: TraceID.t): AnalysisTypes.analysisSt
   // only handlers have analysis results, but lots of stuff expect this
   // data to exist. It may be better to not do that, but this is fine
   // for now.
-  Map.get(~key=traceID, m.analyses) |> Option.unwrap(~default=LoadableNotInitialized)
+  Map.get(~key=traceID, m.analyses) |> Option.unwrap(~default=Loadable.NotInitialized)
 
 let record = (
   old: AnalysisTypes.analyses,
@@ -99,26 +99,27 @@ let replaceFunctionResult = (
   {...m, traces: traces}
 }
 
-let getLiveValueLoadable = (analysisStore: AnalysisTypes.analysisStore, id: id): loadable<
+let getLiveValueLoadable = (analysisStore: AnalysisTypes.analysisStore, id: id): Loadable.t<
   AnalysisTypes.ExecutionResult.t,
+  string,
 > =>
   switch analysisStore {
-  | LoadableSuccess(dvals) =>
+  | Loadable.Success(dvals) =>
     Map.get(~key=id, dvals)
-    |> Option.map(~f=dv => LoadableSuccess(dv))
-    |> Option.unwrap(~default=LoadableNotInitialized)
-  | LoadableNotInitialized => LoadableNotInitialized
-  | LoadableLoading(oldDvals) =>
+    |> Option.map(~f=dv => Loadable.Success(dv))
+    |> Option.unwrap(~default=Loadable.NotInitialized)
+  | Loadable.NotInitialized => Loadable.NotInitialized
+  | Loadable.Loading(oldDvals) =>
     oldDvals
     |> Option.andThen(~f=m => Map.get(~key=id, m))
-    |> Option.map(~f=dv => LoadableSuccess(dv))
-    |> Option.unwrap(~default=LoadableLoading(None))
-  | LoadableError(error) => LoadableError(error)
+    |> Option.map(~f=dv => Loadable.Success(dv))
+    |> Option.unwrap(~default=Loadable.Loading(None))
+  | Loadable.Error(error) => Loadable.Error(error)
   }
 
 let getLiveValue' = (analysisStore: AnalysisTypes.analysisStore, id: id): option<RT.Dval.t> =>
   switch analysisStore {
-  | LoadableSuccess(dvals) =>
+  | Loadable.Success(dvals) =>
     switch Map.get(~key=id, dvals) {
     | Some(ExecutedResult(dval)) | Some(NonExecutedResult(dval)) => Some(dval)
     | _ => None
@@ -234,7 +235,7 @@ module ReceiveAnalysis = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("receiveAnalysis", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("receiveAnalysis", key, tagger, decode)
 }
 
 module ReceiveFetch = {
@@ -244,7 +245,7 @@ module ReceiveFetch = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("receiveFetch", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("receiveFetch", key, tagger, decode)
 }
 
 module NewTracePush = {
@@ -254,7 +255,7 @@ module NewTracePush = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("newTracePush", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("newTracePush", key, tagger, decode)
 }
 
 module New404Push = {
@@ -263,7 +264,8 @@ module New404Push = {
     field("detail", Decoders.wrapDecoder(AnalysisTypes.FourOhFour.decode))
   }
 
-  let listen = (~key, tagger) => BrowserListeners.registerGlobal("new404Push", key, tagger, decode)
+  let listen = (~key, tagger) =>
+    BrowserSubscriptions.registerGlobal("new404Push", key, tagger, decode)
 }
 
 module NewPresencePush = {
@@ -273,7 +275,7 @@ module NewPresencePush = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("newPresencePush", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("newPresencePush", key, tagger, decode)
 }
 
 module AddOps = {
@@ -282,7 +284,7 @@ module AddOps = {
     field("detail", Decoders.wrapDecoder(PusherTypes.AddOps.decode))
   }
 
-  let listen = (~key, tagger) => BrowserListeners.registerGlobal("addOp", key, tagger, decode)
+  let listen = (~key, tagger) => BrowserSubscriptions.registerGlobal("addOp", key, tagger, decode)
 }
 
 module WorkerStatePush = {
@@ -292,7 +294,7 @@ module WorkerStatePush = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("workerStatePush", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("workerStatePush", key, tagger, decode)
 }
 
 // Request analysis

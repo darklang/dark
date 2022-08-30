@@ -1,48 +1,31 @@
 open Prelude
 module E = FluidExpression
 
-@ppx.deriving(show({with_path: false})) type rec t = Types.functionsType
+@ppx.deriving(show({with_path: false}))
+type rec t = {
+  builtinFunctions: list<RT.BuiltInFn.t>,
+  packageFunctions: packageFns,
+  // We do analysis to determine which functions are safe and which are not.
+  // This stores the result
+  previewUnsafeFunctions: Set.String.t,
+  allowedFunctions: list<Function.t>,
+}
 
-@ppx.deriving(show({with_path: false})) type rec props = Types.functionsProps
-
-let builtinFunctionsToFn = (fn: RT.BuiltInFn.t): function_ => {
-  let toParam = (p: RT.BuiltInFn.Param.t): parameter => {
-    paramName: p.name,
-    paramTipe: p.typ,
-    paramDescription: p.description,
-    paramBlock_args: p.args,
-    paramOptional: false,
-  }
-  {
-    fnName: Stdlib({
-      module_: fn.name.module_,
-      function: fn.name.function,
-      version: fn.name.version,
-    }),
-    fnParameters: fn.parameters |> List.map(~f=toParam),
-    fnDescription: fn.description,
-    fnReturnTipe: fn.returnType,
-    fnPreviewSafety: switch fn.previewable {
-    | Pure => Safe
-    | Impure => Unsafe
-    | ImpurePreviewable => Unsafe
-    },
-    fnDeprecated: fn.deprecated != NotDeprecated,
-    fnInfix: fn.isInfix,
-    fnIsSupportedInQuery: RT.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec),
-    fnOrigin: Builtin,
-  }
+@ppx.deriving(show({with_path: false}))
+type rec props = {
+  usedFns: Map.String.t<int>,
+  userFunctions: TLID.Dict.t<PT.UserFunction.t>,
 }
 
 /* Returns the function named `name`. Returns Nothing if the function
  * can't be found - this shouldn't happen in theory but often does
  * in practice; for example, someone might delete a function and
  * then do a local undo. */
-let find = (name: PT.FQFnName.t, functions: t): option<function_> =>
+let find = (name: FQFnName.t, functions: t): option<Function.t> =>
   List.find(functions.allowedFunctions, ~f=f => f.fnName == name)
 
-let findByStr = (name: string, functions: t): option<function_> =>
-  List.find(functions.allowedFunctions, ~f=f => PT.FQFnName.toString(f.fnName) == name)
+let findByStr = (name: string, functions: t): option<Function.t> =>
+  List.find(functions.allowedFunctions, ~f=f => FQFnName.toString(f.fnName) == name)
 
 let empty: t = {
   builtinFunctions: list{},
@@ -79,9 +62,8 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
       if uf.name != "" {
         E.filterMap(FluidAST.toExpr(uf.body), ~f=x =>
           switch x {
-          | EBinOp(_, callee, _, _, _) =>
-            Some(PT.FQFnName.InfixStdlibFnName.toString(callee), uf.name)
-          | EFnCall(_, callee, _, _) => Some(PT.FQFnName.toString(callee), uf.name)
+          | EBinOp(_, callee, _, _, _) => Some(PT.InfixStdlibFnName.toString(callee), uf.name)
+          | EFnCall(_, callee, _, _) => Some(FQFnName.toString(callee), uf.name)
           | _ => None
           }
         )
@@ -103,7 +85,7 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
   // TODO: what about unsafe packagemanager functions
   let unsafeBuiltins = t.builtinFunctions |> List.filterMap(~f=(f: RT.BuiltInFn.t) =>
     if f.previewable != Pure {
-      Some(f.name |> RT.FQFnName.StdlibFnName.toString)
+      Some(f.name |> FQFnName.StdlibFnName.toString)
     } else {
       None
     }
@@ -139,36 +121,36 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
 
 let testCalculateUnsafeUserFunctions = calculateUnsafeUserFunctions
 
-let asFunctions = (t: t): list<function_> => t.allowedFunctions
+let asFunctions = (t: t): list<Function.t> => t.allowedFunctions
 
-let builtins = (t: t): list<function_> => t.builtinFunctions |> List.map(~f=builtinFunctionsToFn)
+let builtins = (t: t): list<Function.t> => t.builtinFunctions |> List.map(~f=Function.fromBuiltinFn)
 
-let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
+let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
   // We hide functions that are deprecated unless they are in use
-  let filterAndSort = (fns: list<function_>): list<function_> => {
-    let isUsedOrIsNotDeprecated = (f: function_): bool =>
+  let filterAndSort = (fns: list<Function.t>): list<Function.t> => {
+    let isUsedOrIsNotDeprecated = (f: Function.t): bool =>
       if f.fnDeprecated {
-        Map.get(~key=PT.FQFnName.toString(f.fnName), props.usedFns)
+        Map.get(~key=FQFnName.toString(f.fnName), props.usedFns)
         |> Option.unwrap(~default=0)
         |> (count => count > 0)
       } else {
         true
       }
 
-    let fnNameWithoutVersion = (f: function_): string =>
+    let fnNameWithoutVersion = (f: Function.t): string =>
       f.fnName
-      |> PT.FQFnName.toString
+      |> FQFnName.toString
       |> String.toLowercase
       |> String.split(~on="_v")
       |> List.getAt(~index=0)
-      |> Option.unwrap(~default=PT.FQFnName.toString(f.fnName))
+      |> Option.unwrap(~default=FQFnName.toString(f.fnName))
 
     fns
     |> List.filter(~f=isUsedOrIsNotDeprecated)
-    |> List.sortBy(~f=f =>
+    |> List.sortBy(~f=(f: Function.t) =>
       // don't call List.head here - if we have DB::getAll_v1 and
       // DB::getAll_v2, we want those to sort accordingly!
-      f.fnName |> PT.FQFnName.toString |> String.toLowercase |> String.split(~on="_v")
+      f.fnName |> FQFnName.toString |> String.toLowercase |> String.split(~on="_v")
     )
     |> List.groupWhile(~f=(f1, f2) => fnNameWithoutVersion(f1) == fnNameWithoutVersion(f2))
     |> List.map(~f=List.reverse)
@@ -178,20 +160,17 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
   let userFunctionMetadata =
     props.userFunctions
     |> Map.values
-    |> List.filterMap(~f=UserFunctions.ufToF)
-    |> List.map(~f=f => {
+    |> List.filterMap(~f=Function.fromUserFn)
+    |> List.map(~f=(f: Function.t) => {
       ...f,
-      fnPreviewSafety: if (
-        Set.member(t.previewUnsafeFunctions, ~value=PT.FQFnName.toString(f.fnName))
-      ) {
+      fnPreviewSafety: if Set.member(t.previewUnsafeFunctions, ~value=FQFnName.toString(f.fnName)) {
         Unsafe
       } else {
         Safe
       },
     })
 
-  let packageFunctions =
-    t.packageFunctions |> Map.values |> List.map(~f=PackageManager.fn_of_packageFn)
+  let packageFunctions = t.packageFunctions |> Map.values |> List.map(~f=Function.fromPkgFn)
 
   Belt.List.concatMany([builtins(t), userFunctionMetadata, packageFunctions]) |> filterAndSort
 }

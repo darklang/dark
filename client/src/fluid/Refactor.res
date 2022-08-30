@@ -116,10 +116,10 @@ let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
   )
   |> Option.unwrap(~default=Mod.NoChange)
 
-let isRailable = (m: model, name: PT.FQFnName.t) =>
+let isRailable = (m: model, name: FQFnName.t) =>
   m.functions
   |> Functions.find(name)
-  |> Option.map(~f=fn => Runtime.isErrorRailType(fn.fnReturnTipe))
+  |> Option.map(~f=(fn: Function.t) => Runtime.isErrorRailType(fn.fnReturnTipe))
   |> Option.unwrap(~default=false)
 
 let putOnRail = (m: model, tl: toplevel, id: id): modification =>
@@ -238,7 +238,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   }
 }
 
-let renameFunction = (m: model, uf: PT.UserFunction.t, newName: PT.FQFnName.t): list<PT.Op.t> => {
+let renameFunction = (m: model, uf: PT.UserFunction.t, newName: FQFnName.t): list<PT.Op.t> => {
   open ProgramTypes.Expr
   let fn = e =>
     switch e {
@@ -326,8 +326,8 @@ let updateUsageCounts = (m: model): model => {
     bigAst
     |> FluidExpression.filterMap(~f=x =>
       switch x {
-      | EFnCall(_, name, _, _) => Some(PT.FQFnName.toString(name))
-      | EBinOp(_, name, _, _, _) => Some(PT.FQFnName.InfixStdlibFnName.toString(name))
+      | EFnCall(_, name, _, _) => Some(FQFnName.toString(name))
+      | EBinOp(_, name, _, _, _) => Some(PT.InfixStdlibFnName.toString(name))
       | _ => None
       }
     )
@@ -483,7 +483,7 @@ let renameDBReferences = (m: model, oldName: string, newName: string): list<PT.O
 let reorderFnCallArgs = (
   m: model,
   tlid: TLID.t,
-  fnName: PT.FQFnName.t,
+  fnName: FQFnName.t,
   oldPos: int,
   newPos: int,
 ): list<modification> =>

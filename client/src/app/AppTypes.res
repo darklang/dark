@@ -265,50 +265,6 @@ module Focus = {
     | FocusNoChange
 }
 
-module ScrollEvent = {
-  @ppx.deriving(show({with_path: false}))
-  type rec t = {timestamp: float}
-  let decode = (j: Js.Json.t): t => {
-    open Json.Decode
-    {
-      timestamp: field("timeStamp", Json.Decode.float, j),
-    }
-  }
-}
-
-module MouseEvent = {
-  @ppx.deriving(show({with_path: false}))
-  type rec t = {
-    mePos: VPos.t,
-    button: int,
-    altKey: bool,
-    ctrlKey: bool,
-    shiftKey: bool,
-    detail: int,
-  }
-  let decode = (j: Js.Json.t): t => {
-    open Json.Decode
-    {
-      // We decode floats b/c newer Chromes may use floats instead of ints; we
-      // when truncate rather than moving to floats everywhere due to concerns
-      // about sending data back to browsers whose DOMs don't support float
-      // positions - see https://github.com/darklang/dark/pull/2016 for
-      // discussion, and
-      // https://drafts.csswg.org/cssom-view/#extensions-to-the-window-interface
-      // for the spec
-      mePos: {
-        vx: field("pageX", Json.Decode.float, j) |> truncate,
-        vy: field("pageY", Json.Decode.float, j) |> truncate,
-      },
-      button: field("button", int, j),
-      ctrlKey: field("ctrlKey", bool, j),
-      shiftKey: field("shiftKey", bool, j),
-      altKey: field("altKey", bool, j),
-      detail: field("detail", int, j),
-    }
-  }
-}
-
 module Tutorial = {
   module Step = {
     @ppx.deriving(show({with_path: false}))
@@ -490,12 +446,6 @@ module IntegrationTests = {
 }
 
 module EditorSettings = {
-  @ppx.deriving(show({with_path: false}))
-  type rec ffIsExpanded = bool
-
-  @ppx.deriving(show({with_path: false}))
-  type rec flagsVS = Tc.Map.String.t<ffIsExpanded>
-
   // Editor settings are global settings on the editor. Initially, these are only
   // things that admins use for debugging - in the future they could be extended to
   // actual editor settings
@@ -575,6 +525,7 @@ module SavedSettings = {
     firstVisitToThisCanvas: bool,
     userTutorial: option<Tutorial.Step.t>,
     userTutorialTLID: option<TLID.t>,
+    settings: Settings.t,
   }
   let default: t = {
     editorSettings: EditorSettings.default,
@@ -588,6 +539,7 @@ module SavedSettings = {
     firstVisitToThisCanvas: true,
     userTutorial: None,
     userTutorialTLID: None,
+    settings: Settings.default,
   }
 
   let encode = (se: t): Js.Json.t => {
@@ -604,6 +556,7 @@ module SavedSettings = {
       ("firstVisitToThisCanvas", bool(se.firstVisitToThisCanvas)),
       ("userTutorial", nullable(Tutorial.Step.encode, se.userTutorial)),
       ("userTutorialTLID", nullable(TLID.encode, se.userTutorialTLID)),
+      ("settings", Settings.toSaved(se.settings)),
     })
   }
   let decode = (j: Js.Json.t): t => {
@@ -654,6 +607,7 @@ module SavedSettings = {
         field("userTutorialTLID", optional(TLID.decode)),
         j,
       ),
+      settings: withDefault(Settings.default, field("settings", Settings.fromSaved), j),
     }
   }
 }
@@ -912,8 +866,7 @@ module Model = {
   type rec t = {
     error: Error.t,
     lastMsg: Msg.t<t, Modification.t<t>>,
-    tests: list<Types.variantTest>,
-    functions: Types.functionsType,
+    functions: Functions.t,
     complete: AutoComplete.t,
     cursorState: CursorState.t,
     currentPage: Page.t,
@@ -968,7 +921,6 @@ module Model = {
     avatarsList: list<Avatar.t>,
     browserId: string,
     sidebarState: Sidebar.State.t,
-    isAdmin: bool,
     buildHash: string,
     lastReload: option<@opaque Js.Date.t>,
     opCtrs: Tc.Map.String.t<int>,
@@ -988,7 +940,7 @@ module Model = {
     // indicates if it is the users first time visiting any dark canvas
     tooltipState: Tooltip.t,
     currentUserFn: FunctionParams.t,
-    settingsView: Settings.t,
+    settings: Settings.t,
     firstVisitToThisCanvas: bool,
     // indicates if it is the users first time this canvas
     secrets: list<SecretTypes.t>,
@@ -996,14 +948,13 @@ module Model = {
   }
   let default: t = {
     error: Error.default,
-    functions: Defaults.defaultFunctionsType,
+    functions: Functions.empty,
     lastMsg: Msg.IgnoreMsg("default"),
     opCtrs: Tc.Map.String.empty,
     clientOpCtrId: "",
     complete: AutoComplete.default,
     currentPage: Architecture,
     hovering: list{},
-    tests: list{},
     handlers: TLID.Dict.empty,
     deletedHandlers: TLID.Dict.empty,
     dbs: TLID.Dict.empty,
@@ -1041,7 +992,6 @@ module Model = {
     avatarsList: list{},
     browserId: "",
     sidebarState: Sidebar.State.default,
-    isAdmin: false,
     buildHash: "",
     username: "defaultUsername",
     lastReload: None,
@@ -1060,7 +1010,7 @@ module Model = {
     currentUserFn: FunctionParams.default,
     firstVisitToThisCanvas: true,
     secrets: list{},
-    settingsView: Settings.default,
+    settings: Settings.default,
     insertSecretModal: SecretTypes.defaultInsertModal,
   }
 }

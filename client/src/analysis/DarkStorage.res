@@ -24,7 +24,7 @@ module NewStaticDeployPush = {
   }
 
   let listen = (~key, tagger) =>
-    BrowserListeners.registerGlobal("newStaticDeploy", key, tagger, decode)
+    BrowserSubscriptions.registerGlobal("newStaticDeploy", key, tagger, decode)
 }
 
 let appendDeploy = (

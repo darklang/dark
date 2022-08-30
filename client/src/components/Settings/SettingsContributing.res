@@ -10,39 +10,25 @@ module Utils = SettingsUtils
 module TunnelHost = {
   // UX:
   // - when we load the page, we should load the tunnelHost setting
-  //   - (maybe) if we previously loaded it, use that value while loading
   //   - show an animation while loading
-  //   - do not show the input box until the load is completed
-  // - show an indicator when the value is unsaved
+  // - (TODO) show an indicator when the value is unsaved
   // - when editing, update the model
   //   - when moving off the input, validate and show an error
   //   - don't save until the user presses save
   // - have a Save button
   //   - when saving, show indicator
   //   - after saving success, show the success icon until we edit again
-  //   - if saving successful, show "reload" if in tunnel mode
   //   - if saving fails, show the error (same place)
 
   @ppx.deriving(show)
   type rec values = option<string>
 
   @ppx.deriving(show)
-  type rec saveStatus =
-    | Saved
-    | Saving
-    | NotSaving
-
-  @ppx.deriving(show)
-  type rec loadStatus =
-    | Loading
-    | Loaded(Belt.Result.t<values, unit>)
-
-  @ppx.deriving(show)
   type rec t = {
-    loadStatus: loadStatus, // if not initialized, don't use it
+    loadStatus: LoadStatus.t<values>, // if not initialized, don't use it
     value: option<string>, // only overwrite if user has not entered
     error: option<string>,
-    saveStatus: saveStatus,
+    saveStatus: SaveStatus.t,
   }
 
   @ppx.deriving(show)
@@ -90,7 +76,12 @@ module TunnelHost = {
     }
   }
 
-  let default = {loadStatus: Loading, saveStatus: NotSaving, value: None, error: None}
+  let default = {
+    loadStatus: LoadStatus.Loading,
+    saveStatus: NotSaving,
+    value: None,
+    error: None,
+  }
 
   let validate = (host: string): result<values, string> => {
     let host = String.trim(host)
@@ -111,19 +102,19 @@ module TunnelHost = {
     switch msg {
     | LoadAPICallback(Error(e)) =>
       let errorStr = Tea.Http.string_of_error(e)
-      ({...state, error: Some(`Load error: ${errorStr}`), loadStatus: Loaded(Error())}, NoIntent)
+      ({...state, error: Some(`Load error: ${errorStr}`), loadStatus: LoadStatus.Error}, NoIntent)
 
     | LoadAPICallback(Ok(original)) => (
-        {...state, value: original, loadStatus: Loaded(Ok(original))},
+        {...state, value: original, loadStatus: LoadStatus.Success(original)},
         NoIntent,
       )
 
     | InputEdit(tunnelHost) =>
       let saveStatus = switch state.saveStatus {
-      | Saved => NotSaving
+      | Saved => SaveStatus.NotSaving
       | Saving | NotSaving => state.saveStatus
       }
-      ({...state, value: Some(tunnelHost), saveStatus}, NoIntent)
+      ({...state, value: Some(tunnelHost), saveStatus: saveStatus}, NoIntent)
 
     | InputUnfocus =>
       switch validate(state.value->Belt.Option.getWithDefault("")) {
@@ -140,10 +131,10 @@ module TunnelHost = {
 
     | SaveAPICallback(_, Error(e)) =>
       let error = Some(Tea.Http.string_of_error(e))
-      ({...state, error, saveStatus: NotSaving}, NoIntent)
+      ({...state, error: error, saveStatus: NotSaving}, NoIntent)
 
     | SaveAPICallback(savedValue, Ok(true)) => (
-        {...state, loadStatus: Loaded(Ok(savedValue)), error: None, saveStatus: Saved},
+        {...state, loadStatus: LoadStatus.Success(savedValue), error: None, saveStatus: Saved},
         NoIntent,
       )
 
@@ -222,29 +213,136 @@ module UseAssets = {
     }
 }
 
+// -------------------
+// Toggle to show contributor UI
+// -------------------
+module General = {
+  @ppx.deriving(show)
+  type rec t = {showSidebarDebuggerPanel: bool}
+
+  @ppx.deriving(show)
+  type rec msg = SetSidebarPanel(bool)
+
+  @ppx.deriving(show)
+  type rec intent = unit
+
+  let default = {
+    showSidebarDebuggerPanel: false,
+  }
+
+  let toSaved = (state: t) => {
+    open Json.Encode
+    object_(list{("showSidebarDebuggerPanel", bool(state.showSidebarDebuggerPanel))})
+  }
+  let fromSaved = (j: Js.Json.t) => {
+    open Json.Decode
+    {
+      showSidebarDebuggerPanel: field("showSidebarDebuggerPanel", bool, j),
+    }
+  }
+
+  let init = () => Tea.Cmd.none
+
+  let update = (_state: t, msg: msg): (t, intent) =>
+    switch msg {
+    | SetSidebarPanel(v) => ({showSidebarDebuggerPanel: v}, ())
+    }
+}
+
+// -------------------
+// Toggle to preview in-progress features
+// -------------------
+module InProgressFeatures = {
+  @ppx.deriving(show)
+  type rec t = {allowTuples: bool}
+
+  @ppx.deriving(show)
+  type rec msg = SetTuplesAllowed(bool)
+
+  @ppx.deriving(show)
+  type rec intent = unit
+
+  let default = {
+    allowTuples: false,
+  }
+
+  let toSaved = (state: t) => {
+    open Json.Encode
+    object_(list{("allowTuples", bool(state.allowTuples))})
+  }
+  let fromSaved = (j: Js.Json.t) => {
+    open Json.Decode
+    {
+      allowTuples: field("allowTuples", bool, j),
+    }
+  }
+
+  let init = () => Tea.Cmd.none
+
+  let update = (_state: t, msg: msg): (t, intent) =>
+    switch msg {
+    | SetTuplesAllowed(v) => ({allowTuples: v}, ())
+    }
+}
+
 let title = "Contributing"
 
 @ppx.deriving(show)
-type rec t = {tunnelHost: TunnelHost.t, useAssets: UseAssets.t}
+type rec t = {
+  tunnelHost: TunnelHost.t,
+  useAssets: UseAssets.t,
+  general: General.t,
+  inProgressFeatures: InProgressFeatures.t,
+}
 
 @ppx.deriving(show)
 type rec msg =
   | TunnelHostMsg(TunnelHost.msg)
   | UseAssetsMsg(UseAssets.msg)
+  | GeneralMsg(General.msg)
+  | InProgressFeaturesMsg(InProgressFeatures.msg)
 
 module Intent = {
   @ppx.deriving(show)
-  type rec t<'msg> = TunnelHostIntent(TunnelHost.Intent.t<'msg>) | UseAssetsIntent(UseAssets.intent)
+  type rec t<'msg> =
+    | TunnelHostIntent(TunnelHost.Intent.t<'msg>)
+    | UseAssetsIntent(UseAssets.intent)
+    | GeneralIntent(General.intent)
+    | InProgressFeaturesIntent(InProgressFeatures.intent)
 
   let map = (i: t<'msg>, f: 'msg1 => 'msg2): t<'msg2> => {
     switch i {
     | TunnelHostIntent(i) => TunnelHostIntent(TunnelHost.Intent.map(i, f))
     | UseAssetsIntent(i) => UseAssetsIntent(i)
+    | GeneralIntent(i) => GeneralIntent(i)
+    | InProgressFeaturesIntent(i) => InProgressFeaturesIntent(i)
     }
   }
 }
 
-let default = {tunnelHost: TunnelHost.default, useAssets: UseAssets.default}
+let default = {
+  tunnelHost: TunnelHost.default,
+  useAssets: UseAssets.default,
+  general: General.default,
+  inProgressFeatures: InProgressFeatures.default
+}
+
+let toSaved = (s: t) => {
+  open Json.Encode
+  object_(list{
+    ("general", General.toSaved(s.general)),
+    ("inProgressFeatures", InProgressFeatures.toSaved(s.inProgressFeatures))
+  })
+}
+
+let fromSaved = (j: Js.Json.t) => {
+  open Json.Decode
+  {
+    ...default,
+    general: field("general", General.fromSaved, j),
+    inProgressFeatures: field("inProgressFeatures", InProgressFeatures.fromSaved, j),
+  }
+}
 
 let init = clientData =>
   Tea.Cmd.batch(list{
@@ -256,9 +354,15 @@ let update = (s: t, msg: msg): (t, Intent.t<msg>) =>
   switch msg {
   | UseAssetsMsg(msg) =>
     let (useAssets, intent) = UseAssets.update(s.useAssets, msg)
-    ({...s, useAssets}, UseAssetsIntent(intent))
+    ({...s, useAssets: useAssets}, UseAssetsIntent(intent))
   | TunnelHostMsg(msg) =>
     let (tunnelHost, intent) = TunnelHost.update(s.tunnelHost, msg)
     let intent = TunnelHost.Intent.map(intent, msg => TunnelHostMsg(msg))
-    ({...s, tunnelHost}, TunnelHostIntent(intent))
+    ({...s, tunnelHost: tunnelHost}, TunnelHostIntent(intent))
+  | GeneralMsg(msg) =>
+    let (general, intent) = General.update(s.general, msg)
+    ({...s, general: general}, GeneralIntent(intent))
+  | InProgressFeaturesMsg(msg) =>
+    let (inProgressFeatures, intent) = InProgressFeatures.update(s.inProgressFeatures, msg)
+    ({...s, inProgressFeatures: inProgressFeatures}, InProgressFeaturesIntent(intent))
   }
