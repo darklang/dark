@@ -127,18 +127,30 @@ module Token = {
      * - the final int is the index of the (pattern -> expr) */
     | TPatternVariable(ID.t, ID.t, string, int)
     | TPatternConstructorName(ID.t, ID.t, string, int)
+
     | TPatternInteger(ID.t, ID.t, int64, int)
     | TPatternString({matchID: ID.t, patternID: ID.t, str: string, branchIdx: int})
+
     | TPatternTrue(ID.t, ID.t, int)
     | TPatternFalse(ID.t, ID.t, int)
+
     | TPatternNullToken(ID.t, ID.t, int)
+
     | TPatternFloatWhole(ID.t, ID.t, string, int)
     | TPatternFloatPoint(ID.t, ID.t, int)
     | TPatternFloatFractional(ID.t, ID.t, string, int)
+    
     | TPatternBlank(ID.t, ID.t, int)
+
+    | TPatternTupleOpen(ID.t)
+    | TPatternTupleComma(ID.t, int)
+    | TPatternTupleClose(ID.t)
+
     | TConstructorName(ID.t, string)
+
     | TParenOpen(ID.t)
     | TParenClose(ID.t)
+
     | TFlagWhenKeyword(ID.t)
     | TFlagEnabledKeyword(ID.t)
 }

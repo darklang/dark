@@ -47,6 +47,7 @@ type Pattern =
   | PFloat of id * Sign * string * string
   | PNull of id
   | PBlank of id
+  | PTuple of id * Pattern * Pattern * List<Pattern>
 
 /// Whether a function's result is unwrapped automatically (and, in the case of
 /// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.

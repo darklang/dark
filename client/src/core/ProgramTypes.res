@@ -80,6 +80,7 @@ module Pattern = {
     | PFloat(ID.t, Sign.t, string, string)
     | PNull(ID.t)
     | PBlank(ID.t)
+    | PTuple(ID.t, t, t, list<t>)
 
   let rec encode = (pattern: t): Js.Json.t => {
     open Json_encode_extended
@@ -97,6 +98,8 @@ module Pattern = {
     | PCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
     | PNull(id') => ev("PNull", list{ID.encode(id')})
     | PBlank(id') => ev("PBlank", list{ID.encode(id')})
+    | PTuple(id', first, second, theRest) =>
+      ev("PTuple", list{ID.encode(id'), ep(first), ep(second), list(ep, theRest)})
     }
   }
 
@@ -117,6 +120,7 @@ module Pattern = {
         ("PFloat", dv4((a, b, c, d) => PFloat(a, b, c, d), ID.decode, Sign.decode, string, string)),
         ("PNull", dv1(a => PNull(a), ID.decode)),
         ("PBlank", dv1(a => PBlank(a), ID.decode)),
+        ("PTuple", dv4((a, first, second, theRest) => PTuple(a, first, second, theRest), ID.decode, decode, decode, list(decode))),
       },
       j,
     )

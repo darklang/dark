@@ -48,6 +48,8 @@ module Pattern =
     | PT.PFloat (id, s, w, f) -> ST.PFloat(id, s, w, f)
     | PT.PNull id -> ST.PNull id
     | PT.PBlank id -> ST.PBlank id
+    | PT.PTuple (id, first, second, theRest) ->
+      ST.PTuple(id, toST first, toST second, List.map toST theRest)
 
 
 

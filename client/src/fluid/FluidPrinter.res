@@ -96,6 +96,9 @@ let rec eToTestcase = (e: E.t): string => {
       | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
       | PConstructor(_, name, args) =>
         spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
+      | PTuple(_, first, second, theRest) =>
+        let exprs = list{first, second, ...theRest} |> List.map(~f=pToTestcase)
+        spaced(list{"pTuple", "(" ++ (String.join(~sep=",", exprs) ++ ")")})
       }
     }
 

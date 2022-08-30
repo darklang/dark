@@ -1724,6 +1724,9 @@ module HttpHeaders =
 
 let id (x : int) : id = uint64 x
 
+// since we hide F#'s default 'id' fn just above
+let identity a = a
+
 let init () =
   // CLEANUP: move somewhere else, we shouldn't be serializing anything here
   do Json.Vanilla.allow<pos> "Prelude"

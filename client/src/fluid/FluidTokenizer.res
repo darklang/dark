@@ -128,6 +128,7 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
+// TODO: rename to `patternToTokens``
 let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
   open FluidTypes.Token
   switch p {
@@ -166,6 +167,26 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
     Belt.List.concatMany([whole, list{TPatternFloatPoint(matchID, id, idx)}, fraction])
   | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
   | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
+  | PTuple(id, first, second, theRest) =>
+    let subPatterns = list{first, second, ...theRest}
+
+    let subPatternCount = List.length(subPatterns)
+
+    let middlePart =
+      subPatterns
+      |> List.mapWithIndex(~f=(i, p) => {
+        let isLastPattern = i == subPatternCount - 1
+        let subpatternTokens = patternToToken(matchID, p, ~idx)
+
+        if isLastPattern {
+          subpatternTokens
+        } else {
+          List.append(subpatternTokens, list{TPatternTupleComma(id, i)})
+        }
+      })
+      |> List.flatten
+
+    List.flatten(list{list{TPatternTupleOpen(id)}, middlePart, list{TPatternTupleClose(id)}})
   }
 }
 

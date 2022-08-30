@@ -210,7 +210,14 @@ module Values =
                                  ))
                                 (PT.PFloat(409097457UL, Positive, "5", "6"),
                                  PT.EFloat(131187958UL, Positive, "5", "6"))
-                                (PT.PBlank 858594159UL, PT.EInteger(135348705UL, 6L)) ]
+                                (PT.PBlank 858594159UL, PT.EInteger(135348705UL, 6L))
+                                (PT.PTuple(
+                                  1285610UL,
+                                  PT.PVariable(17823641UL, "a"),
+                                  PT.PVariable(58123641UL, "b"),
+                                  [ PT.PVariable(95723641UL, "c") ]
+                                 ),
+                                 PT.EBool(123716747UL, true)) ]
                             ),
                             PT.ELet(
                               927055617UL,

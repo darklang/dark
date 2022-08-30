@@ -9,7 +9,6 @@ open Prelude
 open RuntimeTypes
 open Prelude
 
-
 /// Gathers any global data (Secrets, DBs, etc.)
 /// that may be needed to evaluate an expression
 let globalsFor (state : ExecutionState) : Symtable =
@@ -240,6 +239,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
 
     | EMatch (id, matchExpr, cases) ->
+      /// Returns `incomplete` traces for subpatterns of an unmatched pattern
+      let traceIncompleteWithArgs id argPatterns =
+        let argTraces =
+          argPatterns
+          |> List.map Pattern.toID
+          |> List.map (fun pId -> (pId, incomplete pId))
+
+        (id, incomplete id) :: argTraces
+
       /// Does the dval 'match' the given pattern?
       ///
       /// Returns:
@@ -264,11 +272,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
         | PConstructor (id, name, args) ->
-          let traceArgsIncomplete argPatterns =
-            argPatterns
-            |> List.map Pattern.toID
-            |> List.map (fun pId -> (pId, incomplete pId))
-
           match (name, args, dv) with
           | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
 
@@ -278,15 +281,38 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let (passes, newVars, traces) = checkPattern v p
 
             if passes then
-              true, newVars, [ (id, dv) ] @ traces
+              true, newVars, (id, dv) :: traces
             else
-              false,
-              newVars,
-              (id, incomplete id) :: traceArgsIncomplete [ p ] @ traces
+              false, newVars, traceIncompleteWithArgs id [ p ] @ traces
 
           | _name, argPatterns, _dv ->
-            let traces = (id, incomplete id) :: traceArgsIncomplete argPatterns
+            let traces = traceIncompleteWithArgs id argPatterns
             false, [], traces
+
+        | PTuple (id, firstPat, secondPat, theRestPat) ->
+          let allPatterns = firstPat :: secondPat :: theRestPat
+
+          match dv with
+          | DTuple (first, second, theRest) ->
+            let allVals = first :: second :: theRest
+
+            if List.length allVals = List.length allPatterns then
+              let (passResults, newVarResults, traceResults) =
+                List.zip allVals allPatterns
+                |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                |> List.unzip3
+
+              let allPass = passResults |> List.forall identity
+              let allVars = newVarResults |> List.collect identity
+              let allSubTraces = traceResults |> List.collect identity
+
+              if allPass then
+                true, allVars, (id, dv) :: allSubTraces
+              else
+                false, allVars, traceIncompleteWithArgs id allPatterns @ allSubTraces
+            else
+              false, [], traceIncompleteWithArgs id allPatterns
+          | _ -> false, [], traceIncompleteWithArgs id allPatterns
 
       // This is to avoid checking `state.tracing.realOrPreview = Real` below.
       // If RealOrPreview gets additional branches, reconsider what to do here.

@@ -546,6 +546,8 @@ module Expect =
     | PCharacter (_, c), PCharacter (_, c') -> check path c c'
     | PNull (_), PNull (_) -> ()
     | PBlank (_), PBlank (_) -> ()
+    | PTuple (_, first, second, theRest), PTuple (_, first', second', theRest') ->
+      eqList path (first :: second :: theRest) (first' :: second' :: theRest')
     // exhaustiveness check
     | PVariable _, _
     | PConstructor _, _
@@ -555,7 +557,8 @@ module Expect =
     | PBool _, _
     | PCharacter _, _
     | PNull _, _
-    | PBlank _, _ -> check path actual expected
+    | PBlank _, _
+    | PTuple _, _ -> check path actual expected
 
 
   let rec exprEqualityBaseFn

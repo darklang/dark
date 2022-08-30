@@ -716,6 +716,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARLambda(id, LBPArrow), TLambdaArrow(id', _))
     | (ARPattern(id, PPVariable), TPatternVariable(_, id', _, _))
     | (ARPattern(id, PPConstructor), TPatternConstructorName(_, id', _, _))
+
     | (ARPattern(id, PPInteger), TPatternInteger(_, id', _, _))
     | (ARPattern(id, PPBool), TPatternTrue(_, id', _) | TPatternFalse(_, id', _))
     | (ARPattern(id, PPBlank), TPatternBlank(_, id', _))
@@ -755,6 +756,13 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARPattern(id, PPFloat(FPFractional)), TPatternFloatFractional(_, id', _, _))
     | (ARFloat(id, FPFractional), TFloatFractional(id', _, _)) if id == id' =>
       posForTi(ti)
+
+    | (ARPattern(id, PPTuple(TPOpen)), TPatternTupleOpen(id'))
+    | (ARPattern(id, PPTuple(TPClose)), TPatternTupleClose(id')) if id == id' =>
+      posForTi(ti)
+    | (ARPattern(id, PPTuple(TPComma(idx))), TPatternTupleComma(id', idx')) if id == id' && idx == idx' =>
+      posForTi(ti)
+
     /*
      * Function calls
      */
@@ -811,6 +819,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
         clampedPosForTi(ti, offsetInStr - startOffsetIntoString)
       | _ => None
       }
+
     // Exhaustiveness satisfaction for astRefs
     | (ARBinOp(_), _)
     | (ARBlank(_), _)
@@ -853,6 +862,9 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARLambda(_, LBPComma(_)), _)
     | (ARPattern(_, PPVariable), _)
     | (ARPattern(_, PPConstructor), _)
+    | (ARPattern(_, PPTuple(TPOpen)), _)
+    | (ARPattern(_, PPTuple(TPClose)), _)
+    | (ARPattern(_, PPTuple(TPComma(_))), _)
     | (ARPattern(_, PPInteger), _)
     | (ARPattern(_, PPBool), _)
     | (ARPattern(_, PPFloat(FPPoint)), _)
@@ -868,9 +880,11 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARInvalid, _) => None
     }
 
-  switch astInfo
-  |> ASTInfo.activeTokenInfos
-  |> List.findMap(~f=ti => targetAndTokenInfoToMaybeCaretPos((ct, ti))) {
+  let newPosMaybe =
+    ASTInfo.activeTokenInfos(astInfo)
+    |> List.findMap(~f=ti => targetAndTokenInfoToMaybeCaretPos((ct, ti)))
+
+  switch newPosMaybe {
   | Some(newPos) => newPos
   | None =>
     // NOTE: This is very useful for fixing issues in dev, but much too large for Rollbar:
@@ -950,6 +964,7 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
     Some({astRef: ARRecord(id, RPFieldname(idx)), offset: offset})
   | TRecordSep(id, idx, _) => Some({astRef: ARRecord(id, RPFieldSep(idx)), offset: offset})
   | TRecordClose(id, _) => Some({astRef: ARRecord(id, RPClose), offset: offset})
+
   | TMatchKeyword(id) => Some({astRef: ARMatch(id, MPKeyword), offset: offset})
   | TMatchBranchArrow({matchID: id, index: idx, _}) =>
     Some({astRef: ARMatch(id, MPBranchArrow(idx)), offset: offset})
@@ -966,7 +981,15 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TPatternFloatPoint(_, id, _) => Some({astRef: ARPattern(id, PPFloat(FPPoint)), offset: offset})
   | TPatternFloatFractional(_, id, _, _) =>
     Some({astRef: ARPattern(id, PPFloat(FPFractional)), offset: offset})
+  | TPatternTupleOpen(id) =>
+    Some({astRef: ARPattern(id, PPTuple(TPOpen)), offset: offset})
+  | TPatternTupleClose(id) =>
+    Some({astRef: ARPattern(id, PPTuple(TPClose)), offset: offset})
+  | TPatternTupleComma(id, idx) =>
+    Some({astRef: ARPattern(id, PPTuple(TPComma(idx))), offset: offset})
   | TPatternBlank(_, id, _) => Some({astRef: ARPattern(id, PPBlank), offset: offset})
+
+
   | TConstructorName(id, _) => Some({astRef: ARConstructor(id), offset: offset})
   | TFlagWhenKeyword(id) => Some({astRef: ARFlag(id, FPWhenKeyword), offset: offset})
   | TFlagEnabledKeyword(id) => Some({astRef: ARFlag(id, FPEnabledKeyword), offset: offset})
@@ -1190,6 +1213,7 @@ let caretTargetForStartOfPattern = (pattern: fluidPattern): CT.t =>
   | PFloat(id, _, _, _) => {astRef: ARPattern(id, PPFloat(FPWhole)), offset: 0}
   | PNull(id) => {astRef: ARPattern(id, PPNull), offset: 0}
   | PBlank(id) => {astRef: ARPattern(id, PPBlank), offset: 0}
+  | PTuple(id, _, _, _) => {astRef: ARPattern(id, PPTuple(TPOpen)), offset: 0}
   }
 
 /* caretTargetForEndOfPattern returns a caretTarget representing caret
@@ -1208,6 +1232,15 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
     switch List.last(containedPatterns) {
     | Some(lastPattern) => caretTargetForEndOfPattern(lastPattern)
     | None => {astRef: ARPattern(id, PPConstructor), offset: String.length(name)}
+    }
+  | PTuple(_id, first, second, theRest) =>
+    let allSubpatterns = list{first, second, ...theRest}
+    switch List.last(allSubpatterns) {
+    | Some(lastPattern) => caretTargetForEndOfPattern(lastPattern)
+    | None => recover(
+      "no sub-patterns found within tuple pattern",
+      {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
+    )
     }
   | PInteger(id, value) => {
       astRef: ARPattern(id, PPInteger),
@@ -1291,6 +1324,7 @@ let recursePattern = (~f: fluidPattern => fluidPattern, pat: fluidPattern): flui
   | PNull(_)
   | PFloat(_) => pat
   | PConstructor(id, name, pats) => PConstructor(id, name, List.map(~f, pats))
+  | PTuple(id, first, second, theRest) => PTuple(id, f(first), f(second), List.map(~f, theRest))
   }
 
 let updatePattern = (
@@ -1370,7 +1404,6 @@ let insBlankOrPlaceholderHelper' = (settings: FluidTypes.FluidSettings.t, ins: s
         (EString(newID, ""), CT.forARStringOpenQuote(newID, 1))
       } else if ins == "[" {
         (EList(newID, list{}), {astRef: ARList(newID, LPOpen), offset: 1})
-        // TODO: prior to PR merge, disable below (until tuples functionality fuller)
       } else if ins == "(" && settings.allowTuples {
         (
           ETuple(newID, EBlank(gid()), EBlank(gid()), list{}),
@@ -3237,6 +3270,72 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           {astRef: ARPattern(newID, PPVariable), offset: currOffset - 1},
         )
       }
+
+
+    // Tuple pattern
+    // Note; this is largely duplicated with the Tuple expr-handling
+    | (ARPattern(_, PPTuple(TPOpen)), PTuple(_, first, second, theRest)) =>
+      // When we're trying to delete the ( in a tuple pattern,
+      // - normally, don't do anything, and leave cursor at left of (
+      // - if there are only blanks in the tuple, replace with blank
+      // - if there's only 1 non-blank item, replace with that item
+      let nonBlanks =
+        list{first, second, ...theRest}
+        |> List.filter(~f=pat => !FluidPattern.isPatternBlank(pat))
+
+      let newID = gid()
+
+      switch nonBlanks {
+      | list{} => Some(Pat(mID, PBlank(newID)), {astRef: ARPattern(newID, PPBlank), offset: 0})
+      | list{single} => Some(Pat(mID, single), caretTargetForStartOfPattern(single))
+      | _ =>
+        let target: CT.t = {astRef: ARPattern(newID, PPTuple(TPOpen)), offset: 0}
+        Some(Pat(mID, PTuple(newID, first, second, theRest)), target)
+      }
+
+
+    | (ARPattern(_, PPTuple(TPComma(elemAndSepIdx))), PTuple(_, first, second, theRest)) =>
+      // When we're trying to delete a comma (,) within in a tuple pattern,
+      // - normally, remove the element just after the comma
+      // - if that leaves only one element, replace with that item
+      let withoutDeleted =
+        list{first, second, ...theRest} |> List.removeAt(~index=elemAndSepIdx + 1)
+
+      switch withoutDeleted {
+      | list{} =>
+        recover(
+          "Deletion unexpectedly resulted in tuple with 0 elements",
+          ~debug=AstRef.show(currAstRef),
+          None,
+        )
+      | list{single} =>
+        let newTarget = caretTargetForEndOfPattern(single)
+        Some(Pat(mID, single), newTarget)
+      | list{first, second, ...theRest} =>
+        let newID = gid()
+        let newPat = Pat(mID, PTuple(newID, first, second, theRest))
+
+        // set target to RHS of the item to left of ,
+        switch Belt.List.get(withoutDeleted, elemAndSepIdx) {
+        | None =>
+          recover(
+            "Deletion unexpectedly resulted in tuple with 0 elements",
+            ~debug=AstRef.show(currAstRef),
+            None,
+          )
+        | Some(elementLeftOfDeletion) =>
+          let newTarget = caretTargetForEndOfPattern(elementLeftOfDeletion)
+
+          Some(newPat, newTarget)
+        }
+      }
+
+    | (ARPattern(_, PPTuple(TPClose)), PTuple(_, first, second, theRest)) =>
+      let newID = gid()
+      let target: CT.t = {astRef: ARPattern(newID, PPTuple(TPClose)), offset: 0}
+      Some(Pat(mID, PTuple(newID, first, second, theRest)), target)
+
+
     //
     // Floats
     //
@@ -3280,6 +3379,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARPattern(_, PPNull), _)
     | (ARPattern(_, PPString(SPOpenQuote)), _)
     | (ARPattern(_, PPVariable), _)
+    | (ARPattern(_, PPTuple(_)), _)
     | /*
      * non-patterns
      */
@@ -3689,6 +3789,31 @@ let doExplicitInsert = (
     }
   }
 
+  let handlePatBlank = (): option<(FluidPattern.t, CT.t)>  => {
+    let newID = gid()
+
+    if extendedGraphemeCluster == "\"" {
+      Some(PString(newID, ""), CT.forPPStringText(newID, 0))
+    } else if Util.isNumber(extendedGraphemeCluster) {
+      Some(
+        PInteger(newID, extendedGraphemeCluster |> Util.coerceStringTo64BitInt),
+        {astRef: ARPattern(newID, PPInteger), offset: caretDelta},
+      )
+    } else if FluidUtil.isIdentifierChar(extendedGraphemeCluster) {
+      Some(
+        PVariable(newID, extendedGraphemeCluster),
+        {astRef: ARPattern(newID, PPVariable), offset: caretDelta},
+      )
+    } else if extendedGraphemeCluster == "(" && settings.allowTuples {
+      Some(
+        PTuple(newID, PBlank(gid()), PBlank(gid()), list{}),
+        {astRef: ARPattern(newID, PPTuple(TPOpen)), offset: 1},
+      )
+    } else {
+      None
+    }
+  }
+
   let doPatInsert = (
     patContainerRef: ref<option<id>>,
     currAstRef: astRef,
@@ -3811,22 +3936,11 @@ let doExplicitInsert = (
         Some(Pat(mID, PString(id, str)), CT.forPPStringText(id, strRelOffset + caretDelta))
       }
     | (ARPattern(_, PPBlank), PBlank(_)) =>
-      let newID = gid()
-      if extendedGraphemeCluster == "\"" {
-        Some(Pat(mID, PString(newID, "")), CT.forPPStringText(newID, 0))
-      } else if Util.isNumber(extendedGraphemeCluster) {
-        Some(
-          Pat(mID, PInteger(newID, extendedGraphemeCluster |> Util.coerceStringTo64BitInt)),
-          {astRef: ARPattern(newID, PPInteger), offset: caretDelta},
-        )
-      } else if FluidUtil.isIdentifierChar(extendedGraphemeCluster) {
-        Some(
-          Pat(mID, PVariable(newID, extendedGraphemeCluster)),
-          {astRef: ARPattern(newID, PPVariable), offset: caretDelta},
-        )
-      } else {
-        None
+      switch handlePatBlank() {
+      | None => None
+      | Some (pat, ct) => Some(Pat(mID, pat), ct)
       }
+
     | (ARPattern(_, PPVariable), PVariable(pID, oldName)) =>
       let newName = mutation(oldName)
       if FluidUtil.isValidIdentifier(newName) {
@@ -3856,10 +3970,41 @@ let doExplicitInsert = (
       } else {
         None
       }
+
+    | (ARPattern(_, PPTuple(kind)), PTuple(_pID, first, second, theRest)) =>
+      let allPats = list{first, second, ...theRest}
+
+      // CLEANUP TUPLETODO: this feels like it can be reasonably shorter
+
+      let elIndex =
+        switch kind {
+        | TPOpen => Some(0)
+        | TPComma(i) => Some(i + 1)
+        | TPClose => None
+        }
+
+      switch elIndex {
+      | None => None
+      | Some(elIndex) =>
+        switch handlePatBlank() {
+        | None => None
+        | Some (newPat, ct) =>
+          let allPatsWithReplacement =
+            allPats |> List.updateAt (~f=(_p) => newPat, ~index=elIndex)
+
+          switch allPatsWithReplacement {
+          | list{first, second, ...theRest} =>
+            Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), ct)
+          | _ => None
+          }
+        }
+      }
+
     /*
      * Things you can't edit but probably should be able to edit
      */
     | (ARPattern(_, PPConstructor), _) => None
+
     /* ****************
      * Exhaustiveness
      */
@@ -3872,10 +4017,14 @@ let doExplicitInsert = (
     | (ARPattern(_, PPNull), _)
     | (ARPattern(_, PPString(SPOpenQuote)), _)
     | (ARPattern(_, PPVariable), _)
-    | /*
+    | (ARPattern(_, PPTuple(TPOpen)), _)
+    | (ARPattern(_, PPTuple(TPClose)), _)
+    | (ARPattern(_, PPTuple(TPComma(_))), _)
+
+    /*
      * non-patterns
      */
-    (ARBinOp(_), _)
+    | (ARBinOp(_), _)
     | (ARBlank(_), _)
     | (ARBool(_), _)
     | (ARConstructor(_), _)
@@ -4534,7 +4683,10 @@ let rec updateKey = (
     |> ASTInfo.setAST(insertAtListEnd(id, ~newExpr, newAstInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
-  // Add another element to a tuple by inserting a `,`
+
+  //
+  // Insert , in Tuple expr
+  //
   | (InsertText(","), L(TTupleOpen(id), _), _) if onEdge =>
     // Case: right after a tuple's opening `(`
     let blankID = gid()
@@ -4572,7 +4724,18 @@ let rec updateKey = (
     |> ASTInfo.setAST(insertAtTupleEnd(id, ~newExpr, astInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
+  //
+  // TUPLETODO: Insert , in Tuple pattern
+  //
+  // This will be a bit involved - FluidAST has no updatePattern fn readily
+  // available, so we'll have to figure out how to deal with updating an
+  // existing pattern.
+  // We can probably borrow some things from doPatternBackspace, since it also
+  // updates patterns?
+
+  //
   // Add another param to a lambda
+  //
   | (InsertText(","), L(TLambdaSymbol(id, _), _), _) if onEdge =>
     astInfo
     |> ASTInfo.setAST(insertLambdaVar(~index=0, id, ~name="", astInfo.ast))
@@ -4586,7 +4749,9 @@ let rec updateKey = (
     |> ASTInfo.setAST(insertLambdaVar(~index, id, ~name="", astInfo.ast))
     |> moveToCaretTarget({astRef: ARLambda(id, LBPVarName(index)), offset: 0})
 
+  //
   // Field access
+  //
   | (InsertText("."), L(TFieldPartial(id, _, _, _, _), _), _) =>
     // When pressing . in a field access partial, commit the partial
     let newPartialID = gid()
@@ -4610,7 +4775,9 @@ let rec updateKey = (
 
     astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(target)
 
+  //
   // Wrap the current expression in a list
+  //
   | (InsertText("["), _, R(TInteger(id, _, _), _))
   | (InsertText("["), _, R(TTrue(id, _), _))
   | (InsertText("["), _, R(TFalse(id, _), _))
@@ -5485,6 +5652,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           | list{(id, value, "pattern-true")} | list{(id, value, "pattern-false")} =>
             PBool(id, toBool_(value))
           | list{(id, _, "pattern-null")} => PNull(id)
+
           | list{
               (id, whole, "pattern-float-whole"),
               (_, _, "pattern-float-point"),
@@ -5498,6 +5666,20 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           | list{(_, _, "pattern-float-point"), (id, value, "pattern-float-fractional")}
           | list{(id, value, "pattern-float-fractional")} =>
             PInteger(id, Util.coerceStringTo64BitInt(value))
+
+          | list{(id, value, "pattern-tuple-open"), ...subPatternTokens} =>
+            Debug.loG("at a patter-tuple-open and not sure what to do", ())
+            Debug.loG("value", value)
+            Debug.loG("subPatternTokens", subPatternTokens)
+
+            // TUPLETODO finish this. (it's for copy/paste, reconstruction, I believe.)
+            PTuple(
+              id,
+              PBlank(gid()),
+              PBlank(gid()),
+              list{}
+            )
+
           | _ => PBlank(gid())
           }
 

@@ -16,6 +16,9 @@ let hasVariableNamed: (string, t) => bool
   with ID.t = [patID] in the [within] tree, or None. ")
 let findPattern: (ID.t, t) => option<t>
 
+@ocaml.doc(" [isPatternBlank e] returns true iff [e] is an PBlank. ")
+let isPatternBlank: t => bool
+
 @ocaml.doc(" [preTraversal f pattern] walks the entire pattern from top to bottom,
   * calling f on each pattern. It returns a new patterm with every subpattern p
   * replaced by [f p]. After calling [f], the result is then recursed into; if

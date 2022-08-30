@@ -12,7 +12,9 @@ module AstRef = {
     | FPPoint
     | FPFractional
 
-  @ppx.deriving(show({with_path: false})) type rec astStringPart = SPOpenQuote
+  @ppx.deriving(show({with_path: false}))
+  type rec astStringPart =
+    | SPOpenQuote
 
   @ppx.deriving(show({with_path: false}))
   type rec astLetPart =
@@ -66,6 +68,7 @@ module AstRef = {
   type rec astPatternPart =
     | PPVariable
     | PPConstructor
+    | PPTuple(astTuplePart)
     | PPInteger
     | PPBool
     | PPString(astStringPart)

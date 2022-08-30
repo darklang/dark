@@ -160,6 +160,7 @@ module Expr =
     | PFloat of id * double
     | PNull of id
     | PBlank of id
+    | PTuple of id * Pattern * Pattern * List<Pattern>
 
   let pipeToRT (pipe : IsInPipe) : RT.IsInPipe =
     match pipe with
@@ -183,10 +184,10 @@ module Expr =
     | RT.NoRail -> NoRail
 
   let rec patternToRT (p : Pattern) : RT.Pattern =
+    let toRT = patternToRT
     match p with
     | PVariable (id, str) -> RT.PVariable(id, str)
-    | PConstructor (id, name, pats) ->
-      RT.PConstructor(id, name, List.map patternToRT pats)
+    | PConstructor (id, name, pats) -> RT.PConstructor(id, name, List.map toRT pats)
     | PInteger (id, i) -> RT.PInteger(id, i)
     | PBool (id, b) -> RT.PBool(id, b)
     | PCharacter (id, c) -> RT.PCharacter(id, c)
@@ -194,12 +195,14 @@ module Expr =
     | PFloat (id, f) -> RT.PFloat(id, f)
     | PNull id -> RT.PNull id
     | PBlank id -> RT.PBlank id
+    | PTuple (id, first, second, theRest) ->
+      RT.PTuple(id, toRT first, toRT second, List.map toRT theRest)
 
   let rec patternFromRT (p : RT.Pattern) : Pattern =
+    let toCT = patternFromRT
     match p with
     | RT.PVariable (id, str) -> PVariable(id, str)
-    | RT.PConstructor (id, name, pats) ->
-      PConstructor(id, name, List.map patternFromRT pats)
+    | RT.PConstructor (id, name, pats) -> PConstructor(id, name, List.map toCT pats)
     | RT.PInteger (id, i) -> PInteger(id, i)
     | RT.PBool (id, b) -> PBool(id, b)
     | RT.PCharacter (id, c) -> PCharacter(id, c)
@@ -207,6 +210,8 @@ module Expr =
     | RT.PFloat (id, f) -> PFloat(id, f)
     | RT.PNull id -> PNull id
     | RT.PBlank id -> PBlank id
+    | RT.PTuple (id, first, second, theRest) ->
+      PTuple(id, toCT first, toCT second, List.map toCT theRest)
 
   let rec toRT (e : T) : RT.Expr =
     match e with
