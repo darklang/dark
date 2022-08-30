@@ -330,6 +330,7 @@ module FluidSettings = {
   }
 }
 
+// TODO: Consider renaming to 'Environment'
 module Props = {
   type rec t = {
     functions: Functions.t,

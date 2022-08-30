@@ -327,9 +327,12 @@ let default = {
   inProgressFeatures: InProgressFeatures.default
 }
 
-let toSaved = ({general, _}: t) => {
+let toSaved = (s: t) => {
   open Json.Encode
-  object_(list{("general", General.toSaved(general))})
+  object_(list{
+    ("general", General.toSaved(s.general)),
+    ("inProgressFeatures", InProgressFeatures.toSaved(s.inProgressFeatures))
+  })
 }
 
 let fromSaved = (j: Js.Json.t) => {
@@ -337,6 +340,7 @@ let fromSaved = (j: Js.Json.t) => {
   {
     ...default,
     general: field("general", General.fromSaved, j),
+    inProgressFeatures: field("inProgressFeatures", InProgressFeatures.fromSaved, j),
   }
 }
 

@@ -67,9 +67,6 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
       ~default=Loadable.NotInitialized,
     )
 
-  // TODO: env
-  //let props = FluidUtil.propsFromModel(m)
-
   let astInfo = ASTInfo.make(ast, m.fluidState)
   {
     tl: tl,
