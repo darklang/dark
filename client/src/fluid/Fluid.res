@@ -716,7 +716,6 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARLambda(id, LBPArrow), TLambdaArrow(id', _))
     | (ARPattern(id, PPVariable), TPatternVariable(_, id', _, _))
     | (ARPattern(id, PPConstructor), TPatternConstructorName(_, id', _, _))
-
     | (ARPattern(id, PPInteger), TPatternInteger(_, id', _, _))
     | (ARPattern(id, PPBool), TPatternTrue(_, id', _) | TPatternFalse(_, id', _))
     | (ARPattern(id, PPBlank), TPatternBlank(_, id', _))
@@ -760,7 +759,8 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARPattern(id, PPTuple(TPOpen)), TPatternTupleOpen(id'))
     | (ARPattern(id, PPTuple(TPClose)), TPatternTupleClose(id')) if id == id' =>
       posForTi(ti)
-    | (ARPattern(id, PPTuple(TPComma(idx))), TPatternTupleComma(id', idx')) if id == id' && idx == idx' =>
+    | (ARPattern(id, PPTuple(TPComma(idx))), TPatternTupleComma(id', idx'))
+      if id == id' && idx == idx' =>
       posForTi(ti)
 
     /*
@@ -881,8 +881,9 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     }
 
   let newPosMaybe =
-    ASTInfo.activeTokenInfos(astInfo)
-    |> List.findMap(~f=ti => targetAndTokenInfoToMaybeCaretPos((ct, ti)))
+    ASTInfo.activeTokenInfos(astInfo) |> List.findMap(~f=ti =>
+      targetAndTokenInfoToMaybeCaretPos((ct, ti))
+    )
 
   switch newPosMaybe {
   | Some(newPos) => newPos
@@ -981,14 +982,11 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TPatternFloatPoint(_, id, _) => Some({astRef: ARPattern(id, PPFloat(FPPoint)), offset: offset})
   | TPatternFloatFractional(_, id, _, _) =>
     Some({astRef: ARPattern(id, PPFloat(FPFractional)), offset: offset})
-  | TPatternTupleOpen(id) =>
-    Some({astRef: ARPattern(id, PPTuple(TPOpen)), offset: offset})
-  | TPatternTupleClose(id) =>
-    Some({astRef: ARPattern(id, PPTuple(TPClose)), offset: offset})
+  | TPatternTupleOpen(id) => Some({astRef: ARPattern(id, PPTuple(TPOpen)), offset: offset})
+  | TPatternTupleClose(id) => Some({astRef: ARPattern(id, PPTuple(TPClose)), offset: offset})
   | TPatternTupleComma(id, idx) =>
     Some({astRef: ARPattern(id, PPTuple(TPComma(idx))), offset: offset})
   | TPatternBlank(_, id, _) => Some({astRef: ARPattern(id, PPBlank), offset: offset})
-
 
   | TConstructorName(id, _) => Some({astRef: ARConstructor(id), offset: offset})
   | TFlagWhenKeyword(id) => Some({astRef: ARFlag(id, FPWhenKeyword), offset: offset})
@@ -1237,10 +1235,11 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
     let allSubpatterns = list{first, second, ...theRest}
     switch List.last(allSubpatterns) {
     | Some(lastPattern) => caretTargetForEndOfPattern(lastPattern)
-    | None => recover(
-      "no sub-patterns found within tuple pattern",
-      {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
-    )
+    | None =>
+      recover(
+        "no sub-patterns found within tuple pattern",
+        {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
+      )
     }
   | PInteger(id, value) => {
       astRef: ARPattern(id, PPInteger),
@@ -3271,7 +3270,6 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         )
       }
 
-
     // Tuple pattern
     // Note; this is largely duplicated with the Tuple expr-handling
     | (ARPattern(_, PPTuple(TPOpen)), PTuple(_, first, second, theRest)) =>
@@ -3280,8 +3278,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       // - if there are only blanks in the tuple, replace with blank
       // - if there's only 1 non-blank item, replace with that item
       let nonBlanks =
-        list{first, second, ...theRest}
-        |> List.filter(~f=pat => !FluidPattern.isPatternBlank(pat))
+        list{first, second, ...theRest} |> List.filter(~f=pat => !FluidPattern.isPatternBlank(pat))
 
       let newID = gid()
 
@@ -3292,7 +3289,6 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         let target: CT.t = {astRef: ARPattern(newID, PPTuple(TPOpen)), offset: 0}
         Some(Pat(mID, PTuple(newID, first, second, theRest)), target)
       }
-
 
     | (ARPattern(_, PPTuple(TPComma(elemAndSepIdx))), PTuple(_, first, second, theRest)) =>
       // When we're trying to delete a comma (,) within in a tuple pattern,
@@ -3334,7 +3330,6 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       let newID = gid()
       let target: CT.t = {astRef: ARPattern(newID, PPTuple(TPClose)), offset: 0}
       Some(Pat(mID, PTuple(newID, first, second, theRest)), target)
-
 
     //
     // Floats
@@ -3789,7 +3784,7 @@ let doExplicitInsert = (
     }
   }
 
-  let handlePatBlank = (): option<(FluidPattern.t, CT.t)>  => {
+  let handlePatBlank = (): option<(FluidPattern.t, CT.t)> => {
     let newID = gid()
 
     if extendedGraphemeCluster == "\"" {
@@ -3938,7 +3933,7 @@ let doExplicitInsert = (
     | (ARPattern(_, PPBlank), PBlank(_)) =>
       switch handlePatBlank() {
       | None => None
-      | Some (pat, ct) => Some(Pat(mID, pat), ct)
+      | Some(pat, ct) => Some(Pat(mID, pat), ct)
       }
 
     | (ARPattern(_, PPVariable), PVariable(pID, oldName)) =>
@@ -3976,21 +3971,19 @@ let doExplicitInsert = (
 
       // CLEANUP TUPLETODO: this feels like it can be reasonably shorter
 
-      let elIndex =
-        switch kind {
-        | TPOpen => Some(0)
-        | TPComma(i) => Some(i + 1)
-        | TPClose => None
-        }
+      let elIndex = switch kind {
+      | TPOpen => Some(0)
+      | TPComma(i) => Some(i + 1)
+      | TPClose => None
+      }
 
       switch elIndex {
       | None => None
       | Some(elIndex) =>
         switch handlePatBlank() {
         | None => None
-        | Some (newPat, ct) =>
-          let allPatsWithReplacement =
-            allPats |> List.updateAt (~f=(_p) => newPat, ~index=elIndex)
+        | Some(newPat, ct) =>
+          let allPatsWithReplacement = allPats |> List.updateAt(~f=_p => newPat, ~index=elIndex)
 
           switch allPatsWithReplacement {
           | list{first, second, ...theRest} =>
@@ -4020,10 +4013,6 @@ let doExplicitInsert = (
     | (ARPattern(_, PPTuple(TPOpen)), _)
     | (ARPattern(_, PPTuple(TPClose)), _)
     | (ARPattern(_, PPTuple(TPComma(_))), _)
-
-    /*
-     * non-patterns
-     */
     | (ARBinOp(_), _)
     | (ARBlank(_), _)
     | (ARBool(_), _)
@@ -4682,7 +4671,6 @@ let rec updateKey = (
     newAstInfo
     |> ASTInfo.setAST(insertAtListEnd(id, ~newExpr, newAstInfo.ast))
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
-
 
   //
   // Insert , in Tuple expr
@@ -5709,12 +5697,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
             Debug.loG("subPatternTokens", subPatternTokens)
 
             // TUPLETODO finish this. (it's for copy/paste, reconstruction, I believe.)
-            PTuple(
-              id,
-              PBlank(gid()),
-              PBlank(gid()),
-              list{}
-            )
+            PTuple(id, PBlank(gid()), PBlank(gid()), list{})
 
           | _ => PBlank(gid())
           }
