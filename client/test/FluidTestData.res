@@ -832,7 +832,7 @@ let defaultFunctionsProps: Functions.props = {
 
 let defaultTestProps: FluidTypes.Props.t = {
   functions: Functions.empty |> Functions.setBuiltins(defaultTestFunctions, defaultFunctionsProps),
-  settings: FluidTypes.FluidSettings.default
+  settings: FluidTypes.FluidSettings.default,
 }
 
 let fakeID1 = ID.fromInt(77777771)

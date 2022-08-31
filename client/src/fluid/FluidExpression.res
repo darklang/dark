@@ -94,8 +94,10 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     | PCharacter(pid, _)
     | PString(pid, _) => (pid, list{})
     | PConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
-    | PTuple(pid, first, second, theRest) =>
-      (pid, List.map(list{first, second, ...theRest}, ~f=p1 => Pat(matchID, p1)))
+    | PTuple(pid, first, second, theRest) => (
+        pid,
+        List.map(list{first, second, ...theRest}, ~f=p1 => Pat(matchID, p1)),
+      )
     }
   }
 

@@ -56,7 +56,6 @@ let tid = (t: t): id =>
   | TRecordFieldname({recordID: id, _})
   | TRecordSep(id, _, _)
   | TConstructorName(id, _)
-
   | TMatchBranchArrow({matchID: id, _})
   | TMatchKeyword(id)
   | TPatternBlank(_, id, _)
@@ -73,7 +72,6 @@ let tid = (t: t): id =>
   | TPatternTupleOpen(id)
   | TPatternTupleClose(id)
   | TPatternTupleComma(id, _)
-
   | TSep(id, _)
   | TParenOpen(id)
   | TParenClose(id)
@@ -159,7 +157,6 @@ let parentBlockID = (t: t): option<id> =>
 
   | TFnName(_)
   | TFnVersion(_)
-
   | TMatchKeyword(_)
   | TMatchBranchArrow(_)
   | TPatternVariable(_)
@@ -176,7 +173,6 @@ let parentBlockID = (t: t): option<id> =>
   | TPatternTupleClose(_)
   | TPatternTupleComma(_)
   | TPatternBlank(_)
-
   | TConstructorName(_)
   | TParenOpen(_)
   | TParenClose(_)

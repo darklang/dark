@@ -4013,7 +4013,7 @@ let run = () => {
     )
     ()
   })
-  
+
   describe("Tuples", () => {
     describe("render", () => {
       t("blank tuple", tuple2WithBothBlank, render, "~(___,___)")

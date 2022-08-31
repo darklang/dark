@@ -7,7 +7,11 @@ CHECK=255 # (0 mean check, 1 means format, 255 means error)
 OCAML=0 # (0 means check ocaml files, 1 means don't)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
 FSHARP=0 # (0 means check fsharp files, 1 means don't)
+RESCRIPT=1 # (0 means check rescript files, 1 means don't)
 FILES=()
+
+# rescript files aren't checked/formatted by default since it has a dependency
+# on `bs-platform`, which not all usages (i.e. CI) have in context.
 
 #######################
 # --help
@@ -21,6 +25,8 @@ function print_help ()
   printf '\t%s\n' "--ocaml-only: Only check ocaml files (mli, ml)"
   printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
   printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
+  printf '\t%s\n' "--include-rescript: Include rescript files (res, resi)"
+  printf '\t%s\n' "--only-rescript: Only check rescript files (res, resi)"
 }
 
 FILES=()
@@ -43,6 +49,15 @@ for val in "${@}"; do
     --fsharp-only)
         OCAML=1
         PRETTIER=1
+        ;;
+    --include-rescript)
+        RESCRIPT=0
+        ;;
+    --rescript-only)
+        RESCRIPT=0
+        OCAML=1
+        PRETTIER=1
+        FSHARP=1
         ;;
     check)
       CHECK=0
@@ -83,12 +98,17 @@ is_fsharp() {
   [[ $1 == *.fs || $1 == *.fsi ]]
 }
 
+is_rescript() {
+  [[ $1 == *.res || $1 == *.resi ]]
+}
+
 is_allowed() {
   [[ $1 == *.fs || $1 == *.fsi \
     || $1 == *.mli || $1 == *.ml \
     || $1 == *.css || $1 == *.scss \
     || $1 == *.js || $1 == *.ts \
-    || $1 == *.html || $1 == *.rs ]]
+    || $1 == *.html
+    || $1 == *.res || $1 == *.resi ]]
 }
 
 all_prettier_files() {
@@ -180,6 +200,32 @@ all_fsharp_files() {
     \) -print
 }
 
+all_rescript_files() {
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "integration-tests/node_modules" \
+    -o -path "./integration-tests/node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    -o -path "fsharp-backend/.paket" \
+    -o -path "./fsharp-backend/.paket" \
+    -o -path "fsharp-backend/Build" \
+    -o -path "./fsharp-backend/Build" \
+    \) -prune -false \
+    \
+    -o -type f \
+    \( -name "*.res" \
+    -o -name "*.resi" \
+    \) -print
+}
+
 check_ocamlformat() {
   xargs -0 ocamlformat --check
 }
@@ -192,6 +238,10 @@ check_prettier () {
   xargs -0 npx prettier --list-different
 }
 
+check_rescript () {
+  xargs -L1 ./scripts/formatting/rescript-check.sh
+}
+
 format_ocamlformat() {
   xargs -0 ocamlformat --inplace
 }
@@ -202,6 +252,10 @@ format_fantomas() {
 
 format_prettier() {
   xargs -0 npx prettier --write
+}
+
+format_rescript() {
+  xargs -L1 ./scripts/formatting/rescript-format.sh
 }
 
 do_ocamlformat() {
@@ -228,6 +282,14 @@ do_prettier() {
   fi
 }
 
+do_rescript() {
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_rescript
+  else
+    format_rescript
+  fi
+}
+
 # TODO sqlfmt for sql
 # TODO add python
 # TODO bash formatter
@@ -246,6 +308,9 @@ for i in "${FILES[@]}"; do
     if [[ 0 -eq "$PRETTIER" ]]; then
       all_prettier_files "$i" | do_prettier
     fi
+    if [[ 0 -eq "$RESCRIPT" ]]; then
+      all_rescript_files "$i" | do_rescript
+    fi
   elif is_allowed "$i"; then
     if is_ocaml "$i"; then
       if [[ 0 -eq "$OCAML" ]]; then
@@ -254,6 +319,10 @@ for i in "${FILES[@]}"; do
     elif is_fsharp "$i"; then
       if [[ 0 -eq "$FSHARP" ]]; then
         echo "$i" | do_fantomas
+      fi
+    elif is_rescript "$i"; then
+      if [[ 0 -eq "$RESCRIPT" ]]; then
+        echo "$i" | do_rescript
       fi
     else
       if [[ 0 -eq "$PRETTIER" ]]; then

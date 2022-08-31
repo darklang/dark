@@ -194,10 +194,7 @@ let acFor = (~tlid=defaultTLID, ~pos=0, m: AppTypes.model): AC.t => {
     TL.get(m, tlid)
     |> Option.andThen(~f=TL.getAST)
     |> Option.andThen(~f=ast =>
-      Fluid.ASTInfo.make(
-        ast,
-        {...m.fluidState, newPos: pos},
-      ) |> Fluid.ASTInfo.getToken
+      Fluid.ASTInfo.make(ast, {...m.fluidState, newPos: pos}) |> Fluid.ASTInfo.getToken
     )
     |> Option.unwrap(~default=defaultTokenInfo)
 
