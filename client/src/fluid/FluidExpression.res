@@ -164,6 +164,7 @@ let children = (expr: t): list<t> =>
   | EBlank(_)
   | EPipeTarget(_)
   | EVariable(_) => list{}
+  
   // One
   | EPartial(_, _, expr)
   | ERightPartial(_, _, expr)
@@ -314,7 +315,7 @@ let deprecatedWalk = (~f: t => t, expr: t): t =>
   | EList(id, exprs) => EList(id, List.map(~f, exprs))
   | ETuple(id, first, second, theRest) => ETuple(id, f(first), f(second), List.map(~f, theRest))
   | EMatch(id, mexpr, pairs) =>
-    EMatch(id, f(mexpr), List.map(~f=((name, expr)) => (name, f(expr)), pairs))
+    EMatch(id, f(mexpr), List.map(~f=((pat, expr)) => (pat, f(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, f(expr)), fields))
   | EPipe(id, expr1, expr2, exprs) => EPipe(id, f(expr1), f(expr2), List.map(~f, exprs))
   | EConstructor(id, name, exprs) => EConstructor(id, name, List.map(~f, exprs))
@@ -359,15 +360,17 @@ let decendants = (expr: t): list<id> => {
 
 let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
   let found = ref(false)
-  let rec run = e =>
-    if target == toID(e) {
+
+  let f = e => {
+    if toID(e) == target {
       found := true
       f(e)
     } else {
-      deprecatedWalk(~f=run, e)
+      e
     }
+  }
 
-  let finished = run(ast)
+  let finished = postTraversal(~f, ast)
   if failIfMissing {
     if !found.contents {
       // prevents the significant performance cost of show
