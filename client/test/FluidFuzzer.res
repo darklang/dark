@@ -226,27 +226,31 @@ module FuzzTest = {
 let unwrap = (id: id, ast: E.t): E.t => {
   let childOr = (exprs: list<E.t>) => List.find(exprs, ~f=e => E.toID(e) == id)
 
-  E.postTraversal(ast, ~f=e => {
-    let newExpr = switch e {
-    | ELet(_, _, rhs, next) => childOr(list{rhs, next})
-    | EIf(_, cond, ifexpr, elseexpr) => childOr(list{cond, ifexpr, elseexpr})
-    | EBinOp(_, _, lexpr, rexpr, _) => childOr(list{lexpr, rexpr})
-    | EFieldAccess(_, expr, _) => childOr(list{expr})
-    | EFnCall(_, _, exprs, _) => childOr(exprs)
-    | ELambda(_, _, body) => childOr(list{body})
-    | EList(_, exprs) => childOr(exprs)
-    | EMatch(_, mexpr, pairs) => childOr(list{mexpr, ...List.map(~f=Tuple2.second, pairs)})
-    | ERecord(_, fields) => childOr(List.map(~f=Tuple2.second, fields))
-    | EPipe(_, e1, e2, rest) => childOr(list{e1, e2, ...rest})
-    | EConstructor(_, _, exprs) => childOr(exprs)
-    | EPartial(_, _, oldExpr) => childOr(list{oldExpr})
-    | ERightPartial(_, _, oldExpr) => childOr(list{oldExpr})
-    | EFeatureFlag(_, _, cond, casea, caseb) => childOr(list{cond, casea, caseb})
-    | _ => None
-    }
+  E.postTraversal(
+    ~f=e => {
+      let newExpr = switch e {
+      | ELet(_, _, rhs, next) => childOr(list{rhs, next})
+      | EIf(_, cond, ifexpr, elseexpr) => childOr(list{cond, ifexpr, elseexpr})
+      | EBinOp(_, _, lexpr, rexpr, _) => childOr(list{lexpr, rexpr})
+      | EFieldAccess(_, expr, _) => childOr(list{expr})
+      | EFnCall(_, _, exprs, _) => childOr(exprs)
+      | ELambda(_, _, body) => childOr(list{body})
+      | EList(_, exprs) => childOr(exprs)
+      | EMatch(_, mexpr, pairs) => childOr(list{mexpr, ...List.map(~f=Tuple2.second, pairs)})
+      | ERecord(_, fields) => childOr(List.map(~f=Tuple2.second, fields))
+      | EPipe(_, e1, e2, rest) => childOr(list{e1, e2, ...rest})
+      | EConstructor(_, _, exprs) => childOr(exprs)
+      | EPartial(_, _, oldExpr) => childOr(list{oldExpr})
+      | ERightPartial(_, _, oldExpr) => childOr(list{oldExpr})
+      | EFeatureFlag(_, _, cond, casea, caseb) => childOr(list{cond, casea, caseb})
+      | _ => None
+      }
 
-    Option.unwrap(~default=e, newExpr)
-  })
+      Option.unwrap(~default=e, newExpr)
+    },
+    ~fPattern=p => p,
+    ast,
+  )
 }
 
 let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
@@ -256,79 +260,82 @@ let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
     } else {
       str
     }
-  E.postTraversal(ast, ~f=x =>
-    switch x {
-    | ELet(id, name, rhs, next) => ELet(id, fStr(id, name), rhs, next)
-    | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, expr, fStr(id, fieldname))
-    | EPartial(id, name, expr) =>
-      let newName = fStr(id, name)
-      if newName == "" {
-        expr
-      } else {
-        EPartial(id, newName, expr)
-      }
-    | ERightPartial(id, name, expr) =>
-      let newName = fStr(id, name)
-      if newName == "" {
-        expr
-      } else {
-        ERightPartial(id, newName, expr)
-      }
-    | EFnCall(id, name, exprs, ster) as e =>
-      let newName = switch name {
-      | Stdlib({module_, function, version}) =>
-        FQFnName.Stdlib({
-          module_: fStr(id, module_),
-          function: fStr(id, function),
-          version: version,
-        })
-      | User(name) => User(fStr(id, name))
-      | Package({owner, package, module_, function, version}) =>
-        FQFnName.Package({
-          owner: fStr(id, owner),
-          package: fStr(id, package),
-          module_: fStr(id, module_),
-          function: fStr(id, function),
-          version: version,
-        })
-      }
-      if FQFnName.toString(newName) == "" {
-        e
-      } else {
-        EFnCall(id, newName, exprs, ster)
-      }
-    | EBinOp(id, name, lhs, rhs, ster) as e =>
-      let newName = switch name {
-      | {module_: None, function} =>
-        ({module_: None, function: fStr(id, function)}: PT.InfixStdlibFnName.t)
-      | {module_: Some(mod), function} => {module_: Some(fStr(id, mod)), function: function}
-      }
-
-      if newName.module_ == None && newName.function == "" {
-        e
-      } else {
-        EBinOp(id, newName, lhs, rhs, ster)
-      }
-    | ELambda(id, names, expr) =>
-      let names = List.map(names, ~f=((nid, name)) =>
-        if nid == id {
-          (nid, fStr(id, name))
+  E.postTraversal(
+    ~f=x =>
+      switch x {
+      | ELet(id, name, rhs, next) => ELet(id, fStr(id, name), rhs, next)
+      | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, expr, fStr(id, fieldname))
+      | EPartial(id, name, expr) =>
+        let newName = fStr(id, name)
+        if newName == "" {
+          expr
         } else {
-          (nid, name)
+          EPartial(id, newName, expr)
         }
-      )
+      | ERightPartial(id, name, expr) =>
+        let newName = fStr(id, name)
+        if newName == "" {
+          expr
+        } else {
+          ERightPartial(id, newName, expr)
+        }
+      | EFnCall(id, name, exprs, ster) as e =>
+        let newName = switch name {
+        | Stdlib({module_, function, version}) =>
+          FQFnName.Stdlib({
+            module_: fStr(id, module_),
+            function: fStr(id, function),
+            version: version,
+          })
+        | User(name) => User(fStr(id, name))
+        | Package({owner, package, module_, function, version}) =>
+          FQFnName.Package({
+            owner: fStr(id, owner),
+            package: fStr(id, package),
+            module_: fStr(id, module_),
+            function: fStr(id, function),
+            version: version,
+          })
+        }
+        if FQFnName.toString(newName) == "" {
+          e
+        } else {
+          EFnCall(id, newName, exprs, ster)
+        }
+      | EBinOp(id, name, lhs, rhs, ster) as e =>
+        let newName = switch name {
+        | {module_: None, function} =>
+          ({module_: None, function: fStr(id, function)}: PT.InfixStdlibFnName.t)
+        | {module_: Some(mod), function} => {module_: Some(fStr(id, mod)), function: function}
+        }
 
-      ELambda(id, names, expr)
-    | ERecord(rid, fields) => ERecord(rid, List.map(~f=((name, expr)) =>
-          if id == E.toID(expr) {
-            (fStr(id, name), expr)
+        if newName.module_ == None && newName.function == "" {
+          e
+        } else {
+          EBinOp(id, newName, lhs, rhs, ster)
+        }
+      | ELambda(id, names, expr) =>
+        let names = List.map(names, ~f=((nid, name)) =>
+          if nid == id {
+            (nid, fStr(id, name))
           } else {
-            (name, expr)
+            (nid, name)
           }
-        , fields))
-    | EString(id, str) => EString(id, fStr(id, str))
-    | expr => expr
-    }
+        )
+
+        ELambda(id, names, expr)
+      | ERecord(rid, fields) => ERecord(rid, List.map(~f=((name, expr)) =>
+            if id == E.toID(expr) {
+              (fStr(id, name), expr)
+            } else {
+              (name, expr)
+            }
+          , fields))
+      | EString(id, str) => EString(id, fStr(id, str))
+      | expr => expr
+      },
+    ~fPattern=p => p,
+    ast,
   )
 }
 
@@ -339,64 +346,71 @@ let shortenNames = (id: id, expr: E.t): E.t =>
 
 let remove = (id: id, ast: E.t): E.t => {
   let removeFromList = exprs => List.filter(exprs, ~f=e => E.toID(e) != id)
-  E.postTraversal(ast, ~f=x =>
-    switch x {
-    | e if E.toID(e) == id => EBlank(id)
-    | EFnCall(id, name, exprs, ster) => EFnCall(id, name, removeFromList(exprs), ster)
-    | ELambda(id, names, expr) =>
-      let names =
-        names
-        |> List.filter(~f=((nid, _)) => nid != id)
-        |> (
-          x =>
-            if x == list{} {
-              List.take(~count=1, names)
-            } else {
-              x
-            }
-        )
+  E.postTraversal(
+    ~f=x =>
+      switch x {
+      | e if E.toID(e) == id => EBlank(id)
+      | EFnCall(id, name, exprs, ster) => EFnCall(id, name, removeFromList(exprs), ster)
+      | ELambda(id, names, expr) =>
+        let names =
+          names
+          |> List.filter(~f=((nid, _)) => nid != id)
+          |> (
+            x =>
+              if x == list{} {
+                List.take(~count=1, names)
+              } else {
+                x
+              }
+          )
 
-      ELambda(id, names, expr)
-    | EList(id, exprs) => EList(id, removeFromList(exprs))
-    | EMatch(mid, mexpr, pairs) =>
-      EMatch(
-        mid,
-        mexpr,
-        List.filter(pairs, ~f=((pattern, expr)) =>
-          E.toID(expr) != id && FluidPattern.toID(pattern) != id
-        ),
-      )
-    | ERecord(rid, fields) => ERecord(rid, List.filterMap(~f=((name, expr)) =>
-          if E.toID(expr) == id {
-            None
-          } else {
-            Some(name, expr)
-          }
-        , fields))
-    | EPipe(id, e1, e2, rest) =>
-      switch removeFromList(list{e1, e2, ...rest}) {
-      | list{EBlank(_), EBinOp(id, op, EPipeTarget(ptid), rexpr, ster)}
-      | list{EBinOp(id, op, EPipeTarget(ptid), rexpr, ster), EBlank(_)} =>
-        EBinOp(id, op, EBlank(ptid), rexpr, ster)
-      | list{EBlank(_), EFnCall(id, name, list{EPipeTarget(ptid), ...tail}, ster)}
-      | list{EFnCall(id, name, list{EPipeTarget(ptid), ...tail}, ster), EBlank(_)} =>
-        EFnCall(id, name, list{EBlank(ptid), ...tail}, ster)
-      | list{justOne} => justOne
-      | list{} => EBlank(id)
-      | list{e1, e2, ...rest} => EPipe(id, e1, e2, rest)
-      }
-    | EConstructor(id, name, exprs) => EConstructor(id, name, removeFromList(exprs))
-    | expr => expr
-    }
+        ELambda(id, names, expr)
+      | EList(id, exprs) => EList(id, removeFromList(exprs))
+      | EMatch(mid, mexpr, pairs) =>
+        EMatch(
+          mid,
+          mexpr,
+          List.filter(pairs, ~f=((pattern, expr)) =>
+            E.toID(expr) != id && FluidPattern.toID(pattern) != id
+          ),
+        )
+      | ERecord(rid, fields) => ERecord(rid, List.filterMap(~f=((name, expr)) =>
+            if E.toID(expr) == id {
+              None
+            } else {
+              Some(name, expr)
+            }
+          , fields))
+      | EPipe(id, e1, e2, rest) =>
+        switch removeFromList(list{e1, e2, ...rest}) {
+        | list{EBlank(_), EBinOp(id, op, EPipeTarget(ptid), rexpr, ster)}
+        | list{EBinOp(id, op, EPipeTarget(ptid), rexpr, ster), EBlank(_)} =>
+          EBinOp(id, op, EBlank(ptid), rexpr, ster)
+        | list{EBlank(_), EFnCall(id, name, list{EPipeTarget(ptid), ...tail}, ster)}
+        | list{EFnCall(id, name, list{EPipeTarget(ptid), ...tail}, ster), EBlank(_)} =>
+          EFnCall(id, name, list{EBlank(ptid), ...tail}, ster)
+        | list{justOne} => justOne
+        | list{} => EBlank(id)
+        | list{e1, e2, ...rest} => EPipe(id, e1, e2, rest)
+        }
+      | EConstructor(id, name, exprs) => EConstructor(id, name, removeFromList(exprs))
+      | expr => expr
+      },
+    ~fPattern=p => p,
+    ast,
   )
 }
 
 let simplify = (id: id, ast: E.t): E.t =>
-  E.update(id, ast, ~f=x =>
-    switch x {
-    | EBlank(e) => EBlank(e)
-    | _ => EInteger(id, 5L)
-    }
+  E.update(
+    ~f=x =>
+      switch x {
+      | EBlank(e) => EBlank(e)
+      | _ => EInteger(id, 5L)
+      },
+    ~fPattern=p => p,
+    id,
+    ast,
   )
 
 let reduce = (test: FuzzTest.t, ast: E.t) => {

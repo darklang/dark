@@ -22,7 +22,7 @@ let replace = (~replacement: E.t, target: id, ast: t): t =>
   map(ast, ~f=E.replace(~replacement, target))
 
 let update = (~failIfMissing=true, ~fExpr: E.t => E.t, target: id, ast: t): t => {
-  map(ast, ~f=E.update(~failIfMissing, ~f=fExpr, target))
+  map(ast, ~f=E.update(~failIfMissing, ~f=fExpr, ~fPattern=p => p, target))
 }
 
 let filter = (ast: t, ~f: E.t => bool): list<E.t> => toExpr(ast) |> E.filter(~f)

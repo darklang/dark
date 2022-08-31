@@ -299,13 +299,16 @@ let variablesIn = (ast: E.t): AnalysisTypes.avDict => {
 }
 
 let removePartials = (expr: E.t): E.t =>
-  E.postTraversal(expr, ~f=x =>
-    switch x {
-    | EPartial(_, _, e)
-    | ERightPartial(_, _, e)
-    | ELeftPartial(_, _, e)
-    | e => e
-    }
+  E.postTraversal(
+    ~f=x =>
+      switch x {
+      | EPartial(_, _, e)
+      | ERightPartial(_, _, e)
+      | ELeftPartial(_, _, e)
+      | e => e
+      },
+    ~fPattern=p => p,
+    expr,
   )
 
 @ocaml.doc(" Reorder function calls which call fnName, moving the argument at [oldPos] to [newPos],

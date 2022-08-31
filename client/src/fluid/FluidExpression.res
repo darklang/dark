@@ -164,7 +164,7 @@ let children = (expr: t): list<t> =>
   | EBlank(_)
   | EPipeTarget(_)
   | EVariable(_) => list{}
-  
+
   // One
   | EPartial(_, _, expr)
   | ERightPartial(_, _, expr)
@@ -261,8 +261,9 @@ let rec preTraversal = (~f: t => t, expr: t): t => {
   }
 }
 
-let rec postTraversal = (~f: t => t, expr: t): t => {
-  let r = postTraversal(~f)
+let rec postTraversal = (~f: t => t, ~fPattern: fluidPattern => fluidPattern, expr: t): t => {
+  let r = postTraversal(~f, ~fPattern)
+  //let rP = FluidPattern.postTraversal()
   let result = switch expr {
   | EInteger(_)
   | EBlank(_)
@@ -282,7 +283,7 @@ let rec postTraversal = (~f: t => t, expr: t): t => {
   | EList(id, exprs) => EList(id, List.map(~f=r, exprs))
   | ETuple(id, first, second, theRest) => ETuple(id, r(first), r(second), List.map(~f=r, theRest))
   | EMatch(id, mexpr, pairs) =>
-    EMatch(id, r(mexpr), List.map(~f=((name, expr)) => (name, r(expr)), pairs))
+    EMatch(id, r(mexpr), List.map(~f=((pat, expr)) => (pat, r(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, r(expr)), fields))
   | EPipe(id, expr1, expr2, exprs) => EPipe(id, r(expr1), r(expr2), List.map(~f=r, exprs))
   | EConstructor(id, name, exprs) => EConstructor(id, name, List.map(~f=r, exprs))
@@ -358,7 +359,13 @@ let decendants = (expr: t): list<id> => {
   res.contents
 }
 
-let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
+let update = (
+  ~failIfMissing=true,
+  ~f: t => t,
+  ~fPattern: fluidPattern => fluidPattern,
+  target: id,
+  ast: t,
+): t => {
   let found = ref(false)
 
   let f = e => {
@@ -370,7 +377,7 @@ let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
     }
   }
 
-  let finished = postTraversal(~f, ast)
+  let finished = postTraversal(~f, ~fPattern, ast)
   if failIfMissing {
     if !found.contents {
       // prevents the significant performance cost of show
@@ -412,7 +419,7 @@ let replace = (~replacement: t, target: id, ast: t): t => {
   | _ => (target, replacement)
   }
 
-  update(target', ast, ~f=_ => newExpr')
+  update(~f=_ => newExpr', ~fPattern=p => p, target', ast)
 }
 
 // Slightly modified version of `AST.uses` (pre-fluid code)

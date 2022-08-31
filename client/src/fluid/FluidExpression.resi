@@ -37,6 +37,7 @@ let preTraversal: (
  * call preTraversal. ")
 let postTraversal: (
   ~f: ProgramTypes.Expr.t => ProgramTypes.Expr.t,
+  ~fPattern: ProgramTypes.Pattern.t => ProgramTypes.Pattern.t,
   ProgramTypes.Expr.t,
 ) => ProgramTypes.Expr.t
 
@@ -99,6 +100,7 @@ let ancestors: (ID.t, ProgramTypes.Expr.t) => list<ProgramTypes.Expr.t>
 let update: (
   ~failIfMissing: bool=?,
   ~f: ProgramTypes.Expr.t => ProgramTypes.Expr.t,
+  ~fPattern: ProgramTypes.Pattern.t => ProgramTypes.Pattern.t,
   ID.t,
   ProgramTypes.Expr.t,
 ) => ProgramTypes.Expr.t
