@@ -46,26 +46,30 @@ let wrap = (s: AppTypes.fluidState, ast: FluidAST.t, id: id): (option<id>, Fluid
       // selected all - wrap the whole thing
       (Some(flagID), FluidAST.ofExpr(E.EFeatureFlag(flagID, flagName, newB(), expr, newB())))
     } else {
-      let ast = FluidAST.update(~fExpr=x =>
-        /* Somewhat arbitrary decision: when flagging a let, only wrap the
-         * RHS. This avoids surprising behavior where multiple "lines" may
-         * be wrapped if we wrapped the body. Consider:
-         *   let a = 1
-         *   let b = 2
-         *   let c = 3
-         *   a + b + c
-         *
-         * Wrapping with the `let b` could wrap either `2` (the RHS) or
-         * `let c = 3 \n a + b + c` (the body). To make things feel more line based,
-         * we choose to only wrap the RHS. */
-        switch x {
-        | E.ELet(id, var, rhs, body) =>
-          let ff = E.EFeatureFlag(flagID, flagName, newB(), rhs, newB())
+      let ast = FluidAST.update(
+        ~fExpr=x =>
+          /* Somewhat arbitrary decision: when flagging a let, only wrap the
+           * RHS. This avoids surprising behavior where multiple "lines" may
+           * be wrapped if we wrapped the body. Consider:
+           *   let a = 1
+           *   let b = 2
+           *   let c = 3
+           *   a + b + c
+           *
+           * Wrapping with the `let b` could wrap either `2` (the RHS) or
+           * `let c = 3 \n a + b + c` (the body). To make things feel more line based,
+           * we choose to only wrap the RHS. */
+          switch x {
+          | E.ELet(id, var, rhs, body) =>
+            let ff = E.EFeatureFlag(flagID, flagName, newB(), rhs, newB())
 
-          E.ELet(id, var, ff, body)
-        | e => E.EFeatureFlag(flagID, flagName, newB(), e, newB())
-        }
-      , id, ast)
+            E.ELet(id, var, ff, body)
+          | e => E.EFeatureFlag(flagID, flagName, newB(), e, newB())
+          },
+        ~fPattern=p => p,
+        id,
+        ast,
+      )
 
       (Some(flagID), ast)
     }
@@ -133,16 +137,20 @@ let unwrap = (keep: unwrapKeep, ast: FluidAST.t, id: id): option<FluidAST.t> =>
   |> Option.orElseLazy(_ => ancestorFlag(ast, id))
   |> Option.map(~f=flag =>
     // once we've found the flag, remove it, keeping the correct thing
-    FluidAST.update(~fExpr=x =>
-      switch x {
-      | E.EFeatureFlag(_id, _name, _cond, oldCode, newCode) =>
-        switch keep {
-        | KeepOld => oldCode
-        | KeepNew => newCode
-        }
-      | e => recover("updating flag found non-flag expression", e)
-      }
-    , FluidExpression.toID(flag), ast)
+    FluidAST.update(
+      ~fExpr=x =>
+        switch x {
+        | E.EFeatureFlag(_id, _name, _cond, oldCode, newCode) =>
+          switch keep {
+          | KeepOld => oldCode
+          | KeepNew => newCode
+          }
+        | e => recover("updating flag found non-flag expression", e)
+        },
+      ~fPattern=p => p,
+      FluidExpression.toID(flag),
+      ast,
+    )
   )
 
 @ocaml.doc(" [unwrapCmd keep m tl id] returns a [modification] that calls [unwrap] with

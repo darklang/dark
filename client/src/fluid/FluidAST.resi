@@ -56,7 +56,7 @@ let replace: (~replacement: FluidExpression.t, ID.t, t) => t
 let update: (
   ~failIfMissing: bool=?,
   ~fExpr: FluidExpression.t => FluidExpression.t,
-  //~fPat: FluidPattern.t => FluidPattern.t,
+  ~fPattern: FluidPattern.t => FluidPattern.t,
   ID.t,
   t,
 ) => t

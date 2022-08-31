@@ -1,4 +1,5 @@
 module E = FluidExpression
+module P = FluidPattern
 
 open ProgramTypes.AST
 
@@ -21,8 +22,8 @@ let map = (~f: E.t => E.t, ast: t): t => toExpr(ast) |> f |> ofExpr
 let replace = (~replacement: E.t, target: id, ast: t): t =>
   map(ast, ~f=E.replace(~replacement, target))
 
-let update = (~failIfMissing=true, ~fExpr: E.t => E.t, target: id, ast: t): t => {
-  map(ast, ~f=E.update(~failIfMissing, ~f=fExpr, ~fPattern=p => p, target))
+let update = (~failIfMissing=true, ~fExpr: E.t => E.t, ~fPattern: P.t => P.t, target: id, ast: t): t => {
+  map(ast, ~f=E.update(~failIfMissing, ~f=fExpr, ~fPattern, target))
 }
 
 let filter = (ast: t, ~f: E.t => bool): list<E.t> => toExpr(ast) |> E.filter(~f)

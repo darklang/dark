@@ -1331,22 +1331,27 @@ let updatePattern = (
   matchID: id,
   patID: id,
   ast: FluidAST.t,
-): FluidAST.t => FluidAST.update(~fExpr=m =>
-    switch m {
-    | EMatch(matchID, expr, pairs) =>
-      let rec run = p =>
-        if patID == P.toID(p) {
-          f(p)
-        } else {
-          recursePattern(~f=run, p)
-        }
+): FluidAST.t =>
+  FluidAST.update(
+    ~fExpr=m =>
+      switch m {
+      | EMatch(matchID, expr, pairs) =>
+        let rec run = p =>
+          if patID == P.toID(p) {
+            f(p)
+          } else {
+            recursePattern(~f=run, p)
+          }
 
-      let newPairs = List.map(pairs, ~f=((pat, expr)) => (run(pat), expr))
+        let newPairs = List.map(pairs, ~f=((pat, expr)) => (run(pat), expr))
 
-      EMatch(matchID, expr, newPairs)
-    | _ => m
-    }
-  , matchID, ast)
+        EMatch(matchID, expr, newPairs)
+      | _ => m
+      },
+    ~fPattern=p => p,
+    matchID,
+    ast,
+  )
 
 let replacePattern = (~newPat: fluidPattern, matchID: id, patID: id, ast: FluidAST.t): FluidAST.t =>
   updatePattern(matchID, patID, ast, ~f=_ => newPat)
@@ -1359,15 +1364,19 @@ let addMatchPatternAt = (matchId: id, idx: int, astInfo: ASTInfo.t): ASTInfo.t =
   let action = Printf.sprintf("addMatchPatternAt(id=%s idx=%d)", ID.toString(matchId), idx)
 
   let astInfo = recordAction(action, astInfo)
-  let ast = FluidAST.update(~fExpr=x =>
-    switch x {
-    | EMatch(_, cond, rows) =>
-      let newVal = (PBlank(gid()), E.newB())
-      let newRows = List.insertAt(rows, ~index=idx, ~value=newVal)
-      EMatch(matchId, cond, newRows)
-    | e => recover("expected to find EMatch to update", ~debug=e, e)
-    }
-  , matchId, astInfo.ast)
+  let ast = FluidAST.update(
+    ~fExpr=x =>
+      switch x {
+      | EMatch(_, cond, rows) =>
+        let newVal = (PBlank(gid()), E.newB())
+        let newRows = List.insertAt(rows, ~index=idx, ~value=newVal)
+        EMatch(matchId, cond, newRows)
+      | e => recover("expected to find EMatch to update", ~debug=e, e)
+      },
+    ~fPattern=p => p,
+    matchId,
+    astInfo.ast,
+  )
 
   astInfo |> ASTInfo.setAST(ast)
 }
@@ -1578,6 +1587,7 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
         }
       | origExpr => origExpr
       },
+    ~fPattern=p => p,
     id,
     astInfo.ast,
   )
@@ -1623,18 +1633,23 @@ let startEscapingString = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTIn
    * is, it is correct because we display '"', which bumps pos by 1. */
   let offset = getStringIndex(ti, pos)
   let id = T.tid(ti.token)
-  astInfo.ast |> FluidAST.update(~fExpr=x =>
-    switch x {
-    | EString(_, str) as old_expr =>
-      let new_str =
-        String.splitAt(~index=offset, str)
-        |> (((lhs, rhs)) => (lhs, rhs))
-        |> (((lhs, rhs)) => lhs ++ ("\\" ++ rhs))
+  astInfo.ast
+  |> FluidAST.update(
+    ~fExpr=x =>
+      switch x {
+      | EString(_, str) as old_expr =>
+        let new_str =
+          String.splitAt(~index=offset, str)
+          |> (((lhs, rhs)) => (lhs, rhs))
+          |> (((lhs, rhs)) => lhs ++ ("\\" ++ rhs))
 
-      EPartial(id, new_str, old_expr)
-    | e => e
-    }
-  , id) |> (ast => ASTInfo.setAST(ast, astInfo) |> moveToAstRef(~offset=offset + 1, ARPartial(id)))
+        EPartial(id, new_str, old_expr)
+      | e => e
+      },
+    ~fPattern=p => p,
+    id,
+  )
+  |> (ast => ASTInfo.setAST(ast, astInfo) |> moveToAstRef(~offset=offset + 1, ARPartial(id)))
 }
 
 // ----------------
@@ -1651,6 +1666,7 @@ let exprToFieldAccess = (id: id, ~partialID: id, ~fieldID: id, ast: FluidAST.t):
 ) => {
   let newAST = FluidAST.update(
     ~fExpr=e => EPartial(partialID, "", EFieldAccess(fieldID, e, "")),
+    ~fPattern=p => p,
     id,
     ast,
   )
@@ -1663,14 +1679,18 @@ let exprToFieldAccess = (id: id, ~partialID: id, ~fieldID: id, ast: FluidAST.t):
 // ----------------
 
 let insertLambdaVar = (~index: int, ~name: string, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.update(~fExpr=e =>
-    switch e {
-    | ELambda(id, vars, expr) =>
-      let value = (gid(), name)
-      ELambda(id, List.insertAt(~index, ~value, vars), expr)
-    | _ => recover("not a list in insertLambdaVar", ~debug=e, e)
-    }
-  , id, ast)
+  FluidAST.update(
+    ~fExpr=e =>
+      switch e {
+      | ELambda(id, vars, expr) =>
+        let value = (gid(), name)
+        ELambda(id, List.insertAt(~index, ~value, vars), expr)
+      | _ => recover("not a list in insertLambdaVar", ~debug=e, e)
+      },
+    ~fPattern=p => p,
+    id,
+    ast,
+  )
 
 // ----------------
 // Lets
@@ -1685,7 +1705,12 @@ let makeIntoLetBody = (id: id, astInfo: ASTInfo.t): (ASTInfo.t, id) => {
   let astInfo = recordAction(Printf.sprintf("makeIntoLetBody(%s)", ID.toString(id)), astInfo)
 
   let lid = gid()
-  let ast = FluidAST.update(~fExpr=expr => ELet(lid, "", E.newB(), expr), id, astInfo.ast)
+  let ast = FluidAST.update(
+    ~fExpr=expr => ELet(lid, "", E.newB(), expr),
+    ~fPattern=p => p,
+    id,
+    astInfo.ast,
+  )
 
   (astInfo |> ASTInfo.setAST(ast), lid)
 }
@@ -1696,19 +1721,28 @@ let makeIntoLetBody = (id: id, astInfo: ASTInfo.t): (ASTInfo.t, id) => {
 
 // Add a row to the record
 let addRecordRowAt = (~letter="", index: int, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.update(~fExpr=e =>
-    switch e {
-    | ERecord(id, fields) => ERecord(id, List.insertAt(~index, ~value=(letter, E.newB()), fields))
-    | _ => recover("Not a record in addRecordRowAt", ~debug=e, e)
-    }
-  , id, ast)
+  FluidAST.update(
+    ~fExpr=e =>
+      switch e {
+      | ERecord(id, fields) => ERecord(id, List.insertAt(~index, ~value=(letter, E.newB()), fields))
+      | _ => recover("Not a record in addRecordRowAt", ~debug=e, e)
+      },
+    ~fPattern=p => p,
+    id,
+    ast,
+  )
 
-let addRecordRowToBack = (id: id, ast: FluidAST.t): FluidAST.t => FluidAST.update(~fExpr=e =>
-    switch e {
-    | ERecord(id, fields) => ERecord(id, Belt.List.concat(fields, list{("", E.newB())}))
-    | _ => recover("Not a record in addRecordRowToTheBack", ~debug=e, e)
-    }
-  , id, ast)
+let addRecordRowToBack = (id: id, ast: FluidAST.t): FluidAST.t =>
+  FluidAST.update(
+    ~fExpr=e =>
+      switch e {
+      | ERecord(id, fields) => ERecord(id, Belt.List.concat(fields, list{("", E.newB())}))
+      | _ => recover("Not a record in addRecordRowToTheBack", ~debug=e, e)
+      },
+    ~fPattern=p => p,
+    id,
+    ast,
+  )
 
 let recordFields = (recordID: id, ast: FluidExpression.t): option<list<(string, fluidExpr)>> =>
   E.find(recordID, ast) |> Option.andThen(~f=expr =>
@@ -2095,17 +2129,22 @@ let addPipeExprAt = (pipeId: id, idx: int, astInfo: ASTInfo.t): (ASTInfo.t, id) 
 
   let astInfo = recordAction(action, astInfo)
   let bid = gid()
-  let ast = FluidAST.update(~fExpr=x => {
-    let newExpr = EBlank(bid)
-    switch (x, idx) {
-    | (EPipe(_, e1, e2, exprs), 0) => EPipe(pipeId, newExpr, e1, list{e2, ...exprs})
-    | (EPipe(_, e1, e2, exprs), 1) => EPipe(pipeId, e1, newExpr, list{e2, ...exprs})
-    | (EPipe(_, e1, e2, exprs), _) =>
-      let exprs = List.insertAt(exprs, ~index=idx - 2, ~value=newExpr)
-      EPipe(pipeId, e1, e2, exprs)
-    | (e, _) => recover("expected to find EPipe to update", ~debug=e, e)
-    }
-  }, pipeId, astInfo.ast)
+  let ast = FluidAST.update(
+    ~fExpr=x => {
+      let newExpr = EBlank(bid)
+      switch (x, idx) {
+      | (EPipe(_, e1, e2, exprs), 0) => EPipe(pipeId, newExpr, e1, list{e2, ...exprs})
+      | (EPipe(_, e1, e2, exprs), 1) => EPipe(pipeId, e1, newExpr, list{e2, ...exprs})
+      | (EPipe(_, e1, e2, exprs), _) =>
+        let exprs = List.insertAt(exprs, ~index=idx - 2, ~value=newExpr)
+        EPipe(pipeId, e1, e2, exprs)
+      | (e, _) => recover("expected to find EPipe to update", ~debug=e, e)
+      }
+    },
+    ~fPattern=p => p,
+    pipeId,
+    astInfo.ast,
+  )
 
   (ASTInfo.setAST(ast, astInfo), bid)
 }
@@ -2115,58 +2154,95 @@ let addPipeExprAt = (pipeId: id, idx: int, astInfo: ASTInfo.t): (ASTInfo.t, id) 
 // ----------------
 
 let insertInList = (~index: int, ~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.update(~fExpr=e =>
-    switch e {
-    | EList(id, exprs) => EList(id, List.insertAt(~index, ~value=newExpr, exprs))
-    | _ => recover("not a list in insertInList", ~debug=e, e)
-    }
-  , id, ast)
+  FluidAST.update(
+    ~fExpr=e =>
+      switch e {
+      | EList(id, exprs) => EList(id, List.insertAt(~index, ~value=newExpr, exprs))
+      | _ => recover("not a list in insertInList", ~debug=e, e)
+      },
+    ~fPattern=p => p,
+    id,
+    ast,
+  )
 
 let insertAtListEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.update(~fExpr=e =>
-    switch e {
-    | EList(id, exprs) => EList(id, Belt.List.concat(exprs, list{newExpr}))
-    | _ => recover("not a list in insertInList", ~debug=e, e)
-    }
-  , id, ast)
+  FluidAST.update(
+    ~fExpr=e =>
+      switch e {
+      | EList(id, exprs) => EList(id, Belt.List.concat(exprs, list{newExpr}))
+      | _ => recover("not a list in insertInList", ~debug=e, e)
+      },
+    ~fPattern=p => p,
+    id,
+    ast,
+  )
 
 // ----------------
 // Tuples
 // ----------------
 
 let insertInTuple = (~index: int, ~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.update(~fExpr=e =>
-    switch e {
-    | ETuple(id, first, second, theRest) =>
-      switch index {
-      | 0 => ETuple(id, newExpr, first, List.insertAt(~index=0, ~value=second, theRest))
-      | 1 => ETuple(id, first, newExpr, List.insertAt(~index=0, ~value=second, theRest))
-      | i => ETuple(id, first, second, List.insertAt(~index=i - 2, ~value=newExpr, theRest))
-      }
+  FluidAST.update(
+    ~fExpr=e =>
+      switch e {
+      | ETuple(id, first, second, theRest) =>
+        switch index {
+        | 0 => ETuple(id, newExpr, first, List.insertAt(~index=0, ~value=second, theRest))
+        | 1 => ETuple(id, first, newExpr, List.insertAt(~index=0, ~value=second, theRest))
+        | i => ETuple(id, first, second, List.insertAt(~index=i - 2, ~value=newExpr, theRest))
+        }
 
-    | _ => recover("not a tuple in insertInTuple", ~debug=e, e)
-    }
-  , id, ast)
+      | _ => recover("not a tuple in insertInTuple", ~debug=e, e)
+      },
+    ~fPattern=p => p,
+    id,
+    ast,
+  )
 
 let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.update(~fExpr=e =>
-    switch e {
-    | ETuple(id, first, second, theRest) =>
-      ETuple(id, first, second, Belt.List.concat(theRest, list{newExpr}))
-    | _ => recover("not a tuple in insertAtTupleEnd", ~debug=e, e)
-    }
-  , id, ast)
+  FluidAST.update(
+    ~fExpr=e =>
+      switch e {
+      | ETuple(id, first, second, theRest) =>
+        ETuple(id, first, second, Belt.List.concat(theRest, list{newExpr}))
+      | _ => recover("not a tuple in insertAtTupleEnd", ~debug=e, e)
+      },
+    ~fPattern=p => p,
+    id,
+    ast,
+  )
 
 // TUPLETODO these are a WIP
-let insertInTuplePattern = (~index: int, ~newPat: P.t, id: id, ast: FluidAST.t): FluidAST.t => {
-  Debug.loG("", (index, newPat))
-  FluidAST.update(~fExpr=e => e, id, ast)
-}
+let insertInTuplePattern = (~index: int, ~newPat: P.t, id: id, ast: FluidAST.t): FluidAST.t =>
+  FluidAST.update(
+    ~fExpr=e => e,
+    ~fPattern=p =>
+      switch p {
+      | PTuple(id, first, second, theRest) =>
+        switch index {
+        | 0 => PTuple(id, newPat, first, List.insertAt(~index=0, ~value=second, theRest))
+        | 1 => PTuple(id, first, newPat, List.insertAt(~index=0, ~value=second, theRest))
+        | i => PTuple(id, first, second, List.insertAt(~index=i - 2, ~value=newPat, theRest))
+        }
 
-let insertAtTuplePatternEnd = (~newPat: P.t, id: id, ast: FluidAST.t): FluidAST.t => {
-  Debug.loG("", newPat)
-  FluidAST.update(~fExpr=e => e, id, ast)
-}
+      | _ => recover("not a tuple pattern in insertInTuplePattern", ~debug=p, p)
+      },
+    id,
+    ast,
+  )
+
+let insertAtTuplePatternEnd = (~newPat: P.t, id: id, ast: FluidAST.t): FluidAST.t =>
+  FluidAST.update(
+    ~fExpr=e => e,
+    ~fPattern=p =>
+      switch p {
+      | PTuple(id, first, second, theRest) =>
+        PTuple(id, first, second, Belt.List.concat(theRest, list{newPat}))
+      | _ => recover("not a tuple pattern in insertAtTuplePatternEnd", ~debug=p, p)
+      },
+    id,
+    ast,
+  )
 
 // --------------------
 // Autocomplete
@@ -4555,7 +4631,9 @@ let rec updateKey = (
     switch mNext {
     | Some({token: TListClose(id, _), _}) =>
       astInfo
-      |> ASTInfo.setAST(FluidAST.update(~fExpr=_ => EList(id, list{}), id, astInfo.ast))
+      |> ASTInfo.setAST(
+        FluidAST.update(~fExpr=_ => EList(id, list{}), ~fPattern=p => p, id, astInfo.ast),
+      )
       |> moveToCaretTarget({astRef: ARList(id, LPOpen), offset: 1})
     | Some(ti) => doDelete(~pos, ti, astInfo)
     | None => doDelete(~pos, rti, astInfo)
@@ -4722,7 +4800,6 @@ let rec updateKey = (
   //
   // Insert , in Tuple pattern
   //
-  // TUPLETODO: the ARBlanks here are likely wrong? Maybe they should be ARPattern.PPBlanks?
   | (InsertText(","), L(TPatternTupleOpen(id), _), _) if onEdge =>
     // Case: right after a tuple pattern's opening `(`
     let blankID = gid()
@@ -4782,14 +4859,18 @@ let rec updateKey = (
   | (InsertText("."), L(TFieldPartial(id, _, _, _, _), _), _) =>
     // When pressing . in a field access partial, commit the partial
     let newPartialID = gid()
-    let ast = FluidAST.update(~fExpr=x =>
-      switch x {
-      | EPartial(_, name, EFieldAccess(faid, expr, _)) =>
-        let committedAccess = EFieldAccess(faid, expr, name)
-        EPartial(newPartialID, "", EFieldAccess(gid(), committedAccess, ""))
-      | e => recover("updateKey insert . - unexpected expr " ++ E.show(e), e)
-      }
-    , id, astInfo.ast)
+    let ast = FluidAST.update(
+      ~fExpr=x =>
+        switch x {
+        | EPartial(_, name, EFieldAccess(faid, expr, _)) =>
+          let committedAccess = EFieldAccess(faid, expr, name)
+          EPartial(newPartialID, "", EFieldAccess(gid(), committedAccess, ""))
+        | e => recover("updateKey insert . - unexpected expr " ++ E.show(e), e)
+        },
+      ~fPattern=p => p,
+      id,
+      astInfo.ast,
+    )
 
     astInfo
     |> ASTInfo.setAST(ast)
@@ -4818,7 +4899,9 @@ let rec updateKey = (
   | (InsertText("["), _, R(TConstructorName(id, _), _)) =>
     let newID = gid()
     astInfo
-    |> ASTInfo.setAST(FluidAST.update(~fExpr=var => EList(newID, list{var}), id, astInfo.ast))
+    |> ASTInfo.setAST(
+      FluidAST.update(~fExpr=var => EList(newID, list{var}), ~fPattern=p => p, id, astInfo.ast),
+    )
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
   // Strings can be wrapped in lists, but only if we're outside the quote
   | (InsertText("["), _, R(TString(id, _, _), toTheRight))
@@ -4826,7 +4909,9 @@ let rec updateKey = (
     if onEdge && pos == toTheRight.startPos =>
     let newID = gid()
     astInfo
-    |> ASTInfo.setAST(FluidAST.update(~fExpr=var => EList(newID, list{var}), id, astInfo.ast))
+    |> ASTInfo.setAST(
+      FluidAST.update(~fExpr=var => EList(newID, list{var}), ~fPattern=p => p, id, astInfo.ast),
+    )
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
 
   // Infix symbol insertion to create partials

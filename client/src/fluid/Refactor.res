@@ -98,7 +98,9 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): AppTypes.modification 
   }
 
   TL.getAST(tl)
-  |> Option.map(~f=\">>"(FluidAST.update(~fExpr=replacement, id), TL.setASTMod(tl)))
+  |> Option.map(
+    ~f=\">>"(FluidAST.update(~fExpr=replacement, ~fPattern=p => p, id), TL.setASTMod(tl)),
+  )
   |> Option.unwrap(~default=Mod.NoChange)
 }
 
@@ -112,7 +114,7 @@ let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
         | EFnCall(_, name, exprs, Rail) => EFnCall(id, name, exprs, NoRail)
         | e => recover("incorrect id in takeoffRail", e)
         },
-      
+      ~fPattern=p => p,
       id,
     )
     |> TL.setASTMod(tl)
@@ -134,7 +136,7 @@ let putOnRail = (m: model, tl: toplevel, id: id): modification =>
         | EFnCall(_, name, exprs, NoRail) if isRailable(m, name) => EFnCall(id, name, exprs, Rail)
         | e => e
         },
-
+      ~fPattern=p => p,
       id,
       ast,
     )
@@ -182,7 +184,7 @@ let extractVarInAst = (
           switch x {
           | last => ELet(gid(), varname, FluidExpression.clone(e), last)
           },
-
+        ~fPattern=p => p,
         FluidExpression.toID(last),
       )
       |> FluidAST.replace(FluidExpression.toID(e), ~replacement=EVariable(gid(), varname))

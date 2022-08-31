@@ -263,7 +263,8 @@ let rec preTraversal = (~f: t => t, expr: t): t => {
 
 let rec postTraversal = (~f: t => t, ~fPattern: fluidPattern => fluidPattern, expr: t): t => {
   let r = postTraversal(~f, ~fPattern)
-  //let rP = FluidPattern.postTraversal()
+  let rP = FluidPattern.postTraversal(~f=fPattern)
+
   let result = switch expr {
   | EInteger(_)
   | EBlank(_)
@@ -283,7 +284,7 @@ let rec postTraversal = (~f: t => t, ~fPattern: fluidPattern => fluidPattern, ex
   | EList(id, exprs) => EList(id, List.map(~f=r, exprs))
   | ETuple(id, first, second, theRest) => ETuple(id, r(first), r(second), List.map(~f=r, theRest))
   | EMatch(id, mexpr, pairs) =>
-    EMatch(id, r(mexpr), List.map(~f=((pat, expr)) => (pat, r(expr)), pairs))
+    EMatch(id, r(mexpr), List.map(~f=((pat, expr)) => (rP(pat), r(expr)), pairs))
   | ERecord(id, fields) => ERecord(id, List.map(~f=((name, expr)) => (name, r(expr)), fields))
   | EPipe(id, expr1, expr2, exprs) => EPipe(id, r(expr1), r(expr2), List.map(~f=r, exprs))
   | EConstructor(id, name, exprs) => EConstructor(id, name, List.map(~f=r, exprs))
@@ -374,6 +375,14 @@ let update = (
       f(e)
     } else {
       e
+    }
+  }
+  let fPattern = p => {
+    if FluidPattern.toID(p) == target {
+      found := true
+      fPattern(p)
+    } else {
+      p
     }
   }
 
