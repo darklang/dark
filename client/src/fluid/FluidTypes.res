@@ -139,7 +139,7 @@ module Token = {
     | TPatternFloatWhole(ID.t, ID.t, string, int)
     | TPatternFloatPoint(ID.t, ID.t, int)
     | TPatternFloatFractional(ID.t, ID.t, string, int)
-    
+
     | TPatternBlank(ID.t, ID.t, int)
 
     | TPatternTupleOpen(ID.t)
@@ -335,10 +335,6 @@ module State = {
 module FluidSettings = {
   type t = {
     allowTuples: bool
-  }
-
-  let default = {
-    allowTuples: false
   }
 }
 

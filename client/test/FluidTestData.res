@@ -1,10 +1,12 @@
 open Prelude
 open ProgramTypes.Expr
+module P = ProgramTypes.Pattern
 
 // ----------------
 // Shortcuts
 // ----------------
 let b = FluidExpression.newB()
+let bPat = ProgramTypes.Pattern.PBlank(gid())
 
 open FluidShortcuts
 
@@ -132,6 +134,10 @@ let letWithUsedBinding = (bindingName: string) =>
 // ----------------
 // Match
 // ----------------
+let fiftySixPat = P.PInteger(gid(), 56L)
+
+let seventyEightPat = P.PInteger(gid(), 78L)
+
 let emptyMatch = {
   let mID = gid()
   EMatch(mID, b, list{(PBlank(gid()), b)})
@@ -189,6 +195,62 @@ let nestedMatch = {
   let mID = gid()
   EMatch(mID, b, list{(PBlank(gid()), emptyMatch)})
 }
+
+let tuplePattern2WithNoBlank = pTuple(fiftySixPat, seventyEightPat, list{})
+let tuplePattern2WithBothBlank = pTuple(bPat, bPat, list{})
+let tuplePattern2WithFirstBlank = pTuple(bPat, seventyEightPat, list{})
+let tuplePattern2WithSecondBlank = pTuple(fiftySixPat, bPat, list{})
+
+let tuplePattern3WithNoBlanks = pTuple(fiftySixPat, seventyEightPat, list{fiftySixPat})
+let tuplePattern3WithAllBlank = pTuple(bPat, bPat, list{bPat})
+
+let tuplePattern3WithFirstBlank = pTuple(bPat, seventyEightPat, list{fiftySixPat})
+let tuplePattern3WithSecondBlank = pTuple(fiftySixPat, bPat, list{seventyEightPat})
+let tuplePattern3WithThirdBlank = pTuple(fiftySixPat, seventyEightPat, list{bPat})
+
+let tuplePattern3WithFirstFilled = pTuple(fiftySixPat, bPat, list{bPat})
+let tuplePattern3WithSecondFilled = pTuple(bPat, fiftySixPat, list{bPat})
+let tuplePattern3WithThirdFilled = pTuple(bPat, bPat, list{fiftySixPat})
+
+let tuplePattern6 = pTuple(
+  fiftySixPat,
+  seventyEightPat,
+  list{fiftySixPat, seventyEightPat, fiftySixPat, seventyEightPat},
+)
+
+let tuplePattern3WithStrs = pTuple(pString("ab"), pString("cd"), list{pString("ef")})
+
+let tuplePatternHuge = pTuple(
+  fiftySixPat,
+  seventyEightPat,
+  list{
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+    seventyEightPat,
+    fiftySixPat,
+  },
+)
 
 // ----------------
 // Variables
@@ -832,7 +894,12 @@ let defaultFunctionsProps: Functions.props = {
 
 let defaultTestProps: FluidTypes.Props.t = {
   functions: Functions.empty |> Functions.setBuiltins(defaultTestFunctions, defaultFunctionsProps),
-  settings: FluidTypes.FluidSettings.default
+  settings: {
+    // this is... awkward.
+    // can I have tests just flip this on/off as I need?
+    // (issue the appropriate cmd/msg/intent/whatever)
+    allowTuples: SettingsContributing.InProgressFeatures.default.allowTuples,
+  },
 }
 
 let fakeID1 = ID.fromInt(77777771)

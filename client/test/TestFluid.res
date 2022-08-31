@@ -3040,6 +3040,563 @@ let run = () => {
     // delete row with delete
     ()
   })
+  describe("Patterns", () => {
+    describe("Tuple Patterns", () => {
+      // TUPLETODO uncomment and correct all of these tests.
+      // TUPLETODO add a test for the bug you found. fix it.
+      // TUPLETODO other tests (copy/paste/reconstruction)
+      describe("render", () => {
+        t(
+          "blank tuple pattern",
+          match'(b, list{(tuplePattern2WithBothBlank, b)}),
+          render,
+          "~match ___\n  (***,***) -> ___\n",
+        )
+        t(
+          "simple tuple pattern",
+          match'(b, list{(tuplePattern2WithNoBlank, b)}),
+          render,
+          "~match ___\n  (56,78) -> ___\n",
+        )
+        // t( //TUPLETODO
+        //   "a very long tuple pattern wraps",
+        //   match'(b, list{(tuplePatternHuge, b)}),
+        //   render,
+        //   "~match ___\n (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n 56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78) -> ___\n",
+        // )
+        // t(
+        //   "a tuple of long floats does not break upon wrap",
+        //   match'(
+        //     b,
+        //     list{
+        //       (
+        //         pTuple(
+        //           PFloat(
+        //             gid(),
+        //             Positive,
+        //             "4611686018427387",
+        //             "12345678901234567989048290381902830912830912830912830912309128901234567890123456789",
+        //           ),
+        //           PFloat(
+        //             gid(),
+        //             Positive,
+        //             "4611686018427387",
+        //             "1234567890183918309183091809183091283019832345678901234567890123456789",
+        //           ),
+        //           list{PFloat(gid(), Positive, "4611686018427387", "123456")},
+        //         ),
+        //         b,
+        //       ),
+        //     },
+        //   ),
+        //   render,
+        //   "~match ___\n (4611686018427387.12345678901234567989048290381902830912830912830912830912309128901234567890123456789,\n 4611686018427387.1234567890183918309183091809183091283019832345678901234567890123456789,\n 4611686018427387.123456) -> ___\n",
+        // )
+        ()
+      })
+
+      describe("navigate", () => {
+        // t( // TUPLETODO we need some special code for this. it works with tuple Exprs
+        //   "ctrl+left at the beginning of tuple pattern item moves to beginning of next tuple item",
+        //   match'(
+        //     b,
+        //     list{
+        //       (
+        //         pTuple(
+        //           fiftySixPat,
+        //           seventyEightPat,
+        //           list{fiftySixPat, seventyEightPat, fiftySixPat, seventyEightPat},
+        //         ),
+        //         b,
+        //       ),
+        //     },
+        //   ),
+        //   ~pos=22, // after the third comma, before the 2nd 78
+        //   ctrlLeft,
+        //   "match ___\n  (56,78,~56,78,56,78) -> ___\n",
+        // )
+        // t(
+        //   "ctrl+right at the end of tuple item moves to end of next tuple item",
+        //   match'(b, list{(tuplePattern6, b)}),
+        //   ~pos=16,
+        //   ctrlRight,
+        //   "match ___\n  (56,78,56~,78,56,78) -> ___\n",
+        // )
+        ()
+      })
+
+      if defaultTestProps.settings.allowTuples {
+        describe("create", () => {
+          t(
+            "create tuple pattern",
+            match'(b, list{(bPat, b)}),
+            ~pos=12,
+            ins("("),
+            "match ___\n  (~***,***) -> ___\n",
+          )
+
+          // t( // TUPLETODO this should be passing once an outstanding PR is merged
+          //   "create and fill in tuple pattern",
+          //   match'(b, list{(bPat, b)}),
+          //   ~pos=12,
+          //   insMany(list{"(", "1", ",", "2", ")"}),
+          //   "match ___\n  (1,2)~ -> ___\n",
+          // )
+          ()
+        })
+      }
+
+      describe("insert", () => {
+        //   t("insert into empty tuple inserts", tuple2WithBothBlank, ~pos=1, ins("5"), "(5~,___)")
+        //   t("inserting before a tuple is no-op", tuple2WithBothBlank, ~pos=0, ins("5"), "~(___,___)")
+        //   tStruct(
+        //     "inserting before a tuple at top-level is a no-op",
+        //     tuple2WithBothBlank,
+        //     ~pos=0,
+        //     list{InsertText("c")},
+        //     tuple2WithBothBlank,
+        //   )
+        //   t(
+        //     "insert space into multi tuple does nothing",
+        //     tuple2WithNoBlank,
+        //     ~pos=6, // right before closing )
+        //     key(K.Space),
+        //     "(56,78~)",
+        //   )
+        //   t(
+        //     "insert separator after opening parens creates blank",
+        //     tuple(int(1), int(2), list{int(3)}),
+        //     ~pos=1, // after the (
+        //     ins(","),
+        //     "(~___,1,2,3)",
+        //   )
+        //   t(
+        //     "insert separator before closing parens creates blank",
+        //     tuple(int(1), int(2), list{int(3)}), // (1,2,3)
+        //     ~pos=6, // before the )
+        //     ins(","),
+        //     "(1,2,3,~___)",
+        //   )
+        //   t(
+        //     "insert separator after separator creates blank",
+        //     tuple(int(1), int(2), list{int(3)}),
+        //     ~pos=5, // after the second comma
+        //     ins(","),
+        //     "(1,2,~___,3)",
+        //   )
+        //   t(
+        //     "inserting space into simple tuple does nothing",
+        //     tuple2WithNoBlank,
+        //     ~pos=3,
+        //     key(K.Space),
+        //     "(56~,78)",
+        //   )
+        //   t(
+        //     "insert separator before item creates blank",
+        //     tuple2WithNoBlank,
+        //     ~pos=1,
+        //     ins(","),
+        //     "(~___,56,78)",
+        //   )
+        //   t(
+        //     "insert separator after item creates blank",
+        //     tuple2WithNoBlank,
+        //     ~pos=6, // after 78
+        //     ins(","),
+        //     "(56,78,~___)",
+        //   )
+        //   t(
+        //     "insert , in string in tuple types ,",
+        //     tuple(str("01234567890123456789012345678901234567890"), fiftySix, list{}),
+        //     ~pos=44, // right before the last 0
+        //     ins(","),
+        //     "(\"0123456789012345678901234567890123456789\n ,~0\",56)",
+        //   )
+        //   t(
+        //     "insert separator after item creates blank when tuple is in match",
+        //     match'(tuple2WithNoBlank, list{(pBlank(), b)}),
+        //     ~pos=12, // before the closing )
+        //     ins(","),
+        //     "match (56,78,~___)\n  *** -> ___\n",
+        //   )
+
+        //   t(
+        //     "insert separator just before another skips over it",
+        //     tuple2WithNoBlank,
+        //     ~pos=3, // before the first comma
+        //     ins(","),
+        //     "(56,~78)",
+        //   )
+        //   t(
+        //     "insert separator just after another creates blank",
+        //     tuple2WithNoBlank,
+        //     ~pos=4, // just after the comma
+        //     ins(","),
+        //     "(56,~___,78)",
+        //   )
+
+        //   t(
+        //     "insert separator mid int does nothing special ",
+        //     tuple2WithNoBlank,
+        //     ~pos=2, // halfway through `56`
+        //     ins(","),
+        //     "(5~6,78)",
+        //   )
+        //   t(
+        //     "insert separator mid string does nothing special ",
+        //     tuple3WithStrs,
+        //     ~pos=3, // in between the a and b of the first str
+        //     ins(","),
+        //     "(\"a,~b\",\"cd\",\"ef\")",
+        //   )
+        //   t(
+        //     "close bracket at end of tuple is swallowed",
+        //     tuple2WithNoBlank,
+        //     ~pos=6, // right before closing )
+        //     ins(")"),
+        //     "(56,78)~",
+        //   )
+        ()
+      })
+
+      // describe("delete", () => {
+      //   // 2-tuple, no blanks
+      //   t(
+      //     "deleting ( from a filled 2-tuple does nothing",
+      //     tuple2WithNoBlank,
+      //     ~pos=0,
+      //     del,
+      //     "~(56,78)",
+      //   )
+      //   t(
+      //     "deleting ) from a filled 2-tuple just moves cursor left",
+      //     tuple2WithNoBlank,
+      //     ~pos=7,
+      //     bs,
+      //     "(56,78~)",
+      //   )
+      //   t(
+      //     "deleting , from a filled 2-tuple leaves only the first item",
+      //     tuple2WithNoBlank, // (56,78)
+      //     ~pos=4, // at the ,
+      //     bs,
+      //     "56~",
+      //   )
+
+      //   // 2-tuple, first blank
+      //   t(
+      //     "deleting ( from a 2-tuple with first value blank converts to the non-blank value",
+      //     tuple2WithFirstBlank,
+      //     ~pos=0,
+      //     del,
+      //     "~78",
+      //   )
+      //   t(
+      //     "deleting ) from a 2-tuple with first value blank just moves the cursor to left of )",
+      //     tuple2WithFirstBlank,
+      //     ~pos=8, // just after )
+      //     bs,
+      //     "(___,78~)",
+      //   )
+      //   t(
+      //     "deleting , from a 2-tuple with first value blank converts to a blank",
+      //     tuple2WithFirstBlank,
+      //     ~pos=4, // just after ,
+      //     del,
+      //     "~___",
+      //   )
+
+      //   // 2-tuple, second blank
+      //   t(
+      //     "deleting ( from a 2-tuple with second value blank converts to the non-blank value",
+      //     tuple2WithSecondBlank,
+      //     ~pos=0,
+      //     del,
+      //     "~56",
+      //   )
+      //   t(
+      //     "deleting ) from a 2-tuple with second value blank just moves the cursor left",
+      //     tuple2WithSecondBlank,
+      //     ~pos=7, // just before )
+      //     del,
+      //     "(56,___~)",
+      //   )
+      //   t(
+      //     "deleting , from a 2-tuple with second value blank converts to the non-blank value",
+      //     tuple2WithSecondBlank,
+      //     ~pos=3, // just before ,
+      //     del,
+      //     "56~",
+      //   )
+
+      //   // 2-tuple, both blank
+      //   t(
+      //     "deleting ( from a blank 2-tuple converts to blank",
+      //     tuple2WithBothBlank,
+      //     ~pos=0,
+      //     del,
+      //     "~___",
+      //   )
+      //   t(
+      //     "deleting ) from a blank 2-tuple just moves the cursor left",
+      //     tuple2WithBothBlank,
+      //     ~pos=9,
+      //     bs,
+      //     "(___,___~)",
+      //   )
+      //   t(
+      //     "deleting , from a blank 2-tuple replaces the tuple with a blank",
+      //     tuple2WithBothBlank,
+      //     ~pos=5,
+      //     bs,
+      //     "~___",
+      //   )
+
+      //   // 3-tuple, no blanks
+      //   t(
+      //     "deleting ( from a filled 3-tuple does nothing",
+      //     tuple3WithNoBlanks,
+      //     ~pos=0,
+      //     del,
+      //     "~(56,78,56)",
+      //   )
+      //   t(
+      //     "deleting ) from a filled 3-tuple just moves cursor left",
+      //     tuple3WithNoBlanks,
+      //     ~pos=10, // just after )
+      //     bs,
+      //     "(56,78,56~)",
+      //   )
+      //   t(
+      //     "deleting first , from a filled 3-tuple removes 2nd item",
+      //     tuple3WithNoBlanks,
+      //     ~pos=3, // just before ,
+      //     del,
+      //     "(56~,56)",
+      //   )
+      //   t(
+      //     "deleting second , from a filled 3-tuple removes 3rd item",
+      //     tuple3WithNoBlanks,
+      //     ~pos=6, // just before ,
+      //     del,
+      //     "(56,78~)",
+      //   )
+
+      //   // 3-tuple, first blank
+      //   t(
+      //     "deleting ( from a 3-tuple with first item blank does nothing",
+      //     tuple3WithFirstBlank,
+      //     ~pos=0,
+      //     del,
+      //     "~(___,78,56)",
+      //   )
+      //   t(
+      //     "deleting first , from a 3-tuple with first item blank removes 2nd item",
+      //     tuple3WithFirstBlank,
+      //     ~pos=4, // just before ,
+      //     del,
+      //     "(~___,56)",
+      //   )
+      //   t(
+      //     "deleting second , from a 3-tuple with first item blank removes 3rd item",
+      //     tuple3WithFirstBlank,
+      //     ~pos=8, // just after ,
+      //     bs,
+      //     "(___,78~)",
+      //   )
+      //   t(
+      //     "deleting ) from a 3-tuple with first item blank just moves cursor left",
+      //     tuple3WithFirstBlank,
+      //     ~pos=11, // just after )
+      //     bs,
+      //     "(___,78,56~)",
+      //   )
+
+      //   // 3-tuple, second blank
+      //   t(
+      //     "deleting ( from a 3-tuple with the second item blank does nothing",
+      //     tuple3WithSecondBlank,
+      //     ~pos=0,
+      //     del,
+      //     "~(56,___,78)",
+      //   )
+      //   t(
+      //     "deleting first , from a 3-tuple with the second item blank removes the blank",
+      //     tuple3WithSecondBlank,
+      //     ~pos=3, // just before ,
+      //     del,
+      //     "(56~,78)",
+      //   )
+      //   t(
+      //     "deleting second , from a 3-tuple with the second item blank removes 3rd item",
+      //     tuple3WithSecondBlank, // (56,___,78)
+      //     ~pos=7, // just before ,
+      //     del,
+      //     "(56,~___)",
+      //   )
+      //   t(
+      //     "deleting ) from a 3-tuple with the second item blank just moves cursor left",
+      //     tuple3WithSecondBlank,
+      //     ~pos=11, // just after )
+      //     bs,
+      //     "(56,___,78~)",
+      //   )
+
+      //   // 3-tuple, third blank `(56,78,___)`
+      //   t(
+      //     "deleting ( from a 3-tuple with the third item blank does nothing",
+      //     tuple3WithThirdBlank,
+      //     ~pos=0,
+      //     del,
+      //     "~(56,78,___)",
+      //   )
+      //   t(
+      //     "deleting first , from a 3-tuple with the third item blank removes the second item",
+      //     tuple3WithThirdBlank,
+      //     ~pos=3, // just before ,
+      //     del,
+      //     "(56~,___)", // or maybe 1char to the right of this
+      //   )
+      //   t(
+      //     "deleting second , from a 3-tuple with the third item blank removes the blank",
+      //     tuple3WithThirdBlank,
+      //     ~pos=7, // just after ,
+      //     bs,
+      //     "(56,78~)",
+      //   )
+      //   t(
+      //     "deleting ) from a 3-tuple with the third item blank just moves the cursor left",
+      //     tuple3WithThirdBlank,
+      //     ~pos=11, // just after )
+      //     bs,
+      //     "(56,78,___~)",
+      //   )
+
+      //   // 3-tuple, first non-blank `(56,___,___)`
+      //   t(
+      //     "deleting ( from a 3-tuple with only first item replaces it with that item",
+      //     tuple3WithFirstFilled,
+      //     ~pos=0,
+      //     del,
+      //     "~56",
+      //   )
+      //   t(
+      //     "deleting first , from a 3-tuple with only first item filled ___",
+      //     tuple3WithFirstFilled,
+      //     ~pos=3, // just before ,
+      //     del,
+      //     "(56~,___)",
+      //   )
+      //   t(
+      //     "deleting second , from a 3-tuple with only first item filled ___",
+      //     tuple3WithFirstFilled,
+      //     ~pos=8, // just after ,
+      //     bs,
+      //     "(56,~___)",
+      //   )
+      //   t(
+      //     "deleting ) from a 3-tuple with only first item filled just moves cursor left",
+      //     tuple3WithFirstFilled,
+      //     ~pos=12, // just after )
+      //     bs,
+      //     "(56,___,___~)",
+      //   )
+
+      //   // 3-tuple, second non-blank `(___,56,___)`
+      //   t(
+      //     "deleting ( from a 3-tuple with only second item filled replaces the tuple with the item",
+      //     tuple3WithSecondFilled,
+      //     ~pos=0,
+      //     del,
+      //     "~56",
+      //   )
+      //   t(
+      //     "deleting first , from a 3-tuple with only second item filled removes the second item",
+      //     tuple3WithSecondFilled,
+      //     ~pos=4, // just before ,
+      //     del,
+      //     "(~___,___)",
+      //   )
+      //   t(
+      //     "deleting second , from a 3-tuple with only second item filled removes the ending blank",
+      //     tuple3WithSecondFilled,
+      //     ~pos=8, // just after ,
+      //     bs,
+      //     "(___,56~)",
+      //   )
+      //   t(
+      //     "deleting ) from a 3-tuple with only second item filled just moves the cursor left",
+      //     tuple3WithSecondFilled,
+      //     ~pos=12, // just after )
+      //     bs,
+      //     "(___,56,___~)",
+      //   )
+
+      //   // 3-tuple, third non-blank `(___,___,56)`
+      //   t(
+      //     "deleting ( from a 3-tuple with only third item filled replaces the tuple with the item",
+      //     tuple3WithThirdFilled,
+      //     ~pos=0,
+      //     del,
+      //     "~56",
+      //   )
+      //   t(
+      //     "deleting first , from a 3-tuple with only third item filled removes the second blank",
+      //     tuple3WithThirdFilled,
+      //     ~pos=4, // just before ,
+      //     del,
+      //     "(~___,56)",
+      //   )
+      //   t(
+      //     "deleting second , from a 3-tuple with only third item filled removes the filled item",
+      //     tuple3WithThirdFilled,
+      //     ~pos=9, // just after ,
+      //     bs,
+      //     "(___,~___)",
+      //   )
+      //   t(
+      //     "deleting ) from a 3-tuple with only third item filled just moves the cursor left",
+      //     tuple3WithThirdFilled,
+      //     ~pos=12, // just after )
+      //     bs,
+      //     "(___,___,56~)",
+      //   )
+
+      //   // 3-tuple, all blank `(___,___,___)`
+      //   t(
+      //     "deleting ( from a 3-tuple of all blanks replaces the tuple with a blank",
+      //     tuple3WithAllBlank,
+      //     ~pos=0,
+      //     del,
+      //     "~___",
+      //   )
+      //   t(
+      //     "deleting first , from a 3-tuple of all blanks removes the second blank",
+      //     tuple3WithAllBlank,
+      //     ~pos=4, // just before ,
+      //     del,
+      //     "(~___,___)",
+      //   )
+      //   t(
+      //     "deleting second , from a 3-tuple of all blanks removes the third blank",
+      //     tuple3WithAllBlank,
+      //     ~pos=9, // just after ,
+      //     bs,
+      //     "(___,~___)",
+      //   )
+      //   t(
+      //     "deleting ) from a 3-tuple of all blanks just moves left",
+      //     tuple3WithAllBlank,
+      //     ~pos=13, // just after )
+      //     bs,
+      //     "(___,___,___~)", // I could see this instead turning into `~___`
+      //   )
+      //   ()
+      // })
+
+      ()
+    })
+  })
   describe("Lets", () => {
     t(
       "move to the front of let",
@@ -4013,7 +4570,7 @@ let run = () => {
     )
     ()
   })
-  
+
   describe("Tuples", () => {
     describe("render", () => {
       t("blank tuple", tuple2WithBothBlank, render, "~(___,___)")
