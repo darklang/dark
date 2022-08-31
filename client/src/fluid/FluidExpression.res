@@ -261,8 +261,8 @@ let rec preTraversal = (~f: t => t, expr: t): t => {
   }
 }
 
-let rec postTraversal = (~f: t => t, ~fPattern: fluidPattern => fluidPattern, expr: t): t => {
-  let r = postTraversal(~f, ~fPattern)
+let rec postTraversal = (~fExpr: t => t, ~fPattern: fluidPattern => fluidPattern, expr: t): t => {
+  let r = postTraversal(~fExpr, ~fPattern)
   let rP = FluidPattern.postTraversal(~f=fPattern)
 
   let result = switch expr {
@@ -294,7 +294,7 @@ let rec postTraversal = (~f: t => t, ~fPattern: fluidPattern => fluidPattern, ex
   | EFeatureFlag(id, msg, cond, casea, caseb) => EFeatureFlag(id, msg, r(cond), r(casea), r(caseb))
   }
 
-  f(result)
+  fExpr(result)
 }
 
 let deprecatedWalk = (~f: t => t, expr: t): t =>
@@ -362,17 +362,17 @@ let decendants = (expr: t): list<id> => {
 
 let update = (
   ~failIfMissing=true,
-  ~f: t => t,
+  ~fExpr: t => t,
   ~fPattern: fluidPattern => fluidPattern,
   target: id,
   ast: t,
 ): t => {
   let found = ref(false)
 
-  let f = e => {
+  let fExpr = e => {
     if toID(e) == target {
       found := true
-      f(e)
+      fExpr(e)
     } else {
       e
     }
@@ -386,7 +386,7 @@ let update = (
     }
   }
 
-  let finished = postTraversal(~f, ~fPattern, ast)
+  let finished = postTraversal(~fExpr, ~fPattern, ast)
   if failIfMissing {
     if !found.contents {
       // prevents the significant performance cost of show
@@ -428,7 +428,7 @@ let replace = (~replacement: t, target: id, ast: t): t => {
   | _ => (target, replacement)
   }
 
-  update(~f=_ => newExpr', ~fPattern=p => p, target', ast)
+  update(~fExpr=_ => newExpr', ~fPattern=p => p, target', ast)
 }
 
 // Slightly modified version of `AST.uses` (pre-fluid code)

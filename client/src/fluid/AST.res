@@ -300,7 +300,7 @@ let variablesIn = (ast: E.t): AnalysisTypes.avDict => {
 
 let removePartials = (expr: E.t): E.t =>
   E.postTraversal(
-    ~f=x =>
+    ~fExpr=x =>
       switch x {
       | EPartial(_, _, e)
       | ERightPartial(_, _, e)

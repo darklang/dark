@@ -36,7 +36,7 @@ let preTraversal: (
  * calling [f], the result is NOT recursed into; if this isn't what you want
  * call preTraversal. ")
 let postTraversal: (
-  ~f: ProgramTypes.Expr.t => ProgramTypes.Expr.t,
+  ~fExpr: ProgramTypes.Expr.t => ProgramTypes.Expr.t,
   ~fPattern: ProgramTypes.Pattern.t => ProgramTypes.Pattern.t,
   ProgramTypes.Expr.t,
 ) => ProgramTypes.Expr.t
@@ -99,7 +99,7 @@ let ancestors: (ID.t, ProgramTypes.Expr.t) => list<ProgramTypes.Expr.t>
     If not found, will assertT before returning the unmodified [ast]. ")
 let update: (
   ~failIfMissing: bool=?,
-  ~f: ProgramTypes.Expr.t => ProgramTypes.Expr.t,
+  ~fExpr: ProgramTypes.Expr.t => ProgramTypes.Expr.t,
   ~fPattern: ProgramTypes.Pattern.t => ProgramTypes.Pattern.t,
   ID.t,
   ProgramTypes.Expr.t,

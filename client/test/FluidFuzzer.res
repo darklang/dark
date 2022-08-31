@@ -227,7 +227,7 @@ let unwrap = (id: id, ast: E.t): E.t => {
   let childOr = (exprs: list<E.t>) => List.find(exprs, ~f=e => E.toID(e) == id)
 
   E.postTraversal(
-    ~f=e => {
+    ~fExpr=e => {
       let newExpr = switch e {
       | ELet(_, _, rhs, next) => childOr(list{rhs, next})
       | EIf(_, cond, ifexpr, elseexpr) => childOr(list{cond, ifexpr, elseexpr})
@@ -261,7 +261,7 @@ let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
       str
     }
   E.postTraversal(
-    ~f=x =>
+    ~fExpr=x =>
       switch x {
       | ELet(id, name, rhs, next) => ELet(id, fStr(id, name), rhs, next)
       | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, expr, fStr(id, fieldname))
@@ -347,7 +347,7 @@ let shortenNames = (id: id, expr: E.t): E.t =>
 let remove = (id: id, ast: E.t): E.t => {
   let removeFromList = exprs => List.filter(exprs, ~f=e => E.toID(e) != id)
   E.postTraversal(
-    ~f=x =>
+    ~fExpr=x =>
       switch x {
       | e if E.toID(e) == id => EBlank(id)
       | EFnCall(id, name, exprs, ster) => EFnCall(id, name, removeFromList(exprs), ster)
@@ -403,7 +403,7 @@ let remove = (id: id, ast: E.t): E.t => {
 
 let simplify = (id: id, ast: E.t): E.t =>
   E.update(
-    ~f=x =>
+    ~fExpr=x =>
       switch x {
       | EBlank(e) => EBlank(e)
       | _ => EInteger(id, 5L)
