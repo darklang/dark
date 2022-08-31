@@ -2212,7 +2212,6 @@ let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
     ast,
   )
 
-// TUPLETODO these are a WIP
 let insertInTuplePattern = (~index: int, ~newPat: P.t, id: id, ast: FluidAST.t): FluidAST.t =>
   FluidAST.update(
     ~fExpr=e => e,
