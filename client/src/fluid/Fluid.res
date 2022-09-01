@@ -1312,47 +1312,6 @@ let caretTargetForEndOfMatchPattern = (ast: FluidAST.t, matchID: id, index: int)
 // ----------------
 // Patterns
 // ----------------
-
-let recursePattern = (~f: fluidPattern => fluidPattern, pat: fluidPattern): fluidPattern =>
-  switch pat {
-  | PInteger(_)
-  | PBlank(_)
-  | PString(_)
-  | PCharacter(_)
-  | PVariable(_)
-  | PBool(_)
-  | PNull(_)
-  | PFloat(_) => pat
-  | PConstructor(id, name, pats) => PConstructor(id, name, List.map(~f, pats))
-  | PTuple(id, first, second, theRest) => PTuple(id, f(first), f(second), List.map(~f, theRest))
-  }
-
-let updatePattern = (
-  ~f: fluidPattern => fluidPattern,
-  matchID: id,
-  patID: id,
-  ast: FluidAST.t,
-): FluidAST.t =>
-  FluidAST.update(matchID, ast, ~f=m =>
-    switch m {
-    | EMatch(matchID, expr, pairs) =>
-      let rec run = p =>
-        if patID == P.toID(p) {
-          f(p)
-        } else {
-          recursePattern(~f=run, p)
-        }
-
-      let newPairs = List.map(pairs, ~f=((pat, expr)) => (run(pat), expr))
-
-      EMatch(matchID, expr, newPairs)
-    | _ => m
-    }
-  )
-
-let replacePattern = (~newPat: fluidPattern, matchID: id, patID: id, ast: FluidAST.t): FluidAST.t =>
-  updatePattern(matchID, patID, ast, ~f=_ => newPat)
-
 @ocaml.doc(" addMatchPatternAt adds a new match row (PBlank, EBlank) into the EMatch
     with `matchId` at `idx`.
 
@@ -2448,7 +2407,7 @@ let updateFromACItem = (
    * automatically, allow intermediate variables to
    * be autocompletable to other expressions */
   | (TPatternBlank(mID, pID, _) | TPatternVariable(mID, pID, _, _), _, _, Pat(_, newPat)) =>
-    let newAST = replacePattern(~newPat, mID, pID, ast)
+    let newAST = FluidAST.replacePattern(~newPat, mID, pID, ast)
     (newAST, newTarget)
   | (
       TPartial(_) | TRightPartial(_),
@@ -3214,7 +3173,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           if pID == P.toID(p) {
             newPat
           } else {
-            recursePattern(~f=run, p)
+            P.recurse(~f=run, p)
           }
 
         let newCases = List.map(cases, ~f=((pat, body)) =>
@@ -3437,7 +3396,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
 
       Some(FluidAST.replace(patOrExprID, ~replacement=newExpr, ast), AtTarget(target))
     | Some(Pat(mID, newPat), target) =>
-      let newAST = replacePattern(mID, patOrExprID, ~newPat, ast)
+      let newAST = FluidAST.replacePattern(mID, patOrExprID, ~newPat, ast)
       Some(newAST, AtTarget(target))
     | None => None
     }
@@ -3953,7 +3912,7 @@ let doExplicitInsert = (
             if pID == P.toID(p) {
               newPat
             } else {
-              recursePattern(~f=run, p)
+              P.recurse(~f=run, p)
             }
 
           let newCases = List.map(cases, ~f=((pat, body)) =>
@@ -4081,7 +4040,7 @@ let doExplicitInsert = (
 
       Some(FluidAST.replace(patOrExprID, ~replacement=newExpr, ast), AtTarget(target))
     | Some(Pat(mID, newPat), target) =>
-      let newAST = replacePattern(mID, patOrExprID, ~newPat, ast)
+      let newAST = FluidAST.replacePattern(mID, patOrExprID, ~newPat, ast)
       Some(newAST, AtTarget(target))
     | None => None
     }

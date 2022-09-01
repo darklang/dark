@@ -103,3 +103,12 @@ let clone: t => t
   *
   * Find the implementation in the FluidExpression function of the same name. ")
 let testEqualIgnoringIds: (t, t) => bool
+
+let updatePattern: (
+  ~f: FluidPattern.t => FluidPattern.t,
+  ID.t,
+  ID.t,
+  t,
+) => t
+
+let replacePattern: (~newPat: FluidPattern.t, ID.t, ID.t, t) => t

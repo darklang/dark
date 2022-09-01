@@ -1,4 +1,7 @@
 module E = FluidExpression
+module P = FluidPattern
+
+open Prelude
 
 open ProgramTypes.AST
 
@@ -47,3 +50,29 @@ let getFeatureFlags = (ast: t): list<E.t> =>
 let clone = map(~f=E.clone)
 
 let testEqualIgnoringIds = (a: t, b: t): bool => E.testEqualIgnoringIds(toExpr(a), toExpr(b))
+
+let updatePattern = (
+  ~f: fluidPattern => fluidPattern,
+  matchID: id,
+  patID: id,
+  ast: t,
+): t =>
+  update(matchID, ast, ~f=m =>
+    switch m {
+    | EMatch(matchID, expr, pairs) =>
+      let rec run = p =>
+        if patID == P.toID(p) {
+          f(p)
+        } else {
+          P.recurse(~f=run, p)
+        }
+
+      let newPairs = List.map(pairs, ~f=((pat, expr)) => (run(pat), expr))
+
+      EMatch(matchID, expr, newPairs)
+    | _ => m
+    }
+  )
+
+let replacePattern = (~newPat: fluidPattern, matchID: id, patID: id, ast: t): t =>
+  updatePattern(matchID, patID, ast, ~f=_ => newPat)
