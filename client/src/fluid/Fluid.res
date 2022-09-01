@@ -757,10 +757,10 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARFloat(id, FPFractional), TFloatFractional(id', _, _)) if id == id' =>
       posForTi(ti)
 
-    | (ARPattern(id, PPTuple(TPOpen)), TPatternTupleOpen(id'))
-    | (ARPattern(id, PPTuple(TPClose)), TPatternTupleClose(id')) if id == id' =>
+    | (ARPattern(id, PPTuple(TPOpen)), TPatternTupleOpen(_, id'))
+    | (ARPattern(id, PPTuple(TPClose)), TPatternTupleClose(_, id')) if id == id' =>
       posForTi(ti)
-    | (ARPattern(id, PPTuple(TPComma(idx))), TPatternTupleComma(id', idx')) if id == id' && idx == idx' =>
+    | (ARPattern(id, PPTuple(TPComma(idx))), TPatternTupleComma(_, id', idx')) if id == id' && idx == idx' =>
       posForTi(ti)
 
     /*
@@ -981,11 +981,11 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TPatternFloatPoint(_, id, _) => Some({astRef: ARPattern(id, PPFloat(FPPoint)), offset: offset})
   | TPatternFloatFractional(_, id, _, _) =>
     Some({astRef: ARPattern(id, PPFloat(FPFractional)), offset: offset})
-  | TPatternTupleOpen(id) =>
+  | TPatternTupleOpen(_, id) =>
     Some({astRef: ARPattern(id, PPTuple(TPOpen)), offset: offset})
-  | TPatternTupleClose(id) =>
+  | TPatternTupleClose(_, id) =>
     Some({astRef: ARPattern(id, PPTuple(TPClose)), offset: offset})
-  | TPatternTupleComma(id, idx) =>
+  | TPatternTupleComma(_, id, idx) =>
     Some({astRef: ARPattern(id, PPTuple(TPComma(idx))), offset: offset})
   | TPatternBlank(_, id, _) => Some({astRef: ARPattern(id, PPBlank), offset: offset})
 

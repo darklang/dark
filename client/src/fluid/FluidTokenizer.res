@@ -181,12 +181,12 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
         if isLastPattern {
           subpatternTokens
         } else {
-          List.append(subpatternTokens, list{TPatternTupleComma(id, i)})
+          List.append(subpatternTokens, list{TPatternTupleComma(matchID, id, i)})
         }
       })
       |> List.flatten
 
-    List.flatten(list{list{TPatternTupleOpen(id)}, middlePart, list{TPatternTupleClose(id)}})
+    List.flatten(list{list{TPatternTupleOpen(matchID, id)}, middlePart, list{TPatternTupleClose(matchID, id)}})
   }
 }
 
