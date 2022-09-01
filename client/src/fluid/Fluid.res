@@ -2121,6 +2121,37 @@ let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
     }
   )
 
+let insertInTuplePattern = (~index: int, ~newPat: P.t, matchID: id, id: id, ast: FluidAST.t): FluidAST.t =>
+  FluidAST.updatePattern(
+    ~f=p =>
+      switch p {
+      | PTuple(id, first, second, theRest) =>
+        switch index {
+        | 0 => PTuple(id, newPat, first, List.insertAt(~index=0, ~value=second, theRest))
+        | 1 => PTuple(id, first, newPat, List.insertAt(~index=0, ~value=second, theRest))
+        | i => PTuple(id, first, second, List.insertAt(~index=i - 2, ~value=newPat, theRest))
+        }
+
+      | _ => recover("not a tuple pattern in insertInTuplePattern", ~debug=p, p)
+      },
+    matchID,
+    id,
+    ast,
+  )
+
+let insertAtTuplePatternEnd = (~newPat: P.t, matchID: id, id: id, ast: FluidAST.t): FluidAST.t =>
+  FluidAST.updatePattern(
+    ~f=p =>
+      switch p {
+      | PTuple(id, first, second, theRest) =>
+        PTuple(id, first, second, Belt.List.concat(theRest, list{newPat}))
+      | _ => recover("not a tuple pattern in insertAtTuplePatternEnd", ~debug=p, p)
+      },
+    matchID,
+    id,
+    ast,
+  )
+
 // --------------------
 // Autocomplete
 // --------------------
@@ -4684,13 +4715,44 @@ let rec updateKey = (
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
   //
-  // TUPLETODO: Insert , in Tuple pattern
+  // Insert , in Tuple pattern
   //
-  // This will be a bit involved - FluidAST has no updatePattern fn readily
-  // available, so we'll have to figure out how to deal with updating an
-  // existing pattern.
-  // We can probably borrow some things from doPatternBackspace, since it also
-  // updates patterns?
+  | (InsertText(","), L(TPatternTupleOpen(matchID, id), _), _) if onEdge =>
+    // Case: right after a tuple pattern's opening `(`
+    let blankID = gid()
+    let newPat = PBlank(blankID)
+
+    astInfo
+    |> ASTInfo.setAST(insertInTuplePattern(~index=0, ~newPat, matchID, id, astInfo.ast))
+    |> moveToCaretTarget({astRef: ARPattern(blankID, PPBlank), offset: 0})
+
+  | (InsertText(","), L(_, _ti), R(TPatternTupleComma(_, _, _), _)) if onEdge =>
+    // Case: just to the left of a tuple pattern's separator `,`
+    moveOneRight(pos, astInfo)
+
+  | (InsertText(","), L(TPatternTupleComma(matchID, id, index), _), R(_, ti)) if onEdge =>
+    // Case: just to the right of a tuple's pattern's separator `,`
+    let indexToInsertInto = index + 1
+
+    let astInfo = acEnter(props, ti, K.Enter, astInfo)
+
+    let blankID = gid()
+    let newPat = PBlank(blankID)
+
+    astInfo
+    |> ASTInfo.setAST(insertInTuplePattern(~index=indexToInsertInto, ~newPat, matchID, id, astInfo.ast))
+    |> moveToCaretTarget({astRef: ARPattern(blankID, PPBlank), offset: 0})
+
+  | (InsertText(","), L(_, ti), R(TPatternTupleClose(matchID, id), _)) if onEdge =>
+    // Case: right before the tuple pattern's closing `)`
+    let astInfo = acEnter(props, ti, K.Enter, astInfo)
+
+    let blankID = gid()
+    let newPat = PBlank(blankID)
+
+    astInfo
+    |> ASTInfo.setAST(insertAtTuplePatternEnd(~newPat, matchID, id, astInfo.ast))
+    |> moveToCaretTarget({astRef: ARPattern(blankID, PPBlank), offset: 0})
 
   //
   // Add another param to a lambda
