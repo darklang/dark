@@ -119,20 +119,20 @@ let rec preTraversal = (~f: t => t, pattern: t): t => {
   }
 }
 
-// TODO: this feels like a dupe of either the above or below - remove in favor of such?
-let recurse = (~f: t => t, pat: t): t =>
-  switch pat {
+let recurse = (~f: t => t, pattern: t): t =>
+  switch pattern {
+  | PVariable(_)
   | PInteger(_)
-  | PBlank(_)
+  | PBool(_)
   | PString(_)
   | PCharacter(_)
-  | PVariable(_)
-  | PBool(_)
+  | PBlank(_)
   | PNull(_)
-  | PFloat(_) => pat
-  | PConstructor(id, name, pats) => PConstructor(id, name, List.map(~f, pats))
-  | PTuple(id, first, second, theRest) =>
-    PTuple(id, f(first), f(second), List.map(~f, theRest))
+  | PFloat(_) => pattern
+  | PConstructor(patternID, name, patterns) =>
+    PConstructor(patternID, name, List.map(~f, patterns))
+  | PTuple(patternID, first, second, theRest) =>
+    PTuple(patternID, f(first), f(second), List.map(~f, theRest))
   }
 
 let rec postTraversal = (~f: t => t, pattern: t): t => {

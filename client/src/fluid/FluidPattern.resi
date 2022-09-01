@@ -31,5 +31,5 @@ let preTraversal: (~f: t => t, t) => t
   * this isn't what you want call preTraversal. ")
 let postTraversal: (~f: t => t, t) => t
 
-@ocaml.doc("TODO is this a dupe?")
+@ocaml.doc("TODO I'm not sure if this is a duplicate of preTraversal or postTraversal.")
 let recurse: (~f: t => t, t) => t
