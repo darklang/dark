@@ -2793,7 +2793,14 @@ let run = () => {
       bs,
       "\\aVar, bVar~ -> aVar + ___ * bVar",
     )
-    ()
+    t("enter in lambda arrow does nothing", lambdaWithTwoBindings, ~pos=7, enter, "\\x, y -~> ___")
+    t(
+      "enter after lambda arrow inserts let",
+      lambdaWithTwoBindings,
+      ~pos=9,
+      enter,
+      "\\x, y -> let *** = ___\n         ~___",
+    )
   })
   describe("Variables", () => {
     t(~expectsPartial=true, "insert middle of variable", aVar, ~pos=5, ins("c"), "variac~ble")
@@ -2950,6 +2957,20 @@ let run = () => {
       ~pos=39,
       enter,
       "let a = match ___\n          *** -> ___\nlet *** = ___\n~5",
+    )
+    t(
+      "enter at beginning of match expr body adds let, not match row",
+      matchWithBinding("a", five),
+      ~pos=17,
+      enter,
+      "match ___\n  a -> let *** = ___\n       ~5\n",
+    )
+    t(
+      "enter in a match arrow does nothing",
+      matchWithBinding("a", five),
+      ~pos=15,
+      enter,
+      "match ___\n  a -~> 5\n",
     )
     t(
       "enter at the start of a row creates a new row",
@@ -4013,7 +4034,7 @@ let run = () => {
     )
     ()
   })
-  
+
   describe("Tuples", () => {
     describe("render", () => {
       t("blank tuple", tuple2WithBothBlank, render, "~(___,___)")
