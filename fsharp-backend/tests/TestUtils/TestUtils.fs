@@ -745,7 +745,7 @@ module Expect =
     | DErrorRail l, DErrorRail r -> de ("ErrorRail" :: path) l r
     | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
       let vals l = List.map Tuple2.second l
-      check ("lamdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
+      check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
       exprEqualityBaseFn false path l1.body l2.body errorFn
     | DStr _, DStr _ -> check path (debugDval actual) (debugDval expected)

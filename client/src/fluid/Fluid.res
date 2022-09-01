@@ -5001,9 +5001,14 @@ let rec updateKey = (
       |> moveToAstRef(ARRecord(parentId, RPFieldname(idx + 1)))
     | _ => astInfo
     }
-  /*
-   * Caret at very beginning of tokens or at beginning of non-special line. */
+  // Caret at very beginning of a nested expr - exception: don't do it in the middle
+  // of the preeceding syntax token
+  | (Keypress({key: K.Enter, _}), L(TMatchBranchArrow(_), _), R(TMatchBranchArrow(_), _))
+  | (Keypress({key: K.Enter, _}), L(TLambdaArrow(_), _), R(TLambdaArrow(_), _)) => astInfo
+  // Caret at very beginning of tokens or at beginning of non-special line.
   | (Keypress({key: K.Enter, _}), No, R(t, _))
+  | (Keypress({key: K.Enter, _}), L(TMatchBranchArrow(_), _), R(t, _))
+  | (Keypress({key: K.Enter, _}), L(TLambdaArrow(_), _), R(t, _))
   | (Keypress({key: K.Enter, _}), L(TNewline(_), _), R(t, _)) =>
     /* In some cases, like |1 + 2, we want to wrap the parent expr (in this case the binop) in a let.
      * This has to be recursive to handle variations on |1*2 + 3.
