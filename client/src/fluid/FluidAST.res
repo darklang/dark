@@ -19,25 +19,17 @@ let ofExpr = e => Root(e)
 
 let toID = (Root(e)) => E.toID(e)
 
-let map = (~f: E.t => E.t, ast: t): t => toExpr(ast) |> f |> ofExpr
-
-let replace = (~replacement: E.t, target: id, ast: t): t =>
-  map(ast, ~f=E.replace(~replacement, target))
-
-let update = (~failIfMissing=true, ~f: E.t => E.t, target: id, ast: t): t =>
-  map(ast, ~f=E.update(~failIfMissing, ~f, target))
+let ids = (ast: t): list<id> => toExpr(ast) |> E.ids
 
 let filter = (ast: t, ~f: E.t => bool): list<E.t> => toExpr(ast) |> E.filter(~f)
-
-let blanks = (ast: t): list<E.t> => toExpr(ast) |> E.blanks
-
-let ids = (ast: t): list<id> => toExpr(ast) |> E.ids
 
 let find = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.find(target)
 
 let findParent = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.findParent(target)
 
 let ancestors = (target: id, ast: t): list<E.t> => toExpr(ast) |> E.ancestors(target)
+
+let blanks = (ast: t): list<E.t> => toExpr(ast) |> E.blanks
 
 let getFeatureFlags = (ast: t): list<E.t> =>
   filter(ast, ~f=x =>
@@ -47,9 +39,17 @@ let getFeatureFlags = (ast: t): list<E.t> =>
     }
   )
 
-let clone = map(~f=E.clone)
-
 let testEqualIgnoringIds = (a: t, b: t): bool => E.testEqualIgnoringIds(toExpr(a), toExpr(b))
+
+let map = (~f: E.t => E.t, ast: t): t => toExpr(ast) |> f |> ofExpr
+
+let replace = (~replacement: E.t, target: id, ast: t): t =>
+  map(ast, ~f=E.replace(~replacement, target))
+
+let update = (~failIfMissing=true, ~f: E.t => E.t, target: id, ast: t): t =>
+  map(ast, ~f=E.update(~failIfMissing, ~f, target))
+
+let clone = map(~f=E.clone)
 
 let updatePattern = (
   ~f: fluidPattern => fluidPattern,
