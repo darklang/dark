@@ -2759,28 +2759,28 @@ let run = () => {
       "\\x,~ y -> ___",
     )
     t(
-      "ctrl+left twice over lamda from beg moves to beg of first param",
+      "ctrl+left twice over lambda from beg moves to beg of first param",
       lambdaWithTwoBindings,
       ~pos=1,
       keys(list{K.GoToStartOfWord(DropSelection), K.GoToStartOfWord(DropSelection)}),
       "~\\x, y -> ___",
     )
     t(
-      "ctrl+right twice over lamda from beg moves to last blank",
+      "ctrl+right twice over lambda from beg moves to last blank",
       lambdaWithTwoBindings,
       ~pos=1,
       keys(list{K.GoToEndOfWord(DropSelection), K.GoToEndOfWord(DropSelection)}),
       "\\x, y~ -> ___",
     )
     t(
-      "ctrl+left twice over lamda from end moves to end of second param",
+      "ctrl+left twice over lambda from end moves to end of second param",
       lambdaWithTwoBindings,
       ~pos=12,
       keys(list{K.GoToStartOfWord(DropSelection), K.GoToStartOfWord(DropSelection)}),
       "\\x, ~y -> ___",
     )
     t(
-      "ctrl+right twice over lamda from end doesnt move",
+      "ctrl+right twice over lambda from end doesnt move",
       lambdaWithTwoBindings,
       ~pos=12,
       keys(list{K.GoToEndOfWord(DropSelection), K.GoToEndOfWord(DropSelection)}),
