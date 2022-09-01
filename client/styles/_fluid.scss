@@ -305,6 +305,7 @@ $ff-color: adjust-hue($purple, -40deg);
     margin-right: 0.11px;
   }
 
+  .fluid-match-branch-arrow,
   .fluid-lambda-symbol,
   .fluid-lambda-var,
   .fluid-lambda-arrow {
@@ -409,11 +410,12 @@ $ff-color: adjust-hue($purple, -40deg);
     position: relative;
   }
 
+  .fluid-match-branch-arrow,
   .fluid-binop,
   .fluid-pipe-symbol,
   .fluid-lambda-arrow {
-    /* Fira Code renders slightly larger than Mono in some circumstances, and
-     * we don't want our symbols to be taller than our text. */
+    // Fira Code renders slightly larger than Mono in some circumstances, and
+    // we don't want our symbols to be taller than our text.
     font-size: 90%;
     font-family: "Fira Code", monospace;
   }
