@@ -26,7 +26,7 @@ function print_help ()
   printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
   printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
   printf '\t%s\n' "--include-rescript: Include rescript files (res, resi)"
-  printf '\t%s\n' "--only-rescript: Only check rescript files (res, resi)"
+  printf '\t%s\n' "--rescript-only: Only check rescript files (res, resi)"
 }
 
 FILES=()
