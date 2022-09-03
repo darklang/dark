@@ -120,7 +120,16 @@ module Pattern = {
         ("PFloat", dv4((a, b, c, d) => PFloat(a, b, c, d), ID.decode, Sign.decode, string, string)),
         ("PNull", dv1(a => PNull(a), ID.decode)),
         ("PBlank", dv1(a => PBlank(a), ID.decode)),
-        ("PTuple", dv4((a, first, second, theRest) => PTuple(a, first, second, theRest), ID.decode, decode, decode, list(decode))),
+        (
+          "PTuple",
+          dv4(
+            (a, first, second, theRest) => PTuple(a, first, second, theRest),
+            ID.decode,
+            decode,
+            decode,
+            list(decode),
+          ),
+        ),
       },
       j,
     )

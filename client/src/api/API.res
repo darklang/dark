@@ -25,7 +25,7 @@ let apiCallNoParams = (
       Header("X-CSRF-Token", m.csrfToken),
       clientVersionHeader(m),
     },
-    url,
+    url: url,
     body: Web.XMLHttpRequest.EmptyBody,
     expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(decoder)),
     timeout: None,
@@ -50,11 +50,11 @@ let postJson = (
       Header("X-CSRF-Token", csrfToken),
       ...headers,
     },
-    url,
+    url: url,
     body: Web.XMLHttpRequest.StringBody(Json.stringify(body)),
     expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(decoder)),
     timeout: None,
-    withCredentials,
+    withCredentials: withCredentials,
   })
 
 let apiCall = (
@@ -78,9 +78,9 @@ let apiCall = (
 }
 
 let opsParams = (ops: list<PT.Op.t>, opCtr: int, clientOpCtrID: string): APIAddOps.Params.t => {
-  ops,
-  opCtr,
-  clientOpCtrID,
+  ops: ops,
+  opCtr: opCtr,
+  clientOpCtrID: clientOpCtrID,
 }
 
 // -------------
@@ -176,7 +176,7 @@ let delete404 = (
   m: model,
   {space, path, modifier, _} as original: AnalysisTypes.FourOhFour.t,
 ): cmd => {
-  let params: API404.Delete.Params.t = {space, path, modifier}
+  let params: API404.Delete.Params.t = {space: space, path: path, modifier: modifier}
   apiCall(
     m,
     "/delete_404",

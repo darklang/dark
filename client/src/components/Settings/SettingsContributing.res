@@ -324,14 +324,14 @@ let default = {
   tunnelHost: TunnelHost.default,
   useAssets: UseAssets.default,
   general: General.default,
-  inProgressFeatures: InProgressFeatures.default
+  inProgressFeatures: InProgressFeatures.default,
 }
 
 let toSaved = (s: t) => {
   open Json.Encode
   object_(list{
     ("general", General.toSaved(s.general)),
-    ("inProgressFeatures", InProgressFeatures.toSaved(s.inProgressFeatures))
+    ("inProgressFeatures", InProgressFeatures.toSaved(s.inProgressFeatures)),
   })
 }
 

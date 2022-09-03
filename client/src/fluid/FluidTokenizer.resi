@@ -74,7 +74,7 @@ module ASTInfo: {
 
   let getTokenNotWhitespace: t => option<FluidToken.tokenInfo>
 
-  let emptyFor: (AppTypes.fluidState) => t
+  let emptyFor: AppTypes.fluidState => t
 
   let make: (FluidAST.t, AppTypes.fluidState) => t
 

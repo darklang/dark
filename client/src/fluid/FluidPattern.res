@@ -21,12 +21,10 @@ let toID = (p: t): id =>
 
 let rec ids = (p: t): list<id> =>
   switch p {
-  | PConstructor(id, _, list) =>
-    list |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
+  | PConstructor(id, _, list) => list |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
 
   | PTuple(id, first, second, theRest) =>
-    list{first, second, ...theRest} |> List.map(~f=ids) |> List.flatten
-    |> (l => list{id, ...l})
+    list{first, second, ...theRest} |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
 
   | PVariable(_)
   | PInteger(_)
@@ -58,7 +56,8 @@ let rec variableNames = (p: t): list<string> =>
   switch p {
   | PVariable(_, name) => list{name}
   | PConstructor(_, _, patterns) => patterns |> List.map(~f=variableNames) |> List.flatten
-  | PTuple(_, first, second, theRest) => list{first, second, ...theRest} |> List.map(~f=variableNames) |> List.flatten
+  | PTuple(_, first, second, theRest) =>
+    list{first, second, ...theRest} |> List.map(~f=variableNames) |> List.flatten
   | PInteger(_) | PBool(_) | PString(_) | PCharacter(_) | PBlank(_) | PNull(_) | PFloat(_) => list{}
   }
 
