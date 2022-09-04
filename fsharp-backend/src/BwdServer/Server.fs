@@ -223,12 +223,17 @@ let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
   Telemetry.addTag "http.completion_reason" "canvasNotFound"
   standardResponse ctx "canvas not found" textPlain 404
 
-let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
-  let msg =
-    "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
-  // CLEANUP: use errorResponse
+let internalErrorResponse (ctx : HttpContext) (e : exn) : Task<HttpContext> =
   Telemetry.addTag "http.completion_reason" "internalError"
-  standardResponse ctx msg textPlain 500
+  Telemetry.addTag "http.internal_exception_msg" e.Message
+  // It's possible that the body has already been written to, so we need to be careful here
+  if ctx.Response.HasStarted then
+    Telemetry.addTag "http.body_started_before_error_logged" true
+    task { return ctx }
+  else
+    let msg =
+      "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
+    standardResponse ctx msg textPlain 500
 
 
 let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
@@ -527,7 +532,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         return! errorResponse ctx e.Message 400
       | e ->
         // respond and then reraise to get it to the rollbar middleware
-        let! (_ : HttpContext) = internalErrorResponse ctx
+        let! (_ : HttpContext) = internalErrorResponse ctx e
         return e.Reraise()
     })
 
