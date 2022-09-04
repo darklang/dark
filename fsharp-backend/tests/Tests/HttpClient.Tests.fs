@@ -276,7 +276,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
                    || v.Contains "us-ascii" then
                   transcodeToLatin1 <- true
 
-              BwdServer.Server.setHeader ctx k v)
+              BwdServer.Server.setResponseHeader ctx k v)
             testCase.result.headers
 
           let data =
