@@ -88,10 +88,11 @@ let viewTunnelSectionHeader = {
 }
 
 let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
+  open Tailwind
   let field = Html.span(
     list{},
     list{
-      Html.span(list{C.tailwind("h-6 text-[#989898] mr-1")}, list{Html.text("https://")}),
+      Html.span(list{twProp([h6, textGrey6, mr1])}, list{Html.text("https://")}),
       C.input(
         ~loadStatus=th.loadStatus,
         ~attrs=list{
