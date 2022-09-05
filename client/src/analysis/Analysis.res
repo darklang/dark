@@ -234,8 +234,8 @@ module ReceiveAnalysis = {
     map(msg => msg, field("detail", Decoder(json => Tea_result.Ok(Obj.magic(json)))))
   }
 
-  let listen = (~key, tagger) =>
-    BrowserSubscriptions.registerGlobal("receiveAnalysis", key, tagger, decode)
+  let listen = tagger =>
+    BrowserSubscriptions.registerGlobal("receiveAnalysis", "receiveAnalysis", tagger, decode)
 }
 
 module ReceiveFetch = {
@@ -244,8 +244,8 @@ module ReceiveFetch = {
     map(msg => msg, field("detail", Decoder(json => Tea_result.Ok(Obj.magic(json)))))
   }
 
-  let listen = (~key, tagger) =>
-    BrowserSubscriptions.registerGlobal("receiveFetch", key, tagger, decode)
+  let listen = tagger =>
+    BrowserSubscriptions.registerGlobal("receiveFetch", "receiveFetch", tagger, decode)
 }
 
 module NewTracePush = {
@@ -254,8 +254,8 @@ module NewTracePush = {
     field("detail", Decoders.wrapDecoder(AnalysisTypes.NewTrace.decode))
   }
 
-  let listen = (~key, tagger) =>
-    BrowserSubscriptions.registerGlobal("newTracePush", key, tagger, decode)
+  let listen = tagger =>
+    BrowserSubscriptions.registerGlobal("newTracePush", "newTracePush", tagger, decode)
 }
 
 module New404Push = {
@@ -264,18 +264,19 @@ module New404Push = {
     field("detail", Decoders.wrapDecoder(AnalysisTypes.FourOhFour.decode))
   }
 
-  let listen = (~key, tagger) =>
-    BrowserSubscriptions.registerGlobal("new404Push", key, tagger, decode)
+  let listen = tagger =>
+    BrowserSubscriptions.registerGlobal("new404Push", "new404Push", tagger, decode)
 }
 
 module NewPresencePush = {
   let decode = {
+    Debug.loG("decoding", "AddOps")
     open Tea.Json.Decoder
     field("detail", list(Decoders.wrapDecoder(AppTypes.Avatar.decode)))
   }
 
-  let listen = (~key, tagger) =>
-    BrowserSubscriptions.registerGlobal("newPresencePush", key, tagger, decode)
+  let listen = tagger =>
+    BrowserSubscriptions.registerGlobal("newPresencePush", "newPresencePush", tagger, decode)
 }
 
 module AddOps = {
@@ -284,7 +285,7 @@ module AddOps = {
     field("detail", Decoders.wrapDecoder(PusherTypes.AddOps.decode))
   }
 
-  let listen = (~key, tagger) => BrowserSubscriptions.registerGlobal("addOp", key, tagger, decode)
+  let listen = tagger => BrowserSubscriptions.registerGlobal("addOp", "addOp", tagger, decode)
 }
 
 module WorkerStatePush = {
@@ -293,8 +294,8 @@ module WorkerStatePush = {
     field("detail", Decoders.wrapDecoder(APIWorkers.Scheduler.decode))
   }
 
-  let listen = (~key, tagger) =>
-    BrowserSubscriptions.registerGlobal("workerStatePush", key, tagger, decode)
+  let listen = tagger =>
+    BrowserSubscriptions.registerGlobal("workerStatePush", "workerStatePush", tagger, decode)
 }
 
 // Request analysis

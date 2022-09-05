@@ -23,8 +23,8 @@ module NewStaticDeployPush = {
     map(msg => msg, field("detail", decodeDeploy))
   }
 
-  let listen = (~key, tagger) =>
-    BrowserSubscriptions.registerGlobal("newStaticDeploy", key, tagger, decode)
+  let listen = tagger =>
+    BrowserSubscriptions.registerGlobal("newStaticDeploy", "newStaticDeploy", tagger, decode)
 }
 
 let appendDeploy = (

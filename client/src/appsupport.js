@@ -611,7 +611,7 @@ setTimeout(function () {
       var event = new CustomEvent("newPresencePush", { detail: data });
       document.dispatchEvent(event);
     });
-    pusherChannel.bind("add_op", data => {
+    pusherChannel.bind("v1/add_op", data => {
       var event = new CustomEvent("addOp", { detail: data });
       document.dispatchEvent(event);
     });

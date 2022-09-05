@@ -2071,11 +2071,11 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   // we use IDs here because the node will change
   // before they're triggered
   | DraggingTL(id, _, _, _) =>
-    let listenerKey = "mouse_moves_" ++ TLID.toString(id)
-    list{BrowserSubscriptions.DarkMouse.moves(~key=listenerKey, event => DragToplevel(id, event))}
+    let key = "mouse_moves_" ++ TLID.toString(id)
+    list{BrowserSubscriptions.DarkMouse.moves(~key, event => DragToplevel(id, event))}
   | PanningCanvas(_) =>
-    let listenerKey = "mouse_drag"
-    list{BrowserSubscriptions.DarkMouse.moves(~key=listenerKey, event => AppMouseDrag(event))}
+    let key = "mouse_drag"
+    list{BrowserSubscriptions.DarkMouse.moves(~key, event => AppMouseDrag(event))}
   | _ => list{}
   }
 
@@ -2122,14 +2122,14 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let analysisSubs = list{
-    Analysis.ReceiveAnalysis.listen(~key="receive_analysis", s => ReceiveAnalysis(s)),
-    Analysis.NewTracePush.listen(~key="new_trace_push", s => NewTracePush(s)),
-    Analysis.New404Push.listen(~key="new_404_push", s => New404Push(s)),
-    DarkStorage.NewStaticDeployPush.listen(~key="new_static_deploy", s => NewStaticDeployPush(s)),
-    Analysis.ReceiveFetch.listen(~key="receive_fetch", s => ReceiveFetch(s)),
-    Analysis.NewPresencePush.listen(~key="new_presence_push", s => NewPresencePush(s)),
-    Analysis.AddOps.listen(~key="v1/add_op", s => AddOpsPusherMsg(s)),
-    Analysis.WorkerStatePush.listen(~key="worker_state_push", s => WorkerStatePush(s)),
+    Analysis.ReceiveAnalysis.listen(s => ReceiveAnalysis(s)),
+    Analysis.NewTracePush.listen(s => NewTracePush(s)),
+    Analysis.New404Push.listen(s => New404Push(s)),
+    DarkStorage.NewStaticDeployPush.listen(s => NewStaticDeployPush(s)),
+    Analysis.ReceiveFetch.listen(s => ReceiveFetch(s)),
+    Analysis.NewPresencePush.listen(s => NewPresencePush(s)),
+    Analysis.AddOps.listen(s => AddOpsPusherMsg(s)),
+    Analysis.WorkerStatePush.listen(s => WorkerStatePush(s)),
   }
 
   let clipboardSubs = // We want the default copy/paste behaviors on the settings modal
