@@ -1739,7 +1739,21 @@ let update_ = (msg: msg, m: model): modification => {
     HandleAPIError(
       APIError.make(~context="InsertSecrets", ~importance=ImportantError, ~reload=false, err),
     )
-  | JSError(msg) => Model.updateErrorMod(Error.set("Error in JS: " ++ msg))
+  | JSError(msg) =>
+    // https://github.com/dotnet/runtime/issues/70286
+    // This is a problem in .Net 6, so let's ignore it for now
+    let ignorable =
+      msg->String.includes(
+        ~substring="System.ArgumentNullException: Value cannot be null. (Parameter 'key')",
+      ) &&
+      msg->String.includes(~substring="System.Collections.Generic.Dictionary") &&
+      msg->String.includes(~substring="ReleaseJSOwnedObjectByGCHandle") &&
+      msg->String.includes(~substring="Remove")
+    if !ignorable {
+      Model.updateErrorMod(Error.set("Error in JS: " ++ msg))
+    } else {
+      NoChange
+    }
   | LocationChange(loc) => Url.changeLocation(loc)
   | TimerFire(action, _) =>
     switch action {
