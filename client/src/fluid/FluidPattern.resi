@@ -31,5 +31,8 @@ let preTraversal: (~f: t => t, t) => t
   * this isn't what you want call preTraversal. ")
 let postTraversal: (~f: t => t, t) => t
 
-@ocaml.doc("TODO I'm not sure if this is a duplicate of preTraversal or postTraversal.")
-let recurse: (~f: t => t, t) => t
+// CLEANUP
+@ocaml.doc("This is a broken postTraversal - the traversal won't take effect on
+  literals, amongst other issues. Usages of this should be replaced, likely
+  with postTraversal usages.")
+let recurseDeprecated: (~f: t => t, t) => t

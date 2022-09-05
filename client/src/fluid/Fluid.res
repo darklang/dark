@@ -3204,7 +3204,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           if pID == P.toID(p) {
             newPat
           } else {
-            P.recurse(~f=run, p)
+            P.recurseDeprecated(~f=run, p)
           }
 
         let newCases = List.map(cases, ~f=((pat, body)) =>
@@ -3943,7 +3943,7 @@ let doExplicitInsert = (
             if pID == P.toID(p) {
               newPat
             } else {
-              P.recurse(~f=run, p)
+              P.recurseDeprecated(~f=run, p)
             }
 
           let newCases = List.map(cases, ~f=((pat, body)) =>

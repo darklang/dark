@@ -64,7 +64,7 @@ let updatePattern = (
         if patID == P.toID(p) {
           f(p)
         } else {
-          P.recurse(~f=run, p)
+          P.recurseDeprecated(~f=run, p)
         }
 
       let newPairs = List.map(pairs, ~f=((pat, expr)) => (run(pat), expr))
