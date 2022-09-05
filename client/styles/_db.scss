@@ -43,7 +43,7 @@
     word-break: break-all;
     word-wrap: break-word;
     font-size: $code-font-size * 0.85;
-    color: $grey3;
+    color: $grey8;
 
     background-color: $toplevel-background;
     outline: 0.4px $grey2 dotted;
@@ -63,7 +63,7 @@
     }
     .dbexample {
       .key {
-        color: $grey3;
+        color: $grey8;
         padding: 5px 0px;
       }
       .value {
@@ -187,7 +187,7 @@
 
     &.key {
       font-size: 10px;
-      color: darken($grey3, 15%);
+      color: darken($grey8, 15%);
     }
 
     &.has-empty {

@@ -27,7 +27,7 @@ $arrow-height: 24px;
 
   background-color: $live-value-background;
 
-  color: $grey3;
+  color: $grey8;
   font-size: $code-font-size;
 
   &:first-child {
@@ -80,7 +80,7 @@ $arrow-height: 24px;
     }
 
     &.fnheader-pkg i {
-      color: darken($grey3, 15%);
+      color: darken($grey8, 15%);
     }
   }
 
@@ -110,7 +110,7 @@ $arrow-height: 24px;
   .fields {
     display: block;
     width: max-content;
-    color: $grey3;
+    color: $grey8;
     margin-left: 22px;
   }
 
@@ -118,7 +118,7 @@ $arrow-height: 24px;
     display: block;
 
     font-size: 12px;
-    color: darken($grey3, 15%);
+    color: darken($grey8, 15%);
 
     .name,
     .type {

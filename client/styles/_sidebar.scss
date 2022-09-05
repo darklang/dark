@@ -18,9 +18,9 @@ $hSpace: 5px;
 $icSize: 1em;
 
 /******************************************************************************
-* 
+*
 * General structure:
-* 
+*
 * .component {
 *   &.states-definitions { }
 *   .children-definitions {}
@@ -28,10 +28,10 @@ $icSize: 1em;
 * }
 * ... and so on for each (category wrapper, category titles, line items)
 * .special-case-categories (404, static assets, deleted, etc.)
-* 
+*
 * We use @at-root to reduce deep nesting where repeating attributes
 * overwrite each other.
-* 
+*
 ******************************************************************************/
 
 #sidebar-left {
@@ -238,7 +238,7 @@ $icSize: 1em;
   }
 
   .category-name {
-    color: $grey3;
+    color: $grey8;
     font-size: 1.1em;
     font-weight: bold;
     letter-spacing: 0.02em;
@@ -696,7 +696,7 @@ $icSize: 1em;
     display: block;
 
     a {
-      color: $grey3;
+      color: $grey8;
     }
     .checkbox-row {
       display: flex;
@@ -743,7 +743,7 @@ $icSize: 1em;
         cursor: pointer;
 
         &:hover {
-          background: $grey3;
+          background: $grey8;
           color: darken($canvas-background, 10%);
         }
       }

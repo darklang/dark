@@ -217,9 +217,9 @@ $ff-color: adjust-hue($purple, -40deg);
   $background: transparent;
   $selected-background: #2d2d2d;
   $currentline: $black3;
-  $selection: $grey3;
+  $selection: $grey8;
   $foreground: $white2;
-  $comment: $grey3;
+  $comment: $grey8;
 
   $dropdown-background: lighten($selected-background, 10%);
   $dropdown-selected-background: darken($canvas-background, 10%);
@@ -335,9 +335,9 @@ $ff-color: adjust-hue($purple, -40deg);
   }
 
   .fluid-placeholder {
-    color: $grey3;
+    color: $grey8;
     &.cursor-on {
-      color: lighten($grey3, 5%);
+      color: lighten($grey8, 5%);
     }
   }
 
@@ -411,7 +411,7 @@ $ff-color: adjust-hue($purple, -40deg);
   }
 
   .fluid-partial-ghost {
-    color: darken($grey3, 25%);
+    color: darken($grey8, 25%);
   }
 
   .fluid-entry {
@@ -609,7 +609,7 @@ since they are essentially both commands just acting upon different things. */
 
       &.di-option-just,
       &.di-result-ok {
-        color: $grey3;
+        color: $grey8;
       }
 
       &.di-option-nothing,
