@@ -429,19 +429,17 @@ def execute(should):
 
   if should.npm_install:
     if not npm_install(): success = False
+    should.sass_compile |= success
+
+  # The generated css file is an input to the rescript build (via the res_tailwind ppx),
+  # so we do that first
+  if should.sass_compile:
+    if not sass_compile(): success = False
     should.client_build |= success
 
   if should.client_build:
     if not client_build(): success = False
     should.client_test |= success
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.sass_compile:
-    if not sass_compile(): success = False
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -591,15 +589,15 @@ def mark(should, f):
   elif "/package.json" in f:
     should.npm_install = True
 
-  elif ("/client/" in f) \
-          and ((".resi" in f) \
-                  or (".res" in f)
-                  or (".resi" in f)
-                  or (".js" in f)):
+  elif ("/client/" in f) and (".res" in f):
+    # tailwind reads source files to produce the right css, which is the an input to
+    # the rescript buikd via the twc ppx
+    should.sass_compile = True
+
+  elif ("/client/" in f) and ((".resi" in f) or (".js" in f)):
     # This correctly handles tests and other dirs, which need to be built
     # as part of this step.
     should.client_build = True
-    should.sass_compile = True  # tailwind reads source files to produce the right css
 
   elif "/bsconfig.json" in f:
     should.client_build = True
