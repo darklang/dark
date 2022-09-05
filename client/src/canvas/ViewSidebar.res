@@ -1140,7 +1140,9 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   | _ => false
   }
 
-  let showAdminDebugger = if !isDetailed && m.settings.contributingSettings.general.showSidebarDebuggerPanel {
+  let showAdminDebugger = if (
+    !isDetailed && m.settings.contributingSettings.general.showSidebarDebuggerPanel
+  ) {
     adminDebuggerView(m)
   } else {
     Vdom.noNode

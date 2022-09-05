@@ -71,7 +71,7 @@ let viewGeneral = (s: T.General.t): list<Html.html<AppTypes.msg>> => {
 }
 
 let viewInProgressFeatures = (s: T.InProgressFeatures.t): list<Html.html<AppTypes.msg>> => {
-  list{C.sectionHeading("In-Progress Features", None),viewAllowTuples(s.allowTuples)}
+  list{C.sectionHeading("In-Progress Features", None), viewAllowTuples(s.allowTuples)}
 }
 
 let viewTunnelSectionHeader = {
@@ -146,7 +146,7 @@ let viewTunnelSection = (s: T.t): list<Html.html<AppTypes.msg>> => {
   Belt.List.concatMany([
     viewTunnelSectionHeader,
     list{viewTunnelHost(s.tunnelHost)},
-    list{viewTunnelToggle(s.useAssets)}
+    list{viewTunnelToggle(s.useAssets)},
   ])
 }
 
@@ -155,6 +155,6 @@ let view = (s: T.t): list<Html.html<AppTypes.msg>> => {
     list{viewIntroText},
     viewGeneral(s.general),
     viewInProgressFeatures(s.inProgressFeatures),
-    viewTunnelSection(s)
+    viewTunnelSection(s),
   ])
 }

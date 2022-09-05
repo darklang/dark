@@ -898,8 +898,7 @@ module ASTInfo = {
     featureFlagTokenInfos: list{},
   }
 
-  let make = (ast: FluidAST.t, s: fluidState): t =>
-    emptyFor(s) |> setAST(ast)
+  let make = (ast: FluidAST.t, s: fluidState): t => emptyFor(s) |> setAST(ast)
 
   let exprOfActiveEditor = (astInfo: t): FluidExpression.t =>
     switch astInfo.state.activeEditor {

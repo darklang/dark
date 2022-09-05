@@ -64,9 +64,12 @@ type EvalWorker =
   /// Receive request from JS host to be evaluated
   ///
   /// Once evaluated, an async call to `self.postMessage` will be made
-  static member OnMessage(input : string) =
+  static member OnMessage(input : string) : Task<unit> =
+    // Just here to ensure type-safety (serializers require known/allowed types)
+    let postResponse (response : LibAnalysis.AnalysisResult) : unit =
+      EvalWorker.postMessage (Json.Vanilla.serialize (response))
 
-    let reportAndRollUpExceptionIntoError (preamble : string) (e) =
+    let reportException (preamble : string) (e : exn) : unit =
       let metadata = Exception.nestedMetadata e
       let errorMessage = Exception.getMessages e |> String.concat " "
 
@@ -75,35 +78,22 @@ type EvalWorker =
       System.Console.WriteLine(
         $"caught exception: \"{errorMessage}\" \"{metadata}\""
       )
+      let message = ($"exception: {errorMessage}, metadata: {metadata}")
+      postResponse (Error(message))
 
-      Error($"exception: {errorMessage}, metadata: {metadata}")
-
-    // parse an analysis request, in JSON, from the JS world (BlazorWorker)
-    let args : Result<CTA.PerformAnalysisParams, string> =
-      try
-        Ok(Json.Vanilla.deserialize<CTA.PerformAnalysisParams> input)
-      with
-      | e -> reportAndRollUpExceptionIntoError "Error parsing analysis request" e
-
-    // run the actual analysis (eval. the fn/handler)
-    let result =
-      match args with
-      | Error e -> Error e
-      | Ok args ->
+    try
+      // parse an analysis request, in JSON, from the JS world (BlazorWorker)
+      let args = Json.Vanilla.deserialize<CTA.PerformAnalysisParams> input
+      task {
         try
-          let result = (LibAnalysis.performAnalysis args).Result
-          Ok result
+          let! result = LibAnalysis.performAnalysis args
+          try
+            // post the result back to the JS world
+            return postResponse (Ok result)
+          with
+          | e -> return reportException "Error returning results" e
         with
-        | e -> reportAndRollUpExceptionIntoError "Error running analysis" e
-
-    // Serialize the result
-    let serialized =
-      try
-        Json.Vanilla.serialize result
-      with
-      | e ->
-        reportAndRollUpExceptionIntoError "Error serializing results" e
-        |> Json.Vanilla.serialize
-
-    // post the result back to the JS world
-    EvalWorker.postMessage serialized
+        | e -> return reportException "Error running analysis" e
+      }
+    with
+    | e -> Task.FromResult(reportException "Error parsing analysis request" e)

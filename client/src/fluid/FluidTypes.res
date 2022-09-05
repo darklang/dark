@@ -333,12 +333,10 @@ module State = {
 }
 
 module FluidSettings = {
-  type t = {
-    allowTuples: bool
-  }
+  type t = {allowTuples: bool}
 
   let default = {
-    allowTuples: false
+    allowTuples: false,
   }
 }
 

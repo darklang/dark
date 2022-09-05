@@ -55,8 +55,16 @@ module Pattern = {
         ("PFloat", dv2((a, b) => PFloat(a, b), ID.decode, Json_decode_extended.float')),
         ("PNull", dv1(a => PNull(a), ID.decode)),
         ("PBlank", dv1(a => PBlank(a), ID.decode)),
-        ("PTuple", dv4((a, first, second, theRest) =>
-          PTuple(a, first, second, theRest), ID.decode, decode, decode, list(decode))),
+        (
+          "PTuple",
+          dv4(
+            (a, first, second, theRest) => PTuple(a, first, second, theRest),
+            ID.decode,
+            decode,
+            decode,
+            list(decode),
+          ),
+        ),
       },
       j,
     )

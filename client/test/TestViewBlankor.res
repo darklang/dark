@@ -21,10 +21,7 @@ let run = () => {
       let tl = tlFunc
       let vp: ViewUtils.viewProps = {
         tl: tl,
-        astInfo: FluidTokenizer.ASTInfo.make(
-          FluidAST.ofExpr(ast),
-          FluidTypes.State.default,
-        ),
+        astInfo: FluidTokenizer.ASTInfo.make(FluidAST.ofExpr(ast), FluidTypes.State.default),
         cursorState: Deselected,
         fluidState: FluidTypes.State.default,
         tlid: gtlid(),

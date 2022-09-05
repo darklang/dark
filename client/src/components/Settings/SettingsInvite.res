@@ -57,7 +57,7 @@ let default = {
 
 let setInviter = (state: t, username: string, name: string): t => {
   ...state,
-  inviter: {username, name},
+  inviter: {username: username, name: name},
 }
 
 @val @scope("window") @scope("Dark") external validateEmail: string => bool = "validateEmail"
@@ -74,13 +74,13 @@ let validateEmail = (email: Utils.formField): Utils.formField => {
     }
   }
 
-  {...email, error}
+  {...email, error: error}
 }
 
 let validateForm = (i: t): (bool, t) => {
   let email = validateEmail(i.email)
   let isInvalid = Option.isSome(email.error)
-  (isInvalid, {...i, email})
+  (isInvalid, {...i, email: email})
 }
 
 let submitForm = (i: t): (t, intent) => {
@@ -95,7 +95,7 @@ let submitForm = (i: t): (t, intent) => {
 
 let update = (i: t, msg: msg): (t, option<intent>) =>
   switch msg {
-  | Update(value) => ({...i, email: {value, error: None}}, None)
+  | Update(value) => ({...i, email: {value: value, error: None}}, None)
 
   | TriggerSendCallback(Ok(_)) => ({...default, loading: false}, Some(UpdateToast("Sent!")))
 

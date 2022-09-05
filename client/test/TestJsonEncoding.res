@@ -352,9 +352,8 @@ let run = () => {
       Json.Encode.result(AnalysisTypes.PerformAnalysis.Envelope.encode, Json.Encode.string),
     )
     describe("Check serialization files are tested", () => {
-      Belt.MutableMap.String.forEach(
-        processedSerializationFiles,
-        (k, v) => test(`${k} is checked`, () => expect(v) |> toEqual(true)),
+      Belt.MutableMap.String.forEach(processedSerializationFiles, (k, v) =>
+        test(`${k} is checked`, () => expect(v) |> toEqual(true))
       )
     })
   })

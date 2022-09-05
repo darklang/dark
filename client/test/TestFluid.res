@@ -2759,28 +2759,28 @@ let run = () => {
       "\\x,~ y -> ___",
     )
     t(
-      "ctrl+left twice over lamda from beg moves to beg of first param",
+      "ctrl+left twice over lambda from beg moves to beg of first param",
       lambdaWithTwoBindings,
       ~pos=1,
       keys(list{K.GoToStartOfWord(DropSelection), K.GoToStartOfWord(DropSelection)}),
       "~\\x, y -> ___",
     )
     t(
-      "ctrl+right twice over lamda from beg moves to last blank",
+      "ctrl+right twice over lambda from beg moves to last blank",
       lambdaWithTwoBindings,
       ~pos=1,
       keys(list{K.GoToEndOfWord(DropSelection), K.GoToEndOfWord(DropSelection)}),
       "\\x, y~ -> ___",
     )
     t(
-      "ctrl+left twice over lamda from end moves to end of second param",
+      "ctrl+left twice over lambda from end moves to end of second param",
       lambdaWithTwoBindings,
       ~pos=12,
       keys(list{K.GoToStartOfWord(DropSelection), K.GoToStartOfWord(DropSelection)}),
       "\\x, ~y -> ___",
     )
     t(
-      "ctrl+right twice over lamda from end doesnt move",
+      "ctrl+right twice over lambda from end doesnt move",
       lambdaWithTwoBindings,
       ~pos=12,
       keys(list{K.GoToEndOfWord(DropSelection), K.GoToEndOfWord(DropSelection)}),
@@ -2793,7 +2793,14 @@ let run = () => {
       bs,
       "\\aVar, bVar~ -> aVar + ___ * bVar",
     )
-    ()
+    t("enter in lambda arrow does nothing", lambdaWithTwoBindings, ~pos=7, enter, "\\x, y -~> ___")
+    t(
+      "enter after lambda arrow inserts let",
+      lambdaWithTwoBindings,
+      ~pos=9,
+      enter,
+      "\\x, y -> let *** = ___\n         ~___",
+    )
   })
   describe("Variables", () => {
     t(~expectsPartial=true, "insert middle of variable", aVar, ~pos=5, ins("c"), "variac~ble")
@@ -2950,6 +2957,20 @@ let run = () => {
       ~pos=39,
       enter,
       "let a = match ___\n          *** -> ___\nlet *** = ___\n~5",
+    )
+    t(
+      "enter at beginning of match expr body adds let, not match row",
+      matchWithBinding("a", five),
+      ~pos=17,
+      enter,
+      "match ___\n  a -> let *** = ___\n       ~5\n",
+    )
+    t(
+      "enter in a match arrow does nothing",
+      matchWithBinding("a", five),
+      ~pos=15,
+      enter,
+      "match ___\n  a -~> 5\n",
     )
     t(
       "enter at the start of a row creates a new row",
@@ -4013,7 +4034,7 @@ let run = () => {
     )
     ()
   })
-  
+
   describe("Tuples", () => {
     describe("render", () => {
       t("blank tuple", tuple2WithBothBlank, render, "~(___,___)")

@@ -13,8 +13,7 @@ module AstRef = {
     | FPFractional
 
   @ppx.deriving(show({with_path: false}))
-  type rec astStringPart =
-    | SPOpenQuote
+  type rec astStringPart = SPOpenQuote
 
   @ppx.deriving(show({with_path: false}))
   type rec astLetPart =
