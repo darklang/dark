@@ -49,7 +49,7 @@ type fluidState = AppTypes.fluidState
  *
  * expectsPartial
  *   By default, tests expect zero partials in the result. When passed
- *   ~expectPartial:true, the test will assert that the result /does/ include
+ *   ~expectsPartial:true, the test will assert that the result /does/ include
  *   a partial.
  *
  * debug
