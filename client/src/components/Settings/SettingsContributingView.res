@@ -108,7 +108,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
   )
   let button = {
     C.button(
-      ~tw="ml-2",
+      ~tw=Tailwind.ml2,
       EventListeners.eventNoPropagation(~key="tunnel-button-set", "click", _ => Msg.SettingsMsg(
         Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
       )),

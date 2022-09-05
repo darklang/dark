@@ -82,14 +82,15 @@ let toggleButton = (msgAttr: Vdom.property<'msg>, enabled: bool): Html.html<'msg
 }
 
 let button = (
-  ~tw="",
+  ~tw=Tailwind.NoTw,
   msgAttr: Vdom.property<'msg>,
   saveStatus: SaveStatus.t,
   contents: list<Html.html<'msg>>,
 ): Html.html<'msg> => {
+  open Tailwind
   let savingSpinner = switch saveStatus {
-  | Saving => Html.i(list{Attrs.class("fa fa-spinner text-[#e8e8e8] pr-1")}, list{})
-  | Saved => Html.i(list{Attrs.class("fa fa-check text-[#a1b56c] pr-1")}, list{})
+  | Saving => Html.i(list{twProp([classNames(["fa", "fa-spinner"]), textWhite2, pr1])}, list{})
+  | Saved => Html.i(list{twProp([classNames(["fa", "fa-check"]), textGreen, pr1])}, list{})
   | NotSaving => Vdom.noNode
   }
   let savingAttrs = switch saveStatus {
@@ -97,17 +98,20 @@ let button = (
   | Saved => list{Vdom.noProp}
   | NotSaving => list{Vdom.noProp}
   }
+  let style = many([
+    roundedLg,
+    h9,
+    px2_5,
+    bgGrey2,
+    hoverBgGrey1,
+    textWhite1,
+    cursorPointer,
+    textLg,
+    fontBold,
+    alignTop,
+  ])
 
-  Html.button(
-    list{
-      tailwind(
-        `rounded-lg h-9 px-2.5 bg-[#585858] hover:bg-[#484848] text-[#d8d8d8] cursor-pointer text-large font-bold align-top ${tw}`,
-      ),
-      msgAttr,
-      ...savingAttrs,
-    },
-    list{savingSpinner, ...contents},
-  )
+  Html.button(list{twProp([style, tw]), msgAttr, ...savingAttrs}, list{savingSpinner, ...contents})
 }
 
 // -------------------
