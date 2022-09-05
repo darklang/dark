@@ -79,8 +79,8 @@ let viewToplevelAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<msg
 }
 
 let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
-  /* Sort by serverTime desc, then unique by avatar - gets us the most recent
-   * avatar for a given username */
+  // Sort by serverTime desc, then unique by avatar - gets us the most recent
+  // avatar for a given username
   let avatars =
     avatars
     |> List.sortBy(~f=(avatar: Avatar.t) => avatar.serverTime)
