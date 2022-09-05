@@ -373,7 +373,6 @@ let run = () => {
 
   describe("Patterns", () => {
     describe("Tuple Patterns", () => {
-      // TUPLETODO uncomment and correct all of these tests.
       // TUPLETODO add a test for the bug you found. fix it.
       // TUPLETODO other tests (copy/paste/reconstruction)
       describe("render", () => {
@@ -468,7 +467,7 @@ let run = () => {
           insert("5"),
           ("(5,***)", 2),
         )
-        // t( TUPLETODO bug found
+        // t( TUPLETODO discrepency between pat and expr behaviour
         //   "inserting before a tuple is no-op",
         //   tuplePattern2WithBothBlank,
         //   ~pos=0,
@@ -561,7 +560,7 @@ let run = () => {
           insert(","),
           ("(\"a,b\",\"cd\",\"ef\")", 4),
         )
-        // t( // TUPLETODO
+        // t( TUPLETODO discrepency between pat and expr behaviour
         //   "close bracket at end of tuple is swallowed",
         //   tuplePattern2WithNoBlank,
         //   ~pos=6, // right before closing )
@@ -571,340 +570,340 @@ let run = () => {
         ()
       })
 
-      // describe("delete", () => {
-      //   // 2-tuple, no blanks
-      //   t(
-      //     "deleting ( from a filled 2-tuple does nothing",
-      //     tuple2WithNoBlank,
-      //     ~pos=0,
-      //     del,
-      //     "~(56,78)",
-      //   )
-      //   t(
-      //     "deleting ) from a filled 2-tuple just moves cursor left",
-      //     tuple2WithNoBlank,
-      //     ~pos=7,
-      //     bs,
-      //     "(56,78~)",
-      //   )
-      //   t(
-      //     "deleting , from a filled 2-tuple leaves only the first item",
-      //     tuple2WithNoBlank, // (56,78)
-      //     ~pos=4, // at the ,
-      //     bs,
-      //     "56~",
-      //   )
+      describe("delete", () => {
+        // 2-tuple, no blanks
+        t(
+          "deleting ( from a filled 2-tuple does nothing",
+          tuplePattern2WithNoBlank,
+          ~pos=0,
+          del,
+          ("(56,78)", 0),
+        )
+        t(
+          "deleting ) from a filled 2-tuple just moves cursor left",
+          tuplePattern2WithNoBlank,
+          ~pos=7,
+          bs,
+          ("(56,78)", 6),
+        )
+        t(
+          "deleting , from a filled 2-tuple leaves only the first item",
+          tuplePattern2WithNoBlank, // (56,78)
+          ~pos=4, // at the ,
+          bs,
+          ("56", 2),
+        )
 
-      //   // 2-tuple, first blank
-      //   t(
-      //     "deleting ( from a 2-tuple with first value blank converts to the non-blank value",
-      //     tuple2WithFirstBlank,
-      //     ~pos=0,
-      //     del,
-      //     "~78",
-      //   )
-      //   t(
-      //     "deleting ) from a 2-tuple with first value blank just moves the cursor to left of )",
-      //     tuple2WithFirstBlank,
-      //     ~pos=8, // just after )
-      //     bs,
-      //     "(___,78~)",
-      //   )
-      //   t(
-      //     "deleting , from a 2-tuple with first value blank converts to a blank",
-      //     tuple2WithFirstBlank,
-      //     ~pos=4, // just after ,
-      //     del,
-      //     "~___",
-      //   )
+        // 2-tuple, first blank
+        t(
+          "deleting ( from a 2-tuple with first value blank converts to the non-blank value",
+          tuplePattern2WithFirstBlank,
+          ~pos=0,
+          del,
+          ("78", 0),
+        )
+        t(
+          "deleting ) from a 2-tuple with first value blank just moves the cursor to left of )",
+          tuplePattern2WithFirstBlank,
+          ~pos=8, // just after )
+          bs,
+          ("(***,78)", 7),
+        )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting , from a 2-tuple with first value blank converts to a blank",
+        //   tuplePattern2WithFirstBlank,
+        //   ~pos=4, // just after ,
+        //   del,
+        //   ("***", 0),
+        // )
 
-      //   // 2-tuple, second blank
-      //   t(
-      //     "deleting ( from a 2-tuple with second value blank converts to the non-blank value",
-      //     tuple2WithSecondBlank,
-      //     ~pos=0,
-      //     del,
-      //     "~56",
-      //   )
-      //   t(
-      //     "deleting ) from a 2-tuple with second value blank just moves the cursor left",
-      //     tuple2WithSecondBlank,
-      //     ~pos=7, // just before )
-      //     del,
-      //     "(56,___~)",
-      //   )
-      //   t(
-      //     "deleting , from a 2-tuple with second value blank converts to the non-blank value",
-      //     tuple2WithSecondBlank,
-      //     ~pos=3, // just before ,
-      //     del,
-      //     "56~",
-      //   )
+        // 2-tuple, second blank
+        t(
+          "deleting ( from a 2-tuple with second value blank converts to the non-blank value",
+          tuplePattern2WithSecondBlank,
+          ~pos=0,
+          del,
+          ("56", 0),
+        )
+        t(
+          "deleting ) from a 2-tuple with second value blank just moves the cursor left",
+          tuplePattern2WithSecondBlank,
+          ~pos=7, // just before )
+          del,
+          ("(56,***)", 7),
+        )
+        t(
+          "deleting , from a 2-tuple with second value blank converts to the non-blank value",
+          tuplePattern2WithSecondBlank,
+          ~pos=3, // just before ,
+          del,
+          ("56", 2),
+        )
 
-      //   // 2-tuple, both blank
-      //   t(
-      //     "deleting ( from a blank 2-tuple converts to blank",
-      //     tuple2WithBothBlank,
-      //     ~pos=0,
-      //     del,
-      //     "~___",
-      //   )
-      //   t(
-      //     "deleting ) from a blank 2-tuple just moves the cursor left",
-      //     tuple2WithBothBlank,
-      //     ~pos=9,
-      //     bs,
-      //     "(___,___~)",
-      //   )
-      //   t(
-      //     "deleting , from a blank 2-tuple replaces the tuple with a blank",
-      //     tuple2WithBothBlank,
-      //     ~pos=5,
-      //     bs,
-      //     "~___",
-      //   )
+        // 2-tuple, both blank
+        t(
+          "deleting ( from a blank 2-tuple converts to blank",
+          tuplePattern2WithBothBlank,
+          ~pos=0,
+          del,
+          ("***", 0),
+        )
+        t(
+          "deleting ) from a blank 2-tuple just moves the cursor left",
+          tuplePattern2WithBothBlank,
+          ~pos=9,
+          bs,
+          ("(***,***)", 8),
+        )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting , from a blank 2-tuple replaces the tuple with a blank",
+        //   tuplePattern2WithBothBlank,
+        //   ~pos=5,
+        //   bs,
+        //   ("***", 0),
+        // )
 
-      //   // 3-tuple, no blanks
-      //   t(
-      //     "deleting ( from a filled 3-tuple does nothing",
-      //     tuple3WithNoBlanks,
-      //     ~pos=0,
-      //     del,
-      //     "~(56,78,56)",
-      //   )
-      //   t(
-      //     "deleting ) from a filled 3-tuple just moves cursor left",
-      //     tuple3WithNoBlanks,
-      //     ~pos=10, // just after )
-      //     bs,
-      //     "(56,78,56~)",
-      //   )
-      //   t(
-      //     "deleting first , from a filled 3-tuple removes 2nd item",
-      //     tuple3WithNoBlanks,
-      //     ~pos=3, // just before ,
-      //     del,
-      //     "(56~,56)",
-      //   )
-      //   t(
-      //     "deleting second , from a filled 3-tuple removes 3rd item",
-      //     tuple3WithNoBlanks,
-      //     ~pos=6, // just before ,
-      //     del,
-      //     "(56,78~)",
-      //   )
+        // 3-tuple, no blanks
+        t(
+          "deleting ( from a filled 3-tuple does nothing",
+          tuplePattern3WithNoBlanks,
+          ~pos=0,
+          del,
+          ("(56,78,56)", 0),
+        )
+        t(
+          "deleting ) from a filled 3-tuple just moves cursor left",
+          tuplePattern3WithNoBlanks,
+          ~pos=10, // just after )
+          bs,
+          ("(56,78,56)", 9),
+        )
+        t(
+          "deleting first , from a filled 3-tuple removes 2nd item",
+          tuplePattern3WithNoBlanks,
+          ~pos=3, // just before ,
+          del,
+          ("(56,56)", 3),
+        )
+        t(
+          "deleting second , from a filled 3-tuple removes 3rd item",
+          tuplePattern3WithNoBlanks,
+          ~pos=6, // just before ,
+          del,
+          ("(56,78)", 6),
+        )
 
-      //   // 3-tuple, first blank
-      //   t(
-      //     "deleting ( from a 3-tuple with first item blank does nothing",
-      //     tuple3WithFirstBlank,
-      //     ~pos=0,
-      //     del,
-      //     "~(___,78,56)",
-      //   )
-      //   t(
-      //     "deleting first , from a 3-tuple with first item blank removes 2nd item",
-      //     tuple3WithFirstBlank,
-      //     ~pos=4, // just before ,
-      //     del,
-      //     "(~___,56)",
-      //   )
-      //   t(
-      //     "deleting second , from a 3-tuple with first item blank removes 3rd item",
-      //     tuple3WithFirstBlank,
-      //     ~pos=8, // just after ,
-      //     bs,
-      //     "(___,78~)",
-      //   )
-      //   t(
-      //     "deleting ) from a 3-tuple with first item blank just moves cursor left",
-      //     tuple3WithFirstBlank,
-      //     ~pos=11, // just after )
-      //     bs,
-      //     "(___,78,56~)",
-      //   )
+        // 3-tuple, first blank
+        t(
+          "deleting ( from a 3-tuple with first item blank does nothing",
+          tuplePattern3WithFirstBlank,
+          ~pos=0,
+          del,
+          ("(***,78,56)", 0),
+        )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting first , from a 3-tuple with first item blank removes 2nd item",
+        //   tuplePattern3WithFirstBlank,
+        //   ~pos=4, // just before ,
+        //   del,
+        //   ("(***,56)", 1),
+        // )
+        t(
+          "deleting second , from a 3-tuple with first item blank removes 3rd item",
+          tuplePattern3WithFirstBlank,
+          ~pos=8, // just after ,
+          bs,
+          ("(***,78)", 7),
+        )
+        t(
+          "deleting ) from a 3-tuple with first item blank just moves cursor left",
+          tuplePattern3WithFirstBlank,
+          ~pos=11, // just after )
+          bs,
+          ("(***,78,56)", 10),
+        )
 
-      //   // 3-tuple, second blank
-      //   t(
-      //     "deleting ( from a 3-tuple with the second item blank does nothing",
-      //     tuple3WithSecondBlank,
-      //     ~pos=0,
-      //     del,
-      //     "~(56,___,78)",
-      //   )
-      //   t(
-      //     "deleting first , from a 3-tuple with the second item blank removes the blank",
-      //     tuple3WithSecondBlank,
-      //     ~pos=3, // just before ,
-      //     del,
-      //     "(56~,78)",
-      //   )
-      //   t(
-      //     "deleting second , from a 3-tuple with the second item blank removes 3rd item",
-      //     tuple3WithSecondBlank, // (56,___,78)
-      //     ~pos=7, // just before ,
-      //     del,
-      //     "(56,~___)",
-      //   )
-      //   t(
-      //     "deleting ) from a 3-tuple with the second item blank just moves cursor left",
-      //     tuple3WithSecondBlank,
-      //     ~pos=11, // just after )
-      //     bs,
-      //     "(56,___,78~)",
-      //   )
+        // 3-tuple, second blank
+        t(
+          "deleting ( from a 3-tuple with the second item blank does nothing",
+          tuplePattern3WithSecondBlank,
+          ~pos=0,
+          del,
+          ("(56,***,78)", 0),
+        )
+        t(
+          "deleting first , from a 3-tuple with the second item blank removes the blank",
+          tuplePattern3WithSecondBlank,
+          ~pos=3, // just before ,
+          del,
+          ("(56,78)", 3),
+        )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting second , from a 3-tuple with the second item blank removes 3rd item",
+        //   tuplePattern3WithSecondBlank, // (56,***,78)
+        //   ~pos=7, // just before ,
+        //   del,
+        //   ("(56,***)", 4),
+        // )
+        t(
+          "deleting ) from a 3-tuple with the second item blank just moves cursor left",
+          tuplePattern3WithSecondBlank,
+          ~pos=11, // just after )
+          bs,
+          ("(56,***,78)", 10),
+        )
 
-      //   // 3-tuple, third blank `(56,78,___)`
-      //   t(
-      //     "deleting ( from a 3-tuple with the third item blank does nothing",
-      //     tuple3WithThirdBlank,
-      //     ~pos=0,
-      //     del,
-      //     "~(56,78,___)",
-      //   )
-      //   t(
-      //     "deleting first , from a 3-tuple with the third item blank removes the second item",
-      //     tuple3WithThirdBlank,
-      //     ~pos=3, // just before ,
-      //     del,
-      //     "(56~,___)", // or maybe 1char to the right of this
-      //   )
-      //   t(
-      //     "deleting second , from a 3-tuple with the third item blank removes the blank",
-      //     tuple3WithThirdBlank,
-      //     ~pos=7, // just after ,
-      //     bs,
-      //     "(56,78~)",
-      //   )
-      //   t(
-      //     "deleting ) from a 3-tuple with the third item blank just moves the cursor left",
-      //     tuple3WithThirdBlank,
-      //     ~pos=11, // just after )
-      //     bs,
-      //     "(56,78,___~)",
-      //   )
+        // 3-tuple, third blank `(56,78,___)`
+        t(
+          "deleting ( from a 3-tuple with the third item blank does nothing",
+          tuplePattern3WithThirdBlank,
+          ~pos=0,
+          del,
+          ("(56,78,***)", 0),
+        )
+        t(
+          "deleting first , from a 3-tuple with the third item blank removes the second item",
+          tuplePattern3WithThirdBlank,
+          ~pos=3, // just before ,
+          del,
+          ("(56,***)", 3), // or maybe 1char to the right of this
+        )
+        t(
+          "deleting second , from a 3-tuple with the third item blank removes the blank",
+          tuplePattern3WithThirdBlank,
+          ~pos=7, // just after ,
+          bs,
+          ("(56,78)", 6),
+        )
+        t(
+          "deleting ) from a 3-tuple with the third item blank just moves the cursor left",
+          tuplePattern3WithThirdBlank,
+          ~pos=11, // just after )
+          bs,
+          ("(56,78,***)", 10),
+        )
 
-      //   // 3-tuple, first non-blank `(56,___,___)`
-      //   t(
-      //     "deleting ( from a 3-tuple with only first item replaces it with that item",
-      //     tuple3WithFirstFilled,
-      //     ~pos=0,
-      //     del,
-      //     "~56",
-      //   )
-      //   t(
-      //     "deleting first , from a 3-tuple with only first item filled ___",
-      //     tuple3WithFirstFilled,
-      //     ~pos=3, // just before ,
-      //     del,
-      //     "(56~,___)",
-      //   )
-      //   t(
-      //     "deleting second , from a 3-tuple with only first item filled ___",
-      //     tuple3WithFirstFilled,
-      //     ~pos=8, // just after ,
-      //     bs,
-      //     "(56,~___)",
-      //   )
-      //   t(
-      //     "deleting ) from a 3-tuple with only first item filled just moves cursor left",
-      //     tuple3WithFirstFilled,
-      //     ~pos=12, // just after )
-      //     bs,
-      //     "(56,___,___~)",
-      //   )
+        // 3-tuple, first non-blank `(56,___,___)`
+        t(
+          "deleting ( from a 3-tuple with only first item replaces it with that item",
+          tuplePattern3WithFirstFilled,
+          ~pos=0,
+          del,
+          ("56", 0),
+        )
+        t(
+          "deleting first , from a 3-tuple with only first item filled ___",
+          tuplePattern3WithFirstFilled,
+          ~pos=3, // just before ,
+          del,
+          ("(56,***)", 3),
+        )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting second , from a 3-tuple with only first item filled ___",
+        //   tuplePattern3WithFirstFilled,
+        //   ~pos=8, // just after ,
+        //   bs,
+        //   ("(56,***)", 4),
+        // )
+        t(
+          "deleting ) from a 3-tuple with only first item filled just moves cursor left",
+          tuplePattern3WithFirstFilled,
+          ~pos=12, // just after )
+          bs,
+          ("(56,***,***)", 11),
+        )
 
-      //   // 3-tuple, second non-blank `(___,56,___)`
-      //   t(
-      //     "deleting ( from a 3-tuple with only second item filled replaces the tuple with the item",
-      //     tuple3WithSecondFilled,
-      //     ~pos=0,
-      //     del,
-      //     "~56",
-      //   )
-      //   t(
-      //     "deleting first , from a 3-tuple with only second item filled removes the second item",
-      //     tuple3WithSecondFilled,
-      //     ~pos=4, // just before ,
-      //     del,
-      //     "(~___,___)",
-      //   )
-      //   t(
-      //     "deleting second , from a 3-tuple with only second item filled removes the ending blank",
-      //     tuple3WithSecondFilled,
-      //     ~pos=8, // just after ,
-      //     bs,
-      //     "(___,56~)",
-      //   )
-      //   t(
-      //     "deleting ) from a 3-tuple with only second item filled just moves the cursor left",
-      //     tuple3WithSecondFilled,
-      //     ~pos=12, // just after )
-      //     bs,
-      //     "(___,56,___~)",
-      //   )
+        // 3-tuple, second non-blank `(___,56,___)`
+        t(
+          "deleting ( from a 3-tuple with only second item filled replaces the tuple with the item",
+          tuplePattern3WithSecondFilled,
+          ~pos=0,
+          del,
+          ("56", 0),
+        )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting first , from a 3-tuple with only second item filled removes the second item",
+        //   tuplePattern3WithSecondFilled,
+        //   ~pos=4, // just before ,
+        //   del,
+        //   ("(***,***)", 1),
+        // )
+        t(
+          "deleting second , from a 3-tuple with only second item filled removes the ending blank",
+          tuplePattern3WithSecondFilled,
+          ~pos=8, // just after ,
+          bs,
+          ("(***,56)", 7),
+        )
+        t(
+          "deleting ) from a 3-tuple with only second item filled just moves the cursor left",
+          tuplePattern3WithSecondFilled,
+          ~pos=12, // just after )
+          bs,
+          ("(***,56,***)", 11),
+        )
 
-      //   // 3-tuple, third non-blank `(___,___,56)`
-      //   t(
-      //     "deleting ( from a 3-tuple with only third item filled replaces the tuple with the item",
-      //     tuple3WithThirdFilled,
-      //     ~pos=0,
-      //     del,
-      //     "~56",
-      //   )
-      //   t(
-      //     "deleting first , from a 3-tuple with only third item filled removes the second blank",
-      //     tuple3WithThirdFilled,
-      //     ~pos=4, // just before ,
-      //     del,
-      //     "(~___,56)",
-      //   )
-      //   t(
-      //     "deleting second , from a 3-tuple with only third item filled removes the filled item",
-      //     tuple3WithThirdFilled,
-      //     ~pos=9, // just after ,
-      //     bs,
-      //     "(___,~___)",
-      //   )
-      //   t(
-      //     "deleting ) from a 3-tuple with only third item filled just moves the cursor left",
-      //     tuple3WithThirdFilled,
-      //     ~pos=12, // just after )
-      //     bs,
-      //     "(___,___,56~)",
-      //   )
+        // 3-tuple, third non-blank `(___,___,56)`
+        t(
+          "deleting ( from a 3-tuple with only third item filled replaces the tuple with the item",
+          tuplePattern3WithThirdFilled,
+          ~pos=0,
+          del,
+          ("56", 0),
+        )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting first , from a 3-tuple with only third item filled removes the second blank",
+        //   tuplePattern3WithThirdFilled,
+        //   ~pos=4, // just before ,
+        //   del,
+        //   ("(***,56)", 1),
+        // )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting second , from a 3-tuple with only third item filled removes the filled item",
+        //   tuplePattern3WithThirdFilled,
+        //   ~pos=9, // just after ,
+        //   bs,
+        //   ("(***,***)", 5),
+        // )
+        t(
+          "deleting ) from a 3-tuple with only third item filled just moves the cursor left",
+          tuplePattern3WithThirdFilled,
+          ~pos=12, // just after )
+          bs,
+          ("(***,***,56)", 11),
+        )
 
-      //   // 3-tuple, all blank `(___,___,___)`
-      //   t(
-      //     "deleting ( from a 3-tuple of all blanks replaces the tuple with a blank",
-      //     tuple3WithAllBlank,
-      //     ~pos=0,
-      //     del,
-      //     "~___",
-      //   )
-      //   t(
-      //     "deleting first , from a 3-tuple of all blanks removes the second blank",
-      //     tuple3WithAllBlank,
-      //     ~pos=4, // just before ,
-      //     del,
-      //     "(~___,___)",
-      //   )
-      //   t(
-      //     "deleting second , from a 3-tuple of all blanks removes the third blank",
-      //     tuple3WithAllBlank,
-      //     ~pos=9, // just after ,
-      //     bs,
-      //     "(___,~___)",
-      //   )
-      //   t(
-      //     "deleting ) from a 3-tuple of all blanks just moves left",
-      //     tuple3WithAllBlank,
-      //     ~pos=13, // just after )
-      //     bs,
-      //     "(___,___,___~)", // I could see this instead turning into `~___`
-      //   )
-      //   ()
-      // })
+        // 3-tuple, all blank `(***,***,***)`
+        t(
+          "deleting ( from a 3-tuple of all blanks replaces the tuple with a blank",
+          tuplePattern3WithAllBlank,
+          ~pos=0,
+          del,
+          ("***", 0),
+        )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting first , from a 3-tuple of all blanks removes the second blank",
+        //   tuplePattern3WithAllBlank,
+        //   ~pos=4, // just before ,
+        //   del,
+        //   ("(***,***)", 1),
+        // )
+        // t( TUPLETODO discrepency between pat and expr behaviour
+        //   "deleting second , from a 3-tuple of all blanks removes the third blank",
+        //   tuplePattern3WithAllBlank,
+        //   ~pos=9, // just after ,
+        //   bs,
+        //   ("(***,***)", 5),
+        // )
+        t(
+          "deleting ) from a 3-tuple of all blanks just moves left",
+          tuplePattern3WithAllBlank,
+          ~pos=13, // just after )
+          bs,
+          ("(***,***,***)", 12), // I could see this instead turning into `~___`
+        )
+        ()
+      })
       ()
     })
   })
