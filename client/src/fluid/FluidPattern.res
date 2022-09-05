@@ -137,3 +137,18 @@ let rec postTraversal = (~f: t => t, pattern: t): t => {
 
   f(result)
 }
+
+let recurseDeprecated = (~f: t => t, pattern: t): t =>
+  switch pattern {
+  | PVariable(_)
+  | PInteger(_)
+  | PBool(_)
+  | PString(_)
+  | PCharacter(_)
+  | PBlank(_)
+  | PNull(_)
+  | PFloat(_) => pattern
+  | PConstructor(patternID, name, patterns) => PConstructor(patternID, name, List.map(~f, patterns))
+  | PTuple(patternID, first, second, theRest) =>
+    PTuple(patternID, f(first), f(second), List.map(~f, theRest))
+  }

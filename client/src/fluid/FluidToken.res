@@ -69,9 +69,9 @@ let tid = (t: t): id =>
   | TPatternFloatWhole(_, id, _, _)
   | TPatternFloatPoint(_, id, _)
   | TPatternFloatFractional(_, id, _, _)
-  | TPatternTupleOpen(id)
-  | TPatternTupleClose(id)
-  | TPatternTupleComma(id, _)
+  | TPatternTupleOpen(_, id)
+  | TPatternTupleClose(_, id)
+  | TPatternTupleComma(_, id, _)
   | TSep(id, _)
   | TParenOpen(id)
   | TParenClose(id)
@@ -975,9 +975,10 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TPatternFloatFractional(p1, id1, val1, ind1), TPatternFloatFractional(p2, id2, val2, ind2)) =>
     p1 == p2 && (id1 == id2 && (val1 == val2 && ind1 == ind2))
 
-  | (TPatternTupleOpen(id1), TPatternTupleOpen(id2)) => id1 == id2
-  | (TPatternTupleClose(id1), TPatternTupleClose(id2)) => id1 == id2
-  | (TPatternTupleComma(id1, ind1), TPatternTupleComma(id2, ind2)) => id1 == id2 && ind1 == ind2
+  | (TPatternTupleOpen(p1, id1), TPatternTupleOpen(p2, id2)) => p1 == p2 && id1 == id2
+  | (TPatternTupleClose(p1, id1), TPatternTupleClose(p2, id2)) => p1 == p2 && id1 == id2
+  | (TPatternTupleComma(p1, id1, ind1), TPatternTupleComma(p2, id2, ind2)) =>
+    p1 == p2 && id1 == id2 && ind1 == ind2
 
   | (TIndent(ind1), TIndent(ind2)) => ind1 == ind2
   | (TPlaceholder(d1), TPlaceholder(d2)) =>

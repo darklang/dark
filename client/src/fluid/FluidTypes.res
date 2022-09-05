@@ -142,9 +142,9 @@ module Token = {
 
     | TPatternBlank(ID.t, ID.t, int)
 
-    | TPatternTupleOpen(ID.t)
-    | TPatternTupleComma(ID.t, int)
-    | TPatternTupleClose(ID.t)
+    | TPatternTupleOpen(ID.t, ID.t)
+    | TPatternTupleComma(ID.t, ID.t, int)
+    | TPatternTupleClose(ID.t, ID.t)
 
     | TConstructorName(ID.t, string)
 
