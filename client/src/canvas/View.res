@@ -86,7 +86,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     },
   )
 
-  let avatars = Avatar.viewAvatars(m.avatarsList, tlid)
+  let avatars = Avatar.viewToplevelAvatars(m.avatarsList, tlid)
   let selected = Some(tlid) == CursorState.tlidOf(m.cursorState)
   let hovering = ViewUtils.isHoverOverTL(vs)
   let boxClasses = {
@@ -661,7 +661,7 @@ let accountView = (m: model): Html.html<msg> => {
       EventListeners.nothingMouseEvent("mousedown"),
     },
     list{
-      m |> Avatar.myAvatar |> Avatar.avatarDiv,
+      m->Avatar.myAvatar->Avatar.avatarDiv(Avatar.Styles.main),
       tooltip,
       Html.div(
         list{Attrs.class'("account-actions")},

@@ -42,28 +42,40 @@ let avatarUrl = (email: string, name: option<string>): string => {
   ("?d=" ++ Js_global.encodeURI(fallback(name))))
 }
 
-let avatarDiv = (avatar: Avatar.t): Html.html<msg> => {
+module Styles = {
+  open Tailwind
+
+  let main = Many([p0, w12, h12, border3, roundedFull, borderSolid, borderColorb18bba])
+
+  let topbar = Many([py0_5, px1_25, w8, h8, roundedFull])
+
+  let toplevel = Many([w6, h6, py0_5, px1_25, roundedFull])
+}
+
+let avatarDiv = (avatar: Avatar.t, style: Tailwind.t): Html.html<msg> => {
+  open Tailwind
   let name: option<string> = avatar.fullname
   let email: string = avatar.email
   let username: string = avatar.username
   let avActiveTimestamp: float = avatar.serverTime |> Js.Date.valueOf
   let minusThreeMins: float = Js.Date.now() -. 3.0 *. 60.0 *. 1000.0
-  let inactive: bool = minusThreeMins > avActiveTimestamp
+  let inactive: t = if minusThreeMins > avActiveTimestamp {
+    opacity50
+  } else {
+    none
+  }
   Html.img(
-    list{
-      Attrs.classList(list{("avatar", true), ("inactive", inactive)}),
-      Attrs.src(avatarUrl(email, name)),
-      Vdom.prop("alt", username),
-    },
+    list{twProp([style, inactive]), Attrs.src(avatarUrl(email, name)), Vdom.prop("alt", username)},
     list{},
   )
 }
 
-let viewAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<msg> => {
+let viewToplevelAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<msg> => {
   let avList = filterAvatarsByTlid(avatars, tlid)
-  let renderAvatar = (a: Avatar.t) => avatarDiv(a)
+  let renderAvatar = (a: Avatar.t) => avatarDiv(a, Styles.toplevel)
   let avatars = List.map(~f=renderAvatar, avList)
-  Html.div(list{Attrs.class'("avatars")}, avatars)
+  open Tailwind
+  Html.div(list{twProp([flex, flexCol])}, avatars)
 }
 
 let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
@@ -75,7 +87,7 @@ let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
     |> List.reverse
     |> List.uniqueBy(~f=(avatar: Avatar.t) => avatar.username)
 
-  let avatarView = List.map(~f=avatarDiv, avatars)
+  let avatarView = List.map(~f=avatar => avatarDiv(avatar, Styles.topbar), avatars)
   Html.div(
     list{Attrs.classList(list{("all-avatars", true), ("hide", List.isEmpty(avatars))})},
     list{Html.div(list{Attrs.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},

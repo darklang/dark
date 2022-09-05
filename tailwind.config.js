@@ -2,7 +2,17 @@
 module.exports = {
   content: ["./client/**/*.res"],
   theme: {
-    extend: {},
+    extend: {
+      borderWidth: {
+        3: "3px",
+      },
+      margin: {
+        1.25: "0.3125rem",
+      },
+      padding: {
+        1.25: "0.3125rem",
+      },
+    },
   },
   corePlugins: {
     // The preflight (https://tailwindcss.com/docs/preflight) options added by
