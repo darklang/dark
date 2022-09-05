@@ -88,8 +88,32 @@ let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
     |> List.uniqueBy(~f=(avatar: Avatar.t) => avatar.username)
 
   let avatarView = List.map(~f=avatar => avatarDiv(avatar, Styles.topbar), avatars)
+  open Tailwind
+  let outerStyle = Many([
+    flex,
+    flexCol,
+    itemsCenter,
+    top0,
+    right20,
+    fixed,
+    bgBlack2,
+    textXxs,
+    textGrey3,
+    overflowYScroll,
+    my0,
+    mx1_25,
+    py1_25,
+    px2_5,
+    roundedBrXl,
+  ])
+
+  let hide = if avatars == list{} {
+    invisible
+  } else {
+    none
+  }
   Html.div(
-    list{Attrs.classList(list{("all-avatars", true), ("hide", List.isEmpty(avatars))})},
+    list{twProp([outerStyle, hide])},
     list{Html.div(list{Attrs.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},
   )
 }
