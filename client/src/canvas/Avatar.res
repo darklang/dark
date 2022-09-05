@@ -43,39 +43,39 @@ let avatarUrl = (email: string, name: option<string>): string => {
 }
 
 module Styles = {
-  open Tailwind
+  let main = %twc("p-0 w-12 h-12 border-3 rounded-full border-solid border-purple")
 
-  let main = Many([p0, w12, h12, border3, roundedFull, borderSolid, borderColorb18bba])
+  let topbar = %twc("py-0.5 px-1.25 w-8 h-8 rounded-full")
 
-  let topbar = Many([py0_5, px1_25, w8, h8, roundedFull])
-
-  let toplevel = Many([w6, h6, py0_5, px1_25, roundedFull])
+  let toplevel = %twc("w-6 h-6 py-0.5 px-1.25 rounded-full")
 }
 
-let avatarDiv = (avatar: Avatar.t, style: Tailwind.t): Html.html<msg> => {
-  open Tailwind
+let avatarDiv = (~style: string, avatar: Avatar.t): Html.html<msg> => {
   let name: option<string> = avatar.fullname
   let email: string = avatar.email
   let username: string = avatar.username
   let avActiveTimestamp: float = avatar.serverTime |> Js.Date.valueOf
   let minusThreeMins: float = Js.Date.now() -. 3.0 *. 60.0 *. 1000.0
-  let inactive: t = if minusThreeMins > avActiveTimestamp {
-    opacity50
+  let inactive = if minusThreeMins > avActiveTimestamp {
+    %twc("opacity-50")
   } else {
-    none
+    ""
   }
   Html.img(
-    list{twProp([style, inactive]), Attrs.src(avatarUrl(email, name)), Vdom.prop("alt", username)},
+    list{
+      Attrs.class(`${style} ${inactive}`),
+      Attrs.src(avatarUrl(email, name)),
+      Vdom.prop("alt", username),
+    },
     list{},
   )
 }
 
 let viewToplevelAvatars = (avatars: list<Avatar.t>, tlid: TLID.t): Html.html<msg> => {
   let avList = filterAvatarsByTlid(avatars, tlid)
-  let renderAvatar = (a: Avatar.t) => avatarDiv(a, Styles.toplevel)
+  let renderAvatar = (a: Avatar.t) => avatarDiv(a, ~style=Styles.toplevel)
   let avatars = List.map(~f=renderAvatar, avList)
-  open Tailwind
-  Html.div(list{twProp([flex, flexCol])}, avatars)
+  Html.div(list{Attrs.class(%twc("flex flex-col"))}, avatars)
 }
 
 let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
@@ -87,33 +87,19 @@ let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
     |> List.reverse
     |> List.uniqueBy(~f=(avatar: Avatar.t) => avatar.username)
 
-  let avatarView = List.map(~f=avatar => avatarDiv(avatar, Styles.topbar), avatars)
-  open Tailwind
-  let outerStyle = Many([
-    flex,
-    flexCol,
-    itemsCenter,
-    top0,
-    right20,
-    fixed,
-    bgBlack2,
-    textXxs,
-    textGrey3,
-    overflowYScroll,
-    my0,
-    mx1_25,
-    py1_25,
-    px2_5,
-    roundedBXl,
-  ])
+  let avatarView = List.map(~f=avatar => avatarDiv(avatar, ~style=Styles.topbar), avatars)
+
+  let outerStyle = %twc(
+    "flex flex-col items-center top-0 right-20 fixed bg-black2 text-xxs text-grey3 overflow-y-scroll my-0 mx-1.25 py-1.25 px-2.5 rounded-b-xl"
+  )
 
   let hide = if avatars == list{} {
-    invisible
+    %twc("invisible")
   } else {
-    none
+    ""
   }
   Html.div(
-    list{twProp([outerStyle, hide])},
+    list{Attrs.classes([outerStyle, hide])},
     list{Html.div(list{Attrs.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},
   )
 }

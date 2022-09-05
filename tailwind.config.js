@@ -12,7 +12,13 @@ module.exports = {
 
       grey1: "#484848",
       grey2: "#585858",
-      grey3: "#b8b8b8",
+      grey3: "#686868",
+      grey4: "#787878",
+      grey5: "#888888",
+      grey6: "#989898",
+      grey7: "#a8a8a8",
+      grey8: "#b8b8b8",
+      grey9: "#c8c8c8",
 
       white1: "#d8d8d8",
       white2: "#e8e8e8",

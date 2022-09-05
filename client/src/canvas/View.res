@@ -661,7 +661,7 @@ let accountView = (m: model): Html.html<msg> => {
       EventListeners.nothingMouseEvent("mousedown"),
     },
     list{
-      m->Avatar.myAvatar->Avatar.avatarDiv(Avatar.Styles.main),
+      m->Avatar.myAvatar->Avatar.avatarDiv(~style=Avatar.Styles.main),
       tooltip,
       Html.div(
         list{Attrs.class'("account-actions")},

@@ -78,6 +78,7 @@ module Html = {
     // Standard properties that are not in rescript-tea
     // TODO: upstream
     let class = class'
+    let classes = (classes: array<string>) => class(classes->Js.Array2.joinWith(" "))
     let role = (name: string) => Vdom.prop("role", name)
     let ariaChecked = (v: bool) => Vdom.prop("aria-checked", string_of_bool(v))
     let ariaHidden = (v: bool) => Vdom.prop("aria-hidden", string_of_bool(v))

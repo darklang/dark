@@ -88,11 +88,10 @@ let viewTunnelSectionHeader = {
 }
 
 let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
-  open Tailwind
   let field = Html.span(
     list{},
     list{
-      Html.span(list{twProp([h6, textGrey6, mr1])}, list{Html.text("https://")}),
+      Html.span(list{Attrs.class(%twc("h-6 text-grey6 mr-1"))}, list{Html.text("https://")}),
       C.input(
         ~loadStatus=th.loadStatus,
         ~attrs=list{
@@ -109,7 +108,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
   )
   let button = {
     C.button(
-      ~tw=Tailwind.ml2,
+      ~style="ml-2",
       EventListeners.eventNoPropagation(~key="tunnel-button-set", "click", _ => Msg.SettingsMsg(
         Settings.ContributingMsg(T.TunnelHostMsg(T.TunnelHost.Submit)),
       )),
@@ -126,7 +125,7 @@ let viewTunnelHost = (th: T.TunnelHost.t): Html.html<AppTypes.msg> => {
     list{field, button},
   )
 
-  Html.div(list{C.tailwind("align-baseline")}, list{row})
+  Html.div(list{Attrs.class(%twc("align-baseline"))}, list{row})
 }
 
 let viewTunnelToggle = (s: T.UseAssets.t): Html.html<AppTypes.msg> => {
