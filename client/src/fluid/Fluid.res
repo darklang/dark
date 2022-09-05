@@ -2120,36 +2120,33 @@ let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
     }
   )
 
-let insertInTuplePattern = (~index: int, ~newPat: P.t, matchID: id, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.updatePattern(
-    ~f=p =>
-      switch p {
-      | PTuple(id, first, second, theRest) =>
-        switch index {
-        | 0 => PTuple(id, newPat, first, List.insertAt(~index=0, ~value=second, theRest))
-        | 1 => PTuple(id, first, newPat, List.insertAt(~index=0, ~value=second, theRest))
-        | i => PTuple(id, first, second, List.insertAt(~index=i - 2, ~value=newPat, theRest))
-        }
+let insertInTuplePattern = (
+  ~index: int,
+  ~newPat: P.t,
+  matchID: id,
+  id: id,
+  ast: FluidAST.t,
+): FluidAST.t => FluidAST.updatePattern(~f=p =>
+    switch p {
+    | PTuple(id, first, second, theRest) =>
+      switch index {
+      | 0 => PTuple(id, newPat, first, List.insertAt(~index=0, ~value=second, theRest))
+      | 1 => PTuple(id, first, newPat, List.insertAt(~index=0, ~value=second, theRest))
+      | i => PTuple(id, first, second, List.insertAt(~index=i - 2, ~value=newPat, theRest))
+      }
 
-      | _ => recover("not a tuple pattern in insertInTuplePattern", ~debug=p, p)
-      },
-    matchID,
-    id,
-    ast,
-  )
+    | _ => recover("not a tuple pattern in insertInTuplePattern", ~debug=p, p)
+    }
+  , matchID, id, ast)
 
 let insertAtTuplePatternEnd = (~newPat: P.t, matchID: id, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.updatePattern(
-    ~f=p =>
-      switch p {
-      | PTuple(id, first, second, theRest) =>
-        PTuple(id, first, second, Belt.List.concat(theRest, list{newPat}))
-      | _ => recover("not a tuple pattern in insertAtTuplePatternEnd", ~debug=p, p)
-      },
-    matchID,
-    id,
-    ast,
-  )
+  FluidAST.updatePattern(~f=p =>
+    switch p {
+    | PTuple(id, first, second, theRest) =>
+      PTuple(id, first, second, Belt.List.concat(theRest, list{newPat}))
+    | _ => recover("not a tuple pattern in insertAtTuplePatternEnd", ~debug=p, p)
+    }
+  , matchID, id, ast)
 
 // --------------------
 // Autocomplete
@@ -4728,7 +4725,9 @@ let rec updateKey = (
     let newPat = PBlank(blankID)
 
     astInfo
-    |> ASTInfo.setAST(insertInTuplePattern(~index=indexToInsertInto, ~newPat, matchID, id, astInfo.ast))
+    |> ASTInfo.setAST(
+      insertInTuplePattern(~index=indexToInsertInto, ~newPat, matchID, id, astInfo.ast),
+    )
     |> moveToCaretTarget({astRef: ARPattern(blankID, PPBlank), offset: 0})
 
   | (InsertText(","), L(_, ti), R(TPatternTupleClose(matchID, id), _)) if onEdge =>

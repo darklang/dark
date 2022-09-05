@@ -186,7 +186,11 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
       })
       |> List.flatten
 
-    List.flatten(list{list{TPatternTupleOpen(matchID, id)}, middlePart, list{TPatternTupleClose(matchID, id)}})
+    List.flatten(list{
+      list{TPatternTupleOpen(matchID, id)},
+      middlePart,
+      list{TPatternTupleClose(matchID, id)},
+    })
   }
 }
 

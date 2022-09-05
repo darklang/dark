@@ -51,12 +51,7 @@ let update = (~failIfMissing=true, ~f: E.t => E.t, target: id, ast: t): t =>
 
 let clone = map(~f=E.clone)
 
-let updatePattern = (
-  ~f: fluidPattern => fluidPattern,
-  matchID: id,
-  patID: id,
-  ast: t,
-): t =>
+let updatePattern = (~f: fluidPattern => fluidPattern, matchID: id, patID: id, ast: t): t =>
   update(matchID, ast, ~f=m =>
     switch m {
     | EMatch(matchID, expr, pairs) =>

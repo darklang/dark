@@ -975,10 +975,8 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TPatternFloatFractional(p1, id1, val1, ind1), TPatternFloatFractional(p2, id2, val2, ind2)) =>
     p1 == p2 && (id1 == id2 && (val1 == val2 && ind1 == ind2))
 
-  | (TPatternTupleOpen(p1, id1), TPatternTupleOpen(p2, id2)) =>
-    p1 == p2 && id1 == id2
-  | (TPatternTupleClose(p1, id1), TPatternTupleClose(p2, id2)) =>
-    p1 == p2 && id1 == id2
+  | (TPatternTupleOpen(p1, id1), TPatternTupleOpen(p2, id2)) => p1 == p2 && id1 == id2
+  | (TPatternTupleClose(p1, id1), TPatternTupleClose(p2, id2)) => p1 == p2 && id1 == id2
   | (TPatternTupleComma(p1, id1, ind1), TPatternTupleComma(p2, id2, ind2)) =>
     p1 == p2 && id1 == id2 && ind1 == ind2
 

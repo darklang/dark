@@ -148,8 +148,7 @@ let recurseDeprecated = (~f: t => t, pattern: t): t =>
   | PBlank(_)
   | PNull(_)
   | PFloat(_) => pattern
-  | PConstructor(patternID, name, patterns) =>
-    PConstructor(patternID, name, List.map(~f, patterns))
+  | PConstructor(patternID, name, patterns) => PConstructor(patternID, name, List.map(~f, patterns))
   | PTuple(patternID, first, second, theRest) =>
     PTuple(patternID, f(first), f(second), List.map(~f, theRest))
   }
