@@ -312,6 +312,14 @@ $ff-color: adjust-hue($purple, -40deg);
     color: $orange;
   }
 
+  .fluid-match-branch-arrow,
+  .fluid-lambda-arrow {
+    // The ligature is 28px wide but we need it to be 32px to keep things lined up appropriately.
+    width: 28px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
   .fluid-placeholder {
     font-style: italic;
   }
