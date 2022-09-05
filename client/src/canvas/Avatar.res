@@ -104,7 +104,7 @@ let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
     mx1_25,
     py1_25,
     px2_5,
-    roundedBrXl,
+    roundedBXl,
   ])
 
   let hide = if avatars == list{} {
