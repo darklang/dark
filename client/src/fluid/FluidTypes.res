@@ -334,10 +334,6 @@ module State = {
 
 module FluidSettings = {
   type t = {allowTuples: bool}
-
-  let default = {
-    allowTuples: false,
-  }
 }
 
 // TODO: Consider renaming to 'Environment'
