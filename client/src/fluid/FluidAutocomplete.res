@@ -64,7 +64,12 @@ let asName = (aci: item): string =>
   | FACFunction(fn) => FQFnName.toString(fn.fnName)
   | FACField(name) => name
   | FACVariable(name, _) => name
-  | FACLiteral(lit) => lit
+  | FACLiteral(lit) =>
+    switch lit {
+    | LNull => "null"
+    | LBool(true) => "true"
+    | LBool(false) => "false"
+    }
   | FACConstructorName(name, _) => name
   | FACKeyword(k) =>
     switch k {
@@ -111,12 +116,10 @@ let asTypeStrings = (item: item): (list<string>, string) =>
       (list{}, "unknown")
     }
   | FACLiteral(lit) =>
-    let tipe =
-      lit
-      |> Runtime.parseDvalLiteral
-      |> Option.unwrap(~default=RT.Dval.DIncomplete(SourceNone))
-      |> RT.Dval.toType
-      |> DType.tipe2str
+    let tipe = switch lit {
+    | LNull => "null"
+    | LBool(_) => "bool"
+    }
 
     (list{}, tipe ++ " literal")
   | FACPattern(FPABool(_)) => (list{}, "boolean literal")
@@ -427,7 +430,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
     List.map(~f=x => FACKeyword(x), list{KLet, KPipe})
   }
 
-  let literals = List.map(~f=x => FACLiteral(x), list{"true", "false", "null"})
+  let literals = List.map(~f=x => FACLiteral(x), list{LBool(true), LBool(false), LNull})
 
   let secrets = List.map(m.secrets, ~f=secretToACItem)
   Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
@@ -742,14 +745,14 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   | FACConstructorName("Error", _) => simpleDoc("A Result representing a failure")
   | FACConstructorName(name, _) =>
     simpleDoc("TODO: this should never occur: the constructor " ++ name)
-  | FACField(fieldname) => simpleDoc("The '" ++ (fieldname ++ "' field of the object"))
+  | FACField(fieldname) => simpleDoc("The '" ++ fieldname ++ "' field of the object")
   | FACVariable(var, _) =>
     if String.isCapitalized(var) {
-      simpleDoc("The datastore '" ++ (var ++ "'"))
+      simpleDoc("The datastore '" ++ var ++ "'")
     } else {
-      simpleDoc("The variable '" ++ (var ++ "'"))
+      simpleDoc("The variable '" ++ var ++ "'")
     }
-  | FACLiteral(lit) => simpleDoc("The literal value '" ++ (lit ++ "'"))
+  | FACLiteral(_) => simpleDoc("The literal value '" ++ asName(item) ++ "'")
   | FACKeyword(KLet) =>
     simpleDoc("A `let` expression allows you assign a variable to an expression")
   | FACKeyword(KIf) => simpleDoc("An `if` expression allows you to branch on a boolean condition")
@@ -768,8 +771,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
       documentationForItem({item: FACConstructorName(name, List.length(args)), validity: validity})
     | FPAVariable(_, _, name) =>
       documentationForItem({item: FACVariable(name, None), validity: validity})
-    | FPABool(_, _, var) =>
-      documentationForItem({item: FACLiteral(string_of_bool(var)), validity: validity})
+    | FPABool(_, _, b) => documentationForItem({item: FACLiteral(LBool(b)), validity: validity})
     | FPANull(_) => simpleDoc("A 'null' literal")
     }
   | FACCreateFunction(_) => None

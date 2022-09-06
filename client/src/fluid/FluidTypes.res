@@ -184,12 +184,17 @@ module AutoComplete = {
     | KPipe
 
   @ppx.deriving(show({with_path: false}))
+  type rec literalItem =
+    | LNull
+    | LBool(bool)
+
+  @ppx.deriving(show({with_path: false}))
   type rec item =
     | FACFunction(Function.t)
     | FACConstructorName(string, int)
     | FACField(string)
     | FACVariable(string, option<RuntimeTypes.Dval.t>)
-    | FACLiteral(string)
+    | FACLiteral(literalItem)
     | FACKeyword(keyword)
     | FACPattern(patternItem)
     | FACCreateFunction(string, TLID.t, ID.t)
