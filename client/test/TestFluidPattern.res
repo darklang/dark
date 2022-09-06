@@ -450,7 +450,7 @@ let run = () => {
           "create and fill in tuple pattern",
           bPat,
           insertMany(list{"(", "1", ",", "2", ")"}),
-          ("(1,2)", 4), // aha, this caught a bug!
+          ("(1,2)", 5),
         )
         ()
       })
@@ -558,14 +558,13 @@ let run = () => {
         insert(","),
         ("(\"a,b\",\"cd\",\"ef\")", 4),
       )
-      // TUPLETODO discrepency between pat and expr behaviour
-      // t(
-      //   "close bracket at end of tuple is swallowed",
-      //   tuplePattern2WithNoBlank,
-      //   ~pos=6, // right before closing )
-      //   insert(")"),
-      //   ("(56,78)", 7),
-      // )
+      t(
+        "close bracket at end of tuple is swallowed",
+        tuplePattern2WithNoBlank,
+        ~pos=6, // right before closing )
+        insert(")"),
+        ("(56,78)", 7),
+      )
       t(
         "trying to write over a pattern with another type does nothing",
         tuplePattern3WithStrs,

@@ -4622,6 +4622,8 @@ let rec updateKey = (
   // Pressing ) to go over the last )
   | (InsertText(")"), _, R(TTupleClose(_), ti)) if pos == ti.endPos - 1 =>
     moveOneRight(pos, astInfo)
+  | (InsertText(")"), _, R(TPatternTupleClose(_), ti)) if pos == ti.endPos - 1 =>
+    moveOneRight(pos, astInfo)
   // Pressing quote to go over the last quote
   | (InsertText("\""), _, R(TPatternString(_), ti))
   | (InsertText("\""), _, R(TString(_), ti))
