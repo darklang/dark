@@ -33,117 +33,78 @@ let stripQuotes = (s: string): string => {
   s
 }
 
-// Copied from Dval.to_repr in backend code, but that's terrible and it should
-// be recopied from to_developer_repr_v0
-let rec toRepr_ = (oldIndent: int, dv: RT.Dval.t): string => {
-  let wrap = value => "<" ++ ((dv |> RT.Dval.toType |> DType.tipe2str) ++ (": " ++ (value ++ ">")))
-  let asType = "<" ++ ((dv |> RT.Dval.toType |> DType.tipe2str) ++ ">")
-  let nl = "\n" ++ String.repeat(~count=oldIndent, " ")
-  let inl = "\n" ++ String.repeat(~count=oldIndent + 2, " ")
-  let indent = oldIndent + 2
-  let objToString = l =>
-    l
-    |> List.map(~f=((k, v)) => k ++ (": " ++ toRepr_(indent, v)))
-    |> String.join(~sep="," ++ inl)
-    |> (s => "{" ++ (inl ++ (s ++ (nl ++ "}"))))
+// This should be kept sync with backend DvalReprDeveloper.toRepr
+let toRepr = (dval: RT.Dval.t): string => {
+  let rec toRepr_ = (indent: int, dv: RT.Dval.t): string => {
+    let makeSpaces = len => String.repeat(~count=len, " ")
+    let nl = "\n" ++ makeSpaces(indent)
+    let inl = "\n" ++ makeSpaces(indent + 2)
+    let indent = indent + 2
+    let typename = dv->RT.Dval.toType->DType.tipe2str
+    let wrap = str => `<${typename}: ${str}>`
+    let justType = `<${typename}>`
 
-  switch dv {
-  | DInt(i) => Int64.to_string(i)
-  | DFloat(f) => Js.Float.toString(f)
-  | DStr(s) => "\"" ++ (s ++ "\"")
-  | DBool(true) => "true"
-  | DBool(false) => "false"
-  | DChar(c) => "'" ++ (c ++ "'")
-  | DNull => "null"
-  | DDate(s) => wrap(s)
-  | DDB(s) => wrap(s)
-  | DUuid(s) => wrap(s)
-  | DError(_, s) =>
-    open Json.Decode
-    let decoder = (j): exception_ => {
-      short: field("short", string, j),
-      long: field("long", optional(string), j),
-      exceptionTipe: field("tipe", string, j),
-      actual: field("actual", optional(string), j),
-      actualType: field("actual_tipe", optional(string), j),
-      expected: field("expected", optional(string), j),
-      result: field("result", optional(string), j),
-      resultType: field("result_tipe", optional(string), j),
-      info: field("info", strDict(string), j),
-      workarounds: field("workarounds", list(string), j),
-    }
+    switch dv {
+    | DPassword(_) => "<password>"
+    | DStr(s) => `"${s}"`
+    | DChar(c) => `'${c}'`
+    | DInt(i) => Int64.to_string(i)
+    | DBool(true) => "true"
+    | DBool(false) => "false"
+    | DFloat(f) => Js.Float.toString(f)
+    | DNull => "null"
+    | DFnVal(Lambda({parameters: _, body: _, _})) => // TODO: show relevant symtable entries
+      "TODO"
+    | DFnVal(FnName(_)) => "TODO"
+    // FluidPrinter.eToHumanString(ELambda(gid(), parameters, body))
+    | DIncomplete(_) => justType
+    | DError(_, msg) => `<error: ${msg}>`
+    | DDate(s) => wrap(s)
+    | DDB(s) => wrap(s)
+    | DUuid(s) => wrap(s)
+    | DHttpResponse(Redirect(url)) => "302 " ++ url
+    | DHttpResponse(Response(code, headers, hdv)) =>
+      let headerString =
+        headers
+        |> List.map(~f=((k, v)) => k ++ ": " ++ v)
+        |> String.join(~sep=", ")
+        |> (s => "{ " ++ s ++ " }")
+      Int64.to_string(code) ++ " " ++ headerString ++ nl ++ toRepr_(indent, hdv)
+    | DList(l) =>
+      if l == list{} {
+        "[]"
+      } else {
+        let elems = Js.Array.joinWith(", ", l->List.map(~f=toRepr_(indent))->List.toArray)
+        `[${inl}${elems}${nl}]`
+      }
+    | DTuple(first, second, theRest) =>
+      let exprs = list{first, second, ...theRest}
+      "(" ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), exprs)) ++ ")")
+    | DObj(o) =>
+      if Belt.Map.String.isEmpty(o) {
+        "{}"
+      } else {
+        let strs =
+          o
+          |> Belt.Map.String.toList
+          |> List.map(~f=((key, value)) => key ++ ": " ++ toRepr_(indent, value))
 
-    let maybe = (name, m) =>
-      switch m {
-      | Some("") | None => ""
-      | Some(s) => "\n  " ++ (name ++ (": " ++ s))
+        let elems = String.join(~sep=`, ${inl}`, strs)
+        `{${inl}${elems}${nl}}`
       }
 
-    try s
-    |> decodeString(decoder)
-    |> Result.toOption
-    |> Option.map(~f=e =>
-      "An error occurred: \n  " ++
-      (e.short ++
-      (maybe("message", e.long) ++
-      (maybe("actual value", e.actual) ++
-      (maybe("actual type", e.actualType) ++
-      (maybe("expected", e.expected) ++
-      (maybe("result", e.result) ++
-      (maybe("result type", e.resultType) ++
-      (if e.info == Map.String.empty {
-        ""
-      } else {
-        ", info: " ++ Map.toString(e.info)
-      } ++
-      (if e.workarounds == list{} {
-        ""
-      } else {
-        ", workarounds: [" ++ (String.join(~sep="", e.workarounds) ++ "]")
-      } ++
-      if e.exceptionTipe == "code" {
-        ""
-      } else {
-        "\n  error type: " ++ e.exceptionTipe
-      })))))))))
-    )
-    |> Option.unwrap(~default=wrap(s)) catch {
-    | _ => wrap(s)
-    }
-  | DPassword(s) => wrap(s)
-  | DFnVal(Lambda({parameters: _, body: _, _})) => // TODO: show relevant symtable entries
-    "TODO"
-  | DFnVal(FnName(_)) => "TODO"
-  // FluidPrinter.eToHumanString(ELambda(gid(), parameters, body))
-  | DIncomplete(_) => asType
-  | DHttpResponse(Redirect(url)) => "302 " ++ url
-  | DHttpResponse(Response(code, hs, dv_)) =>
-    let headers = objToString(List.map(~f=Tuple2.mapSecond(~f=s => RT.Dval.DStr(s)), hs))
-    Int64.to_string(code) ++ " " ++ headers ++ nl ++ toRepr(dv_)
-  | DOption(None) => "Nothing"
-  | DOption(Some(dv_)) => "Just " ++ toRepr(dv_)
-  | DResult(Ok(dv_)) => "Ok " ++ toRepr(dv_)
-  | DResult(Error(dv_)) => "Error " ++ toRepr(dv_)
-  | DErrorRail(dv_) => wrap(toRepr(dv_))
-  // TODO: newlines and indentation
-  | DList(l) =>
-    switch l {
-    | list{} => "[]"
-    | list{DObj(_), ..._} =>
-      "[" ++
-      (inl ++
-      (String.join(~sep=inl ++ ", ", List.map(~f=toRepr_(indent), l)) ++ (nl ++ "]")))
-    | l => "[ " ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), l)) ++ " ]")
-    }
-  | DTuple(first, second, theRest) =>
-    let exprs = list{first, second, ...theRest}
-    "(" ++ (String.join(~sep=", ", List.map(~f=toRepr_(indent), exprs)) ++ ")")
-  | DObj(o) => objToString(Belt.Map.String.toList(o))
-  | DBytes(s) => "<Bytes: length=" ++ (Bytes.length(s) |> string_of_int) ++ ">"
-  }
-}
+    | DOption(None) => "Nothing"
+    | DOption(Some(dv_)) => "Just " ++ toRepr_(indent, dv_)
+    | DResult(Ok(dv_)) => "Ok " ++ toRepr_(indent, dv_)
+    | DResult(Error(dv_)) => "Error " ++ toRepr_(indent, dv_)
+    | DErrorRail(dv_) => wrap(toRepr_(indent, dv_))
+    // TODO: newlines and indentation
 
-and toRepr = (dv: RT.Dval.t): string => toRepr_(0, dv)
+    | DBytes(s) => "<Bytes: length=" ++ (Bytes.length(s) |> string_of_int) ++ ">"
+    }
+  }
+  toRepr_(0, dval)
+}
 
 // TODO: copied from Libexecution/http.ml
 let route_variables = (route: string): list<string> => {

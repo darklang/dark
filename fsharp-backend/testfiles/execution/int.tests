@@ -168,7 +168,7 @@ Int.divide_v0 1 0 = Test.typeError_v0 "Division by zero"
 (List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1 20 10) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
 
 Int.sum_v0 [1;2] = 3
-Int.sum_v0 [1.0;2] = Test.typeError_v0 "Expected the argument `a` to be a list of ints, but it was `[ \n  1., 2\n]`"
+Int.sum_v0 [1.0;2] = Test.typeError_v0 "Expected the argument `a` to be a list of ints, but it was `[\n  1., 2\n]`"
 
 
 Int.parse_v0 "0" = Ok 0
