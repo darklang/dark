@@ -3954,30 +3954,38 @@ let doExplicitInsert = (
       }
 
     | (ARPattern(_, PPTuple(kind)), PTuple(_pID, first, second, theRest)) =>
-      let allPats = list{first, second, ...theRest}
-
-      // CLEANUP TUPLETODO: this feels like it can be reasonably shorter
-
       let elIndex = switch kind {
       | TPOpen => Some(0)
       | TPComma(i) => Some(i + 1)
       | TPClose => None
       }
 
-      switch elIndex {
-      | None => None
-      | Some(elIndex) =>
-        switch handlePatBlank() {
-        | None => None
-        | Some(newPat, ct) =>
+      switch (elIndex, handlePatBlank()) {
+      | (Some(elIndex), Some(newPat, newCt)) =>
+        let allPats = list{first, second, ...theRest}
+
+        let shouldReplacePatternAtIndex =
+          List.getAt(~index=elIndex, allPats)
+          |> Option.map(~f=p => P.isPatternBlank(p))
+          |> Option.unwrap(~default=false)
+
+        if shouldReplacePatternAtIndex {
           let allPatsWithReplacement = allPats |> List.updateAt(~f=_p => newPat, ~index=elIndex)
 
           switch allPatsWithReplacement {
           | list{first, second, ...theRest} =>
-            Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), ct)
-          | _ => None
+            Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), newCt)
+          | _ =>
+            recover(
+              "doPatInsert - unexpected tuple pattern of fewer than 2 elements",
+              ~debug=pat,
+              None,
+            )
           }
+        } else {
+          None
         }
+      | _ => None
       }
 
     /*
