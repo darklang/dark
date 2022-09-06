@@ -33,38 +33,6 @@ let stripQuotes = (s: string): string => {
   s
 }
 
-let parseBasicDval = (str): RT.Dval.t => {
-  open Json_decode_extended
-  oneOf(
-    list{
-      map(x => RT.Dval.DInt(x), int64),
-      map(x => RT.Dval.DFloat(x), float'),
-      map(x => RT.Dval.DBool(x), bool),
-      nullAs(RT.Dval.DNull),
-      map(x => RT.Dval.DStr(x), string),
-    },
-    str,
-  )
-}
-
-let parseDvalLiteral = (str: string): option<RT.Dval.t> =>
-  switch String.toList(str) {
-  | list{'\'', c, '\''} => Some(DChar(String.fromList(list{c})))
-  | list{'"', ...rest} =>
-    if List.last(rest) == Some('"') {
-      List.initial(rest)
-      |> Option.unwrap(~default=list{})
-      |> String.fromList
-      |> (x => Some(RT.Dval.DStr(x)))
-    } else {
-      None
-    }
-  | _ =>
-    try Some(parseBasicDval(Json.parseOrRaise(str))) catch {
-    | _ => None
-    }
-  }
-
 // Copied from Dval.to_repr in backend code, but that's terrible and it should
 // be recopied from to_developer_repr_v0
 let rec toRepr_ = (oldIndent: int, dv: RT.Dval.t): string => {
