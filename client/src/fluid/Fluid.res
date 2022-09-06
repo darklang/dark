@@ -3967,16 +3967,25 @@ let doExplicitInsert = (
       switch elIndex {
       | None => None
       | Some(elIndex) =>
-        switch handlePatBlank() {
-        | None => None
-        | Some(newPat, ct) =>
-          let allPatsWithReplacement = allPats |> List.updateAt(~f=_p => newPat, ~index=elIndex)
+        let patternIsBlank =
+          List.getAt(~index=elIndex, allPats)
+          |> Option.map(~f=p => P.isPatternBlank(p))
+          |> Option.unwrap(~default=false)
 
-          switch allPatsWithReplacement {
-          | list{first, second, ...theRest} =>
-            Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), ct)
-          | _ => None
+        if patternIsBlank {
+          switch handlePatBlank() {
+          | None => None
+          | Some(newPat, ct) =>
+            let allPatsWithReplacement = allPats |> List.updateAt(~f=_p => newPat, ~index=elIndex)
+
+            switch allPatsWithReplacement {
+            | list{first, second, ...theRest} =>
+              Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), ct)
+            | _ => None
+            }
           }
+        } else {
+          None
         }
       }
 
