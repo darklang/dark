@@ -261,7 +261,7 @@ let obscureString = (s: string): string => {
   redactedLeft ++ visibleRight
 }
 
-let hideSecrets = (secretValues: list<string>, s: string): string =>
+let hideSecrets = (s: string, secretValues: list<string>): string =>
   List.fold(secretValues, ~initial=s, ~f=(buildingStr, secretVal) =>
     /* We are doing this instead of Regex.replace because it fails secretValues with regex characters
      And Js.String.replace only replaces the first found string. */

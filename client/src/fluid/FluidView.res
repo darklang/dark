@@ -55,8 +55,8 @@ let viewArrow = (curID: id, srcID: id): Html.html<msg> => {
   }
 }
 
-let viewDval = (tlid, secrets, dval, ~canCopy: bool) => {
-  let text = Runtime.toRepr(dval) |> Util.hideSecrets(secrets)
+let viewDval = (dval, tlid, secrets, ~canCopy: bool) => {
+  let text = dval->Runtime.toRepr->Util.hideSecrets(secrets)
   list{
     Html.text(text),
     if canCopy {
@@ -139,13 +139,13 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
 }
 
 let viewLiveValue = (vp: viewProps): Html.html<msg> => {
-  /* isLoaded will be set to false later if we are in the middle of loading
-   * results. All other states are considered loaded. This is used to apply
-   * a class ".loaded" purely for integration tests being able to know when
-   * the live value content is ready and can be asserted on */
+  //  isLoaded will be set to false later if we are in the middle of loading
+  //  results. All other states are considered loaded. This is used to apply
+  //  a class ".loaded" purely for integration tests being able to know when
+  //  the live value content is ready and can be asserted on
   let isLoaded = ref(true)
   // Renders dval
-  let renderDval = viewDval(vp.tlid, vp.secretValues)
+  let renderDval = val => viewDval(val, vp.tlid, vp.secretValues)
   // Renders live value for token
   let renderTokenLv = id =>
     switch lvResultForId(vp, id) {
@@ -159,10 +159,12 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
       }
     | WithSource({tlid, srcID, propValue, srcResult}) =>
       let msg = switch srcResult {
-      | WithMessage(msg) => msg
-      | WithDval({value, _}) => Runtime.toRepr(value)
-      | WithMessageAndDval({msg, value, _}) => msg ++ ("\n\n" ++ Runtime.toRepr(value))
-      | _ => Runtime.toRepr(propValue)
+      | WithMessage(msg) => list{Html.text(msg)}
+      | WithDval({value, canCopy}) => renderDval(value, ~canCopy)
+      | WithMessageAndDval({msg, value, canCopy}) => list{
+          Html.span(list{}, list{Html.text(msg), Html.br(list{}), ...renderDval(value, ~canCopy)}),
+        }
+      | _ => renderDval(propValue, ~canCopy=true)
       }
 
       list{
@@ -177,7 +179,7 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
             Attrs.class'("jump-src"),
             Attrs.title("Click here to go to the source of problem"),
           },
-          list{Html.text(msg), Icons.fontAwesome("arrow-alt-circle-up")},
+          Belt.List.concat(msg, list{Icons.fontAwesome("arrow-alt-circle-up")}),
         ),
       }
     | Loading =>
@@ -290,8 +292,8 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
         }
       }
 
-      let dvalString = Runtime.toRepr(dval)
       let returnHtml = {
+        let dvalString = Runtime.toRepr(dval)
         let newLine = if String.includes(~substring="\n", dvalString) {
           Html.br(list{})
         } else {
@@ -303,7 +305,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
           list{
             Html.text("This trace returns: "),
             newLine,
-            ...viewDval(vp.tlid, vp.secretValues, dval, ~canCopy=true),
+            ...viewDval(dval, vp.tlid, vp.secretValues, ~canCopy=true),
           },
         )
       }
