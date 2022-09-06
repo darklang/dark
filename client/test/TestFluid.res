@@ -3006,14 +3006,14 @@ let run = () => {
       emptyMatchWithTwoPatterns,
       ~pos=29,
       bs,
-      "match ___\n  *** -> ___\n  ***~ -> ___\n",
+      "match ___\n  *** -> ___\n  ~*** -> ___\n",
     )
     t(
       "backspacing second matchSep ( -> |) -> moves to end of pattern",
       emptyMatchWithTwoPatterns,
       ~pos=32,
       bs,
-      "match ___\n  *** -> ___\n  ***~ -> ___\n",
+      "match ___\n  *** -> ___\n  ~*** -> ___\n",
     )
     t(
       "ctrl+left 2 times from end moves to first blank",
