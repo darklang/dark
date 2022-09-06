@@ -53,10 +53,10 @@ let toRepr = (dval: RT.Dval.t): string => {
     | DBool(false) => "false"
     | DFloat(f) => Js.Float.toString(f)
     | DNull => "null"
-    | DFnVal(Lambda({parameters: _, body: _, _})) => // TODO: show relevant symtable entries
-      "TODO"
+    | DFnVal(Lambda({parameters, body, _})) =>
+      // TODO: show relevant symtable entries
+      RuntimeTokenizer.eToHumanString(parameters, body)
     | DFnVal(FnName(_)) => "TODO"
-    // FluidPrinter.eToHumanString(ELambda(gid(), parameters, body))
     | DIncomplete(_) => justType
     | DError(_, msg) => `<error: ${msg}>`
     | DDate(s) => wrap(s)
@@ -98,8 +98,6 @@ let toRepr = (dval: RT.Dval.t): string => {
     | DResult(Ok(dv_)) => "Ok " ++ toRepr_(indent, dv_)
     | DResult(Error(dv_)) => "Error " ++ toRepr_(indent, dv_)
     | DErrorRail(dv_) => wrap(toRepr_(indent, dv_))
-    // TODO: newlines and indentation
-
     | DBytes(s) => "<Bytes: length=" ++ (Bytes.length(s) |> string_of_int) ++ ">"
     }
   }
