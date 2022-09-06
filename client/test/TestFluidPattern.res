@@ -372,8 +372,6 @@ let run = () => {
     ()
   })
   describe("Tuples", () => {
-    // TUPLETODO add a test for the bug you found. fix it.
-    // TUPLETODO other tests (copy/paste/reconstruction)
     describe("render", () => {
       t("blank tuple pattern", tuplePattern2WithBothBlank, render, ("(***,***)", 0))
       t("simple tuple pattern", tuplePattern2WithNoBlank, render, ("(56,78)", 0))
@@ -566,6 +564,13 @@ let run = () => {
       //   insert(")"),
       //   ("(56,78)", 7),
       // )
+      t(
+        "trying to write over a pattern with another type does nothing",
+        tuplePattern3WithStrs,
+        ~pos=1, // in between the a and b of the first str
+        insert("1"),
+        ("(\"ab\",\"cd\",\"ef\")", 1),
+      )
       ()
     })
 
