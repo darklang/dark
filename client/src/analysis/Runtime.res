@@ -33,12 +33,6 @@ let stripQuotes = (s: string): string => {
   s
 }
 
-let isComplete = (dv: RT.Dval.t): bool =>
-  switch dv {
-  | DError(_) | DIncomplete(_) => false
-  | _ => true
-  }
-
 let parseBasicDval = (str): RT.Dval.t => {
   open Json_decode_extended
   oneOf(
@@ -151,8 +145,7 @@ let rec toRepr_ = (oldIndent: int, dv: RT.Dval.t): string => {
   | DPassword(s) => wrap(s)
   | DFnVal(Lambda({parameters: _, body: _, _})) => // TODO: show relevant symtable entries
     "TODO"
-  | DFnVal(FnName(_)) => // TODO: show relevant symtable entries
-    "TODO"
+  | DFnVal(FnName(_)) => "TODO"
   // FluidPrinter.eToHumanString(ELambda(gid(), parameters, body))
   | DIncomplete(_) => asType
   | DHttpResponse(Redirect(url)) => "302 " ++ url
@@ -223,11 +216,10 @@ let sampleInputValue = (tl: toplevel): AnalysisTypes.InputValueDict.t =>
   |> Belt.Map.String.fromArray
 
 let inputValueAsString = (tl: toplevel, iv: AnalysisTypes.InputValueDict.t): string => {
-  let dval = /* Merge sample + trace, preferring trace.
-   *
-   * This ensures newly added parameters show as incomplete.
-   * */
-  Belt.Map.String.merge(sampleInputValue(tl), iv, (_key, sampleVal, traceVal) =>
+  // Merge sample + trace, preferring trace.
+  // This ensures newly added parameters show as incomplete.
+
+  let dval = Belt.Map.String.merge(sampleInputValue(tl), iv, (_key, sampleVal, traceVal) =>
     switch (sampleVal, traceVal) {
     | (None, None) => None
     | (Some(v), None) => Some(v)
