@@ -1258,8 +1258,7 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
       offset: String.length(frac),
     }
   | PNull(id) => {astRef: ARPattern(id, PPNull), offset: String.length("null")}
-  | PBlank(id) => // Consider changing this from 3 to 0 if we don't want blanks to have two spots
-    {astRef: ARPattern(id, PPBlank), offset: 3}
+  | PBlank(id) => {astRef: ARPattern(id, PPBlank), offset: 0}
   }
 
 /* caretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
