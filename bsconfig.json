@@ -19,7 +19,11 @@
     "module": "commonjs",
     "in-source": false
   },
-  "ppx-flags": ["ppx-deriving/ppx.js"],
+  "ppx-flags": [
+    "ppx-deriving/ppx.js",
+    ["@greenlabs/res-tailwindcss/ppx", "--path backend/static/app.css"]
+  ],
+
   "suffix": ".bs.js",
   "bs-dependencies": [
     "bucklescript-tea",

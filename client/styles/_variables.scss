@@ -6,10 +6,17 @@ $black3: #383838;
 
 $grey1: #484848;
 $grey2: #585858;
-$grey3: #b8b8b8;
+$grey8: #686868;
+$grey4: #787878;
+$grey5: #888888;
+$grey6: #989898;
+$grey7: #a8a8a8;
+$grey8: #b8b8b8;
+$grey9: #c8c8c8;
 
 $white1: #d8d8d8;
 $white2: #e8e8e8;
+
 $white3: #f8f8f8;
 
 $red: #ab4642;
@@ -36,7 +43,7 @@ $http-patch: $purple;
 $http-options: $white2;
 $http-delete: lighten($red, 15%);
 $cron-color: $yellow;
-$default-toplevel-color: $grey3;
+$default-toplevel-color: $grey8;
 $queue-color: $cyan;
 $repl-color: $pink;
 $user-functions: saturate($cyan, 10%);

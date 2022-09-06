@@ -15,7 +15,7 @@
       cursor: pointer;
       &.selected {
         color: $white3;
-        border-bottom: solid 3px $grey3;
+        border-bottom: solid 3px $grey8;
       }
     }
   }
@@ -38,7 +38,7 @@
         height: 200px;
         background-color: $black3;
         padding: 10px 10px;
-        caret-color: $grey3;
+        caret-color: $grey8;
         color: $white1;
         resize: none;
       }

@@ -19,7 +19,7 @@ $wrapper-background: $black2;
     text-transform: lowercase;
     font-family: monospace;
     font-size: 80%;
-    color: $grey3;
+    color: $grey8;
   }
 
   form {
@@ -41,7 +41,7 @@ $wrapper-background: $black2;
         // as much like the blank box as possible
         background: transparent;
         color: transparent;
-        caret-color: $grey3;
+        caret-color: $grey8;
         position: relative;
         text-align: left;
         vertical-align: baseline;
@@ -57,7 +57,7 @@ $wrapper-background: $black2;
       }
 
       #fluidWidthSpan {
-        color: $grey3;
+        color: $grey8;
         left: 0;
         position: absolute;
         top: 0;
@@ -97,7 +97,7 @@ $wrapper-background: $black2;
       }
 
       &.invalid {
-        color: $grey3;
+        color: $grey8;
 
         &.highlighted {
           background: lighten($highlight-color, 50%);
@@ -116,7 +116,7 @@ $wrapper-background: $black2;
         }
 
         .moduleseparator {
-          color: $grey3;
+          color: $grey8;
         }
       }
     }
@@ -221,7 +221,7 @@ $wrapper-background: $black2;
       padding-bottom: 2px;
       padding-right: 4px;
       padding-left: 8px;
-      color: $grey3;
+      color: $grey8;
 
       &:hover {
         cursor: pointer;
@@ -229,7 +229,7 @@ $wrapper-background: $black2;
       }
 
       &.disable {
-        color: darken($grey3, 40%);
+        color: darken($grey8, 40%);
 
         &:hover {
           cursor: not-allowed;

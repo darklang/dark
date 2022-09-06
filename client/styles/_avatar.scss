@@ -1,20 +1,6 @@
-.avatar {
-  padding: 2px 5px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  &.inactive {
-    opacity: 0.5;
-  }
-}
-
 .avatars {
   display: flex;
   flex-direction: column;
-  .avatar {
-    width: 24px;
-    height: 24px;
-  }
 }
 
 .all-avatars {
@@ -32,15 +18,10 @@
   align-items: center;
 
   font-size: 10px;
-  color: $grey3;
+  color: $grey8;
 
   &.hide {
     display: none;
-  }
-
-  p {
-    text-align: center;
-    margin: 5px 0px;
   }
 
   .avatars-wrapper {

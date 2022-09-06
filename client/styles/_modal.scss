@@ -11,7 +11,7 @@ $light-grey: $grey2;
   min-width: 35ch;
   width: 35ch;
   padding: 0px 10px;
-  caret-color: $grey3;
+  caret-color: $grey8;
   color: $white1;
 }
 
@@ -61,7 +61,7 @@ $light-grey: $grey2;
       justify-content: center;
       margin-top: 5px;
       .fa {
-        color: $grey3;
+        color: $grey8;
         &:hover {
           color: $grey2;
         }

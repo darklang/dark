@@ -145,3 +145,10 @@ module RuleEngine =
   ```
 
   Failing to do so may result in conflicting generators or unexpected behaviour.
+
+## Rescript
+
+- we are moving our CSS to Tailwind:
+  - Use Tailwind instead of CSS in separate files
+  - Use the `%twc` macro to validate strings of Tailwind classes
+  - do not put Tailwind classes and other classes in the same string literal
