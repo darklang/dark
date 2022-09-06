@@ -138,7 +138,6 @@ let pNull = (~id=gid(), ()): FluidPattern.t => PNull(id)
 
 let pBlank = (~id=gid(), ()): FluidPattern.t => PBlank(id)
 
-// TUPLETODO use this in tests
 let pTuple = (
   ~id=gid(),
   first: FluidPattern.t,
