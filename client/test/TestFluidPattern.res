@@ -564,6 +564,7 @@ let run = () => {
         ~pos=6, // right before closing )
         insert(")"),
         ("(56,78)", 7),
+      )
       t(
         "trying to write over a pattern with another type does nothing",
         tuplePattern3WithStrs,
