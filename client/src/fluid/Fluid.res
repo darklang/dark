@@ -3063,6 +3063,9 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARLambda(_, LBPSymbol), ELambda(_, _, EBlank(_))) =>
       // If the expr is empty and thus can be removed
       mkEBlank()
+    | (ARLambda(_, LBPSymbol), ELambda(_, _, expr)) =>
+      // Othewise just convert to the expr
+      Some(Expr(expr), caretTargetForStartOfExpr'(expr))
     // If with exactly one expression can become that expression
     | (ARIf(_, IPIfKeyword), EIf(_, expr, EBlank(_), EBlank(_)))
     | (ARIf(_, IPIfKeyword), EIf(_, EBlank(_), expr, EBlank(_)))
@@ -3089,8 +3092,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       | Error() => None // Too much stuff, so don't change
       }
     | (ARLet(_, LPKeyword), ELet(_))
-    | (ARIf(_, IPIfKeyword), EIf(_))
-    | (ARLambda(_, LBPSymbol), ELambda(_)) =>
+    | (ARIf(_, IPIfKeyword), EIf(_)) =>
       // keywords of "non-empty" exprs shouldn't be deletable at all
       None
 

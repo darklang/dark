@@ -2656,9 +2656,9 @@ let run = () => {
     // end type -> to move through a lambda
     t("bs over lambda symbol", aLambda, ~pos=1, bs, "~___")
     t("insert space in lambda", aLambda, ~pos=1, key(K.Space), "\\~*** -> ___")
-    t("bs non-empty lambda symbol", nonEmptyLambda, ~pos=1, bs, "\\~*** -> 5")
+    t("bs non-empty lambda symbol", nonEmptyLambda, ~pos=1, bs, "~5")
     t("del lambda symbol", aLambda, ~pos=0, del, "~___")
-    t("del non-empty lambda symbol", nonEmptyLambda, ~pos=0, del, "~\\*** -> 5")
+    t("del non-empty lambda symbol", nonEmptyLambda, ~pos=0, del, "~5")
     t(
       "insert changes occurence of binding var",
       lambdaWithUsedBinding("binding"),
