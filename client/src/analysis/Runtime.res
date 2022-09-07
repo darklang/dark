@@ -55,7 +55,8 @@ let toRepr = (dval: RT.Dval.t): string => {
     | DNull => "null"
     | DFnVal(Lambda({parameters, body, _})) =>
       // TODO: show relevant symtable entries
-      RuntimeTokenizer.eToHumanString(parameters, body)
+      let params = parameters->List.map(~f=Tuple2.second)->List.join(~sep=", ")
+      "\\" ++ params ++ " -> " ++ RuntimeTokenizer.eToHumanString(body)
     | DFnVal(FnName(_)) => "TODO"
     | DIncomplete(_) => justType
     | DError(_, msg) => `<error: ${msg}>`
