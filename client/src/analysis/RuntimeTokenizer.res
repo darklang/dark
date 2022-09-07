@@ -339,7 +339,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
     }
   | EMatch(id, mexpr, pairs) =>
     b
-    |> add("matc h")
+    |> add("match")
     |> addNested(~f=toTokens'(mexpr))
     |> indentBy(~indent=2, ~f=b =>
       b
