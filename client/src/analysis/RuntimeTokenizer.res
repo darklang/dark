@@ -1,9 +1,8 @@
 open Prelude
 module Expr = RuntimeTypes.Expr
 
-// --------------------------------------
-// Convert FluidExpressions to tokenInfos
-// --------------------------------------
+/// This is a copy of the FluidTokenizer, adapted for RuntimeTypes. It just uses
+/// strings instead of tokens, and has some features removed (eg multiline strings)
 
 module Builder = {
   type t = {
@@ -34,13 +33,13 @@ module Builder = {
 
   let lineLimit = 120
 
-  let strLimit = 40
-
   let listLimit = 60
 
-  // # of items in a tuple before we should wrap
+  // # of chars in a tuple before we should wrap
   let tupleLimit = 60
+
   let makeSpaces = len => String.repeat(~count=len, " ")
+
   let add = (token: string, b: t): t => {
     let tokenLength = token |> String.length
     let (newTokens, xPos) = // Add new tokens on the front
