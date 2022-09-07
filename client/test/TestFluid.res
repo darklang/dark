@@ -2656,9 +2656,9 @@ let run = () => {
     // end type -> to move through a lambda
     t("bs over lambda symbol", aLambda, ~pos=1, bs, "~___")
     t("insert space in lambda", aLambda, ~pos=1, key(K.Space), "\\~*** -> ___")
-    t("bs non-empty lambda symbol", nonEmptyLambda, ~pos=1, bs, "\\~*** -> 5")
+    t("bs non-empty lambda symbol", nonEmptyLambda, ~pos=1, bs, "~5")
     t("del lambda symbol", aLambda, ~pos=0, del, "~___")
-    t("del non-empty lambda symbol", nonEmptyLambda, ~pos=0, del, "~\\*** -> 5")
+    t("del non-empty lambda symbol", nonEmptyLambda, ~pos=0, del, "~5")
     t(
       "insert changes occurence of binding var",
       lambdaWithUsedBinding("binding"),
@@ -2858,11 +2858,29 @@ let run = () => {
     t("move back over match", emptyMatch, ~pos=6, key(K.Left), "~match ___\n  *** -> ___\n")
     t("move forward over match", emptyMatch, ~pos=0, key(K.Right), "match ~___\n  *** -> ___\n")
     t("bs over empty match", emptyMatch, ~pos=6, bs, "~___")
+    t("bs over empty match with cond", matchWithCond(five), ~pos=6, bs, "~5")
     t("bs over empty match with 2 patterns", emptyMatchWithTwoPatterns, ~pos=6, bs, "~___")
-    t("bs over match with 2 patterns", matchWithPatterns, ~pos=6, bs, "match ~___\n  3 -> ___\n")
+    t("bs over match with 1 pattern", matchWithPattern, ~pos=6, bs, "match ~___\n  3 -> ___\n")
+    t(
+      "bs over match with 2 patterns",
+      matchWithTwoPatterns,
+      ~pos=6,
+      bs,
+      "match ~___\n  3 -> ___\n  4 -> ___\n",
+    )
+    t("bs over match with 1 blank pattern", matchWithOneExpr(five), ~pos=6, bs, "~5")
     t("del over empty match", emptyMatch, ~pos=0, del, "~___")
+    t("del over empty match with cond", matchWithCond(five), ~pos=0, del, "~5")
     t("del over empty match with 2 patterns", emptyMatchWithTwoPatterns, ~pos=0, del, "~___")
-    t("del over match with 2 patterns", matchWithPatterns, ~pos=0, del, "~match ___\n  3 -> ___\n")
+    t("del over match with 1 pattern", matchWithPattern, ~pos=0, del, "~match ___\n  3 -> ___\n")
+    t(
+      "del over match with 2 patterns",
+      matchWithTwoPatterns,
+      ~pos=0,
+      del,
+      "~match ___\n  3 -> ___\n  4 -> ___\n",
+    )
+    t("del over match with 1 blank pattern", matchWithOneExpr(five), ~pos=0, del, "~5")
     t(
       "del constructor in match pattern",
       matchWithConstructorPattern,
@@ -2925,7 +2943,7 @@ let run = () => {
     )
     t(
       "enter at the end of the cond creates a new row",
-      matchWithPatterns,
+      matchWithPattern,
       ~pos=9,
       enter,
       "match ___\n  ~*** -> ___\n  3 -> ___\n",
@@ -2974,7 +2992,7 @@ let run = () => {
     )
     t(
       "enter at the start of a row creates a new row",
-      matchWithPatterns,
+      matchWithPattern,
       ~pos=12,
       enter,
       "match ___\n  *** -> ___\n  ~3 -> ___\n",
@@ -3657,6 +3675,13 @@ let run = () => {
     t("bs over indent 1", plainIf, ~pos=12, bs, "if 5\nthen~\n  6\nelse\n  7")
     t("bs over indent 2", plainIf, ~pos=21, bs, "if 5\nthen\n  6\nelse~\n  7")
     t("bs over empty if", emptyIf, ~pos=2, bs, "~___")
+    t("bs over if with cond", ifOnlyCond, ~pos=2, bs, "~5")
+    t("bs over if with then", ifOnlyThen, ~pos=2, bs, "~5")
+    t("bs over if with else", ifOnlyElse, ~pos=2, bs, "~5")
+    t("del over empty if", emptyIf, ~pos=0, del, "~___")
+    t("del over if with cond", ifOnlyCond, ~pos=0, del, "~5")
+    t("del over if with then", ifOnlyThen, ~pos=0, del, "~5")
+    t("del over if with else", ifOnlyElse, ~pos=0, del, "~5")
     t(
       "move to front of line 1",
       plainIf,

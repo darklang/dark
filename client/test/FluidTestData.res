@@ -139,12 +139,22 @@ let emptyMatch = {
   EMatch(mID, b, list{(PBlank(gid()), b)})
 }
 
+let matchWithCond = (cond: t) => {
+  let mID = gid()
+  EMatch(mID, cond, list{(PBlank(gid()), b)})
+}
+
 let emptyMatchWithTwoPatterns = {
   let mID = gid()
   EMatch(mID, b, list{(PBlank(gid()), b), (PBlank(gid()), b)})
 }
 
-let matchWithPatterns = {
+let matchWithTwoPatterns = {
+  let mID = gid()
+  EMatch(mID, b, list{(PInteger(gid(), 3L), b), (PInteger(gid(), 4L), b)})
+}
+
+let matchWithPattern = {
   let mID = gid()
   EMatch(mID, b, list{(PInteger(gid(), 3L), b)})
 }
@@ -152,6 +162,11 @@ let matchWithPatterns = {
 let matchWithConstructorPattern = {
   let mID = gid()
   EMatch(mID, b, list{(PConstructor(gid(), "Just", list{}), b)})
+}
+
+let matchWithOneExpr = (expr: t) => {
+  let mID = gid()
+  EMatch(mID, b, list{(PBlank(gid()), expr)})
 }
 
 let matchWithBinding = (bindingName: string, expr: t) => {
@@ -266,6 +281,10 @@ let aShortVar = EVariable(gid(), "v")
 // Ifs
 // ----------------
 let emptyIf = EIf(gid(), b, b, b)
+
+let ifOnlyCond = EIf(gid(), five, b, b)
+let ifOnlyThen = EIf(gid(), b, five, b)
+let ifOnlyElse = EIf(gid(), b, b, five)
 
 let plainIf = EIf(gid(), EInteger(gid(), 5L), EInteger(gid(), 6L), EInteger(gid(), 7L))
 
