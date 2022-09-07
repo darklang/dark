@@ -230,7 +230,8 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
     |> add("\n")
     |> nest(~indent=2, else')
   | EFQFnValue(_, name) => b |> add(FQFnName.toString(name))
-  | EApply(_, e, args, _, _) => b |> addNested(~f=toTokens'(e)) |> addArgs(args)
+  | EApply(_, e, args, _, _) =>
+    b |> add("(") |> addNested(~f=toTokens'(e)) |> addArgs(args) |> add(")")
   | EConstructor(_, name, exprs) => b |> add(name) |> addArgs(exprs)
   | EFieldAccess(_, expr, fieldname) =>
     b |> addNested(~f=toTokens'(expr)) |> addMany(list{".", fieldname})
