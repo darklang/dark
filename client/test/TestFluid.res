@@ -3675,6 +3675,13 @@ let run = () => {
     t("bs over indent 1", plainIf, ~pos=12, bs, "if 5\nthen~\n  6\nelse\n  7")
     t("bs over indent 2", plainIf, ~pos=21, bs, "if 5\nthen\n  6\nelse~\n  7")
     t("bs over empty if", emptyIf, ~pos=2, bs, "~___")
+    t("bs over if with cond", ifOnlyCond, ~pos=2, bs, "~5")
+    t("bs over if with then", ifOnlyThen, ~pos=2, bs, "~5")
+    t("bs over if with else", ifOnlyElse, ~pos=2, bs, "~5")
+    t("del over empty if", emptyIf, ~pos=0, del, "~___")
+    t("del over if with cond", ifOnlyCond, ~pos=0, del, "~5")
+    t("del over if with then", ifOnlyThen, ~pos=0, del, "~5")
+    t("del over if with else", ifOnlyElse, ~pos=0, del, "~5")
     t(
       "move to front of line 1",
       plainIf,

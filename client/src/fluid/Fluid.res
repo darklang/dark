@@ -3063,6 +3063,11 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARLambda(_, LBPSymbol), ELambda(_, _, EBlank(_))) =>
       // If the expr is empty and thus can be removed
       mkEBlank()
+    // If with exactly one expression can become that expression
+    | (ARIf(_, IPIfKeyword), EIf(_, expr, EBlank(_), EBlank(_)))
+    | (ARIf(_, IPIfKeyword), EIf(_, EBlank(_), expr, EBlank(_)))
+    | (ARIf(_, IPIfKeyword), EIf(_, EBlank(_), EBlank(_), expr)) =>
+      Some(Expr(expr), caretTargetForStartOfExpr'(expr))
     | (ARMatch(_, MPKeyword), EMatch(_, cond, pairs)) =>
       // If there is exactly one expression (including the condition), and no patterns, then
       // convert to that. We use a result<expr,unit> to track this:

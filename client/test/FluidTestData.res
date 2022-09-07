@@ -282,6 +282,10 @@ let aShortVar = EVariable(gid(), "v")
 // ----------------
 let emptyIf = EIf(gid(), b, b, b)
 
+let ifOnlyCond = EIf(gid(), five, b, b)
+let ifOnlyThen = EIf(gid(), b, five, b)
+let ifOnlyElse = EIf(gid(), b, b, five)
+
 let plainIf = EIf(gid(), EInteger(gid(), 5L), EInteger(gid(), 6L), EInteger(gid(), 7L))
 
 let nestedIf = EIf(
