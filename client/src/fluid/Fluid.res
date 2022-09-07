@@ -2247,13 +2247,13 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   | FACVariable(name, _) =>
     let vID = gid()
     Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
-  | FACLiteral("true") =>
+  | FACLiteral(LBool(true)) =>
     let bID = gid()
     Some(EBool(bID, true), {astRef: ARBool(bID), offset: String.length("true")})
-  | FACLiteral("false") =>
+  | FACLiteral(LBool(false)) =>
     let bID = gid()
     Some(EBool(bID, false), {astRef: ARBool(bID), offset: String.length("false")})
-  | FACLiteral("null") =>
+  | FACLiteral(LNull) =>
     let nID = gid()
     Some(ENull(nID), {astRef: ARNull(nID), offset: String.length("null")})
   | FACConstructorName(name, argCount) =>
@@ -2269,7 +2269,6 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
         offset: String.length(fieldname),
       },
     )
-  | FACLiteral(_) => recover("invalid literal in autocomplete", ~debug=entry, None)
   | FACPattern(_) =>
     // This only works for exprs
     None

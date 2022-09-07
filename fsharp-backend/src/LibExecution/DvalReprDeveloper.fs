@@ -50,14 +50,16 @@ let private ocamlStringOfFloat (f : float) : string =
     let result = sprintf "%.12g" f
     if result.Contains "." then result else $"{result}."
 
-// SERIALIZER_DEF Custom DvalReprLegacyExternal.toDeveloperReprV0
+// SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
 /// For printing something for the developer to read, as a live-value, error
 /// message, etc. Redacts passwords.
 ///
 /// Customers should not come to rely on this format. Do not use in stdlib fns
 /// or other places a developer could rely on it (i.e. telemery and error
 /// messages are OK)
-let rec toRepr (dv : Dval) : string =
+///
+/// This should be kept sync with client Runtime.toRepr
+let toRepr (dv : Dval) : string =
   let rec toRepr_ (indent : int) (dv : Dval) : string =
     let makeSpaces len = "".PadRight(len, ' ')
     let nl = "\n" + makeSpaces indent
@@ -65,7 +67,7 @@ let rec toRepr (dv : Dval) : string =
     let indent = indent + 2
     let typename = dvalTypeName dv
     let wrap str = $"<{typename}: {str}>"
-    let justtipe = $"<{typename}>"
+    let justType = $"<{typename}>"
 
     match dv with
     | DPassword _ -> "<password>"
@@ -77,31 +79,29 @@ let rec toRepr (dv : Dval) : string =
     | DFloat f -> ocamlStringOfFloat f
     | DNull -> "null"
     | DFnVal _ ->
-      (* See docs/dblock-serialization.ml *)
-      justtipe
-    | DIncomplete _ -> justtipe
-    | DError _ -> "<error>"
+      // TODO: we should print this, as this use case is safe
+      // See docs/dblock-serialization.ml
+      justType
+    | DIncomplete _ -> justType
+    | DError (_, msg) -> $"<error: {msg}>"
     | DDate d -> wrap (DDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
-    | DHttpResponse h ->
-      match h with
-      | Redirect url -> $"302 {url}" + nl + toRepr_ indent DNull
-      | Response (code, headers, hdv) ->
-        let headerString =
-          headers
-          |> List.map (fun (k, v) -> k + ": " + v)
-          |> String.concat ","
-          |> fun s -> "{ " + s + " }"
+    | DHttpResponse (Redirect url) -> $"302 {url}"
+    | DHttpResponse (Response (code, headers, hdv)) ->
+      let headerString =
+        headers
+        |> List.map (fun (k, v) -> k + ": " + v)
+        |> String.concat ", "
+        |> fun s -> "{ " + s + " }"
 
-        $"{code} {headerString}" + nl + toRepr_ indent hdv
+      $"{code} {headerString}" + nl + toRepr_ indent hdv
     | DList l ->
       if List.isEmpty l then
         "[]"
       else
         let elems = String.concat ", " (List.map (toRepr_ indent) l)
-        // CLEANUP: this space makes no sense
-        $"[ {inl}{elems}{nl}]"
+        $"[{inl}{elems}{nl}]"
     | DTuple (first, second, theRest) ->
       let l = [ first; second ] @ theRest
       let elems = String.concat ", " (List.map (toRepr_ indent) l)
@@ -111,11 +111,12 @@ let rec toRepr (dv : Dval) : string =
         "{}"
       else
         let strs =
-          Map.fold [] (fun l key value -> ($"{key}: {toRepr_ indent value}") :: l) o
+          o
+          |> Map.toList
+          |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
 
         let elems = String.concat $",{inl}" strs
-        // CLEANUP: this space makes no sense
-        "{ " + $"{inl}{elems}{nl}" + "}"
+        "{" + $"{inl}{elems}{nl}" + "}"
     | DOption None -> "Nothing"
     | DOption (Some dv) -> "Just " + toRepr_ indent dv
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv

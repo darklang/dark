@@ -109,7 +109,7 @@ let viewTrace = (
       let asString = if String.length(asString) == 0 {
         "No input parameters"
       } else {
-        Util.hideSecrets(vp.secretValues, asString)
+        Util.hideSecrets(asString, vp.secretValues)
       }
 
       Html.div(list{Vdom.noProp}, list{Html.text(asString)})

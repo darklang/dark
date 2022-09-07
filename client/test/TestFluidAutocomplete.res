@@ -344,7 +344,7 @@ let run = () => {
         )
       )
       test("null works", () =>
-        expect(acFor(m) |> setQuery("nu") |> AC.highlighted) |> toEqual(Some(FACLiteral("null")))
+        expect(acFor(m) |> setQuery("nu") |> AC.highlighted) |> toEqual(Some(FACLiteral(LNull)))
       )
       test("Ok works", () =>
         expect(acFor(m) |> setQuery("Ok") |> AC.highlighted) |> toEqual(
@@ -357,13 +357,19 @@ let run = () => {
         )
       )
       test("true works", () =>
-        expect(acFor(m) |> setQuery("tr") |> AC.highlighted) |> toEqual(Some(FACLiteral("true")))
+        expect(acFor(m) |> setQuery("tr") |> AC.highlighted) |> toEqual(
+          Some(FACLiteral(LBool(true))),
+        )
       )
       test("case insensitive true works", () =>
-        expect(acFor(m) |> setQuery("tR") |> AC.highlighted) |> toEqual(Some(FACLiteral("true")))
+        expect(acFor(m) |> setQuery("tR") |> AC.highlighted) |> toEqual(
+          Some(FACLiteral(LBool(true))),
+        )
       )
       test("false works", () =>
-        expect(acFor(m) |> setQuery("fa") |> AC.highlighted) |> toEqual(Some(FACLiteral("false")))
+        expect(acFor(m) |> setQuery("fa") |> AC.highlighted) |> toEqual(
+          Some(FACLiteral(LBool(false))),
+        )
       )
       test("if works", () =>
         expect(acFor(m) |> setQuery("if") |> AC.highlighted) |> toEqual(Some(FACKeyword(KIf)))

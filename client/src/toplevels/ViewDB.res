@@ -26,7 +26,7 @@ let viewDbCount = (stats: dbStats): Html.html<msg> =>
     },
   )
 
-let viewDbLatestEntry = (stats: dbStats): Html.html<msg> => {
+let viewDbLatestEntry = (stats: dbStats, tlid: TLID.t, secrets: list<string>): Html.html<msg> => {
   let title = Html.div(
     list{Attrs.class'("title")},
     list{
@@ -43,7 +43,10 @@ let viewDbLatestEntry = (stats: dbStats): Html.html<msg> => {
       list{Attrs.class'("dbexample")},
       list{
         Html.div(list{Attrs.class'("key")}, list{Html.text(key ++ ":")}),
-        Html.div(list{Attrs.class'("value")}, list{Html.text(Runtime.toRepr(example))}),
+        Html.div(
+          list{Attrs.class'("value")},
+          FluidView.viewDval(example, tlid, secrets, ~canCopy=true),
+        ),
       },
     )
   | None => Vdom.noNode
@@ -55,7 +58,7 @@ let viewDbLatestEntry = (stats: dbStats): Html.html<msg> => {
 let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<msg> =>
   switch Map.get(~key=TLID.toString(db.tlid), vp.dbStats) {
   | Some(stats) if CursorState.tlidOf(vp.cursorState) == Some(db.tlid) =>
-    let liveVal = viewDbLatestEntry(stats)
+    let liveVal = viewDbLatestEntry(stats, db.tlid, vp.secretValues)
     let count = viewDbCount(stats)
     Html.div(list{Attrs.class'("dbdata")}, list{count, liveVal})
   | _ => Vdom.noNode
