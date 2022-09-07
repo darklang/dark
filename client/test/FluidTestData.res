@@ -139,6 +139,11 @@ let emptyMatch = {
   EMatch(mID, b, list{(PBlank(gid()), b)})
 }
 
+let matchWithCond = (cond: t) => {
+  let mID = gid()
+  EMatch(mID, cond, list{(PBlank(gid()), b)})
+}
+
 let emptyMatchWithTwoPatterns = {
   let mID = gid()
   EMatch(mID, b, list{(PBlank(gid()), b), (PBlank(gid()), b)})

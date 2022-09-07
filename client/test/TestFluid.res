@@ -2858,6 +2858,7 @@ let run = () => {
     t("move back over match", emptyMatch, ~pos=6, key(K.Left), "~match ___\n  *** -> ___\n")
     t("move forward over match", emptyMatch, ~pos=0, key(K.Right), "match ~___\n  *** -> ___\n")
     t("bs over empty match", emptyMatch, ~pos=6, bs, "~___")
+    t("bs over empty match with cond", matchWithCond(five), ~pos=6, bs, "~5")
     t("bs over empty match with 2 patterns", emptyMatchWithTwoPatterns, ~pos=6, bs, "~___")
     t("bs over match with 1 pattern", matchWithPattern, ~pos=6, bs, "match ~___\n  3 -> ___\n")
     t(
@@ -2869,6 +2870,7 @@ let run = () => {
     )
     t("bs over match with 1 blank pattern", matchWithOneExpr(five), ~pos=6, bs, "~5")
     t("del over empty match", emptyMatch, ~pos=0, del, "~___")
+    t("del over empty match with cond", matchWithCond(five), ~pos=0, del, "~5")
     t("del over empty match with 2 patterns", emptyMatchWithTwoPatterns, ~pos=0, del, "~___")
     t("del over match with 1 pattern", matchWithPattern, ~pos=0, del, "~match ___\n  3 -> ___\n")
     t(
