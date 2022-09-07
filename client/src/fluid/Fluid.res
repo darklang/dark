@@ -3064,24 +3064,23 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       // If the expr is empty and thus can be removed
       mkEBlank()
     | (ARMatch(_, MPKeyword), EMatch(_, cond, pairs)) =>
-      // If there is exactly one expression, and no patterns or condition, then
-      // convert to that. We use a result<option<expr>,unit> for the results:
+      // If there is exactly one expression (including the condition), and no patterns, then
+      // convert to that. We use a result<expr,unit> to track this:
       // - Error() means too many expressions/patterns exist
-      // - Ok(Some(expr)) means an appropriate expression was found
-      // - Ok(None) means nothing appropriate was found.
-      let newExpr = pairs->List.fold(~initial=Ok(Some(cond)), ~f=(acc, pair) => {
+      // - Ok(EBlank) means only blanks found so far
+      // - Ok(expr) means an appropriate expression was found
+      let newExpr = pairs->List.fold(~initial=Ok(cond), ~f=(acc, pair) => {
         switch (acc, pair) {
         | (Error(), _) => acc
         | (_, (PBlank(_), EBlank(_))) => acc
-        | (Ok(Some(EBlank(_))), (PBlank(_), expr)) => Ok(Some(expr))
-        | (Ok(Some(_)), (PBlank(_), _)) => Error() // more than one Expr found
-        | (Ok(None), (PBlank(_), expr)) => Ok(Some(expr))
+        | (Ok(EBlank(_)), (PBlank(_), expr)) => Ok(expr)
+        | (Ok(_), (PBlank(_), _)) => Error() // more than one Expr found
         | _ => Error()
         }
       })
       switch newExpr {
-      | Ok(Some(expr)) => Some(Expr(expr), caretTargetForStartOfExpr'(expr))
-      | Ok(None) => mkEBlank() // Nothing here, so make it blank
+      | Ok(EBlank(_)) => mkEBlank() // Nothing here, so make it blank
+      | Ok(expr) => Some(Expr(expr), caretTargetForStartOfExpr'(expr))
       | Error() => None // Too much stuff, so don't change
       }
     | (ARLet(_, LPKeyword), ELet(_))
