@@ -3063,15 +3063,26 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARLambda(_, LBPSymbol), ELambda(_, _, EBlank(_))) =>
       // If the expr is empty and thus can be removed
       mkEBlank()
-    | (ARMatch(_, MPKeyword), EMatch(_, EBlank(_), pairs))
-      if List.all(pairs, ~f=((p, e)) =>
-        switch (p, e) {
-        | (PBlank(_), EBlank(_)) => true
-        | _ => false
+    | (ARMatch(_, MPKeyword), EMatch(_, EBlank(_), pairs)) =>
+      // If there is exactly one expression, and no patterns or condition, then
+      // convert to that. We use a result<option<expr>,unit> for the results:
+      // - Error() means too many expressions/patterns exist
+      // - Ok(Some(expr)) means an appropriate expression was found
+      // - Ok(None) means nothing appropriate was found.
+      let newExpr = pairs->List.fold(~initial=Ok(None), ~f=(acc, pair) => {
+        switch (acc, pair) {
+        | (Error(), _) => acc
+        | (_, (PBlank(_), EBlank(_))) => acc
+        | (Ok(Some(_)), (PBlank(_), _)) => Error() // more than one Expr found
+        | (Ok(None), (PBlank(_), expr)) => Ok(Some(expr))
+        | _ => Error()
         }
-      ) =>
-      // the match has no content and can safely be deleted
-      mkEBlank()
+      })
+      switch newExpr {
+      | Ok(Some(expr)) => Some(Expr(expr), caretTargetForStartOfExpr'(expr))
+      | Ok(None) => mkEBlank() // Nothing here, so make it blank
+      | Error() => None // Too much stuff, so don't change
+      }
     | (ARMatch(_, MPKeyword), EMatch(_))
     | (ARLet(_, LPKeyword), ELet(_))
     | (ARIf(_, IPIfKeyword), EIf(_))

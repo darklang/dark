@@ -2860,6 +2860,7 @@ let run = () => {
     t("bs over empty match", emptyMatch, ~pos=6, bs, "~___")
     t("bs over empty match with 2 patterns", emptyMatchWithTwoPatterns, ~pos=6, bs, "~___")
     t("bs over match with 2 patterns", matchWithPatterns, ~pos=6, bs, "match ~___\n  3 -> ___\n")
+    t("bs over match with 1 blank pattern", matchWithOneExpr(five), ~pos=6, bs, "~5")
     t("del over empty match", emptyMatch, ~pos=0, del, "~___")
     t("del over empty match with 2 patterns", emptyMatchWithTwoPatterns, ~pos=0, del, "~___")
     t("del over match with 2 patterns", matchWithPatterns, ~pos=0, del, "~match ___\n  3 -> ___\n")

@@ -154,6 +154,11 @@ let matchWithConstructorPattern = {
   EMatch(mID, b, list{(PConstructor(gid(), "Just", list{}), b)})
 }
 
+let matchWithOneExpr = (expr: t) => {
+  let mID = gid()
+  EMatch(mID, b, list{(PBlank(gid()), expr)})
+}
+
 let matchWithBinding = (bindingName: string, expr: t) => {
   let mID = gid()
   EMatch(mID, b, list{(PVariable(gid(), bindingName), expr)})
