@@ -2859,11 +2859,26 @@ let run = () => {
     t("move forward over match", emptyMatch, ~pos=0, key(K.Right), "match ~___\n  *** -> ___\n")
     t("bs over empty match", emptyMatch, ~pos=6, bs, "~___")
     t("bs over empty match with 2 patterns", emptyMatchWithTwoPatterns, ~pos=6, bs, "~___")
-    t("bs over match with 2 patterns", matchWithPatterns, ~pos=6, bs, "match ~___\n  3 -> ___\n")
+    t("bs over match with 1 pattern", matchWithPattern, ~pos=6, bs, "match ~___\n  3 -> ___\n")
+    t(
+      "bs over match with 2 patterns",
+      matchWithTwoPatterns,
+      ~pos=6,
+      bs,
+      "match ~___\n  3 -> ___\n  4 -> ___\n",
+    )
     t("bs over match with 1 blank pattern", matchWithOneExpr(five), ~pos=6, bs, "~5")
     t("del over empty match", emptyMatch, ~pos=0, del, "~___")
     t("del over empty match with 2 patterns", emptyMatchWithTwoPatterns, ~pos=0, del, "~___")
-    t("del over match with 2 patterns", matchWithPatterns, ~pos=0, del, "~match ___\n  3 -> ___\n")
+    t("del over match with 1 pattern", matchWithPattern, ~pos=0, del, "~match ___\n  3 -> ___\n")
+    t(
+      "del over match with 2 patterns",
+      matchWithTwoPatterns,
+      ~pos=0,
+      del,
+      "~match ___\n  3 -> ___\n  4 -> ___\n",
+    )
+    t("del over match with 1 blank pattern", matchWithOneExpr(five), ~pos=0, del, "~5")
     t(
       "del constructor in match pattern",
       matchWithConstructorPattern,
@@ -2926,7 +2941,7 @@ let run = () => {
     )
     t(
       "enter at the end of the cond creates a new row",
-      matchWithPatterns,
+      matchWithPattern,
       ~pos=9,
       enter,
       "match ___\n  ~*** -> ___\n  3 -> ___\n",
@@ -2975,7 +2990,7 @@ let run = () => {
     )
     t(
       "enter at the start of a row creates a new row",
-      matchWithPatterns,
+      matchWithPattern,
       ~pos=12,
       enter,
       "match ___\n  *** -> ___\n  ~3 -> ___\n",

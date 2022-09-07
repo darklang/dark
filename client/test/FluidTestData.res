@@ -144,7 +144,12 @@ let emptyMatchWithTwoPatterns = {
   EMatch(mID, b, list{(PBlank(gid()), b), (PBlank(gid()), b)})
 }
 
-let matchWithPatterns = {
+let matchWithTwoPatterns = {
+  let mID = gid()
+  EMatch(mID, b, list{(PInteger(gid(), 3L), b), (PInteger(gid(), 4L), b)})
+}
+
+let matchWithPattern = {
   let mID = gid()
   EMatch(mID, b, list{(PInteger(gid(), 3L), b)})
 }
