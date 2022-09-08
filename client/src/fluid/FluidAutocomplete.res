@@ -76,8 +76,8 @@ let asName = (aci: item): string =>
     }
   | FACPattern(p) =>
     switch p {
-    | FPAVariable(_, _, name) | FPAConstructor(_, _, name, _) => name
-    | FPABool(_, _, v) => string_of_bool(v)
+    | FPAVariable(_, name) | FPAConstructor(_, name, _) => name
+    | FPABool(_, v) => string_of_bool(v)
     | FPANull(_) => "null"
     }
   | FACCreateFunction(name, _, _) => "Create new function: " ++ name
@@ -100,7 +100,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
   | FACPattern(FPAVariable(_)) => (list{}, "variable")
-  | FACConstructorName(name, _) | FACPattern(FPAConstructor(_, _, name, _)) =>
+  | FACConstructorName(name, _) | FACPattern(FPAConstructor(_, name, _)) =>
     if name == "Just" {
       (list{"any"}, "option")
     } else if name == "Nothing" {
@@ -433,30 +433,21 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
 }
 
-let generatePatterns = (ti: tokenInfo, a: t, queryString: string): list<item> => {
-  let alreadyHasPatterns = List.any(~f=v =>
-    switch v {
-    | {item: FACPattern(_), _} => true
-    | _ => false
-    }
-  , a.completions)
-
+let generatePatterns = (ti: tokenInfo, _a: t, queryString: string): list<item> => {
   let newStandardPatterns = mid =>
     // if patterns are in the autocomplete already, don't bother creating
     // new FACPatterns with different mids and pids
-    if alreadyHasPatterns {
-      a.completions |> List.map(~f=({item, _}: data) => item)
-    } else {
-      list{
-        FT.AutoComplete.FPABool(mid, gid(), true),
-        FPABool(mid, gid(), false),
-        FPAConstructor(mid, gid(), "Just", list{PBlank(gid())}),
-        FPAConstructor(mid, gid(), "Nothing", list{}),
-        FPAConstructor(mid, gid(), "Ok", list{PBlank(gid())}),
-        FPAConstructor(mid, gid(), "Error", list{PBlank(gid())}),
-        FPANull(mid, gid()),
-      } |> List.map(~f=p => FT.AutoComplete.FACPattern(p))
-    } |> List.filter(~f=c =>
+    list{
+      FT.AutoComplete.FPABool(mid, true),
+      FPABool(mid, false),
+      FPAConstructor(mid, "Just", list{PBlank(gid())}),
+      FPAConstructor(mid, "Nothing", list{}),
+      FPAConstructor(mid, "Ok", list{PBlank(gid())}),
+      FPAConstructor(mid, "Error", list{PBlank(gid())}),
+      FPANull(mid),
+    }
+    |> List.map(~f=p => FT.AutoComplete.FACPattern(p))
+    |> List.filter(~f=c =>
       // filter out old query string variable
       switch c {
       | FT.AutoComplete.FACPattern(FPAVariable(_)) => false
@@ -475,7 +466,7 @@ let generatePatterns = (ti: tokenInfo, a: t, queryString: string): list<item> =>
     if isInvalidPatternVar(queryString) {
       list{}
     } else {
-      list{FT.AutoComplete.FACPattern(FPAVariable(mid, gid(), queryString))}
+      list{FT.AutoComplete.FACPattern(FPAVariable(mid, queryString))}
     }
 
   switch ti.token {
@@ -496,6 +487,7 @@ let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
   let tlid = TL.id(query.tl)
   switch query.ti.token {
   | TPatternBlank(_) | TPatternVariable(_) => generatePatterns(query.ti, a, query.queryString)
+
   | TFieldName(_) | TFieldPartial(_) => generateFields(query.fieldList)
   | TLeftPartial(_) => // Left partials can ONLY be if/let/match for now
     list{FACKeyword(KLet), FACKeyword(KIf), FACKeyword(KMatch)}
@@ -764,11 +756,11 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   | FACKeyword(KPipe) => simpleDoc("Pipe into another expression")
   | FACPattern(pat) =>
     switch pat {
-    | FPAConstructor(_, _, name, args) =>
+    | FPAConstructor(_, name, args) =>
       documentationForItem({item: FACConstructorName(name, List.length(args)), validity: validity})
-    | FPAVariable(_, _, name) =>
+    | FPAVariable(_, name) =>
       documentationForItem({item: FACVariable(name, None), validity: validity})
-    | FPABool(_, _, var) =>
+    | FPABool(_, var) =>
       documentationForItem({item: FACLiteral(string_of_bool(var)), validity: validity})
     | FPANull(_) => simpleDoc("A 'null' literal")
     }
