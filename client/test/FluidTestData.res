@@ -6,7 +6,7 @@ module P = ProgramTypes.Pattern
 // Shortcuts
 // ----------------
 let b = FluidExpression.newB()
-let bPat = ProgramTypes.Pattern.PBlank(gid())
+let bPat = () => ProgramTypes.Pattern.PBlank(gid())
 
 open FluidShortcuts
 
@@ -199,20 +199,20 @@ let fiftySixPat = P.PInteger(gid(), 56L)
 let seventyEightPat = P.PInteger(gid(), 78L)
 
 let tuplePattern2WithNoBlank = pTuple(fiftySixPat, seventyEightPat, list{})
-let tuplePattern2WithBothBlank = pTuple(bPat, bPat, list{})
-let tuplePattern2WithFirstBlank = pTuple(bPat, seventyEightPat, list{})
-let tuplePattern2WithSecondBlank = pTuple(fiftySixPat, bPat, list{})
+let tuplePattern2WithBothBlank = pTuple(bPat(), bPat(), list{})
+let tuplePattern2WithFirstBlank = pTuple(bPat(), seventyEightPat, list{})
+let tuplePattern2WithSecondBlank = pTuple(fiftySixPat, bPat(), list{})
 
 let tuplePattern3WithNoBlanks = pTuple(fiftySixPat, seventyEightPat, list{fiftySixPat})
-let tuplePattern3WithAllBlank = pTuple(bPat, bPat, list{bPat})
+let tuplePattern3WithAllBlank = pTuple(bPat(), bPat(), list{bPat()})
 
-let tuplePattern3WithFirstBlank = pTuple(bPat, seventyEightPat, list{fiftySixPat})
-let tuplePattern3WithSecondBlank = pTuple(fiftySixPat, bPat, list{seventyEightPat})
-let tuplePattern3WithThirdBlank = pTuple(fiftySixPat, seventyEightPat, list{bPat})
+let tuplePattern3WithFirstBlank = pTuple(bPat(), seventyEightPat, list{fiftySixPat})
+let tuplePattern3WithSecondBlank = pTuple(fiftySixPat, bPat(), list{seventyEightPat})
+let tuplePattern3WithThirdBlank = pTuple(fiftySixPat, seventyEightPat, list{bPat()})
 
-let tuplePattern3WithFirstFilled = pTuple(fiftySixPat, bPat, list{bPat})
-let tuplePattern3WithSecondFilled = pTuple(bPat, fiftySixPat, list{bPat})
-let tuplePattern3WithThirdFilled = pTuple(bPat, bPat, list{fiftySixPat})
+let tuplePattern3WithFirstFilled = pTuple(fiftySixPat, bPat(), list{bPat()})
+let tuplePattern3WithSecondFilled = pTuple(bPat(), fiftySixPat, list{bPat()})
+let tuplePattern3WithThirdFilled = pTuple(bPat(), bPat(), list{fiftySixPat})
 
 let tuplePattern6 = pTuple(
   fiftySixPat,

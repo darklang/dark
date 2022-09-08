@@ -446,11 +446,11 @@ let run = () => {
 
     if defaultTestProps.settings.allowTuples {
       describe("create", () => {
-        t("create tuple pattern", bPat, insert("("), ("(***,***)", 1))
+        t("create tuple pattern", bPat(), insert("("), ("(***,***)", 1))
 
         t(
           "create and fill in tuple pattern",
-          bPat,
+          bPat(),
           insertMany(list{"(", "1", ",", "2", ")"}),
           ("(1,2)", 4), // aha, this caught a bug!
         )
@@ -460,7 +460,7 @@ let run = () => {
 
     describe("insert", () => {
       t(
-        "insert into empty tuple inserts",
+        "insert into empty tuple pattern inserts",
         tuplePattern2WithBothBlank,
         ~pos=1,
         insert("5"),
