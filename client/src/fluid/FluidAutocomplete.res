@@ -436,47 +436,81 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
 }
 
-let generatePatterns = (ti: tokenInfo, _a: t, queryString: string): list<item> => {
-  let newStandardPatterns = mid =>
-    // if patterns are in the autocomplete already, don't bother creating
-    // new FACPatterns with different mids and pids
-    list{
-      FT.AutoComplete.FPABool(mid, true),
-      FPABool(mid, false),
-      FPAConstructor(mid, "Just", list{PBlank(gid())}),
-      FPAConstructor(mid, "Nothing", list{}),
-      FPAConstructor(mid, "Ok", list{PBlank(gid())}),
-      FPAConstructor(mid, "Error", list{PBlank(gid())}),
-      FPANull(mid),
+let generatePatterns = (
+  currentCompletions: list<FT.AutoComplete.data>,
+  ti: tokenInfo,
+  queryString: string,
+): list<item> => {
+  let patternCompletions = List.filterMap(~f=v =>
+    switch v {
+    | {item: FACPattern(p), _} => Some(p)
+    | _ => None
     }
-    |> List.map(~f=p => FT.AutoComplete.FACPattern(p))
-    |> List.filter(~f=c =>
-      // filter out old query string variable
-      switch c {
-      | FT.AutoComplete.FACPattern(FPAVariable(_)) => false
-      | _ => true
+  , currentCompletions)
+
+  let patternOrReplace = (
+    findFn: FT.AutoComplete.patternItem => bool,
+    newPat: FT.AutoComplete.patternItem,
+  ) => List.find(~f=findFn, patternCompletions) |> Option.unwrap(~default=newPat)
+
+  // When possible, re-use an existing pattern rather than generating a new
+  // one. That way, internal IDs are unlikely to change. This is useful as we
+  // re-generate patterns often, including while scrolling in the UI through
+  // the list of available patterns. Each time we regenerate, we attempt to put
+  // highlight the appropriate item - if the ID changes, it becomes difficult
+  // to select the correct item, as simple comparisons won't work.
+  //
+  // Some patterns have no risk of conflict (because they don't have internal
+  // IDs other than the match ID), so we don't bother to prevent conflict.
+  let newStandardPatterns = mid => list{
+    FT.AutoComplete.FPABool(mid, true),
+    FPABool(mid, false),
+    patternOrReplace(p =>
+      switch p {
+      | FPAConstructor(id, "Just", list{PBlank(_)}) => mid == id
+      | _ => false
       }
+    , FPAConstructor(mid, "Just", list{PBlank(gid())})),
+    FPAConstructor(mid, "Nothing", list{}),
+    patternOrReplace(p =>
+      switch p {
+      | FPAConstructor(id, "Ok", list{PBlank(_)}) => mid == id
+      | _ => false
+      }
+    , FPAConstructor(mid, "Ok", list{PBlank(gid())})),
+    patternOrReplace(p =>
+      switch p {
+      | FPAConstructor(id, "Error", list{PBlank(_)}) => mid == id
+      | _ => false
+      }
+    , FPAConstructor(mid, "Error", list{PBlank(gid())})),
+    FPANull(mid),
+  }
+
+  let newVariablePattern = mid => {
+    let matchesExpectedPattern = List.member(
+      ~value=queryString,
+      list{"", "Just", "Nothing", "Ok", "Error", "true", "false", "null"},
     )
 
-  let isInvalidPatternVar = str =>
-    list{"", "Just", "Nothing", "Ok", "Error", "true", "false", "null"} |> List.member(
-      ~value=str,
-    ) || str |> String.dropRight(~count=String.length(str) - 1) |> String.isCapitalized
+    let firstCharacterIsCapitalized =
+      String.dropRight(~count=String.length(queryString) - 1, queryString) |> String.isCapitalized
 
-  let newQueryVariable = mid =>
-    /* no Query variable if the query is empty or equals to standard
-     * constructor or boolean name */
-    if isInvalidPatternVar(queryString) {
-      list{}
+    // if the query is empty, or equals a standard constructor or boolean name,
+    // or starts with a capital letter (invalid variable name), don't return
+    // a variable pattern suggestion.
+    if matchesExpectedPattern || firstCharacterIsCapitalized {
+      None
     } else {
-      list{FT.AutoComplete.FACPattern(FPAVariable(mid, queryString))}
+      Some(FT.AutoComplete.FPAVariable(mid, queryString))
     }
+  }
 
   switch ti.token {
   | TPatternBlank(mid, _, _) | TPatternVariable(mid, _, _, _) =>
-    Belt.List.concat(newQueryVariable(mid), newStandardPatterns(mid))
+    Belt.List.concat(Option.toList(newVariablePattern(mid)), newStandardPatterns(mid))
   | _ => list{}
-  }
+  } |> List.map(~f=p => FT.AutoComplete.FACPattern(p))
 }
 
 let generateCommands = (_name, _tlid, _id) =>
@@ -489,7 +523,8 @@ let generateFields = fieldList => List.map(~f=x => FT.AutoComplete.FACField(x), 
 let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
   let tlid = TL.id(query.tl)
   switch query.ti.token {
-  | TPatternBlank(_) | TPatternVariable(_) => generatePatterns(query.ti, a, query.queryString)
+  | TPatternBlank(_) | TPatternVariable(_) =>
+    generatePatterns(a.completions, query.ti, query.queryString)
 
   | TFieldName(_) | TFieldPartial(_) => generateFields(query.fieldList)
   | TLeftPartial(_) => // Left partials can ONLY be if/let/match for now
