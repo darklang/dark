@@ -72,8 +72,8 @@ let testToDeveloperRepr =
           RT.DFloat(-0.0), "-0."
           RT.DFloat(infinity), "inf"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
-          RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
-          RT.DList [ RT.DNull ], "[ \n  null\n]" ] ]
+          RT.DObj(Map.ofList [ "", RT.DNull ]), "{\n  : null\n}"
+          RT.DList [ RT.DNull ], "[\n  null\n]" ] ]
 
 let testToEnduserReadable =
   testMany

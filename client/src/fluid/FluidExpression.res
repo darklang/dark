@@ -669,6 +669,7 @@ let toHumanReadable = (expr: t): string => {
     let r = recurse(~indent)
     let rin = recurse(~indent=indent + 2)
     let newlineList = exprs => exprs |> List.map(~f=rin) |> String.join(~sep="\n")
+    let quoted = str => `"${str}"`
     let eStr = switch expr {
     | EBlank(_) => "(blank)"
     | ECharacter(_, str) => `(char '${str}')`
@@ -677,7 +678,7 @@ let toHumanReadable = (expr: t): string => {
         String.slice(~from=0, ~to_=20, str) ++ "..."
       } else {
         str
-      } |> Printf.sprintf(`(str "%s")`)
+      } |> Printf.sprintf("(str \"%s\")")
     | EBool(_, true) => "(true)"
     | EBool(_, false) => "(false)"
     | EFloat(_, sign, whole, fractional) =>
@@ -697,7 +698,6 @@ let toHumanReadable = (expr: t): string => {
     | EFieldAccess(_, e, name) => Printf.sprintf("(fieldAccess \"%s\"\n%s)", name, r(e))
     | EMatch(_, cond, matches) =>
       let rec pToTestcase = (p: FluidPattern.t): string => {
-        let quoted = str => "\"" ++ (str ++ "\"")
         let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
         let spaced = elems => String.join(~sep=" ", elems)
         switch p {
@@ -719,15 +719,15 @@ let toHumanReadable = (expr: t): string => {
           spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
         | PTuple(_, first, second, theRest) =>
           let exprs = list{first, second, ...theRest} |> List.map(~f=pToTestcase)
-          spaced(list{"pTuple", "(" ++ (String.join(~sep=",", exprs) ++ ")")})
+          spaced(list{"pTuple", "(" ++ String.join(~sep=",", exprs) ++ ")"})
         }
       }
 
       let matchStrs = List.map(matches, ~f=((p, e)) =>
-        "(" ++ (pToTestcase(p) ++ (", " ++ (r(e) ++ ")")))
+        iStr ++ "  (" ++ pToTestcase(p) ++ ", " ++ rin(e) ++ ")"
       )
 
-      Printf.sprintf(`(match\\n%s\\n%s)`, r(cond), String.join(~sep="\n", matchStrs))
+      Printf.sprintf("(match %s\n%s)", r(cond), String.join(~sep="\n", matchStrs))
     | ERecord(_, list{}) => "(record)"
     | ERecord(_, pairs) =>
       let pairStrs = List.map(pairs, ~f=((k, v)) =>
@@ -740,13 +740,15 @@ let toHumanReadable = (expr: t): string => {
     | ETuple(_, first, second, theRest) =>
       let exprs = list{first, second, ...theRest}
       Printf.sprintf("(tuple\n%s)", newlineList(exprs))
-    | EPipe(_, e1, e2, rest) => Printf.sprintf("(pipe\n%s %s %s)", r(e1), r(e2), newlineList(rest))
+    | EPipe(_, e1, e2, rest) => Printf.sprintf("(pipe\n%s)", newlineList(list{e1, e2, ...rest}))
     | EConstructor(_, name, exprs) =>
       Printf.sprintf("(constructor \"%s\"\n%s)", name, newlineList(exprs))
     | EIf(_, cond, then', else') =>
       Printf.sprintf("(if %s\n%s\n%s)", r(cond), rin(then'), rin(else'))
     | ELet(_, lhs, rhs, body) => Printf.sprintf("(let %s\n%s\n%s)", lhs, rin(rhs), r(body))
-    | ELambda(_, _names, body) => Printf.sprintf("(lambda \n%s)", r(body))
+    | ELambda(_, names, body) =>
+      let names = names->List.map(~f=Tuple2.second)->List.toArray->Js.Array2.joinWith("\", \"")
+      `(lambda "${names}"\n${rin(body)})`
     | EFeatureFlag(_, _, cond, old, new') =>
       Printf.sprintf("(flag %s\n%s\n%s)", rin(cond), rin(old), rin(new'))
     }

@@ -1,4 +1,4 @@
-In Jan, 2020, we changed the dblock internal representation.
+In Jan 2020, we changed the dblock internal representation.
 
 Before, it was a partially applied, in-memory only, OCaml representation,
 which was not possible to serialize.

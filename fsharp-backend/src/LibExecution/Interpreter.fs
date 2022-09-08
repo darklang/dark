@@ -221,11 +221,21 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | ELambda (_id, parameters, body) ->
       if state.tracing.realOrPreview = Preview then
+        // In case this never gets executed, add default analysis results
+        parameters
+        |> List.iter (fun (id, name) ->
+          state.tracing.traceDval false id (DIncomplete(sourceID id)))
+
         // Since we return a DBlock, it's contents may never be
         // executed. So first we execute with no context to get some
         // live values.
-        let fakeST = Map.add "var" (DIncomplete SourceNone) st
-        do! preview fakeST body
+        let previewST =
+          parameters
+          |> List.choose (fun (id, name) ->
+            if name = "" then None else Some(name, DIncomplete(sourceID id)))
+          |> Map.ofList
+        do! preview previewST body
+
 
       let parameters =
         parameters

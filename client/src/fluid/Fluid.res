@@ -1258,8 +1258,7 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
       offset: String.length(frac),
     }
   | PNull(id) => {astRef: ARPattern(id, PPNull), offset: String.length("null")}
-  | PBlank(id) => // Consider changing this from 3 to 0 if we don't want blanks to have two spots
-    {astRef: ARPattern(id, PPBlank), offset: 3}
+  | PBlank(id) => {astRef: ARPattern(id, PPBlank), offset: 0}
   }
 
 /* caretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
@@ -2248,13 +2247,13 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   | FACVariable(name, _) =>
     let vID = gid()
     Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
-  | FACLiteral("true") =>
+  | FACLiteral(LBool(true)) =>
     let bID = gid()
     Some(EBool(bID, true), {astRef: ARBool(bID), offset: String.length("true")})
-  | FACLiteral("false") =>
+  | FACLiteral(LBool(false)) =>
     let bID = gid()
     Some(EBool(bID, false), {astRef: ARBool(bID), offset: String.length("false")})
-  | FACLiteral("null") =>
+  | FACLiteral(LNull) =>
     let nID = gid()
     Some(ENull(nID), {astRef: ARNull(nID), offset: String.length("null")})
   | FACConstructorName(name, argCount) =>
@@ -2270,7 +2269,6 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
         offset: String.length(fieldname),
       },
     )
-  | FACLiteral(_) => recover("invalid literal in autocomplete", ~debug=entry, None)
   | FACPattern(_) =>
     // This only works for exprs
     None
@@ -3066,19 +3064,36 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARLambda(_, LBPSymbol), ELambda(_, _, EBlank(_))) =>
       // If the expr is empty and thus can be removed
       mkEBlank()
-    | (ARMatch(_, MPKeyword), EMatch(_, EBlank(_), pairs))
-      if List.all(pairs, ~f=((p, e)) =>
-        switch (p, e) {
-        | (PBlank(_), EBlank(_)) => true
-        | _ => false
+    | (ARLambda(_, LBPSymbol), ELambda(_, _, expr)) =>
+      // Othewise just convert to the expr
+      Some(Expr(expr), caretTargetForStartOfExpr'(expr))
+    // If with exactly one expression can become that expression
+    | (ARIf(_, IPIfKeyword), EIf(_, expr, EBlank(_), EBlank(_)))
+    | (ARIf(_, IPIfKeyword), EIf(_, EBlank(_), expr, EBlank(_)))
+    | (ARIf(_, IPIfKeyword), EIf(_, EBlank(_), EBlank(_), expr)) =>
+      Some(Expr(expr), caretTargetForStartOfExpr'(expr))
+    | (ARMatch(_, MPKeyword), EMatch(_, cond, pairs)) =>
+      // If there is exactly one expression (including the condition), and no patterns, then
+      // convert to that. We use a result<expr,unit> to track this:
+      // - Error() means too many expressions/patterns exist
+      // - Ok(EBlank) means only blanks found so far
+      // - Ok(expr) means an appropriate expression was found
+      let newExpr = pairs->List.fold(~initial=Ok(cond), ~f=(acc, pair) => {
+        switch (acc, pair) {
+        | (Error(), _) => acc
+        | (_, (PBlank(_), EBlank(_))) => acc
+        | (Ok(EBlank(_)), (PBlank(_), expr)) => Ok(expr)
+        | (Ok(_), (PBlank(_), _)) => Error() // more than one Expr found
+        | _ => Error()
         }
-      ) =>
-      // the match has no content and can safely be deleted
-      mkEBlank()
-    | (ARMatch(_, MPKeyword), EMatch(_))
+      })
+      switch newExpr {
+      | Ok(EBlank(_)) => mkEBlank() // Nothing here, so make it blank
+      | Ok(expr) => Some(Expr(expr), caretTargetForStartOfExpr'(expr))
+      | Error() => None // Too much stuff, so don't change
+      }
     | (ARLet(_, LPKeyword), ELet(_))
-    | (ARIf(_, IPIfKeyword), EIf(_))
-    | (ARLambda(_, LBPSymbol), ELambda(_)) =>
+    | (ARIf(_, IPIfKeyword), EIf(_)) =>
       // keywords of "non-empty" exprs shouldn't be deletable at all
       None
 
@@ -3958,30 +3973,38 @@ let doExplicitInsert = (
       }
 
     | (ARPattern(_, PPTuple(kind)), PTuple(_pID, first, second, theRest)) =>
-      let allPats = list{first, second, ...theRest}
-
-      // CLEANUP TUPLETODO: this feels like it can be reasonably shorter
-
       let elIndex = switch kind {
       | TPOpen => Some(0)
       | TPComma(i) => Some(i + 1)
       | TPClose => None
       }
 
-      switch elIndex {
-      | None => None
-      | Some(elIndex) =>
-        switch handlePatBlank() {
-        | None => None
-        | Some(newPat, ct) =>
+      switch (elIndex, handlePatBlank()) {
+      | (Some(elIndex), Some(newPat, newCt)) =>
+        let allPats = list{first, second, ...theRest}
+
+        let shouldReplacePatternAtIndex =
+          List.getAt(~index=elIndex, allPats)
+          |> Option.map(~f=p => P.isPatternBlank(p))
+          |> Option.unwrap(~default=false)
+
+        if shouldReplacePatternAtIndex {
           let allPatsWithReplacement = allPats |> List.updateAt(~f=_p => newPat, ~index=elIndex)
 
           switch allPatsWithReplacement {
           | list{first, second, ...theRest} =>
-            Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), ct)
-          | _ => None
+            Some(E.Pat(mID, PTuple(gid(), first, second, theRest)), newCt)
+          | _ =>
+            recover(
+              "doPatInsert - unexpected tuple pattern of fewer than 2 elements",
+              ~debug=pat,
+              None,
+            )
           }
+        } else {
+          None
         }
+      | _ => None
       }
 
     /*
@@ -4626,6 +4649,8 @@ let rec updateKey = (
   | (InsertText("]"), _, R(TListClose(_), ti)) if pos == ti.endPos - 1 => moveOneRight(pos, astInfo)
   // Pressing ) to go over the last )
   | (InsertText(")"), _, R(TTupleClose(_), ti)) if pos == ti.endPos - 1 =>
+    moveOneRight(pos, astInfo)
+  | (InsertText(")"), _, R(TPatternTupleClose(_), ti)) if pos == ti.endPos - 1 =>
     moveOneRight(pos, astInfo)
   // Pressing quote to go over the last quote
   | (InsertText("\""), _, R(TPatternString(_), ti))
@@ -5735,21 +5760,25 @@ let pasteOverSelection = (
   data: clipboardContents,
   astInfo: ASTInfo.t,
 ): ASTInfo.t => {
+  // what Expr are we pasting into?
   let astInfo = deleteSelection(props, astInfo)
   let ast = astInfo.ast
   let mTi = ASTInfo.getToken(astInfo)
   let exprID = mTi |> Option.map(~f=(ti: T.tokenInfo) => ti.token |> T.tid)
   let expr = Option.andThen(exprID, ~f=id => FluidAST.find(id, ast))
+  let ct = mTi |> Option.andThen(~f=ti => caretTargetFromTokenInfo(astInfo.state.newPos, ti))
+
+  // what Expr, in our clipboard, are we trying to paste?
   let clipboardExpr = Clipboard.clipboardContentsToExpr(data)
   let text = Clipboard.clipboardContentsToString(data)
-  let ct = mTi |> Option.andThen(~f=ti => caretTargetFromTokenInfo(astInfo.state.newPos, ti))
 
   switch expr {
   | Some(expr) =>
     let clipboardExpr = {
-      /* [addPipeTarget pipeId initialExpr] replaces the first arg into which one can pipe with a pipe target having [pipeId]
-       * at the root of [initialExpr], if such an arg exists.
-       * It is recursive in order to handle root expressions inside partials. */
+      // Replaces the first arg into which one can pipe with a pipe target having
+      // [pipeId] at the root of [initialExpr], if such an arg exists.
+      //
+      // It is recursive in order to handle root expressions inside partials.
       let rec addPipeTarget = (pipeId: id, initialExpr: E.t): E.t =>
         switch initialExpr {
         | EFnCall(id, name, args, sendToRail) =>
@@ -5768,8 +5797,9 @@ let pasteOverSelection = (
         | _ => initialExpr
         }
 
-      /* [removePipeTarget initialExpr] replaces all pipe targets at the root of [initialExpr] with blanks.
-       * It is recursive in order to handle pipe targets inside partials. */
+      // Replaces all pipe targets at the root of [initialExpr] with blanks.
+      //
+      // It is recursive in order to handle pipe targets inside partials.
       let rec removePipeTarget = (initialExpr: E.t): E.t =>
         switch initialExpr {
         | EFnCall(id, name, args, sendToRail) =>
@@ -5831,15 +5861,15 @@ let pasteOverSelection = (
         Some(ERecord(_, pastedKVs)),
         Some({astRef: ARRecord(_, RPFieldname(index)), _}),
       ) =>
-      /* Since fieldnames can't contain exprs, merge pasted record with existing record,
-       * keeping duplicate fieldnames */
+      // Since fieldnames can't contain exprs, merge pasted record with existing
+      // record, keeping duplicate fieldnames
       let (first, last) = switch List.getAt(oldKVs, ~index) {
-      | Some(
-          "",
-          EBlank(_),
-        ) => /* not adding 1 to index ensures we don't include this entirely empty entry;
-         * adding 1 ensures we don't include it after the paste either */
-        (List.take(oldKVs, ~count=index), List.drop(oldKVs, ~count=index + 1))
+      | Some("", EBlank(_)) => (
+          // not adding 1 to index ensures we don't include this entirely empty entry;
+          // adding 1 ensures we don't include it after the paste either
+          List.take(oldKVs, ~count=index),
+          List.drop(oldKVs, ~count=index + 1),
+        )
       | _ => // adding 1 to index ensures pasting after the existing entry
         (List.take(oldKVs, ~count=index + 1), List.drop(oldKVs, ~count=index + 1))
       }
@@ -5853,13 +5883,11 @@ let pasteOverSelection = (
         astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(caretTarget)
       })
       |> Option.unwrap(~default=astInfo)
-    | (
-        ERecord(_),
-        Some(_),
-        Some({astRef: ARRecord(_, RPFieldname(_)), _}),
-      ) => /* Block pasting arbitrary expr into a record fieldname
-       * since keys can't contain exprs */
-      astInfo
+
+    // Block pasting arbitrary expr into a record fieldname since keys can't
+    // contain exprs
+    | (ERecord(_), Some(_), Some({astRef: ARRecord(_, RPFieldname(_)), _})) => astInfo
+
     | _ =>
       text
       |> String.split(~on="")
@@ -6016,7 +6044,10 @@ let updateMsg' = (
   | FluidMouseUp(eventData) => updateMouseUp(props, eventData, astInfo)
   | FluidMouseDoubleClick(eventData) => updateMouseDoubleClick(eventData, astInfo)
   | FluidCut => deleteSelection(props, astInfo)
-  | FluidPaste(data) => pasteOverSelection(props, data, astInfo)
+  | FluidPaste(data) =>
+    // Note: this currently only handles pasting an Expr into an Expr - it does
+    // not currently pasting Patterns.
+    pasteOverSelection(props, data, astInfo)
   // handle selection with direction key cases
   /* moving/selecting over expressions or tokens with shift-/alt-direction
    * or shift-/ctrl-direction */

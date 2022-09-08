@@ -321,31 +321,32 @@ let testFeatureFlagPreview : Test =
         AT.NonExecutedResult(DStr "new"))) ]
 
 let testLambdaPreview : Test =
+  let lID = gid ()
+  let p1ID = gid ()
+  let p2ID = gid ()
   let f body =
     task {
-      let lID = gid ()
-      let bodyID = Expr.toID body
-      let ast = ELambda(lID, [], body)
+      let ast = ELambda(lID, [ (p1ID, ""); (p2ID, "var") ], body)
       let! results = execSaveDvals "lambda-preview" [] [] ast
-
-      return (Dictionary.get lID results, Dictionary.get bodyID results)
+      return results |> Dictionary.toList |> Map
     }
   testManyTask
     "lambda preview"
     f
-    [ (EString(65UL, "body"),
-       (Some(
-         AT.ExecutedResult(
-           DFnVal(
-             Lambda(
-               { parameters = []
-                 symtable = Map.empty
-                 body = EString(65UL, "body") }
-             )
-           )
-         )
-        ),
-        Some(AT.NonExecutedResult(DStr "body")))) ]
+    [ (EString(65UL, "body")),
+      (Map.fromList [ (lID,
+                       AT.ExecutedResult(
+                         DFnVal(
+                           Lambda(
+                             { parameters = [ (p2ID, "var") ]
+                               symtable = Map.empty
+                               body = EString(65UL, "body") }
+                           )
+                         )
+                       ))
+                      (p1ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p1ID))))
+                      (p2ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p2ID))))
+                      (65UL, AT.NonExecutedResult(DStr "body")) ]) ]
 
 
 /// Test the results that are returned when we're "previewing" (i.e. Analysis)

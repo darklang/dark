@@ -57,7 +57,7 @@ module Builder = {
 
   let listLimit = 60
 
-  /* * # of items in a tuple before we should wrap */
+  // # of chars in a tuple before we should wrap
   let tupleLimit = 60
 
   let add = (token: fluidToken, b: t): t => {
