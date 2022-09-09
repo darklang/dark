@@ -2765,12 +2765,13 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       if currOffset == 1 && str == "" {
         mkEBlank()
       } else {
-        None
+        // just go back one space
+        Some(Expr(currExpr), {astRef: currAstRef, offset: 0})
       }
     | (ARString(_, SPBody), EString(id, str)) =>
       let newStr = str |> mutationAt(~index=currOffset - 1)
       Some(Expr(EString(id, newStr)), CT.forARStringText(id, currOffset - 1, newStr))
-    | (ARString(_, SPCloseQuote), EString(id, str)) =>
+    | (ARString(_, SPCloseQuote), EString(id, str)) if currOffset == 0 =>
       let newStr = str |> mutationAt(~index=String.length(str) - 1)
       Some(Expr(EString(id, newStr)), CT.forARStringCloseQuote(id, 0))
 
@@ -2936,6 +2937,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         fnName |> FQFnName.toString |> FluidUtil.partialName |> mutation |> String.trim,
         currExpr,
       )
+
     // Bools
     | (ARBool(_), EBool(_, bool)) =>
       let str = if bool {
@@ -3095,6 +3097,8 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARRecord(_, RPOpen), expr)
     | (ARRecord(_, RPClose), expr)
     | (ARRecord(_, RPFieldSep(_)), expr)
+    | (ARString(_, SPCloseQuote), expr)
+    | (ARString(_, SPOpenQuote), expr)
     | (ARList(_, LPOpen), expr)
     | (ARList(_, LPClose), expr)
     | (ARTuple(_, TPClose), expr)
@@ -3117,8 +3121,6 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARFloat(_, FPFractional), _)
     | (ARFloat(_, FPPoint), _)
     | (ARFloat(_, FPWhole), _)
-    | (ARString(_, SPOpenQuote), _)
-    | (ARString(_, SPCloseQuote), _)
     | (ARFnCall(_), _)
     | (ARIf(_, IPIfKeyword), _)
     | (ARInteger(_), _)
