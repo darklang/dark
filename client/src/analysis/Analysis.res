@@ -270,7 +270,6 @@ module New404Push = {
 
 module NewPresencePush = {
   let decode = {
-    Debug.loG("decoding", "AddOps")
     open Tea.Json.Decoder
     field("detail", list(Decoders.wrapDecoder(AppTypes.Avatar.decode)))
   }
