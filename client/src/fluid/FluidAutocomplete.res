@@ -84,6 +84,7 @@ let asName = (aci: item): string =>
     | FPAVariable(_, name) | FPAConstructor(_, name, _) => name
     | FPABool(_, v) => string_of_bool(v)
     | FPANull(_) => "null"
+    | FPATuple(_) => "tuple"
     }
   | FACCreateFunction(name, _, _) => "Create new function: " ++ name
   }
@@ -125,6 +126,12 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACPattern(FPABool(_)) => (list{}, "boolean literal")
   | FACKeyword(_) => (list{}, "keyword")
   | FACPattern(FPANull(_)) => (list{}, "null")
+  | FACPattern(FPATuple(_, first, second, theRest)) =>
+    let parts =
+      list{first, second, ...theRest}
+      |> List.map(~f=p => FluidPrinter.pToString(p))
+      |> List.join(~sep=",")
+    (list{}, `tuple (${parts})`)
   | FACCreateFunction(_) => (list{}, "")
   }
 
@@ -437,6 +444,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
 }
 
 let generatePatterns = (
+  allowTuples: bool,
   currentCompletions: list<FT.AutoComplete.data>,
   ti: tokenInfo,
   queryString: string,
@@ -487,6 +495,18 @@ let generatePatterns = (
     FPANull(mid),
   }
 
+  let newTuplePattern = mid =>
+    if allowTuples {
+      patternOrReplace(p =>
+        switch p {
+        | FPATuple(id, PBlank(_), PBlank(_), list{}) => mid == id
+        | _ => false
+        }
+      , FPATuple(mid, PBlank(gid()), PBlank(gid()), list{}))->Some
+    } else {
+      None
+    }
+
   let newVariablePattern = mid => {
     let matchesExpectedPattern = List.member(
       ~value=queryString,
@@ -508,7 +528,11 @@ let generatePatterns = (
 
   switch ti.token {
   | TPatternBlank(mid, _, _) | TPatternVariable(mid, _, _, _) =>
-    Belt.List.concat(Option.toList(newVariablePattern(mid)), newStandardPatterns(mid))
+    Belt.List.concatMany([
+      Option.toList(newVariablePattern(mid)),
+      newStandardPatterns(mid),
+      Option.toList(newTuplePattern(mid)),
+    ])
   | _ => list{}
   } |> List.map(~f=p => FT.AutoComplete.FACPattern(p))
 }
@@ -520,11 +544,17 @@ let generateCommands = (_name, _tlid, _id) =>
 
 let generateFields = fieldList => List.map(~f=x => FT.AutoComplete.FACField(x), fieldList)
 
-let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
+let generate = (
+  m: model,
+  props: props,
+  completions: list<FT.AutoComplete.data>,
+  query: fullQuery,
+): list<item> => {
   let tlid = TL.id(query.tl)
   switch query.ti.token {
   | TPatternBlank(_) | TPatternVariable(_) =>
-    generatePatterns(a.completions, query.ti, query.queryString)
+    let allowTuples = m.settings.contributingSettings.inProgressFeatures.allowTuples
+    generatePatterns(allowTuples, completions, query.ti, query.queryString)
 
   | TFieldName(_) | TFieldPartial(_) => generateFields(query.fieldList)
   | TLeftPartial(_) => // Left partials can ONLY be if/let/match for now
@@ -638,8 +668,8 @@ let refilter = (props: props, query: fullQuery, old: t, items: list<item>): t =>
   {index: index, query: Some(TL.id(query.tl), query.ti), completions: newCompletions}
 }
 
-/* Regenerate calls generate, except that it adapts the result using the
- * existing state (mostly putting the index in the right place. */
+@ocaml.doc("Regenerate calls generate, except that it adapts the result using
+  the existing state (mostly putting the index in the right place.")
 let regenerate = (m: model, a: t, (tlid, ti): query): t =>
   switch TL.get(m, tlid) {
   | None => init
@@ -655,7 +685,7 @@ let regenerate = (m: model, a: t, (tlid, ti): query): t =>
       pipedDval: pipedDval,
       queryString: queryString,
     }
-    let items = generate(m, props, a, query)
+    let items = generate(m, props, a.completions, query)
     refilter(props, query, a, items)
   }
 
@@ -800,6 +830,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
       documentationForItem({item: FACVariable(name, None), validity: validity})
     | FPABool(_, b) => documentationForItem({item: FACLiteral(LBool(b)), validity: validity})
     | FPANull(_) => simpleDoc("A 'null' literal")
+    | FPATuple(_) => simpleDoc("A tuple containing several sub-patterns")
     }
   | FACCreateFunction(_) => None
   }

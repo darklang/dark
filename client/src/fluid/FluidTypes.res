@@ -174,6 +174,7 @@ module AutoComplete = {
     | FPAConstructor(ID.t, string, list<ProgramTypes.Pattern.t>)
     | FPANull(ID.t)
     | FPABool(ID.t, bool)
+    | FPATuple(ID.t, ProgramTypes.Pattern.t, ProgramTypes.Pattern.t, list<ProgramTypes.Pattern.t>)
 
   @ppx.deriving(show({with_path: false}))
   type rec keyword =
