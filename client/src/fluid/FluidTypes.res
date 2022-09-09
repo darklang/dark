@@ -40,10 +40,10 @@ module Token = {
   type rec t =
     | TInteger(ID.t, int64, option<parentBlockID>)
     | TString(ID.t, string, option<parentBlockID>)
+    | TStringOpenQuote(ID.t, string)
+    | TStringCloseQuote(ID.t, string)
     // multi-line strings: id, segment, start offset, full-string
-    | TStringMLStart(ID.t, string, int, string)
-    | TStringMLMiddle(ID.t, string, int, string)
-    | TStringMLEnd(ID.t, string, int, string)
+    | TStringML(ID.t, string, int, string)
     | TBlank(ID.t, option<parentBlockID>)
     | TPlaceholder({
         blankID: ID.t,

@@ -300,6 +300,10 @@ $ff-color: adjust-hue($purple, -40deg);
     color: $string-color;
   }
 
+  .fluid-string-ml-end, .fluid-string-ml-middle, .fluid-string-ml-start {
+    background-color: #462d4c17;
+  }
+
   // Part of the same problem, making space for it.
   .fluid-lambda-keyword {
     margin-right: 0.11px;

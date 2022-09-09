@@ -94,10 +94,8 @@ let astInfoFromModel = (m: model): option<ASTInfo.t> =>
 
 let getStringIndexMaybe = (ti: T.tokenInfo, pos: int): option<int> =>
   switch ti.token {
-  | TString(_, _, _) => Some(pos - ti.startPos - 1)
-  | TStringMLStart(_, _, offset, _) => Some(pos - ti.startPos + offset - 1)
-  | TStringMLMiddle(_, _, offset, _) | TStringMLEnd(_, _, offset, _) =>
-    Some(pos - ti.startPos + offset)
+  | TString(_, _, _) => Some(pos - ti.startPos)
+  | TStringML(_, _, offset, _) => Some(pos - ti.startPos + offset)
   | _ => None
   }
 
@@ -458,7 +456,7 @@ let rec getNextEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
   |> List.find(~f=(ti: T.tokenInfo) => {
     let isEditable = // Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination
     switch ti.token {
-    | TStringMLEnd(_) | TStringMLMiddle(_) | TFnVersion(_) => false
+    | TStringML(_) | TFnVersion(_) => false
     | _ => T.isTextToken(ti.token)
     }
 
@@ -491,9 +489,10 @@ let getPrevEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> => {
   let rec findEditable = (pos: int): option<T.tokenInfo> =>
     revTokens
     |> List.find(~f=(ti: T.tokenInfo) => {
-      let isEditable = // Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination
-      switch ti.token {
-      | TStringMLStart(_) | TStringMLMiddle(_) | TFnName(_) => false
+      // Skip the editable tokens that are part of a combination of tokens to place
+      // the caret in the right place in the token combination
+      let isEditable = switch ti.token {
+      | TStringML(_) | TFnName(_) => false
       | _ => T.isTextToken(ti.token)
       }
 
@@ -781,43 +780,23 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     /*
      * Single-line Strings
      */
-    | (ARString(id, SPOpenQuote), TString(id', _, _))
-    | (ARPattern(id, PPString(SPOpenQuote)), TPatternString({patternID: id', _})) if id == id' =>
+    | (ARString(id, SPOpenQuote), TStringOpenQuote(id', _))
+    | (ARString(id, SPCloseQuote), TStringCloseQuote(id', _)) if id == id' =>
+      clampedPosForTi(ti, ct.offset)
+    | (ARString(id, SPBody), TString(id', _, _)) if id == id' => clampedPosForTi(ti, ct.offset)
+    | (ARPattern(id, PPString), TPatternString({patternID: id', _})) if id == id' =>
       clampedPosForTi(ti, ct.offset)
     /*
      * Multi-line Strings
      */
-    | (ARString(id, SPOpenQuote), tok) =>
-      switch tok {
-      | TStringMLStart(id', str, _, _) if id == id' =>
-        let len = String.length(str) + 1 // to account for open quote
-        if ct.offset > len {
-          // Must be in a later token
-          None
-        } else {
-          // Within current token
-          posForTi(ti)
-        }
-      | TStringMLMiddle(id', str, startOffsetIntoString, _) if id == id' =>
-        let len = String.length(str)
-        let offsetInStr = ct.offset - 1
-        // to account for open quote in the start
-
-        let endOffset = startOffsetIntoString + len
-        if offsetInStr > endOffset {
-          // Must be in later token
-          None
-        } else {
-          // Within current token
-          clampedPosForTi(ti, offsetInStr - startOffsetIntoString)
-        }
-      | TStringMLEnd(id', _, startOffsetIntoString, _) if id == id' =>
-        // Must be in this token because it's the last token in the string
-        let offsetInStr = ct.offset - 1
-        // to account for open quote in the start
-
-        clampedPosForTi(ti, offsetInStr - startOffsetIntoString)
-      | _ => None
+    | (ARString(id, SPBody), TStringML(id', segment, startOffsetIntoString, _)) if id == id' =>
+      let endOffset = startOffsetIntoString + String.length(segment)
+      if ct.offset > endOffset {
+        // Must be in later token
+        None
+      } else {
+        // Within current token
+        clampedPosForTi(ti, ct.offset - startOffsetIntoString)
       }
 
     // Exhaustiveness satisfaction for astRefs
@@ -835,6 +814,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARIf(_, IPThenKeyword), _)
     | (ARIf(_, IPElseKeyword), _)
     | (ARInteger(_), _)
+    | (ARString(_), _)
     | (ARLet(_, LPKeyword), _)
     | (ARLet(_, LPVarName), _)
     | (ARLet(_, LPAssignment), _)
@@ -872,7 +852,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARPattern(_, PPFloat(FPFractional)), _)
     | (ARPattern(_, PPBlank), _)
     | (ARPattern(_, PPNull), _)
-    | (ARPattern(_, PPString(SPOpenQuote)), _)
+    | (ARPattern(_, PPString), _)
     | (ARFlag(_, FPWhenKeyword), _)
     | (ARFlag(_, FPEnabledKeyword), _) =>
       None
@@ -888,8 +868,6 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
   switch newPosMaybe {
   | Some(newPos) => newPos
   | None =>
-    // NOTE: This is very useful for fixing issues in dev, but much too large for Rollbar:
-    // Debug.loG(((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~incluID.toStrings:true ast)), ())
     recover(
       "We expected to find the given caretTarget in the token stream but couldn't.",
       ~debug=CT.show(ct),
@@ -915,11 +893,13 @@ let moveToCaretTarget = (ct: CT.t, astInfo: ASTInfo.t) => {
   * identifies each pos.  ")
 let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   let offset = pos - ti.startPos
+  Debug.loG("caretTargetFromTokenInfo call", (pos, ti, offset))
   switch ti.token {
-  | TString(id, _, _) | TStringMLStart(id, _, _, _) => Some(CT.forARStringOpenQuote(id, offset))
-  | TStringMLMiddle(id, _, startOffset, _)
-  | TStringMLEnd(id, _, startOffset, _) =>
-    Some(CT.forARStringText(id, startOffset + pos - ti.startPos))
+  | TString(id, str, _) => Some(CT.forARStringText(id, offset, str))
+  | TStringOpenQuote(id, _) => Some(CT.forARStringOpenQuote(id, offset))
+  | TStringCloseQuote(id, _) => Some(CT.forARStringCloseQuote(id, offset))
+  | TStringML(id, _, startOffset, str) =>
+    Some(CT.forARStringText(id, startOffset + pos - ti.startPos, str))
   | TInteger(id, _, _) => Some({astRef: ARInteger(id), offset: offset})
   | TBlank(id, _) | TPlaceholder({blankID: id, _}) => Some({astRef: ARBlank(id), offset: offset})
   | TTrue(id, _) | TFalse(id, _) => Some({astRef: ARBool(id), offset: offset})
@@ -1002,7 +982,7 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TParenOpen(_)
   | TParenClose(_) =>
     None
-  }
+  } |> Debug.log("caretTargetFromTokenInfo result")
 }
 
 let caretTargetForNextNonWhitespaceToken = (~pos, tokens: tokenInfos): option<CT.t> => {
@@ -1042,7 +1022,7 @@ let rec caretTargetForEndOfExpr': fluidExpr => CT.t = expr =>
   | EInteger(id, value) => {astRef: ARInteger(id), offset: String.length(Int64.to_string(value))}
   | EBool(id, true) => {astRef: ARBool(id), offset: String.length("true")}
   | EBool(id, false) => {astRef: ARBool(id), offset: String.length("false")}
-  | EString(id, str) => CT.forARStringCloseQuote(id, 1, str)
+  | EString(id, _) => CT.forARStringCloseQuote(id, 1)
   | EFloat(id, _, _, decimalStr) => {
       astRef: ARFloat(id, FPFractional),
       offset: String.length(decimalStr),
@@ -1561,7 +1541,7 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
     let newOffset = oldOffset + (String.length(oldlhs) - String.length(newlhs))
 
     let astRef = switch FluidAST.find(id, newAST) {
-    | Some(EString(_)) => AstRef.ARString(id, SPOpenQuote)
+    | Some(EString(_)) => AstRef.ARString(id, SPBody)
     | Some(EPartial(_)) => ARPartial(id)
     | Some(expr) =>
       recover("need an ASTRef match for ", ~debug=show_fluidExpr(expr), AstRef.ARPartial(id))
@@ -1717,7 +1697,7 @@ let rec mergeExprs = (e1: fluidExpr, e2: fluidExpr): (fluidExpr, CT.t) =>
     )
   | (EString(id, s1), EString(_, s2)) => (
       EString(id, s1 ++ s2),
-      CT.forARStringText(id, String.length(s1)),
+      CT.forARStringText(id, String.length(s1), s1 ++ s2),
     )
   | (
       e1,
@@ -2779,16 +2759,22 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           Some(Expr(EInteger(id, coerced)), currCTMinusOne)
         }
       }
-    | (ARString(_, kind), EString(id, str)) =>
-      let strRelOffset = switch kind {
-      | SPOpenQuote => currOffset - 1
-      }
-      if strRelOffset == 0 && str == "" {
+
+    // Strings
+    | (ARString(_, SPOpenQuote), EString(_, str)) =>
+      if currOffset == 1 && str == "" {
         mkEBlank()
       } else {
-        let newStr = str |> mutationAt(~index=strRelOffset - 1)
-        Some(Expr(EString(id, newStr)), CT.forARStringOpenQuote(id, strRelOffset))
+        None
       }
+    | (ARString(_, SPBody), EString(id, str)) =>
+      let newStr = str |> mutationAt(~index=currOffset - 1)
+      Some(Expr(EString(id, newStr)), CT.forARStringText(id, currOffset - 1, newStr))
+    | (ARString(_, SPCloseQuote), EString(id, str)) =>
+      let newStr = str |> mutationAt(~index=String.length(str) - 1)
+      Some(Expr(EString(id, newStr)), CT.forARStringCloseQuote(id, 0))
+
+    // Floats
     | (ARFloat(_, FPWhole), EFloat(id, sign, whole, frac)) =>
       let word = Sign.combine(sign, whole)
       let (sign, whole) = Sign.split(mutation(word))
@@ -2801,6 +2787,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       Some(Expr(EInteger(iID, i)), {astRef: ARInteger(iID), offset: String.length(whole)})
     | (ARFloat(_, FPFractional), EFloat(id, sign, whole, frac)) =>
       Some(Expr(EFloat(id, sign, whole, mutation(frac))), currCTMinusOne)
+
     | (ARLet(_, LPVarName), ELet(id, oldName, value, body)) =>
       let newName = mutation(oldName)
       let newExpr = ELet(id, newName, value, E.renameVariableUses(~oldName, ~newName, body))
@@ -2994,10 +2981,8 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         }
       } else if String.startsWith(~prefix="\"", str) && String.endsWith(~suffix="\"", str) {
         let newID = gid()
-        Some(
-          Expr(EString(newID, String.slice(~from=1, ~to_=-1, str))),
-          CT.forARStringText(newID, currOffset - 1),
-        )
+        let newStr = String.slice(~from=1, ~to_=-1, str)
+        Some(Expr(EString(newID, newStr)), CT.forARStringText(newID, currOffset - 1, newStr))
       } else {
         Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
       }
@@ -3132,6 +3117,8 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARFloat(_, FPFractional), _)
     | (ARFloat(_, FPPoint), _)
     | (ARFloat(_, FPWhole), _)
+    | (ARString(_, SPOpenQuote), _)
+    | (ARString(_, SPCloseQuote), _)
     | (ARFnCall(_), _)
     | (ARIf(_, IPIfKeyword), _)
     | (ARInteger(_), _)
@@ -3149,7 +3136,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARRecord(_, RPFieldname(_)), _)
     | (ARRightPartial(_), _)
     | (ARLeftPartial(_), _)
-    | (ARString(_, SPOpenQuote), _)
+    | (ARString(_), _)
     | (ARVariable(_), _)
     | /*
      * Non-exprs
@@ -3355,10 +3342,9 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     //
     // Strings
     //
-    | (ARPattern(_, PPString(kind)), PString(id, str)) =>
-      let strRelOffset = switch kind {
-      | SPOpenQuote => currOffset - 1
-      }
+    | (ARPattern(_, PPString), PString(id, str)) =>
+      let strRelOffset = currOffset - 1
+
       if strRelOffset == 0 && str == "" {
         mkPBlank()
       } else {
@@ -3376,7 +3362,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARPattern(_, PPFloat(FPWhole)), _)
     | (ARPattern(_, PPInteger), _)
     | (ARPattern(_, PPNull), _)
-    | (ARPattern(_, PPString(SPOpenQuote)), _)
+    | (ARPattern(_, PPString), _)
     | (ARPattern(_, PPVariable), _)
     | (ARPattern(_, PPTuple(_)), _)
     | /*
@@ -3501,6 +3487,7 @@ let doExplicitInsert = (
   ast: FluidAST.t,
 ): (FluidAST.t, newPosition) => {
   let {astRef: currAstRef, offset: currOffset} = currCaretTarget
+
   let caretDelta = extendedGraphemeCluster |> String.length
   let currCTPlusLen: CT.t = {astRef: currAstRef, offset: currOffset + caretDelta}
   let mutation: string => string = str =>
@@ -3512,282 +3499,293 @@ let doExplicitInsert = (
   let doExprInsert = (currAstRef: astRef, currExpr: FluidExpression.t): option<(
     FluidExpression.t,
     CT.t,
-  )> => {
-    let mkPartial = (str: string, oldExpr: FluidExpression.t): option<(
-      FluidExpression.t,
-      CT.t,
-    )> => {
-      let newID = gid()
-      Some(
-        EPartial(newID, str, oldExpr),
-        {astRef: ARPartial(newID), offset: currOffset + caretDelta},
-      )
-    }
-
-    let mkLeftPartial: option<(E.t, CT.t)> = {
-      let id = gid()
-      Some(
-        ELeftPartial(id, extendedGraphemeCluster, currExpr),
-        {astRef: ARLeftPartial(id), offset: currOffset + caretDelta},
-      )
-    }
-
-    let maybeIntoLeftPartial: option<(
-      E.t,
-      CT.t,
-    )> = /* maybeIntoLeftPartial wraps the expression in a left partial only if it
-     * is either 1) the top-level expression in the AST or 2) the first
-     * expression directly inside a let. This means it's on the "left edge"
-     * of the editor. */
-    if false {
-      // LeftPartial is disabled for now
-      switch FluidAST.findParent(E.toID(currExpr), ast) {
-      | None => mkLeftPartial
-      | Some(ELet(_, _, _, body)) if currExpr == body => mkLeftPartial
-      | _ => Some(currExpr, currCaretTarget)
+  )> =>
+    {
+      Debug.loG("doExplicitExpr", (currOffset, currAstRef, currExpr))
+      let mkPartial = (str: string, oldExpr: FluidExpression.t): option<(
+        FluidExpression.t,
+        CT.t,
+      )> => {
+        let newID = gid()
+        Some(
+          EPartial(newID, str, oldExpr),
+          {astRef: ARPartial(newID), offset: currOffset + caretDelta},
+        )
       }
-    } else {
-      Some(currExpr, currCaretTarget)
-    }
 
-    switch (currAstRef, currExpr) {
-    /* inserting at the beginning of these expressions wraps the expr in a left
-     * partial under certain conditions (see maybeIntoLeftPartial)
-     * https://www.notion.so/darklang/Allow-Lefthand-Partial-bc10233514cf4f93a564ee4f4fb83ee0 */
-    | (ARVariable(_), EVariable(_))
-    | (ARNull(_), ENull(_))
-    | (ARBool(_), EBool(_))
-    | (ARInteger(_), EInteger(_))
-    | (ARFloat(_), EFloat(_))
-    | (ARFnCall(_), EFnCall(_))
-    | (ARString(_, SPOpenQuote), EString(_))
-    | (ARList(_, LPOpen), EList(_))
-    | (ARRecord(_, RPOpen), ERecord(_))
-      if currCaretTarget.offset == 0 &&
-        FluidUtil.isUnicodeLetter(
-          extendedGraphemeCluster,
-        ) => // only allow unicode letters, as we don't want symbols or numbers to create left partials
-      maybeIntoLeftPartial
-    | (ARString(_, kind), EString(id, str)) =>
-      let len = String.length(str)
-      let strRelOffset = switch kind {
-      | SPOpenQuote => currOffset - 1
+      let mkLeftPartial: option<(E.t, CT.t)> = {
+        let id = gid()
+        Some(
+          ELeftPartial(id, extendedGraphemeCluster, currExpr),
+          {astRef: ARLeftPartial(id), offset: currOffset + caretDelta},
+        )
       }
-      if strRelOffset < 0 || strRelOffset > len {
-        // out of string bounds means you can't insert into the string
-        None
-      } else {
-        let newStr = str |> mutationAt(~index=strRelOffset)
-        Some(EString(id, newStr), CT.forARStringText(id, strRelOffset + caretDelta))
-      }
-    | (ARFloat(_, kind), EFloat(id, sign, whole, frac)) =>
-      if FluidUtil.isNumber(extendedGraphemeCluster) {
-        let (isWhole, index) = switch kind {
-        | FPWhole => (true, currOffset)
-        | FPFractional => (false, currOffset)
-        | FPPoint =>
-          if currCaretTarget.offset == 0 {
-            (true, String.length(whole))
-          } else {
-            (false, 0)
-          }
+
+      let maybeIntoLeftPartial: option<(
+        E.t,
+        CT.t,
+      )> = /* maybeIntoLeftPartial wraps the expression in a left partial only if it
+       * is either 1) the top-level expression in the AST or 2) the first
+       * expression directly inside a let. This means it's on the "left edge"
+       * of the editor. */
+      if false {
+        // LeftPartial is disabled for now
+        switch FluidAST.findParent(E.toID(currExpr), ast) {
+        | None => mkLeftPartial
+        | Some(ELet(_, _, _, body)) if currExpr == body => mkLeftPartial
+        | _ => Some(currExpr, currCaretTarget)
         }
+      } else {
+        Some(currExpr, currCaretTarget)
+      }
 
-        if isWhole {
-          let newWhole = mutationAt(whole, ~index)
+      switch (currAstRef, currExpr) {
+      /* inserting at the beginning of these expressions wraps the expr in a left
+       * partial under certain conditions (see maybeIntoLeftPartial)
+       * https://www.notion.so/darklang/Allow-Lefthand-Partial-bc10233514cf4f93a564ee4f4fb83ee0 */
+      | (ARVariable(_), EVariable(_))
+      | (ARNull(_), ENull(_))
+      | (ARBool(_), EBool(_))
+      | (ARInteger(_), EInteger(_))
+      | (ARFloat(_), EFloat(_))
+      | (ARFnCall(_), EFnCall(_))
+      | (ARList(_, LPOpen), EList(_))
+      | (ARRecord(_, RPOpen), ERecord(_))
+        if currCaretTarget.offset == 0 &&
+          FluidUtil.isUnicodeLetter(
+            extendedGraphemeCluster,
+          ) => // only allow unicode letters, as we don't want symbols or numbers to create left partials
+        maybeIntoLeftPartial
 
-          // This enables |.67 -> 0|.67 but prevents |1.0 -> 0|1.0
-          if String.slice(~from=0, ~to_=1, newWhole) == "0" && String.length(newWhole) > 1 {
-            None
+      | (ARString(_, SPOpenQuote), EString(id, str)) if currOffset == 1 =>
+        let newStr = str |> mutationAt(~index=0) |> Debug.log("mutated")
+        Some(EString(id, newStr), CT.forARStringText(id, caretDelta, newStr))
+      | (ARString(_, SPBody), EString(id, str)) =>
+        if currOffset < 0 || currOffset > String.length(str) {
+          // out of string bounds means you can't insert into the string
+          None
+        } else {
+          let newStr = str |> mutationAt(~index=currOffset) |> Debug.log("mutated")
+          Some(EString(id, newStr), CT.forARStringText(id, currOffset + caretDelta, newStr))
+        }
+      | (ARString(_, SPCloseQuote), EString(id, str)) if currOffset == 0 =>
+        let lastIndex = String.length(str)
+        let newStr = str |> mutationAt(~index=lastIndex) |> Debug.log("mutated")
+        Some(EString(id, newStr), CT.forARStringCloseQuote(id, 0))
+
+      | (ARFloat(_, kind), EFloat(id, sign, whole, frac)) =>
+        if FluidUtil.isNumber(extendedGraphemeCluster) {
+          let (isWhole, index) = switch kind {
+          | FPWhole => (true, currOffset)
+          | FPFractional => (false, currOffset)
+          | FPPoint =>
+            if currCaretTarget.offset == 0 {
+              (true, String.length(whole))
+            } else {
+              (false, 0)
+            }
+          }
+
+          if isWhole {
+            let newWhole = mutationAt(whole, ~index)
+
+            // This enables |.67 -> 0|.67 but prevents |1.0 -> 0|1.0
+            if String.slice(~from=0, ~to_=1, newWhole) == "0" && String.length(newWhole) > 1 {
+              None
+            } else {
+              Some(
+                EFloat(id, sign, newWhole, frac),
+                {astRef: ARFloat(id, FPWhole), offset: index + caretDelta},
+              )
+            }
           } else {
+            let newFrac = mutationAt(frac, ~index)
             Some(
-              EFloat(id, sign, newWhole, frac),
-              {astRef: ARFloat(id, FPWhole), offset: index + caretDelta},
+              EFloat(id, sign, whole, newFrac),
+              {
+                astRef: ARFloat(id, FPFractional),
+                offset: index + caretDelta,
+              },
             )
           }
         } else {
-          let newFrac = mutationAt(frac, ~index)
+          None
+        }
+      | (ARLambda(_, LBPVarName(index)), ELambda(id, vars, expr)) =>
+        vars
+        |> List.getAt(~index)
+        |> Option.andThen(~f=((_, oldName)) => {
+          let newName = oldName |> mutation
+          if FluidUtil.isValidIdentifier(newName) {
+            let vars = List.updateAt(vars, ~index, ~f=((varId, _)) => (varId, newName))
+
+            Some(ELambda(id, vars, E.renameVariableUses(~oldName, ~newName, expr)), currCTPlusLen)
+          } else {
+            None
+          }
+        })
+      | (ARPartial(_), EPartial(id, oldStr, oldExpr)) =>
+        let str = oldStr |> mutation |> String.trim
+        if String.startsWith(~prefix="\"", str) && String.endsWith(~suffix="\"", str) {
+          let newID = gid()
           Some(
-            EFloat(id, sign, whole, newFrac),
-            {
-              astRef: ARFloat(id, FPFractional),
-              offset: index + caretDelta,
-            },
+            EString(newID, String.slice(~from=1, ~to_=-1, str)),
+            CT.forARStringOpenQuote(newID, currOffset + caretDelta),
           )
+        } else {
+          Some(EPartial(id, str, oldExpr), currCTPlusLen)
         }
-      } else {
-        None
-      }
-    | (ARLambda(_, LBPVarName(index)), ELambda(id, vars, expr)) =>
-      vars
-      |> List.getAt(~index)
-      |> Option.andThen(~f=((_, oldName)) => {
-        let newName = oldName |> mutation
+      | (ARRightPartial(_), ERightPartial(id, oldStr, oldValue)) =>
+        let str = oldStr |> mutation |> String.trim
+        Some(ERightPartial(id, str, oldValue), currCTPlusLen)
+      | (ARLeftPartial(_), ELeftPartial(id, str, expr)) =>
+        // appending to a left partial appends to the string part
+        let str = str |> mutation |> String.trim
+        Some(ELeftPartial(id, str, expr), currCTPlusLen)
+      | (ARBinOp(_), EBinOp(_, op, _, _, _) as oldExpr) =>
+        let str =
+          op |> PT.InfixStdlibFnName.toString |> FluidUtil.partialName |> mutation |> String.trim
+        mkPartial(str, oldExpr)
+      | (ARInteger(_), EInteger(id, int)) =>
+        if currCaretTarget.offset == 0 && extendedGraphemeCluster == "0" {
+          // This prevents inserting leading 0s at the beginning of the int.
+          // Note that Util.coerceStringTo64BitInt currently coerces strings with
+          // leading "0"s to "0"; this prevents coerceStringTo64BitInt getting
+          // a leading 0 in the first place. If Util.coerceStringTo64BitInt could
+          // deal with leading 0s, we would still need this special case to deal with
+          // caret placement, unless Util.coerceStringTo64BitInt preserved leading 0s.
+          None
+        } else if Util.isNumber(extendedGraphemeCluster) {
+          let str = int->Int64.to_string->mutation
+          let coerced = Util.coerceStringTo64BitInt(str)
+          if coerced == int {
+            None
+          } else {
+            Some(EInteger(id, coerced), currCTPlusLen)
+          }
+        } else if extendedGraphemeCluster == "." {
+          let newID = gid()
+          let (whole, frac) = String.splitAt(~index=currOffset, Int64.to_string(int))
+          Some(EFloat(newID, Positive, whole, frac), {astRef: ARFloat(newID, FPPoint), offset: 1})
+        } else {
+          None
+        }
+      | (ARRecord(_, RPFieldname(index)), ERecord(id, nameValPairs)) =>
+        List.getAt(~index, nameValPairs) |> Option.andThen(~f=((name, _)) => {
+          let newName = mutation(name)
+          if FluidUtil.isValidRecordLiteralFieldName(newName) {
+            let nameValPairs = List.updateAt(nameValPairs, ~index, ~f=((_, expr)) => (
+              newName,
+              expr,
+            ))
+
+            Some(ERecord(id, nameValPairs), currCTPlusLen)
+          } else {
+            None
+          }
+        })
+      | (ARFieldAccess(_, FAPFieldname), EFieldAccess(_, _, fieldName) as oldExpr) =>
+        let newName = mutation(fieldName)
         if FluidUtil.isValidIdentifier(newName) {
-          let vars = List.updateAt(vars, ~index, ~f=((varId, _)) => (varId, newName))
-
-          Some(ELambda(id, vars, E.renameVariableUses(~oldName, ~newName, expr)), currCTPlusLen)
+          mkPartial(newName, oldExpr)
         } else {
           None
         }
-      })
-    | (ARPartial(_), EPartial(id, oldStr, oldExpr)) =>
-      let str = oldStr |> mutation |> String.trim
-      if String.startsWith(~prefix="\"", str) && String.endsWith(~suffix="\"", str) {
-        let newID = gid()
-        Some(
-          EString(newID, String.slice(~from=1, ~to_=-1, str)),
-          CT.forARStringOpenQuote(newID, currOffset + caretDelta),
+      | (ARFieldAccess(_, FAPFieldOp), old) =>
+        recover(
+          "doExplicitInsert - ARFieldAccess-FAPFieldOp is unhandled and doesn't seem to happen in practice",
+          ~debug=old,
+          None,
         )
-      } else {
-        Some(EPartial(id, str, oldExpr), currCTPlusLen)
-      }
-    | (ARRightPartial(_), ERightPartial(id, oldStr, oldValue)) =>
-      let str = oldStr |> mutation |> String.trim
-      Some(ERightPartial(id, str, oldValue), currCTPlusLen)
-    | (ARLeftPartial(_), ELeftPartial(id, str, expr)) =>
-      // appending to a left partial appends to the string part
-      let str = str |> mutation |> String.trim
-      Some(ELeftPartial(id, str, expr), currCTPlusLen)
-    | (ARBinOp(_), EBinOp(_, op, _, _, _) as oldExpr) =>
-      let str =
-        op |> PT.InfixStdlibFnName.toString |> FluidUtil.partialName |> mutation |> String.trim
-      mkPartial(str, oldExpr)
-    | (ARInteger(_), EInteger(id, int)) =>
-      if currCaretTarget.offset == 0 && extendedGraphemeCluster == "0" {
-        // This prevents inserting leading 0s at the beginning of the int.
-        // Note that Util.coerceStringTo64BitInt currently coerces strings with
-        // leading "0"s to "0"; this prevents coerceStringTo64BitInt getting
-        // a leading 0 in the first place. If Util.coerceStringTo64BitInt could
-        // deal with leading 0s, we would still need this special case to deal with
-        // caret placement, unless Util.coerceStringTo64BitInt preserved leading 0s.
-        None
-      } else if Util.isNumber(extendedGraphemeCluster) {
-        let str = int->Int64.to_string->mutation
-        let coerced = Util.coerceStringTo64BitInt(str)
-        if coerced == int {
-          None
+      | (ARVariable(_), EVariable(_, varName)) =>
+        // inserting in the middle or at the end of a variable turns it into a partial
+        mkPartial(mutation(varName), currExpr)
+      | (ARNull(_), ENull(_)) =>
+        // inserting in the middle or at the end of null turns it into a partial
+        mkPartial(mutation("null"), currExpr)
+      | (ARBool(_), EBool(_, bool)) =>
+        // inserting in the middle or at the end of a bool turns it into a partial
+        let str = if bool {
+          "true"
         } else {
-          Some(EInteger(id, coerced), currCTPlusLen)
+          "false"
         }
-      } else if extendedGraphemeCluster == "." {
-        let newID = gid()
-        let (whole, frac) = String.splitAt(~index=currOffset, Int64.to_string(int))
-        Some(EFloat(newID, Positive, whole, frac), {astRef: ARFloat(newID, FPPoint), offset: 1})
-      } else {
-        None
-      }
-    | (ARRecord(_, RPFieldname(index)), ERecord(id, nameValPairs)) =>
-      List.getAt(~index, nameValPairs) |> Option.andThen(~f=((name, _)) => {
-        let newName = mutation(name)
-        if FluidUtil.isValidRecordLiteralFieldName(newName) {
-          let nameValPairs = List.updateAt(nameValPairs, ~index, ~f=((_, expr)) => (newName, expr))
-
-          Some(ERecord(id, nameValPairs), currCTPlusLen)
+        mkPartial(mutation(str), currExpr)
+      | (ARLet(_, LPVarName), ELet(id, oldName, value, body)) =>
+        let newName = mutation(oldName)
+        if FluidUtil.isValidIdentifier(newName) {
+          Some(
+            ELet(id, newName, value, E.renameVariableUses(~oldName, ~newName, body)),
+            currCTPlusLen,
+          )
         } else {
           None
         }
-      })
-    | (ARFieldAccess(_, FAPFieldname), EFieldAccess(_, _, fieldName) as oldExpr) =>
-      let newName = mutation(fieldName)
-      if FluidUtil.isValidIdentifier(newName) {
-        mkPartial(newName, oldExpr)
-      } else {
+      | (ARBlank(_), _) => maybeInsertInBlankExpr(settings, extendedGraphemeCluster)
+      | (ARFnCall(_), EFnCall(_, fnName, _, _)) =>
+        // inserting in the middle or at the end of a fn call creates a partial
+        mkPartial(mutation(FQFnName.toString(fnName)), currExpr)
+      /*
+       * Things you can't edit but probably should be able to edit
+       */
+      | (ARConstructor(_), EConstructor(_)) => None
+      /*
+       * Immutable keywords and symbols
+       */
+      | (ARLambda(_, LBPComma(_)), _)
+      | (ARLambda(_, LBPSymbol), _)
+      | (ARLambda(_, LBPArrow), _)
+      | (ARRecord(_, RPOpen), _)
+      | (ARRecord(_, RPFieldSep(_)), _)
+      | (ARRecord(_, RPClose), _)
+      | (ARList(_, LPOpen), _)
+      | (ARList(_, LPComma(_)), _)
+      | (ARList(_, LPClose), _)
+      | (ARString(_, SPOpenQuote), _)
+      | (ARString(_, SPCloseQuote), _)
+      | (ARTuple(_, TPOpen), _)
+      | (ARTuple(_, TPComma(_)), _)
+      | (ARTuple(_, TPClose), _)
+      | (ARLet(_, LPKeyword), _)
+      | (ARLet(_, LPAssignment), _)
+      | (ARIf(_, IPIfKeyword), _)
+      | (ARIf(_, IPThenKeyword), _)
+      | (ARIf(_, IPElseKeyword), _)
+      | (ARPipe(_, _), _)
+      | (ARMatch(_, MPKeyword), _)
+      | (ARMatch(_, MPBranchArrow(_)), _)
+      | (ARFlag(_, FPWhenKeyword), _)
+      | (ARFlag(_, FPEnabledKeyword), _) =>
         None
+      /* ****************
+       * Exhaustiveness
+       */
+      | (ARBinOp(_), _)
+      | (ARBool(_), _)
+      | (ARConstructor(_), _)
+      | (ARFieldAccess(_, FAPFieldname), _)
+      | (ARFloat(_, FPFractional), _)
+      | (ARFloat(_, FPPoint), _)
+      | (ARFloat(_, FPWhole), _)
+      | (ARFnCall(_), _)
+      | (ARInteger(_), _)
+      | (ARLambda(_, LBPVarName(_)), _)
+      | (ARLet(_, LPVarName), _)
+      | (ARNull(_), _)
+      | (ARPartial(_), _)
+      | (ARRecord(_, RPFieldname(_)), _)
+      | (ARRightPartial(_), _)
+      | (ARLeftPartial(_), _)
+      | (ARString(_), _)
+      | (ARVariable(_), _)
+      | /*
+       * Non-exprs
+       */
+      (ARPattern(_), _)
+      | (ARInvalid, _) =>
+        recover("doExplicitInsert - unexpected expr", ~debug=AstRef.show(currAstRef), None)
       }
-    | (ARFieldAccess(_, FAPFieldOp), old) =>
-      recover(
-        "doExplicitInsert - ARFieldAccess-FAPFieldOp is unhandled and doesn't seem to happen in practice",
-        ~debug=old,
-        None,
-      )
-    | (ARVariable(_), EVariable(_, varName)) =>
-      // inserting in the middle or at the end of a variable turns it into a partial
-      mkPartial(mutation(varName), currExpr)
-    | (ARNull(_), ENull(_)) =>
-      // inserting in the middle or at the end of null turns it into a partial
-      mkPartial(mutation("null"), currExpr)
-    | (ARBool(_), EBool(_, bool)) =>
-      // inserting in the middle or at the end of a bool turns it into a partial
-      let str = if bool {
-        "true"
-      } else {
-        "false"
-      }
-      mkPartial(mutation(str), currExpr)
-    | (ARLet(_, LPVarName), ELet(id, oldName, value, body)) =>
-      let newName = mutation(oldName)
-      if FluidUtil.isValidIdentifier(newName) {
-        Some(
-          ELet(id, newName, value, E.renameVariableUses(~oldName, ~newName, body)),
-          currCTPlusLen,
-        )
-      } else {
-        None
-      }
-    | (ARBlank(_), _) => maybeInsertInBlankExpr(settings, extendedGraphemeCluster)
-    | (ARFnCall(_), EFnCall(_, fnName, _, _)) =>
-      // inserting in the middle or at the end of a fn call creates a partial
-      mkPartial(mutation(FQFnName.toString(fnName)), currExpr)
-    /*
-     * Things you can't edit but probably should be able to edit
-     */
-    | (ARConstructor(_), EConstructor(_)) => None
-    /*
-     * Immutable keywords and symbols
-     */
-    | (ARLambda(_, LBPComma(_)), _)
-    | (ARLambda(_, LBPSymbol), _)
-    | (ARLambda(_, LBPArrow), _)
-    | (ARRecord(_, RPOpen), _)
-    | (ARRecord(_, RPFieldSep(_)), _)
-    | (ARRecord(_, RPClose), _)
-    | (ARList(_, LPOpen), _)
-    | (ARList(_, LPComma(_)), _)
-    | (ARList(_, LPClose), _)
-    | (ARTuple(_, TPOpen), _)
-    | (ARTuple(_, TPComma(_)), _)
-    | (ARTuple(_, TPClose), _)
-    | (ARLet(_, LPKeyword), _)
-    | (ARLet(_, LPAssignment), _)
-    | (ARIf(_, IPIfKeyword), _)
-    | (ARIf(_, IPThenKeyword), _)
-    | (ARIf(_, IPElseKeyword), _)
-    | (ARPipe(_, _), _)
-    | (ARMatch(_, MPKeyword), _)
-    | (ARMatch(_, MPBranchArrow(_)), _)
-    | (ARFlag(_, FPWhenKeyword), _)
-    | (ARFlag(_, FPEnabledKeyword), _) =>
-      None
-    /* ****************
-     * Exhaustiveness
-     */
-    | (ARBinOp(_), _)
-    | (ARBool(_), _)
-    | (ARConstructor(_), _)
-    | (ARFieldAccess(_, FAPFieldname), _)
-    | (ARFloat(_, FPFractional), _)
-    | (ARFloat(_, FPPoint), _)
-    | (ARFloat(_, FPWhole), _)
-    | (ARFnCall(_), _)
-    | (ARInteger(_), _)
-    | (ARLambda(_, LBPVarName(_)), _)
-    | (ARLet(_, LPVarName), _)
-    | (ARNull(_), _)
-    | (ARPartial(_), _)
-    | (ARRecord(_, RPFieldname(_)), _)
-    | (ARRightPartial(_), _)
-    | (ARLeftPartial(_), _)
-    | (ARString(_, SPOpenQuote), _)
-    | (ARVariable(_), _)
-    | /*
-     * Non-exprs
-     */
-    (ARPattern(_), _)
-    | (ARInvalid, _) =>
-      recover("doExplicitInsert - unexpected expr", ~debug=AstRef.show(currAstRef), None)
-    }
-  }
+    } |> Debug.log("inserted")
 
   let handlePatBlank = (): option<(FluidPattern.t, CT.t)> => {
     let newID = gid()
@@ -3924,11 +3922,10 @@ let doExplicitInsert = (
       } else {
         None
       }
-    | (ARPattern(_, PPString(kind)), PString(id, str)) =>
+    | (ARPattern(_, PPString), PString(id, str)) =>
       let len = String.length(str)
-      let strRelOffset = switch kind {
-      | SPOpenQuote => currOffset - 1
-      }
+      let strRelOffset = currOffset - 1
+
       if strRelOffset < 0 || strRelOffset > len {
         // out of string bounds means you can't insert into the string
         None
@@ -4022,7 +4019,7 @@ let doExplicitInsert = (
     | (ARPattern(_, PPFloat(FPWhole)), _)
     | (ARPattern(_, PPInteger), _)
     | (ARPattern(_, PPNull), _)
-    | (ARPattern(_, PPString(SPOpenQuote)), _)
+    | (ARPattern(_, PPString), _)
     | (ARPattern(_, PPVariable), _)
     | (ARPattern(_, PPTuple(TPOpen)), _)
     | (ARPattern(_, PPTuple(TPClose)), _)
@@ -4153,7 +4150,7 @@ let doInfixInsert = (
     | (ARInteger(_), expr)
     | (ARBool(_), expr)
     | (ARFieldAccess(_, FAPFieldname), expr)
-    | (ARString(_, SPOpenQuote), expr)
+    | (ARString(_), expr)
     | (ARFloat(_), expr)
     | (ARNull(_), expr)
     | (ARVariable(_), expr)
@@ -4424,6 +4421,7 @@ let rec updateKey = (
     acMoveDown(astInfo)
   | (Keypress({key: K.Down, _}), L(_, ti), _) if isAutocompleting(ti, astInfo.state) =>
     acMoveDown(astInfo)
+
   /*
    * Autocomplete finish
    */
@@ -4443,6 +4441,7 @@ let rec updateKey = (
     getLeftTokenAt(astInfo.state.newPos, astInfo |> ASTInfo.activeTokenInfos |> List.reverse)
     |> Option.map(~f=ti => doInsert(~pos, props, txt, ti, astInfo))
     |> Option.unwrap(~default=astInfo)
+
   /*
    * Special autocomplete entries
    */
@@ -4495,6 +4494,7 @@ let rec updateKey = (
   // ******************
   // CARET NAVIGATION
   // ******************
+
   // Tab to next blank
   | (Keypress({key: K.Tab, _}), _, R(_, _))
   | (Keypress({key: K.Tab, _}), L(_, _), _) =>
@@ -4636,6 +4636,7 @@ let rec updateKey = (
   | (InsertText(">"), L(TLambdaArrow(_), _), R(TLambdaArrow(_), ti)) if pos == ti.startPos + 2 =>
     // ___ -|> ___ to ___ -> |___
     moveToNextNonWhitespaceToken(pos, astInfo)
+
   /*
    * Skipping over specific characters
    */
@@ -4653,10 +4654,9 @@ let rec updateKey = (
   | (InsertText(")"), _, R(TPatternTupleClose(_), ti)) if pos == ti.endPos - 1 =>
     moveOneRight(pos, astInfo)
   // Pressing quote to go over the last quote
-  | (InsertText("\""), _, R(TPatternString(_), ti))
-  | (InsertText("\""), _, R(TString(_), ti))
-  | (InsertText("\""), _, R(TStringMLEnd(_), ti)) if pos == ti.endPos - 1 =>
+  | (InsertText("\""), _, R(TPatternString(_), ti)) if pos == ti.endPos - 1 =>
     moveOneRight(pos, astInfo)
+  | (InsertText("\""), _, R(TStringCloseQuote(_), _)) => moveOneRight(pos, astInfo)
 
   // *************************
   // CREATING NEW CONSTRUCTS
@@ -4840,8 +4840,7 @@ let rec updateKey = (
     |> ASTInfo.setAST(FluidAST.update(~f=var => EList(newID, list{var}), id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
   // Strings can be wrapped in lists, but only if we're outside the quote
-  | (InsertText("["), _, R(TString(id, _, _), toTheRight))
-  | (InsertText("["), _, R(TStringMLStart(id, _, _, _), toTheRight))
+  | (InsertText("["), _, R(TStringOpenQuote(id, _), toTheRight))
     if onEdge && pos == toTheRight.startPos =>
     let newID = gid()
     astInfo
@@ -4903,30 +4902,30 @@ let rec updateKey = (
   // *********
   // Handle K.Enter (hit Enter on keyboard)
   // *********
-  /*
-   * Caret to right of record open {
+
+  /* Caret to right of record open {
    * Add new initial record row and move caret to it. */
   | (Keypress({key: K.Enter, _}), L(TRecordOpen(id, _), _), _) =>
     astInfo
     |> ASTInfo.setAST(addRecordRowAt(0, id, astInfo.ast))
     |> moveToAstRef(ARRecord(id, RPFieldname(0)))
-  /*
-   * Caret to left of record close }
+
+  /* Caret to left of record close }
    * Add new final record but leave caret to left of } */
   | (Keypress({key: K.Enter, _}), _, R(TRecordClose(id, _), _)) =>
     astInfo
     |> recordAction("addRecordRowToBack")
     |> ASTInfo.setAST(addRecordRowToBack(id, astInfo.ast))
     |> moveToAstRef(ARRecord(id, RPClose))
-  /*
-   * Caret between pipe symbol |> and following expression.
+
+  /* Caret between pipe symbol |> and following expression.
    * Move current pipe expr down by adding new expr above it.
    * Keep caret "the same", only moved down by 1 column. */
   | (Keypress({key: K.Enter, _}), L(TPipe(id, idx, _, _), _), R(_)) =>
     let (astInfo, _) = addPipeExprAt(id, idx + 1, astInfo)
     astInfo |> moveToAstRef(ARPipe(id, idx + 1), ~offset=2)
-  /*
-   * Caret on end-of-line.
+
+  /* Caret on end-of-line.
    * Following newline contains a parent and index, meaning we're inside some
    * special construct. Special-case each of those. */
   | (Keypress({key: K.Enter, _}), _, R(TNewline(Some(_, parentId, Some(idx))), ti)) =>
@@ -4949,18 +4948,18 @@ let rec updateKey = (
       doRight(~pos, ~next=mNext, ti, astInfo)
     | _ => astInfo
     }
-  /*
-   * Caret at end of line with nothing in newline. */
+
+  /* Caret at end of line with nothing in newline. */
   | (Keypress({key: K.Enter, _}), L(lt, lti), R(TNewline(None), rti))
     if !(T.isLet(lt) || (isAutocompleting(rti, astInfo.state) || isInIfCondition(lt))) =>
     wrapInLet(lti, astInfo)
-  /*
-   * Caret at end-of-line with no data in the TNewline.
+
+  /* Caret at end-of-line with no data in the TNewline.
    * Just move right (ie, * to beginning of next line) */
   | (Keypress({key: K.Enter, _}), L(_), R(TNewline(None), ti)) =>
     doRight(~pos, ~next=mNext, ti, astInfo)
-  /*
-   * Caret at end-of-line generally adds a let on the line below,
+
+  /* Caret at end-of-line generally adds a let on the line below,
    * unless the next line starts with a blank, in which case we go to it. */
   | (Keypress({key: K.Enter, _}), L(_), R(TNewline(Some(id, _, _)), ti)) =>
     if (
@@ -4978,8 +4977,8 @@ let rec updateKey = (
       let (astInfo, letId) = makeIntoLetBody(id, astInfo)
       astInfo |> moveToAstRef(ARLet(letId, LPVarName))
     }
-  /*
-   * Caret at beginning of special line.
+
+  /* Caret at beginning of special line.
    * Preceding newline contains a parent and index, meaning we're inside some
    * special construct. Special-case each of those.
    *
@@ -5047,10 +5046,12 @@ let rec updateKey = (
       |> moveToAstRef(ARRecord(parentId, RPFieldname(idx + 1)))
     | _ => astInfo
     }
+
   // Caret at very beginning of a nested expr - exception: don't do it in the middle
   // of the preeceding syntax token
   | (Keypress({key: K.Enter, _}), L(TMatchBranchArrow(_), _), R(TMatchBranchArrow(_), _))
   | (Keypress({key: K.Enter, _}), L(TLambdaArrow(_), _), R(TLambdaArrow(_), _)) => astInfo
+
   // Caret at very beginning of tokens or at beginning of non-special line.
   | (Keypress({key: K.Enter, _}), No, R(t, _))
   | (Keypress({key: K.Enter, _}), L(TMatchBranchArrow(_), _), R(t, _))
@@ -5068,11 +5069,12 @@ let rec updateKey = (
 
     let (astInfo, _) = makeIntoLetBody(topID, astInfo)
     astInfo |> moveToCaretTarget(caretTargetForStartOfExpr(topID, astInfo.ast))
+
   // Caret at very end of tokens where last line is non-let expression.
   | (Keypress({key: K.Enter, _}), L(token, ti), No) if !T.isLet(token) => wrapInLet(ti, astInfo)
-  | _ =>
-    // Unknown
-    report("Unknown action: " ++ FT.Msg.show_inputEvent(inputEvent), astInfo)
+
+  // Unknown
+  | _ => report("Unknown action: " ++ FT.Msg.show_inputEvent(inputEvent), astInfo)
   }
 
   let astInfo = ASTInfo.modifyState(astInfo, ~f=s => {...s, lastInput: inputEvent})
@@ -5845,7 +5847,7 @@ let pasteOverSelection = (
       let newAST = FluidAST.replace(~replacement=cp, id, ast)
       let caretTarget = caretTargetForEndOfExpr(E.toID(cp), newAST)
       astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(caretTarget)
-    | (EString(id, str), _, Some({astRef: ARString(_, SPOpenQuote), offset})) =>
+    | (EString(id, str), _, Some({astRef: ARString(_), offset})) =>
       let replacement = EString(id, String.insertAt(~value=text, ~index=offset - 1, str))
 
       let newAST = FluidAST.replace(~replacement, id, ast)

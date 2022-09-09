@@ -27,9 +27,9 @@ let tid = (t: t): id =>
   | TLetAssignment(id, _, _)
   | TLetVarName(id, _, _, _)
   | TString(id, _, _)
-  | TStringMLStart(id, _, _, _)
-  | TStringMLMiddle(id, _, _, _)
-  | TStringMLEnd(id, _, _, _)
+  | TStringOpenQuote(id, _)
+  | TStringCloseQuote(id, _)
+  | TStringML(id, _, _, _)
   | TIfKeyword(id, _)
   | TIfThenKeyword(id, _)
   | TIfElseKeyword(id, _)
@@ -106,9 +106,9 @@ let parentExprID = (t: t): id =>
 let parentBlockID = (t: t): option<id> =>
   switch t {
   // The first ID is the ID of the whole string expression
-  | TStringMLStart(id, _, _, _)
-  | TStringMLMiddle(id, _, _, _)
-  | TStringMLEnd(id, _, _, _)
+  | TStringOpenQuote(id, _)
+  | TStringCloseQuote(id, _)
+  | TStringML(id, _, _, _)
   | TRecordSep(id, _, _) =>
     Some(id)
   // The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block.
@@ -208,9 +208,9 @@ let isTextToken = (t: t): bool =>
   | TPartialGhost(_)
   | TRecordFieldname(_)
   | TString(_)
-  | TStringMLStart(_)
-  | TStringMLMiddle(_)
-  | TStringMLEnd(_)
+  | TStringOpenQuote(_)
+  | TStringCloseQuote(_)
+  | TStringML(_)
   | TTrue(_)
   | TFalse(_)
   | TNullToken(_)
@@ -305,9 +305,9 @@ let isPipeable = (t: t): bool =>
   | TConstructorName(_)
   | TBinOp(_)
   | TLambdaVar(_)
-  | TStringMLStart(_)
-  | TStringMLMiddle(_)
-  | TStringMLEnd(_)
+  | TStringOpenQuote(_)
+  | TStringCloseQuote(_)
+  | TStringML(_)
   | TFieldPartial(_)
   | TListOpen(_)
   | TListComma(_, _)
@@ -337,7 +337,7 @@ let isPipeable = (t: t): bool =>
 
 let isStringToken = (t: t): bool =>
   switch t {
-  | TStringMLStart(_) | TStringMLMiddle(_) | TStringMLEnd(_) | TString(_) => true
+  | TStringML(_) | TString(_) | TStringOpenQuote(_) | TStringCloseQuote(_) => true
   | _ => false
   }
 
@@ -345,10 +345,8 @@ let isStringToken = (t: t): bool =>
  * token, rather than writing the next token. */
 let isAppendable = (t: t): bool =>
   switch t {
-  // String should really be directly editable, but the extra quote at the end
-  // makes it not so; since there's no quote at the end of TStringMLStart or
-  // TStringMLMiddle, then they are appendable
-  | TString(_) | TPatternString(_) | TStringMLEnd(_) => false
+  // TODO: PatternString doesn't tokenize like string, but probably should
+  | TPatternString(_) => false
   | _ => isTextToken(t)
   }
 
@@ -403,9 +401,9 @@ let isWhitespace = (t: t): bool =>
   | TLetAssignment(_)
   | TLetVarName(_)
   | TString(_)
-  | TStringMLStart(_)
-  | TStringMLMiddle(_)
-  | TStringMLEnd(_)
+  | TStringOpenQuote(_)
+  | TStringCloseQuote(_)
+  | TStringML(_)
   | TIfKeyword(_)
   | TIfThenKeyword(_)
   | TIfElseKeyword(_)
@@ -510,7 +508,8 @@ let isFieldPartial = (t: t): bool =>
 
 let isMultilineString = (t: FluidTypes.Token.t): bool =>
   switch t {
-  | TStringMLStart(_) | TStringMLMiddle(_) | TStringMLEnd(_) => true
+  // TODO: do we need to differentiate between quotes for regular and multiline strings?"
+  | TStringML(_) => true
   | _ => false
   }
 
@@ -545,10 +544,10 @@ let toText = (t: t): string => {
   | TFloatWhole(_, w, _) => shouldntBeEmpty(w)
   | TFloatPoint(_) => "."
   | TFloatFractional(_, f, _) => f
-  | TString(_, str, _) => "\"" ++ (str ++ "\"")
-  | TStringMLStart(_, str, _, _) => "\"" ++ str
-  | TStringMLMiddle(_, str, _, _) => str
-  | TStringMLEnd(_, str, _, _) => str ++ "\""
+  | TString(_, str, _) => str
+  | TStringOpenQuote(_, _) => "\""
+  | TStringCloseQuote(_, _) => "\""
+  | TStringML(_, str, _, _) => str
   | TTrue(_) => "true"
   | TFalse(_) => "false"
   | TNullToken(_) => "null"
@@ -650,7 +649,7 @@ let toTestText = (t: t): string => {
 
 let toIndex = (t: t): option<int> =>
   switch t {
-  | TStringMLMiddle(_, _, index, _)
+  | TStringML(_, _, index, _)
   | TLambdaVar(_, _, index, _, _)
   | TLambdaComma(_, index, _)
   | TPipe(_, _, index, _)
@@ -699,9 +698,9 @@ let toTypeName = (t: t): string =>
   | TFloatPoint(_) => "float-point"
   | TFloatFractional(_) => "float-fractional"
   | TString(_) => "string"
-  | TStringMLStart(_) => "string-ml-start"
-  | TStringMLMiddle(_) => "string-ml-middle"
-  | TStringMLEnd(_) => "string-ml-end"
+  | TStringOpenQuote(_) => "string-open-quote"
+  | TStringCloseQuote(_) => "string-close-quote"
+  | TStringML(_) => "string-ml"
   | TTrue(_) => "true"
   | TFalse(_) => "false"
   | TNullToken(_) => "null"
@@ -770,7 +769,10 @@ let toTypeName = (t: t): string =>
 let toCategoryName = (t: t): string =>
   switch t {
   | TInteger(_) => "integer"
-  | TString(_) | TStringMLStart(_) | TStringMLMiddle(_) | TStringMLEnd(_) => "string"
+  | TString(_)
+  | TStringML(_)
+  | TStringOpenQuote(_)
+  | TStringCloseQuote(_) => "string"
   | TVariable(_) | TNewline(_) | TSep(_) | TBlank(_) | TPlaceholder(_) => ""
   | TPartial(_) | TRightPartial(_) | TLeftPartial(_) | TPartialGhost(_) => "partial"
   | TFloatWhole(_) | TFloatPoint(_) | TFloatFractional(_) => "float"
@@ -808,10 +810,7 @@ let toCategoryName = (t: t): string =>
 
 let toDebugInfo = (t: t): string =>
   switch t {
-  | TStringMLStart(_, _, offset, _)
-  | TStringMLMiddle(_, _, offset, _)
-  | TStringMLEnd(_, _, offset, _) =>
-    "offset=" ++ string_of_int(offset)
+  | TStringML(_, _, offset, _) => "offset=" ++ string_of_int(offset)
   | TNewline(Some(_, pid, Some(idx))) =>
     "parent=" ++ (ID.toString(pid) ++ (" idx=" ++ string_of_int(idx)))
   | TNewline(Some(_, pid, None)) => "parent=" ++ (ID.toString(pid) ++ " idx=none")
@@ -890,9 +889,10 @@ let matches = (t1: t, t2: t): bool =>
 // Matches everything except parentBlockID
 let matchesContent = (t1: t, t2: t): bool =>
   switch (t1, t2) {
-  | (TStringMLStart(id1, seg1, ind1, str1), TStringMLStart(id2, seg2, ind2, str2))
-  | (TStringMLMiddle(id1, seg1, ind1, str1), TStringMLMiddle(id2, seg2, ind2, str2))
-  | (TStringMLEnd(id1, seg1, ind1, str1), TStringMLEnd(id2, seg2, ind2, str2)) =>
+  | (TStringOpenQuote(id1, str1), TStringOpenQuote(id2, str2)) => id1 == id2 && str1 == str2
+  | (TStringCloseQuote(id1, str1), TStringCloseQuote(id2, str2)) => id1 == id2 && str1 == str2
+
+  | (TStringML(id1, seg1, ind1, str1), TStringML(id2, seg2, ind2, str2)) =>
     id1 == id2 && (seg1 == seg2 && (ind1 == ind2 && str1 == str2))
   | (TListOpen(id1, _), TListOpen(id2, _))
   | (TListClose(id1, _), TListClose(id2, _))
@@ -983,11 +983,12 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TIndent(ind1), TIndent(ind2)) => ind1 == ind2
   | (TPlaceholder(d1), TPlaceholder(d2)) =>
     d1.blankID == d2.blankID && (d1.fnID == d2.fnID && d1.placeholder == d2.placeholder)
+  // Exhaustiveness check
   | (TInteger(_), _)
   | (TString(_), _)
-  | (TStringMLStart(_), _)
-  | (TStringMLMiddle(_), _)
-  | (TStringMLEnd(_), _)
+  | (TStringOpenQuote(_), _)
+  | (TStringCloseQuote(_), _)
+  | (TStringML(_), _)
   | (TBlank(_), _)
   | (TPlaceholder(_), _)
   | (TTrue(_), _)
