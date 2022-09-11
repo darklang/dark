@@ -1010,8 +1010,8 @@ let run = () => {
     )
     t(
       "bs, 3 lines to 2, end",
-      if'(str(mlSegment ++ (mlSegment ++ "c")), b, b),
-      ~pos=93,
+      if'(str(mlSegment ++ mlSegment ++ "c"), b, b),
+      ~pos=95,
       bs,
       "if \"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       "    123456789_abcdefghi,123456789_abcdefghi,~\"\n" ++ "then\n  ___\nelse\n  ___",
@@ -1019,14 +1019,14 @@ let run = () => {
     t(
       "bs, 2 lines to 1, end",
       if'(str(mlSegment ++ "c"), b, b),
-      ~pos=49,
+      ~pos=50,
       bs,
       "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n" ++ "then\n  ___\nelse\n  ___",
     )
     t(
       "del, 3 lines to 2, end",
       if'(str(mlSegment ++ (mlSegment ++ "c")), b, b),
-      ~pos=92,
+      ~pos=94,
       del,
       "if \"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       "    123456789_abcdefghi,123456789_abcdefghi,~\"\n" ++ "then\n  ___\nelse\n  ___",
@@ -1034,7 +1034,7 @@ let run = () => {
     t(
       "del, 2 lines to 1, end",
       if'(str(mlSegment ++ "c"), b, b),
-      ~pos=48,
+      ~pos=49,
       del,
       "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n" ++ "then\n  ___\nelse\n  ___",
     )
