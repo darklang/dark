@@ -698,9 +698,8 @@ let run = () => {
       mlStr,
       ~pos=3,
       ins("c"),
-      "\"12c~3456789_abcdefghi,123456789_abcdefghi\n," ++
-      ("123456789_abcdefghi,123456789_abcdefghi\n," ++
-      "123456789_\""),
+      "\"12c~3456789_abcdefghi,123456789_abcdefghi\n ," ++
+      "123456789_abcdefghi,123456789_abcdefghi\n ," ++ " 123456789_\"",
     )
     t(
       "insert into middle string",
@@ -708,8 +707,7 @@ let run = () => {
       ~pos=/* quote + 2 + newline */ 44,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("12c~3456789_abcdefghi,123456789_abcdefghi\n," ++
-      "123456789_\""),
+      " 12c~3456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
     )
     t(
       "insert into end string",
@@ -717,8 +715,7 @@ let run = () => {
       ~pos=/* quote + 2 + newline*2 */ 85,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "12c~3456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 12c~3456789_\"",
     )
     t(
       "del mid start string",
@@ -726,8 +723,7 @@ let run = () => {
       ~pos=3,
       del,
       "\"12~456789_abcdefghi,123456789_abcdefghi," ++
-      ("1\n23456789_abcdefghi,123456789_abcdefghi," ++
-      "1\n23456789_\""),
+      "1\n 23456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
     )
     t(
       "del mid middle string",
@@ -735,8 +731,7 @@ let run = () => {
       ~pos=44,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("12~456789_abcdefghi,123456789_abcdefghi," ++
-      "1\n23456789_\""),
+      " 12~456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
     )
     t(
       "del mid end string",
@@ -744,8 +739,7 @@ let run = () => {
       ~pos=85,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "12~456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 12~456789_\"",
     )
     t(
       "bs mid start string",
@@ -753,8 +747,7 @@ let run = () => {
       ~pos=4,
       bs,
       "\"12~456789_abcdefghi,123456789_abcdefghi," ++
-      ("1\n23456789_abcdefghi,123456789_abcdefghi," ++
-      "1\n23456789_\""),
+      "1\n 23456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
     )
     t(
       "bs mid middle string",
@@ -762,8 +755,7 @@ let run = () => {
       ~pos=45,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("12~456789_abcdefghi,123456789_abcdefghi," ++
-      "1\n23456789_\""),
+      " 12~456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
     )
     t(
       "bs mid end string",
@@ -771,8 +763,7 @@ let run = () => {
       ~pos=86,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "12~456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 12~456789_\"",
     )
     t(
       "insert outside string is no-op",
@@ -780,8 +771,7 @@ let run = () => {
       ~pos=0,
       ins("c"),
       "~\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"",
     )
     // tStruct(
     //   "insert outside mlstring at top-level creates left partial",
@@ -796,8 +786,7 @@ let run = () => {
       ~pos=0,
       del,
       "~\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"",
     )
     t(
       "bs outside string",
@@ -805,17 +794,15 @@ let run = () => {
       ~pos=0,
       bs,
       "~\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"",
     )
     t(
       "insert start of start string",
       mlStr,
       ~pos=1,
       ins("c"),
-      "\"c~123456789_abcdefghi,123456789_abcdefghi\n," ++
-      ("123456789_abcdefghi,123456789_abcdefghi\n," ++
-      "123456789_\""),
+      "\"c~123456789_abcdefghi,123456789_abcdefghi\n ," ++
+      "123456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
     )
     t(
       "insert start of middle string",
@@ -823,8 +810,7 @@ let run = () => {
       ~pos=42,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("c~123456789_abcdefghi,123456789_abcdefghi\n," ++
-      "123456789_\""),
+      " c~123456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
     )
     t(
       "insert start of end string",
@@ -832,8 +818,7 @@ let run = () => {
       ~pos=83,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "c~123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " c~123456789_\"",
     )
     t(
       "del start of start string",
@@ -841,8 +826,7 @@ let run = () => {
       ~pos=1,
       del,
       "\"~23456789_abcdefghi,123456789_abcdefghi," ++
-      ("1\n23456789_abcdefghi,123456789_abcdefghi," ++
-      "1\n23456789_\""),
+      "1\n 23456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
     )
     t(
       "del start of middle string",
@@ -851,8 +835,7 @@ let run = () => {
       ~pos=42,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++
-      ("23456789_abcdefghi,123456789_abcdefghi," ++
-      "1\n23456789_\""),
+      " 23456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
     )
     t(
       "del start of end string",
@@ -861,8 +844,7 @@ let run = () => {
       ~pos=83,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,~\n" ++
-      "23456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,~\n" ++ " 23456789_\"",
     )
     t(
       "bs start of start string",
@@ -870,8 +852,7 @@ let run = () => {
       ~pos=1,
       bs,
       "~\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"",
     )
     t(
       "bs start of middle string",
@@ -879,8 +860,7 @@ let run = () => {
       ~pos=42,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"",
     )
     t(
       "bs start of end string",
@@ -888,35 +868,31 @@ let run = () => {
       ~pos=83,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,~\n" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,~\n" ++ " 123456789_\"",
     )
     t(
       "insert end of start string",
       mlStr,
       ~pos=41,
       ins("c"),
-      "\"123456789_abcdefghi,123456789_abcdefghi,\nc~" ++
-      ("123456789_abcdefghi,123456789_abcdefghi\n," ++
-      "123456789_\""),
+      "\"123456789_abcdefghi,123456789_abcdefghi,\n c~" ++
+      "123456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
     )
     t(
       "insert end of middle string",
       mlStr,
-      ~pos=82,
+      ~pos=84,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\nc~" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n c~" ++ "123456789_\"",
     )
     t(
       "insert end of end string",
       mlStr,
-      ~pos=93,
+      ~pos=95,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_c~\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_c~\"",
     )
     t(
       "string converts to ml string",
@@ -931,8 +907,7 @@ let run = () => {
       ~pos=44,
       ins("c"),
       "if \"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("   c~\"\n" ++
-      "then\n  ___\nelse\n  ___"),
+      "    c~\"\n" ++ "then\n  ___\nelse\n  ___",
     )
     t(
       "insert end of indented start string",
@@ -940,8 +915,8 @@ let run = () => {
       ~pos=44,
       ins("c"),
       "if \"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("   c~123456789_abcdefghi,123456789_abcdefghi\n" ++
-      ("   ,\"\n" ++ "then\n  ___\nelse\n  ___")),
+      "    c~123456789_abcdefghi,123456789_abcdefghi\n" ++
+      "    ,\"\n" ++ "then\n  ___\nelse\n  ___",
     )
     t(
       "insert end of indented end string",
@@ -949,8 +924,8 @@ let run = () => {
       ~pos=88,
       ins("c"),
       "if \"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("   123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("   c~\"\n" ++ "then\n  ___\nelse\n  ___")),
+      "    123456789_abcdefghi,123456789_abcdefghi,\n" ++
+      "    c~\"\n" ++ "then\n  ___\nelse\n  ___",
     )
     t(
       "del end of start string",
@@ -958,8 +933,7 @@ let run = () => {
       ~pos=41,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"",
     )
     t(
       "del end of middle string",
@@ -967,8 +941,7 @@ let run = () => {
       ~pos=82,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,~\n" ++
-      "123456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,~\n" ++ " 123456789_\"",
     )
     t(
       "del end of end string",
@@ -976,8 +949,7 @@ let run = () => {
       ~pos=93,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_~\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_~\"",
     )
     t(
       "bs end of start string",
@@ -985,8 +957,7 @@ let run = () => {
       ~pos=41,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi" ++
-      ("~1\n23456789_abcdefghi,123456789_abcdefghi," ++
-      "1\n23456789_\""),
+      "~1\n 23456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
     )
     t(
       "bs end of middle string",
@@ -994,8 +965,7 @@ let run = () => {
       ~pos=82,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi" ++
-      "~1\n23456789_\""),
+      " 123456789_abcdefghi,123456789_abcdefghi" ++ "~1\n 23456789_\"",
     )
     t(
       "bs end of end string",
@@ -1003,8 +973,7 @@ let run = () => {
       ~pos=93,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789~\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789~\"",
     )
     t(
       "insert after end of end string",
@@ -1012,8 +981,7 @@ let run = () => {
       ~pos=94,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\"~"),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"~",
     )
     t(
       "del after end of end string",
@@ -1021,8 +989,7 @@ let run = () => {
       ~pos=94,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\"~"),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"~",
     )
     t(
       "bs after end of end string",
@@ -1030,8 +997,7 @@ let run = () => {
       ~pos=94,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_~\""),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_~\"",
     )
     // Skipped insert, del, bs of space, as it doesn't seem interesting
     t(
@@ -1040,8 +1006,7 @@ let run = () => {
       ~pos=93,
       ins("\""),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      "123456789_\"~"),
+      " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"~",
     )
     t(
       "bs, 3 lines to 2, end",
@@ -1049,8 +1014,7 @@ let run = () => {
       ~pos=93,
       bs,
       "if \"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("   123456789_abcdefghi,123456789_abcdefghi,~\"\n" ++
-      "then\n  ___\nelse\n  ___"),
+      "    123456789_abcdefghi,123456789_abcdefghi,~\"\n" ++ "then\n  ___\nelse\n  ___",
     )
     t(
       "bs, 2 lines to 1, end",
@@ -1065,8 +1029,7 @@ let run = () => {
       ~pos=92,
       del,
       "if \"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("   123456789_abcdefghi,123456789_abcdefghi,~\"\n" ++
-      "then\n  ___\nelse\n  ___"),
+      "    123456789_abcdefghi,123456789_abcdefghi,~\"\n" ++ "then\n  ___\nelse\n  ___",
     )
     t(
       "del, 2 lines to 1, end",
@@ -1081,8 +1044,7 @@ let run = () => {
       ~pos=6,
       ctrlLeft,
       "\"~123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      (" 123456789_ abcdefghi, 123456789_ abcdef\n" ++
-      "ghi,\""),
+      "  123456789_ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"",
     )
     t(
       "ctrl+left at beg of middle string moves to beg",
@@ -1090,8 +1052,7 @@ let run = () => {
       ~pos=54,
       ctrlLeft,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      (" ~123456789_ abcdefghi, 123456789_ abcdef\n" ++
-      "ghi,\""),
+      "  ~123456789_ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"",
     )
     t(
       "ctrl+left at beg of end string moves to beg",
@@ -1099,16 +1060,14 @@ let run = () => {
       ~pos=76,
       ctrlLeft,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      (" 123456789_ abcdefghi, ~123456789_ abcdef\n" ++
-      "ghi,\""),
+      "  123456789_ abcdefghi, ~123456789_ abcdef\n" ++ " ghi,\"",
     )
     t(
       "ctrl+right at beg of start string moves to end",
       mlStrWSpace,
       ctrlRight,
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++
-      (" 123456789_ abcdefghi, 123456789_ abcdef\n" ++
-      "ghi,\""),
+      "  123456789_ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"",
     )
     t(
       "ctrl+right at beg of middle string moves to end",
@@ -1116,8 +1075,7 @@ let run = () => {
       ~pos=46,
       ctrlRight,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      (" 123456789_~ abcdefghi, 123456789_ abcdef\n" ++
-      "ghi,\""),
+      " 123456789_~ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"",
     )
     t(
       "ctrl+right at beg of end string moves to end",
@@ -1125,15 +1083,14 @@ let run = () => {
       ~pos=76,
       ctrlRight,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      (" 123456789_ abcdefghi, 123456789_ abcdef~\n" ++
-      "ghi,\""),
+      "  123456789_ abcdefghi, 123456789_ abcdef~\n" ++ " ghi,\"",
     )
     t(
       "DeleteWordBackward at the end of line deletes word in front",
       mlStrWSpace,
       ~pos=82,
       inputs(list{DeleteWordBackward}),
-      "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_ abcdefghi, 123456789_ ~ghi,\"",
+      "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++ "  123456789_ abcdefghi, 123456789_ ~ghi,\"",
     )
     t(
       "DeleteWordBackward at the beg of line goes to end of line above ",
@@ -1141,8 +1098,7 @@ let run = () => {
       ~pos=42,
       inputs(list{DeleteWordBackward}),
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++
-      (" 123456789_ abcdefghi, 123456789_ abcdef\n" ++
-      "ghi,\""),
+      "  123456789_ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"",
     )
     t(
       "DeleteWordForward at the end of line deletes up to the next whitespace",
@@ -3848,9 +3804,9 @@ let run = () => {
     t(
       "insert , in string in list types ,",
       list(list{str("01234567890123456789012345678901234567890")}),
-      ~pos=44,
+      ~pos=45,
       ins(","),
-      "[\"0123456789012345678901234567890123456789\n ,~0\"]",
+      "[\"0123456789012345678901234567890123456789\n  ,~0\"]",
     )
     t(
       "insert separator after item creates blank when list is in match",
@@ -3991,8 +3947,7 @@ let run = () => {
       ~pos=0,
       ins("["),
       "[~\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      ("  123456789_ abcdefghi, 123456789_ abcdef\n" ++
-      " ghi,\"]"),
+      "   123456789_ abcdefghi, 123456789_ abcdef\n" ++ "  ghi,\"]",
     )
     t(
       "inserting [ before true creates a singleton bool list",
@@ -4202,9 +4157,9 @@ let run = () => {
       t(
         "insert , in string in tuple types ,",
         tuple(str("01234567890123456789012345678901234567890"), fiftySix, list{}),
-        ~pos=44, // right before the last 0
+        ~pos=45, // right before the last 0
         ins(","),
-        "(\"0123456789012345678901234567890123456789\n ,~0\",56)",
+        "(\"0123456789012345678901234567890123456789\n" ++ "  ,~0\",56)",
       )
       t(
         "insert separator after item creates blank when tuple is in match",
@@ -5328,7 +5283,7 @@ let run = () => {
         )
       },
       inputs(list{DeleteSoftLineBackward}),
-      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}",
+      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n            efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}",
     )
     t(
       "DeleteSoftLineForward with selection deletes just the selection",
@@ -5342,7 +5297,7 @@ let run = () => {
         )
       },
       inputs(list{DeleteSoftLineForward}),
-      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}",
+      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n            efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}",
     )
     t(
       "DeleteSoftLineBackward with no selection deletes to visual start of line",
@@ -5356,7 +5311,7 @@ let run = () => {
       },
       ~pos=66,
       inputs(list{DeleteSoftLineBackward}),
-      "HttpClient::postv4\n  \"\"\n  {\n    ~*** : \"1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234\n          567890abcdefghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}",
+      "HttpClient::postv4\n  \"\"\n  {\n    ~*** : \"1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234\n           567890abcdefghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}",
     )
     t(
       "DeleteSoftLineForward with no selection deletes to visual end of line",
@@ -5370,7 +5325,7 @@ let run = () => {
       },
       ~pos=66,
       inputs(list{DeleteSoftLineForward}),
-      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n           STUVWXYZ1234567890abcdefghijklmnopqrstuv\n           wxyz\"\n  }\n  {}\n  {}",
+      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n            STUVWXYZ1234567890abcdefghijklmnopqrstuv\n           wxyz\"\n  }\n  {}\n  {}",
     )
     t(
       "DeleteSoftLineBackward deletes up to line start at the end of a wrapping string",
@@ -5384,7 +5339,7 @@ let run = () => {
       },
       ~pos=163,
       inputs(list{DeleteSoftLineBackward}),
-      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n           EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}",
+      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n            EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}",
     )
     ()
   })
@@ -5677,8 +5632,7 @@ let run = () => {
       ~pos=0,
       key(K.Tab),
       "~\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      (" 123456789_ abcdefghi, 123456789_ abcdef\n" ++
-      "ghi,\""),
+      "  123456789_ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"",
     )
     t(
       "tab does not stop on function version",
@@ -5696,8 +5650,7 @@ let run = () => {
       // brokenInFF false because else we move the cursor into the ff condition
       shiftTab,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      (" 123456789_ abcdefghi, 123456789_ abcdef\n" ++
-      "ghi,\"~"),
+      "  123456789_ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"~",
     )
     t(
       "shift tab does not stop on function version",
