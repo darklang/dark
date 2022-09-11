@@ -895,11 +895,11 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   let offset = pos - ti.startPos
   Debug.loG("caretTargetFromTokenInfo call", (pos, ti, offset))
   switch ti.token {
-  | TString(id, str, _) => Some(CT.forARStringText(id, offset, str))
+  | TString(id, str, _) => Some(CT.forARStringBody(id, offset, str))
   | TStringOpenQuote(id, _) => Some(CT.forARStringOpenQuote(id, offset))
   | TStringCloseQuote(id, _) => Some(CT.forARStringCloseQuote(id, offset))
   | TStringML(id, _, startOffset, str) =>
-    Some(CT.forARStringText(id, startOffset + pos - ti.startPos, str))
+    Some(CT.forARStringBody(id, startOffset + pos - ti.startPos, str))
   | TInteger(id, _, _) => Some({astRef: ARInteger(id), offset: offset})
   | TBlank(id, _) | TPlaceholder({blankID: id, _}) => Some({astRef: ARBlank(id), offset: offset})
   | TTrue(id, _) | TFalse(id, _) => Some({astRef: ARBool(id), offset: offset})
@@ -1697,7 +1697,7 @@ let rec mergeExprs = (e1: fluidExpr, e2: fluidExpr): (fluidExpr, CT.t) =>
     )
   | (EString(id, s1), EString(_, s2)) => (
       EString(id, s1 ++ s2),
-      CT.forARStringText(id, String.length(s1), s1 ++ s2),
+      CT.forARStringBody(id, String.length(s1), s1 ++ s2),
     )
   | (
       e1,
@@ -2770,7 +2770,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       }
     | (ARString(_, SPBody), EString(id, str)) =>
       let newStr = str |> mutationAt(~index=currOffset - 1)
-      Some(Expr(EString(id, newStr)), CT.forARStringText(id, currOffset - 1, newStr))
+      Some(Expr(EString(id, newStr)), CT.forARStringBody(id, currOffset - 1, newStr))
     | (ARString(_, SPCloseQuote), EString(id, str)) if currOffset == 0 =>
       let newStr = str |> mutationAt(~index=String.length(str) - 1)
       Some(Expr(EString(id, newStr)), CT.forARStringCloseQuote(id, 0))
@@ -2984,7 +2984,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       } else if String.startsWith(~prefix="\"", str) && String.endsWith(~suffix="\"", str) {
         let newID = gid()
         let newStr = String.slice(~from=1, ~to_=-1, str)
-        Some(Expr(EString(newID, newStr)), CT.forARStringText(newID, currOffset - 1, newStr))
+        Some(Expr(EString(newID, newStr)), CT.forARStringBody(newID, currOffset - 1, newStr))
       } else {
         Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
       }
@@ -3559,14 +3559,14 @@ let doExplicitInsert = (
 
     | (ARString(_, SPOpenQuote), EString(id, str)) if currOffset == 1 =>
       let newStr = str |> mutationAt(~index=0) |> Debug.log("mutated")
-      Some(EString(id, newStr), CT.forARStringText(id, caretDelta, newStr))
+      Some(EString(id, newStr), CT.forARStringBody(id, caretDelta, newStr))
     | (ARString(_, SPBody), EString(id, str)) =>
       if currOffset < 0 || currOffset > String.length(str) {
         // out of string bounds means you can't insert into the string
         None
       } else {
         let newStr = str |> mutationAt(~index=currOffset) |> Debug.log("mutated")
-        Some(EString(id, newStr), CT.forARStringText(id, currOffset + caretDelta, newStr))
+        Some(EString(id, newStr), CT.forARStringBody(id, currOffset + caretDelta, newStr))
       }
     | (ARString(_, SPCloseQuote), EString(id, str)) if currOffset == 0 =>
       let lastIndex = String.length(str)
@@ -5850,9 +5850,9 @@ let pasteOverSelection = (
 
       let newAST = FluidAST.replace(~replacement, id, ast)
       let caretTarget = if offset == 0 {
-        CT.forARStringText(id, String.length(text), newStr)
+        CT.forARStringBody(id, String.length(text), newStr)
       } else {
-        CT.forARStringText(id, offset + String.length(text), newStr)
+        CT.forARStringBody(id, offset + String.length(text), newStr)
       }
 
       astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(caretTarget)

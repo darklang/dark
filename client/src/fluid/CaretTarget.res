@@ -17,7 +17,7 @@ let forARStringOpenQuote = (id: id, offset: int): t => {
 @ocaml.doc(" [forARStringText id offset] produces an ARString caretTarget
 * pointing to an [offset] into the text of the string with [id].
 * [offset] may be negative but cannot represent something out of string bounds. ")
-let forARStringText = (id: id, offset: int, str: string): t => {
+let forARStringBody = (id: id, offset: int, str: string): t => {
   if str == "" {
     forARStringOpenQuote(id, 1)
   } else {
