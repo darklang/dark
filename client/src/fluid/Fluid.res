@@ -5845,13 +5845,14 @@ let pasteOverSelection = (
       let caretTarget = caretTargetForEndOfExpr(E.toID(cp), newAST)
       astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(caretTarget)
     | (EString(id, str), _, Some({astRef: ARString(_), offset})) =>
-      let replacement = EString(id, String.insertAt(~value=text, ~index=offset - 1, str))
+      let newStr = String.insertAt(~value=text, ~index=offset, str)
+      let replacement = EString(id, newStr)
 
       let newAST = FluidAST.replace(~replacement, id, ast)
       let caretTarget = if offset == 0 {
-        CT.forARStringOpenQuote(id, String.length(text) + 1)
+        CT.forARStringText(id, String.length(text), newStr)
       } else {
-        CT.forARStringOpenQuote(id, offset + String.length(text))
+        CT.forARStringText(id, offset + String.length(text), newStr)
       }
 
       astInfo |> ASTInfo.setAST(newAST) |> moveToCaretTarget(caretTarget)
