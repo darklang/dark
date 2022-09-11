@@ -126,8 +126,14 @@ window.getBrowserPlatform = getBrowserPlatform;
 // Rollbar
 // ---------------------------
 var rollbar = require("rollbar");
+
 rollbarConfig.payload = rollbarConfig.payload || {};
 rollbarConfig.payload.person = { id: userID, username: username };
+
+let searchParams = new URL(window.location.href).searchParams;
+if (searchParams.get("use-assets-tunnel") !== null)
+  rollbarConfig.enabled = false;
+
 var Rollbar = rollbar.init(rollbarConfig);
 window.Rollbar = Rollbar;
 
