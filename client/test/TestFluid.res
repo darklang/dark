@@ -400,11 +400,33 @@ let processMsg = (inputs: list<FluidTypes.Msg.inputEvent>, astInfo: ASTInfo.t): 
 }
 
 let process = (inputs: list<FluidTypes.Msg.inputEvent>, tc: TestCase.t): TestResult.t => {
+  let before = Fluid.ASTInfo.make(tc.ast, tc.state)
   if tc.debug {
-    Js.log2("state before ", FluidUtils.debugState(tc.state))
-    Js.log2("expr before", FluidAST.toExpr(tc.ast) |> FluidPrinter.eToStructure(~includeIDs=true))
+    Js.log("\n\n\n=============")
+    Js.log("state before\n" ++ FluidUtils.debugState(tc.state))
+    Js.log("expr before\n" ++ FluidAST.show(tc.ast))
+    Js.log(
+      "\ntoken structure before\n" ++
+      FluidAST.toExpr(tc.ast)->FluidPrinter.eToStructure(~includeIDs=true),
+    )
+    Js.log(
+      "\ntokens before\n" ++ FluidPrinter.tokensToString(Fluid.ASTInfo.activeTokenInfos(before)),
+    )
   }
-  let result = Fluid.ASTInfo.make(tc.ast, tc.state) |> processMsg(inputs)
+  let result = processMsg(inputs, before)
+
+  if tc.debug {
+    Js.log2("\n\nstate after\n", FluidUtils.debugState(result.state))
+    Js.log("expr after\n" ++ FluidAST.show(result.ast))
+    Js.log(
+      "\ntoken structure after\n" ++
+      FluidAST.toExpr(result.ast)->FluidPrinter.eToStructure(~includeIDs=true),
+    )
+    Js.log(
+      "\ntokens after\n" ++ FluidPrinter.tokensToString(Fluid.ASTInfo.activeTokenInfos(result)),
+    )
+    Js.log("=============\n\n\n")
+  }
 
   let resultAST = FluidAST.map(result.ast, ~f=x =>
     switch x {
@@ -414,11 +436,6 @@ let process = (inputs: list<FluidTypes.Msg.inputEvent>, tc: TestCase.t): TestRes
     | expr => failwith("the wrapper is broken: " ++ Printer.eToTestString(expr))
     }
   )
-
-  if tc.debug {
-    Js.log2("state after", FluidUtils.debugState(result.state))
-    Js.log2("expr after", FluidPrinter.tokensToString(Fluid.ASTInfo.activeTokenInfos(result)))
-  }
   {TestResult.testcase: tc, resultAST: resultAST, resultState: result.state}
 }
 
