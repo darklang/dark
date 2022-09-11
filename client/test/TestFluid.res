@@ -728,7 +728,7 @@ let run = () => {
     t(
       "del mid middle string",
       mlStr,
-      ~pos=44,
+      ~pos=45,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 12~456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
@@ -736,7 +736,7 @@ let run = () => {
     t(
       "del mid end string",
       mlStr,
-      ~pos=85,
+      ~pos=87,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 12~456789_\"",
@@ -752,7 +752,7 @@ let run = () => {
     t(
       "bs mid middle string",
       mlStr,
-      ~pos=45,
+      ~pos=46,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 12~456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
@@ -760,7 +760,7 @@ let run = () => {
     t(
       "bs mid end string",
       mlStr,
-      ~pos=86,
+      ~pos=88,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 12~456789_\"",
@@ -832,7 +832,7 @@ let run = () => {
       "del start of middle string",
       // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       mlStr,
-      ~pos=42,
+      ~pos=43,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++
       " 23456789_abcdefghi,123456789_abcdefghi," ++ "1\n 23456789_\"",
@@ -841,7 +841,7 @@ let run = () => {
       "del start of end string",
       // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       mlStr,
-      ~pos=83,
+      ~pos=85,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,~\n" ++ " 23456789_\"",
@@ -857,7 +857,7 @@ let run = () => {
     t(
       "bs start of middle string",
       mlStr,
-      ~pos=42,
+      ~pos=43,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"",
@@ -865,7 +865,7 @@ let run = () => {
     t(
       "bs start of end string",
       mlStr,
-      ~pos=83,
+      ~pos=85,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,~\n" ++ " 123456789_\"",
@@ -873,7 +873,7 @@ let run = () => {
     t(
       "insert end of start string",
       mlStr,
-      ~pos=41,
+      ~pos=42,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n c~" ++
       "123456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
@@ -881,7 +881,7 @@ let run = () => {
     t(
       "insert end of middle string",
       mlStr,
-      ~pos=84,
+      ~pos=86,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n c~" ++ "123456789_\"",
@@ -889,7 +889,7 @@ let run = () => {
     t(
       "insert end of end string",
       mlStr,
-      ~pos=95,
+      ~pos=98,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_c~\"",
@@ -938,7 +938,7 @@ let run = () => {
     t(
       "del end of middle string",
       mlStr,
-      ~pos=82,
+      ~pos=83,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,~\n" ++ " 123456789_\"",
@@ -946,7 +946,7 @@ let run = () => {
     t(
       "del end of end string",
       mlStr,
-      ~pos=93,
+      ~pos=95,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_~\"",
@@ -962,7 +962,7 @@ let run = () => {
     t(
       "bs end of middle string",
       mlStr,
-      ~pos=82,
+      ~pos=83,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi" ++ "~1\n 23456789_\"",
@@ -970,7 +970,7 @@ let run = () => {
     t(
       "bs end of end string",
       mlStr,
-      ~pos=93,
+      ~pos=95,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789~\"",
@@ -986,7 +986,7 @@ let run = () => {
     t(
       "del after end of end string",
       mlStr,
-      ~pos=94,
+      ~pos=96,
       del,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"~",
@@ -994,7 +994,7 @@ let run = () => {
     t(
       "bs after end of end string",
       mlStr,
-      ~pos=94,
+      ~pos=96,
       bs,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_~\"",
@@ -2523,6 +2523,7 @@ let run = () => {
       "inserting a binop in a placeholder works",
       if'(binop("++", b, b), b, b),
       ~pos=3,
+      ~debug=true,
       ins("&"),
       "if &~ ++ ____________\nthen\n  ___\nelse\n  ___",
     )
