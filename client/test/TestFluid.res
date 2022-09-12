@@ -889,7 +889,7 @@ let run = () => {
     t(
       "insert end of end string",
       mlStr,
-      ~pos=95,
+      ~pos=97,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_c~\"",
