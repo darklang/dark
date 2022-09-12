@@ -146,6 +146,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
   | _ => None
   }
 
+  // dropdown of available Commands or Autocomplete options
   let dropdown = ti =>
     switch cmdToken {
     | Some(onTi) if onTi == ti => FluidCommands.viewCommandPalette(p.fluidState.cp)

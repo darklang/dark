@@ -189,7 +189,7 @@ let defaultModel = (
 }
 
 // AC targeting a tlid and pointer
-let acFor = (~tlid=defaultTLID, ~pos=0, m: AppTypes.model): AC.t => {
+let acFor = (~tlid=defaultTLID, ~pos=0, ~init=AC.init, m: AppTypes.model): AC.t => {
   let ti =
     TL.get(m, tlid)
     |> Option.andThen(~f=TL.getAST)
@@ -198,7 +198,7 @@ let acFor = (~tlid=defaultTLID, ~pos=0, m: AppTypes.model): AC.t => {
     )
     |> Option.unwrap(~default=defaultTokenInfo)
 
-  AC.regenerate(m, AC.init, (tlid, ti))
+  AC.regenerate(m, init, (tlid, ti))
 }
 
 let setQuery = (q: string, a: AC.t): AC.t => {
@@ -743,6 +743,58 @@ let run = () => {
           "InQuery::whatever",
         })
       )
+      ()
+    })
+    describe("regenerating pattern completions", () => {
+      open FluidTypes.AutoComplete
+
+      // if `generatePattern` does not take care to re-use pattern completions,
+      // the `index` of any highlighted completion may be lost, due to IDs
+      // differing internally. (e.g. the `PBlank`s in `FPAConstructor`
+      // completions) have IDs - when code later attempts to find the index
+      // of the currently-highlighted item in the newly-generated completions,
+      // differing IDs will result in that item not being found, and the index
+      // resulting in "None".)
+      let tlid = gtlid()
+      let expr = match'(b, list{(PVariable(gid(), "t"), b)})
+      let m = defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ())
+
+      test("reuses patterns to maintain index", () => {
+        // generate initial autocomplete completions
+        let initialAcResults = acFor(m, ~tlid, ~pos=12)
+        let firstAcThirdResult =
+          List.getAt(~index=2, initialAcResults.completions) |> Option.unwrapUnsafe |> (c => c.item)
+
+        // We want a pattern that has at least one randomly-generated ID inside
+        // of it. The "Just ___" pattern fits - the PBlank pattern inside of it
+        // has a gid() generated as part of autocomplete generation.
+        let isAJustPattern = switch firstAcThirdResult {
+        | FACPattern(FPAConstructor(_, "Just", list{PBlank(_)})) => true
+        | _ => false
+        }
+
+        // highlight the third result; regenerate autocomplete options
+        let subsequentAcResults = acFor(
+          m,
+          ~tlid,
+          ~pos=12, // where the blank pattern inside the `match` starts
+          ~init={...initialAcResults, index: Some(2)},
+        )
+
+        // Expectations:
+        // - the completion we've highlighted is a "Just ___" pattern
+        // - the highlighted index is still at 2
+        // - the AC result from the first generation matches the result from
+        //   the subsequent generation; the item was reused (ids didn't change)
+        let secondAcThirdResult =
+          List.getAt(~index=2, subsequentAcResults.completions)
+          |> Option.unwrapUnsafe
+          |> (c => c.item)
+
+        let expected = (isAJustPattern, Some(2), firstAcThirdResult)
+        let actual = (true, subsequentAcResults.index, secondAcThirdResult)
+        expect(expected) |> toEqual(actual)
+      })
       ()
     })
     ()

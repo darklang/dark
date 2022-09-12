@@ -170,10 +170,10 @@ module TokenInfo = {
 module AutoComplete = {
   @ppx.deriving(show({with_path: false}))
   type rec patternItem =
-    | FPAVariable(ID.t, ID.t, string)
-    | FPAConstructor(ID.t, ID.t, string, list<ProgramTypes.Pattern.t>)
-    | FPANull(ID.t, ID.t)
-    | FPABool(ID.t, ID.t, bool)
+    | FPAVariable(ID.t, string)
+    | FPAConstructor(ID.t, string, list<ProgramTypes.Pattern.t>)
+    | FPANull(ID.t)
+    | FPABool(ID.t, bool)
 
   @ppx.deriving(show({with_path: false}))
   type rec keyword =

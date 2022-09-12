@@ -2282,10 +2282,10 @@ let acToPattern = (entry: AC.item): option<(id, fluidPattern, CT.t)> => {
   let selectedPat: option<(id, P.t)> = switch entry {
   | FACPattern(p) =>
     switch p {
-    | FPAConstructor(mID, patID, var, pats) => Some(mID, PConstructor(patID, var, pats))
-    | FPAVariable(mID, patID, var) => Some(mID, PVariable(patID, var))
-    | FPABool(mID, patID, var) => Some(mID, PBool(patID, var))
-    | FPANull(mID, patID) => Some(mID, PNull(patID))
+    | FPAConstructor(mID, var, pats) => Some(mID, PConstructor(gid(), var, pats))
+    | FPAVariable(mID, var) => Some(mID, PVariable(gid(), var))
+    | FPABool(mID, var) => Some(mID, PBool(gid(), var))
+    | FPANull(mID) => Some(mID, PNull(gid()))
     }
   | _ =>
     // This only works for patterns
@@ -3003,6 +3003,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       }
     | (ARLeftPartial(_), ELeftPartial(id, oldStr, oldValue)) =>
       let str = oldStr |> mutation |> String.trim
+
       /* Left partials are rendered in front of the expression they wrap,
        * so place the caret at the start of the old value when the partial is removed */
       if str == "" {
@@ -3012,6 +3013,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       }
     | (ARRightPartial(_), ERightPartial(id, oldStr, oldValue)) =>
       let str = oldStr |> mutation |> String.trim
+
       /* Right partials are rendered in front of the expression they wrap,
        * so place the caret at the end of the old value when the partial is removed */
       if str == "" {
@@ -3593,6 +3595,7 @@ let doExplicitInsert = (
 
         if isWhole {
           let newWhole = mutationAt(whole, ~index)
+
           // This enables |.67 -> 0|.67 but prevents |1.0 -> 0|1.0
           if String.slice(~from=0, ~to_=1, newWhole) == "0" && String.length(newWhole) > 1 {
             None
@@ -3833,6 +3836,7 @@ let doExplicitInsert = (
 
         if isWhole {
           let newWhole = mutationAt(whole, ~index)
+
           // This enables |.67 -> 0|.67 but prevents |1.0 -> 0|1.0
           if String.slice(~from=0, ~to_=1, newWhole) == "0" && String.length(newWhole) > 1 {
             None
@@ -4106,6 +4110,7 @@ let doInsert = (
   }
 
   let astInfo = ASTInfo.setAST(newAST, astInfo)
+
   let newPos = adjustPosForReflow(ti, pos, newPosition, astInfo)
   {...astInfo, state: {...astInfo.state, newPos: newPos}}
 }
@@ -4430,6 +4435,7 @@ let rec updateKey = (
     if isAutocompleting(ti, astInfo.state) &&
     list{K.Enter, K.Tab, K.ShiftTab, K.Space} |> List.member(~value=key) =>
     acEnter(props, ti, key, astInfo)
+
   /* When we type a letter/number after an infix operator, complete and
    * then enter the number/letter. */
   | (InsertText(txt), L(TRightPartial(_, _, _), ti), _) if onEdge && Util.isIdentifierChar(txt) =>
@@ -4485,6 +4491,7 @@ let rec updateKey = (
   | (InsertText("."), _, R(TFieldPartial(_), ti))
     if Option.map(~f=AC.isField, AC.highlighted(astInfo.state.ac)) == Some(true) =>
     acStartField(props, ti, astInfo)
+
   // ******************
   // CARET NAVIGATION
   // ******************
@@ -4495,6 +4502,7 @@ let rec updateKey = (
   | (Keypress({key: K.ShiftTab, _}), _, R(_, _))
   | (Keypress({key: K.ShiftTab, _}), L(_, _), _) =>
     moveToPrevEditable(pos, astInfo)
+
   // Left/Right movement
   | (Keypress({key: K.GoToEndOfWord(maintainSelection), _}), _, R(_, ti))
   | (Keypress({key: K.GoToEndOfWord(maintainSelection), _}), L(_, ti), _) =>
@@ -4528,16 +4536,19 @@ let rec updateKey = (
     }
   | (Keypress({key: K.Up, _}), _, _) => doUp(~pos, astInfo)
   | (Keypress({key: K.Down, _}), _, _) => doDown(~pos, astInfo)
+
   // ***********
   // SELECTION
   // ***********
   | (Keypress({key: K.SelectAll, _}), _, R(_, _))
   | (Keypress({key: K.SelectAll, _}), L(_, _), _) =>
     selectAll(~pos, astInfo)
+
   // ***********
   // OVERWRITE
   // ***********
   | (ReplaceText(txt), _, _) => replaceText(props, txt, astInfo)
+
   // ***********
   // DELETION
   // ***********
@@ -4609,6 +4620,7 @@ let rec updateKey = (
 
       deleteCaretRange(props, (rangeStart, pos), astInfo)
     }
+
   // **************************************
   // SKIPPING OVER SYMBOLS BY TYPING THEM
   // **************************************
@@ -4645,6 +4657,7 @@ let rec updateKey = (
   | (InsertText("\""), _, R(TString(_), ti))
   | (InsertText("\""), _, R(TStringMLEnd(_), ti)) if pos == ti.endPos - 1 =>
     moveOneRight(pos, astInfo)
+
   // *************************
   // CREATING NEW CONSTRUCTS
   // *************************
@@ -5205,6 +5218,7 @@ let updateAutocomplete = (m: model, tlid: TLID.t, astInfo: ASTInfo.t): ASTInfo.t
   switch ASTInfo.getToken(astInfo) {
   | Some(ti) if T.isAutocompletable(ti.token) =>
     let m = TL.withAST(m, tlid, astInfo.ast)
+
     ASTInfo.modifyState(astInfo, ~f=s => {
       let newAC = AC.regenerate(m, s.ac, (tlid, ti))
       {...s, ac: newAC}
