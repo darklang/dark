@@ -899,7 +899,7 @@ let run = () => {
       str(mlSegment),
       ~pos=41,
       ins("c"),
-      "\"123456789_abcdefghi,123456789_abcdefghi,\nc~\"",
+      "\"123456789_abcdefghi,123456789_abcdefghi,\n c~\"",
     )
     t(
       "indented string converts to ml string",
@@ -1088,7 +1088,7 @@ let run = () => {
     t(
       "DeleteWordBackward at the end of line deletes word in front",
       mlStrWSpace,
-      ~pos=82,
+      ~pos=83,
       inputs(list{DeleteWordBackward}),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++ "  123456789_ abcdefghi, 123456789_ ~ghi,\"",
     )
@@ -1103,20 +1103,20 @@ let run = () => {
     t(
       "DeleteWordForward at the end of line deletes up to the next whitespace",
       mlStrWSpace,
-      ~pos=82,
+      ~pos=83,
       inputs(list{DeleteWordForward}),
-      "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_ abcdefghi, 123456789_ abcdef~\"",
+      "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++ "  123456789_ abcdefghi, 123456789_ abcdef~\"",
     )
     t(
       "DeleteWordForward at the beg of line deletes until the next whitespace",
       mlStrWSpace,
-      ~pos=42,
+      ~pos=43,
       inputs(list{DeleteWordForward}),
       /* ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
        ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ; */
       /* The non-commented version is a bit weird for caret placement,
        but matches what happens in XCode */
-      "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++ " abcdefghi, 123456789_ abcdefghi,\"",
+      "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++ "  abcdefghi, 123456789_ abcdefghi,\"",
     )
     t(
       "adding a quote at the front turns a partial into a string",
