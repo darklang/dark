@@ -1,12 +1,12 @@
 open Prelude
 open ProgramTypes.Expr
-module P = ProgramTypes.Pattern
+module MP = ProgramTypes.MatchPattern
 
 // ----------------
 // Shortcuts
 // ----------------
 let b = FluidExpression.newB()
-let bPat = ProgramTypes.Pattern.PBlank(gid())
+let bPat = ProgramTypes.MatchPattern.MPBlank(gid())
 
 open FluidShortcuts
 
@@ -136,42 +136,42 @@ let letWithUsedBinding = (bindingName: string) =>
 // ----------------
 let emptyMatch = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(gid()), b)})
+  EMatch(mID, b, list{(MPBlank(gid()), b)})
 }
 
 let matchWithCond = (cond: t) => {
   let mID = gid()
-  EMatch(mID, cond, list{(PBlank(gid()), b)})
+  EMatch(mID, cond, list{(MPBlank(gid()), b)})
 }
 
 let emptyMatchWithTwoPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(gid()), b), (PBlank(gid()), b)})
+  EMatch(mID, b, list{(MPBlank(gid()), b), (MPBlank(gid()), b)})
 }
 
 let matchWithTwoPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(PInteger(gid(), 3L), b), (PInteger(gid(), 4L), b)})
+  EMatch(mID, b, list{(MPInteger(gid(), 3L), b), (MPInteger(gid(), 4L), b)})
 }
 
 let matchWithPattern = {
   let mID = gid()
-  EMatch(mID, b, list{(PInteger(gid(), 3L), b)})
+  EMatch(mID, b, list{(MPInteger(gid(), 3L), b)})
 }
 
 let matchWithConstructorPattern = {
   let mID = gid()
-  EMatch(mID, b, list{(PConstructor(gid(), "Just", list{}), b)})
+  EMatch(mID, b, list{(MPConstructor(gid(), "Just", list{}), b)})
 }
 
 let matchWithOneExpr = (expr: t) => {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(gid()), expr)})
+  EMatch(mID, b, list{(MPBlank(gid()), expr)})
 }
 
 let matchWithBinding = (bindingName: string, expr: t) => {
   let mID = gid()
-  EMatch(mID, b, list{(PVariable(gid(), bindingName), expr)})
+  EMatch(mID, b, list{(MPVariable(gid(), bindingName), expr)})
 }
 
 let matchWithTwoBindings = (bindingName1: string, expr1: t, bindingName2: string, expr2: t) => {
@@ -179,13 +179,13 @@ let matchWithTwoBindings = (bindingName1: string, expr1: t, bindingName2: string
   EMatch(
     mID,
     b,
-    list{(PVariable(gid(), bindingName1), expr1), (PVariable(gid(), bindingName2), expr2)},
+    list{(MPVariable(gid(), bindingName1), expr1), (MPVariable(gid(), bindingName2), expr2)},
   )
 }
 
 let matchWithConstructorBinding = (bindingName: string, expr: t) => {
   let mID = gid()
-  EMatch(mID, b, list{(PConstructor(gid(), "Ok", list{PVariable(gid(), bindingName)}), expr)})
+  EMatch(mID, b, list{(MPConstructor(gid(), "Ok", list{MPVariable(gid(), bindingName)}), expr)})
 }
 
 let matchWithTwoLets = {
@@ -195,7 +195,7 @@ let matchWithTwoLets = {
     b,
     list{
       (
-        PBlank(gid()),
+        MPBlank(gid()),
         ELet(gid(), "x", EInteger(gid(), 5L), ELet(gid(), "y", EInteger(gid(), 6L), EBlank(gid()))),
       ),
     },
@@ -204,40 +204,40 @@ let matchWithTwoLets = {
 
 let nestedMatch = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(gid()), emptyMatch)})
+  EMatch(mID, b, list{(MPBlank(gid()), emptyMatch)})
 }
 
 // ----------------
 // Match _Patterns_
 // ----------------
-let fiftySixPat = P.PInteger(gid(), 56L)
-let seventyEightPat = P.PInteger(gid(), 78L)
+let fiftySixPat = MP.MPInteger(gid(), 56L)
+let seventyEightPat = MP.MPInteger(gid(), 78L)
 
-let tuplePattern2WithNoBlank = pTuple(fiftySixPat, seventyEightPat, list{})
-let tuplePattern2WithBothBlank = pTuple(bPat, bPat, list{})
-let tuplePattern2WithFirstBlank = pTuple(bPat, seventyEightPat, list{})
-let tuplePattern2WithSecondBlank = pTuple(fiftySixPat, bPat, list{})
+let tupleMP2WithNoBlank = mpTuple(fiftySixPat, seventyEightPat, list{})
+let tupleMP2WithBothBlank = mpTuple(bPat, bPat, list{})
+let tupleMP2WithFirstBlank = mpTuple(bPat, seventyEightPat, list{})
+let tupleMP2WithSecondBlank = mpTuple(fiftySixPat, bPat, list{})
 
-let tuplePattern3WithNoBlanks = pTuple(fiftySixPat, seventyEightPat, list{fiftySixPat})
-let tuplePattern3WithAllBlank = pTuple(bPat, bPat, list{bPat})
+let tupleMP3WithNoBlanks = mpTuple(fiftySixPat, seventyEightPat, list{fiftySixPat})
+let tupleMP3WithAllBlank = mpTuple(bPat, bPat, list{bPat})
 
-let tuplePattern3WithFirstBlank = pTuple(bPat, seventyEightPat, list{fiftySixPat})
-let tuplePattern3WithSecondBlank = pTuple(fiftySixPat, bPat, list{seventyEightPat})
-let tuplePattern3WithThirdBlank = pTuple(fiftySixPat, seventyEightPat, list{bPat})
+let tupleMP3WithFirstBlank = mpTuple(bPat, seventyEightPat, list{fiftySixPat})
+let tupleMP3WithSecondBlank = mpTuple(fiftySixPat, bPat, list{seventyEightPat})
+let tupleMP3WithThirdBlank = mpTuple(fiftySixPat, seventyEightPat, list{bPat})
 
-let tuplePattern3WithFirstFilled = pTuple(fiftySixPat, bPat, list{bPat})
-let tuplePattern3WithSecondFilled = pTuple(bPat, fiftySixPat, list{bPat})
-let tuplePattern3WithThirdFilled = pTuple(bPat, bPat, list{fiftySixPat})
+let tupleMP3WithFirstFilled = mpTuple(fiftySixPat, bPat, list{bPat})
+let tupleMP3WithSecondFilled = mpTuple(bPat, fiftySixPat, list{bPat})
+let tupleMP3WithThirdFilled = mpTuple(bPat, bPat, list{fiftySixPat})
 
-let tuplePattern6 = pTuple(
+let tupleMP6 = mpTuple(
   fiftySixPat,
   seventyEightPat,
   list{fiftySixPat, seventyEightPat, fiftySixPat, seventyEightPat},
 )
 
-let tuplePattern3WithStrs = pTuple(pString("ab"), pString("cd"), list{pString("ef")})
+let tupleMP3WithStrs = mpTuple(mpString("ab"), mpString("cd"), list{mpString("ef")})
 
-let tuplePatternHuge = pTuple(
+let tupleMPHuge = mpTuple(
   fiftySixPat,
   seventyEightPat,
   list{
@@ -742,14 +742,14 @@ let complexExpr = {
                           match'(
                             fn(~mod="Mod", "function", ~version=2, list{}),
                             list{
-                              (pConstructor("Ok", list{pVar("x")}), var("v")),
-                              (pInt(5), int64(-9223372036854775808L)),
-                              (pBool(true), int(7)),
+                              (mpConstructor("Ok", list{mpVar("x")}), var("v")),
+                              (mpInt(5), int64(-9223372036854775808L)),
+                              (mpBool(true), int(7)),
                               // (pChar("c"), char("c")),
-                              (pString("string"), str("string")),
-                              (pNull(), null),
-                              (pVar("var"), binop("+", int(6), var("var"))),
-                              (pFloat(Positive, 5, 6), float'(Positive, 5, 6)),
+                              (mpString("string"), str("string")),
+                              (mpNull(), null),
+                              (mpVar("var"), binop("+", int(6), var("var"))),
+                              (mpFloat(Positive, 5, 6), float'(Positive, 5, 6)),
                               (pBlank(), int(6)),
                             },
                           ),

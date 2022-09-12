@@ -6,7 +6,7 @@ module K = FluidKeyboard
 module Printer = FluidTokenizer
 module TL = Toplevel
 open ProgramTypes.Expr
-open ProgramTypes.Pattern
+open ProgramTypes.MatchPattern
 open FluidTestData
 open FluidShortcuts
 
@@ -536,11 +536,11 @@ let run = () => {
           invalid |> List.map(~f=AC.asName) |> List.filter(~f=\"="("String::newline")),
         ) |> toEqual(list{"String::newline"})
       })
-      test("Pattern expressions are available in pattern blank", () => {
+      test("MP expressions are available in MP blank", () => {
         let tlid = gtlid()
         let patID = gid()
-        let pattern = PVariable(patID, "o")
-        let expr = match'(b, list{(pattern, b)})
+        let mp = MPVariable(patID, "o")
+        let expr = match'(b, list{(mp, b)})
         let m =
           defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ()) |> (
             m => {...m, functions: Functions.empty}

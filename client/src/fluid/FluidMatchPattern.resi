@@ -1,9 +1,9 @@
-type t = ProgramTypes.Pattern.t
+type t = ProgramTypes.MatchPattern.t
 
 let toID: t => ID.t
 
-/* Returns the ids of all the patterns in this pattern. Includes this pattern's
- * ID, does not include the matchID */
+@ocaml.doc("Returns the ids of all the MPs in this MP. Includes this pattern's
+ ID. Does not include the matchID")
 let ids: t => list<ID.t>
 
 let clone: t => t

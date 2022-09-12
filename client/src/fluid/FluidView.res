@@ -9,7 +9,7 @@ module K = FluidKeyboard
 module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
-module P = FluidPattern
+module MP = FluidMatchPattern
 module Printer = FluidPrinter
 module RT = RuntimeTypes
 

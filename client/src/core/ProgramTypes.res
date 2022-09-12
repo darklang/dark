@@ -67,38 +67,42 @@ module Sign = {
   }
 }
 
-module Pattern = {
+module MatchPattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
     // match id, then pattern id
-    | PVariable(ID.t, string)
-    | PConstructor(ID.t, string, list<t>)
-    | PInteger(ID.t, int64)
-    | PBool(ID.t, bool)
-    | PString(ID.t, string)
-    | PCharacter(ID.t, string)
-    | PFloat(ID.t, Sign.t, string, string)
-    | PNull(ID.t)
-    | PBlank(ID.t)
-    | PTuple(ID.t, t, t, list<t>)
+    | MPVariable(ID.t, string)
+    | MPConstructor(ID.t, string, list<t>)
+    | MPInteger(ID.t, int64)
+    | MPBool(ID.t, bool)
+    | MPString(ID.t, string)
+    | MPCharacter(ID.t, string)
+    | MPFloat(ID.t, Sign.t, string, string)
+    | MPNull(ID.t)
+    | MPBlank(ID.t)
+    | MPTuple(ID.t, t, t, list<t>)
 
-  let rec encode = (pattern: t): Js.Json.t => {
+  let rec encode = (mp: t): Js.Json.t => {
     open Json_encode_extended
     let ep = encode
     let ev = variant
-    switch pattern {
-    | PVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
-    | PConstructor(id', name, patterns) =>
-      ev("PConstructor", list{ID.encode(id'), string(name), list(ep, patterns)})
-    | PInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
-    | PBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
-    | PFloat(id', sign, whole, fraction) =>
+
+    // MATCHPATTERNTODO We need to replace the below encodings with the MP
+    // prefix rather than the P prefix here. This is being done in steps to
+    // prevent conflicts.
+    switch mp {
+    | MPVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
+    | MPConstructor(id', name, mps) =>
+      ev("PConstructor", list{ID.encode(id'), string(name), list(ep, mps)})
+    | MPInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
+    | MPBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
+    | MPFloat(id', sign, whole, fraction) =>
       ev("PFloat", list{ID.encode(id'), Sign.encode(sign), string(whole), string(fraction)})
-    | PString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
-    | PCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
-    | PNull(id') => ev("PNull", list{ID.encode(id')})
-    | PBlank(id') => ev("PBlank", list{ID.encode(id')})
-    | PTuple(id', first, second, theRest) =>
+    | MPString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
+    | MPCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
+    | MPNull(id') => ev("PNull", list{ID.encode(id')})
+    | MPBlank(id') => ev("PBlank", list{ID.encode(id')})
+    | MPTuple(id', first, second, theRest) =>
       ev("PTuple", list{ID.encode(id'), ep(first), ep(second), list(ep, theRest)})
     }
   }
@@ -111,19 +115,48 @@ module Pattern = {
     let dv1 = variant1
     variants(
       list{
-        ("PVariable", dv2((a, b) => PVariable(a, b), ID.decode, string)),
-        ("PConstructor", dv3((a, b, c) => PConstructor(a, b, c), ID.decode, string, list(decode))),
-        ("PInteger", dv2((a, b) => PInteger(a, b), ID.decode, int64)),
-        ("PBool", dv2((a, b) => PBool(a, b), ID.decode, bool)),
-        ("PString", dv2((a, b) => PString(a, b), ID.decode, string)),
-        ("PCharacter", dv2((a, b) => PCharacter(a, b), ID.decode, string)),
-        ("PFloat", dv4((a, b, c, d) => PFloat(a, b, c, d), ID.decode, Sign.decode, string, string)),
-        ("PNull", dv1(a => PNull(a), ID.decode)),
-        ("PBlank", dv1(a => PBlank(a), ID.decode)),
+        ("PVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
+        ("PConstructor", dv3((a, b, c) => MPConstructor(a, b, c), ID.decode, string, list(decode))),
+        ("PInteger", dv2((a, b) => MPInteger(a, b), ID.decode, int64)),
+        ("PBool", dv2((a, b) => MPBool(a, b), ID.decode, bool)),
+        ("PString", dv2((a, b) => MPString(a, b), ID.decode, string)),
+        ("PCharacter", dv2((a, b) => MPCharacter(a, b), ID.decode, string)),
+        (
+          "PFloat",
+          dv4((a, b, c, d) => MPFloat(a, b, c, d), ID.decode, Sign.decode, string, string),
+        ),
+        ("PNull", dv1(a => MPNull(a), ID.decode)),
+        ("PBlank", dv1(a => MPBlank(a), ID.decode)),
         (
           "PTuple",
           dv4(
-            (a, first, second, theRest) => PTuple(a, first, second, theRest),
+            (a, first, second, theRest) => MPTuple(a, first, second, theRest),
+            ID.decode,
+            decode,
+            decode,
+            list(decode),
+          ),
+        ),
+        // MATCHPATTERNTODO the above should be removed in favor of the below
+        ("MPVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
+        (
+          "MPConstructor",
+          dv3((a, b, c) => MPConstructor(a, b, c), ID.decode, string, list(decode)),
+        ),
+        ("MPInteger", dv2((a, b) => MPInteger(a, b), ID.decode, int64)),
+        ("MPBool", dv2((a, b) => MPBool(a, b), ID.decode, bool)),
+        ("MPString", dv2((a, b) => MPString(a, b), ID.decode, string)),
+        ("MPCharacter", dv2((a, b) => MPCharacter(a, b), ID.decode, string)),
+        (
+          "MPFloat",
+          dv4((a, b, c, d) => MPFloat(a, b, c, d), ID.decode, Sign.decode, string, string),
+        ),
+        ("MPNull", dv1(a => MPNull(a), ID.decode)),
+        ("MPBlank", dv1(a => MPBlank(a), ID.decode)),
+        (
+          "MPTuple",
+          dv4(
+            (a, first, second, theRest) => MPTuple(a, first, second, theRest),
             ID.decode,
             decode,
             decode,
@@ -182,7 +215,7 @@ module Expr = {
     | ERecord(ID.t, list<(string, t)>)
     | EPipe(ID.t, t, t, list<t>)
     | EConstructor(ID.t, string, list<t>)
-    | EMatch(ID.t, t, list<(Pattern.t, t)>)
+    | EMatch(ID.t, t, list<(MatchPattern.t, t)>)
     | EPipeTarget(ID.t)
     | EFeatureFlag(ID.t, string, t, t, t)
 
@@ -234,7 +267,7 @@ module Expr = {
     | EMatch(id, matchExpr, cases) =>
       ev(
         "EMatch",
-        list{ID.encode(id), encode(matchExpr), list(pair(Pattern.encode, encode), cases)},
+        list{ID.encode(id), encode(matchExpr), list(pair(MatchPattern.encode, encode), cases)},
       )
     | EConstructor(id, name, args) =>
       ev("EConstructor", list{ID.encode(id), string(name), list(encode, args)})
@@ -316,7 +349,7 @@ module Expr = {
         ("EConstructor", dv3((a, b, c) => EConstructor(a, b, c), ID.decode, string, list(de))),
         (
           "EMatch",
-          dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(Pattern.decode, de))),
+          dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(MatchPattern.decode, de))),
         ),
         ("EPipeTarget", dv1(a => EPipeTarget(a), ID.decode)),
         (

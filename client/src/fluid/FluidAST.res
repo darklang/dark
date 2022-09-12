@@ -1,5 +1,5 @@
 module E = FluidExpression
-module P = FluidPattern
+module MP = FluidMatchPattern
 
 open Prelude
 
@@ -51,15 +51,20 @@ let update = (~failIfMissing=true, ~f: E.t => E.t, target: id, ast: t): t =>
 
 let clone = map(~f=E.clone)
 
-let updatePattern = (~f: fluidPattern => fluidPattern, matchID: id, patID: id, ast: t): t =>
+let updateMatchPattern = (
+  ~f: fluidMatchPattern => fluidMatchPattern,
+  matchID: id,
+  patID: id,
+  ast: t,
+): t =>
   update(matchID, ast, ~f=m =>
     switch m {
     | EMatch(matchID, expr, pairs) =>
       let rec run = p =>
-        if patID == P.toID(p) {
+        if patID == MP.toID(p) {
           f(p)
         } else {
-          P.recurseDeprecated(~f=run, p)
+          MP.recurseDeprecated(~f=run, p)
         }
 
       let newPairs = List.map(pairs, ~f=((pat, expr)) => (run(pat), expr))
@@ -69,5 +74,5 @@ let updatePattern = (~f: fluidPattern => fluidPattern, matchID: id, patID: id, a
     }
   )
 
-let replacePattern = (~newPat: fluidPattern, matchID: id, patID: id, ast: t): t =>
-  updatePattern(matchID, patID, ast, ~f=_ => newPat)
+let replacePattern = (~newPat: fluidMatchPattern, matchID: id, patID: id, ast: t): t =>
+  updateMatchPattern(matchID, patID, ast, ~f=_ => newPat)

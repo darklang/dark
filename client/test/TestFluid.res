@@ -2624,7 +2624,7 @@ let run = () => {
     t(
       "backspace after selecting all with a `Just |___` in a match deletes all",
       ~wrap=/* wrap false because else we delete the wrapper */ false,
-      match'(b, list{(pConstructor("Just", list{pBlank()}), b)}),
+      match'(b, list{(mpConstructor("Just", list{pBlank()}), b)}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
       "~___",
@@ -2999,7 +2999,7 @@ let run = () => {
     )
     t(
       "enter at the start of row, with match in row above, creates a new row",
-      match'(int(1), list{(pInt(5), match'(int(2), list{(pInt(6), b)})), (pInt(7), b)}),
+      match'(int(1), list{(mpInt(5), match'(int(2), list{(mpInt(6), b)})), (mpInt(7), b)}),
       ~pos=43,
       enter,
       "match 1\n  5 -> match 2\n         6 -> ___\n  *** -> ___\n  ~7 -> ___\n",
@@ -3152,7 +3152,7 @@ let run = () => {
       "insert changes occurence of binding in match nested expr",
       letWithBinding(
         "binding",
-        match'(b, list{(pVar("binding"), var("binding")), (pInt(5), var("binding"))}),
+        match'(b, list{(mpVar("binding"), var("binding")), (mpInt(5), var("binding"))}),
       ),
       ~pos=11,
       ins("c"),
@@ -4689,7 +4689,7 @@ let run = () => {
     )
     t(
       "pressing enter at the start of a field adds a row to the correct expression",
-      record(list{("", match'(b, list{(pInt(5), int(6))})), ("asd", b)}),
+      record(list{("", match'(b, list{(mpInt(5), int(6))})), ("asd", b)}),
       ~pos=39,
       enter,
       "{\n  *** : match ___\n          5 -> 6\n  *** : ___\n  ~asd : ___\n}",

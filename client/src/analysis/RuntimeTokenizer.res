@@ -112,27 +112,29 @@ module Builder = {
     b.tokens->List.reverse->List.join(~sep="")
 }
 
-let rec patternToTokens = (matchID: id, p: RuntimeTypes.Pattern.t, ~idx: int): list<string> => {
+let rec matchPatternToTokens = (matchID: id, p: RuntimeTypes.MatchPattern.t, ~idx: int): list<
+  string,
+> => {
   switch p {
-  | PVariable(_, name) => list{name}
-  | PConstructor(_, name, args) =>
-    let args = List.map(args, ~f=a => list{" ", ...patternToTokens(matchID, a, ~idx)})
+  | MPVariable(_, name) => list{name}
+  | MPConstructor(_, name, args) =>
+    let args = List.map(args, ~f=a => list{" ", ...matchPatternToTokens(matchID, a, ~idx)})
 
     List.flatten(list{list{name}, ...args})
-  | PInteger(_, i) => list{Int64.to_string(i)}
-  | PBool(_, b) =>
+  | MPInteger(_, i) => list{Int64.to_string(i)}
+  | MPBool(_, b) =>
     if b {
       list{"true"}
     } else {
       list{"false"}
     }
-  | PString(_, str) => list{"\"", str, "\""}
-  | PCharacter(_, c) => list{"'", c, "'"}
-  | PFloat(_, f) => list{Float.to_string(f)}
+  | MPString(_, str) => list{"\"", str, "\""}
+  | MPCharacter(_, c) => list{"'", c, "'"}
+  | MPFloat(_, f) => list{Float.to_string(f)}
 
-  | PNull(_) => list{"null"}
-  | PBlank(_) => list{"___"}
-  | PTuple(_, first, second, theRest) =>
+  | MPNull(_) => list{"null"}
+  | MPBlank(_) => list{"___"}
+  | MPTuple(_, first, second, theRest) =>
     let subPatterns = list{first, second, ...theRest}
 
     let subPatternCount = List.length(subPatterns)
@@ -141,7 +143,7 @@ let rec patternToTokens = (matchID: id, p: RuntimeTypes.Pattern.t, ~idx: int): l
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
         let isLastPattern = i == subPatternCount - 1
-        let subpatternTokens = patternToTokens(matchID, p, ~idx)
+        let subpatternTokens = matchPatternToTokens(matchID, p, ~idx)
 
         if isLastPattern {
           subpatternTokens
@@ -346,7 +348,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
       |> addIter(pairs, ~f=(i, (pattern, expr), b) =>
         b
         |> addNewlineIfNeeded
-        |> addMany(patternToTokens(id, pattern, ~idx=i))
+        |> addMany(matchPatternToTokens(id, pattern, ~idx=i))
         |> add(" -> ")
         |> addNested(~f=toTokens'(expr))
       )

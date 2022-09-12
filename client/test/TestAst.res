@@ -3,7 +3,7 @@ open Prelude
 open AST
 module B = BlankOr
 open ProgramTypes.Expr
-open ProgramTypes.Pattern
+open ProgramTypes.MatchPattern
 open FluidShortcuts
 
 type transformation_test_result<'a, 'b> =
@@ -25,7 +25,7 @@ let run = () => {
     test("match pattern is not free", () => {
       let e = EConstructor(id2, "Just", list{EVariable(id4, "request")})
       let pats = list{
-        (PConstructor(id1, "Just", list{PVariable(id1, "anything")}), EVariable(id5, "anything")),
+        (MPConstructor(id1, "Just", list{MPVariable(id1, "anything")}), EVariable(id5, "anything")),
       }
 
       expect(freeVariables(EMatch(id1, e, pats))) |> toEqual(list{(id4, "request")})
@@ -97,12 +97,12 @@ let run = () => {
         |> Option.andThen(~f=d => Map.get(~key="a", d)),
       ) |> toEqual(Some(a2ID))
     })
-    test("variablesIn correctly gets the id of a pattern variable", () => {
+    test("variablesIn correctly gets the id of a MP variable", () => {
       let id1 = gid()
       let targetID = gid()
       let b1 = blank()
       let target = EBlank(targetID)
-      let ast = match'(b1, list{(pConstructor("Just", list{pVar(~id=id1, "myvar")}), target)})
+      let ast = match'(b1, list{(mpConstructor("Just", list{mpVar(~id=id1, "myvar")}), target)})
 
       expect(
         variablesIn(ast)

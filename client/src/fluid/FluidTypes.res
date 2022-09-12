@@ -121,30 +121,32 @@ module Token = {
     | TRecordClose(ID.t, option<parentBlockID>)
     | TMatchKeyword(ID.t)
     | TMatchBranchArrow({matchID: ID.t, patternID: ID.t, index: int})
-    /* for all these TPattern* variants:
-     * - the first id *is the match id *
-     * - the second id *is the pattern id *
-     * - the final int is the index of the (pattern -> expr) */
-    | TPatternVariable(ID.t, ID.t, string, int)
-    | TPatternConstructorName(ID.t, ID.t, string, int)
 
-    | TPatternInteger(ID.t, ID.t, int64, int)
-    | TPatternString({matchID: ID.t, patternID: ID.t, str: string, branchIdx: int})
+    // for all these TMP* variants:
+    // - the first id is the match id
+    // - the second id is the pattern id
+    // - the final int is the index of the (pattern -> expr)
+    // * TMP stands for "Token MatchPattern"
+    | TMPVariable(ID.t, ID.t, string, int)
+    | TMPConstructorName(ID.t, ID.t, string, int)
 
-    | TPatternTrue(ID.t, ID.t, int)
-    | TPatternFalse(ID.t, ID.t, int)
+    | TMPInteger(ID.t, ID.t, int64, int)
+    | TMPString({matchID: ID.t, patternID: ID.t, str: string, branchIdx: int})
 
-    | TPatternNullToken(ID.t, ID.t, int)
+    | TMPTrue(ID.t, ID.t, int)
+    | TMPFalse(ID.t, ID.t, int)
 
-    | TPatternFloatWhole(ID.t, ID.t, string, int)
-    | TPatternFloatPoint(ID.t, ID.t, int)
-    | TPatternFloatFractional(ID.t, ID.t, string, int)
+    | TMPNull(ID.t, ID.t, int)
 
-    | TPatternBlank(ID.t, ID.t, int)
+    | TMPFloatWhole(ID.t, ID.t, string, int)
+    | TMPFloatPoint(ID.t, ID.t, int)
+    | TMPFloatFractional(ID.t, ID.t, string, int)
 
-    | TPatternTupleOpen(ID.t, ID.t)
-    | TPatternTupleComma(ID.t, ID.t, int)
-    | TPatternTupleClose(ID.t, ID.t)
+    | TMPBlank(ID.t, ID.t, int)
+
+    | TMPTupleOpen(ID.t, ID.t)
+    | TMPTupleComma(ID.t, ID.t, int)
+    | TMPTupleClose(ID.t, ID.t)
 
     | TConstructorName(ID.t, string)
 
@@ -169,11 +171,11 @@ module TokenInfo = {
 
 module AutoComplete = {
   @ppx.deriving(show({with_path: false}))
-  type rec patternItem =
-    | FPAVariable(ID.t, ID.t, string)
-    | FPAConstructor(ID.t, ID.t, string, list<ProgramTypes.Pattern.t>)
-    | FPANull(ID.t, ID.t)
-    | FPABool(ID.t, ID.t, bool)
+  type rec matchPatternItem =
+    | FAMPVariable(ID.t, ID.t, string)
+    | FAMPConstructor(ID.t, ID.t, string, list<ProgramTypes.MatchPattern.t>)
+    | FAMPNull(ID.t, ID.t)
+    | FAMPBool(ID.t, ID.t, bool)
 
   @ppx.deriving(show({with_path: false}))
   type rec keyword =
@@ -196,7 +198,7 @@ module AutoComplete = {
     | FACVariable(string, option<RuntimeTypes.Dval.t>)
     | FACLiteral(literalItem)
     | FACKeyword(keyword)
-    | FACPattern(patternItem)
+    | FACMatchPattern(matchPatternItem)
     | FACCreateFunction(string, TLID.t, ID.t)
 
   @ppx.deriving(show({with_path: false}))

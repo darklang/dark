@@ -1393,7 +1393,7 @@ let run = () => {
     roundtrip(let'("myVariable", longString, b))
     roundtrip(record(list{("a", record(list{("b", str("c"))}))}))
     roundtrip(match'(b, list{(pBlank(), b)}))
-    roundtrip(match'(b, list{(pString("asd"), b)}))
+    roundtrip(match'(b, list{(mpString("asd"), b)}))
     ()
   })
 }

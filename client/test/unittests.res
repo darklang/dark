@@ -42,7 +42,7 @@ let () = {
   describe("TestFluidClipboard", TestFluidClipboard.run)
   describe("TestFluidCommands", TestFluidCommands.run)
   describe("TestFluidExpressions", TestFluidExpressions.run)
-  describe("TestFluidPattern", TestFluidPattern.run)
+  describe("TestFluidMatchPattern", TestFluidMatchPattern.run)
   describe("TestFluidselection", TestFluidSelection.run)
   describe("TestFluid", TestFluid.run)
   describe("TestFluidToken", TestFluidToken.run)

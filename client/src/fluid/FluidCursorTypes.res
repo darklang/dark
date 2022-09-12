@@ -59,21 +59,23 @@ module AstRef = {
     | TPComma(int)
 
   @ppx.deriving(show({with_path: false}))
-  type rec astMatchPart =
-    | MPKeyword
-    | MPBranchArrow(/* index of the branch */ int)
+  type rec astPatternMatchPart =
+    // PMP = Pattern-Match Part
+    | PMPKeyword
+    | PMPBranchArrow(/* index of the branch */ int)
 
   @ppx.deriving(show({with_path: false}))
-  type rec astPatternPart =
-    | PPVariable
-    | PPConstructor
-    | PPTuple(astTuplePart)
-    | PPInteger
-    | PPBool
-    | PPString(astStringPart)
-    | PPFloat(astFloatPart)
-    | PPNull
-    | PPBlank
+  type rec astMatchPatternPart =
+    // MPP = MatchPatternPart
+    | MPPVariable
+    | MPPConstructor
+    | MPPTuple(astTuplePart)
+    | MPPInteger
+    | MPPBool
+    | MPPString(astStringPart)
+    | MPPFloat(astFloatPart)
+    | MPPNull
+    | MPPBlank
 
   @ppx.deriving(show({with_path: false}))
   type rec astFlagPart =
@@ -119,9 +121,10 @@ module AstRef = {
     | ARRecord(id, astRecordPart)
     | ARPipe(id, int) // index of the pipe
     | ARConstructor(id) // name of the constructor
-    | ARMatch(id, astMatchPart)
+    | ARMatch(id, astPatternMatchPart)
     | ARLambda(id, astLambdaPart)
-    | ARPattern(id, astPatternPart)
+    // MP = MatchPattern
+    | ARMPattern(id, astMatchPatternPart)
     | ARFlag(id, astFlagPart)
     // for use if something that should never happen happened
     | ARInvalid

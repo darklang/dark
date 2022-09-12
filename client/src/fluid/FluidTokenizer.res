@@ -2,7 +2,7 @@ open Prelude
 module T = FluidToken
 module Expr = ProgramTypes.Expr
 module E = FluidExpression
-module Pattern = FluidPattern
+module Pattern = FluidMatchPattern
 
 open FluidTypes.Token
 type tokenInfo = FluidTypes.TokenInfo.t
@@ -128,27 +128,26 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
-// TODO: rename to `patternToTokens``
-let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
+let rec mpToTokens = (matchID: id, p: FluidMatchPattern.t, ~idx: int): list<fluidToken> => {
   open FluidTypes.Token
   switch p {
-  | PVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
-  | PConstructor(id, name, args) =>
-    let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(matchID, a, ~idx)})
+  | MPVariable(id, name) => list{TMPVariable(matchID, id, name, idx)}
+  | MPConstructor(id, name, args) =>
+    let args = List.map(args, ~f=a => list{TSep(id, None), ...mpToTokens(matchID, a, ~idx)})
 
-    List.flatten(list{list{TPatternConstructorName(matchID, id, name, idx)}, ...args})
-  | PInteger(id, i) => list{TPatternInteger(matchID, id, i, idx)}
-  | PBool(id, b) =>
+    List.flatten(list{list{TMPConstructorName(matchID, id, name, idx)}, ...args})
+  | MPInteger(id, i) => list{TMPInteger(matchID, id, i, idx)}
+  | MPBool(id, b) =>
     if b {
-      list{TPatternTrue(matchID, id, idx)}
+      list{TMPTrue(matchID, id, idx)}
     } else {
-      list{TPatternFalse(matchID, id, idx)}
+      list{TMPFalse(matchID, id, idx)}
     }
-  | PString(id, str) => list{
-      TPatternString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
+  | MPString(id, str) => list{
+      TMPString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
-  | PCharacter(_) => recover("pchar not supported in patternToToken", list{})
-  | PFloat(id, sign, whole, fraction) =>
+  | MPCharacter(_) => recover("pchar not supported in patternToToken", list{})
+  | MPFloat(id, sign, whole, fraction) =>
     let whole = switch sign {
     | Positive => whole
     | Negative => "-" ++ whole
@@ -156,18 +155,18 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
     let whole = if whole == "" {
       list{}
     } else {
-      list{TPatternFloatWhole(matchID, id, whole, idx)}
+      list{TMPFloatWhole(matchID, id, whole, idx)}
     }
     let fraction = if fraction == "" {
       list{}
     } else {
-      list{TPatternFloatFractional(matchID, id, fraction, idx)}
+      list{TMPFloatFractional(matchID, id, fraction, idx)}
     }
 
-    Belt.List.concatMany([whole, list{TPatternFloatPoint(matchID, id, idx)}, fraction])
-  | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
-  | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
-  | PTuple(id, first, second, theRest) =>
+    Belt.List.concatMany([whole, list{TMPFloatPoint(matchID, id, idx)}, fraction])
+  | MPNull(id) => list{TMPNull(matchID, id, idx)}
+  | MPBlank(id) => list{TMPBlank(matchID, id, idx)}
+  | MPTuple(id, first, second, theRest) =>
     let subPatterns = list{first, second, ...theRest}
 
     let subPatternCount = List.length(subPatterns)
@@ -176,20 +175,20 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
         let isLastPattern = i == subPatternCount - 1
-        let subpatternTokens = patternToToken(matchID, p, ~idx)
+        let subpatternTokens = mpToTokens(matchID, p, ~idx)
 
         if isLastPattern {
           subpatternTokens
         } else {
-          List.append(subpatternTokens, list{TPatternTupleComma(matchID, id, i)})
+          List.append(subpatternTokens, list{TMPTupleComma(matchID, id, i)})
         }
       })
       |> List.flatten
 
     List.flatten(list{
-      list{TPatternTupleOpen(matchID, id)},
+      list{TMPTupleOpen(matchID, id)},
       middlePart,
-      list{TPatternTupleClose(matchID, id)},
+      list{TMPTupleClose(matchID, id)},
     })
   }
 }
@@ -614,14 +613,14 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNested(~f=toTokens'(mexpr))
     |> indentBy(~indent=2, ~f=b =>
       b
-      |> addIter(pairs, ~f=(i, (pattern, expr), b) =>
+      |> addIter(pairs, ~f=(i, (mp, expr), b) =>
         b
         |> addNewlineIfNeeded(Some(id, id, Some(i)))
-        |> addMany(patternToToken(id, pattern, ~idx=i))
+        |> addMany(mpToTokens(id, mp, ~idx=i))
         |> add(
           TMatchBranchArrow({
             matchID: id,
-            patternID: Pattern.toID(pattern),
+            patternID: Pattern.toID(mp),
             index: i,
           }),
         )
