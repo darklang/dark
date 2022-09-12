@@ -5365,18 +5365,8 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
             0
           },
         )
-        |> (
-          text =>
-            // if string, do extra trim to account for quotes, then re-append quotes
-            if T.toTypeName(ti.token) == "string" {
-              "\"" ++ (Util.trimQuotes(text) ++ "\"")
-            } else {
-              text
-            }
-        )
 
-      open T
-      (tid(t), text, toTypeName(t))
+      (T.tid(t), text, T.toTypeName(t))
     })
 
     // Reconstructs an expression, returning an Option.
