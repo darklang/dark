@@ -699,12 +699,12 @@ let run = () => {
       ~pos=3,
       ins("c"),
       "\"12c~3456789_abcdefghi,123456789_abcdefghi\n ," ++
-      "123456789_abcdefghi,123456789_abcdefghi\n ," ++ " 123456789_\"",
+      "123456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
     )
     t(
       "insert into middle string",
       mlStr,
-      ~pos=/* quote + 2 + newline */ 44,
+      ~pos=/* quote + 2 + newline + 1 */ 45,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 12c~3456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
@@ -712,7 +712,7 @@ let run = () => {
     t(
       "insert into end string",
       mlStr,
-      ~pos=/* quote + 2 + newline*2 */ 85,
+      ~pos=/* quote + 2 + (newline+1)*2 */ 87,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 12c~3456789_\"",
@@ -807,7 +807,7 @@ let run = () => {
     t(
       "insert start of middle string",
       mlStr,
-      ~pos=42,
+      ~pos=43,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " c~123456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
@@ -873,7 +873,7 @@ let run = () => {
     t(
       "insert end of start string",
       mlStr,
-      ~pos=42,
+      ~pos=43,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n c~" ++
       "123456789_abcdefghi,123456789_abcdefghi\n ," ++ "123456789_\"",
@@ -881,7 +881,7 @@ let run = () => {
     t(
       "insert end of middle string",
       mlStr,
-      ~pos=86,
+      ~pos=85,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n c~" ++ "123456789_\"",
@@ -889,7 +889,7 @@ let run = () => {
     t(
       "insert end of end string",
       mlStr,
-      ~pos=98,
+      ~pos=95,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_c~\"",
@@ -921,7 +921,7 @@ let run = () => {
     t(
       "insert end of indented end string",
       if'(str(mlSegment ++ mlSegment), b, b),
-      ~pos=88,
+      ~pos=89,
       ins("c"),
       "if \"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       "    123456789_abcdefghi,123456789_abcdefghi,\n" ++
@@ -978,7 +978,7 @@ let run = () => {
     t(
       "insert after end of end string",
       mlStr,
-      ~pos=94,
+      ~pos=96,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"~",
@@ -1003,7 +1003,7 @@ let run = () => {
     t(
       "final quote is swallowed",
       mlStr,
-      ~pos=93,
+      ~pos=95,
       ins("\""),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_\"~",
@@ -1075,7 +1075,7 @@ let run = () => {
       ~pos=46,
       ctrlRight,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
-      " 123456789_~ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"",
+      "  123456789_~ abcdefghi, 123456789_ abcdef\n" ++ " ghi,\"",
     )
     t(
       "ctrl+right at beg of end string moves to end",
