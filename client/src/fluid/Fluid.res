@@ -5357,16 +5357,6 @@ let tokensInRangeNormalized = (startPos, endPos, astInfo) =>
 let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
   FluidExpression.t,
 > => {
-  // a few helpers
-  let toBool_ = s =>
-    if s == "true" {
-      true
-    } else if s == "false" {
-      false
-    } else {
-      recover("string bool token should always be convertable to bool", ~debug=s, false)
-    }
-
   let findTokenValue = (tokens, tID, typeName) =>
     List.find(tokens, ~f=((tID', _, typeName')) =>
       tID == tID' && typeName == typeName'
@@ -5703,9 +5693,32 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
     | EMatch(_, cond, cases) =>
       let toksToPattern = (pattern, patternTokens) => {
         switch patternTokens {
+        // simple cases
+        | list{(id, _, "pattern-null")} => PNull(id)
         | list{(id, _, "pattern-blank")} => PBlank(id)
-        | list{(id, value, "pattern-integer")} => PInteger(id, Util.coerceStringTo64BitInt(value))
+        | list{(id, _, "pattern-true")} => PBool(id, true)
+        | list{(id, _, "pattern-false")} => PBool(id, false)
         | list{(id, value, "pattern-variable")} => PVariable(id, value)
+        | list{(id, value, "pattern-integer")} => PInteger(id, Util.coerceStringTo64BitInt(value))
+        | list{(id, value, "pattern-string")} => PString(id, Util.trimQuotes(value))
+
+        // floats
+        | list{
+            (id, whole, "pattern-float-whole"),
+            (_, _, "pattern-float-point"),
+            (_, fraction, "pattern-float-fractional"),
+          } =>
+          let (sign, whole) = Sign.split(whole)
+          PFloat(id, sign, whole, fraction)
+        | list{(id, value, "pattern-float-whole"), (_, _, "pattern-float-point")}
+        | list{(id, value, "pattern-float-whole")} =>
+          PInteger(id, Util.coerceStringTo64BitInt(value))
+        | list{(_, _, "pattern-float-point"), (id, value, "pattern-float-fractional")}
+        | list{(id, value, "pattern-float-fractional")} =>
+          PInteger(id, Util.coerceStringTo64BitInt(value))
+
+        // recursive patterns
+        // Note: impl. here is currently incomplete - see note below
         | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
           // Note: this assumes that PConstructor's sub-pattern tokens are always copied as well
           //
@@ -5725,28 +5738,17 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
             | _ => list{}
             },
           )
-        | list{(id, value, "pattern-string")} => PString(id, Util.trimQuotes(value))
-        | list{(id, value, "pattern-true")} | list{(id, value, "pattern-false")} =>
-          PBool(id, toBool_(value))
-        | list{(id, _, "pattern-null")} => PNull(id)
-        | list{
-            (id, whole, "pattern-float-whole"),
-            (_, _, "pattern-float-point"),
-            (_, fraction, "pattern-float-fractional"),
-          } =>
-          let (sign, whole) = Sign.split(whole)
-          PFloat(id, sign, whole, fraction)
-        | list{(id, value, "pattern-float-whole"), (_, _, "pattern-float-point")}
-        | list{(id, value, "pattern-float-whole")} =>
-          PInteger(id, Util.coerceStringTo64BitInt(value))
-        | list{(_, _, "pattern-float-point"), (id, value, "pattern-float-fractional")}
-        | list{(id, value, "pattern-float-fractional")} =>
-          PInteger(id, Util.coerceStringTo64BitInt(value))
 
         | list{(id, _value, "pattern-tuple-open"), ..._subPatternTokens} =>
           // TUPLETODO finish this. (it's for copy/paste, reconstruction)
           PTuple(id, PBlank(gid()), PBlank(gid()), list{})
-        | _ => PBlank(gid())
+
+        | _ =>
+          recover(
+            "toksToPattern not set up to handle token list",
+            ~debug=patternTokens,
+            PBlank(gid()),
+          )
         }
       }
 
