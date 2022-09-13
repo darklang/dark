@@ -1382,6 +1382,17 @@ let run = () => {
       (0, 21), // right after "Just"
       "match Just 123\n  Just *** -> ___\n",
     )
+
+    // CLEANUP this test fails because the impl. is incomplete
+    testCopy(
+      "copying a match expression including a full tuple pattern works",
+      match'(
+        tuple(int(1), str("two"), list{int(3)}),
+        list{(pTuple(pInt(1), pString("two"), list{pInt(3)}), str("success"))},
+      ),
+      (0, 44),
+      "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
+    )
     ()
   })
   describe("json", () => {
