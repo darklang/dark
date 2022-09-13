@@ -126,12 +126,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACPattern(FPABool(_)) => (list{}, "boolean literal")
   | FACKeyword(_) => (list{}, "keyword")
   | FACPattern(FPANull(_)) => (list{}, "null")
-  | FACPattern(FPATuple(_, first, second, theRest)) =>
-    let parts =
-      list{first, second, ...theRest}
-      |> List.map(~f=p => FluidPrinter.pToString(p))
-      |> List.join(~sep=",")
-    (list{}, `tuple (${parts})`)
+  | FACPattern(FPATuple(_)) => (list{}, `tuple (a, b)`)
   | FACCreateFunction(_) => (list{}, "")
   }
 
@@ -499,10 +494,10 @@ let generatePatterns = (
     if allowTuples {
       patternOrReplace(p =>
         switch p {
-        | FPATuple(id, PBlank(_), PBlank(_), list{}) => mid == id
+        | FPATuple(id) => mid == id
         | _ => false
         }
-      , FPATuple(mid, PBlank(gid()), PBlank(gid()), list{}))->Some
+      , FPATuple(mid))->Some
     } else {
       None
     }
