@@ -1371,6 +1371,15 @@ let run = () => {
       "match Just 123\n  Just 123 -> \"success\"\n",
     )
 
+    // CLEANUP this test fails because the impl. does not account for
+    // selections that exclude patterns within a `match` expr
+    testCopy(
+      "copying fewer than all cases in a match expression works",
+      match'(int(0), list{(pInt(123), str("first branch")), (pInt(456), str("second branch"))}),
+      (0, 30), // right after "Just"
+      "match 0\n  123 -> \"first branch\"\n",
+    )
+
     // CLEANUP this test fails because the impl. assumes we've selected the
     // subpatterns
     testCopy(
