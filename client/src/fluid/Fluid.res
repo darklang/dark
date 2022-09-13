@@ -5725,8 +5725,8 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         // i.e. if you highlight the following, starting at `match` and ending
         // after `Ok`, the "test" value is included in the reconstructed expr
         //
-        // «match Ok "test"
-        //    Ok» "test" -> 123
+        // «match Ok 1
+        //    Ok» "test" -> 999
         //
         // CLEANUP TUPLETODO we should instead use the subPatternTokens to
         // reconstruct the sub-patterns appropriately
