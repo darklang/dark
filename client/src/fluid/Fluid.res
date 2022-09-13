@@ -5719,12 +5719,8 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           | list{(id, value, "pattern-float-fractional")} =>
             PInteger(id, Util.coerceStringTo64BitInt(value))
 
-          | list{(id, value, "pattern-tuple-open"), ...subPatternTokens} =>
-            Debug.loG("at a patter-tuple-open and not sure what to do", ())
-            Debug.loG("value", value)
-            Debug.loG("subPatternTokens", subPatternTokens)
-
-            // TUPLETODO finish this. (it's for copy/paste, reconstruction, I believe.)
+          | list{(id, _value, "pattern-tuple-open"), ..._subPatternTokens} =>
+            // TUPLETODO finish this. (it's for copy/paste, reconstruction)
             PTuple(id, PBlank(gid()), PBlank(gid()), list{})
 
           | _ => PBlank(gid())
