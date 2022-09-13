@@ -5314,11 +5314,49 @@ let getExpressionRangeAtCaret = (astInfo: ASTInfo.t): option<(int, int)> =>
   })
   |> Option.map(~f=((eStartPos, eEndPos)) => (eStartPos, eEndPos))
 
+// simplify tokens to make them homogenous, easier to parse
+let tokensInRangeNormalized = (startPos, endPos, astInfo) =>
+  tokensInRange(startPos, endPos, astInfo) |> List.map(~f=(ti: T.tokenInfo) => {
+    let t = ti.token
+
+    let text =
+      // trim tokens if they're on the edge of the range
+      T.toText(t)
+      |> String.dropLeft(
+        ~count=if ti.startPos < startPos {
+          startPos - ti.startPos
+        } else {
+          0
+        },
+      )
+      |> String.dropRight(
+        ~count=if ti.endPos > endPos {
+          ti.endPos - endPos
+        } else {
+          0
+        },
+      )
+      |> (
+        text =>
+          // if string, do extra trim to account for quotes, then re-append quotes
+          if T.toTypeName(ti.token) == "string" {
+            "\"" ++ (Util.trimQuotes(text) ++ "\"")
+          } else {
+            text
+          }
+      )
+
+    open T
+    (tid(t), text, toTypeName(t))
+  })
+
+@ocaml.doc("Given the current selection, clone the selected expr
+
+  Aims to include only what's in the selection.
+  i.e. if you select `[1,|2,3,4|,5]`, the expr [2,3,4] will be the result.")
 let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
   FluidExpression.t,
 > => {
-  // prevent duplicates
-  let astInfo = ASTInfo.setAST(FluidAST.clone(astInfo.ast), astInfo)
   // a few helpers
   let toBool_ = s =>
     if s == "true" {
@@ -5334,10 +5372,13 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       tID == tID' && typeName == typeName'
     ) |> Option.map(~f=Tuple3.second)
 
+  // prevent duplicates
+  let astInfo = ASTInfo.setAST(FluidAST.clone(astInfo.ast), astInfo)
+
   let (startPos, endPos) = orderRangeFromSmallToBig(range)
   // main recursive algorithm
   // algo:
-  // - find topmost expression by ID and
+  // - find topmost expression by ID
   // - reconstruct full/subset of expression
   // - recurse into children (that remain in subset) to reconstruct those too
   let rec reconstruct = (~topmostID, (startPos, endPos)): option<E.t> => {
@@ -5346,39 +5387,11 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       |> Option.andThen(~f=id => FluidAST.find(id, astInfo.ast))
       |> Option.unwrap(~default=EBlank(gid()))
 
-    let tokens = // simplify tokens to make them homogenous, easier to parse
-    tokensInRange(startPos, endPos, astInfo) |> List.map(~f=(ti: T.tokenInfo) => {
-      let t = ti.token
-      let text =
-        // trim tokens if they're on the edge of the range
-        T.toText(t)
-        |> String.dropLeft(
-          ~count=if ti.startPos < startPos {
-            startPos - ti.startPos
-          } else {
-            0
-          },
-        )
-        |> String.dropRight(
-          ~count=if ti.endPos > endPos {
-            ti.endPos - endPos
-          } else {
-            0
-          },
-        )
-        |> (
-          text =>
-            // if string, do extra trim to account for quotes, then re-append quotes
-            if T.toTypeName(ti.token) == "string" {
-              "\"" ++ (Util.trimQuotes(text) ++ "\"")
-            } else {
-              text
-            }
-        )
+    let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
 
-      open T
-      (tid(t), text, toTypeName(t))
-    })
+    // It's intentional that we do not simply use the topmostExpr as-is:
+    // its internals may be outside of the selection range. So, we favor
+    // using `findTokenValue`
 
     // Reconstructs an expression, returning an Option.
     // If it's not within range of the selection, returns None.
@@ -5639,23 +5652,27 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       | list{fst, snd, ...tail} => Some(ETuple(id, fst, snd, tail))
       }
     | ERecord(id, entries) =>
-      let newEntries =
-        /* looping through original set of tokens (before transforming them into tuples)
-         * so we can get the index field */
-        tokensInRange(startPos, endPos, astInfo) |> List.filterMap(~f=(ti: T.tokenInfo) =>
-          switch ti.token {
-          | TRecordFieldname({recordID, index, fieldName: newKey, exprID: _, parentBlockID: _})
-            if recordID == id /* watch out for nested records */ =>
-            List.getAt(~index, entries) |> Option.map(
-              ~f=Tuple2.mapEach(
-                ~f=/* replace key */ _ => newKey,
-                ~g=\">>"(reconstructExpr, orDefaultExpr),
-                // reconstruct value expression
-              ),
-            )
-          | _ => None
-          }
-        )
+      // looping through original set of tokens (before transforming them into
+      // tuples) so we can get the index field
+      // TODO: consider using tokensInRangeNormalized here
+      let newEntries = tokensInRange(
+        startPos,
+        endPos,
+        astInfo,
+      ) |> List.filterMap(~f=(ti: T.tokenInfo) =>
+        switch ti.token {
+        | TRecordFieldname({recordID, index, fieldName: newKey, exprID: _, parentBlockID: _})
+          if recordID == id /* watch out for nested records */ =>
+          List.getAt(~index, entries) |> Option.map(
+            ~f=Tuple2.mapEach(
+              ~f=/* replace key */ _ => newKey,
+              ~g=\">>"(reconstructExpr, orDefaultExpr),
+              // reconstruct value expression
+            ),
+          )
+        | _ => None
+        }
+      )
 
       Some(ERecord(id, newEntries))
     | EPipe(_, e1, e2, exprs) =>
@@ -5683,15 +5700,24 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       } else {
         Some(e)
       }
-    | EMatch(_, cond, patternsAndExprs) =>
-      let newPatternAndExprs = List.map(patternsAndExprs, ~f=((pattern, expr)) => {
+    | EMatch(_, cond, cases) =>
+      let newCases = List.map(cases, ~f=((pattern, expr)) => {
         let toksToPattern = (tokens, pID) =>
           switch tokens |> List.filter(~f=((pID', _, _)) => pID == pID') {
           | list{(id, _, "pattern-blank")} => PBlank(id)
           | list{(id, value, "pattern-integer")} => PInteger(id, Util.coerceStringTo64BitInt(value))
           | list{(id, value, "pattern-variable")} => PVariable(id, value)
           | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
-            // temporarily assuming that PConstructor's sub-pattern tokens are always copied as well
+            // Note: this assumes that PConstructor's sub-pattern tokens are always copied as well
+            //
+            // i.e. if you highlight the following, starting at `match`` and
+            // ending after `Ok`, the "test" value is included in the reconstructed expr
+            //
+            // «match Ok "test"
+            //    Ok» "test" ->
+            //
+            // CLEANUP rethink this decision - we should likely instead use the
+            // subPatternTokens, excluding whatever is outside the selection
             PConstructor(
               id,
               value,
@@ -5730,7 +5756,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         (newPattern, reconstructExpr(expr) |> orDefaultExpr)
       })
 
-      Some(EMatch(id, reconstructExpr(cond) |> orDefaultExpr, newPatternAndExprs))
+      Some(EMatch(id, reconstructExpr(cond) |> orDefaultExpr, newCases))
     | EFeatureFlag(_, name, cond, disabled, enabled) =>
       // since we don't have any tokens associated with feature flags yet
       Some(
