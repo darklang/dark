@@ -5692,6 +5692,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       }
     | EMatch(_, cond, cases) =>
       let toksToPattern = (pattern, patternTokens) => {
+        // TODO: should we really be re-using these IDs?
         switch patternTokens {
         // simple cases
         | list{(id, _, "pattern-null")} => PNull(id)
@@ -5718,18 +5719,18 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           PInteger(id, Util.coerceStringTo64BitInt(value))
 
         // recursive patterns
-        // Note: impl. here is currently incomplete - see note below
+        // Note: this assumes that PConstructor's and PTuple's sub-pattern
+        // tokens are always selected as well
+        //
+        // i.e. if you highlight the following, starting at `match` and ending
+        // after `Ok`, the "test" value is included in the reconstructed expr
+        //
+        // «match Ok "test"
+        //    Ok» "test" -> 123
+        //
+        // CLEANUP TUPLETODO we should instead use the subPatternTokens to
+        // reconstruct the sub-patterns appropriately
         | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
-          // Note: this assumes that PConstructor's sub-pattern tokens are always copied as well
-          //
-          // i.e. if you highlight the following, starting at `match`` and
-          // ending after `Ok`, the "test" value is included in the reconstructed expr
-          //
-          // «match Ok "test"
-          //    Ok» "test" ->
-          //
-          // CLEANUP rethink this decision - we should likely instead use the
-          // subPatternTokens, excluding whatever is outside the selection
           PConstructor(
             id,
             value,
@@ -5738,11 +5739,12 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
             | _ => list{}
             },
           )
-
         | list{(id, _value, "pattern-tuple-open"), ..._subPatternTokens} =>
-          // TUPLETODO finish this. (it's for copy/paste, reconstruction)
-          PTuple(id, PBlank(gid()), PBlank(gid()), list{})
-
+          switch pattern {
+          | PTuple(_, first, second, theRest) =>
+            PTuple(id, P.clone(first), P.clone(second), List.map(~f=P.clone, theRest))
+          | _ => PTuple(id, PBlank(gid()), PBlank(gid()), list{})
+          }
         | _ =>
           recover(
             "toksToPattern not set up to handle token list",

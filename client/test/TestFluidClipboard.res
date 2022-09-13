@@ -1389,7 +1389,6 @@ let run = () => {
       "match Just 123\n  Just *** -> ___\n",
     )
 
-    // CLEANUP this test fails because the impl. is incomplete
     testCopy(
       "copying a match expression including a full tuple pattern works",
       match'(
