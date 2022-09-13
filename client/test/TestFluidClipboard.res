@@ -1348,10 +1348,42 @@ let run = () => {
     )
     ()
   })
-  describe("Match", () =>
-    // TODO: test match statements, implementation is slightly inconsistent
+  describe("Match", () => {
+    testCopy(
+      "copying a blank match expression works",
+      match'(blank(), list{(pBlank(), blank())}),
+      (0, 22),
+      "match ___\n  *** -> ___\n",
+    )
+    testCopy(
+      "copying a match expression with a single integer pattern works",
+      match'(int(123), list{(pInt(123), str("success"))}),
+      (0, 27),
+      "match 123\n  123 -> \"success\"\n",
+    )
+    testCopy(
+      "copying a match expression with a full constructor pattern works",
+      match'(
+        constructor("Just", list{int(123)}),
+        list{(pConstructor("Just", list{pInt(123)}), str("success"))},
+      ),
+      (0, 37),
+      "match Just 123\n  Just 123 -> \"success\"\n",
+    )
+
+    // CLEANUP this test fails because the impl. assumes we've selected the
+    // subpatterns
+    testCopy(
+      "copying a match expression with a partial constructor pattern works",
+      match'(
+        constructor("Just", list{int(123)}),
+        list{(pConstructor("Just", list{pInt(123)}), str("success"))},
+      ),
+      (0, 21), // right after "Just"
+      "match Just 123\n  Just *** -> ___\n",
+    )
     ()
-  )
+  })
   describe("json", () => {
     testPasteText("pasting a json int makes an int", b, (0, 0), "6", "6~")
     testPasteText("pasting a json float makes a float", b, (0, 0), "6.6", "6.6~")
