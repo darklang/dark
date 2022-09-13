@@ -1398,6 +1398,18 @@ let run = () => {
       (0, 44),
       "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
     )
+
+    // CLEANUP this test fails because the impl. assumes we've selected the
+    // subpatterns
+    testCopy(
+      "copying a match expression including part of a tuple pattern works",
+      match'(
+        tuple(int(1), str("two"), list{int(3)}),
+        list{(pTuple(pInt(1), pString("two"), list{pInt(3)}), str("success"))},
+      ),
+      (0, 29), // ending just before the '3' in the pattern
+      "match (1,\"two\",3)\n  (1,\"two\",***) -> ___\n",
+    )
     ()
   })
   describe("json", () => {
