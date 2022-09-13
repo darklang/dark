@@ -5701,59 +5701,71 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         Some(e)
       }
     | EMatch(_, cond, cases) =>
-      let newCases = List.map(cases, ~f=((pattern, expr)) => {
-        let toksToPattern = (tokens, pID) =>
-          switch tokens |> List.filter(~f=((pID', _, _)) => pID == pID') {
-          | list{(id, _, "pattern-blank")} => PBlank(id)
-          | list{(id, value, "pattern-integer")} => PInteger(id, Util.coerceStringTo64BitInt(value))
-          | list{(id, value, "pattern-variable")} => PVariable(id, value)
-          | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
-            // Note: this assumes that PConstructor's sub-pattern tokens are always copied as well
-            //
-            // i.e. if you highlight the following, starting at `match`` and
-            // ending after `Ok`, the "test" value is included in the reconstructed expr
-            //
-            // «match Ok "test"
-            //    Ok» "test" ->
-            //
-            // CLEANUP rethink this decision - we should likely instead use the
-            // subPatternTokens, excluding whatever is outside the selection
-            PConstructor(
-              id,
-              value,
-              switch pattern {
-              | PConstructor(_, _, ps) => ps
-              | _ => list{}
-              },
-            )
-          | list{(id, value, "pattern-string")} => PString(id, Util.trimQuotes(value))
-          | list{(id, value, "pattern-true")} | list{(id, value, "pattern-false")} =>
-            PBool(id, toBool_(value))
-          | list{(id, _, "pattern-null")} => PNull(id)
+      let toksToPattern = (pattern, patternTokens) => {
+        switch patternTokens {
+        | list{(id, _, "pattern-blank")} => PBlank(id)
+        | list{(id, value, "pattern-integer")} => PInteger(id, Util.coerceStringTo64BitInt(value))
+        | list{(id, value, "pattern-variable")} => PVariable(id, value)
+        | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
+          // Note: this assumes that PConstructor's sub-pattern tokens are always copied as well
+          //
+          // i.e. if you highlight the following, starting at `match`` and
+          // ending after `Ok`, the "test" value is included in the reconstructed expr
+          //
+          // «match Ok "test"
+          //    Ok» "test" ->
+          //
+          // CLEANUP rethink this decision - we should likely instead use the
+          // subPatternTokens, excluding whatever is outside the selection
+          PConstructor(
+            id,
+            value,
+            switch pattern {
+            | PConstructor(_, _, ps) => ps
+            | _ => list{}
+            },
+          )
+        | list{(id, value, "pattern-string")} => PString(id, Util.trimQuotes(value))
+        | list{(id, value, "pattern-true")} | list{(id, value, "pattern-false")} =>
+          PBool(id, toBool_(value))
+        | list{(id, _, "pattern-null")} => PNull(id)
+        | list{
+            (id, whole, "pattern-float-whole"),
+            (_, _, "pattern-float-point"),
+            (_, fraction, "pattern-float-fractional"),
+          } =>
+          let (sign, whole) = Sign.split(whole)
+          PFloat(id, sign, whole, fraction)
+        | list{(id, value, "pattern-float-whole"), (_, _, "pattern-float-point")}
+        | list{(id, value, "pattern-float-whole")} =>
+          PInteger(id, Util.coerceStringTo64BitInt(value))
+        | list{(_, _, "pattern-float-point"), (id, value, "pattern-float-fractional")}
+        | list{(id, value, "pattern-float-fractional")} =>
+          PInteger(id, Util.coerceStringTo64BitInt(value))
 
-          | list{
-              (id, whole, "pattern-float-whole"),
-              (_, _, "pattern-float-point"),
-              (_, fraction, "pattern-float-fractional"),
-            } =>
-            let (sign, whole) = Sign.split(whole)
-            PFloat(id, sign, whole, fraction)
-          | list{(id, value, "pattern-float-whole"), (_, _, "pattern-float-point")}
-          | list{(id, value, "pattern-float-whole")} =>
-            PInteger(id, Util.coerceStringTo64BitInt(value))
-          | list{(_, _, "pattern-float-point"), (id, value, "pattern-float-fractional")}
-          | list{(id, value, "pattern-float-fractional")} =>
-            PInteger(id, Util.coerceStringTo64BitInt(value))
+        | list{(id, _value, "pattern-tuple-open"), ..._subPatternTokens} =>
+          // TUPLETODO finish this. (it's for copy/paste, reconstruction)
+          PTuple(id, PBlank(gid()), PBlank(gid()), list{})
+        | _ => PBlank(gid())
+        }
+      }
 
-          | list{(id, _value, "pattern-tuple-open"), ..._subPatternTokens} =>
-            // TUPLETODO finish this. (it's for copy/paste, reconstruction)
-            PTuple(id, PBlank(gid()), PBlank(gid()), list{})
+      // new (pattern, expr) pairs for the new `match`
+      let newCases = List.filterMap(cases, ~f=((pattern, expr)) => {
+        let isPartOfPattern = ((pID', _, _)) => pID' == P.toID(pattern)
 
-          | _ => PBlank(gid())
-          }
+        // note: this maintains order, so the first token of a pattern is first
+        // TODO: it'd be ideal to have context of the tokens _in_ the pattern
+        // as well - not just the pattern tokens themselves.
+        let patternTokens = tokens |> List.filter(~f=isPartOfPattern)
 
-        let newPattern = toksToPattern(tokens, P.toID(pattern))
-        (newPattern, reconstructExpr(expr) |> orDefaultExpr)
+        switch patternTokens {
+        | list{} => None // don't reconstruct `match` pattern entirely out of selection
+        | patternTokens =>
+          let newPattern = toksToPattern(pattern, patternTokens)
+          let newExpr = reconstructExpr(expr) |> orDefaultExpr
+          Some(newPattern, newExpr)
+        }
       })
 
       Some(EMatch(id, reconstructExpr(cond) |> orDefaultExpr, newCases))
