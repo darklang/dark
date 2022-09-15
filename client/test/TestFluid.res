@@ -506,7 +506,7 @@ let t = (
     (if ff {
       " in FF "
     } else {
-      ""
+      " no FF "
     } ++
     (" - `" ++
     ((Printer.eToTestString(expr) |> Regex.replace(~re=Regex.regex("\n"), ~repl=" ")) ++
@@ -5274,7 +5274,7 @@ let run = () => {
   describe("Line-based Deletion", () => {
     t(
       "DeleteSoftLineBackward with selection deletes just the selection",
-      ~sel=(66, 114),
+      ~sel=(66, 115),
       {
         let veryLongString = "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
 
@@ -5288,7 +5288,7 @@ let run = () => {
     )
     t(
       "DeleteSoftLineForward with selection deletes just the selection",
-      ~sel=(66, 114),
+      ~sel=(66, 115),
       {
         let veryLongString = "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
 
@@ -5326,7 +5326,7 @@ let run = () => {
       },
       ~pos=66,
       inputs(list{DeleteSoftLineForward}),
-      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n            STUVWXYZ1234567890abcdefghijklmnopqrstuv\n           wxyz\"\n  }\n  {}\n  {}",
+      "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n            STUVWXYZ1234567890abcdefghijklmnopqrstuv\n            wxyz\"\n  }\n  {}\n  {}",
     )
     t(
       "DeleteSoftLineBackward deletes up to line start at the end of a wrapping string",
@@ -5338,7 +5338,7 @@ let run = () => {
           list{emptyStr, record(list{("data", str(veryLongString))}), emptyRecord, emptyRecord},
         )
       },
-      ~pos=163,
+      ~pos=165,
       inputs(list{DeleteSoftLineBackward}),
       "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n            EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}",
     )
