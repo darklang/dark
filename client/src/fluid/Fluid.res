@@ -463,7 +463,7 @@ let rec getNextEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
     isEditable && ti.startPos > pos
   })
   |> Option.orElseLazy(() =>
-    if pos == 0 {
+    if pos <= 0 {
       None
     } else {
       getNextEditable(-1, astInfo)
@@ -504,7 +504,7 @@ let getPrevEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> => {
       | None => 0
       }
 
-      if pos == lastPos {
+      if pos >= lastPos {
         None
       } else {
         findEditable(lastPos + 1)
