@@ -3628,10 +3628,17 @@ let doExplicitInsert = (
       let str = oldStr |> mutation |> String.trim
       if String.startsWith(~prefix="\"", str) && String.endsWith(~suffix="\"", str) {
         let newID = gid()
-        Some(
-          EString(newID, String.slice(~from=1, ~to_=-1, str)),
-          CT.forARStringOpenQuote(newID, currOffset + caretDelta),
-        )
+        let newStr = String.slice(~from=1, ~to_=-1, str)
+        if currOffset == 0 {
+          Some(EString(newID, newStr), CT.forARStringOpenQuote(newID, 1))
+        } else if currOffset == String.length(oldStr) {
+          Some(EString(newID, newStr), CT.forARStringCloseQuote(newID, 1))
+        } else {
+          Some(
+            EString(newID, newStr),
+            CT.forARStringBody(newID, currOffset - 1 + caretDelta, newStr),
+          )
+        }
       } else {
         Some(EPartial(id, str, oldExpr), currCTPlusLen)
       }
