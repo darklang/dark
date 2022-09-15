@@ -893,7 +893,6 @@ let moveToCaretTarget = (ct: CT.t, astInfo: ASTInfo.t) => {
   * identifies each pos.  ")
 let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   let offset = pos - ti.startPos
-  Debug.loG("caretTargetFromTokenInfo call", (pos, ti, offset))
   switch ti.token {
   | TString(id, str, _) => Some(CT.forARStringBody(id, offset, str))
   | TStringOpenQuote(id, _) => Some(CT.forARStringOpenQuote(id, offset))
@@ -982,7 +981,7 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TParenOpen(_)
   | TParenClose(_) =>
     None
-  } |> Debug.log("caretTargetFromTokenInfo result")
+  }
 }
 
 let caretTargetForNextNonWhitespaceToken = (~pos, tokens: tokenInfos): option<CT.t> => {

@@ -1141,7 +1141,7 @@ let run = () => {
     t(
       "Replace text in multiline string if text is inserted with selection",
       mlStrWSpace,
-      ~sel=(1, 72),
+      ~sel=(1, 73),
       inputs(list{InsertText("a")}),
       "\"a~89_ abcdefghi,\"",
     )
