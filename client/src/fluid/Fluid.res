@@ -456,6 +456,7 @@ let rec getNextEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> =>
   |> List.find(~f=(ti: T.tokenInfo) => {
     let isEditable = // Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination
     switch ti.token {
+    | TStringOpenQuote(_) => true
     | TStringML(_) | TFnVersion(_) => false
     | _ => T.isTextToken(ti.token)
     }
@@ -493,6 +494,7 @@ let getPrevEditable = (pos: int, astInfo: ASTInfo.t): option<T.tokenInfo> => {
       // the caret in the right place in the token combination
       let isEditable = switch ti.token {
       | TStringML(_) | TFnName(_) => false
+      | TStringCloseQuote(_) => true
       | _ => T.isTextToken(ti.token)
       }
 
