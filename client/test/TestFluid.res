@@ -889,7 +889,7 @@ let run = () => {
     t(
       "insert end of end string",
       mlStr,
-      ~pos=97,
+      ~pos=95,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       " 123456789_abcdefghi,123456789_abcdefghi,\n" ++ " 123456789_c~\"",
@@ -1972,14 +1972,14 @@ let run = () => {
       "reflows work for functions with long strings",
       fn(~mod="HttpClient", "post", ~version=4, list{str(string160), b, b, b}),
       render,
-      "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________",
+      "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n   0123456789abcdefghij0123456789abcdefghij\n   0123456789abcdefghij0123456789abcdefghij\n   0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________",
     )
     t(
       ~expectsPartial=true,
-      "reflows work for partials too ",
+      "reflows work for partials too",
       partial("TEST", fn(~mod="HttpClient", "post", ~version=4, list{str(string160), b, b, b})),
       render,
-      "~TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________",
+      "~TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n   0123456789abcdefghij0123456789abcdefghij\n   0123456789abcdefghij0123456789abcdefghij\n   0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________",
     )
     t(
       "reflows happen for functions whose arguments have newlines",
