@@ -647,13 +647,6 @@ let run = () => {
       "\"~me string\"",
     )
     t(
-      "DeleteWordForward at end of last word in string moves cursor outside string",
-      aStr,
-      ~pos=12,
-      inputs(list{DeleteWordForward}),
-      "\"some string\"~",
-    )
-    t(
       "DeleteWordForward at beg of last word in string should delete last word",
       aStr,
       ~pos=6,
