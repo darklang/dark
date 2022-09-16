@@ -506,25 +506,6 @@ let isFieldPartial = (t: t): bool =>
   | _ => false
   }
 
-let isMultilineString = (t: FluidTypes.Token.t): bool =>
-  switch t {
-  // TODO: do we need to differentiate between quotes for regular and multiline strings?"
-  | TStringML(_) => true
-  | _ => false
-  }
-
-let isListSymbol = (t: FluidTypes.Token.t): bool =>
-  switch t {
-  | TListOpen(_) | TListClose(_) | TListComma(_) => true
-  | _ => false
-  }
-
-let isTupleSymbol = (t: FluidTypes.Token.t): bool =>
-  switch t {
-  | TTupleOpen(_) | TTupleClose(_) | TTupleComma(_) => true
-  | _ => false
-  }
-
 let toText = (t: t): string => {
   let shouldntBeEmpty = name => {
     if name == "" {
