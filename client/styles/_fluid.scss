@@ -300,8 +300,10 @@ $ff-color: adjust-hue($purple, -40deg);
     color: $string-color;
   }
 
-  .fluid-string-ml-end, .fluid-string-ml-middle, .fluid-string-ml-start {
-    background-color: #462d4c17;
+  .fluid-string-ml,
+  .fluid-string,
+  .fluid-pattern-string {
+    background-color: #462d4c31;
   }
 
   // Part of the same problem, making space for it.
