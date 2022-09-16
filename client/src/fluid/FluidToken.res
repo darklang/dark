@@ -569,8 +569,8 @@ let toText = (t: t): string => {
   | TFieldOp(_) => "."
   | TFieldPartial(_, _, _, name, _) => canBeEmpty(name)
   | TFieldName(_, _, name, _) =>
-    /* Although we typically use TFieldPartial for empty fields, when
-     * there's a new field we won't have a fieldname for it. */
+    // Although we typically use TFieldPartial for empty fields, when
+    // there's a new field we won't have a fieldname for it
     canBeEmpty(name)
   | TVariable(_, name, _) => canBeEmpty(name)
   | TFnName(_, _, displayName, _, _) | TFnVersion(_, _, displayName, _) =>
@@ -580,8 +580,7 @@ let toText = (t: t): string => {
   | TLambdaComma(_) => ","
   | TLambdaArrow(_) => " -> "
   | TIndent(indent) => shouldntBeEmpty(Caml.String.make(indent, ' '))
-  /* We dont want this to be transparent, so have these make their presence
-   * known */
+  // We dont want this to be transparent, so have these make their presence known
   | TListOpen(_) => "["
   | TListClose(_) => "]"
   | TListComma(_, _) => ","
@@ -633,7 +632,7 @@ let toTestText = (t: t): string => {
     | _ =>
       let str = str |> String.dropLeft(~count=1) |> String.dropRight(~count=1)
 
-      "@" ++ (str ++ "@")
+      "@" ++ str ++ "@"
     }
   | _ =>
     if isBlank(t) {
@@ -691,6 +690,8 @@ let toParentID = (t: t): option<id> =>
   | _ => None
   }
 
+// These strings are used as part of reconstruction for pasting, so any change needs to
+// be handled over there as well
 let toTypeName = (t: t): string =>
   switch t {
   | TInteger(_) => "integer"

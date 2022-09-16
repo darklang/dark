@@ -1942,7 +1942,7 @@ let run = () => {
       "DB::ge~@Allv@ ___________________",
     )
     t(
-      "DeleteWordForward in end of function version moves cursor to end of blank ",
+      "DeleteWordForward in end of function version moves cursor to end of blank",
       aFnCallWithVersion,
       ~pos=12,
       inputs(list{DeleteWordForward}),
@@ -2555,7 +2555,7 @@ let run = () => {
     t("ctrl+left mid constructor moves to beg", aConstructor, ~pos=2, ctrlLeft, "~Just ___")
     t("ctrl+left mid constructor moves to end", aConstructor, ~pos=2, ctrlRight, "Just~ ___")
     t(
-      "DeleteWordBackward at end of constructor deletes to beg ",
+      "DeleteWordBackward at end of constructor deletes to beg",
       aConstructor,
       ~pos=4,
       inputs(list{DeleteWordBackward}),
@@ -2563,14 +2563,14 @@ let run = () => {
     )
     t(
       ~expectsPartial=true,
-      "DeleteWordBackward mid constructor deletes to beg ",
+      "DeleteWordBackward mid constructor deletes to beg",
       aConstructor,
       ~pos=2,
       inputs(list{DeleteWordBackward}),
       "~st@@ ___",
     )
     t(
-      "DeleteWordForward at end of constructor moves to blank ",
+      "DeleteWordForward at end of constructor moves to blank",
       aConstructor,
       ~pos=4,
       inputs(list{DeleteWordForward}),

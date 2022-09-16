@@ -4583,19 +4583,24 @@ let rec updateKey = (
   | (DeleteContentForward, _, R(_, ti)) => doDelete(~pos, ti, astInfo)
   | (DeleteSoftLineBackward, _, R(_, ti))
   | (DeleteSoftLineBackward, L(_, ti), _) =>
-    /* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
-           The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
-           For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
-           K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. */
+    // The behavior of this action is not well specified -- every editor we've seen
+    // has slightly different behavior.  The behavior we use here is: if there is a
+    // selection, delete it instead of deleting to start of line (like XCode but not
+    // VSCode).  For expedience, delete to the visual start of line rather than the
+    // "real" start of line. This is symmetric with K.DeleteToEndOfLine but does not
+    // match any code editors we've seen. It does match many non-code text editors.
     switch getOptionalSelectionRange(astInfo.state) {
     | Some(selRange) => deleteCaretRange(props, selRange, astInfo)
     | None => deleteCaretRange(props, (pos, getStartOfLineCaretPos(ti, astInfo)), astInfo)
     }
   | (DeleteSoftLineForward, _, R(_, ti)) | (DeleteSoftLineForward, L(_, ti), _) =>
-    /* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
-           The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
-           For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
-           This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. */
+    // The behavior of this action is not well specified -- every editor we've seen
+    // has slightly different behavior.  The behavior we use here is: if there is a
+    // selection, delete it instead of deleting to end of line (like XCode and
+    // VSCode).  For expedience, in the presence of wrapping, delete to the visual
+    // end of line rather than the "real" end of line.  This matches the behavior of
+    // XCode and VSCode. Most standard non-code text editors do not implement this
+    // command.
     switch getOptionalSelectionRange(astInfo.state) {
     | Some(selRange) => deleteCaretRange(props, selRange, astInfo)
     | None => deleteCaretRange(props, (pos, getEndOfLineCaretPos(ti, astInfo)), astInfo)
