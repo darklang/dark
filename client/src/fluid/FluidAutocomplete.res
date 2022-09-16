@@ -510,8 +510,7 @@ let generatePatterns = (
       list{"", "Just", "Nothing", "Ok", "Error", "true", "false", "null"},
     )
 
-    let firstCharacterIsCapitalized =
-      String.dropRight(~count=String.length(queryString) - 1, queryString) |> String.isCapitalized
+    let firstCharacterIsCapitalized = String.left(~count=1, queryString) |> String.isCapitalized
 
     // if the query is empty, or equals a standard constructor or boolean name,
     // or starts with a capital letter (invalid variable name), don't return
