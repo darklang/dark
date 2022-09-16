@@ -158,6 +158,7 @@ let run = () => {
 
   let t = (
     ~pos=0,
+    ~debug=false,
     name: string,
     pat: fluidPattern,
     fn: TestCase.t => TestResult.t,
@@ -168,7 +169,7 @@ let run = () => {
       (" - `" ++
       ((pToString(pat) |> Regex.replace(~re=Regex.regex("\n"), ~repl=" ")) ++ "`"))
 
-    let case = TestCase.init(~pos, pat)
+    let case = TestCase.init(~pos, ~debug, pat)
 
     test(testName, () => expect(fn(case)) |> toEqual(expected))
   }
