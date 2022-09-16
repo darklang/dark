@@ -690,7 +690,6 @@ let run = () => {
     )
     t("insert square bracket in string goes in string", aStr, ~pos=3, ins("["), "\"so[~me string\"")
     t("insert square bracket outside string wraps", aStr, ~pos=0, ins("["), "[~\"some string\"]")
-    ()
   })
   describe("Multi-line Strings", () => {
     t(
@@ -1145,7 +1144,6 @@ let run = () => {
       inputs(list{InsertText("a")}),
       "\"a~89_ abcdefghi,\"",
     )
-    ()
   })
   describe("Integers", () => {
     t("insert 0 at front ", anInt, ins("0"), "~12345")
@@ -1217,7 +1215,6 @@ let run = () => {
       inputs(list{InsertText("4")}),
       "4~5",
     )
-    ()
   })
   describe("Floats", () => {
     t("insert . converts to float - end", anInt, ~pos=5, ins("."), "12345.~")
@@ -1343,7 +1340,6 @@ let run = () => {
       inputs(list{InsertText("4")}),
       "14~6",
     )
-    ()
   })
   describe("Bools", () => {
     t("insert start of true is no-op", ~pos=0, bool(true), ins("c"), "~true")
@@ -1450,7 +1446,6 @@ let run = () => {
       inputs(list{DeleteWordForward}),
       "fal~",
     )
-    ()
   })
   describe("Nulls", () => {
     // tStruct(
@@ -1505,7 +1500,6 @@ let run = () => {
       inputs(list{DeleteWordForward}),
       "nu~",
     )
-    ()
   })
   describe("Blanks", () => {
     t("insert middle of blank->string", b, ~pos=3, ins("\""), "\"~\"")
@@ -1550,7 +1544,6 @@ let run = () => {
       inputs(list{DeleteWordForward}),
       "___~",
     )
-    ()
   })
   describe("Fields", () => {
     t(~expectsPartial=true, "insert middle of fieldname", aField, ~pos=5, ins("c"), "obj.fc~ield")
@@ -1723,7 +1716,6 @@ let run = () => {
       keys(list{K.Left, K.Left}),
       "v~.u",
     )
-    ()
   })
   describe("Functions", () => {
     t(
@@ -2062,7 +2054,6 @@ let run = () => {
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
       "~___",
     )
-    ()
   })
   describe("Binops", () => {
     t(~expectsPartial=true, "pipe key starts partial", trueBool, ~pos=4, ins("|"), "true |~")
@@ -2534,7 +2525,6 @@ let run = () => {
       inputs(list{InsertText("a")}),
       "\"fia~x\"",
     )
-    ()
   })
   describe("Constructors", () => {
     t(
@@ -2608,7 +2598,6 @@ let run = () => {
      * hence, unlikely that anyone will rename them this way.
      * Also, the names of the temporary variables used to store the old arguments of a changed
      * constructor are randomly generated and would be hard to test */
-    ()
   })
   describe("Lambdas", () => {
     // type -> to move through a lambda
@@ -2798,7 +2787,6 @@ let run = () => {
     t("ctrl+right from beg of variable moves to end", aVar, ~pos=0, ctrlRight, "variable~")
     t("ctrl+left from end of variable moves to beg", aVar, ~pos=8, ctrlLeft, "~variable")
     t("ctrl+right from end of variable doesnt move", aVar, ~pos=8, ctrlRight, "variable~")
-    ()
   })
   describe("Match", () => {
     t(
@@ -3051,7 +3039,6 @@ let run = () => {
       "match ___\n  *** -> ___~\n",
     )
     // delete row with delete
-    ()
   })
   describe("Lets", () => {
     t(
@@ -3282,7 +3269,6 @@ let run = () => {
       "Int::add\n  {\n    *** : 5\n  }\n  ~6",
     )
     t("enter at the start of ast also creates let", anInt, ~pos=0, enter, "let *** = ___\n~12345")
-    ()
   })
   describe("Pipes", () => {
     // TODO: add tests for clicking in the middle of a pipe (or blank)
@@ -3641,7 +3627,6 @@ let run = () => {
     // TODO: test for prefix fns
     // TODO: test for deleting pipeed infix fns
     // TODO: test for deleting pipeed prefix fns
-    ()
   })
   describe("Ifs", () => {
     t("move over indent 1", plainIf, ~pos=12, key(K.Left), "if 5\nthen~\n  6\nelse\n  7")
@@ -3771,7 +3756,6 @@ let run = () => {
       space,
       "let x = 5\nif x~\nthen\n  ___\nelse\n  ___",
     )
-    ()
   })
   describe("Lists", () => {
     t("create list", b, ~pos=0, ins("["), "[~]")
@@ -4030,7 +4014,6 @@ let run = () => {
       del,
       "[~]",
     )
-    ()
   })
 
   describe("Tuples", () => {
@@ -4069,7 +4052,6 @@ let run = () => {
         render,
         "~let a = (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78)\n___",
       )
-      ()
     })
     describe("navigate", () => {
       t(
@@ -4086,14 +4068,12 @@ let run = () => {
         ctrlRight,
         "(56,78,56,78,56~,78)",
       )
-      ()
     })
 
     if defaultTestProps.settings.allowTuples {
       describe("create", () => {
         t("create tuple", b, ~pos=0, ins("("), "(~___,___)")
         t("create and fill in tuple", b, ~pos=0, insMany(list{"(", "1", ",", "2", ")"}), "(1,2)~")
-        ()
       })
     }
     describe("insert", () => {
@@ -4206,7 +4186,6 @@ let run = () => {
         ins(")"),
         "(56,78)~",
       )
-      ()
     })
 
     describe("delete", () => {
@@ -4535,9 +4514,7 @@ let run = () => {
         bs,
         "(___,___,___~)", // I could see this instead turning into `~___`
       )
-      ()
     })
-    ()
   })
 
   describe("Records", () => {
@@ -4758,7 +4735,6 @@ let run = () => {
       inputs(list{InsertText("a")}),
       "{\n  f1 : 5~\n}",
     )
-    ()
   })
   describe("Autocomplete", () => {
     // Note that many of these autocomplete tests use ~clone:false
@@ -5077,7 +5053,6 @@ let run = () => {
     // ("match request.body", 18) ;
     // test "backspacing on variable reopens autocomplete" (fun () ->
     // expect (bs (EVariable (5, "request"))).
-    ()
   })
   describe("Movement", () => {
     let s = defaultTestState
@@ -5141,7 +5116,6 @@ let run = () => {
       test("down into indented row goes to first token", () =>
         expect(astInfo |> doDown(~pos=109) |> (({state, _}) => state.newPos)) |> toEqual(114)
       )
-      ()
     })
     t(
       "enter at the end of a line goes to first non-whitespace token",
@@ -5269,7 +5243,6 @@ let run = () => {
         |> (astInfo => astInfo.state.ac.index),
       ) |> toEqual(None)
     })
-    ()
   })
   describe("Line-based Deletion", () => {
     t(
@@ -5342,7 +5315,6 @@ let run = () => {
       inputs(list{DeleteSoftLineBackward}),
       "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n            EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}",
     )
-    ()
   })
   describe("Selection Movement", () => {
     t(
@@ -5507,7 +5479,6 @@ let run = () => {
       inputs(list{InsertText("a")}),
       "let firsta~ = \"PQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"",
     )
-    ()
   })
   describe("Neighbours", () => {
     test("with empty AST, have left neighbour", () => {
@@ -5536,7 +5507,6 @@ let run = () => {
       let tokens = tokenize(ast)
       expect(getNeighbours(~pos=3, tokens)) |> toEqual((L(token, ti), R(token, ti), Some(nextTI)))
     })
-    ()
   })
   describe("Tabs", () => {
     t("tab goes to first block in a let", emptyLet, key(K.Tab), "let ~*** = ___\n5")
@@ -5668,7 +5638,6 @@ let run = () => {
       shiftTab,
       "DB::getAllv1 ~___________________",
     )
-    ()
   })
   // Disable string escaping for now
   // describe "String escaping" (fun () -> ()) ;
@@ -5729,7 +5698,6 @@ let run = () => {
     inputs(list{InsertText("f"), DeleteContentBackward}),
     "so\\~me string",
   )
-  ()
   describe("Feature Flags", () =>
     t(
       ~brokenInFF=true,
