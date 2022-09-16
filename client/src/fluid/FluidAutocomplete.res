@@ -81,6 +81,7 @@ let asName = (aci: item): string =>
     }
   | FACPattern(p) =>
     switch p {
+    | FPABlank(_) => "blank"
     | FPAVariable(_, name) | FPAConstructor(_, name, _) => name
     | FPABool(_, v) => string_of_bool(v)
     | FPANull(_) => "null"
@@ -127,6 +128,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACKeyword(_) => (list{}, "keyword")
   | FACPattern(FPANull(_)) => (list{}, "null")
   | FACPattern(FPATuple(_)) => (list{}, `tuple (a, b)`)
+  | FACPattern(FPABlank(_)) => (list{}, `blank ___`)
   | FACCreateFunction(_) => (list{}, "")
   }
 
@@ -826,6 +828,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
     | FPABool(_, b) => documentationForItem({item: FACLiteral(LBool(b)), validity: validity})
     | FPANull(_) => simpleDoc("A 'null' literal")
     | FPATuple(_) => simpleDoc("A tuple containing several sub-patterns")
+    | FPABlank(_) => simpleDoc("A blank pattern")
     }
   | FACCreateFunction(_) => None
   }

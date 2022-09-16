@@ -170,6 +170,7 @@ module TokenInfo = {
 module AutoComplete = {
   @ppx.deriving(show({with_path: false}))
   type rec patternItem =
+    | FPABlank(ID.t)
     | FPAVariable(ID.t, string)
     | FPAConstructor(ID.t, string, list<ProgramTypes.Pattern.t>)
     | FPANull(ID.t)

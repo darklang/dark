@@ -2331,6 +2331,7 @@ let acToPattern = (entry: AC.item): option<(id, fluidPattern, CT.t)> => {
     | FPABool(mID, var) => Some(mID, PBool(gid(), var))
     | FPANull(mID) => Some(mID, PNull(gid()))
     | FPATuple(mID) => Some(mID, PTuple(gid(), PBlank(gid()), PBlank(gid()), list{}))
+    | FPABlank(mID) => Some(mID, PBlank(gid()))
     }
   | _ =>
     // This only works for patterns
