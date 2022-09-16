@@ -5513,23 +5513,28 @@ let run = () => {
     test("with empty AST, have left neighbour", () => {
       open FluidTokenizer
       let id = ID.fromInt(543)
-      expect({
-        let ast = EString(id, "test")
-        let tokens = tokenize(ast)
-        getNeighbours(~pos=3, tokens)
-      }) |> toEqual({
-        let token = FluidTypes.Token.TString(id, "test", None)
-        let ti: T.tokenInfo = {
-          token: token,
-          startRow: 0,
-          startCol: 0,
-          startPos: 0,
-          endPos: 6,
-          length: 6,
-        }
+      let token = FluidTypes.Token.TString(id, "test", None)
+      let ti: T.tokenInfo = {
+        token: token,
+        startRow: 0,
+        startCol: 1,
+        startPos: 1,
+        endPos: 5,
+        length: 4,
+      }
+      let nextToken = FluidTypes.Token.TStringCloseQuote(id, "test")
+      let nextTI: T.tokenInfo = {
+        token: nextToken,
+        startRow: 0,
+        startCol: 5,
+        startPos: 5,
+        endPos: 6,
+        length: 1,
+      }
 
-        (L(token, ti), R(token, ti), None)
-      })
+      let ast = EString(id, "test")
+      let tokens = tokenize(ast)
+      expect(getNeighbours(~pos=3, tokens)) |> toEqual((L(token, ti), R(token, ti), Some(nextTI)))
     })
     ()
   })
