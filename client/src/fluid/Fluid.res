@@ -345,15 +345,15 @@ let moveToEndOfLine = (ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t =>
   astInfo |> recordAction("moveToEndOfLine") |> setPosition(getEndOfLineCaretPos(ti, astInfo))
 
 /* We want to find the closest editable token that is before the current cursor position
- * so the cursor always lands in a position where a user is able to type */
+ * so the cursor lands in a position where a user is able to type */
 let getStartOfWordPos = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): int => {
-  let previousToken =
+  let tokenInfo =
     astInfo
     |> ASTInfo.activeTokenInfos
     |> List.reverse
-    |> List.find(~f=(t: T.tokenInfo) => T.isTextToken(t.token) && pos > t.startPos)
+    |> List.find(~f=(t: T.tokenInfo) => T.isAppendable(t.token) && pos > t.startPos)
+    |> Option.unwrap(~default=ti)
 
-  let tokenInfo = previousToken |> Option.unwrap(~default=ti)
   if T.isStringToken(tokenInfo.token) && pos !== tokenInfo.startPos {
     getBegOfWordInStrCaretPos(~pos, tokenInfo)
   } else {
@@ -365,13 +365,13 @@ let goToStartOfWord = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t
   astInfo |> recordAction("goToStartOfWord") |> setPosition(getStartOfWordPos(pos, ti, astInfo))
 
 /* We want to find the closest editable token that is after the current cursor
- * position so the cursor always lands in a position where a user is able to
+ * position so the cursor lands in a position where a user is able to
  * type */
 let getEndOfWordPos = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): int => {
   let tokenInfo =
     astInfo
     |> ASTInfo.activeTokenInfos
-    |> List.find(~f=(t: T.tokenInfo) => T.isTextToken(t.token) && pos < t.endPos)
+    |> List.find(~f=(t: T.tokenInfo) => T.isAppendable(t.token) && pos < t.endPos)
     |> Option.unwrap(~default=ti)
 
   if T.isStringToken(tokenInfo.token) && pos !== tokenInfo.endPos {
