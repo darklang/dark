@@ -702,23 +702,23 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".id-68470584.fluid-category-string");
     await page.waitForSelector(".selected #active-editor");
 
-    await expectExactText(page, ".fluid-category-string", '"12345"');
+    await expectExactText(page, ".fluid-string", "12345");
 
     await pressShortcut(page, "z");
-    await expectExactText(page, ".fluid-category-string", '"1234"');
+    await expectExactText(page, ".fluid-string", "1234");
 
     await pressShortcut(page, "Shift+z");
-    await expectExactText(page, ".fluid-category-string", '"12345"');
+    await expectExactText(page, ".fluid-string", "12345");
 
     // Test that savepoints get saved appropriately
 
     // go to end of expr - the cursor is in the middle of the expr above
     await pressShortcut(page, "ArrowRight");
     await page.keyboard.press("6");
-    await expectExactText(page, ".fluid-category-string", '"123456"');
+    await expectExactText(page, ".fluid-string", "123456");
 
     await pressShortcut(page, "z");
-    await expectExactText(page, ".fluid-category-string", '"12345"');
+    await expectExactText(page, ".fluid-string", "12345");
   });
 
   test("fluid_ctrl_left_on_string", async ({ page }, testInfo) => {
@@ -1039,18 +1039,18 @@ test.describe.parallel("Integration Tests", async () => {
     );
 
     // move caret into multiline string
-    await page.click(".fluid-string-ml-start", {
+    await page.click(".fluid-string-ml", {
       timeout: 500,
       position: { x: 10, y: 4 }, // otherwise it sometimes clicks on the sidebar
     });
     await page.waitForSelector(
-      ".fluid-string-ml-start.fluid-not-executed.fluid-code-focus",
+      ".fluid-string-open-quote.fluid-not-executed.fluid-code-focus",
     );
     await page.waitForSelector(
-      ".fluid-string-ml-middle.fluid-not-executed.fluid-code-focus",
+      ".fluid-string-ml.fluid-not-executed.fluid-code-focus",
     );
     await page.waitForSelector(
-      ".fluid-string-ml-end.fluid-not-executed.fluid-code-focus",
+      ".fluid-string-close-quote.fluid-not-executed.fluid-code-focus",
     );
 
     // move caret into list literal
