@@ -2514,7 +2514,6 @@ let run = () => {
       "inserting a binop in a placeholder works",
       if'(binop("++", b, b), b, b),
       ~pos=3,
-      ~debug=true,
       ins("&"),
       "if &~ ++ ____________\nthen\n  ___\nelse\n  ___",
     )
