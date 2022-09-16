@@ -3559,19 +3559,19 @@ let doExplicitInsert = (
       maybeIntoLeftPartial
 
     | (ARString(_, SPOpenQuote), EString(id, str)) if currOffset == 1 =>
-      let newStr = str |> mutationAt(~index=0) |> Debug.log("mutated")
+      let newStr = str |> mutationAt(~index=0)
       Some(EString(id, newStr), CT.forARStringBody(id, caretDelta, newStr))
     | (ARString(_, SPBody), EString(id, str)) =>
       if currOffset < 0 || currOffset > String.length(str) {
         // out of string bounds means you can't insert into the string
         None
       } else {
-        let newStr = str |> mutationAt(~index=currOffset) |> Debug.log("mutated")
+        let newStr = str |> mutationAt(~index=currOffset)
         Some(EString(id, newStr), CT.forARStringBody(id, currOffset + caretDelta, newStr))
       }
     | (ARString(_, SPCloseQuote), EString(id, str)) if currOffset == 0 =>
       let lastIndex = String.length(str)
-      let newStr = str |> mutationAt(~index=lastIndex) |> Debug.log("mutated")
+      let newStr = str |> mutationAt(~index=lastIndex)
       Some(EString(id, newStr), CT.forARStringCloseQuote(id, 0))
 
     | (ARFloat(_, kind), EFloat(id, sign, whole, frac)) =>
