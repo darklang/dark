@@ -509,38 +509,38 @@ let run = () => {
       "\"abcd EFGH abcd~ 1234\"",
     )
     testCopyPaste(
-      "pasting a string in a TLStringMLStart should paste it",
+      "pasting a string in a first string segment should paste it",
       str("0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"),
       (2, 5),
       (11, 15),
-      "\"0123456789123~efghij0123456789abcdefghij0\n123456789abcdefghij\"",
+      "\"0123456789123~efghij0123456789abcdefghij0\n 123456789abcdefghij\"",
     )
     testCopyPaste(
-      "pasting a string in the first TLStringMLMiddle should paste it",
+      "pasting a string in the second string segment should paste it",
       str(
         "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij",
       ),
       (2, 5),
-      (43, 50),
-      "\"0123456789abcdefghij0123456789abcdefghij\n0123~89abcdefghij0123456789abcdefghij0123\n456789abcdefghij0123456789abcdefghij0123\n456789abcdefghij\"",
+      (44, 51),
+      "\"0123456789abcdefghij0123456789abcdefghij\n 0123~89abcdefghij0123456789abcdefghij0123\n 456789abcdefghij0123456789abcdefghij0123\n 456789abcdefghij\"",
     )
     testCopyPaste(
-      "pasting a string in the second TLStringMLMiddle should paste it",
+      "pasting a string in the third string segment should paste it",
       str(
         "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij",
       ),
       (2, 5),
-      (96, 84),
-      "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123~defghij0123456789abcdefghij012345678\n9abcdefghij\"",
+      (98, 86),
+      "\"0123456789abcdefghij0123456789abcdefghij\n 0123456789abcdefghij0123456789abcdefghij\n 0123~defghij0123456789abcdefghij012345678\n 9abcdefghij\"",
     )
     testCopyPaste(
-      "pasting a string in a TLStringMLEnd should paste it",
+      "pasting a string in an end string should paste it",
       str(
         "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij",
       ),
       (2, 5),
-      (125, 126),
-      "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123~23456789abcdefghij\"",
+      (128, 129),
+      "\"0123456789abcdefghij0123456789abcdefghij\n 0123456789abcdefghij0123456789abcdefghij\n 0123456789abcdefghij0123456789abcdefghij\n 0123~23456789abcdefghij\"",
     )
     testPaste(
       "pasting an int in a string should paste it",

@@ -13,13 +13,16 @@ module AstRef = {
     | FPFractional
 
   @ppx.deriving(show({with_path: false}))
-  type rec astStringPart = SPOpenQuote
-
-  @ppx.deriving(show({with_path: false}))
   type rec astLetPart =
     | LPKeyword
     | LPVarName
     | LPAssignment
+
+  @ppx.deriving(show({with_path: false}))
+  type rec astStringPart =
+    | SPOpenQuote
+    | SPBody
+    | SPCloseQuote
 
   @ppx.deriving(show({with_path: false}))
   type rec astIfPart =
@@ -70,7 +73,7 @@ module AstRef = {
     | PPTuple(astTuplePart)
     | PPInteger
     | PPBool
-    | PPString(astStringPart)
+    | PPString
     | PPFloat(astFloatPart)
     | PPNull
     | PPBlank
@@ -80,22 +83,22 @@ module AstRef = {
     | FPWhenKeyword
     | FPEnabledKeyword
 
-  /* An astRef represents a reference to a specific part of an AST node,
-   such as a specific Record Fieldname rather than just the record.
-   Why not use a fluidToken for this purpose?
-   A single construct such as a string might map to multiple fluidTokens,
-   but when describing a part of the ast (for example with caretTarget),
-   we often don't want to care about the details of the tokenization;
-   we can represent concepts like "the caret position at the end of this
-   string" without needing to know if it is a TString relative to a combination
-   of TStringMLStart, TStringMLMiddle, TStringMLEnd.
+  /* * An astRef represents a reference to a specific part of an AST node,
+      such as a specific Record Fieldname rather than just the record.
 
-   The IDs below all refer to the AST node id
+      Why not use a fluidToken for this purpose?  A single construct such as a string
+      might map to multiple fluidTokens, but when describing a part of the ast (for
+      example with caretTarget), we often don't want to care about the details of the
+      tokenization; we can represent concepts like "the caret position at the end of
+      this string" without needing to know if it is a TString (as opposed to a
+      combination of TStringML, TStringOpenQuote, and TStringCloseQuote).
 
-   NOTE(JULIAN): We intentionally do not have any astRefs that include
-   parts that refer to an part of the AST that contains nested expressions.
-   In such cases (for example the value or body of a let), it makes more sense
-   to generate a more specific astRef within the nested expression.
+      The IDs below all refer to the AST node id
+
+      NOTE: We intentionally do not have any astRefs that include parts that refer to an
+      part of the AST that contains nested expressions. In such cases (for example the
+      value or body of a let), it makes more sense to generate a more specific astRef
+      within the nested expression.
  */
   @ppx.deriving(show({with_path: false}))
   type rec t =
@@ -128,11 +131,10 @@ module AstRef = {
 }
 
 module CaretTarget = {
-  /* A caretTarget represents a distinct caret location within the AST.
-   By combining a reference to part of the AST and a caret offset
-   into that part of the AST, we can uniquely represent a place
-   for the caret to jump during AST transformations, even ones that
-   drastically change the token stream. */
+  /* * A caretTarget represents a distinct caret location within the AST.
+      By combining a reference to part of the AST and a caret offset into that part
+      of the AST, we can uniquely represent a place for the caret to jump during AST
+      transformations, even ones that drastically change the token stream. */
   @ppx.deriving(show({with_path: false}))
   type rec t = {
     astRef: AstRef.t,

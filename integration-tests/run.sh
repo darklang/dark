@@ -89,7 +89,7 @@ fi
 
 # We need to restart the server after adding new packages. Integration tests test
 # against the dev environment, not the test one.
-./scripts/run-fsharp-server "${PUBLISHED}"
+./scripts/run-fsharp-server "${PUBLISHED}" --restart=no
 ./scripts/devcontainer/_wait-until-apiserver-ready
 
 ######################

@@ -5,6 +5,13 @@ include Recover
 
 type jsonType = Js.Json.t
 
+let debugger = (): unit =>
+  %raw(`
+  (function() {
+    debugger;
+  })()
+`)
+
 let reportError = ErrorReporting.reportError
 
 // Every other module should have `open Prelude` as its first statement.
