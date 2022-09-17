@@ -679,7 +679,7 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
-    await page.click(".fluid-category-string", caretPos(2));
+    await page.click(".fluid-string", caretPos(1));
     await page.keyboard.press("Shift+ArrowRight");
     await page.keyboard.press("Shift+ArrowDown");
     await page.keyboard.press("Shift+ArrowRight");
@@ -689,7 +689,7 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
-    await page.click(".fluid-category-string", caretPos(2));
+    await page.click(".fluid-string", caretPos(1));
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Shift+ArrowLeft");
     await page.keyboard.press("Shift+ArrowUp");
