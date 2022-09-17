@@ -636,8 +636,8 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, testInfo, "fn=1352039682");
     await page.waitForSelector(".id-677483670.fluid-let-var-name");
     await page.click(".id-677483670.fluid-let-var-name", caretPos(2));
-    await page.waitForSelector(".id-96908617.fluid-category-string");
-    await page.click(".id-96908617.fluid-category-string", caretPos(2));
+    await page.waitForSelector(".id-96908617.fluid-string");
+    await page.click(".id-96908617.fluid-string", caretPos(1));
   });
 
   test("fluid_doubleclick_selects_token", async ({ page }, testInfo) => {
@@ -1154,7 +1154,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // commits feature flag
 
-    await page.dblclick(".in-flag");
+    await page.click(".in-flag");
     await page.keyboard.press("Control+\\");
     await page.waitForSelector("#cmd-filter");
     await page.type("#cmd-filter", "commit");
