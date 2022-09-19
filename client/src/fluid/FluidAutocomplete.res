@@ -356,24 +356,13 @@ let secretToACItem = (s: SecretTypes.t): item => {
   FACVariable(s.secretName, Some(asDval))
 }
 
-let lookupIsInQuery = (tl: toplevel, ti: tokenInfo) => {
-  // CLEANUP: use builtin query attribute in the global function list
-  let isQueryFn = (name: FQFnName.t) =>
-    switch name {
-    | Stdlib({module_: "DB", function, version}) =>
-      switch (function, version) {
-      | ("query", 4)
-      | ("queryWithKey", 3)
-      | ("queryOne", 3)
-      | ("queryOne", 4)
-      | ("queryOneWithKey", 3)
-      | ("queryCount", 0) => true
-      | _ => false
-      }
-    | Stdlib(_) => false
-    | User(_) => false
-    | Package(_) => false
+let lookupIsInQuery = (tl: toplevel, ti: tokenInfo, functions: Functions.t) => {
+  let isQueryFn = (name: FQFnName.t) => {
+    switch Functions.find(name, functions) {
+    | Some(fn) => fn.fnIsSupportedInQuery == QueryFunction
+    | None => false
     }
+  }
 
   let ast' = TL.getAST(tl)
   switch ast' {
@@ -405,7 +394,7 @@ let filterToDbSupportedFns = (isInQuery, functions) =>
 
 let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   open FT.AutoComplete
-  let isInQuery = lookupIsInQuery(tl, ti)
+  let isInQuery = lookupIsInQuery(tl, ti, props.functions)
   let functions' = Functions.asFunctions(props.functions) |> List.map(~f=x => FACFunction(x))
 
   let functions = filterToDbSupportedFns(isInQuery, functions')
