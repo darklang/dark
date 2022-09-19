@@ -76,7 +76,7 @@ DarkInternal.getOrgList Test.getUserID = []
 // DarkInternal.getAllCanvases = []
 
 // ---------------
-// permissions
+// check permission
 // ---------------
 [test.checkPermission with none]
 (let user1 = ("cpnuser1" ++ (String.random 5)) |> String.toLowercase_v1
@@ -87,7 +87,7 @@ DarkInternal.getOrgList Test.getUserID = []
  let _ = DarkInternal.insertUser_v2_ster user2 user2Email "cpn test user2" {}
  let startingPermission = DarkInternal.checkPermission_v0 user1 user2
  let _ = DarkInternal.grant_v0_ster user1 user2 "" in
- [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["" ; ""]
+ (DarkInternal.checkPermission_v0 user1 user2, startingPermission) ) = ("" , "")
 
 [test.checkPermission with r]
 (let user1 = ("cpruser1" ++ (String.random 5)) |> String.toLowercase_v1
@@ -98,9 +98,9 @@ DarkInternal.getOrgList Test.getUserID = []
  let _ = DarkInternal.insertUser_v2_ster user2 user2Email "cpr test user2" {}
  let startingPermission = DarkInternal.checkPermission_v0 user1 user2
  let _ = DarkInternal.grant_v0_ster user1 user2 "r" in
- [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["r" ; ""]
+ (DarkInternal.checkPermission_v0 user1 user2, startingPermission) ) = ("r" , "")
 
-[test.checkPermission with r]
+[test.checkPermission with rw]
 (let user1 = ("cprwuser1" ++ (String.random 5)) |> String.toLowercase_v1
  let user2 = ("cprwuser2" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
@@ -109,7 +109,51 @@ DarkInternal.getOrgList Test.getUserID = []
  let _ = DarkInternal.insertUser_v2_ster user2 user2Email "cprw test user2" {}
  let startingPermission = DarkInternal.checkPermission_v0 user1 user2
  let _ = DarkInternal.grant_v0_ster user1 user2 "rw" in
- [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["rw" ; ""]
+ (DarkInternal.checkPermission_v0 user1 user2, startingPermission) ) = ("rw" , "")
+
+// ---------------
+// get permission
+// ---------------
+[test.getPermission with none]
+(let user1 = ("gpnuser1" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("gpnuser2" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gpn test user1" {}
+ let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gpn test user2" {}
+ let userID = DarkInternal.getUserID_v0_ster user1
+ let canvasID = Test.createCanvas user2
+ let startingPermission = DarkInternal.getPermission_v0 userID canvasID
+ let _ = DarkInternal.grant_v0_ster user1 user2 "" in
+ (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "" , Ok "")
+
+[test.getPermission with r]
+(let user1 = ("gpruser1" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("gpruser2" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gpr test user1" {}
+ let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gpr test user2" {}
+ let userID = DarkInternal.getUserID_v0_ster user1
+ let canvasID = Test.createCanvas user2
+ let startingPermission = DarkInternal.getPermission_v0 userID canvasID
+ let _ = DarkInternal.grant_v0_ster user1 user2 "r" in
+ (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "r" , Ok "")
+
+[test.getPermission with rw]
+(let user1 = ("gprwuser1" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("gprwuser2" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gprw test user1" {}
+ let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gprw test user2" {}
+ let userID = DarkInternal.getUserID_v0_ster user1
+ let canvasID = Test.createCanvas user2
+ let startingPermission = DarkInternal.getPermission_v0 userID canvasID
+ let _ = DarkInternal.grant_v0_ster user1 user2 "rw" in
+ (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "rw" , Ok "")
+
+
 
 
 // ---------------
@@ -118,9 +162,15 @@ DarkInternal.getOrgList Test.getUserID = []
 [tests.canvasIDOfCanvasName]
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
 DarkInternal.canvasIdOfCanvasName_v0_ster Test.getCanvasName = toString Test.getCanvasID
+
 DarkInternal.canvasIDOfCanvasName_v0 Test.getCanvasName = Ok (Test.getCanvasID)
 DarkInternal.canvasIDOfCanvasName_v0 "invalid name" = Error "Invalid username 'invalid name' - must be 2-20 lowercase characters, and must start with a letter."
 DarkInternal.canvasIDOfCanvasName_v0 "not-a-real-canvas" = Error "Canvas not found"
+
+[tests.canvasNameOfCanvasID]
+DarkInternal.canvasNameOfCanvasID_v0 (Test.getCanvasID) = Ok (Test.getCanvasName)
+DarkInternal.canvasNameOfCanvasID_v0 (Uuid.parse_v0_ster "7d9e5495-b068-4364-a2cc-3633ab4d13e6") = Error "Canvas not found"
+
 
 // ---------------
 // Secrets
