@@ -5,7 +5,6 @@ type rec parameter = {
   paramName: string,
   paramTipe: DType.t,
   paramBlock_args: list<string>,
-  paramOptional: bool,
   paramDescription: string,
 }
 
@@ -45,7 +44,6 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
         paramName: name,
         paramTipe: typ,
         paramBlock_args: list{},
-        paramOptional: false,
         paramDescription: ufp.description,
       } |> (x => Some(x))
     }
@@ -74,7 +72,6 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
     paramTipe: pkgFnParam.tipe,
     paramDescription: pkgFnParam.description,
     paramBlock_args: list{},
-    paramOptional: false,
   }
 
   {
@@ -96,7 +93,6 @@ let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
     paramTipe: p.typ,
     paramDescription: p.description,
     paramBlock_args: p.args,
-    paramOptional: false,
   }
   {
     fnName: Stdlib({
