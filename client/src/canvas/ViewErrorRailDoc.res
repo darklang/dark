@@ -30,7 +30,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
     switch sendToRail {
     | None =>
       // If we don't know if the function is on the rail, return a generic message:
-      switch fn.fnReturnTipe {
+      switch fn.returnType {
       | TOption(_) =>
         Some(
           Html.p(
@@ -69,7 +69,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       }
     | Some(sendToRail) =>
       // If we know if the function is on the rail, return a specific message:
-      switch (fn.fnReturnTipe, sendToRail) {
+      switch (fn.returnType, sendToRail) {
       | (TOption(_), Rail) =>
         Some(
           Html.p(

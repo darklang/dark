@@ -97,7 +97,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
     f.fnParameters
     |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
     |> List.map(~f=DType.tipe2str)
-    |> (s => (s, DType.tipe2str(f.fnReturnTipe)))
+    |> (s => (s, DType.tipe2str(f.returnType)))
   | FACField(_) => (list{}, "field")
   | FACVariable(_, odv) =>
     odv
@@ -278,7 +278,7 @@ let typeCheck = (
   let expectedReturnType = expectedReturnType.returnType
   switch item {
   | FACFunction(fn) =>
-    if !Runtime.isCompatible(fn.fnReturnTipe, expectedReturnType) {
+    if !Runtime.isCompatible(fn.returnType, expectedReturnType) {
       invalidReturnType
     } else {
       switch (List.head(fn.fnParameters), pipedType) {

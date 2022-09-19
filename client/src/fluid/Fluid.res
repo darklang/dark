@@ -1760,7 +1760,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
       props.functions
       |> Functions.findByStr(oldName)
       |> Option.map(~f=(fn: Function.t) =>
-        if Runtime.isErrorRailType(fn.fnReturnTipe) {
+        if Runtime.isErrorRailType(fn.returnType) {
           SendToRail.Rail
         } else {
           NoRail
@@ -2141,7 +2141,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   switch entry {
   | FACFunction(fn) =>
     let count = List.length(fn.fnParameters)
-    let r = if Runtime.isErrorRailType(fn.fnReturnTipe) {
+    let r = if Runtime.isErrorRailType(fn.returnType) {
       SendToRail.Rail
     } else {
       NoRail
