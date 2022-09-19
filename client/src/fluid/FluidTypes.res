@@ -170,12 +170,12 @@ module TokenInfo = {
 module AutoComplete = {
   @ppx.deriving(show({with_path: false}))
   type rec patternItem =
-    | FPABlank(ID.t)
-    | FPAVariable(ID.t, string)
-    | FPAConstructor(ID.t, string, list<ProgramTypes.Pattern.t>)
-    | FPANull(ID.t)
-    | FPABool(ID.t, bool)
-    | FPATuple(ID.t)
+    | FPABlank()
+    | FPAVariable(string)
+    | FPAConstructor(string, list<patternItem>)
+    | FPANull()
+    | FPABool(bool)
+    | FPATuple
 
   @ppx.deriving(show({with_path: false}))
   type rec keyword =
@@ -198,7 +198,7 @@ module AutoComplete = {
     | FACVariable(string, option<RuntimeTypes.Dval.t>)
     | FACLiteral(literalItem)
     | FACKeyword(keyword)
-    | FACPattern(patternItem)
+    | FACPattern(ID.t /* matchId */, patternItem)
     | FACCreateFunction(string, TLID.t, ID.t)
 
   @ppx.deriving(show({with_path: false}))

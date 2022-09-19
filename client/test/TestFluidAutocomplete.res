@@ -769,7 +769,7 @@ let run = () => {
         // of it. The "Just ___" pattern fits - the PBlank pattern inside of it
         // has a gid() generated as part of autocomplete generation.
         let isAJustPattern = switch firstAcThirdResult {
-        | FACPattern(FPAConstructor(_, "Just", list{PBlank(_)})) => true
+        | FACPattern(_, FPAConstructor("Just", list{FPABlank})) => true
         | _ => false
         }
 

@@ -2324,15 +2324,17 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
 
 let acToPattern = (entry: AC.item): option<(id, fluidPattern, CT.t)> => {
   let selectedPat: option<(id, P.t)> = switch entry {
-  | FACPattern(p) =>
-    switch p {
-    | FPAConstructor(mID, var, pats) => Some(mID, PConstructor(gid(), var, pats))
-    | FPAVariable(mID, var) => Some(mID, PVariable(gid(), var))
-    | FPABool(mID, var) => Some(mID, PBool(gid(), var))
-    | FPANull(mID) => Some(mID, PNull(gid()))
-    | FPATuple(mID) => Some(mID, PTuple(gid(), PBlank(gid()), PBlank(gid()), list{}))
-    | FPABlank(mID) => Some(mID, PBlank(gid()))
-    }
+  | FACPattern(mid, p) =>
+    let rec patAcToPat = (p: FluidTypes.AutoComplete.patternItem) =>
+      switch p {
+      | FPAConstructor(var, pats) => PConstructor(gid(), var, List.map(~f=patAcToPat, pats))
+      | FPAVariable(var) => PVariable(gid(), var)
+      | FPABool(var) => PBool(gid(), var)
+      | FPANull => PNull(gid())
+      | FPATuple => PTuple(gid(), PBlank(gid()), PBlank(gid()), list{})
+      | FPABlank => PBlank(gid())
+      }
+    Some(mid, patAcToPat(p))
   | _ =>
     // This only works for patterns
     None
