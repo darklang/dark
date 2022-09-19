@@ -94,7 +94,7 @@ let asName = (aci: item): string =>
 let asTypeStrings = (item: item): (list<string>, string) =>
   switch item {
   | FACFunction(f) =>
-    f.fnParameters
+    f.parameters
     |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
     |> List.map(~f=DType.tipe2str)
     |> (s => (s, DType.tipe2str(f.returnType)))
@@ -247,7 +247,7 @@ let findExpectedType = (
     functions
     |> List.find(~f=(f: Function.t) => name == FQFnName.toString(f.fnName))
     |> Option.map(~f=(fn: Function.t) => {
-      let param = List.getAt(~index, fn.fnParameters)
+      let param = List.getAt(~index, fn.parameters)
       let returnType =
         Option.map(param, ~f=p => p.typ) |> Option.unwrap(~default=default.returnType)
 
@@ -281,7 +281,7 @@ let typeCheck = (
     if !Runtime.isCompatible(fn.returnType, expectedReturnType) {
       invalidReturnType
     } else {
-      switch (List.head(fn.fnParameters), pipedType) {
+      switch (List.head(fn.parameters), pipedType) {
       | (Some(param), Some(pipedType)) =>
         if Runtime.isCompatible(param.typ, pipedType) {
           valid

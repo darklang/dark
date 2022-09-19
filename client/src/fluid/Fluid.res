@@ -1423,7 +1423,7 @@ let insertInPlaceholderExpr = (
     |> Option.andThen(~f=(fn: Function.t) =>
       List.find(
         ~f=({name, _}: RuntimeTypes.BuiltInFn.Param.t) => name == placeholder.name,
-        fn.fnParameters,
+        fn.parameters,
       )
     )
     |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t) => p.args)
@@ -1723,7 +1723,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     List.map(List.range(0, count), ~f=index =>
       props.functions
       |> Functions.findByStr(fnname)
-      |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index, fn.fnParameters))
+      |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index, fn.parameters))
       |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t) => (
         p.name,
         DType.tipe2str(p.typ),
@@ -2140,7 +2140,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
 
   switch entry {
   | FACFunction(fn) =>
-    let count = List.length(fn.fnParameters)
+    let count = List.length(fn.parameters)
     let r = if Runtime.isErrorRailType(fn.returnType) {
       SendToRail.Rail
     } else {

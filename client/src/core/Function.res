@@ -9,7 +9,7 @@ type rec fnOrigin =
 @ppx.deriving(show({with_path: false}))
 type rec t = {
   fnName: FQFnName.t,
-  fnParameters: list<RuntimeTypes.BuiltInFn.Param.t>,
+  parameters: list<RuntimeTypes.BuiltInFn.Param.t>,
   description: string,
   returnType: DType.t,
   previewable: RuntimeTypes.BuiltInFn.Previewable.t,
@@ -41,7 +41,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
   if sameLength && f.name != "" {
     Some({
       fnName: User(f.name),
-      fnParameters: ps,
+      parameters: ps,
       description: f.description,
       returnType: f.returnType,
       infix: false,
@@ -67,7 +67,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
 
   {
     fnName: Package(pkgFn.name),
-    fnParameters: pkgFn.parameters |> Tc.List.map(~f=paramOfPkgFnParam),
+    parameters: pkgFn.parameters |> Tc.List.map(~f=paramOfPkgFnParam),
     description: pkgFn.description,
     returnType: pkgFn.returnType,
     previewable: Impure,
@@ -91,7 +91,7 @@ let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
       function: fn.name.function,
       version: fn.name.version,
     }),
-    fnParameters: fn.parameters |> Tc.List.map(~f=toParam),
+    parameters: fn.parameters |> Tc.List.map(~f=toParam),
     description: fn.description,
     returnType: fn.returnType,
     previewable: fn.previewable,

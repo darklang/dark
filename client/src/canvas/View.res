@@ -177,7 +177,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
             m.functions
             |> Functions.findByStr(name)
             |> Option.map(~f=(f: Function.t) => {
-              let param = f.fnParameters |> List.getAt(~index)
+              let param = f.parameters |> List.getAt(~index)
               (param, f.description)
             })
           )
