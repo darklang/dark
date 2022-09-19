@@ -755,8 +755,8 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   let deprecated = Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")})
   switch item {
   | FACFunction(f) =>
-    let desc = if String.length(f.fnDescription) != 0 {
-      f.fnDescription
+    let desc = if String.length(f.description) != 0 {
+      f.description
     } else {
       "Function call with no description"
     }

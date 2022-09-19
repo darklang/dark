@@ -10,7 +10,7 @@ type rec fnOrigin =
 type rec t = {
   fnName: FQFnName.t,
   fnParameters: list<RuntimeTypes.BuiltInFn.Param.t>,
-  fnDescription: string,
+  description: string,
   returnType: DType.t,
   previewable: RuntimeTypes.BuiltInFn.Previewable.t,
   fnDeprecated: bool,
@@ -42,7 +42,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
     Some({
       fnName: User(f.name),
       fnParameters: ps,
-      fnDescription: f.description,
+      description: f.description,
       returnType: f.returnType,
       fnInfix: false,
       previewable: Impure,
@@ -68,7 +68,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
   {
     fnName: Package(pkgFn.name),
     fnParameters: pkgFn.parameters |> Tc.List.map(~f=paramOfPkgFnParam),
-    fnDescription: pkgFn.description,
+    description: pkgFn.description,
     returnType: pkgFn.returnType,
     previewable: Impure,
     fnDeprecated: pkgFn.deprecated,
@@ -92,7 +92,7 @@ let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
       version: fn.name.version,
     }),
     fnParameters: fn.parameters |> Tc.List.map(~f=toParam),
-    fnDescription: fn.description,
+    description: fn.description,
     returnType: fn.returnType,
     previewable: fn.previewable,
     fnDeprecated: fn.deprecated != NotDeprecated,
