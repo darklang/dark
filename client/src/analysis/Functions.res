@@ -129,20 +129,16 @@ let builtins = (t: t): list<Function.t> => t.builtinFunctions |> List.map(~f=Fun
 let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
   // We hide functions that are deprecated unless they are in use
   let filterAndSort = (fns: list<Function.t>): list<Function.t> => {
-    let isUsedOrIsNotDeprecated = (f: Function.t): bool =>
-      if f.fnDeprecated {
-        Map.get(~key=FQFnName.toString(f.fnName), props.usedFns)
-        |> Option.unwrap(~default=0)
-        |> (count => count > 0)
-      } else {
-        true
-      }
+    let isUsed = (f: Function.t): bool =>
+      Map.get(~key=FQFnName.toString(f.fnName), props.usedFns)
+      |> Option.unwrap(~default=0)
+      |> (count => count > 0)
 
-    let isExperimentalAndOptedIn = (f: Function.t): bool =>
+    let isNonExperimentalOrOptedIn = (f: Function.t): bool =>
       // TUPLETODO remove this filter when the experimental setting is removed
       switch f.fnName {
       | Stdlib(fnName) if String.startsWith(~prefix="Tuple", fnName.module_) => props.allowTuples
-      | _ => false
+      | _ => true
       }
 
     let fnNameWithoutVersion = (f: Function.t): string =>
@@ -154,9 +150,13 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
       |> Option.unwrap(~default=FQFnName.toString(f.fnName))
 
     fns
-    |> List.filter(~f=(f: Function.t) =>
-      isUsedOrIsNotDeprecated(f) || (!f.fnDeprecated && isExperimentalAndOptedIn(f))
-    )
+    |> List.filter(~f=(f: Function.t) => {
+      if f.fnDeprecated {
+        isUsed(f)
+      } else {
+        isNonExperimentalOrOptedIn(f) || isUsed(f)
+      }
+    })
     |> List.sortBy(~f=(f: Function.t) =>
       // don't call List.head here - if we have DB::getAll_v1 and
       // DB::getAll_v2, we want those to sort accordingly!
