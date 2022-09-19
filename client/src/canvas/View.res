@@ -190,10 +190,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
             Some(
               viewDoc(
-                Belt.List.concat(
-                  PrettyDocs.convert(fnDesc),
-                  list{p(header), p(pm.paramDescription)},
-                ),
+                Belt.List.concat(PrettyDocs.convert(fnDesc), list{p(header), p(pm.description)}),
               ),
             )
           | None => None
