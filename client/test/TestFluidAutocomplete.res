@@ -48,6 +48,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("DB", "deleteAll", 0, list{TDB(DType.TVariable("c"))}, TNull),
   ("DB", "generateKey", 0, list{}, TStr),
   ("DB", "getAll", 2, list{TDB(DType.TVariable("x"))}, TList(DType.TVariable("xyz"))),
+  ("DB", "query", 4, list{TDB(DType.TVariable("x"))}, TNull),
   ("DB", "getAll", 1, list{TDB(DType.TVariable("b"))}, TList(DType.TVariable("efg"))),
   // ordering is deliberate - we want the query to order s.t. get is before getAll
   ("DB", "get", 1, list{TDB(DType.TVariable("a"))}, TList(DType.TVariable("lmn"))),
@@ -88,6 +89,8 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   },
   sqlSpec: if module_ == "InQuery" {
     SqlUnaryOp("+")
+  } else if module_ == "DB" && function == "query" {
+    QueryFunction
   } else {
     NotQueryable
   },
