@@ -1348,10 +1348,70 @@ let run = () => {
     )
     ()
   })
-  describe("Match", () =>
-    // TODO: test match statements, implementation is slightly inconsistent
+  describe("Match", () => {
+    testCopy(
+      "copying a blank match expression works",
+      match'(blank(), list{(pBlank(), blank())}),
+      (0, 22),
+      "match ___\n  *** -> ___\n",
+    )
+    testCopy(
+      "copying a match expression with a single integer pattern works",
+      match'(int(123), list{(pInt(123), str("success"))}),
+      (0, 27),
+      "match 123\n  123 -> \"success\"\n",
+    )
+    testCopy(
+      "copying a match expression with a full constructor pattern works",
+      match'(
+        constructor("Just", list{int(123)}),
+        list{(pConstructor("Just", list{pInt(123)}), str("success"))},
+      ),
+      (0, 37),
+      "match Just 123\n  Just 123 -> \"success\"\n",
+    )
+    testCopy(
+      "copying fewer than all cases in a match expression works",
+      match'(int(0), list{(pInt(123), str("first branch")), (pInt(456), str("second branch"))}),
+      (0, 30), // right after "Just"
+      "match 0\n  123 -> \"first branch\"\n",
+    )
+
+    // CLEANUP this test fails because the impl. assumes we've selected the
+    // subpatterns
+    // testCopy(
+    //   "copying a match expression with a partial constructor pattern works",
+    //   match'(
+    //     constructor("Just", list{int(123)}),
+    //     list{(pConstructor("Just", list{pInt(123)}), str("success"))},
+    //   ),
+    //   (0, 21), // right after "Just"
+    //   "match Just 123\n  Just *** -> ___\n",
+    // )
+
+    testCopy(
+      "copying a match expression including a full tuple pattern works",
+      match'(
+        tuple(int(1), str("two"), list{int(3)}),
+        list{(pTuple(pInt(1), pString("two"), list{pInt(3)}), str("success"))},
+      ),
+      (0, 44),
+      "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
+    )
+
+    // CLEANUP TUPLETODO this test fails because the impl. assumes we've
+    // selected the subpatterns
+    // testCopy(
+    //   "copying a match expression including part of a tuple pattern works",
+    //   match'(
+    //     tuple(int(1), str("two"), list{int(3)}),
+    //     list{(pTuple(pInt(1), pString("two"), list{pInt(3)}), str("success"))},
+    //   ),
+    //   (0, 29), // ending just before the '3' in the pattern
+    //   "match (1,\"two\",3)\n  (1,\"two\",***) -> ___\n",
+    // )
     ()
-  )
+  })
   describe("json", () => {
     testPasteText("pasting a json int makes an int", b, (0, 0), "6", "6~")
     testPasteText("pasting a json float makes a float", b, (0, 0), "6.6", "6.6~")
