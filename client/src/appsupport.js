@@ -242,7 +242,17 @@ window.Dark = {
       }
     },
     errorCallback: function (error) {
-      window.onerror("Blazor worker failure", error);
+      console.log(
+        error,
+        "\nNote that errors related to the following exceptions can be ignored. They do no seem to cause an issue, and we believe they will go away when we upgrade to .NET 7.",
+        " - 'System.ArgumentNullException: Value cannot be null'",
+        " - 'ystem.Runtime.InteropServices.JavaScript.Runtime.ReleaseJSOwnedObjectByGCHandle(Int32 gcHandle)'",
+      );
+
+      // These errors are so pervasive, harmless, and come with a bunch of other
+      // errors that are hard to define, so the best approach here is to ignore all
+      // errors for now, and reinstate them once we upgradce to .NET7.
+      // window.onerror("Blazor worker failure", error);
     },
     initialized: false,
     debugCount: 0,
