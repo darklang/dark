@@ -762,7 +762,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
     }
 
     let desc = PrettyDocs.convert(desc)
-    let desc = if f.fnDeprecated {
+    let desc = if f.fnDeprecated != NotDeprecated {
       list{deprecated, ...desc}
     } else {
       desc

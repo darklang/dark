@@ -151,7 +151,7 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
 
     fns
     |> List.filter(~f=(f: Function.t) => {
-      if f.fnDeprecated {
+      if f.fnDeprecated != NotDeprecated {
         isUsed(f)
       } else {
         isNonExperimentalOrOptedIn(f) || isUsed(f)
