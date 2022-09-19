@@ -203,6 +203,16 @@ module CrossComponentCalls = {
     let m = {...m, canvasProps: {...m.canvasProps, enablePan: panning}}
     (m, prevCmd)
   }
+
+  let refreshFunctions = ((m, prevCmd): t): t => {
+    let props: Functions.props = {
+      usedFns: m.usedFns,
+      userFunctions: m.userFunctions,
+      allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples,
+    }
+    let m = {...m, functions: Functions.update(props, m.functions)}
+    (m, prevCmd)
+  }
 }
 module CCC = CrossComponentCalls
 
@@ -561,7 +571,9 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       }
 
       let m = Refactor.updateUsageCounts(m)
-      processAutocompleteMods(m, list{ACRegenerate})
+      let (m, cmd) = CCC.refreshFunctions((m, Cmd.none))
+      let (m, acCmd) = processAutocompleteMods(m, list{ACRegenerate})
+      (m, Cmd.batch(list{cmd, acCmd}))
     | UpdateToplevels(handlers, dbs, updateCurrent) =>
       let oldM = m
       let m = {
@@ -681,13 +693,9 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
           bringBackCurrentTL(oldM, m)
         }
         let m = Refactor.updateUsageCounts(m)
-        let props: Functions.props = {
-          usedFns: m.usedFns,
-          userFunctions: m.userFunctions,
-          allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples,
-        }
-        let m = {...m, functions: Functions.update(props, m.functions)}
-        processAutocompleteMods(m, list{ACRegenerate})
+        let (m, cmd) = CCC.refreshFunctions((m, Cmd.none))
+        let (m, acCmd) = processAutocompleteMods(m, list{ACRegenerate})
+        (m, Cmd.batch(list{cmd, acCmd}))
       }
     | SetTypes(userTypes, deleteduserTypes, updateCurrent) =>
       let m2 = {
@@ -2025,13 +2033,7 @@ let update_ = (msg: msg, m: model): modification => {
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
 
         | Some(ContributingIntent(SettingsContributing.Intent.InProgressFeaturesIntent())) =>
-          let props: Functions.props = {
-            usedFns: m.usedFns,
-            userFunctions: m.userFunctions,
-            allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples,
-          }
-          let m = {...m, functions: Functions.update(props, m.functions)}
-          processAutocompleteMods(m, list{ACRegenerate})
+          CCC.refreshFunctions((m, Cmd.none))
 
         | Some(ContributingIntent(SettingsContributing.Intent.UseAssetsIntent()))
         | Some(ContributingIntent(SettingsContributing.Intent.GeneralIntent()))
