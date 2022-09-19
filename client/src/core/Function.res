@@ -1,4 +1,4 @@
-// TODO combine with RuntimeTypes.BuiltinFn
+module BuiltInFn = RuntimeTypes.BuiltInFn
 
 @ppx.deriving(show({with_path: false}))
 type rec origin =
@@ -6,31 +6,30 @@ type rec origin =
   | PackageManager
   | Builtin
 
+// A superset of other function types, but basically matches a RuntimeTypes.BuiltInFn.t
 @ppx.deriving(show({with_path: false}))
 type rec t = {
   fnName: FQFnName.t,
-  parameters: list<RuntimeTypes.BuiltInFn.Param.t>,
+  parameters: list<BuiltInFn.Param.t>,
   description: string,
   returnType: DType.t,
-  previewable: RuntimeTypes.BuiltInFn.Previewable.t,
-  deprecation: RuntimeTypes.BuiltInFn.Deprecation.t,
+  previewable: BuiltInFn.Previewable.t,
+  deprecation: BuiltInFn.Deprecation.t,
   isInfix: bool,
-  sqlSpec: RuntimeTypes.BuiltInFn.SqlSpec.t,
+  sqlSpec: BuiltInFn.SqlSpec.t,
   // This is a client-side only field to be able to give different UX to
   // different functions
   origin: origin,
 }
 
 let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
-  let ufpToP = (ufp: ProgramTypes.UserFunction.Parameter.t): option<
-    RuntimeTypes.BuiltInFn.Param.t,
-  > =>
+  let ufpToP = (ufp: ProgramTypes.UserFunction.Parameter.t): option<BuiltInFn.Param.t> =>
     switch (ufp.name, ufp.typ) {
     | ("", _) => None
     | (_, None) => None
     | (name, Some(typ)) =>
       {
-        RuntimeTypes.BuiltInFn.Param.name: name,
+        BuiltInFn.Param.name: name,
         typ: typ,
         args: list{},
         description: ufp.description,
@@ -56,9 +55,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
 }
 
 let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
-  let paramOfPkgFnParam = (
-    pkgFnParam: ProgramTypes.Package.Parameter.t,
-  ): RuntimeTypes.BuiltInFn.Param.t => {
+  let paramOfPkgFnParam = (pkgFnParam: ProgramTypes.Package.Parameter.t): BuiltInFn.Param.t => {
     name: pkgFnParam.name,
     typ: pkgFnParam.tipe,
     description: pkgFnParam.description,
@@ -78,7 +75,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
   }
 }
 
-let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
+let fromBuiltinFn = (fn: BuiltInFn.t): t => {
   {
     fnName: Stdlib(fn.name),
     parameters: fn.parameters,
