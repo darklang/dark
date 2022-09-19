@@ -140,10 +140,10 @@ let executionEvents = (status, tlid, id, name) =>
 let fnExecutionButton = (p: props, fn: Function.t, id: id, args: list<id>) => {
   let name = FQFnName.toString(fn.fnName)
   let status = fnExecutionStatus(p, fn, id, args)
-  switch fn.fnPreviewSafety {
   // UserFunctions always need play buttons to add the arguments to the trace
-  | Safe if fn.fnOrigin != UserFunction => Vdom.noNode
-  | Safe | Unsafe =>
+  if fn.fnOrigin != UserFunction && fn.fnPreviewSafety == Pure {
+    Vdom.noNode
+  } else {
     let class_ = executionClass(status)
     let title = executionTitle(status)
     let icon = executionIcon(status)

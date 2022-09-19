@@ -43,16 +43,17 @@ let propsToFnExecutionProps = (p: props): ViewFnExecution.props => {
 
 let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
   switch ViewUtils.fnForToken(p.functions, ti.token) {
+  // HACK: UserFunctions need to be executable so that the user can get a value
+  // into the trace. Otherwise, when they edit the function they won't have any
+  // live values.
   | Some({fnOrigin: UserFunction, _} as fn)
-  | /* HACK: UserFunctions need to be executable so that the user can get a value
-   * into the trace. Otherwise, when they edit the function they won't have any
-   * live values. */
-  Some({fnPreviewSafety: Unsafe, _} as fn) =>
-    /* Looking these up can be slow, so the fnPreviewSafety check
-     * above is very important.
-     *
-     * Note that fnPreviewSafety is calculated dynamically by
-     * FluidAutocomplete. */
+  | Some({fnPreviewSafety: Impure, _} as fn)
+  | Some({fnPreviewSafety: ImpurePreviewable, _} as fn) =>
+    // Looking these up can be slow, so the fnPreviewSafety check
+    // above is very important.
+    //
+    // Note that fnPreviewSafety is calculated dynamically by
+    // FluidAutocomplete
     let allExprs = AST.getArguments(FluidToken.tid(ti.token), p.ast)
     let argIDs = List.map(~f=FluidExpression.toID, allExprs)
     switch ti.token {
@@ -64,7 +65,7 @@ let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
       ViewFnExecution.fnExecutionButton(propsToFnExecutionProps(p), fn, id, argIDs)
     | _ => Vdom.noNode
     }
-  | Some({fnPreviewSafety: Safe, _}) | None => Vdom.noNode
+  | Some({fnPreviewSafety: Pure, _}) | None => Vdom.noNode
   }
 
 let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<Html.html<msg>> => {

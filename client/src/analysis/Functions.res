@@ -174,9 +174,9 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
     |> List.map(~f=(f: Function.t) => {
       ...f,
       fnPreviewSafety: if Set.member(t.previewUnsafeFunctions, ~value=FQFnName.toString(f.fnName)) {
-        Unsafe
+        Impure
       } else {
-        Safe
+        Pure
       },
     })
 

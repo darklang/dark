@@ -1,11 +1,6 @@
 // TODO combine with RuntimeTypes.BuiltinFn
 
 @ppx.deriving(show({with_path: false}))
-type rec previewSafety =
-  | Safe
-  | Unsafe
-
-@ppx.deriving(show({with_path: false}))
 type rec fnOrigin =
   | UserFunction
   | PackageManager
@@ -17,7 +12,7 @@ type rec t = {
   fnParameters: list<RuntimeTypes.BuiltInFn.Param.t>,
   fnDescription: string,
   fnReturnTipe: DType.t,
-  fnPreviewSafety: previewSafety,
+  fnPreviewSafety: RuntimeTypes.BuiltInFn.Previewable.t,
   fnDeprecated: bool,
   fnInfix: bool,
   fnIsSupportedInQuery: bool,
@@ -50,7 +45,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
       fnDescription: f.description,
       fnReturnTipe: f.returnType,
       fnInfix: false,
-      fnPreviewSafety: Unsafe,
+      fnPreviewSafety: Impure,
       fnDeprecated: false,
       fnIsSupportedInQuery: false,
       fnOrigin: UserFunction,
@@ -75,7 +70,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
     fnParameters: pkgFn.parameters |> Tc.List.map(~f=paramOfPkgFnParam),
     fnDescription: pkgFn.description,
     fnReturnTipe: pkgFn.returnType,
-    fnPreviewSafety: Unsafe,
+    fnPreviewSafety: Impure,
     fnDeprecated: pkgFn.deprecated,
     fnInfix: false,
     fnIsSupportedInQuery: false,
@@ -99,11 +94,7 @@ let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
     fnParameters: fn.parameters |> Tc.List.map(~f=toParam),
     fnDescription: fn.description,
     fnReturnTipe: fn.returnType,
-    fnPreviewSafety: switch fn.previewable {
-    | Pure => Safe
-    | Impure => Unsafe
-    | ImpurePreviewable => Unsafe
-    },
+    fnPreviewSafety: fn.previewable,
     fnDeprecated: fn.deprecated != NotDeprecated,
     fnInfix: fn.isInfix,
     fnIsSupportedInQuery: RuntimeTypes.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec),

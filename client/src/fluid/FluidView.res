@@ -89,8 +89,8 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
     )
     |> Option.andThen(~f=(fn: Function.t) =>
       switch fn.fnPreviewSafety {
-      | Safe => None
-      | Unsafe =>
+      | Pure => None
+      | Impure | ImpurePreviewable =>
         let args = ast |> AST.getArguments(id) |> List.map(~f=E.toID)
         let s = ViewFnExecution.propsFromViewProps(vp)
         ViewFnExecution.fnExecutionStatus(s, fn, id, args)
