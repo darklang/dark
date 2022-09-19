@@ -14,7 +14,7 @@ type rec t = {
   returnType: DType.t,
   previewable: RuntimeTypes.BuiltInFn.Previewable.t,
   fnDeprecated: bool,
-  fnInfix: bool,
+  infix: bool,
   fnIsSupportedInQuery: bool,
   // This is a client-side only field to be able to give different UX to
   // different functions
@@ -44,7 +44,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
       fnParameters: ps,
       description: f.description,
       returnType: f.returnType,
-      fnInfix: false,
+      infix: false,
       previewable: Impure,
       fnDeprecated: false,
       fnIsSupportedInQuery: false,
@@ -72,7 +72,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
     returnType: pkgFn.returnType,
     previewable: Impure,
     fnDeprecated: pkgFn.deprecated,
-    fnInfix: false,
+    infix: false,
     fnIsSupportedInQuery: false,
     fnOrigin: PackageManager,
   }
@@ -96,7 +96,7 @@ let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
     returnType: fn.returnType,
     previewable: fn.previewable,
     fnDeprecated: fn.deprecated != NotDeprecated,
-    fnInfix: fn.isInfix,
+    infix: fn.isInfix,
     fnIsSupportedInQuery: RuntimeTypes.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec),
     fnOrigin: Builtin,
   }
