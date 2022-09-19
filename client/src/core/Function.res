@@ -61,14 +61,17 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
     description: pkgFnParam.description,
     args: list{},
   }
-
   {
     fnName: Package(pkgFn.name),
     parameters: pkgFn.parameters |> Tc.List.map(~f=paramOfPkgFnParam),
     description: pkgFn.description,
     returnType: pkgFn.returnType,
     previewable: Impure,
-    deprecation: DeprecatedBecause(""), // TODO: we don't know why at this point
+    deprecation: if pkgFn.deprecated {
+      DeprecatedBecause("") // TODO: we don't know why at this point
+    } else {
+      NotDeprecated
+    },
     isInfix: false,
     sqlSpec: NotQueryable,
     origin: PackageManager,
