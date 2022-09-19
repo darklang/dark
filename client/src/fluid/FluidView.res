@@ -88,7 +88,7 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
       }
     )
     |> Option.andThen(~f=(fn: Function.t) =>
-      switch fn.fnPreviewSafety {
+      switch fn.previewable {
       | Pure => None
       | Impure | ImpurePreviewable =>
         let args = ast |> AST.getArguments(id) |> List.map(~f=E.toID)

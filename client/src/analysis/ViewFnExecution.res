@@ -141,7 +141,7 @@ let fnExecutionButton = (p: props, fn: Function.t, id: id, args: list<id>) => {
   let name = FQFnName.toString(fn.fnName)
   let status = fnExecutionStatus(p, fn, id, args)
   // UserFunctions always need play buttons to add the arguments to the trace
-  if fn.fnOrigin != UserFunction && fn.fnPreviewSafety == Pure {
+  if fn.fnOrigin != UserFunction && fn.previewable == Pure {
     Vdom.noNode
   } else {
     let class_ = executionClass(status)
