@@ -359,7 +359,7 @@ let secretToACItem = (s: SecretTypes.t): item => {
 let lookupIsInQuery = (tl: toplevel, ti: tokenInfo, functions: Functions.t) => {
   let isQueryFn = (name: FQFnName.t) => {
     switch Functions.find(name, functions) {
-    | Some(fn) => fn.fnIsSupportedInQuery == QueryFunction
+    | Some(fn) => fn.sqlSpec == QueryFunction
     | None => false
     }
   }
@@ -385,8 +385,7 @@ let filterToDbSupportedFns = (isInQuery, functions) =>
   } else {
     functions |> List.filter(~f=f =>
       switch f {
-      | FT.AutoComplete.FACFunction(fn) =>
-        RuntimeTypes.BuiltInFn.SqlSpec.isQueryable(fn.fnIsSupportedInQuery)
+      | FT.AutoComplete.FACFunction(fn) => RuntimeTypes.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec)
       | _ => false
       }
     )
