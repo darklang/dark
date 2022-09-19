@@ -193,6 +193,7 @@ that's already taken, returns an error."
       previewable = Impure
       deprecated = NotDeprecated }
 
+
     { name = fn "DarkInternal" "getUserID" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TOption(TUuid)
@@ -391,6 +392,26 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
+    { name = fn "DarkInternal" "canvasNameOfCanvasID" 0
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TResult(TStr, TStr)
+      description = "Returns the name of canvas"
+      fn =
+        internalFn (function
+          | _, [ DUuid canvasID ] ->
+            uply {
+              try
+                let! meta = Canvas.getMetaFromID canvasID
+                return meta.name |> string |> DStr |> Ok |> DResult
+              with
+              | e -> return DResult(Error(DStr "Canvas not found"))
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "usernameToUserInfo" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TOption varA
@@ -519,6 +540,32 @@ that's already taken, returns an error."
               match! Authorization.permission owner (UserName.create username) with
               | Some perm -> return DStr(string perm)
               | None -> return DStr ""
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DarkInternal" "getPermission" 0) }
+
+
+    { name = fn "DarkInternal" "getPermission" 0
+      parameters = [ Param.make "userID" TUuid ""; Param.make "canvasID" TUuid "" ]
+      returnType = TResult(TStr, TStr)
+      description = "Get a user's permissions for a particular canvas."
+      fn =
+        internalFn (function
+          | _, [ DUuid userID; DUuid canvasID ] ->
+            uply {
+              try
+                let! canvasMeta = Canvas.getMetaFromID canvasID
+                let owner = Account.ownerNameFromCanvasName canvasMeta.name
+                match! Account.usernameForUserID userID with
+                | Some username ->
+                  match! Authorization.permission owner username with
+                  | Some perm -> return DResult(Ok(DStr(string perm)))
+                  | None -> return DResult(Ok(DStr ""))
+                | None -> return DResult(Error(DStr "Invalid user"))
+              with
+              | _ -> return DResult(Error(DStr "Invalid canvas"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
