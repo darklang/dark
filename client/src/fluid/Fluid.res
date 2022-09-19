@@ -1726,7 +1726,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
       |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index, fn.fnParameters))
       |> Option.map(~f=(p: Function.parameter) => (
         p.paramName,
-        DType.tipe2str(p.paramTipe),
+        DType.tipe2str(p.typ),
         List.getAt(~index, varExprs) |> Option.unwrap(~default=EBlank(gid())),
         index,
       ))

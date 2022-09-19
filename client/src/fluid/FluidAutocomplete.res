@@ -95,7 +95,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   switch item {
   | FACFunction(f) =>
     f.fnParameters
-    |> List.map(~f=(x: Function.parameter) => x.paramTipe)
+    |> List.map(~f=(x: Function.parameter) => x.typ)
     |> List.map(~f=DType.tipe2str)
     |> (s => (s, DType.tipe2str(f.fnReturnTipe)))
   | FACField(_) => (list{}, "field")
@@ -249,7 +249,7 @@ let findExpectedType = (
     |> Option.map(~f=(fn: Function.t) => {
       let param = List.getAt(~index, fn.fnParameters)
       let returnType =
-        Option.map(param, ~f=p => p.paramTipe) |> Option.unwrap(~default=default.returnType)
+        Option.map(param, ~f=p => p.typ) |> Option.unwrap(~default=default.returnType)
 
       let paramName =
         Option.map(param, ~f=p => p.paramName) |> Option.unwrap(~default=default.paramName)
@@ -281,7 +281,7 @@ let typeCheck = (
     } else {
       switch (List.head(fn.fnParameters), pipedType) {
       | (Some(param), Some(pipedType)) =>
-        if Runtime.isCompatible(param.paramTipe, pipedType) {
+        if Runtime.isCompatible(param.typ, pipedType) {
           valid
         } else {
           invalidFirstArg(pipedType)

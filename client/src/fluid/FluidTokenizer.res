@@ -225,7 +225,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
           |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index=pos, fn.fnParameters))
           |> Option.map(~f=(p: Function.parameter): Placeholder.t => {
             name: p.paramName,
-            tipe: DType.tipe2str(p.paramTipe),
+            tipe: DType.tipe2str(p.typ),
           })
 
         switch name {
