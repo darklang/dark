@@ -33,10 +33,10 @@
     "minimist": ">=1.2.6",
     "moment": "^2.29.4",
     "mouse-wheel": "1.2.0",
-    "pusher-js": "5.1.1",
+    "pusher-js": "7.4.0",
     "rescript-js": "0.7.0",
-    "rescript-nodejs": "^14.2.1",
-    "rollbar": "2.25.1",
+    "rescript-nodejs": "^14.3.1",
+    "rollbar": "2.25.2",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "darklang/tablecloth#49cb938d1bb177a504de40de7d470615452e8d8d",
     "validator": "^13.7.0"

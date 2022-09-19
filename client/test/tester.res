@@ -283,19 +283,18 @@ let finish = () => {
   let skipCount = List.length(skips) |> string_of_int
   Js.log("\n\n")
   if fails == list{} {
-    Js.log("Passed " ++ (successCount ++ (" tests (" ++ (skipCount ++ " skipped)"))))
+    Js.log("Passed " ++ successCount ++ " tests (" ++ skipCount ++ " skipped)")
     exit(0)
   } else {
     Js.log("Failures:")
-    fails |> List.forEach(~f=({name, _}) =>
-      \"@@"(Js.log, testIndent() ++ (j`❌` ++ (" " ++ name)))
-    )
-    Js.log("")
-    Js.log(
-      "Failed " ++
-      (failCount ++
-      (" tests (" ++ (successCount ++ (" passed, " ++ (skipCount ++ " skipped)"))))),
-    )
+    List.groupBy(fails, module(String), ~f=({categories, _}) =>
+      categories->List.reverse->String.join(~sep=".")
+    ) |> Map.forEachWithIndex(~f=(~key, ~value) => {
+      let tests = value
+      Js.log("  " ++ key ++ ": ")
+      tests |> List.forEach(~f=({name, _}) => Js.log(testIndent() ++ j`  ❌ ` ++ name))
+    })
+    Js.log(`\nFailed ${failCount} tests (${successCount} passed, ${skipCount} skipped)`)
     exit(1)
   }
 }

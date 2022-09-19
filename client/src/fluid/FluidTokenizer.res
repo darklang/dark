@@ -341,25 +341,39 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   | EString(id, str) =>
     let strings = if String.length(str) > strLimit {
       String.segment(~size=strLimit, str)
+    } else if str == "" {
+      list{}
     } else {
       list{str}
     }
 
     switch strings {
-    | list{} => add(TString(id, "", parentID), b)
+    // Empty string
+    | list{} => b |> add(TStringOpenQuote(id, str)) |> add(TStringCloseQuote(id, str))
     | list{starting, ...rest} =>
       switch List.reverse(rest) {
-      | list{} => add(TString(id, str, parentID), b)
+      // Only one segment, use TString
+      | list{} =>
+        b
+        |> add(TStringOpenQuote(id, str))
+        |> add(TString(id, str, parentID))
+        |> add(TStringCloseQuote(id, str))
+      // Multiline string
       | list{ending, ...revrest} =>
         b |> addNested(~f=b => {
           let endingOffset = strLimit * (List.length(revrest) + 1)
           b
-          |> add(TStringMLStart(id, starting, 0, str))
+          |> add(TStringOpenQuote(id, str))
+          |> add(TStringML(id, starting, 0, str))
           |> add(TNewline(None))
-          |> addIter(List.reverse(revrest), ~f=(i, s, b) =>
-            b |> add(TStringMLMiddle(id, s, strLimit * (i + 1), str)) |> add(TNewline(None))
+          |> indentBy(~indent=1, ~f=b =>
+            b
+            |> addIter(List.reverse(revrest), ~f=(i, s, b) =>
+              b |> add(TStringML(id, s, strLimit * (i + 1), str)) |> add(TNewline(None))
+            )
+            |> add(TStringML(id, ending, endingOffset, str))
+            |> add(TStringCloseQuote(id, str))
           )
-          |> add(TStringMLEnd(id, ending, endingOffset, str))
         })
       }
     }

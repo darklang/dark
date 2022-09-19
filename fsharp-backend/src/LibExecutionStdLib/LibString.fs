@@ -986,28 +986,6 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "String" "toUUID" 1) }
 
 
-    { name = fn "String" "toUUID" 1
-      parameters = [ Param.make "uuid" TStr "" ]
-      returnType = TResult(TUuid, TStr)
-      description =
-        "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          match Guid.TryParse s with
-          | true, x -> x |> DUuid |> Ok |> DResult |> Ply
-          | _ ->
-            "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-            |> DStr
-            |> Error
-            |> DResult
-            |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "String" "isSubstring" 0
       parameters =
         [ Param.make "searchingFor" TStr ""; Param.make "lookingIn" TStr "" ]

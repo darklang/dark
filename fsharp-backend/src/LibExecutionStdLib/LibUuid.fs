@@ -31,4 +31,28 @@ let fns : List<BuiltInFn> =
       // similarly to Date::now, it's not particularly fun for this to change
       // when live programming
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Uuid" "parse" 0
+      parameters = [ Param.make "uuid" TStr "" ]
+      returnType = TResult(TUuid, TStr)
+      description =
+        "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+          match System.Guid.TryParse s with
+          | true, x -> x |> DUuid |> Ok |> DResult |> Ply
+          | _ ->
+            "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+            |> DStr
+            |> Error
+            |> DResult
+            |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    ]

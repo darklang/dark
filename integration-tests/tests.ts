@@ -636,8 +636,8 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, testInfo, "fn=1352039682");
     await page.waitForSelector(".id-677483670.fluid-let-var-name");
     await page.click(".id-677483670.fluid-let-var-name", caretPos(2));
-    await page.waitForSelector(".id-96908617.fluid-category-string");
-    await page.click(".id-96908617.fluid-category-string", caretPos(2));
+    await page.waitForSelector(".id-96908617.fluid-string");
+    await page.click(".id-96908617.fluid-string", caretPos(1));
   });
 
   test("fluid_doubleclick_selects_token", async ({ page }, testInfo) => {
@@ -679,7 +679,7 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
-    await page.click(".fluid-category-string", caretPos(2));
+    await page.click(".fluid-string", caretPos(1));
     await page.keyboard.press("Shift+ArrowRight");
     await page.keyboard.press("Shift+ArrowDown");
     await page.keyboard.press("Shift+ArrowRight");
@@ -689,7 +689,7 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
-    await page.click(".fluid-category-string", caretPos(2));
+    await page.click(".fluid-string", caretPos(1));
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Shift+ArrowLeft");
     await page.keyboard.press("Shift+ArrowUp");
@@ -702,23 +702,23 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".id-68470584.fluid-category-string");
     await page.waitForSelector(".selected #active-editor");
 
-    await expectExactText(page, ".fluid-category-string", '"12345"');
+    await expectExactText(page, ".fluid-string", "12345");
 
     await pressShortcut(page, "z");
-    await expectExactText(page, ".fluid-category-string", '"1234"');
+    await expectExactText(page, ".fluid-string", "1234");
 
     await pressShortcut(page, "Shift+z");
-    await expectExactText(page, ".fluid-category-string", '"12345"');
+    await expectExactText(page, ".fluid-string", "12345");
 
     // Test that savepoints get saved appropriately
 
     // go to end of expr - the cursor is in the middle of the expr above
     await pressShortcut(page, "ArrowRight");
     await page.keyboard.press("6");
-    await expectExactText(page, ".fluid-category-string", '"123456"');
+    await expectExactText(page, ".fluid-string", "123456");
 
     await pressShortcut(page, "z");
-    await expectExactText(page, ".fluid-category-string", '"12345"');
+    await expectExactText(page, ".fluid-string", "12345");
   });
 
   test("fluid_ctrl_left_on_string", async ({ page }, testInfo) => {
@@ -1039,18 +1039,18 @@ test.describe.parallel("Integration Tests", async () => {
     );
 
     // move caret into multiline string
-    await page.click(".fluid-string-ml-start", {
+    await page.click(".fluid-string-ml", {
       timeout: 500,
       position: { x: 10, y: 4 }, // otherwise it sometimes clicks on the sidebar
     });
     await page.waitForSelector(
-      ".fluid-string-ml-start.fluid-not-executed.fluid-code-focus",
+      ".fluid-string-open-quote.fluid-not-executed.fluid-code-focus",
     );
     await page.waitForSelector(
-      ".fluid-string-ml-middle.fluid-not-executed.fluid-code-focus",
+      ".fluid-string-ml.fluid-not-executed.fluid-code-focus",
     );
     await page.waitForSelector(
-      ".fluid-string-ml-end.fluid-not-executed.fluid-code-focus",
+      ".fluid-string-close-quote.fluid-not-executed.fluid-code-focus",
     );
 
     // move caret into list literal
@@ -1154,7 +1154,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // commits feature flag
 
-    await page.dblclick(".in-flag");
+    await page.click(".in-flag");
     await page.keyboard.press("Control+\\");
     await page.waitForSelector("#cmd-filter");
     await page.type("#cmd-filter", "commit");

@@ -4,6 +4,7 @@
 set -euo pipefail
 
 PUBLISHED=false
+RESTART=true
 
 for i in "$@"
 do
@@ -13,7 +14,28 @@ do
     shift
     ;;
   esac
+  case "${i}" in
+    --restart=no)
+    RESTART=false
+    shift
+    ;;
+  esac
 done
+
+# If servers are running and we don't need to restart, then don't
+RUNNING=true
+if [[ $(pgrep ApiServer -c) -eq 0 ]]; then RUNNING=false; fi
+if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
+if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
+if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
+if [[ $(pgrep nginx -c) -eq 0 ]]; then RUNNING=false; fi
+# TODO pubsub and tunnel
+
+
+if [[ "${RUNNING}" == "true" && "${RESTART}" == "false" ]]; then
+  echo "Servers are running and we don't need to restart"
+  exit 0
+fi
 
 if [[ "$PUBLISHED" == "true" ]]; then
   APISERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/"

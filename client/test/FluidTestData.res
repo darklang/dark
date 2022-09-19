@@ -29,14 +29,20 @@ let numSegment = "123456789_"
 
 let letterSegment = "abcdefghi,"
 
-let mlSegment = numSegment ++ (letterSegment ++ (numSegment ++ letterSegment))
+let mlSegment = numSegment ++ letterSegment ++ numSegment ++ letterSegment
 
-let mlStr = str(mlSegment ++ (mlSegment ++ numSegment))
+let mlStr = str(mlSegment ++ mlSegment ++ numSegment)
 
 let mlStrWSpace = str(
   mlSegment ++
-  (" " ++
-  (numSegment ++ (" " ++ (letterSegment ++ (" " ++ (numSegment ++ (" " ++ letterSegment))))))),
+  " " ++
+  numSegment ++
+  " " ++
+  letterSegment ++
+  " " ++
+  numSegment ++
+  " " ++
+  letterSegment,
 )
 
 // ----------------

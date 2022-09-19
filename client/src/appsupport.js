@@ -126,8 +126,14 @@ window.getBrowserPlatform = getBrowserPlatform;
 // Rollbar
 // ---------------------------
 var rollbar = require("rollbar");
+
 rollbarConfig.payload = rollbarConfig.payload || {};
 rollbarConfig.payload.person = { id: userID, username: username };
+
+let searchParams = new URL(window.location.href).searchParams;
+if (searchParams.get("use-assets-tunnel") !== null)
+  rollbarConfig.enabled = false;
+
 var Rollbar = rollbar.init(rollbarConfig);
 window.Rollbar = Rollbar;
 
@@ -168,11 +174,17 @@ window.Dark = {
   // Worker to fetch and decode traces in the background
   // ---------------------------
   fetcher: {
+    debugCount: 0,
     fetch: function (params) {
       if (!window.fetcherWorker) {
-        console.log("FetchWorker not loaded yet");
+        if (window.Dark.fetcher.debugCount < 10) {
+          if (window.Dark.fetcher.debugCount == 0)
+            console.log("Fetcher: waiting for worker to initialize");
+          window.Dark.fetcher.debugCount++;
+        } else {
+          window.Dark.fetcher.debugCount = 0;
+        }
         setTimeout(function () {
-          console.log("Trying FetchWorker again");
           window.Dark.fetcher.fetch(params);
         }, 100);
         return;
@@ -233,13 +245,19 @@ window.Dark = {
       window.onerror("Blazor worker failure", error);
     },
     initialized: false,
+    debugCount: 0,
     requestAnalysis: function (params) {
       const analysis = window.Dark.analysis;
       const worker = window.BlazorWorker;
       if (!analysis.initialized) {
-        console.log("BlazorWorker not loaded yet");
+        if (analysis.debugCount < 10) {
+          if (analysis.debugCount == 0)
+            console.log("Blazor: waiting for worker to initialize");
+          analysis.debugCount++;
+        } else {
+          analysis.debugCount = 0;
+        }
         setTimeout(function () {
-          console.log("Trying BlazorWorker again");
           analysis.requestAnalysis(params);
         }, 500);
         return;

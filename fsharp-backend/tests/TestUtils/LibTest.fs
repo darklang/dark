@@ -397,6 +397,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Test" "getUserID" 0
       parameters = []
       returnType = TUuid
@@ -404,6 +406,24 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [] -> state.program.accountID |> DUuid |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Test" "createCanvas" 0
+      parameters = [ Param.make "canvasName" TStr "" ]
+      returnType = TUuid
+      description = "Create the named canvas and return the IDgg"
+      fn =
+        (function
+        | state, [ DStr canvasName ] ->
+          uply {
+            let! meta =
+              LibBackend.Canvas.getMetaAndCreate (CanvasName.createExn canvasName)
+            return DUuid meta.id
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
