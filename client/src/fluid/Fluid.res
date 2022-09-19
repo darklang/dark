@@ -1421,9 +1421,12 @@ let insertInPlaceholderExpr = (
     fnname
     |> Option.andThen(~f=name => Functions.find(name, props.functions))
     |> Option.andThen(~f=(fn: Function.t) =>
-      List.find(~f=({name, _}: Function.parameter) => name == placeholder.name, fn.fnParameters)
+      List.find(
+        ~f=({name, _}: RuntimeTypes.BuiltInFn.Param.t) => name == placeholder.name,
+        fn.fnParameters,
+      )
     )
-    |> Option.map(~f=(p: Function.parameter) => p.args)
+    |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t) => p.args)
     |> Option.unwrap(~default=list{""})
     |> List.map(~f=str => (gid(), str))
   }
@@ -1721,7 +1724,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
       props.functions
       |> Functions.findByStr(fnname)
       |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index, fn.fnParameters))
-      |> Option.map(~f=(p: Function.parameter) => (
+      |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t) => (
         p.name,
         DType.tipe2str(p.typ),
         List.getAt(~index, varExprs) |> Option.unwrap(~default=EBlank(gid())),

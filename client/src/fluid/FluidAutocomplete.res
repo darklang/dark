@@ -95,7 +95,7 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   switch item {
   | FACFunction(f) =>
     f.fnParameters
-    |> List.map(~f=(x: Function.parameter) => x.typ)
+    |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
     |> List.map(~f=DType.tipe2str)
     |> (s => (s, DType.tipe2str(f.fnReturnTipe)))
   | FACField(_) => (list{}, "field")
@@ -252,7 +252,7 @@ let findExpectedType = (
         Option.map(param, ~f=p => p.typ) |> Option.unwrap(~default=default.returnType)
 
       let name =
-        Option.map(param, ~f=(p: Function.parameter) => p.name) |> Option.unwrap(
+        Option.map(param, ~f=(p: RuntimeTypes.BuiltInFn.Param.t) => p.name) |> Option.unwrap(
           ~default=default.paramName,
         )
 

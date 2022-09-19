@@ -1,14 +1,6 @@
 // TODO combine with RuntimeTypes.BuiltinFn
 
 @ppx.deriving(show({with_path: false}))
-type rec parameter = {
-  name: string,
-  typ: DType.t,
-  args: list<string>,
-  description: string,
-}
-
-@ppx.deriving(show({with_path: false}))
 type rec previewSafety =
   | Safe
   | Unsafe
@@ -22,7 +14,7 @@ type rec fnOrigin =
 @ppx.deriving(show({with_path: false}))
 type rec t = {
   fnName: FQFnName.t,
-  fnParameters: list<parameter>,
+  fnParameters: list<RuntimeTypes.BuiltInFn.Param.t>,
   fnDescription: string,
   fnReturnTipe: DType.t,
   fnPreviewSafety: previewSafety,
@@ -35,13 +27,15 @@ type rec t = {
 }
 
 let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
-  let ufpToP = (ufp: ProgramTypes.UserFunction.Parameter.t): option<parameter> =>
+  let ufpToP = (ufp: ProgramTypes.UserFunction.Parameter.t): option<
+    RuntimeTypes.BuiltInFn.Param.t,
+  > =>
     switch (ufp.name, ufp.typ) {
     | ("", _) => None
     | (_, None) => None
     | (name, Some(typ)) =>
       {
-        name: name,
+        RuntimeTypes.BuiltInFn.Param.name: name,
         typ: typ,
         args: list{},
         description: ufp.description,
@@ -67,7 +61,9 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
 }
 
 let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
-  let paramOfPkgFnParam = (pkgFnParam: ProgramTypes.Package.Parameter.t): parameter => {
+  let paramOfPkgFnParam = (
+    pkgFnParam: ProgramTypes.Package.Parameter.t,
+  ): RuntimeTypes.BuiltInFn.Param.t => {
     name: pkgFnParam.name,
     typ: pkgFnParam.tipe,
     description: pkgFnParam.description,
@@ -88,7 +84,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
 }
 
 let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
-  let toParam = (p: RuntimeTypes.BuiltInFn.Param.t): parameter => {
+  let toParam = (p: RuntimeTypes.BuiltInFn.Param.t): RuntimeTypes.BuiltInFn.Param.t => {
     name: p.name,
     typ: p.typ,
     description: p.description,
