@@ -2153,7 +2153,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
       | list{lhs, rhs} =>
         // This is awkward as we don't have a way of representing infix operations in
         // the name. So we just have to trust that this works out
-        let name: PT.InfixStdlibFnName.t = switch fn.fnName {
+        let name: PT.InfixStdlibFnName.t = switch fn.name {
         | User(name) =>
           recover(
             "Got a UserFn in an infix FACFunction",
@@ -2199,12 +2199,12 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
           ~default=(
             {
               astRef: ARFnCall(fID),
-              offset: fn.fnName |> FQFnName.toString |> FluidUtil.partialName |> String.length,
+              offset: fn.name |> FQFnName.toString |> FluidUtil.partialName |> String.length,
             }: CT.t
           ),
         )
 
-      Some(EFnCall(fID, fn.fnName, args, r), target)
+      Some(EFnCall(fID, fn.name, args, r), target)
     }
   | FACKeyword(KLet) =>
     let (b, target) = mkBlank()

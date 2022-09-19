@@ -9,7 +9,7 @@ type rec origin =
 // A superset of other function types, but basically matches a RuntimeTypes.BuiltInFn.t
 @ppx.deriving(show({with_path: false}))
 type rec t = {
-  fnName: FQFnName.t,
+  name: FQFnName.t,
   parameters: list<BuiltInFn.Param.t>,
   description: string,
   returnType: DType.t,
@@ -39,7 +39,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
   let sameLength = List.length(ps) == List.length(f.parameters)
   if sameLength && f.name != "" {
     Some({
-      fnName: User(f.name),
+      name: User(f.name),
       parameters: ps,
       description: f.description,
       returnType: f.returnType,
@@ -62,7 +62,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
     args: list{},
   }
   {
-    fnName: Package(pkgFn.name),
+    name: Package(pkgFn.name),
     parameters: pkgFn.parameters |> Tc.List.map(~f=paramOfPkgFnParam),
     description: pkgFn.description,
     returnType: pkgFn.returnType,
@@ -80,7 +80,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
 
 let fromBuiltinFn = (fn: BuiltInFn.t): t => {
   {
-    fnName: Stdlib(fn.name),
+    name: Stdlib(fn.name),
     parameters: fn.parameters,
     description: fn.description,
     returnType: fn.returnType,

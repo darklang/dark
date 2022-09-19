@@ -64,7 +64,7 @@ let fnExecutionStatus = (p: props, fn: Function.t, id: id, args: list<id>) => {
 
   let paramsComplete = List.all(~f=isComplete, args)
   let resultHasValue = fnIsComplete(id)
-  let name = FQFnName.toString(fn.fnName)
+  let name = FQFnName.toString(fn.name)
   if p.permission != Some(ReadWrite) {
     NoPermission
   } else if name == "Password::check" || name == "Password::hash" {
@@ -138,7 +138,7 @@ let executionEvents = (status, tlid, id, name) =>
   }
 
 let fnExecutionButton = (p: props, fn: Function.t, id: id, args: list<id>) => {
-  let name = FQFnName.toString(fn.fnName)
+  let name = FQFnName.toString(fn.name)
   let status = fnExecutionStatus(p, fn, id, args)
   // UserFunctions always need play buttons to add the arguments to the trace
   if fn.origin != UserFunction && fn.previewable == Pure {

@@ -61,7 +61,7 @@ let focusItem = (i: int): AppTypes.cmd =>
 // ----------------------------
 let asName = (aci: item): string =>
   switch aci {
-  | FACFunction(fn) => FQFnName.toString(fn.fnName)
+  | FACFunction(fn) => FQFnName.toString(fn.name)
   | FACField(name) => name
   | FACVariable(name, _) => name
   | FACLiteral(lit) =>
@@ -245,7 +245,7 @@ let findExpectedType = (
   |> Option.andThen(~f=AST.getParamIndex(id))
   |> Option.andThen(~f=((name, index)) =>
     functions
-    |> List.find(~f=(f: Function.t) => name == FQFnName.toString(f.fnName))
+    |> List.find(~f=(f: Function.t) => name == FQFnName.toString(f.name))
     |> Option.map(~f=(fn: Function.t) => {
       let param = List.getAt(~index, fn.parameters)
       let returnType =
@@ -256,7 +256,7 @@ let findExpectedType = (
           ~default=default.paramName,
         )
 
-      ({fnName: Some(fn.fnName), returnType: returnType, paramName: name}: TypeInformation.t)
+      ({fnName: Some(fn.name), returnType: returnType, paramName: name}: TypeInformation.t)
     })
   )
   |> Option.unwrap(~default)
