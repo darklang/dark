@@ -396,7 +396,8 @@ let filterToDbSupportedFns = (isInQuery, functions) =>
   } else {
     functions |> List.filter(~f=f =>
       switch f {
-      | FT.AutoComplete.FACFunction(fn) => fn.fnIsSupportedInQuery
+      | FT.AutoComplete.FACFunction(fn) =>
+        RuntimeTypes.BuiltInFn.SqlSpec.isQueryable(fn.fnIsSupportedInQuery)
       | _ => false
       }
     )
