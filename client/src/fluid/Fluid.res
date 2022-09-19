@@ -2148,7 +2148,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
     }
 
     let args = List.initialize(count, ~f=_ => EBlank(gid()))
-    if fn.infix {
+    if fn.isInfix {
       switch args {
       | list{lhs, rhs} =>
         // This is awkward as we don't have a way of representing infix operations in
