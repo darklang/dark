@@ -542,7 +542,11 @@ let run = () => {
       |> TLID.Dict.fromList
 
     test("simple example", () => {
-      let props: Functions.props = {userFunctions: userFunctions, usedFns: Map.String.empty}
+      let props: Functions.props = {
+        userFunctions: userFunctions,
+        usedFns: Map.String.empty,
+        allowTuples: false,
+      }
       expect(
         Functions.empty
         |> Functions.setBuiltins(sampleFunctions, props)

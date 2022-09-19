@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("Added prematurely; this will be re-added.") }
+      deprecated = NotDeprecated }
 
 
     { name = fn "Tuple2" "first" 0
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("Added prematurely; this will be re-added.") }
+      deprecated = NotDeprecated }
 
 
     { name = fn "Tuple2" "second" 0
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("Added prematurely; this will be re-added.") }
+      deprecated = NotDeprecated }
 
 
     { name = fn "Tuple2" "swap" 0
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("Added prematurely; this will be re-added.") }
+      deprecated = NotDeprecated }
 
 
     { name = fn "Tuple2" "mapFirst" 0
@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("Added prematurely; this will be re-added.") }
+      deprecated = NotDeprecated }
 
 
     { name = fn "Tuple2" "mapSecond" 0
@@ -118,7 +118,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("Added prematurely; this will be re-added.") }
+      deprecated = NotDeprecated }
 
 
     { name = fn "Tuple2" "mapBoth" 0
@@ -153,4 +153,4 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("Added prematurely; this will be re-added.") } ]
+      deprecated = NotDeprecated } ]

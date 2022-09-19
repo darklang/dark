@@ -95,7 +95,11 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
     currentPage: Architecture,
     functions: Functions.empty |> Functions.setBuiltins(
       complete,
-      {usedFns: m.usedFns, userFunctions: m.userFunctions},
+      {
+        usedFns: m.usedFns,
+        userFunctions: m.userFunctions,
+        allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples,
+      },
     ),
     complete: AC.init(m),
     handlers: TLID.Dict.empty,
@@ -677,7 +681,11 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
           bringBackCurrentTL(oldM, m)
         }
         let m = Refactor.updateUsageCounts(m)
-        let props: Functions.props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
+        let props: Functions.props = {
+          usedFns: m.usedFns,
+          userFunctions: m.userFunctions,
+          allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples,
+        }
         let m = {...m, functions: Functions.update(props, m.functions)}
         processAutocompleteMods(m, list{ACRegenerate})
       }
@@ -1472,7 +1480,11 @@ let update_ = (msg: msg, m: model): modification => {
           |> List.map(~f=(pkg: PT.Package.Fn.t) => (pkg.tlid, pkg))
           |> TLID.Dict.fromList
 
-        let props: Functions.props = {usedFns: m.usedFns, userFunctions: m.userFunctions}
+        let props: Functions.props = {
+          usedFns: m.usedFns,
+          userFunctions: m.userFunctions,
+          allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples,
+        }
         let m = {...m, functions: Functions.setPackages(pkgs, props, m.functions)}
 
         /* We need to update the list of usages due to package manager functions.
@@ -2012,9 +2024,17 @@ let update_ = (msg: msg, m: model): modification => {
           (m, wrapCmd(initCmd(clientData(m))))->CCC.setPage(SettingsModal(tab))
         | Some(CloseSettings) => (m, Cmd.none)->CCC.setPage(Architecture)->CCC.setPanning(true)
 
+        | Some(ContributingIntent(SettingsContributing.Intent.InProgressFeaturesIntent())) =>
+          let props: Functions.props = {
+            usedFns: m.usedFns,
+            userFunctions: m.userFunctions,
+            allowTuples: m.settings.contributingSettings.inProgressFeatures.allowTuples,
+          }
+          let m = {...m, functions: Functions.update(props, m.functions)}
+          processAutocompleteMods(m, list{ACRegenerate})
+
         | Some(ContributingIntent(SettingsContributing.Intent.UseAssetsIntent()))
         | Some(ContributingIntent(SettingsContributing.Intent.GeneralIntent()))
-        | Some(ContributingIntent(SettingsContributing.Intent.InProgressFeaturesIntent()))
         | Some(InviteIntent(None))
         | None => (m, Cmd.none)
         }

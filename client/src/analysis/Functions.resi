@@ -12,6 +12,7 @@ type rec t = {
 type rec props = {
   usedFns: Tc.Map.String.t<int>,
   userFunctions: TLID.Dict.t<ProgramTypes.UserFunction.t>,
+  allowTuples: bool,
 }
 
 /* Returns the function named `name`. Returns Nothing if the function

@@ -15,6 +15,7 @@ type rec t = {
 type rec props = {
   usedFns: Map.String.t<int>,
   userFunctions: TLID.Dict.t<PT.UserFunction.t>,
+  allowTuples: bool,
 }
 
 /* Returns the function named `name`. Returns Nothing if the function
@@ -128,11 +129,15 @@ let builtins = (t: t): list<Function.t> => t.builtinFunctions |> List.map(~f=Fun
 let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
   // We hide functions that are deprecated unless they are in use
   let filterAndSort = (fns: list<Function.t>): list<Function.t> => {
-    let isUsedOrIsNotDeprecated = (f: Function.t): bool =>
-      if f.fnDeprecated {
-        Map.get(~key=FQFnName.toString(f.fnName), props.usedFns)
-        |> Option.unwrap(~default=0)
-        |> (count => count > 0)
+    let isUsed = (f: Function.t): bool =>
+      Map.get(~key=FQFnName.toString(f.fnName), props.usedFns)
+      |> Option.unwrap(~default=0)
+      |> (count => count > 0)
+
+    let isNonexperimentalOrUserHasOptedIn = (f: Function.t): bool =>
+      // TUPLETODO remove this filter when the experimental setting is removed
+      if String.startsWith(~prefix="Tuple", FQFnName.toString(f.fnName)) {
+        props.allowTuples
       } else {
         true
       }
@@ -146,7 +151,9 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
       |> Option.unwrap(~default=FQFnName.toString(f.fnName))
 
     fns
-    |> List.filter(~f=isUsedOrIsNotDeprecated)
+    |> List.filter(~f=(f: Function.t) =>
+      (!f.fnDeprecated && isNonexperimentalOrUserHasOptedIn(f)) || isUsed(f)
+    )
     |> List.sortBy(~f=(f: Function.t) =>
       // don't call List.head here - if we have DB::getAll_v1 and
       // DB::getAll_v2, we want those to sort accordingly!

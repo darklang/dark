@@ -911,6 +911,7 @@ let defaultTestState = {...FluidTypes.State.default, activeEditor: MainEditor(de
 let defaultFunctionsProps: Functions.props = {
   usedFns: Map.String.empty,
   userFunctions: TLID.Dict.empty,
+  allowTuples: false,
 }
 
 let defaultTestProps: FluidTypes.Props.t = {
