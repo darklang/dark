@@ -79,19 +79,9 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
 }
 
 let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
-  let toParam = (p: RuntimeTypes.BuiltInFn.Param.t): RuntimeTypes.BuiltInFn.Param.t => {
-    name: p.name,
-    typ: p.typ,
-    description: p.description,
-    args: p.args,
-  }
   {
-    fnName: Stdlib({
-      module_: fn.name.module_,
-      function: fn.name.function,
-      version: fn.name.version,
-    }),
-    parameters: fn.parameters |> Tc.List.map(~f=toParam),
+    fnName: Stdlib(fn.name),
+    parameters: fn.parameters,
     description: fn.description,
     returnType: fn.returnType,
     previewable: fn.previewable,
