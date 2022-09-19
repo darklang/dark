@@ -2,7 +2,7 @@
 
 @ppx.deriving(show({with_path: false}))
 type rec parameter = {
-  paramName: string,
+  name: string,
   typ: DType.t,
   args: list<string>,
   description: string,
@@ -41,7 +41,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
     | (_, None) => None
     | (name, Some(typ)) =>
       {
-        paramName: name,
+        name: name,
         typ: typ,
         args: list{},
         description: ufp.description,
@@ -68,7 +68,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
 
 let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
   let paramOfPkgFnParam = (pkgFnParam: ProgramTypes.Package.Parameter.t): parameter => {
-    paramName: pkgFnParam.name,
+    name: pkgFnParam.name,
     typ: pkgFnParam.tipe,
     description: pkgFnParam.description,
     args: list{},
@@ -89,7 +89,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
 
 let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
   let toParam = (p: RuntimeTypes.BuiltInFn.Param.t): parameter => {
-    paramName: p.name,
+    name: p.name,
     typ: p.typ,
     description: p.description,
     args: p.args,

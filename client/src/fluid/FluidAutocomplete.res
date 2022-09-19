@@ -251,10 +251,12 @@ let findExpectedType = (
       let returnType =
         Option.map(param, ~f=p => p.typ) |> Option.unwrap(~default=default.returnType)
 
-      let paramName =
-        Option.map(param, ~f=p => p.paramName) |> Option.unwrap(~default=default.paramName)
+      let name =
+        Option.map(param, ~f=(p: Function.parameter) => p.name) |> Option.unwrap(
+          ~default=default.paramName,
+        )
 
-      ({fnName: Some(fn.fnName), returnType: returnType, paramName: paramName}: TypeInformation.t)
+      ({fnName: Some(fn.fnName), returnType: returnType, paramName: name}: TypeInformation.t)
     })
   )
   |> Option.unwrap(~default)

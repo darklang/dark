@@ -224,7 +224,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
           |> Functions.findByStr(fnname)
           |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index=pos, fn.fnParameters))
           |> Option.map(~f=(p: Function.parameter): Placeholder.t => {
-            name: p.paramName,
+            name: p.name,
             tipe: DType.tipe2str(p.typ),
           })
 
