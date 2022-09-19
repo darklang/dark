@@ -1,7 +1,7 @@
 // TODO combine with RuntimeTypes.BuiltinFn
 
 @ppx.deriving(show({with_path: false}))
-type rec fnOrigin =
+type rec origin =
   | UserFunction
   | PackageManager
   | Builtin
@@ -18,7 +18,7 @@ type rec t = {
   fnIsSupportedInQuery: bool,
   // This is a client-side only field to be able to give different UX to
   // different functions
-  fnOrigin: fnOrigin,
+  origin: origin,
 }
 
 let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
@@ -48,7 +48,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
       previewable: Impure,
       fnDeprecated: false,
       fnIsSupportedInQuery: false,
-      fnOrigin: UserFunction,
+      origin: UserFunction,
     })
   } else {
     None
@@ -74,7 +74,7 @@ let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
     fnDeprecated: pkgFn.deprecated,
     infix: false,
     fnIsSupportedInQuery: false,
-    fnOrigin: PackageManager,
+    origin: PackageManager,
   }
 }
 
@@ -98,6 +98,6 @@ let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
     fnDeprecated: fn.deprecated != NotDeprecated,
     infix: fn.isInfix,
     fnIsSupportedInQuery: RuntimeTypes.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec),
-    fnOrigin: Builtin,
+    origin: Builtin,
   }
 }

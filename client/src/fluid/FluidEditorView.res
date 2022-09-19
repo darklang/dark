@@ -46,7 +46,7 @@ let viewPlayIcon = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
   // HACK: UserFunctions need to be executable so that the user can get a value
   // into the trace. Otherwise, when they edit the function they won't have any
   // live values.
-  | Some({fnOrigin: UserFunction, _} as fn)
+  | Some({origin: UserFunction, _} as fn)
   | Some({previewable: Impure, _} as fn)
   | Some({previewable: ImpurePreviewable, _} as fn) =>
     // Looking these up can be slow, so the previewable check
