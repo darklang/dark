@@ -1426,7 +1426,7 @@ let insertInPlaceholderExpr = (
         fn.fnParameters,
       )
     )
-    |> Option.map(~f=(p: Function.parameter) => p.paramBlock_args)
+    |> Option.map(~f=(p: Function.parameter) => p.args)
     |> Option.unwrap(~default=list{""})
     |> List.map(~f=str => (gid(), str))
   }
