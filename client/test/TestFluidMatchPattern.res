@@ -16,7 +16,7 @@ let eToStructure = Printer.eToStructure
 
 let eToTestString = Printer.eToTestString
 
-let pToString = Printer.pToString
+let mpToString = Printer.mpToString
 
 let h = (expr): PT.Handler.t => {
   ast: FluidAST.ofExpr(expr),
@@ -121,7 +121,7 @@ let run = () => {
       Js.log2("state after", FluidUtils.debugState(result.state))
       Js.log2("match pattern after", eToStructure(FluidAST.toExpr(result.ast)))
     }
-    (pToString(resultPat), max(0, result.state.newPos - extra))
+    (mpToString(resultPat), max(0, result.state.newPos - extra))
   }
 
   let render = (case: TestCase.t): TestResult.t => process(list{}, case)
@@ -167,7 +167,7 @@ let run = () => {
     let testName =
       name ++
       (" - `" ++
-      ((pToString(pat) |> Regex.replace(~re=Regex.regex("\n"), ~repl=" ")) ++ "`"))
+      ((mpToString(pat) |> Regex.replace(~re=Regex.regex("\n"), ~repl=" ")) ++ "`"))
 
     let case = TestCase.init(~pos, ~debug, pat)
 
