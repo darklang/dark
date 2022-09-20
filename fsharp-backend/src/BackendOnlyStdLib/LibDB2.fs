@@ -572,7 +572,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "count" 0
       parameters = [ tableParam ]
       returnType = TInt
-      description = "Return the number of items stored in `table`."
+      description = "Return the number of items stored in `table`"
       fn =
         (function
         | state, [ DDB dbname ] ->

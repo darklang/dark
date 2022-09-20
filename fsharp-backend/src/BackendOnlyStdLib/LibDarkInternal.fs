@@ -146,7 +146,7 @@ that's already taken, returns an error."
         TOption(
           TRecord [ "username", TStr; "name", TStr; "email", TStr; "admin", TBool ]
         )
-      description = "Return a user for the username. Does not include passwords."
+      description = "Return a user for the username. Does not include passwords"
       fn =
         internalFn (function
           | _, [ DStr username ] ->
@@ -173,7 +173,7 @@ that's already taken, returns an error."
         TOption(
           TRecord [ "username", TStr; "name", TStr; "email", TStr; "admin", TBool ]
         )
-      description = "Return a user for the email. Does not include passwords."
+      description = "Return a user for the email. Does not include passwords"
       fn =
         internalFn (function
           | _, [ DStr email ] ->
@@ -214,7 +214,7 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "setAdmin" 0
       parameters = [ Param.make "username" TStr ""; Param.make "admin" TBool "" ]
       returnType = TNull
-      description = "Set whether a user is an admin. Returns null."
+      description = "Set whether a user is an admin. Returns null"
       fn =
         internalFn (function
           | _, [ DStr username; DBool admin ] ->
@@ -236,7 +236,7 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "getUsers" 0
       parameters = []
       returnType = TList TStr
-      description = "Return a list of username of all the accounts in Dark."
+      description = "Return a list of username of all the accounts in Dark"
       fn =
         internalFn (function
           | _, [] ->
@@ -445,7 +445,7 @@ that's already taken, returns an error."
           Param.make "org" TStr ""
           Param.make "permission" TStr "" ]
       returnType = TResult(TStr, TStr)
-      description = "Set a user's permissions for a particular auth_domain."
+      description = "Set a user's permissions for a particular auth_domain"
       fn =
         internalFn (function
           | _, [ DStr username; DStr org; DStr permission ] ->
@@ -530,7 +530,7 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "checkPermission" 0
       parameters = [ Param.make "username" TStr ""; Param.make "canvas" TStr "" ]
       returnType = TStr
-      description = "Check a user's permissions for a particular canvas."
+      description = "Check a user's permissions for a particular canvas"
       fn =
         internalFn (function
           | _, [ DStr username; DStr canvas ] ->
@@ -550,7 +550,7 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "getPermission" 0
       parameters = [ Param.make "userID" TUuid ""; Param.make "canvasID" TUuid "" ]
       returnType = TResult(TStr, TStr)
-      description = "Get a user's permissions for a particular canvas."
+      description = "Get a user's permissions for a particular canvas"
       fn =
         internalFn (function
           | _, [ DUuid userID; DUuid canvasID ] ->
@@ -1089,7 +1089,7 @@ human-readable data."
     { name = fn "DarkInternal" "getAllSchedulingRules" 0
       parameters = []
       returnType = TList varA
-      description = "Returns a list of all queue scheduling rules."
+      description = "Returns a list of all queue scheduling rules"
       fn =
         internalFn (function
           | _, [] ->
