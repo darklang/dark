@@ -428,7 +428,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   let literals = List.map(~f=x => FACLiteral(x), list{LBool(true), LBool(false), LNull})
 
   let secrets = List.map(m.secrets, ~f=secretToACItem)
-  Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
+  Belt.List.concatMany([varnames, secrets, constructors, literals, keywords, functions])
 }
 
 let generateMatchPatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): list<item> => {
