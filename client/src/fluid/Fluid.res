@@ -2323,7 +2323,7 @@ let acToPattern = (entry: AC.item): option<(id, fluidPattern, CT.t)> => {
   selectedPat |> Option.map(~f=((mid, p)) => (mid, p, caretTargetForFirstInputOfPattern(p)))
 }
 
-let acToPatternOrExpr = (entry: AC.item): (E.fluidPatOrExpr, CT.t) =>
+let acToPatternOrExpr = (entry: AC.item): (E.fluidMatchPatOrExpr, CT.t) =>
   acToPattern(entry)
   |> Option.map(~f=((mid, pat, target)) => (E.Pat(mid, pat), target))
   |> Option.orElseLazy(() =>
@@ -2781,13 +2781,16 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
 
   let mutationAt = (str: string, ~index: int): string => Util.removeCharAt(str, index)
 
-  let doExprBackspace = (currAstRef: astRef, currExpr: E.t): option<(E.fluidPatOrExpr, CT.t)> => {
-    let mkEBlank: unit => option<(E.fluidPatOrExpr, CT.t)> = () => {
+  let doExprBackspace = (currAstRef: astRef, currExpr: E.t): option<(
+    E.fluidMatchPatOrExpr,
+    CT.t,
+  )> => {
+    let mkEBlank: unit => option<(E.fluidMatchPatOrExpr, CT.t)> = () => {
       let bID = gid()
       Some(Expr(EBlank(bID)), {astRef: ARBlank(bID), offset: 0})
     }
 
-    let mkPartialOrBlank = (str: string, e: E.t): option<(E.fluidPatOrExpr, CT.t)> =>
+    let mkPartialOrBlank = (str: string, e: E.t): option<(E.fluidMatchPatOrExpr, CT.t)> =>
       if str == "" {
         mkEBlank()
       } else {
@@ -3203,8 +3206,8 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     currAstRef: astRef,
     mID: id,
     pat: fluidPattern,
-  ): option<(E.fluidPatOrExpr, CT.t)> => {
-    let mkPBlank = (): option<(E.fluidPatOrExpr, CT.t)> => {
+  ): option<(E.fluidMatchPatOrExpr, CT.t)> => {
+    let mkPBlank = (): option<(E.fluidMatchPatOrExpr, CT.t)> => {
       let bID = gid()
       Some(Pat(mID, MPBlank(bID)), {astRef: ARMPattern(bID, MPPBlank), offset: 0})
     }
@@ -3872,7 +3875,7 @@ let doExplicitInsert = (
     currAstRef: astRef,
     mID: id,
     pat: fluidPattern,
-  ): option<(E.fluidPatOrExpr, CT.t)> =>
+  ): option<(E.fluidMatchPatOrExpr, CT.t)> =>
     switch (currAstRef, pat) {
     | (ARMPattern(_, MPPFloat(kind)), MPFloat(pID, sign, whole, frac)) =>
       if FluidUtil.isNumber(extendedGraphemeCluster) {

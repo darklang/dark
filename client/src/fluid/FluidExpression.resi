@@ -1,7 +1,7 @@
 @ppx.deriving(show({with_path: false})) type rec t = ProgramTypes.Expr.t
 
 @ppx.deriving(show({with_path: false}))
-type fluidPatOrExpr =
+type fluidMatchPatOrExpr =
   | Expr(ProgramTypes.Expr.t)
   | Pat(ID.t, FluidMatchPattern.t)
 
@@ -54,8 +54,8 @@ let filter: (~f: ProgramTypes.Expr.t => bool, ProgramTypes.Expr.t) => list<Progr
 
 @ocaml.doc(" [findExprOrPat target within] recursively finds the subtree
     with the ID.t = [target] inside the [within] tree, returning the subtree
-    wrapped in fluidPatOrExpr, or None if there is no subtree with the ID.t [target] ")
-let findExprOrPat: (ID.t, fluidPatOrExpr) => option<fluidPatOrExpr>
+    wrapped in fluidMatchPatOrExpr, or None if there is no subtree with the ID.t [target] ")
+let findExprOrPat: (ID.t, fluidMatchPatOrExpr) => option<fluidMatchPatOrExpr>
 
 @ocaml.doc(" [find target ast] recursively finds the expression having an ID.t of [target]
    and returns it if found. ")

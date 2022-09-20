@@ -6,7 +6,7 @@ open PT.Expr
 type rec t = PT.Expr.t
 
 @ppx.deriving(show({with_path: false}))
-type rec fluidPatOrExpr =
+type rec fluidMatchPatOrExpr =
   | Expr(t)
   | Pat(id, fluidPattern)
 
@@ -41,7 +41,7 @@ let toID = (expr: t): id =>
   | EMatch(id, _, _) => id
   }
 
-let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrExpr> => {
+let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidMatchPatOrExpr> => {
   let (id, childPatOrExprs) = switch within {
   | Expr(expr) =>
     switch expr {
