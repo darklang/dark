@@ -112,13 +112,13 @@ module Builder = {
     b.tokens->List.reverse->List.join(~sep="")
 }
 
-let rec patternToTokens = (matchID: id, p: RuntimeTypes.MatchPattern.t, ~idx: int): list<
+let rec matchPatternToTokens = (matchID: id, mp: RuntimeTypes.MatchPattern.t, ~idx: int): list<
   string,
 > => {
-  switch p {
+  switch mp {
   | MPVariable(_, name) => list{name}
   | MPConstructor(_, name, args) =>
-    let args = List.map(args, ~f=a => list{" ", ...patternToTokens(matchID, a, ~idx)})
+    let args = List.map(args, ~f=a => list{" ", ...matchPatternToTokens(matchID, a, ~idx)})
 
     List.flatten(list{list{name}, ...args})
   | MPInteger(_, i) => list{Int64.to_string(i)}
@@ -143,7 +143,7 @@ let rec patternToTokens = (matchID: id, p: RuntimeTypes.MatchPattern.t, ~idx: in
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
         let isLastPattern = i == subPatternCount - 1
-        let subpatternTokens = patternToTokens(matchID, p, ~idx)
+        let subpatternTokens = matchPatternToTokens(matchID, p, ~idx)
 
         if isLastPattern {
           subpatternTokens
@@ -345,10 +345,10 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
     |> addNested(~f=toTokens'(mexpr))
     |> indentBy(~indent=2, ~f=b =>
       b
-      |> addIter(pairs, ~f=(i, (pattern, expr), b) =>
+      |> addIter(pairs, ~f=(i, (mp, expr), b) =>
         b
         |> addNewlineIfNeeded
-        |> addMany(patternToTokens(id, pattern, ~idx=i))
+        |> addMany(matchPatternToTokens(id, mp, ~idx=i))
         |> add(" -> ")
         |> addNested(~f=toTokens'(expr))
       )
