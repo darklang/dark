@@ -5,36 +5,36 @@ open Belt_extended
 @ppx.deriving(show({with_path: false})) type rec id = ID.t
 @ppx.deriving(show({with_path: false})) type rec tlid = TLID.t
 
-module Pattern = {
+module MatchPattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    | PVariable(id, string)
-    | PConstructor(id, string, list<t>)
-    | PInteger(id, int64)
-    | PBool(id, bool)
-    | PString(id, string)
-    | PCharacter(id, string)
-    | PFloat(id, float)
-    | PNull(id)
-    | PBlank(id)
-    | PTuple(id, t, t, list<t>)
+    | MPVariable(id, string)
+    | MPConstructor(id, string, list<t>)
+    | MPInteger(id, int64)
+    | MPBool(id, bool)
+    | MPString(id, string)
+    | MPCharacter(id, string)
+    | MPFloat(id, float)
+    | MPNull(id)
+    | MPBlank(id)
+    | MPTuple(id, t, t, list<t>)
 
-  let rec encode = (pattern: t): Js.Json.t => {
+  let rec encode = (matchPattern: t): Js.Json.t => {
     open Json_encode_extended
     let ep = encode
     let ev = variant
-    switch pattern {
-    | PVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
-    | PConstructor(id', name, patterns) =>
-      ev("PConstructor", list{ID.encode(id'), string(name), list(ep, patterns)})
-    | PInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
-    | PBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
-    | PFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
-    | PString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
-    | PCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
-    | PNull(id') => ev("PNull", list{ID.encode(id')})
-    | PBlank(id') => ev("PBlank", list{ID.encode(id')})
-    | PTuple(id', first, second, theRest) =>
+    switch matchPattern {
+    | MPVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
+    | MPConstructor(id', name, args) =>
+      ev("PConstructor", list{ID.encode(id'), string(name), list(ep, args)})
+    | MPInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
+    | MPBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
+    | MPFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
+    | MPString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
+    | MPCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
+    | MPNull(id') => ev("PNull", list{ID.encode(id')})
+    | MPBlank(id') => ev("PBlank", list{ID.encode(id')})
+    | MPTuple(id', first, second, theRest) =>
       ev("PTuple", list{ID.encode(id'), ep(first), ep(second), list(ep, theRest)})
     }
   }
@@ -47,18 +47,40 @@ module Pattern = {
     let dv1 = variant1
     variants(
       list{
-        ("PVariable", dv2((a, b) => PVariable(a, b), ID.decode, string)),
-        ("PConstructor", dv3((a, b, c) => PConstructor(a, b, c), ID.decode, string, list(decode))),
-        ("PInteger", dv2((a, b) => PInteger(a, b), ID.decode, int64)),
-        ("PBool", dv2((a, b) => PBool(a, b), ID.decode, bool)),
-        ("PString", dv2((a, b) => PString(a, b), ID.decode, string)),
-        ("PFloat", dv2((a, b) => PFloat(a, b), ID.decode, Json_decode_extended.float')),
-        ("PNull", dv1(a => PNull(a), ID.decode)),
-        ("PBlank", dv1(a => PBlank(a), ID.decode)),
+        ("PVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
+        ("PConstructor", dv3((a, b, c) => MPConstructor(a, b, c), ID.decode, string, list(decode))),
+        ("PInteger", dv2((a, b) => MPInteger(a, b), ID.decode, int64)),
+        ("PBool", dv2((a, b) => MPBool(a, b), ID.decode, bool)),
+        ("PString", dv2((a, b) => MPString(a, b), ID.decode, string)),
+        ("PFloat", dv2((a, b) => MPFloat(a, b), ID.decode, Json_decode_extended.float')),
+        ("PNull", dv1(a => MPNull(a), ID.decode)),
+        ("PBlank", dv1(a => MPBlank(a), ID.decode)),
         (
           "PTuple",
           dv4(
-            (a, first, second, theRest) => PTuple(a, first, second, theRest),
+            (a, first, second, theRest) => MPTuple(a, first, second, theRest),
+            ID.decode,
+            decode,
+            decode,
+            list(decode),
+          ),
+        ),
+        // CLEANUP: remove the above list in favor of the below
+        ("MPVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
+        (
+          "MPConstructor",
+          dv3((a, b, c) => MPConstructor(a, b, c), ID.decode, string, list(decode)),
+        ),
+        ("MPInteger", dv2((a, b) => MPInteger(a, b), ID.decode, int64)),
+        ("MPBool", dv2((a, b) => MPBool(a, b), ID.decode, bool)),
+        ("MPString", dv2((a, b) => MPString(a, b), ID.decode, string)),
+        ("MPFloat", dv2((a, b) => MPFloat(a, b), ID.decode, Json_decode_extended.float')),
+        ("MPNull", dv1(a => MPNull(a), ID.decode)),
+        ("MPBlank", dv1(a => MPBlank(a), ID.decode)),
+        (
+          "MPTuple",
+          dv4(
+            (a, first, second, theRest) => MPTuple(a, first, second, theRest),
             ID.decode,
             decode,
             decode,
@@ -140,7 +162,7 @@ module Expr = {
     | ETuple(id, t, t, list<t>)
     | ERecord(id, list<(string, t)>)
     | EConstructor(id, string, list<t>)
-    | EMatch(id, t, list<(Pattern.t, t)>)
+    | EMatch(id, t, list<(MatchPattern.t, t)>)
     | EFeatureFlag(id, t, t, t)
 
   let rec decode = (j: Js.Json.t): t => {
@@ -188,7 +210,7 @@ module Expr = {
         ("EConstructor", dv3((a, b, c) => EConstructor(a, b, c), ID.decode, string, list(de))),
         (
           "EMatch",
-          dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(Pattern.decode, de))),
+          dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(MatchPattern.decode, de))),
         ),
         ("EFeatureFlag", dv4((a, b, c, d) => EFeatureFlag(a, b, c, d), ID.decode, de, de, de)),
         ("EFQFnValue", dv2((a, b) => EFQFnValue(a, b), ID.decode, FQFnName.decode)),
@@ -237,7 +259,7 @@ module Expr = {
     | EMatch(id, matchExpr, cases) =>
       ev(
         "EMatch",
-        list{ID.encode(id), encode(matchExpr), list(pair(Pattern.encode, encode), cases)},
+        list{ID.encode(id), encode(matchExpr), list(pair(MatchPattern.encode, encode), cases)},
       )
     | EFQFnValue(id, name) => ev("EFQFnValue", list{ID.encode(id), FQFnName.encode(name)})
     | EConstructor(id, name, args) =>

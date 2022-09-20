@@ -6,9 +6,9 @@ open PT.Expr
 type rec t = PT.Expr.t
 
 @ppx.deriving(show({with_path: false}))
-type rec fluidPatOrExpr =
+type rec fluidMatchPatOrExpr =
   | Expr(t)
-  | Pat(id, fluidPattern)
+  | MatchPat(id, fluidMatchPattern)
 
 let newB = () => PT.Expr.EBlank(gid())
 
@@ -41,7 +41,7 @@ let toID = (expr: t): id =>
   | EMatch(id, _, _) => id
   }
 
-let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrExpr> => {
+let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidMatchPatOrExpr> => {
   let (id, childPatOrExprs) = switch within {
   | Expr(expr) =>
     switch expr {
@@ -79,24 +79,24 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
         id,
         list{
           Expr(e1),
-          ...pairs |> List.map(~f=((p1, e1)) => list{Pat(id, p1), Expr(e1)}) |> List.flatten,
+          ...pairs |> List.map(~f=((p1, e1)) => list{MatchPat(id, p1), Expr(e1)}) |> List.flatten,
         },
       )
     }
-  | Pat(matchID, pat) =>
+  | MatchPat(matchID, pat) =>
     switch pat {
-    | PVariable(pid, _)
-    | PInteger(pid, _)
-    | PBool(pid, _)
-    | PNull(pid)
-    | PBlank(pid)
-    | PFloat(pid, _, _, _)
-    | PCharacter(pid, _)
-    | PString(pid, _) => (pid, list{})
-    | PConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
-    | PTuple(pid, first, second, theRest) => (
+    | MPVariable(pid, _)
+    | MPInteger(pid, _)
+    | MPBool(pid, _)
+    | MPNull(pid)
+    | MPBlank(pid)
+    | MPFloat(pid, _, _, _)
+    | MPCharacter(pid, _)
+    | MPString(pid, _) => (pid, list{})
+    | MPConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => MatchPat(matchID, p1)))
+    | MPTuple(pid, first, second, theRest) => (
         pid,
-        List.map(list{first, second, ...theRest}, ~f=p1 => Pat(matchID, p1)),
+        List.map(list{first, second, ...theRest}, ~f=p1 => MatchPat(matchID, p1)),
       )
     }
   }
@@ -437,7 +437,7 @@ let rec updateVariableUses = (oldVarName: string, ~f: t => t, ast: t): t => {
     }
   | EMatch(id, cond, pairs) =>
     let pairs = List.map(~f=((pat, expr)) =>
-      if FluidPattern.hasVariableNamed(oldVarName, pat) {
+      if FluidMatchPattern.hasVariableNamed(oldVarName, pat) {
         (pat, expr)
       } else {
         (pat, u(expr))
@@ -488,7 +488,7 @@ let rec clone = (expr: t): t => {
   | ERecord(_, pairs) => ERecord(gid(), List.map(~f=((k, v)) => (k, c(v)), pairs))
   | EFeatureFlag(_, name, cond, a, b) => EFeatureFlag(gid(), name, c(cond), c(a), c(b))
   | EMatch(_, matchExpr, cases) =>
-    EMatch(gid(), c(matchExpr), List.map(~f=((k, v)) => (FluidPattern.clone(k), c(v)), cases))
+    EMatch(gid(), c(matchExpr), List.map(~f=((k, v)) => (FluidMatchPattern.clone(k), c(v)), cases))
   | EConstructor(_, name, args) => EConstructor(gid(), name, cl(args))
   | EPartial(_, str, oldExpr) => EPartial(gid(), str, c(oldExpr))
   | ERightPartial(_, str, oldExpr) => ERightPartial(gid(), str, c(oldExpr))
@@ -554,36 +554,36 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   let eqList = (l1, l2) =>
     List.length(l1) == List.length(l2) && List.map2(~f=eq, l1, l2) |> List.all(~f=identity)
 
-  let rec peq = (a: FluidPattern.t, b: FluidPattern.t) => {
+  let rec peq = (a: FluidMatchPattern.t, b: FluidMatchPattern.t) => {
     let peqList = (l1, l2) =>
       List.length(l1) == List.length(l2) &&
         Tc.List.map2(~f=peq, l1, l2) |> Tc.List.all(~f=Tc.identity)
 
     switch (a, b) {
-    | (PVariable(_, name), PVariable(_, name')) => name == name'
-    | (PConstructor(_, name, patterns), PConstructor(_, name', patterns')) =>
-      name == name' && peqList(patterns, patterns')
-    | (PString(_, str), PString(_, str')) => str == str'
-    | (PCharacter(_, str), PCharacter(_, str')) => str == str'
-    | (PInteger(_, l), PInteger(_, l')) => l == l'
-    | (PFloat(_, s, w, f), PFloat(_, s', w', f')) => (s, w, f) == (s', w', f')
-    | (PBool(_, l), PBool(_, l')) => l == l'
-    | (PNull(_), PNull(_)) => true
-    | (PBlank(_), PBlank(_)) => true
-    | (PTuple(_, first, second, theRest), PTuple(_, first', second', theRest')) =>
+    | (MPVariable(_, name), MPVariable(_, name')) => name == name'
+    | (MPConstructor(_, name, args), MPConstructor(_, name', args')) =>
+      name == name' && peqList(args, args')
+    | (MPString(_, str), MPString(_, str')) => str == str'
+    | (MPCharacter(_, str), MPCharacter(_, str')) => str == str'
+    | (MPInteger(_, l), MPInteger(_, l')) => l == l'
+    | (MPFloat(_, s, w, f), MPFloat(_, s', w', f')) => (s, w, f) == (s', w', f')
+    | (MPBool(_, l), MPBool(_, l')) => l == l'
+    | (MPNull(_), MPNull(_)) => true
+    | (MPBlank(_), MPBlank(_)) => true
+    | (MPTuple(_, first, second, theRest), MPTuple(_, first', second', theRest')) =>
       peqList(list{first, second, ...theRest}, list{first', second', ...theRest'})
 
     // exhaust pattern matching
-    | (PVariable(_), _)
-    | (PConstructor(_), _)
-    | (PString(_), _)
-    | (PCharacter(_), _)
-    | (PInteger(_), _)
-    | (PFloat(_), _)
-    | (PBool(_), _)
-    | (PNull(_), _)
-    | (PBlank(_), _)
-    | (PTuple(_), _) => false
+    | (MPVariable(_), _)
+    | (MPConstructor(_), _)
+    | (MPString(_), _)
+    | (MPCharacter(_), _)
+    | (MPInteger(_), _)
+    | (MPFloat(_), _)
+    | (MPBool(_), _)
+    | (MPNull(_), _)
+    | (MPBlank(_), _)
+    | (MPTuple(_), _) => false
     }
   }
 
@@ -697,29 +697,29 @@ let toHumanReadable = (expr: t): string => {
     | EVariable(_, name) => Printf.sprintf(`(%s)`, name)
     | EFieldAccess(_, e, name) => Printf.sprintf("(fieldAccess \"%s\"\n%s)", name, r(e))
     | EMatch(_, cond, matches) =>
-      let rec pToTestcase = (p: FluidPattern.t): string => {
+      let rec pToTestcase = (p: FluidMatchPattern.t): string => {
         let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
         let spaced = elems => String.join(~sep=" ", elems)
         switch p {
-        | PBlank(_) => "pBlank"
-        | PString(_, str) => spaced(list{"pString", quoted(str)})
-        | PCharacter(_, str) => spaced(list{"pCharacter", quoted(str)})
-        | PBool(_, true) => spaced(list{"pBool true"})
-        | PBool(_, false) => spaced(list{"pBool false"})
-        | PFloat(_, sign, whole, fractional) =>
+        | MPBlank(_) => "mpBlank"
+        | MPString(_, str) => spaced(list{"mpString", quoted(str)})
+        | MPCharacter(_, str) => spaced(list{"mpCharacter", quoted(str)})
+        | MPBool(_, true) => spaced(list{"mpBool true"})
+        | MPBool(_, false) => spaced(list{"mpBool false"})
+        | MPFloat(_, sign, whole, fractional) =>
           let sign = switch sign {
           | Positive => "Positive"
           | Negative => "Negative"
           }
-          spaced(list{"pFloat'", sign, whole, fractional})
-        | PInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
-        | PNull(_) => "pNull"
-        | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
-        | PConstructor(_, name, args) =>
-          spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
-        | PTuple(_, first, second, theRest) =>
+          spaced(list{"mpFloat'", sign, whole, fractional})
+        | MPInteger(_, int) => spaced(list{"mpInt", Int64.to_string(int)})
+        | MPNull(_) => "mpNull"
+        | MPVariable(_, name) => spaced(list{"mpVar", quoted(name)})
+        | MPConstructor(_, name, args) =>
+          spaced(list{"mpConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
+        | MPTuple(_, first, second, theRest) =>
           let exprs = list{first, second, ...theRest} |> List.map(~f=pToTestcase)
-          spaced(list{"pTuple", "(" ++ String.join(~sep=",", exprs) ++ ")"})
+          spaced(list{"mpTuple", "(" ++ String.join(~sep=",", exprs) ++ ")"})
         }
       }
 

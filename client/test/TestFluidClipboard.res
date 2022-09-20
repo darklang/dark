@@ -1351,13 +1351,13 @@ let run = () => {
   describe("Match", () => {
     testCopy(
       "copying a blank match expression works",
-      match'(blank(), list{(pBlank(), blank())}),
+      match'(blank(), list{(mpBlank(), blank())}),
       (0, 22),
       "match ___\n  *** -> ___\n",
     )
     testCopy(
       "copying a match expression with a single integer pattern works",
-      match'(int(123), list{(pInt(123), str("success"))}),
+      match'(int(123), list{(mpInt(123), str("success"))}),
       (0, 27),
       "match 123\n  123 -> \"success\"\n",
     )
@@ -1365,14 +1365,14 @@ let run = () => {
       "copying a match expression with a full constructor pattern works",
       match'(
         constructor("Just", list{int(123)}),
-        list{(pConstructor("Just", list{pInt(123)}), str("success"))},
+        list{(mpConstructor("Just", list{mpInt(123)}), str("success"))},
       ),
       (0, 37),
       "match Just 123\n  Just 123 -> \"success\"\n",
     )
     testCopy(
       "copying fewer than all cases in a match expression works",
-      match'(int(0), list{(pInt(123), str("first branch")), (pInt(456), str("second branch"))}),
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
       (0, 30), // right after "Just"
       "match 0\n  123 -> \"first branch\"\n",
     )
@@ -1393,7 +1393,7 @@ let run = () => {
       "copying a match expression including a full tuple pattern works",
       match'(
         tuple(int(1), str("two"), list{int(3)}),
-        list{(pTuple(pInt(1), pString("two"), list{pInt(3)}), str("success"))},
+        list{(mpTuple(mpInt(1), mpString("two"), list{mpInt(3)}), str("success"))},
       ),
       (0, 44),
       "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
@@ -1452,8 +1452,8 @@ let run = () => {
     roundtrip(longString)
     roundtrip(let'("myVariable", longString, b))
     roundtrip(record(list{("a", record(list{("b", str("c"))}))}))
-    roundtrip(match'(b, list{(pBlank(), b)}))
-    roundtrip(match'(b, list{(pString("asd"), b)}))
+    roundtrip(match'(b, list{(mpBlank(), b)}))
+    roundtrip(match'(b, list{(mpString("asd"), b)}))
     ()
   })
 }

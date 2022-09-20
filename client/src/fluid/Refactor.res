@@ -5,7 +5,7 @@ module B = BlankOr
 module TL = Toplevel
 module TD = TLID.Dict
 module E = ProgramTypes.Expr
-module P = ProgramTypes.Pattern
+module MP = ProgramTypes.MatchPattern
 
 type model = AppTypes.model
 module Mod = AppTypes.Modification
@@ -82,7 +82,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): AppTypes.modification 
        * match e
        * _ -> _ */
       let mid = gid()
-      EMatch(mid, e, list{(P.PBlank(gid()), newB())})
+      EMatch(mid, e, list{(MP.MPBlank(gid()), newB())})
     | WMatchArm =>
       /* e becomes
        * match _
@@ -93,7 +93,7 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): AppTypes.modification 
        * at the end of a match, but it's always possible to delete a pattern)
        * */
       let mid = gid()
-      EMatch(mid, newB(), list{(P.PBlank(gid()), e), (P.PBlank(gid()), newB())})
+      EMatch(mid, newB(), list{(MP.MPBlank(gid()), e), (MP.MPBlank(gid()), newB())})
     }
   }
 

@@ -104,7 +104,7 @@ let clone: t => t
   * Find the implementation in the FluidExpression function of the same name. ")
 let testEqualIgnoringIds: (t, t) => bool
 
-@ocaml.doc(" [updatePattern f matchID patID ast] recursively searches [ast] for a
+@ocaml.doc(" [updateMatchPattern f matchID patID ast] recursively searches [ast] for a
   * match expression containing a pattern with id [patID].
   *
   * If found, replaces the pattern with the result of [f p] and returns the
@@ -114,7 +114,7 @@ let testEqualIgnoringIds: (t, t) => bool
   * unmodified AST.
   *
   * See FluidExpression.update ")
-let updatePattern: (~f: FluidPattern.t => FluidPattern.t, ID.t, ID.t, t) => t
+let updateMatchPattern: (~f: FluidMatchPattern.t => FluidMatchPattern.t, ID.t, ID.t, t) => t
 
 @ocaml.doc(" [replacePattern ~newPat matchID patID ast] recursively searches [ast]
   * for a match expression containing a pattern with id [patID].
@@ -126,4 +126,4 @@ let updatePattern: (~f: FluidPattern.t => FluidPattern.t, ID.t, ID.t, t) => t
   * unmodified AST.
   *
   * See FluidExpression.update ")
-let replacePattern: (~newPat: FluidPattern.t, ID.t, ID.t, t) => t
+let replaceMatchPattern: (~newPat: FluidMatchPattern.t, ID.t, ID.t, t) => t

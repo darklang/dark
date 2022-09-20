@@ -741,7 +741,7 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, testInfo, "handler=281413634");
     await page.waitForSelector(".tl-281413634");
     await page.waitForSelector(".selected #active-editor");
-    await page.click(".fluid-category-pattern.id-63381027", caretPos(0));
+    await page.click(".fluid-category-match-pattern.id-63381027", caretPos(0));
     await page.keyboard.press("Control+ArrowLeft");
   });
 

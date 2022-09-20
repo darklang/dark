@@ -4,7 +4,7 @@ open Prelude
 module B = BlankOr
 module E = FluidExpression
 open ProgramTypes.Expr
-open ProgramTypes.Pattern
+open ProgramTypes.MatchPattern
 
 // --------------------------------
 // PointerData
@@ -17,7 +17,7 @@ let isDefinitionOf = (var: string, expr: E.t): bool =>
     vars |> List.map(~f=Tuple2.second) |> List.any(~f=v => v == var && v != "")
   | EMatch(_, _, cases) =>
     let shadowsName = p => {
-      let originalNames = FluidPattern.variableNames(p)
+      let originalNames = FluidMatchPattern.variableNames(p)
       List.member(~value=var, originalNames)
     }
 
@@ -169,7 +169,7 @@ let freeVariables = (ast: E.t): list<(id, string)> => {
         |> /* Grab all uses of the variable bindings in a `pattern`
          * in the `body` of each match case */
         List.map(~f=((pattern, body)) => {
-          let vars = FluidPattern.variableNames(pattern)
+          let vars = FluidMatchPattern.variableNames(pattern)
           List.map(~f=v => uses(v, body), vars)
         })
         |> List.flatten
@@ -253,26 +253,26 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     | ETuple(_, first, second, theRest) =>
       List.forEach(~f=sexe(st), list{first, second, ...theRest})
     | EMatch(_, matchExpr, cases) =>
-      let rec variablesInPattern = p =>
+      let rec variablesInMP = p =>
         switch p {
-        | PInteger(_)
-        | PNull(_)
-        | PString(_)
-        | PCharacter(_)
-        | PFloat(_)
-        | PBool(_)
-        | PBlank(_) => list{}
-        | PVariable(patternID, v) => list{(patternID, v)}
-        | PConstructor(_, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
-        | PTuple(_, first, second, theRest) =>
-          list{first, second, ...theRest} |> List.map(~f=variablesInPattern) |> List.flatten
+        | MPInteger(_)
+        | MPNull(_)
+        | MPString(_)
+        | MPCharacter(_)
+        | MPFloat(_)
+        | MPBool(_)
+        | MPBlank(_) => list{}
+        | MPVariable(patternID, v) => list{(patternID, v)}
+        | MPConstructor(_, _, inner) => inner |> List.map(~f=variablesInMP) |> List.flatten
+        | MPTuple(_, first, second, theRest) =>
+          list{first, second, ...theRest} |> List.map(~f=variablesInMP) |> List.flatten
         }
 
       sexe(st, matchExpr)
       List.forEach(cases, ~f=((p, caseExpr)) => {
         let new_st =
           p
-          |> variablesInPattern
+          |> variablesInMP
           |> List.fold(~initial=st, ~f=(d, (id, varname)) =>
             Map.update(~key=varname, ~f=_v => Some(id), d)
           )

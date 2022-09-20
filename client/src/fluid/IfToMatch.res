@@ -1,7 +1,7 @@
 open Prelude
 module TL = Toplevel
 module E = ProgramTypes.Expr
-module P = FluidPattern
+module MP = FluidMatchPattern
 
 let findIf = (ast: FluidAST.t, e: E.t): option<E.t> =>
   switch e {
@@ -19,7 +19,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
   let makeGenericMatch = (ifID, cond, then_, else_) => E.EMatch(
     ifID,
     cond,
-    list{(PBool(gid(), true), then_), (PBool(gid(), false), else_)},
+    list{(MPBool(gid(), true), then_), (MPBool(gid(), false), else_)},
   )
   let binOpName = (function: string): PT.InfixStdlibFnName.t => {
     function: function,
@@ -55,22 +55,22 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     | _ => (lhs, rhs)
     }
 
-    let pattern: option<P.t> = switch arm {
-    | EInteger(pid, value) => Some(PInteger(pid, value))
-    | EBool(pid, value) => Some(PBool(pid, value))
-    | EString(pid, string) => Some(PString(pid, string))
-    | ECharacter(pid, string) => Some(PCharacter(pid, string))
-    | EFloat(pid, sign, whole, frac) => Some(PFloat(pid, sign, whole, frac))
-    | ENull(pid) => Some(PNull(pid))
-    | EBlank(pid) => Some(PBlank(pid))
-    | EVariable(pid, name) => Some(PVariable(pid, name))
+    let matchPattern: option<MP.t> = switch arm {
+    | EInteger(pid, value) => Some(MPInteger(pid, value))
+    | EBool(pid, value) => Some(MPBool(pid, value))
+    | EString(pid, string) => Some(MPString(pid, string))
+    | ECharacter(pid, string) => Some(MPCharacter(pid, string))
+    | EFloat(pid, sign, whole, frac) => Some(MPFloat(pid, sign, whole, frac))
+    | ENull(pid) => Some(MPNull(pid))
+    | EBlank(pid) => Some(MPBlank(pid))
+    | EVariable(pid, name) => Some(MPVariable(pid, name))
     | _ => None
     }
 
     // If we were unable to convert the other side to a pattern, fall back to a
     // generic match expression with true and false arms.
-    switch pattern {
-    | Some(p) => E.EMatch(ifID, matchCond, list{(p, then_), (PVariable(gid(), "_"), else_)})
+    switch matchPattern {
+    | Some(p) => E.EMatch(ifID, matchCond, list{(p, then_), (MPVariable(gid(), "_"), else_)})
     | None => makeGenericMatch(ifID, EBinOp(binopID, binOpName("=="), lhs, rhs, rail), then_, else_)
     }
   }
