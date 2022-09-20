@@ -701,25 +701,25 @@ let toHumanReadable = (expr: t): string => {
         let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
         let spaced = elems => String.join(~sep=" ", elems)
         switch p {
-        | MPBlank(_) => "pBlank"
-        | MPString(_, str) => spaced(list{"pString", quoted(str)})
-        | MPCharacter(_, str) => spaced(list{"pCharacter", quoted(str)})
-        | MPBool(_, true) => spaced(list{"pBool true"})
-        | MPBool(_, false) => spaced(list{"pBool false"})
+        | MPBlank(_) => "mpBlank"
+        | MPString(_, str) => spaced(list{"mpString", quoted(str)})
+        | MPCharacter(_, str) => spaced(list{"mpCharacter", quoted(str)})
+        | MPBool(_, true) => spaced(list{"mpBool true"})
+        | MPBool(_, false) => spaced(list{"mpBool false"})
         | MPFloat(_, sign, whole, fractional) =>
           let sign = switch sign {
           | Positive => "Positive"
           | Negative => "Negative"
           }
-          spaced(list{"pFloat'", sign, whole, fractional})
-        | MPInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
-        | MPNull(_) => "pNull"
-        | MPVariable(_, name) => spaced(list{"pVar", quoted(name)})
+          spaced(list{"mpFloat'", sign, whole, fractional})
+        | MPInteger(_, int) => spaced(list{"mpInt", Int64.to_string(int)})
+        | MPNull(_) => "mpNull"
+        | MPVariable(_, name) => spaced(list{"mpVar", quoted(name)})
         | MPConstructor(_, name, args) =>
-          spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
+          spaced(list{"mpConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
         | MPTuple(_, first, second, theRest) =>
           let exprs = list{first, second, ...theRest} |> List.map(~f=pToTestcase)
-          spaced(list{"pTuple", "(" ++ String.join(~sep=",", exprs) ++ ")"})
+          spaced(list{"mpTuple", "(" ++ String.join(~sep=",", exprs) ++ ")"})
         }
       }
 
