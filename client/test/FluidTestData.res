@@ -1,12 +1,12 @@
 open Prelude
 open ProgramTypes.Expr
-module P = ProgramTypes.Pattern
+module MP = ProgramTypes.MatchPattern
 
 // ----------------
 // Shortcuts
 // ----------------
 let b = FluidExpression.newB()
-let bPat = () => ProgramTypes.Pattern.PBlank(gid())
+let bPat = () => ProgramTypes.MatchPattern.PBlank(gid())
 
 open FluidShortcuts
 
@@ -216,8 +216,8 @@ let nestedMatch = {
 // ----------------
 // Match _Patterns_
 // ----------------
-let fiftySixPat = P.PInteger(gid(), 56L)
-let seventyEightPat = P.PInteger(gid(), 78L)
+let fiftySixPat = MP.PInteger(gid(), 56L)
+let seventyEightPat = MP.PInteger(gid(), 78L)
 
 let tuplePattern2WithNoBlank = pTuple(fiftySixPat, seventyEightPat, list{})
 let tuplePattern2WithBothBlank = pTuple(bPat(), bPat(), list{})

@@ -3,7 +3,7 @@ open Prelude
 open Fluid
 module K = FluidKeyboard
 module TL = Toplevel
-open ProgramTypes.Pattern
+open ProgramTypes.MatchPattern
 open ProgramTypes.Expr
 open FluidTestData
 open FluidShortcuts

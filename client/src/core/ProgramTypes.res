@@ -67,7 +67,7 @@ module Sign = {
   }
 }
 
-module Pattern = {
+module MatchPattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
     // match id, then pattern id
@@ -182,7 +182,7 @@ module Expr = {
     | ERecord(ID.t, list<(string, t)>)
     | EPipe(ID.t, t, t, list<t>)
     | EConstructor(ID.t, string, list<t>)
-    | EMatch(ID.t, t, list<(Pattern.t, t)>)
+    | EMatch(ID.t, t, list<(MatchPattern.t, t)>)
     | EPipeTarget(ID.t)
     | EFeatureFlag(ID.t, string, t, t, t)
 
@@ -234,7 +234,7 @@ module Expr = {
     | EMatch(id, matchExpr, cases) =>
       ev(
         "EMatch",
-        list{ID.encode(id), encode(matchExpr), list(pair(Pattern.encode, encode), cases)},
+        list{ID.encode(id), encode(matchExpr), list(pair(MatchPattern.encode, encode), cases)},
       )
     | EConstructor(id, name, args) =>
       ev("EConstructor", list{ID.encode(id), string(name), list(encode, args)})
@@ -316,7 +316,7 @@ module Expr = {
         ("EConstructor", dv3((a, b, c) => EConstructor(a, b, c), ID.decode, string, list(de))),
         (
           "EMatch",
-          dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(Pattern.decode, de))),
+          dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(MatchPattern.decode, de))),
         ),
         ("EPipeTarget", dv1(a => EPipeTarget(a), ID.decode)),
         (

@@ -4,7 +4,7 @@ open Prelude
 module B = BlankOr
 module E = FluidExpression
 open ProgramTypes.Expr
-open ProgramTypes.Pattern
+open ProgramTypes.MatchPattern
 
 // --------------------------------
 // PointerData

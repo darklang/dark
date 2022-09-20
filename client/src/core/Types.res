@@ -77,7 +77,7 @@ module TypeInformation = {
 // ----------------------
 type rec fnName = string
 
-and fluidPattern = ProgramTypes.Pattern.t
+and fluidPattern = ProgramTypes.MatchPattern.t
 and fluidExpr = ProgramTypes.Expr.t
 and fluidAST = ProgramTypes.AST.t
 

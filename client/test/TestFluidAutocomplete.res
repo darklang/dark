@@ -6,7 +6,7 @@ module K = FluidKeyboard
 module Printer = FluidTokenizer
 module TL = Toplevel
 open ProgramTypes.Expr
-open ProgramTypes.Pattern
+open ProgramTypes.MatchPattern
 open FluidTestData
 open FluidShortcuts
 

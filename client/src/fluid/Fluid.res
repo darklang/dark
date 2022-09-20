@@ -30,7 +30,7 @@ module Mod = AppTypes.Modification
 module FT = FluidTypes
 
 open ProgramTypes.Expr
-open ProgramTypes.Pattern
+open ProgramTypes.MatchPattern
 
 // --------------------
 // Utils

@@ -1,6 +1,6 @@
 open Tc
 
-type t = ProgramTypes.Pattern.t
+type t = ProgramTypes.MatchPattern.t
 type id = ID.t
 
 let gid = Prelude.gid

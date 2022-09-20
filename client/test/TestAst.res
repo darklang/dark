@@ -3,7 +3,7 @@ open Prelude
 open AST
 module B = BlankOr
 open ProgramTypes.Expr
-open ProgramTypes.Pattern
+open ProgramTypes.MatchPattern
 open FluidShortcuts
 
 type transformation_test_result<'a, 'b> =

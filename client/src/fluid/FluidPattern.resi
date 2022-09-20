@@ -1,4 +1,4 @@
-type t = ProgramTypes.Pattern.t
+type t = ProgramTypes.MatchPattern.t
 
 let toID: t => ID.t
 
