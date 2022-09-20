@@ -1,5 +1,5 @@
 module E = FluidExpression
-module P = FluidPattern
+module MP = FluidMatchPattern
 
 open Prelude
 
@@ -56,10 +56,10 @@ let updatePattern = (~f: fluidPattern => fluidPattern, matchID: id, patID: id, a
     switch m {
     | EMatch(matchID, expr, pairs) =>
       let rec run = p =>
-        if patID == P.toID(p) {
+        if patID == MP.toID(p) {
           f(p)
         } else {
-          P.recurseDeprecated(~f=run, p)
+          MP.recurseDeprecated(~f=run, p)
         }
 
       let newPairs = List.map(pairs, ~f=((pat, expr)) => (run(pat), expr))

@@ -17,7 +17,7 @@ module AC = FluidAutocomplete
 module Commands = FluidCommands
 module T = FluidToken
 module E = FluidExpression
-module P = FluidPattern
+module MP = FluidMatchPattern
 module Printer = FluidPrinter
 module Tokenizer = FluidTokenizer
 module Util = FluidUtil
@@ -2146,7 +2146,7 @@ let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
 
 let insertInTuplePattern = (
   ~index: int,
-  ~newPat: P.t,
+  ~newPat: MP.t,
   matchID: id,
   id: id,
   ast: FluidAST.t,
@@ -2163,7 +2163,7 @@ let insertInTuplePattern = (
     }
   , matchID, id, ast)
 
-let insertAtTuplePatternEnd = (~newPat: P.t, matchID: id, id: id, ast: FluidAST.t): FluidAST.t =>
+let insertAtTuplePatternEnd = (~newPat: MP.t, matchID: id, id: id, ast: FluidAST.t): FluidAST.t =>
   FluidAST.updatePattern(~f=p =>
     switch p {
     | MPTuple(id, first, second, theRest) =>
@@ -2304,7 +2304,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
 }
 
 let acToPattern = (entry: AC.item): option<(id, fluidPattern, CT.t)> => {
-  let selectedPat: option<(id, P.t)> = switch entry {
+  let selectedPat: option<(id, MP.t)> = switch entry {
   | FACPattern(mid, p) =>
     let rec patAcToPat = (p: FluidTypes.AutoComplete.patternItem) =>
       switch p {
@@ -3219,7 +3219,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           patterns
           |> /* FIXME: This is super broken because the pattern id could be anywhere
            but we only check at the pattern root */
-          List.findIndex(~f=(_, (p, _)) => P.toID(p) == pID)
+          List.findIndex(~f=(_, (p, _)) => MP.toID(p) == pID)
           |> Option.map(~f=((remIdx, _)) => {
             let newPatterns = if List.length(patterns) == 1 {
               patterns
@@ -3253,14 +3253,14 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       switch FluidAST.find(mID, ast) {
       | Some(EMatch(_, cond, cases)) =>
         let rec run = p =>
-          if pID == P.toID(p) {
+          if pID == MP.toID(p) {
             newPat
           } else {
-            P.recurseDeprecated(~f=run, p)
+            MP.recurseDeprecated(~f=run, p)
           }
 
         let newCases = List.map(cases, ~f=((pat, body)) =>
-          if P.findPattern(pID, pat) != None {
+          if MP.findPattern(pID, pat) != None {
             (run(pat), E.renameVariableUses(~oldName, ~newName, body))
           } else {
             (pat, body)
@@ -3321,7 +3321,9 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       // - if there are only blanks in the tuple, replace with blank
       // - if there's only 1 non-blank item, replace with that item
       let nonBlanks =
-        list{first, second, ...theRest} |> List.filter(~f=pat => !FluidPattern.isPatternBlank(pat))
+        list{first, second, ...theRest} |> List.filter(~f=pat =>
+          !FluidMatchPattern.isPatternBlank(pat)
+        )
 
       let newID = gid()
 
@@ -3841,7 +3843,7 @@ let doExplicitInsert = (
     }
   }
 
-  let handlePatBlank = (): option<(FluidPattern.t, CT.t)> => {
+  let handlePatBlank = (): option<(FluidMatchPattern.t, CT.t)> => {
     let newID = gid()
 
     if extendedGraphemeCluster == "\"" {
@@ -4002,14 +4004,14 @@ let doExplicitInsert = (
         switch FluidAST.find(mID, ast) {
         | Some(EMatch(_, cond, cases)) =>
           let rec run = p =>
-            if pID == P.toID(p) {
+            if pID == MP.toID(p) {
               newPat
             } else {
-              P.recurseDeprecated(~f=run, p)
+              MP.recurseDeprecated(~f=run, p)
             }
 
           let newCases = List.map(cases, ~f=((pat, body)) =>
-            if P.findPattern(pID, pat) != None {
+            if MP.findPattern(pID, pat) != None {
               (run(pat), E.renameVariableUses(~oldName, ~newName, body))
             } else {
               (pat, body)
@@ -4036,7 +4038,7 @@ let doExplicitInsert = (
 
         let shouldReplacePatternAtIndex =
           List.getAt(~index=elIndex, allPats)
-          |> Option.map(~f=p => P.isPatternBlank(p))
+          |> Option.map(~f=p => MP.isPatternBlank(p))
           |> Option.unwrap(~default=false)
 
         if shouldReplacePatternAtIndex {
@@ -5793,7 +5795,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         | list{(id, _value, "pattern-tuple-open"), ..._subPatternTokens} =>
           switch pattern {
           | MPTuple(_, first, second, theRest) =>
-            MPTuple(id, P.clone(first), P.clone(second), List.map(~f=P.clone, theRest))
+            MPTuple(id, MP.clone(first), MP.clone(second), List.map(~f=MP.clone, theRest))
           | _ => MPTuple(id, MPBlank(gid()), MPBlank(gid()), list{})
           }
         | _ =>
@@ -5807,7 +5809,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
 
       // new (pattern, expr) pairs for the new `match`
       let newCases = List.filterMap(cases, ~f=((pattern, expr)) => {
-        let isPartOfPattern = ((pID', _, _)) => pID' == P.toID(pattern)
+        let isPartOfPattern = ((pID', _, _)) => pID' == MP.toID(pattern)
 
         // note: this maintains order, so the first token of a pattern is first
         // TODO: it'd be ideal to have context of the tokens _in_ the pattern

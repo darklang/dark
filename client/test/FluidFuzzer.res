@@ -149,7 +149,7 @@ let rec generateFieldAccessExpr' = (): FluidExpression.t =>
 
 and generateFieldAccessExpr = () => checkTestSize(~default=b, generateFieldAccessExpr')
 
-let rec generatePattern' = (): FluidPattern.t =>
+let rec generatePattern' = (): FluidMatchPattern.t =>
   oneOf(list{
     lazy pInt(range(500)),
     lazy pBool(random() < 0.5),
@@ -363,7 +363,7 @@ let remove = (id: id, ast: E.t): E.t => {
         mid,
         mexpr,
         List.filter(pairs, ~f=((pattern, expr)) =>
-          E.toID(expr) != id && FluidPattern.toID(pattern) != id
+          E.toID(expr) != id && FluidMatchPattern.toID(pattern) != id
         ),
       )
     | ERecord(rid, fields) => ERecord(rid, List.filterMap(~f=((name, expr)) =>

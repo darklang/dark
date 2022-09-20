@@ -1,7 +1,7 @@
 open Prelude
 module T = FluidToken
 module E = FluidExpression
-module Pattern = FluidPattern
+module MatchPattern = FluidMatchPattern
 module Util = FluidUtil
 open FluidTokenizer
 
@@ -79,7 +79,7 @@ let rec eToTestcase = (e: E.t): string => {
   | EVariable(_, name) => spaced(list{"var", quoted(name)})
   | EFieldAccess(_, expr, fieldname) => spaced(list{"fieldAccess", r(expr), quoted(fieldname)})
   | EMatch(_, cond, matches) =>
-    let rec pToTestcase = (p: FluidPattern.t): string => {
+    let rec pToTestcase = (p: FluidMatchPattern.t): string => {
       let quoted = str => "\"" ++ (str ++ "\"")
       let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
       let spaced = elems => String.join(~sep=" ", elems)

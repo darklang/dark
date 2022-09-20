@@ -25,7 +25,7 @@ let tokenizeForEditor: (FluidTypes.Editor.t, FluidExpression.t) => list<FluidTok
 
     ~idx is the zero-based index of the pattern in the enclosing match ")
 
-let patternToToken: (ID.t, FluidPattern.t, ~idx: int) => list<FluidTypes.Token.t>
+let patternToToken: (ID.t, FluidMatchPattern.t, ~idx: int) => list<FluidTypes.Token.t>
 
 let getTokensAtPosition: (
   ~prev: option<FluidToken.tokenInfo>=?,

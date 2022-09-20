@@ -17,7 +17,7 @@ let isDefinitionOf = (var: string, expr: E.t): bool =>
     vars |> List.map(~f=Tuple2.second) |> List.any(~f=v => v == var && v != "")
   | EMatch(_, _, cases) =>
     let shadowsName = p => {
-      let originalNames = FluidPattern.variableNames(p)
+      let originalNames = FluidMatchPattern.variableNames(p)
       List.member(~value=var, originalNames)
     }
 
@@ -169,7 +169,7 @@ let freeVariables = (ast: E.t): list<(id, string)> => {
         |> /* Grab all uses of the variable bindings in a `pattern`
          * in the `body` of each match case */
         List.map(~f=((pattern, body)) => {
-          let vars = FluidPattern.variableNames(pattern)
+          let vars = FluidMatchPattern.variableNames(pattern)
           List.map(~f=v => uses(v, body), vars)
         })
         |> List.flatten

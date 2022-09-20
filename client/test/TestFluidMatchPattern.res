@@ -32,11 +32,11 @@ module TestCase = {
     ast: ProgramTypes.Expr.t,
     state: AppTypes.fluidState,
     pos: int,
-    pat: FluidPattern.t,
+    pat: FluidMatchPattern.t,
     debug: bool,
   }
 
-  let init = (~debug=false, ~pos=0, originalPat: FluidPattern.t): t => {
+  let init = (~debug=false, ~pos=0, originalPat: FluidMatchPattern.t): t => {
     let ast = EMatch(mID, EBlank(gid()), list{(originalPat, EBlank(gid()))})
 
     let state = {

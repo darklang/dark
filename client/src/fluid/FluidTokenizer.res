@@ -2,7 +2,7 @@ open Prelude
 module T = FluidToken
 module Expr = ProgramTypes.Expr
 module E = FluidExpression
-module Pattern = FluidPattern
+module MP = FluidMatchPattern
 
 open FluidTypes.Token
 type tokenInfo = FluidTypes.TokenInfo.t
@@ -129,7 +129,7 @@ module Builder = {
 }
 
 // TODO: rename to `patternToTokens``
-let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
+let rec patternToToken = (matchID: id, p: FluidMatchPattern.t, ~idx: int): list<fluidToken> => {
   open FluidTypes.Token
   switch p {
   | MPVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
@@ -635,7 +635,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         |> add(
           TMatchBranchArrow({
             matchID: id,
-            patternID: Pattern.toID(pattern),
+            patternID: MP.toID(pattern),
             index: i,
           }),
         )

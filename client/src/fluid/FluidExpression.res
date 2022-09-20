@@ -437,7 +437,7 @@ let rec updateVariableUses = (oldVarName: string, ~f: t => t, ast: t): t => {
     }
   | EMatch(id, cond, pairs) =>
     let pairs = List.map(~f=((pat, expr)) =>
-      if FluidPattern.hasVariableNamed(oldVarName, pat) {
+      if FluidMatchPattern.hasVariableNamed(oldVarName, pat) {
         (pat, expr)
       } else {
         (pat, u(expr))
@@ -488,7 +488,7 @@ let rec clone = (expr: t): t => {
   | ERecord(_, pairs) => ERecord(gid(), List.map(~f=((k, v)) => (k, c(v)), pairs))
   | EFeatureFlag(_, name, cond, a, b) => EFeatureFlag(gid(), name, c(cond), c(a), c(b))
   | EMatch(_, matchExpr, cases) =>
-    EMatch(gid(), c(matchExpr), List.map(~f=((k, v)) => (FluidPattern.clone(k), c(v)), cases))
+    EMatch(gid(), c(matchExpr), List.map(~f=((k, v)) => (FluidMatchPattern.clone(k), c(v)), cases))
   | EConstructor(_, name, args) => EConstructor(gid(), name, cl(args))
   | EPartial(_, str, oldExpr) => EPartial(gid(), str, c(oldExpr))
   | ERightPartial(_, str, oldExpr) => ERightPartial(gid(), str, c(oldExpr))
@@ -554,7 +554,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   let eqList = (l1, l2) =>
     List.length(l1) == List.length(l2) && List.map2(~f=eq, l1, l2) |> List.all(~f=identity)
 
-  let rec peq = (a: FluidPattern.t, b: FluidPattern.t) => {
+  let rec peq = (a: FluidMatchPattern.t, b: FluidMatchPattern.t) => {
     let peqList = (l1, l2) =>
       List.length(l1) == List.length(l2) &&
         Tc.List.map2(~f=peq, l1, l2) |> Tc.List.all(~f=Tc.identity)
@@ -697,7 +697,7 @@ let toHumanReadable = (expr: t): string => {
     | EVariable(_, name) => Printf.sprintf(`(%s)`, name)
     | EFieldAccess(_, e, name) => Printf.sprintf("(fieldAccess \"%s\"\n%s)", name, r(e))
     | EMatch(_, cond, matches) =>
-      let rec pToTestcase = (p: FluidPattern.t): string => {
+      let rec pToTestcase = (p: FluidMatchPattern.t): string => {
         let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
         let spaced = elems => String.join(~sep=" ", elems)
         switch p {

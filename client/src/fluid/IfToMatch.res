@@ -1,7 +1,7 @@
 open Prelude
 module TL = Toplevel
 module E = ProgramTypes.Expr
-module P = FluidPattern
+module MP = FluidMatchPattern
 
 let findIf = (ast: FluidAST.t, e: E.t): option<E.t> =>
   switch e {
@@ -55,7 +55,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     | _ => (lhs, rhs)
     }
 
-    let pattern: option<P.t> = switch arm {
+    let pattern: option<MP.t> = switch arm {
     | EInteger(pid, value) => Some(MPInteger(pid, value))
     | EBool(pid, value) => Some(MPBool(pid, value))
     | EString(pid, string) => Some(MPString(pid, string))
