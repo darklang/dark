@@ -8,7 +8,7 @@ type rec t = PT.Expr.t
 @ppx.deriving(show({with_path: false}))
 type rec fluidMatchPatOrExpr =
   | Expr(t)
-  | Pat(id, fluidMatchPattern)
+  | MatchPat(id, fluidMatchPattern)
 
 let newB = () => PT.Expr.EBlank(gid())
 
@@ -79,11 +79,11 @@ let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidM
         id,
         list{
           Expr(e1),
-          ...pairs |> List.map(~f=((p1, e1)) => list{Pat(id, p1), Expr(e1)}) |> List.flatten,
+          ...pairs |> List.map(~f=((p1, e1)) => list{MatchPat(id, p1), Expr(e1)}) |> List.flatten,
         },
       )
     }
-  | Pat(matchID, pat) =>
+  | MatchPat(matchID, pat) =>
     switch pat {
     | MPVariable(pid, _)
     | MPInteger(pid, _)
@@ -93,10 +93,10 @@ let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidM
     | MPFloat(pid, _, _, _)
     | MPCharacter(pid, _)
     | MPString(pid, _) => (pid, list{})
-    | MPConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
+    | MPConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => MatchPat(matchID, p1)))
     | MPTuple(pid, first, second, theRest) => (
         pid,
-        List.map(list{first, second, ...theRest}, ~f=p1 => Pat(matchID, p1)),
+        List.map(list{first, second, ...theRest}, ~f=p1 => MatchPat(matchID, p1)),
       )
     }
   }

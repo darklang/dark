@@ -2325,7 +2325,7 @@ let acToPattern = (entry: AC.item): option<(id, fluidMatchPattern, CT.t)> => {
 
 let acToPatternOrExpr = (entry: AC.item): (E.fluidMatchPatOrExpr, CT.t) =>
   acToPattern(entry)
-  |> Option.map(~f=((mid, pat, target)) => (E.Pat(mid, pat), target))
+  |> Option.map(~f=((mid, pat, target)) => (E.MatchPat(mid, pat), target))
   |> Option.orElseLazy(() =>
     acToExpr(entry) |> Option.map(~f=((expr, target)) => (E.Expr(expr), target))
   )
@@ -2460,7 +2460,7 @@ let updateFromACItem = (
   let (newAST, target) = switch (ti.token, oldExpr, parent, newPatOrExpr) {
   // since patterns have no partial but commit as variables automatically,
   // allow intermediate variables to be autocompletable to other expressions
-  | (TMPBlank(mID, pID, _) | TMPVariable(mID, pID, _, _), _, _, Pat(_, newPat)) =>
+  | (TMPBlank(mID, pID, _) | TMPVariable(mID, pID, _, _), _, _, MatchPat(_, newPat)) =>
     let newAST = FluidAST.replacePattern(~newPat, mID, pID, ast)
     (newAST, newTarget)
   | (
@@ -2558,7 +2558,7 @@ let updateFromACItem = (
   | (_, _, _, Expr(newExpr)) =>
     let newAST = FluidAST.replace(~replacement=newExpr, id, ast)
     (newAST, newTarget)
-  | (_, _, _, Pat(_)) =>
+  | (_, _, _, MatchPat(_)) =>
     recover(
       "updateFromACItem - unhandled pattern",
       ~debug=entry,
@@ -2647,7 +2647,7 @@ let acStartField = (props: FluidTypes.Props.t, ti: T.tokenInfo, astInfo: ASTInfo
   | (Some(entry), _) =>
     let replacement = switch acToPatternOrExpr(entry) {
     | (Expr(newExpr), _ignoredTarget) => EPartial(gid(), "", EFieldAccess(gid(), newExpr, ""))
-    | (Pat(_), _) => recover("acStartField", E.newB())
+    | (MatchPat(_), _) => recover("acStartField", E.newB())
     }
 
     astInfo
@@ -3209,7 +3209,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
   ): option<(E.fluidMatchPatOrExpr, CT.t)> => {
     let mkPBlank = (): option<(E.fluidMatchPatOrExpr, CT.t)> => {
       let bID = gid()
-      Some(Pat(mID, MPBlank(bID)), {astRef: ARMPattern(bID, MPPBlank), offset: 0})
+      Some(MatchPat(mID, MPBlank(bID)), {astRef: ARMPattern(bID, MPPBlank), offset: 0})
     }
 
     switch (currAstRef, pat) {
@@ -3241,7 +3241,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         | _ => recover("doExplicitBackspace MPPBlank", None)
         }
       } else {
-        Some(Pat(mID, MPBlank(pID)), {astRef: currAstRef, offset: 0})
+        Some(MatchPat(mID, MPBlank(pID)), {astRef: currAstRef, offset: 0})
       }
     | (ARMPattern(_, MPPVariable), MPVariable(pID, oldName)) =>
       patContainerRef := Some(mID)
@@ -3276,7 +3276,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       let str = mutation("null")
       let newID = gid()
       Some(
-        Pat(mID, MPVariable(newID, str)),
+        MatchPat(mID, MPVariable(newID, str)),
         {astRef: ARMPattern(newID, MPPVariable), offset: currOffset - 1},
       )
     | (ARMPattern(_, MPPBool), MPBool(_, bool)) =>
@@ -3288,7 +3288,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       let newStr = mutation(str)
       let newID = gid()
       Some(
-        Pat(mID, MPVariable(newID, newStr)),
+        MatchPat(mID, MPVariable(newID, newStr)),
         {astRef: ARMPattern(newID, MPPVariable), offset: currOffset - 1},
       )
     | (ARMPattern(_, MPPInteger), MPInteger(pID, int)) =>
@@ -3300,17 +3300,17 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         if coerced == int {
           None
         } else {
-          Some(Pat(mID, MPInteger(pID, coerced)), currCTMinusOne)
+          Some(MatchPat(mID, MPInteger(pID, coerced)), currCTMinusOne)
         }
       }
     | (ARMPattern(_, MPPConstructor), MPConstructor(_, str, _patterns)) =>
       let str = str |> mutation |> String.trim
       let newID = gid()
       if str == "" {
-        Some(Pat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, MPPBlank), offset: 0})
+        Some(MatchPat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, MPPBlank), offset: 0})
       } else {
         Some(
-          Pat(mID, MPVariable(newID, str)),
+          MatchPat(mID, MPVariable(newID, str)),
           {astRef: ARMPattern(newID, MPPVariable), offset: currOffset - 1},
         )
       }
@@ -3330,11 +3330,12 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       let newID = gid()
 
       switch nonBlanks {
-      | list{} => Some(Pat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, MPPBlank), offset: 0})
-      | list{single} => Some(Pat(mID, single), caretTargetForStartOfPattern(single))
+      | list{} =>
+        Some(MatchPat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, MPPBlank), offset: 0})
+      | list{single} => Some(MatchPat(mID, single), caretTargetForStartOfPattern(single))
       | _ =>
         let target: CT.t = {astRef: ARMPattern(newID, MPPTuple(TPOpen)), offset: 0}
-        Some(Pat(mID, MPTuple(newID, first, second, theRest)), target)
+        Some(MatchPat(mID, MPTuple(newID, first, second, theRest)), target)
       }
 
     | (ARMPattern(_, MPPTuple(TPComma(elemAndSepIdx))), MPTuple(_, first, second, theRest)) =>
@@ -3353,10 +3354,10 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         )
       | list{single} =>
         let newTarget = caretTargetForEndOfPattern(single)
-        Some(Pat(mID, single), newTarget)
+        Some(MatchPat(mID, single), newTarget)
       | list{first, second, ...theRest} =>
         let newID = gid()
-        let newPat = Pat(mID, MPTuple(newID, first, second, theRest))
+        let newPat = MatchPat(mID, MPTuple(newID, first, second, theRest))
 
         // set target to RHS of the item to left of ,
         switch Belt.List.get(withoutDeleted, elemAndSepIdx) {
@@ -3376,25 +3377,25 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARMPattern(_, MPPTuple(TPClose)), MPTuple(_, first, second, theRest)) =>
       let newID = gid()
       let target: CT.t = {astRef: ARMPattern(newID, MPPTuple(TPClose)), offset: 0}
-      Some(Pat(mID, MPTuple(newID, first, second, theRest)), target)
+      Some(MatchPat(mID, MPTuple(newID, first, second, theRest)), target)
 
     //
     // Floats
     //
     | (ARMPattern(_, MPPFloat(FPWhole)), MPFloat(pID, sign, whole, frac)) =>
       let (sign, whole) = Sign.combine(sign, whole)->mutation->Sign.split
-      Some(Pat(mID, MPFloat(pID, sign, whole, frac)), currCTMinusOne)
+      Some(MatchPat(mID, MPFloat(pID, sign, whole, frac)), currCTMinusOne)
     | (ARMPattern(_, MPPFloat(FPPoint)), MPFloat(_, sign, whole, frac)) =>
       // TODO: If the float only consists of a . and has no whole or frac,
       // it should become a blank. Instead, it currently becomes a 0, which is weird.
       let i = Util.coerceStringTo64BitInt(Sign.toString(sign) ++ whole ++ frac)
       let iID = gid()
       Some(
-        Pat(mID, MPInteger(iID, i)),
+        MatchPat(mID, MPInteger(iID, i)),
         {astRef: ARMPattern(iID, MPPInteger), offset: String.length(whole)},
       )
     | (ARMPattern(_, MPPFloat(FPFractional)), MPFloat(pID, sign, whole, frac)) =>
-      Some(Pat(mID, MPFloat(pID, sign, whole, mutation(frac))), currCTMinusOne)
+      Some(MatchPat(mID, MPFloat(pID, sign, whole, mutation(frac))), currCTMinusOne)
     //
     // Strings
     //
@@ -3405,7 +3406,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         mkPBlank()
       } else {
         let str = str |> mutationAt(~index=strRelOffset - 1)
-        Some(Pat(mID, MPString(id, str)), CT.forMPPStringOpenQuote(id, strRelOffset))
+        Some(MatchPat(mID, MPString(id, str)), CT.forMPPStringOpenQuote(id, strRelOffset))
       }
     /* ****************
      * Exhaustiveness
@@ -3465,7 +3466,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
   )
   |> Option.andThen(~f=((patOrExprID, patOrExpr)) => {
     let maybeTransformedExprAndCaretTarget = switch patOrExpr {
-    | E.Pat(mID, pat) => doPatternBackspace(patContainerRef, currAstRef, mID, pat)
+    | E.MatchPat(mID, pat) => doPatternBackspace(patContainerRef, currAstRef, mID, pat)
     | E.Expr(expr) => doExprBackspace(currAstRef, expr)
     }
 
@@ -3477,7 +3478,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       }
 
       Some(FluidAST.replace(patOrExprID, ~replacement=newExpr, ast), AtTarget(target))
-    | Some(Pat(mID, newPat), target) =>
+    | Some(MatchPat(mID, newPat), target) =>
       let newAST = FluidAST.replacePattern(mID, patOrExprID, ~newPat, ast)
       Some(newAST, AtTarget(target))
     | None => None
@@ -3898,7 +3899,7 @@ let doExplicitInsert = (
             None
           } else {
             Some(
-              Pat(mID, MPFloat(pID, sign, newWhole, frac)),
+              MatchPat(mID, MPFloat(pID, sign, newWhole, frac)),
               {
                 astRef: ARMPattern(pID, MPPFloat(FPWhole)),
                 offset: index + caretDelta,
@@ -3908,7 +3909,7 @@ let doExplicitInsert = (
         } else {
           let newFrac = mutationAt(frac, ~index)
           Some(
-            Pat(mID, MPFloat(pID, sign, whole, newFrac)),
+            MatchPat(mID, MPFloat(pID, sign, whole, newFrac)),
             {
               astRef: ARMPattern(pID, MPPFloat(FPFractional)),
               offset: index + caretDelta,
@@ -3923,7 +3924,7 @@ let doExplicitInsert = (
       let newID = gid()
       if FluidUtil.isValidIdentifier(str) {
         Some(
-          Pat(mID, MPVariable(newID, str)),
+          MatchPat(mID, MPVariable(newID, str)),
           {
             astRef: ARMPattern(newID, MPPVariable),
             offset: currOffset + caretDelta,
@@ -3942,7 +3943,7 @@ let doExplicitInsert = (
       let newID = gid()
       if FluidUtil.isValidIdentifier(str) {
         Some(
-          Pat(mID, MPVariable(newID, newStr)),
+          MatchPat(mID, MPVariable(newID, newStr)),
           {
             astRef: ARMPattern(newID, MPPVariable),
             offset: currOffset + caretDelta,
@@ -3967,14 +3968,14 @@ let doExplicitInsert = (
         if coerced == int {
           None
         } else {
-          Some(Pat(mID, MPInteger(pID, coerced)), currCTPlusLen)
+          Some(MatchPat(mID, MPInteger(pID, coerced)), currCTPlusLen)
         }
       } else if extendedGraphemeCluster == "." {
         let newID = gid()
         let (whole, frac) = String.splitAt(~index=currOffset, Int64.to_string(int))
         let (sign, whole) = Sign.split(whole)
         Some(
-          Pat(mID, MPFloat(newID, sign, whole, frac)),
+          MatchPat(mID, MPFloat(newID, sign, whole, frac)),
           {astRef: ARMPattern(newID, MPPFloat(FPPoint)), offset: 1},
         )
       } else {
@@ -3989,12 +3990,12 @@ let doExplicitInsert = (
         None
       } else {
         let str = str |> mutationAt(~index=strRelOffset)
-        Some(Pat(mID, MPString(id, str)), CT.forMPPStringText(id, strRelOffset + caretDelta))
+        Some(MatchPat(mID, MPString(id, str)), CT.forMPPStringText(id, strRelOffset + caretDelta))
       }
     | (ARMPattern(_, MPPBlank), MPBlank(_)) =>
       switch handlePatBlank() {
       | None => None
-      | Some(pat, ct) => Some(Pat(mID, pat), ct)
+      | Some(pat, ct) => Some(MatchPat(mID, pat), ct)
       }
 
     | (ARMPattern(_, MPPVariable), MPVariable(pID, oldName)) =>
@@ -4048,7 +4049,7 @@ let doExplicitInsert = (
 
           switch allPatsWithReplacement {
           | list{first, second, ...theRest} =>
-            Some(E.Pat(mID, MPTuple(gid(), first, second, theRest)), newCt)
+            Some(E.MatchPat(mID, MPTuple(gid(), first, second, theRest)), newCt)
           | _ =>
             recover(
               "doPatInsert - unexpected tuple pattern of fewer than 2 elements",
@@ -4122,7 +4123,7 @@ let doExplicitInsert = (
   )
   |> Option.andThen(~f=((patOrExprID, patOrExpr)) => {
     let maybeTransformedExprAndCaretTarget = switch patOrExpr {
-    | E.Pat(mID, pat) => doPatInsert(patContainerRef, currAstRef, mID, pat)
+    | E.MatchPat(mID, pat) => doPatInsert(patContainerRef, currAstRef, mID, pat)
     | E.Expr(expr) =>
       switch doExprInsert(currAstRef, expr) {
       | None => None
@@ -4138,7 +4139,7 @@ let doExplicitInsert = (
       }
 
       Some(FluidAST.replace(patOrExprID, ~replacement=newExpr, ast), AtTarget(target))
-    | Some(Pat(mID, newPat), target) =>
+    | Some(MatchPat(mID, newPat), target) =>
       let newAST = FluidAST.replacePattern(mID, patOrExprID, ~newPat, ast)
       Some(newAST, AtTarget(target))
     | None => None

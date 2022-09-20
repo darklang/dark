@@ -3,7 +3,7 @@
 @ppx.deriving(show({with_path: false}))
 type fluidMatchPatOrExpr =
   | Expr(ProgramTypes.Expr.t)
-  | Pat(ID.t, FluidMatchPattern.t)
+  | MatchPat(ID.t, FluidMatchPattern.t)
 
 let toID: ProgramTypes.Expr.t => ID.t
 
