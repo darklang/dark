@@ -9,8 +9,8 @@ open FluidTestData
 open FluidShortcuts
 
 // These tests should be synced with the subset of tests in TestFluid.res that
-// makes sense for patterns. See the extensive docs there for how this all
-// works.
+// makes sense for match patterns. See the extensive docs there for how this
+// all works.
 
 let eToStructure = Printer.eToStructure
 
