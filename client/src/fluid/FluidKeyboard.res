@@ -12,11 +12,9 @@ external jsGetBrowserPlatform: unit => Js.Nullable.t<browserPlatform> = "getBrow
 let getBrowserPlatform = (): browserPlatform =>
   jsGetBrowserPlatform() |> Js.Nullable.toOption |> Option.unwrap(~default=UnknownPlatform)
 
-/* Character representation that's partially keyboard and partially ascii
- * characters. All keyboard keys are represented, but may be split into
- * multiple characters (eg 5 and percent are the same button, but it's
- * worthwhile knowing which is which).
- */
+// Character representation that's partially keyboard and partially ascii characters.
+// All keyboard keys are represented, but may be split into multiple characters (eg 5
+// and percent are the same button, but it's worthwhile knowing which is which).
 
 @ppx.deriving(show)
 type rec shortcutHeritage =

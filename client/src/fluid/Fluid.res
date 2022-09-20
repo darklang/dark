@@ -6185,9 +6185,8 @@ let updateMsg' = (
     }
   | FluidInputEvent(Keypress({key, shiftKey: false, altKey: _, ctrlKey: _, metaKey: _}) as ievt)
     if astInfo.state.selectionStart != None && (key == K.Right || key == K.Left) =>
-    /* Aborting a selection using the left and right arrows should
-         place the caret on the side of the selection in the direction
-         of the pressed arrow key */
+    // Aborting a selection using the left and right arrows should place the caret on
+    // the side of the selection in the direction of the pressed arrow key
     let newPos = {
       let (left, right) = FluidUtil.getSelectionRange(astInfo.state)
       if key == K.Left {
