@@ -1242,6 +1242,50 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
   | PBlank(id) => {astRef: ARPattern(id, PPBlank), offset: 0}
   }
 
+@ocaml.doc("returns a caretTarget representing caret placement at the start of
+  the first blank sub-pattern, if any. If there are no blanks, the cursor is
+  set at the end of the pattern")
+let rec caretTargetForFirstInputOfPattern = (pattern: fluidPattern): CT.t =>
+  switch pattern {
+  | PBlank(id) => {astRef: ARPattern(id, PPBlank), offset: 0}
+  | PNull(id) => {astRef: ARPattern(id, PPNull), offset: String.length("null")}
+  | PBool(id, true) => {astRef: ARPattern(id, PPBool), offset: String.length("true")}
+  | PBool(id, false) => {astRef: ARPattern(id, PPBool), offset: String.length("false")}
+  | PString(id, str) => CT.forPPStringCloseQuote(id, 1, str) // end of close quote
+  | PInteger(id, value) => {
+      astRef: ARPattern(id, PPInteger),
+      offset: String.length(Int64.to_string(value)),
+    }
+  | PFloat(id, _, _, frac) => {
+      astRef: ARPattern(id, PPFloat(FPFractional)),
+      offset: String.length(frac),
+    }
+  | PVariable(id, varName) => {
+      astRef: ARPattern(id, PPVariable),
+      offset: String.length(varName),
+    }
+  | PConstructor(id, name, containedPatterns) =>
+    switch List.last(containedPatterns) {
+    | Some(lastPattern) => caretTargetForFirstInputOfPattern(lastPattern)
+    | None => {astRef: ARPattern(id, PPConstructor), offset: String.length(name)}
+    }
+  | PTuple(_id, first, second, theRest) =>
+    let allSubpatterns = list{first, second, ...theRest}
+    switch List.head(allSubpatterns) {
+    | Some(lastPattern) => caretTargetForFirstInputOfPattern(lastPattern)
+    | None =>
+      recover(
+        "no sub-patterns found within tuple pattern",
+        {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
+      )
+    }
+  | PCharacter(_) =>
+    recover(
+      "echar unsupported in caretTargetForStartOfPattern",
+      {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
+    )
+  }
+
 /* caretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
  * placement at the very start of the match branch identified by `matchID` and `index`
  * within the `ast`.
@@ -2261,19 +2305,23 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
 
 let acToPattern = (entry: AC.item): option<(id, fluidPattern, CT.t)> => {
   let selectedPat: option<(id, P.t)> = switch entry {
-  | FACPattern(p) =>
-    switch p {
-    | FPAConstructor(mID, var, pats) => Some(mID, PConstructor(gid(), var, pats))
-    | FPAVariable(mID, var) => Some(mID, PVariable(gid(), var))
-    | FPABool(mID, var) => Some(mID, PBool(gid(), var))
-    | FPANull(mID) => Some(mID, PNull(gid()))
-    }
+  | FACPattern(mid, p) =>
+    let rec patAcToPat = (p: FluidTypes.AutoComplete.patternItem) =>
+      switch p {
+      | FPAConstructor(var, pats) => PConstructor(gid(), var, List.map(~f=patAcToPat, pats))
+      | FPAVariable(var) => PVariable(gid(), var)
+      | FPABool(var) => PBool(gid(), var)
+      | FPANull => PNull(gid())
+      | FPATuple => PTuple(gid(), PBlank(gid()), PBlank(gid()), list{})
+      | FPABlank => PBlank(gid())
+      }
+    Some(mid, patAcToPat(p))
   | _ =>
     // This only works for patterns
     None
   }
 
-  selectedPat |> Option.map(~f=((mid, p)) => (mid, p, caretTargetForEndOfPattern(p)))
+  selectedPat |> Option.map(~f=((mid, p)) => (mid, p, caretTargetForFirstInputOfPattern(p)))
 }
 
 let acToPatternOrExpr = (entry: AC.item): (E.fluidPatOrExpr, CT.t) =>
@@ -2404,14 +2452,15 @@ let updateFromACItem = (
 ): ASTInfo.t => {
   open FluidExpression
   let id = T.tid(ti.token)
-  let (newPatOrExpr, newTarget) = acToPatternOrExpr(entry)
   let ast = astInfo.ast
   let oldExpr = FluidAST.find(id, ast)
   let parent = FluidAST.findParent(id, ast)
+
+  let (newPatOrExpr, newTarget) = acToPatternOrExpr(entry)
+
   let (newAST, target) = switch (ti.token, oldExpr, parent, newPatOrExpr) {
-  /* since patterns have no partial but commit as variables
-   * automatically, allow intermediate variables to
-   * be autocompletable to other expressions */
+  // since patterns have no partial but commit as variables automatically,
+  // allow intermediate variables to be autocompletable to other expressions
   | (TPatternBlank(mID, pID, _) | TPatternVariable(mID, pID, _, _), _, _, Pat(_, newPat)) =>
     let newAST = FluidAST.replacePattern(~newPat, mID, pID, ast)
     (newAST, newTarget)

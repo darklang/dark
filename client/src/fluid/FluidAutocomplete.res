@@ -79,11 +79,13 @@ let asName = (aci: item): string =>
     | KMatch => "match"
     | KPipe => "|>"
     }
-  | FACPattern(p) =>
+  | FACPattern(_, p) =>
     switch p {
-    | FPAVariable(_, name) | FPAConstructor(_, name, _) => name
-    | FPABool(_, v) => string_of_bool(v)
-    | FPANull(_) => "null"
+    | FT.AutoComplete.FPABlank => "blank"
+    | FPAVariable(name) | FPAConstructor(name, _) => name
+    | FPABool(v) => string_of_bool(v)
+    | FPANull => "null"
+    | FPATuple => "tuple"
     }
   | FACCreateFunction(name, _, _) => "Create new function: " ++ name
   }
@@ -104,8 +106,8 @@ let asTypeStrings = (item: item): (list<string>, string) =>
     |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.Dval.toType |> DType.tipe2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
-  | FACPattern(FPAVariable(_)) => (list{}, "variable")
-  | FACConstructorName(name, _) | FACPattern(FPAConstructor(_, name, _)) =>
+  | FACPattern(_, FPAVariable(_)) => (list{}, "variable")
+  | FACConstructorName(name, _) | FACPattern(_, FPAConstructor(name, _)) =>
     if name == "Just" {
       (list{"any"}, "option")
     } else if name == "Nothing" {
@@ -122,9 +124,11 @@ let asTypeStrings = (item: item): (list<string>, string) =>
     }
 
     (list{}, tipe ++ " literal")
-  | FACPattern(FPABool(_)) => (list{}, "boolean literal")
+  | FACPattern(_, FPABool(_)) => (list{}, "boolean literal")
   | FACKeyword(_) => (list{}, "keyword")
-  | FACPattern(FPANull(_)) => (list{}, "null")
+  | FACPattern(_, FPANull) => (list{}, "null")
+  | FACPattern(_, FPATuple) => (list{}, `tuple (a, b)`)
+  | FACPattern(_, FPABlank) => (list{}, `blank ___`)
   | FACCreateFunction(_) => (list{}, "")
   }
 
@@ -427,65 +431,30 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
 }
 
-let generatePatterns = (
-  currentCompletions: list<FT.AutoComplete.data>,
-  ti: tokenInfo,
-  queryString: string,
-): list<item> => {
-  let patternCompletions = List.filterMap(~f=v =>
-    switch v {
-    | {item: FACPattern(p), _} => Some(p)
-    | _ => None
-    }
-  , currentCompletions)
-
-  let patternOrReplace = (
-    findFn: FT.AutoComplete.patternItem => bool,
-    newPat: FT.AutoComplete.patternItem,
-  ) => List.find(~f=findFn, patternCompletions) |> Option.unwrap(~default=newPat)
-
-  // When possible, re-use an existing pattern rather than generating a new
-  // one. That way, internal IDs are unlikely to change. This is useful as we
-  // re-generate patterns often, including while scrolling in the UI through
-  // the list of available patterns. Each time we regenerate, we attempt to put
-  // highlight the appropriate item - if the ID changes, it becomes difficult
-  // to select the correct item, as simple comparisons won't work.
-  //
-  // Some patterns have no risk of conflict (because they don't have internal
-  // IDs other than the match ID), so we don't bother to prevent conflict.
-  let newStandardPatterns = mid => list{
-    FT.AutoComplete.FPABool(mid, true),
-    FPABool(mid, false),
-    patternOrReplace(p =>
-      switch p {
-      | FPAConstructor(id, "Just", list{PBlank(_)}) => mid == id
-      | _ => false
-      }
-    , FPAConstructor(mid, "Just", list{PBlank(gid())})),
-    FPAConstructor(mid, "Nothing", list{}),
-    patternOrReplace(p =>
-      switch p {
-      | FPAConstructor(id, "Ok", list{PBlank(_)}) => mid == id
-      | _ => false
-      }
-    , FPAConstructor(mid, "Ok", list{PBlank(gid())})),
-    patternOrReplace(p =>
-      switch p {
-      | FPAConstructor(id, "Error", list{PBlank(_)}) => mid == id
-      | _ => false
-      }
-    , FPAConstructor(mid, "Error", list{PBlank(gid())})),
-    FPANull(mid),
+let generatePatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): list<item> => {
+  let newStandardPatterns = list{
+    FT.AutoComplete.FPABool(true),
+    FPABool(false),
+    FPAConstructor("Just", list{FPABlank}),
+    FPAConstructor("Nothing", list{}),
+    FPAConstructor("Ok", list{FPABlank}),
+    FPAConstructor("Error", list{FPABlank}),
+    FPANull,
   }
 
-  let newVariablePattern = mid => {
+  let newTuplePattern = if allowTuples {
+    Some(FT.AutoComplete.FPATuple)
+  } else {
+    None
+  }
+
+  let newVariablePattern = {
     let matchesExpectedPattern = List.member(
       ~value=queryString,
       list{"", "Just", "Nothing", "Ok", "Error", "true", "false", "null"},
     )
 
-    let firstCharacterIsCapitalized =
-      String.dropRight(~count=String.length(queryString) - 1, queryString) |> String.isCapitalized
+    let firstCharacterIsCapitalized = String.left(~count=1, queryString) |> String.isCapitalized
 
     // if the query is empty, or equals a standard constructor or boolean name,
     // or starts with a capital letter (invalid variable name), don't return
@@ -493,15 +462,19 @@ let generatePatterns = (
     if matchesExpectedPattern || firstCharacterIsCapitalized {
       None
     } else {
-      Some(FT.AutoComplete.FPAVariable(mid, queryString))
+      Some(FT.AutoComplete.FPAVariable(queryString))
     }
   }
 
   switch ti.token {
   | TPatternBlank(mid, _, _) | TPatternVariable(mid, _, _, _) =>
-    Belt.List.concat(Option.toList(newVariablePattern(mid)), newStandardPatterns(mid))
+    Belt.List.concatMany([
+      Option.toList(newVariablePattern),
+      newStandardPatterns,
+      Option.toList(newTuplePattern),
+    ]) |> List.map(~f=p => FT.AutoComplete.FACPattern(mid, p))
   | _ => list{}
-  } |> List.map(~f=p => FT.AutoComplete.FACPattern(p))
+  }
 }
 
 let generateCommands = (_name, _tlid, _id) =>
@@ -511,11 +484,12 @@ let generateCommands = (_name, _tlid, _id) =>
 
 let generateFields = fieldList => List.map(~f=x => FT.AutoComplete.FACField(x), fieldList)
 
-let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
+let generate = (m: model, props: props, query: fullQuery): list<item> => {
   let tlid = TL.id(query.tl)
   switch query.ti.token {
   | TPatternBlank(_) | TPatternVariable(_) =>
-    generatePatterns(a.completions, query.ti, query.queryString)
+    let allowTuples = m.settings.contributingSettings.inProgressFeatures.allowTuples
+    generatePatterns(allowTuples, query.ti, query.queryString)
 
   | TFieldName(_) | TFieldPartial(_) => generateFields(query.fieldList)
   | TLeftPartial(_) => // Left partials can ONLY be if/let/match for now
@@ -629,8 +603,8 @@ let refilter = (props: props, query: fullQuery, old: t, items: list<item>): t =>
   {index: index, query: Some(TL.id(query.tl), query.ti), completions: newCompletions}
 }
 
-/* Regenerate calls generate, except that it adapts the result using the
- * existing state (mostly putting the index in the right place. */
+@ocaml.doc("Regenerate calls generate, except that it adapts the result using
+  the existing state (mostly putting the index in the right place.")
 let regenerate = (m: model, a: t, (tlid, ti): query): t =>
   switch TL.get(m, tlid) {
   | None => init
@@ -646,7 +620,7 @@ let regenerate = (m: model, a: t, (tlid, ti): query): t =>
       pipedDval: pipedDval,
       queryString: queryString,
     }
-    let items = generate(m, props, a, query)
+    let items = generate(m, props, query)
     refilter(props, query, a, items)
   }
 
@@ -783,14 +757,15 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
       "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions",
     )
   | FACKeyword(KPipe) => simpleDoc("Pipe into another expression")
-  | FACPattern(pat) =>
+  | FACPattern(_, pat) =>
     switch pat {
-    | FPAConstructor(_, name, args) =>
+    | FPAConstructor(name, args) =>
       documentationForItem({item: FACConstructorName(name, List.length(args)), validity: validity})
-    | FPAVariable(_, name) =>
-      documentationForItem({item: FACVariable(name, None), validity: validity})
-    | FPABool(_, b) => documentationForItem({item: FACLiteral(LBool(b)), validity: validity})
-    | FPANull(_) => simpleDoc("A 'null' literal")
+    | FPAVariable(name) => documentationForItem({item: FACVariable(name, None), validity: validity})
+    | FPABool(b) => documentationForItem({item: FACLiteral(LBool(b)), validity: validity})
+    | FPANull => simpleDoc("A 'null' literal")
+    | FPATuple => simpleDoc("A tuple containing several sub-patterns")
+    | FPABlank => simpleDoc("A blank pattern")
     }
   | FACCreateFunction(_) => None
   }
