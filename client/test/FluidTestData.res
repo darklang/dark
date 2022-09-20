@@ -6,7 +6,7 @@ module MP = ProgramTypes.MatchPattern
 // Shortcuts
 // ----------------
 let b = FluidExpression.newB()
-let bPat = () => ProgramTypes.MatchPattern.PBlank(gid())
+let bPat = () => ProgramTypes.MatchPattern.MPBlank(gid())
 
 open FluidShortcuts
 
@@ -142,42 +142,42 @@ let letWithUsedBinding = (bindingName: string) =>
 // ----------------
 let emptyMatch = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(gid()), b)})
+  EMatch(mID, b, list{(MPBlank(gid()), b)})
 }
 
 let matchWithCond = (cond: t) => {
   let mID = gid()
-  EMatch(mID, cond, list{(PBlank(gid()), b)})
+  EMatch(mID, cond, list{(MPBlank(gid()), b)})
 }
 
 let emptyMatchWithTwoPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(gid()), b), (PBlank(gid()), b)})
+  EMatch(mID, b, list{(MPBlank(gid()), b), (MPBlank(gid()), b)})
 }
 
 let matchWithTwoPatterns = {
   let mID = gid()
-  EMatch(mID, b, list{(PInteger(gid(), 3L), b), (PInteger(gid(), 4L), b)})
+  EMatch(mID, b, list{(MPInteger(gid(), 3L), b), (MPInteger(gid(), 4L), b)})
 }
 
 let matchWithPattern = {
   let mID = gid()
-  EMatch(mID, b, list{(PInteger(gid(), 3L), b)})
+  EMatch(mID, b, list{(MPInteger(gid(), 3L), b)})
 }
 
 let matchWithConstructorPattern = {
   let mID = gid()
-  EMatch(mID, b, list{(PConstructor(gid(), "Just", list{}), b)})
+  EMatch(mID, b, list{(MPConstructor(gid(), "Just", list{}), b)})
 }
 
 let matchWithOneExpr = (expr: t) => {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(gid()), expr)})
+  EMatch(mID, b, list{(MPBlank(gid()), expr)})
 }
 
 let matchWithBinding = (bindingName: string, expr: t) => {
   let mID = gid()
-  EMatch(mID, b, list{(PVariable(gid(), bindingName), expr)})
+  EMatch(mID, b, list{(MPVariable(gid(), bindingName), expr)})
 }
 
 let matchWithTwoBindings = (bindingName1: string, expr1: t, bindingName2: string, expr2: t) => {
@@ -185,13 +185,13 @@ let matchWithTwoBindings = (bindingName1: string, expr1: t, bindingName2: string
   EMatch(
     mID,
     b,
-    list{(PVariable(gid(), bindingName1), expr1), (PVariable(gid(), bindingName2), expr2)},
+    list{(MPVariable(gid(), bindingName1), expr1), (MPVariable(gid(), bindingName2), expr2)},
   )
 }
 
 let matchWithConstructorBinding = (bindingName: string, expr: t) => {
   let mID = gid()
-  EMatch(mID, b, list{(PConstructor(gid(), "Ok", list{PVariable(gid(), bindingName)}), expr)})
+  EMatch(mID, b, list{(MPConstructor(gid(), "Ok", list{MPVariable(gid(), bindingName)}), expr)})
 }
 
 let matchWithTwoLets = {
@@ -201,7 +201,7 @@ let matchWithTwoLets = {
     b,
     list{
       (
-        PBlank(gid()),
+        MPBlank(gid()),
         ELet(gid(), "x", EInteger(gid(), 5L), ELet(gid(), "y", EInteger(gid(), 6L), EBlank(gid()))),
       ),
     },
@@ -210,14 +210,14 @@ let matchWithTwoLets = {
 
 let nestedMatch = {
   let mID = gid()
-  EMatch(mID, b, list{(PBlank(gid()), emptyMatch)})
+  EMatch(mID, b, list{(MPBlank(gid()), emptyMatch)})
 }
 
 // ----------------
 // Match _Patterns_
 // ----------------
-let fiftySixPat = MP.PInteger(gid(), 56L)
-let seventyEightPat = MP.PInteger(gid(), 78L)
+let fiftySixPat = MP.MPInteger(gid(), 56L)
+let seventyEightPat = MP.MPInteger(gid(), 78L)
 
 let tuplePattern2WithNoBlank = pTuple(fiftySixPat, seventyEightPat, list{})
 let tuplePattern2WithBothBlank = pTuple(bPat(), bPat(), list{})

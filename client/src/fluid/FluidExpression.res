@@ -85,16 +85,16 @@ let rec findExprOrPat = (target: id, within: fluidPatOrExpr): option<fluidPatOrE
     }
   | Pat(matchID, pat) =>
     switch pat {
-    | PVariable(pid, _)
-    | PInteger(pid, _)
-    | PBool(pid, _)
-    | PNull(pid)
-    | PBlank(pid)
-    | PFloat(pid, _, _, _)
-    | PCharacter(pid, _)
-    | PString(pid, _) => (pid, list{})
-    | PConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
-    | PTuple(pid, first, second, theRest) => (
+    | MPVariable(pid, _)
+    | MPInteger(pid, _)
+    | MPBool(pid, _)
+    | MPNull(pid)
+    | MPBlank(pid)
+    | MPFloat(pid, _, _, _)
+    | MPCharacter(pid, _)
+    | MPString(pid, _) => (pid, list{})
+    | MPConstructor(pid, _, pats) => (pid, List.map(pats, ~f=p1 => Pat(matchID, p1)))
+    | MPTuple(pid, first, second, theRest) => (
         pid,
         List.map(list{first, second, ...theRest}, ~f=p1 => Pat(matchID, p1)),
       )
@@ -560,30 +560,30 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
         Tc.List.map2(~f=peq, l1, l2) |> Tc.List.all(~f=Tc.identity)
 
     switch (a, b) {
-    | (PVariable(_, name), PVariable(_, name')) => name == name'
-    | (PConstructor(_, name, patterns), PConstructor(_, name', patterns')) =>
+    | (MPVariable(_, name), MPVariable(_, name')) => name == name'
+    | (MPConstructor(_, name, patterns), MPConstructor(_, name', patterns')) =>
       name == name' && peqList(patterns, patterns')
-    | (PString(_, str), PString(_, str')) => str == str'
-    | (PCharacter(_, str), PCharacter(_, str')) => str == str'
-    | (PInteger(_, l), PInteger(_, l')) => l == l'
-    | (PFloat(_, s, w, f), PFloat(_, s', w', f')) => (s, w, f) == (s', w', f')
-    | (PBool(_, l), PBool(_, l')) => l == l'
-    | (PNull(_), PNull(_)) => true
-    | (PBlank(_), PBlank(_)) => true
-    | (PTuple(_, first, second, theRest), PTuple(_, first', second', theRest')) =>
+    | (MPString(_, str), MPString(_, str')) => str == str'
+    | (MPCharacter(_, str), MPCharacter(_, str')) => str == str'
+    | (MPInteger(_, l), MPInteger(_, l')) => l == l'
+    | (MPFloat(_, s, w, f), MPFloat(_, s', w', f')) => (s, w, f) == (s', w', f')
+    | (MPBool(_, l), MPBool(_, l')) => l == l'
+    | (MPNull(_), MPNull(_)) => true
+    | (MPBlank(_), MPBlank(_)) => true
+    | (MPTuple(_, first, second, theRest), MPTuple(_, first', second', theRest')) =>
       peqList(list{first, second, ...theRest}, list{first', second', ...theRest'})
 
     // exhaust pattern matching
-    | (PVariable(_), _)
-    | (PConstructor(_), _)
-    | (PString(_), _)
-    | (PCharacter(_), _)
-    | (PInteger(_), _)
-    | (PFloat(_), _)
-    | (PBool(_), _)
-    | (PNull(_), _)
-    | (PBlank(_), _)
-    | (PTuple(_), _) => false
+    | (MPVariable(_), _)
+    | (MPConstructor(_), _)
+    | (MPString(_), _)
+    | (MPCharacter(_), _)
+    | (MPInteger(_), _)
+    | (MPFloat(_), _)
+    | (MPBool(_), _)
+    | (MPNull(_), _)
+    | (MPBlank(_), _)
+    | (MPTuple(_), _) => false
     }
   }
 
@@ -701,23 +701,23 @@ let toHumanReadable = (expr: t): string => {
         let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
         let spaced = elems => String.join(~sep=" ", elems)
         switch p {
-        | PBlank(_) => "pBlank"
-        | PString(_, str) => spaced(list{"pString", quoted(str)})
-        | PCharacter(_, str) => spaced(list{"pCharacter", quoted(str)})
-        | PBool(_, true) => spaced(list{"pBool true"})
-        | PBool(_, false) => spaced(list{"pBool false"})
-        | PFloat(_, sign, whole, fractional) =>
+        | MPBlank(_) => "pBlank"
+        | MPString(_, str) => spaced(list{"pString", quoted(str)})
+        | MPCharacter(_, str) => spaced(list{"pCharacter", quoted(str)})
+        | MPBool(_, true) => spaced(list{"pBool true"})
+        | MPBool(_, false) => spaced(list{"pBool false"})
+        | MPFloat(_, sign, whole, fractional) =>
           let sign = switch sign {
           | Positive => "Positive"
           | Negative => "Negative"
           }
           spaced(list{"pFloat'", sign, whole, fractional})
-        | PInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
-        | PNull(_) => "pNull"
-        | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
-        | PConstructor(_, name, args) =>
+        | MPInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
+        | MPNull(_) => "pNull"
+        | MPVariable(_, name) => spaced(list{"pVar", quoted(name)})
+        | MPConstructor(_, name, args) =>
           spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
-        | PTuple(_, first, second, theRest) =>
+        | MPTuple(_, first, second, theRest) =>
           let exprs = list{first, second, ...theRest} |> List.map(~f=pToTestcase)
           spaced(list{"pTuple", "(" ++ String.join(~sep=",", exprs) ++ ")"})
         }

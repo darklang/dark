@@ -7,58 +7,64 @@ let gid = Prelude.gid
 
 let toID = (p: t): id =>
   switch p {
-  | PVariable(id, _)
-  | PConstructor(id, _, _)
-  | PInteger(id, _)
-  | PBool(id, _)
-  | PString(id, _)
-  | PCharacter(id, _)
-  | PFloat(id, _, _, _)
-  | PNull(id)
-  | PBlank(id)
-  | PTuple(id, _, _, _) => id
+  | MPVariable(id, _)
+  | MPConstructor(id, _, _)
+  | MPInteger(id, _)
+  | MPBool(id, _)
+  | MPString(id, _)
+  | MPCharacter(id, _)
+  | MPFloat(id, _, _, _)
+  | MPNull(id)
+  | MPBlank(id)
+  | MPTuple(id, _, _, _) => id
   }
 
 let rec ids = (p: t): list<id> =>
   switch p {
-  | PConstructor(id, _, list) => list |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
+  | MPConstructor(id, _, list) => list |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
 
-  | PTuple(id, first, second, theRest) =>
+  | MPTuple(id, first, second, theRest) =>
     list{first, second, ...theRest} |> List.map(~f=ids) |> List.flatten |> (l => list{id, ...l})
 
-  | PVariable(_)
-  | PInteger(_)
-  | PBool(_)
-  | PString(_)
-  | PCharacter(_)
-  | PFloat(_)
-  | PNull(_)
-  | PBlank(_) => list{toID(p)}
+  | MPVariable(_)
+  | MPInteger(_)
+  | MPBool(_)
+  | MPString(_)
+  | MPCharacter(_)
+  | MPFloat(_)
+  | MPNull(_)
+  | MPBlank(_) => list{toID(p)}
   }
 
 let rec clone = (p: t): t =>
   switch p {
-  | PVariable(_, name) => PVariable(gid(), name)
-  | PConstructor(_, name, patterns) =>
-    PConstructor(gid(), name, List.map(~f=p => clone(p), patterns))
-  | PInteger(_, i) => PInteger(gid(), i)
-  | PBool(_, b) => PBool(gid(), b)
-  | PString(_, str) => PString(gid(), str)
-  | PCharacter(_, str) => PCharacter(gid(), str)
-  | PBlank(_) => PBlank(gid())
-  | PNull(_) => PNull(gid())
-  | PFloat(_, sign, whole, fraction) => PFloat(gid(), sign, whole, fraction)
-  | PTuple(_, first, second, theRest) =>
-    PTuple(gid(), clone(first), clone(second), List.map(~f=p => clone(p), theRest))
+  | MPVariable(_, name) => MPVariable(gid(), name)
+  | MPConstructor(_, name, patterns) =>
+    MPConstructor(gid(), name, List.map(~f=p => clone(p), patterns))
+  | MPInteger(_, i) => MPInteger(gid(), i)
+  | MPBool(_, b) => MPBool(gid(), b)
+  | MPString(_, str) => MPString(gid(), str)
+  | MPCharacter(_, str) => MPCharacter(gid(), str)
+  | MPBlank(_) => MPBlank(gid())
+  | MPNull(_) => MPNull(gid())
+  | MPFloat(_, sign, whole, fraction) => MPFloat(gid(), sign, whole, fraction)
+  | MPTuple(_, first, second, theRest) =>
+    MPTuple(gid(), clone(first), clone(second), List.map(~f=p => clone(p), theRest))
   }
 
 let rec variableNames = (p: t): list<string> =>
   switch p {
-  | PVariable(_, name) => list{name}
-  | PConstructor(_, _, patterns) => patterns |> List.map(~f=variableNames) |> List.flatten
-  | PTuple(_, first, second, theRest) =>
+  | MPVariable(_, name) => list{name}
+  | MPConstructor(_, _, patterns) => patterns |> List.map(~f=variableNames) |> List.flatten
+  | MPTuple(_, first, second, theRest) =>
     list{first, second, ...theRest} |> List.map(~f=variableNames) |> List.flatten
-  | PInteger(_) | PBool(_) | PString(_) | PCharacter(_) | PBlank(_) | PNull(_) | PFloat(_) => list{}
+  | MPInteger(_)
+  | MPBool(_)
+  | MPString(_)
+  | MPCharacter(_)
+  | MPBlank(_)
+  | MPNull(_)
+  | MPFloat(_) => list{}
   }
 
 let hasVariableNamed = (varName: string, p: t): bool =>
@@ -66,32 +72,32 @@ let hasVariableNamed = (varName: string, p: t): bool =>
 
 let isPatternBlank = (pat: t) =>
   switch pat {
-  | PBlank(_) => true
+  | MPBlank(_) => true
   | _ => false
   }
 
 let rec findPattern = (patID: id, within: t): option<t> =>
   switch within {
-  | PVariable(pid, _)
-  | PInteger(pid, _)
-  | PBool(pid, _)
-  | PNull(pid)
-  | PBlank(pid)
-  | PFloat(pid, _, _, _)
-  | PCharacter(pid, _)
-  | PString(pid, _) =>
+  | MPVariable(pid, _)
+  | MPInteger(pid, _)
+  | MPBool(pid, _)
+  | MPNull(pid)
+  | MPBlank(pid)
+  | MPFloat(pid, _, _, _)
+  | MPCharacter(pid, _)
+  | MPString(pid, _) =>
     if patID == pid {
       Some(within)
     } else {
       None
     }
-  | PConstructor(pid, _, pats) =>
+  | MPConstructor(pid, _, pats) =>
     if patID == pid {
       Some(within)
     } else {
       List.findMap(pats, ~f=p => findPattern(patID, p))
     }
-  | PTuple(pid, first, second, theRest) =>
+  | MPTuple(pid, first, second, theRest) =>
     if patID == pid {
       Some(within)
     } else {
@@ -103,36 +109,36 @@ let rec preTraversal = (~f: t => t, pattern: t): t => {
   let r = preTraversal(~f)
   let pattern = f(pattern)
   switch pattern {
-  | PVariable(_)
-  | PInteger(_)
-  | PBool(_)
-  | PString(_)
-  | PCharacter(_)
-  | PBlank(_)
-  | PNull(_)
-  | PFloat(_) => pattern
-  | PConstructor(patternID, name, patterns) =>
-    PConstructor(patternID, name, List.map(patterns, ~f=p => r(p)))
-  | PTuple(patternID, first, second, theRest) =>
-    PTuple(patternID, r(first), r(second), List.map(theRest, ~f=p => r(p)))
+  | MPVariable(_)
+  | MPInteger(_)
+  | MPBool(_)
+  | MPString(_)
+  | MPCharacter(_)
+  | MPBlank(_)
+  | MPNull(_)
+  | MPFloat(_) => pattern
+  | MPConstructor(patternID, name, patterns) =>
+    MPConstructor(patternID, name, List.map(patterns, ~f=p => r(p)))
+  | MPTuple(patternID, first, second, theRest) =>
+    MPTuple(patternID, r(first), r(second), List.map(theRest, ~f=p => r(p)))
   }
 }
 
 let rec postTraversal = (~f: t => t, pattern: t): t => {
   let r = postTraversal(~f)
   let result = switch pattern {
-  | PVariable(_)
-  | PInteger(_)
-  | PBool(_)
-  | PString(_)
-  | PCharacter(_)
-  | PBlank(_)
-  | PNull(_)
-  | PFloat(_) => pattern
-  | PConstructor(patternID, name, patterns) =>
-    PConstructor(patternID, name, List.map(patterns, ~f=p => r(p)))
-  | PTuple(patternID, first, second, theRest) =>
-    PTuple(patternID, r(first), r(second), List.map(theRest, ~f=p => r(p)))
+  | MPVariable(_)
+  | MPInteger(_)
+  | MPBool(_)
+  | MPString(_)
+  | MPCharacter(_)
+  | MPBlank(_)
+  | MPNull(_)
+  | MPFloat(_) => pattern
+  | MPConstructor(patternID, name, patterns) =>
+    MPConstructor(patternID, name, List.map(patterns, ~f=p => r(p)))
+  | MPTuple(patternID, first, second, theRest) =>
+    MPTuple(patternID, r(first), r(second), List.map(theRest, ~f=p => r(p)))
   }
 
   f(result)
@@ -140,15 +146,16 @@ let rec postTraversal = (~f: t => t, pattern: t): t => {
 
 let recurseDeprecated = (~f: t => t, pattern: t): t =>
   switch pattern {
-  | PVariable(_)
-  | PInteger(_)
-  | PBool(_)
-  | PString(_)
-  | PCharacter(_)
-  | PBlank(_)
-  | PNull(_)
-  | PFloat(_) => pattern
-  | PConstructor(patternID, name, patterns) => PConstructor(patternID, name, List.map(~f, patterns))
-  | PTuple(patternID, first, second, theRest) =>
-    PTuple(patternID, f(first), f(second), List.map(~f, theRest))
+  | MPVariable(_)
+  | MPInteger(_)
+  | MPBool(_)
+  | MPString(_)
+  | MPCharacter(_)
+  | MPBlank(_)
+  | MPNull(_)
+  | MPFloat(_) => pattern
+  | MPConstructor(patternID, name, patterns) =>
+    MPConstructor(patternID, name, List.map(~f, patterns))
+  | MPTuple(patternID, first, second, theRest) =>
+    MPTuple(patternID, f(first), f(second), List.map(~f, theRest))
   }

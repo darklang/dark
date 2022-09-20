@@ -542,7 +542,7 @@ let run = () => {
       test("Pattern expressions are available in pattern blank", () => {
         let tlid = gtlid()
         let patID = gid()
-        let pattern = PVariable(patID, "o")
+        let pattern = MPVariable(patID, "o")
         let expr = match'(b, list{(pattern, b)})
         let m =
           defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ()) |> (
@@ -644,7 +644,7 @@ let run = () => {
       // differing IDs will result in that item not being found, and the index
       // resulting in "None".)
       let tlid = gtlid()
-      let expr = match'(b, list{(PVariable(gid(), "t"), b)})
+      let expr = match'(b, list{(MPVariable(gid(), "t"), b)})
       let m = defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ())
 
       test("reuses patterns to maintain index", () => {

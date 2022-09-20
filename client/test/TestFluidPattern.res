@@ -62,28 +62,28 @@ module TestResult = {
 }
 
 let run = () => {
-  let aStr = PString(gid(), "some string")
+  let aStr = MPString(gid(), "some string")
 
-  let emptyStr = PString(gid(), "")
-  let oneCharStr = PString(gid(), "c")
-  let aShortInt = PInteger(gid(), 1L)
-  let anInt = PInteger(gid(), 12345L)
-  let aHugeInt = PInteger(gid(), 3000000000000000000L)
-  let aFloat = PFloat(gid(), Positive, "123", "456")
-  let aHugeFloat = PFloat(gid(), Positive, "123456789", "123456789")
-  let aShortFloat = PFloat(gid(), Positive, "1", "2")
-  let aPartialFloat = PFloat(gid(), Positive, "1", "")
-  let trueBool = PBool(gid(), true)
-  let falseBool = PBool(gid(), false)
-  let aNull = PNull(gid())
-  let five = PInteger(gid(), 5L)
+  let emptyStr = MPString(gid(), "")
+  let oneCharStr = MPString(gid(), "c")
+  let aShortInt = MPInteger(gid(), 1L)
+  let anInt = MPInteger(gid(), 12345L)
+  let aHugeInt = MPInteger(gid(), 3000000000000000000L)
+  let aFloat = MPFloat(gid(), Positive, "123", "456")
+  let aHugeFloat = MPFloat(gid(), Positive, "123456789", "123456789")
+  let aShortFloat = MPFloat(gid(), Positive, "1", "2")
+  let aPartialFloat = MPFloat(gid(), Positive, "1", "")
+  let trueBool = MPBool(gid(), true)
+  let falseBool = MPBool(gid(), false)
+  let aNull = MPNull(gid())
+  let five = MPInteger(gid(), 5L)
   // let fiftySix = PInteger (mID, gid (), 56)
   // let seventyEight = PInteger (gid (), 78)
-  let b = () => PBlank(gid())
+  let b = () => MPBlank(gid())
   //let aPartialVar = FPPartial (gid (), "req")
-  let aVar = PVariable(gid(), "variable")
-  let aShortVar = PVariable(gid(), "v")
-  let aConstructor = PConstructor(gid(), "Just", list{b()})
+  let aVar = MPVariable(gid(), "variable")
+  let aShortVar = MPVariable(gid(), "v")
+  let aConstructor = MPConstructor(gid(), "Just", list{b()})
 
   let process = (inputs: list<FluidTypes.Msg.inputEvent>, tc: TestCase.t): TestResult.t => {
     // the extra chars caused by the `match` that wraps the pattern under test
@@ -218,7 +218,7 @@ let run = () => {
     t("insert number at scale", aHugeInt, ~pos=5, insert("9"), ("3000090000000000000", 6))
     t("insert number at scale", aHugeInt, insert("9"), ("930000000000000000", 1))
     t("insert number at scale", aHugeInt, ~pos=19, insert("9"), ("3000000000000000000", 19))
-    let oneShorterThanMax63BitInt = PInteger(gid(), 922337203685477580L)
+    let oneShorterThanMax63BitInt = MPInteger(gid(), 922337203685477580L)
 
     t(
       "insert number at scale",
@@ -254,8 +254,8 @@ let run = () => {
     t("del dot", aFloat, ~pos=3, del, ("123456", 3))
     t("del dot at scale", aHugeFloat, ~pos=9, del, ("123456789123456789", 9))
 
-    let maxPosIntWithDot = PFloat(gid(), Positive, "9223372036854775", "807")
-    let maxPosIntPlus1WithDot = PFloat(gid(), Positive, "9223372036854775", "808")
+    let maxPosIntWithDot = MPFloat(gid(), Positive, "9223372036854775", "807")
+    let maxPosIntPlus1WithDot = MPFloat(gid(), Positive, "9223372036854775", "808")
 
     t("del dot at limit1", maxPosIntWithDot, ~pos=16, del, ("9223372036854775807", 16))
     t("del dot at limit2", maxPosIntPlus1WithDot, ~pos=16, del, ("922337203685477580", 16))

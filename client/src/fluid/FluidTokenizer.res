@@ -132,23 +132,23 @@ module Builder = {
 let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluidToken> => {
   open FluidTypes.Token
   switch p {
-  | PVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
-  | PConstructor(id, name, args) =>
+  | MPVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
+  | MPConstructor(id, name, args) =>
     let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(matchID, a, ~idx)})
 
     List.flatten(list{list{TPatternConstructorName(matchID, id, name, idx)}, ...args})
-  | PInteger(id, i) => list{TPatternInteger(matchID, id, i, idx)}
-  | PBool(id, b) =>
+  | MPInteger(id, i) => list{TPatternInteger(matchID, id, i, idx)}
+  | MPBool(id, b) =>
     if b {
       list{TPatternTrue(matchID, id, idx)}
     } else {
       list{TPatternFalse(matchID, id, idx)}
     }
-  | PString(id, str) => list{
+  | MPString(id, str) => list{
       TPatternString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
-  | PCharacter(_) => recover("pchar not supported in patternToToken", list{})
-  | PFloat(id, sign, whole, fraction) =>
+  | MPCharacter(_) => recover("pchar not supported in patternToToken", list{})
+  | MPFloat(id, sign, whole, fraction) =>
     let whole = switch sign {
     | Positive => whole
     | Negative => "-" ++ whole
@@ -165,9 +165,9 @@ let rec patternToToken = (matchID: id, p: FluidPattern.t, ~idx: int): list<fluid
     }
 
     Belt.List.concatMany([whole, list{TPatternFloatPoint(matchID, id, idx)}, fraction])
-  | PNull(id) => list{TPatternNullToken(matchID, id, idx)}
-  | PBlank(id) => list{TPatternBlank(matchID, id, idx)}
-  | PTuple(id, first, second, theRest) =>
+  | MPNull(id) => list{TPatternNullToken(matchID, id, idx)}
+  | MPBlank(id) => list{TPatternBlank(matchID, id, idx)}
+  | MPTuple(id, first, second, theRest) =>
     let subPatterns = list{first, second, ...theRest}
 
     let subPatternCount = List.length(subPatterns)

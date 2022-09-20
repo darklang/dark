@@ -25,7 +25,7 @@ let run = () => {
     test("match pattern is not free", () => {
       let e = EConstructor(id2, "Just", list{EVariable(id4, "request")})
       let pats = list{
-        (PConstructor(id1, "Just", list{PVariable(id1, "anything")}), EVariable(id5, "anything")),
+        (MPConstructor(id1, "Just", list{MPVariable(id1, "anything")}), EVariable(id5, "anything")),
       }
 
       expect(freeVariables(EMatch(id1, e, pats))) |> toEqual(list{(id4, "request")})

@@ -255,16 +255,16 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     | EMatch(_, matchExpr, cases) =>
       let rec variablesInPattern = p =>
         switch p {
-        | PInteger(_)
-        | PNull(_)
-        | PString(_)
-        | PCharacter(_)
-        | PFloat(_)
-        | PBool(_)
-        | PBlank(_) => list{}
-        | PVariable(patternID, v) => list{(patternID, v)}
-        | PConstructor(_, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
-        | PTuple(_, first, second, theRest) =>
+        | MPInteger(_)
+        | MPNull(_)
+        | MPString(_)
+        | MPCharacter(_)
+        | MPFloat(_)
+        | MPBool(_)
+        | MPBlank(_) => list{}
+        | MPVariable(patternID, v) => list{(patternID, v)}
+        | MPConstructor(_, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
+        | MPTuple(_, first, second, theRest) =>
           list{first, second, ...theRest} |> List.map(~f=variablesInPattern) |> List.flatten
         }
 

@@ -84,19 +84,19 @@ let rec eToTestcase = (e: E.t): string => {
       let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
       let spaced = elems => String.join(~sep=" ", elems)
       switch p {
-      | PBlank(_) => "pBlank"
-      | PString(_, str) => spaced(list{"pString", quoted(str)})
-      | PCharacter(_, str) => spaced(list{"pChar", quoted(str)})
-      | PBool(_, true) => spaced(list{"pBool true"})
-      | PBool(_, false) => spaced(list{"pBool false"})
-      | PFloat(_, sign, whole, fractional) =>
+      | MPBlank(_) => "pBlank"
+      | MPString(_, str) => spaced(list{"pString", quoted(str)})
+      | MPCharacter(_, str) => spaced(list{"pChar", quoted(str)})
+      | MPBool(_, true) => spaced(list{"pBool true"})
+      | MPBool(_, false) => spaced(list{"pBool false"})
+      | MPFloat(_, sign, whole, fractional) =>
         spaced(list{"pFloat'", ProgramTypes.Sign.toString(sign), whole, fractional})
-      | PInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
-      | PNull(_) => "pNull"
-      | PVariable(_, name) => spaced(list{"pVar", quoted(name)})
-      | PConstructor(_, name, args) =>
+      | MPInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
+      | MPNull(_) => "pNull"
+      | MPVariable(_, name) => spaced(list{"pVar", quoted(name)})
+      | MPConstructor(_, name, args) =>
         spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
-      | PTuple(_, first, second, theRest) =>
+      | MPTuple(_, first, second, theRest) =>
         let exprs = list{first, second, ...theRest} |> List.map(~f=pToTestcase)
         spaced(list{"pTuple", "(" ++ (String.join(~sep=",", exprs) ++ ")")})
       }
