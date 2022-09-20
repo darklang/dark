@@ -1198,10 +1198,7 @@ let caretTargetForStartOfMP = (matchPattern: fluidMatchPattern): CT.t =>
   "returns a caretTarget representing caret placement at the very end
   of the expression in `matchPattern`.
 
-  The concept of "
-  very
-  end
-  " is related to an understanding of the tokenization
+  The concept of 'very end' is related to an understanding of the tokenization
   of the AST, even though this function doesn't explicitly depend on any
   tokenization functions."
 )
