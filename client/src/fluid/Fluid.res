@@ -2268,6 +2268,12 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   | FACKeyword(KPipe) =>
     let (b, target) = mkBlank()
     Some(EPipe(gid(), b, E.newB(), list{}), target)
+  | FACSecret(name, _) =>
+    let vID = gid()
+    Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
+  | FACDatastore(name) =>
+    let vID = gid()
+    Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
   | FACVariable(name, _) =>
     let vID = gid()
     Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})

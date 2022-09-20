@@ -197,6 +197,8 @@ module AutoComplete = {
     | FACConstructorName(string, int)
     | FACField(string)
     | FACVariable(string, option<RuntimeTypes.Dval.t>)
+    | FACDatastore(string)
+    | FACSecret(string, RuntimeTypes.Dval.t)
     | FACLiteral(literalItem)
     | FACKeyword(keyword)
     | FACMatchPattern(ID.t /* matchId */, matchPatternItem)

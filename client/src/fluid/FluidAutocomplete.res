@@ -64,6 +64,8 @@ let asName = (aci: item): string =>
   | FACFunction(fn) => FQFnName.toString(fn.name)
   | FACField(name) => name
   | FACVariable(name, _) => name
+  | FACDatastore(name) => name
+  | FACSecret(name, _) => name
   | FACLiteral(lit) =>
     switch lit {
     | LNull => "null"
@@ -106,6 +108,8 @@ let asTypeStrings = (item: item): (list<string>, string) =>
     |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.Dval.toType |> DType.tipe2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
+  | FACSecret(_, dv) => (list{}, dv |> RT.Dval.toType |> DType.tipe2str)
+  | FACDatastore(_) => (list{}, "datastore")
   | FACMatchPattern(_, FMPAVariable(_)) => (list{}, "variable")
   | FACConstructorName(name, _) | FACMatchPattern(_, FMPAConstructor(name, _)) =>
     if name == "Just" {
@@ -357,7 +361,7 @@ let init: t = FluidTypes.AutoComplete.default
 
 let secretToACItem = (s: SecretTypes.t): item => {
   let asDval = RT.Dval.DStr(Util.obscureString(s.secretValue))
-  FACVariable(s.secretName, Some(asDval))
+  FACSecret(s.secretName, asDval)
 }
 
 let lookupIsInQuery = (tl: toplevel, ti: tokenInfo, functions: Functions.t) => {
@@ -417,7 +421,13 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
     Analysis.getSelectedTraceID(m, TL.id(tl))
     |> Option.map(~f=Analysis.getAvailableVarnames(m, tl, id))
     |> Option.unwrap(~default=list{})
-    |> List.map(~f=((varname, dv)) => FACVariable(varname, dv))
+    |> List.map(~f=((varname, dv)) =>
+      if String.isCapitalized(varname) {
+        FACDatastore(varname)
+      } else {
+        FACVariable(varname, dv)
+      }
+    )
 
   let keywords = if !isInQuery {
     List.map(~f=x => FACKeyword(x), list{KLet, KIf, KLambda, KMatch, KPipe})
@@ -766,12 +776,9 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   | FACConstructorName(name, _) =>
     simpleDoc("TODO: this should never occur: the constructor " ++ name)
   | FACField(fieldname) => simpleDoc("The '" ++ fieldname ++ "' field of the object")
-  | FACVariable(var, _) =>
-    if String.isCapitalized(var) {
-      simpleDoc("The datastore '" ++ var ++ "'")
-    } else {
-      simpleDoc("The variable '" ++ var ++ "'")
-    }
+  | FACDatastore(var) => simpleDoc("The datastore '" ++ var ++ "'")
+  | FACSecret(name, _) => simpleDoc("The secret '" ++ name ++ "'")
+  | FACVariable(var, _) => simpleDoc("The variable '" ++ var ++ "'")
   | FACLiteral(_) => simpleDoc("The literal value '" ++ asName(item) ++ "'")
   | FACKeyword(KLet) =>
     simpleDoc("A `let` expression allows you assign a variable to an expression")
