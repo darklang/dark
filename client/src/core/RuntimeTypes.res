@@ -65,6 +65,28 @@ module MatchPattern = {
             list(decode),
           ),
         ),
+        // CLEANUP: remove the above list in favor of the below
+        ("MPVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
+        (
+          "MPConstructor",
+          dv3((a, b, c) => MPConstructor(a, b, c), ID.decode, string, list(decode)),
+        ),
+        ("MPInteger", dv2((a, b) => MPInteger(a, b), ID.decode, int64)),
+        ("MPBool", dv2((a, b) => MPBool(a, b), ID.decode, bool)),
+        ("MPString", dv2((a, b) => MPString(a, b), ID.decode, string)),
+        ("MPFloat", dv2((a, b) => MPFloat(a, b), ID.decode, Json_decode_extended.float')),
+        ("MPNull", dv1(a => MPNull(a), ID.decode)),
+        ("MPBlank", dv1(a => MPBlank(a), ID.decode)),
+        (
+          "MPTuple",
+          dv4(
+            (a, first, second, theRest) => MPTuple(a, first, second, theRest),
+            ID.decode,
+            decode,
+            decode,
+            list(decode),
+          ),
+        ),
       },
       j,
     )
