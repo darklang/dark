@@ -19,14 +19,14 @@ module MatchPattern = {
     | MPBlank(id)
     | MPTuple(id, t, t, list<t>)
 
-  let rec encode = (pattern: t): Js.Json.t => {
+  let rec encode = (matchPattern: t): Js.Json.t => {
     open Json_encode_extended
     let ep = encode
     let ev = variant
-    switch pattern {
+    switch matchPattern {
     | MPVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
-    | MPConstructor(id', name, patterns) =>
-      ev("PConstructor", list{ID.encode(id'), string(name), list(ep, patterns)})
+    | MPConstructor(id', name, args) =>
+      ev("PConstructor", list{ID.encode(id'), string(name), list(ep, args)})
     | MPInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
     | MPBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
     | MPFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
