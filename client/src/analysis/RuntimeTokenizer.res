@@ -112,7 +112,9 @@ module Builder = {
     b.tokens->List.reverse->List.join(~sep="")
 }
 
-let rec patternToTokens = (matchID: id, p: RuntimeTypes.Pattern.t, ~idx: int): list<string> => {
+let rec patternToTokens = (matchID: id, p: RuntimeTypes.MatchPattern.t, ~idx: int): list<
+  string,
+> => {
   switch p {
   | PVariable(_, name) => list{name}
   | PConstructor(_, name, args) =>

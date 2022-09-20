@@ -5,7 +5,7 @@ open Belt_extended
 @ppx.deriving(show({with_path: false})) type rec id = ID.t
 @ppx.deriving(show({with_path: false})) type rec tlid = TLID.t
 
-module Pattern = {
+module MatchPattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
     | PVariable(id, string)
@@ -140,7 +140,7 @@ module Expr = {
     | ETuple(id, t, t, list<t>)
     | ERecord(id, list<(string, t)>)
     | EConstructor(id, string, list<t>)
-    | EMatch(id, t, list<(Pattern.t, t)>)
+    | EMatch(id, t, list<(MatchPattern.t, t)>)
     | EFeatureFlag(id, t, t, t)
 
   let rec decode = (j: Js.Json.t): t => {
@@ -188,7 +188,7 @@ module Expr = {
         ("EConstructor", dv3((a, b, c) => EConstructor(a, b, c), ID.decode, string, list(de))),
         (
           "EMatch",
-          dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(Pattern.decode, de))),
+          dv3((a, b, c) => EMatch(a, b, c), ID.decode, de, list(pair(MatchPattern.decode, de))),
         ),
         ("EFeatureFlag", dv4((a, b, c, d) => EFeatureFlag(a, b, c, d), ID.decode, de, de, de)),
         ("EFQFnValue", dv2((a, b) => EFQFnValue(a, b), ID.decode, FQFnName.decode)),
@@ -237,7 +237,7 @@ module Expr = {
     | EMatch(id, matchExpr, cases) =>
       ev(
         "EMatch",
-        list{ID.encode(id), encode(matchExpr), list(pair(Pattern.encode, encode), cases)},
+        list{ID.encode(id), encode(matchExpr), list(pair(MatchPattern.encode, encode), cases)},
       )
     | EFQFnValue(id, name) => ev("EFQFnValue", list{ID.encode(id), FQFnName.encode(name)})
     | EConstructor(id, name, args) =>
