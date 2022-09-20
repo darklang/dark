@@ -253,7 +253,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     | ETuple(_, first, second, theRest) =>
       List.forEach(~f=sexe(st), list{first, second, ...theRest})
     | EMatch(_, matchExpr, cases) =>
-      let rec variablesInPattern = p =>
+      let rec variablesInMP = p =>
         switch p {
         | MPInteger(_)
         | MPNull(_)
@@ -263,16 +263,16 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
         | MPBool(_)
         | MPBlank(_) => list{}
         | MPVariable(patternID, v) => list{(patternID, v)}
-        | MPConstructor(_, _, inner) => inner |> List.map(~f=variablesInPattern) |> List.flatten
+        | MPConstructor(_, _, inner) => inner |> List.map(~f=variablesInMP) |> List.flatten
         | MPTuple(_, first, second, theRest) =>
-          list{first, second, ...theRest} |> List.map(~f=variablesInPattern) |> List.flatten
+          list{first, second, ...theRest} |> List.map(~f=variablesInMP) |> List.flatten
         }
 
       sexe(st, matchExpr)
       List.forEach(cases, ~f=((p, caseExpr)) => {
         let new_st =
           p
-          |> variablesInPattern
+          |> variablesInMP
           |> List.fold(~initial=st, ~f=(d, (id, varname)) =>
             Map.update(~key=varname, ~f=_v => Some(id), d)
           )

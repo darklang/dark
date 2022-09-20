@@ -55,7 +55,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     | _ => (lhs, rhs)
     }
 
-    let pattern: option<MP.t> = switch arm {
+    let matchPattern: option<MP.t> = switch arm {
     | EInteger(pid, value) => Some(MPInteger(pid, value))
     | EBool(pid, value) => Some(MPBool(pid, value))
     | EString(pid, string) => Some(MPString(pid, string))
@@ -69,7 +69,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
 
     // If we were unable to convert the other side to a pattern, fall back to a
     // generic match expression with true and false arms.
-    switch pattern {
+    switch matchPattern {
     | Some(p) => E.EMatch(ifID, matchCond, list{(p, then_), (MPVariable(gid(), "_"), else_)})
     | None => makeGenericMatch(ifID, EBinOp(binopID, binOpName("=="), lhs, rhs, rail), then_, else_)
     }

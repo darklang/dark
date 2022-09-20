@@ -149,19 +149,20 @@ let rec generateFieldAccessExpr' = (): FluidExpression.t =>
 
 and generateFieldAccessExpr = () => checkTestSize(~default=b, generateFieldAccessExpr')
 
-let rec generatePattern' = (): FluidMatchPattern.t =>
+let rec generateMatchPattern' = (): FluidMatchPattern.t =>
   oneOf(list{
     lazy mpInt(range(500)),
     lazy mpBool(random() < 0.5),
     lazy mpNull(),
-    lazy mpConstructor(generateName(), generateList(~minSize=0, ~f=generatePattern, ())),
+    lazy mpConstructor(generateName(), generateList(~minSize=0, ~f=generateMatchPattern, ())),
     lazy mpVar(generateName()),
     lazy mpString(generateString()),
     lazy mpFloat(Positive, range(5000000), range(500000)),
     lazy mpBlank(),
+    // TUPLETODO add mpTuple cases
   }) |> Lazy.force
 
-and generatePattern = () => checkTestSize(~default=mpBlank(), generatePattern')
+and generateMatchPattern = () => checkTestSize(~default=mpBlank(), generateMatchPattern')
 
 let rec generatePipeArgumentExpr' = (): FluidExpression.t =>
   oneOf(list{
@@ -200,7 +201,7 @@ and generateExpr' = () =>
     lazy record(generateList(~minSize=1, (), ~f=() => (generateName(), generateExpr()))),
     lazy match'(
       generateExpr(),
-      generateList(~minSize=1, (), ~f=() => (generatePattern(), generateExpr())),
+      generateList(~minSize=1, (), ~f=() => (generateMatchPattern(), generateExpr())),
     ),
   }) |> Lazy.force
 
@@ -362,8 +363,8 @@ let remove = (id: id, ast: E.t): E.t => {
       EMatch(
         mid,
         mexpr,
-        List.filter(pairs, ~f=((pattern, expr)) =>
-          E.toID(expr) != id && FluidMatchPattern.toID(pattern) != id
+        List.filter(pairs, ~f=((matchPattern, expr)) =>
+          E.toID(expr) != id && FluidMatchPattern.toID(matchPattern) != id
         ),
       )
     | ERecord(rid, fields) => ERecord(rid, List.filterMap(~f=((name, expr)) =>

@@ -1174,10 +1174,10 @@ let caretTargetForStartOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
     )
   }
 
-/* caretTargetForStartOfPattern returns a caretTarget representing caret
- placement at the very start of the expression in `pattern` */
-let caretTargetForStartOfPattern = (pattern: fluidMatchPattern): CT.t =>
-  switch pattern {
+@ocaml.doc("returns a caretTarget representing caret placement at the very
+  start of the expression in `matchPattern`")
+let caretTargetForStartOfMP = (matchPattern: fluidMatchPattern): CT.t =>
+  switch matchPattern {
   | MPVariable(id, _) => {astRef: ARMPattern(id, MPPVariable), offset: 0}
   | MPConstructor(id, _, _) => {astRef: ARMPattern(id, MPPConstructor), offset: 0}
   | MPInteger(id, _) => {astRef: ARMPattern(id, MPPInteger), offset: 0}
@@ -1185,7 +1185,7 @@ let caretTargetForStartOfPattern = (pattern: fluidMatchPattern): CT.t =>
   | MPString(id, _) => CT.forMPPStringOpenQuote(id, 0)
   | MPCharacter(_, _) =>
     recover(
-      "echar unsupported in caretTargetForStartOfPattern",
+      "echar unsupported in caretTargetForStartOfMP",
       {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
     )
   | MPFloat(id, _, _, _) => {astRef: ARMPattern(id, MPPFloat(FPWhole)), offset: 0}
@@ -1194,30 +1194,35 @@ let caretTargetForStartOfPattern = (pattern: fluidMatchPattern): CT.t =>
   | MPTuple(id, _, _, _) => {astRef: ARMPattern(id, MPPTuple(TPOpen)), offset: 0}
   }
 
-/* caretTargetForEndOfPattern returns a caretTarget representing caret
- * placement at the very end of the expression in `pattern`.
- *
- * The concept of "very end" is related to an understanding of the
- * tokenization of the ast, even though this function doesn't explicitly depend
- * on any tokenization functions. */
-let rec caretTargetForEndOfPattern = (pattern: fluidMatchPattern): CT.t =>
-  switch pattern {
+@ocaml.doc(
+  "returns a caretTarget representing caret placement at the very end
+  of the expression in `matchPattern`.
+
+  The concept of "
+  very
+  end
+  " is related to an understanding of the tokenization
+  of the AST, even though this function doesn't explicitly depend on any
+  tokenization functions."
+)
+let rec caretTargetForEndOfMP = (matchPattern: fluidMatchPattern): CT.t =>
+  switch matchPattern {
   | MPVariable(id, varName) => {
       astRef: ARMPattern(id, MPPVariable),
       offset: String.length(varName),
     }
-  | MPConstructor(id, name, containedPatterns) =>
-    switch List.last(containedPatterns) {
-    | Some(lastPattern) => caretTargetForEndOfPattern(lastPattern)
+  | MPConstructor(id, name, args) =>
+    switch List.last(args) {
+    | Some(lastSubpattern) => caretTargetForEndOfMP(lastSubpattern)
     | None => {astRef: ARMPattern(id, MPPConstructor), offset: String.length(name)}
     }
   | MPTuple(_id, first, second, theRest) =>
     let allSubpatterns = list{first, second, ...theRest}
     switch List.last(allSubpatterns) {
-    | Some(lastPattern) => caretTargetForEndOfPattern(lastPattern)
+    | Some(lastSubpattern) => caretTargetForEndOfMP(lastSubpattern)
     | None =>
       recover(
-        "no sub-patterns found within tuple pattern",
+        "no sub-patterns found within tuple match pattern",
         {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
       )
     }
@@ -1230,7 +1235,7 @@ let rec caretTargetForEndOfPattern = (pattern: fluidMatchPattern): CT.t =>
   | MPString(id, str) => CT.forMPPStringCloseQuote(id, 1, str) // end of close quote
   | MPCharacter(_) =>
     recover(
-      "echar unsupported in caretTargetForStartOfPattern",
+      "echar unsupported in caretTargetForStartOfMP",
       {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
     )
   | MPFloat(id, _, _, frac) => {
@@ -1244,8 +1249,8 @@ let rec caretTargetForEndOfPattern = (pattern: fluidMatchPattern): CT.t =>
 @ocaml.doc("returns a caretTarget representing caret placement at the start of
   the first blank sub-pattern, if any. If there are no blanks, the cursor is
   set at the end of the pattern")
-let rec caretTargetForFirstInputOfPattern = (pattern: fluidMatchPattern): CT.t =>
-  switch pattern {
+let rec caretTargetForFirstInputOfMP = (matchPattern: fluidMatchPattern): CT.t =>
+  switch matchPattern {
   | MPBlank(id) => {astRef: ARMPattern(id, MPPBlank), offset: 0}
   | MPNull(id) => {astRef: ARMPattern(id, MPPNull), offset: String.length("null")}
   | MPBool(id, true) => {astRef: ARMPattern(id, MPPBool), offset: String.length("true")}
@@ -1263,41 +1268,38 @@ let rec caretTargetForFirstInputOfPattern = (pattern: fluidMatchPattern): CT.t =
       astRef: ARMPattern(id, MPPVariable),
       offset: String.length(varName),
     }
-  | MPConstructor(id, name, containedPatterns) =>
-    switch List.last(containedPatterns) {
-    | Some(lastPattern) => caretTargetForFirstInputOfPattern(lastPattern)
+  | MPConstructor(id, name, args) =>
+    switch List.last(args) {
+    | Some(lastArg) => caretTargetForFirstInputOfMP(lastArg)
     | None => {astRef: ARMPattern(id, MPPConstructor), offset: String.length(name)}
     }
   | MPTuple(_id, first, second, theRest) =>
     let allSubpatterns = list{first, second, ...theRest}
     switch List.head(allSubpatterns) {
-    | Some(lastPattern) => caretTargetForFirstInputOfPattern(lastPattern)
+    | Some(lastSubpattern) => caretTargetForFirstInputOfMP(lastSubpattern)
     | None =>
       recover(
-        "no sub-patterns found within tuple pattern",
+        "no sub-patterns found within tuple match pattern",
         {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
       )
     }
   | MPCharacter(_) =>
     recover(
-      "echar unsupported in caretTargetForStartOfPattern",
+      "echar unsupported in caretTargetForStartOfMP",
       {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
     )
   }
 
-/* caretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
- * placement at the very start of the match branch identified by `matchID` and `index`
- * within the `ast`.
- * It is an error to pass an id of a non-match or an index outside the match.
- *
- * "very start" is based on the definition of caretTargetForStartOfPattern
- */
+@ocaml.doc("returns a caretTarget representing caret placement at the very
+  start of the match branch identified by `matchID` and `index` within the
+  `ast`. It is an error to pass an id of a non-match or an index outside the
+  match.
+
+  'very start' is based on the definition of caretTargetForStartOfMP")
 let caretTargetForBeginningOfMatchBranch = (matchID: id, index: int, ast: FluidAST.t): CT.t => {
   let maybeTarget = switch FluidAST.find(matchID, ast) {
   | Some(EMatch(_, _, branches)) =>
-    branches
-    |> List.getAt(~index)
-    |> Option.map(~f=((pattern, _)) => caretTargetForStartOfPattern(pattern))
+    branches |> List.getAt(~index) |> Option.map(~f=((mp, _)) => caretTargetForStartOfMP(mp))
   | _ => None
   }
 
@@ -1308,19 +1310,16 @@ let caretTargetForBeginningOfMatchBranch = (matchID: id, index: int, ast: FluidA
   )
 }
 
-/* caretTargetForEndOfMatchPattern returns a caretTarget representing caret
- * placement at the end of the match pattern in the branch identified by `matchID` and `index`
- * within the `ast`.
- * It is an error to pass an id of a non-match or an index outside the match.
- *
- * "end" is based on the definition of caretTargetForEndOfPattern
- */
+@ocaml.doc("returns a caretTarget representing caret placement at the end of
+  the match pattern in the branch identified by `matchID` and `index` within
+  the `ast`. It is an error to pass an id of a non-match or an index outside
+  the match.
+
+  'end' is based on the definition of caretTargetForEndOfMP")
 let caretTargetForEndOfMatchPattern = (ast: FluidAST.t, matchID: id, index: int): CT.t => {
   let maybeTarget = switch FluidAST.find(matchID, ast) {
   | Some(EMatch(_, _, branches)) =>
-    branches
-    |> List.getAt(~index)
-    |> Option.map(~f=((pattern, _)) => caretTargetForEndOfPattern(pattern))
+    branches |> List.getAt(~index) |> Option.map(~f=((mp, _)) => caretTargetForEndOfMP(mp))
   | _ => None
   }
 
@@ -1332,7 +1331,7 @@ let caretTargetForEndOfMatchPattern = (ast: FluidAST.t, matchID: id, index: int)
 }
 
 // ----------------
-// Patterns
+// Match Patterns
 // ----------------
 @ocaml.doc(" addMatchPatternAt adds a new match row (PBlank, EBlank) into the EMatch
     with `matchId` at `idx`.
@@ -2143,7 +2142,7 @@ let insertAtTupleEnd = (~newExpr: E.t, id: id, ast: FluidAST.t): FluidAST.t =>
     }
   )
 
-let insertInTuplePattern = (
+let insertInTupleMatchPattern = (
   ~index: int,
   ~newPat: MP.t,
   matchID: id,
@@ -2158,16 +2157,20 @@ let insertInTuplePattern = (
       | i => MPTuple(id, first, second, List.insertAt(~index=i - 2, ~value=newPat, theRest))
       }
 
-    | _ => recover("not a tuple pattern in insertInTuplePattern", ~debug=p, p)
+    | _ => recover("not a tuple pattern in insertInTupleMatchPattern", ~debug=p, p)
     }
   , matchID, id, ast)
 
-let insertAtTuplePatternEnd = (~newPat: MP.t, matchID: id, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.updateMatchPattern(~f=p =>
+let insertAtTupleMatchPatternEnd = (
+  ~newPat: MP.t,
+  matchID: id,
+  id: id,
+  ast: FluidAST.t,
+): FluidAST.t => FluidAST.updateMatchPattern(~f=p =>
     switch p {
     | MPTuple(id, first, second, theRest) =>
       MPTuple(id, first, second, Belt.List.concat(theRest, list{newPat}))
-    | _ => recover("not a tuple pattern in insertAtTuplePatternEnd", ~debug=p, p)
+    | _ => recover("not a tuple pattern in insertAtTupleMatchPatternEnd", ~debug=p, p)
     }
   , matchID, id, ast)
 
@@ -2302,35 +2305,35 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   }
 }
 
-let acToPattern = (entry: AC.item): option<(id, fluidMatchPattern, CT.t)> => {
+let acToMatchPattern = (entry: AC.item): option<(id, fluidMatchPattern, CT.t)> => {
   let selectedPat: option<(id, MP.t)> = switch entry {
-  | FACMatchPattern(mid, p) =>
-    let rec patAcToPat = (p: FluidTypes.AutoComplete.matchPatternItem) =>
-      switch p {
-      | FMPAConstructor(var, pats) => MPConstructor(gid(), var, List.map(~f=patAcToPat, pats))
+  | FACMatchPattern(mid, mp) =>
+    let rec patAcToPat = (mp: FluidTypes.AutoComplete.matchPatternItem) =>
+      switch mp {
+      | FMPAConstructor(var, args) => MPConstructor(gid(), var, List.map(~f=patAcToPat, args))
       | FMPAVariable(var) => MPVariable(gid(), var)
       | FMPABool(var) => MPBool(gid(), var)
       | FMPANull => MPNull(gid())
       | FMPATuple => MPTuple(gid(), MPBlank(gid()), MPBlank(gid()), list{})
       | FMPABlank => MPBlank(gid())
       }
-    Some(mid, patAcToPat(p))
+    Some(mid, patAcToPat(mp))
   | _ =>
-    // This only works for patterns
+    // This only works for match patterns
     None
   }
 
-  selectedPat |> Option.map(~f=((mid, p)) => (mid, p, caretTargetForFirstInputOfPattern(p)))
+  selectedPat |> Option.map(~f=((mid, p)) => (mid, p, caretTargetForFirstInputOfMP(p)))
 }
 
-let acToPatternOrExpr = (entry: AC.item): (E.fluidMatchPatOrExpr, CT.t) =>
-  acToPattern(entry)
+let acToMatchPatternOrExpr = (entry: AC.item): (E.fluidMatchPatOrExpr, CT.t) =>
+  acToMatchPattern(entry)
   |> Option.map(~f=((mid, pat, target)) => (E.MatchPat(mid, pat), target))
   |> Option.orElseLazy(() =>
     acToExpr(entry) |> Option.map(~f=((expr, target)) => (E.Expr(expr), target))
   )
   |> recoverOpt(
-    "acToPatternOrExpr",
+    "acToMatchPatternOrExpr",
     ~debug=entry,
     ~default=(E.Expr(E.newB()), ({astRef: ARInvalid, offset: 0}: CT.t)),
   )
@@ -2455,7 +2458,7 @@ let updateFromACItem = (
   let oldExpr = FluidAST.find(id, ast)
   let parent = FluidAST.findParent(id, ast)
 
-  let (newPatOrExpr, newTarget) = acToPatternOrExpr(entry)
+  let (newPatOrExpr, newTarget) = acToMatchPatternOrExpr(entry)
 
   let (newAST, target) = switch (ti.token, oldExpr, parent, newPatOrExpr) {
   // since patterns have no partial but commit as variables automatically,
@@ -2560,7 +2563,7 @@ let updateFromACItem = (
     (newAST, newTarget)
   | (_, _, _, MatchPat(_)) =>
     recover(
-      "updateFromACItem - unhandled pattern",
+      "updateFromACItem - unhandled match pattern",
       ~debug=entry,
       (ast, ({astRef: ARInvalid, offset: 0}: CT.t)),
     )
@@ -2645,7 +2648,7 @@ let acStartField = (props: FluidTypes.Props.t, ti: T.tokenInfo, astInfo: ASTInfo
 
     astInfo |> ASTInfo.setAST(ast) |> moveToCaretTarget(target) |> acClear
   | (Some(entry), _) =>
-    let replacement = switch acToPatternOrExpr(entry) {
+    let replacement = switch acToMatchPatternOrExpr(entry) {
     | (Expr(newExpr), _ignoredTarget) => EPartial(gid(), "", EFieldAccess(gid(), newExpr, ""))
     | (MatchPat(_), _) => recover("acStartField", E.newB())
     }
@@ -3201,42 +3204,42 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     }
   }
 
-  let doPatternBackspace = (
+  let doMatchPatternBackspace = (
     patContainerRef: ref<option<id>>,
     currAstRef: astRef,
     mID: id,
-    pat: fluidMatchPattern,
+    matchPattern: fluidMatchPattern,
   ): option<(E.fluidMatchPatOrExpr, CT.t)> => {
     let mkPBlank = (): option<(E.fluidMatchPatOrExpr, CT.t)> => {
       let bID = gid()
       Some(MatchPat(mID, MPBlank(bID)), {astRef: ARMPattern(bID, MPPBlank), offset: 0})
     }
 
-    switch (currAstRef, pat) {
+    switch (currAstRef, matchPattern) {
     | (ARMPattern(_, MPPBlank), MPBlank(pID)) =>
       if currOffset == 0 {
         switch FluidAST.find(mID, ast) {
-        | Some(EMatch(_, cond, patterns)) =>
+        | Some(EMatch(_, cond, cases)) =>
           patContainerRef := Some(mID)
-          patterns
+          cases
           |> /* FIXME: This is super broken because the pattern id could be anywhere
            but we only check at the pattern root */
           List.findIndex(~f=(_, (p, _)) => MP.toID(p) == pID)
           |> Option.map(~f=((remIdx, _)) => {
-            let newPatterns = if List.length(patterns) == 1 {
-              patterns
+            let newCases = if List.length(cases) == 1 {
+              cases
             } else {
-              List.removeAt(patterns, ~index=remIdx)
+              List.removeAt(cases, ~index=remIdx)
             }
 
             let targetExpr =
-              patterns
+              cases
               |> List.getAt(~index=remIdx - 1)
               |> Option.map(~f=((_, e)) => e)
               |> Option.unwrap(~default=cond)
 
             let target = caretTargetForEndOfExpr'(targetExpr)
-            (E.Expr(EMatch(mID, cond, newPatterns)), target)
+            (E.Expr(EMatch(mID, cond, newCases)), target)
           })
         | _ => recover("doExplicitBackspace MPPBlank", None)
         }
@@ -3262,7 +3265,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           }
 
         let newCases = List.map(cases, ~f=((pat, body)) =>
-          if MP.findPattern(pID, pat) != None {
+          if MP.findMatchPattern(pID, pat) != None {
             (run(pat), E.renameVariableUses(~oldName, ~newName, body))
           } else {
             (pat, body)
@@ -3303,7 +3306,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           Some(MatchPat(mID, MPInteger(pID, coerced)), currCTMinusOne)
         }
       }
-    | (ARMPattern(_, MPPConstructor), MPConstructor(_, str, _patterns)) =>
+    | (ARMPattern(_, MPPConstructor), MPConstructor(_, str, _)) =>
       let str = str |> mutation |> String.trim
       let newID = gid()
       if str == "" {
@@ -3315,24 +3318,21 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         )
       }
 
-    // Tuple pattern
+    // Tuple match pattern
     // Note; this is largely duplicated with the Tuple expr-handling
     | (ARMPattern(_, MPPTuple(TPOpen)), MPTuple(_, first, second, theRest)) =>
       // When we're trying to delete the ( in a tuple pattern,
       // - normally, don't do anything, and leave cursor at left of (
       // - if there are only blanks in the tuple, replace with blank
       // - if there's only 1 non-blank item, replace with that item
-      let nonBlanks =
-        list{first, second, ...theRest} |> List.filter(~f=pat =>
-          !FluidMatchPattern.isPatternBlank(pat)
-        )
+      let nonBlanks = list{first, second, ...theRest} |> List.filter(~f=pat => !MP.isBlank(pat))
 
       let newID = gid()
 
       switch nonBlanks {
       | list{} =>
         Some(MatchPat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, MPPBlank), offset: 0})
-      | list{single} => Some(MatchPat(mID, single), caretTargetForStartOfPattern(single))
+      | list{single} => Some(MatchPat(mID, single), caretTargetForStartOfMP(single))
       | _ =>
         let target: CT.t = {astRef: ARMPattern(newID, MPPTuple(TPOpen)), offset: 0}
         Some(MatchPat(mID, MPTuple(newID, first, second, theRest)), target)
@@ -3353,7 +3353,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           None,
         )
       | list{single} =>
-        let newTarget = caretTargetForEndOfPattern(single)
+        let newTarget = caretTargetForEndOfMP(single)
         Some(MatchPat(mID, single), newTarget)
       | list{first, second, ...theRest} =>
         let newID = gid()
@@ -3368,7 +3368,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
             None,
           )
         | Some(elementLeftOfDeletion) =>
-          let newTarget = caretTargetForEndOfPattern(elementLeftOfDeletion)
+          let newTarget = caretTargetForEndOfMP(elementLeftOfDeletion)
 
           Some(newPat, newTarget)
         }
@@ -3456,7 +3456,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
   /* FIXME: This is an ugly hack so we can modify match branches when editing a pattern.
      There's probably a nice way to do this without a ref, but that's a bigger change.
  */
-  let patContainerRef: ref<option<id>> = ref(None)
+  let matchPatContainerRef: ref<option<id>> = ref(None)
   idOfASTRef(currAstRef)
   |> Option.andThen(~f=patOrExprID =>
     switch E.findExprOrPat(patOrExprID, Expr(FluidAST.toExpr(ast))) {
@@ -3466,13 +3466,13 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
   )
   |> Option.andThen(~f=((patOrExprID, patOrExpr)) => {
     let maybeTransformedExprAndCaretTarget = switch patOrExpr {
-    | E.MatchPat(mID, pat) => doPatternBackspace(patContainerRef, currAstRef, mID, pat)
+    | E.MatchPat(mID, pat) => doMatchPatternBackspace(matchPatContainerRef, currAstRef, mID, pat)
     | E.Expr(expr) => doExprBackspace(currAstRef, expr)
     }
 
     switch maybeTransformedExprAndCaretTarget {
     | Some(Expr(newExpr), target) =>
-      let patOrExprID = switch patContainerRef.contents {
+      let patOrExprID = switch matchPatContainerRef.contents {
       | None => patOrExprID
       | Some(mID) => mID
       }
@@ -3846,7 +3846,7 @@ let doExplicitInsert = (
     }
   }
 
-  let handlePatBlank = (): option<(FluidMatchPattern.t, CT.t)> => {
+  let handleMatchPaternBlank = (): option<(MP.t, CT.t)> => {
     let newID = gid()
 
     if extendedGraphemeCluster == "\"" {
@@ -3871,13 +3871,13 @@ let doExplicitInsert = (
     }
   }
 
-  let doPatInsert = (
+  let doMatchPatInsert = (
     patContainerRef: ref<option<id>>,
     currAstRef: astRef,
     mID: id,
-    pat: fluidMatchPattern,
+    matchPattern: fluidMatchPattern,
   ): option<(E.fluidMatchPatOrExpr, CT.t)> =>
-    switch (currAstRef, pat) {
+    switch (currAstRef, matchPattern) {
     | (ARMPattern(_, MPPFloat(kind)), MPFloat(pID, sign, whole, frac)) =>
       if FluidUtil.isNumber(extendedGraphemeCluster) {
         let (isWhole, index) = switch kind {
@@ -3993,7 +3993,7 @@ let doExplicitInsert = (
         Some(MatchPat(mID, MPString(id, str)), CT.forMPPStringText(id, strRelOffset + caretDelta))
       }
     | (ARMPattern(_, MPPBlank), MPBlank(_)) =>
-      switch handlePatBlank() {
+      switch handleMatchPaternBlank() {
       | None => None
       | Some(pat, ct) => Some(MatchPat(mID, pat), ct)
       }
@@ -4014,7 +4014,7 @@ let doExplicitInsert = (
             }
 
           let newCases = List.map(cases, ~f=((pat, body)) =>
-            if MP.findPattern(pID, pat) != None {
+            if MP.findMatchPattern(pID, pat) != None {
               (run(pat), E.renameVariableUses(~oldName, ~newName, body))
             } else {
               (pat, body)
@@ -4035,13 +4035,13 @@ let doExplicitInsert = (
       | TPClose => None
       }
 
-      switch (elIndex, handlePatBlank()) {
+      switch (elIndex, handleMatchPaternBlank()) {
       | (Some(elIndex), Some(newPat, newCt)) =>
         let allPats = list{first, second, ...theRest}
 
         let shouldReplacePatternAtIndex =
           List.getAt(~index=elIndex, allPats)
-          |> Option.map(~f=p => MP.isPatternBlank(p))
+          |> Option.map(~f=p => MP.isBlank(p))
           |> Option.unwrap(~default=false)
 
         if shouldReplacePatternAtIndex {
@@ -4053,7 +4053,7 @@ let doExplicitInsert = (
           | _ =>
             recover(
               "doPatInsert - unexpected tuple pattern of fewer than 2 elements",
-              ~debug=pat,
+              ~debug=matchPattern,
               None,
             )
           }
@@ -4123,7 +4123,7 @@ let doExplicitInsert = (
   )
   |> Option.andThen(~f=((patOrExprID, patOrExpr)) => {
     let maybeTransformedExprAndCaretTarget = switch patOrExpr {
-    | E.MatchPat(mID, pat) => doPatInsert(patContainerRef, currAstRef, mID, pat)
+    | E.MatchPat(mID, pat) => doMatchPatInsert(patContainerRef, currAstRef, mID, pat)
     | E.Expr(expr) =>
       switch doExprInsert(currAstRef, expr) {
       | None => None
@@ -4801,7 +4801,7 @@ let rec updateKey = (
     |> moveToCaretTarget({astRef: ARBlank(blankID), offset: 0})
 
   //
-  // Insert , in Tuple pattern
+  // Insert , in Tuple match pattern
   //
   | (InsertText(","), L(TMPTupleOpen(matchID, id), _), _) if onEdge =>
     // Case: right after a tuple pattern's opening `(`
@@ -4809,7 +4809,7 @@ let rec updateKey = (
     let newPat = MPBlank(blankID)
 
     astInfo
-    |> ASTInfo.setAST(insertInTuplePattern(~index=0, ~newPat, matchID, id, astInfo.ast))
+    |> ASTInfo.setAST(insertInTupleMatchPattern(~index=0, ~newPat, matchID, id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARMPattern(blankID, MPPBlank), offset: 0})
 
   | (InsertText(","), L(_, _ti), R(TMPTupleComma(_, _, _), _)) if onEdge =>
@@ -4827,7 +4827,7 @@ let rec updateKey = (
 
     astInfo
     |> ASTInfo.setAST(
-      insertInTuplePattern(~index=indexToInsertInto, ~newPat, matchID, id, astInfo.ast),
+      insertInTupleMatchPattern(~index=indexToInsertInto, ~newPat, matchID, id, astInfo.ast),
     )
     |> moveToCaretTarget({astRef: ARMPattern(blankID, MPPBlank), offset: 0})
 
@@ -4839,7 +4839,7 @@ let rec updateKey = (
     let newPat = MPBlank(blankID)
 
     astInfo
-    |> ASTInfo.setAST(insertAtTuplePatternEnd(~newPat, matchID, id, astInfo.ast))
+    |> ASTInfo.setAST(insertAtTupleMatchPatternEnd(~newPat, matchID, id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARMPattern(blankID, MPPBlank), offset: 0})
 
   //
@@ -5746,9 +5746,9 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         Some(e)
       }
     | EMatch(_, cond, cases) =>
-      let toksToPattern = (pattern, patternTokens) => {
+      let toksToMatchPattern = (matchPattern, mpTokens) => {
         // TODO: should we really be re-using these IDs?
-        switch patternTokens {
+        switch mpTokens {
         // simple cases
         | list{(id, _, "match-pattern-null")} => MPNull(id)
         | list{(id, _, "match-pattern-blank")} => MPBlank(id)
@@ -5790,41 +5790,41 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           MPConstructor(
             id,
             value,
-            switch pattern {
+            switch matchPattern {
             | MPConstructor(_, _, ps) => ps
             | _ => list{}
             },
           )
         | list{(id, _value, "match-pattern-tuple-open"), ..._subPatternTokens} =>
-          switch pattern {
+          switch matchPattern {
           | MPTuple(_, first, second, theRest) =>
             MPTuple(id, MP.clone(first), MP.clone(second), List.map(~f=MP.clone, theRest))
           | _ => MPTuple(id, MPBlank(gid()), MPBlank(gid()), list{})
           }
         | _ =>
           recover(
-            "toksToPattern not set up to handle token list",
-            ~debug=patternTokens,
+            "toksToMatchPattern not set up to handle token list",
+            ~debug=mpTokens,
             MPBlank(gid()),
           )
         }
       }
 
-      // new (pattern, expr) pairs for the new `match`
-      let newCases = List.filterMap(cases, ~f=((pattern, expr)) => {
-        let isPartOfPattern = ((pID', _, _)) => pID' == MP.toID(pattern)
+      // new (mp, expr) pairs for the new `match`
+      let newCases = List.filterMap(cases, ~f=((mp, expr)) => {
+        let isPartOfMP = ((pID', _, _)) => pID' == MP.toID(mp)
 
         // note: this maintains order, so the first token of a pattern is first
         // TODO: it'd be ideal to have context of the tokens _in_ the pattern
         // as well - not just the pattern tokens themselves.
-        let patternTokens = tokens |> List.filter(~f=isPartOfPattern)
+        let mpTokens = tokens |> List.filter(~f=isPartOfMP)
 
-        switch patternTokens {
+        switch mpTokens {
         | list{} => None // don't reconstruct `match` pattern entirely out of selection
-        | patternTokens =>
-          let newPattern = toksToPattern(pattern, patternTokens)
+        | mpTokens =>
+          let newMP = toksToMatchPattern(mp, mpTokens)
           let newExpr = reconstructExpr(expr) |> orDefaultExpr
-          Some(newPattern, newExpr)
+          Some(newMP, newExpr)
         }
       })
 

@@ -142,10 +142,10 @@ let rec matchPatternToTokens = (matchID: id, mp: RuntimeTypes.MatchPattern.t, ~i
     let middlePart =
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
-        let isLastPattern = i == subPatternCount - 1
+        let isLastSubpattern = i == subPatternCount - 1
         let subpatternTokens = matchPatternToTokens(matchID, p, ~idx)
 
-        if isLastPattern {
+        if isLastSubpattern {
           subpatternTokens
         } else {
           List.append(subpatternTokens, list{", "})

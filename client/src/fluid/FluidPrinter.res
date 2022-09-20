@@ -79,33 +79,33 @@ let rec eToTestcase = (e: E.t): string => {
   | EVariable(_, name) => spaced(list{"var", quoted(name)})
   | EFieldAccess(_, expr, fieldname) => spaced(list{"fieldAccess", r(expr), quoted(fieldname)})
   | EMatch(_, cond, matches) =>
-    let rec pToTestcase = (p: FluidMatchPattern.t): string => {
+    let rec mpToTestcase = (mp: FluidMatchPattern.t): string => {
       let quoted = str => "\"" ++ (str ++ "\"")
       let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
       let spaced = elems => String.join(~sep=" ", elems)
-      switch p {
-      | MPBlank(_) => "pBlank"
-      | MPString(_, str) => spaced(list{"pString", quoted(str)})
-      | MPCharacter(_, str) => spaced(list{"pChar", quoted(str)})
-      | MPBool(_, true) => spaced(list{"pBool true"})
-      | MPBool(_, false) => spaced(list{"pBool false"})
+      switch mp {
+      | MPBlank(_) => "mpBlank"
+      | MPString(_, str) => spaced(list{"mpString", quoted(str)})
+      | MPCharacter(_, str) => spaced(list{"mpChar", quoted(str)})
+      | MPBool(_, true) => spaced(list{"mpBool true"})
+      | MPBool(_, false) => spaced(list{"mpBool false"})
       | MPFloat(_, sign, whole, fractional) =>
-        spaced(list{"pFloat'", ProgramTypes.Sign.toString(sign), whole, fractional})
-      | MPInteger(_, int) => spaced(list{"pInt", Int64.to_string(int)})
-      | MPNull(_) => "pNull"
-      | MPVariable(_, name) => spaced(list{"pVar", quoted(name)})
+        spaced(list{"mpFloat'", ProgramTypes.Sign.toString(sign), whole, fractional})
+      | MPInteger(_, int) => spaced(list{"mpInt", Int64.to_string(int)})
+      | MPNull(_) => "mpNull"
+      | MPVariable(_, name) => spaced(list{"mpVar", quoted(name)})
       | MPConstructor(_, name, args) =>
-        spaced(list{"pConstructor", quoted(name), listed(List.map(args, ~f=pToTestcase))})
+        spaced(list{"mpConstructor", quoted(name), listed(List.map(args, ~f=mpToTestcase))})
       | MPTuple(_, first, second, theRest) =>
-        let exprs = list{first, second, ...theRest} |> List.map(~f=pToTestcase)
-        spaced(list{"pTuple", "(" ++ (String.join(~sep=",", exprs) ++ ")")})
+        let exprs = list{first, second, ...theRest} |> List.map(~f=mpToTestcase)
+        spaced(list{"mpTuple", "(" ++ (String.join(~sep=",", exprs) ++ ")")})
       }
     }
 
     spaced(list{
       "match'",
       r(cond),
-      listed(List.map(matches, ~f=((p, e)) => "(" ++ (pToTestcase(p) ++ (", " ++ (r(e) ++ ")"))))),
+      listed(List.map(matches, ~f=((p, e)) => "(" ++ (mpToTestcase(p) ++ (", " ++ (r(e) ++ ")"))))),
     })
   | ERecord(_, pairs) =>
     spaced(list{

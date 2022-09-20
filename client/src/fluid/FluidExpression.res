@@ -561,8 +561,8 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
 
     switch (a, b) {
     | (MPVariable(_, name), MPVariable(_, name')) => name == name'
-    | (MPConstructor(_, name, patterns), MPConstructor(_, name', patterns')) =>
-      name == name' && peqList(patterns, patterns')
+    | (MPConstructor(_, name, args), MPConstructor(_, name', args')) =>
+      name == name' && peqList(args, args')
     | (MPString(_, str), MPString(_, str')) => str == str'
     | (MPCharacter(_, str), MPCharacter(_, str')) => str == str'
     | (MPInteger(_, l), MPInteger(_, l')) => l == l'

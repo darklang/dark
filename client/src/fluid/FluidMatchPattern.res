@@ -39,8 +39,7 @@ let rec ids = (p: t): list<id> =>
 let rec clone = (p: t): t =>
   switch p {
   | MPVariable(_, name) => MPVariable(gid(), name)
-  | MPConstructor(_, name, patterns) =>
-    MPConstructor(gid(), name, List.map(~f=p => clone(p), patterns))
+  | MPConstructor(_, name, args) => MPConstructor(gid(), name, List.map(~f=p => clone(p), args))
   | MPInteger(_, i) => MPInteger(gid(), i)
   | MPBool(_, b) => MPBool(gid(), b)
   | MPString(_, str) => MPString(gid(), str)
@@ -55,7 +54,7 @@ let rec clone = (p: t): t =>
 let rec variableNames = (p: t): list<string> =>
   switch p {
   | MPVariable(_, name) => list{name}
-  | MPConstructor(_, _, patterns) => patterns |> List.map(~f=variableNames) |> List.flatten
+  | MPConstructor(_, _, args) => args |> List.map(~f=variableNames) |> List.flatten
   | MPTuple(_, first, second, theRest) =>
     list{first, second, ...theRest} |> List.map(~f=variableNames) |> List.flatten
   | MPInteger(_)
@@ -70,13 +69,13 @@ let rec variableNames = (p: t): list<string> =>
 let hasVariableNamed = (varName: string, p: t): bool =>
   List.member(~value=varName, variableNames(p))
 
-let isPatternBlank = (pat: t) =>
+let isBlank = (pat: t) =>
   switch pat {
   | MPBlank(_) => true
   | _ => false
   }
 
-let rec findPattern = (patID: id, within: t): option<t> =>
+let rec findMatchPattern = (patID: id, within: t): option<t> =>
   switch within {
   | MPVariable(pid, _)
   | MPInteger(pid, _)
@@ -95,20 +94,20 @@ let rec findPattern = (patID: id, within: t): option<t> =>
     if patID == pid {
       Some(within)
     } else {
-      List.findMap(pats, ~f=p => findPattern(patID, p))
+      List.findMap(pats, ~f=p => findMatchPattern(patID, p))
     }
   | MPTuple(pid, first, second, theRest) =>
     if patID == pid {
       Some(within)
     } else {
-      list{first, second, ...theRest} |> List.findMap(~f=p => findPattern(patID, p))
+      list{first, second, ...theRest} |> List.findMap(~f=p => findMatchPattern(patID, p))
     }
   }
 
-let rec preTraversal = (~f: t => t, pattern: t): t => {
+let rec preTraversal = (~f: t => t, mp: t): t => {
   let r = preTraversal(~f)
-  let pattern = f(pattern)
-  switch pattern {
+  let mp = f(mp)
+  switch mp {
   | MPVariable(_)
   | MPInteger(_)
   | MPBool(_)
@@ -116,17 +115,17 @@ let rec preTraversal = (~f: t => t, pattern: t): t => {
   | MPCharacter(_)
   | MPBlank(_)
   | MPNull(_)
-  | MPFloat(_) => pattern
-  | MPConstructor(patternID, name, patterns) =>
-    MPConstructor(patternID, name, List.map(patterns, ~f=p => r(p)))
+  | MPFloat(_) => mp
+  | MPConstructor(patternID, name, args) =>
+    MPConstructor(patternID, name, List.map(args, ~f=p => r(p)))
   | MPTuple(patternID, first, second, theRest) =>
     MPTuple(patternID, r(first), r(second), List.map(theRest, ~f=p => r(p)))
   }
 }
 
-let rec postTraversal = (~f: t => t, pattern: t): t => {
+let rec postTraversal = (~f: t => t, mp: t): t => {
   let r = postTraversal(~f)
-  let result = switch pattern {
+  let result = switch mp {
   | MPVariable(_)
   | MPInteger(_)
   | MPBool(_)
@@ -134,9 +133,9 @@ let rec postTraversal = (~f: t => t, pattern: t): t => {
   | MPCharacter(_)
   | MPBlank(_)
   | MPNull(_)
-  | MPFloat(_) => pattern
-  | MPConstructor(patternID, name, patterns) =>
-    MPConstructor(patternID, name, List.map(patterns, ~f=p => r(p)))
+  | MPFloat(_) => mp
+  | MPConstructor(patternID, name, args) =>
+    MPConstructor(patternID, name, List.map(args, ~f=p => r(p)))
   | MPTuple(patternID, first, second, theRest) =>
     MPTuple(patternID, r(first), r(second), List.map(theRest, ~f=p => r(p)))
   }
@@ -144,8 +143,8 @@ let rec postTraversal = (~f: t => t, pattern: t): t => {
   f(result)
 }
 
-let recurseDeprecated = (~f: t => t, pattern: t): t =>
-  switch pattern {
+let recurseDeprecated = (~f: t => t, mp: t): t =>
+  switch mp {
   | MPVariable(_)
   | MPInteger(_)
   | MPBool(_)
@@ -153,9 +152,8 @@ let recurseDeprecated = (~f: t => t, pattern: t): t =>
   | MPCharacter(_)
   | MPBlank(_)
   | MPNull(_)
-  | MPFloat(_) => pattern
-  | MPConstructor(patternID, name, patterns) =>
-    MPConstructor(patternID, name, List.map(~f, patterns))
+  | MPFloat(_) => mp
+  | MPConstructor(patternID, name, args) => MPConstructor(patternID, name, List.map(~f, args))
   | MPTuple(patternID, first, second, theRest) =>
     MPTuple(patternID, f(first), f(second), List.map(~f, theRest))
   }

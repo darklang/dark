@@ -431,7 +431,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
 }
 
-let generatePatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): list<item> => {
+let generateMatchPatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): list<item> => {
   let newStandardPatterns = list{
     FT.AutoComplete.FMPABool(true),
     FMPABool(false),
@@ -489,7 +489,7 @@ let generate = (m: model, props: props, query: fullQuery): list<item> => {
   switch query.ti.token {
   | TMPBlank(_) | TMPVariable(_) =>
     let allowTuples = m.settings.contributingSettings.inProgressFeatures.allowTuples
-    generatePatterns(allowTuples, query.ti, query.queryString)
+    generateMatchPatterns(allowTuples, query.ti, query.queryString)
 
   | TFieldName(_) | TFieldPartial(_) => generateFields(query.fieldList)
   | TLeftPartial(_) => // Left partials can ONLY be if/let/match for now

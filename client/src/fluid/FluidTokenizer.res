@@ -152,7 +152,7 @@ let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int)
   | MPString(id, str) => list{
       TMPString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
-  | MPCharacter(_) => recover("pchar not supported in patternToToken", list{})
+  | MPCharacter(_) => recover("mpChar not supported in matchPatternToTokens", list{})
   | MPFloat(id, sign, whole, fraction) =>
     let whole = switch sign {
     | Positive => whole
@@ -180,10 +180,10 @@ let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int)
     let middlePart =
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
-        let isLastPattern = i == subPatternCount - 1
+        let isLastSubpattern = i == subPatternCount - 1
         let subpatternTokens = matchPatternToTokens(matchID, p, ~idx)
 
-        if isLastPattern {
+        if isLastSubpattern {
           subpatternTokens
         } else {
           List.append(subpatternTokens, list{TMPTupleComma(matchID, id, i)})
@@ -633,14 +633,14 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNested(~f=toTokens'(mexpr))
     |> indentBy(~indent=2, ~f=b =>
       b
-      |> addIter(pairs, ~f=(i, (pattern, expr), b) =>
+      |> addIter(pairs, ~f=(i, (matchPattern, expr), b) =>
         b
         |> addNewlineIfNeeded(Some(id, id, Some(i)))
-        |> addMany(matchPatternToTokens(id, pattern, ~idx=i))
+        |> addMany(matchPatternToTokens(id, matchPattern, ~idx=i))
         |> add(
           TMatchBranchArrow({
             matchID: id,
-            patternID: MP.toID(pattern),
+            patternID: MP.toID(matchPattern),
             index: i,
           }),
         )

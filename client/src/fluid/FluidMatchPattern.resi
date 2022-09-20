@@ -12,12 +12,12 @@ let variableNames: t => list<string>
 
 let hasVariableNamed: (string, t) => bool
 
-@ocaml.doc(" [findPattern patID within] returns Some pattern
+@ocaml.doc(" [findMatchPattern patID within] returns Some pattern
   with ID.t = [patID] in the [within] tree, or None. ")
-let findPattern: (ID.t, t) => option<t>
+let findMatchPattern: (ID.t, t) => option<t>
 
 @ocaml.doc(" [isPatternBlank e] returns true iff [e] is an PBlank. ")
-let isPatternBlank: t => bool
+let isBlank: t => bool
 
 @ocaml.doc(" [preTraversal f pattern] walks the entire pattern from top to bottom,
   * calling f on each pattern. It returns a new patterm with every subpattern p
