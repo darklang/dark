@@ -48,6 +48,7 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("DB", "deleteAll", 0, list{TDB(DType.TVariable("c"))}, TNull),
   ("DB", "generateKey", 0, list{}, TStr),
   ("DB", "getAll", 2, list{TDB(DType.TVariable("x"))}, TList(DType.TVariable("xyz"))),
+  ("DB", "query", 4, list{TDB(DType.TVariable("x"))}, TNull),
   ("DB", "getAll", 1, list{TDB(DType.TVariable("b"))}, TList(DType.TVariable("efg"))),
   // ordering is deliberate - we want the query to order s.t. get is before getAll
   ("DB", "get", 1, list{TDB(DType.TVariable("a"))}, TList(DType.TVariable("lmn"))),
@@ -88,6 +89,8 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
   },
   sqlSpec: if module_ == "InQuery" {
     SqlUnaryOp("+")
+  } else if module_ == "DB" && function == "query" {
+    QueryFunction
   } else {
     NotQueryable
   },
@@ -627,121 +630,6 @@ let run = () => {
       )
       test("includes constructors", () =>
         expect(valid |> List.filter(~f=isConstructor) |> List.map(~f=AC.asName)) |> toEqual(list{})
-      )
-      ()
-    })
-    describe("filter in other DB::queryWithKey", () => {
-      let isFunction = x =>
-        switch x {
-        | FACFunction(_) => true
-        | _ => false
-        }
-      let tlid = gtlid()
-      let expr = fn(
-        ~mod="DB",
-        "queryWithKey",
-        ~version=3,
-        list{str("MyDB"), lambda(list{"value"}, blank())},
-      )
-
-      let m = defaultModel(
-        ~tlid,
-        ~dbs=list{aDB(~tlid=gtlid(), ())},
-        ~handlers=list{aHandler(~expr, ())},
-        (),
-      )
-
-      let ac = acFor(~pos=50, m)
-      let valid = filterValid(ac)
-      test("includes supported functions only", () =>
-        expect(valid |> List.filter(~f=isFunction) |> List.map(~f=AC.asName)) |> toEqual(list{
-          "InQuery::whatever",
-        })
-      )
-      ()
-    })
-    describe("filter in other DB::queryOne", () => {
-      let isFunction = x =>
-        switch x {
-        | FACFunction(_) => true
-        | _ => false
-        }
-      let tlid = gtlid()
-      let expr = fn(
-        ~mod="DB",
-        "queryOne",
-        ~version=4,
-        list{str("MyDB"), lambda(list{"value"}, blank())},
-      )
-
-      let m = defaultModel(
-        ~tlid,
-        ~dbs=list{aDB(~tlid=gtlid(), ())},
-        ~handlers=list{aHandler(~expr, ())},
-        (),
-      )
-
-      let ac = acFor(~pos=50, m)
-      let valid = filterValid(ac)
-      test("includes supported functions only", () =>
-        expect(valid |> List.filter(~f=isFunction) |> List.map(~f=AC.asName)) |> toEqual(list{
-          "InQuery::whatever",
-        })
-      )
-      ()
-    })
-    describe("filter in other DB::queryOneWithKey", () => {
-      let isFunction = x =>
-        switch x {
-        | FACFunction(_) => true
-        | _ => false
-        }
-      let tlid = gtlid()
-      let expr = fn(
-        ~mod="DB",
-        "queryOneWithKey",
-        ~version=3,
-        list{str("MyDB"), lambda(list{"value"}, blank())},
-      )
-
-      let m = defaultModel(
-        ~tlid,
-        ~dbs=list{aDB(~tlid=gtlid(), ())},
-        ~handlers=list{aHandler(~expr, ())},
-        (),
-      )
-
-      let ac = acFor(~pos=50, m)
-      let valid = filterValid(ac)
-      test("includes supported functions only", () =>
-        expect(valid |> List.filter(~f=isFunction) |> List.map(~f=AC.asName)) |> toEqual(list{
-          "InQuery::whatever",
-        })
-      )
-      ()
-    })
-    describe("filter in other DB::queryCount", () => {
-      let isFunction = x =>
-        switch x {
-        | FACFunction(_) => true
-        | _ => false
-        }
-      let tlid = gtlid()
-      let expr = fn(~mod="DB", "queryCount", list{str("MyDB"), lambda(list{"value"}, blank())})
-
-      let m = defaultModel(
-        ~tlid,
-        ~dbs=list{aDB(~tlid=gtlid(), ())},
-        ~handlers=list{aHandler(~expr, ())},
-        (),
-      )
-
-      let ac = acFor(~pos=50, m)
-      let valid = filterValid(ac)
-      test("includes supported functions only", () =>
-        expect(valid |> List.filter(~f=isFunction) |> List.map(~f=AC.asName)) |> toEqual(list{
-          "InQuery::whatever",
-        })
       )
       ()
     })

@@ -222,10 +222,10 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         let name =
           Functions.global()
           |> Functions.findByStr(fnname)
-          |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index=pos, fn.fnParameters))
-          |> Option.map(~f=(p: Function.parameter): Placeholder.t => {
-            name: p.paramName,
-            tipe: DType.tipe2str(p.paramTipe),
+          |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index=pos, fn.parameters))
+          |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t): Placeholder.t => {
+            name: p.name,
+            tipe: DType.tipe2str(p.typ),
           })
 
         switch name {

@@ -1422,11 +1422,11 @@ let insertInPlaceholderExpr = (
     |> Option.andThen(~f=name => Functions.find(name, props.functions))
     |> Option.andThen(~f=(fn: Function.t) =>
       List.find(
-        ~f=({paramName, _}: Function.parameter) => paramName == placeholder.name,
-        fn.fnParameters,
+        ~f=({name, _}: RuntimeTypes.BuiltInFn.Param.t) => name == placeholder.name,
+        fn.parameters,
       )
     )
-    |> Option.map(~f=(p: Function.parameter) => p.paramBlock_args)
+    |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t) => p.args)
     |> Option.unwrap(~default=list{""})
     |> List.map(~f=str => (gid(), str))
   }
@@ -1723,10 +1723,10 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     List.map(List.range(0, count), ~f=index =>
       props.functions
       |> Functions.findByStr(fnname)
-      |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index, fn.fnParameters))
-      |> Option.map(~f=(p: Function.parameter) => (
-        p.paramName,
-        DType.tipe2str(p.paramTipe),
+      |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index, fn.parameters))
+      |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t) => (
+        p.name,
+        DType.tipe2str(p.typ),
         List.getAt(~index, varExprs) |> Option.unwrap(~default=EBlank(gid())),
         index,
       ))
@@ -1760,7 +1760,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
       props.functions
       |> Functions.findByStr(oldName)
       |> Option.map(~f=(fn: Function.t) =>
-        if Runtime.isErrorRailType(fn.fnReturnTipe) {
+        if Runtime.isErrorRailType(fn.returnType) {
           SendToRail.Rail
         } else {
           NoRail
@@ -2140,20 +2140,20 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
 
   switch entry {
   | FACFunction(fn) =>
-    let count = List.length(fn.fnParameters)
-    let r = if Runtime.isErrorRailType(fn.fnReturnTipe) {
+    let count = List.length(fn.parameters)
+    let r = if Runtime.isErrorRailType(fn.returnType) {
       SendToRail.Rail
     } else {
       NoRail
     }
 
     let args = List.initialize(count, ~f=_ => EBlank(gid()))
-    if fn.fnInfix {
+    if fn.isInfix {
       switch args {
       | list{lhs, rhs} =>
         // This is awkward as we don't have a way of representing infix operations in
         // the name. So we just have to trust that this works out
-        let name: PT.InfixStdlibFnName.t = switch fn.fnName {
+        let name: PT.InfixStdlibFnName.t = switch fn.name {
         | User(name) =>
           recover(
             "Got a UserFn in an infix FACFunction",
@@ -2199,12 +2199,12 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
           ~default=(
             {
               astRef: ARFnCall(fID),
-              offset: fn.fnName |> FQFnName.toString |> FluidUtil.partialName |> String.length,
+              offset: fn.name |> FQFnName.toString |> FluidUtil.partialName |> String.length,
             }: CT.t
           ),
         )
 
-      Some(EFnCall(fID, fn.fnName, args, r), target)
+      Some(EFnCall(fID, fn.name, args, r), target)
     }
   | FACKeyword(KLet) =>
     let (b, target) = mkBlank()

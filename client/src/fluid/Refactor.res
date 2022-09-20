@@ -119,7 +119,7 @@ let takeOffRail = (_m: model, tl: toplevel, id: id): modification =>
 let isRailable = (m: model, name: FQFnName.t) =>
   m.functions
   |> Functions.find(name)
-  |> Option.map(~f=(fn: Function.t) => Runtime.isErrorRailType(fn.fnReturnTipe))
+  |> Option.map(~f=(fn: Function.t) => Runtime.isErrorRailType(fn.returnType))
   |> Option.unwrap(~default=false)
 
 let putOnRail = (m: model, tl: toplevel, id: id): modification =>

@@ -61,7 +61,7 @@ let focusItem = (i: int): AppTypes.cmd =>
 // ----------------------------
 let asName = (aci: item): string =>
   switch aci {
-  | FACFunction(fn) => FQFnName.toString(fn.fnName)
+  | FACFunction(fn) => FQFnName.toString(fn.name)
   | FACField(name) => name
   | FACVariable(name, _) => name
   | FACLiteral(lit) =>
@@ -94,10 +94,10 @@ let asName = (aci: item): string =>
 let asTypeStrings = (item: item): (list<string>, string) =>
   switch item {
   | FACFunction(f) =>
-    f.fnParameters
-    |> List.map(~f=(x: Function.parameter) => x.paramTipe)
+    f.parameters
+    |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
     |> List.map(~f=DType.tipe2str)
-    |> (s => (s, DType.tipe2str(f.fnReturnTipe)))
+    |> (s => (s, DType.tipe2str(f.returnType)))
   | FACField(_) => (list{}, "field")
   | FACVariable(_, odv) =>
     odv
@@ -245,16 +245,18 @@ let findExpectedType = (
   |> Option.andThen(~f=AST.getParamIndex(id))
   |> Option.andThen(~f=((name, index)) =>
     functions
-    |> List.find(~f=(f: Function.t) => name == FQFnName.toString(f.fnName))
+    |> List.find(~f=(f: Function.t) => name == FQFnName.toString(f.name))
     |> Option.map(~f=(fn: Function.t) => {
-      let param = List.getAt(~index, fn.fnParameters)
+      let param = List.getAt(~index, fn.parameters)
       let returnType =
-        Option.map(param, ~f=p => p.paramTipe) |> Option.unwrap(~default=default.returnType)
+        Option.map(param, ~f=p => p.typ) |> Option.unwrap(~default=default.returnType)
 
-      let paramName =
-        Option.map(param, ~f=p => p.paramName) |> Option.unwrap(~default=default.paramName)
+      let name =
+        Option.map(param, ~f=(p: RuntimeTypes.BuiltInFn.Param.t) => p.name) |> Option.unwrap(
+          ~default=default.paramName,
+        )
 
-      ({fnName: Some(fn.fnName), returnType: returnType, paramName: paramName}: TypeInformation.t)
+      ({fnName: Some(fn.name), returnType: returnType, paramName: name}: TypeInformation.t)
     })
   )
   |> Option.unwrap(~default)
@@ -276,12 +278,12 @@ let typeCheck = (
   let expectedReturnType = expectedReturnType.returnType
   switch item {
   | FACFunction(fn) =>
-    if !Runtime.isCompatible(fn.fnReturnTipe, expectedReturnType) {
+    if !Runtime.isCompatible(fn.returnType, expectedReturnType) {
       invalidReturnType
     } else {
-      switch (List.head(fn.fnParameters), pipedType) {
+      switch (List.head(fn.parameters), pipedType) {
       | (Some(param), Some(pipedType)) =>
-        if Runtime.isCompatible(param.paramTipe, pipedType) {
+        if Runtime.isCompatible(param.typ, pipedType) {
           valid
         } else {
           invalidFirstArg(pipedType)
@@ -354,24 +356,13 @@ let secretToACItem = (s: SecretTypes.t): item => {
   FACVariable(s.secretName, Some(asDval))
 }
 
-let lookupIsInQuery = (tl: toplevel, ti: tokenInfo) => {
-  // CLEANUP: use builtin query attribute in the global function list
-  let isQueryFn = (name: FQFnName.t) =>
-    switch name {
-    | Stdlib({module_: "DB", function, version}) =>
-      switch (function, version) {
-      | ("query", 4)
-      | ("queryWithKey", 3)
-      | ("queryOne", 3)
-      | ("queryOne", 4)
-      | ("queryOneWithKey", 3)
-      | ("queryCount", 0) => true
-      | _ => false
-      }
-    | Stdlib(_) => false
-    | User(_) => false
-    | Package(_) => false
+let lookupIsInQuery = (tl: toplevel, ti: tokenInfo, functions: Functions.t) => {
+  let isQueryFn = (name: FQFnName.t) => {
+    switch Functions.find(name, functions) {
+    | Some(fn) => fn.sqlSpec == QueryFunction
+    | None => false
     }
+  }
 
   let ast' = TL.getAST(tl)
   switch ast' {
@@ -394,7 +385,7 @@ let filterToDbSupportedFns = (isInQuery, functions) =>
   } else {
     functions |> List.filter(~f=f =>
       switch f {
-      | FT.AutoComplete.FACFunction(fn) => fn.fnIsSupportedInQuery
+      | FT.AutoComplete.FACFunction(fn) => RuntimeTypes.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec)
       | _ => false
       }
     )
@@ -402,7 +393,7 @@ let filterToDbSupportedFns = (isInQuery, functions) =>
 
 let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   open FT.AutoComplete
-  let isInQuery = lookupIsInQuery(tl, ti)
+  let isInQuery = lookupIsInQuery(tl, ti, props.functions)
   let functions' = Functions.asFunctions(props.functions) |> List.map(~f=x => FACFunction(x))
 
   let functions = filterToDbSupportedFns(isInQuery, functions')
@@ -753,14 +744,14 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   let deprecated = Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")})
   switch item {
   | FACFunction(f) =>
-    let desc = if String.length(f.fnDescription) != 0 {
-      f.fnDescription
+    let desc = if String.length(f.description) != 0 {
+      f.description
     } else {
       "Function call with no description"
     }
 
     let desc = PrettyDocs.convert(desc)
-    let desc = if f.fnDeprecated {
+    let desc = if f.deprecation != NotDeprecated {
       list{deprecated, ...desc}
     } else {
       desc

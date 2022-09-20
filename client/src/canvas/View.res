@@ -159,7 +159,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           Some(
             viewDoc(
               Belt.List.concat(
-                PrettyDocs.convert(fn.fnDescription),
+                PrettyDocs.convert(fn.description),
                 list{ViewErrorRailDoc.hintForFunction(fn, Some(sendToRail))},
               ),
             ),
@@ -177,8 +177,8 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
             m.functions
             |> Functions.findByStr(name)
             |> Option.map(~f=(f: Function.t) => {
-              let param = f.fnParameters |> List.getAt(~index)
-              (param, f.fnDescription)
+              let param = f.parameters |> List.getAt(~index)
+              (param, f.description)
             })
           )
 
@@ -186,14 +186,11 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
         | Some(param, fnDesc) =>
           switch param {
           | Some(pm) =>
-            let header = pm.paramName ++ (" : " ++ DType.tipe2str(pm.paramTipe))
+            let header = pm.name ++ (" : " ++ DType.tipe2str(pm.typ))
 
             Some(
               viewDoc(
-                Belt.List.concat(
-                  PrettyDocs.convert(fnDesc),
-                  list{p(header), p(pm.paramDescription)},
-                ),
+                Belt.List.concat(PrettyDocs.convert(fnDesc), list{p(header), p(pm.description)}),
               ),
             )
           | None => None

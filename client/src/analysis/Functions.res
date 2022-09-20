@@ -23,10 +23,10 @@ type rec props = {
  * in practice; for example, someone might delete a function and
  * then do a local undo. */
 let find = (name: FQFnName.t, functions: t): option<Function.t> =>
-  List.find(functions.allowedFunctions, ~f=f => f.fnName == name)
+  List.find(functions.allowedFunctions, ~f=f => f.name == name)
 
 let findByStr = (name: string, functions: t): option<Function.t> =>
-  List.find(functions.allowedFunctions, ~f=f => FQFnName.toString(f.fnName) == name)
+  List.find(functions.allowedFunctions, ~f=f => FQFnName.toString(f.name) == name)
 
 let empty: t = {
   builtinFunctions: list{},
@@ -130,28 +130,28 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
   // We hide functions that are deprecated unless they are in use
   let filterAndSort = (fns: list<Function.t>): list<Function.t> => {
     let isUsed = (f: Function.t): bool =>
-      Map.get(~key=FQFnName.toString(f.fnName), props.usedFns)
+      Map.get(~key=FQFnName.toString(f.name), props.usedFns)
       |> Option.unwrap(~default=0)
       |> (count => count > 0)
 
     let isNonExperimentalOrOptedIn = (f: Function.t): bool =>
       // TUPLETODO remove this filter when the experimental setting is removed
-      switch f.fnName {
+      switch f.name {
       | Stdlib(fnName) if String.startsWith(~prefix="Tuple", fnName.module_) => props.allowTuples
       | _ => true
       }
 
     let fnNameWithoutVersion = (f: Function.t): string =>
-      f.fnName
+      f.name
       |> FQFnName.toString
       |> String.toLowercase
       |> String.split(~on="_v")
       |> List.getAt(~index=0)
-      |> Option.unwrap(~default=FQFnName.toString(f.fnName))
+      |> Option.unwrap(~default=FQFnName.toString(f.name))
 
     fns
     |> List.filter(~f=(f: Function.t) => {
-      if f.fnDeprecated {
+      if f.deprecation != NotDeprecated {
         isUsed(f)
       } else {
         isNonExperimentalOrOptedIn(f) || isUsed(f)
@@ -160,7 +160,7 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
     |> List.sortBy(~f=(f: Function.t) =>
       // don't call List.head here - if we have DB::getAll_v1 and
       // DB::getAll_v2, we want those to sort accordingly!
-      f.fnName |> FQFnName.toString |> String.toLowercase |> String.split(~on="_v")
+      f.name |> FQFnName.toString |> String.toLowercase |> String.split(~on="_v")
     )
     |> List.groupWhile(~f=(f1, f2) => fnNameWithoutVersion(f1) == fnNameWithoutVersion(f2))
     |> List.map(~f=List.reverse)
@@ -173,10 +173,10 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
     |> List.filterMap(~f=Function.fromUserFn)
     |> List.map(~f=(f: Function.t) => {
       ...f,
-      fnPreviewSafety: if Set.member(t.previewUnsafeFunctions, ~value=FQFnName.toString(f.fnName)) {
-        Unsafe
+      previewable: if Set.member(t.previewUnsafeFunctions, ~value=FQFnName.toString(f.name)) {
+        Impure
       } else {
-        Safe
+        Pure
       },
     })
 

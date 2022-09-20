@@ -1,67 +1,53 @@
-// TODO combine with RuntimeTypes.BuiltinFn
+module BuiltInFn = RuntimeTypes.BuiltInFn
 
 @ppx.deriving(show({with_path: false}))
-type rec parameter = {
-  paramName: string,
-  paramTipe: DType.t,
-  paramBlock_args: list<string>,
-  paramOptional: bool,
-  paramDescription: string,
-}
-
-@ppx.deriving(show({with_path: false}))
-type rec previewSafety =
-  | Safe
-  | Unsafe
-
-@ppx.deriving(show({with_path: false}))
-type rec fnOrigin =
+type rec origin =
   | UserFunction
   | PackageManager
   | Builtin
 
+// A superset of other function types, but basically matches a RuntimeTypes.BuiltInFn.t
 @ppx.deriving(show({with_path: false}))
 type rec t = {
-  fnName: FQFnName.t,
-  fnParameters: list<parameter>,
-  fnDescription: string,
-  fnReturnTipe: DType.t,
-  fnPreviewSafety: previewSafety,
-  fnDeprecated: bool,
-  fnInfix: bool,
-  fnIsSupportedInQuery: bool,
+  name: FQFnName.t,
+  parameters: list<BuiltInFn.Param.t>,
+  description: string,
+  returnType: DType.t,
+  previewable: BuiltInFn.Previewable.t,
+  deprecation: BuiltInFn.Deprecation.t,
+  isInfix: bool,
+  sqlSpec: BuiltInFn.SqlSpec.t,
   // This is a client-side only field to be able to give different UX to
   // different functions
-  fnOrigin: fnOrigin,
+  origin: origin,
 }
 
 let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
-  let ufpToP = (ufp: ProgramTypes.UserFunction.Parameter.t): option<parameter> =>
+  let ufpToP = (ufp: ProgramTypes.UserFunction.Parameter.t): option<BuiltInFn.Param.t> =>
     switch (ufp.name, ufp.typ) {
     | ("", _) => None
     | (_, None) => None
     | (name, Some(typ)) =>
       {
-        paramName: name,
-        paramTipe: typ,
-        paramBlock_args: list{},
-        paramOptional: false,
-        paramDescription: ufp.description,
+        BuiltInFn.Param.name: name,
+        typ: typ,
+        args: list{},
+        description: ufp.description,
       } |> (x => Some(x))
     }
   let ps = Tc.List.filterMap(~f=ufpToP, f.parameters)
   let sameLength = List.length(ps) == List.length(f.parameters)
   if sameLength && f.name != "" {
     Some({
-      fnName: User(f.name),
-      fnParameters: ps,
-      fnDescription: f.description,
-      fnReturnTipe: f.returnType,
-      fnInfix: false,
-      fnPreviewSafety: Unsafe,
-      fnDeprecated: false,
-      fnIsSupportedInQuery: false,
-      fnOrigin: UserFunction,
+      name: User(f.name),
+      parameters: ps,
+      description: f.description,
+      returnType: f.returnType,
+      isInfix: false,
+      previewable: Impure,
+      deprecation: NotDeprecated,
+      sqlSpec: NotQueryable,
+      origin: UserFunction,
     })
   } else {
     None
@@ -69,52 +55,39 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
 }
 
 let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
-  let paramOfPkgFnParam = (pkgFnParam: ProgramTypes.Package.Parameter.t): parameter => {
-    paramName: pkgFnParam.name,
-    paramTipe: pkgFnParam.tipe,
-    paramDescription: pkgFnParam.description,
-    paramBlock_args: list{},
-    paramOptional: false,
+  let paramOfPkgFnParam = (pkgFnParam: ProgramTypes.Package.Parameter.t): BuiltInFn.Param.t => {
+    name: pkgFnParam.name,
+    typ: pkgFnParam.tipe,
+    description: pkgFnParam.description,
+    args: list{},
   }
-
   {
-    fnName: Package(pkgFn.name),
-    fnParameters: pkgFn.parameters |> Tc.List.map(~f=paramOfPkgFnParam),
-    fnDescription: pkgFn.description,
-    fnReturnTipe: pkgFn.returnType,
-    fnPreviewSafety: Unsafe,
-    fnDeprecated: pkgFn.deprecated,
-    fnInfix: false,
-    fnIsSupportedInQuery: false,
-    fnOrigin: PackageManager,
+    name: Package(pkgFn.name),
+    parameters: pkgFn.parameters |> Tc.List.map(~f=paramOfPkgFnParam),
+    description: pkgFn.description,
+    returnType: pkgFn.returnType,
+    previewable: Impure,
+    deprecation: if pkgFn.deprecated {
+      DeprecatedBecause("") // TODO: we don't know why at this point
+    } else {
+      NotDeprecated
+    },
+    isInfix: false,
+    sqlSpec: NotQueryable,
+    origin: PackageManager,
   }
 }
 
-let fromBuiltinFn = (fn: RuntimeTypes.BuiltInFn.t): t => {
-  let toParam = (p: RuntimeTypes.BuiltInFn.Param.t): parameter => {
-    paramName: p.name,
-    paramTipe: p.typ,
-    paramDescription: p.description,
-    paramBlock_args: p.args,
-    paramOptional: false,
-  }
+let fromBuiltinFn = (fn: BuiltInFn.t): t => {
   {
-    fnName: Stdlib({
-      module_: fn.name.module_,
-      function: fn.name.function,
-      version: fn.name.version,
-    }),
-    fnParameters: fn.parameters |> Tc.List.map(~f=toParam),
-    fnDescription: fn.description,
-    fnReturnTipe: fn.returnType,
-    fnPreviewSafety: switch fn.previewable {
-    | Pure => Safe
-    | Impure => Unsafe
-    | ImpurePreviewable => Unsafe
-    },
-    fnDeprecated: fn.deprecated != NotDeprecated,
-    fnInfix: fn.isInfix,
-    fnIsSupportedInQuery: RuntimeTypes.BuiltInFn.SqlSpec.isQueryable(fn.sqlSpec),
-    fnOrigin: Builtin,
+    name: Stdlib(fn.name),
+    parameters: fn.parameters,
+    description: fn.description,
+    returnType: fn.returnType,
+    previewable: fn.previewable,
+    deprecation: fn.deprecated,
+    isInfix: fn.isInfix,
+    sqlSpec: fn.sqlSpec,
+    origin: Builtin,
   }
 }
