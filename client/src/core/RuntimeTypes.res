@@ -8,33 +8,33 @@ open Belt_extended
 module MatchPattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    | PVariable(id, string)
-    | PConstructor(id, string, list<t>)
-    | PInteger(id, int64)
-    | PBool(id, bool)
-    | PString(id, string)
-    | PCharacter(id, string)
-    | PFloat(id, float)
-    | PNull(id)
-    | PBlank(id)
-    | PTuple(id, t, t, list<t>)
+    | MPVariable(id, string)
+    | MPConstructor(id, string, list<t>)
+    | MPInteger(id, int64)
+    | MPBool(id, bool)
+    | MPString(id, string)
+    | MPCharacter(id, string)
+    | MPFloat(id, float)
+    | MPNull(id)
+    | MPBlank(id)
+    | MPTuple(id, t, t, list<t>)
 
   let rec encode = (pattern: t): Js.Json.t => {
     open Json_encode_extended
     let ep = encode
     let ev = variant
     switch pattern {
-    | PVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
-    | PConstructor(id', name, patterns) =>
+    | MPVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
+    | MPConstructor(id', name, patterns) =>
       ev("PConstructor", list{ID.encode(id'), string(name), list(ep, patterns)})
-    | PInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
-    | PBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
-    | PFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
-    | PString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
-    | PCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
-    | PNull(id') => ev("PNull", list{ID.encode(id')})
-    | PBlank(id') => ev("PBlank", list{ID.encode(id')})
-    | PTuple(id', first, second, theRest) =>
+    | MPInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
+    | MPBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
+    | MPFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
+    | MPString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
+    | MPCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
+    | MPNull(id') => ev("PNull", list{ID.encode(id')})
+    | MPBlank(id') => ev("PBlank", list{ID.encode(id')})
+    | MPTuple(id', first, second, theRest) =>
       ev("PTuple", list{ID.encode(id'), ep(first), ep(second), list(ep, theRest)})
     }
   }
@@ -47,18 +47,18 @@ module MatchPattern = {
     let dv1 = variant1
     variants(
       list{
-        ("PVariable", dv2((a, b) => PVariable(a, b), ID.decode, string)),
-        ("PConstructor", dv3((a, b, c) => PConstructor(a, b, c), ID.decode, string, list(decode))),
-        ("PInteger", dv2((a, b) => PInteger(a, b), ID.decode, int64)),
-        ("PBool", dv2((a, b) => PBool(a, b), ID.decode, bool)),
-        ("PString", dv2((a, b) => PString(a, b), ID.decode, string)),
-        ("PFloat", dv2((a, b) => PFloat(a, b), ID.decode, Json_decode_extended.float')),
-        ("PNull", dv1(a => PNull(a), ID.decode)),
-        ("PBlank", dv1(a => PBlank(a), ID.decode)),
+        ("PVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
+        ("PConstructor", dv3((a, b, c) => MPConstructor(a, b, c), ID.decode, string, list(decode))),
+        ("PInteger", dv2((a, b) => MPInteger(a, b), ID.decode, int64)),
+        ("PBool", dv2((a, b) => MPBool(a, b), ID.decode, bool)),
+        ("PString", dv2((a, b) => MPString(a, b), ID.decode, string)),
+        ("PFloat", dv2((a, b) => MPFloat(a, b), ID.decode, Json_decode_extended.float')),
+        ("PNull", dv1(a => MPNull(a), ID.decode)),
+        ("PBlank", dv1(a => MPBlank(a), ID.decode)),
         (
           "PTuple",
           dv4(
-            (a, first, second, theRest) => PTuple(a, first, second, theRest),
+            (a, first, second, theRest) => MPTuple(a, first, second, theRest),
             ID.decode,
             decode,
             decode,
