@@ -67,7 +67,7 @@ module AstRef = {
     | MPBranchArrow(/* index of the branch */ int)
 
   @ppx.deriving(show({with_path: false}))
-  type rec astPatternPart =
+  type rec astMatchPatternPart =
     | PPVariable
     | PPConstructor
     | PPTuple(astTuplePart)
@@ -124,7 +124,7 @@ module AstRef = {
     | ARConstructor(id) // name of the constructor
     | ARMatch(id, astMatchPart)
     | ARLambda(id, astLambdaPart)
-    | ARPattern(id, astPatternPart)
+    | ARMPattern(id, astMatchPatternPart)
     | ARFlag(id, astFlagPart)
     // for use if something that should never happen happened
     | ARInvalid
