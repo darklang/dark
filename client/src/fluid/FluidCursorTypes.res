@@ -68,15 +68,15 @@ module AstRef = {
 
   @ppx.deriving(show({with_path: false}))
   type rec astMatchPatternPart =
-    | PPVariable
-    | PPConstructor
-    | PPTuple(astTuplePart)
-    | PPInteger
-    | PPBool
-    | PPString
-    | PPFloat(astFloatPart)
-    | PPNull
-    | PPBlank
+    | MPPVariable
+    | MPPConstructor
+    | MPPTuple(astTuplePart)
+    | MPPInteger
+    | MPPBool
+    | MPPString
+    | MPPFloat(astFloatPart)
+    | MPPNull
+    | MPPBlank
 
   @ppx.deriving(show({with_path: false}))
   type rec astFlagPart =

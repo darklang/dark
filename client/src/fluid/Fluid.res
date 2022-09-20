@@ -715,12 +715,12 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARVariable(id), TVariable(id', _, _))
     | (ARLambda(id, LBPSymbol), TLambdaSymbol(id', _))
     | (ARLambda(id, LBPArrow), TLambdaArrow(id', _))
-    | (ARMPattern(id, PPVariable), TPatternVariable(_, id', _, _))
-    | (ARMPattern(id, PPConstructor), TPatternConstructorName(_, id', _, _))
-    | (ARMPattern(id, PPInteger), TPatternInteger(_, id', _, _))
-    | (ARMPattern(id, PPBool), TPatternTrue(_, id', _) | TPatternFalse(_, id', _))
-    | (ARMPattern(id, PPBlank), TPatternBlank(_, id', _))
-    | (ARMPattern(id, PPNull), TPatternNullToken(_, id', _))
+    | (ARMPattern(id, MPPVariable), TPatternVariable(_, id', _, _))
+    | (ARMPattern(id, MPPConstructor), TPatternConstructorName(_, id', _, _))
+    | (ARMPattern(id, MPPInteger), TPatternInteger(_, id', _, _))
+    | (ARMPattern(id, MPPBool), TPatternTrue(_, id', _) | TPatternFalse(_, id', _))
+    | (ARMPattern(id, MPPBlank), TPatternBlank(_, id', _))
+    | (ARMPattern(id, MPPNull), TPatternNullToken(_, id', _))
     | (ARFlag(id, FPWhenKeyword), TFlagWhenKeyword(id'))
     | (ARFlag(id, FPEnabledKeyword), TFlagEnabledKeyword(id')) if id == id' =>
       posForTi(ti)
@@ -736,31 +736,31 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     /*
      * Floats
      */
-    | (ARMPattern(id, PPFloat(FPPoint)), TPatternFloatPoint(_, id', _))
-    | (ARMPattern(id, PPFloat(FPWhole)), TPatternFloatWhole(_, id', _, _))
+    | (ARMPattern(id, MPPFloat(FPPoint)), TPatternFloatPoint(_, id', _))
+    | (ARMPattern(id, MPPFloat(FPWhole)), TPatternFloatWhole(_, id', _, _))
     | (ARFloat(id, FPPoint), TFloatPoint(id', _))
     | (ARFloat(id, FPWhole), TFloatWhole(id', _, _)) if id == id' =>
       posForTi(ti)
-    | (ARMPattern(id, PPFloat(FPWhole)), TPatternFloatPoint(_, id', _))
+    | (ARMPattern(id, MPPFloat(FPWhole)), TPatternFloatPoint(_, id', _))
     | (ARFloat(id, FPWhole), TFloatPoint(id', _)) if id == id' =>
       /* This accounts for situations like `|.45`, where the float doesn't have a whole part but
            we're still targeting it (perhaps due to deletion).
            Because the 'findMap' below scans from left to right and we try to match the whole first,
            we can still find positions like `1|2.54` */
       Some(ti.startPos)
-    | (ARMPattern(id, PPFloat(FPFractional)), TPatternFloatPoint(_, id', _))
+    | (ARMPattern(id, MPPFloat(FPFractional)), TPatternFloatPoint(_, id', _))
     | (ARFloat(id, FPFractional), TFloatPoint(id', _)) if id == id' && ct.offset == 0 =>
       /* This accounts for situations like `12.|`, where the float doesn't have a decimal part but
        we're still targeting it (perhaps due to deletion). */
       Some(ti.endPos)
-    | (ARMPattern(id, PPFloat(FPFractional)), TPatternFloatFractional(_, id', _, _))
+    | (ARMPattern(id, MPPFloat(FPFractional)), TPatternFloatFractional(_, id', _, _))
     | (ARFloat(id, FPFractional), TFloatFractional(id', _, _)) if id == id' =>
       posForTi(ti)
 
-    | (ARMPattern(id, PPTuple(TPOpen)), TPatternTupleOpen(_, id'))
-    | (ARMPattern(id, PPTuple(TPClose)), TPatternTupleClose(_, id')) if id == id' =>
+    | (ARMPattern(id, MPPTuple(TPOpen)), TPatternTupleOpen(_, id'))
+    | (ARMPattern(id, MPPTuple(TPClose)), TPatternTupleClose(_, id')) if id == id' =>
       posForTi(ti)
-    | (ARMPattern(id, PPTuple(TPComma(idx))), TPatternTupleComma(_, id', idx'))
+    | (ARMPattern(id, MPPTuple(TPComma(idx))), TPatternTupleComma(_, id', idx'))
       if id == id' && idx == idx' =>
       posForTi(ti)
 
@@ -786,7 +786,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARString(id, SPCloseQuote), TStringCloseQuote(id', _)) if id == id' =>
       clampedPosForTi(ti, ct.offset)
     | (ARString(id, SPBody), TString(id', _, _)) if id == id' => clampedPosForTi(ti, ct.offset)
-    | (ARMPattern(id, PPString), TPatternString({patternID: id', _})) if id == id' =>
+    | (ARMPattern(id, MPPString), TPatternString({patternID: id', _})) if id == id' =>
       clampedPosForTi(ti, ct.offset)
     /*
      * Multi-line Strings
@@ -842,19 +842,19 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARLambda(_, LBPArrow), _)
     | (ARLambda(_, LBPVarName(_)), _)
     | (ARLambda(_, LBPComma(_)), _)
-    | (ARMPattern(_, PPVariable), _)
-    | (ARMPattern(_, PPConstructor), _)
-    | (ARMPattern(_, PPTuple(TPOpen)), _)
-    | (ARMPattern(_, PPTuple(TPClose)), _)
-    | (ARMPattern(_, PPTuple(TPComma(_))), _)
-    | (ARMPattern(_, PPInteger), _)
-    | (ARMPattern(_, PPBool), _)
-    | (ARMPattern(_, PPFloat(FPPoint)), _)
-    | (ARMPattern(_, PPFloat(FPWhole)), _)
-    | (ARMPattern(_, PPFloat(FPFractional)), _)
-    | (ARMPattern(_, PPBlank), _)
-    | (ARMPattern(_, PPNull), _)
-    | (ARMPattern(_, PPString), _)
+    | (ARMPattern(_, MPPVariable), _)
+    | (ARMPattern(_, MPPConstructor), _)
+    | (ARMPattern(_, MPPTuple(TPOpen)), _)
+    | (ARMPattern(_, MPPTuple(TPClose)), _)
+    | (ARMPattern(_, MPPTuple(TPComma(_))), _)
+    | (ARMPattern(_, MPPInteger), _)
+    | (ARMPattern(_, MPPBool), _)
+    | (ARMPattern(_, MPPFloat(FPPoint)), _)
+    | (ARMPattern(_, MPPFloat(FPWhole)), _)
+    | (ARMPattern(_, MPPFloat(FPFractional)), _)
+    | (ARMPattern(_, MPPBlank), _)
+    | (ARMPattern(_, MPPNull), _)
+    | (ARMPattern(_, MPPString), _)
     | (ARFlag(_, FPWhenKeyword), _)
     | (ARFlag(_, FPEnabledKeyword), _) =>
       None
@@ -950,24 +950,25 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TMatchKeyword(id) => Some({astRef: ARMatch(id, MPKeyword), offset: offset})
   | TMatchBranchArrow({matchID: id, index: idx, _}) =>
     Some({astRef: ARMatch(id, MPBranchArrow(idx)), offset: offset})
-  | TPatternVariable(_, id, _, _) => Some({astRef: ARMPattern(id, PPVariable), offset: offset})
+  | TPatternVariable(_, id, _, _) => Some({astRef: ARMPattern(id, MPPVariable), offset: offset})
   | TPatternConstructorName(_, id, _, _) =>
-    Some({astRef: ARMPattern(id, PPConstructor), offset: offset})
-  | TPatternInteger(_, id, _, _) => Some({astRef: ARMPattern(id, PPInteger), offset: offset})
-  | TPatternString({patternID: id, _}) => Some(CT.forPPStringOpenQuote(id, offset))
+    Some({astRef: ARMPattern(id, MPPConstructor), offset: offset})
+  | TPatternInteger(_, id, _, _) => Some({astRef: ARMPattern(id, MPPInteger), offset: offset})
+  | TPatternString({patternID: id, _}) => Some(CT.forMPPStringOpenQuote(id, offset))
   | TPatternTrue(_, id, _) | TPatternFalse(_, id, _) =>
-    Some({astRef: ARMPattern(id, PPBool), offset: offset})
-  | TPatternNullToken(_, id, _) => Some({astRef: ARMPattern(id, PPNull), offset: offset})
+    Some({astRef: ARMPattern(id, MPPBool), offset: offset})
+  | TPatternNullToken(_, id, _) => Some({astRef: ARMPattern(id, MPPNull), offset: offset})
   | TPatternFloatWhole(_, id, _, _) =>
-    Some({astRef: ARMPattern(id, PPFloat(FPWhole)), offset: offset})
-  | TPatternFloatPoint(_, id, _) => Some({astRef: ARMPattern(id, PPFloat(FPPoint)), offset: offset})
+    Some({astRef: ARMPattern(id, MPPFloat(FPWhole)), offset: offset})
+  | TPatternFloatPoint(_, id, _) =>
+    Some({astRef: ARMPattern(id, MPPFloat(FPPoint)), offset: offset})
   | TPatternFloatFractional(_, id, _, _) =>
-    Some({astRef: ARMPattern(id, PPFloat(FPFractional)), offset: offset})
-  | TPatternTupleOpen(_, id) => Some({astRef: ARMPattern(id, PPTuple(TPOpen)), offset: offset})
-  | TPatternTupleClose(_, id) => Some({astRef: ARMPattern(id, PPTuple(TPClose)), offset: offset})
+    Some({astRef: ARMPattern(id, MPPFloat(FPFractional)), offset: offset})
+  | TPatternTupleOpen(_, id) => Some({astRef: ARMPattern(id, MPPTuple(TPOpen)), offset: offset})
+  | TPatternTupleClose(_, id) => Some({astRef: ARMPattern(id, MPPTuple(TPClose)), offset: offset})
   | TPatternTupleComma(_, id, idx) =>
-    Some({astRef: ARMPattern(id, PPTuple(TPComma(idx))), offset: offset})
-  | TPatternBlank(_, id, _) => Some({astRef: ARMPattern(id, PPBlank), offset: offset})
+    Some({astRef: ARMPattern(id, MPPTuple(TPComma(idx))), offset: offset})
+  | TPatternBlank(_, id, _) => Some({astRef: ARMPattern(id, MPPBlank), offset: offset})
 
   | TConstructorName(id, _) => Some({astRef: ARConstructor(id), offset: offset})
   | TFlagWhenKeyword(id) => Some({astRef: ARFlag(id, FPWhenKeyword), offset: offset})
@@ -1179,20 +1180,20 @@ let caretTargetForStartOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
  placement at the very start of the expression in `pattern` */
 let caretTargetForStartOfPattern = (pattern: fluidPattern): CT.t =>
   switch pattern {
-  | MPVariable(id, _) => {astRef: ARMPattern(id, PPVariable), offset: 0}
-  | MPConstructor(id, _, _) => {astRef: ARMPattern(id, PPConstructor), offset: 0}
-  | MPInteger(id, _) => {astRef: ARMPattern(id, PPInteger), offset: 0}
-  | MPBool(id, _) => {astRef: ARMPattern(id, PPBool), offset: 0}
-  | MPString(id, _) => CT.forPPStringOpenQuote(id, 0)
+  | MPVariable(id, _) => {astRef: ARMPattern(id, MPPVariable), offset: 0}
+  | MPConstructor(id, _, _) => {astRef: ARMPattern(id, MPPConstructor), offset: 0}
+  | MPInteger(id, _) => {astRef: ARMPattern(id, MPPInteger), offset: 0}
+  | MPBool(id, _) => {astRef: ARMPattern(id, MPPBool), offset: 0}
+  | MPString(id, _) => CT.forMPPStringOpenQuote(id, 0)
   | MPCharacter(_, _) =>
     recover(
       "echar unsupported in caretTargetForStartOfPattern",
       {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
     )
-  | MPFloat(id, _, _, _) => {astRef: ARMPattern(id, PPFloat(FPWhole)), offset: 0}
-  | MPNull(id) => {astRef: ARMPattern(id, PPNull), offset: 0}
-  | MPBlank(id) => {astRef: ARMPattern(id, PPBlank), offset: 0}
-  | MPTuple(id, _, _, _) => {astRef: ARMPattern(id, PPTuple(TPOpen)), offset: 0}
+  | MPFloat(id, _, _, _) => {astRef: ARMPattern(id, MPPFloat(FPWhole)), offset: 0}
+  | MPNull(id) => {astRef: ARMPattern(id, MPPNull), offset: 0}
+  | MPBlank(id) => {astRef: ARMPattern(id, MPPBlank), offset: 0}
+  | MPTuple(id, _, _, _) => {astRef: ARMPattern(id, MPPTuple(TPOpen)), offset: 0}
   }
 
 /* caretTargetForEndOfPattern returns a caretTarget representing caret
@@ -1204,13 +1205,13 @@ let caretTargetForStartOfPattern = (pattern: fluidPattern): CT.t =>
 let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
   switch pattern {
   | MPVariable(id, varName) => {
-      astRef: ARMPattern(id, PPVariable),
+      astRef: ARMPattern(id, MPPVariable),
       offset: String.length(varName),
     }
   | MPConstructor(id, name, containedPatterns) =>
     switch List.last(containedPatterns) {
     | Some(lastPattern) => caretTargetForEndOfPattern(lastPattern)
-    | None => {astRef: ARMPattern(id, PPConstructor), offset: String.length(name)}
+    | None => {astRef: ARMPattern(id, MPPConstructor), offset: String.length(name)}
     }
   | MPTuple(_id, first, second, theRest) =>
     let allSubpatterns = list{first, second, ...theRest}
@@ -1223,23 +1224,23 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
       )
     }
   | MPInteger(id, value) => {
-      astRef: ARMPattern(id, PPInteger),
+      astRef: ARMPattern(id, MPPInteger),
       offset: String.length(Int64.to_string(value)),
     }
-  | MPBool(id, true) => {astRef: ARMPattern(id, PPBool), offset: String.length("true")}
-  | MPBool(id, false) => {astRef: ARMPattern(id, PPBool), offset: String.length("false")}
-  | MPString(id, str) => CT.forPPStringCloseQuote(id, 1, str) // end of close quote
+  | MPBool(id, true) => {astRef: ARMPattern(id, MPPBool), offset: String.length("true")}
+  | MPBool(id, false) => {astRef: ARMPattern(id, MPPBool), offset: String.length("false")}
+  | MPString(id, str) => CT.forMPPStringCloseQuote(id, 1, str) // end of close quote
   | MPCharacter(_) =>
     recover(
       "echar unsupported in caretTargetForStartOfPattern",
       {FluidCursorTypes.CaretTarget.astRef: ARInvalid, offset: 0},
     )
   | MPFloat(id, _, _, frac) => {
-      astRef: ARMPattern(id, PPFloat(FPFractional)),
+      astRef: ARMPattern(id, MPPFloat(FPFractional)),
       offset: String.length(frac),
     }
-  | MPNull(id) => {astRef: ARMPattern(id, PPNull), offset: String.length("null")}
-  | MPBlank(id) => {astRef: ARMPattern(id, PPBlank), offset: 0}
+  | MPNull(id) => {astRef: ARMPattern(id, MPPNull), offset: String.length("null")}
+  | MPBlank(id) => {astRef: ARMPattern(id, MPPBlank), offset: 0}
   }
 
 @ocaml.doc("returns a caretTarget representing caret placement at the start of
@@ -1247,27 +1248,27 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
   set at the end of the pattern")
 let rec caretTargetForFirstInputOfPattern = (pattern: fluidPattern): CT.t =>
   switch pattern {
-  | MPBlank(id) => {astRef: ARMPattern(id, PPBlank), offset: 0}
-  | MPNull(id) => {astRef: ARMPattern(id, PPNull), offset: String.length("null")}
-  | MPBool(id, true) => {astRef: ARMPattern(id, PPBool), offset: String.length("true")}
-  | MPBool(id, false) => {astRef: ARMPattern(id, PPBool), offset: String.length("false")}
-  | MPString(id, str) => CT.forPPStringCloseQuote(id, 1, str) // end of close quote
+  | MPBlank(id) => {astRef: ARMPattern(id, MPPBlank), offset: 0}
+  | MPNull(id) => {astRef: ARMPattern(id, MPPNull), offset: String.length("null")}
+  | MPBool(id, true) => {astRef: ARMPattern(id, MPPBool), offset: String.length("true")}
+  | MPBool(id, false) => {astRef: ARMPattern(id, MPPBool), offset: String.length("false")}
+  | MPString(id, str) => CT.forMPPStringCloseQuote(id, 1, str) // end of close quote
   | MPInteger(id, value) => {
-      astRef: ARMPattern(id, PPInteger),
+      astRef: ARMPattern(id, MPPInteger),
       offset: String.length(Int64.to_string(value)),
     }
   | MPFloat(id, _, _, frac) => {
-      astRef: ARMPattern(id, PPFloat(FPFractional)),
+      astRef: ARMPattern(id, MPPFloat(FPFractional)),
       offset: String.length(frac),
     }
   | MPVariable(id, varName) => {
-      astRef: ARMPattern(id, PPVariable),
+      astRef: ARMPattern(id, MPPVariable),
       offset: String.length(varName),
     }
   | MPConstructor(id, name, containedPatterns) =>
     switch List.last(containedPatterns) {
     | Some(lastPattern) => caretTargetForFirstInputOfPattern(lastPattern)
-    | None => {astRef: ARMPattern(id, PPConstructor), offset: String.length(name)}
+    | None => {astRef: ARMPattern(id, MPPConstructor), offset: String.length(name)}
     }
   | MPTuple(_id, first, second, theRest) =>
     let allSubpatterns = list{first, second, ...theRest}
@@ -3207,11 +3208,11 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
   ): option<(E.fluidPatOrExpr, CT.t)> => {
     let mkPBlank = (): option<(E.fluidPatOrExpr, CT.t)> => {
       let bID = gid()
-      Some(Pat(mID, MPBlank(bID)), {astRef: ARMPattern(bID, PPBlank), offset: 0})
+      Some(Pat(mID, MPBlank(bID)), {astRef: ARMPattern(bID, MPPBlank), offset: 0})
     }
 
     switch (currAstRef, pat) {
-    | (ARMPattern(_, PPBlank), MPBlank(pID)) =>
+    | (ARMPattern(_, MPPBlank), MPBlank(pID)) =>
       if currOffset == 0 {
         switch FluidAST.find(mID, ast) {
         | Some(EMatch(_, cond, patterns)) =>
@@ -3236,16 +3237,16 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
             let target = caretTargetForEndOfExpr'(targetExpr)
             (E.Expr(EMatch(mID, cond, newPatterns)), target)
           })
-        | _ => recover("doExplicitBackspace PPBlank", None)
+        | _ => recover("doExplicitBackspace MPPBlank", None)
         }
       } else {
         Some(Pat(mID, MPBlank(pID)), {astRef: currAstRef, offset: 0})
       }
-    | (ARMPattern(_, PPVariable), MPVariable(pID, oldName)) =>
+    | (ARMPattern(_, MPPVariable), MPVariable(pID, oldName)) =>
       patContainerRef := Some(mID)
       let newName = mutation(oldName)
       let (newPat, target) = if newName == "" {
-        (MPBlank(pID), ({astRef: ARMPattern(pID, PPBlank), offset: 0}: CT.t))
+        (MPBlank(pID), ({astRef: ARMPattern(pID, MPPBlank), offset: 0}: CT.t))
       } else {
         (MPVariable(pID, newName), currCTMinusOne)
       }
@@ -3270,14 +3271,14 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         Some(Expr(EMatch(mID, cond, newCases)), target)
       | _ => recover("doExplicitBackspace PVariable", None)
       }
-    | (ARMPattern(_, PPNull), MPNull(_)) =>
+    | (ARMPattern(_, MPPNull), MPNull(_)) =>
       let str = mutation("null")
       let newID = gid()
       Some(
         Pat(mID, MPVariable(newID, str)),
-        {astRef: ARMPattern(newID, PPVariable), offset: currOffset - 1},
+        {astRef: ARMPattern(newID, MPPVariable), offset: currOffset - 1},
       )
-    | (ARMPattern(_, PPBool), MPBool(_, bool)) =>
+    | (ARMPattern(_, MPPBool), MPBool(_, bool)) =>
       let str = if bool {
         "true"
       } else {
@@ -3287,9 +3288,9 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       let newID = gid()
       Some(
         Pat(mID, MPVariable(newID, newStr)),
-        {astRef: ARMPattern(newID, PPVariable), offset: currOffset - 1},
+        {astRef: ARMPattern(newID, MPPVariable), offset: currOffset - 1},
       )
-    | (ARMPattern(_, PPInteger), MPInteger(pID, int)) =>
+    | (ARMPattern(_, MPPInteger), MPInteger(pID, int)) =>
       let str = int->Int64.to_string->mutation
       if str == "" {
         mkPBlank()
@@ -3301,21 +3302,21 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           Some(Pat(mID, MPInteger(pID, coerced)), currCTMinusOne)
         }
       }
-    | (ARMPattern(_, PPConstructor), MPConstructor(_, str, _patterns)) =>
+    | (ARMPattern(_, MPPConstructor), MPConstructor(_, str, _patterns)) =>
       let str = str |> mutation |> String.trim
       let newID = gid()
       if str == "" {
-        Some(Pat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, PPBlank), offset: 0})
+        Some(Pat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, MPPBlank), offset: 0})
       } else {
         Some(
           Pat(mID, MPVariable(newID, str)),
-          {astRef: ARMPattern(newID, PPVariable), offset: currOffset - 1},
+          {astRef: ARMPattern(newID, MPPVariable), offset: currOffset - 1},
         )
       }
 
     // Tuple pattern
     // Note; this is largely duplicated with the Tuple expr-handling
-    | (ARMPattern(_, PPTuple(TPOpen)), MPTuple(_, first, second, theRest)) =>
+    | (ARMPattern(_, MPPTuple(TPOpen)), MPTuple(_, first, second, theRest)) =>
       // When we're trying to delete the ( in a tuple pattern,
       // - normally, don't do anything, and leave cursor at left of (
       // - if there are only blanks in the tuple, replace with blank
@@ -3328,14 +3329,14 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       let newID = gid()
 
       switch nonBlanks {
-      | list{} => Some(Pat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, PPBlank), offset: 0})
+      | list{} => Some(Pat(mID, MPBlank(newID)), {astRef: ARMPattern(newID, MPPBlank), offset: 0})
       | list{single} => Some(Pat(mID, single), caretTargetForStartOfPattern(single))
       | _ =>
-        let target: CT.t = {astRef: ARMPattern(newID, PPTuple(TPOpen)), offset: 0}
+        let target: CT.t = {astRef: ARMPattern(newID, MPPTuple(TPOpen)), offset: 0}
         Some(Pat(mID, MPTuple(newID, first, second, theRest)), target)
       }
 
-    | (ARMPattern(_, PPTuple(TPComma(elemAndSepIdx))), MPTuple(_, first, second, theRest)) =>
+    | (ARMPattern(_, MPPTuple(TPComma(elemAndSepIdx))), MPTuple(_, first, second, theRest)) =>
       // When we're trying to delete a comma (,) within in a tuple pattern,
       // - normally, remove the element just after the comma
       // - if that leaves only one element, replace with that item
@@ -3371,54 +3372,54 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         }
       }
 
-    | (ARMPattern(_, PPTuple(TPClose)), MPTuple(_, first, second, theRest)) =>
+    | (ARMPattern(_, MPPTuple(TPClose)), MPTuple(_, first, second, theRest)) =>
       let newID = gid()
-      let target: CT.t = {astRef: ARMPattern(newID, PPTuple(TPClose)), offset: 0}
+      let target: CT.t = {astRef: ARMPattern(newID, MPPTuple(TPClose)), offset: 0}
       Some(Pat(mID, MPTuple(newID, first, second, theRest)), target)
 
     //
     // Floats
     //
-    | (ARMPattern(_, PPFloat(FPWhole)), MPFloat(pID, sign, whole, frac)) =>
+    | (ARMPattern(_, MPPFloat(FPWhole)), MPFloat(pID, sign, whole, frac)) =>
       let (sign, whole) = Sign.combine(sign, whole)->mutation->Sign.split
       Some(Pat(mID, MPFloat(pID, sign, whole, frac)), currCTMinusOne)
-    | (ARMPattern(_, PPFloat(FPPoint)), MPFloat(_, sign, whole, frac)) =>
+    | (ARMPattern(_, MPPFloat(FPPoint)), MPFloat(_, sign, whole, frac)) =>
       // TODO: If the float only consists of a . and has no whole or frac,
       // it should become a blank. Instead, it currently becomes a 0, which is weird.
       let i = Util.coerceStringTo64BitInt(Sign.toString(sign) ++ whole ++ frac)
       let iID = gid()
       Some(
         Pat(mID, MPInteger(iID, i)),
-        {astRef: ARMPattern(iID, PPInteger), offset: String.length(whole)},
+        {astRef: ARMPattern(iID, MPPInteger), offset: String.length(whole)},
       )
-    | (ARMPattern(_, PPFloat(FPFractional)), MPFloat(pID, sign, whole, frac)) =>
+    | (ARMPattern(_, MPPFloat(FPFractional)), MPFloat(pID, sign, whole, frac)) =>
       Some(Pat(mID, MPFloat(pID, sign, whole, mutation(frac))), currCTMinusOne)
     //
     // Strings
     //
-    | (ARMPattern(_, PPString), MPString(id, str)) =>
+    | (ARMPattern(_, MPPString), MPString(id, str)) =>
       let strRelOffset = currOffset - 1
 
       if strRelOffset == 0 && str == "" {
         mkPBlank()
       } else {
         let str = str |> mutationAt(~index=strRelOffset - 1)
-        Some(Pat(mID, MPString(id, str)), CT.forPPStringOpenQuote(id, strRelOffset))
+        Some(Pat(mID, MPString(id, str)), CT.forMPPStringOpenQuote(id, strRelOffset))
       }
     /* ****************
      * Exhaustiveness
      */
-    | (ARMPattern(_, PPBlank), _)
-    | (ARMPattern(_, PPBool), _)
-    | (ARMPattern(_, PPConstructor), _)
-    | (ARMPattern(_, PPFloat(FPFractional)), _)
-    | (ARMPattern(_, PPFloat(FPPoint)), _)
-    | (ARMPattern(_, PPFloat(FPWhole)), _)
-    | (ARMPattern(_, PPInteger), _)
-    | (ARMPattern(_, PPNull), _)
-    | (ARMPattern(_, PPString), _)
-    | (ARMPattern(_, PPVariable), _)
-    | (ARMPattern(_, PPTuple(_)), _)
+    | (ARMPattern(_, MPPBlank), _)
+    | (ARMPattern(_, MPPBool), _)
+    | (ARMPattern(_, MPPConstructor), _)
+    | (ARMPattern(_, MPPFloat(FPFractional)), _)
+    | (ARMPattern(_, MPPFloat(FPPoint)), _)
+    | (ARMPattern(_, MPPFloat(FPWhole)), _)
+    | (ARMPattern(_, MPPInteger), _)
+    | (ARMPattern(_, MPPNull), _)
+    | (ARMPattern(_, MPPString), _)
+    | (ARMPattern(_, MPPVariable), _)
+    | (ARMPattern(_, MPPTuple(_)), _)
     | /*
      * non-patterns
      */
@@ -3847,21 +3848,21 @@ let doExplicitInsert = (
     let newID = gid()
 
     if extendedGraphemeCluster == "\"" {
-      Some(MPString(newID, ""), CT.forPPStringText(newID, 0))
+      Some(MPString(newID, ""), CT.forMPPStringText(newID, 0))
     } else if Util.isNumber(extendedGraphemeCluster) {
       Some(
         MPInteger(newID, extendedGraphemeCluster |> Util.coerceStringTo64BitInt),
-        {astRef: ARMPattern(newID, PPInteger), offset: caretDelta},
+        {astRef: ARMPattern(newID, MPPInteger), offset: caretDelta},
       )
     } else if FluidUtil.isIdentifierChar(extendedGraphemeCluster) {
       Some(
         MPVariable(newID, extendedGraphemeCluster),
-        {astRef: ARMPattern(newID, PPVariable), offset: caretDelta},
+        {astRef: ARMPattern(newID, MPPVariable), offset: caretDelta},
       )
     } else if extendedGraphemeCluster == "(" && settings.allowTuples {
       Some(
         MPTuple(newID, MPBlank(gid()), MPBlank(gid()), list{}),
-        {astRef: ARMPattern(newID, PPTuple(TPOpen)), offset: 1},
+        {astRef: ARMPattern(newID, MPPTuple(TPOpen)), offset: 1},
       )
     } else {
       None
@@ -3875,7 +3876,7 @@ let doExplicitInsert = (
     pat: fluidPattern,
   ): option<(E.fluidPatOrExpr, CT.t)> =>
     switch (currAstRef, pat) {
-    | (ARMPattern(_, PPFloat(kind)), MPFloat(pID, sign, whole, frac)) =>
+    | (ARMPattern(_, MPPFloat(kind)), MPFloat(pID, sign, whole, frac)) =>
       if FluidUtil.isNumber(extendedGraphemeCluster) {
         let (isWhole, index) = switch kind {
         | FPWhole => (true, currOffset)
@@ -3898,7 +3899,7 @@ let doExplicitInsert = (
             Some(
               Pat(mID, MPFloat(pID, sign, newWhole, frac)),
               {
-                astRef: ARMPattern(pID, PPFloat(FPWhole)),
+                astRef: ARMPattern(pID, MPPFloat(FPWhole)),
                 offset: index + caretDelta,
               },
             )
@@ -3908,7 +3909,7 @@ let doExplicitInsert = (
           Some(
             Pat(mID, MPFloat(pID, sign, whole, newFrac)),
             {
-              astRef: ARMPattern(pID, PPFloat(FPFractional)),
+              astRef: ARMPattern(pID, MPPFloat(FPFractional)),
               offset: index + caretDelta,
             },
           )
@@ -3916,21 +3917,21 @@ let doExplicitInsert = (
       } else {
         None
       }
-    | (ARMPattern(_, PPNull), MPNull(_)) =>
+    | (ARMPattern(_, MPPNull), MPNull(_)) =>
       let str = mutation("null")
       let newID = gid()
       if FluidUtil.isValidIdentifier(str) {
         Some(
           Pat(mID, MPVariable(newID, str)),
           {
-            astRef: ARMPattern(newID, PPVariable),
+            astRef: ARMPattern(newID, MPPVariable),
             offset: currOffset + caretDelta,
           },
         )
       } else {
         None
       }
-    | (ARMPattern(_, PPBool), MPBool(_, bool)) =>
+    | (ARMPattern(_, MPPBool), MPBool(_, bool)) =>
       let str = if bool {
         "true"
       } else {
@@ -3942,14 +3943,14 @@ let doExplicitInsert = (
         Some(
           Pat(mID, MPVariable(newID, newStr)),
           {
-            astRef: ARMPattern(newID, PPVariable),
+            astRef: ARMPattern(newID, MPPVariable),
             offset: currOffset + caretDelta,
           },
         )
       } else {
         None
       }
-    | (ARMPattern(_, PPInteger), MPInteger(pID, int)) =>
+    | (ARMPattern(_, MPPInteger), MPInteger(pID, int)) =>
       if currCaretTarget.offset == 0 && extendedGraphemeCluster == "0" {
         /* This prevents inserting leading 0s at the beginning of the int.
          * Note that Util.coerceStringTo64BitInt currently coerces strings with
@@ -3973,12 +3974,12 @@ let doExplicitInsert = (
         let (sign, whole) = Sign.split(whole)
         Some(
           Pat(mID, MPFloat(newID, sign, whole, frac)),
-          {astRef: ARMPattern(newID, PPFloat(FPPoint)), offset: 1},
+          {astRef: ARMPattern(newID, MPPFloat(FPPoint)), offset: 1},
         )
       } else {
         None
       }
-    | (ARMPattern(_, PPString), MPString(id, str)) =>
+    | (ARMPattern(_, MPPString), MPString(id, str)) =>
       let len = String.length(str)
       let strRelOffset = currOffset - 1
 
@@ -3987,15 +3988,15 @@ let doExplicitInsert = (
         None
       } else {
         let str = str |> mutationAt(~index=strRelOffset)
-        Some(Pat(mID, MPString(id, str)), CT.forPPStringText(id, strRelOffset + caretDelta))
+        Some(Pat(mID, MPString(id, str)), CT.forMPPStringText(id, strRelOffset + caretDelta))
       }
-    | (ARMPattern(_, PPBlank), MPBlank(_)) =>
+    | (ARMPattern(_, MPPBlank), MPBlank(_)) =>
       switch handlePatBlank() {
       | None => None
       | Some(pat, ct) => Some(Pat(mID, pat), ct)
       }
 
-    | (ARMPattern(_, PPVariable), MPVariable(pID, oldName)) =>
+    | (ARMPattern(_, MPPVariable), MPVariable(pID, oldName)) =>
       let newName = mutation(oldName)
       if FluidUtil.isValidIdentifier(newName) {
         patContainerRef := Some(mID)
@@ -4025,7 +4026,7 @@ let doExplicitInsert = (
         None
       }
 
-    | (ARMPattern(_, PPTuple(kind)), MPTuple(_pID, first, second, theRest)) =>
+    | (ARMPattern(_, MPPTuple(kind)), MPTuple(_pID, first, second, theRest)) =>
       let elIndex = switch kind {
       | TPOpen => Some(0)
       | TPComma(i) => Some(i + 1)
@@ -4063,23 +4064,23 @@ let doExplicitInsert = (
     /*
      * Things you can't edit but probably should be able to edit
      */
-    | (ARMPattern(_, PPConstructor), _) => None
+    | (ARMPattern(_, MPPConstructor), _) => None
 
     /* ****************
      * Exhaustiveness
      */
-    | (ARMPattern(_, PPBlank), _)
-    | (ARMPattern(_, PPBool), _)
-    | (ARMPattern(_, PPFloat(FPFractional)), _)
-    | (ARMPattern(_, PPFloat(FPPoint)), _)
-    | (ARMPattern(_, PPFloat(FPWhole)), _)
-    | (ARMPattern(_, PPInteger), _)
-    | (ARMPattern(_, PPNull), _)
-    | (ARMPattern(_, PPString), _)
-    | (ARMPattern(_, PPVariable), _)
-    | (ARMPattern(_, PPTuple(TPOpen)), _)
-    | (ARMPattern(_, PPTuple(TPClose)), _)
-    | (ARMPattern(_, PPTuple(TPComma(_))), _)
+    | (ARMPattern(_, MPPBlank), _)
+    | (ARMPattern(_, MPPBool), _)
+    | (ARMPattern(_, MPPFloat(FPFractional)), _)
+    | (ARMPattern(_, MPPFloat(FPPoint)), _)
+    | (ARMPattern(_, MPPFloat(FPWhole)), _)
+    | (ARMPattern(_, MPPInteger), _)
+    | (ARMPattern(_, MPPNull), _)
+    | (ARMPattern(_, MPPString), _)
+    | (ARMPattern(_, MPPVariable), _)
+    | (ARMPattern(_, MPPTuple(TPOpen)), _)
+    | (ARMPattern(_, MPPTuple(TPClose)), _)
+    | (ARMPattern(_, MPPTuple(TPComma(_))), _)
     | (ARBinOp(_), _)
     | (ARBlank(_), _)
     | (ARBool(_), _)
@@ -4808,7 +4809,7 @@ let rec updateKey = (
 
     astInfo
     |> ASTInfo.setAST(insertInTuplePattern(~index=0, ~newPat, matchID, id, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARMPattern(blankID, PPBlank), offset: 0})
+    |> moveToCaretTarget({astRef: ARMPattern(blankID, MPPBlank), offset: 0})
 
   | (InsertText(","), L(_, _ti), R(TPatternTupleComma(_, _, _), _)) if onEdge =>
     // Case: just to the left of a tuple pattern's separator `,`
@@ -4827,7 +4828,7 @@ let rec updateKey = (
     |> ASTInfo.setAST(
       insertInTuplePattern(~index=indexToInsertInto, ~newPat, matchID, id, astInfo.ast),
     )
-    |> moveToCaretTarget({astRef: ARMPattern(blankID, PPBlank), offset: 0})
+    |> moveToCaretTarget({astRef: ARMPattern(blankID, MPPBlank), offset: 0})
 
   | (InsertText(","), L(_, ti), R(TPatternTupleClose(matchID, id), _)) if onEdge =>
     // Case: right before the tuple pattern's closing `)`
@@ -4838,7 +4839,7 @@ let rec updateKey = (
 
     astInfo
     |> ASTInfo.setAST(insertAtTuplePatternEnd(~newPat, matchID, id, astInfo.ast))
-    |> moveToCaretTarget({astRef: ARMPattern(blankID, PPBlank), offset: 0})
+    |> moveToCaretTarget({astRef: ARMPattern(blankID, MPPBlank), offset: 0})
 
   //
   // Add another param to a lambda
