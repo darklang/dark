@@ -114,7 +114,7 @@ let testEqualIgnoringIds: (t, t) => bool
   * unmodified AST.
   *
   * See FluidExpression.update ")
-let updatePattern: (~f: FluidMatchPattern.t => FluidMatchPattern.t, ID.t, ID.t, t) => t
+let updateMatchPattern: (~f: FluidMatchPattern.t => FluidMatchPattern.t, ID.t, ID.t, t) => t
 
 @ocaml.doc(" [replacePattern ~newPat matchID patID ast] recursively searches [ast]
   * for a match expression containing a pattern with id [patID].
@@ -126,4 +126,4 @@ let updatePattern: (~f: FluidMatchPattern.t => FluidMatchPattern.t, ID.t, ID.t, 
   * unmodified AST.
   *
   * See FluidExpression.update ")
-let replacePattern: (~newPat: FluidMatchPattern.t, ID.t, ID.t, t) => t
+let replaceMatchPattern: (~newPat: FluidMatchPattern.t, ID.t, ID.t, t) => t

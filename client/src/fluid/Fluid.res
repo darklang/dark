@@ -2149,7 +2149,7 @@ let insertInTuplePattern = (
   matchID: id,
   id: id,
   ast: FluidAST.t,
-): FluidAST.t => FluidAST.updatePattern(~f=p =>
+): FluidAST.t => FluidAST.updateMatchPattern(~f=p =>
     switch p {
     | MPTuple(id, first, second, theRest) =>
       switch index {
@@ -2163,7 +2163,7 @@ let insertInTuplePattern = (
   , matchID, id, ast)
 
 let insertAtTuplePatternEnd = (~newPat: MP.t, matchID: id, id: id, ast: FluidAST.t): FluidAST.t =>
-  FluidAST.updatePattern(~f=p =>
+  FluidAST.updateMatchPattern(~f=p =>
     switch p {
     | MPTuple(id, first, second, theRest) =>
       MPTuple(id, first, second, Belt.List.concat(theRest, list{newPat}))
@@ -2461,7 +2461,7 @@ let updateFromACItem = (
   // since patterns have no partial but commit as variables automatically,
   // allow intermediate variables to be autocompletable to other expressions
   | (TMPBlank(mID, pID, _) | TMPVariable(mID, pID, _, _), _, _, MatchPat(_, newPat)) =>
-    let newAST = FluidAST.replacePattern(~newPat, mID, pID, ast)
+    let newAST = FluidAST.replaceMatchPattern(~newPat, mID, pID, ast)
     (newAST, newTarget)
   | (
       TPartial(_) | TRightPartial(_),
@@ -3479,7 +3479,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
 
       Some(FluidAST.replace(patOrExprID, ~replacement=newExpr, ast), AtTarget(target))
     | Some(MatchPat(mID, newPat), target) =>
-      let newAST = FluidAST.replacePattern(mID, patOrExprID, ~newPat, ast)
+      let newAST = FluidAST.replaceMatchPattern(mID, patOrExprID, ~newPat, ast)
       Some(newAST, AtTarget(target))
     | None => None
     }
@@ -4140,7 +4140,7 @@ let doExplicitInsert = (
 
       Some(FluidAST.replace(patOrExprID, ~replacement=newExpr, ast), AtTarget(target))
     | Some(MatchPat(mID, newPat), target) =>
-      let newAST = FluidAST.replacePattern(mID, patOrExprID, ~newPat, ast)
+      let newAST = FluidAST.replaceMatchPattern(mID, patOrExprID, ~newPat, ast)
       Some(newAST, AtTarget(target))
     | None => None
     }

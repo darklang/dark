@@ -51,7 +51,7 @@ let update = (~failIfMissing=true, ~f: E.t => E.t, target: id, ast: t): t =>
 
 let clone = map(~f=E.clone)
 
-let updatePattern = (
+let updateMatchPattern = (
   ~f: fluidMatchPattern => fluidMatchPattern,
   matchID: id,
   patID: id,
@@ -74,5 +74,5 @@ let updatePattern = (
     }
   )
 
-let replacePattern = (~newPat: fluidMatchPattern, matchID: id, patID: id, ast: t): t =>
-  updatePattern(matchID, patID, ast, ~f=_ => newPat)
+let replaceMatchPattern = (~newPat: fluidMatchPattern, matchID: id, patID: id, ast: t): t =>
+  updateMatchPattern(matchID, patID, ast, ~f=_ => newPat)
