@@ -539,11 +539,10 @@ let run = () => {
           invalid |> List.map(~f=AC.asName) |> List.filter(~f=\"="("String::newline")),
         ) |> toEqual(list{"String::newline"})
       })
-      test("Pattern expressions are available in pattern blank", () => {
+      test("MP completions are available in MP blank", () => {
         let tlid = gtlid()
         let patID = gid()
-        let pattern = MPVariable(patID, "o")
-        let expr = match'(b, list{(pattern, b)})
+        let expr = match'(b, list{(MPVariable(patID, "o"), b)})
         let m =
           defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ()) |> (
             m => {...m, functions: Functions.empty}
@@ -633,29 +632,19 @@ let run = () => {
       )
       ()
     })
-    describe("regenerating pattern completions", () => {
+    describe("regenerating match pattern completions", () => {
       open FluidTypes.AutoComplete
 
-      // if `generatePattern` does not take care to re-use pattern completions,
-      // the `index` of any highlighted completion may be lost, due to IDs
-      // differing internally. (e.g. the `PBlank`s in `FMPAConstructor`
-      // completions) have IDs - when code later attempts to find the index
-      // of the currently-highlighted item in the newly-generated completions,
-      // differing IDs will result in that item not being found, and the index
-      // resulting in "None".)
       let tlid = gtlid()
       let expr = match'(b, list{(MPVariable(gid(), "t"), b)})
       let m = defaultModel(~handlers=list{aHandler(~tlid, ~expr, ())}, ())
 
-      test("reuses patterns to maintain index", () => {
+      test("maintains highlight index", () => {
         // generate initial autocomplete completions
         let initialAcResults = acFor(m, ~tlid, ~pos=12)
         let firstAcThirdResult =
           List.getAt(~index=2, initialAcResults.completions) |> Option.unwrapUnsafe |> (c => c.item)
 
-        // We want a pattern that has at least one randomly-generated ID inside
-        // of it. The "Just ___" pattern fits - the PBlank pattern inside of it
-        // has a gid() generated as part of autocomplete generation.
         let isAJustPattern = switch firstAcThirdResult {
         | FACMatchPattern(_, FMPAConstructor("Just", list{FMPABlank})) => true
         | _ => false
@@ -670,7 +659,7 @@ let run = () => {
         )
 
         // Expectations:
-        // - the completion we've highlighted is a "Just ___" pattern
+        // - the completion we've highlighted is "Just ___"
         // - the highlighted index is still at 2
         // - the AC result from the first generation matches the result from
         //   the subsequent generation; the item was reused (ids didn't change)
