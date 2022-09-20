@@ -5746,27 +5746,28 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         // TODO: should we really be re-using these IDs?
         switch patternTokens {
         // simple cases
-        | list{(id, _, "pattern-null")} => MPNull(id)
-        | list{(id, _, "pattern-blank")} => MPBlank(id)
-        | list{(id, _, "pattern-true")} => MPBool(id, true)
-        | list{(id, _, "pattern-false")} => MPBool(id, false)
-        | list{(id, value, "pattern-variable")} => MPVariable(id, value)
-        | list{(id, value, "pattern-integer")} => MPInteger(id, Util.coerceStringTo64BitInt(value))
-        | list{(id, value, "pattern-string")} => MPString(id, Util.trimQuotes(value))
+        | list{(id, _, "match-pattern-null")} => MPNull(id)
+        | list{(id, _, "match-pattern-blank")} => MPBlank(id)
+        | list{(id, _, "match-pattern-true")} => MPBool(id, true)
+        | list{(id, _, "match-pattern-false")} => MPBool(id, false)
+        | list{(id, value, "match-pattern-variable")} => MPVariable(id, value)
+        | list{(id, value, "match-pattern-integer")} =>
+          MPInteger(id, Util.coerceStringTo64BitInt(value))
+        | list{(id, value, "match-pattern-string")} => MPString(id, Util.trimQuotes(value))
 
         // floats
         | list{
-            (id, whole, "pattern-float-whole"),
-            (_, _, "pattern-float-point"),
-            (_, fraction, "pattern-float-fractional"),
+            (id, whole, "match-pattern-float-whole"),
+            (_, _, "match-pattern-float-point"),
+            (_, fraction, "match-pattern-float-fractional"),
           } =>
           let (sign, whole) = Sign.split(whole)
           MPFloat(id, sign, whole, fraction)
-        | list{(id, value, "pattern-float-whole"), (_, _, "pattern-float-point")}
-        | list{(id, value, "pattern-float-whole")} =>
+        | list{(id, value, "match-pattern-float-whole"), (_, _, "match-pattern-float-point")}
+        | list{(id, value, "match-pattern-float-whole")} =>
           MPInteger(id, Util.coerceStringTo64BitInt(value))
-        | list{(_, _, "pattern-float-point"), (id, value, "pattern-float-fractional")}
-        | list{(id, value, "pattern-float-fractional")} =>
+        | list{(_, _, "match-pattern-float-point"), (id, value, "match-pattern-float-fractional")}
+        | list{(id, value, "match-pattern-float-fractional")} =>
           MPInteger(id, Util.coerceStringTo64BitInt(value))
 
         // recursive patterns
@@ -5781,7 +5782,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         //
         // CLEANUP TUPLETODO we should instead use the subPatternTokens to
         // reconstruct the sub-patterns appropriately
-        | list{(id, value, "pattern-constructor-name"), ..._subPatternTokens} =>
+        | list{(id, value, "match-pattern-constructor-name"), ..._subPatternTokens} =>
           MPConstructor(
             id,
             value,
@@ -5790,7 +5791,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
             | _ => list{}
             },
           )
-        | list{(id, _value, "pattern-tuple-open"), ..._subPatternTokens} =>
+        | list{(id, _value, "match-pattern-tuple-open"), ..._subPatternTokens} =>
           switch pattern {
           | MPTuple(_, first, second, theRest) =>
             MPTuple(id, MP.clone(first), MP.clone(second), List.map(~f=MP.clone, theRest))
