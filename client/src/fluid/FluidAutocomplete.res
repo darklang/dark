@@ -79,13 +79,13 @@ let asName = (aci: item): string =>
     | KMatch => "match"
     | KPipe => "|>"
     }
-  | FACPattern(_, p) =>
+  | FACMatchPattern(_, p) =>
     switch p {
-    | FT.AutoComplete.FPABlank => "blank"
-    | FPAVariable(name) | FPAConstructor(name, _) => name
-    | FPABool(v) => string_of_bool(v)
-    | FPANull => "null"
-    | FPATuple => "tuple"
+    | FT.AutoComplete.FMPABlank => "blank"
+    | FMPAVariable(name) | FMPAConstructor(name, _) => name
+    | FMPABool(v) => string_of_bool(v)
+    | FMPANull => "null"
+    | FMPATuple => "tuple"
     }
   | FACCreateFunction(name, _, _) => "Create new function: " ++ name
   }
@@ -106,8 +106,8 @@ let asTypeStrings = (item: item): (list<string>, string) =>
     |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.Dval.toType |> DType.tipe2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
-  | FACPattern(_, FPAVariable(_)) => (list{}, "variable")
-  | FACConstructorName(name, _) | FACPattern(_, FPAConstructor(name, _)) =>
+  | FACMatchPattern(_, FMPAVariable(_)) => (list{}, "variable")
+  | FACConstructorName(name, _) | FACMatchPattern(_, FMPAConstructor(name, _)) =>
     if name == "Just" {
       (list{"any"}, "option")
     } else if name == "Nothing" {
@@ -124,11 +124,11 @@ let asTypeStrings = (item: item): (list<string>, string) =>
     }
 
     (list{}, tipe ++ " literal")
-  | FACPattern(_, FPABool(_)) => (list{}, "boolean literal")
+  | FACMatchPattern(_, FMPABool(_)) => (list{}, "boolean literal")
   | FACKeyword(_) => (list{}, "keyword")
-  | FACPattern(_, FPANull) => (list{}, "null")
-  | FACPattern(_, FPATuple) => (list{}, `tuple (a, b)`)
-  | FACPattern(_, FPABlank) => (list{}, `blank ___`)
+  | FACMatchPattern(_, FMPANull) => (list{}, "null")
+  | FACMatchPattern(_, FMPATuple) => (list{}, `tuple (a, b)`)
+  | FACMatchPattern(_, FMPABlank) => (list{}, `blank ___`)
   | FACCreateFunction(_) => (list{}, "")
   }
 
@@ -433,17 +433,17 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
 
 let generatePatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): list<item> => {
   let newStandardPatterns = list{
-    FT.AutoComplete.FPABool(true),
-    FPABool(false),
-    FPAConstructor("Just", list{FPABlank}),
-    FPAConstructor("Nothing", list{}),
-    FPAConstructor("Ok", list{FPABlank}),
-    FPAConstructor("Error", list{FPABlank}),
-    FPANull,
+    FT.AutoComplete.FMPABool(true),
+    FMPABool(false),
+    FMPAConstructor("Just", list{FMPABlank}),
+    FMPAConstructor("Nothing", list{}),
+    FMPAConstructor("Ok", list{FMPABlank}),
+    FMPAConstructor("Error", list{FMPABlank}),
+    FMPANull,
   }
 
   let newTuplePattern = if allowTuples {
-    Some(FT.AutoComplete.FPATuple)
+    Some(FT.AutoComplete.FMPATuple)
   } else {
     None
   }
@@ -462,7 +462,7 @@ let generatePatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): 
     if matchesExpectedPattern || firstCharacterIsCapitalized {
       None
     } else {
-      Some(FT.AutoComplete.FPAVariable(queryString))
+      Some(FT.AutoComplete.FMPAVariable(queryString))
     }
   }
 
@@ -472,7 +472,7 @@ let generatePatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): 
       Option.toList(newVariablePattern),
       newStandardPatterns,
       Option.toList(newTuplePattern),
-    ]) |> List.map(~f=p => FT.AutoComplete.FACPattern(mid, p))
+    ]) |> List.map(~f=p => FT.AutoComplete.FACMatchPattern(mid, p))
   | _ => list{}
   }
 }
@@ -757,15 +757,16 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
       "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions",
     )
   | FACKeyword(KPipe) => simpleDoc("Pipe into another expression")
-  | FACPattern(_, pat) =>
+  | FACMatchPattern(_, pat) =>
     switch pat {
-    | FPAConstructor(name, args) =>
+    | FMPAConstructor(name, args) =>
       documentationForItem({item: FACConstructorName(name, List.length(args)), validity: validity})
-    | FPAVariable(name) => documentationForItem({item: FACVariable(name, None), validity: validity})
-    | FPABool(b) => documentationForItem({item: FACLiteral(LBool(b)), validity: validity})
-    | FPANull => simpleDoc("A 'null' literal")
-    | FPATuple => simpleDoc("A tuple containing several sub-patterns")
-    | FPABlank => simpleDoc("A blank pattern")
+    | FMPAVariable(name) =>
+      documentationForItem({item: FACVariable(name, None), validity: validity})
+    | FMPABool(b) => documentationForItem({item: FACLiteral(LBool(b)), validity: validity})
+    | FMPANull => simpleDoc("A 'null' literal")
+    | FMPATuple => simpleDoc("A tuple containing several sub-patterns")
+    | FMPABlank => simpleDoc("A blank pattern")
     }
   | FACCreateFunction(_) => None
   }

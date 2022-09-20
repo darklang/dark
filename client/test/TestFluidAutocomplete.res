@@ -638,7 +638,7 @@ let run = () => {
 
       // if `generatePattern` does not take care to re-use pattern completions,
       // the `index` of any highlighted completion may be lost, due to IDs
-      // differing internally. (e.g. the `PBlank`s in `FPAConstructor`
+      // differing internally. (e.g. the `PBlank`s in `FMPAConstructor`
       // completions) have IDs - when code later attempts to find the index
       // of the currently-highlighted item in the newly-generated completions,
       // differing IDs will result in that item not being found, and the index
@@ -657,7 +657,7 @@ let run = () => {
         // of it. The "Just ___" pattern fits - the PBlank pattern inside of it
         // has a gid() generated as part of autocomplete generation.
         let isAJustPattern = switch firstAcThirdResult {
-        | FACPattern(_, FPAConstructor("Just", list{FPABlank})) => true
+        | FACMatchPattern(_, FMPAConstructor("Just", list{FMPABlank})) => true
         | _ => false
         }
 

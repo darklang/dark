@@ -2293,7 +2293,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
         offset: String.length(fieldname),
       },
     )
-  | FACPattern(_) =>
+  | FACMatchPattern(_) =>
     // This only works for exprs
     None
   | FACCreateFunction(_) =>
@@ -2304,15 +2304,15 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
 
 let acToPattern = (entry: AC.item): option<(id, fluidMatchPattern, CT.t)> => {
   let selectedPat: option<(id, MP.t)> = switch entry {
-  | FACPattern(mid, p) =>
-    let rec patAcToPat = (p: FluidTypes.AutoComplete.patternItem) =>
+  | FACMatchPattern(mid, p) =>
+    let rec patAcToPat = (p: FluidTypes.AutoComplete.matchPatternItem) =>
       switch p {
-      | FPAConstructor(var, pats) => MPConstructor(gid(), var, List.map(~f=patAcToPat, pats))
-      | FPAVariable(var) => MPVariable(gid(), var)
-      | FPABool(var) => MPBool(gid(), var)
-      | FPANull => MPNull(gid())
-      | FPATuple => MPTuple(gid(), MPBlank(gid()), MPBlank(gid()), list{})
-      | FPABlank => MPBlank(gid())
+      | FMPAConstructor(var, pats) => MPConstructor(gid(), var, List.map(~f=patAcToPat, pats))
+      | FMPAVariable(var) => MPVariable(gid(), var)
+      | FMPABool(var) => MPBool(gid(), var)
+      | FMPANull => MPNull(gid())
+      | FMPATuple => MPTuple(gid(), MPBlank(gid()), MPBlank(gid()), list{})
+      | FMPABlank => MPBlank(gid())
       }
     Some(mid, patAcToPat(p))
   | _ =>
