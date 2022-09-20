@@ -128,13 +128,18 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
-// TODO: rename to `patternToTokens``
-let rec patternToToken = (matchID: id, p: FluidMatchPattern.t, ~idx: int): list<fluidToken> => {
+let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int): list<
+  fluidToken,
+> => {
   open FluidTypes.Token
-  switch p {
+
+  switch mp {
   | MPVariable(id, name) => list{TMPVariable(matchID, id, name, idx)}
   | MPConstructor(id, name, args) =>
-    let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(matchID, a, ~idx)})
+    let args = List.map(args, ~f=a => list{
+      TSep(id, None),
+      ...matchPatternToTokens(matchID, a, ~idx),
+    })
 
     List.flatten(list{list{TMPConstructorName(matchID, id, name, idx)}, ...args})
   | MPInteger(id, i) => list{TMPInteger(matchID, id, i, idx)}
@@ -176,7 +181,7 @@ let rec patternToToken = (matchID: id, p: FluidMatchPattern.t, ~idx: int): list<
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
         let isLastPattern = i == subPatternCount - 1
-        let subpatternTokens = patternToToken(matchID, p, ~idx)
+        let subpatternTokens = matchPatternToTokens(matchID, p, ~idx)
 
         if isLastPattern {
           subpatternTokens
@@ -631,7 +636,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       |> addIter(pairs, ~f=(i, (pattern, expr), b) =>
         b
         |> addNewlineIfNeeded(Some(id, id, Some(i)))
-        |> addMany(patternToToken(id, pattern, ~idx=i))
+        |> addMany(matchPatternToTokens(id, pattern, ~idx=i))
         |> add(
           TMatchBranchArrow({
             matchID: id,

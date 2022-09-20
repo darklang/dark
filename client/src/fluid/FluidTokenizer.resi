@@ -20,12 +20,12 @@ let tokensForEditor: (FluidTypes.Editor.t, FluidAST.t) => list<FluidToken.tokenI
 @ocaml.doc(" returns the given expression, tokenized with the rules of the specified editor ")
 let tokenizeForEditor: (FluidTypes.Editor.t, FluidExpression.t) => list<FluidToken.tokenInfo>
 
-@@ocaml.text(" patternToToken takes a match pattern `p` and converts it to a list of
-    fluidTokens.
+@@ocaml.text("takes a match pattern `p` and converts it to a list of
+  fluidTokens.
 
-    ~idx is the zero-based index of the pattern in the enclosing match ")
+  ~idx is the zero-based index of the match pattern in the enclosing match")
 
-let patternToToken: (ID.t, FluidMatchPattern.t, ~idx: int) => list<FluidTypes.Token.t>
+let matchPatternToTokens: (ID.t, FluidMatchPattern.t, ~idx: int) => list<FluidTypes.Token.t>
 
 let getTokensAtPosition: (
   ~prev: option<FluidToken.tokenInfo>=?,

@@ -35,13 +35,13 @@ let eToStructure = (~includeIDs=false, e: E.t): string =>
 
 let mpToString = (mp: fluidMatchPattern): string =>
   mp
-  |> FluidTokenizer.patternToToken(ID.fromInt(0), ~idx=0)
+  |> FluidTokenizer.matchPatternToTokens(ID.fromInt(0), ~idx=0)
   |> List.map(~f=t => T.toTestText(t))
   |> String.join(~sep="")
 
 let mpToStructure = (mp: fluidMatchPattern): string =>
   mp
-  |> FluidTokenizer.patternToToken(ID.fromInt(0), ~idx=0)
+  |> FluidTokenizer.matchPatternToTokens(ID.fromInt(0), ~idx=0)
   |> List.map(~f=t => "<" ++ (T.toTypeName(t) ++ (":" ++ (T.toText(t) ++ ">"))))
   |> String.join(~sep="")
 
