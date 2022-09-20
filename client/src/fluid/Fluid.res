@@ -1176,7 +1176,7 @@ let caretTargetForStartOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
 
 /* caretTargetForStartOfPattern returns a caretTarget representing caret
  placement at the very start of the expression in `pattern` */
-let caretTargetForStartOfPattern = (pattern: fluidPattern): CT.t =>
+let caretTargetForStartOfPattern = (pattern: fluidMatchPattern): CT.t =>
   switch pattern {
   | MPVariable(id, _) => {astRef: ARMPattern(id, MPPVariable), offset: 0}
   | MPConstructor(id, _, _) => {astRef: ARMPattern(id, MPPConstructor), offset: 0}
@@ -1200,7 +1200,7 @@ let caretTargetForStartOfPattern = (pattern: fluidPattern): CT.t =>
  * The concept of "very end" is related to an understanding of the
  * tokenization of the ast, even though this function doesn't explicitly depend
  * on any tokenization functions. */
-let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
+let rec caretTargetForEndOfPattern = (pattern: fluidMatchPattern): CT.t =>
   switch pattern {
   | MPVariable(id, varName) => {
       astRef: ARMPattern(id, MPPVariable),
@@ -1244,7 +1244,7 @@ let rec caretTargetForEndOfPattern = (pattern: fluidPattern): CT.t =>
 @ocaml.doc("returns a caretTarget representing caret placement at the start of
   the first blank sub-pattern, if any. If there are no blanks, the cursor is
   set at the end of the pattern")
-let rec caretTargetForFirstInputOfPattern = (pattern: fluidPattern): CT.t =>
+let rec caretTargetForFirstInputOfPattern = (pattern: fluidMatchPattern): CT.t =>
   switch pattern {
   | MPBlank(id) => {astRef: ARMPattern(id, MPPBlank), offset: 0}
   | MPNull(id) => {astRef: ARMPattern(id, MPPNull), offset: String.length("null")}
@@ -2302,7 +2302,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   }
 }
 
-let acToPattern = (entry: AC.item): option<(id, fluidPattern, CT.t)> => {
+let acToPattern = (entry: AC.item): option<(id, fluidMatchPattern, CT.t)> => {
   let selectedPat: option<(id, MP.t)> = switch entry {
   | FACPattern(mid, p) =>
     let rec patAcToPat = (p: FluidTypes.AutoComplete.patternItem) =>
@@ -3205,7 +3205,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     patContainerRef: ref<option<id>>,
     currAstRef: astRef,
     mID: id,
-    pat: fluidPattern,
+    pat: fluidMatchPattern,
   ): option<(E.fluidMatchPatOrExpr, CT.t)> => {
     let mkPBlank = (): option<(E.fluidMatchPatOrExpr, CT.t)> => {
       let bID = gid()
@@ -3874,7 +3874,7 @@ let doExplicitInsert = (
     patContainerRef: ref<option<id>>,
     currAstRef: astRef,
     mID: id,
-    pat: fluidPattern,
+    pat: fluidMatchPattern,
   ): option<(E.fluidMatchPatOrExpr, CT.t)> =>
     switch (currAstRef, pat) {
     | (ARMPattern(_, MPPFloat(kind)), MPFloat(pID, sign, whole, frac)) =>

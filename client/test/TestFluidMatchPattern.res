@@ -160,7 +160,7 @@ let run = () => {
     ~pos=0,
     ~debug=false,
     name: string,
-    pat: fluidPattern,
+    pat: fluidMatchPattern,
     fn: TestCase.t => TestResult.t,
     expected: TestResult.t,
   ) => {

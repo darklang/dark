@@ -8,7 +8,7 @@ type rec t = PT.Expr.t
 @ppx.deriving(show({with_path: false}))
 type rec fluidMatchPatOrExpr =
   | Expr(t)
-  | Pat(id, fluidPattern)
+  | Pat(id, fluidMatchPattern)
 
 let newB = () => PT.Expr.EBlank(gid())
 
