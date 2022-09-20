@@ -785,7 +785,7 @@ let toCategoryName = (t: t): string =>
   | TMPTupleOpen(_)
   | TMPTupleComma(_)
   | TMPTupleClose(_)
-  | TMPFloatFractional(_) => "pattern"
+  | TMPFloatFractional(_) => "match-pattern"
   | TParenOpen(_) | TParenClose(_) => "paren"
   | TFlagWhenKeyword(_) | TFlagEnabledKeyword(_) => "flag"
   }
