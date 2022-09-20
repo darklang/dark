@@ -482,21 +482,21 @@ let run = () => {
       )
       t(
         "insert separator after opening parens of tuple MP creates blank",
-        pTuple(pInt(1), pInt(2), list{pInt(3)}),
+        mpTuple(mpInt(1), mpInt(2), list{mpInt(3)}),
         ~pos=1, // after the (
         insert(","),
         ("(***,1,2,3)", 1),
       )
       t(
         "insert separator before closing parens of tuple MP creates blank",
-        pTuple(pInt(1), pInt(2), list{pInt(3)}), // (1,2,3)
+        mpTuple(mpInt(1), mpInt(2), list{mpInt(3)}), // (1,2,3)
         ~pos=6, // before the )
         insert(","),
         ("(1,2,3,***)", 7),
       )
       t(
         "insert separator after separator of tuple MP creates blank",
-        pTuple(pInt(1), pInt(2), list{pInt(3)}), // (1,2,3)
+        mpTuple(mpInt(1), mpInt(2), list{mpInt(3)}), // (1,2,3)
         ~pos=5, // after the second comma
         insert(","),
         ("(1,2,***,3)", 5),
@@ -524,7 +524,7 @@ let run = () => {
       )
       t(
         "insert , in string in tuple MP types ,",
-        pTuple(pString("01234567890123456789012345678901234567890"), fiftySixMP, list{}),
+        mpTuple(mpString("01234567890123456789012345678901234567890"), fiftySixMP, list{}),
         ~pos=42, // right before the last 0
         insert(","),
         ("(\"0123456789012345678901234567890123456789,0\",56)", 43),

@@ -151,17 +151,17 @@ and generateFieldAccessExpr = () => checkTestSize(~default=b, generateFieldAcces
 
 let rec generatePattern' = (): FluidMatchPattern.t =>
   oneOf(list{
-    lazy pInt(range(500)),
-    lazy pBool(random() < 0.5),
-    lazy pNull(),
-    lazy pConstructor(generateName(), generateList(~minSize=0, ~f=generatePattern, ())),
-    lazy pVar(generateName()),
-    lazy pString(generateString()),
-    lazy pFloat(Positive, range(5000000), range(500000)),
-    lazy pBlank(),
+    lazy mpInt(range(500)),
+    lazy mpBool(random() < 0.5),
+    lazy mpNull(),
+    lazy mpConstructor(generateName(), generateList(~minSize=0, ~f=generatePattern, ())),
+    lazy mpVar(generateName()),
+    lazy mpString(generateString()),
+    lazy mpFloat(Positive, range(5000000), range(500000)),
+    lazy mpBlank(),
   }) |> Lazy.force
 
-and generatePattern = () => checkTestSize(~default=pBlank(), generatePattern')
+and generatePattern = () => checkTestSize(~default=mpBlank(), generatePattern')
 
 let rec generatePipeArgumentExpr' = (): FluidExpression.t =>
   oneOf(list{

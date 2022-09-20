@@ -102,7 +102,7 @@ let run = () => {
       let targetID = gid()
       let b1 = blank()
       let target = EBlank(targetID)
-      let ast = match'(b1, list{(pConstructor("Just", list{pVar(~id=id1, "myvar")}), target)})
+      let ast = match'(b1, list{(mpConstructor("Just", list{mpVar(~id=id1, "myvar")}), target)})
 
       expect(
         variablesIn(ast)

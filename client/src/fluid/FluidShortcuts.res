@@ -94,59 +94,64 @@ let match' = (~id=gid(), cond: t, matches: list<(FluidMatchPattern.t, t)>): t =>
   matches,
 )
 
-let pInt = (~id=gid(), int: int): FluidMatchPattern.t => MPInteger(id, Int64.of_int(int))
+let mpInt = (~id=gid(), int: int): FluidMatchPattern.t => MPInteger(id, Int64.of_int(int))
 
-let pInt64 = (~id=gid(), int: int64): FluidMatchPattern.t => MPInteger(id, int)
+let mpInt64 = (~id=gid(), int: int64): FluidMatchPattern.t => MPInteger(id, int)
 
-let pVar = (~id=gid(), name: string): FluidMatchPattern.t => MPVariable(id, name)
+let mpVar = (~id=gid(), name: string): FluidMatchPattern.t => MPVariable(id, name)
 
-let pConstructor = (
+let mpConstructor = (
   ~id=gid(),
   name: string,
-  patterns: list<FluidMatchPattern.t>,
-): FluidMatchPattern.t => MPConstructor(id, name, patterns)
+  args: list<FluidMatchPattern.t>,
+): FluidMatchPattern.t => MPConstructor(id, name, args)
 
-let pJust = (~id=gid(), arg: FluidMatchPattern.t): FluidMatchPattern.t => MPConstructor(
+let mpJust = (~id=gid(), arg: FluidMatchPattern.t): FluidMatchPattern.t => MPConstructor(
   id,
   "Just",
   list{arg},
 )
 
-let pNothing = (~id=gid(), ()): FluidMatchPattern.t => MPConstructor(id, "Nothing", list{})
+let mpNothing = (~id=gid(), ()): FluidMatchPattern.t => MPConstructor(id, "Nothing", list{})
 
-let pError = (~id=gid(), arg: FluidMatchPattern.t): FluidMatchPattern.t => MPConstructor(
+let mpError = (~id=gid(), arg: FluidMatchPattern.t): FluidMatchPattern.t => MPConstructor(
   id,
   "Error",
   list{arg},
 )
 
-let pOk = (~id=gid(), arg: FluidMatchPattern.t): FluidMatchPattern.t => MPConstructor(
+let mpOk = (~id=gid(), arg: FluidMatchPattern.t): FluidMatchPattern.t => MPConstructor(
   id,
   "Ok",
   list{arg},
 )
 
-let pBool = (~id=gid(), b: bool): FluidMatchPattern.t => MPBool(id, b)
+let mpBool = (~id=gid(), b: bool): FluidMatchPattern.t => MPBool(id, b)
 
-let pString = (~id=gid(), str: string): FluidMatchPattern.t => MPString(id, str)
+let mpString = (~id=gid(), str: string): FluidMatchPattern.t => MPString(id, str)
 
-let pFloatStr = (~id=gid(), sign: Sign.t, whole: string, fraction: string): FluidMatchPattern.t => {
+let mpFloatStr = (
+  ~id=gid(),
+  sign: Sign.t,
+  whole: string,
+  fraction: string,
+): FluidMatchPattern.t => {
   assert (int_of_string(whole) > 0)
   assert (int_of_string(fraction) > 0)
   MPFloat(id, sign, whole, fraction)
 }
 
-let pFloat = (~id=gid(), sign, whole: int, fraction: int): FluidMatchPattern.t => {
+let mpFloat = (~id=gid(), sign, whole: int, fraction: int): FluidMatchPattern.t => {
   assert (whole > 0)
   assert (fraction > 0)
   MPFloat(id, sign, string_of_int(whole), string_of_int(fraction))
 }
 
-let pNull = (~id=gid(), ()): FluidMatchPattern.t => MPNull(id)
+let mpNull = (~id=gid(), ()): FluidMatchPattern.t => MPNull(id)
 
-let pBlank = (~id=gid(), ()): FluidMatchPattern.t => MPBlank(id)
+let mpBlank = (~id=gid(), ()): FluidMatchPattern.t => MPBlank(id)
 
-let pTuple = (
+let mpTuple = (
   ~id=gid(),
   first: FluidMatchPattern.t,
   second: FluidMatchPattern.t,

@@ -219,27 +219,27 @@ let nestedMatch = {
 let fiftySixMP = MP.MPInteger(gid(), 56L)
 let seventyMP = MP.MPInteger(gid(), 78L)
 
-let tupleMP2WithNoBlank = pTuple(fiftySixMP, seventyMP, list{})
-let tupleMP2WithBothBlank = pTuple(bPat(), bPat(), list{})
-let tupleMP2WithFirstBlank = pTuple(bPat(), seventyMP, list{})
-let tupleMP2WithSecondBlank = pTuple(fiftySixMP, bPat(), list{})
+let tupleMP2WithNoBlank = mpTuple(fiftySixMP, seventyMP, list{})
+let tupleMP2WithBothBlank = mpTuple(bPat(), bPat(), list{})
+let tupleMP2WithFirstBlank = mpTuple(bPat(), seventyMP, list{})
+let tupleMP2WithSecondBlank = mpTuple(fiftySixMP, bPat(), list{})
 
-let tupleMP3WithNoBlanks = pTuple(fiftySixMP, seventyMP, list{fiftySixMP})
-let tupleMP3WithAllBlank = pTuple(bPat(), bPat(), list{bPat()})
+let tupleMP3WithNoBlanks = mpTuple(fiftySixMP, seventyMP, list{fiftySixMP})
+let tupleMP3WithAllBlank = mpTuple(bPat(), bPat(), list{bPat()})
 
-let tupleMP3WithFirstBlank = pTuple(bPat(), seventyMP, list{fiftySixMP})
-let tupleMP3WithSecondBlank = pTuple(fiftySixMP, bPat(), list{seventyMP})
-let tupleMP3WithThirdBlank = pTuple(fiftySixMP, seventyMP, list{bPat()})
+let tupleMP3WithFirstBlank = mpTuple(bPat(), seventyMP, list{fiftySixMP})
+let tupleMP3WithSecondBlank = mpTuple(fiftySixMP, bPat(), list{seventyMP})
+let tupleMP3WithThirdBlank = mpTuple(fiftySixMP, seventyMP, list{bPat()})
 
-let tupleMP3WithFirstFilled = pTuple(fiftySixMP, bPat(), list{bPat()})
-let tupleMP3WithSecondFilled = pTuple(bPat(), fiftySixMP, list{bPat()})
-let tupleMP3WithThirdFilled = pTuple(bPat(), bPat(), list{fiftySixMP})
+let tupleMP3WithFirstFilled = mpTuple(fiftySixMP, bPat(), list{bPat()})
+let tupleMP3WithSecondFilled = mpTuple(bPat(), fiftySixMP, list{bPat()})
+let tupleMP3WithThirdFilled = mpTuple(bPat(), bPat(), list{fiftySixMP})
 
-let tupleMP6 = pTuple(fiftySixMP, seventyMP, list{fiftySixMP, seventyMP, fiftySixMP, seventyMP})
+let tupleMP6 = mpTuple(fiftySixMP, seventyMP, list{fiftySixMP, seventyMP, fiftySixMP, seventyMP})
 
-let tupleMP3WithStrs = pTuple(pString("ab"), pString("cd"), list{pString("ef")})
+let tupleMP3WithStrs = mpTuple(mpString("ab"), mpString("cd"), list{mpString("ef")})
 
-let tupleMPHuge = pTuple(
+let tupleMPHuge = mpTuple(
   fiftySixMP,
   seventyMP,
   list{
@@ -744,15 +744,15 @@ let complexExpr = {
                           match'(
                             fn(~mod="Mod", "function", ~version=2, list{}),
                             list{
-                              (pConstructor("Ok", list{pVar("x")}), var("v")),
-                              (pInt(5), int64(-9223372036854775808L)),
-                              (pBool(true), int(7)),
+                              (mpConstructor("Ok", list{mpVar("x")}), var("v")),
+                              (mpInt(5), int64(-9223372036854775808L)),
+                              (mpBool(true), int(7)),
                               // (pChar("c"), char("c")),
-                              (pString("string"), str("string")),
-                              (pNull(), null),
-                              (pVar("var"), binop("+", int(6), var("var"))),
-                              (pFloat(Positive, 5, 6), float'(Positive, 5, 6)),
-                              (pBlank(), int(6)),
+                              (mpString("string"), str("string")),
+                              (mpNull(), null),
+                              (mpVar("var"), binop("+", int(6), var("var"))),
+                              (mpFloat(Positive, 5, 6), float'(Positive, 5, 6)),
+                              (mpBlank(), int(6)),
                             },
                           ),
                           let'(
