@@ -58,20 +58,20 @@ let tid = (t: t): id =>
   | TConstructorName(id, _)
   | TMatchBranchArrow({matchID: id, _})
   | TMatchKeyword(id)
-  | TPatternBlank(_, id, _)
-  | TPatternInteger(_, id, _, _)
-  | TPatternVariable(_, id, _, _)
-  | TPatternConstructorName(_, id, _, _)
-  | TPatternString({patternID: id, _})
-  | TPatternTrue(_, id, _)
-  | TPatternFalse(_, id, _)
-  | TPatternNullToken(_, id, _)
-  | TPatternFloatWhole(_, id, _, _)
-  | TPatternFloatPoint(_, id, _)
-  | TPatternFloatFractional(_, id, _, _)
-  | TPatternTupleOpen(_, id)
-  | TPatternTupleClose(_, id)
-  | TPatternTupleComma(_, id, _)
+  | TMPBlank(_, id, _)
+  | TMPInteger(_, id, _, _)
+  | TMPVariable(_, id, _, _)
+  | TMPConstructorName(_, id, _, _)
+  | TMPString({patternID: id, _})
+  | TMPTrue(_, id, _)
+  | TMPFalse(_, id, _)
+  | TMPNullToken(_, id, _)
+  | TMPFloatWhole(_, id, _, _)
+  | TMPFloatPoint(_, id, _)
+  | TMPFloatFractional(_, id, _, _)
+  | TMPTupleOpen(_, id)
+  | TMPTupleClose(_, id)
+  | TMPTupleComma(_, id, _)
   | TSep(id, _)
   | TParenOpen(id)
   | TParenClose(id)
@@ -159,20 +159,20 @@ let parentBlockID = (t: t): option<id> =>
   | TFnVersion(_)
   | TMatchKeyword(_)
   | TMatchBranchArrow(_)
-  | TPatternVariable(_)
-  | TPatternConstructorName(_)
-  | TPatternInteger(_)
-  | TPatternString(_)
-  | TPatternTrue(_)
-  | TPatternFalse(_)
-  | TPatternNullToken(_)
-  | TPatternFloatWhole(_)
-  | TPatternFloatPoint(_)
-  | TPatternFloatFractional(_)
-  | TPatternTupleOpen(_)
-  | TPatternTupleClose(_)
-  | TPatternTupleComma(_)
-  | TPatternBlank(_)
+  | TMPVariable(_)
+  | TMPConstructorName(_)
+  | TMPInteger(_)
+  | TMPString(_)
+  | TMPTrue(_)
+  | TMPFalse(_)
+  | TMPNullToken(_)
+  | TMPFloatWhole(_)
+  | TMPFloatPoint(_)
+  | TMPFloatFractional(_)
+  | TMPTupleOpen(_)
+  | TMPTupleClose(_)
+  | TMPTupleComma(_)
+  | TMPBlank(_)
   | TConstructorName(_)
   | TParenOpen(_)
   | TParenClose(_)
@@ -216,17 +216,17 @@ let isTextToken = (t: t): bool =>
   | TFloatWhole(_)
   | TFloatPoint(_)
   | TFloatFractional(_)
-  | TPatternInteger(_)
-  | TPatternVariable(_)
-  | TPatternConstructorName(_)
-  | TPatternBlank(_)
-  | TPatternString(_)
-  | TPatternTrue(_)
-  | TPatternFalse(_)
-  | TPatternNullToken(_)
-  | TPatternFloatWhole(_)
-  | TPatternFloatPoint(_)
-  | TPatternFloatFractional(_) => true
+  | TMPInteger(_)
+  | TMPVariable(_)
+  | TMPConstructorName(_)
+  | TMPBlank(_)
+  | TMPString(_)
+  | TMPTrue(_)
+  | TMPFalse(_)
+  | TMPNullToken(_)
+  | TMPFloatWhole(_)
+  | TMPFloatPoint(_)
+  | TMPFloatFractional(_) => true
   | TListOpen(_)
   | TListClose(_)
   | TListComma(_, _)
@@ -235,9 +235,9 @@ let isTextToken = (t: t): bool =>
   | TTupleOpen(_)
   | TTupleClose(_)
   | TTupleComma(_, _)
-  | TPatternTupleOpen(_)
-  | TPatternTupleClose(_)
-  | TPatternTupleComma(_)
+  | TMPTupleOpen(_)
+  | TMPTupleClose(_)
+  | TMPTupleComma(_)
   | TSep(_)
   | TLetKeyword(_)
   | TRecordOpen(_)
@@ -279,20 +279,20 @@ let isPipeable = (t: t): bool =>
   | TFloatWhole(_)
   | TFloatPoint(_)
   | TFloatFractional(_)
-  | TPatternInteger(_)
-  | TPatternVariable(_)
-  | TPatternConstructorName(_)
-  | TPatternBlank(_)
-  | TPatternString(_)
-  | TPatternTrue(_)
-  | TPatternFalse(_)
-  | TPatternNullToken(_)
-  | TPatternFloatWhole(_)
-  | TPatternFloatPoint(_)
-  | TPatternFloatFractional(_)
-  | TPatternTupleOpen(_)
-  | TPatternTupleClose(_)
-  | TPatternTupleComma(_)
+  | TMPInteger(_)
+  | TMPVariable(_)
+  | TMPConstructorName(_)
+  | TMPBlank(_)
+  | TMPString(_)
+  | TMPTrue(_)
+  | TMPFalse(_)
+  | TMPNullToken(_)
+  | TMPFloatWhole(_)
+  | TMPFloatPoint(_)
+  | TMPFloatFractional(_)
+  | TMPTupleOpen(_)
+  | TMPTupleClose(_)
+  | TMPTupleComma(_)
   | TBlank(_)
   | TPipe(_) => true
   | TFnVersion(_)
@@ -346,7 +346,7 @@ let isStringToken = (t: t): bool =>
 let isAppendable = (t: t): bool =>
   switch t {
   // TODO: PatternString doesn't tokenize like string, but probably should
-  | TPatternString(_) => false
+  | TMPString(_) => false
   | _ => isTextToken(t)
   }
 
@@ -363,7 +363,7 @@ let isBlank = (t: t): bool =>
   | TPartial(_, "", _)
   | TRightPartial(_, "", _)
   | TLeftPartial(_, "", _)
-  | TPatternBlank(_) => true
+  | TMPBlank(_) => true
   | _ => false
   }
 
@@ -432,20 +432,20 @@ let isWhitespace = (t: t): bool =>
   | TConstructorName(_)
   | TMatchBranchArrow(_)
   | TMatchKeyword(_)
-  | TPatternBlank(_)
-  | TPatternInteger(_)
-  | TPatternVariable(_)
-  | TPatternConstructorName(_)
-  | TPatternString(_)
-  | TPatternTrue(_)
-  | TPatternFalse(_)
-  | TPatternNullToken(_)
-  | TPatternFloatWhole(_)
-  | TPatternFloatPoint(_)
-  | TPatternFloatFractional(_)
-  | TPatternTupleOpen(_)
-  | TPatternTupleClose(_)
-  | TPatternTupleComma(_)
+  | TMPBlank(_)
+  | TMPInteger(_)
+  | TMPVariable(_)
+  | TMPConstructorName(_)
+  | TMPString(_)
+  | TMPTrue(_)
+  | TMPFalse(_)
+  | TMPNullToken(_)
+  | TMPFloatWhole(_)
+  | TMPFloatPoint(_)
+  | TMPFloatFractional(_)
+  | TMPTupleOpen(_)
+  | TMPTupleClose(_)
+  | TMPTupleComma(_)
   | TParenOpen(_)
   | TParenClose(_)
   | TFlagWhenKeyword(_)
@@ -484,11 +484,11 @@ let isAutocompletable = (t: t): bool =>
   | TFieldPartial(_)
   | TRightPartial(_)
   | TLeftPartial(_)
-  | TPatternBlank(_)
+  | TMPBlank(_)
   | /* since patterns have no partial but commit as variables
    * automatically, allow intermediate variables to
    * be autocompletable to other expressions */
-  TPatternVariable(_) => true
+  TMPVariable(_) => true
   | _ => false
   }
 
@@ -577,20 +577,20 @@ let toText = (t: t): string => {
   | TMatchKeyword(_) => "match "
   | TMatchBranchArrow(_) => " -> "
 
-  | TPatternInteger(_, _, i, _) => Int64.to_string(i)
-  | TPatternFloatWhole(_, _, w, _) => shouldntBeEmpty(w)
-  | TPatternFloatPoint(_) => "."
-  | TPatternFloatFractional(_, _, f, _) => f
-  | TPatternString({str, _}) => "\"" ++ (str ++ "\"")
-  | TPatternTrue(_) => "true"
-  | TPatternFalse(_) => "false"
-  | TPatternNullToken(_) => "null"
-  | TPatternBlank(_) => "   "
-  | TPatternVariable(_, _, name, _) => canBeEmpty(name)
-  | TPatternConstructorName(_, _, name, _) => canBeEmpty(name)
-  | TPatternTupleOpen(_) => "("
-  | TPatternTupleComma(_) => ","
-  | TPatternTupleClose(_) => ")"
+  | TMPInteger(_, _, i, _) => Int64.to_string(i)
+  | TMPFloatWhole(_, _, w, _) => shouldntBeEmpty(w)
+  | TMPFloatPoint(_) => "."
+  | TMPFloatFractional(_, _, f, _) => f
+  | TMPString({str, _}) => "\"" ++ (str ++ "\"")
+  | TMPTrue(_) => "true"
+  | TMPFalse(_) => "false"
+  | TMPNullToken(_) => "null"
+  | TMPBlank(_) => "   "
+  | TMPVariable(_, _, name, _) => canBeEmpty(name)
+  | TMPConstructorName(_, _, name, _) => canBeEmpty(name)
+  | TMPTupleOpen(_) => "("
+  | TMPTupleComma(_) => ","
+  | TMPTupleClose(_) => ")"
 
   | TParenOpen(_) => "("
   | TParenClose(_) => ")"
@@ -638,17 +638,17 @@ let toIndex = (t: t): option<int> =>
   | TListComma(_, index)
   | TTupleComma(_, index)
   | TNewline(Some(_, _, Some(index)))
-  | TPatternBlank(_, _, index)
-  | TPatternInteger(_, _, _, index)
-  | TPatternVariable(_, _, _, index)
-  | TPatternConstructorName(_, _, _, index)
-  | TPatternString({branchIdx: index, _})
-  | TPatternTrue(_, _, index)
-  | TPatternFalse(_, _, index)
-  | TPatternNullToken(_, _, index)
-  | TPatternFloatWhole(_, _, _, index)
-  | TPatternFloatPoint(_, _, index)
-  | TPatternFloatFractional(_, _, _, index) =>
+  | TMPBlank(_, _, index)
+  | TMPInteger(_, _, _, index)
+  | TMPVariable(_, _, _, index)
+  | TMPConstructorName(_, _, _, index)
+  | TMPString({branchIdx: index, _})
+  | TMPTrue(_, _, index)
+  | TMPFalse(_, _, index)
+  | TMPNullToken(_, _, index)
+  | TMPFloatWhole(_, _, _, index)
+  | TMPFloatPoint(_, _, index)
+  | TMPFloatFractional(_, _, _, index) =>
     Some(index)
   | _ => None
   }
@@ -656,17 +656,17 @@ let toIndex = (t: t): option<int> =>
 let toParentID = (t: t): option<id> =>
   switch t {
   | TRecordFieldname({recordID: id, _})
-  | TPatternBlank(id, _, _)
-  | TPatternInteger(id, _, _, _)
-  | TPatternVariable(id, _, _, _)
-  | TPatternConstructorName(id, _, _, _)
-  | TPatternString({matchID: id, _})
-  | TPatternTrue(id, _, _)
-  | TPatternFalse(id, _, _)
-  | TPatternNullToken(id, _, _)
-  | TPatternFloatWhole(id, _, _, _)
-  | TPatternFloatPoint(id, _, _)
-  | TPatternFloatFractional(id, _, _, _) =>
+  | TMPBlank(id, _, _)
+  | TMPInteger(id, _, _, _)
+  | TMPVariable(id, _, _, _)
+  | TMPConstructorName(id, _, _, _)
+  | TMPString({matchID: id, _})
+  | TMPTrue(id, _, _)
+  | TMPFalse(id, _, _)
+  | TMPNullToken(id, _, _)
+  | TMPFloatWhole(id, _, _, _)
+  | TMPFloatPoint(id, _, _)
+  | TMPFloatFractional(id, _, _, _) =>
     Some(id)
   | _ => None
   }
@@ -727,20 +727,20 @@ let toTypeName = (t: t): string =>
   | TMatchKeyword(_) => "match-keyword"
   | TMatchBranchArrow(_) => "match-branch-arrow"
 
-  | TPatternBlank(_) => "pattern-blank"
-  | TPatternInteger(_) => "pattern-integer"
-  | TPatternVariable(_) => "pattern-variable"
-  | TPatternConstructorName(_) => "pattern-constructor-name"
-  | TPatternString(_) => "pattern-string"
-  | TPatternTrue(_) => "pattern-true"
-  | TPatternFalse(_) => "pattern-false"
-  | TPatternNullToken(_) => "pattern-null"
-  | TPatternFloatWhole(_) => "pattern-float-whole"
-  | TPatternFloatPoint(_) => "pattern-float-point"
-  | TPatternFloatFractional(_) => "pattern-float-fractional"
-  | TPatternTupleOpen(_) => "pattern-tuple-open"
-  | TPatternTupleComma(_) => "pattern-tuple-comma"
-  | TPatternTupleClose(_) => "pattern-tuple-close"
+  | TMPBlank(_) => "pattern-blank"
+  | TMPInteger(_) => "pattern-integer"
+  | TMPVariable(_) => "pattern-variable"
+  | TMPConstructorName(_) => "pattern-constructor-name"
+  | TMPString(_) => "pattern-string"
+  | TMPTrue(_) => "pattern-true"
+  | TMPFalse(_) => "pattern-false"
+  | TMPNullToken(_) => "pattern-null"
+  | TMPFloatWhole(_) => "pattern-float-whole"
+  | TMPFloatPoint(_) => "pattern-float-point"
+  | TMPFloatFractional(_) => "pattern-float-fractional"
+  | TMPTupleOpen(_) => "pattern-tuple-open"
+  | TMPTupleComma(_) => "pattern-tuple-comma"
+  | TMPTupleClose(_) => "pattern-tuple-close"
 
   | TParenOpen(_) => "paren-open"
   | TParenClose(_) => "paren-close"
@@ -772,20 +772,20 @@ let toCategoryName = (t: t): string =>
   | TConstructorName(_) => "constructor"
   | TRecordOpen(_) | TRecordClose(_) | TRecordFieldname(_) | TRecordSep(_) => "record"
   | TMatchKeyword(_) | TMatchBranchArrow(_) => "match"
-  | TPatternBlank(_)
-  | TPatternInteger(_)
-  | TPatternVariable(_)
-  | TPatternConstructorName(_)
-  | TPatternString(_)
-  | TPatternTrue(_)
-  | TPatternFalse(_)
-  | TPatternNullToken(_)
-  | TPatternFloatWhole(_)
-  | TPatternFloatPoint(_)
-  | TPatternTupleOpen(_)
-  | TPatternTupleComma(_)
-  | TPatternTupleClose(_)
-  | TPatternFloatFractional(_) => "pattern"
+  | TMPBlank(_)
+  | TMPInteger(_)
+  | TMPVariable(_)
+  | TMPConstructorName(_)
+  | TMPString(_)
+  | TMPTrue(_)
+  | TMPFalse(_)
+  | TMPNullToken(_)
+  | TMPFloatWhole(_)
+  | TMPFloatPoint(_)
+  | TMPTupleOpen(_)
+  | TMPTupleComma(_)
+  | TMPTupleClose(_)
+  | TMPFloatFractional(_) => "pattern"
   | TParenOpen(_) | TParenClose(_) => "paren"
   | TFlagWhenKeyword(_) | TFlagEnabledKeyword(_) => "flag"
   }
@@ -799,17 +799,17 @@ let toDebugInfo = (t: t): string =>
   | TNewline(None) => "no parent"
   | TPipe(_, idx, len, _) => Printf.sprintf("idx=%d len=%d", idx, len)
   | TMatchBranchArrow({index: idx, _}) => "idx=" ++ string_of_int(idx)
-  | TPatternBlank(mid, _, idx)
-  | TPatternInteger(mid, _, _, idx)
-  | TPatternVariable(mid, _, _, idx)
-  | TPatternConstructorName(mid, _, _, idx)
-  | TPatternString({matchID: mid, branchIdx: idx, _})
-  | TPatternTrue(mid, _, idx)
-  | TPatternFalse(mid, _, idx)
-  | TPatternNullToken(mid, _, idx)
-  | TPatternFloatWhole(mid, _, _, idx)
-  | TPatternFloatPoint(mid, _, idx)
-  | TPatternFloatFractional(mid, _, _, idx) =>
+  | TMPBlank(mid, _, idx)
+  | TMPInteger(mid, _, _, idx)
+  | TMPVariable(mid, _, _, idx)
+  | TMPConstructorName(mid, _, _, idx)
+  | TMPString({matchID: mid, branchIdx: idx, _})
+  | TMPTrue(mid, _, idx)
+  | TMPFalse(mid, _, idx)
+  | TMPNullToken(mid, _, idx)
+  | TMPFloatWhole(mid, _, _, idx)
+  | TMPFloatPoint(mid, _, idx)
+  | TMPFloatFractional(mid, _, _, idx) =>
     "match=" ++ (ID.toString(mid) ++ (" idx=" ++ string_of_int(idx)))
   | _ => ""
   }
@@ -933,7 +933,7 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TNewline(props1), TNewline(props2)) => props1 == props2
   | (TMatchBranchArrow(d1), TMatchBranchArrow(d2)) =>
     d1.matchID == d2.matchID && (d1.patternID == d2.patternID && d1.index == d2.index)
-  | (TPatternString(d1), TPatternString(d2)) =>
+  | (TMPString(d1), TMPString(d2)) =>
     d1.matchID == d2.matchID &&
       (d1.patternID == d2.patternID &&
       (d1.str == d2.str && d1.branchIdx == d2.branchIdx))
@@ -941,25 +941,25 @@ let matchesContent = (t1: t, t2: t): bool =>
     id1 == id2 && (fullname1 == fullname2 && rail1 == rail2)
   | (TFnVersion(id1, _, _, fullname1), TFnVersion(id2, _, _, fullname2)) =>
     id1 == id2 && fullname1 == fullname2
-  | (TPatternVariable(m1, p1, val1, ind1), TPatternVariable(m2, p2, val2, ind2))
-  | (TPatternConstructorName(m1, p1, val1, ind1), TPatternConstructorName(m2, p2, val2, ind2)) =>
+  | (TMPVariable(m1, p1, val1, ind1), TMPVariable(m2, p2, val2, ind2))
+  | (TMPConstructorName(m1, p1, val1, ind1), TMPConstructorName(m2, p2, val2, ind2)) =>
     m1 == m2 && (p1 == p2 && (val1 == val2 && ind1 == ind2))
-  | (TPatternInteger(m1, p1, val1, ind1), TPatternInteger(m2, p2, val2, ind2)) =>
+  | (TMPInteger(m1, p1, val1, ind1), TMPInteger(m2, p2, val2, ind2)) =>
     m1 == m2 && (p1 == p2 && (val1 == val2 && ind1 == ind2))
-  | (TPatternTrue(p1, id1, ind1), TPatternTrue(p2, id2, ind2))
-  | (TPatternFalse(p1, id1, ind1), TPatternFalse(p2, id2, ind2))
-  | (TPatternNullToken(p1, id1, ind1), TPatternNullToken(p2, id2, ind2))
-  | (TPatternFloatPoint(p1, id1, ind1), TPatternFloatPoint(p2, id2, ind2))
-  | (TPatternBlank(p1, id1, ind1), TPatternBlank(p2, id2, ind2)) =>
+  | (TMPTrue(p1, id1, ind1), TMPTrue(p2, id2, ind2))
+  | (TMPFalse(p1, id1, ind1), TMPFalse(p2, id2, ind2))
+  | (TMPNullToken(p1, id1, ind1), TMPNullToken(p2, id2, ind2))
+  | (TMPFloatPoint(p1, id1, ind1), TMPFloatPoint(p2, id2, ind2))
+  | (TMPBlank(p1, id1, ind1), TMPBlank(p2, id2, ind2)) =>
     p1 == p2 && (id1 == id2 && ind1 == ind2)
 
-  | (TPatternFloatWhole(p1, id1, val1, ind1), TPatternFloatWhole(p2, id2, val2, ind2))
-  | (TPatternFloatFractional(p1, id1, val1, ind1), TPatternFloatFractional(p2, id2, val2, ind2)) =>
+  | (TMPFloatWhole(p1, id1, val1, ind1), TMPFloatWhole(p2, id2, val2, ind2))
+  | (TMPFloatFractional(p1, id1, val1, ind1), TMPFloatFractional(p2, id2, val2, ind2)) =>
     p1 == p2 && (id1 == id2 && (val1 == val2 && ind1 == ind2))
 
-  | (TPatternTupleOpen(p1, id1), TPatternTupleOpen(p2, id2)) => p1 == p2 && id1 == id2
-  | (TPatternTupleClose(p1, id1), TPatternTupleClose(p2, id2)) => p1 == p2 && id1 == id2
-  | (TPatternTupleComma(p1, id1, ind1), TPatternTupleComma(p2, id2, ind2)) =>
+  | (TMPTupleOpen(p1, id1), TMPTupleOpen(p2, id2)) => p1 == p2 && id1 == id2
+  | (TMPTupleClose(p1, id1), TMPTupleClose(p2, id2)) => p1 == p2 && id1 == id2
+  | (TMPTupleComma(p1, id1, ind1), TMPTupleComma(p2, id2, ind2)) =>
     p1 == p2 && id1 == id2 && ind1 == ind2
 
   | (TIndent(ind1), TIndent(ind2)) => ind1 == ind2
@@ -1016,20 +1016,20 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TRecordClose(_), _)
   | (TMatchKeyword(_), _)
   | (TMatchBranchArrow(_), _)
-  | (TPatternVariable(_), _)
-  | (TPatternConstructorName(_), _)
-  | (TPatternInteger(_), _)
-  | (TPatternString(_), _)
-  | (TPatternTrue(_), _)
-  | (TPatternFalse(_), _)
-  | (TPatternNullToken(_), _)
-  | (TPatternFloatWhole(_), _)
-  | (TPatternFloatPoint(_), _)
-  | (TPatternFloatFractional(_), _)
-  | (TPatternBlank(_), _)
-  | (TPatternTupleOpen(_), _)
-  | (TPatternTupleClose(_), _)
-  | (TPatternTupleComma(_), _)
+  | (TMPVariable(_), _)
+  | (TMPConstructorName(_), _)
+  | (TMPInteger(_), _)
+  | (TMPString(_), _)
+  | (TMPTrue(_), _)
+  | (TMPFalse(_), _)
+  | (TMPNullToken(_), _)
+  | (TMPFloatWhole(_), _)
+  | (TMPFloatPoint(_), _)
+  | (TMPFloatFractional(_), _)
+  | (TMPBlank(_), _)
+  | (TMPTupleOpen(_), _)
+  | (TMPTupleClose(_), _)
+  | (TMPTupleComma(_), _)
   | (TConstructorName(_), _)
   | (TParenOpen(_), _)
   | (TParenClose(_), _)

@@ -715,12 +715,12 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARVariable(id), TVariable(id', _, _))
     | (ARLambda(id, LBPSymbol), TLambdaSymbol(id', _))
     | (ARLambda(id, LBPArrow), TLambdaArrow(id', _))
-    | (ARMPattern(id, MPPVariable), TPatternVariable(_, id', _, _))
-    | (ARMPattern(id, MPPConstructor), TPatternConstructorName(_, id', _, _))
-    | (ARMPattern(id, MPPInteger), TPatternInteger(_, id', _, _))
-    | (ARMPattern(id, MPPBool), TPatternTrue(_, id', _) | TPatternFalse(_, id', _))
-    | (ARMPattern(id, MPPBlank), TPatternBlank(_, id', _))
-    | (ARMPattern(id, MPPNull), TPatternNullToken(_, id', _))
+    | (ARMPattern(id, MPPVariable), TMPVariable(_, id', _, _))
+    | (ARMPattern(id, MPPConstructor), TMPConstructorName(_, id', _, _))
+    | (ARMPattern(id, MPPInteger), TMPInteger(_, id', _, _))
+    | (ARMPattern(id, MPPBool), TMPTrue(_, id', _) | TMPFalse(_, id', _))
+    | (ARMPattern(id, MPPBlank), TMPBlank(_, id', _))
+    | (ARMPattern(id, MPPNull), TMPNullToken(_, id', _))
     | (ARFlag(id, FPWhenKeyword), TFlagWhenKeyword(id'))
     | (ARFlag(id, FPEnabledKeyword), TFlagEnabledKeyword(id')) if id == id' =>
       posForTi(ti)
@@ -736,31 +736,31 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     /*
      * Floats
      */
-    | (ARMPattern(id, MPPFloat(FPPoint)), TPatternFloatPoint(_, id', _))
-    | (ARMPattern(id, MPPFloat(FPWhole)), TPatternFloatWhole(_, id', _, _))
+    | (ARMPattern(id, MPPFloat(FPPoint)), TMPFloatPoint(_, id', _))
+    | (ARMPattern(id, MPPFloat(FPWhole)), TMPFloatWhole(_, id', _, _))
     | (ARFloat(id, FPPoint), TFloatPoint(id', _))
     | (ARFloat(id, FPWhole), TFloatWhole(id', _, _)) if id == id' =>
       posForTi(ti)
-    | (ARMPattern(id, MPPFloat(FPWhole)), TPatternFloatPoint(_, id', _))
+    | (ARMPattern(id, MPPFloat(FPWhole)), TMPFloatPoint(_, id', _))
     | (ARFloat(id, FPWhole), TFloatPoint(id', _)) if id == id' =>
       /* This accounts for situations like `|.45`, where the float doesn't have a whole part but
            we're still targeting it (perhaps due to deletion).
            Because the 'findMap' below scans from left to right and we try to match the whole first,
            we can still find positions like `1|2.54` */
       Some(ti.startPos)
-    | (ARMPattern(id, MPPFloat(FPFractional)), TPatternFloatPoint(_, id', _))
+    | (ARMPattern(id, MPPFloat(FPFractional)), TMPFloatPoint(_, id', _))
     | (ARFloat(id, FPFractional), TFloatPoint(id', _)) if id == id' && ct.offset == 0 =>
       /* This accounts for situations like `12.|`, where the float doesn't have a decimal part but
        we're still targeting it (perhaps due to deletion). */
       Some(ti.endPos)
-    | (ARMPattern(id, MPPFloat(FPFractional)), TPatternFloatFractional(_, id', _, _))
+    | (ARMPattern(id, MPPFloat(FPFractional)), TMPFloatFractional(_, id', _, _))
     | (ARFloat(id, FPFractional), TFloatFractional(id', _, _)) if id == id' =>
       posForTi(ti)
 
-    | (ARMPattern(id, MPPTuple(TPOpen)), TPatternTupleOpen(_, id'))
-    | (ARMPattern(id, MPPTuple(TPClose)), TPatternTupleClose(_, id')) if id == id' =>
+    | (ARMPattern(id, MPPTuple(TPOpen)), TMPTupleOpen(_, id'))
+    | (ARMPattern(id, MPPTuple(TPClose)), TMPTupleClose(_, id')) if id == id' =>
       posForTi(ti)
-    | (ARMPattern(id, MPPTuple(TPComma(idx))), TPatternTupleComma(_, id', idx'))
+    | (ARMPattern(id, MPPTuple(TPComma(idx))), TMPTupleComma(_, id', idx'))
       if id == id' && idx == idx' =>
       posForTi(ti)
 
@@ -786,7 +786,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARString(id, SPCloseQuote), TStringCloseQuote(id', _)) if id == id' =>
       clampedPosForTi(ti, ct.offset)
     | (ARString(id, SPBody), TString(id', _, _)) if id == id' => clampedPosForTi(ti, ct.offset)
-    | (ARMPattern(id, MPPString), TPatternString({patternID: id', _})) if id == id' =>
+    | (ARMPattern(id, MPPString), TMPString({patternID: id', _})) if id == id' =>
       clampedPosForTi(ti, ct.offset)
     /*
      * Multi-line Strings
@@ -950,25 +950,23 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TMatchKeyword(id) => Some({astRef: ARMatch(id, MPKeyword), offset: offset})
   | TMatchBranchArrow({matchID: id, index: idx, _}) =>
     Some({astRef: ARMatch(id, MPBranchArrow(idx)), offset: offset})
-  | TPatternVariable(_, id, _, _) => Some({astRef: ARMPattern(id, MPPVariable), offset: offset})
-  | TPatternConstructorName(_, id, _, _) =>
+  | TMPVariable(_, id, _, _) => Some({astRef: ARMPattern(id, MPPVariable), offset: offset})
+  | TMPConstructorName(_, id, _, _) =>
     Some({astRef: ARMPattern(id, MPPConstructor), offset: offset})
-  | TPatternInteger(_, id, _, _) => Some({astRef: ARMPattern(id, MPPInteger), offset: offset})
-  | TPatternString({patternID: id, _}) => Some(CT.forMPPStringOpenQuote(id, offset))
-  | TPatternTrue(_, id, _) | TPatternFalse(_, id, _) =>
+  | TMPInteger(_, id, _, _) => Some({astRef: ARMPattern(id, MPPInteger), offset: offset})
+  | TMPString({patternID: id, _}) => Some(CT.forMPPStringOpenQuote(id, offset))
+  | TMPTrue(_, id, _) | TMPFalse(_, id, _) =>
     Some({astRef: ARMPattern(id, MPPBool), offset: offset})
-  | TPatternNullToken(_, id, _) => Some({astRef: ARMPattern(id, MPPNull), offset: offset})
-  | TPatternFloatWhole(_, id, _, _) =>
-    Some({astRef: ARMPattern(id, MPPFloat(FPWhole)), offset: offset})
-  | TPatternFloatPoint(_, id, _) =>
-    Some({astRef: ARMPattern(id, MPPFloat(FPPoint)), offset: offset})
-  | TPatternFloatFractional(_, id, _, _) =>
+  | TMPNullToken(_, id, _) => Some({astRef: ARMPattern(id, MPPNull), offset: offset})
+  | TMPFloatWhole(_, id, _, _) => Some({astRef: ARMPattern(id, MPPFloat(FPWhole)), offset: offset})
+  | TMPFloatPoint(_, id, _) => Some({astRef: ARMPattern(id, MPPFloat(FPPoint)), offset: offset})
+  | TMPFloatFractional(_, id, _, _) =>
     Some({astRef: ARMPattern(id, MPPFloat(FPFractional)), offset: offset})
-  | TPatternTupleOpen(_, id) => Some({astRef: ARMPattern(id, MPPTuple(TPOpen)), offset: offset})
-  | TPatternTupleClose(_, id) => Some({astRef: ARMPattern(id, MPPTuple(TPClose)), offset: offset})
-  | TPatternTupleComma(_, id, idx) =>
+  | TMPTupleOpen(_, id) => Some({astRef: ARMPattern(id, MPPTuple(TPOpen)), offset: offset})
+  | TMPTupleClose(_, id) => Some({astRef: ARMPattern(id, MPPTuple(TPClose)), offset: offset})
+  | TMPTupleComma(_, id, idx) =>
     Some({astRef: ARMPattern(id, MPPTuple(TPComma(idx))), offset: offset})
-  | TPatternBlank(_, id, _) => Some({astRef: ARMPattern(id, MPPBlank), offset: offset})
+  | TMPBlank(_, id, _) => Some({astRef: ARMPattern(id, MPPBlank), offset: offset})
 
   | TConstructorName(id, _) => Some({astRef: ARConstructor(id), offset: offset})
   | TFlagWhenKeyword(id) => Some({astRef: ARFlag(id, FPWhenKeyword), offset: offset})
@@ -2462,7 +2460,7 @@ let updateFromACItem = (
   let (newAST, target) = switch (ti.token, oldExpr, parent, newPatOrExpr) {
   // since patterns have no partial but commit as variables automatically,
   // allow intermediate variables to be autocompletable to other expressions
-  | (TPatternBlank(mID, pID, _) | TPatternVariable(mID, pID, _, _), _, _, Pat(_, newPat)) =>
+  | (TMPBlank(mID, pID, _) | TMPVariable(mID, pID, _, _), _, _, Pat(_, newPat)) =>
     let newAST = FluidAST.replacePattern(~newPat, mID, pID, ast)
     (newAST, newTarget)
   | (
@@ -2584,7 +2582,7 @@ let acEnter = (
   switch AC.highlighted(astInfo.state.ac) {
   | None =>
     switch ti.token {
-    | TPatternVariable(_) => moveToNextBlank(astInfo.state.newPos, astInfo)
+    | TMPVariable(_) => moveToNextBlank(astInfo.state.newPos, astInfo)
     | TFieldPartial(partialID, _fieldAccessID, anaID, fieldname, _) =>
       // Accept fieldname, even if it's not in the autocomplete
       FluidAST.find(anaID, astInfo.ast)
@@ -4615,7 +4613,7 @@ let rec updateKey = (
     deleteSelection(props, astInfo)
   // Special-case hack for deleting rows of a match or record
   | (DeleteContentBackward, _, R(TRecordFieldname({fieldName: "", _}), ti))
-  | (DeleteContentBackward, L(TNewline(_), _), R(TPatternBlank(_), ti)) =>
+  | (DeleteContentBackward, L(TNewline(_), _), R(TMPBlank(_), ti)) =>
     doBackspace(~pos, ti, astInfo)
   | (DeleteContentBackward, L(_, ti), _) => doBackspace(~pos, ti, astInfo)
   // Special case for deleting blanks in front of a list
@@ -4713,11 +4711,10 @@ let rec updateKey = (
   // Pressing ) to go over the last )
   | (InsertText(")"), _, R(TTupleClose(_), ti)) if pos == ti.endPos - 1 =>
     moveOneRight(pos, astInfo)
-  | (InsertText(")"), _, R(TPatternTupleClose(_), ti)) if pos == ti.endPos - 1 =>
+  | (InsertText(")"), _, R(TMPTupleClose(_), ti)) if pos == ti.endPos - 1 =>
     moveOneRight(pos, astInfo)
   // Pressing quote to go over the last quote
-  | (InsertText("\""), _, R(TPatternString(_), ti)) if pos == ti.endPos - 1 =>
-    moveOneRight(pos, astInfo)
+  | (InsertText("\""), _, R(TMPString(_), ti)) if pos == ti.endPos - 1 => moveOneRight(pos, astInfo)
   | (InsertText("\""), _, R(TStringCloseQuote(_), _)) => moveOneRight(pos, astInfo)
 
   // *************************
@@ -4802,7 +4799,7 @@ let rec updateKey = (
   //
   // Insert , in Tuple pattern
   //
-  | (InsertText(","), L(TPatternTupleOpen(matchID, id), _), _) if onEdge =>
+  | (InsertText(","), L(TMPTupleOpen(matchID, id), _), _) if onEdge =>
     // Case: right after a tuple pattern's opening `(`
     let blankID = gid()
     let newPat = MPBlank(blankID)
@@ -4811,11 +4808,11 @@ let rec updateKey = (
     |> ASTInfo.setAST(insertInTuplePattern(~index=0, ~newPat, matchID, id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARMPattern(blankID, MPPBlank), offset: 0})
 
-  | (InsertText(","), L(_, _ti), R(TPatternTupleComma(_, _, _), _)) if onEdge =>
+  | (InsertText(","), L(_, _ti), R(TMPTupleComma(_, _, _), _)) if onEdge =>
     // Case: just to the left of a tuple pattern's separator `,`
     moveOneRight(pos, astInfo)
 
-  | (InsertText(","), L(TPatternTupleComma(matchID, id, index), _), R(_, ti)) if onEdge =>
+  | (InsertText(","), L(TMPTupleComma(matchID, id, index), _), R(_, ti)) if onEdge =>
     // Case: just to the right of a tuple's pattern's separator `,`
     let indexToInsertInto = index + 1
 
@@ -4830,7 +4827,7 @@ let rec updateKey = (
     )
     |> moveToCaretTarget({astRef: ARMPattern(blankID, MPPBlank), offset: 0})
 
-  | (InsertText(","), L(_, ti), R(TPatternTupleClose(matchID, id), _)) if onEdge =>
+  | (InsertText(","), L(_, ti), R(TMPTupleClose(matchID, id), _)) if onEdge =>
     // Case: right before the tuple pattern's closing `)`
     let astInfo = acEnter(props, ti, K.Enter, astInfo)
 

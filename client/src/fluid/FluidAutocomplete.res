@@ -467,7 +467,7 @@ let generatePatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): 
   }
 
   switch ti.token {
-  | TPatternBlank(mid, _, _) | TPatternVariable(mid, _, _, _) =>
+  | TMPBlank(mid, _, _) | TMPVariable(mid, _, _, _) =>
     Belt.List.concatMany([
       Option.toList(newVariablePattern),
       newStandardPatterns,
@@ -487,7 +487,7 @@ let generateFields = fieldList => List.map(~f=x => FT.AutoComplete.FACField(x), 
 let generate = (m: model, props: props, query: fullQuery): list<item> => {
   let tlid = TL.id(query.tl)
   switch query.ti.token {
-  | TPatternBlank(_) | TPatternVariable(_) =>
+  | TMPBlank(_) | TMPVariable(_) =>
     let allowTuples = m.settings.contributingSettings.inProgressFeatures.allowTuples
     generatePatterns(allowTuples, query.ti, query.queryString)
 

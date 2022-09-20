@@ -132,20 +132,20 @@ module Builder = {
 let rec patternToToken = (matchID: id, p: FluidMatchPattern.t, ~idx: int): list<fluidToken> => {
   open FluidTypes.Token
   switch p {
-  | MPVariable(id, name) => list{TPatternVariable(matchID, id, name, idx)}
+  | MPVariable(id, name) => list{TMPVariable(matchID, id, name, idx)}
   | MPConstructor(id, name, args) =>
     let args = List.map(args, ~f=a => list{TSep(id, None), ...patternToToken(matchID, a, ~idx)})
 
-    List.flatten(list{list{TPatternConstructorName(matchID, id, name, idx)}, ...args})
-  | MPInteger(id, i) => list{TPatternInteger(matchID, id, i, idx)}
+    List.flatten(list{list{TMPConstructorName(matchID, id, name, idx)}, ...args})
+  | MPInteger(id, i) => list{TMPInteger(matchID, id, i, idx)}
   | MPBool(id, b) =>
     if b {
-      list{TPatternTrue(matchID, id, idx)}
+      list{TMPTrue(matchID, id, idx)}
     } else {
-      list{TPatternFalse(matchID, id, idx)}
+      list{TMPFalse(matchID, id, idx)}
     }
   | MPString(id, str) => list{
-      TPatternString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
+      TMPString({matchID: matchID, patternID: id, str: str, branchIdx: idx}),
     }
   | MPCharacter(_) => recover("pchar not supported in patternToToken", list{})
   | MPFloat(id, sign, whole, fraction) =>
@@ -156,17 +156,17 @@ let rec patternToToken = (matchID: id, p: FluidMatchPattern.t, ~idx: int): list<
     let whole = if whole == "" {
       list{}
     } else {
-      list{TPatternFloatWhole(matchID, id, whole, idx)}
+      list{TMPFloatWhole(matchID, id, whole, idx)}
     }
     let fraction = if fraction == "" {
       list{}
     } else {
-      list{TPatternFloatFractional(matchID, id, fraction, idx)}
+      list{TMPFloatFractional(matchID, id, fraction, idx)}
     }
 
-    Belt.List.concatMany([whole, list{TPatternFloatPoint(matchID, id, idx)}, fraction])
-  | MPNull(id) => list{TPatternNullToken(matchID, id, idx)}
-  | MPBlank(id) => list{TPatternBlank(matchID, id, idx)}
+    Belt.List.concatMany([whole, list{TMPFloatPoint(matchID, id, idx)}, fraction])
+  | MPNull(id) => list{TMPNullToken(matchID, id, idx)}
+  | MPBlank(id) => list{TMPBlank(matchID, id, idx)}
   | MPTuple(id, first, second, theRest) =>
     let subPatterns = list{first, second, ...theRest}
 
@@ -181,15 +181,15 @@ let rec patternToToken = (matchID: id, p: FluidMatchPattern.t, ~idx: int): list<
         if isLastPattern {
           subpatternTokens
         } else {
-          List.append(subpatternTokens, list{TPatternTupleComma(matchID, id, i)})
+          List.append(subpatternTokens, list{TMPTupleComma(matchID, id, i)})
         }
       })
       |> List.flatten
 
     List.flatten(list{
-      list{TPatternTupleOpen(matchID, id)},
+      list{TMPTupleOpen(matchID, id)},
       middlePart,
-      list{TPatternTupleClose(matchID, id)},
+      list{TMPTupleClose(matchID, id)},
     })
   }
 }
