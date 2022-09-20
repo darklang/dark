@@ -374,11 +374,11 @@ let run = () => {
   })
   describe("Tuples", () => {
     describe("render", () => {
-      t("blank tuple MP", tuplePattern2WithBothBlank, render, ("(***,***)", 0))
-      t("simple tuple MP", tuplePattern2WithNoBlank, render, ("(56,78)", 0))
+      t("blank tuple MP", tupleMP2WithBothBlank, render, ("(***,***)", 0))
+      t("simple tuple MP", tupleMP2WithNoBlank, render, ("(56,78)", 0))
       // t( //TUPLETODO
       //   "a very long tuple MP wraps",
-      //   match'(b, list{(tuplePatternHuge, b)}),
+      //   match'(b, list{(tupleMPHuge, b)}),
       //   render,
       //   "~match ___\n (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n 56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78) -> ___\n",
       // )
@@ -435,7 +435,7 @@ let run = () => {
       // )
       // t(
       //   "ctrl+right at the end of tuple item moves to end of next tuple item",
-      //   match'(b, list{(tuplePattern6, b)}),
+      //   match'(b, list{(tupleMP6, b)}),
       //   ~pos=16,
       //   ctrlRight,
       //   "match ___\n  (56,78,56~,78,56,78) -> ___\n",
@@ -460,7 +460,7 @@ let run = () => {
     describe("insert", () => {
       t(
         "insert into empty tuple MP inserts",
-        tuplePattern2WithBothBlank,
+        tupleMP2WithBothBlank,
         ~pos=1,
         insert("5"),
         ("(5,***)", 2),
@@ -468,14 +468,14 @@ let run = () => {
       // TUPLETODO discrepency between pat and expr behaviour
       // t(
       //   "inserting before a tuple MP is no-op",
-      //   tuplePattern2WithBothBlank,
+      //   tupleMP2WithBothBlank,
       //
       //   insert("5"),
       //   ("(***,***)", 0),
       // )
       t(
         "insert space into tuple MP does nothing",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=6, // right before closing )
         press(K.Space),
         ("(56,78)", 6),
@@ -503,28 +503,28 @@ let run = () => {
       )
       t(
         "inserting space into simple tuple MP does nothing",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=3,
         press(K.Space),
         ("(56,78)", 3),
       )
       t(
         "insert separator before item in tuple MP creates blank",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=1,
         insert(","),
         ("(***,56,78)", 1),
       )
       t(
         "insert separator after item in tuple MP creates blank",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=6, // after 78
         insert(","),
         ("(56,78,***)", 7),
       )
       t(
         "insert , in string in tuple MP types ,",
-        pTuple(pString("01234567890123456789012345678901234567890"), fiftySixPat, list{}),
+        pTuple(pString("01234567890123456789012345678901234567890"), fiftySixMP, list{}),
         ~pos=42, // right before the last 0
         insert(","),
         ("(\"0123456789012345678901234567890123456789,0\",56)", 43),
@@ -532,14 +532,14 @@ let run = () => {
 
       t(
         "insert separator just before another in tuple MP skips over it",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=3, // before the first comma
         insert(","),
         ("(56,78)", 4),
       )
       t(
         "insert separator just after another in tuple MP creates blank",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=4, // just after the comma
         insert(","),
         ("(56,***,78)", 4),
@@ -547,28 +547,28 @@ let run = () => {
 
       t(
         "insert separator mid int in tuple MP does nothing special ",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=2, // halfway through `56`
         insert(","),
         ("(56,78)", 2),
       )
       t(
         "insert separator mid string in tuple MP does nothing special ",
-        tuplePattern3WithStrs,
+        tupleMP3WithStrs,
         ~pos=3, // in between the a and b of the first str
         insert(","),
         ("(\"a,b\",\"cd\",\"ef\")", 4),
       )
       t(
         "close bracket at end of tuple MP is swallowed",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=6, // right before closing )
         insert(")"),
         ("(56,78)", 7),
       )
       t(
         "trying to write over a subpattern in tuple MP with another type does nothing",
-        tuplePattern3WithStrs,
+        tupleMP3WithStrs,
         ~pos=1, // in between the a and b of the first str
         insert("1"),
         ("(\"ab\",\"cd\",\"ef\")", 1),
@@ -580,20 +580,20 @@ let run = () => {
       // 2-tuple, no blanks
       t(
         "deleting ( from a filled 2-tuple MP does nothing",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         del,
         ("(56,78)", 0),
       )
       t(
         "deleting ) from a filled 2-tuple MP just moves cursor left",
-        tuplePattern2WithNoBlank,
+        tupleMP2WithNoBlank,
         ~pos=7,
         bs,
         ("(56,78)", 6),
       )
       t(
         "deleting , from a filled 2-tuple MP leaves only the first item",
-        tuplePattern2WithNoBlank, // (56,78)
+        tupleMP2WithNoBlank, // (56,78)
         ~pos=4, // at the ,
         bs,
         ("56", 2),
@@ -602,20 +602,20 @@ let run = () => {
       // 2-tuple, first blank
       t(
         "deleting ( from a 2-tuple MP with first value blank converts to the non-blank value",
-        tuplePattern2WithFirstBlank,
+        tupleMP2WithFirstBlank,
         del,
         ("78", 0),
       )
       t(
         "deleting ) from a 2-tuple MP with first value blank just moves the cursor to left of )",
-        tuplePattern2WithFirstBlank,
+        tupleMP2WithFirstBlank,
         ~pos=8, // just after )
         bs,
         ("(***,78)", 7),
       )
       t(
         "deleting , from a 2-tuple MP with first value blank converts to a blank",
-        tuplePattern2WithFirstBlank,
+        tupleMP2WithFirstBlank,
         ~pos=4, // just after ,
         del,
         ("***", 0),
@@ -624,20 +624,20 @@ let run = () => {
       // 2-tuple, second blank
       t(
         "deleting ( from a 2-tuple MP with second value blank converts to the non-blank value",
-        tuplePattern2WithSecondBlank,
+        tupleMP2WithSecondBlank,
         del,
         ("56", 0),
       )
       t(
         "deleting ) from a 2-tuple MP with second value blank just moves the cursor left",
-        tuplePattern2WithSecondBlank,
+        tupleMP2WithSecondBlank,
         ~pos=7, // just before )
         del,
         ("(56,***)", 7),
       )
       t(
         "deleting , from a 2-tuple MP with second value blank converts to the non-blank value",
-        tuplePattern2WithSecondBlank,
+        tupleMP2WithSecondBlank,
         ~pos=3, // just before ,
         del,
         ("56", 2),
@@ -646,20 +646,20 @@ let run = () => {
       // 2-tuple, both blank
       t(
         "deleting ( from a blank 2-tuple MP converts to blank",
-        tuplePattern2WithBothBlank,
+        tupleMP2WithBothBlank,
         del,
         ("***", 0),
       )
       t(
         "deleting ) from a blank 2-tuple MP just moves the cursor left",
-        tuplePattern2WithBothBlank,
+        tupleMP2WithBothBlank,
         ~pos=9,
         bs,
         ("(***,***)", 8),
       )
       t(
         "deleting , from a blank 2-tuple MP replaces the tuple with a blank",
-        tuplePattern2WithBothBlank,
+        tupleMP2WithBothBlank,
         ~pos=5,
         bs,
         ("***", 0),
@@ -668,27 +668,27 @@ let run = () => {
       // 3-tuple, no blanks
       t(
         "deleting ( from a filled 3-tuple MP does nothing",
-        tuplePattern3WithNoBlanks,
+        tupleMP3WithNoBlanks,
         del,
         ("(56,78,56)", 0),
       )
       t(
         "deleting ) from a filled 3-tuple MP just moves cursor left",
-        tuplePattern3WithNoBlanks,
+        tupleMP3WithNoBlanks,
         ~pos=10, // just after )
         bs,
         ("(56,78,56)", 9),
       )
       t(
         "deleting first , from a filled 3-tuple MP removes 2nd item",
-        tuplePattern3WithNoBlanks,
+        tupleMP3WithNoBlanks,
         ~pos=3, // just before ,
         del,
         ("(56,56)", 3),
       )
       t(
         "deleting second , from a filled 3-tuple MP removes 3rd item",
-        tuplePattern3WithNoBlanks,
+        tupleMP3WithNoBlanks,
         ~pos=6, // just before ,
         del,
         ("(56,78)", 6),
@@ -697,27 +697,27 @@ let run = () => {
       // 3-tuple MP, first blank
       t(
         "deleting ( from a 3-tuple MP with first item blank does nothing",
-        tuplePattern3WithFirstBlank,
+        tupleMP3WithFirstBlank,
         del,
         ("(***,78,56)", 0),
       )
       t(
         "deleting first , from a 3-tuple MP with first item blank removes 2nd item",
-        tuplePattern3WithFirstBlank,
+        tupleMP3WithFirstBlank,
         ~pos=4, // just before ,
         del,
         ("(***,56)", 1),
       )
       t(
         "deleting second , from a 3-tuple MP with first item blank removes 3rd item",
-        tuplePattern3WithFirstBlank,
+        tupleMP3WithFirstBlank,
         ~pos=8, // just after ,
         bs,
         ("(***,78)", 7),
       )
       t(
         "deleting ) from a 3-tuple MP with first item blank just moves cursor left",
-        tuplePattern3WithFirstBlank,
+        tupleMP3WithFirstBlank,
         ~pos=11, // just after )
         bs,
         ("(***,78,56)", 10),
@@ -726,27 +726,27 @@ let run = () => {
       // 3-tuple MP, second blank
       t(
         "deleting ( from a 3-tuple MP with the second item blank does nothing",
-        tuplePattern3WithSecondBlank,
+        tupleMP3WithSecondBlank,
         del,
         ("(56,***,78)", 0),
       )
       t(
         "deleting first , from a 3-tuple MP with the second item blank removes the blank",
-        tuplePattern3WithSecondBlank,
+        tupleMP3WithSecondBlank,
         ~pos=3, // just before ,
         del,
         ("(56,78)", 3),
       )
       t(
         "deleting second , from a 3-tuple MP with the second item blank removes 3rd item",
-        tuplePattern3WithSecondBlank, // (56,***,78)
+        tupleMP3WithSecondBlank, // (56,***,78)
         ~pos=7, // just before ,
         del,
         ("(56,***)", 4),
       )
       t(
         "deleting ) from a 3-tuple MP with the second item blank just moves cursor left",
-        tuplePattern3WithSecondBlank,
+        tupleMP3WithSecondBlank,
         ~pos=11, // just after )
         bs,
         ("(56,***,78)", 10),
@@ -755,27 +755,27 @@ let run = () => {
       // 3-tuple MP, third blank `(56,78,***)`
       t(
         "deleting ( from a 3-tuple MP with the third item blank does nothing",
-        tuplePattern3WithThirdBlank,
+        tupleMP3WithThirdBlank,
         del,
         ("(56,78,***)", 0),
       )
       t(
         "deleting first , from a 3-tuple MP with the third item blank removes the second item",
-        tuplePattern3WithThirdBlank,
+        tupleMP3WithThirdBlank,
         ~pos=3, // just before ,
         del,
         ("(56,***)", 3), // or maybe 1char to the right of this
       )
       t(
         "deleting second , from a 3-tuple MP with the third item blank removes the blank",
-        tuplePattern3WithThirdBlank,
+        tupleMP3WithThirdBlank,
         ~pos=7, // just after ,
         bs,
         ("(56,78)", 6),
       )
       t(
         "deleting ) from a 3-tuple MP with the third item blank just moves the cursor left",
-        tuplePattern3WithThirdBlank,
+        tupleMP3WithThirdBlank,
         ~pos=11, // just after )
         bs,
         ("(56,78,***)", 10),
@@ -784,27 +784,27 @@ let run = () => {
       // 3-tuple MP, first non-blank `(56,***,***)`
       t(
         "deleting ( from a 3-tuple MP with only first item replaces it with that item",
-        tuplePattern3WithFirstFilled,
+        tupleMP3WithFirstFilled,
         del,
         ("56", 0),
       )
       t(
         "deleting first , from a 3-tuple MP with only first item filled ***",
-        tuplePattern3WithFirstFilled,
+        tupleMP3WithFirstFilled,
         ~pos=3, // just before ,
         del,
         ("(56,***)", 3),
       )
       t(
         "deleting second , from a 3-tuple MP with only first item filled ***",
-        tuplePattern3WithFirstFilled,
+        tupleMP3WithFirstFilled,
         ~pos=8, // just after ,
         bs,
         ("(56,***)", 4),
       )
       t(
         "deleting ) from a 3-tuple MP with only first item filled just moves cursor left",
-        tuplePattern3WithFirstFilled,
+        tupleMP3WithFirstFilled,
         ~pos=12, // just after )
         bs,
         ("(56,***,***)", 11),
@@ -813,27 +813,27 @@ let run = () => {
       // 3-tuple MP, second non-blank `(***,56,***)`
       t(
         "deleting ( from a 3-tuple MP with only second item filled replaces the tuple with the item",
-        tuplePattern3WithSecondFilled,
+        tupleMP3WithSecondFilled,
         del,
         ("56", 0),
       )
       t(
         "deleting first , from a 3-tuple MP with only second item filled removes the second item",
-        tuplePattern3WithSecondFilled,
+        tupleMP3WithSecondFilled,
         ~pos=4, // just before ,
         del,
         ("(***,***)", 1),
       )
       t(
         "deleting second , from a 3-tuple MP with only second item filled removes the ending blank",
-        tuplePattern3WithSecondFilled,
+        tupleMP3WithSecondFilled,
         ~pos=8, // just after ,
         bs,
         ("(***,56)", 7),
       )
       t(
         "deleting ) from a 3-tuple MP with only second item filled just moves the cursor left",
-        tuplePattern3WithSecondFilled,
+        tupleMP3WithSecondFilled,
         ~pos=12, // just after )
         bs,
         ("(***,56,***)", 11),
@@ -842,27 +842,27 @@ let run = () => {
       // 3-tuple MP, third non-blank `(***,***,56)`
       t(
         "deleting ( from a 3-tuple MP with only third item filled replaces the tuple with the item",
-        tuplePattern3WithThirdFilled,
+        tupleMP3WithThirdFilled,
         del,
         ("56", 0),
       )
       t(
         "deleting first , from a 3-tuple MP with only third item filled removes the second blank",
-        tuplePattern3WithThirdFilled,
+        tupleMP3WithThirdFilled,
         ~pos=4, // just before ,
         del,
         ("(***,56)", 1),
       )
       t(
         "deleting second , from a 3-tuple MP with only third item filled removes the filled item",
-        tuplePattern3WithThirdFilled,
+        tupleMP3WithThirdFilled,
         ~pos=9, // just after ,
         bs,
         ("(***,***)", 5),
       )
       t(
         "deleting ) from a 3-tuple MP with only third item filled just moves the cursor left",
-        tuplePattern3WithThirdFilled,
+        tupleMP3WithThirdFilled,
         ~pos=12, // just after )
         bs,
         ("(***,***,56)", 11),
@@ -871,27 +871,27 @@ let run = () => {
       // 3-tuple MP, all blank `(***,***,***)`
       t(
         "deleting ( from a 3-tuple MP of all blanks replaces the tuple with a blank",
-        tuplePattern3WithAllBlank,
+        tupleMP3WithAllBlank,
         del,
         ("***", 0),
       )
       t(
         "deleting first , from a 3-tuple MP of all blanks removes the second blank",
-        tuplePattern3WithAllBlank,
+        tupleMP3WithAllBlank,
         ~pos=4, // just before ,
         del,
         ("(***,***)", 1),
       )
       t(
         "deleting second , from a 3-tuple MP of all blanks removes the third blank",
-        tuplePattern3WithAllBlank,
+        tupleMP3WithAllBlank,
         ~pos=9, // just after ,
         bs,
         ("(***,***)", 5),
       )
       t(
         "deleting ) from a 3-tuple MP of all blanks just moves left",
-        tuplePattern3WithAllBlank,
+        tupleMP3WithAllBlank,
         ~pos=13, // just after )
         bs,
         ("(***,***,***)", 12), // I could see this instead turning into `~***`

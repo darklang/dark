@@ -216,62 +216,58 @@ let nestedMatch = {
 // ----------------
 // Match _Patterns_
 // ----------------
-let fiftySixPat = MP.MPInteger(gid(), 56L)
-let seventyEightPat = MP.MPInteger(gid(), 78L)
+let fiftySixMP = MP.MPInteger(gid(), 56L)
+let seventyMP = MP.MPInteger(gid(), 78L)
 
-let tuplePattern2WithNoBlank = pTuple(fiftySixPat, seventyEightPat, list{})
-let tuplePattern2WithBothBlank = pTuple(bPat(), bPat(), list{})
-let tuplePattern2WithFirstBlank = pTuple(bPat(), seventyEightPat, list{})
-let tuplePattern2WithSecondBlank = pTuple(fiftySixPat, bPat(), list{})
+let tupleMP2WithNoBlank = pTuple(fiftySixMP, seventyMP, list{})
+let tupleMP2WithBothBlank = pTuple(bPat(), bPat(), list{})
+let tupleMP2WithFirstBlank = pTuple(bPat(), seventyMP, list{})
+let tupleMP2WithSecondBlank = pTuple(fiftySixMP, bPat(), list{})
 
-let tuplePattern3WithNoBlanks = pTuple(fiftySixPat, seventyEightPat, list{fiftySixPat})
-let tuplePattern3WithAllBlank = pTuple(bPat(), bPat(), list{bPat()})
+let tupleMP3WithNoBlanks = pTuple(fiftySixMP, seventyMP, list{fiftySixMP})
+let tupleMP3WithAllBlank = pTuple(bPat(), bPat(), list{bPat()})
 
-let tuplePattern3WithFirstBlank = pTuple(bPat(), seventyEightPat, list{fiftySixPat})
-let tuplePattern3WithSecondBlank = pTuple(fiftySixPat, bPat(), list{seventyEightPat})
-let tuplePattern3WithThirdBlank = pTuple(fiftySixPat, seventyEightPat, list{bPat()})
+let tupleMP3WithFirstBlank = pTuple(bPat(), seventyMP, list{fiftySixMP})
+let tupleMP3WithSecondBlank = pTuple(fiftySixMP, bPat(), list{seventyMP})
+let tupleMP3WithThirdBlank = pTuple(fiftySixMP, seventyMP, list{bPat()})
 
-let tuplePattern3WithFirstFilled = pTuple(fiftySixPat, bPat(), list{bPat()})
-let tuplePattern3WithSecondFilled = pTuple(bPat(), fiftySixPat, list{bPat()})
-let tuplePattern3WithThirdFilled = pTuple(bPat(), bPat(), list{fiftySixPat})
+let tupleMP3WithFirstFilled = pTuple(fiftySixMP, bPat(), list{bPat()})
+let tupleMP3WithSecondFilled = pTuple(bPat(), fiftySixMP, list{bPat()})
+let tupleMP3WithThirdFilled = pTuple(bPat(), bPat(), list{fiftySixMP})
 
-let tuplePattern6 = pTuple(
-  fiftySixPat,
-  seventyEightPat,
-  list{fiftySixPat, seventyEightPat, fiftySixPat, seventyEightPat},
-)
+let tupleMP6 = pTuple(fiftySixMP, seventyMP, list{fiftySixMP, seventyMP, fiftySixMP, seventyMP})
 
-let tuplePattern3WithStrs = pTuple(pString("ab"), pString("cd"), list{pString("ef")})
+let tupleMP3WithStrs = pTuple(pString("ab"), pString("cd"), list{pString("ef")})
 
-let tuplePatternHuge = pTuple(
-  fiftySixPat,
-  seventyEightPat,
+let tupleMPHuge = pTuple(
+  fiftySixMP,
+  seventyMP,
   list{
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
-    seventyEightPat,
-    fiftySixPat,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
+    seventyMP,
+    fiftySixMP,
   },
 )
 
