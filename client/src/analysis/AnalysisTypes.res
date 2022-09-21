@@ -211,7 +211,7 @@ module PerformAnalysis = {
           dbs: field("dbs", list(PT.DB.decode), j),
           userFns: field("userFns", list(PT.UserFunction.decode), j),
           userTypes: field("userTypes", list(PT.UserType.decode), j),
-          packageFns : field("packageFns", list(PT.Package.Fn.decode), j),
+          packageFns: field("packageFns", list(PT.Package.Fn.decode), j),
           secrets: field("secrets", list(SecretTypes.decode), j),
         }
       }
@@ -255,7 +255,7 @@ module PerformAnalysis = {
           dbs: field("dbs", list(PT.DB.decode), j),
           userFns: field("userFns", list(PT.UserFunction.decode), j),
           userTypes: field("userTypes", list(PT.UserType.decode), j),
-          packageFns : field("packageFns", list(PT.Package.Fn.decode), j),
+          packageFns: field("packageFns", list(PT.Package.Fn.decode), j),
           secrets: field("secrets", list(SecretTypes.decode), j),
         }
       }
