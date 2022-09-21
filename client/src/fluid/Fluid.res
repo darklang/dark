@@ -1194,14 +1194,12 @@ let caretTargetForStartOfMP = (matchPattern: fluidMatchPattern): CT.t =>
   | MPTuple(id, _, _, _) => {astRef: ARMPattern(id, MPPTuple(TPOpen)), offset: 0}
   }
 
-@ocaml.doc(
-  "returns a caretTarget representing caret placement at the very end
+@ocaml.doc("returns a caretTarget representing caret placement at the very end
   of the expression in `matchPattern`.
 
   The concept of 'very end' is related to an understanding of the tokenization
   of the AST, even though this function doesn't explicitly depend on any
-  tokenization functions."
-)
+  tokenization functions.")
 let rec caretTargetForEndOfMP = (matchPattern: fluidMatchPattern): CT.t =>
   switch matchPattern {
   | MPVariable(id, varName) => {
@@ -5486,8 +5484,9 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           EPartial(gid(), newValue, ENull(id))
         }
       )
-    | ECharacter(_) => recover("echaracter not supported in reconstruct expr", Some(topmostExpr))
+    | ECharacter(_) => recover("ECharacter not supported in reconstruct expr", Some(topmostExpr))
     | EString(eID, _) =>
+      // filter out formatting only relevant to editing experience
       let merged =
         tokens
         |> List.filter(~f=((_, _, type_)) => type_ != "newline" && type_ != "indent")
@@ -5514,12 +5513,12 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       }
     | EBlank(_) => Some(EBlank(id))
     // empty let expr and subsets
-    | ELet(eID, _lhs, rhs, body) =>
+    | ELet(eID, _lhs, rhs, nextExpr) =>
       let letKeywordSelected = findTokenValue(tokens, eID, "let-keyword") != None
 
       let newLhs = findTokenValue(tokens, eID, "let-var-name") |> Option.unwrap(~default="")
 
-      switch (reconstructExpr(rhs), reconstructExpr(body)) {
+      switch (reconstructExpr(rhs), reconstructExpr(nextExpr)) {
       | (None, None) if newLhs != "" => Some(EPartial(gid(), newLhs, EVariable(gid(), newLhs)))
       | (None, Some(e)) => Some(e)
       | (Some(newRhs), None) => Some(ELet(id, newLhs, newRhs, EBlank(gid())))
@@ -5528,15 +5527,13 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       | (_, _) => None
       }
     | EIf(eID, cond, thenBody, elseBody) =>
-      let ifKeywordSelected = findTokenValue(tokens, eID, "if-keyword") != None
-
-      let thenKeywordSelected = findTokenValue(tokens, eID, "if-then-keyword") != None
-
-      let elseKeywordSelected = findTokenValue(tokens, eID, "if-else-keyword") != None
+      let anyIfKeywordSelected =
+        findTokenValue(tokens, eID, "if-keyword") != None ||
+        findTokenValue(tokens, eID, "if-then-keyword") != None ||
+        findTokenValue(tokens, eID, "if-else-keyword") != None
 
       switch (reconstructExpr(cond), reconstructExpr(thenBody), reconstructExpr(elseBody)) {
-      | (newCond, newThenBody, newElseBody)
-        if ifKeywordSelected || (thenKeywordSelected || elseKeywordSelected) =>
+      | (newCond, newThenBody, newElseBody) if anyIfKeywordSelected =>
         Some(
           EIf(
             id,
@@ -5600,11 +5597,14 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       | (_, _) => None
       }
     | ELambda(eID, _, body) =>
-      /* might be an edge case here where one of the vars is not (fully) selected but
-       * is still bound in the body, would be worth turning the EVars in the body to partials somehow */
-      let newVars = /* get lambda-var tokens that belong to this expression
-       * out of the list of tokens in the selection range */
-      tokens |> List.filterMap(~f=x =>
+      // There might still be an edge case here where one of the vars is not
+      // (fully) selected but is still bound in the body. In such a case, it
+      // would be worth turning the relevant `EVariable`s in the body to
+      // partials somehow. TODO
+
+      // get lambda-var tokens that belong to this expression out of the list
+      // of tokens in the selection range
+      let newVars = tokens |> List.filterMap(~f=x =>
         switch x {
         | (vID, value, "lambda-var") if vID == eID => Some(gid(), value)
         | _ => None
@@ -5614,25 +5614,25 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       Some(ELambda(id, newVars, reconstructExpr(body) |> orDefaultExpr))
     | EFieldAccess(eID, e, _) =>
       let newFieldName = findTokenValue(tokens, eID, "field-name") |> Option.unwrap(~default="")
-
       let fieldOpSelected = findTokenValue(tokens, eID, "field-op") != None
-      let e = reconstructExpr(e)
-      switch (e, fieldOpSelected, newFieldName) {
+
+      switch (reconstructExpr(e), fieldOpSelected, newFieldName) {
       | (None, false, newFieldName) if newFieldName !== "" =>
         Some(EPartial(gid(), newFieldName, EVariable(gid(), newFieldName)))
       | (None, true, newFieldName) if newFieldName !== "" =>
         Some(EFieldAccess(id, EBlank(gid()), newFieldName))
       | (Some(e), true, _) => Some(EFieldAccess(id, e, newFieldName))
-      | _ => e
+      | (e, _, _) => e
       }
-    | EVariable(eID, value) =>
-      let newValue = findTokenValue(tokens, eID, "variable") |> Option.unwrap(~default="")
+    | EVariable(eID, name) =>
+      let newName = findTokenValue(tokens, eID, "variable") |> Option.unwrap(~default="")
 
-      let e = EVariable(id, value)
-      if newValue == "" {
+      let e = EVariable(id, name)
+
+      if newName == "" {
         None
-      } else if value != newValue {
-        Some(EPartial(gid(), newValue, e))
+      } else if name != newName {
+        Some(EPartial(gid(), newName, e))
       } else {
         Some(e)
       }
@@ -5730,11 +5730,12 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
           }
       )
 
-    | EConstructor(eID, name, exprs) =>
+    | EConstructor(eID, name, args) =>
       let newName = findTokenValue(tokens, eID, "constructor-name") |> Option.unwrap(~default="")
+      let newArgs = List.map(args, ~f=\">>"(reconstructExpr, orDefaultExpr))
 
-      let newExprs = List.map(exprs, ~f=\">>"(reconstructExpr, orDefaultExpr))
-      let e = EConstructor(id, name, newExprs)
+      let e = EConstructor(id, name, newArgs)
+
       if newName == "" {
         None
       } else if name != newName {
