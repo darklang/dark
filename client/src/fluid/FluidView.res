@@ -139,10 +139,10 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
 }
 
 let viewLiveValue = (vp: viewProps): Html.html<msg> => {
-  //  isLoaded will be set to false later if we are in the middle of loading
-  //  results. All other states are considered loaded. This is used to apply
-  //  a class ".loaded" purely for integration tests being able to know when
-  //  the live value content is ready and can be asserted on
+  // isLoaded will be set to false later if we are in the middle of loading
+  // results. All other states are considered loaded. This is used to apply
+  // a class ".loaded" purely for integration tests being able to know when
+  // the live value content is ready and can be asserted on
   let isLoaded = ref(true)
   // Renders dval
   let renderDval = val => viewDval(val, vp.tlid, vp.secretValues)
@@ -189,12 +189,22 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
 
   FluidTokenizer.ASTInfo.getToken(vp.astInfo)
   |> Option.andThen(~f=(ti: T.tokenInfo) => {
-    let row = ti.startRow
     let content = switch AC.highlighted(vp.fluidState.ac) {
     | Some(FACVariable(_, Some(dv))) =>
-      /* If autocomplete is open and a variable is highlighted,
-       * then show its dval */
+      // If autocomplete is open and a variable is highlighted,
+      // then show its dval
       Some(renderDval(dv, ~canCopy=true))
+    | Some(FACSecret(_, dv)) =>
+      Some(renderDval(dv, ~canCopy=true))
+    | Some(FACDatastore(_) ) => None
+    | Some(FACLiteral(LBool(true)) ) =>
+      Some(renderDval(DBool(true), ~canCopy=true))
+    | Some(FACLiteral(LBool(false)) ) =>
+      Some(renderDval(DBool(false), ~canCopy=true))
+    | Some(FACLiteral(LNull) ) =>
+      Some(renderDval(DNull, ~canCopy=true))
+    | Some(FACKeyword(_) ) =>
+      None
     | _ =>
       // Else show live value of current token
       let token = ti.token
@@ -206,9 +216,9 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
       }
     }
 
-    Option.pair(content, Some(row))
-  })
-  |> // Render live value to the side
+    Option.pair(content, Some(ti.startRow))
+  }) // Render live value to the side
+  |>
   Option.map(~f=((content, row)) => {
     let offset = Int.toFloat(row)
     Html.div(
