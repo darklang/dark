@@ -333,7 +333,13 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     b |> addMany(Belt.List.concatMany([whole, list{TFloatPoint(id, parentID)}, fraction]))
   | EBlank(id) => b |> add(TBlank(id, parentID))
   | ELet(id, lhs, rhs, next) =>
-    let rhsID = E.toID(rhs)
+    let rhsID = switch rhs {
+    | ERightPartial(_, _, oldExpr)
+    | ELeftPartial(_, _, oldExpr)
+    | EPartial(_, _, oldExpr) =>
+      E.toID(oldExpr)
+    | _ => E.toID(rhs)
+    }
     b
     |> add(TLetKeyword(id, rhsID, parentID))
     |> add(TLetVarName(id, rhsID, lhs, parentID))
