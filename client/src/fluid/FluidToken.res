@@ -19,10 +19,10 @@ let tid = (t: t): id =>
   | TNullToken(id, _)
   | TBlank(id, _)
   | TPlaceholder({blankID: id, _})
-  | TPartial(id, _, _)
+  | TPartial(id, _, _, _)
   | TLeftPartial(id, _, _)
   | TRightPartial(id, _, _)
-  | TPartialGhost(id, _, _)
+  | TPartialGhost(id, _, _, _)
   | TLetKeyword(id, _, _)
   | TLetAssignment(id, _, _)
   | TLetVarName(id, _, _, _)
@@ -89,11 +89,12 @@ let analysisID = (t: t): id =>
   | TRecordFieldname({exprID: id, _})
   | TLambdaVar(_, id, _, _, _)
   | TRecordSep(_, _, id)
+  | TPartial(_, id, _, _)
+  | TPartialGhost(_, id, _, _)
   | TMatchBranchArrow({patternID: id, _}) => id
   | _ => tid(t)
   }
 
-// TODO(alice) merge these two functions?
 let parentExprID = (t: t): id =>
   switch t {
   | TNewline(Some(_, id, _)) => id
@@ -125,10 +126,10 @@ let parentBlockID = (t: t): option<id> =>
   | TFloatWhole(_, _, pid)
   | TFloatPoint(_, pid)
   | TFloatFractional(_, _, pid)
-  | TPartial(_, _, pid)
+  | TPartial(_, _, _, pid)
   | TRightPartial(_, _, pid)
   | TLeftPartial(_, _, pid)
-  | TPartialGhost(_, _, pid)
+  | TPartialGhost(_, _, _, pid)
   | TLetKeyword(_, _, pid)
   | TLetVarName(_, _, _, pid)
   | TLetAssignment(_, _, pid)
@@ -360,7 +361,7 @@ let isBlank = (t: t): bool =>
   | TFieldPartial(_, _, _, "", _)
   | TLetVarName(_, _, "", _)
   | TLambdaVar(_, _, _, "", _)
-  | TPartial(_, "", _)
+  | TPartial(_, _, "", _)
   | TRightPartial(_, "", _)
   | TLeftPartial(_, "", _)
   | TMPBlank(_) => true
@@ -534,10 +535,10 @@ let toText = (t: t): string => {
   | TNullToken(_) => "null"
   | TBlank(_) => "   "
   | TPlaceholder({placeholder: {name, tipe}, _}) => " " ++ (name ++ (" : " ++ (tipe ++ " ")))
-  | TPartial(_, str, _) => shouldntBeEmpty(str)
+  | TPartial(_, _, str, _) => shouldntBeEmpty(str)
   | TRightPartial(_, str, _) => shouldntBeEmpty(str)
   | TLeftPartial(_, str, _) => shouldntBeEmpty(str)
-  | TPartialGhost(_, str, _) => shouldntBeEmpty(str)
+  | TPartialGhost(_, _, str, _) => shouldntBeEmpty(str)
   | TSep(_) => " "
   | TNewline(_) => "\n"
   | TLetKeyword(_) => "let "
@@ -605,7 +606,7 @@ let toTestText = (t: t): string => {
     let count = 1 + String.length(name) + 3 + String.length(tipe) + 1
     Caml.String.make(count, '_')
   | TBlank(_) => "___"
-  | TPartialGhost(_, str, _) =>
+  | TPartialGhost(_, _, str, _) =>
     switch String.length(str) {
     | 0 => "@EMPTY@"
     | 1 => "@"
@@ -909,9 +910,9 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TInteger(id1, val1, _), TInteger(id2, val2, _)) => id1 == id2 && val1 == val2
   | (TFloatWhole(id1, val1, _), TFloatWhole(id2, val2, _))
   | (TFloatFractional(id1, val1, _), TFloatFractional(id2, val2, _))
-  | (TPartial(id1, val1, _), TPartial(id2, val2, _))
+  | (TPartial(id1, _, val1, _), TPartial(id2, _, val2, _))
   | (TRightPartial(id1, val1, _), TRightPartial(id2, val2, _))
-  | (TPartialGhost(id1, val1, _), TPartialGhost(id2, val2, _))
+  | (TPartialGhost(id1, _, val1, _), TPartialGhost(id2, _, val2, _))
   | (TString(id1, val1, _), TString(id2, val2, _))
   | (TLetVarName(id1, _, val1, _), TLetVarName(id2, _, val2, _))
   | (TBinOp(id1, val1, _), TBinOp(id2, val2, _))

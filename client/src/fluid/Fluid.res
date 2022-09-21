@@ -706,7 +706,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARTuple(id, TPClose), TTupleClose(id'))
     | (ARMatch(id, MPKeyword), TMatchKeyword(id'))
     | (ARNull(id), TNullToken(id', _))
-    | (ARPartial(id), TPartial(id', _, _))
+    | (ARPartial(id), TPartial(id', _, _, _))
     | (ARPartial(id), TFieldPartial(id', _, _, _, _))
     | (ARRightPartial(id), TRightPartial(id', _, _))
     | (ARLeftPartial(id), TLeftPartial(id', _, _))
@@ -908,7 +908,7 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TFloatWhole(id, _, _) => Some({astRef: ARFloat(id, FPWhole), offset: offset})
   | TFloatPoint(id, _) => Some({astRef: ARFloat(id, FPPoint), offset: offset})
   | TFloatFractional(id, _, _) => Some({astRef: ARFloat(id, FPFractional), offset: offset})
-  | TPartial(id, _, _) => Some({astRef: ARPartial(id), offset: offset})
+  | TPartial(id, _, _, _) => Some({astRef: ARPartial(id), offset: offset})
   | TFieldPartial(id, _, _, _, _) => Some({astRef: ARPartial(id), offset: offset})
   | TRightPartial(id, _, _) => Some({astRef: ARRightPartial(id), offset: offset})
   | TLeftPartial(id, _, _) => Some({astRef: ARLeftPartial(id), offset: offset})
@@ -5193,9 +5193,9 @@ let rec updateKey = (
     }
 
     switch (toTheLeft, toTheRight) {
-    | (L(TPartial(_, str, _), ti), _)
+    | (L(TPartial(_, _, str, _), ti), _)
     | (L(TFieldPartial(_, _, _, str, _), ti), _)
-    | (_, R(TPartial(_, str, _), ti))
+    | (_, R(TPartial(_, _, str, _), ti))
     | (_, R(TFieldPartial(_, _, _, str, _), ti))
       if /* When pressing an infix character, it's hard to tell whether to commit or
        * not.  If the partial is an int, or a function that returns one, pressing
@@ -5231,7 +5231,7 @@ let rec updateKey = (
       } else {
         astInfo
       }
-    | (L(TPartial(_, _, _), ti), _) if false /* disable for now */ =>
+    | (L(TPartial(_, _, _, _), ti), _) if false /* disable for now */ =>
       maybeCommitStringPartial(pos, ti, astInfo)
     | _ => astInfo
     }

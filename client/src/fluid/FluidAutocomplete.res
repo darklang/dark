@@ -504,7 +504,7 @@ let generate = (m: model, props: props, query: fullQuery): list<item> => {
   | TFieldName(_) | TFieldPartial(_) => generateFields(query.fieldList)
   | TLeftPartial(_) => // Left partials can ONLY be if/let/match for now
     list{FACKeyword(KLet), FACKeyword(KIf), FACKeyword(KMatch)}
-  | TPartial(id, name, _) =>
+  | TPartial(id, _, name, _) =>
     Belt.List.concat(generateExprs(m, props, query.tl, query.ti), generateCommands(name, tlid, id))
   | _ => generateExprs(m, props, query.tl, query.ti)
   }

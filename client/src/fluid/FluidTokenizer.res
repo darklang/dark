@@ -201,12 +201,12 @@ let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int)
 
 let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   open Builder
-  let ghostPartial = (id, newName, oldName) => {
+  let ghostPartial = (id, oldID, newName, oldName) => {
     let ghostSuffix = String.dropLeft(~count=String.length(newName), oldName)
     if ghostSuffix == "" {
       list{}
     } else {
-      list{TPartialGhost(id, ghostSuffix, None)}
+      list{TPartialGhost(id, oldID, ghostSuffix, None)}
     }
   }
 
@@ -409,9 +409,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> start
     |> addMany(list{TBinOp(id, op, parentID), TSep(id, parentID)})
     |> nest(~indent=0, ~placeholderFor=Some(id, op, 1), rexpr)
-  | EPartial(id, newName, EBinOp(_, oldName, lexpr, rexpr, _ster)) =>
+  | EPartial(id, newName, EBinOp(oldID, oldName, lexpr, rexpr, _ster)) =>
     let oldName = PT.InfixStdlibFnName.toString(oldName)
-    let ghost = ghostPartial(id, newName, FluidUtil.ghostPartialName(oldName))
+    let ghost = ghostPartial(id, oldID, newName, FluidUtil.ghostPartialName(oldName))
 
     let start = b =>
       switch lexpr {
@@ -424,7 +424,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
 
     b
     |> start
-    |> add(TPartial(id, newName, parentID))
+    |> add(TPartial(id, oldID, newName, parentID))
     |> addMany(ghost)
     |> add(TSep(id, parentID))
     |> nest(~indent=2, ~placeholderFor=Some(id, oldName, 1), rexpr)
@@ -443,19 +443,19 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TFnName(id, partialName, displayName, fnNameStr, ster))
     |> addMany(versionToken)
     |> addArgs(FQFnName.toString(fnName), id, args)
-  | EPartial(id, newName, EFnCall(_, oldName, args, _)) =>
+  | EPartial(id, newName, EFnCall(oldID, oldName, args, _)) =>
     let oldName = FQFnName.toString(oldName)
-    let partial = TPartial(id, newName, parentID)
+    let partial = TPartial(id, oldID, newName, parentID)
     let newText = T.toText(partial)
     let oldText = FluidUtil.ghostPartialName(oldName)
-    let ghost = ghostPartial(id, newText, oldText)
+    let ghost = ghostPartial(id, oldID, newText, oldText)
     b |> add(partial) |> addMany(ghost) |> addArgs(oldName, id, args)
   | EConstructor(id, name, exprs) =>
     b |> add(TConstructorName(id, name)) |> addArgs(name, id, exprs)
-  | EPartial(id, newName, EConstructor(_, oldName, exprs)) =>
-    let partial = TPartial(id, newName, parentID)
+  | EPartial(id, newName, EConstructor(oldID, oldName, exprs)) =>
+    let partial = TPartial(id, oldID, newName, parentID)
     let newText = T.toText(partial)
-    let ghost = ghostPartial(id, newText, oldName)
+    let ghost = ghostPartial(id, oldID, newText, oldName)
     b |> add(partial) |> addMany(ghost) |> addArgs(oldName, id, exprs)
   | EFieldAccess(id, expr, fieldname) =>
     let lhsid = E.toID(expr)
@@ -466,7 +466,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     let lhsid = E.toID(expr)
     let partial = TFieldPartial(id, faID, lhsid, newFieldname, parentID)
     let newText = T.toText(partial)
-    let ghost = ghostPartial(id, newText, oldFieldname)
+    let ghost = ghostPartial(id, faID, newText, oldFieldname)
     b
     |> addNested(~f=toTokens'(expr))
     |> addMany(list{TFieldOp(id, E.toID(expr), parentID), partial})
@@ -648,7 +648,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       )
       |> addNewlineIfNeeded(Some(id, id, Some(List.length(pairs))))
     )
-  | EPartial(id, str, _) => b |> add(TPartial(id, str, parentID))
+  | EPartial(id, str, oldExpr) => b |> add(TPartial(id, E.toID(oldExpr), str, parentID))
   | ERightPartial(id, newOp, expr) =>
     b
     |> addNested(~f=toTokens'(expr))

@@ -57,16 +57,16 @@ module Token = {
     | TFloatWhole(ID.t, string, option<parentBlockID>)
     | TFloatPoint(ID.t, option<parentBlockID>)
     | TFloatFractional(ID.t, string, option<parentBlockID>)
-    /* If you're filling in an expr, but havent finished it. Not used for
-     * non-expr names. */
-    | TPartial(ID.t, string, option<parentBlockID>)
+    // If you're filling in an expr, but havent finished it. Not used for
+    // non-expr names
+    | TPartial(ID.t, analysisID, string, option<parentBlockID>)
     // A partial that extends out to the right. Used to create binops.
     // A partial that preceeds an existing expression, used to wrap things in other things
     | TLeftPartial(ID.t, string, option<parentBlockID>)
     | TRightPartial(ID.t, string, option<parentBlockID>)
-    /* When a partial used to be another thing, we want to show the name of the
-     * old thing in a non-interactable way */
-    | TPartialGhost(ID.t, string, option<parentBlockID>)
+    // When a partial used to be another thing, we want to show the name of the
+    // old thing in a non-interactable way
+    | TPartialGhost(ID.t, analysisID, string, option<parentBlockID>)
     // the id *here disambiguates with other separators for reflow
     | TSep(ID.t, option<parentBlockID>)
     /* The first id is the id of the expression directly associated with the
