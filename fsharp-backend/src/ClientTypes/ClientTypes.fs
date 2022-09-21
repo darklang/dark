@@ -471,6 +471,7 @@ module Analysis =
       dbs : List<PT.DB.T>
       userFns : list<PT.UserFunction.T>
       userTypes : list<PT.UserType.T>
+      packageFns : list<PT.Package.Fn>
       secrets : list<PT.Secret.T> }
 
   type FunctionAnalysisParam =
@@ -480,6 +481,7 @@ module Analysis =
       dbs : List<PT.DB.T>
       userFns : list<PT.UserFunction.T>
       userTypes : list<PT.UserType.T>
+      packageFns : list<PT.Package.Fn>
       secrets : list<PT.Secret.T> }
 
   type PerformAnalysisParams =

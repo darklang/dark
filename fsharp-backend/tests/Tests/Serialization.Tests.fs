@@ -428,6 +428,21 @@ module Values =
 
   let testUserTypes : List<PT.UserType.T> = [ testUserType ]
 
+  let testPackageFn : PT.Package.Fn =
+    { name =
+        { owner = "dark"
+          package = "stdlib"
+          module_ = "Int"
+          function_ = "mod"
+          version = 0 }
+      body = testExpr
+      parameters = [ { name = "param"; typ = testType; description = "desc" } ]
+      returnType = testType
+      description = "test"
+      author = "test"
+      deprecated = false
+      tlid = testTLID }
+
 
   let testToplevels : List<PT.Toplevel.T> =
     [ List.map PT.Toplevel.TLHandler testHandlers
@@ -782,21 +797,7 @@ module GenericSerializersTests =
       v<ApiServer.Tunnels.Register.T> "simple" { success = false }
 
       // Packages
-      v<ApiServer.Packages.ListV1.T>
-        "simple"
-        [ { name =
-              { owner = "dark"
-                package = "stdlib"
-                module_ = "Int"
-                function_ = "mod"
-                version = 0 }
-            body = testExpr
-            parameters = [ { name = "param"; typ = testType; description = "desc" } ]
-            returnType = testType
-            description = "test"
-            author = "test"
-            deprecated = false
-            tlid = testTLID } ]
+      v<ApiServer.Packages.ListV1.T> "simple" [ testPackageFn ]
 
       // SecretsV1
 
@@ -876,6 +877,7 @@ module GenericSerializersTests =
                   version = 1 } ]
             userFns = testUserFunctions
             userTypes = testUserTypes
+            packageFns = [ testPackageFn ]
             secrets = [ { name = "z"; value = "y" } ] })
       v<ClientTypes.Analysis.PerformAnalysisParams>
         "function"
@@ -899,6 +901,7 @@ module GenericSerializersTests =
                   version = 1 } ]
             userFns = testUserFunctions
             userTypes = testUserTypes
+            packageFns = [ testPackageFn ]
             secrets = [ { name = "z"; value = "y" } ] })
 
 

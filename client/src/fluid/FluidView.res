@@ -210,7 +210,7 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
   })
   |> // Render live value to the side
   Option.map(~f=((content, row)) => {
-    let offset = float_of_int(row)
+    let offset = Int.toFloat(row)
     Html.div(
       list{
         Attrs.classList(list{("live-value", true), ("loaded", isLoaded.contents)}),

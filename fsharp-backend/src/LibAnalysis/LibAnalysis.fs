@@ -51,6 +51,7 @@ module Eval =
     (userTypes : List<RT.UserType.T>)
     (dbs : List<RT.DB.T>)
     (expr : RT.Expr)
+    (packageFns : List<RT.Package.Fn>)
     (secrets : List<RT.Secret.T>)
     : Task<AT.AnalysisResults> =
     task {
@@ -67,8 +68,10 @@ module Eval =
         LibExecutionStdLib.StdLib.fns
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
-      // TODO: get packages from caller
-      let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
+      let packageFns =
+        packageFns |> Map.fromListBy (fun fn -> RT.FQFnName.Package fn.name)
+
+      let libraries : RT.Libraries = { stdlib = stdlib; packageFns = packageFns }
       let results, traceDvalFn = Exe.traceDvals ()
       let functionResults = traceData.function_results
 
@@ -103,6 +106,7 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
     (userTypes : List<PT.UserType.T>)
     (dbs : List<PT.DB.T>)
     (expr : PT.Expr)
+    (packageFns : List<PT.Package.Fn>)
     (secrets : List<PT.Secret.T>)
     : Task<CTA.AnalysisEnvelope> =
     task {
@@ -111,9 +115,10 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
       let userTypes = List.map PT2RT.UserType.toRT userTypes
       let dbs = List.map PT2RT.DB.toRT dbs
       let expr = PT2RT.Expr.toRT expr
+      let packageFns = List.map PT2RT.Package.toRT packageFns
       let secrets = List.map PT2RT.Secret.toRT secrets
       let! result =
-        Eval.runAnalysis tlid traceData userFns userTypes dbs expr secrets
+        Eval.runAnalysis tlid traceData userFns userTypes dbs expr packageFns secrets
 
       return (traceID, CTA.AnalysisResults.fromAT result)
     }
@@ -128,6 +133,7 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
       ah.userTypes
       ah.dbs
       ah.handler.ast
+      ah.packageFns
       ah.secrets
 
   | CTA.AnalyzeFunction af ->
@@ -139,6 +145,7 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
       af.userTypes
       af.dbs
       af.func.body
+      af.packageFns
       af.secrets
 
 

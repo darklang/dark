@@ -184,6 +184,7 @@ module PerformAnalysis = {
         dbs: list<PT.DB.t>,
         userFns: list<PT.UserFunction.t>,
         userTypes: list<PT.UserType.t>,
+        packageFns: list<PT.Package.Fn.t>,
         secrets: list<SecretTypes.t>,
       }
 
@@ -196,6 +197,7 @@ module PerformAnalysis = {
           ("dbs", list(PT.DB.encode, params.dbs)),
           ("userFns", list(PT.UserFunction.encode, params.userFns)),
           ("userTypes", list(PT.UserType.encode, params.userTypes)),
+          ("packageFns", list(PT.Package.Fn.encode, params.packageFns)),
           ("secrets", list(SecretTypes.encode, params.secrets)),
         })
       }
@@ -209,6 +211,7 @@ module PerformAnalysis = {
           dbs: field("dbs", list(PT.DB.decode), j),
           userFns: field("userFns", list(PT.UserFunction.decode), j),
           userTypes: field("userTypes", list(PT.UserType.decode), j),
+          packageFns : field("packageFns", list(PT.Package.Fn.decode), j),
           secrets: field("secrets", list(SecretTypes.decode), j),
         }
       }
@@ -225,6 +228,7 @@ module PerformAnalysis = {
         dbs: list<PT.DB.t>,
         userFns: list<PT.UserFunction.t>,
         userTypes: list<PT.UserType.t>,
+        packageFns: list<PT.Package.Fn.t>,
         secrets: list<SecretTypes.t>,
       }
 
@@ -237,6 +241,7 @@ module PerformAnalysis = {
           ("dbs", list(PT.DB.encode, params.dbs)),
           ("userFns", list(PT.UserFunction.encode, params.userFns)),
           ("userTypes", list(PT.UserType.encode, params.userTypes)),
+          ("packageFns", list(PT.Package.Fn.encode, params.packageFns)),
           ("secrets", list(SecretTypes.encode, params.secrets)),
         })
       }
@@ -250,6 +255,7 @@ module PerformAnalysis = {
           dbs: field("dbs", list(PT.DB.decode), j),
           userFns: field("userFns", list(PT.UserFunction.decode), j),
           userTypes: field("userTypes", list(PT.UserType.decode), j),
+          packageFns : field("packageFns", list(PT.Package.Fn.decode), j),
           secrets: field("secrets", list(SecretTypes.decode), j),
         }
       }
