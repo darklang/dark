@@ -5460,9 +5460,12 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
     | _ if tokens == list{} => None
     // basic, single/fixed-token expressions
     | EInteger(eID, _) =>
-      findTokenValue(tokens, eID, "integer")
-      |> Option.map(~f=Util.coerceStringTo64BitInt)
-      |> Option.map(~f=v => EInteger(gid(), v))
+      findTokenValue(tokens, eID, "integer")->Option.map(~f=v =>
+        switch Util.truncateStringTo64BitInt(v) {
+        | Ok(v) => EInteger(gid(), v)
+        | Error(_) => EBlank(gid())
+        }
+      )
     | EBool(eID, value) =>
       Option.or_(
         findTokenValue(tokens, eID, "true"),
