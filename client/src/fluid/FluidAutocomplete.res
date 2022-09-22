@@ -343,7 +343,7 @@ let typeCheck = (
     | TVariable(_) => valid
     | _ => invalidReturnType
     }
-  | FACField(_) | FACLiteral(_) | FACKeyword(_) | FACPattern(_) | FACCreateFunction(_) => valid
+  | FACField(_) | FACLiteral(_) | FACKeyword(_) | FACMatchPattern(_) | FACCreateFunction(_) => valid
   }
 }
 
