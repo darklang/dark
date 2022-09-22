@@ -67,6 +67,7 @@ let viewDval = (dval, tlid, secrets, ~canCopy: bool) => {
   }
 }
 
+@ppx.deriving(show({with_path: false}))
 type rec lvResult =
   | WithMessage(string)
   | WithDval({value: RT.Dval.t, canCopy: bool})
@@ -194,17 +195,12 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
       // If autocomplete is open and a variable is highlighted,
       // then show its dval
       Some(renderDval(dv, ~canCopy=true))
-    | Some(FACSecret(_, dv)) =>
-      Some(renderDval(dv, ~canCopy=true))
-    | Some(FACDatastore(_) ) => None
-    | Some(FACLiteral(LBool(true)) ) =>
-      Some(renderDval(DBool(true), ~canCopy=true))
-    | Some(FACLiteral(LBool(false)) ) =>
-      Some(renderDval(DBool(false), ~canCopy=true))
-    | Some(FACLiteral(LNull) ) =>
-      Some(renderDval(DNull, ~canCopy=true))
-    | Some(FACKeyword(_) ) =>
-      None
+    | Some(FACSecret(_, dv)) => Some(renderDval(dv, ~canCopy=true))
+    | Some(FACDatastore(_)) => None
+    | Some(FACLiteral(LBool(true))) => Some(renderDval(DBool(true), ~canCopy=true))
+    | Some(FACLiteral(LBool(false))) => Some(renderDval(DBool(false), ~canCopy=true))
+    | Some(FACLiteral(LNull)) => Some(renderDval(DNull, ~canCopy=true))
+    | Some(FACKeyword(_)) => None
     | _ =>
       // Else show live value of current token
       let token = ti.token
@@ -218,8 +214,7 @@ let viewLiveValue = (vp: viewProps): Html.html<msg> => {
 
     Option.pair(content, Some(ti.startRow))
   }) // Render live value to the side
-  |>
-  Option.map(~f=((content, row)) => {
+  |> Option.map(~f=((content, row)) => {
     let offset = Int.toFloat(row)
     Html.div(
       list{
