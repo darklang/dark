@@ -27,6 +27,8 @@ let findExpr = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.findExpr(ta
 
 let findExprParent = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.findParent(target)
 
+let findMP = (target: id, ast: t): option<MP.t> => toExpr(ast) |> E.findMP(target)
+
 let ancestors = (target: id, ast: t): list<E.t> => toExpr(ast) |> E.ancestors(target)
 
 let blanks = (ast: t): list<E.t> => toExpr(ast) |> E.blanks

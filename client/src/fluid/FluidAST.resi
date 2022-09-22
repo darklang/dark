@@ -70,13 +70,17 @@ let blanks: t => list<FluidExpression.t>
   * See FluidExpression.ids ")
 let ids: t => list<ID.t>
 
-@ocaml.doc(" [find target ast] recursively finds the expression having an id of [target]
-  * in [ast] and returns it if found.
-  *
-  * See FluidExpression.find ")
+@ocaml.doc("[findExpr target ast] recursively finds the expression having an id
+  of [target] in [ast] and returns it if found.
+
+  See FluidExpression.find")
 let findExpr: (ID.t, t) => option<FluidExpression.t>
 
-@ocaml.doc(" [findParent target ast] recursively finds the expression having an id of
+@ocaml.doc("[findMP target ast] recursively finds the match pattern having an
+  id of [target] in [ast] and returns it if found")
+let findMP: (ID.t, t) => option<FluidMatchPattern.t>
+
+@ocaml.doc(" [findExprParent target ast] recursively finds the expression having an id of
   * [target] in [ast] and then returns the parent of that expression.
   *
   * See FluidExpression.findParent ")
