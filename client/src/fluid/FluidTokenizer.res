@@ -638,9 +638,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       }
       let addPipeEntry = b => {
         if E.isBlank(e) {
-          b |> add(TBlank(id, E.toID(analysisExpr), parentID))
+          b |> add(TBlank(E.toID(e), E.toID(analysisExpr), parentID))
         } else {
-          b |> addNested(~f=toTokens'(e))
+          b |> addNested(~f=toTokens'(~parentID, e))
         }
       }
       (
