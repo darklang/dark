@@ -663,39 +663,45 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   }
 }
 
-let toHumanReadable = (expr: t): string => {
+let toHumanReadable = (expr: t, showID: bool): string => {
   let rec recurse = (~indent: int, expr: t): string => {
     let iStr = String.repeat(~count=indent, " ")
     let r = recurse(~indent)
     let rin = recurse(~indent=indent + 2)
     let newlineList = exprs => exprs |> List.map(~f=rin) |> String.join(~sep="\n")
     let quoted = str => `"${str}"`
+    let id = if showID {
+      `[${expr->toID->ID.toString}]`
+    } else {
+      ""
+    }
     let eStr = switch expr {
-    | EBlank(_) => "(blank)"
-    | ECharacter(_, str) => `(char '${str}')`
+    | EBlank(_) => `(blank${id})`
+    | ECharacter(_, str) => `(char${id} '${str}')`
     | EString(_, str) =>
-      if String.length(str) > 20 {
+      let str = if String.length(str) > 20 {
         String.slice(~from=0, ~to_=20, str) ++ "..."
       } else {
         str
-      } |> Printf.sprintf("(str \"%s\")")
-    | EBool(_, true) => "(true)"
-    | EBool(_, false) => "(false)"
+      }
+      `(str${id} "${str}")`
+    | EBool(_, true) => `(true${id})`
+    | EBool(_, false) => `(false${id})`
     | EFloat(_, sign, whole, fractional) =>
-      Printf.sprintf(`(%s%s.%s)`, ProgramTypes.Sign.toString(sign), whole, fractional)
-    | EInteger(_, i) => `(${Int64.to_string(i)})`
-    | ENull(_) => "(null)"
-    | EPipeTarget(_) => "(pt)"
-    | EPartial(_, str, e) => Printf.sprintf(`(partial "%s" %s)`, str, r(e))
-    | ERightPartial(_, str, e) => Printf.sprintf(`(rpartial "%s" %s)`, str, r(e))
-    | ELeftPartial(_, str, e) => Printf.sprintf(`(lpartial "%s" %s)`, str, r(e))
-    | EFnCall(_, name, list{}, _) => Printf.sprintf("(fn \"%s\")", FQFnName.toString(name))
-    | EFnCall(_, name, exprs, _) =>
-      Printf.sprintf("(fn \"%s\"\n%s)", FQFnName.toString(name), newlineList(exprs))
+      let sign = ProgramTypes.Sign.toString(sign)
+      `(${sign}${whole}.${fractional}${id})`
+    | EInteger(_, i) => `(${Int64.to_string(i)}${id})`
+    | ENull(_) => `(null${id})`
+    | EPipeTarget(_) => `(pt${id})`
+    | EPartial(_, str, e) => `(partial${id} "${str}" ${r(e)})`
+    | ERightPartial(_, str, e) => `(rpartial${id} "${str}" ${r(e)})`
+    | ELeftPartial(_, str, e) => `(lpartial${id} "${str}" ${r(e)})`
+    | EFnCall(_, name, list{}, _) => `(fn${id} "${FQFnName.toString(name)}")`
+    | EFnCall(_, name, exprs, _) => `(fn${id} "${FQFnName.toString(name)}"\n${newlineList(exprs)})`
     | EBinOp(_, name, lhs, rhs, _) =>
-      Printf.sprintf("(binop \"%s\"\n%s\n%s)", PT.InfixStdlibFnName.toString(name), r(lhs), r(rhs))
-    | EVariable(_, name) => Printf.sprintf(`(%s)`, name)
-    | EFieldAccess(_, e, name) => Printf.sprintf("(fieldAccess \"%s\"\n%s)", name, r(e))
+      `(binop${id} "${PT.InfixStdlibFnName.toString(name)}"\n${r(lhs)}\n${r(rhs)})`
+    | EVariable(_, name) => `(${name}${id})`
+    | EFieldAccess(_, e, name) => `(fieldAccess${id} "${name}"\n${r(e)})`
     | EMatch(_, cond, matches) =>
       let rec pToTestcase = (p: FluidMatchPattern.t): string => {
         let listed = elems => "[" ++ (String.join(~sep=";", elems) ++ "]")
@@ -727,30 +733,24 @@ let toHumanReadable = (expr: t): string => {
         iStr ++ "  (" ++ pToTestcase(p) ++ ", " ++ rin(e) ++ ")"
       )
 
-      Printf.sprintf("(match %s\n%s)", r(cond), String.join(~sep="\n", matchStrs))
-    | ERecord(_, list{}) => "(record)"
+      `(match${id} ${r(cond)}\n${String.join(~sep="\n", matchStrs)})`
+    | ERecord(_, list{}) => `(record${id})`
     | ERecord(_, pairs) =>
-      let pairStrs = List.map(pairs, ~f=((k, v)) =>
-        Printf.sprintf(`%s("%s" %s)`, iStr, k, String.trim(r(v)))
-      )
-
-      Printf.sprintf("(record\n%s)", String.join(~sep="\n", pairStrs))
-    | EList(_, list{}) => "(list)"
-    | EList(_, exprs) => Printf.sprintf("(list\n%s)", newlineList(exprs))
+      let pairStrs = List.map(pairs, ~f=((k, v)) => `${iStr}("${k}" ${String.trim(r(v))})`)
+      `(record${id}\n${String.join(~sep="\n", pairStrs)})`
+    | EList(_, list{}) => `(list${id})`
+    | EList(_, exprs) => `(list${id}\n${newlineList(exprs)})`
     | ETuple(_, first, second, theRest) =>
       let exprs = list{first, second, ...theRest}
-      Printf.sprintf("(tuple\n%s)", newlineList(exprs))
-    | EPipe(_, e1, e2, rest) => Printf.sprintf("(pipe\n%s)", newlineList(list{e1, e2, ...rest}))
-    | EConstructor(_, name, exprs) =>
-      Printf.sprintf("(constructor \"%s\"\n%s)", name, newlineList(exprs))
-    | EIf(_, cond, then', else') =>
-      Printf.sprintf("(if %s\n%s\n%s)", r(cond), rin(then'), rin(else'))
-    | ELet(_, lhs, rhs, body) => Printf.sprintf("(let %s\n%s\n%s)", lhs, rin(rhs), r(body))
+      `(tuple${id}\n${newlineList(exprs)})`
+    | EPipe(_, e1, e2, rest) => `(pipe${id}\n${newlineList(list{e1, e2, ...rest})})`
+    | EConstructor(_, name, exprs) => `(constructor${id} "${name}"\n${newlineList(exprs)})`
+    | EIf(_, cond, then', else') => `(if${id} ${r(cond)}\n${rin(then')}\n${rin(else')})`
+    | ELet(_, lhs, rhs, body) => `(let${id} ${lhs}\n${rin(rhs)}\n${r(body)})`
     | ELambda(_, names, body) =>
       let names = names->List.map(~f=Tuple2.second)->List.toArray->Js.Array2.joinWith("\", \"")
-      `(lambda "${names}"\n${rin(body)})`
-    | EFeatureFlag(_, _, cond, old, new') =>
-      Printf.sprintf("(flag %s\n%s\n%s)", rin(cond), rin(old), rin(new'))
+      `(lambda${id} "${names}"\n${rin(body)})`
+    | EFeatureFlag(_, _, cond, old, new') => `(flag${id} ${rin(cond)}\n${rin(old)}\n${rin(new')})`
     }
 
     iStr ++ eStr

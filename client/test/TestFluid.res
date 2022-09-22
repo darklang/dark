@@ -556,7 +556,7 @@ let tStruct = (
     let astInfo = processMsg(inputs, astInfo)
     expect(FluidAST.toExpr(astInfo.ast))
     |> withEquality(FluidExpression.testEqualIgnoringIds)
-    |> withPrinter(FluidExpression.toHumanReadable)
+    |> withPrinter(expr => FluidExpression.toHumanReadable(expr, false))
     |> toEqual(expected)
   })
 
