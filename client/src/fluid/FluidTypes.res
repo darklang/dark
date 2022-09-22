@@ -44,7 +44,8 @@ module Token = {
     | TStringCloseQuote(ID.t, string)
     // multi-line strings: id, segment, start offset, full-string
     | TStringML(ID.t, string, int, string)
-    | TBlank(ID.t, option<parentBlockID>)
+    // Sometimes the analysis wants to look "through" blanks (eg in pipes)
+    | TBlank(ID.t, analysisID, option<parentBlockID>)
     | TPlaceholder({
         blankID: ID.t,
         fnID: ID.t,

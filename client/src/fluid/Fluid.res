@@ -688,7 +688,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
   let targetAndTokenInfoToMaybeCaretPos = ((ct, ti): (CT.t, T.tokenInfo)): option<int> =>
     switch (ct.astRef, ti.token) {
     | (ARBinOp(id), TBinOp(id', _, _))
-    | (ARBlank(id), TBlank(id', _) | TPlaceholder({blankID: id', _}))
+    | (ARBlank(id), TBlank(id', _, _) | TPlaceholder({blankID: id', _}))
     | (ARBool(id), TTrue(id', _) | TFalse(id', _))
     | (ARConstructor(id), TConstructorName(id', _))
     | (ARFieldAccess(id, FAPFieldname), TFieldName(id', _, _, _))
@@ -902,7 +902,7 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TStringML(id, _, startOffset, str) =>
     Some(CT.forARStringBody(id, startOffset + pos - ti.startPos, str))
   | TInteger(id, _, _) => Some({astRef: ARInteger(id), offset: offset})
-  | TBlank(id, _) | TPlaceholder({blankID: id, _}) => Some({astRef: ARBlank(id), offset: offset})
+  | TBlank(id, _, _) | TPlaceholder({blankID: id, _}) => Some({astRef: ARBlank(id), offset: offset})
   | TTrue(id, _) | TFalse(id, _) => Some({astRef: ARBool(id), offset: offset})
   | TNullToken(id, _) => Some({astRef: ARNull(id), offset: offset})
   | TFloatWhole(id, _, _) => Some({astRef: ARFloat(id, FPWhole), offset: offset})

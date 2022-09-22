@@ -336,7 +336,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     }
 
     b |> addMany(Belt.List.concatMany([whole, list{TFloatPoint(id, parentID)}, fraction]))
-  | EBlank(id) => b |> add(TBlank(id, parentID))
+  | EBlank(id) => b |> add(TBlank(id, id, parentID))
   | ELet(id, lhs, rhs, next) =>
     let rhsID = switch rhs {
     | ERightPartial(_, _, oldExpr)
@@ -353,7 +353,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))
     |> addNested(~f=toTokens'(next))
   | ECharacter(id, _) =>
-    recover("tokenizing echaracter is not supported", b |> add(TBlank(id, parentID)))
+    recover("tokenizing echaracter is not supported", b |> add(TBlank(id, id, parentID)))
   | EString(id, str) =>
     let strings = if String.length(str) > strLimit {
       String.segment(~size=strLimit, str)
@@ -636,11 +636,18 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       } else {
         e
       }
+      let addPipeEntry = b => {
+        if E.isBlank(e) {
+          b |> add(TBlank(id, E.toID(analysisExpr), parentID))
+        } else {
+          b |> addNested(~f=toTokens'(e))
+        }
+      }
       (
         analysisExpr,
         b
         |> add(TPipe(id, E.toID(analysisExpr), i, length, parentID))
-        |> addNested(~f=toTokens'(~parentID, e))
+        |> addPipeEntry
         |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 1))),
       )
     })

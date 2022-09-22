@@ -117,7 +117,7 @@ let defaultTokenInfo: FluidToken.tokenInfo = {
   startPos: 0,
   endPos: 0,
   length: 0,
-  token: TBlank(defaultID, None),
+  token: TBlank(defaultID, defaultID, None),
 }
 
 let defaultFullQuery = (~tl=defaultToplevel, ac: AC.t, queryString: string): AC.fullQuery => {
