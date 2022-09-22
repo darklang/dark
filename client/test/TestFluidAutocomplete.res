@@ -412,11 +412,8 @@ let run = () => {
         )
 
         let ac = acFor(~tlid=fntlid, ~pos=14, m)
-        expect(ac |> setQuery("MyDB") |> filterValid) |> toEqual(list{
-          FACVariable("MyDB", Some(DDB("MyDB"))),
-        })
+        expect(ac |> setQuery("MyDB") |> filterValid) |> toEqual(list{FACDatastore("MyDB")})
       })
-      ()
     })
     describe("filter", () => {
       let isConstructor = x =>
@@ -425,6 +422,11 @@ let run = () => {
         | _ => false
         }
 
+      let isDatastore = x =>
+        switch x {
+        | FACDatastore(_) => true
+        | _ => false
+        }
       let isVariable = x =>
         switch x {
         | FACVariable(_) => true
@@ -446,9 +448,7 @@ let run = () => {
         )
 
         let (_valid, invalid) = filterFor(m, ~pos=9)
-        expect(List.filter(invalid, ~f=isVariable)) |> toEqual(list{
-          FACVariable("MyDB", Some(DDB("MyDB"))),
-        })
+        expect(List.filter(invalid, ~f=isDatastore)) |> toEqual(list{FACDatastore("MyDB")})
       })
       test("Constructors are available in Any expression", () => {
         let m = defaultModel()

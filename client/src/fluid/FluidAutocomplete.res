@@ -312,6 +312,20 @@ let typeCheck = (
       }
     | None => valid
     }
+  | FACSecret(_, dval) =>
+    if Runtime.isCompatible(RT.Dval.toType(dval), expectedReturnType) {
+      valid
+    } else {
+      invalidReturnType
+    }
+  | FACDatastore(_) =>
+    // TODO: do better with the type
+    if Runtime.isCompatible(TDB(TVariable("")), expectedReturnType) {
+      valid
+    } else {
+      invalidReturnType
+    }
+
   | FACConstructorName(name, _) =>
     switch expectedReturnType {
     | TOption(_) =>
@@ -329,7 +343,7 @@ let typeCheck = (
     | TVariable(_) => valid
     | _ => invalidReturnType
     }
-  | _ => valid
+  | FACField(_) | FACLiteral(_) | FACKeyword(_) | FACPattern(_) | FACCreateFunction(_) => valid
   }
 }
 
