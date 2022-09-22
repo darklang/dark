@@ -23,7 +23,7 @@ let ids = (ast: t): list<id> => toExpr(ast) |> E.ids
 
 let filter = (ast: t, ~f: E.t => bool): list<E.t> => toExpr(ast) |> E.filter(~f)
 
-let findExpr = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.find(target)
+let findExpr = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.findExpr(target)
 
 let findExprParent = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.findParent(target)
 

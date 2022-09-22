@@ -59,7 +59,7 @@ let findExprOrPat: (ID.t, fluidMatchPatOrExpr) => option<fluidMatchPatOrExpr>
 
 @ocaml.doc(" [find target ast] recursively finds the expression having an ID.t of [target]
    and returns it if found. ")
-let find: (ID.t, ProgramTypes.Expr.t) => option<ProgramTypes.Expr.t>
+let findExpr: (ID.t, ProgramTypes.Expr.t) => option<ProgramTypes.Expr.t>
 
 @ocaml.doc(" [findParent target ast] recursively finds the expression having an ID.t of
     [target] and then returns the parent of that expression. ")

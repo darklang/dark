@@ -108,8 +108,8 @@ let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidM
   }
 }
 
-let rec find = (target: id, expr: t): option<t> => {
-  let fe = find(target)
+let rec findExpr = (target: id, expr: t): option<t> => {
+  let fe = findExpr(target)
   if toID(expr) == target {
     Some(expr)
   } else {
@@ -222,7 +222,7 @@ let isEmpty = (expr: t): bool =>
   }
 
 let hasEmptyWithId = (id: id, expr: t): bool =>
-  switch find(id, expr) {
+  switch findExpr(id, expr) {
   | Some(e) => isEmpty(e)
   | _ => false
   }

@@ -1691,7 +1691,7 @@ let addRecordRowToBack = (id: id, ast: FluidAST.t): FluidAST.t =>
   )
 
 let recordFields = (recordID: id, ast: FluidExpression.t): option<list<(string, fluidExpr)>> =>
-  E.find(recordID, ast) |> Option.andThen(~f=expr =>
+  E.findExpr(recordID, ast) |> Option.andThen(~f=expr =>
     switch expr {
     | ERecord(_, fields) => Some(fields)
     | _ => None
