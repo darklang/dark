@@ -80,7 +80,7 @@ let findExpr: (ID.t, t) => option<FluidExpression.t>
   * [target] in [ast] and then returns the parent of that expression.
   *
   * See FluidExpression.findParent ")
-let findParent: (ID.t, t) => option<FluidExpression.t>
+let findExprParent: (ID.t, t) => option<FluidExpression.t>
 
 @ocaml.doc(" [ancestors target ast] finds the expression having an id of [target] in
   * [ast] and then returns the list of ancestors (parent, parent of parent, etc)

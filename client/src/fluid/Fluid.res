@@ -1995,7 +1995,7 @@ let rec findAppropriateParentToWrap = (oldExpr: FluidExpression.t, ast: FluidAST
   FluidExpression.t,
 > => {
   let child = oldExpr
-  let parent = FluidAST.findParent(E.toID(oldExpr), ast)
+  let parent = FluidAST.findExprParent(E.toID(oldExpr), ast)
   switch parent {
   | Some(parent) =>
     switch parent {
@@ -2451,7 +2451,7 @@ let updateFromACItem = (
   let id = T.tid(ti.token)
   let ast = astInfo.ast
   let oldExpr = FluidAST.findExpr(id, ast)
-  let parent = FluidAST.findParent(id, ast)
+  let parent = FluidAST.findExprParent(id, ast)
 
   let (newPatOrExpr, newTarget) = acToMatchPatternOrExpr(entry)
 
@@ -3580,7 +3580,7 @@ let doExplicitInsert = (
      * of the editor. */
     if false {
       // LeftPartial is disabled for now
-      switch FluidAST.findParent(E.toID(currExpr), ast) {
+      switch FluidAST.findExprParent(E.toID(currExpr), ast) {
       | None => mkLeftPartial
       | Some(ELet(_, _, _, body)) if currExpr == body => mkLeftPartial
       | _ => Some(currExpr, currCaretTarget)
@@ -4442,12 +4442,12 @@ let rec updateKey = (
       | Some(EIf(_, cond, _, _)) if E.toID(cond) == prevId => true
       | Some(e) =>
         let id = E.toID(e)
-        recurseUp(FluidAST.findParent(id, astInfo.ast), id)
+        recurseUp(FluidAST.findExprParent(id, astInfo.ast), id)
       | None => false
       }
 
     let tid = T.tid(token)
-    recurseUp(FluidAST.findParent(tid, astInfo.ast), tid)
+    recurseUp(FluidAST.findExprParent(tid, astInfo.ast), tid)
   }
 
   let astInfo = /* This match drives a big chunk of the change operations, but is
@@ -5929,7 +5929,7 @@ let pasteOverSelection = (
         | _ => initialExpr
         }
 
-      switch FluidAST.findParent(E.toID(expr), ast) {
+      switch FluidAST.findExprParent(E.toID(expr), ast) {
       | Some(EPipe(_, e1, _e2, _rest)) if e1 == expr =>
         // If pasting into the head of a pipe, drop any root-level pipe targets
         clipboardExpr |> Option.map(~f=e => removePipeTarget(e))
