@@ -98,6 +98,11 @@ module Builder = {
   let addIter = (xs: list<'a>, ~f: (int, 'a, t) => t, b: t): t =>
     List.fold(xs, ~initial=(b, 0), ~f=((b, i), x) => (f(i, x, b), i + 1)) |> Tuple2.first
 
+  let addFold = (xs: list<'x>, ~initial: 's, ~f: (int, 's, 'x, t) => ('s, t), b: t): t =>
+    List.fold(xs, ~initial=((initial, b), 0), ~f=(((state, b), i), x) => (f(i, state, x, b), i + 1))
+    |> Tuple2.first
+    |> Tuple2.second
+
   let addMany = (tokens: list<fluidToken>, b: t): t =>
     List.fold(tokens, ~initial=b, ~f=(acc, t) => add(t, acc))
 
@@ -620,12 +625,25 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNested(~f=toTokens'(e1))
     |> addNewlineIfNeeded(Some(E.toID(e1), id, Some(0)))
     // Rest of entries
-    |> addIter(list{e2, ...rest}, ~f=(i, e, b) =>
-      b
-      |> add(TPipe(id, E.toID(e), i, length, parentID))
-      |> addNested(~f=toTokens'(~parentID, e))
-      |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 1)))
-    )
+    |> addFold(list{e2, ...rest}, ~initial=e1, ~f=(i, prev, e, b) => {
+      // When we convert pipes to RuntimeTypes, we strip out blanks. We need to
+      // account for this or else the analysis results will spin in the UI. We do not
+      // need to account for it in the first position, or for exprs which are
+      // incomplete but are not blanks (as they do not get stripped by the
+      // conversion)
+      let analysisExpr = if E.isBlank(e) {
+        prev
+      } else {
+        e
+      }
+      (
+        analysisExpr,
+        b
+        |> add(TPipe(id, E.toID(analysisExpr), i, length, parentID))
+        |> addNested(~f=toTokens'(~parentID, e))
+        |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 1))),
+      )
+    })
     |> addNewlineIfNeeded(Some(id, id, Some(2 + List.length(rest))))
 
   | EPipeTarget(_) => recover("should never be making tokens for EPipeTarget", ~debug=e, b)
