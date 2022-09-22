@@ -359,7 +359,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
   let debugAST = if vp.showHandlerASTs {
     Html.div(
       list{Attrs.class'("debug-ast")},
-      list{Html.text(E.toHumanReadable(FluidAST.toExpr(vp.astInfo.ast)))},
+      list{Html.text(E.toHumanReadable(FluidAST.toExpr(vp.astInfo.ast), true))},
     )
   } else {
     Vdom.noNode
