@@ -100,7 +100,7 @@ let pipeNext = (id: id, ast: FluidAST.t): option<E.t> =>
 // Given the ID of a function call or binop, return its arguments. Takes pipes into account.
 let getArguments = (id: id, ast: FluidAST.t): list<E.t> => {
   let pipePrevious = pipePrevious(id, ast)
-  let caller = FluidAST.find(id, ast)
+  let caller = FluidAST.findExpr(id, ast)
   let defaultArgs = switch caller {
   | Some(EFnCall(_, _, args, _)) => args
   | Some(EBinOp(_, _, arg0, arg1, _)) => list{arg0, arg1}

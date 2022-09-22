@@ -130,7 +130,7 @@ let commands: list<AppTypes.fluidCmd> = {
         let tlid = Toplevel.id(tl)
         let data =
           TL.getAST(tl)
-          |> Option.andThen(~f=FluidAST.find(id))
+          |> Option.andThen(~f=FluidAST.findExpr(id))
           |> Option.andThen(~f=x =>
             switch x {
             | EFnCall(_, name, _, _) => Some(name)

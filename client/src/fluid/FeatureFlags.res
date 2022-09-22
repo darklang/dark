@@ -123,7 +123,7 @@ let wrapCmd = (m: AppTypes.model, tl: toplevel, id: id): modification =>
 let unwrap = (keep: unwrapKeep, ast: FluidAST.t, id: id): option<FluidAST.t> =>
   /* Either the given ID is a FF or it's somewhere in the ancestor chain. Find
    it (hopefully). */
-  FluidAST.find(id, ast)
+  FluidAST.findExpr(id, ast)
   |> Option.andThen(~f=x =>
     switch x {
     | E.EFeatureFlag(_) as e => Some(e)

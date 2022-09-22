@@ -1119,7 +1119,6 @@ let run = () => {
       "[123,9000~]",
     )
 
-
     // surrounding separators [1|,2,|3]
     testCopy(
       "copying around list separators leaves blanks on outer edges",

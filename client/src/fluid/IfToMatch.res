@@ -93,7 +93,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
   }
 
   TL.getAST(tl)
-  |> Option.thenAlso(~f=ast => FluidAST.find(id, ast) |> Option.andThen(~f=findIf(ast)))
+  |> Option.thenAlso(~f=ast => FluidAST.findExpr(id, ast) |> Option.andThen(~f=findIf(ast)))
   |> Option.andThen(~f=replaceIf)
   |> Option.unwrap(~default=AppTypes.Modification.NoChange)
 }

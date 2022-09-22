@@ -141,7 +141,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
       let selectedFnDocString = {
         let fnAndRail =
           TL.getAST(tl)
-          |> Option.andThen(~f=ast => FluidAST.find(id, ast))
+          |> Option.andThen(~f=ast => FluidAST.findExpr(id, ast))
           |> Option.andThen(~f=x =>
             switch x {
             | EFnCall(_, name, _, sendToRail) => Some(name, sendToRail)

@@ -1111,7 +1111,7 @@ let rec caretTargetForEndOfExpr': fluidExpr => CT.t = expr =>
  * The concept of "very end" depends on caretTargetForEndOfExpr'.
  */
 let caretTargetForEndOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
-  switch FluidAST.find(astPartId, ast) {
+  switch FluidAST.findExpr(astPartId, ast) {
   | Some(expr) => caretTargetForEndOfExpr'(expr)
   | None =>
     recover(
@@ -1164,7 +1164,7 @@ let rec caretTargetForStartOfExpr': fluidExpr => CT.t = expr =>
  * The concept of "very beginning" depends on caretTargetForStartOfExpr'.
  */
 let caretTargetForStartOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
-  switch FluidAST.find(astPartId, ast) {
+  switch FluidAST.findExpr(astPartId, ast) {
   | Some(expr) => caretTargetForStartOfExpr'(expr)
   | None =>
     recover(
@@ -1292,7 +1292,7 @@ let rec caretTargetForFirstInputOfMP = (matchPattern: fluidMatchPattern): CT.t =
 
   'very start' is based on the definition of caretTargetForStartOfMP")
 let caretTargetForBeginningOfMatchBranch = (matchID: id, index: int, ast: FluidAST.t): CT.t => {
-  let maybeTarget = switch FluidAST.find(matchID, ast) {
+  let maybeTarget = switch FluidAST.findExpr(matchID, ast) {
   | Some(EMatch(_, _, branches)) =>
     branches |> List.getAt(~index) |> Option.map(~f=((mp, _)) => caretTargetForStartOfMP(mp))
   | _ => None
@@ -1312,7 +1312,7 @@ let caretTargetForBeginningOfMatchBranch = (matchID: id, index: int, ast: FluidA
 
   'end' is based on the definition of caretTargetForEndOfMP")
 let caretTargetForEndOfMatchPattern = (ast: FluidAST.t, matchID: id, index: int): CT.t => {
-  let maybeTarget = switch FluidAST.find(matchID, ast) {
+  let maybeTarget = switch FluidAST.findExpr(matchID, ast) {
   | Some(EMatch(_, _, branches)) =>
     branches |> List.getAt(~index) |> Option.map(~f=((mp, _)) => caretTargetForEndOfMP(mp))
   | _ => None
@@ -1450,7 +1450,7 @@ let insertInPlaceholderExpr = (
 ): (E.t, CT.t) => {
   let newID = gid()
   let lambdaArgs = () => {
-    let fnname = switch FluidAST.find(fnID, ast) {
+    let fnname = switch FluidAST.findExpr(fnID, ast) {
     | Some(EFnCall(_, name, _, _)) => Some(name)
     | _ => None
     }
@@ -1529,7 +1529,7 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
     captures |> List.filter(~f=c => !List.member(~value=c, valid_escape_chars))
   }
 
-  let origExpr = FluidAST.find(id, astInfo.ast)
+  let origExpr = FluidAST.findExpr(id, astInfo.ast)
   let processStr = (str: string): string =>
     valid_escape_chars_alist |> List.fold(~initial=str, ~f=(acc, (from, repl)) => {
       // workaround for how "\\" gets escaped
@@ -1578,7 +1578,7 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
     let newlhs = processStr(oldlhs)
     let newOffset = oldOffset + (String.length(oldlhs) - String.length(newlhs))
 
-    let astRef = switch FluidAST.find(id, newAST) {
+    let astRef = switch FluidAST.findExpr(id, newAST) {
     | Some(EString(_)) => AstRef.ARString(id, SPBody)
     | Some(EPartial(_)) => ARPartial(id)
     | Some(expr) =>
@@ -1871,7 +1871,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
 
   let mkExprAndTarget = (expr: fluidExpr): (fluidExpr, CT.t) => (expr, ctForExpr(expr))
 
-  FluidAST.find(id, ast)
+  FluidAST.findExpr(id, ast)
   |> Option.map(~f=e =>
     // preserve partials with arguments
     switch e {
@@ -2046,7 +2046,7 @@ let createPipe = (~findParent: bool, id: id, astInfo: ASTInfo.t): (ASTInfo.t, op
 
   let astInfo = recordAction(action, astInfo)
   let exprToReplace =
-    FluidAST.find(id, astInfo.ast)
+    FluidAST.findExpr(id, astInfo.ast)
     |> Option.andThen(~f=e =>
       if findParent {
         findAppropriateParentToWrap(e, astInfo.ast)
@@ -2450,7 +2450,7 @@ let updateFromACItem = (
   open FluidExpression
   let id = T.tid(ti.token)
   let ast = astInfo.ast
-  let oldExpr = FluidAST.find(id, ast)
+  let oldExpr = FluidAST.findExpr(id, ast)
   let parent = FluidAST.findParent(id, ast)
 
   let (newPatOrExpr, newTarget) = acToMatchPatternOrExpr(entry)
@@ -2583,7 +2583,7 @@ let acEnter = (
     | TMPVariable(_) => moveToNextBlank(astInfo.state.newPos, astInfo)
     | TFieldPartial(partialID, _fieldAccessID, anaID, fieldname, _) =>
       // Accept fieldname, even if it's not in the autocomplete
-      FluidAST.find(anaID, astInfo.ast)
+      FluidAST.findExpr(anaID, astInfo.ast)
       |> Option.map(~f=expr => {
         let replacement = EFieldAccess(gid(), expr, fieldname)
         FluidAST.replace(~replacement, partialID, astInfo.ast)
@@ -3213,7 +3213,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     switch (currAstRef, matchPattern) {
     | (ARMPattern(_, MPPBlank), MPBlank(pID)) =>
       if currOffset == 0 {
-        switch FluidAST.find(mID, ast) {
+        switch FluidAST.findExpr(mID, ast) {
         | Some(EMatch(_, cond, cases)) =>
           patContainerRef := Some(mID)
           cases
@@ -3250,7 +3250,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         (MPVariable(pID, newName), currCTMinusOne)
       }
 
-      switch FluidAST.find(mID, ast) {
+      switch FluidAST.findExpr(mID, ast) {
       | Some(EMatch(_, cond, cases)) =>
         let rec run = p =>
           if pID == MP.toID(p) {
@@ -3999,7 +3999,7 @@ let doExplicitInsert = (
         patContainerRef := Some(mID)
         let (newPat, target) = (MPVariable(pID, newName), currCTPlusLen)
 
-        switch FluidAST.find(mID, ast) {
+        switch FluidAST.findExpr(mID, ast) {
         | Some(EMatch(_, cond, cases)) =>
           let rec run = p =>
             if pID == MP.toID(p) {
@@ -4193,7 +4193,7 @@ let doInfixInsert = (
   caretTargetFromTokenInfo(pos, ti)
   |> Option.andThen(~f=(ct: CT.t) =>
     idOfASTRef(ct.astRef) |> Option.andThen(~f=id =>
-      switch FluidAST.find(id, astInfo.ast) {
+      switch FluidAST.findExpr(id, astInfo.ast) {
       | Some(expr) => Some(id, ct, expr)
       | None => None
       }
@@ -4300,7 +4300,7 @@ let doInfixInsert = (
 let wrapInLet = (ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
   let astInfo = recordAction("wrapInLet", astInfo)
   let id = T.tid(ti.token)
-  switch FluidAST.find(id, astInfo.ast) {
+  switch FluidAST.findExpr(id, astInfo.ast) {
   | Some(expr) =>
     let bodyId = gid()
     let exprToWrap = switch findAppropriateParentToWrap(expr, astInfo.ast) {
@@ -4367,7 +4367,10 @@ let getTopmostSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): op
       (curDepth < topmostDepth || topmostID == None) &&
         /* account for tokens that don't have ancestors (depth = 0)
          * but are not the topmost expression in the AST */
-        !(curDepth == 0 && FluidAST.find(curID, astInfo.ast) !== Some(FluidAST.toExpr(astInfo.ast)))
+        !(
+          curDepth == 0 &&
+            FluidAST.findExpr(curID, astInfo.ast) !== Some(FluidAST.toExpr(astInfo.ast))
+        )
     ) {
       (Some(curID), curDepth)
     } else {
@@ -4987,7 +4990,7 @@ let rec updateKey = (
    * Following newline contains a parent and index, meaning we're inside some
    * special construct. Special-case each of those. */
   | (Keypress({key: K.Enter, _}), _, R(TNewline(Some(_, parentId, Some(idx))), ti)) =>
-    switch FluidAST.find(parentId, astInfo.ast) {
+    switch FluidAST.findExpr(parentId, astInfo.ast) {
     | Some(EPipe(_)) =>
       let (astInfo, blankId) = addPipeExprAt(parentId, idx + 1, astInfo)
       moveToCaretTarget(caretTargetForStartOfExpr(blankId, astInfo.ast), astInfo)
@@ -5053,7 +5056,11 @@ let rec updateKey = (
     let applyToRightToken = (): ASTInfo.t => {
       let parentID = T.toParentID(rTok)
       let index = T.toIndex(rTok)
-      switch (parentID, index, Option.andThen(parentID, ~f=id => FluidAST.find(id, astInfo.ast))) {
+      switch (
+        parentID,
+        index,
+        Option.andThen(parentID, ~f=id => FluidAST.findExpr(id, astInfo.ast)),
+      ) {
       | (Some(parentId), Some(idx), Some(EMatch(_))) =>
         let astInfo = addMatchPatternAt(parentId, idx, astInfo)
         let target = caretTargetForBeginningOfMatchBranch(parentId, idx + 1, astInfo.ast)
@@ -5074,7 +5081,7 @@ let rec updateKey = (
       }
     }
 
-    switch FluidAST.find(parentId, astInfo.ast) {
+    switch FluidAST.findExpr(parentId, astInfo.ast) {
     | Some(EMatch(_, _, exprs)) =>
       // if a match has n rows, the last newline has idx=(n+1)
       if idx == List.length(exprs) {
@@ -5120,7 +5127,7 @@ let rec updateKey = (
      * In other cases, we want to wrap just the subexpression, such as an if's then expression. */
     let id = T.tid(t)
     let topID =
-      FluidAST.find(id, astInfo.ast)
+      FluidAST.findExpr(id, astInfo.ast)
       |> Option.andThen(~f=directExpr => findAppropriateParentToWrap(directExpr, astInfo.ast))
       |> Option.map(~f=expr => E.toID(expr))
       |> Option.unwrap(~default=id)
@@ -5341,7 +5348,7 @@ let shouldSelect = (key: K.key): bool =>
 let expressionRange = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> => {
   let containingTokens = ASTInfo.activeTokenInfos(astInfo)
   let exprTokens =
-    FluidAST.find(exprID, astInfo.ast)
+    FluidAST.findExpr(exprID, astInfo.ast)
     |> Option.map(~f=expr => FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, expr))
     |> Option.unwrap(~default=list{})
 
@@ -5449,7 +5456,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       }
 
     let topmostExpr =
-      topmostID |> Option.andThen(~f=id => FluidAST.find(id, astInfo.ast)) |> orDefaultExpr
+      topmostID |> Option.andThen(~f=id => FluidAST.findExpr(id, astInfo.ast)) |> orDefaultExpr
 
     let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
 
@@ -5861,7 +5868,7 @@ let pasteOverSelection = (
   let ast = astInfo.ast
   let mTi = ASTInfo.getToken(astInfo)
   let exprID = mTi |> Option.map(~f=(ti: T.tokenInfo) => ti.token |> T.tid)
-  let expr = Option.andThen(exprID, ~f=id => FluidAST.find(id, ast))
+  let expr = Option.andThen(exprID, ~f=id => FluidAST.findExpr(id, ast))
   let ct = mTi |> Option.andThen(~f=ti => caretTargetFromTokenInfo(astInfo.state.newPos, ti))
 
   // what Expr, in our clipboard, are we trying to paste?
