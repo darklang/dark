@@ -5752,68 +5752,6 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         Some(e)
       }
     | EMatch(_, cond, cases) =>
-      let reconstructPattern = (matchPattern, mpTokens) => {
-        // TODO: should we really be re-using these IDs?
-        switch mpTokens {
-        | list{} => None
-        // simple cases
-        | list{(id, _, "match-pattern-null")} => Some(MPNull(id))
-        | list{(id, _, "match-pattern-blank")} => Some(MPBlank(id))
-        | list{(id, _, "match-pattern-true")} => Some(MPBool(id, true))
-        | list{(id, _, "match-pattern-false")} => Some(MPBool(id, false))
-        | list{(id, value, "match-pattern-variable")} => Some(MPVariable(id, value))
-        | list{(id, value, "match-pattern-integer")} =>
-          Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
-        | list{(id, value, "match-pattern-string")} => Some(MPString(id, Util.trimQuotes(value)))
-
-        // floats
-        | list{
-            (id, whole, "match-pattern-float-whole"),
-            (_, _, "match-pattern-float-point"),
-            (_, fraction, "match-pattern-float-fractional"),
-          } =>
-          let (sign, whole) = Sign.split(whole)
-          Some(MPFloat(id, sign, whole, fraction))
-        | list{(id, value, "match-pattern-float-whole"), (_, _, "match-pattern-float-point")}
-        | list{(id, value, "match-pattern-float-whole")} =>
-          Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
-        | list{(_, _, "match-pattern-float-point"), (id, value, "match-pattern-float-fractional")}
-        | list{(id, value, "match-pattern-float-fractional")} =>
-          Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
-
-        // recursive patterns
-        // Note: this assumes that PConstructor's and PTuple's sub-pattern
-        // tokens are always selected as well
-        //
-        // i.e. if you highlight the following, starting at `match` and ending
-        // after `Ok`, the "test" value is included in the reconstructed expr
-        //
-        // «match Ok 1
-        //    Ok» "test" -> 999
-        //
-        // CLEANUP TUPLETODO we should instead use the subPatternTokens to
-        // reconstruct the sub-patterns appropriately
-        | list{(id, value, "match-pattern-constructor-name"), ..._subPatternTokens} =>
-          Some(
-            MPConstructor(
-              id,
-              value,
-              switch matchPattern {
-              | MPConstructor(_, _, ps) => ps
-              | _ => list{}
-              },
-            ),
-          )
-        | list{(id, _value, "match-pattern-tuple-open"), ..._subPatternTokens} =>
-          switch matchPattern {
-          | MPTuple(_, first, second, theRest) =>
-            Some(MPTuple(id, MP.clone(first), MP.clone(second), List.map(~f=MP.clone, theRest)))
-          | _ => Some(MPTuple(id, MPBlank(gid()), MPBlank(gid()), list{}))
-          }
-        | _ => recover("toksToMatchPattern not set up to handle token list", ~debug=mpTokens, None)
-        }
-      }
-
       // new (mp, expr) pairs for the new `match`
       let newCases = List.filterMap(cases, ~f=((mp, expr)) => {
         let newMP =
@@ -5852,6 +5790,67 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         ),
       )
     | EPipeTarget(_) => Some(EPipeTarget(gid()))
+    }
+  }
+  and reconstructPattern = (matchPattern, mpTokens) => {
+    // TODO: should we really be re-using these IDs?
+    switch mpTokens {
+    | list{} => None
+    // simple cases
+    | list{(id, _, "match-pattern-null")} => Some(MPNull(id))
+    | list{(id, _, "match-pattern-blank")} => Some(MPBlank(id))
+    | list{(id, _, "match-pattern-true")} => Some(MPBool(id, true))
+    | list{(id, _, "match-pattern-false")} => Some(MPBool(id, false))
+    | list{(id, value, "match-pattern-variable")} => Some(MPVariable(id, value))
+    | list{(id, value, "match-pattern-integer")} =>
+      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
+    | list{(id, value, "match-pattern-string")} => Some(MPString(id, Util.trimQuotes(value)))
+
+    // floats
+    | list{
+        (id, whole, "match-pattern-float-whole"),
+        (_, _, "match-pattern-float-point"),
+        (_, fraction, "match-pattern-float-fractional"),
+      } =>
+      let (sign, whole) = Sign.split(whole)
+      Some(MPFloat(id, sign, whole, fraction))
+    | list{(id, value, "match-pattern-float-whole"), (_, _, "match-pattern-float-point")}
+    | list{(id, value, "match-pattern-float-whole")} =>
+      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
+    | list{(_, _, "match-pattern-float-point"), (id, value, "match-pattern-float-fractional")}
+    | list{(id, value, "match-pattern-float-fractional")} =>
+      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
+
+    // recursive patterns
+    // Note: this assumes that PConstructor's and PTuple's sub-pattern
+    // tokens are always selected as well
+    //
+    // i.e. if you highlight the following, starting at `match` and ending
+    // after `Ok`, the "test" value is included in the reconstructed expr
+    //
+    // «match Ok 1
+    //    Ok» "test" -> 999
+    //
+    // CLEANUP TUPLETODO we should instead use the subPatternTokens to
+    // reconstruct the sub-patterns appropriately
+    | list{(id, value, "match-pattern-constructor-name"), ..._subPatternTokens} =>
+      Some(
+        MPConstructor(
+          id,
+          value,
+          switch matchPattern {
+          | MPConstructor(_, _, ps) => ps
+          | _ => list{}
+          },
+        ),
+      )
+    | list{(id, _value, "match-pattern-tuple-open"), ..._subPatternTokens} =>
+      switch matchPattern {
+      | MPTuple(_, first, second, theRest) =>
+        Some(MPTuple(id, MP.clone(first), MP.clone(second), List.map(~f=MP.clone, theRest)))
+      | _ => Some(MPTuple(id, MPBlank(gid()), MPBlank(gid()), list{}))
+      }
+    | _ => recover("toksToMatchPattern not set up to handle token list", ~debug=mpTokens, None)
     }
   }
 
