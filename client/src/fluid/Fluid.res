@@ -5415,23 +5415,18 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
   // prevent duplicates
   let astInfo = ASTInfo.setAST(FluidAST.clone(astInfo.ast), astInfo)
 
-  let (startPos, endPos) = orderRangeFromSmallToBig(range)
   // main recursive algorithm
   // algo:
   // - find topmost expression by ID
   // - reconstruct full/subset of expression
   // - recurse into children (that remain in subset) to reconstruct those too
+  //
+  // Note: during 'reconstruct full/subset of expression', it's intentional
+  // that we do not simply use the topmostExpr as-is: some of it may be outside
+  // of the selection range. So, we favor gathering the tokens in scope, and
+  // using `findTokenValue` from there to extract the data needed.
   let rec reconstruct = (~topmostID, (startPos, endPos)): option<E.t> => {
-    let topmostExpr =
-      topmostID
-      |> Option.andThen(~f=id => FluidAST.find(id, astInfo.ast))
-      |> Option.unwrap(~default=EBlank(gid()))
-
-    let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
-
-    // It's intentional that we do not simply use the topmostExpr as-is:
-    // its internals may be outside of the selection range. So, we favor
-    // using `findTokenValue`
+    let orDefaultExpr: option<E.t> => E.t = Option.unwrap(~default=EBlank(gid()))
 
     // Reconstructs an expression, returning an Option.
     // If it's not within range of the selection, returns None.
@@ -5453,7 +5448,10 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
         |> Option.andThen(~f=reconstruct(~topmostID=Some(exprID)))
       }
 
-    let orDefaultExpr: option<E.t> => E.t = Option.unwrap(~default=EBlank(gid()))
+    let topmostExpr =
+      topmostID |> Option.andThen(~f=id => FluidAST.find(id, astInfo.ast)) |> orDefaultExpr
+
+    let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
 
     let id = gid()
     switch topmostExpr {
@@ -5846,7 +5844,10 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
     }
   }
 
+  let (startPos, endPos) = orderRangeFromSmallToBig(range)
+
   let topmostID = getTopmostSelectionID(startPos, endPos, astInfo)
+
   reconstruct(~topmostID, (startPos, endPos))
 }
 
@@ -6016,6 +6017,7 @@ let getCopySelection = (m: model): clipboardContents =>
   astInfoFromModel(m)
   |> Option.andThen(~f=(astInfo: ASTInfo.t) => {
     let (from, to_) = FluidUtil.getSelectionRange(astInfo.state)
+
     let text =
       ASTInfo.exprOfActiveEditor(astInfo) |> Printer.eToHumanString |> String.slice(~from, ~to_)
 
