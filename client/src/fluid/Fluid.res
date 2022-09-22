@@ -727,7 +727,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARList(id, LPComma(idx)), TListComma(id', idx'))
     | (ARTuple(id, TPComma(idx)), TTupleComma(id', idx'))
     | (ARMatch(id, MPBranchArrow(idx)), TMatchBranchArrow({matchID: id', index: idx', _}))
-    | (ARPipe(id, idx), TPipe(id', idx', _, _))
+    | (ARPipe(id, idx), TPipe(id', _, idx', _, _))
     | (ARRecord(id, RPFieldname(idx)), TRecordFieldname({recordID: id', index: idx', _}))
     | (ARRecord(id, RPFieldSep(idx)), TRecordSep(id', idx', _))
     | (ARLambda(id, LBPVarName(idx)), TLambdaVar(id', _, idx', _, _))
@@ -940,7 +940,7 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TTupleOpen(id) => Some({astRef: ARTuple(id, TPOpen), offset: offset})
   | TTupleClose(id) => Some({astRef: ARTuple(id, TPClose), offset: offset})
   | TTupleComma(id, idx) => Some({astRef: ARTuple(id, TPComma(idx)), offset: offset})
-  | TPipe(id, idx, _, _) => Some({astRef: ARPipe(id, idx), offset: offset})
+  | TPipe(id, _, idx, _, _) => Some({astRef: ARPipe(id, idx), offset: offset})
   | TRecordOpen(id, _) => Some({astRef: ARRecord(id, RPOpen), offset: offset})
   | TRecordFieldname({recordID: id, index: idx, _}) =>
     Some({astRef: ARRecord(id, RPFieldname(idx)), offset: offset})
@@ -4987,7 +4987,7 @@ let rec updateKey = (
   /* Caret between pipe symbol |> and following expression.
    * Move current pipe expr down by adding new expr above it.
    * Keep caret "the same", only moved down by 1 column. */
-  | (Keypress({key: K.Enter, _}), L(TPipe(id, idx, _, _), _), R(_)) =>
+  | (Keypress({key: K.Enter, _}), L(TPipe(id, _, idx, _, _), _), R(_)) =>
     let (astInfo, _) = addPipeExprAt(id, idx + 1, astInfo)
     astInfo |> moveToAstRef(ARPipe(id, idx + 1), ~offset=2)
 

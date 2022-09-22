@@ -620,13 +620,13 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNested(~f=toTokens'(e1))
     |> addNewlineIfNeeded(Some(E.toID(e1), id, Some(0)))
     // Second entry is same as rest
-    |> add(TPipe(id, 0, length, parentID))
+    |> add(TPipe(id, E.toID(e2), 0, length, parentID))
     |> addNested(~f=toTokens'(~parentID, e2))
     |> addNewlineIfNeeded(Some(E.toID(e2), id, Some(1)))
     // Rest of entries
     |> addIter(rest, ~f=(i, e, b) =>
       b
-      |> add(TPipe(id, i + 1, length, parentID))
+      |> add(TPipe(id, E.toID(e), i + 1, length, parentID))
       |> addNested(~f=toTokens'(~parentID, e))
       |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 2)))
     )

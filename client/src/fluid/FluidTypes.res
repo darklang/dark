@@ -108,7 +108,7 @@ module Token = {
     | TTupleClose(ID.t)
     | TTupleComma(ID.t, int)
     // 2nd int is the number of pipe segments there are
-    | TPipe(ID.t, int, int, option<parentBlockID>)
+    | TPipe(ID.t, analysisID, int, int, option<parentBlockID>)
     | TRecordOpen(ID.t, option<parentBlockID>)
     | TRecordFieldname({
         recordID: ID.t,

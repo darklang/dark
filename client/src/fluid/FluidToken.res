@@ -50,7 +50,7 @@ let tid = (t: t): id =>
   | TTupleOpen(id)
   | TTupleClose(id)
   | TTupleComma(id, _)
-  | TPipe(id, _, _, _)
+  | TPipe(id, _, _, _, _)
   | TRecordOpen(id, _)
   | TRecordClose(id, _)
   | TRecordFieldname({recordID: id, _})
@@ -83,15 +83,16 @@ let tid = (t: t): id =>
 
 let analysisID = (t: t): id =>
   switch t {
-  | TLetVarName(_, id, _, _)
-  | TLetKeyword(_, id, _)
-  | TLetAssignment(_, id, _)
-  | TRecordFieldname({exprID: id, _})
-  | TLambdaVar(_, id, _, _, _)
-  | TRecordSep(_, _, id)
-  | TPartial(_, id, _, _)
-  | TPartialGhost(_, id, _, _)
-  | TMatchBranchArrow({patternID: id, _}) => id
+  | TLetVarName(_, aid, _, _)
+  | TLetKeyword(_, aid, _)
+  | TLetAssignment(_, aid, _)
+  | TRecordFieldname({exprID: aid, _})
+  | TLambdaVar(_, aid, _, _, _)
+  | TRecordSep(_, _, aid)
+  | TPartial(_, aid, _, _)
+  | TPartialGhost(_, aid, _, _)
+  | TPipe(_, aid, _, _, _)
+  | TMatchBranchArrow({patternID: aid, _}) => aid
   | _ => tid(t)
   }
 
@@ -145,7 +146,7 @@ let parentBlockID = (t: t): option<id> =>
   | TLambdaArrow(_, pid)
   | TLambdaSymbol(_, pid)
   | TLambdaVar(_, _, _, _, pid)
-  | TPipe(_, _, _, pid)
+  | TPipe(_, _, _, _, pid)
   | TSep(_, pid) => pid
   | TRecordFieldname(d) => d.parentBlockID
   | TNewline(Some(_, id, _)) => Some(id)
@@ -633,7 +634,7 @@ let toIndex = (t: t): option<int> =>
   | TStringML(_, _, index, _)
   | TLambdaVar(_, _, index, _, _)
   | TLambdaComma(_, index, _)
-  | TPipe(_, _, index, _)
+  | TPipe(_, _, _, index, _)
   | TRecordFieldname({index, _})
   | TRecordSep(_, index, _)
   | TListComma(_, index)
@@ -798,7 +799,7 @@ let toDebugInfo = (t: t): string =>
     "parent=" ++ (ID.toString(pid) ++ (" idx=" ++ string_of_int(idx)))
   | TNewline(Some(_, pid, None)) => "parent=" ++ (ID.toString(pid) ++ " idx=none")
   | TNewline(None) => "no parent"
-  | TPipe(_, idx, len, _) => Printf.sprintf("idx=%d len=%d", idx, len)
+  | TPipe(_, _, idx, len, _) => Printf.sprintf("idx=%d len=%d", idx, len)
   | TMatchBranchArrow({index: idx, _}) => "idx=" ++ string_of_int(idx)
   | TMPBlank(mid, _, idx)
   | TMPInteger(mid, _, _, idx)
@@ -925,7 +926,7 @@ let matchesContent = (t1: t, t2: t): bool =>
     id1 == id2 && (l1 == l2 && val1 == val2)
   | (TLambdaVar(id1, _, ind1, val1, _), TLambdaVar(id2, _, ind2, val2, _)) =>
     id1 == id2 && (ind1 == ind2 && val1 == val2)
-  | (TPipe(id1, order1, nest1, _), TPipe(id2, order2, nest2, _)) =>
+  | (TPipe(id1, _, order1, nest1, _), TPipe(id2, _, order2, nest2, _)) =>
     id1 == id2 && (order1 == order2 && nest1 == nest2)
   | (TRecordFieldname(d1), TRecordFieldname(d2)) =>
     d1.recordID == d2.recordID &&
