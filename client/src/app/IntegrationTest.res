@@ -746,7 +746,7 @@ let function_docstrings_are_valid = (m: model): testResult => {
       |> List.map(~f=((fnname, messages)) => {
         let problems =
           messages
-          |> List.map(~f=((txt, msg)) => msg ++ (" in \"" ++ (txt ++ "\"")))
+          |> List.map(~f=((txt, msg)) => msg ++ " in \"" ++ txt ++ "\"")
           |> String.join(~sep=nl)
 
         fnname ++ (nl ++ problems)
