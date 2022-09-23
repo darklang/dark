@@ -139,4 +139,4 @@ let testEqualIgnoringIds: (ProgramTypes.Expr.t, ProgramTypes.Expr.t) => bool
  * Do not attempt to parse this or use it in comparisons of any sort, as its
  * format is not considered stable. Again, it is only for debugging with your
  * squishy human eyes. ")
-let toHumanReadable: ProgramTypes.Expr.t => string
+let toHumanReadable: (ProgramTypes.Expr.t, bool) => string

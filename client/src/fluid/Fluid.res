@@ -688,7 +688,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
   let targetAndTokenInfoToMaybeCaretPos = ((ct, ti): (CT.t, T.tokenInfo)): option<int> =>
     switch (ct.astRef, ti.token) {
     | (ARBinOp(id), TBinOp(id', _, _))
-    | (ARBlank(id), TBlank(id', _) | TPlaceholder({blankID: id', _}))
+    | (ARBlank(id), TBlank(id', _, _) | TPlaceholder({blankID: id', _}))
     | (ARBool(id), TTrue(id', _) | TFalse(id', _))
     | (ARConstructor(id), TConstructorName(id', _))
     | (ARFieldAccess(id, FAPFieldname), TFieldName(id', _, _, _))
@@ -706,7 +706,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARTuple(id, TPClose), TTupleClose(id'))
     | (ARMatch(id, MPKeyword), TMatchKeyword(id'))
     | (ARNull(id), TNullToken(id', _))
-    | (ARPartial(id), TPartial(id', _, _))
+    | (ARPartial(id), TPartial(id', _, _, _))
     | (ARPartial(id), TFieldPartial(id', _, _, _, _))
     | (ARRightPartial(id), TRightPartial(id', _, _))
     | (ARLeftPartial(id), TLeftPartial(id', _, _))
@@ -727,7 +727,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARList(id, LPComma(idx)), TListComma(id', idx'))
     | (ARTuple(id, TPComma(idx)), TTupleComma(id', idx'))
     | (ARMatch(id, MPBranchArrow(idx)), TMatchBranchArrow({matchID: id', index: idx', _}))
-    | (ARPipe(id, idx), TPipe(id', idx', _, _))
+    | (ARPipe(id, idx), TPipe(id', _, idx', _, _))
     | (ARRecord(id, RPFieldname(idx)), TRecordFieldname({recordID: id', index: idx', _}))
     | (ARRecord(id, RPFieldSep(idx)), TRecordSep(id', idx', _))
     | (ARLambda(id, LBPVarName(idx)), TLambdaVar(id', _, idx', _, _))
@@ -902,13 +902,13 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TStringML(id, _, startOffset, str) =>
     Some(CT.forARStringBody(id, startOffset + pos - ti.startPos, str))
   | TInteger(id, _, _) => Some({astRef: ARInteger(id), offset: offset})
-  | TBlank(id, _) | TPlaceholder({blankID: id, _}) => Some({astRef: ARBlank(id), offset: offset})
+  | TBlank(id, _, _) | TPlaceholder({blankID: id, _}) => Some({astRef: ARBlank(id), offset: offset})
   | TTrue(id, _) | TFalse(id, _) => Some({astRef: ARBool(id), offset: offset})
   | TNullToken(id, _) => Some({astRef: ARNull(id), offset: offset})
   | TFloatWhole(id, _, _) => Some({astRef: ARFloat(id, FPWhole), offset: offset})
   | TFloatPoint(id, _) => Some({astRef: ARFloat(id, FPPoint), offset: offset})
   | TFloatFractional(id, _, _) => Some({astRef: ARFloat(id, FPFractional), offset: offset})
-  | TPartial(id, _, _) => Some({astRef: ARPartial(id), offset: offset})
+  | TPartial(id, _, _, _) => Some({astRef: ARPartial(id), offset: offset})
   | TFieldPartial(id, _, _, _, _) => Some({astRef: ARPartial(id), offset: offset})
   | TRightPartial(id, _, _) => Some({astRef: ARRightPartial(id), offset: offset})
   | TLeftPartial(id, _, _) => Some({astRef: ARLeftPartial(id), offset: offset})
@@ -940,7 +940,7 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TTupleOpen(id) => Some({astRef: ARTuple(id, TPOpen), offset: offset})
   | TTupleClose(id) => Some({astRef: ARTuple(id, TPClose), offset: offset})
   | TTupleComma(id, idx) => Some({astRef: ARTuple(id, TPComma(idx)), offset: offset})
-  | TPipe(id, idx, _, _) => Some({astRef: ARPipe(id, idx), offset: offset})
+  | TPipe(id, _, idx, _, _) => Some({astRef: ARPipe(id, idx), offset: offset})
   | TRecordOpen(id, _) => Some({astRef: ARRecord(id, RPOpen), offset: offset})
   | TRecordFieldname({recordID: id, index: idx, _}) =>
     Some({astRef: ARRecord(id, RPFieldname(idx)), offset: offset})
@@ -2268,6 +2268,12 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   | FACKeyword(KPipe) =>
     let (b, target) = mkBlank()
     Some(EPipe(gid(), b, E.newB(), list{}), target)
+  | FACSecret(name, _) =>
+    let vID = gid()
+    Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
+  | FACDatastore(name) =>
+    let vID = gid()
+    Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
   | FACVariable(name, _) =>
     let vID = gid()
     Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
@@ -4981,7 +4987,7 @@ let rec updateKey = (
   /* Caret between pipe symbol |> and following expression.
    * Move current pipe expr down by adding new expr above it.
    * Keep caret "the same", only moved down by 1 column. */
-  | (Keypress({key: K.Enter, _}), L(TPipe(id, idx, _, _), _), R(_)) =>
+  | (Keypress({key: K.Enter, _}), L(TPipe(id, _, idx, _, _), _), R(_)) =>
     let (astInfo, _) = addPipeExprAt(id, idx + 1, astInfo)
     astInfo |> moveToAstRef(ARPipe(id, idx + 1), ~offset=2)
 
@@ -5187,9 +5193,9 @@ let rec updateKey = (
     }
 
     switch (toTheLeft, toTheRight) {
-    | (L(TPartial(_, str, _), ti), _)
+    | (L(TPartial(_, _, str, _), ti), _)
     | (L(TFieldPartial(_, _, _, str, _), ti), _)
-    | (_, R(TPartial(_, str, _), ti))
+    | (_, R(TPartial(_, _, str, _), ti))
     | (_, R(TFieldPartial(_, _, _, str, _), ti))
       if /* When pressing an infix character, it's hard to tell whether to commit or
        * not.  If the partial is an int, or a function that returns one, pressing
@@ -5225,7 +5231,7 @@ let rec updateKey = (
       } else {
         astInfo
       }
-    | (L(TPartial(_, _, _), ti), _) if false /* disable for now */ =>
+    | (L(TPartial(_, _, _, _), ti), _) if false /* disable for now */ =>
       maybeCommitStringPartial(pos, ti, astInfo)
     | _ => astInfo
     }
@@ -6179,9 +6185,8 @@ let updateMsg' = (
     }
   | FluidInputEvent(Keypress({key, shiftKey: false, altKey: _, ctrlKey: _, metaKey: _}) as ievt)
     if astInfo.state.selectionStart != None && (key == K.Right || key == K.Left) =>
-    /* Aborting a selection using the left and right arrows should
-         place the caret on the side of the selection in the direction
-         of the pressed arrow key */
+    // Aborting a selection using the left and right arrows should place the caret on
+    // the side of the selection in the direction of the pressed arrow key
     let newPos = {
       let (left, right) = FluidUtil.getSelectionRange(astInfo.state)
       if key == K.Left {

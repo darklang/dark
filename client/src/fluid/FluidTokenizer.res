@@ -98,6 +98,11 @@ module Builder = {
   let addIter = (xs: list<'a>, ~f: (int, 'a, t) => t, b: t): t =>
     List.fold(xs, ~initial=(b, 0), ~f=((b, i), x) => (f(i, x, b), i + 1)) |> Tuple2.first
 
+  let addFold = (xs: list<'x>, ~initial: 's, ~f: (int, 's, 'x, t) => ('s, t), b: t): t =>
+    List.fold(xs, ~initial=((initial, b), 0), ~f=(((state, b), i), x) => (f(i, state, x, b), i + 1))
+    |> Tuple2.first
+    |> Tuple2.second
+
   let addMany = (tokens: list<fluidToken>, b: t): t =>
     List.fold(tokens, ~initial=b, ~f=(acc, t) => add(t, acc))
 
@@ -201,12 +206,12 @@ let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int)
 
 let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   open Builder
-  let ghostPartial = (id, newName, oldName) => {
+  let ghostPartial = (id, oldID, newName, oldName) => {
     let ghostSuffix = String.dropLeft(~count=String.length(newName), oldName)
     if ghostSuffix == "" {
       list{}
     } else {
-      list{TPartialGhost(id, ghostSuffix, None)}
+      list{TPartialGhost(id, oldID, ghostSuffix, None)}
     }
   }
 
@@ -331,9 +336,15 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     }
 
     b |> addMany(Belt.List.concatMany([whole, list{TFloatPoint(id, parentID)}, fraction]))
-  | EBlank(id) => b |> add(TBlank(id, parentID))
+  | EBlank(id) => b |> add(TBlank(id, id, parentID))
   | ELet(id, lhs, rhs, next) =>
-    let rhsID = E.toID(rhs)
+    let rhsID = switch rhs {
+    | ERightPartial(_, _, oldExpr)
+    | ELeftPartial(_, _, oldExpr)
+    | EPartial(_, _, oldExpr) =>
+      E.toID(oldExpr)
+    | _ => E.toID(rhs)
+    }
     b
     |> add(TLetKeyword(id, rhsID, parentID))
     |> add(TLetVarName(id, rhsID, lhs, parentID))
@@ -342,7 +353,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))
     |> addNested(~f=toTokens'(next))
   | ECharacter(id, _) =>
-    recover("tokenizing echaracter is not supported", b |> add(TBlank(id, parentID)))
+    recover("tokenizing echaracter is not supported", b |> add(TBlank(id, id, parentID)))
   | EString(id, str) =>
     let strings = if String.length(str) > strLimit {
       String.segment(~size=strLimit, str)
@@ -409,9 +420,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> start
     |> addMany(list{TBinOp(id, op, parentID), TSep(id, parentID)})
     |> nest(~indent=0, ~placeholderFor=Some(id, op, 1), rexpr)
-  | EPartial(id, newName, EBinOp(_, oldName, lexpr, rexpr, _ster)) =>
+  | EPartial(id, newName, EBinOp(oldID, oldName, lexpr, rexpr, _ster)) =>
     let oldName = PT.InfixStdlibFnName.toString(oldName)
-    let ghost = ghostPartial(id, newName, FluidUtil.ghostPartialName(oldName))
+    let ghost = ghostPartial(id, oldID, newName, FluidUtil.ghostPartialName(oldName))
 
     let start = b =>
       switch lexpr {
@@ -424,7 +435,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
 
     b
     |> start
-    |> add(TPartial(id, newName, parentID))
+    |> add(TPartial(id, oldID, newName, parentID))
     |> addMany(ghost)
     |> add(TSep(id, parentID))
     |> nest(~indent=2, ~placeholderFor=Some(id, oldName, 1), rexpr)
@@ -443,19 +454,19 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TFnName(id, partialName, displayName, fnNameStr, ster))
     |> addMany(versionToken)
     |> addArgs(FQFnName.toString(fnName), id, args)
-  | EPartial(id, newName, EFnCall(_, oldName, args, _)) =>
+  | EPartial(id, newName, EFnCall(oldID, oldName, args, _)) =>
     let oldName = FQFnName.toString(oldName)
-    let partial = TPartial(id, newName, parentID)
+    let partial = TPartial(id, oldID, newName, parentID)
     let newText = T.toText(partial)
     let oldText = FluidUtil.ghostPartialName(oldName)
-    let ghost = ghostPartial(id, newText, oldText)
+    let ghost = ghostPartial(id, oldID, newText, oldText)
     b |> add(partial) |> addMany(ghost) |> addArgs(oldName, id, args)
   | EConstructor(id, name, exprs) =>
     b |> add(TConstructorName(id, name)) |> addArgs(name, id, exprs)
-  | EPartial(id, newName, EConstructor(_, oldName, exprs)) =>
-    let partial = TPartial(id, newName, parentID)
+  | EPartial(id, newName, EConstructor(oldID, oldName, exprs)) =>
+    let partial = TPartial(id, oldID, newName, parentID)
     let newText = T.toText(partial)
-    let ghost = ghostPartial(id, newText, oldName)
+    let ghost = ghostPartial(id, oldID, newText, oldName)
     b |> add(partial) |> addMany(ghost) |> addArgs(oldName, id, exprs)
   | EFieldAccess(id, expr, fieldname) =>
     let lhsid = E.toID(expr)
@@ -466,7 +477,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     let lhsid = E.toID(expr)
     let partial = TFieldPartial(id, faID, lhsid, newFieldname, parentID)
     let newText = T.toText(partial)
-    let ghost = ghostPartial(id, newText, oldFieldname)
+    let ghost = ghostPartial(id, faID, newText, oldFieldname)
     b
     |> addNested(~f=toTokens'(expr))
     |> addMany(list{TFieldOp(id, E.toID(expr), parentID), partial})
@@ -613,17 +624,33 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     // First entry
     |> addNested(~f=toTokens'(e1))
     |> addNewlineIfNeeded(Some(E.toID(e1), id, Some(0)))
-    // Second entry is same as rest
-    |> add(TPipe(id, 0, length, parentID))
-    |> addNested(~f=toTokens'(~parentID, e2))
-    |> addNewlineIfNeeded(Some(E.toID(e2), id, Some(1)))
     // Rest of entries
-    |> addIter(rest, ~f=(i, e, b) =>
-      b
-      |> add(TPipe(id, i + 1, length, parentID))
-      |> addNested(~f=toTokens'(~parentID, e))
-      |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 2)))
-    )
+    |> addFold(list{e2, ...rest}, ~initial=e1, ~f=(i, prev, e, b) => {
+      // When we convert pipes to RuntimeTypes, we strip out blanks. We need to
+      // account for this or else the analysis results will spin in the UI. We do not
+      // need to account for it in the first position, or for exprs which are
+      // incomplete but are not blanks (as they do not get stripped by the
+      // conversion)
+      let analysisExpr = if E.isBlank(e) {
+        prev
+      } else {
+        e
+      }
+      let addPipeEntry = b => {
+        if E.isBlank(e) {
+          b |> add(TBlank(E.toID(e), E.toID(analysisExpr), parentID))
+        } else {
+          b |> addNested(~f=toTokens'(~parentID, e))
+        }
+      }
+      (
+        analysisExpr,
+        b
+        |> add(TPipe(id, E.toID(analysisExpr), i, length, parentID))
+        |> addPipeEntry
+        |> addNewlineIfNeeded(Some(E.toID(e), id, Some(i + 1))),
+      )
+    })
     |> addNewlineIfNeeded(Some(id, id, Some(2 + List.length(rest))))
 
   | EPipeTarget(_) => recover("should never be making tokens for EPipeTarget", ~debug=e, b)
@@ -648,7 +675,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       )
       |> addNewlineIfNeeded(Some(id, id, Some(List.length(pairs))))
     )
-  | EPartial(id, str, _) => b |> add(TPartial(id, str, parentID))
+  | EPartial(id, str, oldExpr) => b |> add(TPartial(id, E.toID(oldExpr), str, parentID))
   | ERightPartial(id, newOp, expr) =>
     b
     |> addNested(~f=toTokens'(expr))

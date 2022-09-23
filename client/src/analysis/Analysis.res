@@ -453,6 +453,7 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
   let userTypes = Map.values(m.userTypes)
   let trace = getTrace(m, tlid, traceID)
   let tl = TL.get(m, tlid)
+  let packageFns = m.functions.packageFunctions |> Map.values
   let secrets = m.secrets
   switch (tl, trace) {
   | (Some(TLHandler(h)), Some(_, Ok(traceData))) =>
@@ -465,6 +466,7 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
           dbs: dbs,
           userFns: userFns,
           userTypes: userTypes,
+          packageFns: packageFns,
           secrets: secrets,
         }),
       )
@@ -479,6 +481,7 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
           dbs: dbs,
           userFns: userFns,
           userTypes: userTypes,
+          packageFns: packageFns,
           secrets: secrets,
         }),
       )

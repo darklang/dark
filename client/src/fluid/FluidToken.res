@@ -17,12 +17,12 @@ let tid = (t: t): id =>
   | TTrue(id, _)
   | TFalse(id, _)
   | TNullToken(id, _)
-  | TBlank(id, _)
+  | TBlank(id, _, _)
   | TPlaceholder({blankID: id, _})
-  | TPartial(id, _, _)
+  | TPartial(id, _, _, _)
   | TLeftPartial(id, _, _)
   | TRightPartial(id, _, _)
-  | TPartialGhost(id, _, _)
+  | TPartialGhost(id, _, _, _)
   | TLetKeyword(id, _, _)
   | TLetAssignment(id, _, _)
   | TLetVarName(id, _, _, _)
@@ -50,7 +50,7 @@ let tid = (t: t): id =>
   | TTupleOpen(id)
   | TTupleClose(id)
   | TTupleComma(id, _)
-  | TPipe(id, _, _, _)
+  | TPipe(id, _, _, _, _)
   | TRecordOpen(id, _)
   | TRecordClose(id, _)
   | TRecordFieldname({recordID: id, _})
@@ -83,17 +83,20 @@ let tid = (t: t): id =>
 
 let analysisID = (t: t): id =>
   switch t {
-  | TLetVarName(_, id, _, _)
-  | TLetKeyword(_, id, _)
-  | TLetAssignment(_, id, _)
-  | TRecordFieldname({exprID: id, _})
-  | TLambdaVar(_, id, _, _, _)
-  | TRecordSep(_, _, id)
-  | TMatchBranchArrow({patternID: id, _}) => id
+  | TLetVarName(_, aid, _, _)
+  | TLetKeyword(_, aid, _)
+  | TLetAssignment(_, aid, _)
+  | TRecordFieldname({exprID: aid, _})
+  | TLambdaVar(_, aid, _, _, _)
+  | TRecordSep(_, _, aid)
+  | TPartial(_, aid, _, _)
+  | TPartialGhost(_, aid, _, _)
+  | TPipe(_, aid, _, _, _)
+  | TBlank(_, aid, _)
+  | TMatchBranchArrow({patternID: aid, _}) => aid
   | _ => tid(t)
   }
 
-// TODO(alice) merge these two functions?
 let parentExprID = (t: t): id =>
   switch t {
   | TNewline(Some(_, id, _)) => id
@@ -116,7 +119,7 @@ let parentBlockID = (t: t): option<id> =>
   | TRecordClose(_, pid)
   | TListOpen(_, pid)
   | TListClose(_, pid)
-  | TBlank(_, pid)
+  | TBlank(_, _, pid)
   | TInteger(_, _, pid)
   | TString(_, _, pid)
   | TTrue(_, pid)
@@ -125,10 +128,10 @@ let parentBlockID = (t: t): option<id> =>
   | TFloatWhole(_, _, pid)
   | TFloatPoint(_, pid)
   | TFloatFractional(_, _, pid)
-  | TPartial(_, _, pid)
+  | TPartial(_, _, _, pid)
   | TRightPartial(_, _, pid)
   | TLeftPartial(_, _, pid)
-  | TPartialGhost(_, _, pid)
+  | TPartialGhost(_, _, _, pid)
   | TLetKeyword(_, _, pid)
   | TLetVarName(_, _, _, pid)
   | TLetAssignment(_, _, pid)
@@ -144,7 +147,7 @@ let parentBlockID = (t: t): option<id> =>
   | TLambdaArrow(_, pid)
   | TLambdaSymbol(_, pid)
   | TLambdaVar(_, _, _, _, pid)
-  | TPipe(_, _, _, pid)
+  | TPipe(_, _, _, _, pid)
   | TSep(_, pid) => pid
   | TRecordFieldname(d) => d.parentBlockID
   | TNewline(Some(_, id, _)) => Some(id)
@@ -360,7 +363,7 @@ let isBlank = (t: t): bool =>
   | TFieldPartial(_, _, _, "", _)
   | TLetVarName(_, _, "", _)
   | TLambdaVar(_, _, _, "", _)
-  | TPartial(_, "", _)
+  | TPartial(_, _, "", _)
   | TRightPartial(_, "", _)
   | TLeftPartial(_, "", _)
   | TMPBlank(_) => true
@@ -534,10 +537,10 @@ let toText = (t: t): string => {
   | TNullToken(_) => "null"
   | TBlank(_) => "   "
   | TPlaceholder({placeholder: {name, tipe}, _}) => " " ++ (name ++ (" : " ++ (tipe ++ " ")))
-  | TPartial(_, str, _) => shouldntBeEmpty(str)
+  | TPartial(_, _, str, _) => shouldntBeEmpty(str)
   | TRightPartial(_, str, _) => shouldntBeEmpty(str)
   | TLeftPartial(_, str, _) => shouldntBeEmpty(str)
-  | TPartialGhost(_, str, _) => shouldntBeEmpty(str)
+  | TPartialGhost(_, _, str, _) => shouldntBeEmpty(str)
   | TSep(_) => " "
   | TNewline(_) => "\n"
   | TLetKeyword(_) => "let "
@@ -605,7 +608,7 @@ let toTestText = (t: t): string => {
     let count = 1 + String.length(name) + 3 + String.length(tipe) + 1
     Caml.String.make(count, '_')
   | TBlank(_) => "___"
-  | TPartialGhost(_, str, _) =>
+  | TPartialGhost(_, _, str, _) =>
     switch String.length(str) {
     | 0 => "@EMPTY@"
     | 1 => "@"
@@ -632,7 +635,7 @@ let toIndex = (t: t): option<int> =>
   | TStringML(_, _, index, _)
   | TLambdaVar(_, _, index, _, _)
   | TLambdaComma(_, index, _)
-  | TPipe(_, _, index, _)
+  | TPipe(_, _, _, index, _)
   | TRecordFieldname({index, _})
   | TRecordSep(_, index, _)
   | TListComma(_, index)
@@ -797,7 +800,7 @@ let toDebugInfo = (t: t): string =>
     "parent=" ++ (ID.toString(pid) ++ (" idx=" ++ string_of_int(idx)))
   | TNewline(Some(_, pid, None)) => "parent=" ++ (ID.toString(pid) ++ " idx=none")
   | TNewline(None) => "no parent"
-  | TPipe(_, idx, len, _) => Printf.sprintf("idx=%d len=%d", idx, len)
+  | TPipe(_, _, idx, len, _) => Printf.sprintf("idx=%d len=%d", idx, len)
   | TMatchBranchArrow({index: idx, _}) => "idx=" ++ string_of_int(idx)
   | TMPBlank(mid, _, idx)
   | TMPInteger(mid, _, _, idx)
@@ -891,7 +894,7 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TIfKeyword(id1, _), TIfKeyword(id2, _))
   | (TIfThenKeyword(id1, _), TIfThenKeyword(id2, _))
   | (TIfElseKeyword(id1, _), TIfElseKeyword(id2, _))
-  | (TBlank(id1, _), TBlank(id2, _))
+  | (TBlank(id1, _, _), TBlank(id2, _, _))
   | (TLambdaArrow(id1, _), TLambdaArrow(id2, _))
   | (TLambdaSymbol(id1, _), TLambdaSymbol(id2, _))
   | (TSep(id1, _), TSep(id2, _))
@@ -909,9 +912,9 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TInteger(id1, val1, _), TInteger(id2, val2, _)) => id1 == id2 && val1 == val2
   | (TFloatWhole(id1, val1, _), TFloatWhole(id2, val2, _))
   | (TFloatFractional(id1, val1, _), TFloatFractional(id2, val2, _))
-  | (TPartial(id1, val1, _), TPartial(id2, val2, _))
+  | (TPartial(id1, _, val1, _), TPartial(id2, _, val2, _))
   | (TRightPartial(id1, val1, _), TRightPartial(id2, val2, _))
-  | (TPartialGhost(id1, val1, _), TPartialGhost(id2, val2, _))
+  | (TPartialGhost(id1, _, val1, _), TPartialGhost(id2, _, val2, _))
   | (TString(id1, val1, _), TString(id2, val2, _))
   | (TLetVarName(id1, _, val1, _), TLetVarName(id2, _, val2, _))
   | (TBinOp(id1, val1, _), TBinOp(id2, val2, _))
@@ -924,7 +927,7 @@ let matchesContent = (t1: t, t2: t): bool =>
     id1 == id2 && (l1 == l2 && val1 == val2)
   | (TLambdaVar(id1, _, ind1, val1, _), TLambdaVar(id2, _, ind2, val2, _)) =>
     id1 == id2 && (ind1 == ind2 && val1 == val2)
-  | (TPipe(id1, order1, nest1, _), TPipe(id2, order2, nest2, _)) =>
+  | (TPipe(id1, _, order1, nest1, _), TPipe(id2, _, order2, nest2, _)) =>
     id1 == id2 && (order1 == order2 && nest1 == nest2)
   | (TRecordFieldname(d1), TRecordFieldname(d2)) =>
     d1.recordID == d2.recordID &&

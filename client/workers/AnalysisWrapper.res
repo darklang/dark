@@ -34,6 +34,7 @@ let warmupValue = {
     dbs: list{},
     userFns: list{},
     userTypes: list{},
+    packageFns: list{},
     secrets: list{},
   })
   Js.Json.stringify(PerformAnalysis.Params.encode(params))

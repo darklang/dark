@@ -64,6 +64,8 @@ let asName = (aci: item): string =>
   | FACFunction(fn) => FQFnName.toString(fn.name)
   | FACField(name) => name
   | FACVariable(name, _) => name
+  | FACDatastore(name) => name
+  | FACSecret(name, _) => name
   | FACLiteral(lit) =>
     switch lit {
     | LNull => "null"
@@ -106,6 +108,8 @@ let asTypeStrings = (item: item): (list<string>, string) =>
     |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.Dval.toType |> DType.tipe2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
+  | FACSecret(_, dv) => (list{}, dv |> RT.Dval.toType |> DType.tipe2str)
+  | FACDatastore(_) => (list{}, "datastore")
   | FACMatchPattern(_, FMPAVariable(_)) => (list{}, "variable")
   | FACConstructorName(name, _) | FACMatchPattern(_, FMPAConstructor(name, _)) =>
     if name == "Just" {
@@ -308,6 +312,20 @@ let typeCheck = (
       }
     | None => valid
     }
+  | FACSecret(_, dval) =>
+    if Runtime.isCompatible(RT.Dval.toType(dval), expectedReturnType) {
+      valid
+    } else {
+      invalidReturnType
+    }
+  | FACDatastore(_) =>
+    // TODO: do better with the type
+    if Runtime.isCompatible(TDB(TVariable("")), expectedReturnType) {
+      valid
+    } else {
+      invalidReturnType
+    }
+
   | FACConstructorName(name, _) =>
     switch expectedReturnType {
     | TOption(_) =>
@@ -325,7 +343,7 @@ let typeCheck = (
     | TVariable(_) => valid
     | _ => invalidReturnType
     }
-  | _ => valid
+  | FACField(_) | FACLiteral(_) | FACKeyword(_) | FACMatchPattern(_) | FACCreateFunction(_) => valid
   }
 }
 
@@ -357,7 +375,7 @@ let init: t = FluidTypes.AutoComplete.default
 
 let secretToACItem = (s: SecretTypes.t): item => {
   let asDval = RT.Dval.DStr(Util.obscureString(s.secretValue))
-  FACVariable(s.secretName, Some(asDval))
+  FACSecret(s.secretName, asDval)
 }
 
 let lookupIsInQuery = (tl: toplevel, ti: tokenInfo, functions: Functions.t) => {
@@ -417,7 +435,13 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
     Analysis.getSelectedTraceID(m, TL.id(tl))
     |> Option.map(~f=Analysis.getAvailableVarnames(m, tl, id))
     |> Option.unwrap(~default=list{})
-    |> List.map(~f=((varname, dv)) => FACVariable(varname, dv))
+    |> List.map(~f=((varname, dv)) =>
+      if String.isCapitalized(varname) {
+        FACDatastore(varname)
+      } else {
+        FACVariable(varname, dv)
+      }
+    )
 
   let keywords = if !isInQuery {
     List.map(~f=x => FACKeyword(x), list{KLet, KIf, KLambda, KMatch, KPipe})
@@ -428,7 +452,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   let literals = List.map(~f=x => FACLiteral(x), list{LBool(true), LBool(false), LNull})
 
   let secrets = List.map(m.secrets, ~f=secretToACItem)
-  Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
+  Belt.List.concatMany([varnames, secrets, constructors, literals, keywords, functions])
 }
 
 let generateMatchPatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): list<item> => {
@@ -494,7 +518,7 @@ let generate = (m: model, props: props, query: fullQuery): list<item> => {
   | TFieldName(_) | TFieldPartial(_) => generateFields(query.fieldList)
   | TLeftPartial(_) => // Left partials can ONLY be if/let/match for now
     list{FACKeyword(KLet), FACKeyword(KIf), FACKeyword(KMatch)}
-  | TPartial(id, name, _) =>
+  | TPartial(id, _, name, _) =>
     Belt.List.concat(generateExprs(m, props, query.tl, query.ti), generateCommands(name, tlid, id))
   | _ => generateExprs(m, props, query.tl, query.ti)
   }
@@ -715,22 +739,50 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   let p = (text: string) => Html.p(list{}, list{Html.text(text)})
   let typeDoc = typeErrorDoc({item: item, validity: validity})
   let simpleDoc = (text: string) => Some(list{p(text), typeDoc})
-  let deprecated = Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")})
   switch item {
   | FACFunction(f) =>
     let desc = if String.length(f.description) != 0 {
-      f.description
+      PrettyDocs.convert(f.description)
     } else {
-      "Function call with no description"
+      list{Html.i(list{}, list{Html.text("no description provided")})}
     }
 
-    let desc = PrettyDocs.convert(desc)
-    let desc = if f.deprecation != NotDeprecated {
-      list{deprecated, ...desc}
+    let deprecationHeader = if f.deprecation != NotDeprecated {
+      list{Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")})}
     } else {
-      desc
+      list{}
     }
-    Some(Belt.List.concat(desc, list{ViewErrorRailDoc.hintForFunction(f, None), typeDoc}))
+
+    let deprecationFooter = {
+      let deprecationFooterContents = switch f.deprecation {
+      | NotDeprecated => list{}
+      | ReplacedBy(name) => list{Html.text("replaced by " ++ FQFnName.StdlibFnName.toString(name))}
+      | RenamedTo(name) => list{Html.text("renamed to " ++ FQFnName.StdlibFnName.toString(name))}
+      | DeprecatedBecause(reason) => list{Html.text(reason)}
+      }
+      if deprecationFooterContents == list{} {
+        list{}
+      } else {
+        list{
+          Html.div(
+            list{Attrs.class("deprecation-reason")},
+            list{
+              Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")}),
+              ...deprecationFooterContents,
+            },
+          ),
+        }
+      }
+    }
+
+    Some(
+      Belt.List.concatMany([
+        deprecationHeader,
+        desc,
+        list{ViewErrorRailDoc.hintForFunction(f, None), typeDoc},
+        deprecationFooter,
+      ]),
+    )
   | FACConstructorName("Just", _) => simpleDoc("An Option containing a value")
   | FACConstructorName("Nothing", _) => simpleDoc("An Option representing Nothing")
   | FACConstructorName("Ok", _) => simpleDoc("A successful Result containing a value")
@@ -738,12 +790,9 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   | FACConstructorName(name, _) =>
     simpleDoc("TODO: this should never occur: the constructor " ++ name)
   | FACField(fieldname) => simpleDoc("The '" ++ fieldname ++ "' field of the object")
-  | FACVariable(var, _) =>
-    if String.isCapitalized(var) {
-      simpleDoc("The datastore '" ++ var ++ "'")
-    } else {
-      simpleDoc("The variable '" ++ var ++ "'")
-    }
+  | FACDatastore(var) => simpleDoc("The datastore '" ++ var ++ "'")
+  | FACSecret(name, _) => simpleDoc("The secret '" ++ name ++ "'")
+  | FACVariable(var, _) => simpleDoc("The variable '" ++ var ++ "'")
   | FACLiteral(_) => simpleDoc("The literal value '" ++ asName(item) ++ "'")
   | FACKeyword(KLet) =>
     simpleDoc("A `let` expression allows you assign a variable to an expression")

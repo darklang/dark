@@ -22,6 +22,10 @@
     color: lighten(saturate($red, 25%), 30%);
   }
 
+  .deprecation-reason {
+    padding-top: 15px;
+  }
+
   .cmd {
     color: lighten($pink, 5%);
     white-space: nowrap;

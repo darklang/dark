@@ -44,7 +44,8 @@ module Token = {
     | TStringCloseQuote(ID.t, string)
     // multi-line strings: id, segment, start offset, full-string
     | TStringML(ID.t, string, int, string)
-    | TBlank(ID.t, option<parentBlockID>)
+    // Sometimes the analysis wants to look "through" blanks (eg in pipes)
+    | TBlank(ID.t, analysisID, option<parentBlockID>)
     | TPlaceholder({
         blankID: ID.t,
         fnID: ID.t,
@@ -57,16 +58,16 @@ module Token = {
     | TFloatWhole(ID.t, string, option<parentBlockID>)
     | TFloatPoint(ID.t, option<parentBlockID>)
     | TFloatFractional(ID.t, string, option<parentBlockID>)
-    /* If you're filling in an expr, but havent finished it. Not used for
-     * non-expr names. */
-    | TPartial(ID.t, string, option<parentBlockID>)
+    // If you're filling in an expr, but havent finished it. Not used for
+    // non-expr names
+    | TPartial(ID.t, analysisID, string, option<parentBlockID>)
     // A partial that extends out to the right. Used to create binops.
     // A partial that preceeds an existing expression, used to wrap things in other things
     | TLeftPartial(ID.t, string, option<parentBlockID>)
     | TRightPartial(ID.t, string, option<parentBlockID>)
-    /* When a partial used to be another thing, we want to show the name of the
-     * old thing in a non-interactable way */
-    | TPartialGhost(ID.t, string, option<parentBlockID>)
+    // When a partial used to be another thing, we want to show the name of the
+    // old thing in a non-interactable way
+    | TPartialGhost(ID.t, analysisID, string, option<parentBlockID>)
     // the id *here disambiguates with other separators for reflow
     | TSep(ID.t, option<parentBlockID>)
     /* The first id is the id of the expression directly associated with the
@@ -108,7 +109,7 @@ module Token = {
     | TTupleClose(ID.t)
     | TTupleComma(ID.t, int)
     // 2nd int is the number of pipe segments there are
-    | TPipe(ID.t, int, int, option<parentBlockID>)
+    | TPipe(ID.t, analysisID, int, int, option<parentBlockID>)
     | TRecordOpen(ID.t, option<parentBlockID>)
     | TRecordFieldname({
         recordID: ID.t,
@@ -197,6 +198,8 @@ module AutoComplete = {
     | FACConstructorName(string, int)
     | FACField(string)
     | FACVariable(string, option<RuntimeTypes.Dval.t>)
+    | FACDatastore(string)
+    | FACSecret(string, RuntimeTypes.Dval.t)
     | FACLiteral(literalItem)
     | FACKeyword(keyword)
     | FACMatchPattern(ID.t /* matchId */, matchPatternItem)
