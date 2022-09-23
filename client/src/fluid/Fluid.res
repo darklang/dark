@@ -5799,30 +5799,6 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
           ),
         )
       | EPipeTarget(_) => Some(EPipeTarget(gid()))
-
-      //|> Option.andThen(~f=reconstruct(~topmostExpr=Some(expr)))
-
-      // // Reconstructs an expression, returning an Option.
-      // // If it's not within range of the selection, returns None.
-      // let reconstructExpr = (expr: option<E.t>): option<E.t> =>
-      //   switch expr {
-      //   | EPipeTarget(_) => Some(expr)
-      //   | _ =>
-      //     let exprID = E.toID(expr)
-
-      //     expressionRange(exprID, astInfo)
-      //     |> Option.andThen(~f=((exprStartPos, exprEndPos)) =>
-      //       // ensure expression range is not totally outside selection range
-      //       if exprStartPos > endPos || exprEndPos < startPos {
-      //         None
-      //       } else {
-      //         Some(max(exprStartPos, startPos), min(exprEndPos, endPos))
-      //       }
-      //     )
-      //     |> Option.andThen(~f=reconstruct(~topmostExpr=Some(expr)))
-      //   }
-
-      //topmostID |> Option.andThen(~f=id => FluidAST.findExpr(id, astInfo.ast)) |> orDefaultExpr
       }
     }
   }
