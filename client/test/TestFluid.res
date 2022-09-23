@@ -1539,6 +1539,40 @@ let run = () => {
         )
       })
     })
+    describe("Ints", () => {
+      describe("Backspace", () => {
+        t(
+          "bs at start can make a partial into an int",
+          partial("x12345678", b),
+          ~pos=1,
+          bs,
+          "~12345678",
+        )
+        t(
+          "bs at end can make a partial into an int",
+          partial("12345678x", b),
+          ~pos=9,
+          bs,
+          "12345678~",
+        )
+      })
+      describe("Delete", () => {
+        t(
+          "delete at start can make a partial into an int",
+          partial("x12345678", b),
+          ~pos=0,
+          del,
+          "~12345678",
+        )
+        t(
+          "delete at end can make a partial into an int",
+          partial("12345678x", b),
+          ~pos=8,
+          del,
+          "12345678~",
+        )
+      })
+    })
   })
   describe("Blanks", () => {
     t("insert middle of blank->string", b, ~pos=3, ins("\""), "\"~\"")

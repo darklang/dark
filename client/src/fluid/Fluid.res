@@ -3051,6 +3051,13 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         }
 
         Some(Expr(EString(newID, newStr)), caretTarget)
+      } else if FluidUtil.isNumber(str) {
+        switch Int64.of_string_opt(str) {
+        | Some(int) =>
+          let newID = gid()
+          Some(Expr(EInteger(newID, int)), {astRef: ARInteger(newID), offset: currOffset - 1})
+        | None => Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
+        }
       } else {
         Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
       }
