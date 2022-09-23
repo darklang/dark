@@ -4353,7 +4353,7 @@ let tokensInRange = (selStartPos: int, selEndPos: int, astInfo: ASTInfo.t): toke
         selStartPos < t.endPos && t.endPos <= selEndPos)))
   )
 
-let getTopmostSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): option<id> => {
+let getTopmostExprSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): option<id> => {
   let (startPos, endPos) = orderRangeFromSmallToBig((startPos, endPos))
 
   // TODO: if there's multiple topmost IDs, return parent of those IDs
@@ -4362,6 +4362,7 @@ let getTopmostSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): op
   |> List.fold(~initial=(None, 0), ~f=((topmostID, topmostDepth), ti: T.tokenInfo) => {
     let curID = T.parentExprID(ti.token)
     let curDepth = FluidAST.ancestors(curID, astInfo.ast) |> List.length
+
     if (
       /* check if current token is higher in the AST than the last token,
        * or if there's no topmost ID yet */
@@ -4383,7 +4384,7 @@ let getTopmostSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): op
 
 let getSelectedExprID = (astInfo: ASTInfo.t): option<id> =>
   getOptionalSelectionRange(astInfo.state) |> Option.andThen(~f=((startPos, endPos)) =>
-    getTopmostSelectionID(startPos, endPos, astInfo)
+    getTopmostExprSelectionID(startPos, endPos, astInfo)
   )
 
 let maybeOpenCmd = (m: model): AppTypes.modification => {
@@ -4507,7 +4508,7 @@ let rec updateKey = (
   | (Keypress({key: K.ShiftEnter, _}), left, _) =>
     let doPipeline = (astInfo: ASTInfo.t): ASTInfo.t => {
       let (startPos, endPos) = FluidUtil.getSelectionRange(astInfo.state)
-      let topmostSelectionID = getTopmostSelectionID(startPos, endPos, astInfo)
+      let topmostSelectionID = getTopmostExprSelectionID(startPos, endPos, astInfo)
 
       let defaultTopmostSelection = switch topmostSelectionID {
       | Some(id) => (Some(id), startPos == endPos)
@@ -5412,18 +5413,20 @@ let tokensInRangeNormalized = (startPos, endPos, astInfo) =>
 
   Aims to include only what's in the selection.
   i.e. if you select `[1,|2,3,4|,5]`, the expr [2,3,4] will be the result.")
-let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
+let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, int)): option<
   FluidExpression.t,
 > => {
+  // Normalize inputs: prevent duplicate IDs, order selection range
+  let astInfo = ASTInfo.setAST(FluidAST.clone(astInfo.ast), astInfo)
+  let (startPos, endPos) = orderRangeFromSmallToBig((startPos, endPos))
+
+  // Helper fns
+  let orDefaultExpr: option<E.t> => E.t = Option.unwrap(~default=EBlank(gid()))
+
   let findTokenValue = (tokens, tID, typeName) =>
     List.find(tokens, ~f=((tID', _, typeName')) =>
       tID == tID' && typeName == typeName'
     ) |> Option.map(~f=Tuple3.second)
-
-  // prevent duplicates
-  let astInfo = ASTInfo.setAST(FluidAST.clone(astInfo.ast), astInfo)
-
-  let orDefaultExpr: option<E.t> => E.t = Option.unwrap(~default=EBlank(gid()))
 
   // main recursive algorithm
   // algo:
@@ -5823,7 +5826,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
       }
     }
   }
-  and reconstructPattern = (matchPattern, mpTokens) => {
+  and reconstructPattern = (matchPattern: MP.t, mpTokens) => {
     // TODO: should we really be re-using these IDs?
     switch mpTokens {
     | list{} => None
@@ -5885,9 +5888,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
     }
   }
 
-  let (startPos, endPos) = orderRangeFromSmallToBig(range)
-
-  let topmostID = getTopmostSelectionID(startPos, endPos, astInfo)
+  let topmostID = getTopmostExprSelectionID(startPos, endPos, astInfo)
   let topmostExpr = topmostID |> Option.andThen(~f=id => FluidAST.findExpr(id, astInfo.ast))
 
   reconstruct(~topmostExpr, (startPos, endPos))
@@ -6064,7 +6065,7 @@ let getCopySelection = (m: model): clipboardContents =>
       ASTInfo.exprOfActiveEditor(astInfo) |> Printer.eToHumanString |> String.slice(~from, ~to_)
 
     let json =
-      reconstructExprFromRange((from, to_), astInfo) |> Option.map(
+      reconstructExprFromRange(astInfo, (from, to_)) |> Option.map(
         ~f=Clipboard.exprToClipboardContents,
       )
 
