@@ -511,16 +511,28 @@ let t = (
     (" - `" ++
     ((Printer.eToTestString(expr) |> Regex.replace(~re=Regex.regex("\n"), ~repl=" ")) ++
     "`")))
+  let partialsStr = (b: bool) =>
+    if b {
+      "containsPartials"
+    } else {
+      "noPartials"
+    }
+  let fnOnRailStr = (b: bool) =>
+    if b {
+      "fnOnRail"
+    } else {
+      "fnNotOnRail"
+    }
 
   let case = TestCase.init(~wrap, ~clone, ~debug, ~pos, ~sel, expr)
   test(testName(), () => {
     let res = fn(case)
     open TestResult
-    expect((toStringWithCaret(res), containsPartials(res), containsFnsOnRail(res))) |> toEqual((
-      expectedStr,
-      expectsPartial,
-      expectsFnOnRail,
-    ))
+    expect((
+      toStringWithCaret(res),
+      containsPartials(res)->partialsStr,
+      containsFnsOnRail(res)->fnOnRailStr,
+    )) |> toEqual((expectedStr, expectsPartial->partialsStr, expectsFnOnRail->fnOnRailStr))
   })
   // also run the same test in a feature flag editor panel, unless it's marked as not working
   if !brokenInFF {
@@ -529,11 +541,11 @@ let t = (
     test(testName(~ff=true, ()), () => {
       let res = fn(case)
       open TestResult
-      expect((toStringWithCaret(res), containsPartials(res), containsFnsOnRail(res))) |> toEqual((
-        expectedStr,
-        expectsPartial,
-        expectsFnOnRail,
-      ))
+      expect((
+        toStringWithCaret(res),
+        containsPartials(res)->partialsStr,
+        containsFnsOnRail(res)->fnOnRailStr,
+      )) |> toEqual((expectedStr, expectsPartial->partialsStr, expectsFnOnRail->fnOnRailStr))
     })
   }
 }
