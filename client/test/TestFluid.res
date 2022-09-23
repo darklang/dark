@@ -1111,54 +1111,6 @@ let run = () => {
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++ "  abcdefghi, 123456789_ abcdefghi,\"",
     )
     t(
-      "adding a quote at the front turns a partial into a string",
-      partial("abcdefgh\"", b),
-      ins("\""),
-      "\"~abcdefgh\"",
-    )
-    t(
-      "adding a quote at the back turns a partial into a string",
-      partial("\"abcdefgh", b),
-      ~pos=9,
-      ins("\""),
-      "\"abcdefgh\"~",
-    )
-    t(
-      "bs at start can make a partial into a string",
-      partial("x\"abcdefgh\"", b),
-      ~pos=1,
-      bs,
-      "~\"abcdefgh\"",
-    )
-    t(
-      "bs at end can make a partial into a string",
-      partial("\"abcdefgh\"x", b),
-      ~pos=11,
-      bs,
-      "\"abcdefgh\"~",
-    )
-    t(
-      "delete at start can make a partial into a string",
-      partial("x\"abcdefgh\"", b),
-      ~pos=0,
-      del,
-      "~\"abcdefgh\"",
-    )
-    t(
-      "delete at end can make a partial into a string",
-      partial("\"abcdefgh\"x", b),
-      ~pos=10,
-      del,
-      "\"abcdefgh\"~",
-    )
-    t(
-      ~expectsPartial=true,
-      "just one quote doesn't turn a partial into a string",
-      partial("abcdefgh", b),
-      ins("\""),
-      "\"~abcdefgh",
-    )
-    t(
       "Replace text in multiline string if text is inserted with selection",
       mlStrWSpace,
       ~sel=(1, 73),
@@ -1520,6 +1472,56 @@ let run = () => {
       ~pos=2,
       inputs(list{DeleteWordForward}),
       "nu~",
+    )
+  })
+  describe("Partials", () => {
+    t(
+      "adding a quote at the front turns a partial into a string",
+      partial("abcdefgh\"", b),
+      ins("\""),
+      "\"~abcdefgh\"",
+    )
+    t(
+      "adding a quote at the back turns a partial into a string",
+      partial("\"abcdefgh", b),
+      ~pos=9,
+      ins("\""),
+      "\"abcdefgh\"~",
+    )
+    t(
+      "bs at start can make a partial into a string",
+      partial("x\"abcdefgh\"", b),
+      ~pos=1,
+      bs,
+      "~\"abcdefgh\"",
+    )
+    t(
+      "bs at end can make a partial into a string",
+      partial("\"abcdefgh\"x", b),
+      ~pos=11,
+      bs,
+      "\"abcdefgh\"~",
+    )
+    t(
+      "delete at start can make a partial into a string",
+      partial("x\"abcdefgh\"", b),
+      ~pos=0,
+      del,
+      "~\"abcdefgh\"",
+    )
+    t(
+      "delete at end can make a partial into a string",
+      partial("\"abcdefgh\"x", b),
+      ~pos=10,
+      del,
+      "\"abcdefgh\"~",
+    )
+    t(
+      ~expectsPartial=true,
+      "just one quote doesn't turn a partial into a string",
+      partial("abcdefgh", b),
+      ins("\""),
+      "\"~abcdefgh",
     )
   })
   describe("Blanks", () => {
