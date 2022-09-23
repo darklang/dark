@@ -91,7 +91,7 @@ let findExprParent: (ID.t, t) => option<FluidExpression.t>
   * of that expression.
   *
   * See FluidExpression.ancestors ")
-let ancestors: (ID.t, t) => list<FluidExpression.t>
+let exprAncestors: (ID.t, t) => list<FluidExpression.t>
 
 @ocaml.doc(" [getFeatureFlags ast] returns a list of all feature flags in the AST. ")
 let getFeatureFlags: t => list<FluidExpression.t>

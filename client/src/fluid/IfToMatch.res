@@ -7,7 +7,7 @@ let findIf = (ast: FluidAST.t, e: E.t): option<E.t> =>
   switch e {
   | EIf(_) => Some(e)
   | _ =>
-    FluidAST.ancestors(FluidExpression.toID(e), ast) |> List.find(~f=x =>
+    FluidAST.exprAncestors(FluidExpression.toID(e), ast) |> List.find(~f=x =>
       switch x {
       | E.EIf(_) => true
       | _ => false

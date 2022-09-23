@@ -4361,7 +4361,7 @@ let getTopmostExprSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t)
   |> List.filter(~f=(ti: T.tokenInfo) => !T.isNewline(ti.token))
   |> List.fold(~initial=(None, 0), ~f=((topmostID, topmostDepth), ti: T.tokenInfo) => {
     let curID = T.parentExprID(ti.token)
-    let curDepth = FluidAST.ancestors(curID, astInfo.ast) |> List.length
+    let curDepth = FluidAST.exprAncestors(curID, astInfo.ast) |> List.length
 
     if (
       /* check if current token is higher in the AST than the last token,

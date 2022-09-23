@@ -144,7 +144,7 @@ let extractVarInAst = (
   switch FluidAST.findExpr(id, ast) {
   | Some(e) =>
     let lastPlaceWithSameVarsAndValues = {
-      let ancestors = FluidAST.ancestors(id, ast)
+      let ancestors = FluidAST.exprAncestors(id, ast)
       let freeVariables = AST.freeVariables(e) |> List.map(~f=Tuple2.second) |> Set.String.fromList
 
       list{e, ...ancestors}

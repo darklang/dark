@@ -11,7 +11,7 @@ type unwrapKeep =
 @ocaml.doc(" [ancestorFlag ast id] returns the first ancestor of the expression having
  * [id] that is a feature flag ")
 let ancestorFlag = (ast: FluidAST.t, id: id): option<FluidExpression.t> =>
-  FluidAST.ancestors(id, ast) |> List.find(~f=x =>
+  FluidAST.exprAncestors(id, ast) |> List.find(~f=x =>
     switch x {
     | E.EFeatureFlag(_) => true
     | _ => false
