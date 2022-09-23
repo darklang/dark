@@ -3037,30 +3037,40 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           Some(Expr(expr), target)
         | _ => mkEBlank()
         }
-      } else if String.startsWith(~prefix="\"", str) && String.endsWith(~suffix="\"", str) {
-        let newID = gid()
-        let newStr = String.slice(~from=1, ~to_=-1, str)
-        let caretTarget = if currOffset == 1 {
-          // Just backspaced over character before the quote
-          CT.forARStringOpenQuote(newID, 0)
-        } else if currOffset == String.length(oldStr) {
-          // Just backspaced over character after the quote
-          CT.forARStringCloseQuote(newID, 1)
-        } else {
-          CT.forARStringBody(newID, currOffset - 1, newStr)
-        }
-
-        Some(Expr(EString(newID, newStr)), caretTarget)
-      } else if FluidUtil.isNumber(str) {
-        switch Int64.of_string_opt(str) {
-        | Some(int) =>
-          let newID = gid()
-          Some(Expr(EInteger(newID, int)), {astRef: ARInteger(newID), offset: currOffset - 1})
+      } else {
+        switch FluidPartials.parseExpr(str) {
+        | Some(EString(newID, newStr) as expr) =>
+          let caretTarget = if currOffset == 1 {
+            // Just backspaced over character before the quote
+            CT.forARStringOpenQuote(newID, 0)
+          } else if currOffset == String.length(oldStr) {
+            // Just backspaced over character after the quote
+            CT.forARStringCloseQuote(newID, 1)
+          } else {
+            CT.forARStringBody(newID, currOffset - 1, newStr)
+          }
+          Some(Expr(expr), caretTarget)
+        | Some(EInteger(newID, _) as expr) =>
+          Some(Expr(expr), {astRef: ARInteger(newID), offset: currOffset - 1})
+        | Some(expr) =>
+          recover(
+            "Successfully parsed but didn't know how to convert",
+            ~debug=expr,
+            Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne),
+          )
         | None => Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
         }
-      } else {
-        Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
       }
+
+    // } else if FluidUtil.isNumber(str) {
+    //   switch Int64.of_string_opt(str) {
+    //   | Some(int) =>
+    //     let newID = gid()
+    //     Some(Expr(EInteger(newID, int)), {astRef: ARInteger(newID), offset: currOffset - 1})
+    //   | None => Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
+    //   }
+    // } else {
+    // }
     | (ARLeftPartial(_), ELeftPartial(id, oldStr, oldValue)) =>
       let str = oldStr |> mutation |> String.trim
 
