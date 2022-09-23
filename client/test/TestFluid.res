@@ -1475,54 +1475,70 @@ let run = () => {
     )
   })
   describe("Partials", () => {
-    t(
-      "adding a quote at the front turns a partial into a string",
-      partial("abcdefgh\"", b),
-      ins("\""),
-      "\"~abcdefgh\"",
-    )
-    t(
-      "adding a quote at the back turns a partial into a string",
-      partial("\"abcdefgh", b),
-      ~pos=9,
-      ins("\""),
-      "\"abcdefgh\"~",
-    )
-    t(
-      "bs at start can make a partial into a string",
-      partial("x\"abcdefgh\"", b),
-      ~pos=1,
-      bs,
-      "~\"abcdefgh\"",
-    )
-    t(
-      "bs at end can make a partial into a string",
-      partial("\"abcdefgh\"x", b),
-      ~pos=11,
-      bs,
-      "\"abcdefgh\"~",
-    )
-    t(
-      "delete at start can make a partial into a string",
-      partial("x\"abcdefgh\"", b),
-      ~pos=0,
-      del,
-      "~\"abcdefgh\"",
-    )
-    t(
-      "delete at end can make a partial into a string",
-      partial("\"abcdefgh\"x", b),
-      ~pos=10,
-      del,
-      "\"abcdefgh\"~",
-    )
-    t(
-      ~expectsPartial=true,
-      "just one quote doesn't turn a partial into a string",
-      partial("abcdefgh", b),
-      ins("\""),
-      "\"~abcdefgh",
-    )
+    describe("Strings", () => {
+      describe("Insert", () => {
+        t(
+          "adding a quote at the front turns a partial into a string",
+          partial("abcdefgh\"", b),
+          ins("\""),
+          "\"~abcdefgh\"",
+        )
+        t(
+          "adding a quote at the back turns a partial into a string",
+          partial("\"abcdefgh", b),
+          ~pos=9,
+          ins("\""),
+          "\"abcdefgh\"~",
+        )
+        t(
+          "adding a quote in the middle does not turn a partial into a string",
+          partial("\"abcdefgh", b),
+          ~expectsPartial=true,
+          ~pos=5,
+          ins("\""),
+          "\"abcd\"~efgh",
+        )
+        t(
+          ~expectsPartial=true,
+          "just one quote doesn't turn a partial into a string",
+          partial("abcdefgh", b),
+          ins("\""),
+          "\"~abcdefgh",
+        )
+      })
+      describe("Backspace", () => {
+        t(
+          "bs at start can make a partial into a string",
+          partial("x\"abcdefgh\"", b),
+          ~pos=1,
+          bs,
+          "~\"abcdefgh\"",
+        )
+        t(
+          "bs at end can make a partial into a string",
+          partial("\"abcdefgh\"x", b),
+          ~pos=11,
+          bs,
+          "\"abcdefgh\"~",
+        )
+      })
+      describe("Delete", () => {
+        t(
+          "delete at start can make a partial into a string",
+          partial("x\"abcdefgh\"", b),
+          ~pos=0,
+          del,
+          "~\"abcdefgh\"",
+        )
+        t(
+          "delete at end can make a partial into a string",
+          partial("\"abcdefgh\"x", b),
+          ~pos=10,
+          del,
+          "\"abcdefgh\"~",
+        )
+      })
+    })
   })
   describe("Blanks", () => {
     t("insert middle of blank->string", b, ~pos=3, ins("\""), "\"~\"")
