@@ -3040,7 +3040,17 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       } else if String.startsWith(~prefix="\"", str) && String.endsWith(~suffix="\"", str) {
         let newID = gid()
         let newStr = String.slice(~from=1, ~to_=-1, str)
-        Some(Expr(EString(newID, newStr)), CT.forARStringBody(newID, currOffset - 1, newStr))
+        let caretTarget = if currOffset == 1 {
+          // Just backspaced over character before the quote
+          CT.forARStringOpenQuote(newID, 0)
+        } else if currOffset == String.length(oldStr) {
+          // Just backspaced over character after the quote
+          CT.forARStringCloseQuote(newID, 1)
+        } else {
+          CT.forARStringBody(newID, currOffset - 1, newStr)
+        }
+
+        Some(Expr(EString(newID, newStr)), caretTarget)
       } else {
         Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
       }

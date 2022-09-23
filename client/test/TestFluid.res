@@ -1124,6 +1124,34 @@ let run = () => {
       "\"abcdefgh\"~",
     )
     t(
+      "bs at start can make a partial into a string",
+      partial("x\"abcdefgh\"", b),
+      ~pos=1,
+      bs,
+      "~\"abcdefgh\"",
+    )
+    t(
+      "bs at end can make a partial into a string",
+      partial("\"abcdefgh\"x", b),
+      ~pos=11,
+      bs,
+      "\"abcdefgh\"~",
+    )
+    t(
+      "delete at start can make a partial into a string",
+      partial("x\"abcdefgh\"", b),
+      ~pos=0,
+      del,
+      "~\"abcdefgh\"",
+    )
+    t(
+      "delete at end can make a partial into a string",
+      partial("\"abcdefgh\"x", b),
+      ~pos=10,
+      del,
+      "\"abcdefgh\"~",
+    )
+    t(
       ~expectsPartial=true,
       "just one quote doesn't turn a partial into a string",
       partial("abcdefgh", b),
