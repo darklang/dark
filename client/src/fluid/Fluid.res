@@ -2721,20 +2721,12 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         }
       } else {
         switch FluidPartials.parseExpr(str) {
-        | Some(EString(newID, newStr) as expr) =>
-          let caretTarget = if currOffset == 1 {
-            // Just backspaced over character before the quote
-            CT.forARStringOpenQuote(newID, 0)
-          } else if currOffset == String.length(oldStr) {
-            // Just backspaced over character after the quote
-            CT.forARStringCloseQuote(newID, 1)
-          } else {
-            CT.forARStringBody(newID, currOffset - 1, newStr)
-          }
-          Some(Expr(expr), caretTarget)
-        | Some(EInteger(_) as expr)
-        | Some(EFloat(_) as expr) =>
-          Some(Expr(expr), CT.forExprOffset(expr, currOffset - 1))
+        | Some(EString(_, newStr) as expr) =>
+          Some(Expr(expr), CT.forARStringOffset(E.toID(expr), currOffset - 1, newStr))
+        | Some(EInteger(_) as expr) =>
+          Some(Expr(expr), {astRef: ARInteger(E.toID(expr)), offset: currOffset - 1})
+        | Some(EFloat(id, sign, whole, fractional) as expr) =>
+          Some(Expr(expr), CT.forARFloatOffset(id, currOffset - 1, sign, whole, fractional))
         | Some(expr) =>
           recover(
             "Successfully parsed but didn't know how to convert",
@@ -2744,16 +2736,6 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         | None => Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
         }
       }
-
-    // } else if FluidUtil.isNumber(str) {
-    //   switch Int64.of_string_opt(str) {
-    //   | Some(int) =>
-    //     let newID = gid()
-    //     Some(Expr(EInteger(newID, int)), {astRef: ARInteger(newID), offset: currOffset - 1})
-    //   | None => Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
-    //   }
-    // } else {
-    // }
     | (ARLeftPartial(_), ELeftPartial(id, oldStr, oldValue)) =>
       let str = oldStr |> mutation |> String.trim
 

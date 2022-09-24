@@ -42,6 +42,60 @@ let forARStringCloseQuote = (id: id, offset: int): t => {
   {astRef: ARString(id, SPCloseQuote), offset: offset}
 }
 
+@ocaml.doc(" [forARStringOffset id offset str] produces an ARString caretTarget
+* pointing to an [offset] into string with [id]. [str] should be a string without the
+* implicit quotes (eg from an Expr), but offset should include the quotes (eg from a Token).")
+let forARStringOffset = (id: id, offset: int, str: string): t => {
+  open FluidCursorTypes.AstRef
+  // offset-1 is the offset into the string, the `-1` accounting for the open quote.
+  // Note that str does not include quotes, it's just the string body
+
+  let (astRef, offset) = if offset < 0 {
+    recover("unexpected string offset", ~debug=(id, offset, str), (SPOpenQuote, 0))
+  } else if offset == 0 {
+    (SPOpenQuote, 0)
+  } else if offset - 1 <= String.length(str) {
+    (SPBody, offset - 1)
+  } else if offset - 1 == String.length(str) + 1 {
+    (SPCloseQuote, 1)
+  } else {
+    let offset = recover("unexpected closequote offset", ~debug=offset, 1)
+    (SPCloseQuote, offset)
+  }
+  {FluidCursorTypes.CaretTarget.astRef: ARString(id, astRef), offset: offset}
+}
+
+let forARFloatOffset = (
+  id: id,
+  offset: int,
+  sign: ProgramTypes.Sign.t,
+  whole: string,
+  fractional: string,
+): t => {
+  open FluidCursorTypes.AstRef
+  let (astRef, offset) = {
+    let signCount = if sign == ProgramTypes.Sign.Positive {
+      0
+    } else {
+      1
+    }
+    let wholeCount = String.length(whole)
+    let dotCount = 1
+    let fractionalCount = String.length(fractional)
+
+    if offset > signCount + wholeCount + dotCount {
+      let fractionOffset = max(fractionalCount, offset - (signCount + wholeCount + dotCount))
+      (FPFractional, fractionOffset)
+    } else if offset > signCount + wholeCount {
+      let dotOffset = max(1, offset - (signCount + wholeCount + dotCount))
+      (FPPoint, dotOffset)
+    } else {
+      (FPWhole, offset)
+    }
+  }
+  {FluidCursorTypes.CaretTarget.astRef: ARFloat(id, astRef), offset: offset}
+}
+
 @ocaml.doc(" [forMPPStringOpenQuote id offset] produces an ARMPattern MPPString caretTarget
 * pointing to an [offset] into the open quote of the pattern string with [id].
 * [offset] may NOT be negative as it cannot represent something out of string bounds. ")

@@ -1,3 +1,6 @@
+/// Parsing functions for partials (can be used to convert simple and single line
+/// values to expressions and patterns)
+
 open Prelude
 
 let parseStringExpr = (str: string): option<ProgramTypes.Expr.t> => {

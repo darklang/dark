@@ -1629,6 +1629,72 @@ let run = () => {
         })
       })
     })
+    describe("Floats", () => {
+      describe("Backspace", () => {
+        describe("Positive", () => {
+          t("bs at start can make a partial into a float", partial("x5.62", b), ~pos=1, bs, "~5.62")
+          t("bs at end can make a partial into a float", partial("5.62x", b), ~pos=5, bs, "5.62~")
+          t(
+            "bs into too big a float remains a partial",
+            partial("x99999999999999999999.99999999999999999", b),
+            ~pos=1,
+            ~expectsPartial=true,
+            bs,
+            "~99999999999999999999.99999999999999999",
+          )
+        })
+        describe("Negative", () => {
+          t(
+            "bs at start can make a partial into a negative float",
+            partial("x-5.62", b),
+            ~pos=1,
+            bs,
+            "~-5.62",
+          )
+          t(
+            "bs at end can make a partial into a negative float",
+            partial("-5.62x", b),
+            ~pos=6,
+            bs,
+            "-5.62~",
+          )
+        })
+      })
+      describe("Delete", () => {
+        describe("Positive", () => {
+          t(
+            "delete at start can make a partial into a float",
+            partial("x5.62", b),
+            ~pos=0,
+            del,
+            "~5.62",
+          )
+          t(
+            "delete at end can make a partial into a float",
+            partial("5.62x", b),
+            ~pos=4,
+            del,
+            "5.62~",
+          )
+        })
+        describe("Negative", () => {
+          t(
+            "delete at start can make a partial into a negative float",
+            partial("x-5.62", b),
+            ~pos=0,
+            del,
+            "~-5.62",
+          )
+          t(
+            "delete at end can make a partial into a negative float",
+            partial("-5.62x", b),
+            ~pos=5,
+            del,
+            "-5.62~",
+          )
+        })
+      })
+    })
   })
   describe("Blanks", () => {
     t("insert middle of blank->string", b, ~pos=3, ins("\""), "\"~\"")
