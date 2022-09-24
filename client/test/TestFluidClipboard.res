@@ -750,7 +750,13 @@ let run = () => {
       int(9000),
       "1239000~678",
     )
-    ()
+    testPasteText(
+      "pasting a whole part into a partial should convert to float",
+      partial(".567", b),
+      (0, 0),
+      "23",
+      "23~.567",
+    )
   })
   describe("Variables", () => {
     testCopy("copying adds a var to clipboard", var("varName"), (0, 7), "varName")

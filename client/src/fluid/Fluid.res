@@ -3374,21 +3374,20 @@ let doExplicitInsert = (
       })
     | (ARPartial(_), EPartial(id, oldStr, oldExpr)) =>
       let str = oldStr |> mutation |> String.trim
-      if String.startsWith(~prefix="\"", str) && String.endsWith(~suffix="\"", str) {
-        let newID = gid()
-        let newStr = String.slice(~from=1, ~to_=-1, str)
-        if currOffset == 0 {
-          Some(EString(newID, newStr), CT.forARStringOpenQuote(newID, 1))
-        } else if currOffset == String.length(oldStr) {
-          Some(EString(newID, newStr), CT.forARStringCloseQuote(newID, 1))
-        } else {
-          Some(
-            EString(newID, newStr),
-            CT.forARStringBody(newID, currOffset - 1 + caretDelta, newStr),
-          )
-        }
-      } else {
-        Some(EPartial(id, str, oldExpr), currCTPlusLen)
+      switch FluidPartials.parseExpr(str) {
+      | Some(EString(_, newStr) as expr) =>
+        Some(expr, CT.forARStringOffset(E.toID(expr), currOffset + caretDelta, newStr))
+      | Some(EInteger(_) as expr) =>
+        Some(expr, {astRef: ARInteger(E.toID(expr)), offset: currOffset + caretDelta})
+      | Some(EFloat(id, sign, whole, fractional) as expr) =>
+        Some(expr, CT.forARFloatOffset(id, currOffset + caretDelta, sign, whole, fractional))
+      | Some(expr) =>
+        recover(
+          "Successfully parsed but didn't know how to convert",
+          ~debug=expr,
+          Some(EPartial(id, str, oldExpr), currCTPlusLen),
+        )
+      | None => Some(EPartial(id, str, oldExpr), currCTPlusLen)
       }
     | (ARRightPartial(_), ERightPartial(id, oldStr, oldValue)) =>
       let str = oldStr |> mutation |> String.trim

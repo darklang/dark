@@ -1750,6 +1750,9 @@ let run = () => {
           )
         })
       })
+      describe("Insert", () => {
+        t("insert at start of float partial", partial(".62", b), ~pos=0, ins("0"), "0~.62")
+      })
     })
   })
   describe("Blanks", () => {
