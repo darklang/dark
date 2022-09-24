@@ -1133,12 +1133,16 @@ let run = () => {
   describe("Integers", () => {
     t("insert 0 at front ", anInt, ins("0"), "~12345")
     t("insert at end of short", aShortInt, ~pos=1, ins("2"), "12~")
+    t("insert at end of negative short", int(-1), ~pos=2, ins("2"), "-12~")
     t("insert start of number", anInt, ins("5"), "5~12345")
+    t("insert start of negative number", int(-12345), ~pos=1, ins("5"), "-5~12345")
     t("del start of number", anInt, del, "~2345")
     t("bs start of number", anInt, bs, "~12345")
     t("insert end of number", anInt, ~pos=5, ins("0"), "123450~")
     t("del end of number", anInt, ~pos=5, del, "12345~")
     t("bs end of number", anInt, ~pos=5, bs, "1234~")
+    t("bs minus sign", int(-1234), ~pos=1, bs, "~1234")
+    t("del minus sign", int(-1234), ~pos=0, del, "~1234")
     t("insert non-number at start is no-op", anInt, ins("c"), "~12345")
     // tStruct(
     //   "insert non-number without wrapper creates left partial",
