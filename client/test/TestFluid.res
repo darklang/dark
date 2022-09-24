@@ -1633,6 +1633,20 @@ let run = () => {
       describe("Backspace", () => {
         describe("Positive", () => {
           t("bs at start can make a partial into a float", partial("x5.62", b), ~pos=1, bs, "~5.62")
+          t(
+            "bs before point can make a partial into a float",
+            partial("5.x62", b),
+            ~pos=3,
+            bs,
+            "5.~62",
+          )
+          t(
+            "bs after point can make a partial into a float",
+            partial("5x.62", b),
+            ~pos=2,
+            bs,
+            "5~.62",
+          )
           t("bs at end can make a partial into a float", partial("5.62x", b), ~pos=5, bs, "5.62~")
           t(
             "bs into too big a float remains a partial",
@@ -1650,6 +1664,20 @@ let run = () => {
             ~pos=1,
             bs,
             "~-5.62",
+          )
+          t(
+            "bs before point can make a partial into a float",
+            partial("-5.x62", b),
+            ~pos=4,
+            bs,
+            "-5.~62",
+          )
+          t(
+            "bs after point can make a partial into a float",
+            partial("-5x.62", b),
+            ~pos=3,
+            bs,
+            "-5~.62",
           )
           t(
             "bs at end can make a partial into a negative float",
@@ -1670,6 +1698,20 @@ let run = () => {
             "~5.62",
           )
           t(
+            "del before point can make a partial into a float",
+            partial("5.x62", b),
+            ~pos=2,
+            del,
+            "5.~62",
+          )
+          t(
+            "del after point can make a partial into a float",
+            partial("5x.62", b),
+            ~pos=1,
+            del,
+            "5~.62",
+          )
+          t(
             "delete at end can make a partial into a float",
             partial("5.62x", b),
             ~pos=4,
@@ -1684,6 +1726,20 @@ let run = () => {
             ~pos=0,
             del,
             "~-5.62",
+          )
+          t(
+            "del before point can make a partial into a float",
+            partial("5.x62", b),
+            ~pos=2,
+            del,
+            "5.~62",
+          )
+          t(
+            "del after point can make a partial into a float",
+            partial("5x.62", b),
+            ~pos=1,
+            del,
+            "5~.62",
           )
           t(
             "delete at end can make a partial into a negative float",
