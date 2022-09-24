@@ -54,8 +54,10 @@ let forARStringOffset = (id: id, offset: int, str: string): t => {
     recover("unexpected string offset", ~debug=(id, offset, str), (SPOpenQuote, 0))
   } else if offset == 0 {
     (SPOpenQuote, 0)
-  } else if offset - 1 <= String.length(str) {
+  } else if offset - 1 < String.length(str) {
     (SPBody, offset - 1)
+  } else if offset - 1 == String.length(str) {
+    (SPCloseQuote, 0)
   } else if offset - 1 == String.length(str) + 1 {
     (SPCloseQuote, 1)
   } else {
