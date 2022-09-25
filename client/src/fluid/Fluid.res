@@ -3420,7 +3420,13 @@ let doExplicitInsert = (
       } else if extendedGraphemeCluster == "." {
         let newID = gid()
         let (whole, frac) = String.splitAt(~index=currOffset, Int64.to_string(int))
-        Some(EFloat(newID, Positive, whole, frac), {astRef: ARFloat(newID, FPPoint), offset: 1})
+        let (sign, whole) = if String.startsWith(whole, ~prefix="-") {
+          (Sign.Negative, String.dropLeft(~count=1, whole))
+        } else {
+          (Positive, whole)
+        }
+
+        Some(EFloat(newID, sign, whole, frac), {astRef: ARFloat(newID, FPPoint), offset: 1})
       } else {
         None
       }
