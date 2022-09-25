@@ -108,8 +108,10 @@ let clone: t => t
   * Find the implementation in the FluidExpression function of the same name. ")
 let testEqualIgnoringIds: (t, t) => bool
 
-@ocaml.doc("[validate ast] checks the AST is valid, returning any errors it finds")
-let validate: t => result<unit, list<(string, FluidExpression.t)>>
+@ocaml.doc("[validateAndFix expr onError] checks the Expr is valid, calling onError if it finds any errors. It will also fix up the AST as best it can.
+
+   * Returns the fixed up AST. ")
+let validateAndFix: (~onError: (string, FluidExpression.t) => unit, t) => t
 
 @ocaml.doc("[updateMatchPattern f matchID patID ast] recursively searches [ast] for a
   * match expression containing a pattern with id [patID].

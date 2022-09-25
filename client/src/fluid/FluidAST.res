@@ -51,7 +51,8 @@ let replace = (~replacement: E.t, target: id, ast: t): t =>
 let update = (~failIfMissing=true, ~f: E.t => E.t, target: id, ast: t): t =>
   map(ast, ~f=E.update(~failIfMissing, ~f, target))
 
-let validate = (ast: t): result<unit, list<(string, E.t)>> => toExpr(ast) |> E.validate
+let validateAndFix = (~onError: (string, E.t) => unit, ast: t): t =>
+  toExpr(ast) |> E.validateAndFix(~onError) |> ofExpr
 
 let clone = map(~f=E.clone)
 

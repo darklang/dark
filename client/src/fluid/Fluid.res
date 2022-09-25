@@ -4943,14 +4943,9 @@ and updateKey = (
   astInfo: ASTInfo.t,
 ) => {
   let newAstInfo = updateKey'(~recursing, props, inputEvent, astInfo)
-  switch FluidAST.validate(newAstInfo.ast) {
-  | Ok() => ()
-  | Error(errs) =>
-    errs->List.forEach(~f=((msg, expr)) =>
-      Recover.recover(`Invalid AST: ${msg}`, ~debug=E.show(expr), ())
-    )
-  }
-  newAstInfo
+  let onError = (msg, expr) => Recover.recover(`Invalid AST: ${msg}`, ~debug=E.show(expr), ())
+  let newAST = FluidAST.validateAndFix(~onError, newAstInfo.ast)
+  {...newAstInfo, ast: newAST}
 }
 
 /* deleteCaretRange is equivalent to pressing backspace starting from the
