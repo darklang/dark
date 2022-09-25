@@ -4942,6 +4942,9 @@ and updateKey = (
   inputEvent: FT.Msg.inputEvent,
   astInfo: ASTInfo.t,
 ) => {
+  //  Catches and reports broken ASTs, and tries to fix them. We shouldn't create
+  //  broken ASTs though, this is a last ditch attempts to cvatch them. If something
+  //  triggered here, go back and fix it at the source.
   let newAstInfo = updateKey'(~recursing, props, inputEvent, astInfo)
   let onError = (msg, expr) => Recover.recover(`Invalid AST: ${msg}`, ~debug=E.show(expr), ())
   let newAST = FluidAST.validateAndFix(~onError, newAstInfo.ast)
