@@ -581,6 +581,52 @@ let ancestors = (id: id, expr: t): list<t> => {
   rec_ancestors(id, list{}, expr)
 }
 
+let rec validate = (expr: t): result<unit, list<(string, t)>> => {
+  let c = (results: list<result<unit, list<(string, t)>>>): result<unit, list<(string, t)>> =>
+    results->List.fold(~initial=Ok(), ~f=(acc, r) =>
+      switch (acc, r) {
+      | (Ok(), Ok()) => Ok()
+      | (Ok(), Error(e)) => Error(e)
+      | (Error(e), Ok(_)) => Error(e)
+      | (Error(e1), Error(e2)) => Error(List.append(e1, e2))
+      }
+    )
+  switch expr {
+  | EInteger(_) => Ok()
+  | EString(_) => Ok()
+  | ECharacter(_) => Ok()
+  | EBool(_) => Ok()
+  | EFloat(_, _sign, whole, _fraction) =>
+    if String.startsWith(~prefix="-", whole) {
+      Error(list{("Floats cannot have a negative sign in the whole number", expr)})
+    } else {
+      Ok()
+    }
+  | ENull(_) => Ok()
+  | EBlank(_) => Ok()
+  | EPipeTarget(_) => Ok()
+  | EVariable(_, _) => Ok()
+  | ELet(_, _, rhs, body) => c(list{validate(rhs), validate(body)})
+  | EIf(_, cond, ifbody, elsebody) => c(list{validate(cond), validate(ifbody), validate(elsebody)})
+  | EFnCall(_, _, exprs, _) => c(List.map(~f=validate, exprs))
+  | EBinOp(_, _, lhs, rhs, _) => c(list{validate(lhs), validate(rhs)})
+  | ELambda(_, _, lexpr) => validate(lexpr)
+  | EPipe(_, e1, e2, rest) => c(list{validate(e1), validate(e2), ...List.map(~f=validate, rest)})
+  | EFieldAccess(_, obj, _) => validate(obj)
+  | EList(_, exprs) => c(List.map(~f=validate, exprs))
+  | ETuple(_, first, second, theRest) =>
+    c(list{validate(first), validate(second), ...List.map(~f=validate, theRest)})
+  | ERecord(_, pairs) => c(List.map(~f=p => validate(Tuple2.second(p)), pairs))
+  | EFeatureFlag(_, _, cond, a, b) => c(list{validate(cond), validate(a), validate(b)})
+  | EMatch(_, matchExpr, cases) =>
+    c(list{validate(matchExpr), ...List.map(~f=p => validate(Tuple2.second(p)), cases)})
+  | EConstructor(_, _, args) => c(List.map(~f=validate, args))
+  | EPartial(_, _, oldExpr) => validate(oldExpr)
+  | ERightPartial(_, _, oldExpr) => validate(oldExpr)
+  | ELeftPartial(_, _, oldExpr) => validate(oldExpr)
+  }
+}
+
 let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   // helpers for recursive calls
   let eq = testEqualIgnoringIds

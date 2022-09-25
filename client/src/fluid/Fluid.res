@@ -4110,7 +4110,7 @@ let maybeOpenCmd = (m: model): AppTypes.modification => {
   Option.unwrap(mod', ~default=NoChange)
 }
 
-let rec updateKey = (
+let rec updateKey' = (
   ~recursing=false,
   props: FluidTypes.Props.t,
   inputEvent: FT.Msg.inputEvent,
@@ -4566,7 +4566,7 @@ let rec updateKey = (
       | EPartial(_, name, EFieldAccess(faid, expr, _)) =>
         let committedAccess = EFieldAccess(faid, expr, name)
         EPartial(newPartialID, "", EFieldAccess(gid(), committedAccess, ""))
-      | e => recover("updateKey insert . - unexpected expr " ++ E.show(e), e)
+      | e => recover("updateKey' insert . - unexpected expr " ++ E.show(e), e)
       }
     )
 
@@ -4925,7 +4925,7 @@ let rec updateKey = (
         /* To find out where the cursor should be, replay the movement
          * command from the old position. */
         let committed = {...committed, state: origAstInfo.state}
-        updateKey(~recursing=true, props, inputEvent, committed)
+        updateKey'(~recursing=true, props, inputEvent, committed)
       } else {
         astInfo
       }
@@ -4934,6 +4934,23 @@ let rec updateKey = (
     | _ => astInfo
     }
   }
+}
+
+and updateKey = (
+  ~recursing=false,
+  props: FluidTypes.Props.t,
+  inputEvent: FT.Msg.inputEvent,
+  astInfo: ASTInfo.t,
+) => {
+  let newAstInfo = updateKey'(~recursing, props, inputEvent, astInfo)
+  switch FluidAST.validate(newAstInfo.ast) {
+  | Ok() => ()
+  | Error(errs) =>
+    errs->List.forEach(~f=((msg, expr)) =>
+      Recover.recover(`Invalid AST: ${msg}`, ~debug=E.show(expr), ())
+    )
+  }
+  newAstInfo
 }
 
 /* deleteCaretRange is equivalent to pressing backspace starting from the
