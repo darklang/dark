@@ -57,9 +57,13 @@ let filter: (~f: ProgramTypes.Expr.t => bool, ProgramTypes.Expr.t) => list<Progr
     wrapped in fluidMatchPatOrExpr, or None if there is no subtree with the ID.t [target] ")
 let findExprOrPat: (ID.t, fluidMatchPatOrExpr) => option<fluidMatchPatOrExpr>
 
-@ocaml.doc(" [find target ast] recursively finds the expression having an ID.t of [target]
-   and returns it if found. ")
-let find: (ID.t, ProgramTypes.Expr.t) => option<ProgramTypes.Expr.t>
+@ocaml.doc("[find target ast] recursively finds the expression having an ID.t
+  of [target] and returns it if found")
+let findExpr: (ID.t, ProgramTypes.Expr.t) => option<ProgramTypes.Expr.t>
+
+@ocaml.doc("[findMP target ast] recursively finds the match pattern having an
+  ID.t of [target] and returns it if found")
+let findMP: (ID.t, ProgramTypes.Expr.t) => option<FluidMatchPattern.t>
 
 @ocaml.doc(" [findParent target ast] recursively finds the expression having an ID.t of
     [target] and then returns the parent of that expression. ")

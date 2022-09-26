@@ -141,10 +141,10 @@ let extractVarInAst = (
   ast: FluidAST.t,
 ): FluidAST.t => {
   let traceID = Analysis.getSelectedTraceID(m, TL.id(tl))
-  switch FluidAST.find(id, ast) {
+  switch FluidAST.findExpr(id, ast) {
   | Some(e) =>
     let lastPlaceWithSameVarsAndValues = {
-      let ancestors = FluidAST.ancestors(id, ast)
+      let ancestors = FluidAST.exprAncestors(id, ast)
       let freeVariables = AST.freeVariables(e) |> List.map(~f=Tuple2.second) |> Set.String.fromList
 
       list{e, ...ancestors}
@@ -190,7 +190,7 @@ let extractVariable = (m: model, tl: toplevel, id: id): modification => {
 let extractFunction = (m: model, tl: toplevel, id: id): modification => {
   let tlid = TL.id(tl)
   let ast = TL.getAST(tl)
-  switch (ast, Option.andThen(ast, ~f=FluidAST.find(id))) {
+  switch (ast, Option.andThen(ast, ~f=FluidAST.findExpr(id))) {
   | (Some(ast), Some(body)) =>
     let name = generateFnName()
     let glob = TL.allGloballyScopedVarnames(m.dbs)

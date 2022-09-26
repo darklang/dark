@@ -79,7 +79,7 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
   let fnLoading = {
     // If fn needs to be manually executed, check status
     let ast = vp.astInfo.ast
-    FluidAST.find(id, ast)
+    FluidAST.findExpr(id, ast)
     |> Option.andThen(~f=expr =>
       switch expr {
       | EFnCall(_, name, _, _) => Functions.find(name, vp.functions)
@@ -373,7 +373,7 @@ let viewAST = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventList): lis
        * and then looking through the main tokens [O(N)] to find one with a
        * corresponding id. This is brittle and will likely break at some point. We
        * should do something better. */
-      FluidAST.find(flagID, vp.astInfo.ast)
+      FluidAST.findExpr(flagID, vp.astInfo.ast)
       |> Option.andThen(~f=x =>
         switch x {
         | EFeatureFlag(_, _, _, oldCode, _) => Some(E.toID(oldCode))

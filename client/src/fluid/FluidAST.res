@@ -23,11 +23,13 @@ let ids = (ast: t): list<id> => toExpr(ast) |> E.ids
 
 let filter = (ast: t, ~f: E.t => bool): list<E.t> => toExpr(ast) |> E.filter(~f)
 
-let find = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.find(target)
+let findExpr = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.findExpr(target)
 
-let findParent = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.findParent(target)
+let findExprParent = (target: id, ast: t): option<E.t> => toExpr(ast) |> E.findParent(target)
 
-let ancestors = (target: id, ast: t): list<E.t> => toExpr(ast) |> E.ancestors(target)
+let findMP = (target: id, ast: t): option<MP.t> => toExpr(ast) |> E.findMP(target)
+
+let exprAncestors = (target: id, ast: t): list<E.t> => toExpr(ast) |> E.ancestors(target)
 
 let blanks = (ast: t): list<E.t> => toExpr(ast) |> E.blanks
 

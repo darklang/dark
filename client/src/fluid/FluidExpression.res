@@ -108,8 +108,8 @@ let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidM
   }
 }
 
-let rec find = (target: id, expr: t): option<t> => {
-  let fe = find(target)
+let rec findExpr = (target: id, expr: t): option<t> => {
+  let fe = findExpr(target)
   if toID(expr) == target {
     Some(expr)
   } else {
@@ -149,6 +149,41 @@ let rec find = (target: id, expr: t): option<t> => {
     | EFeatureFlag(_, _, cond, casea, caseb) =>
       fe(cond) |> Option.orElseLazy(() => fe(casea)) |> Option.orElseLazy(() => fe(caseb))
     }
+  }
+}
+
+let findMP = (target: id, expr: t): option<FluidMatchPattern.t> => {
+  switch expr {
+  | EInteger(_)
+  | EString(_)
+  | ECharacter(_)
+  | EBool(_)
+  | ENull(_)
+  | EFloat(_)
+  | EVariable(_)
+  | EFieldAccess(_)
+  | EFnCall(_)
+  | ELambda(_)
+  | EBlank(_)
+  | ELet(_)
+  | EIf(_)
+  | EPartial(_)
+  | ERightPartial(_)
+  | ELeftPartial(_)
+  | EList(_)
+  | ETuple(_)
+  | ERecord(_)
+  | EPipe(_)
+  | EPipeTarget(_)
+  | EBinOp(_)
+  | EConstructor(_)
+  | EFeatureFlag(_) =>
+    None
+  | EMatch(_, _, cases) =>
+    cases
+    ->List.map(~f=Tuple2.first)
+    ->List.filterMap(~f=pat => FluidMatchPattern.findMatchPattern(target, pat))
+    ->List.head
   }
 }
 
@@ -222,7 +257,7 @@ let isEmpty = (expr: t): bool =>
   }
 
 let hasEmptyWithId = (id: id, expr: t): bool =>
-  switch find(id, expr) {
+  switch findExpr(id, expr) {
   | Some(e) => isEmpty(e)
   | _ => false
   }

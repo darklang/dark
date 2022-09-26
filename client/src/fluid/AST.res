@@ -76,7 +76,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
  * the previous expression in that pipe (eg, the one that is piped into this
  * one) */
 let pipePrevious = (id: id, ast: FluidAST.t): option<E.t> =>
-  switch FluidAST.findParent(id, ast) {
+  switch FluidAST.findExprParent(id, ast) {
   | Some(EPipe(_, e1, e2, rest)) =>
     let exprs = list{e1, e2, ...rest}
     exprs
@@ -88,7 +88,7 @@ let pipePrevious = (id: id, ast: FluidAST.t): option<E.t> =>
 /* If the expression at `id` is one of the expressions in a pipe, this returns
  * the next expression in that pipe (eg, the one that the expr at `id` pipes into) */
 let pipeNext = (id: id, ast: FluidAST.t): option<E.t> =>
-  switch FluidAST.findParent(id, ast) {
+  switch FluidAST.findExprParent(id, ast) {
   | Some(EPipe(_, e1, e2, rest)) =>
     let exprs = list{e1, e2, ...rest}
     exprs
@@ -100,7 +100,7 @@ let pipeNext = (id: id, ast: FluidAST.t): option<E.t> =>
 // Given the ID of a function call or binop, return its arguments. Takes pipes into account.
 let getArguments = (id: id, ast: FluidAST.t): list<E.t> => {
   let pipePrevious = pipePrevious(id, ast)
-  let caller = FluidAST.find(id, ast)
+  let caller = FluidAST.findExpr(id, ast)
   let defaultArgs = switch caller {
   | Some(EFnCall(_, _, args, _)) => args
   | Some(EBinOp(_, _, arg0, arg1, _)) => list{arg0, arg1}
@@ -126,7 +126,7 @@ let getArguments = (id: id, ast: FluidAST.t): list<E.t> => {
  *                     return (`Int::add`, 0)
  */
 let getParamIndex = (id: id, ast: FluidAST.t): option<(string, int)> => {
-  let parent = pipeNext(id, ast) |> Option.orElseLazy(() => FluidAST.findParent(id, ast))
+  let parent = pipeNext(id, ast) |> Option.orElseLazy(() => FluidAST.findExprParent(id, ast))
 
   switch parent {
   | Some(EFnCall(fnID, name, _, _)) =>

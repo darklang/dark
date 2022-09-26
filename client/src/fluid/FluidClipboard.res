@@ -16,7 +16,7 @@ module Printer = FluidTokenizer
 type ast = E.t
 
 let exprToClipboardContents = (expr: FluidExpression.t): Js.Json.t =>
-  // The text here comes from the selected text
+  // The expr input comes from the selected text
   ProgramTypes.Expr.encode(expr)
 
 let jsonToExpr = (jsonStr: string): option<E.t> => {

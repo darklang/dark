@@ -760,7 +760,7 @@ let tokensForEditor = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken
   | NoEditor => list{}
   | MainEditor(_) => tokenize(FluidAST.toExpr(ast))
   | FeatureFlagEditor(_, id) =>
-    FluidAST.find(id, ast)
+    FluidAST.findExpr(id, ast)
     |> Option.map(~f=tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled))
     |> recoverOpt(
       "could not find expression id = " ++ (ID.toString(id) ++ " when tokenizing FF editor"),
@@ -957,7 +957,7 @@ module ASTInfo = {
     | NoEditor => recover("exprOfActiveEditor - none exists", FluidAST.toExpr(astInfo.ast))
     | MainEditor(_) => FluidAST.toExpr(astInfo.ast)
     | FeatureFlagEditor(_, id) =>
-      FluidAST.find(id, astInfo.ast) |> recoverOpt(
+      FluidAST.findExpr(id, astInfo.ast) |> recoverOpt(
         "exprOfActiveEditor - cannot find expression for editor",
         ~default=FluidAST.toExpr(astInfo.ast),
       )

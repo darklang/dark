@@ -32,7 +32,7 @@ let show = (m: model, tlid: TLID.t, id: id): model => {
   let tl = TL.get(m, tlid)
   tl
   |> Option.andThen(~f=TL.getAST)
-  |> Option.andThen(~f=FluidAST.find(id))
+  |> Option.andThen(~f=FluidAST.findExpr(id))
   |> Option.map2(tl, ~f=(tl, expr) => {
     let cp: cmdState = {
       index: 0,
@@ -132,7 +132,7 @@ let filter = (m: model, query: string, cp: cmdState): cmdState => {
     |> Option.andThen(~f=TL.getAST)
     |> Option.map2(tl, ~f=(tl, ast) =>
       ast
-      |> FluidAST.find(id)
+      |> FluidAST.findExpr(id)
       |> (
         x =>
           switch x {

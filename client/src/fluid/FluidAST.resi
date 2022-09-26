@@ -70,24 +70,28 @@ let blanks: t => list<FluidExpression.t>
   * See FluidExpression.ids ")
 let ids: t => list<ID.t>
 
-@ocaml.doc(" [find target ast] recursively finds the expression having an id of [target]
-  * in [ast] and returns it if found.
-  *
-  * See FluidExpression.find ")
-let find: (ID.t, t) => option<FluidExpression.t>
+@ocaml.doc("[findExpr target ast] recursively finds the expression having an id
+  of [target] in [ast] and returns it if found.
 
-@ocaml.doc(" [findParent target ast] recursively finds the expression having an id of
+  See FluidExpression.find")
+let findExpr: (ID.t, t) => option<FluidExpression.t>
+
+@ocaml.doc("[findMP target ast] recursively finds the match pattern having an
+  id of [target] in [ast] and returns it if found")
+let findMP: (ID.t, t) => option<FluidMatchPattern.t>
+
+@ocaml.doc(" [findExprParent target ast] recursively finds the expression having an id of
   * [target] in [ast] and then returns the parent of that expression.
   *
   * See FluidExpression.findParent ")
-let findParent: (ID.t, t) => option<FluidExpression.t>
+let findExprParent: (ID.t, t) => option<FluidExpression.t>
 
 @ocaml.doc(" [ancestors target ast] finds the expression having an id of [target] in
   * [ast] and then returns the list of ancestors (parent, parent of parent, etc)
   * of that expression.
   *
   * See FluidExpression.ancestors ")
-let ancestors: (ID.t, t) => list<FluidExpression.t>
+let exprAncestors: (ID.t, t) => list<FluidExpression.t>
 
 @ocaml.doc(" [getFeatureFlags ast] returns a list of all feature flags in the AST. ")
 let getFeatureFlags: t => list<FluidExpression.t>

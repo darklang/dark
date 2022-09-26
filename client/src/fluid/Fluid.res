@@ -1111,7 +1111,7 @@ let rec caretTargetForEndOfExpr': fluidExpr => CT.t = expr =>
  * The concept of "very end" depends on caretTargetForEndOfExpr'.
  */
 let caretTargetForEndOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
-  switch FluidAST.find(astPartId, ast) {
+  switch FluidAST.findExpr(astPartId, ast) {
   | Some(expr) => caretTargetForEndOfExpr'(expr)
   | None =>
     recover(
@@ -1164,7 +1164,7 @@ let rec caretTargetForStartOfExpr': fluidExpr => CT.t = expr =>
  * The concept of "very beginning" depends on caretTargetForStartOfExpr'.
  */
 let caretTargetForStartOfExpr = (astPartId: id, ast: FluidAST.t): CT.t =>
-  switch FluidAST.find(astPartId, ast) {
+  switch FluidAST.findExpr(astPartId, ast) {
   | Some(expr) => caretTargetForStartOfExpr'(expr)
   | None =>
     recover(
@@ -1194,14 +1194,12 @@ let caretTargetForStartOfMP = (matchPattern: fluidMatchPattern): CT.t =>
   | MPTuple(id, _, _, _) => {astRef: ARMPattern(id, MPPTuple(TPOpen)), offset: 0}
   }
 
-@ocaml.doc(
-  "returns a caretTarget representing caret placement at the very end
+@ocaml.doc("returns a caretTarget representing caret placement at the very end
   of the expression in `matchPattern`.
 
   The concept of 'very end' is related to an understanding of the tokenization
   of the AST, even though this function doesn't explicitly depend on any
-  tokenization functions."
-)
+  tokenization functions.")
 let rec caretTargetForEndOfMP = (matchPattern: fluidMatchPattern): CT.t =>
   switch matchPattern {
   | MPVariable(id, varName) => {
@@ -1294,7 +1292,7 @@ let rec caretTargetForFirstInputOfMP = (matchPattern: fluidMatchPattern): CT.t =
 
   'very start' is based on the definition of caretTargetForStartOfMP")
 let caretTargetForBeginningOfMatchBranch = (matchID: id, index: int, ast: FluidAST.t): CT.t => {
-  let maybeTarget = switch FluidAST.find(matchID, ast) {
+  let maybeTarget = switch FluidAST.findExpr(matchID, ast) {
   | Some(EMatch(_, _, branches)) =>
     branches |> List.getAt(~index) |> Option.map(~f=((mp, _)) => caretTargetForStartOfMP(mp))
   | _ => None
@@ -1314,7 +1312,7 @@ let caretTargetForBeginningOfMatchBranch = (matchID: id, index: int, ast: FluidA
 
   'end' is based on the definition of caretTargetForEndOfMP")
 let caretTargetForEndOfMatchPattern = (ast: FluidAST.t, matchID: id, index: int): CT.t => {
-  let maybeTarget = switch FluidAST.find(matchID, ast) {
+  let maybeTarget = switch FluidAST.findExpr(matchID, ast) {
   | Some(EMatch(_, _, branches)) =>
     branches |> List.getAt(~index) |> Option.map(~f=((mp, _)) => caretTargetForEndOfMP(mp))
   | _ => None
@@ -1452,7 +1450,7 @@ let insertInPlaceholderExpr = (
 ): (E.t, CT.t) => {
   let newID = gid()
   let lambdaArgs = () => {
-    let fnname = switch FluidAST.find(fnID, ast) {
+    let fnname = switch FluidAST.findExpr(fnID, ast) {
     | Some(EFnCall(_, name, _, _)) => Some(name)
     | _ => None
     }
@@ -1531,7 +1529,7 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
     captures |> List.filter(~f=c => !List.member(~value=c, valid_escape_chars))
   }
 
-  let origExpr = FluidAST.find(id, astInfo.ast)
+  let origExpr = FluidAST.findExpr(id, astInfo.ast)
   let processStr = (str: string): string =>
     valid_escape_chars_alist |> List.fold(~initial=str, ~f=(acc, (from, repl)) => {
       // workaround for how "\\" gets escaped
@@ -1580,7 +1578,7 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
     let newlhs = processStr(oldlhs)
     let newOffset = oldOffset + (String.length(oldlhs) - String.length(newlhs))
 
-    let astRef = switch FluidAST.find(id, newAST) {
+    let astRef = switch FluidAST.findExpr(id, newAST) {
     | Some(EString(_)) => AstRef.ARString(id, SPBody)
     | Some(EPartial(_)) => ARPartial(id)
     | Some(expr) =>
@@ -1693,7 +1691,7 @@ let addRecordRowToBack = (id: id, ast: FluidAST.t): FluidAST.t =>
   )
 
 let recordFields = (recordID: id, ast: FluidExpression.t): option<list<(string, fluidExpr)>> =>
-  E.find(recordID, ast) |> Option.andThen(~f=expr =>
+  E.findExpr(recordID, ast) |> Option.andThen(~f=expr =>
     switch expr {
     | ERecord(_, fields) => Some(fields)
     | _ => None
@@ -1873,7 +1871,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
 
   let mkExprAndTarget = (expr: fluidExpr): (fluidExpr, CT.t) => (expr, ctForExpr(expr))
 
-  FluidAST.find(id, ast)
+  FluidAST.findExpr(id, ast)
   |> Option.map(~f=e =>
     // preserve partials with arguments
     switch e {
@@ -1997,7 +1995,7 @@ let rec findAppropriateParentToWrap = (oldExpr: FluidExpression.t, ast: FluidAST
   FluidExpression.t,
 > => {
   let child = oldExpr
-  let parent = FluidAST.findParent(E.toID(oldExpr), ast)
+  let parent = FluidAST.findExprParent(E.toID(oldExpr), ast)
   switch parent {
   | Some(parent) =>
     switch parent {
@@ -2048,7 +2046,7 @@ let createPipe = (~findParent: bool, id: id, astInfo: ASTInfo.t): (ASTInfo.t, op
 
   let astInfo = recordAction(action, astInfo)
   let exprToReplace =
-    FluidAST.find(id, astInfo.ast)
+    FluidAST.findExpr(id, astInfo.ast)
     |> Option.andThen(~f=e =>
       if findParent {
         findAppropriateParentToWrap(e, astInfo.ast)
@@ -2458,8 +2456,8 @@ let updateFromACItem = (
   open FluidExpression
   let id = T.tid(ti.token)
   let ast = astInfo.ast
-  let oldExpr = FluidAST.find(id, ast)
-  let parent = FluidAST.findParent(id, ast)
+  let oldExpr = FluidAST.findExpr(id, ast)
+  let parent = FluidAST.findExprParent(id, ast)
 
   let (newPatOrExpr, newTarget) = acToMatchPatternOrExpr(entry)
 
@@ -2591,7 +2589,7 @@ let acEnter = (
     | TMPVariable(_) => moveToNextBlank(astInfo.state.newPos, astInfo)
     | TFieldPartial(partialID, _fieldAccessID, anaID, fieldname, _) =>
       // Accept fieldname, even if it's not in the autocomplete
-      FluidAST.find(anaID, astInfo.ast)
+      FluidAST.findExpr(anaID, astInfo.ast)
       |> Option.map(~f=expr => {
         let replacement = EFieldAccess(gid(), expr, fieldname)
         FluidAST.replace(~replacement, partialID, astInfo.ast)
@@ -3221,7 +3219,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     switch (currAstRef, matchPattern) {
     | (ARMPattern(_, MPPBlank), MPBlank(pID)) =>
       if currOffset == 0 {
-        switch FluidAST.find(mID, ast) {
+        switch FluidAST.findExpr(mID, ast) {
         | Some(EMatch(_, cond, cases)) =>
           patContainerRef := Some(mID)
           cases
@@ -3258,7 +3256,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         (MPVariable(pID, newName), currCTMinusOne)
       }
 
-      switch FluidAST.find(mID, ast) {
+      switch FluidAST.findExpr(mID, ast) {
       | Some(EMatch(_, cond, cases)) =>
         let rec run = p =>
           if pID == MP.toID(p) {
@@ -3588,7 +3586,7 @@ let doExplicitInsert = (
      * of the editor. */
     if false {
       // LeftPartial is disabled for now
-      switch FluidAST.findParent(E.toID(currExpr), ast) {
+      switch FluidAST.findExprParent(E.toID(currExpr), ast) {
       | None => mkLeftPartial
       | Some(ELet(_, _, _, body)) if currExpr == body => mkLeftPartial
       | _ => Some(currExpr, currCaretTarget)
@@ -4007,7 +4005,7 @@ let doExplicitInsert = (
         patContainerRef := Some(mID)
         let (newPat, target) = (MPVariable(pID, newName), currCTPlusLen)
 
-        switch FluidAST.find(mID, ast) {
+        switch FluidAST.findExpr(mID, ast) {
         | Some(EMatch(_, cond, cases)) =>
           let rec run = p =>
             if pID == MP.toID(p) {
@@ -4201,7 +4199,7 @@ let doInfixInsert = (
   caretTargetFromTokenInfo(pos, ti)
   |> Option.andThen(~f=(ct: CT.t) =>
     idOfASTRef(ct.astRef) |> Option.andThen(~f=id =>
-      switch FluidAST.find(id, astInfo.ast) {
+      switch FluidAST.findExpr(id, astInfo.ast) {
       | Some(expr) => Some(id, ct, expr)
       | None => None
       }
@@ -4308,7 +4306,7 @@ let doInfixInsert = (
 let wrapInLet = (ti: T.tokenInfo, astInfo: ASTInfo.t): ASTInfo.t => {
   let astInfo = recordAction("wrapInLet", astInfo)
   let id = T.tid(ti.token)
-  switch FluidAST.find(id, astInfo.ast) {
+  switch FluidAST.findExpr(id, astInfo.ast) {
   | Some(expr) =>
     let bodyId = gid()
     let exprToWrap = switch findAppropriateParentToWrap(expr, astInfo.ast) {
@@ -4361,21 +4359,26 @@ let tokensInRange = (selStartPos: int, selEndPos: int, astInfo: ASTInfo.t): toke
         selStartPos < t.endPos && t.endPos <= selEndPos)))
   )
 
-let getTopmostSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): option<id> => {
+let getTopmostExprSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): option<id> => {
   let (startPos, endPos) = orderRangeFromSmallToBig((startPos, endPos))
+
   // TODO: if there's multiple topmost IDs, return parent of those IDs
   tokensInRange(startPos, endPos, astInfo)
   |> List.filter(~f=(ti: T.tokenInfo) => !T.isNewline(ti.token))
   |> List.fold(~initial=(None, 0), ~f=((topmostID, topmostDepth), ti: T.tokenInfo) => {
     let curID = T.parentExprID(ti.token)
-    let curDepth = FluidAST.ancestors(curID, astInfo.ast) |> List.length
+    let curDepth = FluidAST.exprAncestors(curID, astInfo.ast) |> List.length
+
     if (
       /* check if current token is higher in the AST than the last token,
        * or if there's no topmost ID yet */
       (curDepth < topmostDepth || topmostID == None) &&
         /* account for tokens that don't have ancestors (depth = 0)
          * but are not the topmost expression in the AST */
-        !(curDepth == 0 && FluidAST.find(curID, astInfo.ast) !== Some(FluidAST.toExpr(astInfo.ast)))
+        !(
+          curDepth == 0 &&
+            FluidAST.findExpr(curID, astInfo.ast) !== Some(FluidAST.toExpr(astInfo.ast))
+        )
     ) {
       (Some(curID), curDepth)
     } else {
@@ -4387,7 +4390,7 @@ let getTopmostSelectionID = (startPos: int, endPos: int, astInfo: ASTInfo.t): op
 
 let getSelectedExprID = (astInfo: ASTInfo.t): option<id> =>
   getOptionalSelectionRange(astInfo.state) |> Option.andThen(~f=((startPos, endPos)) =>
-    getTopmostSelectionID(startPos, endPos, astInfo)
+    getTopmostExprSelectionID(startPos, endPos, astInfo)
   )
 
 let maybeOpenCmd = (m: model): AppTypes.modification => {
@@ -4447,12 +4450,12 @@ let rec updateKey = (
       | Some(EIf(_, cond, _, _)) if E.toID(cond) == prevId => true
       | Some(e) =>
         let id = E.toID(e)
-        recurseUp(FluidAST.findParent(id, astInfo.ast), id)
+        recurseUp(FluidAST.findExprParent(id, astInfo.ast), id)
       | None => false
       }
 
     let tid = T.tid(token)
-    recurseUp(FluidAST.findParent(tid, astInfo.ast), tid)
+    recurseUp(FluidAST.findExprParent(tid, astInfo.ast), tid)
   }
 
   let astInfo = /* This match drives a big chunk of the change operations, but is
@@ -4511,7 +4514,7 @@ let rec updateKey = (
   | (Keypress({key: K.ShiftEnter, _}), left, _) =>
     let doPipeline = (astInfo: ASTInfo.t): ASTInfo.t => {
       let (startPos, endPos) = FluidUtil.getSelectionRange(astInfo.state)
-      let topmostSelectionID = getTopmostSelectionID(startPos, endPos, astInfo)
+      let topmostSelectionID = getTopmostExprSelectionID(startPos, endPos, astInfo)
 
       let defaultTopmostSelection = switch topmostSelectionID {
       | Some(id) => (Some(id), startPos == endPos)
@@ -4995,7 +4998,7 @@ let rec updateKey = (
    * Following newline contains a parent and index, meaning we're inside some
    * special construct. Special-case each of those. */
   | (Keypress({key: K.Enter, _}), _, R(TNewline(Some(_, parentId, Some(idx))), ti)) =>
-    switch FluidAST.find(parentId, astInfo.ast) {
+    switch FluidAST.findExpr(parentId, astInfo.ast) {
     | Some(EPipe(_)) =>
       let (astInfo, blankId) = addPipeExprAt(parentId, idx + 1, astInfo)
       moveToCaretTarget(caretTargetForStartOfExpr(blankId, astInfo.ast), astInfo)
@@ -5061,7 +5064,11 @@ let rec updateKey = (
     let applyToRightToken = (): ASTInfo.t => {
       let parentID = T.toParentID(rTok)
       let index = T.toIndex(rTok)
-      switch (parentID, index, Option.andThen(parentID, ~f=id => FluidAST.find(id, astInfo.ast))) {
+      switch (
+        parentID,
+        index,
+        Option.andThen(parentID, ~f=id => FluidAST.findExpr(id, astInfo.ast)),
+      ) {
       | (Some(parentId), Some(idx), Some(EMatch(_))) =>
         let astInfo = addMatchPatternAt(parentId, idx, astInfo)
         let target = caretTargetForBeginningOfMatchBranch(parentId, idx + 1, astInfo.ast)
@@ -5082,7 +5089,7 @@ let rec updateKey = (
       }
     }
 
-    switch FluidAST.find(parentId, astInfo.ast) {
+    switch FluidAST.findExpr(parentId, astInfo.ast) {
     | Some(EMatch(_, _, exprs)) =>
       // if a match has n rows, the last newline has idx=(n+1)
       if idx == List.length(exprs) {
@@ -5128,7 +5135,7 @@ let rec updateKey = (
      * In other cases, we want to wrap just the subexpression, such as an if's then expression. */
     let id = T.tid(t)
     let topID =
-      FluidAST.find(id, astInfo.ast)
+      FluidAST.findExpr(id, astInfo.ast)
       |> Option.andThen(~f=directExpr => findAppropriateParentToWrap(directExpr, astInfo.ast))
       |> Option.map(~f=expr => E.toID(expr))
       |> Option.unwrap(~default=id)
@@ -5349,7 +5356,7 @@ let shouldSelect = (key: K.key): bool =>
 let expressionRange = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> => {
   let containingTokens = ASTInfo.activeTokenInfos(astInfo)
   let exprTokens =
-    FluidAST.find(exprID, astInfo.ast)
+    FluidAST.findExpr(exprID, astInfo.ast)
     |> Option.map(~f=expr => FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, expr))
     |> Option.unwrap(~default=list{})
 
@@ -5412,444 +5419,461 @@ let tokensInRangeNormalized = (startPos, endPos, astInfo) =>
 
   Aims to include only what's in the selection.
   i.e. if you select `[1,|2,3,4|,5]`, the expr [2,3,4] will be the result.")
-let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
+let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, int)): option<
   FluidExpression.t,
 > => {
+  // Normalize inputs: prevent duplicate IDs, order selection range
+  let astInfo = ASTInfo.setAST(FluidAST.clone(astInfo.ast), astInfo)
+  let (startPos, endPos) = orderRangeFromSmallToBig((startPos, endPos))
+
+  // Helper fns
+  let orDefaultExpr: option<E.t> => E.t = Option.unwrap(~default=EBlank(gid()))
+
   let findTokenValue = (tokens, tID, typeName) =>
     List.find(tokens, ~f=((tID', _, typeName')) =>
       tID == tID' && typeName == typeName'
     ) |> Option.map(~f=Tuple3.second)
 
-  // prevent duplicates
-  let astInfo = ASTInfo.setAST(FluidAST.clone(astInfo.ast), astInfo)
-
-  let (startPos, endPos) = orderRangeFromSmallToBig(range)
   // main recursive algorithm
   // algo:
   // - find topmost expression by ID
   // - reconstruct full/subset of expression
   // - recurse into children (that remain in subset) to reconstruct those too
-  let rec reconstruct = (~topmostID, (startPos, endPos)): option<E.t> => {
-    let topmostExpr =
-      topmostID
-      |> Option.andThen(~f=id => FluidAST.find(id, astInfo.ast))
-      |> Option.unwrap(~default=EBlank(gid()))
+  //
+  // Note: during 'reconstruct full/subset of expression', it's intentional
+  // that we do not simply use the topmostExpr as-is: some of it may be outside
+  // of the selection range. So, we favor gathering the tokens in scope, and
+  // using `findTokenValue` from there to extract the data needed.
+  let rec reconstruct = (~topmostExpr: option<E.t>, (startPos, endPos)): option<E.t> => {
+    let topmostExpr = topmostExpr |> orDefaultExpr
 
-    let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
+    let exprID = E.toID(topmostExpr)
 
-    // It's intentional that we do not simply use the topmostExpr as-is:
-    // its internals may be outside of the selection range. So, we favor
-    // using `findTokenValue`
-
-    // Reconstructs an expression, returning an Option.
-    // If it's not within range of the selection, returns None.
-    let reconstructExpr = (expr): option<E.t> =>
-      switch expr {
-      | EPipeTarget(_) => Some(expr)
-      | _ =>
-        let exprID = E.toID(expr)
-
-        expressionRange(exprID, astInfo)
-        |> Option.andThen(~f=((exprStartPos, exprEndPos)) =>
-          // ensure expression range is not totally outside selection range
-          if exprStartPos > endPos || exprEndPos < startPos {
-            None
-          } else {
-            Some(max(exprStartPos, startPos), min(exprEndPos, endPos))
-          }
-        )
-        |> Option.andThen(~f=reconstruct(~topmostID=Some(exprID)))
-      }
-
-    let orDefaultExpr: option<E.t> => E.t = Option.unwrap(~default=EBlank(gid()))
-
-    let id = gid()
-    switch topmostExpr {
-    | _ if tokens == list{} => None
-    // basic, single/fixed-token expressions
-    | EInteger(eID, _) =>
-      findTokenValue(tokens, eID, "integer")
-      |> Option.map(~f=Util.coerceStringTo64BitInt)
-      |> Option.map(~f=v => EInteger(gid(), v))
-    | EBool(eID, value) =>
-      Option.or_(
-        findTokenValue(tokens, eID, "true"),
-        findTokenValue(tokens, eID, "false"),
-      ) |> Option.andThen(~f=newValue =>
-        if newValue == "" {
+    // Ensure expression range is not totally outside selection range.
+    //
+    // Note: we don't want to call expressionRange for pipe targets - trying to
+    // tokenize one of those results in an error. We don't need it anyway; just
+    // below, we ignore any such cases.
+    let rangeToReconstruct = switch topmostExpr {
+    | EPipeTarget(_) => Some(startPos, endPos)
+    | _ =>
+      expressionRange(exprID, astInfo) |> Option.andThen(~f=((exprStartPos, exprEndPos)) =>
+        if exprStartPos > endPos || exprEndPos < startPos {
           None
-        } else if newValue != string_of_bool(value) {
-          Some(EPartial(gid(), newValue, EBool(id, value)))
         } else {
-          Some(EBool(id, value))
+          Some(max(exprStartPos, startPos), min(exprEndPos, endPos))
         }
       )
-    | ENull(eID) =>
-      findTokenValue(tokens, eID, "null") |> Option.map(~f=newValue =>
-        if newValue == "null" {
-          ENull(id)
-        } else {
-          EPartial(gid(), newValue, ENull(id))
-        }
-      )
-    | ECharacter(_) => recover("echaracter not supported in reconstruct expr", Some(topmostExpr))
-    | EString(eID, _) =>
-      let merged =
-        tokens
-        |> List.filter(~f=((_, _, type_)) => type_ != "newline" && type_ != "indent")
-        |> List.map(~f=Tuple3.second)
-        |> String.join(~sep="")
+    }
 
-      if merged == "" {
-        None
-      } else {
-        Some(EString(eID, Util.trimQuotes(merged)))
-      }
-    | EFloat(eID, _, _, _) =>
-      let newWhole = findTokenValue(tokens, eID, "float-whole")
-      let pointSelected = findTokenValue(tokens, eID, "float-point") != None
-      let newFraction = findTokenValue(tokens, eID, "float-fractional")
-      switch (newWhole, pointSelected, newFraction) {
-      | (Some(value), true, None) => Some(EFloat(id, Positive, value, "0"))
-      | (Some(value), false, None) | (None, false, Some(value)) =>
-        Some(EInteger(id, Util.coerceStringTo64BitInt(value)))
-      | (None, true, Some(value)) => Some(EFloat(id, Positive, "0", value))
-      | (Some(whole), true, Some(fraction)) => Some(EFloat(id, Positive, whole, fraction))
-      | (None, true, None) => Some(EFloat(id, Positive, "0", "0"))
-      | (_, _, _) => None
-      }
-    | EBlank(_) => Some(EBlank(id))
-    // empty let expr and subsets
-    | ELet(eID, _lhs, rhs, body) =>
-      let letKeywordSelected = findTokenValue(tokens, eID, "let-keyword") != None
-
-      let newLhs = findTokenValue(tokens, eID, "let-var-name") |> Option.unwrap(~default="")
-
-      switch (reconstructExpr(rhs), reconstructExpr(body)) {
-      | (None, None) if newLhs != "" => Some(EPartial(gid(), newLhs, EVariable(gid(), newLhs)))
-      | (None, Some(e)) => Some(e)
-      | (Some(newRhs), None) => Some(ELet(id, newLhs, newRhs, EBlank(gid())))
-      | (Some(newRhs), Some(newBody)) => Some(ELet(id, newLhs, newRhs, newBody))
-      | (None, None) if letKeywordSelected => Some(ELet(id, newLhs, EBlank(gid()), EBlank(gid())))
-      | (_, _) => None
-      }
-    | EIf(eID, cond, thenBody, elseBody) =>
-      let ifKeywordSelected = findTokenValue(tokens, eID, "if-keyword") != None
-
-      let thenKeywordSelected = findTokenValue(tokens, eID, "if-then-keyword") != None
-
-      let elseKeywordSelected = findTokenValue(tokens, eID, "if-else-keyword") != None
-
-      switch (reconstructExpr(cond), reconstructExpr(thenBody), reconstructExpr(elseBody)) {
-      | (newCond, newThenBody, newElseBody)
-        if ifKeywordSelected || (thenKeywordSelected || elseKeywordSelected) =>
-        Some(
-          EIf(
-            id,
-            newCond |> orDefaultExpr,
-            newThenBody |> orDefaultExpr,
-            newElseBody |> orDefaultExpr,
-          ),
-        )
-      | (Some(e), None, None) | (None, Some(e), None) | (None, None, Some(e)) => Some(e)
+    switch rangeToReconstruct {
+    | None =>
+      switch topmostExpr {
+      | EPipeTarget(_) => Some(topmostExpr)
       | _ => None
       }
-    | EBinOp(eID, name, expr1, expr2, ster) =>
-      let newName = findTokenValue(tokens, eID, "binop") |> Option.unwrap(~default="")
+    | Some(startPos, endPos) =>
+      let reconstructExpr = expr => reconstruct(~topmostExpr=Some(expr), (startPos, endPos))
+      let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
+      let id = gid()
+      switch topmostExpr {
+      | _ if tokens == list{} => None
+      // basic, single/fixed-token expressions
+      | EInteger(eID, _) =>
+        findTokenValue(tokens, eID, "integer")->Option.map(~f=v =>
+          switch Util.truncateStringTo64BitInt(v) {
+          | Ok(v) => EInteger(gid(), v)
+          | Error(_) => EBlank(gid())
+          }
+        )
+      | EBool(eID, value) =>
+        Option.or_(
+          findTokenValue(tokens, eID, "true"),
+          findTokenValue(tokens, eID, "false"),
+        ) |> Option.andThen(~f=newValue =>
+          if newValue == "" {
+            None
+          } else if newValue != string_of_bool(value) {
+            Some(EPartial(gid(), newValue, EBool(id, value)))
+          } else {
+            Some(EBool(id, value))
+          }
+        )
+      | ENull(eID) =>
+        findTokenValue(tokens, eID, "null") |> Option.map(~f=newValue =>
+          if newValue == "null" {
+            ENull(id)
+          } else {
+            EPartial(gid(), newValue, ENull(id))
+          }
+        )
+      | ECharacter(_) => recover("ECharacter not supported in reconstruct expr", Some(topmostExpr))
+      | EString(eID, _) =>
+        // filter out formatting only relevant to editing experience
+        let merged =
+          tokens
+          |> List.filter(~f=((_, _, type_)) => type_ != "newline" && type_ != "indent")
+          |> List.map(~f=Tuple3.second)
+          |> String.join(~sep="")
 
-      switch (reconstructExpr(expr1), reconstructExpr(expr2)) {
-      | (Some(newExpr1), Some(newExpr2)) if newName == "" =>
-        /* since we don't allow empty partials, reconstruct the binop as we would when
-         * the binop is manually deleted
-         * (by elevating the argument expressions into ELets provided they aren't blanks) */
-        switch (newExpr1, newExpr2) {
-        | (EBlank(_), EBlank(_)) => None
-        | (EBlank(_), e) | (e, EBlank(_)) => Some(ELet(gid(), "", e, EBlank(gid())))
-        | (e1, e2) => Some(ELet(gid(), "", e1, ELet(gid(), "", e2, EBlank(gid()))))
-        }
-      | (None, Some(e)) =>
-        let e = EBinOp(id, name, EBlank(gid()), e, ster)
-        if newName == "" {
+        if merged == "" {
           None
-        } else if PT.InfixStdlibFnName.toString(name) != newName {
-          Some(EPartial(gid(), newName, e))
         } else {
-          Some(e)
+          Some(EString(eID, Util.trimQuotes(merged)))
         }
-      | (Some(e), None) =>
-        let e = EBinOp(id, name, e, EBlank(gid()), ster)
-        if newName == "" {
-          None
-        } else if PT.InfixStdlibFnName.toString(name) != newName {
-          Some(EPartial(gid(), newName, e))
-        } else {
-          Some(e)
+      | EFloat(eID, _, _, _) =>
+        let newWhole = findTokenValue(tokens, eID, "float-whole")
+        let pointSelected = findTokenValue(tokens, eID, "float-point") != None
+        let newFraction = findTokenValue(tokens, eID, "float-fractional")
+        switch (newWhole, pointSelected, newFraction) {
+        | (Some(value), true, None) => Some(EFloat(id, Positive, value, "0"))
+        | (Some(value), false, None) | (None, false, Some(value)) =>
+          Some(EInteger(id, Util.coerceStringTo64BitInt(value)))
+        | (None, true, Some(value)) => Some(EFloat(id, Positive, "0", value))
+        | (Some(whole), true, Some(fraction)) => Some(EFloat(id, Positive, whole, fraction))
+        | (None, true, None) => Some(EFloat(id, Positive, "0", "0"))
+        | (_, _, _) => None
         }
-      | (Some(newExpr1), Some(newExpr2)) =>
-        let e = EBinOp(id, name, newExpr1, newExpr2, ster)
-        if newName == "" {
-          None
-        } else if PT.InfixStdlibFnName.toString(name) != newName {
-          Some(EPartial(gid(), newName, e))
-        } else {
-          Some(e)
+      | EBlank(_) => Some(EBlank(id))
+      // empty let expr and subsets
+      | ELet(eID, _lhs, rhs, nextExpr) =>
+        let letKeywordSelected = findTokenValue(tokens, eID, "let-keyword") != None
+
+        let newLhs = findTokenValue(tokens, eID, "let-var-name") |> Option.unwrap(~default="")
+
+        switch (reconstructExpr(rhs), reconstructExpr(nextExpr)) {
+        | (None, None) if newLhs != "" => Some(EPartial(gid(), newLhs, EVariable(gid(), newLhs)))
+        | (None, Some(e)) => Some(e)
+        | (Some(newRhs), None) => Some(ELet(id, newLhs, newRhs, EBlank(gid())))
+        | (Some(newRhs), Some(newBody)) => Some(ELet(id, newLhs, newRhs, newBody))
+        | (None, None) if letKeywordSelected => Some(ELet(id, newLhs, EBlank(gid()), EBlank(gid())))
+        | (_, _) => None
         }
-      | (None, None) if newName != "" =>
-        let e = EBinOp(id, name, EBlank(gid()), EBlank(gid()), ster)
-        if newName == "" {
-          None
-        } else if PT.InfixStdlibFnName.toString(name) != newName {
-          Some(EPartial(gid(), newName, e))
-        } else {
-          Some(e)
-        }
-      | (_, _) => None
-      }
-    | ELambda(eID, _, body) =>
-      /* might be an edge case here where one of the vars is not (fully) selected but
-       * is still bound in the body, would be worth turning the EVars in the body to partials somehow */
-      let newVars = /* get lambda-var tokens that belong to this expression
-       * out of the list of tokens in the selection range */
-      tokens |> List.filterMap(~f=x =>
-        switch x {
-        | (vID, value, "lambda-var") if vID == eID => Some(gid(), value)
-        | _ => None
-        }
-      )
+      | EIf(eID, cond, thenBody, elseBody) =>
+        let anyIfKeywordSelected =
+          findTokenValue(tokens, eID, "if-keyword") != None ||
+          findTokenValue(tokens, eID, "if-then-keyword") != None ||
+          findTokenValue(tokens, eID, "if-else-keyword") != None
 
-      Some(ELambda(id, newVars, reconstructExpr(body) |> orDefaultExpr))
-    | EFieldAccess(eID, e, _) =>
-      let newFieldName = findTokenValue(tokens, eID, "field-name") |> Option.unwrap(~default="")
-
-      let fieldOpSelected = findTokenValue(tokens, eID, "field-op") != None
-      let e = reconstructExpr(e)
-      switch (e, fieldOpSelected, newFieldName) {
-      | (None, false, newFieldName) if newFieldName !== "" =>
-        Some(EPartial(gid(), newFieldName, EVariable(gid(), newFieldName)))
-      | (None, true, newFieldName) if newFieldName !== "" =>
-        Some(EFieldAccess(id, EBlank(gid()), newFieldName))
-      | (Some(e), true, _) => Some(EFieldAccess(id, e, newFieldName))
-      | _ => e
-      }
-    | EVariable(eID, value) =>
-      let newValue = findTokenValue(tokens, eID, "variable") |> Option.unwrap(~default="")
-
-      let e = EVariable(id, value)
-      if newValue == "" {
-        None
-      } else if value != newValue {
-        Some(EPartial(gid(), newValue, e))
-      } else {
-        Some(e)
-      }
-    | EFnCall(eID, fnName, args, ster) =>
-      let newArgs = switch args {
-      | list{EPipeTarget(_), ...args} => list{
-          EPipeTarget(gid()),
-          ...List.map(args, ~f=\">>"(reconstructExpr, orDefaultExpr)),
-        }
-      | _ => List.map(args, ~f=\">>"(reconstructExpr, orDefaultExpr))
-      }
-
-      let newFnName = findTokenValue(tokens, eID, "fn-name") |> Option.unwrap(~default="")
-
-      let newFnVersion = findTokenValue(tokens, eID, "fn-version") |> Option.unwrap(~default="")
-
-      let newFnName = if newFnVersion == "" {
-        newFnName
-      } else {
-        newFnName ++ ("_" ++ newFnVersion)
-      }
-
-      let e = EFnCall(id, fnName, newArgs, ster)
-      if newFnName == "" {
-        None
-      } else if FQFnName.toString(fnName) != newFnName {
-        Some(EPartial(gid(), newFnName, e))
-      } else {
-        Some(e)
-      }
-    | EPartial(eID, _, expr) =>
-      /* What should we do with the expr? Some of the name is covered by
-       * the partial name which breaks the reconstruction algorithm. In
-       * addtion, copying a partial without the old expr breaks the whole
-       * concept of a partial. So it makes more sense to copy the whole
-       * thing. */
-      let newName = findTokenValue(tokens, eID, "partial") |> Option.unwrap(~default="")
-
-      Some(EPartial(id, newName, expr))
-    | ERightPartial(eID, _, expr) =>
-      let expr = reconstructExpr(expr) |> orDefaultExpr
-      let newName = findTokenValue(tokens, eID, "partial-right") |> Option.unwrap(~default="")
-
-      Some(ERightPartial(id, newName, expr))
-    | ELeftPartial(eID, _, expr) =>
-      let expr = reconstructExpr(expr) |> orDefaultExpr
-      let newName = findTokenValue(tokens, eID, "partial-left") |> Option.unwrap(~default="")
-
-      Some(ELeftPartial(id, newName, expr))
-    | EList(_, exprs) =>
-      let newExprs = List.map(exprs, ~f=reconstructExpr) |> Option.values
-      Some(EList(id, newExprs))
-    | ETuple(_, first, second, theRest) =>
-      let results = List.map(list{first, second, ...theRest}, ~f=reconstructExpr) |> Option.values
-
-      switch results {
-      | list{} => recover("unexpected reconstruction of invalid empty tuple", None)
-      | list{el} => Some(el)
-      | list{fst, snd, ...tail} => Some(ETuple(id, fst, snd, tail))
-      }
-    | ERecord(id, entries) =>
-      // looping through original set of tokens (before transforming them into
-      // tuples) so we can get the index field
-      // TODO: consider using tokensInRangeNormalized here
-      let newEntries = tokensInRange(
-        startPos,
-        endPos,
-        astInfo,
-      ) |> List.filterMap(~f=(ti: T.tokenInfo) =>
-        switch ti.token {
-        | TRecordFieldname({recordID, index, fieldName: newKey, exprID: _, parentBlockID: _})
-          if recordID == id /* watch out for nested records */ =>
-          List.getAt(~index, entries) |> Option.map(
-            ~f=Tuple2.mapEach(
-              ~f=/* replace key */ _ => newKey,
-              ~g=\">>"(reconstructExpr, orDefaultExpr),
-              // reconstruct value expression
+        switch (reconstructExpr(cond), reconstructExpr(thenBody), reconstructExpr(elseBody)) {
+        | (newCond, newThenBody, newElseBody) if anyIfKeywordSelected =>
+          Some(
+            EIf(
+              id,
+              newCond |> orDefaultExpr,
+              newThenBody |> orDefaultExpr,
+              newElseBody |> orDefaultExpr,
             ),
           )
+        | (Some(e), None, None) | (None, Some(e), None) | (None, None, Some(e)) => Some(e)
         | _ => None
         }
-      )
+      | EBinOp(eID, name, expr1, expr2, ster) =>
+        let newName = findTokenValue(tokens, eID, "binop") |> Option.unwrap(~default="")
 
-      Some(ERecord(id, newEntries))
-    | EPipe(_, e1, e2, exprs) =>
-      list{e1, e2, ...exprs}
-      |> List.map(~f=reconstructExpr)
-      |> Option.values
-      |> (
-        x =>
+        switch (reconstructExpr(expr1), reconstructExpr(expr2)) {
+        | (Some(newExpr1), Some(newExpr2)) if newName == "" =>
+          /* since we don't allow empty partials, reconstruct the binop as we would when
+           * the binop is manually deleted
+           * (by elevating the argument expressions into ELets provided they aren't blanks) */
+          switch (newExpr1, newExpr2) {
+          | (EBlank(_), EBlank(_)) => None
+          | (EBlank(_), e) | (e, EBlank(_)) => Some(ELet(gid(), "", e, EBlank(gid())))
+          | (e1, e2) => Some(ELet(gid(), "", e1, ELet(gid(), "", e2, EBlank(gid()))))
+          }
+        | (None, Some(e)) =>
+          let e = EBinOp(id, name, EBlank(gid()), e, ster)
+          if newName == "" {
+            None
+          } else if PT.InfixStdlibFnName.toString(name) != newName {
+            Some(EPartial(gid(), newName, e))
+          } else {
+            Some(e)
+          }
+        | (Some(e), None) =>
+          let e = EBinOp(id, name, e, EBlank(gid()), ster)
+          if newName == "" {
+            None
+          } else if PT.InfixStdlibFnName.toString(name) != newName {
+            Some(EPartial(gid(), newName, e))
+          } else {
+            Some(e)
+          }
+        | (Some(newExpr1), Some(newExpr2)) =>
+          let e = EBinOp(id, name, newExpr1, newExpr2, ster)
+          if newName == "" {
+            None
+          } else if PT.InfixStdlibFnName.toString(name) != newName {
+            Some(EPartial(gid(), newName, e))
+          } else {
+            Some(e)
+          }
+        | (None, None) if newName != "" =>
+          let e = EBinOp(id, name, EBlank(gid()), EBlank(gid()), ster)
+          if newName == "" {
+            None
+          } else if PT.InfixStdlibFnName.toString(name) != newName {
+            Some(EPartial(gid(), newName, e))
+          } else {
+            Some(e)
+          }
+        | (_, _) => None
+        }
+      | ELambda(eID, _, body) =>
+        // There might still be an edge case here where one of the vars is not
+        // (fully) selected but is still bound in the body. In such a case, it
+        // would be worth turning the relevant `EVariable`s in the body to
+        // partials somehow. TODO
+
+        // get lambda-var tokens that belong to this expression out of the list
+        // of tokens in the selection range
+        let newVars = tokens |> List.filterMap(~f=x =>
           switch x {
-          | list{} => Some(EPipe(id, EBlank(gid()), EBlank(gid()), list{}))
-          | list{expr} => Some(EPipe(id, expr, EBlank(gid()), list{}))
-          | list{e1, e2, ...rest} => Some(EPipe(id, e1, e2, rest))
+          | (vID, value, "lambda-var") if vID == eID => Some(gid(), value)
+          | _ => None
           }
-      )
+        )
 
-    | EConstructor(eID, name, exprs) =>
-      let newName = findTokenValue(tokens, eID, "constructor-name") |> Option.unwrap(~default="")
+        Some(ELambda(id, newVars, reconstructExpr(body) |> orDefaultExpr))
+      | EFieldAccess(eID, e, _) =>
+        let newFieldName = findTokenValue(tokens, eID, "field-name") |> Option.unwrap(~default="")
+        let fieldOpSelected = findTokenValue(tokens, eID, "field-op") != None
 
-      let newExprs = List.map(exprs, ~f=\">>"(reconstructExpr, orDefaultExpr))
-      let e = EConstructor(id, name, newExprs)
-      if newName == "" {
-        None
-      } else if name != newName {
-        Some(EPartial(gid(), newName, e))
-      } else {
-        Some(e)
-      }
-    | EMatch(_, cond, cases) =>
-      let toksToMatchPattern = (matchPattern, mpTokens) => {
-        // TODO: should we really be re-using these IDs?
-        switch mpTokens {
-        // simple cases
-        | list{(id, _, "match-pattern-null")} => MPNull(id)
-        | list{(id, _, "match-pattern-blank")} => MPBlank(id)
-        | list{(id, _, "match-pattern-true")} => MPBool(id, true)
-        | list{(id, _, "match-pattern-false")} => MPBool(id, false)
-        | list{(id, value, "match-pattern-variable")} => MPVariable(id, value)
-        | list{(id, value, "match-pattern-integer")} =>
-          MPInteger(id, Util.coerceStringTo64BitInt(value))
-        | list{(id, value, "match-pattern-string")} => MPString(id, Util.trimQuotes(value))
+        switch (reconstructExpr(e), fieldOpSelected, newFieldName) {
+        | (None, false, newFieldName) if newFieldName !== "" =>
+          Some(EPartial(gid(), newFieldName, EVariable(gid(), newFieldName)))
+        | (None, true, newFieldName) if newFieldName !== "" =>
+          Some(EFieldAccess(id, EBlank(gid()), newFieldName))
+        | (Some(e), true, _) => Some(EFieldAccess(id, e, newFieldName))
+        | (e, _, _) => e
+        }
+      | EVariable(eID, name) =>
+        let newName = findTokenValue(tokens, eID, "variable") |> Option.unwrap(~default="")
 
-        // floats
-        | list{
-            (id, whole, "match-pattern-float-whole"),
-            (_, _, "match-pattern-float-point"),
-            (_, fraction, "match-pattern-float-fractional"),
-          } =>
-          let (sign, whole) = Sign.split(whole)
-          MPFloat(id, sign, whole, fraction)
-        | list{(id, value, "match-pattern-float-whole"), (_, _, "match-pattern-float-point")}
-        | list{(id, value, "match-pattern-float-whole")} =>
-          MPInteger(id, Util.coerceStringTo64BitInt(value))
-        | list{(_, _, "match-pattern-float-point"), (id, value, "match-pattern-float-fractional")}
-        | list{(id, value, "match-pattern-float-fractional")} =>
-          MPInteger(id, Util.coerceStringTo64BitInt(value))
+        let e = EVariable(id, name)
 
-        // recursive patterns
-        // Note: this assumes that PConstructor's and PTuple's sub-pattern
-        // tokens are always selected as well
-        //
-        // i.e. if you highlight the following, starting at `match` and ending
-        // after `Ok`, the "test" value is included in the reconstructed expr
-        //
-        // «match Ok 1
-        //    Ok» "test" -> 999
-        //
-        // CLEANUP TUPLETODO we should instead use the subPatternTokens to
-        // reconstruct the sub-patterns appropriately
-        | list{(id, value, "match-pattern-constructor-name"), ..._subPatternTokens} =>
-          MPConstructor(
+        if newName == "" {
+          None
+        } else if name != newName {
+          Some(EPartial(gid(), newName, e))
+        } else {
+          Some(e)
+        }
+      | EFnCall(eID, fnName, args, ster) =>
+        let newArgs = switch args {
+        | list{EPipeTarget(_), ...args} => list{
+            EPipeTarget(gid()),
+            ...List.map(args, ~f=\">>"(reconstructExpr, orDefaultExpr)),
+          }
+        | _ => List.map(args, ~f=\">>"(reconstructExpr, orDefaultExpr))
+        }
+
+        let newFnName = findTokenValue(tokens, eID, "fn-name") |> Option.unwrap(~default="")
+
+        let newFnVersion = findTokenValue(tokens, eID, "fn-version") |> Option.unwrap(~default="")
+
+        let newFnName = if newFnVersion == "" {
+          newFnName
+        } else {
+          newFnName ++ ("_" ++ newFnVersion)
+        }
+
+        let e = EFnCall(id, fnName, newArgs, ster)
+        if newFnName == "" {
+          None
+        } else if FQFnName.toString(fnName) != newFnName {
+          Some(EPartial(gid(), newFnName, e))
+        } else {
+          Some(e)
+        }
+      | EPartial(eID, _, expr) =>
+        /* What should we do with the expr? Some of the name is covered by
+         * the partial name which breaks the reconstruction algorithm. In
+         * addtion, copying a partial without the old expr breaks the whole
+         * concept of a partial. So it makes more sense to copy the whole
+         * thing. */
+        let newName = findTokenValue(tokens, eID, "partial") |> Option.unwrap(~default="")
+
+        Some(EPartial(id, newName, expr))
+      | ERightPartial(eID, _, expr) =>
+        let expr = reconstructExpr(expr) |> orDefaultExpr
+        let newName = findTokenValue(tokens, eID, "partial-right") |> Option.unwrap(~default="")
+
+        Some(ERightPartial(id, newName, expr))
+      | ELeftPartial(eID, _, expr) =>
+        let expr = reconstructExpr(expr) |> orDefaultExpr
+        let newName = findTokenValue(tokens, eID, "partial-left") |> Option.unwrap(~default="")
+
+        Some(ELeftPartial(id, newName, expr))
+      | EList(_, exprs) =>
+        let newExprs = List.map(exprs, ~f=reconstructExpr) |> Option.values
+        Some(EList(id, newExprs))
+      | ETuple(_, first, second, theRest) =>
+        let results = List.map(list{first, second, ...theRest}, ~f=reconstructExpr) |> Option.values
+
+        switch results {
+        | list{} => recover("unexpected reconstruction of invalid empty tuple", None)
+        | list{el} => Some(el)
+        | list{fst, snd, ...tail} => Some(ETuple(id, fst, snd, tail))
+        }
+      | ERecord(id, entries) =>
+        // looping through original set of tokens (before transforming them into
+        // tuples) so we can get the index field
+        // TODO: consider using tokensInRangeNormalized here
+        let newEntries = tokensInRange(
+          startPos,
+          endPos,
+          astInfo,
+        ) |> List.filterMap(~f=(ti: T.tokenInfo) =>
+          switch ti.token {
+          | TRecordFieldname({recordID, index, fieldName: newKey, exprID: _, parentBlockID: _})
+            if recordID == id /* watch out for nested records */ =>
+            List.getAt(~index, entries) |> Option.map(
+              ~f=Tuple2.mapEach(
+                ~f=/* replace key */ _ => newKey,
+                ~g=\">>"(reconstructExpr, orDefaultExpr),
+                // reconstruct value expression
+              ),
+            )
+          | _ => None
+          }
+        )
+
+        Some(ERecord(id, newEntries))
+      | EPipe(_, e1, e2, exprs) =>
+        list{e1, e2, ...exprs}
+        |> List.map(~f=reconstructExpr)
+        |> Option.values
+        |> (
+          x =>
+            switch x {
+            | list{} => Some(EPipe(id, EBlank(gid()), EBlank(gid()), list{}))
+            | list{expr} => Some(EPipe(id, expr, EBlank(gid()), list{}))
+            | list{e1, e2, ...rest} => Some(EPipe(id, e1, e2, rest))
+            }
+        )
+
+      | EConstructor(eID, name, args) =>
+        let newName = findTokenValue(tokens, eID, "constructor-name") |> Option.unwrap(~default="")
+        let newArgs = List.map(args, ~f=\">>"(reconstructExpr, orDefaultExpr))
+
+        let e = EConstructor(id, name, newArgs)
+
+        if newName == "" {
+          None
+        } else if name != newName {
+          Some(EPartial(gid(), newName, e))
+        } else {
+          Some(e)
+        }
+      | EMatch(_, cond, cases) =>
+        // new (mp, expr) pairs for the new `match`
+        let newCases = List.filterMap(cases, ~f=((mp, expr)) => {
+          let newMP =
+            // This is currently using a hacky algorithm that tries to 'parse'
+            // the tokens relevant to the MP. This maintains order, such that the
+            // first token of a pattern is first in the resultant list.
+            //
+            // TODO: it'd be ideal to have context of the tokens _in_ the pattern
+            // as well - not just the pattern tokens themselves.
+            tokens
+            |> List.filter(~f=((pID', _, _)) => pID' == MP.toID(mp))
+            |> (mpToks => reconstructPattern(mp, mpToks))
+
+          let newExpr = reconstructExpr(expr)
+
+          // this could be 'simplified' but this is more clear
+          switch (newMP, newExpr) {
+          | (Some(mp), Some(expr)) => Some(mp, expr)
+          | (Some(mp), None) => Some(mp, newExpr |> orDefaultExpr) // todo: reconsider
+          | (None, Some(_expr)) => None // todo: reconsider
+          | (None, None) => None
+          }
+        })
+
+        Some(EMatch(id, reconstructExpr(cond) |> orDefaultExpr, newCases))
+      | EFeatureFlag(_, name, cond, disabled, enabled) =>
+        // since we don't have any tokens associated with feature flags yet
+        Some(
+          EFeatureFlag(
             id,
-            value,
-            switch matchPattern {
-            | MPConstructor(_, _, ps) => ps
-            | _ => list{}
-            },
-          )
-        | list{(id, _value, "match-pattern-tuple-open"), ..._subPatternTokens} =>
-          switch matchPattern {
-          | MPTuple(_, first, second, theRest) =>
-            MPTuple(id, MP.clone(first), MP.clone(second), List.map(~f=MP.clone, theRest))
-          | _ => MPTuple(id, MPBlank(gid()), MPBlank(gid()), list{})
-          }
-        | _ =>
-          recover(
-            "toksToMatchPattern not set up to handle token list",
-            ~debug=mpTokens,
-            MPBlank(gid()),
-          )
-        }
+            // should probably do some stuff about if the name token isn't fully selected
+            name,
+            reconstructExpr(cond) |> orDefaultExpr,
+            reconstructExpr(enabled) |> orDefaultExpr,
+            reconstructExpr(disabled) |> orDefaultExpr,
+          ),
+        )
+      | EPipeTarget(_) => Some(EPipeTarget(gid()))
       }
+    }
+  }
+  and reconstructPattern = (matchPattern: MP.t, mpTokens) => {
+    // TODO: should we really be re-using these IDs?
+    switch mpTokens {
+    | list{} => None
+    // simple cases
+    | list{(id, _, "match-pattern-null")} => Some(MPNull(id))
+    | list{(id, _, "match-pattern-blank")} => Some(MPBlank(id))
+    | list{(id, _, "match-pattern-true")} => Some(MPBool(id, true))
+    | list{(id, _, "match-pattern-false")} => Some(MPBool(id, false))
+    | list{(id, value, "match-pattern-variable")} => Some(MPVariable(id, value))
+    | list{(id, value, "match-pattern-integer")} =>
+      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
+    | list{(id, value, "match-pattern-string")} => Some(MPString(id, Util.trimQuotes(value)))
 
-      // new (mp, expr) pairs for the new `match`
-      let newCases = List.filterMap(cases, ~f=((mp, expr)) => {
-        let isPartOfMP = ((pID', _, _)) => pID' == MP.toID(mp)
+    // floats
+    | list{
+        (id, whole, "match-pattern-float-whole"),
+        (_, _, "match-pattern-float-point"),
+        (_, fraction, "match-pattern-float-fractional"),
+      } =>
+      let (sign, whole) = Sign.split(whole)
+      Some(MPFloat(id, sign, whole, fraction))
+    | list{(id, value, "match-pattern-float-whole"), (_, _, "match-pattern-float-point")}
+    | list{(id, value, "match-pattern-float-whole")} =>
+      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
+    | list{(_, _, "match-pattern-float-point"), (id, value, "match-pattern-float-fractional")}
+    | list{(id, value, "match-pattern-float-fractional")} =>
+      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
 
-        // note: this maintains order, so the first token of a pattern is first
-        // TODO: it'd be ideal to have context of the tokens _in_ the pattern
-        // as well - not just the pattern tokens themselves.
-        let mpTokens = tokens |> List.filter(~f=isPartOfMP)
-
-        switch mpTokens {
-        | list{} => None // don't reconstruct `match` pattern entirely out of selection
-        | mpTokens =>
-          let newMP = toksToMatchPattern(mp, mpTokens)
-          let newExpr = reconstructExpr(expr) |> orDefaultExpr
-          Some(newMP, newExpr)
-        }
-      })
-
-      Some(EMatch(id, reconstructExpr(cond) |> orDefaultExpr, newCases))
-    | EFeatureFlag(_, name, cond, disabled, enabled) =>
-      // since we don't have any tokens associated with feature flags yet
+    // recursive patterns
+    // Note: this assumes that PConstructor's and PTuple's sub-pattern
+    // tokens are always selected as well
+    //
+    // i.e. if you highlight the following, starting at `match` and ending
+    // after `Ok`, the "test" value is included in the reconstructed expr
+    //
+    // «match Ok 1
+    //    Ok» "test" -> 999
+    //
+    // CLEANUP TUPLETODO we should instead use the subPatternTokens to
+    // reconstruct the sub-patterns appropriately
+    | list{(id, value, "match-pattern-constructor-name"), ..._subPatternTokens} =>
       Some(
-        EFeatureFlag(
+        MPConstructor(
           id,
-          // should probably do some stuff about if the name token isn't fully selected
-          name,
-          reconstructExpr(cond) |> orDefaultExpr,
-          reconstructExpr(enabled) |> orDefaultExpr,
-          reconstructExpr(disabled) |> orDefaultExpr,
+          value,
+          switch matchPattern {
+          | MPConstructor(_, _, ps) => ps
+          | _ => list{}
+          },
         ),
       )
-    | EPipeTarget(_) => Some(EPipeTarget(gid()))
+    | list{(id, _value, "match-pattern-tuple-open"), ..._subPatternTokens} =>
+      switch matchPattern {
+      | MPTuple(_, first, second, theRest) =>
+        Some(MPTuple(id, MP.clone(first), MP.clone(second), List.map(~f=MP.clone, theRest)))
+      | _ => Some(MPTuple(id, MPBlank(gid()), MPBlank(gid()), list{}))
+      }
+    | _ => recover("toksToMatchPattern not set up to handle token list", ~debug=mpTokens, None)
     }
   }
 
-  let topmostID = getTopmostSelectionID(startPos, endPos, astInfo)
-  reconstruct(~topmostID, (startPos, endPos))
+  let topmostID = getTopmostExprSelectionID(startPos, endPos, astInfo)
+  let topmostExpr = topmostID |> Option.andThen(~f=id => FluidAST.findExpr(id, astInfo.ast))
+
+  reconstruct(~topmostExpr, (startPos, endPos))
 }
 
 let pasteOverSelection = (
@@ -5862,7 +5886,7 @@ let pasteOverSelection = (
   let ast = astInfo.ast
   let mTi = ASTInfo.getToken(astInfo)
   let exprID = mTi |> Option.map(~f=(ti: T.tokenInfo) => ti.token |> T.tid)
-  let expr = Option.andThen(exprID, ~f=id => FluidAST.find(id, ast))
+  let expr = Option.andThen(exprID, ~f=id => FluidAST.findExpr(id, ast))
   let ct = mTi |> Option.andThen(~f=ti => caretTargetFromTokenInfo(astInfo.state.newPos, ti))
 
   // what Expr, in our clipboard, are we trying to paste?
@@ -5923,7 +5947,7 @@ let pasteOverSelection = (
         | _ => initialExpr
         }
 
-      switch FluidAST.findParent(E.toID(expr), ast) {
+      switch FluidAST.findExprParent(E.toID(expr), ast) {
       | Some(EPipe(_, e1, _e2, _rest)) if e1 == expr =>
         // If pasting into the head of a pipe, drop any root-level pipe targets
         clipboardExpr |> Option.map(~f=e => removePipeTarget(e))
@@ -6018,11 +6042,12 @@ let getCopySelection = (m: model): clipboardContents =>
   astInfoFromModel(m)
   |> Option.andThen(~f=(astInfo: ASTInfo.t) => {
     let (from, to_) = FluidUtil.getSelectionRange(astInfo.state)
+
     let text =
       ASTInfo.exprOfActiveEditor(astInfo) |> Printer.eToHumanString |> String.slice(~from, ~to_)
 
     let json =
-      reconstructExprFromRange((from, to_), astInfo) |> Option.map(
+      reconstructExprFromRange(astInfo, (from, to_)) |> Option.map(
         ~f=Clipboard.exprToClipboardContents,
       )
 

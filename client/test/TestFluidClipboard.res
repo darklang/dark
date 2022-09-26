@@ -1118,13 +1118,18 @@ let run = () => {
       int(9000),
       "[123,9000~]",
     )
+
+    // surrounding separators [1|,2,|3]
+    testCopy(
+      "copying around list separators leaves blanks on outer edges",
+      list(list{int(1), int(2), int(3)}), // [1,2,3]
+      (2, 5),
+      "[___,2,___]",
+    )
     ()
   })
 
   describe("Tuples", () => {
-    // TUPLETODO: once the following github issue is resolved, write tests
-    // around such functionality https://github.com/darklang/dark/issues/4235
-
     // whole tuple
     testCopy(
       "copying whole tuple adds tuple expr to clipboard",
@@ -1193,6 +1198,23 @@ let run = () => {
     //   tuple(str("hello"), int(1234), list{}), // ("hello",1234)
     //   (5, 11),
     //   ("(\"hel~\")", "(\"lo\",12)"),
+    // )
+
+    // surrounding separators (1|,2,|3)
+    testCopy(
+      "copying around tuple separators leaves blanks on outer edges",
+      tuple(int(1), int(2), list{int(3)}), // (1,2,3),
+      (2, 5),
+      "(___,2,___)",
+    )
+    // TUPLETODO: although the above is fixed (part of #4235), the below scenario could be improved
+    // TUPLETODO: when this is fixed, add equivalent test cases for tuple patterns
+    // TODO: and for list exprs
+    // testCut(
+    //   "copying around tuple separators leaves blanks on outer edges",
+    //   tuple(int(1), int(2), list{int(3)}), // (1,2,3),
+    //   (2, 5),
+    //   ("", "(___,2,___)"),
     // )
 
     // pasting tuples
