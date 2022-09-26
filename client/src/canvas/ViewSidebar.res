@@ -579,7 +579,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
       EventListeners.eventNeither(
         "click",
         ~key="hash-" ++ d.deployHash,
-        m => Msg.ClipboardCopyLivevalue("\"" ++ (d.deployHash ++ "\""), m.mePos),
+        m => Msg.ClipboardCopyLivevalue("\"" ++ d.deployHash ++ "\"", m.mePos),
       ),
     },
     list{Icons.fontAwesome("copy")},

@@ -93,22 +93,27 @@ let findExprParent: (ID.t, t) => option<FluidExpression.t>
   * See FluidExpression.ancestors ")
 let exprAncestors: (ID.t, t) => list<FluidExpression.t>
 
-@ocaml.doc(" [getFeatureFlags ast] returns a list of all feature flags in the AST. ")
+@ocaml.doc("[getFeatureFlags ast] returns a list of all feature flags in the AST. ")
 let getFeatureFlags: t => list<FluidExpression.t>
 
-@ocaml.doc(" [clone ast] returns a clone of [ast]. That is, a structural copy of the AST
+@ocaml.doc("[clone ast] returns a clone of [ast]. That is, a structural copy of the AST
   * but with every expression having a newly generated id.
   *
   * See FluidExpression.clone ")
 let clone: t => t
 
-@ocaml.doc(" [testEqualIgnoringIds a b] compares the structure and values of two ASTs,
+@ocaml.doc("[testEqualIgnoringIds a b] compares the structure and values of two ASTs,
   * ignoring the actual IDs of the expressions.
   *
   * Find the implementation in the FluidExpression function of the same name. ")
 let testEqualIgnoringIds: (t, t) => bool
 
-@ocaml.doc(" [updateMatchPattern f matchID patID ast] recursively searches [ast] for a
+@ocaml.doc("[validateAndFix expr onError] checks the Expr is valid, calling onError if it finds any errors. It will also fix up the AST as best it can.
+
+   * Returns the fixed up AST. ")
+let validateAndFix: (~onError: (string, FluidExpression.t) => unit, t) => t
+
+@ocaml.doc("[updateMatchPattern f matchID patID ast] recursively searches [ast] for a
   * match expression containing a pattern with id [patID].
   *
   * If found, replaces the pattern with the result of [f p] and returns the

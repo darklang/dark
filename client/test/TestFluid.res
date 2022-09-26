@@ -511,16 +511,28 @@ let t = (
     (" - `" ++
     ((Printer.eToTestString(expr) |> Regex.replace(~re=Regex.regex("\n"), ~repl=" ")) ++
     "`")))
+  let partialsStr = (b: bool) =>
+    if b {
+      "containsPartials"
+    } else {
+      "noPartials"
+    }
+  let fnOnRailStr = (b: bool) =>
+    if b {
+      "fnOnRail"
+    } else {
+      "fnNotOnRail"
+    }
 
   let case = TestCase.init(~wrap, ~clone, ~debug, ~pos, ~sel, expr)
   test(testName(), () => {
     let res = fn(case)
     open TestResult
-    expect((toStringWithCaret(res), containsPartials(res), containsFnsOnRail(res))) |> toEqual((
-      expectedStr,
-      expectsPartial,
-      expectsFnOnRail,
-    ))
+    expect((
+      toStringWithCaret(res),
+      containsPartials(res)->partialsStr,
+      containsFnsOnRail(res)->fnOnRailStr,
+    )) |> toEqual((expectedStr, expectsPartial->partialsStr, expectsFnOnRail->fnOnRailStr))
   })
   // also run the same test in a feature flag editor panel, unless it's marked as not working
   if !brokenInFF {
@@ -529,11 +541,11 @@ let t = (
     test(testName(~ff=true, ()), () => {
       let res = fn(case)
       open TestResult
-      expect((toStringWithCaret(res), containsPartials(res), containsFnsOnRail(res))) |> toEqual((
-        expectedStr,
-        expectsPartial,
-        expectsFnOnRail,
-      ))
+      expect((
+        toStringWithCaret(res),
+        containsPartials(res)->partialsStr,
+        containsFnsOnRail(res)->fnOnRailStr,
+      )) |> toEqual((expectedStr, expectsPartial->partialsStr, expectsFnOnRail->fnOnRailStr))
     })
   }
 }
@@ -1111,26 +1123,6 @@ let run = () => {
       "\"123456789_abcdefghi,123456789_abcdefghi,~\n" ++ "  abcdefghi, 123456789_ abcdefghi,\"",
     )
     t(
-      "adding a quote at the front turns a partial into a string",
-      partial("abcdefgh\"", b),
-      ins("\""),
-      "\"~abcdefgh\"",
-    )
-    t(
-      "adding a quote at the back turns a partial into a string",
-      partial("\"abcdefgh", b),
-      ~pos=9,
-      ins("\""),
-      "\"abcdefgh\"~",
-    )
-    t(
-      ~expectsPartial=true,
-      "just one quote doesn't turn a partial into a string",
-      partial("abcdefgh", b),
-      ins("\""),
-      "\"~abcdefgh",
-    )
-    t(
       "Replace text in multiline string if text is inserted with selection",
       mlStrWSpace,
       ~sel=(1, 73),
@@ -1141,12 +1133,16 @@ let run = () => {
   describe("Integers", () => {
     t("insert 0 at front ", anInt, ins("0"), "~12345")
     t("insert at end of short", aShortInt, ~pos=1, ins("2"), "12~")
+    t("insert at end of negative short", int(-1), ~pos=2, ins("2"), "-12~")
     t("insert start of number", anInt, ins("5"), "5~12345")
+    t("insert start of negative number", int(-12345), ~pos=1, ins("5"), "-5~12345")
     t("del start of number", anInt, del, "~2345")
     t("bs start of number", anInt, bs, "~12345")
     t("insert end of number", anInt, ~pos=5, ins("0"), "123450~")
     t("del end of number", anInt, ~pos=5, del, "12345~")
     t("bs end of number", anInt, ~pos=5, bs, "1234~")
+    t("bs minus sign", int(-1234), ~pos=1, bs, "~1234")
+    t("del minus sign", int(-1234), ~pos=0, del, "~1234")
     t("insert non-number at start is no-op", anInt, ins("c"), "~12345")
     // tStruct(
     //   "insert non-number without wrapper creates left partial",
@@ -1214,6 +1210,10 @@ let run = () => {
     t("insert . converts to float - middle", anInt, ~pos=3, ins("."), "123.~45")
     t("insert . converts to float - start", anInt, ~pos=0, ins("."), ".~12345")
     t("insert . converts to float - short", aShortInt, ~pos=1, ins("."), "1.~")
+    t("insert . converts to negative float - end", int(-12345), ~pos=6, ins("."), "-12345.~")
+    t("insert . converts to negative float - middle", int(-12345), ~pos=4, ins("."), "-123.~45")
+    t("insert . converts to negative float - start", int(-12345), ~pos=1, ins("."), "-.~12345")
+    t("insert . converts to negative float - short", int(-1), ~pos=2, ins("."), "-1.~")
     t("continue after adding dot", aPartialFloat, ~pos=2, ins("2"), "1.2~")
     t("insert zero in whole - start", aFloat, ~pos=0, ins("0"), "~123.456")
     t("insert zero in whole - no whole", aFloatWithoutWhole, ~pos=0, ins("0"), "0~.1")
@@ -1493,6 +1493,283 @@ let run = () => {
       inputs(list{DeleteWordForward}),
       "nu~",
     )
+  })
+  describe("Partials", () => {
+    describe("Strings", () => {
+      describe("Insert", () => {
+        t(
+          "adding a quote at the front turns a partial into a string",
+          partial("abcdefgh\"", b),
+          ins("\""),
+          "\"~abcdefgh\"",
+        )
+        t(
+          "adding a quote at the back turns a partial into a string",
+          partial("\"abcdefgh", b),
+          ~pos=9,
+          ins("\""),
+          "\"abcdefgh\"~",
+        )
+        t(
+          "adding a quote in the middle does not turn a partial into a string",
+          partial("\"abcdefgh", b),
+          ~expectsPartial=true,
+          ~pos=5,
+          ins("\""),
+          "\"abcd\"~efgh",
+        )
+        t(
+          ~expectsPartial=true,
+          "just one quote doesn't turn a partial into a string",
+          partial("abcdefgh", b),
+          ins("\""),
+          "\"~abcdefgh",
+        )
+      })
+      describe("Backspace", () => {
+        t(
+          "bs at start can make a partial into a string",
+          partial("x\"abcdefgh\"", b),
+          ~pos=1,
+          bs,
+          "~\"abcdefgh\"",
+        )
+        t(
+          "bs at end can make a partial into a string",
+          partial("\"abcdefgh\"x", b),
+          ~pos=11,
+          bs,
+          "\"abcdefgh\"~",
+        )
+      })
+      describe("Delete", () => {
+        t(
+          "delete at start can make a partial into a string",
+          partial("x\"abcdefgh\"", b),
+          ~pos=0,
+          del,
+          "~\"abcdefgh\"",
+        )
+        t(
+          "delete at end can make a partial into a string",
+          partial("\"abcdefgh\"x", b),
+          ~pos=10,
+          del,
+          "\"abcdefgh\"~",
+        )
+      })
+    })
+    describe("Ints", () => {
+      describe("Backspace", () => {
+        describe("Positive", () => {
+          t(
+            "bs at start can make a partial into an int",
+            partial("x12345678", b),
+            ~pos=1,
+            bs,
+            "~12345678",
+          )
+          t(
+            "bs at end can make a partial into an int",
+            partial("12345678x", b),
+            ~pos=9,
+            bs,
+            "12345678~",
+          )
+          // TODO: ints that get too big should become partials
+          // t(
+          //   "bs into too big an int remains a partial - 1",
+          //   partial("x99999999999999999999", b),
+          //   ~pos=1,
+          //   ~expectsPartial=true,
+          //   bs,
+          //   "~99999999999999999999",
+          // )
+          t(
+            "bs into too big an int remains a partial - 2",
+            partial("x99999999999999999999999", b),
+            ~pos=1,
+            ~expectsPartial=true,
+            bs,
+            "~99999999999999999999999",
+          )
+        })
+        describe("Negative", () => {
+          t(
+            "bs at start can make a partial into a negative int",
+            partial("x-12345678", b),
+            ~pos=1,
+            bs,
+            "~-12345678",
+          )
+          t(
+            "bs at end can make a partial into a negative int",
+            partial("-12345678x", b),
+            ~pos=10,
+            bs,
+            "-12345678~",
+          )
+        })
+      })
+      describe("Delete", () => {
+        describe("Positive", () => {
+          t(
+            "delete at start can make a partial into an int",
+            partial("x12345678", b),
+            ~pos=0,
+            del,
+            "~12345678",
+          )
+          t(
+            "delete at end can make a partial into an int",
+            partial("12345678x", b),
+            ~pos=8,
+            del,
+            "12345678~",
+          )
+        })
+        describe("Negative", () => {
+          t(
+            "delete at start can make a partial into a negative int",
+            partial("x-12345678", b),
+            ~pos=0,
+            del,
+            "~-12345678",
+          )
+          t(
+            "delete at end can make a partial into a negative int",
+            partial("-12345678x", b),
+            ~pos=9,
+            del,
+            "-12345678~",
+          )
+        })
+      })
+    })
+    describe("Floats", () => {
+      describe("Backspace", () => {
+        describe("Positive", () => {
+          t("bs at start can make a partial into a float", partial("x5.62", b), ~pos=1, bs, "~5.62")
+          t(
+            "bs before point can make a partial into a float",
+            partial("5.x62", b),
+            ~pos=3,
+            bs,
+            "5.~62",
+          )
+          t(
+            "bs after point can make a partial into a float",
+            partial("5x.62", b),
+            ~pos=2,
+            bs,
+            "5~.62",
+          )
+          t("bs at end can make a partial into a float", partial("5.62x", b), ~pos=5, bs, "5.62~")
+          t(
+            "bs into big float partial",
+            partial("x99999999999999999999.99999999999999999", b),
+            ~pos=1,
+            bs,
+            "~99999999999999999999.99999999999999999",
+          )
+        })
+        describe("Negative", () => {
+          t(
+            "bs at start can make a partial into a negative float",
+            partial("x-5.62", b),
+            ~pos=1,
+            bs,
+            "~-5.62",
+          )
+          t(
+            "bs before point can make a partial into a float",
+            partial("-5.x62", b),
+            ~pos=4,
+            bs,
+            "-5.~62",
+          )
+          t(
+            "bs after point can make a partial into a float",
+            partial("-5x.62", b),
+            ~pos=3,
+            bs,
+            "-5~.62",
+          )
+          t(
+            "bs at end can make a partial into a negative float",
+            partial("-5.62x", b),
+            ~pos=6,
+            bs,
+            "-5.62~",
+          )
+        })
+      })
+      describe("Delete", () => {
+        describe("Positive", () => {
+          t(
+            "delete at start can make a partial into a float",
+            partial("x5.62", b),
+            ~pos=0,
+            del,
+            "~5.62",
+          )
+          t(
+            "del before point can make a partial into a float",
+            partial("5.x62", b),
+            ~pos=2,
+            del,
+            "5.~62",
+          )
+          t(
+            "del after point can make a partial into a float",
+            partial("5x.62", b),
+            ~pos=1,
+            del,
+            "5~.62",
+          )
+          t(
+            "delete at end can make a partial into a float",
+            partial("5.62x", b),
+            ~pos=4,
+            del,
+            "5.62~",
+          )
+        })
+        describe("Negative", () => {
+          t(
+            "delete at start can make a partial into a negative float",
+            partial("x-5.62", b),
+            ~pos=0,
+            del,
+            "~-5.62",
+          )
+          t(
+            "del before point can make a partial into a float",
+            partial("5.x62", b),
+            ~pos=2,
+            del,
+            "5.~62",
+          )
+          t(
+            "del after point can make a partial into a float",
+            partial("5x.62", b),
+            ~pos=1,
+            del,
+            "5~.62",
+          )
+          t(
+            "delete at end can make a partial into a negative float",
+            partial("-5.62x", b),
+            ~pos=5,
+            del,
+            "-5.62~",
+          )
+        })
+      })
+      describe("Insert", () => {
+        t("insert at start of float partial", partial(".62", b), ~pos=0, ins("0"), "0~.62")
+      })
+    })
   })
   describe("Blanks", () => {
     t("insert middle of blank->string", b, ~pos=3, ins("\""), "\"~\"")

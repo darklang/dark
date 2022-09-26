@@ -37,6 +37,11 @@ let getSelectionRange = (s: AppTypes.fluidState): (int, int) =>
  * once fluid supports negative numbers.
  ")
 let truncateStringTo64BitInt = (s: string): Result.t<int64, string> => {
+  let (s, sign) = if String.startsWith(~prefix="-", s) {
+    (String.dropLeft(~count=1, s), -1L)
+  } else {
+    (s, 1L)
+  }
   module BI = ReScriptJs.Js.BigInt
   let is63BitInt = (s: string) =>
     try {
@@ -50,11 +55,11 @@ let truncateStringTo64BitInt = (s: string): Result.t<int64, string> => {
   // in two's complement -- which is not yet handled
   let trunc19 = String.left(~count=19, s)
   if is63BitInt(trunc19) {
-    Ok(Int64.of_string(trunc19))
+    Ok(Int64.mul(sign, Int64.of_string(trunc19)))
   } else {
     let trunc18 = String.left(~count=18, s)
     if is63BitInt(trunc18) {
-      Ok(Int64.of_string(trunc18))
+      Ok(Int64.mul(sign, Int64.of_string(trunc18)))
     } else {
       Error("Invalid 63bit number even after truncate")
     }
@@ -103,7 +108,7 @@ let removeCharAt = (str, offset): string =>
     String.slice(~from=offset + 1, ~to_=String.length(str), str)
   }
 
-let isNumber = (str: string) => Js.Re.test_(%re("/^[0-9]+$/"), str)
+let isNumber = (str: string) => Js.Re.test_(%re("/^-?[0-9]+$/"), str)
 
 let isIdentifierChar = (str: string) => Js.Re.test_(%re("/[_a-zA-Z0-9]+/"), str)
 

@@ -581,6 +581,50 @@ let ancestors = (id: id, expr: t): list<t> => {
   rec_ancestors(id, list{}, expr)
 }
 
+let validateAndFix = (~onError: (string, t) => unit, expr: t): t => {
+  expr->preTraversal(~f=expr =>
+    switch expr {
+    | EFloat(id, sign, whole, fraction) =>
+      if String.startsWith(~prefix="-", whole) {
+        onError("Floats cannot have a negative sign in the whole number", expr)
+
+        let newSign = if sign == ProgramTypes.Sign.Negative {
+          ProgramTypes.Sign.Positive
+        } else {
+          ProgramTypes.Sign.Negative
+        }
+        EFloat(id, newSign, String.dropLeft(~count=1, whole), fraction)
+      } else {
+        expr
+      }
+    | EInteger(_)
+    | EString(_)
+    | ECharacter(_)
+    | EBool(_)
+    | ENull(_)
+    | EBlank(_)
+    | EPipeTarget(_)
+    | EVariable(_)
+    | EPartial(_)
+    | ERightPartial(_)
+    | ELeftPartial(_)
+    | ELet(_, _, _, _)
+    | EIf(_, _, _, _)
+    | EFnCall(_, _, _, _)
+    | EBinOp(_, _, _, _, _)
+    | ELambda(_, _, _)
+    | EPipe(_, _, _, _)
+    | EFieldAccess(_, _, _)
+    | EList(_, _)
+    | ETuple(_, _, _, _)
+    | ERecord(_, _)
+    | EFeatureFlag(_, _, _, _, _)
+    | EMatch(_, _, _)
+    | EConstructor(_, _, _) => expr
+    }
+  )
+}
+
 let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   // helpers for recursive calls
   let eq = testEqualIgnoringIds

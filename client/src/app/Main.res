@@ -1909,8 +1909,11 @@ let update_ = (msg: msg, m: model): modification => {
     Model.updateErrorMod(
       Error.set(
         "INTERNAL: Error decoding js event " ++
-        (name ++
-        (" with key " ++ (key ++ (" got error: \"" ++ (error ++ "\""))))),
+        name ++
+        " with key " ++
+        key ++
+        " got error: \"" ++
+        error ++ "\"",
       ),
     )
   | CanvasPanAnimationEnd =>

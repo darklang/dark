@@ -135,6 +135,11 @@ let clone: ProgramTypes.Expr.t => ProgramTypes.Expr.t
   * you'll need to complete the implementation and add tests ")
 let testEqualIgnoringIds: (ProgramTypes.Expr.t, ProgramTypes.Expr.t) => bool
 
+@ocaml.doc("[validateAndFix expr onError] checks the Expr is valid, calling onError if it finds any errors. It will also fix up the AST as best it can.
+
+   * Returns the fixed up AST. ")
+let validateAndFix: (~onError: (string, t) => unit, t) => t
+
 @ocaml.doc(" toHumanReadable returns a string of the expression tokenized into a
  * human-readable S-exp-like formatting that contains newlines and truncated
  * strings, which is meant to closely mirror the actual AST and aid in

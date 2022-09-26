@@ -29,25 +29,11 @@ let jsonToExpr = (jsonStr: string): option<E.t> => {
     | JSONNull => ENull(gid())
     | JSONNumber(float) =>
       let str = Js.Float.toString(float)
-      switch Int64.of_string_opt(str) {
-      | Some(int) => EInteger(gid(), int)
+      switch FluidPartials.parseNumberExpr(str) {
+      | Some(expr) => expr
       | None =>
-        if Regex.exactly(~re="[0-9]+\\.[0-9]+", str) {
-          switch String.split(~on=".", str) {
-          | list{whole, fraction} => EFloat(gid(), PT.Sign.Positive, whole, fraction)
-          | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), 0L))
-          }
-        } else if Regex.exactly(~re="-[0-9]+\\.[0-9]+", str) {
-          switch String.split(~on=".", str) {
-          | list{whole, fraction} =>
-            let (sign, whole) = ProgramTypes.Sign.split(whole)
-            EFloat(gid(), sign, whole, fraction)
-          | _ => recover("invalid float passed the regex", ~debug=str, E.EInteger(gid(), 0L))
-          }
-        } else {
-          // TODO: support floats in the format 3.4e5
-          recover("unsupported float in json", ~debug=str, E.EInteger(gid(), 0L))
-        }
+        // TODO: support floats in the format 3.4e5
+        recover("unsupported number in json", ~debug=str, E.EInteger(gid(), 0L))
       }
     | JSONObject(dict) =>
       dict
