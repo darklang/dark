@@ -3409,7 +3409,7 @@ let doExplicitInsert = (
         // deal with leading 0s, we would still need this special case to deal with
         // caret placement, unless Util.coerceStringTo64BitInt preserved leading 0s.
         None
-      } else if Util.isNumber(extendedGraphemeCluster) {
+      } else if Util.isNumber(extendedGraphemeCluster) || extendedGraphemeCluster == "-" {
         let str = int->Int64.to_string->mutation
         let coerced = Util.coerceStringTo64BitInt(str)
         if coerced == int {
@@ -4612,6 +4612,9 @@ let rec updateKey' = (
     astInfo
     |> ASTInfo.setAST(FluidAST.update(~f=var => EList(newID, list{var}), id, astInfo.ast))
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
+
+  // Don't do infix here
+  | (InsertText("-"), _, R(TInteger(_), ti)) if onEdge => doInsert(~pos, props, "-", ti, astInfo)
 
   // Infix symbol insertion to create partials
   | (InsertText(infixTxt), L(TPipe(_), ti), _)

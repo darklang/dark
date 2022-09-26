@@ -1132,6 +1132,7 @@ let run = () => {
   })
   describe("Integers", () => {
     t("insert 0 at front ", anInt, ins("0"), "~12345")
+    t("insert - at front ", anInt, ins("-"), "-~12345")
     t("insert at end of short", aShortInt, ~pos=1, ins("2"), "12~")
     t("insert at end of negative short", int(-1), ~pos=2, ins("2"), "-12~")
     t("insert start of number", anInt, ins("5"), "5~12345")

@@ -455,7 +455,7 @@ let run = () => {
       int(5678),
       (0, 0),
       str("-1234"),
-      "1234~5678",
+      "-1234~5678",
     )
     testPaste(
       "pasting an int-only string into an integer should extend integer 2",
