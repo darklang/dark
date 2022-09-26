@@ -3356,6 +3356,14 @@ let doExplicitInsert = (
             },
           )
         }
+      } else if extendedGraphemeCluster == "-" && sign == Positive && currOffset == 0 {
+        Some(
+          EFloat(id, Negative, whole, frac),
+          {
+            astRef: ARFloat(id, FPWhole),
+            offset: 1,
+          },
+        )
       } else {
         None
       }
@@ -4614,7 +4622,10 @@ let rec updateKey' = (
     |> moveToCaretTarget({astRef: ARList(newID, LPOpen), offset: 1})
 
   // Don't do infix here
-  | (InsertText("-"), _, R(TInteger(_), ti)) if onEdge => doInsert(~pos, props, "-", ti, astInfo)
+  | (InsertText("-"), _, R(TInteger(_), ti))
+  | (InsertText("-"), _, R(TFloatWhole(_), ti))
+  | (InsertText("-"), _, R(TFloatPoint(_), ti)) if onEdge =>
+    doInsert(~pos, props, "-", ti, astInfo)
 
   // Infix symbol insertion to create partials
   | (InsertText(infixTxt), L(TPipe(_), ti), _)
