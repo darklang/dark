@@ -71,6 +71,8 @@ let seventyEight = EInteger(gid(), 78L)
 // ----------------
 let aFloat = EFloat(gid(), Positive, "123", "456")
 
+let negFloat = EFloat(gid(), Negative, "123", "456")
+
 let aFloatWithoutWhole = EFloat(gid(), Positive, "", "1")
 
 let aHugeFloat = EFloat(gid(), Positive, "123456789", "123456789")
