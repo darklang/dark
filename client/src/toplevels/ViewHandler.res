@@ -150,7 +150,7 @@ let viewMenu = (vp: viewProps, spec: PT.Handler.Spec.t): Html.html<msg> => {
         let url = externalLink(vp, name)
         let newTabAction: TLMenu.menuItem = {
           title: "Open in new tab",
-          key: "new-tab-",
+          key: `new-tab-${url}`,
           icon: Some("external-link-alt"),
           action: _ => NewTabFromTLMenu(url, tlid),
           disableMsg: None,
