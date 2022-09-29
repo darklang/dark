@@ -1764,9 +1764,7 @@ let update_ = (msg: msg, m: model): modification => {
     // This is a problem in .Net 6, so let's ignore it for now
     // DOTNET7TODO: this error shouldn't happen anymore
     let ignorable =
-      msg->String.includes(
-        ~substring="System.ArgumentNullException: Value cannot be null. (Parameter 'key')",
-      ) &&
+      msg->String.includes(~substring="System.ArgumentNullException") &&
       msg->String.includes(~substring="System.Collections.Generic.Dictionary") &&
       msg->String.includes(~substring="ReleaseJSOwnedObjectByGCHandle") &&
       msg->String.includes(~substring="Remove")
