@@ -4,7 +4,7 @@ open Prelude
 module E = FluidExpression
 open PrettyDocs
 
-@ocaml.doc(" [hintForFunction fn sendToRail] returns a (possibly noNode) DOM node that
+@ocaml.doc("[hintForFunction fn sendToRail] returns a (possibly noNode) DOM node that
  * provides a contextual hint about error-rail usage for the function [fn].
  *
  * The message in the node is customized based on the function return value
