@@ -63,6 +63,7 @@ $icSize: 1em;
   transition: width 0.2s;
 
   &.abridged {
+    padding-top: $sectionSpace;
     width: $sidebarClosedWidth;
     &::-webkit-scrollbar {
       width: 0; // Remove scrollbar space
