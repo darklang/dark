@@ -813,7 +813,8 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
       categoryButton(c.classname, c.name, ~props)
     }
 
-    let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon})
+    let title = categoryName(c.name)
+    let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon, title})
 
     Html.div(list{Attrs.class'("category-summary")}, list{tooltipView, header, plusButton})
   }
