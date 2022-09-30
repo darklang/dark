@@ -49,13 +49,6 @@ $icSize: 1em;
   }
 }
 
-.viewing-table {
-  &::-webkit-scrollbar {
-    width: 0; // Remove scrollbar space
-  }
-
-}
-
 // Category block
 .sidebar-category {
   margin-bottom: $sectionSpace;

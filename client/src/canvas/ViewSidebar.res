@@ -1011,49 +1011,36 @@ let update = (msg: Sidebar.msg): modification =>
   }
 
 let viewSidebar_ = (m: model): Html.html<msg> => {
-  let content = {
-    let cats = Belt.List.concat(
-      standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTypes),
-      list{
-        f404Category(m),
-        deletedCategory(m),
-        packageManagerCategory(m.functions.packageFunctions),
-      },
-    )
+  let cats = Belt.List.concat(
+    standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTypes),
+    list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},
+  )
 
-    let showAdminDebugger = if m.settings.contributingSettings.general.showSidebarDebuggerPanel {
-      adminDebuggerView(m)
-    } else {
-      Vdom.noNode
-    }
-
-    let categories = Belt.List.concat(
-      List.map(~f=viewCategory(m), cats),
-      list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
-    )
-
-    Html.div(
-      list{
-        tw(
-          %twc(
-            "h-full relative top-0 left-0 box-border transition-[width] duration-200 bg-sidebar-bg pt-[20px] w-14"
-          ) ++ " abridged",
-        ),
-      },
-      categories,
-    )
+  let showAdminDebugger = if m.settings.contributingSettings.general.showSidebarDebuggerPanel {
+    adminDebuggerView(m)
+  } else {
+    Vdom.noNode
   }
+
+  let categories = Belt.List.concat(
+    List.map(~f=viewCategory(m), cats),
+    list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
+  )
 
   Html.div(
     list{
       Attrs.id("sidebar-left"), // keep for sidebar and z-index
-      tw(%twc("h-full fixed top-0 left-0 p-0 w-max")),
+      tw(
+        %twc(
+          "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-[20px] w-14"
+        ) ++ " abridged",
+      ),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),
       EventListeners.eventNoPropagation(~key="ept", "mouseover", _ => Msg.EnablePanning(false)),
       EventListeners.eventNoPropagation(~key="epf", "mouseout", _ => Msg.EnablePanning(true)),
     },
-    list{content},
+    categories,
   )
 }
 
