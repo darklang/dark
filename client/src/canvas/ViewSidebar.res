@@ -10,6 +10,8 @@ type model = AppTypes.model
 type msg = AppTypes.msg
 module Mod = AppTypes.Modification
 
+let fontAwesome = Icons.fontAwesome
+
 let missingEventRouteDesc: string = "Undefined"
 
 let delPrefix: string = "deleted-"
@@ -71,12 +73,11 @@ let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg)
   msg,
 > => {
   let event = EventListeners.eventNeither(~key, "click", _ => handler)
-  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{Icons.fontAwesome(icon)})
+  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{fontAwesome(icon)})
 }
 
 let categoryIcon_ = (name: string): list<Html.html<msg>> => {
   let darkIcon = Icons.darkIcon
-  let fontAwesome = Icons.fontAwesome
   // Deleted categories have a deleted- prefix, with which are not valid fontaweome icons
   switch name |> String.toLowercase |> Regex.replace(~re=Regex.regex(delPrefix), ~repl="") {
   | "http" => list{darkIcon("http")}
@@ -577,7 +578,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
         m => Msg.ClipboardCopyLivevalue("\"" ++ d.deployHash ++ "\"", m.mePos),
       ),
     },
-    list{Icons.fontAwesome("copy")},
+    list{fontAwesome("copy")},
   )
 
   Html.div(
@@ -675,7 +676,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
       ),
       Attrs.title("Click to copy secret name"),
     },
-    list{Icons.fontAwesome("copy")},
+    list{fontAwesome("copy")},
   )
 
   let secretValue = Util.obscureString(s.secretValue)
@@ -966,7 +967,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       Vdom.attribute("", "role", "img"),
       Vdom.attribute("", "alt", "Admin"),
     },
-    list{Icons.fontAwesome("cog")},
+    list{fontAwesome("cog")},
   )
 
   let sectionIcon = Html.div(list{Attrs.class'("category-summary")}, list{icon, environment})
