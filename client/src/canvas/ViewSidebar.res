@@ -1039,9 +1039,7 @@ let rtCacheKey = (m: model) =>
     m.unlockedDBs,
     m.usedDBs,
     m.usedFns,
-    // CLEANUP do these need to be here twice
-    m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
-    m.deleteduserTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.usedTipes,
     CursorState.tlidOf(m.cursorState),
     m.environment,
     m.editorSettings,
