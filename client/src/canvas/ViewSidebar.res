@@ -10,8 +10,6 @@ type model = AppTypes.model
 type msg = AppTypes.msg
 module Mod = AppTypes.Modification
 
-let missingEventSpaceDesc: string = "Undefined"
-
 let missingEventRouteDesc: string = "Undefined"
 
 let delPrefix: string = "deleted-"
@@ -622,8 +620,6 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   let entries = m.staticDeploys
   let count = List.length(entries)
 
-  let openAttr = Vdom.attribute("", "open", "")
-
   let title = categoryName("Static Assets")
   let summary = {
     let tooltip =
@@ -676,7 +672,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     ("empty", count == 0),
   })
 
-  Html.details(~unique="deploys", list{classes, openAttr}, list{summary, content})
+  Html.div(list{classes}, list{summary, content})
 }
 
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
@@ -722,8 +718,6 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 
 let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   let count = List.length(m.secrets)
-
-  let openAttr = Vdom.attribute("", "open", "")
 
   let title = categoryName("Secret Keys")
   let summary = {
@@ -778,7 +772,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     ("empty", count == 0),
   })
 
-  Html.details(~unique="secrets", list{classes, openAttr}, list{summary, content})
+  Html.div(list{classes}, list{summary, content})
 }
 
 let rec viewItem = (m: model, s: item): Html.html<msg> =>
@@ -876,7 +870,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     ("empty", c.count == 0),
   })
 
-  Html.details(~unique=c.classname, list{classes, openAttr}, list{summary, content})
+  Html.div(list{classes, openAttr}, list{summary, content})
 }
 
 let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
@@ -1035,10 +1029,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
       list{secretsView, viewDeployStats(m), showAdminDebugger},
     )
 
-    Html.div(
-      list{Attrs.classList(list{("viewing-table", true), ("detailed", false), ("abridged", true)})},
-      categories,
-    )
+    Html.div(list{Attrs.classList(list{("viewing-table", true), ("abridged", true)})}, categories)
   }
 
   Html.div(
