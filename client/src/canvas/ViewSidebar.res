@@ -72,11 +72,18 @@ let rec count = (s: item): int =>
   | Category(c) => (c.entries |> List.map(~f=count))->List.sum(module(Int))
   }
 
-let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg): Html.html<
-  msg,
-> => {
+let iconButton = (
+  ~key: string,
+  ~icon: string,
+  ~classname: string,
+  ~style: string,
+  handler: msg,
+): Html.html<msg> => {
   let event = EventListeners.eventNeither(~key, "click", _ => handler)
-  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{fontAwesome(icon)})
+  Html.div(
+    list{event, Attrs.class'(style ++ " icon-button " ++ classname)},
+    list{fontAwesome(icon)},
+  )
 }
 
 let categoryIcon_ = (name: string): list<Html.html<msg>> => {
@@ -555,6 +562,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     | Some(msg) =>
       iconButton(
         ~key=entryKeyFromIdentifier(e.identifier),
+        ~style="",
         ~icon="minus-circle",
         ~classname="delete-button",
         msg,
@@ -566,7 +574,13 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   let pluslink = switch e.plusButton {
   | Some(msg) =>
     if m.permission == Some(ReadWrite) {
-      iconButton(~key=e.name ++ "-plus", ~icon="plus-circle", ~classname="add-button", msg)
+      iconButton(
+        ~key=e.name ++ "-plus",
+        ~icon="plus-circle",
+        ~style="",
+        ~classname="add-button",
+        msg,
+      )
     } else {
       iconspacer
     }
@@ -628,6 +642,8 @@ module Styles = {
   let categoryNameBase = %twc("block text-grey8 font-bold mt-0 tracking-wide w-full font-heading")
   let contentCategoryName = %twc("text-lg text-center ") ++ categoryNameBase
   let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
+
+  let plusButton = %twc("text-xs hover:text-sidebar-hover hover:cursor-pointer")
 }
 
 let viewDeployStats = (m: model): Html.html<msg> => {
@@ -742,7 +758,8 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     let plusBtn = iconButton(
       ~key="plus-secret",
       ~icon="plus-circle",
-      ~classname="create-tl-icon",
+      ~style=Styles.plusButton,
+      ~classname="",
       SecretMsg(OpenCreateModal),
     )
 
@@ -811,7 +828,8 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
         iconButton(
           ~key="plus-" ++ c.classname,
           ~icon="plus-circle",
-          ~classname="create-tl-icon",
+          ~style=Styles.plusButton,
+          ~classname="",
           msg,
         )
       } else {
@@ -913,7 +931,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   }
 
   let stateInfo = Html.div(
-    list{Attrs.class'("state-info")},
+    list{},
     list{
       stateInfoTohtml("env", Html.text(m.environment)),
       stateInfoTohtml("page", Html.text(pageToString(m.currentPage))),

@@ -35,6 +35,7 @@ module.exports = {
       magenta: "magenta",
 
       "sidebar-bg": "var(--sidebarBgColor)",
+      "sidebar-hover": "var(--sidebarHoverColor)",
     },
     extend: {
       borderWidth: {

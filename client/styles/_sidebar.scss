@@ -7,11 +7,12 @@ $prodcloneColor: $magenta;
 $prodColor: black;
 
 $sidebarBgColor: darken($canvas-background, 10%);
+$sidebarHoverColor: lighten($yellow, 10%);
 :root {
   --sidebarBgColor: #{$sidebarBgColor};
+  --sidebarHoverColor: #{$sidebarHoverColor};
 }
 
-$hoverColor: lighten($yellow, 10%);
 
 $primaryColor: $white1;
 $secondaryColor: $grey2;
@@ -113,18 +114,6 @@ $icSize: 1em;
       @extend .sidebar-on-abridged-icon;
     }
   }
-
-  .create-tl-icon {
-    font-size: 1.2em;
-    &:hover {
-      color: $hoverColor;
-      cursor: pointer;
-    }
-
-    @at-root .abridged & {
-      font-size: 0.8em;
-    }
-  }
 }
 
 // Wrapper for categories' content
@@ -195,7 +184,7 @@ $icSize: 1em;
     display: inline-block;
 
     &:hover + .add-button {
-      color: $hoverColor;
+      color: $sidebarHoverColor;
     }
 
     .toplevel-msg,
@@ -222,12 +211,12 @@ $icSize: 1em;
       }
 
       &:hover .path::before {
-        color: $hoverColor;
+        color: $sidebarHoverColor;
         font-weight: 500;
       }
 
       &.selected .path::before {
-        color: $hoverColor;
+        color: $sidebarHoverColor;
       }
 
       &.selected:hover .path::before {
@@ -305,7 +294,7 @@ $icSize: 1em;
     }
 
     .icon-button:hover {
-      color: $hoverColor;
+      color: $sidebarHoverColor;
     }
 
     .delete-button {
@@ -343,7 +332,7 @@ $icSize: 1em;
         font-size: 0.7em;
         color: $primaryColor;
         &:hover {
-          color: $hoverColor;
+          color: $sidebarHoverColor;
         }
       }
 
@@ -354,7 +343,7 @@ $icSize: 1em;
         right: -6px;
 
         &:hover {
-          color: $hoverColor;
+          color: $sidebarHoverColor;
         }
       }
     }
@@ -420,8 +409,8 @@ $icSize: 1em;
       width: calc(100% - 32px);
 
       &:hover {
-        color: $hoverColor;
-        border-color: $hoverColor;
+        color: $sidebarHoverColor;
+        border-color: $sidebarHoverColor;
         cursor: pointer;
 
         .secret-name {
@@ -456,7 +445,7 @@ $icSize: 1em;
       font-size: 16px;
 
       &:hover {
-        color: $hoverColor;
+        color: $sidebarHoverColor;
       }
     }
   }
