@@ -12,7 +12,6 @@ let toModel = (e: AppTypes.SavedSettings.t): AppTypes.model => {
     handlerProps: e.handlerProps,
     canvasProps: {...m.canvasProps, offset: e.canvasPos},
     lastReload: e.lastReload,
-    sidebarState: e.sidebarState,
     showTopbar: e.showTopbar,
     firstVisitToThisCanvas: e.firstVisitToThisCanvas,
     tooltipState: {
@@ -31,7 +30,6 @@ let model2editor = (m: AppTypes.model): AppTypes.SavedSettings.t => {
   handlerProps: m.handlerProps,
   canvasPos: m.canvasProps.offset,
   lastReload: m.lastReload,
-  sidebarState: m.sidebarState,
   showTopbar: m.showTopbar,
   firstVisitToThisCanvas: m.firstVisitToThisCanvas,
   userTutorial: m.tooltipState.userTutorial.step,

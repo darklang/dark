@@ -1061,7 +1061,6 @@ let rtCacheKey = (m: model) =>
     m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.name),
     m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
-    m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: PT.Handler.t) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.name),
