@@ -935,38 +935,8 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
   Html.details(~unique=c.classname, list{classes, openAttr}, list{summary, content})
 }
 
-let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
-  let event = EventListeners.eventNeither(~key="toggle-sidebar", "click", _ => Msg.SidebarMsg(
-    ToggleSidebarMode,
-  ))
-
-  let description = if isDetailed {
-    "Collapse sidebar"
-  } else {
-    "Expand sidebar"
-  }
-
-  let icon = {
-    let view' = iconName =>
-      Html.span(
-        list{Attrs.class'("icon")},
-        list{Icons.fontAwesome(iconName), Icons.fontAwesome(iconName)},
-      )
-
-    if isDetailed {
-      view'("chevron-left")
-    } else {
-      view'("chevron-right")
-    }
-  }
-
-  let label = Html.span(list{Attrs.class'("label")}, list{Html.text(description)})
-  let alt = if isDetailed {
-    Vdom.noProp
-  } else {
-    Attrs.title(description)
-  }
-  Html.div(list{event, Attrs.class'("toggle-sidebar-btn"), alt}, list{label, icon})
+let viewToggleBtn = (_: bool): Html.html<msg> => {
+  Html.div(list{Attrs.class'("toggle-sidebar-btn")}, list{})
 }
 
 let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
@@ -1103,17 +1073,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
 let update = (msg: Sidebar.msg): modification =>
   switch msg {
-  | ToggleSidebarMode =>
-    ReplaceAllModificationsWithThisOne(
-      m => {
-        let mode = switch m.sidebarState.mode {
-        | DetailedMode => Sidebar.Mode.AbridgedMode
-        | AbridgedMode => DetailedMode
-        }
-
-        ({...m, sidebarState: {...m.sidebarState, mode: mode}}, Cmd.none)
-      },
-    )
   | ResetSidebar => ReplaceAllModificationsWithThisOne(Viewport.enablePan(true))
   | MarkCategoryOpen(shouldOpen, key) =>
     ReplaceAllModificationsWithThisOne(

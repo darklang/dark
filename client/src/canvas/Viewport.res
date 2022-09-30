@@ -123,10 +123,7 @@ let findNewPos = (m: model): Pos.t => {
     // We add padding to the viewport range, to ensure we don't have new handlers too far from eachother.
     let padRight = 400
     let padBottom = 400
-    let minX = switch m.sidebarState.mode {
-    | DetailedMode => 320 + o.x
-    | AbridgedMode => o.x
-    }
+    let minX = o.x
 
     let window = Webapi.Dom.window
     let viewportWidth = Webapi.Dom.Window.innerWidth(window)
@@ -136,17 +133,7 @@ let findNewPos = (m: model): Pos.t => {
     let minY = o.y
     let maxY = minY + (viewportHeight - padBottom)
     {x: Random.range(minX, maxX), y: Random.range(minY, maxY)}
-  | FocusedPackageManagerFn(_) | FocusedFn(_) | FocusedType(_) =>
-    /* if the sidebar is open, the users can't see the livevalues, which
-     * confused new users. Given we can't get z-index to work, moving it to the
-     * side a little seems the best solution for now. */
-    let xOffset = switch m.sidebarState.mode {
-    | DetailedMode => 320
-    | AbridgedMode => 0
-    }
-
-    let offset: Pos.t = {x: xOffset, y: 0}
-    addPos(Pos.center, offset)
+  | FocusedPackageManagerFn(_) | FocusedFn(_) | FocusedType(_) => addPos(Pos.center, {x: 0, y: 0})
   }
 }
 

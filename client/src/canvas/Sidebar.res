@@ -12,12 +12,8 @@ module Mode = {
     }
   }
 
-  let decode = (j: Js.Json.t): t => {
-    open Json_decode_extended
-    j |> variants(list{
-      ("DetailedMode", variant0(DetailedMode)),
-      ("AbridgedMode", variant0(AbridgedMode)),
-    })
+  let decode = (_: Js.Json.t): t => {
+    AbridgedMode
   }
 }
 
@@ -45,6 +41,5 @@ module State = {
 }
 @ppx.deriving(show({with_path: false}))
 type rec msg =
-  | ToggleSidebarMode
   | ResetSidebar
   | MarkCategoryOpen(bool, string)
