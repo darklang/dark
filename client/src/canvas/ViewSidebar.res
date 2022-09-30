@@ -1014,18 +1014,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 let update = (msg: Sidebar.msg): modification =>
   switch msg {
   | ResetSidebar => ReplaceAllModificationsWithThisOne(Viewport.enablePan(true))
-  | MarkCategoryOpen(shouldOpen, key) =>
-    ReplaceAllModificationsWithThisOne(
-      m => {
-        let openedCategories = if shouldOpen {
-          Set.add(~value=key, m.sidebarState.openedCategories)
-        } else {
-          Set.remove(~value=key, m.sidebarState.openedCategories)
-        }
-
-        ({...m, sidebarState: {openedCategories: openedCategories}}, Cmd.none)
-      },
-    )
   }
 
 let viewSidebar_ = (m: model): Html.html<msg> => {
