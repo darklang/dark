@@ -1038,6 +1038,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   Html.div(
     list{
       Attrs.id("sidebar-left"),
+      tw(%twc("h-full fixed top-0 left-0 p-0 w-max")),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),
       EventListeners.eventNoPropagation(~key="ept", "mouseover", _ => Msg.EnablePanning(false)),

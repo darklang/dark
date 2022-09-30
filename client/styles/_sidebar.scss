@@ -35,13 +35,6 @@ $icSize: 1em;
 ******************************************************************************/
 
 #sidebar-left {
-  width: max-content;
-  height: 100%;
-  position: fixed;
-  top: 0;
-  left: 0;
-  padding: 0;
-
   ::-webkit-scrollbar {
     -webkit-appearance: none;
     width: 7px;
