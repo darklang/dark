@@ -175,7 +175,14 @@ let cronCategory = (handlers: list<PT.Handler.t>): category =>
   )
 
 let replCategory = (handlers: list<PT.Handler.t>): category =>
-  handlerCategory(TL.isReplHandler, "REPL", NewReplHandler(None), None, Repl, handlers)
+  handlerCategory(
+    TL.isReplHandler,
+    "REPL",
+    NewReplHandler(None),
+    Some(GoToArchitecturalView),
+    Repl,
+    handlers,
+  )
 
 let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory(tl =>
     TL.isWorkerHandler(tl) ||
