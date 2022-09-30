@@ -101,7 +101,7 @@ let categoryIcon_ = (name: string): list<Html.html<msg>> => {
 let categoryButton = (~props=list{}, name: string, description: string): Html.html<msg> =>
   Html.div(
     list{
-      Attrs.class'("category-icon"),
+      Attrs.class("category-icon"),
       Attrs.title(description),
       Vdom.attribute("", "role", "img"),
       Vdom.attribute("", "alt", description),
@@ -618,7 +618,6 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   let entries = m.staticDeploys
   let count = List.length(entries)
 
-  let title = categoryName("Static Assets")
   let summary = {
     let tooltip =
       Tooltips.generateContent(StaticAssets) |> Tooltips.viewToolTip(
@@ -628,7 +627,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 
     let header = Html.div(
       list{Attrs.class'("category-header")},
-      list{categoryButton("static", "Static Assets"), title},
+      list{categoryButton("static", "Static Assets")},
     )
 
     let deployLatest = if count != 0 {
@@ -640,21 +639,26 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header, ...deployLatest})
   }
 
-  let deploys = if List.length(entries) > 0 {
-    entries |> List.map(~f=viewDeploy)
-  } else {
-    list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No Static deploys")})}
-  }
+  let content = {
+    let title = categoryName("Static Assets")
+    let deploys = if List.length(entries) > 0 {
+      entries |> List.map(~f=viewDeploy)
+    } else {
+      list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No Static deploys")})}
+    }
 
-  let content = Html.div(
-    list{
-      Attrs.class'("category-content"),
-      EventListeners.eventNoPropagation(~key="cat-close-deploy", "mouseleave", _ => Msg.SidebarMsg(
-        ResetSidebar,
-      )),
-    },
-    list{title, ...deploys},
-  )
+    Html.div(
+      list{
+        Attrs.class'("category-content"),
+        EventListeners.eventNoPropagation(
+          ~key="cat-close-deploy",
+          "mouseleave",
+          _ => Msg.SidebarMsg(ResetSidebar),
+        ),
+      },
+      list{title, ...deploys},
+    )
+  }
 
   let classes = Attrs.classList(list{
     ("sidebar-category", true),
@@ -709,7 +713,6 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   let count = List.length(m.secrets)
 
-  let title = categoryName("Secret Keys")
   let summary = {
     let tooltip =
       Tooltips.generateContent(Secrets) |> Tooltips.viewToolTip(
@@ -726,27 +729,31 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
 
     let header = Html.div(
       list{Attrs.class'("category-header")},
-      list{categoryButton("secrets", "Secret Keys"), title},
+      list{categoryButton("secrets", "Secret Keys")},
     )
 
     Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header, plusBtn})
   }
 
-  let entries = if count > 0 {
-    List.map(m.secrets, ~f=viewSecret)
-  } else {
-    list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No secret keys")})}
+  let content = {
+    let title = categoryName("Secret Keys")
+    let entries = if count > 0 {
+      List.map(m.secrets, ~f=viewSecret)
+    } else {
+      list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No secret keys")})}
+    }
+    Html.div(
+      list{
+        Attrs.class'("category-content"),
+        EventListeners.eventNoPropagation(
+          ~key="cat-close-secret",
+          "mouseleave",
+          _ => Msg.SidebarMsg(ResetSidebar),
+        ),
+      },
+      list{title, ...entries},
+    )
   }
-
-  let content = Html.div(
-    list{
-      Attrs.class'("category-content"),
-      EventListeners.eventNoPropagation(~key="cat-close-secret", "mouseleave", _ => Msg.SidebarMsg(
-        ResetSidebar,
-      )),
-    },
-    list{title, ...entries},
-  )
 
   let classes = Attrs.classList(list{
     ("sidebar-category", true),
@@ -779,7 +786,6 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
   }
 
   let isSubCat = String.includes(~substring=delPrefix, c.classname)
-  let title = categoryName(c.name)
   let summary = {
     let plusButton = switch c.plusButton {
     | Some(msg) =>
@@ -807,12 +813,13 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
       categoryButton(c.classname, c.name, ~props)
     }
 
-    let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon, title})
+    let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon})
 
     Html.div(list{Attrs.class'("category-summary")}, list{tooltipView, header, plusButton})
   }
 
   let content = {
+    let title = categoryName(c.name)
     let entries = if c.count > 0 {
       List.map(~f=viewItem(m), c.entries)
     } else {
@@ -830,7 +837,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
           }
         ),
       },
-      list{categoryName(c.name), ...entries},
+      list{title, ...entries},
     )
   }
 
@@ -981,18 +988,22 @@ let update = (msg: Sidebar.msg): modification =>
   }
 
 let viewSidebar_ = (m: model): Html.html<msg> => {
-  let cats = Belt.List.concat(
-    standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTypes),
-    list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},
-  )
-
-  let showAdminDebugger = if m.settings.contributingSettings.general.showSidebarDebuggerPanel {
-    adminDebuggerView(m)
-  } else {
-    Vdom.noNode
-  }
-
   let content = {
+    let cats = Belt.List.concat(
+      standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTypes),
+      list{
+        f404Category(m),
+        deletedCategory(m),
+        packageManagerCategory(m.functions.packageFunctions),
+      },
+    )
+
+    let showAdminDebugger = if m.settings.contributingSettings.general.showSidebarDebuggerPanel {
+      adminDebuggerView(m)
+    } else {
+      Vdom.noNode
+    }
+
     let categories = Belt.List.concat(
       List.map(~f=viewCategory(m), cats),
       list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
