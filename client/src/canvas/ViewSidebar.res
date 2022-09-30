@@ -618,41 +618,9 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 let categoryName = (name: string): Html.html<msg> =>
   Html.span(list{Attrs.class'("category-name")}, list{Html.text(name)})
 
-let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: int): (
-  Vdom.property<msg>,
-  Vdom.property<msg>,
-) => {
-  let isOpen = Set.member(s.openedCategories, ~value=classname)
-  let isDetailed = false
-  let isSubCat = String.includes(~substring=delPrefix, classname)
-  let openEventHandler = if isDetailed || isSubCat {
-    EventListeners.eventNoPropagation(
-      ~key=if isOpen {
-        "cheh-true-"
-      } else {
-        "cheh-false-"
-      } ++
-      classname,
-      "click",
-      _ => Msg.SidebarMsg(MarkCategoryOpen(!isOpen, classname)),
-    )
-  } else {
-    Vdom.noProp
-  }
-
-  let openAttr = if isOpen && count != 0 {
-    Vdom.attribute("", "open", "")
-  } else {
-    Vdom.noProp
-  }
-
-  (openEventHandler, openAttr)
-}
-
 let viewDeployStats = (m: model): Html.html<msg> => {
   let entries = m.staticDeploys
   let count = List.length(entries)
-  let (openEventHandler, _) = categoryOpenCloseHelpers(m.sidebarState, "deploys", count)
 
   let openAttr = Vdom.attribute("", "open", "")
 
@@ -683,10 +651,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
       list{}
     }
 
-    Html.summary(
-      list{openEventHandler, Attrs.class'("category-summary")},
-      list{tooltip, header, ...deployLatest},
-    )
+    Html.summary(list{Attrs.class'("category-summary")}, list{tooltip, header, ...deployLatest})
   }
 
   let deploys = if List.length(entries) > 0 {
@@ -757,7 +722,6 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 
 let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   let count = List.length(m.secrets)
-  let (openEventHandler, _) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
 
   let openAttr = Vdom.attribute("", "open", "")
 
@@ -789,10 +753,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
       list{categoryButton("secrets", "Secret Keys"), title},
     )
 
-    Html.summary(
-      list{openEventHandler, Attrs.class'("category-summary")},
-      list{tooltip, header, plusBtn},
-    )
+    Html.summary(list{Attrs.class'("category-summary")}, list{tooltip, header, plusBtn})
   }
 
   let entries = if count > 0 {
@@ -832,8 +793,6 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
   }
 
 and viewCategory = (m: model, c: category): Html.html<msg> => {
-  let (openEventHandler, _) = categoryOpenCloseHelpers(m.sidebarState, c.classname, c.count)
-
   let (openTooltip, tooltipView) = switch c.tooltip {
   | Some(tt) =>
     let view =
@@ -886,10 +845,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
 
     let header = Html.div(list{Attrs.class'("category-header"), openTooltip}, list{catIcon, title})
 
-    Html.summary(
-      list{Attrs.class'("category-summary"), openEventHandler},
-      list{tooltipView, header, plusButton},
-    )
+    Html.summary(list{Attrs.class'("category-summary")}, list{tooltipView, header, plusButton})
   }
 
   let content = {
