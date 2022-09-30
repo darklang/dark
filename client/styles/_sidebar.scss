@@ -469,8 +469,7 @@ $icSize: 1em;
 }
 
 // Special Case : Admin
-.abridged .sidebar-category.admin {
-  padding: 0;
+.sidebar-category.admin {
 
   .category-summary {
     display: flex;
@@ -481,95 +480,6 @@ $icSize: 1em;
 
     div {
       display: block;
-    }
-
-    .environment {
-      background: $white1;
-      font-size: 0.4em;
-      border-radius: 2px;
-      padding: 2px;
-      margin-top: -10px;
-
-      &.dev {
-        color: $blue;
-      }
-
-      &.clone {
-        color: magenta;
-      }
-
-      &.production {
-        color: $black3;
-      }
-    }
-  }
-
-  .category-content {
-    display: none;
-  }
-
-  &:hover .category-content {
-    display: block;
-
-    a {
-      color: $grey8;
-    }
-    .checkbox-row {
-      display: flex;
-      align-items: center;
-      height: 20px;
-      margin-left: 17px;
-      cursor: pointer;
-      input {
-        cursor: pointer;
-      }
-      label {
-        margin-left: 8px;
-      }
-    }
-    .state-info {
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 10px;
-      .state-info-row {
-        margin-top: 0px;
-        margin-bottom: 0px;
-      }
-    }
-    .state-info-row {
-      display: flex;
-      height: 20px;
-      align-items: center;
-      justify-content: flex-start;
-      margin: 5px;
-      margin-left: 17px;
-
-      &.debugger:hover {
-        color: $white3;
-      }
-
-      &.save-state {
-        border: 1px solid;
-        border-radius: 2px;
-        padding: 4px;
-        height: 10px;
-        margin-bottom: 20px;
-        width: fit-content;
-        font-size: 0.5em;
-        cursor: pointer;
-
-        &:hover {
-          background: $grey8;
-          color: darken($canvas-background, 10%);
-        }
-      }
-      .sep {
-        width: 15px;
-      }
-      .value {
-        white-space: nowrap;
-        max-width: 210px;
-      }
     }
   }
 }

@@ -873,22 +873,19 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
   Html.div(list{classes}, list{summary, content})
 }
 
-let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
-  Html.div(
-    list{Attrs.class'("state-info-row")},
-    list{
-      Html.p(list{Attrs.class'("key")}, list{Html.text(key)}),
-      Html.p(list{Attrs.class'("sep")}, list{Html.text(":")}),
-      Html.p(list{Attrs.class'("value")}, list{value}),
-    },
-  )
-
 let adminDebuggerView = (m: model): Html.html<msg> => {
-  let environmentName = if m.environment === "prodclone" {
-    "clone"
-  } else {
-    m.environment
-  }
+  let rowStyle = %twc("flex h-4 items-center ml-4 m-1.5")
+  let stateRowStyle = rowStyle ++ %twc(" justify-start mx-0")
+
+  let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
+    Html.div(
+      list{tw(stateRowStyle)},
+      list{
+        Html.p(list{}, list{Html.text(key)}),
+        Html.p(list{tw(%twc("w-3.5"))}, list{Html.text(":")}),
+        Html.p(list{tw(%twc("max-w-[210px] whitespace-nowrap"))}, list{value}),
+      },
+    )
 
   let pageToString = pg =>
     switch pg {
@@ -902,10 +899,18 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     | SettingsModal(tab) => Printf.sprintf("SettingsModal (tab %s)", Settings.Tab.toText(tab))
     }
 
-  let environment = Html.div(
-    list{Attrs.class'("environment " ++ environmentName)},
-    list{Html.text(environmentName)},
-  )
+  let environment = {
+    let color = switch m.environment {
+    | "production" => %twc("text-black3")
+    | "dev" => %twc("text-blue")
+    | _ => %twc("text-magenta")
+    }
+
+    Html.div(
+      list{tw(%twc("bg-white1 text-[0.4em] rounded-sm p-0.5 -m-2.5 ") ++ color)},
+      list{Html.text(m.environment)},
+    )
+  }
 
   let stateInfo = Html.div(
     list{Attrs.class'("state-info")},
@@ -916,53 +921,56 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     },
   )
 
-  let toggleTimer = Html.div(
-    list{
-      EventListeners.eventNoPropagation(~key="tt", "mouseup", _ => Msg.ToggleEditorSetting(
-        es => {...es, runTimers: !es.runTimers},
-      )),
-      Attrs.class'("checkbox-row"),
-    },
-    list{
-      Html.input'(list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.runTimers)}, list{}),
-      Html.label(list{}, list{Html.text("Run Timers")}),
-    },
+  let input = (
+    checked: bool,
+    fn: AppTypes.EditorSettings.t => AppTypes.EditorSettings.t,
+    label: string,
+    style: string,
+  ) => {
+    let event = EventListeners.eventNoPropagation(
+      ~key=`tt-${label}-${checked ? "checked" : "unchecked"}`,
+      "mouseup",
+      _ => Msg.ToggleEditorSetting(es => fn(es)),
+    )
+
+    Html.div(
+      list{event, tw(rowStyle ++ " " ++ style)},
+      list{
+        Html.input(
+          list{Attrs.type'("checkbox"), Attrs.checked(checked), tw(%twc("cursor-pointer"))},
+          list{},
+        ),
+        Html.label(list{tw(%twc("ml-2"))}, list{Html.text(label)}),
+      },
+    )
+  }
+
+  let toggleTimer = input(
+    m.editorSettings.runTimers,
+    es => {...es, runTimers: !es.runTimers},
+    "Run Timers",
+    "mt-4",
   )
 
-  let toggleFluidDebugger = Html.div(
-    list{
-      EventListeners.eventNoPropagation(~key="tt", "mouseup", _ => Msg.ToggleEditorSetting(
-        es => {...es, showFluidDebugger: !es.showFluidDebugger},
-      )),
-      Attrs.class'("checkbox-row"),
-    },
-    list{
-      Html.input'(
-        list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.showFluidDebugger)},
-        list{},
-      ),
-      Html.label(list{}, list{Html.text("Show Fluid Debugger")}),
-    },
+  let toggleFluidDebugger = input(
+    m.editorSettings.showFluidDebugger,
+    es => {...es, showFluidDebugger: !es.showFluidDebugger},
+    "Show Fluid Debugger",
+    "",
   )
 
-  let toggleHandlerASTs = Html.div(
-    list{
-      EventListeners.eventNoPropagation(~key="tgast", "mouseup", _ => Msg.ToggleEditorSetting(
-        es => {...es, showHandlerASTs: !es.showHandlerASTs},
-      )),
-      Attrs.class'("checkbox-row"),
-    },
-    list{
-      Html.input'(
-        list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.showHandlerASTs)},
-        list{},
-      ),
-      Html.label(list{}, list{Html.text("Show Handler ASTs")}),
-    },
+  let toggleHandlerASTs = input(
+    m.editorSettings.showHandlerASTs,
+    es => {...es, showHandlerASTs: !es.showHandlerASTs},
+    "Show Handler ASTs",
+    "mb-4",
   )
 
   let debugger = Html.a(
-    list{Attrs.href(ViewScaffold.debuggerLinkLoc(m)), Attrs.class'("state-info-row debugger")},
+    list{
+      Attrs.href(ViewScaffold.debuggerLinkLoc(m)),
+      tw(stateRowStyle ++ %twc(" text-grey8 hover:text-white3")),
+    },
     list{
       Html.text(
         if m.teaDebuggerEnabled {
@@ -977,7 +985,12 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   let saveTestButton = Html.a(
     list{
       EventListeners.eventNoPropagation(~key="stb", "mouseup", _ => Msg.SaveTestButton),
-      Attrs.class'("state-info-row save-state"),
+      tw(
+        stateRowStyle ++
+        %twc(
+          " border border-solid rounded-sm p-1 mb-5 h-2.5 w-fit text-xxs text-grey8 cursor-pointer hover:text-black2 hover:bg-grey8"
+        ),
+      ),
     },
     list{Html.text("SAVE STATE FOR INTEGRATION TEST")},
   )
@@ -1002,7 +1015,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let sectionIcon = Html.div(list{Attrs.class'("category-summary")}, list{icon, environment})
 
-  Html.div(list{Attrs.class'("sidebar-category admin")}, list{sectionIcon, hoverView})
+  Html.div(list{tw(%twc("p-0") ++ " sidebar-category admin")}, list{sectionIcon, hoverView})
 }
 
 let update = (msg: Sidebar.msg): modification =>

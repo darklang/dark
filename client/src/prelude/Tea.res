@@ -68,6 +68,7 @@ module Html = {
   type html<'a> = Vdom.t<'a>
 
   let noNode = Vdom.noNode
+  let input = input'
 
   // Override so we can add our own attributes/properties
   module Attributes = {
