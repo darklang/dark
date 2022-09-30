@@ -65,9 +65,6 @@ async function prepSettings(page: Page, testName: string) {
   // Turn on fluid debugger
   let editorState = {
     editorSettings: { showFluidDebugger: true },
-    sidebarState: {
-      mode: ["AbridgedMode"],
-    },
     firstVisitToThisCanvas: false,
   };
 

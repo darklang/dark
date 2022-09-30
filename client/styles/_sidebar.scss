@@ -7,6 +7,9 @@ $prodcloneColor: $magenta;
 $prodColor: black;
 
 $sidebarBgColor: darken($canvas-background, 10%);
+:root {
+  --sidebarBgColor: #{$sidebarBgColor};
+}
 
 $hoverColor: lighten($yellow, 10%);
 
@@ -47,21 +50,10 @@ $icSize: 1em;
 }
 
 .viewing-table {
-  background-color: $sidebarBgColor;
-  height: 100%;
-  position: relative;
-  top: 0;
-  left: 0;
-  box-sizing: border-box;
-  transition: width 0.2s;
-
-  &.abridged {
-    padding-top: $sectionSpace;
-    width: $sidebarClosedWidth;
-    &::-webkit-scrollbar {
-      width: 0; // Remove scrollbar space
-    }
+  &::-webkit-scrollbar {
+    width: 0; // Remove scrollbar space
   }
+
 }
 
 // Category block

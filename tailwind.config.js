@@ -33,6 +33,8 @@ module.exports = {
       purple: "#b18bba",
       pink: "#d5839d",
       magenta: "magenta",
+
+      "sidebar-bg": "var(--sidebarBgColor)",
     },
     extend: {
       borderWidth: {

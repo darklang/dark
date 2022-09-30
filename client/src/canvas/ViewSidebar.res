@@ -1032,12 +1032,21 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
       list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
     )
 
-    Html.div(list{Attrs.classList(list{("viewing-table", true), ("abridged", true)})}, categories)
+    Html.div(
+      list{
+        tw(
+          %twc(
+            "h-full relative top-0 left-0 box-border transition-[width] duration-200 bg-sidebar-bg pt-[20px] w-14"
+          ) ++ " abridged",
+        ),
+      },
+      categories,
+    )
   }
 
   Html.div(
     list{
-      Attrs.id("sidebar-left"),
+      Attrs.id("sidebar-left"), // keep for sidebar and z-index
       tw(%twc("h-full fixed top-0 left-0 p-0 w-max")),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),

@@ -49,11 +49,7 @@ let moveRight = (m: model): modification => moveCanvasBy(m, Defaults.moveSize, 0
 */
 let centerCanvasOn = (tl: toplevel): Pos.t => {
   let windowWidth = Webapi.Dom.window->Webapi.Dom.Window.innerWidth
-  let sidebarWidth =
-    Native.Ext.querySelector("#sidebar-left")
-    |> Option.map(~f=Native.Ext.clientWidth)
-    |> Option.unwrap(~default=320)
-
+  let sidebarWidth = 56 // TODO: define as variable
   let tlWidth = {
     let tle = Native.Ext.querySelector(".toplevel.tl-" ++ TLID.toString(TL.id(tl)))
 
@@ -74,10 +70,7 @@ let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
   let tlSelector = ".tl-" ++ TLID.toString(TL.id(tl))
   switch Native.Ext.querySelector(tokenSelector) {
   | Some(tokenDom) =>
-    let sidebarWidth =
-      Native.Ext.querySelector("#sidebar-left")
-      |> Option.map(~f=Native.Ext.clientWidth)
-      |> recoverOpt("can't find sidebar HTML body", ~default=320)
+    let sidebarWidth = 56 // TODO: define as variable
 
     let window = Webapi.Dom.window
     let viewport: Native.rect = {
