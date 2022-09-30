@@ -647,7 +647,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
       list{}
     }
 
-    Html.summary(list{Attrs.class'("category-summary")}, list{tooltip, header, ...deployLatest})
+    Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header, ...deployLatest})
   }
 
   let deploys = if List.length(entries) > 0 {
@@ -747,7 +747,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
       list{categoryButton("secrets", "Secret Keys"), title},
     )
 
-    Html.summary(list{Attrs.class'("category-summary")}, list{tooltip, header, plusBtn})
+    Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header, plusBtn})
   }
 
   let entries = if count > 0 {
@@ -839,7 +839,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
 
     let header = Html.div(list{Attrs.class'("category-header"), openTooltip}, list{catIcon, title})
 
-    Html.summary(list{Attrs.class'("category-summary")}, list{tooltipView, header, plusButton})
+    Html.div(list{Attrs.class'("category-summary")}, list{tooltipView, header, plusButton})
   }
 
   let content = {
