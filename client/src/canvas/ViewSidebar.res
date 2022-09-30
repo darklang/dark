@@ -628,16 +628,8 @@ let viewDeployStats = (m: model): Html.html<msg> => {
         ~tlid=None,
       )
 
-    let openTooltip = if count == 0 {
-      EventListeners.eventNoPropagation(~key="open-tooltip-deploys", "click", _ => Msg.ToolTipMsg(
-        OpenTooltip(StaticAssets),
-      ))
-    } else {
-      Vdom.noProp
-    }
-
     let header = Html.div(
-      list{Attrs.class'("category-header"), openTooltip},
+      list{Attrs.class'("category-header")},
       list{categoryButton("static", "Static Assets"), title},
     )
 
@@ -727,14 +719,6 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
         ~tlid=None,
       )
 
-    let openTooltip = if count == 0 {
-      EventListeners.eventNoPropagation(~key="open-tooltip-secrets", "click", _ => Msg.ToolTipMsg(
-        OpenTooltip(Secrets),
-      ))
-    } else {
-      Vdom.noProp
-    }
-
     let plusBtn = iconButton(
       ~key="plus-secret",
       ~icon="plus-circle",
@@ -743,7 +727,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     )
 
     let header = Html.div(
-      list{Attrs.class'("category-header"), openTooltip},
+      list{Attrs.class'("category-header")},
       list{categoryButton("secrets", "Secret Keys"), title},
     )
 
@@ -787,26 +771,14 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
   }
 
 and viewCategory = (m: model, c: category): Html.html<msg> => {
-  let (openTooltip, tooltipView) = switch c.tooltip {
+  let tooltipView = switch c.tooltip {
   | Some(tt) =>
-    let view =
-      Tooltips.generateContent(tt) |> Tooltips.viewToolTip(
-        ~shouldShow=m.tooltipState.tooltipSource == Some(tt),
-        ~tlid=None,
-      )
-
-    (
-      EventListeners.eventNoPropagation(
-        ~key="open-tooltip-" ++ c.classname,
-        "click",
-        _ => Msg.ToolTipMsg(OpenTooltip(tt)),
-      ),
-      view,
+    Tooltips.generateContent(tt) |> Tooltips.viewToolTip(
+      ~shouldShow=m.tooltipState.tooltipSource == Some(tt),
+      ~tlid=None,
     )
-  | None => (Vdom.noProp, Vdom.noNode)
+  | None => Vdom.noNode
   }
-
-  let openAttr = Vdom.attribute("", "open", "")
 
   let isSubCat = String.includes(~substring=delPrefix, c.classname)
   let title = categoryName(c.name)
@@ -837,7 +809,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
       categoryButton(c.classname, c.name, ~props)
     }
 
-    let header = Html.div(list{Attrs.class'("category-header"), openTooltip}, list{catIcon, title})
+    let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon, title})
 
     Html.div(list{Attrs.class'("category-summary")}, list{tooltipView, header, plusButton})
   }
@@ -870,7 +842,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     ("empty", c.count == 0),
   })
 
-  Html.div(list{classes, openAttr}, list{summary, content})
+  Html.div(list{classes}, list{summary, content})
 }
 
 let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
@@ -1022,11 +994,10 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
     Vdom.noNode
   }
 
-  let secretsView = viewSecretKeys(m)
   let content = {
     let categories = Belt.List.concat(
       List.map(~f=viewCategory(m), cats),
-      list{secretsView, viewDeployStats(m), showAdminDebugger},
+      list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
     )
 
     Html.div(list{Attrs.classList(list{("viewing-table", true), ("abridged", true)})}, categories)
@@ -1037,7 +1008,6 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
       Attrs.id("sidebar-left"),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),
-      EventListeners.eventNoPropagation(~key="click-sidebar", "click", _ => Msg.ToolTipMsg(Close)),
       EventListeners.eventNoPropagation(~key="ept", "mouseover", _ => Msg.EnablePanning(false)),
       EventListeners.eventNoPropagation(~key="epf", "mouseout", _ => Msg.EnablePanning(true)),
     },
