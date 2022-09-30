@@ -109,15 +109,6 @@ let categoryButton = (~props=list{}, name: string, description: string): Html.ht
     categoryIcon_(name),
   )
 
-let setTooltips = (tooltip: AppTypes.Tooltip.source, entries: list<'a>): option<
-  AppTypes.Tooltip.source,
-> =>
-  if entries == list{} {
-    Some(tooltip)
-  } else {
-    None
-  }
-
 let handlerCategory = (
   filter: toplevel => bool,
   name: string,
@@ -133,7 +124,7 @@ let handlerCategory = (
     plusButton: Some(CreateRouteHandler(action)),
     classname: String.toLowercase(name),
     iconAction: iconAction,
-    tooltip: setTooltips(tooltip, handlers),
+    tooltip: Some(tooltip),
     entries: List.map(handlers, ~f=h => {
       let tlid = h.tlid
       Entry({
@@ -221,7 +212,7 @@ let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
     classname: "dbs",
     plusButton: Some(CreateDBTable),
     iconAction: Some(GoToArchitecturalView),
-    tooltip: setTooltips(Datastore, entries),
+    tooltip: Some(Datastore),
     entries: entries,
   }
 }
@@ -256,7 +247,7 @@ let f404Category = (m: model): category => {
     plusButton: None,
     classname: "fof",
     iconAction: None,
-    tooltip: setTooltips(FourOhFour, f404s),
+    tooltip: Some(FourOhFour),
     entries: List.map(f404s, ~f=({space, path, modifier, _} as fof) => Entry({
       name: if space == "HTTP" {
         path
@@ -302,7 +293,7 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
     classname: "fns",
     plusButton: Some(CreateFunction),
     iconAction: Some(GoToArchitecturalView),
-    tooltip: setTooltips(Function, entries),
+    tooltip: Some(Function),
     entries: entries,
   }
 }
@@ -474,14 +465,13 @@ let deletedCategory = (m: model): category => {
     ),
   })
 
-  let showTooltip = List.filter(~f=c => c.entries != list{}, cats)
   {
     count: (cats |> List.map(~f=c => count(Category(c))))->List.sum(module(Int)),
     name: "Deleted",
     plusButton: None,
     classname: "deleted",
     iconAction: None,
-    tooltip: setTooltips(Deleted, showTooltip),
+    tooltip: Some(Deleted),
     entries: List.map(cats, ~f=c => Category(c)),
   }
 }
