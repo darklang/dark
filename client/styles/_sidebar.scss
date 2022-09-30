@@ -136,18 +136,6 @@ $icSize: 1em;
     }
   }
 
-  .category-name {
-    color: $grey8;
-    font-size: 1.1em;
-    font-weight: bold;
-    letter-spacing: 0.02em;
-    margin-top: 0;
-
-    @at-root .abridged & {
-      display: none;
-    }
-  }
-
   .create-tl-icon {
     font-size: 1.2em;
     &:hover {
@@ -186,12 +174,6 @@ $icSize: 1em;
 
     &::-webkit-scrollbar-corner {
       background-color: transparent;
-    }
-
-    .category-name {
-      width: 100%;
-      text-align: center;
-      display: block;
     }
 
     .category-icon {

@@ -48,6 +48,12 @@ module.exports = {
         1.25: "0.3125rem",
       },
     },
+    fontFamily: {
+      body: ['"Fira Code"', "sans-serif"],
+      heading: ['"Fira Code"', "sans-serif"],
+      accents: ['"Fira Code"', "sans-serif"],
+      code: ['"Fira Code"', "sans-serif"],
+    },
   },
   corePlugins: {
     // The preflight (https://tailwindcss.com/docs/preflight) options added by

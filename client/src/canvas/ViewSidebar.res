@@ -12,6 +12,8 @@ module Mod = AppTypes.Modification
 
 let fontAwesome = Icons.fontAwesome
 
+let tw = Attrs.class
+
 let missingEventRouteDesc: string = "Undefined"
 
 let delPrefix: string = "deleted-"
@@ -52,6 +54,7 @@ type rec entry = {
 and category = {
   count: int,
   name: string,
+  nested: bool,
   plusButton: option<msg>,
   iconAction: option<msg>,
   classname: string,
@@ -123,6 +126,7 @@ let handlerCategory = (
     count: List.length(handlers),
     name: name,
     plusButton: Some(CreateRouteHandler(action)),
+    nested: false,
     classname: String.toLowercase(name),
     iconAction: iconAction,
     tooltip: Some(tooltip),
@@ -210,6 +214,7 @@ let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   {
     count: List.length(dbs),
     name: "Datastores",
+    nested: false,
     classname: "dbs",
     plusButton: Some(CreateDBTable),
     iconAction: Some(GoToArchitecturalView),
@@ -246,6 +251,7 @@ let f404Category = (m: model): category => {
     count: List.length(f404s),
     name: "404s",
     plusButton: None,
+    nested: false,
     classname: "fof",
     iconAction: None,
     tooltip: Some(FourOhFour),
@@ -291,6 +297,7 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
   {
     count: List.length(fns),
     name: "Functions",
+    nested: false,
     classname: "fns",
     plusButton: Some(CreateFunction),
     iconAction: Some(GoToArchitecturalView),
@@ -323,6 +330,7 @@ let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
   {
     count: List.length(tipes),
     name: "Types",
+    nested: false,
     classname: "types",
     plusButton: Some(CreateType),
     iconAction: None,
@@ -392,6 +400,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
 
       Category({
         count: List.length(uniquePackages),
+        nested: true,
         name: fn.name.package,
         plusButton: None,
         iconAction: None,
@@ -415,6 +424,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
     Category({
       count: List.length(uniqueauthors),
       name: fn.name.owner,
+      nested: true,
       plusButton: None,
       iconAction: None,
       classname: "pm-author" ++ fn.name.owner,
@@ -426,6 +436,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   {
     count: List.length(uniqueauthors),
     name: "Package Manager",
+    nested: false,
     plusButton: None,
     iconAction: None,
     classname: "package-manager",
@@ -444,8 +455,9 @@ let deletedCategory = (m: model): category => {
   ) |> List.map(~f=c => {
     ...c,
     plusButton: None /* only allow new entries on the main category */,
-    classname: // dont open/close in lockstep with parent
-    delPrefix ++ c.classname,
+    // dont open/close in lockstep with parent
+    classname: delPrefix ++ c.classname,
+    nested: true,
     entries: List.map(c.entries, ~f=x =>
       switch x {
       | Entry(e) =>
@@ -469,6 +481,7 @@ let deletedCategory = (m: model): category => {
   {
     count: (cats |> List.map(~f=c => count(Category(c))))->List.sum(module(Int)),
     name: "Deleted",
+    nested: false,
     plusButton: None,
     classname: "deleted",
     iconAction: None,
@@ -611,8 +624,11 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   )
 }
 
-let categoryName = (name: string): Html.html<msg> =>
-  Html.span(list{Attrs.class'("category-name")}, list{Html.text(name)})
+module Styles = {
+  let categoryNameBase = %twc("block text-grey8 font-bold mt-0 tracking-wide w-full font-heading")
+  let contentCategoryName = %twc("text-lg text-center ") ++ categoryNameBase
+  let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
+}
 
 let viewDeployStats = (m: model): Html.html<msg> => {
   let entries = m.staticDeploys
@@ -640,7 +656,10 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   }
 
   let content = {
-    let title = categoryName("Static Assets")
+    let title = Html.span(
+      list{Attrs.class(Styles.contentCategoryName)},
+      list{Html.text("Static Assets")},
+    )
     let deploys = if List.length(entries) > 0 {
       entries |> List.map(~f=viewDeploy)
     } else {
@@ -736,7 +755,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   }
 
   let content = {
-    let title = categoryName("Secret Keys")
+    let title = Html.span(list{tw(Styles.contentCategoryName)}, list{Html.text("Secret Keys")})
     let entries = if count > 0 {
       List.map(m.secrets, ~f=viewSecret)
     } else {
@@ -785,7 +804,6 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
   | None => Vdom.noNode
   }
 
-  let isSubCat = String.includes(~substring=delPrefix, c.classname)
   let summary = {
     let plusButton = switch c.plusButton {
     | Some(msg) =>
@@ -804,7 +822,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
 
     let catIcon = {
       let props = switch c.iconAction {
-      | Some(ev) if !isSubCat => list{
+      | Some(ev) if !c.nested => list{
           EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
         }
       | Some(_) | None => list{Vdom.noProp}
@@ -813,14 +831,18 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
       categoryButton(c.classname, c.name, ~props)
     }
 
-    let title = categoryName(c.name)
-    let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon, title})
+    let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon})
 
     Html.div(list{Attrs.class'("category-summary")}, list{tooltipView, header, plusButton})
   }
 
   let content = {
-    let title = categoryName(c.name)
+    let style = if c.nested {
+      Styles.nestedSidebarCategoryName
+    } else {
+      Styles.contentCategoryName
+    }
+    let title = Html.span(list{tw(style)}, list{Html.text(c.name)})
     let entries = if c.count > 0 {
       List.map(~f=viewItem(m), c.entries)
     } else {
@@ -831,7 +853,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
       list{
         Attrs.class'("category-content"),
         EventListeners.eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
-          if !isSubCat {
+          if !c.nested {
             Msg.SidebarMsg(ResetSidebar)
           } else {
             Msg.IgnoreMsg("sidebar-category-close")
