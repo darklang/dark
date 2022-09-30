@@ -623,7 +623,7 @@ let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: in
   Vdom.property<msg>,
 ) => {
   let isOpen = Set.member(s.openedCategories, ~value=classname)
-  let isDetailed = s.mode == DetailedMode
+  let isDetailed = false
   let isSubCat = String.includes(~substring=delPrefix, classname)
   let openEventHandler = if isDetailed || isSubCat {
     EventListeners.eventNoPropagation(
@@ -652,13 +652,9 @@ let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: in
 let viewDeployStats = (m: model): Html.html<msg> => {
   let entries = m.staticDeploys
   let count = List.length(entries)
-  let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "deploys", count)
+  let (openEventHandler, _) = categoryOpenCloseHelpers(m.sidebarState, "deploys", count)
 
-  let openAttr = if m.sidebarState.mode == AbridgedMode {
-    Vdom.attribute("", "open", "")
-  } else {
-    openAttr
-  }
+  let openAttr = Vdom.attribute("", "open", "")
 
   let title = categoryName("Static Assets")
   let summary = {
@@ -761,13 +757,9 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 
 let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   let count = List.length(m.secrets)
-  let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
+  let (openEventHandler, _) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
 
-  let openAttr = if m.sidebarState.mode == AbridgedMode {
-    Vdom.attribute("", "open", "")
-  } else {
-    openAttr
-  }
+  let openAttr = Vdom.attribute("", "open", "")
 
   let title = categoryName("Secret Keys")
   let summary = {
@@ -840,7 +832,7 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
   }
 
 and viewCategory = (m: model, c: category): Html.html<msg> => {
-  let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, c.classname, c.count)
+  let (openEventHandler, _) = categoryOpenCloseHelpers(m.sidebarState, c.classname, c.count)
 
   let (openTooltip, tooltipView) = switch c.tooltip {
   | Some(tt) =>
@@ -861,11 +853,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
   | None => (Vdom.noProp, Vdom.noNode)
   }
 
-  let openAttr = if m.sidebarState.mode == AbridgedMode {
-    Vdom.attribute("", "open", "")
-  } else {
-    openAttr
-  }
+  let openAttr = Vdom.attribute("", "open", "")
 
   let isSubCat = String.includes(~substring=delPrefix, c.classname)
   let title = categoryName(c.name)
@@ -887,7 +875,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
 
     let catIcon = {
       let props = switch c.iconAction {
-      | Some(ev) if m.sidebarState.mode == AbridgedMode && !isSubCat => list{
+      | Some(ev) if !isSubCat => list{
           EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
         }
       | Some(_) | None => list{Vdom.noProp}
@@ -933,10 +921,6 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
   })
 
   Html.details(~unique=c.classname, list{classes, openAttr}, list{summary, content})
-}
-
-let viewToggleBtn = (_: bool): Html.html<msg> => {
-  Html.div(list{Attrs.class'("toggle-sidebar-btn")}, list{})
 }
 
 let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
@@ -1083,7 +1067,7 @@ let update = (msg: Sidebar.msg): modification =>
           Set.remove(~value=key, m.sidebarState.openedCategories)
         }
 
-        ({...m, sidebarState: {...m.sidebarState, openedCategories: openedCategories}}, Cmd.none)
+        ({...m, sidebarState: {openedCategories: openedCategories}}, Cmd.none)
       },
     )
   }
@@ -1094,14 +1078,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
     list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},
   )
 
-  let isDetailed = switch m.sidebarState.mode {
-  | DetailedMode => true
-  | _ => false
-  }
-
-  let showAdminDebugger = if (
-    !isDetailed && m.settings.contributingSettings.general.showSidebarDebuggerPanel
-  ) {
+  let showAdminDebugger = if m.settings.contributingSettings.general.showSidebarDebuggerPanel {
     adminDebuggerView(m)
   } else {
     Vdom.noNode
@@ -1115,14 +1092,8 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
     )
 
     Html.div(
-      list{
-        Attrs.classList(list{
-          ("viewing-table", true),
-          ("detailed", isDetailed),
-          ("abridged", !isDetailed),
-        }),
-      },
-      list{viewToggleBtn(isDetailed), ...categories},
+      list{Attrs.classList(list{("viewing-table", true), ("detailed", false), ("abridged", true)})},
+      categories,
     )
   }
 
