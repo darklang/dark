@@ -38,6 +38,11 @@ let selectUp: t => t
 
 let selectDown: t => t
 
+let documentationForFunction: (
+  Function.t,
+  option<ProgramTypes.Expr.SendToRail.t>,
+) => list<Tea.Html.html<AppTypes.msg>>
+
 let documentationForItem: data => option<list<Vdom.t<AppTypes.msg>>>
 
 let isOpened: t => bool

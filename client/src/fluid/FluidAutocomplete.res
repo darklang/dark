@@ -735,54 +735,69 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
   }
 }
 
+let documentationForFunction = (
+  f: Function.t,
+  sendToRail: option<ProgramTypes.Expr.SendToRail.t>,
+): list<Tea.Html.html<'msg>> => {
+  let desc = if String.length(f.description) != 0 {
+    PrettyDocs.convert(f.description)
+  } else {
+    list{Html.i(list{}, list{Html.text("no description provided")})}
+  }
+
+  let return = Html.div(
+    list{Attrs.class("returnType")},
+    list{
+      Html.text("Returns: "),
+      Html.span(list{Attrs.class("type")}, list{Html.text(DType.tipe2str(f.returnType))}),
+    },
+  )
+
+  let deprecationHeader = if f.deprecation != NotDeprecated {
+    list{Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")})}
+  } else {
+    list{}
+  }
+
+  let deprecationFooter = {
+    let deprecationFooterContents = switch f.deprecation {
+    | NotDeprecated => list{}
+    | ReplacedBy(name) => list{Html.text("replaced by " ++ FQFnName.StdlibFnName.toString(name))}
+    | RenamedTo(name) => list{Html.text("renamed to " ++ FQFnName.StdlibFnName.toString(name))}
+    | DeprecatedBecause(reason) => list{Html.text(reason)}
+    }
+    if deprecationFooterContents == list{} {
+      list{}
+    } else {
+      list{
+        Html.div(
+          list{Attrs.class("deprecation-reason")},
+          list{
+            Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")}),
+            ...deprecationFooterContents,
+          },
+        ),
+      }
+    }
+  }
+
+  Belt.List.concatMany([
+    deprecationHeader,
+    desc,
+    list{ViewErrorRailDoc.hintForFunction(f, sendToRail)},
+    deprecationFooter,
+    list{return},
+  ])
+}
+
 let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>> => {
   let p = (text: string) => Html.p(list{}, list{Html.text(text)})
   let typeDoc = typeErrorDoc({item: item, validity: validity})
   let simpleDoc = (text: string) => Some(list{p(text), typeDoc})
   switch item {
   | FACFunction(f) =>
-    let desc = if String.length(f.description) != 0 {
-      PrettyDocs.convert(f.description)
-    } else {
-      list{Html.i(list{}, list{Html.text("no description provided")})}
-    }
-
-    let deprecationHeader = if f.deprecation != NotDeprecated {
-      list{Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")})}
-    } else {
-      list{}
-    }
-
-    let deprecationFooter = {
-      let deprecationFooterContents = switch f.deprecation {
-      | NotDeprecated => list{}
-      | ReplacedBy(name) => list{Html.text("replaced by " ++ FQFnName.StdlibFnName.toString(name))}
-      | RenamedTo(name) => list{Html.text("renamed to " ++ FQFnName.StdlibFnName.toString(name))}
-      | DeprecatedBecause(reason) => list{Html.text(reason)}
-      }
-      if deprecationFooterContents == list{} {
-        list{}
-      } else {
-        list{
-          Html.div(
-            list{Attrs.class("deprecation-reason")},
-            list{
-              Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")}),
-              ...deprecationFooterContents,
-            },
-          ),
-        }
-      }
-    }
-
-    Some(
-      Belt.List.concatMany([
-        deprecationHeader,
-        desc,
-        list{ViewErrorRailDoc.hintForFunction(f, None), typeDoc},
-        deprecationFooter,
-      ]),
-    )
+    let docs = documentationForFunction(f, None)
+    Some(List.append(docs, list{typeDoc}))
   | FACConstructorName("Just", _) => simpleDoc("An Option containing a value")
   | FACConstructorName("Nothing", _) => simpleDoc("An Option representing Nothing")
   | FACConstructorName("Ok", _) => simpleDoc("A successful Result containing a value")

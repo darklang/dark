@@ -156,14 +156,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
         switch fnAndRail {
         | Some(fn, sendToRail) =>
-          Some(
-            viewDoc(
-              Belt.List.concat(
-                PrettyDocs.convert(fn.description),
-                list{ViewErrorRailDoc.hintForFunction(fn, Some(sendToRail))},
-              ),
-            ),
-          )
+          Some(viewDoc(FluidAutocomplete.documentationForFunction(fn, Some(sendToRail))))
         | None => None
         }
       }
@@ -178,23 +171,23 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
             |> Functions.findByStr(name)
             |> Option.map(~f=(f: Function.t) => {
               let param = f.parameters |> List.getAt(~index)
-              (param, f.description)
+              (param, f)
             })
           )
 
         switch paramAndFnDesc {
-        | Some(param, fnDesc) =>
-          switch param {
-          | Some(pm) =>
-            let header = pm.name ++ (" : " ++ DType.tipe2str(pm.typ))
+        | Some(Some(param), f) =>
+          let header = param.name ++ ": " ++ DType.tipe2str(param.typ)
 
-            Some(
-              viewDoc(
-                Belt.List.concat(PrettyDocs.convert(fnDesc), list{p(header), p(pm.description)}),
+          Some(
+            viewDoc(
+              Belt.List.concat(
+                FluidAutocomplete.documentationForFunction(f, None),
+                list{p(header), p(param.description)},
               ),
-            )
-          | None => None
-          }
+            ),
+          )
+
         | _ => None
         }
       }

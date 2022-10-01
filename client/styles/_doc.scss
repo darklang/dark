@@ -20,10 +20,16 @@
 
   .err {
     color: lighten(saturate($red, 25%), 30%);
+    padding-bottom: 15px;
   }
 
-  .deprecation-reason {
+  .deprecation-reason,
+  .returnType {
     padding-top: 15px;
+  }
+
+  .returnType {
+    color: $grey5;
   }
 
   .cmd {
