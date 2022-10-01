@@ -609,6 +609,11 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
     list{fontAwesome("copy")},
   )
 
+  let statusColor = switch d.status {
+  | Deployed => %twc("text-green")
+  | Deploying => %twc("text-sidebar-secondary")
+  }
+
   Html.div(
     list{Attrs.class'("simple-item deploy")},
     list{
@@ -623,7 +628,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
         list{
           Html.a(
             list{
-              tw(%twc("text-sm text-sidebar-primary hover:text-sidebar-secondary no-underline")),
+              tw(%twc("text-sm text-sidebar-primary hover:text-sidebar-hover no-underline")),
               Attrs.href(d.url),
               Attrs.target("_blank"),
             },
@@ -632,21 +637,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
           copyBtn,
         },
       ),
-      Html.div(
-        list{
-          Attrs.classList(list{
-            ("status", true),
-            (
-              "success",
-              switch d.status {
-              | Deployed => true
-              | _ => false
-              },
-            ),
-          }),
-        },
-        list{Html.text(statusString)},
-      ),
+      Html.div(list{tw2(statusColor, %twc("inline-block"))}, list{Html.text(statusString)}),
       Html.div(
         list{tw(%twc("block w-full text-xxs text-right"))},
         list{Html.text(Js.Date.toUTCString(d.lastUpdate))},

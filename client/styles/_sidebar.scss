@@ -320,14 +320,6 @@ $icSize: 1em;
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-
-    .status {
-      color: $secondaryColor;
-      display: inline-block;
-      &.success {
-        color: $green;
-      }
-    }
   }
 
   .category-summary {
