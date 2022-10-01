@@ -225,31 +225,6 @@ $icSize: 1em;
       }
     }
 
-    .verb {
-      color: $white2;
-      margin-left: 1em;
-
-      &.GET {
-        color: $http-get;
-      }
-      &.POST {
-        color: $http-post;
-      }
-      &.DELETE {
-        color: $http-delete;
-      }
-      &.PUT {
-        color: $http-put;
-      }
-      &.PATCH {
-        color: $http-patch;
-      }
-      &.OPTIONS a,
-      &.OPTIONS span {
-        color: $http-options;
-      }
-    }
-
     @at-root .abridged & {
       width: 100%;
     }

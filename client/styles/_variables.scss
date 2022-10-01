@@ -52,6 +52,20 @@ $queue-color: $cyan;
 $repl-color: $pink;
 $user-functions: saturate($cyan, 10%);
 $db-color: #a1887f;
+:root {
+  --httpGetColor: #{$http-get};
+  --httpPostColor: #{$http-post};
+  --httpPutColor: #{$http-put};
+  --httpPatch: #{$http-patch};
+  --httpOptionsColor: #{$http-options};
+  --httpDeleteColor: #{$http-delete};
+  --cronColor: #{$cron-color};
+  --defaultToplevelColor: #{$default-toplevel-color};
+  --queueColor: #{$queue-color};
+  --replColor: #{$repl-color};
+  --userFunctionsColor: #{$user-functions};
+  --dbColor: #{$db-color};
+}
 
 $hover-foreground: darken($blue, 10%);
 $selected-background: darken($toplevel-background, 20%);

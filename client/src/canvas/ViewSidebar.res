@@ -514,7 +514,18 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
 
   let linkItem = {
     let verb = switch e.verb {
-    | Some(v) => Html.span(list{Attrs.class'("verb " ++ v)}, list{Html.text(v)})
+    | Some(verb) =>
+      let verbStyle = switch verb {
+      | "GET" => %twc("text-http-get")
+      | "POST" => %twc("text-http-post")
+      | "PUT" => %twc("text-http-put")
+      | "DELETE" => %twc("text-http-delete")
+      | "PATCH" => %twc("text-http-patch")
+      | "HEAD" => %twc("text-white2") // TODO
+      | "OPTIONS" => %twc("text-http-options")
+      | _ => %twc("text-white2")
+      }
+      Html.span(list{tw2(verbStyle, "ml-4")}, list{Html.text(verb)})
     | _ => Vdom.noNode
     }
 
