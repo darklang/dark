@@ -670,13 +670,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
       list{categoryButton("static", "Static Assets")},
     )
 
-    let deployLatest = if count != 0 {
-      entries |> List.take(~count=1) |> List.map(~f=viewDeploy)
-    } else {
-      list{}
-    }
-
-    Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header, ...deployLatest})
+    Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header})
   }
 
   let content = {
