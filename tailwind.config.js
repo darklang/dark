@@ -36,6 +36,8 @@ module.exports = {
 
       "sidebar-bg": "var(--sidebarBgColor)",
       "sidebar-hover": "var(--sidebarHoverColor)",
+      "sidebar-primary": "var(--sidebarPrimaryColor)",
+      "sidebar-secondary": "var(--sidebarSecondaryColor)",
     },
     extend: {
       borderWidth: {

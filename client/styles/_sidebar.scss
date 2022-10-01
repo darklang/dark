@@ -8,14 +8,14 @@ $prodColor: black;
 
 $sidebarBgColor: darken($canvas-background, 10%);
 $sidebarHoverColor: lighten($yellow, 10%);
+$primaryColor: $white1;
+$secondaryColor: $grey2;
 :root {
   --sidebarBgColor: #{$sidebarBgColor};
   --sidebarHoverColor: #{$sidebarHoverColor};
+  --sidebarPrimaryColor: #{$primaryColor};
+  --sidebarSecondaryColor: #{$secondaryColor};
 }
-
-
-$primaryColor: $white1;
-$secondaryColor: $grey2;
 
 $sectionSpace: 20px;
 $hSpace: 5px;
@@ -401,18 +401,7 @@ $icSize: 1em;
     margin-right: 4px;
     margin-top: 10px;
 
-    .key-block {
-      border: 1px solid $secondaryColor;
-      padding: 2px;
-      border-radius: 2px;
-      color: $primaryColor;
-      width: calc(100% - 32px);
-
       &:hover {
-        color: $sidebarHoverColor;
-        border-color: $sidebarHoverColor;
-        cursor: pointer;
-
         .secret-name {
           display: none;
         }
@@ -422,16 +411,6 @@ $icSize: 1em;
         }
       }
 
-      .secret-name,
-      .secret-value {
-        text-decoration: none;
-        font-size: 0.7em;
-        box-sizing: border-box;
-        padding: 0 6px;
-        width: 100%;
-        overflow: hidden;
-      }
-
       .secret-name {
         display: inline-block;
       }
@@ -439,15 +418,6 @@ $icSize: 1em;
       .secret-value {
         display: none;
       }
-    }
-
-    .copy-secret-name {
-      font-size: 16px;
-
-      &:hover {
-        color: $sidebarHoverColor;
-      }
-    }
   }
 
   @at-root .abridged > & > .category-content {

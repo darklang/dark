@@ -707,7 +707,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
-      Attrs.class'("icon-button copy-secret-name"),
+      tw("icon-button " ++ %twc("text-base hover:text-sidebar-hover")),
       EventListeners.eventNeither(
         "click",
         ~key="copy-secret-" ++ s.secretName,
@@ -730,14 +730,22 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
     }
   }
 
+  let style = %twc("text-xs no-underline box-border px-1.5 py-0 w-full overflow-hidden")
+
   Html.div(
     list{Attrs.class'("simple-item secret")},
     list{
       Html.div(
-        list{Attrs.class'("key-block")},
         list{
-          Html.span(list{Attrs.class'("secret-name")}, list{Html.text(s.secretName)}),
-          Html.span(list{Attrs.class'("secret-value")}, list{Html.text(secretValue)}),
+          tw(
+            %twc(
+              "border border-solid border-sidebar-secondary p-0.5 rounded-sm text-sidebar-primary w-64 hover:cursor-pointer hover:text-sidebar-hover hover:border-sidebar-hover"
+            ),
+          ),
+        },
+        list{
+          Html.span(list{Attrs.class'(style ++ " secret-name")}, list{Html.text(s.secretName)}),
+          Html.span(list{Attrs.class'(style ++ " secret-value")}, list{Html.text(secretValue)}),
         },
       ),
       copyBtn,
