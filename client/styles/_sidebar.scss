@@ -389,19 +389,6 @@ $icSize: 1em;
 
 /* Special case : Secrets */
 .sidebar-category.secrets {
-  .simple-item.secret {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    width: calc(100% - 24px);
-    margin-left: 20px;
-    margin-right: 4px;
-    margin-top: 10px;
-  }
-
   @at-root .abridged > & > .category-content {
     background-color: $sidebarBgColor;
     width: $sidebarFullWidth;

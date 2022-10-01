@@ -734,7 +734,9 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let style = %twc("text-xs no-underline box-border px-1.5 py-0 w-full overflow-hidden")
 
   Html.div(
-    list{Attrs.class'("simple-item secret")},
+    list{
+      tw("flex relative justify-between items-center flex-row flex-nowrap w-72 ml-5 mr-1 mt-2.5"),
+    },
     list{
       Html.div(
         list{
@@ -746,11 +748,11 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
         },
         list{
           Html.span(
-            list{tw2(style, %twc(" inline-block group-hover:hidden"))},
+            list{tw2(style, %twc("inline-block group-hover:hidden"))},
             list{Html.text(s.secretName)},
           ),
           Html.span(
-            list{tw2(style, %twc(" hidden group-hover:inline-block"))},
+            list{tw2(style, %twc("hidden group-hover:inline-block"))},
             list{Html.text(secretValue)},
           ),
         },
