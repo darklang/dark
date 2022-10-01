@@ -315,13 +315,6 @@ $icSize: 1em;
 
 /* Special Case: Static Assets */
 .sidebar-category.deploys {
-  .simple-item {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-  }
-
   .category-summary {
     display: block;
     .category-header {
@@ -336,12 +329,6 @@ $icSize: 1em;
       @at-root .abridged & {
         display: none;
       }
-    }
-  }
-
-  .category-content {
-    .simple-item {
-      margin-top: $icSize;
     }
   }
 }

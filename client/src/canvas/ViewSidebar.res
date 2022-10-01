@@ -615,7 +615,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   }
 
   Html.div(
-    list{Attrs.class'("simple-item deploy")},
+    list{tw(%twc("flex flex-wrap justify-between items-center mt-4"))},
     list{
       Html.div(
         list{
@@ -681,7 +681,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     let deploys = if List.length(entries) > 0 {
       entries |> List.map(~f=viewDeploy)
     } else {
-      list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No Static deploys")})}
+      list{Html.div(list{tw(%twc("text-grey2 mt-1"))}, list{Html.text("No Static deploys")})}
     }
 
     Html.div(
