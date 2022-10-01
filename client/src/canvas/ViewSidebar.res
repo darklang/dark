@@ -13,6 +13,7 @@ module Mod = AppTypes.Modification
 let fontAwesome = Icons.fontAwesome
 
 let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
 
 let missingEventRouteDesc: string = "Undefined"
 
@@ -707,7 +708,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
-      tw("icon-button " ++ %twc("text-base hover:text-sidebar-hover")),
+      tw2("icon-button", %twc("text-base hover:text-sidebar-hover")),
       EventListeners.eventNeither(
         "click",
         ~key="copy-secret-" ++ s.secretName,
@@ -745,11 +746,11 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
         },
         list{
           Html.span(
-            list{Attrs.class'(style ++ " inline-block group-hover:hidden")},
+            list{tw2(style, %twc(" inline-block group-hover:hidden"))},
             list{Html.text(s.secretName)},
           ),
           Html.span(
-            list{Attrs.class'(style ++ " hidden group-hover:inline-block")},
+            list{tw2(style, %twc(" hidden group-hover:inline-block"))},
             list{Html.text(secretValue)},
           ),
         },
@@ -939,7 +940,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     }
 
     Html.div(
-      list{tw(%twc("bg-white1 text-[0.4em] rounded-sm p-0.5 -m-2.5 ") ++ color)},
+      list{tw2(%twc("bg-white1 text-[0.4em] rounded-sm p-0.5 -m-2.5"), color)},
       list{Html.text(m.environment)},
     )
   }
@@ -1017,10 +1018,10 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   let saveTestButton = Html.a(
     list{
       EventListeners.eventNoPropagation(~key="stb", "mouseup", _ => Msg.SaveTestButton),
-      tw(
-        stateRowStyle ++
+      tw2(
+        stateRowStyle,
         %twc(
-          " border border-solid rounded-sm p-1 mb-5 h-2.5 w-fit text-xxs text-grey8 cursor-pointer hover:text-black2 hover:bg-grey8"
+          "border border-solid rounded-sm p-1 mb-5 h-2.5 w-fit text-xxs text-grey8 cursor-pointer hover:text-black2 hover:bg-grey8"
         ),
       ),
     },
@@ -1047,7 +1048,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let sectionIcon = Html.div(list{Attrs.class'("category-summary")}, list{icon, environment})
 
-  Html.div(list{tw(%twc("p-0") ++ " sidebar-category admin")}, list{sectionIcon, hoverView})
+  Html.div(list{tw2(%twc("p-0"), "sidebar-category admin")}, list{sectionIcon, hoverView})
 }
 
 let update = (msg: Sidebar.msg): modification =>
@@ -1075,10 +1076,11 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   Html.div(
     list{
       Attrs.id("sidebar-left"), // keep for sidebar and z-index
-      tw(
+      tw2(
         %twc(
           "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-[20px] w-14"
-        ) ++ " abridged",
+        ),
+        "abridged",
       ),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),
