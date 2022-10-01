@@ -321,45 +321,12 @@ $icSize: 1em;
     justify-content: space-between;
     align-items: center;
 
-    .hash {
-      position: relative;
-      display: inline-block;
-      border: 1px solid $secondaryColor;
-      padding: 2px;
-      border-radius: 2px;
-      a {
-        text-decoration: none;
-        font-size: 0.7em;
-        color: $primaryColor;
-        &:hover {
-          color: $sidebarHoverColor;
-        }
-      }
-
-      .copy-hash {
-        font-size: 12px;
-        position: absolute;
-        top: -8px;
-        right: -6px;
-
-        &:hover {
-          color: $sidebarHoverColor;
-        }
-      }
-    }
     .status {
       color: $secondaryColor;
       display: inline-block;
       &.success {
         color: $green;
       }
-    }
-
-    .timestamp {
-      display: block;
-      width: 100%;
-      font-size: 0.7em;
-      text-align: right;
     }
   }
 
@@ -389,7 +356,7 @@ $icSize: 1em;
 
 /* Special case : Secrets */
 .sidebar-category.secrets {
-  @at-root .abridged > & > .category-content {
+  @at-root & > .category-content {
     background-color: $sidebarBgColor;
     width: $sidebarFullWidth;
     max-width: $sidebarFullWidth;

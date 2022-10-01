@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  important: true, // tailwind should always win
   content: ["./client/**/*.res"],
   theme: {
     // override builtin tailwind colors

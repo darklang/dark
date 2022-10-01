@@ -599,7 +599,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 
   let copyBtn = Html.div(
     list{
-      Attrs.class'("icon-button copy-hash"),
+      tw2("icon-button ", %twc("text-xs absolute -top-2 -right-1.5 hover:text-sidebar-hover")),
       EventListeners.eventNeither(
         "click",
         ~key="hash-" ++ d.deployHash,
@@ -613,9 +613,22 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
     list{Attrs.class'("simple-item deploy")},
     list{
       Html.div(
-        list{Attrs.class'("hash")},
         list{
-          Html.a(list{Attrs.href(d.url), Attrs.target("_blank")}, list{Html.text(d.deployHash)}),
+          tw(
+            %twc(
+              "relative inline-block border border-solid border-sidebar-secondary p-0.5 rounded-sm"
+            ),
+          ),
+        },
+        list{
+          Html.a(
+            list{
+              tw(%twc("text-sm text-sidebar-primary hover:text-sidebar-secondary no-underline")),
+              Attrs.href(d.url),
+              Attrs.target("_blank"),
+            },
+            list{Html.text(d.deployHash)},
+          ),
           copyBtn,
         },
       ),
@@ -634,7 +647,10 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
         },
         list{Html.text(statusString)},
       ),
-      Html.div(list{Attrs.class'("timestamp")}, list{Html.text(Js.Date.toUTCString(d.lastUpdate))}),
+      Html.div(
+        list{tw(%twc("block w-full text-xxs text-right"))},
+        list{Html.text(Js.Date.toUTCString(d.lastUpdate))},
+      ),
     },
   )
 }
