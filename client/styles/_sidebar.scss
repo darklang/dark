@@ -400,24 +400,6 @@ $icSize: 1em;
     margin-left: 20px;
     margin-right: 4px;
     margin-top: 10px;
-
-      &:hover {
-        .secret-name {
-          display: none;
-        }
-
-        .secret-value {
-          display: inline-block;
-        }
-      }
-
-      .secret-name {
-        display: inline-block;
-      }
-
-      .secret-value {
-        display: none;
-      }
   }
 
   @at-root .abridged > & > .category-content {

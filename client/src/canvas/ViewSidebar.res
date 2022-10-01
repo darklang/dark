@@ -739,13 +739,19 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
         list{
           tw(
             %twc(
-              "border border-solid border-sidebar-secondary p-0.5 rounded-sm text-sidebar-primary w-64 hover:cursor-pointer hover:text-sidebar-hover hover:border-sidebar-hover"
+              "group border border-solid border-sidebar-secondary pt-1 rounded-sm text-sidebar-primary w-64 hover:cursor-pointer hover:text-sidebar-hover hover:border-sidebar-hover"
             ),
           ),
         },
         list{
-          Html.span(list{Attrs.class'(style ++ " secret-name")}, list{Html.text(s.secretName)}),
-          Html.span(list{Attrs.class'(style ++ " secret-value")}, list{Html.text(secretValue)}),
+          Html.span(
+            list{Attrs.class'(style ++ " inline-block group-hover:hidden")},
+            list{Html.text(s.secretName)},
+          ),
+          Html.span(
+            list{Attrs.class'(style ++ " hidden group-hover:inline-block")},
+            list{Html.text(secretValue)},
+          ),
         },
       ),
       copyBtn,
