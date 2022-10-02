@@ -79,13 +79,14 @@ module Styles = {
     "block text-grey8 font-bold mt-0 tracking-wide w-full font-heading -ml-4"
   )
   let contentCategoryName = %twc("text-lg text-center ") ++ categoryNameBase
+
   let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
 
   let plusButton = %twc("text-xs hover:text-sidebar-hover hover:cursor-pointer")
 
-  let sidebarCategory = %twc("mb-5 px-1.25 py-0 relative group-outer")
+  let sidebarCategory = %twc("mb-5 px-1.25 py-0 relative group-sidebar-category")
 
-  let categoryContent = %twc("hidden group-outer-hover:block")
+  let categoryContent = %twc("hidden group-sidebar-category-hover:block")
 }
 
 let iconButton = (
@@ -128,7 +129,7 @@ let categoryButton = (~props=list{}, name: string, description: string): Html.ht
     list{
       tw(
         %twc(
-          "mr-0 text-2xl text-grey5 duration-200 group-outer-hover:text-3xl w-9 h-9 text-center"
+          "mr-0 text-2xl text-grey5 duration-200 group-sidebar-category-hover:text-3xl w-9 h-9 text-center"
         ),
       ),
       Attrs.title(description),

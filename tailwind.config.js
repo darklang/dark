@@ -85,12 +85,9 @@ module.exports = {
   },
   plugins: [
     require("tailwindcss-labeled-groups")([
-      "outer",
-      "outer1",
-      "outer2",
-      "inner",
-      "inner1",
-      "inner2",
+      // This allows us have overlapping and nested groups. Each time you need a
+      // group, create a new one with a contextual name
+      "sidebar-category",
     ]),
   ],
 };
