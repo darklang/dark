@@ -731,7 +731,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     )
   }
 
-  let classes = Attrs.classList(list{("sidebar-category", true), ("deploys", true)})
+  let classes = Attrs.class("sidebar-category")
 
   Html.div(list{classes}, list{summary, content})
 }
@@ -839,7 +839,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     )
   }
 
-  let classes = Attrs.classList(list{("sidebar-category", true), ("secrets", true)})
+  let classes = Attrs.class("sidebar-category")
 
   Html.div(list{classes}, list{summary, content})
 }
@@ -930,7 +930,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     )
   }
 
-  let classes = Attrs.classList(list{("sidebar-category", true), (c.classname, true)})
+  let classes = Attrs.class("sidebar-category " ++ c.classname)
 
   Html.div(list{classes}, list{summary, content})
 }
