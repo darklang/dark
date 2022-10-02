@@ -186,16 +186,6 @@ $icSize: 1em;
     .category-header {
       display: inline-block;
     }
-
-    .simple-item {
-      margin-left: 1.5em;
-      margin-right: $hSpace;
-      margin-top: 5px;
-
-      @at-root .abridged & {
-        display: none;
-      }
-    }
   }
 }
 
