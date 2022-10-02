@@ -59,6 +59,7 @@ and category = {
   nested: bool,
   plusButton: option<msg>,
   iconAction: option<msg>,
+  icon: Html.html<msg>,
   classname: string,
   tooltip: option<AppTypes.Tooltip.source>,
   entries: list<item>,
@@ -101,30 +102,7 @@ let iconButton = (
   Html.div(list{event, Attrs.class(`${style} ${twStyle} ${classname}`)}, list{fontAwesome(icon)})
 }
 
-let categoryIcon_ = (name: string): list<Html.html<msg>> => {
-  let darkIcon = Icons.darkIcon
-  // Deleted categories have a deleted- prefix, with which are not valid fontaweome icons
-  switch name |> String.toLowercase |> Regex.replace(~re=Regex.regex(delPrefix), ~repl="") {
-  | "http" => list{darkIcon("http")}
-  | "dbs" => list{darkIcon("db")}
-  | "fns" => list{darkIcon("fn")}
-  | "deleted" => list{darkIcon("deleted")}
-  | "package-manager" => list{fontAwesome("box-open")}
-  | "static" => list{fontAwesome("file")}
-  | "types" => list{darkIcon("types")}
-  | "cron" => list{darkIcon("cron")}
-  | "repl" => list{fontAwesome("terminal")}
-  | "worker" => list{fontAwesome("wrench")}
-  | "fof" => list{darkIcon("fof")}
-  | "secrets" => list{fontAwesome("user-secret")}
-  | "admin" => list{fontAwesome("cog")}
-  | _ if String.includes(~substring="pm-author", name) => list{fontAwesome("user")}
-  | _ if String.includes(~substring="pm-package", name) => list{fontAwesome("cubes")}
-  | _ => list{darkIcon("undefined")}
-  }
-}
-
-let categoryButton = (~props=list{}, name: string, description: string): Html.html<msg> =>
+let categoryButton = (~props=list{}, description: string, icon: Html.html<msg>): Html.html<msg> =>
   Html.div(
     list{
       tw(
@@ -137,7 +115,7 @@ let categoryButton = (~props=list{}, name: string, description: string): Html.ht
       Attrs.alt(description),
       ...props,
     },
-    categoryIcon_(name),
+    list{icon},
   )
 
 let handlerCategory = (
@@ -149,6 +127,13 @@ let handlerCategory = (
   hs: list<PT.Handler.t>,
 ): category => {
   let handlers = hs |> List.filter(~f=h => filter(TLHandler(h)))
+  let icon = switch String.toLowercase(name) {
+  | "http" => Icons.darkIcon("http")
+  | "cron" => Icons.darkIcon("cron")
+  | "repl" => fontAwesome("terminal")
+  | "worker" => fontAwesome("wrench")
+  | _ => Icons.darkIcon("undefined")
+  }
   {
     count: List.length(handlers),
     name: name,
@@ -156,6 +141,7 @@ let handlerCategory = (
     nested: false,
     classname: String.toLowercase(name),
     iconAction: iconAction,
+    icon: icon,
     tooltip: Some(tooltip),
     entries: List.map(handlers, ~f=h => {
       let tlid = h.tlid
@@ -245,6 +231,7 @@ let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
     classname: "dbs",
     plusButton: Some(CreateDBTable),
     iconAction: Some(GoToArchitecturalView),
+    icon: Icons.darkIcon("db"),
     tooltip: Some(Datastore),
     entries: entries,
   }
@@ -260,17 +247,17 @@ let f404Category = (m: model): category => {
         let space = h.spec->PT.Handler.Spec.space->B.toString
         let name = h.spec->PT.Handler.Spec.name->B.toString
         let modifier = h.spec->PT.Handler.Spec.modifier->B.optionToString
-        // Note that this concatenated string gets compared to `space ^ path ^ modifier` later.
+        // Note that this concatenated string gets compared to `space ++ path ++ modifier` later.
         // h.spec.name and f404.path are the same thing, with different names. Yes this is confusing.
         space ++ name ++ modifier
       })
       |> Set.String.fromList
 
     m.f404s
-    |> List.uniqueBy(~f=(f: AnalysisTypes.FourOhFour.t) => f.space ++ (f.path ++ f.modifier))
+    |> List.uniqueBy(~f=(f: AnalysisTypes.FourOhFour.t) => f.space ++ f.path ++ f.modifier)
     |> // Don't show 404s for deleted handlers
     List.filter(~f=(f: AnalysisTypes.FourOhFour.t) =>
-      !Set.member(~value=f.space ++ (f.path ++ f.modifier), deletedHandlerSpecs)
+      !Set.member(~value=f.space ++ f.path ++ f.modifier, deletedHandlerSpecs)
     )
   }
 
@@ -281,24 +268,17 @@ let f404Category = (m: model): category => {
     nested: false,
     classname: "fof",
     iconAction: None,
+    icon: Icons.darkIcon("fof"),
     tooltip: Some(FourOhFour),
     entries: List.map(f404s, ~f=({space, path, modifier, _} as fof) => Entry({
-      name: if space == "HTTP" {
-        path
-      } else {
-        space ++ ("::" ++ path)
-      },
+      name: space == "HTTP" ? path : space ++ " " ++ path,
       uses: None,
       identifier: Other(fof.space ++ fof.path ++ fof.modifier),
       onClick: SendMsg(CreateHandlerFrom404(fof)),
       minusButton: Some(Delete404APICall(fof)),
       killAction: None,
       plusButton: Some(CreateHandlerFrom404(fof)),
-      verb: if space == "WORKER" {
-        None
-      } else {
-        Some(modifier)
-      },
+      verb: space == "WORKER" ? None : Some(modifier),
     })),
   }
 }
@@ -328,6 +308,7 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
     classname: "fns",
     plusButton: Some(CreateFunction),
     iconAction: Some(GoToArchitecturalView),
+    icon: Icons.darkIcon("fn"),
     tooltip: Some(Function),
     entries: entries,
   }
@@ -361,6 +342,7 @@ let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
     classname: "types",
     plusButton: Some(CreateType),
     iconAction: None,
+    icon: Icons.darkIcon("types"),
     tooltip: None,
     entries: entries,
   }
@@ -431,6 +413,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
         name: fn.name.package,
         plusButton: None,
         iconAction: None,
+        icon: fontAwesome("cubes"),
         classname: "pm-package" ++ fn.name.package,
         tooltip: None,
         entries: getFnnameEntries(packageList),
@@ -454,6 +437,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
       nested: true,
       plusButton: None,
       iconAction: None,
+      icon: fontAwesome("user"),
       classname: "pm-author" ++ fn.name.owner,
       tooltip: None,
       entries: getPackageEntries(authorList),
@@ -466,6 +450,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
     nested: false,
     plusButton: None,
     iconAction: None,
+    icon: fontAwesome("box-open"),
     classname: "package-manager",
     tooltip: Some(PackageManager),
     entries: getAuthorEntries,
@@ -512,6 +497,7 @@ let deletedCategory = (m: model): category => {
     plusButton: None,
     classname: "deleted",
     iconAction: None,
+    icon: Icons.darkIcon("deleted"),
     tooltip: Some(Deleted),
     entries: List.map(cats, ~f=c => Category(c)),
   }
@@ -696,7 +682,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
         tooltip,
         Html.div(
           list{Attrs.class'("category-header")},
-          list{categoryButton("static", "Static Assets")},
+          list{categoryButton("Static Assets", fontAwesome("file"))},
         ),
       },
     )
@@ -805,7 +791,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
 
     let header = Html.div(
       list{Attrs.class'("category-header")},
-      list{categoryButton("secrets", "Secret Keys")},
+      list{categoryButton("Secret Keys", fontAwesome("user-secret"))},
     )
 
     Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header, plusBtn})
@@ -910,7 +896,7 @@ and viewSidebarButton = (m: model, c: category): Html.html<msg> => {
     | Some(_) | None => list{Vdom.noProp}
     }
 
-    categoryButton(c.classname, c.name, ~props)
+    categoryButton(c.name, c.icon, ~props)
   }
 
   let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon})
@@ -1053,7 +1039,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{
       Html.div(
         list{tw2("category-summary", %twc("flex flex-col justify-start items-center -ml-2"))},
-        list{categoryButton("admin", "Admin"), environment},
+        list{categoryButton("Admin", fontAwesome("cog")), environment},
       ),
       hoverView,
     },
