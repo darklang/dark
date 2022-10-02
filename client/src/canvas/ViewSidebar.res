@@ -563,11 +563,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       }
 
       let cls = {
-        let unused = if e.uses == Some(0) {
-          %twc("text-sidebar-secondary")
-        } else {
-          ""
-        }
+        let unused = e.uses == Some(0) ? %twc("text-sidebar-secondary") : ""
         let default = %twc(
           "flex justify-between cursor-pointer w-full text-sidebar-primary no-underline outline-none"
         )
@@ -589,48 +585,36 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     let action = switch e.onClick {
     | SendMsg(msg) if m.permission == Some(ReadWrite) =>
       EventListeners.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
-    | _ => Vdom.noProp
+    | SendMsg(_) | DoNothing | Destination(_) => Vdom.noProp
     }
 
-    let nameStyle = %twc("w-full inline-block")
-
-    Html.span(list{tw2(nameStyle, "group toplevel-name"), action}, contents)
+    Html.span(list{tw2(%twc("w-full inline-block"), "group toplevel-name"), action}, contents)
   }
 
-  let iconspacer = Html.div(list{Attrs.class'("icon-spacer")}, list{})
-
-  // This prevents the delete button appearing in the hover view.
+  // This prevents the delete button appearing
   // We'll add it back in for 404s specifically at some point
-  let minuslink = if m.permission == Some(Read) {
-    iconspacer
-  } else {
-    switch e.minusButton {
-    | Some(msg) =>
-      iconButton(
-        ~key=entryKeyFromIdentifier(e.identifier),
-        ~style=%twc("mr-3 text-sidebar-secondary"),
-        ~icon="minus-circle",
-        ~classname="",
-        msg,
-      )
-    | None => iconspacer
-    }
+  let minuslink = switch e.minusButton {
+  | Some(msg) if m.permission == Some(ReadWrite) =>
+    iconButton(
+      ~key=entryKeyFromIdentifier(e.identifier),
+      ~style=%twc("mr-3 text-sidebar-secondary"),
+      ~icon="minus-circle",
+      ~classname="",
+      msg,
+    )
+  | Some(_) | None => Vdom.noNode
   }
 
   let pluslink = switch e.plusButton {
-  | Some(msg) =>
-    if m.permission == Some(ReadWrite) {
-      iconButton(
-        ~key=e.name ++ "-plus",
-        ~icon="plus-circle",
-        ~style=%twc("ml-1.5"),
-        ~classname="add-button",
-        msg,
-      )
-    } else {
-      iconspacer
-    }
-  | None => iconspacer
+  | Some(msg) if m.permission == Some(ReadWrite) =>
+    iconButton(
+      ~key=e.name ++ "-plus",
+      ~icon="plus-circle",
+      ~style=%twc("ml-1.5"),
+      ~classname="add-button",
+      msg,
+    )
+  | Some(_) | None => Vdom.noNode
   }
 
   Html.div(list{Attrs.class'("simple-item")}, list{minuslink, linkItem, pluslink})
