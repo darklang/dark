@@ -840,17 +840,14 @@ and viewCategoryContent = (m: model, c: category): Html.html<msg> => {
 and viewNestedCategory = (m: model, c: category): Html.html<msg> => {
   let content = viewCategoryContent(m, c)
 
-  Html.div(list{tw2("sidebar-category " ++ c.classname, Styles.sidebarCategory)}, list{content})
+  Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{content})
 }
 
 and viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
   let button = viewSidebarButton(m, c)
   let content = viewCategoryContent(m, c)
 
-  Html.div(
-    list{tw2("sidebar-category " ++ c.classname, Styles.sidebarCategory)},
-    list{button, content},
-  )
+  Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{button, content})
 }
 
 and viewSidebarButton = (m: model, c: category): Html.html<msg> => {
