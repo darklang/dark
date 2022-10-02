@@ -838,92 +838,84 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
   switch s {
   | Category(c) =>
     if c.count > 0 {
-      viewCategory(m, c)
+      viewNestedCategory(m, c)
     } else {
       Vdom.noNode
     }
   | Entry(e) => viewEntry(m, e)
   }
 
-and viewCategory = (m: model, c: category): Html.html<msg> => {
-  let tooltipView = switch c.tooltip {
-  | Some(tt) =>
-    Tooltips.generateContent(tt) |> Tooltips.viewToolTip(
-      ~shouldShow=m.tooltipState.tooltipSource == Some(tt),
-      ~tlid=None,
-    )
-  | None => Vdom.noNode
+and viewCategoryContent = (m: model, c: category): Html.html<msg> => {
+  let style = if c.nested {
+    Styles.nestedSidebarCategoryName
+  } else {
+    Styles.contentCategoryName
   }
-
-  let summary = {
-    let plusButton = switch c.plusButton {
-    | Some(msg) =>
-      if m.permission == Some(ReadWrite) {
-        iconButton(
-          ~key="plus-" ++ c.classname,
-          ~icon="plus-circle",
-          ~style=Styles.plusButton,
-          ~classname="",
-          msg,
-        )
-      } else {
-        Vdom.noNode
-      }
-    | None => Vdom.noNode
-    }
-
-    let catIcon = {
-      if c.nested {
-        Vdom.noNode
-      } else {
-        let props = switch c.iconAction {
-        | Some(ev) if !c.nested => list{
-            EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
-          }
-        | Some(_) | None => list{Vdom.noProp}
-        }
-
-        categoryButton(c.classname, c.name, ~props)
-      }
-    }
-
-    let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon})
-
-    Html.div(list{Attrs.class'("category-summary")}, list{tooltipView, header, plusButton})
-  }
-
-  let content = {
-    let style = if c.nested {
-      Styles.nestedSidebarCategoryName
-    } else {
-      Styles.contentCategoryName
-    }
-    let title = Html.span(list{tw(style)}, list{Html.text(c.name)})
-    let entries = if c.count > 0 {
-      List.map(~f=viewItem(m), c.entries)
-    } else {
-      list{viewEmptyCategory(c)}
-    }
-
-    Html.div(
-      list{
-        tw2("category-content", Styles.categoryContent),
-        EventListeners.eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
-          if !c.nested {
-            Msg.SidebarMsg(ResetSidebar)
-          } else {
-            Msg.IgnoreMsg("sidebar-category-close")
-          }
-        ),
-      },
-      list{title, ...entries},
-    )
+  let title = Html.span(list{tw(style)}, list{Html.text(c.name)})
+  let entries = if c.count > 0 {
+    List.map(~f=viewItem(m), c.entries)
+  } else {
+    list{viewEmptyCategory(c)}
   }
 
   Html.div(
-    list{tw2("sidebar-category " ++ c.classname, Styles.sidebarCategory)},
-    list{summary, content},
+    list{
+      tw2("category-content", Styles.categoryContent),
+      EventListeners.eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
+        if !c.nested {
+          Msg.SidebarMsg(ResetSidebar)
+        } else {
+          Msg.IgnoreMsg("sidebar-category-close")
+        }
+      ),
+    },
+    list{title, ...entries},
   )
+}
+
+and viewNestedCategory = (m: model, c: category): Html.html<msg> => {
+  let content = viewCategoryContent(m, c)
+
+  Html.div(list{tw2("sidebar-category " ++ c.classname, Styles.sidebarCategory)}, list{content})
+}
+
+and viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
+  let button = viewSidebarButton(m, c)
+  let content = viewCategoryContent(m, c)
+
+  Html.div(
+    list{tw2("sidebar-category " ++ c.classname, Styles.sidebarCategory)},
+    list{button, content},
+  )
+}
+
+and viewSidebarButton = (m: model, c: category): Html.html<msg> => {
+  let plusButton = switch c.plusButton {
+  | Some(msg) if m.permission == Some(ReadWrite) =>
+    iconButton(
+      ~key="plus-" ++ c.classname,
+      ~icon="plus-circle",
+      ~style=Styles.plusButton,
+      ~classname="",
+      msg,
+    )
+  | Some(_) | None => Vdom.noNode
+  }
+
+  let catIcon = {
+    let props = switch c.iconAction {
+    | Some(ev) if !c.nested => list{
+        EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
+      }
+    | Some(_) | None => list{Vdom.noProp}
+    }
+
+    categoryButton(c.classname, c.name, ~props)
+  }
+
+  let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon})
+
+  Html.div(list{Attrs.class'("category-summary")}, list{header, plusButton})
 }
 
 let adminDebuggerView = (m: model): Html.html<msg> => {
@@ -1086,7 +1078,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   }
 
   let categories = Belt.List.concat(
-    List.map(~f=viewCategory(m), cats),
+    List.map(~f=viewToplevelCategory(m), cats),
     list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
   )
 
