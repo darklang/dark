@@ -517,7 +517,6 @@ let viewEmptyCategory = (c: category): Html.html<msg> => {
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
-  let name = e.name
   let isSelected = tlidOfIdentifier(e.identifier) == CursorState.tlidOf(m.cursorState)
 
   let linkItem = {
@@ -560,22 +559,22 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
         `${default} ${unused}`
       }
 
-      list{Url.linkFor(dest, cls, list{Html.span(list{}, list{selected, Html.text(name)}), verb})}
+      list{Url.linkFor(dest, cls, list{Html.span(list{}, list{selected, Html.text(e.name)}), verb})}
 
     | SendMsg(_) =>
       let pointer = m.permission == Some(ReadWrite) ? %twc("cursor-pointer") : ""
       list{
         Html.span(
           list{tw2(pointer, %twc("flex justify-between w-full"))},
-          list{Html.text(name), verb},
+          list{Html.text(e.name), verb},
         ),
       }
-    | DoNothing => list{Html.text(name), verb}
+    | DoNothing => list{Html.text(e.name), verb}
     }
 
     let action = switch e.onClick {
     | SendMsg(msg) if m.permission == Some(ReadWrite) =>
-      EventListeners.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
+      EventListeners.eventNeither(~key=e.name ++ "-clicked-msg", "click", _ => msg)
     | SendMsg(_) | DoNothing | Destination(_) => Vdom.noProp
     }
 
