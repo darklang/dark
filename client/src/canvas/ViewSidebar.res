@@ -73,6 +73,14 @@ let rec count = (s: item): int =>
   | Category(c) => (c.entries |> List.map(~f=count))->List.sum(module(Int))
   }
 
+module Styles = {
+  let categoryNameBase = %twc("block text-grey8 font-bold mt-0 tracking-wide w-full font-heading")
+  let contentCategoryName = %twc("text-lg text-center ") ++ categoryNameBase
+  let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
+
+  let plusButton = %twc("text-xs hover:text-sidebar-hover hover:cursor-pointer")
+}
+
 let iconButton = (
   ~key: string,
   ~icon: string,
@@ -668,14 +676,6 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
       ),
     },
   )
-}
-
-module Styles = {
-  let categoryNameBase = %twc("block text-grey8 font-bold mt-0 tracking-wide w-full font-heading")
-  let contentCategoryName = %twc("text-lg text-center ") ++ categoryNameBase
-  let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
-
-  let plusButton = %twc("text-xs hover:text-sidebar-hover hover:cursor-pointer")
 }
 
 let viewDeployStats = (m: model): Html.html<msg> => {
