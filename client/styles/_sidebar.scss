@@ -32,25 +32,16 @@ $icSize: 1em;
 .category-summary {
   outline: none;
   display: flex;
-
   justify-content: flex-start;
   align-items: flex-end;
   width: 100%;
   align-items: center;
 
-
   div {
     display: inline-block;
   }
-
-  .category-header {
-    width: 80%;
-    text-align: center;
-  }
 }
 
-
-// Wrapper for categories' content
 .category-content {
   padding-left: 1em;
 
@@ -78,9 +69,7 @@ $icSize: 1em;
   }
 }
 
-// Category items
 .simple-item {
-
   div {
     display: inline-block;
   }
@@ -91,6 +80,3 @@ $icSize: 1em;
     }
   }
 }
-
-
-
