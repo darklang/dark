@@ -76,19 +76,6 @@ $icSize: 1em;
   }
 
   .category-icon {
-    margin-right: 0;
-    color: darken($primaryColor, 30%);
-    font-size: 1.5em;
-    transition: 0.2s font-size;
-    width: 36px;
-    height: 36px;
-    text-align: center;
-
-    &:hover {
-      @extend .sidebar-on-abridged-icon;
-      cursor: pointer;
-    }
-
     @at-root .abridged .sidebar-category:hover & {
       @extend .sidebar-on-abridged-icon;
     }
@@ -129,10 +116,6 @@ $icSize: 1em;
 
     &::-webkit-scrollbar-corner {
       background-color: transparent;
-    }
-
-    .category-icon {
-      display: none;
     }
   }
 

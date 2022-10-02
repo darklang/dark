@@ -120,7 +120,11 @@ let categoryIcon_ = (name: string): list<Html.html<msg>> => {
 let categoryButton = (~props=list{}, name: string, description: string): Html.html<msg> =>
   Html.div(
     list{
-      Attrs.class("category-icon"),
+      tw(
+        %twc(
+          "mr-0 text-2xl text-grey5 duration-200 hover:text-3xl w-9 h-9 text-center hover:cursor-pointer"
+        ),
+      ),
       Attrs.title(description),
       Attrs.role("img"),
       Attrs.alt(description),
@@ -878,14 +882,18 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     }
 
     let catIcon = {
-      let props = switch c.iconAction {
-      | Some(ev) if !c.nested => list{
-          EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
+      if c.nested {
+        Vdom.noNode
+      } else {
+        let props = switch c.iconAction {
+        | Some(ev) if !c.nested => list{
+            EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
+          }
+        | Some(_) | None => list{Vdom.noProp}
         }
-      | Some(_) | None => list{Vdom.noProp}
-      }
 
-      categoryButton(c.classname, c.name, ~props)
+        categoryButton(c.classname, c.name, ~props)
+      }
     }
 
     let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon})
