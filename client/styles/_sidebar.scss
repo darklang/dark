@@ -17,23 +17,6 @@ $sectionSpace: 20px;
 $hSpace: 5px;
 $icSize: 1em;
 
-/******************************************************************************
-*
-* General structure:
-*
-* .component {
-*   &.states-definitions { }
-*   .children-definitions {}
-*   .special-case-definitions {} (abridged vs detailed mode specific style-attrs)
-* }
-* ... and so on for each (category wrapper, category titles, line items)
-* .special-case-categories (404, static assets, deleted, etc.)
-*
-* We use @at-root to reduce deep nesting where repeating attributes
-* overwrite each other.
-*
-******************************************************************************/
-
 #sidebar-left {
   ::-webkit-scrollbar {
     -webkit-appearance: none;
@@ -44,11 +27,6 @@ $icSize: 1em;
   ::-webkit-scrollbar-thumb {
     border-radius: 7px;
   }
-}
-
-// Category summary
-.sidebar-on-abridged-icon {
-  font-size: 2em;
 }
 
 .category-summary {
