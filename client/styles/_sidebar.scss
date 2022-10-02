@@ -62,36 +62,31 @@ $icSize: 1em;
   outline: none;
   display: flex;
 
-  @at-root .abridged & {
-    justify-content: flex-start;
-    align-items: flex-end;
-  }
+  justify-content: flex-start;
+  align-items: flex-end;
+
 
   div {
     display: inline-block;
   }
 
   .category-header {
-    @at-root .abridged & {
-      width: 80%;
-      text-align: center;
-    }
+    width: 80%;
+    text-align: center;
   }
 
   .category-icon {
-    @at-root .abridged & {
-      margin-right: 0;
-      color: darken($primaryColor, 30%);
-      font-size: 1.5em;
-      transition: 0.2s font-size;
-      width: 36px;
-      height: 36px;
-      text-align: center;
+    margin-right: 0;
+    color: darken($primaryColor, 30%);
+    font-size: 1.5em;
+    transition: 0.2s font-size;
+    width: 36px;
+    height: 36px;
+    text-align: center;
 
-      &:hover {
-        @extend .sidebar-on-abridged-icon;
-        cursor: pointer;
-      }
+    &:hover {
+      @extend .sidebar-on-abridged-icon;
+      cursor: pointer;
     }
 
     @at-root .abridged .sidebar-category:hover & {
@@ -150,20 +145,16 @@ $icSize: 1em;
   }
 
   .toplevel-name {
-    width: calc(100% - #{2 * $icSize});
+    width: 100%;
     display: inline-block;
 
     &:hover + .add-button {
       color: $sidebarHoverColor;
     }
-
-    @at-root .abridged & {
-      width: 100%;
-    }
   }
 }
 
-.abridged .sidebar-category .category-content {
+.sidebar-category .category-content {
   .category-summary {
     width: 100%;
     align-items: center;
