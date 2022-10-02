@@ -517,14 +517,17 @@ let deletedCategory = (m: model): category => {
   }
 }
 
+let viewEmptyCategoryContents = (name: string): Html.html<msg> => {
+  Html.div(list{tw2(%twc("mt-4 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
+}
+
 let viewEmptyCategory = (c: category): Html.html<msg> => {
   let name = switch c.classname {
   | "http" => "HTTP handlers"
   | "cron" | "worker" | "repl" => c.name ++ "s"
   | _ => c.name
   }
-
-  Html.div(list{tw2(%twc("text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
+  viewEmptyCategoryContents(name)
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
@@ -703,7 +706,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     let deploys = if List.length(entries) > 0 {
       entries |> List.map(~f=viewDeploy)
     } else {
-      list{Html.div(list{tw(%twc("text-grey2 mt-1"))}, list{Html.text("No Static deploys")})}
+      list{viewEmptyCategoryContents("Static deploys")}
     }
 
     Html.div(
@@ -813,7 +816,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     let entries = if count > 0 {
       List.map(m.secrets, ~f=viewSecret)
     } else {
-      list{Html.div(list{Attrs.class'("simple-item")}, list{Html.text("No secret keys")})}
+      list{viewEmptyCategoryContents("secret keys")}
     }
     Html.div(
       list{
