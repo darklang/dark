@@ -610,7 +610,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       iconButton(
         ~key=e.name ++ "-plus",
         ~icon="plus-circle",
-        ~style="",
+        ~style=%twc("ml-1.5"),
         ~classname="add-button",
         msg,
       )
