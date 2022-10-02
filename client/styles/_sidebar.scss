@@ -55,11 +55,3 @@ $icSize: 1em;
     }
   }
 }
-
-.simple-item {
-  .toplevel-name {
-    &:hover + .add-button {
-      color: $sidebarHoverColor;
-    }
-  }
-}

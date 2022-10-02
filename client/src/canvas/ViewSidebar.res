@@ -521,6 +521,20 @@ let viewEmptyCategory = (c: category): Html.html<msg> => {
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
   let isSelected = tlidOfIdentifier(e.identifier) == CursorState.tlidOf(m.cursorState)
 
+  let pluslink = switch e.plusButton {
+  | Some(msg) if m.permission == Some(ReadWrite) =>
+    iconButton(
+      ~key=e.name ++ "-plus",
+      ~icon="plus-circle",
+      ~style=%twc(
+        "ml-1.5 group-sidebar-addbutton-hover:text-sidebar-hover inline-block text-grey8"
+      ),
+      ~classname="add-button",
+      msg,
+    )
+  | Some(_) | None => Vdom.noNode
+  }
+
   let linkItem = {
     let verb = switch e.verb {
     | Some(verb) =>
@@ -534,7 +548,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       | "OPTIONS" => %twc("text-http-options")
       | _ => %twc("text-white2")
       }
-      Html.span(list{tw2(verbStyle, "ml-4")}, list{Html.text(verb)})
+      Html.span(list{tw2(verbStyle, "ml-4")}, list{Html.text(verb), pluslink})
     | _ => Vdom.noNode
     }
 
@@ -580,7 +594,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     | SendMsg(_) | DoNothing | Destination(_) => Vdom.noProp
     }
 
-    Html.span(list{tw2(%twc("w-full inline-block"), "group toplevel-name"), action}, contents)
+    Html.span(list{tw(%twc("w-full inline-block group-sidebar-addbutton")), action}, contents)
   }
 
   // This prevents the delete button appearing
@@ -597,19 +611,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   | Some(_) | None => Vdom.noNode
   }
 
-  let pluslink = switch e.plusButton {
-  | Some(msg) if m.permission == Some(ReadWrite) =>
-    iconButton(
-      ~key=e.name ++ "-plus",
-      ~icon="plus-circle",
-      ~style=%twc("ml-1.5"),
-      ~classname="add-button",
-      msg,
-    )
-  | Some(_) | None => Vdom.noNode
-  }
-
-  Html.div(list{tw2(%twc("mt-1.25 flex"), "simple-item")}, list{minuslink, linkItem, pluslink})
+  Html.div(list{tw2(%twc("mt-1.25 flex"), "simple-item")}, list{minuslink, linkItem})
 }
 
 let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
