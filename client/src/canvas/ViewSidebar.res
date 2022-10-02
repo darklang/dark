@@ -1082,9 +1082,12 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{fontAwesome("cog")},
   )
 
-  let sectionIcon = Html.div(list{Attrs.class'("category-summary")}, list{icon, environment})
+  let sectionIcon = Html.div(
+    list{tw2("category-summary", %twc("flex flex-col justify-start items-center -ml-2"))},
+    list{icon, environment},
+  )
 
-  Html.div(list{tw2(%twc("p-0"), "sidebar-category admin")}, list{sectionIcon, hoverView})
+  Html.div(list{tw2(%twc("p-0"), "sidebar-category")}, list{sectionIcon, hoverView})
 }
 
 let update = (msg: Sidebar.msg): modification =>
