@@ -55,10 +55,6 @@ $icSize: 1em;
   margin-bottom: $sectionSpace;
   padding: 0 $hSpace;
   position: relative;
-
-  &.empty summary::-webkit-details-marker {
-    display: none;
-  }
 }
 
 // Category summary
@@ -73,10 +69,6 @@ $icSize: 1em;
   @at-root .abridged & {
     justify-content: flex-start;
     align-items: flex-end;
-
-    &::-webkit-details-marker {
-      display: none;
-    }
   }
 
   div {
@@ -186,10 +178,6 @@ $icSize: 1em;
   .category-summary {
     width: 100%;
     align-items: center;
-
-    &::-webkit-details-marker {
-      display: inline-block;
-    }
 
     .category-name {
       text-align: left;
