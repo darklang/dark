@@ -569,8 +569,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
         },
       )
     | SendMsg(msg) =>
-      let cls = "toplevel-msg"
-      let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})
+      let path = Html.span(list{}, list{Html.text(name)})
       let action = if m.permission == Some(ReadWrite) {
         EventListeners.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
       } else {
@@ -579,7 +578,9 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
 
       Html.span(
         list{Attrs.class'("toplevel-name"), action},
-        list{Html.span(list{Attrs.class'(cls)}, list{path, verb})},
+        list{
+          Html.span(list{tw(%twc("flex justify-between w-full cursor-pointer"))}, list{path, verb}),
+        },
       )
     | DoNothing => Html.span(list{Attrs.class'("toplevel-name")}, list{Html.text(name), verb})
     }

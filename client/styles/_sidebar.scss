@@ -157,13 +157,6 @@ $icSize: 1em;
       color: $sidebarHoverColor;
     }
 
-    .toplevel-msg {
-      display: flex;
-      justify-content: space-between;
-      width: 100%;
-      cursor: pointer;
-    }
-
     @at-root .abridged & {
       width: 100%;
     }
