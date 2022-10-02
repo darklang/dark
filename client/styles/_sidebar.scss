@@ -80,7 +80,6 @@ $icSize: 1em;
 
 // Category items
 .simple-item {
-  margin-top: 5px;
 
   div {
     display: inline-block;
@@ -92,11 +91,6 @@ $icSize: 1em;
     }
   }
 }
-.deleted,
-.fof {
-  .simple-item {
-    display: flex;
-  }
-}
+
 
 

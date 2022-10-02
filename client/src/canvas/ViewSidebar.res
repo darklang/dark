@@ -524,7 +524,7 @@ let viewEmptyCategory = (c: category): Html.html<msg> => {
   | _ => c.name
   }
 
-  Html.div(list{tw2(%twc("text-sidebar-secondary"), "simple-item")}, list{Html.text("No " ++ name)})
+  Html.div(list{tw2(%twc("text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
@@ -619,7 +619,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   | Some(_) | None => Vdom.noNode
   }
 
-  Html.div(list{Attrs.class'("simple-item")}, list{minuslink, linkItem, pluslink})
+  Html.div(list{tw2(%twc("mt-1.25 flex"), "simple-item")}, list{minuslink, linkItem, pluslink})
 }
 
 let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
