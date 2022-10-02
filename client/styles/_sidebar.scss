@@ -136,10 +136,6 @@ $icSize: 1em;
 .simple-item {
   margin-top: 5px;
 
-  &.empty {
-    color: $secondaryColor;
-  }
-
   div {
     display: inline-block;
   }

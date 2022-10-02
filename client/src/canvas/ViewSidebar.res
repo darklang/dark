@@ -513,7 +513,10 @@ let viewEmptyCategory = (c: category): Html.html<msg> => {
   | _ => c.name
   }
 
-  Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No " ++ name)})
+  Html.div(
+    list{tw2(%twc("text-sidebar-secondary"), "simple-item empty")},
+    list{Html.text("No " ++ name)},
+  )
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
