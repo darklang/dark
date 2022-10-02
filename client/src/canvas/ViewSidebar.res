@@ -810,12 +810,12 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
   }
 
 and viewCategoryContent = (m: model, c: category): Html.html<msg> => {
-  let style = if c.nested {
+  let titleStyle = if c.nested {
     Styles.nestedSidebarCategoryName
   } else {
     Styles.contentCategoryName
   }
-  let title = Html.span(list{tw(style)}, list{Html.text(c.name)})
+  let title = Html.span(list{tw(titleStyle)}, list{Html.text(c.name)})
   let entries = if c.count > 0 {
     List.map(~f=viewItem(m), c.entries)
   } else {
