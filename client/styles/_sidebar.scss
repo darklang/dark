@@ -179,16 +179,6 @@ $icSize: 1em;
   width: 0.5em;
 }
 
-/* Special Case: Static Assets */
-.sidebar-category.deploys {
-  .category-summary {
-    display: block;
-    .category-header {
-      display: inline-block;
-    }
-  }
-}
-
 /* Special case : Secrets */
 .sidebar-category.secrets {
   @at-root & > .category-content {
@@ -207,8 +197,5 @@ $icSize: 1em;
     align-items: center;
     margin-left: -0.5em;
 
-    div {
-      display: block;
-    }
   }
 }
