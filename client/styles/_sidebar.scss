@@ -99,14 +99,4 @@ $icSize: 1em;
   }
 }
 
-/* Special Case: Package Manager  */
-.simple-item .icon-spacer {
-  display: inline-block;
-  width: $icSize;
-  height: $icSize;
-  display: none;
-}
-.package-manager .simple-item .icon-spacer {
-  width: 0.5em;
-}
 
