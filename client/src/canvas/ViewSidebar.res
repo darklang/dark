@@ -80,11 +80,9 @@ let iconButton = (
   ~style: string,
   handler: msg,
 ): Html.html<msg> => {
+  let twStyle = %twc("hover:text-sidebar-hover cursor-pointer")
   let event = EventListeners.eventNeither(~key, "click", _ => handler)
-  Html.div(
-    list{event, Attrs.class'(style ++ " icon-button " ++ classname)},
-    list{fontAwesome(icon)},
-  )
+  Html.div(list{event, Attrs.class(`${style} ${twStyle} ${classname}`)}, list{fontAwesome(icon)})
 }
 
 let categoryIcon_ = (name: string): list<Html.html<msg>> => {
@@ -589,9 +587,9 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     | Some(msg) =>
       iconButton(
         ~key=entryKeyFromIdentifier(e.identifier),
-        ~style="",
+        ~style=%twc("mr-3 text-sidebar-secondary"),
         ~icon="minus-circle",
-        ~classname="delete-button",
+        ~classname="",
         msg,
       )
     | None => iconspacer

@@ -165,20 +165,6 @@ $icSize: 1em;
     display: inline-block;
   }
 
-  .icon-spacer {
-    display: inline-block;
-    width: $icSize;
-    height: $icSize;
-
-    @at-root .abridged & {
-      display: none;
-    }
-  }
-
-  .icon-button {
-    cursor: pointer;
-  }
-
   .toplevel-name {
     width: calc(100% - #{2 * $icSize});
     display: inline-block;
@@ -229,15 +215,6 @@ $icSize: 1em;
       justify-content: flex-start;
     }
 
-    .icon-button:hover {
-      color: $sidebarHoverColor;
-    }
-
-    .delete-button {
-      margin-right: 0.8em;
-      color: $secondaryColor;
-    }
-
     .add-button {
       margin-left: $hSpace;
     }
@@ -245,6 +222,12 @@ $icSize: 1em;
 }
 
 /* Special Case: Package Manager  */
+.simple-item  .icon-spacer {
+  display: inline-block;
+  width: $icSize;
+  height: $icSize;
+  display: none;
+}
 .sidebar-category.package-manager .simple-item .icon-spacer {
   width: 0.5em;
 }
