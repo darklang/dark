@@ -598,9 +598,10 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   }
 
   let iconspacer = Html.div(list{Attrs.class'("icon-spacer")}, list{})
-  let minuslink = /* This prevents the delete button appearing in the hover view.
-   * We'll add it back in for 404s specifically at some point */
-  if m.permission == Some(Read) {
+
+  // This prevents the delete button appearing in the hover view.
+  // We'll add it back in for 404s specifically at some point
+  let minuslink = if m.permission == Some(Read) {
     iconspacer
   } else {
     switch e.minusButton {
