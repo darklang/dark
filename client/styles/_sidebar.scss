@@ -175,11 +175,3 @@ $icSize: 1em;
   width: 0.5em;
 }
 
-/* Special case : Secrets */
-.sidebar-category.secrets {
-  @at-root & > .category-content {
-    background-color: $sidebarBgColor;
-    width: $sidebarFullWidth;
-    max-width: $sidebarFullWidth;
-  }
-}
