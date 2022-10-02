@@ -672,7 +672,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 
   let summary = {
     Html.div(
-      list{tw2(Styles.categorySummary, "category-summary")},
+      list{tw(Styles.categorySummary)},
       list{categoryButton("Static Assets", fontAwesome("file"))},
     )
   }
@@ -761,15 +761,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 }
 
 let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
-  let count = List.length(m.secrets)
-
   let summary = {
-    let tooltip =
-      Tooltips.generateContent(Secrets) |> Tooltips.viewToolTip(
-        ~shouldShow=m.tooltipState.tooltipSource == Some(Secrets),
-        ~tlid=None,
-      )
-
     let plusBtn = iconButton(
       ~key="plus-secret",
       ~icon="plus-circle",
@@ -780,12 +772,12 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
 
     let header = Html.div(list{}, list{categoryButton("Secret Keys", fontAwesome("user-secret"))})
 
-    Html.div(list{tw2(Styles.categorySummary, "category-summary")}, list{tooltip, header, plusBtn})
+    Html.div(list{tw(Styles.categorySummary)}, list{header, plusBtn})
   }
 
   let content = {
     let title = Html.span(list{tw(Styles.contentCategoryName)}, list{Html.text("Secret Keys")})
-    let entries = if count > 0 {
+    let entries = if m.secrets != list{} {
       List.map(m.secrets, ~f=viewSecret)
     } else {
       list{viewEmptyCategoryContents("secret keys")}
@@ -885,7 +877,7 @@ and viewSidebarButton = (m: model, c: category): Html.html<msg> => {
     categoryButton(c.name, c.icon, ~props)
   }
 
-  Html.div(list{tw2(Styles.categorySummary, "category-summary")}, list{catIcon, plusButton})
+  Html.div(list{tw(Styles.categorySummary)}, list{catIcon, plusButton})
 }
 
 let adminDebuggerView = (m: model): Html.html<msg> => {
@@ -1022,13 +1014,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{tw3(%twc("p-0"), Styles.sidebarCategory, "sidebar-category")},
     list{
       Html.div(
-        list{
-          tw3(
-            Styles.categorySummary,
-            "category-summary",
-            %twc("flex flex-col justify-start items-center -ml-2"),
-          ),
-        },
+        list{tw2(Styles.categorySummary, %twc("flex flex-col justify-start items-center -ml-2"))},
         list{categoryButton("Admin", fontAwesome("cog")), environment},
       ),
       hoverView,
