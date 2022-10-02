@@ -57,10 +57,6 @@ $icSize: 1em;
 }
 
 .simple-item {
-  div {
-    display: inline-block;
-  }
-
   .toplevel-name {
     &:hover + .add-button {
       color: $sidebarHoverColor;
