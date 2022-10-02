@@ -504,7 +504,7 @@ let deletedCategory = (m: model): category => {
 }
 
 let viewEmptyCategoryContents = (name: string): Html.html<msg> => {
-  Html.div(list{tw2(%twc("mt-4 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
+  Html.div(list{tw2(%twc("ml-3 mt-4 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
 }
 
 let viewEmptyCategory = (c: category): Html.html<msg> => {
