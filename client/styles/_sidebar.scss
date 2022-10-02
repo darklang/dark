@@ -87,9 +87,6 @@ $icSize: 1em;
   }
 
   .toplevel-name {
-    width: 100%;
-    display: inline-block;
-
     &:hover + .add-button {
       color: $sidebarHoverColor;
     }

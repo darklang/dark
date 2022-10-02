@@ -548,7 +548,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     | _ => Vdom.noNode
     }
 
-    switch e.onClick {
+    let contents = switch e.onClick {
     | Destination(dest) =>
       let selected = {
         // font-black is same as fa-solid, font-medium produces the empty circle
@@ -575,28 +575,26 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
         `${default} ${unused}`
       }
 
-      Html.span(
-        list{Attrs.class("group toplevel-name")},
-        list{
-          Url.linkFor(dest, cls, list{Html.span(list{}, list{selected, Html.text(name)}), verb}),
-        },
-      )
-    | SendMsg(msg) =>
-      let path = Html.span(list{}, list{Html.text(name)})
-      let action = if m.permission == Some(ReadWrite) {
-        EventListeners.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
-      } else {
-        Vdom.noProp
-      }
+      list{Url.linkFor(dest, cls, list{Html.span(list{}, list{selected, Html.text(name)}), verb})}
 
-      Html.span(
-        list{Attrs.class'("toplevel-name"), action},
-        list{
-          Html.span(list{tw(%twc("flex justify-between w-full cursor-pointer"))}, list{path, verb}),
-        },
-      )
-    | DoNothing => Html.span(list{Attrs.class'("toplevel-name")}, list{Html.text(name), verb})
+    | SendMsg(_) =>
+      let path = Html.span(list{}, list{Html.text(name)})
+
+      list{
+        Html.span(list{tw(%twc("flex justify-between w-full cursor-pointer"))}, list{path, verb}),
+      }
+    | DoNothing => list{Html.text(name), verb}
     }
+
+    let action = switch e.onClick {
+    | SendMsg(msg) if m.permission == Some(ReadWrite) =>
+      EventListeners.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
+    | _ => Vdom.noProp
+    }
+
+    let nameStyle = %twc("w-full inline-block")
+
+    Html.span(list{tw2(nameStyle, "group toplevel-name"), action}, contents)
   }
 
   let iconspacer = Html.div(list{Attrs.class'("icon-spacer")}, list{})
