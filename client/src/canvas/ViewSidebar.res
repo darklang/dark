@@ -122,8 +122,8 @@ let categoryButton = (~props=list{}, name: string, description: string): Html.ht
     list{
       Attrs.class("category-icon"),
       Attrs.title(description),
-      Vdom.attribute("", "role", "img"),
-      Vdom.attribute("", "alt", description),
+      Attrs.role("img"),
+      Attrs.alt(description),
       ...props,
     },
     categoryIcon_(name),
@@ -1073,12 +1073,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   let icon = Html.div(
-    list{
-      Attrs.class'("category-icon"),
-      Attrs.title("Admin"),
-      Vdom.attribute("", "role", "img"),
-      Vdom.attribute("", "alt", "Admin"),
-    },
+    list{Attrs.class("category-icon"), Attrs.title("Admin"), Attrs.role("img"), Attrs.alt("Admin")},
     list{fontAwesome("cog")},
   )
 
