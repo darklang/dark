@@ -517,6 +517,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   }
 
   let linkItem = {
+    // We add pluslink here as it's hard to get into place otherwise
     let verb = switch e.verb {
     | Some(verb) =>
       let verbStyle = switch verb {
@@ -530,7 +531,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       | _ => %twc("text-white2")
       }
       Html.span(list{tw2(verbStyle, "ml-4")}, list{Html.text(verb), pluslink})
-    | _ => Vdom.noNode
+    | _ => pluslink
     }
 
     let contents = switch e.onClick {
