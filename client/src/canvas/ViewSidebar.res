@@ -74,7 +74,9 @@ let rec count = (s: item): int =>
   }
 
 module Styles = {
-  let categoryNameBase = %twc("block text-grey8 font-bold mt-0 tracking-wide w-full font-heading")
+  let categoryNameBase = %twc(
+    "block text-grey8 font-bold mt-0 tracking-wide w-full font-heading -ml-4"
+  )
   let contentCategoryName = %twc("text-lg text-center ") ++ categoryNameBase
   let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
 
