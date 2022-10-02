@@ -56,10 +56,6 @@ $icSize: 1em;
   padding: 0 $hSpace;
   position: relative;
 
-  @at-root .abridged &.repl {
-    margin-bottom: $sectionSpace + 5px; // add extra spacing for icon balance
-  }
-
   &.empty summary::-webkit-details-marker {
     display: none;
   }
