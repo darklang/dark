@@ -57,6 +57,8 @@ $icSize: 1em;
 
   justify-content: flex-start;
   align-items: flex-end;
+  width: 100%;
+  align-items: center;
 
 
   div {
@@ -69,19 +71,12 @@ $icSize: 1em;
   }
 }
 
-.category-content {
-  .category-summary {
-    width: 100%;
-    align-items: center;
-  }
-}
-
-
 
 // Wrapper for categories' content
 .category-content {
   padding-left: 1em;
 
+  // TODO: this stuff is only for the toplevel category-content (not used in the nested categories)
   @at-root .abridged > .sidebar-category > & {
     background-color: $sidebarBgColor;
     min-width: $sidebarFullWidth;
