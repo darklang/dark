@@ -95,6 +95,15 @@ $icSize: 1em;
   }
 }
 
+.sidebar-category .category-content {
+  .category-summary {
+    width: 100%;
+    align-items: center;
+  }
+}
+
+
+
 // Wrapper for categories' content
 .category-content {
   padding-left: 1em;
@@ -149,14 +158,6 @@ $icSize: 1em;
     }
   }
 }
-
-.sidebar-category .category-content {
-  .category-summary {
-    width: 100%;
-    align-items: center;
-  }
-}
-
 .sidebar-category.deleted,
 .sidebar-category.fof {
   .simple-item {

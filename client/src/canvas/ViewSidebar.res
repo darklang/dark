@@ -513,10 +513,7 @@ let viewEmptyCategory = (c: category): Html.html<msg> => {
   | _ => c.name
   }
 
-  Html.div(
-    list{tw2(%twc("text-sidebar-secondary"), "simple-item empty")},
-    list{Html.text("No " ++ name)},
-  )
+  Html.div(list{tw2(%twc("text-sidebar-secondary"), "simple-item")}, list{Html.text("No " ++ name)})
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
@@ -686,7 +683,6 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 
 let viewDeployStats = (m: model): Html.html<msg> => {
   let entries = m.staticDeploys
-  let count = List.length(entries)
 
   let summary = {
     let tooltip =
@@ -730,11 +726,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     )
   }
 
-  let classes = Attrs.classList(list{
-    ("sidebar-category", true),
-    ("deploys", true),
-    ("empty", count == 0),
-  })
+  let classes = Attrs.classList(list{("sidebar-category", true), ("deploys", true)})
 
   Html.div(list{classes}, list{summary, content})
 }
@@ -827,7 +819,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     let entries = if count > 0 {
       List.map(m.secrets, ~f=viewSecret)
     } else {
-      list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No secret keys")})}
+      list{Html.div(list{Attrs.class'("simple-item")}, list{Html.text("No secret keys")})}
     }
     Html.div(
       list{
@@ -842,11 +834,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     )
   }
 
-  let classes = Attrs.classList(list{
-    ("sidebar-category", true),
-    ("secrets", true),
-    ("empty", count == 0),
-  })
+  let classes = Attrs.classList(list{("sidebar-category", true), ("secrets", true)})
 
   Html.div(list{classes}, list{summary, content})
 }
@@ -933,11 +921,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     )
   }
 
-  let classes = Attrs.classList(list{
-    ("sidebar-category", true),
-    (c.classname, true),
-    ("empty", c.count == 0),
-  })
+  let classes = Attrs.classList(list{("sidebar-category", true), (c.classname, true)})
 
   Html.div(list{classes}, list{summary, content})
 }
