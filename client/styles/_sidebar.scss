@@ -46,13 +46,6 @@ $icSize: 1em;
   }
 }
 
-// Category block
-.sidebar-category {
-  margin-bottom: $sectionSpace;
-  padding: 0 $hSpace;
-  position: relative;
-}
-
 // Category summary
 .sidebar-on-abridged-icon {
   font-size: 2em;
@@ -82,7 +75,7 @@ $icSize: 1em;
   }
 }
 
-.sidebar-category .category-content {
+.category-content {
   .category-summary {
     width: 100%;
     align-items: center;
@@ -141,8 +134,8 @@ $icSize: 1em;
     }
   }
 }
-.sidebar-category.deleted,
-.sidebar-category.fof {
+.deleted,
+.fof {
   .simple-item {
     display: flex;
   }
@@ -155,7 +148,7 @@ $icSize: 1em;
   height: $icSize;
   display: none;
 }
-.sidebar-category.package-manager .simple-item .icon-spacer {
+.package-manager .simple-item .icon-spacer {
   width: 0.5em;
 }
 

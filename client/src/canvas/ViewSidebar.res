@@ -14,6 +14,7 @@ let fontAwesome = Icons.fontAwesome
 
 let tw = Attrs.class
 let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
+let tw3 = (c1, c2, c3) => Attrs.class(`${c1} ${c2} ${c3}`)
 
 let missingEventRouteDesc: string = "Undefined"
 
@@ -81,6 +82,8 @@ module Styles = {
   let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
 
   let plusButton = %twc("text-xs hover:text-sidebar-hover hover:cursor-pointer")
+
+  let sidebarCategory = %twc("mb-5 px-1.25 py-0 relative")
 }
 
 let iconButton = (
@@ -731,9 +734,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     )
   }
 
-  let classes = Attrs.class("sidebar-category")
-
-  Html.div(list{classes}, list{summary, content})
+  Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{summary, content})
 }
 
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
@@ -839,9 +840,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     )
   }
 
-  let classes = Attrs.class("sidebar-category")
-
-  Html.div(list{classes}, list{summary, content})
+  Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{summary, content})
 }
 
 let rec viewItem = (m: model, s: item): Html.html<msg> =>
@@ -930,9 +929,10 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
     )
   }
 
-  let classes = Attrs.class("sidebar-category " ++ c.classname)
-
-  Html.div(list{classes}, list{summary, content})
+  Html.div(
+    list{tw2("sidebar-category " ++ c.classname, Styles.sidebarCategory)},
+    list{summary, content},
+  )
 }
 
 let adminDebuggerView = (m: model): Html.html<msg> => {
@@ -1066,7 +1066,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   Html.div(
-    list{tw2(%twc("p-0"), "sidebar-category")},
+    list{tw3(%twc("p-0"), Styles.sidebarCategory, "sidebar-category")},
     list{
       Html.div(
         list{tw2("category-summary", %twc("flex flex-col justify-start items-center -ml-2"))},
