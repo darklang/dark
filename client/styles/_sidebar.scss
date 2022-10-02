@@ -99,15 +99,9 @@ $icSize: 1em;
     left: $sidebarClosedWidth;
     top: -1.25em;
 
-    display: none;
-
     &::-webkit-scrollbar-corner {
       background-color: transparent;
     }
-  }
-
-  @at-root .abridged > .sidebar-category:hover > & {
-    display: block;
   }
 }
 

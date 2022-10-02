@@ -84,6 +84,8 @@ module Styles = {
   let plusButton = %twc("text-xs hover:text-sidebar-hover hover:cursor-pointer")
 
   let sidebarCategory = %twc("mb-5 px-1.25 py-0 relative group-outer")
+
+  let categoryContent = %twc("hidden group-outer-hover:block")
 }
 
 let iconButton = (
@@ -720,7 +722,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 
     Html.div(
       list{
-        Attrs.class'("category-content"),
+        tw2("category-content", Styles.categoryContent),
         EventListeners.eventNoPropagation(
           ~key="cat-close-deploy",
           "mouseleave",
@@ -829,7 +831,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     }
     Html.div(
       list{
-        Attrs.class'("category-content"),
+        tw2("category-content", Styles.categoryContent),
         EventListeners.eventNoPropagation(
           ~key="cat-close-secret",
           "mouseleave",
@@ -916,7 +918,7 @@ and viewCategory = (m: model, c: category): Html.html<msg> => {
 
     Html.div(
       list{
-        Attrs.class'("category-content"),
+        tw2("category-content", Styles.categoryContent),
         EventListeners.eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
           if !c.nested {
             Msg.SidebarMsg(ResetSidebar)
@@ -1058,7 +1060,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   let hoverView = Html.div(
-    list{Attrs.class'("category-content")},
+    list{tw2("category-content", Styles.categoryContent)},
     Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
       list{saveTestButton},
