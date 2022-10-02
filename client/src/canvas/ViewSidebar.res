@@ -669,21 +669,9 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   let entries = m.staticDeploys
 
   let summary = {
-    let tooltip =
-      Tooltips.generateContent(StaticAssets) |> Tooltips.viewToolTip(
-        ~shouldShow=m.tooltipState.tooltipSource == Some(StaticAssets),
-        ~tlid=None,
-      )
-
     Html.div(
       list{Attrs.class'("category-summary")},
-      list{
-        tooltip,
-        Html.div(
-          list{Attrs.class'("category-header")},
-          list{categoryButton("Static Assets", fontAwesome("file"))},
-        ),
-      },
+      list{categoryButton("Static Assets", fontAwesome("file"))},
     )
   }
 
@@ -788,10 +776,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
       SecretMsg(OpenCreateModal),
     )
 
-    let header = Html.div(
-      list{Attrs.class'("category-header")},
-      list{categoryButton("Secret Keys", fontAwesome("user-secret"))},
-    )
+    let header = Html.div(list{}, list{categoryButton("Secret Keys", fontAwesome("user-secret"))})
 
     Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header, plusBtn})
   }
@@ -898,9 +883,7 @@ and viewSidebarButton = (m: model, c: category): Html.html<msg> => {
     categoryButton(c.name, c.icon, ~props)
   }
 
-  let header = Html.div(list{Attrs.class'("category-header")}, list{catIcon})
-
-  Html.div(list{Attrs.class'("category-summary")}, list{header, plusButton})
+  Html.div(list{Attrs.class'("category-summary")}, list{catIcon, plusButton})
 }
 
 let adminDebuggerView = (m: model): Html.html<msg> => {
