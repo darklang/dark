@@ -111,6 +111,7 @@ let categoryIcon_ = (name: string): list<Html.html<msg>> => {
   | "worker" => list{fontAwesome("wrench")}
   | "fof" => list{darkIcon("fof")}
   | "secrets" => list{fontAwesome("user-secret")}
+  | "admin" => list{fontAwesome("cog")}
   | _ if String.includes(~substring="pm-author", name) => list{fontAwesome("user")}
   | _ if String.includes(~substring="pm-package", name) => list{fontAwesome("cubes")}
   | _ => list{darkIcon("undefined")}
@@ -1064,17 +1065,16 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     ]),
   )
 
-  let icon = Html.div(
-    list{Attrs.class("category-icon"), Attrs.title("Admin"), Attrs.role("img"), Attrs.alt("Admin")},
-    list{fontAwesome("cog")},
+  Html.div(
+    list{tw2(%twc("p-0"), "sidebar-category")},
+    list{
+      Html.div(
+        list{tw2("category-summary", %twc("flex flex-col justify-start items-center -ml-2"))},
+        list{categoryButton("admin", "Admin"), environment},
+      ),
+      hoverView,
+    },
   )
-
-  let sectionIcon = Html.div(
-    list{tw2("category-summary", %twc("flex flex-col justify-start items-center -ml-2"))},
-    list{icon, environment},
-  )
-
-  Html.div(list{tw2(%twc("p-0"), "sidebar-category")}, list{sectionIcon, hoverView})
 }
 
 let update = (msg: Sidebar.msg): modification =>
