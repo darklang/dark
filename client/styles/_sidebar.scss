@@ -161,10 +161,6 @@ $icSize: 1em;
 .sidebar-category.fof {
   .simple-item {
     display: flex;
-
-    &.empty {
-      justify-content: flex-start;
-    }
   }
 }
 
@@ -196,6 +192,5 @@ $icSize: 1em;
     justify-content: flex-start;
     align-items: center;
     margin-left: -0.5em;
-
   }
 }
