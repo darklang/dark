@@ -577,11 +577,11 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
 
       list{Url.linkFor(dest, cls, list{Html.span(list{}, list{selected, Html.text(name)}), verb})}
 
-    | SendMsg(_) =>
-      let path = Html.span(list{}, list{Html.text(name)})
-
-      list{
-        Html.span(list{tw(%twc("flex justify-between w-full cursor-pointer"))}, list{path, verb}),
+    | SendMsg(_) => list{
+        Html.span(
+          list{tw(%twc("flex justify-between w-full cursor-pointer"))},
+          list{Html.text(name), verb},
+        ),
       }
     | DoNothing => list{Html.text(name), verb}
     }
