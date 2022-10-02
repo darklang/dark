@@ -689,19 +689,19 @@ let viewDeployStats = (m: model): Html.html<msg> => {
         ~tlid=None,
       )
 
-    let header = Html.div(
-      list{Attrs.class'("category-header")},
-      list{categoryButton("static", "Static Assets")},
+    Html.div(
+      list{Attrs.class'("category-summary")},
+      list{
+        tooltip,
+        Html.div(
+          list{Attrs.class'("category-header")},
+          list{categoryButton("static", "Static Assets")},
+        ),
+      },
     )
-
-    Html.div(list{Attrs.class'("category-summary")}, list{tooltip, header})
   }
 
   let content = {
-    let title = Html.span(
-      list{Attrs.class(Styles.contentCategoryName)},
-      list{Html.text("Static Assets")},
-    )
     let deploys = if List.length(entries) > 0 {
       entries |> List.map(~f=viewDeploy)
     } else {
@@ -717,7 +717,10 @@ let viewDeployStats = (m: model): Html.html<msg> => {
           _ => Msg.SidebarMsg(ResetSidebar),
         ),
       },
-      list{title, ...deploys},
+      list{
+        Html.span(list{Attrs.class(Styles.contentCategoryName)}, list{Html.text("Static Assets")}),
+        ...deploys,
+      },
     )
   }
 
