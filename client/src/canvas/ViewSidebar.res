@@ -531,22 +531,37 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
 
     switch e.onClick {
     | Destination(dest) =>
-      let cls = {
-        let selected = if isSelected {
-          " selected"
+      let selected = {
+        // font-black is same as fa-solid, font-medium produces the empty circle
+        let dotStyle = if isSelected {
+          %twc("inline-block text-sidebar-hover group-hover:text-orange font-black")
         } else {
-          ""
+          %twc("inline-block text-transparent group-hover:text-sidebar-hover font-medium")
         }
-        let unused = if e.uses == Some(0) {
-          " unused"
-        } else {
-          ""
-        }
-        "toplevel-link" ++ (selected ++ unused)
+        // unclear why both align-middle and mb-[2px] are needed to make the dot center
+        let baseStyle = %twc("text-xxs pl-0.25 pr-0.5 align-middle mb-[2px]")
+        fontAwesome(~style=`${baseStyle} ${dotStyle}`, "circle")
       }
 
-      let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})
-      Html.span(list{Attrs.class'("toplevel-name")}, list{Url.linkFor(dest, cls, list{path, verb})})
+      let cls = {
+        let unused = if e.uses == Some(0) {
+          %twc("text-sidebar-secondary")
+        } else {
+          ""
+        }
+        let default = %twc(
+          "flex justify-between cursor-pointer w-full text-sidebar-primary no-underline outline-none"
+        )
+
+        `${default} ${unused}`
+      }
+
+      Html.span(
+        list{Attrs.class("group toplevel-name")},
+        list{
+          Url.linkFor(dest, cls, list{Html.span(list{}, list{selected, Html.text(name)}), verb}),
+        },
+      )
     | SendMsg(msg) =>
       let cls = "toplevel-msg"
       let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})

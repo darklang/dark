@@ -59,11 +59,14 @@ module.exports = {
       },
       fontSize: {
         xxs: "0.625rem",
+        xxxs: "0.5rem",
       },
       margin: {
+        0.25: "0.0625rem",
         1.25: "0.3125rem",
       },
       padding: {
+        0.25: "0.0625rem",
         1.25: "0.3125rem",
       },
     },

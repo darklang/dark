@@ -187,42 +187,11 @@ $icSize: 1em;
       color: $sidebarHoverColor;
     }
 
-    .toplevel-msg,
-    .toplevel-link {
+    .toplevel-msg {
       display: flex;
       justify-content: space-between;
       width: 100%;
       cursor: pointer;
-    }
-
-    a.toplevel-link {
-      color: $primaryColor;
-      &.unused {
-        color: $secondaryColor;
-      }
-      text-decoration: none;
-      outline: none;
-
-      .path::before {
-        @include font-awesome("\f111 \00a0");
-        color: transparent;
-        font-size: 0.5em;
-        display: inline;
-      }
-
-      &:hover .path::before {
-        color: $sidebarHoverColor;
-        font-weight: 500;
-      }
-
-      &.selected .path::before {
-        color: $sidebarHoverColor;
-      }
-
-      &.selected:hover .path::before {
-        color: $orange;
-        font-weight: 900;
-      }
     }
 
     @at-root .abridged & {
