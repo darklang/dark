@@ -17,6 +17,7 @@
     "ppx-deriving": "44.2.0",
     "sass": "^1.55.0",
     "tailwindcss": "^3.1.8",
+    "tailwindcss-labeled-groups": "^0.0.2",
     "@greenlabs/res-tailwindcss": "^0.1.2"
   },
   "dependencies": {

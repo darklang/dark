@@ -83,7 +83,7 @@ module Styles = {
 
   let plusButton = %twc("text-xs hover:text-sidebar-hover hover:cursor-pointer")
 
-  let sidebarCategory = %twc("mb-5 px-1.25 py-0 relative")
+  let sidebarCategory = %twc("mb-5 px-1.25 py-0 relative group-outer")
 }
 
 let iconButton = (
@@ -126,7 +126,7 @@ let categoryButton = (~props=list{}, name: string, description: string): Html.ht
     list{
       tw(
         %twc(
-          "mr-0 text-2xl text-grey5 duration-200 hover:text-3xl w-9 h-9 text-center hover:cursor-pointer"
+          "mr-0 text-2xl text-grey5 duration-200 group-outer-hover:text-3xl w-9 h-9 text-center"
         ),
       ),
       Attrs.title(description),

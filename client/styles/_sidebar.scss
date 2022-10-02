@@ -67,12 +67,6 @@ $icSize: 1em;
     width: 80%;
     text-align: center;
   }
-
-  .category-icon {
-    @at-root .abridged .sidebar-category:hover & {
-      @extend .sidebar-on-abridged-icon;
-    }
-  }
 }
 
 .category-content {

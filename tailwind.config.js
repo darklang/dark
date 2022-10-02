@@ -83,5 +83,14 @@ module.exports = {
     // the other reset css used, so disable it.
     preflight: false,
   },
-  plugins: [],
+  plugins: [
+    require("tailwindcss-labeled-groups")([
+      "outer",
+      "outer1",
+      "outer2",
+      "inner",
+      "inner1",
+      "inner2",
+    ]),
+  ],
 };
