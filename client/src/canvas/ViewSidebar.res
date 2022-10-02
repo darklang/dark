@@ -202,24 +202,14 @@ let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory
   , "Worker", NewWorkerHandler(None), Some(GoToArchitecturalView), Worker, handlers)
 
 let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
-  let entries = List.map(dbs, ~f=db => {
-    let uses = if db.name == "" {
-      0
-    } else {
-      Refactor.dbUseCount(m, db.name)
-    }
-
-    let minusButton = None
+  let entries = dbs->List.map(~f=db => {
+    let uses = db.name == "" ? 0 : Refactor.dbUseCount(m, db.name)
     Entry({
-      name: if db.name == "" {
-        "Untitled DB"
-      } else {
-        db.name
-      },
+      name: db.name == "" ? "Untitled DB" : db.name,
       identifier: Tlid(db.tlid),
       uses: Some(uses),
       onClick: Destination(FocusedDB(db.tlid, true)),
-      minusButton: minusButton,
+      minusButton: None,
       killAction: Some(ToplevelDeleteForever(db.tlid)),
       verb: None,
       plusButton: None,
@@ -287,17 +277,15 @@ let f404Category = (m: model): category => {
 
 let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
   let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => fn.name != "")
-  let entries = List.map(fns, ~f=fn => {
-    let tlid = fn.tlid
-    let usedIn = Introspect.allUsedIn(tlid, m)
-    let minusButton = None
+  let entries = fns->List.map(~f=fn => {
+    let usedIn = Introspect.allUsedIn(fn.tlid, m)
     Entry({
       name: fn.name,
-      identifier: Tlid(tlid),
+      identifier: Tlid(fn.tlid),
       uses: Some(List.length(usedIn)),
-      minusButton: minusButton,
-      killAction: Some(DeleteUserFunctionForever(tlid)),
-      onClick: Destination(FocusedFn(tlid, None)),
+      minusButton: None,
+      killAction: Some(DeleteUserFunctionForever(fn.tlid)),
+      onClick: Destination(FocusedFn(fn.tlid, None)),
       plusButton: None,
       verb: None,
     })
@@ -350,34 +338,26 @@ let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
   }
 }
 
-let standardCategories = (m, hs, dbs, ufns, tipes) => {
+let standardCategories = (m, hs, dbs, ufns, types) => {
   let hs = hs |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLHandler(tl)))
-
   let dbs = dbs |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLDB(tl)))
-
   let ufns = ufns |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLFunc(tl)))
+  let types = types |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLTipe(tl)))
 
-  let tipes = tipes |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLTipe(tl)))
+  // We want to hide user defined types for users who arent already using them
+  // since there is currently no way to use them other than as a function param.
+  // we should show user defined types once the user can use them more
+  let types = types == list{} ? list{} : list{userTipeCategory(m, types)}
 
-  /* We want to hide user defined types for users who arent already using them
-    since there is currently no way to use them other than as a function param.
-    we should show user defined types once the user can use them more */
-  let tipes = if List.length(tipes) === 0 {
-    list{}
-  } else {
-    list{userTipeCategory(m, tipes)}
-  }
-  let catagories = list{
+  list{
     httpCategory(hs),
     workerCategory(hs),
     cronCategory(hs),
     replCategory(hs),
     dbCategory(m, dbs),
     userFunctionCategory(m, ufns),
-    ...tipes,
+    ...types,
   }
-
-  catagories
 }
 
 let packageManagerCategory = (pmfns: packageFns): category => {
@@ -468,7 +448,8 @@ let deletedCategory = (m: model): category => {
     m.deleteduserTypes,
   ) |> List.map(~f=c => {
     ...c,
-    plusButton: None /* only allow new entries on the main category */,
+    // only allow new entries on the main category
+    plusButton: None,
     // dont open/close in lockstep with parent
     classname: delPrefix ++ c.classname,
     nested: true,
@@ -611,7 +592,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   | Some(_) | None => Vdom.noNode
   }
 
-  Html.div(list{tw2(%twc("mt-1.25 flex"), "simple-item")}, list{minuslink, linkItem})
+  Html.div(list{tw(%twc("mt-1.25 flex"))}, list{minuslink, linkItem})
 }
 
 let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
@@ -622,7 +603,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 
   let copyBtn = Html.div(
     list{
-      tw2("icon-button ", %twc("text-xs absolute -top-2 -right-1.5 hover:text-sidebar-hover")),
+      tw(%twc("text-xs absolute -top-2 -right-1.5 hover:text-sidebar-hover")),
       EventListeners.eventNeither(
         "click",
         ~key="hash-" ++ d.deployHash,
@@ -708,7 +689,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
-      tw2("icon-button", %twc("text-base hover:text-sidebar-hover")),
+      tw(%twc("text-base hover:text-sidebar-hover")),
       EventListeners.eventNeither(
         "click",
         ~key="copy-secret-" ++ s.secretName,
