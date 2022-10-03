@@ -83,9 +83,9 @@ module Styles = {
 
   let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
 
-  let plusButton = %twc("text-xs hover:text-sidebar-hover hover:cursor-pointer")
+  let plusButton = %twc("text-xs self-end hover:text-sidebar-hover hover:cursor-pointer")
 
-  let sidebarCategory = %twc("mb-5 px-1.25 py-0 relative group-sidebar-category")
+  let sidebarCategory = %twc("mb-5 pl-2 pr-0.5 py-0 relative group-sidebar-category")
 
   let categorySummary = %twc("outline-none flex justify-start items-center w-full")
 
@@ -752,9 +752,10 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
       SecretMsg(OpenCreateModal),
     )
 
-    let header = Html.div(list{}, list{categoryButton("Secret Keys", fontAwesome("user-secret"))})
-
-    Html.div(list{tw(Styles.categorySummary)}, list{header, plusBtn})
+    Html.div(
+      list{tw(Styles.categorySummary)},
+      list{categoryButton("Secret Keys", fontAwesome("user-secret")), plusBtn},
+    )
   }
 
   let content = {
@@ -974,10 +975,10 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   Html.div(
-    list{tw3(%twc("p-0"), Styles.sidebarCategory, "sidebar-category")},
+    list{tw3(Styles.sidebarCategory, %twc("p-0"), "sidebar-category")},
     list{
       Html.div(
-        list{tw2(Styles.categorySummary, %twc("flex flex-col justify-start items-center -ml-2"))},
+        list{tw2(Styles.categorySummary, %twc("flex flex-col justify-start items-center -ml-1"))},
         list{categoryButton("Admin", fontAwesome("cog")), environment},
       ),
       hoverView,
@@ -1012,7 +1013,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
       Attrs.id("sidebar-left"), // keep for sidebar and z-index
       tw2(
         %twc(
-          "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-[20px] w-14"
+          "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-8 w-14"
         ),
         "abridged",
       ),
