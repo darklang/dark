@@ -59,7 +59,7 @@ and category = {
   plusButton: option<msg>,
   iconAction: option<msg>,
   icon: Html.html<msg>,
-  classname: string,
+  emptyName: string, // what if there's none
   tooltip: option<AppTypes.Tooltip.source>,
   entries: list<item>,
 }
@@ -98,21 +98,16 @@ module Styles = {
   let categoryContent = %twc("hidden group-sidebar-category-hover:block")
 }
 
-let iconButton = (
-  ~key: string,
-  ~icon: string,
-  ~classname: string,
-  ~style: string,
-  handler: msg,
-): Html.html<msg> => {
+let iconButton = (~key: string, ~icon: string, ~style: string, handler: msg): Html.html<msg> => {
   let twStyle = %twc("hover:text-sidebar-hover cursor-pointer")
   let event = EventListeners.eventNeither(~key, "click", _ => handler)
-  Html.div(list{event, Attrs.class(`${style} ${twStyle} ${classname}`)}, list{fontAwesome(icon)})
+  Html.div(list{event, tw2(style, twStyle)}, list{fontAwesome(icon)})
 }
 
 let handlerCategory = (
   filter: toplevel => bool,
   name: string,
+  emptyName: string,
   action: AppTypes.AutoComplete.omniAction,
   iconAction: option<msg>,
   icon: Html.html<msg>,
@@ -123,8 +118,8 @@ let handlerCategory = (
   {
     count: List.length(handlers),
     name: name,
+    emptyName: emptyName,
     plusButton: Some(CreateRouteHandler(action)),
-    classname: String.toLowercase(name),
     iconAction: iconAction,
     icon: icon,
     tooltip: Some(tooltip),
@@ -152,6 +147,7 @@ let httpCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(
     TL.isHTTPHandler,
     "HTTP",
+    "HTTP handlers",
     NewHTTPHandler(None),
     Some(GoToArchitecturalView),
     Icons.darkIcon("http"),
@@ -163,6 +159,7 @@ let cronCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(
     TL.isCronHandler,
     "Cron",
+    "Crons",
     NewCronHandler(None),
     Some(GoToArchitecturalView),
     Icons.darkIcon("cron"),
@@ -174,6 +171,7 @@ let replCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(
     TL.isReplHandler,
     "REPL",
+    "REPLs",
     NewReplHandler(None),
     Some(GoToArchitecturalView),
     fontAwesome("terminal"),
@@ -185,7 +183,7 @@ let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory
     TL.isWorkerHandler(tl) ||
     // Show the old workers here for now
     TL.isDeprecatedCustomHandler(tl)
-  , "Worker", NewWorkerHandler(
+  , "Worker", "Workers", NewWorkerHandler(
     None,
   ), Some(GoToArchitecturalView), fontAwesome("wrench"), Worker, handlers)
 
@@ -207,7 +205,7 @@ let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   {
     count: List.length(dbs),
     name: "Datastores",
-    classname: "dbs",
+    emptyName: "Datastores",
     plusButton: Some(CreateDBTable),
     iconAction: Some(GoToArchitecturalView),
     icon: Icons.darkIcon("db"),
@@ -243,8 +241,8 @@ let f404Category = (m: model): category => {
   {
     count: List.length(f404s),
     name: "404s",
+    emptyName: "404s",
     plusButton: None,
-    classname: "fof",
     iconAction: None,
     icon: Icons.darkIcon("fof"),
     tooltip: Some(FourOhFour),
@@ -280,7 +278,7 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
   {
     count: List.length(fns),
     name: "Functions",
-    classname: "fns",
+    emptyName: "Functions",
     plusButton: Some(CreateFunction),
     iconAction: Some(GoToArchitecturalView),
     icon: Icons.darkIcon("fn"),
@@ -313,7 +311,7 @@ let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
   {
     count: List.length(tipes),
     name: "Types",
-    classname: "types",
+    emptyName: "Types",
     plusButton: Some(CreateType),
     iconAction: None,
     icon: Icons.darkIcon("types"),
@@ -403,10 +401,10 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   {
     count: List.length(uniqueauthors),
     name: "Package Manager",
+    emptyName: "Packages",
     plusButton: None,
     iconAction: None,
     icon: fontAwesome("box-open"),
-    classname: "package-manager",
     tooltip: Some(PackageManager),
     entries: getAuthorEntries,
   }
@@ -446,8 +444,8 @@ let deletedCategory = (m: model): category => {
   {
     count: (cats |> List.map(~f=c => count(NestedCategory(c))))->List.sum(module(Int)),
     name: "Deleted",
+    emptyName: "Deleted elements",
     plusButton: None,
-    classname: "deleted",
     iconAction: None,
     icon: Icons.darkIcon("deleted"),
     tooltip: Some(Deleted),
@@ -484,25 +482,10 @@ let viewEmptyCategoryContents = (name: string): Html.html<msg> => {
   Html.div(list{tw2(%twc("ml-3 mt-4 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
 }
 
-let viewEmptyCategory = (c: category): Html.html<msg> => {
-  let name = switch c.classname {
-  | "http" => "HTTP handlers"
-  | "cron" | "worker" | "repl" => c.name ++ "s"
-  | _ => c.name
-  }
-  viewEmptyCategoryContents(name)
-}
-
 let viewSidebarButton = (m: model, c: category): Html.html<msg> => {
   let plusButton = switch c.plusButton {
   | Some(msg) if m.permission == Some(ReadWrite) =>
-    iconButton(
-      ~key="plus-" ++ c.classname,
-      ~icon="plus-circle",
-      ~style=Styles.plusButton,
-      ~classname="",
-      msg,
-    )
+    iconButton(~key="plus-" ++ c.name, ~icon="plus-circle", ~style=Styles.plusButton, msg)
   | Some(_) | None => Vdom.noNode
   }
 
@@ -529,7 +512,6 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       ~style=%twc(
         "ml-1.5 group-sidebar-addbutton-hover:text-sidebar-hover inline-block text-grey8"
       ),
-      ~classname="add-button",
       msg,
     )
   | Some(_) | None => Vdom.noNode
@@ -606,7 +588,6 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       ~key=entryKeyFromIdentifier(e.identifier),
       ~style=%twc("mr-3 text-sidebar-secondary"),
       ~icon="minus-circle",
-      ~classname="",
       msg,
     )
   | Some(_) | None => Vdom.noNode
@@ -644,10 +625,10 @@ let viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> =
   let entries = if c.count > 0 {
     List.map(~f=viewItem(m), c.entries)
   } else {
-    list{viewEmptyCategory(c)}
+    list{viewEmptyCategoryContents(c.emptyName)}
   }
 
-  let event = mouseLeaveEvent(c.classname)
+  let event = mouseLeaveEvent(c.name)
   Html.div(list{tw2(cls, Styles.categoryContent), event}, list{title, ...entries})
 }
 
@@ -813,7 +794,6 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
       ~key="plus-secret",
       ~icon="plus-circle",
       ~style=Styles.plusButton,
-      ~classname="",
       SecretMsg(OpenCreateModal),
     )
 
