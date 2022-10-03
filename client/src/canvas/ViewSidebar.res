@@ -970,11 +970,10 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   Html.div(
     list{
       Attrs.id("sidebar-left"), // keep for z-index
-      tw2(
+      tw(
         %twc(
           "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-8 w-14 scrollbar-none"
         ),
-        "abridged",
       ),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),
