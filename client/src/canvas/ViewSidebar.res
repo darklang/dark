@@ -120,14 +120,13 @@ let handlerCategory = (
     icon: icon,
     tooltip: Some(tooltip),
     entries: List.map(handlers, ~f=h => {
-      let tlid = h.tlid
       Entry({
         name: PT.Handler.Spec.name(h.spec) |> B.valueWithDefault(missingEventRouteDesc),
         uses: None,
-        identifier: Tlid(tlid),
-        onClick: Destination(FocusedHandler(tlid, None, true)),
+        identifier: Tlid(h.tlid),
+        onClick: Destination(FocusedHandler(h.tlid, None, true)),
         minusButton: None,
-        killAction: Some(ToplevelDeleteForever(tlid)),
+        killAction: Some(ToplevelDeleteForever(h.tlid)),
         plusButton: None,
         verb: if TL.isHTTPHandler(TLHandler(h)) {
           h.spec->PT.Handler.Spec.modifier->Option.andThen(~f=B.toOption)
@@ -175,16 +174,30 @@ let replCategory = (handlers: list<PT.Handler.t>): category =>
     handlers,
   )
 
-let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory(tl =>
-    TL.isWorkerHandler(tl) ||
-    // Show the old workers here for now
-    TL.isDeprecatedCustomHandler(tl)
-  , "Worker", "Workers", NewWorkerHandler(
-    None,
-  ), Some(GoToArchitecturalView), fontAwesome("wrench"), Worker, handlers)
+let workerCategory = (handlers: list<PT.Handler.t>): category => {
+  // Show the old workers here for now
+  let isWorker = tl => TL.isWorkerHandler(tl) || TL.isDeprecatedCustomHandler(tl)
+  handlerCategory(
+    isWorker,
+    "Worker",
+    "Workers",
+    NewWorkerHandler(None),
+    Some(GoToArchitecturalView),
+    fontAwesome("wrench"),
+    Worker,
+    handlers,
+  )
+}
 
 let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
-  let entries = dbs->List.map(~f=db => {
+  count: List.length(dbs),
+  name: "Datastores",
+  emptyName: "Datastores",
+  plusButton: Some(CreateDBTable),
+  iconAction: Some(GoToArchitecturalView),
+  icon: Icons.darkIcon("db"),
+  tooltip: Some(Datastore),
+  entries: dbs->List.map(~f=db => {
     let uses = db.name == "" ? 0 : Refactor.dbUseCount(m, db.name)
     Entry({
       name: db.name == "" ? "Untitled DB" : db.name,
@@ -196,18 +209,7 @@ let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
       verb: None,
       plusButton: None,
     })
-  })
-
-  {
-    count: List.length(dbs),
-    name: "Datastores",
-    emptyName: "Datastores",
-    plusButton: Some(CreateDBTable),
-    iconAction: Some(GoToArchitecturalView),
-    icon: Icons.darkIcon("db"),
-    tooltip: Some(Datastore),
-    entries: entries,
-  }
+  }),
 }
 
 let f404Category = (m: model): category => {
@@ -257,20 +259,6 @@ let f404Category = (m: model): category => {
 
 let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
   let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => fn.name != "")
-  let entries = fns->List.map(~f=fn => {
-    let usedIn = Introspect.allUsedIn(fn.tlid, m)
-    Entry({
-      name: fn.name,
-      identifier: Tlid(fn.tlid),
-      uses: Some(List.length(usedIn)),
-      minusButton: None,
-      killAction: Some(DeleteUserFunctionForever(fn.tlid)),
-      onClick: Destination(FocusedFn(fn.tlid, None)),
-      plusButton: None,
-      verb: None,
-    })
-  })
-
   {
     count: List.length(fns),
     name: "Functions",
@@ -279,31 +267,23 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
     iconAction: Some(GoToArchitecturalView),
     icon: Icons.darkIcon("fn"),
     tooltip: Some(Function),
-    entries: entries,
+    entries: fns->List.map(~f=fn => {
+      Entry({
+        name: fn.name,
+        identifier: Tlid(fn.tlid),
+        uses: Introspect.allUsedIn(fn.tlid, m)->List.length->Some,
+        minusButton: None,
+        killAction: Some(DeleteUserFunctionForever(fn.tlid)),
+        onClick: Destination(FocusedFn(fn.tlid, None)),
+        plusButton: None,
+        verb: None,
+      })
+    }),
   }
 }
 
 let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
   let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => ut.name != "")
-  let entries = List.map(tipes, ~f=tipe => {
-    let minusButton = if Refactor.usedTipe(m, tipe.name) {
-      None
-    } else {
-      Some(Msg.DeleteUserType(tipe.tlid))
-    }
-
-    Entry({
-      name: tipe.name,
-      identifier: Tlid(tipe.tlid),
-      uses: Some(Refactor.tipeUseCount(m, tipe.name)),
-      minusButton: minusButton,
-      killAction: Some(DeleteUserTypeForever(tipe.tlid)),
-      onClick: Destination(FocusedType(tipe.tlid)),
-      plusButton: None,
-      verb: None,
-    })
-  })
-
   {
     count: List.length(tipes),
     name: "Types",
@@ -312,7 +292,24 @@ let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
     iconAction: None,
     icon: Icons.darkIcon("types"),
     tooltip: None,
-    entries: entries,
+    entries: List.map(tipes, ~f=tipe => {
+      let minusButton = if Refactor.usedTipe(m, tipe.name) {
+        None
+      } else {
+        Some(Msg.DeleteUserType(tipe.tlid))
+      }
+
+      Entry({
+        name: tipe.name,
+        identifier: Tlid(tipe.tlid),
+        uses: Some(Refactor.tipeUseCount(m, tipe.name)),
+        minusButton: minusButton,
+        killAction: Some(DeleteUserTypeForever(tipe.tlid)),
+        onClick: Destination(FocusedType(tipe.tlid)),
+        plusButton: None,
+        verb: None,
+      })
+    }),
   }
 }
 
@@ -338,14 +335,14 @@ let standardCategories = (m, hs, dbs, ufns, types) => {
   }
 }
 
-let packageManagerCategory = (pmfns: packageFns): category => {
-  let getFnnameEntries = (moduleList: list<PT.Package.Fn.t>): list<item> => {
-    let fnnames =
+let packageManagerCategory = (fns: packageFns): category => {
+  let fnNameEntries = (moduleList: list<PT.Package.Fn.t>): list<item> => {
+    let fnNames =
       moduleList
-      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.module_)
-      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.function)
+      ->List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.module_)
+      ->List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.function)
 
-    fnnames |> List.map(~f=(fn: PT.Package.Fn.t) => Entry({
+    fnNames->List.map(~f=(fn: PT.Package.Fn.t) => Entry({
       name: fn.name.module_ ++ "::" ++ fn.name.function ++ "_v" ++ string_of_int(fn.name.version),
       identifier: Tlid(fn.tlid),
       onClick: Destination(FocusedPackageManagerFn(fn.tlid)),
@@ -357,52 +354,50 @@ let packageManagerCategory = (pmfns: packageFns): category => {
     }))
   }
 
-  let getPackageEntries = (userList: list<PT.Package.Fn.t>): list<item> => {
+  let packageEntries = (userList: list<PT.Package.Fn.t>): list<item> => {
     let uniquePackages =
       userList
-      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
-      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
+      ->List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
+      ->List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
 
-    uniquePackages |> List.map(~f=(fn: PT.Package.Fn.t) => {
-      let packageList =
-        userList |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.package == f.name.package)
+    uniquePackages->List.map(~f=fn => {
+      let packageList = userList->List.filter(~f=f => fn.name.package == f.name.package)
 
       NestedCategory({
         count: List.length(uniquePackages),
         name: fn.name.package,
         icon: fontAwesome("cubes"),
-        entries: getFnnameEntries(packageList),
+        entries: fnNameEntries(packageList),
       })
     })
   }
 
-  let uniqueauthors =
-    pmfns
-    |> Map.values
-    |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
-    |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
+  let uniqueAuthors =
+    fns
+    ->Map.values
+    ->List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
+    ->List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
 
-  let getAuthorEntries = uniqueauthors |> List.map(~f=(fn: PT.Package.Fn.t) => {
-    let authorList =
-      pmfns |> Map.values |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.owner == f.name.owner)
+  let authorEntries = uniqueAuthors->List.map(~f=(fn: PT.Package.Fn.t) => {
+    let authorList = fns->Map.values->List.filter(~f=f => fn.name.owner == f.name.owner)
 
     NestedCategory({
-      count: List.length(uniqueauthors),
+      count: List.length(uniqueAuthors),
       name: fn.name.owner,
       icon: fontAwesome("user"),
-      entries: getPackageEntries(authorList),
+      entries: packageEntries(authorList),
     })
   })
 
   {
-    count: List.length(uniqueauthors),
+    count: List.length(uniqueAuthors),
     name: "Package Manager",
     emptyName: "Packages",
     plusButton: None,
     iconAction: None,
     icon: fontAwesome("box-open"),
     tooltip: Some(PackageManager),
-    entries: getAuthorEntries,
+    entries: authorEntries,
   }
 }
 
@@ -413,39 +408,37 @@ let deletedCategory = (m: model): category => {
     m.deletedDBs,
     m.deletedUserFunctions,
     m.deleteduserTypes,
-  ) |> List.map(~f=(c: category): nestedCategory => {
+  )->List.map(~f=(c: category): nestedCategory => {
     name: c.name,
     count: c.count,
     icon: c.icon,
-    entries: List.map(c.entries, ~f=x =>
-      switch x {
+    entries: c.entries->List.map(~f=item =>
+      switch item {
       | Entry(e) =>
         let actionOpt =
-          e.identifier |> tlidOfIdentifier |> Option.map(~f=tlid => Msg.RestoreToplevel(tlid))
+          e.identifier->tlidOfIdentifier->Option.map(~f=tlid => Msg.RestoreToplevel(tlid))
 
         Entry({
           ...e,
           plusButton: actionOpt,
           uses: None,
           minusButton: e.killAction,
-          onClick: actionOpt
-          |> Option.map(~f=msg => SendMsg(msg))
-          |> Option.unwrap(~default=DoNothing),
+          onClick: actionOpt->Option.map(~f=msg => SendMsg(msg))->Option.unwrap(~default=DoNothing),
         })
-      | c => c
+      | NestedCategory(_) => item
       }
     ),
   })
 
   {
-    count: (cats |> List.map(~f=c => count(NestedCategory(c))))->List.sum(module(Int)),
+    count: cats->List.map(~f=c => count(NestedCategory(c)))->List.sum(module(Int)),
     name: "Deleted",
     emptyName: "Deleted elements",
     plusButton: None,
     iconAction: None,
     icon: Icons.darkIcon("deleted"),
     tooltip: Some(Deleted),
-    entries: List.map(cats, ~f=c => NestedCategory(c)),
+    entries: cats->List.map(~f=c => NestedCategory(c)),
   }
 }
 
@@ -963,7 +956,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   }
 
   let categories = Belt.List.concat(
-    List.map(~f=viewToplevelCategory(m), cats),
+    cats->List.map(~f=viewToplevelCategory(m)),
     list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
   )
 
