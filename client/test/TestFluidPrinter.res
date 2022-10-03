@@ -15,7 +15,7 @@ let run = () => {
     expect(List.any(tokens, ~f)) |> toEqual(true)
   }
 
-  describe("toTokens' converts expressions to tokens", () => {
+  describe("exprToTokens converts expressions to tokens", () => {
     test("field access keeps parentBlockID", () => {
       let parentID = gid()
       let expr = E.EList(parentID, list{EFieldAccess(gid(), EVariable(gid(), "obj"), "field")})

@@ -247,7 +247,9 @@ let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int)
   }
 }
 
-let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
+let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
+  let r = exprToTokens
+
   open Builder
   let ghostPartial = (id, oldID, newName, oldName) => {
     let ghostSuffix = String.dropLeft(~count=String.length(newName), oldName)
@@ -282,7 +284,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
           })
 
         switch name {
-        | None => toTokens'(e, b)
+        | None => r(e, b)
         | Some(placeholder) =>
           add(
             TPlaceholder({
@@ -294,7 +296,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
             b,
           )
         }
-      | _ => toTokens'(e, b)
+      | _ => r(e, b)
       }
 
     b |> indentBy(~indent, ~f=addNested(~f=tokensFn))
@@ -309,7 +311,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     let reflow = {
       let tokens =
         args
-        |> List.map(~f=a => toTokens'(a, Builder.empty))
+        |> List.map(~f=a => r(a, Builder.empty))
         |> List.map(~f=Builder.asTokens)
         |> List.flatten
 
@@ -324,7 +326,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         args
         |> List.initial
         |> Option.unwrap(~default=list{})
-        |> List.map(~f=a => toTokens'(a, Builder.empty))
+        |> List.map(~f=a => r(a, Builder.empty))
         |> List.map(~f=Builder.asTokens)
         |> List.flatten
         |> List.any(~f=x =>
@@ -392,9 +394,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TLetKeyword(id, rhsID, parentID))
     |> add(TLetVarName(id, rhsID, lhs, parentID))
     |> add(TLetAssignment(id, rhsID, parentID))
-    |> addNested(~f=toTokens'(rhs))
+    |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))
-    |> addNested(~f=toTokens'(next))
+    |> addNested(~f=r(next))
   | ECharacter(id, _) =>
     recover("tokenizing echaracter is not supported", b |> add(TBlank(id, id, parentID)))
   | EString(id, str) =>
@@ -439,7 +441,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   | EIf(id, cond, if', else') =>
     b
     |> add(TIfKeyword(id, parentID))
-    |> addNested(~f=toTokens'(cond))
+    |> addNested(~f=r(cond))
     |> addNewlineIfNeeded(None)
     |> add(TIfThenKeyword(id, parentID))
     |> addNewlineIfNeeded(Some(E.toID(if'), id, None))
@@ -514,7 +516,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   | EFieldAccess(id, expr, fieldname) =>
     let lhsid = E.toID(expr)
     b
-    |> addNested(~f=toTokens'(expr, ~parentID))
+    |> addNested(~f=r(expr, ~parentID))
     |> addMany(list{TFieldOp(id, lhsid, parentID), TFieldName(id, lhsid, fieldname, parentID)})
   | EPartial(id, newFieldname, EFieldAccess(faID, expr, oldFieldname)) =>
     let lhsid = E.toID(expr)
@@ -522,7 +524,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     let newText = T.toText(partial)
     let ghost = ghostPartial(id, faID, newText, oldFieldname)
     b
-    |> addNested(~f=toTokens'(expr))
+    |> addNested(~f=r(expr))
     |> addMany(list{TFieldOp(id, E.toID(expr), parentID), partial})
     |> addMany(ghost)
   | EVariable(id, name) => b |> add(TVariable(id, name, parentID))
@@ -559,7 +561,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         } else {
           0
         }
-        toTokens'(e, b').xPos
+        r(e, b').xPos
         |> Option.map(~f=x => x - xOffset + commaWidth)
         |> Option.unwrap(~default=commaWidth)
       }
@@ -575,9 +577,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       b'
       |> addIf(isOverLimit, TNewline(None))
       |> indentBy(~indent, ~f=b' =>
-        b'
-        |> addNested(~f=toTokens'(~parentID=Some(id), e))
-        |> addIf(i != lastIndex, TListComma(id, i))
+        b' |> addNested(~f=r(~parentID=Some(id), e)) |> addIf(i != lastIndex, TListComma(id, i))
       )
     })
     |> add(TListClose(id, pid))
@@ -604,7 +604,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         } else {
           0
         }
-        toTokens'(e, b').xPos
+        r(e, b').xPos
         |> Option.map(~f=x => x - xOffset + commaWidth)
         |> Option.unwrap(~default=commaWidth)
       }
@@ -625,9 +625,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       b'
       |> addIf(shouldIndent, TNewline(None))
       |> indentBy(~indent, ~f=b' =>
-        b'
-        |> addNested(~f=toTokens'(~parentID=Some(id), e))
-        |> addIf(i != lastIndex, TTupleComma(id, i))
+        b' |> addNested(~f=r(~parentID=Some(id), e)) |> addIf(i != lastIndex, TTupleComma(id, i))
       )
     })
     |> add(TTupleClose(id))
@@ -653,7 +651,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
             }),
           )
           |> add(TRecordSep(id, i, exprID))
-          |> addNested(~f=toTokens'(~parentID=Some(id), expr))
+          |> addNested(~f=r(~parentID=Some(id), expr))
         })
       )
       |> addMany(list{
@@ -665,7 +663,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     let length = 2 + List.length(rest)
     b
     // First entry
-    |> addNested(~f=toTokens'(e1))
+    |> addNested(~f=r(e1))
     |> addNewlineIfNeeded(Some(E.toID(e1), id, Some(0)))
     // Rest of entries
     |> addFold(list{e2, ...rest}, ~initial=e1, ~f=(i, prev, e, b) => {
@@ -683,7 +681,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         if E.isBlank(e) {
           b |> add(TBlank(E.toID(e), E.toID(analysisExpr), parentID))
         } else {
-          b |> addNested(~f=toTokens'(~parentID, e))
+          b |> addNested(~f=r(~parentID, e))
         }
       }
       (
@@ -700,7 +698,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   | EMatch(id, mexpr, pairs) =>
     b
     |> add(TMatchKeyword(id))
-    |> addNested(~f=toTokens'(mexpr))
+    |> addNested(~f=r(mexpr))
     |> indentBy(~indent=2, ~f=b =>
       b
       |> addIter(pairs, ~f=(i, (matchPattern, expr), b) =>
@@ -714,26 +712,26 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
             index: i,
           }),
         )
-        |> addNested(~f=toTokens'(expr))
+        |> addNested(~f=r(expr))
       )
       |> addNewlineIfNeeded(Some(id, id, Some(List.length(pairs))))
     )
   | EPartial(id, str, oldExpr) => b |> add(TPartial(id, E.toID(oldExpr), str, parentID))
   | ERightPartial(id, newOp, expr) =>
     b
-    |> addNested(~f=toTokens'(expr))
+    |> addNested(~f=r(expr))
     |> addMany(list{TSep(id, parentID), TRightPartial(id, newOp, parentID)})
   | ELeftPartial(id, str, expr) =>
-    b |> add(TLeftPartial(id, str, parentID)) |> addNested(~f=toTokens'(expr))
+    b |> add(TLeftPartial(id, str, parentID)) |> addNested(~f=r(expr))
   | EFeatureFlag(id, _name, cond, disabled, enabled) =>
     /* Feature flag tokens are displayed in two different editor panels, so
      * they are built differently depending on the current builder option. */
     switch b.ffTokenization {
-    | FeatureFlagOnlyDisabled => b |> addNested(~f=toTokens'(disabled))
+    | FeatureFlagOnlyDisabled => b |> addNested(~f=r(disabled))
     | FeatureFlagConditionAndEnabled =>
       b
       |> add(TFlagWhenKeyword(id))
-      |> addNested(~f=toTokens'(cond))
+      |> addNested(~f=r(cond))
       |> addNewlineIfNeeded(None)
       |> add(TFlagEnabledKeyword(id))
       |> addNewlineIfNeeded(Some(E.toID(enabled), id, None))
@@ -747,7 +745,7 @@ let tokenizeWithFFTokenization = (
   e: FluidExpression.t,
 ): list<tokenInfo> =>
   {...Builder.empty, ffTokenization: ffTokenization}
-  |> toTokens'(e)
+  |> exprToTokens(e)
   |> Builder.asTokens
   |> tidy
   |> validateTokens
