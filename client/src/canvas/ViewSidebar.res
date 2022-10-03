@@ -482,20 +482,26 @@ let viewEmptyCategoryContents = (name: string): Html.html<msg> => {
   Html.div(list{tw2(%twc("ml-3 mt-4 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
 }
 
-let viewSidebarButton = (m: model, c: category): Html.html<msg> => {
-  let plusButton = switch c.plusButton {
+let viewSidebarButton = (
+  m: model,
+  name: string,
+  plusButton: option<msg>,
+  icon: Html.html<msg>,
+  iconAction: option<msg>,
+): Html.html<msg> => {
+  let plusButton = switch plusButton {
   | Some(msg) if m.permission == Some(ReadWrite) =>
-    iconButton(~key="plus-" ++ c.name, ~icon="plus-circle", ~style=Styles.plusButton, msg)
+    iconButton(~key="plus-" ++ name, ~icon="plus-circle", ~style=Styles.plusButton, msg)
   | Some(_) | None => Vdom.noNode
   }
 
   let catIcon = {
-    let props = switch c.iconAction {
+    let props = switch iconAction {
     | Some(ev) => list{EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev)}
     | None => list{Vdom.noProp}
     }
 
-    categoryButton(c.name, c.icon, ~props)
+    categoryButton(name, icon, ~props)
   }
 
   Html.div(list{tw(Styles.button)}, list{catIcon, plusButton})
@@ -633,7 +639,7 @@ let viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> =
 }
 
 let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
-  let button = viewSidebarButton(m, c)
+  let button = viewSidebarButton(m, c.name, c.plusButton, c.icon, c.iconAction)
   let content = viewCategoryContent(m, c, "category-content")
 
   Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
@@ -699,9 +705,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 }
 
 let viewDeployStats = (m: model): Html.html<msg> => {
-  let button = {
-    Html.div(list{tw(Styles.button)}, list{categoryButton("Static Assets", fontAwesome("file"))})
-  }
+  let button = viewSidebarButton(m, "Static Assets", None, fontAwesome("file"), None)
 
   let content = {
     let deploys = if m.staticDeploys != list{} {
@@ -784,19 +788,13 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 }
 
 let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
-  let button = {
-    let plusBtn = iconButton(
-      ~key="plus-secret",
-      ~icon="plus-circle",
-      ~style=Styles.plusButton,
-      SecretMsg(OpenCreateModal),
-    )
-
-    Html.div(
-      list{tw(Styles.button)},
-      list{categoryButton("Secret Keys", fontAwesome("user-secret")), plusBtn},
-    )
-  }
+  let button = viewSidebarButton(
+    m,
+    "Secret Keys",
+    Some(SecretMsg(OpenCreateModal)),
+    fontAwesome("user-secret"),
+    None,
+  )
 
   let content = {
     let title = Html.span(list{tw(Styles.contentCategoryName)}, list{Html.text("Secret Keys")})
