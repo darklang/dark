@@ -469,11 +469,6 @@ let categoryButton = (~props=list{}, description: string, icon: Html.html<msg>):
     list{icon},
   )
 
-let mouseLeaveEvent = (name: string) =>
-  EventListeners.eventNoPropagation(~key=`cat-close-${name}`, "mouseleave", _ => Msg.SidebarMsg(
-    ResetSidebar,
-  ))
-
 let viewEmptyCategoryContents = (name: string): Html.html<msg> => {
   Html.div(list{tw2(%twc("ml-3 mt-4 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
 }
@@ -631,8 +626,7 @@ let viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> =
     list{viewEmptyCategoryContents(c.emptyName)}
   }
 
-  let event = mouseLeaveEvent(c.name)
-  Html.div(list{tw2(cls, Styles.categoryContent), event}, list{title, ...entries})
+  Html.div(list{tw2(cls, Styles.categoryContent)}, list{title, ...entries})
 }
 
 let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
@@ -712,7 +706,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     }
 
     Html.div(
-      list{tw2("category-content", Styles.categoryContent), mouseLeaveEvent("deploy")},
+      list{tw2("category-content", Styles.categoryContent)},
       list{
         Html.span(list{Attrs.class(Styles.contentCategoryName)}, list{Html.text("Static Assets")}),
         ...deploys,
@@ -800,10 +794,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     } else {
       list{viewEmptyCategoryContents("secret keys")}
     }
-    Html.div(
-      list{tw2("category-content", Styles.categoryContent), mouseLeaveEvent("secret")},
-      list{title, ...entries},
-    )
+    Html.div(list{tw2("category-content", Styles.categoryContent)}, list{title, ...entries})
   }
 
   Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
@@ -958,11 +949,6 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 // --------------------
 // Standard view apparatus
 // --------------------
-
-let update = (msg: Sidebar.msg): modification =>
-  switch msg {
-  | ResetSidebar => ReplaceAllModificationsWithThisOne(Viewport.enablePan(true))
-  }
 
 let viewSidebar_ = (m: model): Html.html<msg> => {
   let cats = Belt.List.concat(

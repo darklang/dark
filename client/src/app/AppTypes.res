@@ -697,7 +697,6 @@ module Msg = {
     | TraceMouseLeave(TLID.t, Types.traceID, MouseEvent.t)
     | TriggerHandler(TLID.t)
     | CreateRouteHandler(AutoComplete.omniAction)
-    | SidebarMsg(Sidebar.msg)
     | CreateFunction
     | ExtractFunction
     | CreateType
