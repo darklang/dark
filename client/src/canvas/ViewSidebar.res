@@ -575,7 +575,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     | SendMsg(_) | DoNothing | Destination(_) => Vdom.noProp
     }
 
-    Html.span(list{tw(%twc("w-full inline-block group-sidebar-addbutton")), action}, contents)
+    Html.span(list{tw(%twc("w-full group inline-block group-sidebar-addbutton")), action}, contents)
   }
 
   // This prevents the delete button appearing
