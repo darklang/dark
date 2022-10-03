@@ -120,6 +120,11 @@ let categoryButton = (~props=list{}, description: string, icon: Html.html<msg>):
     list{icon},
   )
 
+let mouseLeaveEvent = (name: string) =>
+  EventListeners.eventNoPropagation(~key=`cat-close-${name}`, "mouseleave", _ => Msg.SidebarMsg(
+    ResetSidebar,
+  ))
+
 let handlerCategory = (
   filter: toplevel => bool,
   name: string,
@@ -669,14 +674,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     }
 
     Html.div(
-      list{
-        tw2("category-content", Styles.categoryContent),
-        EventListeners.eventNoPropagation(
-          ~key="cat-close-deploy",
-          "mouseleave",
-          _ => Msg.SidebarMsg(ResetSidebar),
-        ),
-      },
+      list{tw2("category-content", Styles.categoryContent), mouseLeaveEvent("deploy")},
       list{
         Html.span(list{Attrs.class(Styles.contentCategoryName)}, list{Html.text("Static Assets")}),
         ...deploys,
@@ -767,14 +765,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
       list{viewEmptyCategoryContents("secret keys")}
     }
     Html.div(
-      list{
-        tw2("category-content", Styles.categoryContent),
-        EventListeners.eventNoPropagation(
-          ~key="cat-close-secret",
-          "mouseleave",
-          _ => Msg.SidebarMsg(ResetSidebar),
-        ),
-      },
+      list{tw2("category-content", Styles.categoryContent), mouseLeaveEvent("secret")},
       list{title, ...entries},
     )
   }
@@ -800,25 +791,16 @@ and viewCategoryContent = (m: model, c: category): Html.html<msg> => {
     Styles.contentCategoryName
   }
   let title = Html.span(list{tw(titleStyle)}, list{Html.text(c.name)})
+
   let entries = if c.count > 0 {
     List.map(~f=viewItem(m), c.entries)
   } else {
     list{viewEmptyCategory(c)}
   }
 
-  Html.div(
-    list{
-      tw2("category-content", Styles.categoryContent),
-      EventListeners.eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
-        if !c.nested {
-          Msg.SidebarMsg(ResetSidebar)
-        } else {
-          Msg.IgnoreMsg("sidebar-category-close")
-        }
-      ),
-    },
-    list{title, ...entries},
-  )
+  let event = !c.nested ? mouseLeaveEvent(c.classname) : Vdom.noProp
+
+  Html.div(list{tw2("category-content", Styles.categoryContent), event}, list{title, ...entries})
 }
 
 and viewNestedCategory = (m: model, c: category): Html.html<msg> => {
