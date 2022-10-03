@@ -740,10 +740,9 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   }
 }
 
-let tokenizeWithFFTokenization = (
-  ffTokenization: featureFlagTokenization,
-  e: FluidExpression.t,
-): list<tokenInfo> =>
+let tokenizeWithOptions = (ffTokenization: featureFlagTokenization, e: FluidExpression.t): list<
+  tokenInfo,
+> =>
   {...Builder.empty, ffTokenization: ffTokenization}
   |> exprToTokens(e)
   |> Builder.asTokens
@@ -751,9 +750,9 @@ let tokenizeWithFFTokenization = (
   |> validateTokens
   |> infoize
 
-let tokenize: E.t => list<FluidToken.tokenInfo> = tokenizeWithFFTokenization(
-  FeatureFlagOnlyDisabled,
-)
+@ocaml.doc("The 'default' tokenizer used in the main editor and basically
+  everywhere except for the feature flag editor")
+let tokenize: E.t => list<FluidToken.tokenInfo> = tokenizeWithOptions(FeatureFlagOnlyDisabled)
 
 let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
   FluidToken.tokenInfo,
@@ -761,7 +760,7 @@ let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
   switch e {
   | NoEditor => list{}
   | MainEditor(_) => tokenize(expr)
-  | FeatureFlagEditor(_) => tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled, expr)
+  | FeatureFlagEditor(_) => tokenizeWithOptions(FeatureFlagConditionAndEnabled, expr)
   }
 
 // this is only used for FluidDebugger. TODO: consider removing? Not sure why
@@ -773,7 +772,7 @@ let tokenizeForDebugger = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidT
   | MainEditor(_) => tokenize(FluidAST.toExpr(ast))
   | FeatureFlagEditor(_, id) =>
     FluidAST.findExpr(id, ast)
-    |> Option.map(~f=tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled))
+    |> Option.map(~f=tokenizeWithOptions(FeatureFlagConditionAndEnabled))
     |> recoverOpt(
       "could not find expression id = " ++ (ID.toString(id) ++ " when tokenizing FF editor"),
       ~default=list{},
@@ -911,7 +910,7 @@ module ASTInfo = {
         |> FluidAST.getFeatureFlags
         |> List.map(~f=expr => (
           E.toID(expr),
-          tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled, expr),
+          tokenizeWithOptions(FeatureFlagConditionAndEnabled, expr),
         ))
 
       {
