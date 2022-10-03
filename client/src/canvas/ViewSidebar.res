@@ -92,7 +92,7 @@ module Styles = {
   let sidebarCategory = %twc("mb-5 pl-2 pr-0.5 py-0 relative group-sidebar-category")
 
   let content = %twc(
-    "absolute pl-4 bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14"
+    "absolute pl-4 bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14 scrollbar-corner-transparent scrollbar-thin"
   )
 
   let contentVisibility = %twc("hidden group-sidebar-category-hover:block")
@@ -972,7 +972,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
       Attrs.id("sidebar-left"), // keep for z-index
       tw(
         %twc(
-          "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-8 w-14 scrollbar-none"
+          "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-8 w-14"
         ),
       ),
       // Block opening the omnibox here by preventing canvas pan start
