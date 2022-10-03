@@ -785,7 +785,7 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
   | Entry(e) => viewEntry(m, e)
   }
 
-and viewCategoryContent = (m: model, c: category): Html.html<msg> => {
+and viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> => {
   let titleStyle = if c.nested {
     Styles.nestedSidebarCategoryName
   } else {
@@ -801,18 +801,18 @@ and viewCategoryContent = (m: model, c: category): Html.html<msg> => {
 
   let event = !c.nested ? mouseLeaveEvent(c.classname) : Vdom.noProp
 
-  Html.div(list{tw2("category-content", Styles.categoryContent), event}, list{title, ...entries})
+  Html.div(list{tw2(cls, Styles.categoryContent), event}, list{title, ...entries})
 }
 
 and viewNestedCategory = (m: model, c: category): Html.html<msg> => {
-  let content = viewCategoryContent(m, c)
+  let content = viewCategoryContent(m, c, "nested-category-content")
 
   Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{content})
 }
 
 and viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
   let button = viewSidebarButton(m, c)
-  let content = viewCategoryContent(m, c)
+  let content = viewCategoryContent(m, c, "category-content")
 
   Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{button, content})
 }

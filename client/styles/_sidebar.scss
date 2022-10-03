@@ -29,29 +29,31 @@ $icSize: 1em;
   }
 }
 
+.nested-category-content {
+  padding-left: 1em;
+}
+
 .category-content {
   padding-left: 1em;
 
-  // TODO: this stuff is only for the toplevel category-content (not used in the nested categories)
-  @at-root .abridged > .sidebar-category > & {
-    background-color: $sidebarBgColor;
-    min-width: $sidebarFullWidth;
-    max-width: 2 * $sidebarFullWidth;
-    max-height: 400px;
-    padding: $hSpace;
-    margin-top: 2 * $hSpace;
-    padding-bottom: $hSpace * 2;
+  background-color: $sidebarBgColor;
+  min-width: $sidebarFullWidth;
+  max-width: 2 * $sidebarFullWidth;
+  max-height: 400px;
+  padding: $hSpace;
+  margin-top: 2 * $hSpace;
+  padding-bottom: $hSpace * 2;
 
-    overflow-y: scroll;
-    box-shadow: $sidebard-preview-shadow;
+  overflow-y: scroll;
+  box-shadow: $sidebard-preview-shadow;
 
-    z-index: 1;
-    position: absolute;
-    left: $sidebarClosedWidth;
-    top: -1.25em;
+  z-index: 1;
+  position: absolute;
+  left: $sidebarClosedWidth;
+  top: -1.25em;
 
-    &::-webkit-scrollbar-corner {
-      background-color: transparent;
-    }
+  &::-webkit-scrollbar-corner {
+    background-color: transparent;
   }
 }
+
