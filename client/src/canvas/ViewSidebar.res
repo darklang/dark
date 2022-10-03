@@ -91,7 +91,7 @@ module Styles = {
 
   let sidebarCategory = %twc("mb-5 pl-2 pr-0.5 py-0 relative group-sidebar-category")
 
-  let categoryContent = %twc("hidden group-sidebar-category-hover:block")
+  let contentVisibility = %twc("hidden group-sidebar-category-hover:block")
 }
 
 let iconButton = (~key: string, ~icon: string, ~style: string, handler: msg): Html.html<msg> => {
@@ -612,7 +612,7 @@ and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
 
   Html.div(
     list{tw(Styles.sidebarCategory)},
-    list{Html.div(list{tw2(%twc("pl-4"), Styles.categoryContent)}, list{title, ...entries})},
+    list{Html.div(list{tw(%twc("pl-4"))}, list{title, ...entries})},
   )
 }
 
@@ -626,7 +626,7 @@ let viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> =
     list{viewEmptyCategoryContents(c.emptyName)}
   }
 
-  Html.div(list{tw2(cls, Styles.categoryContent)}, list{title, ...entries})
+  Html.div(list{tw2(cls, Styles.contentVisibility)}, list{title, ...entries})
 }
 
 let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
@@ -706,7 +706,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     }
 
     Html.div(
-      list{tw2("category-content", Styles.categoryContent)},
+      list{tw2("category-content", Styles.contentVisibility)},
       list{
         Html.span(list{Attrs.class(Styles.contentCategoryName)}, list{Html.text("Static Assets")}),
         ...deploys,
@@ -794,7 +794,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     } else {
       list{viewEmptyCategoryContents("secret keys")}
     }
-    Html.div(list{tw2("category-content", Styles.categoryContent)}, list{title, ...entries})
+    Html.div(list{tw2("category-content", Styles.contentVisibility)}, list{title, ...entries})
   }
 
   Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
@@ -927,7 +927,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   let hoverView = Html.div(
-    list{tw2("category-content", Styles.categoryContent)},
+    list{tw2("category-content", Styles.contentVisibility)},
     Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
       list{saveTestButton},
