@@ -1,24 +1,20 @@
 version: 2
 updates:
+
 - package-ecosystem: docker
   directory: "/"
   schedule:
     interval: daily
-    time: "12:00"
   open-pull-requests-limit: 10
+
 - package-ecosystem: npm
   directory: "/"
   schedule:
     interval: daily
-    time: "12:00"
   open-pull-requests-limit: 10
-  ignore:
-  - dependency-name: rollbar
-    versions:
-    - 2.20.0
+
 - package-ecosystem: nuget
   directory: "/fsharp-backend"
   schedule:
     interval: daily
-    time: "12:00"
-  open-pull-requests-limit: 10
+  open-pull-requests-limit: 20
