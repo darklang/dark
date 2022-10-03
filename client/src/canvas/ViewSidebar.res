@@ -91,6 +91,10 @@ module Styles = {
 
   let sidebarCategory = %twc("mb-5 pl-2 pr-0.5 py-0 relative group-sidebar-category")
 
+  let content = %twc(
+    "absolute pl-4 bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14"
+  )
+
   let contentVisibility = %twc("hidden group-sidebar-category-hover:block")
 }
 
@@ -609,22 +613,22 @@ and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
   )
 }
 
-let viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> => {
-  let titleStyle = Styles.contentCategoryName
-  let title = Html.span(list{tw(titleStyle)}, list{Html.text(c.name)})
-
-  let entries = if c.count > 0 {
-    List.map(~f=viewItem(m), c.entries)
-  } else {
-    list{viewEmptyCategoryContents(c.emptyName)}
-  }
-
-  Html.div(list{tw2(cls, Styles.contentVisibility)}, list{title, ...entries})
-}
-
 let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
   let button = viewSidebarButton(m, c.name, c.plusButton, c.icon, c.iconAction)
-  let content = viewCategoryContent(m, c, "category-content")
+  let content = {
+    let title = Html.span(list{tw(Styles.contentCategoryName)}, list{Html.text(c.name)})
+
+    let entries = if c.count > 0 {
+      List.map(~f=viewItem(m), c.entries)
+    } else {
+      list{viewEmptyCategoryContents(c.emptyName)}
+    }
+
+    Html.div(
+      list{tw3("category-content", Styles.content, Styles.contentVisibility)},
+      list{title, ...entries},
+    )
+  }
 
   Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
 }
@@ -699,7 +703,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     }
 
     Html.div(
-      list{tw2("category-content", Styles.contentVisibility)},
+      list{tw3("category-content", Styles.content, Styles.contentVisibility)},
       list{
         Html.span(list{Attrs.class(Styles.contentCategoryName)}, list{Html.text("Static Assets")}),
         ...deploys,
@@ -787,7 +791,10 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     } else {
       list{viewEmptyCategoryContents("secret keys")}
     }
-    Html.div(list{tw2("category-content", Styles.contentVisibility)}, list{title, ...entries})
+    Html.div(
+      list{tw3("category-content", Styles.content, Styles.contentVisibility)},
+      list{title, ...entries},
+    )
   }
 
   Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
@@ -920,7 +927,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   let hoverView = Html.div(
-    list{tw2("category-content", Styles.contentVisibility)},
+    list{tw3("category-content", Styles.content, Styles.contentVisibility)},
     Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
       list{saveTestButton},

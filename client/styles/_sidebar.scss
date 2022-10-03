@@ -1,7 +1,3 @@
-$sidebarClosedWidth: 3.5em;
-$sidebarFullWidth: 20em;
-$sidebard-preview-shadow: 2px 2px 2px 0 $black1;
-
 $sidebarBgColor: darken($canvas-background, 10%);
 $sidebarHoverColor: lighten($yellow, 10%);
 $primaryColor: $white1;
@@ -12,10 +8,6 @@ $secondaryColor: $grey2;
   --sidebarPrimaryColor: #{$primaryColor};
   --sidebarSecondaryColor: #{$secondaryColor};
 }
-
-$sectionSpace: 20px;
-$hSpace: 5px;
-$icSize: 1em;
 
 #sidebar-left {
   ::-webkit-scrollbar {
@@ -29,29 +21,7 @@ $icSize: 1em;
   }
 }
 
-.nested-category-content {
-  padding-left: 1em;
-}
-
 .category-content {
-  padding-left: 1em;
-
-  background-color: $sidebarBgColor;
-  min-width: $sidebarFullWidth;
-  max-width: 2 * $sidebarFullWidth;
-  max-height: 400px;
-  padding: $hSpace;
-  margin-top: 2 * $hSpace;
-  padding-bottom: $hSpace * 2;
-
-  overflow-y: scroll;
-  box-shadow: $sidebard-preview-shadow;
-
-  z-index: 1;
-  position: absolute;
-  left: $sidebarClosedWidth;
-  top: -1.25em;
-
   &::-webkit-scrollbar-corner {
     background-color: transparent;
   }
