@@ -115,17 +115,11 @@ let handlerCategory = (
   name: string,
   action: AppTypes.AutoComplete.omniAction,
   iconAction: option<msg>,
+  icon: Html.html<msg>,
   tooltip: AppTypes.Tooltip.source,
   hs: list<PT.Handler.t>,
 ): category => {
   let handlers = hs |> List.filter(~f=h => filter(TLHandler(h)))
-  let icon = switch String.toLowercase(name) {
-  | "http" => Icons.darkIcon("http")
-  | "cron" => Icons.darkIcon("cron")
-  | "repl" => fontAwesome("terminal")
-  | "worker" => fontAwesome("wrench")
-  | _ => Icons.darkIcon("undefined")
-  }
   {
     count: List.length(handlers),
     name: name,
@@ -160,6 +154,7 @@ let httpCategory = (handlers: list<PT.Handler.t>): category =>
     "HTTP",
     NewHTTPHandler(None),
     Some(GoToArchitecturalView),
+    Icons.darkIcon("http"),
     Http,
     handlers,
   )
@@ -170,6 +165,7 @@ let cronCategory = (handlers: list<PT.Handler.t>): category =>
     "Cron",
     NewCronHandler(None),
     Some(GoToArchitecturalView),
+    Icons.darkIcon("cron"),
     Cron,
     handlers,
   )
@@ -180,6 +176,7 @@ let replCategory = (handlers: list<PT.Handler.t>): category =>
     "REPL",
     NewReplHandler(None),
     Some(GoToArchitecturalView),
+    fontAwesome("terminal"),
     Repl,
     handlers,
   )
@@ -188,7 +185,9 @@ let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory
     TL.isWorkerHandler(tl) ||
     // Show the old workers here for now
     TL.isDeprecatedCustomHandler(tl)
-  , "Worker", NewWorkerHandler(None), Some(GoToArchitecturalView), Worker, handlers)
+  , "Worker", NewWorkerHandler(
+    None,
+  ), Some(GoToArchitecturalView), fontAwesome("wrench"), Worker, handlers)
 
 let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   let entries = dbs->List.map(~f=db => {
