@@ -755,7 +755,19 @@ let tokenize: E.t => list<FluidToken.tokenInfo> = tokenizeWithFFTokenization(
   FeatureFlagOnlyDisabled,
 )
 
-let tokensForEditor = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
+let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
+  FluidToken.tokenInfo,
+> =>
+  switch e {
+  | NoEditor => list{}
+  | MainEditor(_) => tokenize(expr)
+  | FeatureFlagEditor(_) => tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled, expr)
+  }
+
+// this is only used for FluidDebugger. TODO: consider removing? Not sure why
+// we have this separate tokenizer - when would we have a FF but no expr
+// corresponding to the expr's ID?
+let tokenizeForDebugger = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
   switch e {
   | NoEditor => list{}
   | MainEditor(_) => tokenize(FluidAST.toExpr(ast))
@@ -766,15 +778,6 @@ let tokensForEditor = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken
       "could not find expression id = " ++ (ID.toString(id) ++ " when tokenizing FF editor"),
       ~default=list{},
     )
-  }
-
-let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
-  FluidToken.tokenInfo,
-> =>
-  switch e {
-  | NoEditor => list{}
-  | MainEditor(_) => tokenize(expr)
-  | FeatureFlagEditor(_) => tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled, expr)
   }
 
 // --------------------------------------

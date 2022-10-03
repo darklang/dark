@@ -1,31 +1,23 @@
 type featureFlagTokenization =
-  | @ocaml.doc(" FeatureFlagOnlyDisabled is used in the main editor panel to only
-          * show the flag's old code ")
+  | @ocaml.doc("used in the main editor panel to only show the flag's old code ")
   FeatureFlagOnlyDisabled
 
-  | @ocaml.doc(" FeatureFlagConditionAndEnabled is used in the secondary editor
-          * panel for editing a flag's condition and new code ")
+  | @ocaml.doc("used in the secondary editor panel for editing a flag's condition and new code")
   FeatureFlagConditionAndEnabled
-
-let tokenizeWithFFTokenization: (
-  featureFlagTokenization,
-  FluidExpression.t,
-) => list<FluidToken.tokenInfo>
-
-let tokenize: FluidExpression.t => list<FluidToken.tokenInfo>
-
-@ocaml.doc(" returns the tokens that should populate the given editor ")
-let tokensForEditor: (FluidTypes.Editor.t, FluidAST.t) => list<FluidToken.tokenInfo>
-
-@ocaml.doc(" returns the given expression, tokenized with the rules of the specified editor ")
-let tokenizeForEditor: (FluidTypes.Editor.t, FluidExpression.t) => list<FluidToken.tokenInfo>
 
 @@ocaml.text("takes a match pattern `p` and converts it to a list of
   fluidTokens.
 
   ~idx is the zero-based index of the match pattern in the enclosing match")
-
 let matchPatternToTokens: (ID.t, FluidMatchPattern.t, ~idx: int) => list<FluidTypes.Token.t>
+
+let tokenize: FluidExpression.t => list<FluidToken.tokenInfo>
+
+@ocaml.doc("returns the given expression, tokenized with the rules of the specified editor")
+let tokenizeForEditor: (FluidTypes.Editor.t, FluidExpression.t) => list<FluidToken.tokenInfo>
+
+@ocaml.doc("the same as tokenizeForEditor, but for the contributor debugger")
+let tokenizeForDebugger: (FluidTypes.Editor.t, FluidAST.t) => list<FluidToken.tokenInfo>
 
 let getTokensAtPosition: (
   ~prev: option<FluidToken.tokenInfo>=?,
