@@ -5082,7 +5082,9 @@ let selectionRangeOfExpr = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> 
   let containingTokens = ASTInfo.activeTokenInfos(astInfo)
   let exprTokens =
     FluidAST.findExpr(exprID, astInfo.ast)
-    |> Option.map(~f=expr => FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, expr))
+    |> Option.map(~f=expr =>
+      FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, Expr(expr))
+    )
     |> Option.unwrap(~default=list{})
 
   let (exprStartToken, exprEndToken) = (
@@ -5099,6 +5101,37 @@ let selectionRangeOfExpr = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> 
   switch (exprStartToken, exprEndToken) {
   /* range is from startPos of first token in expr to
    * endPos of last token in expr */
+  | (Some({startPos, _}), Some({endPos, _})) => Some(startPos, endPos)
+  | _ => None
+  }
+}
+
+@ocaml.doc("returns the beginning and end of the range from the MP's first and
+  last token by cross-referencing the tokens for the MP with the tokens for the
+  whole editor's expr.")
+let selectionRangeOfMatchPattern = (mpID: id, astInfo: ASTInfo.t): option<(int, int)> => {
+  let containingTokens = ASTInfo.activeTokenInfos(astInfo)
+
+  let mpTokens =
+    FluidAST.findMP(mpID, astInfo.ast)
+    |> Option.map(~f=mp =>
+      FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, MatchPat(mpID, mp))
+    )
+    |> Option.unwrap(~default=list{})
+
+  let (mpStartToken, mpEndToken) = (
+    List.head(mpTokens),
+    List.last(mpTokens),
+  ) |> Tuple2.mapAll(~f=(x: option<T.tokenInfo>) =>
+    switch x {
+    | Some(mpTok) =>
+      List.find(containingTokens, ~f=(tk: T.tokenInfo) => T.matchesContent(mpTok.token, tk.token))
+    | _ => None
+    }
+  )
+
+  // range is from startPos of first token in MP to endPos of last token in MP
+  switch (mpStartToken, mpEndToken) {
   | (Some({startPos, _}), Some({endPos, _})) => Some(startPos, endPos)
   | _ => None
   }
@@ -5528,18 +5561,19 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
   and reconstructMatchPattern = (topmostMatchPattern: MP.t, (selStartPos, selEndPos)): option<
     MP.t,
   > => {
-    let _mpID = MP.toID(topmostMatchPattern)
+    let mpID = MP.toID(topmostMatchPattern)
 
     // Ensure match pat range is not totally outside selection range.
-    let rangeToReconstruct = Some((selStartPos, selEndPos))
-    // todo: replace the above Some with the below logic, once selectionRangeOfMatchPattern available.
-    // selectionRangeOfMatchPattern(mpID, astInfo) |> Option.andThen(~f=((mpStartPos, mpEndPos)) =>
-    //   if mpStartPos > selEndPos || mpEndPos < selStartPos {
-    //     None
-    //   } else {
-    //     Some(max(mpStartPos, selStartPos), min(mpEndPos, selEndPos))
-    //   }
-    // )
+    let rangeToReconstruct = selectionRangeOfMatchPattern(mpID, astInfo) |> Option.andThen(~f=((
+      mpStartPos,
+      mpEndPos,
+    )) =>
+      if mpStartPos > selEndPos || mpEndPos < selStartPos {
+        None
+      } else {
+        Some(max(mpStartPos, selStartPos), min(mpEndPos, selEndPos))
+      }
+    )
 
     switch rangeToReconstruct {
     | None => None

@@ -11,7 +11,7 @@ open FluidShortcuts
 type testResult = (fluidExpr, (string, option<string>), int)
 
 let containsPartials = (res: fluidExpr): bool =>
-  res
+  FluidExpression.Expr(res)
   |> FluidTokenizer.tokenizeForEditor(FluidTypes.Editor.MainEditor(TLID.fromInt(7)))
   |> List.any(~f=(ti: FluidToken.tokenInfo) =>
     switch ti.token {

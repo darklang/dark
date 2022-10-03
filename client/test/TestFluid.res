@@ -223,7 +223,7 @@ module TestCase = {
            *
            * Importantly, we do this on the original expr
            */
-          originalExpr
+          E.Expr(originalExpr)
           |> Tokenizer.tokenize
           |> List.filter(~f=(ti: T.tokenInfo) =>
             FluidToken.isNewline(ti.token) && ti.startPos < pos
@@ -289,7 +289,9 @@ module TestResult = {
   }
 
   let tokenizeResult = (res: t): list<FluidToken.tokenInfo> =>
-    FluidAST.toExpr(res.resultAST) |> FluidTokenizer.tokenizeForEditor(res.resultState.activeEditor)
+    E.Expr(FluidAST.toExpr(res.resultAST)) |> FluidTokenizer.tokenizeForEditor(
+      res.resultState.activeEditor,
+    )
 
   let containsPartials = (res: t): bool =>
     List.any(tokenizeResult(res), ~f=ti =>
@@ -5331,7 +5333,7 @@ let run = () => {
   })
   describe("Movement", () => {
     let s = defaultTestState
-    let tokens = FluidTokenizer.tokenize(compoundExpr)
+    let tokens = FluidTokenizer.tokenize(E.Expr(compoundExpr))
     let len = tokens |> List.map(~f=(ti: T.tokenInfo) => ti.token) |> length
     let ast = compoundExpr |> FluidAST.ofExpr
     let astInfo = ASTInfo.make(ast, defaultTestState)
@@ -5779,7 +5781,7 @@ let run = () => {
       }
 
       let ast = EString(id, "test")
-      let tokens = tokenize(ast)
+      let tokens = tokenize(E.Expr(ast))
       expect(getNeighbours(~pos=3, tokens)) |> toEqual((L(token, ti), R(token, ti), Some(nextTI)))
     })
   })

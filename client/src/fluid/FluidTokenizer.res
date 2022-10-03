@@ -176,18 +176,17 @@ let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
 // The actual tokenization
 // --------------------------------------
 
+// TODO: pass in a `b: Builder.t` as `exprToTokens` does
 let rec matchPatternToTokens = (matchID: id, ~idx: int, mp: FluidMatchPattern.t): list<
   fluidToken,
 > => {
+  let r = matchPatternToTokens
   open FluidTypes.Token
 
   switch mp {
   | MPVariable(id, name) => list{TMPVariable(matchID, id, name, idx)}
   | MPConstructor(id, name, args) =>
-    let args = List.map(args, ~f=a => list{
-      TSep(id, None),
-      ...matchPatternToTokens(matchID, a, ~idx),
-    })
+    let args = List.map(args, ~f=a => list{TSep(id, None), ...r(matchID, a, ~idx)})
 
     List.flatten(list{list{TMPConstructorName(matchID, id, name, idx)}, ...args})
   | MPInteger(id, i) => list{TMPInteger(matchID, id, i, idx)}
@@ -229,7 +228,7 @@ let rec matchPatternToTokens = (matchID: id, ~idx: int, mp: FluidMatchPattern.t)
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
         let isLastSubpattern = i == subPatternCount - 1
-        let subpatternTokens = matchPatternToTokens(matchID, p, ~idx)
+        let subpatternTokens = r(matchID, p, ~idx)
 
         if isLastSubpattern {
           subpatternTokens
@@ -740,27 +739,32 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   }
 }
 
-let tokenizeWithOptions = (ffTokenization: featureFlagTokenization, e: FluidExpression.t): list<
-  tokenInfo,
-> =>
-  {...Builder.empty, ffTokenization: ffTokenization}
-  |> exprToTokens(e)
-  |> Builder.asTokens
+let tokenizeWithOptions = (
+  ffTokenization: featureFlagTokenization,
+  mpOrExpr: E.fluidMatchPatOrExpr,
+): list<tokenInfo> =>
+  switch mpOrExpr {
+  | Expr(expr) =>
+    {...Builder.empty, ffTokenization: ffTokenization} |> exprToTokens(expr) |> Builder.asTokens
+  | MatchPat(matchId, pat) => matchPatternToTokens(matchId, ~idx=0, pat)
+  }
   |> tidy
   |> validateTokens
   |> infoize
 
 @ocaml.doc("The 'default' tokenizer used in the main editor and basically
   everywhere except for the feature flag editor")
-let tokenize: E.t => list<FluidToken.tokenInfo> = tokenizeWithOptions(FeatureFlagOnlyDisabled)
+let tokenize: E.fluidMatchPatOrExpr => list<FluidToken.tokenInfo> = tokenizeWithOptions(
+  FeatureFlagOnlyDisabled,
+)
 
-let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
+let tokenizeForEditor = (e: FluidTypes.Editor.t, mpOrExpr: E.fluidMatchPatOrExpr): list<
   FluidToken.tokenInfo,
 > =>
   switch e {
   | NoEditor => list{}
-  | MainEditor(_) => tokenize(expr)
-  | FeatureFlagEditor(_) => tokenizeWithOptions(FeatureFlagConditionAndEnabled, expr)
+  | MainEditor(_) => tokenize(mpOrExpr)
+  | FeatureFlagEditor(_) => tokenizeWithOptions(FeatureFlagConditionAndEnabled, mpOrExpr)
   }
 
 // this is only used for FluidDebugger. TODO: consider removing? Not sure why
@@ -769,10 +773,10 @@ let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
 let tokenizeForDebugger = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
   switch e {
   | NoEditor => list{}
-  | MainEditor(_) => tokenize(FluidAST.toExpr(ast))
+  | MainEditor(_) => tokenize(Expr(FluidAST.toExpr(ast)))
   | FeatureFlagEditor(_, id) =>
     FluidAST.findExpr(id, ast)
-    |> Option.map(~f=tokenizeWithOptions(FeatureFlagConditionAndEnabled))
+    |> Option.map(~f=expr => tokenizeWithOptions(FeatureFlagConditionAndEnabled, Expr(expr)))
     |> recoverOpt(
       "could not find expression id = " ++ (ID.toString(id) ++ " when tokenizing FF editor"),
       ~default=list{},
@@ -904,13 +908,13 @@ module ASTInfo = {
     if astInfo.ast == ast {
       astInfo
     } else {
-      let mainTokenInfos = tokenize(FluidAST.toExpr(ast))
+      let mainTokenInfos = tokenize(Expr(FluidAST.toExpr(ast)))
       let featureFlagTokenInfos =
         ast
         |> FluidAST.getFeatureFlags
         |> List.map(~f=expr => (
           E.toID(expr),
-          tokenizeWithOptions(FeatureFlagConditionAndEnabled, expr),
+          tokenizeWithOptions(FeatureFlagConditionAndEnabled, Expr(expr)),
         ))
 
       {

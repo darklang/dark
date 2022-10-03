@@ -123,8 +123,7 @@ let defaultTokenInfo: FluidToken.tokenInfo = {
 let defaultFullQuery = (~tl=defaultToplevel, ac: AC.t, queryString: string): AC.fullQuery => {
   let ti = switch tl {
   | TLHandler({ast, _}) | TLFunc({body: ast, _}) =>
-    ast
-    |> FluidAST.toExpr
+    FluidExpression.Expr(FluidAST.toExpr(ast))
     |> Printer.tokenize
     |> List.head
     |> Option.unwrap(~default=defaultTokenInfo)

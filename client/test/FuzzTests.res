@@ -110,7 +110,7 @@ let encodingRoundtrip: FuzzTest.t = {
 let longLines: FuzzTest.t = {
   name: "no lines above 120 chars",
   check: (~testcase as _, ~newAST, _) => {
-    let allTokens = FluidTokenizer.tokenize(newAST)
+    let allTokens = FluidTokenizer.tokenize(Expr(newAST))
     List.all(allTokens, ~f=ti => ti.startCol + ti.length <= 120)
   },
   ignore: _ => false,

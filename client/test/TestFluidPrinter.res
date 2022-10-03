@@ -8,7 +8,7 @@ type tokenInfo = FluidTypes.TokenInfo.t
 
 let run = () => {
   let tokensFor = (e: E.t): list<T.t> =>
-    FluidTokenizer.tokenize(e) |> List.map(~f=(ti: tokenInfo) => ti.token)
+    FluidTokenizer.tokenize(Expr(e)) |> List.map(~f=(ti: tokenInfo) => ti.token)
 
   let hasTokenMatch = (~f: T.t => bool, e: E.t) => {
     let tokens = tokensFor(e)
