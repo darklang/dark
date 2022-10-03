@@ -93,7 +93,7 @@ module Styles = {
 
   let sidebarCategory = %twc("mb-5 pl-2 pr-0.5 py-0 relative group-sidebar-category")
 
-  let categorySummary = %twc("outline-none flex justify-start items-center w-full")
+  let button = %twc("outline-none flex justify-start items-center w-full")
 
   let categoryContent = %twc("hidden group-sidebar-category-hover:block")
 }
@@ -498,7 +498,7 @@ let viewSidebarButton = (m: model, c: category): Html.html<msg> => {
     categoryButton(c.name, c.icon, ~props)
   }
 
-  Html.div(list{tw(Styles.categorySummary)}, list{catIcon, plusButton})
+  Html.div(list{tw(Styles.button)}, list{catIcon, plusButton})
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
@@ -699,18 +699,13 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 }
 
 let viewDeployStats = (m: model): Html.html<msg> => {
-  let entries = m.staticDeploys
-
-  let summary = {
-    Html.div(
-      list{tw(Styles.categorySummary)},
-      list{categoryButton("Static Assets", fontAwesome("file"))},
-    )
+  let button = {
+    Html.div(list{tw(Styles.button)}, list{categoryButton("Static Assets", fontAwesome("file"))})
   }
 
   let content = {
-    let deploys = if List.length(entries) > 0 {
-      entries |> List.map(~f=viewDeploy)
+    let deploys = if m.staticDeploys != list{} {
+      m.staticDeploys->List.map(~f=viewDeploy)
     } else {
       list{viewEmptyCategoryContents("Static deploys")}
     }
@@ -724,7 +719,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     )
   }
 
-  Html.div(list{tw(Styles.sidebarCategory)}, list{summary, content})
+  Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
 }
 
 // ---------------
@@ -789,7 +784,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 }
 
 let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
-  let summary = {
+  let button = {
     let plusBtn = iconButton(
       ~key="plus-secret",
       ~icon="plus-circle",
@@ -798,7 +793,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     )
 
     Html.div(
-      list{tw(Styles.categorySummary)},
+      list{tw(Styles.button)},
       list{categoryButton("Secret Keys", fontAwesome("user-secret")), plusBtn},
     )
   }
@@ -816,7 +811,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     )
   }
 
-  Html.div(list{tw(Styles.sidebarCategory)}, list{summary, content})
+  Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
 }
 
 // --------------------
@@ -957,7 +952,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{tw2(Styles.sidebarCategory, %twc("p-0"))},
     list{
       Html.div(
-        list{tw2(Styles.categorySummary, %twc("flex flex-col justify-start items-center -ml-1"))},
+        list{tw2(Styles.button, %twc("flex flex-col justify-start items-center -ml-1"))},
         list{categoryButton("Admin", fontAwesome("cog")), environment},
       ),
       hoverView,
