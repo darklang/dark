@@ -48,15 +48,14 @@ type rec entry = {
   uses: option<int>,
   minusButton: option<msg>,
   plusButton: option<msg>,
-  killAction: option<msg>,
   // if this is in the deleted section, what does minus do?
+  killAction: option<msg>,
   verb: option<string>,
 }
 
 and category = {
   count: int,
   name: string,
-  nested: bool,
   plusButton: option<msg>,
   iconAction: option<msg>,
   icon: Html.html<msg>,
@@ -65,14 +64,21 @@ and category = {
   entries: list<item>,
 }
 
+and nestedCategory = {
+  count: int,
+  name: string,
+  icon: Html.html<msg>,
+  entries: list<item>,
+}
+
 and item =
-  | Category(category)
+  | NestedCategory(nestedCategory)
   | Entry(entry)
 
 let rec count = (s: item): int =>
   switch s {
   | Entry(_) => 1
-  | Category(c) => (c.entries |> List.map(~f=count))->List.sum(module(Int))
+  | NestedCategory(c) => (c.entries |> List.map(~f=count))->List.sum(module(Int))
   }
 
 module Styles = {
@@ -104,27 +110,6 @@ let iconButton = (
   Html.div(list{event, Attrs.class(`${style} ${twStyle} ${classname}`)}, list{fontAwesome(icon)})
 }
 
-let categoryButton = (~props=list{}, description: string, icon: Html.html<msg>): Html.html<msg> =>
-  Html.div(
-    list{
-      tw(
-        %twc(
-          "mr-0 text-2xl text-grey5 duration-200 group-sidebar-category-hover:text-3xl w-9 h-9 text-center"
-        ),
-      ),
-      Attrs.title(description),
-      Attrs.role("img"),
-      Attrs.alt(description),
-      ...props,
-    },
-    list{icon},
-  )
-
-let mouseLeaveEvent = (name: string) =>
-  EventListeners.eventNoPropagation(~key=`cat-close-${name}`, "mouseleave", _ => Msg.SidebarMsg(
-    ResetSidebar,
-  ))
-
 let handlerCategory = (
   filter: toplevel => bool,
   name: string,
@@ -145,7 +130,6 @@ let handlerCategory = (
     count: List.length(handlers),
     name: name,
     plusButton: Some(CreateRouteHandler(action)),
-    nested: false,
     classname: String.toLowercase(name),
     iconAction: iconAction,
     icon: icon,
@@ -224,7 +208,6 @@ let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
   {
     count: List.length(dbs),
     name: "Datastores",
-    nested: false,
     classname: "dbs",
     plusButton: Some(CreateDBTable),
     iconAction: Some(GoToArchitecturalView),
@@ -262,7 +245,6 @@ let f404Category = (m: model): category => {
     count: List.length(f404s),
     name: "404s",
     plusButton: None,
-    nested: false,
     classname: "fof",
     iconAction: None,
     icon: Icons.darkIcon("fof"),
@@ -299,7 +281,6 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
   {
     count: List.length(fns),
     name: "Functions",
-    nested: false,
     classname: "fns",
     plusButton: Some(CreateFunction),
     iconAction: Some(GoToArchitecturalView),
@@ -333,7 +314,6 @@ let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
   {
     count: List.length(tipes),
     name: "Types",
-    nested: false,
     classname: "types",
     plusButton: Some(CreateType),
     iconAction: None,
@@ -394,15 +374,10 @@ let packageManagerCategory = (pmfns: packageFns): category => {
       let packageList =
         userList |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.package == f.name.package)
 
-      Category({
+      NestedCategory({
         count: List.length(uniquePackages),
-        nested: true,
         name: fn.name.package,
-        plusButton: None,
-        iconAction: None,
         icon: fontAwesome("cubes"),
-        classname: "pm-package" ++ fn.name.package,
-        tooltip: None,
         entries: getFnnameEntries(packageList),
       })
     })
@@ -418,15 +393,10 @@ let packageManagerCategory = (pmfns: packageFns): category => {
     let authorList =
       pmfns |> Map.values |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.owner == f.name.owner)
 
-    Category({
+    NestedCategory({
       count: List.length(uniqueauthors),
       name: fn.name.owner,
-      nested: true,
-      plusButton: None,
-      iconAction: None,
       icon: fontAwesome("user"),
-      classname: "pm-author" ++ fn.name.owner,
-      tooltip: None,
       entries: getPackageEntries(authorList),
     })
   })
@@ -434,7 +404,6 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   {
     count: List.length(uniqueauthors),
     name: "Package Manager",
-    nested: false,
     plusButton: None,
     iconAction: None,
     icon: fontAwesome("box-open"),
@@ -451,13 +420,10 @@ let deletedCategory = (m: model): category => {
     m.deletedDBs,
     m.deletedUserFunctions,
     m.deleteduserTypes,
-  ) |> List.map(~f=c => {
-    ...c,
-    // only allow new entries on the main category
-    plusButton: None,
-    // dont open/close in lockstep with parent
-    classname: delPrefix ++ c.classname,
-    nested: true,
+  ) |> List.map(~f=(c: category): nestedCategory => {
+    name: c.name,
+    count: c.count,
+    icon: c.icon,
     entries: List.map(c.entries, ~f=x =>
       switch x {
       | Entry(e) =>
@@ -479,17 +445,41 @@ let deletedCategory = (m: model): category => {
   })
 
   {
-    count: (cats |> List.map(~f=c => count(Category(c))))->List.sum(module(Int)),
+    count: (cats |> List.map(~f=c => count(NestedCategory(c))))->List.sum(module(Int)),
     name: "Deleted",
-    nested: false,
     plusButton: None,
     classname: "deleted",
     iconAction: None,
     icon: Icons.darkIcon("deleted"),
     tooltip: Some(Deleted),
-    entries: List.map(cats, ~f=c => Category(c)),
+    entries: List.map(cats, ~f=c => NestedCategory(c)),
   }
 }
+
+// ---------------
+// Render the nested categories
+// ---------------
+
+let categoryButton = (~props=list{}, description: string, icon: Html.html<msg>): Html.html<msg> =>
+  Html.div(
+    list{
+      tw(
+        %twc(
+          "mr-0 text-2xl text-grey5 duration-200 group-sidebar-category-hover:text-3xl w-9 h-9 text-center"
+        ),
+      ),
+      Attrs.title(description),
+      Attrs.role("img"),
+      Attrs.alt(description),
+      ...props,
+    },
+    list{icon},
+  )
+
+let mouseLeaveEvent = (name: string) =>
+  EventListeners.eventNoPropagation(~key=`cat-close-${name}`, "mouseleave", _ => Msg.SidebarMsg(
+    ResetSidebar,
+  ))
 
 let viewEmptyCategoryContents = (name: string): Html.html<msg> => {
   Html.div(list{tw2(%twc("ml-3 mt-4 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
@@ -502,6 +492,31 @@ let viewEmptyCategory = (c: category): Html.html<msg> => {
   | _ => c.name
   }
   viewEmptyCategoryContents(name)
+}
+
+let viewSidebarButton = (m: model, c: category): Html.html<msg> => {
+  let plusButton = switch c.plusButton {
+  | Some(msg) if m.permission == Some(ReadWrite) =>
+    iconButton(
+      ~key="plus-" ++ c.classname,
+      ~icon="plus-circle",
+      ~style=Styles.plusButton,
+      ~classname="",
+      msg,
+    )
+  | Some(_) | None => Vdom.noNode
+  }
+
+  let catIcon = {
+    let props = switch c.iconAction {
+    | Some(ev) => list{EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev)}
+    | None => list{Vdom.noProp}
+    }
+
+    categoryButton(c.name, c.icon, ~props)
+  }
+
+  Html.div(list{tw(Styles.categorySummary)}, list{catIcon, plusButton})
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
@@ -601,6 +616,53 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
   Html.div(list{tw(%twc("mt-1.25 flex"))}, list{minuslink, linkItem})
 }
 
+let rec viewItem = (m: model, s: item): Html.html<msg> =>
+  switch s {
+  | NestedCategory(c) =>
+    if c.count > 0 {
+      viewNestedCategory(m, c)
+    } else {
+      Vdom.noNode
+    }
+  | Entry(e) => viewEntry(m, e)
+  }
+
+and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
+  let titleStyle = Styles.nestedSidebarCategoryName
+  let title = Html.span(list{tw(titleStyle)}, list{Html.text(c.name)})
+  let entries = List.map(~f=viewItem(m), c.entries)
+
+  Html.div(
+    list{tw(Styles.sidebarCategory)},
+    list{Html.div(list{tw2(%twc("pl-4"), Styles.categoryContent)}, list{title, ...entries})},
+  )
+}
+
+let viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> => {
+  let titleStyle = Styles.contentCategoryName
+  let title = Html.span(list{tw(titleStyle)}, list{Html.text(c.name)})
+
+  let entries = if c.count > 0 {
+    List.map(~f=viewItem(m), c.entries)
+  } else {
+    list{viewEmptyCategory(c)}
+  }
+
+  let event = mouseLeaveEvent(c.classname)
+  Html.div(list{tw2(cls, Styles.categoryContent), event}, list{title, ...entries})
+}
+
+let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
+  let button = viewSidebarButton(m, c)
+  let content = viewCategoryContent(m, c, "category-content")
+
+  Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
+}
+
+// ---------------
+// Deploys
+// ---------------
+
 let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   let statusString = switch d.status {
   | Deployed => "Deployed"
@@ -684,6 +746,10 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 
   Html.div(list{tw(Styles.sidebarCategory)}, list{summary, content})
 }
+
+// ---------------
+// Secrets
+// ---------------
 
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
@@ -774,75 +840,9 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   Html.div(list{tw(Styles.sidebarCategory)}, list{summary, content})
 }
 
-let rec viewItem = (m: model, s: item): Html.html<msg> =>
-  switch s {
-  | Category(c) =>
-    if c.count > 0 {
-      viewNestedCategory(m, c)
-    } else {
-      Vdom.noNode
-    }
-  | Entry(e) => viewEntry(m, e)
-  }
-
-and viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> => {
-  let titleStyle = if c.nested {
-    Styles.nestedSidebarCategoryName
-  } else {
-    Styles.contentCategoryName
-  }
-  let title = Html.span(list{tw(titleStyle)}, list{Html.text(c.name)})
-
-  let entries = if c.count > 0 {
-    List.map(~f=viewItem(m), c.entries)
-  } else {
-    list{viewEmptyCategory(c)}
-  }
-
-  let event = !c.nested ? mouseLeaveEvent(c.classname) : Vdom.noProp
-
-  Html.div(list{tw2(cls, Styles.categoryContent), event}, list{title, ...entries})
-}
-
-and viewNestedCategory = (m: model, c: category): Html.html<msg> => {
-  let content = viewCategoryContent(m, c, %twc("pl-4"))
-
-  Html.div(list{tw(Styles.sidebarCategory)}, list{content})
-}
-
-and viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
-  let button = viewSidebarButton(m, c)
-  let content = viewCategoryContent(m, c, "category-content")
-
-  Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
-}
-
-and viewSidebarButton = (m: model, c: category): Html.html<msg> => {
-  let plusButton = switch c.plusButton {
-  | Some(msg) if m.permission == Some(ReadWrite) =>
-    iconButton(
-      ~key="plus-" ++ c.classname,
-      ~icon="plus-circle",
-      ~style=Styles.plusButton,
-      ~classname="",
-      msg,
-    )
-  | Some(_) | None => Vdom.noNode
-  }
-
-  let catIcon = {
-    let props = switch c.iconAction {
-    | Some(ev) if !c.nested => list{
-        EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
-      }
-    | Some(_) | None => list{Vdom.noProp}
-    }
-
-    categoryButton(c.name, c.icon, ~props)
-  }
-
-  Html.div(list{tw(Styles.categorySummary)}, list{catIcon, plusButton})
-}
+// --------------------
+// Admin
+// --------------------
 
 let adminDebuggerView = (m: model): Html.html<msg> => {
   let rowStyle = %twc("flex h-4 items-center ml-4 m-1.5")
@@ -985,6 +985,10 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     },
   )
 }
+
+// --------------------
+// Standard view apparatus
+// --------------------
 
 let update = (msg: Sidebar.msg): modification =>
   switch msg {
