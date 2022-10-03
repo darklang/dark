@@ -9,16 +9,9 @@ $secondaryColor: $grey2;
   --sidebarSecondaryColor: #{$secondaryColor};
 }
 
-#sidebar-left {
-  ::-webkit-scrollbar {
-    -webkit-appearance: none;
-  }
-}
-
 .category-content {
   &::-webkit-scrollbar-corner {
     // prevents an ugly white dot in the bottom right corner when both scrollbars are visible
     background-color: transparent;
   }
 }
-
