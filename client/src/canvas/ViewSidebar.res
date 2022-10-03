@@ -682,7 +682,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     )
   }
 
-  Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{summary, content})
+  Html.div(list{tw(Styles.sidebarCategory)}, list{summary, content})
 }
 
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
@@ -771,7 +771,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     )
   }
 
-  Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{summary, content})
+  Html.div(list{tw(Styles.sidebarCategory)}, list{summary, content})
 }
 
 let rec viewItem = (m: model, s: item): Html.html<msg> =>
@@ -805,16 +805,16 @@ and viewCategoryContent = (m: model, c: category, cls: string): Html.html<msg> =
 }
 
 and viewNestedCategory = (m: model, c: category): Html.html<msg> => {
-  let content = viewCategoryContent(m, c, "nested-category-content")
+  let content = viewCategoryContent(m, c, %twc("pl-4"))
 
-  Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{content})
+  Html.div(list{tw(Styles.sidebarCategory)}, list{content})
 }
 
 and viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
   let button = viewSidebarButton(m, c)
   let content = viewCategoryContent(m, c, "category-content")
 
-  Html.div(list{tw2("sidebar-category", Styles.sidebarCategory)}, list{button, content})
+  Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
 }
 
 and viewSidebarButton = (m: model, c: category): Html.html<msg> => {
@@ -975,7 +975,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   Html.div(
-    list{tw3(Styles.sidebarCategory, %twc("p-0"), "sidebar-category")},
+    list{tw2(Styles.sidebarCategory, %twc("p-0"))},
     list{
       Html.div(
         list{tw2(Styles.categorySummary, %twc("flex flex-col justify-start items-center -ml-1"))},
