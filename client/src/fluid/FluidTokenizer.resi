@@ -9,7 +9,7 @@ type featureFlagTokenization =
   fluidTokens.
 
   ~idx is the zero-based index of the match pattern in the enclosing match")
-let matchPatternToTokens: (ID.t, FluidMatchPattern.t, ~idx: int) => list<FluidTypes.Token.t>
+let matchPatternToTokens: (ID.t, ~idx: int, FluidMatchPattern.t) => list<FluidTypes.Token.t>
 
 let tokenize: FluidExpression.t => list<FluidToken.tokenInfo>
 

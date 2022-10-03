@@ -176,7 +176,7 @@ let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
 // The actual tokenization
 // --------------------------------------
 
-let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int): list<
+let rec matchPatternToTokens = (matchID: id, ~idx: int, mp: FluidMatchPattern.t): list<
   fluidToken,
 > => {
   open FluidTypes.Token
