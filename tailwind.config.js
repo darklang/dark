@@ -84,6 +84,7 @@ module.exports = {
     preflight: false,
   },
   plugins: [
+    require("tailwind-scrollbar")({ nocompatible: true }),
     require("tailwindcss-labeled-groups")([
       // This allows us have overlapping and nested groups. Each time you need a
       // group, create a new one with a contextual name

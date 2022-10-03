@@ -972,7 +972,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
       Attrs.id("sidebar-left"), // keep for sidebar and z-index
       tw2(
         %twc(
-          "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-8 w-14"
+          "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-8 w-14 scrollbar-thin scrollbar-thumb-rounded-lg"
         ),
         "abridged",
       ),

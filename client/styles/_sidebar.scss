@@ -12,17 +12,12 @@ $secondaryColor: $grey2;
 #sidebar-left {
   ::-webkit-scrollbar {
     -webkit-appearance: none;
-    width: 7px;
-    height: 7px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    border-radius: 7px;
   }
 }
 
 .category-content {
   &::-webkit-scrollbar-corner {
+    // prevents an ugly white dot in the bottom right corner when both scrollbars are visible
     background-color: transparent;
   }
 }
