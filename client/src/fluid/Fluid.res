@@ -5070,16 +5070,15 @@ let shouldSelect = (key: K.key): bool =>
   | _ => false
   }
 
-@ocaml.doc(" [expressionRange e target] returns the beginning and end of the range
-  * from the expression's first and last token by cross-referencing the
-  * tokens for the expression with the tokens for the whole editor's expr.
-  *
-  * This is preferred to just getting all the tokens with the same exprID
-  * because the last expression in a token range
-  * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
-  * different ID, (in the above case the last token TInt(2) belongs to the
-  * second sub-expr of the FnCall) ")
-let expressionRange = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> => {
+@ocaml.doc("returns the beginning and end of the range from the expression's
+  first and last token by cross-referencing the tokens for the expression with
+  the tokens for the whole editor's expr.
+
+  This is preferred to just getting all the tokens with the same exprID because
+  the last expression in a token range (e.g. a FnCall `Int::add 1 2`) might be
+  for a sub-expression and have a different ID, (in the above case the last
+  token TInt(2) belongs to the second sub-expr of the FnCall).")
+let selectionRangeOfExpr = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> => {
   let containingTokens = ASTInfo.activeTokenInfos(astInfo)
   let exprTokens =
     FluidAST.findExpr(exprID, astInfo.ast)
@@ -5111,7 +5110,7 @@ let getExpressionRangeAtCaret = (astInfo: ASTInfo.t): option<(int, int)> =>
   Option.andThen(~f=(t: T.tokenInfo) => {
     // get expression that the token belongs to
     let exprID = T.tid(t.token)
-    expressionRange(exprID, astInfo)
+    selectionRangeOfExpr(exprID, astInfo)
   })
   |> Option.map(~f=((eStartPos, eEndPos)) => (eStartPos, eEndPos))
 
@@ -5170,20 +5169,20 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
   // that we do not simply use the topmostExpr as-is: some of it may be outside
   // of the selection range. So, we favor gathering the tokens in scope, and
   // using `findTokenValue` from there to extract the data needed.
-  let rec reconstruct = (~topmostExpr: option<E.t>, (startPos, endPos)): option<E.t> => {
+  let rec reconstructExpr = (~topmostExpr: option<E.t>, (startPos, endPos)): option<E.t> => {
     let topmostExpr = topmostExpr |> orDefaultExpr
 
     let exprID = E.toID(topmostExpr)
 
     // Ensure expression range is not totally outside selection range.
     //
-    // Note: we don't want to call expressionRange for pipe targets - trying to
-    // tokenize one of those results in an error. We don't need it anyway; just
-    // below, we ignore any such cases.
+    // Note: we don't want to call selectionRangeOfExpr for pipe targets -
+    // trying to tokenize one of those results in an error. We don't need it
+    // anyway; just below, we ignore any such cases.
     let rangeToReconstruct = switch topmostExpr {
     | EPipeTarget(_) => Some(startPos, endPos)
     | _ =>
-      expressionRange(exprID, astInfo) |> Option.andThen(~f=((exprStartPos, exprEndPos)) =>
+      selectionRangeOfExpr(exprID, astInfo) |> Option.andThen(~f=((exprStartPos, exprEndPos)) =>
         if exprStartPos > endPos || exprEndPos < startPos {
           None
         } else {
@@ -5199,9 +5198,13 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
       | _ => None
       }
     | Some(startPos, endPos) =>
-      let reconstructExpr = expr => reconstruct(~topmostExpr=Some(expr), (startPos, endPos))
+      let reconstructExpr = expr => reconstructExpr(~topmostExpr=Some(expr), (startPos, endPos))
+      let reconstructMatchPattern = mp => reconstructMatchPattern(mp, (startPos, endPos))
+
       let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
+
       let id = gid()
+
       switch topmostExpr {
       | _ if tokens == list{} => None
       // basic, single/fixed-token expressions
@@ -5251,6 +5254,7 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
         let newWhole = findTokenValue(tokens, eID, "float-whole")
         let pointSelected = findTokenValue(tokens, eID, "float-point") != None
         let newFraction = findTokenValue(tokens, eID, "float-fractional")
+
         switch (newWhole, pointSelected, newFraction) {
         | (Some(value), true, None) => Some(EFloat(id, Positive, value, "0"))
         | (Some(value), false, None) | (None, false, Some(value)) =>
@@ -5264,7 +5268,6 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
       // empty let expr and subsets
       | ELet(eID, _lhs, rhs, nextExpr) =>
         let letKeywordSelected = findTokenValue(tokens, eID, "let-keyword") != None
-
         let newLhs = findTokenValue(tokens, eID, "let-var-name") |> Option.unwrap(~default="")
 
         switch (reconstructExpr(rhs), reconstructExpr(nextExpr)) {
@@ -5493,31 +5496,19 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
           Some(e)
         }
       | EMatch(_, cond, cases) =>
+        let newCond = reconstructExpr(cond) |> orDefaultExpr
+
         // new (mp, expr) pairs for the new `match`
-        let newCases = List.filterMap(cases, ~f=((mp, expr)) => {
-          let newMP =
-            // This is currently using a hacky algorithm that tries to 'parse'
-            // the tokens relevant to the MP. This maintains order, such that the
-            // first token of a pattern is first in the resultant list.
-            //
-            // TODO: it'd be ideal to have context of the tokens _in_ the pattern
-            // as well - not just the pattern tokens themselves.
-            tokens
-            |> List.filter(~f=((pID', _, _)) => pID' == MP.toID(mp))
-            |> (mpToks => reconstructPattern(mp, mpToks))
-
-          let newExpr = reconstructExpr(expr)
-
-          // this could be 'simplified' but this is more clear
-          switch (newMP, newExpr) {
+        let newCases = List.filterMap(cases, ~f=((matchPattern, expr)) => {
+          switch (reconstructMatchPattern(matchPattern), reconstructExpr(expr)) {
           | (Some(mp), Some(expr)) => Some(mp, expr)
-          | (Some(mp), None) => Some(mp, newExpr |> orDefaultExpr) // todo: reconsider
+          | (Some(mp), None) => Some(mp, None |> orDefaultExpr)
           | (None, Some(_expr)) => None // todo: reconsider
           | (None, None) => None
           }
         })
 
-        Some(EMatch(id, reconstructExpr(cond) |> orDefaultExpr, newCases))
+        Some(EMatch(id, newCond, newCases))
       | EFeatureFlag(_, name, cond, disabled, enabled) =>
         // since we don't have any tokens associated with feature flags yet
         Some(
@@ -5534,72 +5525,34 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
       }
     }
   }
-  and reconstructPattern = (matchPattern: MP.t, mpTokens) => {
-    // TODO: should we really be re-using these IDs?
-    switch mpTokens {
-    | list{} => None
-    // simple cases
-    | list{(id, _, "match-pattern-null")} => Some(MPNull(id))
-    | list{(id, _, "match-pattern-blank")} => Some(MPBlank(id))
-    | list{(id, _, "match-pattern-true")} => Some(MPBool(id, true))
-    | list{(id, _, "match-pattern-false")} => Some(MPBool(id, false))
-    | list{(id, value, "match-pattern-variable")} => Some(MPVariable(id, value))
-    | list{(id, value, "match-pattern-integer")} =>
-      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
-    | list{(id, value, "match-pattern-string")} => Some(MPString(id, Util.trimQuotes(value)))
+  and reconstructMatchPattern = (topmostMatchPattern: MP.t, (selStartPos, selEndPos)): option<
+    MP.t,
+  > => {
+    let _mpID = MP.toID(topmostMatchPattern)
 
-    // floats
-    | list{
-        (id, whole, "match-pattern-float-whole"),
-        (_, _, "match-pattern-float-point"),
-        (_, fraction, "match-pattern-float-fractional"),
-      } =>
-      let (sign, whole) = Sign.split(whole)
-      Some(MPFloat(id, sign, whole, fraction))
-    | list{(id, value, "match-pattern-float-whole"), (_, _, "match-pattern-float-point")}
-    | list{(id, value, "match-pattern-float-whole")} =>
-      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
-    | list{(_, _, "match-pattern-float-point"), (id, value, "match-pattern-float-fractional")}
-    | list{(id, value, "match-pattern-float-fractional")} =>
-      Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
+    // Ensure match pat range is not totally outside selection range.
+    let rangeToReconstruct = Some((selStartPos, selEndPos))
+    // todo: replace the above Some with the below logic, once selectionRangeOfMatchPattern available.
+    // selectionRangeOfMatchPattern(mpID, astInfo) |> Option.andThen(~f=((mpStartPos, mpEndPos)) =>
+    //   if mpStartPos > selEndPos || mpEndPos < selStartPos {
+    //     None
+    //   } else {
+    //     Some(max(mpStartPos, selStartPos), min(mpEndPos, selEndPos))
+    //   }
+    // )
 
-    // recursive patterns
-    // Note: this assumes that PConstructor's and PTuple's sub-pattern
-    // tokens are always selected as well
-    //
-    // i.e. if you highlight the following, starting at `match` and ending
-    // after `Ok`, the "test" value is included in the reconstructed expr
-    //
-    // «match Ok 1
-    //    Ok» "test" -> 999
-    //
-    // CLEANUP TUPLETODO we should instead use the subPatternTokens to
-    // reconstruct the sub-patterns appropriately
-    | list{(id, value, "match-pattern-constructor-name"), ..._subPatternTokens} =>
-      Some(
-        MPConstructor(
-          id,
-          value,
-          switch matchPattern {
-          | MPConstructor(_, _, ps) => ps
-          | _ => list{}
-          },
-        ),
-      )
-    | list{(id, _value, "match-pattern-tuple-open"), ..._subPatternTokens} =>
-      switch matchPattern {
-      | MPTuple(_, first, second, theRest) =>
-        Some(MPTuple(id, MP.clone(first), MP.clone(second), List.map(~f=MP.clone, theRest)))
-      | _ => Some(MPTuple(id, MPBlank(gid()), MPBlank(gid()), list{}))
-      }
-    | _ => recover("toksToMatchPattern not set up to handle token list", ~debug=mpTokens, None)
+    switch rangeToReconstruct {
+    | None => None
+    | Some(_startPos, _endPos) =>
+      // todo: lots
+      None
     }
   }
 
   let topmostID = getTopmostExprSelectionID(startPos, endPos, astInfo)
   let topmostExpr = topmostID |> Option.andThen(~f=id => FluidAST.findExpr(id, astInfo.ast))
 
-  reconstruct(~topmostExpr, (startPos, endPos))
+  reconstructExpr(~topmostExpr, (startPos, endPos))
 }
 
 let pasteOverSelection = (
