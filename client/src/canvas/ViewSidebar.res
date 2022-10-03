@@ -91,8 +91,6 @@ module Styles = {
 
   let sidebarCategory = %twc("mb-5 pl-2 pr-0.5 py-0 relative group-sidebar-category")
 
-  let button = %twc("outline-none flex justify-start items-center w-full")
-
   let categoryContent = %twc("hidden group-sidebar-category-hover:block")
 }
 
@@ -494,7 +492,7 @@ let viewSidebarButton = (
   | Some(_) | None => Vdom.noNode
   }
 
-  let catIcon = {
+  let icon = {
     let props = switch iconAction {
     | Some(ev) => list{EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev)}
     | None => list{Vdom.noProp}
@@ -502,8 +500,8 @@ let viewSidebarButton = (
 
     categoryButton(name, icon, ~props)
   }
-
-  Html.div(list{tw(Styles.button)}, list{catIcon, plusButton})
+  let style = %twc("outline-none flex justify-start items-center w-full")
+  Html.div(list{tw(style)}, list{icon, plusButton})
 }
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
@@ -949,7 +947,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{tw2(Styles.sidebarCategory, %twc("p-0"))},
     list{
       Html.div(
-        list{tw2(Styles.button, %twc("flex flex-col justify-start items-center -ml-1"))},
+        list{tw(%twc("outline-none flex justify-start items-center w-full flex-col -ml-1"))},
         list{categoryButton("Admin", fontAwesome("cog")), environment},
       ),
       hoverView,
