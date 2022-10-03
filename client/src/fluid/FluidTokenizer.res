@@ -10,12 +10,10 @@ type fluidToken = FluidTypes.Token.t
 type fluidState = AppTypes.fluidState
 
 type featureFlagTokenization =
-  | @ocaml.doc(" FeatureFlagOnlyDisabled is used in the main editor panel to only
-          * show the flag's old code ")
+  | @ocaml.doc("used in the main editor panel to only show the flag's old code")
   FeatureFlagOnlyDisabled
 
-  | @ocaml.doc(" FeatureFlagConditionAndEnabled is used in the secondary editor
-          * panel for editing a flag's condition and new code ")
+  | @ocaml.doc("used in the secondary editor panel for editing a flag's condition and new code")
   FeatureFlagConditionAndEnabled
 
 // --------------------------------------
@@ -132,6 +130,51 @@ module Builder = {
     // Tokens are stored reversed
     List.reverse(b.tokens)
 }
+
+let infoize = (tokens): list<tokenInfo> => {
+  let (row, col, pos) = (ref(0), ref(0), ref(0))
+  List.map(tokens, ~f=token => {
+    let length = String.length(T.toText(token))
+    let ti: tokenInfo = {
+      token: token,
+      startRow: row.contents,
+      startCol: col.contents,
+      startPos: pos.contents,
+      endPos: pos.contents + length,
+      length: length,
+    }
+
+    switch token {
+    | TNewline(_) =>
+      row := row.contents + 1
+      col := 0
+    | _ => col := col.contents + length
+    }
+    pos := pos.contents + length
+    ti
+  })
+}
+
+let validateTokens = (tokens: list<fluidToken>): list<fluidToken> => {
+  List.forEach(tokens, ~f=t => {
+    asserT("invalid token", String.length(T.toText(t)) > 0, ~debug=t)
+    ()
+  })
+  tokens
+}
+
+// Remove artifacts of the token generation process
+let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
+  tokens |> List.filter(~f=x =>
+    switch x {
+    | TIndent(0) => false
+    | _ => true
+    }
+  )
+
+// --------------------------------------
+// The actual tokenization
+// --------------------------------------
 
 let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int): list<
   fluidToken,
@@ -698,47 +741,6 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     }
   }
 }
-
-let infoize = (tokens): list<tokenInfo> => {
-  let (row, col, pos) = (ref(0), ref(0), ref(0))
-  List.map(tokens, ~f=token => {
-    let length = String.length(T.toText(token))
-    let ti: tokenInfo = {
-      token: token,
-      startRow: row.contents,
-      startCol: col.contents,
-      startPos: pos.contents,
-      endPos: pos.contents + length,
-      length: length,
-    }
-
-    switch token {
-    | TNewline(_) =>
-      row := row.contents + 1
-      col := 0
-    | _ => col := col.contents + length
-    }
-    pos := pos.contents + length
-    ti
-  })
-}
-
-let validateTokens = (tokens: list<fluidToken>): list<fluidToken> => {
-  List.forEach(tokens, ~f=t => {
-    asserT("invalid token", String.length(T.toText(t)) > 0, ~debug=t)
-    ()
-  })
-  tokens
-}
-
-// Remove artifacts of the token generation process
-let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
-  tokens |> List.filter(~f=x =>
-    switch x {
-    | TIndent(0) => false
-    | _ => true
-    }
-  )
 
 let tokenizeWithFFTokenization = (
   ffTokenization: featureFlagTokenization,
