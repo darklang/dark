@@ -79,6 +79,12 @@ $db-color: #a1887f;
   --userFunctionsColor: #{$user-functions};
   --dbColor: #{$db-color};
 }
+:root {
+  --sidebarBgColor: #{darken($canvas-background, 10%)};
+  --sidebarHoverColor: #{lighten($yellow, 10%)};
+  --sidebarPrimaryColor: #{$white1};
+  --sidebarSecondaryColor: #{$grey2};
+}
 
 $hover-foreground: darken($blue, 10%);
 $selected-background: darken($toplevel-background, 20%);
