@@ -589,27 +589,30 @@ let viewToplevelCategory = (
   let contents = if contents != list{} {
     contents
   } else {
+    // margin to make up for the space taken by the invisible dot in others
     list{
       Html.div(list{tw(%twc("ml-3 text-sidebar-secondary"))}, list{Html.text("No " ++ emptyName)}),
     }
   }
-
-  let style = %twc(
-    "absolute -top-5 left-14 p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll scrollbar-corner-transparent scrollbar-thin w-max"
-  )
 
   Html.div(
     list{tw(%twc("pl-2 pr-0.5 pb-5 relative group-sidebar-category"))},
     list{
       sidebarIcon,
       Html.div(
-        list{tw2(style, %twc("hidden group-sidebar-category-hover:block"))},
+        list{
+          tw(
+            %twc(
+              "absolute -top-5 left-14 p-1.25 pl-3 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll scrollbar-corner-transparent scrollbar-thin w-max hidden group-sidebar-category-hover:block"
+            ),
+          ),
+        },
         list{
           Html.span(
             list{tw2(Styles.titleBase, %twc("pb-2.5 text-lg text-center"))},
             list{Html.text(name)},
           ),
-          Html.div(list{}, contents),
+          ...contents,
         },
       ),
     },
@@ -721,7 +724,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 
   Html.div(
     list{
-      tw("flex relative justify-between items-center flex-row flex-nowrap w-72 ml-5 mr-1 mb-2.5"),
+      tw("flex relative justify-between items-center flex-row flex-nowrap w-72 ml-1 mr-1 mb-2.5"),
     },
     list{
       Html.div(
@@ -764,16 +767,13 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> =>
 // --------------------
 
 let adminDebuggerView = (m: model): Html.html<msg> => {
-  let rowStyle = %twc("flex h-4 items-center ml-4 m-1.5")
-  let stateRowStyle = rowStyle ++ %twc(" justify-start mx-0")
-
   let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
     Html.div(
-      list{tw(stateRowStyle)},
+      list{},
       list{
-        Html.p(list{}, list{Html.text(key)}),
-        Html.p(list{tw(%twc("w-3.5"))}, list{Html.text(":")}),
-        Html.p(list{tw(%twc("max-w-[210px] whitespace-nowrap"))}, list{value}),
+        Html.text(key),
+        Html.text(": "),
+        Html.span(list{tw(%twc("max-w-[210px] whitespace-nowrap"))}, list{value}),
       },
     )
 
@@ -824,7 +824,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     )
 
     Html.div(
-      list{event, tw(rowStyle ++ " " ++ style)},
+      list{event, tw2(%twc("pt-0.5"), style)},
       list{
         Html.input(
           list{Attrs.type'("checkbox"), Attrs.checked(checked), tw(%twc("cursor-pointer"))},
@@ -839,7 +839,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     m.editorSettings.runTimers,
     es => {...es, runTimers: !es.runTimers},
     "Run Timers",
-    "mt-4",
+    "mt-2.5",
   )
 
   let toggleFluidDebugger = input(
@@ -853,21 +853,15 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     m.editorSettings.showHandlerASTs,
     es => {...es, showHandlerASTs: !es.showHandlerASTs},
     "Show Handler ASTs",
-    "mb-4",
+    "mb-2.5",
   )
 
-  let debugger = Html.a(
+  let debugger = Html.div(
+    list{tw(%twc("mb-1.5"))},
     list{
-      Attrs.href(ViewScaffold.debuggerLinkLoc(m)),
-      tw(stateRowStyle ++ %twc(" text-grey8 hover:text-white3")),
-    },
-    list{
-      Html.text(
-        if m.teaDebuggerEnabled {
-          "Disable Debugger"
-        } else {
-          "Enable Debugger"
-        },
+      Html.a(
+        list{Attrs.href(ViewScaffold.debuggerLinkLoc(m)), tw(%twc("text-grey8 hover:text-white3"))},
+        list{Html.text(m.teaDebuggerEnabled ? "Disable Debugger" : "Enable Debugger")},
       ),
     },
   )
@@ -875,25 +869,20 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   let saveTestButton = Html.a(
     list{
       EventListeners.eventNoPropagation(~key="stb", "mouseup", _ => Msg.SaveTestButton),
-      tw2(
-        stateRowStyle,
+      tw(
         %twc(
-          "border border-solid rounded-sm p-1 mb-5 h-2.5 w-fit text-xxs text-grey8 cursor-pointer hover:text-black2 hover:bg-grey8"
+          "border border-solid rounded-sm p-1 my-5 h-2.5 w-fit text-xxs text-grey8 cursor-pointer hover:text-black2 hover:bg-grey8"
         ),
       ),
     },
     list{Html.text("SAVE STATE FOR INTEGRATION TEST")},
   )
 
-  let content = Html.div(
-    list{tw(%twc("outline-none flex justify-start items-center flex-col -ml-1"))},
-    Belt.List.concatMany([
-      list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
-      list{saveTestButton},
-    ]),
-  )
+  let content = Belt.List.concatMany([
+    list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger, saveTestButton},
+  ])
 
-  viewToplevelCategory(m, "Admin", "", None, fontAwesome("cog"), None, list{content})
+  viewToplevelCategory(m, "Admin", "", None, fontAwesome("cog"), None, content)
 }
 
 // --------------------
