@@ -746,7 +746,7 @@ let tokenizeWithOptions = (
   switch mpOrExpr {
   | Expr(expr) =>
     {...Builder.empty, ffTokenization: ffTokenization} |> exprToTokens(expr) |> Builder.asTokens
-  | MatchPat(matchId, pat) => matchPatternToTokens(matchId, ~idx=0, pat)
+  | MatchPat(matchId, pat) => matchPatternToTokens(matchId, ~idx=0, pat) // TODO: this is the wrong index!
   }
   |> tidy
   |> validateTokens

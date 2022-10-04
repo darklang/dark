@@ -1410,24 +1410,36 @@ let run = () => {
     ()
   })
   describe("Match", () => {
+    //
+    // First, test the reconstruction of the `match` expr itself
+    //
+
     testCopy(
-      "copying a single blank match pattern works",
+      "copying a single blank match pattern",
       match'(blank(), list{(mpBlank(), blank())}),
       (0, 22),
       "match ___\n  *** -> ___\n",
     )
-    // todo: copying all cases in a match expression
+    testCopy(
+      "copying all cases in a match expression",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (0, 56), // at the end
+      "match 0\n  123 -> \"first branch\"\n  456 -> \"second branch\"\n",
+    )
     testCopy(
       "copying fewer than all cases in a match expression",
       match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
-      (0, 30), // right after "Just"
+      (0, 31), // at the end of "first branch" (before newline)
       "match 0\n  123 -> \"first branch\"\n",
     )
     // todo: copying just the expr in a match case (without arrow)
     // todo: copying just the expr in a match case (with arrow)
     // todo: copying just the pattern in a match case (without arrow)
     // todo: copying just the pattern in a match case (with arrow)
-    // todo:
+
+    //
+    // Now, test the reconstruction of various 'match patterns'
+    //
 
     describe("Bool match pattern", () => {
       // todo: fully selected `true`
@@ -1454,7 +1466,7 @@ let run = () => {
 
     describe("Int match pattern", () => {
       testCopy(
-        "copying a match expression with a single integer pattern works",
+        "copying a match expr with a single integer pattern",
         match'(int(123), list{(mpInt(123), str("success"))}),
         (0, 27),
         "match 123\n  123 -> \"success\"\n",
@@ -1469,7 +1481,7 @@ let run = () => {
 
     describe("Constructor match pattern", () => {
       testCopy(
-        "copying a match expression with a full constructor pattern works",
+        "copying a match expression with a full constructor pattern",
         match'(
           constructor("Just", list{int(123)}),
           list{(mpConstructor("Just", list{mpInt(123)}), str("success"))},
@@ -1478,7 +1490,7 @@ let run = () => {
         "match Just 123\n  Just 123 -> \"success\"\n",
       )
       testCopy(
-        "copying a match expression with a partial constructor pattern works",
+        "copying a match expression with a partial constructor pattern",
         match'(
           constructor("Just", list{int(123)}),
           list{(mpConstructor("Just", list{mpInt(123)}), str("success"))},
@@ -1493,7 +1505,7 @@ let run = () => {
 
     describe("Tuple match pattern", () => {
       testCopy(
-        "copying a match expression including a full tuple pattern works",
+        "copying a match expression including a full tuple pattern",
         match'(
           tuple(int(1), str("two"), list{int(3)}),
           list{(mpTuple(mpInt(1), mpString("two"), list{mpInt(3)}), str("success"))},
@@ -1502,7 +1514,7 @@ let run = () => {
         "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
       )
       testCopy(
-        "copying a match expression including part of a tuple pattern works",
+        "copying a match expression including part of a tuple pattern",
         match'(
           tuple(int(1), str("two"), list{int(3)}),
           list{(mpTuple(mpInt(1), mpString("two"), list{mpInt(3)}), str("success"))},
