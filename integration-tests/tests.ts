@@ -31,6 +31,7 @@ import {
   selectAll,
   waitForEmptyEntryBox,
   createSecret,
+  waitForEmptyFluidEntryBox,
 } from "./utils";
 
 declare global {
@@ -288,10 +289,12 @@ test.describe.parallel("Integration Tests", async () => {
     // verb
     await page.type(Locators.entryBox, "g");
     await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
 
     // route
     await page.type(Locators.entryBox, "/hello");
     await page.keyboard.press("Enter");
+    await waitForEmptyFluidEntryBox(page);
 
     // string
     await page.type("#active-editor", '"Hello world!"');
@@ -462,7 +465,10 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("correct_field_livevalue", async ({ page }) => {
+    let token = await awaitAnalysisLoaded(page);
+    const before = Date.now();
     await page.click(".fluid-editor"); // this click required to activate the editor
+    await awaitAnalysis(page, before, token);
     await page.click(".fluid-field-name >> text='gth'");
 
     await expectExactText(page, ".selected .live-value.loaded", "5");
@@ -528,9 +534,12 @@ test.describe.parallel("Integration Tests", async () => {
   // See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
 
   test("function_analysis_works", async ({ page }, testInfo) => {
+    let token = await awaitAnalysisLoaded(page);
+    const before = Date.now();
     await gotoHash(page, testInfo, `fn=1039370895`);
     await page.waitForSelector(".user-fn-toplevel");
     await page.click(".user-fn-toplevel #active-editor .fluid-binop");
+    await awaitAnalysis(page, before, token);
     await expectExactText(page, ".selected .live-value.loaded", "10");
   });
 
