@@ -539,12 +539,14 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       }
 
       let cls = {
-        let unused = e.uses == Some(0) ? %twc("text-sidebar-secondary") : ""
-        let default = %twc(
-          "flex justify-between cursor-pointer text-sidebar-primary no-underline outline-none"
-        )
+        let color = if e.uses == Some(0) {
+          %twc("text-sidebar-secondary")
+        } else {
+          %twc("text-sidebar-primary")
+        }
+        let default = %twc("flex justify-between cursor-pointer no-underline outline-none")
 
-        `${default} ${unused}`
+        `${default} ${color}`
       }
 
       list{Url.linkFor(dest, cls, list{Html.span(list{}, list{selected, Html.text(e.name)}), verb})}
