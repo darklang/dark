@@ -555,6 +555,7 @@ and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
 let viewToplevelCategory = (
   m: model,
   name: string,
+  emptyName: string,
   plusButton: option<msg>,
   icon: Html.html<msg>,
   iconAction: option<msg>,
@@ -589,7 +590,7 @@ let viewToplevelCategory = (
     contents
   } else {
     list{
-      Html.div(list{tw2(%twc("ml-3 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)}),
+      Html.div(list{tw(%twc("ml-3 text-sidebar-secondary"))}, list{Html.text("No " ++ emptyName)}),
     }
   }
 
@@ -678,6 +679,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
   viewToplevelCategory(
     m,
     "Static Assets",
+    "Static Assets",
     None,
     fontAwesome("file"),
     None,
@@ -749,6 +751,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 let viewSecretKeys = (m: model): Html.html<AppTypes.msg> =>
   viewToplevelCategory(
     m,
+    "Secret Keys",
     "Secret Keys",
     Some(SecretMsg(OpenCreateModal)),
     fontAwesome("user-secret"),
@@ -890,7 +893,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     ]),
   )
 
-  viewToplevelCategory(m, "", None, fontAwesome("cog"), None, list{content})
+  viewToplevelCategory(m, "Admin", "", None, fontAwesome("cog"), None, list{content})
 }
 
 // --------------------
@@ -914,6 +917,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
       viewToplevelCategory(
         m,
         c.name,
+        c.emptyName,
         c.plusButton,
         c.icon,
         c.iconAction,
