@@ -508,15 +508,10 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("select_route", async ({ page }) => {
-    const categoryHeader = ".sidebar-category.http .category-summary";
-    const httpVerbLink =
-      ".sidebar-category.http .category-content a.toplevel-link";
+    await page.hover("[title=HTTP]");
+    await page.locator('a:has-text("/helloGET")').first().click();
+
     const toplevelElement = ".node .toplevel";
-
-    await page.click(categoryHeader);
-    await page.waitForSelector(httpVerbLink);
-
-    await page.click(httpVerbLink);
     await page.waitForSelector(toplevelElement);
 
     await expect(page.locator(toplevelElement)).toHaveClass(/selected/);
