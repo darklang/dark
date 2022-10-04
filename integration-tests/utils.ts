@@ -194,7 +194,17 @@ export async function waitForPageToStopMoving(page: Page): Promise<void> {
   await page.waitForTimeout(500);
 }
 
-export async function awaitAnalysis(page: Page, lastTimestamp: number) {
+// We don't want to slow every test by waiting for analysis to load, which can be
+// slow. At the same time, if we don't wait, we get flaky tests. An analysis token
+// solves that: you can't call awaitAnalysis without one, and you can only get one by
+// calling awaitAnalysisLoaded (which is why the  type isn't exported)
+class AnalysisLoadedToken {}
+
+export async function awaitAnalysis(
+  page: Page,
+  lastTimestamp: number,
+  _: AnalysisLoadedToken,
+): Promise<void> {
   let analysisFunction = (lastTimestamp: number) => {
     let newTimestamp = window.Dark.analysis.lastRun;
     if (newTimestamp > lastTimestamp) {
@@ -209,6 +219,7 @@ export async function awaitAnalysis(page: Page, lastTimestamp: number) {
 
 export async function awaitAnalysisLoaded(page: Page) {
   await page.waitForFunction(() => window.Dark.analysis.initialized);
+  return new AnalysisLoadedToken();
 }
 
 //********************************
