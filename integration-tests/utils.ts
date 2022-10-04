@@ -14,6 +14,7 @@ export const Locators = {
 //********************************
 export async function gotoAST(page: Page): Promise<void> {
   await page.click("#active-editor > span");
+  await expect(page.locator("#active-editor")).toBeFocused();
 }
 
 export function bwdUrl(testInfo: TestInfo, path: string) {
@@ -57,15 +58,15 @@ export async function expectPlaceholderText(page: Page, text: string) {
 // Create handlers
 //********************************
 
-async function createHandler(page: Page, title: string) {
+async function createFromSidebar(page: Page, title: string) {
   // Based on the html structure - the plus is the sibling of the handler
-  await page.click(`[title=${title}] + div`);
-  await page.hover("text='Docs'"); // move mouse off the sidebar
+  await page.click(`[title='${title}'] + div`);
+  await page.hover("text='Docs'", { force: true }); // move mouse off the sidebar
   await waitForPageToStopMoving(page);
 }
 
 export async function createEmptyHTTPHandler(page: Page) {
-  await createHandler(page, "HTTP");
+  await createFromSidebar(page, "HTTP");
 }
 
 export async function createHTTPHandler(
@@ -75,6 +76,7 @@ export async function createHTTPHandler(
 ) {
   await createEmptyHTTPHandler(page);
   await page.type(Locators.entryBox, method);
+  await page.waitForSelector("#entry-box >> text=''");
   await expectExactText(page, Locators.acHighlightedValue, method);
   await page.keyboard.press("Enter");
   await waitForEmptyEntryBox(page);
@@ -85,17 +87,21 @@ export async function createHTTPHandler(
 }
 
 export async function createWorkerHandler(page) {
-  await createHandler(page, "Worker");
+  await createFromSidebar(page, "Worker");
   await waitForEmptyEntryBox(page);
 }
 
 export async function createRepl(page) {
-  await createHandler(page, "REPL");
+  await createFromSidebar(page, "REPL");
   await waitForEmptyFluidEntryBox(page);
 }
 
 export async function createSecret(page) {
-  await page.click(`[title='Secret Keys'] + div`);
+  await createFromSidebar(page, "Secret Keys");
+}
+
+export async function createFunction(page) {
+  await createFromSidebar(page, "Functions");
 }
 
 //********************************
@@ -183,10 +189,12 @@ export async function getElementSelectionEnd(
 // Entry-box sometimes carries state over briefly, so wait til it's clear
 export async function waitForEmptyEntryBox(page: Page): Promise<void> {
   await page.waitForSelector("#entry-box >> text=''");
+  await expect(page.locator("#entry-box")).toBeFocused();
 }
 
 export async function waitForEmptyFluidEntryBox(page: Page): Promise<void> {
   await page.waitForSelector("#active-editor >> text=''");
+  await expect(page.locator("#active-editor")).toBeFocused();
 }
 
 export async function waitForPageToStopMoving(page: Page): Promise<void> {

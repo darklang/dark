@@ -425,8 +425,8 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("execute_function_works", async ({ page }) => {
-    await createRepl(page);
     let token = await awaitAnalysisLoaded(page);
+    await createRepl(page);
     await page.waitForSelector("#active-editor");
     await page.type("#active-editor", "Uuid::gen");
     await page.keyboard.press("Enter");
@@ -1187,9 +1187,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   test("focus_on_secret_field_on_insert_modal_open", async ({ page }) => {
     await createSecret(page);
-    const nameInput = "#new-secret-name-input";
-
-    await expect(page.locator(nameInput)).toBeFocused();
+    await expect(page.locator("#new-secret-name-input")).toBeFocused();
 
     await page.click(".modal.insert-secret .close-btn");
   });
