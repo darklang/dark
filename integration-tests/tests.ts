@@ -975,19 +975,6 @@ test.describe.parallel("Integration Tests", async () => {
     await expect(locator).toBeVisible();
   });
 
-  test("abridged_sidebar_category_icon_click_disabled", async ({ page }) => {
-    const httpCatSelector = ".sidebar-category.http";
-    const dbCatSelector = ".sidebar-category.dbs";
-
-    // clicking on a category icon does not keep it open if you mouse elsewhere
-    await page.click(httpCatSelector + " .category-icon");
-    await page.click(dbCatSelector + " .category-icon");
-
-    await expect(
-      page.locator(httpCatSelector + " .category-content"),
-    ).not.toBeVisible();
-  });
-
   test("function_docstrings_are_valid", async ({}) => {
     // validate functions in IntegrationTest.ml
   });
