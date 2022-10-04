@@ -223,10 +223,10 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("field_access_closes", async ({ page }, testInfo) => {
+    let token = await awaitAnalysisLoaded(page);
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
 
-    let token = await awaitAnalysisLoaded(page);
     await page.type("#active-editor", "re");
     let start = Date.now();
     await page.type("#active-editor", "q");
@@ -745,11 +745,11 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("varnames_are_incomplete", async ({ page }) => {
+    let token = await awaitAnalysisLoaded(page);
     await page.click(".toplevel");
     await page.click(".spec-header > .toplevel-name");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    let token = await awaitAnalysisLoaded(page);
     await page.type(Locators.entryBox, ":a");
     let before = Date.now();
     await expectExactText(page, Locators.acHighlightedValue, "/:a");
@@ -757,6 +757,8 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("a");
     await page.keyboard.press("Enter");
     await awaitAnalysis(page, before, token);
+
+    await expect(page.locator(".selected .live-value.loaded")).not.toBe("");
     await expectContainsText(page, ".live-value.loaded", "<Incomplete>");
   });
 
