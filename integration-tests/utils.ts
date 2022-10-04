@@ -56,10 +56,16 @@ export async function expectPlaceholderText(page: Page, text: string) {
 //********************************
 // Create handlers
 //********************************
-export async function createEmptyHTTPHandler(page: Page) {
-  await page.click(".sidebar-category.http i.fa-plus-circle");
+
+async function createHandler(page: Page, title: string) {
+  // Based on the html structure - the plus is the sibling of the handler
+  await page.click(`[title=${title}] + div`);
   await waitForPageToStopMoving(page);
   await waitForEmptyEntryBox(page);
+}
+
+export async function createEmptyHTTPHandler(page: Page) {
+  await createHandler(page, "HTTP");
 }
 
 export async function createHTTPHandler(
@@ -79,15 +85,11 @@ export async function createHTTPHandler(
 }
 
 export async function createWorkerHandler(page) {
-  await page.click(".sidebar-category.worker i.fa-plus-circle");
-  await waitForPageToStopMoving(page);
-  await waitForEmptyEntryBox(page);
+  await createHandler(page, "Worker");
 }
 
 export async function createRepl(page) {
-  await page.click(".sidebar-category.repl i.fa-plus-circle");
-  await waitForPageToStopMoving(page);
-  await waitForEmptyFluidEntryBox(page);
+  await createHandler(page, "Repl");
 }
 
 //********************************
