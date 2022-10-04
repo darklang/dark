@@ -11,6 +11,7 @@ import {
   canvasUrl,
   awaitAnalysisLoaded,
   awaitAnalysis,
+  waitForFluidCursor,
   bwdUrl,
   caretPos,
   createEmptyHTTPHandler,
@@ -725,6 +726,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".tl-428972234");
     await page.waitForSelector(".selected #active-editor");
     await page.click(".fluid-string", caretPos(10));
+    await waitForFluidCursor(page);
     await page.keyboard.press("Control+ArrowLeft");
   });
 
@@ -733,6 +735,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".tl-428972234");
     await page.waitForSelector(".selected #active-editor");
     await page.click(".fluid-string", caretPos(10));
+    await waitForFluidCursor(page);
     await page.keyboard.press("Control+ArrowRight");
   });
 
@@ -741,6 +744,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".tl-281413634");
     await page.waitForSelector(".selected #active-editor");
     await page.click(".fluid-category-match-pattern.id-63381027", caretPos(0));
+    await waitForFluidCursor(page);
     await page.keyboard.press("Control+ArrowLeft");
   });
 
@@ -754,6 +758,7 @@ test.describe.parallel("Integration Tests", async () => {
     let before = Date.now();
     await expectExactText(page, Locators.acHighlightedValue, "/:a");
     await page.keyboard.press("Tab");
+    await waitForFluidCursor(page);
     await page.keyboard.press("a");
     await page.keyboard.press("Enter");
     await awaitAnalysis(page, before, token);
@@ -1084,7 +1089,8 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("unfade_command_palette", async ({ page }) => {
-    await page.dblclick(".fluid-let-keyword");
+    // flaky - if the let isn't selected by the dblclick, the test fails
+    await page.dblclick(".fluid-let-keyword", caretPos(3));
     await page.keyboard.press("Control+\\");
     await page.waitForSelector("#cmd-filter");
 

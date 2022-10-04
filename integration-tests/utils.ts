@@ -192,9 +192,13 @@ export async function waitForEmptyEntryBox(page: Page): Promise<void> {
   await expect(page.locator("#entry-box")).toBeFocused();
 }
 
+export async function waitForFluidCursor(page: Page): Promise<void> {
+  await expect(page.locator("#active-editor")).toBeFocused();
+}
+
 export async function waitForEmptyFluidEntryBox(page: Page): Promise<void> {
   await page.waitForSelector("#active-editor >> text=''");
-  await expect(page.locator("#active-editor")).toBeFocused();
+  await waitForFluidCursor(page);
 }
 
 export async function waitForPageToStopMoving(page: Page): Promise<void> {
