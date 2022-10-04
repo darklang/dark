@@ -82,9 +82,7 @@ let rec count = (s: item): int =>
   }
 
 module Styles = {
-  let categoryNameBase = %twc(
-    "block text-grey8 font-bold mt-0 tracking-wide w-full font-heading -ml-4"
-  )
+  let categoryNameBase = %twc("block text-grey8 font-bold mt-0 tracking-wide font-heading -ml-4")
   let contentCategoryName = %twc("text-lg text-center ") ++ categoryNameBase
 
   let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
@@ -92,7 +90,7 @@ module Styles = {
   let sidebarCategory = %twc("pl-2 pr-0.5 pt-0 pb-5 relative group-sidebar-category")
 
   let content = %twc(
-    "absolute bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14 scrollbar-corner-transparent scrollbar-thin"
+    "absolute bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14 scrollbar-corner-transparent scrollbar-thin w-max"
   )
 
   let contentVisibility = %twc("hidden group-sidebar-category-hover:block")
@@ -492,7 +490,7 @@ let viewSidebarButton = (
 
     categoryButton(name, icon, ~props)
   }
-  let style = %twc("outline-none flex justify-start items-center w-full")
+  let style = %twc("outline-none flex justify-start items-center")
   Html.div(list{tw(style)}, list{icon, plusButton})
 }
 
@@ -547,7 +545,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       let cls = {
         let unused = e.uses == Some(0) ? %twc("text-sidebar-secondary") : ""
         let default = %twc(
-          "flex justify-between cursor-pointer w-full text-sidebar-primary no-underline outline-none"
+          "flex justify-between cursor-pointer text-sidebar-primary no-underline outline-none"
         )
 
         `${default} ${unused}`
@@ -558,10 +556,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     | SendMsg(_) =>
       let pointer = m.permission == Some(ReadWrite) ? %twc("cursor-pointer") : ""
       list{
-        Html.span(
-          list{tw2(pointer, %twc("flex justify-between w-full"))},
-          list{Html.text(e.name), verb},
-        ),
+        Html.span(list{tw2(pointer, %twc("flex justify-between"))}, list{Html.text(e.name), verb}),
       }
     | DoNothing => list{Html.text(e.name), verb}
     }
@@ -572,7 +567,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     | SendMsg(_) | DoNothing | Destination(_) => Vdom.noProp
     }
 
-    Html.span(list{tw(%twc("w-full group inline-block group-sidebar-addbutton")), action}, contents)
+    Html.span(list{tw(%twc("group inline-block group-sidebar-addbutton w-full")), action}, contents)
   }
 
   // This prevents the delete button appearing
@@ -685,7 +680,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
       ),
       Html.div(list{tw2(statusColor, %twc("inline-block"))}, list{Html.text(statusString)}),
       Html.div(
-        list{tw(%twc("block w-full text-xxs text-right"))},
+        list{tw(%twc("block text-xxs text-right"))},
         list{Html.text(Js.Date.toUTCString(d.lastUpdate))},
       ),
     },
@@ -744,7 +739,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
     }
   }
 
-  let style = %twc("text-xs no-underline box-border px-1.5 py-0 w-full overflow-hidden")
+  let style = %twc("text-xs no-underline box-border px-1.5 py-0 overflow-hidden")
 
   Html.div(
     list{
@@ -938,7 +933,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{tw2(Styles.sidebarCategory, %twc("p-0"))},
     list{
       Html.div(
-        list{tw(%twc("outline-none flex justify-start items-center w-full flex-col -ml-1"))},
+        list{tw(%twc("outline-none flex justify-start items-center flex-col -ml-1"))},
         list{categoryButton("Admin", fontAwesome("cog")), environment},
       ),
       hoverView,
