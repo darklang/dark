@@ -427,7 +427,6 @@ test.describe.parallel("Integration Tests", async () => {
   test("execute_function_works", async ({ page }) => {
     let token = await awaitAnalysisLoaded(page);
     await createRepl(page);
-    await page.waitForSelector("#active-editor");
     await page.type("#active-editor", "Uuid::gen");
     await page.keyboard.press("Enter");
 
@@ -436,6 +435,10 @@ test.describe.parallel("Integration Tests", async () => {
     await awaitAnalysis(page, t1, token);
     await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
       "Function is executing",
+    );
+    // Test can be flaky, this helps a lot
+    await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
+      "Click Play to execute function",
     );
     let v1 = await page.textContent(".selected .live-value.loaded");
 
