@@ -772,12 +772,9 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("sidebar_opens_function", async ({ page }) => {
-    await page.waitForSelector(".sidebar-category.fns .category-summary");
-    await page.click(".sidebar-category.fns .category-summary");
-    await page.waitForSelector(
-      ".sidebar-category.fns a[href='#fn=1352039682']",
-    );
-    await page.click(".sidebar-category.fns a[href='#fn=1352039682']");
+    await page.hover("[title=Functions]");
+    await page.waitForSelector("a[href='#fn=1352039682']");
+    await page.click("a[href='#fn=1352039682']");
     expect(page.url()).toMatch(/.+#fn=1352039682$/);
   });
 
