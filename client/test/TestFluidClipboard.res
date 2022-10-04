@@ -1413,7 +1413,6 @@ let run = () => {
     //
     // First, test the reconstruction of the `match` expr itself
     //
-
     testCopy(
       "copying a single blank match pattern",
       match'(blank(), list{(mpBlank(), blank())}),
@@ -1432,26 +1431,75 @@ let run = () => {
       (0, 31), // at the end of "first branch" (before newline)
       "match 0\n  123 -> \"first branch\"\n",
     )
-    // todo: copying just the expr in a match case (without arrow)
-    // todo: copying just the expr in a match case (with arrow)
-    // todo: copying just the pattern in a match case (without arrow)
-    // todo: copying just the pattern in a match case (with arrow)
+    testCopy(
+      "copying the expr out of a match expression's case",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (17, 31), // "first branch"
+      "\"first branch\"",
+    )
+    testCopy(
+      "copying a case within a match expr - arrow and expr",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (13, 31), // -> "first branch"
+      "match ___\n  *** -> \"first branch\"\n",
+    )
+    testCopy(
+      "copying a case within a match expr - just pattern",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (10, 13), // 123
+      "123",
+    )
+    testCopy(
+      "copying a case within a match expr - pattern and arrow",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (10, 17), // 123 ->
+      "match ___\n  123 -> ___\n",
+    )
 
     //
     // Now, test the reconstruction of various 'match patterns'
     //
-
     describe("Bool match pattern", () => {
-      // todo: fully selected `true`
-      // todo: fully selected `false`
-      // todo: partially selected `true` (`tr`)
-      // todo: partially selected `false` (`alse`)
+      testCopy(
+        "copying a fully selected bool match pattern - true",
+        match'(blank(), list{(mpBool(true), blank())}),
+        (0, 16),
+        "match ___\n  true -> ___\n",
+      )
+      testCopy(
+        "copying a fully selected bool match pattern - false",
+        match'(blank(), list{(mpBool(false), blank())}),
+        (0, 17),
+        "match ___\n  false -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected bool match pattern - true",
+        match'(blank(), list{(mpBool(true), blank())}),
+        (0, 14), // tr|ue
+        "match ___\n  *** -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected bool match pattern - false",
+        match'(blank(), list{(mpBool(false), blank())}),
+        (0, 15), // fal|se
+        "match ___\n  *** -> ___\n",
+      )
       ()
     })
 
     describe("Null match pattern", () => {
-      // todo: fullly selected
-      // todo: partially selected (`nul`)
+      testCopy(
+        "copying a fully selected null match pattern",
+        match'(blank(), list{(mpNull(), blank())}),
+        (0, 16),
+        "match ___\n  null -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected null match pattern",
+        match'(blank(), list{(mpNull(), blank())}),
+        (0, 14), // nu|ll
+        "match ___\n  *** -> ___\n",
+      )
       ()
     })
 
@@ -1460,22 +1508,67 @@ let run = () => {
       ()
     })
     describe("String match pattern", () => {
-      // todo: many tests
+      testCopy(
+        "copying a fully selected string pattern",
+        match'(blank(), list{(mpString("test"), blank())}),
+        (0, 18), // past the ending quote (")
+        "match ___\n  \"test\" -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected string pattern",
+        match'(blank(), list{(mpString("test"), blank())}),
+        (0, 15), // "te|st"
+        "match ___\n  \"te\" -> ___\n",
+      )
       ()
     })
 
     describe("Int match pattern", () => {
       testCopy(
-        "copying a match expr with a single integer pattern",
-        match'(int(123), list{(mpInt(123), str("success"))}),
-        (0, 27),
-        "match 123\n  123 -> \"success\"\n",
+        "copying a fully selected integer pattern",
+        match'(blank(), list{(mpInt(123), blank())}),
+        (0, 15),
+        "match ___\n  123 -> ___\n",
       )
-      // todo: many more tests
+      testCopy(
+        "copying a partially selected integer pattern",
+        match'(blank(), list{(mpInt(123), blank())}),
+        (0, 14), // 12|3
+        "match ___\n  12 -> ___\n",
+      )
       ()
     })
     describe("Float match pattern", () => {
-      // todo: many tests
+      testCopy(
+        "copy a fully selected float pattern",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (0, 21),
+        "match ___\n  1234.5678 -> ___\n",
+      )
+      testCopy(
+        "copy the whole part of a float match pattern w/o the point",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (0, 16),
+        "match ___\n  1234 -> ___\n",
+      )
+      testCopy(
+        "copy the whole part of a float match pattern w/ the point",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (0, 17),
+        "match ___\n  1234.0 -> ___\n",
+      )
+      testCopy(
+        "copy the fraction part of a float match pattern w/o the point",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (17, 25),
+        "match ___\n  5678 -> ___\n",
+      )
+      testCopy(
+        "copy the fraction part of a float match pattern w/ the point",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (16, 25),
+        "match ___\n  0.5678 -> ___\n",
+      )
       ()
     })
 
@@ -1498,8 +1591,6 @@ let run = () => {
         (0, 21), // right after "Just"
         "match Just 123\n  Just *** -> ___\n",
       )
-
-      // todo: many more tests
       ()
     })
 
@@ -1522,8 +1613,6 @@ let run = () => {
         (0, 29), // ending just before the '3' in the pattern
         "match (1,\"two\",3)\n  (1,\"two\",***) -> ___\n",
       )
-
-      // todo: many more tests
     })
     ()
   })

@@ -5550,6 +5550,12 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
             }
           })
 
+        // all match exprs should have at least 1 case
+        let newCases = switch newCases {
+        | list{} => list{(None |> orDefaultMP, None |> orDefaultExpr)}
+        | atLeastOneCase => atLeastOneCase
+        }
+
         Some(EMatch(id, newCond, newCases))
       | EFeatureFlag(_, name, cond, disabled, enabled) =>
         // since we don't have any tokens associated with feature flags yet
