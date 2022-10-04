@@ -89,7 +89,11 @@ export async function createWorkerHandler(page) {
 }
 
 export async function createRepl(page) {
-  await createHandler(page, "Repl");
+  await createHandler(page, "REPL");
+}
+
+export async function createSecret(page) {
+  await page.click(`[title='Secret Keys'] + div`);
 }
 
 //********************************

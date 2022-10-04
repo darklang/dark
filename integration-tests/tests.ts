@@ -29,6 +29,7 @@ import {
   pressShortcut,
   selectAll,
   waitForEmptyEntryBox,
+  createSecret,
 } from "./utils";
 
 declare global {
@@ -958,20 +959,11 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("abridged_sidebar_content_visible_on_hover", async ({ page }) => {
-    // uncollapse sidebar first (collapsed for easier testing via localstorage)
-    await page.click(".toggle-sidebar-btn");
-    await page.waitForSelector("text='Collapse sidebar'");
-    // collapse sidebar to abridged mode
-    await page.click(".toggle-sidebar-btn");
-    await page.waitForSelector(".viewing-table.abridged");
-
-    const httpCatSelector = ".sidebar-category.http";
-
     // hovering over a category makes its contents visible
-    let locator = page.locator(httpCatSelector + " .category-content");
+    let locator = page.locator("text=No HTTP Handlers");
     await expect(locator).not.toBeVisible();
 
-    await page.hover(httpCatSelector);
+    await page.hover("[title=HTTP]");
     await expect(locator).toBeVisible();
   });
 
@@ -1058,8 +1050,6 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("create_from_404", async ({ page }) => {
-    const f0fCategory = ".sidebar-category.fof";
-
     await page.evaluate(() => {
       const data = [
         "HTTP",
@@ -1072,11 +1062,9 @@ test.describe.parallel("Integration Tests", async () => {
       document.dispatchEvent(event);
     });
 
-    await expect(page.locator(f0fCategory)).not.toHaveClass(/empty/, {
-      timeout: 5000,
-    });
-    await page.hover(f0fCategory);
-    await page.click(".fof > .category-content > .simple-item > .add-button");
+    await page.hover("[title='404s']");
+    await expect(page.locator("text='/nonexistant'")).toBeVisible();
+    await page.click("text='/nonexistant'");
 
     await page.waitForSelector(".toplevel .http-get");
   });
@@ -1184,13 +1172,7 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("focus_on_secret_field_on_insert_modal_open", async ({ page }) => {
-    await page.waitForSelector(".sidebar-category.secrets .create-tl-icon");
-
-    await createRepl(page);
-    await page.type("#active-editor", '"Hello world!"');
-
-    await page.click(".sidebar-category.secrets .create-tl-icon");
-
+    await createSecret(page);
     const nameInput = "#new-secret-name-input";
 
     await expect(page.locator(nameInput)).toBeFocused();
