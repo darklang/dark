@@ -1411,66 +1411,114 @@ let run = () => {
   })
   describe("Match", () => {
     testCopy(
-      "copying a blank match expression works",
+      "copying a single blank match pattern works",
       match'(blank(), list{(mpBlank(), blank())}),
       (0, 22),
       "match ___\n  *** -> ___\n",
     )
+    // todo: copying all cases in a match expression
     testCopy(
-      "copying a match expression with a single integer pattern works",
-      match'(int(123), list{(mpInt(123), str("success"))}),
-      (0, 27),
-      "match 123\n  123 -> \"success\"\n",
-    )
-    testCopy(
-      "copying a match expression with a full constructor pattern works",
-      match'(
-        constructor("Just", list{int(123)}),
-        list{(mpConstructor("Just", list{mpInt(123)}), str("success"))},
-      ),
-      (0, 37),
-      "match Just 123\n  Just 123 -> \"success\"\n",
-    )
-    testCopy(
-      "copying fewer than all cases in a match expression works",
+      "copying fewer than all cases in a match expression",
       match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
       (0, 30), // right after "Just"
       "match 0\n  123 -> \"first branch\"\n",
     )
+    // todo: copying just the expr in a match case (without arrow)
+    // todo: copying just the expr in a match case (with arrow)
+    // todo: copying just the pattern in a match case (without arrow)
+    // todo: copying just the pattern in a match case (with arrow)
+    // todo:
 
-    // CLEANUP this test fails because the impl. assumes we've selected the
-    // subpatterns
-    // testCopy(
-    //   "copying a match expression with a partial constructor pattern works",
-    //   match'(
-    //     constructor("Just", list{int(123)}),
-    //     list{(pConstructor("Just", list{pInt(123)}), str("success"))},
-    //   ),
-    //   (0, 21), // right after "Just"
-    //   "match Just 123\n  Just *** -> ___\n",
-    // )
+    describe("Bool match pattern", () => {
+      // todo: fully selected `true`
+      // todo: fully selected `false`
+      // todo: partially selected `true` (`tr`)
+      // todo: partially selected `false` (`alse`)
+      ()
+    })
 
-    testCopy(
-      "copying a match expression including a full tuple pattern works",
-      match'(
-        tuple(int(1), str("two"), list{int(3)}),
-        list{(mpTuple(mpInt(1), mpString("two"), list{mpInt(3)}), str("success"))},
-      ),
-      (0, 44),
-      "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
-    )
+    describe("Null match pattern", () => {
+      // todo: fullly selected
+      // todo: partially selected (`nul`)
+      ()
+    })
 
-    // CLEANUP TUPLETODO this test fails because the impl. assumes we've
-    // selected the subpatterns
-    // testCopy(
-    //   "copying a match expression including part of a tuple pattern works",
-    //   match'(
-    //     tuple(int(1), str("two"), list{int(3)}),
-    //     list{(pTuple(pInt(1), pString("two"), list{pInt(3)}), str("success"))},
-    //   ),
-    //   (0, 29), // ending just before the '3' in the pattern
-    //   "match (1,\"two\",3)\n  (1,\"two\",***) -> ___\n",
-    // )
+    describe("Character match pattern", () => {
+      // CLEANUP these aren't yet create-able in Fluid
+      ()
+    })
+    describe("String match pattern", () => {
+      // todo: many tests
+      ()
+    })
+
+    describe("Int match pattern", () => {
+      testCopy(
+        "copying a match expression with a single integer pattern works",
+        match'(int(123), list{(mpInt(123), str("success"))}),
+        (0, 27),
+        "match 123\n  123 -> \"success\"\n",
+      )
+      // todo: many more tests
+      ()
+    })
+    describe("Float match pattern", () => {
+      // todo: many tests
+      ()
+    })
+
+    describe("Constructor match pattern", () => {
+      testCopy(
+        "copying a match expression with a full constructor pattern works",
+        match'(
+          constructor("Just", list{int(123)}),
+          list{(mpConstructor("Just", list{mpInt(123)}), str("success"))},
+        ),
+        (0, 37),
+        "match Just 123\n  Just 123 -> \"success\"\n",
+      )
+
+      // CLEANUP this test fails because the impl. assumes we've selected the
+      // subpatterns
+      // testCopy(
+      //   "copying a match expression with a partial constructor pattern works",
+      //   match'(
+      //     constructor("Just", list{int(123)}),
+      //     list{(pConstructor("Just", list{pInt(123)}), str("success"))},
+      //   ),
+      //   (0, 21), // right after "Just"
+      //   "match Just 123\n  Just *** -> ___\n",
+      // )
+
+      // todo: many more tests
+      ()
+    })
+
+    describe("Tuple match pattern", () => {
+      testCopy(
+        "copying a match expression including a full tuple pattern works",
+        match'(
+          tuple(int(1), str("two"), list{int(3)}),
+          list{(mpTuple(mpInt(1), mpString("two"), list{mpInt(3)}), str("success"))},
+        ),
+        (0, 44),
+        "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
+      )
+
+      // CLEANUP TUPLETODO this test fails because the impl. assumes we've
+      // selected the subpatterns
+      // testCopy(
+      //   "copying a match expression including part of a tuple pattern works",
+      //   match'(
+      //     tuple(int(1), str("two"), list{int(3)}),
+      //     list{(pTuple(pInt(1), pString("two"), list{pInt(3)}), str("success"))},
+      //   ),
+      //   (0, 29), // ending just before the '3' in the pattern
+      //   "match (1,\"two\",3)\n  (1,\"two\",***) -> ___\n",
+      // )
+
+      // todo: many more tests
+    })
     ()
   })
   describe("json", () => {
