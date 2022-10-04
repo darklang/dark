@@ -92,7 +92,7 @@ module Styles = {
   let sidebarCategory = %twc("mb-5 pl-2 pr-0.5 py-0 relative group-sidebar-category")
 
   let content = %twc(
-    "absolute pl-4 bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14 scrollbar-corner-transparent scrollbar-thin"
+    "absolute bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14 scrollbar-corner-transparent scrollbar-thin"
   )
 
   let contentVisibility = %twc("hidden group-sidebar-category-hover:block")
