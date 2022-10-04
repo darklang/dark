@@ -60,8 +60,8 @@ export async function expectPlaceholderText(page: Page, text: string) {
 async function createHandler(page: Page, title: string) {
   // Based on the html structure - the plus is the sibling of the handler
   await page.click(`[title=${title}] + div`);
+  await page.hover("text='Docs'"); // move mouse off the sidebar
   await waitForPageToStopMoving(page);
-  await waitForEmptyEntryBox(page);
 }
 
 export async function createEmptyHTTPHandler(page: Page) {
@@ -86,10 +86,12 @@ export async function createHTTPHandler(
 
 export async function createWorkerHandler(page) {
   await createHandler(page, "Worker");
+  await waitForEmptyEntryBox(page);
 }
 
 export async function createRepl(page) {
   await createHandler(page, "REPL");
+  await waitForEmptyFluidEntryBox(page);
 }
 
 export async function createSecret(page) {
