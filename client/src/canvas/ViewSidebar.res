@@ -602,7 +602,7 @@ and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
   )
   let entries = List.map(~f=viewItem(m), c.entries)
 
-  Html.div(list{tw(%twc("mb-4"))}, list{title, Html.div(list{tw(%twc("pl-6"))}, entries)})
+  Html.div(list{tw(%twc("mb-4 ml-4"))}, list{title, Html.div(list{tw(%twc("pl-2"))}, entries)})
 }
 
 let viewCategoryTitle = (name: string) =>
