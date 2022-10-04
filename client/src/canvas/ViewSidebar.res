@@ -82,11 +82,7 @@ let rec count = (s: item): int =>
   }
 
 module Styles = {
-  let categoryNameBase = %twc("block text-grey8 font-bold mt-0 tracking-wide font-heading -ml-4")
-  let contentCategoryName = %twc("text-lg text-center ") ++ categoryNameBase
-
-  let nestedSidebarCategoryName = %twc("text-base text-left ") ++ categoryNameBase
-
+  let titleBase = %twc("block text-grey8 mt-0 tracking-wide font-heading -ml-4")
   let sidebarCategory = %twc("pl-2 pr-0.5 pt-0 pb-5 relative group-sidebar-category")
 
   let content = %twc(
@@ -598,8 +594,10 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
   }
 
 and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
-  let titleStyle = Styles.nestedSidebarCategoryName
-  let title = Html.span(list{tw(titleStyle)}, list{Html.text(c.name)})
+  let title = Html.span(
+    list{tw2(Styles.titleBase, %twc("text-base text-left"))},
+    list{Html.text(c.name)},
+  )
   let entries = List.map(~f=viewItem(m), c.entries)
 
   Html.div(
@@ -608,11 +606,12 @@ and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
   )
 }
 
+let viewCategoryTitle = (name: string) =>
+  Html.span(list{tw2(Styles.titleBase, %twc("text-lg text-center"))}, list{Html.text(name)})
+
 let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
   let button = viewSidebarButton(m, c.name, c.plusButton, c.icon, c.iconAction)
   let content = {
-    let title = Html.span(list{tw(Styles.contentCategoryName)}, list{Html.text(c.name)})
-
     let entries = if c.count > 0 {
       List.map(~f=viewItem(m), c.entries)
     } else {
@@ -621,7 +620,7 @@ let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
 
     Html.div(
       list{tw3("category-content", Styles.content, Styles.contentVisibility)},
-      list{title, ...entries},
+      list{viewCategoryTitle(c.name), ...entries},
     )
   }
 
@@ -699,10 +698,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
 
     Html.div(
       list{tw3("category-content", Styles.content, Styles.contentVisibility)},
-      list{
-        Html.span(list{Attrs.class(Styles.contentCategoryName)}, list{Html.text("Static Assets")}),
-        ...deploys,
-      },
+      list{viewCategoryTitle("Static Assets"), ...deploys},
     )
   }
 
@@ -780,7 +776,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
   )
 
   let content = {
-    let title = Html.span(list{tw(Styles.contentCategoryName)}, list{Html.text("Secret Keys")})
+    let title = viewCategoryTitle("Secret Keys")
     let entries = if m.secrets != list{} {
       List.map(m.secrets, ~f=viewSecret)
     } else {
