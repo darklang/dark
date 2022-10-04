@@ -83,13 +83,6 @@ let rec count = (s: item): int =>
 
 module Styles = {
   let titleBase = %twc("block text-grey8 tracking-wide font-heading")
-  let sidebarCategory = %twc("pl-2 pr-0.5 pb-5 relative group-sidebar-category")
-
-  let content = %twc(
-    "absolute bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14 scrollbar-corner-transparent scrollbar-thin w-max"
-  )
-
-  let contentVisibility = %twc("hidden group-sidebar-category-hover:block")
 }
 
 let iconButton = (~key: string, ~icon: string, ~style: string, handler: msg): Html.html<msg> => {
@@ -444,51 +437,6 @@ let deletedCategory = (m: model): category => {
 // Render the nested categories
 // ---------------
 
-let categoryButton = (~props=list{}, description: string, icon: Html.html<msg>): Html.html<msg> =>
-  Html.div(
-    list{
-      tw(
-        %twc(
-          "mr-0 text-2xl text-grey5 duration-200 group-sidebar-category-hover:text-3xl w-9 h-9 text-center"
-        ),
-      ),
-      Attrs.title(description),
-      Attrs.role("img"),
-      Attrs.alt(description),
-      ...props,
-    },
-    list{icon},
-  )
-
-let viewEmptyCategoryContents = (name: string): Html.html<msg> => {
-  Html.div(list{tw2(%twc("ml-3 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
-}
-
-let viewSidebarButton = (
-  m: model,
-  name: string,
-  plusButton: option<msg>,
-  icon: Html.html<msg>,
-  iconAction: option<msg>,
-): Html.html<msg> => {
-  let plusButton = switch plusButton {
-  | Some(msg) if m.permission == Some(ReadWrite) =>
-    iconButton(~key="plus-" ++ name, ~icon="plus-circle", ~style=%twc("text-xs self-end"), msg)
-  | Some(_) | None => Vdom.noNode
-  }
-
-  let icon = {
-    let props = switch iconAction {
-    | Some(ev) => list{EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev)}
-    | None => list{Vdom.noProp}
-    }
-
-    categoryButton(name, icon, ~props)
-  }
-  let style = %twc("outline-none flex justify-start items-center")
-  Html.div(list{tw(style)}, list{icon, plusButton})
-}
-
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
   let isSelected = tlidOfIdentifier(e.identifier) == CursorState.tlidOf(m.cursorState)
 
@@ -604,25 +552,67 @@ and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
   Html.div(list{tw(%twc("mb-4 ml-4"))}, list{title, Html.div(list{tw(%twc("pl-2"))}, entries)})
 }
 
-let viewCategoryTitle = (name: string) =>
-  Html.span(list{tw2(Styles.titleBase, %twc("pb-2.5 text-lg text-center"))}, list{Html.text(name)})
-
-let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
-  let button = viewSidebarButton(m, c.name, c.plusButton, c.icon, c.iconAction)
-  let content = {
-    let entries = if c.count > 0 {
-      List.map(~f=viewItem(m), c.entries)
-    } else {
-      list{viewEmptyCategoryContents(c.emptyName)}
+let viewToplevelCategory = (
+  m: model,
+  name: string,
+  plusButton: option<msg>,
+  icon: Html.html<msg>,
+  iconAction: option<msg>,
+  contents: list<Html.html<msg>>,
+): Html.html<msg> => {
+  let sidebarIcon = {
+    let plusButton = switch plusButton {
+    | Some(msg) if m.permission == Some(ReadWrite) =>
+      iconButton(~key="plus-" ++ name, ~icon="plus-circle", ~style=%twc("text-xs self-end"), msg)
+    | Some(_) | None => Vdom.noNode
     }
 
-    Html.div(
-      list{tw2(Styles.content, Styles.contentVisibility)},
-      list{viewCategoryTitle(c.name), ...entries},
-    )
+    let icon = {
+      let prop = switch iconAction {
+      | Some(ev) => EventListeners.eventNeither(~key="click" ++ name, "click", _ => ev)
+      | None => Vdom.noProp
+      }
+
+      let style = %twc(
+        "mr-0 text-2xl text-grey5 duration-200 group-sidebar-category-hover:text-3xl w-9 h-9 text-center"
+      )
+
+      Html.div(
+        list{tw(style), Attrs.title(name), Attrs.role("img"), Attrs.alt(name), prop},
+        list{icon},
+      )
+    }
+    Html.div(list{tw(%twc("outline-none flex justify-start items-center"))}, list{icon, plusButton})
   }
 
-  Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
+  let contents = if contents != list{} {
+    contents
+  } else {
+    list{
+      Html.div(list{tw2(%twc("ml-3 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)}),
+    }
+  }
+
+  let style = %twc(
+    "absolute -top-5 left-14 p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll scrollbar-corner-transparent scrollbar-thin w-max"
+  )
+
+  Html.div(
+    list{tw(%twc("pl-2 pr-0.5 pb-5 relative group-sidebar-category"))},
+    list{
+      sidebarIcon,
+      Html.div(
+        list{tw2(style, %twc("hidden group-sidebar-category-hover:block"))},
+        list{
+          Html.span(
+            list{tw2(Styles.titleBase, %twc("pb-2.5 text-lg text-center"))},
+            list{Html.text(name)},
+          ),
+          Html.div(list{}, contents),
+        },
+      ),
+    },
+  )
 }
 
 // ---------------
@@ -685,22 +675,14 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 }
 
 let viewDeployStats = (m: model): Html.html<msg> => {
-  let button = viewSidebarButton(m, "Static Assets", None, fontAwesome("file"), None)
-
-  let content = {
-    let deploys = if m.staticDeploys != list{} {
-      m.staticDeploys->List.map(~f=viewDeploy)
-    } else {
-      list{viewEmptyCategoryContents("Static deploys")}
-    }
-
-    Html.div(
-      list{tw2(Styles.content, Styles.contentVisibility)},
-      list{viewCategoryTitle("Static Assets"), ...deploys},
-    )
-  }
-
-  Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
+  viewToplevelCategory(
+    m,
+    "Static Assets",
+    None,
+    fontAwesome("file"),
+    None,
+    m.staticDeploys->List.map(~f=viewDeploy),
+  )
 }
 
 // ---------------
@@ -764,27 +746,15 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   )
 }
 
-let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
-  let button = viewSidebarButton(
+let viewSecretKeys = (m: model): Html.html<AppTypes.msg> =>
+  viewToplevelCategory(
     m,
     "Secret Keys",
     Some(SecretMsg(OpenCreateModal)),
     fontAwesome("user-secret"),
     None,
+    m.secrets->List.map(~f=viewSecret),
   )
-
-  let content = {
-    let title = viewCategoryTitle("Secret Keys")
-    let entries = if m.secrets != list{} {
-      List.map(m.secrets, ~f=viewSecret)
-    } else {
-      list{viewEmptyCategoryContents("secret keys")}
-    }
-    Html.div(list{tw2(Styles.content, Styles.contentVisibility)}, list{title, ...entries})
-  }
-
-  Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
-}
 
 // --------------------
 // Admin
@@ -816,7 +786,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     | SettingsModal(tab) => Printf.sprintf("SettingsModal (tab %s)", Settings.Tab.toText(tab))
     }
 
-  let environment = {
+  let _environment = {
     let color = switch m.environment {
     | "production" => %twc("text-black3")
     | "dev" => %twc("text-blue")
@@ -912,24 +882,15 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{Html.text("SAVE STATE FOR INTEGRATION TEST")},
   )
 
-  let hoverView = Html.div(
-    list{tw2(Styles.content, Styles.contentVisibility)},
+  let content = Html.div(
+    list{tw(%twc("outline-none flex justify-start items-center flex-col -ml-1"))},
     Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
       list{saveTestButton},
     ]),
   )
 
-  Html.div(
-    list{tw2(Styles.sidebarCategory, %twc("p-0"))},
-    list{
-      Html.div(
-        list{tw(%twc("outline-none flex justify-start items-center flex-col -ml-1"))},
-        list{categoryButton("Admin", fontAwesome("cog")), environment},
-      ),
-      hoverView,
-    },
-  )
+  viewToplevelCategory(m, "", None, fontAwesome("cog"), None, list{content})
 }
 
 // --------------------
@@ -949,7 +910,16 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   }
 
   let categories = Belt.List.concat(
-    cats->List.map(~f=viewToplevelCategory(m)),
+    cats->List.map(~f=c =>
+      viewToplevelCategory(
+        m,
+        c.name,
+        c.plusButton,
+        c.icon,
+        c.iconAction,
+        c.entries->List.map(~f=viewItem(m)),
+      )
+    ),
     list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
   )
 
