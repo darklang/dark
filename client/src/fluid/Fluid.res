@@ -5109,13 +5109,16 @@ let selectionRangeOfExpr = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> 
 @ocaml.doc("returns the beginning and end of the range from the MP's first and
   last token by cross-referencing the tokens for the MP with the tokens for the
   whole editor's expr.")
-let selectionRangeOfMatchPattern = (mpID: id, astInfo: ASTInfo.t): option<(int, int)> => {
+let selectionRangeOfMatchPattern = (matchID: id, matchPatternID: id, astInfo: ASTInfo.t): option<(
+  int,
+  int,
+)> => {
   let containingTokens = ASTInfo.activeTokenInfos(astInfo)
 
   let mpTokens =
-    FluidAST.findMP(mpID, astInfo.ast)
+    FluidAST.findMP(matchPatternID, astInfo.ast)
     |> Option.map(~f=mp =>
-      FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, MatchPat(mpID, mp))
+      FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, MatchPat(matchID, mp))
     )
     |> Option.unwrap(~default=list{})
 
@@ -5186,6 +5189,7 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
 
   // Helper fns
   let orDefaultExpr: option<E.t> => E.t = Option.unwrap(~default=EBlank(gid()))
+  let orDefaultMP: option<MP.t> => MP.t = Option.unwrap(~default=MPBlank(gid()))
 
   let findTokenValue = (tokens, tID, typeName) =>
     List.find(tokens, ~f=((tID', _, typeName')) =>
@@ -5205,8 +5209,6 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
   let rec reconstructExpr = (~topmostExpr: option<E.t>, (startPos, endPos)): option<E.t> => {
     let topmostExpr = topmostExpr |> orDefaultExpr
 
-    let exprID = E.toID(topmostExpr)
-
     // Ensure expression range is not totally outside selection range.
     //
     // Note: we don't want to call selectionRangeOfExpr for pipe targets -
@@ -5215,7 +5217,10 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
     let rangeToReconstruct = switch topmostExpr {
     | EPipeTarget(_) => Some(startPos, endPos)
     | _ =>
-      selectionRangeOfExpr(exprID, astInfo) |> Option.andThen(~f=((exprStartPos, exprEndPos)) =>
+      selectionRangeOfExpr(E.toID(topmostExpr), astInfo) |> Option.andThen(~f=((
+        exprStartPos,
+        exprEndPos,
+      )) =>
         if exprStartPos > endPos || exprEndPos < startPos {
           None
         } else {
@@ -5232,7 +5237,8 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
       }
     | Some(startPos, endPos) =>
       let reconstructExpr = expr => reconstructExpr(~topmostExpr=Some(expr), (startPos, endPos))
-      let reconstructMatchPattern = mp => reconstructMatchPattern(mp, (startPos, endPos))
+      let reconstructMatchPattern = (matchID, mp) =>
+        reconstructMatchPattern(matchID, mp, (startPos, endPos))
 
       let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
 
@@ -5528,12 +5534,12 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
         } else {
           Some(e)
         }
-      | EMatch(_, cond, cases) =>
+      | EMatch(matchID, cond, cases) =>
         let newCond = reconstructExpr(cond) |> orDefaultExpr
 
         // new (mp, expr) pairs for the new `match`
         let newCases = List.filterMap(cases, ~f=((matchPattern, expr)) => {
-          switch (reconstructMatchPattern(matchPattern), reconstructExpr(expr)) {
+          switch (reconstructMatchPattern(matchID, matchPattern), reconstructExpr(expr)) {
           | (Some(mp), Some(expr)) => Some(mp, expr)
           | (Some(mp), None) => Some(mp, None |> orDefaultExpr)
           | (None, Some(_expr)) => None // todo: reconsider
@@ -5558,16 +5564,17 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
       }
     }
   }
-  and reconstructMatchPattern = (topmostMatchPattern: MP.t, (selStartPos, selEndPos)): option<
-    MP.t,
-  > => {
-    let mpID = MP.toID(topmostMatchPattern)
-
+  and reconstructMatchPattern = (
+    matchID: ID.t,
+    topmostMatchPattern: MP.t,
+    (selStartPos, selEndPos),
+  ): option<MP.t> => {
     // Ensure match pat range is not totally outside selection range.
-    let rangeToReconstruct = selectionRangeOfMatchPattern(mpID, astInfo) |> Option.andThen(~f=((
-      mpStartPos,
-      mpEndPos,
-    )) =>
+    let rangeToReconstruct = selectionRangeOfMatchPattern(
+      matchID,
+      MP.toID(topmostMatchPattern),
+      astInfo,
+    ) |> Option.andThen(~f=((mpStartPos, mpEndPos)) =>
       if mpStartPos > selEndPos || mpEndPos < selStartPos {
         None
       } else {
@@ -5577,9 +5584,126 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
 
     switch rangeToReconstruct {
     | None => None
-    | Some(_startPos, _endPos) =>
-      // todo: lots
-      None
+    | Some(startPos, endPos) =>
+      let reconstructMatchPattern = mp => reconstructMatchPattern(matchID, mp, (startPos, endPos))
+
+      let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
+
+      let id = gid()
+
+      // Exprs have "partials" to allow us to work with highlighting halfway
+      // through tokens such as 'null', but MPs do not. There are several TODOs
+      // outlined below referencing `MPPartial` - these may be revisited if /
+      // when such is available.
+      switch topmostMatchPattern {
+      | MPBlank(_mpID) => Some(MPBlank(id))
+      | MPNull(mpID) =>
+        findTokenValue(tokens, mpID, "match-pattern-null")
+        |> Option.map(~f=newValue =>
+          if newValue == "null" {
+            Some(MPNull(id))
+          } else {
+            None // TODO: MPPartial
+          }
+        )
+        |> Option.flatten
+      | MPVariable(mpID, name) =>
+        let newName =
+          findTokenValue(tokens, mpID, "match-pattern-variable") |> Option.unwrap(~default="")
+
+        let mp = MPVariable(id, name)
+
+        if newName == "" {
+          None
+        } else if name != newName {
+          Some(MPBlank(id)) // TODO: MPPartial(gid(), newName, mp)
+        } else {
+          Some(mp)
+        }
+      | MPInteger(mpID, _) =>
+        findTokenValue(tokens, mpID, "match-pattern-integer")->Option.map(~f=v =>
+          switch Util.truncateStringTo64BitInt(v) {
+          | Ok(v) => MPInteger(gid(), v)
+          | Error(_) => MPBlank(gid())
+          }
+        )
+      | MPBool(mpID, value) =>
+        Option.or_(
+          findTokenValue(tokens, mpID, "match-pattern-true"),
+          findTokenValue(tokens, mpID, "match-pattern-false"),
+        ) |> Option.andThen(~f=newValue =>
+          if newValue == "" {
+            None
+          } else if newValue != string_of_bool(value) {
+            None // TODO: MPPartial
+          } else {
+            Some(MPBool(id, value))
+          }
+        )
+      | MPFloat(mpID, _, _, _) =>
+        let newWhole = findTokenValue(tokens, mpID, "match-pattern-float-whole")
+        let pointSelected = findTokenValue(tokens, mpID, "match-pattern-float-point") != None
+        let newFraction = findTokenValue(tokens, mpID, "match-pattern-float-fractional")
+
+        switch (newWhole, pointSelected, newFraction) {
+        | (Some(value), true, None) => Some(MPFloat(id, Positive, value, "0"))
+        | (Some(value), false, None) | (None, false, Some(value)) =>
+          Some(MPInteger(id, Util.coerceStringTo64BitInt(value)))
+        | (None, true, Some(value)) => Some(MPFloat(id, Positive, "0", value))
+        | (Some(whole), true, Some(fraction)) => Some(MPFloat(id, Positive, whole, fraction))
+        | (None, true, None) => Some(MPFloat(id, Positive, "0", "0"))
+        | (_, _, _) => None
+        }
+      | MPString(mpID, _) =>
+        // filter out formatting only relevant to editing experience
+        //
+        // note: we don't actually add newlines/indents yet for long match
+        // pattern strings; that said, we likely will at some point, and it
+        // doesn't hurt to be ready here.
+        let merged =
+          tokens
+          |> List.filter(~f=((_, _, type_)) => type_ != "newline" && type_ != "indent")
+          |> List.map(~f=Tuple3.second)
+          |> String.join(~sep="")
+
+        if merged == "" {
+          None
+        } else {
+          Some(MPString(mpID, Util.trimQuotes(merged)))
+        }
+      | MPCharacter(_) =>
+        recover(
+          "MPCharacter not yet supported in match pattern reconstruction",
+          Some(topmostMatchPattern),
+        )
+
+      // nested patterns
+      | MPTuple(id, first, second, theRest) =>
+        let results =
+          List.map(list{first, second, ...theRest}, ~f=reconstructMatchPattern) |> Option.values
+
+        switch results {
+        | list{} => recover("unexpected reconstruction of invalid empty tuple match pattern", None)
+        | list{el} => Some(el)
+        | list{fst, snd, ...tail} => Some(MPTuple(id, fst, snd, tail))
+        }
+      | MPConstructor(mpID, name, args) =>
+        let newName =
+          findTokenValue(tokens, mpID, "match-pattern-constructor-name") |> Option.unwrap(
+            ~default="",
+          )
+        let newArgs = List.map(args, ~f=\">>"(reconstructMatchPattern, orDefaultMP))
+
+        let mp = MPConstructor(id, name, newArgs)
+
+        if newName == "" {
+          None
+        } else if name != newName {
+          None // TODO: MPPartial(gid(), newName, mp)
+        } else {
+          Some(mp)
+        }
+      }
     }
   }
 
