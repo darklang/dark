@@ -82,8 +82,8 @@ let rec count = (s: item): int =>
   }
 
 module Styles = {
-  let titleBase = %twc("block text-grey8 mt-0 tracking-wide font-heading -ml-4")
-  let sidebarCategory = %twc("pl-2 pr-0.5 pt-0 pb-5 relative group-sidebar-category")
+  let titleBase = %twc("block text-grey8 tracking-wide font-heading")
+  let sidebarCategory = %twc("pl-2 pr-0.5 pb-5 relative group-sidebar-category")
 
   let content = %twc(
     "absolute bg-sidebar-bg p-1.25 mt-2.5 pb-2.5 min-w-[20em] max-w-2xl max-h-96 overflow-y-scroll shadow-[2px_2px_2px_0_var(--black1)] z-[1] -top-5 left-14 scrollbar-corner-transparent scrollbar-thin w-max"
@@ -461,7 +461,7 @@ let categoryButton = (~props=list{}, description: string, icon: Html.html<msg>):
   )
 
 let viewEmptyCategoryContents = (name: string): Html.html<msg> => {
-  Html.div(list{tw2(%twc("ml-3 mt-4 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
+  Html.div(list{tw2(%twc("ml-3 text-sidebar-secondary"), "")}, list{Html.text("No " ++ name)})
 }
 
 let viewSidebarButton = (
@@ -602,14 +602,11 @@ and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
   )
   let entries = List.map(~f=viewItem(m), c.entries)
 
-  Html.div(
-    list{tw(Styles.sidebarCategory)},
-    list{Html.div(list{tw(%twc("pl-4"))}, list{title, ...entries})},
-  )
+  Html.div(list{tw(%twc("mb-4 ml-4"))}, list{title, Html.div(list{tw(%twc("pl-4"))}, entries)})
 }
 
 let viewCategoryTitle = (name: string) =>
-  Html.span(list{tw2(Styles.titleBase, %twc("text-lg text-center"))}, list{Html.text(name)})
+  Html.span(list{tw2(Styles.titleBase, %twc("pb-2.5 text-lg text-center"))}, list{Html.text(name)})
 
 let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
   let button = viewSidebarButton(m, c.name, c.plusButton, c.icon, c.iconAction)
@@ -741,7 +738,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 
   Html.div(
     list{
-      tw("flex relative justify-between items-center flex-row flex-nowrap w-72 ml-5 mr-1 mt-2.5"),
+      tw("flex relative justify-between items-center flex-row flex-nowrap w-72 ml-5 mr-1 mb-2.5"),
     },
     list{
       Html.div(
