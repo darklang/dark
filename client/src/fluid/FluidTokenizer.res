@@ -739,44 +739,56 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   }
 }
 
-let tokenizeWithOptions = (
-  ffTokenization: featureFlagTokenization,
-  mpOrExpr: E.fluidMatchPatOrExpr,
-): list<tokenInfo> =>
-  switch mpOrExpr {
-  | Expr(expr) =>
-    {...Builder.empty, ffTokenization: ffTokenization} |> exprToTokens(expr) |> Builder.asTokens
-  | MatchPat(matchId, pat) => matchPatternToTokens(matchId, ~idx=0, pat) // TODO: this is the wrong index!
-  }
+let tokenizeExprWithOptions = (ffTokenization: featureFlagTokenization, e: E.t): list<tokenInfo> =>
+  {...Builder.empty, ffTokenization: ffTokenization}
+  |> exprToTokens(e)
+  |> Builder.asTokens
   |> tidy
   |> validateTokens
   |> infoize
 
 @ocaml.doc("The 'default' tokenizer used in the main editor and basically
   everywhere except for the feature flag editor")
-let tokenize: E.fluidMatchPatOrExpr => list<FluidToken.tokenInfo> = tokenizeWithOptions(
+let tokenizeExpr: E.t => list<FluidToken.tokenInfo> = tokenizeExprWithOptions(
   FeatureFlagOnlyDisabled,
 )
 
-let tokenizeForEditor = (e: FluidTypes.Editor.t, mpOrExpr: E.fluidMatchPatOrExpr): list<
-  FluidToken.tokenInfo,
-> =>
+@ocaml.doc("The 'default' tokenizer used in the main editor and basically
+  everywhere except for the feature flag editor")
+let tokenizeMatchPattern = (matchId: ID.t, index: int, mp: MP.t): list<tokenInfo> =>
+  matchPatternToTokens(matchId, ~idx=index, mp) |> tidy |> validateTokens |> infoize
+
+let tokenizeExprForEditor = (e: FluidTypes.Editor.t, expr: E.t): list<FluidToken.tokenInfo> =>
   switch e {
   | NoEditor => list{}
-  | MainEditor(_) => tokenize(mpOrExpr)
-  | FeatureFlagEditor(_) => tokenizeWithOptions(FeatureFlagConditionAndEnabled, mpOrExpr)
+  | MainEditor(_) => tokenizeExpr(expr)
+  | FeatureFlagEditor(_) => tokenizeExprWithOptions(FeatureFlagConditionAndEnabled, expr)
+  }
+
+let tokenizeMatchPatternForEditor = (
+  e: FluidTypes.Editor.t,
+  matchID: ID.t,
+  index: int,
+  mp: MP.t,
+): list<FluidToken.tokenInfo> =>
+  switch e {
+  | NoEditor => list{}
+  | MainEditor(_) => tokenizeMatchPattern(matchID, index, mp)
+  | FeatureFlagEditor(_) => tokenizeMatchPattern(matchID, index, mp)
   }
 
 // this is only used for FluidDebugger. TODO: consider removing? Not sure why
 // we have this separate tokenizer - when would we have a FF but no expr
 // corresponding to the expr's ID?
-let tokenizeForDebugger = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
+let tokenizeExprForDebugger = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<
+  FluidToken.tokenInfo,
+> =>
   switch e {
   | NoEditor => list{}
-  | MainEditor(_) => tokenize(Expr(FluidAST.toExpr(ast)))
+  | MainEditor(_) => tokenizeExpr(FluidAST.toExpr(ast))
   | FeatureFlagEditor(_, id) =>
     FluidAST.findExpr(id, ast)
-    |> Option.map(~f=expr => tokenizeWithOptions(FeatureFlagConditionAndEnabled, Expr(expr)))
+    |> Option.map(~f=expr => tokenizeExprWithOptions(FeatureFlagConditionAndEnabled, expr))
     |> recoverOpt(
       "could not find expression id = " ++ (ID.toString(id) ++ " when tokenizing FF editor"),
       ~default=list{},
@@ -908,13 +920,13 @@ module ASTInfo = {
     if astInfo.ast == ast {
       astInfo
     } else {
-      let mainTokenInfos = tokenize(Expr(FluidAST.toExpr(ast)))
+      let mainTokenInfos = tokenizeExpr(FluidAST.toExpr(ast))
       let featureFlagTokenInfos =
         ast
         |> FluidAST.getFeatureFlags
         |> List.map(~f=expr => (
           E.toID(expr),
-          tokenizeWithOptions(FeatureFlagConditionAndEnabled, Expr(expr)),
+          tokenizeExprWithOptions(FeatureFlagConditionAndEnabled, expr),
         ))
 
       {

@@ -5082,9 +5082,7 @@ let selectionRangeOfExpr = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> 
   let containingTokens = ASTInfo.activeTokenInfos(astInfo)
   let exprTokens =
     FluidAST.findExpr(exprID, astInfo.ast)
-    |> Option.map(~f=expr =>
-      FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, Expr(expr))
-    )
+    |> Option.map(~f=expr => FluidTokenizer.tokenizeExprForEditor(astInfo.state.activeEditor, expr))
     |> Option.unwrap(~default=list{})
 
   let (exprStartToken, exprEndToken) = (
@@ -5109,16 +5107,18 @@ let selectionRangeOfExpr = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> 
 @ocaml.doc("returns the beginning and end of the range from the MP's first and
   last token by cross-referencing the tokens for the MP with the tokens for the
   whole editor's expr.")
-let selectionRangeOfMatchPattern = (matchID: id, matchPatternID: id, astInfo: ASTInfo.t): option<(
-  int,
-  int,
-)> => {
+let selectionRangeOfMatchPattern = (
+  matchID: id,
+  index: int,
+  matchPatternID: id,
+  astInfo: ASTInfo.t,
+): option<(int, int)> => {
   let containingTokens = ASTInfo.activeTokenInfos(astInfo)
 
   let mpTokens =
     FluidAST.findMP(matchPatternID, astInfo.ast)
     |> Option.map(~f=mp =>
-      FluidTokenizer.tokenizeForEditor(astInfo.state.activeEditor, MatchPat(matchID, mp))
+      FluidTokenizer.tokenizeMatchPatternForEditor(astInfo.state.activeEditor, matchID, index, mp)
     )
     |> Option.unwrap(~default=list{})
 
@@ -5237,8 +5237,8 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
       }
     | Some(startPos, endPos) =>
       let reconstructExpr = expr => reconstructExpr(~topmostExpr=Some(expr), (startPos, endPos))
-      let reconstructMatchPattern = (matchID, mp) =>
-        reconstructMatchPattern(matchID, mp, (startPos, endPos))
+      let reconstructMatchPattern = (matchID, index, mp) =>
+        reconstructMatchPattern(matchID, index, mp, (startPos, endPos))
 
       let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
 
@@ -5538,14 +5538,17 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
         let newCond = reconstructExpr(cond) |> orDefaultExpr
 
         // new (mp, expr) pairs for the new `match`
-        let newCases = List.filterMap(cases, ~f=((matchPattern, expr)) => {
-          switch (reconstructMatchPattern(matchID, matchPattern), reconstructExpr(expr)) {
-          | (Some(mp), Some(expr)) => Some(mp, expr)
-          | (Some(mp), None) => Some(mp, None |> orDefaultExpr)
-          | (None, Some(_expr)) => None // todo: reconsider
-          | (None, None) => None
-          }
-        })
+        let newCases =
+          cases
+          |> List.mapWithIndex(~f=(i, c) => (i, c))
+          |> List.filterMap(~f=((index, (matchPattern, expr))) => {
+            switch (reconstructMatchPattern(matchID, index, matchPattern), reconstructExpr(expr)) {
+            | (Some(mp), Some(expr)) => Some(mp, expr)
+            | (Some(mp), None) => Some(mp, None |> orDefaultExpr)
+            | (None, Some(_expr)) => None // todo: reconsider
+            | (None, None) => None
+            }
+          })
 
         Some(EMatch(id, newCond, newCases))
       | EFeatureFlag(_, name, cond, disabled, enabled) =>
@@ -5566,12 +5569,14 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
   }
   and reconstructMatchPattern = (
     matchID: ID.t,
+    index: int,
     topmostMatchPattern: MP.t,
     (selStartPos, selEndPos),
   ): option<MP.t> => {
     // Ensure match pat range is not totally outside selection range.
     let rangeToReconstruct = selectionRangeOfMatchPattern(
       matchID,
+      index,
       MP.toID(topmostMatchPattern),
       astInfo,
     ) |> Option.andThen(~f=((mpStartPos, mpEndPos)) =>
@@ -5585,7 +5590,8 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
     switch rangeToReconstruct {
     | None => None
     | Some(startPos, endPos) =>
-      let reconstructMatchPattern = mp => reconstructMatchPattern(matchID, mp, (startPos, endPos))
+      let reconstructMatchPattern = mp =>
+        reconstructMatchPattern(matchID, index, mp, (startPos, endPos))
 
       let tokens = tokensInRangeNormalized(startPos, endPos, astInfo)
 

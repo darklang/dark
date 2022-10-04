@@ -11,16 +11,21 @@ type featureFlagTokenization =
   ~idx is the zero-based index of the match pattern in the enclosing match")
 let matchPatternToTokens: (ID.t, ~idx: int, FluidMatchPattern.t) => list<FluidTypes.Token.t>
 
-let tokenize: FluidExpression.fluidMatchPatOrExpr => list<FluidToken.tokenInfo>
+let tokenizeExpr: FluidExpression.t => list<FluidToken.tokenInfo>
 
 @ocaml.doc("returns the given expression, tokenized with the rules of the specified editor")
-let tokenizeForEditor: (
+let tokenizeExprForEditor: (FluidTypes.Editor.t, FluidExpression.t) => list<FluidToken.tokenInfo>
+
+@ocaml.doc("returns the given match pattern, tokenized with the rules of the specified editor")
+let tokenizeMatchPatternForEditor: (
   FluidTypes.Editor.t,
-  FluidExpression.fluidMatchPatOrExpr,
+  ID.t,
+  int,
+  FluidMatchPattern.t,
 ) => list<FluidToken.tokenInfo>
 
-@ocaml.doc("the same as tokenizeForEditor, but for the contributor debugger")
-let tokenizeForDebugger: (FluidTypes.Editor.t, FluidAST.t) => list<FluidToken.tokenInfo>
+@ocaml.doc("the same as tokenizeExprForEditor, but for the contributor debugger")
+let tokenizeExprForDebugger: (FluidTypes.Editor.t, FluidAST.t) => list<FluidToken.tokenInfo>
 
 let getTokensAtPosition: (
   ~prev: option<FluidToken.tokenInfo>=?,

@@ -32,7 +32,7 @@ let wrap = (s: AppTypes.fluidState, ast: FluidAST.t, id: id): (option<id>, Fluid
     let flagID = gid()
     let expr = FluidAST.toExpr(ast)
     let isSelectAll = {
-      let tokenInfos = FluidTokenizer.tokenize(Expr(expr))
+      let tokenInfos = FluidTokenizer.tokenizeExpr(expr)
       let (tokenStart, tokenEnd) =
         List.last(tokenInfos)
         |> Option.map(~f=(last: tokenInfo) => (0, last.endPos))

@@ -13,16 +13,16 @@ let tokensToString = (tis: list<tokenInfo>): string =>
   tis |> List.map(~f=(ti: tokenInfo) => T.toText(ti.token)) |> String.join(~sep="")
 
 let eToTestString = (e: E.t): string =>
-  E.Expr(e)
-  |> tokenize
+  e
+  |> tokenizeExpr
   |> List.map(~f=(ti: tokenInfo) => T.toTestText(ti.token))
   |> String.join(~sep="")
 
-let eToHumanString = (e: E.t): string => E.Expr(e) |> tokenize |> tokensToString
+let eToHumanString = (e: E.t): string => e |> tokenizeExpr |> tokensToString
 
 let eToStructure = (~includeIDs=false, e: E.t): string =>
-  E.Expr(e)
-  |> tokenize
+  e
+  |> tokenizeExpr
   |> List.map(~f=(ti: tokenInfo) =>
     "<" ++
     (T.toTypeName(ti.token) ++
