@@ -621,7 +621,7 @@ let viewToplevelCategory = (m: model, c: category): Html.html<msg> => {
     }
 
     Html.div(
-      list{tw3("category-content", Styles.content, Styles.contentVisibility)},
+      list{tw2(Styles.content, Styles.contentVisibility)},
       list{viewCategoryTitle(c.name), ...entries},
     )
   }
@@ -699,7 +699,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     }
 
     Html.div(
-      list{tw3("category-content", Styles.content, Styles.contentVisibility)},
+      list{tw2(Styles.content, Styles.contentVisibility)},
       list{viewCategoryTitle("Static Assets"), ...deploys},
     )
   }
@@ -784,10 +784,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
     } else {
       list{viewEmptyCategoryContents("secret keys")}
     }
-    Html.div(
-      list{tw3("category-content", Styles.content, Styles.contentVisibility)},
-      list{title, ...entries},
-    )
+    Html.div(list{tw2(Styles.content, Styles.contentVisibility)}, list{title, ...entries})
   }
 
   Html.div(list{tw(Styles.sidebarCategory)}, list{button, content})
@@ -920,7 +917,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   )
 
   let hoverView = Html.div(
-    list{tw3("category-content", Styles.content, Styles.contentVisibility)},
+    list{tw2(Styles.content, Styles.contentVisibility)},
     Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
       list{saveTestButton},
