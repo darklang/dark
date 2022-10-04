@@ -473,8 +473,7 @@ let viewSidebarButton = (
 ): Html.html<msg> => {
   let plusButton = switch plusButton {
   | Some(msg) if m.permission == Some(ReadWrite) =>
-    let style = %twc("text-xs self-end hover:text-sidebar-hover hover:cursor-pointer")
-    iconButton(~key="plus-" ++ name, ~icon="plus-circle", ~style, msg)
+    iconButton(~key="plus-" ++ name, ~icon="plus-circle", ~style=%twc("text-xs self-end"), msg)
   | Some(_) | None => Vdom.noNode
   }
 
