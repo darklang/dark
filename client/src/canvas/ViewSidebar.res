@@ -606,7 +606,7 @@ let viewToplevelCategory = (
         list{
           tw(
             %twc(
-              "absolute -top-5 left-14 pt-1.5 pb-3 px-2.5 min-w-[20em] max-w-2xl max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll scrollbar-corner-transparent scrollbar scrollbar-thin w-max hidden group-sidebar-category-hover:block"
+              "absolute -top-5 left-14 pt-1.5 pb-3 px-2.5 min-w-[20em] max-w-2xl max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll scrollbar-corner-transparent w-max hidden group-sidebar-category-hover:block"
             ),
           ),
         },
