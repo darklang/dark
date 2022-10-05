@@ -544,7 +544,7 @@ let rec viewItem = (m: model, s: item): Html.html<msg> =>
 
 and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
   let title = Html.span(
-    list{tw2(Styles.titleBase, %twc("text-base text-left"))},
+    list{tw2(Styles.titleBase, %twc("text-base text-left font-bold"))},
     list{Html.text(c.name)},
   )
   let entries = List.map(~f=viewItem(m), c.entries)
