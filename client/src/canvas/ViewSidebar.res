@@ -583,7 +583,7 @@ let viewToplevelCategory = (
       }
 
       let style = %twc(
-        "text-grey5 duration-200 text-2xl group-sidebar-category-hover:text-3xl w-9 h-9 text-center"
+        "text-grey5 duration-200 text-2xl group-sidebar-category-hover:text-3xl -ml-1 w-full h-9 text-center"
       )
 
       Html.div(
@@ -599,12 +599,15 @@ let viewToplevelCategory = (
   } else {
     // margin to make up for the space taken by the invisible dot in others
     list{
-      Html.div(list{tw(%twc("ml-3 text-sidebar-secondary"))}, list{Html.text("No " ++ emptyName)}),
+      Html.div(
+        list{tw(%twc("ml-3 text-left text-sidebar-secondary"))},
+        list{Html.text("No " ++ emptyName)},
+      ),
     }
   }
 
   Html.div(
-    list{tw(%twc("pl-2 pr-0.5 pb-5 relative group-sidebar-category"))},
+    list{tw(%twc("pb-5 text-center relative group-sidebar-category"))},
     list{
       sidebarIcon,
       Html.div(
