@@ -11,7 +11,7 @@ open Http
 
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
-module RT = LibExecution.RuntimeTypes
+module CRT = ClientTypes.Runtime
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 
@@ -27,11 +27,11 @@ module FunctionV1 =
     { tlid : tlid
       trace_id : AT.TraceID
       caller_id : id
-      args : ClientTypes.Dval.T list
+      args : CRT.Dval.T list
       fnname : string }
 
   type T =
-    { result : ClientTypes.Dval.T
+    { result : CRT.Dval.T
       hash : string
       hashVersion : int
       touched_tlids : tlid list
@@ -43,7 +43,7 @@ module FunctionV1 =
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadVanillaJsonAsync<Params>()
-      let args = List.map ClientTypes.Dval.toRT p.args
+      let args = List.map CRT.Dval.toRT p.args
       Telemetry.addTags [ "tlid", p.tlid
                           "trace_id", p.trace_id
                           "caller_id", p.caller_id
@@ -75,7 +75,7 @@ module FunctionV1 =
       let hash = DvalReprInternalDeprecated.hash hashVersion args
 
       let result =
-        { result = ClientTypes.Dval.fromRT result
+        { result = CRT.Dval.fromRT result
           hash = hash
           hashVersion = hashVersion
           touched_tlids = HashSet.toList traceResults.tlids
@@ -88,7 +88,7 @@ module HandlerV1 =
   type Params =
     { tlid : tlid
       trace_id : AT.TraceID
-      input : List<string * ClientTypes.Dval.T> }
+      input : List<string * CRT.Dval.T> }
 
   type T = { touched_tlids : tlid list }
 
@@ -105,7 +105,7 @@ module HandlerV1 =
 
       let inputVars =
         p.input
-        |> List.map (fun (name, var) -> (name, ClientTypes.Dval.toRT var))
+        |> List.map (fun (name, var) -> (name, CRT.Dval.toRT var))
         |> Map
 
       t.next "load-canvas"

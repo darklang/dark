@@ -12,7 +12,8 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="ClientTypes.fs" />
+    <Compile Include="Runtime.fs" />
+    <Compile Include="Analysis.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

@@ -9,8 +9,8 @@ open TestUtils.TestUtils
 
 module File = LibBackend.File
 module Config = LibBackend.Config
-module CT = ClientTypes
-module CTA = CT.Analysis
+module CRT = ClientTypes.Runtime
+module CAT = ClientTypes.Analysis
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
@@ -318,7 +318,7 @@ module Values =
     |> Map
     |> RT.DObj
 
-  let testClientDval : CT.Dval.T = CT.Dval.fromRT testDval
+  let testClientDval : CRT.Dval.T = CRT.Dval.fromRT testDval
 
   let testInstant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
@@ -606,7 +606,7 @@ module GenericSerializersTests =
       // LibExecution
       // ------------------
 
-      v<CT.Dval.T> "complete" testClientDval
+      v<CRT.Dval.T> "complete" testClientDval
 
       v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
         "complete"
@@ -708,10 +708,10 @@ module GenericSerializersTests =
         ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters =
                [ { name = "a"
-                   ``type`` = CT.DType.TInt
+                   ``type`` = CRT.DType.TInt
                    args = []
                    description = "param description" } ]
-             returnType = CT.DType.TList(CT.DType.TInt)
+             returnType = CRT.DType.TList(CRT.DType.TInt)
              description = "basic"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -719,7 +719,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CT.DType.TInt
+             returnType = CRT.DType.TInt
              description = "impure"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Impure
@@ -727,7 +727,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CT.DType.TInt
+             returnType = CRT.DType.TInt
              description = "impurepreviewable"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.ImpurePreviewable
@@ -735,7 +735,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CT.DType.TInt
+             returnType = CRT.DType.TInt
              description = "replacedBy"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -746,7 +746,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CT.DType.TInt
+             returnType = CRT.DType.TInt
              description = "renamedTo"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -757,7 +757,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CT.DType.TInt
+             returnType = CRT.DType.TInt
              description = "deprecatedBecause"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -851,8 +851,8 @@ module GenericSerializersTests =
         (Ok(
           testUuid,
           Dictionary.fromList (
-            [ (7UL, CTA.ExecutionResult.ExecutedResult testClientDval)
-              (7UL, CTA.ExecutionResult.NonExecutedResult testClientDval) ]
+            [ (7UL, CAT.ExecutionResult.ExecutedResult testClientDval)
+              (7UL, CAT.ExecutionResult.NonExecutedResult testClientDval) ]
           )
         ))
       v<ClientTypes.Analysis.PerformAnalysisParams>

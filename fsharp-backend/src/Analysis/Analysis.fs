@@ -14,7 +14,7 @@ module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
-module CTA = ClientTypes.Analysis
+module CAT = ClientTypes.Analysis
 
 open System
 open System.Reflection
@@ -83,7 +83,7 @@ type EvalWorker =
 
     try
       // parse an analysis request, in JSON, from the JS world (BlazorWorker)
-      let args = Json.Vanilla.deserialize<CTA.PerformAnalysisParams> input
+      let args = Json.Vanilla.deserialize<CAT.PerformAnalysisParams> input
       task {
         try
           let! result = LibAnalysis.performAnalysis args
