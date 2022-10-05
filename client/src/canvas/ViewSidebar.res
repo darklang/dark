@@ -674,7 +674,7 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
       ),
       Html.div(list{tw2(statusColor, %twc("inline-block"))}, list{Html.text(statusString)}),
       Html.div(
-        list{tw(%twc("block text-xxs text-right"))},
+        list{tw(%twc("block w-full text-xxs text-right"))},
         list{Html.text(Js.Date.toUTCString(d.lastUpdate))},
       ),
     },
