@@ -424,7 +424,7 @@ let deletedCategory = (m: model): category => {
   {
     count: cats->List.map(~f=c => count(NestedCategory(c)))->List.sum(module(Int)),
     name: "Deleted",
-    emptyName: "Deleted elements",
+    emptyName: "deleted toplevels",
     plusButton: None,
     iconAction: None,
     icon: Icons.darkIcon("deleted"),
@@ -559,6 +559,9 @@ let viewToplevelCategory = (
   plusButton: option<msg>,
   icon: Html.html<msg>,
   iconAction: option<msg>,
+  // it's not always obvious whether contents is emopty so be explicit (eg
+  // Vdom.noNode or empty divs)
+  isEmpty: bool,
   contents: list<Html.html<msg>>,
 ): Html.html<msg> => {
   let sidebarIcon = {
@@ -586,7 +589,7 @@ let viewToplevelCategory = (
     Html.div(list{tw(%twc("outline-none flex justify-start items-center"))}, list{icon, plusButton})
   }
 
-  let contents = if contents != list{} {
+  let contents = if !isEmpty {
     contents
   } else {
     // margin to make up for the space taken by the invisible dot in others
@@ -686,6 +689,7 @@ let viewDeployStats = (m: model): Html.html<msg> => {
     None,
     fontAwesome("file"),
     None,
+    m.staticDeploys == list{},
     m.staticDeploys->List.map(~f=viewDeploy),
   )
 }
@@ -759,6 +763,7 @@ let viewSecretKeys = (m: model): Html.html<AppTypes.msg> =>
     Some(SecretMsg(OpenCreateModal)),
     fontAwesome("user-secret"),
     None,
+    m.secrets->List.isEmpty,
     m.secrets->List.map(~f=viewSecret),
   )
 
@@ -882,7 +887,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger, saveTestButton},
   ])
 
-  viewToplevelCategory(m, "Admin", "", None, fontAwesome("cog"), None, content)
+  viewToplevelCategory(m, "Admin", "", None, fontAwesome("cog"), None, false, content)
 }
 
 // --------------------
@@ -910,6 +915,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
         c.plusButton,
         c.icon,
         c.iconAction,
+        c.entries->List.map(~f=count)->List.sum(module(Int)) == 0,
         c.entries->List.map(~f=viewItem(m)),
       )
     ),
