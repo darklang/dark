@@ -401,9 +401,9 @@ let simplify = (id: id, ast: E.t): E.t =>
   )
 
 let reduce = (test: FuzzTest.t, ast: E.t) => {
-  let runThrough = (msg, reducer, ast) => {
+  let runThrough = (msg, reducer, ast: E.t) => {
     let tokenIDs =
-      ast |> FluidTokenizer.tokenize |> List.map(~f=(ti: T.tokenInfo) => T.tid(ti.token))
+      ast |> FluidTokenizer.tokenizeExpr |> List.map(~f=(ti: T.tokenInfo) => T.tid(ti.token))
 
     let eIDs = ast |> E.filterMap(~f=e => Some(E.toID(e)))
     let ids =

@@ -157,18 +157,19 @@ let rec matchPatternToTokens = (matchID: id, mp: RuntimeTypes.MatchPattern.t, ~i
   }
 }
 
-let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
+let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
+  let r = exprToTokens
   open Builder
 
   let nest = (~indent, e: Expr.t, b: Builder.t): Builder.t => {
-    b |> indentBy(~indent, ~f=addNested(~f=toTokens'(e)))
+    b |> indentBy(~indent, ~f=addNested(~f=r(e)))
   }
 
   let addArgs = (args: list<Expr.t>, b: Builder.t): Builder.t => {
     let reflow = {
       let tokens =
         args
-        |> List.map(~f=a => toTokens'(a, Builder.empty))
+        |> List.map(~f=a => r(a, Builder.empty))
         |> List.map(~f=Builder.asTokens)
         |> List.flatten
 
@@ -183,7 +184,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
         args
         |> List.initial
         |> Option.unwrap(~default=list{})
-        |> List.map(~f=a => toTokens'(a, Builder.empty))
+        |> List.map(~f=a => r(a, Builder.empty))
         |> List.map(~f=Builder.asTokens)
         |> List.flatten
         |> List.any(~f=String.includes(~substring="\n"))
@@ -212,16 +213,16 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
     |> add("let ")
     |> add(lhs)
     |> add(" ")
-    |> addNested(~f=toTokens'(rhs))
+    |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded
-    |> addNested(~f=toTokens'(next))
+    |> addNested(~f=r(next))
   | ECharacter(_, c) => b |> add("'") |> add(c) |> add("'")
   | EString(_, str) => b |> add("\"") |> add(str) |> add("\'")
 
   | EIf(_, cond, if', else') =>
     b
     |> add("if ")
-    |> addNested(~f=toTokens'(cond))
+    |> addNested(~f=r(cond))
     |> addNewlineIfNeeded
     |> add("then")
     |> addNewlineIfNeeded
@@ -231,11 +232,9 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
     |> add("\n")
     |> nest(~indent=2, else')
   | EFQFnValue(_, name) => b |> add(FQFnName.toString(name))
-  | EApply(_, e, args, _, _) =>
-    b |> add("(") |> addNested(~f=toTokens'(e)) |> addArgs(args) |> add(")")
+  | EApply(_, e, args, _, _) => b |> add("(") |> addNested(~f=r(e)) |> addArgs(args) |> add(")")
   | EConstructor(_, name, exprs) => b |> add(name) |> addArgs(exprs)
-  | EFieldAccess(_, expr, fieldname) =>
-    b |> addNested(~f=toTokens'(expr)) |> addMany(list{".", fieldname})
+  | EFieldAccess(_, expr, fieldname) => b |> addNested(~f=r(expr)) |> addMany(list{".", fieldname})
   | EVariable(_, name) => b |> add(name)
   | ELambda(_, names, body) =>
     let isLast = i => i == List.length(names) - 1
@@ -262,7 +261,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
         } else {
           0
         }
-        toTokens'(e, b').xPos
+        r(e, b').xPos
         |> Option.map(~f=x => x - xOffset + commaWidth)
         |> Option.unwrap(~default=commaWidth)
       }
@@ -277,7 +276,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
       }
       b'
       |> addIf(isOverLimit, "\n")
-      |> indentBy(~indent, ~f=b' => b' |> addNested(~f=toTokens'(e)) |> addIf(i != lastIndex, ", "))
+      |> indentBy(~indent, ~f=b' => b' |> addNested(~f=r(e)) |> addIf(i != lastIndex, ", "))
     })
     |> add("]")
   | ETuple(_, first, second, theRest) =>
@@ -303,7 +302,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
         } else {
           0
         }
-        toTokens'(e, b').xPos
+        r(e, b').xPos
         |> Option.map(~f=x => x - xOffset + commaWidth)
         |> Option.unwrap(~default=commaWidth)
       }
@@ -323,7 +322,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
 
       b'
       |> addIf(shouldIndent, "\n")
-      |> indentBy(~indent, ~f=b' => b' |> addNested(~f=toTokens'(e)) |> addIf(i != lastIndex, ", "))
+      |> indentBy(~indent, ~f=b' => b' |> addNested(~f=r(e)) |> addIf(i != lastIndex, ", "))
     })
     |> add(")")
   | ERecord(_, fields) =>
@@ -334,7 +333,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
       |> add("{")
       |> indentBy(~indent=2, ~f=b =>
         addIter(fields, b, ~f=(_, (fieldName, expr), b) => {
-          b |> addNewlineIfNeeded |> add(fieldName) |> add(": ") |> addNested(~f=toTokens'(expr))
+          b |> addNewlineIfNeeded |> add(fieldName) |> add(": ") |> addNested(~f=r(expr))
         })
       )
       |> addMany(list{"\n", "}"})
@@ -342,7 +341,7 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
   | EMatch(id, mexpr, pairs) =>
     b
     |> add("match")
-    |> addNested(~f=toTokens'(mexpr))
+    |> addNested(~f=r(mexpr))
     |> indentBy(~indent=2, ~f=b =>
       b
       |> addIter(pairs, ~f=(i, (mp, expr), b) =>
@@ -350,14 +349,14 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
         |> addNewlineIfNeeded
         |> addMany(matchPatternToTokens(id, mp, ~idx=i))
         |> add(" -> ")
-        |> addNested(~f=toTokens'(expr))
+        |> addNested(~f=r(expr))
       )
       |> addNewlineIfNeeded
     )
   | EFeatureFlag(_, cond, _disabled, enabled) =>
     b
     |> add("when")
-    |> addNested(~f=toTokens'(cond))
+    |> addNested(~f=r(cond))
     |> addNewlineIfNeeded
     |> add("enabled")
     |> addNewlineIfNeeded
@@ -366,5 +365,5 @@ let rec toTokens' = (e: Expr.t, b: Builder.t): Builder.t => {
 }
 
 let eToHumanString = (e: RuntimeTypes.Expr.t) => {
-  toTokens'(e, Builder.empty) |> Builder.toString
+  exprToTokens(e, Builder.empty) |> Builder.toString
 }

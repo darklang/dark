@@ -12,7 +12,7 @@ type testResult = (fluidExpr, (string, option<string>), int)
 
 let containsPartials = (res: fluidExpr): bool =>
   res
-  |> FluidTokenizer.tokenizeForEditor(FluidTypes.Editor.MainEditor(TLID.fromInt(7)))
+  |> FluidTokenizer.tokenizeExprForEditor(FluidTypes.Editor.MainEditor(TLID.fromInt(7)))
   |> List.any(~f=(ti: FluidToken.tokenInfo) =>
     switch ti.token {
     | TRightPartial(_) | TPartial(_) | TFieldPartial(_) => true
@@ -1410,67 +1410,210 @@ let run = () => {
     ()
   })
   describe("Match", () => {
+    //
+    // First, test the reconstruction of the `match` expr itself
+    //
     testCopy(
-      "copying a blank match expression works",
+      "copying a single blank match pattern",
       match'(blank(), list{(mpBlank(), blank())}),
       (0, 22),
       "match ___\n  *** -> ___\n",
     )
     testCopy(
-      "copying a match expression with a single integer pattern works",
-      match'(int(123), list{(mpInt(123), str("success"))}),
-      (0, 27),
-      "match 123\n  123 -> \"success\"\n",
-    )
-    testCopy(
-      "copying a match expression with a full constructor pattern works",
-      match'(
-        constructor("Just", list{int(123)}),
-        list{(mpConstructor("Just", list{mpInt(123)}), str("success"))},
-      ),
-      (0, 37),
-      "match Just 123\n  Just 123 -> \"success\"\n",
-    )
-    testCopy(
-      "copying fewer than all cases in a match expression works",
+      "copying all cases in a match expression",
       match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
-      (0, 30), // right after "Just"
+      (0, 56), // at the end
+      "match 0\n  123 -> \"first branch\"\n  456 -> \"second branch\"\n",
+    )
+    testCopy(
+      "copying fewer than all cases in a match expression",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (0, 31), // at the end of "first branch" (before newline)
       "match 0\n  123 -> \"first branch\"\n",
     )
-
-    // CLEANUP this test fails because the impl. assumes we've selected the
-    // subpatterns
-    // testCopy(
-    //   "copying a match expression with a partial constructor pattern works",
-    //   match'(
-    //     constructor("Just", list{int(123)}),
-    //     list{(pConstructor("Just", list{pInt(123)}), str("success"))},
-    //   ),
-    //   (0, 21), // right after "Just"
-    //   "match Just 123\n  Just *** -> ___\n",
-    // )
-
     testCopy(
-      "copying a match expression including a full tuple pattern works",
-      match'(
-        tuple(int(1), str("two"), list{int(3)}),
-        list{(mpTuple(mpInt(1), mpString("two"), list{mpInt(3)}), str("success"))},
-      ),
-      (0, 44),
-      "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
+      "copying the expr out of a match expression's case",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (17, 31), // "first branch"
+      "\"first branch\"",
+    )
+    testCopy(
+      "copying a case within a match expr - arrow and expr",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (13, 31), // -> "first branch"
+      "match ___\n  *** -> \"first branch\"\n",
+    )
+    testCopy(
+      "copying a case within a match expr - just pattern",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (10, 13), // 123
+      "123",
+    )
+    testCopy(
+      "copying a case within a match expr - pattern and arrow",
+      match'(int(0), list{(mpInt(123), str("first branch")), (mpInt(456), str("second branch"))}),
+      (10, 17), // 123 ->
+      "match ___\n  123 -> ___\n",
     )
 
-    // CLEANUP TUPLETODO this test fails because the impl. assumes we've
-    // selected the subpatterns
-    // testCopy(
-    //   "copying a match expression including part of a tuple pattern works",
-    //   match'(
-    //     tuple(int(1), str("two"), list{int(3)}),
-    //     list{(pTuple(pInt(1), pString("two"), list{pInt(3)}), str("success"))},
-    //   ),
-    //   (0, 29), // ending just before the '3' in the pattern
-    //   "match (1,\"two\",3)\n  (1,\"two\",***) -> ___\n",
-    // )
+    //
+    // Now, test the reconstruction of various 'match patterns'
+    //
+    describe("Bool match pattern", () => {
+      testCopy(
+        "copying a fully selected bool match pattern - true",
+        match'(blank(), list{(mpBool(true), blank())}),
+        (0, 16),
+        "match ___\n  true -> ___\n",
+      )
+      testCopy(
+        "copying a fully selected bool match pattern - false",
+        match'(blank(), list{(mpBool(false), blank())}),
+        (0, 17),
+        "match ___\n  false -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected bool match pattern - true",
+        match'(blank(), list{(mpBool(true), blank())}),
+        (0, 14), // tr|ue
+        "match ___\n  true -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected bool match pattern - false",
+        match'(blank(), list{(mpBool(false), blank())}),
+        (0, 15), // fal|se
+        "match ___\n  false -> ___\n",
+      )
+      ()
+    })
+
+    describe("Null match pattern", () => {
+      testCopy(
+        "copying a fully selected null match pattern",
+        match'(blank(), list{(mpNull(), blank())}),
+        (0, 16),
+        "match ___\n  null -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected null match pattern",
+        match'(blank(), list{(mpNull(), blank())}),
+        (0, 14), // nu|ll
+        "match ___\n  null -> ___\n",
+      )
+      ()
+    })
+
+    describe("Character match pattern", () => {
+      // CLEANUP these aren't yet create-able in Fluid
+      ()
+    })
+    describe("String match pattern", () => {
+      testCopy(
+        "copying a fully selected string pattern",
+        match'(blank(), list{(mpString("test"), blank())}),
+        (0, 18), // past the ending quote (")
+        "match ___\n  \"test\" -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected string pattern",
+        match'(blank(), list{(mpString("test"), blank())}),
+        (0, 15), // "te|st"
+        "match ___\n  \"te\" -> ___\n",
+      )
+      ()
+    })
+
+    describe("Int match pattern", () => {
+      testCopy(
+        "copying a fully selected integer pattern",
+        match'(blank(), list{(mpInt(123), blank())}),
+        (0, 15),
+        "match ___\n  123 -> ___\n",
+      )
+      testCopy(
+        "copying a partially selected integer pattern",
+        match'(blank(), list{(mpInt(123), blank())}),
+        (0, 14), // 12|3
+        "match ___\n  12 -> ___\n",
+      )
+      ()
+    })
+    describe("Float match pattern", () => {
+      testCopy(
+        "copy a fully selected float pattern",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (0, 21),
+        "match ___\n  1234.5678 -> ___\n",
+      )
+      testCopy(
+        "copy the whole part of a float match pattern w/o the point",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (0, 16),
+        "match ___\n  1234 -> ___\n",
+      )
+      testCopy(
+        "copy the whole part of a float match pattern w/ the point",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (0, 17),
+        "match ___\n  1234.0 -> ___\n",
+      )
+      testCopy(
+        "copy the fraction part of a float match pattern w/o the point",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (17, 25),
+        "match ___\n  5678 -> ___\n",
+      )
+      testCopy(
+        "copy the fraction part of a float match pattern w/ the point",
+        match'(blank(), list{(mpFloat(Positive, 1234, 5678), blank())}),
+        (16, 25),
+        "match ___\n  0.5678 -> ___\n",
+      )
+      ()
+    })
+
+    describe("Constructor match pattern", () => {
+      testCopy(
+        "copying a match expression with a full constructor pattern",
+        match'(
+          constructor("Just", list{int(123)}),
+          list{(mpConstructor("Just", list{mpInt(123)}), str("success"))},
+        ),
+        (0, 37),
+        "match Just 123\n  Just 123 -> \"success\"\n",
+      )
+      testCopy(
+        "copying a match expression with a partial constructor pattern",
+        match'(
+          constructor("Just", list{int(123)}),
+          list{(mpConstructor("Just", list{mpInt(123)}), str("success"))},
+        ),
+        (0, 21), // right after "Just"
+        "match Just 123\n  Just *** -> ___\n",
+      )
+      ()
+    })
+
+    describe("Tuple match pattern", () => {
+      testCopy(
+        "copying a match expression including a full tuple pattern",
+        match'(
+          tuple(int(1), str("two"), list{int(3)}),
+          list{(mpTuple(mpInt(1), mpString("two"), list{mpInt(3)}), str("success"))},
+        ),
+        (0, 44),
+        "match (1,\"two\",3)\n  (1,\"two\",3) -> \"success\"\n",
+      )
+      testCopy(
+        "copying a match expression including part of a tuple pattern",
+        match'(
+          tuple(int(1), str("two"), list{int(3)}),
+          list{(mpTuple(mpInt(1), mpString("two"), list{mpInt(3)}), str("success"))},
+        ),
+        (0, 29), // ending just before the '3' in the pattern
+        "match (1,\"two\",3)\n  (1,\"two\",***) -> ___\n",
+      )
+    })
     ()
   })
   describe("json", () => {

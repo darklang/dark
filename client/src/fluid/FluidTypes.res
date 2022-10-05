@@ -126,7 +126,7 @@ module Token = {
     // for all these TMP* variants:
     // - the first id is the match id
     // - the second id is the pattern id
-    // - the final int is the index of the (pattern -> expr)
+    // - the final int is the index of the (pattern, expr) case within the wrapping `match` expr
     | TMPVariable(ID.t, ID.t, string, int)
     | TMPConstructorName(ID.t, ID.t, string, int)
 

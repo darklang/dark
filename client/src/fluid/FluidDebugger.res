@@ -10,7 +10,7 @@ module Token = FluidToken
 
 let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
   let s = m.fluidState
-  let tokens = FluidTokenizer.tokensForEditor(m.fluidState.activeEditor, ast)
+  let tokens = FluidTokenizer.tokenizeExprForDebugger(m.fluidState.activeEditor, ast)
   let ddText = txt => Html.dd(list{}, list{Html.text(txt)})
   let dtText = txt => Html.dt(list{}, list{Html.text(txt)})
   let posData = {

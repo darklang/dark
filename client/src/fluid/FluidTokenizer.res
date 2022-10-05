@@ -10,12 +10,10 @@ type fluidToken = FluidTypes.Token.t
 type fluidState = AppTypes.fluidState
 
 type featureFlagTokenization =
-  | @ocaml.doc(" FeatureFlagOnlyDisabled is used in the main editor panel to only
-          * show the flag's old code ")
+  | @ocaml.doc("used in the main editor panel to only show the flag's old code")
   FeatureFlagOnlyDisabled
 
-  | @ocaml.doc(" FeatureFlagConditionAndEnabled is used in the secondary editor
-          * panel for editing a flag's condition and new code ")
+  | @ocaml.doc("used in the secondary editor panel for editing a flag's condition and new code")
   FeatureFlagConditionAndEnabled
 
 // --------------------------------------
@@ -133,18 +131,62 @@ module Builder = {
     List.reverse(b.tokens)
 }
 
-let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int): list<
+let infoize = (tokens): list<tokenInfo> => {
+  let (row, col, pos) = (ref(0), ref(0), ref(0))
+  List.map(tokens, ~f=token => {
+    let length = String.length(T.toText(token))
+    let ti: tokenInfo = {
+      token: token,
+      startRow: row.contents,
+      startCol: col.contents,
+      startPos: pos.contents,
+      endPos: pos.contents + length,
+      length: length,
+    }
+
+    switch token {
+    | TNewline(_) =>
+      row := row.contents + 1
+      col := 0
+    | _ => col := col.contents + length
+    }
+    pos := pos.contents + length
+    ti
+  })
+}
+
+let validateTokens = (tokens: list<fluidToken>): list<fluidToken> => {
+  List.forEach(tokens, ~f=t => {
+    asserT("invalid token", String.length(T.toText(t)) > 0, ~debug=t)
+    ()
+  })
+  tokens
+}
+
+// Remove artifacts of the token generation process
+let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
+  tokens |> List.filter(~f=x =>
+    switch x {
+    | TIndent(0) => false
+    | _ => true
+    }
+  )
+
+// --------------------------------------
+// The actual tokenization
+// --------------------------------------
+
+// TODO: pass in a `b: Builder.t` as `exprToTokens` does
+let rec matchPatternToTokens = (matchID: id, ~idx: int, mp: FluidMatchPattern.t): list<
   fluidToken,
 > => {
+  let r = matchPatternToTokens
   open FluidTypes.Token
 
   switch mp {
   | MPVariable(id, name) => list{TMPVariable(matchID, id, name, idx)}
   | MPConstructor(id, name, args) =>
-    let args = List.map(args, ~f=a => list{
-      TSep(id, None),
-      ...matchPatternToTokens(matchID, a, ~idx),
-    })
+    let args = List.map(args, ~f=a => list{TSep(id, None), ...r(matchID, a, ~idx)})
 
     List.flatten(list{list{TMPConstructorName(matchID, id, name, idx)}, ...args})
   | MPInteger(id, i) => list{TMPInteger(matchID, id, i, idx)}
@@ -186,7 +228,7 @@ let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int)
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
         let isLastSubpattern = i == subPatternCount - 1
-        let subpatternTokens = matchPatternToTokens(matchID, p, ~idx)
+        let subpatternTokens = r(matchID, p, ~idx)
 
         if isLastSubpattern {
           subpatternTokens
@@ -204,7 +246,9 @@ let rec matchPatternToTokens = (matchID: id, mp: FluidMatchPattern.t, ~idx: int)
   }
 }
 
-let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
+let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
+  let r = exprToTokens
+
   open Builder
   let ghostPartial = (id, oldID, newName, oldName) => {
     let ghostSuffix = String.dropLeft(~count=String.length(newName), oldName)
@@ -239,7 +283,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
           })
 
         switch name {
-        | None => toTokens'(e, b)
+        | None => r(e, b)
         | Some(placeholder) =>
           add(
             TPlaceholder({
@@ -251,7 +295,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
             b,
           )
         }
-      | _ => toTokens'(e, b)
+      | _ => r(e, b)
       }
 
     b |> indentBy(~indent, ~f=addNested(~f=tokensFn))
@@ -266,7 +310,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     let reflow = {
       let tokens =
         args
-        |> List.map(~f=a => toTokens'(a, Builder.empty))
+        |> List.map(~f=a => r(a, Builder.empty))
         |> List.map(~f=Builder.asTokens)
         |> List.flatten
 
@@ -281,7 +325,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         args
         |> List.initial
         |> Option.unwrap(~default=list{})
-        |> List.map(~f=a => toTokens'(a, Builder.empty))
+        |> List.map(~f=a => r(a, Builder.empty))
         |> List.map(~f=Builder.asTokens)
         |> List.flatten
         |> List.any(~f=x =>
@@ -349,9 +393,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TLetKeyword(id, rhsID, parentID))
     |> add(TLetVarName(id, rhsID, lhs, parentID))
     |> add(TLetAssignment(id, rhsID, parentID))
-    |> addNested(~f=toTokens'(rhs))
+    |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))
-    |> addNested(~f=toTokens'(next))
+    |> addNested(~f=r(next))
   | ECharacter(id, _) =>
     recover("tokenizing echaracter is not supported", b |> add(TBlank(id, id, parentID)))
   | EString(id, str) =>
@@ -396,7 +440,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   | EIf(id, cond, if', else') =>
     b
     |> add(TIfKeyword(id, parentID))
-    |> addNested(~f=toTokens'(cond))
+    |> addNested(~f=r(cond))
     |> addNewlineIfNeeded(None)
     |> add(TIfThenKeyword(id, parentID))
     |> addNewlineIfNeeded(Some(E.toID(if'), id, None))
@@ -471,7 +515,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   | EFieldAccess(id, expr, fieldname) =>
     let lhsid = E.toID(expr)
     b
-    |> addNested(~f=toTokens'(expr, ~parentID))
+    |> addNested(~f=r(expr, ~parentID))
     |> addMany(list{TFieldOp(id, lhsid, parentID), TFieldName(id, lhsid, fieldname, parentID)})
   | EPartial(id, newFieldname, EFieldAccess(faID, expr, oldFieldname)) =>
     let lhsid = E.toID(expr)
@@ -479,7 +523,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     let newText = T.toText(partial)
     let ghost = ghostPartial(id, faID, newText, oldFieldname)
     b
-    |> addNested(~f=toTokens'(expr))
+    |> addNested(~f=r(expr))
     |> addMany(list{TFieldOp(id, E.toID(expr), parentID), partial})
     |> addMany(ghost)
   | EVariable(id, name) => b |> add(TVariable(id, name, parentID))
@@ -516,7 +560,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         } else {
           0
         }
-        toTokens'(e, b').xPos
+        r(e, b').xPos
         |> Option.map(~f=x => x - xOffset + commaWidth)
         |> Option.unwrap(~default=commaWidth)
       }
@@ -532,9 +576,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       b'
       |> addIf(isOverLimit, TNewline(None))
       |> indentBy(~indent, ~f=b' =>
-        b'
-        |> addNested(~f=toTokens'(~parentID=Some(id), e))
-        |> addIf(i != lastIndex, TListComma(id, i))
+        b' |> addNested(~f=r(~parentID=Some(id), e)) |> addIf(i != lastIndex, TListComma(id, i))
       )
     })
     |> add(TListClose(id, pid))
@@ -561,7 +603,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         } else {
           0
         }
-        toTokens'(e, b').xPos
+        r(e, b').xPos
         |> Option.map(~f=x => x - xOffset + commaWidth)
         |> Option.unwrap(~default=commaWidth)
       }
@@ -582,9 +624,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       b'
       |> addIf(shouldIndent, TNewline(None))
       |> indentBy(~indent, ~f=b' =>
-        b'
-        |> addNested(~f=toTokens'(~parentID=Some(id), e))
-        |> addIf(i != lastIndex, TTupleComma(id, i))
+        b' |> addNested(~f=r(~parentID=Some(id), e)) |> addIf(i != lastIndex, TTupleComma(id, i))
       )
     })
     |> add(TTupleClose(id))
@@ -610,7 +650,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
             }),
           )
           |> add(TRecordSep(id, i, exprID))
-          |> addNested(~f=toTokens'(~parentID=Some(id), expr))
+          |> addNested(~f=r(~parentID=Some(id), expr))
         })
       )
       |> addMany(list{
@@ -622,7 +662,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     let length = 2 + List.length(rest)
     b
     // First entry
-    |> addNested(~f=toTokens'(e1))
+    |> addNested(~f=r(e1))
     |> addNewlineIfNeeded(Some(E.toID(e1), id, Some(0)))
     // Rest of entries
     |> addFold(list{e2, ...rest}, ~initial=e1, ~f=(i, prev, e, b) => {
@@ -640,7 +680,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         if E.isBlank(e) {
           b |> add(TBlank(E.toID(e), E.toID(analysisExpr), parentID))
         } else {
-          b |> addNested(~f=toTokens'(~parentID, e))
+          b |> addNested(~f=r(~parentID, e))
         }
       }
       (
@@ -657,7 +697,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   | EMatch(id, mexpr, pairs) =>
     b
     |> add(TMatchKeyword(id))
-    |> addNested(~f=toTokens'(mexpr))
+    |> addNested(~f=r(mexpr))
     |> indentBy(~indent=2, ~f=b =>
       b
       |> addIter(pairs, ~f=(i, (matchPattern, expr), b) =>
@@ -671,26 +711,26 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
             index: i,
           }),
         )
-        |> addNested(~f=toTokens'(expr))
+        |> addNested(~f=r(expr))
       )
       |> addNewlineIfNeeded(Some(id, id, Some(List.length(pairs))))
     )
   | EPartial(id, str, oldExpr) => b |> add(TPartial(id, E.toID(oldExpr), str, parentID))
   | ERightPartial(id, newOp, expr) =>
     b
-    |> addNested(~f=toTokens'(expr))
+    |> addNested(~f=r(expr))
     |> addMany(list{TSep(id, parentID), TRightPartial(id, newOp, parentID)})
   | ELeftPartial(id, str, expr) =>
-    b |> add(TLeftPartial(id, str, parentID)) |> addNested(~f=toTokens'(expr))
+    b |> add(TLeftPartial(id, str, parentID)) |> addNested(~f=r(expr))
   | EFeatureFlag(id, _name, cond, disabled, enabled) =>
     /* Feature flag tokens are displayed in two different editor panels, so
      * they are built differently depending on the current builder option. */
     switch b.ffTokenization {
-    | FeatureFlagOnlyDisabled => b |> addNested(~f=toTokens'(disabled))
+    | FeatureFlagOnlyDisabled => b |> addNested(~f=r(disabled))
     | FeatureFlagConditionAndEnabled =>
       b
       |> add(TFlagWhenKeyword(id))
-      |> addNested(~f=toTokens'(cond))
+      |> addNested(~f=r(cond))
       |> addNewlineIfNeeded(None)
       |> add(TFlagEnabledKeyword(id))
       |> addNewlineIfNeeded(Some(E.toID(enabled), id, None))
@@ -699,82 +739,62 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   }
 }
 
-let infoize = (tokens): list<tokenInfo> => {
-  let (row, col, pos) = (ref(0), ref(0), ref(0))
-  List.map(tokens, ~f=token => {
-    let length = String.length(T.toText(token))
-    let ti: tokenInfo = {
-      token: token,
-      startRow: row.contents,
-      startCol: col.contents,
-      startPos: pos.contents,
-      endPos: pos.contents + length,
-      length: length,
-    }
-
-    switch token {
-    | TNewline(_) =>
-      row := row.contents + 1
-      col := 0
-    | _ => col := col.contents + length
-    }
-    pos := pos.contents + length
-    ti
-  })
-}
-
-let validateTokens = (tokens: list<fluidToken>): list<fluidToken> => {
-  List.forEach(tokens, ~f=t => {
-    asserT("invalid token", String.length(T.toText(t)) > 0, ~debug=t)
-    ()
-  })
-  tokens
-}
-
-// Remove artifacts of the token generation process
-let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
-  tokens |> List.filter(~f=x =>
-    switch x {
-    | TIndent(0) => false
-    | _ => true
-    }
-  )
-
-let tokenizeWithFFTokenization = (
-  ffTokenization: featureFlagTokenization,
-  e: FluidExpression.t,
-): list<tokenInfo> =>
+let tokenizeExprWithFFTokenization = (ffTokenization: featureFlagTokenization, e: E.t): list<
+  tokenInfo,
+> =>
   {...Builder.empty, ffTokenization: ffTokenization}
-  |> toTokens'(e)
+  |> exprToTokens(e)
   |> Builder.asTokens
   |> tidy
   |> validateTokens
   |> infoize
 
-let tokenize: E.t => list<FluidToken.tokenInfo> = tokenizeWithFFTokenization(
+@ocaml.doc("The 'default' tokenizer used in the main editor and basically
+  everywhere except for the feature flag editor")
+let tokenizeExpr: E.t => list<FluidToken.tokenInfo> = tokenizeExprWithFFTokenization(
   FeatureFlagOnlyDisabled,
 )
 
-let tokensForEditor = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<FluidToken.tokenInfo> =>
+@ocaml.doc("The 'default' tokenizer used in the main editor and basically
+  everywhere except for the feature flag editor")
+let tokenizeMatchPattern = (matchId: ID.t, index: int, mp: MP.t): list<tokenInfo> =>
+  matchPatternToTokens(matchId, ~idx=index, mp) |> tidy |> validateTokens |> infoize
+
+let tokenizeExprForEditor = (e: FluidTypes.Editor.t, expr: E.t): list<FluidToken.tokenInfo> =>
   switch e {
   | NoEditor => list{}
-  | MainEditor(_) => tokenize(FluidAST.toExpr(ast))
-  | FeatureFlagEditor(_, id) =>
-    FluidAST.findExpr(id, ast)
-    |> Option.map(~f=tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled))
-    |> recoverOpt(
-      "could not find expression id = " ++ (ID.toString(id) ++ " when tokenizing FF editor"),
-      ~default=list{},
-    )
+  | MainEditor(_) => tokenizeExpr(expr)
+  | FeatureFlagEditor(_) => tokenizeExprWithFFTokenization(FeatureFlagConditionAndEnabled, expr)
   }
 
-let tokenizeForEditor = (e: FluidTypes.Editor.t, expr: FluidExpression.t): list<
+let tokenizeMatchPatternForEditor = (
+  e: FluidTypes.Editor.t,
+  matchID: ID.t,
+  index: int,
+  mp: MP.t,
+): list<FluidToken.tokenInfo> =>
+  switch e {
+  | NoEditor => list{}
+  | MainEditor(_) => tokenizeMatchPattern(matchID, index, mp)
+  | FeatureFlagEditor(_) => tokenizeMatchPattern(matchID, index, mp)
+  }
+
+// this is only used for FluidDebugger. TODO: consider removing? Not sure why
+// we have this separate tokenizer - when would we have a FF but no expr
+// corresponding to the expr's ID?
+let tokenizeExprForDebugger = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<
   FluidToken.tokenInfo,
 > =>
   switch e {
   | NoEditor => list{}
-  | MainEditor(_) => tokenize(expr)
-  | FeatureFlagEditor(_) => tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled, expr)
+  | MainEditor(_) => tokenizeExpr(FluidAST.toExpr(ast))
+  | FeatureFlagEditor(_, id) =>
+    FluidAST.findExpr(id, ast)
+    |> Option.map(~f=expr => tokenizeExprWithFFTokenization(FeatureFlagConditionAndEnabled, expr))
+    |> recoverOpt(
+      "could not find expression id = " ++ (ID.toString(id) ++ " when tokenizing FF editor"),
+      ~default=list{},
+    )
   }
 
 // --------------------------------------
@@ -902,13 +922,13 @@ module ASTInfo = {
     if astInfo.ast == ast {
       astInfo
     } else {
-      let mainTokenInfos = tokenize(FluidAST.toExpr(ast))
+      let mainTokenInfos = tokenizeExpr(FluidAST.toExpr(ast))
       let featureFlagTokenInfos =
         ast
         |> FluidAST.getFeatureFlags
         |> List.map(~f=expr => (
           E.toID(expr),
-          tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled, expr),
+          tokenizeExprWithFFTokenization(FeatureFlagConditionAndEnabled, expr),
         ))
 
       {

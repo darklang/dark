@@ -8,14 +8,14 @@ type tokenInfo = FluidTypes.TokenInfo.t
 
 let run = () => {
   let tokensFor = (e: E.t): list<T.t> =>
-    FluidTokenizer.tokenize(e) |> List.map(~f=(ti: tokenInfo) => ti.token)
+    FluidTokenizer.tokenizeExpr(e) |> List.map(~f=(ti: tokenInfo) => ti.token)
 
   let hasTokenMatch = (~f: T.t => bool, e: E.t) => {
     let tokens = tokensFor(e)
     expect(List.any(tokens, ~f)) |> toEqual(true)
   }
 
-  describe("toTokens' converts expressions to tokens", () => {
+  describe("exprToTokens converts expressions to tokens", () => {
     test("field access keeps parentBlockID", () => {
       let parentID = gid()
       let expr = E.EList(parentID, list{EFieldAccess(gid(), EVariable(gid(), "obj"), "field")})
