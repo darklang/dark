@@ -800,18 +800,18 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     }
 
   let environment = {
-    let color = switch m.environment {
-    | "production" => %twc("text-black3")
-    | "dev" => %twc("text-blue")
-    | _ => %twc("text-magenta")
+    let colors = switch m.environment {
+    | "production" => %twc("text-orange bg-black1")
+    | "dev" => %twc("text-blue bg-white1")
+    | _ => %twc("text-magenta bg-white1")
     }
 
     // Outer span is the width of the sidebar and the text is centered within in
     Html.span(
-      list{tw2(%twc("w-full left-0 top-3.5 leading-none absolute box-border"), color)},
+      list{tw(%twc("w-full left-0 top-3.5 leading-none absolute box-border"))},
       list{
         Html.span(
-          list{tw(%twc("bg-white1 max-w-[3.5rem] px-0.25 h-2.5 text-[0.56rem] rounded"))},
+          list{tw2(colors, %twc("max-w-[3.5rem] px-0.25 h-2.5 text-[0.56rem] rounded"))},
           list{Html.text(m.environment)},
         ),
       },
