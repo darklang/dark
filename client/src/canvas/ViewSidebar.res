@@ -570,7 +570,7 @@ let viewToplevelCategory = (
       iconButton(
         ~key="plus-" ++ name,
         ~icon="plus-circle",
-        ~style=%twc("text-xs absolute right-0.5 top-4"),
+        ~style=%twc("text-xs text-grey8 absolute right-0.5 top-4"),
         msg,
       )
     | Some(_) | None => Vdom.noNode
@@ -583,7 +583,7 @@ let viewToplevelCategory = (
       }
 
       let style = %twc(
-        "text-grey5 duration-200 text-2xl group-sidebar-category-hover:text-3xl -ml-1 w-full h-9 text-center"
+        "text-grey5 duration-200 text-2xl group-sidebar-category-hover:text-3xl pr-1 w-full h-9 text-center box-border"
       )
 
       Html.div(
@@ -808,12 +808,10 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
     // Outer span is the width of the sidebar and the text is centered within in
     Html.span(
-      list{tw2(%twc("w-full left-0 top-4 leading-none absolute box-border"), color)},
+      list{tw2(%twc("w-full left-0 top-3.5 leading-none absolute box-border"), color)},
       list{
         Html.span(
-          list{
-            tw(%twc("bg-white1 max-w-[90%] mx-1 px-0.5 h-2.5 box-border text-[0.56rem] rounded")),
-          },
+          list{tw(%twc("bg-white1 max-w-[3.5rem] px-0.25 h-2.5 text-[0.56rem] rounded"))},
           list{Html.text(m.environment)},
         ),
       },
