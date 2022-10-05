@@ -5535,7 +5535,7 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
             switch (reconstructMatchPattern(matchID, index, matchPattern), reconstructExpr(expr)) {
             | (Some(mp), Some(expr)) => Some(mp, expr)
             | (Some(mp), None) => Some(mp, None |> orDefaultExpr)
-            | (None, Some(_expr)) => None // todo: reconsider
+            | (None, Some(expr)) => Some(None |> orDefaultMP, expr)
             | (None, None) => None
             }
           })
@@ -5605,7 +5605,7 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
           if newValue == "null" {
             Some(MPNull(id))
           } else {
-            None // TODO: MPPartial
+            Some(MPNull(id)) // TODO: MPPartial
           }
         )
         |> Option.flatten
@@ -5637,7 +5637,7 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
           if newValue == "" {
             None
           } else if newValue != string_of_bool(value) {
-            None // TODO: MPPartial
+            Some(MPBool(id, value)) // TODO: MPPartial
           } else {
             Some(MPBool(id, value))
           }

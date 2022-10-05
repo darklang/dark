@@ -1476,13 +1476,13 @@ let run = () => {
         "copying a partially selected bool match pattern - true",
         match'(blank(), list{(mpBool(true), blank())}),
         (0, 14), // tr|ue
-        "match ___\n  *** -> ___\n",
+        "match ___\n  true -> ___\n",
       )
       testCopy(
         "copying a partially selected bool match pattern - false",
         match'(blank(), list{(mpBool(false), blank())}),
         (0, 15), // fal|se
-        "match ___\n  *** -> ___\n",
+        "match ___\n  false -> ___\n",
       )
       ()
     })
@@ -1498,7 +1498,7 @@ let run = () => {
         "copying a partially selected null match pattern",
         match'(blank(), list{(mpNull(), blank())}),
         (0, 14), // nu|ll
-        "match ___\n  *** -> ___\n",
+        "match ___\n  null -> ___\n",
       )
       ()
     })
