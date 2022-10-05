@@ -739,7 +739,9 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
   }
 }
 
-let tokenizeExprWithOptions = (ffTokenization: featureFlagTokenization, e: E.t): list<tokenInfo> =>
+let tokenizeExprWithFFTokenization = (ffTokenization: featureFlagTokenization, e: E.t): list<
+  tokenInfo,
+> =>
   {...Builder.empty, ffTokenization: ffTokenization}
   |> exprToTokens(e)
   |> Builder.asTokens
@@ -749,7 +751,7 @@ let tokenizeExprWithOptions = (ffTokenization: featureFlagTokenization, e: E.t):
 
 @ocaml.doc("The 'default' tokenizer used in the main editor and basically
   everywhere except for the feature flag editor")
-let tokenizeExpr: E.t => list<FluidToken.tokenInfo> = tokenizeExprWithOptions(
+let tokenizeExpr: E.t => list<FluidToken.tokenInfo> = tokenizeExprWithFFTokenization(
   FeatureFlagOnlyDisabled,
 )
 
@@ -762,7 +764,7 @@ let tokenizeExprForEditor = (e: FluidTypes.Editor.t, expr: E.t): list<FluidToken
   switch e {
   | NoEditor => list{}
   | MainEditor(_) => tokenizeExpr(expr)
-  | FeatureFlagEditor(_) => tokenizeExprWithOptions(FeatureFlagConditionAndEnabled, expr)
+  | FeatureFlagEditor(_) => tokenizeExprWithFFTokenization(FeatureFlagConditionAndEnabled, expr)
   }
 
 let tokenizeMatchPatternForEditor = (
@@ -788,7 +790,7 @@ let tokenizeExprForDebugger = (e: FluidTypes.Editor.t, ast: FluidAST.t): list<
   | MainEditor(_) => tokenizeExpr(FluidAST.toExpr(ast))
   | FeatureFlagEditor(_, id) =>
     FluidAST.findExpr(id, ast)
-    |> Option.map(~f=expr => tokenizeExprWithOptions(FeatureFlagConditionAndEnabled, expr))
+    |> Option.map(~f=expr => tokenizeExprWithFFTokenization(FeatureFlagConditionAndEnabled, expr))
     |> recoverOpt(
       "could not find expression id = " ++ (ID.toString(id) ++ " when tokenizing FF editor"),
       ~default=list{},
@@ -926,7 +928,7 @@ module ASTInfo = {
         |> FluidAST.getFeatureFlags
         |> List.map(~f=expr => (
           E.toID(expr),
-          tokenizeExprWithOptions(FeatureFlagConditionAndEnabled, expr),
+          tokenizeExprWithFFTokenization(FeatureFlagConditionAndEnabled, expr),
         ))
 
       {
