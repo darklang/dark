@@ -5070,6 +5070,12 @@ let shouldSelect = (key: K.key): bool =>
   | _ => false
   }
 
+let findInfoForToken = (tokenInfos: list<T.tokenInfo>, tok: option<FluidToken.tokenInfo>) =>
+  switch tok {
+  | Some(mpTok) => List.find(tokenInfos, ~f=tk => T.matchesContent(mpTok.token, tk.token))
+  | _ => None
+  }
+
 @ocaml.doc("returns the beginning and end of the range from the expression's
   first and last token by cross-referencing the tokens for the expression with
   the tokens for the whole editor's expr.
@@ -5085,16 +5091,8 @@ let selectionRangeOfExpr = (exprID: id, astInfo: ASTInfo.t): option<(int, int)> 
     |> Option.map(~f=expr => FluidTokenizer.tokenizeExprForEditor(astInfo.state.activeEditor, expr))
     |> Option.unwrap(~default=list{})
 
-  let (exprStartToken, exprEndToken) = (
-    List.head(exprTokens),
-    List.last(exprTokens),
-  ) |> Tuple2.mapAll(~f=(x: option<T.tokenInfo>) =>
-    switch x {
-    | Some(exprTok) =>
-      List.find(containingTokens, ~f=(tk: T.tokenInfo) => T.matchesContent(exprTok.token, tk.token))
-    | _ => None
-    }
-  )
+  let exprStartToken = List.head(exprTokens) |> findInfoForToken(containingTokens)
+  let exprEndToken = List.last(exprTokens) |> findInfoForToken(containingTokens)
 
   switch (exprStartToken, exprEndToken) {
   /* range is from startPos of first token in expr to
@@ -5122,16 +5120,8 @@ let selectionRangeOfMatchPattern = (
     )
     |> Option.unwrap(~default=list{})
 
-  let (mpStartToken, mpEndToken) = (
-    List.head(mpTokens),
-    List.last(mpTokens),
-  ) |> Tuple2.mapAll(~f=(x: option<T.tokenInfo>) =>
-    switch x {
-    | Some(mpTok) =>
-      List.find(containingTokens, ~f=(tk: T.tokenInfo) => T.matchesContent(mpTok.token, tk.token))
-    | _ => None
-    }
-  )
+  let mpStartToken = List.head(mpTokens) |> findInfoForToken(containingTokens)
+  let mpEndToken = List.last(mpTokens) |> findInfoForToken(containingTokens)
 
   // range is from startPos of first token in MP to endPos of last token in MP
   switch (mpStartToken, mpEndToken) {
