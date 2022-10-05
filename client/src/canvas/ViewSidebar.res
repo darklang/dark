@@ -559,7 +559,7 @@ let viewToplevelCategory = (
   plusButton: option<msg>,
   icon: Html.html<msg>,
   iconAction: option<msg>,
-  // it's not always obvious whether contents is emopty so be explicit (eg
+  // it's not always obvious whether contents is empty so be explicit (eg
   // Vdom.noNode or empty divs)
   isEmpty: bool,
   contents: list<Html.html<msg>>,
@@ -567,7 +567,12 @@ let viewToplevelCategory = (
   let sidebarIcon = {
     let plusButton = switch plusButton {
     | Some(msg) if m.permission == Some(ReadWrite) =>
-      iconButton(~key="plus-" ++ name, ~icon="plus-circle", ~style=%twc("text-xs self-end"), msg)
+      iconButton(
+        ~key="plus-" ++ name,
+        ~icon="plus-circle",
+        ~style=%twc("text-xs absolute right-0.5 top-4"),
+        msg,
+      )
     | Some(_) | None => Vdom.noNode
     }
 
@@ -578,7 +583,7 @@ let viewToplevelCategory = (
       }
 
       let style = %twc(
-        "mr-0 text-2xl text-grey5 duration-200 group-sidebar-category-hover:text-3xl w-9 h-9 text-center"
+        "text-grey5 duration-200 text-2xl group-sidebar-category-hover:text-3xl w-9 h-9 text-center"
       )
 
       Html.div(
@@ -586,7 +591,7 @@ let viewToplevelCategory = (
         list{icon},
       )
     }
-    Html.div(list{tw(%twc("outline-none flex justify-start items-center"))}, list{icon, plusButton})
+    Html.div(list{tw(%twc("m-0 relative"))}, list{icon, plusButton})
   }
 
   let contents = if !isEmpty {
