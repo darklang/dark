@@ -1,13 +1,14 @@
-/// Types used in many APIs
+/// Runtime Types used for client-server communication so we may update backend
+/// types without affecting APIs.
+///
+/// ProgramTypes can be used in APIs, because that's kinda the point.
+/// RuntimeTypes are designed for the interpreter, and it's important that we're able
+/// to change the types without affecting APIs. So we add types here that we can
+/// standardize in the API without affecting the RuntimeTypes.
 module ClientTypes.Runtime
 
 open Prelude
 open Tablecloth
-
-// ProgramTypes can be used in APIs, because that's kinda what they do. But
-// RuntimeTypes are designed for the interpreter, and it's important that we're able
-// to change the types without affecting APIs. So we add types here that we can
-// standardize in the API without affecting the RuntimeTypes.
 
 module RT = LibExecution.RuntimeTypes
 
@@ -410,4 +411,3 @@ module Dval =
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
     | RT.DErrorRail dv -> DErrorRail(fromRT dv)
     | RT.DBytes bytes -> DBytes bytes
-
