@@ -599,10 +599,7 @@ let viewToplevelCategory = (
   } else {
     // margin to make up for the space taken by the invisible dot in others
     list{
-      Html.div(
-        list{tw(%twc("ml-3 text-left text-sidebar-secondary"))},
-        list{Html.text("No " ++ emptyName)},
-      ),
+      Html.div(list{tw(%twc("ml-3 text-sidebar-secondary"))}, list{Html.text("No " ++ emptyName)}),
     }
   }
 
@@ -614,7 +611,7 @@ let viewToplevelCategory = (
         list{
           tw(
             %twc(
-              "absolute -top-5 left-14 pt-1.5 pb-3 px-2.5 min-w-[20em] max-w-2xl max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll scrollbar-corner-transparent w-max hidden group-sidebar-category-hover:block"
+              "absolute -top-5 left-14 pt-1.5 pb-3 px-2.5 min-w-[20em] max-w-2xl max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll scrollbar-corner-transparent w-max text-left hidden group-sidebar-category-hover:block"
             ),
           ),
         },
@@ -802,16 +799,24 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     | SettingsModal(tab) => Printf.sprintf("SettingsModal (tab %s)", Settings.Tab.toText(tab))
     }
 
-  let _environment = {
+  let environment = {
     let color = switch m.environment {
     | "production" => %twc("text-black3")
     | "dev" => %twc("text-blue")
     | _ => %twc("text-magenta")
     }
 
-    Html.div(
-      list{tw2(%twc("bg-white1 text-[0.4em] rounded-sm p-0.5 -m-2.5"), color)},
-      list{Html.text(m.environment)},
+    // Outer span is the width of the sidebar and the text is centered within in
+    Html.span(
+      list{tw2(%twc("w-full left-0 top-4 leading-none absolute box-border"), color)},
+      list{
+        Html.span(
+          list{
+            tw(%twc("bg-white1 max-w-[90%] mx-1 px-0.5 h-2.5 box-border text-[0.56rem] rounded")),
+          },
+          list{Html.text(m.environment)},
+        ),
+      },
     )
   }
 
@@ -884,7 +889,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       EventListeners.eventNoPropagation(~key="stb", "mouseup", _ => Msg.SaveTestButton),
       tw(
         %twc(
-          "border border-solid rounded-sm p-1 my-5 h-2.5 w-fit text-xxs text-grey8 cursor-pointer hover:text-black2 hover:bg-grey8"
+          "border border-solid rounded-sm p-1 my-5 h-2.5 w-fit text-xxs text-grey8 cursor-pointer hover:text-black2 hover:bg-grey8 text-left"
         ),
       ),
     },
@@ -895,7 +900,9 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger, saveTestButton},
   ])
 
-  viewToplevelCategory(m, "Admin", "", None, fontAwesome("cog"), None, false, content)
+  let icon = Html.div(list{tw(%twc("relative"))}, list{fontAwesome("cog"), environment})
+
+  viewToplevelCategory(m, "Admin", "", None, icon, None, false, content)
 }
 
 // --------------------
