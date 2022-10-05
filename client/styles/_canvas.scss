@@ -93,6 +93,10 @@
   height: 7px;
 }
 
+::-webkit-scrollbar-corner {
+  background: rgba(0,0,0,0);
+}
+
 ::-webkit-scrollbar-thumb {
   border-radius: 7px;
   background-color: $grey2;
