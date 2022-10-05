@@ -1,5 +1,8 @@
-/// All these types correspond to AnalysisTypes.fs in the backend, but should
-/// directly match AnalysisTypes in the client
+/// Types used in Analysis of Dark code in the client.
+///
+/// These should match directly with AnalysisTypes.res in the client, and are
+/// a simple translation layer between those types and AnalysisTypes.fs in the
+/// backend.
 module ClientTypes.Analysis
 
 open Prelude

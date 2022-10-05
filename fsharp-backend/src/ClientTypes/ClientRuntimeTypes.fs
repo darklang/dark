@@ -1,10 +1,5 @@
 /// Runtime Types used for client-server communication so we may update backend
 /// types without affecting APIs.
-///
-/// ProgramTypes can be used in APIs, because that's kinda the point.
-/// RuntimeTypes are designed for the interpreter, and it's important that we're able
-/// to change the types without affecting APIs. So we add types here that we can
-/// standardize in the API without affecting the RuntimeTypes.
 module ClientTypes.Runtime
 
 open Prelude
