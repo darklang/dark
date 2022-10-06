@@ -30,7 +30,6 @@ let adminUiTemplate : Lazy<string> =
 
      let liveReloadJs = if Config.browserReloadEnabled then liveReloadStr else ""
      let uiHtml = File.readfile Config.Templates "ui.html"
-     let appSupport = File.readfile Config.Webroot "appsupport.js"
 
      // Load as much of this as we can in advance
      // CLEANUP make APIs to load the dynamic data
@@ -41,7 +40,6 @@ let adminUiTemplate : Lazy<string> =
        .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
        .Replace("{{PUSHERCONFIG}}", LibBackend.Pusher.jsConfigString)
        .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
-       .Replace("{{APPSUPPORT}}", appSupport)
        .Replace("{{BUILD_HASH}}", LibService.Config.buildHash))
 
 let hashedFilename (filename : string) (hash : string) : string =

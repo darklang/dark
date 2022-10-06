@@ -9,21 +9,64 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
     />
+
+    <!-- Preconnect to hosts we use -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com/" />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com/" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com/" />
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
+    <link rel="preconnect" href="//{STATIC}/" />
+    <link rel="preconnect" href="//{STATIC}/" crossorigin />
+
+    <!-- Preload all files async -->
     <link
-      rel="stylesheet"
-      href="//{{STATIC}}/vendor/fontawesome-5.12.0/css/all.min.css"
+      rel="preload"
+      as="style"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css"
+      integrity="sha512-c93ifPoTvMdEJH/rKIcBx//AL1znq9+4/RmMGafI/vnTFe/dKwnn1uoeszE2zJBQTS1Ck5CqSBE+34ng2PthJg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css?family=Fira+Code|Fira+Mono|Source+Sans+Pro&display=swap"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="//{{STATIC}}/app.css"
       crossorigin="anonymous"
     />
     <link
-      href="https://fonts.googleapis.com/css?family=Fira+Code|Fira+Mono|Source+Sans+Pro&display=swap"
+      rel="preload"
+      as="script"
+      href="//{{STATIC}}/app.js"
+      crossorigin="anonymous"
+    />
+
+    <!-- Actually load the files -->
+    <link
       rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css"
+      integrity="sha512-c93ifPoTvMdEJH/rKIcBx//AL1znq9+4/RmMGafI/vnTFe/dKwnn1uoeszE2zJBQTS1Ck5CqSBE+34ng2PthJg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Fira+Code|Fira+Mono|Source+Sans+Pro&display=swap"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
     />
     <link
       rel="stylesheet"
       type="text/css"
-      href="//{{STATIC}}/reset-normalize.css"
+      href="//{{STATIC}}/app.css"
+      crossorigin="anonymous"
     />
-    <link rel="stylesheet" type="text/css" href="//{{STATIC}}/app.css" />
 
     <!-- prevent favicon requests for now -->
     <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
@@ -34,7 +77,6 @@
       href="//{{STATIC}}/favicon-32x32.png"
     />
     {{LIVERELOADJS}}
-    <script type="text/javascript" src="//{{STATIC}}/app.js"></script>
     <script type="text/javascript">
       const heapioID = "{{HEAPIO_ID}}";
       const rollbarConfig = {{ROLLBARCONFIG}};
@@ -55,12 +97,13 @@
       const buildHash = "{{BUILD_HASH}}";
       const hashReplacements = {{HASH_REPLACEMENTS}};
     </script>
+    <!-- Must be defer, not async, as we use the DOMContentsLoaded event -->
     <script
+      defer
       type="text/javascript"
-      src="//{{STATIC}}/unsupportedBrowser.js"
+      src="//{{STATIC}}/app.js"
+      crossorigin="anonymous"
     ></script>
-    <script type="text/javascript" src="//{{STATIC}}/BlazorWorker.js"></script>
-    <script type="text/javascript" src="//{{STATIC}}/appsupport.js"></script>
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)"></body>
 </html>
