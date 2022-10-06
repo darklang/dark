@@ -91,6 +91,7 @@
       const buildHash = "{{BUILD_HASH}}";
       const hashReplacements = {{HASH_REPLACEMENTS}};
     </script>
+    <!-- Must be defer, not async, as we use the DOMContentsLoaded event -->
     <script
       defer
       type="text/javascript"
