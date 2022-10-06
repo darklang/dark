@@ -465,14 +465,12 @@ let run = () => {
         insert("5"),
         ("(5,***)", 2),
       )
-      // TUPLETODO discrepency between pat and expr behaviour
-      // t(
-      //   "inserting before a tuple MP is no-op",
-      //   tupleMP2WithBothBlank,
-      //
-      //   insert("5"),
-      //   ("(***,***)", 0),
-      // )
+      t(
+        "inserting before a tuple MP is no-op",
+        tupleMP2WithBothBlank,
+        insert("5"),
+        ("(***,***)", 0),
+      )
       t(
         "insert space into tuple MP does nothing",
         tupleMP2WithNoBlank,
