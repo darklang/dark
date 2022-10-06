@@ -70,7 +70,7 @@
       href="//{{STATIC}}/favicon-32x32.png"
     />
     {{LIVERELOADJS}}
-    <script type="text/javascript" src="//{{STATIC}}/app.js"></script>
+    <script defer type="text/javascript" src="//{{STATIC}}/app.js"></script>
     <script type="text/javascript">
       const heapioID = "{{HEAPIO_ID}}";
       const rollbarConfig = {{ROLLBARCONFIG}};
@@ -92,11 +92,20 @@
       const hashReplacements = {{HASH_REPLACEMENTS}};
     </script>
     <script
+      defer
       type="text/javascript"
       src="//{{STATIC}}/unsupportedBrowser.js"
     ></script>
-    <script type="text/javascript" src="//{{STATIC}}/BlazorWorker.js"></script>
-    <script type="text/javascript" src="//{{STATIC}}/appsupport.js"></script>
+    <script
+      defer
+      type="text/javascript"
+      src="//{{STATIC}}/BlazorWorker.js"
+    ></script>
+    <script
+      defer
+      type="text/javascript"
+      src="//{{STATIC}}/appsupport.js"
+    ></script>
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)"></body>
 </html>
