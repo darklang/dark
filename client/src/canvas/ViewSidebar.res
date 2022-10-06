@@ -59,7 +59,7 @@ and category = {
   plusButton: option<msg>,
   iconAction: option<msg>,
   icon: Html.html<msg>,
-  emptyName: string, // what if there's none
+  emptyName: string, // if none are present, used in `"No " ++ emptyname` (e.g. "No datastores")
   tooltip: option<AppTypes.Tooltip.source>,
   entries: list<item>,
 }
