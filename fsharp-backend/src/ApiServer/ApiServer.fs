@@ -74,6 +74,11 @@ let addRoutes
   let std = standardMiddleware
   let html = htmlMiddleware
 
+  let clientJsonGETApi name perm f =
+    let handler = clientJsonHandler f
+    let route = $"/api/{{canvasName}}/{name}"
+    addRoute "GET" route std perm handler
+
   let clientJsonApi name perm f =
     let handler = clientJsonHandler f
     let route = $"/api/{{canvasName}}/{name}"
@@ -113,8 +118,10 @@ let addRoutes
   clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
   clientJsonApi "get_worker_stats" R Workers.WorkerStats.getStats
   clientJsonApi "v1/initial_load" R InitialLoad.V1.initialLoad
+  clientJsonGETApi "v1/initial_load" R InitialLoad.V1.initialLoad
   clientJsonApi "v1/insert_secret" RW Secrets.InsertV1.insert
   clientJsonApi "v1/packages" R (Packages.ListV1.packages packages)
+  clientJsonGETApi "v1/packages" R (Packages.ListV1.packages packages)
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
   clientJsonApi "v1/trigger_handler" RW Execution.HandlerV1.trigger

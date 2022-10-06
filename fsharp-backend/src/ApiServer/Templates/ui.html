@@ -46,6 +46,12 @@
       href="//{{STATIC}}/app.js"
       crossorigin="anonymous"
     />
+    <link rel="preload" href="/api/{{CANVAS_NAME}}/v1/packages" as="fetch" />
+    <link
+      rel="preload"
+      href="/api/{{CANVAS_NAME}}/v1/initial_load"
+      as="fetch"
+    />
 
     <!-- Actually load the files -->
     <link
