@@ -46,12 +46,10 @@
   "scripts": {
     "clean": "./scripts/build/_rescript-wrapper.sh -clean-world",
     "build:rescript": "./scripts/build/_rescript-wrapper.sh -make-world",
-    "build:app": "browserifyinc --cachefile lib/browserify-app-cache.json lib/js/client/src/app/Main.bs.js --standalone app -o backend/static/app.js",
-    "build:appsupport": "browserifyinc --cachefile lib/browserify-cache.json client/src/appsupport.js --standalone appsupport -o backend/static/appsupport.js",
-    "build:unsupportedBrowser": "browserifyinc --cachefile lib/browserify-cache.json client/src/unsupportedBrowser.js --standalone unsupportedBrowser -o backend/static/unsupportedBrowser.js",
+    "build:app": "browserifyinc --cachefile lib/browserify-app-cache.json lib/js/client/src/app/Main.bs.js client/src/appsupport.js fsharp-backend/src/Analysis/static/BlazorWorker.js client/src/unsupportedBrowser.js --standalone app -o backend/static/app.js",
     "build:fetcher": "browserifyinc --cachefile lib/browserify-fetcher-cache.json lib/js/client/workers/Fetcher.bs.js --standalone fetcher -o backend/static/fetcher.js",
     "copy:static": "rsync -a client/static/* backend/static/",
-    "build": "npm-run-all --sequential build:rescript --parallel build:app build:appsupport build:unsupportedBrowser build:fetcher copy:static",
+    "build": "npm-run-all --sequential build:rescript --parallel build:app build:unsupportedBrowser build:fetcher copy:static",
     "test": "scripts/run-client-tests --dom"
   }
 }
