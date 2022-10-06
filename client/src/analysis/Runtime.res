@@ -40,7 +40,7 @@ let toRepr = (dval: RT.Dval.t): string => {
     let nl = "\n" ++ makeSpaces(indent)
     let inl = "\n" ++ makeSpaces(indent + 2)
     let indent = indent + 2
-    let typename = dv->RT.Dval.toType->DType.tipe2str
+    let typename = dv->RT.Dval.toType->DType.type2str
     let wrap = str => `<${typename}: ${str}>`
     let justType = `<${typename}>`
 

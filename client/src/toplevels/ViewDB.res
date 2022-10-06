@@ -133,7 +133,7 @@ let viewDBColType = (
   typeID: ID.t,
 ): Html.html<msg> => {
   let enterable = typ == None || !vp.dbLocked
-  let typ = Option.map(~f=DType.tipe2str, typ)
+  let typ = Option.map(~f=DType.type2str, typ)
   let v = B.fromOptionID(typ, typeID)
   ViewBlankOr.viewText(~enterable, ~classes, DBColType, vp, v)
 }

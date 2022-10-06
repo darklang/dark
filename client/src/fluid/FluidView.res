@@ -272,8 +272,8 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
           if Runtime.isCompatible(actualType, declaredType) {
             Vdom.noNode
           } else {
-            let actualTypeString = DType.tipe2str(actualType)
-            let declaredTypeString = DType.tipe2str(declaredType)
+            let actualTypeString = DType.type2str(actualType)
+            let declaredTypeString = DType.type2str(declaredType)
             Html.div(
               list{warningAttr},
               list{

@@ -171,12 +171,12 @@ let replaceParamType = (
   }
 }
 
-let usesOfType = (tipename: string, version: int, uf: PT.UserFunction.t): list<blankOrData> =>
+let usesOfType = (typename: string, version: int, uf: PT.UserFunction.t): list<blankOrData> =>
   uf
   |> allParamData
   |> List.filterMap(~f=p =>
     switch p {
-    | PParamType(F(_, TUserType(n, v))) as pd if n == tipename && v == version => Some(pd)
+    | PParamType(F(_, TUserType(n, v))) as pd if n == typename && v == version => Some(pd)
     | _ => None
     }
   )

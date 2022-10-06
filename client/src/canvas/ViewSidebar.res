@@ -293,7 +293,7 @@ let userTypeCategory = (m: model, types: list<PT.UserType.t>): category => {
       Entry({
         name: typ.name,
         identifier: Tlid(typ.tlid),
-        uses: Some(Refactor.tipeUseCount(m, typ.name)),
+        uses: Some(Refactor.typeUseCount(m, typ.name)),
         minusButton: minusButton,
         killAction: Some(DeleteUserTypeForever(typ.tlid)),
         onClick: Destination(FocusedType(typ.tlid)),

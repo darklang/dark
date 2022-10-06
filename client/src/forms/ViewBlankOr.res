@@ -154,6 +154,6 @@ let viewType = (
   vp: ViewUtils.viewProps,
   str: BlankOr.t<DType.t>,
 ): Html.html<msg> => {
-  let fn = t => Html.text(DType.tipe2str(t))
+  let fn = t => Html.text(DType.type2str(t))
   viewBlankOr(~enterable, ~classes, fn, pt, vp, str)
 }

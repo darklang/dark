@@ -279,7 +279,7 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
           |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index=pos, fn.parameters))
           |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t): Placeholder.t => {
             name: p.name,
-            typ: DType.tipe2str(p.typ),
+            typ: DType.type2str(p.typ),
           })
 
         switch name {

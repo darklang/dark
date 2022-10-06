@@ -464,7 +464,7 @@ let submitACItem = (
           AddOps(list{RenameDBname(tlid, value), ...varrefs}, FocusNothing)
         }
       | (PDBColType(ct), ACDBColType(value), TLDB(_)) =>
-        if B.toOption(ct) |> Option.map(~f=DType.tipe2str) == Some(value) {
+        if B.toOption(ct) |> Option.map(~f=DType.type2str) == Some(value) {
           // TODO: I think this should actually be STCaret with a target indicating the end of the ac item?
           Select(tlid, STID(id))
         } else if B.isBlank(ct) {

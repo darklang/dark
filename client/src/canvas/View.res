@@ -177,7 +177,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
         switch paramAndFnDesc {
         | Some(Some(param), f) =>
-          let header = param.name ++ ": " ++ DType.tipe2str(param.typ)
+          let header = param.name ++ ": " ++ DType.type2str(param.typ)
 
           Some(
             viewDoc(

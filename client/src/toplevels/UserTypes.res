@@ -48,8 +48,8 @@ let remove = (m: model, ut: PT.UserType.t): model => {
 let fromList = (uts: list<PT.UserType.t>): TLID.Dict.t<PT.UserType.t> =>
   uts |> List.map(~f=(ut: PT.UserType.t) => (ut.tlid, ut)) |> TLID.Dict.fromList
 
-let allNames = (tipes: TLID.Dict.t<PT.UserType.t>): list<string> =>
-  tipes
+let allNames = (types: TLID.Dict.t<PT.UserType.t>): list<string> =>
+  types
   |> Map.values
   |> List.filter(~f=(ut: PT.UserType.t) => ut.name != "")
   |> List.map(~f=(ut: PT.UserType.t) => ut.name)

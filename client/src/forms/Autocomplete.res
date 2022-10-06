@@ -85,7 +85,7 @@ let asName = (aci: A.item): string =>
   | ACCronTiming(timing) => timing
   | ACEventSpace(space) => space
   | ACDBColType(typ) => typ
-  | ACParamType(typ) => DType.tipe2str(typ)
+  | ACParamType(typ) => DType.type2str(typ)
   | ACDBName(name) => name
   | ACDBColName(name)
   | ACEventModifier(name)
@@ -93,7 +93,7 @@ let asName = (aci: A.item): string =>
   | ACParamName(name)
   | ACTypeName(name)
   | ACTypeFieldName(name) => name
-  | ACReturnType(typ) | ACTypeFieldType(typ) => DType.tipe2str(typ)
+  | ACReturnType(typ) | ACTypeFieldType(typ) => DType.type2str(typ)
   }
 
 let asTypeString = (item: A.item): string =>
@@ -808,8 +808,8 @@ let documentationForItem = (aci: A.item): option<list<Vdom.t<'a>>> => {
   | ACHTTPRoute(name) => simpleDoc("Handle HTTP requests made to " ++ name)
   | ACDBName(name) => simpleDoc("Set the DB's name to " ++ name)
   | ACDBColType(typ) => simpleDoc("This field will be a " ++ typ)
-  | ACParamType(typ) => simpleDoc("This parameter will be a " ++ DType.tipe2str(typ))
-  | ACTypeFieldType(typ) => simpleDoc("This parameter will be a " ++ DType.tipe2str(typ))
+  | ACParamType(typ) => simpleDoc("This parameter will be a " ++ DType.type2str(typ))
+  | ACTypeFieldType(typ) => simpleDoc("This parameter will be a " ++ DType.type2str(typ))
   | ACDBColName(name) => simpleDoc("Set the DB's column name to" ++ name)
   | ACEventModifier(name) => simpleDoc("Set event modifier to " ++ name)
   | ACFnName(fnName) => simpleDoc("Set function name to " ++ fnName)

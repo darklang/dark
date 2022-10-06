@@ -297,10 +297,10 @@ let fnUseCount = (m: model, name: string): int =>
 
 let usedFn = (m: model, name: string): bool => fnUseCount(m, name) != 0
 
-let tipeUseCount = (m: model, name: string): int =>
+let typeUseCount = (m: model, name: string): int =>
   Map.get(m.usedTypes, ~key=name) |> Option.unwrap(~default=0)
 
-let usedType = (m: model, name: string): bool => tipeUseCount(m, name) != 0
+let usedType = (m: model, name: string): bool => typeUseCount(m, name) != 0
 
 let dbUseCount = (m: model, name: string): int =>
   Map.get(m.usedDBs, ~key=name) |> Option.unwrap(~default=0)
@@ -413,14 +413,14 @@ let generateEmptyFunction = (_: unit): PT.UserFunction.t => {
 }
 
 let generateEmptyUserType = (): PT.UserType.t => {
-  let tipeName = generateTypeName()
+  let typeName = generateTypeName()
   let tlid = gtlid()
   let definition = PT.UserType.Definition.Record(list{
     {name: "", nameID: gid(), typ: None, typeID: gid()},
   })
   {
     tlid: tlid,
-    name: tipeName,
+    name: typeName,
     nameID: gid(),
     version: 0,
     definition: definition,

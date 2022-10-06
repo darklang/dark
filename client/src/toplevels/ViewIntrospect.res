@@ -18,7 +18,7 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
         list{Attrs.class'("field")},
         list{
           Html.div(list{Attrs.class'("name")}, list{Html.text(name)}),
-          Html.div(list{Attrs.class'("type")}, list{Html.text(DType.tipe2str(typ))}),
+          Html.div(list{Attrs.class'("type")}, list{Html.text(DType.type2str(typ))}),
         },
       )
 
@@ -49,7 +49,7 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
       list{
         Html.text(
           switch p.typ {
-          | Some(v) => DType.tipe2str(v)
+          | Some(v) => DType.type2str(v)
           | None => "no type"
           },
         ),
@@ -67,7 +67,7 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg>
     let name = Html.span(list{Attrs.classList(list{("name", true)})}, list{Html.text(p.name)})
     let ptype = Html.span(
       list{Attrs.classList(list{("type", true)})},
-      list{Html.text(DType.tipe2str(p.typ))},
+      list{Html.text(DType.type2str(p.typ))},
     )
 
     Html.div(list{Attrs.class'("field")}, list{name, ptype})
@@ -79,7 +79,7 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg>
 let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
   switch returnType {
   | Some(v) =>
-    let typeStr = DType.tipe2str(v)
+    let typeStr = DType.type2str(v)
     Html.div(
       list{},
       list{Html.text("Returns "), Html.span(list{Attrs.class'("type")}, list{Html.text(typeStr)})},
@@ -232,7 +232,7 @@ let packageFnView = (
   )
 }
 
-let tipeView = (
+let typeView = (
   originTLID: TLID.t,
   originIDs: list<id>,
   tlid: TLID.t,
@@ -242,7 +242,7 @@ let tipeView = (
 ): Html.html<msg> => {
   let header = list{
     Icons.darkIcon("type"),
-    Html.span(list{Attrs.class'("tipename")}, list{Html.text(name)}),
+    Html.span(list{Attrs.class'("typename")}, list{Html.text(name)}),
   }
 
   Html.div(
@@ -257,7 +257,7 @@ let tipeView = (
       },
       hoveringRefProps(originTLID, originIDs, ~key="ref-typ-hover"),
     ),
-    list{Html.div(list{Attrs.class'("tipeheader")}, header)},
+    list{Html.div(list{Attrs.class'("typeheader")}, header)},
   )
 }
 
@@ -279,7 +279,7 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
       direction,
     )
   | TLType({tlid, name, version, _}) if name != "" =>
-    tipeView(originalTLID, originalIDs, tlid, name, version, direction)
+    typeView(originalTLID, originalIDs, tlid, name, version, direction)
   | _ => Vdom.noNode
   }
 

@@ -74,6 +74,6 @@ let toContent = (pd: blankOrData): string => {
   | PTypeFieldName(d) =>
     bs2s(d)
   | PFnReturnType(d) | PParamType(d) | PTypeFieldType(d) | PDBColType(d) =>
-    d |> B.toOption |> Option.map(~f=DType.tipe2str) |> Option.unwrap(~default="")
+    d |> B.toOption |> Option.map(~f=DType.type2str) |> Option.unwrap(~default="")
   }
 }
