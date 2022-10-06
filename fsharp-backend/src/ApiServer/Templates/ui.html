@@ -9,10 +9,38 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
     />
+
+    <!-- Preconnect to hosts we use -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com/" />
     <link rel="preconnect" href="https://cdnjs.cloudflare.com/" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com/" />
     <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
+    <link rel="preconnect" href="//{STATIC}/" />
+    <link rel="preconnect" href="//{STATIC}/" crossorigin />
+
+    <!-- Preload all files async -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css?family=Fira+Code|Fira+Mono&display=swap"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="preload" as="style" href="//{{STATIC}}/reset-normalize.css" />
+    <link rel="preload" as="style" href="//{{STATIC}}/app.css" />
+    <link rel="preload" as="script" href="//{{STATIC}}/app.js" />
+    <link rel="preload" as="script" href="//{{STATIC}}/unsupportedBrowser.js" />
+    <link rel="preload" as="script" href="//{{STATIC}}/appsupport.js" />
+    <link rel="preload" as="script" href="//{{STATIC}}/BlazorWorker.js" />
+
+    <!-- Actually load the files -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css"
@@ -21,8 +49,10 @@
       referrerpolicy="no-referrer"
     />
     <link
-      href="https://fonts.googleapis.com/css?family=Fira+Code|Fira+Mono|Source+Sans+Pro&display=swap"
       rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Fira+Code|Fira+Mono|Source+Sans+Pro&display=swap"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
     />
     <link
       rel="stylesheet"
