@@ -11,6 +11,31 @@ let clientVersionHeader = (m: model): Tea_http.header => Header(
   m.buildHash,
 )
 
+let apiCallGETNoParams = (
+  m: model,
+  ~decoder: Js.Json.t => 'resulttype,
+  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  endpoint: string,
+): cmd => {
+  let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
+  let request = Tea.Http.request({
+    method': "GET",
+    headers: list{
+      Header("Content-type", "application/json"),
+      Header("X-CSRF-Token", m.csrfToken),
+      clientVersionHeader(m),
+    },
+    url: url,
+    body: Web.XMLHttpRequest.EmptyBody,
+    expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(decoder)),
+    timeout: None,
+    withCredentials: false,
+  })
+
+  Tea.Http.send(callback, request)
+}
+
+
 let apiCallNoParams = (
   m: model,
   ~decoder: Js.Json.t => 'resulttype,
@@ -134,7 +159,7 @@ let uploadFn = (m: model, params: APIPackages.UploadFn.Params.t): cmd =>
   )
 
 let loadPackages = (m: model): cmd =>
-  apiCallNoParams(
+  apiCallGETNoParams(
     m,
     "/v1/packages",
     ~decoder=APIPackages.AllPackages.decode,
@@ -210,7 +235,7 @@ let insertSecret = (m: model, params: APISecrets.Insert.Params.t): cmd =>
   )
 
 let initialLoad = (m: model, focus: AppTypes.Focus.t): cmd =>
-  apiCallNoParams(
+  apiCallGETNoParams(
     m,
     "/v1/initial_load",
     ~decoder=APIInitialLoad.decode,
