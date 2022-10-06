@@ -6,12 +6,12 @@ type rec t =
   | PDBColName(BlankOr.t<string>)
   | PDBColType(BlankOr.t<string>)
   | PFnName(BlankOr.t<string>)
-  | PFnReturnTipe(BlankOr.t<DType.t>)
+  | PFnReturnType(BlankOr.t<DType.t>)
   | PParamName(BlankOr.t<string>)
-  | PParamTipe(BlankOr.t<DType.t>)
+  | PParamType(BlankOr.t<DType.t>)
   | PTypeName(BlankOr.t<string>)
   | PTypeFieldName(BlankOr.t<string>)
-  | PTypeFieldTipe(BlankOr.t<DType.t>)
+  | PTypeFieldType(BlankOr.t<DType.t>)
 
 let decode = (j: Js.Json.t): t => {
   open Json_decode_extended
@@ -26,9 +26,9 @@ let decode = (j: Js.Json.t): t => {
       ("PDBColType", dv1(x => PDBColType(x), BlankOr.decode(string))),
       ("PFnName", dv1(x => PFnName(x), BlankOr.decode(string))),
       ("PParamName", dv1(x => PParamName(x), BlankOr.decode(string))),
-      ("PParamTipe", dv1(x => PParamTipe(x), BlankOr.decode(DType.decode))),
+      ("PParamTipe", dv1(x => PParamType(x), BlankOr.decode(DType.decode))),
       ("PTypeFieldName", dv1(x => PTypeFieldName(x), BlankOr.decode(string))),
-      ("PTypeFieldTipe", dv1(x => PTypeFieldTipe(x), BlankOr.decode(DType.decode))),
+      ("PTypeFieldTipe", dv1(x => PTypeFieldType(x), BlankOr.decode(DType.decode))),
     },
     j,
   )
@@ -45,11 +45,11 @@ let encode = (bd: t): Js.Json.t => {
   | PDBColName(colname) => ev("PDBColName", list{BlankOr.encode(string, colname)})
   | PDBColType(coltype) => ev("PDBColType", list{BlankOr.encode(string, coltype)})
   | PFnName(msg) => ev("PFnName", list{BlankOr.encode(string, msg)})
-  | PFnReturnTipe(msg) => ev("PFnReturnTipe", list{BlankOr.encode(DType.encode, msg)})
+  | PFnReturnType(msg) => ev("PFnReturnTipe", list{BlankOr.encode(DType.encode, msg)})
   | PParamName(msg) => ev("PParamName", list{BlankOr.encode(string, msg)})
-  | PParamTipe(msg) => ev("PParamTipe", list{BlankOr.encode(DType.encode, msg)})
+  | PParamType(msg) => ev("PParamTipe", list{BlankOr.encode(DType.encode, msg)})
   | PTypeName(n) => ev("PTypeName", list{BlankOr.encode(string, n)})
   | PTypeFieldName(n) => ev("PTypeFieldName", list{BlankOr.encode(string, n)})
-  | PTypeFieldTipe(t) => ev("PTypeFieldTipe", list{BlankOr.encode(DType.encode, t)})
+  | PTypeFieldType(t) => ev("PTypeFieldTipe", list{BlankOr.encode(DType.encode, t)})
   }
 }

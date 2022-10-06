@@ -272,8 +272,8 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
           if Runtime.isCompatible(actualType, declaredType) {
             Vdom.noNode
           } else {
-            let actualTypeString = DType.tipe2str(actualType)
-            let declaredTypeString = DType.tipe2str(declaredType)
+            let actualTypeString = DType.type2str(actualType)
+            let declaredTypeString = DType.type2str(declaredType)
             Html.div(
               list{warningAttr},
               list{
@@ -293,7 +293,7 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
               },
             )
           }
-        | (_, TLPmFunc(_)) | (_, TLHandler(_)) | (_, TLDB(_)) | (_, TLTipe(_)) => Vdom.noNode
+        | (_, TLPmFunc(_)) | (_, TLHandler(_)) | (_, TLDB(_)) | (_, TLType(_)) => Vdom.noNode
         }
       }
 

@@ -100,15 +100,15 @@ let asTypeStrings = (item: item): (list<string>, string) =>
   | FACFunction(f) =>
     f.parameters
     |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
-    |> List.map(~f=DType.tipe2str)
-    |> (s => (s, DType.tipe2str(f.returnType)))
+    |> List.map(~f=DType.type2str)
+    |> (s => (s, DType.type2str(f.returnType)))
   | FACField(_) => (list{}, "field")
   | FACVariable(_, odv) =>
     odv
-    |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.Dval.toType |> DType.tipe2str)
+    |> Option.map(~f=(dv: RT.Dval.t) => dv |> RT.Dval.toType |> DType.type2str)
     |> Option.unwrap(~default="variable")
     |> (r => (list{}, r))
-  | FACSecret(_, dv) => (list{}, dv |> RT.Dval.toType |> DType.tipe2str)
+  | FACSecret(_, dv) => (list{}, dv |> RT.Dval.toType |> DType.type2str)
   | FACDatastore(_) => (list{}, "datastore")
   | FACMatchPattern(_, FMPAVariable(_)) => (list{}, "variable")
   | FACConstructorName(name, _) | FACMatchPattern(_, FMPAConstructor(name, _)) =>
@@ -122,12 +122,12 @@ let asTypeStrings = (item: item): (list<string>, string) =>
       (list{}, "unknown")
     }
   | FACLiteral(lit) =>
-    let tipe = switch lit {
+    let typ = switch lit {
     | LNull => "null"
     | LBool(_) => "bool"
     }
 
-    (list{}, tipe ++ " literal")
+    (list{}, typ ++ " literal")
   | FACMatchPattern(_, FMPABool(_)) => (list{}, "boolean literal")
   | FACKeyword(_) => (list{}, "keyword")
   | FACMatchPattern(_, FMPANull) => (list{}, "null")
@@ -277,7 +277,7 @@ let typeCheck = (
   item: item,
 ): data => {
   let valid: data = {item: item, validity: FACItemValid}
-  let invalidFirstArg = tipe => {FT.AutoComplete.item: item, validity: FACItemInvalidPipedArg(tipe)}
+  let invalidFirstArg = typ => {FT.AutoComplete.item: item, validity: FACItemInvalidPipedArg(typ)}
   let invalidReturnType = {
     FT.AutoComplete.item: item,
     validity: FACItemInvalidReturnType(expectedReturnType),
@@ -688,14 +688,14 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
   let _validity = validity
   switch validity {
   | FACItemValid => Vdom.noNode
-  | FACItemInvalidPipedArg(tipe) =>
+  | FACItemInvalidPipedArg(typ) =>
     let acFunction = asName(item)
     let acFirstArgType = asTypeStrings(item) |> Tuple2.first |> List.head
     let typeInfo = switch acFirstArgType {
     | None => list{Html.text(" takes no arguments.")}
-    | Some(tipeStr) => list{
+    | Some(typeStr) => list{
         Html.text(" takes a "),
-        Html.span(list{Attrs.class'("type")}, list{Html.text(tipeStr)}),
+        Html.span(list{Attrs.class'("type")}, list{Html.text(typeStr)}),
         Html.text(" as its first argument."),
       }
     }
@@ -705,7 +705,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
       list{
         Html.span(list{Attrs.class'("err")}, list{Html.text("Type error: ")}),
         Html.text("A value of type "),
-        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.tipe2str(tipe))}),
+        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.type2str(typ))}),
         Html.text(" is being piped into this function call, but "),
         Html.span(list{Attrs.class'("fn")}, list{Html.text(acFunction)}),
         ...typeInfo,
@@ -725,7 +725,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
         Html.text(" expects "),
         Html.span(list{Attrs.class'("param")}, list{Html.text(paramName)}),
         Html.text(" to be a "),
-        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.tipe2str(returnType))}),
+        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.type2str(returnType))}),
         Html.text(", but "),
         Html.span(list{Attrs.class'("fn")}, list{Html.text(acFunction)}),
         Html.text(" returns a "),
@@ -749,7 +749,7 @@ let documentationForFunction = (
     list{Attrs.class("returnType")},
     list{
       Html.text("Returns: "),
-      Html.span(list{Attrs.class("type")}, list{Html.text(DType.tipe2str(f.returnType))}),
+      Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(f.returnType))}),
     },
   )
 

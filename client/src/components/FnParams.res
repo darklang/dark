@@ -116,9 +116,9 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
 let viewParamName = (~classes: list<string>, vp: viewProps, v: BlankOr.t<string>): Html.html<msg> =>
   ViewBlankOr.viewText(~enterable=true, ~classes, ParamName, vp, v)
 
-let viewParamTipe = (~classes: list<string>, vp: viewProps, v: BlankOr.t<DType.t>): Html.html<
+let viewParamType = (~classes: list<string>, vp: viewProps, v: BlankOr.t<DType.t>): Html.html<
   msg,
-> => ViewBlankOr.viewTipe(~classes, ~enterable=true, ParamTipe, vp, v)
+> => ViewBlankOr.viewType(~classes, ~enterable=true, ParamType, vp, v)
 
 let jsDragStart: Web.Node.event => unit = %raw(
   "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); e.dataTransfer.effectAllowed = 'move'; }"
@@ -219,7 +219,7 @@ let viewParam = (
       list{
         killParamBtn,
         viewParamName(vp, ~classes=list{"name"}, B.fromStringID(p.name, p.nameID)),
-        viewParamTipe(vp, ~classes=list{"type"}, B.fromOptionID(p.typ, p.typeID)),
+        viewParamType(vp, ~classes=list{"type"}, B.fromOptionID(p.typ, p.typeID)),
         dragIcon,
       },
     )

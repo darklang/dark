@@ -150,7 +150,7 @@ let createVS = (m: AppTypes.model, tl: toplevel): viewProps => {
       | Some(p) => p.execution == Executing
       | _ => false
       }
-    | TLPmFunc(_) | TLDB(_) | TLTipe(_) => false
+    | TLPmFunc(_) | TLDB(_) | TLType(_) => false
     },
     fnProps: m.currentUserFn,
     showHandlerASTs: m.editorSettings.showHandlerASTs,

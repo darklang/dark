@@ -896,7 +896,7 @@ module Op = {
     | AddDBCol(t, cn, ct) => ev("AddDBCol", list{tlid(t), id(cn), id(ct)})
     | SetDBColName(t, i, name) => ev("SetDBColName", list{tlid(t), id(i), string(name)})
     | ChangeDBColName(t, i, name) => ev("ChangeDBColName", list{tlid(t), id(i), string(name)})
-    | SetDBColType(t, i, tipe) => ev("SetDBColType", list{tlid(t), id(i), string(tipe)})
+    | SetDBColType(t, i, typ) => ev("SetDBColType", list{tlid(t), id(i), string(typ)})
     | ChangeDBColType(t, i, name) => ev("ChangeDBColType", list{tlid(t), id(i), string(name)})
     | DeleteDBCol(t, i) => ev("DeleteDBCol", list{tlid(t), id(i)})
     | TLSavepoint(t) => ev("TLSavepoint", list{tlid(t)})
@@ -932,11 +932,8 @@ module Op = {
           "ChangeDBColName",
           variant3((t, i, name) => ChangeDBColName(t, i, name), tlid, id, string),
         ),
-        ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
-        (
-          "ChangeDBColType",
-          variant3((t, i, tipe) => ChangeDBColType(t, i, tipe), tlid, id, string),
-        ),
+        ("SetDBColType", variant3((t, i, typ) => SetDBColType(t, i, typ), tlid, id, string)),
+        ("ChangeDBColType", variant3((t, i, typ) => ChangeDBColType(t, i, typ), tlid, id, string)),
         ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
         ("TLSavepoint", variant1(t => TLSavepoint(t), tlid)),
         ("UndoTL", variant1(t => UndoTL(t), tlid)),
@@ -964,14 +961,14 @@ module Package = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
       name: string,
-      tipe: DType.t,
+      typ: DType.t,
       description: string,
     }
     let decode = (j: Js.Json.t): t => {
       open Json.Decode
       {
         name: field("name", string, j),
-        tipe: field("typ", DType.decode, j),
+        typ: field("typ", DType.decode, j),
         description: field("description", string, j),
       }
     }
@@ -979,7 +976,7 @@ module Package = {
       open Json.Encode
       object_(list{
         ("name", string(p.name)),
-        ("typ", DType.encode(p.tipe)),
+        ("typ", DType.encode(p.typ)),
         ("description", string(p.description)),
       })
     }

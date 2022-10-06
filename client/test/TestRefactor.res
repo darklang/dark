@@ -329,8 +329,8 @@ let run = () => {
         |> List.sortBy(~f=((k, _)) => k)
 
       let _ = (dobj, expectedFields)
-      let tipe = R.generateUserType(Some(dobj))
-      let fields = switch tipe {
+      let typ = R.generateUserType(Some(dobj))
+      let fields = switch typ {
       | Error(_) => list{}
       | Ok(ut) =>
         switch ut.definition {

@@ -16,12 +16,12 @@ let typeOf = (pd: blankOrData): blankOrType =>
   | PDBColName(_) => DBColName
   | PDBColType(_) => DBColType
   | PFnName(_) => FnName
-  | PFnReturnTipe(_) => FnReturnTipe
+  | PFnReturnType(_) => FnReturnType
   | PParamName(_) => ParamName
-  | PParamTipe(_) => ParamTipe
+  | PParamType(_) => ParamType
   | PTypeName(_) => TypeName
   | PTypeFieldName(_) => TypeFieldName
-  | PTypeFieldTipe(_) => TypeFieldTipe
+  | PTypeFieldType(_) => TypeFieldType
   }
 
 let toID = (pd: blankOrData): id =>
@@ -33,12 +33,12 @@ let toID = (pd: blankOrData): id =>
   | PDBColName(d) => B.toID(d)
   | PDBColType(d) => B.toID(d)
   | PFnName(d) => B.toID(d)
-  | PFnReturnTipe(d) => B.toID(d)
+  | PFnReturnType(d) => B.toID(d)
   | PParamName(d) => B.toID(d)
-  | PParamTipe(d) => B.toID(d)
+  | PParamType(d) => B.toID(d)
   | PTypeName(d) => B.toID(d)
   | PTypeFieldName(d) => B.toID(d)
-  | PTypeFieldTipe(d) => B.toID(d)
+  | PTypeFieldType(d) => B.toID(d)
   }
 
 let isBlank = (pd: blankOrData): bool =>
@@ -54,9 +54,9 @@ let isBlank = (pd: blankOrData): bool =>
   | PTypeFieldName(str) =>
     B.isBlank(str)
   | PDBColType(t)
-  | PFnReturnTipe(t)
-  | PTypeFieldTipe(t)
-  | PParamTipe(t) =>
+  | PFnReturnType(t)
+  | PTypeFieldType(t)
+  | PParamType(t) =>
     B.isBlank(t)
   }
 
@@ -73,7 +73,7 @@ let toContent = (pd: blankOrData): string => {
   | PTypeName(d)
   | PTypeFieldName(d) =>
     bs2s(d)
-  | PFnReturnTipe(d) | PParamTipe(d) | PTypeFieldTipe(d) | PDBColType(d) =>
-    d |> B.toOption |> Option.map(~f=DType.tipe2str) |> Option.unwrap(~default="")
+  | PFnReturnType(d) | PParamType(d) | PTypeFieldType(d) | PDBColType(d) =>
+    d |> B.toOption |> Option.map(~f=DType.type2str) |> Option.unwrap(~default="")
   }
 }

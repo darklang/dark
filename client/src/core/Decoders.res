@@ -8,7 +8,7 @@ open Json.Decode
 let exception_ = (j): exception_ => {
   short: field("short", string, j),
   long: field("long", optional(string), j),
-  exceptionTipe: field("tipe", string, j),
+  exceptionType: field("tipe", string, j),
   actual: field("actual", optional(string), j),
   actualType: field("actual_tipe", optional(string), j),
   expected: field("expected", optional(string), j),

@@ -122,12 +122,12 @@ let run = () => {
     t("complex", FluidTestData.complexExpr)
   })
 
-  describe("tipe", () => {
+  describe("typ", () => {
     let roundtrip = typ => typ |> DType.encode |> DType.decode
 
-    test("tuple tipe roundtrips", () => {
-      let tipe = DType.TTuple(TInt, TFloat, list{TIncomplete})
-      expect(tipe |> roundtrip) |> toEqual(tipe)
+    test("tuple typ roundtrips", () => {
+      let typ = DType.TTuple(TInt, TFloat, list{TIncomplete})
+      expect(typ |> roundtrip) |> toEqual(typ)
     })
   })
   describe("decode serializations", () => {

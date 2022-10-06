@@ -111,13 +111,13 @@ let commands: list<AppTypes.fluidCmd> = {
       commandName: "create-type",
       action: (m, tl, id) => {
         let tlid = TL.id(tl)
-        let tipe =
+        let typ =
           Analysis.getSelectedTraceID(m, tlid)
           |> Option.andThen(~f=Analysis.getLiveValue(m, id))
           |> Refactor.generateUserType
 
-        switch tipe {
-        | Ok(tipe) => AddOps(list{SetType(tipe)}, FocusNext(tipe.tlid, Some(tipe.nameID)))
+        switch typ {
+        | Ok(typ) => AddOps(list{SetType(typ)}, FocusNext(typ.tlid, Some(typ.nameID)))
         | Error(s) => Model.updateErrorMod(Error.set("Can't create-type: " ++ s))
         }
       },

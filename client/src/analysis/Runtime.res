@@ -40,7 +40,7 @@ let toRepr = (dval: RT.Dval.t): string => {
     let nl = "\n" ++ makeSpaces(indent)
     let inl = "\n" ++ makeSpaces(indent + 2)
     let indent = indent + 2
-    let typename = dv->RT.Dval.toType->DType.tipe2str
+    let typename = dv->RT.Dval.toType->DType.type2str
     let wrap = str => `<${typename}: ${str}>`
     let justType = `<${typename}>`
 
@@ -133,7 +133,7 @@ let inputVariables = (tl: toplevel): list<string> =>
     | UnknownHandler(_) => list{"request", "event"}
     }
   | TLFunc(f) => f.parameters |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) => Some(p.name))
-  | TLTipe(_) | TLDB(_) | TLPmFunc(_) => list{}
+  | TLType(_) | TLDB(_) | TLPmFunc(_) => list{}
   }
 
 let sampleInputValue = (tl: toplevel): AnalysisTypes.InputValueDict.t =>

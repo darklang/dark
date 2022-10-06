@@ -69,7 +69,7 @@ $arrow-height: 24px;
   }
 
   .dbheader,
-  .tipeheader,
+  .typeheader,
   .fnheader {
     display: flex;
     width: 100%;
@@ -86,15 +86,15 @@ $arrow-height: 24px;
 
   .fnicon,
   .fnname,
-  .tipeicon,
-  .tipename,
+  .typeicon,
+  .typename,
   .dbheader i.fa,
   .dbname {
     display: inline-block;
   }
 
   .fnicon,
-  .tipeicon,
+  .typeicon,
   .dbheader i.fa {
     color: $hover-foreground;
     font-size: 14px;
@@ -103,7 +103,7 @@ $arrow-height: 24px;
 
   .fnname,
   .dbname,
-  .tipename {
+  .typename {
     padding-left: 1ch;
   }
 

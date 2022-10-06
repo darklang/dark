@@ -47,7 +47,7 @@ let opaque = (msg, fmt, _) => {
 type rec exception_ = {
   short: string,
   long: option<string>,
-  exceptionTipe: string,
+  exceptionType: string,
   actual: option<string>,
   actualType: option<string>,
   result: option<string>,
@@ -92,12 +92,12 @@ and blankOrData =
   | PDBColName(BlankOr.t<string>)
   | PDBColType(BlankOr.t<DType.t>)
   | PFnName(BlankOr.t<string>)
-  | PFnReturnTipe(BlankOr.t<DType.t>) // CLEANUP rename
+  | PFnReturnType(BlankOr.t<DType.t>) // CLEANUP rename
   | PParamName(BlankOr.t<string>)
-  | PParamTipe(BlankOr.t<DType.t>)
+  | PParamType(BlankOr.t<DType.t>)
   | PTypeName(BlankOr.t<string>)
   | PTypeFieldName(BlankOr.t<string>)
-  | PTypeFieldTipe(BlankOr.t<DType.t>) // CLEANUP rename
+  | PTypeFieldType(BlankOr.t<DType.t>) // CLEANUP rename
 
 @ppx.deriving(show({with_path: false}))
 and blankOrType =
@@ -108,12 +108,12 @@ and blankOrType =
   | DBColName
   | DBColType
   | FnName
-  | FnReturnTipe
+  | FnReturnType
   | ParamName
-  | ParamTipe
+  | ParamType
   | TypeName
   | TypeFieldName
-  | TypeFieldTipe
+  | TypeFieldType
 
 // ----------------------
 // Toplevels
@@ -144,7 +144,7 @@ and toplevel =
   | TLDB(PT.DB.t)
   | TLPmFunc(PT.Package.Fn.t)
   | TLFunc(PT.UserFunction.t)
-  | TLTipe(PT.UserType.t)
+  | TLType(PT.UserType.t)
 
 and packageFns = TLID.Dict.t<PT.Package.Fn.t>
 

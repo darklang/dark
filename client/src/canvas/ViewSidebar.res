@@ -273,30 +273,30 @@ let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category =>
   }
 }
 
-let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
-  let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => ut.name != "")
+let userTypeCategory = (m: model, types: list<PT.UserType.t>): category => {
+  let types = types |> List.filter(~f=(ut: PT.UserType.t) => ut.name != "")
   {
-    count: List.length(tipes),
+    count: List.length(types),
     name: "Types",
     emptyName: "Types",
     plusButton: Some(CreateType),
     iconAction: None,
     icon: Icons.darkIcon("types"),
     tooltip: None,
-    entries: List.map(tipes, ~f=tipe => {
-      let minusButton = if Refactor.usedTipe(m, tipe.name) {
+    entries: List.map(types, ~f=typ => {
+      let minusButton = if Refactor.usedType(m, typ.name) {
         None
       } else {
-        Some(Msg.DeleteUserType(tipe.tlid))
+        Some(Msg.DeleteUserType(typ.tlid))
       }
 
       Entry({
-        name: tipe.name,
-        identifier: Tlid(tipe.tlid),
-        uses: Some(Refactor.tipeUseCount(m, tipe.name)),
+        name: typ.name,
+        identifier: Tlid(typ.tlid),
+        uses: Some(Refactor.typeUseCount(m, typ.name)),
         minusButton: minusButton,
-        killAction: Some(DeleteUserTypeForever(tipe.tlid)),
-        onClick: Destination(FocusedType(tipe.tlid)),
+        killAction: Some(DeleteUserTypeForever(typ.tlid)),
+        onClick: Destination(FocusedType(typ.tlid)),
         plusButton: None,
         verb: None,
       })
@@ -308,12 +308,12 @@ let standardCategories = (m, hs, dbs, ufns, types) => {
   let hs = hs |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLHandler(tl)))
   let dbs = dbs |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLDB(tl)))
   let ufns = ufns |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLFunc(tl)))
-  let types = types |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLTipe(tl)))
+  let types = types |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLType(tl)))
 
   // We want to hide user defined types for users who arent already using them
   // since there is currently no way to use them other than as a function param.
   // we should show user defined types once the user can use them more
-  let types = types == list{} ? list{} : list{userTipeCategory(m, types)}
+  let types = types == list{} ? list{} : list{userTypeCategory(m, types)}
 
   list{
     httpCategory(hs),
@@ -967,7 +967,7 @@ let rtCacheKey = (m: model) =>
     m.unlockedDBs,
     m.usedDBs,
     m.usedFns,
-    m.usedTipes,
+    m.usedTypes,
     CursorState.tlidOf(m.cursorState),
     m.environment,
     m.editorSettings,

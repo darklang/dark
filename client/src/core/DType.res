@@ -28,7 +28,7 @@ type rec t =
 
 let any = TVariable("any")
 
-let rec tipe2str = (t: t): string =>
+let rec type2str = (t: t): string =>
   switch t {
   | TVariable(_) => "Any"
   | TInt => "Int"
@@ -51,7 +51,7 @@ let rec tipe2str = (t: t): string =>
   | TUuid => "UUID"
   | TErrorRail => "ErrorRail"
   | TResult(_) => "Result"
-  | TDbList(a) => "[" ++ (tipe2str(a) ++ "]")
+  | TDbList(a) => "[" ++ (type2str(a) ++ "]")
   | TUserType(name, _) => name
   | TBytes => "Bytes"
   | TRecord(_) => "Record"

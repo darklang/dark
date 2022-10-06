@@ -18,7 +18,7 @@ let name = (tl: toplevel): string =>
   | TLDB(db) => "DB: " ++ db.name
   | TLPmFunc(fn) => "Package Manager Func: " ++ FQFnName.PackageFnName.toString(fn.name)
   | TLFunc(f) => "Func: " ++ f.name
-  | TLTipe(t) => "Type: " ++ t.name
+  | TLType(t) => "Type: " ++ t.name
   }
 
 let sortkey = (tl: toplevel): string =>
@@ -32,7 +32,7 @@ let sortkey = (tl: toplevel): string =>
   | TLDB(db) => db.name
   | TLPmFunc(f) => FQFnName.PackageFnName.toString(f.name)
   | TLFunc(f) => f.name
-  | TLTipe(t) => t.name
+  | TLType(t) => t.name
   }
 
 let id = tl =>
@@ -41,7 +41,7 @@ let id = tl =>
   | TLDB(db) => db.tlid
   | TLFunc(f) => f.tlid
   | TLPmFunc(f) => f.tlid
-  | TLTipe(t) => t.tlid
+  | TLType(t) => t.tlid
   }
 
 let pos = tl =>
@@ -50,7 +50,7 @@ let pos = tl =>
   | TLDB(db) => db.pos
   | TLPmFunc(f) => recover("no pos in a func", ~debug=f.tlid, ({x: 0, y: 0}: Pos.t))
   | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, ({x: 0, y: 0}: Pos.t))
-  | TLTipe(t) => recover("no pos in a tipe", ~debug=t.tlid, ({x: 0, y: 0}: Pos.t))
+  | TLType(t) => recover("no pos in a typ", ~debug=t.tlid, ({x: 0, y: 0}: Pos.t))
   }
 
 let remove = (m: model, tl: toplevel): model => {
@@ -59,7 +59,7 @@ let remove = (m: model, tl: toplevel): model => {
   | TLHandler(h) => Handlers.remove(m, h)
   | TLDB(db) => DB.remove(m, db)
   | TLFunc(f) => UserFunctions.remove(m, f)
-  | TLTipe(ut) => UserTypes.remove(m, ut)
+  | TLType(ut) => UserTypes.remove(m, ut)
   | TLPmFunc(_) => // Cannot remove a package manager function
     m
   }
@@ -84,7 +84,7 @@ let ufToTL = (uf: PT.UserFunction.t): toplevel => TLFunc(uf)
 
 let pmfToTL = (pmf: PT.Package.Fn.t): toplevel => TLPmFunc(pmf)
 
-let utToTL = (ut: PT.UserType.t): toplevel => TLTipe(ut)
+let utToTL = (ut: PT.UserType.t): toplevel => TLType(ut)
 
 let asUserFunction = (tl: toplevel): option<PT.UserFunction.t> =>
   switch tl {
@@ -92,9 +92,9 @@ let asUserFunction = (tl: toplevel): option<PT.UserFunction.t> =>
   | _ => None
   }
 
-let asUserTipe = (tl: toplevel): option<PT.UserType.t> =>
+let asUserType = (tl: toplevel): option<PT.UserType.t> =>
   switch tl {
-  | TLTipe(t) => Some(t)
+  | TLType(t) => Some(t)
   | _ => None
   }
 
@@ -104,9 +104,9 @@ let isUserFunction = (tl: toplevel): bool =>
   | _ => false
   }
 
-let isUserTipe = (tl: toplevel): bool =>
+let isUserType = (tl: toplevel): bool =>
   switch tl {
-  | TLTipe(_) => true
+  | TLType(_) => true
   | _ => false
   }
 
@@ -180,7 +180,7 @@ let toOp = (tl: toplevel): list<PT.Op.t> =>
   switch tl {
   | TLHandler(h) => list{SetHandler(h.tlid, h.pos, h)}
   | TLFunc(fn) => list{SetFunction(fn)}
-  | TLTipe(t) => list{SetType(t)}
+  | TLType(t) => list{SetType(t)}
   | TLPmFunc(_) => recover("Package Manager functions are not editable", ~debug=id(tl), list{})
   | TLDB(_) => recover("This isn't how datastore ops work", ~debug=id(tl), list{})
   }
@@ -194,7 +194,7 @@ let blankOrData = (tl: toplevel): list<blankOrData> =>
   | TLDB(db) => DB.blankOrData(db)
   | TLPmFunc(f) => PackageManager.blankOrData(f)
   | TLFunc(f) => UserFunctions.blankOrData(f)
-  | TLTipe(t) => UserTypes.blankOrData(t)
+  | TLType(t) => UserTypes.blankOrData(t)
   }
 
 let isValidBlankOrID = (tl: toplevel, id: id): bool =>
@@ -216,7 +216,7 @@ let setAST = (tl: toplevel, newAST: FluidAST.t): toplevel =>
   switch tl {
   | TLHandler(h) => TLHandler({...h, ast: newAST})
   | TLFunc(uf) => TLFunc({...uf, body: newAST})
-  | TLDB(_) | TLTipe(_) | TLPmFunc(_) => tl
+  | TLDB(_) | TLType(_) | TLPmFunc(_) => tl
   }
 
 let withAST = (m: model, tlid: TLID.t, ast: FluidAST.t): model => {
@@ -248,7 +248,7 @@ let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): AppTypes.modificat
       AddOps(Belt.List.concat(ops, list{SetFunction({...f, body: ast})}), FocusNoChange)
     }
   | TLPmFunc(_) => recover("cannot change ast in package manager", ~debug=tl, Mod.NoChange)
-  | TLTipe(_) => recover("no ast in Tipes", ~debug=tl, Mod.NoChange)
+  | TLType(_) => recover("no ast in Types", ~debug=tl, Mod.NoChange)
   | TLDB(_) => recover("no ast in DBs", ~debug=tl, Mod.NoChange)
   }
 
@@ -269,19 +269,19 @@ let replace = (p: blankOrData, replacement: blankOrData, tl: toplevel): toplevel
     | _ => recover("Changing handler metadata on non-handler", ~debug=replacement, tl)
     }
   | PDBName(_) | PDBColType(_) | PDBColName(_) => tl
-  | PFnName(_) | PFnReturnTipe(_) | PParamName(_) | PParamTipe(_) =>
+  | PFnName(_) | PFnReturnType(_) | PParamName(_) | PParamType(_) =>
     switch asUserFunction(tl) {
     | Some(fn) =>
       let newFn = UserFunctions.replaceMetadataField(p, replacement, fn)
       TLFunc(newFn)
     | _ => recover("Changing fn metadata on non-fn", ~debug=replacement, tl)
     }
-  | PTypeName(_) | PTypeFieldName(_) | PTypeFieldTipe(_) =>
-    switch asUserTipe(tl) {
-    | Some(tipe) =>
-      let newTL = UserTypes.replace(p, replacement, tipe)
-      TLTipe(newTL)
-    | _ => recover("Changing tipe metadata on non-tipe", ~debug=replacement, tl)
+  | PTypeName(_) | PTypeFieldName(_) | PTypeFieldType(_) =>
+    switch asUserType(tl) {
+    | Some(typ) =>
+      let newTL = UserTypes.replace(p, replacement, typ)
+      TLType(newTL)
+    | _ => recover("Changing typ metadata on non-typ", ~debug=replacement, tl)
     }
   }
 }
@@ -336,7 +336,7 @@ let asPage = (tl: toplevel, center: bool): AppTypes.Page.t =>
   | TLHandler(_) => FocusedHandler(id(tl), None, center)
   | TLDB(_) => FocusedDB(id(tl), center)
   | TLPmFunc(_) | TLFunc(_) => FocusedFn(id(tl), None)
-  | TLTipe(_) => FocusedType(id(tl))
+  | TLType(_) => FocusedType(id(tl))
   }
 
 let selected = (m: model): option<toplevel> =>

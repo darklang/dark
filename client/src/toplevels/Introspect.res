@@ -5,7 +5,7 @@ module TD = TLID.Dict
 
 let keyForHandlerSpec = (space: string, name: string): string => space ++ (":" ++ name)
 
-let keyForTipe = (name: string, version: int): string => name ++ (":" ++ Int.toString(version))
+let keyForType = (name: string, version: int): string => name ++ (":" ++ Int.toString(version))
 
 let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   dbs
@@ -42,12 +42,12 @@ let packageFunctionsByName = (fns: TD.t<PT.Package.Fn.t>): Map.String.t<TLID.t> 
   |> Map.mapValues(~f=(fn: PT.Package.Fn.t) => (FQFnName.PackageFnName.toString(fn.name), fn.tlid))
   |> Map.String.fromList
 
-let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
+let typesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
   uts
   |> Map.mapValues(~f=(ut: PT.UserType.t) => {
     let name = ut.name
     let version = ut.version
-    let key = keyForTipe(name, version)
+    let key = keyForType(name, version)
     (key, ut.tlid)
   })
   |> Map.String.fromList
@@ -167,18 +167,18 @@ let findUsagesInAST = (
   )
   |> List.map(~f=((usedIn, id)) => {refersTo: tlid, usedIn: usedIn, id: id})
 
-let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: PT.UserFunction.t): list<
+let findUsagesInFunctionParams = (types: Map.String.t<TLID.t>, fn: PT.UserFunction.t): list<
   usage,
 > => {
   // Versions are slightly aspirational, and we don't have them in most of
-  // the places we use tipes, including here
+  // the places we use types, including here
   let version = 0
   fn.parameters
   |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
     p.typ
-    |> Option.map(~f=DType.tipe2str)
-    |> Option.map(~f=t => keyForTipe(t, version))
-    |> Option.andThen(~f=key => Map.get(~key, tipes))
+    |> Option.map(~f=DType.type2str)
+    |> Option.map(~f=t => keyForType(t, version))
+    |> Option.andThen(~f=key => Map.get(~key, types))
     |> Option.thenAlso(~f=_ => Some(p.typeID))
   )
   |> List.map(~f=((usedIn, id)) => {refersTo: fn.tlid, usedIn: usedIn, id: id})
@@ -190,7 +190,7 @@ let getUsageFor = (
   ~handlers: Map.String.t<TLID.t>,
   ~functions: Map.String.t<TLID.t>,
   ~packageFunctions: Map.String.t<TLID.t>,
-  ~tipes: Map.String.t<TLID.t>,
+  ~types: Map.String.t<TLID.t>,
 ): list<usage> => {
   let astUsages =
     TL.getAST(tl)
@@ -201,10 +201,10 @@ let getUsageFor = (
 
   let fnUsages =
     TL.asUserFunction(tl)
-    |> Option.map(~f=findUsagesInFunctionParams(tipes))
+    |> Option.map(~f=findUsagesInFunctionParams(types))
     |> Option.unwrap(~default=list{})
 
-  // TODO: tipes in other tipes
+  // TODO: types in other types
   Belt.List.concat(astUsages, fnUsages)
 }
 
@@ -213,7 +213,7 @@ let refreshUsages = (m: AppTypes.model, tlids: list<TLID.t>): AppTypes.model => 
   let handlers = handlersByName(m.handlers)
   let functions = functionsByName(m.userFunctions)
   let packageFunctions = packageFunctionsByName(m.functions.packageFunctions)
-  let tipes = tipesByName(m.userTypes)
+  let types = typesByName(m.userTypes)
   /* We need to overwrite the already-stored results for the passed-in TLIDs.
    * So we clear tlRefers for these tlids, and remove them from the inner set
    * of tlUsedIn. */
@@ -227,7 +227,7 @@ let refreshUsages = (m: AppTypes.model, tlids: list<TLID.t>): AppTypes.model => 
     |> List.filterMap(~f=tlid => {
       let tl = TL.get(m, tlid)
       Option.map(tl, ~f=tl =>
-        getUsageFor(tl, ~datastores, ~handlers, ~functions, ~packageFunctions, ~tipes)
+        getUsageFor(tl, ~datastores, ~handlers, ~functions, ~packageFunctions, ~types)
       )
     })
     |> List.flatten

@@ -38,7 +38,7 @@ let sameName = (name: string, uf: PT.UserFunction.t): bool => uf.name == name
 
 let paramData = (ufp: PT.UserFunction.Parameter.t): list<blankOrData> => list{
   PParamName(BlankOr.fromStringID(ufp.name, ufp.nameID)),
-  PParamTipe(BlankOr.fromOptionID(ufp.typ, ufp.typeID)),
+  PParamType(BlankOr.fromOptionID(ufp.typ, ufp.typeID)),
 }
 
 let allParamData = (uf: PT.UserFunction.t): list<blankOrData> =>
@@ -46,7 +46,7 @@ let allParamData = (uf: PT.UserFunction.t): list<blankOrData> =>
 
 let blankOrData = (uf: PT.UserFunction.t): list<blankOrData> => list{
   PFnName(BlankOr.fromStringID(uf.name, uf.nameID)),
-  PFnReturnTipe(F(uf.returnTypeID, uf.returnType)),
+  PFnReturnType(F(uf.returnTypeID, uf.returnType)),
   ...allParamData(uf),
 }
 
@@ -58,7 +58,7 @@ let replaceFnReturn = (
   let sId = P.toID(search)
   if uf.returnTypeID == sId {
     switch replacement {
-    | PFnReturnTipe(new_) => {
+    | PFnReturnType(new_) => {
         let (typ, id) = B.toOptionID(new_)
         {
           ...uf,
@@ -135,25 +135,25 @@ let replaceParamName = (
   }
 }
 
-let replaceParamTipe = (
+let replaceParamType = (
   search: blankOrData,
   replacement: blankOrData,
   uf: PT.UserFunction.t,
 ): PT.UserFunction.t => {
   let sId = P.toID(search)
-  let paramTipes =
+  let paramTypes =
     uf
     |> allParamData
     |> List.filterMap(~f=p =>
       switch p {
-      | PParamTipe(t) => Some(t)
+      | PParamType(t) => Some(t)
       | _ => None
       }
     )
 
-  if List.any(~f=p => B.toID(p) == sId, paramTipes) {
+  if List.any(~f=p => B.toID(p) == sId, paramTypes) {
     let newParameters = switch replacement {
-    | PParamTipe(new_) =>
+    | PParamType(new_) =>
       uf.parameters |> List.map(~f=(p: PT.UserFunction.Parameter.t) => {
         if sId == p.typeID {
           let (typ, id) = B.toOptionID(new_)
@@ -171,12 +171,12 @@ let replaceParamTipe = (
   }
 }
 
-let usesOfTipe = (tipename: string, version: int, uf: PT.UserFunction.t): list<blankOrData> =>
+let usesOfType = (typename: string, version: int, uf: PT.UserFunction.t): list<blankOrData> =>
   uf
   |> allParamData
   |> List.filterMap(~f=p =>
     switch p {
-    | PParamTipe(F(_, TUserType(n, v))) as pd if n == tipename && v == version => Some(pd)
+    | PParamType(F(_, TUserType(n, v))) as pd if n == typename && v == version => Some(pd)
     | _ => None
     }
   )
@@ -190,7 +190,7 @@ let replaceMetadataField = (
   |> replaceFnName(old, new_)
   |> replaceFnReturn(old, new_)
   |> replaceParamName(old, new_)
-  |> replaceParamTipe(old, new_)
+  |> replaceParamType(old, new_)
 
 let extend = (uf: PT.UserFunction.t): PT.UserFunction.t => {
   let newParam = {

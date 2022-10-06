@@ -211,7 +211,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
       list{Attrs.id("fnreturn"), Attrs.class'("col param")},
       list{
         fontAwesome("level-down-alt"),
-        ViewBlankOr.viewTipe(~classes=list{"type"}, ~enterable=true, FnReturnTipe, vp, returnType),
+        ViewBlankOr.viewType(~classes=list{"type"}, ~enterable=true, FnReturnType, vp, returnType),
       },
     )
   }

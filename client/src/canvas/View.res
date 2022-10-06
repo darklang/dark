@@ -51,7 +51,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
       ViewData.viewData(vs),
       false,
     )
-  | TLTipe(t) => (list{ViewUserType.viewUserTipe(vs, t)}, list{}, false)
+  | TLType(t) => (list{ViewUserType.viewUserType(vs, t)}, list{}, false)
   }
 
   let usages = ViewIntrospect.allUsagesView(tlid, vs.usedInRefs, vs.refersToRefs)
@@ -177,7 +177,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
         switch paramAndFnDesc {
         | Some(Some(param), f) =>
-          let header = param.name ++ ": " ++ DType.tipe2str(param.typ)
+          let header = param.name ++ ": " ++ DType.type2str(param.typ)
 
           Some(
             viewDoc(
@@ -298,7 +298,7 @@ let tlCacheKeyDB = (m: model, tl) => {
   }
 }
 
-let tlCacheKeyTipe = (m: model, tl) => {
+let tlCacheKeyType = (m: model, tl) => {
   let tlid = TL.id(tl)
   if Some(tlid) == CursorState.tlidOf(m.cursorState) {
     None
@@ -310,7 +310,7 @@ let tlCacheKeyTipe = (m: model, tl) => {
 
 let viewTL = (m, tl) =>
   switch tl {
-  | TLTipe(_) => ViewCache.cache2m(tlCacheKeyTipe, viewTL_, m, tl)
+  | TLType(_) => ViewCache.cache2m(tlCacheKeyType, viewTL_, m, tl)
   | TLDB(_) => ViewCache.cache2m(tlCacheKeyDB, viewTL_, m, tl)
   | TLPmFunc(_) | TLFunc(_) | TLHandler(_) => ViewCache.cache2m(tlCacheKey, viewTL_, m, tl)
   }
@@ -366,7 +366,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
     }
   | FocusedType(tlid) =>
     switch Map.get(~key=tlid, m.userTypes) {
-    | Some(tipe) => list{viewTL(m, TL.utToTL(tipe))}
+    | Some(typ) => list{viewTL(m, TL.utToTL(typ))}
     | None => list{}
     }
   }
