@@ -2,6 +2,8 @@
 // Fontawesome is loaded directly from ui.html from the cdn. This seems to be the
 // simplest and most efficient way to load it
 
+@import "../static/reset-normalize";
+
 // tailwindcss
 @tailwind base;
 @tailwind components;
