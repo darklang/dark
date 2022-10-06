@@ -244,10 +244,6 @@ jobs:
           keys:
             - v9-backend-{{ checksum "esy.json" }}
             - v9-backend
-      # appsupport is needed for a unit test, but it is not needed as part
-      # of the backend otherwise. It is compiled as part of the frontend
-      # tests.
-      - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
       - run: scripts/build/compile-project --test backend
       - assert-clean-worktree
@@ -310,10 +306,6 @@ jobs:
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
-      # appsupport is needed for a unit test, but it is not needed as part
-      # of the backend otherwise. It is compiled as part of the frontend
-      # tests.
-      - run: touch backend/static/appsupport.js
       - run: cp client/static/favicon-32x32.png backend/static/
       - run: scripts/build/_generate-etags
       - run: ./scripts/build/_dotnet-wrapper tool restore

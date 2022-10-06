@@ -9,7 +9,6 @@ COPY --chown=dark:dark scripts scripts
 
 RUN mkdir -p webroot/static
 COPY --chown=dark:dark backend/static/etags.json webroot/static/etags.json
-COPY --chown=dark:dark backend/static/appsupport.js webroot/static/appsupport.js
 
 RUN mkdir app
 

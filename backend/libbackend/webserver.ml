@@ -1456,7 +1456,6 @@ let admin_ui_html
   let hash_static_filenames =
     if local = None then Config.hash_static_filenames else false
   in
-  (* TODO: allow APPSUPPORT in here *)
   admin_ui_template
   |> Util.string_replace
        "{{ALLFUNCTIONS}}"
@@ -1483,9 +1482,6 @@ let admin_ui_html
   |> Util.string_replace "{{USER_ID}}" (Uuidm.to_string user.id)
   |> Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
   |> Util.string_replace "{{CANVAS_NAME}}" canvas
-  |> Util.string_replace
-       "{{APPSUPPORT}}"
-       (File.readfile ~root:Webroot "appsupport.js")
   |> Util.string_replace "{{STATIC}}" static_host
   |> (fun x ->
        if not hash_static_filenames
