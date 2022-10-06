@@ -33,12 +33,36 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     />
-    <link rel="preload" as="style" href="//{{STATIC}}/reset-normalize.css" />
-    <link rel="preload" as="style" href="//{{STATIC}}/app.css" />
-    <link rel="preload" as="script" href="//{{STATIC}}/app.js" />
-    <link rel="preload" as="script" href="//{{STATIC}}/unsupportedBrowser.js" />
-    <link rel="preload" as="script" href="//{{STATIC}}/appsupport.js" />
-    <link rel="preload" as="script" href="//{{STATIC}}/BlazorWorker.js" />
+    <link
+      rel="preload"
+      as="style"
+      href="//{{STATIC}}/app.css"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      as="script"
+      href="//{{STATIC}}/app.js"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      as="script"
+      href="//{{STATIC}}/unsupportedBrowser.js"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      as="script"
+      href="//{{STATIC}}/appsupport.js"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      as="script"
+      href="//{{STATIC}}/BlazorWorker.js"
+      crossorigin="anonymous"
+    />
 
     <!-- Actually load the files -->
     <link
@@ -70,7 +94,12 @@
       href="//{{STATIC}}/favicon-32x32.png"
     />
     {{LIVERELOADJS}}
-    <script defer type="text/javascript" src="//{{STATIC}}/app.js"></script>
+    <script
+      defer
+      type="text/javascript"
+      src="//{{STATIC}}/app.js"
+      crossorigin="anonymous"
+    ></script>
     <script type="text/javascript">
       const heapioID = "{{HEAPIO_ID}}";
       const rollbarConfig = {{ROLLBARCONFIG}};
@@ -94,16 +123,19 @@
     <script
       defer
       type="text/javascript"
+      crossorigin="anonymous"
       src="//{{STATIC}}/unsupportedBrowser.js"
     ></script>
     <script
       defer
       type="text/javascript"
+      crossorigin="anonymous"
       src="//{{STATIC}}/BlazorWorker.js"
     ></script>
     <script
       defer
       type="text/javascript"
+      crossorigin="anonymous"
       src="//{{STATIC}}/appsupport.js"
     ></script>
   </head>
