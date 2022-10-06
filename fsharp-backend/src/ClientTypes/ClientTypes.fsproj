@@ -14,6 +14,7 @@
     <None Include="paket.references" />
     <Compile Include="ClientRuntimeTypes.fs" />
     <Compile Include="ClientAnalysisTypes.fs" />
+    <Compile Include="ClientProgramTypes.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
