@@ -4,7 +4,7 @@ FROM dark-fsharp-service:latest
 
 WORKDIR /home/dark
 
-COPY --chown=dark:dark backend/templates templates
+COPY --chown=dark:dark fsharp-backend/src/ApiServer/Templates templates
 COPY --chown=dark:dark scripts scripts
 
 RUN mkdir -p webroot/static

@@ -1430,7 +1430,7 @@ let to_assoc_list etags_json : (string * string) list =
       Exception.internal "etags.json must be a top-level object."
 
 
-let admin_ui_template = File.readfile ~root:Templates "ui.html"
+let admin_ui_template = ""
 
 let admin_ui_html
     ~(canvas_id : Uuidm.t)
@@ -1571,7 +1571,7 @@ type login_page =
   ; password : string }
 [@@deriving yojson]
 
-let login_template = File.readfile ~root:Templates "login.html"
+let login_template = ""
 
 (* handle_local_login is used to handle GET/POST to /login for local
  * development, bypassing Auth0. *)

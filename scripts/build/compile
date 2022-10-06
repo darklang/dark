@@ -529,9 +529,6 @@ def mark(should, f):
     else:
       should.fsharp_backend_quick_build = True
 
-  elif ("/backend/templates/" in f) and (".html" in f):
-    should.backend_build = True
-
   elif ("/fsharp-backend/src/ApiServer/Templates/" in f) and (".html" in f):
     should.reload_fsharp_server = True
 
