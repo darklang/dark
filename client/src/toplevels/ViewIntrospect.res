@@ -205,7 +205,7 @@ let packageFnView = (
   tlid: TLID.t,
   name: string,
   params: list<PT.Package.Parameter.t>,
-  returnTipe: BlankOr.t<DType.t>,
+  returnType: BlankOr.t<DType.t>,
   direction: string,
 ): Html.html<msg> => {
   // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f
@@ -227,7 +227,7 @@ let packageFnView = (
     list{
       Html.div(list{Attrs.class'("fnheader fnheader-pkg")}, header),
       packageFnParamsView(params),
-      fnReturnTypeView(B.toOption(returnTipe)),
+      fnReturnTypeView(B.toOption(returnType)),
     },
   )
 }
@@ -278,7 +278,7 @@ let renderView = (originalTLID, direction, (tl, originalIDs)) =>
       BlankOr.newF(pFn.returnType),
       direction,
     )
-  | TLTipe({tlid, name, version, _}) if name != "" =>
+  | TLType({tlid, name, version, _}) if name != "" =>
     tipeView(originalTLID, originalIDs, tlid, name, version, direction)
   | _ => Vdom.noNode
   }

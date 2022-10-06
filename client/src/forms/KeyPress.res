@@ -90,13 +90,13 @@ let defaultHandler = (event: Keyboard.keyEvent, m: AppTypes.model): modification
         // if we're selecting a toplevel only, deselect.
         | None => Deselect
         }
-      | (Key.Enter, Some(TLTipe(t) as tl)) if event.shiftKey =>
+      | (Key.Enter, Some(TLType(t) as tl)) if event.shiftKey =>
         switch mId {
         | Some(id) =>
           switch TL.find(tl, id) {
           | Some(PTypeName(_))
           | Some(PTypeFieldName(_))
-          | Some(PTypeFieldTipe(_)) =>
+          | Some(PTypeFieldType(_)) =>
             let replacement = UserTypes.extend(t)
             AddOps(list{SetType(replacement)}, FocusNext(tlid, Some(id)))
           | _ => NoChange
@@ -110,7 +110,7 @@ let defaultHandler = (event: Keyboard.keyEvent, m: AppTypes.model): modification
         switch mId {
         | Some(id) =>
           switch TL.find(tl, id) {
-          | Some(PParamTipe(_)) | Some(PParamName(_)) | Some(PFnName(_)) =>
+          | Some(PParamType(_)) | Some(PParamName(_)) | Some(PFnName(_)) =>
             Refactor.addFunctionParameter(m, f, id)
           | _ => NoChange
           }

@@ -130,10 +130,10 @@ let getLiveValue' = (analysisStore: AnalysisTypes.analysisStore, id: id): option
 let getLiveValue = (m: model, id: id, traceID: traceID): option<RT.Dval.t> =>
   getLiveValue'(getStoredAnalysis(m, traceID), id)
 
-let getTipeOf' = (analysisStore: AnalysisTypes.analysisStore, id: id): option<DType.t> =>
+let getTypeOf' = (analysisStore: AnalysisTypes.analysisStore, id: id): option<DType.t> =>
   getLiveValue'(analysisStore, id) |> Option.map(~f=RT.Dval.toType)
 
-let getTipeOf = (m: model, id: id, traceID: traceID): option<DType.t> =>
+let getTypeOf = (m: model, id: id, traceID: traceID): option<DType.t> =>
   getLiveValue(m, id, traceID) |> Option.map(~f=RT.Dval.toType)
 
 let getArguments = (m: model, tl: toplevel, callerID: id, traceID: traceID): option<
@@ -188,7 +188,7 @@ let getAvailableVarnames = (m: model, tl: toplevel, id: id, traceID: traceID): l
   switch tl {
   | TLHandler(h) => Belt.List.concatMany([varsFor(h.ast), glob, inputVariables])
   | TLFunc(fn) => Belt.List.concatMany([varsFor(fn.body), glob, inputVariables])
-  | TLPmFunc(_) | TLDB(_) | TLTipe(_) => list{}
+  | TLPmFunc(_) | TLDB(_) | TLType(_) => list{}
   }
 }
 
@@ -430,7 +430,7 @@ let requestTrace = (~force=false, m, tlid, traceID): (model, AppTypes.cmd) => {
   let should =
     // DBs + Types dont have traces
     TL.get(m, tlid)
-    |> Option.map(~f=tl => !(TL.isDB(tl) || TL.isUserTipe(tl)))
+    |> Option.map(~f=tl => !(TL.isDB(tl) || TL.isUserType(tl)))
     |> Option.unwrap(~default=false)
 
   if should {

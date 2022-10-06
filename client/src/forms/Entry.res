@@ -383,15 +383,15 @@ let validate = (tl: toplevel, pd: blankOrData, value: string): option<string> =>
     } else {
       v(AC.fnNameValidator, "function name")
     }
-  | PFnReturnTipe(_) => v(AC.paramTypeValidator, "return type")
+  | PFnReturnType(_) => v(AC.paramTypeValidator, "return type")
   | PParamName(oldParam) =>
     v(AC.paramNameValidator, "param name") |> Option.orElse(
       AC.validateFnParamNameFree(tl, oldParam, value),
     )
-  | PParamTipe(_) => v(AC.paramTypeValidator, "param type")
+  | PParamType(_) => v(AC.paramTypeValidator, "param type")
   | PTypeName(_) => v(AC.typeNameValidator, "type name")
   | PTypeFieldName(_) => v(AC.fieldNameValidator, "type field name")
-  | PTypeFieldTipe(_) => v(AC.paramTypeValidator, "type field type")
+  | PTypeFieldType(_) => v(AC.paramTypeValidator, "type field type")
   }
 }
 
@@ -439,7 +439,7 @@ let submitACItem = (
           switch newtl {
           | TLHandler(h) => wrapNew(list{SetHandler(tlid, h.pos, h)}, next)
           | TLFunc(f) => wrapNew(list{SetFunction(f)}, next)
-          | TLTipe(t) => wrapNew(list{SetType(t)}, next)
+          | TLType(t) => wrapNew(list{SetType(t)}, next)
           | TLPmFunc(_) => recover("no vars in pmfn", ~debug=tl, Mod.NoChange)
           | TLDB(_) => recover("no vars in DBs", ~debug=tl, Mod.NoChange)
           }
@@ -585,20 +585,20 @@ let submitACItem = (
           wrapNew(list{SetFunction(new_), ...changedNames}, newPD)
         }
 
-      | (PFnReturnTipe(_), ACReturnTipe(tipe), _) => replace(PFnReturnTipe(F(id, tipe)))
+      | (PFnReturnType(_), ACReturnType(tipe), _) => replace(PFnReturnType(F(id, tipe)))
       | (PParamName(_), ACParamName(value), _) => replace(PParamName(F(id, value)))
-      | (PParamTipe(_), ACParamTipe(tipe), _) => replace(PParamTipe(F(id, tipe)))
-      | (PTypeName(_), ACTypeName(value), TLTipe(old)) =>
+      | (PParamType(_), ACParamType(tipe), _) => replace(PParamType(F(id, tipe)))
+      | (PTypeName(_), ACTypeName(value), TLType(old)) =>
         if List.member(~value, UserTypes.allNames(m.userTypes)) {
           Model.updateErrorMod(Error.set("There is already a Type named " ++ value))
         } else {
           let newPD = PTypeName(F(id, value))
           let new_ = UserTypes.replace(pd, newPD, old)
-          let changedNames = Refactor.renameUserTipe(m, old, new_)
+          let changedNames = Refactor.renameUserType(m, old, new_)
           wrapNew(list{SetType(new_), ...changedNames}, newPD)
         }
       | (PTypeFieldName(_), ACTypeFieldName(value), _) => replace(PTypeFieldName(F(id, value)))
-      | (PTypeFieldTipe(_), ACTypeFieldTipe(tipe), _) => replace(PTypeFieldTipe(F(id, tipe)))
+      | (PTypeFieldType(_), ACTypeFieldType(tipe), _) => replace(PTypeFieldType(F(id, tipe)))
       | (pd, item, _) =>
         ReplaceAllModificationsWithThisOne(
           m => {

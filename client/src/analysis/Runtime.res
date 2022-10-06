@@ -133,7 +133,7 @@ let inputVariables = (tl: toplevel): list<string> =>
     | UnknownHandler(_) => list{"request", "event"}
     }
   | TLFunc(f) => f.parameters |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) => Some(p.name))
-  | TLTipe(_) | TLDB(_) | TLPmFunc(_) => list{}
+  | TLType(_) | TLDB(_) | TLPmFunc(_) => list{}
   }
 
 let sampleInputValue = (tl: toplevel): AnalysisTypes.InputValueDict.t =>

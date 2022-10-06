@@ -10,8 +10,8 @@ let pmParamsToUserFnParams = (p: PT.Package.Parameter.t): PT.UserFunction.Parame
 
 let paramData = (pfp: PT.Package.Parameter.t): list<blankOrData> => {
   let paramName = BlankOr.newF(pfp.name)
-  let paramTipe = BlankOr.newF(pfp.tipe)
-  list{PParamName(paramName), PParamTipe(paramTipe)}
+  let paramType = BlankOr.newF(pfp.tipe)
+  list{PParamName(paramName), PParamType(paramType)}
 }
 
 let allParamData = (pmf: PT.Package.Fn.t): list<blankOrData> =>

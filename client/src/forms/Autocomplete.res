@@ -85,7 +85,7 @@ let asName = (aci: A.item): string =>
   | ACCronTiming(timing) => timing
   | ACEventSpace(space) => space
   | ACDBColType(tipe) => tipe
-  | ACParamTipe(tipe) => DType.tipe2str(tipe)
+  | ACParamType(tipe) => DType.tipe2str(tipe)
   | ACDBName(name) => name
   | ACDBColName(name)
   | ACEventModifier(name)
@@ -93,7 +93,7 @@ let asName = (aci: A.item): string =>
   | ACParamName(name)
   | ACTypeName(name)
   | ACTypeFieldName(name) => name
-  | ACReturnTipe(tipe) | ACTypeFieldTipe(tipe) => DType.tipe2str(tipe)
+  | ACReturnType(tipe) | ACTypeFieldType(tipe) => DType.tipe2str(tipe)
   }
 
 let asTypeString = (item: A.item): string =>
@@ -107,7 +107,7 @@ let asTypeString = (item: A.item): string =>
   | ACCronTiming(_) => "interval"
   | ACEventSpace(_) => "event space"
   | ACDBColType(_) => "type"
-  | ACParamTipe(_) => "param type"
+  | ACParamType(_) => "param type"
   | ACDBName(_) => "name"
   | ACDBColName(_) => "column name"
   | ACEventModifier(_) => "event modifier"
@@ -115,7 +115,7 @@ let asTypeString = (item: A.item): string =>
   | ACParamName(_) => "param name"
   | ACTypeName(_) => "type name"
   | ACTypeFieldName(_) => "type field name"
-  | ACReturnTipe(tipe) | ACTypeFieldTipe(tipe) =>
+  | ACReturnType(tipe) | ACTypeFieldType(tipe) =>
     switch tipe {
     | TUserType(_, v) => "version " ++ string_of_int(v)
     | _ => "builtin"
@@ -522,7 +522,7 @@ let tlGotoName = (tl: toplevel): string =>
   | TLHandler(h) => "Jump to handler: " ++ handlerDisplayName(h)
   | TLDB(db) => "Jump to DB: " ++ db.name
   | TLPmFunc(_) | TLFunc(_) => recover("can't goto function", ~debug=tl, "<invalid state>")
-  | TLTipe(_) => recover("can't goto tipe ", ~debug=tl, "<invalid state>")
+  | TLType(_) => recover("can't goto tipe ", ~debug=tl, "<invalid state>")
   }
 
 let tlDestinations = (m: model): list<A.item> => {
@@ -556,7 +556,7 @@ let tlDestinations = (m: model): list<A.item> => {
   - TUserType: added later
   - TTuple: currently awkward to support parameterized types. TODO
  */
-let allowedParamTipes = list{
+let allowedParamTypes = list{
   DType.TInt,
   TStr,
   TBool,
@@ -574,16 +574,16 @@ let allowedParamTipes = list{
   TBytes,
 }
 
-let allowedReturnTipes = allowedParamTipes
+let allowedReturnTypes = allowedParamTypes
 
-let allowedDBColTipes = {
+let allowedDBColTypes = {
   let builtins = list{"String", "Int", "Boolean", "Float", "Password", "Date", "UUID", "Dict"}
 
   let compounds = List.map(~f=s => "[" ++ (s ++ "]"), builtins)
   Belt.List.concat(builtins, compounds)
 }
 
-let allowedUserTypeFieldTipes = list{DType.TStr, TInt, TBool, TFloat, TDate, TPassword, TUuid}
+let allowedUserTypeFieldTypes = list{DType.TStr, TInt, TBool, TFloat, TDate, TPassword, TUuid}
 
 let generate = (m: model, a: A.t): A.t => {
   let space =
@@ -636,16 +636,16 @@ let generate = (m: model, a: A.t): A.t => {
       }
     | EventSpace => // Other spaces aren't allowed anymore
       list{ACEventSpace("HTTP"), ACEventSpace("CRON"), ACEventSpace("WORKER"), ACEventSpace("REPL")}
-    | DBColType => List.map(~f=x => A.ACDBColType(x), allowedDBColTipes)
-    | ParamTipe =>
+    | DBColType => List.map(~f=x => A.ACDBColType(x), allowedDBColTypes)
+    | ParamType =>
       let userTypes = m.userTypes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
-      Belt.List.concat(allowedParamTipes, userTypes) |> List.map(~f=t => A.ACParamTipe(t))
-    | TypeFieldTipe => allowedUserTypeFieldTipes |> List.map(~f=t => A.ACTypeFieldTipe(t))
-    | FnReturnTipe =>
+      Belt.List.concat(allowedParamTypes, userTypes) |> List.map(~f=t => A.ACParamType(t))
+    | TypeFieldType => allowedUserTypeFieldTypes |> List.map(~f=t => A.ACTypeFieldType(t))
+    | FnReturnType =>
       let userTypes = m.userTypes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
-      Belt.List.concat(allowedReturnTipes, userTypes) |> List.map(~f=t => A.ACReturnTipe(t))
+      Belt.List.concat(allowedReturnTypes, userTypes) |> List.map(~f=t => A.ACReturnType(t))
     | DBName | DBColName | FnName | ParamName | TypeName | TypeFieldName => list{}
     }
   | _ => list{}
@@ -808,14 +808,14 @@ let documentationForItem = (aci: A.item): option<list<Vdom.t<'a>>> => {
   | ACHTTPRoute(name) => simpleDoc("Handle HTTP requests made to " ++ name)
   | ACDBName(name) => simpleDoc("Set the DB's name to " ++ name)
   | ACDBColType(tipe) => simpleDoc("This field will be a " ++ tipe)
-  | ACParamTipe(tipe) => simpleDoc("This parameter will be a " ++ DType.tipe2str(tipe))
-  | ACTypeFieldTipe(tipe) => simpleDoc("This parameter will be a " ++ DType.tipe2str(tipe))
+  | ACParamType(tipe) => simpleDoc("This parameter will be a " ++ DType.tipe2str(tipe))
+  | ACTypeFieldType(tipe) => simpleDoc("This parameter will be a " ++ DType.tipe2str(tipe))
   | ACDBColName(name) => simpleDoc("Set the DB's column name to" ++ name)
   | ACEventModifier(name) => simpleDoc("Set event modifier to " ++ name)
   | ACFnName(fnName) => simpleDoc("Set function name to " ++ fnName)
   | ACParamName(paramName) => simpleDoc("Set param name to " ++ paramName)
   | ACTypeName(typeName) => simpleDoc("Set type name to " ++ typeName)
-  | ACReturnTipe(_) | ACTypeFieldName(_) => None
+  | ACReturnType(_) | ACTypeFieldName(_) => None
   }
 }
 

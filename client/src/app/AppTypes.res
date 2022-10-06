@@ -102,10 +102,10 @@ module AutoComplete = {
     // User functions
     | ACFnName(string)
     | ACParamName(string)
-    | ACParamTipe(DType.t)
-    | ACReturnTipe(DType.t)
+    | ACParamType(DType.t)
+    | ACReturnType(DType.t)
     // User types
-    | ACTypeFieldTipe(DType.t)
+    | ACTypeFieldType(DType.t)
     | ACTypeName(string)
     | ACTypeFieldName(string)
 
@@ -888,7 +888,7 @@ module Model = {
     csrfToken: string,
     usedDBs: Tc.Map.String.t<int>,
     usedFns: Tc.Map.String.t<int>,
-    usedTipes: Tc.Map.String.t<int>,
+    usedTypes: Tc.Map.String.t<int>,
     handlerProps: TLID.Dict.t<HandlerProperty.t>,
     staticDeploys: list<StaticAssets.Deploy.t>,
     /* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
@@ -971,7 +971,7 @@ module Model = {
     csrfToken: Defaults.unsetCSRF,
     usedDBs: Tc.Map.String.empty,
     usedFns: Tc.Map.String.empty,
-    usedTipes: Tc.Map.String.empty,
+    usedTypes: Tc.Map.String.empty,
     handlerProps: TLID.Dict.empty,
     staticDeploys: list{},
     tlRefersTo: TLID.Dict.empty,

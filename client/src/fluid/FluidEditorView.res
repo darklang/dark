@@ -443,7 +443,7 @@ let tokensView = (p: props): Html.html<msg> => {
 }
 
 let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> => {
-  let returnTipe = (name: string) =>
+  let returnType = (name: string) =>
     Functions.findByStr(name, p.functions)
     |> Option.map(~f=(fn: Function.t) => fn.returnType)
     |> Option.unwrap(~default=DType.any)
@@ -459,7 +459,7 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
   switch ti.token {
   | TFnName(id, _, _, fnName, Rail) =>
     let offset = string_of_int(ti.startRow) ++ "rem"
-    let icon = switch (returnTipe(fnName), liveValue(id)) {
+    let icon = switch (returnType(fnName), liveValue(id)) {
     | (TResult(_), Some(DErrorRail(DResult(Error(_))))) => Icons.darkIcon("result-error")
     | (TResult(_), v) if isEvalSuccess(v) => Icons.darkIcon("result-ok")
     | (TOption(_), Some(DErrorRail(DOption(None)))) => Icons.darkIcon("option-nothing")

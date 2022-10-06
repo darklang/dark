@@ -18,7 +18,7 @@ let blankOrData = (t: PT.UserType.t): list<blankOrData> => {
           acc,
           list{
             PTypeFieldName(BlankOr.fromStringID(f.name, f.nameID)),
-            PTypeFieldTipe(BlankOr.fromOptionID(f.typ, f.typeID)),
+            PTypeFieldType(BlankOr.fromOptionID(f.typ, f.typeID)),
           },
         ),
       fields,
@@ -79,7 +79,7 @@ let replaceDefinitionElement = (
         }
       } else if f.typeID == sId {
         switch new_ {
-        | PTypeFieldTipe(new) =>
+        | PTypeFieldType(new) =>
           let (typ, typeID) = B.toOptionID(new)
           {...f, typ: typ, typeID: typeID}
         | _ => f

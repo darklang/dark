@@ -364,7 +364,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
         | Some(TLDB(db)) => DB.upsert(newM, db)
         | Some(TLHandler(h)) => Handlers.upsert(newM, h)
         | Some(TLFunc(func)) => UserFunctions.upsert(newM, func)
-        | Some(TLPmFunc(_)) | Some(TLTipe(_)) | None => newM
+        | Some(TLPmFunc(_)) | Some(TLType(_)) | None => newM
         }
       | None => newM
       }
@@ -444,7 +444,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       ) = switch p {
       | STTopLevelRoot =>
         switch TL.get(m, tlid) {
-        | Some(TLDB(_)) | Some(TLTipe(_)) => (Selecting(tlid, None), None)
+        | Some(TLDB(_)) | Some(TLType(_)) => (Selecting(tlid, None), None)
         | Some(TLFunc(_)) | Some(TLHandler(_)) => (FluidEntering(tlid), None)
         | Some(TLPmFunc(_)) => (Selecting(tlid, None), None)
         | None => (Deselected, None)
@@ -717,7 +717,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
           m2
         } else {
           TL.get(m, tlid)
-          |> Option.andThen(~f=TL.asUserTipe)
+          |> Option.andThen(~f=TL.asUserType)
           |> Option.map(~f=UserTypes.upsert(m2))
           |> Option.unwrap(~default=m2)
         }
@@ -1130,7 +1130,7 @@ let update_ = (msg: msg, m: model): modification => {
     if event.button == Defaults.leftButton {
       let tl = TL.get(m, targetTLID)
       switch tl {
-      | Some(TLPmFunc(_)) | Some(TLFunc(_)) | Some(TLTipe(_)) | None => NoChange
+      | Some(TLPmFunc(_)) | Some(TLFunc(_)) | Some(TLType(_)) | None => NoChange
       | Some(TLHandler(_)) | Some(TLDB(_)) => DragTL(targetTLID, event.mePos, false, m.cursorState)
       }
     } else {
@@ -1262,7 +1262,7 @@ let update_ = (msg: msg, m: model): modification => {
     | None => NoChange
     }
   | DeleteUserTypeField(tipetlid, field) =>
-    switch TL.get(m, tipetlid) |> Option.andThen(~f=TL.asUserTipe) {
+    switch TL.get(m, tipetlid) |> Option.andThen(~f=TL.asUserType) {
     | Some(tipe) =>
       let replacement = UserTypes.removeField(tipe, field)
       AddOps(list{SetType(replacement)}, FocusNext(tipe.tlid, None))

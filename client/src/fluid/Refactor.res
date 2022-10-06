@@ -13,9 +13,9 @@ type modification = AppTypes.modification
 
 let generateFnName = (_: unit): string => "fn_" ++ (() |> Util.random |> string_of_int)
 
-let generateTipeName = (): string => "Type_" ++ (() |> Util.random |> string_of_int)
+let generateTypeName = (): string => "Type_" ++ (() |> Util.random |> string_of_int)
 
-let convertTipe = (tipe: DType.t): DType.t =>
+let convertType = (tipe: DType.t): DType.t =>
   switch tipe {
   | TIncomplete => DType.any
   | TError => DType.any
@@ -205,9 +205,9 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
     let params = List.map(freeVars, ~f=((id, name_)) => {
       let tipe =
         Analysis.getSelectedTraceID(m, tlid)
-        |> Option.andThen(~f=Analysis.getTipeOf(m, id))
+        |> Option.andThen(~f=Analysis.getTypeOf(m, id))
         |> Option.unwrap(~default=DType.any)
-        |> convertTipe
+        |> convertType
 
       {
         PT.UserFunction.Parameter.name: name_,
@@ -249,30 +249,30 @@ let renameFunction = (m: model, uf: PT.UserFunction.t, newName: FQFnName.t): lis
   transformFnCalls(m, uf, fn)
 }
 
-let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<PT.Op.t> => {
-  let renameUserTipeInFnParameters = (fn, oldTipe: PT.UserType.t, newTipe: PT.UserType.t) => {
+let renameUserType = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<PT.Op.t> => {
+  let renameUserTypeInFnParameters = (fn, oldType: PT.UserType.t, newType: PT.UserType.t) => {
     let transformUse = (newName_, oldUse) =>
       switch oldUse {
-      | PParamTipe(F(id, TUserType(_, v))) => PParamTipe(F(id, TUserType(newName_, v)))
+      | PParamType(F(id, TUserType(_, v))) => PParamType(F(id, TUserType(newName_, v)))
       | _ => oldUse
       }
 
-    let (origName, uses) = if oldTipe.name == "" {
+    let (origName, uses) = if oldType.name == "" {
       (None, list{})
     } else {
-      (Some(oldTipe.name), UserFunctions.usesOfTipe(oldTipe.name, oldTipe.version, fn))
+      (Some(oldType.name), UserFunctions.usesOfType(oldType.name, oldType.version, fn))
     }
 
-    let newName = if newTipe.name == "" {
+    let newName = if newType.name == "" {
       None
     } else {
-      Some(newTipe.name)
+      Some(newType.name)
     }
 
     switch (origName, newName) {
     | (Some(_), Some(newName)) =>
       List.foldRight(
-        ~f=(accfn, use) => UserFunctions.replaceParamTipe(use, transformUse(newName, use), accfn),
+        ~f=(accfn, use) => UserFunctions.replaceParamType(use, transformUse(newName, use), accfn),
         ~initial=fn,
         uses,
       )
@@ -281,7 +281,7 @@ let renameUserTipe = (m: model, old: PT.UserType.t, new_: PT.UserType.t): list<P
   }
 
   let newFunctions = m.userFunctions |> Map.filterMapValues(~f=uf => {
-    let newFn = renameUserTipeInFnParameters(uf, old, new_)
+    let newFn = renameUserTypeInFnParameters(uf, old, new_)
     if newFn != uf {
       Some(PT.Op.SetFunction(newFn))
     } else {
@@ -298,9 +298,9 @@ let fnUseCount = (m: model, name: string): int =>
 let usedFn = (m: model, name: string): bool => fnUseCount(m, name) != 0
 
 let tipeUseCount = (m: model, name: string): int =>
-  Map.get(m.usedTipes, ~key=name) |> Option.unwrap(~default=0)
+  Map.get(m.usedTypes, ~key=name) |> Option.unwrap(~default=0)
 
-let usedTipe = (m: model, name: string): bool => tipeUseCount(m, name) != 0
+let usedType = (m: model, name: string): bool => tipeUseCount(m, name) != 0
 
 let dbUseCount = (m: model, name: string): int =>
   Map.get(m.usedDBs, ~key=name) |> Option.unwrap(~default=0)
@@ -343,20 +343,20 @@ let updateUsageCounts = (m: model): model => {
     )
     |> countFromList
 
-  let usedTipes =
+  let usedTypes =
     m.userFunctions
     |> Map.mapValues(~f=UserFunctions.allParamData)
     |> List.flatten
     |> List.filterMap(~f=x =>
       // Note: this does _not_ currently handle multiple versions
       switch x {
-      | PParamTipe(F(_, TUserType(name, _))) => Some(name)
+      | PParamType(F(_, TUserType(name, _))) => Some(name)
       | _ => None
       }
     )
     |> countFromList
 
-  {...m, usedDBs: usedDBs, usedFns: usedFns, usedTipes: usedTipes}
+  {...m, usedDBs: usedDBs, usedFns: usedFns, usedTypes: usedTypes}
 }
 
 let removeFunctionParameter = (
@@ -413,7 +413,7 @@ let generateEmptyFunction = (_: unit): PT.UserFunction.t => {
 }
 
 let generateEmptyUserType = (): PT.UserType.t => {
-  let tipeName = generateTipeName()
+  let tipeName = generateTypeName()
   let tlid = gtlid()
   let definition = PT.UserType.Definition.Record(list{
     {name: "", nameID: gid(), typ: None, typeID: gid()},
@@ -430,7 +430,7 @@ let generateEmptyUserType = (): PT.UserType.t => {
 let generateUserType = (dv: option<RT.Dval.t>): Result.t<PT.UserType.t, string> =>
   switch dv {
   | Some(DObj(dvalmap)) =>
-    let userTipeDefinition =
+    let userTypeDefinition =
       dvalmap
       |> Belt.Map.String.toList
       |> List.map(~f=((k, v)) => {
@@ -447,7 +447,7 @@ let generateUserType = (dv: option<RT.Dval.t>): Result.t<PT.UserType.t, string> 
 
     Ok({
       ...generateEmptyUserType(),
-      definition: Record(userTipeDefinition),
+      definition: Record(userTypeDefinition),
     })
   | Some(_) => Error("Live value is not an object.")
   | None => Error("No live value.")
@@ -475,7 +475,7 @@ let renameDBReferences = (m: model, oldName: string, newName: string): list<PT.O
         None
       }
     | TLPmFunc(_) => None
-    | TLTipe(_) => None
+    | TLType(_) => None
     | TLDB(_) => None
     }
   )

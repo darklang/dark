@@ -5,7 +5,7 @@ module TD = TLID.Dict
 
 let keyForHandlerSpec = (space: string, name: string): string => space ++ (":" ++ name)
 
-let keyForTipe = (name: string, version: int): string => name ++ (":" ++ Int.toString(version))
+let keyForType = (name: string, version: int): string => name ++ (":" ++ Int.toString(version))
 
 let dbsByName = (dbs: TD.t<PT.DB.t>): Map.String.t<TLID.t> =>
   dbs
@@ -47,7 +47,7 @@ let tipesByName = (uts: TD.t<PT.UserType.t>): Map.String.t<TLID.t> =>
   |> Map.mapValues(~f=(ut: PT.UserType.t) => {
     let name = ut.name
     let version = ut.version
-    let key = keyForTipe(name, version)
+    let key = keyForType(name, version)
     (key, ut.tlid)
   })
   |> Map.String.fromList
@@ -177,7 +177,7 @@ let findUsagesInFunctionParams = (tipes: Map.String.t<TLID.t>, fn: PT.UserFuncti
   |> List.filterMap(~f=(p: PT.UserFunction.Parameter.t) =>
     p.typ
     |> Option.map(~f=DType.tipe2str)
-    |> Option.map(~f=t => keyForTipe(t, version))
+    |> Option.map(~f=t => keyForType(t, version))
     |> Option.andThen(~f=key => Map.get(~key, tipes))
     |> Option.thenAlso(~f=_ => Some(p.typeID))
   )

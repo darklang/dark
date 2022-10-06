@@ -83,7 +83,7 @@ let parseResponse = (body: Http.responseBody): string => {
   |> Option.map(~f=({
     short,
     long,
-    exceptionTipe,
+    exceptionType,
     actual,
     actualType,
     expected,
@@ -93,7 +93,7 @@ let parseResponse = (body: Http.responseBody): string => {
     workarounds,
   }) =>
     " (" ++
-    (exceptionTipe ++
+    (exceptionType ++
     ("): " ++
     (short ++
     (maybe("message", long) ++

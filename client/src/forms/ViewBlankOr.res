@@ -93,12 +93,12 @@ let placeHolderFor = (vp: ViewUtils.viewProps, pt: blankOrType): string =>
   | DBColName => "db field name"
   | DBColType => "db type"
   | FnName => "function name"
-  | FnReturnTipe => "return type"
+  | FnReturnType => "return type"
   | ParamName => "param name"
-  | ParamTipe => "param type"
+  | ParamType => "param type"
   | TypeName => "type name"
   | TypeFieldName => "field name"
-  | TypeFieldTipe => "field type"
+  | TypeFieldType => "field type"
   }
 
 let viewBlankOr = (
@@ -147,7 +147,7 @@ let viewText = (
   str: BlankOr.t<string>,
 ): Html.html<msg> => viewBlankOr(~enterable, ~classes, Html.text, pt, vp, str)
 
-let viewTipe = (
+let viewType = (
   ~enterable: bool,
   ~classes: list<string>,
   pt: blankOrType,

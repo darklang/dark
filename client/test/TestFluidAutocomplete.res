@@ -70,9 +70,9 @@ let sampleFunctions: list<RT.BuiltInFn.t> = list{
     DType.TVariable("b"),
   ),
   ("InQuery", "whatever", 0, list{TDict(DType.TVariable("efg"))}, DType.TVariable("x")),
-} |> List.map(~f=((module_, function, version, paramTipes, returnType)): RT.BuiltInFn.t => {
+} |> List.map(~f=((module_, function, version, paramTypes, returnType)): RT.BuiltInFn.t => {
   name: {module_: module_, function: function, version: version},
-  parameters: List.map(paramTipes, ~f=(paramType): RT.BuiltInFn.Param.t => {
+  parameters: List.map(paramTypes, ~f=(paramType): RT.BuiltInFn.Param.t => {
     name: "x",
     typ: paramType,
     args: list{},
