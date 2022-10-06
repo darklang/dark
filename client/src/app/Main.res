@@ -1860,7 +1860,6 @@ let update_ = (msg: msg, m: model): modification => {
         },
       ),
     )
-  | SidebarMsg(msg) => ViewSidebar.update(msg)
   | CreateRouteHandler(action) =>
     let center = Viewport.findNewPos(m)
     Entry.submitOmniAction(m, center, action)

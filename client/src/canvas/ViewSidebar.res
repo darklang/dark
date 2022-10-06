@@ -10,7 +10,11 @@ type model = AppTypes.model
 type msg = AppTypes.msg
 module Mod = AppTypes.Modification
 
-let missingEventSpaceDesc: string = "Undefined"
+let fontAwesome = Icons.fontAwesome
+
+let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
+let tw3 = (c1, c2, c3) => Attrs.class(`${c1} ${c2} ${c3}`)
 
 let missingEventRouteDesc: string = "Undefined"
 
@@ -44,8 +48,8 @@ type rec entry = {
   uses: option<int>,
   minusButton: option<msg>,
   plusButton: option<msg>,
-  killAction: option<msg>,
   // if this is in the deleted section, what does minus do?
+  killAction: option<msg>,
   verb: option<string>,
 }
 
@@ -54,77 +58,46 @@ and category = {
   name: string,
   plusButton: option<msg>,
   iconAction: option<msg>,
-  classname: string,
+  icon: Html.html<msg>,
+  emptyName: string, // if none are present, used in `"No " ++ emptyname` (e.g. "No datastores")
   tooltip: option<AppTypes.Tooltip.source>,
   entries: list<item>,
 }
 
+and nestedCategory = {
+  count: int,
+  name: string,
+  icon: Html.html<msg>,
+  entries: list<item>,
+}
+
 and item =
-  | Category(category)
+  | NestedCategory(nestedCategory)
   | Entry(entry)
 
 let rec count = (s: item): int =>
   switch s {
   | Entry(_) => 1
-  | Category(c) => (c.entries |> List.map(~f=count))->List.sum(module(Int))
+  | NestedCategory(c) => (c.entries |> List.map(~f=count))->List.sum(module(Int))
   }
 
-let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg): Html.html<
-  msg,
-> => {
+module Styles = {
+  let titleBase = %twc("block text-grey8 tracking-wide font-heading")
+}
+
+let iconButton = (~key: string, ~icon: string, ~style: string, handler: msg): Html.html<msg> => {
+  let twStyle = %twc("hover:text-sidebar-hover cursor-pointer")
   let event = EventListeners.eventNeither(~key, "click", _ => handler)
-  Html.div(list{event, Attrs.class'("icon-button " ++ classname)}, list{Icons.fontAwesome(icon)})
+  Html.div(list{event, tw2(style, twStyle)}, list{fontAwesome(icon)})
 }
-
-let categoryIcon_ = (name: string): list<Html.html<msg>> => {
-  let darkIcon = Icons.darkIcon
-  let fontAwesome = Icons.fontAwesome
-  // Deleted categories have a deleted- prefix, with which are not valid fontaweome icons
-  switch name |> String.toLowercase |> Regex.replace(~re=Regex.regex(delPrefix), ~repl="") {
-  | "http" => list{darkIcon("http")}
-  | "dbs" => list{darkIcon("db")}
-  | "fns" => list{darkIcon("fn")}
-  | "deleted" => list{darkIcon("deleted")}
-  | "package-manager" => list{fontAwesome("box-open")}
-  | "static" => list{fontAwesome("file")}
-  | "types" => list{darkIcon("types")}
-  | "cron" => list{darkIcon("cron")}
-  | "repl" => list{fontAwesome("terminal")}
-  | "worker" => list{fontAwesome("wrench")}
-  | "fof" => list{darkIcon("fof")}
-  | "secrets" => list{fontAwesome("user-secret")}
-  | _ if String.includes(~substring="pm-author", name) => list{fontAwesome("user")}
-  | _ if String.includes(~substring="pm-package", name) => list{fontAwesome("cubes")}
-  | _ => list{darkIcon("undefined")}
-  }
-}
-
-let categoryButton = (~props=list{}, name: string, description: string): Html.html<msg> =>
-  Html.div(
-    list{
-      Attrs.class'("category-icon"),
-      Attrs.title(description),
-      Vdom.attribute("", "role", "img"),
-      Vdom.attribute("", "alt", description),
-      ...props,
-    },
-    categoryIcon_(name),
-  )
-
-let setTooltips = (tooltip: AppTypes.Tooltip.source, entries: list<'a>): option<
-  AppTypes.Tooltip.source,
-> =>
-  if entries == list{} {
-    Some(tooltip)
-  } else {
-    None
-  }
 
 let handlerCategory = (
   filter: toplevel => bool,
   name: string,
+  emptyName: string,
   action: AppTypes.AutoComplete.omniAction,
   iconAction: option<msg>,
+  icon: Html.html<msg>,
   tooltip: AppTypes.Tooltip.source,
   hs: list<PT.Handler.t>,
 ): category => {
@@ -132,19 +105,19 @@ let handlerCategory = (
   {
     count: List.length(handlers),
     name: name,
+    emptyName: emptyName,
     plusButton: Some(CreateRouteHandler(action)),
-    classname: String.toLowercase(name),
     iconAction: iconAction,
-    tooltip: setTooltips(tooltip, handlers),
+    icon: icon,
+    tooltip: Some(tooltip),
     entries: List.map(handlers, ~f=h => {
-      let tlid = h.tlid
       Entry({
         name: PT.Handler.Spec.name(h.spec) |> B.valueWithDefault(missingEventRouteDesc),
         uses: None,
-        identifier: Tlid(tlid),
-        onClick: Destination(FocusedHandler(tlid, None, true)),
+        identifier: Tlid(h.tlid),
+        onClick: Destination(FocusedHandler(h.tlid, None, true)),
         minusButton: None,
-        killAction: Some(ToplevelDeleteForever(tlid)),
+        killAction: Some(ToplevelDeleteForever(h.tlid)),
         plusButton: None,
         verb: if TL.isHTTPHandler(TLHandler(h)) {
           h.spec->PT.Handler.Spec.modifier->Option.andThen(~f=B.toOption)
@@ -160,8 +133,10 @@ let httpCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(
     TL.isHTTPHandler,
     "HTTP",
+    "HTTP handlers",
     NewHTTPHandler(None),
     Some(GoToArchitecturalView),
+    Icons.darkIcon("http"),
     Http,
     handlers,
   )
@@ -170,55 +145,62 @@ let cronCategory = (handlers: list<PT.Handler.t>): category =>
   handlerCategory(
     TL.isCronHandler,
     "Cron",
+    "Crons",
     NewCronHandler(None),
     Some(GoToArchitecturalView),
+    Icons.darkIcon("cron"),
     Cron,
     handlers,
   )
 
 let replCategory = (handlers: list<PT.Handler.t>): category =>
-  handlerCategory(TL.isReplHandler, "REPL", NewReplHandler(None), None, Repl, handlers)
+  handlerCategory(
+    TL.isReplHandler,
+    "REPL",
+    "REPLs",
+    NewReplHandler(None),
+    Some(GoToArchitecturalView),
+    fontAwesome("terminal"),
+    Repl,
+    handlers,
+  )
 
-let workerCategory = (handlers: list<PT.Handler.t>): category => handlerCategory(tl =>
-    TL.isWorkerHandler(tl) ||
-    // Show the old workers here for now
-    TL.isDeprecatedCustomHandler(tl)
-  , "Worker", NewWorkerHandler(None), Some(GoToArchitecturalView), Worker, handlers)
+let workerCategory = (handlers: list<PT.Handler.t>): category => {
+  // Show the old workers here for now
+  let isWorker = tl => TL.isWorkerHandler(tl) || TL.isDeprecatedCustomHandler(tl)
+  handlerCategory(
+    isWorker,
+    "Worker",
+    "Workers",
+    NewWorkerHandler(None),
+    Some(GoToArchitecturalView),
+    fontAwesome("wrench"),
+    Worker,
+    handlers,
+  )
+}
 
 let dbCategory = (m: model, dbs: list<PT.DB.t>): category => {
-  let entries = List.map(dbs, ~f=db => {
-    let uses = if db.name == "" {
-      0
-    } else {
-      Refactor.dbUseCount(m, db.name)
-    }
-
-    let minusButton = None
+  count: List.length(dbs),
+  name: "Datastores",
+  emptyName: "Datastores",
+  plusButton: Some(CreateDBTable),
+  iconAction: Some(GoToArchitecturalView),
+  icon: Icons.darkIcon("db"),
+  tooltip: Some(Datastore),
+  entries: dbs->List.map(~f=db => {
+    let uses = db.name == "" ? 0 : Refactor.dbUseCount(m, db.name)
     Entry({
-      name: if db.name == "" {
-        "Untitled DB"
-      } else {
-        db.name
-      },
+      name: db.name == "" ? "Untitled DB" : db.name,
       identifier: Tlid(db.tlid),
       uses: Some(uses),
       onClick: Destination(FocusedDB(db.tlid, true)),
-      minusButton: minusButton,
+      minusButton: None,
       killAction: Some(ToplevelDeleteForever(db.tlid)),
       verb: None,
       plusButton: None,
     })
-  })
-
-  {
-    count: List.length(dbs),
-    name: "Datastores",
-    classname: "dbs",
-    plusButton: Some(CreateDBTable),
-    iconAction: Some(GoToArchitecturalView),
-    tooltip: setTooltips(Datastore, entries),
-    entries: entries,
-  }
+  }),
 }
 
 let f404Category = (m: model): category => {
@@ -231,147 +213,127 @@ let f404Category = (m: model): category => {
         let space = h.spec->PT.Handler.Spec.space->B.toString
         let name = h.spec->PT.Handler.Spec.name->B.toString
         let modifier = h.spec->PT.Handler.Spec.modifier->B.optionToString
-        // Note that this concatenated string gets compared to `space ^ path ^ modifier` later.
+        // Note that this concatenated string gets compared to `space ++ path ++ modifier` later.
         // h.spec.name and f404.path are the same thing, with different names. Yes this is confusing.
         space ++ name ++ modifier
       })
       |> Set.String.fromList
 
     m.f404s
-    |> List.uniqueBy(~f=(f: AnalysisTypes.FourOhFour.t) => f.space ++ (f.path ++ f.modifier))
+    |> List.uniqueBy(~f=(f: AnalysisTypes.FourOhFour.t) => f.space ++ f.path ++ f.modifier)
     |> // Don't show 404s for deleted handlers
     List.filter(~f=(f: AnalysisTypes.FourOhFour.t) =>
-      !Set.member(~value=f.space ++ (f.path ++ f.modifier), deletedHandlerSpecs)
+      !Set.member(~value=f.space ++ f.path ++ f.modifier, deletedHandlerSpecs)
     )
   }
 
   {
     count: List.length(f404s),
     name: "404s",
+    emptyName: "404s",
     plusButton: None,
-    classname: "fof",
     iconAction: None,
-    tooltip: setTooltips(FourOhFour, f404s),
+    icon: Icons.darkIcon("fof"),
+    tooltip: Some(FourOhFour),
     entries: List.map(f404s, ~f=({space, path, modifier, _} as fof) => Entry({
-      name: if space == "HTTP" {
-        path
-      } else {
-        space ++ ("::" ++ path)
-      },
+      name: space == "HTTP" ? path : space ++ " " ++ path,
       uses: None,
       identifier: Other(fof.space ++ fof.path ++ fof.modifier),
       onClick: SendMsg(CreateHandlerFrom404(fof)),
       minusButton: Some(Delete404APICall(fof)),
       killAction: None,
       plusButton: Some(CreateHandlerFrom404(fof)),
-      verb: if space == "WORKER" {
-        None
-      } else {
-        Some(modifier)
-      },
+      verb: space == "WORKER" ? None : Some(modifier),
     })),
   }
 }
 
 let userFunctionCategory = (m: model, ufs: list<PT.UserFunction.t>): category => {
   let fns = ufs |> List.filter(~f=(fn: PT.UserFunction.t) => fn.name != "")
-  let entries = List.map(fns, ~f=fn => {
-    let tlid = fn.tlid
-    let usedIn = Introspect.allUsedIn(tlid, m)
-    let minusButton = None
-    Entry({
-      name: fn.name,
-      identifier: Tlid(tlid),
-      uses: Some(List.length(usedIn)),
-      minusButton: minusButton,
-      killAction: Some(DeleteUserFunctionForever(tlid)),
-      onClick: Destination(FocusedFn(tlid, None)),
-      plusButton: None,
-      verb: None,
-    })
-  })
-
   {
     count: List.length(fns),
     name: "Functions",
-    classname: "fns",
+    emptyName: "Functions",
     plusButton: Some(CreateFunction),
     iconAction: Some(GoToArchitecturalView),
-    tooltip: setTooltips(Function, entries),
-    entries: entries,
+    icon: Icons.darkIcon("fn"),
+    tooltip: Some(Function),
+    entries: fns->List.map(~f=fn => {
+      Entry({
+        name: fn.name,
+        identifier: Tlid(fn.tlid),
+        uses: Introspect.allUsedIn(fn.tlid, m)->List.length->Some,
+        minusButton: None,
+        killAction: Some(DeleteUserFunctionForever(fn.tlid)),
+        onClick: Destination(FocusedFn(fn.tlid, None)),
+        plusButton: None,
+        verb: None,
+      })
+    }),
   }
 }
 
 let userTipeCategory = (m: model, tipes: list<PT.UserType.t>): category => {
   let tipes = tipes |> List.filter(~f=(ut: PT.UserType.t) => ut.name != "")
-  let entries = List.map(tipes, ~f=tipe => {
-    let minusButton = if Refactor.usedTipe(m, tipe.name) {
-      None
-    } else {
-      Some(Msg.DeleteUserType(tipe.tlid))
-    }
-
-    Entry({
-      name: tipe.name,
-      identifier: Tlid(tipe.tlid),
-      uses: Some(Refactor.tipeUseCount(m, tipe.name)),
-      minusButton: minusButton,
-      killAction: Some(DeleteUserTypeForever(tipe.tlid)),
-      onClick: Destination(FocusedType(tipe.tlid)),
-      plusButton: None,
-      verb: None,
-    })
-  })
-
   {
     count: List.length(tipes),
     name: "Types",
-    classname: "types",
+    emptyName: "Types",
     plusButton: Some(CreateType),
     iconAction: None,
+    icon: Icons.darkIcon("types"),
     tooltip: None,
-    entries: entries,
+    entries: List.map(tipes, ~f=tipe => {
+      let minusButton = if Refactor.usedTipe(m, tipe.name) {
+        None
+      } else {
+        Some(Msg.DeleteUserType(tipe.tlid))
+      }
+
+      Entry({
+        name: tipe.name,
+        identifier: Tlid(tipe.tlid),
+        uses: Some(Refactor.tipeUseCount(m, tipe.name)),
+        minusButton: minusButton,
+        killAction: Some(DeleteUserTypeForever(tipe.tlid)),
+        onClick: Destination(FocusedType(tipe.tlid)),
+        plusButton: None,
+        verb: None,
+      })
+    }),
   }
 }
 
-let standardCategories = (m, hs, dbs, ufns, tipes) => {
+let standardCategories = (m, hs, dbs, ufns, types) => {
   let hs = hs |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLHandler(tl)))
-
   let dbs = dbs |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLDB(tl)))
-
   let ufns = ufns |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLFunc(tl)))
+  let types = types |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLTipe(tl)))
 
-  let tipes = tipes |> Map.values |> List.sortBy(~f=tl => TL.sortkey(TLTipe(tl)))
+  // We want to hide user defined types for users who arent already using them
+  // since there is currently no way to use them other than as a function param.
+  // we should show user defined types once the user can use them more
+  let types = types == list{} ? list{} : list{userTipeCategory(m, types)}
 
-  /* We want to hide user defined types for users who arent already using them
-    since there is currently no way to use them other than as a function param.
-    we should show user defined types once the user can use them more */
-  let tipes = if List.length(tipes) === 0 {
-    list{}
-  } else {
-    list{userTipeCategory(m, tipes)}
-  }
-  let catagories = list{
+  list{
     httpCategory(hs),
     workerCategory(hs),
     cronCategory(hs),
     replCategory(hs),
     dbCategory(m, dbs),
     userFunctionCategory(m, ufns),
-    ...tipes,
+    ...types,
   }
-
-  catagories
 }
 
-let packageManagerCategory = (pmfns: packageFns): category => {
-  let getFnnameEntries = (moduleList: list<PT.Package.Fn.t>): list<item> => {
-    let fnnames =
+let packageManagerCategory = (fns: packageFns): category => {
+  let fnNameEntries = (moduleList: list<PT.Package.Fn.t>): list<item> => {
+    let fnNames =
       moduleList
-      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.module_)
-      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.function)
+      ->List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.module_)
+      ->List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.function)
 
-    fnnames |> List.map(~f=(fn: PT.Package.Fn.t) => Entry({
+    fnNames->List.map(~f=(fn: PT.Package.Fn.t) => Entry({
       name: fn.name.module_ ++ "::" ++ fn.name.function ++ "_v" ++ string_of_int(fn.name.version),
       identifier: Tlid(fn.tlid),
       onClick: Destination(FocusedPackageManagerFn(fn.tlid)),
@@ -383,57 +345,50 @@ let packageManagerCategory = (pmfns: packageFns): category => {
     }))
   }
 
-  let getPackageEntries = (userList: list<PT.Package.Fn.t>): list<item> => {
+  let packageEntries = (userList: list<PT.Package.Fn.t>): list<item> => {
     let uniquePackages =
       userList
-      |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
-      |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
+      ->List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
+      ->List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.package)
 
-    uniquePackages |> List.map(~f=(fn: PT.Package.Fn.t) => {
-      let packageList =
-        userList |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.package == f.name.package)
+    uniquePackages->List.map(~f=fn => {
+      let packageList = userList->List.filter(~f=f => fn.name.package == f.name.package)
 
-      Category({
+      NestedCategory({
         count: List.length(uniquePackages),
         name: fn.name.package,
-        plusButton: None,
-        iconAction: None,
-        classname: "pm-package" ++ fn.name.package,
-        tooltip: None,
-        entries: getFnnameEntries(packageList),
+        icon: fontAwesome("cubes"),
+        entries: fnNameEntries(packageList),
       })
     })
   }
 
-  let uniqueauthors =
-    pmfns
-    |> Map.values
-    |> List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
-    |> List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
+  let uniqueAuthors =
+    fns
+    ->Map.values
+    ->List.sortBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
+    ->List.uniqueBy(~f=(fn: PT.Package.Fn.t) => fn.name.owner)
 
-  let getAuthorEntries = uniqueauthors |> List.map(~f=(fn: PT.Package.Fn.t) => {
-    let authorList =
-      pmfns |> Map.values |> List.filter(~f=(f: PT.Package.Fn.t) => fn.name.owner == f.name.owner)
+  let authorEntries = uniqueAuthors->List.map(~f=(fn: PT.Package.Fn.t) => {
+    let authorList = fns->Map.values->List.filter(~f=f => fn.name.owner == f.name.owner)
 
-    Category({
-      count: List.length(uniqueauthors),
+    NestedCategory({
+      count: List.length(uniqueAuthors),
       name: fn.name.owner,
-      plusButton: None,
-      iconAction: None,
-      classname: "pm-author" ++ fn.name.owner,
-      tooltip: None,
-      entries: getPackageEntries(authorList),
+      icon: fontAwesome("user"),
+      entries: packageEntries(authorList),
     })
   })
 
   {
-    count: List.length(uniqueauthors),
+    count: List.length(uniqueAuthors),
     name: "Package Manager",
+    emptyName: "Packages",
     plusButton: None,
     iconAction: None,
-    classname: "package-manager",
+    icon: fontAwesome("box-open"),
     tooltip: Some(PackageManager),
-    entries: getAuthorEntries,
+    entries: authorEntries,
   }
 }
 
@@ -444,128 +399,237 @@ let deletedCategory = (m: model): category => {
     m.deletedDBs,
     m.deletedUserFunctions,
     m.deleteduserTypes,
-  ) |> List.map(~f=c => {
-    ...c,
-    plusButton: None /* only allow new entries on the main category */,
-    classname: // dont open/close in lockstep with parent
-    delPrefix ++ c.classname,
-    entries: List.map(c.entries, ~f=x =>
-      switch x {
+  )->List.map(~f=(c: category): nestedCategory => {
+    name: c.name,
+    count: c.count,
+    icon: c.icon,
+    entries: c.entries->List.map(~f=item =>
+      switch item {
       | Entry(e) =>
         let actionOpt =
-          e.identifier |> tlidOfIdentifier |> Option.map(~f=tlid => Msg.RestoreToplevel(tlid))
+          e.identifier->tlidOfIdentifier->Option.map(~f=tlid => Msg.RestoreToplevel(tlid))
 
         Entry({
           ...e,
           plusButton: actionOpt,
           uses: None,
           minusButton: e.killAction,
-          onClick: actionOpt
-          |> Option.map(~f=msg => SendMsg(msg))
-          |> Option.unwrap(~default=DoNothing),
+          onClick: actionOpt->Option.map(~f=msg => SendMsg(msg))->Option.unwrap(~default=DoNothing),
         })
-      | c => c
+      | NestedCategory(_) => item
       }
     ),
   })
 
-  let showTooltip = List.filter(~f=c => c.entries != list{}, cats)
   {
-    count: (cats |> List.map(~f=c => count(Category(c))))->List.sum(module(Int)),
+    count: cats->List.map(~f=c => count(NestedCategory(c)))->List.sum(module(Int)),
     name: "Deleted",
+    emptyName: "deleted toplevels",
     plusButton: None,
-    classname: "deleted",
     iconAction: None,
-    tooltip: setTooltips(Deleted, showTooltip),
-    entries: List.map(cats, ~f=c => Category(c)),
+    icon: Icons.darkIcon("deleted"),
+    tooltip: Some(Deleted),
+    entries: cats->List.map(~f=c => NestedCategory(c)),
   }
 }
 
-let viewEmptyCategory = (c: category): Html.html<msg> => {
-  let name = switch c.classname {
-  | "http" => "HTTP handlers"
-  | "cron" | "worker" | "repl" => c.name ++ "s"
-  | _ => c.name
-  }
-
-  Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No " ++ name)})
-}
+// ---------------
+// Render the nested categories
+// ---------------
 
 let viewEntry = (m: model, e: entry): Html.html<msg> => {
-  let name = e.name
   let isSelected = tlidOfIdentifier(e.identifier) == CursorState.tlidOf(m.cursorState)
 
-  let linkItem = {
-    let verb = switch e.verb {
-    | Some(v) => Html.span(list{Attrs.class'("verb " ++ v)}, list{Html.text(v)})
-    | _ => Vdom.noNode
-    }
-
-    switch e.onClick {
-    | Destination(dest) =>
-      let cls = {
-        let selected = if isSelected {
-          " selected"
-        } else {
-          ""
-        }
-        let unused = if e.uses == Some(0) {
-          " unused"
-        } else {
-          ""
-        }
-        "toplevel-link" ++ (selected ++ unused)
-      }
-
-      let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})
-      Html.span(list{Attrs.class'("toplevel-name")}, list{Url.linkFor(dest, cls, list{path, verb})})
-    | SendMsg(msg) =>
-      let cls = "toplevel-msg"
-      let path = Html.span(list{Attrs.class'("path")}, list{Html.text(name)})
-      let action = if m.permission == Some(ReadWrite) {
-        EventListeners.eventNeither(~key=name ++ "-clicked-msg", "click", _ => msg)
-      } else {
-        Vdom.noProp
-      }
-
-      Html.span(
-        list{Attrs.class'("toplevel-name"), action},
-        list{Html.span(list{Attrs.class'(cls)}, list{path, verb})},
-      )
-    | DoNothing => Html.span(list{Attrs.class'("toplevel-name")}, list{Html.text(name), verb})
-    }
+  let pluslink = switch e.plusButton {
+  | Some(msg) if m.permission == Some(ReadWrite) =>
+    iconButton(
+      ~key=e.name ++ "-plus",
+      ~icon="plus-circle",
+      ~style=%twc(
+        "ml-1.5 group-sidebar-addbutton-hover:text-sidebar-hover inline-block text-grey8"
+      ),
+      msg,
+    )
+  | Some(_) | None => Vdom.noNode
   }
 
-  let iconspacer = Html.div(list{Attrs.class'("icon-spacer")}, list{})
-  let minuslink = /* This prevents the delete button appearing in the hover view.
-   * We'll add it back in for 404s specifically at some point */
-  if m.permission == Some(Read) {
-    iconspacer
-  } else {
-    switch e.minusButton {
-    | Some(msg) =>
+  let linkItem = {
+    // We add pluslink here as it's hard to get into place otherwise
+    let verb = switch e.verb {
+    | Some(verb) =>
+      let verbStyle = switch verb {
+      | "GET" => %twc("text-http-get")
+      | "POST" => %twc("text-http-post")
+      | "PUT" => %twc("text-http-put")
+      | "DELETE" => %twc("text-http-delete")
+      | "PATCH" => %twc("text-http-patch")
+      | "HEAD" => %twc("text-white2") // TODO
+      | "OPTIONS" => %twc("text-http-options")
+      | _ => %twc("text-white2")
+      }
+      Html.span(list{tw2(verbStyle, "ml-4")}, list{Html.text(verb), pluslink})
+    | _ => pluslink
+    }
+
+    let contents = switch e.onClick {
+    | Destination(dest) =>
+      let selected = {
+        // font-black is same as fa-solid, font-medium produces the empty circle
+        let dotStyle = if isSelected {
+          %twc("inline-block text-sidebar-hover group-hover:text-orange font-black")
+        } else {
+          %twc("inline-block text-transparent group-hover:text-sidebar-hover font-medium")
+        }
+        // unclear why both align-middle and mb-[2px] are needed to make the dot center
+        let baseStyle = %twc("text-xxs pl-0.25 pr-0.5 align-middle mb-[2px]")
+        fontAwesome(~style=`${baseStyle} ${dotStyle}`, "circle")
+      }
+
+      let cls = {
+        let color = if e.uses == Some(0) {
+          %twc("text-sidebar-secondary")
+        } else {
+          %twc("text-sidebar-primary")
+        }
+        let default = %twc("flex justify-between cursor-pointer no-underline outline-none")
+
+        `${default} ${color}`
+      }
+
+      list{Url.linkFor(dest, cls, list{Html.span(list{}, list{selected, Html.text(e.name)}), verb})}
+
+    | SendMsg(_) =>
+      let pointer = m.permission == Some(ReadWrite) ? %twc("cursor-pointer") : ""
+      list{
+        Html.span(list{tw2(pointer, %twc("flex justify-between"))}, list{Html.text(e.name), verb}),
+      }
+    | DoNothing => list{Html.text(e.name), verb}
+    }
+
+    let action = switch e.onClick {
+    | SendMsg(msg) if m.permission == Some(ReadWrite) =>
+      EventListeners.eventNeither(~key=e.name ++ "-clicked-msg", "click", _ => msg)
+    | SendMsg(_) | DoNothing | Destination(_) => Vdom.noProp
+    }
+
+    Html.span(list{tw(%twc("group inline-block group-sidebar-addbutton w-full")), action}, contents)
+  }
+
+  // This prevents the delete button appearing
+  // We'll add it back in for 404s specifically at some point
+  let minuslink = switch e.minusButton {
+  | Some(msg) if m.permission == Some(ReadWrite) =>
+    iconButton(
+      ~key=entryKeyFromIdentifier(e.identifier),
+      ~style=%twc("mr-3 text-sidebar-secondary"),
+      ~icon="minus-circle",
+      msg,
+    )
+  | Some(_) | None => Vdom.noNode
+  }
+
+  Html.div(list{tw(%twc("mt-1.25 flex"))}, list{minuslink, linkItem})
+}
+
+let rec viewItem = (m: model, s: item): Html.html<msg> =>
+  switch s {
+  | NestedCategory(c) =>
+    if c.count > 0 {
+      viewNestedCategory(m, c)
+    } else {
+      Vdom.noNode
+    }
+  | Entry(e) => viewEntry(m, e)
+  }
+
+and viewNestedCategory = (m: model, c: nestedCategory): Html.html<msg> => {
+  let title = Html.span(
+    list{tw2(Styles.titleBase, %twc("text-base text-left font-bold"))},
+    list{Html.text(c.name)},
+  )
+  let entries = List.map(~f=viewItem(m), c.entries)
+
+  Html.div(list{tw(%twc("mb-4 ml-4"))}, list{title, Html.div(list{tw(%twc("pl-2"))}, entries)})
+}
+
+let viewToplevelCategory = (
+  m: model,
+  name: string,
+  emptyName: string,
+  plusButton: option<msg>,
+  icon: Html.html<msg>,
+  iconAction: option<msg>,
+  // it's not always obvious whether contents is empty so be explicit (eg
+  // Vdom.noNode or empty divs)
+  isEmpty: bool,
+  contents: list<Html.html<msg>>,
+): Html.html<msg> => {
+  let sidebarIcon = {
+    let plusButton = switch plusButton {
+    | Some(msg) if m.permission == Some(ReadWrite) =>
       iconButton(
-        ~key=entryKeyFromIdentifier(e.identifier),
-        ~icon="minus-circle",
-        ~classname="delete-button",
+        ~key="plus-" ++ name,
+        ~icon="plus-circle",
+        ~style=%twc("text-xs text-grey8 absolute right-0.5 top-4"),
         msg,
       )
-    | None => iconspacer
+    | Some(_) | None => Vdom.noNode
+    }
+
+    let icon = {
+      let prop = switch iconAction {
+      | Some(ev) => EventListeners.eventNeither(~key="click" ++ name, "click", _ => ev)
+      | None => Vdom.noProp
+      }
+
+      let style = %twc(
+        "text-grey5 duration-200 text-2xl group-sidebar-category-hover:text-3xl pr-1 w-full h-9 text-center box-border"
+      )
+
+      Html.div(
+        list{tw(style), Attrs.title(name), Attrs.role("img"), Attrs.alt(name), prop},
+        list{icon},
+      )
+    }
+    Html.div(list{tw(%twc("m-0 relative"))}, list{icon, plusButton})
+  }
+
+  let contents = if !isEmpty {
+    contents
+  } else {
+    // margin to make up for the space taken by the invisible dot in others
+    list{
+      Html.div(list{tw(%twc("ml-3 text-sidebar-secondary"))}, list{Html.text("No " ++ emptyName)}),
     }
   }
 
-  let pluslink = switch e.plusButton {
-  | Some(msg) =>
-    if m.permission == Some(ReadWrite) {
-      iconButton(~key=e.name ++ "-plus", ~icon="plus-circle", ~classname="add-button", msg)
-    } else {
-      iconspacer
-    }
-  | None => iconspacer
-  }
-
-  Html.div(list{Attrs.class'("simple-item")}, list{minuslink, linkItem, pluslink})
+  Html.div(
+    list{tw(%twc("pb-5 text-center relative group-sidebar-category"))},
+    list{
+      sidebarIcon,
+      Html.div(
+        list{
+          tw(
+            %twc(
+              "absolute -top-5 left-14 pt-1.5 pb-3 px-2.5 box-border min-w-[20rem] max-w-[40rem] max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll w-max text-left hidden group-sidebar-category-hover:block"
+            ),
+          ),
+        },
+        list{
+          Html.span(
+            list{tw2(Styles.titleBase, %twc("pb-1.5 text-lg text-center"))},
+            list{Html.text(name)},
+          ),
+          ...contents,
+        },
+      ),
+    },
+  )
 }
+
+// ---------------
+// Deploys
+// ---------------
 
 let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
   let statusString = switch d.status {
@@ -575,153 +639,74 @@ let viewDeploy = (d: StaticAssets.Deploy.t): Html.html<msg> => {
 
   let copyBtn = Html.div(
     list{
-      Attrs.class'("icon-button copy-hash"),
+      tw(%twc("text-xs absolute -top-2 -right-1.5 hover:text-sidebar-hover")),
       EventListeners.eventNeither(
         "click",
         ~key="hash-" ++ d.deployHash,
         m => Msg.ClipboardCopyLivevalue("\"" ++ d.deployHash ++ "\"", m.mePos),
       ),
     },
-    list{Icons.fontAwesome("copy")},
+    list{fontAwesome("copy")},
   )
 
+  let statusColor = switch d.status {
+  | Deployed => %twc("text-green")
+  | Deploying => %twc("text-sidebar-secondary")
+  }
+
   Html.div(
-    list{Attrs.class'("simple-item deploy")},
+    list{tw(%twc("flex flex-wrap justify-between items-center mt-4"))},
     list{
       Html.div(
-        list{Attrs.class'("hash")},
         list{
-          Html.a(list{Attrs.href(d.url), Attrs.target("_blank")}, list{Html.text(d.deployHash)}),
+          tw(
+            %twc(
+              "relative inline-block border border-solid border-sidebar-secondary p-0.5 rounded-sm"
+            ),
+          ),
+        },
+        list{
+          Html.a(
+            list{
+              tw(%twc("text-sm text-sidebar-primary hover:text-sidebar-hover no-underline")),
+              Attrs.href(d.url),
+              Attrs.target("_blank"),
+            },
+            list{Html.text(d.deployHash)},
+          ),
           copyBtn,
         },
       ),
+      Html.div(list{tw2(statusColor, %twc("inline-block"))}, list{Html.text(statusString)}),
       Html.div(
-        list{
-          Attrs.classList(list{
-            ("status", true),
-            (
-              "success",
-              switch d.status {
-              | Deployed => true
-              | _ => false
-              },
-            ),
-          }),
-        },
-        list{Html.text(statusString)},
+        list{tw(%twc("block w-full text-xxs text-right"))},
+        list{Html.text(Js.Date.toUTCString(d.lastUpdate))},
       ),
-      Html.div(list{Attrs.class'("timestamp")}, list{Html.text(Js.Date.toUTCString(d.lastUpdate))}),
     },
   )
-}
-
-let categoryName = (name: string): Html.html<msg> =>
-  Html.span(list{Attrs.class'("category-name")}, list{Html.text(name)})
-
-let categoryOpenCloseHelpers = (s: Sidebar.State.t, classname: string, count: int): (
-  Vdom.property<msg>,
-  Vdom.property<msg>,
-) => {
-  let isOpen = Set.member(s.openedCategories, ~value=classname)
-  let isDetailed = s.mode == DetailedMode
-  let isSubCat = String.includes(~substring=delPrefix, classname)
-  let openEventHandler = if isDetailed || isSubCat {
-    EventListeners.eventNoPropagation(
-      ~key=if isOpen {
-        "cheh-true-"
-      } else {
-        "cheh-false-"
-      } ++
-      classname,
-      "click",
-      _ => Msg.SidebarMsg(MarkCategoryOpen(!isOpen, classname)),
-    )
-  } else {
-    Vdom.noProp
-  }
-
-  let openAttr = if isOpen && count != 0 {
-    Vdom.attribute("", "open", "")
-  } else {
-    Vdom.noProp
-  }
-
-  (openEventHandler, openAttr)
 }
 
 let viewDeployStats = (m: model): Html.html<msg> => {
-  let entries = m.staticDeploys
-  let count = List.length(entries)
-  let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "deploys", count)
-
-  let openAttr = if m.sidebarState.mode == AbridgedMode {
-    Vdom.attribute("", "open", "")
-  } else {
-    openAttr
-  }
-
-  let title = categoryName("Static Assets")
-  let summary = {
-    let tooltip =
-      Tooltips.generateContent(StaticAssets) |> Tooltips.viewToolTip(
-        ~shouldShow=m.tooltipState.tooltipSource == Some(StaticAssets),
-        ~tlid=None,
-      )
-
-    let openTooltip = if count == 0 {
-      EventListeners.eventNoPropagation(~key="open-tooltip-deploys", "click", _ => Msg.ToolTipMsg(
-        OpenTooltip(StaticAssets),
-      ))
-    } else {
-      Vdom.noProp
-    }
-
-    let header = Html.div(
-      list{Attrs.class'("category-header"), openTooltip},
-      list{categoryButton("static", "Static Assets"), title},
-    )
-
-    let deployLatest = if count != 0 {
-      entries |> List.take(~count=1) |> List.map(~f=viewDeploy)
-    } else {
-      list{}
-    }
-
-    Html.summary(
-      list{openEventHandler, Attrs.class'("category-summary")},
-      list{tooltip, header, ...deployLatest},
-    )
-  }
-
-  let deploys = if List.length(entries) > 0 {
-    entries |> List.map(~f=viewDeploy)
-  } else {
-    list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No Static deploys")})}
-  }
-
-  let content = Html.div(
-    list{
-      Attrs.class'("category-content"),
-      EventListeners.eventNoPropagation(~key="cat-close-deploy", "mouseleave", _ => Msg.SidebarMsg(
-        ResetSidebar,
-      )),
-    },
-    list{title, ...deploys},
+  viewToplevelCategory(
+    m,
+    "Static Assets",
+    "Static Assets",
+    None,
+    fontAwesome("file"),
+    None,
+    m.staticDeploys == list{},
+    m.staticDeploys->List.map(~f=viewDeploy),
   )
-
-  let classes = Attrs.classList(list{
-    ("sidebar-category", true),
-    ("deploys", true),
-    ("empty", count == 0),
-  })
-
-  Html.details(~unique="deploys", list{classes, openAttr}, list{summary, content})
 }
+
+// ---------------
+// Secrets
+// ---------------
 
 let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   let copyBtn = Html.div(
     list{
-      Attrs.class'("icon-button copy-secret-name"),
+      tw(%twc("text-base hover:text-sidebar-hover")),
       EventListeners.eventNeither(
         "click",
         ~key="copy-secret-" ++ s.secretName,
@@ -729,7 +714,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
       ),
       Attrs.title("Click to copy secret name"),
     },
-    list{Icons.fontAwesome("copy")},
+    list{fontAwesome("copy")},
   )
 
   let secretValue = Util.obscureString(s.secretValue)
@@ -744,14 +729,30 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
     }
   }
 
+  let style = %twc("text-xs no-underline box-border px-1.5 py-0 overflow-hidden")
+
   Html.div(
-    list{Attrs.class'("simple-item secret")},
+    list{
+      tw("flex relative justify-between items-center flex-row flex-nowrap w-80 ml-1 mr-1 mb-2.5"),
+    },
     list{
       Html.div(
-        list{Attrs.class'("key-block")},
         list{
-          Html.span(list{Attrs.class'("secret-name")}, list{Html.text(s.secretName)}),
-          Html.span(list{Attrs.class'("secret-value")}, list{Html.text(secretValue)}),
+          tw(
+            %twc(
+              "group border border-solid border-sidebar-secondary pt-1 rounded-sm text-sidebar-primary w-72 hover:cursor-pointer hover:text-sidebar-hover hover:border-sidebar-hover"
+            ),
+          ),
+        },
+        list{
+          Html.span(
+            list{tw2(style, %twc("inline-block group-hover:hidden"))},
+            list{Html.text(s.secretName)},
+          ),
+          Html.span(
+            list{tw2(style, %twc("hidden group-hover:inline-block"))},
+            list{Html.text(secretValue)},
+          ),
         },
       ),
       copyBtn,
@@ -759,232 +760,32 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
   )
 }
 
-let viewSecretKeys = (m: model): Html.html<AppTypes.msg> => {
-  let count = List.length(m.secrets)
-  let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, "secrets", count)
-
-  let openAttr = if m.sidebarState.mode == AbridgedMode {
-    Vdom.attribute("", "open", "")
-  } else {
-    openAttr
-  }
-
-  let title = categoryName("Secret Keys")
-  let summary = {
-    let tooltip =
-      Tooltips.generateContent(Secrets) |> Tooltips.viewToolTip(
-        ~shouldShow=m.tooltipState.tooltipSource == Some(Secrets),
-        ~tlid=None,
-      )
-
-    let openTooltip = if count == 0 {
-      EventListeners.eventNoPropagation(~key="open-tooltip-secrets", "click", _ => Msg.ToolTipMsg(
-        OpenTooltip(Secrets),
-      ))
-    } else {
-      Vdom.noProp
-    }
-
-    let plusBtn = iconButton(
-      ~key="plus-secret",
-      ~icon="plus-circle",
-      ~classname="create-tl-icon",
-      SecretMsg(OpenCreateModal),
-    )
-
-    let header = Html.div(
-      list{Attrs.class'("category-header"), openTooltip},
-      list{categoryButton("secrets", "Secret Keys"), title},
-    )
-
-    Html.summary(
-      list{openEventHandler, Attrs.class'("category-summary")},
-      list{tooltip, header, plusBtn},
-    )
-  }
-
-  let entries = if count > 0 {
-    List.map(m.secrets, ~f=viewSecret)
-  } else {
-    list{Html.div(list{Attrs.class'("simple-item empty")}, list{Html.text("No secret keys")})}
-  }
-
-  let content = Html.div(
-    list{
-      Attrs.class'("category-content"),
-      EventListeners.eventNoPropagation(~key="cat-close-secret", "mouseleave", _ => Msg.SidebarMsg(
-        ResetSidebar,
-      )),
-    },
-    list{title, ...entries},
+let viewSecretKeys = (m: model): Html.html<AppTypes.msg> =>
+  viewToplevelCategory(
+    m,
+    "Secret Keys",
+    "Secret Keys",
+    Some(SecretMsg(OpenCreateModal)),
+    fontAwesome("user-secret"),
+    None,
+    m.secrets->List.isEmpty,
+    m.secrets->List.map(~f=viewSecret),
   )
 
-  let classes = Attrs.classList(list{
-    ("sidebar-category", true),
-    ("secrets", true),
-    ("empty", count == 0),
-  })
-
-  Html.details(~unique="secrets", list{classes, openAttr}, list{summary, content})
-}
-
-let rec viewItem = (m: model, s: item): Html.html<msg> =>
-  switch s {
-  | Category(c) =>
-    if c.count > 0 {
-      viewCategory(m, c)
-    } else {
-      Vdom.noNode
-    }
-  | Entry(e) => viewEntry(m, e)
-  }
-
-and viewCategory = (m: model, c: category): Html.html<msg> => {
-  let (openEventHandler, openAttr) = categoryOpenCloseHelpers(m.sidebarState, c.classname, c.count)
-
-  let (openTooltip, tooltipView) = switch c.tooltip {
-  | Some(tt) =>
-    let view =
-      Tooltips.generateContent(tt) |> Tooltips.viewToolTip(
-        ~shouldShow=m.tooltipState.tooltipSource == Some(tt),
-        ~tlid=None,
-      )
-
-    (
-      EventListeners.eventNoPropagation(
-        ~key="open-tooltip-" ++ c.classname,
-        "click",
-        _ => Msg.ToolTipMsg(OpenTooltip(tt)),
-      ),
-      view,
-    )
-  | None => (Vdom.noProp, Vdom.noNode)
-  }
-
-  let openAttr = if m.sidebarState.mode == AbridgedMode {
-    Vdom.attribute("", "open", "")
-  } else {
-    openAttr
-  }
-
-  let isSubCat = String.includes(~substring=delPrefix, c.classname)
-  let title = categoryName(c.name)
-  let summary = {
-    let plusButton = switch c.plusButton {
-    | Some(msg) =>
-      if m.permission == Some(ReadWrite) {
-        iconButton(
-          ~key="plus-" ++ c.classname,
-          ~icon="plus-circle",
-          ~classname="create-tl-icon",
-          msg,
-        )
-      } else {
-        Vdom.noNode
-      }
-    | None => Vdom.noNode
-    }
-
-    let catIcon = {
-      let props = switch c.iconAction {
-      | Some(ev) if m.sidebarState.mode == AbridgedMode && !isSubCat => list{
-          EventListeners.eventNeither(~key="return-to-arch", "click", _ => ev),
-        }
-      | Some(_) | None => list{Vdom.noProp}
-      }
-
-      categoryButton(c.classname, c.name, ~props)
-    }
-
-    let header = Html.div(list{Attrs.class'("category-header"), openTooltip}, list{catIcon, title})
-
-    Html.summary(
-      list{Attrs.class'("category-summary"), openEventHandler},
-      list{tooltipView, header, plusButton},
-    )
-  }
-
-  let content = {
-    let entries = if c.count > 0 {
-      List.map(~f=viewItem(m), c.entries)
-    } else {
-      list{viewEmptyCategory(c)}
-    }
-
-    Html.div(
-      list{
-        Attrs.class'("category-content"),
-        EventListeners.eventNoPropagation(~key="cat-close-" ++ c.classname, "mouseleave", _ =>
-          if !isSubCat {
-            Msg.SidebarMsg(ResetSidebar)
-          } else {
-            Msg.IgnoreMsg("sidebar-category-close")
-          }
-        ),
-      },
-      list{categoryName(c.name), ...entries},
-    )
-  }
-
-  let classes = Attrs.classList(list{
-    ("sidebar-category", true),
-    (c.classname, true),
-    ("empty", c.count == 0),
-  })
-
-  Html.details(~unique=c.classname, list{classes, openAttr}, list{summary, content})
-}
-
-let viewToggleBtn = (isDetailed: bool): Html.html<msg> => {
-  let event = EventListeners.eventNeither(~key="toggle-sidebar", "click", _ => Msg.SidebarMsg(
-    ToggleSidebarMode,
-  ))
-
-  let description = if isDetailed {
-    "Collapse sidebar"
-  } else {
-    "Expand sidebar"
-  }
-
-  let icon = {
-    let view' = iconName =>
-      Html.span(
-        list{Attrs.class'("icon")},
-        list{Icons.fontAwesome(iconName), Icons.fontAwesome(iconName)},
-      )
-
-    if isDetailed {
-      view'("chevron-left")
-    } else {
-      view'("chevron-right")
-    }
-  }
-
-  let label = Html.span(list{Attrs.class'("label")}, list{Html.text(description)})
-  let alt = if isDetailed {
-    Vdom.noProp
-  } else {
-    Attrs.title(description)
-  }
-  Html.div(list{event, Attrs.class'("toggle-sidebar-btn"), alt}, list{label, icon})
-}
-
-let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
-  Html.div(
-    list{Attrs.class'("state-info-row")},
-    list{
-      Html.p(list{Attrs.class'("key")}, list{Html.text(key)}),
-      Html.p(list{Attrs.class'("sep")}, list{Html.text(":")}),
-      Html.p(list{Attrs.class'("value")}, list{value}),
-    },
-  )
+// --------------------
+// Admin
+// --------------------
 
 let adminDebuggerView = (m: model): Html.html<msg> => {
-  let environmentName = if m.environment === "prodclone" {
-    "clone"
-  } else {
-    m.environment
-  }
+  let stateInfoTohtml = (key: string, value: Html.html<msg>): Html.html<msg> =>
+    Html.div(
+      list{},
+      list{
+        Html.text(key),
+        Html.text(": "),
+        Html.span(list{tw(%twc("max-w-[210px] whitespace-nowrap"))}, list{value}),
+      },
+    )
 
   let pageToString = pg =>
     switch pg {
@@ -998,13 +799,27 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     | SettingsModal(tab) => Printf.sprintf("SettingsModal (tab %s)", Settings.Tab.toText(tab))
     }
 
-  let environment = Html.div(
-    list{Attrs.class'("environment " ++ environmentName)},
-    list{Html.text(environmentName)},
-  )
+  let environment = {
+    let colors = switch m.environment {
+    | "production" => %twc("text-orange bg-black1")
+    | "dev" => %twc("text-blue bg-white1")
+    | _ => %twc("text-magenta bg-white1")
+    }
+
+    // Outer span is the width of the sidebar and the text is centered within in
+    Html.span(
+      list{tw(%twc("w-full left-0 top-3.5 leading-none absolute box-border"))},
+      list{
+        Html.span(
+          list{tw2(colors, %twc("max-w-[3.5rem] px-0.25 h-2.5 text-[0.56rem] rounded"))},
+          list{Html.text(m.environment)},
+        ),
+      },
+    )
+  }
 
   let stateInfo = Html.div(
-    list{Attrs.class'("state-info")},
+    list{},
     list{
       stateInfoTohtml("env", Html.text(m.environment)),
       stateInfoTohtml("page", Html.text(pageToString(m.currentPage))),
@@ -1012,60 +827,57 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     },
   )
 
-  let toggleTimer = Html.div(
-    list{
-      EventListeners.eventNoPropagation(~key="tt", "mouseup", _ => Msg.ToggleEditorSetting(
-        es => {...es, runTimers: !es.runTimers},
-      )),
-      Attrs.class'("checkbox-row"),
-    },
-    list{
-      Html.input'(list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.runTimers)}, list{}),
-      Html.label(list{}, list{Html.text("Run Timers")}),
-    },
+  let input = (
+    checked: bool,
+    fn: AppTypes.EditorSettings.t => AppTypes.EditorSettings.t,
+    label: string,
+    style: string,
+  ) => {
+    let event = EventListeners.eventNoPropagation(
+      ~key=`tt-${label}-${checked ? "checked" : "unchecked"}`,
+      "mouseup",
+      _ => Msg.ToggleEditorSetting(es => fn(es)),
+    )
+
+    Html.div(
+      list{event, tw2(%twc("pt-0.5"), style)},
+      list{
+        Html.input(
+          list{Attrs.type'("checkbox"), Attrs.checked(checked), tw(%twc("cursor-pointer"))},
+          list{},
+        ),
+        Html.label(list{tw(%twc("ml-2"))}, list{Html.text(label)}),
+      },
+    )
+  }
+
+  let toggleTimer = input(
+    m.editorSettings.runTimers,
+    es => {...es, runTimers: !es.runTimers},
+    "Run Timers",
+    "mt-2.5",
   )
 
-  let toggleFluidDebugger = Html.div(
-    list{
-      EventListeners.eventNoPropagation(~key="tt", "mouseup", _ => Msg.ToggleEditorSetting(
-        es => {...es, showFluidDebugger: !es.showFluidDebugger},
-      )),
-      Attrs.class'("checkbox-row"),
-    },
-    list{
-      Html.input'(
-        list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.showFluidDebugger)},
-        list{},
-      ),
-      Html.label(list{}, list{Html.text("Show Fluid Debugger")}),
-    },
+  let toggleFluidDebugger = input(
+    m.editorSettings.showFluidDebugger,
+    es => {...es, showFluidDebugger: !es.showFluidDebugger},
+    "Show Fluid Debugger",
+    "",
   )
 
-  let toggleHandlerASTs = Html.div(
-    list{
-      EventListeners.eventNoPropagation(~key="tgast", "mouseup", _ => Msg.ToggleEditorSetting(
-        es => {...es, showHandlerASTs: !es.showHandlerASTs},
-      )),
-      Attrs.class'("checkbox-row"),
-    },
-    list{
-      Html.input'(
-        list{Attrs.type'("checkbox"), Attrs.checked(m.editorSettings.showHandlerASTs)},
-        list{},
-      ),
-      Html.label(list{}, list{Html.text("Show Handler ASTs")}),
-    },
+  let toggleHandlerASTs = input(
+    m.editorSettings.showHandlerASTs,
+    es => {...es, showHandlerASTs: !es.showHandlerASTs},
+    "Show Handler ASTs",
+    "mb-2.5",
   )
 
-  let debugger = Html.a(
-    list{Attrs.href(ViewScaffold.debuggerLinkLoc(m)), Attrs.class'("state-info-row debugger")},
+  let debugger = Html.div(
+    list{tw(%twc("mb-1.5"))},
     list{
-      Html.text(
-        if m.teaDebuggerEnabled {
-          "Disable Debugger"
-        } else {
-          "Enable Debugger"
-        },
+      Html.a(
+        list{Attrs.href(ViewScaffold.debuggerLinkLoc(m)), tw(%twc("text-grey8 hover:text-white3"))},
+        list{Html.text(m.teaDebuggerEnabled ? "Disable Debugger" : "Enable Debugger")},
       ),
     },
   )
@@ -1073,61 +885,27 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
   let saveTestButton = Html.a(
     list{
       EventListeners.eventNoPropagation(~key="stb", "mouseup", _ => Msg.SaveTestButton),
-      Attrs.class'("state-info-row save-state"),
+      tw(
+        %twc(
+          "border border-solid rounded-sm p-1 my-5 h-2.5 w-fit text-xxs text-grey8 cursor-pointer hover:text-black2 hover:bg-grey8 text-left"
+        ),
+      ),
     },
     list{Html.text("SAVE STATE FOR INTEGRATION TEST")},
   )
 
-  let hoverView = Html.div(
-    list{Attrs.class'("category-content")},
-    Belt.List.concatMany([
-      list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
-      list{saveTestButton},
-    ]),
-  )
+  let content = Belt.List.concatMany([
+    list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger, saveTestButton},
+  ])
 
-  let icon = Html.div(
-    list{
-      Attrs.class'("category-icon"),
-      Attrs.title("Admin"),
-      Vdom.attribute("", "role", "img"),
-      Vdom.attribute("", "alt", "Admin"),
-    },
-    list{Icons.fontAwesome("cog")},
-  )
+  let icon = Html.div(list{tw(%twc("relative"))}, list{fontAwesome("cog"), environment})
 
-  let sectionIcon = Html.div(list{Attrs.class'("category-summary")}, list{icon, environment})
-
-  Html.div(list{Attrs.class'("sidebar-category admin")}, list{sectionIcon, hoverView})
+  viewToplevelCategory(m, "Admin", "", None, icon, None, false, content)
 }
 
-let update = (msg: Sidebar.msg): modification =>
-  switch msg {
-  | ToggleSidebarMode =>
-    ReplaceAllModificationsWithThisOne(
-      m => {
-        let mode = switch m.sidebarState.mode {
-        | DetailedMode => Sidebar.Mode.AbridgedMode
-        | AbridgedMode => DetailedMode
-        }
-
-        ({...m, sidebarState: {...m.sidebarState, mode: mode}}, Cmd.none)
-      },
-    )
-  | ResetSidebar => ReplaceAllModificationsWithThisOne(Viewport.enablePan(true))
-  | MarkCategoryOpen(shouldOpen, key) =>
-    ReplaceAllModificationsWithThisOne(
-      m => {
-        let openedCategories = if shouldOpen {
-          Set.add(~value=key, m.sidebarState.openedCategories)
-        } else {
-          Set.remove(~value=key, m.sidebarState.openedCategories)
-        }
-
-        ({...m, sidebarState: {...m.sidebarState, openedCategories: openedCategories}}, Cmd.none)
-      },
-    )
-  }
+// --------------------
+// Standard view apparatus
+// --------------------
 
 let viewSidebar_ = (m: model): Html.html<msg> => {
   let cats = Belt.List.concat(
@@ -1135,48 +913,42 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
     list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},
   )
 
-  let isDetailed = switch m.sidebarState.mode {
-  | DetailedMode => true
-  | _ => false
-  }
-
-  let showAdminDebugger = if (
-    !isDetailed && m.settings.contributingSettings.general.showSidebarDebuggerPanel
-  ) {
+  let showAdminDebugger = if m.settings.contributingSettings.general.showSidebarDebuggerPanel {
     adminDebuggerView(m)
   } else {
     Vdom.noNode
   }
 
-  let secretsView = viewSecretKeys(m)
-  let content = {
-    let categories = Belt.List.concat(
-      List.map(~f=viewCategory(m), cats),
-      list{secretsView, viewDeployStats(m), showAdminDebugger},
-    )
-
-    Html.div(
-      list{
-        Attrs.classList(list{
-          ("viewing-table", true),
-          ("detailed", isDetailed),
-          ("abridged", !isDetailed),
-        }),
-      },
-      list{viewToggleBtn(isDetailed), ...categories},
-    )
-  }
+  let categories = Belt.List.concat(
+    cats->List.map(~f=c =>
+      viewToplevelCategory(
+        m,
+        c.name,
+        c.emptyName,
+        c.plusButton,
+        c.icon,
+        c.iconAction,
+        c.entries->List.map(~f=count)->List.sum(module(Int)) == 0,
+        c.entries->List.map(~f=viewItem(m)),
+      )
+    ),
+    list{viewSecretKeys(m), viewDeployStats(m), showAdminDebugger},
+  )
 
   Html.div(
     list{
-      Attrs.id("sidebar-left"),
+      Attrs.id("sidebar-left"), // keep for z-index
+      tw(
+        %twc(
+          "h-full top-0 left-0 p-0 fixed box-border transition-[width] duration-200 bg-sidebar-bg pt-8 w-14"
+        ),
+      ),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),
-      EventListeners.eventNoPropagation(~key="click-sidebar", "click", _ => Msg.ToolTipMsg(Close)),
       EventListeners.eventNoPropagation(~key="ept", "mouseover", _ => Msg.EnablePanning(false)),
       EventListeners.eventNoPropagation(~key="epf", "mouseout", _ => Msg.EnablePanning(true)),
     },
-    list{content},
+    categories,
   )
 }
 
@@ -1187,7 +959,6 @@ let rtCacheKey = (m: model) =>
     m.userFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.name),
     m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
     m.f404s,
-    m.sidebarState,
     m.deletedHandlers |> Map.mapValues(~f=(h: PT.Handler.t) => TL.sortkey(TLHandler(h))),
     m.deletedDBs |> Map.mapValues(~f=(db: PT.DB.t) => (db.pos, TL.sortkey(TLDB(db)))),
     m.deletedUserFunctions |> Map.mapValues(~f=(uf: PT.UserFunction.t) => uf.name),
@@ -1196,9 +967,7 @@ let rtCacheKey = (m: model) =>
     m.unlockedDBs,
     m.usedDBs,
     m.usedFns,
-    // CLEANUP do these need to be here twice
-    m.userTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
-    m.deleteduserTypes |> Map.mapValues(~f=(ut: PT.UserType.t) => ut.name),
+    m.usedTipes,
     CursorState.tlidOf(m.cursorState),
     m.environment,
     m.editorSettings,

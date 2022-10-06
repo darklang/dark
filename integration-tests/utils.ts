@@ -14,6 +14,7 @@ export const Locators = {
 //********************************
 export async function gotoAST(page: Page): Promise<void> {
   await page.click("#active-editor > span");
+  await expect(page.locator("#active-editor")).toBeFocused();
 }
 
 export function bwdUrl(testInfo: TestInfo, path: string) {
@@ -56,10 +57,16 @@ export async function expectPlaceholderText(page: Page, text: string) {
 //********************************
 // Create handlers
 //********************************
-export async function createEmptyHTTPHandler(page: Page) {
-  await page.click(".sidebar-category.http i.fa-plus-circle");
+
+async function createFromSidebar(page: Page, title: string) {
+  // Based on the html structure - the plus is the sibling of the handler
+  await page.click(`[title='${title}'] + div`);
+  await page.hover("text='Docs'", { force: true }); // move mouse off the sidebar
   await waitForPageToStopMoving(page);
-  await waitForEmptyEntryBox(page);
+}
+
+export async function createEmptyHTTPHandler(page: Page) {
+  await createFromSidebar(page, "HTTP");
 }
 
 export async function createHTTPHandler(
@@ -69,6 +76,7 @@ export async function createHTTPHandler(
 ) {
   await createEmptyHTTPHandler(page);
   await page.type(Locators.entryBox, method);
+  await page.waitForSelector("#entry-box >> text=''");
   await expectExactText(page, Locators.acHighlightedValue, method);
   await page.keyboard.press("Enter");
   await waitForEmptyEntryBox(page);
@@ -79,15 +87,21 @@ export async function createHTTPHandler(
 }
 
 export async function createWorkerHandler(page) {
-  await page.click(".sidebar-category.worker i.fa-plus-circle");
-  await waitForPageToStopMoving(page);
+  await createFromSidebar(page, "Worker");
   await waitForEmptyEntryBox(page);
 }
 
 export async function createRepl(page) {
-  await page.click(".sidebar-category.repl i.fa-plus-circle");
-  await waitForPageToStopMoving(page);
+  await createFromSidebar(page, "REPL");
   await waitForEmptyFluidEntryBox(page);
+}
+
+export async function createSecret(page) {
+  await createFromSidebar(page, "Secret Keys");
+}
+
+export async function createFunction(page) {
+  await createFromSidebar(page, "Functions");
 }
 
 //********************************
@@ -175,10 +189,16 @@ export async function getElementSelectionEnd(
 // Entry-box sometimes carries state over briefly, so wait til it's clear
 export async function waitForEmptyEntryBox(page: Page): Promise<void> {
   await page.waitForSelector("#entry-box >> text=''");
+  await expect(page.locator("#entry-box")).toBeFocused();
+}
+
+export async function waitForFluidCursor(page: Page): Promise<void> {
+  await expect(page.locator("#active-editor")).toBeFocused();
 }
 
 export async function waitForEmptyFluidEntryBox(page: Page): Promise<void> {
   await page.waitForSelector("#active-editor >> text=''");
+  await waitForFluidCursor(page);
 }
 
 export async function waitForPageToStopMoving(page: Page): Promise<void> {
@@ -186,7 +206,17 @@ export async function waitForPageToStopMoving(page: Page): Promise<void> {
   await page.waitForTimeout(500);
 }
 
-export async function awaitAnalysis(page: Page, lastTimestamp: number) {
+// We don't want to slow every test by waiting for analysis to load, which can be
+// slow. At the same time, if we don't wait, we get flaky tests. An analysis token
+// solves that: you can't call awaitAnalysis without one, and you can only get one by
+// calling awaitAnalysisLoaded (which is why the  type isn't exported)
+class AnalysisLoadedToken {}
+
+export async function awaitAnalysis(
+  page: Page,
+  lastTimestamp: number,
+  _: AnalysisLoadedToken,
+): Promise<void> {
   let analysisFunction = (lastTimestamp: number) => {
     let newTimestamp = window.Dark.analysis.lastRun;
     if (newTimestamp > lastTimestamp) {
@@ -201,6 +231,7 @@ export async function awaitAnalysis(page: Page, lastTimestamp: number) {
 
 export async function awaitAnalysisLoaded(page: Page) {
   await page.waitForFunction(() => window.Dark.analysis.initialized);
+  return new AnalysisLoadedToken();
 }
 
 //********************************

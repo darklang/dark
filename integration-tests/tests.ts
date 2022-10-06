@@ -11,6 +11,7 @@ import {
   canvasUrl,
   awaitAnalysisLoaded,
   awaitAnalysis,
+  waitForFluidCursor,
   bwdUrl,
   caretPos,
   createEmptyHTTPHandler,
@@ -29,6 +30,8 @@ import {
   pressShortcut,
   selectAll,
   waitForEmptyEntryBox,
+  createSecret,
+  waitForEmptyFluidEntryBox,
 } from "./utils";
 
 declare global {
@@ -65,9 +68,6 @@ async function prepSettings(page: Page, testName: string) {
   // Turn on fluid debugger
   let editorState = {
     editorSettings: { showFluidDebugger: true },
-    sidebarState: {
-      mode: ["AbridgedMode"],
-    },
     firstVisitToThisCanvas: false,
   };
 
@@ -165,7 +165,6 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click("text=Login");
     await page.waitForSelector("#finishIntegrationTest");
     await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
-    await awaitAnalysisLoaded(page);
     await page.pause();
   });
 
@@ -226,6 +225,7 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("field_access_closes", async ({ page }, testInfo) => {
+    let token = await awaitAnalysisLoaded(page);
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
 
@@ -236,7 +236,7 @@ test.describe.parallel("Integration Tests", async () => {
     // There's a race condition here, sometimes the client doesn't manage to load the
     // trace for quite some time, and the autocomplete box ends up in a weird
     // condition
-    await awaitAnalysis(page, start);
+    await awaitAnalysis(page, start, token);
     await expectExactText(
       page,
       Locators.fluidACHighlightedValue,
@@ -289,10 +289,12 @@ test.describe.parallel("Integration Tests", async () => {
     // verb
     await page.type(Locators.entryBox, "g");
     await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
 
     // route
     await page.type(Locators.entryBox, "/hello");
     await page.keyboard.press("Enter");
+    await waitForEmptyFluidEntryBox(page);
 
     // string
     await page.type("#active-editor", '"Hello world!"');
@@ -427,22 +429,26 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("execute_function_works", async ({ page }) => {
+    let token = await awaitAnalysisLoaded(page);
     await createRepl(page);
-    await page.waitForSelector("#active-editor");
     await page.type("#active-editor", "Uuid::gen");
     await page.keyboard.press("Enter");
 
     const t1 = Date.now();
     await page.click(".execution-button");
-    await awaitAnalysis(page, t1);
+    await awaitAnalysis(page, t1, token);
     await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
       "Function is executing",
+    );
+    // Test can be flaky, this helps a lot
+    await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
+      "Click Play to execute function",
     );
     let v1 = await page.textContent(".selected .live-value.loaded");
 
     const t2 = Date.now();
     await page.click(".fa-redo");
-    await awaitAnalysis(page, t2);
+    await awaitAnalysis(page, t2, token);
 
     await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
       v1,
@@ -459,16 +465,20 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("correct_field_livevalue", async ({ page }) => {
+    let token = await awaitAnalysisLoaded(page);
+    const before = Date.now();
     await page.click(".fluid-editor"); // this click required to activate the editor
+    await awaitAnalysis(page, before, token);
     await page.click(".fluid-field-name >> text='gth'");
 
     await expectExactText(page, ".selected .live-value.loaded", "5");
   });
 
   test("int_add_with_float_error_includes_fnname", async ({ page }) => {
+    let token = await awaitAnalysisLoaded(page);
     const timestamp = Date.now();
     await page.click(".tl-123 .fluid-category-function"); // required to see the return value (navigate is insufficient)
-    await awaitAnalysis(page, timestamp);
+    await awaitAnalysis(page, timestamp, token);
 
     await page.waitForSelector(".return-value");
 
@@ -511,15 +521,10 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("select_route", async ({ page }) => {
-    const categoryHeader = ".sidebar-category.http .category-summary";
-    const httpVerbLink =
-      ".sidebar-category.http .category-content a.toplevel-link";
+    await page.hover("[title=HTTP]");
+    await page.locator('a:has-text("/helloGET")').first().click();
+
     const toplevelElement = ".node .toplevel";
-
-    await page.click(categoryHeader);
-    await page.waitForSelector(httpVerbLink);
-
-    await page.click(httpVerbLink);
     await page.waitForSelector(toplevelElement);
 
     await expect(page.locator(toplevelElement)).toHaveClass(/selected/);
@@ -529,9 +534,12 @@ test.describe.parallel("Integration Tests", async () => {
   // See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
 
   test("function_analysis_works", async ({ page }, testInfo) => {
+    let token = await awaitAnalysisLoaded(page);
+    const before = Date.now();
     await gotoHash(page, testInfo, `fn=1039370895`);
     await page.waitForSelector(".user-fn-toplevel");
     await page.click(".user-fn-toplevel #active-editor .fluid-binop");
+    await awaitAnalysis(page, before, token);
     await expectExactText(page, ".selected .live-value.loaded", "10");
   });
 
@@ -539,9 +547,10 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, testInfo, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.click(".fluid-entry");
+    let token = await awaitAnalysisLoaded(page);
     const timestamp = Date.now();
     await page.click(".fluid-entry.id-675551618");
-    await awaitAnalysis(page, timestamp);
+    await awaitAnalysis(page, timestamp, token);
     await page.click(".jump-src");
   });
 
@@ -726,6 +735,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".tl-428972234");
     await page.waitForSelector(".selected #active-editor");
     await page.click(".fluid-string", caretPos(10));
+    await waitForFluidCursor(page);
     await page.keyboard.press("Control+ArrowLeft");
   });
 
@@ -734,6 +744,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".tl-428972234");
     await page.waitForSelector(".selected #active-editor");
     await page.click(".fluid-string", caretPos(10));
+    await waitForFluidCursor(page);
     await page.keyboard.press("Control+ArrowRight");
   });
 
@@ -742,19 +753,26 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".tl-281413634");
     await page.waitForSelector(".selected #active-editor");
     await page.click(".fluid-category-match-pattern.id-63381027", caretPos(0));
+    await waitForFluidCursor(page);
     await page.keyboard.press("Control+ArrowLeft");
   });
 
   test("varnames_are_incomplete", async ({ page }) => {
+    let token = await awaitAnalysisLoaded(page);
     await page.click(".toplevel");
     await page.click(".spec-header > .toplevel-name");
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, ":a");
+    let before = Date.now();
     await expectExactText(page, Locators.acHighlightedValue, "/:a");
     await page.keyboard.press("Tab");
+    await waitForFluidCursor(page);
     await page.keyboard.press("a");
     await page.keyboard.press("Enter");
+    await awaitAnalysis(page, before, token);
+
+    await expect(page.locator(".selected .live-value.loaded")).not.toBe("");
     await expectContainsText(page, ".live-value.loaded", "<Incomplete>");
   });
 
@@ -773,12 +791,9 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("sidebar_opens_function", async ({ page }) => {
-    await page.waitForSelector(".sidebar-category.fns .category-summary");
-    await page.click(".sidebar-category.fns .category-summary");
-    await page.waitForSelector(
-      ".sidebar-category.fns a[href='#fn=1352039682']",
-    );
-    await page.click(".sidebar-category.fns a[href='#fn=1352039682']");
+    await page.hover("[title=Functions]");
+    await page.waitForSelector("a[href='#fn=1352039682']");
+    await page.click("a[href='#fn=1352039682']");
     expect(page.url()).toMatch(/.+#fn=1352039682$/);
   });
 
@@ -789,7 +804,8 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".id-1276585567");
     // clicking twice in hopes of making the test more stable
     await page.click(".id-1276585567");
-    await awaitAnalysis(page, timestamp);
+    let token = await awaitAnalysisLoaded(page);
+    await awaitAnalysis(page, timestamp, token);
 
     await page.waitForSelector(".return-value .warning-message");
     let expected =
@@ -828,11 +844,13 @@ test.describe.parallel("Integration Tests", async () => {
 
     // click into the body, then wait for the button to appear
     await page.click(".fluid-let-var-name >> text='scope'");
-    await awaitAnalysis(page, before); // wait for the first analysis to get the trigger visible
+
+    let token = await awaitAnalysisLoaded(page);
+    await awaitAnalysis(page, before, token); // wait for the first analysis to get the trigger visible
 
     let beforeClick = Date.now();
     await page.click("div.handler-trigger");
-    await awaitAnalysis(page, beforeClick);
+    await awaitAnalysis(page, beforeClick, token);
 
     let expected =
       '"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"';
@@ -864,7 +882,8 @@ test.describe.parallel("Integration Tests", async () => {
     let before = Date.now();
     await page.click(".toplevel.tl-91390945");
     await page.waitForSelector(".tl-91390945");
-    await awaitAnalysis(page, before); // CLEANUP shouldn't be necessary, race condition in 5% of cases
+    let token = await awaitAnalysisLoaded(page);
+    await awaitAnalysis(page, before, token); // CLEANUP shouldn't be necessary, race condition in 5% of cases
 
     let expected = "Click Play to execute function";
     await page.click(".id-753586717");
@@ -904,12 +923,13 @@ test.describe.parallel("Integration Tests", async () => {
     const url = `/${attempt}`;
     await createHTTPHandler(page, "GET", url);
     await gotoAST(page);
+    let token = await awaitAnalysisLoaded(page);
 
     // this await confirms that test_admin/stdlib/Test::one_v1 is in fact
     // in the autocomplete
     let before = Date.now();
     await page.type("#active-editor", "test_admin");
-    await awaitAnalysis(page, before);
+    await awaitAnalysis(page, before, token);
     await expectExactText(
       page,
       ".autocomplete-item.fluid-selected.valid",
@@ -966,34 +986,12 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("abridged_sidebar_content_visible_on_hover", async ({ page }) => {
-    // uncollapse sidebar first (collapsed for easier testing via localstorage)
-    await page.click(".toggle-sidebar-btn");
-    await page.waitForSelector("text='Collapse sidebar'");
-    // collapse sidebar to abridged mode
-    await page.click(".toggle-sidebar-btn");
-    await page.waitForSelector(".viewing-table.abridged");
-
-    const httpCatSelector = ".sidebar-category.http";
-
     // hovering over a category makes its contents visible
-    let locator = page.locator(httpCatSelector + " .category-content");
+    let locator = page.locator("text=No HTTP Handlers");
     await expect(locator).not.toBeVisible();
 
-    await page.hover(httpCatSelector);
+    await page.hover("[title=HTTP]");
     await expect(locator).toBeVisible();
-  });
-
-  test("abridged_sidebar_category_icon_click_disabled", async ({ page }) => {
-    const httpCatSelector = ".sidebar-category.http";
-    const dbCatSelector = ".sidebar-category.dbs";
-
-    // clicking on a category icon does not keep it open if you mouse elsewhere
-    await page.click(httpCatSelector + " .category-icon");
-    await page.click(dbCatSelector + " .category-icon");
-
-    await expect(
-      page.locator(httpCatSelector + " .category-content"),
-    ).not.toBeVisible();
   });
 
   test("function_docstrings_are_valid", async ({}) => {
@@ -1026,9 +1024,10 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("unexe_code_unfades_on_focus", async ({ page }) => {
+    let token = await awaitAnalysisLoaded(page);
     const timestamp = Date.now();
     await page.click(".fluid-entry");
-    await awaitAnalysis(page, timestamp);
+    await awaitAnalysis(page, timestamp, token);
     // move caret into a single line
     await page.click(".id-1459002816");
     await page.waitForSelector(
@@ -1079,8 +1078,6 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("create_from_404", async ({ page }) => {
-    const f0fCategory = ".sidebar-category.fof";
-
     await page.evaluate(() => {
       const data = [
         "HTTP",
@@ -1093,17 +1090,16 @@ test.describe.parallel("Integration Tests", async () => {
       document.dispatchEvent(event);
     });
 
-    await expect(page.locator(f0fCategory)).not.toHaveClass(/empty/, {
-      timeout: 5000,
-    });
-    await page.hover(f0fCategory);
-    await page.click(".fof > .category-content > .simple-item > .add-button");
+    await page.hover("[title='404s']");
+    await expect(page.locator("text='/nonexistant'")).toBeVisible();
+    await page.click("text='/nonexistant'");
 
     await page.waitForSelector(".toplevel .http-get");
   });
 
   test("unfade_command_palette", async ({ page }) => {
-    await page.dblclick(".fluid-let-keyword");
+    // flaky - if the let isn't selected by the dblclick, the test fails
+    await page.dblclick(".fluid-let-keyword", caretPos(3));
     await page.keyboard.press("Control+\\");
     await page.waitForSelector("#cmd-filter");
 
@@ -1118,9 +1114,10 @@ test.describe.parallel("Integration Tests", async () => {
     const errorRail = ".fluid-error-rail";
     const returnValue = ".return-value";
 
+    let token = await awaitAnalysisLoaded(page);
     const t0 = Date.now();
     await page.click(".handler-trigger");
-    await awaitAnalysis(page, t0);
+    await awaitAnalysis(page, t0, token);
     await expect(page.locator(errorRail)).toHaveClass(/show/);
     await expectContainsText(page, returnValue, "<Incomplete>");
     await expect(page.locator(justExpr)).toHaveClass(/fluid-not-executed/);
@@ -1136,7 +1133,7 @@ test.describe.parallel("Integration Tests", async () => {
     // analysis is reruns
     const t1 = Date.now();
     await page.keyboard.press("Enter");
-    await awaitAnalysis(page, t1);
+    await awaitAnalysis(page, t1, token);
 
     // assert values have changed
     await expect(page.locator(errorRail)).not.toHaveClass(/show/);
@@ -1146,10 +1143,11 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("redo_analysis_on_commit_ff", async ({ page }) => {
+    let token = await awaitAnalysisLoaded(page);
     const returnValue = ".return-value";
     const t0 = Date.now();
     await page.click(".handler-trigger");
-    await awaitAnalysis(page, t0);
+    await awaitAnalysis(page, t0, token);
     await expectContainsText(page, returnValue, "farewell Vanessa Ives");
 
     // commits feature flag
@@ -1163,7 +1161,7 @@ test.describe.parallel("Integration Tests", async () => {
     // analysis is reruns
     const t1 = Date.now();
     await page.keyboard.press("Enter");
-    await awaitAnalysis(page, t1);
+    await awaitAnalysis(page, t1, token);
 
     await expectContainsText(page, returnValue, "farewell Dorian Gray");
   });
@@ -1205,16 +1203,8 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("focus_on_secret_field_on_insert_modal_open", async ({ page }) => {
-    await page.waitForSelector(".sidebar-category.secrets .create-tl-icon");
-
-    await createRepl(page);
-    await page.type("#active-editor", '"Hello world!"');
-
-    await page.click(".sidebar-category.secrets .create-tl-icon");
-
-    const nameInput = "#new-secret-name-input";
-
-    await expect(page.locator(nameInput)).toBeFocused();
+    await createSecret(page);
+    await expect(page.locator("#new-secret-name-input")).toBeFocused();
 
     await page.click(".modal.insert-secret .close-btn");
   });
@@ -1225,6 +1215,7 @@ test.describe.parallel("Integration Tests", async () => {
     // Create an HTTP handler that's just `Date::now`
     const url = "/date-now";
     await createHTTPHandler(page, "GET", url);
+    let token = await awaitAnalysisLoaded(page);
 
     await page.type("#active-editor", "Date::no");
     await page.keyboard.press("Enter");
@@ -1232,7 +1223,7 @@ test.describe.parallel("Integration Tests", async () => {
     // execute the fn in the editor ("analysis"), get the result
     const t1 = Date.now();
     await page.click(".execution-button");
-    await awaitAnalysis(page, t1);
+    await awaitAnalysis(page, t1, token);
 
     await expect(page.locator(".selected .live-value.loaded")).toContainText(
       "Date",

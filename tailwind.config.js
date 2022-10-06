@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  important: true, // tailwind should always win
   content: ["./client/**/*.res"],
   theme: {
     // override builtin tailwind colors
@@ -33,6 +34,24 @@ module.exports = {
       purple: "#b18bba",
       pink: "#d5839d",
       magenta: "magenta",
+
+      "sidebar-bg": "var(--sidebarBgColor)",
+      "sidebar-hover": "var(--sidebarHoverColor)",
+      "sidebar-primary": "var(--sidebarPrimaryColor)",
+      "sidebar-secondary": "var(--sidebarSecondaryColor)",
+      "http-get": "var(--httpGetColor)",
+      "http-post": "var(--httpPostColor)",
+      "http-put": "var(--httpPutColor)",
+      "http-delete": "var(--httpDeleteColor)",
+      "http-patch": "var(--httpPatchColor)",
+      "http-options": "var(--httpOptionsColor)",
+      "http-head": "var(--httpHeadColor)",
+      cron: "var(--cronColor)",
+      queue: "var(--queueColor)",
+      repl: "var(--replColor)",
+      "default-toplevel": "var(--defaultToplevelColor)",
+      "user-functions": "var(--userFunctionsColor)",
+      db: "var(--dbColor)",
     },
     extend: {
       borderWidth: {
@@ -40,13 +59,22 @@ module.exports = {
       },
       fontSize: {
         xxs: "0.625rem",
+        xxxs: "0.5rem",
       },
       margin: {
+        0.25: "0.0625rem",
         1.25: "0.3125rem",
       },
       padding: {
+        0.25: "0.0625rem",
         1.25: "0.3125rem",
       },
+    },
+    fontFamily: {
+      body: ['"Fira Code"', "sans-serif"],
+      heading: ['"Fira Code"', "sans-serif"],
+      accents: ['"Fira Code"', "sans-serif"],
+      code: ['"Fira Code"', "sans-serif"],
     },
   },
   corePlugins: {
@@ -55,5 +83,13 @@ module.exports = {
     // the other reset css used, so disable it.
     preflight: false,
   },
-  plugins: [],
+  plugins: [
+    require("tailwind-scrollbar")({ nocompatible: true }),
+    require("tailwindcss-labeled-groups")([
+      // This allows us have overlapping and nested groups. Each time you need a
+      // group, create a new one with a contextual name
+      "sidebar-category",
+      "sidebar-addbutton",
+    ]),
+  ],
 };
