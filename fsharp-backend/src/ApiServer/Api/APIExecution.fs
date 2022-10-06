@@ -104,9 +104,7 @@ module HandlerV1 =
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       let inputVars =
-        p.input
-        |> List.map (fun (name, var) -> (name, CRT.Dval.toRT var))
-        |> Map
+        p.input |> List.map (fun (name, var) -> (name, CRT.Dval.toRT var)) |> Map
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]

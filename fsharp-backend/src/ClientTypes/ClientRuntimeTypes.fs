@@ -1,5 +1,8 @@
 /// Runtime Types used for client-server communication so we may update backend
 /// types without affecting APIs.
+///
+/// These should all directly match `RuntimeTypes.res` in `client`.
+/// See `RuntimeTypes.fs` for documentation of these types.
 module ClientTypes.Runtime
 
 open Prelude

@@ -64,8 +64,7 @@ module DBStatsV1 =
         |> List.map (fun (k, (s : Stats.DBStat)) ->
           (string k),
           { count = s.count
-            example =
-              Option.map (fun (dv, s) -> (CRT.Dval.fromRT dv, s)) s.example })
+            example = Option.map (fun (dv, s) -> (CRT.Dval.fromRT dv, s)) s.example })
         |> Map
 
       return result
