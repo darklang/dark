@@ -1505,10 +1505,10 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     p2: option<(string, string, E.t, int)>,
   ): compareParamsResult =>
     switch (p1, p2) {
-    | (Some(name, tipe, _, index), Some(name', tipe', _, index')) =>
-      if name == name' && tipe == tipe' {
+    | (Some(name, typ, _, index), Some(name', typ', _, index')) =>
+      if name == name' && typ == typ' {
         CPAligned
-      } else if tipe == tipe' && index == index' {
+      } else if typ == typ' && index == index' {
         CPTypeAndPositionMatched
       } else {
         CPNothingMatched
@@ -1592,9 +1592,9 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
           | (Some(index), _) | (None, Some(index)) =>
             let np = List.getAt(~index, newParams)
             switch (np, p) {
-            | (Some(Some(name, tipe, _, index)), Some(_, _, expr, _)) =>
+            | (Some(Some(name, typ, _, index)), Some(_, _, expr, _)) =>
               // Assign new param position index with old param info
-              Left(Some(name, tipe, expr, index))
+              Left(Some(name, typ, expr, index))
             | _ => Right(p)
             }
           | (None, None) => Right(p)

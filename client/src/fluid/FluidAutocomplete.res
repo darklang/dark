@@ -122,12 +122,12 @@ let asTypeStrings = (item: item): (list<string>, string) =>
       (list{}, "unknown")
     }
   | FACLiteral(lit) =>
-    let tipe = switch lit {
+    let typ = switch lit {
     | LNull => "null"
     | LBool(_) => "bool"
     }
 
-    (list{}, tipe ++ " literal")
+    (list{}, typ ++ " literal")
   | FACMatchPattern(_, FMPABool(_)) => (list{}, "boolean literal")
   | FACKeyword(_) => (list{}, "keyword")
   | FACMatchPattern(_, FMPANull) => (list{}, "null")
@@ -277,7 +277,7 @@ let typeCheck = (
   item: item,
 ): data => {
   let valid: data = {item: item, validity: FACItemValid}
-  let invalidFirstArg = tipe => {FT.AutoComplete.item: item, validity: FACItemInvalidPipedArg(tipe)}
+  let invalidFirstArg = typ => {FT.AutoComplete.item: item, validity: FACItemInvalidPipedArg(typ)}
   let invalidReturnType = {
     FT.AutoComplete.item: item,
     validity: FACItemInvalidReturnType(expectedReturnType),
@@ -688,7 +688,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
   let _validity = validity
   switch validity {
   | FACItemValid => Vdom.noNode
-  | FACItemInvalidPipedArg(tipe) =>
+  | FACItemInvalidPipedArg(typ) =>
     let acFunction = asName(item)
     let acFirstArgType = asTypeStrings(item) |> Tuple2.first |> List.head
     let typeInfo = switch acFirstArgType {
@@ -705,7 +705,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
       list{
         Html.span(list{Attrs.class'("err")}, list{Html.text("Type error: ")}),
         Html.text("A value of type "),
-        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.tipe2str(tipe))}),
+        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.tipe2str(typ))}),
         Html.text(" is being piped into this function call, but "),
         Html.span(list{Attrs.class'("fn")}, list{Html.text(acFunction)}),
         ...typeInfo,

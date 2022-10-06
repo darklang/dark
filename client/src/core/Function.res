@@ -57,7 +57,7 @@ let fromUserFn = (f: ProgramTypes.UserFunction.t): option<t> => {
 let fromPkgFn = (pkgFn: ProgramTypes.Package.Fn.t): t => {
   let paramOfPkgFnParam = (pkgFnParam: ProgramTypes.Package.Parameter.t): BuiltInFn.Param.t => {
     name: pkgFnParam.name,
-    typ: pkgFnParam.tipe,
+    typ: pkgFnParam.typ,
     description: pkgFnParam.description,
     args: list{},
   }

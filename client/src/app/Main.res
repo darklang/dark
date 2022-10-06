@@ -1261,11 +1261,11 @@ let update_ = (msg: msg, m: model): modification => {
       Refactor.addFunctionParameter(m, uf, nextId)
     | None => NoChange
     }
-  | DeleteUserTypeField(tipetlid, field) =>
-    switch TL.get(m, tipetlid) |> Option.andThen(~f=TL.asUserType) {
-    | Some(tipe) =>
-      let replacement = UserTypes.removeField(tipe, field)
-      AddOps(list{SetType(replacement)}, FocusNext(tipe.tlid, None))
+  | DeleteUserTypeField(typetlid, field) =>
+    switch TL.get(m, typetlid) |> Option.andThen(~f=TL.asUserType) {
+    | Some(typ) =>
+      let replacement = UserTypes.removeField(typ, field)
+      AddOps(list{SetType(replacement)}, FocusNext(typ.tlid, None))
     | None => NoChange
     }
   | ToplevelDelete(tlid) =>
@@ -1868,10 +1868,10 @@ let update_ = (msg: msg, m: model): modification => {
     Refactor.createNewDB(m, None, center)
   | CreateFunction => Refactor.createNewFunction(m, None)
   | CreateType =>
-    let tipe = Refactor.generateEmptyUserType()
+    let typ = Refactor.generateEmptyUserType()
     Many(list{
-      AddOps(list{SetType(tipe)}, FocusNothing),
-      MakeCmd(Url.navigateTo(FocusedType(tipe.tlid))),
+      AddOps(list{SetType(typ)}, FocusNothing),
+      MakeCmd(Url.navigateTo(FocusedType(typ.tlid))),
     })
   | EnablePanning(pan) => ReplaceAllModificationsWithThisOne(Viewport.enablePan(pan))
   | ClipboardCopyEvent(e) =>

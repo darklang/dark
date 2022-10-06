@@ -585,9 +585,9 @@ let submitACItem = (
           wrapNew(list{SetFunction(new_), ...changedNames}, newPD)
         }
 
-      | (PFnReturnType(_), ACReturnType(tipe), _) => replace(PFnReturnType(F(id, tipe)))
+      | (PFnReturnType(_), ACReturnType(typ), _) => replace(PFnReturnType(F(id, typ)))
       | (PParamName(_), ACParamName(value), _) => replace(PParamName(F(id, value)))
-      | (PParamType(_), ACParamType(tipe), _) => replace(PParamType(F(id, tipe)))
+      | (PParamType(_), ACParamType(typ), _) => replace(PParamType(F(id, typ)))
       | (PTypeName(_), ACTypeName(value), TLType(old)) =>
         if List.member(~value, UserTypes.allNames(m.userTypes)) {
           Model.updateErrorMod(Error.set("There is already a Type named " ++ value))
@@ -598,7 +598,7 @@ let submitACItem = (
           wrapNew(list{SetType(new_), ...changedNames}, newPD)
         }
       | (PTypeFieldName(_), ACTypeFieldName(value), _) => replace(PTypeFieldName(F(id, value)))
-      | (PTypeFieldType(_), ACTypeFieldType(tipe), _) => replace(PTypeFieldType(F(id, tipe)))
+      | (PTypeFieldType(_), ACTypeFieldType(typ), _) => replace(PTypeFieldType(F(id, typ)))
       | (pd, item, _) =>
         ReplaceAllModificationsWithThisOne(
           m => {

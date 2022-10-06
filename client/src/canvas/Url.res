@@ -85,13 +85,13 @@ let parseLocation = (loc: Web.Location.location): option<page> => {
   let handler = () =>
     getTLID("handler")->Option.map(~f=tlid => Page.FocusedHandler(tlid, trace, true))
   let db = () => getTLID("db")->Option.map(~f=tlid => Page.FocusedDB(tlid, true))
-  let tipe = () => getTLID("type")->Option.map(~f=tlid => Page.FocusedType(tlid))
+  let typ = () => getTLID("type")->Option.map(~f=tlid => Page.FocusedType(tlid))
 
   fn()
   |> Option.orElse(pmfn())
   |> Option.orElse(handler())
   |> Option.orElse(db())
-  |> Option.orElse(tipe())
+  |> Option.orElse(typ())
   |> Option.orElse(settingModal())
   |> Option.orElse(architecture())
 }

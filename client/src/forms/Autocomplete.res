@@ -84,8 +84,8 @@ let asName = (aci: A.item): string =>
   | ACCronName(name) => name
   | ACCronTiming(timing) => timing
   | ACEventSpace(space) => space
-  | ACDBColType(tipe) => tipe
-  | ACParamType(tipe) => DType.tipe2str(tipe)
+  | ACDBColType(typ) => typ
+  | ACParamType(typ) => DType.tipe2str(typ)
   | ACDBName(name) => name
   | ACDBColName(name)
   | ACEventModifier(name)
@@ -93,7 +93,7 @@ let asName = (aci: A.item): string =>
   | ACParamName(name)
   | ACTypeName(name)
   | ACTypeFieldName(name) => name
-  | ACReturnType(tipe) | ACTypeFieldType(tipe) => DType.tipe2str(tipe)
+  | ACReturnType(typ) | ACTypeFieldType(typ) => DType.tipe2str(typ)
   }
 
 let asTypeString = (item: A.item): string =>
@@ -115,8 +115,8 @@ let asTypeString = (item: A.item): string =>
   | ACParamName(_) => "param name"
   | ACTypeName(_) => "type name"
   | ACTypeFieldName(_) => "type field name"
-  | ACReturnType(tipe) | ACTypeFieldType(tipe) =>
-    switch tipe {
+  | ACReturnType(typ) | ACTypeFieldType(typ) =>
+    switch typ {
     | TUserType(_, v) => "version " ++ string_of_int(v)
     | _ => "builtin"
     }
@@ -522,7 +522,7 @@ let tlGotoName = (tl: toplevel): string =>
   | TLHandler(h) => "Jump to handler: " ++ handlerDisplayName(h)
   | TLDB(db) => "Jump to DB: " ++ db.name
   | TLPmFunc(_) | TLFunc(_) => recover("can't goto function", ~debug=tl, "<invalid state>")
-  | TLType(_) => recover("can't goto tipe ", ~debug=tl, "<invalid state>")
+  | TLType(_) => recover("can't goto typ ", ~debug=tl, "<invalid state>")
   }
 
 let tlDestinations = (m: model): list<A.item> => {
@@ -545,7 +545,7 @@ let tlDestinations = (m: model): list<A.item> => {
 // Create the list
 // ------------------------------------
 
-/* Types from Types.tipe that aren't included:
+/* Types from Types.typ that aren't included:
   - TChar: TODO include once Characters are more easily add-able within code
   - TNull: trying to get rid of this, so don't spread it
   - TIncomplete: makes no sense to pass to a function
@@ -807,9 +807,9 @@ let documentationForItem = (aci: A.item): option<list<Vdom.t<'a>>> => {
   | ACCronName(_) => simpleDoc("Name of your CRON job")
   | ACHTTPRoute(name) => simpleDoc("Handle HTTP requests made to " ++ name)
   | ACDBName(name) => simpleDoc("Set the DB's name to " ++ name)
-  | ACDBColType(tipe) => simpleDoc("This field will be a " ++ tipe)
-  | ACParamType(tipe) => simpleDoc("This parameter will be a " ++ DType.tipe2str(tipe))
-  | ACTypeFieldType(tipe) => simpleDoc("This parameter will be a " ++ DType.tipe2str(tipe))
+  | ACDBColType(typ) => simpleDoc("This field will be a " ++ typ)
+  | ACParamType(typ) => simpleDoc("This parameter will be a " ++ DType.tipe2str(typ))
+  | ACTypeFieldType(typ) => simpleDoc("This parameter will be a " ++ DType.tipe2str(typ))
   | ACDBColName(name) => simpleDoc("Set the DB's column name to" ++ name)
   | ACEventModifier(name) => simpleDoc("Set event modifier to " ++ name)
   | ACFnName(fnName) => simpleDoc("Set function name to " ++ fnName)

@@ -15,11 +15,11 @@ let generateFnName = (_: unit): string => "fn_" ++ (() |> Util.random |> string_
 
 let generateTypeName = (): string => "Type_" ++ (() |> Util.random |> string_of_int)
 
-let convertType = (tipe: DType.t): DType.t =>
-  switch tipe {
+let convertType = (typ: DType.t): DType.t =>
+  switch typ {
   | TIncomplete => DType.any
   | TError => DType.any
-  | _ => tipe
+  | _ => typ
   }
 
 // Call f on calls to uf across the whole AST
@@ -123,7 +123,7 @@ let isRailable = (m: model, name: FQFnName.t) =>
   |> Option.unwrap(~default=false)
 
 let putOnRail = (m: model, tl: toplevel, id: id): modification =>
-  // Only toggle onto rail iff. return tipe is TOption or TResult
+  // Only toggle onto rail iff. return typ is TOption or TResult
   TL.modifyASTMod(tl, ~f=ast =>
     FluidAST.update(id, ast, ~f=x =>
       switch x {
@@ -203,7 +203,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
     let newAST = FluidAST.replace(~replacement, id, ast)
     let astOp = TL.setASTMod(tl, newAST)
     let params = List.map(freeVars, ~f=((id, name_)) => {
-      let tipe =
+      let typ =
         Analysis.getSelectedTraceID(m, tlid)
         |> Option.andThen(~f=Analysis.getTypeOf(m, id))
         |> Option.unwrap(~default=DType.any)
@@ -212,7 +212,7 @@ let extractFunction = (m: model, tl: toplevel, id: id): modification => {
       {
         PT.UserFunction.Parameter.name: name_,
         nameID: gid(),
-        typ: Some(tipe),
+        typ: Some(typ),
         typeID: gid(),
         description: "",
       }
@@ -440,7 +440,7 @@ let generateUserType = (dv: option<RT.Dval.t>): Result.t<PT.UserType.t, string> 
          * Dates, but we decided that today is not that day. See
          * discussion at
          * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
-         * let tipe = v |> coerceType in
+         * let typ = v |> coerceType in
          */
         {PT.UserType.RecordField.name: k, nameID: gid(), typ: Some(typ), typeID: gid()}
       })

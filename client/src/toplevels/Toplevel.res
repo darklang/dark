@@ -50,7 +50,7 @@ let pos = tl =>
   | TLDB(db) => db.pos
   | TLPmFunc(f) => recover("no pos in a func", ~debug=f.tlid, ({x: 0, y: 0}: Pos.t))
   | TLFunc(f) => recover("no pos in a func", ~debug=f.tlid, ({x: 0, y: 0}: Pos.t))
-  | TLType(t) => recover("no pos in a tipe", ~debug=t.tlid, ({x: 0, y: 0}: Pos.t))
+  | TLType(t) => recover("no pos in a typ", ~debug=t.tlid, ({x: 0, y: 0}: Pos.t))
   }
 
 let remove = (m: model, tl: toplevel): model => {
@@ -278,10 +278,10 @@ let replace = (p: blankOrData, replacement: blankOrData, tl: toplevel): toplevel
     }
   | PTypeName(_) | PTypeFieldName(_) | PTypeFieldType(_) =>
     switch asUserType(tl) {
-    | Some(tipe) =>
-      let newTL = UserTypes.replace(p, replacement, tipe)
+    | Some(typ) =>
+      let newTL = UserTypes.replace(p, replacement, typ)
       TLType(newTL)
-    | _ => recover("Changing tipe metadata on non-tipe", ~debug=replacement, tl)
+    | _ => recover("Changing typ metadata on non-typ", ~debug=replacement, tl)
     }
   }
 }

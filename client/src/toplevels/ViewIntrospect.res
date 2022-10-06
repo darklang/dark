@@ -67,7 +67,7 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg>
     let name = Html.span(list{Attrs.classList(list{("name", true)})}, list{Html.text(p.name)})
     let ptype = Html.span(
       list{Attrs.classList(list{("type", true)})},
-      list{Html.text(DType.tipe2str(p.tipe))},
+      list{Html.text(DType.tipe2str(p.typ))},
     )
 
     Html.div(list{Attrs.class'("field")}, list{name, ptype})
@@ -248,14 +248,14 @@ let tipeView = (
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.class'("ref-block tipe " ++ direction),
+        Attrs.class'("ref-block typ " ++ direction),
         EventListeners.eventNoPropagation(
-          ~key="ref-tipe-link" ++ TLID.toString(tlid),
+          ~key="ref-typ-link" ++ TLID.toString(tlid),
           "click",
           _ => Msg.GoTo(FocusedType(tlid)),
         ),
       },
-      hoveringRefProps(originTLID, originIDs, ~key="ref-tipe-hover"),
+      hoveringRefProps(originTLID, originIDs, ~key="ref-typ-hover"),
     ),
     list{Html.div(list{Attrs.class'("tipeheader")}, header)},
   )

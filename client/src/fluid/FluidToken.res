@@ -536,7 +536,7 @@ let toText = (t: t): string => {
   | TFalse(_) => "false"
   | TNullToken(_) => "null"
   | TBlank(_) => "   "
-  | TPlaceholder({placeholder: {name, tipe}, _}) => " " ++ (name ++ (" : " ++ (tipe ++ " ")))
+  | TPlaceholder({placeholder: {name, typ}, _}) => " " ++ (name ++ (" : " ++ (typ ++ " ")))
   | TPartial(_, _, str, _) => shouldntBeEmpty(str)
   | TRightPartial(_, str, _) => shouldntBeEmpty(str)
   | TLeftPartial(_, str, _) => shouldntBeEmpty(str)
@@ -604,8 +604,8 @@ let toText = (t: t): string => {
 
 let toTestText = (t: t): string => {
   let result = switch t {
-  | TPlaceholder({placeholder: {name, tipe}, _}) =>
-    let count = 1 + String.length(name) + 3 + String.length(tipe) + 1
+  | TPlaceholder({placeholder: {name, typ}, _}) =>
+    let count = 1 + String.length(name) + 3 + String.length(typ) + 1
     Caml.String.make(count, '_')
   | TBlank(_) => "___"
   | TPartialGhost(_, _, str, _) =>

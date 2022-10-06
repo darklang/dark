@@ -32,7 +32,7 @@ module Token = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
       name: string,
-      tipe: string,
+      typ: string,
     }
   }
 

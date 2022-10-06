@@ -3,14 +3,14 @@ open Prelude
 let pmParamsToUserFnParams = (p: PT.Package.Parameter.t): PT.UserFunction.Parameter.t => {
   name: p.name,
   nameID: ID.generate(),
-  typ: Some(p.tipe),
+  typ: Some(p.typ),
   typeID: ID.generate(),
   description: p.description,
 }
 
 let paramData = (pfp: PT.Package.Parameter.t): list<blankOrData> => {
   let paramName = BlankOr.newF(pfp.name)
-  let paramType = BlankOr.newF(pfp.tipe)
+  let paramType = BlankOr.newF(pfp.typ)
   list{PParamName(paramName), PParamType(paramType)}
 }
 
