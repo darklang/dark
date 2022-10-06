@@ -305,7 +305,11 @@ let run = () => {
       AnalysisTypes.PerformAnalysis.Params.decode,
       AnalysisTypes.PerformAnalysis.Params.encode,
     )
-    t("vanilla_dvalrepr-tests_ClientTypes-Dval-T_complete.json", RT.Dval.decode, RT.Dval.encode)
+    t(
+      "vanilla_dvalrepr-tests_ClientTypes-Runtime-Dval-T_complete.json",
+      RT.Dval.decode,
+      RT.Dval.encode,
+    )
     t(
       "vanilla_ApiServer-AddOps_LibBackend-Op-AddOpResultV1_simple.json",
       APIAddOps.decode,
