@@ -292,7 +292,7 @@ RUN \
 # Kubeconform - for linting k8s files
 ############################
 RUN \
-  VERSION=v0.4.13 \
+  VERSION=v0.4.14 \
   && wget -P tmp_install_folder/ https://github.com/yannh/kubeconform/releases/download/$VERSION/kubeconform-linux-amd64.tar.gz \
   && tar xvf tmp_install_folder/kubeconform-linux-amd64.tar.gz -C  tmp_install_folder \
   && sudo cp tmp_install_folder/kubeconform /usr/bin/ \
