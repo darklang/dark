@@ -258,23 +258,7 @@ ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
 
 # GKE
 ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
-
-# crcmod for gsutil; this gets us the compiled (faster), not pure Python
-# (slower) crcmod, as described in `gsutil help crcmod`
-#
-# It requires that python3-pip, python3-dev, python3-setuptools, and gcc be
-# installed. You'll also need CLOUDSDK_PYTHON=python3 to be set when you use
-# gsutil. (Which the ENV line handles.)
-#
-# The last line greps to confirm that gsutil has a compiled crcmod.
-# Possible failure modes; missing deps above (-pip, -dev, -setuptools, gcc); a
-# pre-installed crcmod that needs to be uninstalled first.  Added that because
-# this install is a bit brittle, and it's easy to invisibly install the pure
-# Python crcmod.
 ENV CLOUDSDK_PYTHON=python3
-RUN sudo pip3 install -U --no-cache-dir -U crcmod \
-  && ((gsutil version -l | grep compiled.crcmod:.True) \
-      || (echo "Compiled crcmod not installed." && false))
 
 ############################
 # Pip packages
