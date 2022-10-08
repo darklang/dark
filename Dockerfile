@@ -183,7 +183,7 @@ ENV LC_ALL en_US.UTF-8
 ############################
 # Frontend
 ############################
-RUN sudo npm install -g prettier@2.5.1
+RUN sudo npm install -g prettier@2.7.1
 
 # Esy is currently a nightmare. Upgrading to esy 6.6 is stalled because:
 # - esy 6.6 copies from ~/.esy to _esy, and in our container, that copy is
