@@ -301,10 +301,10 @@ RUN \
 ####################################
 # Honeytail and honeymarker installs
 ####################################
-RUN wget -q https://honeycomb.io/download/honeytail/v1.6.1/honeytail_1.6.1_amd64.deb && \
-      echo 'd099dd50b8446926be7a011eb4b98ed5bf07e5e7a4f9fce8015fe2147492833c  honeytail_1.6.1_amd64.deb' | sha256sum -c && \
-      sudo dpkg -i honeytail_1.6.1_amd64.deb && \
-      rm honeytail_1.6.1_amd64.deb
+RUN wget -q https://honeycomb.io/download/honeytail/v1.8.1/honeytail_1.8.1_amd64.deb && \
+      echo '971ba06886c5436927a17f8494fe518084a385cb9b9b28e541296d658eb5cc8d  honeytail_1.8.1_amd64.deb' | sha256sum -c && \
+      sudo dpkg -i honeytail_1.8.1_amd64.deb && \
+      rm honeytail_1.8.1_amd64.deb
 
 RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd64.deb && \
       echo '5aa10dd42f4f369c9463a8c8a361e46058339e6273055600ddad50e1bcdf2149  honeymarker_1.9_amd64.deb' | sha256sum -c && \
