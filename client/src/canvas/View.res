@@ -573,16 +573,16 @@ let accountView = (m: model): Html.html<msg> => {
     list{Html.text("Keyboard Reference")},
   )
 
-  let slackRef = Html.a(
+  let discordRef = Html.a(
     list{
       Attrs.class'("account-action-btn"),
-      Attrs.href("https://darklang.com/slack-invite"),
+      Attrs.href("https://darklang.com/discord-invite"),
       Attrs.target("_blank"),
-      EventListeners.eventNoPropagation(~key="slack-invite-ref", "click", _ => Msg.UpdateHeapio(
+      EventListeners.eventNoPropagation(~key="discord-invite-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
-    list{Html.text("Slack Community")},
+    list{Html.text("Discord Community")},
   )
 
   let contributeRef = Html.a(
@@ -663,7 +663,7 @@ let accountView = (m: model): Html.html<msg> => {
           docs,
           functionRefs,
           keyboardRefs,
-          slackRef,
+          discordRef,
           contributeRef,
           tutorial,
         },

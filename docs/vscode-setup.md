@@ -50,4 +50,4 @@ clues.
 
 We are very interested in any issues you might have. First class support for
 VSCode is relatively new, but we probably use it more than any other editor.
-Please report any issues in Slack.
+Please report any issues in Discord.

@@ -10,7 +10,7 @@ See also:
 
 - [Project Tracking](https://github.com/orgs/darklang/projects/5) - what we're actually
   working on right
-- [Darklang Community Slack](https://darklang.com/slack-invite)
+- [Darklang Community Discord](https://darklang.com/discord-invite)
 - [Roadmap](https://github.com/darklang/dark/issues/3284)
 - [Contributor guide](https://docs.darklang.com/contributing/getting-started)
 
@@ -26,7 +26,7 @@ and learn about the code base.
 ## Getting started
 
 We try to make it really easy to get started. If you have any problems, please ask in
-[Slack](https://darklang.com/slack-invite) and we'll work to fix any issues you have.
+[Discord](https://darklang.com/discord-invite) and we'll work to fix any issues you have.
 
 ### Install dependencies
 
