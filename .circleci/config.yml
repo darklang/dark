@@ -10,14 +10,14 @@ version: 2.1
 executors:
   simple-executor:
     docker:
-      - image: cimg/base:2021.12
+      - image: cimg/base:2022.10
   in-container:
     working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:dcf86ff
+      - image: darklang/dark-base:b7819f8
 
 commands:
   show-large-files-and-directories:
