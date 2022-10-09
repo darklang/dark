@@ -10,7 +10,7 @@ BUCKET=gs://download-gcp-db
 ###########################
 echo "Creating bucket"
 ###########################
-gsutil mb -c regional -l us-west1 "$BUCKET"
+gcloud storage buckets create --default-storage-class regional --location us-west1 "$BUCKET"
 
 ###########################
 echo "Adding cloud sql permissions"

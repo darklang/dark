@@ -7,7 +7,7 @@ set -euo pipefail
 DB=prodclone
 
 # get list | drop last file | drop all columns except filename | sort to get latest | get first | trim whitespace
-GSFILENAME="$(gsutil ls -l gs://download-gcp-db/sqldump_*.gz | head -n-1 | cut -d" " -f5- | sort -r | head -n1 | awk '{$1=$1;print}')"
+GSFILENAME="$(gcloud storage ls -l gs://download-gcp-db/sqldump_*.gz | head -n-1 | cut -d" " -f5- | sort -r | head -n1 | awk '{$1=$1;print}')"
 echo "Using latest DB export: ${GSFILENAME}"
 
 FILENAME="${GSFILENAME//gs:\/\/download-gcp-db\//}"
@@ -16,7 +16,7 @@ LOGFILE="${FILENAME}.log"
 ###########################
 echo "Downloading $GSFILENAME contents"
 ###########################
-gsutil cp "$GSFILENAME" "$FILENAME"
+gcloud storage cp "$GSFILENAME" "$FILENAME"
 
 ###########################
 echo "Dropping existing DB $DB (killing existing connections)"

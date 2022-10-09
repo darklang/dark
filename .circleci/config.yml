@@ -74,9 +74,7 @@ commands:
   ##########################
   deploy-lock-remove-on-fail:
     steps:
-      # Can only be used from in-container executors as it needs gsutil. Though that
-      # could be installed if we needed to:
-      # https://cloud.google.com/storage/docs/gsutil_install
+      # Can only be used from in-container executors as it needs gcloud
       - auth-with-gcp-on-fail
       - run:
           name: Remove deploy lock
