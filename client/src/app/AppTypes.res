@@ -609,6 +609,7 @@ module Msg = {
   type rec t<'model, 'modification> =
     | IgnoreMsg(/* debug string so you know where it came from */ string)
     | IgnoreMouseUp // for nothingMouseEvent
+    | RenderEvent
     | FluidMsg(FluidTypes.Msg.t<'model, 'modification>)
     | AppMouseDown(MouseEvent.t)
     | @printer(opaque("AppMouseDrag")) AppMouseDrag(Tea.Mouse.position)

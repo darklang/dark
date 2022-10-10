@@ -2205,12 +2205,11 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
 }
 
 let debugging = {
-  let prog = Tea.Debug.debug(
+  let prog = Tea.Debug.debug_program(
     AppTypes.show_msg,
     {
       init: a => init(a, Tea.Navigation.getLocation()),
       view: View.view,
-      renderCallback: Fluid.renderCallback,
       update: update,
       subscriptions: subscriptions,
       shutdown: _ => Cmd.none,
@@ -2224,7 +2223,6 @@ let debugging = {
       init: myInit,
       update: prog.update,
       view: prog.view,
-      renderCallback: prog.renderCallback,
       subscriptions: prog.subscriptions,
       shutdown: prog.shutdown,
     },
@@ -2236,7 +2234,6 @@ let normal = {
     init: init,
     view: View.view,
     update: update,
-    renderCallback: Fluid.renderCallback,
     subscriptions: subscriptions,
     shutdown: _ => Cmd.none,
   }
