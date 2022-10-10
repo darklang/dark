@@ -18,7 +18,7 @@ List of accounts used by Dark as part of running Dark
   - `ops-corp-site`
   - `ops-login`
   - `ops-presense`
-- [Slack (dark community)](https://darklang.com/slack-invite)
+- [Discord (dark community)](https://darklang.com/discord-invite)
 
 # Deploying
 
@@ -36,14 +36,14 @@ List of accounts used by Dark as part of running Dark
   - Google Domains
   - PubSub for queues/crons
   - support
-- [auth0](https://manage.auth0.com/dashboard) user account management
+- [Auth0](https://manage.auth0.com/dashboard) user account management
 - [pusher.com](https://dashboard.pusher.com/apps) supports "real-time" pushes of information to the Editor
-- [algolia](https://www.algolia.com) search engine used to support [Darklang docs](https://docs.darklang.com)
-- [CloudFlare](https://cloudflare.com) slight usage for some DNS
+- [Algolia](https://www.algolia.com) search engine used to support [Darklang docs](https://docs.darklang.com)
+- [Cloudflare](https://cloudflare.com) slight usage for some DNS
 - [PositiveSSL](https://www.positivessl.com) manages certificates for darksa.com
-- [let's encrypt](https://letsencrypt.org) certificate management and custom domains
+- [Let's Encrypt](https://letsencrypt.org) certificate management and custom domains
   see [custom-domains](./custom-domains.md)
-- [brex](https://www.brex.com) how we pay for everything
+- [Brex](https://www.brex.com) how we pay for everything
 - [name.com](http://name.com) TODO what do we use this for?
 - [Ghost.org](https://ghost.org) powers [the blog](https://blog.darklang.com)
 - [ToDesktop](https://todesktop.com) manages the desktop client of Dark
@@ -56,8 +56,8 @@ List of accounts used by Dark as part of running Dark
 - [Rollbar](https://rollbar.com) for recording, exploring, and resolving bugs
 - [PagerDuty](https://pagerduty.com) for alerting when things are broken
   - triggers from rollbar, pingdom and honeycomb
-- [Better UpTime](https://betteruptime.com) for alerting when things are broken (newer)
-- [sslmate](https://sslmate.com) They email us if any of our SSL certs are misconfigured or expiring.
+- [Better Uptime](https://betteruptime.com) for alerting when things are broken (newer)
+- [SSLMate](https://sslmate.com) They email us if any of our SSL certs are misconfigured or expiring.
 - [Dr. Link Check](https://drlinkcheck.com) They send an email each week about broken links in the docs
 
 # User communications, analytics

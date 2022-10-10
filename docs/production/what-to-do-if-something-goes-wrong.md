@@ -4,7 +4,7 @@ Something is down, going wrong, alerts are firing. What to do.
 
 ## Incident response
 
-- Comment in the #status room on slack. Explain what the user visible impact
+- Comment in the #status room on Discord. Explain what the user visible impact
   is, and that you are working on it. If you know how to solve it, say so. If
   you are investigating, say so.
 

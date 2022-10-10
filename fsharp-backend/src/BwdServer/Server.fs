@@ -232,7 +232,7 @@ let internalErrorResponse (ctx : HttpContext) (e : exn) : Task<HttpContext> =
     task { return ctx }
   else
     let msg =
-      "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
+      "Darklang Internal Error: Darklang - the service running this application - encountered an error. This problem is a bug in Darklang, we're sorry! Our automated systems have noted this error and we are working to resolve it. The developers working on this service should contact Darklang staff for more detail if needed."
     standardResponse ctx msg textPlain 500
 
 
