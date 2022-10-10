@@ -2050,6 +2050,9 @@ let update_ = (msg: msg, m: model): modification => {
   | UploadFnAPICallback(_, Ok(_)) =>
     Model.updateErrorMod(Error.set("Successfully uploaded function"))
   | SecretMsg(msg) => InsertSecret.update(msg)
+  | RenderEvent =>
+    Fluid.renderCallback(m)
+    NoChange
   }
 }
 
@@ -2115,6 +2118,8 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     list{BrowserSubscriptions.DarkMouse.moves(~key, event => AppMouseDrag(event))}
   | _ => list{}
   }
+
+  let renderSubs = list{Tea.Ex.render_event(AppTypes.Msg.RenderEvent)}
 
   let windowMouseSubs = list{
     BrowserSubscriptions.Window.Mouse.ups(~key="win_mouse_up", event => WindowMouseUp(event)),
@@ -2196,6 +2201,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
       clipboardSubs,
       dragSubs,
       timers,
+      renderSubs,
       visibility,
       onError,
       mousewheelSubs,
