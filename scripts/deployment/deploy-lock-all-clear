@@ -7,4 +7,4 @@ set -euo pipefail
 
 DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
 
-gsutil rm "${DEPLOY_LOCK_BUCKET}/*"
+gcloud storage rm "${DEPLOY_LOCK_BUCKET}/*"

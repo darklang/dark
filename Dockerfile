@@ -15,7 +15,7 @@
 # as part of that build. Search for DOCKERFILE_REPO for where to make that
 # change.
 
-FROM ubuntu:20.04@sha256:7cc0576c7c0ec2384de5cbf245f41567e922aab1b075f3e8ad565f508032df17 as dark-base
+FROM ubuntu:20.04@sha256:e722c7335fdd0ce77044ab5942cb1fbd2b5f60d1f5416acfcdb0814b2baf7898 as dark-base
 
 ENV FORCE_BUILD 3
 
@@ -183,7 +183,7 @@ ENV LC_ALL en_US.UTF-8
 ############################
 # Frontend
 ############################
-RUN sudo npm install -g prettier@2.5.1
+RUN sudo npm install -g prettier@2.7.1
 
 # Esy is currently a nightmare. Upgrading to esy 6.6 is stalled because:
 # - esy 6.6 copies from ~/.esy to _esy, and in our container, that copy is
@@ -258,23 +258,7 @@ ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
 
 # GKE
 ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
-
-# crcmod for gsutil; this gets us the compiled (faster), not pure Python
-# (slower) crcmod, as described in `gsutil help crcmod`
-#
-# It requires that python3-pip, python3-dev, python3-setuptools, and gcc be
-# installed. You'll also need CLOUDSDK_PYTHON=python3 to be set when you use
-# gsutil. (Which the ENV line handles.)
-#
-# The last line greps to confirm that gsutil has a compiled crcmod.
-# Possible failure modes; missing deps above (-pip, -dev, -setuptools, gcc); a
-# pre-installed crcmod that needs to be uninstalled first.  Added that because
-# this install is a bit brittle, and it's easy to invisibly install the pure
-# Python crcmod.
 ENV CLOUDSDK_PYTHON=python3
-RUN sudo pip3 install -U --no-cache-dir -U crcmod \
-  && ((gsutil version -l | grep compiled.crcmod:.True) \
-      || (echo "Compiled crcmod not installed." && false))
 
 ############################
 # Pip packages
@@ -283,8 +267,8 @@ RUN sudo pip3 install --no-cache-dir yq yamllint
 ENV PATH "$PATH:/home/dark/.local/bin"
 
 RUN pip3 install git+https://github.com/pbiggar/watchgod.git@b74cd7ec064ebc7b4263dc532c7c97e046002bef
-# Formatting
 
+# Formatting
 RUN pip3 install yapf==0.32.0
 
 ####################################
@@ -308,7 +292,7 @@ RUN \
 # Kubeconform - for linting k8s files
 ############################
 RUN \
-  VERSION=v0.4.13 \
+  VERSION=v0.4.14 \
   && wget -P tmp_install_folder/ https://github.com/yannh/kubeconform/releases/download/$VERSION/kubeconform-linux-amd64.tar.gz \
   && tar xvf tmp_install_folder/kubeconform-linux-amd64.tar.gz -C  tmp_install_folder \
   && sudo cp tmp_install_folder/kubeconform /usr/bin/ \
@@ -317,10 +301,10 @@ RUN \
 ####################################
 # Honeytail and honeymarker installs
 ####################################
-RUN wget -q https://honeycomb.io/download/honeytail/v1.6.1/honeytail_1.6.1_amd64.deb && \
-      echo 'd099dd50b8446926be7a011eb4b98ed5bf07e5e7a4f9fce8015fe2147492833c  honeytail_1.6.1_amd64.deb' | sha256sum -c && \
-      sudo dpkg -i honeytail_1.6.1_amd64.deb && \
-      rm honeytail_1.6.1_amd64.deb
+RUN wget -q https://honeycomb.io/download/honeytail/v1.8.1/honeytail_1.8.1_amd64.deb && \
+      echo '971ba06886c5436927a17f8494fe518084a385cb9b9b28e541296d658eb5cc8d  honeytail_1.8.1_amd64.deb' | sha256sum -c && \
+      sudo dpkg -i honeytail_1.8.1_amd64.deb && \
+      rm honeytail_1.8.1_amd64.deb
 
 RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd64.deb && \
       echo '5aa10dd42f4f369c9463a8c8a361e46058339e6273055600ddad50e1bcdf2149  honeymarker_1.9_amd64.deb' | sha256sum -c && \

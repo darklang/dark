@@ -12,5 +12,5 @@ touch "$LOCKFILE_NAME"
 
 echo "Adding lock file with id ${LOCKFILE_NAME}"
 
-gsutil cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"
+gcloud storage cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"
 rm "$LOCKFILE_NAME"

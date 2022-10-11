@@ -10,14 +10,14 @@ version: 2.1
 executors:
   simple-executor:
     docker:
-      - image: cimg/base:2021.12
+      - image: cimg/base:2022.10
   in-container:
     working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:dcf86ff
+      - image: darklang/dark-base:b7819f8
 
 commands:
   show-large-files-and-directories:
@@ -74,9 +74,7 @@ commands:
   ##########################
   deploy-lock-remove-on-fail:
     steps:
-      # Can only be used from in-container executors as it needs gsutil. Though that
-      # could be installed if we needed to:
-      # https://cloud.google.com/storage/docs/gsutil_install
+      # Can only be used from in-container executors as it needs gcloud
       - auth-with-gcp-on-fail
       - run:
           name: Remove deploy lock
@@ -302,7 +300,7 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v14-fsharp-backend-{{ checksum "../checksum" }}
+            - v15-fsharp-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -329,7 +327,7 @@ jobs:
           paths:
             - fsharp-backend/Build/obj
             - /home/dark/.nuget
-          key: v14-fsharp-backend-{{ checksum "../checksum" }}
+          key: v15-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
@@ -350,7 +348,7 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v3-fsharp-blazor-{{ checksum "../checksum" }}
+            - v4-fsharp-blazor-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
@@ -369,7 +367,7 @@ jobs:
           paths:
             - fsharp-backend/Build/obj
             - /home/dark/.nuget
-          key: v3-fsharp-blazor-{{ checksum "../checksum" }}
+          key: v4-fsharp-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
