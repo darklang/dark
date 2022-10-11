@@ -3735,38 +3735,42 @@ let doExplicitInsert = (
       }
 
     | (ARMPattern(_, MPPTuple(kind)), MPTuple(_pID, first, second, theRest)) =>
-      let elIndex = switch kind {
-      | TPOpen => Some(0)
-      | TPComma(i) => Some(i + 1)
-      | TPClose => None
-      }
-
-      switch (elIndex, handleMatchPaternBlank()) {
-      | (Some(elIndex), Some(newPat, newCt)) =>
-        let allPats = list{first, second, ...theRest}
-
-        let shouldReplacePatternAtIndex =
-          List.getAt(~index=elIndex, allPats)
-          |> Option.map(~f=p => MP.isBlank(p))
-          |> Option.unwrap(~default=false)
-
-        if shouldReplacePatternAtIndex {
-          let allPatsWithReplacement = allPats |> List.updateAt(~f=_p => newPat, ~index=elIndex)
-
-          switch allPatsWithReplacement {
-          | list{first, second, ...theRest} =>
-            Some(E.MatchPat(mID, MPTuple(gid(), first, second, theRest)), newCt)
-          | _ =>
-            recover(
-              "doPatInsert - unexpected tuple pattern of fewer than 2 elements",
-              ~debug=matchPattern,
-              None,
-            )
-          }
-        } else {
-          None
+      if currCaretTarget.offset == 0 {
+        None
+      } else {
+        let elIndex = switch kind {
+        | TPOpen => Some(0)
+        | TPComma(i) => Some(i + 1)
+        | TPClose => None
         }
-      | _ => None
+
+        switch (elIndex, handleMatchPaternBlank()) {
+        | (Some(elIndex), Some(newPat, newCt)) =>
+          let allPats = list{first, second, ...theRest}
+
+          let shouldReplacePatternAtIndex =
+            List.getAt(~index=elIndex, allPats)
+            |> Option.map(~f=p => MP.isBlank(p))
+            |> Option.unwrap(~default=false)
+
+          if shouldReplacePatternAtIndex {
+            let allPatsWithReplacement = allPats |> List.updateAt(~f=_p => newPat, ~index=elIndex)
+
+            switch allPatsWithReplacement {
+            | list{first, second, ...theRest} =>
+              Some(E.MatchPat(mID, MPTuple(gid(), first, second, theRest)), newCt)
+            | _ =>
+              recover(
+                "doPatInsert - unexpected tuple pattern of fewer than 2 elements",
+                ~debug=matchPattern,
+                None,
+              )
+            }
+          } else {
+            None
+          }
+        | _ => None
+        }
       }
 
     /*

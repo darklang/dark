@@ -1258,21 +1258,20 @@ let run = () => {
     // )
 
     // pasting tuples
-    // TODOTUPLE - these just paste the text, not the expression
-    // testPasteText(
-    //   "pasting a 2-tuple from clipboard on a blank should paste it",
-    //   b,
-    //   (0, 0),
-    //   "(12,34)",
-    //   "(12,34)~",
-    // )
-    // testPasteText(
-    //   "pasting a 3-tuple from clipboard on a blank should paste it",
-    //   b,
-    //   (0, 0),
-    //   "(12,34,56)",
-    //   "(12,34,56)~",
-    // )
+    testPasteExpr(
+      "pasting a 2-tuple from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      tuple(int(12), int(34), list{}),
+      "(12,34)~",
+    )
+    testPasteExpr(
+      "pasting a 3-tuple from clipboard on a blank should paste it",
+      b,
+      (0, 0),
+      tuple(int(12), int(34), list{int(56)}),
+      "(12,34,56)~",
+    )
   })
 
   describe("Records", () => {

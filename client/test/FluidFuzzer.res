@@ -159,7 +159,11 @@ let rec generateMatchPattern' = (): FluidMatchPattern.t =>
     lazy mpString(generateString()),
     lazy mpFloat(Positive, range(5000000), range(500000)),
     lazy mpBlank(),
-    // TUPLETODO add mpTuple cases
+    lazy mpTuple(
+      generateMatchPattern'(),
+      generateMatchPattern'(),
+      generateList(~minSize=0, ~f=generateMatchPattern', ()),
+    ),
   }) |> Lazy.force
 
 and generateMatchPattern = () => checkTestSize(~default=mpBlank(), generateMatchPattern')
