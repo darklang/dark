@@ -152,7 +152,7 @@ for mimetype in mimetypes_to_process:
   mimetype_subfolder = get_mimetype_temp_dir(mimetype)
   start = time.time()
   command = f'''gcloud storage cp \
-    --content-type ${mimetype}" \
+    --content-type ${mimetype} \
     --content-encoding gzip \
     --cache-control public \
     --no-clobber \
