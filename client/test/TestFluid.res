@@ -2224,7 +2224,7 @@ let run = () => {
       aFnCallWithVersion,
       ~pos=12,
       inputs(list{DeleteWordForward}),
-      "DB::getAllv1 ___________________~",
+      "DB::getAllv1 ~___________________",
     )
     let string40 = "0123456789abcdefghij0123456789abcdefghij"
     let string80 = string40 ++ string40
@@ -2852,7 +2852,7 @@ let run = () => {
       aConstructor,
       ~pos=4,
       inputs(list{DeleteWordForward}),
-      "Just ___~",
+      "Just ~___",
     )
     t(
       ~expectsPartial=true,

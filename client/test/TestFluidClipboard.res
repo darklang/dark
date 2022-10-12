@@ -951,7 +951,7 @@ let run = () => {
       if'(bool(true), str("then body"), str("else body")),
       (12, 31),
       (
-        "if true\nthen~\n  ___\nelse\n  \"else body\"",
+        "if true\nthen\n  ~___\nelse\n  \"else body\"",
         "if ___\nthen\n  \"then body\"\nelse\n  ___",
       ),
     )
@@ -1233,12 +1233,12 @@ let run = () => {
       (5, 11),
       "(\"lo\",12)",
     )
-    // testCut( // TUPLETODO fix results - somehow an extra 'l' is being included.
-    //   "cutting halfway between tuple parts leaves a partial tuple and copies the data selected to clipboard",
-    //   tuple(str("hello"), int(1234), list{}), // ("hello",1234)
-    //   (5, 11),
-    //   ("(\"hel~\")", "(\"lo\",12)"),
-    // )
+    testCut(
+      "cutting halfway between tuple parts leaves a partial tuple and copies the data selected to clipboard",
+      tuple(str("hello"), int(1234), list{}), // ("hello",1234)
+      (5, 11),
+      ("\"hel~\"", "(\"lo\",12)"),
+    )
 
     // surrounding separators (1|,2,|3)
     testCopy(
