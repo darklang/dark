@@ -40,7 +40,7 @@
     "rescript-nodejs": "^14.3.1",
     "rollbar": "2.25.2",
     "sha2": "1.0.2",
-    "tablecloth-bucklescript": "darklang/tablecloth#49cb938d1bb177a504de40de7d470615452e8d8d",
+    "tablecloth-rescript": "0.0.8-1",
     "validator": "^13.7.0"
   },
   "scripts": {
