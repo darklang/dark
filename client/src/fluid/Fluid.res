@@ -5046,36 +5046,33 @@ and deleteCaretRange = (
   | None => ()
 
   | Some(caretTargetToEndOn) =>
+    let offsetFromEndingCaretTarget = rangeStart - posFromCaretTarget(caretTargetToEndOn, origInfo)
+
     while !shouldStop.contents {
       let newInfo = updateKey(props, DeleteContentBackward, result.contents)
-
-      let caretTargetToEndOnStillInScope =
-        posFromCaretTargetMaybe(caretTargetToEndOn, newInfo)->Option.isSome
-
-      let hasReachedCaretTargetToEndOn = {
-        let newCaretTarget = caretTargetForCurrentNonWhitespaceToken(
-          ~pos=newInfo.state.newPos,
-          ASTInfo.activeTokenInfos(newInfo),
-        )
-        switch newCaretTarget {
-        | None => false
-        | Some(newCaretTarget) => newCaretTarget == caretTargetToEndOn
-        }
-      }
 
       if (
         newInfo.state.newPos == result.contents.state.newPos && newInfo.ast == result.contents.ast
       ) {
         // stop if nothing changed - guarantees loop termination
         shouldStop := true
-      } else if !caretTargetToEndOnStillInScope && newInfo.state.newPos <= rangeStart {
-        result := newInfo
-        shouldStop := true
-      } else if hasReachedCaretTargetToEndOn {
-        result := newInfo
-        shouldStop := true
       } else {
-        result := newInfo
+        switch posFromCaretTargetMaybe(caretTargetToEndOn, newInfo) {
+        | None => {
+            result := newInfo
+            // this is largely to deal with deleting into partials.
+            // it's probably imperfect, namely when surrounding structures disappear
+            if newInfo.state.newPos <= rangeStart {
+              shouldStop := true
+            }
+          }
+        | Some(posOfCaretTargetToEndOn) =>
+          result := newInfo
+
+          if newInfo.state.newPos <= posOfCaretTargetToEndOn + offsetFromEndingCaretTarget {
+            shouldStop := true
+          }
+        }
       }
     }
   }

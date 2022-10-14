@@ -951,10 +951,29 @@ let run = () => {
       if'(bool(true), str("then body"), str("else body")),
       (12, 31),
       (
-        "if true\nthen\n  ~___\nelse\n  \"else body\"",
+        "if true\nthen~\n  ___\nelse\n  \"else body\"",
         "if ___\nthen\n  \"then body\"\nelse\n  ___",
       ),
     )
+    testCut(
+      "cutting the tail end of an if expr where surrounding tuple is removed as we delete",
+      tuple(if'(bool(true), str("then body"), str("else body")), bool(true), list{}),
+      (35, 53), // from `else|` to `tr|ue`
+      ("if true\nthen\n  \"then body\"\nelse~\n  ___", "(\"else body\",tr)"),
+    )
+    // TODO fix this test.
+    // The tuple surroundin the selection is removed as we backspace.
+    // Due to this, the 'else' we're referencing moves (indentation), so we stop
+    // deleting early.
+    // Initially, the plan is to delete until '4 characters after the end of the `else`'
+    // But with the tuple being removed, we want to end at '3 chars after the end of the `else`',
+    // and currently have no good way to 'learn' this along the way.
+    // testCut(
+    //   "same thing as above but we end just before the else branch's string expr",,
+    //   tuple(if'(bool(true), str("then body"), str("else body")), bool(true), list{}),
+    //   (39, 53), // from `|"else body"` to `tr|ue`
+    //   ("if true\nthen\n  \"then body\"\nelse\n  ~___", "(\"else body\",tr)"),
+    // )
     testCut(
       "cutting just the else body adds the else expression to clipboard",
       if'(bool(true), str("then body"), str("else body")),
