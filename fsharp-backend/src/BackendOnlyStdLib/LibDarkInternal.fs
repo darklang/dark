@@ -288,7 +288,7 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "dbs" 0
       parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TList TStr
-      description = "Returns a list of toplevel ids of dbs in `canvasName`"
+      description = "Returns a list of toplevel ids of dbs in <param canvasName>"
       fn =
         internalFn (function
           | _, [ DStr canvasName ] ->
@@ -509,7 +509,7 @@ that's already taken, returns an error."
       parameters = [ Param.make "username" TStr "" ]
       returnType = TDict TStr
       description =
-        "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
+        "Returns a dict mapping orgs->permission to which the given <param username> has been given permission"
       fn =
         internalFn (function
           | _, [ DStr username ] ->

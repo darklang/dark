@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
       description =
-        "Computes the md5 digest of the given `data`. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
+        "Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
       fn =
         (function
         | _, [ DBytes data ] -> MD5.HashData(ReadOnlySpan data) |> DBytes |> Ply
@@ -43,7 +43,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes
       description =
-        "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given `key` and `data`."
+        "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
       fn =
         (function
         | _, [ DBytes key; DBytes data ] ->
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes
       description =
-        "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given `key` and `data`."
+        "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
       fn =
         (function
         | _, [ DBytes key; DBytes data ] ->

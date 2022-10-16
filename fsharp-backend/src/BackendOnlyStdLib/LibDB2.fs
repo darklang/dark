@@ -45,7 +45,8 @@ let fns : List<BuiltInFn> =
   [ { name = fn "DB" "set" 1
       parameters = [ ocamlCompatibleValParam; keyParam; tableParam ]
       returnType = ocamlTObj
-      description = "Upsert `val` into `table`, accessible by `key`"
+      description =
+        "Upsert <param val> into <param table>, accessible by <param key>"
       fn =
         (function
         | state, [ DObj value; DStr key; DDB dbname ] ->
@@ -64,7 +65,7 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleValParam; tableParam ]
       returnType = TStr
       description =
-        "Add `val` as a new entry into `table`, using a newly generated key. Returns the generated key."
+        "Add <param val> as a new entry into <param table>, using a newly generated key. Returns the generated key."
       fn =
         (function
         | state, [ DObj value; DDB dbname ] ->
@@ -83,7 +84,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "get" 2
       parameters = [ keyParam; tableParam ]
       returnType = TOption varA
-      description = "Finds a value in `table` by `key"
+      description = "Finds a value in <param table> by <param key>"
       fn =
         (function
         | state, [ DStr key; DDB dbname ] ->
@@ -102,7 +103,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
-        "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
+        "Finds many values in <param table> by <param keys>, returning a <code [[key, value]]> list of lists"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -130,7 +131,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
-        "Finds many values in `table` by `keys, returning a [value] list of values"
+        "Finds many values in <param table> by <param keys>, returning a <code [value]> list of values"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -157,7 +158,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TOption varA
       description =
-        "Finds many values in `table` by `keys`. If all `keys` are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
+        "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -188,7 +189,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
-        "Finds many values in `table` by `keys` (ignoring any missing items), returning a [value] list of values"
+        "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a <code [value]> list of values"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -215,7 +216,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
-        "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
+        "Finds many values in <param table> by <param keys>, returning a <code [[key, value]]> list of lists"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -243,7 +244,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TDict varA
       description =
-        "Finds many values in `table` by `keys, returning a {key:{value}, key2: {value2}} object of keys and values"
+        "Finds many values in <param table> by <param keys>, returning a <code {key:{value}, key2: {value2} }> object of keys and values"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -269,7 +270,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "delete" 1
       parameters = [ keyParam; tableParam ]
       returnType = TNull
-      description = "Delete `key` from `table`"
+      description = "Delete <param key> from <param table>"
       fn =
         (function
         | state, [ DStr key; DDB dbname ] ->
@@ -287,7 +288,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "deleteAll" 1
       parameters = [ tableParam ]
       returnType = TNull
-      description = "Delete everything from `table`"
+      description = "Delete everything from <param table>"
       fn =
         (function
         | state, [ DDB dbname ] ->
@@ -306,8 +307,8 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA // heterogenous list
       description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has,
-         returning a [[key, value]] list of lists"
+        "Fetch all the values from <param table> which have the same fields and values that <param spec> has,
+         returning a <code [[key, value]]> list of lists"
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
@@ -327,7 +328,7 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA
       description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
+        "Fetch all the values from <param table> which have the same fields and values that <param spec> has, returning a list of values. Previously called DB::query_v3"
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
@@ -346,7 +347,7 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA
       description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has
+        "Fetch all the values from <param table> which have the same fields and values that <param spec> has
           , returning a [[key, value]] list of lists"
       fn =
         (function
@@ -368,7 +369,7 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = ocamlTObj
       description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has
+        "Fetch all the values from <param table> which have the same fields and values that <param spec> has
         , returning {key : value} as an object. Previous called DB::queryWithKey_v2"
       fn =
         (function
@@ -388,7 +389,7 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
       description =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
+        "Fetch exactly one value from <param table> which have the same fields and values that <param spec> has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
@@ -410,7 +411,7 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
       description =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
+        "Fetch exactly one value from <param table> which have the same fields and values that <param spec> has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
@@ -432,7 +433,7 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
       description =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
+        "Fetch exactly one value from <param table> which have the same fields and values that <param spec> has. Returns Nothing if none or more than 1 found"
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
@@ -454,7 +455,7 @@ let fns : List<BuiltInFn> =
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
       description =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
+        "Fetch exactly one value from <param table> which have the same fields and values that <param spec> has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
@@ -476,7 +477,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam ]
       returnType = TList varA
       description =
-        "Fetch all the values in `table`. Returns a list of lists such that the inner
+        "Fetch all the values in <param table>. Returns a list of lists such that the inner
           lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
         (function
@@ -533,7 +534,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam ]
       returnType = TList varA
       description =
-        "Fetch all the values in `table`. Returns a list of lists such that the inner
+        "Fetch all the values in <param table>. Returns a list of lists such that the inner
                      lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
         (function
@@ -554,7 +555,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam ]
       returnType = TDict(varA)
       description =
-        "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
+        "Fetch all the values in <param table>. Returns an object with key: value. ie. {key : value, key2: value2}"
       fn =
         (function
         | state, [ DDB dbname ] ->
@@ -572,7 +573,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "count" 0
       parameters = [ tableParam ]
       returnType = TInt
-      description = "Return the number of items stored in `table`"
+      description = "Return the number of items stored in <param table>"
       fn =
         (function
         | state, [ DDB dbname ] ->
@@ -585,13 +586,13 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-    // previously called `DB::keys`
 
 
+    // previously called DB::keys
     { name = fn "DB" "schemaFields" 1
       parameters = [ tableParam ]
       returnType = TList varA
-      description = "Fetch all the fieldNames in `table`"
+      description = "Fetch all the fieldNames in <param table>"
       fn =
         (function
         | state, [ DDB dbname ] ->
@@ -612,7 +613,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam ]
       returnType = ocamlTObj
       description =
-        "Returns an `Obj` representing { fieldName: fieldType } in `table`"
+        "Returns a <type Dict> representing <code { fieldName: fieldType }> in <param table>"
       fn =
         (function
         | state, [ DDB dbname ] ->
@@ -646,7 +647,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam ]
       returnType = TList varA
       description =
-        "Fetch all the keys of entries in `table`. Returns an list with strings"
+        "Fetch all the keys of entries in <param table>. Returns an list with strings"
       fn =
         (function
         | state, [ DDB dbname ] ->
@@ -665,7 +666,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam; queryParam ]
       returnType = TList varA
       description =
-        "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch all the values from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
@@ -687,7 +688,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam; queryParam ]
       returnType = TDict(varA)
       description =
-        "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an object. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
@@ -709,7 +710,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam; queryParam ]
       returnType = TList varA
       description =
-        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
@@ -734,7 +735,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam; queryParam ]
       returnType = TOption varA
       description =
-        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
@@ -759,7 +760,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam; queryParam ]
       returnType = TOption varA
       description =
-        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
@@ -784,7 +785,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam; queryParam ]
       returnType = TInt
       description =
-        "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->

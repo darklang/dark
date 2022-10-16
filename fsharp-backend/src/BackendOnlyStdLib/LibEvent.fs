@@ -23,7 +23,7 @@ let fns : List<BuiltInFn> =
           Param.make "name" TStr "" ]
       returnType = varA
       description =
-        "Emit event `name` in `space`, passing along `data` as a parameter"
+        "Emit event <param name> in <param space>, passing along <param data> as a parameter"
       fn =
         (function
         | state, [ data; DStr space; DStr name ] ->
@@ -43,7 +43,7 @@ let fns : List<BuiltInFn> =
     { name = fn "" "emit" 1
       parameters = [ Param.make "event" varA ""; Param.make "name" TStr "" ]
       returnType = varA
-      description = "Emit a `event` to the `name` worker"
+      description = "Emit a <param event> to the <param name> worker"
       fn =
         (function
         | state, [ data; DStr name ] ->

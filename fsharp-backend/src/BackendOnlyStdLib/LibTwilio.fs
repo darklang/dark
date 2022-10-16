@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
           Param.make "body" TStr "" ]
       returnType = TDict varA
       description =
-        "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
+        "Send text with <param body> to phone number <param toNumber> from number <param fromNumber>, authenticated via <param accountSID> and <param authToken>"
       fn =
         (function
         | (s,
@@ -76,7 +76,7 @@ let fns : List<BuiltInFn> =
           Param.make "body" TStr "" ]
       returnType = TDict varA
       description =
-        "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
+        "Send text with <param body> to phone number <param toNumber> from number <param fromNumber>, authenticated via <param accountSID> and <param authToken>"
       fn =
         (function
         | (s,
