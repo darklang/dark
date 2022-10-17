@@ -5,12 +5,12 @@ const config: PlaywrightTestConfig = {
   testDir: ".",
   testMatch: "tests.ts",
   expect: {
-    // timeout: 5000,
+    timeout: 5000,
   },
   // in ms. 30000 = 30s
   timeout: 30000,
   use: {
-    // actionTimeout: 1000,
+    actionTimeout: 5000,
     headless: true,
     trace: "retain-on-failure",
     screenshot: "off",
