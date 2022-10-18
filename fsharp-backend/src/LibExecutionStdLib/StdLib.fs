@@ -22,7 +22,8 @@ let renames =
     fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0
     fn "Date" "subtract" 0, fn "Date" "subtractSeconds" 0
     fn "List" "contains" 0, fn "List" "member" 0
-    fn "String" "toUUID" 1, fn "Uuid" "parse" 0 ]
+    fn "String" "toUUID" 1, fn "Uuid" "parse" 0
+    fn "String" "toFloat" 1, fn "Float" "parse" 0 ]
 
 
 let prefixFns : List<BuiltInFn> =

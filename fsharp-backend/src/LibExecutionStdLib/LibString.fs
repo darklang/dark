@@ -259,28 +259,6 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "String" "toFloat" 1) }
 
 
-    { name = fn "String" "toFloat" 1
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TFloat, TStr)
-      description = "Returns the <type float> value of the <type string>"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          (try
-            float (s) |> DFloat |> Ok |> DResult |> Ply
-           with
-           | e ->
-             "Expected a string representation of an IEEE float"
-             |> DStr
-             |> Error
-             |> DResult
-             |> Ply)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "String" "toUppercase" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
