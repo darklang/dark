@@ -38,7 +38,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description =
-        "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP POST call to <param uri>. Returns a <type Result> where {{ Ok }} is a response <type Dict> if successful and {{ Error }} is an error message if not successful"
       fn = LegacyHttpClient0.wrappedCall HttpMethod.Post jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description =
-        "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP PUT call to <param uri>. Returns a <type Result> where {{ Ok }} is a response <type Dict> if successful and {{ Error }} is an error message if not successful"
       fn = LegacyHttpClient0.wrappedCall HttpMethod.Put jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description =
-        "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP GET call to <param uri>. Returns a <type Result> where {{ Ok }} is a response <type Dict> if successful and {{ Error }} is an error message if not successful"
       fn = LegacyHttpClient0.wrappedCallNoBody HttpMethod.Get jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description =
-        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP DELETE call to <param uri>. Returns a <type Result> where {{ Ok }} is a response <type Dict> if successful and {{ Error }} is an error message if not successful"
       fn = LegacyHttpClient0.wrappedCallNoBody HttpMethod.Delete jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description =
-        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP OPTIONS call to <param uri>. Returns a <type Result> where {{ Ok }} is a response <type Dict> if successful and {{ Error }} is an error message if not successful"
       fn = LegacyHttpClient0.wrappedCallNoBody HttpMethod.Options jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description =
-        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP HEAD call to <param uri>. Returns a <type Result> where {{ Ok }} is a response <type Dict> if successful and {{ Error }} is an error message if not successful"
       fn = LegacyHttpClient0.wrappedCallNoBody HttpMethod.Head jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -92,7 +92,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description =
-        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP PATCH call to <param uri>. Returns a <type Result> where {{ Ok }} is a response <type Dict> if successful and {{ Error }} is an error message if not successful"
       fn = LegacyHttpClient0.wrappedCall HttpMethod.Patch jsonFn
       sqlSpec = NotQueryable
       previewable = Impure

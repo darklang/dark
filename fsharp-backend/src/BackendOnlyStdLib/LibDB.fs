@@ -20,7 +20,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "DB" "insert" 0
       parameters = [ Param.make "val" obj ""; Param.make "table" dbType "" ]
       returnType = obj
-      description = "Insert `val` into `table`"
+      description = "Insert <param val> into <param table>"
       fn =
         function
         | state, [ v; table ] -> removedFunction state "DB::insert"
@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "delete" 0
       parameters = [ Param.make "value" obj ""; Param.make "table" dbType "" ]
       returnType = TNull
-      description = "Delete `value` from `table`"
+      description = "Delete <param value> from <param table>"
       fn =
         function
         | state, [ v; table ] -> removedFunction state "DB::delete"
@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "deleteAll" 0
       parameters = [ Param.make "table" dbType "" ]
       returnType = TNull
-      description = "Delete everything from `table`"
+      description = "Delete everything from <param table>"
       fn =
         function
         | state, [ table ] -> removedFunction state "DB::deleteAll"
@@ -59,7 +59,8 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "update" 0
       parameters = [ Param.make "value" obj ""; Param.make "table" dbType "" ]
       returnType = TNull
-      description = "Update `table` value which has the same ID as `value`"
+      description =
+        "Update <param table> value which has the same ID as <param value>"
       fn =
         function
         | state, [ v; table ] -> removedFunction state "DB::update"
@@ -75,7 +76,8 @@ let fns : List<BuiltInFn> =
           Param.make "field" TStr ""
           Param.make "table" dbType "" ]
       returnType = TList varA
-      description = "Fetch all the values in `table` whose `field` is `value`"
+      description =
+        "Fetch all the values in <param table> whose <param field> is <param value>"
       fn =
         function
         | state, [ v; field; table ] -> removedFunction state "DB::fetchBy"
@@ -91,7 +93,8 @@ let fns : List<BuiltInFn> =
           Param.make "field" TStr ""
           Param.make "table" dbType "" ]
       returnType = varA
-      description = "Fetch exactly one value in `table` whose `field` is `value`"
+      description =
+        "Fetch exactly one value in <param table> whose <param field> is <param value>"
       fn =
         function
         | state, [ v; field; table ] -> removedFunction state "DB::fetchOneBy"
@@ -105,7 +108,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "spec" obj ""; Param.make "table" dbType "" ]
       returnType = TList varA
       description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has"
+        "Fetch all the values from <param table> which have the same fields and values that <param spec> has"
       fn =
         function
         | state, [ spec; table ] -> removedFunction state "DB::fetchByMany"
@@ -119,7 +122,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "spec" obj ""; Param.make "table" dbType "" ]
       returnType = varA
       description =
-        "Fetch exactly one value from `table`, which have the same fields and values that `spec` has"
+        "Fetch exactly one value from <param table>, which have the same fields and values that <param spec> has"
       fn =
         function
         | state, [ spec; table ] -> removedFunction state "DB::fetchOneByMany"
@@ -132,7 +135,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "fetchAll" 0
       parameters = [ Param.make "table" dbType "" ]
       returnType = TList varA
-      description = "Fetch all the values in `table`"
+      description = "Fetch all the values in <param table>"
       fn =
         function
         | state, [ table ] -> removedFunction state "DB::fetchAll"
@@ -145,7 +148,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "keys" 0
       parameters = [ Param.make "table" dbType "" ]
       returnType = TList varA
-      description = "Fetch all the keys in `table`"
+      description = "Fetch all the keys in <param table>"
       fn =
         function
         | state, [ table ] -> removedFunction state "DB::keys"
@@ -158,7 +161,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "schema" 0
       parameters = [ Param.make "table" dbType "" ]
       returnType = obj
-      description = "Fetch all the values in `table`"
+      description = "Fetch all the values in <param table>"
       fn =
         function
         | state, [ table ] -> removedFunction state "DB::schema"

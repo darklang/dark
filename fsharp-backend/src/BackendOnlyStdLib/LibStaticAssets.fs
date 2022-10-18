@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
       parameters = []
       returnType = TOption TStr
       description =
-        "Return the baseUrl for the latest deploy, wrapped in an Option. If no deploys have been made, `Nothing` is returned."
+        "Return the baseUrl for the latest deploy, wrapped in an Option. If no deploys have been made, {{ Nothing }} is returned."
       fn =
         (function
         | state, [] ->

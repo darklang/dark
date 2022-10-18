@@ -90,7 +90,8 @@ let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "post" 0
       parameters = parameters
       returnType = returnType
-      description = "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
+      description =
+        "Make blocking HTTP POST call to <param uri>. Uses broken JSON format"
       fn = LegacyHttpClient0.call HttpMethod.Post jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -98,7 +99,8 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "put" 0
       parameters = parameters
       returnType = returnType
-      description = "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
+      description =
+        "Make blocking HTTP PUT call to <param uri>. Uses broken JSON format"
       fn = LegacyHttpClient0.call HttpMethod.Put jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -106,7 +108,8 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "get" 0
       parameters = parameters
       returnType = returnType
-      description = "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
+      description =
+        "Make blocking HTTP GET call to <param uri>. Uses broken JSON format"
       fn = LegacyHttpClient0.callIgnoreBody HttpMethod.Get jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -115,7 +118,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description =
-        "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
+        "Make blocking HTTP DELETE call to <param uri>. Uses broken JSON format"
       fn = LegacyHttpClient0.callIgnoreBody HttpMethod.Delete jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -124,7 +127,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description =
-        "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
+        "Make blocking HTTP OPTIONS call to <param uri>. Uses broken JSON format"
       fn = LegacyHttpClient0.callIgnoreBody HttpMethod.Options jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -132,7 +135,8 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "head" 0
       parameters = parameters
       returnType = returnType
-      description = "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
+      description =
+        "Make blocking HTTP HEAD call to <param uri>. Uses broken JSON format"
       fn = LegacyHttpClient0.callIgnoreBody HttpMethod.Head jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
@@ -140,7 +144,8 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "patch" 0
       parameters = parameters
       returnType = returnType
-      description = "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
+      description =
+        "Make blocking HTTP PATCH call to <param uri>. Uses broken JSON format"
       fn = LegacyHttpClient0.call HttpMethod.Patch jsonFn
       sqlSpec = NotQueryable
       previewable = Impure

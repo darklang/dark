@@ -196,7 +196,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "subtract" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Subtract `float` `b` from `float` `a`"
+      description = "Subtract <type float> <param b> from <type float> <param a>"
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a - b))
