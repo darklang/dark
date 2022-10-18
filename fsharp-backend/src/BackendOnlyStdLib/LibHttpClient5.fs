@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description =
-        "Make blocking HTTP POST call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in <code Ok> if the status code is in the 2xx range, and is wrapped in <code Error> otherwise. Parsing errors/UTF-8 decoding errors are also <code Error> wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
+        "Make blocking HTTP POST call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in {{ Ok }} if the status code is in the 2xx range, and is wrapped in {{ Error }} otherwise. Parsing errors/UTF-8 decoding errors are also {{ Error }} wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
       fn = HttpClient.call HttpMethod.Post
       sqlSpec = NotQueryable
       previewable = Impure
@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description =
-        "Make blocking HTTP PUT call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in <code Ok> if the status code is in the 2xx range, and is wrapped in <code Error> otherwise. Parsing errors/UTF-8 decoding errors are also <code Error> wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
+        "Make blocking HTTP PUT call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in {{ Ok }} if the status code is in the 2xx range, and is wrapped in {{ Error }} otherwise. Parsing errors/UTF-8 decoding errors are also {{ Error }} wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
       fn = HttpClient.call HttpMethod.Put
       sqlSpec = NotQueryable
       previewable = Impure
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description =
-        "Make blocking HTTP GET call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in <code Ok> if the status code is in the 2xx range, and is wrapped in <code Error> otherwise. Parsing errors/UTF-8 decoding errors are also <code Error> wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
+        "Make blocking HTTP GET call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in {{ Ok }} if the status code is in the 2xx range, and is wrapped in {{ Error }} otherwise. Parsing errors/UTF-8 decoding errors are also {{ Error }} wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
       fn = HttpClient.callNoBody HttpMethod.Get
       sqlSpec = NotQueryable
       previewable = Impure
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description =
-        "Make blocking HTTP DELETE call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in <code Ok> if the status code is in the 2xx range, and is wrapped in <code Error> otherwise. Parsing errors/UTF-8 decoding errors are also <code Error> wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
+        "Make blocking HTTP DELETE call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in {{ Ok }} if the status code is in the 2xx range, and is wrapped in {{ Error }} otherwise. Parsing errors/UTF-8 decoding errors are also {{ Error }} wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
       fn = HttpClient.callNoBody HttpMethod.Delete
       sqlSpec = NotQueryable
       previewable = Impure
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description =
-        "Make blocking HTTP OPTIONS call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in <code Ok> if the status code is in the 2xx range, and is wrapped in <code Error> otherwise. Parsing errors/UTF-8 decoding errors are also <code Error> wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
+        "Make blocking HTTP OPTIONS call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in {{ Ok }} if the status code is in the 2xx range, and is wrapped in {{ Error }} otherwise. Parsing errors/UTF-8 decoding errors are also {{ Error }} wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
       fn = HttpClient.callNoBody HttpMethod.Options
       sqlSpec = NotQueryable
       previewable = Impure
@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description =
-        "Make blocking HTTP HEAD call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in <code Ok> if the status code is in the 2xx range, and is wrapped in <code Error> otherwise. Parsing errors/UTF-8 decoding errors are also <code Error> wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
+        "Make blocking HTTP HEAD call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in {{ Ok }} if the status code is in the 2xx range, and is wrapped in {{ Error }} otherwise. Parsing errors/UTF-8 decoding errors are also {{ Error }} wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
       fn = HttpClient.callNoBody HttpMethod.Head
       sqlSpec = NotQueryable
       previewable = Impure
@@ -102,7 +102,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description =
-        "Make blocking HTTP PATCH call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in <code Ok> if the status code is in the 2xx range, and is wrapped in <code Error> otherwise. Parsing errors/UTF-8 decoding errors are also <code Error> wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
+        "Make blocking HTTP PATCH call to <param uri>. Returns a <type Result> object where the response <type Dict> is wrapped in {{ Ok }} if the status code is in the 2xx range, and is wrapped in {{ Error }} otherwise. Parsing errors/UTF-8 decoding errors are also {{ Error }} wrapped response <type Dict>s, with a message in the <param body> and/or <param raw> fields"
       fn = HttpClient.call HttpMethod.Patch
       sqlSpec = NotQueryable
       previewable = Impure

@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
-        "Finds many values in <param table> by <param keys>, returning a <code [[key, value]]> list of lists"
+        "Finds many values in <param table> by <param keys>, returning a {{ [[key, value]] }} list of lists"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -131,7 +131,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
-        "Finds many values in <param table> by <param keys>, returning a <code [value]> list of values"
+        "Finds many values in <param table> by <param keys>, returning a {{ [value] }} list of values"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -189,7 +189,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
-        "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a <code [value]> list of values"
+        "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -216,7 +216,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
-        "Finds many values in <param table> by <param keys>, returning a <code [[key, value]]> list of lists"
+        "Finds many values in <param table> by <param keys>, returning a {{ [[key, value]] }} list of lists"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TDict varA
       description =
-        "Finds many values in <param table> by <param keys>, returning a <code {key:{value}, key2: {value2} }> object of keys and values"
+        "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
       returnType = TList varA // heterogenous list
       description =
         "Fetch all the values from <param table> which have the same fields and values that <param spec> has,
-         returning a <code [[key, value]]> list of lists"
+         returning a {{ [[key, value]] }} list of lists"
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
@@ -613,7 +613,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam ]
       returnType = ocamlTObj
       description =
-        "Returns a <type Dict> representing <code { fieldName: fieldType }> in <param table>"
+        "Returns a <type Dict> representing {{ { fieldName: fieldType } }} in <param table>"
       fn =
         (function
         | state, [ DDB dbname ] ->

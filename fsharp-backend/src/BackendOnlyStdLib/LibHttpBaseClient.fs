@@ -239,8 +239,8 @@ let fns : List<BuiltInFn> =
       description =
         // HttpBaseClientTODO better description
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
-        the response is wrapped in <code Ok> if a response was successfully
-        received and parsed, and is wrapped in <code Error> otherwise"
+        the response is wrapped in {{ Ok }} if a response was successfully
+        received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         // HttpBaseClientTODO expose as non-internal fn
         LibDarkInternal.internalFn (function
