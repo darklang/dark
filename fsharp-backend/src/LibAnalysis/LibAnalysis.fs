@@ -94,25 +94,25 @@ module Eval =
       return results
     }
 
-module CT = ClientTypes
-module CTA = ClientTypes.Analysis
+module CRT = ClientTypes.Runtime
+module CAT = ClientTypes.Analysis
 
-let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelope> =
+let performAnalysis (args : CAT.PerformAnalysisParams) : Task<CAT.AnalysisEnvelope> =
   let runAnalysis
     (requestID : int)
     (requestTime : NodaTime.Instant)
     (tlid : tlid)
-    (traceID : CTA.TraceID)
-    (traceData : CTA.TraceData.T)
+    (traceID : CAT.TraceID)
+    (traceData : CAT.TraceData.T)
     (userFns : List<PT.UserFunction.T>)
     (userTypes : List<PT.UserType.T>)
     (dbs : List<PT.DB.T>)
     (expr : PT.Expr)
     (packageFns : List<PT.Package.Fn>)
     (secrets : List<PT.Secret.T>)
-    : Task<CTA.AnalysisEnvelope> =
+    : Task<CAT.AnalysisEnvelope> =
     task {
-      let traceData = CTA.TraceData.toAT traceData
+      let traceData = CAT.TraceData.toAT traceData
       let userFns = List.map PT2RT.UserFunction.toRT userFns
       let userTypes = List.map PT2RT.UserType.toRT userTypes
       let dbs = List.map PT2RT.DB.toRT dbs
@@ -122,11 +122,12 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
       let! result =
         Eval.runAnalysis tlid traceData userFns userTypes dbs expr packageFns secrets
 
-      return (traceID, CTA.AnalysisResults.fromAT result, requestID, requestTime)
+      return (traceID, CAT.AnalysisResults.fromAT result, requestID, requestTime)
+    //return (traceID, CAT.AnalysisResults.fromAT result)
     }
 
   match args with
-  | CTA.AnalyzeHandler ah ->
+  | CAT.AnalyzeHandler ah ->
     runAnalysis
       ah.requestID
       ah.requestTime
@@ -140,7 +141,7 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
       ah.packageFns
       ah.secrets
 
-  | CTA.AnalyzeFunction af ->
+  | CAT.AnalyzeFunction af ->
     runAnalysis
       af.requestID
       af.requestTime
@@ -155,8 +156,8 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
       af.secrets
 
 
-type AnalysisResult = Result<CTA.AnalysisEnvelope, string>
+type AnalysisResult = Result<CAT.AnalysisEnvelope, string>
 
 let initSerializers () =
   do Json.Vanilla.allow<AnalysisResult> "LibAnalysis"
-  do Json.Vanilla.allow<CTA.PerformAnalysisParams> "LibAnalysis"
+  do Json.Vanilla.allow<CAT.PerformAnalysisParams> "LibAnalysis"

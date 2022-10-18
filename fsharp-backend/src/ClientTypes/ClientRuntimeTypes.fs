@@ -1,13 +1,13 @@
-/// Types used in many APIs
-module ClientTypes
+/// Runtime Types used for client-server communication so we may update backend
+/// types without affecting APIs.
+///
+/// These should all directly match `RuntimeTypes.res` in `client`.
+/// See `RuntimeTypes.fs` for documentation of these types.
+module ClientTypes.Runtime
 
 open Prelude
 open Tablecloth
 
-// ProgramTypes can be used in APIs, because that's kinda what they do. But
-// RuntimeTypes are designed for the interpreter, and it's important that we're able
-// to change the types without affecting APIs. So we add types here that we can
-// standardize in the API without affecting the RuntimeTypes.
 
 module RT = LibExecution.RuntimeTypes
 
@@ -410,86 +410,3 @@ module Dval =
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
     | RT.DErrorRail dv -> DErrorRail(fromRT dv)
     | RT.DBytes bytes -> DBytes bytes
-
-/// All these types correspond to AnalysisTypes.fs in the backend, but should
-/// directly match AnalysisTypes in the client
-module Analysis =
-  module PT = LibExecution.ProgramTypes
-  module AT = LibExecution.AnalysisTypes
-
-  module ExecutionResult =
-    type T =
-      | ExecutedResult of Dval.T
-      | NonExecutedResult of Dval.T
-
-    let fromAT (er : AT.ExecutionResult) : T =
-      match er with
-      | AT.ExecutedResult (dv) -> ExecutedResult(Dval.fromRT dv)
-      | AT.NonExecutedResult (dv) -> NonExecutedResult(Dval.fromRT dv)
-
-  module AnalysisResults =
-    type T = Dictionary.T<id, ExecutionResult.T>
-
-    let fromAT (ar : AT.AnalysisResults) : T =
-      ar
-      |> Dictionary.toList
-      |> List.map (fun (k, v) -> (k, ExecutionResult.fromAT v))
-      |> Dictionary.fromList
-
-
-  type InputVars = List<string * Dval.T>
-
-  type FunctionArgHash = string
-  type HashVersion = int
-  type FnName = string
-  type FunctionResult = FnName * id * FunctionArgHash * HashVersion * Dval.T
-
-  type TraceID = System.Guid
-
-  module TraceData =
-    type T =
-      { input : InputVars
-        timestamp : NodaTime.Instant
-        functionResults : List<FunctionResult> }
-
-    let toAT (td : T) : AT.TraceData =
-      { input = List.map (fun (k, v) -> (k, Dval.toRT v)) td.input
-        timestamp = td.timestamp
-        function_results =
-          List.map
-            (fun (name, id, hash, version, dval) ->
-              (name, id, hash, version, Dval.toRT dval))
-            td.functionResults }
-
-
-  type Trace = TraceID * TraceData.T
-
-  type HandlerAnalysisParam =
-    { requestID : int
-      requestTime : NodaTime.Instant
-      handler : PT.Handler.T
-      traceID : TraceID
-      traceData : TraceData.T
-      dbs : List<PT.DB.T>
-      userFns : list<PT.UserFunction.T>
-      userTypes : list<PT.UserType.T>
-      packageFns : list<PT.Package.Fn>
-      secrets : list<PT.Secret.T> }
-
-  type FunctionAnalysisParam =
-    { requestID : int
-      requestTime : NodaTime.Instant
-      func : PT.UserFunction.T
-      traceID : TraceID
-      traceData : TraceData.T
-      dbs : List<PT.DB.T>
-      userFns : list<PT.UserFunction.T>
-      userTypes : list<PT.UserType.T>
-      packageFns : list<PT.Package.Fn>
-      secrets : list<PT.Secret.T> }
-
-  type PerformAnalysisParams =
-    | AnalyzeHandler of HandlerAnalysisParam
-    | AnalyzeFunction of FunctionAnalysisParam
-
-  type AnalysisEnvelope = TraceID * AnalysisResults.T * int * NodaTime.Instant
