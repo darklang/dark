@@ -353,7 +353,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Float" "parse" 1
+    { name = fn "Float" "parse" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TFloat, TStr)
       description = "Returns the <type float> value of the <type string>"
