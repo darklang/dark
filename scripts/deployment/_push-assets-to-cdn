@@ -194,6 +194,5 @@ for mimetype in mimetypes_to_process:
   print(f"Uploaded dir {mimetype_subfolder} for mimetype {mimetype} in {elapsed}s")
 
 # Wrap up
-print("temp_dir", temp_dir)
-# shutil.rmtree(temp_dir, ignore_errors=True)
+shutil.rmtree(temp_dir, ignore_errors=True)
 print("Done!")
