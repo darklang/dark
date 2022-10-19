@@ -8,31 +8,16 @@ module ClientTypes.Analysis
 open Prelude
 open Tablecloth
 
+// todo: reference ClientProgramTypes instead.
 module PT = LibExecution.ProgramTypes
-module AT = LibExecution.AnalysisTypes
-module CTRuntime = ClientTypes.Runtime
 
 open ClientTypes.Runtime
 
-module ExecutionResult =
-  type T =
-    | ExecutedResult of Dval.T
-    | NonExecutedResult of Dval.T
+type ExecutionResult =
+  | ExecutedResult of Dval.T
+  | NonExecutedResult of Dval.T
 
-  let fromAT (er : AT.ExecutionResult) : T =
-    match er with
-    | AT.ExecutedResult (dv) -> ExecutedResult(Dval.fromRT dv)
-    | AT.NonExecutedResult (dv) -> NonExecutedResult(Dval.fromRT dv)
-
-module AnalysisResults =
-  type T = Dictionary.T<id, ExecutionResult.T>
-
-  let fromAT (ar : AT.AnalysisResults) : T =
-    ar
-    |> Dictionary.toList
-    |> List.map (fun (k, v) -> (k, ExecutionResult.fromAT v))
-    |> Dictionary.fromList
-
+type AnalysisResults = Dictionary.T<id, ExecutionResult>
 
 type InputVars = List<string * Dval.T>
 
@@ -43,30 +28,19 @@ type FunctionResult = FnName * id * FunctionArgHash * HashVersion * Dval.T
 
 type TraceID = System.Guid
 
-module TraceData =
-  type T =
-    { input : InputVars
-      timestamp : NodaTime.Instant
-      functionResults : List<FunctionResult> }
+type TraceData =
+  { input : InputVars
+    timestamp : NodaTime.Instant
+    functionResults : List<FunctionResult> }
 
-  let toAT (td : T) : AT.TraceData =
-    { input = List.map (fun (k, v) -> (k, Dval.toRT v)) td.input
-      timestamp = td.timestamp
-      function_results =
-        List.map
-          (fun (name, id, hash, version, dval) ->
-            (name, id, hash, version, Dval.toRT dval))
-          td.functionResults }
-
-
-type Trace = TraceID * TraceData.T
+type Trace = TraceID * TraceData
 
 type HandlerAnalysisParam =
   { requestID : int
     requestTime : NodaTime.Instant
     handler : PT.Handler.T
     traceID : TraceID
-    traceData : TraceData.T
+    traceData : TraceData
     dbs : List<PT.DB.T>
     userFns : list<PT.UserFunction.T>
     userTypes : list<PT.UserType.T>
@@ -78,7 +52,7 @@ type FunctionAnalysisParam =
     requestTime : NodaTime.Instant
     func : PT.UserFunction.T
     traceID : TraceID
-    traceData : TraceData.T
+    traceData : TraceData
     dbs : List<PT.DB.T>
     userFns : list<PT.UserFunction.T>
     userTypes : list<PT.UserType.T>
@@ -89,4 +63,4 @@ type PerformAnalysisParams =
   | AnalyzeHandler of HandlerAnalysisParam
   | AnalyzeFunction of FunctionAnalysisParam
 
-type AnalysisEnvelope = TraceID * AnalysisResults.T * int * NodaTime.Instant
+type AnalysisEnvelope = TraceID * AnalysisResults * int * NodaTime.Instant

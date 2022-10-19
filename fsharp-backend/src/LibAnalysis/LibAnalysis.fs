@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
-
+module CT2Analysis = ClientTypes2ExecutionTypes.Analysis
 
 module Eval =
 
@@ -41,7 +41,6 @@ module Eval =
     |> List.head
     // We don't use the time, so just hack it to get the interface right.
     |> Option.map (fun dv -> (dv, NodaTime.Instant.now ()))
-
 
 
   let runAnalysis
@@ -105,7 +104,7 @@ let performAnalysis
     (requestTime : NodaTime.Instant)
     (tlid : tlid)
     (traceID : CTAnalysis.TraceID)
-    (traceData : CTAnalysis.TraceData.T)
+    (traceData : CTAnalysis.TraceData)
     (userFns : List<PT.UserFunction.T>)
     (userTypes : List<PT.UserType.T>)
     (dbs : List<PT.DB.T>)
@@ -114,7 +113,7 @@ let performAnalysis
     (secrets : List<PT.Secret.T>)
     : Task<CTAnalysis.AnalysisEnvelope> =
     task {
-      let traceData = CTAnalysis.TraceData.toAT traceData
+      let traceData = CT2Analysis.TraceData.fromCT traceData
       let userFns = List.map PT2RT.UserFunction.toRT userFns
       let userTypes = List.map PT2RT.UserType.toRT userTypes
       let dbs = List.map PT2RT.DB.toRT dbs
@@ -124,7 +123,7 @@ let performAnalysis
       let! result =
         Eval.runAnalysis tlid traceData userFns userTypes dbs expr packageFns secrets
 
-      return (traceID, CTAnalysis.AnalysisResults.fromAT result, requestID, requestTime)
+      return (traceID, CT2Analysis.AnalysisResults.toCT result, requestID, requestTime)
     }
 
   match args with

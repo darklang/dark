@@ -19,9 +19,10 @@
     <None Include="paket.references" />
     <!-- <Compile Include="RuntimeTypes.fs" /> -->
     <!-- TODO: pull these in as well. -->
-    <!-- <Compile Include="AnalysisTypes.fs" />
+    <!--
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="PusherTypes.fs" /> -->
+    <Compile Include="AnalysisTypes.fs" />
     <Compile Include="ProgramTypes.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
