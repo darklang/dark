@@ -10,7 +10,7 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
-module CRT = ClientTypes.Runtime
+module CTRuntime = ClientTypes.Runtime
 
 open ClientTypes.Runtime
 

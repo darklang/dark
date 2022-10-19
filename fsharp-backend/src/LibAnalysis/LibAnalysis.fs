@@ -94,25 +94,27 @@ module Eval =
       return results
     }
 
-module CRT = ClientTypes.Runtime
-module CAT = ClientTypes.Analysis
+module CTRuntime = ClientTypes.Runtime
+module CTAnalysis = ClientTypes.Analysis
 
-let performAnalysis (args : CAT.PerformAnalysisParams) : Task<CAT.AnalysisEnvelope> =
+let performAnalysis
+  (args : CTAnalysis.PerformAnalysisParams)
+  : Task<CTAnalysis.AnalysisEnvelope> =
   let runAnalysis
     (requestID : int)
     (requestTime : NodaTime.Instant)
     (tlid : tlid)
-    (traceID : CAT.TraceID)
-    (traceData : CAT.TraceData.T)
+    (traceID : CTAnalysis.TraceID)
+    (traceData : CTAnalysis.TraceData.T)
     (userFns : List<PT.UserFunction.T>)
     (userTypes : List<PT.UserType.T>)
     (dbs : List<PT.DB.T>)
     (expr : PT.Expr)
     (packageFns : List<PT.Package.Fn>)
     (secrets : List<PT.Secret.T>)
-    : Task<CAT.AnalysisEnvelope> =
+    : Task<CTAnalysis.AnalysisEnvelope> =
     task {
-      let traceData = CAT.TraceData.toAT traceData
+      let traceData = CTAnalysis.TraceData.toAT traceData
       let userFns = List.map PT2RT.UserFunction.toRT userFns
       let userTypes = List.map PT2RT.UserType.toRT userTypes
       let dbs = List.map PT2RT.DB.toRT dbs
@@ -122,12 +124,11 @@ let performAnalysis (args : CAT.PerformAnalysisParams) : Task<CAT.AnalysisEnvelo
       let! result =
         Eval.runAnalysis tlid traceData userFns userTypes dbs expr packageFns secrets
 
-      return (traceID, CAT.AnalysisResults.fromAT result, requestID, requestTime)
-    //return (traceID, CAT.AnalysisResults.fromAT result)
+      return (traceID, CTAnalysis.AnalysisResults.fromAT result, requestID, requestTime)
     }
 
   match args with
-  | CAT.AnalyzeHandler ah ->
+  | CTAnalysis.AnalyzeHandler ah ->
     runAnalysis
       ah.requestID
       ah.requestTime
@@ -141,7 +142,7 @@ let performAnalysis (args : CAT.PerformAnalysisParams) : Task<CAT.AnalysisEnvelo
       ah.packageFns
       ah.secrets
 
-  | CAT.AnalyzeFunction af ->
+  | CTAnalysis.AnalyzeFunction af ->
     runAnalysis
       af.requestID
       af.requestTime
@@ -156,8 +157,8 @@ let performAnalysis (args : CAT.PerformAnalysisParams) : Task<CAT.AnalysisEnvelo
       af.secrets
 
 
-type AnalysisResult = Result<CAT.AnalysisEnvelope, string>
+type AnalysisResult = Result<CTAnalysis.AnalysisEnvelope, string>
 
 let initSerializers () =
   do Json.Vanilla.allow<AnalysisResult> "LibAnalysis"
-  do Json.Vanilla.allow<CAT.PerformAnalysisParams> "LibAnalysis"
+  do Json.Vanilla.allow<CTAnalysis.PerformAnalysisParams> "LibAnalysis"

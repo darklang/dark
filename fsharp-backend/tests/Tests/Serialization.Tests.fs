@@ -13,8 +13,8 @@ module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
-module CRT = ClientTypes.Runtime
-module CAT = ClientTypes.Analysis
+module CTRuntime = ClientTypes.Runtime
+module CTAnalysis = ClientTypes.Analysis
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
@@ -485,7 +485,8 @@ module Values =
 
 
   module ClientRuntime =
-    let testClientDval : CRT.Dval.T = CRT.Dval.fromRT RuntimeTypes.testDval
+    let testClientDval : CTRuntime.Dval.T =
+      CTRuntime.Dval.fromRT RuntimeTypes.testDval
 
 
   let testStaticDeploy : LibBackend.StaticAssets.StaticDeploy =
@@ -627,7 +628,7 @@ module GenericSerializersTests =
       // LibExecution
       // ------------------
 
-      v<CRT.Dval.T> "complete" ClientRuntime.testClientDval
+      v<CTRuntime.Dval.T> "complete" ClientRuntime.testClientDval
 
       v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
         "complete"
@@ -733,10 +734,10 @@ module GenericSerializersTests =
         ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters =
                [ { name = "a"
-                   ``type`` = CRT.DType.TInt
+                   ``type`` = CTRuntime.DType.TInt
                    args = []
                    description = "param description" } ]
-             returnType = CRT.DType.TList(CRT.DType.TInt)
+             returnType = CTRuntime.DType.TList(CTRuntime.DType.TInt)
              description = "basic"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -744,7 +745,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CRT.DType.TInt
+             returnType = CTRuntime.DType.TInt
              description = "impure"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Impure
@@ -752,7 +753,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CRT.DType.TInt
+             returnType = CTRuntime.DType.TInt
              description = "impurepreviewable"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.ImpurePreviewable
@@ -760,7 +761,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CRT.DType.TInt
+             returnType = CTRuntime.DType.TInt
              description = "replacedBy"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -771,7 +772,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CRT.DType.TInt
+             returnType = CTRuntime.DType.TInt
              description = "renamedTo"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -782,7 +783,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
-             returnType = CRT.DType.TInt
+             returnType = CTRuntime.DType.TInt
              description = "deprecatedBecause"
              isInfix = false
              previewable = ApiServer.Functions.Previewable.Pure
@@ -877,8 +878,8 @@ module GenericSerializersTests =
         (Ok(
           testUuid,
           Dictionary.fromList (
-            [ (7UL, CAT.ExecutionResult.ExecutedResult ClientRuntime.testClientDval)
-              (7UL, CAT.ExecutionResult.NonExecutedResult ClientRuntime.testClientDval) ]
+            [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult ClientRuntime.testClientDval)
+              (7UL, CTAnalysis.ExecutionResult.NonExecutedResult ClientRuntime.testClientDval) ]
           ),
           1,
           NodaTime.Instant.UnixEpoch

@@ -11,7 +11,7 @@ open Http
 
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
-module CRT = ClientTypes.Runtime
+module CTRuntime = ClientTypes.Runtime
 
 module Stats = LibBackend.Stats
 module Canvas = LibBackend.Canvas
@@ -39,7 +39,7 @@ module Unlocked =
 module DBStatsV1 =
   type Params = { tlids : tlid list }
 
-  type Stat = { count : int; example : Option<CRT.Dval.T * string> }
+  type Stat = { count : int; example : Option<CTRuntime.Dval.T * string> }
 
   type T = Map<string, Stat>
 
@@ -65,7 +65,7 @@ module DBStatsV1 =
           (string k),
           { count = s.count
             example =
-              Option.map (fun (dv, s) -> (CRT.Dval.fromRT dv, s)) s.example })
+              Option.map (fun (dv, s) -> (CTRuntime.Dval.fromRT dv, s)) s.example })
         |> Map
 
       return result
