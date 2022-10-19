@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:b7819f8
+      - image: darklang/dark-base:8fb190f
 
 commands:
   show-large-files-and-directories:
