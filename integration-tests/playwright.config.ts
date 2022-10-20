@@ -9,7 +9,7 @@ const config: PlaywrightTestConfig = {
   },
   // If nothing is printed for 10m, then CircleCI times us out, which means we don't
   // find out which test hung. So timeout here first so that it tells us what hung.
-  globalTimeout: 60000,
+  globalTimeout: 600000,
   // in ms. 30000 = 30s
   timeout: 30000,
   use: {
