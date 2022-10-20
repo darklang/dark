@@ -97,13 +97,19 @@ module V1 =
 
       let result =
         { handlers = Map.values canvas.handlers |> List.map CT2Program.Handler.toCT
-          deletedHandlers = Map.values canvas.deletedHandlers  |> List.map CT2Program.Handler.toCT
-          dbs = Map.values canvas.dbs  |> List.map CT2Program.DB.toCT
-          deletedDBs = Map.values canvas.deletedDBs  |> List.map CT2Program.DB.toCT
-          userFunctions = Map.values canvas.userFunctions  |> List.map CT2Program.UserFunction.toCT
-          deletedUserFunctions = Map.values canvas.deletedUserFunctions  |> List.map CT2Program.UserFunction.toCT
-          userTypes = Map.values canvas.userTypes  |> List.map CT2Program.UserType.toCT
-          deletedUserTypes = Map.values canvas.deletedUserTypes  |> List.map CT2Program.UserType.toCT
+          deletedHandlers =
+            Map.values canvas.deletedHandlers |> List.map CT2Program.Handler.toCT
+          dbs = Map.values canvas.dbs |> List.map CT2Program.DB.toCT
+          deletedDBs = Map.values canvas.deletedDBs |> List.map CT2Program.DB.toCT
+          userFunctions =
+            Map.values canvas.userFunctions |> List.map CT2Program.UserFunction.toCT
+          deletedUserFunctions =
+            Map.values canvas.deletedUserFunctions
+            |> List.map CT2Program.UserFunction.toCT
+          userTypes =
+            Map.values canvas.userTypes |> List.map CT2Program.UserType.toCT
+          deletedUserTypes =
+            Map.values canvas.deletedUserTypes |> List.map CT2Program.UserType.toCT
           unlockedDBs = unlocked
           staticDeploys = List.map CT2StaticDeploy.toCT staticAssets
           opCtrs = opCtrs
