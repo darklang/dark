@@ -690,36 +690,38 @@ module GenericSerializersTests =
 
 
       // User DBs
-      v<ApiServer.DBs.DBStatsV1.Params> "simple" { tlids = testTLIDs }
-      v<ApiServer.DBs.DBStatsV1.T>
+      v<ClientTypes.Api.DB.StatsV1.Request> "simple" { tlids = testTLIDs }
+      v<ClientTypes.Api.DB.StatsV1.Response.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
                       "db2",
                       { count = 5
                         example = Some(ClientRuntime.testClientDval, "myKey") } ])
-      v<ApiServer.DBs.Unlocked.T> "simple" { unlocked_dbs = [ testTLID ] }
+      v<ClientTypes.Api.DB.Unlocked.Response>
+        "simple"
+        { unlocked_dbs = [ testTLID ] }
 
       // Execution
-      v<ApiServer.Execution.FunctionV1.Params>
+      v<ClientTypes.Api.Execution.FunctionV1.Request>
         "simple"
         { tlid = testTLID
           trace_id = testUuid
           caller_id = 7UL
           args = [ ClientRuntime.testClientDval ]
           fnname = "Int::mod_v0" }
-      v<ApiServer.Execution.FunctionV1.T>
+      v<ClientTypes.Api.Execution.FunctionV1.Response>
         "simple"
         { result = ClientRuntime.testClientDval
           hash = "abcd"
           hashVersion = 0
           touched_tlids = [ testTLID ]
           unlocked_dbs = [ testTLID ] }
-      v<ApiServer.Execution.HandlerV1.Params>
+      v<ClientTypes.Api.Execution.HandlerV1.Request>
         "simple"
         { tlid = testTLID
           trace_id = testUuid
           input = [ "v", ClientRuntime.testClientDval ] }
-      v<ApiServer.Execution.HandlerV1.T> "simple" { touched_tlids = [ testTLID ] }
+      v<ClientTypes.Api.Execution.HandlerV1.Response> "simple" { touched_tlids = [ testTLID ] }
 
       // 404s
       v<ApiServer.F404s.List.T>
@@ -909,7 +911,8 @@ module GenericSerializersTests =
                         typ = Some(CT2Program.DType.toCT PT.TInt)
                         typeID = 9UL } ]
                   version = 1 } ]
-            userFns = List.map CT2Program.UserFunction.toCT ProgramTypes.testUserFunctions
+            userFns =
+              List.map CT2Program.UserFunction.toCT ProgramTypes.testUserFunctions
             userTypes = List.map CT2Program.UserType.toCT ProgramTypes.testUserTypes
             packageFns = [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
             secrets = [ { name = "z"; value = "y" } ] })
@@ -929,14 +932,15 @@ module GenericSerializersTests =
               [ { tlid = testTLID
                   name = "dbname"
                   nameID = 7UL
-                  pos =  CT2Program.Position.toCT  Values.ProgramTypes.testPos
+                  pos = CT2Program.Position.toCT Values.ProgramTypes.testPos
                   cols =
                     [ { name = Some("colname")
                         nameID = 8UL
                         typ = Some(CT2Program.DType.toCT PT.TInt)
                         typeID = 9UL } ]
                   version = 1 } ]
-            userFns = List.map CT2Program.UserFunction.toCT ProgramTypes.testUserFunctions
+            userFns =
+              List.map CT2Program.UserFunction.toCT ProgramTypes.testUserFunctions
             userTypes = List.map CT2Program.UserType.toCT ProgramTypes.testUserTypes
             packageFns = [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
             secrets = [ { name = "z"; value = "y" } ] })

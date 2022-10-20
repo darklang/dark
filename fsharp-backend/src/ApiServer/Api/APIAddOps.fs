@@ -18,10 +18,6 @@ module Op = LibBackend.Op
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 
-open Npgsql.FSharp
-open Npgsql
-open LibBackend.Db
-
 // Toplevel deletion:
 // * The server announces that a toplevel is deleted by it appearing in
 // * deleted_toplevels. The server announces it is no longer deleted by it

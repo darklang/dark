@@ -18,6 +18,7 @@
     <Compile Include="ClientRuntimeTypes.fs" />
     <Compile Include="ClientProgramTypes.fs" />
     <Compile Include="ClientAnalysisTypes.fs" />
+    <Compile Include="ClientApiTypes.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

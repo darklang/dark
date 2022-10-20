@@ -15,6 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module CTRuntime = ClientTypes.Runtime
+module CTApi = ClientTypes.Api
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module Canvas = LibBackend.Canvas
@@ -25,26 +26,13 @@ module Telemetry = LibService.Telemetry
 
 
 module FunctionV1 =
-  type Params =
-    { tlid : tlid
-      trace_id : AT.TraceID
-      caller_id : id
-      args : CTRuntime.Dval.T list
-      fnname : string }
-
-  type T =
-    { result : CTRuntime.Dval.T
-      hash : string
-      hashVersion : int
-      touched_tlids : tlid list
-      unlocked_dbs : tlid list }
 
   /// API endpoint to execute a User Function and return the result
-  let execute (ctx : HttpContext) : Task<T> =
+  let execute (ctx : HttpContext) : Task<CTApi.Execution.FunctionV1.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.Execution.FunctionV1.Request>()
       let args = List.map CT2Runtime.Dval.fromCT p.args
       Telemetry.addTags [ "tlid", p.tlid
                           "trace_id", p.trace_id
@@ -76,7 +64,7 @@ module FunctionV1 =
       let hashVersion = DvalReprInternalDeprecated.currentHashVersion
       let hash = DvalReprInternalDeprecated.hash hashVersion args
 
-      let result =
+      let result : CTApi.Execution.FunctionV1.Response =
         { result = CT2Runtime.Dval.toCT result
           hash = hash
           hashVersion = hashVersion
@@ -87,22 +75,15 @@ module FunctionV1 =
     }
 
 module HandlerV1 =
-  type Params =
-    { tlid : tlid
-      trace_id : AT.TraceID
-      input : List<string * CTRuntime.Dval.T> }
-
-  type T = { touched_tlids : tlid list }
-
   /// API endpoint to trigger the execution of a Handler
   ///
   /// Handlers are handled asynchronously, so the result is not returned. The result
   /// is instead added to the trace, which is then loaded by the client again.
-  let trigger (ctx : HttpContext) : Task<T> =
+  let trigger (ctx : HttpContext) : Task<CTApi.Execution.HandlerV1.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.Execution.HandlerV1.Request>()
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       let inputVars =
