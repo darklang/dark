@@ -41,6 +41,13 @@ module Execution =
     type Response = { touched_tlids : tlid list }
 
 
+module Toplevels =
+  module Delete =
+    type Request = { tlid : tlid }
+
+    type Response = { result : string }
+
+
 module Traces =
   module GetTraceDataV1 =
     type Request = { tlid : tlid; traceID : Analysis.TraceID }

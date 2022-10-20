@@ -847,8 +847,8 @@ module GenericSerializersTests =
 
       // Toplevels
 
-      v<ApiServer.Toplevels.Delete.Params> "simple" { tlid = testTLID }
-      v<ApiServer.Toplevels.Delete.T> "simple" { result = "success" }
+      v<ClientTypes.Api.Toplevels.Delete.Request> "simple" { tlid = testTLID }
+      v<ClientTypes.Api.Toplevels.Delete.Response> "simple" { result = "success" }
 
       // Traces
 

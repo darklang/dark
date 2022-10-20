@@ -147,7 +147,7 @@ let run = () => {
       "vanilla_ApiServer-F404s_ApiServer-F404s-Delete-T_simple.json", // we don't check the response
       "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-Params_simple.json",
       "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-T_simple.json",
-      "vanilla_ApiServer-Toplevels_ApiServer-Toplevels-Delete-T_simple.json", // we don't check the response
+      "vanilla_ApiServer-Toplevels_ClientTypes-Api-Toplevels-Delete-Response_simple.json", // we don't check the response
       "vanilla_LibBackend-Pusher_LibBackend-Pusher-AddOpEventTooBigPayload_simple.json", // not used yet
       // Internal to backend
       "vanilla_LibBackend-session-db-storage_LibBackend-Session-JsonData_simple.json",
@@ -235,7 +235,7 @@ let run = () => {
       APISecrets.Insert.encode,
     )
     t(
-      "vanilla_ApiServer-Toplevels_ApiServer-Toplevels-Delete-Params_simple.json",
+      "vanilla_ApiServer-Toplevels_ClientTypes-Api-Toplevels-Delete-Request_simple.json",
       APIToplevels.DeleteForever.Params.decode,
       APIToplevels.DeleteForever.Params.encode,
     )

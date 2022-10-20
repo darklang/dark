@@ -247,8 +247,8 @@ let initSerializers () =
   Json.Vanilla.allow<Secrets.DeleteV1.T> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.InsertV1.Params> "ApiServer.Secrets"
   Json.Vanilla.allow<Secrets.InsertV1.T> "ApiServer.Secrets"
-  Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
-  Json.Vanilla.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
+  Json.Vanilla.allow<ClientTypes.Api.Toplevels.Delete.Request> "ApiServer.Toplevels"
+  Json.Vanilla.allow<ClientTypes.Api.Toplevels.Delete.Response> "ApiServer.Toplevels"
   Json.Vanilla.allow<ClientTypes.Api.Traces.GetAllTraces.Response> "ApiServer.Traces"
   Json.Vanilla.allow<ClientTypes.Api.Traces.GetTraceDataV1.Request>
     "ApiServer.Traces"
