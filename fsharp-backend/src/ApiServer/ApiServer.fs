@@ -30,6 +30,7 @@ module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
+module CTApi = ClientTypes.Api
 
 type Packages = List<LibExecution.ProgramTypes.Package.Fn>
 
@@ -226,40 +227,40 @@ let run (packages : Packages) : unit =
 let initSerializers () =
   Json.Vanilla.allow<AddOps.V1.Params> "ApiServer.AddOps"
   Json.Vanilla.allow<AddOps.V1.T> "ApiServer.AddOps"
-  Json.Vanilla.allow<ClientTypes.Api.DB.StatsV1.Request> "ApiServer.DBs"
-  Json.Vanilla.allow<ClientTypes.Api.DB.StatsV1.Response.T> "ApiServer.DBs"
-  Json.Vanilla.allow<ClientTypes.Api.DB.Unlocked.Response> "ApiServer.DBs"
-  Json.Vanilla.allow<ClientTypes.Api.Execution.FunctionV1.Request>
+  Json.Vanilla.allow<CTApi.DB.StatsV1.Request> "ApiServer.DBs"
+  Json.Vanilla.allow<CTApi.DB.StatsV1.Response.T> "ApiServer.DBs"
+  Json.Vanilla.allow<CTApi.DB.Unlocked.Response> "ApiServer.DBs"
+  Json.Vanilla.allow<CTApi.Execution.FunctionV1.Request>
     "ApiServer.Execution"
-  Json.Vanilla.allow<ClientTypes.Api.Execution.FunctionV1.Response>
+  Json.Vanilla.allow<CTApi.Execution.FunctionV1.Response>
     "ApiServer.Execution"
-  Json.Vanilla.allow<ClientTypes.Api.Execution.HandlerV1.Request>
+  Json.Vanilla.allow<CTApi.Execution.HandlerV1.Request>
     "ApiServer.Execution"
-  Json.Vanilla.allow<ClientTypes.Api.Execution.HandlerV1.Response>
+  Json.Vanilla.allow<CTApi.Execution.HandlerV1.Response>
     "ApiServer.Execution"
-  Json.Vanilla.allow<ClientTypes.Api.F404.Delete.Request> "ApiServer.F404s"
-  Json.Vanilla.allow<ClientTypes.Api.F404.Delete.Response> "ApiServer.F404s"
-  Json.Vanilla.allow<ClientTypes.Api.F404.List.Response> "ApiServer.F404s"
+  Json.Vanilla.allow<CTApi.F404.Delete.Request> "ApiServer.F404s"
+  Json.Vanilla.allow<CTApi.F404.Delete.Response> "ApiServer.F404s"
+  Json.Vanilla.allow<CTApi.F404.List.Response> "ApiServer.F404s"
   Json.Vanilla.allow<List<Functions.BuiltInFn.T>> "ApiServer.Functions"
   Json.Vanilla.allow<InitialLoad.V1.T> "ApiServer.InitialLoad"
-  Json.Vanilla.allow<ClientTypes.Api.Packages.ListV1.Response> "ApiServer.Packages"
-  Json.Vanilla.allow<ClientTypes.Api.Secrets.DeleteV1.Request> "ApiServer.Secrets"
-  Json.Vanilla.allow<ClientTypes.Api.Secrets.DeleteV1.Response> "ApiServer.Secrets"
-  Json.Vanilla.allow<ClientTypes.Api.Secrets.InsertV1.Request> "ApiServer.Secrets"
-  Json.Vanilla.allow<ClientTypes.Api.Secrets.InsertV1.Response> "ApiServer.Secrets"
-  Json.Vanilla.allow<ClientTypes.Api.Toplevels.Delete.Request> "ApiServer.Toplevels"
-  Json.Vanilla.allow<ClientTypes.Api.Toplevels.Delete.Response> "ApiServer.Toplevels"
-  Json.Vanilla.allow<ClientTypes.Api.Traces.GetAllTraces.Response> "ApiServer.Traces"
-  Json.Vanilla.allow<ClientTypes.Api.Traces.GetTraceDataV1.Request>
+  Json.Vanilla.allow<CTApi.Packages.ListV1.Response> "ApiServer.Packages"
+  Json.Vanilla.allow<CTApi.Secrets.DeleteV1.Request> "ApiServer.Secrets"
+  Json.Vanilla.allow<CTApi.Secrets.DeleteV1.Response> "ApiServer.Secrets"
+  Json.Vanilla.allow<CTApi.Secrets.InsertV1.Request> "ApiServer.Secrets"
+  Json.Vanilla.allow<CTApi.Secrets.InsertV1.Response> "ApiServer.Secrets"
+  Json.Vanilla.allow<CTApi.Toplevels.Delete.Request> "ApiServer.Toplevels"
+  Json.Vanilla.allow<CTApi.Toplevels.Delete.Response> "ApiServer.Toplevels"
+  Json.Vanilla.allow<CTApi.Traces.GetAllTraces.Response> "ApiServer.Traces"
+  Json.Vanilla.allow<CTApi.Traces.GetTraceDataV1.Request>
     "ApiServer.Traces"
-  Json.Vanilla.allow<ClientTypes.Api.Traces.GetTraceDataV1.Response.T>
+  Json.Vanilla.allow<CTApi.Traces.GetTraceDataV1.Response.T>
     "ApiServer.Traces"
-  Json.Vanilla.allow<ClientTypes.Api.Tunnels.Register.Request> "ApiServer.Tunnels"
-  Json.Vanilla.allow<ClientTypes.Api.Tunnels.Register.Response> "ApiServer.Tunnels"
-  Json.Vanilla.allow<ClientTypes.Api.Workers.Scheduler.Request> "ApiServer.Workers"
+  Json.Vanilla.allow<CTApi.Tunnels.Register.Request> "ApiServer.Tunnels"
+  Json.Vanilla.allow<CTApi.Tunnels.Register.Response> "ApiServer.Tunnels"
+  Json.Vanilla.allow<CTApi.Workers.Scheduler.Request> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.Scheduler.Response> "ApiServer.Workers"
-  Json.Vanilla.allow<ClientTypes.Api.Workers.WorkerStats.Request> "ApiServer.Workers"
-  Json.Vanilla.allow<ClientTypes.Api.Workers.WorkerStats.Response>
+  Json.Vanilla.allow<CTApi.Workers.WorkerStats.Request> "ApiServer.Workers"
+  Json.Vanilla.allow<CTApi.Workers.WorkerStats.Response>
     "ApiServer.Workers"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 

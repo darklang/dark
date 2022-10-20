@@ -15,8 +15,10 @@ module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
+module CTApi = ClientTypes.Api
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
+
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
@@ -690,49 +692,45 @@ module GenericSerializersTests =
 
 
       // User DBs
-      v<ClientTypes.Api.DB.StatsV1.Request> "simple" { tlids = testTLIDs }
-      v<ClientTypes.Api.DB.StatsV1.Response.T>
+      v<CTApi.DB.StatsV1.Request> "simple" { tlids = testTLIDs }
+      v<CTApi.DB.StatsV1.Response.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
                       "db2",
                       { count = 5
                         example = Some(ClientRuntime.testClientDval, "myKey") } ])
-      v<ClientTypes.Api.DB.Unlocked.Response>
-        "simple"
-        { unlocked_dbs = [ testTLID ] }
+      v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ testTLID ] }
 
       // Execution
-      v<ClientTypes.Api.Execution.FunctionV1.Request>
+      v<CTApi.Execution.FunctionV1.Request>
         "simple"
         { tlid = testTLID
           trace_id = testUuid
           caller_id = 7UL
           args = [ ClientRuntime.testClientDval ]
           fnname = "Int::mod_v0" }
-      v<ClientTypes.Api.Execution.FunctionV1.Response>
+      v<CTApi.Execution.FunctionV1.Response>
         "simple"
         { result = ClientRuntime.testClientDval
           hash = "abcd"
           hashVersion = 0
           touched_tlids = [ testTLID ]
           unlocked_dbs = [ testTLID ] }
-      v<ClientTypes.Api.Execution.HandlerV1.Request>
+      v<CTApi.Execution.HandlerV1.Request>
         "simple"
         { tlid = testTLID
           trace_id = testUuid
           input = [ "v", ClientRuntime.testClientDval ] }
-      v<ClientTypes.Api.Execution.HandlerV1.Response>
-        "simple"
-        { touched_tlids = [ testTLID ] }
+      v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ testTLID ] }
 
       // 404s
-      v<ClientTypes.Api.F404.List.Response>
+      v<CTApi.F404.List.Response>
         "simple"
         { f404s = [ ("HTTP", "/", "GET", testInstant, testUuid) ] }
-      v<ClientTypes.Api.F404.Delete.Request>
+      v<CTApi.F404.Delete.Request>
         "simple"
         { space = "HTTP"; path = "/"; modifier = "POST" }
-      v<ClientTypes.Api.F404.Delete.Response> "simple" { result = "success" }
+      v<CTApi.F404.Delete.Response> "simple" { result = "success" }
 
       // Functions
       v<List<ApiServer.Functions.BuiltInFn.T>>
@@ -822,45 +820,43 @@ module GenericSerializersTests =
           secrets = [ { name = "test"; value = "secret" } ] }
 
       // Tunnels
-      v<ClientTypes.Api.Tunnels.Register.Request> "empty" { tunnelHost = None }
-      v<ClientTypes.Api.Tunnels.Register.Request>
+      v<CTApi.Tunnels.Register.Request> "empty" { tunnelHost = None }
+      v<CTApi.Tunnels.Register.Request>
         "simple"
         { tunnelHost = Some "host.tunnel.com" }
-      v<ClientTypes.Api.Tunnels.Register.Response> "simple" { success = false }
+      v<CTApi.Tunnels.Register.Response> "simple" { success = false }
 
       // Packages
-      v<ClientTypes.Api.Packages.ListV1.Response>
+      v<CTApi.Packages.ListV1.Response>
         "simple"
         [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
 
       // SecretsV1
 
-      v<ClientTypes.Api.Secrets.DeleteV1.Request> "simple" { name = "test" }
-      v<ClientTypes.Api.Secrets.DeleteV1.Response>
+      v<CTApi.Secrets.DeleteV1.Request> "simple" { name = "test" }
+      v<CTApi.Secrets.DeleteV1.Response>
         "simple"
         { secrets = [ { name = "test"; value = "secret" } ] }
 
-      v<ClientTypes.Api.Secrets.InsertV1.Request>
-        "simple"
-        { name = "test"; value = "secret" }
-      v<ClientTypes.Api.Secrets.InsertV1.Response>
+      v<CTApi.Secrets.InsertV1.Request> "simple" { name = "test"; value = "secret" }
+      v<CTApi.Secrets.InsertV1.Response>
         "simple"
         { secrets = [ { name = "test"; value = "secret" } ] }
 
       // Toplevels
 
-      v<ClientTypes.Api.Toplevels.Delete.Request> "simple" { tlid = testTLID }
-      v<ClientTypes.Api.Toplevels.Delete.Response> "simple" { result = "success" }
+      v<CTApi.Toplevels.Delete.Request> "simple" { tlid = testTLID }
+      v<CTApi.Toplevels.Delete.Response> "simple" { result = "success" }
 
       // Traces
 
-      v<ClientTypes.Api.Traces.GetAllTraces.Response>
+      v<CTApi.Traces.GetAllTraces.Response>
         "simple"
         { traces = [ (testTLID, testUuid) ] }
-      v<ClientTypes.Api.Traces.GetTraceDataV1.Request>
+      v<CTApi.Traces.GetTraceDataV1.Request>
         "simple"
         { tlid = testTLID; traceID = testUuid }
-      v<ClientTypes.Api.Traces.GetTraceDataV1.Response.T>
+      v<CTApi.Traces.GetTraceDataV1.Response.T>
         "simple"
         { trace =
             (testUuid,
@@ -872,13 +868,11 @@ module GenericSerializersTests =
 
       // Workers
 
-      v<ClientTypes.Api.Workers.Scheduler.Request>
-        "simple"
-        { name = "x"; schedule = "pause" }
+      v<CTApi.Workers.Scheduler.Request> "simple" { name = "x"; schedule = "pause" }
       v<ApiServer.Workers.Scheduler.Response> "all" testWorkerStates
 
-      v<ClientTypes.Api.Workers.WorkerStats.Request> "simple" { tlid = testTLID }
-      v<ClientTypes.Api.Workers.WorkerStats.Response> "simple" { count = 5 }
+      v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = testTLID }
+      v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
 
       // ------------------
       // LibAnalysis
