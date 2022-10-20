@@ -66,7 +66,7 @@ type EvalWorker =
   /// Once evaluated, an async call to `self.postMessage` will be made
   static member OnMessage(input : string) : Task<unit> =
     // Just here to ensure type-safety (serializers require known/allowed types)
-    let postResponse (response : LibAnalysis.AnalysisResult) : unit =
+    let postResponse (response : ClientTypes.Analysis.AnalysisResult) : unit =
       EvalWorker.postMessage (Json.Vanilla.serialize (response))
 
     let reportException (preamble : string) (e : exn) : unit =

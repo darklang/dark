@@ -8,23 +8,21 @@ module ClientTypes.Analysis
 open Prelude
 open Tablecloth
 
-// todo: reference ClientProgramTypes instead.
-module PT = LibExecution.ProgramTypes
-
-open ClientTypes.Runtime
+module PT = ClientTypes.Program
+module RT = ClientTypes.Runtime
 
 type ExecutionResult =
-  | ExecutedResult of Dval.T
-  | NonExecutedResult of Dval.T
+  | ExecutedResult of RT.Dval.T
+  | NonExecutedResult of RT.Dval.T
 
 type AnalysisResults = Dictionary.T<id, ExecutionResult>
 
-type InputVars = List<string * Dval.T>
+type InputVars = List<string * RT.Dval.T>
 
 type FunctionArgHash = string
 type HashVersion = int
 type FnName = string
-type FunctionResult = FnName * id * FunctionArgHash * HashVersion * Dval.T
+type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval.T
 
 type TraceID = System.Guid
 
@@ -45,7 +43,7 @@ type HandlerAnalysisParam =
     userFns : list<PT.UserFunction.T>
     userTypes : list<PT.UserType.T>
     packageFns : list<PT.Package.Fn>
-    secrets : list<PT.Secret.T> }
+    secrets : list<PT.Secret> }
 
 type FunctionAnalysisParam =
   { requestID : int
@@ -57,10 +55,13 @@ type FunctionAnalysisParam =
     userFns : list<PT.UserFunction.T>
     userTypes : list<PT.UserType.T>
     packageFns : list<PT.Package.Fn>
-    secrets : list<PT.Secret.T> }
+    secrets : list<PT.Secret> }
 
 type PerformAnalysisParams =
   | AnalyzeHandler of HandlerAnalysisParam
   | AnalyzeFunction of FunctionAnalysisParam
 
 type AnalysisEnvelope = TraceID * AnalysisResults * int * NodaTime.Instant
+
+// todo: allow serialization of this
+type AnalysisResult = Result<AnalysisEnvelope, string>

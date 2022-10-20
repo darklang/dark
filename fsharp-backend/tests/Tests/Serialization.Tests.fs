@@ -16,6 +16,7 @@ module AT = LibExecution.AnalysisTypes
 module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
+module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
@@ -874,7 +875,7 @@ module GenericSerializersTests =
       // ------------------
       // LibAnalysis
       // ------------------
-      v<LibAnalysis.AnalysisResult>
+      v<ClientTypes.Analysis.AnalysisResult>
         "simple"
         (Ok(
           testUuid,
@@ -890,7 +891,7 @@ module GenericSerializersTests =
         (ClientTypes.Analysis.AnalyzeHandler
           { requestID = 2
             requestTime = NodaTime.Instant.UnixEpoch
-            handler = ProgramTypes.testHttpHandler
+            handler = CT2Program.Handler.toCT ProgramTypes.testHttpHandler
             traceID = testUuid
             traceData =
               { input = [ "var", ClientRuntime.testClientDval ]
@@ -901,23 +902,23 @@ module GenericSerializersTests =
               [ { tlid = testTLID
                   name = "dbname"
                   nameID = 7UL
-                  pos = Values.ProgramTypes.testPos
+                  pos = CT2Program.Position.toCT Values.ProgramTypes.testPos
                   cols =
                     [ { name = Some("colname")
                         nameID = 8UL
-                        typ = Some(PT.TInt)
+                        typ = Some(CT2Program.DType.toCT PT.TInt)
                         typeID = 9UL } ]
                   version = 1 } ]
-            userFns = ProgramTypes.testUserFunctions
-            userTypes = ProgramTypes.testUserTypes
-            packageFns = [ ProgramTypes.testPackageFn ]
+            userFns = List.map CT2Program.UserFunction.toCT ProgramTypes.testUserFunctions
+            userTypes = List.map CT2Program.UserType.toCT ProgramTypes.testUserTypes
+            packageFns = [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
             secrets = [ { name = "z"; value = "y" } ] })
       v<ClientTypes.Analysis.PerformAnalysisParams>
         "function"
         (ClientTypes.Analysis.AnalyzeFunction
           { requestID = 3
             requestTime = NodaTime.Instant.UnixEpoch
-            func = ProgramTypes.testUserFunction
+            func = CT2Program.UserFunction.toCT ProgramTypes.testUserFunction
             traceID = testUuid
             traceData =
               { input = [ "var", ClientRuntime.testClientDval ]
@@ -928,16 +929,16 @@ module GenericSerializersTests =
               [ { tlid = testTLID
                   name = "dbname"
                   nameID = 7UL
-                  pos = Values.ProgramTypes.testPos
+                  pos =  CT2Program.Position.toCT  Values.ProgramTypes.testPos
                   cols =
                     [ { name = Some("colname")
                         nameID = 8UL
-                        typ = Some(PT.TInt)
+                        typ = Some(CT2Program.DType.toCT PT.TInt)
                         typeID = 9UL } ]
                   version = 1 } ]
-            userFns = ProgramTypes.testUserFunctions
-            userTypes = ProgramTypes.testUserTypes
-            packageFns = [ ProgramTypes.testPackageFn ]
+            userFns = List.map CT2Program.UserFunction.toCT ProgramTypes.testUserFunctions
+            userTypes = List.map CT2Program.UserType.toCT ProgramTypes.testUserTypes
+            packageFns = [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
             secrets = [ { name = "z"; value = "y" } ] })
 
 

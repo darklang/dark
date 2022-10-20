@@ -95,6 +95,7 @@ module Eval =
 
 module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
+module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 
 let performAnalysis
   (args : CTAnalysis.PerformAnalysisParams)
@@ -134,12 +135,12 @@ let performAnalysis
       ah.handler.tlid
       ah.traceID
       ah.traceData
-      ah.userFns
-      ah.userTypes
-      ah.dbs
-      ah.handler.ast
-      ah.packageFns
-      ah.secrets
+      (List.map CT2Program.UserFunction.fromCT ah.userFns)
+      (List.map CT2Program.UserType.fromCT ah.userTypes)
+      (List.map CT2Program.DB.fromCT ah.dbs)
+      (CT2Program.Expr.fromCT ah.handler.ast)
+      (List.map CT2Program.Package.Fn.fromCT ah.packageFns)
+      (List.map CT2Program.Secret.fromCT ah.secrets)
 
   | CTAnalysis.AnalyzeFunction af ->
     runAnalysis
@@ -148,16 +149,14 @@ let performAnalysis
       af.func.tlid
       af.traceID
       af.traceData
-      af.userFns
-      af.userTypes
-      af.dbs
-      af.func.body
-      af.packageFns
-      af.secrets
+      (List.map CT2Program.UserFunction.fromCT af.userFns)
+      (List.map CT2Program.UserType.fromCT af.userTypes)
+      (List.map CT2Program.DB.fromCT af.dbs)
+      (CT2Program.Expr.fromCT af.func.body)
+      (List.map CT2Program.Package.Fn.fromCT af.packageFns)
+      (List.map CT2Program.Secret.fromCT af.secrets)
 
-
-type AnalysisResult = Result<CTAnalysis.AnalysisEnvelope, string>
-
+// todo: move this init to ClientTypes
 let initSerializers () =
-  do Json.Vanilla.allow<AnalysisResult> "LibAnalysis"
   do Json.Vanilla.allow<CTAnalysis.PerformAnalysisParams> "LibAnalysis"
+  do Json.Vanilla.allow<CTAnalysis.AnalysisResult> "LibAnalysis"
