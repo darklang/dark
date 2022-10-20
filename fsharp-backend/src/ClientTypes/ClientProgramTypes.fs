@@ -8,12 +8,9 @@ module ClientTypes.Program
 open Prelude
 open Tablecloth
 
-module PT = LibExecution.ProgramTypes
-
 type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
-
 
 type Position = { x : int; y : int }
 
