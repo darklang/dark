@@ -15,6 +15,7 @@ module DB =
 
       type T = Map<string, Stat>
 
+
 module Execution =
   module FunctionV1 =
     type Request =
@@ -39,11 +40,40 @@ module Execution =
 
     type Response = { touched_tlids : tlid list }
 
+
+module Traces =
+  module GetTraceDataV1 =
+    type Request = { tlid : tlid; traceID : Analysis.TraceID }
+
+    module Response =
+      type InputVars = List<string * Runtime.Dval.T>
+      type FunctionArgHash = string
+      type HashVersion = int
+      type FnName = string
+
+      type FunctionResult =
+        FnName * id * FunctionArgHash * HashVersion * Runtime.Dval.T
+
+      type TraceData =
+        { input : InputVars
+          timestamp : NodaTime.Instant
+          functionResults : List<FunctionResult> }
+
+      type Trace = Analysis.TraceID * TraceData
+
+      type T = { trace : Trace }
+
+  module GetAllTraces =
+    type Request = unit
+    type Response = { traces : List<tlid * Analysis.TraceID> }
+
+
 module Tunnels =
   module Register =
     type Request = { tunnelHost : Option<string> }
 
     type Response = { success : bool }
+
 
 module Workers =
   module WorkerStats =
@@ -52,5 +82,5 @@ module Workers =
     type Response = { count : int }
 
   module Scheduler =
-    type Request = { name : string; schedule : string }
     // TODO: pull in response type
+    type Request = { name : string; schedule : string }

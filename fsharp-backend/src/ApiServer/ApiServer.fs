@@ -221,6 +221,8 @@ let run (packages : Packages) : unit =
   let k8sPort = LibService.Config.apiServerKubernetesPort
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
+// TODO: reference these by CTApi alias
+
 let initSerializers () =
   Json.Vanilla.allow<AddOps.V1.Params> "ApiServer.AddOps"
   Json.Vanilla.allow<AddOps.V1.T> "ApiServer.AddOps"
@@ -247,9 +249,11 @@ let initSerializers () =
   Json.Vanilla.allow<Secrets.InsertV1.T> "ApiServer.Secrets"
   Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
   Json.Vanilla.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
-  Json.Vanilla.allow<Traces.AllTraces.T> "ApiServer.Traces"
-  Json.Vanilla.allow<Traces.TraceDataV1.Params> "ApiServer.Traces"
-  Json.Vanilla.allow<Traces.TraceDataV1.T> "ApiServer.Traces"
+  Json.Vanilla.allow<ClientTypes.Api.Traces.GetAllTraces.Response> "ApiServer.Traces"
+  Json.Vanilla.allow<ClientTypes.Api.Traces.GetTraceDataV1.Request>
+    "ApiServer.Traces"
+  Json.Vanilla.allow<ClientTypes.Api.Traces.GetTraceDataV1.Response.T>
+    "ApiServer.Traces"
   Json.Vanilla.allow<ClientTypes.Api.Tunnels.Register.Request> "ApiServer.Tunnels"
   Json.Vanilla.allow<ClientTypes.Api.Tunnels.Register.Response> "ApiServer.Tunnels"
   Json.Vanilla.allow<ClientTypes.Api.Workers.Scheduler.Request> "ApiServer.Workers"

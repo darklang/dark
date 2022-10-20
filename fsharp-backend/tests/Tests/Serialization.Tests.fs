@@ -852,11 +852,13 @@ module GenericSerializersTests =
 
       // Traces
 
-      v<ApiServer.Traces.AllTraces.T> "simple" { traces = [ (testTLID, testUuid) ] }
-      v<ApiServer.Traces.TraceDataV1.Params>
+      v<ClientTypes.Api.Traces.GetAllTraces.Response>
+        "simple"
+        { traces = [ (testTLID, testUuid) ] }
+      v<ClientTypes.Api.Traces.GetTraceDataV1.Request>
         "simple"
         { tlid = testTLID; traceID = testUuid }
-      v<ApiServer.Traces.TraceDataV1.T>
+      v<ClientTypes.Api.Traces.GetTraceDataV1.Response.T>
         "simple"
         { trace =
             (testUuid,
