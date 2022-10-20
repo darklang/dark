@@ -30,16 +30,6 @@ module V1 =
 
   type Params = Op.AddOpParamsV1
 
-  let empty : Op.AddOpResultV1 =
-    { handlers = []
-      deletedHandlers = []
-      dbs = []
-      deletedDBs = []
-      userFunctions = []
-      deletedUserFunctions = []
-      userTypes = []
-      deletedUserTypes = [] }
-
   let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
   /// API endpoint to add a set of Op in a Canvas
