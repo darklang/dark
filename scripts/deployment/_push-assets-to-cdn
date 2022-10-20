@@ -151,34 +151,14 @@ for f in static_files_to_copy:
 for mimetype in mimetypes_to_process:
   mimetype_subfolder = get_mimetype_temp_dir(mimetype)
   start = time.time()
-
-  # Unfortunately, gzip-local overrides the cache-control header, so this doesn't work
-  # See discussion in https://issuetracker.google.com/issues/252956852
-  # So let's just stick to gsutil for now
-  # A better option in future is to use dynamic compression: https://cloud.google.com/cdn/docs/dynamic-compression
-  # command = f'''gcloud storage cp \
-  #   --content-type {mimetype} \
-  #   --cache-control "public, no-transform" \
-  #   --gzip-local \
-  #   --no-clobber \
-  #   --recursive \
-  #   . "{BUCKET}"
-  #   '''
-
-  # - global gsutil args
-  #   -h: set header
-  #   -m: Upload assets in parallel, within call
-  # - `cp`-specific args
-  #   -Z: Uploaded file is served as zipped. Also adds 'no-transform' to Cache-Control header
-  #   -n: Don't overwrite
-  #   -r: Copy recursively
-  start = time.time()
-  command = f'''gsutil \
-    -h "Content-Type:{mimetype}" \
-    -h "Cache-Control:public" \
-    -m \
-    cp -Z -n -r . "{BUCKET}"
-  '''
+  command = f'''gcloud storage cp \
+    --content-type ${mimetype} \
+    --content-encoding gzip \
+    --cache-control public \
+    --no-clobber \
+    --recursive \
+    . "{BUCKET}"
+    '''
 
   result = subprocess.run(command,
                           shell=True,
