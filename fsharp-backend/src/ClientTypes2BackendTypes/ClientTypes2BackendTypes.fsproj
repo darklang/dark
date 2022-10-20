@@ -19,6 +19,8 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Ops.fs" />
+    <Compile Include="StaticDeploy.fs" />
+    <Compile Include="Authorization.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

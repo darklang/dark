@@ -19,47 +19,33 @@ module Auth = LibBackend.Authorization
 module Canvas = LibBackend.Canvas
 module SA = LibBackend.StaticAssets
 module SchedulingRules = LibBackend.QueueSchedulingRules
+module CTProgram = ClientTypes.Program
+module CTApi = ClientTypes.Api
+module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
+module CT2StaticDeploy = ClientTypes2BackendTypes.StaticDeploy
+module CT2Auth = ClientTypes2BackendTypes.Authorization
 
 module V1 =
-  type ApiUserInfo =
-    { username : string // as opposed to UserName.T
-      name : string
-      email : string }
-
-  type ApiStaticDeploy =
-    { deployHash : string
-      url : string
-      lastUpdate : NodaTime.Instant
-      status : SA.DeployStatus }
-
-  let toApiStaticDeploys (d : SA.StaticDeploy) : ApiStaticDeploy =
-    { deployHash = d.deployHash
-      url = d.url
-      lastUpdate = d.lastUpdate
-      status = d.status }
-
-  type ApiSecret = { name : string; value : string }
-
   type T =
-    { handlers : List<PT.Handler.T>
-      deletedHandlers : List<PT.Handler.T>
-      dbs : List<PT.DB.T>
-      deletedDBs : List<PT.DB.T>
-      userFunctions : List<PT.UserFunction.T>
-      deletedUserFunctions : List<PT.UserFunction.T>
-      userTypes : List<PT.UserType.T>
-      deletedUserTypes : List<PT.UserType.T>
+    { handlers : List<CTProgram.Handler.T>
+      deletedHandlers : List<CTProgram.Handler.T>
+      dbs : List<CTProgram.DB.T>
+      deletedDBs : List<CTProgram.DB.T>
+      userFunctions : List<CTProgram.UserFunction.T>
+      deletedUserFunctions : List<CTProgram.UserFunction.T>
+      userTypes : List<CTProgram.UserType.T>
+      deletedUserTypes : List<CTProgram.UserType.T>
       unlockedDBs : List<tlid>
-      staticDeploys : List<ApiStaticDeploy>
-      permission : Option<Auth.Permission>
+      staticDeploys : List<ClientTypes.StaticDeploy.T>
+      permission : Option<ClientTypes.Authorization.Permission>
       opCtrs : Map<System.Guid, int>
-      account : ApiUserInfo
+      account : ClientTypes.Authorization.UserInfo
       canvasList : List<string>
       orgs : List<string>
       orgCanvasList : List<string>
       workerSchedules : SchedulingRules.WorkerStates.T
       creationDate : NodaTime.Instant
-      secrets : List<ApiSecret> }
+      secrets : List<ClientTypes.Secret.T> }
 
   /// API endpoint called when client initially loads a Canvas
   ///
@@ -110,20 +96,20 @@ module V1 =
       t.next "write-api"
 
       let result =
-        { handlers = Map.values canvas.handlers
-          deletedHandlers = Map.values canvas.deletedHandlers
-          dbs = Map.values canvas.dbs
-          deletedDBs = Map.values canvas.deletedDBs
-          userFunctions = Map.values canvas.userFunctions
-          deletedUserFunctions = Map.values canvas.deletedUserFunctions
-          userTypes = Map.values canvas.userTypes
-          deletedUserTypes = Map.values canvas.deletedUserTypes
+        { handlers = Map.values canvas.handlers |> List.map CT2Program.Handler.toCT
+          deletedHandlers = Map.values canvas.deletedHandlers  |> List.map CT2Program.Handler.toCT
+          dbs = Map.values canvas.dbs  |> List.map CT2Program.DB.toCT
+          deletedDBs = Map.values canvas.deletedDBs  |> List.map CT2Program.DB.toCT
+          userFunctions = Map.values canvas.userFunctions  |> List.map CT2Program.UserFunction.toCT
+          deletedUserFunctions = Map.values canvas.deletedUserFunctions  |> List.map CT2Program.UserFunction.toCT
+          userTypes = Map.values canvas.userTypes  |> List.map CT2Program.UserType.toCT
+          deletedUserTypes = Map.values canvas.deletedUserTypes  |> List.map CT2Program.UserType.toCT
           unlockedDBs = unlocked
-          staticDeploys = List.map toApiStaticDeploys staticAssets
+          staticDeploys = List.map CT2StaticDeploy.toCT staticAssets
           opCtrs = opCtrs
           canvasList = List.map string canvasList
           orgCanvasList = List.map string orgCanvasList
-          permission = permission
+          permission = Option.map CT2Auth.Permission.toCT permission
           orgs = List.map string orgList
           workerSchedules = workerSchedules
           account =

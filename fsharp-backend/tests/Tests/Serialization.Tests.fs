@@ -802,21 +802,25 @@ module GenericSerializersTests =
       // InitialLoad
       v<ApiServer.InitialLoad.V1.T>
         "initial"
-        { handlers = ProgramTypes.testHandlers
-          deletedHandlers = ProgramTypes.testHandlers
-          dbs = ProgramTypes.testDBs
-          deletedDBs = ProgramTypes.testDBs
-          userFunctions = ProgramTypes.testUserFunctions
-          deletedUserFunctions = ProgramTypes.testUserFunctions
+        { handlers = ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
+          deletedHandlers =
+            ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
+          dbs = ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
+          deletedDBs = ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
+          userFunctions =
+            ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
+          deletedUserFunctions =
+            ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
           unlockedDBs = [ testTLID ]
-          userTypes = ProgramTypes.testUserTypes
-          deletedUserTypes = ProgramTypes.testUserTypes
+          userTypes = ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
+          deletedUserTypes =
+            ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
           staticDeploys =
-            [ ApiServer.InitialLoad.V1.toApiStaticDeploys testStaticDeploy ]
+            [ ClientTypes2BackendTypes.StaticDeploy.toCT testStaticDeploy ]
           opCtrs = Map [ testUuid, 7 ]
           canvasList = [ "test"; "test-canvas2" ]
           orgCanvasList = [ "testorg"; "testorg-canvas2" ]
-          permission = Some(LibBackend.Authorization.ReadWrite)
+          permission = Some(ClientTypes.Authorization.ReadWrite)
           orgs = [ "test"; "testorg" ]
           account =
             { username = "test"; name = "Test Name"; email = "test@darklang.com" }
