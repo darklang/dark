@@ -242,7 +242,7 @@ let initSerializers () =
   Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
   Json.Vanilla.allow<List<Functions.BuiltInFn.T>> "ApiServer.Functions"
   Json.Vanilla.allow<InitialLoad.V1.T> "ApiServer.InitialLoad"
-  Json.Vanilla.allow<Packages.ListV1.T> "ApiServer.Packages"
+  Json.Vanilla.allow<ClientTypes.Api.Packages.ListV1.Response> "ApiServer.Packages"
   Json.Vanilla.allow<ClientTypes.Api.Secrets.DeleteV1.Request> "ApiServer.Secrets"
   Json.Vanilla.allow<ClientTypes.Api.Secrets.DeleteV1.Response> "ApiServer.Secrets"
   Json.Vanilla.allow<ClientTypes.Api.Secrets.InsertV1.Request> "ApiServer.Secrets"

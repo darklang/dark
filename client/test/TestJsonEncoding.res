@@ -346,7 +346,7 @@ let run = () => {
       Json.Encode.list(RT.BuiltInFn.encode),
     )
     t(
-      "vanilla_ApiServer-Packages_Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Package-Fn-_simple.json",
+      "vanilla_ApiServer-Packages_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-Program-Package-Fn-_simple.json",
       Json.Decode.list(ProgramTypes.Package.Fn.decode),
       Json.Encode.list(ProgramTypes.Package.Fn.encode),
     )

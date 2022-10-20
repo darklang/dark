@@ -829,7 +829,9 @@ module GenericSerializersTests =
       v<ClientTypes.Api.Tunnels.Register.Response> "simple" { success = false }
 
       // Packages
-      v<ApiServer.Packages.ListV1.T> "simple" [ ProgramTypes.testPackageFn ]
+      v<ClientTypes.Api.Packages.ListV1.Response>
+        "simple"
+        [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
 
       // SecretsV1
 
