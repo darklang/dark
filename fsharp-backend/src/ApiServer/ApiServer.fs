@@ -227,10 +227,14 @@ let initSerializers () =
   Json.Vanilla.allow<ClientTypes.Api.DB.StatsV1.Request> "ApiServer.DBs"
   Json.Vanilla.allow<ClientTypes.Api.DB.StatsV1.Response.T> "ApiServer.DBs"
   Json.Vanilla.allow<ClientTypes.Api.DB.Unlocked.Response> "ApiServer.DBs"
-  Json.Vanilla.allow<ClientTypes.Api.Execution.FunctionV1.Request> "ApiServer.Execution"
-  Json.Vanilla.allow<ClientTypes.Api.Execution.FunctionV1.Response> "ApiServer.Execution"
-  Json.Vanilla.allow<ClientTypes.Api.Execution.HandlerV1.Request> "ApiServer.Execution"
-  Json.Vanilla.allow<ClientTypes.Api.Execution.HandlerV1.Response> "ApiServer.Execution"
+  Json.Vanilla.allow<ClientTypes.Api.Execution.FunctionV1.Request>
+    "ApiServer.Execution"
+  Json.Vanilla.allow<ClientTypes.Api.Execution.FunctionV1.Response>
+    "ApiServer.Execution"
+  Json.Vanilla.allow<ClientTypes.Api.Execution.HandlerV1.Request>
+    "ApiServer.Execution"
+  Json.Vanilla.allow<ClientTypes.Api.Execution.HandlerV1.Response>
+    "ApiServer.Execution"
   Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.Delete.T> "ApiServer.F404s"
   Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
@@ -246,12 +250,13 @@ let initSerializers () =
   Json.Vanilla.allow<Traces.AllTraces.T> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.TraceDataV1.Params> "ApiServer.Traces"
   Json.Vanilla.allow<Traces.TraceDataV1.T> "ApiServer.Traces"
-  Json.Vanilla.allow<Tunnels.Register.Params> "ApiServer.Tunnels"
-  Json.Vanilla.allow<Tunnels.Register.T> "ApiServer.Tunnels"
-  Json.Vanilla.allow<Workers.Scheduler.Params> "ApiServer.Workers"
-  Json.Vanilla.allow<Workers.Scheduler.T> "ApiServer.Workers"
-  Json.Vanilla.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
-  Json.Vanilla.allow<Workers.WorkerStats.T> "ApiServer.Workers"
+  Json.Vanilla.allow<ClientTypes.Api.Tunnels.Register.Request> "ApiServer.Tunnels"
+  Json.Vanilla.allow<ClientTypes.Api.Tunnels.Register.Response> "ApiServer.Tunnels"
+  Json.Vanilla.allow<ClientTypes.Api.Workers.Scheduler.Request> "ApiServer.Workers"
+  Json.Vanilla.allow<Workers.Scheduler.Response> "ApiServer.Workers"
+  Json.Vanilla.allow<ClientTypes.Api.Workers.WorkerStats.Request> "ApiServer.Workers"
+  Json.Vanilla.allow<ClientTypes.Api.Workers.WorkerStats.Response>
+    "ApiServer.Workers"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
 

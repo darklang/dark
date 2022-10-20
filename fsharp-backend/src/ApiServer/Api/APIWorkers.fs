@@ -11,6 +11,7 @@ open Http
 
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
+module CTApi = ClientTypes.Api
 
 module Stats = LibBackend.Stats
 module EQ = LibBackend.EventQueueV2
@@ -20,16 +21,12 @@ module SchedulingRules = LibBackend.QueueSchedulingRules
 
 module WorkerStats =
 
-  type Params = { tlid : tlid }
-
-  type T = { count : int }
-
   /// API endpoint to get statistical data related to a Worker
-  let getStats (ctx : HttpContext) : Task<T> =
+  let getStats (ctx : HttpContext) : Task<CTApi.Workers.WorkerStats.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.Workers.WorkerStats.Request>()
       Telemetry.addTag "tlid" p.tlid
 
       t.next "analyse-worker-stats"
@@ -38,16 +35,15 @@ module WorkerStats =
     }
 
 module Scheduler =
-  type Params = { name : string; schedule : string }
-
-  type T = SchedulingRules.WorkerStates.T
+  // TODO: move this to CTApi
+  type Response = SchedulingRules.WorkerStates.T
 
   /// API endpoint to update the Schedule of a Worker
-  let updateSchedule (ctx : HttpContext) : Task<T> =
+  let updateSchedule (ctx : HttpContext) : Task<Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.Workers.Scheduler.Request>()
       Telemetry.addTags [ "name", p.name; "schedule", p.schedule ]
 
       t.next "schedule-worker"

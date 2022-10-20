@@ -721,7 +721,9 @@ module GenericSerializersTests =
         { tlid = testTLID
           trace_id = testUuid
           input = [ "v", ClientRuntime.testClientDval ] }
-      v<ClientTypes.Api.Execution.HandlerV1.Response> "simple" { touched_tlids = [ testTLID ] }
+      v<ClientTypes.Api.Execution.HandlerV1.Response>
+        "simple"
+        { touched_tlids = [ testTLID ] }
 
       // 404s
       v<ApiServer.F404s.List.T>
@@ -820,11 +822,11 @@ module GenericSerializersTests =
           secrets = [ { name = "test"; value = "secret" } ] }
 
       // Tunnels
-      v<ApiServer.Tunnels.Register.Params> "empty" { tunnelHost = None }
-      v<ApiServer.Tunnels.Register.Params>
+      v<ClientTypes.Api.Tunnels.Register.Request> "empty" { tunnelHost = None }
+      v<ClientTypes.Api.Tunnels.Register.Request>
         "simple"
         { tunnelHost = Some "host.tunnel.com" }
-      v<ApiServer.Tunnels.Register.T> "simple" { success = false }
+      v<ClientTypes.Api.Tunnels.Register.Response> "simple" { success = false }
 
       // Packages
       v<ApiServer.Packages.ListV1.T> "simple" [ ProgramTypes.testPackageFn ]
@@ -866,13 +868,13 @@ module GenericSerializersTests =
 
       // Workers
 
-      v<ApiServer.Workers.Scheduler.Params>
+      v<ClientTypes.Api.Workers.Scheduler.Request>
         "simple"
         { name = "x"; schedule = "pause" }
-      v<ApiServer.Workers.Scheduler.T> "all" testWorkerStates
+      v<ApiServer.Workers.Scheduler.Response> "all" testWorkerStates
 
-      v<ApiServer.Workers.WorkerStats.Params> "simple" { tlid = testTLID }
-      v<ApiServer.Workers.WorkerStats.T> "simple" { count = 5 }
+      v<ClientTypes.Api.Workers.WorkerStats.Request> "simple" { tlid = testTLID }
+      v<ClientTypes.Api.Workers.WorkerStats.Response> "simple" { count = 5 }
 
       // ------------------
       // LibAnalysis

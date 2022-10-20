@@ -38,3 +38,19 @@ module Execution =
         input : List<string * Runtime.Dval.T> }
 
     type Response = { touched_tlids : tlid list }
+
+module Tunnels =
+  module Register =
+    type Request = { tunnelHost : Option<string> }
+
+    type Response = { success : bool }
+
+module Workers =
+  module WorkerStats =
+    type Request = { tlid : tlid }
+
+    type Response = { count : int }
+
+  module Scheduler =
+    type Request = { name : string; schedule : string }
+    // TODO: pull in response type
