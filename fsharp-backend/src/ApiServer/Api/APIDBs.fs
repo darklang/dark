@@ -12,6 +12,7 @@ open Http
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module CTRuntime = ClientTypes.Runtime
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module Stats = LibBackend.Stats
 module Canvas = LibBackend.Canvas
@@ -65,7 +66,7 @@ module DBStatsV1 =
           (string k),
           { count = s.count
             example =
-              Option.map (fun (dv, s) -> (CTRuntime.Dval.fromRT dv, s)) s.example })
+              Option.map (fun (dv, s) -> (CT2Runtime.Dval.toCT dv, s)) s.example })
         |> Map
 
       return result

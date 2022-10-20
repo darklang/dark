@@ -11,6 +11,7 @@ open Http
 
 module PT = LibExecution.ProgramTypes
 module CTRuntime = ClientTypes.Runtime
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 module AT = LibExecution.AnalysisTypes
 
 module Traces = LibBackend.Traces
@@ -74,13 +75,13 @@ module TraceDataV1 =
             id,
             { input =
                 List.map
-                  (fun (s, dv) -> (s, CTRuntime.Dval.fromRT dv))
+                  (fun (s, dv) -> (s, CT2Runtime.Dval.toCT dv))
                   traceData.input
               timestamp = traceData.timestamp
               functionResults =
                 List.map
                   (fun (r1, r2, r3, r4, dv) ->
-                    (r1, r2, r3, r4, CTRuntime.Dval.fromRT dv))
+                    (r1, r2, r3, r4, CT2Runtime.Dval.toCT dv))
                   traceData.function_results }
           )
         | None -> None

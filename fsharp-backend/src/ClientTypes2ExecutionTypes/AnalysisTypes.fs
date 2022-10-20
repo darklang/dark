@@ -15,13 +15,15 @@ module CTAnalysis = ClientTypes.Analysis
 
 open ClientTypes.Runtime
 
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
+
 module ExecutionResult =
   let toCT (er : AT.ExecutionResult) : CTAnalysis.ExecutionResult =
     match er with
     | AT.ExecutedResult (dv) ->
-      CTAnalysis.ExecutionResult.ExecutedResult(Dval.fromRT dv)
+      CTAnalysis.ExecutionResult.ExecutedResult(CT2Runtime.Dval.toCT dv)
     | AT.NonExecutedResult (dv) ->
-      CTAnalysis.ExecutionResult.NonExecutedResult(Dval.fromRT dv)
+      CTAnalysis.ExecutionResult.NonExecutedResult(CT2Runtime.Dval.toCT dv)
 
 
 module AnalysisResults =
@@ -34,10 +36,10 @@ module AnalysisResults =
 
 module TraceData =
   let fromCT (td : CTAnalysis.TraceData) : AT.TraceData =
-    { input = List.map (fun (k, v) -> (k, Dval.toRT v)) td.input
+    { input = List.map (fun (k, v) -> (k, CT2Runtime.Dval.fromCT v)) td.input
       timestamp = td.timestamp
       function_results =
         List.map
           (fun (name, id, hash, version, dval) ->
-            (name, id, hash, version, Dval.toRT dval))
+            (name, id, hash, version, CT2Runtime.Dval.fromCT dval))
           td.functionResults }

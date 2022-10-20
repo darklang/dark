@@ -15,6 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module CTRuntime = ClientTypes.Runtime
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module Canvas = LibBackend.Canvas
 module RealExe = LibRealExecution.RealExecution
@@ -44,7 +45,7 @@ module FunctionV1 =
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadVanillaJsonAsync<Params>()
-      let args = List.map CTRuntime.Dval.toRT p.args
+      let args = List.map CT2Runtime.Dval.fromCT p.args
       Telemetry.addTags [ "tlid", p.tlid
                           "trace_id", p.trace_id
                           "caller_id", p.caller_id
@@ -76,7 +77,7 @@ module FunctionV1 =
       let hash = DvalReprInternalDeprecated.hash hashVersion args
 
       let result =
-        { result = CTRuntime.Dval.fromRT result
+        { result = CT2Runtime.Dval.toCT result
           hash = hash
           hashVersion = hashVersion
           touched_tlids = HashSet.toList traceResults.tlids
@@ -106,7 +107,7 @@ module HandlerV1 =
 
       let inputVars =
         p.input
-        |> List.map (fun (name, var) -> (name, CTRuntime.Dval.toRT var))
+        |> List.map (fun (name, var) -> (name, CT2Runtime.Dval.fromCT var))
         |> Map
 
       t.next "load-canvas"

@@ -10,17 +10,18 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module CTRuntime = ClientTypes.Runtime
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module Param =
   type T =
     { name : string
-      ``type`` : CTRuntime.DType.T
+      ``type`` : CTRuntime.DType
       args : List<string>
       description : string }
 
   let fromRT (p : RT.Param) : T =
     { name = p.name
-      ``type`` = CTRuntime.DType.fromRT p.typ
+      ``type`` = CT2Runtime.DType.toCT p.typ
       args = p.blockArgs
       description = p.description }
 
@@ -89,7 +90,7 @@ module BuiltInFn =
   type T =
     { name : StdlibFnName.T
       parameters : List<Param.T>
-      returnType : CTRuntime.DType.T
+      returnType : CTRuntime.DType
       description : string
       previewable : Previewable.T
       deprecated : Deprecation.T
@@ -101,7 +102,7 @@ module BuiltInFn =
     { name = StdlibFnName.fromRT fn.name
       parameters = List.map Param.fromRT fn.parameters
       description = fn.description
-      returnType = CTRuntime.DType.fromRT fn.returnType
+      returnType = CT2Runtime.DType.toCT fn.returnType
       previewable = Previewable.fromRT fn.previewable
       isInfix =
         LibExecutionStdLib.StdLib.isInfixName fn.name.module_ fn.name.function_

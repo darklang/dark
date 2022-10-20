@@ -35,6 +35,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
+    <ProjectReference Include="../ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
   </ItemGroup>

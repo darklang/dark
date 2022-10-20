@@ -12,6 +12,7 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module CTRuntime = ClientTypes.Runtime
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
@@ -282,10 +283,10 @@ let allRoundtrips =
         "vanilla"
         (fun dv ->
           dv
-          |> CTRuntime.Dval.fromRT
+          |> CT2Runtime.Dval.toCT
           |> Prelude.Json.Vanilla.serialize
           |> Prelude.Json.Vanilla.deserialize
-          |> CTRuntime.Dval.toRT
+          |> CT2Runtime.Dval.fromCT
           |> Expect.dvalEquality dv)
         (dvs (function
           | RT.DPassword _ -> false
@@ -413,7 +414,7 @@ module Password =
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
       doesRedact "Json.Vanilla.serialize" (fun dv ->
-        dv |> CTRuntime.Dval.fromRT |> Json.Vanilla.serialize)
+        dv |> CT2Runtime.Dval.toCT |> Json.Vanilla.serialize)
       ()
     }
 

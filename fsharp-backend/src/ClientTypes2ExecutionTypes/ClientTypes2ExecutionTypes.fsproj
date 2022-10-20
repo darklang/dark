@@ -17,11 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <!-- <Compile Include="RuntimeTypes.fs" /> -->
-    <!-- TODO: pull these in as well. -->
-    <!--
-    <Compile Include="ProgramTypes.fs" />
-    <Compile Include="PusherTypes.fs" /> -->
+    <Compile Include="RuntimeTypes.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="ProgramTypes.fs" />
   </ItemGroup>

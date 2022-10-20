@@ -15,6 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
@@ -486,7 +487,7 @@ module Values =
 
   module ClientRuntime =
     let testClientDval : CTRuntime.Dval.T =
-      CTRuntime.Dval.fromRT RuntimeTypes.testDval
+      CT2Runtime.Dval.toCT RuntimeTypes.testDval
 
 
   let testStaticDeploy : LibBackend.StaticAssets.StaticDeploy =
