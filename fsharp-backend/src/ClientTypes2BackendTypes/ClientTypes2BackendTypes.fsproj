@@ -12,16 +12,13 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
+    <ProjectReference Include="../ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
+    <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="ClientRuntimeTypes.fs" />
-    <Compile Include="ClientProgramTypes.fs" />
-    <Compile Include="ClientAnalysisTypes.fs" />
-    <Compile Include="ClientWorkerTypes.fs" />
-    <Compile Include="ClientTraceTypes.fs" />
-    <Compile Include="ClientOpsTypes.fs" />
-    <Compile Include="ClientApiTypes.fs" />
+    <Compile Include="Ops.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -311,12 +311,12 @@ let run = () => {
       RT.Dval.encode,
     )
     t(
-      "vanilla_ApiServer-AddOps_LibBackend-Op-AddOpResultV1_simple.json",
+      "vanilla_ApiServer-AddOps_ClientTypes-Ops-AddOpResultV1_simple.json",
       APIAddOps.decode,
       APIAddOps.encode,
     )
     t(
-      "vanilla_ApiServer-AddOps_LibBackend-Op-AddOpParamsV1_simple.json",
+      "vanilla_ApiServer-AddOps_ClientTypes-Ops-AddOpParamsV1_simple.json",
       APIAddOps.Params.decode,
       APIAddOps.Params.encode,
     )

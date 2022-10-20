@@ -17,6 +17,8 @@ module Serialize = LibBackend.Serialize
 module Op = LibBackend.Op
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
+module CTApi = ClientTypes.Api
+module CT2Ops = ClientTypes2BackendTypes.Ops
 
 // Toplevel deletion:
 // * The server announces that a toplevel is deleted by it appearing in
@@ -24,24 +26,19 @@ module AT = LibExecution.AnalysisTypes
 // * appearing in toplevels again.
 
 module V1 =
-
-  // A subset of responses to be merged in
-  type T = Op.AddOpResultV1
-
-  type Params = Op.AddOpParamsV1
-
   let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
   /// API endpoint to add a set of Op in a Canvas
   ///
   /// The Ops usually relate to a single Toplevel within the Canvas,
   /// but can technically include Ops against several TLIDs
-  let addOp (ctx : HttpContext) : Task<T> =
+  let addOp (ctx : HttpContext) : Task<CTApi.Ops.AddOpV1.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
 
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.Ops.AddOpV1.Request>()
+      let p = CT2Ops.AddOpParamsV1.fromCT p
       let canvasID = canvasInfo.id
 
       let! isLatest =
@@ -76,6 +73,7 @@ module V1 =
 
       t.next "to-frontend"
 
+      // TODO: consider if this can be removed, once Pusher types are in ClientTypes
       let result : Op.AddOpResultV1 =
         { handlers = Map.values c.handlers
           deletedHandlers = Map.values c.deletedHandlers
@@ -135,5 +133,5 @@ module V1 =
           (Op.eventNameOfOp op)
           Map.empty)
 
-      return result
+      return CT2Ops.AddOpResultV1.toCT result
     }

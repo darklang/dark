@@ -58,6 +58,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ClientTypes", "src\ClientTy
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ClientTypes2ExecutionTypes", "src\ClientTypes2ExecutionTypes\ClientTypes2ExecutionTypes.fsproj", "{BB90A7BB-2276-483B-BF83-32B2DE3F4436}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ClientTypes2BackendTypes", "src\ClientTypes2ExecutionTypes\ClientTypes2ExecutionTypes.fsproj", "{45B04553-C8BF-4966-AC17-52C1533f98FB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -346,5 +348,6 @@ Global
 		{7C0939B2-2AD9-4556-B005-ADD512F2456B} = {F84DCF8A-FC1A-4677-AF4D-616AD7DB3470}
 		{EDAB6E2C-A0C9-4C66-A9AB-D07FB64EA4A8} = {F84DCF8A-FC1A-4677-AF4D-616AD7DB3470}
     {BB90A7BB-2276-483B-BF83-32B2DE3F4436} = {F84DCF8A-FC1A-4677-AF4D-616AD7DB3470}
+    {45B04553-C8BF-4966-AC17-52C1533f98FB} = {F84DCF8A-FC1A-4677-AF4D-616AD7DB3470}
 	EndGlobalSection
 EndGlobal

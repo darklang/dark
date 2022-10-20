@@ -225,19 +225,15 @@ let run (packages : Packages) : unit =
 // TODO: reference these by CTApi alias
 
 let initSerializers () =
-  Json.Vanilla.allow<AddOps.V1.Params> "ApiServer.AddOps"
-  Json.Vanilla.allow<AddOps.V1.T> "ApiServer.AddOps"
+  Json.Vanilla.allow<CTApi.Ops.AddOpV1.Request> "ApiServer.AddOps"
+  Json.Vanilla.allow<CTApi.Ops.AddOpV1.Response> "ApiServer.AddOps"
   Json.Vanilla.allow<CTApi.DB.StatsV1.Request> "ApiServer.DBs"
   Json.Vanilla.allow<CTApi.DB.StatsV1.Response.T> "ApiServer.DBs"
   Json.Vanilla.allow<CTApi.DB.Unlocked.Response> "ApiServer.DBs"
-  Json.Vanilla.allow<CTApi.Execution.FunctionV1.Request>
-    "ApiServer.Execution"
-  Json.Vanilla.allow<CTApi.Execution.FunctionV1.Response>
-    "ApiServer.Execution"
-  Json.Vanilla.allow<CTApi.Execution.HandlerV1.Request>
-    "ApiServer.Execution"
-  Json.Vanilla.allow<CTApi.Execution.HandlerV1.Response>
-    "ApiServer.Execution"
+  Json.Vanilla.allow<CTApi.Execution.FunctionV1.Request> "ApiServer.Execution"
+  Json.Vanilla.allow<CTApi.Execution.FunctionV1.Response> "ApiServer.Execution"
+  Json.Vanilla.allow<CTApi.Execution.HandlerV1.Request> "ApiServer.Execution"
+  Json.Vanilla.allow<CTApi.Execution.HandlerV1.Response> "ApiServer.Execution"
   Json.Vanilla.allow<CTApi.F404.Delete.Request> "ApiServer.F404s"
   Json.Vanilla.allow<CTApi.F404.Delete.Response> "ApiServer.F404s"
   Json.Vanilla.allow<CTApi.F404.List.Response> "ApiServer.F404s"
@@ -251,17 +247,14 @@ let initSerializers () =
   Json.Vanilla.allow<CTApi.Toplevels.Delete.Request> "ApiServer.Toplevels"
   Json.Vanilla.allow<CTApi.Toplevels.Delete.Response> "ApiServer.Toplevels"
   Json.Vanilla.allow<CTApi.Traces.GetAllTraces.Response> "ApiServer.Traces"
-  Json.Vanilla.allow<CTApi.Traces.GetTraceDataV1.Request>
-    "ApiServer.Traces"
-  Json.Vanilla.allow<CTApi.Traces.GetTraceDataV1.Response.T>
-    "ApiServer.Traces"
+  Json.Vanilla.allow<CTApi.Traces.GetTraceDataV1.Request> "ApiServer.Traces"
+  Json.Vanilla.allow<CTApi.Traces.GetTraceDataV1.Response.T> "ApiServer.Traces"
   Json.Vanilla.allow<CTApi.Tunnels.Register.Request> "ApiServer.Tunnels"
   Json.Vanilla.allow<CTApi.Tunnels.Register.Response> "ApiServer.Tunnels"
   Json.Vanilla.allow<CTApi.Workers.Scheduler.Request> "ApiServer.Workers"
   Json.Vanilla.allow<Workers.Scheduler.Response> "ApiServer.Workers"
   Json.Vanilla.allow<CTApi.Workers.WorkerStats.Request> "ApiServer.Workers"
-  Json.Vanilla.allow<CTApi.Workers.WorkerStats.Response>
-    "ApiServer.Workers"
+  Json.Vanilla.allow<CTApi.Workers.WorkerStats.Response> "ApiServer.Workers"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
 

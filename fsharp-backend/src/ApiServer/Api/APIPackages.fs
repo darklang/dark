@@ -15,7 +15,10 @@ module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 
 module ListV1 =
   /// API endpoint to fetch a list of available Packages
-  let packages (packages : List<PT.Package.Fn>) (ctx : HttpContext) : Task<CTApi.Packages.ListV1.Response> =
+  let packages
+    (packages : List<PT.Package.Fn>)
+    (ctx : HttpContext)
+    : Task<CTApi.Packages.ListV1.Response> =
     task {
       use t = startTimer "read-api" ctx
 

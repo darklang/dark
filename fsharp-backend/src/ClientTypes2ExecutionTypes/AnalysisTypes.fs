@@ -8,13 +8,8 @@ module ClientTypes2ExecutionTypes.Analysis
 open Prelude
 open Tablecloth
 
-module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
-module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
-
-open ClientTypes.Runtime
-
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module ExecutionResult =

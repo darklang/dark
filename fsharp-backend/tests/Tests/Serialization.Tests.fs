@@ -18,6 +18,7 @@ module CTAnalysis = ClientTypes.Analysis
 module CTApi = ClientTypes.Api
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
+module CT2Ops = ClientTypes2BackendTypes.Ops
 
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
@@ -683,12 +684,16 @@ module GenericSerializersTests =
       // ------------------
 
       // AddOps
-      v<ApiServer.AddOps.V1.Params>
+      v<CTApi.Ops.AddOpV1.Request>
         "simple"
-        { ops = ProgramTypes.testOplist
-          opCtr = 0
-          clientOpCtrID = testUuid.ToString() }
-      v<ApiServer.AddOps.V1.T> "simple" testAddOpResultV1
+        (CT2Ops.AddOpParamsV1.toCT
+          { ops = ProgramTypes.testOplist
+            opCtr = 0
+            clientOpCtrID = testUuid.ToString() })
+
+      v<CTApi.Ops.AddOpV1.Response>
+        "simple"
+        (CT2Ops.AddOpResultV1.toCT testAddOpResultV1)
 
 
       // User DBs
