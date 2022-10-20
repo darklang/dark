@@ -145,8 +145,8 @@ let run = () => {
     let ignores = [
       // Not used by client
       "vanilla_ApiServer-F404s_ApiServer-F404s-Delete-T_simple.json", // we don't check the response
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-Params_simple.json",
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-DeleteV1-T_simple.json",
+      "vanilla_ApiServer-Secrets_ClientTypes-Api-Secrets-DeleteV1-Request_simple.json",
+      "vanilla_ApiServer-Secrets_ClientTypes-Api-Secrets-DeleteV1-Response_simple.json",
       "vanilla_ApiServer-Toplevels_ClientTypes-Api-Toplevels-Delete-Response_simple.json", // we don't check the response
       "vanilla_LibBackend-Pusher_LibBackend-Pusher-AddOpEventTooBigPayload_simple.json", // not used yet
       // Internal to backend
@@ -225,12 +225,12 @@ let run = () => {
       APIInitialLoad.encode,
     )
     t(
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-InsertV1-Secret_simple.json",
+      "vanilla_ApiServer-Secrets_ClientTypes-Api-Secrets-Secret_simple.json",
       APISecrets.Insert.Params.decode,
       APISecrets.Insert.Params.encode,
     )
     t(
-      "vanilla_ApiServer-Secrets_ApiServer-Secrets-InsertV1-T_simple.json",
+      "vanilla_ApiServer-Secrets_ClientTypes-Api-Secrets-InsertV1-Response_simple.json",
       APISecrets.Insert.decode,
       APISecrets.Insert.encode,
     )

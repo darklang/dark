@@ -11,26 +11,21 @@ open Http
 
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
+module CTApi = ClientTypes.Api
 module Telemetry = LibService.Telemetry
 
 open LibService.Exception
 
 module InsertV1 =
 
-  type Secret = { name : string; value : string }
-
-  type Params = Secret
-
-  type T = { secrets : List<Secret> }
-
   /// API endpoint to insert a Secret within a canvas
-  let insert (ctx : HttpContext) : Task<T> =
+  let insert (ctx : HttpContext) : Task<CTApi.Secrets.InsertV1.Response> =
     task {
       use t = startTimer "read-api" ctx
       try
         t.next "read-api"
         let canvasInfo = loadCanvasInfo ctx
-        let! p = ctx.ReadVanillaJsonAsync<Params>()
+        let! p = ctx.ReadVanillaJsonAsync<CTApi.Secrets.InsertV1.Request>()
         Telemetry.addTags [ "secretName", p.name ]
 
         t.next "insert-secret"
@@ -59,18 +54,12 @@ module InsertV1 =
     }
 
 module DeleteV1 =
-  type Secret = { name : string; value : string }
-
-  type Params = { name : string }
-
-  type T = { secrets : List<Secret> }
-
   /// API endpoint to delete a specific Secret
-  let delete (ctx : HttpContext) : Task<T> =
+  let delete (ctx : HttpContext) : Task<CTApi.Secrets.DeleteV1.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.Secrets.DeleteV1.Request>()
       Telemetry.addTags [ "secretName", p.name ]
 
       // TODO: only do this if the secret is not used on the canvas

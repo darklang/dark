@@ -41,6 +41,17 @@ module Execution =
     type Response = { touched_tlids : tlid list }
 
 
+module Secrets =
+  type Secret = { name : string; value : string }
+
+  module DeleteV1 =
+    type Request = { name : string }
+    type Response = { secrets : List<Secret> }
+
+  module InsertV1 =
+    type Request = Secret
+    type Response = { secrets : List<Secret> }
+
 module Toplevels =
   module Delete =
     type Request = { tlid : tlid }

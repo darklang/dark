@@ -833,15 +833,15 @@ module GenericSerializersTests =
 
       // SecretsV1
 
-      v<ApiServer.Secrets.DeleteV1.Params> "simple" { name = "test" }
-      v<ApiServer.Secrets.DeleteV1.T>
+      v<ClientTypes.Api.Secrets.DeleteV1.Request> "simple" { name = "test" }
+      v<ClientTypes.Api.Secrets.DeleteV1.Response>
         "simple"
         { secrets = [ { name = "test"; value = "secret" } ] }
 
-      v<ApiServer.Secrets.InsertV1.Params>
+      v<ClientTypes.Api.Secrets.InsertV1.Request>
         "simple"
         { name = "test"; value = "secret" }
-      v<ApiServer.Secrets.InsertV1.T>
+      v<ClientTypes.Api.Secrets.InsertV1.Response>
         "simple"
         { secrets = [ { name = "test"; value = "secret" } ] }
 
