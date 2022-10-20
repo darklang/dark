@@ -144,7 +144,7 @@ let run = () => {
     )
     let ignores = [
       // Not used by client
-      "vanilla_ApiServer-F404s_ApiServer-F404s-Delete-T_simple.json", // we don't check the response
+      "vanilla_ApiServer-F404s_ClientTypes-Api-F404-Delete-Response_simple.json", // we don't check the response
       "vanilla_ApiServer-Secrets_ClientTypes-Api-Secrets-DeleteV1-Request_simple.json",
       "vanilla_ApiServer-Secrets_ClientTypes-Api-Secrets-DeleteV1-Response_simple.json",
       "vanilla_ApiServer-Toplevels_ClientTypes-Api-Toplevels-Delete-Response_simple.json", // we don't check the response
@@ -210,12 +210,12 @@ let run = () => {
       APIExecution.Handler.encode,
     )
     t(
-      "vanilla_ApiServer-F404s_ApiServer-F404s-Delete-Params_simple.json",
+      "vanilla_ApiServer-F404s_ClientTypes-Api-F404-Delete-Request_simple.json",
       API404.Delete.Params.decode,
       API404.Delete.Params.encode,
     )
     t(
-      "vanilla_ApiServer-F404s_ApiServer-F404s-List-T_simple.json",
+      "vanilla_ApiServer-F404s_ClientTypes-Api-F404-List-Response_simple.json",
       API404.List.decode,
       API404.List.encode,
     )

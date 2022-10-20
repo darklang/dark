@@ -10,14 +10,12 @@ open Tablecloth
 open Http
 
 module TI = LibBackend.TraceInputs
+module CTApi = ClientTypes.Api
 module Telemetry = LibService.Telemetry
 
 module List =
-
-  type T = { f404s : List<TI.F404> }
-
   /// Endpoint to fetch a list of recent 404s
-  let get (ctx : HttpContext) : Task<T> =
+  let get (ctx : HttpContext) : Task<CTApi.F404.List.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
@@ -28,16 +26,12 @@ module List =
     }
 
 module Delete =
-  type T = { result : string }
-
-  type Params = { space : string; path : string; modifier : string }
-
   /// Endpoint to delete a 404
-  let delete (ctx : HttpContext) : Task<T> =
+  let delete (ctx : HttpContext) : Task<CTApi.F404.Delete.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.F404.Delete.Request>()
       Telemetry.addTags [ "space", p.space; "path", p.path; "modifier", p.modifier ]
 
       t.next "delete-404"

@@ -726,13 +726,13 @@ module GenericSerializersTests =
         { touched_tlids = [ testTLID ] }
 
       // 404s
-      v<ApiServer.F404s.List.T>
+      v<ClientTypes.Api.F404.List.Response>
         "simple"
         { f404s = [ ("HTTP", "/", "GET", testInstant, testUuid) ] }
-      v<ApiServer.F404s.Delete.Params>
+      v<ClientTypes.Api.F404.Delete.Request>
         "simple"
         { space = "HTTP"; path = "/"; modifier = "POST" }
-      v<ApiServer.F404s.Delete.T> "simple" { result = "success" }
+      v<ClientTypes.Api.F404.Delete.Response> "simple" { result = "success" }
 
       // Functions
       v<List<ApiServer.Functions.BuiltInFn.T>>

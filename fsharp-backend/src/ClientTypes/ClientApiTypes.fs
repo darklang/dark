@@ -42,6 +42,16 @@ module Execution =
     type Response = { touched_tlids : tlid list }
 
 
+module F404 =
+  module List =
+    type Response = { f404s : List<Trace.F404> }
+
+  module Delete =
+    type Request = { space : string; path : string; modifier : string }
+
+    type Response = { result : string }
+
+
 module Packages =
   module ListV1 =
     type Response = List<Program.Package.Fn>

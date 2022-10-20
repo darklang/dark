@@ -237,9 +237,9 @@ let initSerializers () =
     "ApiServer.Execution"
   Json.Vanilla.allow<ClientTypes.Api.Execution.HandlerV1.Response>
     "ApiServer.Execution"
-  Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"
-  Json.Vanilla.allow<F404s.Delete.T> "ApiServer.F404s"
-  Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
+  Json.Vanilla.allow<ClientTypes.Api.F404.Delete.Request> "ApiServer.F404s"
+  Json.Vanilla.allow<ClientTypes.Api.F404.Delete.Response> "ApiServer.F404s"
+  Json.Vanilla.allow<ClientTypes.Api.F404.List.Response> "ApiServer.F404s"
   Json.Vanilla.allow<List<Functions.BuiltInFn.T>> "ApiServer.Functions"
   Json.Vanilla.allow<InitialLoad.V1.T> "ApiServer.InitialLoad"
   Json.Vanilla.allow<ClientTypes.Api.Packages.ListV1.Response> "ApiServer.Packages"
