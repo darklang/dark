@@ -175,37 +175,37 @@ let run = () => {
       })
     }
     t(
-      "vanilla_ApiServer-DBs_ApiServer-DBs-DBStatsV1-Params_simple.json",
+      "vanilla_ApiServer-DBs_ClientTypes-Api-DB-StatsV1-Request_simple.json",
       APIDBs.DBStats.Params.decode,
       APIDBs.DBStats.Params.encode,
     )
     t(
-      "vanilla_ApiServer-DBs_Microsoft-FSharp-Collections-FSharpMap-2-System-String-ApiServer-DBs-DBStatsV1-Stat-_simple.json",
+      "vanilla_ApiServer-DBs_Microsoft-FSharp-Collections-FSharpMap-2-System-String-ClientTypes-Api-DB-StatsV1-Response-Stat-_simple.json",
       APIDBs.DBStats.decode,
       APIDBs.DBStats.encode,
     )
     t(
-      "vanilla_ApiServer-DBs_ApiServer-DBs-Unlocked-T_simple.json",
+      "vanilla_ApiServer-DBs_ClientTypes-Api-DB-Unlocked-Response_simple.json",
       APIDBs.UnlockedDBs.decode,
       APIDBs.UnlockedDBs.encode,
     )
     t(
-      "vanilla_ApiServer-Execution_ApiServer-Execution-FunctionV1-Params_simple.json",
+      "vanilla_ApiServer-Execution_ClientTypes-Api-Execution-FunctionV1-Request_simple.json",
       APIExecution.Function.Params.decode,
       APIExecution.Function.Params.encode,
     )
     t(
-      "vanilla_ApiServer-Execution_ApiServer-Execution-FunctionV1-T_simple.json",
+      "vanilla_ApiServer-Execution_ClientTypes-Api-Execution-FunctionV1-Response_simple.json",
       APIExecution.Function.decode,
       APIExecution.Function.encode,
     )
     t(
-      "vanilla_ApiServer-Execution_ApiServer-Execution-HandlerV1-Params_simple.json",
+      "vanilla_ApiServer-Execution_ClientTypes-Api-Execution-HandlerV1-Request_simple.json",
       APIExecution.Handler.Params.decode,
       APIExecution.Handler.Params.encode,
     )
     t(
-      "vanilla_ApiServer-Execution_ApiServer-Execution-HandlerV1-T_simple.json",
+      "vanilla_ApiServer-Execution_ClientTypes-Api-Execution-HandlerV1-Response_simple.json",
       APIExecution.Handler.decode,
       APIExecution.Handler.encode,
     )
@@ -240,33 +240,33 @@ let run = () => {
       APIToplevels.DeleteForever.Params.encode,
     )
     t(
-      "vanilla_ApiServer-Traces_ApiServer-Traces-AllTraces-T_simple.json",
+      "vanilla_ApiServer-Traces_ClientTypes-Api-Traces-GetAllTraces-Response_simple.json",
       APITraces.AllTraces.decode,
       APITraces.AllTraces.encode,
     )
     t(
-      "vanilla_ApiServer-Traces_ApiServer-Traces-TraceDataV1-Params_simple.json",
+      "vanilla_ApiServer-Traces_ClientTypes-Api-Traces-GetTraceDataV1-Request_simple.json",
       APITraces.TraceData.Params.decode,
       APITraces.TraceData.Params.encode,
     )
     t(
-      "vanilla_ApiServer-Traces_ApiServer-Traces-TraceDataV1-T_simple.json",
+      "vanilla_ApiServer-Traces_ClientTypes-Api-Traces-GetTraceDataV1-Response-T_simple.json",
       APITraces.TraceData.decode,
       APITraces.TraceData.encode,
     )
 
     t(
-      "vanilla_ApiServer-Workers_ApiServer-Workers-WorkerStats-Params_simple.json",
+      "vanilla_ApiServer-Workers_ClientTypes-Api-Workers-WorkerStats-Request_simple.json",
       APIWorkers.WorkerStats.Params.decode,
       APIWorkers.WorkerStats.Params.encode,
     )
     t(
-      "vanilla_ApiServer-Workers_ApiServer-Workers-WorkerStats-T_simple.json",
+      "vanilla_ApiServer-Workers_ClientTypes-Api-Workers-WorkerStats-Response_simple.json",
       APIWorkers.WorkerStats.decode,
       APIWorkers.WorkerStats.encode,
     )
     t(
-      "vanilla_ApiServer-Workers_ApiServer-Workers-Scheduler-Params_simple.json",
+      "vanilla_ApiServer-Workers_ClientTypes-Api-Workers-Scheduler-Request_simple.json",
       APIWorkers.Scheduler.Params.decode,
       APIWorkers.Scheduler.Params.encode,
     )
@@ -281,17 +281,17 @@ let run = () => {
       APIWorkers.Scheduler.encode,
     )
     t(
-      "vanilla_ApiServer-Tunnels_ApiServer-Tunnels-Register-T_simple.json",
+      "vanilla_ApiServer-Tunnels_ClientTypes-Api-Tunnels-Register-Response_simple.json",
       APITunnelHost.decode,
       APITunnelHost.encode,
     )
     t(
-      "vanilla_ApiServer-Tunnels_ApiServer-Tunnels-Register-Params_simple.json",
+      "vanilla_ApiServer-Tunnels_ClientTypes-Api-Tunnels-Register-Request_simple.json",
       APITunnelHost.Params.decode,
       APITunnelHost.Params.encode,
     )
     t(
-      "vanilla_ApiServer-Tunnels_ApiServer-Tunnels-Register-Params_empty.json",
+      "vanilla_ApiServer-Tunnels_ClientTypes-Api-Tunnels-Register-Request_empty.json",
       APITunnelHost.Params.decode,
       APITunnelHost.Params.encode,
     )
