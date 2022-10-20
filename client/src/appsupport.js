@@ -7,6 +7,11 @@ const mousewheel = function (callback) {
 };
 
 // ---------------------------
+// If you need to deploy app.js again with a different sha, increment this number
+// Cache break: 1
+// ---------------------------
+
+// ---------------------------
 // Check unsupported browser
 // ---------------------------
 function unsupportedBrowser() {
