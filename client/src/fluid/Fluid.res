@@ -652,14 +652,12 @@ let doDown = (~pos: int, astInfo: ASTInfo.t): ASTInfo.t => {
 // Movement with CaretTarget
 // ****************************
 
-/* posFromCaretTarget returns the position in the token stream corresponding to
-   the passed caretTarget within the passed ast. We expect to succeed in finding
-   the target. If we cannot, we `recover` and return the current caret pos
-   as a fallback.
+@ocaml.doc("returns the position in the token stream corresponding to the passed
+  caretTarget within the passed ast. We expect to succeed in finding the target.
 
-   This is useful for determining the precise position to which the caret should
-   jump after a transformation. */
-let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
+  This is useful for determining the precise position to which the caret should jump
+  after a transformation.")
+let posFromCaretTargetMaybe = (ct: CT.t, astInfo: ASTInfo.t): option<int> => {
   /* Essentially we're using List.findMap to map a function that
    * matches across astref,token combinations (exhaustively matching astref but not token)
    * to determine the corresponding caretPos.
@@ -677,6 +675,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     between an ASTRef and a token. It does not make sense for ASTRefs that scan across
     multiple tokens (eg Multiline Strings) */
   let posForTi = (ti: T.tokenInfo): option<int> => Some(ti.startPos + min(ct.offset, ti.length))
+
   let clampedPosForTi = (ti: T.tokenInfo, pos): option<int> => Some(
     ti.startPos + max(0, min(pos, ti.length)),
   )
@@ -862,12 +861,19 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
     | (ARInvalid, _) => None
     }
 
-  let newPosMaybe =
-    ASTInfo.activeTokenInfos(astInfo) |> List.findMap(~f=ti =>
-      targetAndTokenInfoToMaybeCaretPos((ct, ti))
-    )
+  ASTInfo.activeTokenInfos(astInfo) |> List.findMap(~f=ti =>
+    targetAndTokenInfoToMaybeCaretPos((ct, ti))
+  )
+}
 
-  switch newPosMaybe {
+@ocaml.doc("returns the position in the token stream corresponding to the passed
+  caretTarget within the passed ast. We expect to succeed in finding the target. If
+  we cannot, we `recover` and return the current caret pos as a fallback.
+
+  This is useful for determining the precise position to which the caret should jump
+  after a transformation.")
+let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int =>
+  switch posFromCaretTargetMaybe(ct, astInfo) {
   | Some(newPos) => newPos
   | None =>
     recover(
@@ -876,7 +882,6 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int => {
       astInfo.state.newPos,
     )
   }
-}
 
 @ocaml.doc(" moveToCaretTarget returns a modified fluidState with newPos set to reflect
     the caretTarget. ")
@@ -985,6 +990,9 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   }
 }
 
+@ocaml.doc("Gets the caret target for a pos within a list of tokens. Ignores
+  whitespace tokens, and favors tokens 'to the right' of the pos, in cases where two
+  tokens surround the position.")
 let caretTargetForNextNonWhitespaceToken = (~pos, tokens: tokenInfos): option<CT.t> => {
   let rec getNextWS = tokens =>
     switch tokens {
@@ -999,6 +1007,35 @@ let caretTargetForNextNonWhitespaceToken = (~pos, tokens: tokenInfos): option<CT
 
   getNextWS(tokens)
 }
+
+@ocaml.doc("Gets the caret target for a pos within a list of tokens. Ignores
+  whitespace tokens, and favors tokens 'to the left' of the pos, in cases where two
+  tokens surround the position.")
+let caretTargetForCurrentNonWhitespaceToken = (~pos, tokens: tokenInfos): option<CT.t> =>
+  List.fold(
+    ~initial=None,
+    ~f=(ct, ti) => {
+      if T.isWhitespace(ti.token) {
+        // ignore non-AST formatting/whitespace tokens
+        ct
+      } else if ti.endPos < pos {
+        // if the token ends before the current 'pos', reference the end of the token
+        caretTargetFromTokenInfo(ti.endPos, ti)
+      } else if ti.startPos < pos {
+        // if the token _surrounds_ the caret, reference the current position within that token
+        caretTargetFromTokenInfo(pos, ti)
+      } else if ti.startPos == pos && Option.isNone(ct) {
+        // if the token starts at the current position, reference it only if we
+        // don't yet have a CT chosen. it's generally best to favor referencing
+        // tokens to the left of the cursor.
+        caretTargetFromTokenInfo(pos, ti)
+      } else {
+        // token is 'to the right' of pos; ignore
+        ct
+      }
+    },
+    tokens,
+  )
 
 @ocaml.doc(" moveToAstRef returns a modified fluidState with newPos set to reflect
     the targeted astRef.
@@ -4975,19 +5012,25 @@ and updateKey = (
   {...newAstInfo, ast: newAST}
 }
 
-/* deleteCaretRange is equivalent to pressing backspace starting from the
- * larger of the two caret positions until the caret reaches the smaller of the
- * caret positions or can no longer move.
- *
- * XXX(JULIAN): This actually moves the caret to the larger side of the range
- * and backspaces until the beginning, which means this hijacks the caret in
- * the state. */
+@ocaml.doc("This is equivalent to pressing backspace starting from the larger of the
+  two caret positions until the caret reaches the smaller of the caret positions or
+  can no longer move.
+
+  Note: This actually moves the caret to the larger side of the range and backspaces
+  until the beginning, which means this hijacks the caret in the state.")
 and deleteCaretRange = (
   props: FluidTypes.Props.t,
   caretRange: (int, int),
   origInfo: ASTInfo.t,
 ): ASTInfo.t => {
   let (rangeStart, rangeEnd) = orderRangeFromSmallToBig(caretRange)
+
+  // algorithm: backspace until we 'reach' this caret target
+  let caretTargetToEndOn = caretTargetForCurrentNonWhitespaceToken(
+    ~pos=rangeStart,
+    ASTInfo.activeTokenInfos(origInfo),
+  )
+
   let origInfo = ASTInfo.modifyState(origInfo, ~f=s => {
     ...s,
     newPos: rangeEnd,
@@ -4995,20 +5038,50 @@ and deleteCaretRange = (
     selectionStart: None,
   })
 
-  let oldInfo = ref(origInfo)
-  let nothingChanged = ref(false)
-  while !nothingChanged.contents && oldInfo.contents.state.newPos > rangeStart {
-    let newInfo = updateKey(props, DeleteContentBackward, oldInfo.contents)
-    if (
-      newInfo.state.newPos == oldInfo.contents.state.newPos && newInfo.ast == oldInfo.contents.ast
-    ) {
-      // stop if nothing changed--guarantees loop termination
-      nothingChanged := true
-    } else {
-      oldInfo := newInfo
+  let result = ref(origInfo)
+  let shouldStop = ref(false)
+
+  if rangeStart == rangeEnd {
+    // don't bother backspacing if our cursor is nothing is actually 'selected'
+    shouldStop := true
+  }
+
+  switch caretTargetToEndOn {
+  | None => ()
+
+  | Some(caretTargetToEndOn) =>
+    let offsetFromEndingCaretTarget = rangeStart - posFromCaretTarget(caretTargetToEndOn, origInfo)
+
+    while !shouldStop.contents {
+      let newInfo = updateKey(props, DeleteContentBackward, result.contents)
+
+      if (
+        newInfo.state.newPos == result.contents.state.newPos && newInfo.ast == result.contents.ast
+      ) {
+        // stop if nothing changed - guarantees loop termination
+        shouldStop := true
+      } else {
+        switch posFromCaretTargetMaybe(caretTargetToEndOn, newInfo) {
+        | None => {
+            result := newInfo
+            // this is largely to deal with deleting into partials.
+            // it's probably imperfect, namely when surrounding structures disappear
+            if newInfo.state.newPos <= rangeStart {
+              shouldStop := true
+            }
+          }
+        | Some(posOfCaretTargetToEndOn) =>
+          result := newInfo
+
+          if newInfo.state.newPos <= posOfCaretTargetToEndOn + offsetFromEndingCaretTarget {
+            shouldStop := true
+          }
+        }
+      }
     }
   }
-  oldInfo.contents
+
+  result.contents
 }
 
 /* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
