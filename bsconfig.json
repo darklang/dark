@@ -29,7 +29,7 @@
     "bucklescript-tea",
     "@glennsl/bs-json",
     "rescript-webapi",
-    "tablecloth-bucklescript",
+    "tablecloth-rescript",
     "bs-fetch",
     "bs-uuid",
     "bs-deriving",
