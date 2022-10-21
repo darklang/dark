@@ -817,6 +817,8 @@ NUGET
     System.ValueTuple (4.5)
     System.Windows.Extensions (5.0)
       System.Drawing.Common (>= 5.0)
+    Tablecloth.FSharp (0.0.8-alpha1)
+      FSharp.Core (>= 6.0.1)
 
 GROUP Analysis
 NUGET
