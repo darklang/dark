@@ -76,6 +76,7 @@ module WorkerStates =
   // This is used in a number of APIs - be careful of updating it
   type T = Map<string, State>
 
+  // TODO: remove this once Pusher types (incl worker update push) are in ClientTypes
   module STJJsonConverter =
     open System.Text.Json
     open System.Text.Json.Serialization

@@ -52,6 +52,7 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     print $"Initing LibBackend in {serviceName}"
     Db.init ()
 
+    // TODO: remove this once Pusher types (incl worker update push) are in ClientTypes
     Json.Vanilla.registerConverter (
       QueueSchedulingRules.WorkerStates.STJJsonConverter.WorkerStateConverter()
     )
