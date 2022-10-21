@@ -162,8 +162,8 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
       // DB::getAll_v2, we want those to sort accordingly!
       f.name |> FQFnName.toString |> String.toLowercase |> String.split(~on="_v")
     )
-    |> List.groupWhile(~f=(f1, f2) => fnNameWithoutVersion(f1) == fnNameWithoutVersion(f2))
-    |> List.map(~f=List.reverse)
+    |> List.groupWhile(~f=(f1, f2) => fnNameWithoutVersion(f1) !== fnNameWithoutVersion(f2))
+    |> List.map(~f=List.reverse) // Newer versions first
     |> List.flatten
   }
 
