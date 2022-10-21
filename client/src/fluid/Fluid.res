@@ -6357,11 +6357,11 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
         | None => NoChange
         }
 
-        let astCacheMod = /* We want to update the AST cache for searching, however, we
-         * may be editing the feature flag section in which case we'd
-         * be putting the wrong information into the cache. As a simple
-         * solution for now, only update if we're in the main editor. */
-        if s.activeEditor == MainEditor(tlid) {
+        // We want to update the AST cache for searching, however, we may be editing
+        // the feature flag section in which case we'd be putting the wrong
+        // information into the cache. As a simple solution for now, only update if
+        // we're in the main editor.
+        let astCacheMod = if s.activeEditor == MainEditor(tlid) {
           Mod.UpdateASTCache(tlid, Printer.tokensToString(newTokens))
         } else {
           NoChange
@@ -6392,30 +6392,27 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
 // Scaffolidng
 // --------------------
 
-let renderCallback = (m: model): unit =>
+let renderCallback = (m: model): unit => {
   switch m.cursorState {
   | FluidEntering(_) if m.fluidState.midClick == false =>
     if FluidCommands.isOpened(m.fluidState.cp) {
       ()
     } else {
-      switch /* This for two different purposes:
-         * 1. When a key press mutates the text in the content editable, the browser resets the caret position to the * beginnning of the content editable. Here we set the caret to the correct position from the fluidState
-         * 2. We intercept all keyboard caret movement, therefore we need to set the caret to the correct position
-         * from the fluidState
-
-         * We do this after a render(not waiting til the next frame) so that the developer does not see the caret
-         * flicker to default browser position
- */
-      m.fluidState.selectionStart {
-      | Some(selStart) =>
-        // Updates the browser selection range for 2 in the context of selections
-        Entry.setFluidSelectionRange(selStart, m.fluidState.newPos)
-      | None => Entry.setFluidCaret(m.fluidState.newPos)
-      }
+      // This for two different purposes:
+      // 1. When a key press mutates the text in the content editable, the browser
+      // resets the caret position to the beginnning of the content editable. Here we
+      // set the caret to the correct position from the fluidState
+      // 2. We intercept all keyboard caret movement, therefore we need to set the
+      // caret to the correct position from the fluidState
+      // We do this after a render (not waiting til the next frame) so that the
+      // developer does not see the caret flicker to default browser position
+      let selectionEnd = m.fluidState.newPos
+      let selectionStart = Option.unwrap(m.fluidState.selectionStart, ~default=selectionEnd)
+      Entry.setFluidSelectionRange(selectionStart, selectionEnd)
     }
   | _ => ()
   }
-
+}
 let cleanUp = (m: model, tlid: option<TLID.t>): (model, AppTypes.modification) => {
   let rmPartialsMod =
     tlid

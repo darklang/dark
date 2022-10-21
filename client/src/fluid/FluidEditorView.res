@@ -322,9 +322,9 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
 
 let tokensView = (p: props): Html.html<msg> => {
   let tlidStr = TLID.toString(p.tlid)
-  let textInputListeners = /* the command palette is inside div.fluid-editor but has it's own input
-   * handling, so don't do normal fluid input stuff if it's open */
-  if FluidCommands.isOpened(p.fluidState.cp) {
+  // the command palette is inside div.fluid-editor but has it's own input
+  // handling, so don't do normal fluid input stuff if it's open
+  let textInputListeners = if FluidCommands.isOpened(p.fluidState.cp) {
     (Attrs.noProp, Attrs.noProp, Attrs.noProp)
   } else {
     (
@@ -424,8 +424,6 @@ let tokensView = (p: props): Html.html<msg> => {
   }
 
   Html.div(
-    // disable grammarly crashes
-
     Belt.List.concatMany([
       list{
         idAttr,
@@ -433,6 +431,7 @@ let tokensView = (p: props): Html.html<msg> => {
         Vdom.prop("contentEditable", "true"),
         Attrs.autofocus(true),
         Vdom.attribute("", "spellcheck", "false"),
+        // disable grammarly crashes
         Vdom.attribute("", "data-gramm", "false"),
       },
       clickHandlers,

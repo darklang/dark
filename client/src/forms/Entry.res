@@ -86,7 +86,7 @@ let preorderWalkUntil = (~f: Dom.Node.t => bool, node: Dom.Node.t): unit => {
   |> ignore
 }
 
-@ocaml.doc(" getFluidSelectionRange returns the [begin, end] indices of the last
+@ocaml.doc("getFluidSelectionRange returns the [begin, end] indices of the last
   * selection/caret placement within a fluid editor.
   *
   * If there has been no selection/caret placement or if the selected nodes are
@@ -125,10 +125,9 @@ let getFluidSelectionRange = (): option<(int, int)> => {
           if focusNode === node {
             focusIdx := Some(cursor.contents)
           }
-          /* If node is not a leaf, then advance cursor. This is
-           * probably a span or other container element. We'll see the
-           * actual text node later, and we don't want to double-count
-           * the textContent. */
+          // If node is not a leaf, then advance cursor. This is probably a span or
+          // other container element. We'll see the actual text node later, and we
+          // don't want to double-count the textContent.
           if !(Node.firstChild(node) |> Option.is_some) {
             cursor := cursor.contents + (node |> Node.textContent |> String.length)
           }
@@ -159,7 +158,7 @@ let getFluidCaretPos = (): option<int> =>
   | None => None
   }
 
-@ocaml.doc(" setFluidSelectionRange([beginIdx, endIdx]) attempts to select the passed
+@ocaml.doc("setFluidSelectionRange([beginIdx, endIdx]) attempts to select the passed
   * region in the currently selected fluid editor, if there is one.
   * If beginIdx == endIdx, it sets the caret position (0-width selection).
   *
