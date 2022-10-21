@@ -108,6 +108,8 @@ BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules
   --retries "$RETRIES" \
   --config integration-tests/playwright.config.ts
 
+set -x
+
 STATUS=$?
 
 if [[ $STATUS -ne 0 ]]; then
