@@ -234,8 +234,6 @@ let setFluidSelectionRange = (beginIdx: int, endIdx: int): unit => {
   |> ignore
 }
 
-let setFluidCaret = (idx: int): unit => setFluidSelectionRange(idx, idx)
-
 type browserPlatform =
   | Mac
   | Linux
