@@ -2051,8 +2051,12 @@ let update_ = (msg: msg, m: model): modification => {
     Model.updateErrorMod(Error.set("Successfully uploaded function"))
   | SecretMsg(msg) => InsertSecret.update(msg)
   | RenderEvent =>
-    Fluid.renderCallback(m)
-    NoChange
+    ReplaceAllModificationsWithThisOne(
+      m => {
+        Fluid.renderCallback(m)
+        (m, Cmd.none)
+      },
+    )
   }
 }
 
@@ -2119,7 +2123,8 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   | _ => list{}
   }
 
-  let renderSubs = list{Tea.Ex.render_event(AppTypes.Msg.RenderEvent)}
+  let rand = Random.int(10000000)->Int.to_string
+  let renderSubs = list{Tea.Ex.render_event(~key="renderEvent" ++ rand, AppTypes.Msg.RenderEvent)}
 
   let windowMouseSubs = list{
     BrowserSubscriptions.Window.Mouse.ups(~key="win_mouse_up", event => WindowMouseUp(event)),
