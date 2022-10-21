@@ -321,7 +321,7 @@ let run = () => {
       APIAddOps.Params.encode,
     )
     t(
-      "vanilla_LibBackend-Pusher_System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-_simple.json",
+      "vanilla_ClientTypes-Pusher_System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-_simple.json",
       AnalysisTypes.FourOhFour.decode,
       AnalysisTypes.FourOhFour.encode,
     )
@@ -332,6 +332,11 @@ let run = () => {
     )
     t(
       "vanilla_LibBackend-Pusher_LibBackend-StaticAssets-StaticDeploy_simple.json",
+      StaticAssets.Deploy.decode,
+      StaticAssets.Deploy.encode,
+    )
+    t(
+      "vanilla_ClientTypes-Pusher_ClientTypes-Pusher-Payload-NewStaticDeploy_simple.json",
       StaticAssets.Deploy.decode,
       StaticAssets.Deploy.encode,
     )

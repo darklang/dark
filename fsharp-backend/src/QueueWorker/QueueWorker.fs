@@ -183,9 +183,17 @@ let processNotification
                   // In this case, all they need to build is the trace. So just drop
                   // this event immediately.
                   let! timestamp = TI.storeEvent c.meta.id traceID desc event.value
-                  Pusher.pushNew404
+                  Pusher.pushNew
+                    ClientTypes2BackendTypes.Pusher.eventSerializer
                     c.meta.id
-                    (event.module', event.name, event.modifier, timestamp, traceID)
+                    (Pusher.New404(
+                      event.module',
+                      event.name,
+                      event.modifier,
+                      timestamp,
+                      traceID
+                    ))
+                    None
                   do! EQ.deleteEvent event
                   return! stop "MissingHandler" NoRetry
                 | Some h ->

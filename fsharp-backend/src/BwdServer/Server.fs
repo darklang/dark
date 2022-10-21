@@ -492,9 +492,11 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         // CLEANUP: move pusher into storeEvent
         // Send to pusher - do not resolve task, send this into the ether
-        Pusher.pushNew404
+        Pusher.pushNew
+          ClientTypes2BackendTypes.Pusher.eventSerializer
           meta.id
-          ("HTTP", requestPath, requestMethod, timestamp, traceID)
+          (Pusher.New404("HTTP", requestPath, requestMethod, timestamp, traceID))
+          None
 
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx

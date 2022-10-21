@@ -55,7 +55,10 @@ let push
     })
 
 
-type Event = NewTrace of AT.TraceID * List<tlid>
+type Event =
+  | NewTrace of trace : AT.TraceID * tlids : List<tlid>
+  | NewStaticDeploy of asset : StaticAssets.StaticDeploy
+  | New404 of TraceInputs.F404
 
 type EventNameAndPayload = { EventName : string; Payload : string }
 
@@ -68,9 +71,10 @@ type PusherEventSerializer = Event -> EventNameAndPayload
 /// This is fired in the background, and does not take any time from the current thread.
 /// You cannot wait for it, by design.
 ///
-/// Do not send requests over 10240 bytes. Each caller should check their payload,
-/// and send a different push if appropriate (eg, instead of sending
-/// `TraceData hugePayload`, send `TraceDataTooBig traceID`
+/// Payloads over 10240 bytes will not be sent. If there's a risk of a payload being
+/// over this size, include a 'fallback' event to process in such a case. This will
+/// probably result in some data being manually fetched/refreshed, rather than
+/// "pushing" the data via Pusher.com.
 /// </remarks>
 let pushNew
   (eventSerializer : PusherEventSerializer)
@@ -100,12 +104,6 @@ let pushNew
   else
     serialized |> handleEvent
 
-let pushNew404 (canvasID : CanvasID) (f404 : TraceInputs.F404) =
-  push canvasID "new_404" (Json.Vanilla.serialize f404)
-
-
-let pushNewStaticDeploy (canvasID : CanvasID) (asset : StaticAssets.StaticDeploy) =
-  push canvasID "new_static_deploy" (Json.Vanilla.serialize asset)
 
 type AddOpEventTooBigPayload = { tlids : List<tlid> }
 
@@ -138,7 +136,10 @@ let jsConfigString =
 
 let init () =
   do Json.Vanilla.allow<Op.AddOpEventV1> "LibBackend.Pusher"
-  do Json.Vanilla.allow<TraceInputs.F404> "LibBackend.Pusher"
   do Json.Vanilla.allow<AddOpEventTooBigPayload> "LibBackend.Pusher"
-  do Json.Vanilla.allow<StaticAssets.StaticDeploy> "LibBackend.Pusher"
   do Json.Vanilla.allow<QueueSchedulingRules.WorkerStates.T> "LibBackend.Pusher"
+
+  // although we're init-ing this here, it's currently (not for long!) used in a
+  // type serialized for an API endpoint (initial load) so we can't remove this
+  // quite yet.
+  do Json.Vanilla.allow<StaticAssets.StaticDeploy> "LibBackend.Pusher"

@@ -494,10 +494,22 @@ module Values =
       CT2Runtime.Dval.toCT RuntimeTypes.testDval
 
 
-  let testStaticDeploy : LibBackend.StaticAssets.StaticDeploy =
+  let testStaticDeploy1 : LibBackend.StaticAssets.StaticDeploy =
     { deployHash = "zf2ttsgwln"
       url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
       status = LibBackend.StaticAssets.Deployed
+      lastUpdate = testInstant }
+
+  // TODO: remove the above in favor of the below.
+  // The StaticDeploy type was registered as an allowed serializable type under the
+  // premise of it being used for Pusher, but it turns out that the type was also
+  // used for Api payload (namely for Initial Load). We should be able to remove the
+  // above binding shortly when the InitialLoad type is in ClientTypes
+
+  let testStaticDeploy2 : ClientTypes.Pusher.Payload.NewStaticDeploy =
+    { deployHash = "zf2ttsgwln"
+      url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
+      status = ClientTypes.StaticDeploy.Deployed
       lastUpdate = testInstant }
 
   let testAddOpResultV1 : LibBackend.Op.AddOpResultV1 =
@@ -670,7 +682,8 @@ module GenericSerializersTests =
       // Used by Pusher
       v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
       v<LibBackend.Op.AddOpEventV1> "simple" Pusher.testAddOpEventV1
-      v<LibBackend.StaticAssets.StaticDeploy> "simple" testStaticDeploy
+      v<LibBackend.StaticAssets.StaticDeploy> "simple" testStaticDeploy1
+      v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" testStaticDeploy2
       v<ClientTypes.Pusher.Payload.NewTrace> "simple" (testUuid, testTLIDs)
       v<LibBackend.TraceInputs.F404>
         "simple"
@@ -816,7 +829,7 @@ module GenericSerializersTests =
           deletedUserTypes =
             ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
           staticDeploys =
-            [ ClientTypes2BackendTypes.StaticDeploy.toCT testStaticDeploy ]
+            [ ClientTypes2BackendTypes.StaticDeploy.toCT testStaticDeploy1 ]
           opCtrs = Map [ testUuid, 7 ]
           canvasList = [ "test"; "test-canvas2" ]
           orgCanvasList = [ "testorg"; "testorg-canvas2" ]
