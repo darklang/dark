@@ -8,9 +8,6 @@
     <IsPublishable>false</IsPublishable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Tablecloth/Tablecloth.fsproj" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Prelude.fs" />
   </ItemGroup>
