@@ -446,7 +446,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
       ~key=e.name ++ "-plus",
       ~icon="plus-circle",
       ~style=%twc(
-        "ml-1.5 group-sidebar-addbutton-hover:text-sidebar-hover inline-block text-grey8"
+        "ml-1.5 group-hover/sidebar-addbutton:text-sidebar-hover inline-block text-grey8"
       ),
       msg,
     )
@@ -512,7 +512,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     | SendMsg(_) | DoNothing | Destination(_) => Vdom.noProp
     }
 
-    Html.span(list{tw(%twc("group inline-block group-sidebar-addbutton w-full")), action}, contents)
+    Html.span(list{tw(%twc("group inline-block group/sidebar-addbutton w-full")), action}, contents)
   }
 
   // This prevents the delete button appearing
@@ -583,7 +583,7 @@ let viewToplevelCategory = (
       }
 
       let style = %twc(
-        "text-grey5 duration-200 text-2xl group-sidebar-category-hover:text-3xl pr-1 w-full h-9 text-center box-border"
+        "text-grey5 duration-200 text-2xl group-hover/sidebar-category:text-3xl pr-1 w-full h-9 text-center box-border"
       )
 
       Html.div(
@@ -604,14 +604,14 @@ let viewToplevelCategory = (
   }
 
   Html.div(
-    list{tw(%twc("pb-5 text-center relative group-sidebar-category"))},
+    list{tw(%twc("pb-5 text-center relative group/sidebar-category"))},
     list{
       sidebarIcon,
       Html.div(
         list{
           tw(
             %twc(
-              "absolute -top-5 left-14 pt-1.5 pb-3 px-2.5 box-border min-w-[20rem] max-w-[40rem] max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll w-max text-left hidden group-sidebar-category-hover:block"
+              "absolute -top-5 left-14 pt-1.5 pb-3 px-2.5 box-border min-w-[20rem] max-w-[40rem] max-h-96 bg-sidebar-bg shadow-[2px_2px_2px_0_var(--black1)] z-[1] overflow-y-scroll w-max text-left hidden group-hover/sidebar-category:block"
             ),
           ),
         },

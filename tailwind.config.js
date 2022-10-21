@@ -83,13 +83,5 @@ module.exports = {
     // the other reset css used, so disable it.
     preflight: false,
   },
-  plugins: [
-    require("tailwind-scrollbar")({ nocompatible: true }),
-    require("tailwindcss-labeled-groups")([
-      // This allows us have overlapping and nested groups. Each time you need a
-      // group, create a new one with a contextual name
-      "sidebar-category",
-      "sidebar-addbutton",
-    ]),
-  ],
+  plugins: [require("tailwind-scrollbar")({ nocompatible: true })],
 };
