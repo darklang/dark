@@ -36,6 +36,7 @@ let main _ : int =
     LibService.Init.init name
     LibExecution.Init.init ()
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
+    //? ClientTypes.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
 
     // This fn is called if k8s tells us to stop

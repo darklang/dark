@@ -199,6 +199,7 @@ let processNotification
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
                       RealExecution.executeHandler
+                        ClientTypes2BackendTypes.Pusher.eventSerializer
                         c.meta
                         (PT2RT.Handler.toRT h)
                         program
@@ -301,6 +302,7 @@ let main _ : int =
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     LibExecution.Init.init ()
+    ClientTypes.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

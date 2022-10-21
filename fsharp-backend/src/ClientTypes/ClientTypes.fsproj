@@ -24,6 +24,7 @@
     <Compile Include="ClientStaticDeployTypes.fs" />
     <Compile Include="ClientSecretTypes.fs" />
     <Compile Include="ClientAuthorizationTypes.fs" />
+    <Compile Include="ClientPusherTypes.fs" />
     <Compile Include="ClientApiTypes.fs" />
     <Compile Include="Converters.fs" />
     <Compile Include="Init.fs" />

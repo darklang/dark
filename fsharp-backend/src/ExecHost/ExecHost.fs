@@ -194,6 +194,7 @@ let main (args : string []) : int =
       (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     let result = (run options).Result
     LibService.Init.shutdown name
+    //? ClientTypes.Init.init name
     result
   with
   | e ->

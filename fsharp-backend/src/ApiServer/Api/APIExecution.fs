@@ -99,6 +99,7 @@ module HandlerV1 =
       t.next "execute-handler"
       let! (_, traceResults) =
         RealExe.executeHandler
+          ClientTypes2BackendTypes.Pusher.eventSerializer
           c.meta
           handler
           program

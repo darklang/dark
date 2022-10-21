@@ -267,6 +267,7 @@ let main _ =
     Prelude.init ()
     LibService.Init.init name
     LibExecution.Init.init ()
+    ClientTypes.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

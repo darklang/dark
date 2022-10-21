@@ -26,8 +26,6 @@ let pusherClient : Lazy<PusherServer.Pusher> =
        options
      ))
 
-type EventTooBigEvent = { eventName : string }
-
 
 /// <summary>Send an event to Pusher.com.</summary>
 ///
@@ -56,15 +54,51 @@ let push
       return ()
     })
 
-type NewTraceID = AT.TraceID * List<tlid>
 
-let pushNewTraceID
+type Event = NewTrace of AT.TraceID * List<tlid>
+
+type EventNameAndPayload = { EventName : string; Payload : string }
+
+type PusherEventSerializer = Event -> EventNameAndPayload
+
+
+/// <summary>Send an event to Pusher.com.</summary>
+///
+/// <remarks>
+/// This is fired in the background, and does not take any time from the current thread.
+/// You cannot wait for it, by design.
+///
+/// Do not send requests over 10240 bytes. Each caller should check their payload,
+/// and send a different push if appropriate (eg, instead of sending
+/// `TraceData hugePayload`, send `TraceDataTooBig traceID`
+/// </remarks>
+let pushNew
+  (eventSerializer : PusherEventSerializer)
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
-  (tlids : tlid list)
+  (event : Event)
+  (fallback : Option<Event>)
   : unit =
-  push canvasID "new_trace" (Json.Vanilla.serialize (traceID, tlids))
+  let handleEvent (event : EventNameAndPayload) : unit =
+    FireAndForget.fireAndForgetTask $"pusher: {event.EventName}" (fun () ->
+      task {
+        // TODO: make channels private and end-to-end encrypted in order to add public canvases
+        let client = Lazy.force pusherClient
+        let channel = $"canvas_{canvasID}"
 
+        let! (_ : PusherServer.ITriggerResult) =
+          client.TriggerAsync(channel, event.EventName, event.Payload)
+
+        return ()
+      })
+
+  let serialized = eventSerializer event
+
+  if String.length serialized.Payload > 10240 then
+    match fallback with
+    | None -> printfn "Uh oh!"
+    | Some fallback -> eventSerializer fallback |> handleEvent
+  else
+    serialized |> handleEvent
 
 let pushNew404 (canvasID : CanvasID) (f404 : TraceInputs.F404) =
   push canvasID "new_404" (Json.Vanilla.serialize f404)
@@ -90,7 +124,6 @@ let pushAddOpEventV1 (canvasID : CanvasID) (event : Op.AddOpEventV1) =
     push canvasID "v1/add_op" payload
 
 
-
 let pushWorkerStates
   (canvasID : CanvasID)
   (ws : QueueSchedulingRules.WorkerStates.T)
@@ -107,6 +140,5 @@ let init () =
   do Json.Vanilla.allow<Op.AddOpEventV1> "LibBackend.Pusher"
   do Json.Vanilla.allow<TraceInputs.F404> "LibBackend.Pusher"
   do Json.Vanilla.allow<AddOpEventTooBigPayload> "LibBackend.Pusher"
-  do Json.Vanilla.allow<NewTraceID> "LibBackend.Pusher"
   do Json.Vanilla.allow<StaticAssets.StaticDeploy> "LibBackend.Pusher"
   do Json.Vanilla.allow<QueueSchedulingRules.WorkerStates.T> "LibBackend.Pusher"

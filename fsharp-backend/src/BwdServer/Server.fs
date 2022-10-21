@@ -385,6 +385,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
+              ClientTypes2BackendTypes.Pusher.eventSerializer
               canvas.meta
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
@@ -434,6 +435,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
+              ClientTypes2BackendTypes.Pusher.eventSerializer
               canvas.meta
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
@@ -619,6 +621,7 @@ let main _ =
     Prelude.init ()
     LibService.Init.init name
     LibExecution.Init.init ()
+    ClientTypes.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

@@ -671,7 +671,7 @@ module GenericSerializersTests =
       v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
       v<LibBackend.Op.AddOpEventV1> "simple" Pusher.testAddOpEventV1
       v<LibBackend.StaticAssets.StaticDeploy> "simple" testStaticDeploy
-      v<LibBackend.Pusher.NewTraceID> "simple" (testUuid, testTLIDs)
+      v<ClientTypes.Pusher.Payload.NewTrace> "simple" (testUuid, testTLIDs)
       v<LibBackend.TraceInputs.F404>
         "simple"
         ("HTTP", "/", "GET", testInstant, testUuid)

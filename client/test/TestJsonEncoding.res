@@ -326,7 +326,7 @@ let run = () => {
       AnalysisTypes.FourOhFour.encode,
     )
     t(
-      "vanilla_LibBackend-Pusher_System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-_simple.json",
+      "vanilla_ClientTypes-Pusher_System-Tuple-2-System-Guid-Microsoft-FSharp-Collections-FSharpList-1-System-UInt64-_simple.json",
       AnalysisTypes.NewTrace.decode,
       AnalysisTypes.NewTrace.encode,
     )
