@@ -107,3 +107,14 @@ BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules
   --output "rundir/integration-tests/" \
   --retries "$RETRIES" \
   --config integration-tests/playwright.config.ts
+
+STATUS=$?
+
+if [[ $STATUS -ne 0 ]]; then
+  echo "Playwright tests failed"
+  echo "The following tests were skipped and shouldn't have been (if the integration test timed out, these are likely culprits):"
+  cat rundir/test_results/integration_tests.json | jq -r '.suites[0].suites[0].specs[] | select( .tests[0].results[0].status == "skipped") | .title ' | sort
+
+  exit $STATUS
+fi
+
