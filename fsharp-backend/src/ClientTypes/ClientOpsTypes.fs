@@ -12,5 +12,3 @@ type AddOpResultV1 =
 
 type AddOpParamsV1 = { ops : List<Program.Op>; opCtr : int; clientOpCtrID : string }
 
-// TODO: this belongs in ClientPusherTypes.fs (when it exists)
-//type AddOpEventV1 = { result : AddOpResultV1; ``params`` : AddOpParamsV1 }

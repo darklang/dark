@@ -112,9 +112,11 @@ module V1 =
       // To make this work with prodclone, we might want to have it specify
       // more ... else people's prodclones will stomp on each other ...
       if causesAnyChanges newOps then
-        LibBackend.Pusher.pushAddOpEventV1
+        LibBackend.Pusher.pushNew
+          ClientTypes2BackendTypes.Pusher.eventSerializer
           canvasID
-          { result = result; ``params`` = p }
+          (LibBackend.Pusher.AddOpV1(p, result))
+          (Some <| LibBackend.Pusher.AddOpPayloadTooBig(List.map Op.tlidOf p.ops))
 
       t.next "send-event-to-heapio"
       // NB: I believe we only send one op at a time, but the type is op list

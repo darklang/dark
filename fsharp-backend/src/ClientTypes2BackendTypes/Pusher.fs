@@ -23,3 +23,14 @@ let eventSerializer : LibBackend.Pusher.PusherEventSerializer =
       let payload : ClientTypes.Pusher.Payload.New404 =
         (module_, eventName, eventModifier, timestamp, traceID)
       { EventName = "new_404"; Payload = Json.Vanilla.serialize payload }
+
+    | DomainEvent.AddOpV1 (params_, result) ->
+      let payload : ClientTypes.Pusher.Payload.AddOpV1 =
+        { ``params`` = params_ |> Ops.AddOpParamsV1.toCT
+          result = result |> Ops.AddOpResultV1.toCT }
+      { EventName = "v1/add_op"; Payload = Json.Vanilla.serialize payload }
+
+    | DomainEvent.AddOpPayloadTooBig (tlids) ->
+      let payload : ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig =
+        { tlids = tlids }
+      { EventName = "addOpTooBig"; Payload = Json.Vanilla.serialize payload }

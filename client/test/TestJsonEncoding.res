@@ -148,7 +148,7 @@ let run = () => {
       "vanilla_ApiServer-Secrets_ClientTypes-Api-Secrets-DeleteV1-Request_simple.json",
       "vanilla_ApiServer-Secrets_ClientTypes-Api-Secrets-DeleteV1-Response_simple.json",
       "vanilla_ApiServer-Toplevels_ClientTypes-Api-Toplevels-Delete-Response_simple.json", // we don't check the response
-      "vanilla_LibBackend-Pusher_LibBackend-Pusher-AddOpEventTooBigPayload_simple.json", // not used yet
+      "vanilla_LibBackend-Pusher_ClientTypes-Pusher-Payload-AddOpV1PayloadTooBig_simple.json", // not used yet
       // Internal to backend
       "vanilla_LibBackend-session-db-storage_LibBackend-Session-JsonData_simple.json",
       "vanilla_PackageManager_Microsoft-FSharp-Collections-FSharpList-1-LibBackend-PackageManager-Parameter-_all.json",
@@ -341,7 +341,7 @@ let run = () => {
       StaticAssets.Deploy.encode,
     )
     t(
-      "vanilla_LibBackend-Pusher_LibBackend-Op-AddOpEventV1_simple.json",
+      "vanilla_LibBackend-Pusher_ClientTypes-Pusher-Payload-AddOpV1_simple.json",
       PusherTypes.AddOps.decode,
       PusherTypes.AddOps.encode,
     )

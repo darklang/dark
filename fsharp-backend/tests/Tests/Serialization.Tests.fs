@@ -512,15 +512,18 @@ module Values =
       status = ClientTypes.StaticDeploy.Deployed
       lastUpdate = testInstant }
 
-  let testAddOpResultV1 : LibBackend.Op.AddOpResultV1 =
-    { handlers = ProgramTypes.testHandlers
-      deletedHandlers = ProgramTypes.testHandlers
-      dbs = ProgramTypes.testDBs
-      deletedDBs = ProgramTypes.testDBs
-      userFunctions = ProgramTypes.testUserFunctions
-      deletedUserFunctions = ProgramTypes.testUserFunctions
-      userTypes = ProgramTypes.testUserTypes
-      deletedUserTypes = ProgramTypes.testUserTypes }
+  let testAddOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
+    { handlers = ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
+      deletedHandlers = ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
+      dbs = ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
+      deletedDBs = ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
+      userFunctions =
+        ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
+      deletedUserFunctions =
+        ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
+      userTypes = ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
+      deletedUserTypes =
+        ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT }
 
   let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
     (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
@@ -529,9 +532,9 @@ module Values =
 
 
   module Pusher =
-    let testAddOpEventV1 : LibBackend.Op.AddOpEventV1 =
+    let testAddOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
       { ``params`` =
-          { ops = ProgramTypes.testOplist
+          { ops = ProgramTypes.testOplist |> List.map CT2Program.Op.toCT
             opCtr = 0
             clientOpCtrID = testUuid.ToString() }
         result = testAddOpResultV1 }
@@ -680,8 +683,10 @@ module GenericSerializersTests =
       v<PT.Position> "simple" { x = 10; y = -16 }
 
       // Used by Pusher
-      v<LibBackend.Pusher.AddOpEventTooBigPayload> "simple" { tlids = testTLIDs }
-      v<LibBackend.Op.AddOpEventV1> "simple" Pusher.testAddOpEventV1
+      v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig>
+        "simple"
+        { tlids = testTLIDs }
+      v<ClientTypes.Pusher.Payload.AddOpV1> "simple" Pusher.testAddOpEventV1
       v<LibBackend.StaticAssets.StaticDeploy> "simple" testStaticDeploy1
       v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" testStaticDeploy2
       v<ClientTypes.Pusher.Payload.NewTrace> "simple" (testUuid, testTLIDs)
@@ -704,9 +709,7 @@ module GenericSerializersTests =
             opCtr = 0
             clientOpCtrID = testUuid.ToString() })
 
-      v<CTApi.Ops.AddOpV1.Response>
-        "simple"
-        (CT2Ops.AddOpResultV1.toCT testAddOpResultV1)
+      v<CTApi.Ops.AddOpV1.Response> "simple" testAddOpResultV1
 
 
       // User DBs

@@ -13,3 +13,6 @@ module Payload =
       status : StaticDeploy.DeployStatus }
 
   type New404 = string * string * string * NodaTime.Instant * Analysis.TraceID
+
+  type AddOpV1 = { result : Ops.AddOpResultV1; ``params`` : Ops.AddOpParamsV1 }
+  type AddOpV1PayloadTooBig = { tlids : List<tlid> }

@@ -12,6 +12,9 @@ let init (serviceName : string) =
   do Json.Vanilla.allow<Pusher.Payload.NewStaticDeploy> "ClientTypes.Pusher"
   do Json.Vanilla.allow<Pusher.Payload.New404> "ClientTypes.Pusher"
 
+  do Json.Vanilla.allow<Pusher.Payload.AddOpV1> "ClientTypes.Pusher"
+  do Json.Vanilla.allow<Pusher.Payload.AddOpV1PayloadTooBig> "ClientTypes.Pusher"
+
   // API
   // TODO
 

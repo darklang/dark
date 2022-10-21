@@ -59,6 +59,8 @@ type Event =
   | NewTrace of trace : AT.TraceID * tlids : List<tlid>
   | NewStaticDeploy of asset : StaticAssets.StaticDeploy
   | New404 of TraceInputs.F404
+  | AddOpV1 of Op.AddOpParamsV1 * Op.AddOpResultV1
+  | AddOpPayloadTooBig of List<tlid>
 
 type EventNameAndPayload = { EventName : string; Payload : string }
 
@@ -98,29 +100,16 @@ let pushNew
   let serialized = eventSerializer event
 
   if String.length serialized.Payload > 10240 then
-    match fallback with
-    | None -> printfn "Uh oh!"
-    | Some fallback -> eventSerializer fallback |> handleEvent
-  else
-    serialized |> handleEvent
+    // TODO: this sort of functionality was outlined before, but never actually
+    // used. We need to test this and update the client to handle the payloads.
+    // (note: make sure you remove the payload from the 'ignores' list of TestJsonEncoding.res)
 
-
-type AddOpEventTooBigPayload = { tlids : List<tlid> }
-
-// For exposure as a DarkInternal function
-let pushAddOpEventV1 (canvasID : CanvasID) (event : Op.AddOpEventV1) =
-  let payload = Json.Vanilla.serialize event
-  if String.length payload > 10240 then
-    let tlids = List.map Op.tlidOf event.``params``.ops
-    let tooBigPayload = { tlids = tlids } |> Json.Vanilla.serialize
-    // CLEANUP: when changes are too big, notify the client to reload them. We'll
-    // have to add support to the client before enabling this. The client would
-    // reload after this.
-    // push canvasID "addOpTooBig" tooBigPayload
+    // match fallback with
+    // | None -> printfn "Uh oh!"
+    // | Some fallback -> eventSerializer fallback |> handleEvent
     ()
   else
-    push canvasID "v1/add_op" payload
-
+    serialized |> handleEvent
 
 let pushWorkerStates
   (canvasID : CanvasID)
@@ -135,8 +124,6 @@ let jsConfigString =
   $"{{enabled: true, key: '{Config.pusherKey}', cluster: '{Config.pusherCluster}'}}"
 
 let init () =
-  do Json.Vanilla.allow<Op.AddOpEventV1> "LibBackend.Pusher"
-  do Json.Vanilla.allow<AddOpEventTooBigPayload> "LibBackend.Pusher"
   do Json.Vanilla.allow<QueueSchedulingRules.WorkerStates.T> "LibBackend.Pusher"
 
   // although we're init-ing this here, it's currently (not for long!) used in a
