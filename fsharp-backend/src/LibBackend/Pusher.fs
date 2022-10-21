@@ -125,8 +125,3 @@ let jsConfigString =
 
 let init () =
   do Json.Vanilla.allow<QueueSchedulingRules.WorkerStates.T> "LibBackend.Pusher"
-
-  // although we're init-ing this here, it's currently (not for long!) used in a
-  // type serialized for an API endpoint (initial load) so we can't remove this
-  // quite yet.
-  do Json.Vanilla.allow<StaticAssets.StaticDeploy> "LibBackend.Pusher"
