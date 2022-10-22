@@ -39,23 +39,23 @@ let focusEntry = (m: AppTypes.Model.t): AppTypes.cmd =>
 // Based on Tea_html_cmds, applies offset after focus
 let focusWithOffset = (id, offset) =>
   Tea.Cmd.call(_ => {
-    let ecb = _ignored =>
-      switch Js.Nullable.toOption(Web.Document.getElementById(id)) {
-      | None =>
-        // Do not report this error, it's not a problem
-        Js.log(("Attempted to focus a non-existant element of: ", id))
-      | Some(elem) =>
-        // We have to focus after setting range, or the cursor will vanish when the offset is 0
-        elem["setSelectionRange"](offset, offset)
-        Web.Node.focus(elem)
-        ()
+    let ecb = _ignored => {
+      let elem =
+        Webapi.Dom.document
+        ->Webapi.Dom.Document.getElementById(id)
+        ->Belt.Option.flatMap(Webapi.Dom.HtmlInputElement.ofElement)
+      switch elem {
+      | Some(input) =>
+        input->Webapi.Dom.HtmlInputElement.setSelectionRange(offset, offset)
+        input->Webapi.Dom.HtmlInputElement.focus
+      | None => ()
       }
+    }
 
     // One to get out of the current render frame
-    let cb = _ignored => ignore(Web.Window.requestAnimationFrame(ecb))
+    let cb = _ignored => ignore(Webapi.requestAnimationFrame(ecb))
     // And another to properly focus
-    ignore(Web.Window.requestAnimationFrame(cb))
-    ()
+    ignore(Webapi.requestAnimationFrame(cb))
   })
 
 let focusEntryWithOffset = (m: AppTypes.model, offset: int): AppTypes.cmd =>

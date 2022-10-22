@@ -2050,6 +2050,13 @@ let update_ = (msg: msg, m: model): modification => {
   | UploadFnAPICallback(_, Ok(_)) =>
     Model.updateErrorMod(Error.set("Successfully uploaded function"))
   | SecretMsg(msg) => InsertSecret.update(msg)
+  | RenderEvent =>
+    ReplaceAllModificationsWithThisOne(
+      m => {
+        Fluid.renderCallback(m)
+        (m, Cmd.none)
+      },
+    )
   }
 }
 
@@ -2115,6 +2122,9 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     list{BrowserSubscriptions.DarkMouse.moves(~key, event => AppMouseDrag(event))}
   | _ => list{}
   }
+
+  let rand = Random.int(10000000)->Int.to_string
+  let renderSubs = list{Tea.Ex.render_event(~key="renderEvent" ++ rand, AppTypes.Msg.RenderEvent)}
 
   let windowMouseSubs = list{
     BrowserSubscriptions.Window.Mouse.ups(~key="win_mouse_up", event => WindowMouseUp(event)),
@@ -2196,6 +2206,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
       clipboardSubs,
       dragSubs,
       timers,
+      renderSubs,
       visibility,
       onError,
       mousewheelSubs,
@@ -2205,12 +2216,11 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
 }
 
 let debugging = {
-  let prog = Tea.Debug.debug(
+  let prog = Tea.Debug.debug_program(
     AppTypes.show_msg,
     {
       init: a => init(a, Tea.Navigation.getLocation()),
       view: View.view,
-      renderCallback: Fluid.renderCallback,
       update: update,
       subscriptions: subscriptions,
       shutdown: _ => Cmd.none,
@@ -2224,7 +2234,6 @@ let debugging = {
       init: myInit,
       update: prog.update,
       view: prog.view,
-      renderCallback: prog.renderCallback,
       subscriptions: prog.subscriptions,
       shutdown: prog.shutdown,
     },
@@ -2236,7 +2245,6 @@ let normal = {
     init: init,
     view: View.view,
     update: update,
-    renderCallback: Fluid.renderCallback,
     subscriptions: subscriptions,
     shutdown: _ => Cmd.none,
   }

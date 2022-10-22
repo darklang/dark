@@ -64,22 +64,25 @@ module OffsetEstimator = {
    * TODO: It's a super hacky estimate based on our common screen size at Dark and the default
    * font size and should be replaced with a proper implementation. But it's done us
    * okay so far. */
-  let estimateClickOffset = (elementID: string, event: MouseEvent.t): option<int> =>
-    switch Js.Nullable.toOption(Web_document.getElementById(elementID)) {
+  let estimateClickOffset = (elementID: string, event: MouseEvent.t): option<int> => {
+    open Webapi.Dom
+    let elem = document->Document.getElementById(elementID)
+    switch elem {
     | Some(elem) =>
-      let rect = elem["getBoundingClientRect"]()
+      let rect = elem->Element.getBoundingClientRect
       if (
-        event.mePos.vy >= int_of_float(rect["top"]) &&
-          (event.mePos.vy <= int_of_float(rect["bottom"]) &&
-          (event.mePos.vx >= int_of_float(rect["left"]) &&
-            event.mePos.vx <= int_of_float(rect["right"])))
+        event.mePos.vy >= int_of_float(rect->DomRect.top) &&
+          (event.mePos.vy <= int_of_float(rect->DomRect.bottom) &&
+          (event.mePos.vx >= int_of_float(rect->DomRect.left) &&
+            event.mePos.vx <= int_of_float(rect->DomRect.right)))
       ) {
-        Some((event.mePos.vx - int_of_float(rect["left"])) / 8)
+        Some((event.mePos.vx - int_of_float(rect->DomRect.left)) / 8)
       } else {
         None
       }
     | None => None
     }
+  }
 }
 
 module Random = {
