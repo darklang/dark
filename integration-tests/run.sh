@@ -97,6 +97,7 @@ fi
 ######################
 echo "Starting playwright"
 integration-tests/node_modules/.bin/playwright --version
+set +e # We're going to use this error code
 BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules/.bin/playwright \
   test \
   $DEBUG_MODE_FLAG \
