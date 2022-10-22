@@ -676,10 +676,12 @@ module GenericSerializersTests =
       v<ClientTypes.Pusher.Payload.AddOpV1> "simple" Pusher.testAddOpEventV1
       v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" testStaticDeploy
       v<ClientTypes.Pusher.Payload.NewTrace> "simple" (testUuid, testTLIDs)
-      v<LibBackend.TraceInputs.F404>
+      v<ClientTypes.Pusher.Payload.New404>
         "simple"
         ("HTTP", "/", "GET", testInstant, testUuid)
-      v<LibBackend.QueueSchedulingRules.WorkerStates.T> "simple" testWorkerStates
+      v<ClientTypes.Pusher.Payload.UpdateWorkerStates>
+        "simple"
+        (testWorkerStates |> ClientTypes2BackendTypes.Worker.WorkerStates.toCT)
 
 
 
@@ -879,7 +881,9 @@ module GenericSerializersTests =
       // Workers
 
       v<CTApi.Workers.Scheduler.Request> "simple" { name = "x"; schedule = "pause" }
-      v<ApiServer.Workers.Scheduler.Response> "all" testWorkerStates
+      v<CTApi.Workers.Scheduler.Response>
+        "all"
+        (testWorkerStates |> ClientTypes2BackendTypes.Worker.WorkerStates.toCT)
 
       v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = testTLID }
       v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }

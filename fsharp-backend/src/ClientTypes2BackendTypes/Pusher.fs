@@ -34,3 +34,8 @@ let eventSerializer : LibBackend.Pusher.PusherEventSerializer =
       let payload : ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig =
         { tlids = tlids }
       { EventName = "addOpTooBig"; Payload = Json.Vanilla.serialize payload }
+
+
+    | DomainEvent.UpdateWorkerStates (ws) ->
+      let payload : ClientTypes.Pusher.Payload.UpdateWorkerStates = Map.empty // todo
+      { EventName = "worker_state"; Payload = Json.Vanilla.serialize payload }

@@ -65,7 +65,11 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
       uply {
         do! fn canvasID handlerName
         let! s = SchedulingRules.getWorkerSchedules canvasID
-        Pusher.pushWorkerStates canvasID s
+        Pusher.pushNew
+          ClientTypes2BackendTypes.Pusher.eventSerializer
+          canvasID
+          (Pusher.UpdateWorkerStates s)
+          None
         return DNull
       }
     | _ -> incorrectArgs ())

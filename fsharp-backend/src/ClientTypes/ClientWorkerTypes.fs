@@ -20,4 +20,4 @@ let parse (str : string) : WorkerState =
   | "pause" -> Paused
   | _ -> Exception.raiseInternal "invalid WorkerState" [ "workerState", str ]
 
-type T = Map<string, WorkerState>
+type WorkerStates = Map<string, WorkerState>

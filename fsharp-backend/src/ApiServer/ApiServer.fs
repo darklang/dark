@@ -252,7 +252,7 @@ let initSerializers () =
   Json.Vanilla.allow<CTApi.Tunnels.Register.Request> "ApiServer.Tunnels"
   Json.Vanilla.allow<CTApi.Tunnels.Register.Response> "ApiServer.Tunnels"
   Json.Vanilla.allow<CTApi.Workers.Scheduler.Request> "ApiServer.Workers"
-  Json.Vanilla.allow<Workers.Scheduler.Response> "ApiServer.Workers"
+  Json.Vanilla.allow<CTApi.Workers.Scheduler.Response> "ApiServer.Workers"
   Json.Vanilla.allow<CTApi.Workers.WorkerStats.Request> "ApiServer.Workers"
   Json.Vanilla.allow<CTApi.Workers.WorkerStats.Response> "ApiServer.Workers"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"

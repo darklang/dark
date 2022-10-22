@@ -12,3 +12,5 @@ module Payload =
 
   type AddOpV1 = { result : Ops.AddOpResultV1; ``params`` : Ops.AddOpParamsV1 }
   type AddOpV1PayloadTooBig = { tlids : List<tlid> }
+
+  type UpdateWorkerStates = Map<string, Worker.WorkerState>

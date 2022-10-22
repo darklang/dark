@@ -9,11 +9,15 @@ let init (serviceName : string) =
 
   // Pusher
   do Json.Vanilla.allow<Pusher.Payload.NewTrace> "ClientTypes.Pusher"
+
   do Json.Vanilla.allow<Pusher.Payload.NewStaticDeploy> "ClientTypes.Pusher"
+
   do Json.Vanilla.allow<Pusher.Payload.New404> "ClientTypes.Pusher"
 
   do Json.Vanilla.allow<Pusher.Payload.AddOpV1> "ClientTypes.Pusher"
   do Json.Vanilla.allow<Pusher.Payload.AddOpV1PayloadTooBig> "ClientTypes.Pusher"
+
+  do Json.Vanilla.allow<Pusher.Payload.UpdateWorkerStates> "ClientTypes.Pusher"
 
   // API
   // TODO

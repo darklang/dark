@@ -35,11 +35,8 @@ module WorkerStats =
     }
 
 module Scheduler =
-  // TODO: move this to CTApi
-  type Response = SchedulingRules.WorkerStates.T
-
   /// API endpoint to update the Schedule of a Worker
-  let updateSchedule (ctx : HttpContext) : Task<Response> =
+  let updateSchedule (ctx : HttpContext) : Task<CTApi.Workers.Scheduler.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
@@ -59,7 +56,14 @@ module Scheduler =
       t.next "update-pusher"
       // TODO: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
-      LibBackend.Pusher.pushWorkerStates canvasInfo.id ws
+      LibBackend.Pusher.pushNew
+        ClientTypes2BackendTypes.Pusher.eventSerializer
+        canvasInfo.id
+        (LibBackend.Pusher.UpdateWorkerStates ws)
+        None
 
-      return ws
+      let response : CTApi.Workers.Scheduler.Response =
+        ClientTypes2BackendTypes.Worker.WorkerStates.toCT ws
+
+      return response
     }

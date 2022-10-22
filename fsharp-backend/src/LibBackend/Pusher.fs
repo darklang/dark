@@ -61,6 +61,7 @@ type Event =
   | New404 of TraceInputs.F404
   | AddOpV1 of Op.AddOpParamsV1 * Op.AddOpResultV1
   | AddOpPayloadTooBig of List<tlid>
+  | UpdateWorkerStates of QueueSchedulingRules.WorkerStates.T
 
 type EventNameAndPayload = { EventName : string; Payload : string }
 
@@ -82,7 +83,7 @@ let pushNew
   (eventSerializer : PusherEventSerializer)
   (canvasID : CanvasID)
   (event : Event)
-  (fallback : Option<Event>)
+  (_fallback : Option<Event>)
   : unit =
   let handleEvent (event : EventNameAndPayload) : unit =
     FireAndForget.fireAndForgetTask $"pusher: {event.EventName}" (fun () ->
@@ -111,17 +112,9 @@ let pushNew
   else
     serialized |> handleEvent
 
-let pushWorkerStates
-  (canvasID : CanvasID)
-  (ws : QueueSchedulingRules.WorkerStates.T)
-  : unit =
-  push canvasID "worker_state" (Json.Vanilla.serialize ws)
-
 type JsConfig = { enabled : bool; key : string; cluster : string }
 
 let jsConfigString =
   // CLEANUP use JSON serialization
   $"{{enabled: true, key: '{Config.pusherKey}', cluster: '{Config.pusherCluster}'}}"
 
-let init () =
-  do Json.Vanilla.allow<QueueSchedulingRules.WorkerStates.T> "LibBackend.Pusher"

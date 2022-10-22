@@ -13919,9 +13919,15 @@
     "testorg-canvas2"
   ],
   "workerSchedules": {
-    "blocked": "block",
-    "paused": "pause",
-    "run": "run"
+    "blocked": [
+      "Blocked"
+    ],
+    "paused": [
+      "Paused"
+    ],
+    "run": [
+      "Running"
+    ]
   },
   "creationDate": "2022-07-04T17:46:57Z",
   "secrets": [

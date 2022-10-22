@@ -53,8 +53,6 @@ module SchedulingRule =
 
 
 module WorkerStates =
-
-  // This is used in a number of APIs - be careful of updating it
   type State =
     | Running
     | Blocked
@@ -73,22 +71,7 @@ module WorkerStates =
     | "pause" -> Paused
     | _ -> Exception.raiseInternal "invalid WorkerState" [ "workerState", str ]
 
-  // This is used in a number of APIs - be careful of updating it
   type T = Map<string, State>
-
-  // TODO: remove this once Pusher types (incl worker update push) are in ClientTypes
-  module STJJsonConverter =
-    open System.Text.Json
-    open System.Text.Json.Serialization
-
-    type WorkerStateConverter() =
-      inherit JsonConverter<State>()
-
-      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) : State =
-        reader.GetString() |> parse
-
-      override _.Write(writer : Utf8JsonWriter, value : State, _options) =
-        writer.WriteStringValue(string value)
 
 
 /// Sets all 'new' events to 'scheduled', bypassing actual scheduling logic

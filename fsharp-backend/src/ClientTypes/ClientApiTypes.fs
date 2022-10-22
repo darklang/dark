@@ -123,5 +123,6 @@ module Workers =
     type Response = { count : int }
 
   module Scheduler =
-    // TODO: pull in response type
     type Request = { name : string; schedule : string }
+
+    type Response = Worker.WorkerStates

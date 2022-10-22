@@ -271,12 +271,12 @@ let run = () => {
       APIWorkers.Scheduler.Params.encode,
     )
     t(
-      "vanilla_ApiServer-Workers-LibBackend-Pusher_Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-_simple.json",
+      "vanilla_ApiServer-Workers-ClientTypes-Pusher_Microsoft-FSharp-Collections-FSharpMap-2-System-String-ClientTypes-Worker-WorkerState-_all.json",
       APIWorkers.Scheduler.decode,
       APIWorkers.Scheduler.encode,
     )
     t(
-      "vanilla_ApiServer-Workers-LibBackend-Pusher_Microsoft-FSharp-Collections-FSharpMap-2-System-String-LibBackend-QueueSchedulingRules-WorkerStates-State-_all.json",
+      "vanilla_ApiServer-Workers-ClientTypes-Pusher_Microsoft-FSharp-Collections-FSharpMap-2-System-String-ClientTypes-Worker-WorkerState-_simple.json",
       APIWorkers.Scheduler.decode,
       APIWorkers.Scheduler.encode,
     )
