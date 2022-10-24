@@ -98,9 +98,6 @@ fi
 echo "Starting playwright"
 integration-tests/node_modules/.bin/playwright --version
 
-set -x
-set +e # We're going to use this error code
-
 BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" DEBUG=pw:test integration-tests/node_modules/.bin/playwright \
   test \
   $DEBUG_MODE_FLAG \
@@ -112,13 +109,12 @@ BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" DEBUG=pw:test integration-test
   --retries "$RETRIES" \
   --config integration-tests/playwright.config.ts
 
-STATUS=$?
+set -x
+SKIPPED=$(cat rundir/test_results/integration_tests.json | jq -r '.suites[0].suites[0].specs[] | select( .tests[0].results[0].status == "skipped") | .title ' | sort)
 
-if [[ $STATUS -ne 0 ]]; then
+if [[ "$SKIPPED" != "" ]]; then
   echo "Playwright tests failed"
   echo "The following tests were skipped and shouldn't have been (if the integration test timed out, these are likely culprits):"
-  cat rundir/test_results/integration_tests.json | jq -r '.suites[0].suites[0].specs[] | select( .tests[0].results[0].status == "skipped") | .title ' | sort
-
-  exit $STATUS
+  echo "$SKIPPED"
+  exit 1
 fi
-
