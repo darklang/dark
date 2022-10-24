@@ -52,6 +52,29 @@ module F404 =
     type Response = { result : string }
 
 
+module InitialLoad =
+  module V1 =
+    type Response =
+      { handlers : List<Program.Handler.T>
+        deletedHandlers : List<Program.Handler.T>
+        dbs : List<Program.DB.T>
+        deletedDBs : List<Program.DB.T>
+        userFunctions : List<Program.UserFunction.T>
+        deletedUserFunctions : List<Program.UserFunction.T>
+        userTypes : List<Program.UserType.T>
+        deletedUserTypes : List<Program.UserType.T>
+        unlockedDBs : List<tlid>
+        staticDeploys : List<StaticDeploy.T>
+        permission : Option<Authorization.Permission>
+        opCtrs : Map<System.Guid, int>
+        account : Authorization.UserInfo
+        canvasList : List<string>
+        orgs : List<string>
+        orgCanvasList : List<string>
+        workerSchedules : Worker.WorkerStates
+        creationDate : NodaTime.Instant
+        secrets : List<Secret.T> }
+
 module Ops =
   module AddOpV1 =
     type Request = ClientTypes.Ops.AddOpParamsV1

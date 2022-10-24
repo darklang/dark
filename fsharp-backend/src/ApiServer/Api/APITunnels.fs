@@ -14,7 +14,6 @@ module CTApi = ClientTypes.Api
 module Telemetry = LibService.Telemetry
 
 module Register =
-
   /// API endpoint to set or remove a tunnel
   let register (ctx : HttpContext) : Task<CTApi.Tunnels.Register.Response> =
     task {

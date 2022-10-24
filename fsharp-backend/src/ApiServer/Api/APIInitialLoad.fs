@@ -19,39 +19,18 @@ module Auth = LibBackend.Authorization
 module Canvas = LibBackend.Canvas
 module SA = LibBackend.StaticAssets
 module SchedulingRules = LibBackend.QueueSchedulingRules
-module CTProgram = ClientTypes.Program
-module CTApi = ClientTypes.Api
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 module CT2StaticDeploy = ClientTypes2BackendTypes.StaticDeploy
 module CT2Auth = ClientTypes2BackendTypes.Authorization
 
 module V1 =
-  type T =
-    { handlers : List<CTProgram.Handler.T>
-      deletedHandlers : List<CTProgram.Handler.T>
-      dbs : List<CTProgram.DB.T>
-      deletedDBs : List<CTProgram.DB.T>
-      userFunctions : List<CTProgram.UserFunction.T>
-      deletedUserFunctions : List<CTProgram.UserFunction.T>
-      userTypes : List<CTProgram.UserType.T>
-      deletedUserTypes : List<CTProgram.UserType.T>
-      unlockedDBs : List<tlid>
-      staticDeploys : List<ClientTypes.StaticDeploy.T>
-      permission : Option<ClientTypes.Authorization.Permission>
-      opCtrs : Map<System.Guid, int>
-      account : ClientTypes.Authorization.UserInfo
-      canvasList : List<string>
-      orgs : List<string>
-      orgCanvasList : List<string>
-      workerSchedules : SchedulingRules.WorkerStates.T
-      creationDate : NodaTime.Instant
-      secrets : List<ClientTypes.Secret.T> }
-
   /// API endpoint called when client initially loads a Canvas
   ///
   /// Returns high-level references of the Canvas' components,
   /// along with data beyond the specific canvas (e.g. account info)
-  let initialLoad (ctx : HttpContext) : Task<T> =
+  let initialLoad
+    (ctx : HttpContext)
+    : Task<ClientTypes.Api.InitialLoad.V1.Response> =
     task {
       use t = startTimer "read-api" ctx
       let user = loadUserInfo ctx
@@ -95,7 +74,7 @@ module V1 =
 
       t.next "write-api"
 
-      let result =
+      let result : ClientTypes.Api.InitialLoad.V1.Response =
         { handlers = Map.values canvas.handlers |> List.map CT2Program.Handler.toCT
           deletedHandlers =
             Map.values canvas.deletedHandlers |> List.map CT2Program.Handler.toCT
@@ -117,7 +96,8 @@ module V1 =
           orgCanvasList = List.map string orgCanvasList
           permission = Option.map CT2Auth.Permission.toCT permission
           orgs = List.map string orgList
-          workerSchedules = workerSchedules
+          workerSchedules =
+            workerSchedules |> ClientTypes2BackendTypes.Worker.WorkerStates.toCT
           account =
             { username = string user.username; name = user.name; email = user.email }
           creationDate = creationDate

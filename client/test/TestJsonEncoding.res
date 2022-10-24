@@ -220,7 +220,7 @@ let run = () => {
       API404.List.encode,
     )
     t(
-      "vanilla_ApiServer-InitialLoad_ApiServer-InitialLoad-V1-T_initial.json",
+      "vanilla_ApiServer-InitialLoad_ClientTypes-Api-InitialLoad-V1-Response_initial.json",
       APIInitialLoad.decode,
       APIInitialLoad.encode,
     )

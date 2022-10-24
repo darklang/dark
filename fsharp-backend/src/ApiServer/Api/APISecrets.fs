@@ -17,7 +17,6 @@ module Telemetry = LibService.Telemetry
 open LibService.Exception
 
 module InsertV1 =
-
   /// API endpoint to insert a Secret within a canvas
   let insert (ctx : HttpContext) : Task<CTApi.Secrets.InsertV1.Response> =
     task {

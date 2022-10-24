@@ -20,7 +20,6 @@ module Telemetry = LibService.Telemetry
 module SchedulingRules = LibBackend.QueueSchedulingRules
 
 module WorkerStats =
-
   /// API endpoint to get statistical data related to a Worker
   let getStats (ctx : HttpContext) : Task<CTApi.Workers.WorkerStats.Response> =
     task {

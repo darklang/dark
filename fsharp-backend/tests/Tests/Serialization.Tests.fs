@@ -512,10 +512,10 @@ module Values =
       deletedUserTypes =
         ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT }
 
-  let testWorkerStates : LibBackend.QueueSchedulingRules.WorkerStates.T =
-    (Map.ofList [ "run", LibBackend.QueueSchedulingRules.WorkerStates.Running
-                  "blocked", LibBackend.QueueSchedulingRules.WorkerStates.Blocked
-                  "paused", LibBackend.QueueSchedulingRules.WorkerStates.Paused ])
+  let testWorkerStates : ClientTypes.Worker.WorkerStates =
+    (Map.ofList [ "run", ClientTypes.Worker.Running
+                  "blocked", ClientTypes.Worker.Blocked
+                  "paused", ClientTypes.Worker.Paused ])
 
 
   module Pusher =
@@ -679,9 +679,7 @@ module GenericSerializersTests =
       v<ClientTypes.Pusher.Payload.New404>
         "simple"
         ("HTTP", "/", "GET", testInstant, testUuid)
-      v<ClientTypes.Pusher.Payload.UpdateWorkerStates>
-        "simple"
-        (testWorkerStates |> ClientTypes2BackendTypes.Worker.WorkerStates.toCT)
+      v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "simple" testWorkerStates
 
 
 
@@ -804,7 +802,7 @@ module GenericSerializersTests =
              sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable } ])
 
       // InitialLoad
-      v<ApiServer.InitialLoad.V1.T>
+      v<ClientTypes.Api.InitialLoad.V1.Response>
         "initial"
         { handlers = ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
           deletedHandlers =
@@ -881,9 +879,7 @@ module GenericSerializersTests =
       // Workers
 
       v<CTApi.Workers.Scheduler.Request> "simple" { name = "x"; schedule = "pause" }
-      v<CTApi.Workers.Scheduler.Response>
-        "all"
-        (testWorkerStates |> ClientTypes2BackendTypes.Worker.WorkerStates.toCT)
+      v<CTApi.Workers.Scheduler.Response> "all" testWorkerStates
 
       v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = testTLID }
       v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
