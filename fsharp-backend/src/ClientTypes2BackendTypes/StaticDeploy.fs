@@ -4,7 +4,7 @@ module SA = LibBackend.StaticAssets
 module CTStaticDeploy = ClientTypes.StaticDeploy
 
 module DeployStatus =
-  let toCT (s : SA.DeployStatus) : ClientTypes.StaticDeploy.DeployStatus =
+  let toCT (s : SA.DeployStatus) : CTStaticDeploy.DeployStatus =
     match s with
     | SA.DeployStatus.Deploying -> CTStaticDeploy.Deploying
     | SA.DeployStatus.Deployed -> CTStaticDeploy.Deployed

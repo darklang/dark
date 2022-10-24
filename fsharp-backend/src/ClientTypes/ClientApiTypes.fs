@@ -2,7 +2,6 @@ module ClientTypes.Api
 
 open Prelude
 
-
 module DB =
   module Unlocked =
     type Response = { unlocked_dbs : tlid list }
@@ -48,7 +47,6 @@ module F404 =
 
   module Delete =
     type Request = { space : string; path : string; modifier : string }
-
     type Response = { result : string }
 
 
@@ -77,8 +75,8 @@ module InitialLoad =
 
 module Ops =
   module AddOpV1 =
-    type Request = ClientTypes.Ops.AddOpParamsV1
-    type Response = ClientTypes.Ops.AddOpResultV1
+    type Request = Ops.AddOpParamsV1
+    type Response = Ops.AddOpResultV1
 
 
 module Packages =
@@ -101,7 +99,6 @@ module Secrets =
 module Toplevels =
   module Delete =
     type Request = { tlid : tlid }
-
     type Response = { result : string }
 
 
@@ -128,24 +125,20 @@ module Traces =
       type T = { trace : Trace }
 
   module GetAllTraces =
-    type Request = unit
     type Response = { traces : List<tlid * Analysis.TraceID> }
 
 
 module Tunnels =
   module Register =
     type Request = { tunnelHost : Option<string> }
-
     type Response = { success : bool }
 
 
 module Workers =
   module WorkerStats =
     type Request = { tlid : tlid }
-
     type Response = { count : int }
 
   module Scheduler =
     type Request = { name : string; schedule : string }
-
     type Response = Worker.WorkerStates

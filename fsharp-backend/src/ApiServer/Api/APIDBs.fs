@@ -9,25 +9,18 @@ open Prelude
 open Tablecloth
 open Http
 
-module PT = LibExecution.ProgramTypes
-module AT = LibExecution.AnalysisTypes
-module CTRuntime = ClientTypes.Runtime
+module Stats = LibBackend.Stats
+module Canvas = LibBackend.Canvas
+module Telemetry = LibService.Telemetry
+
 module CTApi = ClientTypes.Api
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
-module Stats = LibBackend.Stats
-module Canvas = LibBackend.Canvas
-module RT = LibExecution.RuntimeTypes
-module TI = LibBackend.TraceInputs
-module Telemetry = LibService.Telemetry
-
 module Unlocked =
-  module Types = CTApi.DB.Unlocked
-
   /// API endpoint to fetch a list of unlocked User DBs
   ///
   /// A 'locked' database cannot have its fields/types changed
-  let get (ctx : HttpContext) : Task<Types.Response> =
+  let get (ctx : HttpContext) : Task<CTApi.DB.Unlocked.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
@@ -56,7 +49,6 @@ module DBStatsV1 =
       let! result = Stats.dbStats c p.tlids
 
       t.next "write-api"
-      // TODO: move this mapping to CT2Api?
       let (result : Types.Response.T) =
         result
         |> Map.toList

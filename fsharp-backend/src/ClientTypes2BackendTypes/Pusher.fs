@@ -30,14 +30,15 @@ let eventSerializer : LibBackend.Pusher.PusherEventSerializer =
           result = result |> Ops.AddOpResultV1.toCT }
       { EventName = "v1/add_op"; Payload = Json.Vanilla.serialize payload }
 
-    | DomainEvent.AddOpPayloadTooBig (tlids) ->
-      let payload : ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig =
-        { tlids = tlids }
-      { EventName = "addOpTooBig"; Payload = Json.Vanilla.serialize payload }
-
+    // This is so-far unused.
+    // | DomainEvent.AddOpPayloadTooBig (tlids) ->
+    //   let payload : ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig =
+    //     { tlids = tlids }
+    //   { EventName = "addOpTooBig"; Payload = Json.Vanilla.serialize payload }
 
     | DomainEvent.UpdateWorkerStates (ws) ->
-      let payload : ClientTypes.Pusher.Payload.UpdateWorkerStates = Map.empty // todo
+      let payload : ClientTypes.Pusher.Payload.UpdateWorkerStates =
+        Worker.WorkerStates.toCT ws
       { EventName = "worker_state"; Payload = Json.Vanilla.serialize payload }
 
     | DomainEvent.CustomEvent (eventName, payload) ->

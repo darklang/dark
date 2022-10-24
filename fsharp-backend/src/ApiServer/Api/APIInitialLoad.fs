@@ -13,12 +13,11 @@ open Npgsql.FSharp
 open LibBackend.Db
 
 module PT = LibExecution.ProgramTypes
-
 module Account = LibBackend.Account
-module Auth = LibBackend.Authorization
 module Canvas = LibBackend.Canvas
 module SA = LibBackend.StaticAssets
 module SchedulingRules = LibBackend.QueueSchedulingRules
+
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 module CT2StaticDeploy = ClientTypes2BackendTypes.StaticDeploy
 module CT2Auth = ClientTypes2BackendTypes.Authorization

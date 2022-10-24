@@ -9,16 +9,13 @@ open Prelude
 open Tablecloth
 open Http
 
-module PT = LibExecution.ProgramTypes
-module CTRuntime = ClientTypes.Runtime
-module CTApi = ClientTypes.Api
-module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
-module AT = LibExecution.AnalysisTypes
-
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module Telemetry = LibService.Telemetry
 
+module AT = LibExecution.AnalysisTypes
+module CTApi = ClientTypes.Api
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module TraceDataV1 =
   module Types = CTApi.Traces.GetTraceDataV1

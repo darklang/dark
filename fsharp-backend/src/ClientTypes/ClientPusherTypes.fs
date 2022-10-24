@@ -11,6 +11,6 @@ module Payload =
   type New404 = string * string * string * NodaTime.Instant * Analysis.TraceID
 
   type AddOpV1 = { result : Ops.AddOpResultV1; ``params`` : Ops.AddOpParamsV1 }
-  type AddOpV1PayloadTooBig = { tlids : List<tlid> }
+  //type AddOpV1PayloadTooBig = { tlids : List<tlid> } // this is so-far unused
 
   type UpdateWorkerStates = Map<string, Worker.WorkerState>

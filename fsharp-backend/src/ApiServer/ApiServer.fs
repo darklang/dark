@@ -222,9 +222,8 @@ let run (packages : Packages) : unit =
   let k8sPort = LibService.Config.apiServerKubernetesPort
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
-// TODO: reference these by CTApi alias
-
 let initSerializers () =
+  // allow serialization of all API request/response payload types
   Json.Vanilla.allow<CTApi.Ops.AddOpV1.Request> "ApiServer.AddOps"
   Json.Vanilla.allow<CTApi.Ops.AddOpV1.Response> "ApiServer.AddOps"
   Json.Vanilla.allow<CTApi.DB.StatsV1.Request> "ApiServer.DBs"
@@ -237,7 +236,6 @@ let initSerializers () =
   Json.Vanilla.allow<CTApi.F404.Delete.Request> "ApiServer.F404s"
   Json.Vanilla.allow<CTApi.F404.Delete.Response> "ApiServer.F404s"
   Json.Vanilla.allow<CTApi.F404.List.Response> "ApiServer.F404s"
-  Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
   Json.Vanilla.allow<CTApi.InitialLoad.V1.Response> "ApiServer.InitialLoad"
   Json.Vanilla.allow<CTApi.Packages.ListV1.Response> "ApiServer.Packages"
   Json.Vanilla.allow<CTApi.Secrets.DeleteV1.Request> "ApiServer.Secrets"
@@ -255,8 +253,10 @@ let initSerializers () =
   Json.Vanilla.allow<CTApi.Workers.Scheduler.Response> "ApiServer.Workers"
   Json.Vanilla.allow<CTApi.Workers.WorkerStats.Request> "ApiServer.Workers"
   Json.Vanilla.allow<CTApi.Workers.WorkerStats.Response> "ApiServer.Workers"
-  Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
+  // allow serialization of types used in data injected from UI.fs into ui.html
+  Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
+  Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
 
 [<EntryPoint>]

@@ -73,7 +73,6 @@ module V1 =
 
       t.next "to-frontend"
 
-      // TODO: consider if this can be removed, once Pusher types are in ClientTypes
       let result : Op.AddOpResultV1 =
         { handlers = Map.values c.handlers
           deletedHandlers = Map.values c.deletedHandlers
@@ -116,7 +115,8 @@ module V1 =
           ClientTypes2BackendTypes.Pusher.eventSerializer
           canvasID
           (LibBackend.Pusher.AddOpV1(p, result))
-          (Some <| LibBackend.Pusher.AddOpPayloadTooBig(List.map Op.tlidOf p.ops))
+          //(Some <| LibBackend.Pusher.AddOpPayloadTooBig(List.map Op.tlidOf p.ops))
+          None // AddOpPayloadTooBig is so-far unsupported by the client
 
       t.next "send-event-to-heapio"
       // NB: I believe we only send one op at a time, but the type is op list

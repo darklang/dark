@@ -30,7 +30,7 @@ type Event =
   | NewStaticDeploy of asset : StaticAssets.StaticDeploy
   | New404 of TraceInputs.F404
   | AddOpV1 of Op.AddOpParamsV1 * Op.AddOpResultV1
-  | AddOpPayloadTooBig of List<tlid>
+  //| AddOpPayloadTooBig of List<tlid> // this is so-far unused.
   | UpdateWorkerStates of QueueSchedulingRules.WorkerStates.T
   | CustomEvent of eventName : string * payload : string
 

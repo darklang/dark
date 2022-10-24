@@ -63,5 +63,4 @@ type PerformAnalysisParams =
 
 type AnalysisEnvelope = TraceID * AnalysisResults * int * NodaTime.Instant
 
-// todo: allow serialization of this
 type AnalysisResult = Result<AnalysisEnvelope, string>

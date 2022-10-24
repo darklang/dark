@@ -1,4 +1,4 @@
-/// API endpoints to manage Secrets
+/// API endpoints to manage User Secrets
 module ApiServer.Secrets
 
 open System.Threading.Tasks
@@ -10,7 +10,6 @@ open Tablecloth
 open Http
 
 module PT = LibExecution.ProgramTypes
-module AT = LibExecution.AnalysisTypes
 module CTApi = ClientTypes.Api
 module Telemetry = LibService.Telemetry
 

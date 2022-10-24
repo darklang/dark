@@ -12,14 +12,12 @@ module Config = LibBackend.Config
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module AT = LibExecution.AnalysisTypes
 module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
 module CTApi = ClientTypes.Api
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 module CT2Ops = ClientTypes2BackendTypes.Ops
-
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
@@ -435,16 +433,19 @@ module Values =
 
     let testUserTypes : List<PT.UserType.T> = [ testUserType ]
 
-    let testPackageFn : PT.Package.Fn =
+    let testPackageFn : ClientTypes.Program.Package.Fn =
       { name =
           { owner = "dark"
             package = "stdlib"
             module_ = "Int"
             function_ = "mod"
             version = 0 }
-        body = testExpr
-        parameters = [ { name = "param"; typ = testType; description = "desc" } ]
-        returnType = testType
+        body = testExpr |> CT2Program.Expr.toCT
+        parameters =
+          [ { name = "param"
+              typ = testType |> CT2Program.DType.toCT
+              description = "desc" } ]
+        returnType = testType |> CT2Program.DType.toCT
         description = "test"
         author = "test"
         deprecated = false
@@ -481,17 +482,13 @@ module Values =
         PT.SetType(testUserType)
         PT.DeleteType tlid ]
 
-  module RuntimeTypes =
-    let testDval =
-      sampleDvals
-      |> List.filter (fun (name, dv) -> name <> "password")
-      |> Map
-      |> RT.DObj
+  let testDval =
+    sampleDvals
+    |> List.filter (fun (name, dv) -> name <> "password")
+    |> Map
+    |> RT.DObj
 
-
-  module ClientRuntime =
-    let testClientDval : CTRuntime.Dval.T =
-      CT2Runtime.Dval.toCT RuntimeTypes.testDval
+  let testClientDval : CTRuntime.Dval.T = CT2Runtime.Dval.toCT testDval
 
   let testStaticDeploy : ClientTypes.Pusher.Payload.NewStaticDeploy =
     { deployHash = "zf2ttsgwln"
@@ -517,14 +514,12 @@ module Values =
                   "blocked", ClientTypes.Worker.Blocked
                   "paused", ClientTypes.Worker.Paused ])
 
-
-  module Pusher =
-    let testAddOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
-      { ``params`` =
-          { ops = ProgramTypes.testOplist |> List.map CT2Program.Op.toCT
-            opCtr = 0
-            clientOpCtrID = testUuid.ToString() }
-        result = testAddOpResultV1 }
+  let testAddOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
+    { ``params`` =
+        { ops = ProgramTypes.testOplist |> List.map CT2Program.Op.toCT
+          opCtr = 0
+          clientOpCtrID = testUuid.ToString() }
+      result = testAddOpResultV1 }
 
 
 module BinarySerializationRoundtripTests =
@@ -605,12 +600,6 @@ module GenericSerializersTests =
     let private v<'t> = generateVanillaData<'t>
 
 
-    // TODO: stop serializing internal types
-    // We're currently using many "internal" types in communication with external
-    // parties such as APIs and Pusher.com payloads. All referenced types below
-    // should reference _client_ types (currently in the ClientTypes project) rather
-    // than internal types.
-    // I think 'Prelude' types could probably stay as-is, though.
     let generateTestData () : unit =
 
       v<Map<string, string>> "simple" (Map.ofList [ "a", "b" ])
@@ -635,11 +624,11 @@ module GenericSerializersTests =
       // LibExecution
       // ------------------
 
-      v<CTRuntime.Dval.T> "complete" ClientRuntime.testClientDval
+      v<CTRuntime.Dval.T> "complete" testClientDval
 
       v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
         "complete"
-        (RuntimeTypes.testDval
+        (testDval
          |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
 
       v<LibExecution.ProgramTypes.Oplist> "complete" ProgramTypes.testOplist
@@ -669,17 +658,23 @@ module GenericSerializersTests =
 
       v<PT.Position> "simple" { x = 10; y = -16 }
 
+      // ------------------
       // Used by Pusher
-      v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig>
-        "simple"
-        { tlids = testTLIDs }
-      v<ClientTypes.Pusher.Payload.AddOpV1> "simple" Pusher.testAddOpEventV1
+      // ------------------
       v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" testStaticDeploy
+
       v<ClientTypes.Pusher.Payload.NewTrace> "simple" (testUuid, testTLIDs)
+
       v<ClientTypes.Pusher.Payload.New404>
         "simple"
         ("HTTP", "/", "GET", testInstant, testUuid)
+
       v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "simple" testWorkerStates
+
+      v<ClientTypes.Pusher.Payload.AddOpV1> "simple" testAddOpEventV1
+      // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
+      //   "simple"
+      //   { tlids = testTLIDs }
 
 
 
@@ -703,9 +698,7 @@ module GenericSerializersTests =
       v<CTApi.DB.StatsV1.Response.T>
         "simple"
         (Map.ofList [ "db1", { count = 0; example = None }
-                      "db2",
-                      { count = 5
-                        example = Some(ClientRuntime.testClientDval, "myKey") } ])
+                      "db2", { count = 5; example = Some(testClientDval, "myKey") } ])
       v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ testTLID ] }
 
       // Execution
@@ -714,20 +707,18 @@ module GenericSerializersTests =
         { tlid = testTLID
           trace_id = testUuid
           caller_id = 7UL
-          args = [ ClientRuntime.testClientDval ]
+          args = [ testClientDval ]
           fnname = "Int::mod_v0" }
       v<CTApi.Execution.FunctionV1.Response>
         "simple"
-        { result = ClientRuntime.testClientDval
+        { result = testClientDval
           hash = "abcd"
           hashVersion = 0
           touched_tlids = [ testTLID ]
           unlocked_dbs = [ testTLID ] }
       v<CTApi.Execution.HandlerV1.Request>
         "simple"
-        { tlid = testTLID
-          trace_id = testUuid
-          input = [ "v", ClientRuntime.testClientDval ] }
+        { tlid = testTLID; trace_id = testUuid; input = [ "v", testClientDval ] }
       v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ testTLID ] }
 
       // 404s
@@ -837,9 +828,7 @@ module GenericSerializersTests =
       v<CTApi.Tunnels.Register.Response> "simple" { success = false }
 
       // Packages
-      v<CTApi.Packages.ListV1.Response>
-        "simple"
-        [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
+      v<CTApi.Packages.ListV1.Response> "simple" [ ProgramTypes.testPackageFn ]
 
       // SecretsV1
 
@@ -870,10 +859,9 @@ module GenericSerializersTests =
         "simple"
         { trace =
             (testUuid,
-             { input = [ "var", ClientRuntime.testClientDval ]
+             { input = [ "var", testClientDval ]
                timestamp = testInstant
-               functionResults =
-                 [ ("fnName", 7UL, "hash", 0, ClientRuntime.testClientDval) ] }) }
+               functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }) }
 
 
       // Workers
@@ -892,8 +880,8 @@ module GenericSerializersTests =
         (Ok(
           testUuid,
           Dictionary.fromList (
-            [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult ClientRuntime.testClientDval)
-              (7UL, CTAnalysis.ExecutionResult.NonExecutedResult ClientRuntime.testClientDval) ]
+            [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult testClientDval)
+              (7UL, CTAnalysis.ExecutionResult.NonExecutedResult testClientDval) ]
           ),
           1,
           NodaTime.Instant.UnixEpoch
@@ -906,10 +894,9 @@ module GenericSerializersTests =
             handler = CT2Program.Handler.toCT ProgramTypes.testHttpHandler
             traceID = testUuid
             traceData =
-              { input = [ "var", ClientRuntime.testClientDval ]
+              { input = [ "var", testClientDval ]
                 timestamp = testInstant
-                functionResults =
-                  [ ("fnName", 7UL, "hash", 0, ClientRuntime.testClientDval) ] }
+                functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }
             dbs =
               [ { tlid = testTLID
                   name = "dbname"
@@ -924,7 +911,7 @@ module GenericSerializersTests =
             userFns =
               List.map CT2Program.UserFunction.toCT ProgramTypes.testUserFunctions
             userTypes = List.map CT2Program.UserType.toCT ProgramTypes.testUserTypes
-            packageFns = [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
+            packageFns = [ ProgramTypes.testPackageFn ]
             secrets = [ { name = "z"; value = "y" } ] })
       v<ClientTypes.Analysis.PerformAnalysisParams>
         "function"
@@ -934,10 +921,9 @@ module GenericSerializersTests =
             func = CT2Program.UserFunction.toCT ProgramTypes.testUserFunction
             traceID = testUuid
             traceData =
-              { input = [ "var", ClientRuntime.testClientDval ]
+              { input = [ "var", testClientDval ]
                 timestamp = testInstant
-                functionResults =
-                  [ ("fnName", 7UL, "hash", 0, ClientRuntime.testClientDval) ] }
+                functionResults = [ ("fnName", 7UL, "hash", 0, testClientDval) ] }
             dbs =
               [ { tlid = testTLID
                   name = "dbname"
@@ -952,7 +938,7 @@ module GenericSerializersTests =
             userFns =
               List.map CT2Program.UserFunction.toCT ProgramTypes.testUserFunctions
             userTypes = List.map CT2Program.UserType.toCT ProgramTypes.testUserTypes
-            packageFns = [ CT2Program.Package.Fn.toCT ProgramTypes.testPackageFn ]
+            packageFns = [ ProgramTypes.testPackageFn ]
             secrets = [ { name = "z"; value = "y" } ] })
 
 
@@ -962,9 +948,9 @@ module GenericSerializersTests =
 
       v<LibExecution.AnalysisTypes.TraceData>
         "testTraceData"
-        { input = [ "var", RuntimeTypes.testDval ]
+        { input = [ "var", testDval ]
           timestamp = testInstant
-          function_results = [ ("fnName", 7UL, "hash", 0, RuntimeTypes.testDval) ] }
+          function_results = [ ("fnName", 7UL, "hash", 0, testDval) ] }
 
 
     generateTestData ()

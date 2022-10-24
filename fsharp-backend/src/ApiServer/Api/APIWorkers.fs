@@ -9,15 +9,12 @@ open Prelude
 open Tablecloth
 open Http
 
-module PT = LibExecution.ProgramTypes
-module AT = LibExecution.AnalysisTypes
-module CTApi = ClientTypes.Api
-
 module Stats = LibBackend.Stats
 module EQ = LibBackend.EventQueueV2
+module SchedulingRules = LibBackend.QueueSchedulingRules
 module Telemetry = LibService.Telemetry
 
-module SchedulingRules = LibBackend.QueueSchedulingRules
+module CTApi = ClientTypes.Api
 
 module WorkerStats =
   /// API endpoint to get statistical data related to a Worker

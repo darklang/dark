@@ -9,21 +9,16 @@ open Prelude
 open Tablecloth
 open Http
 
-module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
-module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module AT = LibExecution.AnalysisTypes
-module CTRuntime = ClientTypes.Runtime
-module CTApi = ClientTypes.Api
-module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
-
-module Canvas = LibBackend.Canvas
-module RealExe = LibRealExecution.RealExecution
 module Exe = LibExecution.Execution
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module Canvas = LibBackend.Canvas
+module RealExe = LibRealExecution.RealExecution
 module Telemetry = LibService.Telemetry
 
+module PTParser = LibExecution.ProgramTypesParser
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module CTApi = ClientTypes.Api
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module FunctionV1 =
 

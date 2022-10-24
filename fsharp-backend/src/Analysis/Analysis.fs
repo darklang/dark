@@ -1,23 +1,12 @@
 // Handles requests for evaluating expressions
 namespace Analysis
 
+open System
 open System.Threading.Tasks
+open System.Reflection
 
 open Prelude
 open Tablecloth
-
-module RT = LibExecution.RuntimeTypes
-module Exe = LibExecution.Execution
-module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PTParser = LibExecution.ProgramTypesParser
-module AT = LibExecution.AnalysisTypes
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
-
-module CTAnalysis = ClientTypes.Analysis
-
-open System
-open System.Reflection
 
 #nowarn "988"
 
@@ -83,7 +72,8 @@ type EvalWorker =
 
     try
       // parse an analysis request, in JSON, from the JS world (BlazorWorker)
-      let args = Json.Vanilla.deserialize<CTAnalysis.PerformAnalysisParams> input
+      let args =
+        Json.Vanilla.deserialize<ClientTypes.Analysis.PerformAnalysisParams> input
       task {
         try
           let! result = LibAnalysis.performAnalysis args
