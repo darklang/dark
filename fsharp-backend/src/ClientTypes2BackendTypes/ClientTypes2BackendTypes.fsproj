@@ -23,6 +23,7 @@
     <Compile Include="Authorization.fs" />
     <Compile Include="Worker.fs" />
     <Compile Include="Pusher.fs" />
+    <Compile Include="UI.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

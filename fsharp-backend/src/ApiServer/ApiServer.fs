@@ -237,7 +237,7 @@ let initSerializers () =
   Json.Vanilla.allow<CTApi.F404.Delete.Request> "ApiServer.F404s"
   Json.Vanilla.allow<CTApi.F404.Delete.Response> "ApiServer.F404s"
   Json.Vanilla.allow<CTApi.F404.List.Response> "ApiServer.F404s"
-  Json.Vanilla.allow<List<Functions.BuiltInFn.T>> "ApiServer.Functions" // TODO: figure out where this is used, if anywhere?
+  Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
   Json.Vanilla.allow<CTApi.InitialLoad.V1.Response> "ApiServer.InitialLoad"
   Json.Vanilla.allow<CTApi.Packages.ListV1.Response> "ApiServer.Packages"
   Json.Vanilla.allow<CTApi.Secrets.DeleteV1.Request> "ApiServer.Secrets"

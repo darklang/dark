@@ -341,7 +341,7 @@ let run = () => {
       PusherTypes.AddOps.encode,
     )
     t(
-      "vanilla_ApiServer-Functions_Microsoft-FSharp-Collections-FSharpList-1-ApiServer-Functions-BuiltInFn-T-_all.json",
+      "vanilla_ApiServer-Functions_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-UI-Functions-BuiltInFn-_all.json",
       Json.Decode.list(RT.BuiltInFn.decode),
       Json.Encode.list(RT.BuiltInFn.encode),
     )

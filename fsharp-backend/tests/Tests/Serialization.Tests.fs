@@ -740,7 +740,7 @@ module GenericSerializersTests =
       v<CTApi.F404.Delete.Response> "simple" { result = "success" }
 
       // Functions
-      v<List<ApiServer.Functions.BuiltInFn.T>>
+      v<List<ClientTypes.UI.Functions.BuiltInFn>>
         "all"
         ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters =
@@ -751,55 +751,55 @@ module GenericSerializersTests =
              returnType = CTRuntime.DType.TList(CTRuntime.DType.TInt)
              description = "basic"
              isInfix = false
-             previewable = ApiServer.Functions.Previewable.Pure
-             deprecated = ApiServer.Functions.Deprecation.NotDeprecated
-             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+             previewable = ClientTypes.UI.Functions.Pure
+             deprecated = ClientTypes.UI.Functions.NotDeprecated
+             sqlSpec = ClientTypes.UI.Functions.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = CTRuntime.DType.TInt
              description = "impure"
              isInfix = false
-             previewable = ApiServer.Functions.Previewable.Impure
-             deprecated = ApiServer.Functions.Deprecation.NotDeprecated
-             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+             previewable = ClientTypes.UI.Functions.Impure
+             deprecated = ClientTypes.UI.Functions.NotDeprecated
+             sqlSpec = ClientTypes.UI.Functions.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = CTRuntime.DType.TInt
              description = "impurepreviewable"
              isInfix = false
-             previewable = ApiServer.Functions.Previewable.ImpurePreviewable
-             deprecated = ApiServer.Functions.Deprecation.NotDeprecated
-             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+             previewable = ClientTypes.UI.Functions.ImpurePreviewable
+             deprecated = ClientTypes.UI.Functions.NotDeprecated
+             sqlSpec = ClientTypes.UI.Functions.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = CTRuntime.DType.TInt
              description = "replacedBy"
              isInfix = false
-             previewable = ApiServer.Functions.Previewable.Pure
+             previewable = ClientTypes.UI.Functions.Pure
              deprecated =
-               ApiServer.Functions.Deprecation.ReplacedBy(
+               ClientTypes.UI.Functions.ReplacedBy(
                  { module_ = "Int"; function_ = "mod"; version = 1 }
                )
-             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+             sqlSpec = ClientTypes.UI.Functions.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = CTRuntime.DType.TInt
              description = "renamedTo"
              isInfix = false
-             previewable = ApiServer.Functions.Previewable.Pure
+             previewable = ClientTypes.UI.Functions.Pure
              deprecated =
-               ApiServer.Functions.Deprecation.RenamedTo(
+               ClientTypes.UI.Functions.RenamedTo(
                  { module_ = "Int"; function_ = "mod"; version = 1 }
                )
-             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable }
+             sqlSpec = ClientTypes.UI.Functions.NotQueryable }
            { name = { module_ = "Int"; function_ = "mod"; version = 0 }
              parameters = []
              returnType = CTRuntime.DType.TInt
              description = "deprecatedBecause"
              isInfix = false
-             previewable = ApiServer.Functions.Previewable.Pure
-             deprecated = ApiServer.Functions.Deprecation.DeprecatedBecause "reason"
-             sqlSpec = ApiServer.Functions.SqlSpec.NotQueryable } ])
+             previewable = ClientTypes.UI.Functions.Pure
+             deprecated = ClientTypes.UI.Functions.DeprecatedBecause "reason"
+             sqlSpec = ClientTypes.UI.Functions.NotQueryable } ])
 
       // InitialLoad
       v<ClientTypes.Api.InitialLoad.V1.Response>
