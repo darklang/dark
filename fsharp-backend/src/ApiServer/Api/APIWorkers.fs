@@ -55,7 +55,7 @@ module Scheduler =
       t.next "update-pusher"
       // TODO: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
-      LibBackend.Pusher.pushNew
+      LibBackend.Pusher.push
         ClientTypes2BackendTypes.Pusher.eventSerializer
         canvasInfo.id
         (LibBackend.Pusher.UpdateWorkerStates ws)

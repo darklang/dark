@@ -118,11 +118,7 @@ let executeHandler
     | InitialExecution _ ->
       if tracing.enabled then
         let tlids = HashSet.toList tracing.results.tlids
-        Pusher.pushNew
-          pusherSerializer
-          meta.id
-          (Pusher.NewTrace(traceID, tlids))
-          None
+        Pusher.push pusherSerializer meta.id (Pusher.NewTrace(traceID, tlids)) None
 
     return (result, tracing.results)
   }

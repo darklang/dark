@@ -183,7 +183,7 @@ let processNotification
                   // In this case, all they need to build is the trace. So just drop
                   // this event immediately.
                   let! timestamp = TI.storeEvent c.meta.id traceID desc event.value
-                  Pusher.pushNew
+                  Pusher.push
                     ClientTypes2BackendTypes.Pusher.eventSerializer
                     c.meta.id
                     (Pusher.New404(

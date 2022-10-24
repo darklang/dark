@@ -10,7 +10,6 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module FireAndForget = LibService.FireAndForget
 
-
 let pusherClient : Lazy<PusherServer.Pusher> =
   lazy
     (let options = PusherServer.PusherOptions()
@@ -26,35 +25,6 @@ let pusherClient : Lazy<PusherServer.Pusher> =
        options
      ))
 
-
-/// <summary>Send an event to Pusher.com.</summary>
-///
-/// <remarks>
-/// This is fired in the background, and does not take any time from the current thread.
-/// You cannot wait for it, by design.
-///
-/// Do not send requests over 10240 bytes. Each caller should check their payload,
-/// and send a different push if appropriate (eg, instead of sending
-/// `TraceData hugePayload`, send `TraceDataTooBig traceID`
-/// </remarks>
-let push
-  (canvasID : CanvasID)
-  (eventName : string)
-  (payload : string) // The raw string is sent, it's the job of the caller to have it as appropriate json
-  : unit =
-  FireAndForget.fireAndForgetTask $"pusher: {eventName}" (fun () ->
-    task {
-      // TODO: make channels private and end-to-end encrypted in order to add public canvases
-      let client = Lazy.force pusherClient
-      let channel = $"canvas_{canvasID}"
-
-      let! (_ : PusherServer.ITriggerResult) =
-        client.TriggerAsync(channel, eventName, payload)
-
-      return ()
-    })
-
-
 type Event =
   | NewTrace of trace : AT.TraceID * tlids : List<tlid>
   | NewStaticDeploy of asset : StaticAssets.StaticDeploy
@@ -62,6 +32,7 @@ type Event =
   | AddOpV1 of Op.AddOpParamsV1 * Op.AddOpResultV1
   | AddOpPayloadTooBig of List<tlid>
   | UpdateWorkerStates of QueueSchedulingRules.WorkerStates.T
+  | CustomEvent of eventName : string * payload : string
 
 type EventNameAndPayload = { EventName : string; Payload : string }
 
@@ -79,7 +50,7 @@ type PusherEventSerializer = Event -> EventNameAndPayload
 /// probably result in some data being manually fetched/refreshed, rather than
 /// "pushing" the data via Pusher.com.
 /// </remarks>
-let pushNew
+let push
   (eventSerializer : PusherEventSerializer)
   (canvasID : CanvasID)
   (event : Event)
@@ -117,4 +88,3 @@ type JsConfig = { enabled : bool; key : string; cluster : string }
 let jsConfigString =
   // CLEANUP use JSON serialization
   $"{{enabled: true, key: '{Config.pusherKey}', cluster: '{Config.pusherCluster}'}}"
-

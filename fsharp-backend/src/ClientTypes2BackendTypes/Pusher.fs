@@ -39,3 +39,6 @@ let eventSerializer : LibBackend.Pusher.PusherEventSerializer =
     | DomainEvent.UpdateWorkerStates (ws) ->
       let payload : ClientTypes.Pusher.Payload.UpdateWorkerStates = Map.empty // todo
       { EventName = "worker_state"; Payload = Json.Vanilla.serialize payload }
+
+    | DomainEvent.CustomEvent (eventName, payload) ->
+      { EventName = eventName; Payload = payload }

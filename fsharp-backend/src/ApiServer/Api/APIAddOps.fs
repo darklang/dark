@@ -112,7 +112,7 @@ module V1 =
       // To make this work with prodclone, we might want to have it specify
       // more ... else people's prodclones will stomp on each other ...
       if causesAnyChanges newOps then
-        LibBackend.Pusher.pushNew
+        LibBackend.Pusher.push
           ClientTypes2BackendTypes.Pusher.eventSerializer
           canvasID
           (LibBackend.Pusher.AddOpV1(p, result))
