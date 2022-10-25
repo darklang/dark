@@ -98,6 +98,8 @@ fi
 echo "Starting playwright"
 integration-tests/node_modules/.bin/playwright --version
 
+set -x
+set +e # Don't fail immediately - we want to list skipped files
 BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules/.bin/playwright \
   test \
   $DEBUG_MODE_FLAG \
@@ -109,7 +111,9 @@ BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules
   --retries "$RETRIES" \
   --config integration-tests/playwright.config.ts
 
-set -x
+STATUS=$? # Save the playwright exit code
+
+# Don't let any tests be skipped (globally timedout tests are marked as skipped by playwright)
 SKIPPED=$(cat rundir/test_results/integration_tests.json | jq -r '.suites[0].suites[0].specs[] | select( .tests[0].results[0].status == "skipped") | .title ' | sort)
 
 if [[ "$SKIPPED" != "" ]]; then
@@ -118,3 +122,5 @@ if [[ "$SKIPPED" != "" ]]; then
   echo "$SKIPPED"
   exit 1
 fi
+
+exit $STATUS
