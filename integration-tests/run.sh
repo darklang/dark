@@ -98,7 +98,6 @@ fi
 echo "Starting playwright"
 integration-tests/node_modules/.bin/playwright --version
 
-set -x
 set +e # Don't fail immediately - we want to list skipped files
 BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules/.bin/playwright \
   test \
@@ -117,8 +116,7 @@ STATUS=$? # Save the playwright exit code
 SKIPPED=$(cat rundir/test_results/integration_tests.json | jq -r '.suites[0].suites[0].specs[] | select( .tests[0].results[0].status == "skipped") | .title ' | sort)
 
 if [[ "$SKIPPED" != "" ]]; then
-  echo "Playwright tests failed"
-  echo "The following tests were skipped and shouldn't have been (if the integration test timed out, these are likely culprits):"
+  echo "Playwright skipped these tests and shouldn't have (if the integration test timed out, these are likely culprits):"
   echo "$SKIPPED"
   exit 1
 fi
