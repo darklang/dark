@@ -1,14 +1,13 @@
+/// The test values within this module are used to verify the exact output of our
+/// serializers against saved test files. So, we need the test inputs to be
+/// consistent, which is why we never use `gid ()` below, or `FSharpToExpr`
+/// functions.
+[<RequireQualifiedAccess>]
 module Tests.SerializationTestValues
-
-open Expecto
-open System.Text.RegularExpressions
 
 open Prelude
 open Tablecloth
 open TestUtils.TestUtils
-
-module File = LibBackend.File
-module Config = LibBackend.Config
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -21,11 +20,7 @@ module CT2Ops = ClientTypes2BackendTypes.Ops
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
-/// The test values below are used to check the exact output of test file. So we need
-/// the test inputs to be consistent, which is why we never use `gid ()` below, or
-/// FSharpToExpr functions.
-///
-/// When updating this, also update FluidTestData.complexExpr in the client
+// TODO: ? remove the 'test' prefix from all of these values - seems redundant
 
 let testInstant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
@@ -34,7 +29,15 @@ let testUuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
 let testTLID : tlid = 7UL
 let testTLIDs : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
+module RuntimeTypes =
+  let testDval =
+    sampleDvals
+    |> List.filter (fun (name, dv) -> name <> "password")
+    |> Map
+    |> RT.DObj
+
 module ProgramTypes =
+  // When updating this, also update `FluidTestData.complexExpr` in the client
   let testExpr =
     let e = PT.EInteger(34545UL, 5)
     PT.ELet(
@@ -472,42 +475,3 @@ module ProgramTypes =
       PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
       PT.SetType(testUserType)
       PT.DeleteType tlid ]
-
-let testDval =
-  sampleDvals
-  |> List.filter (fun (name, dv) -> name <> "password")
-  |> Map
-  |> RT.DObj
-
-let testClientDval : CTRuntime.Dval.T = CT2Runtime.Dval.toCT testDval
-
-let testStaticDeploy : ClientTypes.Pusher.Payload.NewStaticDeploy =
-  { deployHash = "zf2ttsgwln"
-    url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
-    status = ClientTypes.StaticDeploy.Deployed
-    lastUpdate = testInstant }
-
-let testAddOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
-  { handlers = ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
-    deletedHandlers = ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
-    dbs = ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
-    deletedDBs = ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
-    userFunctions =
-      ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
-    deletedUserFunctions =
-      ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
-    userTypes = ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
-    deletedUserTypes =
-      ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT }
-
-let testWorkerStates : ClientTypes.Worker.WorkerStates =
-  Map.ofList [ "run", ClientTypes.Worker.Running
-               "blocked", ClientTypes.Worker.Blocked
-               "paused", ClientTypes.Worker.Paused ]
-
-let testAddOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
-  { ``params`` =
-      { ops = ProgramTypes.testOplist |> List.map CT2Program.Op.toCT
-        opCtr = 0
-        clientOpCtrID = testUuid.ToString() }
-    result = testAddOpResultV1 }

@@ -33,6 +33,44 @@ module V = SerializationTestValues
 // - If there's a change to the sample value, generate a new file.
 //   Commit it after verifying that the format is appropriate.
 
+[<RequireQualifiedAccess>]
+module ClientTestValues =
+  let testDval : CTRuntime.Dval.T = CT2Runtime.Dval.toCT V.RuntimeTypes.testDval
+
+  let testStaticDeploy : ClientTypes.Pusher.Payload.NewStaticDeploy =
+    { deployHash = "zf2ttsgwln"
+      url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
+      status = ClientTypes.StaticDeploy.Deployed
+      lastUpdate = V.testInstant }
+
+  let testAddOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
+    { handlers = V.ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
+      deletedHandlers =
+        V.ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
+      dbs = V.ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
+      deletedDBs = V.ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
+      userFunctions =
+        V.ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
+      deletedUserFunctions =
+        V.ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
+      userTypes = V.ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
+      deletedUserTypes =
+        V.ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT }
+
+  let testWorkerStates : ClientTypes.Worker.WorkerStates =
+    Map.ofList [ "run", ClientTypes.Worker.Running
+                 "blocked", ClientTypes.Worker.Blocked
+                 "paused", ClientTypes.Worker.Paused ]
+
+  let testAddOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
+    { ``params`` =
+        { ops = V.ProgramTypes.testOplist |> List.map CT2Program.Op.toCT
+          opCtr = 0
+          clientOpCtrID = V.testUuid.ToString() }
+      result = testAddOpResultV1 }
+
+module CV = ClientTestValues
+
 module SampleData =
   // Stores a list of sample outputs for `$"{serializerName}-{typeName}"
   let data = Dictionary.T<string, List<string * string>>()
@@ -99,11 +137,11 @@ module SampleData =
     // LibExecution
     // ------------------
 
-    v<CTRuntime.Dval.T> "complete" V.testClientDval
+    v<CTRuntime.Dval.T> "complete" CV.testDval
 
     v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
       "complete"
-      (V.testDval
+      (V.RuntimeTypes.testDval
        |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
 
     v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.testOplist
@@ -134,7 +172,7 @@ module SampleData =
     // ------------------
     // Used by Pusher
     // ------------------
-    v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" V.testStaticDeploy
+    v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" CV.testStaticDeploy
 
     v<ClientTypes.Pusher.Payload.NewTrace> "simple" (V.testUuid, V.testTLIDs)
 
@@ -142,9 +180,9 @@ module SampleData =
       "simple"
       ("HTTP", "/", "GET", V.testInstant, V.testUuid)
 
-    v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "simple" V.testWorkerStates
+    v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "simple" CV.testWorkerStates
 
-    v<ClientTypes.Pusher.Payload.AddOpV1> "simple" V.testAddOpEventV1
+    v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.testAddOpEventV1
     // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
     //   "simple"
     //   { tlids = testTLIDs }
@@ -163,7 +201,7 @@ module SampleData =
           opCtr = 0
           clientOpCtrID = V.testUuid.ToString() })
 
-    v<CTApi.Ops.AddOpV1.Response> "simple" V.testAddOpResultV1
+    v<CTApi.Ops.AddOpV1.Response> "simple" CV.testAddOpResultV1
 
 
     // User DBs
@@ -171,7 +209,7 @@ module SampleData =
     v<CTApi.DB.StatsV1.Response.T>
       "simple"
       (Map.ofList [ "db1", { count = 0; example = None }
-                    "db2", { count = 5; example = Some(V.testClientDval, "myKey") } ])
+                    "db2", { count = 5; example = Some(CV.testDval, "myKey") } ])
     v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ V.testTLID ] }
 
     // Execution
@@ -180,18 +218,18 @@ module SampleData =
       { tlid = V.testTLID
         trace_id = V.testUuid
         caller_id = 7UL
-        args = [ V.testClientDval ]
+        args = [ CV.testDval ]
         fnname = "Int::mod_v0" }
     v<CTApi.Execution.FunctionV1.Response>
       "simple"
-      { result = V.testClientDval
+      { result = CV.testDval
         hash = "abcd"
         hashVersion = 0
         touched_tlids = [ V.testTLID ]
         unlocked_dbs = [ V.testTLID ] }
     v<CTApi.Execution.HandlerV1.Request>
       "simple"
-      { tlid = V.testTLID; trace_id = V.testUuid; input = [ "v", V.testClientDval ] }
+      { tlid = V.testTLID; trace_id = V.testUuid; input = [ "v", CV.testDval ] }
     v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ V.testTLID ] }
 
     // 404s
@@ -281,7 +319,7 @@ module SampleData =
         userTypes = V.ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
         deletedUserTypes =
           V.ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
-        staticDeploys = [ V.testStaticDeploy ]
+        staticDeploys = [ CV.testStaticDeploy ]
         opCtrs = Map [ V.testUuid, 7 ]
         canvasList = [ "test"; "test-canvas2" ]
         orgCanvasList = [ "testorg"; "testorg-canvas2" ]
@@ -290,7 +328,7 @@ module SampleData =
         account =
           { username = "test"; name = "Test Name"; email = "test@darklang.com" }
         creationDate = V.testInstant
-        workerSchedules = V.testWorkerStates
+        workerSchedules = CV.testWorkerStates
         secrets = [ { name = "test"; value = "secret" } ] }
 
     // Tunnels
@@ -332,15 +370,15 @@ module SampleData =
       "simple"
       { trace =
           (V.testUuid,
-           { input = [ "var", V.testClientDval ]
+           { input = [ "var", CV.testDval ]
              timestamp = V.testInstant
-             functionResults = [ ("fnName", 7UL, "hash", 0, V.testClientDval) ] }) }
+             functionResults = [ ("fnName", 7UL, "hash", 0, CV.testDval) ] }) }
 
 
     // Workers
 
     v<CTApi.Workers.Scheduler.Request> "simple" { name = "x"; schedule = "pause" }
-    v<CTApi.Workers.Scheduler.Response> "all" V.testWorkerStates
+    v<CTApi.Workers.Scheduler.Response> "all" CV.testWorkerStates
 
     v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = V.testTLID }
     v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
@@ -353,8 +391,8 @@ module SampleData =
       (Ok(
         V.testUuid,
         Dictionary.fromList (
-          [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult V.testClientDval)
-            (7UL, CTAnalysis.ExecutionResult.NonExecutedResult V.testClientDval) ]
+          [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult CV.testDval)
+            (7UL, CTAnalysis.ExecutionResult.NonExecutedResult CV.testDval) ]
         ),
         1,
         NodaTime.Instant.UnixEpoch
@@ -367,9 +405,9 @@ module SampleData =
           handler = CT2Program.Handler.toCT V.ProgramTypes.testHttpHandler
           traceID = V.testUuid
           traceData =
-            { input = [ "var", V.testClientDval ]
+            { input = [ "var", CV.testDval ]
               timestamp = V.testInstant
-              functionResults = [ ("fnName", 7UL, "hash", 0, V.testClientDval) ] }
+              functionResults = [ ("fnName", 7UL, "hash", 0, CV.testDval) ] }
           dbs =
             [ { tlid = V.testTLID
                 name = "dbname"
@@ -394,9 +432,9 @@ module SampleData =
           func = CT2Program.UserFunction.toCT V.ProgramTypes.testUserFunction
           traceID = V.testUuid
           traceData =
-            { input = [ "var", V.testClientDval ]
+            { input = [ "var", CV.testDval ]
               timestamp = V.testInstant
-              functionResults = [ ("fnName", 7UL, "hash", 0, V.testClientDval) ] }
+              functionResults = [ ("fnName", 7UL, "hash", 0, CV.testDval) ] }
           dbs =
             [ { tlid = V.testTLID
                 name = "dbname"
@@ -421,9 +459,9 @@ module SampleData =
 
     v<LibExecution.AnalysisTypes.TraceData>
       "testTraceData"
-      { input = [ "var", V.testDval ]
+      { input = [ "var", V.RuntimeTypes.testDval ]
         timestamp = V.testInstant
-        function_results = [ ("fnName", 7UL, "hash", 0, V.testDval) ] }
+        function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.testDval) ] }
 
 
   generateTestData ()
