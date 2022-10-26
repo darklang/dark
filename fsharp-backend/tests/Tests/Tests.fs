@@ -51,7 +51,7 @@ let main (args : string array) : int =
         Tests.ProgramTypes.tests
         Tests.Routing.tests
         Tests.RuntimeTypes.tests
-        Tests.Serialization.tests
+        Tests.BinarySerialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
         Tests.Traces.tests
@@ -66,7 +66,8 @@ let main (args : string array) : int =
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // Generate this so that we can see if the format has changed in a git diff
-    Serialization.generateTestFiles ()
+    BinarySerialization.generateTestFiles ()
+    VanillaSerialization.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang

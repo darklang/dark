@@ -48,7 +48,9 @@
     <Compile Include="ProgramTypes.Tests.fs" />
     <Compile Include="Routing.Tests.fs" />
     <Compile Include="RuntimeTypes.Tests.fs" />
-    <Compile Include="Serialization.Tests.fs" />
+    <Compile Include="Serialization.TestValues.fs" />
+    <Compile Include="Serialization.Binary.Tests.fs" />
+    <Compile Include="Serialization.Vanilla.Tests.fs" />
     <Compile Include="StdLib.Tests.fs" />
     <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="TypeChecker.Tests.fs" />
