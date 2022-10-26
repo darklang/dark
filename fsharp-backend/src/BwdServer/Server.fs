@@ -135,7 +135,7 @@ let favicon : Lazy<ReadOnlyMemory<byte>> =
 let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
   task {
     // NB: we're sending back a png, not an ico - this is deliberate,
-    // favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico
+    // favicon.ico can be png, and the png is 454 bytes vs a 4+kb .ico
     let memory = Lazy.force favicon
     Telemetry.addTag "http.completion_reason" "darklangFavicon"
     setResponseHeader ctx "Access-Control-Allow-Origin" "*"
