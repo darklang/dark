@@ -156,7 +156,10 @@ let performAnalysis
       (List.map CT2Program.Package.Fn.fromCT af.packageFns)
       (List.map CT2Program.Secret.fromCT af.secrets)
 
-// TODO: move this init to ClientTypes?
 let initSerializers () =
-  do Json.Vanilla.allow<CTAnalysis.PerformAnalysisParams> "LibAnalysis"
-  do Json.Vanilla.allow<CTAnalysis.AnalysisResult> "LibAnalysis"
+  // allow universally-serializable types
+  Json.Vanilla.allow<pos> "Prelude"
+
+  // allow Analysis-specific serializable types
+  Json.Vanilla.allow<ClientTypes.Analysis.PerformAnalysisParams> "Analysis"
+  Json.Vanilla.allow<ClientTypes.Analysis.AnalysisResult> "Analysis"

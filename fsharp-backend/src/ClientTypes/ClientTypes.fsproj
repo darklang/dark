@@ -28,7 +28,6 @@
     <Compile Include="ClientApiTypes.fs" />
     <Compile Include="ClientUITypes.fs" />
     <Compile Include="Converters.fs" />
-    <Compile Include="Init.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

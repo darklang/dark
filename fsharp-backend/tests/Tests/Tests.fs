@@ -9,7 +9,13 @@ open Prelude
 
 module Telemetry = LibService.Telemetry
 
+module CTApi = ClientTypes.Api
+module CTPusher = ClientTypes.Pusher
+
 let initSerializers () =
+  ApiServer.ApiServer.initSerializers ()
+  BwdServer.Server.initSerializers ()
+
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<ClientTypes.Runtime.Dval.T> "dvalrepr tests"
@@ -20,10 +26,7 @@ let initSerializers () =
 let main (args : string array) : int =
   try
     let name = "Tests"
-    Prelude.init ()
     LibService.Init.init name
-    LibExecution.Init.init ()
-    ClientTypes.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
     (LibBackend.Account.initializeDevelopmentAccounts name).Result

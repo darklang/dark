@@ -57,10 +57,6 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     | DontWaitForDB -> ()
 
     do! EventQueueV2.init ()
-    do Session.init ()
-    do PackageManager.init ()
-    do Analytics.init ()
-    do Canvas.init ()
 
 
     print $" Inited LibBackend in {serviceName}"

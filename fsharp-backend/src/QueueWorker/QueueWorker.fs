@@ -28,6 +28,8 @@ module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
+module CTPusher = ClientTypes.Pusher
+
 let mutable shouldShutdown = false
 
 type ShouldRetry =
@@ -300,17 +302,28 @@ let run () : Task<unit> =
         Rollbar.sendException None [] e
   }
 
+let initSerializers () =
+  // allow universally-serializable types
+  Json.Vanilla.allow<pos> "Prelude"
+
+  // allow serialization of types used in Pusher.com payloads
+  Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+
 
 [<EntryPoint>]
 let main _ : int =
   try
     let name = "QueueWorker"
     print "Starting QueueWorker"
-    Prelude.init ()
+    initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
-    LibExecution.Init.init ()
-    ClientTypes.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

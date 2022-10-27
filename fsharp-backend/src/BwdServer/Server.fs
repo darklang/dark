@@ -47,6 +47,8 @@ module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
 
+module CTPusher = ClientTypes.Pusher
+
 // HttpBasicTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't
 // appropriate more generally. Much of this should be migrated to the module in
@@ -613,6 +615,26 @@ let run () : unit =
   let k8sPort = LibService.Config.bwdServerKubernetesPort
   (webserver LibService.Logging.noLogger port k8sPort).Run()
 
+let initSerializers() =
+  // TODO: probably other types???
+
+  // universally-serializable types
+  Json.Vanilla.allow<pos> "Prelude"
+
+  // misc. other
+  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval> "RoundtrippableSerializationFormatV0.Dval"
+
+  Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
+  Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
+
+  // serialization of types used in Pusher.com payloads
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "ApiServer.Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "ApiServer.Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "ApiServer.Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "ApiServer.Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "ApiServer.Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "ApiServer.Pusher"
 
 
 [<EntryPoint>]
@@ -620,10 +642,8 @@ let main _ =
   try
     let name = "BwdServer"
     print "Starting BwdServer"
-    Prelude.init ()
     LibService.Init.init name
-    LibExecution.Init.init ()
-    ClientTypes.Init.init name
+    initSerializers()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

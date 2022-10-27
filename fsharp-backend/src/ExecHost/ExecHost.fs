@@ -15,6 +15,7 @@ open Tablecloth
 
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
+module CTPusher = ClientTypes.Pusher
 
 let runMigrations () : unit =
   print $"Running migrations"
@@ -183,10 +184,31 @@ let run (options : Options) : Task<int> =
       return 1
   }
 
+let initSerializers () =
+  // Register _all_ types here
+
+  // allow universally-serializable types
+  Json.Vanilla.allow<pos> "Prelude"
+
+  Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
+  Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+
+  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
+
+  // allow serialization of types used in Pusher.com payloads
+  Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+
 [<EntryPoint>]
 let main (args : string []) : int =
   let name = "ExecHost"
   try
+    initSerializers()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     let options = parse args
@@ -194,7 +216,6 @@ let main (args : string []) : int =
       (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     let result = (run options).Result
     LibService.Init.shutdown name
-    //? ClientTypes.Init.init name
     result
   with
   | e ->

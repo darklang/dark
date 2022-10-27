@@ -31,6 +31,7 @@ module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
 module CTApi = ClientTypes.Api
+module CTPusher = ClientTypes.Pusher
 
 type Packages = List<LibExecution.ProgramTypes.Package.Fn>
 
@@ -223,7 +224,30 @@ let run (packages : Packages) : unit =
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
 let initSerializers () =
-  // allow serialization of all API request/response payload types
+  // this is needed for both some API payloads and Pusher.com payloads
+  Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())
+
+
+  Json.Vanilla.allow<pos> "Prelude"
+
+  // LibExeuction one-offs
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist>
+    "LibExecution.Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Position>
+    "LibExecution.Canvas.saveTLIDs"
+  Json.Vanilla.allow<Map<string, string>> "LibBackend.heapio Metadata"
+  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
+
+  // LibBackend one-offs
+  Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
+  Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
+
+  // LibService one-offs
+  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
+
+  // for API request/response payloads
   Json.Vanilla.allow<CTApi.Ops.AddOpV1.Request> "ApiServer.AddOps"
   Json.Vanilla.allow<CTApi.Ops.AddOpV1.Response> "ApiServer.AddOps"
   Json.Vanilla.allow<CTApi.DB.StatsV1.Request> "ApiServer.DBs"
@@ -254,9 +278,18 @@ let initSerializers () =
   Json.Vanilla.allow<CTApi.Workers.WorkerStats.Request> "ApiServer.Workers"
   Json.Vanilla.allow<CTApi.Workers.WorkerStats.Response> "ApiServer.Workers"
 
-  // allow serialization of types used in data injected from UI.fs into ui.html
+  // for data injected from UI.fs into ui.html
   Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
+
+  // for Pusher.com payloads
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
 
 [<EntryPoint>]
@@ -264,10 +297,7 @@ let main _ =
   try
     let name = "ApiServer"
     print "Starting ApiServer"
-    Prelude.init ()
     LibService.Init.init name
-    LibExecution.Init.init ()
-    ClientTypes.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
