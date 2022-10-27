@@ -615,14 +615,15 @@ let run () : unit =
   let k8sPort = LibService.Config.bwdServerKubernetesPort
   (webserver LibService.Logging.noLogger port k8sPort).Run()
 
-let initSerializers() =
+let initSerializers () =
   // TODO: probably other types???
 
   // universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"
 
   // misc. other
-  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval> "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
 
   Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
   Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
@@ -643,7 +644,7 @@ let main _ =
     let name = "BwdServer"
     print "Starting BwdServer"
     LibService.Init.init name
-    initSerializers()
+    initSerializers ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

@@ -208,7 +208,7 @@ let initSerializers () =
 let main (args : string []) : int =
   let name = "ExecHost"
   try
-    initSerializers()
+    initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     let options = parse args

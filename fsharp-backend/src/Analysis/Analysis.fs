@@ -14,7 +14,7 @@ module Init =
   let initSerializers () =
     // because this project is compiled to WASM, we register the allowed serializers
     // in LibAnalysis, so that our Tests projects can more easily reference such.
-    LibAnalysis.initSerializers()
+    LibAnalysis.initSerializers ()
 
 type GetGlobalObjectDelegate = delegate of string -> obj
 
