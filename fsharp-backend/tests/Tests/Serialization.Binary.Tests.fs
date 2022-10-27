@@ -25,15 +25,15 @@ module RoundtripTests =
         |> BinarySerialization.serializeToplevel
         |> BinarySerialization.deserializeToplevel tlid
         |> (=) tl)
-      (List.map (fun x -> x, true) Values.ProgramTypes.testToplevels)
+      (List.map (fun x -> x, true) Values.ProgramTypes.toplevels)
 
   let oplistRoundtripTest =
     test "roundtrip oplists" {
       let actual =
-        Values.ProgramTypes.testOplist
+        Values.ProgramTypes.oplist
         |> BinarySerialization.serializeOplist 0UL
         |> BinarySerialization.deserializeOplist 0UL
-      Expect.equal actual Values.ProgramTypes.testOplist ""
+      Expect.equal actual Values.ProgramTypes.oplist ""
     }
 
 module CustomSerializersTests =
@@ -69,7 +69,7 @@ module CustomSerializersTests =
   let generateTestFiles () : unit =
     formats
     |> List.iter (fun f ->
-      let output = f.serializer Values.ProgramTypes.testOplist
+      let output = f.serializer Values.ProgramTypes.oplist
 
       let sha1 =
         System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan output)
@@ -80,7 +80,7 @@ module CustomSerializersTests =
 
       f.prettyPrinter
       |> Option.tap (fun s ->
-        let jsonData = s Values.ProgramTypes.testOplist
+        let jsonData = s Values.ProgramTypes.oplist
         File.writefile Config.Serialization (nameFor f true sha1) jsonData
         File.writefile Config.Serialization (nameFor f true "latest") jsonData))
 
@@ -92,12 +92,12 @@ module CustomSerializersTests =
         f.prettyPrinter
         |> Option.tap (fun s ->
           let expected = File.readfile Config.Serialization (nameFor f true "latest")
-          let actual = s Values.ProgramTypes.testOplist
+          let actual = s Values.ProgramTypes.oplist
           Expect.equal actual expected "check generates the same json")
 
         // Check that the generated binary data matches what we have saved. This ensures
         // the format has not changed.
-        let actual = f.serializer Values.ProgramTypes.testOplist
+        let actual = f.serializer Values.ProgramTypes.oplist
         let expected =
           File.readfileBytes Config.Serialization (nameFor f false "latest")
         Expect.equal actual expected "check can read the saved file"
@@ -110,7 +110,7 @@ module CustomSerializersTests =
             File.readfileBytes Config.Serialization filename |> f.deserializer
           Expect.equal
             actual
-            Values.ProgramTypes.testOplist
+            Values.ProgramTypes.oplist
             "deserialize should  match latest format")
       })
 

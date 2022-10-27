@@ -20,17 +20,15 @@ module CT2Ops = ClientTypes2BackendTypes.Ops
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
-// TODO: ? remove the 'test' prefix from all of these values - seems redundant
+let instant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
-let testInstant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
+let uuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
 
-let testUuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
-
-let testTLID : tlid = 7UL
-let testTLIDs : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
+let tlid : tlid = 7UL
+let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
-  let testDval =
+  let dval =
     sampleDvals
     |> List.filter (fun (name, dv) -> name <> "password")
     |> Map
@@ -38,7 +36,7 @@ module RuntimeTypes =
 
 module ProgramTypes =
   // When updating this, also update `FluidTestData.complexExpr` in the client
-  let testExpr =
+  let expr =
     let e = PT.EInteger(34545UL, 5)
     PT.ELet(
       14219007199254740992UL,
@@ -277,56 +275,56 @@ module ProgramTypes =
       )
     )
 
-  let testPos : PT.Position = { x = 6; y = 6 }
+  let pos : PT.Position = { x = 6; y = 6 }
 
-  let testHandlerIDs : PT.Handler.ids =
+  let handlerIDs : PT.Handler.ids =
     { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
 
-  let testHttpHandler : PT.Handler.T =
-    let spec = PT.Handler.HTTP("/path", "GET", testHandlerIDs)
-    { spec = spec; tlid = 92987663UL; ast = testExpr; pos = testPos }
+  let httpHandler : PT.Handler.T =
+    let spec = PT.Handler.HTTP("/path", "GET", handlerIDs)
+    { spec = spec; tlid = 92987663UL; ast = expr; pos = pos }
 
-  let testHttpBasicHandler : PT.Handler.T =
-    let spec = PT.Handler.HTTPBasic("/path-bytes", "GET", testHandlerIDs)
-    { spec = spec; tlid = 42280663UL; ast = testExpr; pos = testPos }
+  let httpBasicHandler : PT.Handler.T =
+    let spec = PT.Handler.HTTPBasic("/path-bytes", "GET", handlerIDs)
+    { spec = spec; tlid = 42280663UL; ast = expr; pos = pos }
 
-  let testWorker : PT.Handler.T =
-    let spec = PT.Handler.Worker("name", testHandlerIDs)
-    { spec = spec; tlid = 19930486UL; ast = testExpr; pos = testPos }
+  let worker : PT.Handler.T =
+    let spec = PT.Handler.Worker("name", handlerIDs)
+    { spec = spec; tlid = 19930486UL; ast = expr; pos = pos }
 
-  let testOldWorker : PT.Handler.T =
-    let spec = PT.Handler.OldWorker("MODULE", "name", testHandlerIDs)
-    { spec = spec; tlid = 10438664321UL; ast = testExpr; pos = testPos }
+  let oldWorker : PT.Handler.T =
+    let spec = PT.Handler.OldWorker("MODULE", "name", handlerIDs)
+    { spec = spec; tlid = 10438664321UL; ast = expr; pos = pos }
 
-  let testRepl : PT.Handler.T =
-    let spec = PT.Handler.REPL("name", testHandlerIDs)
-    { spec = spec; tlid = 10395769302UL; ast = testExpr; pos = testPos }
+  let repl : PT.Handler.T =
+    let spec = PT.Handler.REPL("name", handlerIDs)
+    { spec = spec; tlid = 10395769302UL; ast = expr; pos = pos }
 
-  let testCron1 : PT.Handler.T =
-    let spec = PT.Handler.Cron("name", None, testHandlerIDs)
-    { spec = spec; tlid = 294906673UL; ast = testExpr; pos = testPos }
+  let cron1 : PT.Handler.T =
+    let spec = PT.Handler.Cron("name", None, handlerIDs)
+    { spec = spec; tlid = 294906673UL; ast = expr; pos = pos }
 
-  let testCron2 : PT.Handler.T =
-    let spec = PT.Handler.Cron("name", Some PT.Handler.Every12Hours, testHandlerIDs)
-    { spec = spec; tlid = 199385766UL; ast = testExpr; pos = testPos }
+  let cron2 : PT.Handler.T =
+    let spec = PT.Handler.Cron("name", Some PT.Handler.Every12Hours, handlerIDs)
+    { spec = spec; tlid = 199385766UL; ast = expr; pos = pos }
 
-  let testUnknownHandler : PT.Handler.T =
-    let spec = PT.Handler.UnknownHandler("name", "", testHandlerIDs)
-    { spec = spec; tlid = 13633UL; ast = testExpr; pos = testPos }
+  let unknownHandler : PT.Handler.T =
+    let spec = PT.Handler.UnknownHandler("name", "", handlerIDs)
+    { spec = spec; tlid = 13633UL; ast = expr; pos = pos }
 
-  let testHandlersWithName : List<string * PT.Handler.T> =
-    [ "Http", testHttpHandler
-      "Worker", testWorker
-      "Cron1", testCron1
-      "Cron2", testCron2
-      "REPL", testRepl
-      "Unknown", testUnknownHandler
-      "OldWorker", testOldWorker
-      "HttpBasic", testHttpBasicHandler ]
+  let handlersWithName : List<string * PT.Handler.T> =
+    [ "Http", httpHandler
+      "Worker", worker
+      "Cron1", cron1
+      "Cron2", cron2
+      "REPL", repl
+      "Unknown", unknownHandler
+      "OldWorker", oldWorker
+      "HttpBasic", httpBasicHandler ]
 
-  let testHandlers = List.map snd testHandlersWithName
+  let handlers = List.map snd handlersWithName
 
-  let testType =
+  let dtype =
     PT.TRecord [ ("nested",
                   PT.TList(
                     PT.TDict(
@@ -366,9 +364,9 @@ module ProgramTypes =
                  ("fn", PT.TFn([ PT.TInt ], PT.TInt))
                  ("record", PT.TRecord([ "field1", PT.TInt ])) ]
 
-  let testDBs : List<PT.DB.T> =
+  let dbs : List<PT.DB.T> =
     [ { tlid = 0UL
-        pos = testPos
+        pos = pos
         nameID = 2399545UL
         name = "User"
         version = 0
@@ -383,7 +381,7 @@ module ProgramTypes =
               nameID = 28234232UL
               typeID = 029985336UL }
             { name = Some "value"
-              typ = Some testType
+              typ = Some dtype
               nameID = 923982352UL
               typeID = 289429232UL } ] } ]
 
@@ -399,18 +397,18 @@ module ProgramTypes =
             description = "param1" }
           { name = "myparam2"
             nameID = 92837232UL
-            typ = Some testType
+            typ = Some dtype
             typeID = 239232UL
             description = "param1" } ]
-      returnType = testType
+      returnType = dtype
       returnTypeID = 23923423UL
       description = "function description"
       infix = false
-      body = testExpr }
+      body = expr }
 
-  let testUserFunctions : List<PT.UserFunction.T> = [ testUserFunction ]
+  let userFunctions : List<PT.UserFunction.T> = [ testUserFunction ]
 
-  let testUserType : PT.UserType.T =
+  let userType : PT.UserType.T =
     { tlid = 0UL
       name = "User"
       nameID = 92930232UL
@@ -421,57 +419,57 @@ module ProgramTypes =
                                nameID = 923942342UL
                                typeID = 3452342UL }
                              { name = "prop1"
-                               typ = Some testType
+                               typ = Some dtype
                                nameID = 0698978UL
                                typeID = 93494534UL } ] }
 
-  let testUserTypes : List<PT.UserType.T> = [ testUserType ]
+  let userTypes : List<PT.UserType.T> = [ userType ]
 
-  let testPackageFn : ClientTypes.Program.Package.Fn =
+  let packageFn : ClientTypes.Program.Package.Fn =
     { name =
         { owner = "dark"
           package = "stdlib"
           module_ = "Int"
           function_ = "mod"
           version = 0 }
-      body = testExpr |> CT2Program.Expr.toCT
+      body = expr |> CT2Program.Expr.toCT
       parameters =
         [ { name = "param"
-            typ = testType |> CT2Program.DType.toCT
+            typ = dtype |> CT2Program.DType.toCT
             description = "desc" } ]
-      returnType = testType |> CT2Program.DType.toCT
+      returnType = dtype |> CT2Program.DType.toCT
       description = "test"
       author = "test"
       deprecated = false
-      tlid = testTLID }
+      tlid = tlid }
 
-  let testToplevels : List<PT.Toplevel.T> =
-    [ List.map PT.Toplevel.TLHandler testHandlers
-      List.map PT.Toplevel.TLDB testDBs
-      List.map PT.Toplevel.TLFunction testUserFunctions
-      List.map PT.Toplevel.TLType testUserTypes ]
+  let toplevels : List<PT.Toplevel.T> =
+    [ List.map PT.Toplevel.TLHandler handlers
+      List.map PT.Toplevel.TLDB dbs
+      List.map PT.Toplevel.TLFunction userFunctions
+      List.map PT.Toplevel.TLType userTypes ]
     |> List.concat
 
-  let testOplist : PT.Oplist =
+  let oplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(testHttpHandler.tlid, testPos, testHttpHandler)
-      PT.CreateDB(tlid, testPos, "name")
+    [ PT.SetHandler(httpHandler.tlid, pos, httpHandler)
+      PT.CreateDB(tlid, pos, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")
       PT.SetDBColType(tlid, id, "int")
       PT.DeleteTL tlid
-      PT.MoveTL(tlid, testPos)
+      PT.MoveTL(tlid, pos)
       PT.SetFunction(testUserFunction)
       PT.ChangeDBColName(tlid, id, "name")
       PT.ChangeDBColType(tlid, id, "int")
       PT.UndoTL tlid
       PT.RedoTL tlid
-      PT.SetExpr(tlid, id, testExpr)
+      PT.SetExpr(tlid, id, expr)
       PT.TLSavepoint tlid
       PT.DeleteFunction tlid
       PT.DeleteDBCol(tlid, id)
       PT.RenameDBname(tlid, "newname")
-      PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
-      PT.SetType(testUserType)
+      PT.CreateDBWithBlankOr(tlid, pos, id, "User")
+      PT.SetType(userType)
       PT.DeleteType tlid ]

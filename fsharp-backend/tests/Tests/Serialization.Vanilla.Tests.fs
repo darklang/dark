@@ -35,41 +35,41 @@ module V = SerializationTestValues
 
 [<RequireQualifiedAccess>]
 module ClientTestValues =
-  let testDval : CTRuntime.Dval.T = CT2Runtime.Dval.toCT V.RuntimeTypes.testDval
+  let dval : CTRuntime.Dval.T = CT2Runtime.Dval.toCT V.RuntimeTypes.dval
 
-  let testStaticDeploy : ClientTypes.Pusher.Payload.NewStaticDeploy =
+  let staticDeploy : ClientTypes.Pusher.Payload.NewStaticDeploy =
     { deployHash = "zf2ttsgwln"
       url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
       status = ClientTypes.StaticDeploy.Deployed
-      lastUpdate = V.testInstant }
+      lastUpdate = V.instant }
 
-  let testAddOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
-    { handlers = V.ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
-      deletedHandlers =
-        V.ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
-      dbs = V.ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
-      deletedDBs = V.ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
+  let addOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
+    { handlers = V.ProgramTypes.handlers |> List.map CT2Program.Handler.toCT
+      deletedHandlers = V.ProgramTypes.handlers |> List.map CT2Program.Handler.toCT
+      dbs = V.ProgramTypes.dbs |> List.map CT2Program.DB.toCT
+      deletedDBs = V.ProgramTypes.dbs |> List.map CT2Program.DB.toCT
       userFunctions =
-        V.ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
+        V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
       deletedUserFunctions =
-        V.ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
-      userTypes = V.ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
+        V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
+      userTypes = V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
       deletedUserTypes =
-        V.ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT }
+        V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT }
 
-  let testWorkerStates : ClientTypes.Worker.WorkerStates =
+  let workerStates : ClientTypes.Worker.WorkerStates =
     Map.ofList [ "run", ClientTypes.Worker.Running
                  "blocked", ClientTypes.Worker.Blocked
                  "paused", ClientTypes.Worker.Paused ]
 
-  let testAddOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
+  let addOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
     { ``params`` =
-        { ops = V.ProgramTypes.testOplist |> List.map CT2Program.Op.toCT
+        { ops = V.ProgramTypes.oplist |> List.map CT2Program.Op.toCT
           opCtr = 0
-          clientOpCtrID = V.testUuid.ToString() }
-      result = testAddOpResultV1 }
+          clientOpCtrID = V.uuid.ToString() }
+      result = addOpResultV1 }
 
 module CV = ClientTestValues
+
 
 module SampleData =
   // Stores a list of sample outputs for `$"{serializerName}-{typeName}"
@@ -114,7 +114,6 @@ module SampleData =
 
 
   let generateTestData () : unit =
-
     v<Map<string, string>> "simple" (Map.ofList [ "a", "b" ])
 
     // ------------------
@@ -125,35 +124,31 @@ module SampleData =
     // ------------------
     // LibService
     // ------------------
-
     v<LibService.Rollbar.HoneycombJson>
       "simple"
-      { filters =
-          [ { column = "trace.trace_id"; op = "="; value = string V.testUuid } ]
+      { filters = [ { column = "trace.trace_id"; op = "="; value = string V.uuid } ]
         limit = 100
         time_range = 604800 }
 
     // ------------------
     // LibExecution
     // ------------------
-
-    v<CTRuntime.Dval.T> "complete" CV.testDval
+    v<CTRuntime.Dval.T> "complete" CV.dval
 
     v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
       "complete"
-      (V.RuntimeTypes.testDval
+      (V.RuntimeTypes.dval
        |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
 
-    v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.testOplist
-    v<LibExecution.ProgramTypes.Handler.T> "simple" V.ProgramTypes.testHttpHandler
+    v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
+    v<LibExecution.ProgramTypes.Handler.T> "simple" V.ProgramTypes.httpHandler
 
     // ------------------
     // LibBackend
     // ------------------
-
     v<LibBackend.EventQueueV2.NotificationData>
       "simple"
-      { id = V.testUuid; canvasID = V.testUuid }
+      { id = V.uuid; canvasID = V.uuid }
 
     v<LibBackend.Session.JsonData>
       "simple"
@@ -172,17 +167,13 @@ module SampleData =
     // ------------------
     // Used by Pusher
     // ------------------
-    v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" CV.testStaticDeploy
-
-    v<ClientTypes.Pusher.Payload.NewTrace> "simple" (V.testUuid, V.testTLIDs)
-
+    v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" CV.staticDeploy
+    v<ClientTypes.Pusher.Payload.NewTrace> "simple" (V.uuid, V.tlids)
     v<ClientTypes.Pusher.Payload.New404>
       "simple"
-      ("HTTP", "/", "GET", V.testInstant, V.testUuid)
-
-    v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "simple" CV.testWorkerStates
-
-    v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.testAddOpEventV1
+      ("HTTP", "/", "GET", V.instant, V.uuid)
+    v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "simple" CV.workerStates
+    v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
     // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
     //   "simple"
     //   { tlids = testTLIDs }
@@ -197,45 +188,42 @@ module SampleData =
     v<CTApi.Ops.AddOpV1.Request>
       "simple"
       (CT2Ops.AddOpParamsV1.toCT
-        { ops = V.ProgramTypes.testOplist
-          opCtr = 0
-          clientOpCtrID = V.testUuid.ToString() })
+        { ops = V.ProgramTypes.oplist; opCtr = 0; clientOpCtrID = V.uuid.ToString() })
 
-    v<CTApi.Ops.AddOpV1.Response> "simple" CV.testAddOpResultV1
-
+    v<CTApi.Ops.AddOpV1.Response> "simple" CV.addOpResultV1
 
     // User DBs
-    v<CTApi.DB.StatsV1.Request> "simple" { tlids = V.testTLIDs }
+    v<CTApi.DB.StatsV1.Request> "simple" { tlids = V.tlids }
     v<CTApi.DB.StatsV1.Response.T>
       "simple"
       (Map.ofList [ "db1", { count = 0; example = None }
-                    "db2", { count = 5; example = Some(CV.testDval, "myKey") } ])
-    v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ V.testTLID ] }
+                    "db2", { count = 5; example = Some(CV.dval, "myKey") } ])
+    v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ V.tlid ] }
 
     // Execution
     v<CTApi.Execution.FunctionV1.Request>
       "simple"
-      { tlid = V.testTLID
-        trace_id = V.testUuid
+      { tlid = V.tlid
+        trace_id = V.uuid
         caller_id = 7UL
-        args = [ CV.testDval ]
+        args = [ CV.dval ]
         fnname = "Int::mod_v0" }
     v<CTApi.Execution.FunctionV1.Response>
       "simple"
-      { result = CV.testDval
+      { result = CV.dval
         hash = "abcd"
         hashVersion = 0
-        touched_tlids = [ V.testTLID ]
-        unlocked_dbs = [ V.testTLID ] }
+        touched_tlids = [ V.tlid ]
+        unlocked_dbs = [ V.tlid ] }
     v<CTApi.Execution.HandlerV1.Request>
       "simple"
-      { tlid = V.testTLID; trace_id = V.testUuid; input = [ "v", CV.testDval ] }
-    v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ V.testTLID ] }
+      { tlid = V.tlid; trace_id = V.uuid; input = [ "v", CV.dval ] }
+    v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ V.tlid ] }
 
     // 404s
     v<CTApi.F404.List.Response>
       "simple"
-      { f404s = [ ("HTTP", "/", "GET", V.testInstant, V.testUuid) ] }
+      { f404s = [ ("HTTP", "/", "GET", V.instant, V.uuid) ] }
     v<CTApi.F404.Delete.Request>
       "simple"
       { space = "HTTP"; path = "/"; modifier = "POST" }
@@ -306,29 +294,28 @@ module SampleData =
     // InitialLoad
     v<ClientTypes.Api.InitialLoad.V1.Response>
       "initial"
-      { handlers = V.ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
-        deletedHandlers =
-          V.ProgramTypes.testHandlers |> List.map CT2Program.Handler.toCT
-        dbs = V.ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
-        deletedDBs = V.ProgramTypes.testDBs |> List.map CT2Program.DB.toCT
+      { handlers = V.ProgramTypes.handlers |> List.map CT2Program.Handler.toCT
+        deletedHandlers = V.ProgramTypes.handlers |> List.map CT2Program.Handler.toCT
+        dbs = V.ProgramTypes.dbs |> List.map CT2Program.DB.toCT
+        deletedDBs = V.ProgramTypes.dbs |> List.map CT2Program.DB.toCT
         userFunctions =
-          V.ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
+          V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
         deletedUserFunctions =
-          V.ProgramTypes.testUserFunctions |> List.map CT2Program.UserFunction.toCT
-        unlockedDBs = [ V.testTLID ]
-        userTypes = V.ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
+          V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
+        unlockedDBs = [ V.tlid ]
+        userTypes = V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
         deletedUserTypes =
-          V.ProgramTypes.testUserTypes |> List.map CT2Program.UserType.toCT
-        staticDeploys = [ CV.testStaticDeploy ]
-        opCtrs = Map [ V.testUuid, 7 ]
+          V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
+        staticDeploys = [ CV.staticDeploy ]
+        opCtrs = Map [ V.uuid, 7 ]
         canvasList = [ "test"; "test-canvas2" ]
         orgCanvasList = [ "testorg"; "testorg-canvas2" ]
         permission = Some(ClientTypes.Authorization.ReadWrite)
         orgs = [ "test"; "testorg" ]
         account =
           { username = "test"; name = "Test Name"; email = "test@darklang.com" }
-        creationDate = V.testInstant
-        workerSchedules = CV.testWorkerStates
+        creationDate = V.instant
+        workerSchedules = CV.workerStates
         secrets = [ { name = "test"; value = "secret" } ] }
 
     // Tunnels
@@ -339,7 +326,7 @@ module SampleData =
     v<CTApi.Tunnels.Register.Response> "simple" { success = false }
 
     // Packages
-    v<CTApi.Packages.ListV1.Response> "simple" [ V.ProgramTypes.testPackageFn ]
+    v<CTApi.Packages.ListV1.Response> "simple" [ V.ProgramTypes.packageFn ]
 
     // SecretsV1
 
@@ -355,32 +342,30 @@ module SampleData =
 
     // Toplevels
 
-    v<CTApi.Toplevels.Delete.Request> "simple" { tlid = V.testTLID }
+    v<CTApi.Toplevels.Delete.Request> "simple" { tlid = V.tlid }
     v<CTApi.Toplevels.Delete.Response> "simple" { result = "success" }
 
     // Traces
 
-    v<CTApi.Traces.GetAllTraces.Response>
-      "simple"
-      { traces = [ (V.testTLID, V.testUuid) ] }
+    v<CTApi.Traces.GetAllTraces.Response> "simple" { traces = [ (V.tlid, V.uuid) ] }
     v<CTApi.Traces.GetTraceDataV1.Request>
       "simple"
-      { tlid = V.testTLID; traceID = V.testUuid }
+      { tlid = V.tlid; traceID = V.uuid }
     v<CTApi.Traces.GetTraceDataV1.Response.T>
       "simple"
       { trace =
-          (V.testUuid,
-           { input = [ "var", CV.testDval ]
-             timestamp = V.testInstant
-             functionResults = [ ("fnName", 7UL, "hash", 0, CV.testDval) ] }) }
+          (V.uuid,
+           { input = [ "var", CV.dval ]
+             timestamp = V.instant
+             functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }) }
 
 
     // Workers
 
     v<CTApi.Workers.Scheduler.Request> "simple" { name = "x"; schedule = "pause" }
-    v<CTApi.Workers.Scheduler.Response> "all" CV.testWorkerStates
+    v<CTApi.Workers.Scheduler.Response> "all" CV.workerStates
 
-    v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = V.testTLID }
+    v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = V.tlid }
     v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
 
     // ------------------
@@ -389,10 +374,10 @@ module SampleData =
     v<ClientTypes.Analysis.AnalysisResult>
       "simple"
       (Ok(
-        V.testUuid,
+        V.uuid,
         Dictionary.fromList (
-          [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult CV.testDval)
-            (7UL, CTAnalysis.ExecutionResult.NonExecutedResult CV.testDval) ]
+          [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult CV.dval)
+            (7UL, CTAnalysis.ExecutionResult.NonExecutedResult CV.dval) ]
         ),
         1,
         NodaTime.Instant.UnixEpoch
@@ -402,17 +387,17 @@ module SampleData =
       (ClientTypes.Analysis.AnalyzeHandler
         { requestID = 2
           requestTime = NodaTime.Instant.UnixEpoch
-          handler = CT2Program.Handler.toCT V.ProgramTypes.testHttpHandler
-          traceID = V.testUuid
+          handler = CT2Program.Handler.toCT V.ProgramTypes.httpHandler
+          traceID = V.uuid
           traceData =
-            { input = [ "var", CV.testDval ]
-              timestamp = V.testInstant
-              functionResults = [ ("fnName", 7UL, "hash", 0, CV.testDval) ] }
+            { input = [ "var", CV.dval ]
+              timestamp = V.instant
+              functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
           dbs =
-            [ { tlid = V.testTLID
+            [ { tlid = V.tlid
                 name = "dbname"
                 nameID = 7UL
-                pos = CT2Program.Position.toCT V.ProgramTypes.testPos
+                pos = CT2Program.Position.toCT V.ProgramTypes.pos
                 cols =
                   [ { name = Some("colname")
                       nameID = 8UL
@@ -420,9 +405,9 @@ module SampleData =
                       typeID = 9UL } ]
                 version = 1 } ]
           userFns =
-            List.map CT2Program.UserFunction.toCT V.ProgramTypes.testUserFunctions
-          userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.testUserTypes
-          packageFns = [ V.ProgramTypes.testPackageFn ]
+            List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
+          userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
+          packageFns = [ V.ProgramTypes.packageFn ]
           secrets = [ { name = "z"; value = "y" } ] })
     v<ClientTypes.Analysis.PerformAnalysisParams>
       "function"
@@ -430,16 +415,16 @@ module SampleData =
         { requestID = 3
           requestTime = NodaTime.Instant.UnixEpoch
           func = CT2Program.UserFunction.toCT V.ProgramTypes.testUserFunction
-          traceID = V.testUuid
+          traceID = V.uuid
           traceData =
-            { input = [ "var", CV.testDval ]
-              timestamp = V.testInstant
-              functionResults = [ ("fnName", 7UL, "hash", 0, CV.testDval) ] }
+            { input = [ "var", CV.dval ]
+              timestamp = V.instant
+              functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
           dbs =
-            [ { tlid = V.testTLID
+            [ { tlid = V.tlid
                 name = "dbname"
                 nameID = 7UL
-                pos = CT2Program.Position.toCT V.ProgramTypes.testPos
+                pos = CT2Program.Position.toCT V.ProgramTypes.pos
                 cols =
                   [ { name = Some("colname")
                       nameID = 8UL
@@ -447,9 +432,9 @@ module SampleData =
                       typeID = 9UL } ]
                 version = 1 } ]
           userFns =
-            List.map CT2Program.UserFunction.toCT V.ProgramTypes.testUserFunctions
-          userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.testUserTypes
-          packageFns = [ V.ProgramTypes.testPackageFn ]
+            List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
+          userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
+          packageFns = [ V.ProgramTypes.packageFn ]
           secrets = [ { name = "z"; value = "y" } ] })
 
 
@@ -459,9 +444,9 @@ module SampleData =
 
     v<LibExecution.AnalysisTypes.TraceData>
       "testTraceData"
-      { input = [ "var", V.RuntimeTypes.testDval ]
-        timestamp = V.testInstant
-        function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.testDval) ] }
+      { input = [ "var", V.RuntimeTypes.dval ]
+        timestamp = V.instant
+        function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] }
 
 
   generateTestData ()
