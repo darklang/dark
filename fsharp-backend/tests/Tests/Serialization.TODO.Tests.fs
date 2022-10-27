@@ -19,8 +19,6 @@
 // DvalReprInternalNew
 // - toRoundtrippableJsonV0
 // - parseRoundtrippableJsonV0
-// Prelude.Json.Vanilla
-// Prelude.Json.OCamlCompatible
 // toStringPairs (LegacyBaseHttpClient)
 // toStringPairs (HttpClient)
 // LibJwt LegacySerializer.toYojson
