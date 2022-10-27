@@ -616,12 +616,10 @@ let run () : unit =
   (webserver LibService.Logging.noLogger port k8sPort).Run()
 
 let initSerializers () =
-  // TODO: probably other types???
-
   // universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"
 
-  // misc. other
+  // Other types used internally
   Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
 
@@ -643,8 +641,8 @@ let main _ =
   try
     let name = "BwdServer"
     print "Starting BwdServer"
-    LibService.Init.init name
     initSerializers ()
+    LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

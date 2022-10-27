@@ -297,14 +297,15 @@ let main _ =
   try
     let name = "ApiServer"
     print "Starting ApiServer"
+
+    initSerializers ()
+
     LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
     if Config.createAccounts then
       LibBackend.Account.initializeDevelopmentAccounts(name).Result
-
-    initSerializers ()
 
     let packages = LibBackend.PackageManager.allFunctions().Result
     run packages
