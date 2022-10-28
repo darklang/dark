@@ -223,6 +223,8 @@ let run (packages : Packages) : unit =
   let k8sPort = LibService.Config.apiServerKubernetesPort
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
+
+// Generally speaking, this should be a superset of BwdServer's list.
 let initSerializers () =
   // needed for both some API payloads and Pusher.com payloads
   Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())

@@ -36,7 +36,6 @@ module FQFnName =
       { module_ = name.module_; function_ = name.function_ }
 
 
-  // is this really worth keeping?
   module UserFnName =
     let fromCT (t : CTPT.FQFnName.UserFnName) : PT.FQFnName.UserFnName = t
 
@@ -311,7 +310,6 @@ module Handler =
       | PT.Handler.Every12Hours -> CTPT.Handler.CronInterval.Every12Hours
       | PT.Handler.EveryMinute -> CTPT.Handler.CronInterval.EveryMinute
 
-  // TODO This comment seems...suspicious. I wonder if this can be removed or something? @pbiggar
   // We need to keep the IDs around until we get rid of them on the client
   module ids =
     let fromCT (ids : CTPT.Handler.ids) : PT.Handler.ids =

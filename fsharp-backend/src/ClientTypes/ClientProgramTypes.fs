@@ -116,7 +116,6 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
-  // TODO This comment seems...suspicious. I wonder if this can be removed or something? @pbiggar
   // We need to keep the IDs around until we get rid of them on the client
   type ids = { moduleID : id; nameID : id; modifierID : id }
 

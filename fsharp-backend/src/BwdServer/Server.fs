@@ -615,6 +615,9 @@ let run () : unit =
   let k8sPort = LibService.Config.bwdServerKubernetesPort
   (webserver LibService.Logging.noLogger port k8sPort).Run()
 
+
+// Generally speaking, this should be the same list as QueueWorker's,
+// which is roughly a subset of ApiServer's list.
 let initSerializers () =
   // universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"
@@ -631,13 +634,13 @@ let initSerializers () =
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads
-  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "ApiServer.Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "ApiServer.Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.New404> "ApiServer.Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "ApiServer.Pusher"
-  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "ApiServer.Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
   Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())
-  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "ApiServer.Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
 
 
