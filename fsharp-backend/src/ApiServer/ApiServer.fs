@@ -224,28 +224,30 @@ let run (packages : Packages) : unit =
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
 let initSerializers () =
-  // this is needed for both some API payloads and Pusher.com payloads
+  // needed for both some API payloads and Pusher.com payloads
   Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())
 
-
+  // universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"
 
-  // LibExeuction one-offs
-  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist>
-    "LibExecution.Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibExecution.ProgramTypes.Position>
-    "LibExecution.Canvas.saveTLIDs"
-  Json.Vanilla.allow<Map<string, string>> "LibBackend.heapio Metadata"
+  // one-off types used internally
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
   Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
-
-  // LibBackend one-offs
+  Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
   Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
-  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
-
-  // LibService one-offs
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
+
+  // for Pusher.com payloads
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
   // for API request/response payloads
   Json.Vanilla.allow<CTApi.Ops.AddOpV1.Request> "ApiServer.AddOps"
@@ -281,15 +283,6 @@ let initSerializers () =
   // for data injected from UI.fs into ui.html
   Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
-
-  // for Pusher.com payloads
-  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
-
-  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
-  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
-  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
 
 [<EntryPoint>]

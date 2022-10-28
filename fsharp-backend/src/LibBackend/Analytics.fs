@@ -11,6 +11,7 @@ open Tablecloth
 
 module FireAndForget = LibService.FireAndForget
 
+type HeapIOMetadata = Map<string, string>
 
 // We call this in two contexts: DarkInternal:: fns
 let identifyUser (username : UserName.T) : unit =
@@ -38,7 +39,7 @@ let identifyUser (username : UserName.T) : unit =
 
       let heapioMetadata =
         heapioMetadataJson
-        |> Option.map Json.Vanilla.deserialize<Map<string, string>>
+        |> Option.map Json.Vanilla.deserialize<HeapIOMetadata>
         |> Option.defaultValue Map.empty
 
       let payload =

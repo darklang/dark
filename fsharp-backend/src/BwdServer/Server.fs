@@ -619,21 +619,26 @@ let initSerializers () =
   // universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"
 
-  // Other types used internally
+  // one-off types used internally
   Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
-
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
   Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
   Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
-  // serialization of types used in Pusher.com payloads
+  // for Pusher.com payloads
   Json.Vanilla.allow<CTPusher.Payload.NewTrace> "ApiServer.Pusher"
   Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "ApiServer.Pusher"
   Json.Vanilla.allow<CTPusher.Payload.New404> "ApiServer.Pusher"
   Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "ApiServer.Pusher"
   //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "ApiServer.Pusher" // this is so-far unused
+  Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())
   Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "ApiServer.Pusher"
+
 
 
 [<EntryPoint>]
