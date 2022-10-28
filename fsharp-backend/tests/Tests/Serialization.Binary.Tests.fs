@@ -36,7 +36,7 @@ module RoundtripTests =
       Expect.equal actual Values.ProgramTypes.oplist ""
     }
 
-module CustomSerializersTests =
+module ConsistentSerializationTests =
   type Format =
     { name : string
       serializer : PT.Oplist -> byte array
@@ -84,7 +84,6 @@ module CustomSerializersTests =
         File.writefile Config.Serialization (nameFor f true sha1) jsonData
         File.writefile Config.Serialization (nameFor f true "latest") jsonData))
 
-
   let testTestFiles =
     formats
     |> List.map (fun f ->
@@ -118,11 +117,11 @@ let generateTestFiles () =
   // Enabled in dev so we can see changes as git diffs
   // Disabled in CI so changes will fail the tests
   if Config.serializationGenerateTestData then
-    CustomSerializersTests.generateTestFiles ()
+    ConsistentSerializationTests.generateTestFiles ()
 
 let tests =
   testList
-    "Serialization"
+    "Binary Serialization"
     [ RoundtripTests.toplevelRoundtripTest
       RoundtripTests.oplistRoundtripTest
-      testList "customer test formats" CustomSerializersTests.testTestFiles ]
+      testList "consistent serialization" ConsistentSerializationTests.testTestFiles ]

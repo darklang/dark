@@ -516,6 +516,6 @@ let generateTestFiles () =
 
 let tests =
   testList
-    "Serialization"
+    "Vanilla Serialization"
     [ testNoMissingOrExtraOutputTestFiles
-      testList "vanilla test formats" testTestFiles ]
+      testList "consistent serialization" testTestFiles ]
