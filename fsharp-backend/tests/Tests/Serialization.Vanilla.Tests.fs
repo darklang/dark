@@ -453,11 +453,10 @@ module SampleData =
 
 let fileNameFor
   (serializerName : string)
-  (reason : string)
   (typeName : string)
   (dataName : string)
   : string =
-  let original = $"{serializerName}_{reason}_{typeName}_{dataName}"
+  let original = $"{serializerName}_{typeName}_{dataName}"
   let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
   Regex.Replace(replaced, "[-]+", "-") + ".json"
 
@@ -468,7 +467,7 @@ let testNoMissingOrExtraOutputTestFiles : Test =
       |> Dictionary.toList
       |> List.map (fun (typeName, reason) ->
         SampleData.get typeName serializerName reason
-        |> List.map (fun (name, _) -> fileNameFor serializerName reason typeName name))
+        |> List.map (fun (name, _) -> fileNameFor serializerName typeName name))
       |> List.concat
       |> Set
 
@@ -492,7 +491,7 @@ let testTestFiles : List<Test> =
         // For each type, compare the sample data to the file data
         SampleData.get typeName serializerName reason
         |> List.iter (fun (name, actualSerializedData) ->
-          let filename = fileNameFor serializerName reason typeName name
+          let filename = fileNameFor serializerName typeName name
           let expected = File.readfile Config.Serialization filename
           Expect.equal actualSerializedData expected "matches")
       })
@@ -509,7 +508,7 @@ let generateTestFiles () =
         // For each type, compare the sample data to the file data
         SampleData.get typeName serializerName reason
         |> List.iter (fun (name, serializedData) ->
-          let filename = fileNameFor serializerName reason typeName name
+          let filename = fileNameFor serializerName typeName name
           File.writefile Config.Serialization filename serializedData))
 
     generate Json.Vanilla.allowedTypes "vanilla"
