@@ -513,8 +513,27 @@ let generateTestFiles () =
 
     generate Json.Vanilla.allowedTypes "vanilla"
 
+module RoundtripToAndFromClientTypes =
+  let tests = []
+
+module RoundtripFromAndToClientTypes =
+  let tests = []
+
 let tests =
+  // TODO: ensure (using reflection) we've covered all types within ClientTypes
+  // (many of which we'll have to explicity exclude, if they don't have exact
+  // equivalents in the 'domain' types)
+
+  // TODO: ensure (using reflection) that each of the DU cases _of_ those types
+  // are covered (so if we add another case to CTProgram.Expr, it's covered).
+
   testList
     "Vanilla Serialization"
     [ testNoMissingOrExtraOutputTestFiles
-      testList "consistent serialization" testTestFiles ]
+      testList "consistent serialization" testTestFiles
+      testList
+        "roundtrip to and from client types"
+        RoundtripToAndFromClientTypes.tests
+      testList
+        "roundtrip from and to client types"
+        RoundtripFromAndToClientTypes.tests ]
