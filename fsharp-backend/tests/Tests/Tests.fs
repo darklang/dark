@@ -55,6 +55,7 @@ let main (args : string array) : int =
         Tests.Routing.tests
         Tests.RuntimeTypes.tests
         Tests.BinarySerialization.tests
+        Tests.VanillaSerialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
         Tests.Traces.tests
