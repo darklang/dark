@@ -89,7 +89,7 @@ module Time = {
   let every = (~key, interval, tagger) => {
     open Vdom
     let enableCall = callbacks => {
-      let id = Web.Window.setInterval(() => Web.Date.now() |> tagger |> callbacks.enqueue, interval)
+      let id = Web.Window.setInterval(() => Js.Date.now() |> tagger |> callbacks.enqueue, interval)
 
       () => Web.Window.clearTimeout(id)
     }
