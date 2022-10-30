@@ -10,9 +10,9 @@ module Rollbar = {
   }
   // There's a better way of doing this but I couldn't get it to work:
   // https://bucklescript.github.io/docs/en/embed-raw-javascript#detect-global-variables
-  let rb: rollbarInstance = %raw(` (typeof window === 'undefined') ? self.rollbar : window.rollbar `)
 
   let send = (msg: string, url: option<string>, custom: Js.Json.t): unit => {
+    let rb: rollbarInstance = %raw(`(typeof window === 'undefined') ? self.rollbar : window.rollbar `)
     let url = Js.Nullable.fromOption(url)
     rb.error(msg, url, Js.null, Js.null, custom)
   }
