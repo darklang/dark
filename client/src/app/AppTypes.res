@@ -709,9 +709,9 @@ module Msg = {
     | EnablePanning(bool)
     | DeleteColInDB(TLID.t, ID.t)
     | CreateDBTable
-    | ClipboardCopyEvent(Types.clipboardEvent)
-    | ClipboardCutEvent(Types.clipboardEvent)
-    | ClipboardPasteEvent(Types.clipboardEvent)
+    | ClipboardCopyEvent(Webapi.Dom.ClipboardEvent.t)
+    | ClipboardCutEvent(Webapi.Dom.ClipboardEvent.t)
+    | ClipboardPasteEvent(Webapi.Dom.ClipboardEvent.t)
     | ClipboardCopyLivevalue(string, VPos.t)
     | EventDecoderError(string, string, string)
     | CanvasPanAnimationEnd
@@ -844,7 +844,7 @@ module Modification = {
     | FluidEndClick
     | UpdateAvatarList(list<Avatar.t>)
     | ExpireAvatars
-    | SetClipboardContents(Types.clipboardContents, Types.clipboardEvent)
+    | SetClipboardContents(Types.clipboardContents, Webapi.Dom.ClipboardEvent.t)
     | UpdateASTCache(TLID.t, string)
     | InitASTCache(list<PT.Handler.t>, list<PT.UserFunction.t>)
     | FluidSetState(FluidTypes.State.t<'model, t<'model>>)

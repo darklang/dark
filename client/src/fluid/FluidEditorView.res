@@ -331,9 +331,17 @@ let tokensView = (p: props): Html.html<msg> => {
       Events.onCB(
         "keydown",
         "keydown" ++ tlidStr,
-        FluidKeyboard.onKeydown(x => AppTypes.Msg.FluidMsg(FluidInputEvent(Keypress(x)))),
+        Obj.magic(
+          FluidKeyboard.onKeydown(x => AppTypes.Msg.FluidMsg(
+            FluidInputEvent(Keypress(Obj.magic(x))),
+          )),
+        ),
       ),
-      Events.onCB("beforeinput", "beforeinput" ++ tlidStr, FluidTextInput.fromInputEvent),
+      Events.onCB(
+        "beforeinput",
+        "beforeinput" ++ tlidStr,
+        Obj.magic(FluidTextInput.fromInputEvent),
+      ),
       Events.onCB(
         "compositionend",
         "compositionend" ++ tlidStr,

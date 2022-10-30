@@ -66,10 +66,10 @@ module Html = {
     let onWithOptions = (~key="", eventName, options: Tea_html.options, decoder) =>
       Tea_html2.Events.onCB(eventName, key, event => {
         if options.stopPropagation {
-          event["stopPropagation"]() |> ignore
+          Webapi.Dom.Event.stopPropagation(Obj.magic(event))
         }
         if options.preventDefault {
-          event["preventDefault"]() |> ignore
+          Webapi.Dom.Event.preventDefault(Obj.magic(event))
         }
         event |> Tea_json.Decoder.decodeEvent(decoder) |> Tea_result.result_to_option
       })

@@ -119,11 +119,11 @@ let update = (msg: ST.msg): modification =>
     )
   }
 
-let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
+let onKeydown = (evt: Dom.event): option<AppTypes.msg> =>
   switch FluidKeyboard.eventToKeyEvent(evt) {
   | Some({FluidKeyboard.key: FluidKeyboard.Enter, _}) =>
-    evt["stopPropagation"]()
-    evt["preventDefault"]()
+    Webapi.Dom.Event.stopPropagation(evt)
+    Webapi.Dom.Event.preventDefault(evt)
     // prevents omnibox from opening
     Some(Msg.SecretMsg(SaveNewSecret))
   | _ => None
@@ -204,7 +204,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.nothingMouseEvent("mouseup"),
         EventListeners.nothingMouseEvent("click"),
-        Events.onCB("keydown", "keydown", onKeydown),
+        Events.onCB("keydown", "keydown", Obj.magic(onKeydown)),
       },
       list{Html.div(list{Attrs.class'("modal insert-secret")}, inside)},
     )

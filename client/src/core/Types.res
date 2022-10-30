@@ -7,21 +7,10 @@ module RT = RuntimeTypes
 // Clipboard
 // -------------------
 
-type clipboardSetData = @meth (string, string) => unit
-type clipboardGetData = @meth (string => string)
-type clipboardPreventDefault = @meth (unit => unit)
-
-type clipboardData = {"setData": clipboardSetData, "getData": clipboardGetData}
-
-type clipboardEventDef = {"preventDefault": clipboardPreventDefault, "clipboardData": clipboardData}
-
-@ppx.deriving(show) @opaque
-type rec clipboardContents = /* Clipboard supports both text and encoded fluidExprs. At the moment,
- * there is always a text option - there isn't a json option if the copied
- * string wasn't a fluidExpr */
-(string, @opaque option<Js.Json.t>)
-
-@ppx.deriving(show) @opaque type rec clipboardEvent = @opaque clipboardEventDef
+// Clipboard supports both text and encoded fluidExprs. At the moment,
+// there is always a text option - there isn't a json option if the copied
+// string wasn't a fluidExpr
+type clipboardContents = (string, option<Js.Json.t>)
 
 // -------------------
 // Standard types

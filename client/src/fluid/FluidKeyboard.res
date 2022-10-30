@@ -177,7 +177,7 @@ type rec keyEvent = {
 
 @ocaml.doc(" eventToKeyEvent converts the JS KeyboardEvent [evt] into a [keyEvent].
  * Returns (Some keyEvent) or None if a decoding error occurs. ")
-let eventToKeyEvent = (evt: Web.Node.event): option<keyEvent> => {
+let eventToKeyEvent = (evt: Dom.event): option<keyEvent> => {
   open Tea.Json.Decoder
   let decoder = map5((rawKey, shiftKey, ctrlKey, altKey, metaKey) => {
     let key = fromKeyboardEvent(rawKey, shiftKey, ctrlKey, metaKey, altKey)
@@ -187,16 +187,16 @@ let eventToKeyEvent = (evt: Web.Node.event): option<keyEvent> => {
     string,
   ), field("shiftKey", bool), field("ctrlKey", bool), field("altKey", bool), field("metaKey", bool))
 
-  decodeEvent(decoder, evt) |> Tea_result.result_to_option
+  decodeEvent(decoder, Obj.magic(evt)) |> Tea_result.result_to_option
 }
 
-@ocaml.doc(" onKeydown converts the JS KeyboardEvent [evt] into a keyEvent, then
+@ocaml.doc("onKeydown converts the JS KeyboardEvent [evt] into a keyEvent, then
   * calls the [tagger] with it if successful.
   *
   * [tagger] is a (keyEvent -> Types.msg). It would be nice to simply return
   * the msg option here, but we cannot reference Types here otherwise we get
   * a dependency cycle. ")
-let onKeydown = (tagger, evt: Web.Node.event) =>
+let onKeydown = (tagger, evt: Dom.event) =>
   evt
   |> eventToKeyEvent
   |> Option.andThen(~f=x =>
@@ -204,7 +204,7 @@ let onKeydown = (tagger, evt: Web.Node.event) =>
     | {key: Unhandled(_), _} => None
     | kevt =>
       // if we are going to handle the key, then preventDefault
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(tagger(kevt))
     }
   )

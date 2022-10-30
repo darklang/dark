@@ -2193,7 +2193,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
         e => AppTypes.Msg.ClipboardCutEvent(e),
       ),
       BrowserSubscriptions.Clipboard.pasteListener(~key="paste_event", e => {
-        e["preventDefault"]()
+        Webapi.Dom.ClipboardEvent.preventDefault(e)
         AppTypes.Msg.ClipboardPasteEvent(e)
       }),
     }

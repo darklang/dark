@@ -20,7 +20,7 @@ let containsPartials = (res: fluidExpr): bool =>
     }
   )
 
-let clipboardEvent = (): clipboardEvent => {
+let clipboardEvent = (): Webapi.Dom.ClipboardEvent.t => {
   %raw(`
     {
       clipboardData: {
@@ -72,7 +72,7 @@ let run = () => {
   let insertCursor = ((str, pos)): string =>
     str |> String.splitAt(~index=pos) |> (((a, b)) => list{a, b} |> String.join(~sep="~"))
 
-  let process = (e: clipboardEvent, ~debug, (start, pos), ast, msg): testResult => {
+  let process = (e: Webapi.Dom.ClipboardEvent.t, ~debug, (start, pos), ast, msg): testResult => {
     let clipboardData = e => {
       let (text, expr) = DClipboard.getData(e)
       FluidClipboard.clipboardContentsToExpr((text, expr))

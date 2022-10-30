@@ -167,8 +167,8 @@ let isOpenOnTL = (s: cmdState, tlid: TLID.t): bool =>
   * We can't use the generic FluidKeyboard keydown handler for this, as it's
   * too agreessive in capturing keys that we want delegated to the palette's
   * input element for default handling (like backspace and left/right arrows). ")
-let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
-  K.eventToKeyEvent(evt) |> Option.andThen(~f=e =>
+let onKeydown = (evt: Dom.event): option<AppTypes.msg> =>
+  K.eventToKeyEvent(Obj.magic(evt)) |> Option.andThen(~f=e =>
     switch e {
     | {K.key: K.Enter, _}
     | {key: K.Up, _}
@@ -213,7 +213,7 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
       Vdom.attribute("", "spellcheck", "false"),
       Attrs.autocomplete(false),
       Events.onInput(query => Msg.FluidMsg(FluidCommandsFilter(query))),
-      Events.onCB("keydown", "command-keydown", onKeydown),
+      Events.onCB("keydown", "command-keydown", Obj.magic(onKeydown)),
       Events.onCB("blur", "lose focus", onLoseFocus),
     },
     list{},
