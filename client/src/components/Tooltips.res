@@ -424,7 +424,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
       let (current, total) = currentStepFraction(step)
       Html.p(
         list{Attrs.class'("step-title")},
-        list{Html.text(Printf.sprintf("%d/%d", current, total))},
+        list{Html.text(`${Int.toString(current)}/${Int.toString(total)}`)},
       )
     | Crud | Default => Vdom.noNode
     }

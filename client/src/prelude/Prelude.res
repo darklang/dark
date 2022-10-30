@@ -26,6 +26,9 @@ module Json = {
 
   let stringify = Json.stringify
 
+  let stringifyAlways = (v: 'a) =>
+    Js.Json.stringifyAny(v)->Option.unwrap(~default="Bad Json serialization")
+
   module Decode = Json_decode_extended
   module Encode = Json_encode_extended
 }

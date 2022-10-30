@@ -162,7 +162,7 @@ let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: FQF
   // that, or make it toast instructions?
   |> recoverOption(
     "Args not found in model in curlFromHttpClientCall",
-    ~debug=(TLID.toString(tlid), Option.map(~f=show_traceID, traceId)),
+    ~debug=(TLID.toString(tlid), traceId),
   )
 
   let data = args |> Option.map(~f=args => {
@@ -191,7 +191,7 @@ let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: FQF
 
     let base_url = switch url {
     | DStr(s) => s
-    | _ => recover(~debug=RT.Dval.show(url), "Expected url arg to be a DStr", url) |> RT.Dval.show
+    | _ => recover("Expected url arg to be a DStr", url) |> Runtime.toRepr
     }
 
     let qps = switch query {
@@ -201,7 +201,7 @@ let curlFromHttpClientCall = (m: AppTypes.model, tlid: TLID.t, id: id, name: FQF
       |> List.filterMap(~f=((k, v)) => to_url_string(v) |> Option.map(~f=v => k ++ ("=" ++ v)))
       |> String.join(~sep="&")
     | _ =>
-      ignore(query |> recover(~debug=RT.Dval.show(query), "Expected query arg to be a dobj"))
+      ignore(query |> recover(~debug=query, "Expected query arg to be a dobj"))
       ""
     } |> (
       s =>

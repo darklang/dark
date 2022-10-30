@@ -35,7 +35,7 @@ let flagLinkLoc = (flag: string, currentlyEnabled: bool) => {
         }
     )
 
-  Printf.sprintf("%s//%s%s%s%s", loc.protocol, loc.host, loc.pathname, newSearch, loc.hash)
+  `${loc.protocol}//${loc.host}${loc.pathname}${newSearch}${loc.hash}`
 }
 
 let debuggerLinkLoc = (m: AppTypes.model) => flagLinkLoc("debugger", m.teaDebuggerEnabled)

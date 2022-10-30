@@ -250,14 +250,13 @@ module TestCase = {
       }
 
       if debug {
+        let origSel = origSel |> Option.map(~f=string_of_int) |> Option.unwrap(~default="None")
+        let selStart =
+          selectionStart |> Option.map(~f=string_of_int) |> Option.unwrap(~default="None")
         Js.log(
-          Printf.sprintf(
-            "(sel, pos) fixed from (%s, %d) to (%s, %d)",
-            origSel |> Option.map(~f=string_of_int) |> Option.unwrap(~default="None"),
-            origPos,
-            selectionStart |> Option.map(~f=string_of_int) |> Option.unwrap(~default="None"),
-            pos,
-          ),
+          `(sel, pos) fixed from (${origSel}, ${Int.toString(
+              origPos,
+            )}) to (${selStart}, ${Int.toString(pos)})`,
         )
       }
       {
@@ -406,7 +405,7 @@ let process = (inputs: list<FluidTypes.Msg.inputEvent>, tc: TestCase.t): TestRes
   if tc.debug {
     Js.log("\n\n\n=============")
     Js.log("state before\n" ++ FluidUtils.debugState(tc.state))
-    Js.log("expr before\n" ++ FluidAST.show(tc.ast))
+    Js.log2("expr before", tc.ast)
     Js.log(
       "\ntoken structure before\n" ++
       FluidAST.toExpr(tc.ast)->FluidPrinter.eToStructure(~includeIDs=true),
@@ -419,7 +418,7 @@ let process = (inputs: list<FluidTypes.Msg.inputEvent>, tc: TestCase.t): TestRes
 
   if tc.debug {
     Js.log2("\n\nstate after\n", FluidUtils.debugState(result.state))
-    Js.log("expr after\n" ++ FluidAST.show(result.ast))
+    Js.log2("expr after", result.ast)
     Js.log(
       "\ntoken structure after\n" ++
       FluidAST.toExpr(result.ast)->FluidPrinter.eToStructure(~includeIDs=true),

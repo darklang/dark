@@ -53,7 +53,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
       dtText("ast root"),
       Html.dd(list{}, list{Html.text(FluidAST.toID(ast) |> ID.toString)}),
       dtText("active editor"),
-      Html.dd(list{}, list{Html.text(FluidTypes.Editor.show(s.activeEditor))}),
+      Html.dd(list{}, list{Html.text(Json.stringifyAlways(s.activeEditor))}),
       dtText("acIndex"),
       Html.dd(
         list{},
@@ -71,7 +71,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
         },
       ),
       dtText("lastInput"),
-      Html.dd(list{}, list{Html.text(FluidTypes.Msg.show_inputEvent(s.lastInput))}),
+      Html.dd(list{}, list{Html.text(Json.stringifyAlways(s.lastInput))}),
       dtText("selection"),
       Html.dd(
         list{},

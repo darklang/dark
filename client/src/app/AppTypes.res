@@ -1,7 +1,5 @@
 module PT = ProgramTypes
 
-let opaque = Types.opaque
-
 module Page = {
   @ppx.deriving(show({with_path: false}))
   type rec center = bool

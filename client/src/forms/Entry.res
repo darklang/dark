@@ -599,9 +599,7 @@ let submitACItem = (
       | (pd, item, _) =>
         ReplaceAllModificationsWithThisOne(
           m => {
-            let custom =
-              Types.show_blankOrData(pd) ++ (", " ++ AppTypes.AutoComplete.show_item(item))
-
+            let custom = Json.stringifyAlways((pd, item))
             Rollbar.displayAndReportError(m, "Invalid autocomplete option", None, Some(custom))
           },
         )

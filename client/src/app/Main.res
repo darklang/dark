@@ -308,7 +308,7 @@ let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
 
 let processAutocompleteMods = (m: model, mods: list<autocompleteMod>): (model, AppTypes.cmd) => {
   if m.integrationTestState != NoIntegrationTest {
-    Debug.loG("autocompletemod update", show_list(~f=AppTypes.AutoComplete.show_mod, mods))
+    Debug.loG("autocompletemod update", mods)
   }
   let complete = List.fold(
     ~f=(complete_, mod_) => AC.update(m, mod_, complete_),
@@ -351,7 +351,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
   AppTypes.cmd,
 ) => {
   if m.integrationTestState != NoIntegrationTest {
-    Debug.loG("mod update", AppTypes.show_modification(mod_))
+    Debug.loG("mod update", mod_)
   }
   let (newm, newcmd) = {
     let bringBackCurrentTL = (oldM: model, newM: model): model =>
@@ -949,7 +949,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
 
 let update_ = (msg: msg, m: model): modification => {
   if m.integrationTestState != NoIntegrationTest {
-    Debug.loG("msg update", AppTypes.show_msg(msg))
+    Debug.loG("msg update", msg)
   }
   switch msg {
   | GlobalKeyPress(event) => KeyPress.handler(event, m)
@@ -2217,7 +2217,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
 
 let debugging = {
   let prog = Tea.Debug.debug_program(
-    AppTypes.show_msg,
+    Json.stringifyAlways,
     {
       init: a => init(a, Tea.Navigation.getLocation()),
       view: View.view,

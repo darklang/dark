@@ -1,22 +1,18 @@
 open Prelude
 
 let debugState = (s: AppTypes.fluidState) =>
-  FluidTypes.State.show(
-    AppTypes.Model.pp,
-    AppTypes.Modification.pp(AppTypes.Model.pp),
-    {
-      ...s,
-      // remove the things that take a lot of space and provide little value.
-      ac: {
-        ...s.ac,
-        completions: if s.ac.index == None {
-          list{}
-        } else {
-          s.ac.completions
-        },
+  Json.stringifyAlways({
+    ...s,
+    // remove the things that take a lot of space and provide little value.
+    ac: {
+      ...s.ac,
+      completions: if s.ac.index == None {
+        list{}
+      } else {
+        s.ac.completions
       },
     },
-  )
+  })
 
 let h = (expr: FluidExpression.t): PT.Handler.t => {
   ast: FluidAST.ofExpr(expr),
