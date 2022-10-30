@@ -659,7 +659,7 @@ module Msg = {
     | LogoutAPICallback
     | Delete404APICall(AnalysisTypes.FourOhFour.t)
     | NewPresencePush(list<Avatar.t>)
-    | LocationChange(Web.Location.location)
+    | LocationChange(Web.Location.t)
     | FinishIntegrationTest
     | SaveTestButton
     | ToggleEditorSetting(EditorSettings.t => EditorSettings.t)
