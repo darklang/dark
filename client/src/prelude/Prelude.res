@@ -36,7 +36,14 @@ module Json = {
   let stringify = Json.stringify
 
   let stringifyAlways = (v: 'a) =>
-    Js.Json.stringifyAny(v)->Option.unwrap(~default="Bad Json serialization")
+    v
+    ->Js.Json.stringifyAny
+    ->Option.map(~f=Js.Json.parseExn)
+    // Since this is used for debugging, the strings will sometimes be very long. If
+    // there is no whitespace, then these strings can break the rendering, making it
+    // scroll weirdly. So we go through this drama to ensure that doesn't happen
+    ->Option.map(~f=v => Js.Json.stringifyWithSpace(v, 2))
+    ->Option.unwrap(~default="Bad Json serialization")
 
   module Decode = Json_decode_extended
   module Encode = Json_encode_extended
