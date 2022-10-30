@@ -16,7 +16,7 @@ let clientVersionHeader = (m: model): Tea_http.header => Header(
 let apiCallPreloaded = (
   m: model,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  ~callback: Result.t<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
@@ -42,7 +42,7 @@ let apiCallPreloaded = (
 let apiCallNoParams = (
   m: model,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  ~callback: result<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
@@ -90,7 +90,7 @@ let apiCall = (
   ~encoder: 'paramtype => Js.Json.t,
   ~params: 'paramtype,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  ~callback: result<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint

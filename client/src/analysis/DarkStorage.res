@@ -5,9 +5,9 @@ module NewStaticDeployPush = {
     open Tea.Json.Decoder
     let decodeStatus = v =>
       switch Obj.magic(v) {
-      | list{"Deploying"} => Tea_result.Ok(StaticAssets.Status.Deploying)
-      | list{"Deployed"} => Tea_result.Ok(Deployed)
-      | _ => Tea_result.Error("Unable to decode deployStatus")
+      | list{"Deploying"} => Ok(StaticAssets.Status.Deploying)
+      | list{"Deployed"} => Ok(Deployed)
+      | _ => Error("Unable to decode deployStatus")
       }
 
     let decodeDeploy = map4((deployHash, url, lastUpdate, status) => {

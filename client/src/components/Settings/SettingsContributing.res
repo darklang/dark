@@ -33,12 +33,12 @@ module TunnelHost = {
 
   @ppx.deriving(show)
   type rec msg =
-    | LoadAPICallback(Tea.Result.t<values, Tea.Http.error<string>>)
+    | LoadAPICallback(result<values, Tea.Http.error<string>>)
     | InputEdit(string)
     | InputUnfocus
     | Submit
     // Track parameter in case user has changed it
-    | SaveAPICallback(values, Tea.Result.t<bool, Tea.Http.error<string>>)
+    | SaveAPICallback(values, result<bool, Tea.Http.error<string>>)
 
   module API = {
     module JD = Json.Decode

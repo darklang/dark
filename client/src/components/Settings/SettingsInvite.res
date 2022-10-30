@@ -31,7 +31,7 @@ module Params = {
 @ppx.deriving(show)
 type rec msg =
   | Update(string)
-  | TriggerSendCallback(Tea.Result.t<unit, Tea.Http.error<string>>)
+  | TriggerSendCallback(result<unit, Tea.Http.error<string>>)
   | Submit
 
 @ppx.deriving(show)

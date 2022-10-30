@@ -625,11 +625,11 @@ module Msg = {
     | EntrySubmitMsg
     | GlobalKeyPress(Keyboard.keyEvent)
     | AutocompleteClick(int)
-    | AddOpsAPICallback(Focus.t, APIAddOps.Params.t, Tea.Result.t<APIAddOps.t, Types.httpError>)
+    | AddOpsAPICallback(Focus.t, APIAddOps.Params.t, result<APIAddOps.t, Types.httpError>)
     | AddOpsPusherMsg(PusherTypes.AddOps.t)
-    | SaveTestAPICallback(Tea.Result.t<APISaveTest.t, Types.httpError>)
-    | GetUnlockedDBsAPICallback(Tea.Result.t<APIDBs.UnlockedDBs.t, Types.httpError>)
-    | Get404sAPICallback(Tea.Result.t<API404.List.t, Types.httpError>)
+    | SaveTestAPICallback(result<APISaveTest.t, Types.httpError>)
+    | GetUnlockedDBsAPICallback(result<APIDBs.UnlockedDBs.t, Types.httpError>)
+    | Get404sAPICallback(result<API404.List.t, Types.httpError>)
     | NewTracePush(AnalysisTypes.NewTrace.t)
     | New404Push(AnalysisTypes.FourOhFour.t)
     | NewStaticDeployPush(StaticAssets.Deploy.t)
@@ -637,29 +637,25 @@ module Msg = {
     | Delete404APICallback(
         AnalysisTypes.FourOhFour.t,
         API404.Delete.Params.t,
-        Tea.Result.t<unit, Types.httpError>,
+        result<unit, Types.httpError>,
       )
     | DeleteToplevelForeverAPICallback(
         APIToplevels.DeleteForever.Params.t,
-        Tea.Result.t<unit, Types.httpError>,
+        result<unit, Types.httpError>,
       )
-    | InitialLoadAPICallback(
-        Focus.t,
-        'modification,
-        Tea.Result.t<APIInitialLoad.t, Types.httpError>,
-      )
-    | FetchAllTracesAPICallback(Tea.Result.t<APITraces.AllTraces.t, Types.httpError>)
+    | InitialLoadAPICallback(Focus.t, 'modification, result<APIInitialLoad.t, Types.httpError>)
+    | FetchAllTracesAPICallback(result<APITraces.AllTraces.t, Types.httpError>)
     | ExecuteFunctionAPICallback(
         APIExecution.Function.Params.t,
-        Tea.Result.t<APIExecution.Function.t, Types.httpError>,
+        result<APIExecution.Function.t, Types.httpError>,
       )
-    | UploadFnAPICallback(APIPackages.UploadFn.Params.t, Tea.Result.t<unit, Types.httpError>)
+    | UploadFnAPICallback(APIPackages.UploadFn.Params.t, result<unit, Types.httpError>)
     | TriggerHandlerAPICallback(
         APIExecution.Handler.Params.t,
-        Tea.Result.t<APIExecution.Handler.t, Types.httpError>,
+        result<APIExecution.Handler.t, Types.httpError>,
       )
-    | LoadPackagesAPICallback(Tea.Result.t<APIPackages.AllPackages.t, Types.httpError>)
-    | InsertSecretCallback(Tea.Result.t<list<SecretTypes.t>, Types.httpError>)
+    | LoadPackagesAPICallback(result<APIPackages.AllPackages.t, Types.httpError>)
+    | InsertSecretCallback(result<list<SecretTypes.t>, Types.httpError>)
     | LogoutAPICallback
     | Delete404APICall(AnalysisTypes.FourOhFour.t)
     | NewPresencePush(list<Avatar.t>)
@@ -708,7 +704,7 @@ module Msg = {
     | CanvasPanAnimationEnd
     | GoTo(Page.t)
     | SetHoveringReferences(TLID.t, list<ID.t>)
-    | TriggerSendPresenceCallback(Tea.Result.t<unit, Types.httpError>)
+    | TriggerSendPresenceCallback(result<unit, Types.httpError>)
     | TakeOffErrorRail(TLID.t, ID.t)
     | SetHandlerExeIdle(TLID.t)
     | CopyCurl(TLID.t, VPos.t)
@@ -720,7 +716,7 @@ module Msg = {
     | PauseWorker(string)
     | RunWorker(string)
     | UpdateWorkerScheduleCallback(
-        Tea.Result.t<Tc.Map.String.t<AnalysisTypes.WorkerState.t>, Types.httpError>,
+        result<Tc.Map.String.t<AnalysisTypes.WorkerState.t>, Types.httpError>,
       )
     | NewTabFromTLMenu(string, TLID.t)
     | FnParamMsg(FunctionParams.msg)

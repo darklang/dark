@@ -5,8 +5,8 @@ let registerGlobal = (eventName, key, tagger, decoder) => {
     let fn = event => {
       open Tea_json.Decoder
       switch decodeEvent(decoder, event) {
-      | Tea_result.Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
-      | Tea_result.Ok(data) => Some(tagger(data))
+      | Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
+      | Ok(data) => Some(tagger(data))
       }
     }
 
@@ -54,8 +54,8 @@ module Window = {
       let fn = event => {
         open Tea_json.Decoder
         switch decodeEvent(decoder, event) {
-        | Tea_result.Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
-        | Tea_result.Ok(data) => Some(data)
+        | Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
+        | Ok(data) => Some(data)
         }
       }
 
