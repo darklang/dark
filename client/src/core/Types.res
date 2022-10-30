@@ -27,23 +27,12 @@ type rec clipboardContents = /* Clipboard supports both text and encoded fluidEx
 // Standard types
 // -------------------
 
-@ppx.deriving(show) type rec id = ID.t
+type rec id = ID.t
 
-@ppx.deriving(show) type rec analysisID = id
+type rec analysisID = id
 
-@ppx.deriving(show) type rec parentBlockID = id
+type rec parentBlockID = id
 
-// == end legacy aliases ==
-
-let show_list = (~f: 'a => string, x: list<'a>): string =>
-  "[" ++ (String.join(~sep=",", List.map(~f, x)) ++ "]")
-
-let opaque = (msg, fmt, _) => {
-  Format.pp_print_string(fmt, "<opaque:" ++ (msg ++ ">"))
-  ()
-}
-
-@ppx.deriving(show({with_path: false}))
 type rec exception_ = {
   short: string,
   long: option<string>,

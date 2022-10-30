@@ -4,29 +4,10 @@
 
 module Result = {
   include Tea_result
-  let pp = (
-    okValueFormatter: (Format.formatter, 'okValue) => unit,
-    errValueFormatter: (Format.formatter, 'errValue) => unit,
-    fmt: Format.formatter,
-    value: t<'okValue, 'errValue>,
-  ) => {
-    switch value {
-    | Ok(value) =>
-      Format.pp_print_string(fmt, "Ok")
-      okValueFormatter(fmt, value)
-    | Error(value) =>
-      Format.pp_print_string(fmt, "Error")
-      errValueFormatter(fmt, value)
-    }
-  }
 }
 
 module Cmd = {
   include Tea_cmd
-
-  let pp = (_msgFormatter: (Format.formatter, 'v) => unit, fmt: Format.formatter, _: t<'msg>) => {
-    Format.pp_print_string(fmt, "Cmd")
-  }
 }
 
 module Sub = Tea_sub
@@ -44,15 +25,6 @@ module Ex = Tea_ex
 
 module Http = {
   include Tea_http
-
-  let pp_error = (
-    _valueFormatter: (Format.formatter, 'v) => unit,
-    fmt: Format.formatter,
-    _value: error<'v>,
-  ) => {
-    Format.pp_print_string(fmt, "Tea.Http.error")
-    // valueFormatter(fmt, value)
-  }
 }
 
 module Html = {

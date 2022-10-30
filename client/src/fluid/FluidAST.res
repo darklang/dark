@@ -9,10 +9,6 @@ type id = Prelude.id
 
 type t = ProgramTypes.AST.t
 
-let show = (Root(e)) => E.show(e)
-
-let pp = (f, Root(e)) => E.pp(f, e)
-
 let toExpr = (Root(e)) => e
 
 let ofExpr = e => Root(e)

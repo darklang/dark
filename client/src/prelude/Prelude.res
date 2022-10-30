@@ -17,6 +17,15 @@ let reportError = ErrorReporting.reportError
 // Every other module should have `open Prelude` as its first statement.
 // You don't need to open/include Tc or Types, Prelude includes them.
 
+module Exception = {
+  let toString = (e: exn): option<string> => {
+    switch e {
+    | Js.Exn.Error(e) => Js.Exn.message(e)
+    | e => e->Js.Exn.asJsExn->Option.andThen(~f=Js.Exn.message)
+    }
+  }
+}
+
 module Json = {
   exception ParseError = Json.ParseError
 

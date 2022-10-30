@@ -60,7 +60,7 @@ and maintainSelection =
   | KeepSelection
   | DropSelection
 
-let toName = show_key
+let toName = key => Js.Json.stringifyAny(key)->Option.unwrap(~default="Unknown key")
 
 let fromKeyboardEvent = (key: string, shift: bool, ctrl: bool, meta: bool, alt: bool): key => {
   let isMac = getBrowserPlatform() == Mac

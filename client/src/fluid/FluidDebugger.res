@@ -125,7 +125,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
     ),
   }
 
-  let cursorState = list{dtText("cursorState"), ddText(AppTypes.CursorState.show(m.cursorState))}
+  let cursorState = list{dtText("cursorState"), ddText(Json.stringifyAlways(m.cursorState))}
 
   let status = List.flatten(list{posData, error, tokenData, actions, cursorState})
   Html.div(list{Attrs.id("fluid-status")}, list{Html.dl(list{}, status)})

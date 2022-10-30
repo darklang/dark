@@ -22,8 +22,6 @@ include T
 module Set = {
   include Tc.Set.Of(T)
 
-  let pp = Tc.Set.pp(T.pp)
-
   let fromArray = a => Tablecloth.Set.Poly.fromArray(a)->Obj.magic
 
   let empty = fromArray([])
@@ -45,12 +43,6 @@ module Set = {
 // CLEANUP: rename to map
 module Dict = {
   include Tc.Map.Of(T)
-
-  let pp = (
-    valueFormatter: (Format.formatter, 'value) => unit,
-    fmt: Format.formatter,
-    map: t<'value>,
-  ): unit => Tc.Map.pp(T.pp, valueFormatter, fmt, map)
 
   let fromArray = a => Tablecloth.Map.Poly.fromArray(a)->Obj.magic
 

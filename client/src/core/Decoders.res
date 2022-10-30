@@ -26,7 +26,7 @@ let wrapExpect = (fn: Js.Json.t => 'a): (string => Tea.Result.t<'ok, string>) =>
       reportError("unexpected json", j)
       switch e {
       | DecodeError(e) | Json.ParseError(e) => Error(e)
-      | e => Error(Printexc.to_string(e))
+      | e => Error(Exception.toString(e)->Option.unwrap(~default="wrapExpect error"))
       }
     }
 
@@ -38,7 +38,10 @@ let wrapDecoder = (fn: Js.Json.t => 'a): Tea.Json.Decoder.t<Js.Json.t, 'a> => De
       reportError("undecodable json", value)
       switch e {
       | DecodeError(e) | Json.ParseError(e) => Tea_result.Error(e)
-      | e => Tea_result.Error("Json error: " ++ Printexc.to_string(e))
+      | e =>
+        Tea_result.Error(
+          "Json error: " ++ Exception.toString(e)->Option.unwrap(~default="wrapDecoder error"),
+        )
       }
     },
 )
