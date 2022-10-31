@@ -166,6 +166,46 @@ let fromKeyboardEvent = (key: string, shift: bool, ctrl: bool, meta: bool, alt: 
   }
 }
 
+let keyToString = (key: key): string => {
+  switch key {
+  | Space => "Space"
+  | Left => "Left"
+  | Right => "Right"
+  | Up => "Up"
+  | Down => "Down"
+  | Shift(None) => "Shift"
+  | Shift(Some(LeftHand)) => "Shift (Left)"
+  | Shift(Some(RightHand)) => "Shift (Right)"
+  | Ctrl(None) => "Ctrl"
+  | Ctrl(Some(LeftHand)) => "Ctrl (Left)"
+  | Ctrl(Some(RightHand)) => "Ctrl (Right)"
+  | Alt => "Alt"
+  | Tab => "Tab"
+  | ShiftTab => "ShiftTab"
+  | CapsLock => "CapsLock"
+  | Escape => "Escape"
+  | Enter => "Enter"
+  | ShiftEnter => "Shift+Enter"
+  | PageUp => "PageUp"
+  | PageDown => "PageDown"
+  | GoToStartOfLine(KeepSelection) => "GoToStartOfLine (KeepSelection)"
+  | GoToStartOfLine(DropSelection) => "GoToStartOfLine (DropSelection)"
+  | GoToEndOfLine(KeepSelection) => "GoToEndOfLine (KeepSelection)"
+  | GoToEndOfLine(DropSelection) => "GoToEndOfLine (DropSelection)"
+  | GoToStartOfWord(KeepSelection) => "GoToStartOfWord (KeepSelection)"
+  | GoToStartOfWord(DropSelection) => "GoToStartOfWord (DropSelection)"
+  | GoToEndOfWord(KeepSelection) => "GoToEndOfWord (KeepSelection)"
+  | GoToEndOfWord(DropSelection) => "GoToEndOfWord (DropSelection)"
+  | Undo => "Undo"
+  | Redo => "Redo"
+  | SelectAll => "SelectAll"
+  | CommandPalette(LegacyShortcut) => "CommandPalette (LegacyShortcut)"
+  | CommandPalette(CurrentShortcut) => "CommandPalette (CurrentShortcut)"
+  | Omnibox => "Omnibox"
+  | Unhandled(key) => "Unhandled(" ++ key ++ ")"
+  }
+}
+
 @ppx.deriving(show)
 type rec keyEvent = {
   key: key,

@@ -71,7 +71,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
         },
       ),
       dtText("lastInput"),
-      Html.dd(list{}, list{Html.text(Json.stringifyAlways(s.lastInput))}),
+      Html.dd(list{}, list{Html.text(FluidTypes.Msg.inputEventToString(s.lastInput))}),
       dtText("selection"),
       Html.dd(
         list{},
@@ -125,7 +125,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
     ),
   }
 
-  let cursorState = list{dtText("cursorState"), ddText(Json.stringifyAlways(m.cursorState))}
+  let cursorState = list{dtText("cursorState"), ddText(CursorState.toString(m.cursorState))}
 
   let status = List.flatten(list{posData, error, tokenData, actions, cursorState})
   Html.div(list{Attrs.id("fluid-status")}, list{Html.dl(list{}, status)})

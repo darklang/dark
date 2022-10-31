@@ -276,6 +276,42 @@ module Msg = {
     | DeleteSoftLineForward
     | ReplaceText(string)
 
+  let inputEventToString = (inputEvent: inputEvent) => {
+    switch inputEvent {
+    | Keypress({key, shiftKey, altKey, metaKey, ctrlKey}) =>
+      let metaStr = if metaKey {
+        "Meta+"
+      } else {
+        ""
+      }
+      let ctrlStr = if ctrlKey {
+        "Ctrl+"
+      } else {
+        ""
+      }
+      let altStr = if altKey {
+        "Alt+"
+      } else {
+        ""
+      }
+      let shiftStr = if shiftKey {
+        "Shift+"
+      } else {
+        ""
+      }
+      let keyStr = FluidKeyboard.keyToString(key)
+      `${metaStr}${ctrlStr}${altStr}${shiftStr}${keyStr}`
+    | InsertText(string) => `InsertText(${string})`
+    | DeleteContentBackward => "DeleteContentBackward"
+    | DeleteContentForward => "DeleteContentForward"
+    | DeleteWordBackward => "DeleteWordBackward"
+    | DeleteWordForward => "DeleteWordForward"
+    | DeleteSoftLineBackward => "DeleteSoftLineBackward"
+    | DeleteSoftLineForward => "DeleteSoftLineForward"
+    | ReplaceText(str) => `ReplaceText(${str})`
+    }
+  }
+
   @ppx.deriving(show({with_path: false}))
   type rec t<'model, 'modification> =
     | FluidAutocompleteClick(AutoComplete.item)

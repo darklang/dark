@@ -67,7 +67,7 @@ let showOption = (f: 'e => string, o: option<'e>): string =>
 let enter_changes_state = (m: model): testResult =>
   switch m.cursorState {
   | Omnibox(_) => pass
-  | _ => fail(m.cursorState)
+  | _ => fail(CursorState.toString(m.cursorState))
   }
 
 let field_access_closes = (m: model): testResult =>
@@ -77,7 +77,7 @@ let field_access_closes = (m: model): testResult =>
     | Some(EFieldAccess(_, EVariable(_, "request"), "body")) => pass
     | expr => fail(expr)
     }
-  | _ => fail(m.cursorState)
+  | _ => fail(CursorState.toString(m.cursorState))
   }
 
 let field_access_pipes = (m: model): testResult =>
@@ -202,7 +202,7 @@ let rename_db_fields = (m: model): testResult =>
       } =>
       switch m.cursorState {
       | Selecting(_) => pass
-      | _ => fail(m.cursorState)
+      | _ => fail(CursorState.toString(m.cursorState))
       }
     | _ => fail(cols)
     }
@@ -225,9 +225,9 @@ let rename_db_type = (m: model): testResult =>
         if tlid == dbTLID {
           pass
         } else {
-          fail((cols, m.cursorState))
+          fail((cols, m.cursorState->CursorState.toString))
         }
-      | _ => fail(m.cursorState)
+      | _ => fail(CursorState.toString(m.cursorState))
       }
     | _ => fail(cols)
     }
@@ -271,7 +271,7 @@ let feature_flag_works = (m: model): testResult => {
       }
     | _ => fail((ast, res))
     }
-  | _ => fail((ast, m.cursorState))
+  | _ => fail((ast, m.cursorState->CursorState.toString))
   }
 }
 
@@ -361,7 +361,7 @@ let passwords_are_redacted = (_m: model): testResult =>
 let select_route = (m: model): testResult =>
   switch m.cursorState {
   | Selecting(_, None) => pass
-  | _ => fail(m.cursorState)
+  | _ => fail(CursorState.toString(m.cursorState))
   }
 
 let function_analysis_works = (_m: model): testResult =>
@@ -465,7 +465,7 @@ let extract_from_function = (m: model): testResult =>
     } else {
       fail(m.userFunctions)
     }
-  | _ => fail(m.cursorState)
+  | _ => fail(CursorState.toString(m.cursorState))
   }
 
 let fluidGetSelectionRange = (s: AppTypes.fluidState): option<(int, int)> =>

@@ -18,4 +18,10 @@ let decode = (j): t => {
   {vx: field("vx", int, j), vy: field("vy", int, j)}
 }
 
+let toString = (vp: t) => {
+  let x = string_of_int(vp.vx)
+  let y = string_of_int(vp.vy)
+  "VPos(" ++ x ++ ", " ++ y ++ ")"
+}
+
 let default: t = {vx: 475, vy: 200}
