@@ -460,9 +460,6 @@ module ProgramTypes =
                  ("fn", PT.TFn([ PT.TInt ], PT.TInt))
                  ("record", PT.TRecord([ "field1", PT.TInt ])) ]
 
-
-  // -- Handlers --
-
   module Handler =
     let cronIntervals : List<PT.Handler.CronInterval> =
       [ PT.Handler.EveryDay
@@ -497,10 +494,6 @@ module ProgramTypes =
         Spec.cronWithInterval
         Spec.repl
         Spec.unknown ]
-
-    // todo: specs
-    // define individual values
-    // and define the list (to be exhaustive)
 
     let http : PT.Handler.T =
       { spec = Spec.http; tlid = 92987663UL; ast = expr; pos = pos }

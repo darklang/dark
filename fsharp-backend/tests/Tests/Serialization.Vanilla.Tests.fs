@@ -518,39 +518,54 @@ let generateTestFiles () =
 
     generate Json.Vanilla.allowedTypes "vanilla"
 
-module RuntimeTypeRoundtripToAndFromClientTypes =
+// for each type/value:
+// perform domain val -> CT -> domain -> CT -> domain
+// most of the time, it should end up being the same as the source.
+// if there are known exceptions, break down individual mappings as separate tests
+
+let testRoundtrip
+  (typeName : string)
+  (original : 'a)
+  (toCT : 'a -> 'b)
+  (fromCT : 'b -> 'a)
+  =
+  let actual : 'a = original |> toCT |> fromCT |> toCT |> fromCT
+
+  Expect.equal actual original $"{typeName} does not roundtrip successfully"
+
+let testRoundtripList
+  (typeName : string)
+  (original : List<'a>)
+  (toCT : 'a -> 'b)
+  (fromCT : 'b -> 'a)
+  =
+  let actual : List<'a> =
+    original |> List.map toCT |> List.map fromCT |> List.map toCT |> List.map fromCT
+
+  Expect.equal actual original $"{typeName} does not roundtrip successfully"
+
+
+module RuntimeTypeRoundtripTests =
   let tests = []
 
-module RuntimeTypeRoundtripFromAndToClientTypes =
-  let tests = []
-
-module ProgramTypeRoundtripToAndFromClientTypes =
-  let tests = []
-
-module ProgramTypeRoundtripFromAndToClientTypes =
+module ProgramTypeRoundtripTests =
   let tests = []
 
 let tests =
-  // TODO: ensure (using reflection) we've covered all types within ClientTypes
-  // (many of which we'll have to explicity exclude, if they don't have exact
-  // equivalents in the 'domain' types)
-
-  // TODO: ensure (using reflection) that each of the DU cases _of_ those types
-  // are covered (so if we add another case to CTProgram.Expr, it's covered).
-
   testList
     "Vanilla Serialization"
     [ testNoMissingOrExtraOutputTestFiles
       testList "consistent serialization" testTestFiles
       testList
         "roundtrip RTs to and from client types"
-        RuntimeTypeRoundtripToAndFromClientTypes.tests
-      testList
-        "roundtrip RTs from and to client types"
-        RuntimeTypeRoundtripFromAndToClientTypes.tests
+        RuntimeTypeRoundtripTests.tests
       testList
         "roundtrip PTs to and from client types"
-        ProgramTypeRoundtripToAndFromClientTypes.tests
-      testList
-        "roundtrip PTs from and to client types"
-        ProgramTypeRoundtripFromAndToClientTypes.tests ]
+        ProgramTypeRoundtripTests.tests ]
+
+// TODO: ensure (using reflection) we've covered all types within ClientTypes
+// (many of which we'll have to explicity exclude, if they don't have exact
+// equivalents in the 'domain' types)
+
+// TODO: ensure (using reflection) that each of the DU cases _of_ those types
+// are covered (so if we add another case to CTProgram.Expr, it's covered).
