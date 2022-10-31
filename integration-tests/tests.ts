@@ -1235,7 +1235,7 @@ test.describe.parallel("Integration Tests", async () => {
     let analysisResponseDateStr =
       // analysisResponse looks like: "<Date: 2022-06-14T14:16:14Z>"
       // This is a cheap way of extracting the date from that
-      analysisResponse.replace(">", "").replace("<Date: ", "");
+      analysisResponse!.replace(">", "").replace("<Date: ", "");
     let analysisResponseDate = new Date(analysisResponseDateStr);
 
     // Call the endpoint in BWD
