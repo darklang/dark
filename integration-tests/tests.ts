@@ -1227,6 +1227,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     await expect(page.locator(".selected .live-value.loaded")).toContainText(
       "Date",
+      { timeout: 10000 },
     );
     let analysisResponse = await page.textContent(
       ".selected .live-value.loaded",
