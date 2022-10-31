@@ -518,10 +518,16 @@ let generateTestFiles () =
 
     generate Json.Vanilla.allowedTypes "vanilla"
 
-module RoundtripToAndFromClientTypes =
+module RuntimeTypeRoundtripToAndFromClientTypes =
   let tests = []
 
-module RoundtripFromAndToClientTypes =
+module RuntimeTypeRoundtripFromAndToClientTypes =
+  let tests = []
+
+module ProgramTypeRoundtripToAndFromClientTypes =
+  let tests = []
+
+module ProgramTypeRoundtripFromAndToClientTypes =
   let tests = []
 
 let tests =
@@ -537,8 +543,14 @@ let tests =
     [ testNoMissingOrExtraOutputTestFiles
       testList "consistent serialization" testTestFiles
       testList
-        "roundtrip to and from client types"
-        RoundtripToAndFromClientTypes.tests
+        "roundtrip RTs to and from client types"
+        RuntimeTypeRoundtripToAndFromClientTypes.tests
       testList
-        "roundtrip from and to client types"
-        RoundtripFromAndToClientTypes.tests ]
+        "roundtrip RTs from and to client types"
+        RuntimeTypeRoundtripFromAndToClientTypes.tests
+      testList
+        "roundtrip PTs to and from client types"
+        ProgramTypeRoundtripToAndFromClientTypes.tests
+      testList
+        "roundtrip PTs from and to client types"
+        ProgramTypeRoundtripFromAndToClientTypes.tests ]
