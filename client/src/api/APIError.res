@@ -22,10 +22,10 @@ let serverVersionOf = (e: t): option<string> =>
   switch e.originalError {
   | BadUrl(_) | Timeout | NetworkError | Aborted => None
   | BadStatus(response) | BadPayload(_, response) =>
-    module StringMap = Caml.Map.Make(Tc.Caml.String)
+    module StringMap = Belt.Map.String
     response.headers
-    |> StringMap.find_first_opt(key => String.toLowercase(key) == "x-darklang-server-version")
-    |> Option.map(~f=Tuple2.second)
+    ->StringMap.findFirstBy((key, _v) => String.toLowercase(key) == "x-darklang-server-version")
+    ->Option.map(~f=Tuple2.second)
   }
 
 let urlOf = (e: t): option<string> =>

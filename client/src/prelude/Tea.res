@@ -15,7 +15,6 @@ module App = Tea_app
 module Debug = Tea_debug
 module Svg = Tea_svg
 module Task = Tea_task
-module Program = Tea_program
 module Json = Tea_json
 module Navigation = Tea_navigation
 module Random = Tea_random
