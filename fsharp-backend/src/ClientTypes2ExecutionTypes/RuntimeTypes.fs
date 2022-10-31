@@ -206,6 +206,17 @@ module Expr =
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
 
 module Dval =
+  module DvalSource =
+    let fromCT (s : Dval.DvalSource) : RT.DvalSource =
+      match s with
+      | Dval.SourceNone -> RT.SourceNone
+      | Dval.SourceID (tlid, id) -> RT.SourceID(tlid, id)
+
+    let toCT (s : RT.DvalSource) : Dval.DvalSource =
+      match s with
+      | RT.SourceNone -> Dval.SourceNone
+      | RT.SourceID (tlid, id) -> Dval.SourceID(tlid, id)
+
   let rec fromCT (dv : Dval.T) : RT.Dval =
     let r = fromCT
 
@@ -225,12 +236,8 @@ module Dval =
             body = Expr.fromCT impl.body }
       )
     | Dval.DFnVal (Dval.FnName (name)) -> RT.DFnVal(RT.FnName(FQFnName.fromCT name))
-    | Dval.DIncomplete Dval.SourceNone -> RT.DIncomplete RT.SourceNone
-    | Dval.DIncomplete (Dval.SourceID (tlid, id)) ->
-      RT.DIncomplete(RT.SourceID(tlid, id))
-    | Dval.DError (Dval.SourceNone, msg) -> RT.DError(RT.SourceNone, msg)
-    | Dval.DError (Dval.SourceID (tlid, id), msg) ->
-      RT.DError(RT.SourceID(tlid, id), msg)
+    | Dval.DIncomplete (source) -> RT.DIncomplete(DvalSource.fromCT source)
+    | Dval.DError (source, msg) -> RT.DError(DvalSource.fromCT source, msg)
     | Dval.DDate d -> RT.DDate d
     | Dval.DDB name -> RT.DDB name
     | Dval.DUuid uuid -> RT.DUuid uuid
@@ -269,12 +276,8 @@ module Dval =
             body = Expr.toCT impl.body }
       )
     | RT.DFnVal (RT.FnName (name)) -> Dval.DFnVal(Dval.FnName(FQFnName.toCT name))
-    | RT.DIncomplete RT.SourceNone -> Dval.DIncomplete Dval.SourceNone
-    | RT.DIncomplete (RT.SourceID (tlid, id)) ->
-      Dval.DIncomplete(Dval.SourceID(tlid, id))
-    | RT.DError (RT.SourceNone, msg) -> Dval.DError(Dval.SourceNone, msg)
-    | RT.DError (RT.SourceID (tlid, id), msg) ->
-      Dval.DError(Dval.SourceID(tlid, id), msg)
+    | RT.DIncomplete (source) -> Dval.DIncomplete(DvalSource.toCT source)
+    | RT.DError (source, msg) -> Dval.DError(DvalSource.toCT source, msg)
     | RT.DDate d -> Dval.DDate d
     | RT.DDB name -> Dval.DDB name
     | RT.DUuid uuid -> Dval.DUuid uuid
