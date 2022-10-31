@@ -617,7 +617,95 @@ module RuntimeTypeRoundtripTests =
         (Some(fun l r -> Expect.equalDval l r "dval does not roundtrip successfully")) ]
 
 module ProgramTypeRoundtripTests =
-  let tests = []
+  let tests =
+    [ testRoundtrip
+        "PT.Position"
+        V.ProgramTypes.pos
+        CT2Program.Position.toCT
+        CT2Program.Position.fromCT
+      testRoundtripList
+        "PT.FQFnName"
+        V.ProgramTypes.fqFnNames
+        CT2Program.FQFnName.toCT
+        CT2Program.FQFnName.fromCT
+        None
+      testRoundtripList
+        "PT.Pattern"
+        V.ProgramTypes.matchPatterns
+        CT2Program.Pattern.toCT
+        CT2Program.Pattern.fromCT
+        None
+      testRoundtripList
+        "PT.SendToRail"
+        V.ProgramTypes.sendToRails
+        CT2Program.SendToRail.toCT
+        CT2Program.SendToRail.fromCT
+        None
+      testRoundtrip
+        "PT.Expr"
+        V.ProgramTypes.expr
+        CT2Program.Expr.toCT
+        CT2Program.Expr.fromCT
+      testRoundtrip
+        "PT.Dtype"
+        V.ProgramTypes.dtype
+        CT2Program.DType.toCT
+        CT2Program.DType.fromCT
+      testRoundtripList
+        "PT.CronInterval"
+        V.ProgramTypes.Handler.cronIntervals
+        CT2Program.Handler.CronInterval.toCT
+        CT2Program.Handler.CronInterval.fromCT
+        None
+      testRoundtripList
+        "PT.HandlerSpec"
+        V.ProgramTypes.Handler.specs
+        CT2Program.Handler.Spec.toCT
+        CT2Program.Handler.Spec.fromCT
+        None
+      testRoundtripList
+        "PT.Handler"
+        V.ProgramTypes.Handler.handlers
+        CT2Program.Handler.toCT
+        CT2Program.Handler.fromCT
+        None
+      testRoundtrip
+        "PT.UserDB"
+        V.ProgramTypes.userDB
+        CT2Program.DB.toCT
+        CT2Program.DB.fromCT
+      testRoundtrip
+        "PT.UserType"
+        V.ProgramTypes.userType
+        CT2Program.UserType.toCT
+        CT2Program.UserType.fromCT
+      testRoundtrip
+        "PT.UserFunction"
+        V.ProgramTypes.userFunction
+        CT2Program.UserFunction.toCT
+        CT2Program.UserFunction.fromCT
+      testRoundtripList
+        "PT.Toplevel"
+        V.ProgramTypes.toplevels
+        CT2Program.Toplevel.toCT
+        CT2Program.Toplevel.fromCT
+        None
+      testRoundtripList
+        "PT.Op"
+        V.ProgramTypes.oplist
+        CT2Program.Op.toCT
+        CT2Program.Op.fromCT
+        None
+      testRoundtrip
+        "PT.UserSecret"
+        V.ProgramTypes.userSecret
+        CT2Program.Secret.toCT
+        CT2Program.Secret.fromCT
+      testRoundtrip
+        "PT.Package"
+        V.ProgramTypes.packageFn
+        CT2Program.Package.Fn.toCT
+        CT2Program.Package.Fn.fromCT ]
 
 let tests =
   testList
