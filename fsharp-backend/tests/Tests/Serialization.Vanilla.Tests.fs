@@ -540,6 +540,7 @@ let testRoundtripList
   (original : List<'a>)
   (toCT : 'a -> 'b)
   (fromCT : 'b -> 'a)
+  (customEquality : Option<'a -> 'a -> unit>)
   =
   test typeName {
     let actual : List<'a> =
@@ -549,7 +550,12 @@ let testRoundtripList
       |> List.map toCT
       |> List.map fromCT
 
-    Expect.equal actual original $"{typeName} does not roundtrip successfully"
+    match customEquality with
+    | None ->
+      Expect.equal actual original $"{typeName} does not roundtrip successfully"
+    | Some customEquality ->
+      List.zip original actual
+      |> List.iter (fun (original, actual) -> customEquality original actual)
   }
 
 
@@ -560,46 +566,55 @@ module RuntimeTypeRoundtripTests =
         V.RuntimeTypes.fqFnNames
         CT2Runtime.FQFnName.toCT
         CT2Runtime.FQFnName.fromCT
+        None
       // testRoundtripList
       //   "RT.DType"
       //   V.RuntimeTypes.dtypes
       //   CT2Runtime.DType.toCT
       //   CT2Runtime.DType.fromCT -- this doesn't exist!
+      //   None
       testRoundtripList
         "RT.Pattern"
         V.RuntimeTypes.matchPatterns
         CT2Runtime.Pattern.toCT
         CT2Runtime.Pattern.fromCT
+        None
       testRoundtripList
         "RT.SendToRail"
         V.RuntimeTypes.sendToRails
         CT2Runtime.Expr.sterFromRT
         CT2Runtime.Expr.sterToRT
+        None
       testRoundtripList
         "RT.IsInPipe"
         V.RuntimeTypes.isInPipes
         CT2Runtime.Expr.pipeFromRT
         CT2Runtime.Expr.pipeToRT
+        None
       testRoundtripList
         "RT.Expr"
         V.RuntimeTypes.exprs
         CT2Runtime.Expr.toCT
         CT2Runtime.Expr.fromCT
+        None
       testRoundtripList
         "RT.DvalSource"
         V.RuntimeTypes.dvalSources
         CT2Runtime.Dval.DvalSource.toCT
         CT2Runtime.Dval.DvalSource.fromCT
+        None
       testRoundtripList
         "RT.DHTTP"
         V.RuntimeTypes.dvalHttpResponses
         CT2Runtime.Dval.httpResponseToCT
         CT2Runtime.Dval.httpResponseFromCT
+        None
       testRoundtripList
         "RT.Dval"
         V.RuntimeTypes.dvals
         CT2Runtime.Dval.toCT
-        CT2Runtime.Dval.fromCT ]
+        CT2Runtime.Dval.fromCT
+        (Some(fun l r -> Expect.equalDval l r "dval does not roundtrip successfully")) ]
 
 module ProgramTypeRoundtripTests =
   let tests = []
