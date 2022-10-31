@@ -529,9 +529,11 @@ let testRoundtrip
   (toCT : 'a -> 'b)
   (fromCT : 'b -> 'a)
   =
-  let actual : 'a = original |> toCT |> fromCT |> toCT |> fromCT
+  test typeName {
+    let actual : 'a = original |> toCT |> fromCT |> toCT |> fromCT
 
-  Expect.equal actual original $"{typeName} does not roundtrip successfully"
+    Expect.equal actual original $"{typeName} does not roundtrip successfully"
+  }
 
 let testRoundtripList
   (typeName : string)
@@ -539,14 +541,65 @@ let testRoundtripList
   (toCT : 'a -> 'b)
   (fromCT : 'b -> 'a)
   =
-  let actual : List<'a> =
-    original |> List.map toCT |> List.map fromCT |> List.map toCT |> List.map fromCT
+  test typeName {
+    let actual : List<'a> =
+      original
+      |> List.map toCT
+      |> List.map fromCT
+      |> List.map toCT
+      |> List.map fromCT
 
-  Expect.equal actual original $"{typeName} does not roundtrip successfully"
+    Expect.equal actual original $"{typeName} does not roundtrip successfully"
+  }
 
 
 module RuntimeTypeRoundtripTests =
-  let tests = []
+  let tests =
+    [ testRoundtripList
+        "RT.FqFnName"
+        V.RuntimeTypes.fqFnNames
+        CT2Runtime.FQFnName.toCT
+        CT2Runtime.FQFnName.fromCT
+      // testRoundtripList
+      //   "RT.DType"
+      //   V.RuntimeTypes.dtypes
+      //   CT2Runtime.DType.toCT
+      //   CT2Runtime.DType.fromCT -- this doesn't exist!
+      testRoundtripList
+        "RT.Pattern"
+        V.RuntimeTypes.matchPatterns
+        CT2Runtime.Pattern.toCT
+        CT2Runtime.Pattern.fromCT
+      testRoundtripList
+        "RT.SendToRail"
+        V.RuntimeTypes.sendToRails
+        CT2Runtime.Expr.sterFromRT
+        CT2Runtime.Expr.sterToRT
+      testRoundtripList
+        "RT.IsInPipe"
+        V.RuntimeTypes.isInPipes
+        CT2Runtime.Expr.pipeFromRT
+        CT2Runtime.Expr.pipeToRT
+      testRoundtripList
+        "RT.Expr"
+        V.RuntimeTypes.exprs
+        CT2Runtime.Expr.toCT
+        CT2Runtime.Expr.fromCT
+      testRoundtripList
+        "RT.DvalSource"
+        V.RuntimeTypes.dvalSources
+        CT2Runtime.Dval.DvalSource.toCT
+        CT2Runtime.Dval.DvalSource.fromCT
+      testRoundtripList
+        "RT.DHTTP"
+        V.RuntimeTypes.dvalHttpResponses
+        CT2Runtime.Dval.httpResponseToCT
+        CT2Runtime.Dval.httpResponseFromCT
+      testRoundtripList
+        "RT.Dval"
+        V.RuntimeTypes.dvals
+        CT2Runtime.Dval.toCT
+        CT2Runtime.Dval.fromCT ]
 
 module ProgramTypeRoundtripTests =
   let tests = []
