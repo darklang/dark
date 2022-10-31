@@ -567,12 +567,12 @@ module RuntimeTypeRoundtripTests =
         CT2Runtime.FQFnName.toCT
         CT2Runtime.FQFnName.fromCT
         None
-      // testRoundtripList
-      //   "RT.DType"
-      //   V.RuntimeTypes.dtypes
-      //   CT2Runtime.DType.toCT
-      //   CT2Runtime.DType.fromCT -- this doesn't exist!
-      //   None
+      testRoundtripList
+        "RT.DType"
+        V.RuntimeTypes.dtypes
+        CT2Runtime.DType.toCT
+        CT2Runtime.DType.fromCT
+        None
       testRoundtripList
         "RT.Pattern"
         V.RuntimeTypes.matchPatterns

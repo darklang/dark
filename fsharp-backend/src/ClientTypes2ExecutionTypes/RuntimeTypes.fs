@@ -80,6 +80,36 @@ module DType =
     | RT.TFn (ts, returnType) -> TFn(rl ts, r returnType)
     | RT.TRecord (pairs) -> TRecord(List.map (fun (k, t) -> (k, r t)) pairs)
 
+  let rec fromCT (t : DType) : RT.DType =
+    let r = fromCT
+    let rl = List.map fromCT
+    
+    match t with
+    | TInt -> RT.TInt
+    | TFloat -> RT.TFloat
+    | TBool -> RT.TBool
+    | TNull -> RT.TNull
+    | TStr -> RT.TStr
+    | TList t -> RT.TList(r t)
+    | TTuple (t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
+    | TDict t -> RT.TDict(r t)
+    | TIncomplete -> RT.TIncomplete
+    | TError -> RT.TError
+    | THttpResponse t -> RT.THttpResponse(r t)
+    | TDB t -> RT.TDB(r t)
+    | TDate -> RT.TDate
+    | TChar -> RT.TChar
+    | TPassword -> RT.TPassword
+    | TUuid -> RT.TUuid
+    | TOption t -> RT.TOption(r t)
+    | TErrorRail -> RT.TErrorRail
+    | TUserType (str, version) -> RT.TUserType(str, version)
+    | TBytes -> RT.TBytes
+    | TResult (ok, error) -> RT.TResult(r ok, r error)
+    | TVariable (name) -> RT.TVariable(name)
+    | TFn (ts, returnType) -> RT.TFn(rl ts, r returnType)
+    | TRecord (pairs) -> RT.TRecord(List.map (fun (k, t) -> (k, r t)) pairs)
+
 module Pattern =
   let rec fromCT (p : Pattern) : RT.Pattern =
     let r = fromCT
