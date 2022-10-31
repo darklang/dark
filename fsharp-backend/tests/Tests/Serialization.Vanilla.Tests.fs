@@ -44,10 +44,11 @@ module ClientTestValues =
       lastUpdate = V.instant }
 
   let addOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
-    { handlers = V.ProgramTypes.handlers |> List.map CT2Program.Handler.toCT
-      deletedHandlers = V.ProgramTypes.handlers |> List.map CT2Program.Handler.toCT
-      dbs = V.ProgramTypes.dbs |> List.map CT2Program.DB.toCT
-      deletedDBs = V.ProgramTypes.dbs |> List.map CT2Program.DB.toCT
+    { handlers = V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
+      deletedHandlers =
+        V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
+      dbs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
+      deletedDBs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
       userFunctions =
         V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
       deletedUserFunctions =
@@ -141,7 +142,7 @@ module SampleData =
        |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
 
     v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
-    v<LibExecution.ProgramTypes.Handler.T> "simple" V.ProgramTypes.httpHandler
+    v<LibExecution.ProgramTypes.Handler.T> "simple" V.ProgramTypes.Handler.http
 
     // ------------------
     // LibBackend
@@ -294,10 +295,12 @@ module SampleData =
     // InitialLoad
     v<ClientTypes.Api.InitialLoad.V1.Response>
       "initial"
-      { handlers = V.ProgramTypes.handlers |> List.map CT2Program.Handler.toCT
-        deletedHandlers = V.ProgramTypes.handlers |> List.map CT2Program.Handler.toCT
-        dbs = V.ProgramTypes.dbs |> List.map CT2Program.DB.toCT
-        deletedDBs = V.ProgramTypes.dbs |> List.map CT2Program.DB.toCT
+      { handlers =
+          V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
+        deletedHandlers =
+          V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
+        dbs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
+        deletedDBs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
         userFunctions =
           V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
         deletedUserFunctions =
@@ -389,7 +392,7 @@ module SampleData =
       (ClientTypes.Analysis.AnalyzeHandler
         { requestID = 2
           requestTime = NodaTime.Instant.UnixEpoch
-          handler = CT2Program.Handler.toCT V.ProgramTypes.httpHandler
+          handler = CT2Program.Handler.toCT V.ProgramTypes.Handler.http
           traceID = V.uuid
           traceData =
             { input = [ "var", CV.dval ]
@@ -416,7 +419,7 @@ module SampleData =
       (ClientTypes.Analysis.AnalyzeFunction
         { requestID = 3
           requestTime = NodaTime.Instant.UnixEpoch
-          func = CT2Program.UserFunction.toCT V.ProgramTypes.testUserFunction
+          func = CT2Program.UserFunction.toCT V.ProgramTypes.userFunction
           traceID = V.uuid
           traceData =
             { input = [ "var", CV.dval ]

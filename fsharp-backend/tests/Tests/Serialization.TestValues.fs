@@ -134,6 +134,12 @@ module RuntimeTypes =
     |> List.filter (fun (name, dv) -> name <> "password")
     |> List.map Tuple2.second
 
+  let dvalFnValImpls : List<RT.FnValImpl> =
+    [ RT.Lambda
+        { parameters = []
+          symtable = [ ("val1", RT.DNull); ("val2", RT.DInt(173648)) ] |> Map.ofList
+          body = RT.ENull(1235123UL) } ]
+
   let dval : RT.Dval =
     sampleDvals
     |> List.filter (fun (name, dv) -> name <> "password")
@@ -141,6 +147,37 @@ module RuntimeTypes =
     |> RT.DObj
 
 module ProgramTypes =
+  let fqFnNames : List<PT.FQFnName.T> =
+    [ PT.FQFnName.User "test123"
+      PT.FQFnName.Stdlib { module_ = "Int"; function_ = "increment"; version = 1 }
+      PT.FQFnName.Package
+        { owner = "Twilio"
+          package = "twilio"
+          module_ = "twilio"
+          function_ = "sms"
+          version = 1 } ]
+
+  let pos : PT.Position = { x = 6; y = 6 }
+
+  let matchPatterns : List<PT.Pattern> =
+    [ PT.PVariable(1234123UL, "var8481")
+      PT.PConstructor(7471263UL, "None", [])
+      PT.PInteger(74816UL, 84871728)
+      PT.PBool(66453UL, false)
+      PT.PCharacter(83749178UL, "w")
+      PT.PString(817201237UL, "testing testing 123")
+      PT.PFloat(012037123UL, Positive, "123", "456")
+      PT.PNull(9123871238UL)
+      PT.PBlank(8123818247123UL)
+      PT.PTuple(
+        91298UL,
+        PT.PInteger(812831UL, 123),
+        PT.PBool(81871UL, true),
+        [ PT.PNull(17123UL) ]
+      ) ]
+
+  let sendToRails : List<PT.SendToRail> = [ PT.Rail; PT.NoRail ]
+
   // Note: this is aimed to contain all cases of `Expr`
   // When updating this, also update `FluidTestData.complexExpr` in the client
   let expr =
@@ -382,55 +419,7 @@ module ProgramTypes =
       )
     )
 
-  let pos : PT.Position = { x = 6; y = 6 }
-
-  let handlerIDs : PT.Handler.ids =
-    { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
-
-  let httpHandler : PT.Handler.T =
-    let spec = PT.Handler.HTTP("/path", "GET", handlerIDs)
-    { spec = spec; tlid = 92987663UL; ast = expr; pos = pos }
-
-  let httpBasicHandler : PT.Handler.T =
-    let spec = PT.Handler.HTTPBasic("/path-bytes", "GET", handlerIDs)
-    { spec = spec; tlid = 42280663UL; ast = expr; pos = pos }
-
-  let worker : PT.Handler.T =
-    let spec = PT.Handler.Worker("name", handlerIDs)
-    { spec = spec; tlid = 19930486UL; ast = expr; pos = pos }
-
-  let oldWorker : PT.Handler.T =
-    let spec = PT.Handler.OldWorker("MODULE", "name", handlerIDs)
-    { spec = spec; tlid = 10438664321UL; ast = expr; pos = pos }
-
-  let repl : PT.Handler.T =
-    let spec = PT.Handler.REPL("name", handlerIDs)
-    { spec = spec; tlid = 10395769302UL; ast = expr; pos = pos }
-
-  let cron1 : PT.Handler.T =
-    let spec = PT.Handler.Cron("name", None, handlerIDs)
-    { spec = spec; tlid = 294906673UL; ast = expr; pos = pos }
-
-  let cron2 : PT.Handler.T =
-    let spec = PT.Handler.Cron("name", Some PT.Handler.Every12Hours, handlerIDs)
-    { spec = spec; tlid = 199385766UL; ast = expr; pos = pos }
-
-  let unknownHandler : PT.Handler.T =
-    let spec = PT.Handler.UnknownHandler("name", "", handlerIDs)
-    { spec = spec; tlid = 13633UL; ast = expr; pos = pos }
-
-  let handlersWithName : List<string * PT.Handler.T> =
-    [ "Http", httpHandler
-      "Worker", worker
-      "Cron1", cron1
-      "Cron2", cron2
-      "REPL", repl
-      "Unknown", unknownHandler
-      "OldWorker", oldWorker
-      "HttpBasic", httpBasicHandler ]
-
-  let handlers = List.map snd handlersWithName
-
+  // Note: This is aimed to contain all cases of `DType`
   let dtype =
     PT.TRecord [ ("nested",
                   PT.TList(
@@ -471,28 +460,103 @@ module ProgramTypes =
                  ("fn", PT.TFn([ PT.TInt ], PT.TInt))
                  ("record", PT.TRecord([ "field1", PT.TInt ])) ]
 
-  let dbs : List<PT.DB.T> =
-    [ { tlid = 0UL
-        pos = pos
-        nameID = 2399545UL
-        name = "User"
-        version = 0
-        cols =
-          [ { name = None; typ = None; nameID = 2949054UL; typeID = 5929202UL }
-            { name = None
-              typ = Some PT.TInt
-              nameID = 20109857UL
-              typeID = 299063UL }
-            { name = Some "name"
-              typ = None
-              nameID = 28234232UL
-              typeID = 029985336UL }
-            { name = Some "value"
-              typ = Some dtype
-              nameID = 923982352UL
-              typeID = 289429232UL } ] } ]
 
-  let testUserFunction : PT.UserFunction.T =
+  // -- Handlers --
+
+  module Handler =
+    let cronIntervals : List<PT.Handler.CronInterval> =
+      [ PT.Handler.EveryDay
+        PT.Handler.EveryWeek
+        PT.Handler.EveryFortnight
+        PT.Handler.Every12Hours
+        PT.Handler.EveryHour
+        PT.Handler.EveryMinute ]
+
+    let ids : PT.Handler.ids =
+      { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
+
+    module Spec =
+      let http = PT.Handler.HTTP("/path", "GET", ids)
+      let httpBasic = PT.Handler.HTTPBasic("/path-bytes", "GET", ids)
+      let worker = PT.Handler.Worker("name", ids)
+      let oldWorker = PT.Handler.OldWorker("MODULE", "name", ids)
+      let cronWithoutInterval = PT.Handler.Cron("name", None, ids)
+
+      let cronWithInterval =
+        PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
+
+      let repl = PT.Handler.REPL("name", ids)
+      let unknown = PT.Handler.UnknownHandler("name", "", ids)
+
+    let specs : List<PT.Handler.Spec> =
+      [ Spec.http
+        Spec.httpBasic
+        Spec.worker
+        Spec.oldWorker
+        Spec.cronWithoutInterval
+        Spec.cronWithInterval
+        Spec.repl
+        Spec.unknown ]
+
+    // todo: specs
+    // define individual values
+    // and define the list (to be exhaustive)
+
+    let http : PT.Handler.T =
+      { spec = Spec.http; tlid = 92987663UL; ast = expr; pos = pos }
+
+    let httpBasic : PT.Handler.T =
+      { spec = Spec.httpBasic; tlid = 42280663UL; ast = expr; pos = pos }
+
+    let worker : PT.Handler.T =
+      { spec = Spec.worker; tlid = 19930486UL; ast = expr; pos = pos }
+
+    let oldWorker : PT.Handler.T =
+      { spec = Spec.oldWorker; tlid = 10438664321UL; ast = expr; pos = pos }
+
+    let repl : PT.Handler.T =
+      { spec = Spec.repl; tlid = 10395769302UL; ast = expr; pos = pos }
+
+    let cronWithoutInterval : PT.Handler.T =
+      { spec = Spec.cronWithoutInterval; tlid = 294906673UL; ast = expr; pos = pos }
+
+    let cronWithInterval : PT.Handler.T =
+      { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr; pos = pos }
+
+    let unknown : PT.Handler.T =
+      { spec = Spec.unknown; tlid = 13633UL; ast = expr; pos = pos }
+
+    let handlersWithName : List<string * PT.Handler.T> =
+      [ "Http", http
+        "Worker", worker
+        "Cron1", cronWithoutInterval
+        "Cron2", cronWithInterval
+        "REPL", repl
+        "Unknown", unknown
+        "OldWorker", oldWorker
+        "HttpBasic", httpBasic ]
+
+    let handlers = List.map snd handlersWithName
+
+  let userDB : PT.DB.T =
+    { tlid = 0UL
+      pos = pos
+      nameID = 2399545UL
+      name = "User"
+      version = 0
+      cols =
+        [ { name = None; typ = None; nameID = 2949054UL; typeID = 5929202UL }
+          { name = None; typ = Some PT.TInt; nameID = 20109857UL; typeID = 299063UL }
+          { name = Some "name"
+            typ = None
+            nameID = 28234232UL
+            typeID = 029985336UL }
+          { name = Some "value"
+            typ = Some dtype
+            nameID = 923982352UL
+            typeID = 289429232UL } ] }
+
+  let userFunction : PT.UserFunction.T =
     { tlid = 0UL
       name = "myFunc"
       nameID = 1828332UL
@@ -513,7 +577,7 @@ module ProgramTypes =
       infix = false
       body = expr }
 
-  let userFunctions : List<PT.UserFunction.T> = [ testUserFunction ]
+  let userFunctions : List<PT.UserFunction.T> = [ userFunction ]
 
   let userType : PT.UserType.T =
     { tlid = 0UL
@@ -548,8 +612,8 @@ module ProgramTypes =
       tlid = tlid }
 
   let toplevels : List<PT.Toplevel.T> =
-    [ List.map PT.Toplevel.TLHandler handlers
-      List.map PT.Toplevel.TLDB dbs
+    [ List.map PT.Toplevel.TLHandler Handler.handlers
+      List.map PT.Toplevel.TLDB [ userDB ]
       List.map PT.Toplevel.TLFunction userFunctions
       List.map PT.Toplevel.TLType userTypes ]
     |> List.concat
@@ -557,14 +621,14 @@ module ProgramTypes =
   let oplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(httpHandler.tlid, pos, httpHandler)
+    [ PT.SetHandler(Handler.http.tlid, pos, Handler.http)
       PT.CreateDB(tlid, pos, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")
       PT.SetDBColType(tlid, id, "int")
       PT.DeleteTL tlid
       PT.MoveTL(tlid, pos)
-      PT.SetFunction(testUserFunction)
+      PT.SetFunction(userFunction)
       PT.ChangeDBColName(tlid, id, "name")
       PT.ChangeDBColType(tlid, id, "int")
       PT.UndoTL tlid
@@ -577,3 +641,5 @@ module ProgramTypes =
       PT.CreateDBWithBlankOr(tlid, pos, id, "User")
       PT.SetType(userType)
       PT.DeleteType tlid ]
+
+  let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2" }
