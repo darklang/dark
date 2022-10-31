@@ -518,194 +518,198 @@ let generateTestFiles () =
 
     generate Json.Vanilla.allowedTypes "vanilla"
 
-// for each type/value:
-// perform domain val -> CT -> domain -> CT -> domain
-// most of the time, it should end up being the same as the source.
-// if there are known exceptions, break down individual mappings as separate tests
 
-let testRoundtrip
-  (typeName : string)
-  (original : 'a)
-  (toCT : 'a -> 'b)
-  (fromCT : 'b -> 'a)
-  =
-  test typeName {
-    let actual : 'a = original |> toCT |> fromCT |> toCT |> fromCT
+module RoundtripTests =
+  // for each type/value:
+  // perform domain val -> CT -> domain -> CT -> domain
+  // most of the time, it should end up being the same as the source.
+  // if there are known exceptions, break down individual mappings as separate tests
 
-    Expect.equal actual original $"{typeName} does not roundtrip successfully"
-  }
+  let testRoundtrip
+    (typeName : string)
+    (original : 'a)
+    (toCT : 'a -> 'b)
+    (fromCT : 'b -> 'a)
+    =
+    test typeName {
+      let actual : 'a = original |> toCT |> fromCT |> toCT |> fromCT
 
-let testRoundtripList
-  (typeName : string)
-  (original : List<'a>)
-  (toCT : 'a -> 'b)
-  (fromCT : 'b -> 'a)
-  (customEquality : Option<'a -> 'a -> unit>)
-  =
-  test typeName {
-    let actual : List<'a> =
-      original
-      |> List.map toCT
-      |> List.map fromCT
-      |> List.map toCT
-      |> List.map fromCT
-
-    match customEquality with
-    | None ->
       Expect.equal actual original $"{typeName} does not roundtrip successfully"
-    | Some customEquality ->
-      List.zip original actual
-      |> List.iter (fun (original, actual) -> customEquality original actual)
-  }
+    }
+
+  let testRoundtripList
+    (typeName : string)
+    (original : List<'a>)
+    (toCT : 'a -> 'b)
+    (fromCT : 'b -> 'a)
+    (customEquality : Option<'a -> 'a -> unit>)
+    =
+    test typeName {
+      let actual : List<'a> =
+        original
+        |> List.map toCT
+        |> List.map fromCT
+        |> List.map toCT
+        |> List.map fromCT
+
+      match customEquality with
+      | None ->
+        Expect.equal actual original $"{typeName} does not roundtrip successfully"
+      | Some customEquality ->
+        List.zip original actual
+        |> List.iter (fun (original, actual) -> customEquality original actual)
+    }
 
 
-module RuntimeTypeRoundtripTests =
-  let tests =
-    [ testRoundtripList
-        "RT.FqFnName"
-        V.RuntimeTypes.fqFnNames
-        CT2Runtime.FQFnName.toCT
-        CT2Runtime.FQFnName.fromCT
-        None
-      testRoundtripList
-        "RT.DType"
-        V.RuntimeTypes.dtypes
-        CT2Runtime.DType.toCT
-        CT2Runtime.DType.fromCT
-        None
-      testRoundtripList
-        "RT.Pattern"
-        V.RuntimeTypes.matchPatterns
-        CT2Runtime.Pattern.toCT
-        CT2Runtime.Pattern.fromCT
-        None
-      testRoundtripList
-        "RT.SendToRail"
-        V.RuntimeTypes.sendToRails
-        CT2Runtime.Expr.sterFromRT
-        CT2Runtime.Expr.sterToRT
-        None
-      testRoundtripList
-        "RT.IsInPipe"
-        V.RuntimeTypes.isInPipes
-        CT2Runtime.Expr.pipeFromRT
-        CT2Runtime.Expr.pipeToRT
-        None
-      testRoundtripList
-        "RT.Expr"
-        V.RuntimeTypes.exprs
-        CT2Runtime.Expr.toCT
-        CT2Runtime.Expr.fromCT
-        None
-      testRoundtripList
-        "RT.DvalSource"
-        V.RuntimeTypes.dvalSources
-        CT2Runtime.Dval.DvalSource.toCT
-        CT2Runtime.Dval.DvalSource.fromCT
-        None
-      testRoundtripList
-        "RT.DHTTP"
-        V.RuntimeTypes.dvalHttpResponses
-        CT2Runtime.Dval.httpResponseToCT
-        CT2Runtime.Dval.httpResponseFromCT
-        None
-      testRoundtripList
-        "RT.Dval"
-        V.RuntimeTypes.dvals
-        CT2Runtime.Dval.toCT
-        CT2Runtime.Dval.fromCT
-        (Some(fun l r -> Expect.equalDval l r "dval does not roundtrip successfully")) ]
+  module RuntimeTypes =
+    let tests =
+      [ testRoundtripList
+          "RT.FqFnName"
+          V.RuntimeTypes.fqFnNames
+          CT2Runtime.FQFnName.toCT
+          CT2Runtime.FQFnName.fromCT
+          None
+        testRoundtripList
+          "RT.DType"
+          V.RuntimeTypes.dtypes
+          CT2Runtime.DType.toCT
+          CT2Runtime.DType.fromCT
+          None
+        testRoundtripList
+          "RT.Pattern"
+          V.RuntimeTypes.matchPatterns
+          CT2Runtime.Pattern.toCT
+          CT2Runtime.Pattern.fromCT
+          None
+        testRoundtripList
+          "RT.SendToRail"
+          V.RuntimeTypes.sendToRails
+          CT2Runtime.Expr.sterFromRT
+          CT2Runtime.Expr.sterToRT
+          None
+        testRoundtripList
+          "RT.IsInPipe"
+          V.RuntimeTypes.isInPipes
+          CT2Runtime.Expr.pipeFromRT
+          CT2Runtime.Expr.pipeToRT
+          None
+        testRoundtripList
+          "RT.Expr"
+          V.RuntimeTypes.exprs
+          CT2Runtime.Expr.toCT
+          CT2Runtime.Expr.fromCT
+          None
+        testRoundtripList
+          "RT.DvalSource"
+          V.RuntimeTypes.dvalSources
+          CT2Runtime.Dval.DvalSource.toCT
+          CT2Runtime.Dval.DvalSource.fromCT
+          None
+        testRoundtripList
+          "RT.DHTTP"
+          V.RuntimeTypes.dvalHttpResponses
+          CT2Runtime.Dval.httpResponseToCT
+          CT2Runtime.Dval.httpResponseFromCT
+          None
+        testRoundtripList
+          "RT.Dval"
+          V.RuntimeTypes.dvals
+          CT2Runtime.Dval.toCT
+          CT2Runtime.Dval.fromCT
+          (Some (fun l r ->
+            Expect.equalDval l r "dval does not roundtrip successfully")) ]
 
-module ProgramTypeRoundtripTests =
-  let tests =
-    [ testRoundtrip
-        "PT.Position"
-        V.ProgramTypes.pos
-        CT2Program.Position.toCT
-        CT2Program.Position.fromCT
-      testRoundtripList
-        "PT.FQFnName"
-        V.ProgramTypes.fqFnNames
-        CT2Program.FQFnName.toCT
-        CT2Program.FQFnName.fromCT
-        None
-      testRoundtripList
-        "PT.Pattern"
-        V.ProgramTypes.matchPatterns
-        CT2Program.Pattern.toCT
-        CT2Program.Pattern.fromCT
-        None
-      testRoundtripList
-        "PT.SendToRail"
-        V.ProgramTypes.sendToRails
-        CT2Program.SendToRail.toCT
-        CT2Program.SendToRail.fromCT
-        None
-      testRoundtrip
-        "PT.Expr"
-        V.ProgramTypes.expr
-        CT2Program.Expr.toCT
-        CT2Program.Expr.fromCT
-      testRoundtrip
-        "PT.Dtype"
-        V.ProgramTypes.dtype
-        CT2Program.DType.toCT
-        CT2Program.DType.fromCT
-      testRoundtripList
-        "PT.CronInterval"
-        V.ProgramTypes.Handler.cronIntervals
-        CT2Program.Handler.CronInterval.toCT
-        CT2Program.Handler.CronInterval.fromCT
-        None
-      testRoundtripList
-        "PT.HandlerSpec"
-        V.ProgramTypes.Handler.specs
-        CT2Program.Handler.Spec.toCT
-        CT2Program.Handler.Spec.fromCT
-        None
-      testRoundtripList
-        "PT.Handler"
-        V.ProgramTypes.Handler.handlers
-        CT2Program.Handler.toCT
-        CT2Program.Handler.fromCT
-        None
-      testRoundtrip
-        "PT.UserDB"
-        V.ProgramTypes.userDB
-        CT2Program.DB.toCT
-        CT2Program.DB.fromCT
-      testRoundtrip
-        "PT.UserType"
-        V.ProgramTypes.userType
-        CT2Program.UserType.toCT
-        CT2Program.UserType.fromCT
-      testRoundtrip
-        "PT.UserFunction"
-        V.ProgramTypes.userFunction
-        CT2Program.UserFunction.toCT
-        CT2Program.UserFunction.fromCT
-      testRoundtripList
-        "PT.Toplevel"
-        V.ProgramTypes.toplevels
-        CT2Program.Toplevel.toCT
-        CT2Program.Toplevel.fromCT
-        None
-      testRoundtripList
-        "PT.Op"
-        V.ProgramTypes.oplist
-        CT2Program.Op.toCT
-        CT2Program.Op.fromCT
-        None
-      testRoundtrip
-        "PT.UserSecret"
-        V.ProgramTypes.userSecret
-        CT2Program.Secret.toCT
-        CT2Program.Secret.fromCT
-      testRoundtrip
-        "PT.Package"
-        V.ProgramTypes.packageFn
-        CT2Program.Package.Fn.toCT
-        CT2Program.Package.Fn.fromCT ]
+  module ProgramTypes =
+    let tests =
+      [ testRoundtrip
+          "PT.Position"
+          V.ProgramTypes.pos
+          CT2Program.Position.toCT
+          CT2Program.Position.fromCT
+        testRoundtripList
+          "PT.FQFnName"
+          V.ProgramTypes.fqFnNames
+          CT2Program.FQFnName.toCT
+          CT2Program.FQFnName.fromCT
+          None
+        testRoundtripList
+          "PT.Pattern"
+          V.ProgramTypes.matchPatterns
+          CT2Program.Pattern.toCT
+          CT2Program.Pattern.fromCT
+          None
+        testRoundtripList
+          "PT.SendToRail"
+          V.ProgramTypes.sendToRails
+          CT2Program.SendToRail.toCT
+          CT2Program.SendToRail.fromCT
+          None
+        testRoundtrip
+          "PT.Expr"
+          V.ProgramTypes.expr
+          CT2Program.Expr.toCT
+          CT2Program.Expr.fromCT
+        testRoundtrip
+          "PT.Dtype"
+          V.ProgramTypes.dtype
+          CT2Program.DType.toCT
+          CT2Program.DType.fromCT
+        testRoundtripList
+          "PT.CronInterval"
+          V.ProgramTypes.Handler.cronIntervals
+          CT2Program.Handler.CronInterval.toCT
+          CT2Program.Handler.CronInterval.fromCT
+          None
+        testRoundtripList
+          "PT.HandlerSpec"
+          V.ProgramTypes.Handler.specs
+          CT2Program.Handler.Spec.toCT
+          CT2Program.Handler.Spec.fromCT
+          None
+        testRoundtripList
+          "PT.Handler"
+          V.ProgramTypes.Handler.handlers
+          CT2Program.Handler.toCT
+          CT2Program.Handler.fromCT
+          None
+        testRoundtrip
+          "PT.UserDB"
+          V.ProgramTypes.userDB
+          CT2Program.DB.toCT
+          CT2Program.DB.fromCT
+        testRoundtrip
+          "PT.UserType"
+          V.ProgramTypes.userType
+          CT2Program.UserType.toCT
+          CT2Program.UserType.fromCT
+        testRoundtrip
+          "PT.UserFunction"
+          V.ProgramTypes.userFunction
+          CT2Program.UserFunction.toCT
+          CT2Program.UserFunction.fromCT
+        testRoundtripList
+          "PT.Toplevel"
+          V.ProgramTypes.toplevels
+          CT2Program.Toplevel.toCT
+          CT2Program.Toplevel.fromCT
+          None
+        testRoundtripList
+          "PT.Op"
+          V.ProgramTypes.oplist
+          CT2Program.Op.toCT
+          CT2Program.Op.fromCT
+          None
+        testRoundtrip
+          "PT.UserSecret"
+          V.ProgramTypes.userSecret
+          CT2Program.Secret.toCT
+          CT2Program.Secret.fromCT
+        testRoundtrip
+          "PT.Package"
+          V.ProgramTypes.packageFn
+          CT2Program.Package.Fn.toCT
+          CT2Program.Package.Fn.fromCT ]
+
 
 let tests =
   testList
@@ -714,10 +718,10 @@ let tests =
       testList "consistent serialization" testTestFiles
       testList
         "roundtrip RTs to and from client types"
-        RuntimeTypeRoundtripTests.tests
+        RoundtripTests.RuntimeTypes.tests
       testList
         "roundtrip PTs to and from client types"
-        ProgramTypeRoundtripTests.tests ]
+        RoundtripTests.ProgramTypes.tests ]
 
 // TODO: ensure (using reflection) we've covered all types within ClientTypes
 // (many of which we'll have to explicity exclude, if they don't have exact
