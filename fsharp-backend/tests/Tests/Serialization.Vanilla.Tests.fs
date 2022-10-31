@@ -326,7 +326,9 @@ module SampleData =
     v<CTApi.Tunnels.Register.Response> "simple" { success = false }
 
     // Packages
-    v<CTApi.Packages.ListV1.Response> "simple" [ V.ProgramTypes.packageFn ]
+    v<CTApi.Packages.ListV1.Response>
+      "simple"
+      [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
 
     // SecretsV1
 
@@ -407,7 +409,7 @@ module SampleData =
           userFns =
             List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
           userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
-          packageFns = [ V.ProgramTypes.packageFn ]
+          packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
           secrets = [ { name = "z"; value = "y" } ] })
     v<ClientTypes.Analysis.PerformAnalysisParams>
       "function"
@@ -434,7 +436,7 @@ module SampleData =
           userFns =
             List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
           userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
-          packageFns = [ V.ProgramTypes.packageFn ]
+          packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
           secrets = [ { name = "z"; value = "y" } ] })
 
 

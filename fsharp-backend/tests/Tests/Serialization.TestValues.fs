@@ -11,7 +11,6 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
@@ -533,20 +532,16 @@ module ProgramTypes =
 
   let userTypes : List<PT.UserType.T> = [ userType ]
 
-  // TODO: this shouldn't be a ClientType
-  let packageFn : ClientTypes.Program.Package.Fn =
+  let packageFn : PT.Package.Fn =
     { name =
         { owner = "dark"
           package = "stdlib"
           module_ = "Int"
           function_ = "mod"
           version = 0 }
-      body = expr |> CT2Program.Expr.toCT
-      parameters =
-        [ { name = "param"
-            typ = dtype |> CT2Program.DType.toCT
-            description = "desc" } ]
-      returnType = dtype |> CT2Program.DType.toCT
+      body = expr
+      parameters = [ { name = "param"; typ = dtype; description = "desc" } ]
+      returnType = dtype
       description = "test"
       author = "test"
       deprecated = false
