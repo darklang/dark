@@ -5,16 +5,24 @@ module Rollbar = {
     rollbar.init(rollbarConfig)
   }
 
-  type rollbarInstance = {
-    error: (string, Js.nullable<string>, Js.null<int>, Js.null<string>, Js.Json.t) => unit,
-  }
+  type rollbarInstance
+  @send
+  external error: (
+    rollbarInstance,
+    string,
+    Js.nullable<string>,
+    Js.null<int>,
+    Js.null<string>,
+    Js.Json.t,
+  ) => unit = "error"
+
   // There's a better way of doing this but I couldn't get it to work:
   // https://bucklescript.github.io/docs/en/embed-raw-javascript#detect-global-variables
 
   let send = (msg: string, url: option<string>, custom: Js.Json.t): unit => {
     let rb: rollbarInstance = %raw(`(typeof window === 'undefined') ? self.rollbar : window.rollbar `)
     let url = Js.Nullable.fromOption(url)
-    rb.error(msg, url, Js.null, Js.null, custom)
+    error(rb, msg, url, Js.null, Js.null, custom)
   }
 }
 
