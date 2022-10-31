@@ -64,7 +64,7 @@ let manageBrowserId = (): string =>
     newBrowserId
   }
 
-let init = (encodedParamString: string, location: Web.Location.t) => {
+let init = (encodedParamString: string, location: Tea.Navigation.Location.t) => {
   let {
     canvasName,
     complete,
@@ -2290,7 +2290,7 @@ let debugging = {
   let prog = Tea.Debug.debug_program(
     Json.stringifyAlways,
     {
-      init: a => init(a, Web.Location.get()),
+      init: a => init(a, Tea.Navigation.Location.get()),
       view: View.view,
       update: update,
       subscriptions: subscriptions,

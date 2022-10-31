@@ -6,7 +6,7 @@ module Attrs = Tea.Attrs
 module Msg = AppTypes.Msg
 
 let flagLinkLoc = (flag: string, currentlyEnabled: bool) => {
-  let loc = Web.Location.get()
+  let loc = Tea.Navigation.Location.get()
   let newSearch =
     Url.queryParams()
     |> List.filter(~f=((k, _)) => k != flag)

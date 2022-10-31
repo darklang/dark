@@ -23,7 +23,7 @@ let html = (_m: AppTypes.model) =>
   if false /* m.showTopbar */ {
     let url = {
       let qp = ""
-      let loc = {...Web.Location.get(), search: qp}
+      let loc = {...Tea.Navigation.Location.get(), search: qp}
       loc.protocol ++ ("//" ++ (loc.host ++ (loc.pathname ++ (loc.search ++ loc.hash))))
     }
 

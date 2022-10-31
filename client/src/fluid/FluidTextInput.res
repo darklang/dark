@@ -58,7 +58,7 @@ let fromInputEvent = (evt: Dom.event): option<msg> => {
   )
 }
 
-let fromCompositionEndEvent = (evt: Web.Node.event): option<msg> => {
+let fromCompositionEndEvent = (evt: Dom.event): option<msg> => {
   open Tea.Json.Decoder
   decodeEvent(field("data", string), evt)
   |> Tea_result.result_to_option

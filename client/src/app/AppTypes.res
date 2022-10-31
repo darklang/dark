@@ -659,7 +659,7 @@ module Msg = {
     | LogoutAPICallback
     | Delete404APICall(AnalysisTypes.FourOhFour.t)
     | NewPresencePush(list<Avatar.t>)
-    | LocationChange(Web.Location.t)
+    | LocationChange(Tea.Navigation.Location.t)
     | FinishIntegrationTest
     | SaveTestButton
     | ToggleEditorSetting(EditorSettings.t => EditorSettings.t)

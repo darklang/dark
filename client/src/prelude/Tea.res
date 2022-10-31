@@ -89,9 +89,12 @@ module Time = {
   let every = (~key, interval, tagger) => {
     open Vdom
     let enableCall = callbacks => {
-      let id = Web.Window.setInterval(() => Js.Date.now() |> tagger |> callbacks.enqueue, interval)
+      let id = Js.Global.setIntervalFloat(
+        () => Js.Date.now() |> tagger |> callbacks.enqueue,
+        interval,
+      )
 
-      () => Web.Window.clearTimeout(id)
+      () => Js.Global.clearInterval(id)
     }
 
     Tea_sub.registration(key, enableCall)

@@ -53,7 +53,7 @@ let linkFor = (page: page, class: string, content: list<Html.html<AppTypes.msg>>
   AppTypes.msg,
 > => Html.a(list{Attrs.href(urlFor(page)), Attrs.class(class)}, content)
 
-let parseLocation = (loc: Web.Location.t): option<page> => {
+let parseLocation = (loc: Tea.Navigation.Location.t): option<page> => {
   let unstructured =
     loc.hash
     |> String.dropLeft(~count=1)
@@ -96,7 +96,7 @@ let parseLocation = (loc: Web.Location.t): option<page> => {
   |> Option.orElse(architecture())
 }
 
-let changeLocation = (loc: Web.Location.t): AppTypes.modification => {
+let changeLocation = (loc: Tea.Navigation.Location.t): AppTypes.modification => {
   let mPage = parseLocation(loc)
   Option.map(~f=x => Mod.SetPage(x), mPage) |> Option.unwrap(~default=Mod.NoChange)
 }
@@ -110,7 +110,7 @@ let splitOnEquals = (s: string): option<(string, bool)> =>
   }
 
 let queryParams = (): list<(string, bool)> => {
-  let search = Web.Location.get().search
+  let search = Tea.Navigation.Location.get().search
   switch String.uncons(search) {
   | Some('?', rest) =>
     rest |> String.toLowercase |> String.split(~on="&") |> List.filterMap(~f=splitOnEquals)

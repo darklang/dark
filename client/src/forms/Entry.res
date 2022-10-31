@@ -6,7 +6,6 @@ module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module Dom = Webapi.Dom
 
 type modification = AppTypes.modification
 type model = AppTypes.model
@@ -22,11 +21,11 @@ let openOmnibox = (~openAt: option<Pos.t>=None, ()): modification => OpenOmnibox
 // selection
 type range = {
   @meth
-  "setStart": (Web_node.t, int) => unit,
+  "setStart": (Dom.node, int) => unit,
   @meth
-  "setEnd": (Web_node.t, int) => unit,
+  "setEnd": (Dom.node, int) => unit,
   @get
-  "startContainer": Web_node.t,
+  "startContainer": Dom.node,
 }
 
 @val @scope("document") external createRange: unit => range = "createRange"
@@ -43,36 +42,36 @@ type selection = {
   @get
   "focusOffset": int,
   @get
-  "anchorNode": Web_node.t,
+  "anchorNode": Dom.node,
   @meth
   "getRangeAt": int => range,
 }
 
 @ocaml.doc(" [findFirstAncestorWithClass className node] returns the first ancestor of
   * [node] (including self) that has a class of [className] ")
-let rec findFirstAncestorWithClass = (className: string, node: Dom.Node.t): option<Dom.Node.t> =>
-  Dom.Element.ofNode(node)
+let rec findFirstAncestorWithClass = (className: string, node: Dom.node): option<Dom.node> =>
+  Webapi.Dom.Element.ofNode(node)
   |> Option.andThen(~f=el =>
-    if el->Dom.Element.classList->Dom.DomTokenList.contains(className) {
+    if el->Webapi.Dom.Element.classList->Webapi.Dom.DomTokenList.contains(className) {
       Some(node)
     } else {
       None
     }
   )
   |> Option.orElseLazy(_ =>
-    node |> Dom.Node.parentNode |> Option.andThen(~f=findFirstAncestorWithClass(className))
+    node |> Webapi.Dom.Node.parentNode |> Option.andThen(~f=findFirstAncestorWithClass(className))
   )
 
 @ocaml.doc(" [preorderWalkUntil f node] recurses through all children of [node], calling
   * [f] with each Node before recursing. If [f] returns false, the walk stops. ")
-let preorderWalkUntil = (~f: Dom.Node.t => bool, node: Dom.Node.t): unit => {
-  module Node = Dom.Node
-  let rec walk = (~f: Node.t => bool, n: Node.t): bool =>
+let preorderWalkUntil = (~f: Dom.node => bool, node: Dom.node): unit => {
+  let rec walk = (~f: Dom.node => bool, n: Dom.node): bool =>
     if f(n) {
-      let continue = Node.firstChild(n) |> Option.map(~f=walk(~f)) |> Option.unwrap(~default=true)
+      let continue =
+        Webapi.Dom.Node.firstChild(n) |> Option.map(~f=walk(~f)) |> Option.unwrap(~default=true)
 
       if continue {
-        Node.nextSibling(n) |> Option.map(~f=walk(~f)) |> Option.unwrap(~default=true)
+        Webapi.Dom.Node.nextSibling(n) |> Option.map(~f=walk(~f)) |> Option.unwrap(~default=true)
       } else {
         false
       }
@@ -80,7 +79,7 @@ let preorderWalkUntil = (~f: Dom.Node.t => bool, node: Dom.Node.t): unit => {
       false
     }
 
-  Node.firstChild(node)
+  Webapi.Dom.Node.firstChild(node)
   |> Option.map(~f=walk(~f))
   |> recoverOption("could not find child element")
   |> ignore
@@ -103,13 +102,10 @@ let preorderWalkUntil = (~f: Dom.Node.t => bool, node: Dom.Node.t): unit => {
   * cursor, which is used to calculate the absolute 0-based index from the
   * beginning of the editor. ")
 let getFluidSelectionRange = (): option<(int, int)> => {
-  module Node = Dom.Node
-  module Window = Dom.Window
-  module Selection = Dom.Selection
-  Dom.window
-  ->Window.getSelection
+  Webapi.Dom.window
+  ->Webapi.Dom.Window.getSelection
   ->Option.andThen(~f=sel =>
-    Option.andThen2(Selection.anchorNode(sel), Selection.focusNode(sel), ~f=(
+    Option.andThen2(Webapi.Dom.Selection.anchorNode(sel), Webapi.Dom.Selection.focusNode(sel), ~f=(
       anchorNode,
       focusNode,
     ) =>
@@ -128,15 +124,15 @@ let getFluidSelectionRange = (): option<(int, int)> => {
           // If node is not a leaf, then advance cursor. This is probably a span or
           // other container element. We'll see the actual text node later, and we
           // don't want to double-count the textContent.
-          if !(Node.firstChild(node) |> Option.is_some) {
-            cursor := cursor.contents + (node |> Node.textContent |> String.length)
+          if !(Webapi.Dom.Node.firstChild(node) |> Option.is_some) {
+            cursor := cursor.contents + (node |> Webapi.Dom.Node.textContent |> String.length)
           }
           let have_both = Option.pair(anchorIdx.contents, focusIdx.contents) |> Option.is_some
 
           !have_both
         })
-        let anchorOffset = sel |> Selection.anchorOffset
-        let focusOffset = sel |> Selection.focusOffset
+        let anchorOffset = sel |> Webapi.Dom.Selection.anchorOffset
+        let focusOffset = sel |> Webapi.Dom.Selection.focusOffset
         Option.map2(anchorIdx.contents, focusIdx.contents, ~f=(anchor, focus) => (
           anchor + anchorOffset,
           focus + focusOffset,
@@ -168,12 +164,6 @@ let getFluidCaretPos = (): option<int> =>
   * See getFluidSelectionRange for the counterpart. Note that it is not
   * strictly symmetrical with it, so there might be future edge-cases. ")
 let setFluidSelectionRange = (beginIdx: int, endIdx: int): unit => {
-  module Node = Dom.Node
-  module Element = Dom.Element
-  module Window = Dom.Window
-  module Document = Dom.Document
-  module Selection = Dom.Selection
-  module NodeList = Dom.NodeList
   let clamp = (min: int, max: int, n: int) =>
     if n < min {
       min
@@ -183,17 +173,17 @@ let setFluidSelectionRange = (beginIdx: int, endIdx: int): unit => {
       n
     }
 
-  Dom.document->Document.querySelector(".selected #active-editor")
+  Webapi.Dom.document->Webapi.Dom.Document.querySelector(".selected #active-editor")
   |> recoverOption(
     ~sendToRollbar=false,
     "setFluidSelectionRange querySelector failed to find #active-editor",
   )
   |> Option.andThen(~f=editor => {
-    let maxChars = editor |> Element.textContent |> String.length
+    let maxChars = editor |> Webapi.Dom.Element.textContent |> String.length
     let anchorBound = beginIdx |> clamp(0, maxChars)
     let focusBound = endIdx |> clamp(0, maxChars)
-    let childNodes = Element.childNodes(editor) |> NodeList.toArray
-    let findNodeAndOffset = (bound: int): (option<Node.t>, int) => {
+    let childNodes = Webapi.Dom.Element.childNodes(editor) |> Webapi.Dom.NodeList.toArray
+    let findNodeAndOffset = (bound: int): (option<Dom.node>, int) => {
       let offset = ref(bound)
       childNodes
       |> Array.find(~f=child => {
@@ -202,8 +192,8 @@ let setFluidSelectionRange = (beginIdx: int, endIdx: int): unit => {
           |> /* First child is the text node of the span we use in the
            * editor. Nodes can also have a dropdown which we want to
            * avoid in our calculations. */
-          Node.firstChild
-          |> Option.map(~f=Node.textContent)
+          Webapi.Dom.Node.firstChild
+          |> Option.map(~f=Webapi.Dom.Node.textContent)
           |> Option.map(~f=String.length)
           |> Option.unwrap(~default=0)
 
@@ -214,17 +204,17 @@ let setFluidSelectionRange = (beginIdx: int, endIdx: int): unit => {
           false
         }
       })
-      |> Option.andThen(~f=Node.firstChild)
+      |> Option.andThen(~f=Webapi.Dom.Node.firstChild)
       |> (n => (n, offset.contents))
     }
 
     let (maybeAnchor, anchorOffset) = findNodeAndOffset(anchorBound)
     let (maybeFocus, focusOffset) = findNodeAndOffset(focusBound)
     Option.map2(maybeAnchor, maybeFocus, ~f=(anchorNode, focusNode) =>
-      Dom.window
-      ->Window.getSelection
+      Webapi.Dom.window
+      ->Webapi.Dom.Window.getSelection
       ->Option.map(~f=sel =>
-        Selection.setBaseAndExtent(sel, anchorNode, anchorOffset, focusNode, focusOffset)
+        Webapi.Dom.Selection.setBaseAndExtent(sel, anchorNode, anchorOffset, focusNode, focusOffset)
       )
     ) |> recoverOption(
       ~debug=(maybeAnchor, maybeFocus),

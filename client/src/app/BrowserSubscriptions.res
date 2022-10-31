@@ -11,9 +11,9 @@ let registerGlobal = (eventName, key, tagger, decoder) => {
     }
 
     let handler = EventHandlerCallback(key, fn)
-    let elem = Web_node.document_node
-    let cache = eventHandler_Register(callbacks, elem, eventName, handler)
-    () => ignore(eventHandler_Unregister(elem, eventName, cache))
+    let eventTarget = Webapi.Dom.document |> Webapi.Dom.Document.asEventTarget
+    let cache = eventHandler_Register(callbacks, eventTarget, eventName, handler)
+    () => ignore(eventHandler_Unregister(eventTarget, eventName, cache))
   }
 
   Tea_sub.registration(key, enableCall)
@@ -26,17 +26,15 @@ let registerGlobalDirect = (name, key, tagger) => {
     let callbacks = ref(callbacks_base)
     let fn = ev => Some(tagger(Obj.magic(ev)))
     let handler = EventHandlerCallback(key, fn)
-    let elem = Web_node.document_node
-    let cache = eventHandler_Register(callbacks, elem, name, handler)
-    () => ignore(eventHandler_Unregister(elem, name, cache))
+    let eventTarget = Webapi.Dom.document |> Webapi.Dom.Document.asEventTarget
+    let cache = eventHandler_Register(callbacks, eventTarget, name, handler)
+    () => ignore(eventHandler_Unregister(eventTarget, name, cache))
   }
 
   Tea_sub.registration(key, enableCall)
 }
 
 module Window = {
-  @val external window_node: Web_node.t = "window"
-
   @ocaml.doc(" [registerListener eventName key decoder]
    * registers an event listener for the given [eventName]
    * under the rescript key [key] with the [decoder].
@@ -60,9 +58,9 @@ module Window = {
       }
 
       let handler = EventHandlerCallback(key, fn)
-      let elem = window_node
-      let cache = eventHandler_Register(callbacks, elem, eventName, handler)
-      () => ignore(eventHandler_Unregister(elem, eventName, cache))
+      let eventTarget = Webapi.Dom.window->Webapi.Dom.Window.asEventTarget
+      let cache = eventHandler_Register(callbacks, eventTarget, eventName, handler)
+      () => ignore(eventHandler_Unregister(eventTarget, eventName, cache))
     }
 
     Tea_sub.registration(key, enableCall)

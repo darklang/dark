@@ -179,9 +179,7 @@ let onKeydown = (evt: Dom.event): option<AppTypes.msg> =>
     }
   )
 
-let onLoseFocus = (_evt: Web.Node.event): option<AppTypes.msg> => Some(
-  FluidMsg(FluidCloseCmdPalette),
-)
+let onLoseFocus = (_evt: Dom.event): option<AppTypes.msg> => Some(FluidMsg(FluidCloseCmdPalette))
 
 let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
   let viewCommands = (i, item) => {

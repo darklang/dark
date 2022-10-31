@@ -124,11 +124,13 @@ let viewParamType = (~classes: list<string>, vp: viewProps, v: BlankOr.t<DType.t
   msg,
 > => ViewBlankOr.viewType(~classes, ~enterable=true, ParamType, vp, v)
 
-let jsDragStart: Web.Node.event => unit = %raw(
+// TODO: use webapi
+let jsDragStart: Dom.event => unit = %raw(
   "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); e.dataTransfer.effectAllowed = 'move'; }"
 )
 
-let jsDragOver: Web.Node.event => unit = %raw("function(e){e.dataTransfer.dropEffect = 'move';}")
+// TODO: use webapi
+let jsDragOver: Dom.event => unit = %raw("function(e){e.dataTransfer.dropEffect = 'move';}")
 
 let viewParamSpace = (index: int, fs: FnParams.t): Html.html<msg> => {
   let dragOver = e => {
