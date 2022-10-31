@@ -11,12 +11,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module CTRuntime = ClientTypes.Runtime
-module CTAnalysis = ClientTypes.Analysis
-module CTApi = ClientTypes.Api
-module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
-module CT2Ops = ClientTypes2BackendTypes.Ops
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
@@ -28,13 +23,126 @@ let tlid : tlid = 7UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
-  let dval =
+  let fqFnNames : List<RT.FQFnName.T> =
+    [ RT.FQFnName.User "user fn"
+      RT.FQFnName.Stdlib { module_ = "a"; function_ = "b"; version = 1 }
+      RT.FQFnName.Package
+        { owner = "a"; package = "b"; module_ = "c"; function_ = "d"; version = 2 } ]
+
+  let dtypes : List<RT.DType> =
+    [ RT.TInt
+      RT.TFloat
+      RT.TBool
+      RT.TNull
+      RT.TStr
+      RT.TList RT.TInt
+      RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
+      RT.TDict RT.TBool
+      RT.TIncomplete
+      RT.TError
+      RT.THttpResponse RT.TBool
+      RT.TDB RT.TBool
+      RT.TErrorRail
+      RT.TUserType("test", 1)
+      RT.TBytes
+      RT.TResult(RT.TBool, RT.TStr)
+      RT.TVariable "test"
+      RT.TFn([ RT.TBool ], RT.TBool)
+      RT.TRecord["prop", RT.TBool] ]
+
+  let matchPatterns : List<RT.Pattern> =
+    [ RT.PVariable(123UL, "test")
+      RT.PConstructor(1234UL, "Just", [ RT.PVariable(746385UL, "var") ])
+      RT.PInteger(756385UL, 7857395)
+      RT.PBool(8759375UL, true)
+      RT.PCharacter(4875843UL, "8jgkdjsfg")
+      RT.PString(857395UL, "iklfijo13294")
+      RT.PBlank(71284374UL)
+      RT.PNull(812394UL)
+      RT.PTuple(
+        487129457124UL,
+        RT.PNull(1234124UL),
+        RT.PString(128734857124UL, "1243sdfsadf"),
+        [ RT.PVariable(12748124UL, "var2") ]
+      )
+      RT.PFloat(12385781243UL, 79375.847583) ]
+
+  let isInPipes : List<RT.IsInPipe> = [ RT.NotInPipe; RT.InPipe(18274UL) ]
+
+  let sendToRails : List<RT.SendToRail> = [ RT.Rail; RT.NoRail ]
+
+  let exprs : List<RT.Expr> =
+    [ RT.EInteger(124151234UL, 7)
+      RT.EBool(158584UL, false)
+      RT.EString(86749UL, "asdfasedf")
+      RT.ECharacter(7683UL, "c")
+      RT.EFloat(5495UL, 444.333)
+      RT.ENull(59485UL)
+      RT.EBlank(495839UL)
+      RT.ELet(
+        49583UL,
+        "binding",
+        RT.ENull(12355555UL),
+        RT.EVariable(68496UL, "binding")
+      )
+      RT.EIf(
+        8975872314UL,
+        RT.ENull(747123UL),
+        RT.ENull(747123UL),
+        RT.ENull(747123UL)
+      )
+      RT.ELambda(7587123UL, [ 758123UL, "var3" ], RT.ENull(17384UL))
+      RT.EFieldAccess(74875UL, RT.ENull(737463UL), "field")
+      RT.EVariable(8737583UL, "var4")
+      RT.EApply(
+        128384UL,
+        RT.ENull(1235123UL),
+        [ RT.ENull(7756UL) ],
+        RT.NotInPipe,
+        RT.Rail
+      )
+      RT.EFQFnValue(8737481UL, RT.FQFnName.User "sadflkjwerp")
+      RT.EList(737481UL, [ RT.ENull(74618UL) ])
+      RT.ETuple(
+        73847UL,
+        RT.ENull(8474UL),
+        RT.ENull(84718341UL),
+        [ RT.ENull(7167384UL) ]
+      )
+      RT.ERecord(8167384UL, [ "a9df8", RT.ENull(71631UL) ])
+      RT.EConstructor(64617UL, "Just", [ RT.EBlank(8173UL) ])
+      RT.EMatch(
+        712743UL,
+        RT.EInteger(712373UL, 123),
+        [ RT.PVariable(12738UL, "i"), RT.EVariable(1482374UL, "i") ]
+      )
+      RT.EFeatureFlag(
+        1823UL,
+        RT.EBool(81273UL, false),
+        RT.EString(1283UL, "true"),
+        RT.EString(18329472UL, "false")
+      ) ]
+
+  let dvalSources : List<RT.DvalSource> =
+    [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
+
+  let dvalHttpResponses : List<RT.DHTTP> =
+    [ RT.Redirect "http://darklang.io"; RT.Response(8123, [ "a", "b" ], RT.DNull) ]
+
+  let dvals : List<RT.Dval> =
+    // TODO: is this exhaustive? I haven't checked.
+    sampleDvals
+    |> List.filter (fun (name, dv) -> name <> "password")
+    |> List.map Tuple2.second
+
+  let dval : RT.Dval =
     sampleDvals
     |> List.filter (fun (name, dv) -> name <> "password")
     |> Map
     |> RT.DObj
 
 module ProgramTypes =
+  // Note: this is aimed to contain all cases of `Expr`
   // When updating this, also update `FluidTestData.complexExpr` in the client
   let expr =
     let e = PT.EInteger(34545UL, 5)
@@ -425,6 +533,7 @@ module ProgramTypes =
 
   let userTypes : List<PT.UserType.T> = [ userType ]
 
+  // TODO: this shouldn't be a ClientType
   let packageFn : ClientTypes.Program.Package.Fn =
     { name =
         { owner = "dark"
