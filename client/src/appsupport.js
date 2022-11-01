@@ -262,7 +262,7 @@ window.Dark = {
         error,
         "\nNote that errors related to the following exceptions can be ignored. They do no seem to cause an issue, and we believe they will go away when we upgrade to .NET 7.",
         " - 'System.ArgumentNullException: Value cannot be null'",
-        " - 'ystem.Runtime.InteropServices.JavaScript.Runtime.ReleaseJSOwnedObjectByGCHandle(Int32 gcHandle)'",
+        " - 'System.Runtime.InteropServices.JavaScript.Runtime.ReleaseJSOwnedObjectByGCHandle(Int32 gcHandle)'",
       );
 
       // These errors are so pervasive, harmless, and come with a bunch of other
