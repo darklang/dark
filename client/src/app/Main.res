@@ -346,12 +346,9 @@ let isACOpened = (m: model): bool =>
   (FluidCommands.isOpened(m.fluidState.cp) ||
   AC.isOpened(m.complete))
 
-let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
-  model,
-  AppTypes.cmd,
-) => {
+let rec updateMod = (mod: modification, (m, cmd): (model, AppTypes.cmd)): (model, AppTypes.cmd) => {
   if m.integrationTestState != NoIntegrationTest {
-    Debug.loG("mod update", mod_)
+    Debug.loG("mod update", mod)
   }
   let (newm, newcmd) = {
     let bringBackCurrentTL = (oldM: model, newM: model): model =>
@@ -403,7 +400,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, AppTypes.cmd)): (
       }
     }
 
-    switch mod_ {
+    switch mod {
     | ReplaceAllModificationsWithThisOne(f) => f(m)
     | HandleAPIError(apiError) => APIErrorHandler.handle(m, apiError)
     | AddOps(ops, focus) => handleAPI(API.opsParams(ops, (m |> opCtr) + 1, m.clientOpCtrId), focus)
