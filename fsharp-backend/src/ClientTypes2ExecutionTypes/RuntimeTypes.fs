@@ -83,7 +83,7 @@ module DType =
   let rec fromCT (t : DType) : RT.DType =
     let r = fromCT
     let rl = List.map fromCT
-    
+
     match t with
     | TInt -> RT.TInt
     | TFloat -> RT.TFloat
