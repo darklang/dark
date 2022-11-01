@@ -11,7 +11,9 @@ let clientVersionHeader = (m: model): Tea_http.header => Header(
   m.buildHash,
 )
 
-let apiCallGETNoParams = (
+// Call APIs which have already been preloaded by the browser, at the instruction of
+// a link/preload tag in ui.html.
+let apiCallPreloaded = (
   m: model,
   ~decoder: Js.Json.t => 'resulttype,
   ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
@@ -19,12 +21,14 @@ let apiCallGETNoParams = (
 ): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = Tea.Http.request({
-    method': "GET",
-    headers: list{
-      Header("Content-type", "application/json"),
-      Header("X-CSRF-Token", m.csrfToken),
-      clientVersionHeader(m),
-    },
+    method': "GET", // NEVER USE THIS FOR NON-GET, due to CSRF
+    // In order for these requests to be fulfilled by the preload, they need to have
+    // the EXACT same headers. As a result, we don't send any headers here, omitting:
+    // - client-version: just for monitoring
+    // - content-type: not necessary, we always return
+    // - CSRF: this prevents replay attacks. Since these calls are non-side-effecting,
+    // this is safe. BUT BE CAREFUL NOT TO USE THIS FOR SIDE-EFFECTING CALLS.
+    headers: list{},
     url: url,
     body: Web.XMLHttpRequest.EmptyBody,
     expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(decoder)),
@@ -34,7 +38,6 @@ let apiCallGETNoParams = (
 
   Tea.Http.send(callback, request)
 }
-
 
 let apiCallNoParams = (
   m: model,
@@ -159,7 +162,7 @@ let uploadFn = (m: model, params: APIPackages.UploadFn.Params.t): cmd =>
   )
 
 let loadPackages = (m: model): cmd =>
-  apiCallGETNoParams(
+  apiCallPreloaded(
     m,
     "/v1/packages",
     ~decoder=APIPackages.AllPackages.decode,
@@ -235,7 +238,7 @@ let insertSecret = (m: model, params: APISecrets.Insert.Params.t): cmd =>
   )
 
 let initialLoad = (m: model, focus: AppTypes.Focus.t): cmd =>
-  apiCallGETNoParams(
+  apiCallPreloaded(
     m,
     "/v1/initial_load",
     ~decoder=APIInitialLoad.decode,
