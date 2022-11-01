@@ -787,7 +787,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       },
     )
 
-  let pageToString = pg =>
+  let pageToDebugString = pg =>
     switch pg {
     | AppTypes.Page.Architecture => "Architecture"
     | FocusedPackageManagerFn(tlid) => `Package Manager Fn (TLID ${TLID.toString(tlid)})`
@@ -821,7 +821,7 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{},
     list{
       stateInfoTohtml("env", Html.text(m.environment)),
-      stateInfoTohtml("page", Html.text(pageToString(m.currentPage))),
+      stateInfoTohtml("page", Html.text(pageToDebugString(m.currentPage))),
       stateInfoTohtml(
         "cursorState",
         Html.text(Js.Json.stringifyAny(m.cursorState)->Option.unwrap(~default="Unknown")),

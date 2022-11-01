@@ -4,6 +4,14 @@ module Editor = {
     | NoEditor
     | MainEditor(TLID.t)
     | FeatureFlagEditor(TLID.t, ID.t)
+
+  let toDebugString = t =>
+    switch t {
+    | NoEditor => "NoEditor"
+    | MainEditor(tlid) => "MainEditor(" ++ TLID.toString(tlid) ++ ")"
+    | FeatureFlagEditor(tlid, id) =>
+      "FeatureFlagEditor(" ++ TLID.toString(tlid) ++ ", " ++ ID.toString(id) ++ ")"
+    }
 }
 
 module Command = {
@@ -276,7 +284,7 @@ module Msg = {
     | DeleteSoftLineForward
     | ReplaceText(string)
 
-  let inputEventToString = (inputEvent: inputEvent) => {
+  let inputEventToDebugString = (inputEvent: inputEvent) => {
     switch inputEvent {
     | Keypress({key, shiftKey, altKey, metaKey, ctrlKey}) =>
       let metaStr = if metaKey {

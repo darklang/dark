@@ -21,22 +21,22 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
       Html.dd(
         list{},
         list{
-          Html.text(string_of_int(s.oldPos)),
+          Html.text(Int.toString(s.oldPos)),
           Html.text(" -> "),
-          Html.text(string_of_int(s.newPos)),
+          Html.text(Int.toString(s.newPos)),
         },
       ),
       dtText("grid"),
       Html.dd(
         list{},
         list{
-          Html.text(oldGrid.col |> string_of_int),
+          Html.text(oldGrid.col->Int.toString),
           Html.text(","),
-          Html.text(oldGrid.row |> string_of_int),
+          Html.text(oldGrid.row->Int.toString),
           Html.text(" -> "),
-          Html.text(newGrid.col |> string_of_int),
+          Html.text(newGrid.col->Int.toString),
           Html.text(","),
-          Html.text(newGrid.row |> string_of_int),
+          Html.text(newGrid.row->Int.toString),
         },
       ),
       dtText("TLID"),
@@ -45,48 +45,42 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
         list{
           Html.text(
             CursorState.tlidOf(m.cursorState)
-            |> Option.map(~f=TLID.toString)
-            |> Option.unwrap(~default="None"),
+            ->Option.map(~f=TLID.toString)
+            ->Option.unwrap(~default="None"),
           ),
         },
       ),
       dtText("ast root"),
-      Html.dd(list{}, list{Html.text(FluidAST.toID(ast) |> ID.toString)}),
+      Html.dd(list{}, list{Html.text(FluidAST.toID(ast)->ID.toString)}),
       dtText("active editor"),
-      Html.dd(list{}, list{Html.text(Json.stringifyAlways(s.activeEditor))}),
+      Html.dd(list{}, list{Html.text(FluidTypes.Editor.toDebugString(s.activeEditor))}),
       dtText("acIndex"),
       Html.dd(
         list{},
-        list{
-          Html.text(s.ac.index |> Option.map(~f=string_of_int) |> Option.unwrap(~default="None")),
-        },
+        list{Html.text(s.ac.index->Option.map(~f=Int.toString)->Option.unwrap(~default="None"))},
       ),
       dtText("acEntryCount"),
-      Html.dd(list{}, list{Html.text(FluidAutocomplete.numCompletions(s.ac) |> string_of_int)}),
+      Html.dd(list{}, list{Html.text(FluidAutocomplete.numCompletions(s.ac)->Int.toString)}),
       dtText("upDownCol"),
       Html.dd(
         list{},
-        list{
-          Html.text(s.upDownCol |> Option.map(~f=string_of_int) |> Option.unwrap(~default="None")),
-        },
+        list{Html.text(s.upDownCol->Option.map(~f=Int.toString)->Option.unwrap(~default="None"))},
       ),
       dtText("lastInput"),
-      Html.dd(list{}, list{Html.text(FluidTypes.Msg.inputEventToString(s.lastInput))}),
+      Html.dd(list{}, list{Html.text(FluidTypes.Msg.inputEventToDebugString(s.lastInput))}),
       dtText("selection"),
       Html.dd(
         list{},
         list{
           Html.text(
             s.selectionStart
-            |> Option.map(~f=selStart =>
-              string_of_int(selStart) ++ ("->" ++ string_of_int(s.newPos))
-            )
-            |> Option.unwrap(~default="None"),
+            ->Option.map(~f=selStart => Int.toString(selStart) ++ " -> " ++ Int.toString(s.newPos))
+            ->Option.unwrap(~default="None"),
           ),
         },
       ),
       dtText("midClick"),
-      Html.dd(list{}, list{Html.text(string_of_bool(s.midClick))}),
+      Html.dd(list{}, list{Html.text(Bool.toString(s.midClick))}),
     }
   }
 
@@ -125,7 +119,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
     ),
   }
 
-  let cursorState = list{dtText("cursorState"), ddText(CursorState.toString(m.cursorState))}
+  let cursorState = list{dtText("cursorState"), ddText(CursorState.toDebugString(m.cursorState))}
 
   let status = List.flatten(list{posData, error, tokenData, actions, cursorState})
   Html.div(list{Attrs.id("fluid-status")}, list{Html.dl(list{}, status)})

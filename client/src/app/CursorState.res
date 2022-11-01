@@ -77,7 +77,7 @@ let setCursorState = (cursorState: cursorState, m: AppTypes.model): (
   (m, focusEntry(m))
 }
 
-let rec toString = (cursorState: cursorState): string =>
+let rec toDebugString = (cursorState: cursorState): string =>
   switch cursorState {
   | Deselected => "Deselected"
   | Selecting(tlid, Some(id)) => `Selecting(${TLID.toString(tlid)}, ${ID.toString(id)})`
@@ -86,11 +86,11 @@ let rec toString = (cursorState: cursorState): string =>
   | DraggingTL(tlid, pos, hasMoved, prev) =>
     `DraggingTL(${TLID.toString(tlid)}, ${VPos.toString(pos)}, ${Tc.Bool.toString(
         hasMoved,
-      )}, ${toString(prev)})`
+      )}, ${toDebugString(prev)})`
   | PanningCanvas(p) =>
-    `PanningCanvas(${VPos.toString(p.viewportStart)}, ${VPos.toString(p.viewportCurr)}, ${toString(
-        p.prevCursorState,
-      )})`
+    `PanningCanvas(${VPos.toString(p.viewportStart)}, ${VPos.toString(
+        p.viewportCurr,
+      )}, ${toDebugString(p.prevCursorState)})`
   | Omnibox(pos) =>
     `Omnibox(${pos->Tc.Option.map(~f=Pos.toString)->Tc.Option.unwrap(~default="None")})`
   | FluidEntering(tlid) => `FluidEntering(${TLID.toString(tlid)})`
