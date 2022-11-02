@@ -10,12 +10,6 @@ open Tablecloth
 
 #nowarn "988"
 
-module Init =
-  let initSerializers () =
-    // because this project is compiled to WASM, we register the allowed serializers
-    // in LibAnalysis, so that our Tests projects can more easily reference such.
-    LibAnalysis.initSerializers ()
-
 type GetGlobalObjectDelegate = delegate of string -> obj
 
 type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
@@ -29,7 +23,7 @@ type EvalWorker =
 
   static member InitializeDarkRuntime() : unit =
     Environment.SetEnvironmentVariable("TZ", "UTC")
-    Init.initSerializers ()
+    LibAnalysis.initSerializers ()
 
   static member selfDelegate =
     let typ =
