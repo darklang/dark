@@ -10,7 +10,7 @@ Goals:
 
 ## Definitions
 
-- `emit` adding an event to the queue from a Cron handler or the `emit` function
+- `emit`: adding an event to the queue from a Cron handler or the `emit` function
 - `event`: refers to the Dark value `emit`ed into the queue and the metadata around
   it (including what you might call a "job" or "message" in other systems). We say we
   "run the event" when we execute it, or "retry the event" if we requeue it.
