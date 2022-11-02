@@ -18,8 +18,8 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="RuntimeTypes.fs" />
-    <Compile Include="AnalysisTypes.fs" />
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="AnalysisTypes.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

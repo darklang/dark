@@ -8,15 +8,10 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
-module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
-module CT2Analysis = ClientTypes2ExecutionTypes.Analysis
 
 module Eval =
-
   let loadFromTrace
     (results : AT.FunctionResult list)
     ((_tlid, fnName, callerID) : RT.FunctionRecord)
@@ -43,36 +38,28 @@ module Eval =
     |> Option.map (fun dv -> (dv, NodaTime.Instant.now ()))
 
 
-  let runAnalysis
-    (tlid : tlid)
-    (traceData : AT.TraceData)
-    (userFns : List<RT.UserFunction.T>)
-    (userTypes : List<RT.UserType.T>)
-    (dbs : List<RT.DB.T>)
-    (expr : RT.Expr)
-    (packageFns : List<RT.Package.Fn>)
-    (secrets : List<RT.Secret.T>)
-    : Task<AT.AnalysisResults> =
+  let runAnalysis (request : AT.AnalysisRequest) : Task<AT.AnalysisResults> =
     task {
       let program : RT.ProgramContext =
         { accountID = System.Guid.NewGuid()
           canvasID = System.Guid.NewGuid()
           canvasName = CanvasName.createExn "todo"
-          userFns = userFns |> List.map (fun fn -> fn.name, fn) |> Map
-          userTypes = userTypes |> List.map (fun t -> (t.name, t.version), t) |> Map
-          dbs = dbs |> List.map (fun t -> t.name, t) |> Map
-          secrets = secrets }
+          userFns = request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
+          userTypes =
+            request.userTypes |> List.map (fun t -> (t.name, t.version), t) |> Map
+          dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map
+          secrets = request.secrets }
 
       let stdlib =
         LibExecutionStdLib.StdLib.fns
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       let packageFns =
-        packageFns |> Map.fromListBy (fun fn -> RT.FQFnName.Package fn.name)
+        request.packageFns |> Map.fromListBy (fun fn -> RT.FQFnName.Package fn.name)
 
       let libraries : RT.Libraries = { stdlib = stdlib; packageFns = packageFns }
       let results, traceDvalFn = Exe.traceDvals ()
-      let functionResults = traceData.function_results
+      let functionResults = request.traceData.function_results
 
       let tracing =
         { LibExecution.Execution.noTracing RT.Preview with
@@ -85,76 +72,31 @@ module Eval =
           tracing
           RT.consoleReporter
           RT.consoleNotifier
-          tlid
+          request.tlid
           program
 
-      let inputVars = Map traceData.input
-      let! (_result : RT.Dval) = Exe.executeExpr state inputVars expr
+      let inputVars = Map request.traceData.input
+      let! (_result : RT.Dval) = Exe.executeExpr state inputVars request.expr
       return results
     }
 
-module CTRuntime = ClientTypes.Runtime
+
 module CTAnalysis = ClientTypes.Analysis
-module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
+module CT2Analysis = ClientTypes2ExecutionTypes.Analysis
 
 let performAnalysis
   (args : CTAnalysis.PerformAnalysisParams)
   : Task<CTAnalysis.AnalysisEnvelope> =
-  let runAnalysis
-    (requestID : int)
-    (requestTime : NodaTime.Instant)
-    (tlid : tlid)
-    (traceID : CTAnalysis.TraceID)
-    (traceData : CTAnalysis.TraceData)
-    (userFns : List<PT.UserFunction.T>)
-    (userTypes : List<PT.UserType.T>)
-    (dbs : List<PT.DB.T>)
-    (expr : PT.Expr)
-    (packageFns : List<PT.Package.Fn>)
-    (secrets : List<PT.Secret.T>)
-    : Task<CTAnalysis.AnalysisEnvelope> =
-    task {
-      let traceData = CT2Analysis.TraceData.fromCT traceData
-      let userFns = List.map PT2RT.UserFunction.toRT userFns
-      let userTypes = List.map PT2RT.UserType.toRT userTypes
-      let dbs = List.map PT2RT.DB.toRT dbs
-      let expr = PT2RT.Expr.toRT expr
-      let packageFns = List.map PT2RT.Package.toRT packageFns
-      let secrets = List.map PT2RT.Secret.toRT secrets
-      let! result =
-        Eval.runAnalysis tlid traceData userFns userTypes dbs expr packageFns secrets
 
-      return (traceID, CT2Analysis.AnalysisResults.toCT result, requestID, requestTime)
-    }
+  let analysisRequest = CT2Analysis.AnalysisRequest.fromCT args
 
-  match args with
-  | CTAnalysis.AnalyzeHandler ah ->
-    runAnalysis
-      ah.requestID
-      ah.requestTime
-      ah.handler.tlid
-      ah.traceID
-      ah.traceData
-      (List.map CT2Program.UserFunction.fromCT ah.userFns)
-      (List.map CT2Program.UserType.fromCT ah.userTypes)
-      (List.map CT2Program.DB.fromCT ah.dbs)
-      (CT2Program.Expr.fromCT ah.handler.ast)
-      (List.map CT2Program.Package.Fn.fromCT ah.packageFns)
-      (List.map CT2Program.Secret.fromCT ah.secrets)
+  Eval.runAnalysis analysisRequest
+  |> Task.map (fun analysisResponse ->
+    (analysisRequest.traceID,
+     CT2Analysis.AnalysisResults.toCT analysisResponse,
+     analysisRequest.requestID,
+     analysisRequest.requestTime))
 
-  | CTAnalysis.AnalyzeFunction af ->
-    runAnalysis
-      af.requestID
-      af.requestTime
-      af.func.tlid
-      af.traceID
-      af.traceData
-      (List.map CT2Program.UserFunction.fromCT af.userFns)
-      (List.map CT2Program.UserType.fromCT af.userTypes)
-      (List.map CT2Program.DB.fromCT af.dbs)
-      (CT2Program.Expr.fromCT af.func.body)
-      (List.map CT2Program.Package.Fn.fromCT af.packageFns)
-      (List.map CT2Program.Secret.fromCT af.secrets)
 
 let initSerializers () =
   // allow universally-serializable types
