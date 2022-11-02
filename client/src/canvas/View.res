@@ -202,8 +202,8 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
       acFnDocString
       |> Option.orElse(cmdDocString)
-      |> Option.orElse(selectedParamDocString)
       |> Option.orElse(selectedFnDocString)
+      |> Option.orElse(selectedParamDocString)
       |> Option.unwrap(~default=Vdom.noNode)
     | _ => Vdom.noNode
     }
