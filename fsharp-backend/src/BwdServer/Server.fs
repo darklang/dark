@@ -639,7 +639,6 @@ let initSerializers () =
   Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
   Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
   //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
-  Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())
   Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
 

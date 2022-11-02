@@ -12,12 +12,14 @@ module Config = LibBackend.Config
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module WorkerStates = LibBackend.QueueSchedulingRules.WorkerStates
 module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
 module CTApi = ClientTypes.Api
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 module CT2Ops = ClientTypes2BackendTypes.Ops
+module CT2Worker = ClientTypes2BackendTypes.Worker
 
 module V = SerializationTestValues
 
@@ -58,9 +60,9 @@ module ClientTestValues =
         V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT }
 
   let workerStates : ClientTypes.Worker.WorkerStates =
-    Map.ofList [ "run", ClientTypes.Worker.Running
-                 "blocked", ClientTypes.Worker.Blocked
-                 "paused", ClientTypes.Worker.Paused ]
+    Map.ofList [ "run", CT2Worker.WorkerState.toCT WorkerStates.Running
+                 "blocked", CT2Worker.WorkerState.toCT WorkerStates.Blocked
+                 "paused", CT2Worker.WorkerState.toCT WorkerStates.Paused ]
 
   let addOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
     { ``params`` =

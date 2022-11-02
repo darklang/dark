@@ -2,20 +2,15 @@ module ClientTypes2BackendTypes.Worker
 
 open Prelude
 
+module WorkerStates = LibBackend.QueueSchedulingRules.WorkerStates
+
 module WorkerState =
-  let toCT
-    (ws : LibBackend.QueueSchedulingRules.WorkerStates.State)
-    : ClientTypes.Worker.WorkerState =
+  let toCT (ws : WorkerStates.State) : ClientTypes.Worker.WorkerState =
     match ws with
-    | LibBackend.QueueSchedulingRules.WorkerStates.Running ->
-      ClientTypes.Worker.Running
-    | LibBackend.QueueSchedulingRules.WorkerStates.Blocked ->
-      ClientTypes.Worker.Blocked
-    | LibBackend.QueueSchedulingRules.WorkerStates.Paused ->
-      ClientTypes.Worker.Paused
+    | WorkerStates.Running -> "run"
+    | WorkerStates.Blocked -> "block"
+    | WorkerStates.Paused -> "pause"
 
 module WorkerStates =
-  let toCT
-    (ws : LibBackend.QueueSchedulingRules.WorkerStates.T)
-    : ClientTypes.Worker.WorkerStates =
+  let toCT (ws : WorkerStates.T) : ClientTypes.Worker.WorkerStates =
     ws |> Map.map (fun _k v -> WorkerState.toCT v)

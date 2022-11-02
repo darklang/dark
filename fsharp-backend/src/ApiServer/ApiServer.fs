@@ -226,9 +226,6 @@ let run (packages : Packages) : unit =
 
 // Generally speaking, this should be a superset of BwdServer's list.
 let initSerializers () =
-  // needed for both some API payloads and Pusher.com payloads
-  Json.Vanilla.registerConverter (ClientTypes.Converters.STJ.WorkerStateConverter())
-
   // universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"
 
