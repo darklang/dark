@@ -36,7 +36,11 @@ type Event =
 
 type EventNameAndPayload = { EventName : string; Payload : string }
 
-type PusherEventSerializer = Event -> EventNameAndPayload
+// We sometimes need _only_ the event name, and serialization of the payload
+// may be expensive, so include a function that _just_ gets the event name.
+type PusherEventSerializer =
+  { EventName : Event -> string
+    Serialize : Event -> EventNameAndPayload }
 
 
 /// <summary>Send an event to Pusher.com.</summary>
@@ -56,32 +60,34 @@ let push
   (event : Event)
   (_fallback : Option<Event>)
   : unit =
-  let handleEvent (event : EventNameAndPayload) : unit =
-    FireAndForget.fireAndForgetTask $"pusher: {event.EventName}" (fun () ->
-      task {
-        // TODO: make channels private and end-to-end encrypted in order to add public canvases
-        let client = Lazy.force pusherClient
-        let channel = $"canvas_{canvasID}"
+  FireAndForget.fireAndForgetTask
+    $"pusher: {eventSerializer.EventName event}"
+    (fun () ->
+      let handleEvent (event : EventNameAndPayload) =
+        task {
+          // TODO: make channels private and end-to-end encrypted in order to add public canvases
+          let client = Lazy.force pusherClient
+          let channel = $"canvas_{canvasID}"
 
-        let! (_ : PusherServer.ITriggerResult) =
-          client.TriggerAsync(channel, event.EventName, event.Payload)
+          let! (_ : PusherServer.ITriggerResult) =
+            client.TriggerAsync(channel, event.EventName, event.Payload)
 
-        return ()
-      })
+          return ()
+        }
 
-  let serialized = eventSerializer event
+      let serialized = eventSerializer.Serialize event
 
-  if String.length serialized.Payload > 10240 then
-    // TODO: this sort of functionality was outlined before, but never actually
-    // used. We need to test this and update the client to handle the payloads.
-    // (note: make sure you remove the payload from the 'ignores' list of TestJsonEncoding.res)
+      if String.length serialized.Payload > 10240 then
+        // TODO: this sort of functionality was outlined before, but never actually
+        // used. We need to test this and update the client to handle the payloads.
+        // (note: make sure you remove the payload from the 'ignores' list of TestJsonEncoding.res)
 
-    // match fallback with
-    // | None -> printfn "Uh oh!"
-    // | Some fallback -> eventSerializer fallback |> handleEvent
-    ()
-  else
-    serialized |> handleEvent
+        // match fallback with
+        // | None -> printfn "Uh oh!"
+        // | Some fallback -> eventSerializer fallback |> handleEvent
+        Task.FromResult()
+      else
+        handleEvent serialized)
 
 type JsConfig = { enabled : bool; key : string; cluster : string }
 
