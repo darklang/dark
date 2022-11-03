@@ -1,5 +1,5 @@
 module T: {
-  @ppx.deriving(show({with_path: false})) type rec t = TLID(UInt64.t)
+  @unboxed type rec t = TLID(UInt64.t)
 
   type identity
 

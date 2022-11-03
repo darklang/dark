@@ -1,6 +1,6 @@
 module T = {
   module Nested = {
-    @ppx.deriving(show({with_path: false})) type rec t = TLID(UInt64.t)
+    @unboxed type rec t = TLID(UInt64.t)
     let compare = (TLID(id1): t, TLID(id2): t) => UInt64.compare(id1, id2)
   }
 
