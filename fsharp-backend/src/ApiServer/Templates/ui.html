@@ -15,8 +15,8 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com/" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com/" />
     <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
-    <link rel="preconnect" href="//{STATIC}/" />
-    <link rel="preconnect" href="//{STATIC}/" crossorigin />
+    <link rel="preconnect" href="//{{STATIC}}/" />
+    <link rel="preconnect" href="//{{STATIC}}/" crossorigin />
 
     <!-- Preload all files async -->
     <link
@@ -46,11 +46,19 @@
       href="//{{STATIC}}/app.js"
       crossorigin="anonymous"
     />
-    <link rel="preload" href="/api/{{CANVAS_NAME}}/v1/packages" as="fetch" />
+    <!-- Preloading there API calls is very delicate, they must match exactly and we
+    have very limited control over the headers -->
+    <link
+      rel="preload"
+      href="/api/{{CANVAS_NAME}}/v1/packages"
+      as="fetch"
+      crossorigin
+    />
     <link
       rel="preload"
       href="/api/{{CANVAS_NAME}}/v1/initial_load"
       as="fetch"
+      crossorigin
     />
 
     <!-- Actually load the files -->
