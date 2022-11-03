@@ -285,19 +285,28 @@ let processFocus = (m: model, focus: AppTypes.Focus.t): modification =>
       let query = AutocompleteMod(ACSetQuery(P.toContent(pd)))
       Many(list{
         SetPage(page),
-        ReplaceAllModificationsWithThisOne(CursorState.setCursorState(cs)),
+        ReplaceAllModificationsWithThisOne(
+          "FocusPageAndCursor-blank",
+          CursorState.setCursorState(cs),
+        ),
         query,
       })
     | (Some(_), Some(None)) | (Some(_), None) =>
       Many(list{
         SetPage(page),
-        ReplaceAllModificationsWithThisOne(CursorState.setCursorState(cs)),
+        ReplaceAllModificationsWithThisOne(
+          "FocusPageAndCursor-some",
+          CursorState.setCursorState(cs),
+        ),
         AutocompleteMod(ACSetQuery("")),
       })
     | (_, _) =>
       switch page {
       | SettingsModal(_) =>
-        ReplaceAllModificationsWithThisOne(m => (m, Cmd.none)->CCC.setPage(page))
+        ReplaceAllModificationsWithThisOne(
+          "FocusPageAndCursor-setPage",
+          m => (m, Cmd.none)->CCC.setPage(page),
+        )
       | _ => NoChange
       }
     }
@@ -348,7 +357,7 @@ let isACOpened = (m: model): bool =>
 
 let rec updateMod = (mod: modification, (m, cmd): (model, AppTypes.cmd)): (model, AppTypes.cmd) => {
   if m.integrationTestState != NoIntegrationTest {
-    Debug.loG("mod update", mod)
+    Js.log3("mod update", AppTypes.Modification.toDebugString(mod), mod)
   }
   let (newm, newcmd) = {
     let bringBackCurrentTL = (oldM: model, newM: model): model =>
@@ -401,7 +410,7 @@ let rec updateMod = (mod: modification, (m, cmd): (model, AppTypes.cmd)): (model
     }
 
     switch mod {
-    | ReplaceAllModificationsWithThisOne(f) => f(m)
+    | ReplaceAllModificationsWithThisOne(_name, f) => f(m)
     | HandleAPIError(apiError) => APIErrorHandler.handle(m, apiError)
     | AddOps(ops, focus) => handleAPI(API.opsParams(ops, (m |> opCtr) + 1, m.clientOpCtrId), focus)
     | GetUnlockedDBsAPICall => Sync.attempt(~key="unlocked", m, API.getUnlockedDBs(m))
@@ -977,7 +986,10 @@ let update_ = (msg: msg, m: model): modification => {
       | PanningCanvas({prevCursorState, _}) =>
         /* In case we are already panning, we got into a weird state;
          * we should stop panning. */
-        ReplaceAllModificationsWithThisOne(CursorState.setCursorState(prevCursorState))
+        ReplaceAllModificationsWithThisOne(
+          "AppMouseDown-PanningCanvas",
+          CursorState.setCursorState(prevCursorState),
+        )
       | _ =>
         PanCanvas({
           viewportStart: event.mePos,
@@ -1007,7 +1019,7 @@ let update_ = (msg: msg, m: model): modification => {
   | AppScroll =>
     /* This is needed to ensure that when we
      * translate the canvas, it moves in absolute space (see docstring for more). */
-    ReplaceAllModificationsWithThisOne(m => (m, View.zeroOutAppScroll))
+    ReplaceAllModificationsWithThisOne("AppScroll", m => (m, View.zeroOutAppScroll))
   | WindowMouseUp(event) | AppMouseUp(event) =>
     let clickBehavior = switch m.currentPage {
     | FocusedFn(tlid, _) | FocusedType(tlid) | FocusedPackageManagerFn(tlid) =>
@@ -1064,12 +1076,16 @@ let update_ = (msg: msg, m: model): modification => {
          * clickBehavior might dismiss (ex closing the omnibox). */
         Many(list{
           ReplaceAllModificationsWithThisOne(
+            "WindowMouseUp-PanningCanvas-close",
             m => ({...m, cursorState: prevCursorState}, Tea.Cmd.none),
           ),
           ...clickBehavior,
         })
       } else {
-        ReplaceAllModificationsWithThisOne(CursorState.setCursorState(prevCursorState))
+        ReplaceAllModificationsWithThisOne(
+          "WindowMouseUp-PanningCanvas-notclose",
+          CursorState.setCursorState(prevCursorState),
+        )
       }
     | DraggingTL(draggingTLID, _, hasMoved, origCursorState) =>
       switch TL.get(m, draggingTLID) {
@@ -1078,7 +1094,10 @@ let update_ = (msg: msg, m: model): modification => {
           // We've been updating tl.pos as mouse moves,
           // now want to report last pos to server
           Many(list{
-            ReplaceAllModificationsWithThisOne(CursorState.setCursorState(origCursorState)),
+            ReplaceAllModificationsWithThisOne(
+              "DraggingTL-hasMoved",
+              CursorState.setCursorState(origCursorState),
+            ),
             AddOps(list{MoveTL(draggingTLID, TL.pos(tl))}, FocusNoChange),
           })
         } else {
@@ -1089,7 +1108,11 @@ let update_ = (msg: msg, m: model): modification => {
           | _ => defaultBehaviour
           }
         }
-      | None => ReplaceAllModificationsWithThisOne(CursorState.setCursorState(origCursorState))
+      | None =>
+        ReplaceAllModificationsWithThisOne(
+          "DraggingTL-none",
+          CursorState.setCursorState(origCursorState),
+        )
       }
     | FluidEntering(_) => Fluid.update(m, FluidMouseUpExternal)
     | _ => NoChange
@@ -1103,7 +1126,10 @@ let update_ = (msg: msg, m: model): modification => {
     | Some(_, Error(_)) =>
       let (m, cmd) = Analysis.requestTrace(m, tlid, traceID)
       list{
-        ReplaceAllModificationsWithThisOne(old => (({...old, syncState: m.syncState}: model), cmd)),
+        ReplaceAllModificationsWithThisOne(
+          "TraceMouseEnter",
+          old => (({...old, syncState: m.syncState}: model), cmd),
+        ),
       }
     | _ => list{}
     }
@@ -1149,7 +1175,10 @@ let update_ = (msg: msg, m: model): modification => {
             // There doesn't seem to be any harm in stopping dragging
             // here though
             Many(list{
-              ReplaceAllModificationsWithThisOne(CursorState.setCursorState(origCursorState)),
+              ReplaceAllModificationsWithThisOne(
+                "TLDragRegionMouseUp-hasMoved",
+                CursorState.setCursorState(origCursorState),
+              ),
               AddOps(list{MoveTL(draggingTLID, TL.pos(tl))}, FocusNoChange),
             })
           } else {
@@ -1160,7 +1189,11 @@ let update_ = (msg: msg, m: model): modification => {
             | _ => defaultBehaviour
             }
           }
-        | None => ReplaceAllModificationsWithThisOne(CursorState.setCursorState(origCursorState))
+        | None =>
+          ReplaceAllModificationsWithThisOne(
+            "TLDragRegionMouseUp-none",
+            CursorState.setCursorState(origCursorState),
+          )
         }
       | Entering(tlid, id) =>
         Many(list{Entry.commit(m, tlid, id), Select(tlid, STTopLevelRoot), FluidEndClick})
@@ -1182,7 +1215,10 @@ let update_ = (msg: msg, m: model): modification => {
     | Deselected => select(targetID)
     | DraggingTL(_, _, _, prevCursorState)
     | PanningCanvas({prevCursorState, _}) =>
-      ReplaceAllModificationsWithThisOne(CursorState.setCursorState(prevCursorState))
+      ReplaceAllModificationsWithThisOne(
+        "BlankOrClick",
+        CursorState.setCursorState(prevCursorState),
+      )
     | Entering(tlid, fillingID) =>
       let defaultBehaviour = select(targetID)
       if fillingID == targetID {
@@ -1218,7 +1254,7 @@ let update_ = (msg: msg, m: model): modification => {
   | TraceClick(tlid, traceID, _) =>
     switch m.cursorState {
     | DraggingTL(_, _, _, origCursorState) =>
-      ReplaceAllModificationsWithThisOne(CursorState.setCursorState(origCursorState))
+      ReplaceAllModificationsWithThisOne("TraceClick", CursorState.setCursorState(origCursorState))
     | Deselected => Many(list{Select(tlid, STTopLevelRoot), SetTLTraceID(tlid, traceID)})
     | _ => SetTLTraceID(tlid, traceID)
     }
@@ -1230,6 +1266,7 @@ let update_ = (msg: msg, m: model): modification => {
     }
   | ToggleEditorSetting(fn) =>
     ReplaceAllModificationsWithThisOne(
+      "ToggleEditorSetting",
       m => ({...m, editorSettings: fn(m.editorSettings)}, Cmd.none),
     )
   | SaveTestButton => MakeCmd(API.saveTest(m))
@@ -1267,7 +1304,7 @@ let update_ = (msg: msg, m: model): modification => {
     }
   | ToplevelDelete(tlid) =>
     let resetMenu = // So menu doesn't stay at opened state when TL is restored
-    ReplaceAllModificationsWithThisOne(m => (TLMenu.resetMenu(tlid, m), Cmd.none))
+    ReplaceAllModificationsWithThisOne("ToplevelDelete", m => (TLMenu.resetMenu(tlid, m), Cmd.none))
 
     TL.get(m, tlid)
     |> Option.map(~f=tl => Many(list{
@@ -1280,6 +1317,7 @@ let update_ = (msg: msg, m: model): modification => {
     Many(list{
       DeleteToplevelForeverAPICall(tlid),
       ReplaceAllModificationsWithThisOne(
+        "ToplevelDeleteForever",
         m => (
           {
             ...m,
@@ -1300,6 +1338,7 @@ let update_ = (msg: msg, m: model): modification => {
     Many(list{
       DeleteToplevelForeverAPICall(tlid),
       ReplaceAllModificationsWithThisOne(
+        "DeleteUserFunctionForever",
         m => (
           {
             ...m,
@@ -1324,6 +1363,7 @@ let update_ = (msg: msg, m: model): modification => {
     Many(list{
       DeleteToplevelForeverAPICall(tlid),
       ReplaceAllModificationsWithThisOne(
+        "DeleteUserTypeForever",
         m => (
           {
             ...m,
@@ -1398,6 +1438,7 @@ let update_ = (msg: msg, m: model): modification => {
     let allTLs = TL.all(pfM)
     Many(list{
       ReplaceAllModificationsWithThisOne(
+        "InitialLoadAPICallback",
         m => {
           let settings =
             m.settings
@@ -1462,6 +1503,7 @@ let update_ = (msg: msg, m: model): modification => {
     Many(list{
       OverrideTraces(traces),
       ReplaceAllModificationsWithThisOne(
+        "TriggerHandlerAPICallback",
         m => {
           let handlerProps = RT.setHandlerExeState(params.tlid, Complete, m.handlerProps)
 
@@ -1472,6 +1514,7 @@ let update_ = (msg: msg, m: model): modification => {
   | GetUnlockedDBsAPICallback(Ok(unlockedDBs)) =>
     Many(list{
       ReplaceAllModificationsWithThisOne(
+        "GetUnlockedDBsAPICallback",
         m => (Sync.markResponseInModel(m, ~key="unlocked"), Cmd.none),
       ),
       SetUnlockedDBs(unlockedDBs),
@@ -1479,6 +1522,7 @@ let update_ = (msg: msg, m: model): modification => {
   | Get404sAPICallback(Ok(f404s)) => Append404s(f404s)
   | LoadPackagesAPICallback(Ok(loadedPackages)) =>
     ReplaceAllModificationsWithThisOne(
+      "LoadPackagesAPICallback",
       m => {
         let pkgs =
           loadedPackages
@@ -1499,7 +1543,10 @@ let update_ = (msg: msg, m: model): modification => {
       },
     )
   | InsertSecretCallback(Ok(secrets)) =>
-    ReplaceAllModificationsWithThisOne(m => ({...m, secrets: secrets}, Cmd.none))
+    ReplaceAllModificationsWithThisOne(
+      "InsertSecretCallbackOK",
+      m => ({...m, secrets: secrets}, Cmd.none),
+    )
   | NewTracePush(traceID, tlids) =>
     let traces = List.map(~f=tlid => (tlid, list{(traceID, Error(TraceError.NoneYet))}), tlids)
 
@@ -1575,6 +1622,7 @@ let update_ = (msg: msg, m: model): modification => {
 
     Many(list{
       ReplaceAllModificationsWithThisOne(
+        "ReceiveFetch-TraceFetchFailure-too-large",
         m => {
           let key = "tracefetch-" ++ params.traceID
           let m = Sync.markResponseInModel(m, ~key)
@@ -1585,6 +1633,7 @@ let update_ = (msg: msg, m: model): modification => {
     })
   | ReceiveFetch(TraceFetchFailure(params, url, error)) =>
     ReplaceAllModificationsWithThisOne(
+      "ReceiveFetch-TraceFetchFailure",
       m => {
         let key = "tracefetch-" ++ params.traceID
         let m = Sync.markResponseInModel(m, ~key)
@@ -1596,6 +1645,7 @@ let update_ = (msg: msg, m: model): modification => {
 
     Many(list{
       ReplaceAllModificationsWithThisOne(
+        "ReceiveFetch-TraceFetchSuccess",
         m => {
           let key = "tracefetch-" ++ params.traceID
           (Sync.markResponseInModel(m, ~key), Cmd.none)
@@ -1624,6 +1674,7 @@ let update_ = (msg: msg, m: model): modification => {
     let key = params.dbStatsTlids |> List.map(~f=TLID.toString) |> String.join(~sep=",")
 
     ReplaceAllModificationsWithThisOne(
+      "ReceiveFetch-DbStatsFetchFailure",
       m => {
         let key = "update-db-stats-" ++ key
         let m = Sync.markResponseInModel(m, ~key)
@@ -1634,6 +1685,7 @@ let update_ = (msg: msg, m: model): modification => {
     let key = params.dbStatsTlids |> List.map(~f=TLID.toString) |> String.join(~sep=",")
 
     ReplaceAllModificationsWithThisOne(
+      "ReceiveFetch-DbStatsFetchMissing",
       m => {
         let key = "update-db-stats-" ++ key
         (Sync.markResponseInModel(m, ~key), Cmd.none)
@@ -1643,6 +1695,7 @@ let update_ = (msg: msg, m: model): modification => {
     let key = params.dbStatsTlids |> List.map(~f=TLID.toString) |> String.join(~sep=",")
 
     ReplaceAllModificationsWithThisOne(
+      "ReceiveFetch-DbStatsFetchSuccess",
       m => {
         let m = Sync.markResponseInModel(m, ~key="update-db-stats-" ++ key)
         let newStore = Map.merge(
@@ -1675,6 +1728,7 @@ let update_ = (msg: msg, m: model): modification => {
     )
   | ReceiveFetch(WorkerStatsFetchFailure(params, url, error)) =>
     ReplaceAllModificationsWithThisOne(
+      "ReceiveFetch-WorkerStatsFetchFailure",
       m => {
         let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
@@ -1684,6 +1738,7 @@ let update_ = (msg: msg, m: model): modification => {
     )
   | ReceiveFetch(WorkerStatsFetchMissing(params)) =>
     ReplaceAllModificationsWithThisOne(
+      "ReceiveFetch-WorkerStatsFetchMissing",
       m => {
         let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
@@ -1692,6 +1747,7 @@ let update_ = (msg: msg, m: model): modification => {
     )
   | ReceiveFetch(WorkerStatsFetchSuccess(params, result)) =>
     ReplaceAllModificationsWithThisOne(
+      "ReceiveFetch-WorkerStatsFetchSuccess",
       m => {
         let key = "get-worker-stats-" ++ TLID.toString(params.tlid)
 
@@ -1738,6 +1794,7 @@ let update_ = (msg: msg, m: model): modification => {
   | GetUnlockedDBsAPICallback(Error(err)) =>
     Many(list{
       ReplaceAllModificationsWithThisOne(
+        "GetUnlockedDBsAPICallback-Error",
         m => (Sync.markResponseInModel(m, ~key="unlocked"), Cmd.none),
       ),
       HandleAPIError(
@@ -1804,7 +1861,10 @@ let update_ = (msg: msg, m: model): modification => {
      * different msg each time that we have to understand. */
     NoChange
   | PageVisibilityChange(vis) =>
-    ReplaceAllModificationsWithThisOne(m => ({...m, visibility: vis}, Cmd.none))
+    ReplaceAllModificationsWithThisOne(
+      "PageVisibilityChange",
+      m => ({...m, visibility: vis}, Cmd.none),
+    )
   | CreateHandlerFrom404({space, path, modifier, _} as fof) =>
     let center = Viewport.findNewPos(m)
     let tlid = gtlid()
@@ -1870,9 +1930,11 @@ let update_ = (msg: msg, m: model): modification => {
       AddOps(list{SetType(typ)}, FocusNothing),
       MakeCmd(Url.navigateTo(FocusedType(typ.tlid))),
     })
-  | EnablePanning(pan) => ReplaceAllModificationsWithThisOne(Viewport.enablePan(pan))
+  | EnablePanning(pan) =>
+    ReplaceAllModificationsWithThisOne("EnablePanning", Viewport.enablePan(pan))
   | ClipboardCopyEvent(e) =>
     let toast = ReplaceAllModificationsWithThisOne(
+      "ClipboardCopyEvent",
       (m: model) => ({...m, toast: {...m.toast, message: Some("Copied!")}}, Cmd.none),
     )
 
@@ -1883,6 +1945,7 @@ let update_ = (msg: msg, m: model): modification => {
     Fluid.update(m, FluidPaste(data))
   | ClipboardCutEvent(e) =>
     let toast = ReplaceAllModificationsWithThisOne(
+      "ClipboardCutEvent",
       (m: model) => ({...m, toast: {...m.toast, message: Some("Copied!")}}, Cmd.none),
     )
 
@@ -1893,6 +1956,7 @@ let update_ = (msg: msg, m: model): modification => {
     let lv = lv |> Regex.replace(~re=Regex.regex("(^\")|(\"$)"), ~repl="")
     Native.Clipboard.copyToClipboard(lv)
     ReplaceAllModificationsWithThisOne(
+      "ClipboardCopyLivevalue",
       m => ({...m, toast: {message: Some("Copied!"), pos: Some(pos)}}, Cmd.none),
     )
   | EventDecoderError(name, key, error) =>
@@ -1912,6 +1976,7 @@ let update_ = (msg: msg, m: model): modification => {
     )
   | CanvasPanAnimationEnd =>
     ReplaceAllModificationsWithThisOne(
+      "CanvasPanAnimationEnd",
       m => (
         {
           ...m,
@@ -1936,6 +2001,7 @@ let update_ = (msg: msg, m: model): modification => {
     recover("Fluid functions should not happen here", ~debug=msg, NoChange)
   | FluidMsg(FluidCommandsFilter(query)) =>
     ReplaceAllModificationsWithThisOne(
+      "FluidMsgFluidCommandsFilter",
       m => {
         let cp = FluidCommands.filter(m, query, m.fluidState.cp)
         ({...m, fluidState: {...m.fluidState, cp: cp}}, Cmd.none)
@@ -1956,6 +2022,7 @@ let update_ = (msg: msg, m: model): modification => {
     |> Option.unwrap(~default=Model.updateErrorMod(Error.set("No function to upload")))
   | SetHandlerExeIdle(tlid) =>
     ReplaceAllModificationsWithThisOne(
+      "SetHandlerExeIdle",
       m => {
         let handlerProps = RT.setHandlerExeState(tlid, Idle, m.handlerProps)
         ({...m, handlerProps: handlerProps}, Cmd.none)
@@ -1981,8 +2048,12 @@ let update_ = (msg: msg, m: model): modification => {
     // Handle all other messages
     Fluid.update(m, msg)
   | ResetToast =>
-    ReplaceAllModificationsWithThisOne(m => ({...m, toast: AppTypes.Toast.default}, Cmd.none))
-  | HideTopbar => ReplaceAllModificationsWithThisOne(m => ({...m, showTopbar: false}, Cmd.none))
+    ReplaceAllModificationsWithThisOne(
+      "ResetToast",
+      m => ({...m, toast: AppTypes.Toast.default}, Cmd.none),
+    )
+  | HideTopbar =>
+    ReplaceAllModificationsWithThisOne("HideTopbar", m => ({...m, showTopbar: false}, Cmd.none))
   | LogoutAPICallback =>
     // For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work
     Native.Ext.redirect("/login")
@@ -2002,6 +2073,7 @@ let update_ = (msg: msg, m: model): modification => {
     TLMenuUpdate(tlid, CloseMenu)
   | SettingsMsg(msg) =>
     ReplaceAllModificationsWithThisOne(
+      "SettingsMsg",
       m => {
         let wrapCmd = cmd => Tea.Cmd.map(msg => AppTypes.Msg.SettingsMsg(msg), cmd)
         let (settings, effect) = Settings.update(m.settings, msg)
@@ -2049,6 +2121,7 @@ let update_ = (msg: msg, m: model): modification => {
   | SecretMsg(msg) => InsertSecret.update(msg)
   | RenderEvent =>
     ReplaceAllModificationsWithThisOne(
+      "RenderEvent",
       m => {
         Fluid.renderCallback(m)
         (m, Cmd.none)

@@ -96,6 +96,7 @@ let wrapCmd = (m: AppTypes.model, tl: toplevel, id: id): modification =>
         /* This is bad, but we can't use Fluid.ml here due to
          * dependency cycle issues D: */
         ReplaceAllModificationsWithThisOne(
+          "FeatureFlags.wrapCmd",
           m => (
             {
               ...m,
@@ -153,6 +154,7 @@ let unwrapCmd = (keep: unwrapKeep, _: AppTypes.model, tl: toplevel, id: id): mod
   |> Option.map(~f=ast => Mod.Many(list{
     Toplevel.setASTMod(tl, ast),
     ReplaceAllModificationsWithThisOne(
+      "FeatureFlags-unwrapCmd",
       m => (
         {
           ...m,

@@ -6193,6 +6193,7 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
     FluidCommands.cpSetIndex(m, index)
   | FluidUpdateDropdownIndex(index) =>
     ReplaceAllModificationsWithThisOne(
+      "FluidUpdateDropdownIndex",
       m => {
         let fluidState = acSetIndex'(index, m.fluidState)
         ({...m, fluidState: fluidState}, Tea.Cmd.none)
@@ -6203,6 +6204,7 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
   | FluidInputEvent(Keypress({key: K.CommandPalette(heritage), _})) =>
     let maybeOpen = maybeOpenCmd(m)
     let showToast = Mod.ReplaceAllModificationsWithThisOne(
+      "FluidUpdate-showToast",
       (m: model) => (
         {
           ...m,
@@ -6359,7 +6361,10 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
         }
 
         Mod.Many(list{
-          ReplaceAllModificationsWithThisOne(m => (TL.withAST(m, tlid, newAST), Tea.Cmd.none)),
+          ReplaceAllModificationsWithThisOne(
+            "FluidUpdate-newAST",
+            m => (TL.withAST(m, tlid, newAST), Tea.Cmd.none),
+          ),
           Toplevel.setSelectedAST(m, newAST),
           requestAnalysis,
           astCacheMod,
@@ -6369,7 +6374,10 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
       }
 
       Mod.Many(list{
-        ReplaceAllModificationsWithThisOne(m => ({...m, fluidState: newState}, Tea.Cmd.none)),
+        ReplaceAllModificationsWithThisOne(
+          "FluidUpdate-newState",
+          m => ({...m, fluidState: newState}, Tea.Cmd.none),
+        ),
         astMod,
         eventSpecMod,
         Mod.MakeCmd(cmd),

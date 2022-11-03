@@ -25,6 +25,7 @@ let update = (msg: ST.msg): modification =>
   switch msg {
   | OpenCreateModal =>
     Mod.ReplaceAllModificationsWithThisOne(
+      "InsertSecret-OpenCreateModal",
       m => {
         let usedNames = List.map(~f=s => s.secretName, m.secrets)
         let insertSecretModal = {...m.insertSecretModal, visible: true, usedNames: usedNames}
@@ -37,6 +38,7 @@ let update = (msg: ST.msg): modification =>
     )
   | CloseCreateModal =>
     ReplaceAllModificationsWithThisOne(
+      "InsertSecret-CloseCreateModal",
       m => {
         let insertSecretModal = SecretTypes.defaultInsertModal
         ({...m, insertSecretModal: insertSecretModal}, Cmd.none)
@@ -44,6 +46,7 @@ let update = (msg: ST.msg): modification =>
     )
   | OnUpdateName(newSecretName) =>
     ReplaceAllModificationsWithThisOne(
+      "InsertSecret-OnUpdateName",
       m => {
         let error = if !validateName(newSecretName) {
           Some("Secret name can only contain uppercase alphanumeric characters and underscores")
@@ -66,6 +69,7 @@ let update = (msg: ST.msg): modification =>
     )
   | OnUpdateValue(newSecretValue) =>
     ReplaceAllModificationsWithThisOne(
+      "InsertSecret-OnUpdateValue",
       m => {
         let isValueValid = validateValue(newSecretValue)
         let insertSecretModal = {
@@ -79,6 +83,7 @@ let update = (msg: ST.msg): modification =>
     )
   | SaveNewSecret =>
     ReplaceAllModificationsWithThisOne(
+      "InsertSecret-SaveNewSecret",
       m => {
         let isValueValid = validateValue(m.insertSecretModal.newSecretValue)
         let isNameValid = validateName(m.insertSecretModal.newSecretName)

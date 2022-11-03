@@ -261,6 +261,7 @@ let setHoveringReferences = (tlid: TLID.t, ids: list<id>): AppTypes.modification
     }
 
   ReplaceAllModificationsWithThisOne(
+    "setHoveringReferences",
     m => ({...m, handlerProps: Map.update(~key=tlid, ~f=new_props, m.handlerProps)}, Tea.Cmd.none),
   )
 }

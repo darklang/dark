@@ -485,6 +485,8 @@ module Dval = {
     | DBytes(bin) => ev("DBytes", list{base64EncodedBytes(bin)})
     }
   }
+  let toDebugString = (dval: t): string => dval->encode->Js.Json.stringify
+
   let obj = (l: list<(string, t)>): t =>
     l |> Belt.List.toArray |> Belt.Map.String.fromArray |> (m => DObj(m))
 }

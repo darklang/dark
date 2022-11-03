@@ -297,6 +297,7 @@ let newHandler = (m: model, spec, pos) => {
 
     list{
       Mod.ReplaceAllModificationsWithThisOne(
+        "Entry.newHandler",
         (m: model) =>
           {...m, fluidState: newS, tooltipState: tooltipState} |> CursorState.setCursorState(
             cursorState,
@@ -598,6 +599,7 @@ let submitACItem = (
       | (PTypeFieldType(_), ACTypeFieldType(typ), _) => replace(PTypeFieldType(F(id, typ)))
       | (pd, item, _) =>
         ReplaceAllModificationsWithThisOne(
+          "Entry-submitAcItem-invalid",
           m => {
             let custom = Json.stringifyAlways((pd, item))
             Rollbar.displayAndReportError(m, "Invalid autocomplete option", None, Some(custom))

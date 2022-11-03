@@ -61,13 +61,17 @@ let update = (m: AppTypes.model, msg: FnParams.msg): modification => {
   }
 
   if List.isEmpty(mods) {
-    ReplaceAllModificationsWithThisOne(m => ({...m, currentUserFn: currentUserFn}, Tea.Cmd.none))
+    ReplaceAllModificationsWithThisOne(
+      "FnParams.update-empty",
+      m => ({...m, currentUserFn: currentUserFn}, Tea.Cmd.none),
+    )
   } else {
     Many(
       Belt.List.concat(
         mods,
         list{
           ReplaceAllModificationsWithThisOne(
+            "Fnparams.update",
             m => ({...m, currentUserFn: currentUserFn}, Tea.Cmd.none),
           ),
         },

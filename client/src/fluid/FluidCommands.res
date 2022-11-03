@@ -228,6 +228,7 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
 }
 
 let cpSetIndex = (_m: model, i: int): modification => ReplaceAllModificationsWithThisOne(
+  "cpSetIndex",
   m => {
     let cp = {...m.fluidState.cp, index: i}
     let fluidState = {...m.fluidState, cp: cp, upDownCol: None}
@@ -249,6 +250,7 @@ let updateCmds = (m: model, keyEvt: K.keyEvent): modification => {
     }
   | K.Up =>
     ReplaceAllModificationsWithThisOne(
+      "FluidCommands-up",
       m => {
         let cp = moveUp(m.fluidState.cp)
         let fluidState = {...m.fluidState, cp: cp}
@@ -257,6 +259,7 @@ let updateCmds = (m: model, keyEvt: K.keyEvent): modification => {
     )
   | K.Down =>
     ReplaceAllModificationsWithThisOne(
+      "FluidCommands-down",
       m => {
         let cp = moveDown(m.fluidState.cp)
         let fluidState = {...m.fluidState, cp: cp}

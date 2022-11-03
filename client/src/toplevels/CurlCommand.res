@@ -227,11 +227,15 @@ let copyCurlMod = (m: AppTypes.model, tlid: TLID.t, pos: VPos.t): AppTypes.modif
   | Some(data) =>
     Native.Clipboard.copyToClipboard(data)
     ReplaceAllModificationsWithThisOne(
+      "CopyCurlMod-some",
       m => {
         let m = TLMenu.update(m, tlid, CloseMenu)
         ({...m, toast: {message: Some("Copied!"), pos: Some(pos)}}, Tea.Cmd.none)
       },
     )
   | None =>
-    ReplaceAllModificationsWithThisOne(m => (TLMenu.update(m, tlid, CloseMenu), Tea.Cmd.none))
+    ReplaceAllModificationsWithThisOne(
+      "CopyCurlMod-none",
+      m => (TLMenu.update(m, tlid, CloseMenu), Tea.Cmd.none),
+    )
   }
