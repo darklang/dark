@@ -17,6 +17,9 @@ while true; do
   if [[ "${next}" == "${LOCKFILE_NAME}"  ]]; then
     echo "We're up!"
     exit 0
+  elif [[ "${next}" == "" ]]; then
+    echo "No locks found, we're up!"
+    exit 0
   else
     echo "Waiting for other deploy to finish (${next}), sleeping"
     sleep 5
