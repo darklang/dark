@@ -465,7 +465,9 @@ module Analysis =
   type Trace = TraceID * TraceData.T
 
   type HandlerAnalysisParam =
-    { handler : PT.Handler.T
+    { requestID : id
+      requestTime : NodaTime.Instant
+      handler : PT.Handler.T
       traceID : TraceID
       traceData : TraceData.T
       dbs : List<PT.DB.T>
@@ -475,7 +477,9 @@ module Analysis =
       secrets : list<PT.Secret.T> }
 
   type FunctionAnalysisParam =
-    { func : PT.UserFunction.T
+    { requestID : id
+      requestTime : NodaTime.Instant
+      func : PT.UserFunction.T
       traceID : TraceID
       traceData : TraceData.T
       dbs : List<PT.DB.T>
@@ -488,4 +492,4 @@ module Analysis =
     | AnalyzeHandler of HandlerAnalysisParam
     | AnalyzeFunction of FunctionAnalysisParam
 
-  type AnalysisEnvelope = TraceID * AnalysisResults.T
+  type AnalysisEnvelope = TraceID * AnalysisResults.T * id * NodaTime.Instant

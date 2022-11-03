@@ -617,10 +617,10 @@ let rec updateMod = (mod: modification, (m, cmd): (model, AppTypes.cmd)): (model
       }
 
       processAutocompleteMods(m, list{ACRegenerate})
-    | UpdateAnalysis(traceID, dvals) =>
+    | UpdateAnalysis(traceID, dvals, _requestID, requestTime) =>
       let m = {
         ...m,
-        analyses: Analysis.record(m.analyses, traceID, Loadable.Success(dvals)),
+        analyses: Analysis.record(m.analyses, traceID, requestTime, Loadable.Success(dvals)),
       }
 
       let (m, _) = updateMod(Fluid.update(m, FluidUpdateAutocomplete), (m, Cmd.none))
@@ -1597,7 +1597,8 @@ let update_ = (msg: msg, m: model): modification => {
     }
   | ReceiveAnalysis(result) =>
     switch result {
-    | Ok(id, analysisResults) => UpdateAnalysis(id, analysisResults)
+    | Ok(traceID, analysisResults, requestID, requestTime) =>
+      UpdateAnalysis(traceID, analysisResults, requestID, requestTime)
     | Error(AnalysisTypes.PerformAnalysis.Error.ExecutionError(_, str)) =>
       Model.updateErrorMod(Error.set(str))
     | Error(ParseError(str)) => Model.updateErrorMod(Error.set(str))

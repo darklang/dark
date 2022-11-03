@@ -43,13 +43,30 @@ let getStoredAnalysis = (m: model, traceID: TraceID.t): AnalysisTypes.analysisSt
   // only handlers have analysis results, but lots of stuff expect this
   // data to exist. It may be better to not do that, but this is fine
   // for now.
-  Map.get(~key=traceID, m.analyses) |> Option.unwrap(~default=Loadable.NotInitialized)
+  m.analyses
+  ->Map.get(~key=traceID)
+  ->Option.unwrap(~default=(Js.Date.fromFloat(0.0), Loadable.NotInitialized))
+  ->Tuple2.second
 
 let record = (
   old: AnalysisTypes.analyses,
   id: TraceID.t,
+  requestTime: Js.Date.t,
   result: AnalysisTypes.analysisStore,
-): AnalysisTypes.analyses => Map.add(~key=id, ~value=result, old)
+): AnalysisTypes.analyses =>
+  // Sometimes, analysis results can come back out of order, so only update if it's
+  // the last one for this trace
+  Map.update(old, ~key=id, ~f=value =>
+    switch value {
+    | None => Some(requestTime, result)
+    | Some((oldRequestTime, oldResult)) =>
+      if Js.Date.getTime(requestTime) >= Js.Date.getTime(oldRequestTime) {
+        Some(requestTime, result)
+      } else {
+        Some(oldRequestTime, oldResult)
+      }
+    }
+  )
 
 let replaceFunctionResult = (
   m: model,
@@ -460,6 +477,8 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
     Tea_cmd.call(_ =>
       RequestAnalysis.send(
         AnalyzeHandler({
+          requestID: gid(),
+          requestTime: Js.Date.make(),
           handler: h,
           traceID: traceID,
           traceData: traceData,
@@ -475,6 +494,8 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
     Tea_cmd.call(_ =>
       RequestAnalysis.send(
         AnalyzeFunction({
+          requestID: gid(),
+          requestTime: Js.Date.make(),
           func: f,
           traceID: traceID,
           traceData: traceData,

@@ -853,12 +853,16 @@ module GenericSerializersTests =
           Dictionary.fromList (
             [ (7UL, CTA.ExecutionResult.ExecutedResult testClientDval)
               (7UL, CTA.ExecutionResult.NonExecutedResult testClientDval) ]
-          )
+          ),
+          9395727UL,
+          NodaTime.Instant.UnixEpoch
         ))
       v<ClientTypes.Analysis.PerformAnalysisParams>
         "handler"
         (ClientTypes.Analysis.AnalyzeHandler
-          { handler = testHttpHandler
+          { requestID = 8289494UL
+            requestTime = NodaTime.Instant.UnixEpoch
+            handler = testHttpHandler
             traceID = testUuid
             traceData =
               { input = [ "var", testClientDval ]
@@ -882,7 +886,9 @@ module GenericSerializersTests =
       v<ClientTypes.Analysis.PerformAnalysisParams>
         "function"
         (ClientTypes.Analysis.AnalyzeFunction
-          { func = testUserFunction
+          { requestID = 8289495UL
+            requestTime = NodaTime.Instant.UnixEpoch
+            func = testUserFunction
             traceID = testUuid
             traceData =
               { input = [ "var", testClientDval ]
