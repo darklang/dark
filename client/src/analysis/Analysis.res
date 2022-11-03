@@ -60,6 +60,8 @@ let record = (
     switch value {
     | None => Some(requestTime, result)
     | Some((oldRequestTime, oldResult)) =>
+      // Use getTime so that we're comparing floats, instead of using Rescript's
+      // builtin comparison on JS Dates.
       if Js.Date.getTime(requestTime) >= Js.Date.getTime(oldRequestTime) {
         Some(requestTime, result)
       } else {
