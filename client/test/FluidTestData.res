@@ -936,7 +936,7 @@ let defaultTestModel = {
     (
       "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
       (
-        Js.Date.make(),
+        0,
         Loadable.Success(
           ID.Map.fromArray([
             (

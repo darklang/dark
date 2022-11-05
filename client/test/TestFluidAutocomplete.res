@@ -186,10 +186,7 @@ let defaultModel = (
     functions: {...Functions.empty, builtinFunctions: sampleFunctions} |> Functions.update(
       defaultFunctionsProps,
     ),
-    analyses: Map.String.singleton(
-      ~key=defaultTraceID,
-      ~value=(Js.Date.fromFloat(0.0), Loadable.Success(analyses)),
-    ),
+    analyses: Map.String.singleton(~key=defaultTraceID, ~value=(0, Loadable.Success(analyses))),
   }
 }
 

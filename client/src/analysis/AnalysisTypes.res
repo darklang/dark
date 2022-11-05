@@ -177,7 +177,7 @@ module PerformAnalysis = {
     module Params = {
       @ppx.deriving(show({with_path: false}))
       type rec t = {
-        requestID: ID.t,
+        requestID: int,
         requestTime: Js.Date.t,
         handler: PT.Handler.t,
         traceID: TraceID.t,
@@ -192,8 +192,8 @@ module PerformAnalysis = {
       let encode = (params: t): Js.Json.t => {
         open Json_encode_extended
         object_(list{
-          ("requestID", ID.encode(params.requestID)),
-          ("requestTime", Json_encode_extended.date(params.requestTime)),
+          ("requestID", int(params.requestID)),
+          ("requestTime", date(params.requestTime)),
           ("handler", PT.Handler.encode(params.handler)),
           ("traceID", TraceID.encode(params.traceID)),
           ("traceData", TraceData.encode(params.traceData)),
@@ -208,7 +208,7 @@ module PerformAnalysis = {
       let decode = (j): t => {
         open Json_decode_extended
         {
-          requestID: field("requestID", ID.decode, j),
+          requestID: field("requestID", int, j),
           requestTime: field("requestTime", date, j),
           handler: field("handler", PT.Handler.decode, j),
           traceID: field("traceID", TraceID.decode, j),
@@ -227,7 +227,7 @@ module PerformAnalysis = {
     module Params = {
       @ppx.deriving(show({with_path: false}))
       type rec t = {
-        requestID: ID.t,
+        requestID: int,
         requestTime: Js.Date.t,
         func: PT.UserFunction.t,
         traceID: TraceID.t,
@@ -242,8 +242,8 @@ module PerformAnalysis = {
       let encode = (params: t): Js.Json.t => {
         open Json_encode_extended
         object_(list{
-          ("requestID", ID.encode(params.requestID)),
-          ("requestTime", Json_encode_extended.date(params.requestTime)),
+          ("requestID", int(params.requestID)),
+          ("requestTime", date(params.requestTime)),
           ("func", PT.UserFunction.encode(params.func)),
           ("traceID", TraceID.encode(params.traceID)),
           ("traceData", TraceData.encode(params.traceData)),
@@ -258,7 +258,7 @@ module PerformAnalysis = {
       let decode = (j): t => {
         open Json_decode_extended
         {
-          requestID: field("requestID", ID.decode, j),
+          requestID: field("requestID", int, j),
           requestTime: field("requestTime", date, j),
           func: field("func", PT.UserFunction.decode, j),
           traceID: field("traceID", TraceID.decode, j),
@@ -317,24 +317,16 @@ module PerformAnalysis = {
   module Envelope = {
     // ID: something to identify the specific request
     // Date: when the analysis request was made
-    type rec t = (TraceID.t, IntermediateResultStore.t, ID.t, Js.Date.t)
+    type rec t = (TraceID.t, IntermediateResultStore.t, int, Js.Date.t)
 
     let decode = (j: Js.Json.t): t => {
       open Json_decode_extended
-      tuple4(TraceID.decode, IntermediateResultStore.decode, ID.decode, Json_decode_extended.date)(
-        j,
-      )
+      tuple4(TraceID.decode, IntermediateResultStore.decode, int, date)(j)
     }
 
     let encode = (envelope: t): Js.Json.t => {
       open Json_encode_extended
-      tuple4(
-        TraceID.encode,
-        IntermediateResultStore.encode,
-        ID.encode,
-        Json_encode_extended.date,
-        envelope,
-      )
+      tuple4(TraceID.encode, IntermediateResultStore.encode, int, date, envelope)
     }
   }
 
@@ -456,7 +448,7 @@ let analysisStoreToDebugString = (store: analysisStore): string => {
 }
 
 // indexed by traceID
-type analyses = Tc.Map.String.t<(Js.Date.t, analysisStore)>
+type analyses = Tc.Map.String.t<(int, analysisStore)>
 
 let analysesToDebugString = (a: analyses): string => {
   a

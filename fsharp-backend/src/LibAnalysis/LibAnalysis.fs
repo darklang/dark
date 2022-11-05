@@ -99,7 +99,7 @@ module CTA = ClientTypes.Analysis
 
 let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelope> =
   let runAnalysis
-    (requestID : id)
+    (requestID : int)
     (requestTime : NodaTime.Instant)
     (tlid : tlid)
     (traceID : CTA.TraceID)

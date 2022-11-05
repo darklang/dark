@@ -11,7 +11,7 @@ type response = {
 
 let warmupValue = {
   let params = PerformAnalysis.Params.AnalyzeHandler({
-    requestID: gid(),
+    requestID: 0,
     requestTime: Js.Date.make(),
     handler: {
       tlid: TLID.generate(),

@@ -617,10 +617,10 @@ let rec updateMod = (mod: modification, (m, cmd): (model, AppTypes.cmd)): (model
       }
 
       processAutocompleteMods(m, list{ACRegenerate})
-    | UpdateAnalysis(traceID, dvals, _requestID, requestTime) =>
+    | UpdateAnalysis(traceID, dvals, requestID, _requestTime) =>
       let m = {
         ...m,
-        analyses: Analysis.record(m.analyses, traceID, requestTime, Loadable.Success(dvals)),
+        analyses: Analysis.record(m.analyses, traceID, requestID, Loadable.Success(dvals)),
       }
 
       let (m, _) = updateMod(Fluid.update(m, FluidUpdateAutocomplete), (m, Cmd.none))

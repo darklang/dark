@@ -45,27 +45,25 @@ let getStoredAnalysis = (m: model, traceID: TraceID.t): AnalysisTypes.analysisSt
   // for now.
   m.analyses
   ->Map.get(~key=traceID)
-  ->Option.unwrap(~default=(Js.Date.fromFloat(0.0), Loadable.NotInitialized))
+  ->Option.unwrap(~default=(0, Loadable.NotInitialized))
   ->Tuple2.second
 
 let record = (
   old: AnalysisTypes.analyses,
   id: TraceID.t,
-  requestTime: Js.Date.t,
+  requestID: int,
   result: AnalysisTypes.analysisStore,
 ): AnalysisTypes.analyses =>
   // Sometimes, analysis results can come back out of order, so only update if it's
   // the last one for this trace
   Map.update(old, ~key=id, ~f=value =>
     switch value {
-    | None => Some(requestTime, result)
-    | Some((oldRequestTime, oldResult)) =>
-      // Use getTime so that we're comparing floats, instead of using Rescript's
-      // builtin comparison on JS Dates.
-      if Js.Date.getTime(requestTime) >= Js.Date.getTime(oldRequestTime) {
-        Some(requestTime, result)
+    | None => Some(requestID, result)
+    | Some((oldRequestID, oldResult)) =>
+      if requestID >= oldRequestID {
+        Some(requestID, result)
       } else {
-        Some(oldRequestTime, oldResult)
+        Some(oldRequestID, oldResult)
       }
     }
   )
@@ -466,6 +464,8 @@ let requestTrace = (~force=false, m, tlid, traceID): (model, AppTypes.cmd) => {
   }
 }
 
+let requestCount = ref(1)
+
 let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
   let dbs = Map.values(m.dbs)
   let userFns = Map.values(m.userFunctions)
@@ -474,12 +474,14 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
   let tl = TL.get(m, tlid)
   let packageFns = m.functions.packageFunctions |> Map.values
   let secrets = m.secrets
+  let requestID = requestCount.contents
+  requestCount := requestCount.contents + 1
   switch (tl, trace) {
   | (Some(TLHandler(h)), Some(_, Ok(traceData))) =>
     Tea_cmd.call(_ =>
       RequestAnalysis.send(
         AnalyzeHandler({
-          requestID: gid(),
+          requestID: requestID,
           requestTime: Js.Date.make(),
           handler: h,
           traceID: traceID,
@@ -496,7 +498,7 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
     Tea_cmd.call(_ =>
       RequestAnalysis.send(
         AnalyzeFunction({
-          requestID: gid(),
+          requestID: requestID,
           requestTime: Js.Date.make(),
           func: f,
           traceID: traceID,
