@@ -297,7 +297,8 @@ jobs:
       # TODO: think through an alternative or more nuanced approach.
       #- run: git restore-mtime
       - setup-app
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
+      # The date is used to get a fresh cache each week
+      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
             - v15-fsharp-backend-{{ checksum "../checksum" }}
@@ -345,7 +346,8 @@ jobs:
       # rebuilt.
       - run: git restore-mtime
       - setup-app
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
+      # The date is used to get a fresh cache each week
+      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
             - v4-fsharp-blazor-{{ checksum "../checksum" }}
