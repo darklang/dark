@@ -25,7 +25,7 @@
 
   "suffix": ".bs.js",
   "bs-dependencies": [
-    "bucklescript-tea",
+    "rescript-tea",
     "@glennsl/bs-json",
     "rescript-webapi",
     "tablecloth-rescript",
