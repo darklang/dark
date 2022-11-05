@@ -464,6 +464,13 @@ let requestTrace = (~force=false, m, tlid, traceID): (model, AppTypes.cmd) => {
   }
 }
 
+// Analyses are frequently triggered many times for a toplevel, if a user is making
+// rapid changes like typing. Analysis request are async, and sometimes come back out
+// of order, showing the user incorrect results. This is pretty rare in real life but
+// could be reproduced quite easily in integration tests. This counter increases on
+// each request, and we throw away analysis results which are stale. Given that
+// access to the main browser thread is syncronous, I don't expect any race
+// conditions.
 let requestCount = ref(1)
 
 let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
