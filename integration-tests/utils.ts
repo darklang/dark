@@ -140,17 +140,17 @@ export async function post(
 //********************************
 // Selections
 //********************************
-export async function selectAll(page: Page): Promise<void> {
-  // Do these multiple times to make sure it actually selects
-  if (process.platform == "darwin") {
-    await page.keyboard.press("Meta+a");
-    await page.keyboard.press("Meta+a");
-    await page.keyboard.press("Meta+a");
-  } else {
-    await page.keyboard.press("Control+a");
-    await page.keyboard.press("Control+a");
-    await page.keyboard.press("Control+a");
-  }
+export async function selectAllInEntryBox(page: Page): Promise<void> {
+  // wait for the cursor to be in the box so that the shortcut works
+  await expect(page.locator("#entry-box")).toBeFocused();
+  pressShortcut(page, "a");
+
+  // wait until the selection is complete
+  let fn = () => {
+    let element = document.querySelector("#entry-box");
+    return element!.selectionStart != element!.selectionEnd;
+  };
+  await page.waitForFunction(fn, { timeout: 5000 });
 }
 
 export async function selectText(

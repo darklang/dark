@@ -28,10 +28,10 @@ import {
   get,
   post,
   pressShortcut,
-  selectAll,
   waitForEmptyEntryBox,
   createSecret,
   waitForEmptyFluidEntryBox,
+  selectAllInEntryBox,
 } from "./utils";
 
 declare global {
@@ -41,7 +41,7 @@ declare global {
   }
 
   // makes TypeScript OK with us accessing `process.env`
-  // TODO import the node types package rather tha nthis
+  // TODO import the node types package rather than this
   const process: {
     env: any;
   };
@@ -183,7 +183,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
     await page.type(Locators.entryBox, "CRON");
@@ -198,7 +198,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
     await page.type(Locators.entryBox, "REPL");
@@ -212,7 +212,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
     await page.type(Locators.entryBox, "REPL");
@@ -305,13 +305,13 @@ test.describe.parallel("Integration Tests", async () => {
 
     // edit them
     await page.click(".spec-header > .toplevel-name");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, "/myroute");
     await page.keyboard.press("Enter");
 
     await page.click(".spec-header > .toplevel-type > .modifier");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, "GET");
     await page.keyboard.press("Enter");
@@ -328,7 +328,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, "HTTP");
     await page.keyboard.press("Enter");
@@ -339,7 +339,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // edit space
     await page.click(".spec-header > .toplevel-type >.space");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
     await page.type(Locators.entryBox, "CRON");
@@ -373,7 +373,7 @@ test.describe.parallel("Integration Tests", async () => {
   test("rename_db_fields", async ({ page }, testInfo) => {
     // rename
     await page.click(".name >> text='field1'");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, "field6");
     await page.keyboard.press("Enter");
@@ -394,7 +394,7 @@ test.describe.parallel("Integration Tests", async () => {
   test("rename_db_type", async ({ page }, testInfo) => {
     // rename
     await page.click(".type >> text='Int'");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, "String");
     await page.keyboard.press("Enter");
@@ -422,7 +422,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // now actually rename the function to a different name
     await page.click(fnNameBlankOr);
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, "hello");
     await page.keyboard.press("Enter");
@@ -761,7 +761,7 @@ test.describe.parallel("Integration Tests", async () => {
     let token = await awaitAnalysisLoaded(page);
     await page.click(".toplevel");
     await page.click(".spec-header > .toplevel-name");
-    await selectAll(page);
+    await selectAllInEntryBox(page);
     await page.keyboard.press("Backspace");
     await page.type(Locators.entryBox, ":a");
     let before = Date.now();
