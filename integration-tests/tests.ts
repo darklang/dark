@@ -435,7 +435,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
 
     const t1 = Date.now();
-    await page.click(".execution-button");
+    await page.click(".execution-button-needed");
     await awaitAnalysis(page, t1, token);
     await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
       "Function is executing",
@@ -939,7 +939,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // this await confirms that we can get a live value in the editor
 
-    await page.click(".execution-button");
+    await page.click(".execution-button-needed");
     await expectContainsText(page, ".return-value", "0");
 
     // check if we can get a result from the bwd endpoint
@@ -1222,7 +1222,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // execute the fn in the editor ("analysis"), get the result
     const t1 = Date.now();
-    await page.click(".execution-button");
+    await page.click(".execution-button-needed");
     await awaitAnalysis(page, t1, token);
 
     await expect(page.locator(".selected .live-value.loaded")).toContainText(
