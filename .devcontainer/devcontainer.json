@@ -117,7 +117,7 @@
   // doesn't have bash, which is needed to interpolate string values here
   "initializeCommand": [
     "./scripts/devcontainer/_initialize-vscode",
-    "${localEnv:USERPROFILE}${localEnv:HOME}"
+    "\"${localEnv:USERPROFILE}${localEnv:HOME}\""
   ],
 
   // Run one build-server, and keep it running for the life of the

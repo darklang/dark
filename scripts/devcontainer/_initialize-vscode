@@ -6,7 +6,7 @@
 # must run in vscode's default docker container.
 
 if [ -z "$WSLENV" ]; then
-  home=$1
+  home="$1"
 else
   home=$(wslpath $1)
 fi
