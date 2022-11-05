@@ -43,13 +43,30 @@ let getStoredAnalysis = (m: model, traceID: TraceID.t): AnalysisTypes.analysisSt
   // only handlers have analysis results, but lots of stuff expect this
   // data to exist. It may be better to not do that, but this is fine
   // for now.
-  Map.get(~key=traceID, m.analyses) |> Option.unwrap(~default=Loadable.NotInitialized)
+  m.analyses
+  ->Map.get(~key=traceID)
+  ->Option.unwrap(~default=(0, Loadable.NotInitialized))
+  ->Tuple2.second
 
 let record = (
   old: AnalysisTypes.analyses,
   id: TraceID.t,
+  requestID: int,
   result: AnalysisTypes.analysisStore,
-): AnalysisTypes.analyses => Map.add(~key=id, ~value=result, old)
+): AnalysisTypes.analyses =>
+  // Sometimes, analysis results can come back out of order, so only update if it's
+  // the last one for this trace
+  Map.update(old, ~key=id, ~f=value =>
+    switch value {
+    | None => Some(requestID, result)
+    | Some((oldRequestID, oldResult)) =>
+      if requestID >= oldRequestID {
+        Some(requestID, result)
+      } else {
+        Some(oldRequestID, oldResult)
+      }
+    }
+  )
 
 let replaceFunctionResult = (
   m: model,
@@ -447,6 +464,15 @@ let requestTrace = (~force=false, m, tlid, traceID): (model, AppTypes.cmd) => {
   }
 }
 
+// Analyses are frequently triggered many times for a toplevel, if a user is making
+// rapid changes like typing. Analysis request are async, and sometimes come back out
+// of order, showing the user incorrect results. This is pretty rare in real life but
+// could be reproduced quite easily in integration tests. This counter increases on
+// each request, and we throw away analysis results which are stale. Given that
+// access to the main browser thread is syncronous, I don't expect any race
+// conditions.
+let requestCount = ref(1)
+
 let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
   let dbs = Map.values(m.dbs)
   let userFns = Map.values(m.userFunctions)
@@ -455,11 +481,15 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
   let tl = TL.get(m, tlid)
   let packageFns = m.functions.packageFunctions |> Map.values
   let secrets = m.secrets
+  let requestID = requestCount.contents
+  requestCount := requestCount.contents + 1
   switch (tl, trace) {
   | (Some(TLHandler(h)), Some(_, Ok(traceData))) =>
     Tea_cmd.call(_ =>
       RequestAnalysis.send(
         AnalyzeHandler({
+          requestID: requestID,
+          requestTime: Js.Date.make(),
           handler: h,
           traceID: traceID,
           traceData: traceData,
@@ -475,6 +505,8 @@ let requestAnalysis = (m: model, tlid, traceID): AppTypes.cmd => {
     Tea_cmd.call(_ =>
       RequestAnalysis.send(
         AnalyzeFunction({
+          requestID: requestID,
+          requestTime: Js.Date.make(),
           func: f,
           traceID: traceID,
           traceData: traceData,

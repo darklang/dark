@@ -61,13 +61,17 @@ let update = (m: AppTypes.model, msg: FnParams.msg): modification => {
   }
 
   if List.isEmpty(mods) {
-    ReplaceAllModificationsWithThisOne(m => ({...m, currentUserFn: currentUserFn}, Tea.Cmd.none))
+    ReplaceAllModificationsWithThisOne(
+      "FnParams.update-empty",
+      m => ({...m, currentUserFn: currentUserFn}, Tea.Cmd.none),
+    )
   } else {
     Many(
       Belt.List.concat(
         mods,
         list{
           ReplaceAllModificationsWithThisOne(
+            "Fnparams.update",
             m => ({...m, currentUserFn: currentUserFn}, Tea.Cmd.none),
           ),
         },
@@ -154,10 +158,10 @@ let viewParamSpace = (index: int, fs: FnParams.t): Html.html<msg> => {
     list{
       Attrs.class'("col space" ++ overClass),
       Vdom.attribute("", "data-pos", string_of_int(index)),
-      onEvent(~event="dragover", ~key="fpsdo-" ++ keyId, dragOver),
+      onEvent(~event="dragover", ~key="fpsdo-" ++ keyId, Obj.magic(dragOver)),
       onEvent(~event="dragenter", ~key="fpsde-" ++ keyId, dragEnter),
       onEvent(~event="dragleave", ~key="fpsdl-" ++ keyId, dragLeave),
-      onEvent(~event="drop", ~key="fpsdrop-" ++ keyId, drop),
+      onEvent(~event="drop", ~key="fpsdrop-" ++ keyId, Obj.magic(drop)),
     },
     list{},
   )
@@ -192,7 +196,12 @@ let viewParam = (
     let events = switch fn {
     | UserFunction(_) => list{
         Tea.Html.Attributes.draggable("true"),
-        onEvent(~event="dragstart", ~key="fpds-" ++ strId, ~preventDefault=false, dragStart),
+        onEvent(
+          ~event="dragstart",
+          ~key="fpds-" ++ strId,
+          ~preventDefault=false,
+          Obj.magic(dragStart),
+        ),
         onEvent(~event="dragend", ~key="fpde-" ++ strId, dragEnd),
         EventListeners.onAnimationEnd(~key="fpdfaded-" ++ strId, ~listener=flashFade),
       }

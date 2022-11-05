@@ -1,5 +1,5 @@
 module T: {
-  @ppx.deriving(show({with_path: false})) type rec t = ID(UInt64.t)
+  @unboxed type rec t = ID(UInt64.t)
 
   type identity
 
@@ -23,8 +23,6 @@ include module type of {
 module Set: {
   include module type of Tc.Set.Of(T)
 
-  let pp: (Format.formatter, t) => unit
-
   let empty: t
 
   let singleton: T.t => t
@@ -40,8 +38,6 @@ module Set: {
 
 module Map: {
   include module type of Tc.Map.Of(T)
-
-  let pp: ((Format.formatter, 'value) => unit, Format.formatter, t<'value>) => unit
 
   let empty: t<'value>
 

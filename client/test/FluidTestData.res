@@ -935,25 +935,28 @@ let defaultTestModel = {
   analyses: Map.String.fromList(list{
     (
       "94167980-f909-527e-a4af-bc3155f586d3", // The default traceID for TLID 7
-      Loadable.Success(
-        ID.Map.fromArray([
-          (
-            fakeID1,
-            AnalysisTypes.ExecutionResult.ExecutedResult(
-              RT.Dval.obj(list{("body", DNull), ("formBody", DNull)}),
+      (
+        0,
+        Loadable.Success(
+          ID.Map.fromArray([
+            (
+              fakeID1,
+              AnalysisTypes.ExecutionResult.ExecutedResult(
+                RT.Dval.obj(list{("body", DNull), ("formBody", DNull)}),
+              ),
             ),
-          ),
-          (
-            fakeID2,
-            AnalysisTypes.ExecutionResult.ExecutedResult(
-              RT.Dval.obj(list{("title", DNull), ("author", DNull)}),
+            (
+              fakeID2,
+              AnalysisTypes.ExecutionResult.ExecutedResult(
+                RT.Dval.obj(list{("title", DNull), ("author", DNull)}),
+              ),
             ),
-          ),
-          (
-            fakeID3,
-            AnalysisTypes.ExecutionResult.ExecutedResult(RT.Dval.obj(list{("body", DInt(5L))})),
-          ),
-        ]),
+            (
+              fakeID3,
+              AnalysisTypes.ExecutionResult.ExecutedResult(RT.Dval.obj(list{("body", DInt(5L))})),
+            ),
+          ]),
+        ),
       ),
     ),
   }),

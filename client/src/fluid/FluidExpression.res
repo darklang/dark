@@ -407,7 +407,7 @@ let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
     if !found.contents {
       // prevents the significant performance cost of show
       Recover.asserT(
-        ~debug=(ID.toString(target), show(ast)),
+        ~debug=(ID.toString(target), Js.Json.stringifyAny(ast)),
         "didn't find the id in the expression to update",
         found.contents,
       )

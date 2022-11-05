@@ -148,7 +148,6 @@ module Traces = {
 }
 
 module ExecutionResult = {
-  @ppx.deriving(show({with_path: false}))
   type rec t =
     | ExecutedResult(RT.Dval.t)
     | NonExecutedResult(RT.Dval.t)
@@ -178,6 +177,8 @@ module PerformAnalysis = {
     module Params = {
       @ppx.deriving(show({with_path: false}))
       type rec t = {
+        requestID: int,
+        requestTime: Js.Date.t,
         handler: PT.Handler.t,
         traceID: TraceID.t,
         traceData: TraceData.t,
@@ -191,6 +192,8 @@ module PerformAnalysis = {
       let encode = (params: t): Js.Json.t => {
         open Json_encode_extended
         object_(list{
+          ("requestID", int(params.requestID)),
+          ("requestTime", date(params.requestTime)),
           ("handler", PT.Handler.encode(params.handler)),
           ("traceID", TraceID.encode(params.traceID)),
           ("traceData", TraceData.encode(params.traceData)),
@@ -205,6 +208,8 @@ module PerformAnalysis = {
       let decode = (j): t => {
         open Json_decode_extended
         {
+          requestID: field("requestID", int, j),
+          requestTime: field("requestTime", date, j),
           handler: field("handler", PT.Handler.decode, j),
           traceID: field("traceID", TraceID.decode, j),
           traceData: field("traceData", TraceData.decode, j),
@@ -222,6 +227,8 @@ module PerformAnalysis = {
     module Params = {
       @ppx.deriving(show({with_path: false}))
       type rec t = {
+        requestID: int,
+        requestTime: Js.Date.t,
         func: PT.UserFunction.t,
         traceID: TraceID.t,
         traceData: TraceData.t,
@@ -235,6 +242,8 @@ module PerformAnalysis = {
       let encode = (params: t): Js.Json.t => {
         open Json_encode_extended
         object_(list{
+          ("requestID", int(params.requestID)),
+          ("requestTime", date(params.requestTime)),
           ("func", PT.UserFunction.encode(params.func)),
           ("traceID", TraceID.encode(params.traceID)),
           ("traceData", TraceData.encode(params.traceData)),
@@ -249,6 +258,8 @@ module PerformAnalysis = {
       let decode = (j): t => {
         open Json_decode_extended
         {
+          requestID: field("requestID", int, j),
+          requestTime: field("requestTime", date, j),
           func: field("func", PT.UserFunction.decode, j),
           traceID: field("traceID", TraceID.decode, j),
           traceData: field("traceData", TraceData.decode, j),
@@ -290,7 +301,6 @@ module PerformAnalysis = {
   }
 
   module IntermediateResultStore = {
-    @ppx.deriving(show({with_path: false}))
     type rec t = ID.Map.t<ExecutionResult.t>
 
     let decode = (j: Js.Json.t): t => ID.Map.decode(ExecutionResult.decode, j)
@@ -298,31 +308,34 @@ module PerformAnalysis = {
     let encode = (store: t): Js.Json.t => {
       ID.Map.encode(ExecutionResult.encode, store)
     }
+
+    let toDebugString = (store: t): string => {
+      store->encode->Js.Json.stringify
+    }
   }
 
   module Envelope = {
-    @ppx.deriving(show({with_path: false}))
-    type rec t = (TraceID.t, IntermediateResultStore.t)
+    // ID: something to identify the specific request
+    // Date: when the analysis request was made
+    type rec t = (TraceID.t, IntermediateResultStore.t, int, Js.Date.t)
 
     let decode = (j: Js.Json.t): t => {
       open Json_decode_extended
-      tuple2(TraceID.decode, IntermediateResultStore.decode)(j)
+      tuple4(TraceID.decode, IntermediateResultStore.decode, int, date)(j)
     }
 
     let encode = (envelope: t): Js.Json.t => {
       open Json_encode_extended
-      tuple2(TraceID.encode, IntermediateResultStore.encode, envelope)
+      tuple4(TraceID.encode, IntermediateResultStore.encode, int, date, envelope)
     }
   }
 
   module Error = {
-    @ppx.deriving(show({with_path: false}))
     type rec t =
       | ExecutionError(Params.t, string)
       | ParseError(string)
   }
 
-  @ppx.deriving(show({with_path: false}))
   type rec t = Tc.Result.t<Envelope.t, Error.t>
 }
 
@@ -413,7 +426,6 @@ module WorkerState = {
 }
 
 module WorkerStats = {
-  @ppx.deriving(show({with_path: false}))
   type rec t = {
     count: int,
     schedule: option<WorkerState.t>,
@@ -421,21 +433,37 @@ module WorkerStats = {
   let default: t = {count: 0, schedule: None}
 }
 
-@ppx.deriving(show({with_path: false}))
 type rec avDict = ID.Map.t<Tc.Map.String.t<ID.t>>
 
-and analysisStore = Loadable.t<PerformAnalysis.IntermediateResultStore.t, string>
+type analysisStore = Loadable.t<PerformAnalysis.IntermediateResultStore.t, string>
+
+let analysisStoreToDebugString = (store: analysisStore): string => {
+  switch store {
+  | Loadable.Loading(_) => "Loading"
+  | Loadable.Success(result) =>
+    "Success(" ++ PerformAnalysis.IntermediateResultStore.toDebugString(result) ++ ")"
+  | Loadable.Error(msg) => "Error: " ++ msg
+  | NotInitialized => "NotInitialized"
+  }
+}
 
 // indexed by traceID
-and analyses = Tc.Map.String.t<analysisStore>
+type analyses = Tc.Map.String.t<(int, analysisStore)>
 
-and traces = TLID.Dict.t<list<Trace.t>>
+let analysesToDebugString = (a: analyses): string => {
+  a
+  ->Tc.Map.toList
+  ->Tc.List.map(~f=((traceID, (_, store))) => traceID ++ ": " ++ analysisStoreToDebugString(store))
+  ->Tc.String.join(~sep=", ")
+}
 
-and dbStats = {
+type traces = TLID.Dict.t<list<Trace.t>>
+
+type dbStats = {
   count: int,
   example: option<(RT.Dval.t, string)>,
 }
 
-and dbStatsStore = Tc.Map.String.t<dbStats>
+type dbStatsStore = Tc.Map.String.t<dbStats>
 
-and traceOpt = (TraceID.t, option<TraceData.t>)
+type traceOpt = (TraceID.t, option<TraceData.t>)

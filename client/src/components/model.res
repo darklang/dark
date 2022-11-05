@@ -6,5 +6,6 @@ let updateError = (fn: Error.t => Error.t, (m, cmd): (AppTypes.model, AppTypes.c
 let updateErrorMod = (
   fn: Error.t => Error.t,
 ): AppTypes.modification => ReplaceAllModificationsWithThisOne(
+  "UpdateErrorMod",
   m => updateError(fn, (m, Tea.Cmd.none)),
 )

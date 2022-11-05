@@ -14,6 +14,10 @@ let decode = (j: Js.Json.t): t => {
   {x: field("x", int, j), y: field("y", int, j)}
 }
 
+let toString = (p: t): string => {
+  "(" ++ string_of_int(p.x) ++ ", " ++ string_of_int(p.y) ++ ")"
+}
+
 let center: t = {x: 475, y: 200}
 
 let origin: t = {x: 0, y: 0}

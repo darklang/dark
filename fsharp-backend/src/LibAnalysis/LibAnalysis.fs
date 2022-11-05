@@ -99,6 +99,8 @@ module CTA = ClientTypes.Analysis
 
 let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelope> =
   let runAnalysis
+    (requestID : int)
+    (requestTime : NodaTime.Instant)
     (tlid : tlid)
     (traceID : CTA.TraceID)
     (traceData : CTA.TraceData.T)
@@ -120,12 +122,14 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
       let! result =
         Eval.runAnalysis tlid traceData userFns userTypes dbs expr packageFns secrets
 
-      return (traceID, CTA.AnalysisResults.fromAT result)
+      return (traceID, CTA.AnalysisResults.fromAT result, requestID, requestTime)
     }
 
   match args with
   | CTA.AnalyzeHandler ah ->
     runAnalysis
+      ah.requestID
+      ah.requestTime
       ah.handler.tlid
       ah.traceID
       ah.traceData
@@ -138,6 +142,8 @@ let performAnalysis (args : CTA.PerformAnalysisParams) : Task<CTA.AnalysisEnvelo
 
   | CTA.AnalyzeFunction af ->
     runAnalysis
+      af.requestID
+      af.requestTime
       af.func.tlid
       af.traceID
       af.traceData

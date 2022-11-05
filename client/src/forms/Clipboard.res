@@ -4,18 +4,22 @@ open Prelude
 module P = Pointer
 module TL = Toplevel
 
-let setData = ((text, json): clipboardContents, e: clipboardEvent) => {
-  e["clipboardData"]["setData"]("text/plain", text)
+let setData = ((text, json): clipboardContents, e: Webapi.Dom.ClipboardEvent.t) => {
+  let set = (format: string, v: string) =>
+    e->Webapi.Dom.ClipboardEvent.clipboardData->Webapi.Dom.DataTransfer.setData(~format, v)
+  set("text/plain", text)
   Option.map(json, ~f=data => {
-    let data = Json.stringify(data)
-    e["clipboardData"]["setData"]("application/json", data)
+    set("application/json", Json.stringify(data))
   }) |> ignore
-  e["preventDefault"]()
+  Webapi.Dom.ClipboardEvent.preventDefault(e)
 }
 
-let getData = (e: clipboardEvent): clipboardContents => {
+let getData = (e: Webapi.Dom.ClipboardEvent.t): clipboardContents => {
   let json = {
-    let json = e["clipboardData"]["getData"]("application/json")
+    let json =
+      e
+      ->Webapi.Dom.ClipboardEvent.clipboardData
+      ->Webapi.Dom.DataTransfer.getData("application/json")
     if json == "" {
       None
     } else {
@@ -26,6 +30,8 @@ let getData = (e: clipboardEvent): clipboardContents => {
       }
     }
   }
-
-  (e["clipboardData"]["getData"]("text/plain"), json)
+  let text = {
+    e->Webapi.Dom.ClipboardEvent.clipboardData->Webapi.Dom.DataTransfer.getData("text/plain")
+  }
+  (text, json)
 }

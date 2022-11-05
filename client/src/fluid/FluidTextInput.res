@@ -14,7 +14,7 @@ let isInfixSymbol = (s: string): bool =>
   | _ => false
   }
 
-let fromInputEvent = (evt: Web.Node.event): option<msg> => {
+let fromInputEvent = (evt: Dom.event): option<msg> => {
   open Tea.Json.Decoder
   let decoder = map2(
     (data, inputType) => {data: data, inputType: inputType},
@@ -22,7 +22,7 @@ let fromInputEvent = (evt: Web.Node.event): option<msg> => {
     field("inputType", string),
   )
 
-  decodeEvent(decoder, evt)
+  decodeEvent(decoder, Obj.magic(evt))
   |> Tea_result.result_to_option
   |> Option.andThen(~f=x =>
     switch x {
@@ -32,26 +32,26 @@ let fromInputEvent = (evt: Web.Node.event): option<msg> => {
        * for now (see FluidKeyboard) */
       None
     | {inputType: "insertText", data: Some(txt)} =>
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(Msg.FluidMsg(FluidInputEvent(InsertText(txt))))
     | {inputType: "deleteContentBackward", _} =>
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(FluidMsg(FluidInputEvent(DeleteContentBackward)))
     | {inputType: "deleteContentForward", _} =>
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(FluidMsg(FluidInputEvent(DeleteContentForward)))
     | {inputType: "deleteWordBackward", _} =>
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(FluidMsg(FluidInputEvent(DeleteWordBackward)))
     | {inputType: "deleteWordForward", _} =>
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(FluidMsg(FluidInputEvent(DeleteWordForward)))
     // NB: Safari (incorrectly) fires deleteHardLine(Backward|Forward) for command-delete keystrokes
     | {inputType: "deleteSoftLineBackward", _} =>
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(FluidMsg(FluidInputEvent(DeleteSoftLineBackward)))
     | {inputType: "deleteSoftLineForward", _} =>
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(FluidMsg(FluidInputEvent(DeleteSoftLineForward)))
     | _ => None
     }
@@ -63,7 +63,7 @@ let fromCompositionEndEvent = (evt: Web.Node.event): option<msg> => {
   decodeEvent(field("data", string), evt)
   |> Tea_result.result_to_option
   |> Option.map(~f=data => {
-    evt["preventDefault"]()
+    Webapi.Dom.Event.preventDefault(Obj.magic(evt))
     Msg.FluidMsg(FluidInputEvent(InsertText(data)))
   })
 }

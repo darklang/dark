@@ -787,16 +787,15 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
       },
     )
 
-  let pageToString = pg =>
+  let pageToDebugString = pg =>
     switch pg {
     | AppTypes.Page.Architecture => "Architecture"
-    | FocusedPackageManagerFn(tlid) =>
-      Printf.sprintf("Package Manager Fn (TLID %s)", TLID.toString(tlid))
-    | FocusedFn(tlid, _) => Printf.sprintf("Fn (TLID %s)", TLID.toString(tlid))
-    | FocusedHandler(tlid, _, _) => Printf.sprintf("Handler (TLID %s)", TLID.toString(tlid))
-    | FocusedDB(tlid, _) => Printf.sprintf("DB (TLID %s)", TLID.toString(tlid))
-    | FocusedType(tlid) => Printf.sprintf("Type (TLID %s)", TLID.toString(tlid))
-    | SettingsModal(tab) => Printf.sprintf("SettingsModal (tab %s)", Settings.Tab.toText(tab))
+    | FocusedPackageManagerFn(tlid) => `Package Manager Fn (TLID ${TLID.toString(tlid)})`
+    | FocusedFn(tlid, _) => `Fn (TLID ${TLID.toString(tlid)})`
+    | FocusedHandler(tlid, _, _) => `Handler (TLID ${TLID.toString(tlid)})`
+    | FocusedDB(tlid, _) => `DB (TLID ${TLID.toString(tlid)})`
+    | FocusedType(tlid) => `Type (TLID ${TLID.toString(tlid)})`
+    | SettingsModal(tab) => `SettingsModal (tab ${Settings.Tab.toText(tab)})`
     }
 
   let environment = {
@@ -822,8 +821,11 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
     list{},
     list{
       stateInfoTohtml("env", Html.text(m.environment)),
-      stateInfoTohtml("page", Html.text(pageToString(m.currentPage))),
-      stateInfoTohtml("cursorState", Html.text(AppTypes.CursorState.show(m.cursorState))),
+      stateInfoTohtml("page", Html.text(pageToDebugString(m.currentPage))),
+      stateInfoTohtml(
+        "cursorState",
+        Html.text(Js.Json.stringifyAny(m.cursorState)->Option.unwrap(~default="Unknown")),
+      ),
     },
   )
 

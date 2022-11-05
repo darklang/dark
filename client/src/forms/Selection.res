@@ -103,6 +103,7 @@ let dblclick = (m: model, tlid: TLID.t, id: id, offset: option<int>): modificati
 /* the name here is _awful_, but going to rip all of the glue
  * out soon so i pinky promise that it'll go away */
 let fluidEnteringMod = tlid => Mod.ReplaceAllModificationsWithThisOne(
+  "fluidEnteringMod",
   (m: model) =>
     {...m, fluidState: {...m.fluidState, newPos: 0}} |> CursorState.setCursorState(
       FluidEntering(tlid),

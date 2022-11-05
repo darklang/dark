@@ -14,11 +14,6 @@
   * [map] or [toExpr] as appropriate. ")
 type t = ProgramTypes.AST.t
 
-let show: t => string
-
-@ocaml.doc(" [pp] allows @deriving show to work ")
-let pp: (Format.formatter, t) => unit
-
 @ocaml.doc(" [toExpr ast] returns the expression of [ast] ")
 let toExpr: t => FluidExpression.t
 

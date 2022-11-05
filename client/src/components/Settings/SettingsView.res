@@ -61,7 +61,7 @@ let settingViewWrapper = (acc: T.t): Html.html<msg> => {
   )
 }
 
-let onKeydown = (evt: Web.Node.event): option<AppTypes.msg> =>
+let onKeydown = (evt: Dom.event): option<AppTypes.msg> =>
   K.eventToKeyEvent(evt) |> Option.andThen(~f=e =>
     switch e {
     | {K.key: K.Enter, _} =>
@@ -100,7 +100,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
             false,
           )),
           EventListeners.eventNoPropagation(~key="epf", "mouseleave", _ => Msg.EnablePanning(true)),
-          Events.onCB("keydown", "keydown", onKeydown),
+          Events.onCB("keydown", "keydown", Obj.magic(onKeydown)),
         },
         list{settingViewWrapper(s), closingBtn},
       ),

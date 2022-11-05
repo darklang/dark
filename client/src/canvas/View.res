@@ -399,13 +399,13 @@ let viewCanvas = (m: model): Html.html<msg> => {
        * can act as a "camera" looking at the region of the nodes we've scrolled to. */
       list{
         animationStyle,
-        ("transform", Printf.sprintf("translate(%dpx, %dpx)", -offset.x, -offset.y)),
+        ("transform", `translate(${Int.toString(-offset.x)}px, ${Int.toString(-offset.y)}px)`),
       },
       /* The overlay is inverse-transformed from the canvas so that it is always in the viewport.
        * We "undo" the transformation of the canvas since the overlay is a child of the canvas. */
       list{
         animationStyle,
-        ("transform", Printf.sprintf("translate(%dpx, %dpx)", offset.x, offset.y)),
+        ("transform", `translate(${Int.toString(offset.x)}px, ${Int.toString(offset.y)}px)`),
       },
     )
   }

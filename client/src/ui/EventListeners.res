@@ -13,13 +13,13 @@ let onEvent = (
   ~event: string,
   ~key: string,
   ~preventDefault=true,
-  listener: Web.Node.event => 'msg,
+  listener: Dom.event => 'msg,
 ): Vdom.property<'msg> =>
   Tea.Html.Events.onCB(event, key, evt => {
     if preventDefault {
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(Obj.magic(evt))
     }
-    Some(listener(evt))
+    Some(listener(Obj.magic(evt)))
   })
 
 let eventBoth = (~key: string, event: string, constructor: MouseEvent.t => 'msg): Vdom.property<

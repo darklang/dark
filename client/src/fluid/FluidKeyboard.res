@@ -60,8 +60,6 @@ and maintainSelection =
   | KeepSelection
   | DropSelection
 
-let toName = show_key
-
 let fromKeyboardEvent = (key: string, shift: bool, ctrl: bool, meta: bool, alt: bool): key => {
   let isMac = getBrowserPlatform() == Mac
   let osCmdKeyHeld = if isMac {
@@ -168,6 +166,46 @@ let fromKeyboardEvent = (key: string, shift: bool, ctrl: bool, meta: bool, alt: 
   }
 }
 
+let keyToString = (key: key): string => {
+  switch key {
+  | Space => "Space"
+  | Left => "Left"
+  | Right => "Right"
+  | Up => "Up"
+  | Down => "Down"
+  | Shift(None) => "Shift"
+  | Shift(Some(LeftHand)) => "Shift (Left)"
+  | Shift(Some(RightHand)) => "Shift (Right)"
+  | Ctrl(None) => "Ctrl"
+  | Ctrl(Some(LeftHand)) => "Ctrl (Left)"
+  | Ctrl(Some(RightHand)) => "Ctrl (Right)"
+  | Alt => "Alt"
+  | Tab => "Tab"
+  | ShiftTab => "ShiftTab"
+  | CapsLock => "CapsLock"
+  | Escape => "Escape"
+  | Enter => "Enter"
+  | ShiftEnter => "Shift+Enter"
+  | PageUp => "PageUp"
+  | PageDown => "PageDown"
+  | GoToStartOfLine(KeepSelection) => "GoToStartOfLine (KeepSelection)"
+  | GoToStartOfLine(DropSelection) => "GoToStartOfLine (DropSelection)"
+  | GoToEndOfLine(KeepSelection) => "GoToEndOfLine (KeepSelection)"
+  | GoToEndOfLine(DropSelection) => "GoToEndOfLine (DropSelection)"
+  | GoToStartOfWord(KeepSelection) => "GoToStartOfWord (KeepSelection)"
+  | GoToStartOfWord(DropSelection) => "GoToStartOfWord (DropSelection)"
+  | GoToEndOfWord(KeepSelection) => "GoToEndOfWord (KeepSelection)"
+  | GoToEndOfWord(DropSelection) => "GoToEndOfWord (DropSelection)"
+  | Undo => "Undo"
+  | Redo => "Redo"
+  | SelectAll => "SelectAll"
+  | CommandPalette(LegacyShortcut) => "CommandPalette (LegacyShortcut)"
+  | CommandPalette(CurrentShortcut) => "CommandPalette (CurrentShortcut)"
+  | Omnibox => "Omnibox"
+  | Unhandled(key) => "Unhandled(" ++ key ++ ")"
+  }
+}
+
 @ppx.deriving(show)
 type rec keyEvent = {
   key: key,
@@ -179,7 +217,7 @@ type rec keyEvent = {
 
 @ocaml.doc(" eventToKeyEvent converts the JS KeyboardEvent [evt] into a [keyEvent].
  * Returns (Some keyEvent) or None if a decoding error occurs. ")
-let eventToKeyEvent = (evt: Web.Node.event): option<keyEvent> => {
+let eventToKeyEvent = (evt: Dom.event): option<keyEvent> => {
   open Tea.Json.Decoder
   let decoder = map5((rawKey, shiftKey, ctrlKey, altKey, metaKey) => {
     let key = fromKeyboardEvent(rawKey, shiftKey, ctrlKey, metaKey, altKey)
@@ -189,16 +227,16 @@ let eventToKeyEvent = (evt: Web.Node.event): option<keyEvent> => {
     string,
   ), field("shiftKey", bool), field("ctrlKey", bool), field("altKey", bool), field("metaKey", bool))
 
-  decodeEvent(decoder, evt) |> Tea_result.result_to_option
+  decodeEvent(decoder, Obj.magic(evt)) |> Tea_result.result_to_option
 }
 
-@ocaml.doc(" onKeydown converts the JS KeyboardEvent [evt] into a keyEvent, then
+@ocaml.doc("onKeydown converts the JS KeyboardEvent [evt] into a keyEvent, then
   * calls the [tagger] with it if successful.
   *
   * [tagger] is a (keyEvent -> Types.msg). It would be nice to simply return
   * the msg option here, but we cannot reference Types here otherwise we get
   * a dependency cycle. ")
-let onKeydown = (tagger, evt: Web.Node.event) =>
+let onKeydown = (tagger, evt: Dom.event) =>
   evt
   |> eventToKeyEvent
   |> Option.andThen(~f=x =>
@@ -206,7 +244,7 @@ let onKeydown = (tagger, evt: Web.Node.event) =>
     | {key: Unhandled(_), _} => None
     | kevt =>
       // if we are going to handle the key, then preventDefault
-      evt["preventDefault"]()
+      Webapi.Dom.Event.preventDefault(evt)
       Some(tagger(kevt))
     }
   )

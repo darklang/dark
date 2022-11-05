@@ -54,7 +54,7 @@ let toText = ast => FluidPrinter.eToHumanString(ast)
 
 let pointerToText = (p: blankOrData): string => Pointer.toContent(p)
 
-let debugAST = (_length: int, msg: string, e: E.t): unit => Js.log(msg ++ (":\n" ++ E.show(e)))
+let debugAST = (_length: int, msg: string, e: E.t): unit => Js.log2(msg, e)
 
 // if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ E.show e)
 
@@ -507,7 +507,7 @@ let runTest = (test: FuzzTest.t): unit =>
               Js.log2("failed: ", name)
               let reduced = reduce(test, testcase)
               Js.log2("finished program:\n  ", toText(reduced))
-              Js.log2("as expr:\n  ", E.show(reduced))
+              Js.log2("as expr:\n  ", reduced)
               Js.log2("as testcase:\n  ", FluidPrinter.eToTestcase(reduced))
               fail()
             } else {

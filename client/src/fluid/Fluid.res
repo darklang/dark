@@ -878,7 +878,7 @@ let posFromCaretTarget = (ct: CT.t, astInfo: ASTInfo.t): int =>
   | None =>
     recover(
       "We expected to find the given caretTarget in the token stream but couldn't.",
-      ~debug=CT.show(ct),
+      ~debug=ct,
       astInfo.state.newPos,
     )
   }
@@ -1052,17 +1052,17 @@ let moveToAstRef = (~offset=0, astRef: astRef, astInfo: ASTInfo.t): ASTInfo.t =>
     with `matchId` at `idx`.
 
     Returns a new ast and fluidState with the action recorded. ")
-let addMatchPatternAt = (matchId: id, idx: int, astInfo: ASTInfo.t): ASTInfo.t => {
-  let action = Printf.sprintf("addMatchPatternAt(id=%s idx=%d)", ID.toString(matchId), idx)
+let addMatchPatternAt = (matchID: id, idx: int, astInfo: ASTInfo.t): ASTInfo.t => {
+  let action = `addMatchPatternAt(id=${ID.toString(matchID)} idx=${Int.toString(idx)})`
 
   let astInfo = recordAction(action, astInfo)
-  let ast = FluidAST.update(matchId, astInfo.ast, ~f=x =>
+  let ast = FluidAST.update(matchID, astInfo.ast, ~f=x =>
     switch x {
     | EMatch(_, cond, rows) =>
       let newVal = (MPBlank(gid()), E.newB())
       let newRows = List.insertAt(rows, ~index=idx, ~value=newVal)
-      EMatch(matchId, cond, newRows)
-    | e => recover("expected to find EMatch to update", ~debug=e, e)
+      EMatch(matchID, cond, newRows)
+    | e => recover("expected to find EMatch to update", e)
     }
   )
 
@@ -1301,8 +1301,7 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
     let astRef = switch FluidAST.findExpr(id, newAST) {
     | Some(EString(_)) => AstRef.ARString(id, SPBody)
     | Some(EPartial(_)) => ARPartial(id)
-    | Some(expr) =>
-      recover("need an ASTRef match for ", ~debug=show_fluidExpr(expr), AstRef.ARPartial(id))
+    | Some(expr) => recover("need an ASTRef match for ", ~debug=expr, AstRef.ARPartial(id))
     | _ => recover("no expr found for ID", ~debug=id, AstRef.ARPartial(id))
     }
 
@@ -1381,7 +1380,7 @@ let insertLambdaVar = (~index: int, ~name: string, id: id, ast: FluidAST.t): Flu
     Returns a new ast, fluidState, and the id of the newly inserted ELet, which
     may be useful for doing caret placement. ")
 let makeIntoLetBody = (id: id, astInfo: ASTInfo.t): (ASTInfo.t, id) => {
-  let astInfo = recordAction(Printf.sprintf("makeIntoLetBody(%s)", ID.toString(id)), astInfo)
+  let astInfo = recordAction("makeIntoLetBody(${ID.toString(id)})", astInfo)
 
   let lid = gid()
   let ast = FluidAST.update(id, astInfo.ast, ~f=expr => ELet(lid, "", E.newB(), expr))
@@ -1762,7 +1761,7 @@ let rec findAppropriateParentToWrap = (oldExpr: FluidExpression.t, ast: FluidAST
     first pipe expression (if the pipe was successfully added).
     ")
 let createPipe = (~findParent: bool, id: id, astInfo: ASTInfo.t): (ASTInfo.t, option<id>) => {
-  let action = Printf.sprintf("createPipe(id=%s findParent=%B)", ID.toString(id), findParent)
+  let action = `createPipe(id=${ID.toString(id)} findParent=${Bool.toString(findParent)})`
 
   let astInfo = recordAction(action, astInfo)
   let exprToReplace =
@@ -1791,7 +1790,7 @@ let createPipe = (~findParent: bool, id: id, astInfo: ASTInfo.t): (ASTInfo.t, op
     Returns a new ast, fluidState with the action recorded, and the id of the
     newly inserted EBlank, which may be useful for doing caret placement. ")
 let addPipeExprAt = (pipeId: id, idx: int, astInfo: ASTInfo.t): (ASTInfo.t, id) => {
-  let action = Printf.sprintf("addPipeExprAt(id=%s idx=%d)", ID.toString(pipeId), idx)
+  let action = `addPipeExprAt(id=${ID.toString(pipeId)} idx=${Int.toString(idx)})`
 
   let astInfo = recordAction(action, astInfo)
   let bid = gid()
@@ -2635,11 +2634,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
 
       switch withoutDeleted {
       | list{} =>
-        recover(
-          "Deletion unexpectedly resulted in tuple with 0 elements",
-          ~debug=AstRef.show(currAstRef),
-          None,
-        )
+        recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=currAstRef, None)
       | list{single} =>
         let newTarget = CT.forEndOfExpr(toID(single), ast)
         Some(Expr(single), newTarget)
@@ -2652,7 +2647,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         | None =>
           recover(
             "Deletion unexpectedly resulted in tuple with 0 elements",
-            ~debug=AstRef.show(currAstRef),
+            ~debug=currAstRef,
             None,
           )
         | Some(elementLeftOfDeletion) =>
@@ -2930,7 +2925,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
      */
     (ARMPattern(_), _)
     | (ARInvalid, _) =>
-      recover("doExplicitBackspace - unexpected expr", ~debug=AstRef.show(currAstRef), None)
+      recover("doExplicitBackspace - unexpected expr", ~debug=currAstRef, None)
     }
   }
 
@@ -3077,11 +3072,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
 
       switch withoutDeleted {
       | list{} =>
-        recover(
-          "Deletion unexpectedly resulted in tuple with 0 elements",
-          ~debug=AstRef.show(currAstRef),
-          None,
-        )
+        recover("Deletion unexpectedly resulted in tuple with 0 elements", ~debug=currAstRef, None)
       | list{single} =>
         let newTarget = CT.forEndOfMP(single)
         Some(MatchPat(mID, single), newTarget)
@@ -3094,7 +3085,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         | None =>
           recover(
             "Deletion unexpectedly resulted in tuple with 0 elements",
-            ~debug=AstRef.show(currAstRef),
+            ~debug=currAstRef,
             None,
           )
         | Some(elementLeftOfDeletion) =>
@@ -3179,7 +3170,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | (ARVariable(_), _)
     | (ARFlag(_), _)
     | (ARInvalid, _) =>
-      recover("doExplicitBackspace - unexpected pat", ~debug=AstRef.show(currAstRef), None)
+      recover("doExplicitBackspace - unexpected pat", ~debug=currAstRef, None)
     }
   }
 
@@ -3585,7 +3576,7 @@ let doExplicitInsert = (
      */
     (ARMPattern(_), _)
     | (ARInvalid, _) =>
-      recover("doExplicitInsert - unexpected expr", ~debug=AstRef.show(currAstRef), None)
+      recover("doExplicitInsert - unexpected expr", ~debug=currAstRef, None)
     }
   }
 
@@ -3854,7 +3845,7 @@ let doExplicitInsert = (
     | (ARVariable(_), _)
     | (ARFlag(_), _)
     | (ARInvalid, _) =>
-      recover("doExplicitInsert - unexpected pat", ~debug=AstRef.show(currAstRef), None)
+      recover("doExplicitInsert - unexpected pat", ~debug=currAstRef, None)
     }
 
   /* FIXME: This is an ugly hack so we can modify match branches when editing a pattern.
@@ -4621,7 +4612,7 @@ let rec updateKey' = (
       | EPartial(_, name, EFieldAccess(faid, expr, _)) =>
         let committedAccess = EFieldAccess(faid, expr, name)
         EPartial(newPartialID, "", EFieldAccess(gid(), committedAccess, ""))
-      | e => recover("updateKey' insert . - unexpected expr " ++ E.show(e), e)
+      | e => recover("updateKey' insert . - unexpected expr", ~debug=e, e)
       }
     )
 
@@ -4899,7 +4890,7 @@ let rec updateKey' = (
   | (Keypress({key: K.Enter, _}), L(token, ti), No) if !T.isLet(token) => wrapInLet(ti, astInfo)
 
   // Unknown
-  | _ => report("Unknown action: " ++ FT.Msg.show_inputEvent(inputEvent), astInfo)
+  | _ => report("Unknown action: " ++ Json.stringifyAlways(inputEvent), astInfo)
   }
 
   let astInfo = ASTInfo.modifyState(astInfo, ~f=s => {...s, lastInput: inputEvent})
@@ -5007,7 +4998,7 @@ and updateKey = (
   //  broken ASTs though, this is a last ditch attempts to cvatch them. If something
   //  triggered here, go back and fix it at the source.
   let newAstInfo = updateKey'(~recursing, props, inputEvent, astInfo)
-  let onError = (msg, expr) => Recover.recover(`Invalid AST: ${msg}`, ~debug=E.show(expr), ())
+  let onError = (msg, expr) => Recover.recover(`Invalid AST: ${msg}`, ~debug=expr, ())
   let newAST = FluidAST.validateAndFix(~onError, newAstInfo.ast)
   {...newAstInfo, ast: newAST}
 }
@@ -6202,6 +6193,7 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
     FluidCommands.cpSetIndex(m, index)
   | FluidUpdateDropdownIndex(index) =>
     ReplaceAllModificationsWithThisOne(
+      "FluidUpdateDropdownIndex",
       m => {
         let fluidState = acSetIndex'(index, m.fluidState)
         ({...m, fluidState: fluidState}, Tea.Cmd.none)
@@ -6212,6 +6204,7 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
   | FluidInputEvent(Keypress({key: K.CommandPalette(heritage), _})) =>
     let maybeOpen = maybeOpenCmd(m)
     let showToast = Mod.ReplaceAllModificationsWithThisOne(
+      "FluidUpdate-showToast",
       (m: model) => (
         {
           ...m,
@@ -6368,7 +6361,10 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
         }
 
         Mod.Many(list{
-          ReplaceAllModificationsWithThisOne(m => (TL.withAST(m, tlid, newAST), Tea.Cmd.none)),
+          ReplaceAllModificationsWithThisOne(
+            "FluidUpdate-newAST",
+            m => (TL.withAST(m, tlid, newAST), Tea.Cmd.none),
+          ),
           Toplevel.setSelectedAST(m, newAST),
           requestAnalysis,
           astCacheMod,
@@ -6378,7 +6374,10 @@ let update = (m: model, msg: AppTypes.fluidMsg): AppTypes.modification => {
       }
 
       Mod.Many(list{
-        ReplaceAllModificationsWithThisOne(m => ({...m, fluidState: newState}, Tea.Cmd.none)),
+        ReplaceAllModificationsWithThisOne(
+          "FluidUpdate-newState",
+          m => ({...m, fluidState: newState}, Tea.Cmd.none),
+        ),
         astMod,
         eventSpecMod,
         Mod.MakeCmd(cmd),

@@ -13,5 +13,3 @@ let toFloat: t => option<float>
 let fromFloat: float => t
 
 let max: t
-
-let pp: (Format.formatter, t) => unit

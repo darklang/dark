@@ -240,24 +240,6 @@ module Result = {
 
   let combine = (l: list<t<'ok, 'err>>): t<list<'ok>, 'err> =>
     List.foldRight(~f=map2(~f=(accum, r) => list{r, ...accum}), ~initial=Ok(list{}), l)
-
-  @warning("-3")
-  let pp = (
-    okf: (Format.formatter, 'ok) => unit,
-    errf: (Format.formatter, 'error) => unit,
-    fmt: Format.formatter,
-    r: t<'ok, 'error>,
-  ): unit =>
-    switch r {
-    | Ok(ok) =>
-      Format.pp_print_string(fmt, "<ok: ")
-      okf(fmt, ok)
-      Format.pp_print_string(fmt, ">")
-    | Error(err) =>
-      Format.pp_print_string(fmt, "<error: ")
-      errf(fmt, err)
-      Format.pp_print_string(fmt, ">")
-    }
 }
 
 module Float = {
@@ -362,64 +344,12 @@ module Map = {
     |> List.join(~sep=", ")
     |> (s => "{" ++ (s ++ "}"))
 
-  @warning("-3")
-  let pp = (
-    keyFormatter: (Format.formatter, 'key) => unit,
-    valueFormatter: (Format.formatter, 'value) => unit,
-    fmt: Format.formatter,
-    map: t<'key, 'value, 'id>,
-  ) => {
-    Format.pp_print_string(fmt, "{ ")
-    Tablecloth.Map.forEachWithIndex(map, ~f=(~key, ~value) => {
-      keyFormatter(fmt, key)
-      Format.pp_print_string(fmt, ": ")
-      valueFormatter(fmt, value)
-      Format.pp_print_string(fmt, ",  ")
-    })
-    Format.pp_print_string(fmt, "}")
-    ()
-  }
-
   module String = {
     include Tablecloth.Map.String
-
-    @warning("-3")
-    let pp = (
-      valueFormatter: (Format.formatter, 'value) => unit,
-      fmt: Format.formatter,
-      map: t<'value>,
-    ) => {
-      Format.pp_print_string(fmt, "{ ")
-      Tablecloth.Map.forEachWithIndex(map, ~f=(~key, ~value) => {
-        Format.pp_print_string(fmt, key)
-        Format.pp_print_string(fmt, ": ")
-        valueFormatter(fmt, value)
-        Format.pp_print_string(fmt, ",  ")
-      })
-      Format.pp_print_string(fmt, "}")
-      ()
-    }
   }
 
   module Int = {
     include Tablecloth.Map.Int
-
-    @warning("-3")
-    let pp = (
-      valueFormatter: (Format.formatter, 'value) => unit,
-      fmt: Format.formatter,
-      map: t<'value>,
-    ) => {
-      Format.pp_print_string(fmt, "{ ")
-      Tablecloth.Map.forEachWithIndex(map, ~f=(~key, ~value) => {
-        Format.pp_print_int(fmt, key)
-        Format.pp_print_string(fmt, ": ")
-        valueFormatter(fmt, value)
-        Format.pp_print_string(fmt, ",  ")
-      })
-      Format.pp_print_string(fmt, "}")
-      ()
-    }
   }
 }
 
@@ -431,48 +361,12 @@ module Set = {
       and module Int := Tablecloth.Set.Int
   )
 
-  @warning("-3")
-  let pp = (
-    valueFormatter: (Format.formatter, 'key) => unit,
-    fmt: Format.formatter,
-    set: t<'key, 'id>,
-  ) => {
-    Format.pp_print_string(fmt, "{ ")
-    Tablecloth.Set.forEach(set, ~f=v => {
-      valueFormatter(fmt, v)
-      Format.pp_print_string(fmt, ", ")
-    })
-    Format.pp_print_string(fmt, " }")
-    ()
-  }
-
   module String = {
     include Tablecloth.Set.String
-
-    @warning("-3")
-    let pp = (fmt: Format.formatter, set: t) => {
-      Format.pp_print_string(fmt, "{ ")
-      Tablecloth.Set.forEach(set, ~f=v => {
-        Format.pp_print_string(fmt, v)
-        Format.pp_print_string(fmt, ", ")
-      })
-      Format.pp_print_string(fmt, " }")
-      ()
-    }
   }
 
   module Int = {
     include Tablecloth.Set.Int
-    @warning("-3")
-    let pp = (fmt: Format.formatter, set: t) => {
-      Format.pp_print_string(fmt, "{ ")
-      Tablecloth.Set.forEach(set, ~f=v => {
-        Format.pp_print_int(fmt, v)
-        Format.pp_print_string(fmt, ", ")
-      })
-      Format.pp_print_string(fmt, " }")
-      ()
-    }
   }
 
   let removeMany = (~values: list<'key>, set: t<'key, 'id>): t<'key, 'id> =>

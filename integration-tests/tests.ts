@@ -323,6 +323,7 @@ test.describe.parallel("Integration Tests", async () => {
     // add headers
     await page.click(".spec-header > .toplevel-name");
     await page.keyboard.press("Enter");
+    await expect(page.locator("#entry-box")).toBeFocused();
     await page.type(Locators.entryBox, "spec_name");
     await page.keyboard.press("Enter");
 
@@ -435,7 +436,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
 
     const t1 = Date.now();
-    await page.click(".execution-button");
+    await page.click(".execution-button-needed");
     await awaitAnalysis(page, t1, token);
     await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
       "Function is executing",
@@ -939,7 +940,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // this await confirms that we can get a live value in the editor
 
-    await page.click(".execution-button");
+    await page.click(".execution-button-needed");
     await expectContainsText(page, ".return-value", "0");
 
     // check if we can get a result from the bwd endpoint
@@ -1222,11 +1223,12 @@ test.describe.parallel("Integration Tests", async () => {
 
     // execute the fn in the editor ("analysis"), get the result
     const t1 = Date.now();
-    await page.click(".execution-button");
+    await page.click(".execution-button-needed");
     await awaitAnalysis(page, t1, token);
 
     await expect(page.locator(".selected .live-value.loaded")).toContainText(
       "Date",
+      { timeout: 10000 },
     );
     let analysisResponse = await page.textContent(
       ".selected .live-value.loaded",
@@ -1234,7 +1236,7 @@ test.describe.parallel("Integration Tests", async () => {
     let analysisResponseDateStr =
       // analysisResponse looks like: "<Date: 2022-06-14T14:16:14Z>"
       // This is a cheap way of extracting the date from that
-      analysisResponse.replace(">", "").replace("<Date: ", "");
+      analysisResponse!.replace(">", "").replace("<Date: ", "");
     let analysisResponseDate = new Date(analysisResponseDateStr);
 
     // Call the endpoint in BWD

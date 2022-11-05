@@ -75,6 +75,31 @@ type rec lvResult =
   | WithSource({tlid: TLID.t, srcID: id, propValue: RT.Dval.t, srcResult: lvResult})
   | Loading
 
+let rec lvResultToDebugString = (result: lvResult) => {
+  switch result {
+  | WithMessage(msg) => "WithMessage(" ++ msg ++ ")"
+  | WithDval({value, canCopy}) =>
+    "WithDval(" ++ value->RT.Dval.toDebugString ++ ", " ++ string_of_bool(canCopy) ++ ")"
+  | WithMessageAndDval({msg, value, canCopy}) =>
+    "WithMessageAndDval(" ++
+    msg ++
+    ", " ++
+    value->RT.Dval.toDebugString ++
+    ", " ++
+    string_of_bool(canCopy) ++ ")"
+  | WithSource({tlid, srcID, propValue, srcResult}) =>
+    "WithSource(" ++
+    TLID.toString(tlid) ++
+    ", " ++
+    ID.toString(srcID) ++
+    ", " ++
+    propValue->RT.Dval.toDebugString ++
+    ", " ++
+    srcResult->lvResultToDebugString ++ ")"
+  | Loading => "Loading"
+  }
+}
+
 let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
   let fnLoading = {
     // If fn needs to be manually executed, check status

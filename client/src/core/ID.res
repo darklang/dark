@@ -1,6 +1,6 @@
 module T = {
   module Nested = {
-    @ppx.deriving(show({with_path: false})) type rec t = ID(UInt64.t)
+    @unboxed type rec t = ID(UInt64.t)
     let compare = (ID(id1): t, ID(id2): t) => UInt64.compare(id1, id2)
     let cmp = compare
   }
@@ -23,8 +23,6 @@ include T
 module Set = {
   include Tc.Set.Of(T)
 
-  let pp = Tc.Set.pp(T.pp)
-
   let fromArray = a => Tc.Set.fromArray(module(T), a)
 
   let empty = Tc.Set.empty(module(T))
@@ -45,12 +43,6 @@ module Set = {
 
 module Map = {
   include Tc.Map.Of(T)
-
-  let pp = (
-    valueFormatter: (Format.formatter, 'value) => unit,
-    fmt: Format.formatter,
-    map: t<'value>,
-  ): unit => Tc.Map.pp(T.pp, valueFormatter, fmt, map)
 
   let fromArray = a => Tablecloth.Map.Poly.fromArray(a)->Obj.magic
 

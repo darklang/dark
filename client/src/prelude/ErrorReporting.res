@@ -1,30 +1,28 @@
 module Rollbar = {
-  type rollbar_mod = {@meth "init": Js.Json.t => unit}
-
-  type rollbar_instance = {
-    @meth
-    "error": (string, Js.nullable<string>, Js.null<int>, Js.null<string>, Js.Json.t) => unit,
-    @meth
-    "critical": (string, Js.nullable<string>, Js.null<int>, Js.null<string>, Js.Json.t) => unit,
-  }
-
-  @module external rollbar: rollbar_mod = "rollbar"
-
+  type rollbarModule = {init: Js.Json.t => unit}
+  @module external rollbar: rollbarModule = "rollbar"
   let init = (rollbarConfig: Js.Json.t) => {
-    rollbar["init"](rollbarConfig)
-    Js.log("Inited rollbar")
+    rollbar.init(rollbarConfig)
   }
+
+  type rollbarInstance
+  @send
+  external error: (
+    rollbarInstance,
+    string,
+    Js.nullable<string>,
+    Js.null<int>,
+    Js.null<string>,
+    Js.Json.t,
+  ) => unit = "error"
+
+  // There's a better way of doing this but I couldn't get it to work:
+  // https://bucklescript.github.io/docs/en/embed-raw-javascript#detect-global-variables
 
   let send = (msg: string, url: option<string>, custom: Js.Json.t): unit => {
+    let rb: rollbarInstance = %raw(`(typeof window === 'undefined') ? self.rollbar : window.rollbar `)
     let url = Js.Nullable.fromOption(url)
-    let rb: rollbar_instance = /* There's a better way of doing this but I couldn't get it to work:
-     * https://bucklescript.github.io/docs/en/embed-raw-javascript#detect-global-variables
-     * */
-    %raw(` (typeof window === 'undefined') ? self.rollbar : window.rollbar `)
-
-    /* Note that this prints an exception in test as the rollbar field doesn't
-     * exist. */
-    rb["error"](msg, url, Js.null, Js.null, custom)
+    error(rb, msg, url, Js.null, Js.null, custom)
   }
 }
 

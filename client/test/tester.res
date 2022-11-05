@@ -141,7 +141,11 @@ let test = (name: string, testFn: unit => Private.t): unit => {
     | e =>
       let error = switch e {
       | Failure(msg) => "Failure: " ++ msg
-      | _ => Printexc.to_string(e)
+      | _ =>
+        e
+        ->Js.Exn.asJsExn
+        ->Option.andThen(~f=Js.Exn.message)
+        ->Option.unwrap(~default="Unknown exception")
       }
 
       {

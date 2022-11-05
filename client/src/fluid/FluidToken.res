@@ -512,7 +512,7 @@ let isFieldPartial = (t: t): bool =>
 let toText = (t: t): string => {
   let shouldntBeEmpty = name => {
     if name == "" {
-      asserT(~debug=FluidTypes.Token.show(t), "shouldn't be empty", name != "")
+      asserT(~debug=t, "shouldn't be empty", name != "")
     }
     name
   }
@@ -800,7 +800,7 @@ let toDebugInfo = (t: t): string =>
     "parent=" ++ (ID.toString(pid) ++ (" idx=" ++ string_of_int(idx)))
   | TNewline(Some(_, pid, None)) => "parent=" ++ (ID.toString(pid) ++ " idx=none")
   | TNewline(None) => "no parent"
-  | TPipe(_, _, idx, len, _) => Printf.sprintf("idx=%d len=%d", idx, len)
+  | TPipe(_, _, idx, len, _) => `idx=${Int.toString(idx)} len=${Int.toString(len)}`
   | TMatchBranchArrow({index: idx, _}) => "idx=" ++ string_of_int(idx)
   | TMPBlank(mid, _, idx)
   | TMPInteger(mid, _, _, idx)
@@ -846,9 +846,12 @@ let show_tokenInfo = (ti: tokenInfo) =>
     list{},
     list{
       Html.dt(list{}, list{Html.text("pos")}),
-      Html.dd(list{}, list{Html.text(Printf.sprintf("(%d, %d)", ti.startPos, ti.endPos))}),
+      Html.dd(
+        list{},
+        list{Html.text(`(${Int.toString(ti.startPos)}, ${Int.toString(ti.endPos)})`)},
+      ),
       Html.dt(list{}, list{Html.text("len")}),
-      Html.dd(list{}, list{Html.text(Printf.sprintf("%d", ti.length))}),
+      Html.dd(list{}, list{Html.text(Int.toString(ti.length))}),
       Html.dt(list{}, list{Html.text("tok")}),
       Html.dd(list{}, list{Html.text(toText(ti.token))}),
       Html.dt(list{}, list{Html.text("id")}),

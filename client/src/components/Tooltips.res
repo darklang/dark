@@ -117,6 +117,7 @@ let update = (tooltipState: tooltipState, msg: tooltipMsg): modification => {
             tooltipState.userTutorial,
             list{
               Mod.ReplaceAllModificationsWithThisOne(
+                "Tooltips-UpdateTutorial",
                 (m: AppTypes.model) => (
                   {
                     ...m,
@@ -141,6 +142,7 @@ let update = (tooltipState: tooltipState, msg: tooltipMsg): modification => {
           {step: None, tlid: None},
           list{
             ReplaceAllModificationsWithThisOne(
+              "Tooltips-closeTurorial",
               m => (
                 {
                   ...m,
@@ -160,13 +162,17 @@ let update = (tooltipState: tooltipState, msg: tooltipMsg): modification => {
   }
 
   if List.isEmpty(mods) {
-    ReplaceAllModificationsWithThisOne(m => ({...m, tooltipState: tooltipState}, Tea.Cmd.none))
+    ReplaceAllModificationsWithThisOne(
+      "Tooltip-update-empty",
+      m => ({...m, tooltipState: tooltipState}, Tea.Cmd.none),
+    )
   } else {
     Many(
       Belt.List.concat(
         mods,
         list{
           ReplaceAllModificationsWithThisOne(
+            "Tooltip-update-notempty",
             m => ({...m, tooltipState: tooltipState}, Tea.Cmd.none),
           ),
         },
@@ -424,7 +430,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
       let (current, total) = currentStepFraction(step)
       Html.p(
         list{Attrs.class'("step-title")},
-        list{Html.text(Printf.sprintf("%d/%d", current, total))},
+        list{Html.text(`${Int.toString(current)}/${Int.toString(total)}`)},
       )
     | Crud | Default => Vdom.noNode
     }

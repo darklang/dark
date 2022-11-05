@@ -20,7 +20,6 @@
     "in-source": false
   },
   "ppx-flags": [
-    "ppx-deriving/ppx.js",
     ["@greenlabs/res-tailwindcss/ppx", "--path backend/static/app.css"]
   ],
 
@@ -32,7 +31,6 @@
     "tablecloth-rescript",
     "bs-fetch",
     "bs-uuid",
-    "bs-deriving",
     "rescript-js",
     "rescript-nodejs"
   ],

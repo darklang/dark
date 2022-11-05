@@ -219,7 +219,7 @@ let rec forEndOfExpr': fluidExpr => t = expr =>
   | EPipeTarget(_) =>
     recover(
       "we don't yet support forEndOfExpr' for this",
-      ~debug=show_fluidExpr(expr),
+      ~debug=expr,
       ({astRef: ARInvalid, offset: 0}: t),
     )
   }
@@ -270,11 +270,7 @@ let rec forStartOfExpr': fluidExpr => t = expr =>
   | ECharacter(_)
   | EFeatureFlag(_)
   | EPipeTarget(_) =>
-    recover(
-      "unhandled expr in forStartOfExpr'",
-      ~debug=show_fluidExpr(expr),
-      ({astRef: ARInvalid, offset: 0}: t),
-    )
+    recover("unhandled expr in forStartOfExpr'", ~debug=expr, ({astRef: ARInvalid, offset: 0}: t))
   }
 
 /* [forStartOfExpr id ast] produces a caretTarget corresponding

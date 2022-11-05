@@ -1,7 +1,5 @@
 module PT = ProgramTypes
 
-let opaque = Types.opaque
-
 module Page = {
   @ppx.deriving(show({with_path: false}))
   type rec center = bool
@@ -318,7 +316,7 @@ module Avatar = {
   type rec t = {
     canvasId: string,
     canvasName: string,
-    @opaque serverTime: Js.Date.t,
+    serverTime: Js.Date.t,
     tlid: option<string>,
     username: string,
     email: string,
@@ -519,7 +517,7 @@ module SavedSettings = {
     tlTraceIDs: Types.tlTraceIDs,
     handlerProps: TLID.Dict.t<HandlerProperty.t>,
     canvasPos: Pos.t,
-    lastReload: option<@opaque Js.Date.t>,
+    lastReload: option<Js.Date.t>,
     showTopbar: bool,
     firstVisitToThisCanvas: bool,
     userTutorial: option<Tutorial.Step.t>,
@@ -612,7 +610,7 @@ module Msg = {
     | RenderEvent
     | FluidMsg(FluidTypes.Msg.t<'model, 'modification>)
     | AppMouseDown(MouseEvent.t)
-    | @printer(opaque("AppMouseDrag")) AppMouseDrag(Tea.Mouse.position)
+    | AppMouseDrag(Tea.Mouse.position)
     | AppMouseUp(MouseEvent.t)
     | AppScroll
     | WindowMouseUp(MouseEvent.t)
@@ -622,66 +620,57 @@ module Msg = {
     | TLDragRegionMouseUp(TLID.t, MouseEvent.t)
     | ToplevelDelete(TLID.t)
     | ToplevelDeleteForever(TLID.t)
-    | @printer(opaque("DragToplevel")) DragToplevel(TLID.t, Tea.Mouse.position)
+    | DragToplevel(TLID.t, Tea.Mouse.position)
     | EntryInputMsg(string)
     | EntrySubmitMsg
     | GlobalKeyPress(Keyboard.keyEvent)
     | AutocompleteClick(int)
-    | @printer(opaque("AddOpsAPICallback"))
-    AddOpsAPICallback(Focus.t, APIAddOps.Params.t, Tea.Result.t<APIAddOps.t, Types.httpError>)
+    | AddOpsAPICallback(Focus.t, APIAddOps.Params.t, Tea.Result.t<APIAddOps.t, Types.httpError>)
     | AddOpsPusherMsg(PusherTypes.AddOps.t)
-    | @printer(opaque("SavetestAPICallback"))
-    SaveTestAPICallback(Tea.Result.t<APISaveTest.t, Types.httpError>)
-    | @printer(opaque("GetUnlockedDBsAPICallback"))
-    GetUnlockedDBsAPICallback(Tea.Result.t<APIDBs.UnlockedDBs.t, Types.httpError>)
-    | @printer(opaque("Get404sAPICallback"))
-    Get404sAPICallback(Tea.Result.t<API404.List.t, Types.httpError>)
+    | SaveTestAPICallback(Tea.Result.t<APISaveTest.t, Types.httpError>)
+    | GetUnlockedDBsAPICallback(Tea.Result.t<APIDBs.UnlockedDBs.t, Types.httpError>)
+    | Get404sAPICallback(Tea.Result.t<API404.List.t, Types.httpError>)
     | NewTracePush(AnalysisTypes.NewTrace.t)
     | New404Push(AnalysisTypes.FourOhFour.t)
     | NewStaticDeployPush(StaticAssets.Deploy.t)
     | WorkerStatePush(Tc.Map.String.t<AnalysisTypes.WorkerState.t>)
-    | @printer(opaque("Delete404APICallback"))
-    Delete404APICallback(
+    | Delete404APICallback(
         AnalysisTypes.FourOhFour.t,
         API404.Delete.Params.t,
         Tea.Result.t<unit, Types.httpError>,
       )
-    | @printer(opaque("DeleteToplevelForeverAPICallback"))
-    DeleteToplevelForeverAPICallback(
+    | DeleteToplevelForeverAPICallback(
         APIToplevels.DeleteForever.Params.t,
         Tea.Result.t<unit, Types.httpError>,
       )
-    | @printer(opaque("InitialLoadAPICallback"))
-    InitialLoadAPICallback(Focus.t, 'modification, Tea.Result.t<APIInitialLoad.t, Types.httpError>)
-    | @printer(opaque("FetchAllTracesAPICallback"))
-    FetchAllTracesAPICallback(Tea.Result.t<APITraces.AllTraces.t, Types.httpError>)
-    | @printer(opaque("ExecuteFunctionAPICallback"))
-    ExecuteFunctionAPICallback(
+    | InitialLoadAPICallback(
+        Focus.t,
+        'modification,
+        Tea.Result.t<APIInitialLoad.t, Types.httpError>,
+      )
+    | FetchAllTracesAPICallback(Tea.Result.t<APITraces.AllTraces.t, Types.httpError>)
+    | ExecuteFunctionAPICallback(
         APIExecution.Function.Params.t,
         Tea.Result.t<APIExecution.Function.t, Types.httpError>,
       )
-    | @printer(opaque("UploadFunctionAPICallback"))
-    UploadFnAPICallback(APIPackages.UploadFn.Params.t, Tea.Result.t<unit, Types.httpError>)
-    | @printer(opaque("TriggerHandlerAPICallback"))
-    TriggerHandlerAPICallback(
+    | UploadFnAPICallback(APIPackages.UploadFn.Params.t, Tea.Result.t<unit, Types.httpError>)
+    | TriggerHandlerAPICallback(
         APIExecution.Handler.Params.t,
         Tea.Result.t<APIExecution.Handler.t, Types.httpError>,
       )
-    | @printer(opaque("LoadPackagesAPICallback"))
-    LoadPackagesAPICallback(Tea.Result.t<APIPackages.AllPackages.t, Types.httpError>)
-    | @printer(opaque("InsertSecretCallback"))
-    InsertSecretCallback(Tea.Result.t<list<SecretTypes.t>, Types.httpError>)
-    | @printer(opaque("LogoutAPICallback")) LogoutAPICallback
+    | LoadPackagesAPICallback(Tea.Result.t<APIPackages.AllPackages.t, Types.httpError>)
+    | InsertSecretCallback(Tea.Result.t<list<SecretTypes.t>, Types.httpError>)
+    | LogoutAPICallback
     | Delete404APICall(AnalysisTypes.FourOhFour.t)
     | NewPresencePush(list<Avatar.t>)
-    | @printer(opaque("LocationChange")) LocationChange(Web.Location.location)
+    | LocationChange(Web.Location.location)
     | FinishIntegrationTest
     | SaveTestButton
     | ToggleEditorSetting(EditorSettings.t => EditorSettings.t)
     | ExecuteFunctionButton(TLID.t, ID.t, string)
     | ExecuteFunctionFromWithin(APIExecution.Function.Params.t)
     | CreateHandlerFrom404(AnalysisTypes.FourOhFour.t)
-    | @printer(opaque("TimerFire")) TimerFire(Types.timerAction, Tea.Time.t)
+    | TimerFire(Types.timerAction, Tea.Time.t)
     | JSError(string)
     | PageVisibilityChange(PageVisibility.t)
     | DeleteUserFunctionParameter(TLID.t, PT.UserFunction.Parameter.t)
@@ -711,16 +700,15 @@ module Msg = {
     | EnablePanning(bool)
     | DeleteColInDB(TLID.t, ID.t)
     | CreateDBTable
-    | ClipboardCopyEvent(Types.clipboardEvent)
-    | ClipboardCutEvent(Types.clipboardEvent)
-    | ClipboardPasteEvent(Types.clipboardEvent)
+    | ClipboardCopyEvent(Webapi.Dom.ClipboardEvent.t)
+    | ClipboardCutEvent(Webapi.Dom.ClipboardEvent.t)
+    | ClipboardPasteEvent(Webapi.Dom.ClipboardEvent.t)
     | ClipboardCopyLivevalue(string, VPos.t)
     | EventDecoderError(string, string, string)
     | CanvasPanAnimationEnd
     | GoTo(Page.t)
     | SetHoveringReferences(TLID.t, list<ID.t>)
-    | @printer(opaque("TriggerSendPresenceCallback"))
-    TriggerSendPresenceCallback(Tea.Result.t<unit, Types.httpError>)
+    | TriggerSendPresenceCallback(Tea.Result.t<unit, Types.httpError>)
     | TakeOffErrorRail(TLID.t, ID.t)
     | SetHandlerExeIdle(TLID.t)
     | CopyCurl(TLID.t, VPos.t)
@@ -731,8 +719,7 @@ module Msg = {
     | DismissErrorBar
     | PauseWorker(string)
     | RunWorker(string)
-    | @printer(opaque("UpdateWorkerScheduleCallback"))
-    UpdateWorkerScheduleCallback(
+    | UpdateWorkerScheduleCallback(
         Tea.Result.t<Tc.Map.String.t<AnalysisTypes.WorkerState.t>, Types.httpError>,
       )
     | NewTabFromTLMenu(string, TLID.t)
@@ -741,6 +728,112 @@ module Msg = {
     | UpdateHeapio(Types.heapioTrack)
     | SettingsMsg(Settings.msg)
     | SecretMsg(SecretTypes.msg)
+
+  let toDebugString = (msg: t<'model, 'cmd>): string =>
+    switch msg {
+    | NewTracePush(_) => "NewTracePush"
+    | New404Push(_) => "New404Push"
+    | NewStaticDeployPush(_) => "NewStaticDeployPush"
+    | WorkerStatePush(_) => "WorkerStatePush"
+    | Delete404APICallback(_, _, _) => "Delete404APICallback"
+    | DeleteToplevelForeverAPICallback(_, _) => "DeleteToplevelForeverAPICallback"
+    | InitialLoadAPICallback(_, _, _) => "InitialLoadAPICallback"
+    | FetchAllTracesAPICallback(_) => "FetchAllTracesAPICallback"
+    | ExecuteFunctionAPICallback(_, _) => "ExecuteFunctionAPICallback"
+    | UploadFnAPICallback(_, _) => "UploadFnAPICallback"
+    | TriggerHandlerAPICallback(_, _) => "TriggerHandlerAPICallback"
+    | LoadPackagesAPICallback(_) => "LoadPackagesAPICallback"
+    | InsertSecretCallback(_) => "InsertSecretCallback"
+    | LogoutAPICallback => "LogoutAPICallback"
+    | Delete404APICall(_) => "Delete404APICall"
+    | NewPresencePush(_) => "NewPresencePush"
+    | LocationChange(_) => "LocationChange"
+    | FinishIntegrationTest => "FinishIntegrationTest"
+    | SaveTestButton => "SaveTestButton"
+    | ToggleEditorSetting(_) => "ToggleEditorSetting"
+    | ExecuteFunctionButton(_, _, _) => "ExecuteFunctionButton"
+    | ExecuteFunctionFromWithin(_) => "ExecuteFunctionFromWithin"
+    | CreateHandlerFrom404(_) => "CreateHandlerFrom404"
+    | TimerFire(_, _) => "TimerFire"
+    | JSError(_) => "JSError"
+    | PageVisibilityChange(_) => "PageVisibilityChange"
+    | DeleteUserFunctionParameter(_, _) => "DeleteUserFunctionParameter"
+    | AddUserFunctionParameter(_) => "AddUserFunctionParameter"
+    | UploadFn(_) => "UploadFn"
+    | DeleteUserTypeField(_, _) => "DeleteUserTypeField"
+    | BlankOrClick(_, _, _) => "BlankOrClick"
+    | BlankOrDoubleClick(_, _, _) => "BlankOrDoubleClick"
+    | BlankOrMouseEnter(_, _, _) => "BlankOrMouseEnter"
+    | BlankOrMouseLeave(_, _, _) => "BlankOrMouseLeave"
+    | MouseWheel(_, _) => "MouseWheel"
+    | TraceClick(_, _, _) => "TraceClick"
+    | TraceMouseEnter(_, _, _) => "TraceMouseEnter"
+    | TraceMouseLeave(_, _, _) => "TraceMouseLeave"
+    | TriggerHandler(_) => "TriggerHandler"
+    | CreateRouteHandler(_) => "CreateRouteHandler"
+    | CreateFunction => "CreateFunction"
+    | ExtractFunction => "ExtractFunction"
+    | CreateType => "CreateType"
+    | DeleteUserFunction(_) => "DeleteUserFunction"
+    | DeleteUserFunctionForever(_) => "DeleteUserFunctionForever"
+    | DeleteUserType(_) => "DeleteUserType"
+    | DeleteUserTypeForever(_) => "DeleteUserTypeForever"
+    | RestoreToplevel(_) => "RestoreToplevel"
+    | ReceiveAnalysis(_) => "ReceiveAnalysis"
+    | ReceiveFetch(_) => "ReceiveFetch"
+    | EnablePanning(_) => "EnablePanning"
+    | DeleteColInDB(_, _) => "DeleteColInDB"
+    | CreateDBTable => "CreateDBTable"
+    | ClipboardCopyEvent(_) => "ClipboardCopyEvent"
+    | ClipboardCutEvent(_) => "ClipboardCutEvent"
+    | ClipboardPasteEvent(_) => "ClipboardPasteEvent"
+    | ClipboardCopyLivevalue(_, _) => "ClipboardCopyLivevalue"
+    | EventDecoderError(_, _, _) => "EventDecoderError"
+    | CanvasPanAnimationEnd => "CanvasPanAnimationEnd"
+    | GoTo(_) => "GoTo"
+    | SetHoveringReferences(_, _) => "SetHoveringReferences"
+    | TriggerSendPresenceCallback(_) => "TriggerSendPresenceCallback"
+    | TakeOffErrorRail(_, _) => "TakeOffErrorRail"
+    | SetHandlerExeIdle(_) => "SetHandlerExeIdle"
+    | CopyCurl(_, _) => "CopyCurl"
+    | TLMenuMsg(_, _) => "TLMenuMsg"
+    | ResetToast => "ResetToast"
+    | GoToArchitecturalView => "GoToArchitecturalView"
+    | HideTopbar => "HideTopbar"
+    | DismissErrorBar => "DismissErrorBar"
+    | PauseWorker(_) => "PauseWorker"
+    | RunWorker(_) => "RunWorker"
+    | UpdateWorkerScheduleCallback(_) => "UpdateWorkerScheduleCallback"
+    | NewTabFromTLMenu(_, _) => "NewTabFromTLMenu"
+    | FnParamMsg(_) => "FnParamMsg"
+    | ToolTipMsg(_) => "ToolTipMsg"
+    | UpdateHeapio(_) => "UpdateHeapio"
+    | SettingsMsg(_) => "SettingsMsg"
+    | SecretMsg(_) => "SecretMsg"
+    | IgnoreMouseUp => "IgnoreMouseUp"
+    | RenderEvent => "RenderEvent"
+    | AppScroll => "AppScroll"
+    | EntrySubmitMsg => "EntrySubmitMsg"
+    | IgnoreMsg(_) => "IgnoreMsg"
+    | FluidMsg(_) => "FluidMsg"
+    | AppMouseDown(_) => "AppMouseDown"
+    | AppMouseUp(_) => "AppMouseUp"
+    | WindowMouseUp(_) => "WindowMouseUp"
+    | TLDragRegionMouseDown(_) => "TLDragRegionMouseDown"
+    | TLDragRegionMouseUp(_) => "TLDragRegionMouseUp"
+    | AppMouseDrag(_) => "AppMouseDrag"
+    | ToplevelDelete(_) => "ToplevelDelete"
+    | ToplevelDeleteForever(_) => "ToplevelDeleteForever"
+    | DragToplevel(_) => "DragToplevel"
+    | EntryInputMsg(_) => "EntryInputMsg"
+    | GlobalKeyPress(_) => "GlobalKeyPress"
+    | AutocompleteClick(_) => "AutocompleteClick"
+    | AddOpsAPICallback(_) => "AddOpsAPICallback"
+    | AddOpsPusherMsg(_) => "AddOpsPusherMsg"
+    | SaveTestAPICallback(_) => "SaveTestAPICallback"
+    | GetUnlockedDBsAPICallback(_) => "GetUnlockedDBsAPICallback"
+    | Get404sAPICallback(_) => "Get404sAPICallback"
+    }
 }
 
 module Modification = {
@@ -764,7 +857,7 @@ module Modification = {
 
   @ppx.deriving(show({with_path: false}))
   type rec t<'model> =
-    | @ocaml.doc(" ReplaceAllModificationsWithThisOne is a migration path away from modifications. It
+    | @ocaml.doc("ReplaceAllModificationsWithThisOne is a migration path away from modifications. It
         * takes in a model and directly returns a (model * msg Cmd.t) just like
         * The update function.
         *
@@ -773,8 +866,10 @@ module Modification = {
         * The intent is to completely replace all existing modifications with
         * this one, then remove the modification type entirely, directly
         * returning the (model * Cmd.t) from the update function ")
-    @printer(opaque("ReplaceAllModificationsWithThisOne"))
-    ReplaceAllModificationsWithThisOne('model => ('model, Tea.Cmd.t<Msg.t<'model, t<'model>>>))
+    ReplaceAllModificationsWithThisOne(
+        string,
+        'model => ('model, Tea.Cmd.t<Msg.t<'model, t<'model>>>),
+      )
 
     // API Calls
     | AddOps((list<PT.Op.t>, Focus.t))
@@ -807,7 +902,7 @@ module Modification = {
     | OpenOmnibox(option<Pos.t>) // Open the omnibox
     | UpdateWorkerSchedules(Tc.Map.String.t<AnalysisTypes.WorkerState.t>)
     | NoChange
-    | @printer(opaque("MakeCmd")) MakeCmd(Tea.Cmd.t<Msg.t<'model, t<'model>>>)
+    | MakeCmd(Tea.Cmd.t<Msg.t<'model, t<'model>>>)
     | AutocompleteMod(AutoComplete.mod)
     | Many(list<t<'model>>)
     | PanCanvas({viewportStart: VPos.t, viewportCurr: VPos.t, prevCursorState: CursorState.t})
@@ -846,11 +941,79 @@ module Modification = {
     | FluidEndClick
     | UpdateAvatarList(list<Avatar.t>)
     | ExpireAvatars
-    | SetClipboardContents(Types.clipboardContents, Types.clipboardEvent)
+    | SetClipboardContents(Types.clipboardContents, Webapi.Dom.ClipboardEvent.t)
     | UpdateASTCache(TLID.t, string)
     | InitASTCache(list<PT.Handler.t>, list<PT.UserFunction.t>)
     | FluidSetState(FluidTypes.State.t<'model, t<'model>>)
     | TLMenuUpdate(TLID.t, Menu.msg)
+
+  let toDebugString = (mod: t<'model>): string => {
+    switch mod {
+    | ReplaceAllModificationsWithThisOne(name, _) => `ReplaceAllModificationsWithThisOne-${name}`
+    | AddOps(_) => "AddOps"
+    | HandleAPIError(_) => "HandleAPIError"
+    | GetUnlockedDBsAPICall => "GetUnlockedDBsAPICall"
+    | Get404sAPICall => "Get404sAPICall"
+    | GetWorkerStatsAPICall(_) => "GetWorkerStatsAPICall"
+    | ExecutingFunctionAPICall(_) => "ExecutingFunctionAPICall"
+    | TriggerHandlerAPICall(_) => "TriggerHandlerAPICall"
+    | UpdateDBStatsAPICall(_) => "UpdateDBStatsAPICall"
+    | DeleteToplevelForeverAPICall(_) => "DeleteToplevelForeverAPICall"
+    | Select(_, _) => "Select"
+    | SetHover(_, _) => "SetHover"
+    | ClearHover(_, _) => "ClearHover"
+    | Deselect => "Deselect"
+    | RemoveToplevel(_) => "RemoveToplevel"
+    | SetToplevels(_, _, _) => "SetToplevels"
+    | UpdateToplevels(_, _, _) => "UpdateToplevels"
+    | SetDeletedToplevels(_, _) => "SetDeletedToplevels"
+    | UpdateDeletedToplevels(_, _) => "UpdateDeletedToplevels"
+    | UpdateAnalysis(_) => "UpdateAnalysis"
+    | SetUserFunctions(_, _, _) => "SetUserFunctions"
+    | SetUnlockedDBs(_) => "SetUnlockedDBs"
+    | AppendUnlockedDBs(_) => "AppendUnlockedDBs"
+    | Append404s(_) => "Append404s"
+    | Delete404(_) => "Delete404"
+    | Enter(_, _) => "Enter"
+    | EnterWithOffset(_, _, _) => "EnterWithOffset"
+    | OpenOmnibox(_) => "OpenOmnibox"
+    | UpdateWorkerSchedules(_) => "UpdateWorkerSchedules"
+    | NoChange => "NoChange"
+    | MakeCmd(_) => "MakeCmd"
+    | AutocompleteMod(_) => "AutocompleteMod"
+    | Many(_) => "Many"
+    | PanCanvas(_) => "PanCanvas"
+    | DragTL(_, _, _, _) => "DragTL"
+    | TriggerIntegrationTest(_) => "TriggerIntegrationTest"
+    | EndIntegrationTest => "EndIntegrationTest"
+    | SetPage(_) => "SetPage"
+    | SetTLTraceID(_, _) => "SetTLTraceID"
+    | ExecutingFunctionBegan(_, _) => "ExecutingFunctionBegan"
+    | ExecutingFunctionComplete(_) => "ExecutingFunctionComplete"
+    | MoveCanvasTo(_, _) => "MoveCanvasTo"
+    | UpdateTraces(_) => "UpdateTraces"
+    | OverrideTraces(_) => "OverrideTraces"
+    | UpdateTraceFunctionResult(_, _, _, _, _, _, _) => "UpdateTraceFunctionResult"
+    | AppendStaticDeploy(_) => "AppendStaticDeploy"
+    | Apply(_) => "Apply"
+    | SetTypes(_, _, _) => "SetTypes"
+    | SetPermission(_) => "SetPermission"
+    | CenterCanvasOn(_) => "CenterCanvasOn"
+    | InitIntrospect(_) => "InitIntrospect"
+    | RefreshUsages(_) => "RefreshUsages"
+    | FluidCommandsShow(_, _) => "FluidCommandsShow"
+    | FluidCommandsClose => "FluidCommandsClose"
+    | FluidStartClick => "FluidStartClick"
+    | FluidEndClick => "FluidEndClick"
+    | UpdateAvatarList(_) => "UpdateAvatarList"
+    | ExpireAvatars => "ExpireAvatars"
+    | SetClipboardContents(_, _) => "SetClipboardContents"
+    | UpdateASTCache(_, _) => "UpdateASTCache"
+    | InitASTCache(_, _) => "InitASTCache"
+    | FluidSetState(_) => "FluidSetState"
+    | TLMenuUpdate(_, _) => "TLMenuUpdate"
+    }
+  }
 }
 
 module Model = {
@@ -913,7 +1076,7 @@ module Model = {
     avatarsList: list<Avatar.t>,
     browserId: string,
     buildHash: string,
-    lastReload: option<@opaque Js.Date.t>,
+    lastReload: option<Js.Date.t>,
     opCtrs: Tc.Map.String.t<int>,
     clientOpCtrId: string,
     permission: option<AccountTypes.Permission.t>,

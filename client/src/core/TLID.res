@@ -1,6 +1,6 @@
 module T = {
   module Nested = {
-    @ppx.deriving(show({with_path: false})) type rec t = TLID(UInt64.t)
+    @unboxed type rec t = TLID(UInt64.t)
     let compare = (TLID(id1): t, TLID(id2): t) => UInt64.compare(id1, id2)
   }
 
@@ -21,8 +21,6 @@ include T
 
 module Set = {
   include Tc.Set.Of(T)
-
-  let pp = Tc.Set.pp(T.pp)
 
   let fromArray = a => Tablecloth.Set.Poly.fromArray(a)->Obj.magic
 
@@ -45,12 +43,6 @@ module Set = {
 // CLEANUP: rename to map
 module Dict = {
   include Tc.Map.Of(T)
-
-  let pp = (
-    valueFormatter: (Format.formatter, 'value) => unit,
-    fmt: Format.formatter,
-    map: t<'value>,
-  ): unit => Tc.Map.pp(T.pp, valueFormatter, fmt, map)
 
   let fromArray = a => Tablecloth.Map.Poly.fromArray(a)->Obj.magic
 

@@ -66,8 +66,6 @@ let fromString = (str: string) =>
 
 let max = -1L
 
-let pp = (f, i) => Format.pp_print_string(f, toString(i))
-
 let compare = (i1, i2) =>
   if i1 >= 0L {
     if i2 >= 0L {

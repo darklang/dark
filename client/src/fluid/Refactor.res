@@ -542,7 +542,10 @@ let createNewFunction = (m: model, newFnName: option<string>): modification => {
   | _ =>
     // We need to update both the model and the backend
     Many(list{
-      ReplaceAllModificationsWithThisOne(m => (UserFunctions.upsert(m, newFn), Tea.Cmd.none)),
+      ReplaceAllModificationsWithThisOne(
+        "createNewFn",
+        m => (UserFunctions.upsert(m, newFn), Tea.Cmd.none),
+      ),
       // Both ops in a single transaction
       AddOps(list{SetFunction(newFn)}, FocusNothing),
       MakeCmd(Url.navigateTo(FocusedFn(newFn.tlid, None))),
@@ -582,6 +585,7 @@ let createAndInsertNewFunction = (
       | None =>
         Many(list{
           ReplaceAllModificationsWithThisOne(
+            "Refactor-createAndInsertNewFunction",
             m => (
               TL.withAST(m, tlid, newAST) |> (m => UserFunctions.upsert(m, newFn)),
               Tea.Cmd.none,
