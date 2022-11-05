@@ -323,6 +323,7 @@ test.describe.parallel("Integration Tests", async () => {
     // add headers
     await page.click(".spec-header > .toplevel-name");
     await page.keyboard.press("Enter");
+    await expect(page.locator("#entry-box")).toBeFocused();
     await page.type(Locators.entryBox, "spec_name");
     await page.keyboard.press("Enter");
 
