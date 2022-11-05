@@ -347,7 +347,7 @@ let run = () => {
       Json.Encode.list(ProgramTypes.Package.Fn.encode),
     )
     t(
-      "vanilla_LibAnalysis_Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-2-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-ClientTypes-Analysis-ExecutionResult-T-System-String-_simple.json",
+      "vanilla_LibAnalysis_Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-4-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-ClientTypes-Analysis-ExecutionResult-T-System-Int32-NodaTime-Instant-System-String-_simple.json",
       Json.Decode.result(AnalysisTypes.PerformAnalysis.Envelope.decode, Json.Decode.string),
       Json.Encode.result(AnalysisTypes.PerformAnalysis.Envelope.encode, Json.Encode.string),
     )
