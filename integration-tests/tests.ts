@@ -939,8 +939,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
 
     // this await confirms that we can get a live value in the editor
-
-    await page.click(".execution-button-needed");
+    await page.click(".execution-button");
     await expectContainsText(page, ".return-value", "0");
 
     // check if we can get a result from the bwd endpoint
