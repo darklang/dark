@@ -139,7 +139,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
     let inside = {
       let closeBtn = Html.div(
         list{
-          Attrs.class'("close-btn"),
+          Attrs.class("close-btn"),
           EventListeners.eventNoPropagation(
             ~key="close-create-secret-modal",
             "click",
@@ -150,12 +150,12 @@ let view = (m: ST.insertModal): Html.html<msg> =>
       )
 
       let content = {
-        let title = Html.div(list{Attrs.class'("title")}, list{Html.text("Add Secret Key")})
+        let title = Html.div(list{Attrs.class("title")}, list{Html.text("Add Secret Key")})
 
         let form = Html.form(
-          list{Attrs.class'("insert-secret-form")},
+          list{Attrs.class("insert-secret-form")},
           list{
-            Html.input'(
+            Html.input(
               list{
                 Attrs.id(secretNameInputID),
                 Attrs.autofocus(true),
@@ -179,7 +179,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
             Html.button(
               list{
                 Attrs.type'("button"),
-                Attrs.class'("modal-form-button"),
+                Attrs.class("modal-form-button"),
                 EventListeners.eventNoPropagation(~key="save-secret", "click", _ => Msg.SecretMsg(
                   SaveNewSecret,
                 )),
@@ -194,10 +194,10 @@ let view = (m: ST.insertModal): Html.html<msg> =>
           | Some(msg) => msg
           | None => ""
           }
-          Html.p(list{Attrs.class'("form-error")}, list{Html.text(msg)})
+          Html.p(list{Attrs.class("form-error")}, list{Html.text(msg)})
         }
 
-        Html.div(list{Attrs.class'("modal-content")}, list{title, form, errorMsg})
+        Html.div(list{Attrs.class("modal-content")}, list{title, form, errorMsg})
       }
 
       list{content, closeBtn}
@@ -205,13 +205,13 @@ let view = (m: ST.insertModal): Html.html<msg> =>
 
     Html.div(
       list{
-        Attrs.class'("modal-overlay"),
+        Attrs.class("modal-overlay"),
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.nothingMouseEvent("mouseup"),
         EventListeners.nothingMouseEvent("click"),
         Events.onCB("keydown", "keydown", Obj.magic(onKeydown)),
       },
-      list{Html.div(list{Attrs.class'("modal insert-secret")}, inside)},
+      list{Html.div(list{Attrs.class("modal insert-secret")}, inside)},
     )
   } else {
     Vdom.noNode

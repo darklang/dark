@@ -166,7 +166,7 @@ let input = (
   Html.span(
     list{},
     list{
-      Html.input'(
+      Html.input(
         list{
           Attrs.classes([style, %twc("rounded-sm px-2 h-9 bg-black3 text-white1 caret-grey8")]),
           Attrs.value(value),

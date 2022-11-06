@@ -17,10 +17,10 @@ let fontAwesome = Icons.fontAwesome
 
 let viewDbCount = (stats: dbStats): Html.html<msg> =>
   Html.div(
-    list{Attrs.class'("db db-count")},
+    list{Attrs.class("db db-count")},
     list{
       Html.span(
-        list{Attrs.class'("dbcount-txt")},
+        list{Attrs.class("dbcount-txt")},
         list{Html.text("# of Entries: " ++ string_of_int(stats.count))},
       ),
     },
@@ -28,7 +28,7 @@ let viewDbCount = (stats: dbStats): Html.html<msg> =>
 
 let viewDbLatestEntry = (stats: dbStats, tlid: TLID.t, secrets: list<string>): Html.html<msg> => {
   let title = Html.div(
-    list{Attrs.class'("title")},
+    list{Attrs.class("title")},
     list{
       Html.span(
         list{Attrs.classList(list{("label", true), ("show", Option.isSome(stats.example))})},
@@ -40,11 +40,11 @@ let viewDbLatestEntry = (stats: dbStats, tlid: TLID.t, secrets: list<string>): H
   let exampleHtml = switch stats.example {
   | Some(example, key) =>
     Html.div(
-      list{Attrs.class'("dbexample")},
+      list{Attrs.class("dbexample")},
       list{
-        Html.div(list{Attrs.class'("key")}, list{Html.text(key ++ ":")}),
+        Html.div(list{Attrs.class("key")}, list{Html.text(key ++ ":")}),
         Html.div(
-          list{Attrs.class'("value")},
+          list{Attrs.class("value")},
           FluidView.viewDval(example, tlid, secrets, ~canCopy=true),
         ),
       },
@@ -52,7 +52,7 @@ let viewDbLatestEntry = (stats: dbStats, tlid: TLID.t, secrets: list<string>): H
   | None => Vdom.noNode
   }
 
-  Html.div(list{Attrs.class'("db db-liveVal")}, list{title, exampleHtml})
+  Html.div(list{Attrs.class("db db-liveVal")}, list{title, exampleHtml})
 }
 
 let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<msg> =>
@@ -60,13 +60,13 @@ let viewDBData = (vp: viewProps, db: PT.DB.t): Html.html<msg> =>
   | Some(stats) if CursorState.tlidOf(vp.cursorState) == Some(db.tlid) =>
     let liveVal = viewDbLatestEntry(stats, db.tlid, vp.secretValues)
     let count = viewDbCount(stats)
-    Html.div(list{Attrs.class'("dbdata")}, list{count, liveVal})
+    Html.div(list{Attrs.class("dbdata")}, list{count, liveVal})
   | _ => Vdom.noNode
   }
 
 let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
   let typeView = Html.span(
-    list{Attrs.class'("toplevel-type")},
+    list{Attrs.class("toplevel-type")},
     list{fontAwesome("database"), Html.text("DB")},
   )
 
@@ -79,13 +79,10 @@ let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
     }
 
     Html.span(
-      list{Attrs.class'("toplevel-name")},
+      list{Attrs.class("toplevel-name")},
       list{
         nameField,
-        Html.span(
-          list{Attrs.class'("version")},
-          list{Html.text(".v" ++ string_of_int(db.version))},
-        ),
+        Html.span(list{Attrs.class("version")}, list{Html.text(".v" ++ string_of_int(db.version))}),
       },
     )
   }
@@ -109,7 +106,7 @@ let viewDBHeader = (vp: viewProps, db: PT.DB.t): list<Html.html<msg>> => {
       }
     }
 
-    Html.div(list{Attrs.class'("menu")}, list{TLMenu.viewMenu(vp.menuState, vp.tlid, list{delAct})})
+    Html.div(list{Attrs.class("menu")}, list{TLMenu.viewMenu(vp.menuState, vp.tlid, list{delAct})})
   }
 
   list{typeView, titleView, menuView}
@@ -146,7 +143,7 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, col: PT.DB.Col.t): 
   ) {
     Html.div(
       list{
-        Attrs.class'("delete-col"),
+        Attrs.class("delete-col"),
         EventListeners.eventNoPropagation(
           ~key="dcidb-" ++ (TLID.toString(tlid) ++ ("-" ++ (col.nameID |> ID.toString))),
           "click",
@@ -184,16 +181,16 @@ let viewDB = (vp: viewProps, db: PT.DB.t, dragEvents: domEventList): list<Html.h
   }
 
   let keyView = Html.div(
-    list{Attrs.class'("col key")},
+    list{Attrs.class("col key")},
     list{Html.text("All entries are identified by a unique string `key`.")},
   )
 
   let coldivs = List.map(~f=viewDBCol(vp, false, db.tlid), cols)
   let data = viewDBData(vp, db)
-  let headerView = Html.div(list{Attrs.class'("spec-header " ++ lockClass)}, viewDBHeader(vp, db))
+  let headerView = Html.div(list{Attrs.class("spec-header " ++ lockClass)}, viewDBHeader(vp, db))
 
   Belt.List.concatMany([
-    list{Html.div(list{Attrs.class'("db"), ...dragEvents}, list{headerView, keyView, ...coldivs})},
+    list{Html.div(list{Attrs.class("db"), ...dragEvents}, list{headerView, keyView, ...coldivs})},
     list{data},
   ])
 }

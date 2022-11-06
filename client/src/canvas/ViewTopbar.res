@@ -9,7 +9,7 @@ let msgLink = (~key: string, content: Html.html<AppTypes.msg>, handler: AppTypes
   AppTypes.msg,
 > => {
   let event = EventListeners.eventNeither(~key, "mouseup", _ => handler)
-  Html.a(list{event, Attrs.class'("")}, list{content})
+  Html.a(list{event, Attrs.class("")}, list{content})
 }
 
 let html = (_m: AppTypes.model) =>

@@ -107,7 +107,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
       Html.div(
         ~unique="add-param-col-" ++ strTLID,
         list{
-          Attrs.class'("col new-parameter"),
+          Attrs.class("col new-parameter"),
           EventListeners.eventNoPropagation(
             ~key="aufp-" ++ strTLID,
             "click",
@@ -116,10 +116,10 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
         },
         list{
           Html.div(
-            list{Attrs.class'("parameter-btn allowed add")},
+            list{Attrs.class("parameter-btn allowed add")},
             list{fontAwesome("plus-circle")},
           ),
-          Html.span(list{Attrs.class'("btn-label")}, list{Html.text("add new parameter")}),
+          Html.span(list{Attrs.class("btn-label")}, list{Html.text("add new parameter")}),
         },
       )
     | Some(Read) | None => Vdom.noNode
@@ -168,18 +168,15 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
           list{delAct}
         }
 
-        Html.div(
-          list{Attrs.class'("menu")},
-          list{TLMenu.viewMenu(vp.menuState, vp.tlid, menuItems)},
-        )
+        Html.div(list{Attrs.class("menu")}, list{TLMenu.viewMenu(vp.menuState, vp.tlid, menuItems)})
       }
 
-      Html.div(list{Attrs.class'("fn-actions")}, list{viewExecuteBtn(vp, fn), menuView})
-    | PackageFn(_) => Html.span(list{Attrs.class'("fn-readonly")}, list{Html.text("Read Only")})
+      Html.div(list{Attrs.class("fn-actions")}, list{viewExecuteBtn(vp, fn), menuView})
+    | PackageFn(_) => Html.span(list{Attrs.class("fn-readonly")}, list{Html.text("Read Only")})
     }
 
     Html.div(
-      list{Attrs.class'("spec-header")},
+      list{Attrs.class("spec-header")},
       list{
         Icons.darkIcon("fn"),
         viewUserFnName(vp, ~classes=list{"fn-name-content"}, titleText),
@@ -196,7 +193,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
       )
 
     Html.div(
-      list{Attrs.id("fnparams"), Attrs.class'("params")},
+      list{Attrs.id("fnparams"), Attrs.class("params")},
       Belt.List.concat(FnParams.view(fn, vp), list{addParamBtn, fnParamTooltip}),
     )
   }
@@ -208,7 +205,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
     }
 
     Html.div(
-      list{Attrs.id("fnreturn"), Attrs.class'("col param")},
+      list{Attrs.id("fnreturn"), Attrs.class("col param")},
       list{
         fontAwesome("level-down-alt"),
         ViewBlankOr.viewType(~classes=list{"type"}, ~enterable=true, FnReturnType, vp, returnType),
@@ -216,13 +213,13 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
     )
   }
 
-  Html.div(list{Attrs.class'("fn-header")}, list{titleRow, paramRows, returnRow})
+  Html.div(list{Attrs.class("fn-header")}, list{titleRow, paramRows, returnRow})
 }
 
 let view = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Html.html<msg> =>
   Html.div(
     list{
-      Attrs.class'(
+      Attrs.class(
         switch fn {
         | UserFunction(_) => "user-fn-toplevel"
         | PackageFn(_) => "pkg-fn-toplevel"
@@ -230,7 +227,7 @@ let view = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Html.html<m
       ),
     },
     list{
-      Html.div(list{Attrs.class'("metadata")}, list{viewMetadata(vp, fn, showFnTooltips)}),
-      Html.div(list{Attrs.class'("function-body expand")}, FluidView.view(vp, list{})),
+      Html.div(list{Attrs.class("metadata")}, list{viewMetadata(vp, fn, showFnTooltips)}),
+      Html.div(list{Attrs.class("function-body expand")}, FluidView.view(vp, list{})),
     },
   )

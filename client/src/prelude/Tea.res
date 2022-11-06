@@ -39,7 +39,6 @@ module Html = {
   type html<'a> = Vdom.t<'a>
 
   let noNode = Vdom.noNode
-  let input = input'
 
   // Override so we can add our own attributes/properties
   module Attributes = {
@@ -49,7 +48,6 @@ module Html = {
 
     // Standard properties that are not in rescript-tea
     // TODO: upstream
-    let class = class'
     let classes = (classes: array<string>) => class(classes->Js.Array2.joinWith(" "))
     let role = (name: string) => Vdom.prop("role", name)
     let ariaChecked = (v: bool) => Vdom.prop("aria-checked", string_of_bool(v))

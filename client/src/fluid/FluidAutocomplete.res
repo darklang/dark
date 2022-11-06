@@ -695,7 +695,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     | None => list{Html.text(" takes no arguments.")}
     | Some(typeStr) => list{
         Html.text(" takes a "),
-        Html.span(list{Attrs.class'("type")}, list{Html.text(typeStr)}),
+        Html.span(list{Attrs.class("type")}, list{Html.text(typeStr)}),
         Html.text(" as its first argument."),
       }
     }
@@ -703,11 +703,11 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     Html.div(
       list{},
       list{
-        Html.span(list{Attrs.class'("err")}, list{Html.text("Type error: ")}),
+        Html.span(list{Attrs.class("err")}, list{Html.text("Type error: ")}),
         Html.text("A value of type "),
-        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.type2str(typ))}),
+        Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(typ))}),
         Html.text(" is being piped into this function call, but "),
-        Html.span(list{Attrs.class'("fn")}, list{Html.text(acFunction)}),
+        Html.span(list{Attrs.class("fn")}, list{Html.text(acFunction)}),
         ...typeInfo,
       },
     )
@@ -717,19 +717,19 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     Html.div(
       list{},
       list{
-        Html.span(list{Attrs.class'("err")}, list{Html.text("Type error: ")}),
+        Html.span(list{Attrs.class("err")}, list{Html.text("Type error: ")}),
         Html.span(
-          list{Attrs.class'("fn")},
+          list{Attrs.class("fn")},
           list{Html.text(fnName->Option.map(~f=FQFnName.toString)->Option.unwrap(~default=""))},
         ),
         Html.text(" expects "),
-        Html.span(list{Attrs.class'("param")}, list{Html.text(paramName)}),
+        Html.span(list{Attrs.class("param")}, list{Html.text(paramName)}),
         Html.text(" to be a "),
-        Html.span(list{Attrs.class'("type")}, list{Html.text(DType.type2str(returnType))}),
+        Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(returnType))}),
         Html.text(", but "),
-        Html.span(list{Attrs.class'("fn")}, list{Html.text(acFunction)}),
+        Html.span(list{Attrs.class("fn")}, list{Html.text(acFunction)}),
         Html.text(" returns a "),
-        Html.span(list{Attrs.class'("type")}, list{Html.text(acReturnType)}),
+        Html.span(list{Attrs.class("type")}, list{Html.text(acReturnType)}),
       },
     )
   }
@@ -754,7 +754,7 @@ let documentationForFunction = (
   )
 
   let deprecationHeader = if f.deprecation != NotDeprecated {
-    list{Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")})}
+    list{Html.span(list{Attrs.class("err")}, list{Html.text("DEPRECATED: ")})}
   } else {
     list{}
   }
@@ -773,7 +773,7 @@ let documentationForFunction = (
         Html.div(
           list{Attrs.class("deprecation-reason")},
           list{
-            Html.span(list{Attrs.class'("err")}, list{Html.text("DEPRECATED: ")}),
+            Html.span(list{Attrs.class("err")}, list{Html.text("DEPRECATED: ")}),
             ...deprecationFooterContents,
           },
         ),

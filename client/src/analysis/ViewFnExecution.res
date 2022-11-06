@@ -144,12 +144,12 @@ let fnExecutionButton = (p: props, fn: Function.t, id: id, args: list<id>) => {
   if fn.origin != UserFunction && fn.previewable == Pure {
     Vdom.noNode
   } else {
-    let class_ = executionClass(status)
+    let class = executionClass(status)
     let title = executionTitle(status)
     let icon = executionIcon(status)
     let events = executionEvents(status, p.tlid, id, name)
     Html.div(
-      list{Attrs.class'("execution-button " ++ class_), Attrs.title(title), ...events},
+      list{Attrs.class("execution-button " ++ class), Attrs.title(title), ...events},
       list{Icons.fontAwesome(icon)},
     )
   }

@@ -91,7 +91,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
     if allowed {
       Html.div(
         list{
-          Attrs.class'("parameter-btn allowed"),
+          Attrs.class("parameter-btn allowed"),
           EventListeners.eventNoPropagation(
             ~key="dufp-" ++ TLID.toString(uf.tlid) ++ "-" ++ (p.nameID |> ID.toString),
             "click",
@@ -103,7 +103,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
     } else {
       Html.div(
         list{
-          Attrs.class'("parameter-btn disallowed"),
+          Attrs.class("parameter-btn disallowed"),
           Attrs.title("Can't delete parameter because it is used in the function body"),
         },
         list{Icons.fontAwesome("times-circle")},
@@ -158,7 +158,7 @@ let viewParamSpace = (index: int, fs: FnParams.t): Html.html<msg> => {
 
   Html.div(
     list{
-      Attrs.class'("col space" ++ overClass),
+      Attrs.class("col space" ++ overClass),
       Vdom.attribute("", "data-pos", string_of_int(index)),
       onEvent(~event="dragover", ~key="fpsdo-" ++ keyId, Obj.magic(dragOver)),
       onEvent(~event="dragenter", ~key="fpsde-" ++ keyId, dragEnter),

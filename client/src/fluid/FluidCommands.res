@@ -205,7 +205,7 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
     )
   }
 
-  let filterInput = Html.input'(
+  let filterInput = Html.input(
     list{
       Attrs.id(filterInputID),
       Vdom.attribute("", "spellcheck", "false"),
@@ -222,7 +222,7 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
     list{Html.ul(list{}, List.mapWithIndex(~f=viewCommands, cp.commands))},
   )
 
-  Html.div(list{Attrs.class'("command-palette")}, list{filterInput, cmdsView})
+  Html.div(list{Attrs.class("command-palette")}, list{filterInput, cmdsView})
 }
 
 let cpSetIndex = (_m: model, i: int): modification => ReplaceAllModificationsWithThisOne(

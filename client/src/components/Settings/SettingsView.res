@@ -50,13 +50,13 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
     )
   }
 
-  Html.div(list{Attrs.class'("settings-tab-titles")}, List.map(allTabs, ~f=tabTitle))
+  Html.div(list{Attrs.class("settings-tab-titles")}, List.map(allTabs, ~f=tabTitle))
 }
 
 let settingViewWrapper = (acc: T.t): Html.html<msg> => {
   let tabView = settingsTabToHtml(acc)
   Html.div(
-    list{Attrs.class'("settings-tab-wrapper")},
+    list{Attrs.class("settings-tab-wrapper")},
     list{Html.h1(list{}, list{Html.text("Settings")}), tabTitleView(acc.tab), ...tabView},
   )
 }
@@ -74,7 +74,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
   let s = m.settings
   let closingBtn = Html.div(
     list{
-      Attrs.class'("close-btn"),
+      Attrs.class("close-btn"),
       EventListeners.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
         Close(s.tab),
       )),
@@ -84,7 +84,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
 
   Html.div(
     list{
-      Attrs.class'("settings modal-overlay"),
+      Attrs.class("settings modal-overlay"),
       EventListeners.nothingMouseEvent("mousedown"),
       EventListeners.nothingMouseEvent("mouseup"),
       EventListeners.eventNoPropagation(~key="close-setting-modal", "click", _ => Msg.SettingsMsg(
@@ -94,7 +94,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
     list{
       Html.div(
         list{
-          Attrs.class'("modal"),
+          Attrs.class("modal"),
           EventListeners.nothingMouseEvent("click"),
           EventListeners.eventNoPropagation(~key="ept", "mouseenter", _ => Msg.EnablePanning(
             false,

@@ -50,7 +50,7 @@ let editorApiCall = (
     | (None, None) => Web.XMLHttpRequest.EmptyBody
     }
     let request = Tea.Http.request({
-      method': method,
+      method: method,
       headers: list{
         Header("Content-type", "application/json"),
         Header("X-CSRF-Token", clientData.csrfToken),

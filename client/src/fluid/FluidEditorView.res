@@ -301,7 +301,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(id, Set.String.t)>): list<
 
       let innerNode = switch innerNestingClass {
       | Some(cls) => list{
-          Html.span(list{Attrs.class'(cls |> String.join(~sep=" "))}, list{Html.text(content)}),
+          Html.span(list{Attrs.class(cls |> String.join(~sep=" "))}, list{Html.text(content)}),
         }
       | None => list{Html.text(content)}
       }
@@ -435,7 +435,7 @@ let tokensView = (p: props): Html.html<msg> => {
     Belt.List.concatMany([
       list{
         idAttr,
-        Attrs.class'("fluid-tokens"),
+        Attrs.class("fluid-tokens"),
         Vdom.prop("contentEditable", "true"),
         Attrs.autofocus(true),
         Vdom.attribute("", "spellcheck", "false"),
@@ -482,7 +482,7 @@ let viewErrorIndicator = (p: props, ti: FluidToken.tokenInfo): Html.html<msg> =>
             (fun _ -> TakeOffErrorRail (tlid, id)) */
 
     Html.div(
-      list{Attrs.class'("error-indicator"), Attrs.styles(list{("top", offset)}), event},
+      list{Attrs.class("error-indicator"), Attrs.styles(list{("top", offset)}), event},
       list{icon},
     )
   | _ => Vdom.noNode
@@ -500,4 +500,4 @@ let errorRailView = (p: props): Html.html<msg> => {
 
 @ocaml.doc(" [view] builds a fluid editor ")
 let view = (p: props): Html.html<msg> =>
-  Html.div(list{Attrs.class'("fluid-editor")}, list{tokensView(p), errorRailView(p)})
+  Html.div(list{Attrs.class("fluid-editor")}, list{tokensView(p), errorRailView(p)})

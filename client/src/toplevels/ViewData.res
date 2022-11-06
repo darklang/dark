@@ -24,7 +24,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
         EventListeners.eventNoPropagation(~key="run-" ++ strTLID, "click", _ => Msg.RunWorker(
           name,
         )),
-        Attrs.class'("restart-worker"),
+        Attrs.class("restart-worker"),
         Attrs.title("Run worker"),
       },
       list{Icons.fontAwesome("play-circle")},
@@ -32,7 +32,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
   | Blocked =>
     Html.div(
       list{
-        Attrs.class'("blocked-worker"),
+        Attrs.class("blocked-worker"),
         Attrs.title("Worker disabled by Dark. Please get in touch to discuss why."),
       },
       list{Icons.fontAwesome("ban")},
@@ -43,7 +43,7 @@ let pauseWorkerButton = (vp: ViewUtils.viewProps, name: string): Html.html<msg> 
         EventListeners.eventNoPropagation(~key="pause-" ++ strTLID, "click", _ => Msg.PauseWorker(
           name,
         )),
-        Attrs.class'("pause-worker"),
+        Attrs.class("pause-worker"),
         Attrs.title("Pause worker"),
       },
       list{Icons.fontAwesome("pause-circle")},
@@ -125,12 +125,12 @@ let viewTrace = (
   }
 
   let dotHtml = if isHover && !isActive {
-    list{Html.div(list{Attrs.class'("empty-dot")}, list{Vdom.noNode})}
+    list{Html.div(list{Attrs.class("empty-dot")}, list{Vdom.noNode})}
   } else {
-    list{Html.div(list{Attrs.class'("dot")}, list{Html.text(`•`)})}
+    list{Html.div(list{Attrs.class("dot")}, list{Html.text(`•`)})}
   }
 
-  let viewData = Html.div(list{Attrs.class'("data")}, list{timestampDiv, valueDiv})
+  let viewData = Html.div(list{Attrs.class("data")}, list{timestampDiv, valueDiv})
   let unfetchableAltText = if isUnfetchable {
     Attrs.title("Trace is too large for the editor to load")
   } else {
@@ -180,9 +180,9 @@ let viewData = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
       |> Option.unwrap(~default=0)
 
     Html.div(
-      list{Attrs.class'("worker-stats")},
+      list{Attrs.class("worker-stats")},
       list{
-        Html.span(list{Attrs.class'("label")}, list{Html.text("Pending events")}),
+        Html.span(list{Attrs.class("label")}, list{Html.text("Pending events")}),
         Html.span(
           list{Attrs.classList(list{("count", true), ("active", count > 0)})},
           list{Html.text(string_of_int(count))},
@@ -230,7 +230,7 @@ let viewData = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
         }),
         Attrs.style("max-height", maxHeight),
       },
-      list{pauseBtn, workQStats, Html.ul(list{Attrs.class'("request-cursor")}, requestEls)},
+      list{pauseBtn, workQStats, Html.ul(list{Attrs.class("request-cursor")}, requestEls)},
     ),
   }
 }

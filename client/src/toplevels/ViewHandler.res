@@ -186,7 +186,7 @@ let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEven
     switch PT.Handler.Spec.modifier(spec) {
     | Some(mod) =>
       let viewMod = viewText(~enterable=true, ~classes=list{"modifier"}, EventModifier, vp, mod)
-      Html.div(list{Attrs.class'("modifier")}, list{viewMod})
+      Html.div(list{Attrs.class("modifier")}, list{viewMod})
     | _ => Vdom.noNode
     }
   }
@@ -207,19 +207,19 @@ let viewEventSpec = (vp: viewProps, spec: PT.Handler.Spec.t, dragEvents: domEven
 
   let viewActions = {
     let triggerBtn = triggerHandlerButton(vp, spec)
-    Html.div(list{Attrs.class'("handler-actions")}, list{triggerBtn, viewMenu(vp, spec)})
+    Html.div(list{Attrs.class("handler-actions")}, list{triggerBtn, viewMenu(vp, spec)})
   }
 
   let viewType = Html.div(
-    list{Attrs.class'("toplevel-type")},
+    list{Attrs.class("toplevel-type")},
     list{viewEventSpace, viewEventModifier},
   )
 
-  Html.div(list{Attrs.class'(classes), ...dragEvents}, list{viewType, viewEventName, viewActions})
+  Html.div(list{Attrs.class(classes), ...dragEvents}, list{viewType, viewEventName, viewActions})
 }
 
 let handlerAttrs: list<Vdom.property<msg>> = list{
-  Attrs.class'("handler-body expand"),
+  Attrs.class("handler-body expand"),
   Attrs.style("height", "auto"),
   Vdom.noProp,
 }

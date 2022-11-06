@@ -89,7 +89,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
   let tokenData = {
     let (left, right, next) = FluidTokenizer.getNeighbours(tokens, ~pos=s.newPos)
     let ddNoProp1 = txt => Html.dd(list{Attrs.noProp}, list{Html.text(txt)})
-    let tokenInfo = tkn => Html.dd(list{Attrs.class'("tokenInfo")}, list{Token.show_tokenInfo(tkn)})
+    let tokenInfo = tkn => Html.dd(list{Attrs.class("tokenInfo")}, list{Token.show_tokenInfo(tkn)})
 
     let ddLeft = switch left {
     | L(_, left) => tokenInfo(left)
@@ -114,7 +114,7 @@ let view = (m: AppTypes.model, ast: FluidAST.t): Html.html<AppTypes.msg> => {
   let actions = list{
     dtText("actions"),
     Html.dd(
-      list{Attrs.class'("actions")},
+      list{Attrs.class("actions")},
       list{Html.ul(list{}, List.map(s.actions, ~f=txt => Html.li(list{}, list{Html.text(txt)})))},
     ),
   }

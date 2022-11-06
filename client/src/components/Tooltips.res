@@ -336,7 +336,7 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
 
     Html.button(
       list{
-        Attrs.class'("page-btn"),
+        Attrs.class("page-btn"),
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.nothingMouseEvent("mouseup"),
         clickEvent,
@@ -360,7 +360,7 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
 
     Html.button(
       list{
-        Attrs.class'("page-btn"),
+        Attrs.class("page-btn"),
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.nothingMouseEvent("mouseup"),
         clickEvent,
@@ -370,7 +370,7 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
     )
   }
 
-  Html.div(list{Attrs.class'("btn-container")}, list{prevBtn, nextBtn})
+  Html.div(list{Attrs.class("btn-container")}, list{prevBtn, nextBtn})
 }
 
 let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent): Html.html<
@@ -382,16 +382,16 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | None => t.title
     }
 
-    let viewDesc = Html.h1(list{Attrs.class'("description")}, list{Html.text(t.title)})
+    let viewDesc = Html.h1(list{Attrs.class("description")}, list{Html.text(t.title)})
     let viewDetail = switch t.details {
     | Some(txtList) =>
       let txtview = List.map(
-        ~f=txt => Html.p(list{Attrs.class'("details")}, list{Html.text(txt)}),
+        ~f=txt => Html.p(list{Attrs.class("details")}, list{Html.text(txt)}),
         txtList,
       )
 
       Html.div(list{}, txtview)
-    // Html.p [Attrs.class' "details"] [Html.text txt]
+    // Html.p [Attrs.class "details"] [Html.text txt]
     | None => Vdom.noNode
     }
 
@@ -399,7 +399,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | Some(text, action) =>
       Html.button(
         list{
-          Attrs.class'("action-button"),
+          Attrs.class("action-button"),
           EventListeners.eventNoPropagation(~key="close-settings" ++ text, "click", _ => action),
         },
         list{Html.p(list{}, list{Html.text(text)})},
@@ -411,7 +411,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | Tutorial(_) | Crud =>
       Html.button(
         list{
-          Attrs.class'("page-btn"),
+          Attrs.class("page-btn"),
           EventListeners.nothingMouseEvent("mousedown"),
           EventListeners.nothingMouseEvent("mouseup"),
           EventListeners.eventNoPropagation(
@@ -429,7 +429,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | Tutorial(step) =>
       let (current, total) = currentStepFraction(step)
       Html.p(
-        list{Attrs.class'("step-title")},
+        list{Attrs.class("step-title")},
         list{Html.text(`${Int.toString(current)}/${Int.toString(total)}`)},
       )
     | Crud | Default => Vdom.noNode
@@ -448,17 +448,17 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     }
 
     Html.div(
-      list{Attrs.class'("tooltipWrapper")},
+      list{Attrs.class("tooltipWrapper")},
       list{
         Html.div(
           ~unique=uniqueStr,
-          list{Attrs.class'("tooltips " ++ directionToClass)},
+          list{Attrs.class("tooltips " ++ directionToClass)},
           list{
             Html.div(
-              list{Attrs.class'("content")},
+              list{Attrs.class("content")},
               list{viewStepCount, viewDesc, viewDetail, viewBtn, viewNextPrevBtns, closeBtn},
             ),
-            Html.div(list{Attrs.class'("tip " ++ t.tipAlignment)}, list{}),
+            Html.div(list{Attrs.class("tip " ++ t.tipAlignment)}, list{}),
           },
         ),
       },
