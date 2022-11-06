@@ -27,13 +27,11 @@ module Http = {
 }
 
 module Html = {
-  // Html and Html2 are the same with a different organization. We use Html2, but we
-  // were using both, so for consistency let's rename it
   include (
-    Tea_html2: module type of Tea_html2
+    Tea_html: module type of Tea_html
     // Modules that we're extending
-      with module Attributes := Tea_html2.Attributes
-      and module Events := Tea_html2.Events
+      with module Attributes := Tea_html.Attributes
+      and module Events := Tea_html.Events
   )
 
   type html<'a> = Vdom.t<'a>
@@ -42,7 +40,7 @@ module Html = {
 
   // Override so we can add our own attributes/properties
   module Attributes = {
-    include Tea_html2.Attributes
+    include Tea_html.Attributes
 
     type property<'a> = Vdom.property<'a>
 
@@ -57,11 +55,11 @@ module Html = {
   module Attrs = Attributes
 
   module Events = {
-    include Tea_html2.Events
+    include Tea_html.Events
 
     // TODO: upstream
-    let onWithOptions = (~key="", eventName, options: Tea_html.options, decoder) =>
-      Tea_html2.Events.onCB(eventName, key, event => {
+    let onWithOptions = (~key="", eventName, options: Tea_html.Events.options, decoder) =>
+      Tea_html.Events.onCB(eventName, key, event => {
         if options.stopPropagation {
           Webapi.Dom.Event.stopPropagation(Obj.magic(event))
         }
