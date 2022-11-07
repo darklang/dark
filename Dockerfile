@@ -164,6 +164,8 @@ RUN groupadd -g ${gid} dark \
 RUN echo "dark:dark" | chpasswd && adduser dark sudo
 RUN sudo chown -R dark:dark /home/dark
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+## Although dark should get permissions via sudoers, this failed for one contributor using WSL
+RUN echo 'dark ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # From here on in, use Dark as the user for everything and use sudo when necessary
 USER dark

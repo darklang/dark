@@ -72,17 +72,16 @@
   "workspaceFolder": "/home/dark/app",
 
   "mounts": [
-    // For Docker-in-Docker
-    // To build Dark's production containers, you need to enable this
-    //"type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
+    // Docker-in-Docker - uncomment this to be able to build Dark's production containers
+    // "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
 
-    // gcloud permissions
-    "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gcloud,dst=/home/dark/.config/gcloud,consistency=cached",
+    // gcloud - uncomment this to use scripts which require gcloud permissions
+    // "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gcloud,dst=/home/dark/.config/gcloud,consistency=cached",
     // If using a remote DOCKER_HOST, you need to mount a directory on the remote host instead
     // "type=bind,src=/home/paulbiggar/.config/gcloud,dst=/home/dark/.config/gcloud,consistency=cached",
 
-    // Bash history
-    "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
+    // Bash history - uncomment this to save bash history between container restarts
+    // "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
     // If using a remote DOCKER_HOST, you need to mount a directory on the remote host instead
     // "type=bind,src=/home/paulbiggar/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
 
@@ -109,16 +108,6 @@
   "remoteUser": "dark",
   "containerUser": "dark",
   "updateRemoteUserUID": true,
-
-  // `mounts` (above) expects some files to exist on the host, so create them.
-
-  // Note that we use an array here as when cloning directly into a new
-  // container, the bootstrap container used by the Remote Containers extension
-  // doesn't have bash, which is needed to interpolate string values here
-  "initializeCommand": [
-    "./scripts/devcontainer/_initialize-vscode",
-    "${localEnv:USERPROFILE}${localEnv:HOME}"
-  ],
 
   // Run one build-server, and keep it running for the life of the
   // devcontainer. This is in postStart rather than postAttach as postAttach would

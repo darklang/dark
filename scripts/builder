@@ -2,10 +2,10 @@
 
 set -euo pipefail
 
-# This is used, in concert with scripts/build/_build-server, to run Dark
-# inside the dev container. There is a strong connection between these files
-# and .circleci/config.yml. Generally, if you add something to one of these
-# files, there's an equivalent to be added in .circleci/config.yml.
+# This is used, in concert with scripts/build/_build-server, to run Dark inside the
+# devcontainer. There is a strong connection between these files and
+# .circleci/config.yml, as well as devcontainer.yaml. Generally, if you add something
+# to one of these files, there's an equivalent to be added in both .circleci/config.yml and devcontainer.yaml.
 
 if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
   # Because we use `-v`
@@ -122,9 +122,9 @@ echo "Run the build"
 # for documentation of --init.
 # -p 5433:5432 to expose the postgres DB to outside the container
 # -p 2345:2345 to expose the cloud_sql_proxy to outside the container
-# -p 9000:9000 to expose the F# api server
-# -p 7001:7001 to expose the F# bwd server
 # -p 8000:8000 to expose the OCaml backend server
+# -p 9000:9000 to expose the F# api server
+# -p 11001:11001 to expose the F# bwd server
 # -cap-add & -security-opt to attach a gdb/strace to .net code
 docker run \
   --init \
