@@ -26,7 +26,7 @@
     "bs-fetch": "0.6.2",
     "bs-uuid": "0.3.1",
     "rescript-webapi": "0.7.0",
-    "rescript-tea": "https://github.com/darklang/rescript-tea#7f9edefda90db35593e0ecf986ae316d2f19abee",
+    "rescript-tea": "https://github.com/darklang/rescript-tea#9f1841bded1b9a385267afae8b5423204e4823c2",
     "clipboard-copy": "4.0.1",
     "domready": "1.0.8",
     "minimist": "1.2.7",

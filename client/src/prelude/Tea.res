@@ -47,28 +47,9 @@ module Html = {
     // Standard properties that are not in rescript-tea
     // TODO: upstream
     let classes = (classes: array<string>) => class(classes->Js.Array2.joinWith(" "))
-    let role = (name: string) => Vdom.prop("role", name)
-    let ariaChecked = (v: bool) => Vdom.prop("aria-checked", string_of_bool(v))
-    let ariaHidden = (v: bool) => Vdom.prop("aria-hidden", string_of_bool(v))
-    let spellcheck = (b: bool) => Vdom.attribute("", "spellcheck", string_of_bool(b))
   }
   module Attrs = Attributes
-
-  module Events = {
-    include Tea_html.Events
-
-    // TODO: upstream
-    let onWithOptions = (~key="", eventName, options: Tea_html.Events.options, decoder) =>
-      Tea_html.Events.onCB(~key, eventName, event => {
-        if options.stopPropagation {
-          Webapi.Dom.Event.stopPropagation(Obj.magic(event))
-        }
-        if options.preventDefault {
-          Webapi.Dom.Event.preventDefault(Obj.magic(event))
-        }
-        event |> Tea_json.Decoder.decodeEvent(decoder) |> Tea_result.resultToOption
-      })
-  }
+  module Events = Tea_html.Events
 }
 
 module Events = Html.Events
