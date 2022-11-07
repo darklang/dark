@@ -12,8 +12,8 @@ let registerGlobal = (eventName, key, tagger, decoder) => {
 
     let handler = EventHandlerCallback(key, fn)
     let eventTarget = Webapi.Dom.document |> Webapi.Dom.Document.asEventTarget
-    let cache = eventHandler_Register(callbacks, eventTarget, eventName, handler)
-    () => ignore(eventHandler_Unregister(eventTarget, eventName, cache))
+    let cache = eventHandlerRegister(callbacks, eventTarget, eventName, handler)
+    () => ignore(eventHandlerUnregister(eventTarget, eventName, cache))
   }
 
   Tea_sub.registration(key, enableCall)
@@ -27,8 +27,8 @@ let registerGlobalDirect = (name, key, tagger) => {
     let fn = ev => Some(tagger(Obj.magic(ev)))
     let handler = EventHandlerCallback(key, fn)
     let eventTarget = Webapi.Dom.document |> Webapi.Dom.Document.asEventTarget
-    let cache = eventHandler_Register(callbacks, eventTarget, name, handler)
-    () => ignore(eventHandler_Unregister(eventTarget, name, cache))
+    let cache = eventHandlerRegister(callbacks, eventTarget, name, handler)
+    () => ignore(eventHandlerUnregister(eventTarget, name, cache))
   }
 
   Tea_sub.registration(key, enableCall)
@@ -59,8 +59,8 @@ module Window = {
 
       let handler = EventHandlerCallback(key, fn)
       let eventTarget = Webapi.Dom.window->Webapi.Dom.Window.asEventTarget
-      let cache = eventHandler_Register(callbacks, eventTarget, eventName, handler)
-      () => ignore(eventHandler_Unregister(eventTarget, eventName, cache))
+      let cache = eventHandlerRegister(callbacks, eventTarget, eventName, handler)
+      () => ignore(eventHandlerUnregister(eventTarget, eventName, cache))
     }
 
     Tea_sub.registration(key, enableCall)

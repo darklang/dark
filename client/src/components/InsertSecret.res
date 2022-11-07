@@ -209,7 +209,7 @@ let view = (m: ST.insertModal): Html.html<msg> =>
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.nothingMouseEvent("mouseup"),
         EventListeners.nothingMouseEvent("click"),
-        Events.onCB("keydown", "keydown", Obj.magic(onKeydown)),
+        Events.onCB(~key="keydown", "keydown", onKeydown),
       },
       list{Html.div(list{Attrs.class("modal insert-secret")}, inside)},
     )

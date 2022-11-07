@@ -15,7 +15,7 @@ let onEvent = (
   ~preventDefault=true,
   listener: Dom.event => 'msg,
 ): Vdom.property<'msg> =>
-  Tea.Html.Events.onCB(event, key, evt => {
+  Tea.Html.Events.onCB(~key, event, evt => {
     if preventDefault {
       Webapi.Dom.Event.preventDefault(Obj.magic(evt))
     }

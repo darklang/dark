@@ -100,7 +100,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
             false,
           )),
           EventListeners.eventNoPropagation(~key="epf", "mouseleave", _ => Msg.EnablePanning(true)),
-          Events.onCB("keydown", "keydown", Obj.magic(onKeydown)),
+          Events.onCB(~key="", "keydown", Obj.magic(onKeydown)),
         },
         list{settingViewWrapper(s), closingBtn},
       ),

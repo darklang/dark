@@ -227,7 +227,7 @@ let eventToKeyEvent = (evt: Dom.event): option<keyEvent> => {
     string,
   ), field("shiftKey", bool), field("ctrlKey", bool), field("altKey", bool), field("metaKey", bool))
 
-  decodeEvent(decoder, Obj.magic(evt)) |> Tea_result.result_to_option
+  decodeEvent(decoder, Obj.magic(evt)) |> Tea_result.resultToOption
 }
 
 @ocaml.doc("onKeydown converts the JS KeyboardEvent [evt] into a keyEvent, then

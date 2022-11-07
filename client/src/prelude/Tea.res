@@ -1,5 +1,4 @@
 // Extensions for Tea functionality
-// pp functions all deriving(show) to work
 // Others should be upstreamed
 
 module Result = {
@@ -35,6 +34,7 @@ module Html = {
   )
 
   type html<'a> = Vdom.t<'a>
+  let input = Tea_html.input'
 
   let noNode = Vdom.noNode
 
@@ -59,14 +59,14 @@ module Html = {
 
     // TODO: upstream
     let onWithOptions = (~key="", eventName, options: Tea_html.Events.options, decoder) =>
-      Tea_html.Events.onCB(eventName, key, event => {
+      Tea_html.Events.onCB(~key, eventName, event => {
         if options.stopPropagation {
           Webapi.Dom.Event.stopPropagation(Obj.magic(event))
         }
         if options.preventDefault {
           Webapi.Dom.Event.preventDefault(Obj.magic(event))
         }
-        event |> Tea_json.Decoder.decodeEvent(decoder) |> Tea_result.result_to_option
+        event |> Tea_json.Decoder.decodeEvent(decoder) |> Tea_result.resultToOption
       })
   }
 }

@@ -179,8 +179,6 @@ let onKeydown = (evt: Dom.event): option<AppTypes.msg> =>
     }
   )
 
-let onLoseFocus = (_evt: Dom.event): option<AppTypes.msg> => Some(FluidMsg(FluidCloseCmdPalette))
-
 let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
   let viewCommands = (i, item) => {
     let highlighted = cp.index == i
@@ -211,8 +209,8 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
       Vdom.attribute("", "spellcheck", "false"),
       Attrs.autocomplete(false),
       Events.onInput(query => Msg.FluidMsg(FluidCommandsFilter(query))),
-      Events.onCB("keydown", "command-keydown", Obj.magic(onKeydown)),
-      Events.onCB("blur", "lose focus", onLoseFocus),
+      Events.onCB(~key="", "keydown", onKeydown),
+      Events.onBlur(Msg.FluidMsg(FluidCloseCmdPalette)),
     },
     list{},
   )
