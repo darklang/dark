@@ -350,7 +350,7 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v4-fsharp-blazor-{{ checksum "../checksum" }}
+            - v5-fsharp-blazor-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
@@ -369,7 +369,7 @@ jobs:
           paths:
             - fsharp-backend/Build/obj
             - /home/dark/.nuget
-          key: v4-fsharp-blazor-{{ checksum "../checksum" }}
+          key: v5-fsharp-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
