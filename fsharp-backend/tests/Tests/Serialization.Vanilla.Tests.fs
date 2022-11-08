@@ -159,7 +159,9 @@ module PersistedSerializations =
         v<ClientTypes.Pusher.Payload.New404>
           "simple"
           ("HTTP", "/", "GET", V.instant, V.uuid)
-        v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "pusher-update-worker-states" CV.workerStates
+        v<ClientTypes.Pusher.Payload.UpdateWorkerStates>
+          "pusher-update-worker-states"
+          CV.workerStates
         v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
         // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
         //   "simple"
@@ -362,7 +364,9 @@ module PersistedSerializations =
         v<CTApi.Workers.Scheduler.Request>
           "simple"
           { name = "x"; schedule = "pause" }
-        v<CTApi.Workers.Scheduler.Response> "api-worker-scheduler-response" CV.workerStates
+        v<CTApi.Workers.Scheduler.Response>
+          "api-worker-scheduler-response"
+          CV.workerStates
 
         v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = V.tlid }
         v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
