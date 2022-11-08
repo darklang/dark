@@ -9,26 +9,41 @@ open Prelude
 open Tablecloth
 open Http
 
-module Exe = LibExecution.Execution
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
+module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module AT = LibExecution.AnalysisTypes
+
 module Canvas = LibBackend.Canvas
 module RealExe = LibRealExecution.RealExecution
+module Exe = LibExecution.Execution
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module Telemetry = LibService.Telemetry
 
-module PTParser = LibExecution.ProgramTypesParser
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module CTApi = ClientTypes.Api
-module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module FunctionV1 =
+  type Params =
+    { tlid : tlid
+      trace_id : AT.TraceID
+      caller_id : id
+      args : ClientTypes.Dval.T list
+      fnname : string }
+
+  type T =
+    { result : ClientTypes.Dval.T
+      hash : string
+      hashVersion : int
+      touched_tlids : tlid list
+      unlocked_dbs : tlid list }
 
   /// API endpoint to execute a User Function and return the result
-  let execute (ctx : HttpContext) : Task<CTApi.Execution.FunctionV1.Response> =
+  let execute (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<CTApi.Execution.FunctionV1.Request>()
-      let args = List.map CT2Runtime.Dval.fromCT p.args
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let args = List.map ClientTypes.Dval.toRT p.args
       Telemetry.addTags [ "tlid", p.tlid
                           "trace_id", p.trace_id
                           "caller_id", p.caller_id
@@ -59,8 +74,8 @@ module FunctionV1 =
       let hashVersion = DvalReprInternalDeprecated.currentHashVersion
       let hash = DvalReprInternalDeprecated.hash hashVersion args
 
-      let result : CTApi.Execution.FunctionV1.Response =
-        { result = CT2Runtime.Dval.toCT result
+      let result =
+        { result = ClientTypes.Dval.fromRT result
           hash = hash
           hashVersion = hashVersion
           touched_tlids = HashSet.toList traceResults.tlids
@@ -70,20 +85,27 @@ module FunctionV1 =
     }
 
 module HandlerV1 =
+  type Params =
+    { tlid : tlid
+      trace_id : AT.TraceID
+      input : List<string * ClientTypes.Dval.T> }
+
+  type T = { touched_tlids : tlid list }
+
   /// API endpoint to trigger the execution of a Handler
   ///
   /// Handlers are handled asynchronously, so the result is not returned. The result
   /// is instead added to the trace, which is then loaded by the client again.
-  let trigger (ctx : HttpContext) : Task<CTApi.Execution.HandlerV1.Response> =
+  let trigger (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<CTApi.Execution.HandlerV1.Request>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       let inputVars =
         p.input
-        |> List.map (fun (name, var) -> (name, CT2Runtime.Dval.fromCT var))
+        |> List.map (fun (name, var) -> (name, ClientTypes.Dval.toRT var))
         |> Map
 
       t.next "load-canvas"
@@ -94,7 +116,6 @@ module HandlerV1 =
       t.next "execute-handler"
       let! (_, traceResults) =
         RealExe.executeHandler
-          ClientTypes2BackendTypes.Pusher.eventSerializer
           c.meta
           handler
           program

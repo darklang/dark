@@ -16,6 +16,9 @@ type ExecutionResult =
   | ExecutedResult of RT.Dval
   | NonExecutedResult of RT.Dval
 
+// Dictionarys are mutable
+type AnalysisResults = System.Collections.Generic.Dictionary<id, ExecutionResult>
+
 // --------------------
 // Analysis result
 // --------------------
@@ -34,18 +37,3 @@ type TraceData =
     function_results : List<FunctionResult> }
 
 type Trace = TraceID * TraceData
-
-type AnalysisRequest =
-  { requestID : int
-    requestTime : NodaTime.Instant
-    tlid : tlid
-    traceID : TraceID
-    traceData : TraceData
-    userFns : List<RT.UserFunction.T>
-    userTypes : List<RT.UserType.T>
-    dbs : List<RT.DB.T>
-    expr : RT.Expr
-    packageFns : List<RT.Package.Fn>
-    secrets : List<RT.Secret.T> }
-
-type AnalysisResults = System.Collections.Generic.Dictionary<id, ExecutionResult>

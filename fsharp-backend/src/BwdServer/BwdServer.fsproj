@@ -24,7 +24,6 @@
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
     <ProjectReference Include="../HttpMiddleware/HttpMiddleware.fsproj" />
-    <ProjectReference Include="../ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

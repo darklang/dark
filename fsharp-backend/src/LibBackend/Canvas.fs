@@ -725,3 +725,7 @@ let toProgram (c : T) : RT.ProgramContext =
     userTypes = userTypes
     dbs = dbs
     secrets = secrets }
+
+let init () =
+  Json.Vanilla.allow<PT.Oplist> "loadJsonFromDisk"
+  Json.Vanilla.allow<PT.Position> "saveTLIDs"

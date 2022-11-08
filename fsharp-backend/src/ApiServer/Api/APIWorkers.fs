@@ -9,20 +9,27 @@ open Prelude
 open Tablecloth
 open Http
 
+module PT = LibExecution.ProgramTypes
+module AT = LibExecution.AnalysisTypes
+
 module Stats = LibBackend.Stats
 module EQ = LibBackend.EventQueueV2
-module SchedulingRules = LibBackend.QueueSchedulingRules
 module Telemetry = LibService.Telemetry
 
-module CTApi = ClientTypes.Api
+module SchedulingRules = LibBackend.QueueSchedulingRules
 
 module WorkerStats =
+
+  type Params = { tlid : tlid }
+
+  type T = { count : int }
+
   /// API endpoint to get statistical data related to a Worker
-  let getStats (ctx : HttpContext) : Task<CTApi.Workers.WorkerStats.Response> =
+  let getStats (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<CTApi.Workers.WorkerStats.Request>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTag "tlid" p.tlid
 
       t.next "analyse-worker-stats"
@@ -31,12 +38,16 @@ module WorkerStats =
     }
 
 module Scheduler =
+  type Params = { name : string; schedule : string }
+
+  type T = SchedulingRules.WorkerStates.T
+
   /// API endpoint to update the Schedule of a Worker
-  let updateSchedule (ctx : HttpContext) : Task<CTApi.Workers.Scheduler.Response> =
+  let updateSchedule (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<CTApi.Workers.Scheduler.Request>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "name", p.name; "schedule", p.schedule ]
 
       t.next "schedule-worker"
@@ -52,14 +63,7 @@ module Scheduler =
       t.next "update-pusher"
       // TODO: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
-      LibBackend.Pusher.push
-        ClientTypes2BackendTypes.Pusher.eventSerializer
-        canvasInfo.id
-        (LibBackend.Pusher.UpdateWorkerStates ws)
-        None
+      LibBackend.Pusher.pushWorkerStates canvasInfo.id ws
 
-      let response : CTApi.Workers.Scheduler.Response =
-        ClientTypes2BackendTypes.Worker.WorkerStates.toCT ws
-
-      return response
+      return ws
     }

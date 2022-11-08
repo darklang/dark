@@ -16,7 +16,6 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
-    <ProjectReference Include="../ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
