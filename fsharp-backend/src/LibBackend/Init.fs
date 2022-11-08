@@ -52,11 +52,20 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     print $"Initing LibBackend in {serviceName}"
     Db.init ()
 
+    Json.Vanilla.registerConverter (
+      QueueSchedulingRules.WorkerStates.STJJsonConverter.WorkerStateConverter()
+    )
+
     match shouldWaitForDB with
     | WaitForDB -> do! _waitForDB ()
     | DontWaitForDB -> ()
 
     do! EventQueueV2.init ()
+    do Pusher.init ()
+    do Session.init ()
+    do PackageManager.init ()
+    do Analytics.init ()
+    do Canvas.init ()
 
 
     print $" Inited LibBackend in {serviceName}"

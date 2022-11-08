@@ -1082,7 +1082,7 @@ module Json =
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
         Exception.raiseInternal
-          "Invalid serialization call to type not allowed: add `Json.Vanilla.allow<type>()` to allow it to be serialized"
+          "Invalid serialization call to type not allowed: add `do Json.Vanilla.allow<type>()` to allow it to be serialized"
           [ "type", string t ]
 
 
@@ -1726,3 +1726,7 @@ let id (x : int) : id = uint64 x
 
 // since we hide F#'s default 'id' fn just above
 let identity a = a
+
+let init () =
+  // CLEANUP: move somewhere else, we shouldn't be serializing anything here
+  do Json.Vanilla.allow<pos> "Prelude"

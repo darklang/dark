@@ -15,7 +15,6 @@
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/ClientTypes/ClientTypes.fsproj" />
-    <ProjectReference Include="../../src/ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
     <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
     <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
@@ -48,9 +47,7 @@
     <Compile Include="ProgramTypes.Tests.fs" />
     <Compile Include="Routing.Tests.fs" />
     <Compile Include="RuntimeTypes.Tests.fs" />
-    <Compile Include="Serialization.TestValues.fs" />
-    <Compile Include="Serialization.Binary.Tests.fs" />
-    <Compile Include="Serialization.Vanilla.Tests.fs" />
+    <Compile Include="Serialization.Tests.fs" />
     <Compile Include="StdLib.Tests.fs" />
     <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="TypeChecker.Tests.fs" />

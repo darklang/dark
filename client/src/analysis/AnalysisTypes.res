@@ -400,8 +400,6 @@ module FourOhFour = {
   }
 }
 
-// TODO: these are used outside of analysis (e.g. in APIWorkers) so the type def
-// should probably move?
 module WorkerState = {
   @ppx.deriving(show({with_path: false}))
   type rec t = Running | Blocked | Paused

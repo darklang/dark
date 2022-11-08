@@ -9,18 +9,21 @@ open Prelude
 open Tablecloth
 open Http
 
-module CTApi = ClientTypes.Api
-
 module Telemetry = LibService.Telemetry
 
 module Register =
+
+  type Params = { tunnelHost : Option<string> }
+
+  type T = { success : bool }
+
   /// API endpoint to set or remove a tunnel
-  let register (ctx : HttpContext) : Task<CTApi.Tunnels.Register.Response> =
+  let register (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
       t.next "read-api"
       let userInfo = loadUserInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<CTApi.Tunnels.Register.Request>()
+      let! p = ctx.ReadVanillaJsonAsync<Params>()
       Telemetry.addTags [ "tunnel", p.tunnelHost ]
 
       t.next "save-tunnel"

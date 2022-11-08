@@ -207,3 +207,5 @@ type AddOpResultV1 =
     deletedUserTypes : List<PT.UserType.T> } // replace, see deleted_toplevels
 
 type AddOpParamsV1 = { ops : List<PT.Op>; opCtr : int; clientOpCtrID : string }
+
+type AddOpEventV1 = { result : AddOpResultV1; ``params`` : AddOpParamsV1 }
