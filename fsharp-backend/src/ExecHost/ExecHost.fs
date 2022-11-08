@@ -15,6 +15,7 @@ open Tablecloth
 
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
+module CTPusher = ClientTypes.Pusher
 
 let runMigrations () : unit =
   print $"Running migrations"
@@ -183,10 +184,36 @@ let run (options : Options) : Task<int> =
       return 1
   }
 
+let initSerializers () =
+  // allow universally-serializable types
+  Json.Vanilla.allow<pos> "Prelude"
+
+  // one-off types used internally
+  // we probably don't need most of these, but it's key that ExecHost doesn't ever
+  // fail, so we're extra-cautious, and include _everything_.
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
+  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
+  Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
+
+  // for Pusher.com payloads
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+
 [<EntryPoint>]
 let main (args : string []) : int =
   let name = "ExecHost"
   try
+    initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     let options = parse args

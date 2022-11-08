@@ -30,6 +30,8 @@ module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
+module CTApi = ClientTypes.Api
+module CTPusher = ClientTypes.Pusher
 
 type Packages = List<LibExecution.ProgramTypes.Package.Fn>
 
@@ -221,39 +223,65 @@ let run (packages : Packages) : unit =
   let k8sPort = LibService.Config.apiServerKubernetesPort
   (webserver packages LibService.Logging.noLogger port k8sPort).Run()
 
-let initSerializers () =
-  Json.Vanilla.allow<AddOps.V1.Params> "ApiServer.AddOps"
-  Json.Vanilla.allow<AddOps.V1.T> "ApiServer.AddOps"
-  Json.Vanilla.allow<DBs.DBStatsV1.Params> "ApiServer.DBs"
-  Json.Vanilla.allow<DBs.DBStatsV1.T> "ApiServer.DBs"
-  Json.Vanilla.allow<DBs.Unlocked.T> "ApiServer.DBs"
-  Json.Vanilla.allow<Execution.FunctionV1.Params> "ApiServer.Execution"
-  Json.Vanilla.allow<Execution.FunctionV1.T> "ApiServer.Execution"
-  Json.Vanilla.allow<Execution.HandlerV1.Params> "ApiServer.Execution"
-  Json.Vanilla.allow<Execution.HandlerV1.T> "ApiServer.Execution"
-  Json.Vanilla.allow<F404s.Delete.Params> "ApiServer.F404s"
-  Json.Vanilla.allow<F404s.Delete.T> "ApiServer.F404s"
-  Json.Vanilla.allow<F404s.List.T> "ApiServer.F404s"
-  Json.Vanilla.allow<List<Functions.BuiltInFn.T>> "ApiServer.Functions"
-  Json.Vanilla.allow<InitialLoad.V1.T> "ApiServer.InitialLoad"
-  Json.Vanilla.allow<Packages.ListV1.T> "ApiServer.Packages"
-  Json.Vanilla.allow<Secrets.DeleteV1.Params> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.DeleteV1.T> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.InsertV1.Params> "ApiServer.Secrets"
-  Json.Vanilla.allow<Secrets.InsertV1.T> "ApiServer.Secrets"
-  Json.Vanilla.allow<Toplevels.Delete.Params> "ApiServer.Toplevels"
-  Json.Vanilla.allow<Toplevels.Delete.T> "ApiServer.Toplevels"
-  Json.Vanilla.allow<Traces.AllTraces.T> "ApiServer.Traces"
-  Json.Vanilla.allow<Traces.TraceDataV1.Params> "ApiServer.Traces"
-  Json.Vanilla.allow<Traces.TraceDataV1.T> "ApiServer.Traces"
-  Json.Vanilla.allow<Tunnels.Register.Params> "ApiServer.Tunnels"
-  Json.Vanilla.allow<Tunnels.Register.T> "ApiServer.Tunnels"
-  Json.Vanilla.allow<Workers.Scheduler.Params> "ApiServer.Workers"
-  Json.Vanilla.allow<Workers.Scheduler.T> "ApiServer.Workers"
-  Json.Vanilla.allow<Workers.WorkerStats.Params> "ApiServer.Workers"
-  Json.Vanilla.allow<Workers.WorkerStats.T> "ApiServer.Workers"
-  Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
+// Generally speaking, this should be a superset of BwdServer's list.
+let initSerializers () =
+  // universally-serializable types
+  Json.Vanilla.allow<pos> "Prelude"
+
+  // one-off types used internally
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
+  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
+  Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
+
+  // for Pusher.com payloads
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+
+  // for API request/response payloads
+  Json.Vanilla.allow<CTApi.Ops.AddOpV1.Request> "ApiServer.AddOps"
+  Json.Vanilla.allow<CTApi.Ops.AddOpV1.Response> "ApiServer.AddOps"
+  Json.Vanilla.allow<CTApi.DB.StatsV1.Request> "ApiServer.DBs"
+  Json.Vanilla.allow<CTApi.DB.StatsV1.Response.T> "ApiServer.DBs"
+  Json.Vanilla.allow<CTApi.DB.Unlocked.Response> "ApiServer.DBs"
+  Json.Vanilla.allow<CTApi.Execution.FunctionV1.Request> "ApiServer.Execution"
+  Json.Vanilla.allow<CTApi.Execution.FunctionV1.Response> "ApiServer.Execution"
+  Json.Vanilla.allow<CTApi.Execution.HandlerV1.Request> "ApiServer.Execution"
+  Json.Vanilla.allow<CTApi.Execution.HandlerV1.Response> "ApiServer.Execution"
+  Json.Vanilla.allow<CTApi.F404.Delete.Request> "ApiServer.F404s"
+  Json.Vanilla.allow<CTApi.F404.Delete.Response> "ApiServer.F404s"
+  Json.Vanilla.allow<CTApi.F404.List.Response> "ApiServer.F404s"
+  Json.Vanilla.allow<CTApi.InitialLoad.V1.Response> "ApiServer.InitialLoad"
+  Json.Vanilla.allow<CTApi.Packages.ListV1.Response> "ApiServer.Packages"
+  Json.Vanilla.allow<CTApi.Secrets.DeleteV1.Request> "ApiServer.Secrets"
+  Json.Vanilla.allow<CTApi.Secrets.DeleteV1.Response> "ApiServer.Secrets"
+  Json.Vanilla.allow<CTApi.Secrets.InsertV1.Request> "ApiServer.Secrets"
+  Json.Vanilla.allow<CTApi.Secrets.InsertV1.Response> "ApiServer.Secrets"
+  Json.Vanilla.allow<CTApi.Toplevels.Delete.Request> "ApiServer.Toplevels"
+  Json.Vanilla.allow<CTApi.Toplevels.Delete.Response> "ApiServer.Toplevels"
+  Json.Vanilla.allow<CTApi.Traces.GetAllTraces.Response> "ApiServer.Traces"
+  Json.Vanilla.allow<CTApi.Traces.GetTraceDataV1.Request> "ApiServer.Traces"
+  Json.Vanilla.allow<CTApi.Traces.GetTraceDataV1.Response.T> "ApiServer.Traces"
+  Json.Vanilla.allow<CTApi.Tunnels.Register.Request> "ApiServer.Tunnels"
+  Json.Vanilla.allow<CTApi.Tunnels.Register.Response> "ApiServer.Tunnels"
+  Json.Vanilla.allow<CTApi.Workers.Scheduler.Request> "ApiServer.Workers"
+  Json.Vanilla.allow<CTApi.Workers.Scheduler.Response> "ApiServer.Workers"
+  Json.Vanilla.allow<CTApi.Workers.WorkerStats.Request> "ApiServer.Workers"
+  Json.Vanilla.allow<CTApi.Workers.WorkerStats.Response> "ApiServer.Workers"
+
+  // for data injected from UI.fs into ui.html
+  Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
+  Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
 
 [<EntryPoint>]
@@ -261,16 +289,15 @@ let main _ =
   try
     let name = "ApiServer"
     print "Starting ApiServer"
-    Prelude.init ()
+
+    initSerializers ()
+
     LibService.Init.init name
-    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
     if Config.createAccounts then
       LibBackend.Account.initializeDevelopmentAccounts(name).Result
-
-    initSerializers ()
 
     let packages = LibBackend.PackageManager.allFunctions().Result
     run packages

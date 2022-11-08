@@ -361,7 +361,6 @@ module AspNet =
 
 let init (serviceName : string) : unit =
   print "Configuring Rollbar"
-  do Json.Vanilla.allow<HoneycombJson> "Rollbar"
   let config =
     Rollbar.RollbarInfrastructureConfig(
       Config.rollbarServerAccessToken,

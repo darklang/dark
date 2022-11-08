@@ -47,6 +47,8 @@ module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
 
+module CTPusher = ClientTypes.Pusher
+
 // HttpBasicTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't
 // appropriate more generally. Much of this should be migrated to the module in
@@ -385,6 +387,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
+              ClientTypes2BackendTypes.Pusher.eventSerializer
               canvas.meta
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
@@ -434,6 +437,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
+              ClientTypes2BackendTypes.Pusher.eventSerializer
               canvas.meta
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
@@ -490,9 +494,11 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         // CLEANUP: move pusher into storeEvent
         // Send to pusher - do not resolve task, send this into the ether
-        Pusher.pushNew404
+        Pusher.push
+          ClientTypes2BackendTypes.Pusher.eventSerializer
           meta.id
-          ("HTTP", requestPath, requestMethod, timestamp, traceID)
+          (Pusher.New404("HTTP", requestPath, requestMethod, timestamp, traceID))
+          None
 
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx
@@ -610,15 +616,40 @@ let run () : unit =
   (webserver LibService.Logging.noLogger port k8sPort).Run()
 
 
+// Generally speaking, this should be the same list as QueueWorker's,
+// which is roughly a subset of ApiServer's list.
+let initSerializers () =
+  // universally-serializable types
+  Json.Vanilla.allow<pos> "Prelude"
+
+  // one-off types used internally
+  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
+  Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
+  Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
+
+  // for Pusher.com payloads
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+
+
 
 [<EntryPoint>]
 let main _ =
   try
     let name = "BwdServer"
     print "Starting BwdServer"
-    Prelude.init ()
+    initSerializers ()
     LibService.Init.init name
-    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

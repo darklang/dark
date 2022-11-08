@@ -80,5 +80,3 @@ let clear (key : string) : Task<unit> =
      WHERE session_key = @key"
   |> Sql.parameters [ "key", Sql.string key ]
   |> Sql.executeStatementAsync
-
-let init () = do Json.Vanilla.allow<JsonData> "LibBackend session db storage"

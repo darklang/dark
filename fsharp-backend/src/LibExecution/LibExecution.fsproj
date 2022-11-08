@@ -30,7 +30,6 @@
     <Compile Include="ProgramTypesParser.fs" />
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
-    <Compile Include="Init.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

@@ -31,9 +31,7 @@ let tests config =
 
 [<EntryPoint>]
 let main args =
-  Prelude.init ()
   LibService.Init.init "FuzzTests"
-  LibExecution.Init.init ()
 
   let config : FuzzTestConfig =
     // CLEANUP figure out why --fscheck-max-tests doesn't work

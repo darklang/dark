@@ -12,17 +12,15 @@ open Http
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module Telemetry = LibService.Telemetry
+module CTApi = ClientTypes.Api
 
 module Delete =
-  type T = { result : string }
-  type Params = { tlid : tlid }
-
   /// Endpoint to delete a toplevel
-  let delete (ctx : HttpContext) : Task<Option<T>> =
+  let delete (ctx : HttpContext) : Task<Option<CTApi.Toplevels.Delete.Response>> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.Toplevels.Delete.Request>()
       Telemetry.addTags [ "tlid", p.tlid ]
 
       t.next "load-toplevel"

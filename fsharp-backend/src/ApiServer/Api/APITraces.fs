@@ -9,41 +9,25 @@ open Prelude
 open Tablecloth
 open Http
 
-module PT = LibExecution.ProgramTypes
-module CT = ClientTypes
-module AT = LibExecution.AnalysisTypes
-
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module Telemetry = LibService.Telemetry
 
+module AT = LibExecution.AnalysisTypes
+module CTApi = ClientTypes.Api
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module TraceDataV1 =
-  type Params = { tlid : tlid; traceID : AT.TraceID }
-
-  type InputVars = List<string * CT.Dval.T>
-  type FunctionArgHash = string
-  type HashVersion = int
-  type FnName = string
-  type FunctionResult = FnName * id * FunctionArgHash * HashVersion * CT.Dval.T
-
-  type TraceData =
-    { input : InputVars
-      timestamp : NodaTime.Instant
-      functionResults : List<FunctionResult> }
-
-  type Trace = AT.TraceID * TraceData
-
-  type T = { trace : Trace }
+  module Types = CTApi.Traces.GetTraceDataV1
 
   /// API endpoint to fetch data for a specific Trace
   ///
   /// Data returned includes input, timestamp, and results
-  let getTraceData (ctx : HttpContext) : Task<Option<T>> =
+  let getTraceData (ctx : HttpContext) : Task<Option<Types.Response.T>> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<Types.Request>()
       Telemetry.addTags [ "tlid", p.tlid; "traceID", p.traceID ]
 
       t.next "load-canvas"
@@ -65,17 +49,20 @@ module TraceDataV1 =
 
 
       t.next "write-api"
-      let (trace : Option<Trace>) =
+      let (trace : Option<Types.Response.Trace>) =
         match trace with
         | Some (id, (traceData : AT.TraceData)) ->
           Some(
             id,
             { input =
-                List.map (fun (s, dv) -> (s, CT.Dval.fromRT dv)) traceData.input
+                List.map
+                  (fun (s, dv) -> (s, CT2Runtime.Dval.toCT dv))
+                  traceData.input
               timestamp = traceData.timestamp
               functionResults =
                 List.map
-                  (fun (r1, r2, r3, r4, dv) -> (r1, r2, r3, r4, CT.Dval.fromRT dv))
+                  (fun (r1, r2, r3, r4, dv) ->
+                    (r1, r2, r3, r4, CT2Runtime.Dval.toCT dv))
                   traceData.function_results }
           )
         | None -> None
@@ -84,13 +71,10 @@ module TraceDataV1 =
     }
 
 module AllTraces =
-
-  type T = { traces : List<tlid * AT.TraceID> }
-
   /// API endpoint to fetch a list of Traces for a Toplevel
   ///
   /// Only returns metadata - does not include inputs/outputs
-  let fetchAll (ctx : HttpContext) : Task<T> =
+  let fetchAll (ctx : HttpContext) : Task<CTApi.Traces.GetAllTraces.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
