@@ -10,7 +10,6 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module FireAndForget = LibService.FireAndForget
 
-
 let pusherClient : Lazy<PusherServer.Pusher> =
   lazy
     (let options = PusherServer.PusherOptions()
@@ -26,7 +25,22 @@ let pusherClient : Lazy<PusherServer.Pusher> =
        options
      ))
 
-type EventTooBigEvent = { eventName : string }
+type Event =
+  | NewTrace of trace : AT.TraceID * tlids : List<tlid>
+  | NewStaticDeploy of asset : StaticAssets.StaticDeploy
+  | New404 of TraceInputs.F404
+  | AddOpV1 of Op.AddOpParamsV1 * Op.AddOpResultV1
+  //| AddOpPayloadTooBig of List<tlid> // this is so-far unused.
+  | UpdateWorkerStates of QueueSchedulingRules.WorkerStates.T
+  | CustomEvent of eventName : string * payload : string
+
+type EventNameAndPayload = { EventName : string; Payload : string }
+
+// We sometimes need _only_ the event name, and serialization of the payload
+// may be expensive, so include a function that _just_ gets the event name.
+type PusherEventSerializer =
+  { EventName : Event -> string
+    Serialize : Event -> EventNameAndPayload }
 
 
 /// <summary>Send an event to Pusher.com.</summary>
@@ -35,78 +49,48 @@ type EventTooBigEvent = { eventName : string }
 /// This is fired in the background, and does not take any time from the current thread.
 /// You cannot wait for it, by design.
 ///
-/// Do not send requests over 10240 bytes. Each caller should check their payload,
-/// and send a different push if appropriate (eg, instead of sending
-/// `TraceData hugePayload`, send `TraceDataTooBig traceID`
+/// Payloads over 10240 bytes will not be sent. If there's a risk of a payload being
+/// over this size, include a 'fallback' event to process in such a case. This will
+/// probably result in some data being manually fetched/refreshed, rather than
+/// "pushing" the data via Pusher.com.
 /// </remarks>
 let push
+  (eventSerializer : PusherEventSerializer)
   (canvasID : CanvasID)
-  (eventName : string)
-  (payload : string) // The raw string is sent, it's the job of the caller to have it as appropriate json
+  (event : Event)
+  (_fallback : Option<Event>)
   : unit =
-  FireAndForget.fireAndForgetTask $"pusher: {eventName}" (fun () ->
-    task {
-      // TODO: make channels private and end-to-end encrypted in order to add public canvases
-      let client = Lazy.force pusherClient
-      let channel = $"canvas_{canvasID}"
+  FireAndForget.fireAndForgetTask
+    $"pusher: {eventSerializer.EventName event}"
+    (fun () ->
+      let handleEvent (event : EventNameAndPayload) =
+        task {
+          // TODO: make channels private and end-to-end encrypted in order to add public canvases
+          let client = Lazy.force pusherClient
+          let channel = $"canvas_{canvasID}"
 
-      let! (_ : PusherServer.ITriggerResult) =
-        client.TriggerAsync(channel, eventName, payload)
+          let! (_ : PusherServer.ITriggerResult) =
+            client.TriggerAsync(channel, event.EventName, event.Payload)
 
-      return ()
-    })
+          return ()
+        }
 
-type NewTraceID = AT.TraceID * List<tlid>
+      let serialized = eventSerializer.Serialize event
 
-let pushNewTraceID
-  (canvasID : CanvasID)
-  (traceID : AT.TraceID)
-  (tlids : tlid list)
-  : unit =
-  push canvasID "new_trace" (Json.Vanilla.serialize (traceID, tlids))
+      if String.length serialized.Payload > 10240 then
+        // TODO: this sort of functionality was outlined before, but never actually
+        // used. We need to test this and update the client to handle the payloads.
+        // (note: make sure you remove the payload from the 'ignores' list of TestJsonEncoding.res)
 
-
-let pushNew404 (canvasID : CanvasID) (f404 : TraceInputs.F404) =
-  push canvasID "new_404" (Json.Vanilla.serialize f404)
-
-
-let pushNewStaticDeploy (canvasID : CanvasID) (asset : StaticAssets.StaticDeploy) =
-  push canvasID "new_static_deploy" (Json.Vanilla.serialize asset)
-
-type AddOpEventTooBigPayload = { tlids : List<tlid> }
-
-// For exposure as a DarkInternal function
-let pushAddOpEventV1 (canvasID : CanvasID) (event : Op.AddOpEventV1) =
-  let payload = Json.Vanilla.serialize event
-  if String.length payload > 10240 then
-    let tlids = List.map Op.tlidOf event.``params``.ops
-    let tooBigPayload = { tlids = tlids } |> Json.Vanilla.serialize
-    // CLEANUP: when changes are too big, notify the client to reload them. We'll
-    // have to add support to the client before enabling this. The client would
-    // reload after this.
-    // push canvasID "addOpTooBig" tooBigPayload
-    ()
-  else
-    push canvasID "v1/add_op" payload
-
-
-
-let pushWorkerStates
-  (canvasID : CanvasID)
-  (ws : QueueSchedulingRules.WorkerStates.T)
-  : unit =
-  push canvasID "worker_state" (Json.Vanilla.serialize ws)
+        // match fallback with
+        // | None -> printfn "Uh oh!"
+        // | Some fallback -> eventSerializer fallback |> handleEvent
+        Task.FromResult()
+      else
+        handleEvent serialized)
 
 type JsConfig = { enabled : bool; key : string; cluster : string }
 
 let jsConfigString =
   // CLEANUP use JSON serialization
   $"{{enabled: true, key: '{Config.pusherKey}', cluster: '{Config.pusherCluster}'}}"
-
-let init () =
-  do Json.Vanilla.allow<Op.AddOpEventV1> "LibBackend.Pusher"
-  do Json.Vanilla.allow<TraceInputs.F404> "LibBackend.Pusher"
-  do Json.Vanilla.allow<AddOpEventTooBigPayload> "LibBackend.Pusher"
-  do Json.Vanilla.allow<NewTraceID> "LibBackend.Pusher"
-  do Json.Vanilla.allow<StaticAssets.StaticDeploy> "LibBackend.Pusher"
-  do Json.Vanilla.allow<QueueSchedulingRules.WorkerStates.T> "LibBackend.Pusher"

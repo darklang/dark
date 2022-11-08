@@ -32,9 +32,7 @@ let main _ : int =
   try
     let name = "CronChecker"
     print "Starting CronChecker"
-    Prelude.init ()
     LibService.Init.init name
-    LibExecution.Init.init ()
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
 

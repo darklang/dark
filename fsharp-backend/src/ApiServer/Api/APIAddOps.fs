@@ -17,10 +17,8 @@ module Serialize = LibBackend.Serialize
 module Op = LibBackend.Op
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
-
-open Npgsql.FSharp
-open Npgsql
-open LibBackend.Db
+module CTApi = ClientTypes.Api
+module CT2Ops = ClientTypes2BackendTypes.Ops
 
 // Toplevel deletion:
 // * The server announces that a toplevel is deleted by it appearing in
@@ -28,34 +26,19 @@ open LibBackend.Db
 // * appearing in toplevels again.
 
 module V1 =
-
-  // A subset of responses to be merged in
-  type T = Op.AddOpResultV1
-
-  type Params = Op.AddOpParamsV1
-
-  let empty : Op.AddOpResultV1 =
-    { handlers = []
-      deletedHandlers = []
-      dbs = []
-      deletedDBs = []
-      userFunctions = []
-      deletedUserFunctions = []
-      userTypes = []
-      deletedUserTypes = [] }
-
   let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
   /// API endpoint to add a set of Op in a Canvas
   ///
   /// The Ops usually relate to a single Toplevel within the Canvas,
   /// but can technically include Ops against several TLIDs
-  let addOp (ctx : HttpContext) : Task<T> =
+  let addOp (ctx : HttpContext) : Task<CTApi.Ops.AddOpV1.Response> =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
 
-      let! p = ctx.ReadVanillaJsonAsync<Params>()
+      let! p = ctx.ReadVanillaJsonAsync<CTApi.Ops.AddOpV1.Request>()
+      let p = CT2Ops.AddOpParamsV1.fromCT p
       let canvasID = canvasInfo.id
 
       let! isLatest =
@@ -128,9 +111,12 @@ module V1 =
       // To make this work with prodclone, we might want to have it specify
       // more ... else people's prodclones will stomp on each other ...
       if causesAnyChanges newOps then
-        LibBackend.Pusher.pushAddOpEventV1
+        LibBackend.Pusher.push
+          ClientTypes2BackendTypes.Pusher.eventSerializer
           canvasID
-          { result = result; ``params`` = p }
+          (LibBackend.Pusher.AddOpV1(p, result))
+          //(Some <| LibBackend.Pusher.AddOpPayloadTooBig(List.map Op.tlidOf p.ops))
+          None // AddOpPayloadTooBig is so-far unsupported by the client
 
       t.next "send-event-to-heapio"
       // NB: I believe we only send one op at a time, but the type is op list
@@ -149,5 +135,5 @@ module V1 =
           (Op.eventNameOfOp op)
           Map.empty)
 
-      return result
+      return CT2Ops.AddOpResultV1.toCT result
     }

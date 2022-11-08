@@ -248,6 +248,10 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
     return ()
   }
 
+let initSerializers () =
+  // TODO: this probably needs more serializable types registered
+  // Resolve this next time we run DataTests
+  Json.Vanilla.allow<SerializedCheckpointData> "datatests"
 
 [<EntryPoint>]
 let main args =
@@ -258,7 +262,7 @@ let main args =
     LibService.Telemetry.DontTraceDBQueries
   (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
   (LibRealExecution.Init.init name).Result
-  Json.Vanilla.allow<SerializedCheckpointData> "datatests"
+  initSerializers ()
 
   let fn (canvasName : CanvasName.T) : Task<unit> =
     task {
