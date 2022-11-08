@@ -26,12 +26,19 @@ let run () : Task<unit> =
     return ()
   }
 
+let initSerializers () =
+  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
 [<EntryPoint>]
 let main _ : int =
   try
     let name = "CronChecker"
     print "Starting CronChecker"
+    initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
