@@ -1,3 +1,4 @@
+/// Tests around our "Vanilla" JSON serializer used throughout the F# codebase
 module Tests.VanillaSerialization
 
 open Expecto
@@ -22,18 +23,6 @@ module CT2Ops = ClientTypes2BackendTypes.Ops
 module CT2Worker = ClientTypes2BackendTypes.Worker
 
 module V = SerializationTestValues
-
-// Throughout our F# codebase, we've annotated which types we `allow` to be
-// serialized with our "Vanilla" serializer. Now we want to verify that the format
-// doesn't change. We do this by maintaining at least one sample value of each type,
-// and verifying the serialized sample value doesn't change. This gives us extremely
-// high confidence that we're not breaking anything when we change the serializer.
-// - If there's a change to the format, a new file will be generated.
-//   What to do here will depend on the change, how much data is saved with the old
-//   change, etc. You may want to save both formats and check that both are
-//   deserializable.
-// - If there's a change to the sample value, generate a new file.
-//   Commit it after verifying that the format is appropriate.
 
 [<RequireQualifiedAccess>]
 module ClientTestValues =
@@ -73,454 +62,474 @@ module ClientTestValues =
 
 module CV = ClientTestValues
 
+// Throughout our F# codebase, we've annotated which types we `allow` to be
+// serialized with our "Vanilla" serializer. Now we want to verify that the format
+// doesn't change. We do this by maintaining at least one sample value of each type,
+// and verifying the serialized sample value doesn't change. This gives us extremely
+// high confidence that we're not breaking anything when we change the serializer.
+// - If there's a change to the format, a new file will be generated.
+//   What to do here will depend on the change, how much data is saved with the old
+//   change, etc. You may want to save both formats and check that both are
+//   deserializable.
+// - If there's a change to the sample value, generate a new file.
+//   Commit it after verifying that the format is appropriate.
+module PersistedSerializations =
+  type T =
+    { TypeName : string
+      CaseName : string
+      SerializedData : string }
 
-module SampleData =
-  // Stores a list of sample outputs for `$"{serializerName}-{typeName}"
-  let data = Dictionary.T<string, List<string * string>>()
+    member this.FileName =
+      let original = $"vanilla_{this.TypeName}_{this.CaseName}"
+      let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
+      Regex.Replace(replaced, "[-]+", "-") + ".json"
 
-  let keyFor (typeName : string) (serializerName : string) : string =
-    $"{serializerName}-{typeName}"
+  // shortcut to make `data` more readable
+  let v<'t> (caseName : string) (value : 't) =
+    { TypeName = string typeof<'t>
+      CaseName = caseName
 
-  let get
-    (typeName : string)
-    (serializerName : string)
-    (reason : string)
-    : List<string * string> =
-    data
-    |> Dictionary.get (keyFor typeName serializerName)
-    |> Exception.unwrapOptionInternal
-         "testCases should exist for allowed serializable type"
-         [ "typeName", typeName :> obj
-           "serializer", serializerName
-           "reason", reason ]
+      // we use prettySerialize even though we use serialize in practice, as the
+      // non-pretty version is too hard to read and compare.
+      SerializedData = Json.Vanilla.prettySerialize value }
 
+  // the vales that we expect to match the ones persisted to disk
+  let data =
+    lazy
+      [ v<Map<string, string>> "baseline" (Map.ofList [ "a", "b" ])
 
-  let private generateSerializerData<'t>
-    (serializerName : string)
-    (serializerFn : 't -> string)
-    (name : string)
-    (value : 't)
-    =
-    let typeName = string typeof<'t>
-    let key = keyFor typeName serializerName
-    let currentValue = Dictionary.get key data |> Option.unwrap []
-    let newValue = (name, serializerFn value) :: currentValue
-    data[key] <- newValue
+        // ------------------
+        // Prelude
+        // ------------------
+        v<Prelude.pos> "simple" { x = 10; y = -16 }
 
-  let private generateVanillaData<'t> (dataName : string) (data : 't) =
-    // Use prettySerialize even though we use serialize in practice, as the
-    // non-pretty version is too hard to read and compare.
-    generateSerializerData "vanilla" Json.Vanilla.prettySerialize dataName data
+        // ------------------
+        // LibService
+        // ------------------
+        v<LibService.Rollbar.HoneycombJson>
+          "simple"
+          { filters =
+              [ { column = "trace.trace_id"; op = "="; value = string V.uuid } ]
+            limit = 100
+            time_range = 604800 }
 
-  // Shortcuts to make generateTestData more readable
-  let private v<'t> = generateVanillaData<'t>
+        // ------------------
+        // LibExecution
+        // ------------------
+        v<CTRuntime.Dval.T> "complete" CV.dval
 
+        v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+          "complete"
+          (V.RuntimeTypes.dval
+           |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
 
-  let generateTestData () : unit =
-    v<Map<string, string>> "simple" (Map.ofList [ "a", "b" ])
+        v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
+        v<LibExecution.ProgramTypes.Handler.T> "simple" V.ProgramTypes.Handler.http
 
-    // ------------------
-    // Prelude
-    // ------------------
-    v<Prelude.pos> "simple" { x = 10; y = -16 }
+        // ------------------
+        // LibBackend
+        // ------------------
+        v<LibBackend.EventQueueV2.NotificationData>
+          "simple"
+          { id = V.uuid; canvasID = V.uuid }
 
-    // ------------------
-    // LibService
-    // ------------------
-    v<LibService.Rollbar.HoneycombJson>
-      "simple"
-      { filters = [ { column = "trace.trace_id"; op = "="; value = string V.uuid } ]
-        limit = 100
-        time_range = 604800 }
+        v<LibBackend.Session.JsonData>
+          "simple"
+          { username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abc1234" }
 
-    // ------------------
-    // LibExecution
-    // ------------------
-    v<CTRuntime.Dval.T> "complete" CV.dval
+        v<LibBackend.PackageManager.ParametersDBFormat>
+          "all"
+          [ { name = "int"; tipe = LibBackend.PackageManager.TInt; description = "" }
+            { name = "string"
+              tipe = LibBackend.PackageManager.TStr
+              description = "" }
+            { name = "any"; tipe = LibBackend.PackageManager.TAny; description = "" }
+            { name = "List"
+              tipe = LibBackend.PackageManager.TList
+              description = "" }
+            { name = "obj"; tipe = LibBackend.PackageManager.TObj; description = "" } ]
 
-    v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
-      "complete"
-      (V.RuntimeTypes.dval
-       |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
+        v<PT.Position> "simple" { x = 10; y = -16 }
 
-    v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
-    v<LibExecution.ProgramTypes.Handler.T> "simple" V.ProgramTypes.Handler.http
-
-    // ------------------
-    // LibBackend
-    // ------------------
-    v<LibBackend.EventQueueV2.NotificationData>
-      "simple"
-      { id = V.uuid; canvasID = V.uuid }
-
-    v<LibBackend.Session.JsonData>
-      "simple"
-      { username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abc1234" }
-
-    v<LibBackend.PackageManager.ParametersDBFormat>
-      "all"
-      [ { name = "int"; tipe = LibBackend.PackageManager.TInt; description = "" }
-        { name = "string"; tipe = LibBackend.PackageManager.TStr; description = "" }
-        { name = "any"; tipe = LibBackend.PackageManager.TAny; description = "" }
-        { name = "List"; tipe = LibBackend.PackageManager.TList; description = "" }
-        { name = "obj"; tipe = LibBackend.PackageManager.TObj; description = "" } ]
-
-    v<PT.Position> "simple" { x = 10; y = -16 }
-
-    // ------------------
-    // Used by Pusher
-    // ------------------
-    v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" CV.staticDeploy
-    v<ClientTypes.Pusher.Payload.NewTrace> "simple" (V.uuid, V.tlids)
-    v<ClientTypes.Pusher.Payload.New404>
-      "simple"
-      ("HTTP", "/", "GET", V.instant, V.uuid)
-    v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "simple" CV.workerStates
-    v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
-    // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
-    //   "simple"
-    //   { tlids = testTLIDs }
+        // ------------------
+        // Used by Pusher
+        // ------------------
+        v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" CV.staticDeploy
+        v<ClientTypes.Pusher.Payload.NewTrace> "simple" (V.uuid, V.tlids)
+        v<ClientTypes.Pusher.Payload.New404>
+          "simple"
+          ("HTTP", "/", "GET", V.instant, V.uuid)
+        v<ClientTypes.Pusher.Payload.UpdateWorkerStates> "pusher-update-worker-states" CV.workerStates
+        v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
+        // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
+        //   "simple"
+        //   { tlids = testTLIDs }
 
 
 
-    // ------------------
-    // ApiServer
-    // ------------------
+        // ------------------
+        // ApiServer
+        // ------------------
 
-    // AddOps
-    v<CTApi.Ops.AddOpV1.Request>
-      "simple"
-      (CT2Ops.AddOpParamsV1.toCT
-        { ops = V.ProgramTypes.oplist; opCtr = 0; clientOpCtrID = V.uuid.ToString() })
+        // AddOps
+        v<CTApi.Ops.AddOpV1.Request>
+          "simple"
+          (CT2Ops.AddOpParamsV1.toCT
+            { ops = V.ProgramTypes.oplist
+              opCtr = 0
+              clientOpCtrID = V.uuid.ToString() })
 
-    v<CTApi.Ops.AddOpV1.Response> "simple" CV.addOpResultV1
+        v<CTApi.Ops.AddOpV1.Response> "simple" CV.addOpResultV1
 
-    // User DBs
-    v<CTApi.DB.StatsV1.Request> "simple" { tlids = V.tlids }
-    v<CTApi.DB.StatsV1.Response.T>
-      "simple"
-      (Map.ofList [ "db1", { count = 0; example = None }
-                    "db2", { count = 5; example = Some(CV.dval, "myKey") } ])
-    v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ V.tlid ] }
+        // User DBs
+        v<CTApi.DB.StatsV1.Request> "simple" { tlids = V.tlids }
+        v<CTApi.DB.StatsV1.Response.T>
+          "simple"
+          (Map.ofList [ "db1", { count = 0; example = None }
+                        "db2", { count = 5; example = Some(CV.dval, "myKey") } ])
+        v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ V.tlid ] }
 
-    // Execution
-    v<CTApi.Execution.FunctionV1.Request>
-      "simple"
-      { tlid = V.tlid
-        trace_id = V.uuid
-        caller_id = 7UL
-        args = [ CV.dval ]
-        fnname = "Int::mod_v0" }
-    v<CTApi.Execution.FunctionV1.Response>
-      "simple"
-      { result = CV.dval
-        hash = "abcd"
-        hashVersion = 0
-        touched_tlids = [ V.tlid ]
-        unlocked_dbs = [ V.tlid ] }
-    v<CTApi.Execution.HandlerV1.Request>
-      "simple"
-      { tlid = V.tlid; trace_id = V.uuid; input = [ "v", CV.dval ] }
-    v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ V.tlid ] }
+        // Execution
+        v<CTApi.Execution.FunctionV1.Request>
+          "simple"
+          { tlid = V.tlid
+            trace_id = V.uuid
+            caller_id = 7UL
+            args = [ CV.dval ]
+            fnname = "Int::mod_v0" }
+        v<CTApi.Execution.FunctionV1.Response>
+          "simple"
+          { result = CV.dval
+            hash = "abcd"
+            hashVersion = 0
+            touched_tlids = [ V.tlid ]
+            unlocked_dbs = [ V.tlid ] }
+        v<CTApi.Execution.HandlerV1.Request>
+          "simple"
+          { tlid = V.tlid; trace_id = V.uuid; input = [ "v", CV.dval ] }
+        v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ V.tlid ] }
 
-    // 404s
-    v<CTApi.F404.List.Response>
-      "simple"
-      { f404s = [ ("HTTP", "/", "GET", V.instant, V.uuid) ] }
-    v<CTApi.F404.Delete.Request>
-      "simple"
-      { space = "HTTP"; path = "/"; modifier = "POST" }
-    v<CTApi.F404.Delete.Response> "simple" { result = "success" }
+        // 404s
+        v<CTApi.F404.List.Response>
+          "simple"
+          { f404s = [ ("HTTP", "/", "GET", V.instant, V.uuid) ] }
+        v<CTApi.F404.Delete.Request>
+          "simple"
+          { space = "HTTP"; path = "/"; modifier = "POST" }
+        v<CTApi.F404.Delete.Response> "simple" { result = "success" }
 
-    // Functions
-    v<List<ClientTypes.UI.Functions.BuiltInFn>>
-      "all"
-      ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-           parameters =
-             [ { name = "a"
-                 ``type`` = CTRuntime.DType.TInt
-                 args = []
-                 description = "param description" } ]
-           returnType = CTRuntime.DType.TList(CTRuntime.DType.TInt)
-           description = "basic"
-           isInfix = false
-           previewable = ClientTypes.UI.Functions.Pure
-           deprecated = ClientTypes.UI.Functions.NotDeprecated
-           sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-         { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-           parameters = []
-           returnType = CTRuntime.DType.TInt
-           description = "impure"
-           isInfix = false
-           previewable = ClientTypes.UI.Functions.Impure
-           deprecated = ClientTypes.UI.Functions.NotDeprecated
-           sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-         { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-           parameters = []
-           returnType = CTRuntime.DType.TInt
-           description = "impurepreviewable"
-           isInfix = false
-           previewable = ClientTypes.UI.Functions.ImpurePreviewable
-           deprecated = ClientTypes.UI.Functions.NotDeprecated
-           sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-         { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-           parameters = []
-           returnType = CTRuntime.DType.TInt
-           description = "replacedBy"
-           isInfix = false
-           previewable = ClientTypes.UI.Functions.Pure
-           deprecated =
-             ClientTypes.UI.Functions.ReplacedBy(
-               { module_ = "Int"; function_ = "mod"; version = 1 }
-             )
-           sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-         { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-           parameters = []
-           returnType = CTRuntime.DType.TInt
-           description = "renamedTo"
-           isInfix = false
-           previewable = ClientTypes.UI.Functions.Pure
-           deprecated =
-             ClientTypes.UI.Functions.RenamedTo(
-               { module_ = "Int"; function_ = "mod"; version = 1 }
-             )
-           sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-         { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-           parameters = []
-           returnType = CTRuntime.DType.TInt
-           description = "deprecatedBecause"
-           isInfix = false
-           previewable = ClientTypes.UI.Functions.Pure
-           deprecated = ClientTypes.UI.Functions.DeprecatedBecause "reason"
-           sqlSpec = ClientTypes.UI.Functions.NotQueryable } ])
+        // Functions
+        v<List<ClientTypes.UI.Functions.BuiltInFn>>
+          "all"
+          ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+               parameters =
+                 [ { name = "a"
+                     ``type`` = CTRuntime.DType.TInt
+                     args = []
+                     description = "param description" } ]
+               returnType = CTRuntime.DType.TList(CTRuntime.DType.TInt)
+               description = "basic"
+               isInfix = false
+               previewable = ClientTypes.UI.Functions.Pure
+               deprecated = ClientTypes.UI.Functions.NotDeprecated
+               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+               parameters = []
+               returnType = CTRuntime.DType.TInt
+               description = "impure"
+               isInfix = false
+               previewable = ClientTypes.UI.Functions.Impure
+               deprecated = ClientTypes.UI.Functions.NotDeprecated
+               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+               parameters = []
+               returnType = CTRuntime.DType.TInt
+               description = "impurepreviewable"
+               isInfix = false
+               previewable = ClientTypes.UI.Functions.ImpurePreviewable
+               deprecated = ClientTypes.UI.Functions.NotDeprecated
+               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+               parameters = []
+               returnType = CTRuntime.DType.TInt
+               description = "replacedBy"
+               isInfix = false
+               previewable = ClientTypes.UI.Functions.Pure
+               deprecated =
+                 ClientTypes.UI.Functions.ReplacedBy(
+                   { module_ = "Int"; function_ = "mod"; version = 1 }
+                 )
+               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+               parameters = []
+               returnType = CTRuntime.DType.TInt
+               description = "renamedTo"
+               isInfix = false
+               previewable = ClientTypes.UI.Functions.Pure
+               deprecated =
+                 ClientTypes.UI.Functions.RenamedTo(
+                   { module_ = "Int"; function_ = "mod"; version = 1 }
+                 )
+               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+               parameters = []
+               returnType = CTRuntime.DType.TInt
+               description = "deprecatedBecause"
+               isInfix = false
+               previewable = ClientTypes.UI.Functions.Pure
+               deprecated = ClientTypes.UI.Functions.DeprecatedBecause "reason"
+               sqlSpec = ClientTypes.UI.Functions.NotQueryable } ])
 
-    // InitialLoad
-    v<ClientTypes.Api.InitialLoad.V1.Response>
-      "initial"
-      { handlers =
-          V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
-        deletedHandlers =
-          V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
-        dbs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
-        deletedDBs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
-        userFunctions =
-          V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
-        deletedUserFunctions =
-          V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
-        unlockedDBs = [ V.tlid ]
-        userTypes = V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
-        deletedUserTypes =
-          V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
-        staticDeploys = [ CV.staticDeploy ]
-        opCtrs = Map [ V.uuid, 7 ]
-        canvasList = [ "test"; "test-canvas2" ]
-        orgCanvasList = [ "testorg"; "testorg-canvas2" ]
-        permission = Some(ClientTypes.Authorization.ReadWrite)
-        orgs = [ "test"; "testorg" ]
-        account =
-          { username = "test"; name = "Test Name"; email = "test@darklang.com" }
-        creationDate = V.instant
-        workerSchedules = CV.workerStates
-        secrets = [ { name = "test"; value = "secret" } ] }
+        // InitialLoad
+        v<ClientTypes.Api.InitialLoad.V1.Response>
+          "initial"
+          { handlers =
+              V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
+            deletedHandlers =
+              V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
+            dbs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
+            deletedDBs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
+            userFunctions =
+              V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
+            deletedUserFunctions =
+              V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
+            unlockedDBs = [ V.tlid ]
+            userTypes = V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
+            deletedUserTypes =
+              V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
+            staticDeploys = [ CV.staticDeploy ]
+            opCtrs = Map [ V.uuid, 7 ]
+            canvasList = [ "test"; "test-canvas2" ]
+            orgCanvasList = [ "testorg"; "testorg-canvas2" ]
+            permission = Some(ClientTypes.Authorization.ReadWrite)
+            orgs = [ "test"; "testorg" ]
+            account =
+              { username = "test"; name = "Test Name"; email = "test@darklang.com" }
+            creationDate = V.instant
+            workerSchedules = CV.workerStates
+            secrets = [ { name = "test"; value = "secret" } ] }
 
-    // Tunnels
-    v<CTApi.Tunnels.Register.Request> "empty" { tunnelHost = None }
-    v<CTApi.Tunnels.Register.Request>
-      "simple"
-      { tunnelHost = Some "host.tunnel.com" }
-    v<CTApi.Tunnels.Register.Response> "simple" { success = false }
+        // Tunnels
+        v<CTApi.Tunnels.Register.Request> "empty" { tunnelHost = None }
+        v<CTApi.Tunnels.Register.Request>
+          "simple"
+          { tunnelHost = Some "host.tunnel.com" }
+        v<CTApi.Tunnels.Register.Response> "simple" { success = false }
 
-    // Packages
-    v<CTApi.Packages.ListV1.Response>
-      "simple"
-      [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
+        // Packages
+        v<CTApi.Packages.ListV1.Response>
+          "simple"
+          [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
 
-    // SecretsV1
+        // SecretsV1
 
-    v<CTApi.Secrets.DeleteV1.Request> "simple" { name = "test" }
-    v<CTApi.Secrets.DeleteV1.Response>
-      "simple"
-      { secrets = [ { name = "test"; value = "secret" } ] }
+        v<CTApi.Secrets.DeleteV1.Request> "simple" { name = "test" }
+        v<CTApi.Secrets.DeleteV1.Response>
+          "simple"
+          { secrets = [ { name = "test"; value = "secret" } ] }
 
-    v<CTApi.Secrets.InsertV1.Request> "simple" { name = "test"; value = "secret" }
-    v<CTApi.Secrets.InsertV1.Response>
-      "simple"
-      { secrets = [ { name = "test"; value = "secret" } ] }
+        v<CTApi.Secrets.InsertV1.Request>
+          "simple"
+          { name = "test"; value = "secret" }
+        v<CTApi.Secrets.InsertV1.Response>
+          "simple"
+          { secrets = [ { name = "test"; value = "secret" } ] }
 
-    // Toplevels
+        // Toplevels
 
-    v<CTApi.Toplevels.Delete.Request> "simple" { tlid = V.tlid }
-    v<CTApi.Toplevels.Delete.Response> "simple" { result = "success" }
+        v<CTApi.Toplevels.Delete.Request> "simple" { tlid = V.tlid }
+        v<CTApi.Toplevels.Delete.Response> "simple" { result = "success" }
 
-    // Traces
+        // Traces
 
-    v<CTApi.Traces.GetAllTraces.Response> "simple" { traces = [ (V.tlid, V.uuid) ] }
-    v<CTApi.Traces.GetTraceDataV1.Request>
-      "simple"
-      { tlid = V.tlid; traceID = V.uuid }
-    v<CTApi.Traces.GetTraceDataV1.Response.T>
-      "simple"
-      { trace =
-          (V.uuid,
-           { input = [ "var", CV.dval ]
-             timestamp = V.instant
-             functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }) }
-
-
-    // Workers
-
-    v<CTApi.Workers.Scheduler.Request> "simple" { name = "x"; schedule = "pause" }
-    v<CTApi.Workers.Scheduler.Response> "all" CV.workerStates
-
-    v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = V.tlid }
-    v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
-
-    // ------------------
-    // LibAnalysis
-    // ------------------
-    v<ClientTypes.Analysis.AnalysisResult>
-      "simple"
-      (Ok(
-        V.uuid,
-        Dictionary.fromList (
-          [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult CV.dval)
-            (7UL, CTAnalysis.ExecutionResult.NonExecutedResult CV.dval) ]
-        ),
-        1,
-        NodaTime.Instant.UnixEpoch
-      ))
-    v<ClientTypes.Analysis.PerformAnalysisParams>
-      "handler"
-      (ClientTypes.Analysis.AnalyzeHandler
-        { requestID = 2
-          requestTime = NodaTime.Instant.UnixEpoch
-          handler = CT2Program.Handler.toCT V.ProgramTypes.Handler.http
-          traceID = V.uuid
-          traceData =
-            { input = [ "var", CV.dval ]
-              timestamp = V.instant
-              functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
-          dbs =
-            [ { tlid = V.tlid
-                name = "dbname"
-                nameID = 7UL
-                pos = CT2Program.Position.toCT V.ProgramTypes.pos
-                cols =
-                  [ { name = Some("colname")
-                      nameID = 8UL
-                      typ = Some(CT2Program.DType.toCT PT.TInt)
-                      typeID = 9UL } ]
-                version = 1 } ]
-          userFns =
-            List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
-          userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
-          packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
-          secrets = [ { name = "z"; value = "y" } ] })
-    v<ClientTypes.Analysis.PerformAnalysisParams>
-      "function"
-      (ClientTypes.Analysis.AnalyzeFunction
-        { requestID = 3
-          requestTime = NodaTime.Instant.UnixEpoch
-          func = CT2Program.UserFunction.toCT V.ProgramTypes.userFunction
-          traceID = V.uuid
-          traceData =
-            { input = [ "var", CV.dval ]
-              timestamp = V.instant
-              functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
-          dbs =
-            [ { tlid = V.tlid
-                name = "dbname"
-                nameID = 7UL
-                pos = CT2Program.Position.toCT V.ProgramTypes.pos
-                cols =
-                  [ { name = Some("colname")
-                      nameID = 8UL
-                      typ = Some(CT2Program.DType.toCT PT.TInt)
-                      typeID = 9UL } ]
-                version = 1 } ]
-          userFns =
-            List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
-          userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
-          packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
-          secrets = [ { name = "z"; value = "y" } ] })
+        v<CTApi.Traces.GetAllTraces.Response>
+          "simple"
+          { traces = [ (V.tlid, V.uuid) ] }
+        v<CTApi.Traces.GetTraceDataV1.Request>
+          "simple"
+          { tlid = V.tlid; traceID = V.uuid }
+        v<CTApi.Traces.GetTraceDataV1.Response.T>
+          "simple"
+          { trace =
+              (V.uuid,
+               { input = [ "var", CV.dval ]
+                 timestamp = V.instant
+                 functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }) }
 
 
-    // ------------------
-    // Tests
-    // ------------------
+        // Workers
 
-    v<LibExecution.AnalysisTypes.TraceData>
-      "testTraceData"
-      { input = [ "var", V.RuntimeTypes.dval ]
-        timestamp = V.instant
-        function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] }
+        v<CTApi.Workers.Scheduler.Request>
+          "simple"
+          { name = "x"; schedule = "pause" }
+        v<CTApi.Workers.Scheduler.Response> "api-worker-scheduler-response" CV.workerStates
+
+        v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = V.tlid }
+        v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
+
+        // ------------------
+        // LibAnalysis
+        // ------------------
+        v<ClientTypes.Analysis.AnalysisResult>
+          "simple"
+          (Ok(
+            V.uuid,
+            Dictionary.fromList (
+              [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult CV.dval)
+                (7UL, CTAnalysis.ExecutionResult.NonExecutedResult CV.dval) ]
+            ),
+            1,
+            NodaTime.Instant.UnixEpoch
+          ))
+        v<ClientTypes.Analysis.PerformAnalysisParams>
+          "handler"
+          (ClientTypes.Analysis.AnalyzeHandler
+            { requestID = 2
+              requestTime = NodaTime.Instant.UnixEpoch
+              handler = CT2Program.Handler.toCT V.ProgramTypes.Handler.http
+              traceID = V.uuid
+              traceData =
+                { input = [ "var", CV.dval ]
+                  timestamp = V.instant
+                  functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
+              dbs =
+                [ { tlid = V.tlid
+                    name = "dbname"
+                    nameID = 7UL
+                    pos = CT2Program.Position.toCT V.ProgramTypes.pos
+                    cols =
+                      [ { name = Some("colname")
+                          nameID = 8UL
+                          typ = Some(CT2Program.DType.toCT PT.TInt)
+                          typeID = 9UL } ]
+                    version = 1 } ]
+              userFns =
+                List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
+              userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
+              packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
+              secrets = [ { name = "z"; value = "y" } ] })
+        v<ClientTypes.Analysis.PerformAnalysisParams>
+          "function"
+          (ClientTypes.Analysis.AnalyzeFunction
+            { requestID = 3
+              requestTime = NodaTime.Instant.UnixEpoch
+              func = CT2Program.UserFunction.toCT V.ProgramTypes.userFunction
+              traceID = V.uuid
+              traceData =
+                { input = [ "var", CV.dval ]
+                  timestamp = V.instant
+                  functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
+              dbs =
+                [ { tlid = V.tlid
+                    name = "dbname"
+                    nameID = 7UL
+                    pos = CT2Program.Position.toCT V.ProgramTypes.pos
+                    cols =
+                      [ { name = Some("colname")
+                          nameID = 8UL
+                          typ = Some(CT2Program.DType.toCT PT.TInt)
+                          typeID = 9UL } ]
+                    version = 1 } ]
+              userFns =
+                List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
+              userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
+              packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
+              secrets = [ { name = "z"; value = "y" } ] })
 
 
-  generateTestData ()
+        // ------------------
+        // Tests
+        // ------------------
 
-let fileNameFor
-  (serializerName : string)
-  (typeName : string)
-  (dataName : string)
-  : string =
-  let original = $"{serializerName}_{typeName}_{dataName}"
-  let replaced = Regex.Replace(original, "[^-_a-zA-Z0-9]", "-")
-  Regex.Replace(replaced, "[-]+", "-") + ".json"
-
-let testNoMissingOrExtraOutputTestFiles : Test =
-  test "test no extra test files" {
-    let filenamesFor dict serializerName =
-      dict
-      |> Dictionary.toList
-      |> List.map (fun (typeName, reason) ->
-        SampleData.get typeName serializerName reason
-        |> List.map (fun (name, _) -> fileNameFor serializerName typeName name))
-      |> List.concat
-      |> Set
-
-    let vanillaFilenames = filenamesFor Json.Vanilla.allowedTypes "vanilla"
-    let vanillaActual = File.lsPattern Config.Serialization "vanilla_*.json" |> Set
-
-    let vanillaMissingFiles = Set.difference vanillaFilenames vanillaActual
-    let vanillaExtraFiles = Set.difference vanillaActual vanillaFilenames
-
-    Expect.equal vanillaMissingFiles Set.empty "missing vanilla files"
-    Expect.equal vanillaExtraFiles Set.empty "extra vanilla files"
-  }
-
-let testTestFiles : List<Test> =
-  let testsFor (dict : Dictionary.T<string, string>) (serializerName : string) =
-    dict
-    |> Dictionary.toList
-    |> List.map (fun (typeName, reason) ->
-      // TODO find a roundtrip test
-      test $"check {serializerName} test files are correct for {typeName}" {
-        // For each type, compare the sample data to the file data
-        SampleData.get typeName serializerName reason
-        |> List.iter (fun (name, actualSerializedData) ->
-          let filename = fileNameFor serializerName typeName name
-          let expected = File.readfile Config.Serialization filename
-          Expect.equal actualSerializedData expected "matches")
-      })
-  (testsFor Json.Vanilla.allowedTypes "vanilla")
-
-let generateTestFiles () =
-  // Enabled in dev so we can see changes as git diffs.
-  // Disabled in CI so changes will fail the tests
-  if Config.serializationGenerateTestData then
-    let generate (dict : Dictionary.T<string, string>) (serializerName : string) =
-      dict
-      |> Dictionary.toList
-      |> List.iter (fun (typeName, reason) ->
-        // For each type, compare the sample data to the file data
-        SampleData.get typeName serializerName reason
-        |> List.iter (fun (name, serializedData) ->
-          let filename = fileNameFor serializerName typeName name
-          File.writefile Config.Serialization filename serializedData))
-
-    generate Json.Vanilla.allowedTypes "vanilla"
+        v<LibExecution.AnalysisTypes.TraceData>
+          "testTraceData"
+          { input = [ "var", V.RuntimeTypes.dval ]
+            timestamp = V.instant
+            function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] } ]
 
 
+  let generateTestFiles () =
+    // Enabled in dev so we can see changes as git diffs.
+    // Disabled in CI so changes will fail the tests
+    if Config.serializationGenerateTestData then
+      data.Force()
+      |> List.iter (fun record ->
+        File.writefile Config.Serialization record.FileName record.SerializedData)
+
+  let testAllAllowedTypesHaveARecord : Test =
+    test "no extra or missing types tested by files" {
+      let expected = Json.Vanilla.allowedTypes |> Dictionary.keys |> Set
+      let actual = data.Force() |> List.map (fun z -> z.TypeName) |> Set
+
+      let missingTypes = Set.difference actual expected
+      let extraTypes = Set.difference expected actual
+
+      Expect.equal missingTypes Set.empty "missing files"
+      Expect.equal extraTypes Set.empty "extra files"
+    }
+
+  let testNoMissingOrExtraOutputTestFiles : Test =
+    test "no extra or missing test files" {
+      let expectedFilenames = data.Force() |> List.map (fun z -> z.FileName) |> Set
+      let actualFilenames =
+        File.lsPattern Config.Serialization "vanilla_*.json" |> Set
+
+      let missingFiles = Set.difference expectedFilenames actualFilenames
+      let extraFiles = Set.difference actualFilenames expectedFilenames
+
+      Expect.equal missingFiles Set.empty "missing files"
+      Expect.equal extraFiles Set.empty "extra files"
+    }
+
+  let testNoTwoRecordsTryToWriteToTheSameFile : Test =
+    test "no two records would result in the same file name" {
+      let duplicates =
+        data.Force()
+        |> List.groupBy (fun z -> z.FileName)
+        |> Map.toList
+        |> List.choose (fun (fileName, records) ->
+          if List.length records > 1 then
+            Some(fileName, records |> List.map (fun r -> r.SerializedData))
+          else
+            None)
+
+      Expect.equal duplicates [] ""
+    }
+
+  // Note: if you're confused by one of these failing, there's a chance that 2 cases
+  // in the list are trying to write to the same file, potentially due to type
+  // abbreviations confusing things, since they're compiled to the same eventual
+  // type. If you encounter this, focus (--filter-test-case) on the adjacent test
+  // which ensures no 2 records would result in the same file name, to see if that's
+  // the issue.
+  let testTestFilesForConsistentSerialization : Test =
+    let tests =
+      data.Force()
+      |> List.map (fun expectedPersistedSerialization ->
+        let item = expectedPersistedSerialization
+
+        test
+          $"check vanilla test files are correct for {item.TypeName}, {item.CaseName}" {
+          let expected = File.readfile Config.Serialization item.FileName
+
+          Expect.equal
+            item.SerializedData
+            expected
+            $"Serialization for {item.CaseName} case of {item.TypeName} doesn't match file {item.FileName}"
+        })
+
+    testList "serializations match ones on persisted" tests
+
+  let tests =
+    testList
+      "Persisted Serializations"
+      [ testAllAllowedTypesHaveARecord
+        testNoMissingOrExtraOutputTestFiles
+        testNoTwoRecordsTryToWriteToTheSameFile
+        testTestFilesForConsistentSerialization ]
+
+
+// Ensure that converting between 'internal' and 'client' types is stable
 module RoundtripTests =
   // for each type/value:
   // perform domain val -> CT -> domain -> CT -> domain
@@ -716,8 +725,8 @@ module RoundtripTests =
 let tests =
   testList
     "Vanilla Serialization"
-    [ testNoMissingOrExtraOutputTestFiles
-      testList "consistent serialization" testTestFiles
+    [ PersistedSerializations.tests
+
       testList
         "roundtrip RTs to and from client types"
         RoundtripTests.RuntimeTypes.tests

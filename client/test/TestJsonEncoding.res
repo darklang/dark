@@ -144,6 +144,7 @@ let run = () => {
     )
     let ignores = [
       // Not used by client
+      "vanilla_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_baseline.json",
       "vanilla_ClientTypes-Api-F404-Delete-Response_simple.json", // we don't check the response
       "vanilla_ClientTypes-Api-Secrets-DeleteV1-Request_simple.json",
       "vanilla_ClientTypes-Api-Secrets-DeleteV1-Response_simple.json",
@@ -160,7 +161,7 @@ let run = () => {
       "vanilla_Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Op-_complete.json",
       "vanilla_LibExecution-ProgramTypes-Position_simple.json",
       "vanilla_LibExecution-AnalysisTypes-TraceData_testTraceData.json",
-      "vanilla_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_simple.json",
+      // TODO ensure we don't have any unnecesarry ignores here
     ]
     Belt.MutableMap.String.removeMany(processedSerializationFiles, ignores)
 
@@ -271,12 +272,12 @@ let run = () => {
       APIWorkers.Scheduler.Params.encode,
     )
     t(
-      "vanilla_Microsoft-FSharp-Collections-FSharpMap-2-System-String-ClientTypes-Worker-WorkerState-_all.json",
+      "vanilla_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_pusher-update-worker-states.json",
       APIWorkers.Scheduler.decode,
       APIWorkers.Scheduler.encode,
     )
     t(
-      "vanilla_Microsoft-FSharp-Collections-FSharpMap-2-System-String-ClientTypes-Worker-WorkerState-_simple.json",
+      "vanilla_Microsoft-FSharp-Collections-FSharpMap-2-System-String-System-String-_api-worker-scheduler-response.json",
       APIWorkers.Scheduler.decode,
       APIWorkers.Scheduler.encode,
     )
@@ -305,11 +306,7 @@ let run = () => {
       AnalysisTypes.PerformAnalysis.Params.decode,
       AnalysisTypes.PerformAnalysis.Params.encode,
     )
-    t(
-      "vanilla_ClientTypes-Runtime-Dval-T_complete.json",
-      RT.Dval.decode,
-      RT.Dval.encode,
-    )
+    t("vanilla_ClientTypes-Runtime-Dval-T_complete.json", RT.Dval.decode, RT.Dval.encode)
     t("vanilla_ClientTypes-Ops-AddOpResultV1_simple.json", APIAddOps.decode, APIAddOps.encode)
     t(
       "vanilla_ClientTypes-Ops-AddOpParamsV1_simple.json",
