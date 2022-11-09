@@ -86,9 +86,7 @@ RUN echo "deb https://baltocdn.com/helm/stable/debian/ all main" > /etc/apt/sour
 
 # Deps:
 # - apt-transport-https for npm
-# - most libs re for ocaml
 # - net-tools for netstat
-# - esy packages need texinfo
 # - libgbm1 for playwright/chrome
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
@@ -103,11 +101,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       wget \
       sudo \
       locales \
-      libev-dev \
-      libgmp-dev \
-      pkg-config \
-      libcurl4-openssl-dev \
-      libpq-dev \
       postgresql-9.6 \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
@@ -132,14 +125,12 @@ RUN DEBIAN_FRONTEND=noninteractive \
       pgcli \
       ffmpeg \
       libssl-dev \
-      libssl-ocaml-dev \
       zlib1g-dev \
       pv \
       htop \
       net-tools \
       nginx=1.16.1-1~bionic \
       bash-completion \
-      texinfo \
       openssh-server \
       dnsutils \
       # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
@@ -186,29 +177,6 @@ ENV LC_ALL en_US.UTF-8
 # Frontend
 ############################
 RUN sudo npm install -g prettier@2.7.1
-
-# Esy is currently a nightmare. Upgrading to esy 6.6 is stalled because:
-# - esy 6.6 copies from ~/.esy to _esy, and in our container, that copy is
-#   cross-volume, so it fails with an EXDEV error.
-#
-# - this is solved by adding `{ prefixPath: "/home/dark/app/_esy/.esy" }` to
-#   .esyrc. However, this changes where esy keeps esy.lock, breaking the delicate
-#   balance of versions we have installed, and breaks in different ways involving
-#   dune-configurator, alcotest, and others.
-
-
-# This violates our "dark is the user" rule but we'll be getting rid of this
-# soon so don't spend the time making it work right
-USER root
-# esy uses the _build directory, none of the platform dirs are needed but
-# they take 150MB
-RUN npm install -g esy@0.5.8 --unsafe-perm=true \
-    && rm -Rf /root/.npm \
-    && rm -Rf /usr/lib/node_modules/esy/platform-*
-
-USER dark
-ENV PATH "$PATH:/home/dark/node_modules/.bin"
-ENV ESY__PROJECT=/home/dark/app
 
 ############################
 # Postgres
@@ -366,7 +334,6 @@ RUN sudo dotnet workload install wasm-tools
 
 # formatting
 RUN dotnet tool install fantomas-tool --version 4.7.9 -g
-RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 #############

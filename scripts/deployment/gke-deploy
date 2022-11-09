@@ -77,10 +77,7 @@ CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git
 # Actually do the deploy
 #############################
 
-# Old stuff
-kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -
-kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run=client | kubectl replace -f -
-# CLEANUP: we can remove the `nginx` configmap once the users are long gone
+# CLEANUP: we can remove the `nginx` configmap once the OCaml backend users are long gone
 
 # deploy the config for the newly-created deployment containers
 ./scripts/deployment/shipit release push --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"

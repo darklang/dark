@@ -49,11 +49,6 @@ do
     DEBUG_MODE_FLAG="--debug"
     shift
     ;;
-    --ocaml)
-    BASE_URL="http://darklang.localhost:8000"
-    BWD_BASE_URL=".builtwithdark.lvh.me:8000"
-    shift
-    ;;
     *)
     echo "Unexpected argument: $i"
     exit 1

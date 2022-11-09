@@ -16,9 +16,6 @@ fi
 
 # Sometimes these dirs leak out of the container, causing confusion and
 # slowness
-rm -Rf _build
-rm -Rf _esy
-rm -Rf .esy
 rm -Rf node_modules
 rm -Rf lib
 rm -Rf fsharp-backend/src/*/obj
@@ -72,9 +69,6 @@ fi
 MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 
 # Avoid docker syncing everything to the host, slowing compiles down by 5x
-MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/_build"
-MOUNTS+=" --mount type=volume,src=dark_dotesy,dst=/home/dark/.esy"
-MOUNTS+=" --mount type=volume,src=dark_esy,dst=/home/dark/app/_esy"
 MOUNTS+=" --mount type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build"
 MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
 MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
@@ -122,7 +116,6 @@ echo "Run the build"
 # for documentation of --init.
 # -p 5433:5432 to expose the postgres DB to outside the container
 # -p 2345:2345 to expose the cloud_sql_proxy to outside the container
-# -p 8000:8000 to expose the OCaml backend server
 # -p 9000:9000 to expose the F# api server
 # -p 11001:11001 to expose the F# bwd server
 # -cap-add & -security-opt to attach a gdb/strace to .net code
@@ -142,7 +135,6 @@ docker run \
   -v pglogs:/var/log/postgresql \
   -v pgdata:/var/lib/postgresql \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -p 8000:8000 \
   -p 9000:9000 \
   -p 11001:11001 \
   -p 5433:5432 \

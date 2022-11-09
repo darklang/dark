@@ -4,7 +4,6 @@
 set -euo pipefail
 
 CHECK=255 # (0 mean check, 1 means format, 255 means error)
-OCAML=0 # (0 means check ocaml files, 1 means don't)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
 FSHARP=0 # (0 means check fsharp files, 1 means don't)
 RESCRIPT=1 # (0 means check rescript files, 1 means don't)
@@ -22,7 +21,6 @@ function print_help ()
 	printf 'Usage: %s [check|format] <files|dirs...> [--help] \n' "$0"
 	printf '\t%s\n' "check: Error if files are not formatted. No argument means check all files. Does not error if file is not supported."
 	printf '\t%s\n' "format: Format file or dir. Formats all files with no argument. Does not error or format if file is not supported."
-  printf '\t%s\n' "--ocaml-only: Only check ocaml files (mli, ml)"
   printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
   printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
   printf '\t%s\n' "--include-rescript: Include rescript files (res, resi)"
@@ -39,15 +37,9 @@ for val in "${@}"; do
         exit 0
         ;;
     --prettier-only)
-        OCAML=1
-        FSHARP=1
-        ;;
-    --ocaml-only)
-        PRETTIER=1
         FSHARP=1
         ;;
     --fsharp-only)
-        OCAML=1
         PRETTIER=1
         ;;
     --include-rescript)
@@ -55,7 +47,6 @@ for val in "${@}"; do
         ;;
     --rescript-only)
         RESCRIPT=0
-        OCAML=1
         PRETTIER=1
         FSHARP=1
         ;;
@@ -90,10 +81,6 @@ is_dir() {
   [[ -d "$1" ]]
 }
 
-is_ocaml() {
-  [[ $1 == *.mli || $1 == *.ml ]]
-}
-
 is_fsharp() {
   [[ $1 == *.fs || $1 == *.fsi ]]
 }
@@ -104,7 +91,6 @@ is_rescript() {
 
 is_allowed() {
   [[ $1 == *.fs || $1 == *.fsi \
-    || $1 == *.mli || $1 == *.ml \
     || $1 == *.css || $1 == *.scss \
     || $1 == *.js || $1 == *.ts \
     || $1 == *.html
@@ -150,28 +136,6 @@ all_prettier_files() {
     -o -path "esy.json" \
     \) -print0 \
     | grep --null-data --invert-match reset-normalize
-}
-
-all_ocaml_files() {
-  find "$1" \
-    \( -path ".git" \
-    -o -path "_build" \
-    -o -path "./_build" \
-    -o -path "node_modules" \
-    -o -path "./node_modules" \
-    -o -path "integration-tests/node_modules" \
-    -o -path "./integration-tests/node_modules" \
-    -o -path "_esy" \
-    -o -path "./_esy" \
-    -o -path "/home/dark/.esy" \
-    -o -path "esy.lock" \
-    -o -path "fsharp-backend" \
-    \) -prune -false \
-    \
-    -o -type f \
-    \( -name "*.ml" \
-    -o -name "*.mli" \
-    \) -print0
 }
 
 all_fsharp_files() {
@@ -226,10 +190,6 @@ all_rescript_files() {
     \) -print
 }
 
-check_ocamlformat() {
-  xargs -0 ocamlformat --check
-}
-
 check_fantomas () {
   xargs fantomas --check
 }
@@ -242,10 +202,6 @@ check_rescript () {
   xargs -L1 ./scripts/formatting/rescript-check.sh
 }
 
-format_ocamlformat() {
-  xargs -0 ocamlformat --inplace
-}
-
 format_fantomas() {
   xargs fantomas
 }
@@ -256,14 +212,6 @@ format_prettier() {
 
 format_rescript() {
   xargs -L1 ./scripts/formatting/rescript-format.sh
-}
-
-do_ocamlformat() {
-  if [[ 0 -eq "$CHECK" ]]; then
-    check_ocamlformat
-  else
-    format_ocamlformat
-  fi
 }
 
 do_fantomas() {
@@ -299,9 +247,6 @@ do_rescript() {
 #######################
 for i in "${FILES[@]}"; do
   if [[ -d "$i" ]]; then
-    if [[ 0 -eq "$OCAML" ]]; then
-      all_ocaml_files "$i" | do_ocamlformat
-    fi
     if [[ 0 -eq "$FSHARP" ]]; then
       all_fsharp_files $i | do_fantomas
     fi
@@ -312,11 +257,7 @@ for i in "${FILES[@]}"; do
       all_rescript_files "$i" | do_rescript
     fi
   elif is_allowed "$i"; then
-    if is_ocaml "$i"; then
-      if [[ 0 -eq "$OCAML" ]]; then
-        echo "$i" | do_ocamlformat
-      fi
-    elif is_fsharp "$i"; then
+    if is_fsharp "$i"; then
       if [[ 0 -eq "$FSHARP" ]]; then
         echo "$i" | do_fantomas
       fi
