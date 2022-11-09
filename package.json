@@ -26,7 +26,7 @@
     "bs-fetch": "0.6.2",
     "bs-uuid": "0.3.1",
     "rescript-webapi": "0.7.0",
-    "rescript-tea": "0.16.0-alpha1",
+    "rescript-tea": "0.16.0",
     "clipboard-copy": "4.0.1",
     "domready": "1.0.8",
     "minimist": "1.2.7",
