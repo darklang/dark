@@ -52,8 +52,8 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
           )),
         },
         list{
-          Html.span(list{Attrs.class'("name")}, list{Html.text(name)}),
-          Html.span(list{Attrs.class'("types")}, list{Html.text(typeStr)}),
+          Html.span(list{Attrs.class("name")}, list{Html.text(name)}),
+          Html.span(list{Attrs.class("types")}, list{Html.text(typeStr)}),
         },
       )
     }, acis)
@@ -82,7 +82,7 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
         }
     )
 
-  let searchInput = Html.input'(
+  let searchInput = Html.input(
     list{
       Attrs.id(Defaults.entryID),
       Events.onInput(x => Msg.EntryInputMsg(x)),
@@ -116,7 +116,7 @@ let normalEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.h
   )
 
   Html.div(
-    list{Attrs.class'("entry")},
+    list{Attrs.class("entry")},
     list{
       Html.form(list{onSubmit(~key="esm2", _ => Msg.EntrySubmitMsg)}, list{input, autocomplete}),
     },
@@ -137,6 +137,6 @@ let viewEntry = (m: AppTypes.model): Html.html<AppTypes.msg> =>
     | None => Vdom.noProp
     }
 
-    Html.div(list{Attrs.class'("omnibox"), styleProp}, list{normalEntryHtml("", m.complete)})
+    Html.div(list{Attrs.class("omnibox"), styleProp}, list{normalEntryHtml("", m.complete)})
   | _ => Vdom.noNode
   }

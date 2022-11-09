@@ -28,7 +28,7 @@ let editorApiCall = (
   ~params: option<'param>=?,
   ~userAPI: bool=false,
   ~decoder: Js.Json.t => 'result,
-  ~callback: Tea.Result.t<'result, Tea.Http.error<string>> => 'msg,
+  ~callback: result<'result, Tea.Http.error<string>> => 'msg,
   endpoint: string,
 ): Callable.t<'msg> => {
   (clientData: clientData) => {
@@ -50,7 +50,7 @@ let editorApiCall = (
     | (None, None) => Web.XMLHttpRequest.EmptyBody
     }
     let request = Tea.Http.request({
-      method': method,
+      method: method,
       headers: list{
         Header("Content-type", "application/json"),
         Header("X-CSRF-Token", clientData.csrfToken),
@@ -79,7 +79,7 @@ let editorApiCall = (
 
 let editorGet = (
   ~decoder: Js.Json.t => 'result,
-  ~callback: Tea.Result.t<'result, Tea.Http.error<string>> => 'msg,
+  ~callback: result<'result, Tea.Http.error<string>> => 'msg,
   endpoint: string,
 ) => {
   editorApiCall(~method="GET", ~decoder, ~callback, endpoint)
@@ -90,7 +90,7 @@ let editorPost = (
   ~encoder: 'params => Js.Json.t,
   ~params: 'params,
   ~decoder: Js.Json.t => 'result,
-  ~callback: Tea.Result.t<'result, Tea.Http.error<string>> => 'msg,
+  ~callback: result<'result, Tea.Http.error<string>> => 'msg,
   endpoint: string,
 ) => {
   editorApiCall(~method="POST", ~userAPI, ~encoder, ~params, ~decoder, ~callback, endpoint)

@@ -6,7 +6,7 @@ module Attrs = Tea.Attrs
 module Msg = AppTypes.Msg
 
 let flagLinkLoc = (flag: string, currentlyEnabled: bool) => {
-  let loc = Tea_navigation.getLocation()
+  let loc = Tea.Navigation.Location.get()
   let newSearch =
     Url.queryParams()
     |> List.filter(~f=((k, _)) => k != flag)
@@ -56,20 +56,20 @@ let viewIntegrationTestButton = (testState: AppTypes.IntegrationTests.t<AppTypes
           EventListeners.eventNoPropagation(~key="fit", "mouseup", _ => Msg.FinishIntegrationTest),
           Attrs.src(""),
           Attrs.id("finishIntegrationTest"),
-          Attrs.class'("specialButton"),
+          Attrs.class("specialButton"),
         },
         list{Html.text("Finish integration tests")},
       ),
     }
   | IntegrationTestFinished(Ok()) => list{
       Html.div(
-        list{Attrs.id("integrationTestSignal"), Attrs.class'("specialButton success")},
+        list{Attrs.id("integrationTestSignal"), Attrs.class("specialButton success")},
         list{Html.text("success")},
       ),
     }
   | IntegrationTestFinished(Error(msg)) => list{
       Html.div(
-        list{Attrs.id("integrationTestSignal"), Attrs.class'("specialButton failure")},
+        list{Attrs.id("integrationTestSignal"), Attrs.class("specialButton failure")},
         list{\"<|"(Html.text, "failure: " ++ msg)},
       ),
     }
@@ -94,7 +94,7 @@ let viewError = (message: Error.t): Html.html<AppTypes.msg> => {
   let viewDismissBtn = list{
     Html.p(
       list{
-        Attrs.class'("dismissBtn"),
+        Attrs.class("dismissBtn"),
         EventListeners.eventNoPropagation("click", ~key="dismiss-error", _ => Msg.DismissErrorBar),
       },
       list{Html.text("Dismiss")},

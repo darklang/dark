@@ -5,15 +5,15 @@ let registerGlobal = (eventName, key, tagger, decoder) => {
     let fn = event => {
       open Tea_json.Decoder
       switch decodeEvent(decoder, event) {
-      | Tea_result.Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
-      | Tea_result.Ok(data) => Some(tagger(data))
+      | Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
+      | Ok(data) => Some(tagger(data))
       }
     }
 
     let handler = EventHandlerCallback(key, fn)
-    let elem = Web_node.document_node
-    let cache = eventHandler_Register(callbacks, elem, eventName, handler)
-    () => ignore(eventHandler_Unregister(elem, eventName, cache))
+    let eventTarget = Webapi.Dom.document |> Webapi.Dom.Document.asEventTarget
+    let cache = eventHandlerRegister(callbacks, eventTarget, eventName, handler)
+    () => ignore(eventHandlerUnregister(eventTarget, eventName, cache))
   }
 
   Tea_sub.registration(key, enableCall)
@@ -26,17 +26,15 @@ let registerGlobalDirect = (name, key, tagger) => {
     let callbacks = ref(callbacks_base)
     let fn = ev => Some(tagger(Obj.magic(ev)))
     let handler = EventHandlerCallback(key, fn)
-    let elem = Web_node.document_node
-    let cache = eventHandler_Register(callbacks, elem, name, handler)
-    () => ignore(eventHandler_Unregister(elem, name, cache))
+    let eventTarget = Webapi.Dom.document |> Webapi.Dom.Document.asEventTarget
+    let cache = eventHandlerRegister(callbacks, eventTarget, name, handler)
+    () => ignore(eventHandlerUnregister(eventTarget, name, cache))
   }
 
   Tea_sub.registration(key, enableCall)
 }
 
 module Window = {
-  @val external window_node: Web_node.t = "window"
-
   @ocaml.doc(" [registerListener eventName key decoder]
    * registers an event listener for the given [eventName]
    * under the rescript key [key] with the [decoder].
@@ -54,15 +52,15 @@ module Window = {
       let fn = event => {
         open Tea_json.Decoder
         switch decodeEvent(decoder, event) {
-        | Tea_result.Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
-        | Tea_result.Ok(data) => Some(data)
+        | Error(err) => Some(AppTypes.Msg.EventDecoderError(eventName, key, err))
+        | Ok(data) => Some(data)
         }
       }
 
       let handler = EventHandlerCallback(key, fn)
-      let elem = window_node
-      let cache = eventHandler_Register(callbacks, elem, eventName, handler)
-      () => ignore(eventHandler_Unregister(elem, eventName, cache))
+      let eventTarget = Webapi.Dom.window->Webapi.Dom.Window.asEventTarget
+      let cache = eventHandlerRegister(callbacks, eventTarget, eventName, handler)
+      () => ignore(eventHandlerUnregister(eventTarget, eventName, cache))
     }
 
     Tea_sub.registration(key, enableCall)

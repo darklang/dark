@@ -21,16 +21,16 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
   }
 
   let canvasView = list{
-    Html.p(list{Attrs.class'("canvas-list-title")}, list{Html.text("Personal canvases:")}),
-    Html.div(list{Attrs.class'("canvas-list")}, list{canvases}),
+    Html.p(list{Attrs.class("canvas-list-title")}, list{Html.text("Personal canvases:")}),
+    Html.div(list{Attrs.class("canvas-list")}, list{canvases}),
     Html.p(list{}, list{Html.text("Create a new canvas by navigating to the URL")}),
   }
 
   let orgs = List.map(settings.orgCanvasList, ~f=canvasLink) |> Html.ul(list{})
   let orgView = if List.length(settings.orgCanvasList) > 0 {
     list{
-      Html.p(list{Attrs.class'("canvas-list-title")}, list{Html.text("Shared canvases:")}),
-      Html.div(list{Attrs.class'("canvas-list")}, list{orgs}),
+      Html.p(list{Attrs.class("canvas-list-title")}, list{Html.text("Shared canvases:")}),
+      Html.div(list{Attrs.class("canvas-list")}, list{orgs}),
     }
   } else {
     list{Vdom.noNode}

@@ -332,9 +332,9 @@ let registerGlobal = (name, key, tagger) => {
       }
     let handler = Vdom.EventHandlerCallback(key, fn)
     // TODO: put on window, not document
-    let elem = Web_node.document_node
-    let cache = Vdom.eventHandler_Register(callbacks, elem, name, handler)
-    () => ignore(Vdom.eventHandler_Unregister(elem, name, cache))
+    let eventTarget = Webapi.Dom.document |> Webapi.Dom.Document.asEventTarget
+    let cache = Vdom.eventHandlerRegister(callbacks, eventTarget, name, handler)
+    () => ignore(Vdom.eventHandlerUnregister(eventTarget, name, cache))
   }
 
   Tea_sub.registration(key, enableCall)

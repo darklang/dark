@@ -91,7 +91,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
     if allowed {
       Html.div(
         list{
-          Attrs.class'("parameter-btn allowed"),
+          Attrs.class("parameter-btn allowed"),
           EventListeners.eventNoPropagation(
             ~key="dufp-" ++ TLID.toString(uf.tlid) ++ "-" ++ (p.nameID |> ID.toString),
             "click",
@@ -103,7 +103,7 @@ let viewKillParameterBtn = (uf: PT.UserFunction.t, p: PT.UserFunction.Parameter.
     } else {
       Html.div(
         list{
-          Attrs.class'("parameter-btn disallowed"),
+          Attrs.class("parameter-btn disallowed"),
           Attrs.title("Can't delete parameter because it is used in the function body"),
         },
         list{Icons.fontAwesome("times-circle")},
@@ -124,11 +124,13 @@ let viewParamType = (~classes: list<string>, vp: viewProps, v: BlankOr.t<DType.t
   msg,
 > => ViewBlankOr.viewType(~classes, ~enterable=true, ParamType, vp, v)
 
-let jsDragStart: Web.Node.event => unit = %raw(
+// TODO: use webapi
+let jsDragStart: Dom.event => unit = %raw(
   "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); e.dataTransfer.effectAllowed = 'move'; }"
 )
 
-let jsDragOver: Web.Node.event => unit = %raw("function(e){e.dataTransfer.dropEffect = 'move';}")
+// TODO: use webapi
+let jsDragOver: Dom.event => unit = %raw("function(e){e.dataTransfer.dropEffect = 'move';}")
 
 let viewParamSpace = (index: int, fs: FnParams.t): Html.html<msg> => {
   let dragOver = e => {
@@ -156,7 +158,7 @@ let viewParamSpace = (index: int, fs: FnParams.t): Html.html<msg> => {
 
   Html.div(
     list{
-      Attrs.class'("col space" ++ overClass),
+      Attrs.class("col space" ++ overClass),
       Vdom.attribute("", "data-pos", string_of_int(index)),
       onEvent(~event="dragover", ~key="fpsdo-" ++ keyId, Obj.magic(dragOver)),
       onEvent(~event="dragenter", ~key="fpsde-" ++ keyId, dragEnter),

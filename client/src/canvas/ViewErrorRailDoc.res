@@ -18,7 +18,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
 > => {
   let errorRail = Html.a(
     list{
-      Attrs.class'("link"),
+      Attrs.class("link"),
       Attrs.href("https://docs.darklang.com/discussion/error-handling#error-rail"),
       Attrs.target("_blank"),
     },

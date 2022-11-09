@@ -15,10 +15,10 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
     switch col {
     | {name: Some(name), typ: Some(typ), _} =>
       let html = Html.div(
-        list{Attrs.class'("field")},
+        list{Attrs.class("field")},
         list{
-          Html.div(list{Attrs.class'("name")}, list{Html.text(name)}),
-          Html.div(list{Attrs.class'("type")}, list{Html.text(DType.type2str(typ))}),
+          Html.div(list{Attrs.class("name")}, list{Html.text(name)}),
+          Html.div(list{Attrs.class("type")}, list{Html.text(DType.type2str(typ))}),
         },
       )
 
@@ -26,7 +26,7 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
     | _ => None
     }
 
-  Html.div(list{Attrs.class'("fields")}, List.filterMap(~f=colView, cols))
+  Html.div(list{Attrs.class("fields")}, List.filterMap(~f=colView, cols))
 }
 
 let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
@@ -56,10 +56,10 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
       },
     )
 
-    Html.div(list{Attrs.class'("field")}, list{name, ptype})
+    Html.div(list{Attrs.class("field")}, list{name, ptype})
   }
 
-  Html.div(list{Attrs.class'("fields")}, List.map(~f=paramView, params))
+  Html.div(list{Attrs.class("fields")}, List.map(~f=paramView, params))
 }
 
 let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg> => {
@@ -70,10 +70,10 @@ let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg>
       list{Html.text(DType.type2str(p.typ))},
     )
 
-    Html.div(list{Attrs.class'("field")}, list{name, ptype})
+    Html.div(list{Attrs.class("field")}, list{name, ptype})
   }
 
-  Html.div(list{Attrs.class'("fields")}, List.map(~f=paramView, params))
+  Html.div(list{Attrs.class("fields")}, List.map(~f=paramView, params))
 }
 
 let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
@@ -82,7 +82,7 @@ let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
     let typeStr = DType.type2str(v)
     Html.div(
       list{},
-      list{Html.text("Returns "), Html.span(list{Attrs.class'("type")}, list{Html.text(typeStr)})},
+      list{Html.text("Returns "), Html.span(list{Attrs.class("type")}, list{Html.text(typeStr)})},
     )
   | None => Vdom.noNode
   }
@@ -111,7 +111,7 @@ let dbView = (
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.class'("ref-block db " ++ direction),
+        Attrs.class("ref-block db " ++ direction),
         EventListeners.eventNoPropagation(
           ~key="ref-db-link" ++ TLID.toString(tlid),
           "click",
@@ -122,10 +122,10 @@ let dbView = (
     ),
     list{
       Html.div(
-        list{Attrs.class'("dbheader")},
+        list{Attrs.class("dbheader")},
         list{
           Icons.fontAwesome("database"),
-          Html.span(list{Attrs.class'("dbname")}, list{Html.text(name)}),
+          Html.span(list{Attrs.class("dbname")}, list{Html.text(name)}),
         },
       ),
       dbColsView(cols),
@@ -142,14 +142,14 @@ let handlerView = (
   module Spec = PT.Handler.Spec
   let modifier_ = switch Spec.modifier(spec) {
   | Some(F(_, "_")) | Some(F(_, "")) | Some(Blank(_)) | None => Vdom.noNode
-  | Some(F(_, m)) => Html.div(list{Attrs.class'("spec")}, list{Html.text(m)})
+  | Some(F(_, m)) => Html.div(list{Attrs.class("spec")}, list{Html.text(m)})
   }
   let space = Spec.space(spec)->B.toString
   let name = Spec.name(spec)->B.toString
 
   Html.div(
     list{
-      Attrs.class'("ref-block handler " ++ direction),
+      Attrs.class("ref-block handler " ++ direction),
       EventListeners.eventNoPropagation(
         ~key="ref-handler-link" ++ TLID.toString(tlid),
         "click",
@@ -158,8 +158,8 @@ let handlerView = (
       ...hoveringRefProps(originTLID, originIDs, ~key="ref-handler-hover"),
     },
     list{
-      Html.div(list{Attrs.class'("spec space")}, list{Html.text(space)}),
-      Html.div(list{Attrs.class'("spec")}, list{Html.text(name)}),
+      Html.div(list{Attrs.class("spec space")}, list{Html.text(space)}),
+      Html.div(list{Attrs.class("spec")}, list{Html.text(name)}),
       modifier_,
     },
   )
@@ -176,13 +176,13 @@ let fnView = (
 ): Html.html<msg> => {
   let header = list{
     Icons.darkIcon("fn"),
-    Html.span(list{Attrs.class'("fnname")}, list{Html.text(name)}),
+    Html.span(list{Attrs.class("fnname")}, list{Html.text(name)}),
   }
 
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.class'("ref-block fn " ++ direction),
+        Attrs.class("ref-block fn " ++ direction),
         EventListeners.eventNoPropagation(
           ~key="ref-fn-link" ++ TLID.toString(tlid),
           "click",
@@ -192,7 +192,7 @@ let fnView = (
       hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     ),
     list{
-      Html.div(list{Attrs.class'("fnheader fnheader-user")}, header),
+      Html.div(list{Attrs.class("fnheader fnheader-user")}, header),
       fnParamsView(params),
       fnReturnTypeView(returnType),
     },
@@ -211,12 +211,12 @@ let packageFnView = (
   // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f
   let header = list{
     Icons.fontAwesome("box-open"),
-    Html.span(list{Attrs.class'("fnname")}, list{Html.text(name)}),
+    Html.span(list{Attrs.class("fnname")}, list{Html.text(name)}),
   }
 
   Html.div(
     list{
-      Attrs.class'("ref-block pkg-fn " ++ direction),
+      Attrs.class("ref-block pkg-fn " ++ direction),
       EventListeners.eventNoPropagation(
         ~key="ref-fn-link" ++ TLID.toString(tlid),
         "click",
@@ -225,7 +225,7 @@ let packageFnView = (
       ...hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     },
     list{
-      Html.div(list{Attrs.class'("fnheader fnheader-pkg")}, header),
+      Html.div(list{Attrs.class("fnheader fnheader-pkg")}, header),
       packageFnParamsView(params),
       fnReturnTypeView(B.toOption(returnType)),
     },
@@ -242,13 +242,13 @@ let typeView = (
 ): Html.html<msg> => {
   let header = list{
     Icons.darkIcon("type"),
-    Html.span(list{Attrs.class'("typename")}, list{Html.text(name)}),
+    Html.span(list{Attrs.class("typename")}, list{Html.text(name)}),
   }
 
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.class'("ref-block typ " ++ direction),
+        Attrs.class("ref-block typ " ++ direction),
         EventListeners.eventNoPropagation(
           ~key="ref-typ-link" ++ TLID.toString(tlid),
           "click",
@@ -257,7 +257,7 @@ let typeView = (
       },
       hoveringRefProps(originTLID, originIDs, ~key="ref-typ-hover"),
     ),
-    list{Html.div(list{Attrs.class'("typeheader")}, header)},
+    list{Html.div(list{Attrs.class("typeheader")}, header)},
   )
 }
 

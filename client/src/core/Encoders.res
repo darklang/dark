@@ -18,7 +18,7 @@ let httpError = (e: Tea.Http.error<string>): Js.Json.t => {
     }
 
   let response = (r: Http.response) => {
-    module StringMap = Caml.Map.Make(Tc.Caml.String)
+    module StringMap = Belt.Map.String
     object_(list{
       ("url", string(r.url)),
       (
@@ -27,7 +27,7 @@ let httpError = (e: Tea.Http.error<string>): Js.Json.t => {
       ),
       (
         "headers",
-        r.headers |> StringMap.bindings |> List.map(~f=((k, v)) => (k, string(v))) |> object_,
+        r.headers |> StringMap.toList |> List.map(~f=((k, v)) => (k, string(v))) |> object_,
       ),
       ("body", responseBody(r.body)),
     })

@@ -248,7 +248,7 @@ let getSelectedTraceID = (m: model, tlid: TLID.t): option<traceID> => {
 module ReceiveAnalysis = {
   let decode: Tea.Json.Decoder.t<Js.Json.t, AnalysisTypes.PerformAnalysis.t> = {
     open Tea.Json.Decoder
-    map(msg => msg, field("detail", Decoder(json => Tea_result.Ok(Obj.magic(json)))))
+    map(msg => msg, field("detail", Decoder(json => Ok(Obj.magic(json)))))
   }
 
   let listen = tagger =>
@@ -258,7 +258,7 @@ module ReceiveAnalysis = {
 module ReceiveFetch = {
   let decode: Tea.Json.Decoder.t<Js.Json.t, APITypes.fetchResult> = {
     open Tea.Json.Decoder
-    map(msg => msg, field("detail", Decoder(json => Tea_result.Ok(Obj.magic(json)))))
+    map(msg => msg, field("detail", Decoder(json => Ok(Obj.magic(json)))))
   }
 
   let listen = tagger =>

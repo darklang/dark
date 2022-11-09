@@ -19,7 +19,7 @@ let exception_ = (j): exception_ => {
 }
 
 // Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format
-let wrapExpect = (fn: Js.Json.t => 'a): (string => Tea.Result.t<'ok, string>) =>
+let wrapExpect = (fn: Js.Json.t => 'a): (string => result<'ok, string>) =>
   j =>
     try Ok(fn(Json.parseOrRaise(j))) catch {
     | e =>
@@ -33,15 +33,13 @@ let wrapExpect = (fn: Js.Json.t => 'a): (string => Tea.Result.t<'ok, string>) =>
 // Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format
 let wrapDecoder = (fn: Js.Json.t => 'a): Tea.Json.Decoder.t<Js.Json.t, 'a> => Decoder(
   value =>
-    try Tea_result.Ok(fn(value)) catch {
+    try Ok(fn(value)) catch {
     | e =>
       reportError("undecodable json", value)
       switch e {
-      | DecodeError(e) | Json.ParseError(e) => Tea_result.Error(e)
+      | DecodeError(e) | Json.ParseError(e) => Error(e)
       | e =>
-        Tea_result.Error(
-          "Json error: " ++ Exception.toString(e)->Option.unwrap(~default="wrapDecoder error"),
-        )
+        Error("Json error: " ++ Exception.toString(e)->Option.unwrap(~default="wrapDecoder error"))
       }
     },
 )

@@ -179,10 +179,6 @@ let onKeydown = (evt: Dom.event): option<AppTypes.msg> =>
     }
   )
 
-let onLoseFocus = (_evt: Web.Node.event): option<AppTypes.msg> => Some(
-  FluidMsg(FluidCloseCmdPalette),
-)
-
 let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
   let viewCommands = (i, item) => {
     let highlighted = cp.index == i
@@ -207,14 +203,14 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
     )
   }
 
-  let filterInput = Html.input'(
+  let filterInput = Html.input(
     list{
       Attrs.id(filterInputID),
       Vdom.attribute("", "spellcheck", "false"),
       Attrs.autocomplete(false),
       Events.onInput(query => Msg.FluidMsg(FluidCommandsFilter(query))),
-      Events.onCB("keydown", "command-keydown", Obj.magic(onKeydown)),
-      Events.onCB("blur", "lose focus", onLoseFocus),
+      Events.onCB(~key="", "keydown", onKeydown),
+      Events.onBlur(Msg.FluidMsg(FluidCloseCmdPalette)),
     },
     list{},
   )
@@ -224,7 +220,7 @@ let viewCommandPalette = (cp: cmdState): Html.html<AppTypes.msg> => {
     list{Html.ul(list{}, List.mapWithIndex(~f=viewCommands, cp.commands))},
   )
 
-  Html.div(list{Attrs.class'("command-palette")}, list{filterInput, cmdsView})
+  Html.div(list{Attrs.class("command-palette")}, list{filterInput, cmdsView})
 }
 
 let cpSetIndex = (_m: model, i: int): modification => ReplaceAllModificationsWithThisOne(

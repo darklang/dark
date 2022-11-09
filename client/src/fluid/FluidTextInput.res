@@ -23,7 +23,7 @@ let fromInputEvent = (evt: Dom.event): option<msg> => {
   )
 
   decodeEvent(decoder, Obj.magic(evt))
-  |> Tea_result.result_to_option
+  |> Tea.Result.resultToOption
   |> Option.andThen(~f=x =>
     switch x {
     | {inputType: "insertText", data: Some(" ")} =>
@@ -58,10 +58,10 @@ let fromInputEvent = (evt: Dom.event): option<msg> => {
   )
 }
 
-let fromCompositionEndEvent = (evt: Web.Node.event): option<msg> => {
+let fromCompositionEndEvent = (evt: Dom.event): option<msg> => {
   open Tea.Json.Decoder
   decodeEvent(field("data", string), evt)
-  |> Tea_result.result_to_option
+  |> Tea_result.resultToOption
   |> Option.map(~f=data => {
     Webapi.Dom.Event.preventDefault(Obj.magic(evt))
     Msg.FluidMsg(FluidInputEvent(InsertText(data)))

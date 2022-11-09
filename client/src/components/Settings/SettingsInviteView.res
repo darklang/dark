@@ -40,7 +40,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
 
       Html.button(
         list{
-          Attrs.class'("submit-btn"),
+          Attrs.class("submit-btn"),
           Html.Attributes.disabled(state.loading),
           EventListeners.eventNoPropagation(
             ~key="close-settings-modal",
@@ -54,16 +54,16 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
 
     list{
       Html.div(
-        list{Attrs.class'("invite-form")},
+        list{Attrs.class("invite-form")},
         list{
           Html.div(
-            list{Attrs.class'("form-field")},
+            list{Attrs.class("form-field")},
             list{
               Html.h3(list{}, list{Html.text("Email:")}),
               Html.div(
                 list{},
                 list{
-                  Html.input'(
+                  Html.input(
                     list{
                       Vdom.attribute("", "spellcheck", "false"),
                       Events.onInput(str => AppTypes.Msg.SettingsMsg(
@@ -74,7 +74,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
                     list{},
                   ),
                   Html.p(
-                    list{Attrs.class'("error-text")},
+                    list{Attrs.class("error-text")},
                     list{Html.text(state.email.error |> Option.unwrap(~default=""))},
                   ),
                 },

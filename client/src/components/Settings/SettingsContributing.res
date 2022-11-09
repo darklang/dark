@@ -33,12 +33,12 @@ module TunnelHost = {
 
   @ppx.deriving(show)
   type rec msg =
-    | LoadAPICallback(Tea.Result.t<values, Tea.Http.error<string>>)
+    | LoadAPICallback(result<values, Tea.Http.error<string>>)
     | InputEdit(string)
     | InputUnfocus
     | Submit
     // Track parameter in case user has changed it
-    | SaveAPICallback(values, Tea.Result.t<bool, Tea.Http.error<string>>)
+    | SaveAPICallback(values, result<bool, Tea.Http.error<string>>)
 
   module API = {
     module JD = Json.Decode
@@ -101,7 +101,7 @@ module TunnelHost = {
   let update = (state: t, msg: msg): (t, Intent.t<'msg>) => {
     switch msg {
     | LoadAPICallback(Error(e)) =>
-      let errorStr = Tea.Http.string_of_error(e)
+      let errorStr = Tea.Http.stringOfError(e)
       ({...state, error: Some(`Load error: ${errorStr}`), loadStatus: LoadStatus.Error}, NoIntent)
 
     | LoadAPICallback(Ok(original)) => (
@@ -130,7 +130,7 @@ module TunnelHost = {
       }
 
     | SaveAPICallback(_, Error(e)) =>
-      let error = Some(Tea.Http.string_of_error(e))
+      let error = Some(Tea.Http.stringOfError(e))
       ({...state, error: error, saveStatus: NotSaving}, NoIntent)
 
     | SaveAPICallback(savedValue, Ok(true)) => (

@@ -16,12 +16,12 @@ let clientVersionHeader = (m: model): Tea_http.header => Header(
 let apiCallPreloaded = (
   m: model,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  ~callback: Result.t<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = Tea.Http.request({
-    method': "GET", // NEVER USE THIS FOR NON-GET, due to CSRF
+    method: "GET", // NEVER USE THIS FOR NON-GET, due to CSRF
     // In order for these requests to be fulfilled by the preload, they need to have
     // the EXACT same headers. As a result, we don't send any headers here, omitting:
     // - client-version: just for monitoring
@@ -42,12 +42,12 @@ let apiCallPreloaded = (
 let apiCallNoParams = (
   m: model,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  ~callback: result<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = Tea.Http.request({
-    method': "POST",
+    method: "POST",
     headers: list{
       Header("Content-type", "application/json"),
       Header("X-CSRF-Token", m.csrfToken),
@@ -72,7 +72,7 @@ let postJson = (
   body: Js.Json.t,
 ) =>
   Tea.Http.request({
-    method': "POST",
+    method: "POST",
     headers: list{
       Header("Content-type", "application/json"),
       Header("X-CSRF-Token", csrfToken),
@@ -90,7 +90,7 @@ let apiCall = (
   ~encoder: 'paramtype => Js.Json.t,
   ~params: 'paramtype,
   ~decoder: Js.Json.t => 'resulttype,
-  ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
+  ~callback: result<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): cmd => {
   let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint

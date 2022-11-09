@@ -100,7 +100,7 @@ let viewAllAvatars = (avatars: list<Avatar.t>): Html.html<msg> => {
   }
   Html.div(
     list{Attrs.classes([outerStyle, hide])},
-    list{Html.div(list{Attrs.class'("avatars-wrapper")}, avatarView), Html.text("Other users")},
+    list{Html.div(list{Attrs.class("avatars-wrapper")}, avatarView), Html.text("Other users")},
   )
 }
 

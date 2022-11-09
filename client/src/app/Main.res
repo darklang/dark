@@ -64,7 +64,7 @@ let manageBrowserId = (): string =>
     newBrowserId
   }
 
-let init = (encodedParamString: string, location: Web.Location.location) => {
+let init = (encodedParamString: string, location: Tea.Navigation.Location.t) => {
   let {
     canvasName,
     complete,
@@ -1422,7 +1422,7 @@ let update_ = (msg: msg, m: model): modification => {
 
     UpdateTraces(traces)
   | FetchAllTracesAPICallback(Error(x)) =>
-    Model.updateErrorMod(Error.set("Failed to load traces: " ++ Tea_http.string_of_error(x)))
+    Model.updateErrorMod(Error.set("Failed to load traces: " ++ Tea_http.stringOfError(x)))
   | InitialLoadAPICallback(focus, extraMod /* for integration tests, maybe more */, Ok(r)) =>
     let pfM = {
       ...m,
@@ -1773,7 +1773,7 @@ let update_ = (msg: msg, m: model): modification => {
       ),
     )
   | SaveTestAPICallback(Error(err)) =>
-    Model.updateErrorMod(Error.set("Error: " ++ Tea_http.string_of_error(err)))
+    Model.updateErrorMod(Error.set("Error: " ++ Tea.Http.stringOfError(err)))
   | ExecuteFunctionAPICallback(params, Error(err)) =>
     HandleAPIError(
       APIError.make(
@@ -2195,7 +2195,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let rand = Random.int(10000000)->Int.to_string
-  let renderSubs = list{Tea.Ex.render_event(~key="renderEvent" ++ rand, AppTypes.Msg.RenderEvent)}
+  let renderSubs = list{Tea.Ex.renderEvent(~key="renderEvent" ++ rand, AppTypes.Msg.RenderEvent)}
 
   let windowMouseSubs = list{
     BrowserSubscriptions.Window.Mouse.ups(~key="win_mouse_up", event => WindowMouseUp(event)),
@@ -2287,10 +2287,10 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
 }
 
 let debugging = {
-  let prog = Tea.Debug.debug_program(
+  let prog = Tea.Debug.debugProgram(
     Json.stringifyAlways,
     {
-      init: a => init(a, Tea.Navigation.getLocation()),
+      init: a => init(a, Tea.Navigation.Location.get()),
       view: View.view,
       update: update,
       subscriptions: subscriptions,

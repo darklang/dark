@@ -9,7 +9,7 @@ let msgLink = (~key: string, content: Html.html<AppTypes.msg>, handler: AppTypes
   AppTypes.msg,
 > => {
   let event = EventListeners.eventNeither(~key, "mouseup", _ => handler)
-  Html.a(list{event, Attrs.class'("")}, list{content})
+  Html.a(list{event, Attrs.class("")}, list{content})
 }
 
 let html = (_m: AppTypes.model) =>
@@ -23,7 +23,7 @@ let html = (_m: AppTypes.model) =>
   if false /* m.showTopbar */ {
     let url = {
       let qp = ""
-      let loc = {...Tea.Navigation.getLocation(), search: qp}
+      let loc = {...Tea.Navigation.Location.get(), search: qp}
       loc.protocol ++ ("//" ++ (loc.host ++ (loc.pathname ++ (loc.search ++ loc.hash))))
     }
 
