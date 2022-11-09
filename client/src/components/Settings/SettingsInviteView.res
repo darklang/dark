@@ -42,6 +42,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
 
     C.submitBtn(
       ~style="ml-2",
+          Html.Attributes.disabled(state.loading),
           EventListeners.eventNoPropagation(
             ~key="close-settings-modal",
             "click",

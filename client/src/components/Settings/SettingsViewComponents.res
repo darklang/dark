@@ -124,6 +124,7 @@ let button = (
 
 let submitBtn = (
   ~style="",
+  loadingState: Vdom.property<'msg>,
   msgAttr: Vdom.property<'msg>,
   contents: list<Html.html<'msg>>,
 ): Html.html<'msg> => {
@@ -135,6 +136,7 @@ let submitBtn = (
           "flex items-center justify-center w-auto rounded py-2.5 px-3.5 mt-9 cursor-pointer text-white1 bg-grey2 hover:bg-grey1"
         ),
       ]),
+      loadingState,
       msgAttr,
     },
     list{...contents},
