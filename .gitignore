@@ -15,6 +15,7 @@ rundir/
 # Frontend
 lib/
 node_modules/
+.merlin
 
 # F#
 fsharp-backend/packages/
