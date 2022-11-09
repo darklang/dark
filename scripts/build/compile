@@ -169,8 +169,7 @@ def circleci_validate():
 
 def test_nginx():
   start = time.time()
-  result &= run_backend(start, "sudo nginx -t -c /etc/nginx-apiserver/nginx.conf")
-  return result
+  return run_backend(start, "sudo nginx -t -c /etc/nginx-apiserver/nginx.conf")
 
 
 ###########
