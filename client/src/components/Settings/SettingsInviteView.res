@@ -66,14 +66,12 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
                     ~attrs=list{
                       Attrs.spellcheck(false),
                       Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                                    Settings.InviteMsg(T.Update(str)),)),
+                        Settings.InviteMsg(T.Update(str)),
+                      )),
                       Attrs.value(state.email.value),
                     },
                   ),
-                  Html.p(
-                    list{Attrs.class'(%twc("text-red h-6 m-0"))},
-                    list{Html.text(state.email.error |> Option.unwrap(~default=""))},
-                  ),
+                  C.errorSpan(state.email.error |> Option.unwrap(~default="")),
                 },
               ),
             },

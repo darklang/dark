@@ -159,8 +159,7 @@ let errorSpan = (error: string): Html.html<'msg> => {
     list{},
     list{
       Html.p(
-        // TODO: use tailwind
-        list{Attrs.class("error-text")},
+        list{Attrs.class(%twc("text-red h-6 m-0"))},
         list{Html.text(error)},
       ),
     },
