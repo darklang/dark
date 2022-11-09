@@ -9,6 +9,8 @@ module Utils = SettingsUtils
 
 module T = SettingsInvite
 
+module C = SettingsViewComponents
+
 let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
     Html.h2(list{}, list{Html.text("Share Dark with a friend or colleague")}),
@@ -33,48 +35,43 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
   let inviteform = {
     let submitBtn = {
       let btn = if state.loading {
-        list{Icons.fontAwesome("spinner"), Html.h3(list{}, list{Html.text("Loading")})}
+        list{Icons.fontAwesome("spinner"), Html.h3(list{Attrs.class'(%twc("m-0 pl-2.5"))}, list{Html.text("Loading")})}
       } else {
-        list{Html.h3(list{}, list{Html.text("Send invite")})}
+        list{Html.h3(list{Attrs.class'(%twc("m-0"))}, list{Html.text("Send invite")})}
       }
 
-      Html.button(
-        list{
-          Attrs.class'("submit-btn"),
-          Html.Attributes.disabled(state.loading),
+    C.submitBtn(
+      ~style="ml-2",
           EventListeners.eventNoPropagation(
             ~key="close-settings-modal",
             "click",
             _ => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(T.Submit)),
           ),
-        },
-        btn,
-      )
+          btn,
+    )
     }
-
     list{
       Html.div(
-        list{Attrs.class'("invite-form")},
+        list{Attrs.class'(%twc("flex items-center justify-center flex-col"))},
         list{
           Html.div(
-            list{Attrs.class'("form-field")},
+            list{Attrs.class'(%twc("flex items-baseline justify-around w-full max-w-lg mt-6 flex-wrap"))},
             list{
-              Html.h3(list{}, list{Html.text("Email:")}),
+              Html.h3(list{Attrs.class'(%twc("m-0"))}, list{Html.text("Email:")}),
               Html.div(
                 list{},
                 list{
-                  Html.input'(
-                    list{
-                      Vdom.attribute("", "spellcheck", "false"),
+                  C.emailInput(
+                    ~style="",
+                    ~attrs=list{
+                      Attrs.spellcheck(false),
                       Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                        Settings.InviteMsg(T.Update(str)),
-                      )),
+                                    Settings.InviteMsg(T.Update(str)),)),
                       Attrs.value(state.email.value),
                     },
-                    list{},
                   ),
                   Html.p(
-                    list{Attrs.class'("error-text")},
+                    list{Attrs.class'(%twc("text-red h-6 m-0"))},
                     list{Html.text(state.email.error |> Option.unwrap(~default=""))},
                   ),
                 },
@@ -86,6 +83,5 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
       ),
     }
   }
-
   Belt.List.concat(introText, inviteform)
 }

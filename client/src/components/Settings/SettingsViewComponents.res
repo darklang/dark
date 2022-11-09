@@ -121,6 +121,26 @@ let button = (
   )
 }
 
+
+let submitBtn = (
+  ~style="",
+  msgAttr: Vdom.property<'msg>,
+  contents: list<Html.html<'msg>>,
+): Html.html<'msg> => {
+  Html.button(
+    list{
+      Attrs.classes([
+        style,
+        %twc(
+          "flex items-center justify-center w-auto rounded py-2.5 px-3.5 mt-9 cursor-pointer text-white1 bg-grey2 hover:bg-grey1"
+        ),
+      ]),
+      msgAttr,
+    },
+    list{...contents},
+  )
+}
+
 // -------------------
 // Content components
 // -------------------
@@ -175,6 +195,24 @@ let input = (
         list{},
       ),
       loadingSpinner,
+    },
+  )
+}
+
+let emailInput = (
+  ~style="",
+  ~attrs: list<Attrs.property<'msg>>,
+) => {
+  Html.span(
+    list{},
+    list{
+      Html.input'(
+        list{
+          Attrs.classes([style, %twc("bg-black3 py-0 px-2.5 min-h-[35px] min-w-[35ch] caret-grey8 text-white1")]),
+          ...List.concat(list{attrs}),
+        },
+        list{},
+      ),
     },
   )
 }
