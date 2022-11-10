@@ -228,8 +228,8 @@ let personMetadata (person : Person) : Metadata =
 /// Sends exception to Rollbar and also to Telemetry (honeycomb) and also prints it.
 /// The error is titled after the exception message - to change it wrap it in another
 /// exception. However, it's better to keep the existing exception and add extra
-/// context via metadata. For nested exceptions: the printException function and Telemetry.addException are recursive and capture nested exceptions.
-
+/// context via metadata. For nested exceptions: the printException function and
+/// Telemetry.addException are recursive and capture nested exceptions.
 let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
   try
     // don't include exception metadata, as the other functions do
@@ -449,6 +449,8 @@ let init (serviceName : string) : unit =
   //     [||]
   //   )
   // |> ignore<obj>
+
+  Prelude.rollbarExceptionInBackground <- fun msg metadata -> sendError msg metadata
 
   print " Configured rollbar"
   ()
