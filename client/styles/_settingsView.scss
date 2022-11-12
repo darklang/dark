@@ -62,50 +62,7 @@
       margin-bottom: 25px;
     }
   }
-  // Account view (canvas list)
-  .canvas-list {
-    min-height: 35px;
-    max-height: 200px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    width: 100%;
-    background: $grey1;
-    border-radius: 5px;
 
-    &::-webkit-scrollbar-corner {
-      background: rgba(100, 100, 100, 0);
-    }
-
-    &::-webkit-scrollbar {
-      width: 15px;
-    }
-    &::-webkit-scrollbar-track {
-      background-color: $grey2;
-      border-radius: 10px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: $black3;
-      height: 30px;
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background: $black2;
-    }
-    li {
-      a {
-        text-decoration: none;
-        color: $white1;
-        cursor: pointer;
-
-        &:hover {
-          color: $purple;
-        }
-      }
-      list-style-type: none;
-      padding: 5px 8px;
-    }
-  }
   // Invite to dark
   .invite-form {
     display: flex;
