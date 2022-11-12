@@ -62,41 +62,6 @@
       margin-bottom: 25px;
     }
   }
-
-  // Invite to dark
-  .invite-form {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    h3 {
-      margin: 0px;
-    }
-    .error-text {
-      color: $red;
-      margin: 0px;
-      height: 25px;
-    }
-    .form-field {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-around;
-      width: 100%;
-      max-width: 550px;
-      flex-wrap: wrap;
-      margin-top: 25px;
-      input {
-        @extend .modal-form-input;
-      }
-    }
-    .submit-btn {
-      @extend .modal-form-button;
-      width: auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-  }
 }
 
 // Setting Rows
