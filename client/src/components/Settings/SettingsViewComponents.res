@@ -200,3 +200,6 @@ let settingRow = (
     },
   )
 }
+
+let listView = listContent =>
+ Html.div(list{Attrs.class(%twc("min-h-[35px] max-h-52 overflow-y-auto overflow-x-hidden w-full bg-grey1 rounded-md"))}, listContent)
