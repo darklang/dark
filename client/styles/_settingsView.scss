@@ -64,6 +64,31 @@
   }
 }
 
+//Scrollbar
+    .canvas-list-scrollbar {
+      &::-webkit-scrollbar-corner {
+        background: rgba(100, 100, 100, 0);
+      }
+
+      &::-webkit-scrollbar {
+        width: 15px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background-color: $grey2;
+        border-radius: 10px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: $black3;
+        height: 30px;
+      }
+
+      &::-webkit-scrollbar-thumb:hover {
+        background: $black2;
+      }
+    }
+
 // Setting Rows
 .setting-row {
   width: 100%;
