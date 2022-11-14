@@ -468,8 +468,8 @@ module PersistedSerializations =
       let missingTypes = Set.difference actual expected
       let extraTypes = Set.difference expected actual
 
-      Expect.equal missingTypes Set.empty "missing files"
-      Expect.equal extraTypes Set.empty "extra files"
+      Expect.equal missingTypes Set.empty "missing types"
+      Expect.equal extraTypes Set.empty "extra types"
     }
 
   let testNoMissingOrExtraOutputTestFiles : Test =

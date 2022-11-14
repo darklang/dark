@@ -88,8 +88,7 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
 // This is for tracing
 let mutable exceptionCallback = (fun (e : exn) -> ())
 
-let mutable rollbarException =
-  (fun (message : string) (metadata : Metadata) -> ())
+let mutable rollbarException = (fun (message : string) (metadata : Metadata) -> ())
 
 module Exception =
 

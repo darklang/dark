@@ -421,22 +421,10 @@ let testListUsingProperty
         testTask $"{name} {doc}" { return (Expect.isTrue (prop testCase) "") })
       list)
 
-// Many OCaml errors use a bunch of different fields, which seemed smart at the
-// time but ultimately was pretty annoying. We can normalize by fetching the
-// "short" field (there are other fields but we'll ignore them)
-type OCamlError = { short : string }
-
-// CLEANUP should be able to remove this
-let parseOCamlError (str : string) : string =
-  try
-    (Json.Vanilla.deserialize<OCamlError> str).short
-  with
-  | _ -> str
-
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DError (_, str) -> RT.DError(RT.SourceNone, parseOCamlError str)
+  | RT.DError (_, str) -> RT.DError(RT.SourceNone, str)
   | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
