@@ -88,8 +88,8 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
 // This is for tracing
 let mutable exceptionCallback = (fun (e : exn) -> ())
 
-let mutable rollbarExceptionInBackground =
-  (fun (asError : bool) (message : string) (metadata : Metadata) -> ())
+let mutable rollbarException =
+  (fun (message : string) (metadata : Metadata) -> ())
 
 module Exception =
 
@@ -1082,8 +1082,7 @@ module Json =
 
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
-        rollbarExceptionInBackground
-          false
+        rollbarException
           "Invalid serialization call to type not allowed: add `Json.Vanilla.allow<type>()` to allow it to be serialized"
           [ "type", string t ]
 
