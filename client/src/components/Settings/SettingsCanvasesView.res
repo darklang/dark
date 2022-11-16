@@ -3,6 +3,9 @@ open Tc
 module Html = Tea.Html
 module Attrs = Tea.Html.Attributes
 module Utils = SettingsUtils
+module Events = Tea.Html.Events
+
+let tw = Attrs.class
 
 module T = SettingsCanvases
 
@@ -24,8 +27,42 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
 
   let canvasView = list{
     Html.p(list{}, list{Html.text("Personal canvases:")}),
-    C.listView(list{canvases}),
-    Html.p(list{}, list{Html.text("Create a new canvas by navigating to the URL")}),
+    C.listView(list{canvases}),}
+
+  let createCanvas =  {
+    let field = Html.span(
+      list{},
+      list{
+        C.emailInput(
+          ~style="ml-1",
+          ~attrs=list{
+            Attrs.placeholder("canvas-name"),
+            Attrs.spellcheck(false),
+            Events.onInput(str => AppTypes.Msg.SettingsMsg(
+              Settings.CanvasesMsg(T.Update(str)),
+              )),
+            Attrs.value(settings.newCanvasName.value),
+          },
+        ),
+      },
+    )
+
+    let newCanvasUrl= `https://darklang.com/a/${settings.username}-${settings.canvasName}`
+
+    let button = {
+      Html.a(list{Attrs.href(newCanvasUrl),tw(%twc("ml-3 rounded h-9 px-2.5 py-2 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer"))},list{Html.text("Create")})
+    }
+
+    let row = Html.div(list{tw(%twc("inline-block mt-4"))},
+      list{
+        C.settingRow(
+        ~info=None,
+        ~error=None,
+        `Create a new canvas: ${settings.username}-`,
+        list{field, button},)
+      }
+    )
+    Html.div(list{}, list{row})
   }
 
   let orgs = List.map(settings.orgCanvasList, ~f=canvasLink) |> Html.ul(list{})
@@ -38,5 +75,5 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
     list{Vdom.noNode}
   }
 
-  Belt.List.concat(orgView, canvasView)
+  Belt.List.concatMany([orgView, canvasView,list{createCanvas}])
 }
