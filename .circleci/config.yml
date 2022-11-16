@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:544800e
+      - image: darklang/dark-base:b1596ba
 
 commands:
   show-large-files-and-directories:
@@ -229,54 +229,6 @@ jobs:
             - backend/static/
       - store_artifacts: { path: rundir }
       - store_artifacts: { path: backend/static/etags.json }
-      - store_test_results: { path: rundir/test_results }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  build-backend:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - restore_cache:
-          keys:
-            - v9-backend-{{ checksum "esy.json" }}
-            - v9-backend
-      - show-large-files-and-directories
-      - run: scripts/build/compile-project --test backend
-      - assert-clean-worktree
-      # Doesn't need to be run post-build, but takes <1s to run
-      - run: scripts/linting/ocaml-find-unused backend/test
-      - persist_to_workspace:
-          # Do this before reducing size of cache
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - _build/default/backend/bin/server.exe
-            - _build/default/backend/bin/garbage_collector_worker.exe
-            - _build/default/backend/bin/legacy_serialization_server.exe
-            - _build/default/backend/bin/legacy_fuzzing_server.exe
-      - run:
-          name: Reduce size of esy cache
-          command: |
-            set -x
-            rm -Rf /home/dark/.esy/3/b
-            # It seems like everything builds and rebuilds fine without
-            # these. Other files are needed: .o, .a, .cma, .cmx.
-            shopt -s globstar
-            rm -f /home/dark/.esy/3/i/**/*.cmt
-            rm -f /home/dark/.esy/3/i/**/*.cmti
-            rm -f /home/dark/.esy/3/i/**/*.byte
-            # These can be very cheaply rebuilt, and are about 400MB
-            rm -f /home/dark/app/_build/default/backend/*/*.exe
-      - show-large-files-and-directories
-      - save_cache:
-          paths:
-            - _build
-            - node_modules
-            - /home/dark/.esy
-          key: v9-backend-{{ checksum "esy.json" }}
-      - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
@@ -526,7 +478,6 @@ workflows:
             branches:
               ignore: /^(pull\/).*$/
       - validate-honeycomb-config
-      - build-backend
       - build-client
       - build-fsharp-backend
       - build-fsharp-blazor
@@ -534,7 +485,6 @@ workflows:
       # expensive tests
       - integration-tests:
           requires:
-            - build-backend
             - build-client
             - build-fsharp-blazor
             - build-fsharp-backend
@@ -546,7 +496,6 @@ workflows:
               ignore: main
           requires:
             - build-client # to rebuild etags
-            - build-backend
             - build-fsharp-backend
             - build-fsharp-blazor # etags
 
@@ -556,7 +505,6 @@ workflows:
             branches:
               only: main
           requires:
-            - build-backend
             - build-fsharp-blazor
             - build-fsharp-backend
             - build-client
@@ -567,7 +515,6 @@ workflows:
             branches:
               only: main
           requires:
-            - build-backend
             - build-fsharp-backend
             # CLEANUP: need this because of etags, should be able to remove it
             - build-fsharp-blazor
@@ -597,7 +544,6 @@ workflows:
             branches:
               ignore: main
           requires:
-            - build-backend
             - build-client
             - build-fsharp-backend
             - build-fsharp-blazor

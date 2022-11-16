@@ -13,11 +13,6 @@ until [[ "$(sudo netstat -ltnp | grep -w ':9000')" == "" ]]; do
   sleep 0.1
 done
 
-until [[ "$(sudo netstat -ltnp | grep -w ':8000')" == "" ]]; do
-  echo "Waiting for nginx (ocaml) to die..."
-  sleep 0.1
-done
-
 ##################
 # Set up each server individually, not sharing config, to match production
 ##################
@@ -77,8 +72,6 @@ setup_test() {
 }
 
 sudo rm -f /etc/nginx/nginx.conf
-setup ocaml containers/ocaml-nginx/ containers/ocaml-nginx/base-nginx.conf
 setup apiserver services/apiserver-deployment-darklang/ containers/base-fsharp-nginx.conf
-setup_test ocaml containers/ocaml-nginx/ containers/ocaml-nginx/base-nginx.conf 8000 10000 8081 10001
 setup_test apiserver services/apiserver-deployment-darklang/ containers/base-fsharp-nginx.conf 9000 10020 9001 10021
 

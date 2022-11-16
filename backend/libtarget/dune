@@ -1,4 +1,0 @@
-(library
-  (name libtarget)
-  (libraries core_kernel)
-  (virtual_modules libtarget))

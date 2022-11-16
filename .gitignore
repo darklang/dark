@@ -1,10 +1,4 @@
-# OCaml
-.merlin
-_build/
-_esy/
-tags
-/backend/profile.json
-/backend/static/
+/backend/static
 
 # OSes
 .DS_Store
@@ -21,6 +15,7 @@ rundir/
 # Frontend
 lib/
 node_modules/
+.merlin
 
 # F#
 fsharp-backend/packages/
