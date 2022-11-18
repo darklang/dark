@@ -241,4 +241,4 @@ let settingRow = (
 }
 
 let listView = listContent =>
- Html.div(list{tw(%twc("min-h-[35px] max-h-[200px] overflow-y-auto overflow-x-hidden w-full bg-grey1 rounded-md scrollbar scrollbar-thumb-black3 scrollbar-track-grey2 hover:scrollbar-thumb-black2 scrollbar-track-rounded-lg"))}, listContent)
+ Html.div(list{tw(%twc("min-h-[35px] max-h-[200px] overflow-y-auto overflow-x-hidden w-full bg-grey1 rounded-md scrollbar-thin scrollbar-thumb-black3 scrollbar-track-grey2 hover:scrollbar-thumb-black2 scrollbar-track-rounded-lg"))}, listContent)
