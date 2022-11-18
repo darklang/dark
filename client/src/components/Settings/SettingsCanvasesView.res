@@ -54,9 +54,9 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
 
     let button = {
       if Js.String.length(settings.newCanvasName.value) == 0 || Js.Option.isSome(settings.newCanvasName.error){
-        Html.a(list{tw(%twc("ml-3 rounded h-8 px-2.5 pt-2 pb-0 bg-black3 text-grey9 text-base font-semibold no-underline text-white1"))},list{Html.text("Create")})
+        Html.a(list{tw(%twc("ml-3 rounded px-2.5 py-2 bg-black3 text-grey9 text-base font-semibold no-underline text-white1"))},list{Html.text("Create")})
       } else{
-      Html.a(list{Attrs.href(newCanvasUrl),tw(%twc("ml-3 rounded h-8 px-2.5 pt-2 pb-0 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer"))},list{Html.text("Create")})
+      Html.a(list{Attrs.href(newCanvasUrl),tw(%twc("ml-3 rounded px-2.5 py-2 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer"))},list{Html.text("Create")})
       }
     }
 
