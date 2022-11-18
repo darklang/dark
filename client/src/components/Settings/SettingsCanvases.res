@@ -11,14 +11,13 @@ type rec t = {
   orgs: list<string>,
   orgCanvasList: list<string>, // This is org canvases, not orgs themselves
   newCanvasName: Utils.formField,
-  canvasName: string,
 }
 
 @ppx.deriving(show)
 type rec msg =
  Update(string)
 
-let default = {canvasList: list{}, username: "", orgs: list{}, orgCanvasList: list{}, newCanvasName: Utils.defaultFormField, canvasName: "",}
+let default = {canvasList: list{}, username: "", orgs: list{}, orgCanvasList: list{}, newCanvasName: Utils.defaultFormField,}
 
 let toSaved = _ => Js.Json.null
 
@@ -36,8 +35,27 @@ let setInfo = (
   orgCanvasList: orgCanvasList,
 }
 
+let validateCanvasName = (newCanvasName: Utils.formField): Utils.formField =>{
+  let error = {
+    let canvasName = newCanvasName.value
+    if !Js.Re.test_(%re("/^[A-Za-z0-9-]*$/"), canvasName){
+      Some("Invalid Canvas Name")
+    }else{
+        None
+    }
+  }
+  {...newCanvasName, error: error}
+}
+
+
 let update = (state: t, msg: msg):(t) =>
   switch msg {
-    | Update(value) => ({...state, newCanvasName: {value: value, error: None}, canvasName:value})
+    | Update(value) =>
+      let isInvalid= validateCanvasName(state.newCanvasName)
+      if Js.Option.isSome(isInvalid.error){
+      ({...state, newCanvasName: {value: value, error:isInvalid.error}})
+      }else{
+      ({...state, newCanvasName: {value: value, error:None}})
+      }
   }
 

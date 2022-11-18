@@ -30,11 +30,12 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
     C.listView(list{canvases}),}
 
   let createCanvas =  {
-    let field = Html.span(
+    let field = Html.div(
       list{},
       list{
-        C.emailInput(
-          ~style="ml-1",
+        C.input(
+          ~loadStatus=LoadStatus.Success(""),
+          ~style="ml-1 w-80",
           ~attrs=list{
             Attrs.placeholder("canvas-name"),
             Attrs.spellcheck(false),
@@ -43,25 +44,27 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
               )),
             Attrs.value(settings.newCanvasName.value),
           },
+          ""
         ),
+        C.errorSpan(settings.newCanvasName.error |> Option.unwrap(~default="")),
       },
     )
 
-    let newCanvasUrl= `https://darklang.com/a/${settings.username}-${settings.canvasName}`
+    let newCanvasUrl= `https://darklang.com/a/${settings.username}-${settings.newCanvasName.value}`
 
     let button = {
-      Html.a(list{Attrs.href(newCanvasUrl),tw(%twc("ml-3 rounded h-9 px-2.5 py-2 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer"))},list{Html.text("Create")})
+      if Js.String.length(settings.newCanvasName.value) == 0 || Js.Option.isSome(settings.newCanvasName.error){
+        Html.a(list{tw(%twc("ml-3 rounded h-8 px-2.5 pt-2 pb-0 bg-black3 text-grey9 text-base font-semibold no-underline text-white1"))},list{Html.text("Create")})
+      } else{
+      Html.a(list{Attrs.href(newCanvasUrl),tw(%twc("ml-3 rounded h-8 px-2.5 pt-2 pb-0 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer"))},list{Html.text("Create")})
+      }
     }
 
-    let row = Html.div(list{tw(%twc("inline-block mt-4"))},
-      list{
-        C.settingRow(
-        ~info=None,
-        ~error=None,
-        `Create a new canvas: ${settings.username}-`,
-        list{field, button},)
-      }
-    )
+
+    let row = Html.div(
+        list{tw(%twc("flex items-baseline mt-4"))},
+        list{Html.text(`Create a new canvas: ${settings.username}-`),field, button})
+
     Html.div(list{}, list{row})
   }
 
