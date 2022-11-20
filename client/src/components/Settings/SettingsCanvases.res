@@ -52,10 +52,6 @@ let update = (state: t, msg: msg):(t) =>
   switch msg {
     | Update(value) =>
       let isInvalid= validateCanvasName(state.newCanvasName)
-      if Js.Option.isSome(isInvalid.error){
-      ({...state, newCanvasName: {value: value, error:isInvalid.error}})
-      }else{
-      ({...state, newCanvasName: {value: value, error:None}})
-      }
+      {...state, newCanvasName: {value: value, error:isInvalid.error}}
   }
 

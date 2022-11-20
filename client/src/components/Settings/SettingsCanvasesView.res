@@ -6,6 +6,7 @@ module Utils = SettingsUtils
 module Events = Tea.Html.Events
 
 let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
 
 module T = SettingsCanvases
 
@@ -53,10 +54,11 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
     let newCanvasUrl= `https://darklang.com/a/${settings.username}-${settings.newCanvasName.value}`
 
     let button = {
+      let sharedStyle = %twc("ml-3 rounded px-2.5 py-1.5 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer")
       if Js.String.length(settings.newCanvasName.value) == 0 || Js.Option.isSome(settings.newCanvasName.error){
-        Html.a(list{tw(%twc("ml-3 rounded px-2.5 py-1.5 bg-black3 text-grey9 text-base font-semibold no-underline text-white1"))},list{Html.text("Create")})
+        Html.a(list{tw2(sharedStyle, %twc("bg-black3 text-grey9 hover:bg-black3"))},list{Html.text("Create")})
       } else{
-      Html.a(list{Attrs.href(newCanvasUrl),tw(%twc("ml-3 rounded px-2.5 py-1.5 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer"))},list{Html.text("Create")})
+      Html.a(list{Attrs.href(newCanvasUrl),tw(sharedStyle)},list{Html.text("Create")})
       }
     }
 
@@ -78,5 +80,5 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
     list{Vdom.noNode}
   }
 
-  Belt.List.concatMany([orgView, canvasView,list{createCanvas}])
+  Belt.List.concatMany([orgView, canvasView, list{createCanvas}])
 }
