@@ -23,7 +23,6 @@
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
     "ionide.ionide-fsharp@5.10.1",
-    "shuumatsu.vscode-ocamlformat",
     "esbenp.prettier-vscode",
     "ms-python.python",
     "ms-azuretools.vscode-docker",
@@ -38,7 +37,7 @@
 
   // Ports are loaded in the build process
   "forwardPorts": [
-    8000, 9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002, 13002
+    9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002, 13002
   ],
 
   "containerEnv": {
@@ -86,9 +85,6 @@
     // "type=bind,src=/home/paulbiggar/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
 
     // Build directories
-    "type=volume,src=dark_build,dst=/home/dark/app/_build",
-    "type=volume,src=dark_dotesy,dst=/home/dark/.esy",
-    "type=volume,src=dark_esy,dst=/home/dark/app/_esy",
     "type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build",
     "type=volume,src=dark_lib,dst=/home/dark/app/lib",
     "type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules",
