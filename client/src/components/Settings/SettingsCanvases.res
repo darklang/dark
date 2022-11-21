@@ -35,23 +35,22 @@ let setInfo = (
   orgCanvasList: orgCanvasList,
 }
 
-let validateCanvasName = (newCanvasName: Utils.formField): Utils.formField =>{
+let validateCanvasName = (newCanvasName: string): Utils.formField =>{
   let error = {
-    let canvasName = newCanvasName.value
-    if !Js.Re.test_(%re("/^[A-Za-z0-9-]*$/"), canvasName){
+    if !Js.Re.test_(%re("/^[A-Za-z0-9-]*$/"), newCanvasName){
       Some("Invalid Canvas Name")
     }else{
         None
     }
   }
-  {...newCanvasName, error: error}
+  {value: newCanvasName, error: error}
 }
 
 
 let update = (state: t, msg: msg):(t) =>
   switch msg {
     | Update(value) =>
-      let isInvalid= validateCanvasName(state.newCanvasName)
+      let isInvalid= validateCanvasName(value)
       {...state, newCanvasName: {value: value, error:isInvalid.error}}
   }
 
