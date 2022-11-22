@@ -104,6 +104,7 @@ module TracingConfig =
   let shouldTrace (config : T) =
     match config with
     | DoTrace
+    | TraceToCloudStorage
     | TraceWithTelemetry -> true
     | DontTrace -> false
 
