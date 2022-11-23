@@ -22,7 +22,7 @@ module Intent = {
 
 let title = "Privacy"
 
-let default = {recordConsent: None}
+let default = {recordConsent: Some(true)}
 
 let update = (_: t, msg: msg): (t, Intent.t<msg>) => {
   switch msg {

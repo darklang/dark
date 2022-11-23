@@ -64,40 +64,4 @@
   }
 }
 
-// Setting Rows
-.setting-row {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-top: 10px;
 
-  .setting-label {
-    width: 60%;
-    .title {
-      text-align: left;
-      color: $white3;
-      font-size: 1em;
-    }
-    .description {
-      color: $white1;
-      font-size: 0.8em;
-    }
-  }
-
-  .setting-control {
-    color: $white3;
-
-    .choice {
-      display: inline-block;
-      margin-left: 4ch;
-
-      input[type="radio"] ~ label {
-        margin-left: 1ch;
-        cursor: pointer;
-      }
-    }
-  }
-}
