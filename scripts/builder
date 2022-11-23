@@ -33,8 +33,7 @@ gid=$((gid > 1000 ? gid : 1000))
 # --------------
 if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   echo "Building docker image"
-  # Always build for linux/amd64 (new OSX arm machines have emulation)
-  docker buildx build --platform linux/amd64 -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
+  docker buildx build -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
 
   echo "Removing running containers"
   c=$(docker ps --filter "name=dark-builder" -q)
@@ -123,7 +122,6 @@ docker run \
   --init \
   --rm \
   -i \
-  --platform linux/amd64 \
   --dns 8.8.8.8 \
   --dns 8.8.4.4 \
   --name dark-builder \
