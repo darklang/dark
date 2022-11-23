@@ -2,11 +2,11 @@
 
 # FSharp installer image
 # Copied from https://github.com/dotnet/dotnet-docker/blob/main/src/runtime/6.0/focal/amd64/Dockerfile
-FROM amd64/buildpack-deps:focal-curl as installer
+FROM amd64/buildpack-deps:jammy-curl as installer
 
 # Retrieve .NET
-RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/6.0.201/dotnet-sdk-6.0.201-linux-x64.tar.gz \
-    && dotnet_sha512='a4d96b6ca2abb7d71cc2c64282f9bd07cedc52c03d8d6668346ae0cd33a9a670d7185ab0037c8f0ecd6c212141038ed9ea9b19a188d1df2aae10b2683ce818ce' \
+RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/6.0.300/dotnet-sdk-6.0.300-linux-x64.tar.gz \
+    && dotnet_sha512='52d720e90cfb889a92d605d64e6d0e90b96209e1bd7eab00dab1d567017d7a5a4ff4adbc55aff4cffcea4b1bf92bb8d351859d00d8eb65059eec5e449886c938' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
     && mkdir -p /dotnet \
     && tar -ozxf dotnet.tar.gz -C /dotnet \
@@ -23,14 +23,14 @@ RUN sudo apt-get update \
         libc6 \
         libgcc1 \
         libgssapi-krb5-2 \
-        libicu66 \
-        libssl1.1 \
+        libicu70 \
+        libssl3 \
         libstdc++6 \
         zlib1g \
     && sudo rm -rf /var/lib/apt/lists/*
 
 ENV \
-    DOTNET_SDK_VERSION=6.0.201 \
+    DOTNET_SDK_VERSION=6.0.300 \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_EnableDiagnostics=0
 
