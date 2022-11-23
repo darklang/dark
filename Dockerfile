@@ -432,26 +432,27 @@ ENV DOTNET_SDK_VERSION=6.0.300 \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
-RUN \
-  case ${TARGETARCH} in \
-       arm64) \
-         ARCH=arm64 \
-         CHECKSUM=67eb088ccad197a39f104af60f3e6d12ea9b17560e059c0f7c8e956005d919d00bf0f3e487b06280be63ad57aa8895f16ebc8c92107c5019c9cf47bd620ea925 \
-         ;; \
-       amd64) \
-         ARCH=x64 \
-         CHECKSUM=52d720e90cfb889a92d605d64e6d0e90b96209e1bd7eab00dab1d567017d7a5a4ff4adbc55aff4cffcea4b1bf92bb8d351859d00d8eb65059eec5e449886c938 \
-         ;; \
-       *) exit 1;; \
-  esac \
-  && curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-${ARCH}.tar.gz \
-  && echo "$CHECKSUM dotnet.tar.gz" | sha512sum -c - \
-  && sudo mkdir -p /usr/share/dotnet \
-  && sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz . \
-  && sudo rm dotnet.tar.gz \
-  # Trigger first run experience by running arbitrary cmd
-  && sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
-  && dotnet --help
+RUN <<EOF
+case ${TARGETARCH} in
+   arm64)
+     ARCH=arm64
+     CHECKSUM=67eb088ccad197a39f104af60f3e6d12ea9b17560e059c0f7c8e956005d919d00bf0f3e487b06280be63ad57aa8895f16ebc8c92107c5019c9cf47bd620ea925
+     ;;
+   amd64)
+     ARCH=x64
+     CHECKSUM=52d720e90cfb889a92d605d64e6d0e90b96209e1bd7eab00dab1d567017d7a5a4ff4adbc55aff4cffcea4b1bf92bb8d351859d00d8eb65059eec5e449886c938
+     ;;
+   *) exit 1;;
+esac
+&& curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-${ARCH}.tar.gz
+&& echo "$CHECKSUM dotnet.tar.gz" | sha512sum -c -
+&& sudo mkdir -p /usr/share/dotnet
+&& sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz .
+&& sudo rm dotnet.tar.gz
+# Trigger first run experience by running arbitrary cmd
+&& sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+&& dotnet --help
+EOF
 
 # Not supported on arm64 until maybe dotnet 8 - https://github.com/dotnet/runtime/issues/75613
 RUN if [[ ${TARGETARCH} == "amd64" ]]; then sudo dotnet workload install wasm-tools ; fi
