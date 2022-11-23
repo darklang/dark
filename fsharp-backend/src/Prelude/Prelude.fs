@@ -88,6 +88,8 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
 // This is for tracing
 let mutable exceptionCallback = (fun (e : exn) -> ())
 
+let mutable sendRollbarError = (fun (message : string) (metadata : Metadata) -> ())
+
 module Exception =
 
   /// Returns a list of exceptions of this exception, and all nested inner
@@ -922,8 +924,6 @@ module Json =
         else
           writer.WriteNumberValue(value)
 
-
-
     type UInt64Converter() =
       // We serialize uint64s as valid JSON numbers for as long as we're allowed, and
       // then we switch to strings. Since the deserialization is type-directed, we
@@ -1081,10 +1081,9 @@ module Json =
 
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
-        Exception.raiseInternal
-          "Invalid serialization call to type not allowed: add `do Json.Vanilla.allow<type>()` to allow it to be serialized"
+        sendRollbarError
+          "Invalid serialization call to type not allowed: add `Json.Vanilla.allow<type>()` to allow it to be serialized"
           [ "type", string t ]
-
 
 
     let serialize (data : 'a) : string =
@@ -1726,7 +1725,3 @@ let id (x : int) : id = uint64 x
 
 // since we hide F#'s default 'id' fn just above
 let identity a = a
-
-let init () =
-  // CLEANUP: move somewhere else, we shouldn't be serializing anything here
-  do Json.Vanilla.allow<pos> "Prelude"

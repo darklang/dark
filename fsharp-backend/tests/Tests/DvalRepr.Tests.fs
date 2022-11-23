@@ -11,7 +11,8 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module CT = ClientTypes
+module CTRuntime = ClientTypes.Runtime
+module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
@@ -122,9 +123,11 @@ let testDateMigrationHasCorrectFormats =
 // are able to be deserialized. The value here
 let testPreviousDateSerializionCompatibility =
   test "previous date serialization compatible" {
-    let expected = CT.Dval.DDate(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
+    let expected =
+      CTRuntime.Dval.DDate(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
     let actual =
-      Json.Vanilla.deserialize<CT.Dval.T> """["DDate","1970-01-01T00:00:00"]"""
+      Json.Vanilla.deserialize<CTRuntime.Dval.T>
+        """["DDate","1970-01-01T00:00:00"]"""
     Expect.equal expected actual "not deserializing correctly"
   }
 
@@ -280,10 +283,10 @@ let allRoundtrips =
         "vanilla"
         (fun dv ->
           dv
-          |> ClientTypes.Dval.fromRT
+          |> CT2Runtime.Dval.toCT
           |> Prelude.Json.Vanilla.serialize
           |> Prelude.Json.Vanilla.deserialize
-          |> ClientTypes.Dval.toRT
+          |> CT2Runtime.Dval.fromCT
           |> Expect.dvalEquality dv)
         (dvs (function
           | RT.DPassword _ -> false
@@ -411,7 +414,7 @@ module Password =
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
       doesRedact "Json.Vanilla.serialize" (fun dv ->
-        dv |> CT.Dval.fromRT |> Json.Vanilla.serialize)
+        dv |> CT2Runtime.Dval.toCT |> Json.Vanilla.serialize)
       ()
     }
 
@@ -449,13 +452,13 @@ module Password =
       "no auto serialization of passwords"
       [ test "vanilla" {
           let password =
-            CT.Dval.DPassword(Password(UTF8.toBytes "some password"))
+            CTRuntime.Dval.DPassword(Password(UTF8.toBytes "some password"))
             |> Json.Vanilla.serialize
             |> Json.Vanilla.deserialize
 
           Expect.equal
             password
-            (CT.Dval.DPassword(Password(UTF8.toBytes "Redacted")))
+            (CTRuntime.Dval.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
         } ]
 

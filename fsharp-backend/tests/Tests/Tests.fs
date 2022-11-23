@@ -9,10 +9,16 @@ open Prelude
 
 module Telemetry = LibService.Telemetry
 
+module CTApi = ClientTypes.Api
+module CTPusher = ClientTypes.Pusher
+
 let initSerializers () =
+  ApiServer.ApiServer.initSerializers ()
+  BwdServer.Server.initSerializers ()
+
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
-  Json.Vanilla.allow<ClientTypes.Dval.T> "dvalrepr tests"
+  Json.Vanilla.allow<ClientTypes.Runtime.Dval.T> "dvalrepr tests"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Handler.T> "canvasClone"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
 
@@ -20,9 +26,7 @@ let initSerializers () =
 let main (args : string array) : int =
   try
     let name = "Tests"
-    Prelude.init ()
     LibService.Init.init name
-    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
     (LibBackend.Account.initializeDevelopmentAccounts name).Result
@@ -50,7 +54,8 @@ let main (args : string array) : int =
         Tests.ProgramTypes.tests
         Tests.Routing.tests
         Tests.RuntimeTypes.tests
-        Tests.Serialization.tests
+        Tests.BinarySerialization.tests
+        Tests.VanillaSerialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
         Tests.Traces.tests
@@ -65,7 +70,8 @@ let main (args : string array) : int =
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // Generate this so that we can see if the format has changed in a git diff
-    Serialization.generateTestFiles ()
+    BinarySerialization.generateTestFiles ()
+    VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang

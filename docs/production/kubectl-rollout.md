@@ -1,13 +1,20 @@
-kubernetes rollouts
-===================
+# kubernetes rollouts
+
+# deployments
+
+Get a list of Dark deployments with `kubectl get deployments -n darklang`.
+
+Some services (at time of writing, cronchecker) may be outside of the `darklang`
+namespace, so find those with `kubectl get deployments`. Commands below will need
+adjustment for such as well.
 
 ## history
-Use `kubectl rollout history <deployment>` to get
-the history:
+
+Use `kubectl rollout history <deployment>` to get the history:
 
 ```
-dark@dark-dev:~/app$ kubectl rollout history deployment/bwd-deployment
-deployment.extensions/bwd-deployment 
+dark@dark-dev:~/app$ kubectl rollout history -n darklang deployment/bwd-deployment
+deployment.extensions/bwd-deployment
 REVISION  CHANGE-CAUSE
 701       'circle=https://circleci.com/gh/darklang/dark/2276 ; orig-time: Wed Oct 31 23:01:15 UTC 2018'
 703       'circle=https://circleci.com/gh/darklang/dark/2279 ; orig-time: Thu Nov  1 18:33:05 UTC 2018'
@@ -17,6 +24,7 @@ REVISION  CHANGE-CAUSE
 ```
 
 ## undo
+
 `kubectl rollout undo <deployment> --to-revision=N`
 Note that, as above, rolling back to revision N will create a new revision,
 _and_ remove N from the revision history.
@@ -25,6 +33,7 @@ If you do this, you'll likely also want to use `kubectl rollout pause` until
 CI/CD is fixed.
 
 ## pause and resume
+
 `kubectl rollout pause <deployment>` will prevent any further changes to the
 spec from taking effect (that is, `kubectl apply` and `kubectl set image` will
 still run successfully, but they will not scale up).

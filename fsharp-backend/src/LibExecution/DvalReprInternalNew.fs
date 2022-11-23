@@ -136,7 +136,3 @@ let parseRoundtrippableJsonV0 (json : string) : RT.Dval =
   json
   |> Json.Vanilla.deserialize<RoundtrippableSerializationFormatV0.Dval>
   |> RoundtrippableSerializationFormatV0.toRT
-
-let init () : unit =
-  Json.Vanilla.allow<RoundtrippableSerializationFormatV0.Dval>
-    "RoundtrippableSerializationFormatV0.Dval"

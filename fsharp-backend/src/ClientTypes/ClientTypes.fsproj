@@ -11,12 +11,22 @@
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
-    <Compile Include="ClientTypes.fs" />
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Prelude/Prelude.fsproj" />
-    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <None Include="paket.references" />
+    <Compile Include="ClientRuntimeTypes.fs" />
+    <Compile Include="ClientProgramTypes.fs" />
+    <Compile Include="ClientAnalysisTypes.fs" />
+    <Compile Include="ClientWorkerTypes.fs" />
+    <Compile Include="ClientTraceTypes.fs" />
+    <Compile Include="ClientOpsTypes.fs" />
+    <Compile Include="ClientStaticDeployTypes.fs" />
+    <Compile Include="ClientSecretTypes.fs" />
+    <Compile Include="ClientAuthorizationTypes.fs" />
+    <Compile Include="ClientPusherTypes.fs" />
+    <Compile Include="ClientApiTypes.fs" />
+    <Compile Include="ClientUITypes.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

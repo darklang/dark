@@ -1,23 +1,12 @@
 // Handles requests for evaluating expressions
 namespace Analysis
 
+open System
 open System.Threading.Tasks
+open System.Reflection
 
 open Prelude
 open Tablecloth
-
-module RT = LibExecution.RuntimeTypes
-module Exe = LibExecution.Execution
-module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PTParser = LibExecution.ProgramTypesParser
-module AT = LibExecution.AnalysisTypes
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
-
-module CTA = ClientTypes.Analysis
-
-open System
-open System.Reflection
 
 #nowarn "988"
 
@@ -66,7 +55,7 @@ type EvalWorker =
   /// Once evaluated, an async call to `self.postMessage` will be made
   static member OnMessage(input : string) : Task<unit> =
     // Just here to ensure type-safety (serializers require known/allowed types)
-    let postResponse (response : LibAnalysis.AnalysisResult) : unit =
+    let postResponse (response : ClientTypes.Analysis.AnalysisResult) : unit =
       EvalWorker.postMessage (Json.Vanilla.serialize (response))
 
     let reportException (preamble : string) (e : exn) : unit =
@@ -83,7 +72,8 @@ type EvalWorker =
 
     try
       // parse an analysis request, in JSON, from the JS world (BlazorWorker)
-      let args = Json.Vanilla.deserialize<CTA.PerformAnalysisParams> input
+      let args =
+        Json.Vanilla.deserialize<ClientTypes.Analysis.PerformAnalysisParams> input
       task {
         try
           let! result = LibAnalysis.performAnalysis args

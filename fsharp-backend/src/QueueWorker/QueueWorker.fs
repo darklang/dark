@@ -28,6 +28,8 @@ module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
+module CTPusher = ClientTypes.Pusher
+
 let mutable shouldShutdown = false
 
 type ShouldRetry =
@@ -183,9 +185,17 @@ let processNotification
                   // In this case, all they need to build is the trace. So just drop
                   // this event immediately.
                   let! timestamp = TI.storeEvent c.meta.id traceID desc event.value
-                  Pusher.pushNew404
+                  Pusher.push
+                    ClientTypes2BackendTypes.Pusher.eventSerializer
                     c.meta.id
-                    (event.module', event.name, event.modifier, timestamp, traceID)
+                    (Pusher.New404(
+                      event.module',
+                      event.name,
+                      event.modifier,
+                      timestamp,
+                      traceID
+                    ))
+                    None
                   do! EQ.deleteEvent event
                   return! stop "MissingHandler" NoRetry
                 | Some h ->
@@ -199,6 +209,7 @@ let processNotification
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
                       RealExecution.executeHandler
+                        ClientTypes2BackendTypes.Pusher.eventSerializer
                         c.meta
                         (PT2RT.Handler.toRT h)
                         program
@@ -292,15 +303,40 @@ let run () : Task<unit> =
   }
 
 
+// Generally speaking, this should be the same list as BwdServer's,
+// which is roughly a subset of ApiServer's list.
+let initSerializers () =
+  // universally-serializable types
+  Json.Vanilla.allow<pos> "Prelude"
+
+  // one-off types used internally
+  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
+  Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
+  Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+  Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
+
+  // for Pusher.com payloads
+  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
+  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+
+
 [<EntryPoint>]
 let main _ : int =
   try
     let name = "QueueWorker"
     print "Starting QueueWorker"
-    Prelude.init ()
+    initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
-    LibExecution.Init.init ()
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
