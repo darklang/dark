@@ -443,15 +443,15 @@ case ${TARGETARCH} in
      CHECKSUM=52d720e90cfb889a92d605d64e6d0e90b96209e1bd7eab00dab1d567017d7a5a4ff4adbc55aff4cffcea4b1bf92bb8d351859d00d8eb65059eec5e449886c938
      ;;
    *) exit 1;;
-esac
-&& curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-${ARCH}.tar.gz
-&& echo "$CHECKSUM dotnet.tar.gz" | sha512sum -c -
-&& sudo mkdir -p /usr/share/dotnet
-&& sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz .
-&& sudo rm dotnet.tar.gz
-# Trigger first run experience by running arbitrary cmd
-&& sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
-&& dotnet --help
+esac 
+curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-${ARCH}.tar.gz 
+echo "$CHECKSUM dotnet.tar.gz" | sha512sum -c - 
+sudo mkdir -p /usr/share/dotnet 
+sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz . 
+sudo rm dotnet.tar.gz 
+# Trigger first run experience by running arbitrary cmd \
+sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet 
+dotnet --help
 EOF
 
 # Not supported on arm64 until maybe dotnet 8 - https://github.com/dotnet/runtime/issues/75613
