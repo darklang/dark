@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+sudo chmod 766 /etc/ssl/private
+sudo chown postgres:postgres /etc/ssl/private/ssl-cert-snakeoil.key
+
 for name in "${@}"; do
   if [[ $name == postgresql ]]; then
     # for some reason, uncommenting the equivalent line in the Dockerfile doesn't do the
@@ -9,7 +12,12 @@ for name in "${@}"; do
     LA="listen_addresses = '*'"
     echo "$LA" | sudo tee -a /etc/postgresql/9.6/main/postgresql.conf
   fi
-
+  sudo mkdir /etc/ssl/private-copy
+  sudo mv /etc/ssl/private/* /etc/ssl/private-copy/
+  sudo rm -r /etc/ssl/private
+  sudo mv /etc/ssl/private-copy /etc/ssl/private
+  sudo chmod -R 0700 /etc/ssl/private
+  sudo chown -R postgres /etc/ssl/private
   echo "--------------------------"
   echo "--  Starting $name"
   echo "--------------------------"
