@@ -450,7 +450,7 @@ let init (serviceName : string) : unit =
   //   )
   // |> ignore<obj>
 
-  Prelude.rollbarException <- fun msg metadata -> sendError msg metadata
+  Prelude.sendRollbarError <- fun msg metadata -> sendError msg metadata
 
   print " Configured rollbar"
   ()
