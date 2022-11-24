@@ -999,7 +999,7 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("record_consent_saved_across_canvases", async ({ page }, testInfo) => {
-    await page.click("#fs-consent-yes");
+    await page.click("#fs-consent-true");
     await page.waitForSelector(".fullstory-modal.hide");
     await page.waitForFunction(() => {
       let result = localStorage.getItem("userState-test");
