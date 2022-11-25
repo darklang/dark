@@ -998,31 +998,6 @@ test.describe.parallel("Integration Tests", async () => {
     // validate functions in IntegrationTest.ml
   });
 
-  test("record_consent_saved_across_canvases", async ({ page }, testInfo) => {
-    await page.click("#fs-consent-true");
-    await page.waitForSelector(".fullstory-modal.hide");
-    await page.waitForFunction(() => {
-      let result = localStorage.getItem("userState-test");
-      result = JSON.parse(result);
-      return result["recordConsent"];
-    });
-
-    // navigate to another canvas
-    await page.goto(canvasUrl("another-canvas"), {
-      waitUntil: "networkidle",
-    });
-
-    await page.waitForSelector(".fullstory-modal.hide");
-
-    // go back to original canvas to end the test
-    const testname = testInfo.title;
-    await page.goto(canvasUrl(testname));
-
-    // there are errors loading some assets cause we're changing pages pretty fast.
-    // Doesn't really matter, so ignore.
-    clearMessages(testInfo);
-  });
-
   test("unexe_code_unfades_on_focus", async ({ page }) => {
     let token = await awaitAnalysisLoaded(page);
     const timestamp = Date.now();
