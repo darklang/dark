@@ -6,7 +6,7 @@ module FullstoryJs = {
   let setConsent = (allow: bool): Tea.Cmd.t<'msg> => Tea.Cmd.call(_ => _setConsent(allow))
 }
 
-@ppx.deriving(show) type rec t = {recordConsent: option<bool>}
+@ppx.deriving(show) type rec t = {recordConsent: bool}
 
 @ppx.deriving(show)
 type rec msg = SetRecordConsent(bool)
@@ -22,12 +22,12 @@ module Intent = {
 
 let title = "Privacy"
 
-let default = {recordConsent: Some(true)}
+let default = {recordConsent: true}
 
 let update = (_: t, msg: msg): (t, Intent.t<msg>) => {
   switch msg {
   | SetRecordConsent(allow) => (
-      {recordConsent: Some(allow)},
+      {recordConsent: allow},
       RecordConsent(FullstoryJs.setConsent(allow)),
     )
   }

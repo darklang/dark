@@ -42,6 +42,6 @@ let viewFSConsent = (checked: bool): Html.html<AppTypes.msg> => {
 }
 
 let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
-  list{viewFSConsent(state.recordConsent|> Belt.Option.getExn)}
+  list{viewFSConsent(state.recordConsent)}
 }
 
