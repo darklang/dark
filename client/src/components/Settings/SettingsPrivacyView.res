@@ -23,21 +23,15 @@ let viewFSConsent = (checked: bool): Html.html<AppTypes.msg> => {
     C.toggleButton(attr, checked)
   }
 
-  Html.div(list{Attrs.class(%twc("mt-10"))}, list{
-    C.settingRow(
-      ~info=None,
-      ~error=None,
-      "",
-      list{
+  Html.div(list{Attrs.class(%twc("mt-3.5"))}, list{
         Html.div(list{Attrs.class(%twc("flex"))}, list{
-        Html.span(list{}, list{
+        Html.div(list{}, list{
           C.sectionHeading("Record me using Dark", None),
           C.sectionIntroText(list{Html.text(explanation)})
         }),
-        Html.span(list{Attrs.class(%twc("mt-6"))},list{toggle})
+        Html.div(list{Attrs.class(%twc("mt-6"))},list{toggle})
         })
       }
-    )}
   )
 }
 
