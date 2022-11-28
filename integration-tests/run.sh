@@ -82,11 +82,6 @@ then
   exit 1
 fi
 
-# We need to restart the server after adding new packages. Integration tests test
-# against the dev environment, not the test one.
-./scripts/run-fsharp-server "${PUBLISHED}" --restart=no
-./scripts/devcontainer/_wait-until-apiserver-ready
-
 ######################
 # Run playwright
 ######################
@@ -99,8 +94,15 @@ STATUS=0
 COUNT=0
 
 while [[ $STATUS == 0 ]]; do
+  # Reset the DB and restart the servers
+  # Note that we run against the dev server so that we can debug failures locally
   ./integration-tests/prep.sh
-  BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules/.bin/playwright \
+  ./scripts/run-fsharp-server "${PUBLISHED}" --restart=no
+  ./scripts/devcontainer/_wait-until-apiserver-ready
+
+  BASE_URL="$BASE_URL" \
+  BWD_BASE_URL="$BWD_BASE_URL" \
+  integration-tests/node_modules/.bin/playwright \
     test \
     $DEBUG_MODE_FLAG \
     --workers "$CONCURRENCY" \
