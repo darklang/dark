@@ -12,13 +12,16 @@ function wait_for {
   done
 }
 
-# The static server is often ready before the ApiServer
 wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/app.js
 wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/app.css
+wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/blazor/dotnet.wasm
+
+# The static server is often ready before the ApiServer
 wait_for http://${DARK_CONFIG_APISERVER_HOST}/check-apiserver
 
 # Don't let nginx say it's ready until blazor files can be reached - sometimes these
 # timeout otherwise
-for file in backend/static/blazor/*.dll; do
-  wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/$file
+for file in backend/static/blazor/*.dll ; do
+  filename=$(basename $file)
+  wait_for "http://${DARK_CONFIG_APISERVER_STATIC_HOST}/blazor/${filename}"
 done
