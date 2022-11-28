@@ -53,7 +53,10 @@ let addRoutes
   // This route is used so that we know that the http proxy is actually proxying the server
   let checkApiserver : HttpHandler =
     (fun (ctx : HttpContext) ->
-      task { return ctx.Response.WriteAsync("success: this is apiserver") })
+      task {
+        ctx.Response.StatusCode <- 200
+        return ctx.Response.WriteAsync("success: this is apiserver")
+      })
 
   let addRoute
     (verb : string)

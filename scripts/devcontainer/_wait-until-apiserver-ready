@@ -4,14 +4,15 @@
 set -euo pipefail
 
 function wait_for {
-  test_url="http://${DARK_CONFIG_APISERVER_STATIC_HOST}/$1"
   count=0
-  until curl --output /dev/null --silent --show-error --head --fail "${test_url}"; do
+  until curl --output /dev/null --silent --show-error --fail "$1"; do
       ((count++)) && ((count==60)) && exit 1
-      printf "waiting for %s at %s\n" "$1" "$test_url"
+      printf "waiting for %s\n" "$1"
       sleep 1
   done
 }
 
-wait_for app.js
-wait_for app.css
+# The static server is often ready before the ApiServer
+wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/app.js
+wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/app.css
+wait_for http://${DARK_CONFIG_APISERVER_HOST}/check-apiserver
