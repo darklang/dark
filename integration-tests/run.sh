@@ -14,6 +14,7 @@ set -euo pipefail
 
 PATTERN=".*"
 DEBUG_MODE_FLAG=""
+LOOP=1 # Keep going until we fail, useful to find flaky tests
 CONCURRENCY=1
 RETRIES=0
 REPEAT=1 # repeat allows us to repeat individual tests many times to check for edge cases
@@ -49,6 +50,10 @@ do
     DEBUG_MODE_FLAG="--debug"
     shift
     ;;
+    --loop)
+    LOOP=0
+    shift
+    ;;
     *)
     echo "Unexpected argument: $i"
     exit 1
@@ -78,34 +83,44 @@ then
 fi
 
 ######################
-# Prep for tests (in the container)
-######################
-./integration-tests/prep.sh
-
-# We need to restart the server after adding new packages. Integration tests test
-# against the dev environment, not the test one.
-./scripts/run-fsharp-server "${PUBLISHED}" --restart=no
-./scripts/devcontainer/_wait-until-apiserver-ready
-
-######################
 # Run playwright
 ######################
 echo "Starting playwright"
 integration-tests/node_modules/.bin/playwright --version
 
 set +e # Don't fail immediately - we want to list skipped files
-BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules/.bin/playwright \
-  test \
-  $DEBUG_MODE_FLAG \
-  --workers "$CONCURRENCY" \
-  --grep "$PATTERN" \
-  --browser "${BROWSER}" \
-  --repeat-each "${REPEAT}" \
-  --output "rundir/integration-tests/" \
-  --retries "$RETRIES" \
-  --config integration-tests/playwright.config.ts
 
-STATUS=$? # Save the playwright exit code
+STATUS=0
+COUNT=0
+
+while [[ $STATUS == 0 ]]; do
+  # Reset the DB and restart the servers
+  # Note that we run against the dev server so that we can debug failures locally
+  ./integration-tests/prep.sh
+  ./scripts/run-fsharp-server "${PUBLISHED}" --restart=no
+  ./scripts/devcontainer/_wait-until-apiserver-ready
+
+  BASE_URL="$BASE_URL" \
+  BWD_BASE_URL="$BWD_BASE_URL" \
+  integration-tests/node_modules/.bin/playwright \
+    test \
+    $DEBUG_MODE_FLAG \
+    --workers "$CONCURRENCY" \
+    --grep "$PATTERN" \
+    --browser "${BROWSER}" \
+    --repeat-each "${REPEAT}" \
+    --output "rundir/integration-tests/" \
+    --retries "$RETRIES" \
+    --config integration-tests/playwright.config.ts
+
+  STATUS=$?; # Save the playwright exit code
+  COUNT=$((COUNT+1))
+  if [[ "${LOOP}" == 0 ]]; then
+    echo "-------------- $COUNT ------------"
+  else
+    break
+  fi
+done
 
 # Don't let any tests be skipped (globally timedout tests are marked as skipped by playwright)
 SKIPPED=$(cat rundir/test_results/integration_tests.json | jq -r '.suites[0].suites[0].specs[] | select( .tests[0].results[0].status == "skipped") | .title ' | sort)
