@@ -487,6 +487,11 @@ module SavedSettings = {
       recordConsent: true,
     }
 
+    let decodeopt = (j: Js.Json.t): bool => {
+      open Json_decode_extended
+      withDefault(Some(true), field("recordConsent", optional(bool)), j)->Tc.Option.unwrapUnsafe
+    }
+
     let decode = (j: Js.Json.t): t => {
       // It's very important that this is generous in parsing old values and missing
       // values and in general never failing.
@@ -505,7 +510,7 @@ module SavedSettings = {
 
       {
         firstVisitToDark: oldFirstVisitToDark || newFirstVisitToDark,
-        recordConsent: withDefault(default.recordConsent, field("recordConsent", bool), j),
+        recordConsent: oneOf(list{decodeopt, field("recordConsent", bool)}, j),
       }
     }
   }
