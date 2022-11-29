@@ -137,7 +137,10 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<Function.t> => {
     let isNonExperimentalOrOptedIn = (f: Function.t): bool =>
       // TUPLETODO remove this filter when the experimental setting is removed
       switch f.name {
-      | Stdlib(fnName) if String.startsWith(~prefix="Tuple", fnName.module_) => props.allowTuples
+      | Stdlib(fnName)
+        if String.startsWith(~prefix="Tuple", fnName.module_) ||
+        (fnName.module_ == "List" && fnName.function == "partition") =>
+        props.allowTuples
       | _ => true
       }
 

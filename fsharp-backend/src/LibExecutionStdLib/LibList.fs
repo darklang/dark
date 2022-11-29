@@ -1464,4 +1464,54 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "List" "partition" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = TTuple((TList varA), (TList varA), [])
+      description =
+        "Calls <param f> on every <var val> in <param list>, splitting the list into
+         two - those values for which {{fn val}} returns {{true}}, and those that
+         return {{false}}.
+
+         Preserves the order of values."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+          uply {
+            let abortReason = ref None
+
+            let f (dv : Dval) : Ply<bool> =
+              uply {
+                let run = abortReason.Value = None
+
+                if run then
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                  match result with
+                  | DBool b -> return b
+                  | (DIncomplete _
+                  | DErrorRail _
+                  | DError _) as dv ->
+                    abortReason.Value <- Some dv
+                    return false
+                  | v ->
+                    return
+                      Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
+                else
+                  return false
+              }
+
+            let! (resultA, resultB) = Ply.List.partitionSequentially f l
+
+            match abortReason.Value with
+            | None -> return DTuple(DList resultA, DList resultB, [])
+            | Some v -> return v
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
