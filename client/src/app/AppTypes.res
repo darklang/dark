@@ -505,7 +505,17 @@ module SavedSettings = {
 
       {
         firstVisitToDark: oldFirstVisitToDark || newFirstVisitToDark,
-        recordConsent: withDefault(default.recordConsent, field("recordConsent", oneOf(list{bool, (j)=>optional(bool, j)->Belt.Option.getWithDefault(default.recordConsent)})),j),
+        recordConsent: withDefault(
+          default.recordConsent,
+          field(
+            "recordConsent",
+            oneOf(list{
+              bool,
+              j => optional(bool, j)->Belt.Option.getWithDefault(default.recordConsent),
+            }),
+          ),
+          j,
+        ),
       }
     }
   }

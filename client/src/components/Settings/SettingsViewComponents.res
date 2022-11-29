@@ -121,7 +121,6 @@ let button = (
   )
 }
 
-
 let submitBtn = (
   ~style="",
   loadingState: Vdom.property<'msg>,
@@ -139,7 +138,7 @@ let submitBtn = (
       loadingState,
       msgAttr,
     },
-    list{...contents},
+    contents,
   )
 }
 
@@ -159,12 +158,7 @@ let sectionIntroText = contents =>
 let errorSpan = (error: string): Html.html<'msg> => {
   Html.span(
     list{},
-    list{
-      Html.p(
-        list{Attrs.class(%twc("text-red h-6 m-0"))},
-        list{Html.text(error)},
-      ),
-    },
+    list{Html.p(list{Attrs.class(%twc("text-red h-6 m-0"))}, list{Html.text(error)})},
   )
 }
 
@@ -200,16 +194,16 @@ let input = (
   )
 }
 
-let emailInput = (
-  ~style="",
-  ~attrs: list<Attrs.property<'msg>>,
-) => {
+let emailInput = (~style="", ~attrs: list<Attrs.property<'msg>>) => {
   Html.span(
     list{},
     list{
       Html.input'(
         list{
-          Attrs.classes([style, %twc("bg-black3 py-0 px-2.5 min-h-[35px] min-w-[35ch] caret-grey8 text-white1")]),
+          Attrs.classes([
+            style,
+            %twc("bg-black3 py-0 px-2.5 min-h-[35px] min-w-[35ch] caret-grey8 text-white1"),
+          ]),
           ...List.concat(list{attrs}),
         },
         list{},
@@ -241,4 +235,13 @@ let settingRow = (
 }
 
 let listView = listContent =>
- Html.div(list{tw(%twc("min-h-[35px] max-h-[200px] overflow-y-auto overflow-x-hidden w-full bg-grey1 rounded-md scrollbar-thin scrollbar-thumb-black3 scrollbar-track-grey2 hover:scrollbar-thumb-black2 scrollbar-track-rounded-lg"))}, listContent)
+  Html.div(
+    list{
+      tw(
+        %twc(
+          "min-h-[35px] max-h-[200px] overflow-y-auto overflow-x-hidden w-full bg-grey1 rounded-md scrollbar-thin scrollbar-thumb-black3 scrollbar-track-grey2 hover:scrollbar-thumb-black2 scrollbar-track-rounded-lg"
+        ),
+      ),
+    },
+    listContent,
+  )
