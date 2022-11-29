@@ -109,69 +109,6 @@ module TracingConfig =
     | DontTrace -> false
 
 
-let createStandardTracer () : TraceResults.T * RT.Tracing =
-  // Any real execution needs to track the touched TLIDs in order to send traces to pusher
-  let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
-
-  let results = { TraceResults.empty () with tlids = touchedTLIDs }
-
-  let tracing =
-    { Exe.noTracing RT.Real with
-        storeFnResult =
-          (fun (tlid, name, id) args result ->
-            let hash =
-              args
-              |> DvalReprInternalDeprecated.hash
-                   DvalReprInternalDeprecated.currentHashVersion
-            Dictionary.add
-              (tlid, name, id, hash)
-              (result, NodaTime.Instant.now ())
-              results.functionResults)
-        storeFnArguments =
-          (fun tlid args ->
-            ResizeArray.append
-              (tlid, args, NodaTime.Instant.now ())
-              results.functionArguments)
-        traceTLID = traceTLIDFn }
-  (results, tracing)
-
-let createTelemetryTracer () : TraceResults.T * RT.Tracing =
-  let results, standardTracing = createStandardTracer ()
-
-  let tracing =
-    { standardTracing with
-        storeFnResult =
-          (fun (tlid, name, id) args result ->
-            let stringifiedName = LibExecution.RuntimeTypes.FQFnName.toString name
-            let hash =
-              args
-              |> DvalReprInternalDeprecated.hash
-                   DvalReprInternalDeprecated.currentHashVersion
-            Telemetry.addEvent
-              $"function result for {name}"
-              [ "fnName", stringifiedName
-                "tlid", tlid
-                "id", id
-                "argCount", List.length args
-                "hash", hash
-                "resultType",
-                result |> LibExecution.DvalReprDeveloper.dvalTypeName :> obj ]
-            standardTracing.storeFnResult (tlid, name, id) args result)
-        storeFnArguments =
-          (fun tlid args ->
-            Telemetry.addEvent
-              $"function arguments for {tlid}"
-              [ "tlid", tlid; "id", id; "argCount", Map.count args ]
-            standardTracing.storeFnArguments tlid args)
-        traceTLID =
-          fun tlid ->
-            Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
-            standardTracing.traceTLID tlid }
-  (results, tracing)
-
-let createNonTracer () : TraceResults.T * RT.Tracing =
-  (TraceResults.empty (), LibExecution.Execution.noTracing RT.Real)
-
 /// Collections of functions and values used during a single execution
 type T =
   { /// Store the tracing input, if enabled
@@ -296,10 +233,7 @@ let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
                     "argCount", List.length args
                     "hash", hash
                     "resultType",
-                    result
-                    |> RT.Dval.toType
-                    |> LibExecution.DvalReprExternal.typeToDeveloperReprV0
-                    :> obj ]
+                    LibExecution.DvalReprDeveloper.dvalTypeName result :> obj ]
                 standardTracing.storeFnResult (tlid, name, id) args result)
             storeFnArguments =
               (fun tlid args ->
