@@ -124,6 +124,7 @@ echo "Run the build"
 # -p 9000:9000 to expose the F# api server
 # -p 11001:11001 to expose the F# bwd server
 # -cap-add & -security-opt to attach a gdb/strace to .net code
+# --ulimit=nofile=65536:65536 to match CI
 docker run \
   --init \
   --rm \
@@ -149,6 +150,7 @@ docker run \
   --user "$(id -u):$gid" \
   --cap-add=ALL \
   --security-opt seccomp=unconfined \
+  --ulimit=nofile=65536:65536 \
   $MOUNTS \
   dark \
   scripts/build/_build-server "${@}"
