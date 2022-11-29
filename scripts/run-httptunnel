@@ -18,5 +18,5 @@ sudo pkill -f sleep.infinity || true
 sudo mkdir -p /run/sshd
 echo "Starting tunnel"
 # shellcheck disable=SC2024
-sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
+nohup sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
 echo "Started tunnel"

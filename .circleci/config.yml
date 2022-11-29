@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:b1596ba
+      - image: darklang/dark-base:89294ed
 
 commands:
   show-large-files-and-directories:
@@ -385,6 +385,7 @@ jobs:
       - run: integration-tests/_integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
+      - store_artifacts: { path: /var/log/nginx }
       - store_test_results: { path: rundir/test_results }
       - save_cache:
           name: "Save packagejson-specific cache"

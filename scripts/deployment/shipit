@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.10
 
 # Script to manage deployment/release of kubernetes services
 
@@ -54,6 +54,7 @@ def handle_error(msg: str) -> None:
   print(msg)
   if error is None:
     error = msg
+  sys.exit(-1)
 
 
 def debug(str: str, str2: Any = None, str3: Any = None) -> None:

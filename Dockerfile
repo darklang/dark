@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1
+# ^^ The line above is to allow heredocs. It must be before any other content in the file ^^
+
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
@@ -15,9 +18,13 @@
 # as part of that build. Search for DOCKERFILE_REPO for where to make that
 # change.
 
-FROM ubuntu:20.04@sha256:e722c7335fdd0ce77044ab5942cb1fbd2b5f60d1f5416acfcdb0814b2baf7898 as dark-base
+
+FROM ubuntu:22.04 as dark-base
 
 ENV FORCE_BUILD 3
+
+# Creates variables to allow builds to work on both amd64 and arm64
+ARG TARGETARCH
 
 # These are reasonable defaults, and what the dark uid/gid would be if we didn't
 # specify values. By exposing them as build-args, we can set these values to
@@ -58,21 +65,18 @@ RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 RUN curl -sSL https://nginx.org/keys/nginx_signing.key | apt-key add -
-RUN curl -sSL https://baltocdn.com/helm/signing.asc | apt-key add -
 
 
-# We want postgres 9.6, but it is not in ubuntu 20.04
+# We want postgres 9.6, but it is not in later ubuntus
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
-RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
+RUN echo "deb https://nginx.org/packages/ubuntu/ jammy nginx" > /etc/apt/sources.list.d/nginx.list
 
-RUN echo "deb https://deb.nodesource.com/node_14.x focal main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_14.x focal main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_14.x jammy main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_14.x jammy main" >> /etc/apt/sources.list.d/nodesource.list
 
 RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
-RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
-
-RUN echo "deb https://baltocdn.com/helm/stable/debian/ all main" > /etc/apt/sources.list.d/helm-stable-debian.list
+RUN echo "deb [arch=${TARGETARCH}] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
 
 # Mostly, we use the generic version. However, for things in production we want
 # to pin the exact package version so that we don't have any surprises.  As a
@@ -116,7 +120,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       docker-ce \
       build-essential \
       kubectl \
-      helm \
       python3-pip \
       python3-setuptools \
       python3-dev \
@@ -129,7 +132,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       pv \
       htop \
       net-tools \
-      nginx=1.16.1-1~bionic \
+      nginx \
       bash-completion \
       openssh-server \
       dnsutils \
@@ -137,8 +140,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libc6 \
       libgcc1 \
       libgssapi-krb5-2 \
-      libicu66 \
-      libssl1.1 \
+      libicu70 \
+      libssl3 \
       libstdc++6 \
       zlib1g \
       lldb \
@@ -210,18 +213,120 @@ RUN sudo rm -r /etc/nginx/nginx.conf
 RUN sudo chown -R dark:dark /var/log/nginx
 
 ############################
+# Scripts to install files from the internet
+############################
+COPY <<-"EOF" /home/dark/install-targz-file
+#!/bin/bash
+
+# Script to install binary files, checking the sha
+
+set -euo pipefail
+
+for i in "$@" ; do
+  case "${i}" in
+    --arm64-sha256=*)
+    ARM64_SHA256=${1/--arm64-sha256=/''}
+    shift
+    ;;
+    --amd64-sha256=*)
+    AMD64_SHA256=${1/--amd64-sha256=/''}
+    shift
+    ;;
+    --url=*)
+    URL=${1/--url=/''}
+    shift
+    ;;
+    --extract-file=*)
+    EXTRACT_FILE=${1/--extract-file=/''}
+    shift
+    ;;
+    --target=*)
+    TARGET=${1/--target=/''}
+    shift
+    ;;
+  esac
+done
+DIR=$(echo $URL | sed 's/[^0-9A-Za-z]*//g')
+FILENAME=$(basename $URL)
+case $(dpkg --print-architecture) in
+  arm64) CHECKSUM=$ARM64_SHA256;;
+  amd64) CHECKSUM=$AMD64_SHA256;;
+  *) exit 1;;
+esac
+mkdir -p $DIR
+wget -P $DIR $URL
+echo "$CHECKSUM $DIR/$FILENAME" | sha256sum -c -
+tar xvf $DIR/$FILENAME -C $DIR
+ls $DIR
+sudo cp $DIR/${EXTRACT_FILE} ${TARGET}
+sudo chmod +x ${TARGET}
+rm -Rf $DIR
+EOF
+
+COPY <<-"EOF" /home/dark/install-exe-file
+#!/bin/bash
+
+# Script to install single files from tar.gz files, checking the sha
+
+set -euo pipefail
+
+for i in "$@" ; do
+  case "${i}" in
+    --arm64-sha256=*)
+    ARM64_SHA256=${1/--arm64-sha256=/''}
+    shift
+    ;;
+    --amd64-sha256=*)
+    AMD64_SHA256=${1/--amd64-sha256=/''}
+    shift
+    ;;
+    --url=*)
+    URL=${1/--url=/''}
+    shift
+    ;;
+    --target=*)
+    TARGET=${1/--target=/''}
+    shift
+    ;;
+  esac
+done
+DIR=$(echo $URL | sed 's/[^0-9A-Za-z]*//g')
+FILENAME=$(basename $URL)
+case $(dpkg --print-architecture) in
+  arm64) CHECKSUM=$ARM64_SHA256;;
+  amd64) CHECKSUM=$AMD64_SHA256;;
+  *) exit 1;;
+esac
+sudo wget -O ${TARGET} $URL
+echo "$CHECKSUM ${TARGET}" | sha256sum -c -
+sudo chmod +x ${TARGET}
+EOF
+
+RUN sudo chown dark:dark /home/dark/install-targz-file
+RUN chmod +x /home/dark/install-targz-file
+RUN sudo chown dark:dark /home/dark/install-exe-file
+RUN chmod +x /home/dark/install-exe-file
+
+############################
 # Kubernetes
 ############################
 RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
 
+RUN /home/dark/install-targz-file \
+  --arm64-sha256=57fa17b6bb040a3788116557a72579f2180ea9620b4ee8a9b7244e5901df02e4 \
+  --amd64-sha256=2315941a13291c277dac9f65e75ead56386440d3907e0540bf157ae70f188347 \
+  --url=https://get.helm.sh/helm-v3.10.2-linux-${TARGETARCH}.tar.gz \
+  --extract-file=linux-${TARGETARCH}/helm \
+  --target=/usr/bin/helm
 
 ############################
 # Google cloud
 ############################
-# New authentication for docker - not supported via apt
-RUN sudo wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
-        -O /usr/bin/cloud_sql_proxy \
-  && sudo chmod +x /usr/bin/cloud_sql_proxy
+RUN /home/dark/install-exe-file \
+  --arm64-sha256=834ecd08f54960ee88121ab70b05002bcfb99cd08a63bcd7a1a952c53e30a3ca \
+  --amd64-sha256=fb66afb1cb8ee730314088eb7b299398bda6c0434b9b383b27a26b8951e775c5 \
+  --url=https://storage.googleapis.com/cloudsql-proxy/v1.33.1/cloud_sql_proxy.linux.${TARGETARCH} \
+  --target=/usr/bin/cloud_sql_proxy
 
 # PubSub
 ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
@@ -249,13 +354,8 @@ RUN sudo pip3 install -U --no-cache-dir -U crcmod \
 ############################
 # Pip packages
 ############################
-RUN sudo pip3 install --no-cache-dir yq yamllint
+RUN sudo pip3 install --no-cache-dir yq yamllint watchfiles yapf==0.32.0
 ENV PATH "$PATH:/home/dark/.local/bin"
-
-RUN pip3 install git+https://github.com/pbiggar/watchgod.git@b74cd7ec064ebc7b4263dc532c7c97e046002bef
-
-# Formatting
-RUN pip3 install yapf==0.32.0
 
 ####################################
 # CircleCI
@@ -266,36 +366,48 @@ RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/ma
 # Shellcheck
 # Ubuntu has a very old version
 ############################
+
 RUN \
   VERSION=v0.8.0 \
-  && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
-  && wget -P tmp_install_folder/ https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
-  && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
-  && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
-  && rm -Rf tmp_install_folder
+  && case ${TARGETARCH} in \
+       arm64) FILENAME=shellcheck-$VERSION.linux.aarch64.tar.xz;; \
+       amd64) FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz;; \
+       *) exit 1;; \
+     esac \
+  && /home/dark/install-targz-file \
+  --arm64-sha256=9f47bbff5624babfa712eb9d64ece14c6c46327122d0c54983f627ae3a30a4ac \
+  --amd64-sha256=ab6ee1b178f014d1b86d1e24da20d1139656c8b0ed34d2867fbb834dad02bf0a \
+  --url=https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
+  --extract-file=shellcheck-${VERSION}/shellcheck \
+  --target=/usr/bin/shellcheck
 
 ############################
 # Kubeconform - for linting k8s files
 ############################
+
 RUN \
   VERSION=v0.4.14 \
-  && wget -P tmp_install_folder/ https://github.com/yannh/kubeconform/releases/download/$VERSION/kubeconform-linux-amd64.tar.gz \
-  && tar xvf tmp_install_folder/kubeconform-linux-amd64.tar.gz -C  tmp_install_folder \
-  && sudo cp tmp_install_folder/kubeconform /usr/bin/ \
-  && rm -Rf tmp_install_folder
+  && /home/dark/install-targz-file \
+  --arm64-sha256=0ff34c19b3b19905a9c87906c801d9d4325d0614ae48bc1b2543dc9ec908cf13 \
+  --amd64-sha256=140044a5eb44a18e52d737ba15936f87b0e5fca3d34a02ae13b2d68025a449f3 \
+  --url=https://github.com/yannh/kubeconform/releases/download/$VERSION/kubeconform-linux-${TARGETARCH}.tar.gz \
+  --extract-file=kubeconform \
+  --target=/usr/bin/kubeconform
 
 ####################################
 # Honeytail and honeymarker installs
 ####################################
-RUN wget -q https://honeycomb.io/download/honeytail/v1.8.1/honeytail_1.8.1_amd64.deb && \
-      echo '971ba06886c5436927a17f8494fe518084a385cb9b9b28e541296d658eb5cc8d  honeytail_1.8.1_amd64.deb' | sha256sum -c && \
-      sudo dpkg -i honeytail_1.8.1_amd64.deb && \
-      rm honeytail_1.8.1_amd64.deb
+RUN /home/dark/install-exe-file \
+  --arm64-sha256=c5a57a729b0ccf4ca0f2287c862538812604f5fd67d102372e91215701afdbe1 \
+  --amd64-sha256=d774112265ee8e98c6221232461cf36c35faf844005cc98b43b55bb375761766 \
+  --url=https://github.com/honeycombio/honeytail/releases/download/v1.8.2/honeytail-linux-${TARGETARCH} \
+  --target=/usr/bin/honeytail
 
-RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd64.deb && \
-      echo '5aa10dd42f4f369c9463a8c8a361e46058339e6273055600ddad50e1bcdf2149  honeymarker_1.9_amd64.deb' | sha256sum -c && \
-      sudo dpkg -i honeymarker_1.9_amd64.deb && \
-      rm honeymarker_1.9_amd64.deb
+RUN /home/dark/install-exe-file \
+  --arm64-sha256=fef8c383419c86ceabb0bbffd3bcad2bf9223537fba9f848218480f873a96e8d \
+  --amd64-sha256=6e08038f4587d515856076746ad3a69e67376eddd38d8657f449aad393b95cd8 \
+  --url=https://github.com/honeycombio/honeymarker/releases/download/v0.2.10/honeymarker-linux-${TARGETARCH} \
+  --target=/usr/bin/honeymarker
 
 
 ####################################
@@ -320,16 +432,30 @@ ENV DOTNET_SDK_VERSION=6.0.300 \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
-RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
-    && dotnet_sha512='52d720e90cfb889a92d605d64e6d0e90b96209e1bd7eab00dab1d567017d7a5a4ff4adbc55aff4cffcea4b1bf92bb8d351859d00d8eb65059eec5e449886c938' \
-    && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
-    && sudo mkdir -p /usr/share/dotnet \
-    && sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz . \
-    && sudo rm dotnet.tar.gz \
-    # Trigger first run experience by running arbitrary cmd
-    && sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
-    && dotnet help
+RUN <<EOF
+set -e
+case ${TARGETARCH} in
+  arm64)
+    ARCH=arm64
+    CHECKSUM=67eb088ccad197a39f104af60f3e6d12ea9b17560e059c0f7c8e956005d919d00bf0f3e487b06280be63ad57aa8895f16ebc8c92107c5019c9cf47bd620ea925
+    ;;
+  amd64)
+    ARCH=x64
+    CHECKSUM=52d720e90cfb889a92d605d64e6d0e90b96209e1bd7eab00dab1d567017d7a5a4ff4adbc55aff4cffcea4b1bf92bb8d351859d00d8eb65059eec5e449886c938
+    ;;
+  *) exit 1;;
+esac
+curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-${ARCH}.tar.gz
+echo "$CHECKSUM dotnet.tar.gz" | sha512sum -c -
+sudo mkdir -p /usr/share/dotnet
+sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz .
+sudo rm dotnet.tar.gz
+# Trigger first run experience by running arbitrary cmd
+sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+dotnet --help
+EOF
 
+# Not supported on arm64 until maybe dotnet 8 - https://github.com/dotnet/runtime/issues/75613
 RUN sudo dotnet workload install wasm-tools
 
 # formatting
@@ -340,6 +466,8 @@ ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 # tunnel user
 #############
 RUN sudo adduser --disabled-password --gecos '' --gid ${gid} tunnel
+# Remove use_pty as it messes up `su tunnel` commands
+RUN sudo sed -i 's!Defaults\s\+use_pty!!' /etc/sudoers
 
 ############################
 # Environment
