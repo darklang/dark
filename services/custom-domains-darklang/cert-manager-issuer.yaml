@@ -23,3 +23,7 @@ spec:
       - http01:
           ingress:
             name: darkcustomdomain-tls-ingress
+            podTemplate:
+              metadata:
+                annotations:
+                  cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
