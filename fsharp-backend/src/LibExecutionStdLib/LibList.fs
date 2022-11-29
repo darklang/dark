@@ -1481,35 +1481,23 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal fn ] ->
           uply {
-            let abortReason = ref None
-
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let run = abortReason.Value = None
+                let! result =
+                  Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
-                if run then
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
-
-                  match result with
-                  | DBool b -> return b
-                  | (DIncomplete _
-                  | DErrorRail _
-                  | DError _) as dv ->
-                    abortReason.Value <- Some dv
-                    return false
-                  | v ->
-                    return
-                      Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
-                else
-                  return false
+                match result with
+                | DBool b -> return b
+                | (DIncomplete _
+                | DErrorRail _
+                | DError _) as dv -> return false
+                | v ->
+                  return Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
               }
 
             let! (resultA, resultB) = Ply.List.partitionSequentially f l
 
-            match abortReason.Value with
-            | None -> return DTuple(DList resultA, DList resultB, [])
-            | Some v -> return v
+            return DTuple(DList resultA, DList resultB, [])
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

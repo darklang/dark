@@ -186,13 +186,13 @@ List.member_v0 [1;2;3] 2 = true
 List.member_v0 [1;2;3] 4 = false
 List.member_v0 [] 1 = false
 
-List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`", [])
-List.partition_v0 [true;false;true] (fun item -> "a") = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`", [])
-List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = (blank, [])
-List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = ([ 1; 3 ], [2])
 List.partition_v0 [-20; 5; 9;] (fun x -> x > 0) = ([5; 9], [-20])
 List.partition_v0 [] (fun item -> true) = ([], [])
 List.partition_v0 [] (fun item -> "a") = ([], [])
+List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = ([ 1; 3 ], [2])
+List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = ([ 1; 3 ], [2])
+List.partition_v0 [true;false;true] (fun item -> "a") = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`", [])
+List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`", [])
 
 List.pushBack_v0 [2;3] 1 = [2;3;1]
 List.pushBack_v0 [] 1 = [1]
