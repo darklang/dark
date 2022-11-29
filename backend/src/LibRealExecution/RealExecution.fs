@@ -105,7 +105,7 @@ let executeHandler
     let tracing = Tracing.create meta h.tlid traceID
 
     match reason with
-    | InitialExecution (desc, inputVar) -> tracing.storeInput desc inputVar
+    | InitialExecution (desc, inputVar) -> tracing.storeTraceInput desc inputVar
     | ReExecution -> ()
 
     let! state = createState traceID h.tlid program tracing.executionTracing

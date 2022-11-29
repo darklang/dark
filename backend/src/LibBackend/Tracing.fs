@@ -60,17 +60,6 @@ module TraceSamplingRule =
       SampleNone
     | Ok rule -> rule
 
-module TraceResults =
-  type T =
-    { tlids : HashSet.T<tlid>
-      functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>
-      functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> }
-
-  let empty () : T =
-    { tlids = HashSet.empty ()
-      functionResults = Dictionary.empty ()
-      functionArguments = ResizeArray.empty () }
-
 
 
 /// Simplified version of the TraceSamplingRule. TraceSamplingRule is what's stored
@@ -109,10 +98,24 @@ module TracingConfig =
     | DontTrace -> false
 
 
+
+module TraceResults =
+  type T =
+    { tlids : HashSet.T<tlid>
+      functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>
+      functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> }
+
+  let empty () : T =
+    { tlids = HashSet.empty ()
+      functionResults = Dictionary.empty ()
+      functionArguments = ResizeArray.empty () }
+
+
+
 /// Collections of functions and values used during a single execution
 type T =
   { /// Store the tracing input, if enabled
-    storeInput : HandlerDesc -> RT.Dval -> unit
+    storeTraceInput : HandlerDesc -> RT.Dval -> unit
 
     /// Store the trace results calculated over the execution, if enabled
     storeTraceResults : unit -> unit
@@ -124,30 +127,6 @@ type T =
     results : TraceResults.T
     enabled : bool }
 
-let storeTraceInput
-  (canvasID : CanvasID)
-  (traceID : AT.TraceID)
-  (desc : string * string * string)
-  (input : RT.Dval)
-  : unit =
-  LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
-    task {
-      let! (_timestamp : NodaTime.Instant) =
-        TraceInputs.storeEvent canvasID traceID desc input
-      return ()
-    })
-
-// Store trace results once the request is done
-let storeTraceResults
-  (canvasID : CanvasID)
-  (traceID : AT.TraceID)
-  (results : TraceResults.T)
-  : unit =
-  LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
-    task {
-      do! TraceFunctionArguments.storeMany canvasID traceID results.functionArguments
-      do! TraceFunctionResults.storeMany canvasID traceID results.functionResults
-    })
 
 let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
@@ -173,8 +152,26 @@ let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
                 (tlid, args, NodaTime.Instant.now ())
                 results.functionArguments)
           traceTLID = traceTLIDFn }
-    storeTraceResults = fun () -> storeTraceResults canvasID traceID results
-    storeInput = storeTraceInput canvasID traceID }
+    storeTraceResults =
+      (fun () ->
+        LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
+          task {
+            do!
+              TraceFunctionArguments.storeMany
+                canvasID
+                traceID
+                results.functionArguments
+            do!
+              TraceFunctionResults.storeMany canvasID traceID results.functionResults
+          }))
+    storeTraceInput =
+      (fun desc input ->
+        LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
+          task {
+            let! (_timestamp : NodaTime.Instant) =
+              TraceInputs.storeEvent canvasID traceID desc input
+            return ()
+          })) }
 
 let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
@@ -208,7 +205,7 @@ let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
               (HashSet.toList touchedTLIDs)
               storedInput
               results.functionResults)
-    storeInput = fun _ input -> storedInput <- input }
+    storeTraceInput = fun _ input -> storedInput <- input }
 
 
 let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
@@ -253,7 +250,7 @@ let createNonTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
     results = results
     executionTracing = LibExecution.Execution.noTracing RT.Real
     storeTraceResults = fun () -> ()
-    storeInput = fun _ _ -> () }
+    storeTraceInput = fun _ _ -> () }
 
 
 let create (c : Canvas.Meta) (tlid : tlid) (traceID : AT.TraceID) : T =
