@@ -27,11 +27,28 @@ module LibBackend.TraceCloudStorage
 //   - set a custom time on it
 //   - compress the data
 // - we store metadata about who uses the trace in a new table in our DB
-//   - canvasID, traceID, timestamp, list<tlid>
-//     - or maybe just canvasID, traceID, timestamp, tlid
+//   - or canvasID, traceID, timestamp, tlid
 //   - we need to find last 10 traces for a tlid
-//   - we also need to be able to add tlids for later executions in a trace
 //   - this data can be deleted when the trace is deleted or when the canvas is deleted
+//
+// - we allow updating traces
+//   - For the execute handler button, we replace the entire trace
+//     - We might store a hash so the client can check if it's changed
+//     - Also send a push notification
+//     - This would also wipe out other layers
+//   - For the execute button, all we're doing is adding more function results.
+//     - We support extending a trace with "layers" to the storage with the same
+//       prefix for example, for the trace at {canvasID}/{traceID} add more function
+//       results at {canvasID}/{traceID}/{timestamp}/{randomNumber} when fetched, it
+//       can be layered on top to overwrite other function results
+//   - For the execute_function button, we are again just adding more functions
+//     results, so these are also just layers
+//
+// - 404s
+//   - store them using {canvasID}/404s/{timestamp}
+//   - store path such that we can request it in one request
+//   - store just the input
+//   - when converted to a trace, delete and rewrite it the normal way
 //
 // - it's garbage collected as follows:
 //   - the bucket has an Object Lifecycle policy which deletes traces after X days
@@ -41,7 +58,7 @@ module LibBackend.TraceCloudStorage
 //     toplevels, and get their last 10 traces. We mark those with the new custom date
 //     metadata
 //   - when GCS deletes them, we receive a pubsub notification. We then use this to
-//     delete the trace/tlid connection metadata.
+//     delete the trace/tlid connection metadata, and the layers
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
