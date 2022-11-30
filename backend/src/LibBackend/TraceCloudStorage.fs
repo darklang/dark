@@ -104,7 +104,7 @@ let listMostRecentTraceIDs
   : Task<List<AT.TraceID>> =
   Sql.query
     "SELECT trace_id
-       FROM tracesV0
+       FROM traces_v0
       WHERE canvas_id = @canvas_id
         AND tlid = @tlid
    ORDER BY timestamp DESC
@@ -117,7 +117,7 @@ module Test =
   let listAllTraceIDs (canvasID : CanvasID) : Task<List<AT.TraceID>> =
     Sql.query
       "SELECT trace_id
-       FROM tracesV0
+       FROM traces_v0
       WHERE canvas_id = @canvas_id
    ORDER BY timestamp DESC"
     |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]

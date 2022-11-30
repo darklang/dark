@@ -6,7 +6,7 @@
 CREATE TABLE
 traces_v0
 ( canvas_id UUID NOT NULL
-, tlid int64 NOT NULL
+, tlid BIGINT NOT NULL
 , trace_id UUID NOT NULL
 , timestamp TIMESTAMPTZ NOT NULL
 -- allows looking up handler by trace
