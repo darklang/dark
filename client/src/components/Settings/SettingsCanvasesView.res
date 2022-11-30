@@ -17,7 +17,19 @@ let title = "Canvases"
 let view = (settings: T.t): list<Html.html<'msg>> => {
   let canvasLink = c => {
     let url = "/a/" ++ c
-    Html.li(~unique=c, list{Attrs.class(%twc("list-none px-2 py-[5px]"))}, list{Html.a(list{Attrs.href(url),Attrs.class(%twc("no-underline text-white1 cursor-pointer hover:text-purple"))}, list{Html.text(url)})})
+    Html.li(
+      ~unique=c,
+      list{Attrs.class(%twc("list-none px-2 py-[5px]"))},
+      list{
+        Html.a(
+          list{
+            Attrs.href(url),
+            Attrs.class(%twc("no-underline text-white1 cursor-pointer hover:text-purple")),
+          },
+          list{Html.text(url)},
+        ),
+      },
+    )
   }
 
   let canvases = if List.length(settings.canvasList) > 0 {
@@ -28,9 +40,10 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
 
   let canvasView = list{
     Html.p(list{}, list{Html.text("Personal canvases:")}),
-    C.listView(list{canvases}),}
+    C.listView(list{canvases}),
+  }
 
-  let createCanvas =  {
+  let createCanvas = {
     let field = Html.div(
       list{},
       list{
@@ -40,42 +53,45 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
           ~attrs=list{
             Attrs.placeholder("canvas-name"),
             Attrs.spellcheck(false),
-            Events.onInput(str => AppTypes.Msg.SettingsMsg(
-              Settings.CanvasesMsg(T.Update(str)),
-              )),
+            Events.onInput(str => AppTypes.Msg.SettingsMsg(Settings.CanvasesMsg(T.Update(str)))),
             Attrs.value(settings.newCanvasName.value),
           },
-          ""
+          "",
         ),
         C.errorSpan(settings.newCanvasName.error |> Option.unwrap(~default="")),
       },
     )
 
-    let newCanvasUrl= `https://darklang.com/a/${settings.username}-${settings.newCanvasName.value}`
+    let newCanvasUrl = `https://darklang.com/a/${settings.username}-${settings.newCanvasName.value}`
 
     let button = {
-      let sharedStyle = %twc("ml-3 rounded px-2.5 py-1.5 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer")
-      if Js.String.length(settings.newCanvasName.value) == 0 || Js.Option.isSome(settings.newCanvasName.error){
-        Html.a(list{tw2(sharedStyle, %twc("bg-black3 text-grey9 hover:bg-black3"))},list{Html.text("Create")})
-      } else{
-      Html.a(list{Attrs.href(newCanvasUrl),tw(sharedStyle)},list{Html.text("Create")})
+      let sharedStyle = %twc(
+        "ml-3 rounded px-2.5 py-1.5 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer"
+      )
+      if (
+        Js.String.length(settings.newCanvasName.value) == 0 ||
+          Js.Option.isSome(settings.newCanvasName.error)
+      ) {
+        Html.a(
+          list{tw2(sharedStyle, %twc("bg-black3 text-grey9 hover:bg-black3"))},
+          list{Html.text("Create")},
+        )
+      } else {
+        Html.a(list{Attrs.href(newCanvasUrl), tw(sharedStyle)}, list{Html.text("Create")})
       }
     }
 
-
     let row = Html.div(
-        list{tw(%twc("flex items-baseline mt-4"))},
-        list{Html.text(`Create a new canvas: ${settings.username}-`),field, button})
+      list{tw(%twc("flex items-baseline mt-4"))},
+      list{Html.text(`Create a new canvas: ${settings.username}-`), field, button},
+    )
 
     Html.div(list{}, list{row})
   }
 
   let orgs = List.map(settings.orgCanvasList, ~f=canvasLink) |> Html.ul(list{})
   let orgView = if List.length(settings.orgCanvasList) > 0 {
-    list{
-      Html.p(list{}, list{Html.text("Shared canvases:")}),
-      C.listView(list{orgs})
-    }
+    list{Html.p(list{}, list{Html.text("Shared canvases:")}), C.listView(list{orgs})}
   } else {
     list{Vdom.noNode}
   }

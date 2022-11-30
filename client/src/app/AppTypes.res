@@ -470,7 +470,7 @@ module SavedSettings = {
     @ppx.deriving(show({with_path: false}))
     type rec t = {
       firstVisitToDark: bool,
-      recordConsent: option<bool>,
+      recordConsent: bool,
     }
 
     let encode = (se: t): Js.Json.t => {
@@ -478,13 +478,13 @@ module SavedSettings = {
       object_(list{
         ("showUserWelcomeModal", bool(se.firstVisitToDark)),
         ("firstVisitToDark", bool(se.firstVisitToDark)),
-        ("recordConsent", nullable(bool, se.recordConsent)),
+        ("recordConsent", bool(se.recordConsent)),
       })
     }
 
     let default: t = {
       firstVisitToDark: true,
-      recordConsent: None,
+      recordConsent: true,
     }
 
     let decode = (j: Js.Json.t): t => {
@@ -505,7 +505,17 @@ module SavedSettings = {
 
       {
         firstVisitToDark: oldFirstVisitToDark || newFirstVisitToDark,
-        recordConsent: withDefault(None, field("recordConsent", optional(bool)), j),
+        recordConsent: withDefault(
+          default.recordConsent,
+          field(
+            "recordConsent",
+            oneOf(list{
+              bool,
+              j => optional(bool, j)->Belt.Option.getWithDefault(default.recordConsent),
+            }),
+          ),
+          j,
+        ),
       }
     }
   }

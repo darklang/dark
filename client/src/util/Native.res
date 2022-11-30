@@ -21,7 +21,7 @@ module Ext = {
 
   @get external clientHeight: Dom.element => int = "clientHeight"
 
-  @bs.send external getBoundingClientRect: Dom.element => Dom.domRect = "getBoundingClientRect"
+  @send external getBoundingClientRect: Dom.element => Dom.domRect = "getBoundingClientRect"
 
   @get external rectTop: Dom.domRect => float = "top"
 

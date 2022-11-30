@@ -35,28 +35,35 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
   let inviteform = {
     let submitBtn = {
       let btn = if state.loading {
-        list{Icons.fontAwesome("spinner"), Html.h3(list{Attrs.class(%twc("m-0 pl-2.5"))}, list{Html.text("Loading")})}
+        list{
+          Icons.fontAwesome("spinner"),
+          Html.h3(list{Attrs.class(%twc("m-0 pl-2.5"))}, list{Html.text("Loading")}),
+        }
       } else {
         list{Html.h3(list{Attrs.class(%twc("m-0"))}, list{Html.text("Send invite")})}
       }
 
-    C.submitBtn(
-      ~style="ml-2",
-          Html.Attributes.disabled(state.loading),
-          EventListeners.eventNoPropagation(
-            ~key="close-settings-modal",
-            "click",
-            _ => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(T.Submit)),
-          ),
-          btn,
-    )
+      C.submitBtn(
+        ~style="ml-2",
+        Html.Attributes.disabled(state.loading),
+        EventListeners.eventNoPropagation(
+          ~key="close-settings-modal",
+          "click",
+          _ => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(T.Submit)),
+        ),
+        btn,
+      )
     }
     list{
       Html.div(
         list{Attrs.class(%twc("flex items-center justify-center flex-col"))},
         list{
           Html.div(
-            list{Attrs.class(%twc("flex items-baseline justify-around w-full max-w-lg mt-6 flex-wrap"))},
+            list{
+              Attrs.class(
+                %twc("flex items-baseline justify-around w-full max-w-lg mt-6 flex-wrap"),
+              ),
+            },
             list{
               Html.h3(list{Attrs.class(%twc("m-0"))}, list{Html.text("Email:")}),
               Html.div(

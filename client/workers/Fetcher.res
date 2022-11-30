@@ -16,7 +16,7 @@ type self
 
 type pushResult = APITypes.fetchResult
 
-@bs.send external postMessage: (self, pushResult) => unit = "postMessage"
+@send external postMessage: (self, pushResult) => unit = "postMessage"
 
 exception NoneFound
 
