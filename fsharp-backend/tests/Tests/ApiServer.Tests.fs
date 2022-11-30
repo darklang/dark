@@ -844,7 +844,7 @@ let permissions =
           getAsync FSharp testClient $"/a/{username}"
 
         let! (apiResp : HttpResponseMessage) =
-          postAsync FSharp testClient $"/api/{username}/v1/initial_load" ""
+          getAsync FSharp testClient $"/api/{username}/v1/initial_load"
 
         return (int uiResp.StatusCode, int apiResp.StatusCode)
       })
