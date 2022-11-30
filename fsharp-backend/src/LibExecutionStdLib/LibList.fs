@@ -1481,6 +1481,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal fn ] ->
           uply {
+            let mutable firstFakeDval = None
+
             let f (dv : Dval) : Ply<bool> =
               uply {
                 let! result =
@@ -1490,14 +1492,18 @@ let fns : List<BuiltInFn> =
                 | DBool b -> return b
                 | (DIncomplete _
                 | DErrorRail _
-                | DError _) as dv -> return false
+                | DError _) as dv ->
+                  firstFakeDval <- Some dv
+                  return false
                 | v ->
                   return Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
               }
 
             let! (resultA, resultB) = Ply.List.partitionSequentially f l
 
-            return DTuple(DList resultA, DList resultB, [])
+            match firstFakeDval with
+            | None -> return DTuple(DList resultA, DList resultB, [])
+            | Some dv -> return dv
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
