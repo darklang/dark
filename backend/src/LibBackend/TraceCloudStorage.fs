@@ -95,7 +95,7 @@ type CloudStorageFormat =
 
 let roundtrippableToDval (rt : RoundTrippableDval) : RT.Dval = rt
 
-let bucketName = Config.allowTestRoutes
+let bucketName = Config.traceStorageBucketName
 
 // Require TLIDs rather than having unbounded search
 let listMostRecentTraceIDs
