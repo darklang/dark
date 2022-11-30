@@ -1230,25 +1230,6 @@ module Ply =
         return List.rev filtered
       }
 
-    let partitionSequentially
-      (f : 'a -> Ply<bool>)
-      (list : List<'a>)
-      : Ply<List<'a> * List<'a>> =
-      uply {
-        let! (a, b) =
-          List.fold
-            (fun (accum : Ply<List<'a> * List<'a>>) (arg : 'a) ->
-              uply {
-                let! (a : List<'a>, b : List<'a>) = accum
-                let! keep = f arg
-                return (if keep then (arg :: a, b) else (a, arg :: b))
-              })
-            (Ply(([], [])))
-            list
-
-        return (List.rev a, List.rev b)
-      }
-
     let iterSequentially (f : 'a -> Ply<unit>) (list : List<'a>) : Ply<unit> =
       List.fold
         (fun (accum : Ply<unit>) (arg : 'a) ->

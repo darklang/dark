@@ -1481,29 +1481,37 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal fn ] ->
           uply {
-            let mutable firstFakeDval = None
+            let partition l =
+              let applyFn dval =
+                Interpreter.applyFnVal state (id 0) fn [ dval ] NotInPipe NoRail
 
-            let f (dv : Dval) : Ply<bool> =
-              uply {
-                let! result =
-                  Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+              let rec loop acc l =
+                uply {
+                  match acc, l with
+                  | (a, b), item :: tail ->
+                    let! fnResult = applyFn item
 
-                match result with
-                | DBool b -> return b
-                | (DIncomplete _
-                | DErrorRail _
-                | DError _) as dv ->
-                  firstFakeDval <- Some dv
-                  return false
-                | v ->
-                  return Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
-              }
+                    match fnResult with
+                    | DBool true -> return! loop (item :: a, b) tail
+                    | DBool false -> return! loop (a, item :: b) tail
 
-            let! (resultA, resultB) = Ply.List.partitionSequentially f l
+                    | (DIncomplete _
+                    | DErrorRail _
+                    | DError _) as dv ->
+                      // fake dvals
+                      return Error dv
 
-            match firstFakeDval with
-            | None -> return DTuple(DList resultA, DList resultB, [])
-            | Some dv -> return dv
+                    | v ->
+                      return
+                        Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
+                  | (a, b), [] -> return Ok(List.rev a, List.rev b)
+                }
+
+              loop ([], []) l
+
+            match! partition l with
+            | Ok (a, b) -> return DTuple(DList a, DList b, [])
+            | Error fakeDval -> return fakeDval
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
