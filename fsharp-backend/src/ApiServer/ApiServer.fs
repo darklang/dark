@@ -122,10 +122,8 @@ let addRoutes
   clientJsonApiOption "v1/get_trace_data" R Traces.TraceDataV1.getTraceData
   clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
   clientJsonApi "get_worker_stats" R Workers.WorkerStats.getStats
-  clientJsonApi "v1/initial_load" R InitialLoad.V1.initialLoad
   clientJsonGETApi "v1/initial_load" R InitialLoad.V1.initialLoad
   clientJsonApi "v1/insert_secret" RW Secrets.InsertV1.insert
-  clientJsonApi "v1/packages" R (Packages.ListV1.packages packages)
   clientJsonGETApi "v1/packages" R (Packages.ListV1.packages packages)
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
