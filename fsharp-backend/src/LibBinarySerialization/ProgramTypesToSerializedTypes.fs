@@ -38,18 +38,18 @@ module SendToRail =
 module Pattern =
   let rec toST (p : PT.Pattern) : ST.Pattern =
     match p with
-    | PT.MPVariable (id, str) -> ST.PVariable(id, str)
+    | PT.MPVariable (id, str) -> ST.MPVariable(id, str)
     | PT.MPConstructor (id, name, pats) ->
-      ST.PConstructor(id, name, List.map toST pats)
-    | PT.MPInteger (id, i) -> ST.PInteger(id, i)
-    | PT.MPBool (id, b) -> ST.PBool(id, b)
-    | PT.MPCharacter (id, c) -> ST.PCharacter(id, c)
-    | PT.MPString (id, s) -> ST.PString(id, s)
-    | PT.MPFloat (id, s, w, f) -> ST.PFloat(id, s, w, f)
-    | PT.MPNull id -> ST.PNull id
-    | PT.MPBlank id -> ST.PBlank id
+      ST.MPConstructor(id, name, List.map toST pats)
+    | PT.MPInteger (id, i) -> ST.MPInteger(id, i)
+    | PT.MPBool (id, b) -> ST.MPBool(id, b)
+    | PT.MPCharacter (id, c) -> ST.MPCharacter(id, c)
+    | PT.MPString (id, s) -> ST.MPString(id, s)
+    | PT.MPFloat (id, s, w, f) -> ST.MPFloat(id, s, w, f)
+    | PT.MPNull id -> ST.MPNull id
+    | PT.MPBlank id -> ST.MPBlank id
     | PT.MPTuple (id, first, second, theRest) ->
-      ST.PTuple(id, toST first, toST second, List.map toST theRest)
+      ST.MPTuple(id, toST first, toST second, List.map toST theRest)
 
 
 
