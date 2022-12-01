@@ -34,6 +34,18 @@ module FQFnName =
     | Package of PackageFnName
 
 type Pattern =
+  | MPVariable of id * string
+  | MPConstructor of id * string * List<Pattern>
+  | MPInteger of id * int64
+  | MPBool of id * bool
+  | MPCharacter of id * string
+  | MPString of id * string
+  | MPFloat of id * Sign * string * string
+  | MPNull of id
+  | MPBlank of id
+  | MPTuple of id * Pattern * Pattern * List<Pattern>
+
+  // TODO These are to be removed after some transition time
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
   | PInteger of id * int64

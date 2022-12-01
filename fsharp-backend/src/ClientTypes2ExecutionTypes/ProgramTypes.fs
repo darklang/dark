@@ -72,22 +72,46 @@ module FQFnName =
 module Pattern =
   let rec fromCT (pat : CTPT.Pattern) : PT.Pattern =
     match pat with
+    // This is currently positioned to 'parse' both old-style (PBlank) and new-style
+    // (MPBlank) naming conventions of these patterns. Shortly, (TODO) we should
+    // follow up and remove the old-style naming convention support.
+    | CTPT.Pattern.MPVariable (id, str)
     | CTPT.Pattern.PVariable (id, str) -> PT.MPVariable(id, str)
+
+    | CTPT.Pattern.MPConstructor (id, name, args)
     | CTPT.Pattern.PConstructor (id, name, args) ->
       PT.MPConstructor(id, name, List.map fromCT args)
+
+    | CTPT.Pattern.MPInteger (id, i)
     | CTPT.Pattern.PInteger (id, i) -> PT.MPInteger(id, i)
+
+    | CTPT.Pattern.MPBool (id, b)
     | CTPT.Pattern.PBool (id, b) -> PT.MPBool(id, b)
+
+    | CTPT.Pattern.MPCharacter (id, str)
     | CTPT.Pattern.PCharacter (id, str) -> PT.MPCharacter(id, str)
+
+    | CTPT.Pattern.MPString (id, str)
     | CTPT.Pattern.PString (id, str) -> PT.MPString(id, str)
+
+    | CTPT.Pattern.MPFloat (id, sign, whole, frac)
     | CTPT.Pattern.PFloat (id, sign, whole, frac) ->
       PT.MPFloat(id, sign, whole, frac)
+
+    | CTPT.Pattern.MPNull (id)
     | CTPT.Pattern.PNull (id) -> PT.MPNull(id)
+
+    | CTPT.Pattern.MPBlank (id)
     | CTPT.Pattern.PBlank (id) -> PT.MPBlank(id)
+
+    | CTPT.Pattern.MPTuple (id, first, second, theRest)
     | CTPT.Pattern.PTuple (id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
   let rec toCT (pat : PT.Pattern) : CTPT.Pattern =
     match pat with
+    // TODO Very shortly, update these to map to the new style
+    // (the client has been set up to accept these for weeks)
     | PT.MPVariable (id, str) -> CTPT.Pattern.PVariable(id, str)
     | PT.MPConstructor (id, name, args) ->
       CTPT.Pattern.PConstructor(id, name, List.map toCT args)
