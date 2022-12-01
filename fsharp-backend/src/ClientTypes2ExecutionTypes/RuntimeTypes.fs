@@ -116,7 +116,7 @@ module Pattern =
 
     match p with
     // This is currently positioned to 'parse' both old-style (PBlank) and new-style
-    // (MPBlank) naming conventions of these patterns. Shortly, (TODO) we should
+    // (MPBlank) naming conventions of these patterns. Shortly, (TODO) we need to
     // follow up and remove the old-style naming convention support.
     | MPVariable (id, str)
     | PVariable (id, str) -> RT.MPVariable(id, str)
@@ -151,13 +151,13 @@ module Pattern =
 
   let rec toCT (p : RT.Pattern) : Pattern =
     let r = toCT
-
-    // TODO Very shortly, update these to map to the new style
-    // (the client has been set up to accept these for weeks)
-
     match p with
+    // TODO Update these to map to the new naming style (e.g. MPVariable). The
+    // client has been set up to accept these for weeks. It would generally be safe
+    // to update now, but the roundtrip serialization tests make it painful. We can
+    // do this at the same time that we remove support from the client.
     | RT.MPVariable (id, str) -> PVariable(id, str)
-    | RT.MPConstructor (id, name, pats) -> PConstructor(id, name, List.map toCT pats)
+    | RT.MPConstructor (id, name, pats) -> PConstructor(id, name, List.map r pats)
     | RT.MPInteger (id, i) -> PInteger(id, i)
     | RT.MPBool (id, b) -> PBool(id, b)
     | RT.MPCharacter (id, c) -> PCharacter(id, c)
