@@ -72,32 +72,34 @@ module FQFnName =
 module Pattern =
   let rec fromCT (pat : CTPT.Pattern) : PT.Pattern =
     match pat with
-    | CTPT.Pattern.PVariable (id, str) -> PT.PVariable(id, str)
+    | CTPT.Pattern.PVariable (id, str) -> PT.MPVariable(id, str)
     | CTPT.Pattern.PConstructor (id, name, args) ->
-      PT.PConstructor(id, name, List.map fromCT args)
-    | CTPT.Pattern.PInteger (id, i) -> PT.PInteger(id, i)
-    | CTPT.Pattern.PBool (id, b) -> PT.PBool(id, b)
-    | CTPT.Pattern.PCharacter (id, str) -> PT.PCharacter(id, str)
-    | CTPT.Pattern.PString (id, str) -> PT.PString(id, str)
-    | CTPT.Pattern.PFloat (id, sign, whole, frac) -> PT.PFloat(id, sign, whole, frac)
-    | CTPT.Pattern.PNull (id) -> PT.PNull(id)
-    | CTPT.Pattern.PBlank (id) -> PT.PBlank(id)
+      PT.MPConstructor(id, name, List.map fromCT args)
+    | CTPT.Pattern.PInteger (id, i) -> PT.MPInteger(id, i)
+    | CTPT.Pattern.PBool (id, b) -> PT.MPBool(id, b)
+    | CTPT.Pattern.PCharacter (id, str) -> PT.MPCharacter(id, str)
+    | CTPT.Pattern.PString (id, str) -> PT.MPString(id, str)
+    | CTPT.Pattern.PFloat (id, sign, whole, frac) ->
+      PT.MPFloat(id, sign, whole, frac)
+    | CTPT.Pattern.PNull (id) -> PT.MPNull(id)
+    | CTPT.Pattern.PBlank (id) -> PT.MPBlank(id)
     | CTPT.Pattern.PTuple (id, first, second, theRest) ->
-      PT.PTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
+      PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
   let rec toCT (pat : PT.Pattern) : CTPT.Pattern =
     match pat with
-    | PT.PVariable (id, str) -> CTPT.Pattern.PVariable(id, str)
-    | PT.PConstructor (id, name, args) ->
+    | PT.MPVariable (id, str) -> CTPT.Pattern.PVariable(id, str)
+    | PT.MPConstructor (id, name, args) ->
       CTPT.Pattern.PConstructor(id, name, List.map toCT args)
-    | PT.PInteger (id, i) -> CTPT.Pattern.PInteger(id, i)
-    | PT.PBool (id, b) -> CTPT.Pattern.PBool(id, b)
-    | PT.PCharacter (id, str) -> CTPT.Pattern.PCharacter(id, str)
-    | PT.PString (id, str) -> CTPT.Pattern.PString(id, str)
-    | PT.PFloat (id, sign, whole, frac) -> CTPT.Pattern.PFloat(id, sign, whole, frac)
-    | PT.PNull (id) -> CTPT.Pattern.PNull(id)
-    | PT.PBlank (id) -> CTPT.Pattern.PBlank(id)
-    | PT.PTuple (id, first, second, theRest) ->
+    | PT.MPInteger (id, i) -> CTPT.Pattern.PInteger(id, i)
+    | PT.MPBool (id, b) -> CTPT.Pattern.PBool(id, b)
+    | PT.MPCharacter (id, str) -> CTPT.Pattern.PCharacter(id, str)
+    | PT.MPString (id, str) -> CTPT.Pattern.PString(id, str)
+    | PT.MPFloat (id, sign, whole, frac) ->
+      CTPT.Pattern.PFloat(id, sign, whole, frac)
+    | PT.MPNull (id) -> CTPT.Pattern.PNull(id)
+    | PT.MPBlank (id) -> CTPT.Pattern.PBlank(id)
+    | PT.MPTuple (id, first, second, theRest) ->
       CTPT.Pattern.PTuple(id, toCT first, toCT second, List.map toCT theRest)
 
 

@@ -38,17 +38,17 @@ module SendToRail =
 module Pattern =
   let rec toST (p : PT.Pattern) : ST.Pattern =
     match p with
-    | PT.PVariable (id, str) -> ST.PVariable(id, str)
-    | PT.PConstructor (id, name, pats) ->
+    | PT.MPVariable (id, str) -> ST.PVariable(id, str)
+    | PT.MPConstructor (id, name, pats) ->
       ST.PConstructor(id, name, List.map toST pats)
-    | PT.PInteger (id, i) -> ST.PInteger(id, i)
-    | PT.PBool (id, b) -> ST.PBool(id, b)
-    | PT.PCharacter (id, c) -> ST.PCharacter(id, c)
-    | PT.PString (id, s) -> ST.PString(id, s)
-    | PT.PFloat (id, s, w, f) -> ST.PFloat(id, s, w, f)
-    | PT.PNull id -> ST.PNull id
-    | PT.PBlank id -> ST.PBlank id
-    | PT.PTuple (id, first, second, theRest) ->
+    | PT.MPInteger (id, i) -> ST.PInteger(id, i)
+    | PT.MPBool (id, b) -> ST.PBool(id, b)
+    | PT.MPCharacter (id, c) -> ST.PCharacter(id, c)
+    | PT.MPString (id, s) -> ST.PString(id, s)
+    | PT.MPFloat (id, s, w, f) -> ST.PFloat(id, s, w, f)
+    | PT.MPNull id -> ST.PNull id
+    | PT.MPBlank id -> ST.PBlank id
+    | PT.MPTuple (id, first, second, theRest) ->
       ST.PTuple(id, toST first, toST second, List.map toST theRest)
 
 

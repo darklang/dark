@@ -56,34 +56,34 @@ let rec patternPreTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Patte
   let r = patternPreTraversal f in
   let pattern = f pattern in
   match pattern with
-  | PVariable _
-  | PCharacter _
-  | PInteger _
-  | PBool _
-  | PString _
-  | PBlank _
-  | PNull _
-  | PFloat _ -> pattern
-  | PConstructor (patternID, name, patterns) ->
-    PConstructor(patternID, name, List.map (fun p -> r p) patterns)
-  | PTuple (patternID, first, second, theRest) ->
-    PTuple(patternID, r first, r second, List.map r theRest)
+  | MPVariable _
+  | MPCharacter _
+  | MPInteger _
+  | MPBool _
+  | MPString _
+  | MPBlank _
+  | MPNull _
+  | MPFloat _ -> pattern
+  | MPConstructor (patternID, name, patterns) ->
+    MPConstructor(patternID, name, List.map (fun p -> r p) patterns)
+  | MPTuple (patternID, first, second, theRest) ->
+    MPTuple(patternID, r first, r second, List.map r theRest)
 
 
 let rec patternPostTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Pattern =
   let r = patternPostTraversal f in
   let result =
     match pattern with
-    | PVariable _
-    | PCharacter _
-    | PInteger _
-    | PBool _
-    | PString _
-    | PBlank _
-    | PNull _
-    | PFloat _ -> pattern
-    | PConstructor (patternID, name, patterns) ->
-      PConstructor(patternID, name, List.map r patterns)
-    | PTuple (patternID, first, second, theRest) ->
-      PTuple(patternID, r first, r second, List.map r theRest)
+    | MPVariable _
+    | MPCharacter _
+    | MPInteger _
+    | MPBool _
+    | MPString _
+    | MPBlank _
+    | MPNull _
+    | MPFloat _ -> pattern
+    | MPConstructor (patternID, name, patterns) ->
+      MPConstructor(patternID, name, List.map r patterns)
+    | MPTuple (patternID, first, second, theRest) ->
+      MPTuple(patternID, r first, r second, List.map r theRest)
   f result

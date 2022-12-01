@@ -79,7 +79,7 @@ let updateHostsInOp
     ProgramTypesAst.patternPostTraversal
       (fun pat ->
         match pat with
-        | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
+        | PT.MPString (patternID, str) -> PT.MPString(patternID, replaceHost str)
         | pat -> pat)
       pattern
   Op.astOf op

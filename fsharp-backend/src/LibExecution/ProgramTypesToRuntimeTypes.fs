@@ -37,19 +37,19 @@ module SendToRail =
 module Pattern =
   let rec toRT (p : PT.Pattern) : RT.Pattern =
     match p with
-    | PT.PVariable (id, str) -> RT.PVariable(id, str)
-    | PT.PConstructor (id, name, pats) ->
+    | PT.MPVariable (id, str) -> RT.PVariable(id, str)
+    | PT.MPConstructor (id, name, pats) ->
       RT.PConstructor(id, name, List.map toRT pats)
-    | PT.PInteger (id, i) -> RT.PInteger(id, i)
-    | PT.PBool (id, b) -> RT.PBool(id, b)
-    | PT.PCharacter (id, c) -> RT.PCharacter(id, c)
-    | PT.PString (id, s) -> RT.PString(id, s)
-    | PT.PFloat (id, s, w, f) ->
+    | PT.MPInteger (id, i) -> RT.PInteger(id, i)
+    | PT.MPBool (id, b) -> RT.PBool(id, b)
+    | PT.MPCharacter (id, c) -> RT.PCharacter(id, c)
+    | PT.MPString (id, s) -> RT.PString(id, s)
+    | PT.MPFloat (id, s, w, f) ->
       let w = if w = "" then "0" else w
       RT.PFloat(id, makeFloat s w f)
-    | PT.PNull id -> RT.PNull id
-    | PT.PBlank id -> RT.PBlank id
-    | PT.PTuple (id, first, second, theRest) ->
+    | PT.MPNull id -> RT.PNull id
+    | PT.MPBlank id -> RT.PBlank id
+    | PT.MPTuple (id, first, second, theRest) ->
       RT.PTuple(id, toRT first, toRT second, List.map toRT theRest)
 
 

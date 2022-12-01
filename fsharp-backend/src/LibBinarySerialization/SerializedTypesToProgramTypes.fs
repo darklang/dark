@@ -50,18 +50,18 @@ module SendToRail =
 module Pattern =
   let rec toPT (p : ST.Pattern) : PT.Pattern =
     match p with
-    | ST.PVariable (id, str) -> PT.PVariable(id, str)
+    | ST.PVariable (id, str) -> PT.MPVariable(id, str)
     | ST.PConstructor (id, name, pats) ->
-      PT.PConstructor(id, name, List.map toPT pats)
-    | ST.PInteger (id, i) -> PT.PInteger(id, i)
-    | ST.PBool (id, b) -> PT.PBool(id, b)
-    | ST.PCharacter (id, c) -> PT.PCharacter(id, c)
-    | ST.PString (id, s) -> PT.PString(id, s)
-    | ST.PFloat (id, s, w, f) -> PT.PFloat(id, s, w, f)
-    | ST.PNull id -> PT.PNull id
-    | ST.PBlank id -> PT.PBlank id
+      PT.MPConstructor(id, name, List.map toPT pats)
+    | ST.PInteger (id, i) -> PT.MPInteger(id, i)
+    | ST.PBool (id, b) -> PT.MPBool(id, b)
+    | ST.PCharacter (id, c) -> PT.MPCharacter(id, c)
+    | ST.PString (id, s) -> PT.MPString(id, s)
+    | ST.PFloat (id, s, w, f) -> PT.MPFloat(id, s, w, f)
+    | ST.PNull id -> PT.MPNull id
+    | ST.PBlank id -> PT.MPBlank id
     | ST.PTuple (id, first, second, theRest) ->
-      PT.PTuple(id, toPT first, toPT second, List.map toPT theRest)
+      PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
 
 
 

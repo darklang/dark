@@ -383,17 +383,17 @@ module ProgramTypes =
     simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
   module Pattern =
-    let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.PInteger(gid (), i))
-    let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.PBool(gid (), b))
-    let genBlank = gen { return PT.PBlank(gid ()) }
-    let genNull = gen { return PT.PNull(gid ()) }
-    let genChar = char |> Gen.map (fun c -> PT.PCharacter(gid (), c))
-    let genStr = simpleString |> Gen.map (fun s -> PT.PString(gid (), s))
+    let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.MPInteger(gid (), i))
+    let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.MPBool(gid (), b))
+    let genBlank = gen { return PT.MPBlank(gid ()) }
+    let genNull = gen { return PT.MPNull(gid ()) }
+    let genChar = char |> Gen.map (fun c -> PT.MPCharacter(gid (), c))
+    let genStr = simpleString |> Gen.map (fun s -> PT.MPString(gid (), s))
 
     // TODO: genFloat
     // let genFloat = gen {return PT.PBlank (gid()) }
 
-    let genVar = simpleString |> Gen.map (fun s -> PT.PVariable(gid (), s))
+    let genVar = simpleString |> Gen.map (fun s -> PT.MPVariable(gid (), s))
 
     let constructor (s, genArg) : Gen<PT.Pattern> =
       let withMostlyFixedArgLen (name, expectedParamCount) =
@@ -404,7 +404,7 @@ module ProgramTypes =
 
           let! args = Gen.listOfLength argCount (genArg (s / 2))
 
-          return PT.PConstructor(gid (), name, args)
+          return PT.MPConstructor(gid (), name, args)
         }
 
       let ok = withMostlyFixedArgLen ("Ok", 1)

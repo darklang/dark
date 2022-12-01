@@ -38,16 +38,16 @@ module FQFnName =
 
 /// Patterns - used for pattern matching in a match statement
 type Pattern =
-  | PVariable of id * string
-  | PConstructor of id * string * List<Pattern>
-  | PInteger of id * int64
-  | PBool of id * bool
-  | PCharacter of id * string
-  | PString of id * string
-  | PFloat of id * Sign * string * string
-  | PNull of id
-  | PBlank of id
-  | PTuple of id * Pattern * Pattern * List<Pattern>
+  | MPVariable of id * string
+  | MPConstructor of id * string * List<Pattern>
+  | MPInteger of id * int64
+  | MPBool of id * bool
+  | MPCharacter of id * string
+  | MPString of id * string
+  | MPFloat of id * Sign * string * string
+  | MPNull of id
+  | MPBlank of id
+  | MPTuple of id * Pattern * Pattern * List<Pattern>
 
 /// Whether a function's result is unwrapped automatically (and, in the case of
 /// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.
