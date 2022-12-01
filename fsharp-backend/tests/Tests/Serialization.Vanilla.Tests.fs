@@ -124,7 +124,9 @@ module PersistedSerializations =
            |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
 
         v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
-        v<LibExecution.ProgramTypes.Handler.T> "simple" V.ProgramTypes.Handler.http
+        v<ClientTypes.Program.Handler.T>
+          "simple"
+          (CT2Program.Handler.toCT V.ProgramTypes.Handler.http)
 
         // ------------------
         // LibBackend
