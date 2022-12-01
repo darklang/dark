@@ -197,16 +197,16 @@ and IsInPipe =
   | NotInPipe
 
 and Pattern =
-  | PVariable of id * string
-  | PConstructor of id * string * List<Pattern>
-  | PInteger of id * int64
-  | PBool of id * bool
-  | PCharacter of id * string
-  | PString of id * string
-  | PFloat of id * double
-  | PNull of id
-  | PBlank of id
-  | PTuple of id * Pattern * Pattern * List<Pattern>
+  | MPVariable of id * string
+  | MPConstructor of id * string * List<Pattern>
+  | MPInteger of id * int64
+  | MPBool of id * bool
+  | MPCharacter of id * string
+  | MPString of id * string
+  | MPFloat of id * double
+  | MPNull of id
+  | MPBlank of id
+  | MPTuple of id * Pattern * Pattern * List<Pattern>
 
 type DvalMap = Map<string, Dval>
 
@@ -418,16 +418,16 @@ module Expr =
 module Pattern =
   let toID (pat : Pattern) : id =
     match pat with
-    | PInteger (id, _)
-    | PString (id, _)
-    | PCharacter (id, _)
-    | PBool (id, _)
-    | PNull id
-    | PFloat (id, _)
-    | PVariable (id, _)
-    | PBlank id
-    | PTuple (id, _, _, _)
-    | PConstructor (id, _, _) -> id
+    | MPInteger (id, _)
+    | MPString (id, _)
+    | MPCharacter (id, _)
+    | MPBool (id, _)
+    | MPNull id
+    | MPFloat (id, _)
+    | MPVariable (id, _)
+    | MPBlank id
+    | MPTuple (id, _, _, _)
+    | MPConstructor (id, _, _) -> id
 
 /// Functions for working with Dark runtime values
 module Dval =

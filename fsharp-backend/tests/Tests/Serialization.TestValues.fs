@@ -50,21 +50,21 @@ module RuntimeTypes =
       RT.TRecord["prop", RT.TBool] ]
 
   let matchPatterns : List<RT.Pattern> =
-    [ RT.PVariable(123UL, "test")
-      RT.PConstructor(1234UL, "Just", [ RT.PVariable(746385UL, "var") ])
-      RT.PInteger(756385UL, 7857395)
-      RT.PBool(8759375UL, true)
-      RT.PCharacter(4875843UL, "8jgkdjsfg")
-      RT.PString(857395UL, "iklfijo13294")
-      RT.PBlank(71284374UL)
-      RT.PNull(812394UL)
-      RT.PTuple(
+    [ RT.MPVariable(123UL, "test")
+      RT.MPConstructor(1234UL, "Just", [ RT.MPVariable(746385UL, "var") ])
+      RT.MPInteger(756385UL, 7857395)
+      RT.MPBool(8759375UL, true)
+      RT.MPCharacter(4875843UL, "8jgkdjsfg")
+      RT.MPString(857395UL, "iklfijo13294")
+      RT.MPBlank(71284374UL)
+      RT.MPNull(812394UL)
+      RT.MPTuple(
         487129457124UL,
-        RT.PNull(1234124UL),
-        RT.PString(128734857124UL, "1243sdfsadf"),
-        [ RT.PVariable(12748124UL, "var2") ]
+        RT.MPNull(1234124UL),
+        RT.MPString(128734857124UL, "1243sdfsadf"),
+        [ RT.MPVariable(12748124UL, "var2") ]
       )
-      RT.PFloat(12385781243UL, 79375.847583) ]
+      RT.MPFloat(12385781243UL, 79375.847583) ]
 
   let isInPipes : List<RT.IsInPipe> = [ RT.NotInPipe; RT.InPipe(18274UL) ]
 
@@ -113,7 +113,7 @@ module RuntimeTypes =
       RT.EMatch(
         712743UL,
         RT.EInteger(712373UL, 123),
-        [ RT.PVariable(12738UL, "i"), RT.EVariable(1482374UL, "i") ]
+        [ RT.MPVariable(12738UL, "i"), RT.EVariable(1482374UL, "i") ]
       )
       RT.EFeatureFlag(
         1823UL,

@@ -37,37 +37,37 @@ let errorOnTraceDifferences = false
 let rec patternFromExpr (expr : RT.Expr) : Gen<RT.Pattern> =
   match expr with
   | RT.EBlank (id) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PBlank(id))
+    Gen.frequency [ (1, Gen.constant <| RT.MPBlank(id))
                     (1, G.RuntimeTypes.Pattern.genVar)
                     (1, G.RuntimeTypes.pattern) ]
 
   | RT.ENull (id) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PNull(id))
+    Gen.frequency [ (1, Gen.constant <| RT.MPNull(id))
                     (1, G.RuntimeTypes.Pattern.genVar)
                     (1, G.RuntimeTypes.pattern) ]
 
   | RT.EBool (id, b) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PBool(id, b))
+    Gen.frequency [ (1, Gen.constant <| RT.MPBool(id, b))
                     (1, G.RuntimeTypes.Pattern.genVar)
                     (1, G.RuntimeTypes.pattern) ]
 
   | RT.EInteger (id, f) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PInteger(id, f))
+    Gen.frequency [ (1, Gen.constant <| RT.MPInteger(id, f))
                     (1, G.RuntimeTypes.Pattern.genVar)
                     (1, G.RuntimeTypes.pattern) ]
 
   | RT.EFloat (id, f) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PFloat(id, f))
+    Gen.frequency [ (1, Gen.constant <| RT.MPFloat(id, f))
                     (1, G.RuntimeTypes.Pattern.genVar)
                     (1, G.RuntimeTypes.pattern) ]
 
   | RT.ECharacter (id, c) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PCharacter(id, c))
+    Gen.frequency [ (1, Gen.constant <| RT.MPCharacter(id, c))
                     (1, G.RuntimeTypes.Pattern.genVar)
                     (1, G.RuntimeTypes.pattern) ]
 
   | RT.EString (id, s) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PString(id, s))
+    Gen.frequency [ (1, Gen.constant <| RT.MPString(id, s))
                     (1, G.RuntimeTypes.Pattern.genVar)
                     (1, G.RuntimeTypes.pattern) ]
 
@@ -75,7 +75,7 @@ let rec patternFromExpr (expr : RT.Expr) : Gen<RT.Pattern> =
     Gen.frequency [ (1,
                      gen {
                        let! args = args |> List.map patternFromExpr |> Gen.sequence
-                       return RT.PConstructor(id, name, args)
+                       return RT.MPConstructor(id, name, args)
                      })
                     (1, G.RuntimeTypes.Pattern.genVar)
                     (1, G.RuntimeTypes.pattern) ]

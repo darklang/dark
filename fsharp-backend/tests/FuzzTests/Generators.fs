@@ -156,15 +156,15 @@ module RuntimeTypes =
     simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
   module Pattern =
-    let genInt = Arb.generate<int64> |> Gen.map (fun i -> RT.PInteger(gid (), i))
-    let genBool = Arb.generate<bool> |> Gen.map (fun b -> RT.PBool(gid (), b))
-    let genBlank = gen { return RT.PBlank(gid ()) }
-    let genNull = gen { return RT.PNull(gid ()) }
-    let genChar = char |> Gen.map (fun c -> RT.PCharacter(gid (), c))
-    let genStr = simpleString |> Gen.map (fun s -> RT.PString(gid (), s))
-    let genFloat = Arb.generate<float> |> Gen.map (fun f -> RT.PFloat(gid (), f))
+    let genInt = Arb.generate<int64> |> Gen.map (fun i -> RT.MPInteger(gid (), i))
+    let genBool = Arb.generate<bool> |> Gen.map (fun b -> RT.MPBool(gid (), b))
+    let genBlank = gen { return RT.MPBlank(gid ()) }
+    let genNull = gen { return RT.MPNull(gid ()) }
+    let genChar = char |> Gen.map (fun c -> RT.MPCharacter(gid (), c))
+    let genStr = simpleString |> Gen.map (fun s -> RT.MPString(gid (), s))
+    let genFloat = Arb.generate<float> |> Gen.map (fun f -> RT.MPFloat(gid (), f))
 
-    let genVar = simpleString |> Gen.map (fun s -> RT.PVariable(gid (), s))
+    let genVar = simpleString |> Gen.map (fun s -> RT.MPVariable(gid (), s))
 
     let constructor (s, genArg) : Gen<RT.Pattern> =
       let withMostlyFixedArgLen (name, expectedParamCount) =
@@ -175,7 +175,7 @@ module RuntimeTypes =
 
           let! args = Gen.listOfLength argCount (genArg (s / 2))
 
-          return RT.PConstructor(gid (), name, args)
+          return RT.MPConstructor(gid (), name, args)
         }
 
       let ok = withMostlyFixedArgLen ("Ok", 1)

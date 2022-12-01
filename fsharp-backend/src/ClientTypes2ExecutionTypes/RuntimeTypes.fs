@@ -114,31 +114,31 @@ module Pattern =
   let rec fromCT (p : Pattern) : RT.Pattern =
     let r = fromCT
     match p with
-    | PVariable (id, str) -> RT.PVariable(id, str)
-    | PConstructor (id, name, pats) -> RT.PConstructor(id, name, List.map r pats)
-    | PInteger (id, i) -> RT.PInteger(id, i)
-    | PBool (id, b) -> RT.PBool(id, b)
-    | PCharacter (id, c) -> RT.PCharacter(id, c)
-    | PString (id, s) -> RT.PString(id, s)
-    | PFloat (id, f) -> RT.PFloat(id, f)
-    | PNull id -> RT.PNull id
-    | PBlank id -> RT.PBlank id
+    | PVariable (id, str) -> RT.MPVariable(id, str)
+    | PConstructor (id, name, pats) -> RT.MPConstructor(id, name, List.map r pats)
+    | PInteger (id, i) -> RT.MPInteger(id, i)
+    | PBool (id, b) -> RT.MPBool(id, b)
+    | PCharacter (id, c) -> RT.MPCharacter(id, c)
+    | PString (id, s) -> RT.MPString(id, s)
+    | PFloat (id, f) -> RT.MPFloat(id, f)
+    | PNull id -> RT.MPNull id
+    | PBlank id -> RT.MPBlank id
     | PTuple (id, first, second, theRest) ->
-      RT.PTuple(id, r first, r second, List.map r theRest)
+      RT.MPTuple(id, r first, r second, List.map r theRest)
 
   let rec toCT (p : RT.Pattern) : Pattern =
     let r = toCT
     match p with
-    | RT.PVariable (id, str) -> PVariable(id, str)
-    | RT.PConstructor (id, name, pats) -> PConstructor(id, name, List.map toCT pats)
-    | RT.PInteger (id, i) -> PInteger(id, i)
-    | RT.PBool (id, b) -> PBool(id, b)
-    | RT.PCharacter (id, c) -> PCharacter(id, c)
-    | RT.PString (id, s) -> PString(id, s)
-    | RT.PFloat (id, f) -> PFloat(id, f)
-    | RT.PNull id -> PNull id
-    | RT.PBlank id -> PBlank id
-    | RT.PTuple (id, first, second, theRest) ->
+    | RT.MPVariable (id, str) -> PVariable(id, str)
+    | RT.MPConstructor (id, name, pats) -> PConstructor(id, name, List.map toCT pats)
+    | RT.MPInteger (id, i) -> PInteger(id, i)
+    | RT.MPBool (id, b) -> PBool(id, b)
+    | RT.MPCharacter (id, c) -> PCharacter(id, c)
+    | RT.MPString (id, s) -> PString(id, s)
+    | RT.MPFloat (id, f) -> PFloat(id, f)
+    | RT.MPNull id -> PNull id
+    | RT.MPBlank id -> PBlank id
+    | RT.MPTuple (id, first, second, theRest) ->
       PTuple(id, r first, r second, List.map r theRest)
 
 module Expr =

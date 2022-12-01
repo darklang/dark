@@ -37,20 +37,20 @@ module SendToRail =
 module Pattern =
   let rec toRT (p : PT.Pattern) : RT.Pattern =
     match p with
-    | PT.MPVariable (id, str) -> RT.PVariable(id, str)
+    | PT.MPVariable (id, str) -> RT.MPVariable(id, str)
     | PT.MPConstructor (id, name, pats) ->
-      RT.PConstructor(id, name, List.map toRT pats)
-    | PT.MPInteger (id, i) -> RT.PInteger(id, i)
-    | PT.MPBool (id, b) -> RT.PBool(id, b)
-    | PT.MPCharacter (id, c) -> RT.PCharacter(id, c)
-    | PT.MPString (id, s) -> RT.PString(id, s)
+      RT.MPConstructor(id, name, List.map toRT pats)
+    | PT.MPInteger (id, i) -> RT.MPInteger(id, i)
+    | PT.MPBool (id, b) -> RT.MPBool(id, b)
+    | PT.MPCharacter (id, c) -> RT.MPCharacter(id, c)
+    | PT.MPString (id, s) -> RT.MPString(id, s)
     | PT.MPFloat (id, s, w, f) ->
       let w = if w = "" then "0" else w
-      RT.PFloat(id, makeFloat s w f)
-    | PT.MPNull id -> RT.PNull id
-    | PT.MPBlank id -> RT.PBlank id
+      RT.MPFloat(id, makeFloat s w f)
+    | PT.MPNull id -> RT.MPNull id
+    | PT.MPBlank id -> RT.MPBlank id
     | PT.MPTuple (id, first, second, theRest) ->
-      RT.PTuple(id, toRT first, toRT second, List.map toRT theRest)
+      RT.MPTuple(id, toRT first, toRT second, List.map toRT theRest)
 
 
 

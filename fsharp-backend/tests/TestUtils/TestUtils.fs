@@ -523,30 +523,30 @@ module Expect =
     if checkIDs then check path (Pattern.toID actual) (Pattern.toID expected)
 
     match actual, expected with
-    | PVariable (_, name), PVariable (_, name') -> check path name name'
-    | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
+    | MPVariable (_, name), MPVariable (_, name') -> check path name name'
+    | (MPConstructor (_, name, patterns), MPConstructor (_, name', patterns')) ->
       check path name name'
       eqList (name :: path) patterns patterns'
-    | PString (_, str), PString (_, str') -> check path str str'
-    | PInteger (_, l), PInteger (_, l') -> check path l l'
-    | PFloat (_, d), PFloat (_, d') -> check path d d'
-    | PBool (_, l), PBool (_, l') -> check path l l'
-    | PCharacter (_, c), PCharacter (_, c') -> check path c c'
-    | PNull (_), PNull (_) -> ()
-    | PBlank (_), PBlank (_) -> ()
-    | PTuple (_, first, second, theRest), PTuple (_, first', second', theRest') ->
+    | MPString (_, str), MPString (_, str') -> check path str str'
+    | MPInteger (_, l), MPInteger (_, l') -> check path l l'
+    | MPFloat (_, d), MPFloat (_, d') -> check path d d'
+    | MPBool (_, l), MPBool (_, l') -> check path l l'
+    | MPCharacter (_, c), MPCharacter (_, c') -> check path c c'
+    | MPNull (_), MPNull (_) -> ()
+    | MPBlank (_), MPBlank (_) -> ()
+    | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
     // exhaustiveness check
-    | PVariable _, _
-    | PConstructor _, _
-    | PString _, _
-    | PInteger _, _
-    | PFloat _, _
-    | PBool _, _
-    | PCharacter _, _
-    | PNull _, _
-    | PBlank _, _
-    | PTuple _, _ -> check path actual expected
+    | MPVariable _, _
+    | MPConstructor _, _
+    | MPString _, _
+    | MPInteger _, _
+    | MPFloat _, _
+    | MPBool _, _
+    | MPCharacter _, _
+    | MPNull _, _
+    | MPBlank _, _
+    | MPTuple _, _ -> check path actual expected
 
 
   let rec exprEqualityBaseFn
