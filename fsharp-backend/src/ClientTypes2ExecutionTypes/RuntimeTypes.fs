@@ -113,21 +113,48 @@ module DType =
 module Pattern =
   let rec fromCT (p : Pattern) : RT.Pattern =
     let r = fromCT
+
     match p with
+    // This is currently positioned to 'parse' both old-style (PBlank) and new-style
+    // (MPBlank) naming conventions of these patterns. Shortly, (TODO) we should
+    // follow up and remove the old-style naming convention support.
+    | MPVariable (id, str)
     | PVariable (id, str) -> RT.MPVariable(id, str)
+
+    | MPConstructor (id, name, pats)
     | PConstructor (id, name, pats) -> RT.MPConstructor(id, name, List.map r pats)
+
+    | MPInteger (id, i)
     | PInteger (id, i) -> RT.MPInteger(id, i)
+
+    | MPBool (id, b)
     | PBool (id, b) -> RT.MPBool(id, b)
+
+    | MPCharacter (id, c)
     | PCharacter (id, c) -> RT.MPCharacter(id, c)
+
+    | MPString (id, s)
     | PString (id, s) -> RT.MPString(id, s)
+
+    | MPFloat (id, f)
     | PFloat (id, f) -> RT.MPFloat(id, f)
+
+    | MPNull id
     | PNull id -> RT.MPNull id
+
+    | MPBlank id
     | PBlank id -> RT.MPBlank id
+
+    | MPTuple (id, first, second, theRest)
     | PTuple (id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
 
   let rec toCT (p : RT.Pattern) : Pattern =
     let r = toCT
+
+    // TODO Very shortly, update these to map to the new style
+    // (the client has been set up to accept these for weeks)
+
     match p with
     | RT.MPVariable (id, str) -> PVariable(id, str)
     | RT.MPConstructor (id, name, pats) -> PConstructor(id, name, List.map toCT pats)

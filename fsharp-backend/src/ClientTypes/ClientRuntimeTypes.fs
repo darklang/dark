@@ -54,6 +54,18 @@ type DType =
   | TRecord of List<string * DType>
 
 type Pattern =
+  | MPVariable of id * string
+  | MPConstructor of id * string * List<Pattern>
+  | MPInteger of id * int64
+  | MPBool of id * bool
+  | MPCharacter of id * string
+  | MPString of id * string
+  | MPFloat of id * double
+  | MPNull of id
+  | MPBlank of id
+  | MPTuple of id * Pattern * Pattern * List<Pattern>
+
+  // TODO These are to be removed after some transition time
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
   | PInteger of id * int64
