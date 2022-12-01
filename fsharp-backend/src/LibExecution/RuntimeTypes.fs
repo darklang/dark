@@ -176,7 +176,7 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
   | EConstructor of id * string * List<Expr>
-  | EMatch of id * Expr * List<Pattern * Expr>
+  | EMatch of id * Expr * List<MatchPattern * Expr>
   | EFeatureFlag of id * Expr * Expr * Expr
 
   member this.isBlank : bool =
@@ -196,9 +196,9 @@ and IsInPipe =
   | InPipe of id // the ID of the original pipe
   | NotInPipe
 
-and Pattern =
+and MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<Pattern>
+  | MPConstructor of id * string * List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string
@@ -206,7 +206,7 @@ and Pattern =
   | MPFloat of id * double
   | MPNull of id
   | MPBlank of id
-  | MPTuple of id * Pattern * Pattern * List<Pattern>
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 type DvalMap = Map<string, Dval>
 
@@ -414,9 +414,9 @@ module Expr =
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _) -> id
 
-/// Functions for working with Dark patterns
-module Pattern =
-  let toID (pat : Pattern) : id =
+/// Functions for working with Dark match patterns
+module MatchPattern =
+  let toID (pat : MatchPattern) : id =
     match pat with
     | MPInteger (id, _)
     | MPString (id, _)

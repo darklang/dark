@@ -69,8 +69,8 @@ module FQFnName =
     | PT.FQFnName.Package p -> CTPT.FQFnName.Package(PackageFnName.toCT p)
 
 
-module Pattern =
-  let rec fromCT (pat : CTPT.Pattern) : PT.Pattern =
+module MatchPattern =
+  let rec fromCT (pat : CTPT.MatchPattern) : PT.MatchPattern =
     match pat with
     // This is currently positioned to 'parse' both old-style (PBlank) and new-style
     // (MPBlank) naming conventions of these patterns. Shortly, (TODO) we need to
@@ -107,7 +107,7 @@ module Pattern =
     | CTPT.PTuple (id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
-  let rec toCT (pat : PT.Pattern) : CTPT.Pattern =
+  let rec toCT (pat : PT.MatchPattern) : CTPT.MatchPattern =
     match pat with
     // TODO Update these to map to the new naming style (e.g. MPVariable). The
     // client has been set up to accept these for weeks. It would generally be safe
@@ -189,7 +189,7 @@ module Expr =
       PT.EMatch(
         id,
         fromCT matchExpr,
-        cases |> List.map (fun (pat, expr) -> (Pattern.fromCT pat, fromCT expr))
+        cases |> List.map (fun (pat, expr) -> (MatchPattern.fromCT pat, fromCT expr))
       )
     | CTPT.Expr.EPipeTarget (id) -> PT.EPipeTarget(id)
     | CTPT.Expr.EFeatureFlag (id, name, cond, caseA, caseB) ->
@@ -247,7 +247,7 @@ module Expr =
       CTPT.Expr.EMatch(
         id,
         toCT matchExpr,
-        cases |> List.map (fun (pat, expr) -> (Pattern.toCT pat, toCT expr))
+        cases |> List.map (fun (pat, expr) -> (MatchPattern.toCT pat, toCT expr))
       )
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->

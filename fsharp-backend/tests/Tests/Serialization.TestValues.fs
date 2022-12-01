@@ -49,7 +49,7 @@ module RuntimeTypes =
       RT.TFn([ RT.TBool ], RT.TBool)
       RT.TRecord["prop", RT.TBool] ]
 
-  let matchPatterns : List<RT.Pattern> =
+  let matchPatterns : List<RT.MatchPattern> =
     [ RT.MPVariable(123UL, "test")
       RT.MPConstructor(1234UL, "Just", [ RT.MPVariable(746385UL, "var") ])
       RT.MPInteger(756385UL, 7857395)
@@ -159,7 +159,7 @@ module ProgramTypes =
 
   let pos : PT.Position = { x = 6; y = 6 }
 
-  let matchPatterns : List<PT.Pattern> =
+  let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
       PT.MPConstructor(7471263UL, "None", [])
       PT.MPInteger(74816UL, 84871728)

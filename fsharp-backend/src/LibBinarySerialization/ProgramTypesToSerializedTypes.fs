@@ -35,8 +35,8 @@ module SendToRail =
     | PT.Rail -> ST.Rail
     | PT.NoRail -> ST.NoRail
 
-module Pattern =
-  let rec toST (p : PT.Pattern) : ST.Pattern =
+module MatchPattern =
+  let rec toST (p : PT.MatchPattern) : ST.MatchPattern =
     match p with
     | PT.MPVariable (id, str) -> ST.MPVariable(id, str)
     | PT.MPConstructor (id, name, pats) ->
@@ -97,7 +97,7 @@ module Expr =
       ST.EMatch(
         id,
         toST mexpr,
-        List.map (Tuple2.mapFirst Pattern.toST << Tuple2.mapSecond toST) pairs
+        List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) pairs
       )
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->

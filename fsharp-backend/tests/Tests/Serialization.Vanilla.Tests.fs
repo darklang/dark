@@ -593,10 +593,10 @@ module RoundtripTests =
           CT2Runtime.DType.fromCT
           None
         testRoundtripList
-          "RT.Pattern"
+          "RT.MatchPattern"
           V.RuntimeTypes.matchPatterns
-          CT2Runtime.Pattern.toCT
-          CT2Runtime.Pattern.fromCT
+          CT2Runtime.MatchPattern.toCT
+          CT2Runtime.MatchPattern.fromCT
           None
         testRoundtripList
           "RT.SendToRail"
@@ -652,8 +652,8 @@ module RoundtripTests =
         testRoundtripList
           "PT.Pattern"
           V.ProgramTypes.matchPatterns
-          CT2Program.Pattern.toCT
-          CT2Program.Pattern.fromCT
+          CT2Program.MatchPattern.toCT
+          CT2Program.MatchPattern.fromCT
           None
         testRoundtripList
           "PT.SendToRail"

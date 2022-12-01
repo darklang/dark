@@ -36,7 +36,7 @@ type Generator =
       | PT.ECharacter _ -> false
       | _ -> true)
 
-  static member Pattern() =
+  static member MatchPattern() =
     Arb.Default.Derive()
     |> Arb.filter (fun pattern ->
       match pattern with

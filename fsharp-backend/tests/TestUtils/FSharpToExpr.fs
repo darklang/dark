@@ -62,7 +62,7 @@ let nameOrBlank (v : string) : string = if v = "___" then "" else v
 let rec convertToExpr' (ast : SynExpr) : PT.Expr =
   let c = convertToExpr'
 
-  let rec convertPattern (pat : SynPat) : PT.Pattern =
+  let rec convertPattern (pat : SynPat) : PT.MatchPattern =
     let id = gid ()
     match pat with
     | SynPat.Named (name, _, _, _) when name.idText = "blank" -> PT.MPBlank id
@@ -313,7 +313,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
   | SynExpr.Match (_, _, cond, _, clauses, _) ->
     let convertClause
       (SynMatchClause (pat, _, expr, _, _, _) : SynMatchClause)
-      : PT.Pattern * PT.Expr =
+      : PT.MatchPattern * PT.Expr =
       (convertPattern pat, c expr)
 
     PT.EMatch(id, c cond, List.map convertClause clauses)

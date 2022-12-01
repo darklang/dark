@@ -253,7 +253,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let traceIncompleteWithArgs id argPatterns =
         let argTraces =
           argPatterns
-          |> List.map Pattern.toID
+          |> List.map MatchPattern.toID
           |> List.map (fun pId -> (pId, incomplete pId))
 
         (id, incomplete id) :: argTraces

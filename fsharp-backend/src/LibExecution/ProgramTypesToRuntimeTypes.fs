@@ -34,8 +34,8 @@ module SendToRail =
     | PT.Rail -> RT.Rail
     | PT.NoRail -> RT.NoRail
 
-module Pattern =
-  let rec toRT (p : PT.Pattern) : RT.Pattern =
+module MatchPattern =
+  let rec toRT (p : PT.MatchPattern) : RT.MatchPattern =
     match p with
     | PT.MPVariable (id, str) -> RT.MPVariable(id, str)
     | PT.MPConstructor (id, name, pats) ->
@@ -151,7 +151,7 @@ module Expr =
       RT.EMatch(
         id,
         toRT mexpr,
-        List.map (Tuple2.mapFirst Pattern.toRT << Tuple2.mapSecond toRT) pairs
+        List.map (Tuple2.mapFirst MatchPattern.toRT << Tuple2.mapSecond toRT) pairs
       )
     | PT.EPipeTarget id ->
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]

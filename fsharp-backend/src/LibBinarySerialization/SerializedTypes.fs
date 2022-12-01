@@ -91,9 +91,9 @@ module FQFnName =
     | Package of PackageFnName
 
 [<MessagePack.MessagePackObject>]
-type Pattern =
+type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<Pattern>
+  | MPConstructor of id * string * List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string
@@ -101,7 +101,7 @@ type Pattern =
   | MPFloat of id * Sign * string * string
   | MPNull of id
   | MPBlank of id
-  | MPTuple of id * Pattern * Pattern * List<Pattern>
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 [<MessagePack.MessagePackObject>]
 type SendToRail =
@@ -131,7 +131,7 @@ type Expr =
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of id * string * List<Expr>
-  | EMatch of id * Expr * List<Pattern * Expr>
+  | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>

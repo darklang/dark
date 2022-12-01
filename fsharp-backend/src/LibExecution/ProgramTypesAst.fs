@@ -52,8 +52,11 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let result = traverse r expr
   f result
 
-let rec patternPreTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Pattern =
-  let r = patternPreTraversal f in
+let rec matchPatternPreTraversal
+  (f : MatchPattern -> MatchPattern)
+  (pattern : MatchPattern)
+  : MatchPattern =
+  let r = matchPatternPreTraversal f in
   let pattern = f pattern in
   match pattern with
   | MPVariable _
@@ -70,8 +73,11 @@ let rec patternPreTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Patte
     MPTuple(patternID, r first, r second, List.map r theRest)
 
 
-let rec patternPostTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Pattern =
-  let r = patternPostTraversal f in
+let rec matchPatternPostTraversal
+  (f : MatchPattern -> MatchPattern)
+  (pattern : MatchPattern)
+  : MatchPattern =
+  let r = matchPatternPostTraversal f in
   let result =
     match pattern with
     | MPVariable _

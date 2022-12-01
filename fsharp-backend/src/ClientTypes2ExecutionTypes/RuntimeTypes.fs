@@ -110,8 +110,8 @@ module DType =
     | TFn (ts, returnType) -> RT.TFn(rl ts, r returnType)
     | TRecord (pairs) -> RT.TRecord(List.map (fun (k, t) -> (k, r t)) pairs)
 
-module Pattern =
-  let rec fromCT (p : Pattern) : RT.Pattern =
+module MatchPattern =
+  let rec fromCT (p : MatchPattern) : RT.MatchPattern =
     let r = fromCT
 
     match p with
@@ -149,7 +149,7 @@ module Pattern =
     | PTuple (id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
 
-  let rec toCT (p : RT.Pattern) : Pattern =
+  let rec toCT (p : RT.MatchPattern) : MatchPattern =
     let r = toCT
     match p with
     // TODO Update these to map to the new naming style (e.g. MPVariable). The
@@ -220,7 +220,7 @@ module Expr =
       RT.EMatch(
         id,
         r mexpr,
-        List.map (Tuple2.mapFirst Pattern.fromCT << Tuple2.mapSecond r) pairs
+        List.map (Tuple2.mapFirst MatchPattern.fromCT << Tuple2.mapSecond r) pairs
       )
     | Expr.EFeatureFlag (id, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
@@ -257,7 +257,7 @@ module Expr =
       Expr.EMatch(
         id,
         r mexpr,
-        List.map (Tuple2.mapFirst Pattern.toCT << Tuple2.mapSecond r) pairs
+        List.map (Tuple2.mapFirst MatchPattern.toCT << Tuple2.mapSecond r) pairs
       )
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
