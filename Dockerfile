@@ -334,6 +334,9 @@ RUN /home/dark/install-exe-file \
 # PubSub
 ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
 
+# Cloud Storage emulator
+RUN go install github.com/fullstorydev/emulators/storage/cmd/gcsemulator@latest
+
 # GKE
 ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
 

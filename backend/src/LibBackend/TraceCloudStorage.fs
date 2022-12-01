@@ -91,11 +91,25 @@ type CloudStorageFormat =
     timestamp : NodaTime.Instant
     functionResults : Map<tlid, Map<id, FnName * FunctionArgHash * RoundTrippableDval>> }
 
-// let client = Google.Cloud.Storage.StorageClientImpl.Create()
+let bucketName = Config.traceStorageBucketName
+
+type StorageClientBuilder = Google.Cloud.Storage.V1.StorageClientBuilder
+
+let client =
+  lazy
+    (task {
+      let builder =
+        match Config.traceStorageCredentials with
+        | None ->
+          StorageClientBuilder(
+            BaseUri = Config.traceStorageBaseUri,
+            UnauthenticatedAccess = true
+          )
+        | Some cred -> StorageClientBuilder(JsonCredentials = cred)
+      return! builder.BuildAsync()
+    })
 
 let roundtrippableToDval (rt : RoundTrippableDval) : RT.Dval = rt
-
-let bucketName = Config.traceStorageBucketName
 
 // Require TLIDs rather than having unbounded search
 let listMostRecentTraceIDs

@@ -140,6 +140,7 @@ docker run \
   -v pgconf:/etc/postgresql \
   -v pglogs:/var/log/postgresql \
   -v pgdata:/var/lib/postgresql \
+  -v cloudstorage:/var/cloud-storage \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -p 9000:9000 \
   -p 11001:11001 \

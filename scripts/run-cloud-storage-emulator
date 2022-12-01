@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+echo "Running Cloud Storage emulator"
+
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
+
+killall gcsemulator || true
+~/go/bin/gcsemulator -dir /var/cloud-storage -port 4444 \
+    > "$LOGS/cloud-storage-emulator.log" 2>&1 &
+
+echo "Finished loading Cloud Storage emulator"
