@@ -1204,7 +1204,6 @@ module Ply =
         list
 
     let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
-
       list
       |> foldSequentially
            (fun (accum : List<'b>) (arg : 'a) ->

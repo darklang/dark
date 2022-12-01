@@ -1464,4 +1464,56 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "List" "partition" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = TTuple((TList varA), (TList varA), [])
+      description =
+        "Calls <param f> on every <var val> in <param list>, splitting the list into
+         two - those values for which {{fn val}} returns {{true}}, and those that
+         return {{false}}.
+
+         Preserves the order of values."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+          uply {
+            let partition l =
+              let applyFn dval =
+                Interpreter.applyFnVal state (id 0) fn [ dval ] NotInPipe NoRail
+
+              let rec loop acc l =
+                uply {
+                  match acc, l with
+                  | (a, b), item :: tail ->
+                    let! fnResult = applyFn item
+
+                    match fnResult with
+                    | DBool true -> return! loop (item :: a, b) tail
+                    | DBool false -> return! loop (a, item :: b) tail
+
+                    | (DIncomplete _
+                    | DErrorRail _
+                    | DError _) as dv ->
+                      // fake dvals
+                      return Error dv
+
+                    | v ->
+                      return
+                        Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
+                  | (a, b), [] -> return Ok(List.rev a, List.rev b)
+                }
+
+              loop ([], []) l
+
+            match! partition l with
+            | Ok (a, b) -> return DTuple(DList a, DList b, [])
+            | Error fakeDval -> return fakeDval
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
