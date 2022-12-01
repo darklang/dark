@@ -262,7 +262,7 @@ let saveTest = (m: model): cmd =>
   ))
 
 let integration = (m: model, name: string): cmd =>
-  apiCallNoParams(
+  apiCallPreloaded(
     m,
     "/v1/initial_load",
     ~decoder=APIInitialLoad.decode,
