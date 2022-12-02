@@ -1,7 +1,8 @@
-/backend/static
-
 # OSes
 .DS_Store
+
+# Config
+config/local
 
 # IDEs
 .idea
@@ -16,6 +17,7 @@ rundir/
 lib/
 node_modules/
 .merlin
+/backend/static
 
 # F#
 backend/packages/

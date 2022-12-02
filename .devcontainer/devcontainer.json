@@ -55,6 +55,8 @@
     "dark-dev",
     "--env-file",
     "config/dev",
+    // "--env-file",
+    // "config/local",
     "--env",
     "HOST_PWD=${localWorkspaceFolder}",
     "--security-opt",

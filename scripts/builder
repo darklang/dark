@@ -101,6 +101,9 @@ do
 done
 
 ENV_FILE="config/$ENV"
+if [[ -e "config/local" ]]; then
+  ENV_FILE="$ENV_FILE config/local"
+fi
 
 echo "Using env: $ENV_FILE"
 
