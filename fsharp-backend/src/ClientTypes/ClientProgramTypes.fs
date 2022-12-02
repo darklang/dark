@@ -33,9 +33,21 @@ module FQFnName =
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
-type Pattern =
+type MatchPattern =
+  | MPVariable of id * string
+  | MPConstructor of id * string * List<MatchPattern>
+  | MPInteger of id * int64
+  | MPBool of id * bool
+  | MPCharacter of id * string
+  | MPString of id * string
+  | MPFloat of id * Sign * string * string
+  | MPNull of id
+  | MPBlank of id
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+  // TODO These are to be removed after some transition time
   | PVariable of id * string
-  | PConstructor of id * string * List<Pattern>
+  | PConstructor of id * string * List<MatchPattern>
   | PInteger of id * int64
   | PBool of id * bool
   | PCharacter of id * string
@@ -43,7 +55,7 @@ type Pattern =
   | PFloat of id * Sign * string * string
   | PNull of id
   | PBlank of id
-  | PTuple of id * Pattern * Pattern * List<Pattern>
+  | PTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 
 type SendToRail =
@@ -74,7 +86,7 @@ type Expr =
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of id * string * List<Expr>
-  | EMatch of id * Expr * List<Pattern * Expr>
+  | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
 

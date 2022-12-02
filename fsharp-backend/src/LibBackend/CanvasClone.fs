@@ -75,11 +75,11 @@ let updateHostsInOp
     let host (canvas : CanvasName.T) =
       $"://{string canvas}.{Config.bwdServerContentHost}"
     String.replace (host oldCanvas) (host newCanvas) str
-  let rec updateHostsInPattern (pattern : PT.Pattern) : PT.Pattern =
-    ProgramTypesAst.patternPostTraversal
+  let rec updateHostsInPattern (pattern : PT.MatchPattern) : PT.MatchPattern =
+    ProgramTypesAst.matchPatternPostTraversal
       (fun pat ->
         match pat with
-        | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
+        | PT.MPString (patternID, str) -> PT.MPString(patternID, replaceHost str)
         | pat -> pat)
       pattern
   Op.astOf op

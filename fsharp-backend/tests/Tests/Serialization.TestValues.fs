@@ -49,22 +49,22 @@ module RuntimeTypes =
       RT.TFn([ RT.TBool ], RT.TBool)
       RT.TRecord["prop", RT.TBool] ]
 
-  let matchPatterns : List<RT.Pattern> =
-    [ RT.PVariable(123UL, "test")
-      RT.PConstructor(1234UL, "Just", [ RT.PVariable(746385UL, "var") ])
-      RT.PInteger(756385UL, 7857395)
-      RT.PBool(8759375UL, true)
-      RT.PCharacter(4875843UL, "8jgkdjsfg")
-      RT.PString(857395UL, "iklfijo13294")
-      RT.PBlank(71284374UL)
-      RT.PNull(812394UL)
-      RT.PTuple(
+  let matchPatterns : List<RT.MatchPattern> =
+    [ RT.MPVariable(123UL, "test")
+      RT.MPConstructor(1234UL, "Just", [ RT.MPVariable(746385UL, "var") ])
+      RT.MPInteger(756385UL, 7857395)
+      RT.MPBool(8759375UL, true)
+      RT.MPCharacter(4875843UL, "8jgkdjsfg")
+      RT.MPString(857395UL, "iklfijo13294")
+      RT.MPBlank(71284374UL)
+      RT.MPNull(812394UL)
+      RT.MPTuple(
         487129457124UL,
-        RT.PNull(1234124UL),
-        RT.PString(128734857124UL, "1243sdfsadf"),
-        [ RT.PVariable(12748124UL, "var2") ]
+        RT.MPNull(1234124UL),
+        RT.MPString(128734857124UL, "1243sdfsadf"),
+        [ RT.MPVariable(12748124UL, "var2") ]
       )
-      RT.PFloat(12385781243UL, 79375.847583) ]
+      RT.MPFloat(12385781243UL, 79375.847583) ]
 
   let isInPipes : List<RT.IsInPipe> = [ RT.NotInPipe; RT.InPipe(18274UL) ]
 
@@ -113,7 +113,7 @@ module RuntimeTypes =
       RT.EMatch(
         712743UL,
         RT.EInteger(712373UL, 123),
-        [ RT.PVariable(12738UL, "i"), RT.EVariable(1482374UL, "i") ]
+        [ RT.MPVariable(12738UL, "i"), RT.EVariable(1482374UL, "i") ]
       )
       RT.EFeatureFlag(
         1823UL,
@@ -159,21 +159,21 @@ module ProgramTypes =
 
   let pos : PT.Position = { x = 6; y = 6 }
 
-  let matchPatterns : List<PT.Pattern> =
-    [ PT.PVariable(1234123UL, "var8481")
-      PT.PConstructor(7471263UL, "None", [])
-      PT.PInteger(74816UL, 84871728)
-      PT.PBool(66453UL, false)
-      PT.PCharacter(83749178UL, "w")
-      PT.PString(817201237UL, "testing testing 123")
-      PT.PFloat(012037123UL, Positive, "123", "456")
-      PT.PNull(9123871238UL)
-      PT.PBlank(8123818247123UL)
-      PT.PTuple(
+  let matchPatterns : List<PT.MatchPattern> =
+    [ PT.MPVariable(1234123UL, "var8481")
+      PT.MPConstructor(7471263UL, "None", [])
+      PT.MPInteger(74816UL, 84871728)
+      PT.MPBool(66453UL, false)
+      PT.MPCharacter(83749178UL, "w")
+      PT.MPString(817201237UL, "testing testing 123")
+      PT.MPFloat(012037123UL, Positive, "123", "456")
+      PT.MPNull(9123871238UL)
+      PT.MPBlank(8123818247123UL)
+      PT.MPTuple(
         91298UL,
-        PT.PInteger(812831UL, 123),
-        PT.PBool(81871UL, true),
-        [ PT.PNull(17123UL) ]
+        PT.MPInteger(812831UL, 123),
+        PT.MPBool(81871UL, true),
+        [ PT.MPNull(17123UL) ]
       ) ]
 
   let sendToRails : List<PT.SendToRail> = [ PT.Rail; PT.NoRail ]
@@ -341,22 +341,22 @@ module ProgramTypes =
                                 [],
                                 PT.NoRail
                               ),
-                              [ (PT.PConstructor(
+                              [ (PT.MPConstructor(
                                   1015986188UL,
                                   "Ok",
-                                  [ PT.PVariable(334386852UL, "x") ]
+                                  [ PT.MPVariable(334386852UL, "x") ]
                                  ),
                                  PT.EVariable(863810169UL, "v"))
-                                (PT.PInteger(928253813UL, 5L),
+                                (PT.MPInteger(928253813UL, 5L),
                                  PT.EInteger(342670561UL, -9223372036854775808L))
-                                (PT.PBool(435227293UL, true),
+                                (PT.MPBool(435227293UL, true),
                                  PT.EInteger(232748650UL, 7L))
-                                (PT.PCharacter(387662539UL, "c"),
+                                (PT.MPCharacter(387662539UL, "c"),
                                  PT.ECharacter(657848009UL, "c"))
-                                (PT.PString(491115870UL, "string"),
+                                (PT.MPString(491115870UL, "string"),
                                  PT.EString(820329949UL, "string"))
-                                (PT.PNull 701616052UL, PT.ENull 731162955UL)
-                                (PT.PVariable(722099983UL, "var"),
+                                (PT.MPNull 701616052UL, PT.ENull 731162955UL)
+                                (PT.MPVariable(722099983UL, "var"),
                                  PT.EBinOp(
                                    275666765UL,
                                    { module_ = None; function_ = "+" },
@@ -364,14 +364,14 @@ module ProgramTypes =
                                    PT.EVariable(880556562UL, "var"),
                                    PT.NoRail
                                  ))
-                                (PT.PFloat(409097457UL, Positive, "5", "6"),
+                                (PT.MPFloat(409097457UL, Positive, "5", "6"),
                                  PT.EFloat(131187958UL, Positive, "5", "6"))
-                                (PT.PBlank 858594159UL, PT.EInteger(135348705UL, 6L))
-                                (PT.PTuple(
+                                (PT.MPBlank 858594159UL, PT.EInteger(135348705UL, 6L))
+                                (PT.MPTuple(
                                   1285610UL,
-                                  PT.PVariable(17823641UL, "a"),
-                                  PT.PVariable(58123641UL, "b"),
-                                  [ PT.PVariable(95723641UL, "c") ]
+                                  PT.MPVariable(17823641UL, "a"),
+                                  PT.MPVariable(58123641UL, "b"),
+                                  [ PT.MPVariable(95723641UL, "c") ]
                                  ),
                                  PT.EBool(123716747UL, true)) ]
                             ),

@@ -147,8 +147,8 @@ let rec inline'
       | expr -> expr)
     expr
 
-let (|Fn|_|) (mName : string) (fName : string) (v : int) (pattern : Expr) =
-  match pattern with
+let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
+  match expr with
   | EApply (_, EFQFnValue (_, FQFnName.Stdlib std), args, _, NoRail) when
     std.module_ = mName && std.function_ = fName && std.version = v
     ->

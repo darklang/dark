@@ -36,18 +36,18 @@ module FQFnName =
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
-/// Patterns - used for pattern matching in a match statement
-type Pattern =
-  | PVariable of id * string
-  | PConstructor of id * string * List<Pattern>
-  | PInteger of id * int64
-  | PBool of id * bool
-  | PCharacter of id * string
-  | PString of id * string
-  | PFloat of id * Sign * string * string
-  | PNull of id
-  | PBlank of id
-  | PTuple of id * Pattern * Pattern * List<Pattern>
+/// Used for pattern matching in a match statement
+type MatchPattern =
+  | MPVariable of id * string
+  | MPConstructor of id * string * List<MatchPattern>
+  | MPInteger of id * int64
+  | MPBool of id * bool
+  | MPCharacter of id * string
+  | MPString of id * string
+  | MPFloat of id * Sign * string * string
+  | MPNull of id
+  | MPBlank of id
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 /// Whether a function's result is unwrapped automatically (and, in the case of
 /// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.
@@ -124,7 +124,7 @@ type Expr =
   // expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
   // or length 0 (for `Nothing`).
   | EConstructor of id * string * List<Expr>
-  | EMatch of id * Expr * List<Pattern * Expr>
+  | EMatch of id * Expr * List<MatchPattern * Expr>
   // Placeholder that indicates the target of the Thread. May be movable at
   // some point
   | EPipeTarget of id

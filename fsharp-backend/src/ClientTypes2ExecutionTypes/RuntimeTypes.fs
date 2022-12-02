@@ -110,35 +110,62 @@ module DType =
     | TFn (ts, returnType) -> RT.TFn(rl ts, r returnType)
     | TRecord (pairs) -> RT.TRecord(List.map (fun (k, t) -> (k, r t)) pairs)
 
-module Pattern =
-  let rec fromCT (p : Pattern) : RT.Pattern =
+module MatchPattern =
+  let rec fromCT (p : MatchPattern) : RT.MatchPattern =
     let r = fromCT
-    match p with
-    | PVariable (id, str) -> RT.PVariable(id, str)
-    | PConstructor (id, name, pats) -> RT.PConstructor(id, name, List.map r pats)
-    | PInteger (id, i) -> RT.PInteger(id, i)
-    | PBool (id, b) -> RT.PBool(id, b)
-    | PCharacter (id, c) -> RT.PCharacter(id, c)
-    | PString (id, s) -> RT.PString(id, s)
-    | PFloat (id, f) -> RT.PFloat(id, f)
-    | PNull id -> RT.PNull id
-    | PBlank id -> RT.PBlank id
-    | PTuple (id, first, second, theRest) ->
-      RT.PTuple(id, r first, r second, List.map r theRest)
 
-  let rec toCT (p : RT.Pattern) : Pattern =
+    match p with
+    // This is currently positioned to 'parse' both old-style (PBlank) and new-style
+    // (MPBlank) naming conventions of these patterns. Shortly, (TODO) we need to
+    // follow up and remove the old-style naming convention support.
+    | MPVariable (id, str)
+    | PVariable (id, str) -> RT.MPVariable(id, str)
+
+    | MPConstructor (id, name, pats)
+    | PConstructor (id, name, pats) -> RT.MPConstructor(id, name, List.map r pats)
+
+    | MPInteger (id, i)
+    | PInteger (id, i) -> RT.MPInteger(id, i)
+
+    | MPBool (id, b)
+    | PBool (id, b) -> RT.MPBool(id, b)
+
+    | MPCharacter (id, c)
+    | PCharacter (id, c) -> RT.MPCharacter(id, c)
+
+    | MPString (id, s)
+    | PString (id, s) -> RT.MPString(id, s)
+
+    | MPFloat (id, f)
+    | PFloat (id, f) -> RT.MPFloat(id, f)
+
+    | MPNull id
+    | PNull id -> RT.MPNull id
+
+    | MPBlank id
+    | PBlank id -> RT.MPBlank id
+
+    | MPTuple (id, first, second, theRest)
+    | PTuple (id, first, second, theRest) ->
+      RT.MPTuple(id, r first, r second, List.map r theRest)
+
+  let rec toCT (p : RT.MatchPattern) : MatchPattern =
     let r = toCT
     match p with
-    | RT.PVariable (id, str) -> PVariable(id, str)
-    | RT.PConstructor (id, name, pats) -> PConstructor(id, name, List.map toCT pats)
-    | RT.PInteger (id, i) -> PInteger(id, i)
-    | RT.PBool (id, b) -> PBool(id, b)
-    | RT.PCharacter (id, c) -> PCharacter(id, c)
-    | RT.PString (id, s) -> PString(id, s)
-    | RT.PFloat (id, f) -> PFloat(id, f)
-    | RT.PNull id -> PNull id
-    | RT.PBlank id -> PBlank id
-    | RT.PTuple (id, first, second, theRest) ->
+    // TODO Update these to map to the new naming style (e.g. MPVariable). The
+    // client has been set up to accept these for weeks. It would generally be safe
+    // to update now, but the roundtrip serialization tests make it painful. We can
+    // do this at the same time that we remove support from the client.
+    | RT.MPVariable (id, str) -> PVariable(id, str)
+    | RT.MPConstructor (id, name, pats) -> PConstructor(id, name, List.map r pats)
+    | RT.MPInteger (id, i) -> PInteger(id, i)
+    | RT.MPBool (id, b) -> PBool(id, b)
+    | RT.MPCharacter (id, c) -> PCharacter(id, c)
+    | RT.MPString (id, s) -> PString(id, s)
+    | RT.MPFloat (id, f) -> PFloat(id, f)
+    | RT.MPNull id -> PNull id
+    | RT.MPBlank id -> PBlank id
+    | RT.MPTuple (id, first, second, theRest) ->
       PTuple(id, r first, r second, List.map r theRest)
 
 module Expr =
@@ -193,7 +220,7 @@ module Expr =
       RT.EMatch(
         id,
         r mexpr,
-        List.map (Tuple2.mapFirst Pattern.fromCT << Tuple2.mapSecond r) pairs
+        List.map (Tuple2.mapFirst MatchPattern.fromCT << Tuple2.mapSecond r) pairs
       )
     | Expr.EFeatureFlag (id, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
@@ -230,7 +257,7 @@ module Expr =
       Expr.EMatch(
         id,
         r mexpr,
-        List.map (Tuple2.mapFirst Pattern.toCT << Tuple2.mapSecond r) pairs
+        List.map (Tuple2.mapFirst MatchPattern.toCT << Tuple2.mapSecond r) pairs
       )
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)

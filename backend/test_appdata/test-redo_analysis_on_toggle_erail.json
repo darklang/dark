@@ -67,12 +67,12 @@
           [
             [
               [
-                "PConstructor",
+                "MPConstructor",
                 1897472926,
                 "Just",
                 [
                   [
-                    "PVariable",
+                    "MPVariable",
                     470226319,
                     "n"
                   ]
@@ -86,7 +86,7 @@
             ],
             [
               [
-                "PConstructor",
+                "MPConstructor",
                 1462274190,
                 "Nothing",
                 []

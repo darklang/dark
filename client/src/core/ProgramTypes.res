@@ -133,7 +133,10 @@ module MatchPattern = {
             list(decode),
           ),
         ),
-        // CLEANUP: remove the above list in favor of the below
+        // TODO remove support from the old-style (e.g. PVariable) naming convention
+        // of these cases, leaving support only for the new naming convention. This
+        // can be done at the same time as we remove the old-style cases from
+        // ClientTypes.Program
         ("MPVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
         (
           "MPConstructor",

@@ -379,29 +379,29 @@ let testMatchPreview : Test =
 
   let patternsToMatchAgainst =
     [ // | 5 -> 17
-      (PInteger(pIntId, 5L), EInteger(intRhsId, 17L))
+      (MPInteger(pIntId, 5L), EInteger(intRhsId, 17L))
 
       // | 5.6 -> "float"
-      (PFloat(pFloatId, 5.6), EString(floatRhsId, "float"))
+      (MPFloat(pFloatId, 5.6), EString(floatRhsId, "float"))
 
       // | false -> "bool"
-      (PBool(pBoolId, false), EString(boolRhsId, "bool"))
+      (MPBool(pBoolId, false), EString(boolRhsId, "bool"))
 
       // | "myStr" -> "str"
-      (PString(pStrId, "myStr"), EString(strRhsId, "str"))
+      (MPString(pStrId, "myStr"), EString(strRhsId, "str"))
 
       // | null -> "null"
-      (PNull(pNullId), EString(nullRhsId, "null"))
+      (MPNull(pNullId), EString(nullRhsId, "null"))
 
       // | _ -> "blank" (should never been matched)
-      (PBlank(pBlankId), EString(blankRhsId, "blank"))
+      (MPBlank(pBlankId), EString(blankRhsId, "blank"))
 
       // | Ok _ -> "ok blank"
-      (PConstructor(pOkBlankOkId, "Ok", [ PBlank pOkBlankBlankId ]),
+      (MPConstructor(pOkBlankOkId, "Ok", [ MPBlank pOkBlankBlankId ]),
        EString(okBlankRhsId, "ok blank"))
 
       // | Ok x -> "ok: " ++ x
-      (PConstructor(pOkVarOkId, "Ok", [ PVariable(pOkVarVarId, "x") ]),
+      (MPConstructor(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
        EApply(
          okVarRhsId,
          EFQFnValue(
@@ -414,12 +414,12 @@ let testMatchPreview : Test =
        ))
 
       // | None -> "constructor nothing"
-      (PConstructor(pNothingId, "Nothing", []),
+      (MPConstructor(pNothingId, "Nothing", []),
        EString(nothingRhsId, "constructor nothing"))
 
       // | name -> name
       // (everything should match this, except for 'fake' dvals such as errors)
-      (PVariable(pVarId, "name"), EVariable(varRhsId, "name")) ]
+      (MPVariable(pVarId, "name"), EVariable(varRhsId, "name")) ]
 
   let getSubExprIds (arg : Expr) =
     let mutable argIDs = []

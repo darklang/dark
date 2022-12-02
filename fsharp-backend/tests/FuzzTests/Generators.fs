@@ -155,18 +155,18 @@ module RuntimeTypes =
   let simpleString =
     simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
-  module Pattern =
-    let genInt = Arb.generate<int64> |> Gen.map (fun i -> RT.PInteger(gid (), i))
-    let genBool = Arb.generate<bool> |> Gen.map (fun b -> RT.PBool(gid (), b))
-    let genBlank = gen { return RT.PBlank(gid ()) }
-    let genNull = gen { return RT.PNull(gid ()) }
-    let genChar = char |> Gen.map (fun c -> RT.PCharacter(gid (), c))
-    let genStr = simpleString |> Gen.map (fun s -> RT.PString(gid (), s))
-    let genFloat = Arb.generate<float> |> Gen.map (fun f -> RT.PFloat(gid (), f))
+  module MatchPattern =
+    let genInt = Arb.generate<int64> |> Gen.map (fun i -> RT.MPInteger(gid (), i))
+    let genBool = Arb.generate<bool> |> Gen.map (fun b -> RT.MPBool(gid (), b))
+    let genBlank = gen { return RT.MPBlank(gid ()) }
+    let genNull = gen { return RT.MPNull(gid ()) }
+    let genChar = char |> Gen.map (fun c -> RT.MPCharacter(gid (), c))
+    let genStr = simpleString |> Gen.map (fun s -> RT.MPString(gid (), s))
+    let genFloat = Arb.generate<float> |> Gen.map (fun f -> RT.MPFloat(gid (), f))
 
-    let genVar = simpleString |> Gen.map (fun s -> RT.PVariable(gid (), s))
+    let genVar = simpleString |> Gen.map (fun s -> RT.MPVariable(gid (), s))
 
-    let constructor (s, genArg) : Gen<RT.Pattern> =
+    let constructor (s, genArg) : Gen<RT.MatchPattern> =
       let withMostlyFixedArgLen (name, expectedParamCount) =
         gen {
           let! argCount =
@@ -175,7 +175,7 @@ module RuntimeTypes =
 
           let! args = Gen.listOfLength argCount (genArg (s / 2))
 
-          return RT.PConstructor(gid (), name, args)
+          return RT.MPConstructor(gid (), name, args)
         }
 
       let ok = withMostlyFixedArgLen ("Ok", 1)
@@ -192,12 +192,12 @@ module RuntimeTypes =
                       //(4, ok) // TODO: random string, with 0-5 args
                        ]
 
-  open Pattern
+  open MatchPattern
 
-  let pattern =
+  let matchPattern =
     // TODO: consider adding 'weight' such that certain patterns are generated
     // more often than others
-    let rec gen' s : Gen<RT.Pattern> =
+    let rec gen' s : Gen<RT.MatchPattern> =
       let finitePatterns =
         [ genInt; genBool; genBlank; genNull; genChar; genStr; genVar ]
 
@@ -211,10 +211,10 @@ module RuntimeTypes =
     Gen.sized gen' // todo: depth of 20 seems kinda reasonable
 
 
-  let patternsForMatch : Gen<List<RT.Pattern>> =
+  let patternsForMatch : Gen<List<RT.MatchPattern>> =
     gen {
       let! len = Gen.choose (1, 20)
-      return! Gen.listOfLength len pattern
+      return! Gen.listOfLength len matchPattern
     }
 
   module Expr =
@@ -352,7 +352,7 @@ module RuntimeTypes =
         genTuple
         genRecord
         genList
-        genMatch pattern ]
+        genMatch matchPattern ]
       |> List.map (fun g -> g expr' s)
 
     let allExprs = recursiveExprs @ finiteExprs
@@ -382,20 +382,20 @@ module ProgramTypes =
   let simpleString =
     simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
-  module Pattern =
-    let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.PInteger(gid (), i))
-    let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.PBool(gid (), b))
-    let genBlank = gen { return PT.PBlank(gid ()) }
-    let genNull = gen { return PT.PNull(gid ()) }
-    let genChar = char |> Gen.map (fun c -> PT.PCharacter(gid (), c))
-    let genStr = simpleString |> Gen.map (fun s -> PT.PString(gid (), s))
+  module MatchPattern =
+    let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.MPInteger(gid (), i))
+    let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.MPBool(gid (), b))
+    let genBlank = gen { return PT.MPBlank(gid ()) }
+    let genNull = gen { return PT.MPNull(gid ()) }
+    let genChar = char |> Gen.map (fun c -> PT.MPCharacter(gid (), c))
+    let genStr = simpleString |> Gen.map (fun s -> PT.MPString(gid (), s))
 
     // TODO: genFloat
     // let genFloat = gen {return PT.PBlank (gid()) }
 
-    let genVar = simpleString |> Gen.map (fun s -> PT.PVariable(gid (), s))
+    let genVar = simpleString |> Gen.map (fun s -> PT.MPVariable(gid (), s))
 
-    let constructor (s, genArg) : Gen<PT.Pattern> =
+    let constructor (s, genArg) : Gen<PT.MatchPattern> =
       let withMostlyFixedArgLen (name, expectedParamCount) =
         gen {
           let! argCount =
@@ -404,7 +404,7 @@ module ProgramTypes =
 
           let! args = Gen.listOfLength argCount (genArg (s / 2))
 
-          return PT.PConstructor(gid (), name, args)
+          return PT.MPConstructor(gid (), name, args)
         }
 
       let ok = withMostlyFixedArgLen ("Ok", 1)
@@ -421,11 +421,11 @@ module ProgramTypes =
                       //(4, ok) // TODO: random string, with 0-5 args
                        ]
 
-  open Pattern
+  open MatchPattern
 
-  let pattern =
+  let matchPattern =
     // TODO: consider adding 'weight' such that certain patterns are generated more often than others
-    let rec gen' s : Gen<PT.Pattern> =
+    let rec gen' s : Gen<PT.MatchPattern> =
       let finitePatterns =
         [ genInt; genBool; genBlank; genNull; genChar; genStr; genVar ]
 
@@ -439,10 +439,10 @@ module ProgramTypes =
     Gen.sized gen' // todo: depth of 20 seems kinda reasonable
 
 
-  let patternsForMatch : Gen<List<PT.Pattern>> =
+  let patternsForMatch : Gen<List<PT.MatchPattern>> =
     gen {
       let! len = Gen.choose (1, 20)
-      return! Gen.listOfLength len pattern
+      return! Gen.listOfLength len matchPattern
     }
 
   module Expr =
@@ -582,7 +582,7 @@ module ProgramTypes =
         genTuple
         genRecord
         genList
-        genMatch pattern ]
+        genMatch matchPattern ]
       |> List.map (fun g -> g expr' s)
 
     let allExprs = recursiveExprs @ finiteExprs

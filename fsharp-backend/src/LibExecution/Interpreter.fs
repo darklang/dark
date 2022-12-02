@@ -253,7 +253,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let traceIncompleteWithArgs id argPatterns =
         let argTraces =
           argPatterns
-          |> List.map Pattern.toID
+          |> List.map MatchPattern.toID
           |> List.map (fun pId -> (pId, incomplete pId))
 
         (id, incomplete id) :: argTraces
@@ -269,19 +269,19 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         pattern
         : bool * List<string * Dval> * List<id * Dval> =
         match pattern with
-        | PInteger (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
-        | PBool (id, b) -> (dv = DBool b), [], [ (id, DBool b) ]
-        | PCharacter (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
-        | PString (id, s) -> (dv = DStr s), [], [ (id, DStr s) ]
-        | PFloat (id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
-        | PNull (id) -> (dv = DNull), [], [ (id, DNull) ]
+        | MPInteger (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
+        | MPBool (id, b) -> (dv = DBool b), [], [ (id, DBool b) ]
+        | MPCharacter (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
+        | MPString (id, s) -> (dv = DStr s), [], [ (id, DStr s) ]
+        | MPFloat (id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
+        | MPNull (id) -> (dv = DNull), [], [ (id, DNull) ]
 
-        | PBlank (id) -> false, [], [ (id, incomplete id) ]
+        | MPBlank (id) -> false, [], [ (id, incomplete id) ]
 
-        | PVariable (id, varName) ->
+        | MPVariable (id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
-        | PConstructor (id, name, args) ->
+        | MPConstructor (id, name, args) ->
           match (name, args, dv) with
           | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
 
@@ -299,7 +299,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let traces = traceIncompleteWithArgs id argPatterns
             false, [], traces
 
-        | PTuple (id, firstPat, secondPat, theRestPat) ->
+        | MPTuple (id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
 
           match dv with

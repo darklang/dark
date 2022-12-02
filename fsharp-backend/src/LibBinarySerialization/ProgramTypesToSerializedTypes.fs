@@ -35,21 +35,21 @@ module SendToRail =
     | PT.Rail -> ST.Rail
     | PT.NoRail -> ST.NoRail
 
-module Pattern =
-  let rec toST (p : PT.Pattern) : ST.Pattern =
+module MatchPattern =
+  let rec toST (p : PT.MatchPattern) : ST.MatchPattern =
     match p with
-    | PT.PVariable (id, str) -> ST.PVariable(id, str)
-    | PT.PConstructor (id, name, pats) ->
-      ST.PConstructor(id, name, List.map toST pats)
-    | PT.PInteger (id, i) -> ST.PInteger(id, i)
-    | PT.PBool (id, b) -> ST.PBool(id, b)
-    | PT.PCharacter (id, c) -> ST.PCharacter(id, c)
-    | PT.PString (id, s) -> ST.PString(id, s)
-    | PT.PFloat (id, s, w, f) -> ST.PFloat(id, s, w, f)
-    | PT.PNull id -> ST.PNull id
-    | PT.PBlank id -> ST.PBlank id
-    | PT.PTuple (id, first, second, theRest) ->
-      ST.PTuple(id, toST first, toST second, List.map toST theRest)
+    | PT.MPVariable (id, str) -> ST.MPVariable(id, str)
+    | PT.MPConstructor (id, name, pats) ->
+      ST.MPConstructor(id, name, List.map toST pats)
+    | PT.MPInteger (id, i) -> ST.MPInteger(id, i)
+    | PT.MPBool (id, b) -> ST.MPBool(id, b)
+    | PT.MPCharacter (id, c) -> ST.MPCharacter(id, c)
+    | PT.MPString (id, s) -> ST.MPString(id, s)
+    | PT.MPFloat (id, s, w, f) -> ST.MPFloat(id, s, w, f)
+    | PT.MPNull id -> ST.MPNull id
+    | PT.MPBlank id -> ST.MPBlank id
+    | PT.MPTuple (id, first, second, theRest) ->
+      ST.MPTuple(id, toST first, toST second, List.map toST theRest)
 
 
 
@@ -97,7 +97,7 @@ module Expr =
       ST.EMatch(
         id,
         toST mexpr,
-        List.map (Tuple2.mapFirst Pattern.toST << Tuple2.mapSecond toST) pairs
+        List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) pairs
       )
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->

@@ -36,13 +36,13 @@ type Generator =
       | PT.ECharacter _ -> false
       | _ -> true)
 
-  static member Pattern() =
+  static member MatchPattern() =
     Arb.Default.Derive()
     |> Arb.filter (fun pattern ->
       match pattern with
       // characters are not supported in OCaml
       // CLEANUP can be removed once OCaml gone
-      | PT.PCharacter _ -> false
+      | PT.MPCharacter _ -> false
       | _ -> true)
 
 

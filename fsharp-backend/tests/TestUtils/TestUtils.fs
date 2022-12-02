@@ -504,49 +504,50 @@ module Expect =
     let pathStr = (path @ [ "val" ]) |> List.reverse |> String.concat "."
     $"in ({pathStr})"
 
-  let rec patternEqualityBaseFn
+  let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
     (path : Path)
-    (actual : Pattern)
-    (expected : Pattern)
+    (actual : MatchPattern)
+    (expected : MatchPattern)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let eq path a e = patternEqualityBaseFn checkIDs path a e errorFn
+    let eq path a e = matchPatternEqualityBaseFn checkIDs path a e errorFn
 
     let check path (a : 'a) (e : 'a) =
       if a <> e then errorFn path (string actual) (string expected)
 
-    let eqList path (l1 : List<RT.Pattern>) (l2 : List<RT.Pattern>) =
+    let eqList path (l1 : List<RT.MatchPattern>) (l2 : List<RT.MatchPattern>) =
       List.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
       check path (List.length l1) (List.length l2)
 
-    if checkIDs then check path (Pattern.toID actual) (Pattern.toID expected)
+    if checkIDs then
+      check path (MatchPattern.toID actual) (MatchPattern.toID expected)
 
     match actual, expected with
-    | PVariable (_, name), PVariable (_, name') -> check path name name'
-    | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
+    | MPVariable (_, name), MPVariable (_, name') -> check path name name'
+    | (MPConstructor (_, name, patterns), MPConstructor (_, name', patterns')) ->
       check path name name'
       eqList (name :: path) patterns patterns'
-    | PString (_, str), PString (_, str') -> check path str str'
-    | PInteger (_, l), PInteger (_, l') -> check path l l'
-    | PFloat (_, d), PFloat (_, d') -> check path d d'
-    | PBool (_, l), PBool (_, l') -> check path l l'
-    | PCharacter (_, c), PCharacter (_, c') -> check path c c'
-    | PNull (_), PNull (_) -> ()
-    | PBlank (_), PBlank (_) -> ()
-    | PTuple (_, first, second, theRest), PTuple (_, first', second', theRest') ->
+    | MPString (_, str), MPString (_, str') -> check path str str'
+    | MPInteger (_, l), MPInteger (_, l') -> check path l l'
+    | MPFloat (_, d), MPFloat (_, d') -> check path d d'
+    | MPBool (_, l), MPBool (_, l') -> check path l l'
+    | MPCharacter (_, c), MPCharacter (_, c') -> check path c c'
+    | MPNull (_), MPNull (_) -> ()
+    | MPBlank (_), MPBlank (_) -> ()
+    | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
     // exhaustiveness check
-    | PVariable _, _
-    | PConstructor _, _
-    | PString _, _
-    | PInteger _, _
-    | PFloat _, _
-    | PBool _, _
-    | PCharacter _, _
-    | PNull _, _
-    | PBlank _, _
-    | PTuple _, _ -> check path actual expected
+    | MPVariable _, _
+    | MPConstructor _, _
+    | MPString _, _
+    | MPInteger _, _
+    | MPFloat _, _
+    | MPBool _, _
+    | MPCharacter _, _
+    | MPNull _, _
+    | MPBlank _, _
+    | MPTuple _, _ -> check path actual expected
 
 
   let rec exprEqualityBaseFn
@@ -629,8 +630,8 @@ module Expect =
       eq ("matchCond" :: path) e e'
 
       List.iter2
-        (fun ((p, v) : Pattern * Expr) (p', v') ->
-          patternEqualityBaseFn checkIDs path p p' errorFn
+        (fun ((p, v) : MatchPattern * Expr) (p', v') ->
+          matchPatternEqualityBaseFn checkIDs path p p' errorFn
           eq (string p :: path) v v')
         branches
         branches'
@@ -764,16 +765,19 @@ module Expect =
     dvalEqualityBaseFn [] actual expected (fun path a e ->
       Expect.equal a e $"{msg}: {pathToString path} (overall: {actual})")
 
-  let rec equalPattern
-    (actual : Pattern)
-    (expected : Pattern)
+  let rec equalMatchPattern
+    (actual : MatchPattern)
+    (expected : MatchPattern)
     (msg : string)
     : unit =
-    patternEqualityBaseFn true [] actual expected (fun path a e ->
+    matchPatternEqualityBaseFn true [] actual expected (fun path a e ->
       Expect.equal a e $"{msg}: {pathToString path}")
 
-  let rec equalPatternIgnoringIDs (actual : Pattern) (expected : Pattern) : unit =
-    patternEqualityBaseFn false [] actual expected (fun path a e ->
+  let rec equalMatchPatternIgnoringIDs
+    (actual : MatchPattern)
+    (expected : MatchPattern)
+    : unit =
+    matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
       Expect.equal a e (pathToString path))
 
   let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =

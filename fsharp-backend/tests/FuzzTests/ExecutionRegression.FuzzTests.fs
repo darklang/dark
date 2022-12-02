@@ -34,51 +34,51 @@ let errorOnTraceDifferences = false
 /// generated Exprs are bound to almost never match. This attempts to ensure we
 /// generate matches at a reasonable frequency. That said, not all Exprs have
 /// Patterns that will match them.
-let rec patternFromExpr (expr : RT.Expr) : Gen<RT.Pattern> =
+let rec patternFromExpr (expr : RT.Expr) : Gen<RT.MatchPattern> =
   match expr with
   | RT.EBlank (id) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PBlank(id))
-                    (1, G.RuntimeTypes.Pattern.genVar)
-                    (1, G.RuntimeTypes.pattern) ]
+    Gen.frequency [ (1, Gen.constant <| RT.MPBlank(id))
+                    (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
   | RT.ENull (id) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PNull(id))
-                    (1, G.RuntimeTypes.Pattern.genVar)
-                    (1, G.RuntimeTypes.pattern) ]
+    Gen.frequency [ (1, Gen.constant <| RT.MPNull(id))
+                    (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
   | RT.EBool (id, b) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PBool(id, b))
-                    (1, G.RuntimeTypes.Pattern.genVar)
-                    (1, G.RuntimeTypes.pattern) ]
+    Gen.frequency [ (1, Gen.constant <| RT.MPBool(id, b))
+                    (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
   | RT.EInteger (id, f) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PInteger(id, f))
-                    (1, G.RuntimeTypes.Pattern.genVar)
-                    (1, G.RuntimeTypes.pattern) ]
+    Gen.frequency [ (1, Gen.constant <| RT.MPInteger(id, f))
+                    (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
   | RT.EFloat (id, f) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PFloat(id, f))
-                    (1, G.RuntimeTypes.Pattern.genVar)
-                    (1, G.RuntimeTypes.pattern) ]
+    Gen.frequency [ (1, Gen.constant <| RT.MPFloat(id, f))
+                    (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
   | RT.ECharacter (id, c) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PCharacter(id, c))
-                    (1, G.RuntimeTypes.Pattern.genVar)
-                    (1, G.RuntimeTypes.pattern) ]
+    Gen.frequency [ (1, Gen.constant <| RT.MPCharacter(id, c))
+                    (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
   | RT.EString (id, s) ->
-    Gen.frequency [ (1, Gen.constant <| RT.PString(id, s))
-                    (1, G.RuntimeTypes.Pattern.genVar)
-                    (1, G.RuntimeTypes.pattern) ]
+    Gen.frequency [ (1, Gen.constant <| RT.MPString(id, s))
+                    (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
   | RT.EConstructor (id, name, args) ->
     Gen.frequency [ (1,
                      gen {
                        let! args = args |> List.map patternFromExpr |> Gen.sequence
-                       return RT.PConstructor(id, name, args)
+                       return RT.MPConstructor(id, name, args)
                      })
-                    (1, G.RuntimeTypes.Pattern.genVar)
-                    (1, G.RuntimeTypes.pattern) ]
+                    (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
   // TODO: Some of these exprs _could_ be simplified such that we recommend a
   // pattern based on the simplified expr
@@ -97,7 +97,8 @@ let rec patternFromExpr (expr : RT.Expr) : Gen<RT.Pattern> =
   // TODO: we could populate a Symtable to use with EVariable and EFieldAccess
   // usages in the RHS expr
   | RT.ELet _ ->
-    Gen.frequency [ (1, G.RuntimeTypes.Pattern.genVar); (1, G.RuntimeTypes.pattern) ]
+    Gen.frequency [ (1, G.RuntimeTypes.MatchPattern.genVar)
+                    (1, G.RuntimeTypes.matchPattern) ]
 
 module Generators =
   /// This generates EMatch exprs where we attempt to ensure Patterns have a

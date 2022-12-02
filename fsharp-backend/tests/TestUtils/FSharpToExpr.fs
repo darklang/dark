@@ -62,23 +62,23 @@ let nameOrBlank (v : string) : string = if v = "___" then "" else v
 let rec convertToExpr' (ast : SynExpr) : PT.Expr =
   let c = convertToExpr'
 
-  let rec convertPattern (pat : SynPat) : PT.Pattern =
+  let rec convertPattern (pat : SynPat) : PT.MatchPattern =
     let id = gid ()
     match pat with
-    | SynPat.Named (name, _, _, _) when name.idText = "blank" -> PT.PBlank id
-    | SynPat.Named (name, _, _, _) -> PT.PVariable(id, name.idText)
-    | SynPat.Wild _ -> PT.PVariable(gid (), "_") // wildcard, not blank
-    | SynPat.Const (SynConst.Int32 n, _) -> PT.PInteger(id, n)
-    | SynPat.Const (SynConst.Int64 n, _) -> PT.PInteger(id, int64 n)
-    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.PInteger(id, parseInt64 n)
-    | SynPat.Const (SynConst.Char c, _) -> PT.PCharacter(id, string c)
-    | SynPat.Const (SynConst.Bool b, _) -> PT.PBool(id, b)
-    | SynPat.Null _ -> PT.PNull id
+    | SynPat.Named (name, _, _, _) when name.idText = "blank" -> PT.MPBlank id
+    | SynPat.Named (name, _, _, _) -> PT.MPVariable(id, name.idText)
+    | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
+    | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInteger(id, n)
+    | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInteger(id, int64 n)
+    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInteger(id, parseInt64 n)
+    | SynPat.Const (SynConst.Char c, _) -> PT.MPCharacter(id, string c)
+    | SynPat.Const (SynConst.Bool b, _) -> PT.MPBool(id, b)
+    | SynPat.Null _ -> PT.MPNull id
     | SynPat.Paren (pat, _) -> convertPattern pat
     | SynPat.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
-      PT.PFloat(id, sign, whole, fraction)
-    | SynPat.Const (SynConst.String (s, _, _), _) -> PT.PString(id, s)
+      PT.MPFloat(id, sign, whole, fraction)
+    | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
     | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
                         _,
                         _,
@@ -87,9 +87,9 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
                         _,
                         _) ->
       let args = List.map convertPattern args
-      PT.PConstructor(id, constructorName.idText, args)
+      PT.MPConstructor(id, constructorName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
-      PT.PTuple(
+      PT.MPTuple(
         id,
         convertPattern first,
         convertPattern second,
@@ -313,7 +313,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
   | SynExpr.Match (_, _, cond, _, clauses, _) ->
     let convertClause
       (SynMatchClause (pat, _, expr, _, _, _) : SynMatchClause)
-      : PT.Pattern * PT.Expr =
+      : PT.MatchPattern * PT.Expr =
       (convertPattern pat, c expr)
 
     PT.EMatch(id, c cond, List.map convertClause clauses)

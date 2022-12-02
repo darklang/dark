@@ -53,9 +53,21 @@ type DType =
   | TFn of List<DType> * DType
   | TRecord of List<string * DType>
 
-type Pattern =
+type MatchPattern =
+  | MPVariable of id * string
+  | MPConstructor of id * string * List<MatchPattern>
+  | MPInteger of id * int64
+  | MPBool of id * bool
+  | MPCharacter of id * string
+  | MPString of id * string
+  | MPFloat of id * double
+  | MPNull of id
+  | MPBlank of id
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+  // TODO These are to be removed after some transition time
   | PVariable of id * string
-  | PConstructor of id * string * List<Pattern>
+  | PConstructor of id * string * List<MatchPattern>
   | PInteger of id * int64
   | PBool of id * bool
   | PCharacter of id * string
@@ -63,7 +75,7 @@ type Pattern =
   | PFloat of id * double
   | PNull of id
   | PBlank of id
-  | PTuple of id * Pattern * Pattern * List<Pattern>
+  | PTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 module Expr =
   type T =
@@ -85,7 +97,7 @@ module Expr =
     | ETuple of id * T * T * List<T>
     | ERecord of id * List<string * T>
     | EConstructor of id * string * List<T>
-    | EMatch of id * T * List<Pattern * T>
+    | EMatch of id * T * List<MatchPattern * T>
     | EFeatureFlag of id * T * T * T
 
   and SendToRail =
