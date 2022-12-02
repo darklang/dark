@@ -40,8 +40,8 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
     Html.h3(
       list{
         Attrs.classList(list{
-          (%twc("h-full m-0 mb-[-3px] px-2.5 py-0 text-grey2 cursor-pointer"), true),
-          (%twc("text-white3 border-solid border-b-[3px] border-b-grey8"), isSameTab),
+          (%twc("h-full m-0 -mb-0.5 px-2.5 py-0 text-grey2 cursor-pointer"), true),
+          (%twc("text-white3 border-solid border-b-3 border-b-grey8"), isSameTab),
         }),
         EventListeners.eventNoPropagation(
           ~key="close-settings-modal",
@@ -54,7 +54,7 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
   }
 
   Html.div(
-    list{Attrs.class(%twc("flex w-full border-solid border-b-[3px] border-grey1"))},
+    list{Attrs.class(%twc("flex w-full border-solid border-b-3 border-grey1"))},
     List.map(allTabs, ~f=tabTitle),
   )
 }
@@ -65,7 +65,7 @@ let settingViewWrapper = (acc: T.t): Html.html<msg> => {
     list{
       Attrs.class(
         %twc(
-          "w-[calc(100%-30px)] flex flex-col h-full overflow-auto mt-2.5 mr-[5px] mb-2.5 ml-[35px] scrollbar-none"
+          "w-[calc(100%-1.875rem)] flex flex-col h-full overflow-auto my-2.5 mr-1 ml-9 scrollbar-none"
         ),
       ),
     },
@@ -88,7 +88,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
     list{
       Attrs.class(
         %twc(
-          "relative self-start w-[30px] cursor-pointer flex items-center justify-center mt-[5px] text-grey8 hover:text-grey2"
+          "relative self-start w-8 cursor-pointer flex items-center justify-center mt-1.5 text-grey8 hover:text-grey2"
         ),
       ),
       EventListeners.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
@@ -101,9 +101,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
   Html.div(
     list{
       Attrs.class(
-        %twc(
-          "z-[100] fixed top-0 left-0 w-full h-full bg-[#484848cc] flex items-center justify-center"
-        ),
+        %twc("z-100 fixed top-0 left-0 w-full h-full bg-grey1/80 flex items-center justify-center"),
       ),
       EventListeners.nothingMouseEvent("mousedown"),
       EventListeners.nothingMouseEvent("mouseup"),
@@ -116,7 +114,7 @@ let html = (m: AppTypes.model): Html.html<msg> => {
         list{
           Attrs.class(
             %twc(
-              "h-[75%] w-[85%] max-w-[800px] bg-black2 rounded-[7px] text-white3 flex items-center justify-center"
+              "h-3/4 w-17/20 max-w-3.5xl bg-black2 rounded-lg text-white3 flex items-center justify-center"
             ),
           ),
           EventListeners.nothingMouseEvent("click"),
