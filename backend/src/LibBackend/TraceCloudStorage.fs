@@ -178,7 +178,7 @@ let storeToCloudStorage
         timestamp = NodaTime.Instant.now () // TODO
       }
     let stream = new System.IO.MemoryStream()
-    Json.Vanilla.serializeToStream (stream, data)
+    do! Json.Vanilla.serializeToStream (stream, data)
     print "Uploading to cloud storage"
 
 
