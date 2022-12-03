@@ -1,35 +1,4 @@
 .modal-overlay.settings {
-  .modal {
-    height: 75%;
-  }
-  .settings-tab-titles {
-    display: flex;
-    width: 100%;
-    border-bottom: solid 3px $grey1;
-    .tab-title {
-      height: 100%;
-      margin: 0;
-      margin-bottom: -3px;
-      padding: 0px 10px;
-      color: $grey2;
-      cursor: pointer;
-      &.selected {
-        color: $white3;
-        border-bottom: solid 3px $grey8;
-      }
-    }
-  }
-  .settings-tab-wrapper {
-    width: calc(100% - 30px);
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: auto;
-    margin: 10px 5px 10px 35px;
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
   // Canvas Information
   .canvas-info {
     .canvas-desc {

@@ -65,9 +65,18 @@ module.exports = {
         0.25: "0.0625rem",
         1.25: "0.3125rem",
       },
+      maxWidth: {
+        "3.5xl": "50rem",
+      },
       padding: {
         0.25: "0.0625rem",
         1.25: "0.3125rem",
+      },
+      width: {
+        "17/20": "85%",
+      },
+      zIndex: {
+        100: "100",
       },
     },
     fontFamily: {

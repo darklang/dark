@@ -39,7 +39,10 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
 
     Html.h3(
       list{
-        Attrs.classList(list{("tab-title", true), ("selected", isSameTab)}),
+        Attrs.classList(list{
+          (%twc("h-full m-0 -mb-0.5 px-2.5 py-0 text-grey2 cursor-pointer"), true),
+          (%twc("text-white3 border-solid border-b-3 border-b-grey8"), isSameTab),
+        }),
         EventListeners.eventNoPropagation(
           ~key="close-settings-modal",
           "click",
@@ -50,13 +53,22 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
     )
   }
 
-  Html.div(list{Attrs.class("settings-tab-titles")}, List.map(allTabs, ~f=tabTitle))
+  Html.div(
+    list{Attrs.class(%twc("flex w-full border-solid border-b-3 border-grey1"))},
+    List.map(allTabs, ~f=tabTitle),
+  )
 }
 
 let settingViewWrapper = (acc: T.t): Html.html<msg> => {
   let tabView = settingsTabToHtml(acc)
   Html.div(
-    list{Attrs.class("settings-tab-wrapper")},
+    list{
+      Attrs.class(
+        %twc(
+          "w-[calc(100%-1.875rem)] flex flex-col h-full overflow-auto my-2.5 mr-1 ml-9 scrollbar-none"
+        ),
+      ),
+    },
     list{Html.h1(list{}, list{Html.text("Settings")}), tabTitleView(acc.tab), ...tabView},
   )
 }
@@ -74,7 +86,11 @@ let html = (m: AppTypes.model): Html.html<msg> => {
   let s = m.settings
   let closingBtn = Html.div(
     list{
-      Attrs.class("close-btn"),
+      Attrs.class(
+        %twc(
+          "relative self-start w-8 cursor-pointer flex items-center justify-center mt-1.5 text-grey8 hover:text-grey2"
+        ),
+      ),
       EventListeners.eventNoPropagation(~key="close-settings-modal", "click", _ => Msg.SettingsMsg(
         Close(s.tab),
       )),
@@ -84,7 +100,9 @@ let html = (m: AppTypes.model): Html.html<msg> => {
 
   Html.div(
     list{
-      Attrs.class("settings modal-overlay"),
+      Attrs.class(
+        %twc("z-100 fixed top-0 left-0 w-full h-full bg-grey1/80 flex items-center justify-center"),
+      ),
       EventListeners.nothingMouseEvent("mousedown"),
       EventListeners.nothingMouseEvent("mouseup"),
       EventListeners.eventNoPropagation(~key="close-setting-modal", "click", _ => Msg.SettingsMsg(
@@ -94,7 +112,11 @@ let html = (m: AppTypes.model): Html.html<msg> => {
     list{
       Html.div(
         list{
-          Attrs.class("modal"),
+          Attrs.class(
+            %twc(
+              "h-3/4 w-17/20 max-w-3.5xl bg-black2 rounded-lg text-white3 flex items-center justify-center"
+            ),
+          ),
           EventListeners.nothingMouseEvent("click"),
           EventListeners.eventNoPropagation(~key="ept", "mouseenter", _ => Msg.EnablePanning(
             false,
