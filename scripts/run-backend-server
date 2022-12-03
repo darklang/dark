@@ -65,7 +65,7 @@ sudo pkill -f "CronChecker" || true
 sudo pkill -f "QueueWorker" || true
 
 ./scripts/run-pubsub-emulator
-./scripts/cloud-storage-emulator
+./scripts/run-cloud-storage-emulator
 ./scripts/run-httptunnel
 ./scripts/run-nginx-server
 
