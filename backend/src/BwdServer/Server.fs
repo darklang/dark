@@ -631,6 +631,8 @@ let initSerializers () =
   Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
   Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
+    "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads
