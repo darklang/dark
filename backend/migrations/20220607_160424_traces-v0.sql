@@ -8,7 +8,6 @@ traces_v0
 ( canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
 , trace_id UUID NOT NULL
-, timestamp TIMESTAMPTZ NOT NULL
 -- allows looking up handler by trace
 , PRIMARY KEY (canvas_id, tlid, trace_id)
 );
@@ -17,4 +16,10 @@ traces_v0
 CREATE INDEX
 idx_traces_trace
 ON traces_v0
-(canvas_id, trace_id)
+(canvas_id, trace_id);
+
+-- Look up by tlid (allows for fast lookup of traces for a given handlera/fn)
+CREATE INDEX
+idx_traces_tlids
+ON traces_v0
+(canvas_id, tlid)

@@ -119,12 +119,27 @@ let listMostRecentTraceIDs
   Sql.query
     "SELECT trace_id
        FROM traces_v0
-      WHERE canvas_id = @canvas_id
+      WHERE canvas_id = @canvasID
         AND tlid = @tlid
    ORDER BY timestamp DESC
       LIMIT 10"
-  |> Sql.parameters [ "canvas_id", Sql.uuid canvasID; "tlid", Sql.tlid tlid ]
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.tlid tlid ]
   |> Sql.executeAsync (fun read -> read.uuid "trace_id")
+
+let storeTraceTLIDs
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (tlids : list<tlid>)
+  : Task<unit> =
+  let tlids = tlids |> set |> Set.toList
+  Sql.query
+    "INSERT INTO traces_v0
+     (id, canvas_id, tlids)
+     VALUES (@canvasID, @traceID, UNNEST(@tlids::uuid[]))"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "traceID", Sql.uuid traceID
+                      "tlids", Sql.idArray tlids ]
+  |> Sql.executeStatementAsync
 
 
 module Test =
@@ -162,12 +177,31 @@ let storeToCloudStorage
         storageVersion = 0 // TODO
         timestamp = NodaTime.Instant.now () // TODO
       }
-    let data = Json.Vanilla.serialize data
+    let stream = new System.IO.MemoryStream()
+    Json.Vanilla.serializeToStream (stream, data)
+    print "Uploading to cloud storage"
 
-    // Save it to cloud storage
 
+    // Store to CloudStorage
+    let! client = client.Force()
+    let name = $"{canvasID}/{traceID}/0"
+    let storageTask =
+      client.UploadObjectAsync(
+        bucketName,
+        name,
+        "application/json",
+        stream,
+        null,
+        System.Threading.CancellationToken(),
+        null
+      )
 
+    // Store to the DB
+    let dbTask = storeTraceTLIDs canvasID traceID touchedTLIDs
 
-    // save the tlid data to the DB
+    // Wait for both to be done in parallel. Exceptions from either will be thrown here
+    do! Task.WhenAll [ storageTask :> Task; dbTask ]
+    print "Uploaded to cloud storage"
+
     return ()
   }
