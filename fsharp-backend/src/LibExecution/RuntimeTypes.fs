@@ -331,6 +331,11 @@ and DType =
   | TFn of List<DType> * DType // replaces TLambda
   | TRecord of List<string * DType>
 
+  member this.isFn() : bool =
+    match this with
+    | TFn _ -> true
+    | _ -> false
+
   // This string was created in the very old days, and is barely used anymore
   member this.toOldString() : string =
     // Used in DB::schema_v0, to save type in honeycomb after queue execution
@@ -379,6 +384,7 @@ and Param =
     description : string }
 
   static member make (name : string) (typ : DType) (description : string) : Param =
+    assert_ "make called on TFn" [ "name", name ] (not (typ.isFn ()))
     { name = name; typ = typ; description = description; blockArgs = [] }
 
   static member makeWithArgs
@@ -387,6 +393,7 @@ and Param =
     (description : string)
     (blockArgs : List<string>)
     : Param =
+    assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
 /// Functions for working with Dark runtime expressions
