@@ -122,4 +122,51 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Char" "isDigit" 0
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c> is a digit (that is, the digits 0-9)"
+      fn =
+        function
+        | _, [ DChar c ] ->
+          (if c.Length = 1 then System.Char.IsDigit(c[0]) else false) |> DBool |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Char" "isASCIILetter" 0
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c> is an ASCII letter"
+      fn =
+        function
+        | _, [ DChar c ] ->
+          (if c.Length = 1 then
+             System.Char.IsAscii c[0] && System.Char.IsLetter c[0]
+           else
+             false)
+          |> DBool
+          |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Char" "isASCII" 0
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c> is a valid ASCII character"
+      fn =
+        function
+        | _, [ DChar c ] ->
+          (if c.Length = 1 then System.Char.IsAscii c[0] else false) |> DBool |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]

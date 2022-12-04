@@ -29,6 +29,7 @@ Char.toLowercase_v1 (hand null) = hand null
 Char.toLowercase_v1 'Ჾ' = 'ჾ'
 Char.toLowercase_v1 'ჾ' = 'ჾ'
 
+
 Char.toUppercase_v1 'a' = 'A'
 Char.toUppercase_v1 'A' = 'A'
 Char.toUppercase_v1 'á' = 'Á'
@@ -40,6 +41,7 @@ Char.toUppercase_v1 'ł' = 'Ł'
 Char.toUppercase_v1 (hand null) = hand null
 Char.toUppercase_v1 'ჾ' = 'Ჾ'
 Char.toUppercase_v1 'Ჾ' = 'Ჾ'
+
 
 Char.isLowercase_v0 'a' = true
 Char.isLowercase_v0 'A' = false
@@ -56,6 +58,7 @@ Char.isLowercase_v0 'Ł' = false
 Char.isLowercase_v0 (hand null) = false
 Char.isLowercase_v0 'ჾ' = true
 Char.isLowercase_v0 'Ჾ' = false
+
 
 Char.isUppercase_v0 'a' = false
 Char.isUppercase_v0 'A' = true
@@ -74,14 +77,70 @@ Char.isUppercase_v0 'ჾ' = false
 Char.isUppercase_v0 'Ჾ' = true
 
 
+Char.isASCII_v0 'a' = true
+Char.isASCII_v0 'A' = true
+Char.isASCII_v0 'á' = false
+Char.isASCII_v0 'Á' = false
+Char.isASCII_v0 '3' = true
+Char.isASCII_v0 (smiley null) = false
+Char.isASCII_v0 'ż' = false
+Char.isASCII_v0 'Ż' = false
+Char.isASCII_v0 'ó' = false
+Char.isASCII_v0 'Ó' = false
+Char.isASCII_v0 'ł' = false
+Char.isASCII_v0 'Ł' = false
+Char.isASCII_v0 (hand null) = false
+Char.isASCII_v0 'ჾ' = false
+Char.isASCII_v0 'Ჾ' = false
+Char.isASCII_v0 ' ' = true
+Char.isASCII_v0 '\t' = true
 
-// isAscii
-// isAsciiLetter
-// isAsciiAlphanumberic
-// isdigit
-// toCode
-// fromCode
-// ishexdigit
-// isoctaldigit
-// String.getAt
-// String.map
+
+// create test cases for isASCIILetter
+
+Char.isDigit_v0 'a' = false
+Char.isDigit_v0 'A' = false
+Char.isDigit_v0 'á' = false
+Char.isDigit_v0 'Á' = false
+Char.isDigit_v0 '0' = true
+Char.isDigit_v0 '1' = true
+Char.isDigit_v0 '2' = true
+Char.isDigit_v0 '3' = true
+Char.isDigit_v0 '4' = true
+Char.isDigit_v0 '5' = true
+Char.isDigit_v0 '6' = true
+Char.isDigit_v0 '7' = true
+Char.isDigit_v0 '8' = true
+Char.isDigit_v0 '9' = true
+Char.isDigit_v0 (smiley null) = false
+Char.isDigit_v0 'ż' = false
+Char.isDigit_v0 'Ż' = false
+Char.isDigit_v0 'ó' = false
+Char.isDigit_v0 'Ó' = false
+Char.isDigit_v0 'ł' = false
+Char.isDigit_v0 'Ł' = false
+Char.isDigit_v0 (hand null) = false
+Char.isDigit_v0 'ჾ' = false
+Char.isDigit_v0 'Ჾ' = false
+Char.isDigit_v0 ' ' = false
+Char.isDigit_v0 '\t' = false
+
+
+Char.isASCIILetter_v0 'a' = true
+Char.isASCIILetter_v0 'A' = true
+Char.isASCIILetter_v0 'á' = false
+Char.isASCIILetter_v0 'Á' = false
+Char.isASCIILetter_v0 '3' = false
+Char.isASCIILetter_v0 ',' = false
+Char.isASCIILetter_v0 (smiley null) = false
+Char.isASCIILetter_v0 'ż' = false
+Char.isASCIILetter_v0 'Ż' = false
+Char.isASCIILetter_v0 'ó' = false
+Char.isASCIILetter_v0 'Ó' = false
+Char.isASCIILetter_v0 'ł' = false
+Char.isASCIILetter_v0 'Ł' = false
+Char.isASCIILetter_v0 (hand null) = false
+Char.isASCIILetter_v0 'ჾ' = false
+Char.isASCIILetter_v0 'Ჾ' = false
+Char.isASCIILetter_v0 ' ' = false
+Char.isASCIILetter_v0 '\t' = false
