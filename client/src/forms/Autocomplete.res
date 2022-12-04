@@ -561,6 +561,7 @@ let allowedParamTypes = list{
   TStr,
   TBool,
   TFloat,
+  TChar,
   TDict(DType.any),
   TList(DType.any),
   DType.any,
