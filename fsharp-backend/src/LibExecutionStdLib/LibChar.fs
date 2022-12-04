@@ -68,4 +68,58 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated =
-        DeprecatedBecause("used an old Character type that no longer exists") } ]
+        DeprecatedBecause("used an old Character type that no longer exists") }
+
+
+    { name = fn "Char" "toUppercase" 1
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TChar
+      description =
+        "Return the uppercase value of <param c>. If <param c> does not have an uppercase value, returns <param c>"
+      fn =
+        function
+        | _, [ DChar c ] -> Ply(DChar(c.ToUpper()))
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Char" "toLowercase" 1
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TChar
+      description =
+        "Return the lowercase value of <param c>. If <param c> does not have a lowercase value, returns <param c>"
+      fn =
+        function
+        | _, [ DChar c ] -> Ply(DChar(c.ToLower()))
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Char" "isLowercase" 0
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c> is a lowercase character."
+      fn =
+        function
+        | _, [ DChar c ] -> Ply(DBool(c.ToLower() = c && c.ToUpper() <> c))
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Char" "isUppercase" 0
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c> is an uppercase character."
+      fn =
+        function
+        | _, [ DChar c ] -> Ply(DBool(c.ToUpper() = c && c.ToLower() <> c))
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
