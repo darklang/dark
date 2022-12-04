@@ -1,3 +1,11 @@
+[fn.smiley null:any]
+((String.toList_v1 "😂") |> List.head_v2_ster)
+
+[fn.hand null:any]
+((String.toList_v1 "✋🏿") |> List.head_v2_ster)
+
+[tests.all]
+
 Char.toASCIICode_v0 "a" = Test.typeError_v0 "Char::toASCIICode was removed from Dark"
 Char.toASCIIChar_v0 1 = Test.typeError_v0 "Char::toASCIIChar was removed from Dark"
 Char.toLowercase_v0 "A" = Test.typeError_v0 "Char::toLowercase was removed from Dark"
@@ -13,11 +21,11 @@ Char.toLowercase_v1 'A' = 'a'
 Char.toLowercase_v1 'a' = 'a'
 Char.toLowercase_v1 'Á' = 'á'
 Char.toLowercase_v1 '3' = '3'
-Char.toLowercase_v1 '😄' = '😄'
+Char.toLowercase_v1 (smiley null) = smiley null
 Char.toLowercase_v1 'Ż' = 'ż'
 Char.toLowercase_v1 'Ó' = 'ó'
 Char.toLowercase_v1 'Ł' = 'ł'
-Char.toLowercase_v1 '✋🏿' = '✋🏿'
+Char.toLowercase_v1 (hand null) = hand null
 Char.toLowercase_v1 'Ჾ' = 'ჾ'
 Char.toLowercase_v1 'ჾ' = 'ჾ'
 
@@ -25,11 +33,11 @@ Char.toUppercase_v1 'a' = 'A'
 Char.toUppercase_v1 'A' = 'A'
 Char.toUppercase_v1 'á' = 'Á'
 Char.toUppercase_v1 '3' = '3'
-Char.toUppercase_v1 '😄' = '😄'
+Char.toUppercase_v1 (smiley null) = smiley null
 Char.toUppercase_v1 'ż' = 'Ż'
 Char.toUppercase_v1 'ó' = 'Ó'
 Char.toUppercase_v1 'ł' = 'Ł'
-Char.toUppercase_v1 '✋🏿' = '✋🏿'
+Char.toUppercase_v1 (hand null) = hand null
 Char.toUppercase_v1 'ჾ' = 'Ჾ'
 Char.toUppercase_v1 'Ჾ' = 'Ჾ'
 
@@ -38,14 +46,14 @@ Char.isLowercase_v0 'A' = false
 Char.isLowercase_v0 'á' = true
 Char.isLowercase_v0 'Á' = false
 Char.isLowercase_v0 '3' = false
-Char.isLowercase_v0 '😄' = false
+Char.isLowercase_v0 (smiley null) = false
 Char.isLowercase_v0 'ż' = true
 Char.isLowercase_v0 'Ż' = false
 Char.isLowercase_v0 'ó' = true
 Char.isLowercase_v0 'Ó' = false
 Char.isLowercase_v0 'ł' = true
 Char.isLowercase_v0 'Ł' = false
-Char.isLowercase_v0 '✋🏿' = false
+Char.isLowercase_v0 (hand null) = false
 Char.isLowercase_v0 'ჾ' = true
 Char.isLowercase_v0 'Ჾ' = false
 
@@ -54,14 +62,14 @@ Char.isUppercase_v0 'A' = true
 Char.isUppercase_v0 'á' = false
 Char.isUppercase_v0 'Á' = true
 Char.isUppercase_v0 '3' = false
-Char.isUppercase_v0 '😄' = false
+Char.isUppercase_v0 (smiley null) = false
 Char.isUppercase_v0 'ż' = false
 Char.isUppercase_v0 'Ż' = true
 Char.isUppercase_v0 'ó' = false
 Char.isUppercase_v0 'Ó' = true
 Char.isUppercase_v0 'ł' = false
 Char.isUppercase_v0 'Ł' = true
-Char.isUppercase_v0 '✋🏿' = false
+Char.isUppercase_v0 (hand null) = false
 Char.isUppercase_v0 'ჾ' = false
 Char.isUppercase_v0 'Ჾ' = true
 
