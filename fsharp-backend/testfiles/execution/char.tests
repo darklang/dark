@@ -95,9 +95,6 @@ Char.isASCII_v0 'Ჾ' = false
 Char.isASCII_v0 ' ' = true
 Char.isASCII_v0 '\t' = true
 
-
-// create test cases for isASCIILetter
-
 Char.isDigit_v0 'a' = false
 Char.isDigit_v0 'A' = false
 Char.isDigit_v0 'á' = false
