@@ -45,18 +45,6 @@ type MatchPattern =
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
-  // TODO These are to be removed after some transition time
-  | PVariable of id * string
-  | PConstructor of id * string * List<MatchPattern>
-  | PInteger of id * int64
-  | PBool of id * bool
-  | PCharacter of id * string
-  | PString of id * string
-  | PFloat of id * Sign * string * string
-  | PNull of id
-  | PBlank of id
-  | PTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-
 
 type SendToRail =
   | Rail
