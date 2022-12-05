@@ -17,10 +17,6 @@ module Ext = {
 
   let querySelector = (s: string): option<Dom.element> => Js.Nullable.toOption(_querySelector(s))
 
-  @get external clientWidth: Dom.element => int = "clientWidth"
-
-  @get external clientHeight: Dom.element => int = "clientHeight"
-
   let staticHost: unit => string = %raw("function(){ return staticUrl; }")
 
   @get external offsetTop: Dom.element => int = "offsetTop"

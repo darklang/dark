@@ -54,7 +54,7 @@ let centerCanvasOn = (tl: toplevel): Pos.t => {
     let tle = Native.Ext.querySelector(".toplevel.tl-" ++ TLID.toString(TL.id(tl)))
 
     switch tle {
-    | Some(e) => Native.Ext.clientWidth(e)
+    | Some(e) => Webapi.Dom.Element.clientWidth(e)
     | None => 245
     }
   }
