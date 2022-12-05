@@ -29,8 +29,6 @@ module Ext = {
       bottom: Webapi.Dom.DomRect.bottom(client) |> int_of_float,
     }
   }
-
-  @val @scope(("window", "location")) external redirect: string => unit = "replace"
 }
 
 module OffsetEstimator = {

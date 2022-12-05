@@ -2057,7 +2057,8 @@ let update_ = (msg: msg, m: model): modification => {
     ReplaceAllModificationsWithThisOne("HideTopbar", m => ({...m, showTopbar: false}, Cmd.none))
   | LogoutAPICallback =>
     // For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work
-    Native.Ext.redirect("/login")
+    let location = Webapi.Dom.location
+    location->Webapi.Dom.Location.replace("/login")
     NoChange
   | GoToArchitecturalView => Many(list{Deselect, MakeCmd(Url.navigateTo(Architecture))})
   | DismissErrorBar => Model.updateErrorMod(Error.clear)
