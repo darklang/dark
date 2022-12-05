@@ -772,10 +772,11 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "all" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.make
+          Param.makeWithArgs
             "fn"
             (TFn([ varA ], TBool))
-            "Function to be applied on all list elements;" ]
+            "Function to be applied on all list elements"
+            [ "val" ] ]
       returnType = TBool
       description =
         "Return {{true}} if all elements in the list meet the function's criteria, else {{false}}"
