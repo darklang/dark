@@ -197,8 +197,8 @@ let viewData = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {
     "max-content"
   } else {
     let height =
-      Native.Ext.querySelector(".tl-" ++ (TLID.toString(vp.tlid) ++ " .ast"))
-      |> Option.andThen(~f=e => Some(Native.Ext.clientHeight(e) + 20))
+      Webapi.Dom.document->Webapi.Dom.Document.querySelector(".tl-" ++ (TLID.toString(vp.tlid) ++ " .ast"))
+      |> Option.andThen(~f=e => Some(Webapi.Dom.Element.clientHeight(e) + 20))
       |> Option.unwrap(~default=100)
 
     string_of_int(height) ++ "px"
