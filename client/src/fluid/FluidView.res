@@ -39,7 +39,7 @@ let viewCopyButton = (tlid, value): Html.html<msg> =>
 let viewArrow = (curID: id, srcID: id): Html.html<msg> => {
   let curSelector = ".id-" ++ ID.toString(curID)
   let srcSelector = ".id-" ++ ID.toString(srcID)
-  switch (Native.Ext.querySelector(curSelector), Native.Ext.querySelector(srcSelector)) {
+  switch (Webapi.Dom.document->Webapi.Dom.Document.querySelector(curSelector), Webapi.Dom.document->Webapi.Dom.Document.querySelector(srcSelector)) {
   | (Some(curElem), Some(srcElem)) =>
     let curRect = Native.Ext.getBoundingClient(curElem, curSelector)
     let srcRect = Native.Ext.getBoundingClient(srcElem, srcSelector)

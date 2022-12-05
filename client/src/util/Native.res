@@ -12,11 +12,6 @@ exception NativeCodeError(string)
 module Ext = {
   let window: Dom.window = %raw("(typeof window === undefined) ? window : {}")
 
-  @val @scope("document")
-  external _querySelector: string => Js.Nullable.t<Dom.element> = "querySelector"
-
-  let querySelector = (s: string): option<Dom.element> => Js.Nullable.toOption(_querySelector(s))
-
   let staticHost: unit => string = %raw("function(){ return staticUrl; }")
 
   let getBoundingClient = (e: Dom.element, s: string): rect => {

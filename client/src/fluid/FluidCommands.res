@@ -94,9 +94,8 @@ let focusItem = (i: int): AppTypes.cmd =>
     _ => Msg.IgnoreMsg("fluid-commands-focus"),
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
-      open Native.Ext
       let container = Document.getElementById(document, "fluid-dropdown")
-      let nthChild = querySelector(
+      let nthChild = Webapi.Dom.document->Webapi.Dom.Document.querySelector(
         "#fluid-dropdown ul li:nth-child(" ++ (string_of_int(i + 1) ++ ")"),
       )
 

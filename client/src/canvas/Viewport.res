@@ -51,7 +51,7 @@ let centerCanvasOn = (tl: toplevel): Pos.t => {
   let windowWidth = Webapi.Dom.window->Webapi.Dom.Window.innerWidth
   let sidebarWidth = 56 // TODO: define as variable
   let tlWidth = {
-    let tle = Native.Ext.querySelector(".toplevel.tl-" ++ TLID.toString(TL.id(tl)))
+    let tle = Webapi.Dom.document->Webapi.Dom.Document.querySelector(".toplevel.tl-" ++ TLID.toString(TL.id(tl)))
 
     switch tle {
     | Some(e) => Webapi.Dom.Element.clientWidth(e)
@@ -68,7 +68,7 @@ let centerCanvasOn = (tl: toplevel): Pos.t => {
 let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
   let tokenSelector = ".id-" ++ ID.toString(id)
   let tlSelector = ".tl-" ++ TLID.toString(TL.id(tl))
-  switch Native.Ext.querySelector(tokenSelector) {
+  switch Webapi.Dom.Document.querySelector(Webapi.Dom.document, tokenSelector) {
   | Some(tokenDom) =>
     let sidebarWidth = 56 // TODO: define as variable
 
@@ -83,7 +83,7 @@ let moveToToken = (id: id, tl: toplevel): (option<int>, option<int>) => {
 
     let tokenBox = Native.Ext.getBoundingClient(tokenDom, tokenSelector)
     let tlBox =
-      Native.Ext.querySelector(tlSelector)
+      Webapi.Dom.document->Webapi.Dom.Document.querySelector(tlSelector)
       |> Option.map(~f=dom => Native.Ext.getBoundingClient(dom, tlSelector))
       |> Option.unwrapUnsafe
 
