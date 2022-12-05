@@ -72,25 +72,6 @@ Char.isUppercase_v0 'ჾ' = false
 Char.isUppercase_v0 'Ჾ' = true
 
 
-Char.isASCII_v0 'a' = true
-Char.isASCII_v0 'A' = true
-Char.isASCII_v0 'á' = false
-Char.isASCII_v0 'Á' = false
-Char.isASCII_v0 '3' = true
-Char.isASCII_v0 (smiley null) = false
-Char.isASCII_v0 'ż' = false
-Char.isASCII_v0 'Ż' = false
-Char.isASCII_v0 'ó' = false
-Char.isASCII_v0 'Ó' = false
-Char.isASCII_v0 'ł' = false
-Char.isASCII_v0 'Ł' = false
-Char.isASCII_v0 (hand null) = false
-Char.isASCII_v0 'ჾ' = false
-Char.isASCII_v0 'Ჾ' = false
-Char.isASCII_v0 ' ' = true
-Char.isASCII_v0 '\t' = true
-
-
 Char.isDigit_v0 'a' = false
 Char.isDigit_v0 'A' = false
 Char.isDigit_v0 'á' = false
@@ -137,3 +118,22 @@ Char.isASCIILetter_v0 'ჾ' = false
 Char.isASCIILetter_v0 'Ჾ' = false
 Char.isASCIILetter_v0 ' ' = false
 Char.isASCIILetter_v0 '\t' = false
+
+
+Char.isASCII_v0 'a' = true
+Char.isASCII_v0 'A' = true
+Char.isASCII_v0 'á' = false
+Char.isASCII_v0 'Á' = false
+Char.isASCII_v0 '3' = true
+Char.isASCII_v0 (smiley null) = false
+Char.isASCII_v0 'ż' = false
+Char.isASCII_v0 'Ż' = false
+Char.isASCII_v0 'ó' = false
+Char.isASCII_v0 'Ó' = false
+Char.isASCII_v0 'ł' = false
+Char.isASCII_v0 'Ł' = false
+Char.isASCII_v0 (hand null) = false
+Char.isASCII_v0 'ჾ' = false
+Char.isASCII_v0 'Ჾ' = false
+Char.isASCII_v0 ' ' = true
+Char.isASCII_v0 '\t' = true
