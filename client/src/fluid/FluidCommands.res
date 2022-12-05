@@ -110,11 +110,11 @@ let focusItem = (i: int): AppTypes.cmd =>
         let liTop = DomRect.top(liRect)
         let liHeight = DomRect.height(liRect)
         if liBottom +. liHeight > cBottom {
-          let offset = float_of_int(offsetTop(li))
+          let offset = float_of_int(li->Webapi.Dom.Element.asHtmlElement->Option.unwrapUnsafe->Webapi.Dom.HtmlElement.offsetTop)
           let padding = DomRect.height(cRect) -. liHeight *. 2.0
           Element.setScrollTop(el, offset -. padding)
         } else if liTop -. liHeight < cTop {
-          let offset = float_of_int(offsetTop(li))
+          let offset = float_of_int(li->Webapi.Dom.Element.asHtmlElement->Option.unwrapUnsafe->Webapi.Dom.HtmlElement.offsetTop)
           Element.setScrollTop(el, offset -. liHeight)
         } else {
           ()

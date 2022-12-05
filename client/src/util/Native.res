@@ -19,8 +19,6 @@ module Ext = {
 
   let staticHost: unit => string = %raw("function(){ return staticUrl; }")
 
-  @get external offsetTop: Dom.element => int = "offsetTop"
-
   let getBoundingClient = (e: Dom.element, s: string): rect => {
     let client = Webapi.Dom.Element.getBoundingClientRect(e)
     {
