@@ -21,32 +21,18 @@ module Ext = {
 
   @get external clientHeight: Dom.element => int = "clientHeight"
 
-  @send external getBoundingClientRect: Dom.element => Dom.domRect = "getBoundingClientRect"
-
-  @get external rectTop: Dom.domRect => float = "top"
-
-  @get external rectBottom: Dom.domRect => float = "bottom"
-
-  @get external rectRight: Dom.domRect => float = "right"
-
-  @get external rectLeft: Dom.domRect => float = "left"
-
-  @get external rectHeight: Dom.domRect => float = "height"
-
-  @get external rectWidth: Dom.domRect => float = "width"
-
   let staticHost: unit => string = %raw("function(){ return staticUrl; }")
 
   @get external offsetTop: Dom.element => int = "offsetTop"
 
   let getBoundingClient = (e: Dom.element, s: string): rect => {
-    let client = getBoundingClientRect(e)
+    let client = Webapi.Dom.Element.getBoundingClientRect(e)
     {
       id: s,
-      top: rectTop(client) |> int_of_float,
-      left: rectLeft(client) |> int_of_float,
-      right: rectRight(client) |> int_of_float,
-      bottom: rectBottom(client) |> int_of_float,
+      top: Webapi.Dom.DomRect.top(client) |> int_of_float,
+      left: Webapi.Dom.DomRect.left(client) |> int_of_float,
+      right: Webapi.Dom.DomRect.right(client) |> int_of_float,
+      bottom: Webapi.Dom.DomRect.bottom(client) |> int_of_float,
     }
   }
 

@@ -34,16 +34,16 @@ let focusItem = (i: int): AppTypes.cmd =>
 
       switch (container, nthChild) {
       | (Some(el), Some(li)) =>
-        let cRect = getBoundingClientRect(el)
-        let cBottom = rectBottom(cRect)
-        let cTop = rectTop(cRect)
-        let liRect = getBoundingClientRect(li)
-        let liBottom = rectBottom(liRect)
-        let liTop = rectTop(liRect)
-        let liHeight = rectHeight(liRect)
+        let cRect = Element.getBoundingClientRect(el)
+        let cBottom = DomRect.bottom(cRect)
+        let cTop = DomRect.top(cRect)
+        let liRect = Element.getBoundingClientRect(li)
+        let liBottom = DomRect.bottom(liRect)
+        let liTop = DomRect.top(liRect)
+        let liHeight = DomRect.height(liRect)
         if liBottom +. liHeight > cBottom {
           let offset = float_of_int(offsetTop(li))
-          let padding = rectHeight(cRect) -. liHeight *. 2.0
+          let padding = DomRect.height(cRect) -. liHeight *. 2.0
           Element.setScrollTop(el, offset -. padding)
         } else if liTop -. liHeight < cTop {
           let offset = float_of_int(offsetTop(li))
