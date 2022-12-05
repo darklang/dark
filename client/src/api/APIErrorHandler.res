@@ -56,7 +56,7 @@ let handle = (m: AppTypes.model, apiError: t): (AppTypes.model, AppTypes.cmd) =>
     Cmd.call(_ => {
       SavedSettings.save(m)
       SavedUserSettings.save(m)
-      Native.Location.reload(true)
+      Webapi.Dom.location->Webapi.Dom.Location.reloadWithForce
     })
   } else if !ignore && APIError.shouldRollbar(apiError) {
     Cmd.call(_ => sendRollbar(m, apiError))

@@ -65,15 +65,6 @@ module Random = {
 }
 
 // TODO: remove all this, and use Rescript-webapi instead
-module Location = {
-  @val @scope(("window", "location")) external queryString: string = "search"
-
-  @val @scope(("window", "location")) external hashString: string = "hash"
-
-  @val @scope(("window", "location")) external reload: bool => unit = "reload"
-}
-
-// TODO: remove all this, and use Rescript-webapi instead
 module Clipboard = {
   @module external copyToClipboard: string => unit = "clipboard-copy"
 }
