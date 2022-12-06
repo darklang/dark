@@ -5,7 +5,7 @@
   "private": true,
   "author": "",
   "devDependencies": {
-    "@greenlabs/res-tailwindcss": "0.1.9",
+    "@greenlabs/res-tailwindcss": "0.1.10",
     "browserify": "17.0.0",
     "browserify-incremental": "3.1.1",
     "rescript": "9.1.4",
