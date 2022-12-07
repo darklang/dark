@@ -184,11 +184,7 @@ let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
       { Exe.noTracing RT.Real with
           storeFnResult =
             (fun (tlid, name, id) args result ->
-              let hash =
-                // TODO hash with new algorithm
-                args
-                |> DvalReprInternalDeprecated.hash
-                     DvalReprInternalDeprecated.currentHashVersion
+              let hash = args |> LibExecution.DvalReprInternalNew.toHashV0
               Dictionary.add
                 (tlid, name, id, hash)
                 (result, NodaTime.Instant.now ())
