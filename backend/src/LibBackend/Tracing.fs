@@ -115,7 +115,7 @@ module TraceResults =
 /// Collections of functions and values used during a single execution
 type T =
   { /// Store the tracing input, if enabled
-    storeTraceInput : HandlerDesc -> RT.Dval -> unit
+    storeTraceInput : HandlerDesc -> string -> RT.Dval -> unit
 
     /// Store the trace results calculated over the execution, if enabled
     storeTraceResults : unit -> unit
@@ -165,7 +165,7 @@ let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
               TraceFunctionResults.storeMany canvasID traceID results.functionResults
           }))
     storeTraceInput =
-      (fun desc input ->
+      (fun desc _ input ->
         LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
           task {
             let! (_timestamp : NodaTime.Instant) =
@@ -177,7 +177,7 @@ let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
   let results = { TraceResults.empty () with tlids = touchedTLIDs }
-  let mutable storedInput : RT.Dval = RT.DNull
+  let mutable storedInput : (string * RT.Dval) = ("", RT.DNull)
   { enabled = true
     results = results
     executionTracing =
@@ -185,6 +185,7 @@ let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
           storeFnResult =
             (fun (tlid, name, id) args result ->
               let hash =
+                // TODO hash with new algorithm
                 args
                 |> DvalReprInternalDeprecated.hash
                      DvalReprInternalDeprecated.currentHashVersion
@@ -192,7 +193,11 @@ let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
                 (tlid, name, id, hash)
                 (result, NodaTime.Instant.now ())
                 results.functionResults)
-          storeFnArguments = (fun tlid args -> ()) // we don't use this
+          storeFnArguments =
+            (fun tlid args ->
+              ResizeArray.append
+                (tlid, args, NodaTime.Instant.now ())
+                results.functionArguments)
           traceTLID = traceTLIDFn }
     storeTraceResults =
       fun () ->
@@ -202,10 +207,12 @@ let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
             TraceCloudStorage.storeToCloudStorage
               canvasID
               traceID
+              (NodaTime.Instant.now ())
               (HashSet.toList touchedTLIDs)
-              storedInput
+              [ storedInput ]
+              results.functionArguments
               results.functionResults)
-    storeTraceInput = fun _ input -> storedInput <- input }
+    storeTraceInput = fun _ name input -> storedInput <- (name, input) }
 
 
 let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
@@ -250,7 +257,7 @@ let createNonTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
     results = results
     executionTracing = LibExecution.Execution.noTracing RT.Real
     storeTraceResults = fun () -> ()
-    storeTraceInput = fun _ _ -> () }
+    storeTraceInput = fun _ _ _ -> () }
 
 
 let create (c : Canvas.Meta) (tlid : tlid) (traceID : AT.TraceID) : T =

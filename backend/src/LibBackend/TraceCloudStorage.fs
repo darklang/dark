@@ -77,19 +77,32 @@ module RT = LibExecution.RuntimeTypes
 // Only do storage here. Anything else needs utility functions that go in
 // LibDarkInternal.
 
-type RoundTrippableDval = RT.Dval
+type RoundTrippableDval =
+  LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval
+
 type FunctionArgHash = string
 type FnName = string
 type InputVars = List<string * RoundTrippableDval>
 
 type Result = NodaTime.Instant * RoundTrippableDval
 
+let roundtrippableToDval (dval : RoundTrippableDval) : RT.Dval =
+  LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.toRT dval
+
+let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
+  LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT dval
+
+
+// type FunctionResultKey = tlid * RT.FQFnName.T * id * FunctionArgHash
+
+let currentStorageVersion = 0
+
 type CloudStorageFormat =
-  { storageVersion : int // maybe in metadata instead
-    hashVersion : int
+  { storageFormatVersion : int
     input : InputVars
     timestamp : NodaTime.Instant
-    functionResults : Map<tlid, Map<id, FnName * FunctionArgHash * RoundTrippableDval>> }
+    functionArguments : seq<(tlid * InputVars)>
+    functionResults : seq<tlid * id * FnName * FunctionArgHash * RoundTrippableDval> }
 
 let bucketName = Config.traceStorageBucketName
 
@@ -109,7 +122,6 @@ let client =
       return! builder.BuildAsync()
     })
 
-let roundtrippableToDval (rt : RoundTrippableDval) : RT.Dval = rt
 
 // Require TLIDs rather than having unbounded search
 let listMostRecentTraceIDs
@@ -164,19 +176,37 @@ module Test =
 let storeToCloudStorage
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
+  (timestamp : NodaTime.Instant)
   (touchedTLIDs : List<tlid>)
-  (storedInput : RT.Dval)
+  (inputVars : List<string * RT.Dval>)
+  (functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore>)
   (functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>)
   : Task<unit> =
   task {
-    // construct the data
+    let functionResults =
+      functionResults
+      |> Dictionary.toList
+      |> List.map (fun ((tlid, fnName, id, hash), (dval, _)) ->
+        // TODO do we really want to parse and unparse fnName?
+        tlid, id, RT.FQFnName.toString fnName, hash, dvalToRoundtrippable dval)
+
+    let functionArguments =
+      functionArguments
+      |> ResizeArray.toList
+      |> List.map (fun (tlid, inputVars, _) ->
+        (tlid,
+         inputVars
+         |> Map.toList
+         |> List.map (fun (name, dval) -> (name, dvalToRoundtrippable dval))))
+
+    let inputVars =
+      inputVars |> List.map (fun (name, dval) -> (name, dvalToRoundtrippable dval))
     let data =
-      { hashVersion = 0 // TODO
-        input = [] // TODO
-        functionResults = Map [] // TODO
-        storageVersion = 0 // TODO
-        timestamp = NodaTime.Instant.now () // TODO
-      }
+      { input = inputVars
+        functionResults = functionResults
+        functionArguments = functionArguments
+        storageFormatVersion = currentStorageVersion
+        timestamp = timestamp }
     let stream = new System.IO.MemoryStream()
     do! Json.Vanilla.serializeToStream (stream, data)
     print "Uploading to cloud storage"

@@ -217,6 +217,7 @@ let processNotification
                         (Map [ "event", event.value ])
                         (RealExecution.InitialExecution(
                           EQ.toEventDesc event,
+                          "event",
                           event.value
                         ))
 

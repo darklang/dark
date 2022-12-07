@@ -393,7 +393,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               (Canvas.toProgram canvas)
               traceID
               inputVars
-              (RealExe.InitialExecution(desc, request))
+              (RealExe.InitialExecution(desc, "request", request))
 
           let result = LegacyHttpMiddleware.Response.toHttpResponse result
           let result =
@@ -443,7 +443,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               (Canvas.toProgram canvas)
               traceID
               inputVars
-              (RealExe.InitialExecution(desc, request))
+              (RealExe.InitialExecution(desc, "request", request))
 
           let result = HttpBasicMiddleware.Response.toHttpResponse result
 

@@ -140,12 +140,62 @@ let testTraceRoundtrip =
     let tlid3 = 8UL
     let tlid4 = 9UL
     let functionResults = Dictionary.empty ()
-    do! TCS.storeToCloudStorage c1 t1 [ tlid1 ] (DStr "1") functionResults
-    do! TCS.storeToCloudStorage c1 t2 [ tlid1 ] (DStr "2") functionResults
-    do! TCS.storeToCloudStorage c1 t3 [ tlid3 ] (DStr "3") functionResults
-    do! TCS.storeToCloudStorage c1 t4 [ tlid2 ] (DStr "3") functionResults
-    do! TCS.storeToCloudStorage c2 t5 [ tlid2 ] (DStr "3") functionResults
-    do! TCS.storeToCloudStorage c2 t6 [ tlid4 ] (DStr "3") functionResults
+    let functionArguments = ResizeArray.empty ()
+    let now = NodaTime.Instant.now ()
+    do!
+      TCS.storeToCloudStorage
+        c1
+        t1
+        now
+        [ tlid1 ]
+        [ "request", DStr "1" ]
+        functionArguments
+        functionResults
+    do!
+      TCS.storeToCloudStorage
+        c1
+        t2
+        now
+        [ tlid1 ]
+        [ "request", DStr "2" ]
+        functionArguments
+        functionResults
+    do!
+      TCS.storeToCloudStorage
+        c1
+        t3
+        now
+        [ tlid3 ]
+        [ "request", DStr "3" ]
+        functionArguments
+        functionResults
+    do!
+      TCS.storeToCloudStorage
+        c1
+        t4
+        now
+        [ tlid2 ]
+        [ "request", DStr "3" ]
+        functionArguments
+        functionResults
+    do!
+      TCS.storeToCloudStorage
+        c2
+        t5
+        now
+        [ tlid2 ]
+        [ "request", DStr "3" ]
+        functionArguments
+        functionResults
+    do!
+      TCS.storeToCloudStorage
+        c2
+        t6
+        now
+        [ tlid4 ]
+        [ "request", DStr "3" ]
+        functionArguments
+        functionResults
 
     let! actual = TCS.Test.listAllTraceIDs c1
     let result =

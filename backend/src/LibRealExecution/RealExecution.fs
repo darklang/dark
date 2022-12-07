@@ -84,7 +84,7 @@ let createState
 type ExecutionReason =
   /// The first time a trace is executed. This means more data should be stored and
   /// more users notified.
-  | InitialExecution of HandlerDesc * RT.Dval
+  | InitialExecution of HandlerDesc * string * RT.Dval
 
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
@@ -105,7 +105,7 @@ let executeHandler
     let tracing = Tracing.create meta h.tlid traceID
 
     match reason with
-    | InitialExecution (desc, inputVar) -> tracing.storeTraceInput desc inputVar
+    | InitialExecution (desc, varname, inputVar) -> tracing.storeTraceInput desc varname inputVar
     | ReExecution -> ()
 
     let! state = createState traceID h.tlid program tracing.executionTracing

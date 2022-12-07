@@ -1,14 +1,7 @@
-/// <summary>
 /// Ways of converting Dvals to/from strings, to be used exclusively internally.
 ///
 /// That is, they should not be used in libraries, in the BwdServer, in HttpClient,
 /// etc.
-/// </summary>
-/// <remarks>
-/// We're trying to get rid of JSON.NET. However, these format have saved millions
-/// of values using them, so we need to do a migration from the old serialization
-/// to a new one.
-/// </remarks>
 module LibExecution.DvalReprInternalNew
 
 open Prelude
