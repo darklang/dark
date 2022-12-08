@@ -72,59 +72,33 @@ module FQFnName =
 module MatchPattern =
   let rec fromCT (pat : CTPT.MatchPattern) : PT.MatchPattern =
     match pat with
-    // This is currently positioned to 'parse' both old-style (PBlank) and new-style
-    // (MPBlank) naming conventions of these patterns. Shortly, (TODO) we need to
-    // follow up and remove the old-style naming convention support.
-    | CTPT.MPVariable (id, str)
-    | CTPT.PVariable (id, str) -> PT.MPVariable(id, str)
-
-    | CTPT.MPConstructor (id, name, args)
-    | CTPT.PConstructor (id, name, args) ->
+    | CTPT.MPVariable (id, str) -> PT.MPVariable(id, str)
+    | CTPT.MPConstructor (id, name, args) ->
       PT.MPConstructor(id, name, List.map fromCT args)
-
-    | CTPT.MPInteger (id, i)
-    | CTPT.PInteger (id, i) -> PT.MPInteger(id, i)
-
-    | CTPT.MPBool (id, b)
-    | CTPT.PBool (id, b) -> PT.MPBool(id, b)
-
-    | CTPT.MPCharacter (id, str)
-    | CTPT.PCharacter (id, str) -> PT.MPCharacter(id, str)
-
-    | CTPT.MPString (id, str)
-    | CTPT.PString (id, str) -> PT.MPString(id, str)
-
-    | CTPT.MPFloat (id, sign, whole, frac)
-    | CTPT.PFloat (id, sign, whole, frac) -> PT.MPFloat(id, sign, whole, frac)
-
-    | CTPT.MPNull (id)
-    | CTPT.PNull (id) -> PT.MPNull(id)
-
-    | CTPT.MPBlank (id)
-    | CTPT.PBlank (id) -> PT.MPBlank(id)
-
-    | CTPT.MPTuple (id, first, second, theRest)
-    | CTPT.PTuple (id, first, second, theRest) ->
+    | CTPT.MPInteger (id, i) -> PT.MPInteger(id, i)
+    | CTPT.MPBool (id, b) -> PT.MPBool(id, b)
+    | CTPT.MPCharacter (id, str) -> PT.MPCharacter(id, str)
+    | CTPT.MPString (id, str) -> PT.MPString(id, str)
+    | CTPT.MPFloat (id, sign, whole, frac) -> PT.MPFloat(id, sign, whole, frac)
+    | CTPT.MPNull (id) -> PT.MPNull(id)
+    | CTPT.MPBlank (id) -> PT.MPBlank(id)
+    | CTPT.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
   let rec toCT (pat : PT.MatchPattern) : CTPT.MatchPattern =
     match pat with
-    // TODO Update these to map to the new naming style (e.g. MPVariable). The
-    // client has been set up to accept these for weeks. It would generally be safe
-    // to update now, but the roundtrip serialization tests make it painful. We can
-    // do this at the same time that we remove support from the client.
-    | PT.MPVariable (id, str) -> CTPT.PVariable(id, str)
+    | PT.MPVariable (id, str) -> CTPT.MPVariable(id, str)
     | PT.MPConstructor (id, name, args) ->
-      CTPT.PConstructor(id, name, List.map toCT args)
-    | PT.MPInteger (id, i) -> CTPT.PInteger(id, i)
-    | PT.MPBool (id, b) -> CTPT.PBool(id, b)
-    | PT.MPCharacter (id, str) -> CTPT.PCharacter(id, str)
-    | PT.MPString (id, str) -> CTPT.PString(id, str)
-    | PT.MPFloat (id, sign, whole, frac) -> CTPT.PFloat(id, sign, whole, frac)
-    | PT.MPNull (id) -> CTPT.PNull(id)
-    | PT.MPBlank (id) -> CTPT.PBlank(id)
+      CTPT.MPConstructor(id, name, List.map toCT args)
+    | PT.MPInteger (id, i) -> CTPT.MPInteger(id, i)
+    | PT.MPBool (id, b) -> CTPT.MPBool(id, b)
+    | PT.MPCharacter (id, str) -> CTPT.MPCharacter(id, str)
+    | PT.MPString (id, str) -> CTPT.MPString(id, str)
+    | PT.MPFloat (id, sign, whole, frac) -> CTPT.MPFloat(id, sign, whole, frac)
+    | PT.MPNull (id) -> CTPT.MPNull(id)
+    | PT.MPBlank (id) -> CTPT.MPBlank(id)
     | PT.MPTuple (id, first, second, theRest) ->
-      CTPT.PTuple(id, toCT first, toCT second, List.map toCT theRest)
+      CTPT.MPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
 
 module SendToRail =

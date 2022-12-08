@@ -113,60 +113,33 @@ module DType =
 module MatchPattern =
   let rec fromCT (p : MatchPattern) : RT.MatchPattern =
     let r = fromCT
-
     match p with
-    // This is currently positioned to 'parse' both old-style (PBlank) and new-style
-    // (MPBlank) naming conventions of these patterns. Shortly, (TODO) we need to
-    // follow up and remove the old-style naming convention support.
-    | MPVariable (id, str)
-    | PVariable (id, str) -> RT.MPVariable(id, str)
-
-    | MPConstructor (id, name, pats)
-    | PConstructor (id, name, pats) -> RT.MPConstructor(id, name, List.map r pats)
-
-    | MPInteger (id, i)
-    | PInteger (id, i) -> RT.MPInteger(id, i)
-
-    | MPBool (id, b)
-    | PBool (id, b) -> RT.MPBool(id, b)
-
-    | MPCharacter (id, c)
-    | PCharacter (id, c) -> RT.MPCharacter(id, c)
-
-    | MPString (id, s)
-    | PString (id, s) -> RT.MPString(id, s)
-
-    | MPFloat (id, f)
-    | PFloat (id, f) -> RT.MPFloat(id, f)
-
-    | MPNull id
-    | PNull id -> RT.MPNull id
-
-    | MPBlank id
-    | PBlank id -> RT.MPBlank id
-
-    | MPTuple (id, first, second, theRest)
-    | PTuple (id, first, second, theRest) ->
+    | MPVariable (id, str) -> RT.MPVariable(id, str)
+    | MPConstructor (id, name, pats) -> RT.MPConstructor(id, name, List.map r pats)
+    | MPInteger (id, i) -> RT.MPInteger(id, i)
+    | MPBool (id, b) -> RT.MPBool(id, b)
+    | MPCharacter (id, c) -> RT.MPCharacter(id, c)
+    | MPString (id, s) -> RT.MPString(id, s)
+    | MPFloat (id, f) -> RT.MPFloat(id, f)
+    | MPNull id -> RT.MPNull id
+    | MPBlank id -> RT.MPBlank id
+    | MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
 
   let rec toCT (p : RT.MatchPattern) : MatchPattern =
     let r = toCT
     match p with
-    // TODO Update these to map to the new naming style (e.g. MPVariable). The
-    // client has been set up to accept these for weeks. It would generally be safe
-    // to update now, but the roundtrip serialization tests make it painful. We can
-    // do this at the same time that we remove support from the client.
-    | RT.MPVariable (id, str) -> PVariable(id, str)
-    | RT.MPConstructor (id, name, pats) -> PConstructor(id, name, List.map r pats)
-    | RT.MPInteger (id, i) -> PInteger(id, i)
-    | RT.MPBool (id, b) -> PBool(id, b)
-    | RT.MPCharacter (id, c) -> PCharacter(id, c)
-    | RT.MPString (id, s) -> PString(id, s)
-    | RT.MPFloat (id, f) -> PFloat(id, f)
-    | RT.MPNull id -> PNull id
-    | RT.MPBlank id -> PBlank id
+    | RT.MPVariable (id, str) -> MPVariable(id, str)
+    | RT.MPConstructor (id, name, pats) -> MPConstructor(id, name, List.map r pats)
+    | RT.MPInteger (id, i) -> MPInteger(id, i)
+    | RT.MPBool (id, b) -> MPBool(id, b)
+    | RT.MPCharacter (id, c) -> MPCharacter(id, c)
+    | RT.MPString (id, s) -> MPString(id, s)
+    | RT.MPFloat (id, f) -> MPFloat(id, f)
+    | RT.MPNull id -> MPNull id
+    | RT.MPBlank id -> MPBlank id
     | RT.MPTuple (id, first, second, theRest) ->
-      PTuple(id, r first, r second, List.map r theRest)
+      MPTuple(id, r first, r second, List.map r theRest)
 
 module Expr =
   let pipeToRT (pipe : Expr.IsInPipe) : RT.IsInPipe =

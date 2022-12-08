@@ -24,18 +24,18 @@ module MatchPattern = {
     let ep = encode
     let ev = variant
     switch matchPattern {
-    | MPVariable(id', name) => ev("PVariable", list{ID.encode(id'), string(name)})
+    | MPVariable(id', name) => ev("MPVariable", list{ID.encode(id'), string(name)})
     | MPConstructor(id', name, args) =>
-      ev("PConstructor", list{ID.encode(id'), string(name), list(ep, args)})
-    | MPInteger(id', v) => ev("PInteger", list{ID.encode(id'), int64(v)})
-    | MPBool(id', v) => ev("PBool", list{ID.encode(id'), bool(v)})
-    | MPFloat(id', v) => ev("PFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
-    | MPString(id', v) => ev("PString", list{ID.encode(id'), string(v)})
-    | MPCharacter(id', v) => ev("PCharacter", list{ID.encode(id'), string(v)})
-    | MPNull(id') => ev("PNull", list{ID.encode(id')})
-    | MPBlank(id') => ev("PBlank", list{ID.encode(id')})
+      ev("MPConstructor", list{ID.encode(id'), string(name), list(ep, args)})
+    | MPInteger(id', v) => ev("MPInteger", list{ID.encode(id'), int64(v)})
+    | MPBool(id', v) => ev("MPBool", list{ID.encode(id'), bool(v)})
+    | MPFloat(id', v) => ev("MPFloat", list{ID.encode(id'), Json_encode_extended.float'(v)})
+    | MPString(id', v) => ev("MPString", list{ID.encode(id'), string(v)})
+    | MPCharacter(id', v) => ev("MPCharacter", list{ID.encode(id'), string(v)})
+    | MPNull(id') => ev("MPNull", list{ID.encode(id')})
+    | MPBlank(id') => ev("MPBlank", list{ID.encode(id')})
     | MPTuple(id', first, second, theRest) =>
-      ev("PTuple", list{ID.encode(id'), ep(first), ep(second), list(ep, theRest)})
+      ev("MPTuple", list{ID.encode(id'), ep(first), ep(second), list(ep, theRest)})
     }
   }
 
@@ -47,28 +47,6 @@ module MatchPattern = {
     let dv1 = variant1
     variants(
       list{
-        ("PVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
-        ("PConstructor", dv3((a, b, c) => MPConstructor(a, b, c), ID.decode, string, list(decode))),
-        ("PInteger", dv2((a, b) => MPInteger(a, b), ID.decode, int64)),
-        ("PBool", dv2((a, b) => MPBool(a, b), ID.decode, bool)),
-        ("PString", dv2((a, b) => MPString(a, b), ID.decode, string)),
-        ("PFloat", dv2((a, b) => MPFloat(a, b), ID.decode, Json_decode_extended.float')),
-        ("PNull", dv1(a => MPNull(a), ID.decode)),
-        ("PBlank", dv1(a => MPBlank(a), ID.decode)),
-        (
-          "PTuple",
-          dv4(
-            (a, first, second, theRest) => MPTuple(a, first, second, theRest),
-            ID.decode,
-            decode,
-            decode,
-            list(decode),
-          ),
-        ),
-        // TODO remove support from the old-style (e.g. PVariable) naming convention
-        // of these cases, leaving support only for the new naming convention. This
-        // can be done at the same time as we remove the old-style cases from
-        // ClientTypes.Runtime
         ("MPVariable", dv2((a, b) => MPVariable(a, b), ID.decode, string)),
         (
           "MPConstructor",
