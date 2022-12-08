@@ -52,9 +52,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   uply {
     match e with
     | EBlank id -> return (incomplete id)
+    | EString (_id, s) -> return DStr(String.normalize s)
+    | EBool (_id, b) -> return DBool b
+    | EInteger (_id, i) -> return DInt i
+    | EFloat (_id, value) -> return DFloat value
+    | ENull _id -> return DNull
+    | ECharacter (_id, s) -> return DChar s
+
+
     | ELet (_id, lhs, rhs, body) ->
       let! rhs = eval state st rhs
-
       match rhs with
       // CLEANUP we should still preview the body
       // Usually fakevals get propagated when they're evaluated. However, if we
@@ -64,12 +71,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | _ ->
         let st = if lhs <> "" then Map.add lhs rhs st else st
         return! eval state st body
-    | EString (_id, s) -> return DStr(String.normalize s)
-    | EBool (_id, b) -> return DBool b
-    | EInteger (_id, i) -> return DInt i
-    | EFloat (_id, value) -> return DFloat value
-    | ENull _id -> return DNull
-    | ECharacter (_id, s) -> return DChar s
+
+
     | EList (_id, exprs) ->
       // We ignore incompletes but not error rail.
       // CLEANUP: Other places where lists are created propagate incompletes
@@ -86,6 +89,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | Some er -> return er
       | None -> return (DList filtered)
 
+
     | ETuple (_id, first, second, theRest) ->
 
       let! firstResult = eval state st first
@@ -100,6 +104,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | Some fakeDval -> return fakeDval
       | None -> return DTuple(firstResult, secondResult, otherResults)
 
+
     | EVariable (id, name) ->
       match (st.TryFind name, state.tracing.realOrPreview) with
       | None, Preview ->
@@ -112,6 +117,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | None, Real ->
         return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
       | Some other, _ -> return other
+
+
     | ERecord (_id, pairs) ->
       let! evaluated =
         pairs
@@ -139,6 +146,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | None -> return Dval.interpreterObj evaluated
       | Some (_, er) -> return er
 
+
     | EApply (id, fnVal, exprs, inPipe, ster) ->
       let! fnVal = eval state st fnVal
       let! args = Ply.List.mapSequentially (eval state st) exprs
@@ -155,7 +163,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | NotInPipe -> ()
 
       return result
+
+
     | EFQFnValue (_id, desc) -> return DFnVal(FnName(desc))
+
+
     | EFieldAccess (id, e, field) ->
       let! obj = eval state st e
 
@@ -183,6 +195,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           )
 
       return result
+
+
     | EFeatureFlag (_id, cond, oldcode, newcode) ->
       // Unlike If statements that check their condition for 'truthiness,'
       // (considering the condition true if it evaluates to anything other
@@ -219,6 +233,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         do! preview st newcode
         return! eval state st oldcode
 
+
     | ELambda (_id, parameters, body) ->
       if state.tracing.realOrPreview = Preview then
         // In case this never gets executed, add default analysis results
@@ -236,7 +251,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           |> Map.ofList
         do! preview previewST body
 
-
       let parameters =
         parameters
         |> List.choose (fun param ->
@@ -247,6 +261,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // It is the responsibility of wherever executes the DBlock to pass in
       // args and execute the body.
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
+
 
     | EMatch (id, matchExpr, cases) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
@@ -362,6 +377,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       return matchResult
 
+
     | EIf (_id, cond, thenbody, elsebody) ->
       match! eval state st cond with
       | DBool (false)
@@ -382,6 +398,38 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let! result = eval state st thenbody
         do! preview st elsebody
         return result
+
+
+    | EOr (id, left, right) ->
+      match! eval state st left with
+      | DBool true ->
+        do! preview st right
+        return DBool true
+      | DBool false ->
+        match! eval state st right with
+        | DBool true -> return DBool true
+        | DBool false -> return DBool false
+        | right when Dval.isFake right -> return right
+        | _ -> return DError(sourceID id, "|| only supports Booleans")
+      | left when Dval.isFake left -> return left
+      | _ -> return DError(sourceID id, "|| only supports Booleans")
+
+
+    | EAnd (id, left, right) ->
+      match! eval state st left with
+      | DBool false ->
+        do! preview st right
+        return DBool false
+      | DBool true ->
+        match! eval state st right with
+        | DBool true -> return DBool true
+        | DBool false -> return DBool false
+        | right when Dval.isFake right -> return right
+        | _ -> return DError(sourceID id, "&& only supports Booleans")
+      | left when Dval.isFake left -> return left
+      | _ -> return DError(sourceID id, "&& only supports Booleans")
+
+
     | EConstructor (id, name, args) ->
       match (name, args) with
       | "Nothing", [] -> return DOption None

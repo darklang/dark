@@ -635,6 +635,13 @@ module Expect =
           eq (string p :: path) v v')
         branches
         branches'
+    | EAnd (_, l, r), EAnd (_, l', r') ->
+      eq ("left" :: path) l l'
+      eq ("right" :: path) r r'
+    | EOr (_, l, r), EOr (_, l', r') ->
+      eq ("left" :: path) l l'
+      eq ("right" :: path) r r'
+
     // exhaustiveness check
     | ENull _, _
     | EBlank _, _
@@ -655,7 +662,9 @@ module Expect =
     | EFeatureFlag _, _
     | EConstructor _, _
     | ELambda _, _
-    | EMatch _, _ -> check path actual expected
+    | EMatch _, _
+    | EAnd _, _
+    | EOr _, _ -> check path actual expected
 
 
 

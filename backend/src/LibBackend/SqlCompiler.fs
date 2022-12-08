@@ -183,6 +183,7 @@ let rec lambdaToSql
   | Fn "" "!=" 0 [ e; ENull _ ] ->
     let sql, vars = lts TNull e
     $"({sql} is not null)", vars
+
   | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
     match Map.get name fns with
     | Some fn ->
@@ -222,6 +223,19 @@ let rec lambdaToSql
     | None ->
       error
         $"Only builtin functions can be used in queries right now; {FQFnName.toString name} is not a builtin function"
+
+  | EAnd (_, left, right) ->
+    let leftSql, leftVars = lts TBool left
+    let rightSql, rightVars = lts TBool right
+    $"({leftSql} AND {rightSql})", leftVars @ rightVars
+
+
+  | EOr (_, left, right) ->
+    let leftSql, leftVars = lts TBool left
+    let rightSql, rightVars = lts TBool right
+    $"({leftSql} OR {rightSql})", leftVars @ rightVars
+
+
   | EVariable (_, varname) ->
     match Map.get varname symtable with
     | Some dval ->
@@ -230,26 +244,32 @@ let rec lambdaToSql
       let newname = $"{varname}_{random}"
       $"(@{newname})", [ newname, dvalToSql dval ]
     | None -> error $"This variable is not defined: {varname}"
+
   | EInteger (_, v) ->
     typecheck $"integer {v}" TInt expectedType
     let name = randomString 10
     $"(@{name})", [ name, v |> int64 |> Sql.int64 ]
+
   | EBool (_, v) ->
     typecheck $"bool {v}" TBool expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.bool v ]
+
   | ENull _ ->
     typecheck "value null" TNull expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.dbnull ]
+
   | EFloat (_, v) ->
     typecheck $"float {v}" TFloat expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.double v ]
+
   | EString (_, v) ->
     typecheck $"string \"{v}\"" TStr expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ]
+
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
     let dbFieldType =
       match Map.get fieldname dbFields with
@@ -334,6 +354,8 @@ let partiallyEvaluate
         | EFieldAccess (_, ERecord _, _) ->
           // inlining can create these situations
           return! exec expr
+        | EAnd (_, EBool _, EBool _) -> return! exec expr
+        | EOr (_, EBool _, EBool _) -> return! exec expr
         | EApply (_, EFQFnValue (_, name), args, _, _) when
           // functions that are fully specified
           List.all
@@ -428,6 +450,14 @@ let partiallyEvaluate
               let! casea = r casea
               let! caseb = r caseb
               return EFeatureFlag(id, cond, casea, caseb)
+            | EAnd (id, left, right) ->
+              let! left = r left
+              let! right = r right
+              return EAnd(id, left, right)
+            | EOr (id, left, right) ->
+              let! left = r left
+              let! right = r right
+              return EOr(id, left, right)
           }
 
         return! f result

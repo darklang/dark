@@ -128,6 +128,8 @@ module Expr =
     | ST.EPipeTarget id -> PT.EPipeTarget id
     | ST.EFeatureFlag (id, name, cond, caseA, caseB) ->
       PT.EFeatureFlag(id, name, toPT cond, toPT caseA, toPT caseB)
+    | ST.EAnd (id, left, right) -> PT.EAnd(id, toPT left, toPT right)
+    | ST.EOr (id, left, right) -> PT.EOr(id, toPT left, toPT right)
 
 module DType =
   let rec toPT (t : ST.DType) : PT.DType =

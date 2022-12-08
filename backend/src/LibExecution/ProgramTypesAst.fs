@@ -38,6 +38,8 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | ERightPartial (id, str, oldExpr) -> ERightPartial(id, str, f oldExpr)
   | EFeatureFlag (id, name, cond, casea, caseb) ->
     EFeatureFlag(id, name, f cond, f casea, f caseb)
+  | EAnd (id, left, right) -> EAnd(id, f left, f right)
+  | EOr (id, left, right) -> EOr(id, f left, f right)
 
 
 

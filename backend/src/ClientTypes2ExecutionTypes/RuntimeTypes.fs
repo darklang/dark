@@ -197,6 +197,8 @@ module Expr =
       )
     | Expr.EFeatureFlag (id, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
+    | Expr.EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
+    | Expr.EOr (id, left, right) -> RT.EOr(id, r left, r right)
 
 
   let rec toCT (e : RT.Expr) : Expr.T =
@@ -234,6 +236,8 @@ module Expr =
       )
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
+    | RT.EAnd (id, left, right) -> Expr.EAnd(id, r left, r right)
+    | RT.EOr (id, left, right) -> Expr.EOr(id, r left, r right)
 
 module Dval =
   module DvalSource =

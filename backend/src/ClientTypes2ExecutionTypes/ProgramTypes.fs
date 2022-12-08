@@ -168,6 +168,8 @@ module Expr =
     | CTPT.Expr.EPipeTarget (id) -> PT.EPipeTarget(id)
     | CTPT.Expr.EFeatureFlag (id, name, cond, caseA, caseB) ->
       PT.EFeatureFlag(id, name, fromCT cond, fromCT caseA, fromCT caseB)
+    | CTPT.Expr.EAnd (id, left, right) -> PT.EAnd(id, fromCT left, fromCT right)
+    | CTPT.Expr.EOr (id, left, right) -> PT.EOr(id, fromCT left, fromCT right)
 
   let rec toCT (expr : PT.Expr) : CTPT.Expr =
     match expr with
@@ -226,6 +228,8 @@ module Expr =
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
+    | PT.EOr (id, first, second) -> CTPT.Expr.EOr(id, toCT first, toCT second)
+    | PT.EAnd (id, first, second) -> CTPT.Expr.EAnd(id, toCT first, toCT second)
 
 
 module DType =

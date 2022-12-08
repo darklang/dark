@@ -130,6 +130,9 @@ type Expr =
   | EPipeTarget of id
   // EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr
   | EFeatureFlag of id * string * Expr * Expr * Expr
+  // Short-circuiting operators
+  | EAnd of id * Expr * Expr
+  | EOr of id * Expr * Expr
 
 type DType =
   | TInt

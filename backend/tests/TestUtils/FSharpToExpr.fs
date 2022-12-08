@@ -128,9 +128,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
                  ("op_EqualsEquals", "==")
                  ("op_Equality", "==")
                  ("op_BangEquals", "!=")
-                 ("op_Inequality", "!=")
-                 ("op_BooleanAnd", "&&")
-                 ("op_BooleanOr", "||") ]
+                 ("op_Inequality", "!=") ]
 
   let id = gid ()
 
@@ -156,20 +154,26 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
            [ "name", ident.idText ]
     let fn : PT.FQFnName.InfixStdlibFnName = { module_ = None; function_ = op }
     PT.EBinOp(id, fn, placeholder, placeholder, PT.NoRail)
+
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
     let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
     PT.EFnCall(id, name, [], PT.NoRail)
+
   | SynExpr.Ident ident when
     Set.contains ident.idText PTParser.FQFnName.oneWordFunctions
     ->
     PT.EFnCall(id, PTParser.FQFnName.parse ident.idText, [], PT.NoRail)
+
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
     PT.EConstructor(id, "Nothing", [])
+
   | SynExpr.Ident ident when ident.idText = "blank" -> PT.EBlank id
+
   | SynExpr.Ident name -> PT.EVariable(id, name.idText)
 
   // lists and arrays
   | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
+
   // A literal list is sometimes made up of nested Sequentials
   | SynExpr.ArrayOrListComputed (_, (SynExpr.Sequential _ as seq), _) ->
     let rec seqAsList expr : List<SynExpr> =
@@ -177,8 +181,10 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
       | SynExpr.Sequential (_, _, expr1, expr2, _) -> expr1 :: seqAsList expr2
       | _ -> [ expr ]
     PT.EList(id, seq |> seqAsList |> List.map c)
+
   | SynExpr.ArrayOrListComputed (_, SynExpr.Tuple (_, exprs, _, _), _) ->
     PT.EList(id, exprs |> List.map c)
+
   | SynExpr.ArrayOrListComputed (_, expr, _) -> PT.EList(id, [ c expr ])
 
   // tuples
@@ -215,6 +221,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
           [ "name", fnName.idText ]
 
     PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
+
   // Preliminary support for package manager functions
   | SynExpr.LongIdent (_,
                        LongIdentWithDots ([ owner; package; modName; fnName ], _),
@@ -230,11 +237,13 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
         fnName, PT.NoRail
     let name = $"test/test/Test::{name}_v0"
     PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
+
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
     let obj1 =
       PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank f1.idText)
     let obj2 = PT.EFieldAccess(id, obj1, nameOrBlank f2.idText)
     PT.EFieldAccess(id, obj2, nameOrBlank f3.idText)
+
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field1; field2 ], _), _, _) ->
     let obj1 =
       PT.EFieldAccess(
@@ -243,10 +252,13 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
         nameOrBlank field1.idText
       )
     PT.EFieldAccess(id, obj1, nameOrBlank field2.idText)
+
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field ], _), _, _) ->
     PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank field.idText)
+
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
     PT.EFieldAccess(id, c expr, nameOrBlank field.idText)
+
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _, _) ->
     let rec extractVarsAndBody expr =
       match expr with
@@ -292,6 +304,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
                       body,
                       _,
                       _) -> PT.ELet(id, name.idText, c rhs, c body)
+
   | SynExpr.LetOrUse (_,
                       _,
                       [ SynBinding (_,
@@ -310,13 +323,14 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
                       body,
                       _,
                       _) -> PT.ELet(id, "_", c rhs, c body)
+
   | SynExpr.Match (_, _, cond, _, clauses, _) ->
     let convertClause
       (SynMatchClause (pat, _, expr, _, _, _) : SynMatchClause)
       : PT.MatchPattern * PT.Expr =
       (convertPattern pat, c expr)
-
     PT.EMatch(id, c cond, List.map convertClause clauses)
+
   | SynExpr.Record (_, _, fields, _) ->
     fields
     |> List.map (fun field ->
@@ -325,8 +339,11 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
         (nameOrBlank name.idText, c expr)
       | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
     |> fun rows -> PT.ERecord(id, rows)
+
   | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
+
   | SynExpr.Do (expr, _) -> c expr // just unwrap
+
   // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
   // op_PipeRight, and the inner app has two arguments. Those arguments might
   // also be pipes
@@ -344,13 +361,26 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
       // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       // the very bottom on the pipe chain, this is the first and second expressions
       PT.EPipe(id, other, cPlusPipeTarget arg, [])
+
   | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _) when pipe.idText = "op_PipeRight" ->
     // the very bottom on the pipe chain, this is just the first expression
     PT.EPipe(id, c expr, placeholder, [])
+
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
     List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
     ->
     PT.EConstructor(id, name.idText, [ c arg ])
+
+  | SynExpr.App (_, _, SynExpr.App (_, _, SynExpr.Ident ident, left, _), right, _) when
+    ident.idText = "op_BooleanAnd"
+    ->
+    PT.EAnd(id, c left, c right)
+
+  | SynExpr.App (_, _, SynExpr.App (_, _, SynExpr.Ident ident, left, _), right, _) when
+    ident.idText = "op_BooleanOr"
+    ->
+    PT.EOr(id, c left, c right)
+
   // Feature flag now or else it'll get recognized as a var
   | SynExpr.App (_,
                  _,
@@ -358,6 +388,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
                  SynExpr.Const (SynConst.String (label, _, _), _),
                  _) when name.idText = "flag" ->
     PT.EFeatureFlag(gid (), label, placeholder, placeholder, placeholder)
+
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
     match c funcExpr with

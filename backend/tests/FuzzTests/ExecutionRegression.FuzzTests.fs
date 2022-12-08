@@ -93,6 +93,8 @@ let rec patternFromExpr (expr : RT.Expr) : Gen<RT.MatchPattern> =
   | RT.ELambda _
   | RT.EApply _
   | RT.EFQFnValue _
+  | RT.EAnd _
+  | RT.EOr _
 
   // TODO: we could populate a Symtable to use with EVariable and EFieldAccess
   // usages in the RHS expr

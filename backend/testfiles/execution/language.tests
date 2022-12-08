@@ -85,6 +85,49 @@ toString 5 = "5"
 (if blank then "" else "") = blank
 (if 5 then "correct" else "") = "correct"
 
+[tests.and]
+(true && true) = true
+(true && false) = false
+(false && true) = false
+(false && false) = false
+(true && blank) = blank
+(true && Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
+(true && Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
+(true && 5) = Test.typeError_v0 "&& only supports Booleans"
+(false && blank) = false
+(false && Test.typeError_v0 "msg") = false
+(false && Test.errorRailValue_v0 Nothing) = false
+(false && 5) = false
+(blank && blank) = blank
+(blank && Test.typeError_v0 "msg") = blank
+(blank && Test.errorRailValue_v0 Nothing) = blank
+(Test.typeError_v0 "msg" && Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
+(Test.typeError_v0 "msg" && Test.errorRailValue_v0 Nothing) = Test.typeError_v0 "msg"
+(Test.errorRailValue_v0 Nothing && Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
+(5 && true) = Test.typeError_v0 "&& only supports Booleans"
+
+
+[tests.or]
+(true || true) = true
+(true || false) = true
+(false || true) = true
+(false || false) = false
+(true || blank) = true
+(true || Test.typeError_v0 "msg") = true
+(true || Test.errorRailValue_v0 Nothing) = true
+(true || 5) = true
+(false || blank) = blank
+(false || Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
+(false || Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
+(false || 5) = Test.typeError_v0 "|| only supports Booleans"
+(blank || blank) = blank
+(blank || Test.typeError_v0 "msg") = blank
+(blank || Test.errorRailValue_v0 Nothing) = blank
+(Test.typeError_v0 "msg1" || Test.typeError_v0 "msg2") = Test.typeError_v0 "msg1"
+(Test.typeError_v0 "msg" || Test.errorRailValue_v0 Nothing) = Test.typeError_v0 "msg"
+(Test.errorRailValue_v0 Nothing || Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
+(5 || true) = Test.typeError_v0 "|| only supports Booleans"
+
 
 [tests.featureflag]
 flag "test" true "old" "new" = "new"

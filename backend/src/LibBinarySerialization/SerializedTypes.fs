@@ -135,6 +135,8 @@ type Expr =
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
+  | EAnd of id * Expr * Expr
+  | EOr of id * Expr * Expr
 
 [<MessagePack.MessagePackObject>]
 type DType =

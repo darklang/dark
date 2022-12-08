@@ -38,6 +38,8 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
   | EFeatureFlag (id, cond, casea, caseb) ->
     EFeatureFlag(id, r cond, r casea, r caseb)
+  | EAnd (id, left, right) -> EAnd(id, r left, r right)
+  | EOr (id, left, right) -> EOr(id, r left, r right)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
@@ -69,5 +71,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
     | EFeatureFlag (id, cond, casea, caseb) ->
       EFeatureFlag(id, r cond, r casea, r caseb)
+    | EAnd (id, left, right) -> EAnd(id, r left, r right)
+    | EOr (id, left, right) -> EOr(id, r left, r right)
 
   f result

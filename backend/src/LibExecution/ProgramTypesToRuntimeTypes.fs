@@ -157,6 +157,8 @@ module Expr =
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
+    | PT.EAnd (id, expr1, expr2) -> RT.EAnd(id, toRT expr1, toRT expr2)
+    | PT.EOr (id, expr1, expr2) -> RT.EOr(id, toRT expr1, toRT expr2)
 
 module DType =
   let rec toRT (t : PT.DType) : RT.DType =
