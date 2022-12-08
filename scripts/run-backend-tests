@@ -46,6 +46,10 @@ LOGS="${DARK_CONFIG_RUNDIR}/logs"
 ./scripts/run-httptunnel
 ./scripts/run-nginx-server
 
+# Use random to avoid old items being in the pubsub queue. Use this instead of
+# $RANDOM as RANDOM is only 5 digits
+RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
+
 # Run the migrations before the other servers start
 echo "Running migrations"
 cd backend && \
@@ -55,15 +59,13 @@ cd backend && \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-123456 \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test \
   "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log" 2>&1
 cd ..
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"
 
-# Use random to avoid old items being in the pubsub queue. Use this instead of
-# $RANDOM as RANDOM is only 5 digits
-RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
 
 COLOURS="256"
 SPINNER=
