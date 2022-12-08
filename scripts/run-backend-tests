@@ -42,7 +42,7 @@ createdb testdb
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
 ./scripts/run-pubsub-emulator
-./scripts/cloud-storage-emulator
+./scripts/run-cloud-storage-emulator
 ./scripts/run-httptunnel
 ./scripts/run-nginx-server
 
