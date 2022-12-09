@@ -24,7 +24,7 @@ Or to run only testlists with XXX in their names:
 Tests are _not_ automatically discovered; they must be added to `Tests.fs`.
 
 We also have a number of property-based tests, which we currently keep separate
-in `backend/tests/FuzzTests`. Run them with `scripts/run-fsharp-fuzzer`.
+in `backend/tests/FuzzTests`. Run them with `scripts/run-backend-fuzzer`.
 
 ## Client-side
 
