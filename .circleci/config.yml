@@ -378,7 +378,7 @@ jobs:
           name: Run integration tests
           command: |
             # Run the server first to set up the DB correctly for the prep script
-            scripts/run-fsharp-server --published
+            scripts/run-backend-server --published
             # Wait for users to be added so prep.sh works
             ./scripts/devcontainer/_wait-until-apiserver-ready
             integration-tests/run.sh --concurrency=8 --retry --published

@@ -92,8 +92,7 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(
-      start,
-      "cp -f backend/src/Analysis/static/BlazorWorker.js backend/static/")
+      start, "cp -f backend/src/Analysis/static/BlazorWorker.js backend/static/")
   if optimize:
     wwwroot = run_backend(
         start,
@@ -281,13 +280,13 @@ def reload_nginx_server():
   return run_backend(start, runserver)
 
 
-def reload_fsharp_server():
+def reload_backend_server():
   start = time.time()
   if optimize:
     configuration = " --published"
   else:
     configuration = ""
-  runserver = f"scripts/run-fsharp-server {configuration}"
+  runserver = f"scripts/run-backend-server {configuration}"
   return run_backend(start, runserver)
 
 
@@ -323,7 +322,7 @@ class Should:
     self.test_nginx = False
     self.reload_browser = False
     self.reload_nginx_server = False
-    self.reload_fsharp_server = False
+    self.reload_backend_server = False
     self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
@@ -351,7 +350,7 @@ def execute(should):
     if not fsharp_backend_full_build(): success = False
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
-    should.reload_fsharp_server |= success
+    should.reload_backend_server |= success
 
   if should.circleci_validate:
     if not circleci_validate(): success = False
@@ -366,7 +365,7 @@ def execute(should):
     if not fsharp_backend_quick_build(): success = False
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
-    should.reload_fsharp_server |= success
+    should.reload_backend_server |= success
 
   if should.npm_install:
     if not npm_install(): success = False
@@ -398,7 +397,7 @@ def execute(should):
     if not generate_etags(): success = False
     should.reload_browser |= success
     # This should probably cause a restart, but it breaks CI atm
-    # should.reload_fsharp_server |= success
+    # should.reload_backend_server |= success
 
   if should.reload_nginx_server:
     if not reload_nginx_server(): success = False
@@ -407,8 +406,8 @@ def execute(should):
   if should.test_nginx:
     if not test_nginx(): success = False
 
-  if should.reload_fsharp_server:
-    if not reload_fsharp_server(): success = False
+  if should.reload_backend_server:
+    if not reload_backend_server(): success = False
     should.reload_browser |= success
 
   if should.reload_browser:
@@ -438,7 +437,7 @@ def execute(should):
 
 def mark(should, f):
   if ("/backend/src/ApiServer/Templates/" in f) and (".html" in f):
-    should.reload_fsharp_server = True
+    should.reload_backend_server = True
 
   elif ("/backend/global.json" in f or \
         "/backend/.config/dotnet-tools.json" in f or \
@@ -478,9 +477,9 @@ def mark(should, f):
     should.reload_nginx_server = True
     should.test_nginx = True
 
-  elif "/scripts/run-fsharp-server" in f:
+  elif "/scripts/run-backend-server" in f:
     should.shellcheck += [f]
-    should.reload_fsharp_server = True
+    should.reload_backend_server = True
     should.generate_etags = True
 
   # JS

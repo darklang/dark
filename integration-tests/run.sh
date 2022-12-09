@@ -97,7 +97,7 @@ while [[ $STATUS == 0 ]]; do
   # Reset the DB and restart the servers
   # Note that we run against the dev server so that we can debug failures locally
   ./integration-tests/prep.sh
-  ./scripts/run-fsharp-server "${PUBLISHED}" --restart=no
+  ./scripts/run-backend-server "${PUBLISHED}" --restart=no
   ./scripts/devcontainer/_wait-until-apiserver-ready
 
   BASE_URL="$BASE_URL" \

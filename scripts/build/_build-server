@@ -69,7 +69,7 @@ def compile(files):
 
 
 def run_fsharp_server():
-  exit = compile(["scripts/run-fsharp-server"])
+  exit = compile(["scripts/run-backend-server"])
   print("--------------------------")
   print("-- Started server ")
   print("--------------------------")
