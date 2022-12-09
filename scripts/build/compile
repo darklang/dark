@@ -89,7 +89,7 @@ def copy_static():
   return run_frontend(start, "npm run copy:static")
 
 
-def copy_fsharp_static():
+def copy_backend_static():
   start = time.time()
   blazor = run_backend(
       start, "cp -f backend/src/Analysis/static/BlazorWorker.js backend/static/")
@@ -315,7 +315,7 @@ class Should:
     self.client_test = False
     self.sass_compile = False
     self.copy_static = False
-    self.copy_fsharp_static = False
+    self.copy_backend_static = False
     self.circleci_validate = False
     self.pip_install = False
     self.mypy_shipit = False
@@ -348,7 +348,7 @@ def execute(should):
   if should.fsharp_backend_full_build:
     should.backend_quick_build = False  # no need to do both
     if not fsharp_backend_full_build(): success = False
-    should.copy_fsharp_static |= success
+    should.copy_backend_static |= success
     should.fsharp_backend_test |= success
     should.reload_backend_server |= success
 
@@ -363,7 +363,7 @@ def execute(should):
 
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
-    should.copy_fsharp_static |= success
+    should.copy_backend_static |= success
     should.fsharp_backend_test |= success
     should.reload_backend_server |= success
 
@@ -388,8 +388,8 @@ def execute(should):
     should.generate_etags |= success
     should.reload_browser |= success
 
-  if should.copy_fsharp_static:
-    if not copy_fsharp_static(): success = False
+  if should.copy_backend_static:
+    if not copy_backend_static(): success = False
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -506,7 +506,7 @@ def mark(should, f):
     should.copy_static = True
 
   elif "/backend/src/Analysis/static/" in f:
-    should.copy_fsharp_static = True
+    should.copy_backend_static = True
 
   elif (".circleci/config.yml" in f):
     should.circleci_validate = True
