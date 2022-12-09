@@ -814,7 +814,7 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     infixFn("++", TStr, TStr),
     infixFn("==", TVariable("a"), TBool),
     infixFn("<=", TInt, TBool),
-    infixFn("||", TBool, TBool),
+    infixFn(">=", TInt, TBool),
     {
       name: {module_: "Int", function: "add", version: 0},
       parameters: list{fnParam("a", TInt), fnParam("b", TInt)},
