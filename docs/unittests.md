@@ -19,7 +19,7 @@ tests with XXX in their names:
 
 Or to run only testlists with XXX in their names:
 
-`scripts/run-backendfsharp-tests --filter-test-list XXX`
+`scripts/run-backend-tests --filter-test-list XXX`
 
 Tests are _not_ automatically discovered; they must be added to `Tests.fs`.
 
