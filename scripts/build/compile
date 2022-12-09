@@ -275,12 +275,6 @@ def fsharp_backend_full_build():
   return result
 
 
-def reload_server():
-  start = time.time()
-  runserver = "scripts/run-backend-server"
-  return run_backend(start, runserver)
-
-
 def reload_nginx_server():
   start = time.time()
   runserver = "scripts/run-nginx-server"
@@ -328,7 +322,6 @@ class Should:
     self.mypy_shipit = False
     self.test_nginx = False
     self.reload_browser = False
-    self.reload_server = False
     self.reload_nginx_server = False
     self.reload_fsharp_server = False
     self.generate_etags = False
@@ -405,7 +398,7 @@ def execute(should):
     if not generate_etags(): success = False
     should.reload_browser |= success
     # This should probably cause a restart, but it breaks CI atm
-    # should.reload_server |= success
+    # should.reload_fsharp_server |= success
 
   if should.reload_nginx_server:
     if not reload_nginx_server(): success = False
@@ -413,10 +406,6 @@ def execute(should):
 
   if should.test_nginx:
     if not test_nginx(): success = False
-
-  if should.reload_server:
-    if not reload_server(): success = False
-    should.reload_browser |= success
 
   if should.reload_fsharp_server:
     if not reload_fsharp_server(): success = False
