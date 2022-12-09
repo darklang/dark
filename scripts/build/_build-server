@@ -68,7 +68,7 @@ def compile(files):
     return compile_project("all")
 
 
-def run_fsharp_server():
+def run_backend_server():
   exit = compile(["scripts/run-backend-server"])
   print("--------------------------")
   print("-- Started server ")
@@ -141,7 +141,7 @@ def main():
         sys.exit(1)
   else:
     if should_serve:
-      run_fsharp_server()
+      run_backend_server()
 
   if should_watch:
     import watchfiles
