@@ -97,7 +97,7 @@ test('{your_test_name}', async t => {
 });
 ```
 
-3. To complete the test, write a validation function in `client/src/IntegrationTest.ml`.
+3. To complete the test, write a validation function in `client/src/IntegrationTest.res`.
 
 ```
 let {your_test_name} (m : model) : testResult =
@@ -114,7 +114,7 @@ Uses playwright: https://playwright.dev
 run.sh calls playwright , which runs tests.js on chrome in the container. Our
 tests load the server and get the test programs from `backend/test_appdata`.
 The client loads it, recognizes from the url that it's a test, then gets the test code
-from `IntegrationTest.ml` and stores it in the model.
+from `IntegrationTest.res` and stores it in the model.
 
 At the end of a test, the harness clicks the "finish integration test"
 button in the browser, which runs the testing function for the test
@@ -135,7 +135,7 @@ button in the browser, which runs the testing function for the test
 
   - test harness and tests
 
-- `client/src/IntegrationTest.ml`
+- `client/src/IntegrationTest.res`
 
   - This contains the code to check that the tests were successful.
     Note that this is compiled into app.js, so we have a
