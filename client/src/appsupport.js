@@ -20,7 +20,7 @@ function unsupportedBrowser() {
   var isMobile = /Android|BlackBerry|iPhone|iPad|iPod|Opera Mini|IEMobile/.test(
     navigator.userAgent,
   );
-  var isDesktopApp = /DarkLang\/Editor/.test(navigator.userAgent);
+  var isDesktopApp = /DarkLang\/Editor/i.test(navigator.userAgent);
   var isSupported = isDesktopApp || (isChrome && !isMobile);
   return !isSupported;
 }
