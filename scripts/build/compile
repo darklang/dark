@@ -229,7 +229,7 @@ def fsharp_paket_restore():
 # there but I'm not sure what.
 
 
-def fsharp_backend_quick_build():
+def backend_quick_build():
   start = time.time()
   if optimize:
     configuration = "Release"
@@ -307,7 +307,7 @@ class Should:
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
     self.fsharp_paket_install = False
-    self.fsharp_backend_quick_build = False
+    self.backend_quick_build = False
     self.fsharp_backend_full_build = False
     self.fsharp_backend_test = False
     self.npm_install = False
@@ -346,7 +346,7 @@ def execute(should):
     should.fsharp_backend_full_build |= success
 
   if should.fsharp_backend_full_build:
-    should.fsharp_backend_quick_build = False  # no need to do both
+    should.backend_quick_build = False  # no need to do both
     if not fsharp_backend_full_build(): success = False
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
@@ -361,8 +361,8 @@ def execute(should):
   if should.mypy_shipit:
     if not mypy_shipit(): success = False
 
-  if should.fsharp_backend_quick_build:
-    if not fsharp_backend_quick_build(): success = False
+  if should.backend_quick_build:
+    if not backend_quick_build(): success = False
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
     should.reload_backend_server |= success
@@ -462,7 +462,7 @@ def mark(should, f):
     if in_ci:
       should.fsharp_backend_full_build = True
     else:
-      should.fsharp_backend_quick_build = True
+      should.backend_quick_build = True
 
   elif ("/backend/" in f) and ("/tests/" in f):
     should.fsharp_backend_test = True
