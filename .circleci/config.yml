@@ -263,7 +263,7 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
-      - run: scripts/run-fsharp-tests --published
+      - run: scripts/run-backend-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache

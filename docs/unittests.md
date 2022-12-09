@@ -10,16 +10,16 @@ the builder script. Run it with `--test` to run tests.
 The entry point is `backend/tests/Tests/Tests.fs`. Run tests from the
 command line using:
 
-`scripts/run-fsharp-tests`
+`scripts/run-backend-tests`
 
-Run `scripts/run-fsharp-tests --help` for options. In particular, to run only
+Run `scripts/run-backend-tests --help` for options. In particular, to run only
 tests with XXX in their names:
 
-`scripts/run-fsharp-tests --filter-test-case XXX`
+`scripts/run-backend-tests --filter-test-case XXX`
 
 Or to run only testlists with XXX in their names:
 
-`scripts/run-fsharp-tests --filter-test-list XXX`
+`scripts/run-backendfsharp-tests --filter-test-list XXX`
 
 Tests are _not_ automatically discovered; they must be added to `Tests.fs`.
 
