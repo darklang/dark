@@ -41,6 +41,7 @@ module Token = {
     type rec t = {
       name: string,
       typ: string,
+      parentID: ID.t,
     }
   }
 
@@ -54,12 +55,7 @@ module Token = {
     | TStringML(ID.t, string, int, string)
     // Sometimes the analysis wants to look "through" blanks (eg in pipes)
     | TBlank(ID.t, analysisID, option<parentBlockID>)
-    | TPlaceholder({
-        blankID: ID.t,
-        fnID: ID.t,
-        parentBlockID: option<parentBlockID>,
-        placeholder: Placeholder.t,
-      })
+    | TPlaceholder({blankID: ID.t, placeholder: Placeholder.t})
     | TTrue(ID.t, option<parentBlockID>)
     | TFalse(ID.t, option<parentBlockID>)
     | TNullToken(ID.t, option<parentBlockID>)

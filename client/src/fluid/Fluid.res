@@ -1162,7 +1162,7 @@ let insertInBlankExpr = (settings: FluidTypes.FluidSettings.t, ins: string): (E.
  * in conjunction with lambdas.
  */
 let insertInPlaceholderExpr = (
-  ~fnID: id,
+  ~parentID: id,
   ~placeholder: placeholder,
   ~ins: string,
   ast: FluidAST.t,
@@ -1170,7 +1170,7 @@ let insertInPlaceholderExpr = (
 ): (E.t, CT.t) => {
   let newID = gid()
   let lambdaArgs = () => {
-    let fnname = switch FluidAST.findExpr(fnID, ast) {
+    let fnname = switch FluidAST.findExpr(parentID, ast) {
     | Some(EFnCall(_, name, _, _)) => Some(name)
     | _ => None
     }
@@ -2733,6 +2733,35 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
           {astRef: ARPartial(newID), offset: currOffset - 1},
         )
       }
+    // And/Or
+    | (ARAndOr(_, AOPAndKeyword), EAnd(_, lhsExpr, rhsExpr)) =>
+      let str = "&&" |> mutation |> String.trim
+      if str == "" {
+        // Delete the binop
+        let (expr, target) = mergeExprs(lhsExpr, rhsExpr)
+        Some(Expr(expr), target)
+      } else {
+        let newID = gid()
+        Some(
+          Expr(EPartial(newID, str, currExpr)),
+          {astRef: ARPartial(newID), offset: currOffset - 1},
+        )
+      }
+
+    | (ARAndOr(_, AOPOrKeyword), EOr(_, lhsExpr, rhsExpr)) =>
+      let str = "||" |> mutation |> String.trim
+      if str == "" {
+        // Delete the binop
+        let (expr, target) = mergeExprs(lhsExpr, rhsExpr)
+        Some(Expr(expr), target)
+      } else {
+        let newID = gid()
+        Some(
+          Expr(EPartial(newID, str, currExpr)),
+          {astRef: ARPartial(newID), offset: currOffset - 1},
+        )
+      }
+
     | (ARFieldAccess(_, FAPFieldname), EFieldAccess(_, _, fieldName)) =>
       // Note that str is allowed to be empty in partials
       let str = mutation(fieldName)
@@ -4689,13 +4718,13 @@ let rec updateKey' = (
   // *********************************
   // INSERT INTO EXISTING CONSTRUCTS
   // *********************************
-  | (InsertText(ins), L(TPlaceholder({placeholder, blankID, fnID, _}), _), _)
-  | (InsertText(ins), _, R(TPlaceholder({placeholder, blankID, fnID, _}), _)) =>
+  | (InsertText(ins), L(TPlaceholder({placeholder, blankID}), _), _)
+  | (InsertText(ins), _, R(TPlaceholder({placeholder, blankID}), _)) =>
     /* We need this special case because by the time we get to the general
      * doInsert handling, reconstructing the difference between placeholders
      * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. */
     let (newExpr, newTarget) = insertInPlaceholderExpr(
-      ~fnID,
+      ~parentID=placeholder.parentID,
       ~placeholder,
       ~ins,
       astInfo.ast,

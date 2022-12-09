@@ -2802,476 +2802,414 @@ let run = () => {
       "\"fia~x\"",
     )
   })
-  // describe("And/Or", () => {
-  //   t(~expectsPartial=true, "pipe key starts partial", trueBool, ~pos=4, ins("|"), "true |~")
-  //   t(
-  //     "pressing enter completes partial",
-  //     trueBool,
-  //     ~pos=4,
-  //     inputs(list{InsertText("|"), keypress(K.Down), keypress(K.Enter)}),
-  //     "true || ~__________",
-  //   )
-  //   t(
-  //     "pressing space completes partial",
-  //     trueBool,
-  //     ~pos=4,
-  //     inputs(list{InsertText("|"), keypress(K.Down), keypress(K.Space)}),
-  //     "true || ~__________",
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "pressing plus key starts partial",
-  //     trueBool,
-  //     ~pos=4,
-  //     ins("+"),
-  //     "true +~",
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "pressing caret key starts partial",
-  //     anInt,
-  //     ~pos=5,
-  //     ins("^"),
-  //     "12345 ^~",
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "pressing plus key starts partial after string",
-  //     aStr,
-  //     ~pos=13,
-  //     ins("+"),
-  //     "\"some string\" +~",
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "pressing plus key starts partial after float",
-  //     aFloat,
-  //     ~pos=7,
-  //     ins("+"),
-  //     "123.456 +~",
-  //   )
-  //   t(~expectsPartial=true, "ins | starts partial after null", aNull, ~pos=4, ins("|"), "null |~")
-  //   t(
-  //     ~expectsPartial=true,
-  //     "ins | starts partial after variable",
-  //     aVar,
-  //     ~pos=8,
-  //     ins("|"),
-  //     "variable |~",
-  //   )
-  //   t(~expectsPartial=true, "ins | starts partial after list", aList5, ~pos=3, ins("|"), "[5] |~")
-  //   t(
-  //     ~expectsPartial=true,
-  //     "ins + starts partial after fieldname",
-  //     aField,
-  //     ~pos=9,
-  //     ins("+"),
-  //     "obj.field +~",
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "ins | starts partial after multiRowRecord",
-  //     multiRowRecord,
-  //     ~pos=23,
-  //     ins("|"),
-  //     "{\n  f1 : 56\n  f2 : 78\n} |~",
-  //   )
-  //   t(
-  //     "pressing pipe twice then space completes partial",
-  //     trueBool,
-  //     ~pos=4,
-  //     inputs(list{InsertText("|"), InsertText("|"), keypress(K.Space)}),
-  //     "true || ~__________",
-  //   )
-  //   t(
-  //     "piping into newline creates pipe",
-  //     trueBool,
-  //     ~pos=4,
-  //     inputs(list{InsertText("|"), InsertText(">"), keypress(K.Space)}),
-  //     "true\n|>~___\n",
-  //   )
-  //   t(
-  //     "pressing bs to clear partial reverts for blank rhs",
-  //     partial("|", binop("||", anInt, b)),
-  //     ~pos=7,
-  //     bs,
-  //     "12345~",
-  //   )
-  //   t(
-  //     "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start",
-  //     partial("|", binop("||", b, b)),
-  //     ~pos=12,
-  //     bs,
-  //     "~___",
-  //   )
-  //   t(
-  //     "pressing del to clear partial reverts for blank rhs",
-  //     partial("|", binop("||", anInt, b)),
-  //     ~pos=6,
-  //     del,
-  //     "12345~",
-  //   )
-  //   t(
-  //     "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start",
-  //     partial("|", binop("||", b, b)),
-  //     ~pos=11,
-  //     del,
-  //     "~___",
-  //   )
-  //   t(
-  //     "using bs to remove an infix with a placeholder goes to right place",
-  //     partial("|", binop("||", b, b)),
-  //     ~pos=12,
-  //     bs,
-  //     "~___",
-  //   )
-  //   t(
-  //     "using bs to remove an infix with a placeholder goes to right place 2",
-  //     partial("|", binop("||", five, b)),
-  //     ~pos=3,
-  //     bs,
-  //     "5~",
-  //   )
-  //   t(
-  //     "deleting binop between bools does not combine them",
-  //     partial("|", binop("||", trueBool, falseBool)),
-  //     ~pos=6,
-  //     bs,
-  //     "true~",
-  //   )
-  //   t(
-  //     "pressing bs to clear rightpartial reverts for blank rhs",
-  //     rightPartial("|", b),
-  //     ~pos=5,
-  //     bs,
-  //     "~___",
-  //   )
-  //   t(
-  //     "pressing bs on single digit binop deletes binop and combines rhs and lhs",
-  //     binop("+", anInt, anInt),
-  //     ~pos=7,
-  //     bs,
-  //     "12345~12345",
-  //   )
-  //   t(
-  //     "using del to remove an infix with a placeholder goes to right place",
-  //     partial("|", binop("||", b, b)),
-  //     ~pos=11,
-  //     del,
-  //     "~___",
-  //   )
-  //   t(
-  //     "pressing del to clear rightpartial reverts for blank rhs",
-  //     rightPartial("|", b),
-  //     ~pos=4,
-  //     del,
-  //     "~___",
-  //   )
-  //   t(
-  //     "pressing del on single digit binop deletes binop and combines rhs and lhs",
-  //     binop("+", anInt, anInt),
-  //     ~pos=6,
-  //     del,
-  //     "12345~12345",
-  //   )
-  //   t(
-  //     "pressing del to remove a string binop combines lhs and rhs",
-  //     binop("++", str("five"), str("six")),
-  //     ~pos=7,
-  //     inputs(list{DeleteContentForward, DeleteContentForward}),
-  //     "\"five~six\"",
-  //   )
-  //   t(
-  //     "pressing backspace to remove a string binop combines lhs and rhs",
-  //     binop("++", str("five"), str("six")),
-  //     ~pos=9,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "\"five~six\"",
-  //   )
-  //   t(
-  //     "pressing bs to remove a binop after a blank doesnt delete rhs",
-  //     binop("++", b, str("six")),
-  //     ~pos=15,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "~\"six\"",
-  //   )
-  //   t(
-  //     "pressing bs to remove a string binop combines lhs and rhs",
-  //     binop("++", str("one"), binop("++", str("two"), binop("++", str("three"), str("four")))),
-  //     ~pos=17,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "\"one\" ++ \"two~three\" ++ \"four\"",
-  //   )
-  //   t(
-  //     "pressing bs to remove binop before a blank doesnt entire delete rhs",
-  //     binop("++", str("one"), binop("++", str("two"), binop("++", b, str("four")))),
-  //     ~pos=17,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "\"one\" ++ \"two\"~ ++ \"four\"",
-  //   )
-  //   t(
-  //     "pressing bs to remove binop after a blank doesnt entire delete rhs",
-  //     binop("++", str("one"), binop("++", str("two"), binop("++", b, str("four")))),
-  //     ~pos=33,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "\"one\" ++ \"two\" ++ ~\"four\"",
-  //   )
-  //   t(
-  //     "pressing letters and numbers on a partial completes it",
-  //     b,
-  //     ~pos=0,
-  //     insMany(list{"5", "+", "5"}),
-  //     "5 + 5~",
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "pressing pipe while editing a partial works properly",
-  //     partial("|", binop("||", anInt, anInt)),
-  //     ~pos=7,
-  //     ins("|"),
-  //     "12345 ||~ 12345",
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "pressing = after < should go to partial",
-  //     binop("<", anInt, anInt),
-  //     ~pos=7,
-  //     ins("="),
-  //     "12345 <=~ 12345",
-  //   )
-  //   t(
-  //     "changing binop to fn should work",
-  //     partial("Int::add", binop("+", anInt, anInt)),
-  //     ~pos=14,
-  //     keys(list{K.Enter}),
-  //     "Int::add ~12345 12345",
-  //   )
-  //   t(
-  //     "changing fn to binops should work",
-  //     partial("+", fn(~mod="Int", "add", list{anInt, anInt})),
-  //     ~pos=1,
-  //     keys(list{K.Enter}),
-  //     "~12345 + 12345",
-  //   )
-  //   t(
-  //     "changing binop should work",
-  //     binop("<", anInt, anInt),
-  //     ~pos=7,
-  //     inputs(list{InsertText("="), keypress(K.Enter)}),
-  //     "12345 <= ~12345",
-  //   )
-  //   tStruct(
-  //     "wrapping a binop in a let with enter creates correct ast",
-  //     binop("+", int(1), int(2)),
-  //     ~pos=0,
-  //     list{keypress(~shiftHeld=false, K.Enter)},
-  //     let'("", blank(), binop("+", int(1), int(2))),
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "adding binop in `if` works",
-  //     if'(b, b, b),
-  //     ~pos=3,
-  //     ins("%"),
-  //     "if %~\nthen\n  ___\nelse\n  ___",
-  //   )
-  //   t(~expectsPartial=true, "show ghost partial", aFullBinOp, ~pos=8, bs, "myvar |~@ 5")
-  //   t(
-  //     "ctrl+left from end of < moves to front of <",
-  //     binop("<", anInt, anInt),
-  //     ~pos=7,
-  //     ctrlLeft,
-  //     "12345 ~< 12345",
-  //   )
-  //   t(
-  //     "ctrl+right from end of < moves to end of second int",
-  //     binop("<", anInt, anInt),
-  //     ~pos=7,
-  //     ctrlRight,
-  //     "12345 < 12345~",
-  //   )
-  //   t(
-  //     "ctrl+left from beg of < moves to front of first int",
-  //     binop("<", anInt, anInt),
-  //     ~pos=6,
-  //     ctrlLeft,
-  //     "~12345 < 12345",
-  //   )
-  //   t(
-  //     "ctrl+right from beg of < moves to end of <",
-  //     binop("<", anInt, anInt),
-  //     ~pos=6,
-  //     ctrlRight,
-  //     "12345 <~ 12345",
-  //   )
-  //   t(
-  //     "DeleteWordBackward in end of binop deletes binop and combines rhs and lhs",
-  //     binop("<", anInt, anInt),
-  //     ~pos=7,
-  //     inputs(list{DeleteWordBackward}),
-  //     "12345~12345",
-  //   )
-  //   t(
-  //     "DeleteWordBackward in front of binop deletes first int",
-  //     binop("<", anInt, anInt),
-  //     ~pos=5,
-  //     inputs(list{DeleteWordBackward}),
-  //     "~_________ < 12345",
-  //   )
-  //   t(
-  //     "DeleteWordForward in end of binop deletes second int",
-  //     binop("<", anInt, anInt),
-  //     ~pos=8,
-  //     inputs(list{DeleteWordForward}),
-  //     "12345 < ~_________",
-  //   )
-  //   t(
-  //     "DeleteWordForward in front of binop deletes binop and combines rhs and lhs",
-  //     binop("<", anInt, anInt),
-  //     ~pos=6,
-  //     inputs(list{DeleteWordForward}),
-  //     "12345~12345",
-  //   )
-  //   // TODO bs on empty partial does something
-  //   // TODO support del on all the bs commands
-  //   // TODO pressing enter at the end of the partialGhost
-  //   t(
-  //     "pressing bs on || in binop deletes right side",
-  //     binop("||", trueBool, falseBool),
-  //     ~pos=7,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "true~",
-  //   )
-  //   t(
-  //     "pressing bs on || in binop deletes blank on rhs",
-  //     binop("||", falseBool, b),
-  //     ~pos=8,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "false~",
-  //   )
-  //   t(
-  //     "pressing bs on || in binop deletes blank on lhs",
-  //     binop("||", b, falseBool),
-  //     ~pos=13,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "~false",
-  //   )
-  //   t(
-  //     "pressing bs on || in binop after blank deletes blank but rest of the lhs",
-  //     binop("||", falseBool, binop("||", b, trueBool)),
-  //     ~pos=22,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "false || ~true",
-  //   )
-  //   t(
-  //     "pressing bs on || in binop before blank deletes blank but rest of the lhs",
-  //     binop("||", falseBool, binop("||", b, trueBool)),
-  //     ~pos=8,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "false~ || true",
-  //   )
-  //   t(
-  //     "pressing bs on ++ binop before blank deletes blank but rest of the lhs",
-  //     binop("+", int(10), binop("*", int(5), binop("+", b, int(10)))),
-  //     ~pos=8,
-  //     bs,
-  //     "10 + 5~ + 10",
-  //   )
-  //   t(
-  //     "pressing bs on ++ binop after blank deletes blank but rest of the lhs",
-  //     binop("+", int(20), binop("*", int(1), binop("+", b, int(5)))),
-  //     ~pos=20,
-  //     bs,
-  //     "20 + 1 * ~5",
-  //   )
-  //   t(
-  //     "pressing bs on < binop before blank deletes blank but rest of the lhs",
-  //     binop("<", int(20), binop("<", b, int(50))),
-  //     ~pos=4,
-  //     bs,
-  //     "20~ < 50",
-  //   )
-  //   t(
-  //     "pressing bs on < binop after blank deletes blank but rest of the lhs",
-  //     binop("<", int(25), binop("<", b, int(50))),
-  //     ~pos=16,
-  //     bs,
-  //     "25 < ~50",
-  //   )
-  //   t(
-  //     "pressing bs on - binop before blank deletes blank but rest of the lhs",
-  //     binop("-", int(200), binop("-", int(5), binop("*", b, int(24)))),
-  //     ~pos=9,
-  //     bs,
-  //     "200 - 5~ * 24",
-  //   )
-  //   t(
-  //     "pressing bs on - binop after blank deletes blank but rest of the lhs",
-  //     binop("-", int(200), binop("-", int(5), binop("*", b, int(24)))),
-  //     ~pos=15,
-  //     bs,
-  //     "200 - 5 - ~24",
-  //   )
-  //   t(
-  //     "pressing bs on != binop before blank deletes blank but rest of the lhs",
-  //     binop("!=", int(54321), binop("!=", int(21), binop("!=", b, int(5)))),
-  //     ~pos=14,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "54321 != 21~ != 5",
-  //   )
-  //   t(
-  //     "pressing bs on != binop after blank deletes blank but rest of the lhs",
-  //     binop("!=", int(54321), binop("!=", int(21), binop("!=", b, int(5)))),
-  //     ~pos=21,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "54321 != 21 != ~5",
-  //   )
-  //   t(
-  //     "pressing bs on != binop combines lhs and rhs string",
-  //     binop("!=", str("One"), binop("!=", str("Two"), str("Three"))),
-  //     ~pos=8,
-  //     inputs(list{DeleteContentBackward, DeleteContentBackward}),
-  //     "\"One~Two\" != \"Three\"",
-  //   )
-  //   t("pressing bs on / binop deletes rhs", binop("/", aFloat, aFloat), ~pos=9, bs, "123.456~")
-  //   t(
-  //     "pressing bs on / binop before blank deletes blank",
-  //     binop("/", b, aFloat),
-  //     ~pos=5,
-  //     bs,
-  //     "~123.456",
-  //   )
-  //   t(
-  //     "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all",
-  //     ~wrap=/* wrap false because else we delete the wrapper */ false,
-  //     ~pos=0,
-  //     binop("/", fn(~mod="HttpClient", "post", ~version=4, list{}), int(5)),
-  //     inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
-  //     "~___",
-  //   )
-  //   t(
-  //     "backspace after selecting all with a binop partial in a binop deletes all",
-  //     ~wrap=/* wrap false because else we delete the wrapper */ false,
-  //     binop("+", partial("D", binop("-", int(5), int(5))), int(5)),
-  //     inputs(list{keypress(K.SelectAll), DeleteWordBackward}),
-  //     "~___",
-  //   )
-  //   t(
-  //     ~expectsPartial=true,
-  //     "inserting a binop in a placeholder works",
-  //     if'(binop("++", b, b), b, b),
-  //     ~pos=3,
-  //     ins("&"),
-  //     "if &~ ++ ____________\nthen\n  ___\nelse\n  ___",
-  //   )
-  //   t(
-  //     "Replacing text when selecting over binop works",
-  //     binop("++", str("five"), str("six")),
-  //     ~sel=(3, 13),
-  //     inputs(list{InsertText("a")}),
-  //     "\"fia~x\"",
-  //   )
-  // })
+  describe("And/Or", () => {
+    t(~expectsPartial=true, "pipe key starts partial", trueBool, ~pos=4, ins("|"), "true |~")
+    t(
+      "pressing enter completes partial",
+      trueBool,
+      ~pos=4,
+      inputs(list{InsertText("|"), keypress(K.Down), keypress(K.Enter)}),
+      "true || ~__________",
+    )
+    t(
+      "pressing space completes partial",
+      trueBool,
+      ~pos=4,
+      inputs(list{InsertText("|"), keypress(K.Down), keypress(K.Space)}),
+      "true || ~__________",
+    )
+    // t(~expectsPartial=true, "ins | starts partial after null", aNull, ~pos=4, ins("|"), "null |~")
+    t(
+      ~expectsPartial=true,
+      "ins | starts partial after variable",
+      aVar,
+      ~pos=8,
+      ins("|"),
+      "variable |~",
+    )
+    // t(~expectsPartial=true, "ins | starts partial after list", aList5, ~pos=3, ins("|"), "[5] |~")
+    // t(
+    //   ~expectsPartial=true,
+    //   "ins | starts partial after multiRowRecord",
+    //   multiRowRecord,
+    //   ~pos=23,
+    //   ins("|"),
+    //   "{\n  f1 : 56\n  f2 : 78\n} |~",
+    // )
+    t(
+      "pressing pipe twice then space completes partial",
+      trueBool,
+      ~pos=4,
+      inputs(list{InsertText("|"), InsertText("|"), keypress(K.Space)}),
+      "true || ~__________",
+    )
+    t(
+      "pressing bs to clear partial reverts for blank rhs",
+      partial("|", binop("||", anInt, b)),
+      ~pos=7,
+      bs,
+      "12345~",
+    )
+    t(
+      "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start",
+      partial("|", binop("||", b, b)),
+      ~pos=12,
+      bs,
+      "~___",
+    )
+    t(
+      "pressing del to clear partial reverts for blank rhs",
+      partial("|", binop("||", anInt, b)),
+      ~pos=6,
+      del,
+      "12345~",
+    )
+    t(
+      "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start",
+      partial("|", binop("||", b, b)),
+      ~pos=11,
+      del,
+      "~___",
+    )
+    t(
+      "using bs to remove an infix with a placeholder goes to right place",
+      partial("|", binop("||", b, b)),
+      ~pos=12,
+      bs,
+      "~___",
+    )
+    t(
+      "using bs to remove an infix with a placeholder goes to right place 2",
+      partial("|", binop("||", five, b)),
+      ~pos=3,
+      bs,
+      "5~",
+    )
+    t(
+      "deleting binop between bools does not combine them",
+      partial("|", binop("||", trueBool, falseBool)),
+      ~pos=6,
+      bs,
+      "true~",
+    )
+    t(
+      "pressing bs to clear rightpartial reverts for blank rhs",
+      rightPartial("|", b),
+      ~pos=5,
+      bs,
+      "~___",
+    )
+    t(
+      "pressing bs on a partial over and/or deletes op and combines rhs and lhs",
+      binop("+", anInt, anInt),
+      ~pos=7,
+      bs,
+      "12345~12345",
+    )
+    t(
+      "using del to remove an infix with a placeholder goes to right place",
+      partial("|", binop("||", b, b)),
+      ~pos=11,
+      del,
+      "~___",
+    )
+    t(
+      "pressing del to clear rightpartial reverts for blank rhs",
+      rightPartial("|", b),
+      ~pos=4,
+      del,
+      "~___",
+    )
+    t(
+      "pressing del on single digit binop deletes binop and combines rhs and lhs",
+      binop("+", anInt, anInt),
+      ~pos=6,
+      del,
+      "12345~12345",
+    )
+    t(
+      "pressing del to remove a string binop combines lhs and rhs",
+      binop("++", str("five"), str("six")),
+      ~pos=7,
+      inputs(list{DeleteContentForward, DeleteContentForward}),
+      "\"five~six\"",
+    )
+    t(
+      "pressing backspace to remove a string binop combines lhs and rhs",
+      binop("++", str("five"), str("six")),
+      ~pos=9,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "\"five~six\"",
+    )
+    t(
+      "pressing bs to remove a binop after a blank doesnt delete rhs",
+      binop("++", b, str("six")),
+      ~pos=15,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "~\"six\"",
+    )
+    t(
+      "pressing bs to remove a string binop combines lhs and rhs",
+      binop("++", str("one"), binop("++", str("two"), binop("++", str("three"), str("four")))),
+      ~pos=17,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "\"one\" ++ \"two~three\" ++ \"four\"",
+    )
+    t(
+      "pressing bs to remove binop before a blank doesnt entire delete rhs",
+      binop("++", str("one"), binop("++", str("two"), binop("++", b, str("four")))),
+      ~pos=17,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "\"one\" ++ \"two\"~ ++ \"four\"",
+    )
+    t(
+      "pressing bs to remove binop after a blank doesnt entire delete rhs",
+      binop("++", str("one"), binop("++", str("two"), binop("++", b, str("four")))),
+      ~pos=33,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "\"one\" ++ \"two\" ++ ~\"four\"",
+    )
+    t(
+      ~expectsPartial=true,
+      "pressing pipe while editing a partial works properly",
+      partial("|", binop("||", anInt, anInt)),
+      ~pos=7,
+      ins("|"),
+      "12345 ||~ 12345",
+    )
+    t(
+      "changing binop to fn should work",
+      partial("Int::add", binop("+", anInt, anInt)),
+      ~pos=14,
+      keys(list{K.Enter}),
+      "Int::add ~12345 12345",
+    )
+    t(
+      "changing fn to binops should work",
+      partial("+", fn(~mod="Int", "add", list{anInt, anInt})),
+      ~pos=1,
+      keys(list{K.Enter}),
+      "~12345 + 12345",
+    )
+    t(
+      "changing binop should work",
+      binop("<", anInt, anInt),
+      ~pos=7,
+      inputs(list{InsertText("="), keypress(K.Enter)}),
+      "12345 <= ~12345",
+    )
+    tStruct(
+      "wrapping a binop in a let with enter creates correct ast",
+      binop("+", int(1), int(2)),
+      ~pos=0,
+      list{keypress(~shiftHeld=false, K.Enter)},
+      let'("", blank(), binop("+", int(1), int(2))),
+    )
+    t(
+      ~expectsPartial=true,
+      "adding binop in `if` works",
+      if'(b, b, b),
+      ~pos=3,
+      ins("%"),
+      "if %~\nthen\n  ___\nelse\n  ___",
+    )
+    t(~expectsPartial=true, "show ghost partial", aFullBinOp, ~pos=8, bs, "myvar |~@ 5")
+    t(
+      "ctrl+left from end of < moves to front of <",
+      binop("<", anInt, anInt),
+      ~pos=7,
+      ctrlLeft,
+      "12345 ~< 12345",
+    )
+    t(
+      "ctrl+right from end of < moves to end of second int",
+      binop("<", anInt, anInt),
+      ~pos=7,
+      ctrlRight,
+      "12345 < 12345~",
+    )
+    t(
+      "ctrl+left from beg of < moves to front of first int",
+      binop("<", anInt, anInt),
+      ~pos=6,
+      ctrlLeft,
+      "~12345 < 12345",
+    )
+    t(
+      "ctrl+right from beg of < moves to end of <",
+      binop("<", anInt, anInt),
+      ~pos=6,
+      ctrlRight,
+      "12345 <~ 12345",
+    )
+    t(
+      "DeleteWordBackward in end of binop deletes binop and combines rhs and lhs",
+      binop("<", anInt, anInt),
+      ~pos=7,
+      inputs(list{DeleteWordBackward}),
+      "12345~12345",
+    )
+    t(
+      "DeleteWordBackward in front of binop deletes first int",
+      binop("<", anInt, anInt),
+      ~pos=5,
+      inputs(list{DeleteWordBackward}),
+      "~_________ < 12345",
+    )
+    t(
+      "DeleteWordForward in end of binop deletes second int",
+      binop("<", anInt, anInt),
+      ~pos=8,
+      inputs(list{DeleteWordForward}),
+      "12345 < ~_________",
+    )
+    t(
+      "DeleteWordForward in front of binop deletes binop and combines rhs and lhs",
+      binop("<", anInt, anInt),
+      ~pos=6,
+      inputs(list{DeleteWordForward}),
+      "12345~12345",
+    )
+    // TODO bs on empty partial does something
+    // TODO support del on all the bs commands
+    // TODO pressing enter at the end of the partialGhost
+    t(
+      "pressing bs on || in binop deletes right side",
+      binop("||", trueBool, falseBool),
+      ~pos=7,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "true~",
+    )
+    t(
+      "pressing bs on || in binop deletes blank on rhs",
+      binop("||", falseBool, b),
+      ~pos=8,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "false~",
+    )
+    t(
+      "pressing bs on || in binop deletes blank on lhs",
+      binop("||", b, falseBool),
+      ~pos=13,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "~false",
+    )
+    t(
+      "pressing bs on || in binop after blank deletes blank but rest of the lhs",
+      or'(falseBool, and'(b, trueBool)),
+      ~pos=18,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "false || ~true",
+    )
+    t(
+      "pressing bs on || in binop before blank deletes blank but rest of the lhs",
+      binop("||", falseBool, binop("||", b, trueBool)),
+      ~pos=8,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "false~ || true",
+    )
+    t(
+      "pressing bs on ++ binop before blank deletes blank but rest of the lhs",
+      binop("+", int(10), binop("*", int(5), binop("+", b, int(10)))),
+      ~pos=8,
+      bs,
+      "10 + 5~ + 10",
+    )
+    t(
+      "pressing bs on ++ binop after blank deletes blank but rest of the lhs",
+      binop("+", int(20), binop("*", int(1), binop("+", b, int(5)))),
+      ~pos=20,
+      bs,
+      "20 + 1 * ~5",
+    )
+    t(
+      "pressing bs on < binop before blank deletes blank but rest of the lhs",
+      binop("<", int(20), binop("<", b, int(50))),
+      ~pos=4,
+      bs,
+      "20~ < 50",
+    )
+    t(
+      "pressing bs on < binop after blank deletes blank but rest of the lhs",
+      binop("<", int(25), binop("<", b, int(50))),
+      ~pos=16,
+      bs,
+      "25 < ~50",
+    )
+    t(
+      "pressing bs on - binop before blank deletes blank but rest of the lhs",
+      binop("-", int(200), binop("-", int(5), binop("*", b, int(24)))),
+      ~pos=9,
+      bs,
+      "200 - 5~ * 24",
+    )
+    t(
+      "pressing bs on - binop after blank deletes blank but rest of the lhs",
+      binop("-", int(200), binop("-", int(5), binop("*", b, int(24)))),
+      ~pos=15,
+      bs,
+      "200 - 5 - ~24",
+    )
+    t(
+      "pressing bs on != binop before blank deletes blank but rest of the lhs",
+      binop("!=", int(54321), binop("!=", int(21), binop("!=", b, int(5)))),
+      ~pos=14,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "54321 != 21~ != 5",
+    )
+    t(
+      "pressing bs on != binop after blank deletes blank but rest of the lhs",
+      binop("!=", int(54321), binop("!=", int(21), binop("!=", b, int(5)))),
+      ~pos=21,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "54321 != 21 != ~5",
+    )
+    t(
+      "pressing bs on != binop combines lhs and rhs string",
+      binop("!=", str("One"), binop("!=", str("Two"), str("Three"))),
+      ~pos=8,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "\"One~Two\" != \"Three\"",
+    )
+    t("pressing bs on / binop deletes rhs", binop("/", aFloat, aFloat), ~pos=9, bs, "123.456~")
+    t(
+      "pressing bs on / binop before blank deletes blank",
+      binop("/", b, aFloat),
+      ~pos=5,
+      bs,
+      "~123.456",
+    )
+    t(
+      "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all",
+      ~wrap=/* wrap false because else we delete the wrapper */ false,
+      ~pos=0,
+      binop("/", fn(~mod="HttpClient", "post", ~version=4, list{}), int(5)),
+      inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
+      "~___",
+    )
+    t(
+      "backspace after selecting all with a binop partial in a binop deletes all",
+      ~wrap=/* wrap false because else we delete the wrapper */ false,
+      binop("+", partial("D", binop("-", int(5), int(5))), int(5)),
+      inputs(list{keypress(K.SelectAll), DeleteWordBackward}),
+      "~___",
+    )
+    t(
+      ~expectsPartial=true,
+      "inserting a binop in a placeholder works",
+      if'(binop("++", b, b), b, b),
+      ~pos=3,
+      ins("&"),
+      "if &~ ++ ____________\nthen\n  ___\nelse\n  ___",
+    )
+    t(
+      "Replacing text when selecting over binop works",
+      binop("++", str("five"), str("six")),
+      ~sel=(3, 13),
+      inputs(list{InsertText("a")}),
+      "\"fia~x\"",
+    )
+  })
   describe("Constructors", () => {
     t(
       ~expectsPartial=true,

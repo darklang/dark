@@ -536,7 +536,12 @@ let toText = (t: t): string => {
   | TFalse(_) => "false"
   | TNullToken(_) => "null"
   | TBlank(_) => "   "
-  | TPlaceholder({placeholder: {name, typ}, _}) => " " ++ (name ++ (" : " ++ (typ ++ " ")))
+  | TPlaceholder({placeholder: {name, typ, parentID: _}, _}) =>
+    if name == "" {
+      " " ++ typ ++ " "
+    } else {
+      " " ++ name ++ " : " ++ typ ++ " "
+    }
   | TPartial(_, _, str, _) => shouldntBeEmpty(str)
   | TRightPartial(_, str, _) => shouldntBeEmpty(str)
   | TLeftPartial(_, str, _) => shouldntBeEmpty(str)
@@ -604,8 +609,12 @@ let toText = (t: t): string => {
 
 let toTestText = (t: t): string => {
   let result = switch t {
-  | TPlaceholder({placeholder: {name, typ}, _}) =>
-    let count = 1 + String.length(name) + 3 + String.length(typ) + 1
+  | TPlaceholder({placeholder: {name, typ, parentID: _}, _}) =>
+    let count = if name == "" {
+      1 + String.length(typ) + 1
+    } else {
+      1 + String.length(name) + 3 + String.length(typ) + 1
+    }
     Caml.String.make(count, '_')
   | TBlank(_) => "___"
   | TPartialGhost(_, _, str, _) =>
@@ -970,7 +979,7 @@ let matchesContent = (t1: t, t2: t): bool =>
 
   | (TIndent(ind1), TIndent(ind2)) => ind1 == ind2
   | (TPlaceholder(d1), TPlaceholder(d2)) =>
-    d1.blankID == d2.blankID && (d1.fnID == d2.fnID && d1.placeholder == d2.placeholder)
+    d1.blankID == d2.blankID && d1.placeholder == d2.placeholder
   // Exhaustiveness check
   | (TInteger(_), _)
   | (TString(_), _)

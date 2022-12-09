@@ -56,6 +56,10 @@ let binop = (~id=gid(), ~ster=SendToRail.NoRail, function: string, arg0: t, arg1
   ster,
 )
 
+let or' = (~id=gid(), arg0: t, arg1: t) => EOr(id, arg0, arg1)
+
+let and' = (~id=gid(), arg0: t, arg1: t) => EAnd(id, arg0, arg1)
+
 let partial = (~id=gid(), str: string, e: t): t => EPartial(id, str, e)
 
 let rightPartial = (~id=gid(), str: string, e: t): t => ERightPartial(id, str, e)
