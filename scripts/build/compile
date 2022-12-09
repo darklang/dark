@@ -176,7 +176,7 @@ def test_nginx():
 ###########
 
 
-def fsharp_backend_test():
+def backend_test():
   start = time.time()
   ci = "--verbosity detailed" if in_ci else "--verbosity normal"
   if optimize:
@@ -309,7 +309,7 @@ class Should:
     self.fsharp_paket_install = False
     self.backend_quick_build = False
     self.fsharp_backend_full_build = False
-    self.fsharp_backend_test = False
+    self.backend_test = False
     self.npm_install = False
     self.client_build = False
     self.client_test = False
@@ -349,7 +349,7 @@ def execute(should):
     should.backend_quick_build = False  # no need to do both
     if not fsharp_backend_full_build(): success = False
     should.copy_backend_static |= success
-    should.fsharp_backend_test |= success
+    should.backend_test |= success
     should.reload_backend_server |= success
 
   if should.circleci_validate:
@@ -364,7 +364,7 @@ def execute(should):
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
     should.copy_backend_static |= success
-    should.fsharp_backend_test |= success
+    should.backend_test |= success
     should.reload_backend_server |= success
 
   if should.npm_install:
@@ -417,8 +417,8 @@ def execute(should):
   if should.client_test:
     if not client_test(): success = False
 
-  if should.fsharp_backend_test:
-    if not fsharp_backend_test(): success = False
+  if should.backend_test:
+    if not backend_test(): success = False
 
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
@@ -465,7 +465,7 @@ def mark(should, f):
       should.backend_quick_build = True
 
   elif ("/backend/" in f) and ("/tests/" in f):
-    should.fsharp_backend_test = True
+    should.backend_test = True
 
   elif "run-nginx-server" in f:
     should.shellcheck += [f]
