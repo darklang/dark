@@ -7,7 +7,7 @@ the builder script. Run it with `--test` to run tests.
 
 ## Backend
 
-The entry point is `fsharp-backend/tests/Tests/Tests.fs`. Run tests from the
+The entry point is `backend/tests/Tests/Tests.fs`. Run tests from the
 command line using:
 
 `scripts/run-fsharp-tests`
@@ -24,7 +24,7 @@ Or to run only testlists with XXX in their names:
 Tests are _not_ automatically discovered; they must be added to `Tests.fs`.
 
 We also have a number of property-based tests, which we currently keep separate
-in `fsharp-backend/tests/FuzzTests`. Run them with `scripts/run-fsharp-fuzzer`.
+in `backend/tests/FuzzTests`. Run them with `scripts/run-fsharp-fuzzer`.
 
 ## Client-side
 

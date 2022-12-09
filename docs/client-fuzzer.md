@@ -3,7 +3,7 @@
 Dark has a fuzzer which creates random programs for testing the editor.
 
 (Note: this is not to be confused with the F# FuzzTests
-in `fsharp-backend/tests/FuzzTests`.)
+in `backend/tests/FuzzTests`.)
 
 The intent is to allow you to write property-based tests, and then find
 violations of those tests. For example, if you were having problems with

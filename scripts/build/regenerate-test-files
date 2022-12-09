@@ -12,7 +12,7 @@ sha1sum "$jsonfile"
 sha1sum "$binfile"
 
 echo -e "\n\nRegenerating: "
-cd fsharp-backend
+cd backend
 Build/out/Tests/Debug/net6.0/linux-x64/Tests --regenerate-test-files
 cd ..
 

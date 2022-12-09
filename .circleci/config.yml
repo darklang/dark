@@ -250,7 +250,7 @@ jobs:
       #- run: git restore-mtime
       - setup-app
       # The date is used to get a fresh cache each week
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
             - v15-fsharp-backend-{{ checksum "../checksum" }}
@@ -270,15 +270,15 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
       - show-large-files-and-directories
       - save_cache:
           paths:
-            - fsharp-backend/Build/obj
+            - backend/Build/obj
             - /home/dark/.nuget
           key: v15-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
@@ -299,7 +299,7 @@ jobs:
       - run: git restore-mtime
       - setup-app
       # The date is used to get a fresh cache each week
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
             - v5-fsharp-blazor-{{ checksum "../checksum" }}
@@ -308,8 +308,8 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Analysis/Analysis.fsproj
-      - run: cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/
-      - run: rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
+      - run: cp -f backend/src/Analysis/static/BlazorWorker.js backend/static/
+      - run: rsync -a backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
       - persist_to_workspace:
           root: "."
@@ -319,7 +319,7 @@ jobs:
       - show-large-files-and-directories
       - save_cache:
           paths:
-            - fsharp-backend/Build/obj
+            - backend/Build/obj
             - /home/dark/.nuget
           key: v5-fsharp-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }

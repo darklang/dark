@@ -16,7 +16,7 @@ EXE=Build/out/DataTests/Debug/net6.0/linux-x64/DataTests
 
 # No migrations
 
-cd fsharp-backend
+cd backend
 
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
 "${EXE}" --no-spinner "${@}"

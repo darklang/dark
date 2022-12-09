@@ -156,7 +156,7 @@ def main():
     import watchfiles
     ignored = [
         ".git", "_build", "_esy", "node_modules", "integration-tests/node_modules",
-        "backend/static", "lib", "fsharp-backend/Build"
+        "backend/static", "lib", "backend/Build"
     ]
     ignored = set(["/home/dark/app/" + f for f in ignored])
     filter = watchfiles.DefaultFilter(ignore_paths=ignored)

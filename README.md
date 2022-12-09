@@ -178,8 +178,8 @@ the dev container.
 
 ## Production Services
 
-The app is split into [fsharp-backend](fsharp-backend) and [client/](client).
-Part of the backend is used in the client ([Analysis](fsharp-backend/src/Analysis)).
+The app is split into [backend](backend) and [client/](client).
+Part of the backend is used in the client ([Analysis](backend/src/Analysis)).
 
 These are compiled to create libraries and binaries.
 
@@ -205,7 +205,7 @@ Google Cloud services.
 - [Other ways to run the dev container](docs/builder-options.md)
 - [Setting up your editor](docs/editor-setup.md)
 - [Running unit tests](docs/unittests.md)
-- [Dark unit tests](fsharp-backend/testfiles/README.md)
+- [Dark unit tests](backend/testfiles/README.md)
 - [If you're interviewing at Dark, read this](docs/interviewing.md)
 
 ### Less important docs

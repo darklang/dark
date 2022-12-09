@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-cd fsharp-backend
+cd backend
 rm -f paket-files/paket.restore.cached
 dotnet restore fsdark.sln
 dotnet paket generate-load-scripts --framework net6.0

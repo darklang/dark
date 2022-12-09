@@ -8,7 +8,7 @@ DARK_CONFIG_RUNDIR=/home/dark/app/rundir
 DARK_CONFIG_ROOT_DIR=/home/dark/app
 
 # Important dirs
-DARK_CONFIG_TEMPLATES_DIR=/home/dark/app/fsharp-backend/src/ApiServer/Templates
+DARK_CONFIG_TEMPLATES_DIR=/home/dark/app/backend/src/ApiServer/Templates
 DARK_CONFIG_WEBROOT_DIR=/home/dark/app/backend/static
 DARK_CONFIG_SWAGGER_DIR=/home/dark/app/backend/swagger
 DARK_CONFIG_MIGRATIONS_DIR=/home/dark/app/backend/migrations

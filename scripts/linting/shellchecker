@@ -36,12 +36,12 @@ else
     -o -path "./esy.lock" -prune \
     -o -path "rundir" -prune \
     -o -path "./rundir" -prune \
-    -o -path "fsharp-backend/paket-files" -prune \
-    -o -path "./fsharp-backend/paket-files" -prune \
-    -o -path "fsharp-backend/Build" -prune \
-    -o -path "./fsharp-backend/Build" -prune \
-    -o -path "fsharp-backend/tests/staticassets-tests" \
-    -o -path "./fsharp-backend/tests/staticassets-tests" \
+    -o -path "backend/paket-files" -prune \
+    -o -path "./backend/paket-files" -prune \
+    -o -path "backend/Build" -prune \
+    -o -path "./backend/Build" -prune \
+    -o -path "backend/tests/staticassets-tests" \
+    -o -path "./backend/tests/staticassets-tests" \
     -o -type f \
     -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + \
     | xargs shellcheck -e SC2002 -e SC2044 -e SC2086
