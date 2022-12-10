@@ -55,6 +55,14 @@ type SendToRail =
   | Rail
   | NoRail
 
+type BinaryOperation =
+  | BinOpAnd
+  | BinOpOr
+
+type Infix =
+  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | BinOp of BinaryOperation
+
 /// Expressions - the main part of the language.
 type Expr =
   | EInteger of id * int64
@@ -71,7 +79,7 @@ type Expr =
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
-  | EBinOp of id * FQFnName.InfixStdlibFnName * Expr * Expr * SendToRail
+  | EInfix of id * Infix * Expr * Expr
   // the id in the varname list is the analysis id, used to get a livevalue
   // from the analysis engine
   | ELambda of id * List<id * string> * Expr
@@ -130,9 +138,6 @@ type Expr =
   | EPipeTarget of id
   // EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr
   | EFeatureFlag of id * string * Expr * Expr * Expr
-  // Short-circuiting operators
-  | EAnd of id * Expr * Expr
-  | EOr of id * Expr * Expr
 
 type DType =
   | TInt

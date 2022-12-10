@@ -21,7 +21,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | ELet (id, name, rhs, next) -> ELet(id, name, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
-  | EBinOp (id, name, left, right, ster) -> EBinOp(id, name, f left, f right, ster)
+  | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, f expr2, List.map f exprs)
   | EFnCall (id, name, exprs, ster) -> EFnCall(id, name, List.map f exprs, ster)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)
@@ -38,8 +38,6 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | ERightPartial (id, str, oldExpr) -> ERightPartial(id, str, f oldExpr)
   | EFeatureFlag (id, name, cond, casea, caseb) ->
     EFeatureFlag(id, name, f cond, f casea, f caseb)
-  | EAnd (id, left, right) -> EAnd(id, f left, f right)
-  | EOr (id, left, right) -> EOr(id, f left, f right)
 
 
 

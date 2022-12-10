@@ -234,38 +234,50 @@ module ProgramTypes =
                           ),
                           PT.EIf(
                             729246077UL,
-                            PT.EBinOp(
+                            PT.EInfix(
                               94793109UL,
-                              { module_ = None; function_ = "!=" },
+                              PT.InfixFnCall(
+                                { module_ = None; function_ = "!=" },
+                                PT.NoRail
+                              ),
                               PT.EInteger(264400705UL, 5L),
-                              PT.EInteger(335743639UL, 6L),
-                              PT.NoRail
+                              PT.EInteger(335743639UL, 6L)
                             ),
-                            PT.EBinOp(
+                            PT.EInfix(
                               775118986UL,
-                              { module_ = None; function_ = "+" },
+                              PT.InfixFnCall(
+                                { module_ = None; function_ = "+" },
+                                PT.NoRail
+                              ),
                               PT.EInteger(803876589UL, 5L),
-                              PT.EInteger(219131014UL, 2L),
-                              PT.NoRail
+                              PT.EInteger(219131014UL, 2L)
                             ),
                             PT.ELambda(
                               947647446UL,
                               [ (180359194UL, "y") ],
-                              PT.EBinOp(
+                              PT.EInfix(
                                 140609068UL,
-                                { module_ = None; function_ = "+" },
+                                PT.InfixFnCall(
+                                  { module_ = None; function_ = "+" },
+                                  PT.NoRail
+                                ),
                                 PT.EInteger(450951790UL, 2L),
-                                PT.EVariable(402203255UL, "y"),
-                                PT.NoRail
+                                PT.EVariable(402203255UL, "y")
                               )
                             )
                           ),
-                          PT.EBinOp(
+                          PT.EInfix(
                             265463935UL,
-                            { module_ = None; function_ = "+" },
-                            PT.EBinOp(
-                              312092282UL,
+                            PT.InfixFnCall(
                               { module_ = None; function_ = "+" },
+                              PT.NoRail
+                            ),
+                            PT.EInfix(
+                              312092282UL,
+                              PT.InfixFnCall(
+                                { module_ = None; function_ = "+" },
+                                PT.NoRail
+                              ),
                               PT.EFieldAccess(
                                 974664608UL,
                                 PT.EVariable(1002893266UL, "x"),
@@ -278,16 +290,14 @@ module ProgramTypes =
                                 [ PT.EInteger(250221144UL, 6L)
                                   PT.EInteger(298149318UL, 2L) ],
                                 PT.NoRail
-                              ),
-                              PT.NoRail
+                              )
                             ),
                             PT.EList(
                               539797095UL,
                               [ PT.EInteger(267797631UL, 5L)
                                 PT.EInteger(352138743UL, 6L)
                                 PT.EInteger(430871955UL, 7L) ]
-                            ),
-                            PT.NoRail
+                            )
                           )
                         ),
                         PT.ELet(
@@ -299,12 +309,14 @@ module ProgramTypes =
                                PT.EPipe(
                                  786862131UL,
                                  PT.EInteger(555880460UL, 5L),
-                                 PT.EBinOp(
+                                 PT.EInfix(
                                    1021880969UL,
-                                   { module_ = None; function_ = "+" },
+                                   PT.InfixFnCall(
+                                     { module_ = None; function_ = "+" },
+                                     PT.NoRail
+                                   ),
                                    PT.EPipeTarget 936577032UL,
-                                   PT.EInteger(962393769UL, 2L),
-                                   PT.NoRail
+                                   PT.EInteger(962393769UL, 2L)
                                  ),
                                  []
                                ))
@@ -357,12 +369,14 @@ module ProgramTypes =
                                  PT.EString(820329949UL, "string"))
                                 (PT.MPNull 701616052UL, PT.ENull 731162955UL)
                                 (PT.MPVariable(722099983UL, "var"),
-                                 PT.EBinOp(
+                                 PT.EInfix(
                                    275666765UL,
-                                   { module_ = None; function_ = "+" },
+                                   PT.InfixFnCall(
+                                     { module_ = None; function_ = "+" },
+                                     PT.NoRail
+                                   ),
                                    PT.EInteger(739193732UL, 6L),
-                                   PT.EVariable(880556562UL, "var"),
-                                   PT.NoRail
+                                   PT.EVariable(880556562UL, "var")
                                  ))
                                 (PT.MPFloat(409097457UL, Positive, "5", "6"),
                                  PT.EFloat(131187958UL, Positive, "5", "6"))

@@ -107,10 +107,10 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     match c e with
     | PT.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, name, PT.EPipeTarget(gid ()) :: args, ster)
-    | PT.EBinOp (id, name, Placeholder, arg2, ster) ->
-      PT.EBinOp(id, name, PT.EPipeTarget(gid ()), arg2, ster)
-    | PT.EBinOp (id, name, arg1, Placeholder, ster) ->
-      PT.EBinOp(id, name, PT.EPipeTarget(gid ()), arg1, ster)
+    | PT.EInfix (id, PT.InfixFnCall (name, ster), Placeholder, arg2) ->
+      PT.EInfix(id, PT.InfixFnCall(name, ster), PT.EPipeTarget(gid ()), arg2)
+    | PT.EInfix (id, PT.InfixFnCall (name, ster), arg1, Placeholder) ->
+      PT.EInfix(id, PT.InfixFnCall(name, ster), PT.EPipeTarget(gid ()), arg1)
     | other -> other
 
   let ops =
@@ -153,7 +153,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
            "can't find operation"
            [ "name", ident.idText ]
     let fn : PT.FQFnName.InfixStdlibFnName = { module_ = None; function_ = op }
-    PT.EBinOp(id, fn, placeholder, placeholder, PT.NoRail)
+    PT.EInfix(id, PT.InfixFnCall(fn, PT.NoRail), placeholder, placeholder)
 
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
     let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
@@ -374,12 +374,12 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
   | SynExpr.App (_, _, SynExpr.App (_, _, SynExpr.Ident ident, left, _), right, _) when
     ident.idText = "op_BooleanAnd"
     ->
-    PT.EAnd(id, c left, c right)
+    PT.EInfix(id, PT.BinOp(PT.BinOpAnd), c left, c right)
 
   | SynExpr.App (_, _, SynExpr.App (_, _, SynExpr.Ident ident, left, _), right, _) when
     ident.idText = "op_BooleanOr"
     ->
-    PT.EOr(id, c left, c right)
+    PT.EInfix(id, PT.BinOp(PT.BinOpOr), c left, c right)
 
   // Feature flag now or else it'll get recognized as a var
   | SynExpr.App (_,
@@ -394,10 +394,10 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     match c funcExpr with
     | PT.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, name, args @ [ c arg ], ster)
-    | PT.EBinOp (id, name, Placeholder, arg2, ster) ->
-      PT.EBinOp(id, name, c arg, arg2, ster)
-    | PT.EBinOp (id, name, arg1, Placeholder, ster) ->
-      PT.EBinOp(id, name, arg1, c arg, ster)
+    | PT.EInfix (id, (PT.InfixFnCall (_) as fn), Placeholder, arg2) ->
+      PT.EInfix(id, fn, c arg, arg2)
+    | PT.EInfix (id, (PT.InfixFnCall (_) as fn), arg1, Placeholder) ->
+      PT.EInfix(id, fn, arg1, c arg)
     // Fill in the feature flag fields (back to front)
     | PT.EFeatureFlag (id, label, Placeholder, oldexpr, newexpr) ->
       PT.EFeatureFlag(id, label, c arg, oldexpr, newexpr)

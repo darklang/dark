@@ -78,7 +78,7 @@ module Expr =
         RT.NotInPipe,
         SendToRail.toRT ster
       )
-    | PT.EBinOp (id, fnName, arg1, arg2, ster) ->
+    | PT.EInfix (id, PT.InfixFnCall (fnName, ster), arg1, arg2) ->
       let name =
         PT.FQFnName.Stdlib(
           { module_ = Option.unwrap "" fnName.module_
@@ -86,6 +86,10 @@ module Expr =
             version = 0 }
         )
       toRT (PT.EFnCall(id, name, [ arg1; arg2 ], ster))
+    | PT.EInfix (id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
+      RT.EAnd(id, toRT expr1, toRT expr2)
+    | PT.EInfix (id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
+      RT.EOr(id, toRT expr1, toRT expr2)
     | PT.ELambda (id, vars, body) -> RT.ELambda(id, vars, toRT body)
     | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -120,7 +124,10 @@ module Expr =
                 SendToRail.toRT rail
               )
             // TODO: support currying
-            | PT.EBinOp (id, fnName, PT.EPipeTarget ptID, expr2, rail) ->
+            | PT.EInfix (id,
+                         PT.InfixFnCall (fnName, rail),
+                         PT.EPipeTarget ptID,
+                         expr2) ->
               let name =
                 PT.FQFnName.Stdlib(
                   { module_ = Option.unwrap "" fnName.module_
@@ -157,8 +164,6 @@ module Expr =
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
-    | PT.EAnd (id, expr1, expr2) -> RT.EAnd(id, toRT expr1, toRT expr2)
-    | PT.EOr (id, expr1, expr2) -> RT.EOr(id, toRT expr1, toRT expr2)
 
 module DType =
   let rec toRT (t : PT.DType) : RT.DType =

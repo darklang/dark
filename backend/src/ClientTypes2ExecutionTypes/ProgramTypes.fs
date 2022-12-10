@@ -112,6 +112,33 @@ module SendToRail =
     | PT.Rail -> CTPT.SendToRail.Rail
     | PT.NoRail -> CTPT.SendToRail.NoRail
 
+module BinaryOperation =
+  let fromCT (op : CTPT.BinaryOperation) : PT.BinaryOperation =
+    match op with
+    | CTPT.BinOpAnd -> PT.BinOpAnd
+    | CTPT.BinOpOr -> PT.BinOpOr
+
+  let toCT (op : PT.BinaryOperation) : CTPT.BinaryOperation =
+    match op with
+    | PT.BinOpAnd -> CTPT.BinOpAnd
+    | PT.BinOpOr -> CTPT.BinOpOr
+
+module Infix =
+  let fromCT (infix : CTPT.Infix) : PT.Infix =
+    match infix with
+    | CTPT.InfixFnCall (name, ster) ->
+      PT.InfixFnCall(
+        FQFnName.InfixStdlibFnName.fromCT (name),
+        SendToRail.fromCT ster
+      )
+    | CTPT.BinOp (op) -> PT.BinOp(BinaryOperation.fromCT op)
+
+  let toCT (infix : PT.Infix) : CTPT.Infix =
+    match infix with
+    | PT.InfixFnCall (name, ster) ->
+      CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT (name), SendToRail.toCT ster)
+    | PT.BinOp (op) -> CTPT.BinOp(BinaryOperation.toCT op)
+
 module Expr =
   let rec fromCT (expr : CTPT.Expr) : PT.Expr =
     match expr with
@@ -126,14 +153,16 @@ module Expr =
       PT.ELet(id, name, fromCT expr, fromCT body)
     | CTPT.Expr.EIf (id, cond, ifExpr, thenExpr) ->
       PT.EIf(id, fromCT cond, fromCT ifExpr, fromCT thenExpr)
+    // CLEANUP: remove once the client is updated to use EInfix
     | CTPT.Expr.EBinOp (id, name, first, second, str) ->
-      PT.EBinOp(
+      PT.EInfix(
         id,
-        FQFnName.InfixStdlibFnName.fromCT name,
+        PT.InfixFnCall(FQFnName.InfixStdlibFnName.fromCT name, SendToRail.fromCT str),
         fromCT first,
-        fromCT second,
-        SendToRail.fromCT str
+        fromCT second
       )
+    | CTPT.EInfix (id, infix, first, second) ->
+      PT.EInfix(id, Infix.fromCT (infix), fromCT first, fromCT second)
     | CTPT.Expr.ELambda (id, args, body) -> PT.ELambda(id, args, fromCT body)
     | CTPT.Expr.EFieldAccess (id, expr, fieldName) ->
       PT.EFieldAccess(id, fromCT expr, fieldName)
@@ -168,8 +197,6 @@ module Expr =
     | CTPT.Expr.EPipeTarget (id) -> PT.EPipeTarget(id)
     | CTPT.Expr.EFeatureFlag (id, name, cond, caseA, caseB) ->
       PT.EFeatureFlag(id, name, fromCT cond, fromCT caseA, fromCT caseB)
-    | CTPT.Expr.EAnd (id, left, right) -> PT.EAnd(id, fromCT left, fromCT right)
-    | CTPT.Expr.EOr (id, left, right) -> PT.EOr(id, fromCT left, fromCT right)
 
   let rec toCT (expr : PT.Expr) : CTPT.Expr =
     match expr with
@@ -184,7 +211,7 @@ module Expr =
       CTPT.Expr.ELet(id, name, toCT expr, toCT body)
     | PT.EIf (id, cond, ifExpr, thenExpr) ->
       CTPT.Expr.EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
-    | PT.EBinOp (id, name, first, second, str) ->
+    | PT.EInfix (id, PT.InfixFnCall (name, str), first, second) ->
       CTPT.Expr.EBinOp(
         id,
         FQFnName.InfixStdlibFnName.toCT name,
@@ -192,6 +219,8 @@ module Expr =
         toCT second,
         SendToRail.toCT str
       )
+    | PT.EInfix (id, PT.BinOp op, first, second) ->
+      CTPT.EInfix(id, CTPT.BinOp(BinaryOperation.toCT op), toCT first, toCT second)
     | PT.ELambda (id, args, body) -> CTPT.Expr.ELambda(id, args, toCT body)
     | PT.EFieldAccess (id, expr, fieldName) ->
       CTPT.Expr.EFieldAccess(id, toCT expr, fieldName)
@@ -228,8 +257,6 @@ module Expr =
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
-    | PT.EOr (id, first, second) -> CTPT.Expr.EOr(id, toCT first, toCT second)
-    | PT.EAnd (id, first, second) -> CTPT.Expr.EAnd(id, toCT first, toCT second)
 
 
 module DType =

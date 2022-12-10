@@ -50,6 +50,13 @@ type SendToRail =
   | Rail
   | NoRail
 
+type BinaryOperation =
+  | BinOpAnd
+  | BinOpOr
+
+type Infix =
+  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | BinOp of BinaryOperation
 
 type Expr =
   | EInteger of id * int64
@@ -61,7 +68,9 @@ type Expr =
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
+  // Deprecated - converted to EInfix
   | EBinOp of id * FQFnName.InfixStdlibFnName * Expr * Expr * SendToRail
+  | EInfix of id * Infix * Expr * Expr
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
@@ -77,8 +86,6 @@ type Expr =
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
-  | EAnd of id * Expr * Expr
-  | EOr of id * Expr * Expr
 
 
 type DType =

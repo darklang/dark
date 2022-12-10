@@ -66,6 +66,14 @@ module FQFnName =
       [<MessagePack.Key 2>]
       version : int }
 
+  /// Standard Library Infix Function Name
+  [<MessagePack.MessagePackObject>]
+  type InfixStdlibFnName =
+    { [<MessagePack.Key 0>]
+      module_ : Option<string>
+      [<MessagePack.Key 1>]
+      function_ : string }
+
   /// A UserFunction is a function written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
   type UserFnName = string
@@ -109,6 +117,16 @@ type SendToRail =
   | NoRail
 
 [<MessagePack.MessagePackObject>]
+type BinaryOperation =
+  | BinOpAnd
+  | BinOpOr
+
+[<MessagePack.MessagePackObject>]
+type Infix =
+  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | BinOp of BinaryOperation
+
+[<MessagePack.MessagePackObject>]
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
@@ -119,7 +137,7 @@ type Expr =
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
-  | EBinOp of id * FQFnName.T * Expr * Expr * SendToRail
+  | EDeprecatedBinOp of id * FQFnName.T * Expr * Expr * SendToRail
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
@@ -135,8 +153,7 @@ type Expr =
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
-  | EAnd of id * Expr * Expr
-  | EOr of id * Expr * Expr
+  | EInfix of id * Infix * Expr * Expr
 
 [<MessagePack.MessagePackObject>]
 type DType =
