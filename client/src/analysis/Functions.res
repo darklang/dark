@@ -63,7 +63,8 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
       if uf.name != "" {
         E.filterMap(FluidAST.toExpr(uf.body), ~f=x =>
           switch x {
-          | EBinOp(_, callee, _, _, _) => Some(PT.InfixStdlibFnName.toString(callee), uf.name)
+          | EInfix(_, InfixFnCall(callee, _), _, _) =>
+            Some(PT.InfixStdlibFnName.toString(callee), uf.name)
           | EFnCall(_, callee, _, _) => Some(FQFnName.toString(callee), uf.name)
           | _ => None
           }

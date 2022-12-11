@@ -303,7 +303,7 @@ module TestResult = {
   let containsFnsOnRail = (res: t): bool =>
     FluidAST.filter(res.resultAST, ~f=x =>
       switch x {
-      | EBinOp(_, _, _, _, Rail) | EFnCall(_, _, _, Rail) => true
+      | EInfix(_, InfixFnCall(_, Rail), _, _) | EFnCall(_, _, _, Rail) => true
       | _ => false
       }
     ) |> \"<>"(list{})

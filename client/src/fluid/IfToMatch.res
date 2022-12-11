@@ -26,7 +26,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     module_: None,
   }
 
-  let makeBinOpMatch = (ifID, binopID, lhs, rhs, rail, then_, else_) => {
+  let makEInfixMatch = (ifID, binopID, lhs, rhs, rail, then_, else_) => {
     // We need to make sure that whichever side we choose for the match condition,
     // we should be able to turn the other side into a pattern. So we try to make smart
     // decision whether to choose the lhs or rhs here. We default to the eft hand side,
@@ -34,7 +34,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     let (matchCond, arm) = switch rhs {
     | E.ELet(_)
     | E.EIf(_)
-    | E.EBinOp(_)
+    | E.EInfix(_)
     | E.ELambda(_)
     | E.EFieldAccess(_)
     | E.EFnCall(_)
@@ -71,16 +71,32 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     // generic match expression with true and false arms.
     switch matchPattern {
     | Some(p) => E.EMatch(ifID, matchCond, list{(p, then_), (MPVariable(gid(), "_"), else_)})
-    | None => makeGenericMatch(ifID, EBinOp(binopID, binOpName("=="), lhs, rhs, rail), then_, else_)
+    | None =>
+      makeGenericMatch(
+        ifID,
+        EInfix(binopID, InfixFnCall(binOpName("=="), rail), lhs, rhs),
+        then_,
+        else_,
+      )
     }
   }
 
   let replaceIf = ((ast: FluidAST.t, ifexpr: E.t)): option<AppTypes.modification> => {
     let ifExprToMatchExpr: option<FluidExpression.t> = switch ifexpr {
-    | E.EIf(ifID, EBinOp(binopID, {module_: None, function: "=="}, lhs, rhs, rail), then_, else_) =>
-      Some(makeBinOpMatch(ifID, binopID, lhs, rhs, rail, then_, else_))
-    | E.EIf(ifID, EBinOp(binopID, {module_: None, function: "!="}, lhs, rhs, rail), then_, else_) =>
-      Some(makeBinOpMatch(ifID, binopID, lhs, rhs, rail, else_, then_))
+    | E.EIf(
+        ifID,
+        EInfix(binopID, InfixFnCall({module_: None, function: "=="}, rail), lhs, rhs),
+        then_,
+        else_,
+      ) =>
+      Some(makEInfixMatch(ifID, binopID, lhs, rhs, rail, then_, else_))
+    | E.EIf(
+        ifID,
+        EInfix(binopID, InfixFnCall({module_: None, function: "!="}, rail), lhs, rhs),
+        then_,
+        else_,
+      ) =>
+      Some(makEInfixMatch(ifID, binopID, lhs, rhs, rail, else_, then_))
     | E.EIf(ifID, cond, then_, else_) => Some(makeGenericMatch(ifID, cond, then_, else_))
     | _ => None
     }

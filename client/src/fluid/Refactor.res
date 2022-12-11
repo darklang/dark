@@ -327,7 +327,7 @@ let updateUsageCounts = (m: model): model => {
     |> FluidExpression.filterMap(~f=x =>
       switch x {
       | EFnCall(_, name, _, _) => Some(FQFnName.toString(name))
-      | EBinOp(_, name, _, _, _) => Some(PT.InfixStdlibFnName.toString(name))
+      | EInfix(_, InfixFnCall(name, _), _, _) => Some(PT.InfixStdlibFnName.toString(name))
       | _ => None
       }
     )

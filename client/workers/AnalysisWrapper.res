@@ -18,12 +18,11 @@ let warmupValue = {
       pos: {x: 0, y: 0},
       spec: PT.Handler.Spec.newREPL("violentTamarin"),
       ast: Root(
-        EBinOp(
+        EInfix(
           ID.generate(),
-          {module_: None, function: "+"},
+          InfixFnCall({module_: None, function: "+"}, NoRail),
           EInteger(ID.generate(), 2L),
           EInteger(ID.generate(), 3L),
-          NoRail,
         ),
       ),
     },

@@ -111,8 +111,13 @@ let rec lvResultForId = (~recurred=false, vp: viewProps, id: id): lvResult => {
     |> Option.andThen(~f=expr =>
       switch expr {
       | EFnCall(_, name, _, _) => Functions.find(name, vp.functions)
-      | EBinOp(_, name, _, _, _) =>
+      | EInfix(_, InfixFnCall(name, _), _, _) =>
         Functions.find(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), vp.functions)
+      | EInfix(_, BinOp(op), _, _) =>
+        Functions.find(
+          Stdlib({version: 0, module_: "", function: PT.Expr.BinaryOperation.toString(op)}),
+          vp.functions,
+        )
       | _ => None
       }
     )

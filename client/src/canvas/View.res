@@ -145,8 +145,13 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           |> Option.andThen(~f=x =>
             switch x {
             | EFnCall(_, name, _, sendToRail) => Some(name, sendToRail)
-            | EBinOp(_, name, _, _, sendToRail) =>
-              Some(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), sendToRail)
+            | EInfix(_, InfixFnCall(name, str), _, _) =>
+              Some(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), str)
+            | EInfix(_, BinOp(op), _, _) =>
+              Some(
+                Stdlib({version: 0, module_: "", function: PT.Expr.BinaryOperation.toString(op)}),
+                NoRail,
+              )
             | _ => None
             }
           )

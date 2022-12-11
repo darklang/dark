@@ -87,7 +87,7 @@ module Token = {
     | TIfKeyword(ID.t, option<parentBlockID>)
     | TIfThenKeyword(ID.t, option<parentBlockID>)
     | TIfElseKeyword(ID.t, option<parentBlockID>)
-    | TBinOp(ID.t, string, option<parentBlockID>)
+    | TInfix(ID.t, string, option<parentBlockID>)
     | TFieldOp(/* fieldAccess */ ID.t, /* lhs */ ID.t, option<parentBlockID>)
     | TFieldName(ID.t /* fieldAccess */, ID.t /* lhs */, string, option<parentBlockID>)
     | TFieldPartial(

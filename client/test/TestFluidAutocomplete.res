@@ -183,9 +183,10 @@ let defaultModel = (
     userFunctions: UserFunctions.fromList(userFunctions),
     userTypes: UserTypes.fromList(userTypes),
     cursorState: FluidEntering(tlid),
-    functions: {...Functions.empty, builtinFunctions: sampleFunctions} |> Functions.update(
-      defaultFunctionsProps,
-    ),
+    functions: {
+      ...Functions.empty,
+      builtinFunctions: FluidTestData.defaultTestFunctions,
+    } |> Functions.update(defaultFunctionsProps),
     analyses: Map.String.singleton(~key=defaultTraceID, ~value=(0, Loadable.Success(analyses))),
   }
 }

@@ -33,7 +33,7 @@ let tid = (t: t): id =>
   | TIfKeyword(id, _)
   | TIfThenKeyword(id, _)
   | TIfElseKeyword(id, _)
-  | TBinOp(id, _, _)
+  | TInfix(id, _, _)
   | TFieldOp(id, _, _)
   | TFieldName(id, _, _, _)
   | TFieldPartial(id, _, _, _, _)
@@ -138,7 +138,7 @@ let parentBlockID = (t: t): option<id> =>
   | TIfKeyword(_, pid)
   | TIfThenKeyword(_, pid)
   | TIfElseKeyword(_, pid)
-  | TBinOp(_, _, pid)
+  | TInfix(_, _, pid)
   | TFieldOp(_, _, pid)
   | TFieldName(_, _, _, pid)
   | TFieldPartial(_, _, _, _, pid)
@@ -196,7 +196,7 @@ let isTextToken = (t: t): bool =>
   switch t {
   | TInteger(_)
   | TLetVarName(_)
-  | TBinOp(_)
+  | TInfix(_)
   | TFieldName(_)
   | TFieldPartial(_)
   | TVariable(_)
@@ -306,7 +306,7 @@ let isPipeable = (t: t): bool =>
   | TPartialGhost(_)
   | TRecordFieldname(_)
   | TConstructorName(_)
-  | TBinOp(_)
+  | TInfix(_)
   | TLambdaVar(_)
   | TStringOpenQuote(_)
   | TStringCloseQuote(_)
@@ -410,7 +410,7 @@ let isWhitespace = (t: t): bool =>
   | TIfKeyword(_)
   | TIfThenKeyword(_)
   | TIfElseKeyword(_)
-  | TBinOp(_)
+  | TInfix(_)
   | TFieldOp(_)
   | TFieldName(_)
   | TFieldPartial(_)
@@ -554,7 +554,7 @@ let toText = (t: t): string => {
   | TIfKeyword(_) => "if "
   | TIfThenKeyword(_) => "then"
   | TIfElseKeyword(_) => "else"
-  | TBinOp(_, op, _) => shouldntBeEmpty(op)
+  | TInfix(_, op, _) => shouldntBeEmpty(op)
   | TFieldOp(_) => "."
   | TFieldPartial(_, _, _, name, _) => canBeEmpty(name)
   | TFieldName(_, _, name, _) =>
@@ -713,7 +713,7 @@ let toTypeName = (t: t): string =>
   | TIfKeyword(_) => "if-keyword"
   | TIfThenKeyword(_) => "if-then-keyword"
   | TIfElseKeyword(_) => "if-else-keyword"
-  | TBinOp(_) => "binop"
+  | TInfix(_) => "infix"
   | TFieldOp(_) => "field-op"
   | TFieldName(_) => "field-name"
   | TFieldPartial(_) => "field-partial"
@@ -772,7 +772,7 @@ let toCategoryName = (t: t): string =>
   | TFloatWhole(_) | TFloatPoint(_) | TFloatFractional(_) => "float"
   | TTrue(_) | TFalse(_) => "boolean"
   | TNullToken(_) => "null"
-  | TFnName(_) | TFnVersion(_) | TBinOp(_) => "function"
+  | TFnName(_) | TFnVersion(_) | TInfix(_) => "function"
   | TLetKeyword(_) | TLetAssignment(_) | TLetVarName(_) => "let"
   | TIndent(_) => "indent"
   | TIfKeyword(_) | TIfThenKeyword(_) | TIfElseKeyword(_) => "if"
@@ -929,7 +929,7 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TPartialGhost(id1, _, val1, _), TPartialGhost(id2, _, val2, _))
   | (TString(id1, val1, _), TString(id2, val2, _))
   | (TLetVarName(id1, _, val1, _), TLetVarName(id2, _, val2, _))
-  | (TBinOp(id1, val1, _), TBinOp(id2, val2, _))
+  | (TInfix(id1, val1, _), TInfix(id2, val2, _))
   | (TVariable(id1, val1, _), TVariable(id2, val2, _))
   | (TConstructorName(id1, val1), TConstructorName(id2, val2)) =>
     id1 == id2 && val1 == val2
@@ -1007,7 +1007,7 @@ let matchesContent = (t1: t, t2: t): bool =>
   | (TIfKeyword(_), _)
   | (TIfThenKeyword(_), _)
   | (TIfElseKeyword(_), _)
-  | (TBinOp(_), _)
+  | (TInfix(_), _)
   | (TFieldOp(_), _)
   | (TFieldName(_), _)
   | (TFieldPartial(_), _)

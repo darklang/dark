@@ -164,6 +164,73 @@ module Expr = {
     }
   }
 
+  module BinaryOperation = {
+    type t =
+      | BinOpAnd
+      | BinOpOr
+
+    let encode = (str: t): Js.Json.t => {
+      open Json_encode_extended
+      let ev = variant
+      switch str {
+      | BinOpAnd => ev("BinOpAnd", list{})
+      | BinOpOr => ev("BinOpOr", list{})
+      }
+    }
+
+    let decode = j => {
+      open Json_decode_extended
+      let dv0 = variant0
+      variants(list{("BinOpAnd", dv0(BinOpAnd)), ("BinOpOr", dv0(BinOpOr))}, j)
+    }
+
+    let toString = (op: t): string => {
+      switch op {
+      | BinOpAnd => "&&"
+      | BinOpOr => "||"
+      }
+    }
+  }
+
+  module Infix = {
+    type t =
+      | InfixFnCall(InfixStdlibFnName.t, SendToRail.t)
+      | BinOp(BinaryOperation.t)
+
+    let decode = j => {
+      open Json_decode_extended
+      let dv2 = variant2
+      let dv1 = variant1
+      variants(
+        list{
+          (
+            "InfixFnCall",
+            dv2((a, b) => InfixFnCall(a, b), InfixStdlibFnName.decode, SendToRail.decode),
+          ),
+          ("BinOp", dv1(a => BinOp(a), BinaryOperation.decode)),
+        },
+        j,
+      )
+    }
+
+    let encode = (str: t): Js.Json.t => {
+      open Json_encode_extended
+      let ev = variant
+      switch str {
+      | InfixFnCall(a, b) =>
+        ev("InfixFnCall", list{InfixStdlibFnName.encode(a), SendToRail.encode(b)})
+      | BinOp(a) => ev("BinOp", list{BinaryOperation.encode(a)})
+      }
+    }
+
+    let toString = (op: t): string => {
+      switch op {
+      | InfixFnCall(fnName, _) => InfixStdlibFnName.toString(fnName)
+      | BinOp(op) => BinaryOperation.toString(op)
+      }
+    }
+  }
+
   @ppx.deriving(show({with_path: false}))
   type rec t =
     | EInteger(ID.t, int64)
@@ -175,7 +242,6 @@ module Expr = {
     | EBlank(ID.t)
     | ELet(ID.t, string, t, t)
     | EIf(ID.t, t, t, t)
-    | EBinOp(ID.t, InfixStdlibFnName.t, t, t, SendToRail.t)
     | ELambda(ID.t, list<(ID.t, string)>, t)
     | EFieldAccess(ID.t, t, string)
     | EVariable(ID.t, string)
@@ -191,6 +257,7 @@ module Expr = {
     | EMatch(ID.t, t, list<(MatchPattern.t, t)>)
     | EPipeTarget(ID.t)
     | EFeatureFlag(ID.t, string, t, t, t)
+    | EInfix(ID.t, Infix.t, t, t)
 
   let rec encode = (expr: t): Js.Json.t => {
     open Json_encode_extended
@@ -205,17 +272,20 @@ module Expr = {
         "EFnCall",
         list{ID.encode(id'), FQFnName.encode(name), list(encode, exprs), SendToRail.encode(r)},
       )
-    | EBinOp(id', name, left, right, r) =>
+    // CLEANUP: remove when backend is switched over
+    | EInfix(id, InfixFnCall(name, ster), left, right) =>
       ev(
         "EBinOp",
         list{
-          ID.encode(id'),
+          ID.encode(id),
           InfixStdlibFnName.encode(name),
           encode(left),
           encode(right),
-          SendToRail.encode(r),
+          SendToRail.encode(ster),
         },
       )
+    | EInfix(id, infix, left, right) =>
+      ev("EInfix", list{ID.encode(id), Infix.encode(infix), encode(left), encode(right)})
     | ELambda(id, vars, body) =>
       ev("ELambda", list{ID.encode(id), list(pair(ID.encode, string), vars), encode(body)})
     | EPipe(id, e1, e2, rest) =>
@@ -282,10 +352,11 @@ module Expr = {
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
         ("ELet", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, string, de, de)),
         ("EIf", dv4((a, b, c, d) => EIf(a, b, c, d), ID.decode, de, de, de)),
+        // CLEANUP: remove when backend removes EBinOp
         (
           "EBinOp",
           dv5(
-            (a, b, c, d, e) => EBinOp(a, b, c, d, e),
+            (a, b, c, d, e) => EInfix(a, InfixFnCall(b, e), c, d),
             ID.decode,
             InfixStdlibFnName.decode,
             de,
@@ -293,6 +364,7 @@ module Expr = {
             SendToRail.decode,
           ),
         ),
+        ("EInfix", dv4((a, b, c, d) => EInfix(a, b, c, d), ID.decode, Infix.decode, de, de)),
         (
           "ELambda",
           dv3((a, b, c) => ELambda(a, b, c), ID.decode, list(pair(ID.decode, string)), de),
