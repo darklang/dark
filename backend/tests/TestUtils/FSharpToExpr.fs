@@ -107,10 +107,10 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     match c e with
     | PT.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, name, PT.EPipeTarget(gid ()) :: args, ster)
-    | PT.EInfix (id, PT.InfixFnCall (name, ster), Placeholder, arg2) ->
-      PT.EInfix(id, PT.InfixFnCall(name, ster), PT.EPipeTarget(gid ()), arg2)
-    | PT.EInfix (id, PT.InfixFnCall (name, ster), arg1, Placeholder) ->
-      PT.EInfix(id, PT.InfixFnCall(name, ster), PT.EPipeTarget(gid ()), arg1)
+    | PT.EInfix (id, op, Placeholder, arg2) ->
+      PT.EInfix(id, op, PT.EPipeTarget(gid ()), arg2)
+    | PT.EInfix (id, op, arg1, Placeholder) ->
+      PT.EInfix(id, op, PT.EPipeTarget(gid ()), arg1)
     | other -> other
 
   let ops =
@@ -154,6 +154,17 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
            [ "name", ident.idText ]
     let fn : PT.FQFnName.InfixStdlibFnName = { module_ = None; function_ = op }
     PT.EInfix(id, PT.InfixFnCall(fn, PT.NoRail), placeholder, placeholder)
+
+  | SynExpr.Ident ident when
+    List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
+    ->
+    let op =
+      match ident.idText with
+      | "op_BooleanAnd" -> PT.BinOpAnd
+      | "op_BooleanOr" -> PT.BinOpOr
+      | _ -> Exception.raiseInternal "unhandled operation" [ "name", ident.idText ]
+
+    PT.EInfix(id, PT.BinOp op, placeholder, placeholder)
 
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
     let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
@@ -354,7 +365,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     | PT.EPipe (id, arg1, Placeholder, []) as pipe ->
       // when we just built the lowest, the second one goes here
       PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
-    | PT.EPipe (id, arg1, arg2, rest) as pipe ->
+    | PT.EPipe (id, arg1, arg2, rest) ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
     // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
     | other ->
@@ -394,10 +405,8 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     match c funcExpr with
     | PT.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, name, args @ [ c arg ], ster)
-    | PT.EInfix (id, (PT.InfixFnCall (_) as fn), Placeholder, arg2) ->
-      PT.EInfix(id, fn, c arg, arg2)
-    | PT.EInfix (id, (PT.InfixFnCall (_) as fn), arg1, Placeholder) ->
-      PT.EInfix(id, fn, arg1, c arg)
+    | PT.EInfix (id, op, Placeholder, arg2) -> PT.EInfix(id, op, c arg, arg2)
+    | PT.EInfix (id, op, arg1, Placeholder) -> PT.EInfix(id, op, arg1, c arg)
     // Fill in the feature flag fields (back to front)
     | PT.EFeatureFlag (id, label, Placeholder, oldexpr, newexpr) ->
       PT.EFeatureFlag(id, label, c arg, oldexpr, newexpr)

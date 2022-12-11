@@ -105,6 +105,12 @@ toString 5 = "5"
 (Test.typeError_v0 "msg" && Test.errorRailValue_v0 Nothing) = Test.typeError_v0 "msg"
 (Test.errorRailValue_v0 Nothing && Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 (5 && true) = Test.typeError_v0 "&& only supports Booleans"
+(true |> (&&) true) = true
+(true |> (&&) false) = false
+(false |> (&&) true) = false
+(false |> (&&) false) = false
+(true |> (&&) blank) = blank
+(false |> (&&) blank) = false
 
 
 [tests.or]
@@ -127,6 +133,12 @@ toString 5 = "5"
 (Test.typeError_v0 "msg" || Test.errorRailValue_v0 Nothing) = Test.typeError_v0 "msg"
 (Test.errorRailValue_v0 Nothing || Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 (5 || true) = Test.typeError_v0 "|| only supports Booleans"
+(true |> (||) true) = true
+(true |> (||) false) = true
+(false |> (||) true) = true
+(false |> (||) false) = false
+(true |> (||) blank) = true
+(false |> (||) blank) = blank
 
 
 [tests.featureflag]

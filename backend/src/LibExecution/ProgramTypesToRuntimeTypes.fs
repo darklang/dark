@@ -141,6 +141,11 @@ module Expr =
                 RT.InPipe pipeID,
                 SendToRail.toRT rail
               )
+            // Binops work pretty naturally here
+            | PT.EInfix (id, PT.BinOp op, PT.EPipeTarget ptID, expr2) ->
+              match op with
+              | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
+              | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
             // If there's a hole, run the computation right through it as if it wasn't there
             | PT.EBlank _ -> prev
             // We can ignore partials as we just want whatever is inside them
