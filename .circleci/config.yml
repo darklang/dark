@@ -52,7 +52,6 @@ commands:
       - run: rm -Rf /home/dark/app/*
       - checkout
 
-
   ##########################
   # Setup app
   ##########################
@@ -89,9 +88,6 @@ commands:
       - run:
           name: Remove deploy lock
           command: ./scripts/deployment/deploy-lock-one-remove
-
-
-
 
   ##########################
   # Slack
@@ -133,7 +129,6 @@ commands:
       - slack-notify-success:
           buildType: "build"
 
-
   ##########################
   # etags
   ##########################
@@ -146,7 +141,6 @@ commands:
             cat backend/static/etags.json
             scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
-
 
   ##########################
   # Initializing the containers
@@ -200,8 +194,6 @@ commands:
               ./scripts/production/gcp-authorize-kubectl
             fi
 
-
-
 ##########################
 # Actual workflow
 ##########################
@@ -253,7 +245,7 @@ jobs:
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v15-fsharp-backend-{{ checksum "../checksum" }}
+            - v1-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -280,7 +272,7 @@ jobs:
           paths:
             - backend/Build/obj
             - /home/dark/.nuget
-          key: v15-fsharp-backend-{{ checksum "../checksum" }}
+          key: v1-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
@@ -302,7 +294,7 @@ jobs:
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v5-fsharp-blazor-{{ checksum "../checksum" }}
+            - v1-blazor-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
@@ -321,12 +313,10 @@ jobs:
           paths:
             - backend/Build/obj
             - /home/dark/.nuget
-          key: v5-fsharp-blazor-{{ checksum "../checksum" }}
+          key: v1-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
-
-
 
   static-checks:
     executor: in-container
@@ -389,11 +379,14 @@ jobs:
       - store_test_results: { path: rundir/test_results }
       - save_cache:
           name: "Save packagejson-specific cache"
-          paths: ["integration-tests/node_modules", "/home/dark/.cache/ms-playwright"]
+          paths:
+            [
+              "integration-tests/node_modules",
+              "/home/dark/.cache/ms-playwright",
+            ]
           key: v2-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
-
 
   gcp-containers-test:
     executor: in-container
