@@ -150,7 +150,7 @@ let intInfixMatch =
       LibExecutionStdLib.StdLib.infixFnMapping
       |> Map.filterWithIndex (fun name _ -> name.module_ = "Int")
       |> Map.values
-      |> List.map (fun name -> name.function_)
+      |> List.map (fun (name, _) -> name.function_)
       |> Set
 
     Expect.equal actual expected "We didn't miss any infix functions"

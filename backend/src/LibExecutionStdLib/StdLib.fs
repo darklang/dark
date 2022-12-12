@@ -58,33 +58,41 @@ let prefixFns : List<BuiltInFn> =
 // -------------------------
 
 // Map of prefix names to their infix versions
-let infixFnMapping =
-  [ ("Int", "add", 0), ("", "+")
-    ("Int", "subtract", 0), ("", "-")
-    ("Int", "multiply", 0), ("", "*")
-    ("Int", "greaterThan", 0), ("", ">")
-    ("Int", "greaterThanOrEqualTo", 0), ("", ">=")
-    ("Int", "lessThanOrEqualTo", 0), ("", "<=")
-    ("Int", "lessThan", 0), ("", "<")
-    ("Int", "power", 0), ("", "^")
-    ("Int", "mod", 0), ("", "%")
-    ("Float", "divide", 0), ("", "/")
-    ("Date", "lessThan", 0), ("Date", "<")
-    ("Date", "greaterThan", 0), ("Date", ">")
-    ("Date", "lessThanOrEqualTo", 0), ("Date", "<=")
-    ("Date", "greaterThanOrEqualTo", 0), ("Date", ">=")
-    ("String", "append", 1), ("", "++")
-    ("", "equals", 0), ("", "==")
-    ("", "notEquals", 0), ("", "!=")
-    ("Bool", "and", 0), ("", "&&")
-    ("Bool", "or", 0), ("", "||") ]
-  |> List.map (fun ((module_, name, version), (newMod, opName)) ->
-    FQFnName.stdlibFnName module_ name version, FQFnName.stdlibFnName newMod opName 0)
+let infixFnMapping : Map<FQFnName.StdlibFnName, (FQFnName.StdlibFnName * Deprecation)> =
+  [ ("Int", "add", 0), (("", "+"), NotDeprecated)
+    ("Int", "subtract", 0), (("", "-"), NotDeprecated)
+    ("Int", "multiply", 0), (("", "*"), NotDeprecated)
+    ("Int", "greaterThan", 0), (("", ">"), NotDeprecated)
+    ("Int", "greaterThanOrEqualTo", 0), (("", ">="), NotDeprecated)
+    ("Int", "lessThanOrEqualTo", 0), (("", "<="), NotDeprecated)
+    ("Int", "lessThan", 0), (("", "<"), NotDeprecated)
+    ("Int", "power", 0), (("", "^"), NotDeprecated)
+    ("Int", "mod", 0), (("", "%"), NotDeprecated)
+    ("Float", "divide", 0), (("", "/"), NotDeprecated)
+    ("Date", "lessThan", 0), (("Date", "<"), NotDeprecated)
+    ("Date", "greaterThan", 0), (("Date", ">"), NotDeprecated)
+    ("Date", "lessThanOrEqualTo", 0), (("Date", "<="), NotDeprecated)
+    ("Date", "greaterThanOrEqualTo", 0), (("Date", ">="), NotDeprecated)
+    ("String", "append", 1), (("", "++"), NotDeprecated)
+    ("", "equals", 0), (("", "=="), NotDeprecated)
+    ("", "notEquals", 0), (("", "!="), NotDeprecated)
+    // TODO: deprecate when there's a nice way to move from infix fn to language version
+    // ("Bool", "and", 0), (("", "&&"), DeprecatedBecause("Use `&&` instead"))
+    // ("Bool", "or", 0), (("", "||"), DeprecatedBecause("Use `||` instead"))
+    ("Bool", "and", 0), (("", "&&"), NotDeprecated)
+    ("Bool", "or", 0), (("", "||"), NotDeprecated) ]
+  |> List.map (fun ((module_, name, version), ((newMod, opName), deprecation)) ->
+    FQFnName.stdlibFnName module_ name version,
+    (FQFnName.stdlibFnName newMod opName 0, deprecation))
   |> Map
 
 // set of infix names
-let infixFnNames =
-  infixFnMapping |> Map.toSeq |> Seq.map FSharpPlus.Operators.item2 |> Set
+let infixFnNames : Set<FQFnName.StdlibFnName> =
+  infixFnMapping
+  |> Map.toSeq
+  |> Seq.map FSharpPlus.Operators.item2
+  |> Seq.map FSharpPlus.Operators.item1
+  |> Set
 
 // Is this the name of an infix function?
 let isInfixName (module_ : string) (fnName : string) =
@@ -94,8 +102,10 @@ let infixFns : List<BuiltInFn> =
   let fns =
     prefixFns
     |> List.choose (fun (builtin : BuiltInFn) ->
-      let opName = infixFnMapping.TryFind builtin.name
-      Option.map (fun newName -> { builtin with name = newName }) opName)
+      builtin.name
+      |> infixFnMapping.TryFind
+      |> Option.map (fun (newName, deprecation) ->
+        { builtin with name = newName; deprecated = deprecation }))
 
   assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
   fns
