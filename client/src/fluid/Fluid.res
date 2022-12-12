@@ -1957,7 +1957,7 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
         }
 
         Some(EInfix(gid(), InfixFnCall(name, r), lhs, rhs), CT.forStartOfExpr'(rhs))
-      | _ => recover("BinOp doesn't have 2 args", ~debug=args, None)
+      | _ => recover("BinOp doesn't have 2 args", ~debug=(fn.name, args), None)
       }
     } else {
       // functions with arguments should place the caret into the first argument
