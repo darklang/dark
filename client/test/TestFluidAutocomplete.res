@@ -210,7 +210,7 @@ let setQuery = (q: string, a: AC.t): AC.t => {
   let fullQ = defaultFullQuery(a, q)
   let props = defaultTestProps
   AC.refilter(
-    {functions: props.functions},
+    {functions: props.functions, allowShortCircuiting: true},
     fullQ,
     a,
     List.map(~f=({item, _}) => item, a.completions),

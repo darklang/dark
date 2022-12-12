@@ -952,7 +952,7 @@ let fakeID1 = ID.fromInt(77777771)
 let fakeID2 = ID.fromInt(77777772)
 let fakeID3 = ID.fromInt(77777773)
 
-let defaultTestModel = {
+let defaultTestModel: AppTypes.Model.t = {
   ...AppTypes.Model.default,
   functions: defaultTestProps.functions,
   analyses: Map.String.fromList(list{
@@ -984,4 +984,14 @@ let defaultTestModel = {
     ),
   }),
   fluidState: defaultTestState,
+  settings: {
+    ...AppTypes.Model.default.settings,
+    contributingSettings: {
+      ...AppTypes.Model.default.settings.contributingSettings,
+      inProgressFeatures: {
+        ...AppTypes.Model.default.settings.contributingSettings.inProgressFeatures,
+        allowShortCircuitingBinops: true,
+      },
+    },
+  },
 }
