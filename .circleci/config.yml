@@ -234,7 +234,7 @@ jobs:
       - deploy-lock-remove-on-fail
 
   # Build server binaries and run tests (but not blazor, which is separated out for build speed)
-  build-fsharp-backend:
+  build-backend:
     executor: in-container
     resource_class: xlarge
     steps:
@@ -287,7 +287,7 @@ jobs:
       - deploy-lock-remove-on-fail
 
   # We build blazor in parallel with server binaries
-  build-fsharp-blazor:
+  build-blazor:
     executor: in-container
     resource_class: xlarge
     steps:
@@ -480,15 +480,15 @@ workflows:
               ignore: /^(pull\/).*$/
       - validate-honeycomb-config
       - build-client
-      - build-fsharp-backend
-      - build-fsharp-blazor
+      - build-backend
+      - build-blazor
 
       # expensive tests
       - integration-tests:
           requires:
             - build-client
-            - build-fsharp-blazor
-            - build-fsharp-backend
+            - build-blazor
+            - build-backend
 
       - gcp-containers-test:
           # This is fully covered by push-assets-to-gcp, so no need to do it twice
@@ -497,8 +497,8 @@ workflows:
               ignore: main
           requires:
             - build-client # to rebuild etags
-            - build-fsharp-backend
-            - build-fsharp-blazor # etags
+            - build-backend
+            - build-blazor # etags
 
       # pre-deploy, in parallel with integration-tests
       - push-assets-to-gcp:
@@ -506,8 +506,8 @@ workflows:
             branches:
               only: main
           requires:
-            - build-fsharp-blazor
-            - build-fsharp-backend
+            - build-blazor
+            - build-backend
             - build-client
 
       # pre-deploy, in parallel with integration-tests
@@ -516,9 +516,9 @@ workflows:
             branches:
               only: main
           requires:
-            - build-fsharp-backend
+            - build-backend
             # CLEANUP: need this because of etags, should be able to remove it
-            - build-fsharp-blazor
+            - build-blazor
             - build-client
 
       # actual deploy
@@ -546,8 +546,8 @@ workflows:
               ignore: main
           requires:
             - build-client
-            - build-fsharp-backend
-            - build-fsharp-blazor
+            - build-backend
+            - build-blazor
             - gcp-containers-test
             - integration-tests
             - static-checks
