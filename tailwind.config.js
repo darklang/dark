@@ -81,9 +81,10 @@ module.exports = {
     },
     fontFamily: {
       body: ['"Fira Code"', "sans-serif"],
-      heading: ['"Fira Code"', "sans-serif"],
+      heading: ['"Source Sans Pro"', "sans-serif"],
       accents: ['"Fira Code"', "sans-serif"],
-      code: ['"Fira Code"', "sans-serif"],
+      code: ['"Fira Code"', "mono"],
+      text: ['"Source Sans Pro"', "sans-serif"],
     },
   },
   corePlugins: {
