@@ -59,6 +59,7 @@ module.exports = {
       },
       fontSize: {
         xxs: "0.625rem",
+        md: "1.0625rem", // 17px - between base and lg
         xxxs: "0.5rem",
       },
       margin: {

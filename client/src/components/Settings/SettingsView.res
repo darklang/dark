@@ -41,7 +41,7 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
       list{
         Attrs.classList(list{
           (%twc("h-full m-0 -mb-0.5 px-2.5 py-0 text-grey2 cursor-pointer"), true),
-          (%twc("text-white3 border-solid border-b-3 border-b-grey8"), isSameTab),
+          (%twc("text-white3 border-solid border-b-3 border-b-grey8 font-heading"), isSameTab),
         }),
         EventListeners.eventNoPropagation(
           ~key="close-settings-modal",
@@ -69,7 +69,11 @@ let settingViewWrapper = (acc: T.t): Html.html<msg> => {
         ),
       ),
     },
-    list{Html.h1(list{}, list{Html.text("Settings")}), tabTitleView(acc.tab), ...tabView},
+    list{
+      Html.h1(list{Attrs.class(%twc("font-heading"))}, list{Html.text("Settings")}),
+      tabTitleView(acc.tab),
+      ...tabView,
+    },
   )
 }
 
@@ -101,7 +105,9 @@ let html = (m: AppTypes.model): Html.html<msg> => {
   Html.div(
     list{
       Attrs.class(
-        %twc("z-100 fixed top-0 left-0 w-full h-full bg-grey1/80 flex items-center justify-center"),
+        %twc(
+          "z-100 fixed top-0 left-0 w-full h-full bg-grey1/80 flex items-center justify-center select-text"
+        ),
       ),
       EventListeners.nothingMouseEvent("mousedown"),
       EventListeners.nothingMouseEvent("mouseup"),

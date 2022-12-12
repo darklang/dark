@@ -11,9 +11,11 @@ module Msg = AppTypes.Msg
 
 module C = SettingsViewComponents
 
+let tw = Attrs.class
+
 let viewIntroText = {
   Html.p(
-    list{},
+    list{tw(%twc("my-2 font-text text-base"))},
     list{
       Html.text("To contribute to Dark, check out the "),
       Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("Dark repo")}),
