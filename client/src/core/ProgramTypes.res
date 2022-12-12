@@ -272,18 +272,6 @@ module Expr = {
         "EFnCall",
         list{ID.encode(id'), FQFnName.encode(name), list(encode, exprs), SendToRail.encode(r)},
       )
-    // CLEANUP: remove when backend is switched over
-    | EInfix(id, InfixFnCall(name, ster), left, right) =>
-      ev(
-        "EBinOp",
-        list{
-          ID.encode(id),
-          InfixStdlibFnName.encode(name),
-          encode(left),
-          encode(right),
-          SendToRail.encode(ster),
-        },
-      )
     | EInfix(id, infix, left, right) =>
       ev("EInfix", list{ID.encode(id), Infix.encode(infix), encode(left), encode(right)})
     | ELambda(id, vars, body) =>
