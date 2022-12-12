@@ -2003,6 +2003,14 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   | FACKeyword(KPipe) =>
     let (b, target) = mkBlank()
     Some(EPipe(gid(), b, E.newB(), list{}), target)
+  | FACKeyword(KAnd) =>
+    let lhs = EBlank(gid())
+    let rhs = EBlank(gid())
+    Some(EInfix(gid(), BinOp(BinOpAnd), lhs, rhs), CT.forStartOfExpr'(rhs))
+  | FACKeyword(KOr) =>
+    let lhs = EBlank(gid())
+    let rhs = EBlank(gid())
+    Some(EInfix(gid(), BinOp(BinOpOr), lhs, rhs), CT.forStartOfExpr'(rhs))
   | FACSecret(name, _) =>
     let vID = gid()
     Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})

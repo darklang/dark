@@ -190,6 +190,8 @@ module AutoComplete = {
     | KLambda
     | KMatch
     | KPipe
+    | KAnd
+    | KOr
 
   @ppx.deriving(show({with_path: false}))
   type rec literalItem =

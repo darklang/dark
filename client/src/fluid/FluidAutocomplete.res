@@ -90,6 +90,8 @@ let asName = (aci: item): string =>
     | KLambda => "lambda"
     | KMatch => "match"
     | KPipe => "|>"
+    | KAnd => "&&"
+    | KOr => "||"
     }
   | FACMatchPattern(_, p) =>
     switch p {
@@ -454,9 +456,9 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
     )
 
   let keywords = if !isInQuery {
-    List.map(~f=x => FACKeyword(x), list{KLet, KIf, KLambda, KMatch, KPipe})
+    List.map(~f=x => FACKeyword(x), list{KLet, KIf, KLambda, KMatch, KPipe, KAnd, KOr})
   } else {
-    List.map(~f=x => FACKeyword(x), list{KLet, KPipe})
+    List.map(~f=x => FACKeyword(x), list{KLet, KPipe, KAnd, KOr})
   }
 
   let literals = List.map(~f=x => FACLiteral(x), list{LBool(true), LBool(false), LNull})
@@ -831,6 +833,8 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
       "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions",
     )
   | FACKeyword(KPipe) => simpleDoc("Pipe into another expression")
+  | FACKeyword(KAnd) => simpleDoc("A boolean `and`")
+  | FACKeyword(KOr) => simpleDoc("A boolean `or`")
   | FACMatchPattern(_, pat) =>
     switch pat {
     | FMPAConstructor(name, args) =>
