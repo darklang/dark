@@ -2590,7 +2590,7 @@ let run = () => {
       ins("%"),
       "if %~\nthen\n  ___\nelse\n  ___",
     )
-    t(~expectsPartial=true, "show ghost partial", aFullBinOp, ~pos=8, bs, "myvar |~@ 5")
+    t(~expectsPartial=true, "show ghost partial", aFullBinOp, ~pos=8, bs, "myvar &~@ true")
     t(
       "ctrl+left from end of < moves to front of <",
       binop("<", anInt, anInt),
