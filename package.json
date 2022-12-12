@@ -13,7 +13,7 @@
     "jsdom": "20.0.3",
     "jsdom-global": "3.0.2",
     "npm-run-all": "4.1.5",
-    "postcss": "8.4.19",
+    "postcss": "8.4.20",
     "postcss-cli": "10.1.0",
     "sass": "1.56.2",
     "tailwind-scrollbar": "2.0.1",
