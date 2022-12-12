@@ -480,7 +480,7 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       | EPipeTarget(_) => b
       | _ =>
         b
-        |> nest(~indent=0, ~placeholder=fnArgumentPlaceholder(id, oldName, 0), lexpr)
+        |> nest(~indent=0, ~placeholder=infixPlaceholder(id, oldOp, 0), lexpr)
         |> add(TSep(E.toID(lexpr), parentID))
       }
 
