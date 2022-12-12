@@ -2827,7 +2827,7 @@ let run = () => {
     t(
       "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start",
       partial("|", or'(b, b)),
-      ~pos=12,
+      ~pos=8,
       bs,
       "~___",
     )
@@ -2841,14 +2841,14 @@ let run = () => {
     t(
       "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start",
       partial("|", or'(b, b)),
-      ~pos=11,
+      ~pos=7,
       del,
       "~___",
     )
     t(
       "using bs to remove an infix with a placeholder goes to right place",
       partial("|", or'(b, b)),
-      ~pos=12,
+      ~pos=8,
       bs,
       "~___",
     )
@@ -2875,7 +2875,7 @@ let run = () => {
     )
     t(
       "pressing bs on a partial over and/or deletes op and combines rhs and lhs",
-      binop("+", anInt, anInt),
+      partial("|", or'(anInt, anInt)),
       ~pos=7,
       bs,
       "12345~12345",
@@ -2883,7 +2883,7 @@ let run = () => {
     t(
       "using del to remove an infix with a placeholder goes to right place",
       partial("|", or'(b, b)),
-      ~pos=11,
+      ~pos=7,
       del,
       "~___",
     )
@@ -2896,9 +2896,9 @@ let run = () => {
     )
     t(
       ~expectsPartial=true,
-      "pressing pipe while editing a partial works properly",
+      "Pressing pipe while editing a partial works properly",
       partial("|", or'(trueBool, falseBool)),
-      ~pos=7,
+      ~pos=6,
       ins("|"),
       "true ||~ false",
     )
