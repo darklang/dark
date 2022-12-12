@@ -22,6 +22,8 @@ let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
 
 let defaultSpec = defaultHTTPSpec
 
+// TODO: merge these into FluidTestData - right now they're both assigned to the same
+// global variable and it's just luck that the tests continue to pass
 let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("Twit", "somefunc", 0, list{DType.TDict(DType.TVariable("abc"))}, DType.TVariable("xyz")),
   ("Twit", "someOtherFunc", 0, list{TDict(TVariable("efg"))}, TVariable("b")),
@@ -185,7 +187,7 @@ let defaultModel = (
     cursorState: FluidEntering(tlid),
     functions: {
       ...Functions.empty,
-      builtinFunctions: FluidTestData.defaultTestFunctions,
+      builtinFunctions: sampleFunctions,
     } |> Functions.update(defaultFunctionsProps),
     analyses: Map.String.singleton(~key=defaultTraceID, ~value=(0, Loadable.Success(analyses))),
   }
