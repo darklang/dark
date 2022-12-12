@@ -361,6 +361,8 @@ let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
     |> add("enabled")
     |> addNewlineIfNeeded
     |> nest(~indent=2, enabled)
+  | EAnd(_, left, right) => b |> addNested(~f=r(left)) |> add(" && ") |> addNested(~f=r(right))
+  | EOr(_, left, right) => b |> addNested(~f=r(left)) |> add(" || ") |> addNested(~f=r(right))
   }
 }
 
