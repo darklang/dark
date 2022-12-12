@@ -625,6 +625,8 @@ let run = () => {
         expect(valid |> List.filter(~f=isKeyword) |> List.map(~f=AC.asName)) |> toEqual(list{
           "let",
           "|>",
+          "&&",
+          "||",
         })
       )
       test("includes constructors", () =>
