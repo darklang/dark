@@ -30,7 +30,7 @@ module FQFnName =
       function_ : string
       version : int }
 
-  // We don't include InfixStdlibFnName here as that is used directly by EBinOp
+  // We don't include InfixStdlibFnName here as that is used directly by EInfix
   type T =
     | User of UserFnName
     | Stdlib of StdlibFnName
@@ -101,7 +101,7 @@ type Expr =
   // Eg, an EPartial wrapping an EFnCall will render the arguments of the old
   // EFnCall expression after the string. See FluidPrinter for specifics.
   | EPartial of id * string * Expr
-  // An ERightPartial is used while in the process of adding an EBinOp,
+  // An ERightPartial is used while in the process of adding an EInfix,
   // allowing for typing multiple characters as operators (eg, "++") after an
   // expression. The [string] holds the typed characters while the [t] holds
   // the LHS of the binop.
@@ -109,7 +109,7 @@ type Expr =
   // Example:
   // Typing `"foo" ++` creates ERightPartial (id, "++", EString (_, "foo"))
   // until the autocomplete of "++" is accepted, transforming the ERightPartial
-  // into a proper EBinOp.
+  // into a proper EInfix.
   //
   // ERightPartial is rendered as the old expression followed by the string.
   | ERightPartial of id * string * Expr

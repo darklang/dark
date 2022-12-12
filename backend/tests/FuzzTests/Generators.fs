@@ -558,7 +558,7 @@ module ProgramTypes =
 
   // We haven't yet created generators for these
   // They eventually belong above in the Expr sub-module
-  // TODO: EBinOp
+  // TODO: EInfix
   // TODO: ELambda
   // TODO: EFieldAccess
   // TODO: EFnCall
