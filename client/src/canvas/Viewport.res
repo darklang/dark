@@ -51,7 +51,10 @@ let centerCanvasOn = (tl: toplevel): Pos.t => {
   let windowWidth = Webapi.Dom.window->Webapi.Dom.Window.innerWidth
   let sidebarWidth = 56 // TODO: define as variable
   let tlWidth = {
-    let tle = Webapi.Dom.document->Webapi.Dom.Document.querySelector(".toplevel.tl-" ++ TLID.toString(TL.id(tl)))
+    let tle =
+      Webapi.Dom.document->Webapi.Dom.Document.querySelector(
+        ".toplevel.tl-" ++ TLID.toString(TL.id(tl)),
+      )
 
     switch tle {
     | Some(e) => Webapi.Dom.Element.clientWidth(e)

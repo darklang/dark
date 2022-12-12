@@ -112,7 +112,7 @@ let catchException (failOnError : bool) (e : exn) =
       CD.saveCheckpointData ()
       e.StackTrace
       |> FsRegEx.replace
-           "at Prelude.Task.foldSequentially@1475-20.Invoke(Unit unitVar0) in /home/dark/app/fsharp-backend/src/Prelude/Prelude.fs:line 1475"
+           "at Prelude.Task.foldSequentially@1475-20.Invoke(Unit unitVar0) in /home/dark/app/backend/src/Prelude/Prelude.fs:line 1475"
            ""
       |> FsRegEx.replace
            "at Ply.TplPrimitives.ContinuationStateMachine`1.System-Runtime-CompilerServices-IAsyncStateMachine-MoveNext()"

@@ -18,12 +18,12 @@ node_modules/
 .merlin
 
 # F#
-fsharp-backend/packages/
-fsharp-backend/paket-files/
-fsharp-backend/Build/
-fsharp-backend/src/**/obj
-fsharp-backend/tests/**/obj
-fsharp-backend/.paket/load/
+backend/packages/
+backend/paket-files/
+backend/Build/
+backend/src/**/obj
+backend/tests/**/obj
+backend/.paket/load/
 .fake
 
 ###############

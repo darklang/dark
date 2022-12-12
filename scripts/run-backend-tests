@@ -47,7 +47,7 @@ LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
 # Run the migrations before the other servers start
 echo "Running migrations"
-cd fsharp-backend && \
+cd backend && \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_DB_HOST=localhost \
   DARK_CONFIG_DB_DBNAME=testdb \
@@ -58,7 +58,7 @@ cd fsharp-backend && \
   "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log" 2>&1
 cd ..
 
-JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"
+JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"
 
 # Use random to avoid old items being in the pubsub queue. Use this instead of
 # $RANDOM as RANDOM is only 5 digits
@@ -73,7 +73,7 @@ if [[ -v CI ]]; then
   SPINNER="--no-spinner"
 fi
 
-cd fsharp-backend
+cd backend
 if [[ "$LLDB" == "true" ]]; then
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \

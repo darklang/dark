@@ -110,19 +110,19 @@ all_prettier_files() {
     -o -path "./_esy" \
     -o -path "/home/dark/.esy" \
     -o -path "esy.lock" \
-    -o -path "fsharp-backend" \
+    -o -path "backend" \
     -o -path "backend/static" \
     -o -path "./backend/static" \
     -o -path "client/static/vendor" \
     -o -path "./client/static/vendor" \
     -o -path "lib" \
     -o -path "./lib" \
-    -o -path "fsharp-backend/.paket" \
-    -o -path "./fsharp-backend/.paket" \
-    -o -path "fsharp-backend/Build" \
-    -o -path "./fsharp-backend/Build" \
-    -o -path "fsharp-backend/tests/staticassets-tests" \
-    -o -path "./fsharp-backend/tests/staticassets-tests" \
+    -o -path "backend/.paket" \
+    -o -path "./backend/.paket" \
+    -o -path "backend/Build" \
+    -o -path "./backend/Build" \
+    -o -path "backend/tests/staticassets-tests" \
+    -o -path "./backend/tests/staticassets-tests" \
     \) -prune -false \
     \
     -o -type f \
@@ -151,11 +151,11 @@ all_fsharp_files() {
     -o -path "./_esy" \
     -o -path "/home/dark/.esy" \
     -o -path "esy.lock" \
-    -o -path "fsharp-backend" \
-    -o -path "fsharp-backend/.paket" \
-    -o -path "./fsharp-backend/.paket" \
-    -o -path "fsharp-backend/Build" \
-    -o -path "./fsharp-backend/Build" \
+    -o -path "backend" \
+    -o -path "backend/.paket" \
+    -o -path "./backend/.paket" \
+    -o -path "backend/Build" \
+    -o -path "./backend/Build" \
     \) -prune -false \
     \
     -o -type f \
@@ -177,11 +177,11 @@ all_rescript_files() {
     -o -path "./_esy" \
     -o -path "/home/dark/.esy" \
     -o -path "esy.lock" \
-    -o -path "fsharp-backend" \
-    -o -path "fsharp-backend/.paket" \
-    -o -path "./fsharp-backend/.paket" \
-    -o -path "fsharp-backend/Build" \
-    -o -path "./fsharp-backend/Build" \
+    -o -path "backend" \
+    -o -path "backend/.paket" \
+    -o -path "./backend/.paket" \
+    -o -path "backend/Build" \
+    -o -path "./backend/Build" \
     \) -prune -false \
     \
     -o -type f \

@@ -89,20 +89,19 @@ def copy_static():
   return run_frontend(start, "npm run copy:static")
 
 
-def copy_fsharp_static():
+def copy_backend_static():
   start = time.time()
   blazor = run_backend(
-      start,
-      "cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/")
+      start, "cp -f backend/src/Analysis/static/BlazorWorker.js backend/static/")
   if optimize:
     wwwroot = run_backend(
         start,
-        "rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
     )
   else:
     wwwroot = run_backend(
         start,
-        "rsync -a fsharp-backend/Build/out/Analysis/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a backend/Build/out/Analysis/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
     )
   return blazor and wwwroot
 
@@ -177,14 +176,14 @@ def test_nginx():
 ###########
 
 
-def fsharp_backend_test():
+def backend_test():
   start = time.time()
   ci = "--verbosity detailed" if in_ci else "--verbosity normal"
   if optimize:
     configuration = " --published"
   else:
     configuration = ""
-  build = f"scripts/run-fsharp-tests {configuration}"
+  build = f"scripts/run-backend-tests {configuration}"
   return run_test(start, build)
 
 
@@ -230,7 +229,7 @@ def fsharp_paket_restore():
 # there but I'm not sure what.
 
 
-def fsharp_backend_quick_build():
+def backend_quick_build():
   start = time.time()
   if optimize:
     configuration = "Release"
@@ -253,7 +252,7 @@ def fsharp_backend_quick_build():
   return result
 
 
-def fsharp_backend_full_build():
+def backend_full_build():
   start = time.time()
   if optimize:
     configuration = "Release"
@@ -275,25 +274,19 @@ def fsharp_backend_full_build():
   return result
 
 
-def reload_server():
-  start = time.time()
-  runserver = "scripts/run-backend-server"
-  return run_backend(start, runserver)
-
-
 def reload_nginx_server():
   start = time.time()
   runserver = "scripts/run-nginx-server"
   return run_backend(start, runserver)
 
 
-def reload_fsharp_server():
+def reload_backend_server():
   start = time.time()
   if optimize:
     configuration = " --published"
   else:
     configuration = ""
-  runserver = f"scripts/run-fsharp-server {configuration}"
+  runserver = f"scripts/run-backend-server {configuration}"
   return run_backend(start, runserver)
 
 
@@ -314,23 +307,22 @@ class Should:
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
     self.fsharp_paket_install = False
-    self.fsharp_backend_quick_build = False
-    self.fsharp_backend_full_build = False
-    self.fsharp_backend_test = False
+    self.backend_quick_build = False
+    self.backend_full_build = False
+    self.backend_test = False
     self.npm_install = False
     self.client_build = False
     self.client_test = False
     self.sass_compile = False
     self.copy_static = False
-    self.copy_fsharp_static = False
+    self.copy_backend_static = False
     self.circleci_validate = False
     self.pip_install = False
     self.mypy_shipit = False
     self.test_nginx = False
     self.reload_browser = False
-    self.reload_server = False
     self.reload_nginx_server = False
-    self.reload_fsharp_server = False
+    self.reload_backend_server = False
     self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
@@ -343,22 +335,22 @@ def execute(should):
   if should.fsharp_tool_restore:
     if not fsharp_tool_restore(): success = False
     should.fsharp_paket_restore |= success
-    should.fsharp_backend_full_build |= success
+    should.backend_full_build |= success
 
   if should.fsharp_paket_restore:
     if not fsharp_paket_restore(): success = False
-    should.fsharp_backend_full_build |= success
+    should.backend_full_build |= success
 
   if should.fsharp_paket_install:
     if not fsharp_paket_install(): success = False
-    should.fsharp_backend_full_build |= success
+    should.backend_full_build |= success
 
-  if should.fsharp_backend_full_build:
-    should.fsharp_backend_quick_build = False  # no need to do both
-    if not fsharp_backend_full_build(): success = False
-    should.copy_fsharp_static |= success
-    should.fsharp_backend_test |= success
-    should.reload_fsharp_server |= success
+  if should.backend_full_build:
+    should.backend_quick_build = False  # no need to do both
+    if not backend_full_build(): success = False
+    should.copy_backend_static |= success
+    should.backend_test |= success
+    should.reload_backend_server |= success
 
   if should.circleci_validate:
     if not circleci_validate(): success = False
@@ -369,11 +361,11 @@ def execute(should):
   if should.mypy_shipit:
     if not mypy_shipit(): success = False
 
-  if should.fsharp_backend_quick_build:
-    if not fsharp_backend_quick_build(): success = False
-    should.copy_fsharp_static |= success
-    should.fsharp_backend_test |= success
-    should.reload_fsharp_server |= success
+  if should.backend_quick_build:
+    if not backend_quick_build(): success = False
+    should.copy_backend_static |= success
+    should.backend_test |= success
+    should.reload_backend_server |= success
 
   if should.npm_install:
     if not npm_install(): success = False
@@ -396,8 +388,8 @@ def execute(should):
     should.generate_etags |= success
     should.reload_browser |= success
 
-  if should.copy_fsharp_static:
-    if not copy_fsharp_static(): success = False
+  if should.copy_backend_static:
+    if not copy_backend_static(): success = False
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -405,7 +397,7 @@ def execute(should):
     if not generate_etags(): success = False
     should.reload_browser |= success
     # This should probably cause a restart, but it breaks CI atm
-    # should.reload_server |= success
+    # should.reload_backend_server |= success
 
   if should.reload_nginx_server:
     if not reload_nginx_server(): success = False
@@ -414,12 +406,8 @@ def execute(should):
   if should.test_nginx:
     if not test_nginx(): success = False
 
-  if should.reload_server:
-    if not reload_server(): success = False
-    should.reload_browser |= success
-
-  if should.reload_fsharp_server:
-    if not reload_fsharp_server(): success = False
+  if should.reload_backend_server:
+    if not reload_backend_server(): success = False
     should.reload_browser |= success
 
   if should.reload_browser:
@@ -429,8 +417,8 @@ def execute(should):
   if should.client_test:
     if not client_test(): success = False
 
-  if should.fsharp_backend_test:
-    if not fsharp_backend_test(): success = False
+  if should.backend_test:
+    if not backend_test(): success = False
 
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
@@ -448,36 +436,36 @@ def execute(should):
 
 
 def mark(should, f):
-  if ("/fsharp-backend/src/ApiServer/Templates/" in f) and (".html" in f):
-    should.reload_fsharp_server = True
+  if ("/backend/src/ApiServer/Templates/" in f) and (".html" in f):
+    should.reload_backend_server = True
 
-  elif ("/fsharp-backend/global.json" in f or \
-        "/fsharp-backend/.config/dotnet-tools.json" in f or \
-        "/fsharp-backend/Directory.Build.props" in f):
+  elif ("/backend/global.json" in f or \
+        "/backend/.config/dotnet-tools.json" in f or \
+        "/backend/Directory.Build.props" in f):
     should.fsharp_tool_restore = True
     should.fsharp_paket_restore = True
-    should.fsharp_backend_full_build = True
+    should.backend_full_build = True
 
-  elif ("/fsharp-backend/paket.dependencies" in f):
+  elif ("/backend/paket.dependencies" in f):
     should.fsharp_paket_install = True
 
-  elif ("/fsharp-backend/" in f and "paket.references" in f):
+  elif ("/backend/" in f and "paket.references" in f):
     should.fsharp_paket_restore = True
 
-  elif ("/fsharp-backend/" in f) and \
+  elif ("/backend/" in f) and \
     (".fsproj" in f or ".sln" in f):
-    should.fsharp_backend_full_build = True
+    should.backend_full_build = True
 
-  elif ("/fsharp-backend/" in f) and \
+  elif ("/backend/" in f) and \
        ("src/Benchmark/benchmarks" not in f) and \
        (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):
     if in_ci:
-      should.fsharp_backend_full_build = True
+      should.backend_full_build = True
     else:
-      should.fsharp_backend_quick_build = True
+      should.backend_quick_build = True
 
-  elif ("/fsharp-backend/" in f) and ("/tests/" in f):
-    should.fsharp_backend_test = True
+  elif ("/backend/" in f) and ("/tests/" in f):
+    should.backend_test = True
 
   elif "run-nginx-server" in f:
     should.shellcheck += [f]
@@ -489,9 +477,9 @@ def mark(should, f):
     should.reload_nginx_server = True
     should.test_nginx = True
 
-  elif "/scripts/run-fsharp-server" in f:
+  elif "/scripts/run-backend-server" in f:
     should.shellcheck += [f]
-    should.reload_fsharp_server = True
+    should.reload_backend_server = True
     should.generate_etags = True
 
   # JS
@@ -517,8 +505,8 @@ def mark(should, f):
   elif "/client/static/" in f:
     should.copy_static = True
 
-  elif "/fsharp-backend/src/Analysis/static/" in f:
-    should.copy_fsharp_static = True
+  elif "/backend/src/Analysis/static/" in f:
+    should.copy_backend_static = True
 
   elif (".circleci/config.yml" in f):
     should.circleci_validate = True
@@ -560,14 +548,14 @@ def ignore(filename):
       "backend/serialization/",
       "backend/static/",
       "node_modules",
-      "fsharp-backend/Build",
+      "backend/Build",
       "paket-files",
       ".paket/load",
       ".bs.js",
       ".bsdeps",
       ".bsbuild",
       "/obj/fsac.cache",
-      "/fsharp-backend/packages/analysis",
+      "/backend/packages/analysis",
       ".sourcedirs.json",
       "/obj",
       ".processlock",

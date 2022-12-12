@@ -16,7 +16,7 @@
         "/consoleloggerparameters:NoSummary"
       ],
       "options": {
-        "cwd": "${workspaceFolder}/fsharp-backend"
+        "cwd": "${workspaceFolder}/backend"
       },
       "group": {
         "kind": "build",
@@ -35,7 +35,7 @@
         "tests/Tests/Tests.fsproj"
       ],
       "options": {
-        "cwd": "${workspaceFolder}/fsharp-backend"
+        "cwd": "${workspaceFolder}/backend"
       },
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -51,7 +51,7 @@
         "src/Benchmark/Benchmark.fsproj"
       ],
       "options": {
-        "cwd": "${workspaceFolder}/fsharp-backend"
+        "cwd": "${workspaceFolder}/backend"
       },
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -67,7 +67,7 @@
         "src/ApiServer/ApiServer.fsproj"
       ],
       "options": {
-        "cwd": "${workspaceFolder}/fsharp-backend"
+        "cwd": "${workspaceFolder}/backend"
       },
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -83,7 +83,7 @@
         "src/BwdServer/BwdServer.fsproj"
       ],
       "options": {
-        "cwd": "${workspaceFolder}/fsharp-backend"
+        "cwd": "${workspaceFolder}/backend"
       },
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -99,7 +99,7 @@
         "tests/FuzzTests/FuzzTests.fsproj"
       ],
       "options": {
-        "cwd": "${workspaceFolder}/fsharp-backend"
+        "cwd": "${workspaceFolder}/backend"
       },
       "group": "build",
       "problemMatcher": "$msCompile"

@@ -4,9 +4,9 @@
 
 printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fsi"
 
-#I "../../fsharp-backend"
-#I "../../fsharp-backend/.paket/"
-#I "../../fsharp-backend/Build/out"
+#I "../../backend"
+#I "../../backend/.paket/"
+#I "../../backend/Build/out"
 
 #load ".paket/load/net6.0/main.group.fsx"
 #r "Tablecloth/Debug/net6.0/Tablecloth.dll"

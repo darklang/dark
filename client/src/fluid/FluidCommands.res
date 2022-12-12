@@ -95,9 +95,10 @@ let focusItem = (i: int): AppTypes.cmd =>
     Tea_task.nativeBinding(_ => {
       open Webapi.Dom
       let container = Document.getElementById(document, "fluid-dropdown")
-      let nthChild = Webapi.Dom.document->Webapi.Dom.Document.querySelector(
-        "#fluid-dropdown ul li:nth-child(" ++ (string_of_int(i + 1) ++ ")"),
-      )
+      let nthChild =
+        Webapi.Dom.document->Webapi.Dom.Document.querySelector(
+          "#fluid-dropdown ul li:nth-child(" ++ (string_of_int(i + 1) ++ ")"),
+        )
 
       switch (container, nthChild) {
       | (Some(el), Some(li)) =>
@@ -109,11 +110,21 @@ let focusItem = (i: int): AppTypes.cmd =>
         let liTop = DomRect.top(liRect)
         let liHeight = DomRect.height(liRect)
         if liBottom +. liHeight > cBottom {
-          let offset = float_of_int(li->Webapi.Dom.Element.asHtmlElement->Option.unwrapUnsafe->Webapi.Dom.HtmlElement.offsetTop)
+          let offset = float_of_int(
+            li
+            ->Webapi.Dom.Element.asHtmlElement
+            ->Option.unwrapUnsafe
+            ->Webapi.Dom.HtmlElement.offsetTop,
+          )
           let padding = DomRect.height(cRect) -. liHeight *. 2.0
           Element.setScrollTop(el, offset -. padding)
         } else if liTop -. liHeight < cTop {
-          let offset = float_of_int(li->Webapi.Dom.Element.asHtmlElement->Option.unwrapUnsafe->Webapi.Dom.HtmlElement.offsetTop)
+          let offset = float_of_int(
+            li
+            ->Webapi.Dom.Element.asHtmlElement
+            ->Option.unwrapUnsafe
+            ->Webapi.Dom.HtmlElement.offsetTop,
+          )
           Element.setScrollTop(el, offset -. liHeight)
         } else {
           ()

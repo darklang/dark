@@ -68,16 +68,8 @@ def compile(files):
     return compile_project("all")
 
 
-def run_server():
+def run_backend_server():
   exit = compile(["scripts/run-backend-server"])
-  print("--------------------------")
-  print("-- Started server ")
-  print("--------------------------")
-  return exit
-
-
-def run_fsharp_server():
-  exit = compile(["scripts/run-fsharp-server"])
   print("--------------------------")
   print("-- Started server ")
   print("--------------------------")
@@ -149,14 +141,13 @@ def main():
         sys.exit(1)
   else:
     if should_serve:
-      run_server()
-      run_fsharp_server()
+      run_backend_server()
 
   if should_watch:
     import watchfiles
     ignored = [
         ".git", "_build", "_esy", "node_modules", "integration-tests/node_modules",
-        "backend/static", "lib", "fsharp-backend/Build"
+        "backend/static", "lib", "backend/Build"
     ]
     ignored = set(["/home/dark/app/" + f for f in ignored])
     filter = watchfiles.DefaultFilter(ignore_paths=ignored)

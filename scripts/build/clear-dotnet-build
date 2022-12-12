@@ -3,5 +3,5 @@
 
 set -uo pipefail
 
-rm -Rf fsharp-backend/Build/*
-echo "To build fsharp-backend/ from scratch, save fsharp-backend/global.json"
+rm -Rf backend/Build/*
+echo "To build backend/ from scratch, save backend/global.json"

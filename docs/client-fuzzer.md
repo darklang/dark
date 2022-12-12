@@ -3,7 +3,7 @@
 Dark has a fuzzer which creates random programs for testing the editor.
 
 (Note: this is not to be confused with the F# FuzzTests
-in `fsharp-backend/tests/FuzzTests`.)
+in `backend/tests/FuzzTests`.)
 
 The intent is to allow you to write property-based tests, and then find
 violations of those tests. For example, if you were having problems with
@@ -38,7 +38,7 @@ Some examples:
 ## How to use
 
 Write a test that will work for any input, and add it to
-`client/test/FuzzTests.ml`. See the existing examples there.
+`client/test/FuzzTests.res`. See the existing examples there.
 
 To test it, call:
 
@@ -56,7 +56,7 @@ Use `--help` to see how to control the output and what tests are run.
 ## Other info
 
 The tests generated deterministic. You can edit the constants in
-`Fluid_fuzzer.ml` to change them.
+`FluidFuzzer.res` to change them.
 
 Fuzz testing is a work in progress, and you'll probably have to talk to Paul
 to get it to work for you.

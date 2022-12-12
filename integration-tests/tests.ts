@@ -173,7 +173,7 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   // ------------------------
-  // Tests below here. Don't forget to update client/src/IntegrationTest.ml
+  // Tests below here. Don't forget to update client/src/IntegrationTest.res
   // ------------------------
 
   test("switching_from_http_to_cron_space_removes_leading_slash", async ({
@@ -882,7 +882,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".id-753586717");
     // Ensure the anaysis has completed
     await expectContainsText(page, ".live-value.loaded", expected);
-    // test logic in IntegrationTest.ml; we load it here because we need an
+    // test logic in IntegrationTest.res; we load it here because we need an
     // analysis done before we can call the command
   });
 
@@ -892,7 +892,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     await page.type("#active-editor", "request.body");
     await page.click("#app", { position: { x: 500, y: 50 } }); // click away from fluid
-    // validate AST in IntegrationTest.ml
+    // validate AST in IntegrationTest.res
 
     // CLEANUP: there's a log that shouldn't happen here
     clearMessages(testInfo);
@@ -987,7 +987,7 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("function_docstrings_are_valid", async ({}) => {
-    // validate functions in IntegrationTest.ml
+    // validate functions in IntegrationTest.res
   });
 
   test("unexe_code_unfades_on_focus", async ({ page }) => {

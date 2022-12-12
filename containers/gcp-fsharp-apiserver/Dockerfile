@@ -4,7 +4,7 @@ FROM dark-fsharp-service:latest
 
 WORKDIR /home/dark
 
-COPY --chown=dark:dark fsharp-backend/src/ApiServer/Templates templates
+COPY --chown=dark:dark backend/src/ApiServer/Templates templates
 COPY --chown=dark:dark scripts scripts
 
 RUN mkdir -p webroot/static
@@ -16,7 +16,7 @@ RUN mkdir app
 ENV DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
 RUN ./scripts/devcontainer/_create-app-directories
 
-COPY --chown=dark:dark fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/* app/
+COPY --chown=dark:dark backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/* app/
 RUN ./scripts/linting/_check-linked-libs app/ApiServer
 
 CMD ./app/ApiServer

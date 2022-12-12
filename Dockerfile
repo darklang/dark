@@ -489,7 +489,7 @@ RUN mkdir -p app/_esy
 RUN mkdir -p .esy
 RUN mkdir -p app/node_modules
 RUN mkdir -p app/lib
-RUN mkdir -p app/fsharp-backend/Build
+RUN mkdir -p app/backend/Build
 
 RUN mkdir -p \
       /home/dark/.vscode-server/extensions \

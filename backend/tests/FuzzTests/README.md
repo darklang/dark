@@ -19,7 +19,7 @@ and encode properties that we expect to be true.
 
 [Expecto](https://github.com/haf/expecto) is used to run tests.
 
-You can trigger test runs by running `./scripts/run-fsharp-fuzzer` within the
+You can trigger test runs by running `./scripts/run-backend-fuzzer` within the
 dev container
 
 (View the project's root `README.md` for details on how to run within the dev

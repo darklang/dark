@@ -52,7 +52,6 @@ commands:
       - run: rm -Rf /home/dark/app/*
       - checkout
 
-
   ##########################
   # Setup app
   ##########################
@@ -89,9 +88,6 @@ commands:
       - run:
           name: Remove deploy lock
           command: ./scripts/deployment/deploy-lock-one-remove
-
-
-
 
   ##########################
   # Slack
@@ -133,7 +129,6 @@ commands:
       - slack-notify-success:
           buildType: "build"
 
-
   ##########################
   # etags
   ##########################
@@ -146,7 +141,6 @@ commands:
             cat backend/static/etags.json
             scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
-
 
   ##########################
   # Initializing the containers
@@ -200,8 +194,6 @@ commands:
               ./scripts/production/gcp-authorize-kubectl
             fi
 
-
-
 ##########################
 # Actual workflow
 ##########################
@@ -234,7 +226,7 @@ jobs:
       - deploy-lock-remove-on-fail
 
   # Build server binaries and run tests (but not blazor, which is separated out for build speed)
-  build-fsharp-backend:
+  build-backend:
     executor: in-container
     resource_class: xlarge
     steps:
@@ -250,10 +242,10 @@ jobs:
       #- run: git restore-mtime
       - setup-app
       # The date is used to get a fresh cache each week
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v15-fsharp-backend-{{ checksum "../checksum" }}
+            - v1-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -263,31 +255,31 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
-      - run: scripts/run-fsharp-tests --published
+      - run: scripts/run-backend-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
       - show-large-files-and-directories
       - save_cache:
           paths:
-            - fsharp-backend/Build/obj
+            - backend/Build/obj
             - /home/dark/.nuget
-          key: v15-fsharp-backend-{{ checksum "../checksum" }}
+          key: v1-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
   # We build blazor in parallel with server binaries
-  build-fsharp-blazor:
+  build-blazor:
     executor: in-container
     resource_class: xlarge
     steps:
@@ -299,17 +291,17 @@ jobs:
       - run: git restore-mtime
       - setup-app
       # The date is used to get a fresh cache each week
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v5-fsharp-blazor-{{ checksum "../checksum" }}
+            - v1-blazor-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Analysis/Analysis.fsproj
-      - run: cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/
-      - run: rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
+      - run: cp -f backend/src/Analysis/static/BlazorWorker.js backend/static/
+      - run: rsync -a backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
       - persist_to_workspace:
           root: "."
@@ -319,14 +311,12 @@ jobs:
       - show-large-files-and-directories
       - save_cache:
           paths:
-            - fsharp-backend/Build/obj
+            - backend/Build/obj
             - /home/dark/.nuget
-          key: v5-fsharp-blazor-{{ checksum "../checksum" }}
+          key: v1-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
-
-
 
   static-checks:
     executor: in-container
@@ -378,7 +368,7 @@ jobs:
           name: Run integration tests
           command: |
             # Run the server first to set up the DB correctly for the prep script
-            scripts/run-fsharp-server --published
+            scripts/run-backend-server --published
             # Wait for users to be added so prep.sh works
             ./scripts/devcontainer/_wait-until-apiserver-ready
             integration-tests/run.sh --concurrency=8 --retry --published
@@ -389,11 +379,14 @@ jobs:
       - store_test_results: { path: rundir/test_results }
       - save_cache:
           name: "Save packagejson-specific cache"
-          paths: ["integration-tests/node_modules", "/home/dark/.cache/ms-playwright"]
+          paths:
+            [
+              "integration-tests/node_modules",
+              "/home/dark/.cache/ms-playwright",
+            ]
           key: v2-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
-
 
   gcp-containers-test:
     executor: in-container
@@ -480,15 +473,15 @@ workflows:
               ignore: /^(pull\/).*$/
       - validate-honeycomb-config
       - build-client
-      - build-fsharp-backend
-      - build-fsharp-blazor
+      - build-backend
+      - build-blazor
 
       # expensive tests
       - integration-tests:
           requires:
             - build-client
-            - build-fsharp-blazor
-            - build-fsharp-backend
+            - build-blazor
+            - build-backend
 
       - gcp-containers-test:
           # This is fully covered by push-assets-to-gcp, so no need to do it twice
@@ -497,8 +490,8 @@ workflows:
               ignore: main
           requires:
             - build-client # to rebuild etags
-            - build-fsharp-backend
-            - build-fsharp-blazor # etags
+            - build-backend
+            - build-blazor # etags
 
       # pre-deploy, in parallel with integration-tests
       - push-assets-to-gcp:
@@ -506,8 +499,8 @@ workflows:
             branches:
               only: main
           requires:
-            - build-fsharp-blazor
-            - build-fsharp-backend
+            - build-blazor
+            - build-backend
             - build-client
 
       # pre-deploy, in parallel with integration-tests
@@ -516,9 +509,9 @@ workflows:
             branches:
               only: main
           requires:
-            - build-fsharp-backend
+            - build-backend
             # CLEANUP: need this because of etags, should be able to remove it
-            - build-fsharp-blazor
+            - build-blazor
             - build-client
 
       # actual deploy
@@ -546,8 +539,8 @@ workflows:
               ignore: main
           requires:
             - build-client
-            - build-fsharp-backend
-            - build-fsharp-blazor
+            - build-backend
+            - build-blazor
             - gcp-containers-test
             - integration-tests
             - static-checks
