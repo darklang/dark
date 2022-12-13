@@ -411,8 +411,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | DBool false -> return DBool false
         | right when Dval.isFake right -> return right
         | _ -> return DError(sourceID id, "|| only supports Booleans")
-      | left when Dval.isFake left -> return left
-      | _ -> return DError(sourceID id, "|| only supports Booleans")
+      | left when Dval.isFake left ->
+        do! preview st right
+        return left
+      | _ ->
+        do! preview st right
+        return DError(sourceID id, "|| only supports Booleans")
 
 
     | EAnd (id, left, right) ->
@@ -426,8 +430,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | DBool false -> return DBool false
         | right when Dval.isFake right -> return right
         | _ -> return DError(sourceID id, "&& only supports Booleans")
-      | left when Dval.isFake left -> return left
-      | _ -> return DError(sourceID id, "&& only supports Booleans")
+      | left when Dval.isFake left ->
+        do! preview st right
+        return left
+      | _ ->
+        do! preview st right
+        return DError(sourceID id, "&& only supports Booleans")
 
 
     | EConstructor (id, name, args) ->
