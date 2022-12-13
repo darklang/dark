@@ -60,14 +60,14 @@ let setInviter = (state: t, username: string, name: string): t => {
   inviter: {username: username, name: name},
 }
 
-@val @scope("window") @scope("Dark") external validateEmail: string => bool = "validateEmail"
+@module("validator") external validator: string => bool = "isEmail"
 
 let validateEmail = (email: Utils.formField): Utils.formField => {
   let error = {
     let emailVal = email.value
     if String.length(emailVal) == 0 {
       Some("Field Required")
-    } else if !validateEmail(emailVal) {
+    } else if !validator(emailVal) {
       Some("Invalid Email")
     } else {
       None
