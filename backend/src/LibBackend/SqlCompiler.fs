@@ -105,7 +105,7 @@ let escapeFieldname (str : string) : string =
 //      value.age < 5
 //
 //  The main purpose of inlining is to get `value.fieldname` inlined. Other
-//  expressions are handled by a later partial_evaluation pass (which relies on
+//  expressions are handled by a later partialEvaluation pass (which relies on
 //  this pass having run first).
 //
 //  We need to inline value.fieldname because it can't be computed at
@@ -354,8 +354,14 @@ let partiallyEvaluate
         | EFieldAccess (_, ERecord _, _) ->
           // inlining can create these situations
           return! exec expr
-        | EAnd (_, EBool _, EBool _) -> return! exec expr
-        | EOr (_, EBool _, EBool _) -> return! exec expr
+        | EAnd (_, EBool _, EVariable _)
+        | EAnd (_, EBool _, EBool _)
+        | EAnd (_, EVariable _, EVariable _)
+        | EAnd (_, EVariable _, EBool _)
+        | EOr (_, EBool _, EVariable _)
+        | EOr (_, EBool _, EBool _)
+        | EOr (_, EVariable _, EVariable _)
+        | EOr (_, EVariable _, EBool _) -> return! exec expr
         | EApply (_, EFQFnValue (_, name), args, _, _) when
           // functions that are fully specified
           List.all

@@ -128,6 +128,68 @@ let inlineWorksWithNested =
     Expect.equalExprIgnoringIDs result expected
   }
 
+let partialEvaluation =
+  testManyTask
+    "partialEvaluate"
+    (fun (expr, vars) ->
+      task {
+        let! meta = createTestCanvas (Randomized "sqlcompiler")
+        let! state = executionStateFor meta Map.empty Map.empty
+        let expr = FSharpToExpr.parseRTExpr expr
+        let result = C.partiallyEvaluate state "x" (Map vars) expr
+        let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
+        match result with
+        | EVariable (_, name) -> return (Map.find name dvals)
+        | _ ->
+          Expect.isTrue false "didn't match"
+          return DNull
+      })
+    [ (("false && false", []), DBool false)
+      (("false && true", []), DBool false)
+      (("true && false", []), DBool false)
+      (("true && true", []), DBool true)
+      (("false && myVar", [ "myVar", DBool false ]), DBool false)
+      (("false && myVar", [ "myVar", DBool true ]), DBool false)
+      (("true && myVar", [ "myVar", DBool false ]), DBool false)
+      (("true && myVar", [ "myVar", DBool true ]), DBool true)
+      (("myVar && false", [ "myVar", DBool false ]), DBool false)
+      (("myVar && true", [ "myVar", DBool false ]), DBool false)
+      (("myVar && true", [ "myVar", DBool true ]), DBool true)
+      (("myVar && true", [ "myVar", DBool true ]), DBool true)
+      (("myVar && myVar2", [ "myVar", DBool false; "myVar2", DBool false ]),
+       DBool false)
+      (("myVar && myVar2", [ "myVar", DBool false; "myVar2", DBool true ]),
+       DBool false)
+      (("myVar && myVar2", [ "myVar", DBool true; "myVar2", DBool false ]),
+       DBool false)
+      (("myVar && myVar2", [ "myVar", DBool true; "myVar2", DBool true ]), DBool true)
+
+      // same as above but for ||
+      (("false || false", []), DBool false)
+      (("false || true", []), DBool true)
+      (("true || false", []), DBool true)
+      (("true || true", []), DBool true)
+      (("false || myVar", [ "myVar", DBool false ]), DBool false)
+      (("false || myVar", [ "myVar", DBool true ]), DBool true)
+      (("true || myVar", [ "myVar", DBool false ]), DBool true)
+      (("true || myVar", [ "myVar", DBool true ]), DBool true)
+      (("myVar || false", [ "myVar", DBool false ]), DBool false)
+      (("myVar || true", [ "myVar", DBool false ]), DBool true)
+      (("myVar || true", [ "myVar", DBool true ]), DBool true)
+      (("myVar || true", [ "myVar", DBool true ]), DBool true)
+      (("myVar || myVar2", [ "myVar", DBool false; "myVar2", DBool false ]),
+       DBool false)
+      (("myVar || myVar2", [ "myVar", DBool false; "myVar2", DBool true ]),
+       DBool true)
+      (("myVar || myVar2", [ "myVar", DBool true; "myVar2", DBool false ]),
+       DBool true)
+      (("myVar || myVar2", [ "myVar", DBool true; "myVar2", DBool true ]), DBool true)
+
+
+      ]
+
 
 let tests =
-  testList "SqlCompiler" [ inlineWorksAtRoot; inlineWorksWithNested; compileTests ]
+  testList
+    "SqlCompiler"
+    [ inlineWorksAtRoot; inlineWorksWithNested; partialEvaluation; compileTests ]
