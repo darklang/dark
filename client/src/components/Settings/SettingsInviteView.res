@@ -11,9 +11,11 @@ module T = SettingsInvite
 
 module C = SettingsViewComponents
 
+let tw = Attrs.class
+
 let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
-    Html.h2(list{}, list{Html.text("Share Dark with a friend or colleague")}),
+    C.sectionHeading("Share Dark with a friend or colleague", None),
     Html.p(
       list{},
       list{
@@ -22,14 +24,12 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
         ),
       },
     ),
-    Html.p(
-      list{},
-      list{
-        Html.text(
-          "Note: This will not add them to any of your existing organizations or canvases.",
-        ),
-      },
-    ),
+  }
+
+  let note = list{
+    C.sectionIntroText(list{
+      Html.text("Note: This will not add them to any of your existing organizations or canvases."),
+    }),
   }
 
   let inviteform = {
@@ -37,14 +37,14 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
       let btn = if state.loading {
         list{
           Icons.fontAwesome("spinner"),
-          Html.h3(list{Attrs.class(%twc("m-0 pl-2.5"))}, list{Html.text("Loading")}),
+          Html.h4(list{tw(%twc("m-0 pl-2.5"))}, list{Html.text("Sending")}),
         }
       } else {
-        list{Html.h3(list{Attrs.class(%twc("m-0"))}, list{Html.text("Send invite")})}
+        list{Html.h4(list{tw(%twc("m-0"))}, list{Html.text("Invite")})}
       }
 
       C.submitBtn(
-        ~style="ml-2",
+        ~style="",
         Html.Attributes.disabled(state.loading),
         EventListeners.eventNoPropagation(
           ~key="close-settings-modal",
@@ -54,40 +54,34 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
         btn,
       )
     }
+
+    let field = Html.div(
+      list{},
+      list{
+        C.input(
+          ~loadStatus=LoadStatus.Success(""),
+          ~style="ml-1 w-80",
+          ~attrs=list{
+            Attrs.spellcheck(false),
+            Events.onInput(str => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(T.Update(str)))),
+            Attrs.value(state.email.value),
+          },
+          "",
+        ),
+        C.errorSpan(state.email.error |> Option.unwrap(~default="")),
+      },
+    )
+
     list{
       Html.div(
-        list{Attrs.class(%twc("flex items-center justify-center flex-col"))},
+        list{tw(%twc("flex items-baseline justify-center my-2"))},
         list{
-          Html.div(
-            list{
-              Attrs.class(
-                %twc("flex items-baseline justify-around w-full max-w-lg mt-6 flex-wrap"),
-              ),
-            },
-            list{
-              Html.h3(list{Attrs.class(%twc("m-0"))}, list{Html.text("Email:")}),
-              Html.div(
-                list{},
-                list{
-                  C.emailInput(
-                    ~style="",
-                    ~attrs=list{
-                      Attrs.spellcheck(false),
-                      Events.onInput(str => AppTypes.Msg.SettingsMsg(
-                        Settings.InviteMsg(T.Update(str)),
-                      )),
-                      Attrs.value(state.email.value),
-                    },
-                  ),
-                  C.errorSpan(state.email.error |> Option.unwrap(~default="")),
-                },
-              ),
-            },
-          ),
+          Html.p(list{tw(%twc("text-base mr-3 font-semibold"))}, list{Html.text("Email:")}),
+          field,
           submitBtn,
         },
       ),
     }
   }
-  Belt.List.concat(introText, inviteform)
+  Belt.List.concatMany([introText, inviteform, note])
 }
