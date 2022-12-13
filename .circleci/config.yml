@@ -294,7 +294,7 @@ jobs:
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v1-blazor-{{ checksum "../checksum" }}
+            - v2-blazor-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
@@ -313,7 +313,7 @@ jobs:
           paths:
             - backend/Build/obj
             - /home/dark/.nuget
-          key: v1-blazor-{{ checksum "../checksum" }}
+          key: v2-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
