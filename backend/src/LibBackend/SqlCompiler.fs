@@ -347,22 +347,28 @@ let partiallyEvaluate
 
     let f (expr : Expr) : Ply.Ply<Expr> =
       uply {
-        // We list any construction that we think is safe to evaluate
+        // We list any construction that we think is safe to evaluate in now in the
+        // interpreter instead of in the DB. Anything immutable should be good,
+        // including literals and variables with known values (so not `paramName`)
         match expr with
         | EFieldAccess (_, EVariable (_, name), _) when name <> paramName ->
           return! exec expr
         | EFieldAccess (_, ERecord _, _) ->
           // inlining can create these situations
           return! exec expr
-        | EAnd (_, EBool _, EVariable _)
         | EAnd (_, EBool _, EBool _)
-        | EAnd (_, EVariable _, EVariable _)
-        | EAnd (_, EVariable _, EBool _)
-        | EOr (_, EBool _, EVariable _)
-        | EOr (_, EBool _, EBool _)
-        | EOr (_, EVariable _, EVariable _)
-        | EOr (_, EVariable _, EBool _) -> return! exec expr
-        | EApply (_, EFQFnValue (_, name), args, _, _) when
+        | EOr (_, EBool _, EBool _) -> return! exec expr
+        | EAnd (_, EBool _, EVariable (_, name))
+        | EAnd (_, EVariable (_, name), EBool _)
+        | EOr (_, EBool _, EVariable (_, name))
+        | EOr (_, EVariable (_, name), EBool _) when name <> paramName ->
+          return! exec expr
+        | EOr (_, EVariable (_, name1), EVariable (_, name2))
+        | EAnd (_, EVariable (_, name1), EVariable (_, name2)) when
+          name1 <> paramName && name2 <> paramName
+          ->
+          return! exec expr
+        | EApply (_, EFQFnValue _, args, _, _) when
           // functions that are fully specified
           List.all
             (fun expr ->
