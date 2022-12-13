@@ -120,7 +120,9 @@ module RuntimeTypes =
         RT.EBool(81273UL, false),
         RT.EString(1283UL, "true"),
         RT.EString(18329472UL, "false")
-      ) ]
+      )
+      RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
+      RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false)) ]
 
   let dvalSources : List<RT.DvalSource> =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
@@ -416,7 +418,17 @@ module ProgramTypes =
                                   883434UL,
                                   "tuples",
                                   PT.ETuple(72333UL, e, e, [ e ]),
-                                  e
+                                  PT.ELet(
+                                    47462UL,
+                                    "binopAnd",
+                                    PT.EInfix(
+                                      234234UL,
+                                      PT.BinOp(PT.BinOpAnd),
+                                      PT.EBool(234234UL, true),
+                                      PT.EBool(234234UL, false)
+                                    ),
+                                    e
+                                  )
                                 )
                               )
                             )
