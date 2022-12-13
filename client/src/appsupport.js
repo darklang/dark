@@ -483,17 +483,6 @@ function addWheelListener(elem) {
   return listener(elem);
 }
 
-// ---------------------------
-// Validation
-// ---------------------------
-
-var validator = require("validator");
-
-function validateEmail(email) {
-  return validator.isEmail(email);
-}
-window.Dark.validateEmail = validateEmail;
-
 var moment = require("moment");
 
 function formatDate([date, format]) {
