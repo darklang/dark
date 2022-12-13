@@ -215,11 +215,19 @@ let testInfixProgramTypesToSerializedTypes =
         PT.EInteger(9UL, 6),
         PT.EInteger(10UL, 6)
        ),
-       ST.EInfix(
+       // CLEANUP: when all the servers are deployed with the new format, we can switch the translation
+       //  ST.EInfix(
+       //    8UL,
+       //    ST.InfixFnCall({ module_ = None; function_ = "+" }, ST.NoRail),
+       //    ST.EInteger(9UL, 6),
+       //    ST.EInteger(10UL, 6)
+       //  ))
+       ST.EDeprecatedBinOp(
          8UL,
-         ST.InfixFnCall({ module_ = None; function_ = "+" }, ST.NoRail),
+         ST.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 },
          ST.EInteger(9UL, 6),
-         ST.EInteger(10UL, 6)
+         ST.EInteger(10UL, 6),
+         ST.NoRail
        ))
       (PT.EInfix(
         8UL,
@@ -227,13 +235,20 @@ let testInfixProgramTypesToSerializedTypes =
         PT.EInteger(9UL, 6),
         PT.EInteger(10UL, 6)
        ),
-       ST.EInfix(
+       ST.EDeprecatedBinOp(
          8UL,
-         ST.InfixFnCall({ module_ = Some("Date"); function_ = "<" }, ST.NoRail),
+         ST.FQFnName.Stdlib { module_ = "Date"; function_ = "<"; version = 0 },
          ST.EInteger(9UL, 6),
-         ST.EInteger(10UL, 6)
+         ST.EInteger(10UL, 6),
+         ST.NoRail
        )) ]
-
+// CLEANUP: when all the servers are deployed with the new format, we can switch the translation
+//  ST.EInfix(
+//    8UL,
+//    ST.InfixFnCall({ module_ = Some("Date"); function_ = "<" }, ST.NoRail),
+//    ST.EInteger(9UL, 6),
+//    ST.EInteger(10UL, 6)
+//  )) ]
 /// We have functions that were written as user functions, but accidentally
 /// converted to StdLibFns before being saved to the DB
 let testVersionedSerializedTypesToProgramTypes =
