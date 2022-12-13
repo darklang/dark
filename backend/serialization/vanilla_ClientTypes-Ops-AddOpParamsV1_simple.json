@@ -636,9 +636,34 @@
                                         ]
                                       ],
                                       [
-                                        "EInteger",
-                                        34545,
-                                        5
+                                        "ELet",
+                                        47462,
+                                        "binopAnd",
+                                        [
+                                          "EInfix",
+                                          234234,
+                                          [
+                                            "BinOp",
+                                            [
+                                              "BinOpAnd"
+                                            ]
+                                          ],
+                                          [
+                                            "EBool",
+                                            234234,
+                                            true
+                                          ],
+                                          [
+                                            "EBool",
+                                            234234,
+                                            false
+                                          ]
+                                        ],
+                                        [
+                                          "EInteger",
+                                          34545,
+                                          5
+                                        ]
                                       ]
                                     ]
                                   ]
@@ -1821,9 +1846,34 @@
                                         ]
                                       ],
                                       [
-                                        "EInteger",
-                                        34545,
-                                        5
+                                        "ELet",
+                                        47462,
+                                        "binopAnd",
+                                        [
+                                          "EInfix",
+                                          234234,
+                                          [
+                                            "BinOp",
+                                            [
+                                              "BinOpAnd"
+                                            ]
+                                          ],
+                                          [
+                                            "EBool",
+                                            234234,
+                                            true
+                                          ],
+                                          [
+                                            "EBool",
+                                            234234,
+                                            false
+                                          ]
+                                        ],
+                                        [
+                                          "EInteger",
+                                          34545,
+                                          5
+                                        ]
                                       ]
                                     ]
                                   ]
@@ -2489,9 +2539,34 @@
                                       ]
                                     ],
                                     [
-                                      "EInteger",
-                                      34545,
-                                      5
+                                      "ELet",
+                                      47462,
+                                      "binopAnd",
+                                      [
+                                        "EInfix",
+                                        234234,
+                                        [
+                                          "BinOp",
+                                          [
+                                            "BinOpAnd"
+                                          ]
+                                        ],
+                                        [
+                                          "EBool",
+                                          234234,
+                                          true
+                                        ],
+                                        [
+                                          "EBool",
+                                          234234,
+                                          false
+                                        ]
+                                      ],
+                                      [
+                                        "EInteger",
+                                        34545,
+                                        5
+                                      ]
                                     ]
                                   ]
                                 ]
