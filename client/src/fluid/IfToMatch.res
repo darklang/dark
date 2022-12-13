@@ -26,7 +26,7 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
     module_: None,
   }
 
-  let makEInfixMatch = (ifID, binopID, lhs, rhs, rail, then_, else_) => {
+  let makeInfixMatch = (ifID, binopID, lhs, rhs, rail, then_, else_) => {
     // We need to make sure that whichever side we choose for the match condition,
     // we should be able to turn the other side into a pattern. So we try to make smart
     // decision whether to choose the lhs or rhs here. We default to the eft hand side,
@@ -89,14 +89,14 @@ let refactor = (_: AppTypes.model, tl: toplevel, id: id): AppTypes.modification 
         then_,
         else_,
       ) =>
-      Some(makEInfixMatch(ifID, binopID, lhs, rhs, rail, then_, else_))
+      Some(makeInfixMatch(ifID, binopID, lhs, rhs, rail, then_, else_))
     | E.EIf(
         ifID,
         EInfix(binopID, InfixFnCall({module_: None, function: "!="}, rail), lhs, rhs),
         then_,
         else_,
       ) =>
-      Some(makEInfixMatch(ifID, binopID, lhs, rhs, rail, else_, then_))
+      Some(makeInfixMatch(ifID, binopID, lhs, rhs, rail, else_, then_))
     | E.EIf(ifID, cond, then_, else_) => Some(makeGenericMatch(ifID, cond, then_, else_))
     | _ => None
     }
