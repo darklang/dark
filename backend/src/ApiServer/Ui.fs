@@ -155,7 +155,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
       ctx.GetQueryStringValue "integration-test" |> Option.isSome
 
     if integrationTests && Config.allowTestRoutes then
-      do! LibBackend.Canvas.loadAndResaveFromTestFile canvasInfo
+      do! IntegrationTests.loadAndResaveFromTestFile canvasInfo
 
     // CLEANUP this results in 2 DB queries, but could be reduced to 1
     let! canAccessOperations =
