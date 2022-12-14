@@ -99,6 +99,9 @@
     "type=volume,src=pglogs,dst=/var/log/postgresql",
     "type=volume,src=pgdata,dst=/var/lib/postgresql",
 
+    // Cloud storage
+    "type=volume,src=cloudstorage,dst=/home/dark/cloud-storage",
+
     // VSCode extensions
     "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
     "type=volume,src=darklang-dark-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"
