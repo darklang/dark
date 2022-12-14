@@ -325,6 +325,7 @@ RUN /home/dark/install-targz-file \
 ############################
 # Google cloud
 ############################
+# Cloud SQL proxy
 RUN /home/dark/install-exe-file \
   --arm64-sha256=834ecd08f54960ee88121ab70b05002bcfb99cd08a63bcd7a1a952c53e30a3ca \
   --amd64-sha256=fb66afb1cb8ee730314088eb7b299398bda6c0434b9b383b27a26b8951e775c5 \
@@ -334,8 +335,13 @@ RUN /home/dark/install-exe-file \
 # PubSub
 ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
 
-# Cloud Storage emulator
-RUN go install github.com/fullstorydev/emulators/storage/cmd/gcsemulator@latest
+# GCS emulator
+RUN /home/dark/install-targz-file \
+  --arm64-sha256=74b5d65027b19167854705f273c32b1b295e9ea0c7c03f9cb421e53c99ed3ef5 \
+  --amd64-sha256=c38b83b813d15f554003b5c7823174ee23f3097ac977f7267a2cdc8b479524d3 \
+  --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.42.2/fake-gcs-server_1.42.2_Linux_${TARGETARCH}.tar.gz\
+  --extract-file=fake-gcs-server \
+  --target=/usr/bin/fake-gcs-server
 
 # GKE
 ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
