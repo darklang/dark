@@ -166,12 +166,20 @@ let rollbarCtxToMetadata (ctx : HttpContext) : (Rollbar.Person * Metadata) =
       loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
     with
     | _ -> None
+
   let canvas =
     try
       string (loadCanvasInfo ctx).name
     with
     | _ -> null
-  (person, [ "canvas", canvas ])
+
+  let clientVersion =
+    try
+      string ctx.Request.Headers["x-darklang-client-version"]
+    with
+    | _ -> null
+
+  (person, [ "canvas", canvas; "clientVersion", clientVersion ])
 
 let configureApp (packages : Packages) (appBuilder : WebApplication) =
   appBuilder
