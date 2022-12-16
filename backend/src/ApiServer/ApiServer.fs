@@ -175,12 +175,11 @@ let rollbarCtxToMetadata (ctx : HttpContext) : (Rollbar.Person * Metadata) =
 
   let clientVersion =
     try
-      string ctx.Request.Headers["x-darklang-client-version"]
-      |> String.take 7
+      string ctx.Request.Headers["x-darklang-client-version"] |> String.take 7
     with
     | _ -> null
 
-  (person, [ "canvas", canvas; "clientVersion", clientVersion ])
+  (person, [ "canvas", canvas; "client_version", clientVersion ])
 
 let configureApp (packages : Packages) (appBuilder : WebApplication) =
   appBuilder
