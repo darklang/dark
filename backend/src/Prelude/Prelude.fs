@@ -351,6 +351,7 @@ let rec printException'
   (e : exn)
   : unit =
   print $"{prefix}: error: {e.Message}"
+  printMetadata prefix metadata
   printMetadata prefix (Exception.toMetadata e)
   print $"{prefix}: exceptionType: {e.GetType()}"
   print $"{prefix}: {e.StackTrace}"
