@@ -146,8 +146,8 @@ let storeTraceTLIDs
   let tlids = tlids |> set |> Set.toList
   Sql.query
     "INSERT INTO traces_v0
-     (id, canvas_id, tlids)
-     VALUES (@canvasID, @traceID, UNNEST(@tlids::uuid[]))"
+     (canvas_id, trace_id, tlid)
+     VALUES (@canvasID, @traceID, UNNEST(@tlids::bigint[]))"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "traceID", Sql.uuid traceID
                       "tlids", Sql.idArray tlids ]
