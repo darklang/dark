@@ -105,5 +105,11 @@ module AllTraces =
         |> Task.flatten
         |> Task.map List.concat
 
-      return { traces = hTraces @ ufTraces }
+      t.next "fetch-storage-traces"
+      let tlids = Map.keys c.userFunctions @ Map.keys c.handlers
+      let! storageTraces =
+        LibBackend.TraceCloudStorage.listMostRecentTraceIDsForTLIDs c.meta.id tlids
+
+      t.next "write-api"
+      return { traces = storageTraces @ hTraces @ ufTraces }
     }

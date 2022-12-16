@@ -8,6 +8,7 @@ traces_v0
 ( canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
 , trace_id UUID NOT NULL
+, timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 -- allows looking up handler by trace
 , PRIMARY KEY (canvas_id, tlid, trace_id)
 );
@@ -22,4 +23,4 @@ ON traces_v0
 CREATE INDEX
 idx_traces_tlids
 ON traces_v0
-(canvas_id, tlid)
+(canvas_id, tlid, timestamp DESC)

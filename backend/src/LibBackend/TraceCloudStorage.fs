@@ -123,20 +123,23 @@ let client =
     })
 
 
-// Require TLIDs rather than having unbounded search
-let listMostRecentTraceIDs
+let listMostRecentTraceIDsForTLIDs
   (canvasID : CanvasID)
-  (tlid : tlid)
-  : Task<List<AT.TraceID>> =
+  (tlids : list<tlid>)
+  : Task<List<tlid * AT.TraceID>> =
   Sql.query
-    "SELECT trace_id
+    "SELECT tlid, trace_id
+     FROM (
+       SELECT
+         tlid, trace_id,
+         ROW_NUMBER() OVER (PARTITION BY tlid ORDER BY timestamp DESC) as row_num
        FROM traces_v0
-      WHERE canvas_id = @canvasID
-        AND tlid = @tlid
-   ORDER BY timestamp DESC
-      LIMIT 10"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.tlid tlid ]
-  |> Sql.executeAsync (fun read -> read.uuid "trace_id")
+       WHERE tlid = ANY(@tlids::bigint[])
+         AND canvas_id = @canvasID
+     ) t
+     WHERE row_num <= 10"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+  |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.uuid "trace_id"))
 
 let storeTraceTLIDs
   (canvasID : CanvasID)
@@ -146,8 +149,8 @@ let storeTraceTLIDs
   let tlids = tlids |> set |> Set.toList
   Sql.query
     "INSERT INTO traces_v0
-     (canvas_id, trace_id, tlid)
-     VALUES (@canvasID, @traceID, UNNEST(@tlids::bigint[]))"
+     (canvas_id, trace_id, tlid, timestamp)
+     VALUES (@canvasID, @traceID, UNNEST(@tlids::bigint[]), CURRENT_TIMESTAMP)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "traceID", Sql.uuid traceID
                       "tlids", Sql.idArray tlids ]
