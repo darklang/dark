@@ -50,7 +50,8 @@ let main _ : int =
 
     // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.croncheckerKubernetesPort
-    LibService.Kubernetes.runKubernetesServer name [] port shutdownCallback
+    let healthchecks = []
+    LibService.Kubernetes.runKubernetesServer name healthchecks port shutdownCallback
     |> ignore<Task>
 
     if LibBackend.Config.triggerCrons then

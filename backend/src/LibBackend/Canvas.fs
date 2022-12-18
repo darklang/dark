@@ -695,6 +695,50 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //   save_json_to_disk ~root:Testdata file c.ops ;
 //   file
 
+type HealthCheckResult =
+  Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult
+
+/// Check a set of known hosts to ensure that the serializer works before starting up
+let loadHostsHealthCheck
+  (_ : System.Threading.CancellationToken)
+  : Task<HealthCheckResult> =
+  task {
+    let healthy = HealthCheckResult.Healthy()
+    try
+      let! results =
+        Config.serializationHealthCheckHosts
+        |> String.split ","
+        |> List.map CanvasName.createExn
+        |> Task.mapInParallel (fun hostname ->
+          task {
+            try
+              let! meta = getMetaExn hostname
+              let _canvas =
+                Serialize.loadOplists Serialize.IncludeDeletedToplevels meta.id
+              return healthy
+            with
+            | _ ->
+              return
+                HealthCheckResult.Unhealthy(
+                  $"error loading canvas host healthcheck probe on {hostname}"
+                )
+          })
+      return
+        results
+        |> List.fold healthy (fun prev current ->
+          if prev = healthy && current = healthy then healthy else current)
+
+    with
+    | _ ->
+      return
+        HealthCheckResult.Unhealthy("error running Canvas host healthcheck probe")
+  }
+
+let healthCheck : LibService.Kubernetes.HealthCheck =
+  { name = "canvas"
+    checkFn = loadHostsHealthCheck
+    probeTypes = [ LibService.Kubernetes.Startup ] }
+
 
 let toProgram (c : T) : RT.ProgramContext =
 
