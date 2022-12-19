@@ -62,6 +62,8 @@ module LibBackend.TraceCloudStorage
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open System.IO
+open System.IO.Compression
 
 open Npgsql.FSharp
 open Npgsql
@@ -165,11 +167,26 @@ let storeTraceTLIDs
 let getTraceData (canvasID : CanvasID) (traceID : AT.TraceID) : Task<AT.Trace> =
   task {
     let! client = client.Force()
-    let ms = new System.IO.MemoryStream()
-    do! client.DownloadObjectAsync(bucketName, $"{canvasID}/{traceID}/0", ms)
+    let name = $"{canvasID}/{traceID}/0"
 
+    // Download compressed data
+    use compressedStream = new MemoryStream()
+    do! client.DownloadObjectAsync(bucketName, name, compressedStream)
+    do! compressedStream.FlushAsync()
+    compressedStream.Position <- 0L
+
+    // Decompress - BrotliStream takes the compressed stream as its input, so the
+    // data needs to be available and we can't stream through it (that is, we need
+    // the separate compressedStream, which we don't need on upload)
+    use brotliStream = new BrotliStream(compressedStream, CompressionMode.Decompress)
+    use outputStream = new MemoryStream()
+    do! brotliStream.CopyToAsync(outputStream)
+    do! brotliStream.FlushAsync()
+    do! outputStream.FlushAsync()
+
+    // Deserialize
     let cloudStorageData =
-      ms.ToArray()
+      outputStream.ToArray()
       |> UTF8.ofBytesUnsafe
       |> Json.Vanilla.deserialize<CloudStorageFormat>
 
@@ -191,19 +208,6 @@ let getTraceData (canvasID : CanvasID) (traceID : AT.TraceID) : Task<AT.Trace> =
 
     return (traceID, traceData)
   }
-
-
-module Test =
-  let listAllTraceIDs (canvasID : CanvasID) : Task<List<AT.TraceID>> =
-    Sql.query
-      "SELECT trace_id
-       FROM traces_v0
-      WHERE canvas_id = @canvas_id
-   ORDER BY timestamp DESC"
-    |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]
-    |> Sql.executeAsync (fun read -> read.uuid "trace_id")
-
-
 
 
 let storeToCloudStorage
@@ -240,9 +244,14 @@ let storeToCloudStorage
         functionArguments = functionArguments
         storageFormatVersion = currentStorageVersion
         timestamp = timestamp }
-    let stream = new System.IO.MemoryStream()
-    do! Json.Vanilla.serializeToStream (stream, data)
 
+    // Serialize and Compress in one step
+    use stream = new MemoryStream()
+    use brotliStream = new BrotliStream(stream, CompressionMode.Compress)
+    do! Json.Vanilla.serializeToStream (brotliStream, data)
+    do! brotliStream.FlushAsync()
+    do! stream.FlushAsync()
+    stream.Position <- 0L
 
     // Store to CloudStorage
     let! client = client.Force()
@@ -251,7 +260,7 @@ let storeToCloudStorage
       client.UploadObjectAsync(
         bucketName,
         name,
-        "application/json",
+        "application/x-brotli",
         stream,
         null,
         System.Threading.CancellationToken(),
@@ -266,3 +275,14 @@ let storeToCloudStorage
 
     return ()
   }
+
+
+module Test =
+  let listAllTraceIDs (canvasID : CanvasID) : Task<List<AT.TraceID>> =
+    Sql.query
+      "SELECT trace_id
+       FROM traces_v0
+      WHERE canvas_id = @canvas_id
+   ORDER BY timestamp DESC"
+    |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]
+    |> Sql.executeAsync (fun read -> read.uuid "trace_id")
