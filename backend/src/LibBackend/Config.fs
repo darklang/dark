@@ -142,6 +142,9 @@ let serializationGenerateTestData =
 /// development and testing so that we'll catch types we haven't tested.
 let serializationGenerateCheckTypes = bool "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"
 
+let serializationHealthCheckHosts =
+  string "DARK_CONFIG_SERIALIZATION_HEALTH_CHECK_HOSTS"
+
 // -------------------------
 // Pusher
 // -------------------------

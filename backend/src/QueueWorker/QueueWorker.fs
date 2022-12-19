@@ -347,7 +347,7 @@ let main _ : int =
 
     // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.queueWorkerKubernetesPort
-    let healthChecks = []
+    let healthChecks = [ Canvas.healthCheck ]
     LibService.Kubernetes.runKubernetesServer name healthChecks port shutdownCallback
     |> ignore<Task>
 
