@@ -197,10 +197,8 @@ let testTraceRoundtrip =
         functionArguments
         functionResults
 
-    let! actual = TCS.Test.listAllTraceIDs c1
-    let result =
-      actual = (List.sort [ t1; t3; t4 ]) || actual = (List.sort [ t2; t3; t4 ])
-    Expect.equal result true "list canvas events"
+    let! actual = TCS.Test.listAllTraceIDs c1 |> Task.map List.sort
+    Expect.equal actual (List.sort [ t1; t2; t3; t4 ]) "list canvas events"
 
     let! loaded = TCS.listMostRecentTraceIDsForTLIDs c2 [ tlid4 ]
     Expect.equal (List.sort loaded) (List.sort [ tlid4, t6 ]) "list desc events"
@@ -211,13 +209,12 @@ let testTraceRoundtrip =
         let! traceData =
           traces
           |> List.map Tuple2.second
-          |> Task.mapInParallel (TCS.Test.fetchTraceData cid)
+          |> Task.mapInParallel (TCS.getTraceData cid)
         return
           traceData
-          |> List.map (fun (t : TCS.CloudStorageFormat) -> t.input)
+          |> List.map (fun ((_, traceData) : AT.Trace) -> traceData.input)
           |> List.flatten
           |> List.map Tuple2.second
-          |> List.map TCS.roundtrippableToDval
       }
 
     let! loaded1 = fetchRequestsFor c1 tlid1

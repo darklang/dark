@@ -208,12 +208,6 @@ module Test =
     |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]
     |> Sql.executeAsync (fun read -> read.uuid "trace_id")
 
-  let fetchTraceData
-    (canvasID : CanvasID)
-    (traceID : AT.TraceID)
-    : Task<CloudStorageFormat> =
-    // TODO
-    Task.FromResult(Unchecked.defaultof<CloudStorageFormat>)
 
 
 
