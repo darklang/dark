@@ -153,6 +153,29 @@ module PersistedSerializations =
 
         v<PT.Position> "simple" { x = 10; y = -16 }
 
+        v<LibBackend.TraceCloudStorage.CloudStorageFormat>
+          "simple"
+          { storageFormatVersion = 0
+            input =
+              [ "request",
+                V.RuntimeTypes.dval
+                |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT ]
+            timestamp = V.instant
+            functionArguments =
+              [ V.tlid,
+                [ "testParam",
+                  V.RuntimeTypes.dval
+                  |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT ] ]
+            functionResults =
+              [ (V.tlid,
+                 7UL,
+                 "testFn",
+                 V.RuntimeTypes.dvals |> LibExecution.DvalReprInternalNew.toHashV0,
+                 V.RuntimeTypes.dval
+                 |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT) ] }
+
+
+
         // ------------------
         // Used by Pusher
         // ------------------
