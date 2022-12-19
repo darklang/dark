@@ -242,7 +242,6 @@ let storeToCloudStorage
         timestamp = timestamp }
     let stream = new System.IO.MemoryStream()
     do! Json.Vanilla.serializeToStream (stream, data)
-    print "Uploading to cloud storage"
 
 
     // Store to CloudStorage
@@ -264,7 +263,6 @@ let storeToCloudStorage
 
     // Wait for both to be done in parallel. Exceptions from either will be thrown here
     do! Task.WhenAll [ storageTask :> Task; dbTask ]
-    print "Uploaded to cloud storage"
 
     return ()
   }
