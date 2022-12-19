@@ -39,14 +39,23 @@ module TraceDataV1 =
       t.next "load-trace"
       let handler = c.handlers |> Map.get p.tlid
 
-      let! trace =
-        match handler with
-        | Some h -> Traces.handlerTrace c.meta.id p.traceID h |> Task.map Some
-        | None ->
-          match c.userFunctions |> Map.get p.tlid with
-          | Some u -> Traces.userfnTrace c.meta.id p.traceID u |> Task.map Some
-          | None -> Task.FromResult None
+      let! isTraceInCloudStorage =
+        LibBackend.TraceCloudStorage.isTraceInCloudStorage c.meta.id p.traceID
 
+      debuG "isTraceInCloudStorage" isTraceInCloudStorage
+      debuG "traceID" p.traceID
+
+      let! trace =
+        if isTraceInCloudStorage then
+          LibBackend.TraceCloudStorage.getTraceData c.meta.id p.traceID
+          |> Task.map Some
+        else
+          match handler with
+          | Some h -> Traces.handlerTrace c.meta.id p.traceID h |> Task.map Some
+          | None ->
+            match c.userFunctions |> Map.get p.tlid with
+            | Some u -> Traces.userfnTrace c.meta.id p.traceID u |> Task.map Some
+            | None -> Task.FromResult None
 
       t.next "write-api"
       let (trace : Option<Types.Response.Trace>) =

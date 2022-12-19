@@ -122,6 +122,12 @@ let client =
       return! builder.BuildAsync()
     })
 
+let isTraceInCloudStorage (canvasID : CanvasID) (traceID : AT.TraceID) : Task<bool> =
+  Sql.query
+    "SELECT EXISTS (SELECT 1 FROM traces_v0 WHERE canvas_id = @canvasID AND trace_id = @traceID)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.uuid traceID ]
+  |> Sql.executeRowAsync (fun read -> read.bool "exists")
+
 
 let listMostRecentTraceIDsForTLIDs
   (canvasID : CanvasID)
@@ -155,6 +161,41 @@ let storeTraceTLIDs
                       "traceID", Sql.uuid traceID
                       "tlids", Sql.idArray tlids ]
   |> Sql.executeStatementAsync
+
+let getTraceData (canvasID : CanvasID) (traceID : AT.TraceID) : Task<AT.Trace> =
+  task {
+    let! client = client.Force()
+    let ms = new System.IO.MemoryStream()
+    do! client.DownloadObjectAsync(bucketName, $"{canvasID}/{traceID}/0", ms)
+
+    let cloudStorageData =
+      ms.ToArray()
+      |> UTF8.ofBytesUnsafe
+      |> Json.Vanilla.deserialize<CloudStorageFormat>
+
+    let parseDval =
+      LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.toRT
+
+    let traceData : AT.TraceData =
+      { input =
+          cloudStorageData.input
+          |> List.map (
+            Tuple2.mapSecond parseDval
+
+          )
+        timestamp = cloudStorageData.timestamp
+        function_results =
+          cloudStorageData.functionResults
+          |> Seq.map (fun (tlid, id, fnName, argHash, dval) ->
+            (fnName,
+             id,
+             argHash,
+             cloudStorageData.storageFormatVersion,
+             parseDval dval) : AT.FunctionResult)
+          |> List.ofSeq }
+
+    return (traceID, traceData)
+  }
 
 
 module Test =
