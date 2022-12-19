@@ -54,6 +54,9 @@ module Sql =
       Exception.raiseInternal $"Too many results, expected 0 or 1" [ "actual", list ]
 
   // TODO do a better job of naming these
+  // NOTE: This does not use SQL `EXISTS` but rather expects the query to return a
+  // list of 1/0. We should instead make this use SQL `EXISTS` because it returns
+  // early and fetches less data
   let executeExistsAsync (props : Sql.SqlProps) : Task<bool> =
     task {
       match! Sql.executeAsync (fun read -> read.NpgsqlReader.GetBoolean 0) props with
