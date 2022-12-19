@@ -177,12 +177,7 @@ let getTraceData (canvasID : CanvasID) (traceID : AT.TraceID) : Task<AT.Trace> =
       LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.toRT
 
     let traceData : AT.TraceData =
-      { input =
-          cloudStorageData.input
-          |> List.map (
-            Tuple2.mapSecond parseDval
-
-          )
+      { input = cloudStorageData.input |> List.map (Tuple2.mapSecond parseDval)
         timestamp = cloudStorageData.timestamp
         function_results =
           cloudStorageData.functionResults
