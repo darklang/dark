@@ -41,6 +41,9 @@ module FunctionV1 =
       t.next "execute-function"
       let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
 
+      let! rootTLID = LibBackend.TraceCloudStorage.rootTLIDFor c.meta.id p.trace_id
+      // If this is the old trace, there won't be a rootTLID
+      let rootTLID = Option.defaultValue p.tlid rootTLID
 
       let! (result, traceResults) =
         RealExe.reexecuteFunction
@@ -49,6 +52,7 @@ module FunctionV1 =
           p.tlid
           p.caller_id
           p.trace_id
+          rootTLID
           fnname
           args
 

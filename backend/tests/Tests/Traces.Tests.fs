@@ -243,6 +243,7 @@ let testFunctionTracesAreStored =
         callerTLID
         callerID
         traceID
+        callerTLID
         fnName
         args
 
