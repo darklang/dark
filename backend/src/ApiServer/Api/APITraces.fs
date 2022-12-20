@@ -39,17 +39,14 @@ module TraceDataV1 =
       t.next "load-trace"
       let handler = c.handlers |> Map.get p.tlid
 
-      let! isTraceInCloudStorage =
-        LibBackend.TraceCloudStorage.isTraceInCloudStorage c.meta.id p.traceID
-
-      debuG "isTraceInCloudStorage" isTraceInCloudStorage
-      debuG "traceID" p.traceID
+      let! rootTLID = LibBackend.TraceCloudStorage.rootTLIDFor c.meta.id p.traceID
 
       let! trace =
-        if isTraceInCloudStorage then
-          LibBackend.TraceCloudStorage.getTraceData c.meta.id p.traceID
+        match rootTLID with
+        | Some rootTLID ->
+          LibBackend.TraceCloudStorage.getTraceData c.meta.id rootTLID p.traceID
           |> Task.map Some
-        else
+        | None ->
           match handler with
           | Some h -> Traces.handlerTrace c.meta.id p.traceID h |> Task.map Some
           | None ->

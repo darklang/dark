@@ -105,7 +105,8 @@ let executeHandler
     let tracing = Tracing.create meta h.tlid traceID
 
     match reason with
-    | InitialExecution (desc, varname, inputVar) -> tracing.storeTraceInput desc varname inputVar
+    | InitialExecution (desc, varname, inputVar) ->
+      tracing.storeTraceInput desc varname inputVar
     | ReExecution -> ()
 
     let! state = createState traceID h.tlid program tracing.executionTracing
@@ -127,15 +128,18 @@ let executeHandler
 let reexecuteFunction
   (meta : Canvas.Meta)
   (program : RT.ProgramContext)
-  (tlid : tlid)
+  (callerTLID : tlid)
   (callerID : id)
   (traceID : AT.TraceID)
+  (rootTLID : tlid)
   (name : RT.FQFnName.T)
   (args : List<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
-    let tracing = Tracing.create meta tlid traceID
-    let! state = createState traceID tlid program tracing.executionTracing
+    // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
+    // the rootTLID of the trace.
+    let tracing = Tracing.create meta rootTLID traceID
+    let! state = createState traceID callerTLID program tracing.executionTracing
     let! result = Exe.executeFunction state callerID name args
     tracing.storeTraceResults ()
     return result, tracing.results

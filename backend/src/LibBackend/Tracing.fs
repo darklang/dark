@@ -173,7 +173,11 @@ let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
             return ()
           })) }
 
-let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
+let createCloudStorageTracer
+  (canvasID : CanvasID)
+  (rootTLID : tlid)
+  (traceID : AT.TraceID)
+  : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
   let results = { TraceResults.empty () with tlids = touchedTLIDs }
@@ -202,6 +206,7 @@ let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
           (fun () ->
             TraceCloudStorage.storeToCloudStorage
               canvasID
+              rootTLID
               traceID
               (NodaTime.Instant.now ())
               (HashSet.toList touchedTLIDs)
@@ -256,13 +261,14 @@ let createNonTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
     storeTraceInput = fun _ _ _ -> () }
 
 
-let create (c : Canvas.Meta) (tlid : tlid) (traceID : AT.TraceID) : T =
-  let config = TracingConfig.forHandler c.name tlid traceID
+let create (c : Canvas.Meta) (rootTLID : tlid) (traceID : AT.TraceID) : T =
+  let config = TracingConfig.forHandler c.name rootTLID traceID
   match config with
   | TracingConfig.DoTrace -> createStandardTracer c.id traceID
   | TracingConfig.TraceWithTelemetry -> createTelemetryTracer c.id traceID
   | TracingConfig.DontTrace -> createNonTracer c.id traceID
-  | TracingConfig.TraceToCloudStorage -> createCloudStorageTracer c.id traceID
+  | TracingConfig.TraceToCloudStorage ->
+    createCloudStorageTracer c.id rootTLID traceID
 
 module Test =
   let saveTraceResult

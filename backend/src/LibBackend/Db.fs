@@ -148,6 +148,10 @@ type RowReader with
   member this.tlid(name : string) : tlid = this.int64 name |> uint64
   member this.id(name : string) : id = this.int64 name |> uint64
 
+  member this.idArray(name : string) : List<id> =
+    let array = this.int64Array (name)
+    array |> Array.toList |> List.map uint64
+
   // CLEANUP migrate these
   // When creating our DB schema, we often incorrectly chose `timestamp` (aka
   // `timestamp without a time zone`) as the type, when we should have chosen

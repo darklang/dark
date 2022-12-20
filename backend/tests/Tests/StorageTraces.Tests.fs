@@ -145,6 +145,7 @@ let testTraceRoundtrip =
     do!
       TCS.storeToCloudStorage
         c1
+        tlid1
         t1
         now
         [ tlid1 ]
@@ -154,6 +155,7 @@ let testTraceRoundtrip =
     do!
       TCS.storeToCloudStorage
         c1
+        tlid1
         t2
         now
         [ tlid1 ]
@@ -163,6 +165,7 @@ let testTraceRoundtrip =
     do!
       TCS.storeToCloudStorage
         c1
+        tlid3
         t3
         now
         [ tlid3 ]
@@ -172,6 +175,7 @@ let testTraceRoundtrip =
     do!
       TCS.storeToCloudStorage
         c1
+        tlid2
         t4
         now
         [ tlid2 ]
@@ -181,6 +185,7 @@ let testTraceRoundtrip =
     do!
       TCS.storeToCloudStorage
         c2
+        tlid2
         t5
         now
         [ tlid2 ]
@@ -190,6 +195,7 @@ let testTraceRoundtrip =
     do!
       TCS.storeToCloudStorage
         c2
+        tlid4
         t6
         now
         [ tlid4 ]
@@ -209,7 +215,7 @@ let testTraceRoundtrip =
         let! traceData =
           traces
           |> List.map Tuple2.second
-          |> Task.mapInParallel (TCS.getTraceData cid)
+          |> Task.mapInParallel (TCS.getTraceData cid tlid)
         return
           traceData
           |> List.map (fun ((_, traceData) : AT.Trace) -> traceData.input)

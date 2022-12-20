@@ -124,50 +124,69 @@ let client =
       return! builder.BuildAsync()
     })
 
-let isTraceInCloudStorage (canvasID : CanvasID) (traceID : AT.TraceID) : Task<bool> =
+let rootTLIDFor (canvasID : CanvasID) (traceID : AT.TraceID) : Task<Option<tlid>> =
   Sql.query
-    "SELECT EXISTS (SELECT 1 FROM traces_v0 WHERE canvas_id = @canvasID AND trace_id = @traceID)"
+    "SELECT root_tlid FROM traces_v0 WHERE canvas_id = @canvasID AND trace_id = @traceID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.uuid traceID ]
-  |> Sql.executeRowAsync (fun read -> read.bool "exists")
+  |> Sql.executeRowOptionAsync (fun read -> read.tlid "root_tlid")
 
+let objectName
+  (canvasID : CanvasID)
+  (rootTLID : tlid)
+  (traceID : AT.TraceID)
+  (fileName : string)
+  : string =
+  $"{canvasID}/{rootTLID}/{traceID}/{fileName}"
+
+let storeTraceTLIDs
+  (canvasID : CanvasID)
+  (rootTLID : tlid)
+  (traceID : AT.TraceID)
+  (callgraphTLIDs : list<tlid>)
+  : Task<unit> =
+  Sql.query
+    "INSERT INTO traces_v0
+     (canvas_id, trace_id, root_tlid, callgraph_tlids)
+     VALUES (@canvasID, @traceID, @rootTLID, @callgraphTLIDs::bigint[])"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "traceID", Sql.uuid traceID
+                      "rootTLID", Sql.tlid rootTLID
+                      "callgraphTLIDs", Sql.idArray callgraphTLIDs ]
+  |> Sql.executeStatementAsync
 
 let listMostRecentTraceIDsForTLIDs
   (canvasID : CanvasID)
   (tlids : list<tlid>)
   : Task<List<tlid * AT.TraceID>> =
   Sql.query
-    "SELECT tlid, trace_id
+    "SELECT callgraph_tlids, trace_id
      FROM (
        SELECT
-         tlid, trace_id,
-         ROW_NUMBER() OVER (PARTITION BY tlid ORDER BY timestamp DESC) as row_num
+         callgraph_tlids, trace_id,
+         ROW_NUMBER() OVER (PARTITION BY root_tlid ORDER BY trace_id DESC) as row_num
        FROM traces_v0
-       WHERE tlid = ANY(@tlids::bigint[])
+       WHERE root_tlid = ANY(@tlids::bigint[])
          AND canvas_id = @canvasID
      ) t
      WHERE row_num <= 10"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.uuid "trace_id"))
+  |> Sql.executeAsync (fun read ->
+    (read.uuid "trace_id", read.idArray "callgraph_tlids"))
+  |> Task.map (
+    List.map (fun (traceID, callgraphTLIDs) ->
+      // Don't need the rootTLID as it will also be in the callgraphTLIDs
+      callgraphTLIDs |> List.map (fun tlid -> (tlid, traceID)))
+    >> List.flatten
+  )
 
-let storeTraceTLIDs
+let getTraceData
   (canvasID : CanvasID)
+  (rootTLID : tlid)
   (traceID : AT.TraceID)
-  (tlids : list<tlid>)
-  : Task<unit> =
-  let tlids = tlids |> set |> Set.toList
-  Sql.query
-    "INSERT INTO traces_v0
-     (canvas_id, trace_id, tlid, timestamp)
-     VALUES (@canvasID, @traceID, UNNEST(@tlids::bigint[]), CURRENT_TIMESTAMP)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "traceID", Sql.uuid traceID
-                      "tlids", Sql.idArray tlids ]
-  |> Sql.executeStatementAsync
-
-let getTraceData (canvasID : CanvasID) (traceID : AT.TraceID) : Task<AT.Trace> =
+  : Task<AT.Trace> =
   task {
     let! client = client.Force()
-    let name = $"{canvasID}/{traceID}/0"
+    let name = objectName canvasID rootTLID traceID "0"
 
     // Download compressed data
     use compressedStream = new MemoryStream()
@@ -212,6 +231,7 @@ let getTraceData (canvasID : CanvasID) (traceID : AT.TraceID) : Task<AT.Trace> =
 
 let storeToCloudStorage
   (canvasID : CanvasID)
+  (rootTLID : tlid)
   (traceID : AT.TraceID)
   (timestamp : NodaTime.Instant)
   (touchedTLIDs : List<tlid>)
@@ -255,7 +275,7 @@ let storeToCloudStorage
 
     // Store to CloudStorage
     let! client = client.Force()
-    let name = $"{canvasID}/{traceID}/0"
+    let name = objectName canvasID rootTLID traceID "0"
     let storageTask =
       client.UploadObjectAsync(
         bucketName,
@@ -268,7 +288,7 @@ let storeToCloudStorage
       )
 
     // Store to the DB
-    let dbTask = storeTraceTLIDs canvasID traceID touchedTLIDs
+    let dbTask = storeTraceTLIDs canvasID rootTLID traceID touchedTLIDs
 
     // Wait for both to be done in parallel. Exceptions from either will be thrown here
     do! Task.WhenAll [ storageTask :> Task; dbTask ]
@@ -283,6 +303,6 @@ module Test =
       "SELECT trace_id
        FROM traces_v0
       WHERE canvas_id = @canvas_id
-   ORDER BY timestamp DESC"
+      ORDER BY trace_id ASC"
     |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]
     |> Sql.executeAsync (fun read -> read.uuid "trace_id")

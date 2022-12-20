@@ -6,21 +6,10 @@
 CREATE TABLE
 traces_v0
 ( canvas_id UUID NOT NULL
-, tlid BIGINT NOT NULL
+-- the handler's (or for a function's default trace, the function's) TLID (used to
+-- store the trace data in Cloud Storage)
+, root_tlid BIGINT NOT NULL
 , trace_id UUID NOT NULL
-, timestamp TIMESTAMP WITH TIME ZONE NOT NULL
--- allows looking up handler by trace
-, PRIMARY KEY (canvas_id, tlid, trace_id)
-);
-
--- Look up by trace (allows for fast deletion)
-CREATE INDEX
-idx_traces_trace
-ON traces_v0
-(canvas_id, trace_id);
-
--- Look up by tlid (allows for fast lookup of traces for a given handlera/fn)
-CREATE INDEX
-idx_traces_tlids
-ON traces_v0
-(canvas_id, tlid, timestamp DESC)
+, callgraph_tlids BIGINT[] NOT NULL -- functions called during the trace
+, PRIMARY KEY (canvas_id, root_tlid, trace_id)
+)
