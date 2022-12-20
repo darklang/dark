@@ -152,6 +152,7 @@ let run = () => {
       "vanilla_ClientTypes-Pusher-Payload-AddOpV1PayloadTooBig_simple.json", // not used yet
       // Internal to backend
       "vanilla_LibBackend-Session-JsonData_simple.json",
+      "vanilla_LibBackend-TraceCloudStorage-CloudStorageFormat_simple.json",
       "vanilla_Microsoft-FSharp-Collections-FSharpList-1-LibBackend-PackageManager-Parameter-_all.json",
       "vanilla_Prelude-pos_simple.json",
       "vanilla_LibService-Rollbar-HoneycombJson_simple.json",
