@@ -129,6 +129,7 @@ let testTraceRoundtrip =
     let c2 = meta2.id
 
     let t1 = AT.TraceID.create ()
+    do! Task.Delay(2) // make sure of ordering with t1 and t2
     let t2 = AT.TraceID.create ()
     let t3 = AT.TraceID.create ()
     let t4 = AT.TraceID.create ()

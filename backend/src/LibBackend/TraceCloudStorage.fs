@@ -163,7 +163,7 @@ let listMostRecentTraceIDsForTLIDs
      FROM (
        SELECT
          callgraph_tlids, trace_id,
-         ROW_NUMBER() OVER (PARTITION BY root_tlid ORDER BY trace_id DESC) as row_num
+         ROW_NUMBER() OVER (PARTITION BY root_tlid ORDER BY trace_id ASC) as row_num
        FROM traces_v0
        WHERE root_tlid = ANY(@tlids::bigint[])
          AND canvas_id = @canvasID
@@ -172,12 +172,16 @@ let listMostRecentTraceIDsForTLIDs
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read ->
     (read.traceID "trace_id", read.idArray "callgraph_tlids"))
-  |> Task.map (
-    List.map (fun (traceID, callgraphTLIDs) ->
+  |> Task.map (fun results ->
+    results
+    |> List.map (fun (traceID, callgraphTLIDs) ->
       // Don't need the rootTLID as it will also be in the callgraphTLIDs
       callgraphTLIDs |> List.map (fun tlid -> (tlid, traceID)))
-    >> List.flatten
-  )
+    |> List.flatten
+    // We've ruined the sort order by splatting against callgraphTLIDs, so sort
+    // again. These will be in order of most recent first just by sorting on the
+    // traceID
+    |> List.sortBy (fun (_, traceID) -> traceID))
 
 let getTraceData
   (canvasID : CanvasID)
