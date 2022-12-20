@@ -84,14 +84,14 @@ echo "Done waiting for compiled servers"
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 echo "Running migrations"
-"${EXECHOST_EXE}" migrations run > "$LOGS/fsharp-migrations.log" 2>&1
+"${EXECHOST_EXE}" migrations run > "$LOGS/migrations.log" 2>&1
 echo "Running apiserver"
-"${APISERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+"${APISERVER_EXE}" > "$LOGS/apiserver.log" 2>&1 &
 echo "Running bwdserver"
-"${BWDSERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+"${BWDSERVER_EXE}" > "$LOGS/bwdserver.log" 2>&1 &
 echo "Running cronchecker"
-"${CRONCHECKER_EXE}" > "$LOGS/fsharp-cronchecker.log" 2>&1 &
+"${CRONCHECKER_EXE}" > "$LOGS/cronchecker.log" 2>&1 &
 echo "Running queueworker"
-"${QUEUEWORKER_EXE}" > "$LOGS/fsharp-queueworker.log" 2>&1 &
+"${QUEUEWORKER_EXE}" > "$LOGS/queueworker.log" 2>&1 &
 
 echo "Finished loading server"
