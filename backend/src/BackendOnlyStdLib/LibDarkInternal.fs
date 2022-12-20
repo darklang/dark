@@ -961,7 +961,8 @@ human-readable data."
                     "path", DStr path
                     "modifier", DStr modifier
                     "timestamp", DDate(DDateTime.fromInstant instant)
-                    "traceID", DUuid traceID ]
+                    "traceID",
+                    DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
                   |> Map
                   |> DObj)
                 |> DList

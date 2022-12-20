@@ -27,9 +27,9 @@ module RT = LibExecution.RuntimeTypes
 module Repr = LibExecution.DvalReprInternalDeprecated
 
 
-type EventRecord = HandlerDesc * NodaTime.Instant * AT.TraceID
+type EventRecord = HandlerDesc * NodaTime.Instant * AT.TraceID.T
 
-type F404 = (string * string * string * NodaTime.Instant * AT.TraceID)
+type F404 = (string * string * string * NodaTime.Instant * AT.TraceID.T)
 
 type Limit =
   | All
@@ -66,7 +66,7 @@ let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d6
 // be partitioned effectively. Returns the DB-assigned event timestamp.
 let storeEvent
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   ((module_, path, modifier) : HandlerDesc)
   (event : RT.Dval)
   : Task<NodaTime.Instant> =
@@ -79,7 +79,7 @@ let storeEvent
       VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
       RETURNING timestamp"
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                        "traceID", Sql.uuid traceID
+                        "traceID", Sql.traceID traceID
                         "module", Sql.string module_
                         "path", Sql.string path
                         "modifier", Sql.string modifier
@@ -115,7 +115,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
   |> Sql.executeAsync (fun read ->
     ((read.string "module", read.string "path", read.string "modifier"),
      read.instant "timestamp",
-     read.uuid "trace_id"))
+     read.traceID "trace_id"))
 
 // let list_event_descs
 //     ~(limit : [`All | `After of RTT.time | `Before of RTT.time])
@@ -155,7 +155,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 let loadEvents
   (canvasID : CanvasID)
   ((module_, route, modifier) : HandlerDesc)
-  : Task<List<string * AT.TraceID * NodaTime.Instant * RT.Dval>> =
+  : Task<List<string * AT.TraceID.T * NodaTime.Instant * RT.Dval>> =
   task {
     let route = Routing.routeToPostgresPattern route
     let! results =
@@ -173,7 +173,7 @@ let loadEvents
                           "modifier", Sql.string modifier ]
       |> Sql.executeAsync (fun read ->
         (read.string "path",
-         read.uuid "trace_id",
+         read.traceID "trace_id",
          read.instant "timestamp",
          read.string "value"))
     return
@@ -185,7 +185,7 @@ let loadEvents
 
 let loadEventForTrace
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   : Task<Option<string * NodaTime.Instant * RT.Dval>> =
   task {
     let! results =
@@ -195,7 +195,7 @@ let loadEventForTrace
             AND trace_id = @traceID
           LIMIT 1"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "traceID", Sql.uuid traceID ]
+                          "traceID", Sql.traceID traceID ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.string "path", read.instant "timestamp", read.string "value"))
     return
@@ -220,7 +220,7 @@ let mungePathForPostgres (module_ : string) (path : string) =
 let loadEventIDs
   (canvasID : CanvasID)
   ((module_, route, modifier) : HandlerDesc)
-  : Task<List<AT.TraceID * string>> =
+  : Task<List<AT.TraceID.T * string>> =
   let route = mungePathForPostgres module_ route
 
   Sql.query
@@ -235,7 +235,7 @@ let loadEventIDs
                       "module", Sql.string module_
                       "path", Sql.string route
                       "modifier", Sql.string modifier ]
-  |> Sql.executeAsync (fun read -> (read.uuid "trace_id", read.string "path"))
+  |> Sql.executeAsync (fun read -> (read.traceID "trace_id", read.string "path"))
 
 
 let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
@@ -259,7 +259,7 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
         (space, name, modifier, timestamp, value))
   }
 
-let getRecent404s (canvasID : CanvasID) : Task<F404 list> =
+let getRecent404s (canvasID : CanvasID) : Task<List<F404>> =
   get404s (After(NodaTime.Instant.now () - NodaTime.Duration.FromDays 7)) canvasID
 
 

@@ -107,6 +107,14 @@ module Sql =
     idsParam.Value <- ids |> List.map int64 |> List.toArray
     Sql.parameter idsParam
 
+  let traceID (traceID : LibExecution.AnalysisTypes.TraceID.T) : SqlValue =
+    let typ = NpgsqlTypes.NpgsqlDbType.Uuid
+    let idParam = NpgsqlParameter("traceID", typ)
+    idParam.Value <- LibExecution.AnalysisTypes.TraceID.toUUID traceID
+    Sql.parameter idParam
+
+
+
   let queryableDvalMap (dvalmap : RT.DvalMap) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
     let param = NpgsqlParameter("dvalmap", typ)
@@ -151,6 +159,9 @@ type RowReader with
   member this.idArray(name : string) : List<id> =
     let array = this.int64Array (name)
     array |> Array.toList |> List.map uint64
+
+  member this.traceID(name : string) : LibExecution.AnalysisTypes.TraceID.T =
+    this.uuid name |> LibExecution.AnalysisTypes.TraceID.fromUUID
 
   // CLEANUP migrate these
   // When creating our DB schema, we often incorrectly chose `timestamp` (aka

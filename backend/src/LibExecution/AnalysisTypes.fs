@@ -22,20 +22,32 @@ type HashVersion = int
 type FnName = string
 type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval
 
-type TraceID = System.Guid
+module TraceID =
+
+  [<Struct>]
+  type T = TraceID of System.Guid
+
+  let create () : T = TraceID(System.Guid.NewGuid())
+
+  let toUUID (t : T) : System.Guid =
+    match t with
+    | TraceID g -> g
+
+  let fromUUID (g : System.Guid) : T = TraceID g
+
 
 type TraceData =
   { input : InputVars
     timestamp : NodaTime.Instant
     function_results : List<FunctionResult> }
 
-type Trace = TraceID * TraceData
+type Trace = TraceID.T * TraceData
 
 type AnalysisRequest =
   { requestID : int
     requestTime : NodaTime.Instant
     tlid : tlid
-    traceID : TraceID
+    traceID : TraceID.T
     traceData : TraceData
     userFns : List<RT.UserFunction.T>
     userTypes : List<RT.UserType.T>

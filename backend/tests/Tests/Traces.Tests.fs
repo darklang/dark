@@ -47,7 +47,7 @@ let testFilterSlash =
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // make irrelevant request
-    let t1 = System.Guid.NewGuid()
+    let t1 = AT.TraceID.create ()
     let desc = ("HTTP", "/", "GET")
     let! (_d : NodaTime.Instant) = TI.storeEvent meta.id t1 desc (DStr "1")
 
@@ -69,7 +69,7 @@ let testRouteVariablesWorkWithStoredEvents =
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // store an event that matches the handler
-    let t1 = System.Guid.NewGuid()
+    let t1 = AT.TraceID.create ()
     let httpRequestPath = "/some/vars/and/such"
     let desc = ("HTTP", httpRequestPath, "GET")
     let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
@@ -106,7 +106,7 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards =
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // store an event
-    let t1 = System.Guid.NewGuid()
+    let t1 = AT.TraceID.create ()
     let desc = ("HTTP", requestPath, "GET")
     let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
 
@@ -125,12 +125,12 @@ let testStoredEventRoundtrip =
     let id1 = meta1.id
     let id2 = meta2.id
 
-    let t1 = System.Guid.NewGuid()
-    let t2 = System.Guid.NewGuid()
-    let t3 = System.Guid.NewGuid()
-    let t4 = System.Guid.NewGuid()
-    let t5 = System.Guid.NewGuid()
-    let t6 = System.Guid.NewGuid()
+    let t1 = AT.TraceID.create ()
+    let t2 = AT.TraceID.create ()
+    let t3 = AT.TraceID.create ()
+    let t4 = AT.TraceID.create ()
+    let t5 = AT.TraceID.create ()
+    let t6 = AT.TraceID.create ()
     do! TI.clearAllEvents id1
     do! TI.clearAllEvents id2
 
@@ -233,7 +233,7 @@ let testFunctionTracesAreStored =
     let callerID = 1234UL
     let fnName = RT.FQFnName.User "test_fn"
     let args = []
-    let traceID = System.Guid.NewGuid()
+    let traceID = AT.TraceID.create ()
 
     // call the user fn, which should result in a trace being stored
     let! (_, _) =
@@ -289,7 +289,7 @@ let testErrorTracesAreStored =
         secrets = [] }
 
     // call the user fn, which should result in a trace being stored
-    let traceID = System.Guid.NewGuid()
+    let traceID = AT.TraceID.create ()
 
     let tracer = Tracing.createStandardTracer meta.id traceID
     let! state =

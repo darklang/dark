@@ -17,7 +17,8 @@ let eventName event =
 let eventPayload event =
   match event with
   | DomainEvent.NewTrace (traceID, tlids) ->
-    let payload : ClientTypes.Pusher.Payload.NewTrace = (traceID, tlids)
+    let payload : ClientTypes.Pusher.Payload.NewTrace =
+      (LibExecution.AnalysisTypes.TraceID.toUUID traceID, tlids)
     Json.Vanilla.serialize payload
 
   | DomainEvent.NewStaticDeploy (asset) ->
@@ -30,7 +31,11 @@ let eventPayload event =
 
   | DomainEvent.New404 (module_, eventName, eventModifier, timestamp, traceID) ->
     let payload : ClientTypes.Pusher.Payload.New404 =
-      (module_, eventName, eventModifier, timestamp, traceID)
+      (module_,
+       eventName,
+       eventModifier,
+       timestamp,
+       LibExecution.AnalysisTypes.TraceID.toUUID traceID)
     Json.Vanilla.serialize payload
 
   | DomainEvent.AddOpV1 (params_, result) ->

@@ -71,7 +71,7 @@ module TracingConfig =
     | TraceWithTelemetry
     | TraceToCloudStorage
 
-  let fromRule (rule : TraceSamplingRule.T) (traceID : AT.TraceID) : T =
+  let fromRule (rule : TraceSamplingRule.T) (traceID : AT.TraceID.T) : T =
     match rule with
     | TraceSamplingRule.SampleAll -> DoTrace
     | TraceSamplingRule.SampleNone -> DontTrace
@@ -79,13 +79,14 @@ module TracingConfig =
     | TraceSamplingRule.SampleAllToCloudStorage -> TraceToCloudStorage
     | TraceSamplingRule.SampleOneIn freq ->
       // Use the traceID as an existing source of entropy.
-      let random = traceID.ToByteArray() |> System.BitConverter.ToInt64
+      let random =
+        (AT.TraceID.toUUID traceID).ToByteArray() |> System.BitConverter.ToInt64
       if random % (int64 freq) = 0L then DoTrace else DontTrace
 
   let forHandler
     (canvasName : CanvasName.T)
     (tlid : tlid)
-    (traceID : AT.TraceID)
+    (traceID : AT.TraceID.T)
     : T =
     let samplingRule = TraceSamplingRule.ruleForHandler canvasName tlid
     fromRule samplingRule traceID
@@ -128,7 +129,7 @@ type T =
     enabled : bool }
 
 
-let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
+let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
   let results = { TraceResults.empty () with tlids = touchedTLIDs }
@@ -176,7 +177,7 @@ let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
 let createCloudStorageTracer
   (canvasID : CanvasID)
   (rootTLID : tlid)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
@@ -216,7 +217,7 @@ let createCloudStorageTracer
     storeTraceInput = fun _ name input -> storedInput <- (name, input) }
 
 
-let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
+let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
   let result = createStandardTracer canvasID traceID
   let standardTracing = result.executionTracing
   { result with
@@ -251,7 +252,7 @@ let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
                 Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
                 standardTracing.traceTLID tlid } }
 
-let createNonTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
+let createNonTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let results = TraceResults.empty ()
   { enabled = false
@@ -261,7 +262,7 @@ let createNonTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
     storeTraceInput = fun _ _ _ -> () }
 
 
-let create (c : Canvas.Meta) (rootTLID : tlid) (traceID : AT.TraceID) : T =
+let create (c : Canvas.Meta) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
   let config = TracingConfig.forHandler c.name rootTLID traceID
   match config with
   | TracingConfig.DoTrace -> createStandardTracer c.id traceID
@@ -273,7 +274,7 @@ let create (c : Canvas.Meta) (rootTLID : tlid) (traceID : AT.TraceID) : T =
 module Test =
   let saveTraceResult
     (canvasID : CanvasID)
-    (traceID : AT.TraceID)
+    (traceID : AT.TraceID.T)
     (results : TraceResults.T)
     : Task<unit> =
     task {

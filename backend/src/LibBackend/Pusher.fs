@@ -26,7 +26,7 @@ let pusherClient : Lazy<PusherServer.Pusher> =
      ))
 
 type Event =
-  | NewTrace of trace : AT.TraceID * tlids : List<tlid>
+  | NewTrace of trace : AT.TraceID.T * tlids : List<tlid>
   | NewStaticDeploy of asset : StaticAssets.StaticDeploy
   | New404 of TraceInputs.F404
   | AddOpV1 of Op.AddOpParamsV1 * Op.AddOpResultV1

@@ -165,7 +165,7 @@ let processNotification
                 do! EQ.deleteEvent event
                 return! stop "MissingCanvas" NoRetry
               | Some c ->
-                let traceID = System.Guid.NewGuid()
+                let traceID = AT.TraceID.create ()
                 let desc = (event.module', event.name, event.modifier)
                 Telemetry.addTags [ "canvas_name", c.meta.name; "trace_id", traceID ]
 

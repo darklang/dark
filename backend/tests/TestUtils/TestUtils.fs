@@ -15,6 +15,7 @@ open LibService.Exception
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module AT = LibExecution.AnalysisTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution

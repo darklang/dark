@@ -47,7 +47,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
     })
 
 let createState
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (tlid : tlid)
   (program : RT.ProgramContext)
   (tracing : RT.Tracing)
@@ -97,7 +97,7 @@ let executeHandler
   (meta : Canvas.Meta)
   (h : RT.Handler.T)
   (program : RT.ProgramContext)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (inputVars : Map<string, RT.Dval>)
   (reason : ExecutionReason)
   : Task<RT.Dval * Tracing.TraceResults.T> =
@@ -130,7 +130,7 @@ let reexecuteFunction
   (program : RT.ProgramContext)
   (callerTLID : tlid)
   (callerID : id)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (rootTLID : tlid)
   (name : RT.FQFnName.T)
   (args : List<RT.Dval>)

@@ -92,7 +92,7 @@ let performAnalysis
 
   Eval.runAnalysis analysisRequest
   |> Task.map (fun analysisResponse ->
-    (analysisRequest.traceID,
+    (AT.TraceID.toUUID analysisRequest.traceID,
      CT2Analysis.AnalysisResults.toCT analysisResponse,
      analysisRequest.requestID,
      analysisRequest.requestTime))

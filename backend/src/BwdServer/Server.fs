@@ -334,7 +334,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       ctx.Items[ "canvasName" ] <- meta.name // store for exception tracking
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
-      let traceID = System.Guid.NewGuid()
+      let traceID = LibExecution.AnalysisTypes.TraceID.create ()
       let requestMethod = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
       let desc = ("HTTP", requestPath, requestMethod)

@@ -26,7 +26,7 @@ type FunctionResultValue = RT.Dval * NodaTime.Instant
 
 let store
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   ((tlid, fnDesc, id) : tlid * RT.FQFnName.T * id)
   (arglist : List<RT.Dval>)
   (result : RT.Dval)
@@ -39,7 +39,7 @@ let store
       (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
       VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                        "traceID", Sql.uuid traceID
+                        "traceID", Sql.traceID traceID
                         "tlid", Sql.tlid tlid
                         "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
                         "id", Sql.id id
@@ -53,7 +53,7 @@ let store
 // CLEANUP store these in Cloud Storage instead of the DB
 let storeMany
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
   : Task<unit> =
   if canvasID = TraceInputs.throttled then
@@ -64,7 +64,7 @@ let storeMany
       |> Dictionary.toList
       |> List.map (fun ((tlid, fnDesc, id, hash), (result, timestamp)) ->
         [ "canvasID", Sql.uuid canvasID
-          "traceID", Sql.uuid traceID
+          "traceID", Sql.traceID traceID
           "tlid", Sql.tlid tlid
           "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
           "id", Sql.id id
@@ -83,7 +83,7 @@ let storeMany
 
 let load
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (tlid : tlid)
   : Task<List<AT.FunctionResult>> =
   task {
@@ -101,7 +101,7 @@ let load
           AND tlid = @tlid
         ORDER BY fnname, id, hash, hash_version, timestamp DESC"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "traceID", Sql.uuid traceID
+                          "traceID", Sql.traceID traceID
                           "tlid", Sql.tlid tlid ]
       |> Sql.executeAsync (fun read ->
         (read.string "fnname",

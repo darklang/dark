@@ -124,16 +124,16 @@ let client =
       return! builder.BuildAsync()
     })
 
-let rootTLIDFor (canvasID : CanvasID) (traceID : AT.TraceID) : Task<Option<tlid>> =
+let rootTLIDFor (canvasID : CanvasID) (traceID : AT.TraceID.T) : Task<Option<tlid>> =
   Sql.query
     "SELECT root_tlid FROM traces_v0 WHERE canvas_id = @canvasID AND trace_id = @traceID"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.uuid traceID ]
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.traceID traceID ]
   |> Sql.executeRowOptionAsync (fun read -> read.tlid "root_tlid")
 
 let objectName
   (canvasID : CanvasID)
   (rootTLID : tlid)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (fileName : string)
   : string =
   $"{canvasID}/{rootTLID}/{traceID}/{fileName}"
@@ -141,7 +141,7 @@ let objectName
 let storeTraceTLIDs
   (canvasID : CanvasID)
   (rootTLID : tlid)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (callgraphTLIDs : list<tlid>)
   : Task<unit> =
   Sql.query
@@ -149,7 +149,7 @@ let storeTraceTLIDs
      (canvas_id, trace_id, root_tlid, callgraph_tlids)
      VALUES (@canvasID, @traceID, @rootTLID, @callgraphTLIDs::bigint[])"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "traceID", Sql.uuid traceID
+                      "traceID", Sql.traceID traceID
                       "rootTLID", Sql.tlid rootTLID
                       "callgraphTLIDs", Sql.idArray callgraphTLIDs ]
   |> Sql.executeStatementAsync
@@ -157,7 +157,7 @@ let storeTraceTLIDs
 let listMostRecentTraceIDsForTLIDs
   (canvasID : CanvasID)
   (tlids : list<tlid>)
-  : Task<List<tlid * AT.TraceID>> =
+  : Task<List<tlid * AT.TraceID.T>> =
   Sql.query
     "SELECT callgraph_tlids, trace_id
      FROM (
@@ -171,7 +171,7 @@ let listMostRecentTraceIDsForTLIDs
      WHERE row_num <= 10"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read ->
-    (read.uuid "trace_id", read.idArray "callgraph_tlids"))
+    (read.traceID "trace_id", read.idArray "callgraph_tlids"))
   |> Task.map (
     List.map (fun (traceID, callgraphTLIDs) ->
       // Don't need the rootTLID as it will also be in the callgraphTLIDs
@@ -182,7 +182,7 @@ let listMostRecentTraceIDsForTLIDs
 let getTraceData
   (canvasID : CanvasID)
   (rootTLID : tlid)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   : Task<AT.Trace> =
   task {
     let! client = client.Force()
@@ -232,7 +232,7 @@ let getTraceData
 let storeToCloudStorage
   (canvasID : CanvasID)
   (rootTLID : tlid)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (timestamp : NodaTime.Instant)
   (touchedTLIDs : List<tlid>)
   (inputVars : List<string * RT.Dval>)
@@ -298,11 +298,11 @@ let storeToCloudStorage
 
 
 module Test =
-  let listAllTraceIDs (canvasID : CanvasID) : Task<List<AT.TraceID>> =
+  let listAllTraceIDs (canvasID : CanvasID) : Task<List<AT.TraceID.T>> =
     Sql.query
       "SELECT trace_id
        FROM traces_v0
       WHERE canvas_id = @canvas_id
       ORDER BY trace_id ASC"
     |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]
-    |> Sql.executeAsync (fun read -> read.uuid "trace_id")
+    |> Sql.executeAsync (fun read -> read.traceID "trace_id")
