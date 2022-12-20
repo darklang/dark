@@ -163,8 +163,6 @@ let traceStorageBucketName = string "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"
 
 let traceStorageBaseUri = string "DARK_CONFIG_TRACE_STORAGE_BASE_URI"
 
-let traceStorageInitializeBucket = bool "DARK_CONFIG_TRACE_STORAGE_INITIALIZE_BUCKET"
-
 let traceStorageCredentials =
   credentialsOption "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS"
 
