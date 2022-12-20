@@ -48,13 +48,16 @@ let fn = (
   args: list<t>,
 ) => EFnCall(id, Stdlib({module_: mod, function: function, version: version}), args, ster)
 
-let binop = (~id=gid(), ~ster=SendToRail.NoRail, function: string, arg0: t, arg1: t) => EBinOp(
+let binop = (~id=gid(), ~ster=SendToRail.NoRail, function: string, arg0: t, arg1: t) => EInfix(
   id,
-  {module_: None, function: function},
+  InfixFnCall({module_: None, function: function}, ster),
   arg0,
   arg1,
-  ster,
 )
+
+let or' = (~id=gid(), arg0: t, arg1: t) => EInfix(id, BinOp(BinOpOr), arg0, arg1)
+
+let and' = (~id=gid(), arg0: t, arg1: t) => EInfix(id, BinOp(BinOpAnd), arg0, arg1)
 
 let partial = (~id=gid(), str: string, e: t): t => EPartial(id, str, e)
 

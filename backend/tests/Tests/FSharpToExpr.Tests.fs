@@ -41,18 +41,16 @@ let parserTests =
       t
         "simple expr"
         "(5 + 3) == 8"
-        (PT.EBinOp(
+        (PT.EInfix(
           id,
-          { module_ = None; function_ = "==" },
-          PT.EBinOp(
+          PT.InfixFnCall({ module_ = None; function_ = "==" }, PT.NoRail),
+          PT.EInfix(
             id,
-            { module_ = None; function_ = "+" },
+            (PT.InfixFnCall({ module_ = None; function_ = "+" }, PT.NoRail)),
             PT.EInteger(id, 5),
-            PT.EInteger(id, 3),
-            PT.NoRail
+            PT.EInteger(id, 3)
           ),
-          PT.EInteger(id, 8),
-          PT.NoRail
+          PT.EInteger(id, 8)
         ))
       t
         "lambdas with 2 args"

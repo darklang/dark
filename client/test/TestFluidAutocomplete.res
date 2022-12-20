@@ -22,6 +22,8 @@ let defaultWorkerSpec = PT.Handler.Spec.newWorker("sink")
 
 let defaultSpec = defaultHTTPSpec
 
+// TODO: merge these into FluidTestData - right now they're both assigned to the same
+// global variable and it's just luck that the tests continue to pass
 let sampleFunctions: list<RT.BuiltInFn.t> = list{
   ("Twit", "somefunc", 0, list{DType.TDict(DType.TVariable("abc"))}, DType.TVariable("xyz")),
   ("Twit", "someOtherFunc", 0, list{TDict(TVariable("efg"))}, TVariable("b")),
@@ -183,9 +185,10 @@ let defaultModel = (
     userFunctions: UserFunctions.fromList(userFunctions),
     userTypes: UserTypes.fromList(userTypes),
     cursorState: FluidEntering(tlid),
-    functions: {...Functions.empty, builtinFunctions: sampleFunctions} |> Functions.update(
-      defaultFunctionsProps,
-    ),
+    functions: {
+      ...Functions.empty,
+      builtinFunctions: sampleFunctions,
+    } |> Functions.update(defaultFunctionsProps),
     analyses: Map.String.singleton(~key=defaultTraceID, ~value=(0, Loadable.Success(analyses))),
   }
 }
@@ -207,7 +210,7 @@ let setQuery = (q: string, a: AC.t): AC.t => {
   let fullQ = defaultFullQuery(a, q)
   let props = defaultTestProps
   AC.refilter(
-    {functions: props.functions},
+    {functions: props.functions, allowShortCircuiting: true},
     fullQ,
     a,
     List.map(~f=({item, _}) => item, a.completions),
@@ -624,6 +627,8 @@ let run = () => {
         expect(valid |> List.filter(~f=isKeyword) |> List.map(~f=AC.asName)) |> toEqual(list{
           "let",
           "|>",
+          "&&",
+          "||",
         })
       )
       test("includes constructors", () =>

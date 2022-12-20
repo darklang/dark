@@ -356,13 +356,21 @@ let aFnCallWithZeroArgsAndVersion = fn(~mod="List", "empty", ~version=1, list{})
 
 let aFnCallWithBlockArg = fn(~mod="Dict", "map", list{b, b})
 
-let aBinOp = binop("==", b, b)
+let anInfixFn = binop("==", b, b)
 
-let aFullBinOp = binop("||", var("myvar"), five)
+let aFullInfixFn = binop("++", var("myvar"), five)
 
 let aOnRailFnCall = fn(~mod="HttpClient", "get", ~version=3, list{b, b, b}, ~ster=Rail)
 
 let aRailableFnCall = fn(~mod="HttpClient", "get", ~version=3, list{b, b, b}, ~ster=NoRail)
+
+// ----------------
+// And/Or
+// ----------------
+
+let binOp = or'(b, b)
+
+let aFullBinOp = and'(var("myvar"), trueBool)
 
 // ----------------
 // Constructors
@@ -814,7 +822,12 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
     infixFn("++", TStr, TStr),
     infixFn("==", TVariable("a"), TBool),
     infixFn("<=", TInt, TBool),
+    infixFn(">=", TInt, TBool),
+    // these are deprecated but adding them here keeps things working more like
+    // production, which has these functions. This is important because of &&/||
+    // operators
     infixFn("||", TBool, TBool),
+    infixFn("&&", TBool, TBool),
     {
       name: {module_: "Int", function: "add", version: 0},
       parameters: list{fnParam("a", TInt), fnParam("b", TInt)},
@@ -830,6 +843,16 @@ let defaultTestFunctions: list<RT.BuiltInFn.t> = {
       parameters: list{fnParam("a", TInt)},
       returnType: TInt,
       description: "Get the square root of an Int",
+      previewable: Pure,
+      deprecated: NotDeprecated,
+      isInfix: false,
+      sqlSpec: NotQueryable,
+    },
+    {
+      name: {module_: "Bool", function: "and", version: 0},
+      parameters: list{fnParam("a", TBool), fnParam("b", TBool)},
+      returnType: TBool,
+      description: "Return true if both are true",
       previewable: Pure,
       deprecated: NotDeprecated,
       isInfix: false,
@@ -929,7 +952,7 @@ let fakeID1 = ID.fromInt(77777771)
 let fakeID2 = ID.fromInt(77777772)
 let fakeID3 = ID.fromInt(77777773)
 
-let defaultTestModel = {
+let defaultTestModel: AppTypes.Model.t = {
   ...AppTypes.Model.default,
   functions: defaultTestProps.functions,
   analyses: Map.String.fromList(list{
@@ -961,4 +984,14 @@ let defaultTestModel = {
     ),
   }),
   fluidState: defaultTestState,
+  settings: {
+    ...AppTypes.Model.default.settings,
+    contributingSettings: {
+      ...AppTypes.Model.default.settings.contributingSettings,
+      inProgressFeatures: {
+        ...AppTypes.Model.default.settings.contributingSettings.inProgressFeatures,
+        allowShortCircuitingBinops: true,
+      },
+    },
+  },
 }

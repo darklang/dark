@@ -531,7 +531,7 @@ test.describe.parallel("Integration Tests", async () => {
     const before = Date.now();
     await gotoHash(page, testInfo, `fn=1039370895`);
     await page.waitForSelector(".user-fn-toplevel");
-    await page.click(".user-fn-toplevel #active-editor .fluid-binop");
+    await page.click(".user-fn-toplevel #active-editor .fluid-infix");
     await awaitAnalysis(page, before, token);
     await expectExactText(page, ".selected .live-value.loaded", "10");
   });

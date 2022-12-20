@@ -264,6 +264,148 @@ let testIfPreview : Test =
         AT.ExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else"))) ]
 
+let testOrPreview : Test =
+  let orID = gid ()
+  let f (arg1, arg2) =
+    task {
+      let ast = EOr(orID, arg1, arg2)
+      let! results = execSaveDvals "or-preview" [] [] ast
+
+      return
+        (Dictionary.get (Expr.toID (arg1)) results
+         |> Exception.unwrapOptionInternal "cannot find arg1 id" [],
+         Dictionary.get (Expr.toID (arg2)) results
+         |> Exception.unwrapOptionInternal "cannot find arg2 id" [],
+         Dictionary.get orID results
+         |> Exception.unwrapOptionInternal "cannot find overall id" [])
+    }
+
+  testManyTask
+    "or expression previews correctly"
+    f
+    // bools
+    [ ((eBool false, eBool false),
+       (AT.ExecutedResult(DBool false),
+        AT.ExecutedResult(DBool false),
+        AT.ExecutedResult(DBool false)))
+      ((eBool false, eBool true),
+       (AT.ExecutedResult(DBool false),
+        AT.ExecutedResult(DBool true),
+        AT.ExecutedResult(DBool true)))
+      ((eBool true, eBool false),
+       (AT.ExecutedResult(DBool true),
+        AT.NonExecutedResult(DBool false),
+        AT.ExecutedResult(DBool true)))
+      ((eBool true, eBool true),
+       (AT.ExecutedResult(DBool true),
+        AT.NonExecutedResult(DBool true),
+        AT.ExecutedResult(DBool true)))
+      // fakevals
+      ((eBool false, EBlank 999UL),
+       (AT.ExecutedResult(DBool false),
+        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
+      ((eBool true, EBlank 999UL),
+       (AT.ExecutedResult(DBool true),
+        AT.NonExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.ExecutedResult(DBool true)))
+      ((EBlank 999UL, eBool false),
+       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.NonExecutedResult(DBool false),
+        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
+      ((EBlank 999UL, eBool true),
+       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.NonExecutedResult(DBool true),
+        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
+      // strings
+      ((eBool false, eStr "test"),
+       (AT.ExecutedResult(DBool false),
+        AT.ExecutedResult(DStr "test"),
+        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
+      ((eBool true, eStr "test"),
+       (AT.ExecutedResult(DBool true),
+        AT.NonExecutedResult(DStr "test"),
+        AT.ExecutedResult(DBool true)))
+      ((EString(999UL, "test"), eBool false),
+       (AT.ExecutedResult(DStr "test"),
+        AT.NonExecutedResult(DBool false),
+        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
+      ((EString(999UL, "test"), eBool true),
+       (AT.ExecutedResult(DStr "test"),
+        AT.NonExecutedResult(DBool true),
+        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans")))) ]
+
+let testAndPreview : Test =
+  let andID = gid ()
+  let f (arg1, arg2) =
+    task {
+      let ast = EAnd(andID, arg1, arg2)
+      let! results = execSaveDvals "and-preview" [] [] ast
+
+      return
+        (Dictionary.get (Expr.toID arg1) results
+         |> Exception.unwrapOptionInternal "cannot find arg1 id" [],
+         Dictionary.get (Expr.toID arg2) results
+         |> Exception.unwrapOptionInternal "cannot find arg2 id" [],
+         Dictionary.get andID results
+         |> Exception.unwrapOptionInternal "cannot find overall id" [])
+    }
+
+  testManyTask
+    "and expression previews correctly"
+    f
+    // bools
+    [ ((eBool false, eBool false),
+       (AT.ExecutedResult(DBool false),
+        AT.NonExecutedResult(DBool false),
+        AT.ExecutedResult(DBool false)))
+      ((eBool false, eBool true),
+       (AT.ExecutedResult(DBool false),
+        AT.NonExecutedResult(DBool true),
+        AT.ExecutedResult(DBool false)))
+      ((eBool true, eBool false),
+       (AT.ExecutedResult(DBool true),
+        AT.ExecutedResult(DBool false),
+        AT.ExecutedResult(DBool false)))
+      ((eBool true, eBool true),
+       (AT.ExecutedResult(DBool true),
+        AT.ExecutedResult(DBool true),
+        AT.ExecutedResult(DBool true)))
+      // fakevals
+      ((eBool false, EBlank 999UL),
+       (AT.ExecutedResult(DBool false),
+        AT.NonExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.ExecutedResult(DBool false)))
+      ((eBool true, EBlank 999UL),
+       (AT.ExecutedResult(DBool true),
+        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
+      ((EBlank 999UL, eBool false),
+       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.NonExecutedResult(DBool false),
+        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
+      ((EBlank 999UL, eBool true),
+       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.NonExecutedResult(DBool true),
+        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
+      // strings
+      ((eBool false, eStr "test"),
+       (AT.ExecutedResult(DBool false),
+        AT.NonExecutedResult(DStr "test"),
+        AT.ExecutedResult(DBool false)))
+      ((eBool true, eStr "test"),
+       (AT.ExecutedResult(DBool true),
+        AT.ExecutedResult(DStr "test"),
+        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
+      ((EString(999UL, "test"), eBool false),
+       (AT.ExecutedResult(DStr "test"),
+        AT.NonExecutedResult(DBool false),
+        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
+      ((EString(999UL, "test"), eBool true),
+       (AT.ExecutedResult(DStr "test"),
+        AT.NonExecutedResult(DBool true),
+        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans")))) ]
+
 
 
 let testFeatureFlagPreview : Test =
@@ -597,6 +739,8 @@ let tests =
     [ testListLiterals
       testRecursionInEditor
       testIfPreview
+      testOrPreview
+      testAndPreview
       testLambdaPreview
       testFeatureFlagPreview
       testMatchPreview

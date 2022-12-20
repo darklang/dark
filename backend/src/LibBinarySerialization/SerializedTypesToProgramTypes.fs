@@ -22,6 +22,10 @@ module FQFnName =
     let toPT (name : ST.FQFnName.StdlibFnName) : PT.FQFnName.StdlibFnName =
       { module_ = name.module_; function_ = name.function_; version = name.version }
 
+  module InfixStdlibFnName =
+    let toPT (name : ST.FQFnName.InfixStdlibFnName) : PT.FQFnName.InfixStdlibFnName =
+      { module_ = name.module_; function_ = name.function_ }
+
   let toPT (fqfn : ST.FQFnName.T) : PT.FQFnName.T =
     match fqfn with
     | ST.FQFnName.User u -> PT.FQFnName.User u
@@ -46,6 +50,20 @@ module SendToRail =
     match ster with
     | ST.Rail -> PT.Rail
     | ST.NoRail -> PT.NoRail
+
+module BinaryOperation =
+  let toPT (binop : ST.BinaryOperation) : PT.BinaryOperation =
+    match binop with
+    | ST.BinOpAnd -> PT.BinOpAnd
+    | ST.BinOpOr -> PT.BinOpOr
+
+
+module Infix =
+  let toPT (infix : ST.Infix) : PT.Infix =
+    match infix with
+    | ST.InfixFnCall (fn, ster) ->
+      PT.InfixFnCall(FQFnName.InfixStdlibFnName.toPT fn, SendToRail.toPT ster)
+    | ST.BinOp binop -> PT.BinOp(BinaryOperation.toPT binop)
 
 module MatchPattern =
   let rec toPT (p : ST.MatchPattern) : PT.MatchPattern =
@@ -80,7 +98,7 @@ module Expr =
       PT.EFieldAccess(id, toPT obj, fieldname)
     | ST.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, FQFnName.toPT name, List.map toPT args, SendToRail.toPT ster)
-    | ST.EBinOp (id, ST.FQFnName.Stdlib fn, arg1, arg2, ster) ->
+    | ST.EDeprecatedBinOp (id, ST.FQFnName.Stdlib fn, arg1, arg2, ster) ->
       // CLEANUP remove Date by making Date not allowed anymore
       assertIn
         "serialized binop should have blank/Date module"
@@ -90,17 +108,19 @@ module Expr =
       let isInfix = LibExecutionStdLib.StdLib.isInfixName
       assertFn2 "serialized binop should be infix" isInfix fn.module_ fn.function_
       let module_ = if fn.module_ = "" then None else Some fn.module_
-      PT.EBinOp(
+      PT.EInfix(
         id,
-        { module_ = module_; function_ = fn.function_ },
+        PT.InfixFnCall(
+          { module_ = module_; function_ = fn.function_ },
+          SendToRail.toPT ster
+        ),
         toPT arg1,
-        toPT arg2,
-        SendToRail.toPT ster
+        toPT arg2
       )
     // CLEANUP remove from format
-    | ST.EBinOp (_, ST.FQFnName.User name, _, _, _) ->
+    | ST.EDeprecatedBinOp (_, ST.FQFnName.User name, _, _, _) ->
       Exception.raiseInternal "userfn serialized as a binop" [ "name", name ]
-    | ST.EBinOp (_, ST.FQFnName.Package name, _, _, _) ->
+    | ST.EDeprecatedBinOp (_, ST.FQFnName.Package name, _, _, _) ->
       Exception.raiseInternal "package serialized as a binop" [ "name", name ]
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | ST.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, toPT rhs, toPT body)
@@ -128,6 +148,9 @@ module Expr =
     | ST.EPipeTarget id -> PT.EPipeTarget id
     | ST.EFeatureFlag (id, name, cond, caseA, caseB) ->
       PT.EFeatureFlag(id, name, toPT cond, toPT caseA, toPT caseB)
+    | ST.EInfix (id, infix, arg1, arg2) ->
+      PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
+
 
 module DType =
   let rec toPT (t : ST.DType) : PT.DType =

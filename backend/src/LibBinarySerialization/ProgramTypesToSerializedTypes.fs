@@ -35,6 +35,12 @@ module SendToRail =
     | PT.Rail -> ST.Rail
     | PT.NoRail -> ST.NoRail
 
+module BinaryOperation =
+  let toST (op : PT.BinaryOperation) : ST.BinaryOperation =
+    match op with
+    | PT.BinOpAnd -> ST.BinOpAnd
+    | PT.BinOpOr -> ST.BinOpOr
+
 module MatchPattern =
   let rec toST (p : PT.MatchPattern) : ST.MatchPattern =
     match p with
@@ -68,14 +74,24 @@ module Expr =
       ST.EFieldAccess(id, toST obj, fieldname)
     | PT.EFnCall (id, name, args, ster) ->
       ST.EFnCall(id, FQFnName.toST name, List.map toST args, SendToRail.toST ster)
-    | PT.EBinOp (id, name, arg1, arg2, ster) ->
+    // Until all servers can read EInfix, continue to save as EBinOp
+    | PT.EInfix (id, PT.InfixFnCall (name, ster), arg1, arg2) ->
       let module_ = Option.unwrap "" name.module_
       let isInfix = LibExecutionStdLib.StdLib.isInfixName
       assertFn2 "is a binop" isInfix module_ name.function_
       let name =
         ST.FQFnName.Stdlib
           { module_ = module_; function_ = name.function_; version = 0 }
-      ST.EBinOp(id, name, toST arg1, toST arg2, SendToRail.toST ster)
+      ST.EDeprecatedBinOp(id, name, toST arg1, toST arg2, SendToRail.toST ster)
+    // CLEANUP: new version - can be done once all servers are updated
+    // | PT.EInfix (id, PT.InfixFnCall (name, ster), arg1, arg2) ->
+    //   let isInfix = LibExecutionStdLib.StdLib.isInfixName
+    //   assertFn2 "is a binop" isInfix (Option.unwrap "" name.module_) name.function_
+    //   let name : ST.FQFnName.InfixStdlibFnName =
+    //     { module_ = name.module_; function_ = name.function_ }
+    //   ST.EInfix(id, ST.InfixFnCall(name, SendToRail.toST ster), toST arg1, toST arg2)
+    | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
+      ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
     | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)
     | PT.ELet (id, lhs, rhs, body) -> ST.ELet(id, lhs, toST rhs, toST body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->

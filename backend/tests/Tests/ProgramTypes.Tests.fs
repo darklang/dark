@@ -178,68 +178,77 @@ let testInfixSerializedTypesToProgramTypes =
   testMany
     "serialized infix types to program types"
     ST2PT.Expr.toPT
-    [ (ST.EBinOp(
+    [ (ST.EDeprecatedBinOp(
         8UL,
         ST.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 },
         ST.EInteger(9UL, 6),
         ST.EInteger(10UL, 6),
         ST.NoRail
        ),
-       PT.EBinOp(
+       PT.EInfix(
          8UL,
-         { module_ = None; function_ = "+" },
+         PT.InfixFnCall({ module_ = None; function_ = "+" }, PT.NoRail),
          PT.EInteger(9UL, 6),
-         PT.EInteger(10UL, 6),
-         PT.NoRail
+         PT.EInteger(10UL, 6)
        ))
-      (ST.EBinOp(
+      (ST.EDeprecatedBinOp(
         8UL,
         ST.FQFnName.Stdlib { module_ = "Date"; function_ = "<"; version = 0 },
         ST.EInteger(9UL, 6),
         ST.EInteger(10UL, 6),
         ST.NoRail
        ),
-       PT.EBinOp(
+       PT.EInfix(
          8UL,
-         { module_ = Some "Date"; function_ = "<" },
+         PT.InfixFnCall({ module_ = Some "Date"; function_ = "<" }, PT.NoRail),
          PT.EInteger(9UL, 6),
-         PT.EInteger(10UL, 6),
-         PT.NoRail
+         PT.EInteger(10UL, 6)
        )) ]
 
 let testInfixProgramTypesToSerializedTypes =
   testMany
     "infix program types to serialized types"
     PT2ST.Expr.toST
-    [ (PT.EBinOp(
+    [ (PT.EInfix(
         8UL,
-        { module_ = None; function_ = "+" },
+        PT.InfixFnCall({ module_ = None; function_ = "+" }, PT.NoRail),
         PT.EInteger(9UL, 6),
-        PT.EInteger(10UL, 6),
-        PT.NoRail
+        PT.EInteger(10UL, 6)
        ),
-       ST.EBinOp(
+       // CLEANUP: when all the servers are deployed with the new format, we can switch the translation
+       //  ST.EInfix(
+       //    8UL,
+       //    ST.InfixFnCall({ module_ = None; function_ = "+" }, ST.NoRail),
+       //    ST.EInteger(9UL, 6),
+       //    ST.EInteger(10UL, 6)
+       //  ))
+       ST.EDeprecatedBinOp(
          8UL,
          ST.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 },
          ST.EInteger(9UL, 6),
          ST.EInteger(10UL, 6),
          ST.NoRail
        ))
-      (PT.EBinOp(
+      (PT.EInfix(
         8UL,
-        { module_ = Some "Date"; function_ = "<" },
+        PT.InfixFnCall({ module_ = Some "Date"; function_ = "<" }, PT.NoRail),
         PT.EInteger(9UL, 6),
-        PT.EInteger(10UL, 6),
-        PT.NoRail
+        PT.EInteger(10UL, 6)
        ),
-       ST.EBinOp(
+       ST.EDeprecatedBinOp(
          8UL,
          ST.FQFnName.Stdlib { module_ = "Date"; function_ = "<"; version = 0 },
          ST.EInteger(9UL, 6),
          ST.EInteger(10UL, 6),
          ST.NoRail
        )) ]
-
+// CLEANUP: when all the servers are deployed with the new format, we can switch the translation
+//  ST.EInfix(
+//    8UL,
+//    ST.InfixFnCall({ module_ = Some("Date"); function_ = "<" }, ST.NoRail),
+//    ST.EInteger(9UL, 6),
+//    ST.EInteger(10UL, 6)
+//  )) ]
 /// We have functions that were written as user functions, but accidentally
 /// converted to StdLibFns before being saved to the DB
 let testVersionedSerializedTypesToProgramTypes =

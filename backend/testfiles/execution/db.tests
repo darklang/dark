@@ -481,6 +481,9 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 [test.db && queries] with DB Person
 (friends (fun p -> p.human && p.height > 66 )) = [" Chandler "; "Ross" ]
 
+[test.db || queries] with DB Person
+(friends (fun p -> p.human || p.height > 66 )) = [" Chandler "; "Rachel"; "Ross" ]
+
 [test.db inlining] with DB Person
 (friends (fun p -> let x = 32 in p.height > x && true)) = [" Chandler "; "Rachel"; "Ross" ]
 
@@ -556,6 +559,8 @@ friendsError (fun p -> p.dob != Date.now_v0) =
 (friends (fun p -> String.trimStart_v0 p.name == "Chandler ")) = [" Chandler " ]
 (friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [" Chandler " ]
 (friends (fun p -> Bool.not_v0 p.human)) = ["GrumpyCat" ]
+(friends (fun p -> Bool.and_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> Bool.or_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
 (friends (fun p -> Date.(<=) p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
 (friends (fun p -> Date.(<=) p.dob (rossDOB null))) = ["Ross" ]
 (friends (fun p -> Date.(<) p.dob (rossDOB null))) = []

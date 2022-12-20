@@ -78,7 +78,7 @@ module Expr =
         RT.NotInPipe,
         SendToRail.toRT ster
       )
-    | PT.EBinOp (id, fnName, arg1, arg2, ster) ->
+    | PT.EInfix (id, PT.InfixFnCall (fnName, ster), arg1, arg2) ->
       let name =
         PT.FQFnName.Stdlib(
           { module_ = Option.unwrap "" fnName.module_
@@ -86,6 +86,10 @@ module Expr =
             version = 0 }
         )
       toRT (PT.EFnCall(id, name, [ arg1; arg2 ], ster))
+    | PT.EInfix (id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
+      RT.EAnd(id, toRT expr1, toRT expr2)
+    | PT.EInfix (id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
+      RT.EOr(id, toRT expr1, toRT expr2)
     | PT.ELambda (id, vars, body) -> RT.ELambda(id, vars, toRT body)
     | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -120,7 +124,10 @@ module Expr =
                 SendToRail.toRT rail
               )
             // TODO: support currying
-            | PT.EBinOp (id, fnName, PT.EPipeTarget ptID, expr2, rail) ->
+            | PT.EInfix (id,
+                         PT.InfixFnCall (fnName, rail),
+                         PT.EPipeTarget ptID,
+                         expr2) ->
               let name =
                 PT.FQFnName.Stdlib(
                   { module_ = Option.unwrap "" fnName.module_
@@ -134,6 +141,11 @@ module Expr =
                 RT.InPipe pipeID,
                 SendToRail.toRT rail
               )
+            // Binops work pretty naturally here
+            | PT.EInfix (id, PT.BinOp op, PT.EPipeTarget ptID, expr2) ->
+              match op with
+              | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
+              | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
             // If there's a hole, run the computation right through it as if it wasn't there
             | PT.EBlank _ -> prev
             // We can ignore partials as we just want whatever is inside them

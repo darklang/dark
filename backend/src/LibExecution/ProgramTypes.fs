@@ -30,7 +30,7 @@ module FQFnName =
       function_ : string
       version : int }
 
-  // We don't include InfixStdlibFnName here as that is used directly by EBinOp
+  // We don't include InfixStdlibFnName here as that is used directly by EInfix
   type T =
     | User of UserFnName
     | Stdlib of StdlibFnName
@@ -55,6 +55,14 @@ type SendToRail =
   | Rail
   | NoRail
 
+type BinaryOperation =
+  | BinOpAnd
+  | BinOpOr
+
+type Infix =
+  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | BinOp of BinaryOperation
+
 /// Expressions - the main part of the language.
 type Expr =
   | EInteger of id * int64
@@ -71,7 +79,7 @@ type Expr =
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
-  | EBinOp of id * FQFnName.InfixStdlibFnName * Expr * Expr * SendToRail
+  | EInfix of id * Infix * Expr * Expr
   // the id in the varname list is the analysis id, used to get a livevalue
   // from the analysis engine
   | ELambda of id * List<id * string> * Expr
@@ -93,7 +101,7 @@ type Expr =
   // Eg, an EPartial wrapping an EFnCall will render the arguments of the old
   // EFnCall expression after the string. See FluidPrinter for specifics.
   | EPartial of id * string * Expr
-  // An ERightPartial is used while in the process of adding an EBinOp,
+  // An ERightPartial is used while in the process of adding an EInfix,
   // allowing for typing multiple characters as operators (eg, "++") after an
   // expression. The [string] holds the typed characters while the [t] holds
   // the LHS of the binop.
@@ -101,7 +109,7 @@ type Expr =
   // Example:
   // Typing `"foo" ++` creates ERightPartial (id, "++", EString (_, "foo"))
   // until the autocomplete of "++" is accepted, transforming the ERightPartial
-  // into a proper EBinOp.
+  // into a proper EInfix.
   //
   // ERightPartial is rendered as the old expression followed by the string.
   | ERightPartial of id * string * Expr

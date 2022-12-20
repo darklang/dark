@@ -178,6 +178,8 @@ type Expr =
   | EConstructor of id * string * List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EFeatureFlag of id * Expr * Expr * Expr
+  | EAnd of id * Expr * Expr
+  | EOr of id * Expr * Expr
 
   member this.isBlank : bool =
     match this with
@@ -420,6 +422,8 @@ module Expr =
     | EConstructor (id, _, _)
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _) -> id
+    | EAnd (id, _, _) -> id
+    | EOr (id, _, _) -> id
 
 /// Functions for working with Dark match patterns
 module MatchPattern =

@@ -110,7 +110,7 @@ module AstRef = {
     | ARBlank(id)
     | ARLet(id, astLetPart)
     | ARIf(id, astIfPart)
-    | ARBinOp(id) // matches the operator
+    | ARInfix(id) // matches the operator
     | ARFieldAccess(id, astFieldAccessPart)
     | ARVariable(id)
     | ARFnCall(id) // Matches the fn name+version

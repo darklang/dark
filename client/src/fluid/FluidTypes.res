@@ -41,6 +41,7 @@ module Token = {
     type rec t = {
       name: string,
       typ: string,
+      parentID: ID.t,
     }
   }
 
@@ -54,12 +55,7 @@ module Token = {
     | TStringML(ID.t, string, int, string)
     // Sometimes the analysis wants to look "through" blanks (eg in pipes)
     | TBlank(ID.t, analysisID, option<parentBlockID>)
-    | TPlaceholder({
-        blankID: ID.t,
-        fnID: ID.t,
-        parentBlockID: option<parentBlockID>,
-        placeholder: Placeholder.t,
-      })
+    | TPlaceholder({blankID: ID.t, placeholder: Placeholder.t})
     | TTrue(ID.t, option<parentBlockID>)
     | TFalse(ID.t, option<parentBlockID>)
     | TNullToken(ID.t, option<parentBlockID>)
@@ -91,7 +87,7 @@ module Token = {
     | TIfKeyword(ID.t, option<parentBlockID>)
     | TIfThenKeyword(ID.t, option<parentBlockID>)
     | TIfElseKeyword(ID.t, option<parentBlockID>)
-    | TBinOp(ID.t, string, option<parentBlockID>)
+    | TInfix(ID.t, string, option<parentBlockID>)
     | TFieldOp(/* fieldAccess */ ID.t, /* lhs */ ID.t, option<parentBlockID>)
     | TFieldName(ID.t /* fieldAccess */, ID.t /* lhs */, string, option<parentBlockID>)
     | TFieldPartial(
@@ -194,6 +190,8 @@ module AutoComplete = {
     | KLambda
     | KMatch
     | KPipe
+    | KAnd
+    | KOr
 
   @ppx.deriving(show({with_path: false}))
   type rec literalItem =

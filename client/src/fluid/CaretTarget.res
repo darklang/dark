@@ -149,7 +149,7 @@ let rec forEndOfExpr': fluidExpr => t = expr =>
   | EBlank(id) => {astRef: ARBlank(id), offset: 0}
   | ELet(_, _, _, bodyExpr) => forEndOfExpr'(bodyExpr)
   | EIf(_, _, _, elseExpr) => forEndOfExpr'(elseExpr)
-  | EBinOp(_, _, _, rhsExpr, _) => forEndOfExpr'(rhsExpr)
+  | EInfix(_, _, _, rhsExpr) => forEndOfExpr'(rhsExpr)
   | ELambda(_, _, bodyExpr) => forEndOfExpr'(bodyExpr)
   | EFnCall(id, fnName, argExprs, _) =>
     /* Caret targets don't make sense for EPipeTargets, so we
@@ -176,7 +176,7 @@ let rec forEndOfExpr': fluidExpr => t = expr =>
         }: t
       ),
     )
-  | EPartial(_, _, EBinOp(_, _, _, rhsExpr, _)) =>
+  | EPartial(_, _, EInfix(_, _, _, rhsExpr)) =>
     /* We need this so that (for example) when we backspace a binop containing a binop within a partial,
      * we can keep hitting backspace to delete the whole thing. This isn't (currently) needed for
      * other types of partials because deleting non-binop partials deletes their args,
@@ -254,7 +254,7 @@ let rec forStartOfExpr': fluidExpr => t = expr =>
   | ELet(id, _, _, _) => {astRef: ARLet(id, LPKeyword), offset: 0}
   | EIf(id, _, _, _) => {astRef: ARIf(id, IPIfKeyword), offset: 0}
   | EMatch(id, _, _) => {astRef: ARMatch(id, MPKeyword), offset: 0}
-  | EBinOp(_, _, lhsExpr, _, _) => forStartOfExpr'(lhsExpr)
+  | EInfix(_, _, lhsExpr, _) => forStartOfExpr'(lhsExpr)
   | EFnCall(id, _, _, _) => {astRef: ARFnCall(id), offset: 0}
   | ELambda(id, _, _) => {astRef: ARLambda(id, LBPSymbol), offset: 0}
   | EFieldAccess(_, expr, _) => forStartOfExpr'(expr)

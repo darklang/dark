@@ -77,8 +77,10 @@ let rec eToTestcase = (e: E.t): string => {
   | ELeftPartial(_, str, e) => spaced(list{"prefixPartial", quoted(str), r(e)})
   | EFnCall(_, name, exprs, _) =>
     spaced(list{"fn", quoted(FQFnName.toString(name)), listed(List.map(~f=r, exprs))})
-  | EBinOp(_, name, lhs, rhs, _) =>
-    spaced(list{"binop", quoted(PT.InfixStdlibFnName.toString(name)), r(lhs), r(rhs)})
+  | EInfix(_, BinOp(BinOpAnd), lhs, rhs) => spaced(list{"and'", r(lhs), r(rhs)})
+  | EInfix(_, BinOp(BinOpOr), lhs, rhs) => spaced(list{"or'", r(lhs), r(rhs)})
+  | EInfix(_, InfixFnCall(name, _), lhs, rhs) =>
+    spaced(list{"infixFnCall", quoted(PT.InfixStdlibFnName.toString(name)), r(lhs), r(rhs)})
   | EVariable(_, name) => spaced(list{"var", quoted(name)})
   | EFieldAccess(_, expr, fieldname) => spaced(list{"fieldAccess", r(expr), quoted(fieldname)})
   | EMatch(_, cond, matches) =>

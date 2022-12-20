@@ -87,6 +87,8 @@ module Expr =
     | EConstructor of id * string * List<T>
     | EMatch of id * T * List<MatchPattern * T>
     | EFeatureFlag of id * T * T * T
+    | EAnd of id * T * T
+    | EOr of id * T * T
 
   and SendToRail =
     | Rail

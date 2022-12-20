@@ -59,6 +59,7 @@ module.exports = {
       },
       fontSize: {
         xxs: "0.625rem",
+        md: "1.0625rem", // 17px - between base and lg
         xxxs: "0.5rem",
       },
       margin: {
@@ -81,9 +82,10 @@ module.exports = {
     },
     fontFamily: {
       body: ['"Fira Code"', "sans-serif"],
-      heading: ['"Fira Code"', "sans-serif"],
+      heading: ['"Source Sans Pro"', "sans-serif"],
       accents: ['"Fira Code"', "sans-serif"],
-      code: ['"Fira Code"', "sans-serif"],
+      code: ['"Fira Code"', "mono"],
+      text: ['"Source Sans Pro"', "sans-serif"],
     },
   },
   corePlugins: {

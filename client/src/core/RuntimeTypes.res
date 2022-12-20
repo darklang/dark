@@ -145,6 +145,8 @@ module Expr = {
     | EConstructor(id, string, list<t>)
     | EMatch(id, t, list<(MatchPattern.t, t)>)
     | EFeatureFlag(id, t, t, t)
+    | EAnd(id, t, t)
+    | EOr(id, t, t)
 
   let rec decode = (j: Js.Json.t): t => {
     open Json_decode_extended
@@ -195,6 +197,8 @@ module Expr = {
         ),
         ("EFeatureFlag", dv4((a, b, c, d) => EFeatureFlag(a, b, c, d), ID.decode, de, de, de)),
         ("EFQFnValue", dv2((a, b) => EFQFnValue(a, b), ID.decode, FQFnName.decode)),
+        ("EAnd", dv3((a, b, c) => EAnd(a, b, c), ID.decode, de, de)),
+        ("EOr", dv3((a, b, c) => EOr(a, b, c), ID.decode, de, de)),
       },
       j,
     )
@@ -245,6 +249,8 @@ module Expr = {
     | EFQFnValue(id, name) => ev("EFQFnValue", list{ID.encode(id), FQFnName.encode(name)})
     | EConstructor(id, name, args) =>
       ev("EConstructor", list{ID.encode(id), string(name), list(encode, args)})
+    | EAnd(id, a, b) => ev("EAnd", list{ID.encode(id), encode(a), encode(b)})
+    | EOr(id, a, b) => ev("EOr", list{ID.encode(id), encode(a), encode(b)})
     }
   }
 }

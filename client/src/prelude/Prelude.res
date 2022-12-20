@@ -61,4 +61,18 @@ module Debug = {
   }
 
   let loG = (~f: 'a => 'b=x => Obj.magic(x), msg: string, data: 'a): unit => Js.log2(msg, f(data))
+
+  let logIf = (~f: 'a => 'b=x => Obj.magic(x), cond: bool, msg: string, data: 'a): 'a => {
+    if cond {
+      log(~f, msg, data)
+    } else {
+      data
+    }
+  }
+
+  let loGIf = (~f: 'a => 'b=x => Obj.magic(x), cond: bool, msg: string, data: 'a): unit => {
+    if cond {
+      loG(~f, msg, data)
+    }
+  }
 }

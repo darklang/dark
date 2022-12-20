@@ -13,6 +13,12 @@ updates:
     interval: daily
   open-pull-requests-limit: 10
 
+- package-ecosystem: npm
+  directory: "/integration-tests"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+
 - package-ecosystem: nuget
   directory: "/backend"
   schedule:

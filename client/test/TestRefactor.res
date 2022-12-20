@@ -585,7 +585,7 @@ let run = () => {
         switch FluidAST.toExpr(h.ast) {
         | EMatch(
             _,
-            EBinOp(_, {module_: None, function: "<"}, _, _, _),
+            EInfix(_, InfixFnCall({module_: None, function: "<"}, _), _, _),
             list{(MPBool(_, true), EBool(_, true)), (MPBool(_, false), EBool(_, false))},
           ) => true
         | _ => false
@@ -603,7 +603,7 @@ let run = () => {
         switch FluidAST.toExpr(h.ast) {
         | EMatch(
             _,
-            EBinOp(_, {function: "==", _}, _, _, _),
+            EInfix(_, InfixFnCall({function: "==", _}, _), _, _),
             list{(MPBool(_, true), EBool(_, true)), (MPBool(_, false), EBool(_, false))},
           ) => true
         | _ => false

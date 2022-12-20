@@ -17,7 +17,7 @@ type model = AppTypes.model
 
 @ppx.deriving(show) type rec data = FT.AutoComplete.data
 
-type props = {functions: Functions.t}
+type props = {functions: Functions.t, allowShortCircuiting: bool}
 
 @ppx.deriving(show) type rec tokenInfo = FluidTypes.TokenInfo.t
 
@@ -90,6 +90,8 @@ let asName = (aci: item): string =>
     | KLambda => "lambda"
     | KMatch => "match"
     | KPipe => "|>"
+    | KAnd => "&&"
+    | KOr => "||"
     }
   | FACMatchPattern(_, p) =>
     switch p {
@@ -453,6 +455,12 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
       }
     )
 
+  let shortCircuiting = if props.allowShortCircuiting {
+    list{FACKeyword(KAnd), FACKeyword(KOr)}
+  } else {
+    list{}
+  }
+
   let keywords = if !isInQuery {
     List.map(~f=x => FACKeyword(x), list{KLet, KIf, KLambda, KMatch, KPipe})
   } else {
@@ -462,7 +470,15 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   let literals = List.map(~f=x => FACLiteral(x), list{LBool(true), LBool(false), LNull})
 
   let secrets = List.map(m.secrets, ~f=secretToACItem)
-  Belt.List.concatMany([varnames, secrets, constructors, literals, keywords, functions])
+  Belt.List.concatMany([
+    varnames,
+    secrets,
+    constructors,
+    literals,
+    keywords,
+    shortCircuiting,
+    functions,
+  ])
 }
 
 let generateMatchPatterns = (allowTuples: bool, ti: tokenInfo, queryString: string): list<item> => {
@@ -643,7 +659,10 @@ let regenerate = (m: model, a: t, (tlid, ti): query): t =>
   switch TL.get(m, tlid) {
   | None => init
   | Some(tl) =>
-    let props = {functions: m.functions}
+    let props = {
+      functions: m.functions,
+      allowShortCircuiting: m.settings.contributingSettings.inProgressFeatures.allowShortCircuitingBinops,
+    }
     let queryString = toQueryString(ti)
     let fieldList = findFields(m, tl, ti)
     let pipedDval = findPipedDval(m, tl, ti)
@@ -831,6 +850,8 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
       "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions",
     )
   | FACKeyword(KPipe) => simpleDoc("Pipe into another expression")
+  | FACKeyword(KAnd) => simpleDoc("A boolean `and`")
+  | FACKeyword(KOr) => simpleDoc("A boolean `or`")
   | FACMatchPattern(_, pat) =>
     switch pat {
     | FMPAConstructor(name, args) =>

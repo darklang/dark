@@ -686,7 +686,7 @@ let posFromCaretTargetMaybe = (ct: CT.t, astInfo: ASTInfo.t): option<int> => {
    as part of a List.findMap */
   let targetAndTokenInfoToMaybeCaretPos = ((ct, ti): (CT.t, T.tokenInfo)): option<int> =>
     switch (ct.astRef, ti.token) {
-    | (ARBinOp(id), TBinOp(id', _, _))
+    | (ARInfix(id), TInfix(id', _, _))
     | (ARBlank(id), TBlank(id', _, _) | TPlaceholder({blankID: id', _}))
     | (ARBool(id), TTrue(id', _) | TFalse(id', _))
     | (ARConstructor(id), TConstructorName(id', _))
@@ -801,7 +801,7 @@ let posFromCaretTargetMaybe = (ct: CT.t, astInfo: ASTInfo.t): option<int> => {
       }
 
     // Exhaustiveness satisfaction for astRefs
-    | (ARBinOp(_), _)
+    | (ARInfix(_), _)
     | (ARBlank(_), _)
     | (ARBool(_), _)
     | (ARConstructor(_), _)
@@ -923,7 +923,7 @@ let caretTargetFromTokenInfo = (pos: int, ti: T.tokenInfo): option<CT.t> => {
   | TIfKeyword(id, _) => Some({astRef: ARIf(id, IPIfKeyword), offset: offset})
   | TIfThenKeyword(id, _) => Some({astRef: ARIf(id, IPThenKeyword), offset: offset})
   | TIfElseKeyword(id, _) => Some({astRef: ARIf(id, IPElseKeyword), offset: offset})
-  | TBinOp(id, _, _) => Some({astRef: ARBinOp(id), offset: offset})
+  | TInfix(id, _, _) => Some({astRef: ARInfix(id), offset: offset})
   | TFieldName(id, _, _, _) => Some({astRef: ARFieldAccess(id, FAPFieldname), offset: offset})
   | TFieldOp(id, _, _) => Some({astRef: ARFieldAccess(id, FAPFieldOp), offset: offset})
   | TVariable(id, _, _) => Some({astRef: ARVariable(id), offset: offset})
@@ -1162,7 +1162,7 @@ let insertInBlankExpr = (settings: FluidTypes.FluidSettings.t, ins: string): (E.
  * in conjunction with lambdas.
  */
 let insertInPlaceholderExpr = (
-  ~fnID: id,
+  ~parentID: id,
   ~placeholder: placeholder,
   ~ins: string,
   ast: FluidAST.t,
@@ -1170,7 +1170,7 @@ let insertInPlaceholderExpr = (
 ): (E.t, CT.t) => {
   let newID = gid()
   let lambdaArgs = () => {
-    let fnname = switch FluidAST.findExpr(fnID, ast) {
+    let fnname = switch FluidAST.findExpr(parentID, ast) {
     | Some(EFnCall(_, name, _, _)) => Some(name)
     | _ => None
     }
@@ -1442,10 +1442,10 @@ let recordExprIdAtIndex = (recordID: id, index: int, ast: FluidExpression.t): op
 let rec mergeExprs = (e1: fluidExpr, e2: fluidExpr): (fluidExpr, CT.t) =>
   switch (e1, e2) {
   | (EPipeTarget(_), e2) => (e2, CT.forStartOfExpr'(e2))
-  | (_, EBinOp(id, op, lhs, rhs, rail)) =>
+  | (_, EInfix(id, op, lhs, rhs)) =>
     // Example: 1 , (2+3) -> (1|2+3)
     let (merged, target) = mergeExprs(e1, lhs)
-    (EBinOp(id, op, merged, rhs, rail), target)
+    (EInfix(id, op, merged, rhs), target)
   | (e1, EBlank(_)) => (e1, CT.forEndOfExpr'(e1))
   | (EBlank(_), e2) => (e2, CT.forStartOfExpr'(e2))
   | (EInteger(id, i1), EInteger(_, i2)) => (
@@ -1475,10 +1475,10 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
 ) => {
   let getFunctionParams = (fnname: string, count, varExprs): list<
     option<(string, string, E.t, int)>,
-  > =>
+  > => {
+    let fn = props.functions |> Functions.findByStr(fnname)
     List.map(List.range(0, count), ~f=index =>
-      props.functions
-      |> Functions.findByStr(fnname)
+      fn
       |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index, fn.parameters))
       |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t) => (
         p.name,
@@ -1487,6 +1487,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
         index,
       ))
     )
+  }
 
   let rec wrapWithLets = (~expr, vars) =>
     switch vars {
@@ -1500,7 +1501,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
   let getArgs = expr =>
     switch expr {
     | EFnCall(_, _, exprs, _) | EConstructor(_, _, exprs) => exprs
-    | EBinOp(_, _, lhs, rhs, _) => list{lhs, rhs}
+    | EInfix(_, _, lhs, rhs) => list{lhs, rhs}
     | _ => recover("impossible", ~debug=expr, list{})
     }
 
@@ -1508,7 +1509,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     // decides whether the new function is on the rails. Note that are checking
     // if we should prefer the old setting.
     let oldSter = switch oldExpr {
-    | EFnCall(_, _, _, ster) | EBinOp(_, _, _, _, ster) => ster
+    | EFnCall(_, _, _, ster) | EInfix(_, InfixFnCall(_, ster), _, _) => ster
     | _ => NoRail
     }
 
@@ -1554,7 +1555,7 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
 
   let ctForExpr = (expr: fluidExpr): CT.t =>
     switch expr {
-    | EBinOp(_id, _opName, lhs, _, _) => CT.forStartOfExpr'(lhs)
+    | EInfix(_id, _opName, lhs, _) => CT.forStartOfExpr'(lhs)
     | EFnCall(id, fnName, argExprs, _ster) =>
       argExprs
       |> List.find(~f=x =>
@@ -1595,11 +1596,11 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     // preserve partials with arguments
     switch e {
     | EPartial(_, _, EFnCall(_, _, _, _) as oldExpr)
-    | EPartial(_, _, EBinOp(_, _, _, _, _) as oldExpr)
+    | EPartial(_, _, EInfix(_, _, _, _) as oldExpr)
     | EPartial(_, _, EConstructor(_, _, _) as oldExpr) =>
       let oldName = switch oldExpr {
       | EFnCall(_, name, _, _) => FQFnName.toString(name)
-      | EBinOp(_, name, _, _, _) => PT.InfixStdlibFnName.toString(name)
+      | EInfix(_, op, _, _) => Infix.toString(op)
       | EConstructor(_, name, _) => name
       | _ => recover("not possible", "")
       }
@@ -1647,18 +1648,35 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
       }
 
       switch newExpr {
-      | EBinOp(id, newName, lhs, rhs, newSter) =>
+      | EInfix(id, InfixFnCall(newName, newSter), lhs, rhs) =>
         let newNameStr = PT.InfixStdlibFnName.toString(newName)
         let ster = chooseSter(~oldName, ~oldExpr, newSter)
         let (newParams, mismatchedParams) = fetchParams(newNameStr, list{lhs, rhs})
 
         let newExpr = switch newParams {
-        | list{newLHS, newRHS} => EBinOp(id, newName, newLHS, newRHS, ster)
+        | list{newLHS, newRHS} => EInfix(id, InfixFnCall(newName, ster), newLHS, newRHS)
         | _ =>
           recover(
             "wrong number of arguments",
             ~debug=newParams,
-            EBinOp(id, newName, E.newB(), E.newB(), ster),
+            EInfix(id, InfixFnCall(newName, ster), E.newB(), E.newB()),
+          )
+        }
+
+        (wrapWithLets(~expr=newExpr, mismatchedParams), ctForExpr(newExpr))
+
+      | EInfix(id, BinOp(newOp), lhs, rhs) =>
+        // "||" and "&&" will match functions for now
+        let newNameStr = BinaryOperation.toString(newOp)
+        let (newParams, mismatchedParams) = fetchParams(newNameStr, list{lhs, rhs})
+
+        let newExpr = switch newParams {
+        | list{newLHS, newRHS} => EInfix(id, BinOp(newOp), newLHS, newRHS)
+        | _ =>
+          recover(
+            "wrong number of arguments",
+            ~debug=newParams,
+            EInfix(id, BinOp(newOp), E.newB(), E.newB()),
           )
         }
 
@@ -1739,7 +1757,7 @@ let rec findAppropriateParentToWrap = (oldExpr: FluidExpression.t, ast: FluidAST
       Some(child)
     | EPipe(_) => Some(parent)
     // These are the expressions we're trying to skip. They are "sub-line" expressions.
-    | EBinOp(_) | EFnCall(_) | EList(_) | ETuple(_) | EConstructor(_) | EFieldAccess(_) =>
+    | EInfix(_) | EFnCall(_) | EList(_) | ETuple(_) | EConstructor(_) | EFieldAccess(_) =>
       findAppropriateParentToWrap(parent, ast)
     // These are wrappers of the current expr.
     | EPartial(_) | ERightPartial(_) | ELeftPartial(_) => findAppropriateParentToWrap(parent, ast)
@@ -1938,8 +1956,8 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
           )
         }
 
-        Some(EBinOp(gid(), name, lhs, rhs, r), CT.forStartOfExpr'(rhs))
-      | _ => recover("BinOp doesn't have 2 args", ~debug=args, None)
+        Some(EInfix(gid(), InfixFnCall(name, r), lhs, rhs), CT.forStartOfExpr'(rhs))
+      | _ => recover("BinOp doesn't have 2 args", ~debug=(fn.name, args), None)
       }
     } else {
       // functions with arguments should place the caret into the first argument
@@ -1985,6 +2003,14 @@ let acToExpr = (entry: AC.item): option<(E.t, CT.t)> => {
   | FACKeyword(KPipe) =>
     let (b, target) = mkBlank()
     Some(EPipe(gid(), b, E.newB(), list{}), target)
+  | FACKeyword(KAnd) =>
+    let lhs = EBlank(gid())
+    let rhs = EBlank(gid())
+    Some(EInfix(gid(), BinOp(BinOpAnd), lhs, rhs), CT.forStartOfExpr'(rhs))
+  | FACKeyword(KOr) =>
+    let lhs = EBlank(gid())
+    let rhs = EBlank(gid())
+    Some(EInfix(gid(), BinOp(BinOpOr), lhs, rhs), CT.forStartOfExpr'(rhs))
   | FACSecret(name, _) =>
     let vID = gid()
     Some(EVariable(vID, name), {astRef: ARVariable(vID), offset: String.length(name)})
@@ -2230,8 +2256,8 @@ let updateFromACItem = (
     let replacement = ELet(letID, "", expr, E.newB())
     let newAST = FluidAST.replace(~replacement, pID, ast)
     (newAST, CT.forStartOfExpr'(blank))
-  | (TPartial(_), _, Some(EPipe(_)), Expr(EBinOp(bID, name, _, rhs, str))) =>
-    let replacement = EBinOp(bID, name, EPipeTarget(gid()), rhs, str)
+  | (TPartial(_), _, Some(EPipe(_)), Expr(EInfix(bID, op, _, rhs))) =>
+    let replacement = EInfix(bID, op, EPipeTarget(gid()), rhs)
     let newAST = FluidAST.replace(~replacement, id, ast)
     (newAST, CT.forEndOfExpr'(replacement))
   | (TPartial(_), Some(oldExpr), Some(EPipe(_, firstExpr, _, _)), Expr(newExpr))
@@ -2244,26 +2270,16 @@ let updateFromACItem = (
     // We can't use the newTarget because it might point to eg a blank
     // replaced with an argument
     replacePartialWithArguments(props, ~newExpr, id, ast)
-  | (
-      TPartial(_),
-      Some(EPartial(_, _, EBinOp(_, _, lhs, rhs, _))),
-      _,
-      Expr(EBinOp(bID, name, _, _, str)),
-    ) =>
-    let replacement = EBinOp(bID, name, lhs, rhs, str)
+  | (TPartial(_), Some(EPartial(_, _, EInfix(_, _, lhs, rhs))), _, Expr(EInfix(bID, op, _, _))) =>
+    let replacement = EInfix(bID, op, lhs, rhs)
     let newAST = FluidAST.replace(~replacement, id, ast)
     (newAST, CT.forStartOfExpr'(rhs))
   | (TPartial(_), _, _, Expr(newExpr)) =>
     // We can't use the newTarget because it might point to eg a blank
     // replaced with an argument
     replacePartialWithArguments(props, ~newExpr, id, ast)
-  | (
-      TRightPartial(_),
-      Some(ERightPartial(_, _, oldExpr)),
-      _,
-      Expr(EBinOp(bID, name, _, rhs, str)),
-    ) =>
-    let replacement = EBinOp(bID, name, oldExpr, rhs, str)
+  | (TRightPartial(_), Some(ERightPartial(_, _, oldExpr)), _, Expr(EInfix(bID, op, _, rhs))) =>
+    let replacement = EInfix(bID, op, oldExpr, rhs)
     let newAST = FluidAST.replace(~replacement, id, ast)
     (newAST, CT.forStartOfExpr'(rhs))
   | (
@@ -2435,7 +2451,7 @@ let idOfASTRef = (astRef: astRef): option<id> =>
   | ARBlank(id)
   | ARLet(id, _)
   | ARIf(id, _)
-  | ARBinOp(id)
+  | ARInfix(id)
   | ARFieldAccess(id, _)
   | ARVariable(id)
   | ARFnCall(id)
@@ -2719,9 +2735,9 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
 
     | (ARNull(_), ENull(_)) => mkPartialOrBlank(mutation("null"), currExpr)
     | (ARVariable(_), EVariable(_, varName)) => mkPartialOrBlank(mutation(varName), currExpr)
-    | (ARBinOp(_), EBinOp(_, op, lhsExpr, rhsExpr, _)) =>
+    | (ARInfix(_), EInfix(_, op, lhsExpr, rhsExpr)) =>
       let str =
-        op |> PT.InfixStdlibFnName.toString |> FluidUtil.ghostPartialName |> mutation |> String.trim
+        op |> PT.Expr.Infix.toString |> FluidUtil.ghostPartialName |> mutation |> String.trim
       if str == "" {
         // Delete the binop
         let (expr, target) = mergeExprs(lhsExpr, rhsExpr)
@@ -2746,7 +2762,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
         | EFieldAccess(_) =>
           // This is allowed to be the empty string.
           Some(Expr(EPartial(id, str, oldExpr)), currCTMinusOne)
-        | EBinOp(_, _, lhsExpr, rhsExpr, _) =>
+        | EInfix(_, _, lhsExpr, rhsExpr) =>
           let (expr, target) = mergeExprs(lhsExpr, rhsExpr)
           Some(Expr(expr), target)
         | _ => mkEBlank()
@@ -2893,7 +2909,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
       Some(Expr(expr), {astRef: currAstRef, offset: 0})
 
     // Anything else is unexpected; this satisfies the exhaustiveness check
-    | (ARBinOp(_), _)
+    | (ARInfix(_), _)
     | (ARBool(_), _)
     | (ARConstructor(_), _)
     | (ARFieldAccess(_, FAPFieldname), _)
@@ -3146,7 +3162,7 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
     | /*
      * non-patterns
      */
-    (ARBinOp(_), _)
+    (ARInfix(_), _)
     | (ARBlank(_), _)
     | (ARBool(_), _)
     | (ARConstructor(_), _)
@@ -3432,9 +3448,8 @@ let doExplicitInsert = (
       // appending to a left partial appends to the string part
       let str = str |> mutation |> String.trim
       Some(ELeftPartial(id, str, expr), currCTPlusLen)
-    | (ARBinOp(_), EBinOp(_, op, _, _, _) as oldExpr) =>
-      let str =
-        op |> PT.InfixStdlibFnName.toString |> FluidUtil.partialName |> mutation |> String.trim
+    | (ARInfix(_), EInfix(_, op, _, _) as oldExpr) =>
+      let str = op |> PT.Expr.Infix.toString |> FluidUtil.partialName |> mutation |> String.trim
       mkPartial(str, oldExpr)
     | (ARInteger(_), EInteger(id, int)) =>
       if currCaretTarget.offset == 0 && extendedGraphemeCluster == "0" {
@@ -3553,7 +3568,7 @@ let doExplicitInsert = (
     /* ****************
      * Exhaustiveness
      */
-    | (ARBinOp(_), _)
+    | (ARInfix(_), _)
     | (ARBool(_), _)
     | (ARConstructor(_), _)
     | (ARFieldAccess(_, FAPFieldname), _)
@@ -3821,7 +3836,7 @@ let doExplicitInsert = (
     | (ARMPattern(_, MPPTuple(TPOpen)), _)
     | (ARMPattern(_, MPPTuple(TPClose)), _)
     | (ARMPattern(_, MPPTuple(TPComma(_))), _)
-    | (ARBinOp(_), _)
+    | (ARInfix(_), _)
     | (ARBlank(_), _)
     | (ARBool(_), _)
     | (ARConstructor(_), _)
@@ -4018,7 +4033,7 @@ let doInfixInsert = (
     | (ARFieldAccess(_, FAPFieldOp), _)
     | (ARLet(_), _)
     | (ARIf(_), _)
-    | (ARBinOp(_), _)
+    | (ARInfix(_), _)
     | (ARPartial(_), _)
     | (ARRightPartial(_), _)
     | (ARLeftPartial(_), _)
@@ -4689,13 +4704,13 @@ let rec updateKey' = (
   // *********************************
   // INSERT INTO EXISTING CONSTRUCTS
   // *********************************
-  | (InsertText(ins), L(TPlaceholder({placeholder, blankID, fnID, _}), _), _)
-  | (InsertText(ins), _, R(TPlaceholder({placeholder, blankID, fnID, _}), _)) =>
+  | (InsertText(ins), L(TPlaceholder({placeholder, blankID}), _), _)
+  | (InsertText(ins), _, R(TPlaceholder({placeholder, blankID}), _)) =>
     /* We need this special case because by the time we get to the general
      * doInsert handling, reconstructing the difference between placeholders
      * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. */
     let (newExpr, newTarget) = insertInPlaceholderExpr(
-      ~fnID,
+      ~parentID=placeholder.parentID,
       ~placeholder,
       ~ins,
       astInfo.ast,
@@ -5394,8 +5409,8 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
         | (Some(e), None, None) | (None, Some(e), None) | (None, None, Some(e)) => Some(e)
         | _ => None
         }
-      | EBinOp(eID, name, expr1, expr2, ster) =>
-        let newName = findTokenValue(tokens, eID, "binop") |> Option.unwrap(~default="")
+      | EInfix(eID, op, expr1, expr2) =>
+        let newName = findTokenValue(tokens, eID, "infix") |> Option.unwrap(~default="")
 
         switch (reconstructExpr(expr1), reconstructExpr(expr2)) {
         | (Some(newExpr1), Some(newExpr2)) if newName == "" =>
@@ -5408,37 +5423,37 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
           | (e1, e2) => Some(ELet(gid(), "", e1, ELet(gid(), "", e2, EBlank(gid()))))
           }
         | (None, Some(e)) =>
-          let e = EBinOp(id, name, EBlank(gid()), e, ster)
+          let e = EInfix(id, op, EBlank(gid()), e)
           if newName == "" {
             None
-          } else if PT.InfixStdlibFnName.toString(name) != newName {
+          } else if PT.Expr.Infix.toString(op) != newName {
             Some(EPartial(gid(), newName, e))
           } else {
             Some(e)
           }
         | (Some(e), None) =>
-          let e = EBinOp(id, name, e, EBlank(gid()), ster)
+          let e = EInfix(id, op, e, EBlank(gid()))
           if newName == "" {
             None
-          } else if PT.InfixStdlibFnName.toString(name) != newName {
+          } else if PT.Expr.Infix.toString(op) != newName {
             Some(EPartial(gid(), newName, e))
           } else {
             Some(e)
           }
         | (Some(newExpr1), Some(newExpr2)) =>
-          let e = EBinOp(id, name, newExpr1, newExpr2, ster)
+          let e = EInfix(id, op, newExpr1, newExpr2)
           if newName == "" {
             None
-          } else if PT.InfixStdlibFnName.toString(name) != newName {
+          } else if PT.Expr.Infix.toString(op) != newName {
             Some(EPartial(gid(), newName, e))
           } else {
             Some(e)
           }
         | (None, None) if newName != "" =>
-          let e = EBinOp(id, name, EBlank(gid()), EBlank(gid()), ster)
+          let e = EInfix(id, op, EBlank(gid()), EBlank(gid()))
           if newName == "" {
             None
-          } else if PT.InfixStdlibFnName.toString(name) != newName {
+          } else if PT.Expr.Infix.toString(op) != newName {
             Some(EPartial(gid(), newName, e))
           } else {
             Some(e)
@@ -5816,8 +5831,7 @@ let pasteOverSelection = (
           }
 
           EFnCall(id, name, args, sendToRail)
-        | EBinOp(id, name, _lhs, rhs, sendToRail) =>
-          EBinOp(id, name, EPipeTarget(pipeId), rhs, sendToRail)
+        | EInfix(id, op, _lhs, rhs) => EInfix(id, op, EPipeTarget(pipeId), rhs)
         | EPartial(id, text, oldExpr) => EPartial(id, text, addPipeTarget(pipeId, oldExpr))
         | ERightPartial(id, text, oldExpr) =>
           ERightPartial(id, text, addPipeTarget(pipeId, oldExpr))
@@ -5839,7 +5853,7 @@ let pasteOverSelection = (
           )
 
           EFnCall(id, name, args, sendToRail)
-        | EBinOp(id, name, lhs, rhs, sendToRail) =>
+        | EInfix(id, op, lhs, rhs) =>
           let (lhs, rhs) = (lhs, rhs) |> Tuple2.mapAll(~f=x =>
             switch x {
             | EPipeTarget(_) => E.newB()
@@ -5847,7 +5861,7 @@ let pasteOverSelection = (
             }
           )
 
-          EBinOp(id, name, lhs, rhs, sendToRail)
+          EInfix(id, op, lhs, rhs)
         | EPartial(id, text, oldExpr) => EPartial(id, text, removePipeTarget(oldExpr))
         | ERightPartial(id, text, oldExpr) => ERightPartial(id, text, removePipeTarget(oldExpr))
         | ELeftPartial(id, text, oldExpr) => ELeftPartial(id, text, removePipeTarget(oldExpr))

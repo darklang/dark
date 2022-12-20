@@ -179,7 +179,7 @@ let intAsUnit = (i: int, u: string): string => string_of_int(i) ++ u
 
 let fnForToken = (functions: Functions.t, token): option<Function.t> =>
   switch token {
-  | FluidTypes.Token.TBinOp(_, fnName, _)
+  | FluidTypes.Token.TInfix(_, fnName, _)
   | TFnVersion(_, _, _, fnName)
   | TFnName(_, _, _, fnName, _) =>
     Functions.findByStr(fnName, functions)

@@ -303,7 +303,7 @@ module TestResult = {
   let containsFnsOnRail = (res: t): bool =>
     FluidAST.filter(res.resultAST, ~f=x =>
       switch x {
-      | EBinOp(_, _, _, _, Rail) | EFnCall(_, _, _, Rail) => true
+      | EInfix(_, InfixFnCall(_, Rail), _, _) | EFnCall(_, _, _, Rail) => true
       | _ => false
       }
     ) |> \"<>"(list{})
@@ -2332,21 +2332,21 @@ let run = () => {
       "~___",
     )
   })
-  describe("Binops", () => {
-    t(~expectsPartial=true, "pipe key starts partial", trueBool, ~pos=4, ins("|"), "true |~")
+  describe("Infix fn calls", () => {
+    t(~expectsPartial=true, "fnname char starts partial", int(9876), ~pos=4, ins(">"), "9876 >~")
     t(
       "pressing enter completes partial",
-      trueBool,
-      ~pos=4,
-      inputs(list{InsertText("|"), keypress(K.Down), keypress(K.Enter)}),
-      "true || ~__________",
+      anInt,
+      ~pos=5,
+      inputs(list{InsertText("<"), keypress(K.Down), keypress(K.Enter)}),
+      "12345 <= ~_________",
     )
     t(
       "pressing space completes partial",
-      trueBool,
-      ~pos=4,
-      inputs(list{InsertText("|"), keypress(K.Down), keypress(K.Space)}),
-      "true || ~__________",
+      anInt,
+      ~pos=5,
+      inputs(list{InsertText("<"), keypress(K.Down), keypress(K.Space)}),
+      "12345 <= ~_________",
     )
     t(
       ~expectsPartial=true,
@@ -2380,16 +2380,16 @@ let run = () => {
       ins("+"),
       "123.456 +~",
     )
-    t(~expectsPartial=true, "ins | starts partial after null", aNull, ~pos=4, ins("|"), "null |~")
+    t(~expectsPartial=true, "ins + starts partial after null", aNull, ~pos=4, ins("+"), "null +~")
     t(
       ~expectsPartial=true,
-      "ins | starts partial after variable",
+      "ins + starts partial after variable",
       aVar,
       ~pos=8,
-      ins("|"),
-      "variable |~",
+      ins("+"),
+      "variable +~",
     )
-    t(~expectsPartial=true, "ins | starts partial after list", aList5, ~pos=3, ins("|"), "[5] |~")
+    t(~expectsPartial=true, "ins + starts partial after list", aList5, ~pos=3, ins("+"), "[5] +~")
     t(
       ~expectsPartial=true,
       "ins + starts partial after fieldname",
@@ -2399,26 +2399,11 @@ let run = () => {
       "obj.field +~",
     )
     t(
-      ~expectsPartial=true,
-      "ins | starts partial after multiRowRecord",
-      multiRowRecord,
-      ~pos=23,
-      ins("|"),
-      "{\n  f1 : 56\n  f2 : 78\n} |~",
-    )
-    t(
-      "pressing pipe twice then space completes partial",
-      trueBool,
-      ~pos=4,
-      inputs(list{InsertText("|"), InsertText("|"), keypress(K.Space)}),
-      "true || ~__________",
-    )
-    t(
-      "piping into newline creates pipe",
-      trueBool,
-      ~pos=4,
-      inputs(list{InsertText("|"), InsertText(">"), keypress(K.Space)}),
-      "true\n|>~___\n",
+      "typing full name then space completes partial",
+      anInt,
+      ~pos=5,
+      inputs(list{InsertText(">"), InsertText("="), keypress(K.Space)}),
+      "12345 >= ~_________",
     )
     t(
       "pressing bs to clear partial reverts for blank rhs",
@@ -2429,8 +2414,8 @@ let run = () => {
     )
     t(
       "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start",
-      partial("|", binop("||", b, b)),
-      ~pos=12,
+      partial(">", binop(">=", b, b)),
+      ~pos=11,
       bs,
       "~___",
     )
@@ -2443,35 +2428,35 @@ let run = () => {
     )
     t(
       "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start",
-      partial("|", binop("||", b, b)),
-      ~pos=11,
+      partial(">", binop(">=", b, b)),
+      ~pos=10,
       del,
       "~___",
     )
     t(
       "using bs to remove an infix with a placeholder goes to right place",
-      partial("|", binop("||", b, b)),
-      ~pos=12,
+      partial(">", binop(">=", b, b)),
+      ~pos=11,
       bs,
       "~___",
     )
     t(
       "using bs to remove an infix with a placeholder goes to right place 2",
-      partial("|", binop("||", five, b)),
+      partial(">", binop(">=", five, b)),
       ~pos=3,
       bs,
       "5~",
     )
     t(
       "deleting binop between bools does not combine them",
-      partial("|", binop("||", trueBool, falseBool)),
+      partial(">", binop(">=", trueBool, falseBool)),
       ~pos=6,
       bs,
       "true~",
     )
     t(
       "pressing bs to clear rightpartial reverts for blank rhs",
-      rightPartial("|", b),
+      rightPartial(">", b),
       ~pos=5,
       bs,
       "~___",
@@ -2485,14 +2470,14 @@ let run = () => {
     )
     t(
       "using del to remove an infix with a placeholder goes to right place",
-      partial("|", binop("||", b, b)),
-      ~pos=11,
+      partial(">", binop(">=", b, b)),
+      ~pos=10,
       del,
       "~___",
     )
     t(
       "pressing del to clear rightpartial reverts for blank rhs",
-      rightPartial("|", b),
+      rightPartial(">", b),
       ~pos=4,
       del,
       "~___",
@@ -2556,10 +2541,10 @@ let run = () => {
     t(
       ~expectsPartial=true,
       "pressing pipe while editing a partial works properly",
-      partial("|", binop("||", anInt, anInt)),
+      partial(">", binop(">=", anInt, anInt)),
       ~pos=7,
-      ins("|"),
-      "12345 ||~ 12345",
+      ins("="),
+      "12345 >=~ 12345",
     )
     t(
       ~expectsPartial=true,
@@ -2605,7 +2590,7 @@ let run = () => {
       ins("%"),
       "if %~\nthen\n  ___\nelse\n  ___",
     )
-    t(~expectsPartial=true, "show ghost partial", aFullBinOp, ~pos=8, bs, "myvar |~@ 5")
+    t(~expectsPartial=true, "show ghost partial", aFullBinOp, ~pos=8, bs, "myvar &~@ true")
     t(
       "ctrl+left from end of < moves to front of <",
       binop("<", anInt, anInt),
@@ -2666,39 +2651,39 @@ let run = () => {
     // TODO support del on all the bs commands
     // TODO pressing enter at the end of the partialGhost
     t(
-      "pressing bs on || in binop deletes right side",
-      binop("||", trueBool, falseBool),
+      "pressing bs on <= in binop joins right side",
+      binop("<=", int(9876), anInt),
       ~pos=7,
       inputs(list{DeleteContentBackward, DeleteContentBackward}),
-      "true~",
+      "9876~12345",
     )
     t(
-      "pressing bs on || in binop deletes blank on rhs",
-      binop("||", falseBool, b),
+      "pressing bs on >= in binop deletes blank on rhs",
+      binop(">=", anInt, b),
       ~pos=8,
       inputs(list{DeleteContentBackward, DeleteContentBackward}),
-      "false~",
+      "12345~",
     )
     t(
-      "pressing bs on || in binop deletes blank on lhs",
-      binop("||", b, falseBool),
-      ~pos=13,
+      "pressing bs on >= in binop deletes blank on lhs",
+      binop(">=", b, anInt),
+      ~pos=12,
       inputs(list{DeleteContentBackward, DeleteContentBackward}),
-      "~false",
+      "~12345",
     )
     t(
-      "pressing bs on || in binop after blank deletes blank but rest of the lhs",
-      binop("||", falseBool, binop("||", b, trueBool)),
-      ~pos=22,
+      "pressing bs on >= in binop after blank deletes blank but rest of the lhs",
+      binop("<=", anInt, binop(">=", b, int(9876))),
+      ~pos=21,
       inputs(list{DeleteContentBackward, DeleteContentBackward}),
-      "false || ~true",
+      "12345 <= ~9876",
     )
     t(
-      "pressing bs on || in binop before blank deletes blank but rest of the lhs",
-      binop("||", falseBool, binop("||", b, trueBool)),
+      "pressing bs on >= in binop before blank deletes blank but rest of the lhs",
+      binop(">=", anInt, binop("<=", b, int(9876))),
       ~pos=8,
       inputs(list{DeleteContentBackward, DeleteContentBackward}),
-      "false~ || true",
+      "12345~ <= 9876",
     )
     t(
       "pressing bs on ++ binop before blank deletes blank but rest of the lhs",
@@ -2802,6 +2787,226 @@ let run = () => {
       "\"fia~x\"",
     )
   })
+  describe("And/Or", () => {
+    t(
+      "pressing enter completes partial",
+      trueBool,
+      ~pos=4,
+      inputs(list{InsertText("|"), keypress(K.Down), keypress(K.Enter)}),
+      "true || ~______",
+    )
+    t(
+      "pressing space completes partial",
+      trueBool,
+      ~pos=4,
+      inputs(list{InsertText("|"), keypress(K.Down), keypress(K.Space)}),
+      "true || ~______",
+    )
+    t(
+      ~expectsPartial=true,
+      "ins | starts partial after variable",
+      aVar,
+      ~pos=8,
+      ins("|"),
+      "variable |~",
+    )
+    t(
+      "pressing pipe twice then space completes partial",
+      trueBool,
+      ~pos=4,
+      inputs(list{InsertText("|"), InsertText("|"), keypress(K.Space)}),
+      "true || ~______",
+    )
+    t(
+      "pressing bs to clear partial reverts for blank rhs",
+      partial("|", or'(anInt, b)),
+      ~pos=7,
+      bs,
+      "12345~",
+    )
+    t(
+      "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start",
+      partial("|", or'(b, b)),
+      ~pos=8,
+      bs,
+      "~___",
+    )
+    t(
+      "pressing del to clear partial reverts for blank rhs",
+      partial("|", or'(anInt, b)),
+      ~pos=6,
+      del,
+      "12345~",
+    )
+    t(
+      "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start",
+      partial("|", or'(b, b)),
+      ~pos=7,
+      del,
+      "~___",
+    )
+    t(
+      "using bs to remove an infix with a placeholder goes to right place",
+      partial("|", or'(b, b)),
+      ~pos=8,
+      bs,
+      "~___",
+    )
+    t(
+      "using bs to remove an infix with a placeholder goes to right place 2",
+      partial("|", or'(five, b)),
+      ~pos=3,
+      bs,
+      "5~",
+    )
+    t(
+      "deleting binop between bools does not combine them",
+      partial("|", or'(trueBool, falseBool)),
+      ~pos=6,
+      bs,
+      "true~",
+    )
+    t(
+      "pressing bs to clear rightpartial reverts for blank rhs",
+      rightPartial("|", b),
+      ~pos=5,
+      bs,
+      "~___",
+    )
+    t(
+      "pressing bs on a partial over and/or deletes op and combines rhs and lhs",
+      partial("|", or'(anInt, anInt)),
+      ~pos=7,
+      bs,
+      "12345~12345",
+    )
+    t(
+      "using del to remove an infix with a placeholder goes to right place",
+      partial("|", or'(b, b)),
+      ~pos=7,
+      del,
+      "~___",
+    )
+    t(
+      "pressing del to clear rightpartial reverts for blank rhs",
+      rightPartial("|", b),
+      ~pos=4,
+      del,
+      "~___",
+    )
+    t(
+      ~expectsPartial=true,
+      "Pressing pipe while editing a partial works properly",
+      partial("|", or'(trueBool, falseBool)),
+      ~pos=6,
+      ins("|"),
+      "true ||~ false",
+    )
+    t(
+      "changing binop to fn should work",
+      partial("Bool::and", and'(trueBool, falseBool)),
+      ~pos=14,
+      keys(list{K.Enter}),
+      "Bool::and ~true false",
+    )
+    t(
+      "changing fn to binop should work",
+      partial("&&", fn(~mod="Bool", "and", list{trueBool, falseBool})),
+      ~pos=2,
+      keys(list{K.Enter}),
+      "~true && false",
+    )
+    t(~expectsPartial=true, "show ghost partial", aFullBinOp, ~pos=8, bs, "myvar &~@ true")
+    t(
+      "DeleteWordBackward in end of binop deletes binop",
+      or'(trueBool, falseBool),
+      ~pos=7,
+      inputs(list{DeleteWordBackward}),
+      "true~",
+    )
+    t(
+      "DeleteWordBackward in front of binop deletes first expr",
+      and'(trueBool, falseBool),
+      ~pos=4,
+      inputs(list{DeleteWordBackward}),
+      "~______ && false",
+    )
+    t(
+      "DeleteWordForward in end of binop deletes second expr",
+      and'(trueBool, falseBool),
+      ~pos=8,
+      inputs(list{DeleteWordForward}),
+      "true && ~______",
+    )
+    t(
+      "DeleteWordForward in front of binop deletes binop",
+      and'(trueBool, falseBool),
+      ~pos=5,
+      inputs(list{DeleteWordForward}),
+      "true~",
+    )
+    // TODO bs on empty partial does something
+    // TODO support del on all the bs commands
+    // TODO pressing enter at the end of the partialGhost
+    t(
+      "pressing bs on || in binop deletes right side",
+      or'(trueBool, falseBool),
+      ~pos=7,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "true~",
+    )
+    t(
+      "pressing bs on || in binop deletes blank on rhs",
+      or'(falseBool, b),
+      ~pos=8,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "false~",
+    )
+    t(
+      "pressing bs on || in binop deletes blank on lhs",
+      partial("|", or'(b, falseBool)),
+      ~pos=8,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "~false",
+    )
+    t(
+      "pressing bs on || in binop after blank deletes blank but rest of the lhs",
+      or'(falseBool, and'(b, trueBool)),
+      ~pos=18,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "false || ~true",
+    )
+    t(
+      "pressing bs on || in binop before blank deletes blank but rest of the lhs",
+      and'(falseBool, or'(b, trueBool)),
+      ~pos=8,
+      inputs(list{DeleteContentBackward, DeleteContentBackward}),
+      "false~ || true",
+    )
+    t(
+      "pressing bs on || binop before blank deletes blank but rest of the lhs",
+      or'(trueBool, and'(falseBool, partial("|", or'(b, trueBool)))),
+      ~pos=25,
+      bs,
+      "true || false && ~true",
+    )
+    t(
+      "backspace after selecting all with a binop partial in a binop deletes all",
+      ~wrap=/* wrap false because else we delete the wrapper */ false,
+      or'(partial("D", binop("-", int(5), int(5))), int(5)),
+      inputs(list{keypress(K.SelectAll), DeleteWordBackward}),
+      "~___",
+    )
+    t(
+      ~expectsPartial=true,
+      "inserting a binop in a placeholder works",
+      if'(binop("++", b, b), b, b),
+      ~pos=3,
+      ins("&"),
+      "if &~ ++ ____________\nthen\n  ___\nelse\n  ___",
+    )
+  })
+
   describe("Constructors", () => {
     t(
       ~expectsPartial=true,
@@ -3548,6 +3753,40 @@ let run = () => {
   })
   describe("Pipes", () => {
     // TODO: add tests for clicking in the middle of a pipe (or blank)
+    t(~expectsPartial=true, "pipe key starts partial", trueBool, ~pos=4, ins(">"), "true >~")
+    t(~expectsPartial=true, "ins | starts partial after null", aNull, ~pos=4, ins("|"), "null |~")
+    t(
+      ~expectsPartial=true,
+      "ins | starts partial after variable",
+      aVar,
+      ~pos=8,
+      ins("|"),
+      "variable |~",
+    )
+    t(~expectsPartial=true, "ins | starts partial after list", aList5, ~pos=3, ins("|"), "[5] |~")
+    t(
+      ~expectsPartial=true,
+      "ins | starts partial after fieldname",
+      aField,
+      ~pos=9,
+      ins("|"),
+      "obj.field |~",
+    )
+    t(
+      ~expectsPartial=true,
+      "ins | starts partial after multiRowRecord",
+      multiRowRecord,
+      ~pos=23,
+      ins("|"),
+      "{\n  f1 : 56\n  f2 : 78\n} |~",
+    )
+    t(
+      "piping into newline creates pipe",
+      trueBool,
+      ~pos=4,
+      inputs(list{InsertText("|"), InsertText(">"), keypress(K.Space)}),
+      "true\n|>~___\n",
+    )
     t(
       "move to the front of pipe on line 1",
       aPipe,
@@ -5025,14 +5264,14 @@ let run = () => {
     t("let moves to right place", partial("let", b), ~pos=3, enter, "let ~*** = ___\n___")
     t(
       "autocomplete space moves forward by 1",
-      aBinOp,
+      anInfixFn,
       ~pos=0,
       inputs(list{InsertText("r"), keypress(K.Space)}),
       "request ~== _________",
     )
     t(
       "autocomplete enter moves to end of value",
-      aBinOp,
+      anInfixFn,
       ~pos=0,
       inputs(list{InsertText("r"), keypress(K.Enter)}),
       "request~ == _________",
@@ -5040,7 +5279,7 @@ let run = () => {
     t("can tab to lambda blank", aLambda, ~pos=0, key(K.Tab), "\\~*** -> ___")
     t(
       "autocomplete tab moves to next blank",
-      aBinOp,
+      anInfixFn,
       ~pos=0,
       inputs(list{InsertText("r"), keypress(K.Tab)}),
       "request == ~_________",

@@ -473,7 +473,7 @@ let testCanvasClone =
     let targetCanvasName = CanvasName.createExn "clone-gettingstarted"
 
     let! sourceMeta = Canvas.getMetaAndCreate sourceCanvasName
-    do! Canvas.loadAndResaveFromTestFile sourceMeta
+    do! ApiServer.IntegrationTests.loadAndResaveFromTestFile sourceMeta
 
     do! CanvasClone.cloneCanvas sourceCanvasName targetCanvasName false
     // Do this after to test the clone has created the canvas

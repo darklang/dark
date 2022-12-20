@@ -235,7 +235,7 @@ let unwrap = (id: id, ast: E.t): E.t => {
     let newExpr = switch e {
     | ELet(_, _, rhs, next) => childOr(list{rhs, next})
     | EIf(_, cond, ifexpr, elseexpr) => childOr(list{cond, ifexpr, elseexpr})
-    | EBinOp(_, _, lexpr, rexpr, _) => childOr(list{lexpr, rexpr})
+    | EInfix(_, _, lexpr, rexpr) => childOr(list{lexpr, rexpr})
     | EFieldAccess(_, expr, _) => childOr(list{expr})
     | EFnCall(_, _, exprs, _) => childOr(exprs)
     | ELambda(_, _, body) => childOr(list{body})
@@ -302,7 +302,7 @@ let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
       } else {
         EFnCall(id, newName, exprs, ster)
       }
-    | EBinOp(id, name, lhs, rhs, ster) as e =>
+    | EInfix(id, InfixFnCall(name, ster), lhs, rhs) as e =>
       let newName = switch name {
       | {module_: None, function} =>
         ({module_: None, function: fStr(id, function)}: PT.InfixStdlibFnName.t)
@@ -312,7 +312,7 @@ let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
       if newName.module_ == None && newName.function == "" {
         e
       } else {
-        EBinOp(id, newName, lhs, rhs, ster)
+        EInfix(id, InfixFnCall(newName, ster), lhs, rhs)
       }
     | ELambda(id, names, expr) =>
       let names = List.map(names, ~f=((nid, name)) =>
@@ -380,9 +380,9 @@ let remove = (id: id, ast: E.t): E.t => {
         , fields))
     | EPipe(id, e1, e2, rest) =>
       switch removeFromList(list{e1, e2, ...rest}) {
-      | list{EBlank(_), EBinOp(id, op, EPipeTarget(ptid), rexpr, ster)}
-      | list{EBinOp(id, op, EPipeTarget(ptid), rexpr, ster), EBlank(_)} =>
-        EBinOp(id, op, EBlank(ptid), rexpr, ster)
+      | list{EBlank(_), EInfix(id, op, EPipeTarget(ptid), rexpr)}
+      | list{EInfix(id, op, EPipeTarget(ptid), rexpr), EBlank(_)} =>
+        EInfix(id, op, EBlank(ptid), rexpr)
       | list{EBlank(_), EFnCall(id, name, list{EPipeTarget(ptid), ...tail}, ster)}
       | list{EFnCall(id, name, list{EPipeTarget(ptid), ...tail}, ster), EBlank(_)} =>
         EFnCall(id, name, list{EBlank(ptid), ...tail}, ster)

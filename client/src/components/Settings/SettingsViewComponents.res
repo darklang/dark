@@ -21,7 +21,7 @@ module Tooltip = {
           list{
             tw(
               %twc(
-                "absolute hidden group-hover:flex -left-5 -top-2 -translate-y-full w-48 px-2 py-1 bg-grey7 rounded-lg after:content-[''] after:absolute after:left-1/2 after:top-[100%] after:-translate-x-1/2 after:border-8 after:border-x-transparent after:border-b-transparent after:border-t-grey7"
+                "absolute hidden group-hover:flex -left-5 -top-2 -translate-y-full w-64 px-4 py-4 bg-grey1 rounded-lg after:content-[''] after:absolute after:left-1/2 after:top-[100%] after:-translate-x-1/2 after:border-8 after:border-x-transparent after:border-b-transparent after:border-t-grey1"
               ),
             ),
           },
@@ -33,7 +33,7 @@ module Tooltip = {
 
   // Returns a text node with approproate styling for a tooltip body
   let text = (text: string): Html.html<'msg> => {
-    Html.span(list{tw(%twc("text-sm text-center text-white3 text-left"))}, list{Html.text(text)})
+    Html.span(list{tw(%twc("text-base font-text text-left text-white3"))}, list{Html.text(text)})
   }
 }
 
@@ -111,7 +111,7 @@ let button = (
       Attrs.classes([
         style,
         %twc(
-          "rounded-lg h-9 px-2.5 bg-grey2 hover:bg-grey1 text-white1 cursor-pointer text-base font-bold align-top"
+          "rounded-lg h-7 px-2.5 bg-grey2 hover:bg-grey1 text-white1 cursor-pointer text-base font-bold align-top"
         ),
       ]),
       msgAttr,
@@ -149,7 +149,10 @@ let submitBtn = (
 let sectionHeading = (text: string, info: option<Html.html<'msg>>): Html.html<'msg> => {
   let info = info->Tc.Option.map(~f=InfoIcon.generic)->Tc.Option.unwrap(~default=Html.noNode)
 
-  Html.span(list{tw(%twc("font-bold text-xl mt-5"))}, list{Html.text(text), info})
+  Html.span(
+    list{tw(%twc("font-bold font-heading text-2xl mt-4 mb-1"))},
+    list{Html.text(text), info},
+  )
 }
 
 let sectionIntroText = contents =>
@@ -183,7 +186,7 @@ let input = (
     list{
       Html.input(
         list{
-          Attrs.classes([style, %twc("rounded-sm px-2 h-9 bg-black3 text-white1 caret-grey8")]),
+          Attrs.classes([style, %twc("rounded-sm px-2 h-7 bg-black3 text-white1 caret-grey8")]),
           Attrs.value(value),
           ...List.concat(list{loadingAttrs, attrs}),
         },
@@ -208,8 +211,11 @@ let settingRow = (
     list{},
     list{
       Html.div(
-        list{tw(%twc("mt-1 flex items-center justify-between h-9"))},
-        list{Html.span(list{}, list{Html.text(caption), infoText}), Html.span(list{}, contents)},
+        list{tw(%twc("flex items-center justify-between h-7"))},
+        list{
+          Html.span(list{tw(%twc("text-md font-text"))}, list{Html.text(caption), infoText}),
+          Html.span(list{}, contents),
+        },
       ),
       error,
     },

@@ -259,42 +259,46 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     }
   }
 
-  /* placeholderFor = (id * string * int)
-   * id: id of the placeholder-containing expr
-   * string: name of the placeholder-containing expr
-   * int: index of the placeholder within the expr's parameters
-   */
+  let fnArgumentPlaceholder = (parentID, fnName: string, argIndex): option<Placeholder.t> => {
+    Functions.global()
+    |> Functions.findByStr(fnName)
+    |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index=argIndex, fn.parameters))
+    |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t): Placeholder.t => {
+      name: p.name,
+      typ: DType.type2str(p.typ),
+      parentID: parentID,
+    })
+  }
+
+  let infixPlaceholder = (parentID, op: PT.Expr.Infix.t, argIndex): option<Placeholder.t> => {
+    switch op {
+    | InfixFnCall(fnname, _) =>
+      fnArgumentPlaceholder(parentID, PT.InfixStdlibFnName.toString(fnname), argIndex)
+    | BinOp(_) =>
+      Some({
+        name: "",
+        typ: DType.type2str(TBool),
+        parentID: parentID,
+      })
+    }
+  }
+
   let nest = (
-    ~placeholderFor: option<(id, string, int)>=None,
+    ~placeholder: option<Placeholder.t>=None,
     ~indent,
     e: E.t,
     b: Builder.t,
   ): Builder.t => {
     let tokensFn = b =>
-      switch (e, placeholderFor) {
-      | (EBlank(id), Some(fnID, fnname, pos)) =>
-        let name =
-          Functions.global()
-          |> Functions.findByStr(fnname)
-          |> Option.andThen(~f=(fn: Function.t) => List.getAt(~index=pos, fn.parameters))
-          |> Option.map(~f=(p: RuntimeTypes.BuiltInFn.Param.t): Placeholder.t => {
-            name: p.name,
-            typ: DType.type2str(p.typ),
-          })
-
-        switch name {
-        | None => r(e, b)
-        | Some(placeholder) =>
-          add(
-            TPlaceholder({
-              blankID: id,
-              parentBlockID: Some(fnID),
-              placeholder: placeholder,
-              fnID: fnID,
-            }),
-            b,
-          )
-        }
+      switch (e, placeholder) {
+      | (EBlank(id), Some(placeholder)) =>
+        add(
+          TPlaceholder({
+            blankID: id,
+            placeholder: placeholder,
+          }),
+          b,
+        )
       | _ => r(e, b)
       }
 
@@ -338,17 +342,14 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       tooLong || needsNewlineBreak
     }
 
-    b |> addIter(args, ~f=(i, e, b) =>
+    b |> addIter(args, ~f=(i, e, b) => {
+      let placeholder = fnArgumentPlaceholder(id, name, i + offset)
       if reflow {
-        b
-        |> addNewlineIfNeeded(Some(id, id, Some(offset + i)))
-        |> nest(~indent=2, ~placeholderFor=Some(id, name, offset + i), e)
+        b |> addNewlineIfNeeded(Some(id, id, Some(offset + i))) |> nest(~indent=2, ~placeholder, e)
       } else {
-        b
-        |> add(TSep(E.toID(e), None))
-        |> nest(~indent=0, ~placeholderFor=Some(id, name, offset + i), e)
+        b |> add(TSep(E.toID(e), None)) |> nest(~indent=0, ~placeholder, e)
       }
-    )
+    })
   }
 
   switch e {
@@ -449,23 +450,29 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TIfElseKeyword(id, parentID))
     |> add(TNewline(Some(E.toID(else'), id, None)))
     |> nest(~indent=2, else')
-  | EBinOp(id, op, lexpr, rexpr, _ster) =>
-    let op = PT.InfixStdlibFnName.toString(op)
+  | EInfix(id, op, lexpr, rexpr) =>
+    let opName = switch op {
+    | InfixFnCall(name, _ster) => PT.InfixStdlibFnName.toString(name)
+    | BinOp(op) => PT.Expr.BinaryOperation.toString(op)
+    }
     let start = b =>
       switch lexpr {
       | EPipeTarget(_) => b
       | _ =>
         b
-        |> nest(~indent=0, ~placeholderFor=Some(id, op, 0), lexpr)
+        |> nest(~indent=0, ~placeholder=infixPlaceholder(id, op, 0), lexpr)
         |> add(TSep(E.toID(lexpr), parentID))
       }
 
     b
     |> start
-    |> addMany(list{TBinOp(id, op, parentID), TSep(id, parentID)})
-    |> nest(~indent=0, ~placeholderFor=Some(id, op, 1), rexpr)
-  | EPartial(id, newName, EBinOp(oldID, oldName, lexpr, rexpr, _ster)) =>
-    let oldName = PT.InfixStdlibFnName.toString(oldName)
+    |> addMany(list{TInfix(id, opName, parentID), TSep(id, parentID)})
+    |> nest(~indent=0, ~placeholder=infixPlaceholder(id, op, 1), rexpr)
+  | EPartial(id, newName, EInfix(oldID, oldOp, lexpr, rexpr)) =>
+    let oldName = switch oldOp {
+    | InfixFnCall(name, _ster) => PT.InfixStdlibFnName.toString(name)
+    | BinOp(op) => PT.Expr.BinaryOperation.toString(op)
+    }
     let ghost = ghostPartial(id, oldID, newName, FluidUtil.ghostPartialName(oldName))
 
     let start = b =>
@@ -473,7 +480,7 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       | EPipeTarget(_) => b
       | _ =>
         b
-        |> nest(~indent=0, ~placeholderFor=Some(id, oldName, 0), lexpr)
+        |> nest(~indent=0, ~placeholder=infixPlaceholder(id, oldOp, 0), lexpr)
         |> add(TSep(E.toID(lexpr), parentID))
       }
 
@@ -482,7 +489,7 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> add(TPartial(id, oldID, newName, parentID))
     |> addMany(ghost)
     |> add(TSep(id, parentID))
-    |> nest(~indent=2, ~placeholderFor=Some(id, oldName, 1), rexpr)
+    |> nest(~indent=2, ~placeholder=infixPlaceholder(id, oldOp, 1), rexpr)
   | EFnCall(id, fnName, args, ster) =>
     let fnNameStr = FQFnName.toString(fnName)
     let displayName = FluidUtil.fnDisplayName(fnNameStr)

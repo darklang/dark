@@ -48,7 +48,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | ELet(_, _, rhs, body) => List.flatten(list{u(rhs), u(body)})
     | EIf(_, cond, ifbody, elsebody) => List.flatten(list{u(cond), u(ifbody), u(elsebody)})
     | EFnCall(_, _, exprs, _) => exprs |> List.map(~f=u) |> List.flatten
-    | EBinOp(_, _, lhs, rhs, _) => Belt.List.concat(u(lhs), u(rhs))
+    | EInfix(_, _, lhs, rhs) => Belt.List.concat(u(lhs), u(rhs))
     | EConstructor(_, _, exprs) => exprs |> List.map(~f=u) |> List.flatten
     | ELambda(_, _, lexpr) => u(lexpr)
     | EPipe(_, e1, e2, rest) => list{e1, e2, ...rest} |> List.map(~f=u) |> List.flatten
@@ -97,13 +97,13 @@ let pipeNext = (id: id, ast: FluidAST.t): option<E.t> =>
   | _ => None
   }
 
-// Given the ID of a function call or binop, return its arguments. Takes pipes into account.
+// Given the ID of a function call or infixFnCall, return its arguments. Takes pipes into account.
 let getArguments = (id: id, ast: FluidAST.t): list<E.t> => {
   let pipePrevious = pipePrevious(id, ast)
   let caller = FluidAST.findExpr(id, ast)
   let defaultArgs = switch caller {
   | Some(EFnCall(_, _, args, _)) => args
-  | Some(EBinOp(_, _, arg0, arg1, _)) => list{arg0, arg1}
+  | Some(EInfix(_, InfixFnCall(_), arg0, arg1)) => list{arg0, arg1}
   | _ => list{}
   }
 
@@ -133,7 +133,7 @@ let getParamIndex = (id: id, ast: FluidAST.t): option<(string, int)> => {
     getArguments(fnID, ast)
     |> List.findIndex(~f=(_, e) => E.toID(e) == id)
     |> Option.map(~f=((index, _)) => (FQFnName.toString(name), index))
-  | Some(EBinOp(fnID, name, _, _, _)) =>
+  | Some(EInfix(fnID, InfixFnCall(name, _), _, _)) =>
     getArguments(fnID, ast)
     |> List.findIndex(~f=(_, e) => E.toID(e) == id)
     |> Option.map(~f=((index, _)) => (PT.InfixStdlibFnName.toString(name), index))
@@ -234,7 +234,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
 
       sexe(bound, body)
     | EFnCall(_, _, exprs, _) => List.forEach(~f=sexe(st), exprs)
-    | EBinOp(_, _, lhs, rhs, _) => List.forEach(~f=sexe(st), list{lhs, rhs})
+    | EInfix(_, _, lhs, rhs) => List.forEach(~f=sexe(st), list{lhs, rhs})
     | EIf(_, cond, ifbody, elsebody)
     | EFeatureFlag(_, _, cond, elsebody, ifbody) =>
       sexe(st, cond)

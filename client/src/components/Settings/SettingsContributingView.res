@@ -11,9 +11,11 @@ module Msg = AppTypes.Msg
 
 module C = SettingsViewComponents
 
+let tw = Attrs.class
+
 let viewIntroText = {
   Html.p(
-    list{},
+    list{tw(%twc("my-2 font-text text-base"))},
     list{
       Html.text("To contribute to Dark, check out the "),
       Html.a(list{Attrs.href("https://github.com/darklang/dark")}, list{Html.text("Dark repo")}),
@@ -66,12 +68,38 @@ let viewAllowTuples = (allowTuples: bool): Html.html<AppTypes.msg> => {
   C.settingRow("Enable tuples", ~info, ~error=None, list{toggle})
 }
 
+let viewAllowShortCircuitingBinops = (allow: bool): Html.html<AppTypes.msg> => {
+  let toggle = {
+    let attr = EventListeners.eventNoPropagation(
+      ~key=`toggle-allow-ShortCircuitingBinops-${string_of_bool(allow)}`,
+      "click",
+      _ => Msg.SettingsMsg(
+        Settings.ContributingMsg(
+          SettingsContributing.InProgressFeaturesMsg(
+            T.InProgressFeatures.SetShortCircuitingBinopsAllowed(!allow),
+          ),
+        ),
+      ),
+    )
+    C.toggleButton(attr, allow)
+  }
+
+  let info = Some(
+    "We're currently adding support for || and && operators - the current versions are actually infix functions, and so they execute both arguments always. The new versions will only execute the second argument if the first one allows it. Changing the flag does not change the behavior of existing code - instead when adding new || and && operators, the new short-circuiting versions will be used.",
+  )
+  C.settingRow("Enable short-circuiting || and  && operators", ~info, ~error=None, list{toggle})
+}
+
 let viewGeneral = (s: T.General.t): list<Html.html<AppTypes.msg>> => {
   list{C.sectionHeading("General", None), viewSidebarDebuggerToggle(s.showSidebarDebuggerPanel)}
 }
 
 let viewInProgressFeatures = (s: T.InProgressFeatures.t): list<Html.html<AppTypes.msg>> => {
-  list{C.sectionHeading("In-Progress Features", None), viewAllowTuples(s.allowTuples)}
+  list{
+    C.sectionHeading("In-Progress Features", None),
+    viewAllowTuples(s.allowTuples),
+    viewAllowShortCircuitingBinops(s.allowShortCircuitingBinops),
+  }
 }
 
 let viewTunnelSectionHeader = {

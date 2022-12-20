@@ -21,8 +21,8 @@ const config: PlaywrightTestConfig = {
   },
   reporter: [
     ["list"],
-    ["json", { outputFile: "rundir/test_results/integration_tests.json" }],
-    ["junit", { outputFile: "rundir/test_results/integration_tests.xml" }],
+    ["json", { outputFile: "../rundir/test_results/integration_tests.json" }],
+    ["junit", { outputFile: "../rundir/test_results/integration_tests.xml" }],
   ],
 };
 

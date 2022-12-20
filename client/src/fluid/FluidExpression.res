@@ -35,7 +35,7 @@ let toID = (expr: t): id =>
   | ERecord(id, _)
   | EPipe(id, _, _, _)
   | EPipeTarget(id)
-  | EBinOp(id, _, _, _, _)
+  | EInfix(id, _, _, _)
   | EConstructor(id, _, _)
   | EFeatureFlag(id, _, _, _, _)
   | EMatch(id, _, _) => id
@@ -54,7 +54,7 @@ let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidM
     | EBlank(id)
     | EVariable(id, _)
     | EPipeTarget(id) => (id, list{})
-    | ELet(id, _, e1, e2) | EBinOp(id, _, e1, e2, _) => (id, list{Expr(e1), Expr(e2)})
+    | ELet(id, _, e1, e2) | EInfix(id, _, e1, e2) => (id, list{Expr(e1), Expr(e2)})
     | EIf(id, e1, e2, e3) | EFeatureFlag(id, _, e1, e2, e3) => (
         id,
         list{Expr(e1), Expr(e2), Expr(e3)},
@@ -127,7 +127,7 @@ let rec findExpr = (target: id, expr: t): option<t> => {
     | ELet(_, _, rhs, next) => fe(rhs) |> Option.orElseLazy(() => fe(next))
     | EIf(_, cond, ifexpr, elseexpr) =>
       fe(cond) |> Option.orElseLazy(() => fe(ifexpr)) |> Option.orElseLazy(() => fe(elseexpr))
-    | EBinOp(_, _, lexpr, rexpr, _) => fe(lexpr) |> Option.orElseLazy(() => fe(rexpr))
+    | EInfix(_, _, lexpr, rexpr) => fe(lexpr) |> Option.orElseLazy(() => fe(rexpr))
     | EFieldAccess(_, expr, _) | ELambda(_, _, expr) => fe(expr)
     | ERecord(_, fields) => fields |> List.map(~f=Tuple2.second) |> List.findMap(~f=fe)
     | EMatch(_, expr, pairs) =>
@@ -175,7 +175,7 @@ let findMP = (target: id, expr: t): option<FluidMatchPattern.t> => {
   | ERecord(_)
   | EPipe(_)
   | EPipeTarget(_)
-  | EBinOp(_)
+  | EInfix(_)
   | EConstructor(_)
   | EFeatureFlag(_) =>
     None
@@ -207,7 +207,7 @@ let children = (expr: t): list<t> =>
   | EFieldAccess(_, expr, _) => list{expr}
 
   // Two
-  | EBinOp(_, _, c0, c1, _) | ELet(_, _, c0, c1) => list{c0, c1}
+  | EInfix(_, _, c0, c1) | ELet(_, _, c0, c1) => list{c0, c1}
 
   // Three
   | EFeatureFlag(_, _, c0, c1, c2) | EIf(_, c0, c1, c2) => list{c0, c1, c2}
@@ -277,7 +277,7 @@ let rec preTraversal = (~f: t => t, expr: t): t => {
   | EFloat(_) => expr
   | ELet(id, name, rhs, next) => ELet(id, name, r(rhs), r(next))
   | EIf(id, cond, ifexpr, elseexpr) => EIf(id, r(cond), r(ifexpr), r(elseexpr))
-  | EBinOp(id, op, lexpr, rexpr, ster) => EBinOp(id, op, r(lexpr), r(rexpr), ster)
+  | EInfix(id, op, lexpr, rexpr) => EInfix(id, op, r(lexpr), r(rexpr))
   | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, r(expr), fieldname)
   | EFnCall(id, name, exprs, ster) => EFnCall(id, name, List.map(~f=r, exprs), ster)
   | ELambda(id, names, expr) => ELambda(id, names, r(expr))
@@ -309,7 +309,7 @@ let rec postTraversal = (~f: t => t, expr: t): t => {
   | EFloat(_) => expr
   | ELet(id, name, rhs, next) => ELet(id, name, r(rhs), r(next))
   | EIf(id, cond, ifexpr, elseexpr) => EIf(id, r(cond), r(ifexpr), r(elseexpr))
-  | EBinOp(id, op, lexpr, rexpr, ster) => EBinOp(id, op, r(lexpr), r(rexpr), ster)
+  | EInfix(id, op, lexpr, rexpr) => EInfix(id, op, r(lexpr), r(rexpr))
   | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, r(expr), fieldname)
   | EFnCall(id, name, exprs, ster) => EFnCall(id, name, List.map(~f=r, exprs), ster)
   | ELambda(id, names, expr) => ELambda(id, names, r(expr))
@@ -342,7 +342,7 @@ let deprecatedWalk = (~f: t => t, expr: t): t =>
   | EFloat(_) => expr
   | ELet(id, name, rhs, next) => ELet(id, name, f(rhs), f(next))
   | EIf(id, cond, ifexpr, elseexpr) => EIf(id, f(cond), f(ifexpr), f(elseexpr))
-  | EBinOp(id, op, lexpr, rexpr, ster) => EBinOp(id, op, f(lexpr), f(rexpr), ster)
+  | EInfix(id, op, lexpr, rexpr) => EInfix(id, op, f(lexpr), f(rexpr))
   | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, f(expr), fieldname)
   | EFnCall(id, name, exprs, ster) => EFnCall(id, name, List.map(~f, exprs), ster)
   | ELambda(id, names, expr) => ELambda(id, names, f(expr))
@@ -506,7 +506,7 @@ let rec clone = (expr: t): t => {
   | ELet(_, lhs, rhs, body) => ELet(gid(), lhs, c(rhs), c(body))
   | EIf(_, cond, ifbody, elsebody) => EIf(gid(), c(cond), c(ifbody), c(elsebody))
   | EFnCall(_, name, exprs, r) => EFnCall(gid(), name, cl(exprs), r)
-  | EBinOp(_, name, left, right, r) => EBinOp(gid(), name, c(left), c(right), r)
+  | EInfix(_, name, left, right) => EInfix(gid(), name, c(left), c(right))
   | ELambda(_, vars, body) => ELambda(gid(), List.map(vars, ~f=((_, var)) => (gid(), var)), c(body))
   | EPipe(_, e1, e2, rest) => EPipe(gid(), c(e1), c(e2), cl(rest))
   | EFieldAccess(_, obj, field) => EFieldAccess(gid(), c(obj), field)
@@ -558,7 +558,7 @@ let ancestors = (id: id, expr: t): list<t> => {
       | ELet(_, _, rhs, body) => reclist(id, exp, walk, list{rhs, body})
       | EIf(_, cond, ifbody, elsebody) => reclist(id, exp, walk, list{cond, ifbody, elsebody})
       | EFnCall(_, _, exprs, _) => reclist(id, exp, walk, exprs)
-      | EBinOp(_, _, lhs, rhs, _) => reclist(id, exp, walk, list{lhs, rhs})
+      | EInfix(_, _, lhs, rhs) => reclist(id, exp, walk, list{lhs, rhs})
       | ELambda(_, _, lexpr) => rec_(id, exp, walk, lexpr)
       | EPipe(_, e1, e2, rest) => reclist(id, exp, walk, list{e1, e2, ...rest})
       | EFieldAccess(_, obj, _) => rec_(id, exp, walk, obj)
@@ -611,7 +611,7 @@ let validateAndFix = (~onError: (string, t) => unit, expr: t): t => {
     | ELet(_, _, _, _)
     | EIf(_, _, _, _)
     | EFnCall(_, _, _, _)
-    | EBinOp(_, _, _, _, _)
+    | EInfix(_, _, _, _)
     | ELambda(_, _, _)
     | EPipe(_, _, _, _)
     | EFieldAccess(_, _, _)
@@ -688,8 +688,8 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     eqList(exprs, exprs')
   | (EFnCall(_, name, args, toRail), EFnCall(_, name', args', toRail')) =>
     name == name' && (eqList(args, args') && toRail == toRail')
-  | (EBinOp(_, name, lhs, rhs, toRail), EBinOp(_, name', lhs', rhs', toRail')) =>
-    name == name' && (eq2((lhs, lhs'), (rhs, rhs')) && toRail == toRail')
+  | (EInfix(_, op, lhs, rhs), EInfix(_, op', lhs', rhs')) =>
+    op == op' && eq2((lhs, lhs'), (rhs, rhs'))
   | (ERecord(_, pairs), ERecord(_, pairs')) =>
     let sort = List.sortBy(~f=((k, _)) => k)
     List.map2(~f=((k, v), (k', v')) => k == k' && eq(v, v'), sort(pairs), sort(pairs')) |> List.all(
@@ -727,7 +727,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (EList(_), _)
   | (ETuple(_), _)
   | (EFnCall(_), _)
-  | (EBinOp(_), _)
+  | (EInfix(_), _)
   | (ERecord(_), _)
   | (EFieldAccess(_), _)
   | (EPipe(_), _)
@@ -777,8 +777,10 @@ let toHumanReadable = (expr: t, showID: bool): string => {
     | ELeftPartial(_, str, e) => `(lpartial${id} "${str}" ${r(e)})`
     | EFnCall(_, name, list{}, _) => `(fn${id} "${FQFnName.toString(name)}")`
     | EFnCall(_, name, exprs, _) => `(fn${id} "${FQFnName.toString(name)}"\n${newlineList(exprs)})`
-    | EBinOp(_, name, lhs, rhs, _) =>
-      `(binop${id} "${PT.InfixStdlibFnName.toString(name)}"\n${r(lhs)}\n${r(rhs)})`
+    | EInfix(_, BinOp(op), lhs, rhs) =>
+      `(binop${id} "${PT.Expr.BinaryOperation.toString(op)}"\n${r(lhs)}\n${r(rhs)})`
+    | EInfix(_, InfixFnCall(name, _), lhs, rhs) =>
+      `(infixFn${id} "${PT.InfixStdlibFnName.toString(name)}"\n${r(lhs)}\n${r(rhs)})`
     | EVariable(_, name) => `(${name}${id})`
     | EFieldAccess(_, e, name) => `(fieldAccess${id} "${name}"\n${r(e)})`
     | EMatch(_, cond, matches) =>
