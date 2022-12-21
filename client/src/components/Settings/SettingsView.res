@@ -40,8 +40,8 @@ let tabTitleView = (tab: T.Tab.t): Html.html<msg> => {
     Html.h3(
       list{
         Attrs.classList(list{
-          (%twc("h-full m-0 -mb-0.5 px-2.5 py-0 text-grey2 cursor-pointer"), true),
-          (%twc("text-white3 border-solid border-b-3 border-b-grey8 font-heading"), isSameTab),
+          (%twc("h-full m-0 -mb-0.5 px-2.5 py-0 text-grey2 cursor-pointer font-heading"), true),
+          (%twc("text-white3 border-solid border-b-3 border-b-grey8"), isSameTab),
         }),
         EventListeners.eventNoPropagation(
           ~key="close-settings-modal",
