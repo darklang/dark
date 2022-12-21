@@ -161,7 +161,7 @@ let sectionIntroText = contents =>
 let errorSpan = (error: string): Html.html<'msg> => {
   Html.span(
     list{},
-    list{Html.p(list{Attrs.class(%twc("text-red h-6 m-0"))}, list{Html.text(error)})},
+    list{Html.p(list{tw(%twc("font-text text-red h-6 m-0"))}, list{Html.text(error)})},
   )
 }
 
