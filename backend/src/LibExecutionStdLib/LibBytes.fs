@@ -12,7 +12,19 @@ let fn = FQFnName.stdlibFnName
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Bytes" "base64Decode" 0
+  [ { name = fn "Bytes" "empty" 0
+      parameters = []
+      returnType = TBytes
+      description = "Returns an empty list of bytes"
+      fn =
+        (function
+        | _, [] -> DBytes [||] |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "Bytes" "base64Decode" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TBytes, TStr)
       description =

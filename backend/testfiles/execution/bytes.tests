@@ -1,6 +1,9 @@
 
 // TODO: try decoding values with incorrect padding
 
+Bytes.length_v0 Bytes.empty_v0 = 0
+Bytes.empty_v0 = String.toBytes_v0 ""
+
 Bytes.length_v0 (String.toBytes_v0 "abcdef") = 6
 
 Bytes.base64Decode_v0 "white space" = Error "Not a valid base64 string"
