@@ -254,10 +254,15 @@ module General = {
 // -------------------
 module InProgressFeatures = {
   @ppx.deriving(show)
-  type rec t = {allowTuples: bool, allowShortCircuitingBinops: bool}
+  type rec t = {
+    allowTuples: bool,
+    allowShortCircuitingBinops: bool,
+  }
 
   @ppx.deriving(show)
-  type rec msg = SetTuplesAllowed(bool) | SetShortCircuitingBinopsAllowed(bool)
+  type rec msg =
+    | SetTuplesAllowed(bool)
+    | SetShortCircuitingBinopsAllowed(bool)
 
   @ppx.deriving(show)
   type rec intent = unit

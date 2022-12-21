@@ -208,70 +208,75 @@ let fn = FQFnName.stdlibFnName
 
 let headersType = TList(TTuple(TStr, TStr, []))
 
-let parameters =
-  [ // HttpBaseClientTODO consider method being a new type (DU).
-    // Alternatively, leave it as a string, and don't try to parse it.
-    // (instead, just do `new HttpMethod(userInputMethod)`)
-    Param.make "method" TStr ""
-
-    // HttpBaseClientTODO consider URI being a new type (complex type)
-    Param.make "uri" TStr ""
-
-    Param.make "body" TBytes ""
-
-    Param.make "headers" headersType "" ]
-
-let returnType =
-  TResult(TRecord [ "body", TBytes; "headers", headersType; "code", TInt ], TStr)
-
-// HttpBaseClientTODO maybe the errors should be in the form of a 'custom' DU?
-// Elm's http response type is well thought out and could provide a good model
-// for us. https://package.elm-lang.org/packages/elm/http/latest/Http.
-// In other words, `returnType` above may be adjusted significantly.
-
 let fns : List<BuiltInFn> =
-  [ // HttpBaseClientTODO expose as non-internal fn
-    // HttpBaseClientTODO better name than 'call'?
+  [ // Note: although this is a non-internal function, it is 'hidden' behind a
+    // 'preview' setting in the editor.
+    //
     // HttpBaseClientTODO thorough testing
-    { name = fn "DarkInternal" "baseHttpClientCall" 0
-      parameters = parameters
-      returnType = returnType
+    { name = fn "HttpBaseClient" "request" 0
+      parameters =
+        [ // HttpBaseClientTODO consider method being a new type (DU).
+          // Alternatively, leave it as a string, and don't try to parse it.
+          // (instead, just do `new HttpMethod(userInputMethod)`)
+          Param.make "method" TStr ""
+
+          // HttpBaseClientTODO consider URI being a new type (complex type)
+          Param.make "uri" TStr ""
+
+          Param.make "body" TBytes ""
+
+          Param.make "headers" headersType "" ]
+
+      // HttpBaseClientTODO maybe the return type should be in the form of a
+      // 'custom' DU? Elm's http response type is well thought out and could provide
+      // a good model for us.
+      // type Error
+      //   = BadUrl String
+      //   | Timeout
+      //   | NetworkError
+      //   | BadStatus Int
+      //   | BadBody String
+      // from:
+      // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
+      returnType =
+        TResult(
+          TRecord [ "body", TBytes; "headers", headersType; "code", TInt ],
+          TStr
+        )
       description =
-        // HttpBaseClientTODO better description
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
         the response is wrapped in {{ Ok }} if a response was successfully
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
-        // HttpBaseClientTODO expose as non-internal fn
-        LibDarkInternal.internalFn (function
-          | _, [ DStr method; DStr uri; DBytes body; DList headers ] ->
-            let method =
-              match String.toLowercase method with
-              | "get" -> Some HttpMethod.Get
-              | "post" -> Some HttpMethod.Post
-              | "put" -> Some HttpMethod.Put
-              | "patch" -> Some HttpMethod.Patch
-              | "delete" -> Some HttpMethod.Delete
-              | "head" -> Some HttpMethod.Head
-              | "options" -> Some HttpMethod.Options
-              | _ -> None
+        (function
+        | _, [ DStr method; DStr uri; DBytes body; DList headers ] ->
+          let method =
+            match String.toLowercase method with
+            | "get" -> Some HttpMethod.Get
+            | "post" -> Some HttpMethod.Post
+            | "put" -> Some HttpMethod.Put
+            | "patch" -> Some HttpMethod.Patch
+            | "delete" -> Some HttpMethod.Delete
+            | "head" -> Some HttpMethod.Head
+            | "options" -> Some HttpMethod.Options
+            | _ -> None
 
-            let headers =
-              headers
-              |> List.map (fun pair ->
-                match pair with
-                | DTuple (DStr k, DStr v, []) -> Ok(k, v)
-                | other ->
-                  Error
-                    $"Expected a (string * string), but got: {DvalReprDeveloper.toRepr other}")
-              |> Tablecloth.Result.values
+          let headers =
+            headers
+            |> List.map (fun pair ->
+              match pair with
+              | DTuple (DStr k, DStr v, []) -> Ok(k, v)
+              | other ->
+                Error
+                  $"Expected a (string * string), but got: {DvalReprDeveloper.toRepr other}")
+            |> Tablecloth.Result.values
 
-            // HttpBaseClientTODO return better error messages
-            match headers, method with
-            | Ok headers, Some method ->
-              HttpBaseClient.sendRequest uri method body headers
-            | _ -> incorrectArgs ()
-          | _ -> incorrectArgs ())
+          // HttpBaseClientTODO return better error messages
+          match headers, method with
+          | Ok headers, Some method ->
+            HttpBaseClient.sendRequest uri method body headers
+          | _ -> incorrectArgs ()
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
