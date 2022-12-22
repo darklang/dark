@@ -132,7 +132,7 @@ let submitBtn = (
       Attrs.classes([
         style,
         %twc(
-          "flex items-center justify-center w-auto rounded py-2 px-3 ml-4 mt-2 cursor-pointer text-white1 bg-grey2 hover:bg-grey1"
+          "flex items-center justify-center w-auto rounded py-1 px-3 ml-4 cursor-pointer text-md text-white1 bg-grey2 hover:bg-grey1"
         ),
       ]),
       loadingState,
@@ -156,12 +156,12 @@ let sectionHeading = (text: string, info: option<Html.html<'msg>>): Html.html<'m
 }
 
 let sectionIntroText = contents =>
-  Html.p(list{tw(%twc("mx-2 mt-1 mb-3 text-sm text-grey8"))}, contents)
+  Html.p(list{tw(%twc("font-heading mx-2 mt-1 mb-3 text-base text-grey8"))}, contents)
 
 let errorSpan = (error: string): Html.html<'msg> => {
   Html.span(
     list{},
-    list{Html.p(list{Attrs.class(%twc("text-red h-6 m-0"))}, list{Html.text(error)})},
+    list{Html.p(list{tw(%twc("font-text text-red h-6 m-0"))}, list{Html.text(error)})},
   )
 }
 

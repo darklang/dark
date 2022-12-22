@@ -19,12 +19,12 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
     let url = "/a/" ++ c
     Html.li(
       ~unique=c,
-      list{Attrs.class(%twc("list-none px-2 py-[5px]"))},
+      list{tw(%twc("list-none px-2 py-1"))},
       list{
         Html.a(
           list{
             Attrs.href(url),
-            Attrs.class(%twc("no-underline text-white1 cursor-pointer hover:text-purple")),
+            tw(%twc("no-underline text-white1 cursor-pointer hover:text-purple")),
           },
           list{Html.text(url)},
         ),
@@ -35,11 +35,11 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
   let canvases = if List.length(settings.canvasList) > 0 {
     List.map(settings.canvasList, ~f=canvasLink) |> Html.ul(list{})
   } else {
-    Html.p(list{}, list{Html.text("No other personal canvases")})
+    Html.p(list{tw(%twc("font-text text-lg"))}, list{Html.text("No other personal canvases")})
   }
 
   let canvasView = list{
-    Html.p(list{}, list{Html.text("Personal canvases:")}),
+    Html.p(list{tw(%twc("font-text text-lg"))}, list{Html.text("Personal canvases:")}),
     C.listView(list{canvases}),
   }
 
@@ -49,7 +49,7 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
       list{
         C.input(
           ~loadStatus=LoadStatus.Success(""),
-          ~style="ml-1 w-80",
+          ~style="ml-2.5 w-80",
           ~attrs=list{
             Attrs.placeholder("canvas-name"),
             Attrs.spellcheck(false),
@@ -66,7 +66,7 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
 
     let button = {
       let sharedStyle = %twc(
-        "ml-3 rounded px-2.5 py-1.5 bg-grey2 hover:bg-grey1 text-white1 text-base font-semibold no-underline text-white1 cursor-pointer"
+        "ml-3 rounded px-2.5 py-0.5 bg-grey2 hover:bg-grey1 text-white1 text-md font-semibold font-text no-underline text-white1 cursor-pointer"
       )
       if (
         Js.String.length(settings.newCanvasName.value) == 0 ||
@@ -82,7 +82,7 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
     }
 
     let row = Html.div(
-      list{tw(%twc("flex items-baseline mt-4"))},
+      list{tw(%twc("flex items-baseline mt-4 font-text text-lg tracking-wider"))},
       list{Html.text(`Create a new canvas: ${settings.username}-`), field, button},
     )
 
@@ -91,7 +91,7 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
 
   let orgs = List.map(settings.orgCanvasList, ~f=canvasLink) |> Html.ul(list{})
   let orgView = if List.length(settings.orgCanvasList) > 0 {
-    list{Html.p(list{}, list{Html.text("Shared canvases:")}), C.listView(list{orgs})}
+    list{Html.p(list{tw(%twc("font-text text-lg"))}, list{Html.text("Shared canvases:")}), C.listView(list{orgs})}
   } else {
     list{Vdom.noNode}
   }
