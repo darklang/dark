@@ -170,7 +170,10 @@ module PersistedSerializations =
               [ (V.tlid,
                  7UL,
                  "testFn",
-                 V.RuntimeTypes.dvals |> LibExecution.DvalReprInternalNew.toHashV0,
+                 LibExecution.DvalReprInternalHash.currentHashVersion,
+                 V.RuntimeTypes.dvals
+                 |> LibExecution.DvalReprInternalHash.hash
+                      LibExecution.DvalReprInternalHash.currentHashVersion,
                  V.RuntimeTypes.dval
                  |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT) ] }
 

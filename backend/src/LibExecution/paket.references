@@ -2,3 +2,4 @@ Ply
 FSharp.Core
 FSharpPlus
 Newtonsoft.Json
+System.IO.Hashing

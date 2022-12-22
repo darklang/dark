@@ -16,6 +16,7 @@ nuget Faithlife.Utility = 0.12.2
 nuget FSharp.SystemTextJson = 0.17.4
 nuget NodaTime = 3.0.9
 nuget NodaTime.Serialization.SystemTextJson = 1.0.0
+nuget System.IO.Hashing 6.0.2
 
 // Binary Serialization
 nuget MessagePack = 2.3.85

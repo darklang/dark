@@ -504,6 +504,7 @@ NUGET
       System.Threading.Tasks (>= 4.3)
     System.IO.FileSystem.Primitives (4.3)
       System.Runtime (>= 4.3)
+    System.IO.Hashing (6.0.2)
     System.IO.Pipelines (5.0.1)
     System.Linq (4.3)
       System.Collections (>= 4.3)

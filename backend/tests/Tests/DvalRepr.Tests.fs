@@ -18,6 +18,7 @@ module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module DvalReprInternalNew = LibExecution.DvalReprInternalNew
+module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Errors = LibExecution.Errors
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
@@ -216,7 +217,7 @@ module ToHashableRepr =
   let testHashV0 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV0: {l}" {
-        let fsharpVersion = DvalReprInternalDeprecated.hash 0 l
+        let fsharpVersion = DvalReprInternalHash.hash 0 l
 
         if fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -238,7 +239,7 @@ module ToHashableRepr =
   let testHashV1 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV1: {l}" {
-        let fsharpVersion = DvalReprInternalDeprecated.hash 1 l
+        let fsharpVersion = DvalReprInternalHash.hash 1 l
 
         if fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -260,7 +261,33 @@ module ToHashableRepr =
           [ DBytes [| 128uy |] ]
           "EYSh9xozHYAoaIUeS40e25VqvD1K7cA72JhEKbAmMtj6xhN02H7nouKqx4GCtvo_" ]
 
-  let tests = testList "hashing" [ testToHashableRepr; testHashV0; testHashV1 ]
+  let testHashV2 =
+    let t (l : List<Dval>) (expected : string) : Test =
+      testTask $"hashV2: {l}" {
+        let fsharpVersion = DvalReprInternalHash.hash 2 l
+
+        if fsharpVersion <> expected then
+          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
+          print $"expected: {p expected}"
+          print $"fsharp  : {p fsharpVersion}"
+
+        Expect.equal fsharpVersion expected "bad fsharp impl"
+      }
+
+    testList
+      "hashv2"
+      [ t
+          [ DBytes [||] ]
+          "JEK8_Gubug09wt7BUWWIPypb2yoMYI4TjzCWqbGWWrK6mNP4I-vszXmZNlDjX2ig"
+        t
+          [ DHttpResponse(Redirect "H"); DStr "\""; DIncomplete SourceNone ]
+          "koFt73igAWTI4-ROoi18TnrSKAN7RDuYjiWD43HGXy7qL9s7LlKbSUjSZeGV6Gt6"
+        t
+          [ DBytes [| 128uy |] ]
+          "EYSh9xozHYAoaIUeS40e25VqvD1K7cA72JhEKbAmMtj6xhN02H7nouKqx4GCtvo_" ]
+
+  let tests =
+    testList "hashing" [ testToHashableRepr; testHashV0; testHashV1; testHashV2 ]
 
 
 let allRoundtrips =

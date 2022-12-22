@@ -14,6 +14,7 @@ module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
 module LD = LibService.LaunchDarkly
 module Rollbar = LibService.Rollbar
@@ -141,8 +142,7 @@ let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
             (fun (tlid, name, id) args result ->
               let hash =
                 args
-                |> DvalReprInternalDeprecated.hash
-                     DvalReprInternalDeprecated.currentHashVersion
+                |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
               Dictionary.add
                 (tlid, name, id, hash)
                 (result, NodaTime.Instant.now ())
@@ -189,7 +189,9 @@ let createCloudStorageTracer
       { Exe.noTracing RT.Real with
           storeFnResult =
             (fun (tlid, name, id) args result ->
-              let hash = args |> LibExecution.DvalReprInternalNew.toHashV0
+              let hash =
+                args
+                |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
               Dictionary.add
                 (tlid, name, id, hash)
                 (result, NodaTime.Instant.now ())
@@ -229,8 +231,8 @@ let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
                   LibExecution.RuntimeTypes.FQFnName.toString name
                 let hash =
                   args
-                  |> DvalReprInternalDeprecated.hash
-                       DvalReprInternalDeprecated.currentHashVersion
+                  |> DvalReprInternalHash.hash
+                       DvalReprInternalHash.currentHashVersion
                 Telemetry.addEvent
                   $"function result for {name}"
                   [ "fnName", stringifiedName

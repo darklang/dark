@@ -11,7 +11,7 @@ open Http
 
 module Exe = LibExecution.Execution
 module AT = LibExecution.AnalysisTypes
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Canvas = LibBackend.Canvas
 module RealExe = LibRealExecution.RealExecution
 module Telemetry = LibService.Telemetry
@@ -62,8 +62,8 @@ module FunctionV1 =
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
 
       t.next "write-api"
-      let hashVersion = DvalReprInternalDeprecated.currentHashVersion
-      let hash = DvalReprInternalDeprecated.hash hashVersion args
+      let hashVersion = DvalReprInternalHash.currentHashVersion
+      let hash = DvalReprInternalHash.hash hashVersion args
 
       let result : CTApi.Execution.FunctionV1.Response =
         { result = CT2Runtime.Dval.toCT result

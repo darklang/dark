@@ -18,6 +18,7 @@
     <Compile Include="RuntimeTypesAst.fs" />
     <Compile Include="DvalReprInternalDeprecated.fs" />
     <Compile Include="DvalReprInternalNew.fs" />
+    <Compile Include="DvalReprInternalHash.fs" />
     <Compile Include="DvalReprLegacyExternal.fs" />
     <Compile Include="DvalReprDeveloper.fs" />
     <Compile Include="Errors.fs" />

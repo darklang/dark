@@ -104,7 +104,7 @@ type CloudStorageFormat =
     input : InputVars
     timestamp : NodaTime.Instant
     functionArguments : seq<(tlid * InputVars)>
-    functionResults : seq<tlid * id * FnName * FunctionArgHash * RoundTrippableDval> }
+    functionResults : seq<tlid * id * FnName * int * FunctionArgHash * RoundTrippableDval> }
 
 let bucketName = Config.traceStorageBucketName
 
@@ -221,12 +221,8 @@ let getTraceData
         timestamp = cloudStorageData.timestamp
         function_results =
           cloudStorageData.functionResults
-          |> Seq.map (fun (tlid, id, fnName, argHash, dval) ->
-            (fnName,
-             id,
-             argHash,
-             cloudStorageData.storageFormatVersion,
-             parseDval dval) : AT.FunctionResult)
+          |> Seq.map (fun (tlid, id, fnName, hashVersion, argHash, dval) ->
+            (fnName, id, argHash, hashVersion, parseDval dval) : AT.FunctionResult)
           |> List.ofSeq }
 
     return (traceID, traceData)
@@ -249,7 +245,12 @@ let storeToCloudStorage
       |> Dictionary.toList
       |> List.map (fun ((tlid, fnName, id, hash), (dval, _)) ->
         // TODO do we really want to parse and unparse fnName?
-        tlid, id, RT.FQFnName.toString fnName, hash, dvalToRoundtrippable dval)
+        tlid,
+        id,
+        RT.FQFnName.toString fnName,
+        LibExecution.DvalReprInternalHash.currentHashVersion,
+        hash,
+        dvalToRoundtrippable dval)
 
     let functionArguments =
       functionArguments

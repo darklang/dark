@@ -130,11 +130,11 @@ let parseRoundtrippableJsonV0 (json : string) : RT.Dval =
   |> Json.Vanilla.deserialize<RoundtrippableSerializationFormatV0.Dval>
   |> RoundtrippableSerializationFormatV0.toRT
 
-let toHashV0 (dvals : list<RT.Dval>) : string =
+let toHashV2 (dvals : list<RT.Dval>) : string =
   dvals
   |> List.map RoundtrippableSerializationFormatV0.fromRT
   |> RoundtrippableSerializationFormatV0.DList
   |> Json.Vanilla.serialize
   |> UTF8.toBytes
-  |> System.Security.Cryptography.SHA384.HashData
+  |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure
   |> Base64.urlEncodeToString

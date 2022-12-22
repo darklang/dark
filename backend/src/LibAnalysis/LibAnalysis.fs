@@ -10,6 +10,7 @@ module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
 module AT = LibExecution.AnalysisTypes
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
 module Eval =
   let loadFromTrace
@@ -18,8 +19,9 @@ module Eval =
     (args : List<RT.Dval>)
     : Option<RT.Dval * NodaTime.Instant> =
     let hashes =
-      DvalReprInternalDeprecated.supportedHashVersions
-      |> List.map (fun key -> (key, DvalReprInternalDeprecated.hash key args))
+      DvalReprInternalHash.supportedHashVersions
+      // Laziness is an optimization to avoid computing hashes we don't need (which is almost certainly all but one)
+      |> List.map (fun key -> (key, lazy (DvalReprInternalHash.hash key args)))
       |> Map
 
     results
@@ -29,7 +31,8 @@ module Eval =
          && hash = (Map.get hashVersion hashes
                     |> Exception.unwrapOptionInternal
                          "Could not find hash"
-                         [ "hashVersion", hashVersion; "hashes", hashes ]) then
+                         [ "hashVersion", hashVersion; "hashes", hashes ]
+                    |> Lazy.force) then
         Some dval
       else
         None)
