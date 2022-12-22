@@ -371,7 +371,7 @@ jobs:
             scripts/run-backend-server --published
             # Wait for users to be added so prep.sh works
             ./scripts/devcontainer/_wait-until-apiserver-ready
-            integration-tests/run.sh --concurrency=8 --loop --published --pattern=rename_db
+            integration-tests/run.sh --concurrency=8 --loop --published --pattern=rename_db_fields
       - run: integration-tests/_integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
