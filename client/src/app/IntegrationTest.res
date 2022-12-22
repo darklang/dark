@@ -193,7 +193,9 @@ let tabbing_through_let = (m: model): testResult =>
 
 let rename_db_fields = (m: model): testResult =>
   m.dbs
-  |> Map.mapValues(~f=({cols, _}: PT.DB.t) =>
+  |> Map.mapValues(~f=({cols, _}: PT.DB.t) => {
+    Debug.loG("Checking to see if test passes", cols)
+
     switch cols {
     | list{
         {name: Some("field6"), typ: Some(TStr), _},
@@ -206,13 +208,14 @@ let rename_db_fields = (m: model): testResult =>
       }
     | _ => fail(cols)
     }
-  )
+  })
   |> Result.combine
   |> Result.map(~f=_ => ())
 
 let rename_db_type = (m: model): testResult =>
   m.dbs
-  |> Map.mapValues(~f=({cols, tlid: dbTLID, _}: PT.DB.t) =>
+  |> Map.mapValues(~f=({cols, tlid: dbTLID, _}: PT.DB.t) => {
+    Debug.loG("Checking to see if test passes", cols)
     switch cols {
     // this was previously an Int
     | list{
@@ -231,7 +234,7 @@ let rename_db_type = (m: model): testResult =>
       }
     | _ => fail(cols)
     }
-  )
+  })
   |> Result.combine
   |> Result.map(~f=_ => ())
 

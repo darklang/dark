@@ -373,23 +373,39 @@ test.describe.parallel("Integration Tests", async () => {
 
   test("rename_db_fields", async ({ page }, testInfo) => {
     // rename
+    console.log("Running test - A");
     await page.click(".name >> text='field1'");
+    console.log("Running test - B");
     await selectAllInEntryBox(page);
+    console.log("Running test - C");
     await page.keyboard.press("Backspace");
+    console.log("Running test - D");
     await page.type(Locators.entryBox, "field6");
+    console.log("Running test - E");
     await page.keyboard.press("Enter");
+
+    console.log("Running test - F");
     await page.waitForResponse(
       `${BASE_URL}/api/test-rename_db_fields/v1/add_op`,
     );
+    console.log("Running test - G");
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
+    console.log("Running test - H");
+
     await post(page, url, '{ "field6": "a", "field2": "b" }');
+    console.log("Running test - I");
+
     await page.waitForSelector(Locators.dbLockLocator);
+    console.log("Running test - J");
 
     await page.click(".name >> text='field6'");
+    console.log("Running test - K");
     await page.keyboard.press("Enter");
+    console.log("Running test - L");
     await page.keyboard.press("Enter");
+    console.log("Running test - M");
   });
 
   test("rename_db_type", async ({ page }, testInfo) => {
