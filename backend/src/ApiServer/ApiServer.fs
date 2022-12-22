@@ -294,6 +294,9 @@ let initSerializers () =
   Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
 
+  // for integration tests
+  Json.Vanilla.allow<IntegrationTests.OnDiskFormat> "integrationTestsOnDiskFormat"
+
 
 [<EntryPoint>]
 let main _ =

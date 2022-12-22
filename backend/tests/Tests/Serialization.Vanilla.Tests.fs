@@ -339,6 +339,11 @@ module PersistedSerializations =
             workerSchedules = CV.workerStates
             secrets = [ { name = "test"; value = "secret" } ] }
 
+        // IntegrationTests
+        v<ApiServer.IntegrationTests.OnDiskFormat>
+          "simple"
+          (SerializationTestValues.ProgramTypes.oplist |> List.map CT2Program.Op.toCT)
+
         // Tunnels
         v<CTApi.Tunnels.Register.Request> "empty" { tunnelHost = None }
         v<CTApi.Tunnels.Register.Request>
