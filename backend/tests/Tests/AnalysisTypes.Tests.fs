@@ -36,4 +36,25 @@ let testTraceIDOrdering =
     Expect.equal actual expected ""
   }
 
-let tests = testList "AnalysisTypes" [ testTraceIDOrdering ]
+let testTraceIDTimestampRoundtrip =
+  testMany
+    "roundtrip traceID timestamps"
+    (fun (ts : int64) ->
+      ts
+      |> NodaTime.Instant.FromUnixTimeMilliseconds
+      |> LibExecution.AnalysisTypes.TraceID.fromTimestamp
+      |> LibExecution.AnalysisTypes.TraceID.toTimestamp
+      |> fun ts -> ts.ToUnixTimeMilliseconds())
+    // Only test positive values since we throw away the important bytes for negative
+    // values, and we only care about positive values anyway (since we are creating
+    // the timestamps in 2022 or later)
+    [ NodaTime.Instant.MaxValue.ToUnixTimeMilliseconds(),
+      NodaTime.Instant.MaxValue.ToUnixTimeMilliseconds()
+      0L, 0L
+      1L, 1L
+      2L, 2L
+      1671731279596L, 1671731279596L
+      1671731278547L, 1671731278547L ]
+
+let tests =
+  testList "AnalysisTypes" [ testTraceIDOrdering; testTraceIDTimestampRoundtrip ]

@@ -38,12 +38,7 @@ module TraceID =
       match this with
       | TraceID (guid) -> guid.ToString()
 
-
-  /// Create a new TraceID. All traceIDs should be created using this unless they
-  /// already exist (in which case they should have been created with this in the
-  /// first place). This has some exceptions such as old traces and default traces,
-  /// but we should be able to get away with those cases.
-  let create () : T =
+  let fromTimestamp (timestamp : NodaTime.Instant) : T =
     // We follow ULIDs, which have 48 bits of timestamp (milliseconds since the
     // epoch) and 80 bits of randomness. Unlike ULIDs, we don't require monotonically
     // increasing values in the same millisecond, so we ignore that part.  We invert
@@ -54,7 +49,7 @@ module TraceID =
     let randomSpan = System.Span<byte>(bytes, 6, 10)
 
     // Timestamp part
-    let timestamp = (NodaTime.Instant.now ()).ToUnixTimeMilliseconds()
+    let timestamp = timestamp.ToUnixTimeMilliseconds()
     let timestamp = ~~~timestamp
 
     // When we convert to a guid, its internal format means it reads things a bit
@@ -75,11 +70,30 @@ module TraceID =
 
     TraceID(System.Guid(bytes))
 
+
+  /// Create a new TraceID. All traceIDs should be created using this unless they
+  /// already exist (in which case they should have been created with this in the
+  /// first place). This has some exceptions such as old traces and default traces,
+  /// but we should be able to get away with those cases.
+  let create () : T = fromTimestamp (NodaTime.Instant.now ())
+
   let toUUID (t : T) : System.Guid =
     match t with
     | TraceID g -> g
 
   let fromUUID (g : System.Guid) : T = TraceID g
+
+  let toTimestamp (traceID : T) : NodaTime.Instant =
+    let bytes = (toUUID traceID).ToByteArray()
+    let timestamp : uint64 =
+      0xffff000000000000UL
+      ||| (uint64 bytes[3] <<< 40)
+      ||| (uint64 bytes[2] <<< 32)
+      ||| (uint64 bytes[1] <<< 24)
+      ||| (uint64 bytes[0] <<< 16)
+      ||| (uint64 bytes[5] <<< 8)
+      ||| (uint64 bytes[4] <<< 0)
+    timestamp |> (~~~) |> int64 |> NodaTime.Instant.FromUnixTimeMilliseconds
 
 
 type TraceData =
