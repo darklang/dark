@@ -278,14 +278,22 @@ let storeToCloudStorage
     do! stream.FlushAsync()
     stream.Position <- 0L
 
-    // Store to CloudStorage
+    // Create the object and metadata
+    let object = Google.Apis.Storage.v1.Data.Object()
+    object.Name <- objectName canvasID rootTLID traceID "0"
+    object.ContentType <- "application/json"
+    object.ContentEncoding <- "br"
+    object.Metadata <-
+      Map [ "storage_format_version", string currentStorageVersion
+            "hash_version",
+            string LibExecution.DvalReprInternalHash.currentHashVersion ]
+    object.Bucket <- bucketName
+
+    // Upload to CloudStorage
     let! client = client.Force()
-    let name = objectName canvasID rootTLID traceID "0"
     let storageTask =
       client.UploadObjectAsync(
-        bucketName,
-        name,
-        "application/x-brotli",
+        object,
         stream,
         null,
         System.Threading.CancellationToken(),
