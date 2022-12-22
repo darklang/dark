@@ -255,7 +255,7 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
-      - run: scripts/run-backend-tests --published
+      #- run: scripts/run-backend-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
@@ -371,7 +371,7 @@ jobs:
             scripts/run-backend-server --published
             # Wait for users to be added so prep.sh works
             ./scripts/devcontainer/_wait-until-apiserver-ready
-            integration-tests/run.sh --concurrency=8 --retry --published
+            integration-tests/run.sh --concurrency=8 --loop --published --pattern=rename_db
       - run: integration-tests/_integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
