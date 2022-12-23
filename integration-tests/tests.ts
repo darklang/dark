@@ -392,7 +392,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("rename_db_type", async ({ page }, testInfo) => {
+  test.skip("rename_db_type", async ({ page }, testInfo) => {
     // rename
     await page.click(".type >> text='Int'");
     await selectAllInEntryBox(page);
