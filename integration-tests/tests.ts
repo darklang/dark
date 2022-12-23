@@ -371,45 +371,45 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", "myvar");
   });
 
-  test.skip("rename_db_fields", async ({ page }, testInfo) => {
-    // rename
-    await page.click(".name >> text='field1'");
-    await selectAllInEntryBox(page);
-    await page.keyboard.press("Backspace");
-    await page.type(Locators.entryBox, "field6");
-    await page.keyboard.press("Enter");
-    await page.waitForResponse(
-      `${BASE_URL}/api/test-rename_db_fields/v1/add_op`,
-    );
+  // test("rename_db_fields", async ({ page }, testInfo) => {
+  //   // rename
+  //   await page.click(".name >> text='field1'");
+  //   await selectAllInEntryBox(page);
+  //   await page.keyboard.press("Backspace");
+  //   await page.type(Locators.entryBox, "field6");
+  //   await page.keyboard.press("Enter");
+  //   await page.waitForResponse(
+  //     `${BASE_URL}/api/test-rename_db_fields/v1/add_op`,
+  //   );
 
-    // add data and check we can't rename again
-    let url = bwdUrl(testInfo, "/add");
-    await post(page, url, '{ "field6": "a", "field2": "b" }');
-    await page.waitForSelector(Locators.dbLockLocator);
+  //   // add data and check we can't rename again
+  //   let url = bwdUrl(testInfo, "/add");
+  //   await post(page, url, '{ "field6": "a", "field2": "b" }');
+  //   await page.waitForSelector(Locators.dbLockLocator);
 
-    await page.click(".name >> text='field6'");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
-  });
+  //   await page.click(".name >> text='field6'");
+  //   await page.keyboard.press("Enter");
+  //   await page.keyboard.press("Enter");
+  // });
 
-  test.skip("rename_db_type", async ({ page }, testInfo) => {
-    // rename
-    await page.click(".type >> text='Int'");
-    await selectAllInEntryBox(page);
-    await page.keyboard.press("Backspace");
-    await page.type(Locators.entryBox, "String");
-    await page.keyboard.press("Enter");
-    await page.waitForResponse(`${BASE_URL}/api/test-rename_db_type/v1/add_op`);
+  // test("rename_db_type", async ({ page }, testInfo) => {
+  //   // rename
+  //   await page.click(".type >> text='Int'");
+  //   await selectAllInEntryBox(page);
+  //   await page.keyboard.press("Backspace");
+  //   await page.type(Locators.entryBox, "String");
+  //   await page.keyboard.press("Enter");
+  //   await page.waitForResponse(`${BASE_URL}/api/test-rename_db_type/v1/add_op`);
 
-    // add data and check we can't rename again
-    let url = bwdUrl(testInfo, "/add");
-    await post(page, url, '{ "field1": "str", "field2": 5 }');
-    await page.waitForSelector(Locators.dbLockLocator, { timeout: 8000 });
+  //   // add data and check we can't rename again
+  //   let url = bwdUrl(testInfo, "/add");
+  //   await post(page, url, '{ "field1": "str", "field2": 5 }');
+  //   await page.waitForSelector(Locators.dbLockLocator, { timeout: 8000 });
 
-    await page.click(".type >> text='String'");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
-  });
+  //   await page.click(".type >> text='String'");
+  //   await page.keyboard.press("Enter");
+  //   await page.keyboard.press("Enter");
+  // });
 
   test("rename_function", async ({ page }, testInfo) => {
     const fnNameBlankOr = ".fn-name-content";
