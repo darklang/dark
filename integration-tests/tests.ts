@@ -371,7 +371,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", "myvar");
   });
 
-  test("rename_db_fields", async ({ page }, testInfo) => {
+  test.skip("rename_db_fields", async ({ page }, testInfo) => {
     // rename
     await page.click(".name >> text='field1'");
     await selectAllInEntryBox(page);
