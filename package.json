@@ -32,7 +32,7 @@
     "minimist": "1.2.7",
     "moment": "2.29.4",
     "mouse-wheel": "1.2.0",
-    "pusher-js": "7.6.0",
+    "pusher-js": "8.0.0",
     "rescript-js": "0.7.0",
     "rescript-nodejs": "14.3.1",
     "rollbar": "2.26.0",
