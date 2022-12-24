@@ -70,15 +70,12 @@ let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 // --------------------
 // ports
 // --------------------
-// Don't use DARK_CONFIG_HEALTH_CHECK_PORT as that's part of the ocaml service
 let apiServerPort = int "DARK_CONFIG_APISERVER_BACKEND_PORT"
 let apiServerNginxPort = int "DARK_CONFIG_APISERVER_NGINX_PORT"
 let apiServerKubernetesPort = int "DARK_CONFIG_APISERVER_KUBERNETES_PORT"
 
-// Don't use DARK_CONFIG_HEALTH_CHECK_PORT as that's part of the ocaml service
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"
 let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
-
 
 let croncheckerKubernetesPort = int "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT"
 let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
@@ -91,7 +88,6 @@ let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
 let launchDarklyApiKey = stringOption "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY"
 
 
-
 // --------------------
 // Feature flag defaults
 // Sometimes we want different flag defaults in different environments
@@ -102,13 +98,6 @@ let traceSamplingRuleDefault = string "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT"
 // --------------------
 // db
 // --------------------
-type PostgresConfig =
-  { host : string
-    dbname : string
-    user : string
-    password : string
-    poolSize : int }
-
 let pgHost = string "DARK_CONFIG_DB_HOST"
 
 let pgDBName = string "DARK_CONFIG_DB_DBNAME"
@@ -118,13 +107,6 @@ let pgUser = string "DARK_CONFIG_DB_USER"
 let pgPassword = password "DARK_CONFIG_DB_PASSWORD"
 
 let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
-
-let postgresSettings : PostgresConfig =
-  { host = pgHost
-    dbname = pgDBName
-    user = pgUser
-    password = pgPassword
-    poolSize = pgPoolSize }
 
 
 // --------------------
