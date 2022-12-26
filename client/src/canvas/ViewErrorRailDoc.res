@@ -41,7 +41,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | TOption(_) =>
         Some(
           Html.p(
-            list{},
+            list{tw(%twc("font-text text-sm"))},
             list{
               txt("By default, this function goes to the "),
               errorRail,
@@ -59,7 +59,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       // example HttpClient::delete
         Some(
           Html.p(
-            list{},
+            list{tw(%twc("font-text text-sm"))},
             list{
               txt("By default, this function goes to the "),
               errorRail,
@@ -81,7 +81,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | (TOption(_), Rail) =>
         Some(
           Html.p(
-            list{},
+            list{tw(%twc("font-text text-sm"))},
             list{
               txt("This function goes to the "),
               errorRail,
@@ -102,7 +102,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | (TOption(_), NoRail) =>
         Some(
           Html.p(
-            list{},
+            list{tw(%twc("font-text text-sm"))},
             list{
               txt("This function is not on the "),
               errorRail,
@@ -120,7 +120,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       //example Bytes::base64Decode
         Some(
           Html.p(
-            list{},
+            list{tw(%twc("font-text text-sm"))},
             list{
               txt("This function goes to the "),
               errorRail,
@@ -141,7 +141,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | (TResult(_), NoRail) =>
         Some(
           Html.p(
-            list{},
+            list{tw(%twc("font-text text-sm"))},
             list{
               txt("This function is not on the "),
               errorRail,
