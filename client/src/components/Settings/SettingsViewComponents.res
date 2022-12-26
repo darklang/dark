@@ -40,7 +40,7 @@ module Tooltip = {
 module InfoIcon = {
   // Show an information icon: a small "i" that you can hover to see the passed information
   let generic = (body: Html.html<'msg>): Html.html<'msg> =>
-    Icons.fontAwesome(~style=%twc("text-sm px-1 text-grey1"), "info-circle")->Tooltip.add(body)
+    Icons.fontAwesome(~style=%twc("text-sm pl-1 text-grey1"), "info-circle")->Tooltip.add(body)
 
   // Show an information icon: a small "i" that you can hover to see the passed information
   let text = (text: string): Html.html<'msg> => generic(Tooltip.text(text))
@@ -193,6 +193,33 @@ let input = (
         list{},
       ),
       loadingSpinner,
+    },
+  )
+}
+
+let docErrorRailTooltip = (
+  ~info: Vdom.t<PrettyDocs.msg>,
+  ~error: option<string>,
+  caption: string,
+  contents: list<Html.html<'msg>>,
+): Html.html<'msg> => {
+  let infoText: Html.html<'msg> =
+    InfoIcon.generic(info)
+  let error: Html.html<'msg> =
+    error->Tc.Option.map(~f=errorSpan)->Tc.Option.unwrap(~default=Html.noNode)
+  Html.div(
+    list{},
+    list{
+      Html.div(
+        list{tw(%twc("flex items-center justify-center pl-2 h-7"))},
+        list{
+          Html.span(list{tw(%twc("text-grey5"))},list{Html.text("(")}),
+          Html.span(list{tw(%twc("font-text text-grey5"))}, contents),
+          Html.span(list{tw(%twc("text-md font-text"))}, list{Html.text(caption), infoText}),
+          Html.span(list{tw(%twc("text-grey5"))},list{Html.text(")")}),
+        },
+      ),
+      error,
     },
   )
 }
