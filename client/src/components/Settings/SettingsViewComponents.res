@@ -31,9 +31,29 @@ module Tooltip = {
     )
   }
 
-  // Returns a text node with approproate styling for a tooltip body
+  // Returns a text node with appropriate styling for a tooltip body
   let text = (text: string): Html.html<'msg> => {
     Html.span(list{tw(%twc("text-base font-text text-left text-white3"))}, list{Html.text(text)})
+  }
+
+    let addTooltipErrRail = (node: Html.html<'msg>, body: Html.html<'msg>): Html.html<'msg> => {
+    // A "top" tooltip, based on https://www.kindacode.com/article/tailwind-css-how-to-create-tooltips/
+    Html.span(
+      list{tw(%twc("mt-20 group relative duration-300"))},
+      list{
+        node,
+        Html.span(
+          list{
+            tw(
+              %twc(
+                "absolute hidden group-hover:flex -left-5 top-0 -translate-y-full w-64 px-4 py-2.5 bg-black3 rounded-lg after:content-[''] after:absolute after:left-1/2 after:top-[100%] after:-translate-x-1/2 after:border-8 after:border-x-transparent after:border-b-transparent after:border-t-grey1"
+              ),
+            ),
+          },
+          list{body},
+        ),
+      },
+    )
   }
 }
 
@@ -41,6 +61,9 @@ module InfoIcon = {
   // Show an information icon: a small "i" that you can hover to see the passed information
   let generic = (body: Html.html<'msg>): Html.html<'msg> =>
     Icons.fontAwesome(~style=%twc("text-sm pl-1 text-grey1"), "info-circle")->Tooltip.add(body)
+
+  let genericErrRail = (body: Html.html<'msg>): Html.html<'msg> =>
+    Icons.fontAwesome(~style=%twc("text-xs pl-1 text-grey1"), "info-circle")->Tooltip.addTooltipErrRail(body)
 
   // Show an information icon: a small "i" that you can hover to see the passed information
   let text = (text: string): Html.html<'msg> => generic(Tooltip.text(text))
@@ -204,19 +227,17 @@ let docErrorRailTooltip = (
   contents: list<Html.html<'msg>>,
 ): Html.html<'msg> => {
   let infoText: Html.html<'msg> =
-    InfoIcon.generic(info)
+    InfoIcon.genericErrRail(info)
   let error: Html.html<'msg> =
     error->Tc.Option.map(~f=errorSpan)->Tc.Option.unwrap(~default=Html.noNode)
   Html.div(
     list{},
     list{
       Html.div(
-        list{tw(%twc("flex items-center justify-center pl-2 h-7"))},
+        list{tw(%twc("flex"))},
         list{
-          Html.span(list{tw(%twc("text-grey5"))},list{Html.text("(")}),
           Html.span(list{tw(%twc("font-text text-grey5"))}, contents),
           Html.span(list{tw(%twc("text-md font-text"))}, list{Html.text(caption), infoText}),
-          Html.span(list{tw(%twc("text-grey5"))},list{Html.text(")")}),
         },
       ),
       error,
