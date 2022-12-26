@@ -4,6 +4,12 @@ open Prelude
 module E = FluidExpression
 open PrettyDocs
 
+let tw = Attrs.class
+
+let code = %twc("bg-grey1 py-0 px-2 whitespace-nowrap")
+let cmd = %twc("text-pink whitespace-nowrap")
+let var = %twc("text-purple")
+
 @ocaml.doc("[hintForFunction fn sendToRail] returns a (possibly noNode) DOM node that
  * provides a contextual hint about error-rail usage for the function [fn].
  *
@@ -18,7 +24,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
 > => {
   let errorRail = Html.a(
     list{
-      Attrs.class("link"),
+      tw(%twc("text-blue underline hover:text-white3")),
       Attrs.href("https://docs.darklang.com/discussion/error-handling#error-rail"),
       Attrs.target("_blank"),
     },
@@ -30,6 +36,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
     switch sendToRail {
     | None =>
       // If we don't know if the function is on the rail, return a generic message:
+      // example Dict::fromList
       switch fn.returnType {
       | TOption(_) =>
         Some(
@@ -39,16 +46,17 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
               txt("By default, this function goes to the "),
               errorRail,
               txt(" on "),
-              tag("code", list{txt("Nothing")}),
+              tag(code, list{txt("Nothing")}),
               txt(" and returns the unwrapped "),
-              tag("var", list{txt("value")}),
+              tag(var, list{txt("value")}),
               txt(" in "),
-              tag("code", list{txt("Just "), tag("var", list{txt("value")})}),
+              tag(code, list{txt("Just "), tag(var, list{txt("value")})}),
               txt(" otherwise."),
             },
           ),
         )
       | TResult(_, _) =>
+      // example HttpClient::delete
         Some(
           Html.p(
             list{},
@@ -56,11 +64,11 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
               txt("By default, this function goes to the "),
               errorRail,
               txt(" on "),
-              tag("code", list{txt("Error")}),
+              tag(code, list{txt("Error")}),
               txt(" and returns the unwrapped "),
-              tag("var", list{txt("value")}),
+              tag(var, list{txt("value")}),
               txt(" in "),
-              tag("code", list{txt("Ok "), tag("var", list{txt("value")})}),
+              tag(code, list{txt("Ok "), tag(var, list{txt("value")})}),
               txt(" otherwise."),
             },
           ),
@@ -78,15 +86,15 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
               txt("This function goes to the "),
               errorRail,
               txt(" on "),
-              tag("code", list{txt("Nothing")}),
+              tag(code, list{txt("Nothing")}),
               txt(" and returns the unwrapped "),
-              tag("var", list{txt("value")}),
+              tag(var, list{txt("value")}),
               txt(" in "),
-              tag("code", list{txt("Just "), tag("var", list{txt("value")})}),
+              tag(code, list{txt("Just "), tag(var, list{txt("value")})}),
               txt(" otherwise. Use the command "),
-              tag("cmd", list{txt("take-function-off-rail")}),
+              tag(cmd, list{txt("take-function-off-rail")}),
               txt(" to handle the "),
-              tag("code", list{txt("Nothing")}),
+              tag(code, list{txt("Nothing")}),
               txt(" case manually."),
             },
           ),
@@ -99,16 +107,17 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
               txt("This function is not on the "),
               errorRail,
               txt(", so you need to handle "),
-              tag("code", list{txt("Just "), tag("var", list{txt("value")})}),
+              tag(code, list{txt("Just "), tag(var, list{txt("value")})}),
               txt(" and "),
-              tag("code", list{txt("Nothing")}),
+              tag(code, list{txt("Nothing")}),
               txt(" manually. Alternatively, use the command "),
-              tag("cmd", list{txt("put-function-on-rail")}),
+              tag(cmd, list{txt("put-function-on-rail")}),
               txt(" to let the error rail handle the result of this function."),
             },
           ),
         )
       | (TResult(_), Rail) =>
+      //example Bytes::base64Decode
         Some(
           Html.p(
             list{},
@@ -116,15 +125,15 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
               txt("This function goes to the "),
               errorRail,
               txt(" on "),
-              tag("code", list{txt("Error _")}),
+              tag(code, list{txt("Error _")}),
               txt(" and returns the unwrapped "),
-              tag("var", list{txt("value")}),
+              tag(var, list{txt("value")}),
               txt(" in "),
-              tag("code", list{txt("Ok "), tag("var", list{txt("value")})}),
+              tag(code, list{txt("Ok "), tag(var, list{txt("value")})}),
               txt(" otherwise. Use the command "),
-              tag("cmd", list{txt("take-function-off-rail")}),
+              tag(cmd, list{txt("take-function-off-rail")}),
               txt(" to handle the "),
-              tag("code", list{txt("Error "), tag("var", list{txt("errorMessage")})}),
+              tag(code, list{txt("Error "), tag(var, list{txt("errorMessage")})}),
               txt(" case."),
             },
           ),
@@ -137,11 +146,11 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
               txt("This function is not on the "),
               errorRail,
               txt(", so you need to handle "),
-              tag("code", list{txt("Error "), tag("var", list{txt("errorMessage")})}),
+              tag(code, list{txt("Error "), tag(var, list{txt("errorMessage")})}),
               txt(" and "),
-              tag("code", list{txt("Ok "), tag("var", list{txt("value")})}),
+              tag(code, list{txt("Ok "), tag(var, list{txt("value")})}),
               txt(" manually. Alternatively, use "),
-              tag("cmd", list{txt("put-function-on-rail")}),
+              tag(cmd, list{txt("put-function-on-rail")}),
               txt(" to let the ErrorRail handle the result of this function."),
             },
           ),
