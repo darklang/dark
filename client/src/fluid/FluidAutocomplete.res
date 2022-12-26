@@ -774,22 +774,27 @@ let documentationForFunction = (
   }
 
   let return =
-   Html.div(list{Attrs.class(%twc("flex items-center"))}, list{
+   Html.div(list{Attrs.class(%twc("flex items-center mt-4"))}, list{
+    Icons.fontAwesome(~style=%twc("rotate-90 mr-2.5 mt-0.5 text-[10px]"), "level-down-alt"),
     Html.div(
       list{tw(%twc("text-grey5 font-text"))},
       list{
-        Html.text("Returns: "),
-        Html.span(list{tw(%twc("text-green"))}, list{Html.text(DType.type2str(f.returnType))}),
+        Html.text("Returns "),
+        Html.span(list{tw(%twc("text-green text-xs mx-2.5"))}, list{Html.text(DType.type2str(f.returnType))}),
 
       }
     ),
-
-    C.docErrorRailTooltip(~info=ViewErrorRailDoc.hintForFunction(f, sendToRail),
+    Html.div(list{tw(%twc("flex font-text"))},
+    list{
+      Html.span(list{tw(%twc("text-grey5 font-semibold mr-px"))},list{Html.text("(")}),
+      C.docErrorRailTooltip(~info=ViewErrorRailDoc.hintForFunction(f, sendToRail),
         ~error=None,
         "",
         list{Html.text("on errorrail") }
     ),
-
+    Html.span(list{tw(%twc("text-grey5 font-semibold ml-px"))},list{Html.text(")")}),
+    }
+    ),
   })
 
 
