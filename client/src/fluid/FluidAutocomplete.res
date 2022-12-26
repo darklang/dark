@@ -9,7 +9,11 @@ module TL = Toplevel
 module FT = FluidTypes
 module Msg = AppTypes.Msg
 
+module C = SettingsViewComponents
+
 type model = AppTypes.model
+
+let tw = Attrs.class
 
 @ppx.deriving(show) type rec t = FT.AutoComplete.t
 
@@ -769,13 +773,26 @@ let documentationForFunction = (
     list{Html.i(list{}, list{Html.text("no description provided")})}
   }
 
-  let return = Html.div(
-    list{Attrs.class("returnType")},
-    list{
-      Html.text("Returns: "),
-      Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(f.returnType))}),
-    },
-  )
+  let return =
+   Html.div(list{Attrs.class(%twc("flex items-center"))}, list{
+    Html.div(
+      list{tw(%twc("text-grey5 font-text"))},
+      list{
+        Html.text("Returns: "),
+        Html.span(list{tw(%twc("text-green"))}, list{Html.text(DType.type2str(f.returnType))}),
+
+      }
+    ),
+
+    C.docErrorRailTooltip(~info=ViewErrorRailDoc.hintForFunction(f, sendToRail),
+        ~error=None,
+        "",
+        list{Html.text("on errorrail") }
+    ),
+
+  })
+
+
 
   let deprecationHeader = if f.deprecation != NotDeprecated {
     list{Html.span(list{Attrs.class("err")}, list{Html.text("DEPRECATED: ")})}
@@ -808,7 +825,7 @@ let documentationForFunction = (
   Belt.List.concatMany([
     deprecationHeader,
     desc,
-    list{ViewErrorRailDoc.hintForFunction(f, sendToRail)},
+    // list{ViewErrorRailDoc.hintForFunction(f, sendToRail)},
     deprecationFooter,
     list{return},
   ])
