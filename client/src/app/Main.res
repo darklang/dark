@@ -2203,8 +2203,17 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let timers = if m.editorSettings.runTimers {
+    let refreshOutdatedClient = Tea.Time.every(
+      ~key="refresh_outdated_client",
+      Tea.Time.minute,
+      f => AppTypes.Msg.TimerFire(CheckIfClientIsOutdated, f),
+    )
+
+    // Note: putting a timer in the 'hidden' list doesn't prevent it from being run
+    // only when the page is invisible. Rather, it only prevents us from _starting_
+    // the timer until the page is invisible.
     switch m.visibility {
-    | Hidden => list{}
+    | Hidden => list{refreshOutdatedClient}
     | Visible => list{
         Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => AppTypes.Msg.TimerFire(
           RefreshAnalysis,
@@ -2214,6 +2223,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
           RefreshAvatars,
           f,
         )),
+        refreshOutdatedClient,
       }
     }
   } else {
