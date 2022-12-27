@@ -2121,6 +2121,7 @@ let update_ = (msg: msg, m: model): modification => {
   | UploadFnAPICallback(_, Ok(_)) =>
     Model.updateErrorMod(Error.set("Successfully uploaded function"))
   | SecretMsg(msg) => InsertSecret.update(msg)
+
   | RenderEvent =>
     ReplaceAllModificationsWithThisOne(
       "RenderEvent",
@@ -2213,7 +2214,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     // only when the page is invisible. Rather, it only prevents us from _starting_
     // the timer until the page is invisible.
     switch m.visibility {
-    | Hidden => list{refreshOutdatedClient}
+    | Hidden(_since) => list{refreshOutdatedClient}
     | Visible => list{
         Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => AppTypes.Msg.TimerFire(
           RefreshAnalysis,
@@ -2239,7 +2240,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
       if v {
         PageVisibilityChange(Visible)
       } else {
-        PageVisibilityChange(Hidden)
+        PageVisibilityChange(Hidden(Js.Date.now() |> Js.Date.fromFloat))
       }
     ),
   }

@@ -55,7 +55,7 @@ module CanvasProps = {
 module PageVisibility = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    | Hidden
+    | Hidden(Js.Date.t)
     | Visible
 }
 
