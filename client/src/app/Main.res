@@ -1832,8 +1832,8 @@ let update_ = (msg: msg, m: model): modification => {
   | TimerFire(action, _) =>
     switch action {
     | RefreshAnalysis =>
-      let getUnlockedDBs = // Small optimization
-      if Map.length(m.dbs) > 0 {
+      // Small optimization - only refresh unlocked DBs if there's at least 1 known
+      let getUnlockedDBs = if !Map.isEmpty(m.dbs) {
         GetUnlockedDBsAPICall
       } else {
         NoChange
