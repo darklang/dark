@@ -27,7 +27,8 @@
     "ms-python.python",
     "ms-azuretools.vscode-docker",
     "editorconfig.editorconfig",
-    "chenglou92.rescript-vscode@1.1.3"
+    "chenglou92.rescript-vscode@1.1.3",
+    "hashicorp.terraform"
   ],
 
   /////////////////////////////////////////////////

@@ -65,7 +65,7 @@ RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 RUN curl -sSL https://nginx.org/keys/nginx_signing.key | apt-key add -
-
+RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
 # We want postgres 9.6, but it is not in later ubuntus
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
@@ -77,6 +77,8 @@ RUN echo "deb-src https://deb.nodesource.com/node_14.x jammy main" >> /etc/apt/s
 
 RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=${TARGETARCH}] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+
+RUN echo "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list
 
 # Mostly, we use the generic version. However, for things in production we want
 # to pin the exact package version so that we don't have any surprises.  As a
@@ -114,6 +116,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
+      terraform \
       jq \
       vim \
       unzip \
