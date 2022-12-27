@@ -1083,6 +1083,8 @@ module Model = {
     browserId: string,
     buildHash: string,
     lastReload: option<Js.Date.t>,
+    @ocaml.doc("When the page was last active/visible")
+    lastActive: option<Js.Date.t>,
     opCtrs: Tc.Map.String.t<int>,
     clientOpCtrId: string,
     permission: option<AccountTypes.Permission.t>,
@@ -1154,6 +1156,7 @@ module Model = {
     buildHash: "",
     username: "defaultUsername",
     lastReload: None,
+    lastActive: None,
     permission: None,
     showTopbar: true,
     toast: Toast.default,
