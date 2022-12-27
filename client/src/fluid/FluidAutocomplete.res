@@ -767,6 +767,26 @@ let documentationForFunction = (
   f: Function.t,
   sendToRail: option<ProgramTypes.Expr.SendToRail.t>,
 ): list<Tea.Html.html<'msg>> => {
+    let deprecationHeader = if f.deprecation != NotDeprecated {
+      list{Html.span(list{}, list{C.docErrorRailTooltip(~info=Html.span(list{tw(%twc("font-text text-sm"))}, list{Html.text("TODO: generic text about functions being deprecated")}),
+          ~error=None,
+          "",
+          list{Html.span(list{tw(%twc("font-text text-pink text-xs font-semibold"))}, list{Html.text("Deprecated ")})}
+      ),})}
+  } else {
+    list{Html.span(list{tw(%twc("font-text text-grey2 text-xs"))}, list{Html.text("Not deprecated ")})}
+  }
+
+  let name = Html.span(list{tw(%twc("text-grey3 text-xs "))}, list{Html.text(f.name |> FQFnName.toString)})
+
+  let documentationHeader= Html.div(list{tw(%twc("flex justify-between items-center mb-2"))},
+    list{
+        name,
+        Html.div(list{},deprecationHeader),
+    }
+
+)
+
   let desc = if String.length(f.description) != 0 {
     PrettyDocs.convert(f.description)
   } else {
@@ -774,7 +794,7 @@ let documentationForFunction = (
   }
 
   let return =
-   Html.div(list{Attrs.class(%twc("flex items-center mt-4"))}, list{
+   Html.div(list{Attrs.class(%twc("flex items-center mt-2"))}, list{
     Icons.fontAwesome(~style=%twc("rotate-90 mr-2.5 mt-0.5 text-[10px]"), "level-down-alt"),
     Html.div(
       list{tw(%twc("text-grey5 font-text"))},
@@ -784,7 +804,7 @@ let documentationForFunction = (
 
       }
     ),
-    Html.div(list{tw(%twc("flex font-text"))},
+    Html.div(list{tw(%twc("flex items-center font-text"))},
     list{
       Html.span(list{tw(%twc("text-grey5 font-semibold mr-px"))},list{Html.text("(")}),
       C.docErrorRailTooltip(~info=ViewErrorRailDoc.hintForFunction(f, sendToRail),
@@ -799,27 +819,23 @@ let documentationForFunction = (
 
 
 
-  let deprecationHeader = if f.deprecation != NotDeprecated {
-    list{Html.span(list{Attrs.class("err")}, list{Html.text("DEPRECATED: ")})}
-  } else {
-    list{}
-  }
+
 
   let deprecationFooter = {
     let deprecationFooterContents = switch f.deprecation {
     | NotDeprecated => list{}
-    | ReplacedBy(name) => list{Html.text("replaced by " ++ FQFnName.StdlibFnName.toString(name))}
-    | RenamedTo(name) => list{Html.text("renamed to " ++ FQFnName.StdlibFnName.toString(name))}
-    | DeprecatedBecause(reason) => list{Html.text(reason)}
+    | ReplacedBy(name) => list{Html.span(list{tw(%twc("font-text font-medium text-[11px] tracking-wide"))},list{Html.text("replaced by " ++ FQFnName.StdlibFnName.toString(name))})}
+    | RenamedTo(name) => list{Html.span(list{tw(%twc("font-text font-medium text-[11px] tracking-wide"))},list{Html.text("renamed to " ++ FQFnName.StdlibFnName.toString(name))})}
+    | DeprecatedBecause(reason) => list{Html.span(list{tw(%twc("font-text font-medium text-[11px] tracking-wide"))}, list{Html.text(reason)})}
     }
     if deprecationFooterContents == list{} {
       list{}
     } else {
       list{
         Html.div(
-          list{Attrs.class("deprecation-reason")},
+          list{tw(%twc("mt-4 mb-2"))},
           list{
-            Html.span(list{Attrs.class("err")}, list{Html.text("DEPRECATED: ")}),
+            Html.span(list{tw(%twc("bg-grey1 rounded-full text-pink font-text text-[11px] pt-0.5 pb-1 px-1.5 mr-1"))}, list{Html.text("Deprecated")}),
             ...deprecationFooterContents,
           },
         ),
@@ -828,11 +844,11 @@ let documentationForFunction = (
   }
 
   Belt.List.concatMany([
-    deprecationHeader,
+    list{documentationHeader},
     desc,
     // list{ViewErrorRailDoc.hintForFunction(f, sendToRail)},
-    deprecationFooter,
     list{return},
+    deprecationFooter,
   ])
 }
 
