@@ -234,7 +234,7 @@ let docErrorRailTooltip = (
     list{},
     list{
       Html.div(
-        list{tw(%twc("flex"))},
+        list{tw(%twc("flex items-center"))},
         list{
           Html.span(list{tw(%twc("font-text text-grey5"))}, contents),
           Html.span(list{tw(%twc("text-md font-text"))}, list{Html.text(caption), infoText}),
