@@ -12,7 +12,7 @@ let codeEx = "^(.*)\\{\\{(.+)\\}\\}(.*)$"
 
 let linkEx = "^(.*)\\[(.+)\\]\\((http[s]?\\://.+)\\)(.*)$"
 
-let codeClass = "code"
+let codeClass = %twc("bg-grey1 py-0 px-2 whitespace-nowrap text-xs")
 
 let nestedTag = Regex.regex(`<\\\w+[^>]*<`)
 
