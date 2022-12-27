@@ -160,6 +160,7 @@ let run = () => {
       "vanilla_ClientTypes-Program-Handler-T_simple.json",
       "vanilla_LibBackend-EventQueueV2-NotificationData_simple.json",
       "vanilla_Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Op-_complete.json",
+      "vanilla_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-Program-Op-_simple.json",
       "vanilla_LibExecution-ProgramTypes-Position_simple.json",
       "vanilla_LibExecution-AnalysisTypes-TraceData_testTraceData.json",
       // Disabled for now as EInfix is converted to EBinOp. Can be changed when the
