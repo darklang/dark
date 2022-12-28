@@ -1,4 +1,11 @@
-
+@val external username: string = "username"
+@val external userID: string = "userID"
+@val external csrfToken: string = "csrfToken"
+@val external buildHash: string = "buildHash"
+@val external environmentName: string = "environmentName"
+@val external userContentHost: string = "userContentHost"
+@val external canvasName: string = "canvasName"
+@val external complete: bool = "complete"
 
 // ---------------------------
 // If you need to deploy app.js again with a different sha, increment this number
@@ -83,8 +90,6 @@ if (unsupportedBrowser()) {
 // Allows us capture certain keys and stop them from affecting the browser.
 // ---------------------------
 
-
-
 let stopKeys =  event =>{
   open! KeyboardEvent
   // Don't ever attempt to save the HTML of the page.
@@ -138,42 +143,25 @@ module Rollbar = {
     enabled: bool,
     payload: person,
   }
-  type rollbar =
-  {
+
+  type rollbar ={
   init: rollbarConfig => unit,
   error: Js.Json.t => unit,
   configure: rollbarConfig => unit,
   }
-  @module external rollbar: rollbar = "rollbar"
-  let init = (rollbarConfig: rollbarConfig) => {
-    rollbar.init(rollbarConfig)
-  }
-  let error = (error: Js.Json.t) => {
-    rollbar.error(error)
-  }
-  let payload = (payload: person) => {
-    rollbar.configure({enabled: true, payload: payload})
-      }
-  let enabled = (enabled: bool) => {
-    rollbar.configure({enabled: enabled, payload: {id: "", username: ""}})
-  }
-  let configure = ({enabled: enabled, payload: payload}) => {
-    rollbar.configure({enabled: enabled, payload: payload})
-  }
 
-let username=""
-let userID=""
-  let rollbarConfig = {
-    enabled: true,
-    payload: { id: userID, username: username }
-  }
-let rollbarg = rollbar.init(rollbarConfig)
+  @module external rollbar: rollbar = "rollbar"
+  @val external rollbarConfig: rollbarConfig = "rollbarConfig"
+
+rollbar.configure({...rollbarConfig , payload: {id: userID, username: username}})
+
 
 let searchParams = Webapi.Url.URLSearchParams.make(window->Window.location->Location.href)
 if (searchParams->Webapi.Url.URLSearchParams.get("use-assets-tunnel") != None) {
   rollbar.configure({...rollbarConfig, enabled: false})
 }
 
+rollbar.init(rollbarConfig)
 
 let displayError = (msg)=>{
   let event = CustomEvent.makeWithOptions(
@@ -207,19 +195,17 @@ module Pusher = {
   }
 
 @module("pusher-js") external pusher: pusher = "Pusher"
-
-let pusherConfig = {
-  key: "",
-  cluster: "",
-  forceTLS: true,
-  enabled: true,
-}
+@val external pusherConfig: pusherConfig = "pusherConfig"
 
 
  if (pusherConfig.enabled) {
-  let pusherConnection = pusher.init(pusherConfig)
+  let pusherConnection = pusher.init({
+    cluster: pusherConfig.cluster,
+    key: pusherConfig.key,
+    forceTLS: true,
+    enabled: pusherConfig.enabled,
+  })
   pusherConnection
-
 }
 }
 
@@ -265,7 +251,6 @@ let visibilityCheck=() => {
 // ---------------------------
 // Wheel
 // ---------------------------
-
 
 
 // ---------------------------
