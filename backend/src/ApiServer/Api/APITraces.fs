@@ -69,7 +69,7 @@ module TraceDataV1 =
                 List.map
                   (fun (s, dv) -> (s, CT2Runtime.Dval.toCT dv))
                   traceData.input
-              timestamp = AT.TraceID.toTimestamp traceID
+              timestamp = traceData.timestamp
               functionResults =
                 List.map
                   (fun (r1, r2, r3, r4, dv) ->
