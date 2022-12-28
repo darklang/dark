@@ -81,6 +81,12 @@ variable "service_env_vars" {
     "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"      = "n"
     # DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS: k8s
 
+    # Traces / cloud storage
+    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = "dark-traces"
+    "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET" = "n"
+    #DARK_CONFIG_TRACE_STORAGE_CREDENTIALS=k8s
+    "DARK_CONFIG_TRACE_STORAGE_BASE_URI" = "not-used"
+
     # Httpclient
     "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL" = "socks5://tunnel2-service.darklang:1080"
 
@@ -133,6 +139,7 @@ variable "service_secrets" {
     "DARK_CONFIG_HONEYCOMB_API_KEY" = "honeycomb-api-key"
 
     # PubSub - service account JSON file
-    "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS" = "queue-pubsub-credentials"
+    "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"  = "queue-pubsub-credentials"
+    "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS" = "traces-cloud-storage-credentials"
   }
 }
