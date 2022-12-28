@@ -52,10 +52,10 @@ module TraceID =
     let timestamp = timestamp.ToUnixTimeMilliseconds()
     let timestamp = ~~~timestamp
 
-    // When we convert to a guid, its internal format means it reads things a bit
-    // funny - first an in32, then an int16, another int16, then 8 bytes.  We want to
-    // ensure the timestamp is in the right place so we write to the appropriate
-    // index for the guid to mess with it.
+    // System.Guid has an odd internal format: first an int32, then an int16, another
+    // int16, then 8 bytes. We need to be careful if we want the bits to end up in
+    // the right places, hence the odd indexes below (eg the int32 is read as 4
+    // bytes at once from the byte span, so we need to put the bytes in in reverse).
     timestampSpan[3] <- byte ((timestamp >>> 40) &&& 0xFFL)
     timestampSpan[2] <- byte ((timestamp >>> 32) &&& 0xFFL)
     timestampSpan[1] <- byte ((timestamp >>> 24) &&& 0xFFL)
@@ -87,6 +87,7 @@ module TraceID =
     let bytes = (toUUID traceID).ToByteArray()
     let timestamp : uint64 =
       0xffff000000000000UL
+      // See fromTimestamp for the format
       ||| (uint64 bytes[3] <<< 40)
       ||| (uint64 bytes[2] <<< 32)
       ||| (uint64 bytes[1] <<< 24)
