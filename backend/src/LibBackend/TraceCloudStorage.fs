@@ -309,6 +309,24 @@ let storeToCloudStorage
     return ()
   }
 
+type Bucket = Google.Apis.Storage.v1.Data.Bucket
+
+let init () : Task<unit> =
+  task {
+    let! client = client.Force()
+    if Config.traceStorageCreateBucket then
+      try
+        // if it exists, don't recreate it
+        let! (_ : Bucket) = client.GetBucketAsync(bucketName)
+        return ()
+      with
+      | _ ->
+        // create bucket
+        let! (_ : Bucket) =
+          client.CreateBucketAsync("some-project-id", bucketName, null)
+        return ()
+  }
+
 
 module Test =
   let listAllTraceIDs (canvasID : CanvasID) : Task<List<AT.TraceID.T>> =
