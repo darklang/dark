@@ -26,6 +26,11 @@ backend/tests/**/obj
 backend/.paket/load/
 .fake
 
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+
 ###############
 # Deployment
 ###############
