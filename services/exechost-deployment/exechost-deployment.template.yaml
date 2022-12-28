@@ -141,6 +141,12 @@ spec:
                 secretKeyRef:
                   name: credentials-queue-pubsub
                   key: key.json
+            # Cloud Storage - service account JSON file
+            - name: DARK_CONFIG_TRACE_STORAGE_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-traces-cloud-storage
+                  key: key.json
 
 
         #########################
