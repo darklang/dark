@@ -25,7 +25,9 @@ module LibBackend.TraceCloudStorage
 //   - function_results with the same data as currently available
 //   - function_arguments with the same data as currently available
 // - we store this in Google Cloud Storage
-//   - format `{canvasID}/{tlid}/{traceID}.json.br`
+//   - format `{canvasID}/{tlid}/{traceID}`
+//   - main trace is called 0
+//   - other layers will have a different suffix
 //   - traceIDs now include timestamps (similar to ULID) so listing out
 //   `{canvasID}/{tlid}` will give us the most recent traces always.
 // - we store metadata about functions called during the trace in `traces_v0`
@@ -45,7 +47,7 @@ module LibBackend.TraceCloudStorage
 //     results, so these are also just layers
 //
 // - 404s (not implemented yet)
-//   - store them using {canvasID}/404s/{traceID}.json.br
+//   - store them using {canvasID}/404s/{traceID}
 //   - store path such that we can request it in one request
 //   - store just the input
 //   - when converted to a trace, delete and rewrite it the normal way
@@ -94,8 +96,6 @@ let roundtrippableToDval (dval : RoundTrippableDval) : RT.Dval =
 let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
   LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT dval
 
-
-// type FunctionResultKey = tlid * RT.FQFnName.T * id * FunctionArgHash
 
 let currentStorageVersion = 0
 
@@ -217,6 +217,7 @@ let getTraceData
 
     let traceData : AT.TraceData =
       { input = cloudStorageData.input |> List.map (Tuple2.mapSecond parseDval)
+        timestamp = AT.TraceID.toTimestamp traceID
         function_results =
           cloudStorageData.functionResults
           |> Seq.map (fun (tlid, id, fnName, hashVersion, argHash, dval) ->

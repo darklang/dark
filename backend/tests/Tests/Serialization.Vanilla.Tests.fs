@@ -480,6 +480,7 @@ module PersistedSerializations =
         v<LibExecution.AnalysisTypes.TraceData>
           "testTraceData"
           { input = [ "var", V.RuntimeTypes.dval ]
+            timestamp = V.instant
             function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] } ]
 
 

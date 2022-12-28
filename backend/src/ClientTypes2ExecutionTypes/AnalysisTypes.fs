@@ -20,6 +20,7 @@ module CT2Program = ProgramTypes
 module TraceData =
   let fromCT (td : CTAnalysis.TraceData) : AT.TraceData =
     { input = List.map (fun (k, v) -> (k, CT2Runtime.Dval.fromCT v)) td.input
+      timestamp = td.timestamp
       function_results =
         List.map
           (fun (name, id, hash, version, dval) ->
