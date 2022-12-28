@@ -44,7 +44,7 @@ module FunctionV1 =
       let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
 
       let! rootTLID = LibBackend.TraceCloudStorage.rootTLIDFor c.meta.id traceID
-      // If this is the old trace, there won't be a rootTLID
+      // If this is a pre-cloud-storage trace, there won't be a rootTLID
       let rootTLID = Option.defaultValue p.tlid rootTLID
 
       let! (result, traceResults) =

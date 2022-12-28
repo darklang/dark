@@ -109,8 +109,12 @@ module Sql =
 
   let traceID (traceID : LibExecution.AnalysisTypes.TraceID.T) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Uuid
-    let idParam = NpgsqlParameter("traceID", typ)
-    idParam.Value <- LibExecution.AnalysisTypes.TraceID.toUUID traceID
+    let idParam =
+      NpgsqlParameter(
+        "traceID",
+        typ,
+        Value = LibExecution.AnalysisTypes.TraceID.toUUID traceID
+      )
     Sql.parameter idParam
 
 

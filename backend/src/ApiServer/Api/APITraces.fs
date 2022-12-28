@@ -41,6 +41,7 @@ module TraceDataV1 =
       t.next "load-trace"
       let handler = c.handlers |> Map.get p.tlid
 
+      // There won't be a rootTLID for pre-cloud-storage traces
       let! rootTLID = LibBackend.TraceCloudStorage.rootTLIDFor c.meta.id traceID
 
       let! trace =
