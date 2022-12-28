@@ -232,7 +232,6 @@ let storeToCloudStorage
   (canvasID : CanvasID)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
-  (timestamp : NodaTime.Instant)
   (touchedTLIDs : List<tlid>)
   (inputVars : List<string * RT.Dval>)
   (functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore>)

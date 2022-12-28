@@ -211,7 +211,6 @@ let createCloudStorageTracer
               canvasID
               rootTLID
               traceID
-              (NodaTime.Instant.now ())
               (HashSet.toList touchedTLIDs)
               [ storedInput ]
               results.functionArguments

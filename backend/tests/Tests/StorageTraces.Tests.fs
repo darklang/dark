@@ -142,13 +142,11 @@ let testTraceRoundtrip =
     let tlid4 = 9UL
     let functionResults = Dictionary.empty ()
     let functionArguments = ResizeArray.empty ()
-    let now = NodaTime.Instant.now ()
     do!
       TCS.storeToCloudStorage
         c1
         tlid1
         t1
-        now
         [ tlid1 ]
         [ "request", DStr "1" ]
         functionArguments
@@ -158,7 +156,6 @@ let testTraceRoundtrip =
         c1
         tlid1
         t2
-        now
         [ tlid1 ]
         [ "request", DStr "2" ]
         functionArguments
@@ -168,7 +165,6 @@ let testTraceRoundtrip =
         c1
         tlid3
         t3
-        now
         [ tlid3 ]
         [ "request", DStr "3" ]
         functionArguments
@@ -178,7 +174,6 @@ let testTraceRoundtrip =
         c1
         tlid2
         t4
-        now
         [ tlid2 ]
         [ "request", DStr "3" ]
         functionArguments
@@ -188,7 +183,6 @@ let testTraceRoundtrip =
         c2
         tlid2
         t5
-        now
         [ tlid2 ]
         [ "request", DStr "3" ]
         functionArguments
@@ -198,7 +192,6 @@ let testTraceRoundtrip =
         c2
         tlid4
         t6
-        now
         [ tlid4 ]
         [ "request", DStr "3" ]
         functionArguments
