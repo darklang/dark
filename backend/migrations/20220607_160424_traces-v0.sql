@@ -1,9 +1,5 @@
--- We don't use IF NOT EXISTS here because if they exist something is wrong and we
--- don't want to create the indexes as the table will be non-empty - we'd rather have
--- the error.
-
 -- Keep track of what traces are available for which handler/function/etc
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
 traces_v0
 ( canvas_id UUID NOT NULL
 -- the handler's (or for a function's default trace, the function's) TLID (used to
