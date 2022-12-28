@@ -820,7 +820,7 @@ NUGET
     Tablecloth.FSharp (0.0.8-alpha1)
       FSharp.Core (>= 6.0.1)
 
-GROUP Analysis
+GROUP Wasm
 NUGET
   remote: https://api.nuget.org/v3/index.json
     Microsoft.AspNetCore.Authorization (6.0.5) - restriction: >= net6.0
