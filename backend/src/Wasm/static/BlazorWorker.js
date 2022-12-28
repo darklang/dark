@@ -890,13 +890,13 @@ D-REMOVED */
 
       // Call anything we need to startup within Dark
       const initFn = Module.mono_bind_static_method(
-        "[Wasm]Analysis.EvalWorker:InitializeDarkRuntime",
+        "[Wasm]Wasm.Analysis.EvalWorker:InitializeDarkRuntime",
       );
       initFn();
 
       // Setup the onmessage handler to call F#
       const messageHandler = Module.mono_bind_static_method(
-        "[Wasm]Analysis.EvalWorker:OnMessage",
+        "[Wasm]Wasm.Analysis.EvalWorker:OnMessage",
       );
       self.onmessage = msg => {
         messageHandler(msg.data);
