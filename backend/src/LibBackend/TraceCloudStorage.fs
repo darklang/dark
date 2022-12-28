@@ -7,31 +7,31 @@ module LibBackend.TraceCloudStorage
 // database and instead keep it in Cloud Storage. The DB had grown to 10TB, 99.7% of
 // it being trace storage.
 //
-// Another major goal was to remove our GC code that spent a lot of the time
-// querying the database to see what to delete, and then very expensively and slowly
-// deleting it. This code locked up the DB for users with a lot of traces. By
-// contrast, GCS has Object Lifecycle Management which does parts of this
-// automatically.
+// Another major goal was to remove our GC code that spent a lot of the time querying
+// the database to see what to delete, and then very expensively and slowly deleting
+// it. This code locked up the DB when we had users with a lot of traces. The
+// approach we took instead was to leverage Cloud Storage's Object Lifecycle
+// Management to automatically tell us when a certain object gets old.
 //
-// This differs from the old GC as that was stored in 3 tables, one for inputs, one
-// for function_results, and one for function arguments. Instead, we track an entire
-// trace as one document, and do not track function arguments at all (relying
-// instead on analysis to provide this information)
-//
+// This differs from the old trace implementation which was stored in 3 tables, one
+// for inputs, one for function_results, and one for function_arguments. Instead, we
+// track an entire trace as one document (in the future we hope to not track function
+// arguments at all, relying instead on analysis to provide this information)
+
+
 // High level design:
 // - a single trace is collected by an execution. The trace contains:
 //   - input of the root handler called
 //   - function_results with the same data as currently available
+//   - function_arguments with the same data as currently available
 // - we store this in Google Cloud Storage
-//   - format `{canvasID}/{traceID}`
-//   - set a custom time on it
-//   - compress the data
-// - we store metadata about who uses the trace in a new table in our DB
-//   - or canvasID, traceID, timestamp, tlid
-//   - we need to find last 10 traces for a tlid
+//   - format `{canvasID}/{tlid}/{traceID}.json.br`
+//   - traceIDs now include timestamps (similar to ULID) so listing out
+//   `{canvasID}/{tlid}` will give us the most recent traces always.
+// - we store metadata about functions called during the trace in `traces_v0`
 //   - this data can be deleted when the trace is deleted or when the canvas is deleted
 //
-// - we allow updating traces
+// - we allow updating traces (not implemented yet)
 //   - For the execute handler button, we replace the entire trace
 //     - We might store a hash so the client can check if it's changed
 //     - Also send a push notification
@@ -44,13 +44,13 @@ module LibBackend.TraceCloudStorage
 //   - For the execute_function button, we are again just adding more functions
 //     results, so these are also just layers
 //
-// - 404s
-//   - store them using {canvasID}/404s/{timestamp}
+// - 404s (not implemented yet)
+//   - store them using {canvasID}/404s/{traceID}.json.br
 //   - store path such that we can request it in one request
 //   - store just the input
 //   - when converted to a trace, delete and rewrite it the normal way
 //
-// - it's garbage collected as follows:
+// - garbage collection (not implemented yet)
 //   - the bucket has an Object Lifecycle policy which deletes traces after X days
 //     from when the last custom date was set on it
 //   - when a trace is created, it gets todays custom date
