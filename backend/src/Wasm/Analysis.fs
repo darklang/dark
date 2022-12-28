@@ -1,5 +1,5 @@
 // Handles requests for evaluating expressions
-namespace Wasm
+namespace Analysis
 
 open System
 open System.Threading.Tasks
