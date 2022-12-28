@@ -20,7 +20,7 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM scheduling_rules WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM events WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM function_results_v3 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM tracesV0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM traces_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM stored_events_v2 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM user_data WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM cron_records WHERE canvas_id = '$cid';";
