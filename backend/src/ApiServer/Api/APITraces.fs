@@ -62,14 +62,14 @@ module TraceDataV1 =
       t.next "write-api"
       let (trace : Option<Types.Response.Trace>) =
         match trace with
-        | Some (id, (traceData : AT.TraceData)) ->
+        | Some (traceID, (traceData : AT.TraceData)) ->
           Some(
-            AT.TraceID.toUUID id,
+            AT.TraceID.toUUID traceID,
             { input =
                 List.map
                   (fun (s, dv) -> (s, CT2Runtime.Dval.toCT dv))
                   traceData.input
-              timestamp = traceData.timestamp
+              timestamp = AT.TraceID.toTimestamp traceID
               functionResults =
                 List.map
                   (fun (r1, r2, r3, r4, dv) ->

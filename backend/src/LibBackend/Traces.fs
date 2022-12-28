@@ -123,9 +123,7 @@ let handlerTrace
 
     let! functionResults = TraceFunctionResults.load canvasID traceID h.tlid
 
-    return
-      (traceID,
-       { input = input; timestamp = timestamp; function_results = functionResults })
+    return (traceID, { input = input; function_results = functionResults })
   }
 
 
@@ -144,9 +142,7 @@ let userfnTrace
 
     let! functionResults = TraceFunctionResults.load canvasID traceID fn.tlid
 
-    return
-      (traceID,
-       { input = ivs; timestamp = timestamp; function_results = functionResults })
+    return (traceID, { input = ivs; function_results = functionResults })
   }
 
 

@@ -102,7 +102,6 @@ let currentStorageVersion = 0
 type CloudStorageFormat =
   { storageFormatVersion : int
     input : InputVars
-    timestamp : NodaTime.Instant
     functionArguments : seq<(tlid * InputVars)>
     functionResults : seq<tlid * id * FnName * int * FunctionArgHash * RoundTrippableDval> }
 
@@ -218,7 +217,6 @@ let getTraceData
 
     let traceData : AT.TraceData =
       { input = cloudStorageData.input |> List.map (Tuple2.mapSecond parseDval)
-        timestamp = cloudStorageData.timestamp
         function_results =
           cloudStorageData.functionResults
           |> Seq.map (fun (tlid, id, fnName, hashVersion, argHash, dval) ->
@@ -267,8 +265,7 @@ let storeToCloudStorage
       { input = inputVars
         functionResults = functionResults
         functionArguments = functionArguments
-        storageFormatVersion = currentStorageVersion
-        timestamp = timestamp }
+        storageFormatVersion = currentStorageVersion }
 
     // Serialize and Compress in one step
     use stream = new MemoryStream()

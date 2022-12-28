@@ -160,7 +160,6 @@ module PersistedSerializations =
               [ "request",
                 V.RuntimeTypes.dval
                 |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT ]
-            timestamp = V.instant
             functionArguments =
               [ V.tlid,
                 [ "testParam",
@@ -481,7 +480,6 @@ module PersistedSerializations =
         v<LibExecution.AnalysisTypes.TraceData>
           "testTraceData"
           { input = [ "var", V.RuntimeTypes.dval ]
-            timestamp = V.instant
             function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] } ]
 
 

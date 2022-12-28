@@ -178,7 +178,6 @@ let testTraceDataJsonFormatRedactsPasswords =
 
     let traceData : AT.TraceData =
       { input = [ ("event", DPassword(Password(UTF8.toBytes "redactme1"))) ]
-        timestamp = NodaTime.Instant.UnixEpoch
         function_results =
           [ ("Password::hash",
              id,
@@ -188,7 +187,6 @@ let testTraceDataJsonFormatRedactsPasswords =
 
     let expected : AT.TraceData =
       { input = [ ("event", DPassword(Password(UTF8.toBytes "Redacted"))) ]
-        timestamp = NodaTime.Instant.UnixEpoch
         function_results =
           [ ("Password::hash",
              id,
