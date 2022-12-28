@@ -61,7 +61,7 @@ nuget Sodium.Core = 1.2.3
 nuget Argu = 6.1.1
 
 
-group Analysis
+group Wasm
   source https://api.nuget.org/v3/index.json
-  // Analysis - this is in its own group to avoid a clash with OpenTelemetry
+  // Wasm - this is in its own group to avoid a clash with OpenTelemetry
   nuget Microsoft.AspNetCore.Components.WebAssembly = 6.0.1

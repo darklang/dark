@@ -1,4 +1,8 @@
-# Analysis
+# Wasm
+
+Some of Dark's "backend" F# source code is compiled to WebAssemby to be usable by our ReScript/JS client. Currently, this is only used to expose one "EvalWorker" for use by "analysis" in the editor.
+
+## Analysis
 
 "Analysis" is the evaluation of Dark code from within the Editor itself, rather
 than evaluating code against a backend server. This provides more immediate
@@ -6,12 +10,13 @@ feedback to Dark's users, while also reducing some demand from Dark's backend
 servers.
 
 There are two components to this project:
+
 - an exposed `EvalWorker.OnMessage` function callable from JS
 - the `BlazorWorker.js` script that loads and calls `EvalWorker.OnMessage`.
 
-## EvalWorker
+### EvalWorker
 
-`Analysis.fsproj` is a `Blazor.WebAssembly` project that is compiled to be run
+`Wasm.fsproj` is a `Blazor.WebAssembly` project that is compiled to be run
 in WebAssembly. It's not compiled to webassembly directly, but rather loaded
 _by_ WebAssembly, by way of BlazorWorker.js and `dotnet.wasm`.
 
@@ -21,23 +26,20 @@ functions that may be run on the client (such as math, cryptography, etc.).
 `BackendOnlyStdLib` is intentionally excluded, as it contains functions (such
 as DB calls) that need to be run on the backend.
 
-`Analysis` exposes one function callable by the JS world: `EvalWorker.OnMessage`.
+`Analysis.fs` exposes one function callable by the JS world: `EvalWorker.OnMessage`.
 
 `EvalWorker.OnMessage`:
+
 - takes a serialized request for analysis, from `BlazorWorker.js`
 - deserializes the request
 - evaluates the result of the request
 - serializes the result
 - uses a `self.postMessage` to send the results back to BlazorWorker.
 
-CLEANUP: `EvalWorker` currently communicates with the Editor using types
-compatible with Dark's previous (OCaml) backend server, since the client is
-currently expecting. Once the client has been updated to "work in the new
-types," the flow will be a bit simpler.
-
-## BlazorWorker.js
+### BlazorWorker.js
 
 `BlazorWorker.js` is a web worker responsible for:
+
 - loading the .NET-compiled artifacts (dotnet.wasm, dlls, etc.)
 - listening for requests from the Editor for evaluations, and sending those
   requests to `EvalWorker.OnMessage`
