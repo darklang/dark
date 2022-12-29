@@ -2276,11 +2276,11 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let visibility = list{
-    BrowserSubscriptions.Window.OnFocusChange.listen(~key="window_on_focus_change", v =>
-      if !v {
-        PageVisibilityChange(Visible)
-      } else {
+    BrowserSubscriptions.Window.OnFocusChange.listen(~key="window_on_focus_change", hidden =>
+      if hidden {
         PageVisibilityChange(Hidden(Js.Date.now() |> Js.Date.fromFloat))
+      } else {
+        PageVisibilityChange(Visible)
       }
     ),
   }
