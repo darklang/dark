@@ -418,6 +418,7 @@ let rec updateMod = (mod: modification, (m, cmd): (model, AppTypes.cmd)): (model
     | UpdateDBStatsAPICall(tlid) => Analysis.updateDBStats(m, tlid)
     | GetWorkerStatsAPICall(tlid) => Analysis.getWorkerStats(m, tlid)
     | DeleteToplevelForeverAPICall(tlid) => (m, API.deleteToplevelForever(m, {tlid: tlid}))
+    | GetServerBuildHash => (m, API.fetchServerBuildHash(m))
     | NoChange => (m, Cmd.none)
     | TriggerIntegrationTest(name) =>
       let expect = IntegrationTest.trigger(name)
@@ -1854,6 +1855,8 @@ let update_ = (msg: msg, m: model): modification => {
       | _ => getUnlockedDBs
       }
     | RefreshAvatars => ExpireAvatars
+
+    | CheckIfClientIsOutdated => GetServerBuildHash
     | _ => NoChange
     }
   | IgnoreMsg(_) =>
@@ -1864,7 +1867,16 @@ let update_ = (msg: msg, m: model): modification => {
   | PageVisibilityChange(vis) =>
     ReplaceAllModificationsWithThisOne(
       "PageVisibilityChange",
-      m => ({...m, visibility: vis}, Cmd.none),
+      m => {
+        let newVis = switch (vis, m.visibility) {
+        | (Hidden(existingTimestamp), Hidden(_newTimestamp)) =>
+          // ensure we don't "overwrite" the date at which the page was 'hidden'
+          AppTypes.PageVisibility.Hidden(existingTimestamp)
+        | _ => vis
+        }
+
+        ({...m, visibility: newVis}, Cmd.none)
+      },
     )
   | CreateHandlerFrom404({space, path, modifier, _} as fof) =>
     let center = Viewport.findNewPos(m)
@@ -2122,6 +2134,34 @@ let update_ = (msg: msg, m: model): modification => {
     Model.updateErrorMod(Error.set("Successfully uploaded function"))
   | SecretMsg(msg) => InsertSecret.update(msg)
 
+  | RefreshClientIfOutdated(serverHash) =>
+    let hasBeenInactiveForPastHour = switch m.visibility {
+    | Visible => false
+    | Hidden(since) =>
+      // TODO: switch back to an hour (60.) ago rather than a minute (1.) ago
+      let oneHourAgo = Js.Date.now() -. 1.0 *. 60.0 *. 1000.0 |> Js.Date.fromFloat
+      since < oneHourAgo
+    }
+
+    let isPageSafelyRefreshable = switch m.currentPage {
+    | FocusedPackageManagerFn(_)
+    | Architecture => true
+    | FocusedFn(_)
+    | FocusedDB(_)
+    | FocusedType(_)
+    | SettingsModal(_)
+    | FocusedHandler(_) => false
+    }
+
+    let hashesMatch = m.buildHash == serverHash
+
+    if hasBeenInactiveForPastHour && isPageSafelyRefreshable && !hashesMatch {
+      //Webapi.Dom.location->Webapi.Dom.Location.reload
+      Debug.loG("(fake-refreshing)", ())
+    }
+
+    NoChange
+
   | RenderEvent =>
     ReplaceAllModificationsWithThisOne(
       "RenderEvent",
@@ -2237,7 +2277,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
 
   let visibility = list{
     BrowserSubscriptions.Window.OnFocusChange.listen(~key="window_on_focus_change", v =>
-      if v {
+      if !v {
         PageVisibilityChange(Visible)
       } else {
         PageVisibilityChange(Hidden(Js.Date.now() |> Js.Date.fromFloat))
