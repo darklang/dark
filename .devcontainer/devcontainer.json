@@ -55,6 +55,8 @@
     "dark-dev",
     "--env-file",
     "config/dev",
+    // "--env-file",
+    // "config/local",
     "--env",
     "HOST_PWD=${localWorkspaceFolder}",
     "--security-opt",
@@ -96,6 +98,9 @@
     "type=volume,src=pgconf,dst=/etc/postgresql",
     "type=volume,src=pglogs,dst=/var/log/postgresql",
     "type=volume,src=pgdata,dst=/var/lib/postgresql",
+
+    // Cloud storage
+    "type=volume,src=cloudstorage,dst=/home/dark/cloud-storage",
 
     // VSCode extensions
     "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",

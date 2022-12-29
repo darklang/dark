@@ -10,7 +10,8 @@ open Tablecloth
 open Http
 
 module Exe = LibExecution.Execution
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module AT = LibExecution.AnalysisTypes
+module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Canvas = LibBackend.Canvas
 module RealExe = LibRealExecution.RealExecution
 module Telemetry = LibService.Telemetry
@@ -33,6 +34,7 @@ module FunctionV1 =
                           "trace_id", p.trace_id
                           "caller_id", p.caller_id
                           "fnname", p.fnname ]
+      let traceID = AT.TraceID.fromUUID p.trace_id
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
@@ -41,6 +43,9 @@ module FunctionV1 =
       t.next "execute-function"
       let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
 
+      let! rootTLID = LibBackend.TraceCloudStorage.rootTLIDFor c.meta.id traceID
+      // If this is a pre-cloud-storage trace, there won't be a rootTLID
+      let rootTLID = Option.defaultValue p.tlid rootTLID
 
       let! (result, traceResults) =
         RealExe.reexecuteFunction
@@ -48,7 +53,8 @@ module FunctionV1 =
           program
           p.tlid
           p.caller_id
-          p.trace_id
+          traceID
+          rootTLID
           fnname
           args
 
@@ -56,8 +62,8 @@ module FunctionV1 =
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
 
       t.next "write-api"
-      let hashVersion = DvalReprInternalDeprecated.currentHashVersion
-      let hash = DvalReprInternalDeprecated.hash hashVersion args
+      let hashVersion = DvalReprInternalHash.currentHashVersion
+      let hash = DvalReprInternalHash.hash hashVersion args
 
       let result : CTApi.Execution.FunctionV1.Response =
         { result = CT2Runtime.Dval.toCT result
@@ -81,6 +87,8 @@ module HandlerV1 =
       let! p = ctx.ReadVanillaJsonAsync<CTApi.Execution.HandlerV1.Request>()
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
+      let traceID = AT.TraceID.fromUUID p.trace_id
+
       let inputVars =
         p.input
         |> List.map (fun (name, var) -> (name, CT2Runtime.Dval.fromCT var))
@@ -98,7 +106,7 @@ module HandlerV1 =
           c.meta
           handler
           program
-          p.trace_id
+          traceID
           inputVars
           RealExe.ReExecution
 

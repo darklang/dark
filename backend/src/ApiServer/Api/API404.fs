@@ -10,6 +10,7 @@ open Tablecloth
 open Http
 
 module TI = LibBackend.TraceInputs
+module AT = LibExecution.AnalysisTypes
 module CTApi = ClientTypes.Api
 module Telemetry = LibService.Telemetry
 
@@ -22,6 +23,10 @@ module List =
 
       t.next "get-recent-404s"
       let! f404s = TI.getRecent404s canvasInfo.id
+      let f404s =
+        f404s
+        |> List.map (fun (space, path, modifier, timestamp, traceID) ->
+          (space, path, modifier, timestamp, AT.TraceID.toUUID traceID))
       return { f404s = f404s }
     }
 

@@ -584,24 +584,22 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
       |> UTF8.toBytes
 
 
-let supportedHashVersions : int list = [ 0; 1 ]
 
-let currentHashVersion : int = 1
+// Deprecated because it has a collision between [b"a"; b"bc"] and
+// [b"ab"; b"c"]
+let toHashV0 (arglist : List<Dval>) : string =
+  arglist
+  |> List.map (toHashableRepr 0 true)
+  |> Array.concat
+  |> System.Security.Cryptography.SHA384.HashData
+  |> Base64.urlEncodeToString
 
-// Originally to prevent storing sensitive data to disk, this also reduces the
-// size of the data stored by only storing a hash
-let hash (version : int) (arglist : List<Dval>) : string =
-  let hashStr (bytes : byte []) : string =
-    bytes
-    |> System.Security.Cryptography.SHA384.HashData
-    |> Base64.urlEncodeToString
+let toHashV1 (arglist : List<Dval>) : string =
+  DList arglist
+  |> toHashableRepr 0 false
+  |> System.Security.Cryptography.SHA384.HashData
+  |> Base64.urlEncodeToString
 
-  // Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
-  // [b"ab"; b"c"]
-  match version with
-  | 0 -> arglist |> List.map (toHashableRepr 0 true) |> Array.concat |> hashStr
-  | 1 -> DList arglist |> toHashableRepr 0 false |> hashStr
-  | _ -> Exception.raiseInternal $"Invalid Dval.hash version" [ "version", version ]
 
 module Test =
   let rec isQueryableDval (dval : Dval) : bool =

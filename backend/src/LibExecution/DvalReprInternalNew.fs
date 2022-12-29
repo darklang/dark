@@ -1,14 +1,7 @@
-/// <summary>
 /// Ways of converting Dvals to/from strings, to be used exclusively internally.
 ///
 /// That is, they should not be used in libraries, in the BwdServer, in HttpClient,
 /// etc.
-/// </summary>
-/// <remarks>
-/// We're trying to get rid of JSON.NET. However, these format have saved millions
-/// of values using them, so we need to do a migration from the old serialization
-/// to a new one.
-/// </remarks>
 module LibExecution.DvalReprInternalNew
 
 open Prelude
@@ -136,3 +129,12 @@ let parseRoundtrippableJsonV0 (json : string) : RT.Dval =
   json
   |> Json.Vanilla.deserialize<RoundtrippableSerializationFormatV0.Dval>
   |> RoundtrippableSerializationFormatV0.toRT
+
+let toHashV2 (dvals : list<RT.Dval>) : string =
+  dvals
+  |> List.map RoundtrippableSerializationFormatV0.fromRT
+  |> RoundtrippableSerializationFormatV0.DList
+  |> Json.Vanilla.serialize
+  |> UTF8.toBytes
+  |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure
+  |> Base64.urlEncodeToString

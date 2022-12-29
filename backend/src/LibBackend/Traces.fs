@@ -109,7 +109,7 @@ let savedInputVars
 
 let handlerTrace
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (h : PT.Handler.T)
   : Task<AT.Trace> =
   task {
@@ -131,7 +131,7 @@ let handlerTrace
 
 let userfnTrace
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (fn : PT.UserFunction.T)
   : Task<AT.Trace> =
   task {
@@ -150,11 +150,11 @@ let userfnTrace
   }
 
 
-let traceIDofTLID (tlid : tlid) : AT.TraceID =
-  Uuid.uuidV5 (string tlid) (Uuid.nilNamespace)
+let traceIDofTLID (tlid : tlid) : AT.TraceID.T =
+  AT.TraceID.fromUUID (Uuid.uuidV5 (string tlid) (Uuid.nilNamespace))
 
 
-let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>> =
+let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID.T>> =
   task {
     match PTParser.Handler.Spec.toEventDesc h.spec with
     | Some desc ->
@@ -197,5 +197,5 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
 let traceIDsForUserFn
   (canvasID : CanvasID)
   (fnTLID : tlid)
-  : Task<List<AT.TraceID>> =
+  : Task<List<AT.TraceID.T>> =
   TraceFunctionArguments.loadTraceIDs canvasID fnTLID

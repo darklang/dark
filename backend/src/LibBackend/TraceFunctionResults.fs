@@ -13,7 +13,8 @@ open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
-module Repr = LibExecution.DvalReprInternalDeprecated
+module ReprHash = LibExecution.DvalReprInternalHash
+module ReprDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // -------------------------
 // External
@@ -26,7 +27,7 @@ type FunctionResultValue = RT.Dval * NodaTime.Instant
 
 let store
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   ((tlid, fnDesc, id) : tlid * RT.FQFnName.T * id)
   (arglist : List<RT.Dval>)
   (result : RT.Dval)
@@ -39,21 +40,25 @@ let store
       (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
       VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                        "traceID", Sql.uuid traceID
+                        "traceID", Sql.traceID traceID
                         "tlid", Sql.tlid tlid
                         "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
                         "id", Sql.id id
                         ("hash",
-                         arglist |> Repr.hash Repr.currentHashVersion |> Sql.string)
-                        "hashVersion", Sql.int Repr.currentHashVersion
+                         arglist
+                         |> ReprHash.hash ReprHash.currentHashVersion
+                         |> Sql.string)
+                        "hashVersion", Sql.int ReprHash.currentHashVersion
                         ("value",
-                         result |> Repr.toInternalRoundtrippableV0 |> Sql.string) ]
+                         result
+                         |> ReprDeprecated.toInternalRoundtrippableV0
+                         |> Sql.string) ]
     |> Sql.executeStatementAsync
 
 // CLEANUP store these in Cloud Storage instead of the DB
 let storeMany
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
   : Task<unit> =
   if canvasID = TraceInputs.throttled then
@@ -64,14 +69,14 @@ let storeMany
       |> Dictionary.toList
       |> List.map (fun ((tlid, fnDesc, id, hash), (result, timestamp)) ->
         [ "canvasID", Sql.uuid canvasID
-          "traceID", Sql.uuid traceID
+          "traceID", Sql.traceID traceID
           "tlid", Sql.tlid tlid
           "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
           "id", Sql.id id
           "timestamp", Sql.instantWithTimeZone timestamp
           "hash", Sql.string hash
-          "hashVersion", Sql.int Repr.currentHashVersion
-          ("value", result |> Repr.toInternalRoundtrippableV0 |> Sql.string) ])
+          "hashVersion", Sql.int ReprHash.currentHashVersion
+          ("value", result |> ReprDeprecated.toInternalRoundtrippableV0 |> Sql.string) ])
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
           (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
@@ -83,7 +88,7 @@ let storeMany
 
 let load
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (tlid : tlid)
   : Task<List<AT.FunctionResult>> =
   task {
@@ -101,7 +106,7 @@ let load
           AND tlid = @tlid
         ORDER BY fnname, id, hash, hash_version, timestamp DESC"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "traceID", Sql.uuid traceID
+                          "traceID", Sql.traceID traceID
                           "tlid", Sql.tlid tlid ]
       |> Sql.executeAsync (fun read ->
         (read.string "fnname",
@@ -111,6 +116,10 @@ let load
          read.string "value"))
     return
       results
-      |> List.map (fun (fnname, id, hash, hash_version, value) ->
-        (fnname, id, hash, hash_version, Repr.ofInternalRoundtrippableV0 value))
+      |> List.map (fun (fnname, id, hash, hashVersion, value) ->
+        (fnname,
+         id,
+         hash,
+         hashVersion,
+         ReprDeprecated.ofInternalRoundtrippableV0 value))
   }

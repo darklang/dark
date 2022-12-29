@@ -54,6 +54,9 @@ module Sql =
       Exception.raiseInternal $"Too many results, expected 0 or 1" [ "actual", list ]
 
   // TODO do a better job of naming these
+  // NOTE: This does not use SQL `EXISTS` but rather expects the query to return a
+  // list of 1/0. We should instead make this use SQL `EXISTS` because it returns
+  // early and fetches less data
   let executeExistsAsync (props : Sql.SqlProps) : Task<bool> =
     task {
       match! Sql.executeAsync (fun read -> read.NpgsqlReader.GetBoolean 0) props with
@@ -104,6 +107,18 @@ module Sql =
     idsParam.Value <- ids |> List.map int64 |> List.toArray
     Sql.parameter idsParam
 
+  let traceID (traceID : LibExecution.AnalysisTypes.TraceID.T) : SqlValue =
+    let typ = NpgsqlTypes.NpgsqlDbType.Uuid
+    let idParam =
+      NpgsqlParameter(
+        "traceID",
+        typ,
+        Value = LibExecution.AnalysisTypes.TraceID.toUUID traceID
+      )
+    Sql.parameter idParam
+
+
+
   let queryableDvalMap (dvalmap : RT.DvalMap) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
     let param = NpgsqlParameter("dvalmap", typ)
@@ -144,6 +159,13 @@ type RowReader with
 
   member this.tlid(name : string) : tlid = this.int64 name |> uint64
   member this.id(name : string) : id = this.int64 name |> uint64
+
+  member this.idArray(name : string) : List<id> =
+    let array = this.int64Array (name)
+    array |> Array.toList |> List.map uint64
+
+  member this.traceID(name : string) : LibExecution.AnalysisTypes.TraceID.T =
+    this.uuid name |> LibExecution.AnalysisTypes.TraceID.fromUUID
 
   // CLEANUP migrate these
   // When creating our DB schema, we often incorrectly chose `timestamp` (aka

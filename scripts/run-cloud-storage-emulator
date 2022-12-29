@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+echo "Running Cloud Storage emulator"
+
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
+
+killall fake-gcs-server || true
+fake-gcs-server \
+  -backend filesystem \
+  -data /home/dark/cloud-storage/data \
+  -filesystem-root /home/dark/cloud-storage/root \
+  -port 4444 \
+  -scheme http \
+  -external-url http://localhost:4444 \
+    > "$LOGS/cloud-storage-emulator.log" 2>&1 &
+
+echo "Finished loading Cloud Storage emulator"

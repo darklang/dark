@@ -42,8 +42,13 @@ createdb testdb
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
 ./scripts/run-pubsub-emulator
+./scripts/run-cloud-storage-emulator
 ./scripts/run-httptunnel
 ./scripts/run-nginx-server
+
+# Use random to avoid old items being in the pubsub queue. Use this instead of
+# $RANDOM as RANDOM is only 5 digits
+RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
 
 # Run the migrations before the other servers start
 echo "Running migrations"
@@ -54,15 +59,13 @@ cd backend && \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-123456 \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
   "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log" 2>&1
 cd ..
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"
 
-# Use random to avoid old items being in the pubsub queue. Use this instead of
-# $RANDOM as RANDOM is only 5 digits
-RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
 
 COLOURS="256"
 SPINNER=
@@ -83,6 +86,7 @@ if [[ "$LLDB" == "true" ]]; then
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
   lldb -- "${EXE}" --no-spinner --colours 0 --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
 else
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
@@ -93,5 +97,6 @@ else
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
   "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
 fi

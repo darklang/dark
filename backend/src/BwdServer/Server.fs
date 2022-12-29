@@ -334,7 +334,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       ctx.Items[ "canvasName" ] <- meta.name // store for exception tracking
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
-      let traceID = System.Guid.NewGuid()
+      let traceID = LibExecution.AnalysisTypes.TraceID.create ()
       let requestMethod = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
       let desc = ("HTTP", requestPath, requestMethod)
@@ -393,7 +393,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               (Canvas.toProgram canvas)
               traceID
               inputVars
-              (RealExe.InitialExecution(desc, request))
+              (RealExe.InitialExecution(desc, "request", request))
 
           let result = LegacyHttpMiddleware.Response.toHttpResponse result
           let result =
@@ -443,7 +443,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               (Canvas.toProgram canvas)
               traceID
               inputVars
-              (RealExe.InitialExecution(desc, request))
+              (RealExe.InitialExecution(desc, "request", request))
 
           let result = HttpBasicMiddleware.Response.toHttpResponse result
 
@@ -631,6 +631,8 @@ let initSerializers () =
   Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
   Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
+    "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads

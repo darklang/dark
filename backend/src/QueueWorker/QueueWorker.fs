@@ -165,7 +165,7 @@ let processNotification
                 do! EQ.deleteEvent event
                 return! stop "MissingCanvas" NoRetry
               | Some c ->
-                let traceID = System.Guid.NewGuid()
+                let traceID = AT.TraceID.create ()
                 let desc = (event.module', event.name, event.modifier)
                 Telemetry.addTags [ "canvas_name", c.meta.name; "trace_id", traceID ]
 
@@ -217,6 +217,7 @@ let processNotification
                         (Map [ "event", event.value ])
                         (RealExecution.InitialExecution(
                           EQ.toEventDesc event,
+                          "event",
                           event.value
                         ))
 
@@ -318,6 +319,8 @@ let initSerializers () =
   Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
   Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
+  Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
+    "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads

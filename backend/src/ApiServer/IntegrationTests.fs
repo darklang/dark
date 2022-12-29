@@ -14,6 +14,8 @@ module Canvas = LibBackend.Canvas
 
 type Meta = LibBackend.Canvas.Meta
 
+type OnDiskFormat = ClientTypes.Program.Oplist
+
 
 let jsonFilename (name : string) = $"{name}.json"
 
@@ -29,7 +31,7 @@ let tryLoadJsonFromDisk
   |> File.tryReadFile root
   |> Option.map (fun json ->
     json
-    |> Json.Vanilla.deserialize<ClientTypes.Program.Oplist>
+    |> Json.Vanilla.deserialize<OnDiskFormat>
     |> List.map ClientTypes2ExecutionTypes.ProgramTypes.Op.fromCT
     |> LibBackend.Op.oplist2TLIDOplists)
 

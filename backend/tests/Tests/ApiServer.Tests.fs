@@ -393,7 +393,7 @@ let postApiTest
 
 //   let (body : Execution.Function.Params) =
 //     { tlid = tlid
-//       trace_id = System.Guid.NewGuid()
+//       trace_id = AT.TraceID.create()
 //       caller_id = gid ()
 //       args = [ ORT.DInt 5L; ORT.DInt 6L ]
 //       fnname = "Int::add" }
@@ -430,7 +430,7 @@ let postApiTest
 //     let (body : Execution.Handler.Params) =
 //       { tlid = handlerTLID
 //         input = [ "user", ORT.DStr "test" ]
-//         trace_id = System.Guid.NewGuid() }
+//         trace_id = AT.TraceID.create()
 
 //     do!
 //       postApiTest

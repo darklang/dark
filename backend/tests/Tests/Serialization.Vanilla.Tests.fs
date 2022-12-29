@@ -153,6 +153,31 @@ module PersistedSerializations =
 
         v<PT.Position> "simple" { x = 10; y = -16 }
 
+        v<LibBackend.TraceCloudStorage.CloudStorageFormat>
+          "simple"
+          { storageFormatVersion = 0
+            input =
+              [ "request",
+                V.RuntimeTypes.dval
+                |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT ]
+            functionArguments =
+              [ V.tlid,
+                [ "testParam",
+                  V.RuntimeTypes.dval
+                  |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT ] ]
+            functionResults =
+              [ (V.tlid,
+                 7UL,
+                 "testFn",
+                 LibExecution.DvalReprInternalHash.currentHashVersion,
+                 V.RuntimeTypes.dvals
+                 |> LibExecution.DvalReprInternalHash.hash
+                      LibExecution.DvalReprInternalHash.currentHashVersion,
+                 V.RuntimeTypes.dval
+                 |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT) ] }
+
+
+
         // ------------------
         // Used by Pusher
         // ------------------
@@ -312,6 +337,11 @@ module PersistedSerializations =
             creationDate = V.instant
             workerSchedules = CV.workerStates
             secrets = [ { name = "test"; value = "secret" } ] }
+
+        // IntegrationTests
+        v<ApiServer.IntegrationTests.OnDiskFormat>
+          "simple"
+          (SerializationTestValues.ProgramTypes.oplist |> List.map CT2Program.Op.toCT)
 
         // Tunnels
         v<CTApi.Tunnels.Register.Request> "empty" { tunnelHost = None }
