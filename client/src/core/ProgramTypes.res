@@ -340,18 +340,6 @@ module Expr = {
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
         ("ELet", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, string, de, de)),
         ("EIf", dv4((a, b, c, d) => EIf(a, b, c, d), ID.decode, de, de, de)),
-        // CLEANUP: remove when backend removes EBinOp
-        (
-          "EBinOp",
-          dv5(
-            (a, b, c, d, e) => EInfix(a, InfixFnCall(b, e), c, d),
-            ID.decode,
-            InfixStdlibFnName.decode,
-            de,
-            de,
-            SendToRail.decode,
-          ),
-        ),
         ("EInfix", dv4((a, b, c, d) => EInfix(a, b, c, d), ID.decode, Infix.decode, de, de)),
         (
           "ELambda",
