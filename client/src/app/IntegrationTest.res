@@ -415,18 +415,6 @@ let autocomplete_visible_height = (_m: model): testResult =>
   // The test logic is in tests.js
   pass
 
-let fn_page_returns_to_lastpos = (m: model): testResult =>
-  switch TL.get(m, TLID.fromInt(123)) {
-  | Some(tl) =>
-    let centerPos = Viewport.centerCanvasOn(tl)
-    if m.canvasProps.offset == centerPos {
-      pass
-    } else {
-      fail(m.canvasProps.offset)
-    }
-  | None => fail("no tl found")
-  }
-
 let fn_page_to_handler_pos = (_m: model): testResult => pass
 
 let load_with_unnamed_function = (_m: model): testResult => pass
@@ -808,7 +796,6 @@ let trigger = (test_name: string): AppTypes.IntegrationTests.t<model> => {
     | "function_analysis_works" => function_analysis_works
     | "jump_to_error" => jump_to_error
     | "fourohfours_parse" => fourohfours_parse
-    | "fn_page_returns_to_lastpos" => fn_page_returns_to_lastpos
     | "fn_page_to_handler_pos" => fn_page_to_handler_pos
     | "autocomplete_visible_height" => autocomplete_visible_height
     | "load_with_unnamed_function" => load_with_unnamed_function
