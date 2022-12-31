@@ -771,7 +771,7 @@ let documentationForFunction = (
       list{Html.span(list{}, list{C.docErrorRailTooltip(~info=Html.span(list{tw(%twc("font-text text-sm"))}, list{Html.text("TODO: generic text about functions being deprecated")}),
           ~error=None,
           "",
-          list{Html.span(list{tw(%twc("font-text text-pink text-xs font-semibold"))}, list{Html.text("Deprecated ")})}
+          list{Html.span(list{tw(%twc("font-text text-red/75 text-xs font-semibold"))}, list{Html.text("Deprecated ")})}
       ),})}
   } else {
     list{Html.span(list{tw(%twc("font-text text-grey2 text-xs"))}, list{Html.text("Not deprecated ")})}
@@ -794,7 +794,7 @@ let documentationForFunction = (
   }
 
   let return =
-   Html.div(list{Attrs.class(%twc("flex items-center mt-2"))}, list{
+   Html.div(list{Attrs.class(%twc("flex items-center"))}, list{
     Icons.fontAwesome(~style=%twc("rotate-90 mr-2.5 mt-0.5 text-[10px]"), "level-down-alt"),
     Html.div(
       list{tw(%twc("text-grey5 font-text"))},
@@ -804,6 +804,12 @@ let documentationForFunction = (
 
       }
     ),
+  })
+
+let onErrorRail=
+  switch sendToRail {
+  | Some(Rail) => {
+
     Html.div(list{tw(%twc("flex items-center font-text"))},
     list{
       Html.span(list{tw(%twc("text-grey5 font-semibold mr-px"))},list{Html.text("(")}),
@@ -814,11 +820,17 @@ let documentationForFunction = (
     ),
     Html.span(list{tw(%twc("text-grey5 font-semibold ml-px"))},list{Html.text(")")}),
     }
-    ),
-  })
+    )
+  }
+  | Some(NoRail) => {
+        Html.text("")
+  }
+  | _ => {
+     Html.text("")
+  }
+  }
 
-
-
+let row = Html.div(list{tw(%twc("flex items-center mt-2"))},list{return, onErrorRail})
 
 
   let deprecationFooter = {
@@ -833,7 +845,7 @@ let documentationForFunction = (
     } else {
       list{
         Html.div(
-          list{tw(%twc("mt-4 mb-2"))},
+          list{tw(%twc("my-4"))},
           list{
             Html.span(list{tw(%twc("bg-grey1 rounded-full text-pink font-text text-[11px] pt-0.5 pb-1 px-1.5 mr-1"))}, list{Html.text("Deprecated")}),
             ...deprecationFooterContents,
@@ -846,8 +858,7 @@ let documentationForFunction = (
   Belt.List.concatMany([
     list{documentationHeader},
     desc,
-    // list{ViewErrorRailDoc.hintForFunction(f, sendToRail)},
-    list{return},
+    list{row},
     deprecationFooter,
   ])
 }
