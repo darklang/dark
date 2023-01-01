@@ -17,7 +17,7 @@ type model = AppTypes.model
 
 @ppx.deriving(show) type rec data = FT.AutoComplete.data
 
-type props = {functions: Functions.t, allowShortCircuiting: bool}
+type props = {functions: Functions.t}
 
 @ppx.deriving(show) type rec tokenInfo = FluidTypes.TokenInfo.t
 
@@ -455,11 +455,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
       }
     )
 
-  let shortCircuiting = if props.allowShortCircuiting {
-    list{FACKeyword(KAnd), FACKeyword(KOr)}
-  } else {
-    list{}
-  }
+  let shortCircuiting = list{FACKeyword(KAnd), FACKeyword(KOr)}
 
   let keywords = if !isInQuery {
     List.map(~f=x => FACKeyword(x), list{KLet, KIf, KLambda, KMatch, KPipe})
@@ -661,7 +657,6 @@ let regenerate = (m: model, a: t, (tlid, ti): query): t =>
   | Some(tl) =>
     let props = {
       functions: m.functions,
-      allowShortCircuiting: m.settings.contributingSettings.inProgressFeatures.allowShortCircuitingBinops,
     }
     let queryString = toQueryString(ti)
     let fieldList = findFields(m, tl, ti)
