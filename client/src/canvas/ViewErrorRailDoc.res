@@ -36,7 +36,6 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
     switch sendToRail {
     | None =>
       // If we don't know if the function is on the rail, return a generic message:
-      // example Dict::fromList
       switch fn.returnType {
       | TOption(_) =>
         Some(
@@ -56,7 +55,6 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
           ),
         )
       | TResult(_, _) =>
-      // example HttpClient::delete
         Some(
           Html.p(
             list{tw(%twc("font-text text-sm"))},
@@ -117,7 +115,6 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
           ),
         )
       | (TResult(_), Rail) =>
-      //example Bytes::base64Decode
         Some(
           Html.p(
             list{tw(%twc("font-text text-sm"))},
