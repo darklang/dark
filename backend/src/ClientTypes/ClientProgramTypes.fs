@@ -68,8 +68,6 @@ type Expr =
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
-  // Deprecated - converted to EInfix
-  | EBinOp of id * FQFnName.InfixStdlibFnName * Expr * Expr * SendToRail
   | EInfix of id * Infix * Expr * Expr
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string

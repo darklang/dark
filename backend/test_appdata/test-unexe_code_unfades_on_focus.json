@@ -29,12 +29,18 @@
           2073307217,
           "a",
           [
-            "EBinOp",
+            "EInfix",
             1459002816,
-            {
-              "module_": null,
-              "function_": "\u002B"
-            },
+            [
+              "InfixFnCall",
+              {
+                "module_": null,
+                "function_": "\u002B"
+              },
+              [
+                "NoRail"
+              ]
+            ],
             [
               "EInteger",
               628377623,
@@ -44,9 +50,6 @@
               "EInteger",
               1269906539,
               8
-            ],
-            [
-              "NoRail"
             ]
           ],
           [

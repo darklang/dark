@@ -166,12 +166,18 @@
                   "EPipe",
                   547800146,
                   [
-                    "EBinOp",
+                    "EInfix",
                     754357480,
-                    {
-                      "module_": null,
-                      "function_": "\u002B\u002B"
-                    },
+                    [
+                      "InfixFnCall",
+                      {
+                        "module_": null,
+                        "function_": "\u002B\u002B"
+                      },
+                      [
+                        "NoRail"
+                      ]
+                    ],
                     [
                       "EString",
                       1539543236,
@@ -181,9 +187,6 @@
                       "EVariable",
                       1720198519,
                       "secret"
-                    ],
-                    [
-                      "NoRail"
                     ]
                   ],
                   [
