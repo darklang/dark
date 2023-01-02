@@ -138,6 +138,7 @@ and timerAction =
   | RefreshAnalysis
   | RefreshAvatars
   | CheckUrlHashPosition
+  | CheckIfClientIsOutdated
 
 and traceID = string
 

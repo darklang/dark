@@ -55,7 +55,7 @@ module CanvasProps = {
 module PageVisibility = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
-    | Hidden
+    | Hidden(Js.Date.t)
     | Visible
 }
 
@@ -734,6 +734,7 @@ module Msg = {
     | UpdateHeapio(Types.heapioTrack)
     | SettingsMsg(Settings.msg)
     | SecretMsg(SecretTypes.msg)
+    | RefreshClientIfOutdated(result<string, Types.httpError>)
 
   let toDebugString = (msg: t<'model, 'cmd>): string =>
     switch msg {
@@ -839,6 +840,7 @@ module Msg = {
     | SaveTestAPICallback(_) => "SaveTestAPICallback"
     | GetUnlockedDBsAPICallback(_) => "GetUnlockedDBsAPICallback"
     | Get404sAPICallback(_) => "Get404sAPICallback"
+    | RefreshClientIfOutdated(_) => "RefreshClientIfOutdated"
     }
 }
 
@@ -877,6 +879,8 @@ module Modification = {
         'model => ('model, Tea.Cmd.t<Msg.t<'model, t<'model>>>),
       )
 
+    | NoChange
+
     // API Calls
     | AddOps((list<PT.Op.t>, Focus.t))
     | HandleAPIError(APIError.t)
@@ -887,6 +891,7 @@ module Modification = {
     | TriggerHandlerAPICall(TLID.t)
     | UpdateDBStatsAPICall(TLID.t)
     | DeleteToplevelForeverAPICall(TLID.t)
+    | GetServerBuildHash
     // End API Calls
     | Select(TLID.t, tlidSelectTarget)
     | SetHover(TLID.t, Types.idOrTraceID)
@@ -907,7 +912,6 @@ module Modification = {
     | EnterWithOffset(TLID.t, ID.t, int) // Entering a blankOr with a desired caret offset
     | OpenOmnibox(option<Pos.t>) // Open the omnibox
     | UpdateWorkerSchedules(Tc.Map.String.t<AnalysisTypes.WorkerState.t>)
-    | NoChange
     | MakeCmd(Tea.Cmd.t<Msg.t<'model, t<'model>>>)
     | AutocompleteMod(AutoComplete.mod)
     | Many(list<t<'model>>)
@@ -965,6 +969,7 @@ module Modification = {
     | TriggerHandlerAPICall(_) => "TriggerHandlerAPICall"
     | UpdateDBStatsAPICall(_) => "UpdateDBStatsAPICall"
     | DeleteToplevelForeverAPICall(_) => "DeleteToplevelForeverAPICall"
+    | GetServerBuildHash => "GetServerBuildHash"
     | Select(_, _) => "Select"
     | SetHover(_, _) => "SetHover"
     | ClearHover(_, _) => "ClearHover"

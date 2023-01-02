@@ -418,6 +418,7 @@ let rec updateMod = (mod: modification, (m, cmd): (model, AppTypes.cmd)): (model
     | UpdateDBStatsAPICall(tlid) => Analysis.updateDBStats(m, tlid)
     | GetWorkerStatsAPICall(tlid) => Analysis.getWorkerStats(m, tlid)
     | DeleteToplevelForeverAPICall(tlid) => (m, API.deleteToplevelForever(m, {tlid: tlid}))
+    | GetServerBuildHash => (m, API.fetchServerBuildHash(m))
     | NoChange => (m, Cmd.none)
     | TriggerIntegrationTest(name) =>
       let expect = IntegrationTest.trigger(name)
@@ -1832,8 +1833,8 @@ let update_ = (msg: msg, m: model): modification => {
   | TimerFire(action, _) =>
     switch action {
     | RefreshAnalysis =>
-      let getUnlockedDBs = // Small optimization
-      if Map.length(m.dbs) > 0 {
+      // Small optimization - only refresh unlocked DBs if there's at least 1 known
+      let getUnlockedDBs = if !Map.isEmpty(m.dbs) {
         GetUnlockedDBsAPICall
       } else {
         NoChange
@@ -1854,6 +1855,30 @@ let update_ = (msg: msg, m: model): modification => {
       | _ => getUnlockedDBs
       }
     | RefreshAvatars => ExpireAvatars
+
+    | CheckIfClientIsOutdated =>
+      let hasBeenInactiveForPastHour = switch m.visibility {
+      | Visible => false
+      | Hidden(since) =>
+        let oneHourAgo = Js.Date.now() -. 60.0 *. 60.0 *. 1000.0 |> Js.Date.fromFloat
+        since < oneHourAgo
+      }
+
+      let isPageSafelyRefreshable = switch m.currentPage {
+      | FocusedPackageManagerFn(_)
+      | Architecture => true
+      | FocusedFn(_)
+      | FocusedDB(_)
+      | FocusedType(_)
+      | SettingsModal(_)
+      | FocusedHandler(_) => false
+      }
+
+      if hasBeenInactiveForPastHour && isPageSafelyRefreshable {
+        GetServerBuildHash
+      } else {
+        NoChange
+      }
     | _ => NoChange
     }
   | IgnoreMsg(_) =>
@@ -1864,7 +1889,16 @@ let update_ = (msg: msg, m: model): modification => {
   | PageVisibilityChange(vis) =>
     ReplaceAllModificationsWithThisOne(
       "PageVisibilityChange",
-      m => ({...m, visibility: vis}, Cmd.none),
+      m => {
+        let newVis = switch (vis, m.visibility) {
+        | (Hidden(existingTimestamp), Hidden(_newTimestamp)) =>
+          // ensure we don't "overwrite" the date at which the page was 'hidden'
+          AppTypes.PageVisibility.Hidden(existingTimestamp)
+        | _ => vis
+        }
+
+        ({...m, visibility: newVis}, Cmd.none)
+      },
     )
   | CreateHandlerFrom404({space, path, modifier, _} as fof) =>
     let center = Viewport.findNewPos(m)
@@ -2121,6 +2155,15 @@ let update_ = (msg: msg, m: model): modification => {
   | UploadFnAPICallback(_, Ok(_)) =>
     Model.updateErrorMod(Error.set("Successfully uploaded function"))
   | SecretMsg(msg) => InsertSecret.update(msg)
+
+  | RefreshClientIfOutdated(Error(_err)) => NoChange
+  | RefreshClientIfOutdated(Ok(serverHash)) =>
+    if m.buildHash !== serverHash {
+      Webapi.Dom.location->Webapi.Dom.Location.reload
+    }
+
+    NoChange
+
   | RenderEvent =>
     ReplaceAllModificationsWithThisOne(
       "RenderEvent",
@@ -2203,8 +2246,17 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let timers = if m.editorSettings.runTimers {
+    let refreshOutdatedClient = Tea.Time.every(
+      ~key="refresh_outdated_client",
+      Tea.Time.minute,
+      f => AppTypes.Msg.TimerFire(CheckIfClientIsOutdated, f),
+    )
+
+    // Note: putting a timer in the 'hidden' list doesn't prevent it from being run
+    // only when the page is invisible. Rather, it only prevents us from _starting_
+    // the timer until the page is invisible.
     switch m.visibility {
-    | Hidden => list{}
+    | Hidden(_since) => list{refreshOutdatedClient}
     | Visible => list{
         Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => AppTypes.Msg.TimerFire(
           RefreshAnalysis,
@@ -2214,6 +2266,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
           RefreshAvatars,
           f,
         )),
+        refreshOutdatedClient,
       }
     }
   } else {
@@ -2225,11 +2278,11 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   }
 
   let visibility = list{
-    BrowserSubscriptions.Window.OnFocusChange.listen(~key="window_on_focus_change", v =>
-      if v {
-        PageVisibilityChange(Visible)
+    BrowserSubscriptions.Window.OnFocusChange.listen(~key="window_on_focus_change", hidden =>
+      if hidden {
+        PageVisibilityChange(Hidden(Js.Date.now() |> Js.Date.fromFloat))
       } else {
-        PageVisibilityChange(Hidden)
+        PageVisibilityChange(Visible)
       }
     ),
   }
