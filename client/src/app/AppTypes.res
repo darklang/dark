@@ -734,7 +734,7 @@ module Msg = {
     | UpdateHeapio(Types.heapioTrack)
     | SettingsMsg(Settings.msg)
     | SecretMsg(SecretTypes.msg)
-    | RefreshClientIfOutdated(string)
+    | RefreshClientIfOutdated(result<string, Types.httpError>)
 
   let toDebugString = (msg: t<'model, 'cmd>): string =>
     switch msg {

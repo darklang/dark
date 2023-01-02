@@ -82,7 +82,13 @@ let viewTunnelSectionHeader = {
       Html.a(list{Attrs.href("https://localtunnel.me")}, list{Html.text("localtunnel")}),
       Html.text(" or "),
       Html.a(list{Attrs.href("https://ngrok.com")}, list{Html.text("ngrok")}),
-      Html.text(") to use your local client against the Darklang production API"),
+      Html.text(") to use your local client against the Darklang production API. "),
+      Html.text("See the "),
+      Html.a(
+        list{Attrs.href("https://docs.darklang.com/contributing/client-asset-tunnelling")},
+        list{Html.text("contributor docs")},
+      ),
+      Html.text(" for instructions."),
     }),
   }
 }

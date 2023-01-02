@@ -265,8 +265,8 @@ let fetchServerBuildHash = (m: model): cmd => {
   let url = "https://editor.darklang.com/latest-backend-build-hash"
 
   let request = Tea.Http.request({
-    method: "POST",
-    headers: list{clientVersionHeader(m), Header("X-CSRF-Token", m.csrfToken)},
+    method: "GET",
+    headers: list{clientVersionHeader(m)},
     url: url,
     body: Web.XMLHttpRequest.EmptyBody,
     expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(Json.Decode.string)),
@@ -281,16 +281,9 @@ let fetchServerBuildHash = (m: model): cmd => {
   // beginning of the function, we still exercise the message and request generating
   // code locally.
   if m.origin == "https://darklang.com" {
-    // TODO: test this locally.
-    Tea.Http.send(serverBuildHash =>
-      switch serverBuildHash {
-      | Ok(serverBuildHash) => AppTypes.Msg.RefreshClientIfOutdated(serverBuildHash)
-      | Error(_err) => AppTypes.Msg.IgnoreMsg("TODO")
-      }
-    , request)
+    Tea.Http.send(serverBuildHash => AppTypes.Msg.RefreshClientIfOutdated(serverBuildHash), request)
   } else {
-    Tea.Cmd.msg(AppTypes.Msg.RefreshClientIfOutdated("not-dev-go-refresh"))
-    //Tea.Cmd.msg(AppTypes.Msg.IgnoreMsg("TODO"))
+    Tea.Cmd.none
   }
 }
 

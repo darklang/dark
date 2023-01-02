@@ -2134,12 +2134,12 @@ let update_ = (msg: msg, m: model): modification => {
     Model.updateErrorMod(Error.set("Successfully uploaded function"))
   | SecretMsg(msg) => InsertSecret.update(msg)
 
-  | RefreshClientIfOutdated(serverHash) =>
+  | RefreshClientIfOutdated(Error(_err)) => NoChange
+  | RefreshClientIfOutdated(Ok(serverHash)) =>
     let hasBeenInactiveForPastHour = switch m.visibility {
     | Visible => false
     | Hidden(since) =>
-      // TODO: switch back to an hour (60.) ago rather than a minute (1.) ago
-      let oneHourAgo = Js.Date.now() -. 1.0 *. 60.0 *. 1000.0 |> Js.Date.fromFloat
+      let oneHourAgo = Js.Date.now() -. 60.0 *. 60.0 *. 1000.0 |> Js.Date.fromFloat
       since < oneHourAgo
     }
 
@@ -2156,8 +2156,7 @@ let update_ = (msg: msg, m: model): modification => {
     let hashesMatch = m.buildHash == serverHash
 
     if hasBeenInactiveForPastHour && isPageSafelyRefreshable && !hashesMatch {
-      //Webapi.Dom.location->Webapi.Dom.Location.reload
-      Debug.loG("(fake-refreshing)", ())
+      Webapi.Dom.location->Webapi.Dom.Location.reload
     }
 
     NoChange
