@@ -712,6 +712,8 @@ let selectUp = (a: t): t =>
 let isOpened = (ac: t): bool => Option.isSome(ac.index)
 
 let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
+  let expected =Html.span(list{tw(%twc("font-text ml-1 mr-1 tracking-wider"))},list{Html.text("Expected: ")})
+  let actual = Html.span(list{tw(%twc("font-text ml-1 mr-5 tracking-wider"))},list{Html.text("Actual: ")})
   let _types = asTypeStrings(item)
   let _validity = validity
   switch validity {
@@ -722,20 +724,29 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     let typeInfo = switch acFirstArgType {
     | None => list{Html.text(" takes no arguments.")}
     | Some(typeStr) => list{
-        Html.text(" takes a "),
-        Html.span(list{Attrs.class("type")}, list{Html.text(typeStr)}),
-        Html.text(" as its first argument."),
+        Html.span(list{tw(%twc("font-text tracking-wider"))}, list{Html.text(" takes a ")}),
+        Html.span(list{tw(%twc("px-1.5 text-green"))}, list{Html.text(typeStr)}),
+        Html.span(list{tw(%twc("font-text tracking-wider"))}, list{Html.text(" as its first argument.")}),
       }
     }
 
     Html.div(
-      list{},
+      list{tw(%twc("bg-black2 rounded-md p-3 my-2"))},
       list{
-        Html.span(list{Attrs.class("err")}, list{Html.text("Type error: ")}),
-        Html.text("A value of type "),
-        Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(typ))}),
-        Html.text(" is being piped into this function call, but "),
-        Html.span(list{Attrs.class("fn")}, list{Html.text(acFunction)}),
+        Html.div(list{},list{
+        expected,
+        Html.span(list{tw(%twc("bg-[#7DC9B7]/25 rounded text-[#71C7B2] px-1 py-px"))},list{Html.text(acFirstArgType->Belt.Option.getWithDefault("no argument"))})
+        }),
+
+        Html.div(list{tw(%twc("mb-2 mt-1"))}, list{
+        actual,
+        Html.span(list{tw(%twc("bg-[#A67254]/25 rounded text-[#A67254] px-1 py-px"))},list{Html.text(DType.type2str(typ))})
+      }),
+
+        Html.span(list{tw(%twc("font-text tracking-wider"))}, list{Html.text("A value of type ")}),
+        Html.span(list{tw(%twc("px-1 text-green"))}, list{Html.text(DType.type2str(typ))}),
+        Html.span(list{tw(%twc("font-text tracking-wider"))}, list{Html.text(" is being piped into this function call, but ")}),
+        Html.span(list{tw(%twc("px-1 text-[#c7abcd]"))}, list{Html.text(acFunction)}),
         ...typeInfo,
       },
     )
@@ -743,21 +754,32 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     let acFunction = asName(item)
     let acReturnType = asTypeStrings(item) |> Tuple2.second
     Html.div(
-      list{},
+      list{tw(%twc("bg-black2 rounded-md p-3 my-2"))},
       list{
-        Html.span(list{Attrs.class("err")}, list{Html.text("Type error: ")}),
+
+        Html.div(list{},list{
+          expected,
+          Html.span(list{tw(%twc("bg-[#7DC9B7]/25 rounded text-[#71C7B2] px-1 py-px"))},list{Html.span(list{tw(%twc(""))},list{Html.text(DType.type2str(returnType))})})
+          }),
+
+        Html.div(list{tw(%twc("mb-2 mt-1"))}, list{
+          actual,
+          Html.span(list{tw(%twc("bg-[#A67254]/25 rounded text-[#A67254] px-1 py-px"))},list{Html.text(acReturnType)})
+      }),
+
         Html.span(
-          list{Attrs.class("fn")},
+          list{tw(%twc("text-[#c7abcd]"))},
           list{Html.text(fnName->Option.map(~f=FQFnName.toString)->Option.unwrap(~default=""))},
         ),
-        Html.text(" expects "),
-        Html.span(list{Attrs.class("param")}, list{Html.text(paramName)}),
-        Html.text(" to be a "),
-        Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(returnType))}),
-        Html.text(", but "),
-        Html.span(list{Attrs.class("fn")}, list{Html.text(acFunction)}),
-        Html.text(" returns a "),
-        Html.span(list{Attrs.class("type")}, list{Html.text(acReturnType)}),
+
+        Html.span(list{tw(%twc("font-text px-1"))}, list{Html.text(" expects ")}),
+        Html.span(list{tw(%twc("text-[#c7abcd]"))}, list{Html.text(paramName)}),
+        Html.span(list{tw(%twc("font-text px-1 tracking-wider"))}, list{Html.text(" to be a ")}),
+        Html.span(list{tw(%twc("text-green"))}, list{Html.text(DType.type2str(returnType))}),
+        Html.span(list{tw(%twc("font-text pl-1"))}, list{Html.text(", but ")}),
+        Html.span(list{tw(%twc("text-[#c7abcd]"))}, list{Html.text(acFunction)}),
+        Html.span(list{tw(%twc("font-text px-1"))}, list{Html.text(" returns a ")}),
+        Html.span(list{tw(%twc("text-green"))}, list{Html.text(acReturnType)}),
       },
     )
   }
@@ -777,7 +799,7 @@ let documentationForFunction = (
     list{Html.span(list{tw(%twc("font-text text-grey2 text-xs"))}, list{Html.text("Not deprecated ")})}
   }
 
-  let name = Html.span(list{tw(%twc("text-grey3 text-xs "))}, list{Html.text(f.name |> FQFnName.toString)})
+  let name = Html.span(list{tw(%twc("text-grey3 text-xs"))}, list{Html.text(f.name |> FQFnName.toString)})
 
   let documentationHeader= Html.div(list{tw(%twc("flex justify-between items-center mb-2"))},
     list{
