@@ -845,8 +845,26 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
       "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions",
     )
   | FACKeyword(KPipe) => simpleDoc("Pipe into another expression")
-  | FACKeyword(KAnd) => simpleDoc("A boolean `and`")
-  | FACKeyword(KOr) => simpleDoc("A boolean `or`")
+  | FACKeyword(KAnd) =>
+    Some(
+      List.flatten(list{
+        PrettyDocs.convert("&&"),
+        list{Html.br(list{}), Html.br(list{})},
+        PrettyDocs.convert("Evaluates to {{true}} if both expressions are {{true}}"),
+        list{Html.br(list{}), Html.br(list{})},
+        PrettyDocs.convert("The second expression is only evaluated if the first is {{true}}"),
+      }),
+    )
+  | FACKeyword(KOr) =>
+    Some(
+      List.flatten(list{
+        PrettyDocs.convert("||"),
+        list{Html.br(list{}), Html.br(list{})},
+        PrettyDocs.convert("Evaluates to {{true}} if either expression is {{true}}"),
+        list{Html.br(list{}), Html.br(list{})},
+        PrettyDocs.convert("The second expression is only evaluated if the first is {{false}}"),
+      }),
+    )
   | FACMatchPattern(_, pat) =>
     switch pat {
     | FMPAConstructor(name, args) =>

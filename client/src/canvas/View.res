@@ -147,11 +147,6 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
             | EFnCall(_, name, _, sendToRail) => Some(name, sendToRail)
             | EInfix(_, InfixFnCall(name, str), _, _) =>
               Some(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), str)
-            | EInfix(_, BinOp(op), _, _) =>
-              Some(
-                Stdlib({version: 0, module_: "", function: PT.Expr.BinaryOperation.toString(op)}),
-                NoRail,
-              )
             | _ => None
             }
           )
@@ -197,6 +192,22 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
         }
       }
 
+      let booleanAndOrString = {
+        TL.getAST(tl)
+        |> Option.andThen(~f=ast => FluidAST.findExpr(id, ast))
+        |> Option.andThen(~f=x =>
+          switch x {
+          | EInfix(_, BinOp(BinOpAnd), _, _) => Some(FluidTypes.AutoComplete.FACKeyword(KAnd))
+          | EInfix(_, BinOp(BinOpOr), _, _) => Some(FluidTypes.AutoComplete.FACKeyword(KOr))
+          | _ => None
+          }
+        )
+        |> Option.andThen(~f=item =>
+          FluidAutocomplete.documentationForItem({item: item, validity: FACItemValid})
+        )
+        |> Option.map(~f=viewDoc)
+      }
+
       let cmdDocString = if FluidCommands.isOpenOnTL(m.fluidState.cp, tlid) {
         FluidCommands.highlighted(m.fluidState.cp) |> Option.map(~f=(c: AppTypes.fluidCmd) =>
           viewDoc(list{p(c.doc)})
@@ -209,6 +220,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
       |> Option.orElse(cmdDocString)
       |> Option.orElse(selectedParamDocString)
       |> Option.orElse(selectedFnDocString)
+      |> Option.orElse(booleanAndOrString)
       |> Option.unwrap(~default=Vdom.noNode)
     | _ => Vdom.noNode
     }
