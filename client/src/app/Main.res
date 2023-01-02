@@ -1856,7 +1856,29 @@ let update_ = (msg: msg, m: model): modification => {
       }
     | RefreshAvatars => ExpireAvatars
 
-    | CheckIfClientIsOutdated => GetServerBuildHash
+    | CheckIfClientIsOutdated =>
+      let hasBeenInactiveForPastHour = switch m.visibility {
+      | Visible => false
+      | Hidden(since) =>
+        let oneHourAgo = Js.Date.now() -. 60.0 *. 60.0 *. 1000.0 |> Js.Date.fromFloat
+        since < oneHourAgo
+      }
+
+      let isPageSafelyRefreshable = switch m.currentPage {
+      | FocusedPackageManagerFn(_)
+      | Architecture => true
+      | FocusedFn(_)
+      | FocusedDB(_)
+      | FocusedType(_)
+      | SettingsModal(_)
+      | FocusedHandler(_) => false
+      }
+
+      if hasBeenInactiveForPastHour && isPageSafelyRefreshable {
+        GetServerBuildHash
+      } else {
+        NoChange
+      }
     | _ => NoChange
     }
   | IgnoreMsg(_) =>
@@ -2136,26 +2158,7 @@ let update_ = (msg: msg, m: model): modification => {
 
   | RefreshClientIfOutdated(Error(_err)) => NoChange
   | RefreshClientIfOutdated(Ok(serverHash)) =>
-    let hasBeenInactiveForPastHour = switch m.visibility {
-    | Visible => false
-    | Hidden(since) =>
-      let oneHourAgo = Js.Date.now() -. 60.0 *. 60.0 *. 1000.0 |> Js.Date.fromFloat
-      since < oneHourAgo
-    }
-
-    let isPageSafelyRefreshable = switch m.currentPage {
-    | FocusedPackageManagerFn(_)
-    | Architecture => true
-    | FocusedFn(_)
-    | FocusedDB(_)
-    | FocusedType(_)
-    | SettingsModal(_)
-    | FocusedHandler(_) => false
-    }
-
-    let hashesMatch = m.buildHash == serverHash
-
-    if hasBeenInactiveForPastHour && isPageSafelyRefreshable && !hashesMatch {
+    if m.buildHash !== serverHash {
       Webapi.Dom.location->Webapi.Dom.Location.reload
     }
 
