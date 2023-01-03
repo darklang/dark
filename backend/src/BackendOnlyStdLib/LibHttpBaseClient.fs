@@ -259,7 +259,7 @@ let fns : List<BuiltInFn> =
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         (function
-        | _, [ DStr method; DStr uri; DList headers; DBytes body ] ->
+        | _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
           let method =
             // Note: this only seems to fail if `method` is a blank string
             try
@@ -267,8 +267,8 @@ let fns : List<BuiltInFn> =
             with
             | _ -> None
 
-          let headers =
-            headers
+          let reqHeaders =
+            reqHeaders
             |> List.map (fun pair ->
               match pair with
               | DTuple (DStr k, DStr v, []) -> Ok(k, v)
@@ -278,9 +278,9 @@ let fns : List<BuiltInFn> =
             |> Tablecloth.Result.values
 
           // TODO: type error when method is None (probably just blank)
-          match headers, method with
-          | Ok headers, Some method ->
-            HttpBaseClient.sendRequest method uri headers body
+          match reqHeaders, method with
+          | Ok reqHeaders, Some method ->
+            HttpBaseClient.sendRequest method uri reqHeaders reqBody
           | _ -> incorrectArgs ()
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
