@@ -208,6 +208,10 @@ let fns : List<BuiltInFn> =
     // 'preview' setting in the editor.
     //
     // HttpBaseClientTODO thorough testing
+    //
+    // HttpBaseClientTODO this being outside of the `HttpClient` module
+    //   (e.g. `HttpBaseClient`) feels silly to me.
+    //   How about just `HttpClient::request_v0`?
     { name = fn "HttpBaseClient" "request" 0
       parameters =
         [ Param.make "method" TStr ""
@@ -233,15 +237,16 @@ let fns : List<BuiltInFn> =
             with
             | _ -> None
 
-          let reqHeaders =
+          let reqHeaders : Result<List<string * string>, string> =
             reqHeaders
-            |> List.map (fun pair ->
-              match pair with
-              | DTuple (DStr k, DStr v, []) -> Ok(k, v)
-              | other ->
+            |> List.fold (Ok []) (fun agg item ->
+              match agg, item with
+              | (Ok pairs, DTuple (DStr k, DStr v, [])) -> Ok((k, v) :: pairs)
+              | (Error err, _) -> Error err
+              | (_, notAPair) ->
                 Error
-                  $"Expected a (string * string), but got: {DvalReprDeveloper.toRepr other}")
-            |> Tablecloth.Result.values
+                  $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}")
+            |> Result.map (fun pairs -> List.rev pairs)
 
           // TODO: type error when method is None (probably just blank)
           match reqHeaders, method with
@@ -252,7 +257,11 @@ let fns : List<BuiltInFn> =
                 let responseHeaders =
                   response.headers
                   |> List.map (fun (k, v) ->
-                    DTuple(DStr(String.toLowercase k), DStr(String.toLowercase v), []))
+                    DTuple(
+                      DStr(String.toLowercase k),
+                      DStr(String.toLowercase v),
+                      []
+                    ))
                   |> DList
 
                 return
@@ -273,6 +282,11 @@ let fns : List<BuiltInFn> =
 
                 return DResult(Error(DStr errorMsg))
             }
+
+          | Error reqHeadersErr, _ ->
+            // TODO: can/should we report a Source?
+            uply { return DError(SourceNone, reqHeadersErr) }
+
           | _ -> incorrectArgs ()
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

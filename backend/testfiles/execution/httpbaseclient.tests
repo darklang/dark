@@ -1,0 +1,12 @@
+// Most of the httpclient tests are in testfiles/httpbaseclient.
+
+// ---
+// Tests that don't use the internet
+// ---
+
+
+// ---
+// Tests that might/do use the internet
+// ---
+
+HttpBaseClient.request "get" "https://stachu.net" [1] Bytes.empty = Test.typeError_v0 "Expected request headers to be a List of (string * string), but got: 1"
