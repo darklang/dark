@@ -17,8 +17,9 @@ open VendoredTablecloth
 module HttpBaseClient =
   module Telemetry = LibService.Telemetry
 
-  type private HttpResult = { code : int; headers : HttpHeaders.T; body : byte [] }
-  type private ClientError = { error : string; code : int option }
+  type HttpResult = { code : int; headers : HttpHeaders.T; body : byte [] }
+  type HttpRequestError = { error : string; code : int option }
+  type HttpRequestResult = Result<HttpResult, HttpRequestError>
 
   // There has been quite a history of .NET's HttpClient having problems,
   // including socket exhaustion and DNS results not expiring.
@@ -79,7 +80,7 @@ module HttpBaseClient =
     (method : HttpMethod)
     (reqHeaders : List<string * string>)
     (reqBody : byte array)
-    : Task<Result<HttpResult, ClientError>> =
+    : Task<HttpRequestResult> =
     task {
       use _ =
         Telemetry.child
