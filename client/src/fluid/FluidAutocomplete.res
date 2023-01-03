@@ -9,7 +9,6 @@ module TL = Toplevel
 module FT = FluidTypes
 module Msg = AppTypes.Msg
 
-module C = SettingsViewComponents
 
 type model = AppTypes.model
 
@@ -790,10 +789,10 @@ let documentationForFunction = (
   sendToRail: option<ProgramTypes.Expr.SendToRail.t>,
 ): list<Tea.Html.html<'msg>> => {
     let deprecationHeader = if f.deprecation != NotDeprecated {
-      list{Html.span(list{}, list{C.docErrorRailTooltip(~info=Html.span(list{tw(%twc("font-text text-sm"))}, list{Html.text("TODO: generic text about functions being deprecated")}),
+      list{Html.span(list{}, list{Tooltip.tooltip(~style=%twc("left-11 top-9 bg-black3"), ~info=Html.span(list{tw(%twc("font-text text-sm text-white3"))}, list{Html.text("TODO: generic text about functions being deprecatred")}),
           ~error=None,
           "",
-          list{Html.span(list{tw(%twc("font-text text-red/75 text-xs font-semibold"))}, list{Html.text("Deprecated ")})}
+          list{Html.span(list{tw(%twc("font-text text-pink text-xs font-semibold mr-1.5"))}, list{Html.text("Deprecated ")})}
       ),})}
   } else {
     list{Html.span(list{tw(%twc("font-text text-grey2 text-xs"))}, list{Html.text("Not deprecated ")})}
@@ -832,15 +831,15 @@ let onErrorRail=
   switch sendToRail {
   | Some(Rail) => {
 
-    Html.div(list{tw(%twc("flex items-center font-text"))},
+    Html.div(list{tw(%twc("flex items-center font-text ml-2"))},
     list{
-      Html.span(list{tw(%twc("text-grey5 font-semibold mr-px"))},list{Html.text("(")}),
-      C.docErrorRailTooltip(~info=ViewErrorRailDoc.hintForFunction(f, sendToRail),
+      Html.span(list{tw(%twc("text-grey6 font-medium mr-px"))},list{Html.text("(")}),
+      Tooltip.tooltip(~style=%twc("-left-5 top-0 bg-black3"), ~info=ViewErrorRailDoc.hintForFunction(f, sendToRail),
         ~error=None,
         "",
-        list{Html.text("on errorrail") }
+        list{Html.text("On Error Rail") }
     ),
-    Html.span(list{tw(%twc("text-grey5 font-semibold ml-px"))},list{Html.text(")")}),
+    Html.span(list{tw(%twc("text-grey6 font-medium ml-px"))},list{Html.text(")")}),
     }
     )
   }
