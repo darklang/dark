@@ -84,7 +84,7 @@ module HttpBaseClient =
 
   // HttpBaseClientTODO test what happens when user credentials are included
   // in the URL - adjust according to the results.
-  let private httpCall
+  let request
     (url : string)
     (method : HttpMethod)
     (reqHeaders : List<string * string>)
@@ -194,40 +194,6 @@ module HttpBaseClient =
         return Error(Other(Exception.getMessages e |> String.concat " "))
     }
 
-  let sendRequest
-    (verb : HttpMethod)
-    (uri : string)
-    (reqHeaders : List<string * string>)
-    (reqBody : byte array)
-    : Ply<Dval> =
-    uply {
-      match! httpCall uri verb reqHeaders reqBody with
-      | Ok response ->
-        let responseHeaders =
-          response.headers
-          |> List.map (fun (k, v) ->
-            DTuple(DStr(String.toLowercase k), DStr(String.toLowercase v), []))
-          |> DList
-
-        return
-          [ ("code", DInt(int64 response.code))
-            ("headers", responseHeaders)
-            ("body", DBytes response.body) ]
-          |> Dval.obj
-          |> Ok
-          |> DResult
-
-      | Error err ->
-        let errorMsg =
-          match err with
-          | BadUrl details -> $"Bad URL: {details}"
-          | Timeout -> "Request timed out"
-          | NetworkError -> "Network error"
-          | Other details -> details
-
-        return DResult(Error(DStr errorMsg))
-    }
-
 
 module Errors = LibExecution.Errors
 
@@ -280,7 +246,33 @@ let fns : List<BuiltInFn> =
           // TODO: type error when method is None (probably just blank)
           match reqHeaders, method with
           | Ok reqHeaders, Some method ->
-            HttpBaseClient.sendRequest method uri reqHeaders reqBody
+            uply {
+              match! HttpBaseClient.request uri method reqHeaders reqBody with
+              | Ok response ->
+                let responseHeaders =
+                  response.headers
+                  |> List.map (fun (k, v) ->
+                    DTuple(DStr(String.toLowercase k), DStr(String.toLowercase v), []))
+                  |> DList
+
+                return
+                  [ ("code", DInt(int64 response.code))
+                    ("headers", responseHeaders)
+                    ("body", DBytes response.body) ]
+                  |> Dval.obj
+                  |> Ok
+                  |> DResult
+
+              | Error err ->
+                let errorMsg =
+                  match err with
+                  | HttpBaseClient.BadUrl details -> $"Bad URL: {details}"
+                  | HttpBaseClient.Timeout -> "Request timed out"
+                  | HttpBaseClient.NetworkError -> "Network error"
+                  | HttpBaseClient.Other details -> details
+
+                return DResult(Error(DStr errorMsg))
+            }
           | _ -> incorrectArgs ()
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
