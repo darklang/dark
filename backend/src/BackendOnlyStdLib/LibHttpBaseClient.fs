@@ -216,12 +216,8 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpBaseClient" "request" 0
       parameters =
         [ Param.make "method" TStr ""
-
-          // HttpBaseClientTODO consider URI being a new type (complex type)
           Param.make "uri" TStr ""
-
           Param.make "headers" headersType ""
-
           Param.make "body" TBytes "" ]
 
       // HttpBaseClientTODO maybe the return type should be in the form of a
