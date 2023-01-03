@@ -215,10 +215,7 @@ let fns : List<BuiltInFn> =
     // HttpBaseClientTODO thorough testing
     { name = fn "HttpBaseClient" "request" 0
       parameters =
-        [ // HttpBaseClientTODO consider method being a new type (DU).
-          // Alternatively, leave it as a string, and don't try to parse it.
-          // (instead, just do `new HttpMethod(userInputMethod)`)
-          Param.make "method" TStr ""
+        [ Param.make "method" TStr ""
 
           // HttpBaseClientTODO consider URI being a new type (complex type)
           Param.make "uri" TStr ""
@@ -251,14 +248,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr method; DStr uri; DList headers; DBytes body ] ->
           let method =
-            match String.toLowercase method with
-            | "get" -> Some HttpMethod.Get
-            | "post" -> Some HttpMethod.Post
-            | "put" -> Some HttpMethod.Put
-            | "patch" -> Some HttpMethod.Patch
-            | "delete" -> Some HttpMethod.Delete
-            | "head" -> Some HttpMethod.Head
-            | "options" -> Some HttpMethod.Options
+            // Note: this only seems to fail if `method` is a blank string
+            try
+              Some(HttpMethod method)
+            with
             | _ -> None
 
           let headers =
@@ -271,6 +264,7 @@ let fns : List<BuiltInFn> =
                   $"Expected a (string * string), but got: {DvalReprDeveloper.toRepr other}")
             |> Tablecloth.Result.values
 
+          // TODO: type error when method is None (probably just blank)
           // HttpBaseClientTODO return better error messages
           match headers, method with
           | Ok headers, Some method ->
