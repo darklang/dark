@@ -18,7 +18,15 @@ module HttpBaseClient =
   module Telemetry = LibService.Telemetry
 
   type HttpResult = { code : int; headers : HttpHeaders.T; body : byte [] }
-  type HttpRequestError = { error : string; code : int option }
+
+  // forked from Elm's HttpError type
+  // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
+  type HttpRequestError =
+    | BadUrl of details : string
+    | Timeout
+    | NetworkError
+    | Other of details : string
+
   type HttpRequestResult = Result<HttpResult, HttpRequestError>
 
   // There has been quite a history of .NET's HttpClient having problems,
@@ -33,7 +41,7 @@ module HttpBaseClient =
   //
   // Note that the number of sockets was verified manually, with:
   // `sudo netstat -apn | grep _WAIT`
-  // TODO: I don't see where "the nunber of sockets" is actually configured?
+  // TODO: I don't see where "the number of sockets" is actually configured?
   let private socketHandler : HttpMessageHandler =
     new SocketsHttpHandler(
       // Avoid DNS problems
@@ -42,6 +50,7 @@ module HttpBaseClient =
 
       // HttpBaseClientTODO avail functions to compress/decompress with common
       // compression algorithms (gzip, brottli, deflate)
+      //
       // HttpBaseClientTODO consider: is there any reason to think that ASP.NET
       // does something fancy such that automatic .net httpclient -level
       // decompression would be notably more efficient than doing so 'manually'
@@ -91,7 +100,7 @@ module HttpBaseClient =
 
         // currently we only support http(s) requests
         if uri.Scheme <> "https" && uri.Scheme <> "http" then
-          return Error { code = None; error = "Unsupported protocol" }
+          return Error(BadUrl "Unsupported Protocol")
         else
           let reqUri =
             System.UriBuilder(
@@ -152,27 +161,37 @@ module HttpBaseClient =
           return
             { code = int response.StatusCode; headers = headers; body = respBody }
             |> Ok
+
       with
-      | :? TaskCanceledException -> // only timeouts
+      | :? TaskCanceledException ->
         Telemetry.addTags [ "error", true; "error.msg", "Timeout" ]
-        return Error { code = None; error = "Timeout" }
-      | :? System.ArgumentException as e -> // incorrect protocol, possibly more
-        let message =
-          if e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')" then
-            "Unsupported protocol"
-          else
-            e.Message
-        Telemetry.addTags [ "error", true; "error.msg", message ]
-        return Error { code = None; error = message }
+        return Error Timeout
+
+      | :? System.ArgumentException as e -> // We know of one specific case indicating Unsupported Protocol
+        if e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')" then
+          Telemetry.addTags [ "error", true; "error.msg", "Unsupported Protocol" ]
+          return Error(BadUrl "Unsupported Protocol")
+        else
+          Telemetry.addTags [ "error", true; "error.msg", e.Message ]
+          return Error(Other e.Message)
+
       | :? System.UriFormatException ->
         Telemetry.addTags [ "error", true; "error.msg", "Invalid URI" ]
-        return Error { code = None; error = "Invalid URI" }
-      | :? IOException as e -> return Error { code = None; error = e.Message }
+        return Error(BadUrl "Invalid URI")
+
+      | :? IOException as e -> return Error(Other e.Message)
+
       | :? HttpRequestException as e ->
+        // This is a bit of an awkward case. I'm unsure how it fits into our model.
+        // We've made a request, and _potentially_ (according to .NET) have a status
+        // code. That should return some sort of Error - but our Error case type
+        // doesn't have a good slot to include the status code. We could have a new
+        // case of `| ErrorHandlingResponse of statusCode: int` but that feels wrong.
         let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
+
         Telemetry.addException [ "error.status_code", code ] e
-        let message = e |> Exception.getMessages |> String.concat " "
-        return Error { code = Some code; error = message }
+
+        return Error(Other(Exception.getMessages e |> String.concat " "))
     }
 
   let sendRequest
@@ -197,7 +216,16 @@ module HttpBaseClient =
           |> Dval.obj
           |> Ok
           |> DResult
-      | Error err -> return DResult(Error(DStr err.error))
+
+      | Error err ->
+        let errorMsg =
+          match err with
+          | BadUrl details -> $"Bad URL: {details}"
+          | Timeout -> "Request timed out"
+          | NetworkError -> "Network error"
+          | Other details -> details
+
+        return DResult(Error(DStr errorMsg))
     }
 
 
@@ -220,18 +248,6 @@ let fns : List<BuiltInFn> =
           Param.make "uri" TStr ""
           Param.make "headers" headersType ""
           Param.make "body" TBytes "" ]
-
-      // HttpBaseClientTODO maybe the return type should be in the form of a
-      // 'custom' DU? Elm's http response type is well thought out and could provide
-      // a good model for us.
-      // type Error
-      //   = BadUrl String
-      //   | Timeout
-      //   | NetworkError
-      //   | BadStatus Int
-      //   | BadBody String
-      // from:
-      // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
       returnType =
         TResult(
           TRecord [ "code", TInt; "headers", headersType; "body", TBytes ],
@@ -262,7 +278,6 @@ let fns : List<BuiltInFn> =
             |> Tablecloth.Result.values
 
           // TODO: type error when method is None (probably just blank)
-          // HttpBaseClientTODO return better error messages
           match headers, method with
           | Ok headers, Some method ->
             HttpBaseClient.sendRequest method uri headers body
