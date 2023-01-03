@@ -14,24 +14,29 @@ resource "google_cloud_run_service" "bwdserver" {
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/minScale" : "1"
+        "autoscaling.knative.dev/minScale" : "0"
         "autoscaling.knative.dev/maxScale" : "10"
         "run.googleapis.com/cloudsql-instances" : "balmy-ground-195100:us-west1:dark-west"
         "run.googleapis.com/startup-cpu-boost" : "true"
+        "run.googleapis.com/cpu-throttling" : "true"
+        "run.googleapis.com/execution-environment" : "gen2"
       }
     }
 
     spec {
-      container_concurrency = 0
-      timeout_seconds       = 300
-      service_account_name  = "cloud-run-runner@balmy-ground-195100.iam.gserviceaccount.com"
+      timeout_seconds      = 300
+      service_account_name = "cloud-run-runner@balmy-ground-195100.iam.gserviceaccount.com"
       containers {
-        image = "gcr.io/balmy-ground-195100/gcp-fsharp-bwdserver@sha256:7e91876469db2b8a21a176308e54d8a61147976ab83251d896fee4fb2d63ba77"
+        image = "gcr.io/balmy-ground-195100/gcp-fsharp-bwdserver@sha256:ec7bbcd9e38d8965b76d5718359fac1242fefdcb11ae7250ed918415ecd829a3"
         ports {
           name           = "http1"
           container_port = 11001
         }
         resources {
+          requests = {
+            "cpu"    = "2.0"
+            "memory" = "4000Mi"
+          }
           limits = {
             cpu    = "2.0"
             memory = "6000Mi"
