@@ -17,7 +17,7 @@ open VendoredTablecloth
 module HttpBaseClient =
   module Telemetry = LibService.Telemetry
 
-  type private HttpResult = { body : byte []; code : int; headers : HttpHeaders.T }
+  type private HttpResult = { code : int; headers : HttpHeaders.T; body : byte [] }
   type private ClientError = { error : string; code : int option }
 
   // There has been quite a history of .NET's HttpClient having problems,
@@ -149,7 +149,7 @@ module HttpBaseClient =
             |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
 
           return
-            { body = respBody; code = int response.StatusCode; headers = headers }
+            { code = int response.StatusCode; headers = headers; body = respBody }
             |> Ok
       with
       | :? TaskCanceledException -> // only timeouts
@@ -175,10 +175,10 @@ module HttpBaseClient =
     }
 
   let sendRequest
-    (uri : string)
     (verb : HttpMethod)
-    (reqBody : byte array)
+    (uri : string)
     (reqHeaders : List<string * string>)
+    (reqBody : byte array)
     : Ply<Dval> =
     uply {
       match! httpCall uri verb reqHeaders reqBody with
@@ -190,9 +190,9 @@ module HttpBaseClient =
           |> DList
 
         return
-          [ ("body", DBytes response.body)
+          [ ("code", DInt(int64 response.code))
             ("headers", responseHeaders)
-            ("code", DInt(int64 response.code)) ]
+            ("body", DBytes response.body) ]
           |> Dval.obj
           |> Ok
           |> DResult
@@ -223,9 +223,9 @@ let fns : List<BuiltInFn> =
           // HttpBaseClientTODO consider URI being a new type (complex type)
           Param.make "uri" TStr ""
 
-          Param.make "body" TBytes ""
+          Param.make "headers" headersType ""
 
-          Param.make "headers" headersType "" ]
+          Param.make "body" TBytes "" ]
 
       // HttpBaseClientTODO maybe the return type should be in the form of a
       // 'custom' DU? Elm's http response type is well thought out and could provide
@@ -240,7 +240,7 @@ let fns : List<BuiltInFn> =
       // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
       returnType =
         TResult(
-          TRecord [ "body", TBytes; "headers", headersType; "code", TInt ],
+          TRecord [ "code", TInt; "headers", headersType; "body", TBytes ],
           TStr
         )
       description =
@@ -249,7 +249,7 @@ let fns : List<BuiltInFn> =
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         (function
-        | _, [ DStr method; DStr uri; DBytes body; DList headers ] ->
+        | _, [ DStr method; DStr uri; DList headers; DBytes body ] ->
           let method =
             match String.toLowercase method with
             | "get" -> Some HttpMethod.Get
@@ -274,7 +274,7 @@ let fns : List<BuiltInFn> =
           // HttpBaseClientTODO return better error messages
           match headers, method with
           | Ok headers, Some method ->
-            HttpBaseClient.sendRequest uri method body headers
+            HttpBaseClient.sendRequest method uri headers body
           | _ -> incorrectArgs ()
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
