@@ -27,11 +27,14 @@ module.exports = {
 
       red: "#ab4642",
       orange: "#dc9656",
+      orange1: "#a67254",
       yellow: "#f7ca88",
       green: "#a1b56c",
       cyan: "#86c1b9",
       blue: "#7cafc2",
+      teal: "#71c7b2",
       purple: "#b18bba",
+      purple1: "#c7abcd", // lighten($purple, 10%)
       pink: "#d5839d",
       magenta: "magenta",
 
