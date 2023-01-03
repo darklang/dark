@@ -84,7 +84,7 @@ let infixFnMapping : Map<FQFnName.StdlibFnName, (FQFnName.StdlibFnName * Depreca
     ("Bool", "or", 0),
     (("", "||"),
      DeprecatedBecause(
-       "Use built-in keyword `&&` instead. Use the `convert-to-short-circuiting` command to convert automatically"
+       "Use built-in keyword `||` instead. Use the `convert-to-short-circuiting` command to convert automatically"
      )) ]
   |> List.map (fun ((module_, name, version), ((newMod, opName), deprecation)) ->
     FQFnName.stdlibFnName module_ name version,
