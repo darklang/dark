@@ -864,7 +864,7 @@ let documentationForFunction = (
   let return = Html.div(
     list{Attrs.class(%twc("flex items-center"))},
     list{
-      Icons.fontAwesome(~style=%twc("rotate-90 mr-2.5 mt-0.5 text-[10px]"), "level-down-alt"),
+      Icons.fontAwesome(~style=%twc("rotate-90 mr-2.5 mt-0.5 text-xxs"), "level-down-alt"),
       Html.div(
         list{tw(%twc("text-grey5 font-text"))},
         list{
