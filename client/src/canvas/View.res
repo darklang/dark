@@ -115,7 +115,15 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     let viewDoc = desc =>
       Html.div(
         list{
-          Attrs.classList(list{(%twc("absolute bottom-full left-0 w-[calc(100%-1.25rem)] py-1.5 px-2.5 bg-sidebar-bg text-xs text-white1 break-words font-text"), true), (%twc("cursor-move"), draggable)}),
+          Attrs.classList(list{
+            (
+              %twc(
+                "absolute bottom-full left-0 w-[calc(100%-1.25rem)] py-1.5 px-2.5 bg-sidebar-bg text-xs text-white1 break-words font-text"
+              ),
+              true,
+            ),
+            (%twc("cursor-move"), draggable),
+          }),
           ...dragEvents,
         },
         desc,

@@ -76,7 +76,10 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
       Html.div(
         list{tw(%twc("flex items-baseline justify-center my-2"))},
         list{
-          Html.p(list{tw(%twc("font-text text-lg mr-4 font-semibold tracking-wider"))}, list{Html.text("Email:")}),
+          Html.p(
+            list{tw(%twc("font-text text-lg mr-4 font-semibold tracking-wider"))},
+            list{Html.text("Email:")},
+          ),
           field,
           submitBtn,
         },
