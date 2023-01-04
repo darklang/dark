@@ -9,6 +9,7 @@ let tw = Attrs.class
 let code = %twc("bg-grey1 py-0 px-2 whitespace-nowrap")
 let cmd = %twc("text-pink whitespace-nowrap")
 let var = %twc("text-purple")
+let sharedStyle = %twc("font-text text-sm")
 
 @ocaml.doc("[hintForFunction fn sendToRail] returns a (possibly noNode) DOM node that
  * provides a contextual hint about error-rail usage for the function [fn].
@@ -40,7 +41,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | TOption(_) =>
         Some(
           Html.p(
-            list{tw(%twc("font-text text-sm"))},
+            list{tw(sharedStyle)},
             list{
               txt("By default, this function goes to the "),
               errorRail,
@@ -57,7 +58,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | TResult(_, _) =>
         Some(
           Html.p(
-            list{tw(%twc("font-text text-sm"))},
+            list{tw(sharedStyle)},
             list{
               txt("By default, this function goes to the "),
               errorRail,
@@ -79,7 +80,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | (TOption(_), Rail) =>
         Some(
           Html.p(
-            list{tw(%twc("font-text text-sm"))},
+            list{tw(sharedStyle)},
             list{
               txt("This function goes to the "),
               errorRail,
@@ -100,7 +101,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | (TOption(_), NoRail) =>
         Some(
           Html.p(
-            list{tw(%twc("font-text text-sm"))},
+            list{tw(sharedStyle)},
             list{
               txt("This function is not on the "),
               errorRail,
@@ -117,7 +118,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | (TResult(_), Rail) =>
         Some(
           Html.p(
-            list{tw(%twc("font-text text-sm"))},
+            list{tw(sharedStyle)},
             list{
               txt("This function goes to the "),
               errorRail,
@@ -138,7 +139,7 @@ let hintForFunction = (fn: Function.t, sendToRail: option<ProgramTypes.Expr.Send
       | (TResult(_), NoRail) =>
         Some(
           Html.p(
-            list{tw(%twc("font-text text-sm"))},
+            list{tw(sharedStyle)},
             list{
               txt("This function is not on the "),
               errorRail,

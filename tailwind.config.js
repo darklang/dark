@@ -61,9 +61,9 @@ module.exports = {
         3: "3px",
       },
       fontSize: {
+        xxxs: "0.5rem",
         xxs: "0.625rem",
         md: "1.0625rem", // 17px - between base and lg
-        xxxs: "0.5rem",
       },
       margin: {
         0.25: "0.0625rem",
