@@ -778,7 +778,7 @@ let toHumanReadable = (expr: t, showID: bool): string => {
     | EFnCall(_, name, list{}, _) => `(fn${id} "${FQFnName.toString(name)}")`
     | EFnCall(_, name, exprs, _) => `(fn${id} "${FQFnName.toString(name)}"\n${newlineList(exprs)})`
     | EInfix(_, BinOp(op), lhs, rhs) =>
-      `(binop${id} "${PT.Expr.BinaryOperation.toString(op)}"\n${r(lhs)}\n${r(rhs)})`
+      `(binop${PT.Expr.BinaryOperation.toString(op)}${id} ${r(lhs)} ${r(rhs)})`
     | EInfix(_, InfixFnCall(name, _), lhs, rhs) =>
       `(infixFn${id} "${PT.InfixStdlibFnName.toString(name)}"\n${r(lhs)}\n${r(rhs)})`
     | EVariable(_, name) => `(${name}${id})`

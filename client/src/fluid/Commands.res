@@ -46,6 +46,12 @@ let commands: list<AppTypes.fluidCmd> = {
       doc: "Convert the if expression into a match expression",
     },
     {
+      commandName: "convert-to-short-circuiting",
+      action: ShortCircuitingBinOpDeprecation.refactor,
+      shouldShow: (_, _, e) => ShortCircuitingBinOpDeprecation.shouldShow(e),
+      doc: "Convert the && or || expression into the new short-circuiting version",
+    },
+    {
       commandName: "insert-let-above",
       action: Refactor.wrap(Refactor.WLetBody),
       shouldShow: alwaysShow,

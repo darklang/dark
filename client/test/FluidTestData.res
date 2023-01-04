@@ -988,10 +988,7 @@ let defaultTestModel: AppTypes.Model.t = {
     ...AppTypes.Model.default.settings,
     contributingSettings: {
       ...AppTypes.Model.default.settings.contributingSettings,
-      inProgressFeatures: {
-        ...AppTypes.Model.default.settings.contributingSettings.inProgressFeatures,
-        allowShortCircuitingBinops: true,
-      },
+      inProgressFeatures: AppTypes.Model.default.settings.contributingSettings.inProgressFeatures,
     },
   },
 }
