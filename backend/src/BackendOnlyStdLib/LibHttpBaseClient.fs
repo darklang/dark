@@ -114,9 +114,13 @@ module HttpBaseClient =
             new HttpRequestMessage(
               method,
               string reqUri,
-              // HttpBaseClientTODO does this mean 'use exactly 3.0'?
+              Content = new ByteArrayContent(reqBody),
+
+              // Support both Http 2.0 and 3.0
+              // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
+              // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
               Version = System.Net.HttpVersion.Version30,
-              Content = new ByteArrayContent(reqBody)
+              VersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
             )
 
           // headers
@@ -142,9 +146,6 @@ module HttpBaseClient =
           Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
           Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
           use! response = httpClient.SendAsync req
-
-          // HttpBaseClientTODO: errors after an HTTP response is returned
-          // should include the status code. (right now they don't always).
 
           Telemetry.addTags [ "response.status_code", response.StatusCode
                               "response.version", response.Version ]
@@ -203,6 +204,8 @@ let fn = FQFnName.stdlibFnName
 
 let headersType = TList(TTuple(TStr, TStr, []))
 
+
+
 let fns : List<BuiltInFn> =
   [ // Note: although this is a non-internal function, it is 'hidden' behind a
     // 'preview' setting in the editor.
@@ -231,7 +234,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
           let method =
-            // Note: this only seems to fail if `method` is a blank string
             try
               Some(HttpMethod method)
             with
@@ -241,14 +243,19 @@ let fns : List<BuiltInFn> =
             reqHeaders
             |> List.fold (Ok []) (fun agg item ->
               match agg, item with
-              | (Ok pairs, DTuple (DStr k, DStr v, [])) -> Ok((k, v) :: pairs)
               | (Error err, _) -> Error err
+              | (Ok pairs, DTuple (DStr k, DStr v, [])) ->
+                // TODO: what about whitespace? What else can break?
+                if k = "" then
+                  Error "Empty request header key provided"
+                else
+                  Ok((k, v) :: pairs)
+
               | (_, notAPair) ->
                 Error
                   $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}")
             |> Result.map (fun pairs -> List.rev pairs)
 
-          // TODO: type error when method is None (probably just blank)
           match reqHeaders, method with
           | Ok reqHeaders, Some method ->
             uply {
@@ -272,22 +279,30 @@ let fns : List<BuiltInFn> =
                   |> Ok
                   |> DResult
 
-              | Error err ->
-                let errorMsg =
-                  match err with
-                  | HttpBaseClient.BadUrl details -> $"Bad URL: {details}"
-                  | HttpBaseClient.Timeout -> "Request timed out"
-                  | HttpBaseClient.NetworkError -> "Network error"
-                  | HttpBaseClient.Other details -> details
+              | Error (HttpBaseClient.BadUrl details) ->
+                // TODO: include a DvalSource rather than SourceNone
+                return DError(SourceNone, $"Bad URL: {details}")
 
-                return DResult(Error(DStr errorMsg))
+              | Error (HttpBaseClient.Timeout) ->
+                return DResult(Error(DStr $"Request timed out"))
+
+              | Error (HttpBaseClient.NetworkError) ->
+                return DResult(Error(DStr $"Network error"))
+
+              | Error (HttpBaseClient.Other details) ->
+                return DResult(Error(DStr details))
             }
 
           | Error reqHeadersErr, _ ->
-            // TODO: can/should we report a Source?
+            // TODO: include a DvalSource rather than SourceNone
+            // (this will take some refactoring of stdlib fns)
             uply { return DError(SourceNone, reqHeadersErr) }
 
-          | _ -> incorrectArgs ()
+          | _, None ->
+            let msg = "Expected valid HTTP method (e.g. 'get' or 'POST')"
+            // TODO: include a DvalSource rather than SourceNone
+            uply { return DError(SourceNone, msg) }
+
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
