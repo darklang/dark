@@ -1057,7 +1057,7 @@ let update_ = (msg: msg, m: model): modification => {
     }
 
     let clickBehavior = if Option.isSome(m.tooltipState.tooltipSource) {
-      list{Tooltips.update(m.tooltipState, Close), ...clickBehavior}
+      list{Tutorial.update(m.tooltipState, Close), ...clickBehavior}
     } else {
       clickBehavior
     }
@@ -1359,7 +1359,7 @@ let update_ = (msg: msg, m: model): modification => {
     if msg == UpdateTutorial(CloseTutorial) && m.firstVisitToDark {
       Entry.sendHeapioMessage(WelcomeModal)
     }
-    Tooltips.update(m.tooltipState, msg)
+    Tutorial.update(m.tooltipState, msg)
   | DeleteUserTypeForever(tlid) =>
     Many(list{
       DeleteToplevelForeverAPICall(tlid),

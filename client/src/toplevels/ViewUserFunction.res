@@ -187,7 +187,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
 
   let paramRows = {
     let fnParamTooltip =
-      Tooltips.generateContent(FnParam) |> Tooltips.viewToolTip(
+      Tutorial.generateContent(FnParam) |> Tutorial.viewToolTip(
         ~shouldShow=showFnTooltips,
         ~tlid=None,
       )

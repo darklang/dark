@@ -7,7 +7,7 @@ type step = AppTypes.Tutorial.Step.t
 let isTutorialCanvas = (~username: string, ~canvasname: string): bool =>
   canvasname == username ++ "-crud"
 
-let generateCRUDContent: Tooltips.tooltipContent = {
+let generateCRUDContent: Tutorial.tooltipContent = {
   title: "This is an example of a fully working CRUD application. It enables you to create, delete or edit a blog post, store the content and metadata in a datastore and access the blog posts via API endpoint.",
   details: Some(list{
     "If you'd like to try building something complex, we've created a Getting Started tutorial in our documentation.",
@@ -21,7 +21,7 @@ let generateCRUDContent: Tooltips.tooltipContent = {
   tooltipStyle: Crud,
 }
 
-let generateTutorialContent = (tutorialStep: step, username: string): Tooltips.tooltipContent =>
+let generateTutorialContent = (tutorialStep: step, username: string): Tutorial.tooltipContent =>
   switch tutorialStep {
   | Welcome => {
       title: "Welcome to Dark! Let's get started by creating a \"Hello World\" endpoint.",
