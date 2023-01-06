@@ -115,6 +115,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     let viewDoc = desc =>
       Html.div(
         list{
+          Attrs.id("documentation-box"),
           Attrs.classList(list{
             (
               %twc(

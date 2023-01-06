@@ -92,7 +92,7 @@ async function flushLogs(page: Page, testInfo: TestInfo) {
     );
     const testName = testInfo.title;
     let filename = `rundir/integration-tests/console-logs/${testName}.log`;
-    fs.writeFile(filename, logs.join("\n"), () => {});
+    fs.writeFile(filename, logs.join("\n"), () => { });
     return true;
   }
 
@@ -946,7 +946,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Control+\\");
 
     await page.waitForSelector("#cmd-filter");
-    // await page.waitForSelector(".documentation-box");
+    await page.waitForSelector("#documentation-box");
   });
 
   // Regression test:
@@ -986,7 +986,7 @@ test.describe.parallel("Integration Tests", async () => {
     await expect(locator).toBeVisible();
   });
 
-  test("function_docstrings_are_valid", async ({}) => {
+  test("function_docstrings_are_valid", async ({ }) => {
     // validate functions in IntegrationTest.res
   });
 
