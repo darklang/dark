@@ -42,6 +42,7 @@
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="FSharpToExpr.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />
+    <Compile Include="HttpBaseClient.Tests.fs" />
     <Compile Include="HttpQueryEncoding.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Prelude.Tests.fs" />
