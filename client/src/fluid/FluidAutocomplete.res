@@ -878,8 +878,7 @@ let documentationForFunction = (
     },
   )
 
-  let onErrorRail = switch sendToRail {
-  | Some(Rail) => Html.div(
+  let errorRail = Html.div(
       list{tw(%twc("flex items-center font-text ml-2"))},
       list{
         Html.span(list{tw(%twc("text-grey6 font-medium mr-px"))}, list{Html.text("(")}),
@@ -893,9 +892,18 @@ let documentationForFunction = (
         Html.span(list{tw(%twc("text-grey6 font-medium ml-px"))}, list{Html.text(")")}),
       },
     )
-  | Some(NoRail) => Html.text("")
-  | _ => Html.text("")
-  }
+
+    let onErrorRail = switch sendToRail {
+      | None => {
+      switch f.returnType {
+        | TOption(_) => errorRail
+        | TResult(_) => errorRail
+        | _ => { Html.text("")}
+      }
+      }
+      | Some(Rail) => errorRail
+      | Some(NoRail) => { Html.text("") }
+    }
 
   let row = Html.div(list{tw(%twc("flex items-center mt-2"))}, list{return, onErrorRail})
 
