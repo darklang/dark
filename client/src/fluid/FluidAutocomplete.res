@@ -878,9 +878,9 @@ let documentationForFunction = (
     },
   )
 
-  let errorRail = Html.div(
-      list{tw(%twc("flex items-center font-text ml-2"))},
-      list{
+let onErrorRail = ref(Html.noNode)
+if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noNode{
+  onErrorRail := Html.div(list{tw(%twc("flex items-center font-text ml-2"))},list{
         Html.span(list{tw(%twc("text-grey6 font-medium mr-px"))}, list{Html.text("(")}),
         Tooltip.tooltip(
           ~style=%twc("-left-5 top-0 bg-black3"),
@@ -890,22 +890,10 @@ let documentationForFunction = (
           list{Html.text("On Error Rail")},
         ),
         Html.span(list{tw(%twc("text-grey6 font-medium ml-px"))}, list{Html.text(")")}),
-      },
-    )
+      })
+}
 
-    let onErrorRail = switch sendToRail {
-      | None => {
-      switch f.returnType {
-        | TOption(_) => errorRail
-        | TResult(_) => errorRail
-        | _ => { Html.text("")}
-      }
-      }
-      | Some(Rail) => errorRail
-      | Some(NoRail) => { Html.text("") }
-    }
-
-  let row = Html.div(list{tw(%twc("flex items-center mt-2"))}, list{return, onErrorRail})
+  let row = Html.div(list{tw(%twc("flex items-center mt-2"))}, list{return, onErrorRail.contents})
 
   let deprecationFooter = {
     let sharedStyle = %twc("font-text font-medium text-xs tracking-wide")
