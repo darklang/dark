@@ -663,6 +663,18 @@ let accountView = (m: model): Html.html<msg> => {
     list{Html.text("Share Dark")},
   )
 
+    let feedbackRef = Html.a(
+    list{
+      Attrs.class("account-action-btn"),
+      Attrs.href("https://github.com/darklang/dark/discussions/categories/feedback"),
+      Attrs.target("_blank"),
+      EventListeners.eventNoPropagation(~key="github-feedback-ref", "click", _ => Msg.UpdateHeapio(
+        OpenKeyboardRef,
+      )),
+    },
+    list{Html.text("Feedback")},
+  )
+
   let tooltip = {
     let (shouldShow, ttContent) = if (
       m.firstVisitToThisCanvas &&
@@ -692,15 +704,17 @@ let accountView = (m: model): Html.html<msg> => {
         list{Attrs.class("account-actions")},
         list{
           settings,
-          share,
           logout,
           spacer,
           docs,
           functionRefs,
           keyboardRefs,
-          discordRef,
           contributeRef,
           tutorial,
+          spacer,
+          share,
+          discordRef,
+          feedbackRef,
         },
       ),
     },
