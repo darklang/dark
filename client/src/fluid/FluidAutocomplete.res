@@ -878,9 +878,8 @@ let documentationForFunction = (
     },
   )
 
-let onErrorRail = ref(Html.noNode)
-if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noNode{
-  onErrorRail := Html.div(list{tw(%twc("flex items-center font-text ml-2"))},list{
+let onErrorRail = if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noNode{
+  Html.div(list{tw(%twc("flex items-center font-text ml-2"))},list{
         Html.span(list{tw(%twc("text-grey6 font-medium mr-px"))}, list{Html.text("(")}),
         Tooltip.tooltip(
           ~style=%twc("-left-5 top-0 bg-black3"),
@@ -891,9 +890,11 @@ if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noNode{
         ),
         Html.span(list{tw(%twc("text-grey6 font-medium ml-px"))}, list{Html.text(")")}),
       })
+} else{
+  Html.noNode
 }
 
-  let row = Html.div(list{tw(%twc("flex items-center mt-2"))}, list{return, onErrorRail.contents})
+  let row = Html.div(list{tw(%twc("flex items-center mt-2"))}, list{return, onErrorRail})
 
   let deprecationFooter = {
     let sharedStyle = %twc("font-text font-medium text-xs tracking-wide")
