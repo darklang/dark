@@ -167,7 +167,7 @@ commands:
       - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
   ##########################
-  # misc
+  # Google Cloud
   ##########################
   auth-with-gcp:
     parameters: { background: { type: boolean } }
@@ -176,8 +176,7 @@ commands:
           name: Auth with GCP
           background: << parameters.background >>
           command: |
-            echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-            gcloud auth activate-service-account --key-file gcloud-service-key.json
+            gcloud auth login --brief --cred-file .circleci/gcp-workflow-identity-config.json
             gcloud auth configure-docker
             ./scripts/production/gcp-authorize-kubectl
 
@@ -188,8 +187,7 @@ commands:
           when: on_fail
           command: |
             if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
-              echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-              gcloud auth activate-service-account --key-file gcloud-service-key.json
+              gcloud auth login --brief --cred-file .circleci/gcp-workflow-idenity-config.json
               gcloud auth configure-docker
               ./scripts/production/gcp-authorize-kubectl
             fi
