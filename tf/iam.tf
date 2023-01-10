@@ -11,3 +11,9 @@ resource "google_service_account" "traces_storage" {
   display_name = "Traces Storage"
   project      = "balmy-ground-195100"
 }
+
+resource "google_service_account" "circleci_deployer" {
+  account_id   = "circleci-deployer"
+  display_name = "CircleCI-deployer"
+  project      = "balmy-ground-195100"
+}
