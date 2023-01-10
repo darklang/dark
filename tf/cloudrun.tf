@@ -1,10 +1,3 @@
-# Enables the Cloud Run API
-# resource "google_project_service" "run_api" {
-#   service = "run.googleapis.com"
-
-#   disable_on_destroy = true
-# }
-
 
 resource "google_cloud_run_service" "bwdserver" {
   name     = "bwdserver"
@@ -88,6 +81,5 @@ resource "google_cloud_run_service" "bwdserver" {
     latest_revision = true
   }
 
-  # Waits for the Cloud Run API to be enabled
-  # depends_on = [google_project_service.run_api]
+  depends_on = [google_project_service.cloud_run_api]
 }
