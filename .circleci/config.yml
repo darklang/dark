@@ -168,6 +168,7 @@ commands:
 
   ##########################
   # Google Cloud
+  # https://circleci.com/docs/openid-connect-tokens/#setting-up-gcp
   ##########################
   auth-with-gcp:
     parameters: { background: { type: boolean } }
@@ -462,12 +463,13 @@ jobs:
       - slack-notify-build
 
 workflows:
-  version: 2
   build-and-deploy:
     jobs:
       # initial builds & tests
       - static-checks
       - predeployment-checks:
+          context:
+            - gcp context
           filters:
             branches:
               ignore: /^(pull\/).*$/
@@ -495,6 +497,8 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-assets-to-gcp:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -505,6 +509,8 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-containers-to-gcp:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -516,6 +522,8 @@ workflows:
 
       # actual deploy
       - deploy:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -529,6 +537,8 @@ workflows:
             - predeployment-checks
 
       - deploy-lock:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -546,5 +556,3 @@ workflows:
             - static-checks
             - predeployment-checks
             - validate-honeycomb-config
-
-# VS Code Extension Version: 1.5.1
