@@ -339,7 +339,10 @@ let mutable tracerProvider : TracerProvider = null
 
 /// Flush all Telemetry. Used on shutdown
 let flush () : unit =
-  if tracerProvider <> null then tracerProvider.ForceFlush() |> ignore<bool>
+  // somehow, this 'flushing' done at the end of an ExecHost migration run
+  // is causing a runtime exception
+  ()
+  //if tracerProvider <> null then tracerProvider.ForceFlush() |> ignore<bool>
 
 
 
