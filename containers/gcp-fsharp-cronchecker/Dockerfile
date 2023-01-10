@@ -9,7 +9,7 @@ COPY --chown=dark:dark containers/gcp-fsharp-cronchecker/gcp-run-fsharp-cronchec
 
 RUN mkdir app
 
-COPY --chown=dark:dark backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/* app/
+COPY --chown=dark:dark backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish/* app/
 
 RUN ./scripts/linting/_check-linked-libs app/CronChecker
 

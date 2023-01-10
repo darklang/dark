@@ -2,8 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
   <PropertyGroup>
     <!-- <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings> -->
-    <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>6.0</LangVersion>
+    <TargetFramework>net7.0</TargetFramework>
+    <LangVersion>7.0</LangVersion>
     <OtherFlags>--warnaserror</OtherFlags>
 
     <RunAOTCompilation>true</RunAOTCompilation>

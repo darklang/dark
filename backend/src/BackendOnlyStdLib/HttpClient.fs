@@ -69,7 +69,7 @@ type Content =
 // As of today (using .NET6) it seems we no longer need to worry about either socket
 // exhaustion or DNS issues. It appears that we can use either multiple HTTP clients
 // or just one, we use just one for efficiency.
-// See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-6.0#alternatives-to-ihttpclientfactory
+// See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-7.0#alternatives-to-ihttpclientfactory
 //
 // Note that I manually verified by hand the number of sockets, which you can do with
 //   sudo netstat -apn | grep _WAIT

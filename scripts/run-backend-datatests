@@ -12,7 +12,7 @@ function ctrl_c() {
 
 killall -9 Tests || true
 
-EXE=Build/out/DataTests/Debug/net6.0/linux-x64/DataTests
+EXE=Build/out/DataTests/Debug/net7.0/linux-x64/DataTests
 
 # No migrations
 

@@ -263,11 +263,11 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/ApiServer/Release/net7.0/linux-x64/publish/
+            - backend/Build/out/BwdServer/Release/net7.0/linux-x64/publish/
+            - backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish/
+            - backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish/
+            - backend/Build/out/ExecHost/Release/net7.0/linux-x64/publish/
       - show-large-files-and-directories
       - save_cache:
           paths:
@@ -302,7 +302,7 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
       - run: cp -f backend/src/Wasm/static/BlazorWorker.js backend/static/
-      - run: rsync -a backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
+      - run: rsync -a backend/Build/out/Wasm/Release/net7.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
       - persist_to_workspace:
           root: "."

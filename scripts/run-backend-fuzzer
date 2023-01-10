@@ -12,7 +12,7 @@ function ctrl_c() {
 
 killall -9 FuzzTests || true
 
-EXE=Build/out/FuzzTests/Debug/net6.0/FuzzTests
+EXE=Build/out/FuzzTests/Debug/net7.0/FuzzTests
 
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the

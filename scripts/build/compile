@@ -96,12 +96,12 @@ def copy_backend_static():
   if optimize:
     wwwroot = run_backend(
         start,
-        "rsync -a backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a backend/Build/out/Wasm/Release/net7.0/publish/wwwroot/_framework/ backend/static/blazor/"
     )
   else:
     wwwroot = run_backend(
         start,
-        "rsync -a backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a backend/Build/out/Wasm/Debug/net7.0/wwwroot/_framework/ backend/static/blazor/"
     )
   return blazor and wwwroot
 

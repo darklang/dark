@@ -3,8 +3,8 @@
   <!-- This library only exists so that we can separate LibBackendStdLib from LibBackend -->
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>6.0</LangVersion>
+    <TargetFramework>net7.0</TargetFramework>
+    <LangVersion>7.0</LangVersion>
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
