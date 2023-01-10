@@ -167,7 +167,8 @@ commands:
       - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
   ##########################
-  # misc
+  # Google Cloud
+  # https://circleci.com/docs/openid-connect-tokens/#setting-up-gcp
   ##########################
   auth-with-gcp:
     parameters: { background: { type: boolean } }
@@ -176,8 +177,8 @@ commands:
           name: Auth with GCP
           background: << parameters.background >>
           command: |
-            echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-            gcloud auth activate-service-account --key-file gcloud-service-key.json
+            echo $CIRCLE_OIDC_TOKEN >> CIRCLE_OIDC_TOKEN_FILE
+            gcloud auth login --brief --cred-file .circleci/gcp-workflow-identity-config.json
             gcloud auth configure-docker
             ./scripts/production/gcp-authorize-kubectl
 
@@ -188,8 +189,8 @@ commands:
           when: on_fail
           command: |
             if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
-              echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-              gcloud auth activate-service-account --key-file gcloud-service-key.json
+              echo $CIRCLE_OIDC_TOKEN >> CIRCLE_OIDC_TOKEN_FILE
+              gcloud auth login --brief --cred-file .circleci/gcp-workflow-idenity-config.json
               gcloud auth configure-docker
               ./scripts/production/gcp-authorize-kubectl
             fi
@@ -462,12 +463,13 @@ jobs:
       - slack-notify-build
 
 workflows:
-  version: 2
   build-and-deploy:
     jobs:
       # initial builds & tests
       - static-checks
       - predeployment-checks:
+          context:
+            - gcp context
           filters:
             branches:
               ignore: /^(pull\/).*$/
@@ -495,6 +497,8 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-assets-to-gcp:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -505,6 +509,8 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-containers-to-gcp:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -516,6 +522,8 @@ workflows:
 
       # actual deploy
       - deploy:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -529,6 +537,8 @@ workflows:
             - predeployment-checks
 
       - deploy-lock:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
