@@ -12,7 +12,7 @@ resource "google_iam_workload_identity_pool_provider" "circleci" {
   display_name                       = "CircleCI"
   disabled                           = false
   // Only darklang/dark project
-  attribute_condition = "attribute.project=='1f60315c-0228-42dd-9205-ed25beb24371'"
+  attribute_condition = "attribute.project==\"1f60315c-0228-42dd-9205-ed25beb24371\""
 
   attribute_mapping = {
     "attribute.project" = "assertion['oidc.circleci.com/project-id']"
