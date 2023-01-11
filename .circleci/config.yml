@@ -83,12 +83,6 @@ commands:
               ./scripts/deployment/deploy-lock-one-remove
             fi
 
-  deploy-lock-remove:
-    steps:
-      - run:
-          name: Remove deploy lock
-          command: ./scripts/deployment/deploy-lock-one-remove
-
   ##########################
   # Slack
   ##########################
@@ -177,10 +171,26 @@ commands:
           name: Auth with GCP
           background: << parameters.background >>
           command: |
-            echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
-            gcloud auth login --brief --cred-file .circleci/gcp-workflow-identity-config.json
-            gcloud auth configure-docker
+            # Don't run a second time (no need, but also token becomes invalid after an hour)
+            if [[ ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
+              echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
+              gcloud auth login --brief --cred-file .circleci/gcp-workflow-identity-config.json
+            fi
+
+  auth-kubernetes:
+    steps:
+      - run:
+          name: Auth with Kubernetes
+          command: |
             ./scripts/production/gcp-authorize-kubectl
+
+
+  auth-gcr:
+    steps:
+      - run:
+          name: Auth with GCR
+          command: |
+            gcloud auth configure-docker
 
   auth-with-gcp-on-fail:
     steps:
@@ -188,11 +198,10 @@ commands:
           name: Auth with GCP (on fail)
           when: on_fail
           command: |
-            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
+            # Don't run a second time (no need, but also token becomes invalid after an hour)
+            if [[ "${CIRCLE_BRANCH}" = "main" || ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
               echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
               gcloud auth login --brief --cred-file .circleci/gcp-workflow-identity-config.json
-              gcloud auth configure-docker
-              ./scripts/production/gcp-authorize-kubectl
             fi
 
 ##########################
@@ -336,6 +345,7 @@ jobs:
     steps:
       - darkcheckout
       - auth-with-gcp: { background: false }
+      - auth-kubernetes
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
       - slack-notify-job-failure
@@ -407,6 +417,7 @@ jobs:
       - setup-app
       - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: true }
+      - auth-gcr
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
@@ -450,6 +461,7 @@ jobs:
       - setup-app
       - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: false }
+      - auth-kubernetes
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # deploy lock is removed as part of the gke-deploy script
