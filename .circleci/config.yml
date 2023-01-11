@@ -177,7 +177,7 @@ commands:
           name: Auth with GCP
           background: << parameters.background >>
           command: |
-            echo $CIRCLE_OIDC_TOKEN >> CIRCLE_OIDC_TOKEN_FILE
+            echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
             gcloud auth login --brief --cred-file .circleci/gcp-workflow-identity-config.json
             gcloud auth configure-docker
             ./scripts/production/gcp-authorize-kubectl
@@ -185,11 +185,11 @@ commands:
   auth-with-gcp-on-fail:
     steps:
       - run:
-          name: Auth with GCP
+          name: Auth with GCP (on fail)
           when: on_fail
           command: |
             if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
-              echo $CIRCLE_OIDC_TOKEN >> CIRCLE_OIDC_TOKEN_FILE
+              echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
               gcloud auth login --brief --cred-file .circleci/gcp-workflow-identity-config.json
               gcloud auth configure-docker
               ./scripts/production/gcp-authorize-kubectl
