@@ -568,7 +568,7 @@ let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
 
 let accountView = (m: model): Html.html<msg> => {
   let accountActionBtnStyle = %twc(
-    "m-2.5 cursor-pointer text-white1 hover:text-purple mt-1.5 no-underline"
+    "m-2.5 cursor-pointer text-white1 font-text hover:text-purple mt-1.5 no-underline"
   )
 
   let logout = Html.a(
@@ -621,7 +621,7 @@ let accountView = (m: model): Html.html<msg> => {
         OpenKeyboardRef,
       )),
     },
-    list{Html.text("Discord Community")},
+    list{Html.span(list{tw(%twc("font-text"))}, list{Icons.fontAwesomeBrands(~style=%twc("mr-1.5 text-sm"),"discord"), Html.text("Discord Community")})}
   )
 
   let contributeRef = Html.a(
@@ -666,7 +666,7 @@ let accountView = (m: model): Html.html<msg> => {
         OpenKeyboardRef,
       )),
     },
-    list{Html.text("Report Bug")},
+    list{Html.span(list{tw(%twc("font-text"))}, list{Icons.fontAwesome(~style=%twc("mr-2"),"bug"), Html.text("Report Bug")})}
   )
   let feedbackRef = Html.a(
     list{
@@ -677,7 +677,7 @@ let accountView = (m: model): Html.html<msg> => {
         OpenKeyboardRef,
       )),
     },
-    list{Html.text("Post Feedback")},
+    list{Html.span(list{tw(%twc("font-text"))}, list{Icons.fontAwesomeBrands(~style=%twc("mr-2"),"github"), Html.text("Post Feedback")})}
   )
 
   let tooltip = {
@@ -709,7 +709,7 @@ let accountView = (m: model): Html.html<msg> => {
         list{
           tw(
             %twc(
-              "hidden group-hover:flex py-1.5 px-2 box-border bg-black3 overflow-hidden flex-col justify-around text-right"
+              "hidden group-hover:flex py-1.5 px-2 box-border bg-black3 overflow-hidden flex-col justify-around text-left"
             ),
           ),
         },
