@@ -550,7 +550,7 @@ setTimeout(function () {
   // ---------------------------
   // Initialize blazorworker
   // ---------------------------
-  window.Dark.analysis.initializeBlazorWorker();
+  //window.Dark.analysis.initializeBlazorWorker();
 
   // ---------------------------
   // Detect window focus change
