@@ -484,7 +484,7 @@ workflows:
             - gcp context
           filters:
             branches:
-              ignore: /^(pull\/).*$/
+              ignore: /^(pull|dependabot)\/.*$/
       - validate-honeycomb-config
       - build-client
       - build-backend
