@@ -13,6 +13,10 @@ type tutorialStep = AppTypes.Tutorial.Step.t
 type tooltipState = AppTypes.Tooltip.t
 type tooltipMsg = AppTypes.Tooltip.msg
 
+let tw= Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
+
+
 type rec toolTipDirection =
   | Left
   | Right
@@ -191,7 +195,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
         ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/create-http-handler")),
       ),
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | Worker => {
@@ -202,7 +206,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
         ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/process-background-jobs-worker")),
       ),
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | Cron => {
@@ -213,7 +217,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
         ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/create-daily-job-cron-handler")),
       ),
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | Repl => {
@@ -224,7 +228,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
         ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/create-tool-repl")),
       ),
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | Datastore => {
@@ -235,7 +239,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
         ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/save-data-to-datastore")),
       ),
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | Function => {
@@ -246,7 +250,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
         ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/extract-function")),
       ),
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | FourOhFour => {
@@ -259,7 +263,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
         ToolTipMsg(OpenLink("https://docs.darklang.com/discussion/trace-driven-development")),
       ),
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | Deleted => {
@@ -267,7 +271,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
       details: None,
       action: None,
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | PackageManager => {
@@ -277,7 +281,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
       }),
       action: None,
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | StaticAssets => {
@@ -288,7 +292,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
         ToolTipMsg(OpenLink("https://docs.darklang.com/how-to/static-assets")),
       ),
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   | FnParam => {
@@ -296,7 +300,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
       details: None,
       action: None,
       align: Left,
-      tipAlignment: "",
+      tipAlignment: %twc("-right-1 top-6"),
       tooltipStyle: Default,
     }
   | FnBackToCanvas => {
@@ -304,7 +308,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
       details: None,
       action: None,
       align: Top,
-      tipAlignment: "",
+      tipAlignment: %twc("-bottom-1"),
       tooltipStyle: Default,
     }
   | Secrets => {
@@ -314,7 +318,7 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
       }),
       action: None,
       align: Bottom,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("left-11 -top-1"),
       tooltipStyle: Default,
     }
   }
@@ -336,7 +340,7 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
 
     Html.button(
       list{
-        Attrs.class("page-btn"),
+        tw(%twc("outline-0 p-1 font-medium bg-transparent mt-2.5 font-text border-none text-black2 w-full text-center disabled:text-[#3cbfad] disabled:cursor-default")),
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.nothingMouseEvent("mouseup"),
         clickEvent,
@@ -360,7 +364,7 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
 
     Html.button(
       list{
-        Attrs.class("page-btn"),
+        tw(%twc("outline-0 p-1 font-medium bg-transparent mt-2.5 font-text border-none text-black2 w-full text-center disabled:text-[#3cbfad] disabled:cursor-default")),
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.nothingMouseEvent("mouseup"),
         clickEvent,
@@ -370,7 +374,7 @@ let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: s
     )
   }
 
-  Html.div(list{Attrs.class("btn-container")}, list{prevBtn, nextBtn})
+  Html.div(list{tw(%twc("flex w-full justify-evenly"))}, list{prevBtn, nextBtn})
 }
 
 let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent): Html.html<
@@ -382,11 +386,11 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | None => t.title
     }
 
-    let viewDesc = Html.h1(list{Attrs.class("description")}, list{Html.text(t.title)})
+    let viewDesc = Html.h1(list{tw(%twc("text-lg font-text text-black2 m-0 text-center"))}, list{Html.text(t.title)})
     let viewDetail = switch t.details {
     | Some(txtList) =>
       let txtview = List.map(
-        ~f=txt => Html.p(list{Attrs.class("details")}, list{Html.text(txt)}),
+        ~f=txt => Html.p(list{tw(%twc("text-base font-text text-black2 text-center"))}, list{Html.text(txt)}),
         txtList,
       )
 
@@ -399,10 +403,10 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | Some(text, action) =>
       Html.button(
         list{
-          Attrs.class("action-button"),
+          tw(%twc("outline-0 p-1 font-medium bg-transparent mt-2.5 w-max border-0 font-text text-cyan bg-white3 rounded hover:text-white3 hover:bg-[#8eeade] ")),
           EventListeners.eventNoPropagation(~key="close-settings" ++ text, "click", _ => action),
         },
-        list{Html.p(list{}, list{Html.text(text)})},
+        list{Html.p(list{tw(%twc("m-0"))}, list{Html.text(text)})},
       )
     | None => Vdom.noNode
     }
@@ -411,7 +415,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | Tutorial(_) | Crud =>
       Html.button(
         list{
-          Attrs.class("page-btn"),
+          tw(%twc("outline-0 p-1 font-medium bg-transparent mt-2.5 border-none text-black2 font-text text-center w-full ")),
           EventListeners.nothingMouseEvent("mousedown"),
           EventListeners.nothingMouseEvent("mouseup"),
           EventListeners.eventNoPropagation(
@@ -429,7 +433,7 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | Tutorial(step) =>
       let (current, total) = currentStepFraction(step)
       Html.p(
-        list{Attrs.class("step-title")},
+        list{tw(%twc("font-text text-black2 text-center"))},
         list{Html.text(`${Int.toString(current)}/${Int.toString(total)}`)},
       )
     | Crud | Default => Vdom.noNode
@@ -441,24 +445,24 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     }
 
     let directionToClass = switch t.align {
-    | Top => "above"
-    | Bottom => "below"
-    | Left => "left-of"
-    | Right => "right-of"
+    | Top => %twc("items-center flex-col-reverse bottom-3.5 right-1")
+    | Bottom => %twc("items-center flex-col top-3.5")
+    | Left => %twc("right-12 -top-16")
+    | Right => %twc("left-5 top-0")
     }
 
     Html.div(
-      list{Attrs.class("tooltipWrapper")},
+      list{tw(%twc("relative"))},
       list{
         Html.div(
           ~unique=uniqueStr,
-          list{Attrs.class("tooltips " ++ directionToClass)},
+          list{tw2(%twc("absolute text-sm flex w-max max-w-[250px] bg-cyan rounded-md z-[5000] shadow-[0_2px_4px_1px_rgba(24,24,24,0.7)] mt-1.5"), directionToClass)},
           list{
             Html.div(
-              list{Attrs.class("content")},
+              list{tw(%twc("flex flex-col items-center p-2"))},
               list{viewStepCount, viewDesc, viewDetail, viewBtn, viewNextPrevBtns, closeBtn},
             ),
-            Html.div(list{Attrs.class("tip " ++ t.tipAlignment)}, list{}),
+            Html.div(list{tw2(%twc("bg-cyan block w-2.5 h-2.5 z-0 absolute rotate-45") , t.tipAlignment)}, list{}),
           },
         ),
       },
