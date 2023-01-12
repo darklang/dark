@@ -30,6 +30,7 @@ module.exports = {
       yellow: "#f7ca88",
       green: "#a1b56c",
       cyan: "#86c1b9",
+      cyan1: "#3cbfad", //darken($tooltip-color, 25%)
       blue: "#7cafc2",
       purple: "#b18bba",
       purple1: "#c7abcd", // lighten($purple, 10%)
@@ -53,6 +54,7 @@ module.exports = {
       "default-toplevel": "var(--defaultToplevelColor)",
       "user-functions": "var(--userFunctionsColor)",
       db: "var(--dbColor)",
+      tooltip: "var(--tooltipColor)"
     },
     extend: {
       borderWidth: {
