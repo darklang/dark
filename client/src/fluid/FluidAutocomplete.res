@@ -739,7 +739,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
           list{
             expected,
             Html.span(
-              list{tw(%twc("bg-teal/25 rounded text-teal px-1 py-px"))},
+              list{tw(%twc("bg-grey1/50 rounded text-green px-1 py-px"))},
               list{Html.text(acFirstArgType->Belt.Option.getWithDefault("no argument"))},
             ),
           },
@@ -749,7 +749,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
           list{
             actual,
             Html.span(
-              list{tw(%twc("bg-orange1/25 rounded text-orange1 px-1 py-px"))},
+              list{tw(%twc("bg-grey1/50 rounded text-orange px-1 py-px"))},
               list{Html.text(DType.type2str(typ))},
             ),
           },
@@ -776,7 +776,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
           list{
             expected,
             Html.span(
-              list{tw(%twc("bg-teal/25 rounded text-teal px-1 py-px"))},
+              list{tw(%twc("bg-grey1/50 rounded text-green px-1 py-px"))},
               list{Html.span(list{}, list{Html.text(DType.type2str(returnType))})},
             ),
           },
@@ -786,7 +786,7 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
           list{
             actual,
             Html.span(
-              list{tw(%twc("bg-orange1/25 rounded text-orange1 px-1 py-px"))},
+              list{tw(%twc("bg-grey1/50 rounded text-orange px-1 py-px"))},
               list{Html.text(acReturnType)},
             ),
           },
@@ -903,13 +903,13 @@ let onErrorRail = if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noN
     | ReplacedBy(name) => list{
         Html.span(
           list{tw(sharedStyle)},
-          list{Html.text("replaced by " ++ FQFnName.StdlibFnName.toString(name))},
+          list{Html.text("replaced by "), Html.span(list{tw(%twc("font-code text-purple1"))},list{Html.text(FQFnName.StdlibFnName.toString(name))})},
         ),
       }
     | RenamedTo(name) => list{
         Html.span(
           list{tw(sharedStyle)},
-          list{Html.text("renamed to " ++ FQFnName.StdlibFnName.toString(name))},
+          list{Html.text("renamed to "),  Html.span(list{tw(%twc("font-code text-purple1"))}, list{Html.text(FQFnName.StdlibFnName.toString(name))})},
         ),
       }
     | DeprecatedBecause(reason) => list{Html.span(list{tw(sharedStyle)}, list{Html.text(reason)})}
