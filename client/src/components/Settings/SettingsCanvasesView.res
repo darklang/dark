@@ -91,7 +91,10 @@ let view = (settings: T.t): list<Html.html<'msg>> => {
 
   let orgs = List.map(settings.orgCanvasList, ~f=canvasLink) |> Html.ul(list{})
   let orgView = if List.length(settings.orgCanvasList) > 0 {
-    list{Html.p(list{tw(%twc("font-text text-lg"))}, list{Html.text("Shared canvases:")}), C.listView(list{orgs})}
+    list{
+      Html.p(list{tw(%twc("font-text text-lg"))}, list{Html.text("Shared canvases:")}),
+      C.listView(list{orgs}),
+    }
   } else {
     list{Vdom.noNode}
   }

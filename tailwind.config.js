@@ -27,11 +27,14 @@ module.exports = {
 
       red: "#ab4642",
       orange: "#dc9656",
+      orange1: "#a67254",
       yellow: "#f7ca88",
       green: "#a1b56c",
       cyan: "#86c1b9",
       blue: "#7cafc2",
+      teal: "#71c7b2",
       purple: "#b18bba",
+      purple1: "#c7abcd", // lighten($purple, 10%)
       pink: "#d5839d",
       magenta: "magenta",
 
@@ -58,9 +61,9 @@ module.exports = {
         3: "3px",
       },
       fontSize: {
+        xxxs: "0.5rem",
         xxs: "0.625rem",
         md: "1.0625rem", // 17px - between base and lg
-        xxxs: "0.5rem",
       },
       margin: {
         0.25: "0.0625rem",

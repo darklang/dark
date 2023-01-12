@@ -12,11 +12,18 @@ let codeEx = "^(.*)\\{\\{(.+)\\}\\}(.*)$"
 
 let linkEx = "^(.*)\\[(.+)\\]\\((http[s]?\\://.+)\\)(.*)$"
 
-let codeClass = "code"
-
 let nestedTag = Regex.regex(`<\\\w+[^>]*<`)
 
 let nestedCodeBlock = Regex.regex(`{{[^}]+{{`)
+
+let \"type" = %twc("text-green")
+let param = %twc("text-purple1")
+let fn = %twc("text-purple1")
+let var = %twc("text-purple1")
+let err = %twc("text-red pb-3.5")
+let cmd = %twc("text-pink whitespace-nowrap")
+let code = %twc("bg-grey1 whitespace-nowrap py-0 px-1.5")
+let default = %twc("text-white1")
 
 let validTags = list{"param", "fn", "var", "type", "err", "cmd"}
 
@@ -52,7 +59,7 @@ let rec convert_ = (s: string): parseResult => {
         switch (convert_(before), convert_(inside), convert_(after)) {
         | (ParseSuccess(beforeNodes), ParseSuccess(insideNodes), ParseSuccess(afterNodes)) =>
           ParseSuccess(
-            Belt.List.concatMany([beforeNodes, list{tag(codeClass, insideNodes)}, afterNodes]),
+            Belt.List.concatMany([beforeNodes, list{tag(code, insideNodes)}, afterNodes]),
           )
         | (beforeRes, insideRes, afterRes) =>
           let errors = list{beforeRes, insideRes, afterRes} |> justErrors
@@ -65,7 +72,14 @@ let rec convert_ = (s: string): parseResult => {
   let tryParseAsTag = (input): option<parseResult> =>
     switch Regex.captures(~re=Regex.regex(~flags="s", tagEx), input) {
     | list{_, before, tagType, tagData, after} if List.member(~value=tagType, validTags) =>
-      let tagNode = tag(tagType, list{txt(tagData)})
+      let tagNode = switch tagType {
+      | "type" => tag(\"type", list{txt(tagData)})
+      | "param" => tag(param, list{txt(tagData)})
+      | "fn" => tag(fn, list{txt(tagData)})
+      | "var" => tag(var, list{txt(tagData)})
+      | "cmd" => tag(cmd, list{txt(tagData)})
+      | _ => tag(default, list{txt(tagData)})
+      }
       Some(
         switch (convert_(before), convert_(after)) {
         | (ParseSuccess(beforeNodes), ParseSuccess(afterNodes)) =>

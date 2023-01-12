@@ -31,7 +31,7 @@ module Tooltip = {
     )
   }
 
-  // Returns a text node with approproate styling for a tooltip body
+  // Returns a text node with appropriate styling for a tooltip body
   let text = (text: string): Html.html<'msg> => {
     Html.span(list{tw(%twc("text-base font-text text-left text-white3"))}, list{Html.text(text)})
   }
@@ -40,8 +40,7 @@ module Tooltip = {
 module InfoIcon = {
   // Show an information icon: a small "i" that you can hover to see the passed information
   let generic = (body: Html.html<'msg>): Html.html<'msg> =>
-    Icons.fontAwesome(~style=%twc("text-sm px-1 text-grey1"), "info-circle")->Tooltip.add(body)
-
+    Icons.fontAwesome(~style=%twc("text-sm pl-1 text-grey1"), "info-circle")->Tooltip.add(body)
   // Show an information icon: a small "i" that you can hover to see the passed information
   let text = (text: string): Html.html<'msg> => generic(Tooltip.text(text))
 }

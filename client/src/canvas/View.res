@@ -115,7 +115,16 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     let viewDoc = desc =>
       Html.div(
         list{
-          Attrs.classList(list{("documentation-box", true), ("draggable", draggable)}),
+          Attrs.id("documentation-box"),
+          Attrs.classList(list{
+            (
+              %twc(
+                "absolute bottom-full left-0 w-[calc(100%-1.25rem)] py-1.5 px-2.5 bg-sidebar-bg text-xs text-white1 break-words font-text"
+              ),
+              true,
+            ),
+            (%twc("cursor-move"), draggable),
+          }),
           ...dragEvents,
         },
         desc,
@@ -235,7 +244,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
   let tooltip = switch m.tooltipState.userTutorial.step {
   | Some(step)
     if step == VerbChange || (step == ReturnValue || (step == OpenTab || step == GettingStarted)) =>
-    UserTutorial.generateTutorialContent(step, m.username) |> Tooltips.viewToolTip(
+    UserTutorial.generateTutorialContent(step, m.username) |> Tutorial.viewToolTip(
       ~shouldShow=m.tooltipState.userTutorial.tlid == Some(tlid),
       ~tlid=Some(tlid),
     )
@@ -494,7 +503,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
       list{fontAwesome("question-circle")},
     )
     let tooltip =
-      Tooltips.generateContent(FnBackToCanvas) |> Tooltips.viewToolTip(
+      Tutorial.generateContent(FnBackToCanvas) |> Tutorial.viewToolTip(
         ~shouldShow=showTooltip,
         ~tlid=None,
       )
@@ -658,7 +667,7 @@ let accountView = (m: model): Html.html<msg> => {
       )
     }
 
-    ttContent |> Tooltips.viewToolTip(~shouldShow, ~tlid=m.tooltipState.userTutorial.tlid)
+    ttContent |> Tutorial.viewToolTip(~shouldShow, ~tlid=m.tooltipState.userTutorial.tlid)
   }
 
   Html.div(
