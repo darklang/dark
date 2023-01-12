@@ -17,47 +17,7 @@ module Telemetry = LibService.Telemetry
 
 
 module HttpBaseClient =
-  module Method =
-    type T =
-      | GET
-      | POST
-      | PUT
-      | PATCH
-      | DELETE
-      | HEAD
-      | OPTIONS
-      | TRACE
-      | CONNECT // TODO should we explicitly disallow this?
-      | Other of string
-
-    type ParseError = | Empty
-
-    let parse (method : string) : Result<T, ParseError> =
-      match method.ToLowerInvariant() with
-      | "get" -> Ok GET
-      | "post" -> Ok POST
-      | "put" -> Ok PUT
-      | "patch" -> Ok PATCH
-      | "delete" -> Ok DELETE
-      | "trace" -> Ok TRACE
-      | "options" -> Ok OPTIONS
-      | "head" -> Ok HEAD
-      | "connect" -> Ok CONNECT
-      | "" -> Error Empty
-      | _ -> Ok(Other method)
-
-    let toDotNetHttpMethod (method : T) : HttpMethod =
-      match method with
-      | GET -> HttpMethod.Get
-      | POST -> HttpMethod.Post
-      | PUT -> HttpMethod.Put
-      | PATCH -> HttpMethod.Patch
-      | DELETE -> HttpMethod.Delete
-      | HEAD -> HttpMethod.Head
-      | OPTIONS -> HttpMethod.Options
-      | TRACE -> HttpMethod.Trace
-      | CONNECT -> HttpMethod "connect"
-      | Other other -> HttpMethod other
+  type Method = HttpMethod
 
   module Headers =
     type Header = string * string
@@ -67,7 +27,7 @@ module HttpBaseClient =
 
   type HttpRequest =
     { url : string
-      method : Method.T
+      method : Method
       headers : Headers.T
       body : Body }
 
@@ -158,7 +118,7 @@ module HttpBaseClient =
 
           use req =
             new HttpRequestMessage(
-              Method.toDotNetHttpMethod httpRequest.method,
+              httpRequest.method,
               reqUri,
               Content = new ByteArrayContent(httpRequest.body),
 
@@ -296,10 +256,14 @@ let fns : List<BuiltInFn> =
                     $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}")
               |> Result.map (fun pairs -> List.rev pairs)
 
-            let method = HttpBaseClient.Method.parse method
+            let method =
+              try
+                Some(HttpMethod method)
+              with
+              | _ -> None
 
             match reqHeaders, method with
-            | Ok reqHeaders, Ok method ->
+            | Ok reqHeaders, Some method ->
               uply {
                 let request : HttpBaseClient.HttpRequest =
                   { url = uri
@@ -345,18 +309,11 @@ let fns : List<BuiltInFn> =
               }
 
             | Error reqHeadersErr, _ ->
-              // TODO: include a DvalSource rather than SourceNone
-              // (this will take some refactoring of stdlib fns)
               uply { return DError(SourceNone, reqHeadersErr) }
 
-            | _, Error (HttpBaseClient.Method.ParseError.Empty) ->
-              uply {
-                return
-                  DError(
-                    SourceNone,
-                    "Expected valid HTTP method (e.g. 'get' or 'POST')"
-                  )
-              }
+            | _, None ->
+              let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
+              uply { return DError(SourceNone, error) }
 
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

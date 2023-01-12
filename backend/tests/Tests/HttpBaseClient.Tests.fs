@@ -6,13 +6,8 @@
 /// tests are formatted and parsed.
 ///
 /// These work almost exactly as our `HttpClient` tests do, which you can find tests
-/// for in `HttpClient.Tests.fs`.
+/// for in `HttpClient.Tests.fs`. It may make sense to merge these 2 test fmodules.
 module Tests.HttpBaseClient
-
-// TODO: currently, the adjacent HttpClient tests are commented out. _These_ tests
-// are currently using a port that is configured to be used for the HttpClient
-// tests. We need to either configure an additional port for these tests, or
-// consolidate the two testing modules.
 
 let baseDirectory = "testfiles/httpbaseclient"
 let versions = [ "v0" ]
@@ -53,7 +48,7 @@ type TestCase =
 let testCases : ConcurrentDictionary<string, TestCase> = ConcurrentDictionary()
 
 
-let host = $"test.builtwithdark.localhost:{TestConfig.httpClientPort}"
+let host = $"test.builtwithdark.localhost:{TestConfig.httpBaseClientPort}"
 
 let normalizeHeaders
   (body : byte array)
@@ -91,6 +86,23 @@ let updateBody (body : byte array) : byte array =
 
 
 
+// TODO once the fn is non-internal, remove
+let testAdmin =
+  lazy
+    (task {
+      let username = UserName.create "httpbaseclient_admin"
+      let account : LibBackend.Account.Account =
+        { username = username
+          password = LibBackend.Password.invalid
+          email = "admin-httpbaseclient-test@darklang.com"
+          name = "test name" }
+      do!
+        LibBackend.Account.upsertAdmin account
+        |> Task.map (Exception.unwrapResultInternal [])
+      return!
+        LibBackend.Account.getUser username
+        |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
+    })
 
 
 let makeTest versionName filename =
@@ -151,9 +163,13 @@ let makeTest versionName filename =
     if shouldSkipTest then
       skiptest $"underscore test - {testName}"
     else
+      let! admin = testAdmin.Force()
       // Set up the canvas
       let! meta =
-        createTestCanvas (Randomized $"httpbaseclient-{versionName}-{testName}")
+        createCanvasForOwner
+          admin
+          (Randomized $"httpbaseclient-{versionName}-{testName}")
+      //createTestCanvas (Randomized $"httpbaseclient-{versionName}-{testName}")
       let! state = executionStateFor meta Map.empty Map.empty
 
       // Parse the Dark code
@@ -266,16 +282,12 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
               expectedRequest =
                 { testCase.expectedRequest with
                     status =
-                      // TODO can we rather normalize this when we test, rather than now?
-                      // we don't have the ctx then, so maybe not.
                       testCase.expectedRequest.status
                       |> String.replace "PATH" ctx.Request.Path.Value } }
         testCases[dictKey] <- updatedTestCase
 
 
         // Return the response
-        // TODO: I don't think we use anything above^ when we process the response here.
-        //       maybe we should extrapolate this out?
         let mutable compression = None
         let mutable transcodeToLatin1 = false
 
@@ -335,8 +347,6 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       // the body and hope that helps
       if not ctx.Response.HasStarted then ctx.Response.StatusCode <- 500
 
-      // Q why would it have 'already started'?
-
       let body = $"{e.Message}\n\n{e.StackTrace}"
       print $"{body}-{ctx.Request.Path}"
       let body = UTF8.toBytes body
@@ -359,7 +369,7 @@ let webserver () =
        h.ConfigureWebHost (fun wh ->
          wh
          |> fun wh -> wh.UseKestrel()
-         |> fun wh -> wh.UseUrls($"http://*:{TestConfig.httpClientPort}")
+         |> fun wh -> wh.UseUrls($"http://*:{TestConfig.httpBaseClientPort}")
          |> fun wh -> wh.Configure(configureApp)
          |> ignore<IWebHostBuilder>)
   |> fun h -> h.Build()

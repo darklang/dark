@@ -35,8 +35,6 @@ let main (args : string array) : int =
     LibAnalysis.initSerializers ()
     initSerializers ()
 
-    // TODO: re-enable HttpBaseClient tests
-
     let tests =
       [ Tests.Account.tests
         Tests.AnalysisTypes.tests
@@ -52,7 +50,7 @@ let main (args : string array) : int =
         Tests.FSharpToExpr.tests
         Tests.HttpQueryEncoding.tests
         Tests.HttpClient.tests
-        //Tests.HttpBaseClient.tests
+        Tests.HttpBaseClient.tests
         Tests.LibExecution.tests.Force()
         Tests.Prelude.tests
         Tests.ProgramTypes.tests
@@ -72,8 +70,8 @@ let main (args : string array) : int =
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let apiServerTestsTask = Tests.ApiServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-    //let httpBaseClientTestsTask =
-    //  Tests.HttpBaseClient.init cancelationTokenSource.Token
+    let httpBaseClientTestsTask =
+      Tests.HttpBaseClient.init cancelationTokenSource.Token
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // Generate this so that we can see if the format has changed in a git diff
@@ -89,7 +87,7 @@ let main (args : string array) : int =
     bwdServerTestsTask.Wait()
     apiServerTestsTask.Wait()
     httpClientTestsTask.Wait()
-    //httpBaseClientTestsTask.Wait()
+    httpBaseClientTestsTask.Wait()
     QueueWorker.shouldShutdown <- true
     exitCode
   with
