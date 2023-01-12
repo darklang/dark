@@ -26,7 +26,6 @@ let failwith = failwith
                            IsHidden = true)>]
 let printf = printf
 
-// is this useful?
 [<CompilerMessageAttribute("printfn is banned, use Prelude.print instead",
                            0,
                            IsError = true,
