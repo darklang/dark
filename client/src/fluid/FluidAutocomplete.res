@@ -903,13 +903,13 @@ let onErrorRail = if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noN
     | ReplacedBy(name) => list{
         Html.span(
           list{tw(sharedStyle)},
-          list{Html.text("replaced by "), Html.span(list{tw(%twc("font-text text-purple1"))},list{Html.text(FQFnName.StdlibFnName.toString(name))})},
+          list{Html.text("replaced by "), Html.span(list{tw(%twc("font-code text-purple1"))},list{Html.text(FQFnName.StdlibFnName.toString(name))})},
         ),
       }
     | RenamedTo(name) => list{
         Html.span(
           list{tw(sharedStyle)},
-          list{Html.text("renamed to "),  Html.span(list{tw(%twc("font-text text-purple1"))}, list{Html.text(FQFnName.StdlibFnName.toString(name))})},
+          list{Html.text("renamed to "),  Html.span(list{tw(%twc("font-code text-purple1"))}, list{Html.text(FQFnName.StdlibFnName.toString(name))})},
         ),
       }
     | DeprecatedBecause(reason) => list{Html.span(list{tw(sharedStyle)}, list{Html.text(reason)})}
