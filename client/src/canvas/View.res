@@ -578,7 +578,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let docs = Html.a(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       Attrs.href(docsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-doc", "click", _ => Msg.UpdateHeapio(
@@ -590,7 +590,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let functionRefs = Html.a(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       Attrs.href(functionRefsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-fn-ref", "click", _ => Msg.UpdateHeapio(
@@ -602,7 +602,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let keyboardRefs = Html.a(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       Attrs.href(keyboardRefsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-fn-ref", "click", _ => Msg.UpdateHeapio(
@@ -614,19 +614,19 @@ let accountView = (m: model): Html.html<msg> => {
 
   let discordRef = Html.a(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       Attrs.href("https://darklang.com/discord-invite"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="discord-invite-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
-    list{Html.span(list{tw(%twc("font-text"))}, list{Icons.fontAwesomeBrands(~style=%twc("mr-1.5 text-sm"),"discord"), Html.text("Discord Community")})}
+    list{Html.span(list{tw(%twc("font-text"))}, list{ Html.text("Discord Community"), Icons.fontAwesomeBrands(~style=%twc("ml-1.5 text-sm"),"discord")})}
   )
 
   let contributeRef = Html.a(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       Attrs.href("https://docs.darklang.com/contributing/getting-started"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="contributor-ref", "click", _ => Msg.UpdateHeapio(
@@ -638,7 +638,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let tutorial = Html.p(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       EventListeners.eventNoPropagation(~key="tutorial", "click", _ => Msg.ToolTipMsg(
         UpdateTutorial(ReopenTutorial),
       )),
@@ -649,7 +649,7 @@ let accountView = (m: model): Html.html<msg> => {
   let spacer = Html.div(list{tw(%twc("bg-grey2 h-px my-2.5 mx-0"))}, list{})
   let settings = Html.p(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       EventListeners.eventNoPropagation(~key="open-settings", "click", _ => Msg.SettingsMsg(
         Open(Canvases),
       )),
@@ -659,25 +659,25 @@ let accountView = (m: model): Html.html<msg> => {
 
   let reportBugRef = Html.a(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       Attrs.href("https://github.com/darklang/dark/issues"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="github-issues-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
-    list{Html.span(list{tw(%twc("font-text"))}, list{Icons.fontAwesome(~style=%twc("mr-2"),"bug"), Html.text("Report Bug")})}
+    list{Html.span(list{tw(%twc("font-text"))}, list{Html.text("Report Bug"), Icons.fontAwesomeBrands(~style=%twc("ml-2"),"github")})}
   )
   let feedbackRef = Html.a(
     list{
-      Attrs.class(accountActionBtnStyle),
+      tw(accountActionBtnStyle),
       Attrs.href("https://github.com/darklang/dark/discussions/categories/feedback"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="github-feedback-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
-    list{Html.span(list{tw(%twc("font-text"))}, list{Icons.fontAwesomeBrands(~style=%twc("mr-2"),"github"), Html.text("Post Feedback")})}
+    list{Html.span(list{tw(%twc("font-text"))}, list{Html.text("Post Feedback"), Icons.fontAwesome(~style=%twc("ml-2"),"file-lines")})}
   )
 
   let tooltip = {
@@ -709,7 +709,7 @@ let accountView = (m: model): Html.html<msg> => {
         list{
           tw(
             %twc(
-              "hidden group-hover:flex py-1.5 px-2 box-border bg-black3 overflow-hidden flex-col justify-around text-left"
+              "hidden group-hover:flex py-1.5 px-2 box-border bg-black3 overflow-hidden flex-col justify-around text-right"
             ),
           ),
         },
