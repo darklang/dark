@@ -5,7 +5,10 @@
 
 set -euo pipefail
 
-DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
-LOCKFILE_NAME=$(./scripts/deployment/deploy-lock-one-get-name)
+LOCKNAME=$(./scripts/deployment/deploy-lock-one-get-name)
 
-gcloud storage rm "${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
+curl -s "https://ops-circleci.builtwithdark.com/deploy-lock/${LOCKNAME}" \
+  -X DELETE \
+  -H 'Content-type: application/json' \
+  -H "Authorization: Bearer ${DEPLOY_LOCK_TOKEN}" \
+  | jq  -r .

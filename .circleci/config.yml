@@ -73,8 +73,6 @@ commands:
   ##########################
   deploy-lock-remove-on-fail:
     steps:
-      # Can only be used from in-container executors as it needs gcloud
-      - auth-with-gcp-on-fail
       - run:
           name: Remove deploy lock
           when: on_fail
@@ -184,25 +182,12 @@ commands:
           command: |
             ./scripts/production/gcp-authorize-kubectl
 
-
   auth-gcr:
     steps:
       - run:
           name: Auth with GCR
           command: |
             gcloud auth configure-docker
-
-  auth-with-gcp-on-fail:
-    steps:
-      - run:
-          name: Auth with GCP (on fail)
-          when: on_fail
-          command: |
-            # Don't run a second time (no need, but also token becomes invalid after an hour)
-            if [[ "${CIRCLE_BRANCH}" = "main" || ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
-              echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
-              gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
-            fi
 
 ##########################
 # Actual workflow
@@ -449,7 +434,6 @@ jobs:
     executor: in-container
     steps:
       - darkcheckout
-      - auth-with-gcp: { background: false }
       - run: scripts/deployment/deploy-lock-one-add
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
@@ -549,8 +533,6 @@ workflows:
             - predeployment-checks
 
       - deploy-lock:
-          context:
-            - gcp context
           filters:
             branches:
               only: main

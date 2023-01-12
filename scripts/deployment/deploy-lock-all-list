@@ -5,6 +5,7 @@
 
 set -euo pipefail
 
-DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
-
-gcloud storage ls ${DEPLOY_LOCK_BUCKET}/ | sed 's!.*/!!'
+curl -s https://ops-circleci.builtwithdark.com/deploy-lock \
+  -H 'Content-type: application/json' \
+  -H "Authorization: Bearer ${DEPLOY_LOCK_TOKEN}" \
+  | jq -r .[]
