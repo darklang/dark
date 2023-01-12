@@ -36,7 +36,7 @@ HttpBaseClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = E
 (let response = HttpBaseClient.request_ster "get" "https://httpbin.org/status/200" [] Bytes.empty
  let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
-   { code = 200
+   { statusCode = 200
      headers =
       [
         ("server", "gunicorn/19.9.0")

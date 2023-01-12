@@ -4,20 +4,21 @@ Host: HOST
 Content-Length: 0
 
 [response]
-HTTP/1.1 301 Moved Permanently
+HTTP/1.1 300 Multiple Choice
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: file:////etc/passwd
+Location: /v0/response-redirect-destination
 
 
 [test]
 (let response = HttpBaseClient.request_ster "get" "http://URL" [] Bytes.empty
  let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
-  { statusCode = 301
-    headers =
+   { statusCode = 300
+     headers =
       [
         ("server", "kestrel")
-        ("location", "file://etc/passwd")
+        ("location", "/v0/response-redirect-destination")
         ("transfer-encoding", "chunked")
       ]
-    body = Bytes.empty }
+     body = Bytes.empty }
+
