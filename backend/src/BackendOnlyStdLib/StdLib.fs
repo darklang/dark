@@ -30,7 +30,7 @@ let fns : List<RT.BuiltInFn> =
     LibHttpClient3.fns
     LibHttpClient4.fns
     LibHttpClient5.fns
-    LibHttpBaseClient.fns
+    //LibHttpBaseClient.fns
     LibJwt.fns
     LibPassword.fns
     LibStaticAssets.fns
