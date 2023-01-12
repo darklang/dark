@@ -16,6 +16,8 @@ module Msg = AppTypes.Msg
 type model = AppTypes.model
 type msg = AppTypes.msg
 
+let tw = Attrs.class
+
 let appID = "app"
 
 let fontAwesome = Icons.fontAwesome
@@ -492,7 +494,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
   | FocusedFn(_) =>
     let helpIcon = Html.div(
       list{
-        Attrs.class("help-icon"),
+        tw(%twc("text-4xl text-cyan")),
         EventListeners.eventNoPropagation(~key="ept", "mouseenter", _ => Msg.ToolTipMsg(
           OpenFnTooltip(true),
         )),
@@ -509,12 +511,12 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
       )
 
     Html.div(
-      list{Attrs.id("back-to-canvas"), Attrs.class("back-to-canvas")},
+      list{Attrs.id("back-to-canvas"), tw(%twc("fixed bottom-2 right-16 w-36 cursor-pointer text-center text-cyan font-text text-base"))},
       list{
         tooltip,
         Html.div(
           list{
-            Attrs.class("back-to-canvas-content"),
+            tw(%twc("flex items-center justify-between")),
             Vdom.prop("alt", "architecture preview"),
             EventListeners.eventNoPropagation(~key="return-to-arch", "click", _ =>
               Msg.GoToArchitecturalView
@@ -522,7 +524,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
           },
           list{
             helpIcon,
-            Html.a(list{Attrs.class("content")}, list{Vdom.text("Return to main canvas")}),
+            Html.a(list{tw(%twc("w-24 font-text"))}, list{Vdom.text("Return to main canvas")}),
           },
         ),
       },
