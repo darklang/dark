@@ -9,15 +9,6 @@ LOCKNAME=$(./scripts/deployment/deploy-lock-one-get-name)
 
 echo "Adding lock file with name ${LOCKNAME}"
 
-if [ ! -v DEPLOY_LOCK_TOKEN ] ;
-then
-  echo "No deploy lock token, get it from https://darklang.com/a/ops-circleci"
-  exit 1
-fi
-
-curl -s https://ops-circleci.builtwithdark.com/deploy-lock \
-  -X POST \
-  -H 'Content-type: application/json' \
-  -H "Authorization: Bearer ${DEPLOY_LOCK_TOKEN}" \
+./scripts/deployment/_deploy-lock-request / POST \
   -d "{ \"lockName\": \"${LOCKNAME}\" }" \
   | jq -r .

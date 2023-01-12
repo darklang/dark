@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Add a lock identifier for the commit and the timestamp.
+
+set -euo pipefail
+
+if [ ! -v DEPLOY_LOCK_TOKEN ] ;
+then
+  echo "No deploy lock token, get it from https://darklang.com/a/ops-circleci"
+  exit 1
+fi
+
+REQUEST_PATH=$1
+METHOD=$2
+shift 2
+
+curl -s "https://ops-circleci.builtwithdark.com/deploy-lock${REQUEST_PATH}" \
+  -X "${METHOD}" \
+  -H 'Content-type: application/json' \
+  -H "Authorization: Bearer ${DEPLOY_LOCK_TOKEN}" \
+  "$@"

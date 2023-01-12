@@ -5,7 +5,4 @@
 
 set -euo pipefail
 
-curl -s https://ops-circleci.builtwithdark.com/deploy-lock \
-  -H 'Content-type: application/json' \
-  -H "Authorization: Bearer ${DEPLOY_LOCK_TOKEN}" \
-  | jq -r .[]
+./scripts/deployment/_deploy-lock-request / GET | jq -r .[]

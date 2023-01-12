@@ -7,8 +7,4 @@ set -euo pipefail
 
 LOCKNAME=$(./scripts/deployment/deploy-lock-one-get-name)
 
-curl -s "https://ops-circleci.builtwithdark.com/deploy-lock/${LOCKNAME}" \
-  -X DELETE \
-  -H 'Content-type: application/json' \
-  -H "Authorization: Bearer ${DEPLOY_LOCK_TOKEN}" \
-  | jq  -r .
+./scripts/deployment/_deploy-lock-request "/${LOCKNAME}" DELETE | jq -r .
