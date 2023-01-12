@@ -1098,6 +1098,12 @@ module Json =
       assertSerializable typeof<'a>
       JsonSerializer.Serialize(data, _options)
 
+    let serializeToStream (stream : System.IO.Stream, data : 'a) : Task<unit> =
+      task {
+        assertSerializable typeof<'a>
+        return! JsonSerializer.SerializeAsync(stream, data, _options)
+      }
+
     let deserialize<'a> (json : string) : 'a =
       assertSerializable typeof<'a>
       JsonSerializer.Deserialize<'a>(json, _options)

@@ -17,7 +17,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
   let introText = list{
     C.sectionHeading("Share Dark with a friend or colleague", None),
     Html.p(
-      list{},
+      list{tw(%twc("font-text text-lg"))},
       list{
         Html.text(
           "Share the love! Invite a friend, and we'll send them an email saying you invited them.",
@@ -37,10 +37,10 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
       let btn = if state.loading {
         list{
           Icons.fontAwesome("spinner"),
-          Html.h4(list{tw(%twc("m-0 pl-2.5"))}, list{Html.text("Sending")}),
+          Html.h4(list{tw(%twc("font-text tracking-wider m-0 pl-2"))}, list{Html.text("Sending")}),
         }
       } else {
-        list{Html.h4(list{tw(%twc("m-0"))}, list{Html.text("Invite")})}
+        list{Html.h4(list{tw(%twc("font-text tracking-wider m-0"))}, list{Html.text("Invite")})}
       }
 
       C.submitBtn(
@@ -60,7 +60,7 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
       list{
         C.input(
           ~loadStatus=LoadStatus.Success(""),
-          ~style="ml-1 w-80",
+          ~style="w-80",
           ~attrs=list{
             Attrs.spellcheck(false),
             Events.onInput(str => AppTypes.Msg.SettingsMsg(Settings.InviteMsg(T.Update(str)))),
@@ -76,7 +76,10 @@ let view = (state: T.t): list<Html.html<AppTypes.msg>> => {
       Html.div(
         list{tw(%twc("flex items-baseline justify-center my-2"))},
         list{
-          Html.p(list{tw(%twc("text-base mr-3 font-semibold"))}, list{Html.text("Email:")}),
+          Html.p(
+            list{tw(%twc("font-text text-lg mr-4 font-semibold tracking-wider"))},
+            list{Html.text("Email:")},
+          ),
           field,
           submitBtn,
         },

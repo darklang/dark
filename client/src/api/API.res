@@ -261,6 +261,32 @@ let saveTest = (m: model): cmd =>
     x,
   ))
 
+let fetchServerBuildHash = (m: model): cmd => {
+  let url = "https://editor.darklang.com/latest-backend-build-hash"
+
+  let request = Tea.Http.request({
+    method: "GET",
+    headers: list{clientVersionHeader(m)},
+    url: url,
+    body: Web.XMLHttpRequest.EmptyBody,
+    expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(Json.Decode.string)),
+    timeout: None,
+    withCredentials: false,
+  })
+
+  // If origin is https://darklang.com, then we're in prod (or ngrok, running against
+  // prod) and editor.darklang.com's CORS rules will allow this request. If not,
+  // we're in local, and both CORS and auth (session, canvas_id) will not work
+  // against editor.darklang.com. By putting the conditional here instead of at the
+  // beginning of the function, we still exercise the message and request generating
+  // code locally.
+  if m.origin == "https://darklang.com" {
+    Tea.Http.send(serverBuildHash => AppTypes.Msg.RefreshClientIfOutdated(serverBuildHash), request)
+  } else {
+    Tea.Cmd.none
+  }
+}
+
 let integration = (m: model, name: string): cmd =>
   apiCallPreloaded(
     m,

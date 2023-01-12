@@ -30,6 +30,8 @@ module TraceDataV1 =
       let! p = ctx.ReadVanillaJsonAsync<Types.Request>()
       Telemetry.addTags [ "tlid", p.tlid; "traceID", p.traceID ]
 
+      let traceID = AT.TraceID.fromUUID p.traceID
+
       t.next "load-canvas"
       let! c = Canvas.loadTLIDs canvasInfo [ p.tlid ]
 
@@ -39,21 +41,31 @@ module TraceDataV1 =
       t.next "load-trace"
       let handler = c.handlers |> Map.get p.tlid
 
-      let! trace =
-        match handler with
-        | Some h -> Traces.handlerTrace c.meta.id p.traceID h |> Task.map Some
-        | None ->
-          match c.userFunctions |> Map.get p.tlid with
-          | Some u -> Traces.userfnTrace c.meta.id p.traceID u |> Task.map Some
-          | None -> Task.FromResult None
+      // There won't be a rootTLID for pre-cloud-storage traces
+      let! rootTLID = LibBackend.TraceCloudStorage.rootTLIDFor c.meta.id traceID
 
+      let! trace =
+        match rootTLID with
+        | Some rootTLID ->
+          LibBackend.TraceCloudStorage.getTraceData
+            c.meta.id
+            rootTLID
+            (AT.TraceID.fromUUID p.traceID)
+          |> Task.map Some
+        | None ->
+          match handler with
+          | Some h -> Traces.handlerTrace c.meta.id traceID h |> Task.map Some
+          | None ->
+            match c.userFunctions |> Map.get p.tlid with
+            | Some u -> Traces.userfnTrace c.meta.id traceID u |> Task.map Some
+            | None -> Task.FromResult None
 
       t.next "write-api"
       let (trace : Option<Types.Response.Trace>) =
         match trace with
-        | Some (id, (traceData : AT.TraceData)) ->
+        | Some (traceID, (traceData : AT.TraceData)) ->
           Some(
-            id,
+            AT.TraceID.toUUID traceID,
             { input =
                 List.map
                   (fun (s, dv) -> (s, CT2Runtime.Dval.toCT dv))
@@ -105,5 +117,14 @@ module AllTraces =
         |> Task.flatten
         |> Task.map List.concat
 
-      return { traces = hTraces @ ufTraces }
+      t.next "fetch-storage-traces"
+      let tlids = Map.keys c.userFunctions @ Map.keys c.handlers
+      let! storageTraces =
+        LibBackend.TraceCloudStorage.listMostRecentTraceIDsForTLIDs c.meta.id tlids
+
+      t.next "write-api"
+      let traces =
+        (storageTraces @ hTraces @ ufTraces)
+        |> List.map (fun (k, traceID) -> (k, AT.TraceID.toUUID traceID))
+      return { traces = traces }
     }

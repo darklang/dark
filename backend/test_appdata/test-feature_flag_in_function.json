@@ -1,42 +1,48 @@
 [
-  [ "TLSavepoint", 180770093 ],
+  ["TLSavepoint", 180770093],
   [
     "SetHandler",
     180770093,
     { "x": 600, "y": 200 },
     {
       "tlid": 180770093,
-      "ast": [ "EFnCall", 3981133572, "fun1", [], [ "NoRail" ] ],
+      "ast": ["EFnCall", 3981133572, "fun1", [], ["NoRail"]],
       "spec": {
-        "module": [ "Filled", 23, "HTTP" ],
-        "name": [ "Filled", 25, "/hello" ],
-        "modifier": [ "Filled", 24, "GET" ],
+        "module": ["Filled", 23, "HTTP"],
+        "name": ["Filled", 25, "/hello"],
+        "modifier": ["Filled", 24, "GET"],
         "types": {
-          "input": [ "Blank", 1985365542 ],
-          "output": [ "Blank", 2118262029 ]
+          "input": ["Blank", 1985365542],
+          "output": ["Blank", 2118262029]
         }
       }
     }
   ],
-  [ "TLSavepoint", 2296485551 ],
+  ["TLSavepoint", 2296485551],
   [
     "SetFunction",
     {
       "tlid": 2296485551,
       "metadata": {
-        "name": [ "Filled", 12399029, "fun1" ],
+        "name": ["Filled", 12399029, "fun1"],
         "parameters": [],
-        "return_type": [ "Filled", 4137008247, [ "TAny" ] ],
+        "return_type": ["Filled", 4137008247, ["TAny"]],
         "description": "",
         "infix": false
       },
       "ast": [
-        "EBinOp",
+        "EInfix",
         1894833988,
-        "+",
-        [ "EInteger", 1001241551, "5" ],
-        [ "EInteger", 540981105, "5" ],
-        [ "NoRail" ]
+        [
+          "InfixFnCall",
+          {
+            "module_": null,
+            "function_": "\u002B"
+          },
+          ["NoRail"]
+        ],
+        ["EInteger", 1001241551, 5],
+        ["EInteger", 540981105, 5]
       ]
     }
   ]

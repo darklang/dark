@@ -78,6 +78,9 @@ NUGET
     Google.Api.Gax.Grpc.GrpcCore (3.7)
       Google.Api.Gax.Grpc (>= 3.7)
       Grpc.Core (>= 2.41 < 3.0)
+    Google.Api.Gax.Rest (3.7)
+      Google.Api.Gax (>= 3.7)
+      Google.Apis.Auth (>= 1.53 < 2.0)
     Google.Apis (1.57)
       Google.Apis.Core (>= 1.57)
     Google.Apis.Auth (1.57)
@@ -85,6 +88,9 @@ NUGET
       Google.Apis.Core (>= 1.57)
     Google.Apis.Core (1.57)
       Newtonsoft.Json (>= 13.0.1)
+    Google.Apis.Storage.v1 (1.57.0.2685)
+      Google.Apis (>= 1.57)
+      Google.Apis.Auth (>= 1.57)
     Google.Cloud.Iam.V1 (2.4)
       Google.Api.Gax.Grpc.GrpcCore (>= 3.7 < 4.0)
       Grpc.Core (>= 2.41 < 3.0)
@@ -92,6 +98,9 @@ NUGET
       Google.Api.Gax.Grpc.GrpcCore (>= 3.7 < 4.0)
       Google.Cloud.Iam.V1 (>= 2.3 < 3.0)
       Grpc.Core (>= 2.41 < 3.0)
+    Google.Cloud.Storage.V1 (3.7)
+      Google.Api.Gax.Rest (>= 3.6 < 4.0)
+      Google.Apis.Storage.v1 (>= 1.55.0.2526 < 2.0)
     Google.Protobuf (3.19.1)
     Grpc.Auth (2.45)
       Google.Apis.Auth (>= 1.46)
@@ -495,6 +504,7 @@ NUGET
       System.Threading.Tasks (>= 4.3)
     System.IO.FileSystem.Primitives (4.3)
       System.Runtime (>= 4.3)
+    System.IO.Hashing (6.0.2)
     System.IO.Pipelines (5.0.1)
     System.Linq (4.3)
       System.Collections (>= 4.3)
@@ -820,7 +830,7 @@ NUGET
     Tablecloth.FSharp (0.0.8-alpha1)
       FSharp.Core (>= 6.0.1)
 
-GROUP Analysis
+GROUP Wasm
 NUGET
   remote: https://api.nuget.org/v3/index.json
     Microsoft.AspNetCore.Authorization (6.0.5) - restriction: >= net6.0

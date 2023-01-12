@@ -609,12 +609,18 @@
                               "EIf",
                               729246077,
                               [
-                                "EBinOp",
+                                "EInfix",
                                 94793109,
-                                {
-                                  "module_": null,
-                                  "function_": "!="
-                                },
+                                [
+                                  "InfixFnCall",
+                                  {
+                                    "module_": null,
+                                    "function_": "!="
+                                  },
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
                                 [
                                   "EInteger",
                                   264400705,
@@ -624,18 +630,21 @@
                                   "EInteger",
                                   335743639,
                                   6
-                                ],
-                                [
-                                  "NoRail"
                                 ]
                               ],
                               [
-                                "EBinOp",
+                                "EInfix",
                                 775118986,
-                                {
-                                  "module_": null,
-                                  "function_": "\u002B"
-                                },
+                                [
+                                  "InfixFnCall",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  },
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
                                 [
                                   "EInteger",
                                   803876589,
@@ -645,9 +654,6 @@
                                   "EInteger",
                                   219131014,
                                   2
-                                ],
-                                [
-                                  "NoRail"
                                 ]
                               ],
                               [
@@ -660,12 +666,18 @@
                                   ]
                                 ],
                                 [
-                                  "EBinOp",
+                                  "EInfix",
                                   140609068,
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  },
+                                  [
+                                    "InfixFnCall",
+                                    {
+                                      "module_": null,
+                                      "function_": "\u002B"
+                                    },
+                                    [
+                                      "NoRail"
+                                    ]
+                                  ],
                                   [
                                     "EInteger",
                                     450951790,
@@ -675,27 +687,36 @@
                                     "EVariable",
                                     402203255,
                                     "y"
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ]
                               ]
                             ],
                             [
-                              "EBinOp",
+                              "EInfix",
                               265463935,
-                              {
-                                "module_": null,
-                                "function_": "\u002B"
-                              },
                               [
-                                "EBinOp",
-                                312092282,
+                                "InfixFnCall",
                                 {
                                   "module_": null,
                                   "function_": "\u002B"
                                 },
+                                [
+                                  "NoRail"
+                                ]
+                              ],
+                              [
+                                "EInfix",
+                                312092282,
+                                [
+                                  "InfixFnCall",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  },
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
                                 [
                                   "EFieldAccess",
                                   974664608,
@@ -732,9 +753,6 @@
                                   [
                                     "NoRail"
                                   ]
-                                ],
-                                [
-                                  "NoRail"
                                 ]
                               ],
                               [
@@ -757,9 +775,6 @@
                                     7
                                   ]
                                 ]
-                              ],
-                              [
-                                "NoRail"
                               ]
                             ]
                           ],
@@ -782,12 +797,18 @@
                                       5
                                     ],
                                     [
-                                      "EBinOp",
+                                      "EInfix",
                                       1021880969,
-                                      {
-                                        "module_": null,
-                                        "function_": "\u002B"
-                                      },
+                                      [
+                                        "InfixFnCall",
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        },
+                                        [
+                                          "NoRail"
+                                        ]
+                                      ],
                                       [
                                         "EPipeTarget",
                                         936577032
@@ -796,9 +817,6 @@
                                         "EInteger",
                                         962393769,
                                         2
-                                      ],
-                                      [
-                                        "NoRail"
                                       ]
                                     ],
                                     []
@@ -944,12 +962,18 @@
                                       "var"
                                     ],
                                     [
-                                      "EBinOp",
+                                      "EInfix",
                                       275666765,
-                                      {
-                                        "module_": null,
-                                        "function_": "\u002B"
-                                      },
+                                      [
+                                        "InfixFnCall",
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        },
+                                        [
+                                          "NoRail"
+                                        ]
+                                      ],
                                       [
                                         "EInteger",
                                         739193732,
@@ -959,9 +983,6 @@
                                         "EVariable",
                                         880556562,
                                         "var"
-                                      ],
-                                      [
-                                        "NoRail"
                                       ]
                                     ]
                                   ],
@@ -8413,12 +8434,18 @@
                                 "EIf",
                                 729246077,
                                 [
-                                  "EBinOp",
+                                  "EInfix",
                                   94793109,
-                                  {
-                                    "module_": null,
-                                    "function_": "!="
-                                  },
+                                  [
+                                    "InfixFnCall",
+                                    {
+                                      "module_": null,
+                                      "function_": "!="
+                                    },
+                                    [
+                                      "NoRail"
+                                    ]
+                                  ],
                                   [
                                     "EInteger",
                                     264400705,
@@ -8428,18 +8455,21 @@
                                     "EInteger",
                                     335743639,
                                     6
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ],
                                 [
-                                  "EBinOp",
+                                  "EInfix",
                                   775118986,
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  },
+                                  [
+                                    "InfixFnCall",
+                                    {
+                                      "module_": null,
+                                      "function_": "\u002B"
+                                    },
+                                    [
+                                      "NoRail"
+                                    ]
+                                  ],
                                   [
                                     "EInteger",
                                     803876589,
@@ -8449,9 +8479,6 @@
                                     "EInteger",
                                     219131014,
                                     2
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ],
                                 [
@@ -8464,12 +8491,18 @@
                                     ]
                                   ],
                                   [
-                                    "EBinOp",
+                                    "EInfix",
                                     140609068,
-                                    {
-                                      "module_": null,
-                                      "function_": "\u002B"
-                                    },
+                                    [
+                                      "InfixFnCall",
+                                      {
+                                        "module_": null,
+                                        "function_": "\u002B"
+                                      },
+                                      [
+                                        "NoRail"
+                                      ]
+                                    ],
                                     [
                                       "EInteger",
                                       450951790,
@@ -8479,27 +8512,36 @@
                                       "EVariable",
                                       402203255,
                                       "y"
-                                    ],
-                                    [
-                                      "NoRail"
                                     ]
                                   ]
                                 ]
                               ],
                               [
-                                "EBinOp",
+                                "EInfix",
                                 265463935,
-                                {
-                                  "module_": null,
-                                  "function_": "\u002B"
-                                },
                                 [
-                                  "EBinOp",
-                                  312092282,
+                                  "InfixFnCall",
                                   {
                                     "module_": null,
                                     "function_": "\u002B"
                                   },
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
+                                [
+                                  "EInfix",
+                                  312092282,
+                                  [
+                                    "InfixFnCall",
+                                    {
+                                      "module_": null,
+                                      "function_": "\u002B"
+                                    },
+                                    [
+                                      "NoRail"
+                                    ]
+                                  ],
                                   [
                                     "EFieldAccess",
                                     974664608,
@@ -8536,9 +8578,6 @@
                                     [
                                       "NoRail"
                                     ]
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ],
                                 [
@@ -8561,9 +8600,6 @@
                                       7
                                     ]
                                   ]
-                                ],
-                                [
-                                  "NoRail"
                                 ]
                               ]
                             ],
@@ -8586,12 +8622,18 @@
                                         5
                                       ],
                                       [
-                                        "EBinOp",
+                                        "EInfix",
                                         1021880969,
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        },
+                                        [
+                                          "InfixFnCall",
+                                          {
+                                            "module_": null,
+                                            "function_": "\u002B"
+                                          },
+                                          [
+                                            "NoRail"
+                                          ]
+                                        ],
                                         [
                                           "EPipeTarget",
                                           936577032
@@ -8600,9 +8642,6 @@
                                           "EInteger",
                                           962393769,
                                           2
-                                        ],
-                                        [
-                                          "NoRail"
                                         ]
                                       ],
                                       []
@@ -8748,12 +8787,18 @@
                                         "var"
                                       ],
                                       [
-                                        "EBinOp",
+                                        "EInfix",
                                         275666765,
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        },
+                                        [
+                                          "InfixFnCall",
+                                          {
+                                            "module_": null,
+                                            "function_": "\u002B"
+                                          },
+                                          [
+                                            "NoRail"
+                                          ]
+                                        ],
                                         [
                                           "EInteger",
                                           739193732,
@@ -8763,9 +8808,6 @@
                                           "EVariable",
                                           880556562,
                                           "var"
-                                        ],
-                                        [
-                                          "NoRail"
                                         ]
                                       ]
                                     ],
@@ -9349,12 +9391,18 @@
                                 "EIf",
                                 729246077,
                                 [
-                                  "EBinOp",
+                                  "EInfix",
                                   94793109,
-                                  {
-                                    "module_": null,
-                                    "function_": "!="
-                                  },
+                                  [
+                                    "InfixFnCall",
+                                    {
+                                      "module_": null,
+                                      "function_": "!="
+                                    },
+                                    [
+                                      "NoRail"
+                                    ]
+                                  ],
                                   [
                                     "EInteger",
                                     264400705,
@@ -9364,18 +9412,21 @@
                                     "EInteger",
                                     335743639,
                                     6
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ],
                                 [
-                                  "EBinOp",
+                                  "EInfix",
                                   775118986,
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  },
+                                  [
+                                    "InfixFnCall",
+                                    {
+                                      "module_": null,
+                                      "function_": "\u002B"
+                                    },
+                                    [
+                                      "NoRail"
+                                    ]
+                                  ],
                                   [
                                     "EInteger",
                                     803876589,
@@ -9385,9 +9436,6 @@
                                     "EInteger",
                                     219131014,
                                     2
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ],
                                 [
@@ -9400,12 +9448,18 @@
                                     ]
                                   ],
                                   [
-                                    "EBinOp",
+                                    "EInfix",
                                     140609068,
-                                    {
-                                      "module_": null,
-                                      "function_": "\u002B"
-                                    },
+                                    [
+                                      "InfixFnCall",
+                                      {
+                                        "module_": null,
+                                        "function_": "\u002B"
+                                      },
+                                      [
+                                        "NoRail"
+                                      ]
+                                    ],
                                     [
                                       "EInteger",
                                       450951790,
@@ -9415,27 +9469,36 @@
                                       "EVariable",
                                       402203255,
                                       "y"
-                                    ],
-                                    [
-                                      "NoRail"
                                     ]
                                   ]
                                 ]
                               ],
                               [
-                                "EBinOp",
+                                "EInfix",
                                 265463935,
-                                {
-                                  "module_": null,
-                                  "function_": "\u002B"
-                                },
                                 [
-                                  "EBinOp",
-                                  312092282,
+                                  "InfixFnCall",
                                   {
                                     "module_": null,
                                     "function_": "\u002B"
                                   },
+                                  [
+                                    "NoRail"
+                                  ]
+                                ],
+                                [
+                                  "EInfix",
+                                  312092282,
+                                  [
+                                    "InfixFnCall",
+                                    {
+                                      "module_": null,
+                                      "function_": "\u002B"
+                                    },
+                                    [
+                                      "NoRail"
+                                    ]
+                                  ],
                                   [
                                     "EFieldAccess",
                                     974664608,
@@ -9472,9 +9535,6 @@
                                     [
                                       "NoRail"
                                     ]
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ],
                                 [
@@ -9497,9 +9557,6 @@
                                       7
                                     ]
                                   ]
-                                ],
-                                [
-                                  "NoRail"
                                 ]
                               ]
                             ],
@@ -9522,12 +9579,18 @@
                                         5
                                       ],
                                       [
-                                        "EBinOp",
+                                        "EInfix",
                                         1021880969,
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        },
+                                        [
+                                          "InfixFnCall",
+                                          {
+                                            "module_": null,
+                                            "function_": "\u002B"
+                                          },
+                                          [
+                                            "NoRail"
+                                          ]
+                                        ],
                                         [
                                           "EPipeTarget",
                                           936577032
@@ -9536,9 +9599,6 @@
                                           "EInteger",
                                           962393769,
                                           2
-                                        ],
-                                        [
-                                          "NoRail"
                                         ]
                                       ],
                                       []
@@ -9684,12 +9744,18 @@
                                         "var"
                                       ],
                                       [
-                                        "EBinOp",
+                                        "EInfix",
                                         275666765,
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        },
+                                        [
+                                          "InfixFnCall",
+                                          {
+                                            "module_": null,
+                                            "function_": "\u002B"
+                                          },
+                                          [
+                                            "NoRail"
+                                          ]
+                                        ],
                                         [
                                           "EInteger",
                                           739193732,
@@ -9699,9 +9765,6 @@
                                           "EVariable",
                                           880556562,
                                           "var"
-                                        ],
-                                        [
-                                          "NoRail"
                                         ]
                                       ]
                                     ],

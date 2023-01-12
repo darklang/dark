@@ -18,13 +18,9 @@ let backendDir = $"{LibService.Config.rootDir}backend/"
 
 let testdataDir = $"{backendDir}test_appdata/"
 
-let testResultDir = $"{runDir}test_results/"
-
 let logDir = $"{runDir}logs/"
 
 let serializationDir = $"{backendDir}serialization/"
-
-let completedTestDir = $"{runDir}completed_tests/"
 
 // -------------------------
 // Configurable dirs
@@ -34,8 +30,6 @@ let templatesDir = absoluteDir "DARK_CONFIG_TEMPLATES_DIR"
 let webrootDir = absoluteDir "DARK_CONFIG_WEBROOT_DIR"
 
 let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
-
-let binRootDir = absoluteDir "DARK_CONFIG_BIN_ROOT_DIR"
 
 // -------------------------
 // Web configuration
@@ -59,27 +53,19 @@ let httpclientProxyUrl = string "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL"
 // --------------------
 
 type Root =
-  | Log
   | Serialization
   | Templates
   | Webroot
-  | CompletedTest
   | Testdata
-  | TestResults
-  | BinRoot
   | Migrations
   | NoCheck
 
 let dir (root : Root) : string =
   match root with
-  | Log -> logDir
   | Serialization -> serializationDir
   | Templates -> templatesDir
   | Webroot -> webrootDir
-  | CompletedTest -> completedTestDir
-  | BinRoot -> binRootDir
   | Testdata -> testdataDir
-  | TestResults -> testResultDir
   | Migrations -> migrationsDir
   | NoCheck -> ""
 
@@ -102,8 +88,6 @@ let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 
 // Should we redirect insecure requests
 let useHttps = bool "DARK_CONFIG_USE_HTTPS"
-
-let showStacktrace = bool "DARK_CONFIG_SHOW_STACKTRACE"
 
 // -------------------------
 // Rollbar
@@ -173,6 +157,19 @@ let queuePubSubCredentials = credentialsOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENT
 
 
 // -------------------------
+// Traces
+// -------------------------
+let traceStorageBucketName = string "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"
+
+let traceStorageBaseUri = string "DARK_CONFIG_TRACE_STORAGE_BASE_URI"
+
+let traceStorageCreateBucket = bool "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET"
+
+let traceStorageCredentials =
+  credentialsOption "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS"
+
+
+// -------------------------
 // Infra
 // -------------------------
 let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"
@@ -181,10 +178,6 @@ let browserReloadEnabled = bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
 
 let hashStaticFilenames = bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
 
-let checkTierOneHosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
-
-let staticAssetsBucket = stringOption "DARK_CONFIG_STATIC_ASSETS_BUCKET"
 let staticAssetsSaltSuffix = string "DARK_CONFIG_STATIC_ASSETS_SALT_SUFFIX"
-
 
 let useLoginDarklangComForLogin = bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"

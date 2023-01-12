@@ -8,7 +8,7 @@ set -euo pipefail
 LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
 
 if [[ -v CI ]]; then
-  key="${BUILDEVENT_APIKEY}"
+  key="${HONEYCOMB_EVENT_KEY}"
   msg="${CIRCLE_USERNAME} deployed PR (SHA1: ${CIRCLE_SHA1})"
   url="${CIRCLE_BUILD_URL}"
 else

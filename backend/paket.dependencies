@@ -16,6 +16,7 @@ nuget Faithlife.Utility = 0.12.2
 nuget FSharp.SystemTextJson = 0.17.4
 nuget NodaTime = 3.0.9
 nuget NodaTime.Serialization.SystemTextJson = 1.0.0
+nuget System.IO.Hashing 6.0.2
 
 // Binary Serialization
 nuget MessagePack = 2.3.85
@@ -38,7 +39,6 @@ nuget Rollbar.NetCore.AspNet = 5.0.5-beta
 nuget Microsoft.Extensions.Diagnostics.HealthChecks = 6.0.1
 nuget AspNetCore.HealthChecks.Npgsql = 6.0.1
 nuget LaunchDarkly.ServerSdk = 6.3.2
-nuget Google.Cloud.PubSub.V1 = 2.9.0
 
 // Tracing
 nuget Honeycomb.OpenTelemetry = 0.18.0-beta
@@ -56,12 +56,14 @@ nuget Npgsql.FSharp = 4.1.0
 nuget Npgsql = 6.0.4
 nuget Npgsql.NodaTime = 6.0.4
 nuget Sodium.Core = 1.2.3
+nuget Google.Cloud.PubSub.V1 = 2.9.0
+nuget Google.Cloud.Storage.V1 = 3.7.0
 
 // Benchmarks
 nuget Argu = 6.1.1
 
 
-group Analysis
+group Wasm
   source https://api.nuget.org/v3/index.json
-  // Analysis - this is in its own group to avoid a clash with OpenTelemetry
+  // Wasm - this is in its own group to avoid a clash with OpenTelemetry
   nuget Microsoft.AspNetCore.Components.WebAssembly = 6.0.1

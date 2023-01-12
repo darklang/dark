@@ -274,7 +274,7 @@ let newHandler = (m: model, spec, pos) => {
     // Fallback to ast if spec has no blanks
     handler.spec |> SpecHeaders.firstBlank |> Option.unwrap(~default=astID)
 
-  let tooltipState = Tooltips.assignTutorialToHTTPHandler(m.tooltipState, TLHandler(handler), tlid)
+  let tooltipState = Tutorial.assignTutorialToHTTPHandler(m.tooltipState, TLHandler(handler), tlid)
 
   let fluidMods = {
     let s = m.fluidState

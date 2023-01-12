@@ -39,6 +39,7 @@ let main (args : string array) : int =
 
     let tests =
       [ Tests.Account.tests
+        Tests.AnalysisTypes.tests
         Tests.ApiServer.tests
         Tests.Authorization.tests
         Tests.BwdServer.tests
@@ -62,6 +63,7 @@ let main (args : string array) : int =
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
         Tests.Traces.tests
+        Tests.StorageTraces.tests
         Tests.TypeChecker.tests
         Tests.Undo.tests
         Tests.UserDB.tests ]

@@ -4,10 +4,10 @@ open Prelude
 
 module DB =
   module Unlocked =
-    type Response = { unlocked_dbs : tlid list }
+    type Response = { unlocked_dbs : List<tlid> }
 
   module StatsV1 =
-    type Request = { tlids : tlid list }
+    type Request = { tlids : List<tlid> }
 
     module Response =
       type Stat = { count : int; example : Option<Runtime.Dval.T * string> }
@@ -19,7 +19,7 @@ module Execution =
   module FunctionV1 =
     type Request =
       { tlid : tlid
-        trace_id : Analysis.TraceID
+        trace_id : System.Guid
         caller_id : id
         args : Runtime.Dval.T list
         fnname : string }
@@ -35,7 +35,7 @@ module Execution =
   module HandlerV1 =
     type Request =
       { tlid : tlid
-        trace_id : Analysis.TraceID
+        trace_id : System.Guid
         input : List<string * Runtime.Dval.T> }
 
     type Response = { touched_tlids : tlid list }
@@ -104,7 +104,7 @@ module Toplevels =
 
 module Traces =
   module GetTraceDataV1 =
-    type Request = { tlid : tlid; traceID : Analysis.TraceID }
+    type Request = { tlid : tlid; traceID : System.Guid }
 
     module Response =
       type InputVars = List<string * Runtime.Dval.T>
@@ -120,12 +120,12 @@ module Traces =
           timestamp : NodaTime.Instant
           functionResults : List<FunctionResult> }
 
-      type Trace = Analysis.TraceID * TraceData
+      type Trace = System.Guid * TraceData
 
       type T = { trace : Trace }
 
   module GetAllTraces =
-    type Response = { traces : List<tlid * Analysis.TraceID> }
+    type Response = { traces : List<tlid * System.Guid> }
 
 
 module Tunnels =

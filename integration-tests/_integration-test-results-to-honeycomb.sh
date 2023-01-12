@@ -13,11 +13,11 @@ set -euo pipefail
 # accepts (despite docs specifying either RFC3339 or RFC3339 with nanoseconds)
 timestamp=$(date)
 
-if [[ -v BUILDEVENT_APIKEY ]]; then
+if [[ -v HONEYCOMB_EVENT_KEY ]]; then
   cat rundir/test_results/integration_tests.json \
       | integration-tests/_process-integration-test-results.sh \
       | honeytail --parser=json \
-                  --writekey="${BUILDEVENT_APIKEY}" \
+                  --writekey="${HONEYCOMB_EVENT_KEY}" \
                   --dataset="integration-tests" \
                   --add_field="timestamp=${timestamp}" \
                   --backfill \

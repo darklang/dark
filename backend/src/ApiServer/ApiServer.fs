@@ -215,7 +215,7 @@ let webserver
 
   let builder = WebApplication.CreateBuilder()
   configureServices builder.Services
-  LibService.Kubernetes.registerServerTimeout builder.WebHost
+  Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
   |> fun wh -> wh.ConfigureLogging(loggerSetup)
@@ -247,6 +247,8 @@ let initSerializers () =
   Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
   Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
+  Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
+    "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads
@@ -291,6 +293,9 @@ let initSerializers () =
   // for data injected from UI.fs into ui.html
   Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
+
+  // for integration tests
+  Json.Vanilla.allow<IntegrationTests.OnDiskFormat> "integrationTestsOnDiskFormat"
 
 
 [<EntryPoint>]

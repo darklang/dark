@@ -14,6 +14,8 @@ module Canvas = LibBackend.Canvas
 
 type Meta = LibBackend.Canvas.Meta
 
+type OnDiskFormat = ClientTypes.Program.Oplist
+
 
 let jsonFilename (name : string) = $"{name}.json"
 
@@ -23,31 +25,32 @@ let jsonFilename (name : string) = $"{name}.json"
 let tryLoadJsonFromDisk
   (root : LibBackend.Config.Root)
   (c : Meta)
-  : List<tlid * PT.Oplist> option =
+  : Option<PT.Oplist> =
   string c.name
   |> jsonFilename
   |> File.tryReadFile root
   |> Option.map (fun json ->
     json
-    |> Json.Vanilla.deserialize<ClientTypes.Program.Oplist>
-    |> List.map ClientTypes2ExecutionTypes.ProgramTypes.Op.fromCT
-    |> LibBackend.Op.oplist2TLIDOplists)
+    |> Json.Vanilla.deserialize<OnDiskFormat>
+    |> List.map ClientTypes2ExecutionTypes.ProgramTypes.Op.fromCT)
+
+// Save oplists to disk
+let saveJsonToDisk
+  (root : LibBackend.Config.Root)
+  (c : Meta)
+  (oplists : PT.Oplist)
+  : unit =
+  let json =
+    oplists
+    |> List.map ClientTypes2ExecutionTypes.ProgramTypes.Op.toCT
+    |> Json.Vanilla.prettySerialize
+  let filename = string c.name |> jsonFilename
+  File.writefile root filename json
 
 
 
-// let save_json_to_disk ~root (filename : string) (ops : Types.tlid_oplists) :
-//     unit =
-//   Log.infO
-//     "serialization"
-//     ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;
-//   let module SF = Serialization_format in
-//   ops
-//   |> Op.tlid_oplists2oplist
-//   |> Serialization_converters.oplist_of_fluid
-//   |> SF.oplist_to_yojson SF.RuntimeT.expr_to_yojson
-//   |> Yojson.Safe.pretty_to_string
-//   |> (fun s -> s ^ "\n")
-//   |> File.writefile ~root filename
+
+
 
 
 // let minimize (c T) T =
@@ -77,10 +80,14 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
   task {
     let oplists =
       let tls = meta |> tryLoadJsonFromDisk LibBackend.Config.Testdata
+      // Save back in the latest format
+      do tls |> Option.tap (saveJsonToDisk LibBackend.Config.Testdata meta)
 
       match tls with
       | Some tls ->
         tls
+        |> LibBackend.Op.oplist2TLIDOplists
+
         |> List.map (fun (tlid, oplist) ->
           let tl =
             let oplist = Canvas.fromOplist meta [] oplist

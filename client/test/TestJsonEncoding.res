@@ -152,6 +152,7 @@ let run = () => {
       "vanilla_ClientTypes-Pusher-Payload-AddOpV1PayloadTooBig_simple.json", // not used yet
       // Internal to backend
       "vanilla_LibBackend-Session-JsonData_simple.json",
+      "vanilla_LibBackend-TraceCloudStorage-CloudStorageFormat_simple.json",
       "vanilla_Microsoft-FSharp-Collections-FSharpList-1-LibBackend-PackageManager-Parameter-_all.json",
       "vanilla_Prelude-pos_simple.json",
       "vanilla_LibService-Rollbar-HoneycombJson_simple.json",
@@ -159,18 +160,9 @@ let run = () => {
       "vanilla_ClientTypes-Program-Handler-T_simple.json",
       "vanilla_LibBackend-EventQueueV2-NotificationData_simple.json",
       "vanilla_Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Op-_complete.json",
+      "vanilla_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-Program-Op-_simple.json",
       "vanilla_LibExecution-ProgramTypes-Position_simple.json",
       "vanilla_LibExecution-AnalysisTypes-TraceData_testTraceData.json",
-      // Disabled for now as EInfix is converted to EBinOp. Can be changed when the
-      // client has fully rolled out. see https://github.com/darklang/dark/pull/4640.
-      // When removing, reenable tests below.
-      "vanilla_ClientTypes-Api-InitialLoad-V1-Response_initial.json",
-      "vanilla_ClientTypes-Analysis-PerformAnalysisParams_handler.json",
-      "vanilla_ClientTypes-Analysis-PerformAnalysisParams_function.json",
-      "vanilla_ClientTypes-Ops-AddOpResultV1_simple.json",
-      "vanilla_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-Program-Package-Fn-_simple.json",
-      "vanilla_ClientTypes-Ops-AddOpParamsV1_simple.json",
-      "vanilla_ClientTypes-Pusher-Payload-AddOpV1_simple.json",
     ]
     Belt.MutableMap.String.removeMany(processedSerializationFiles, ignores)
 
@@ -229,11 +221,11 @@ let run = () => {
       API404.List.decode,
       API404.List.encode,
     )
-    // t(
-    //   "vanilla_ClientTypes-Api-InitialLoad-V1-Response_initial.json",
-    //   APIInitialLoad.decode,
-    //   APIInitialLoad.encode,
-    // )
+    t(
+      "vanilla_ClientTypes-Api-InitialLoad-V1-Response_initial.json",
+      APIInitialLoad.decode,
+      APIInitialLoad.encode,
+    )
     t(
       "vanilla_ClientTypes-Api-Secrets-Secret_simple.json",
       APISecrets.Insert.Params.decode,
@@ -305,23 +297,23 @@ let run = () => {
       APITunnelHost.Params.decode,
       APITunnelHost.Params.encode,
     )
-    // t(
-    //   "vanilla_ClientTypes-Analysis-PerformAnalysisParams_handler.json",
-    //   AnalysisTypes.PerformAnalysis.Params.decode,
-    //   AnalysisTypes.PerformAnalysis.Params.encode,
-    // )
-    // t(
-    //   "vanilla_ClientTypes-Analysis-PerformAnalysisParams_function.json",
-    //   AnalysisTypes.PerformAnalysis.Params.decode,
-    //   AnalysisTypes.PerformAnalysis.Params.encode,
-    // )
+    t(
+      "vanilla_ClientTypes-Analysis-PerformAnalysisParams_handler.json",
+      AnalysisTypes.PerformAnalysis.Params.decode,
+      AnalysisTypes.PerformAnalysis.Params.encode,
+    )
+    t(
+      "vanilla_ClientTypes-Analysis-PerformAnalysisParams_function.json",
+      AnalysisTypes.PerformAnalysis.Params.decode,
+      AnalysisTypes.PerformAnalysis.Params.encode,
+    )
     t("vanilla_ClientTypes-Runtime-Dval-T_complete.json", RT.Dval.decode, RT.Dval.encode)
-    // t("vanilla_ClientTypes-Ops-AddOpResultV1_simple.json", APIAddOps.decode, APIAddOps.encode)
-    // t(
-    //   "vanilla_ClientTypes-Ops-AddOpParamsV1_simple.json",
-    //   APIAddOps.Params.decode,
-    //   APIAddOps.Params.encode,
-    // )
+    t("vanilla_ClientTypes-Ops-AddOpResultV1_simple.json", APIAddOps.decode, APIAddOps.encode)
+    t(
+      "vanilla_ClientTypes-Ops-AddOpParamsV1_simple.json",
+      APIAddOps.Params.decode,
+      APIAddOps.Params.encode,
+    )
     t(
       "vanilla_System-Tuple-5-System-String-System-String-System-String-NodaTime-Instant-System-Guid-_simple.json",
       AnalysisTypes.FourOhFour.decode,
@@ -337,21 +329,21 @@ let run = () => {
       StaticAssets.Deploy.decode,
       StaticAssets.Deploy.encode,
     )
-    // t(
-    //   "vanilla_ClientTypes-Pusher-Payload-AddOpV1_simple.json",
-    //   PusherTypes.AddOps.decode,
-    //   PusherTypes.AddOps.encode,
-    // )
+    t(
+      "vanilla_ClientTypes-Pusher-Payload-AddOpV1_simple.json",
+      PusherTypes.AddOps.decode,
+      PusherTypes.AddOps.encode,
+    )
     t(
       "vanilla_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-UI-Functions-BuiltInFn-_all.json",
       Json.Decode.list(RT.BuiltInFn.decode),
       Json.Encode.list(RT.BuiltInFn.encode),
     )
-    // t(
-    //   "vanilla_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-Program-Package-Fn-_simple.json",
-    //   Json.Decode.list(ProgramTypes.Package.Fn.decode),
-    //   Json.Encode.list(ProgramTypes.Package.Fn.encode),
-    // )
+    t(
+      "vanilla_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-Program-Package-Fn-_simple.json",
+      Json.Decode.list(ProgramTypes.Package.Fn.decode),
+      Json.Encode.list(ProgramTypes.Package.Fn.encode),
+    )
     t(
       "vanilla_Microsoft-FSharp-Core-FSharpResult-2-System-Tuple-4-System-Guid-System-Collections-Generic-Dictionary-2-System-UInt64-ClientTypes-Analysis-ExecutionResult-System-Int32-NodaTime-Instant-System-String-_simple.json",
       Json.Decode.result(AnalysisTypes.PerformAnalysis.Envelope.decode, Json.Decode.string),

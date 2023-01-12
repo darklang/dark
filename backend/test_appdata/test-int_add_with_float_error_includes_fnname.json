@@ -17,12 +17,18 @@
         "y": 399
       },
       "ast": [
-        "EBinOp",
+        "EInfix",
         732825278,
-        {
-          "module_": null,
-          "function_": "\u002B"
-        },
+        [
+          "InfixFnCall",
+          {
+            "module_": null,
+            "function_": "\u002B"
+          },
+          [
+            "NoRail"
+          ]
+        ],
         [
           "EInteger",
           2005624879,
@@ -36,9 +42,6 @@
           ],
           "2",
           "0"
-        ],
-        [
-          "NoRail"
         ]
       ],
       "spec": [

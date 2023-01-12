@@ -1,4 +1,4 @@
 FSharp.Core
 
-group Analysis
+group Wasm
   Microsoft.AspNetCore.Components.WebAssembly

@@ -668,7 +668,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-
     { name = fn "DarkInternal" "newSessionForUsername" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TStr, TStr)
@@ -899,6 +898,19 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
+    { name = fn "DarkInternal" "serverBuildHash" 0
+      parameters = []
+      returnType = TStr
+      description = "Returns the git hash of the server's current deploy"
+      fn =
+        internalFn (function
+          | _, [] -> uply { return DStr LibService.Config.buildHash }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     // ---------------------
     // Apis - 404s
     // ---------------------
@@ -949,7 +961,8 @@ human-readable data."
                     "path", DStr path
                     "modifier", DStr modifier
                     "timestamp", DDate(DDateTime.fromInstant instant)
-                    "traceID", DUuid traceID ]
+                    "traceID",
+                    DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
                   |> Map
                   |> DObj)
                 |> DList

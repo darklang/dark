@@ -18,6 +18,7 @@ module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module DvalReprInternalNew = LibExecution.DvalReprInternalNew
+module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Errors = LibExecution.Errors
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
@@ -216,14 +217,14 @@ module ToHashableRepr =
   let testHashV0 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV0: {l}" {
-        let fsharpVersion = DvalReprInternalDeprecated.hash 0 l
+        let actual = DvalReprInternalHash.hash 0 l
 
-        if fsharpVersion <> expected then
+        if actual <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
           print "expected: {p expected}"
           print "fsharp  : {p fsharpVersion}"
 
-        Expect.equal fsharpVersion expected "bad fsharp impl"
+        Expect.equal actual expected "bad fsharp impl"
       }
 
     testList
@@ -238,14 +239,14 @@ module ToHashableRepr =
   let testHashV1 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV1: {l}" {
-        let fsharpVersion = DvalReprInternalDeprecated.hash 1 l
+        let actual = DvalReprInternalHash.hash 1 l
 
-        if fsharpVersion <> expected then
+        if actual <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
           print $"expected: {p expected}"
-          print $"fsharp  : {p fsharpVersion}"
+          print $"fsharp  : {p actual}"
 
-        Expect.equal fsharpVersion expected "bad fsharp impl"
+        Expect.equal actual expected "bad fsharp impl"
       }
 
     testList
@@ -260,7 +261,29 @@ module ToHashableRepr =
           [ DBytes [| 128uy |] ]
           "EYSh9xozHYAoaIUeS40e25VqvD1K7cA72JhEKbAmMtj6xhN02H7nouKqx4GCtvo_" ]
 
-  let tests = testList "hashing" [ testToHashableRepr; testHashV0; testHashV1 ]
+  let testHashV2 =
+    let t (l : List<Dval>) (expected : string) : Test =
+      testTask $"hashV2: {l}" {
+        let actual = DvalReprInternalHash.hash 2 l
+
+        if actual <> expected then
+          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
+          print $"expected: {p expected}"
+          print $"fsharp  : {p actual}"
+
+        Expect.equal actual expected "bad fsharp impl"
+      }
+
+    testList
+      "hashv2"
+      [ t [ DBytes [||] ] "diEjLGQC8oE"
+        t
+          [ DHttpResponse(Redirect "H"); DStr "\""; DIncomplete SourceNone ]
+          "lqp206BU8hI"
+        t [ DBytes [| 128uy |] ] "kQHs0urT3N4" ]
+
+  let tests =
+    testList "hashing" [ testToHashableRepr; testHashV0; testHashV1; testHashV2 ]
 
 
 let allRoundtrips =

@@ -76,11 +76,16 @@ let infixFnMapping : Map<FQFnName.StdlibFnName, (FQFnName.StdlibFnName * Depreca
     ("String", "append", 1), (("", "++"), NotDeprecated)
     ("", "equals", 0), (("", "=="), NotDeprecated)
     ("", "notEquals", 0), (("", "!="), NotDeprecated)
-    // TODO: deprecate when there's a nice way to move from infix fn to language version
-    // ("Bool", "and", 0), (("", "&&"), DeprecatedBecause("Use `&&` instead"))
-    // ("Bool", "or", 0), (("", "||"), DeprecatedBecause("Use `||` instead"))
-    ("Bool", "and", 0), (("", "&&"), NotDeprecated)
-    ("Bool", "or", 0), (("", "||"), NotDeprecated) ]
+    ("Bool", "and", 0),
+    (("", "&&"),
+     DeprecatedBecause(
+       "Use built-in keyword `&&` instead. Use the `convert-to-short-circuiting` command to convert automatically"
+     ))
+    ("Bool", "or", 0),
+    (("", "||"),
+     DeprecatedBecause(
+       "Use built-in keyword `||` instead. Use the `convert-to-short-circuiting` command to convert automatically"
+     )) ]
   |> List.map (fun ((module_, name, version), ((newMod, opName), deprecation)) ->
     FQFnName.stdlibFnName module_ name version,
     (FQFnName.stdlibFnName newMod opName 0, deprecation))

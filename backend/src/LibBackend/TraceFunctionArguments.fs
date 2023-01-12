@@ -23,7 +23,7 @@ type FunctionArgumentStore = tlid * RT.DvalMap * NodaTime.Instant
 
 let store
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (tlid : tlid)
   (args : RT.DvalMap)
   : Task<unit> =
@@ -35,7 +35,7 @@ let store
       (canvas_id, trace_id, tlid, timestamp, arguments_json)
       VALUES (@canvasID, @traceID, @tlid, CURRENT_TIMESTAMP, @args)"
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                        "traceID", Sql.uuid traceID
+                        "traceID", Sql.traceID traceID
                         "tlid", Sql.tlid tlid
                         ("args",
                          Sql.string (
@@ -47,7 +47,7 @@ let store
 
 let storeMany
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (functionArguments : ResizeArray<FunctionArgumentStore>)
   : Task<unit> =
   if canvasID = TraceInputs.throttled then
@@ -57,7 +57,7 @@ let storeMany
       functionArguments
       |> ResizeArray.map (fun (tlid, args, timestamp) ->
         [ "canvasID", Sql.uuid canvasID
-          "traceID", Sql.uuid traceID
+          "traceID", Sql.traceID traceID
           "tlid", Sql.tlid tlid
           "timestamp", Sql.instantWithTimeZone timestamp
           ("args",
@@ -78,7 +78,7 @@ let storeMany
 
 let loadForAnalysis
   (canvasID : CanvasID)
-  (traceID : AT.TraceID)
+  (traceID : AT.TraceID.T)
   (tlid : tlid)
   : Task<Option<AT.InputVars * NodaTime.Instant>> =
   task {
@@ -98,7 +98,7 @@ let loadForAnalysis
                       LIMIT 1"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                           "tlid", Sql.id tlid
-                          "traceID", Sql.uuid traceID ]
+                          "traceID", Sql.traceID traceID ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.string "arguments_json", read.instant "timestamp"))
     match result with
@@ -113,7 +113,7 @@ let loadForAnalysis
       return Some(arguments, timestamp)
   }
 
-let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =
+let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID.T>> =
   // We need to alias the subquery (here aliased as `q`) because Postgres
   // requires inner SELECTs to be aliased.
   Sql.query
@@ -127,4 +127,4 @@ let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =
      ORDER BY timestamp DESC
      LIMIT 10"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
-  |> Sql.executeAsync (fun read -> read.uuid "trace_id")
+  |> Sql.executeAsync (fun read -> read.traceID "trace_id")

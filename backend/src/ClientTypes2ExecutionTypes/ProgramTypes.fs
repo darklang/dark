@@ -153,14 +153,6 @@ module Expr =
       PT.ELet(id, name, fromCT expr, fromCT body)
     | CTPT.Expr.EIf (id, cond, ifExpr, thenExpr) ->
       PT.EIf(id, fromCT cond, fromCT ifExpr, fromCT thenExpr)
-    // CLEANUP: remove once the client is updated to use EInfix
-    | CTPT.Expr.EBinOp (id, name, first, second, str) ->
-      PT.EInfix(
-        id,
-        PT.InfixFnCall(FQFnName.InfixStdlibFnName.fromCT name, SendToRail.fromCT str),
-        fromCT first,
-        fromCT second
-      )
     | CTPT.EInfix (id, infix, first, second) ->
       PT.EInfix(id, Infix.fromCT (infix), fromCT first, fromCT second)
     | CTPT.Expr.ELambda (id, args, body) -> PT.ELambda(id, args, fromCT body)
@@ -212,12 +204,11 @@ module Expr =
     | PT.EIf (id, cond, ifExpr, thenExpr) ->
       CTPT.Expr.EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
     | PT.EInfix (id, PT.InfixFnCall (name, str), first, second) ->
-      CTPT.Expr.EBinOp(
+      CTPT.Expr.EInfix(
         id,
-        FQFnName.InfixStdlibFnName.toCT name,
+        CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT name, SendToRail.toCT str),
         toCT first,
-        toCT second,
-        SendToRail.toCT str
+        toCT second
       )
     | PT.EInfix (id, PT.BinOp op, first, second) ->
       CTPT.EInfix(id, CTPT.BinOp(BinaryOperation.toCT op), toCT first, toCT second)

@@ -1,7 +1,8 @@
-/backend/static
-
 # OSes
 .DS_Store
+
+# Config
+config/local
 
 # IDEs
 .idea
@@ -16,6 +17,7 @@ rundir/
 lib/
 node_modules/
 .merlin
+/backend/static
 
 # F#
 backend/packages/
@@ -26,6 +28,11 @@ backend/tests/**/obj
 backend/.paket/load/
 .fake
 
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+
 ###############
 # Deployment
 ###############
@@ -34,9 +41,7 @@ backend/.paket/load/
 services/apiserver-deployment-darklang/apiserver-deployment.yaml
 services/bwdserver-deployment-darklang/bwdserver-deployment.yaml
 services/cronchecker-deployment/cronchecker-deployment.yaml
-services/editor-deployment/editor-deployment.yaml
 services/exechost-deployment/exechost-deployment.yaml
-services/garbagecollector-deployment/garbagecollector-deployment.yaml
 services/queueworker-deployment/queueworker-deployment.yaml
 services/tunnel2-deployment/tunnel2-deployment.yaml
 

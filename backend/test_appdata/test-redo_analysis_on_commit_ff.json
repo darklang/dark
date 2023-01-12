@@ -41,12 +41,18 @@
           ]
         ],
         [
-          "EBinOp",
+          "EInfix",
           64986033,
-          {
-            "module_": null,
-            "function_": "\u002B\u002B"
-          },
+          [
+            "InfixFnCall",
+            {
+              "module_": null,
+              "function_": "\u002B\u002B"
+            },
+            [
+              "NoRail"
+            ]
+          ],
           [
             "EString",
             1643956865,
@@ -56,9 +62,6 @@
             "EVariable",
             162918442,
             "name"
-          ],
-          [
-            "NoRail"
           ]
         ]
       ],

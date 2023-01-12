@@ -254,45 +254,34 @@ module General = {
 // -------------------
 module InProgressFeatures = {
   @ppx.deriving(show)
-  type rec t = {
-    allowTuples: bool,
-    allowShortCircuitingBinops: bool,
-  }
+  type rec t = {allowTuples: bool}
 
   @ppx.deriving(show)
-  type rec msg =
-    | SetTuplesAllowed(bool)
-    | SetShortCircuitingBinopsAllowed(bool)
+  type rec msg = SetTuplesAllowed(bool)
 
   @ppx.deriving(show)
   type rec intent = unit
 
   let default = {
     allowTuples: false,
-    allowShortCircuitingBinops: false,
   }
 
   let toSaved = (state: t) => {
     open Json.Encode
-    object_(list{
-      ("allowTuples", bool(state.allowTuples)),
-      ("allowShortCircuitingBinops", bool(state.allowShortCircuitingBinops)),
-    })
+    object_(list{("allowTuples", bool(state.allowTuples))})
   }
   let fromSaved = (j: Js.Json.t) => {
     open Json.Decode
     {
       allowTuples: field("allowTuples", bool, j),
-      allowShortCircuitingBinops: field("allowShortCircuitingBinops", bool, j),
     }
   }
 
   let init = () => Tea.Cmd.none
 
-  let update = (state: t, msg: msg): (t, intent) =>
+  let update = (_: t, msg: msg): (t, intent) =>
     switch msg {
-    | SetTuplesAllowed(v) => ({...state, allowTuples: v}, ())
-    | SetShortCircuitingBinopsAllowed(v) => ({...state, allowShortCircuitingBinops: v}, ())
+    | SetTuplesAllowed(v) => ({allowTuples: v}, ())
     }
 }
 

@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:89294ed
+      - image: darklang/dark-base:447cd3d
 
 commands:
   show-large-files-and-directories:
@@ -82,12 +82,6 @@ commands:
             if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
               ./scripts/deployment/deploy-lock-one-remove
             fi
-
-  deploy-lock-remove:
-    steps:
-      - run:
-          name: Remove deploy lock
-          command: ./scripts/deployment/deploy-lock-one-remove
 
   ##########################
   # Slack
@@ -167,7 +161,8 @@ commands:
       - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
   ##########################
-  # misc
+  # Google Cloud
+  # https://circleci.com/docs/openid-connect-tokens/#setting-up-gcp
   ##########################
   auth-with-gcp:
     parameters: { background: { type: boolean } }
@@ -176,22 +171,37 @@ commands:
           name: Auth with GCP
           background: << parameters.background >>
           command: |
-            echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-            gcloud auth activate-service-account --key-file gcloud-service-key.json
-            gcloud auth configure-docker
+            # Don't run a second time (no need, but also token becomes invalid after an hour)
+            if [[ ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
+              echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
+              gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
+            fi
+
+  auth-kubernetes:
+    steps:
+      - run:
+          name: Auth with Kubernetes
+          command: |
             ./scripts/production/gcp-authorize-kubectl
+
+
+  auth-gcr:
+    steps:
+      - run:
+          name: Auth with GCR
+          command: |
+            gcloud auth configure-docker
 
   auth-with-gcp-on-fail:
     steps:
       - run:
-          name: Auth with GCP
+          name: Auth with GCP (on fail)
           when: on_fail
           command: |
-            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
-              echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-              gcloud auth activate-service-account --key-file gcloud-service-key.json
-              gcloud auth configure-docker
-              ./scripts/production/gcp-authorize-kubectl
+            # Don't run a second time (no need, but also token becomes invalid after an hour)
+            if [[ "${CIRCLE_BRANCH}" = "main" || ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
+              echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
+              gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
             fi
 
 ##########################
@@ -299,9 +309,9 @@ jobs:
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Analysis/Analysis.fsproj
-      - run: cp -f backend/src/Analysis/static/BlazorWorker.js backend/static/
-      - run: rsync -a backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
+      - run: cp -f backend/src/Wasm/static/BlazorWorker.js backend/static/
+      - run: rsync -a backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
       - persist_to_workspace:
           root: "."
@@ -335,6 +345,7 @@ jobs:
     steps:
       - darkcheckout
       - auth-with-gcp: { background: false }
+      - auth-kubernetes
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
       - slack-notify-job-failure
@@ -406,6 +417,7 @@ jobs:
       - setup-app
       - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: true }
+      - auth-gcr
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
@@ -449,6 +461,7 @@ jobs:
       - setup-app
       - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: false }
+      - auth-kubernetes
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # deploy lock is removed as part of the gke-deploy script
@@ -462,15 +475,16 @@ jobs:
       - slack-notify-build
 
 workflows:
-  version: 2
   build-and-deploy:
     jobs:
       # initial builds & tests
       - static-checks
       - predeployment-checks:
+          context:
+            - gcp context
           filters:
             branches:
-              ignore: /^(pull\/).*$/
+              ignore: /^(pull|dependabot)\/.*$/
       - validate-honeycomb-config
       - build-client
       - build-backend
@@ -495,6 +509,8 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-assets-to-gcp:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -505,6 +521,8 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-containers-to-gcp:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -516,6 +534,8 @@ workflows:
 
       # actual deploy
       - deploy:
+          context:
+            - gcp context
           filters:
             branches:
               only: main
@@ -529,6 +549,8 @@ workflows:
             - predeployment-checks
 
       - deploy-lock:
+          context:
+            - gcp context
           filters:
             branches:
               only: main

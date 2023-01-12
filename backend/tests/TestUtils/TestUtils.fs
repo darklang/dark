@@ -15,6 +15,7 @@ open LibService.Exception
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module AT = LibExecution.AnalysisTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
@@ -61,6 +62,11 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
+    let tracesV0 =
+      Sql.query "DELETE FROM traces_v0 where canvas_id = @id::uuid"
+      |> Sql.parameters [ "id", Sql.uuid canvasID ]
+      |> Sql.executeStatementAsync
+
     let schedulingRules =
       Sql.query "DELETE FROM scheduling_rules where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
@@ -102,6 +108,7 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
                      secrets
                      staticAssetDeploys
                      storedEventsV2
+                     tracesV0
                      toplevelOplists
                      userData ]
 

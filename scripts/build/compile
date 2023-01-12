@@ -92,16 +92,16 @@ def copy_static():
 def copy_backend_static():
   start = time.time()
   blazor = run_backend(
-      start, "cp -f backend/src/Analysis/static/BlazorWorker.js backend/static/")
+      start, "cp -f backend/src/Wasm/static/BlazorWorker.js backend/static/")
   if optimize:
     wwwroot = run_backend(
         start,
-        "rsync -a backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
     )
   else:
     wwwroot = run_backend(
         start,
-        "rsync -a backend/Build/out/Analysis/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
     )
   return blazor and wwwroot
 
@@ -137,6 +137,12 @@ def shellcheck(f):
 def yamllint(f):
   start = time.time()
   result = run_backend(start, "scripts/linting/yamllinter " + f)
+  return result
+
+
+def terraform_validate():
+  start = time.time()
+  result = run_backend(start, "cd tf && terraform validate")
   return result
 
 
@@ -327,6 +333,7 @@ class Should:
     self.shellcheck = []
     self.yamllint = []
     self.shipit_validate = []
+    self.terraform_validate = False
 
 
 def execute(should):
@@ -432,6 +439,9 @@ def execute(should):
     if not all([shipit_validate(f) for f in should.shipit_validate]):
       success = False
 
+  if should.terraform_validate:
+    if not terraform_validate(): success = False
+
   return success
 
 
@@ -505,7 +515,7 @@ def mark(should, f):
   elif "/client/static/" in f:
     should.copy_static = True
 
-  elif "/backend/src/Analysis/static/" in f:
+  elif "/backend/src/Wasm/static/" in f:
     should.copy_backend_static = True
 
   elif (".circleci/config.yml" in f):
@@ -513,6 +523,9 @@ def mark(should, f):
 
   elif ("/services/" in f and "shipit.yaml" in f):
     should.shipit_validate += [f]
+
+  elif ("/tf/" in f and ".tf" in f):
+    should.terraform_validate = True
 
   elif ("/scripts/deployment/requirements.txt" in f):
     should.pip_install = True

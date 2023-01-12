@@ -115,7 +115,16 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     let viewDoc = desc =>
       Html.div(
         list{
-          Attrs.classList(list{("documentation-box", true), ("draggable", draggable)}),
+          Attrs.id("documentation-box"),
+          Attrs.classList(list{
+            (
+              %twc(
+                "absolute bottom-full left-0 w-[calc(100%-1.25rem)] py-1.5 px-2.5 bg-sidebar-bg text-xs text-white1 break-words font-text"
+              ),
+              true,
+            ),
+            (%twc("cursor-move"), draggable),
+          }),
           ...dragEvents,
         },
         desc,
@@ -147,11 +156,6 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
             | EFnCall(_, name, _, sendToRail) => Some(name, sendToRail)
             | EInfix(_, InfixFnCall(name, str), _, _) =>
               Some(Stdlib(PT.InfixStdlibFnName.toStdlib(name)), str)
-            | EInfix(_, BinOp(op), _, _) =>
-              Some(
-                Stdlib({version: 0, module_: "", function: PT.Expr.BinaryOperation.toString(op)}),
-                NoRail,
-              )
             | _ => None
             }
           )
@@ -197,6 +201,22 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
         }
       }
 
+      let booleanAndOrString = {
+        TL.getAST(tl)
+        |> Option.andThen(~f=ast => FluidAST.findExpr(id, ast))
+        |> Option.andThen(~f=x =>
+          switch x {
+          | EInfix(_, BinOp(BinOpAnd), _, _) => Some(FluidTypes.AutoComplete.FACKeyword(KAnd))
+          | EInfix(_, BinOp(BinOpOr), _, _) => Some(FluidTypes.AutoComplete.FACKeyword(KOr))
+          | _ => None
+          }
+        )
+        |> Option.andThen(~f=item =>
+          FluidAutocomplete.documentationForItem({item: item, validity: FACItemValid})
+        )
+        |> Option.map(~f=viewDoc)
+      }
+
       let cmdDocString = if FluidCommands.isOpenOnTL(m.fluidState.cp, tlid) {
         FluidCommands.highlighted(m.fluidState.cp) |> Option.map(~f=(c: AppTypes.fluidCmd) =>
           viewDoc(list{p(c.doc)})
@@ -209,6 +229,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
       |> Option.orElse(cmdDocString)
       |> Option.orElse(selectedParamDocString)
       |> Option.orElse(selectedFnDocString)
+      |> Option.orElse(booleanAndOrString)
       |> Option.unwrap(~default=Vdom.noNode)
     | _ => Vdom.noNode
     }
@@ -223,7 +244,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
   let tooltip = switch m.tooltipState.userTutorial.step {
   | Some(step)
     if step == VerbChange || (step == ReturnValue || (step == OpenTab || step == GettingStarted)) =>
-    UserTutorial.generateTutorialContent(step, m.username) |> Tooltips.viewToolTip(
+    UserTutorial.generateTutorialContent(step, m.username) |> Tutorial.viewToolTip(
       ~shouldShow=m.tooltipState.userTutorial.tlid == Some(tlid),
       ~tlid=Some(tlid),
     )
@@ -482,7 +503,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
       list{fontAwesome("question-circle")},
     )
     let tooltip =
-      Tooltips.generateContent(FnBackToCanvas) |> Tooltips.viewToolTip(
+      Tutorial.generateContent(FnBackToCanvas) |> Tutorial.viewToolTip(
         ~shouldShow=showTooltip,
         ~tlid=None,
       )
@@ -646,7 +667,7 @@ let accountView = (m: model): Html.html<msg> => {
       )
     }
 
-    ttContent |> Tooltips.viewToolTip(~shouldShow, ~tlid=m.tooltipState.userTutorial.tlid)
+    ttContent |> Tutorial.viewToolTip(~shouldShow, ~tlid=m.tooltipState.userTutorial.tlid)
   }
 
   Html.div(
