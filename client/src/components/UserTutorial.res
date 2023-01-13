@@ -17,7 +17,7 @@ let generateCRUDContent: Tutorial.tooltipContent = {
     ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/first-dark-application")),
   ),
   align: Left,
-  tipAlignment: %twc("left-11 -right-1 top-6"),
+  tipAlignment: %twc("-right-1 top-6"),
   tooltipStyle: Crud,
 }
 
