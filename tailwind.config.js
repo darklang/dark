@@ -56,7 +56,7 @@ module.exports = {
       "default-toplevel": "var(--defaultToplevelColor)",
       "user-functions": "var(--userFunctionsColor)",
       db: "var(--dbColor)",
-      tooltip: "var(--tooltipColor)"
+      tooltip: "var(--tooltipColor)",
     },
     extend: {
       borderWidth: {

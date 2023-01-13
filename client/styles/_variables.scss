@@ -65,7 +65,7 @@ $queue-color: $cyan;
 $repl-color: $pink;
 $user-functions: saturate($cyan, 10%);
 $db-color: #a1887f;
-$tooltip-color: lighten(saturate($cyan,20%),10%);
+$tooltip-color: lighten(saturate($cyan, 20%), 10%);
 :root {
   --httpGetColor: #{$http-get};
   --httpPostColor: #{$http-post};

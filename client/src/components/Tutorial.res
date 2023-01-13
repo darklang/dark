@@ -13,9 +13,8 @@ type tutorialStep = AppTypes.Tutorial.Step.t
 type tooltipState = AppTypes.Tooltip.t
 type tooltipMsg = AppTypes.Tooltip.msg
 
-let tw= Attrs.class
+let tw = Attrs.class
 let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
-
 
 type rec toolTipDirection =
   | Left
@@ -323,7 +322,9 @@ let generateContent = (t: AppTypes.Tooltip.source): tooltipContent =>
     }
   }
 
-let buttonsStyle= %twc("outline-0 p-1 font-medium bg-transparent mt-2.5 font-text border-none text-black2 w-full text-center disabled:text-cyan1 disabled:cursor-default")
+let buttonsStyle = %twc(
+  "outline-0 p-1 font-medium bg-transparent mt-2.5 font-text border-none text-black2 w-full text-center disabled:text-cyan1 disabled:cursor-default"
+)
 let viewNavigationBtns = (tlid: option<TLID.t>, step: tutorialStep, uniqueStr: string): Html.html<
   msg,
 > => {
@@ -387,11 +388,18 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | None => t.title
     }
 
-    let viewDesc = Html.h1(list{tw(%twc("text-lg font-text text-black2 m-0 text-center"))}, list{Html.text(t.title)})
+    let viewDesc = Html.h1(
+      list{tw(%twc("text-lg font-text text-black2 m-0 text-center"))},
+      list{Html.text(t.title)},
+    )
     let viewDetail = switch t.details {
     | Some(txtList) =>
       let txtview = List.map(
-        ~f=txt => Html.p(list{tw(%twc("text-base font-text text-black2 text-center"))}, list{Html.text(txt)}),
+        ~f=txt =>
+          Html.p(
+            list{tw(%twc("text-base font-text text-black2 text-center"))},
+            list{Html.text(txt)},
+          ),
         txtList,
       )
 
@@ -404,7 +412,11 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
     | Some(text, action) =>
       Html.button(
         list{
-          tw(%twc("outline-0 p-1 font-medium bg-transparent mt-2.5 font-text border-0 w-max text-cyan1 bg-white3 transition-[background-color] rounded hover:text-white3 hover:bg-[#8eeade]")),
+          tw(
+            %twc(
+              "outline-0 p-1 font-medium bg-transparent mt-2.5 font-text border-0 w-max text-cyan1 bg-white3 transition-[background-color] rounded hover:text-white3 hover:bg-[#8eeade]"
+            ),
+          ),
           EventListeners.eventNoPropagation(~key="close-settings" ++ text, "click", _ => action),
         },
         list{Html.p(list{tw(%twc("m-0"))}, list{Html.text(text)})},
@@ -457,13 +469,25 @@ let viewToolTip = (~shouldShow: bool, ~tlid: option<TLID.t>, t: tooltipContent):
       list{
         Html.div(
           ~unique=uniqueStr,
-          list{tw2(%twc("absolute text-sm flex w-max max-w-[15.625rem] bg-tooltip rounded-md mt-1.5 z-[5000] shadow-[0_2px_4px_1px_rgba(24,24,24,0.7)]"), directionToClass)},
+          list{
+            tw2(
+              %twc(
+                "absolute text-sm flex w-max max-w-[15.625rem] bg-tooltip rounded-md mt-1.5 z-[5000] shadow-[0_2px_4px_1px_rgba(24,24,24,0.7)]"
+              ),
+              directionToClass,
+            ),
+          },
           list{
             Html.div(
               list{tw(%twc("flex flex-col items-center p-2"))},
               list{viewStepCount, viewDesc, viewDetail, viewBtn, viewNextPrevBtns, closeBtn},
             ),
-            Html.div(list{tw2(%twc("bg-tooltip block w-2.5 h-2.5 z-0 absolute rotate-45") , t.tipAlignment)}, list{}),
+            Html.div(
+              list{
+                tw2(%twc("bg-tooltip block w-2.5 h-2.5 z-0 absolute rotate-45"), t.tipAlignment),
+              },
+              list{},
+            ),
           },
         ),
       },
