@@ -17,6 +17,8 @@ type model = AppTypes.model
 type msg = AppTypes.msg
 
 let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
+
 
 let appID = "app"
 
@@ -670,14 +672,14 @@ let accountView = (m: model): Html.html<msg> => {
   )
   let feedbackRef = Html.a(
     list{
-      tw(accountActionBtnStyle),
+      tw2(accountActionBtnStyle, %twc("mr-1")),
       Attrs.href("https://github.com/darklang/dark/discussions/categories/feedback"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="github-feedback-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
-    list{Html.span(list{tw(%twc("font-text"))}, list{Html.text("Post Feedback"), Icons.fontAwesome(~style=%twc("ml-2"),"file-lines")})}
+    list{Html.span(list{tw(%twc("font-text"))}, list{Html.text("Post Feedback"), Icons.fontAwesome(~style=%twc("ml-2"),"file-pen")})}
   )
 
   let tooltip = {
