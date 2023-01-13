@@ -735,14 +735,14 @@ let view = (m: model): Html.html<msg> => {
   let viewDocs = list{
     Html.a(
       list{
-        Attrs.class("doc-container"),
+        tw(%twc("font-text cursor-pointer flex flex-col items-center justify-center absolute bottom-0 right-0 no-underline text-inherit pt-0 pr-2.5 pb-2.5 pl-0 hover:text-yellow1 active:outline-none focus:outline-none")),
         Attrs.href(docsURL),
         Attrs.target("_blank"),
         // Block opening the omnibox here by preventing canvas pan start
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.eventNoPropagation(~key="doc", "click", _ => Msg.UpdateHeapio(OpenDocs)),
       },
-      list{fontAwesome("book"), Html.text("Docs")},
+      list{fontAwesome(~style=%twc("text-2xl"),"book"), Html.text("Docs")},
     ),
   }
 
