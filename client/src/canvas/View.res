@@ -19,7 +19,6 @@ type msg = AppTypes.msg
 let tw = Attrs.class
 let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
 
-
 let appID = "app"
 
 let fontAwesome = Icons.fontAwesome
@@ -623,7 +622,15 @@ let accountView = (m: model): Html.html<msg> => {
         OpenKeyboardRef,
       )),
     },
-    list{Html.span(list{tw(%twc("font-text"))}, list{ Html.text("Discord Community"), Icons.fontAwesomeBrands(~style=%twc("ml-1.5 text-sm"),"discord")})}
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{
+          Html.text("Discord Community"),
+          Icons.fontAwesomeBrands(~style=%twc("ml-1.5 text-sm"), "discord"),
+        },
+      ),
+    },
   )
 
   let contributeRef = Html.a(
@@ -668,7 +675,12 @@ let accountView = (m: model): Html.html<msg> => {
         OpenKeyboardRef,
       )),
     },
-    list{Html.span(list{tw(%twc("font-text"))}, list{Html.text("Report Bug"), Icons.fontAwesomeBrands(~style=%twc("ml-2"),"github")})}
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{Html.text("Report Bug"), Icons.fontAwesomeBrands(~style=%twc("ml-2"), "github")},
+      ),
+    },
   )
   let feedbackRef = Html.a(
     list{
@@ -679,7 +691,12 @@ let accountView = (m: model): Html.html<msg> => {
         OpenKeyboardRef,
       )),
     },
-    list{Html.span(list{tw(%twc("font-text"))}, list{Html.text("Post Feedback"), Icons.fontAwesome(~style=%twc("ml-2"),"file-pen")})}
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{Html.text("Post Feedback"), Icons.fontAwesome(~style=%twc("ml-2"), "file-pen")},
+      ),
+    },
   )
 
   let tooltip = {
