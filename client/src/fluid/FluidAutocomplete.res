@@ -878,8 +878,10 @@ let documentationForFunction = (
     },
   )
 
-let onErrorRail = if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noNode{
-  Html.div(list{tw(%twc("flex items-center font-text ml-2"))},list{
+  let onErrorRail = if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noNode {
+    Html.div(
+      list{tw(%twc("flex items-center font-text ml-2"))},
+      list{
         Html.span(list{tw(%twc("text-grey6 font-medium mr-px"))}, list{Html.text("(")}),
         Tooltip.tooltip(
           ~style=%twc("-left-5 top-0 bg-black3"),
@@ -889,10 +891,11 @@ let onErrorRail = if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noN
           list{Html.text("On Error Rail")},
         ),
         Html.span(list{tw(%twc("text-grey6 font-medium ml-px"))}, list{Html.text(")")}),
-      })
-} else{
-  Html.noNode
-}
+      },
+    )
+  } else {
+    Html.noNode
+  }
 
   let row = Html.div(list{tw(%twc("flex items-center mt-2"))}, list{return, onErrorRail})
 
@@ -903,13 +906,25 @@ let onErrorRail = if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noN
     | ReplacedBy(name) => list{
         Html.span(
           list{tw(sharedStyle)},
-          list{Html.text("replaced by "), Html.span(list{tw(%twc("font-code text-purple1"))},list{Html.text(FQFnName.StdlibFnName.toString(name))})},
+          list{
+            Html.text("replaced by "),
+            Html.span(
+              list{tw(%twc("font-code text-purple1"))},
+              list{Html.text(FQFnName.StdlibFnName.toString(name))},
+            ),
+          },
         ),
       }
     | RenamedTo(name) => list{
         Html.span(
           list{tw(sharedStyle)},
-          list{Html.text("renamed to "),  Html.span(list{tw(%twc("font-code text-purple1"))}, list{Html.text(FQFnName.StdlibFnName.toString(name))})},
+          list{
+            Html.text("renamed to "),
+            Html.span(
+              list{tw(%twc("font-code text-purple1"))},
+              list{Html.text(FQFnName.StdlibFnName.toString(name))},
+            ),
+          },
         ),
       }
     | DeprecatedBecause(reason) => list{Html.span(list{tw(sharedStyle)}, list{Html.text(reason)})}

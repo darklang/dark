@@ -16,6 +16,8 @@ module Msg = AppTypes.Msg
 type model = AppTypes.model
 type msg = AppTypes.msg
 
+let tw = Attrs.class
+
 let appID = "app"
 
 let fontAwesome = Icons.fontAwesome
@@ -492,7 +494,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
   | FocusedFn(_) =>
     let helpIcon = Html.div(
       list{
-        Attrs.class("help-icon"),
+        tw(%twc("text-4xl text-cyan")),
         EventListeners.eventNoPropagation(~key="ept", "mouseenter", _ => Msg.ToolTipMsg(
           OpenFnTooltip(true),
         )),
@@ -509,12 +511,19 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
       )
 
     Html.div(
-      list{Attrs.id("back-to-canvas"), Attrs.class("back-to-canvas")},
+      list{
+        Attrs.id("back-to-canvas"),
+        tw(
+          %twc(
+            "fixed bottom-2 right-16 w-36 cursor-pointer text-center text-cyan font-text text-base"
+          ),
+        ),
+      },
       list{
         tooltip,
         Html.div(
           list{
-            Attrs.class("back-to-canvas-content"),
+            tw(%twc("flex items-center justify-between")),
             Vdom.prop("alt", "architecture preview"),
             EventListeners.eventNoPropagation(~key="return-to-arch", "click", _ =>
               Msg.GoToArchitecturalView
@@ -522,7 +531,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
           },
           list{
             helpIcon,
-            Html.a(list{Attrs.class("content")}, list{Vdom.text("Return to main canvas")}),
+            Html.a(list{tw(%twc("w-24 font-text"))}, list{Vdom.text("Return to main canvas")}),
           },
         ),
       },
@@ -733,14 +742,18 @@ let view = (m: model): Html.html<msg> => {
   let viewDocs = list{
     Html.a(
       list{
-        Attrs.class("doc-container"),
+        tw(
+          %twc(
+            "font-text cursor-pointer flex flex-col items-center justify-center absolute bottom-0 right-0 no-underline text-inherit pt-0 pr-2.5 pb-2.5 pl-0 hover:text-yellow1 active:outline-none focus:outline-none"
+          ),
+        ),
         Attrs.href(docsURL),
         Attrs.target("_blank"),
         // Block opening the omnibox here by preventing canvas pan start
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.eventNoPropagation(~key="doc", "click", _ => Msg.UpdateHeapio(OpenDocs)),
       },
-      list{fontAwesome("book"), Html.text("Docs")},
+      list{fontAwesome(~style=%twc("text-2xl"), "book"), Html.text("Docs")},
     ),
   }
 
