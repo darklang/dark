@@ -47,8 +47,7 @@ SELECT DISTINCT usename FROM pg_stat_activity # presumably user1 or user2
 - Enable the unused user `userNEW`
 
 ```
-alter role userNEW set password 'NEW PASSWORD';
-alter role userNEW login;
+alter role userNEW login password 'NEW PASSWORD';
 ```
 
 - Log in with the user and validate that it's working:
@@ -113,6 +112,5 @@ order by datname;
 - Disable the unused user `userOLD`
 
 ```
-alter role userOLD set password 'SOME GIBBERISH';
-alter role userOLD nologin;
+alter role userOLD nologin set password 'SOME GIBBERISH';
 ```
