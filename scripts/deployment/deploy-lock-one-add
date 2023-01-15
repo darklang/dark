@@ -4,13 +4,10 @@
 # Add a lock identifier for the commit and the timestamp.
 
 set -euo pipefail
+set -x
 
-DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
+LOCKNAME=$(./scripts/deployment/deploy-lock-one-get-name)
 
-LOCKFILE_NAME=$(./scripts/deployment/deploy-lock-one-get-name)
-touch "$LOCKFILE_NAME"
+echo "Adding lock file with name ${LOCKNAME}"
 
-echo "Adding lock file with id ${LOCKFILE_NAME}"
-
-gcloud storage cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"
-rm "$LOCKFILE_NAME"
+./scripts/deployment/_deploy-lock-request "/${LOCKNAME}" POST | jq -r .
