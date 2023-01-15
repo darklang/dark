@@ -55,7 +55,7 @@ alter role userNEW login password 'NEW PASSWORD';
 ```
 create table check_its_working(id int);
 select * from pg_tables where tableowner = 'postgres'; # should include `check_its_working`
-drop table check_its_working
+drop table check_its_working;
 ```
 
 - Update all uses (we update in place because it's a much bigger hassle not to)
@@ -64,9 +64,10 @@ drop table check_its_working
 
     - backup secret: `kubectl get secrets -n default cloudsql-db-credentials -o yaml > old-db-secret.yaml`
     - update the password in the secret
-      - get the base64 for the new password: echo "NEW PASSWORD" | base64
+      - get the base64 for the new password: echo -n "NEW PASSWORD" | base64
+      - get the base64 for the new user: echo -n "userNEW" | base64
       - edit the secret: `kubectl edit secrets cloudsql-db-credentials -n default`
-    - bounce each service (least risky first):
+    - restart each service (least risky first):
       - `kubectl rollout restart deployment editor-deployment -n default`
       - `kubectl rollout restart deployment garbagecollector-deployment -n default`
       - `kubectl rollout restart deployment cronchecker-deployment -n default`
@@ -78,9 +79,10 @@ drop table check_its_working
   - update the `darklang` namespace
     - backup secret: `kubectl get secrets -n darklang cloudsql-db-credentials -o yaml > old-db-secret.yaml`
     - update the password in the secret
-      - get the base64 for the new password: echo "NEW PASSWORD" | base64
+      - get the base64 for the new password: echo -n "NEW PASSWORD" | base64
+      - get the base64 for the new user: echo -n "userNEW" | base64
       - edit the secret: `kubectl edit secrets cloudsql-db-credentials -n darklang`
-    - bounce each service (least risky first):
+    - restart each service (least risky first):
       - `kubectl rollout restart deployment exechost-deployment -n darklang`
       - `kubectl rollout restart deployment apiserver-deployment -n darklang`
       - `kubectl rollout restart deployment queueworker-deployment -n darklang`
