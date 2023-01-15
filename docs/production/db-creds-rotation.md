@@ -112,5 +112,5 @@ order by datname;
 - Disable the unused user `userOLD`
 
 ```
-alter role userOLD nologin set password 'SOME GIBBERISH';
+alter role userOLD nologin password 'SOME GIBBERISH';
 ```
