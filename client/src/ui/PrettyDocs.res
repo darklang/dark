@@ -22,7 +22,7 @@ let fn = %twc("text-purple1")
 let var = %twc("text-purple1")
 let err = %twc("text-red pb-3.5")
 let cmd = %twc("text-pink whitespace-nowrap")
-let code = %twc("bg-grey1 whitespace-nowrap py-0 px-1.5")
+let code = %twc("bg-grey1 py-0 px-1.5")
 let default = %twc("text-white1")
 
 let validTags = list{"param", "fn", "var", "type", "err", "cmd"}

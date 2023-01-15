@@ -846,7 +846,7 @@ let documentationForFunction = (
   }
 
   let name = Html.span(
-    list{tw(%twc("text-grey3 text-xs"))},
+    list{tw(%twc("text-grey3 text-xs text-ellipsis max-w-[35ch] overflow-hidden whitespace-nowrap"))},
     list{Html.text(f.name |> FQFnName.toString)},
   )
 
