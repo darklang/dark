@@ -17,6 +17,7 @@ type model = AppTypes.model
 type msg = AppTypes.msg
 
 let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
 
 let appID = "app"
 
@@ -567,14 +568,18 @@ let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
 }
 
 let accountView = (m: model): Html.html<msg> => {
+  let accountActionBtnStyle = %twc(
+    "m-2.5 cursor-pointer text-white1 font-text hover:text-purple mt-1.5 no-underline"
+  )
+
   let logout = Html.a(
-    list{Attrs.class("account-action-btn"), Attrs.href("https://login.darklang.com/logout")},
+    list{tw(accountActionBtnStyle), Attrs.href("https://login.darklang.com/logout")},
     list{Html.text("Logout")},
   )
 
   let docs = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href(docsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-doc", "click", _ => Msg.UpdateHeapio(
@@ -586,7 +591,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let functionRefs = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href(functionRefsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-fn-ref", "click", _ => Msg.UpdateHeapio(
@@ -598,7 +603,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let keyboardRefs = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href(keyboardRefsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-fn-ref", "click", _ => Msg.UpdateHeapio(
@@ -610,19 +615,27 @@ let accountView = (m: model): Html.html<msg> => {
 
   let discordRef = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href("https://darklang.com/discord-invite"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="discord-invite-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
-    list{Html.text("Discord Community")},
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{
+          Html.text("Discord Community"),
+          Icons.fontAwesomeBrands(~style=%twc("ml-1.5 text-sm"), "discord"),
+        },
+      ),
+    },
   )
 
   let contributeRef = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href("https://docs.darklang.com/contributing/getting-started"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="contributor-ref", "click", _ => Msg.UpdateHeapio(
@@ -634,7 +647,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let tutorial = Html.p(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       EventListeners.eventNoPropagation(~key="tutorial", "click", _ => Msg.ToolTipMsg(
         UpdateTutorial(ReopenTutorial),
       )),
@@ -642,10 +655,10 @@ let accountView = (m: model): Html.html<msg> => {
     list{Html.text("Hello World tutorial")},
   )
 
-  let spacer = Html.div(list{Attrs.class("account-action-spacer")}, list{})
+  let spacer = Html.div(list{tw(%twc("bg-grey2 h-px my-2.5 mx-0"))}, list{})
   let settings = Html.p(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       EventListeners.eventNoPropagation(~key="open-settings", "click", _ => Msg.SettingsMsg(
         Open(Canvases),
       )),
@@ -653,14 +666,31 @@ let accountView = (m: model): Html.html<msg> => {
     list{Html.text("Settings")},
   )
 
-  let share = Html.p(
+  let reportBugRef = Html.a(
     list{
-      Attrs.class("account-action-btn invite"),
-      EventListeners.eventNoPropagation(~key="open-invite", "click", _ => Msg.SettingsMsg(
-        Open(Invite),
-      )),
+      tw(accountActionBtnStyle),
+      Attrs.href("https://github.com/darklang/dark/issues"),
+      Attrs.target("_blank"),
     },
-    list{Html.text("Share Dark")},
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{Html.text("Report Bug"), Icons.fontAwesomeBrands(~style=%twc("ml-2"), "github")},
+      ),
+    },
+  )
+  let feedbackRef = Html.a(
+    list{
+      tw2(accountActionBtnStyle, %twc("mr-1")),
+      Attrs.href("https://github.com/darklang/dark/discussions/categories/feedback"),
+      Attrs.target("_blank"),
+    },
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{Html.text("Post Feedback"), Icons.fontAwesome(~style=%twc("ml-2"), "file-pen")},
+      ),
+    },
   )
 
   let tooltip = {
@@ -681,7 +711,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   Html.div(
     list{
-      Attrs.class("my-account"),
+      tw(%twc("group fixed top-1.5 right-2.5 z-[20000] text-right")),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),
     },
@@ -689,18 +719,26 @@ let accountView = (m: model): Html.html<msg> => {
       m->Avatar.myAvatar->Avatar.avatarDiv(~style=Avatar.Styles.main),
       tooltip,
       Html.div(
-        list{Attrs.class("account-actions")},
+        list{
+          tw(
+            %twc(
+              "hidden group-hover:flex py-1.5 px-2 box-border bg-black3 overflow-hidden flex-col justify-around text-right"
+            ),
+          ),
+        },
         list{
           settings,
-          share,
           logout,
           spacer,
           docs,
           functionRefs,
           keyboardRefs,
-          discordRef,
           contributeRef,
           tutorial,
+          spacer,
+          reportBugRef,
+          discordRef,
+          feedbackRef,
         },
       ),
     },

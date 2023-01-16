@@ -91,6 +91,7 @@ module.exports = {
       accents: ['"Fira Code"', "sans-serif"],
       code: ['"Fira Code"', "mono"],
       text: ['"Source Sans Pro"', "sans-serif"],
+      brands: ['"Font Awesome 6 Brands"', "sans-serif"],
     },
   },
   corePlugins: {

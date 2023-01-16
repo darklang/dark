@@ -103,7 +103,8 @@
 }
 
 ::selection {
-  background-color: $highlight-color; /* WebKit/Blink Browsers */
+  background-color: $highlight-color;
+  /* WebKit/Blink Browsers */
 }
 
 body {
@@ -210,82 +211,8 @@ body #app * {
   }
 }
 
-.back-to-canvas {
-  position: fixed;
-  bottom: 4px;
-  right: 65px;
-  width: 170px;
-
-  cursor: pointer;
-  text-align: center;
-  color: $cyan;
-  font-size: 16px;
-
-  .back-to-canvas-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    .help-icon {
-      font-size: 45px;
-      color: $cyan;
-    }
-    a {
-      width: 110px;
-    }
-  }
-
-  .tooltips {
-    right: 23px;
-  }
-}
-
 .logged-out {
   margin: auto;
   width: 500px;
   text-align: center;
-}
-
-.my-account {
-  position: fixed;
-  top: 5px;
-  right: 10px;
-  z-index: 20000;
-  text-align: right;
-
-  .account-actions {
-    display: none;
-    padding: 5px $spacing-medium;
-    box-sizing: border-box;
-    background: $black3;
-    overflow: hidden;
-
-    flex-direction: column;
-    justify-content: space-around;
-    text-align: right;
-    .account-action-btn {
-      margin: 10px;
-      cursor: pointer;
-      color: $white1;
-      &:hover {
-        color: $purple;
-      }
-
-      & + .account-action-btn {
-        margin-top: 5px;
-      }
-    }
-    .account-action-spacer {
-      background-color: $grey2;
-      height: 1px;
-      margin: 10px 0;
-    }
-    a {
-      text-decoration: none;
-    }
-  }
-
-  &:hover > .account-actions {
-    display: flex;
-  }
 }
