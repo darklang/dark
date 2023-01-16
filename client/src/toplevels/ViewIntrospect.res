@@ -10,6 +10,9 @@ module B = BlankOr
 module Msg = AppTypes.Msg
 type msg = AppTypes.msg
 
+let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
+
 let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   let colView = (col: PT.DB.Col.t) =>
     switch col {
@@ -32,7 +35,7 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
 let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.UserFunction.Parameter.t) => {
     let name = Html.span(
-      list{Attrs.classList(list{("name", true), ("has-blanks", p.name == "")})},
+      list{Attrs.classList(list{(%twc("inline-block"), true), (%twc("text-red italic"), p.name == "")})},
       list{
         Html.text(
           if p.name == "" {
@@ -45,7 +48,7 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
     )
 
     let ptype = Html.span(
-      list{Attrs.classList(list{("type", true), ("has-blanks", p.typ == None)})},
+      list{Attrs.classList(list{(%twc("inline-block ml-2 before:content-[':'] before:mr-2"), true), (%twc("text-red italic"), p.typ == None)})},
       list{
         Html.text(
           switch p.typ {
@@ -56,10 +59,10 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
       },
     )
 
-    Html.div(list{Attrs.class("field")}, list{name, ptype})
+    Html.div(list{tw(%twc("block text-xs text-grey7"))}, list{name, ptype})
   }
 
-  Html.div(list{Attrs.class("fields")}, List.map(~f=paramView, params))
+  Html.div(list{tw(%twc("block w-max text-grey8 ml-[22px]"))}, List.map(~f=paramView, params))
 }
 
 let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg> => {
@@ -82,7 +85,7 @@ let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
     let typeStr = DType.type2str(v)
     Html.div(
       list{},
-      list{Html.text("Returns "), Html.span(list{Attrs.class("type")}, list{Html.text(typeStr)})},
+      list{Html.text("Returns "), Html.span(list{tw(%twc("inline-block ml-2"))}, list{Html.text(typeStr)})},
     )
   | None => Vdom.noNode
   }
@@ -176,13 +179,14 @@ let fnView = (
 ): Html.html<msg> => {
   let header = list{
     Icons.darkIcon("fn"),
-    Html.span(list{Attrs.class("fnname")}, list{Html.text(name)}),
+    Html.span(list{tw(%twc("inline-block pl-2"))}, list{Html.text(name)}),
   }
-
+  Html.div(list{tw(%twc("flex items-center justify-center -ml-6"))},list{
+  Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("right-long")}),
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.class("ref-block fn " ++ direction),
+        tw2(%twc("block box-content relative min-w-[120px] my-2 mx-0 p-2 bg-black3 text-grey8 text-[13.3333px] first:mt-0 first:mb-2 before:absolute before:text-2xl hover:cursor-pointer hover:text-[#3a839e] hover:bg-black2"), direction),
         EventListeners.eventNoPropagation(
           ~key="ref-fn-link" ++ TLID.toString(tlid),
           "click",
@@ -192,11 +196,12 @@ let fnView = (
       hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     ),
     list{
-      Html.div(list{Attrs.class("fnheader fnheader-user")}, header),
+      Html.div(list{tw(%twc("flex w-full items-center text-blue"))},header),
       fnParamsView(params),
       fnReturnTypeView(returnType),
     },
   )
+  })
 }
 
 let packageFnView = (
