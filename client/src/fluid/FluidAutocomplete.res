@@ -851,14 +851,21 @@ let documentationForFunction = (
   )
 
   let documentationHeader = Html.div(
-    list{tw(%twc("flex justify-between items-center mb-2"))},
+    list{tw(%twc("flex justify-between items-center mb-0.5"))},
     list{name, Html.div(list{}, deprecationHeader)},
   )
+
+  let signature = {
+    let types = f.parameters |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
+    |> List.map(~f=DType.type2str) |> List.join(~sep=", ")
+    let returnType = f.returnType
+    Html.div(list{tw(%twc("lowercase text-xxs text-grey2 mb-2"))},list{Html.span(list{},list{Html.text(`(${types})`) ,Html.span(list{tw(%twc("mx-1"))},list{Icons.fontAwesome("arrow-right")})}), Html.span(list{tw(%twc("text-green"))},list{Html.text(DType.type2str(returnType))})})
+  }
 
   let desc = if String.length(f.description) != 0 {
     PrettyDocs.convert(f.description)
   } else {
-    list{Html.i(list{}, list{Html.text("no description provided")})}
+    list{Html.text("")}
   }
 
   let return = Html.div(
@@ -951,7 +958,7 @@ let documentationForFunction = (
     }
   }
 
-  Belt.List.concatMany([list{documentationHeader}, desc, list{row}, deprecationFooter])
+  Belt.List.concatMany([list{documentationHeader}, list{signature}, desc, list{row}, deprecationFooter])
 }
 
 let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>> => {
