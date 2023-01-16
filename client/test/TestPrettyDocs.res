@@ -40,7 +40,7 @@ let run = () => {
     test("convert_ parses nested tags correctly", () =>
       expect(convert("{{<param d1> > <param d2>}}")) |> toEqual(list{
         tag(
-          "bg-grey1 whitespace-nowrap py-0 px-1.5",
+          "bg-grey1 py-0 px-1.5",
           list{
             tag("text-purple1", list{txt("d1")}),
             txt(" > "),
@@ -65,7 +65,7 @@ let run = () => {
     test("converts code blocks", () =>
       expect(convert("{{Ok <var value>}}")) |> toEqual(list{
         tag(
-          "bg-grey1 whitespace-nowrap py-0 px-1.5",
+          "bg-grey1 py-0 px-1.5",
           list{txt("Ok "), tag("text-purple1", list{txt("value")})},
         ),
       })
@@ -88,7 +88,7 @@ let run = () => {
         link("error rail", "https://docs.darklang.com/tutorials/handle-error-errorrail"),
         txt(", if it is "),
         tag(
-          "bg-grey1 whitespace-nowrap py-0 px-1.5",
+          "bg-grey1 py-0 px-1.5",
           list{txt("Error "), tag("text-purple1", list{txt("message")})},
         ),
       })
