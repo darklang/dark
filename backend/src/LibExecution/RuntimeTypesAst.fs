@@ -8,6 +8,7 @@ open Prelude
 open VendoredTablecloth
 open RuntimeTypes
 
+// TODO: should this also traverse MatchPatterns (in `EMatch`) and LetPatterns (in `ELetWithPattern`)?
 let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = preTraversal f
   let expr = f expr
@@ -23,6 +24,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EFQFnValue _
   | EFloat _ -> expr
   | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
+  | ELetWithPattern (id, pat, rhs, next) -> ELetWithPattern(id, pat, r rhs, r next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
   | EApply (id, name, exprs, inPipe, ster) ->
@@ -41,6 +43,8 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EAnd (id, left, right) -> EAnd(id, r left, r right)
   | EOr (id, left, right) -> EOr(id, r left, r right)
 
+
+// TODO: should this also traverse MatchPatterns (in `EMatch`) and LetPatterns (in `ELetWithPattern`)?
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
 
@@ -56,6 +60,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | ENull _
     | EFloat _ -> expr
     | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
+    | ELetWithPattern (id, pat, rhs, next) -> ELetWithPattern(id, pat, r rhs, r next)
     | EApply (id, name, exprs, inPipe, ster) ->
       EApply(id, name, List.map r exprs, inPipe, ster)
     | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)

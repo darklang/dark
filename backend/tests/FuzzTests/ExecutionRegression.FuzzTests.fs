@@ -98,6 +98,7 @@ let rec patternFromExpr (expr : RT.Expr) : Gen<RT.MatchPattern> =
 
   // TODO: we could populate a Symtable to use with EVariable and EFieldAccess
   // usages in the RHS expr
+  | RT.ELetWithPattern _
   | RT.ELet _ ->
     Gen.frequency [ (1, G.RuntimeTypes.MatchPattern.genVar)
                     (1, G.RuntimeTypes.matchPattern) ]

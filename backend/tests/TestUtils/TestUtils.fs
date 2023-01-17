@@ -556,6 +556,29 @@ module Expect =
     | MPBlank _, _
     | MPTuple _, _ -> check path actual expected
 
+  let rec letPatternEqualityBaseFn
+    (checkIDs : bool)
+    (path : Path)
+    (actual : LetPattern)
+    (expected : LetPattern)
+    (errorFn : Path -> string -> string -> unit)
+    : unit =
+    let eq path a e = letPatternEqualityBaseFn checkIDs path a e errorFn
+
+    let check path (a : 'a) (e : 'a) =
+      if a <> e then errorFn path (string actual) (string expected)
+
+    if checkIDs then
+      check path (LetPattern.toID actual) (LetPattern.toID expected)
+
+    match actual, expected with
+    | LPVariable (_, name), LPVariable (_, name') -> check path name name'
+    | LPTuple (_, first, second, theRest), LPTuple (_, first', second', theRest') ->
+      check path (first :: second :: theRest) (first' :: second' :: theRest')
+    // exhaustiveness check
+    | LPVariable _, _
+    | LPTuple _, _ -> check path actual expected
+
 
   let rec exprEqualityBaseFn
     (checkIDs : bool)
@@ -588,6 +611,10 @@ module Expect =
     | EBool (_, v), EBool (_, v') -> check path v v'
     | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
       check path lhs lhs'
+      eq ("rhs" :: path) rhs rhs'
+      eq ("body" :: path) body body'
+    | ELetWithPattern (_, pat, rhs, body), ELetWithPattern (_, pat', rhs', body') ->
+      letPatternEqualityBaseFn checkIDs path pat pat' errorFn
       eq ("rhs" :: path) rhs rhs'
       eq ("body" :: path) body body'
     | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
@@ -659,6 +686,7 @@ module Expect =
     | EBool _, _
     | EFloat _, _
     | ELet _, _
+    | ELetWithPattern _, _
     | EIf _, _
     | EList _, _
     | ETuple _, _

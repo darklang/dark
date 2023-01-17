@@ -192,16 +192,16 @@ module RuntimeTypes =
                       //(4, ok) // TODO: random string, with 0-5 args
                        ]
 
-  open MatchPattern
+  module MP = MatchPattern
 
   let matchPattern =
     // TODO: consider adding 'weight' such that certain patterns are generated
     // more often than others
     let rec gen' s : Gen<RT.MatchPattern> =
       let finitePatterns =
-        [ genInt; genBool; genBlank; genNull; genChar; genStr; genVar ]
+        [ MP.genInt; MP.genBool; MP.genBlank; MP.genNull; MP.genChar; MP.genStr; MP.genVar ]
 
-      let allPatterns = constructor (s, gen') :: finitePatterns
+      let allPatterns = MP.constructor (s, gen') :: finitePatterns
 
       match s with
       | 0 -> Gen.oneof finitePatterns
@@ -216,6 +216,27 @@ module RuntimeTypes =
       let! len = Gen.choose (1, 20)
       return! Gen.listOfLength len matchPattern
     }
+
+
+  module LetPattern =
+    let genVar = simpleString |> Gen.map (fun s -> RT.LPVariable(gid (), s))
+
+    let genTuple =
+      gen {
+        let! first = simpleString
+        let! second = simpleString
+
+        // 7-element tuples seem sufficient
+        let! tailLength = Gen.elements [ 0..5 ]
+        let! theRest = Gen.listOfLength tailLength simpleString
+
+        return RT.LPTuple(gid (), first, second, theRest)
+      }
+
+
+  module LP = LetPattern
+
+  let letPattern = Gen.oneof [ LP.genVar; LP.genTuple ]
 
   module Expr =
     // Non-recursive exprs
@@ -236,6 +257,15 @@ module RuntimeTypes =
         let! nextExpr = genSubExpr (s / 2)
 
         return RT.ELet(gid (), varName, rhsExpr, nextExpr)
+      }
+
+    let genLetWithPattern genSubExpr s =
+      gen {
+        let! pat = letPattern
+        let! rhsExpr = genSubExpr (s / 2)
+        let! nextExpr = genSubExpr (s / 2)
+
+        return RT.ELetWithPattern(gid (), pat, rhsExpr, nextExpr)
       }
 
     let genIf genSubExpr s =
@@ -347,6 +377,7 @@ module RuntimeTypes =
     let recursiveExprs =
       [ genConstructor
         genLet
+        genLetWithPattern
         genIf
         genFF
         genTuple

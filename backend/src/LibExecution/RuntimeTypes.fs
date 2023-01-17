@@ -151,6 +151,21 @@ type Expr =
   /// </code>
   | ELet of id * string * Expr * Expr
 
+  /// <summary>
+  /// Composed of binding pattern, the bound expression,
+  /// and the expression that follows, where the bound value is available
+  /// </summary>
+  ///
+  /// <code>
+  /// let str = expr1
+  /// expr2
+  /// </code>
+  /// <code>
+  /// let (a, b) = expr1
+  /// expr2
+  /// </code>
+  | ELetWithPattern of id * LetPattern * Expr * Expr
+
   /// Composed of condition, expr if true, and expr if false
   | EIf of id * Expr * Expr * Expr
 
@@ -209,6 +224,10 @@ and MatchPattern =
   | MPNull of id
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+and LetPattern =
+  | LPVariable of id * name : string
+  | LPTuple of id * first : string * second : string * theRest : List<string>
 
 type DvalMap = Map<string, Dval>
 
@@ -413,6 +432,7 @@ module Expr =
     | ELambda (id, _, _)
     | EBlank id
     | ELet (id, _, _, _)
+    | ELetWithPattern (id, _, _, _)
     | EIf (id, _, _, _)
     | EApply (id, _, _, _, _)
     | EList (id, _)
@@ -438,7 +458,13 @@ module MatchPattern =
     | MPVariable (id, _)
     | MPBlank id
     | MPTuple (id, _, _, _)
-    | MPConstructor (id, _, _) -> id
+    | MPConstructor (id, _, _) -> id/// Functions for working with Dark match patterns
+
+module LetPattern =
+  let toID (pat : LetPattern) : id =
+    match pat with
+    | LPVariable (id, _)
+    | LPTuple (id, _, _, _) -> id
 
 /// Functions for working with Dark runtime values
 module Dval =

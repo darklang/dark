@@ -81,6 +81,12 @@ module MatchPattern =
     | ST.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
 
+module LetPattern =
+  let toPT (p : ST.LetPattern) : PT.LetPattern =
+    match p with
+    | ST.LPVariable (id, str) -> PT.LPVariable(id, str)
+    | ST.LPTuple (id, first, second, theRest) ->
+      PT.LPTuple(id, first, second, theRest)
 
 
 module Expr =
@@ -124,6 +130,7 @@ module Expr =
       Exception.raiseInternal "package serialized as a binop" [ "name", name ]
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | ST.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, toPT rhs, toPT body)
+    | ST.ELetWithPattern(id, pat, rhs, body) -> PT.ELetWithPattern(id, LetPattern.toPT pat, toPT rhs, toPT body)
     | ST.EIf (id, cond, thenExpr, elseExpr) ->
       PT.EIf(id, toPT cond, toPT thenExpr, toPT elseExpr)
     | ST.EPartial (id, str, expr) -> PT.EPartial(id, str, toPT expr)

@@ -100,6 +100,18 @@ module MatchPattern =
     | PT.MPTuple (id, first, second, theRest) ->
       CTPT.MPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
+module LetPattern =
+  let fromCT (p : CTPT.LetPattern) : PT.LetPattern =
+    match p with
+    | CTPT.LPVariable (id, str) -> PT.LPVariable(id, str)
+    | CTPT.LPTuple (id, first, second, theRest) ->
+      PT.LPTuple(id, first, second, theRest)
+
+  let toCT (p : PT.LetPattern) : CTPT.LetPattern =
+    match p with
+    | PT.LPVariable (id, str) -> CTPT.LPVariable(id, str)
+    | PT.LPTuple (id, first, second, theRest) ->
+      CTPT.LPTuple(id, first, second, theRest)
 
 module SendToRail =
   let fromCT (str : CTPT.SendToRail) : PT.SendToRail =
@@ -151,6 +163,8 @@ module Expr =
     | CTPT.Expr.EBlank (id) -> PT.EBlank(id)
     | CTPT.Expr.ELet (id, name, expr, body) ->
       PT.ELet(id, name, fromCT expr, fromCT body)
+    | CTPT.Expr.ELetWithPattern (id, pat, expr, body) ->
+      PT.ELetWithPattern(id, LetPattern.fromCT pat, fromCT expr, fromCT body)
     | CTPT.Expr.EIf (id, cond, ifExpr, thenExpr) ->
       PT.EIf(id, fromCT cond, fromCT ifExpr, fromCT thenExpr)
     | CTPT.EInfix (id, infix, first, second) ->
@@ -201,6 +215,8 @@ module Expr =
     | PT.EBlank (id) -> CTPT.Expr.EBlank(id)
     | PT.ELet (id, name, expr, body) ->
       CTPT.Expr.ELet(id, name, toCT expr, toCT body)
+    | PT.ELetWithPattern (id, pat, expr, body) ->
+      CTPT.Expr.ELetWithPattern(id, LetPattern.toCT pat, toCT expr, toCT body)
     | PT.EIf (id, cond, ifExpr, thenExpr) ->
       CTPT.Expr.EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
     | PT.EInfix (id, PT.InfixFnCall (name, str), first, second) ->

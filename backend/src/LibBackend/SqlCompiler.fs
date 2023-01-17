@@ -408,6 +408,12 @@ let partiallyEvaluate
               let! rhs = r rhs
               let! next = r next
               return ELet(id, name, rhs, next)
+            | ELetWithPattern (id, pat, rhs, next) ->
+              // todo: do I need to do anything with the pattern?
+              // (check matchPatterns)
+              let! rhs = r rhs
+              let! next = r next
+              return ELetWithPattern(id, pat, rhs, next)
             | EApply (id, name, exprs, inPipe, ster) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EApply(id, name, exprs, inPipe, ster)

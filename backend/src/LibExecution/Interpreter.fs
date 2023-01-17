@@ -59,7 +59,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ENull _id -> return DNull
     | ECharacter (_id, s) -> return DChar s
 
-
     | ELet (_id, lhs, rhs, body) ->
       let! rhs = eval state st rhs
       match rhs with
@@ -71,6 +70,34 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | _ ->
         let st = if lhs <> "" then Map.add lhs rhs st else st
         return! eval state st body
+
+
+    // TODO: tracing for preview cases is probably totally wrong
+    // Maybe let patterns should be recursive, in which case I'll likely
+    // steal a lot from MatchPattern-checking
+    | ELetWithPattern (_id, pattern, rhs, body) ->
+      let! rhs = eval state st rhs
+
+      match pattern with
+      | LPVariable (_id, varName) ->
+        let st = if varName <> "" then Map.add varName rhs st else st
+        return! eval state st body
+
+      | LPTuple (_id, firstPat, secondPat, theRestPat) ->
+        let allPatterns = firstPat :: secondPat :: theRestPat
+
+        match rhs with
+        | DTuple (first, second, theRest) ->
+          let allVals = first :: second :: theRest
+
+          if List.length allVals = List.length allPatterns then
+            let newVars  = List.zip allPatterns allVals
+            let st = Map.mergeFavoringRight st (Map.ofList newVars)
+            let! body = eval state st body
+            return body
+          else
+            return rhs
+        | _ -> return rhs
 
 
     | EList (_id, exprs) ->

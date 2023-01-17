@@ -299,41 +299,37 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
   // could be expanded to use convertPat
   | SynExpr.LetOrUse (_,
                       _,
-                      [ SynBinding (_,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    SynPat.Named (name, _, _, _),
-                                    _,
-                                    rhs,
-                                    _,
-                                    _,
-                                    _) ],
+                      [ SynBinding (_, _, _, _, _, _, _, pat, _, rhs, _, _, _) ],
                       body,
                       _,
-                      _) -> PT.ELet(id, name.idText, c rhs, c body)
+                      _) ->
+    let letErr () =
+      Exception.raiseInternal
+        "Unsupported let or use expr pat type"
+        [ "ast", ast; "pat", pat ]
 
-  | SynExpr.LetOrUse (_,
-                      _,
-                      [ SynBinding (_,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    SynPat.Wild (_),
-                                    _,
-                                    rhs,
-                                    _,
-                                    _,
-                                    _) ],
-                      body,
-                      _,
-                      _) -> PT.ELet(id, "_", c rhs, c body)
+    // TODO this is used as an ineloquent type check
+    let nameFromPat (pat : SynPat) : string =
+      match pat with
+      | SynPat.Named (name, _, _, _) -> name.idText
+      | _ -> letErr ()
+
+    let rec handlePat (pat : SynPat) =
+      match pat with
+      | SynPat.Named (name, _, _, _) -> PT.ELet(id, name.idText, c rhs, c body)
+      | SynPat.Tuple (_, (first :: second :: theRest), _) ->
+        let letPattern =
+          PT.LetPattern.LPTuple(
+            id,
+            nameFromPat first,
+            nameFromPat second,
+            List.map nameFromPat theRest
+          )
+        PT.ELetWithPattern(id, letPattern, c rhs, c body)
+      | SynPat.Wild (_) -> PT.ELet(id, "_", c rhs, c body)
+      | _ -> letErr()
+
+    handlePat pat
 
   | SynExpr.Match (_, _, cond, _, clauses, _) ->
     let convertClause
