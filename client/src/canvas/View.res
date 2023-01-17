@@ -267,7 +267,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     avatars,
     Html.div(
       list{
-        Attrs.classList(list{("use-wrapper", true), ("fade", hasFF)}),
+        Attrs.classList(list{(%twc("bg-transparent ml-6 flex flex-col items-stretch"), true), (%twc("opacity-30"), hasFF)}),
         // Block opening the omnibox here by preventing canvas pan start
         EventListeners.nothingMouseEvent("mousedown"),
       },

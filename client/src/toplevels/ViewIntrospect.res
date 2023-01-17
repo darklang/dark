@@ -13,15 +13,23 @@ type msg = AppTypes.msg
 let tw = Attrs.class
 let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
 
+let fieldsStyle = %twc("block w-max text-grey8 ml-[1.375rem]")
+let fieldStyle = %twc("block text-xs text-grey7")
+let typeStyle = %twc("inline-block ml-2 before:content-[':'] before:mr-2")
+let nameStyle = %twc("inline-block")
+// add before:top-[calc(50%-12px)] to refBlockStyle if you figure out how to add an icon to before:content
+let refBlockStyle = %twc("block box-content relative min-w-[7.5rem] my-2 mx-0 p-2 bg-black3 text-grey8 text-[13.333px] first:mt-0 first:mb-2 before:absolute before:text-2xl hover:cursor-pointer hover:text-[#3a839e] hover:bg-black2")
+let specStyle = %twc("inline-block ml-8 pt-0 pb-0.5 px-2 w-max first:ml-0")
+
 let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   let colView = (col: PT.DB.Col.t) =>
     switch col {
     | {name: Some(name), typ: Some(typ), _} =>
       let html = Html.div(
-        list{Attrs.class("field")},
+        list{tw(fieldStyle)},
         list{
-          Html.div(list{Attrs.class("name")}, list{Html.text(name)}),
-          Html.div(list{Attrs.class("type")}, list{Html.text(DType.type2str(typ))}),
+          Html.div(list{tw(nameStyle)}, list{Html.text(name)}),
+          Html.div(list{tw(typeStyle)}, list{Html.text(DType.type2str(typ))}),
         },
       )
 
@@ -29,13 +37,13 @@ let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
     | _ => None
     }
 
-  Html.div(list{Attrs.class("fields")}, List.filterMap(~f=colView, cols))
+  Html.div(list{tw(fieldsStyle)}, List.filterMap(~f=colView, cols))
 }
 
 let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.UserFunction.Parameter.t) => {
     let name = Html.span(
-      list{Attrs.classList(list{(%twc("inline-block"), true), (%twc("text-red italic"), p.name == "")})},
+      list{Attrs.classList(list{(nameStyle, true), (%twc("text-red italic"), p.name == "")})},
       list{
         Html.text(
           if p.name == "" {
@@ -48,7 +56,7 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
     )
 
     let ptype = Html.span(
-      list{Attrs.classList(list{(%twc("inline-block ml-2 before:content-[':'] before:mr-2"), true), (%twc("text-red italic"), p.typ == None)})},
+      list{Attrs.classList(list{(typeStyle, true), (%twc("text-red italic"), p.typ == None)})},
       list{
         Html.text(
           switch p.typ {
@@ -59,24 +67,24 @@ let fnParamsView = (params: list<PT.UserFunction.Parameter.t>): Html.html<msg> =
       },
     )
 
-    Html.div(list{tw(%twc("block text-xs text-grey7"))}, list{name, ptype})
+    Html.div(list{tw(fieldStyle)}, list{name, ptype})
   }
 
-  Html.div(list{tw(%twc("block w-max text-grey8 ml-[22px]"))}, List.map(~f=paramView, params))
+  Html.div(list{tw(fieldsStyle)}, List.map(~f=paramView, params))
 }
 
 let packageFnParamsView = (params: list<PT.Package.Parameter.t>): Html.html<msg> => {
   let paramView = (p: PT.Package.Parameter.t) => {
-    let name = Html.span(list{Attrs.classList(list{("name", true)})}, list{Html.text(p.name)})
+    let name = Html.span(list{Attrs.classList(list{(nameStyle, true)})}, list{Html.text(p.name)})
     let ptype = Html.span(
-      list{Attrs.classList(list{("type", true)})},
+      list{Attrs.classList(list{(typeStyle, true)})},
       list{Html.text(DType.type2str(p.typ))},
     )
 
-    Html.div(list{Attrs.class("field")}, list{name, ptype})
+    Html.div(list{tw(fieldStyle)}, list{name, ptype})
   }
 
-  Html.div(list{Attrs.class("fields")}, List.map(~f=paramView, params))
+  Html.div(list{tw(fieldsStyle)}, List.map(~f=paramView, params))
 }
 
 let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
@@ -85,7 +93,7 @@ let fnReturnTypeView = (returnType: option<DType.t>): Html.html<msg> =>
     let typeStr = DType.type2str(v)
     Html.div(
       list{},
-      list{Html.text("Returns "), Html.span(list{tw(%twc("inline-block ml-2"))}, list{Html.text(typeStr)})},
+      list{Html.text("Returns "), Html.span(list{tw(typeStyle)}, list{Html.text(typeStr)})},
     )
   | None => Vdom.noNode
   }
@@ -111,10 +119,12 @@ let dbView = (
   cols: list<PT.DB.Col.t>,
   direction: string,
 ): Html.html<msg> =>
+Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
+  Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("right-long")}),
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.class("ref-block db " ++ direction),
+        Attrs.classes([refBlockStyle, direction]),
         EventListeners.eventNoPropagation(
           ~key="ref-db-link" ++ TLID.toString(tlid),
           "click",
@@ -125,15 +135,16 @@ let dbView = (
     ),
     list{
       Html.div(
-        list{Attrs.class("dbheader")},
+        list{tw(%twc("flex items-center w-full"))},
         list{
-          Icons.fontAwesome("database"),
-          Html.span(list{Attrs.class("dbname")}, list{Html.text(name)}),
+          Icons.fontAwesome(~style=%twc("text-blue"), "database"),
+          Html.span(list{tw(%twc("pl-2"))}, list{Html.text(name)}),
         },
       ),
       dbColsView(cols),
     },
   )
+})
 
 let handlerView = (
   originTLID: TLID.t,
@@ -145,14 +156,15 @@ let handlerView = (
   module Spec = PT.Handler.Spec
   let modifier_ = switch Spec.modifier(spec) {
   | Some(F(_, "_")) | Some(F(_, "")) | Some(Blank(_)) | None => Vdom.noNode
-  | Some(F(_, m)) => Html.div(list{Attrs.class("spec")}, list{Html.text(m)})
+  | Some(F(_, m)) => Html.div(list{tw(specStyle)}, list{Html.text(m)})
   }
   let space = Spec.space(spec)->B.toString
   let name = Spec.name(spec)->B.toString
-
+Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
+  Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("left-long")}),
   Html.div(
     list{
-      Attrs.class("ref-block handler " ++ direction),
+      Attrs.classes([refBlockStyle, %twc("flex flex-row justify-start"), direction]),
       EventListeners.eventNoPropagation(
         ~key="ref-handler-link" ++ TLID.toString(tlid),
         "click",
@@ -161,11 +173,11 @@ let handlerView = (
       ...hoveringRefProps(originTLID, originIDs, ~key="ref-handler-hover"),
     },
     list{
-      Html.div(list{Attrs.class("spec space")}, list{Html.text(space)}),
-      Html.div(list{Attrs.class("spec")}, list{Html.text(name)}),
+      Html.div(list{tw2(specStyle, %twc("text-blue"))}, list{Html.text(space)}),
+      Html.div(list{tw(specStyle)}, list{Html.text(name)}),
       modifier_,
     },
-  )
+  )})
 }
 
 let fnView = (
@@ -178,15 +190,15 @@ let fnView = (
   direction: string,
 ): Html.html<msg> => {
   let header = list{
-    Icons.darkIcon("fn"),
+    Icons.darkIcon(~style=%twc("text-blue"),"fn"),
     Html.span(list{tw(%twc("inline-block pl-2"))}, list{Html.text(name)}),
   }
-  Html.div(list{tw(%twc("flex items-center justify-center -ml-6"))},list{
+  Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
   Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("right-long")}),
   Html.div(
     Belt.List.concat(
       list{
-        tw2(%twc("block box-content relative min-w-[120px] my-2 mx-0 p-2 bg-black3 text-grey8 text-[13.3333px] first:mt-0 first:mb-2 before:absolute before:text-2xl hover:cursor-pointer hover:text-[#3a839e] hover:bg-black2"), direction),
+        tw2(refBlockStyle, direction),
         EventListeners.eventNoPropagation(
           ~key="ref-fn-link" ++ TLID.toString(tlid),
           "click",
@@ -196,7 +208,7 @@ let fnView = (
       hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     ),
     list{
-      Html.div(list{tw(%twc("flex w-full items-center text-blue"))},header),
+      Html.div(list{tw(%twc("flex w-full items-center"))},header),
       fnParamsView(params),
       fnReturnTypeView(returnType),
     },
@@ -215,13 +227,14 @@ let packageFnView = (
 ): Html.html<msg> => {
   // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f
   let header = list{
-    Icons.fontAwesome("box-open"),
-    Html.span(list{Attrs.class("fnname")}, list{Html.text(name)}),
+    Icons.fontAwesome(~style=%twc("text-grey7"), "box-open"),
+    Html.span(list{tw(%twc("inline-block pl-2"))}, list{Html.text(name)}),
   }
-
+Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
+  Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("right-long")}),
   Html.div(
     list{
-      Attrs.class("ref-block pkg-fn " ++ direction),
+      Attrs.classes([refBlockStyle, direction]),
       EventListeners.eventNoPropagation(
         ~key="ref-fn-link" ++ TLID.toString(tlid),
         "click",
@@ -230,11 +243,11 @@ let packageFnView = (
       ...hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     },
     list{
-      Html.div(list{Attrs.class("fnheader fnheader-pkg")}, header),
+      Html.div(list{tw(%twc("flex w-full items-center"))}, header),
       packageFnParamsView(params),
       fnReturnTypeView(B.toOption(returnType)),
     },
-  )
+  )})
 }
 
 let typeView = (
@@ -246,14 +259,14 @@ let typeView = (
   direction: string,
 ): Html.html<msg> => {
   let header = list{
-    Icons.darkIcon("type"),
-    Html.span(list{Attrs.class("typename")}, list{Html.text(name)}),
+    Icons.darkIcon(~style=%twc("text-blue"),"type"),
+    Html.span(list{tw(%twc("inline-block pl-2"))}, list{Html.text(name)}),
   }
 
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.class("ref-block typ " ++ direction),
+        Attrs.classes([refBlockStyle, "typ ", direction]),
         EventListeners.eventNoPropagation(
           ~key="ref-typ-link" ++ TLID.toString(tlid),
           "click",
@@ -262,7 +275,7 @@ let typeView = (
       },
       hoveringRefProps(originTLID, originIDs, ~key="ref-typ-hover"),
     ),
-    list{Html.div(list{Attrs.class("typeheader")}, header)},
+    list{Html.div(list{tw(%twc("flex w-full items-center"))}, header)},
   )
 }
 
