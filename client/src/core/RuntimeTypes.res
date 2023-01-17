@@ -74,6 +74,45 @@ module MatchPattern = {
   }
 }
 
+module LetPattern = {
+  @ppx.deriving(show({with_path: false}))
+  type t =
+    | LPVariable(id, string)
+    | LPTuple(id, string, string, list<string>)
+
+  let encode = (letPattern: t): Js.Json.t => {
+    open Json_encode_extended
+    let ev = variant
+    switch letPattern {
+    | LPVariable(id', name) => ev("LPVariable", list{ID.encode(id'), string(name)})
+    | LPTuple(id', first, second, theRest) =>
+      ev("LPTuple", list{ID.encode(id'), string(first), string(second), list(string, theRest)})
+    }
+  }
+
+  let decode = (j): t => {
+    open Json_decode_extended
+    let dv4 = variant4
+    let dv2 = variant2
+    variants(
+      list{
+        ("LPVariable", dv2((a, b) => LPVariable(a, b), ID.decode, string)),
+        (
+          "LPTuple",
+          dv4(
+            (a, first, second, theRest) => LPTuple(a, first, second, theRest),
+            ID.decode,
+            string,
+            string,
+            list(string),
+          ),
+        ),
+      },
+      j,
+    )
+  }
+}
+
 module Expr = {
   module SendToRail = {
     @ppx.deriving(show({with_path: false}))
@@ -133,6 +172,7 @@ module Expr = {
     | ENull(id)
     | EBlank(id)
     | ELet(id, string, t, t)
+    | ELetWithPattern(id, LetPattern.t, t, t)
     | EIf(id, t, t, t)
     | ELambda(id, list<(id, string)>, t)
     | EFieldAccess(id, t, string)
@@ -166,6 +206,7 @@ module Expr = {
         ("ENull", dv1(x => ENull(x), ID.decode)),
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
         ("ELet", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, string, de, de)),
+        ("ELetWithPattern", dv4((a, b, c, d) => ELetWithPattern(a, b, c, d), ID.decode, LetPattern.decode, de, de)),
         ("EIf", dv4((a, b, c, d) => EIf(a, b, c, d), ID.decode, de, de, de)),
         (
           "ELambda",
@@ -210,6 +251,8 @@ module Expr = {
     switch expr {
     | ELet(id, lhs, rhs, body) =>
       ev("ELet", list{ID.encode(id), string(lhs), encode(rhs), encode(body)})
+    | ELetWithPattern(id, pat, rhs, body) =>
+      ev("ELetWithPattern", list{ID.encode(id), LetPattern.encode(pat), encode(rhs), encode(body)})
     | EIf(id', cond, ifbody, elsebody) =>
       ev("EIf", list{ID.encode(id'), encode(cond), encode(ifbody), encode(elsebody)})
     | ELambda(id, vars, body) =>

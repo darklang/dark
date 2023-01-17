@@ -397,6 +397,22 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))
     |> addNested(~f=r(next))
+  | ELetWithPattern(id, _pat, rhs, next) =>
+    let rhsID = switch rhs {
+    | ERightPartial(_, _, oldExpr)
+    | ELeftPartial(_, _, oldExpr)
+    | EPartial(_, _, oldExpr) =>
+      E.toID(oldExpr)
+    | _ => E.toID(rhs)
+    }
+    b
+    |> add(TLetKeyword(id, rhsID, parentID))
+    // TODO:
+    //|> add(TLetVarName(id, rhsID, pat, parentID))
+    |> add(TLetAssignment(id, rhsID, parentID))
+    |> addNested(~f=r(rhs))
+    |> addNewlineIfNeeded(Some(E.toID(next), id, None))
+    |> addNested(~f=r(next))
   | ECharacter(id, _) =>
     recover("tokenizing echaracter is not supported", b |> add(TBlank(id, id, parentID)))
   | EString(id, str) =>

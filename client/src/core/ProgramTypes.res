@@ -67,6 +67,45 @@ module Sign = {
   }
 }
 
+module LetPattern = {
+  @ppx.deriving(show({with_path: false}))
+  type t =
+    | LPVariable(ID.t, string)
+    | LPTuple(ID.t, string, string, list<string>)
+
+  let encode = (letPattern: t): Js.Json.t => {
+    open Json_encode_extended
+    let ev = variant
+    switch letPattern {
+    | LPVariable(id', name) => ev("LPVariable", list{ID.encode(id'), string(name)})
+    | LPTuple(id', first, second, theRest) =>
+      ev("LPTuple", list{ID.encode(id'), string(first), string(second), list(string, theRest)})
+    }
+  }
+
+  let decode = (j): t => {
+    open Json_decode_extended
+    let dv4 = variant4
+    let dv2 = variant2
+    variants(
+      list{
+        ("LPVariable", dv2((a, b) => LPVariable(a, b), ID.decode, string)),
+        (
+          "LPTuple",
+          dv4(
+            (a, first, second, theRest) => LPTuple(a, first, second, theRest),
+            ID.decode,
+            string,
+            string,
+            list(string),
+          ),
+        ),
+      },
+      j,
+    )
+  }
+}
+
 module MatchPattern = {
   @ppx.deriving(show({with_path: false}))
   type rec t =
@@ -241,6 +280,7 @@ module Expr = {
     | ENull(ID.t)
     | EBlank(ID.t)
     | ELet(ID.t, string, t, t)
+    | ELetWithPattern(ID.t, LetPattern.t, t, t)
     | EIf(ID.t, t, t, t)
     | ELambda(ID.t, list<(ID.t, string)>, t)
     | EFieldAccess(ID.t, t, string)
@@ -265,6 +305,8 @@ module Expr = {
     switch expr {
     | ELet(id, lhs, rhs, body) =>
       ev("ELet", list{ID.encode(id), string(lhs), encode(rhs), encode(body)})
+    | ELetWithPattern(id, pat, rhs, body) =>
+      ev("ELetWithPattern", list{ID.encode(id), LetPattern.encode(pat), encode(rhs), encode(body)})
     | EIf(id', cond, ifbody, elsebody) =>
       ev("EIf", list{ID.encode(id'), encode(cond), encode(ifbody), encode(elsebody)})
     | EFnCall(id', name, exprs, r) =>
@@ -339,6 +381,7 @@ module Expr = {
         ("ENull", dv1(x => ENull(x), ID.decode)),
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
         ("ELet", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, string, de, de)),
+        ("ELetWithPattern", dv4((a, b, c, d) => ELetWithPattern(a, b, c, d), ID.decode, LetPattern.decode, de, de)),
         ("EIf", dv4((a, b, c, d) => EIf(a, b, c, d), ID.decode, de, de, de)),
         ("EInfix", dv4((a, b, c, d) => EInfix(a, b, c, d), ID.decode, Infix.decode, de, de)),
         (

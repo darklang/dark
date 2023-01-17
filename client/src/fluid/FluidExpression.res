@@ -26,6 +26,7 @@ let toID = (expr: t): id =>
   | ELambda(id, _, _)
   | EBlank(id)
   | ELet(id, _, _, _)
+  | ELetWithPattern(id, _, _, _)
   | EIf(id, _, _, _)
   | EPartial(id, _, _)
   | ERightPartial(id, _, _)
@@ -54,7 +55,10 @@ let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidM
     | EBlank(id)
     | EVariable(id, _)
     | EPipeTarget(id) => (id, list{})
-    | ELet(id, _, e1, e2) | EInfix(id, _, e1, e2) => (id, list{Expr(e1), Expr(e2)})
+    | ELet(id, _, e1, e2) | ELetWithPattern(id, _, e1, e2) | EInfix(id, _, e1, e2) => (
+        id,
+        list{Expr(e1), Expr(e2)},
+      )
     | EIf(id, e1, e2, e3) | EFeatureFlag(id, _, e1, e2, e3) => (
         id,
         list{Expr(e1), Expr(e2), Expr(e3)},
@@ -124,7 +128,9 @@ let rec findExpr = (target: id, expr: t): option<t> => {
     | EPipeTarget(_)
     | EFloat(_) =>
       None
-    | ELet(_, _, rhs, next) => fe(rhs) |> Option.orElseLazy(() => fe(next))
+    | ELet(_, _, rhs, next)
+    | ELetWithPattern(_, _, rhs, next) =>
+      fe(rhs) |> Option.orElseLazy(() => fe(next))
     | EIf(_, cond, ifexpr, elseexpr) =>
       fe(cond) |> Option.orElseLazy(() => fe(ifexpr)) |> Option.orElseLazy(() => fe(elseexpr))
     | EInfix(_, _, lexpr, rexpr) => fe(lexpr) |> Option.orElseLazy(() => fe(rexpr))
@@ -166,6 +172,7 @@ let findMP = (target: id, expr: t): option<FluidMatchPattern.t> => {
   | ELambda(_)
   | EBlank(_)
   | ELet(_)
+  | ELetWithPattern(_)
   | EIf(_)
   | EPartial(_)
   | ERightPartial(_)
@@ -199,6 +206,7 @@ let children = (expr: t): list<t> =>
   | EBlank(_)
   | EPipeTarget(_)
   | EVariable(_) => list{}
+
   // One
   | EPartial(_, _, expr)
   | ERightPartial(_, _, expr)
@@ -207,7 +215,7 @@ let children = (expr: t): list<t> =>
   | EFieldAccess(_, expr, _) => list{expr}
 
   // Two
-  | EInfix(_, _, c0, c1) | ELet(_, _, c0, c1) => list{c0, c1}
+  | EInfix(_, _, c0, c1) | ELet(_, _, c0, c1) | ELetWithPattern(_, _, c0, c1) => list{c0, c1}
 
   // Three
   | EFeatureFlag(_, _, c0, c1, c2) | EIf(_, c0, c1, c2) => list{c0, c1, c2}
@@ -276,6 +284,7 @@ let rec preTraversal = (~f: t => t, expr: t): t => {
   | EPipeTarget(_)
   | EFloat(_) => expr
   | ELet(id, name, rhs, next) => ELet(id, name, r(rhs), r(next))
+  | ELetWithPattern(id, pat, rhs, next) => ELetWithPattern(id, pat, r(rhs), r(next))
   | EIf(id, cond, ifexpr, elseexpr) => EIf(id, r(cond), r(ifexpr), r(elseexpr))
   | EInfix(id, op, lexpr, rexpr) => EInfix(id, op, r(lexpr), r(rexpr))
   | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, r(expr), fieldname)
@@ -308,6 +317,7 @@ let rec postTraversal = (~f: t => t, expr: t): t => {
   | EPipeTarget(_)
   | EFloat(_) => expr
   | ELet(id, name, rhs, next) => ELet(id, name, r(rhs), r(next))
+  | ELetWithPattern(id, pat, rhs, next) => ELetWithPattern(id, pat, r(rhs), r(next))
   | EIf(id, cond, ifexpr, elseexpr) => EIf(id, r(cond), r(ifexpr), r(elseexpr))
   | EInfix(id, op, lexpr, rexpr) => EInfix(id, op, r(lexpr), r(rexpr))
   | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, r(expr), fieldname)
@@ -341,6 +351,7 @@ let deprecatedWalk = (~f: t => t, expr: t): t =>
   | EPipeTarget(_)
   | EFloat(_) => expr
   | ELet(id, name, rhs, next) => ELet(id, name, f(rhs), f(next))
+  | ELetWithPattern(id, pat, rhs, next) => ELetWithPattern(id, pat, f(rhs), f(next))
   | EIf(id, cond, ifexpr, elseexpr) => EIf(id, f(cond), f(ifexpr), f(elseexpr))
   | EInfix(id, op, lexpr, rexpr) => EInfix(id, op, f(lexpr), f(rexpr))
   | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, f(expr), fieldname)
@@ -504,6 +515,8 @@ let rec clone = (expr: t): t => {
   let cl = es => List.map(~f=c, es)
   switch expr {
   | ELet(_, lhs, rhs, body) => ELet(gid(), lhs, c(rhs), c(body))
+  | ELetWithPattern(_, pat, rhs, body) =>
+    ELetWithPattern(gid(), FluidLetPattern.clone(pat), c(rhs), c(body))
   | EIf(_, cond, ifbody, elsebody) => EIf(gid(), c(cond), c(ifbody), c(elsebody))
   | EFnCall(_, name, exprs, r) => EFnCall(gid(), name, cl(exprs), r)
   | EInfix(_, name, left, right) => EInfix(gid(), name, c(left), c(right))
@@ -555,7 +568,9 @@ let ancestors = (id: id, expr: t): list<t> => {
       | EBlank(_)
       | EPipeTarget(_) => list{}
       | EVariable(_) => list{}
-      | ELet(_, _, rhs, body) => reclist(id, exp, walk, list{rhs, body})
+      | ELet(_, _, rhs, body)
+      | ELetWithPattern(_, _, rhs, body) =>
+        reclist(id, exp, walk, list{rhs, body})
       | EIf(_, cond, ifbody, elsebody) => reclist(id, exp, walk, list{cond, ifbody, elsebody})
       | EFnCall(_, _, exprs, _) => reclist(id, exp, walk, exprs)
       | EInfix(_, _, lhs, rhs) => reclist(id, exp, walk, list{lhs, rhs})
@@ -609,6 +624,7 @@ let validateAndFix = (~onError: (string, t) => unit, expr: t): t => {
     | ERightPartial(_)
     | ELeftPartial(_)
     | ELet(_, _, _, _)
+    | ELetWithPattern(_, _, _, _)
     | EIf(_, _, _, _)
     | EFnCall(_, _, _, _)
     | EInfix(_, _, _, _)
@@ -680,6 +696,9 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
     sign == sign' && whole == whole' && frac == frac'
   | (ELet(_, lhs, rhs, body), ELet(_, lhs', rhs', body')) =>
     lhs == lhs' && eq2((rhs, rhs'), (body, body'))
+  | (ELetWithPattern(_, _pat, rhs, body), ELet(_, _pat', rhs', body')) =>
+    // todo: compare lhs
+    eq2((rhs, rhs'), (body, body'))
   | (EIf(_, con, thn, els), EIf(_, con', thn', els')) => eq3((con, con'), (thn, thn'), (els, els'))
   | (EList(_, l), EList(_, l')) => eqList(l, l')
   | (ETuple(_, first, second, theRest), ETuple(_, first', second', theRest')) =>
@@ -723,6 +742,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (EBool(_), _)
   | (EFloat(_), _)
   | (ELet(_), _)
+  | (ELetWithPattern(_), _)
   | (EIf(_), _)
   | (EList(_), _)
   | (ETuple(_), _)
@@ -828,6 +848,19 @@ let toHumanReadable = (expr: t, showID: bool): string => {
     | EConstructor(_, name, exprs) => `(constructor${id} "${name}"\n${newlineList(exprs)})`
     | EIf(_, cond, then', else') => `(if${id} ${r(cond)}\n${rin(then')}\n${rin(else')})`
     | ELet(_, lhs, rhs, body) => `(let${id} ${lhs}\n${rin(rhs)}\n${r(body)})`
+    | ELetWithPattern(_, pat, rhs, body) =>
+      let lpToHumanReadable = (p: FluidLetPattern.t): string => {
+        // TODO: review this whole thing; it's probably wrong.
+        let spaced = elems => String.join(~sep=" ", elems)
+        switch p {
+        | LPVariable(_, name) => spaced(list{"lpVar", quoted(name)})
+        | LPTuple(_, first, second, theRest) =>
+          let exprs = list{first, second, ...theRest}
+          spaced(list{"lpTuple", "(" ++ String.join(~sep=",", exprs) ++ ")"})
+        }
+      }
+
+      `(let${id} ${lpToHumanReadable(pat)}\n${rin(rhs)}\n${r(body)})`
     | ELambda(_, names, body) =>
       let names = names->List.map(~f=Tuple2.second)->List.toArray->Js.Array2.joinWith("\", \"")
       `(lambda${id} "${names}"\n${rin(body)})`

@@ -1748,6 +1748,7 @@ let rec findAppropriateParentToWrap = (oldExpr: FluidExpression.t, ast: FluidAST
       recover("these cant be parents", ~debug=parent, None)
     // If the parent is some sort of "resetting", then we probably meant the child
     | ELet(_)
+    | ELetWithPattern(_)
     | EIf(_)
     | EMatch(_)
     | ERecord(_)
@@ -5378,7 +5379,8 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
         }
       | EBlank(_) => Some(EBlank(id))
       // empty let expr and subsets
-      | ELet(eID, _lhs, rhs, nextExpr) =>
+      | ELet(eID, _, rhs, nextExpr)
+      | ELetWithPattern(eID, _, rhs, nextExpr) =>
         let letKeywordSelected = findTokenValue(tokens, eID, "let-keyword") != None
         let newLhs = findTokenValue(tokens, eID, "let-var-name") |> Option.unwrap(~default="")
 

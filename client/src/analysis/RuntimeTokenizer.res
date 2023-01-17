@@ -157,6 +157,33 @@ let rec matchPatternToTokens = (matchID: id, mp: RuntimeTypes.MatchPattern.t, ~i
   }
 }
 
+// TODO do we need the letID for anything, really?
+let letPatternToTokens = (_letID: id, pat: RuntimeTypes.LetPattern.t): list<string> => {
+  switch pat {
+  | LPVariable(_, name) => list{name}
+  | LPTuple(_, first, second, theRest) =>
+    let subPatterns = list{first, second, ...theRest}
+
+    let subPatternCount = List.length(subPatterns)
+
+    let middlePart =
+      subPatterns
+      |> List.mapWithIndex(~f=(i, p) => {
+        let isLastSubpattern = i == subPatternCount - 1
+        let subpatternTokens = list{p}
+
+        if isLastSubpattern {
+          subpatternTokens
+        } else {
+          List.append(subpatternTokens, list{", "})
+        }
+      })
+      |> List.flatten
+
+    List.flatten(list{list{"("}, middlePart, list{")"}})
+  }
+}
+
 let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
   let r = exprToTokens
   open Builder
@@ -212,6 +239,14 @@ let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
     b
     |> add("let ")
     |> add(lhs)
+    |> add(" ")
+    |> addNested(~f=r(rhs))
+    |> addNewlineIfNeeded
+    |> addNested(~f=r(next))
+  | ELetWithPattern(id, pat, rhs, next) =>
+    b
+    |> add("let ")
+    |> addMany(letPatternToTokens(id, pat))
     |> add(" ")
     |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded

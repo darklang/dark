@@ -45,7 +45,9 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
       } else {
         list{}
       }
-    | ELet(_, _, rhs, body) => List.flatten(list{u(rhs), u(body)})
+    | ELet(_, _, rhs, body)
+    | ELetWithPattern(_, _, rhs, body) =>
+      List.flatten(list{u(rhs), u(body)})
     | EIf(_, cond, ifbody, elsebody) => List.flatten(list{u(cond), u(ifbody), u(elsebody)})
     | EFnCall(_, _, exprs, _) => exprs |> List.map(~f=u) |> List.flatten
     | EInfix(_, _, lhs, rhs) => Belt.List.concat(u(lhs), u(rhs))
@@ -233,6 +235,11 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
       }
 
       sexe(bound, body)
+    | ELetWithPattern(_id, _pat, rhs, _body) =>
+      // TODO: learn what this fn does
+      // TODO: expand; do whatever I should
+      sexe(st, rhs)
+
     | EFnCall(_, _, exprs, _) => List.forEach(~f=sexe(st), exprs)
     | EInfix(_, _, lhs, rhs) => List.forEach(~f=sexe(st), list{lhs, rhs})
     | EIf(_, cond, ifbody, elsebody)

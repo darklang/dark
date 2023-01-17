@@ -147,7 +147,7 @@ let rec forEndOfExpr': fluidExpr => t = expr =>
     }
   | ENull(id) => {astRef: ARNull(id), offset: String.length("null")}
   | EBlank(id) => {astRef: ARBlank(id), offset: 0}
-  | ELet(_, _, _, bodyExpr) => forEndOfExpr'(bodyExpr)
+  | ELet(_, _, _, bodyExpr) | ELetWithPattern(_, _, _, bodyExpr) => forEndOfExpr'(bodyExpr)
   | EIf(_, _, _, elseExpr) => forEndOfExpr'(elseExpr)
   | EInfix(_, _, _, rhsExpr) => forEndOfExpr'(rhsExpr)
   | ELambda(_, _, bodyExpr) => forEndOfExpr'(bodyExpr)
@@ -252,6 +252,8 @@ let rec forStartOfExpr': fluidExpr => t = expr =>
   | ENull(id) => {astRef: ARNull(id), offset: 0}
   | EBlank(id) => {astRef: ARBlank(id), offset: 0}
   | ELet(id, _, _, _) => {astRef: ARLet(id, LPKeyword), offset: 0}
+  // TODO consider using a new construct for ARLet - I don't think this will turn out well as-is.
+  | ELetWithPattern(id, _, _, _) => {astRef: ARLet(id, LPKeyword), offset: 0}
   | EIf(id, _, _, _) => {astRef: ARIf(id, IPIfKeyword), offset: 0}
   | EMatch(id, _, _) => {astRef: ARMatch(id, MPKeyword), offset: 0}
   | EInfix(_, _, lhsExpr, _) => forStartOfExpr'(lhsExpr)
