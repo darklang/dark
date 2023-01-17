@@ -7,5 +7,5 @@ let fontAwesome = (~style="", name: string): Html.html<'msg> =>
 let fontAwesomeBrands = (~style="", name: string): Html.html<'msg> =>
   Html.i(list{Attrs.class(`fab fa-${name} font-brands ${style}`)}, list{})
 
-let darkIcon = (name: string): Html.html<'msg> =>
-  Html.i(list{Attrs.class("di di-" ++ name)}, list{})
+let darkIcon = (~style="", name: string): Html.html<'msg> =>
+  Html.i(list{Attrs.class(`di di-${name} ${style}`)}, list{})
