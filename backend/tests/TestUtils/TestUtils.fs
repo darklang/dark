@@ -568,8 +568,7 @@ module Expect =
     let check path (a : 'a) (e : 'a) =
       if a <> e then errorFn path (string actual) (string expected)
 
-    if checkIDs then
-      check path (LetPattern.toID actual) (LetPattern.toID expected)
+    if checkIDs then check path (LetPattern.toID actual) (LetPattern.toID expected)
 
     match actual, expected with
     | LPVariable (_, name), LPVariable (_, name') -> check path name name'

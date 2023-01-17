@@ -100,7 +100,8 @@ module Expr =
       RT.EOr(id, toRT expr1, toRT expr2)
     | PT.ELambda (id, vars, body) -> RT.ELambda(id, vars, toRT body)
     | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
-    | PT.ELetWithPattern (id, pattern, rhs, body) -> RT.ELetWithPattern(id, LetPattern.toRT pattern, toRT rhs, toRT body)
+    | PT.ELetWithPattern (id, pattern, rhs, body) ->
+      RT.ELetWithPattern(id, LetPattern.toRT pattern, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, toRT cond, toRT thenExpr, toRT elseExpr)
     | PT.EPartial (_, _, oldExpr)

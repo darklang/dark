@@ -297,13 +297,14 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
 
   // When we add patterns on the left hand side of lets, the pattern below
   // could be expanded to use convertPat
+  // TODO: this doesn't allow nesting (i.e. `let (a, (b, c)) = (1, (2, 3))`. Should it?)
   | SynExpr.LetOrUse (_,
                       _,
                       [ SynBinding (_, _, _, _, _, _, _, pat, _, rhs, _, _, _) ],
                       body,
                       _,
                       _) ->
-    let letErr () =
+    let letErr pat =
       Exception.raiseInternal
         "Unsupported let or use expr pat type"
         [ "ast", ast; "pat", pat ]
@@ -311,12 +312,29 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     // TODO this is used as an ineloquent type check
     let nameFromPat (pat : SynPat) : string =
       match pat with
+      | SynPat.Wild (_) -> "_"
       | SynPat.Named (name, _, _, _) -> name.idText
-      | _ -> letErr ()
+      | _ -> letErr pat
 
     let rec handlePat (pat : SynPat) =
       match pat with
-      | SynPat.Named (name, _, _, _) -> PT.ELet(id, name.idText, c rhs, c body)
+      | SynPat.Paren (subPat, _) -> handlePat subPat
+
+      | SynPat.Wild (_) ->
+        // TODO: migrate to this
+        //PT.ELetWithPattern(id, PT.LetPattern.LPVariable(gid (), "_"), c rhs, c body)
+        PT.ELet(id, "_", c rhs, c body)
+
+      | SynPat.Named (name, _, _, _) ->
+        // TODO: migrate to this
+        //PT.ELetWithPattern(
+        //  id,
+        //  PT.LetPattern.LPVariable(gid (), name.idText),
+        //  c rhs,
+        //  c body
+        //)
+        PT.ELet(id, name.idText, c rhs, c body)
+
       | SynPat.Tuple (_, (first :: second :: theRest), _) ->
         let letPattern =
           PT.LetPattern.LPTuple(
@@ -326,8 +344,8 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
             List.map nameFromPat theRest
           )
         PT.ELetWithPattern(id, letPattern, c rhs, c body)
-      | SynPat.Wild (_) -> PT.ELet(id, "_", c rhs, c body)
-      | _ -> letErr()
+
+      | _ -> letErr pat
 
     handlePat pat
 

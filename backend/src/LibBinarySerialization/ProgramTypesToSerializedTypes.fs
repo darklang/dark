@@ -90,7 +90,8 @@ module Expr =
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
     | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)
     | PT.ELet (id, lhs, rhs, body) -> ST.ELet(id, lhs, toST rhs, toST body)
-    | PT.ELetWithPattern(id, pat, rhs, body) -> ST.ELetWithPattern(id, LetPattern.toST pat, toST rhs, toST body)
+    | PT.ELetWithPattern (id, pat, rhs, body) ->
+      ST.ELetWithPattern(id, LetPattern.toST pat, toST rhs, toST body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       ST.EIf(id, toST cond, toST thenExpr, toST elseExpr)
     | PT.EPartial (id, str, expr) -> ST.EPartial(id, str, toST expr)

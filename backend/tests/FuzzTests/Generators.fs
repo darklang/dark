@@ -199,7 +199,13 @@ module RuntimeTypes =
     // more often than others
     let rec gen' s : Gen<RT.MatchPattern> =
       let finitePatterns =
-        [ MP.genInt; MP.genBool; MP.genBlank; MP.genNull; MP.genChar; MP.genStr; MP.genVar ]
+        [ MP.genInt
+          MP.genBool
+          MP.genBlank
+          MP.genNull
+          MP.genChar
+          MP.genStr
+          MP.genVar ]
 
       let allPatterns = MP.constructor (s, gen') :: finitePatterns
 

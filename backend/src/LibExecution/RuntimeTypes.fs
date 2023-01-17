@@ -458,7 +458,9 @@ module MatchPattern =
     | MPVariable (id, _)
     | MPBlank id
     | MPTuple (id, _, _, _)
-    | MPConstructor (id, _, _) -> id/// Functions for working with Dark match patterns
+    | MPConstructor (id, _, _) -> id
+
+/// Functions for working with Dark match patterns
 
 module LetPattern =
   let toID (pat : LetPattern) : id =

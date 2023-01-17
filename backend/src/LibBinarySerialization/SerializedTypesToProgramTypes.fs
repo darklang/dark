@@ -130,7 +130,8 @@ module Expr =
       Exception.raiseInternal "package serialized as a binop" [ "name", name ]
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | ST.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, toPT rhs, toPT body)
-    | ST.ELetWithPattern(id, pat, rhs, body) -> PT.ELetWithPattern(id, LetPattern.toPT pat, toPT rhs, toPT body)
+    | ST.ELetWithPattern (id, pat, rhs, body) ->
+      PT.ELetWithPattern(id, LetPattern.toPT pat, toPT rhs, toPT body)
     | ST.EIf (id, cond, thenExpr, elseExpr) ->
       PT.EIf(id, toPT cond, toPT thenExpr, toPT elseExpr)
     | ST.EPartial (id, str, expr) -> PT.EPartial(id, str, toPT expr)

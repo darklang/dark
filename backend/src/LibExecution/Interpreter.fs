@@ -78,26 +78,37 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ELetWithPattern (_id, pattern, rhs, body) ->
       let! rhs = eval state st rhs
 
-      match pattern with
-      | LPVariable (_id, varName) ->
-        let st = if varName <> "" then Map.add varName rhs st else st
-        return! eval state st body
+      match rhs with
+      // CLEANUP we should still preview the body
+      // Usually fakevals get propagated when they're evaluated. However, if we
+      // don't use the value, we still want to propagate the errorrail here, so
+      // return it instead of evaling the body
+      | DErrorRail v -> return rhs
+      | _ ->
+        // let st = if lhs <> "" then Map.add lhs rhs st else st
+        // return! eval state st body
 
-      | LPTuple (_id, firstPat, secondPat, theRestPat) ->
-        let allPatterns = firstPat :: secondPat :: theRestPat
 
-        match rhs with
-        | DTuple (first, second, theRest) ->
-          let allVals = first :: second :: theRest
+        match pattern with
+        | LPVariable (_id, varName) ->
+          let st = if varName <> "" then Map.add varName rhs st else st
+          return! eval state st body
 
-          if List.length allVals = List.length allPatterns then
-            let newVars  = List.zip allPatterns allVals
-            let st = Map.mergeFavoringRight st (Map.ofList newVars)
-            let! body = eval state st body
-            return body
-          else
-            return rhs
-        | _ -> return rhs
+        | LPTuple (_id, firstPat, secondPat, theRestPat) ->
+          let allPatterns = firstPat :: secondPat :: theRestPat
+
+          match rhs with
+          | DTuple (first, second, theRest) ->
+            let allVals = first :: second :: theRest
+
+            if List.length allVals = List.length allPatterns then
+              let newVars = List.zip allPatterns allVals
+              let st = Map.mergeFavoringRight st (Map.ofList newVars)
+              let! body = eval state st body
+              return body
+            else
+              return rhs
+          | _ -> return rhs
 
 
     | EList (_id, exprs) ->

@@ -145,14 +145,12 @@ module LetPattern =
   let fromCT (p : LetPattern) : RT.LetPattern =
     match p with
     | LPVariable (id, str) -> RT.LPVariable(id, str)
-    | LPTuple (id, first, second, theRest) ->
-      RT.LPTuple(id, first, second, theRest)
+    | LPTuple (id, first, second, theRest) -> RT.LPTuple(id, first, second, theRest)
 
   let toCT (p : RT.LetPattern) : LetPattern =
     match p with
     | RT.LPVariable (id, str) -> LPVariable(id, str)
-    | RT.LPTuple (id, first, second, theRest) ->
-      LPTuple(id, first, second, theRest)
+    | RT.LPTuple (id, first, second, theRest) -> LPTuple(id, first, second, theRest)
 
 module Expr =
   let pipeToRT (pipe : Expr.IsInPipe) : RT.IsInPipe =
@@ -191,7 +189,8 @@ module Expr =
     | Expr.EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | Expr.ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
     | Expr.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, r rhs, r body)
-    | Expr.ELetWithPattern (id, pat, rhs, body) -> RT.ELetWithPattern(id, LetPattern.fromCT pat, r rhs, r body)
+    | Expr.ELetWithPattern (id, pat, rhs, body) ->
+      RT.ELetWithPattern(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)
     | Expr.EApply (id, expr, exprs, pipe, ster) ->
@@ -231,7 +230,8 @@ module Expr =
     | RT.EFieldAccess (id, obj, fieldname) -> Expr.EFieldAccess(id, r obj, fieldname)
     | RT.ELambda (id, vars, body) -> Expr.ELambda(id, vars, r body)
     | RT.ELet (id, lhs, rhs, body) -> Expr.ELet(id, lhs, r rhs, r body)
-    | RT.ELetWithPattern (id, pat, rhs, body) -> Expr.ELetWithPattern(id, LetPattern.toCT pat, r rhs, r body)
+    | RT.ELetWithPattern (id, pat, rhs, body) ->
+      Expr.ELetWithPattern(id, LetPattern.toCT pat, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)
     | RT.EApply (id, expr, exprs, pipe, ster) ->
