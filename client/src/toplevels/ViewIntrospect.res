@@ -124,6 +124,7 @@ Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
   Html.div(
     Belt.List.concat(
       list{
+        Attrs.id("db"),
         Attrs.classes([refBlockStyle, direction]),
         EventListeners.eventNoPropagation(
           ~key="ref-db-link" ++ TLID.toString(tlid),
@@ -160,11 +161,12 @@ let handlerView = (
   }
   let space = Spec.space(spec)->B.toString
   let name = Spec.name(spec)->B.toString
-Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
-  Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("left-long")}),
+Html.div(list{tw(%twc("group flex items-center -ml-6"))},list{
+  Html.span(list{tw(%twc("text-black3 text-2xl group-hover:text-black2"))}, list{Icons.fontAwesome("left-long")}),
   Html.div(
     list{
-      Attrs.classes([refBlockStyle, %twc("flex flex-row justify-start"), direction]),
+      Attrs.id("handler"),
+      Attrs.classes([refBlockStyle,"ref-block", %twc("flex flex-row justify-start"), direction]),
       EventListeners.eventNoPropagation(
         ~key="ref-handler-link" ++ TLID.toString(tlid),
         "click",
@@ -234,7 +236,8 @@ Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
   Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("right-long")}),
   Html.div(
     list{
-      Attrs.classes([refBlockStyle, direction]),
+      Attrs.id("pkg-fn"),
+      Attrs.classes([refBlockStyle,"ref-block ", direction]),
       EventListeners.eventNoPropagation(
         ~key="ref-fn-link" ++ TLID.toString(tlid),
         "click",
@@ -243,7 +246,7 @@ Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
       ...hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     },
     list{
-      Html.div(list{tw(%twc("flex w-full items-center"))}, header),
+      Html.div(list{Attrs.id("fnheader"),tw(%twc("flex w-full items-center"))}, header),
       packageFnParamsView(params),
       fnReturnTypeView(B.toOption(returnType)),
     },
