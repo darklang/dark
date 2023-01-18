@@ -142,15 +142,15 @@ module MatchPattern =
       MPTuple(id, r first, r second, List.map r theRest)
 
 module LetPattern =
-  let fromCT (p : LetPattern) : RT.LetPattern =
+  let rec fromCT (p : LetPattern) : RT.LetPattern =
     match p with
     | LPVariable (id, str) -> RT.LPVariable(id, str)
-    | LPTuple (id, first, second, theRest) -> RT.LPTuple(id, first, second, theRest)
+    | LPTuple (id, first, second, theRest) -> RT.LPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
-  let toCT (p : RT.LetPattern) : LetPattern =
+  let rec toCT (p : RT.LetPattern) : LetPattern =
     match p with
     | RT.LPVariable (id, str) -> LPVariable(id, str)
-    | RT.LPTuple (id, first, second, theRest) -> LPTuple(id, first, second, theRest)
+    | RT.LPTuple (id, first, second, theRest) -> LPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
 module Expr =
   let pipeToRT (pipe : Expr.IsInPipe) : RT.IsInPipe =

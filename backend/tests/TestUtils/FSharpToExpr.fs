@@ -304,50 +304,32 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
                       body,
                       _,
                       _) ->
-    let letErr pat =
-      Exception.raiseInternal
-        "Unsupported let or use expr pat type"
-        [ "ast", ast; "pat", pat ]
 
-    // TODO this is used as an ineloquent type check
-    let nameFromPat (pat : SynPat) : string =
+    let rec mapPat (pat : SynPat) : PT.LetPattern =
       match pat with
-      | SynPat.Wild (_) -> "_"
-      | SynPat.Named (name, _, _, _) -> name.idText
-      | _ -> letErr pat
+      | SynPat.Paren (subPat, _) -> mapPat subPat
 
-    let rec handlePat (pat : SynPat) =
-      match pat with
-      | SynPat.Paren (subPat, _) -> handlePat subPat
+      | SynPat.Wild (_) -> PT.LPVariable(gid (), "_")
 
-      | SynPat.Wild (_) ->
-        // TODO: migrate to this
-        //PT.ELetWithPattern(id, PT.LetPattern.LPVariable(gid (), "_"), c rhs, c body)
-        PT.ELet(id, "_", c rhs, c body)
-
-      | SynPat.Named (name, _, _, _) ->
-        // TODO: migrate to this
-        //PT.ELetWithPattern(
-        //  id,
-        //  PT.LetPattern.LPVariable(gid (), name.idText),
-        //  c rhs,
-        //  c body
-        //)
-        PT.ELet(id, name.idText, c rhs, c body)
+      | SynPat.Named (name, _, _, _) -> PT.LPVariable(gid (), name.idText)
 
       | SynPat.Tuple (_, (first :: second :: theRest), _) ->
-        let letPattern =
-          PT.LetPattern.LPTuple(
-            id,
-            nameFromPat first,
-            nameFromPat second,
-            List.map nameFromPat theRest
-          )
-        PT.ELetWithPattern(id, letPattern, c rhs, c body)
+        PT.LetPattern.LPTuple(
+          gid (),
+          mapPat first,
+          mapPat second,
+          List.map mapPat theRest
+        )
 
-      | _ -> letErr pat
+      | _ ->
+        Exception.raiseInternal
+          "Unsupported let or use expr pat type"
+          [ "ast", ast; "pat", pat ]
 
-    handlePat pat
+    // todo: allow this whole fn to have a (useNewTuple: bool) thing
+
+    PT.ELetWithPattern(id, mapPat pat, c rhs, c body)
+
 
   | SynExpr.Match (_, _, cond, _, clauses, _) ->
     let convertClause

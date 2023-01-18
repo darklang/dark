@@ -60,6 +60,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ECharacter (_id, s) -> return DChar s
 
     | ELet (_id, lhs, rhs, body) ->
+      // we aren't expecting this branch to be hit.
+      // we _could_ throw an exception to be sure we don't hit this.
       let! rhs = eval state st rhs
       match rhs with
       // CLEANUP we should still preview the body
@@ -75,7 +77,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     // TODO: tracing for preview cases is probably totally wrong
     // Maybe let patterns should be recursive, in which case I'll likely
     // steal a lot from MatchPattern-checking
-    | ELetWithPattern (_id, pattern, rhs, body) ->
+    | ELetWithPattern (id, pattern, rhs, body) ->
       let! rhs = eval state st rhs
 
       match rhs with
@@ -85,31 +87,70 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // return it instead of evaling the body
       | DErrorRail v -> return rhs
       | _ ->
-        // let st = if lhs <> "" then Map.add lhs rhs st else st
-        // return! eval state st body
+        /// Returns `incomplete` traces for subpatterns of an unmatched pattern
+        let traceIncompleteWithArgs id argPatterns =
+          let argTraces =
+            argPatterns
+            |> List.map LetPattern.toID
+            |> List.map (fun pId -> (pId, incomplete pId))
 
+          (id, incomplete id) :: argTraces
 
-        match pattern with
-        | LPVariable (_id, varName) ->
-          let st = if varName <> "" then Map.add varName rhs st else st
-          return! eval state st body
+        /// Does the dval 'match' the given pattern?
+        ///
+        /// Returns:
+        /// - whether or not the expr 'matches' the pattern
+        /// - new vars (name * value)
+        /// - traces
+        let rec checkPattern
+          dv
+          pattern
+          : bool * List<string * Dval> * List<id * Dval> =
+          match pattern with
 
-        | LPTuple (_id, firstPat, secondPat, theRestPat) ->
-          let allPatterns = firstPat :: secondPat :: theRestPat
+          | LPVariable (id, varName) ->
+            not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
-          match rhs with
-          | DTuple (first, second, theRest) ->
-            let allVals = first :: second :: theRest
+          | LPTuple (id, firstPat, secondPat, theRestPat) ->
+            let allPatterns = firstPat :: secondPat :: theRestPat
 
-            if List.length allVals = List.length allPatterns then
-              let newVars = List.zip allPatterns allVals
-              let st = Map.mergeFavoringRight st (Map.ofList newVars)
-              let! body = eval state st body
-              return body
-            else
-              return rhs
-          | _ -> return rhs
+            match dv with
+            | DTuple (first, second, theRest) ->
+              let allVals = first :: second :: theRest
 
+              if List.length allVals = List.length allPatterns then
+                let (passResults, newVarResults, traceResults) =
+                  List.zip allVals allPatterns
+                  |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                  |> List.unzip3
+
+                let allPass = passResults |> List.forall identity
+                let allVars = newVarResults |> List.collect identity
+                let allSubTraces = traceResults |> List.collect identity
+
+                if allPass then
+                  true, allVars, (id, dv) :: allSubTraces
+                else
+                  false,
+                  allVars,
+                  traceIncompleteWithArgs id allPatterns @ allSubTraces
+              else
+                false, [], traceIncompleteWithArgs id allPatterns
+            | _ -> false, [], traceIncompleteWithArgs id allPatterns
+
+        let passes, newDefs, traces = checkPattern rhs pattern
+        let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
+
+        if passes then
+          traces
+          |> List.iter (fun (id, dv) ->
+            state.tracing.traceDval state.onExecutionPath id dv)
+        else // If we're "previewing" (analysis), persist traces for all patterns
+          traces
+          |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
+
+        let! r = eval state newSymtable body
+        return r
 
     | EList (_id, exprs) ->
       // We ignore incompletes but not error rail.

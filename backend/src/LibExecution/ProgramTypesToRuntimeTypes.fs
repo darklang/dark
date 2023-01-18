@@ -54,11 +54,11 @@ module MatchPattern =
 
 
 module LetPattern =
-  let toRT (p : PT.LetPattern) : RT.LetPattern =
+  let rec toRT (p : PT.LetPattern) : RT.LetPattern =
     match p with
     | PT.LPVariable (id, str) -> RT.LPVariable(id, str)
     | PT.LPTuple (id, first, second, theRest) ->
-      RT.LPTuple(id, first, second, theRest)
+      RT.LPTuple(id, toRT first, toRT second, List.map toRT theRest)
 
 
 

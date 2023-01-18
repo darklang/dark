@@ -192,6 +192,16 @@ module RuntimeTypes =
                       //(4, ok) // TODO: random string, with 0-5 args
                        ]
 
+    let rec genTuple (s, genArg) : Gen<RT.MatchPattern> =
+      gen {
+        let! first = genTuple (s / 2, genArg)
+        let! second = genTuple (s / 2, genArg)
+        let! tailLength = Gen.elements [ 1..5 ]
+        let! theRest = Gen.listOfLength tailLength (genArg (s / 2))
+
+        return RT.MPTuple(gid (), first, second, theRest)
+      }
+
   module MP = MatchPattern
 
   let matchPattern =
@@ -227,14 +237,14 @@ module RuntimeTypes =
   module LetPattern =
     let genVar = simpleString |> Gen.map (fun s -> RT.LPVariable(gid (), s))
 
-    let genTuple =
+    let genTuple (s, genSubExpr) =
       gen {
-        let! first = simpleString
-        let! second = simpleString
+        let! first = genSubExpr (s / 2)
+        let! second = genSubExpr (s / 2)
 
         // 7-element tuples seem sufficient
         let! tailLength = Gen.elements [ 0..5 ]
-        let! theRest = Gen.listOfLength tailLength simpleString
+        let! theRest = Gen.listOfLength tailLength (genSubExpr (s / 2))
 
         return RT.LPTuple(gid (), first, second, theRest)
       }
@@ -242,7 +252,21 @@ module RuntimeTypes =
 
   module LP = LetPattern
 
-  let letPattern = Gen.oneof [ LP.genVar; LP.genTuple ]
+  let letPattern =
+    // TODO: consider adding 'weight' such that certain patterns are generated
+    // more often than others
+    let rec gen' s : Gen<RT.LetPattern> =
+      let finitePatterns = [ LP.genVar ]
+
+      let allPatterns = LP.genTuple (s, gen') :: finitePatterns
+
+      match s with
+      | 0 -> Gen.oneof finitePatterns
+      | n when n > 0 -> Gen.oneof allPatterns
+      | _ -> invalidArg "s" "Only positive arguments are allowed"
+
+    Gen.sized gen' // todo: depth of 10 seems kinda reasonable
+
 
   module Expr =
     // Non-recursive exprs

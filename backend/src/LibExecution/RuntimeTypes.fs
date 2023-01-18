@@ -227,7 +227,11 @@ and MatchPattern =
 
 and LetPattern =
   | LPVariable of id * name : string
-  | LPTuple of id * first : string * second : string * theRest : List<string>
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
 
 type DvalMap = Map<string, Dval>
 

@@ -51,7 +51,11 @@ type MatchPattern =
 
 type LetPattern =
   | LPVariable of id * name : string
-  | LPTuple of id * first : string * second : string * theRest : List<string>
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
 
 /// Whether a function's result is unwrapped automatically (and, in the case of
 /// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.

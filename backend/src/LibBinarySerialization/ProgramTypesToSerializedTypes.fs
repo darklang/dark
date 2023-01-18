@@ -58,11 +58,11 @@ module MatchPattern =
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
 
 module LetPattern =
-  let toST (p : PT.LetPattern) : ST.LetPattern =
+  let rec toST (p : PT.LetPattern) : ST.LetPattern =
     match p with
     | PT.LPVariable (id, str) -> ST.LPVariable(id, str)
     | PT.LPTuple (id, first, second, theRest) ->
-      ST.LPTuple(id, first, second, theRest)
+      ST.LPTuple(id, toST first, toST second, List.map toST theRest)
 
 
 module Expr =
