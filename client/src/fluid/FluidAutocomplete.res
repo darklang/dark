@@ -841,12 +841,12 @@ let documentationForFunction = (
     }
   } else {
     list{
-      Html.span(list{tw(%twc("font-text text-grey2 text-xs"))}, list{Html.text("Not deprecated ")}),
+      Html.span(list{tw(%twc("font-text text-grey2 text-xs whitespace-nowrap"))}, list{Html.text("Not deprecated ")}),
     }
   }
 
   let name = Html.span(
-    list{tw(%twc("text-grey3 text-xs text-ellipsis max-w-[35ch] overflow-hidden whitespace-nowrap"))},
+    list{tw(%twc("text-grey3 text-xs text-ellipsis w-max overflow-hidden whitespace-nowrap"))},
     list{Html.text(f.name |> FQFnName.toString)},
   )
 
