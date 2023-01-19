@@ -17,9 +17,10 @@ let fieldsStyle = %twc("block w-max text-grey8 ml-[1.375rem]")
 let fieldStyle = %twc("block text-xs text-grey7")
 let typeStyle = %twc("inline-block ml-2 before:content-[':'] before:mr-2")
 let nameStyle = %twc("inline-block")
-// add before:top-[calc(50%-12px)] to refBlockStyle if you figure out how to add an icon to before:content
-let refBlockStyle = %twc("block box-content relative min-w-[7.5rem] my-2 mx-0 p-2 bg-black3 text-grey8 text-[13.333px] first:mt-0 first:mb-2 before:absolute before:text-2xl hover:cursor-pointer hover:text-[#3a839e] hover:bg-black2")
+let refBlockStyle = %twc("block box-content relative min-w-[7.5rem] my-2 mx-0 p-2 bg-black3 text-grey8 text-[13.333px] first:mt-0 before:absolute before:text-2xl before:top-[calc(50%-15px)] hover:cursor-pointer hover:text-[#3a839e] hover:bg-black1 before:font-icons before:font-black before:text-2xl before:text-black3 before:hover:text-black1")
 let specStyle = %twc("inline-block ml-8 pt-0 pb-0.5 px-2 w-max first:ml-0")
+let arrowRefersTo = %twc("before:content-arrowRight before:-left-6")
+let arrowUsedIn = %twc("before:content-arrowLeft before:-left-5")
 
 let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   let colView = (col: PT.DB.Col.t) =>
@@ -119,13 +120,11 @@ let dbView = (
   cols: list<PT.DB.Col.t>,
   direction: string,
 ): Html.html<msg> =>
-Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
-  Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("right-long")}),
   Html.div(
     Belt.List.concat(
       list{
         Attrs.id("db"),
-        Attrs.classes([refBlockStyle, direction]),
+        Attrs.classes([refBlockStyle, {direction=="refers-to"? arrowRefersTo : arrowUsedIn}, direction]),
         EventListeners.eventNoPropagation(
           ~key="ref-db-link" ++ TLID.toString(tlid),
           "click",
@@ -145,7 +144,6 @@ Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
       dbColsView(cols),
     },
   )
-})
 
 let handlerView = (
   originTLID: TLID.t,
@@ -161,12 +159,10 @@ let handlerView = (
   }
   let space = Spec.space(spec)->B.toString
   let name = Spec.name(spec)->B.toString
-Html.div(list{tw(%twc("group flex items-center -ml-6"))},list{
-  Html.span(list{tw(%twc("text-black3 text-2xl group-hover:text-black2"))}, list{Icons.fontAwesome("left-long")}),
   Html.div(
     list{
       Attrs.id("handler"),
-      Attrs.classes([refBlockStyle,"ref-block", %twc("flex flex-row justify-start"), direction]),
+      Attrs.classes([refBlockStyle,"ref-block", {direction=="refers-to"? arrowRefersTo : arrowUsedIn}, %twc("flex flex-row justify-start"), direction]),
       EventListeners.eventNoPropagation(
         ~key="ref-handler-link" ++ TLID.toString(tlid),
         "click",
@@ -178,9 +174,7 @@ Html.div(list{tw(%twc("group flex items-center -ml-6"))},list{
       Html.div(list{tw2(specStyle, %twc("text-blue"))}, list{Html.text(space)}),
       Html.div(list{tw(specStyle)}, list{Html.text(name)}),
       modifier_,
-    },
-  )})
-}
+    },)}
 
 let fnView = (
   originTLID: TLID.t,
@@ -195,12 +189,10 @@ let fnView = (
     Icons.darkIcon(~style=%twc("text-blue"),"fn"),
     Html.span(list{tw(%twc("inline-block pl-2"))}, list{Html.text(name)}),
   }
-  Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
-  Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("right-long")}),
   Html.div(
     Belt.List.concat(
       list{
-        tw2(refBlockStyle, direction),
+        Attrs.classes([refBlockStyle,{direction=="refers-to"? arrowRefersTo : arrowUsedIn}, direction]),
         EventListeners.eventNoPropagation(
           ~key="ref-fn-link" ++ TLID.toString(tlid),
           "click",
@@ -214,9 +206,7 @@ let fnView = (
       fnParamsView(params),
       fnReturnTypeView(returnType),
     },
-  )
-  })
-}
+  )}
 
 let packageFnView = (
   originTLID: TLID.t,
@@ -232,12 +222,10 @@ let packageFnView = (
     Icons.fontAwesome(~style=%twc("text-grey7"), "box-open"),
     Html.span(list{tw(%twc("inline-block pl-2"))}, list{Html.text(name)}),
   }
-Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
-  Html.span(list{tw(%twc("text-black2 text-2xl"))}, list{Icons.fontAwesome("right-long")}),
   Html.div(
     list{
       Attrs.id("pkg-fn"),
-      Attrs.classes([refBlockStyle,"ref-block ", direction]),
+      Attrs.classes([refBlockStyle,{direction=="refers-to"? arrowRefersTo : arrowUsedIn},"ref-block ", direction]),
       EventListeners.eventNoPropagation(
         ~key="ref-fn-link" ++ TLID.toString(tlid),
         "click",
@@ -250,8 +238,7 @@ Html.div(list{tw(%twc("flex items-center -ml-6"))},list{
       packageFnParamsView(params),
       fnReturnTypeView(B.toOption(returnType)),
     },
-  )})
-}
+  )}
 
 let typeView = (
   originTLID: TLID.t,
@@ -269,7 +256,7 @@ let typeView = (
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.classes([refBlockStyle, "typ ", direction]),
+        Attrs.classes([refBlockStyle,{direction=="refers-to"? arrowRefersTo : arrowUsedIn}, "typ ", direction]),
         EventListeners.eventNoPropagation(
           ~key="ref-typ-link" ++ TLID.toString(tlid),
           "click",
