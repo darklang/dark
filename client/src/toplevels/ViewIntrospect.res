@@ -249,7 +249,7 @@ let typeView = (
   direction: string,
 ): Html.html<msg> => {
   let header = list{
-    Icons.darkIcon(~style=%twc("text-blue"),"type"),
+    Icons.darkIcon(~style=%twc("text-blue"),"types"),
     Html.span(list{tw(%twc("inline-block pl-2"))}, list{Html.text(name)}),
   }
 
