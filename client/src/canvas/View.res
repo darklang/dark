@@ -168,7 +168,15 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
         switch fnAndRail {
         | Some(fn, sendToRail) =>
-          Some(viewDoc(FluidAutocomplete.documentationForFunction(fn, Some(sendToRail))))
+           let types = fn.parameters |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
+            |> List.map(~f=DType.type2str) |> List.join(~sep=", ")
+            let returnType = fn.returnType
+            Some(viewDoc(
+            Belt.List.concatMany([
+            list{Html.div(list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))},list{Html.span(list{},list{Html.text((`(${types})`)) ,Html.span(list{Attrs.class(%twc("mx-1"))},list{Icons.fontAwesome("arrow-right")})}), Html.span(list{Attrs.class(%twc("text-green"))},list{Html.text(DType.type2str(returnType))})})},
+            FluidAutocomplete.documentationForFunction(fn, Some(sendToRail)),
+            ])
+            ))
         | None => None
         }
       }
