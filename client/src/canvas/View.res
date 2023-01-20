@@ -173,6 +173,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
             let returnType = fn.returnType
             Some(viewDoc(
             Belt.List.concatMany([
+            FluidAutocomplete.documentationForFunctionHeader(fn),
             list{Html.div(list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))},list{Html.span(list{},list{Html.text((`(${types})`)) ,Html.span(list{Attrs.class(%twc("mx-1"))},list{Icons.fontAwesome("arrow-right")})}), Html.span(list{Attrs.class(%twc("text-green"))},list{Html.text(DType.type2str(returnType))})})},
             FluidAutocomplete.documentationForFunction(fn, Some(sendToRail)),
             ])
@@ -204,6 +205,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           Some(
             viewDoc(
               Belt.List.concatMany([
+                FluidAutocomplete.documentationForFunctionHeader(f),
                 list{
                   Html.div(list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))}, list{
                     Html.span(list{}, list{Html.text("(")}),
