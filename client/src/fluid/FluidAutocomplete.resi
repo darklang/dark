@@ -43,6 +43,11 @@ let documentationForFunction: (
   option<ProgramTypes.Expr.SendToRail.t>,
 ) => list<Tea.Html.html<AppTypes.msg>>
 
+let documentationForFunctionHeader: (
+  Function.t,
+) => list<Tea.Html.html<AppTypes.msg>>
+
+
 let documentationForItem: data => option<list<Vdom.t<AppTypes.msg>>>
 
 let isOpened: t => bool

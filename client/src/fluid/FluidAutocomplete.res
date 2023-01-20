@@ -808,9 +808,8 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
   }
 }
 
-let documentationForFunction = (
-  f: Function.t,
-  sendToRail: option<ProgramTypes.Expr.SendToRail.t>,
+let documentationForFunctionHeader = (
+    f: Function.t,
 ): list<Tea.Html.html<'msg>> => {
   let deprecationHeader = if f.deprecation != NotDeprecated {
     list{
@@ -851,9 +850,16 @@ let documentationForFunction = (
   )
 
   let documentationHeader = Html.div(
-    list{tw(%twc("flex justify-between items-center mb-2"))},
+    list{tw(%twc("flex justify-between items-center mb-0.5"))},
     list{name, Html.div(list{}, deprecationHeader)},
   )
+  list{documentationHeader}
+}
+
+let documentationForFunction = (
+  f: Function.t,
+  sendToRail: option<ProgramTypes.Expr.SendToRail.t>,
+): list<Tea.Html.html<'msg>> => {
 
   let desc = if String.length(f.description) != 0 {
     PrettyDocs.convert(f.description)
@@ -951,7 +957,7 @@ let documentationForFunction = (
     }
   }
 
-  Belt.List.concatMany([list{documentationHeader}, desc, list{row}, deprecationFooter])
+  Belt.List.concatMany([desc, list{row}, deprecationFooter])
 }
 
 let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>> => {
@@ -960,8 +966,9 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
   let simpleDoc = (text: string) => Some(list{p(text), typeDoc})
   switch item {
   | FACFunction(f) =>
+    let docsHeader = documentationForFunctionHeader(f)
     let docs = documentationForFunction(f, None)
-    Some(List.append(docs, list{typeDoc}))
+    Some(Belt.List.concatMany([docsHeader,docs, list{typeDoc}]))
   | FACConstructorName("Just", _) => simpleDoc("An Option containing a value")
   | FACConstructorName("Nothing", _) => simpleDoc("An Option representing Nothing")
   | FACConstructorName("Ok", _) => simpleDoc("A successful Result containing a value")
