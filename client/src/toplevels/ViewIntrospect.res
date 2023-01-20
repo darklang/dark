@@ -128,8 +128,8 @@ let dbView = (
   Html.div(
     Belt.List.concat(
       list{
-        Attrs.id("db"),
         Attrs.classes([
+          "db",
           refBlockStyle,
           {direction == "refers-to" ? arrowRefersTo : arrowUsedIn},
           direction,
@@ -170,10 +170,10 @@ let handlerView = (
   let name = Spec.name(spec)->B.toString
   Html.div(
     list{
-      Attrs.id("handler"),
       Attrs.classes([
         refBlockStyle,
         "ref-block",
+        "handler",
         {direction == "refers-to" ? arrowRefersTo : arrowUsedIn},
         %twc("flex flex-row justify-start"),
         direction,
@@ -246,11 +246,11 @@ let packageFnView = (
   }
   Html.div(
     list{
-      Attrs.id("pkg-fn"),
       Attrs.classes([
         refBlockStyle,
         {direction == "refers-to" ? arrowRefersTo : arrowUsedIn},
         "ref-block ",
+        "pkg-fn",
         direction,
       ]),
       EventListeners.eventNoPropagation(
@@ -261,7 +261,7 @@ let packageFnView = (
       ...hoveringRefProps(originTLID, originIDs, ~key="ref-fn-hover"),
     },
     list{
-      Html.div(list{Attrs.id("fnheader"), tw(%twc("flex w-full items-center"))}, header),
+      Html.div(list{tw2("fnheader",%twc("flex w-full items-center"))}, header),
       packageFnParamsView(params),
       fnReturnTypeView(B.toOption(returnType)),
     },

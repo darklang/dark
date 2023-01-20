@@ -509,7 +509,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     await page.waitForSelector(Locators.dbLockLocator, { timeout: 8000 });
 
-    await page.click("#db"); // this click is required due to caching
+    await page.click(".db"); // this click is required due to caching
     await expect(page.locator(".delete-col")).not.toBeVisible();
   });
 
@@ -1141,8 +1141,8 @@ test.describe.parallel("Integration Tests", async () => {
   // and then back to our Handler.
   test("package_function_references_work", async ({ page }, testInfo) => {
     const repl = ".toplevel.tl-92595864";
-    const refersTo = ".ref-block.refers-to#pkg-fn";
-    const usedIn = ".ref-block.used-in#handler";
+    const refersTo = ".ref-block.refers-to.pkg-fn";
+    const usedIn = ".ref-block.used-in.handler";
 
     // Start at this specific repl handler
     await gotoHash(page, testInfo, "handler=92595864");
@@ -1152,7 +1152,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(refersTo);
     await expectExactText(
       page,
-      ".ref-block.refers-to #fnheader",
+      ".ref-block.refers-to .fnheader",
       "test_admin/stdlib/Test::one_v1",
     );
 
