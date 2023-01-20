@@ -168,16 +168,41 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
 
         switch fnAndRail {
         | Some(fn, sendToRail) =>
-           let types = fn.parameters |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
-            |> List.map(~f=DType.type2str) |> List.join(~sep=", ")
-            let returnType = fn.returnType
-            Some(viewDoc(
-            Belt.List.concatMany([
-            FluidAutocomplete.documentationForFunctionHeader(fn),
-            list{Html.div(list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))},list{Html.span(list{},list{Html.text((`(${types})`)) ,Html.span(list{Attrs.class(%twc("mx-1"))},list{Icons.fontAwesome("arrow-right")})}), Html.span(list{Attrs.class(%twc("text-green"))},list{Html.text(DType.type2str(returnType))})})},
-            FluidAutocomplete.documentationForFunction(fn, Some(sendToRail)),
-            ])
-            ))
+          let types =
+            fn.parameters
+            |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
+            |> List.map(~f=DType.type2str)
+            |> List.join(~sep=", ")
+          let returnType = fn.returnType
+          Some(
+            viewDoc(
+              Belt.List.concatMany([
+                FluidAutocomplete.documentationForFunctionHeader(fn),
+                list{
+                  Html.div(
+                    list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))},
+                    list{
+                      Html.span(
+                        list{},
+                        list{
+                          Html.text(`(${types})`),
+                          Html.span(
+                            list{Attrs.class(%twc("mx-1"))},
+                            list{Icons.fontAwesome("arrow-right")},
+                          ),
+                        },
+                      ),
+                      Html.span(
+                        list{Attrs.class(%twc("text-green"))},
+                        list{Html.text(DType.type2str(returnType))},
+                      ),
+                    },
+                  ),
+                },
+                FluidAutocomplete.documentationForFunction(fn, Some(sendToRail)),
+              ]),
+            ),
+          )
         | None => None
         }
       }
@@ -197,30 +222,47 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           )
 
         switch paramAndFnDesc {
-        | Some(Some(param), f, index) =>{
-          let header = param.name ++ ": " ++ DType.type2str(param.typ)
-          let parameters = f.parameters |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
-            |> List.map(~f=DType.type2str) |>List.map(~f=Html.text)
-          let signature = parameters-> List.updateAt(~index=index, ~f=(x) => Html.span(list{Attrs.class(%twc("text-white1"))}, list{x}) ) -> List.intersperse(~sep=Html.text(", "))
-          Some(
-            viewDoc(
-              Belt.List.concatMany([
-                FluidAutocomplete.documentationForFunctionHeader(f),
-                list{
-                  Html.div(list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))}, list{
-                    Html.span(list{}, list{Html.text("(")}),
-                    Html.span(list{},signature),
-                    Html.span(list{}, list{Html.text(")")}),
-                    Html.span(list{Attrs.class(%twc("mx-1"))},list{Icons.fontAwesome("arrow-right")}),
-                    Html.span(list{Attrs.class(%twc("text-green"))}, list{Html.text(DType.type2str(f.returnType))}),
-                  })
-                },
-
-                FluidAutocomplete.documentationForFunction(f, None),
-                list{p(header), p(param.description)},
-              ]),
-            ),
-          )}
+        | Some(Some(param), f, index) => {
+            let header = param.name ++ ": " ++ DType.type2str(param.typ)
+            let parameters =
+              f.parameters
+              |> List.map(~f=(x: RuntimeTypes.BuiltInFn.Param.t) => x.typ)
+              |> List.map(~f=DType.type2str)
+              |> List.map(~f=Html.text)
+            let signature =
+              parameters
+              ->List.updateAt(~index, ~f=x =>
+                Html.span(list{Attrs.class(%twc("text-white1"))}, list{x})
+              )
+              ->List.intersperse(~sep=Html.text(", "))
+            Some(
+              viewDoc(
+                Belt.List.concatMany([
+                  FluidAutocomplete.documentationForFunctionHeader(f),
+                  list{
+                    Html.div(
+                      list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))},
+                      list{
+                        Html.span(list{}, list{Html.text("(")}),
+                        Html.span(list{}, signature),
+                        Html.span(list{}, list{Html.text(")")}),
+                        Html.span(
+                          list{Attrs.class(%twc("mx-1"))},
+                          list{Icons.fontAwesome("arrow-right")},
+                        ),
+                        Html.span(
+                          list{Attrs.class(%twc("text-green"))},
+                          list{Html.text(DType.type2str(f.returnType))},
+                        ),
+                      },
+                    ),
+                  },
+                  FluidAutocomplete.documentationForFunction(f, None),
+                  list{p(header), p(param.description)},
+                ]),
+              ),
+            )
+          }
         | _ => None
         }
       }
@@ -288,7 +330,10 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     avatars,
     Html.div(
       list{
-        Attrs.classList(list{(%twc("bg-transparent ml-6 flex flex-col items-stretch"), true), (%twc("opacity-30"), hasFF)}),
+        Attrs.classList(list{
+          (%twc("bg-transparent ml-6 flex flex-col items-stretch"), true),
+          (%twc("opacity-30"), hasFF),
+        }),
         // Block opening the omnibox here by preventing canvas pan start
         EventListeners.nothingMouseEvent("mousedown"),
       },

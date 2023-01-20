@@ -64,10 +64,7 @@ let run = () => {
     test("converts normal string", () => expect(convert("Bye")) |> toEqual(list{txt("Bye")}))
     test("converts code blocks", () =>
       expect(convert("{{Ok <var value>}}")) |> toEqual(list{
-        tag(
-          "bg-grey1 py-0 px-1.5",
-          list{txt("Ok "), tag("text-purple1", list{txt("value")})},
-        ),
+        tag("bg-grey1 py-0 px-1.5", list{txt("Ok "), tag("text-purple1", list{txt("value")})}),
       })
     )
     test("converts link tag", () =>
@@ -87,10 +84,7 @@ let run = () => {
         txt(".\n It will got to "),
         link("error rail", "https://docs.darklang.com/tutorials/handle-error-errorrail"),
         txt(", if it is "),
-        tag(
-          "bg-grey1 py-0 px-1.5",
-          list{txt("Error "), tag("text-purple1", list{txt("message")})},
-        ),
+        tag("bg-grey1 py-0 px-1.5", list{txt("Error "), tag("text-purple1", list{txt("message")})}),
       })
     )
     ()
