@@ -21,8 +21,12 @@ let refBlockStyle = %twc(
   "block box-content relative min-w-[7.5rem] my-2 mx-0 p-2 bg-black3 text-grey8 text-[13.333px] first:mt-0 before:absolute before:text-2xl before:top-[calc(50%-15px)] hover:cursor-pointer hover:text-[#3a839e] hover:bg-black1 before:font-icons before:font-black before:text-2xl before:text-black3 before:hover:text-black1"
 )
 let specStyle = %twc("inline-block ml-8 pt-0 pb-0.5 px-2 w-max first:ml-0")
-let arrowRefersTo = %twc("before:content-arrowRight before:-left-6")
-let arrowUsedIn = %twc("before:content-arrowLeft before:-left-5")
+let arrowDirection = (direction: string) =>
+  if direction == "refers-to" {
+    %twc("before:content-arrowRight before:-left-6")
+  } else {
+    %twc("before:content-arrowLeft before:-left-5")
+  }
 
 let dbColsView = (cols: list<PT.DB.Col.t>): Html.html<msg> => {
   let colView = (col: PT.DB.Col.t) =>
@@ -131,7 +135,7 @@ let dbView = (
         Attrs.classes([
           "introspect-db",
           refBlockStyle,
-          {direction == "refers-to" ? arrowRefersTo : arrowUsedIn},
+          arrowDirection(direction),
           direction,
         ]),
         EventListeners.eventNoPropagation(
@@ -174,7 +178,7 @@ let handlerView = (
         refBlockStyle,
         "ref-block",
         "introspect-handler",
-        {direction == "refers-to" ? arrowRefersTo : arrowUsedIn},
+        arrowDirection(direction),
         %twc("flex flex-row justify-start"),
         direction,
       ]),
@@ -211,7 +215,7 @@ let fnView = (
       list{
         Attrs.classes([
           refBlockStyle,
-          {direction == "refers-to" ? arrowRefersTo : arrowUsedIn},
+          arrowDirection(direction),
           direction,
         ]),
         EventListeners.eventNoPropagation(
@@ -248,7 +252,7 @@ let packageFnView = (
     list{
       Attrs.classes([
         refBlockStyle,
-        {direction == "refers-to" ? arrowRefersTo : arrowUsedIn},
+        arrowDirection(direction),
         "ref-block ",
         "introspect-pkg-fn",
         direction,
@@ -286,7 +290,7 @@ let typeView = (
       list{
         Attrs.classes([
           refBlockStyle,
-          {direction == "refers-to" ? arrowRefersTo : arrowUsedIn},
+          arrowDirection(direction),
           "typ ",
           direction,
         ]),

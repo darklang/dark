@@ -183,13 +183,9 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
                     list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))},
                     list{
                       Html.span(
-                        list{},
+                        list{tw(%twc("font-code"))},
                         list{
-                          Html.text(`(${types})`),
-                          Html.span(
-                            list{Attrs.class(%twc("mx-1"))},
-                            list{Icons.fontAwesome("arrow-right")},
-                          ),
+                          Html.text(`(${types}) -> `),
                         },
                       ),
                       Html.span(
@@ -241,15 +237,11 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
                   FluidAutocomplete.documentationForFunctionHeader(f),
                   list{
                     Html.div(
-                      list{Attrs.class(%twc("lowercase text-xxs text-grey2 mb-2"))},
+                      list{tw(%twc("lowercase text-xxs text-grey2 mb-2 font-code"))},
                       list{
                         Html.span(list{}, list{Html.text("(")}),
                         Html.span(list{}, signature),
-                        Html.span(list{}, list{Html.text(")")}),
-                        Html.span(
-                          list{Attrs.class(%twc("mx-1"))},
-                          list{Icons.fontAwesome("arrow-right")},
-                        ),
+                        Html.span(list{tw(%twc("font-code"))}, list{Html.text(") -> ")}),
                         Html.span(
                           list{Attrs.class(%twc("text-green"))},
                           list{Html.text(DType.type2str(f.returnType))},
