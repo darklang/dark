@@ -27,6 +27,7 @@ module.exports = {
       white3: "#f8f8f8",
 
       red: "#ab4642",
+      red1: "#e5736e", //lighten(saturate($red, 25%)
       orange: "#dc9656",
       yellow: "#f7ca88",
       yellow1: "#fadfb8", //lighten($yellow, 10%)
@@ -57,6 +58,7 @@ module.exports = {
       "user-functions": "var(--userFunctionsColor)",
       db: "var(--dbColor)",
       tooltip: "var(--tooltipColor)",
+      "highlight-color": "var(--highlightColor)",
     },
     extend: {
       borderWidth: {
