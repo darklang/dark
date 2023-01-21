@@ -14,7 +14,7 @@ let tw = Attrs.class
 let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
 
 let fieldsStyle = %twc("block w-max text-grey8 ml-[1.375rem]")
-let fieldStyle = %twc("block text-xs text-grey7")
+let fieldStyle = %twc("block text-xs text-grey6")
 let typeStyle = %twc("inline-block ml-2 before:content-[':'] before:mr-2")
 let nameStyle = %twc("inline-block")
 let refBlockStyle = %twc(
