@@ -8,12 +8,15 @@ module Msg = AppTypes.Msg
 type data = FluidTypes.AutoComplete.data
 type state = FluidTypes.AutoComplete.t
 
+let tw = Attrs.class
+
 let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg> => {
   let (args, rt) = FluidAutocomplete.asTypeStrings(item)
   let html = {
     let returnTypeHtml = {
       let returnTypeClass = switch validity {
-      | FACItemInvalidReturnType(_) => "invalid-culprit"
+      //invalid-culprit
+      | FACItemInvalidReturnType(_) => %twc("text-red1")
       | _ => ""
       }
 
@@ -24,7 +27,8 @@ let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg
     | list{} => list{}
     | list{arg0, ...rest} =>
       let arg0Class = switch validity {
-      | FACItemInvalidPipedArg(_) => "invalid-culprit"
+      //invalid-culprit
+      | FACItemInvalidPipedArg(_) => %twc("text-red1")
       | _ => ""
       }
 
@@ -40,8 +44,8 @@ let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg
 
     Belt.List.concat(argsHtml, returnTypeHtml)
   }
-
-  Html.span(list{Attrs.class("types")}, html)
+//types
+  Html.span(list{tw(%twc("float-right ml-8 lowercase text-[13.33px] font-code h-4 text-white3"))}, html)
 }
 
 let view = (ac: state): Html.html<AppTypes.msg> => {
@@ -50,14 +54,16 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
     let class' = if validity == FACItemValid {
       "valid"
     } else {
-      "invalid"
+      // invalid
+      %twc("text-grey3")
     }
     let highlighted = index == i
     let name = FluidAutocomplete.asName(item)
     let fnDisplayName = FluidUtil.fnDisplayName(name)
     let versionDisplayName = FluidUtil.versionDisplayName(name)
     let versionView = if String.length(versionDisplayName) > 0 {
-      Html.span(list{Attrs.class("version")}, list{Html.text(versionDisplayName)})
+      //version
+      Html.span(list{tw(%twc("text-grey2 align-bottom"))}, list{Html.text(versionDisplayName)})
     } else {
       Vdom.noNode
     }
@@ -67,8 +73,11 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
       ~unique=name,
       list{
         Attrs.classList(list{
+          //li
+          (%twc("list-none py-0 px-2 h-4"),true),
           ("autocomplete-item", true),
-          ("fluid-selected", highlighted),
+          //fluid-selected
+          (%twc("bg-highlight-color text-white3"), highlighted),
           (class', true),
         }),
         EventListeners.nothingMouseEvent("mouseup"),
@@ -84,6 +93,6 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
       list{Html.text(fnDisplayName), versionView, types},
     )
   })
-
-  Html.div(list{Attrs.id("fluid-dropdown")}, list{Html.ul(list{}, autocompleteList)})
+//ul
+  Html.div(list{Attrs.id("fluid-dropdown"), tw(%twc("cursor-pointer bg-black3 text-grey3 z-[1000] absolute -left-2 min-w-max w-full overflow-y-scroll p-0 max-h-[100px] border-[1px] border-solid border-black1 border-t-0 shadow-[1px_1px_1px_black] rounded-b-sm"))}, list{Html.ul(list{tw(%twc("m-0 text-white2 pr-1"))}, autocompleteList)})
 }
