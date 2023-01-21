@@ -18,12 +18,12 @@ let fieldStyle = %twc("block text-xs text-grey7")
 let typeStyle = %twc("inline-block ml-2 before:content-[':'] before:mr-2")
 let nameStyle = %twc("inline-block")
 let refBlockStyle = %twc(
-  "block box-content relative min-w-[7.5rem] my-2 mx-0 p-2 bg-black3 text-grey8 text-[13.333px] first:mt-0 before:absolute before:text-2xl before:top-[calc(50%-15px)] hover:cursor-pointer hover:text-[#3a839e] hover:bg-black1 before:font-icons before:font-black before:text-2xl before:text-black3 before:hover:text-black1"
+  "block box-content relative min-w-[7.5rem] my-2 mx-0 p-2 bg-black3 text-grey8 text-[13.333px] first:mt-0 hover:cursor-pointer hover:text-[#3a839e] hover:bg-black1 before:absolute before:top-[calc(50%-15px)] before:font-icons before:font-black before:text-2xl before:text-black3 before:hover:text-black1"
 )
 let specStyle = %twc("inline-block ml-8 pt-0 pb-0.5 px-2 w-max first:ml-0")
 let arrowDirection = (direction: string) =>
   if direction == "refers-to" {
-    %twc("before:content-arrowRight before:-left-6")
+    %twc("before:content-arrowRight before:-left-6 before:text-black2")
   } else {
     %twc("before:content-arrowLeft before:-left-5")
   }
