@@ -15,29 +15,47 @@ let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg
   let html = {
     let returnTypeHtml = {
       let returnTypeClass = switch validity {
-      | FACItemInvalidReturnType(_) => %twc("text-red1")
+      | FACItemInvalidReturnType(_) => %twc("text-red1 group-[.highlight]:text-[#f3c8c6]")
       | _ => ""
       }
 
-      list{Html.span(list{Attrs.class(returnTypeClass)}, list{Html.text(rt)})}
+      list{Html.span(list{tw(returnTypeClass)}, list{Html.text(rt)})}
     }
 
     let argsHtml = switch args {
     | list{} => list{}
     | list{arg0, ...rest} =>
       let arg0Class = switch validity {
-      | FACItemInvalidPipedArg(_) => %twc("text-red1")
+      | FACItemInvalidPipedArg(_) => %twc("text-red1 group-[.highlight]:text-[#f3c8c6]")
       | _ => ""
       }
 
       let args = list{
-        Html.span(list{Attrs.class(arg0Class)}, list{Html.text(arg0)}),
+        Html.span(list{tw(arg0Class)}, list{Html.text(arg0)}),
         ...List.map(~f=Html.text, rest),
       }
 
       args
       |> List.intersperse(~sep=Html.text(", "))
-      |> (args => Belt.List.concatMany([list{Html.text("(")}, list{Html.span(list{Attrs.class(%twc("inline-block align-top overflow-hidden max-w-[25ch] text-ellipsis whitespace-nowrap"))},args)}, list{Html.text(") -> ")}]))
+      |> (
+        args =>
+          Belt.List.concatMany([
+            list{Html.text("(")},
+            list{
+              Html.span(
+                list{
+                  tw(
+                    %twc(
+                      "inline-block align-top overflow-hidden max-w-[25ch] text-ellipsis whitespace-nowrap"
+                    ),
+                  ),
+                },
+                args,
+              ),
+            },
+            list{Html.text(") -> ")},
+          ])
+      )
     }
 
     Belt.List.concat(argsHtml, returnTypeHtml)
@@ -54,11 +72,10 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
       %twc("text-grey3")
     }
     let highlighted = index == i
-    let classHighlighted =
-      switch (highlighted, validity) {
-      | (true, FACItemValid) => %twc("bg-highlight-color text-white2")
-      | (true, _) => %twc("bg-highlight-color text-[#11262e]")
-      | (false, _) => ""
+    let classHighlighted = switch (highlighted, validity) {
+    | (true, FACItemValid) => %twc("bg-highlight-color text-white2")
+    | (true, _) => %twc("group bg-highlight-color text-[#11262e]")
+    | (false, _) => ""
     }
 
     let name = FluidAutocomplete.asName(item)
@@ -75,9 +92,10 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
       ~unique=name,
       list{
         Attrs.classList(list{
-          (%twc("list-none py-0 px-2 h-4"),true),
+          (%twc("list-none py-0 px-2 h-4"), true),
           ("autocomplete-item", true),
           (classHighlighted, highlighted),
+          ("highlight",true),
           (class', true),
         }),
         EventListeners.nothingMouseEvent("mouseup"),
@@ -93,5 +111,15 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
       list{Html.text(fnDisplayName), versionView, types},
     )
   })
-  Html.div(list{Attrs.id("fluid-dropdown"), tw(%twc("cursor-pointer bg-black3 text-white3 z-[1000] absolute -left-2 min-w-max w-full max-h-[6.25rem] overflow-y-scroll p-0 border border-solid border-black1 border-t-0 shadow-[1px_1px_1px_black] rounded-b-sm"))}, list{Html.ul(list{tw(%twc("m-0 text-white2 pr-1"))}, autocompleteList)})
+  Html.div(
+    list{
+      Attrs.id("fluid-dropdown"),
+      tw(
+        %twc(
+          "cursor-pointer bg-black3 text-white3 z-[1000] absolute -left-2 min-w-max w-full max-h-[6.25rem] overflow-y-scroll p-0 border border-solid border-black1 border-t-0 shadow-[1px_1px_1px_black] rounded-b-sm"
+        ),
+      ),
+    },
+    list{Html.ul(list{tw(%twc("m-0 text-white2 pr-1"))}, autocompleteList)},
+  )
 }
