@@ -232,7 +232,11 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", "re");
     let start = Date.now();
     await page.type("#active-editor", "q");
-    await expectContainsText(page, ".autocomplete-item.bg-highlight-color", "request");
+    await expectContainsText(
+      page,
+      ".autocomplete-item.bg-highlight-color",
+      "request",
+    );
     // There's a race condition here, sometimes the client doesn't manage to load the
     // trace for quite some time, and the autocomplete box ends up in a weird
     // condition
@@ -243,7 +247,11 @@ test.describe.parallel("Integration Tests", async () => {
       "requestDict",
     );
     await page.type("#active-editor", ".bo");
-    await expectExactText(page, ".autocomplete-item.bg-highlight-color", "bodyfield");
+    await expectExactText(
+      page,
+      ".autocomplete-item.bg-highlight-color",
+      "bodyfield",
+    );
     await page.keyboard.press("Enter");
   });
 
