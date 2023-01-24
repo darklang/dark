@@ -8,54 +8,53 @@ open System.Reflection
 open Prelude
 open Tablecloth
 
-#nowarn "988"
+open Microsoft.JSInterop
 
-type GetGlobalObjectDelegate = delegate of string -> obj
+#nowarn "988" // "main module of Program is empty"
 
-type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
+module WasmHelpers =
+  // this gets us ahold of `this`/`self`
+  let getJsRuntimeThis () : IJSInProcessRuntime =
+    let assemblyName = "Microsoft.AspNetCore.Components.WebAssembly"
+    let typeName =
+      "Microsoft.AspNetCore.Components.WebAssembly.Services.DefaultWebAssemblyJSRuntime"
+
+    let assembly = Assembly.Load assemblyName
+    let jsRuntimeType = assembly.GetType typeName
+
+    let jsRuntimeTypeInstance =
+      let flags = BindingFlags.NonPublic ||| BindingFlags.Static
+      jsRuntimeType.GetField("Instance", flags)
+
+    jsRuntimeTypeInstance.GetValue(null) :?> IJSInProcessRuntime
+
 
 /// Responsible for interacting with the JS world
 ///
 /// Exposes fns to be called to evaluate expressions,
 /// and results back to JS
 type EvalWorker =
-  static member GetGlobalObject(_globalObjectName : string) : unit = ()
-
+  [<JSInvokable>]
   static member InitializeDarkRuntime() : unit =
     Environment.SetEnvironmentVariable("TZ", "UTC")
     LibAnalysis.initSerializers ()
-
-  static member selfDelegate =
-    let typ =
-      let sourceAssembly : Assembly =
-        Assembly.Load "System.Private.Runtime.InteropServices.JavaScript"
-      sourceAssembly.GetType "System.Runtime.InteropServices.JavaScript.Runtime"
-
-    // I do not have any clue what this does
-    let method = typ.GetMethod(nameof (EvalWorker.GetGlobalObject))
-    let delegate_ = method.CreateDelegate<GetGlobalObjectDelegate>()
-    let target = delegate_.Invoke("self")
-
-    let typ = target.GetType()
-    let invokeMethod = typ.GetMethod("Invoke")
-
-    System.Delegate.CreateDelegate(typeof<InvokeDelegate>, target, invokeMethod)
-    :?> InvokeDelegate
-
 
   /// Call `self.postMessage` in JS land
   ///
   /// Used in order to send the results of an expression back to the JS host
   static member postMessage(message : string) : unit =
-    let (_ : obj) = EvalWorker.selfDelegate.Invoke("postMessage", message)
+    let jsRuntimeThis = WasmHelpers.getJsRuntimeThis ()
+    let response = jsRuntimeThis.Invoke("Dark.analysis.callback", message)
     ()
 
   /// Receive request from JS host to be evaluated
   ///
   /// Once evaluated, an async call to `self.postMessage` will be made
+  [<JSInvokable>]
   static member OnMessage(input : string) : Task<unit> =
     // Just here to ensure type-safety (serializers require known/allowed types)
     let postResponse (response : ClientTypes.Analysis.AnalysisResult) : unit =
+      let serialized = Json.Vanilla.serialize response
       EvalWorker.postMessage (Json.Vanilla.serialize (response))
 
     let reportException (preamble : string) (e : exn) : unit =

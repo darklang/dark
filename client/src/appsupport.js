@@ -231,14 +231,17 @@ window.Dark = {
       return urlParams.get("debug-analysis") == "true";
     })(),
     callback: function (event) {
+      // TODO remove once we're back to running analysis in a webworker
+      let event2 = { data: event };
+
       const analysis = window.Dark.analysis;
-      const worker = window.BlazorWorker;
+      //const worker = window.BlazorWorker;
       if (!analysis.initialized) {
         // We do some warm-up analysis that we don't need to send back to the user
-        console.log("Blazor: received warm-up callback", event.data);
+        console.log("Blazor: received warm-up callback", event2.data);
         analysis.initialized = true;
       } else {
-        var result = analysis.utils.decodeOutput(event.data);
+        var result = analysis.utils.decodeOutput(event2.data);
 
         var event = new CustomEvent("receiveAnalysis", { detail: result });
         document.dispatchEvent(event);
@@ -251,7 +254,8 @@ window.Dark = {
         } else {
           // an analysis is waiting, run it
           analysis.next = null;
-          worker.postMessage(params);
+          //worker.postMessage(params);
+          DotNet.invokeMethod("Wasm", "OnMessage", params);
         }
 
         window.Dark.analysis.lastRun = new Date();
@@ -274,7 +278,7 @@ window.Dark = {
     debugCount: 0,
     requestAnalysis: function (params) {
       const analysis = window.Dark.analysis;
-      const worker = window.BlazorWorker;
+      //const worker = window.BlazorWorker;
       if (!analysis.initialized) {
         if (analysis.debugCount < 10) {
           if (analysis.debugCount == 0)
@@ -308,22 +312,64 @@ window.Dark = {
         if (analysis.debug) {
           console.log("Requesting analysis", params);
         }
-        worker.postMessage(params);
+
+        // TODO: revert once we're back to running analysis in a WebWorker
         analysis.busy = true;
+        DotNet.invokeMethod("Wasm", "OnMessage", params);
+        //worker.postMessage(params);
       }
     },
     initializeBlazorWorker: function () {
-      const analysis = window.Dark.analysis;
-      let initializedCallback = () => {
-        console.log("Blazor loaded, starting warm-up");
-        worker.postMessage(analysis.utils.warmupValue); // "warm up" the eval with a simple `2+3` expr
-      };
+      // TODO: revert when we're back to running Analysis in a WebWorker
+      //const analysis = window.Dark.analysis;
+
+      let appRoot = `${window.location.protocol}//${staticUrl}`;
+
+      function toDarklangSetupUri(file) {
+        file = file.replace(/_framework\//, "");
+        file = "/blazor/" + file;
+        let hashed = hashReplacements[file];
+        if (hashed) {
+          // Remove the starting slash
+          hashed = hashed.substring(1);
+        } else {
+          hashed = file;
+        }
+        return `${appRoot}/${hashed}`;
+      }
+
+      Blazor.start({
+        loadBootResource: function (type, _name, defaultUri, integrity) {
+          let url = toDarklangSetupUri(defaultUri);
+          switch (type) {
+            case "dotnetjs":
+              return url;
+            case "dotnetwasm":
+            case "timezonedata":
+            default:
+              let response = fetch(url, {
+                cache: "no-cache",
+                integrity: integrity, //undefined//bootConfig.cacheBootResources ? contentHash : undefined,
+              });
+              return response;
+          }
+        },
+      }).then(() => {
+        DotNet.invokeMethod("Wasm", "InitializeDarkRuntime");
+        window.Dark.analysis.initialized = true;
+      });
+
+      // let initializedCallback = () => {
+      //   console.log("Blazor loaded, starting warm-up");
+      //   worker.postMessage(analysis.utils.warmupValue); // "warm up" the eval with a simple `2+3` expr
+      // };
+
       // Only load when asked for
-      window.BlazorWorker.initWorker(
-        initializedCallback,
-        analysis.callback,
-        analysis.errorCallback,
-      );
+      // window.BlazorWorker.initWorker(
+      //   initializedCallback,
+      //   analysis.callback,
+      //   analysis.errorCallback,
+      // );
     },
     // Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp
     lastRun: 0,
@@ -550,7 +596,7 @@ setTimeout(function () {
   // ---------------------------
   // Initialize blazorworker
   // ---------------------------
-  //window.Dark.analysis.initializeBlazorWorker();
+  window.Dark.analysis.initializeBlazorWorker();
 
   // ---------------------------
   // Detect window focus change
