@@ -845,13 +845,26 @@ let documentationForFunction = (
     }
   }
 
-  let name = Html.span(
-    list{tw(%twc("text-grey3 text-xs text-ellipsis w-max overflow-hidden whitespace-nowrap"))},
-    list{Html.text(f.name |> FQFnName.toString)},
-  )
+  let name = if String.startsWith(~prefix="dark/", f.name |> FQFnName.toString){
+    let pkgName = Js.String.splitByRe(%re("/\/(?=[^\/]*$)/"), f.name |> FQFnName.toString)
+    Html.span(
+      list{tw(%twc("text-grey4 text-xs text-ellipsis w-max overflow-hidden whitespace-nowrap"))},
+      list{
+        Html.div(
+          list{tw(%twc("mb-1 text-grey2 text-xxs"))},
+          list{Icons.fontAwesome(~style=%twc("mr-1.5 text-[#BA8A61]"), "box-open"),
+          Html.text(pkgName[0] |> Option.unwrap(~default="")),}
+          ),
+        Html.text(pkgName[1] |> Option.unwrap(~default="")),
+        })
+    }else{
+      Html.span(
+      list{tw(%twc("text-grey3 text-xs text-ellipsis w-max overflow-hidden whitespace-nowrap"))},
+      list{Html.text(f.name |> FQFnName.toString)},)
+    }
 
   let documentationHeader = Html.div(
-    list{tw(%twc("flex justify-between items-center mb-2"))},
+    list{tw(%twc("flex justify-between mb-2 mt-1"))},
     list{name, Html.div(list{}, deprecationHeader)},
   )
 
