@@ -79,10 +79,11 @@ let view = (ac: state): Html.html<AppTypes.msg> => {
     }
 
     let name = FluidAutocomplete.asName(item)
+    |> Js.String.replaceByRe(%re("/^.+\//gm"), "")
     let fnDisplayName = FluidUtil.fnDisplayName(name)
     let versionDisplayName = FluidUtil.versionDisplayName(name)
     let versionView = if String.length(versionDisplayName) > 0 {
-      Html.span(list{tw(%twc("text-grey2 align-bottom"))}, list{Html.text(versionDisplayName)})
+      Html.span(list{Attrs.classes(["version", %twc("text-grey2 align-bottom")])}, list{Html.text(versionDisplayName)})
     } else {
       Vdom.noNode
     }
