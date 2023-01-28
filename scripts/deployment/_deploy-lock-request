@@ -5,8 +5,6 @@
 
 set -euo pipefail
 
-set -x
-
 if [ ! -v DEPLOY_LOCK_TOKEN ] ;
 then
   echo "No deploy lock token, get it from https://darklang.com/a/ops-circleci" >&2
