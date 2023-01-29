@@ -517,9 +517,6 @@ let saveTLIDs
     oplists
     |> Task.iterInParallel (fun (tlid, oplist, tl, deleted) ->
       task {
-        let string2option (s : string) : Option<string> =
-          if s = "" then None else Some s
-
         let routingNames =
           match tl with
           | PT.Toplevel.TLHandler ({ spec = spec }) ->
@@ -550,6 +547,8 @@ let saveTLIDs
           if deleted = NotDeleted then
             match routingNames with
             | Some (module_, name, modifier) ->
+              let string2option (s : string) : Option<string> =
+                if s = "" then None else Some s
               (string2option module_, string2option name, string2option modifier)
             | None -> None, None, None
           else
