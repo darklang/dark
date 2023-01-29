@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
             )
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
             )
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -72,7 +72,7 @@ let fns : List<BuiltInFn> =
         | _, [] ->
           Ply(DObj(Map.ofList [ "Content-Type", DStr "text/plain; charset=utf-8" ]))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
         | _, [] ->
           Ply(DObj(Map.ofList [ "Content-Type", DStr "text/html; charset=utf-8" ]))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
           let authString = "Bearer " + token
           Ply(DObj(Map.ofList [ "Authorization", DStr authString ]))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "HttpClient" "bearerToken" 1) }
 
@@ -120,6 +120,6 @@ let fns : List<BuiltInFn> =
           let authString = "Bearer " + token
           Ply(DObj(Map.ofList [ "Authorization", DStr authString ]))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]

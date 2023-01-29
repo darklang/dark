@@ -36,7 +36,7 @@ module Functions =
   module SqlSpec =
     let toCT (s : RT.SqlSpec) : CTUI.Functions.SqlSpec =
       match s with
-      | RT.NotYetImplementedTODO -> CTUI.Functions.Unknown
+      | RT.NotYetImplemented -> CTUI.Functions.Unknown
       | RT.NotQueryable -> CTUI.Functions.NotQueryable
       | RT.QueryFunction -> CTUI.Functions.QueryFunction
       | RT.SqlUnaryOp str -> CTUI.Functions.SqlUnaryOp str

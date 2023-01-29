@@ -400,7 +400,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr key; payload ] ->
           signAndEncode key Map.empty payload |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = ImpurePreviewable
       deprecated = ReplacedBy(fn "JWT" "signAndEncode" 1) }
 
@@ -417,7 +417,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr key; DObj headers; payload ] ->
           signAndEncode key headers payload |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "signAndEncodeWithHeaders" 1) }
 
@@ -434,7 +434,7 @@ let fns : List<BuiltInFn> =
           with
           | e -> Ply(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -454,7 +454,7 @@ let fns : List<BuiltInFn> =
           with
           | e -> Ply(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -487,7 +487,7 @@ let fns : List<BuiltInFn> =
             |> Ply
           | None -> Ply(DOption None)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "verifyAndExtract" 1) }
 
@@ -518,6 +518,6 @@ let fns : List<BuiltInFn> =
             |> Ply
           | Error msg -> Ply(DResult(Error(DStr msg)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

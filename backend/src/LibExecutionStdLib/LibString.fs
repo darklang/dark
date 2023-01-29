@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> Ply(DBool(s = ""))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -113,7 +113,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DStr "\n")
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -202,7 +202,7 @@ let fns : List<BuiltInFn> =
            with
            | e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toInt" 1) }
 
@@ -234,7 +234,7 @@ let fns : List<BuiltInFn> =
             |> DResult
             |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Int" "parse" 0) }
 
@@ -254,7 +254,7 @@ let fns : List<BuiltInFn> =
                Errors.argumentWasnt "a string representation of an IEEE float" "s" dv
              ))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toFloat" 1) }
 
@@ -347,7 +347,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO // there isn't a unicode version of length
+      sqlSpec = NotYetImplemented // there isn't a unicode version of length
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -377,7 +377,7 @@ let fns : List<BuiltInFn> =
             )
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "append" 1) }
 
@@ -393,7 +393,7 @@ let fns : List<BuiltInFn> =
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
         | _, [ DStr s1; DStr s2 ] -> (s1 + s2) |> String.normalize |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -408,7 +408,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s1; DStr s2 ] -> Ply(DStr(s2 + s1))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -436,7 +436,7 @@ let fns : List<BuiltInFn> =
           |> Ply
 
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "slugify" 1) }
 
@@ -463,7 +463,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "slugify" 2) }
 
@@ -493,7 +493,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -542,7 +542,7 @@ let fns : List<BuiltInFn> =
             |> DList
             |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "split" 1) }
 
@@ -585,7 +585,7 @@ let fns : List<BuiltInFn> =
             |> DList
             |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -608,7 +608,7 @@ let fns : List<BuiltInFn> =
           // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
           Ply(DStr((String.concat sep strs)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -621,7 +621,7 @@ let fns : List<BuiltInFn> =
         function
         | state, [ l ] -> Errors.removedFunction state "String::fromList"
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromList" 1) }
 
@@ -643,7 +643,7 @@ let fns : List<BuiltInFn> =
           )
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -656,7 +656,7 @@ let fns : List<BuiltInFn> =
         function
         | state, [ c ] -> Errors.removedFunction state "String::fromChar"
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromChar" 1) }
 
@@ -669,7 +669,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DChar c ] -> Ply(DStr(c))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -690,7 +690,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -734,7 +734,7 @@ let fns : List<BuiltInFn> =
             with
             | e -> err "Not a valid base64 string"
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       // CLEANUP: this shouldnt return a string and should be deprecated
       deprecated = NotDeprecated }
@@ -759,7 +759,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -783,7 +783,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Crypto" "sha384" 0) }
 
@@ -807,7 +807,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Crypto" "sha256" 0) }
 
@@ -838,7 +838,7 @@ let fns : List<BuiltInFn> =
 
             randomString (int l) |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Impure
       deprecated = ReplacedBy(fn "String" "random" 1) }
 
@@ -869,7 +869,7 @@ let fns : List<BuiltInFn> =
 
             randomString (int l) |> DStr |> Ok |> DResult |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Impure
       deprecated = ReplacedBy(fn "String" "random" 1) }
 
@@ -905,7 +905,7 @@ let fns : List<BuiltInFn> =
 
             randomString (int l) |> DStr |> Ok |> DResult |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -937,7 +937,7 @@ let fns : List<BuiltInFn> =
 
           Ply(DStr(htmlEscape s))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       // CLEANUP mark as Pure
       previewable = Impure
       deprecated = NotDeprecated }
@@ -959,7 +959,7 @@ let fns : List<BuiltInFn> =
             )
 
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toUUID" 1) }
 
@@ -973,7 +973,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr needle; DStr haystack ] -> DBool(haystack.Contains needle) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "isSubstring" 1) }
 
@@ -1049,7 +1049,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1079,7 +1079,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1131,7 +1131,7 @@ let fns : List<BuiltInFn> =
 
           Ply(DStr(lastN s n))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1180,7 +1180,7 @@ let fns : List<BuiltInFn> =
 
           Ply(DStr(dropLastN s n))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1223,7 +1223,7 @@ let fns : List<BuiltInFn> =
 
           Ply(DStr(dropFirstN s n))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1259,7 +1259,7 @@ let fns : List<BuiltInFn> =
 
             stringBuilder |> string |> String.normalize |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1296,7 +1296,7 @@ let fns : List<BuiltInFn> =
             stringBuilder |> string |> String.normalize |> DStr |> Ply
 
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1361,7 +1361,7 @@ let fns : List<BuiltInFn> =
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
           Ply(DBytes theBytes)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1375,7 +1375,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr subject; DStr prefix ] ->
           Ply(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -1390,6 +1390,6 @@ let fns : List<BuiltInFn> =
         | _, [ DStr subject; DStr suffix ] ->
           Ply(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

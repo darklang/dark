@@ -75,7 +75,7 @@ let fns : List<BuiltInFn> =
     //          else // In case there's another failure mode, rollbar
     //            Exception.raiseInternal "Unexpected failiure mode" [] e)
     //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotYetImplementedTODO
+    //   sqlSpec = NotYetImplemented
     //   previewable = Pure
     //   deprecated = NotDeprecated }
 
@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
                  [ "v", v; "d", d ]
                  e)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -428,6 +428,6 @@ let fns : List<BuiltInFn> =
              |> DResult
              |> Ply)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

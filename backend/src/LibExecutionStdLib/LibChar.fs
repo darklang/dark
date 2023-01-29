@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
         function
         | state, [ c ] -> Errors.removedFunction state "Char::toUppercase"
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated =
         DeprecatedBecause("used an old Character type that no longer exists") }
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
         function
         | _, [ DChar c ] -> Ply(DChar(c.ToUpper()))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
         function
         | _, [ DChar c ] -> Ply(DChar(c.ToLower()))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -110,7 +110,7 @@ let fns : List<BuiltInFn> =
           // chars that are not letters would be incorrectly reported as uppercase
           Ply(DBool(c.ToLower() = c && c.ToUpper() <> c))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
           // chars that are not letters would be incorrectly reported as uppercase
           Ply(DBool(c.ToUpper() = c && c.ToLower() <> c))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
         | _, [ DChar c ] ->
           (if c.Length = 1 then System.Char.IsDigit(c[0]) else false) |> DBool |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -159,7 +159,7 @@ let fns : List<BuiltInFn> =
           |> DBool
           |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -173,6 +173,6 @@ let fns : List<BuiltInFn> =
         | _, [ DChar c ] ->
           (if c.Length = 1 then System.Char.IsAscii c[0] else false) |> DBool |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

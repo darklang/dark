@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ dv; DInt code ] -> Ply(DHttpResponse(Response(code, [], dv)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -58,7 +58,7 @@ let fns : List<BuiltInFn> =
 
           Ply(DHttpResponse(Response(code, pairs, dv)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -73,7 +73,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ dv ] -> Ply(DHttpResponse(Response(200L, [], dv)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -90,7 +90,7 @@ let fns : List<BuiltInFn> =
         | _, [ dv; DInt code ] ->
           Ply(DHttpResponse(Response(code, [ ("Content-Type", "text/html") ], dv)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -107,7 +107,7 @@ let fns : List<BuiltInFn> =
         | _, [ dv; DInt code ] ->
           Ply(DHttpResponse(Response(code, [ ("Content-Type", "text/plain") ], dv)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -128,7 +128,7 @@ let fns : List<BuiltInFn> =
             )
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -143,7 +143,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr url ] -> Ply(DHttpResponse(Redirect url))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -158,7 +158,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr _ as msg ] -> Ply(DHttpResponse(Response(400L, [], msg)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -173,7 +173,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DHttpResponse(Response(404L, [], DNull)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -188,7 +188,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DHttpResponse(Response(401L, [], DNull)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -203,7 +203,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DHttpResponse(Response(403L, [], DNull)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -251,7 +251,7 @@ let fns : List<BuiltInFn> =
           |> DObj
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "setCookie" 1) }
 
@@ -306,7 +306,7 @@ let fns : List<BuiltInFn> =
           |> DObj
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "setCookie" 2) }
 
@@ -406,6 +406,6 @@ let fns : List<BuiltInFn> =
           |> Ply
 
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
