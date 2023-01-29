@@ -18,7 +18,6 @@
   <ItemGroup>
     <Compile Include="Utils.FuzzTests.fs" />
     <Compile Include="Generators.fs" />
-    <Compile Include="FQFnName.FuzzTests.fs" />
     <Compile Include="Passwords.FuzzTests.fs" />
     <Compile Include="NodaTime.FuzzTests.fs" />
     <Compile Include="InternalJson.FuzzTests.fs" />

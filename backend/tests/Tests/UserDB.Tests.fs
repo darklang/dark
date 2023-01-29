@@ -14,7 +14,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
 
-let p = FSharpToExpr.parseRTExpr
+let p = TestUtils.FSharpToExpr.parseRTExpr
 
 let nullsAddedToMissingColumn =
   testTask "test for the hack that columns get null in all rows to start" {

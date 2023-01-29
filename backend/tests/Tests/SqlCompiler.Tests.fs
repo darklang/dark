@@ -13,6 +13,7 @@ open LibExecution.RuntimeTypes
 module C = LibBackend.SqlCompiler
 module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
+module FSharpToExpr = TestUtils.FSharpToExpr
 
 let compile
   (symtable : DvalMap)

@@ -1,5 +1,5 @@
 /// Converts strings of F# into Dark. Used for testing.
-module FSharpToExpr
+module TestUtils.FSharpToExpr
 
 // refer to https://fsharp.github.io/fsharp-compiler-docs
 
@@ -167,13 +167,14 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     PT.EInfix(id, PT.BinOp op, placeholder, placeholder)
 
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
-    let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
+    let name =
+      PT.FQFnName.Stdlib { module_ = "Int"; function_ = "negate"; version = 0 }
     PT.EFnCall(id, name, [], PT.NoRail)
 
   | SynExpr.Ident ident when
     Set.contains ident.idText PTParser.FQFnName.oneWordFunctions
     ->
-    PT.EFnCall(id, PTParser.FQFnName.parse ident.idText, [], PT.NoRail)
+    PT.EFnCall(id, FQFnNameParser.parse ident.idText, [], PT.NoRail)
 
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
     PT.EConstructor(id, "Nothing", [])
@@ -231,7 +232,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
           $"Bad format in function name"
           [ "name", fnName.idText ]
 
-    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
+    PT.EFnCall(gid (), FQFnNameParser.parse name, [], ster)
 
   // Preliminary support for package manager functions
   | SynExpr.LongIdent (_,
@@ -247,7 +248,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
       else
         fnName, PT.NoRail
     let name = $"test/test/Test::{name}_v0"
-    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
+    PT.EFnCall(gid (), FQFnNameParser.parse name, [], ster)
 
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
     let obj1 =
@@ -423,9 +424,9 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     // Function calls sending to error rail
     | PT.EVariable (id, name) when String.endsWith "_ster" name ->
       let name = String.dropRight 5 name
-      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.Rail)
+      PT.EFnCall(id, FQFnNameParser.parse name, [ c arg ], PT.Rail)
     | PT.EVariable (id, name) ->
-      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.NoRail)
+      PT.EFnCall(id, FQFnNameParser.parse name, [ c arg ], PT.NoRail)
     | e ->
       Exception.raiseInternal
         "Unsupported expression in app"

@@ -23,6 +23,7 @@ module TFR = LibBackend.TraceFunctionResults
 module RealExecution = LibRealExecution.RealExecution
 module Tracing = LibBackend.Tracing
 module TSR = Tracing.TraceSamplingRule
+module FSharpToExpr = TestUtils.FSharpToExpr
 
 let testTraceIDsOfTlidsMatch =
   test "traceIDs from tlids are as expected" {

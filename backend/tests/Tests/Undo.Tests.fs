@@ -17,7 +17,8 @@ module Exe = LibExecution.Execution
 
 let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
-let handler code = testHttpRouteHandler "" "GET" (FSharpToExpr.parsePTExpr code)
+let handler code =
+  testHttpRouteHandler "" "GET" (TestUtils.FSharpToExpr.parsePTExpr code)
 
 let testUndoCount : Test =
   // Creates several save points, (at least as many undos as we will do),

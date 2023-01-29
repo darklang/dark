@@ -30,6 +30,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module FSharpToExpr = TestUtils.FSharpToExpr
 
 open TestUtils.TestUtils
 

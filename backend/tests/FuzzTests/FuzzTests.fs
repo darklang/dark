@@ -15,7 +15,7 @@ let disabled config =
 
 /// FSTODO Tests we know to have some issues to work out
 let knownBad config =
-  [ FQFnName.tests ] // fails on `User "gm32_v6"`]
+  [] // fails on `User "gm32_v6"`]
   |> List.map (fun fn -> fn config)
 
 /// Tests we generally know to be consistent

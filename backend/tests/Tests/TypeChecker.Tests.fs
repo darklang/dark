@@ -30,7 +30,7 @@ let testBasicTypecheckWorks : Test =
     let args = Map.ofList args
 
     let fn =
-      let fn = fn |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
+      let fn = fn |> TestUtils.FQFnNameParser.parse |> PT2RT.FQFnName.toRT
       libraries
       |> Lazy.force
       |> fun l -> l.stdlib
@@ -54,7 +54,8 @@ let testBasicTypecheckWorks : Test =
 
 let testErrorNotWrappedByErrorRail =
   testTask "error not wrapped by errorRail" {
-    let expr = FSharpToExpr.parseRTExpr "Dict.get_v1 (List.empty_v0 []) \"hello\""
+    let expr =
+      TestUtils.FSharpToExpr.parseRTExpr "Dict.get_v1 (List.empty_v0 []) \"hello\""
     let! meta = createTestCanvas (Randomized "error-not-wrapper-rail")
 
     let! state = executionStateFor meta Map.empty Map.empty

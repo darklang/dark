@@ -28,7 +28,7 @@ module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
 
 
-let p (code : string) = FSharpToExpr.parsePTExpr code
+let p (code : string) = TestUtils.FSharpToExpr.parsePTExpr code
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 

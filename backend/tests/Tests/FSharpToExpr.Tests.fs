@@ -9,6 +9,7 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module FSharpToExpr = TestUtils.FSharpToExpr
 
 let parserTests =
   let t name testStr expectedExpr =

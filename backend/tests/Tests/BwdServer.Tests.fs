@@ -217,7 +217,9 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
       test.handlers
       |> List.map (fun handler ->
         let (source : PT.Expr) =
-          handler.Code |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
+          handler.Code
+          |> TestUtils.FSharpToExpr.parse
+          |> TestUtils.FSharpToExpr.convertToExpr
 
         let gid = Prelude.gid
 

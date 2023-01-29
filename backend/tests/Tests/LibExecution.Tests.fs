@@ -25,6 +25,7 @@ module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Canvas = LibBackend.Canvas
+module FSharpToExpr = TestUtils.FSharpToExpr
 
 open TestUtils.TestUtils
 

@@ -19,6 +19,7 @@ module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module FSharpToExpr = TestUtils.FSharpToExpr
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
