@@ -581,7 +581,8 @@ let saveTLIDs
             "INSERT INTO toplevel_oplists
                     (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
                      deleted, pos, oplist, oplist_cache, data, rendered_oplist_cache)
-                    VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
+                    VALUES (@canvasID, @accountID, @tlid, @digest,
+                            @handlerType::toplevel_type, @name,
                             @module, @modifier, @deleted, @pos,
                             @oplist, @oplistCache,
                             @ocamlData, @ocamlOplistCache)
