@@ -12,16 +12,17 @@ module PT2ST = LibBinarySerialization.ProgramTypesToSerializedTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module S = TestUtils.RTShortcuts
+module FQFnNameParser = TestUtils.FQFnNameParser
 
 let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
-    [ (PTParser.FQFnName.stdlibFqName "" "++" 0), "++"
-      (PTParser.FQFnName.stdlibFqName "" "!=" 0), "!="
-      (PTParser.FQFnName.stdlibFqName "" "&&" 0), "&&"
-      (PTParser.FQFnName.stdlibFqName "" "toString" 0), "toString"
-      (PTParser.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
+    [ (FQFnNameParser.stdlibFqName "" "++" 0), "++"
+      (FQFnNameParser.stdlibFqName "" "!=" 0), "!="
+      (FQFnNameParser.stdlibFqName "" "&&" 0), "&&"
+      (FQFnNameParser.stdlibFqName "" "toString" 0), "toString"
+      (FQFnNameParser.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 
 let testPipesToRuntimeTypes =

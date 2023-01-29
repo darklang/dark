@@ -16,8 +16,8 @@
     <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="RTShortcuts.fs" />
     <Compile Include="FQFnNameParser.fs" />
+    <Compile Include="RTShortcuts.fs" />
     <Compile Include="LibTest.fs" />
     <Compile Include="FSharpToExpr.fs" />
     <Compile Include="TestUtils.fs" />

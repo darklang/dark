@@ -20,6 +20,7 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module FSharpToExpr = TestUtils.FSharpToExpr
+module FQFnNameParser = TestUtils.FQFnNameParser
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
@@ -163,7 +164,7 @@ let testRecursionInEditor : Test =
         // condition
         PT.EFnCall(
           gid (),
-          PTParser.FQFnName.stdlibFqName "" "<" 0,
+          FQFnNameParser.stdlibFqName "" "<" 0,
           [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ],
           PT.NoRail
         ),
@@ -175,7 +176,7 @@ let testRecursionInEditor : Test =
         // calls self ("recurse") resulting in recursion
         PT.EFnCall(
           skippedCallerID,
-          PTParser.FQFnName.userFqName "recurse",
+          PT.FQFnName.User "recurse",
           [ PT.EInteger(gid (), 2) ],
           PT.NoRail
         )
@@ -549,7 +550,7 @@ let testMatchPreview : Test =
          okVarRhsId,
          EFQFnValue(
            binopFnValId,
-           PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+           FQFnNameParser.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
          ),
          [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
          NotInPipe,
@@ -701,9 +702,7 @@ let testMatchPreview : Test =
            "fnval",
            er (
              DFnVal(
-               FnName(
-                 PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
-               )
+               FnName(FQFnNameParser.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT)
              )
            ))
           (pOkVarVarId, "var pat", er (DStr "y"))

@@ -10,6 +10,7 @@ module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module FSharpToExpr = TestUtils.FSharpToExpr
+module FQFnNameParser = TestUtils.FQFnNameParser
 
 let parserTests =
   let t name testStr expectedExpr =
@@ -32,7 +33,7 @@ let parserTests =
             PT.EVariable(id, "x"),
             PT.EFnCall(
               id,
-              PTParser.FQFnName.stdlibFqName "List" "map" 0,
+              FQFnNameParser.stdlibFqName "List" "map" 0,
               [ (PT.EPipeTarget id); PT.EInteger(id, 5) ],
               PT.NoRail
             ),
