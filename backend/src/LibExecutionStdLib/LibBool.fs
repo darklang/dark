@@ -98,7 +98,7 @@ let fns : List<BuiltInFn> =
             | _ -> DBool false
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated =
         DeprecatedBecause

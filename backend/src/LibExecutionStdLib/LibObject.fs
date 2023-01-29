@@ -164,6 +164,6 @@ let fns : List<BuiltInFn> =
         | _, [ DObj o ] ->
           DObj o |> PrettyResponseJsonV0.toPrettyResponseJsonV0 |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Object" "toJSON" 1) } ]
