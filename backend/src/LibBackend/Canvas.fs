@@ -570,6 +570,13 @@ let saveTLIDs
           | Deleted -> true
           | NotDeleted -> false
 
+        let handlerType =
+          match tl with
+          | PT.Toplevel.TLDB _ -> "db"
+          | PT.Toplevel.TLHandler _ -> "handler"
+          | PT.Toplevel.TLFunction _ -> "user_function"
+          | PT.Toplevel.TLType _ -> "user_tipe"
+
         return!
           Sql.query
             "INSERT INTO toplevel_oplists
@@ -582,7 +589,7 @@ let saveTLIDs
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
                     SET account_id = @accountID,
                         digest = @digest,
-                        tipe = @typ::toplevel_type,
+                        tipe = @handlerType::toplevel_type,
                         name = @name,
                         module = @module,
                         modifier = @modifier,
@@ -596,7 +603,7 @@ let saveTLIDs
                               "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
                               "digest", Sql.string "fsharp"
-                              "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
+                              "handlerType", Sql.string handlerType
                               "name", Sql.stringOrNone name
                               "module", Sql.stringOrNone module_
                               "modifier", Sql.stringOrNone modifier
