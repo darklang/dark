@@ -11,6 +11,7 @@ open Http
 
 module Exe = LibExecution.Execution
 module AT = LibExecution.AnalysisTypes
+module RT = LibExecution.RuntimeTypes
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Canvas = LibBackend.Canvas
 module RealExe = LibRealExecution.RealExecution
@@ -41,7 +42,7 @@ module FunctionV1 =
       let program = Canvas.toProgram c
 
       t.next "execute-function"
-      let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
+      let fnname = RT.FQFnName.User(p.fnname)
 
       let! rootTLID = LibBackend.TraceCloudStorage.rootTLIDFor c.meta.id traceID
       // If this is a pre-cloud-storage trace, there won't be a rootTLID
