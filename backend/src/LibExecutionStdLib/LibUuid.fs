@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       // similarly to Date::now, it's not particularly fun for this to change
       // when live programming
       previewable = Impure
@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
             |> DResult
             |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 

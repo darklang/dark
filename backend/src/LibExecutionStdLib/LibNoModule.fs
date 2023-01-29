@@ -177,7 +177,7 @@ let fns : List<BuiltInFn> =
 
           sb |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -190,6 +190,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

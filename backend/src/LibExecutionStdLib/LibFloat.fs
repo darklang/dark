@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -32,7 +32,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> a |> Math.Round |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -96,7 +96,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -110,7 +110,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> DFloat(Math.Abs a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -123,7 +123,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> DFloat(a * -1.0) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -136,7 +136,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(Math.Sqrt a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -279,7 +279,7 @@ let fns : List<BuiltInFn> =
           let sum = List.fold (fun acc elem -> acc + elem) 0.0 floats
           Ply(DFloat sum)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Min(a, b)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -307,7 +307,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Max(a, b)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -335,7 +335,7 @@ let fns : List<BuiltInFn> =
             let min, max = if a < b then (a, b) else (b, a)
             Ply(DFloat(Math.Clamp(v, min, max)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -349,7 +349,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -370,6 +370,6 @@ let fns : List<BuiltInFn> =
              |> DResult
              |> Ply)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ first; second ] -> Ply(DTuple(first, second, []))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -40,7 +40,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DTuple (first, _second, []) ] -> Ply(first)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -54,7 +54,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DTuple (_first, second, []) ] -> Ply(second)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -68,7 +68,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -92,7 +92,7 @@ let fns : List<BuiltInFn> =
             return DTuple(newFirst, second, [])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -116,7 +116,7 @@ let fns : List<BuiltInFn> =
             return DTuple(first, newSecond, [])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -151,6 +151,6 @@ let fns : List<BuiltInFn> =
             return DTuple(newFirst, newSecond, [])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

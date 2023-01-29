@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DFloat System.Math.PI)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DFloat System.Math.Tau)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -58,7 +58,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat degrees ] -> Ply(DFloat(degrees * System.Math.PI / 180.0))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -75,7 +75,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat turns ] -> Ply(DFloat(System.Math.Tau * turns))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat rads ] -> Ply(DFloat rads)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -111,7 +111,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Cos a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -128,7 +128,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sin a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -146,7 +146,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Tan a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -172,7 +172,7 @@ let fns : List<BuiltInFn> =
           else
             Ply(DOption(Some(DFloat res)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -198,7 +198,7 @@ let fns : List<BuiltInFn> =
           else
             Ply(DOption(Some(DFloat res)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -216,7 +216,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Atan a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -236,7 +236,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat y; DFloat x ] -> Ply(DFloat(System.Math.Atan2(y, x)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -249,7 +249,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Cosh a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -262,7 +262,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -275,6 +275,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

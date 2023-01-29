@@ -601,6 +601,6 @@ let fns : List<BuiltInFn> =
           let diff = (DDateTime.toInstant endDate) - (DDateTime.toInstant startDate)
           diff.TotalSeconds |> System.Math.Round |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

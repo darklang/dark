@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBytes data ] -> SHA256.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -47,6 +47,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBytes data ] -> SHA384.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

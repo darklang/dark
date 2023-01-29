@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ first; second; third ] -> Ply(DTuple(first, second, [ third ]))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -44,7 +44,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> =
             return DTuple(newFirst, second, [ third ])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -132,7 +132,7 @@ let fns : List<BuiltInFn> =
             return DTuple(first, newSecond, [ third ])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -159,7 +159,7 @@ let fns : List<BuiltInFn> =
             return DTuple(first, second, [ newThird ])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -216,6 +216,6 @@ let fns : List<BuiltInFn> =
             return DTuple(newFirst, newSecond, [ newThird ])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

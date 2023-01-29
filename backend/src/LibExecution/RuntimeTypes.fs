@@ -803,7 +803,7 @@ type Deprecation =
 /// used within a Postgres query.
 type SqlSpec =
   /// Can be implemented, but we haven't yet
-  | NotYetImplementedTODO
+  | NotYetImplemented
 
   /// This is not a function which can be queried
   | NotQueryable
@@ -834,7 +834,7 @@ type SqlSpec =
 
   member this.isQueryable() : bool =
     match this with
-    | NotYetImplementedTODO
+    | NotYetImplemented
     | NotQueryable
     | QueryFunction -> false
     | SqlUnaryOp _
