@@ -934,7 +934,7 @@ test.describe.parallel("Integration Tests", async () => {
     await expectExactText(
       page,
       ".autocomplete-item.bg-highlight-color.valid",
-      "test_admin/stdlib/Test::one_v1Any",
+      "Test::one_v1Any",
     );
     await page.keyboard.press("Enter");
 
