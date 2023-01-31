@@ -53,6 +53,12 @@ module MatchPattern =
       RT.MPTuple(id, toRT first, toRT second, List.map toRT theRest)
 
 
+module LetPattern =
+  let rec toRT (p : PT.LetPattern) : RT.LetPattern =
+    match p with
+    | PT.LPVariable (id, str) -> RT.LPVariable(id, str)
+
+
 
 module Expr =
   let rec toRT (e : PT.Expr) : RT.Expr =
@@ -91,7 +97,8 @@ module Expr =
     | PT.EInfix (id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
       RT.EOr(id, toRT expr1, toRT expr2)
     | PT.ELambda (id, vars, body) -> RT.ELambda(id, vars, toRT body)
-    | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
+    | PT.ELet (id, pattern, rhs, body) ->
+      RT.ELet(id, LetPattern.toRT pattern, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, toRT cond, toRT thenExpr, toRT elseExpr)
     | PT.EPartial (_, _, oldExpr)

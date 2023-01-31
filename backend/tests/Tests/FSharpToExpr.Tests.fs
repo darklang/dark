@@ -24,7 +24,7 @@ let parserTests =
         "(let x = 5\nx |> List.map_v0 5)"
         (PT.ELet(
           id,
-          "x",
+          PT.LPVariable(id, "x"),
           PT.EInteger(id, 5),
           PT.EPipe(
             id,

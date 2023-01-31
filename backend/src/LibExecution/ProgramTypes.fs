@@ -49,6 +49,9 @@ type MatchPattern =
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
+type LetPattern =
+  | LPVariable of id * name : string
+
 /// Whether a function's result is unwrapped automatically (and, in the case of
 /// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.
 type SendToRail =
@@ -77,7 +80,7 @@ type Expr =
   | EFloat of id * Sign * string * string
   | ENull of id
   | EBlank of id
-  | ELet of id * string * Expr * Expr
+  | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
   // the id in the varname list is the analysis id, used to get a livevalue

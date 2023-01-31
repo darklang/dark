@@ -80,7 +80,7 @@ module RuntimeTypes =
       RT.EBlank(495839UL)
       RT.ELet(
         49583UL,
-        "binding",
+        RT.LPVariable(18274UL, "binding"),
         RT.ENull(12355555UL),
         RT.EVariable(68496UL, "binding")
       )
@@ -186,43 +186,43 @@ module ProgramTypes =
     let e = PT.EInteger(34545UL, 5)
     PT.ELet(
       14219007199254740992UL,
-      "x1",
+      PT.LPVariable(372643UL, "x1"),
       PT.EInteger(929452387UL, 5L),
       PT.ELet(
         620028536UL,
-        "x2",
+        PT.LPVariable(5524362UL, "x2"),
         PT.EInteger(452247642UL, 9223372036854775807L),
         PT.ELet(
           68205955UL,
-          "bool",
+          PT.LPVariable(927492UL, "bool"),
           PT.EBool(43581311UL, true),
           PT.ELet(
             755798860UL,
-            "bool",
+            PT.LPVariable(4473648UL, "bool"),
             PT.EBool(97054530UL, false),
             PT.ELet(
               244891515UL,
-              "str",
+              PT.LPVariable(573659UL, "str"),
               PT.EString(446488682UL, "a string"),
               PT.ELet(
                 537517627UL,
-                "char",
+                PT.LPVariable(5565675UL, "char"),
                 PT.ECharacter(1031176330UL, "a"),
                 PT.ELet(
                   399526184UL,
-                  "float",
+                  PT.LPVariable(7481674UL, "float"),
                   PT.EFloat(770715427UL, Negative, "6", "5"),
                   PT.ELet(
                     975263310UL,
-                    "n",
+                    PT.LPVariable(23343UL, "n"),
                     PT.ENull 923644248UL,
                     PT.ELet(
                       468988830UL,
-                      "b",
+                      PT.LPVariable(81749UL, "b"),
                       PT.EBlank 133368677UL,
                       PT.ELet(
                         43886336UL,
-                        "i",
+                        PT.LPVariable(817381UL, "i"),
                         PT.EIf(
                           46231874UL,
                           PT.EFnCall(
@@ -304,7 +304,7 @@ module ProgramTypes =
                         ),
                         PT.ELet(
                           831830073UL,
-                          "r",
+                          PT.LPVariable(716741UL, "r"),
                           PT.ERecord(
                             109539183UL,
                             [ ("field",
@@ -343,7 +343,7 @@ module ProgramTypes =
                           ),
                           PT.ELet(
                             745304029UL,
-                            "m",
+                            PT.LPVariable(81739UL, "m"),
                             PT.EMatch(
                               889712088UL,
                               PT.EFnCall(
@@ -393,7 +393,7 @@ module ProgramTypes =
                             ),
                             PT.ELet(
                               927055617UL,
-                              "f",
+                              PT.LPVariable(8175917UL, "f"),
                               PT.EFeatureFlag(
                                 882488977UL,
                                 "test",
@@ -403,7 +403,7 @@ module ProgramTypes =
                               ),
                               PT.ELet(
                                 6345345UL,
-                                "partials",
+                                PT.LPVariable(192718UL, "partials"),
                                 PT.EList(
                                   23423423UL,
                                   [ PT.EPartial(2949606UL, "some 🤬 string", e)
@@ -416,11 +416,11 @@ module ProgramTypes =
                                 ),
                                 PT.ELet(
                                   883434UL,
-                                  "tuples",
+                                  PT.LPVariable(859173UL, "tuples"),
                                   PT.ETuple(72333UL, e, e, [ e ]),
                                   PT.ELet(
                                     47462UL,
-                                    "binopAnd",
+                                    PT.LPVariable(9149127UL, "binopAnd"),
                                     PT.EInfix(
                                       234234UL,
                                       PT.BinOp(PT.BinOpAnd),

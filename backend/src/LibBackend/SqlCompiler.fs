@@ -136,8 +136,12 @@ let rec inline'
   RuntimeTypesAst.postTraversal
     (fun expr ->
       match expr with
-      | ELet (_, name, expr, body) ->
-        inline' paramName (Map.add name expr symtable) body
+      | ELet (_, pat, expr, body) ->
+        let varName =
+          match pat with
+          | LPVariable(_id, name) -> name
+          
+        inline' paramName (Map.add varName expr symtable) body
       | EVariable (_, name) as expr when name <> paramName ->
         (match Map.get name symtable with
          | Some found -> found
@@ -404,10 +408,12 @@ let partiallyEvaluate
             | EBool _
             | ENull _
             | EFloat _ -> return expr
-            | ELet (id, name, rhs, next) ->
+            | ELet (id, pat, rhs, next) ->
+              // todo: do I need to do anything with the pattern?
+              // (check matchPatterns)
               let! rhs = r rhs
               let! next = r next
-              return ELet(id, name, rhs, next)
+              return ELet(id, pat, rhs, next)
             | EApply (id, name, exprs, inPipe, ster) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EApply(id, name, exprs, inPipe, ster)

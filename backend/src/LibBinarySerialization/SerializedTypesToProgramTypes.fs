@@ -81,6 +81,10 @@ module MatchPattern =
     | ST.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
 
+module LetPattern =
+  let rec toPT (p : ST.LetPattern) : PT.LetPattern =
+    match p with
+    | ST.LPVariable (id, str) -> PT.LPVariable(id, str)
 
 
 module Expr =
@@ -123,7 +127,11 @@ module Expr =
     | ST.EDeprecatedBinOp (_, ST.FQFnName.Package name, _, _, _) ->
       Exception.raiseInternal "package serialized as a binop" [ "name", name ]
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
-    | ST.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, toPT rhs, toPT body)
+    | ST.ELetWithoutPattern (id, lhs, rhs, body) ->
+      // todo: what to do instead of gid()? or maybe it's OK
+      PT.ELet(id, PT.LPVariable(gid(), lhs), toPT rhs, toPT body)
+    | ST.ELet (id, pat, rhs, body) ->
+      PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
     | ST.EIf (id, cond, thenExpr, elseExpr) ->
       PT.EIf(id, toPT cond, toPT thenExpr, toPT elseExpr)
     | ST.EPartial (id, str, expr) -> PT.EPartial(id, str, toPT expr)

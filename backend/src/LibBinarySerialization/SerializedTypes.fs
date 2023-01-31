@@ -112,6 +112,10 @@ type MatchPattern =
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 [<MessagePack.MessagePackObject>]
+type LetPattern =
+  | LPVariable of id * name : string
+
+[<MessagePack.MessagePackObject>]
 type SendToRail =
   | Rail
   | NoRail
@@ -135,7 +139,7 @@ type Expr =
   | EFloat of id * Sign * string * string
   | ENull of id
   | EBlank of id
-  | ELet of id * string * Expr * Expr
+  | ELetWithoutPattern of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EDeprecatedBinOp of id * FQFnName.T * Expr * Expr * SendToRail
   | ELambda of id * List<id * string> * Expr
@@ -154,6 +158,7 @@ type Expr =
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
+  | ELet of id * LetPattern * Expr * Expr
 
 [<MessagePack.MessagePackObject>]
 type DType =

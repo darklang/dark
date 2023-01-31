@@ -141,15 +141,19 @@ type Expr =
   | EBlank of id
 
   /// <summary>
-  /// Composed of binding name, the bound expression,
-  /// and the expression that follows, where the bound value is available
+  /// Composed of binding pattern, the expression to create bindings for,
+  /// and the expression that follows, where the bound values are available
   /// </summary>
   ///
   /// <code>
   /// let str = expr1
   /// expr2
   /// </code>
-  | ELet of id * string * Expr * Expr
+  /// <code>
+  /// let (a, b) = expr1
+  /// expr2
+  /// </code>
+  | ELet of id * LetPattern * Expr * Expr
 
   /// Composed of condition, expr if true, and expr if false
   | EIf of id * Expr * Expr * Expr
@@ -209,6 +213,9 @@ and MatchPattern =
   | MPNull of id
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+and LetPattern =
+  | LPVariable of id * name : string
 
 type DvalMap = Map<string, Dval>
 
@@ -439,6 +446,13 @@ module MatchPattern =
     | MPBlank id
     | MPTuple (id, _, _, _)
     | MPConstructor (id, _, _) -> id
+
+/// Functions for working with Dark match patterns
+
+module LetPattern =
+  let toID (pat : LetPattern) : id =
+    match pat with
+    | LPVariable (id, _) -> id
 
 /// Functions for working with Dark runtime values
 module Dval =

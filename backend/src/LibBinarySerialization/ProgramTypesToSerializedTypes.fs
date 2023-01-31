@@ -57,6 +57,10 @@ module MatchPattern =
     | PT.MPTuple (id, first, second, theRest) ->
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
 
+module LetPattern =
+  let rec toST (p : PT.LetPattern) : ST.LetPattern =
+    match p with
+    | PT.LPVariable (id, str) -> ST.LPVariable(id, str)
 
 
 module Expr =
@@ -83,7 +87,8 @@ module Expr =
     | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
     | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)
-    | PT.ELet (id, lhs, rhs, body) -> ST.ELet(id, lhs, toST rhs, toST body)
+    | PT.ELet (id, pat, rhs, body) ->
+      ST.ELet(id, LetPattern.toST pat, toST rhs, toST body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       ST.EIf(id, toST cond, toST thenExpr, toST elseExpr)
     | PT.EPartial (id, str, expr) -> ST.EPartial(id, str, toST expr)

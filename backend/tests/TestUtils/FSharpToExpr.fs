@@ -297,43 +297,29 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
 
   // When we add patterns on the left hand side of lets, the pattern below
   // could be expanded to use convertPat
+  // TODO: this doesn't allow nesting (i.e. `let (a, (b, c)) = (1, (2, 3))`. Should it?)
   | SynExpr.LetOrUse (_,
                       _,
-                      [ SynBinding (_,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    SynPat.Named (name, _, _, _),
-                                    _,
-                                    rhs,
-                                    _,
-                                    _,
-                                    _) ],
+                      [ SynBinding (_, _, _, _, _, _, _, pat, _, rhs, _, _, _) ],
                       body,
                       _,
-                      _) -> PT.ELet(id, name.idText, c rhs, c body)
+                      _) ->
 
-  | SynExpr.LetOrUse (_,
-                      _,
-                      [ SynBinding (_,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    _,
-                                    SynPat.Wild (_),
-                                    _,
-                                    rhs,
-                                    _,
-                                    _,
-                                    _) ],
-                      body,
-                      _,
-                      _) -> PT.ELet(id, "_", c rhs, c body)
+    let rec mapPat (pat : SynPat) : PT.LetPattern =
+      match pat with
+      | SynPat.Paren (subPat, _) -> mapPat subPat
+
+      | SynPat.Wild (_) -> PT.LPVariable(gid (), "_")
+
+      | SynPat.Named (name, _, _, _) -> PT.LPVariable(gid (), name.idText)
+
+      | _ ->
+        Exception.raiseInternal
+          "Unsupported let or use expr pat type"
+          [ "ast", ast; "pat", pat ]
+
+    PT.ELet(id, mapPat pat, c rhs, c body)
+
 
   | SynExpr.Match (_, _, cond, _, clauses, _) ->
     let convertClause

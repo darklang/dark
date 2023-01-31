@@ -7,6 +7,7 @@ open Prelude
 open ProgramTypes
 
 // Traverse is really only meant to be used by preTraversal and postTraversal
+// TODO: should this also traverse MatchPatterns and LetPatterns (within `EMatch` and `ELetWithPattern`)?)
 let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   match expr with
   | EInteger _
@@ -18,7 +19,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EVariable _
   | EPipeTarget _
   | EFloat _ -> expr
-  | ELet (id, name, rhs, next) -> ELet(id, name, f rhs, f next)
+  | ELet (id, pat, rhs, next) -> ELet(id, pat, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)

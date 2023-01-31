@@ -100,6 +100,14 @@ module MatchPattern =
     | PT.MPTuple (id, first, second, theRest) ->
       CTPT.MPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
+module LetPattern =
+  let rec fromCT (p : CTPT.LetPattern) : PT.LetPattern =
+    match p with
+    | CTPT.LPVariable (id, str) -> PT.LPVariable(id, str)
+
+  let rec toCT (p : PT.LetPattern) : CTPT.LetPattern =
+    match p with
+    | PT.LPVariable (id, str) -> CTPT.LPVariable(id, str)
 
 module SendToRail =
   let fromCT (str : CTPT.SendToRail) : PT.SendToRail =
@@ -149,8 +157,12 @@ module Expr =
     | CTPT.Expr.EFloat (id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
     | CTPT.Expr.ENull (id) -> PT.ENull(id)
     | CTPT.Expr.EBlank (id) -> PT.EBlank(id)
-    | CTPT.Expr.ELet (id, name, expr, body) ->
-      PT.ELet(id, name, fromCT expr, fromCT body)
+    | CTPT.Expr.ELet (id, varName, expr, body) ->
+      // TODO: is gid() optimal here?
+      PT.ELet(id, PT.LPVariable(gid(), varName), fromCT expr, fromCT body)
+    | CTPT.Expr.ELetWithPattern (id, pat, expr, body) ->
+      // currently unused
+      PT.ELet(id, LetPattern.fromCT pat, fromCT expr, fromCT body)
     | CTPT.Expr.EIf (id, cond, ifExpr, thenExpr) ->
       PT.EIf(id, fromCT cond, fromCT ifExpr, fromCT thenExpr)
     | CTPT.EInfix (id, infix, first, second) ->
@@ -199,8 +211,11 @@ module Expr =
     | PT.EFloat (id, sign, whole, frac) -> CTPT.Expr.EFloat(id, sign, whole, frac)
     | PT.ENull (id) -> CTPT.Expr.ENull(id)
     | PT.EBlank (id) -> CTPT.Expr.EBlank(id)
-    | PT.ELet (id, name, expr, body) ->
-      CTPT.Expr.ELet(id, name, toCT expr, toCT body)
+    | PT.ELet (id, pat, expr, body) ->
+      let varName =
+        match pat with
+        | PT.LPVariable(_id, varName) -> varName
+      CTPT.Expr.ELet(id, varName, toCT expr, toCT body)
     | PT.EIf (id, cond, ifExpr, thenExpr) ->
       CTPT.Expr.EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
     | PT.EInfix (id, PT.InfixFnCall (name, str), first, second) ->

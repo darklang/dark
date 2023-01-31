@@ -45,6 +45,7 @@ type MatchPattern =
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
+type LetPattern = LPVariable of id * name : string
 
 type SendToRail =
   | Rail
@@ -67,6 +68,7 @@ type Expr =
   | ENull of id
   | EBlank of id
   | ELet of id * string * Expr * Expr
+  | ELetWithPattern of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
   | ELambda of id * List<id * string> * Expr

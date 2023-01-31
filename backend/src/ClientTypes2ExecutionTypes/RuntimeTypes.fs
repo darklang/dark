@@ -141,6 +141,15 @@ module MatchPattern =
     | RT.MPTuple (id, first, second, theRest) ->
       MPTuple(id, r first, r second, List.map r theRest)
 
+module LetPattern =
+  let rec fromCT (p : LetPattern) : RT.LetPattern =
+    match p with
+    | LPVariable (id, str) -> RT.LPVariable(id, str)
+
+  let rec toCT (p : RT.LetPattern) : LetPattern =
+    match p with
+    | RT.LPVariable (id, str) -> LPVariable(id, str)
+
 module Expr =
   let pipeToRT (pipe : Expr.IsInPipe) : RT.IsInPipe =
     match pipe with
@@ -177,7 +186,12 @@ module Expr =
     | Expr.EVariable (id, var) -> RT.EVariable(id, var)
     | Expr.EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | Expr.ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
-    | Expr.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, r rhs, r body)
+    | Expr.ELet (id, varName, rhs, body) ->
+      // todo: is gid() the best?
+      RT.ELet(id, RT.LPVariable(gid(), varName), r rhs, r body)
+    | Expr.ELetWithPattern(id, pat, rhs, body) ->
+      // branch unused for now
+      RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)
     | Expr.EApply (id, expr, exprs, pipe, ster) ->
@@ -216,7 +230,9 @@ module Expr =
     | RT.EVariable (id, var) -> Expr.EVariable(id, var)
     | RT.EFieldAccess (id, obj, fieldname) -> Expr.EFieldAccess(id, r obj, fieldname)
     | RT.ELambda (id, vars, body) -> Expr.ELambda(id, vars, r body)
-    | RT.ELet (id, lhs, rhs, body) -> Expr.ELet(id, lhs, r rhs, r body)
+    | RT.ELet (id, pat, rhs, body) ->
+      let varName = match pat with | RT.LPVariable(_, name) -> name
+      Expr.ELet(id, varName, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)
     | RT.EApply (id, expr, exprs, pipe, ster) ->

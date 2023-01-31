@@ -65,6 +65,9 @@ type MatchPattern =
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
+
+type LetPattern = LPVariable of id * name : string
+
 module Expr =
   type T =
     | EInteger of id * int64
@@ -75,6 +78,7 @@ module Expr =
     | ENull of id
     | EBlank of id
     | ELet of id * string * T * T
+    | ELetWithPattern of id * LetPattern * T * T
     | EIf of id * T * T * T
     | ELambda of id * List<id * string> * T
     | EFieldAccess of id * T * string

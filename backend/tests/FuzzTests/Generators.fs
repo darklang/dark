@@ -192,16 +192,32 @@ module RuntimeTypes =
                       //(4, ok) // TODO: random string, with 0-5 args
                        ]
 
-  open MatchPattern
+    let rec genTuple (s, genArg) : Gen<RT.MatchPattern> =
+      gen {
+        let! first = genTuple (s / 2, genArg)
+        let! second = genTuple (s / 2, genArg)
+        let! tailLength = Gen.elements [ 1..5 ]
+        let! theRest = Gen.listOfLength tailLength (genArg (s / 2))
+
+        return RT.MPTuple(gid (), first, second, theRest)
+      }
+
+  module MP = MatchPattern
 
   let matchPattern =
     // TODO: consider adding 'weight' such that certain patterns are generated
     // more often than others
     let rec gen' s : Gen<RT.MatchPattern> =
       let finitePatterns =
-        [ genInt; genBool; genBlank; genNull; genChar; genStr; genVar ]
+        [ MP.genInt
+          MP.genBool
+          MP.genBlank
+          MP.genNull
+          MP.genChar
+          MP.genStr
+          MP.genVar ]
 
-      let allPatterns = constructor (s, gen') :: finitePatterns
+      let allPatterns = MP.constructor (s, gen') :: finitePatterns
 
       match s with
       | 0 -> Gen.oneof finitePatterns
@@ -216,6 +232,30 @@ module RuntimeTypes =
       let! len = Gen.choose (1, 20)
       return! Gen.listOfLength len matchPattern
     }
+
+
+  module LetPattern =
+    let genVar = simpleString |> Gen.map (fun s -> RT.LPVariable(gid (), s))
+
+
+
+  module LP = LetPattern
+
+  let letPattern =
+    // TODO: consider adding 'weight' such that certain patterns are generated
+    // more often than others
+    let rec gen' s : Gen<RT.LetPattern> =
+      let finitePatterns = [ LP.genVar ]
+
+      let allPatterns = finitePatterns
+
+      match s with
+      | 0 -> Gen.oneof finitePatterns
+      | n when n > 0 -> Gen.oneof allPatterns
+      | _ -> invalidArg "s" "Only positive arguments are allowed"
+
+    Gen.sized gen' // todo: depth of 10 seems kinda reasonable
+
 
   module Expr =
     // Non-recursive exprs
@@ -235,7 +275,18 @@ module RuntimeTypes =
         let! rhsExpr = genSubExpr (s / 2)
         let! nextExpr = genSubExpr (s / 2)
 
-        return RT.ELet(gid (), varName, rhsExpr, nextExpr)
+        let varPattern = RT.LPVariable(gid(), varName)
+
+        return RT.ELet(gid (), varPattern, rhsExpr, nextExpr)
+      }
+
+    let genLetWithPattern genSubExpr s =
+      gen {
+        let! pat = letPattern
+        let! rhsExpr = genSubExpr (s / 2)
+        let! nextExpr = genSubExpr (s / 2)
+
+        return RT.ELet(gid (), pat, rhsExpr, nextExpr)
       }
 
     let genIf genSubExpr s =
@@ -347,6 +398,7 @@ module RuntimeTypes =
     let recursiveExprs =
       [ genConstructor
         genLet
+        genLetWithPattern
         genIf
         genFF
         genTuple
@@ -470,7 +522,9 @@ module ProgramTypes =
         let! rhsExpr = genSubExpr (s / 2)
         let! nextExpr = genSubExpr (s / 2)
 
-        return PT.ELet(gid (), varName, rhsExpr, nextExpr)
+        let varPattern = PT.LPVariable(gid(), varName)
+
+        return PT.ELet(gid (), varPattern, rhsExpr, nextExpr)
       }
 
     let genIf genSubExpr s =

@@ -59,19 +59,19 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ENull _id -> return DNull
     | ECharacter (_id, s) -> return DChar s
 
-
-    | ELet (_id, lhs, rhs, body) ->
+    | ELet (_id, pat, rhs, body) ->
       let! rhs = eval state st rhs
+
       match rhs with
-      // CLEANUP we should still preview the body
       // Usually fakevals get propagated when they're evaluated. However, if we
       // don't use the value, we still want to propagate the errorrail here, so
       // return it instead of evaling the body
       | DErrorRail v -> return rhs
       | _ ->
-        let st = if lhs <> "" then Map.add lhs rhs st else st
+        let varName = match pat with | LPVariable(_, name) -> name
+        
+        let st = if varName <> "" then Map.add varName rhs st else st
         return! eval state st body
-
 
     | EList (_id, exprs) ->
       // We ignore incompletes but not error rail.
