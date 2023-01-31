@@ -517,6 +517,8 @@ def mark(should, f):
 
   elif "/backend/src/Wasm/static/" in f:
     should.copy_backend_static = True
+    should.copy_static = True
+    should.client_build = True
 
   elif (".circleci/config.yml" in f):
     should.circleci_validate = True
