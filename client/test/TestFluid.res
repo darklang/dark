@@ -5454,11 +5454,11 @@ let run = () => {
       ~pos=105,
       ELet(
         gid(),
-        "request",
+        LPVariable(gid(), "request"),
         ERecord(gid(), list{("body", EInteger(gid(), 5L)), ("blank", EBlank(gid()))}),
         ELet(
           gid(),
-          "foo",
+          LPVariable(gid(), "foo"),
           EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(fakeID3, "request"), "")),
           EVariable(gid(), "foo"),
         ),
@@ -5471,11 +5471,11 @@ let run = () => {
       ~clone=false,
       ELet(
         gid(),
-        "request",
+        LPVariable(gid(), "request"),
         ERecord(gid(), list{("body", EInteger(gid(), 5L))}),
         ELet(
           gid(),
-          "foo",
+          LPVariable(gid(), "foo"),
           EPartial(gid(), "bo", EFieldAccess(gid(), EVariable(fakeID3, "request"), "")),
           EVariable(gid(), "foo"),
         ),

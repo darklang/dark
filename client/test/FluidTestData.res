@@ -103,35 +103,35 @@ let aPartialVar = EPartial(gid(), "req", b)
 // ----------------
 // Lets
 // ----------------
-let completelyEmptyLet = ELet(gid(), "", b, b)
+let completelyEmptyLet = ELet(gid(), LPVariable(gid(), ""), b, b)
 
 // let *** = ___\n5
-let emptyLet = ELet(gid(), "", b, EInteger(gid(), 5L))
+let emptyLet = ELet(gid(), LPVariable(gid(), ""), b, EInteger(gid(), 5L))
 
 // let *** = 6\n___
-let nonEmptyLetWithBlankEnd = ELet(gid(), "", EInteger(gid(), 6L), b)
+let nonEmptyLetWithBlankEnd = ELet(gid(), LPVariable(gid(), ""), EInteger(gid(), 6L), b)
 
-let nonEmptyLet = ELet(gid(), "", EInteger(gid(), 6L), EInteger(gid(), 5L))
+let nonEmptyLet = ELet(gid(), LPVariable(gid(), ""), EInteger(gid(), 6L), EInteger(gid(), 5L))
 
 let twoLets = ELet(
   gid(),
-  "x",
+  LPVariable(gid(), "x"),
   EInteger(gid(), 5L),
-  ELet(gid(), "y", EInteger(gid(), 6L), EInteger(gid(), 7L)),
+  ELet(gid(), LPVariable(gid(), "y"), EInteger(gid(), 6L), EInteger(gid(), 7L)),
 )
 
 let longLets = ELet(
   gid(),
-  "firstLetName",
+  LPVariable(gid(), "firstLetName"),
   EString(gid(), "ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-  ELet(gid(), "secondLetName", EString(gid(), "0123456789"), EString(gid(), "RESULT")),
+  ELet(gid(), LPVariable(gid(), "secondLetName"), EString(gid(), "0123456789"), EString(gid(), "RESULT")),
 )
 
-let letWithLhs = ELet(gid(), "n", EInteger(gid(), 6L), EInteger(gid(), 5L))
+let letWithLhs = ELet(gid(), LPVariable(gid(), "n"), EInteger(gid(), 6L), EInteger(gid(), 5L))
 
 let letWithBinding = (bindingName: string, expr: t) => ELet(
   gid(),
-  bindingName,
+  LPVariable(gid(), bindingName),
   EInteger(gid(), 6L),
   expr,
 )
@@ -204,7 +204,7 @@ let matchWithTwoLets = {
     list{
       (
         MPBlank(gid()),
-        ELet(gid(), "x", EInteger(gid(), 5L), ELet(gid(), "y", EInteger(gid(), 6L), EBlank(gid()))),
+        ELet(gid(), LPVariable(gid(), "x"), EInteger(gid(), 5L), ELet(gid(), LPVariable(gid(), "y"), EInteger(gid(), 6L), EBlank(gid()))),
       ),
     },
   )
@@ -301,7 +301,7 @@ let nestedIf = EIf(
 
 let indentedIfElse = ELet(
   gid(),
-  "var",
+  LPVariable(gid(), "var"),
   EIf(gid(), b, EInteger(gid(), 6L), EInteger(gid(), 7L)),
   EVariable(gid(), "var"),
 )

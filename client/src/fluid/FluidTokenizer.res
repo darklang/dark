@@ -382,7 +382,8 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
 
     b |> addMany(Belt.List.concatMany([whole, list{TFloatPoint(id, parentID)}, fraction]))
   | EBlank(id) => b |> add(TBlank(id, id, parentID))
-  | ELet(id, lhs, rhs, next) =>
+
+  | ELet(id, _pat, rhs, next) =>
     let rhsID = switch rhs {
     | ERightPartial(_, _, oldExpr)
     | ELeftPartial(_, _, oldExpr)
@@ -392,7 +393,8 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     }
     b
     |> add(TLetKeyword(id, rhsID, parentID))
-    |> add(TLetVarName(id, rhsID, lhs, parentID))
+    // TODO:
+    //|> add(TLetVarName(id, rhsID, pat, parentID))
     |> add(TLetAssignment(id, rhsID, parentID))
     |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))

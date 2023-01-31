@@ -72,8 +72,8 @@ let wrap = (wl: wrapLoc, _: model, tl: toplevel, id: id): AppTypes.modification 
   let replacement = (e): FluidExpression.t => {
     let newB = FluidExpression.newB
     switch wl {
-    | WLetRHS => ELet(gid(), "", e, newB())
-    | WLetBody => ELet(gid(), "", newB(), e)
+    | WLetRHS => ELet(gid(), LPVariable(gid(), ""), e, newB())
+    | WLetBody => ELet(gid(), LPVariable(gid(), ""), newB(), e)
     | WIfCond => EIf(gid(), e, newB(), newB())
     | WIfThen => EIf(gid(), newB(), e, newB())
     | WIfElse => EIf(gid(), newB(), newB(), e)
@@ -172,7 +172,7 @@ let extractVarInAst = (
       ast
       |> FluidAST.update(FluidExpression.toID(last), ~f=x =>
         switch x {
-        | last => ELet(gid(), varname, FluidExpression.clone(e), last)
+        | last => ELet(gid(), LPVariable(gid(), varname), FluidExpression.clone(e), last)
         }
       )
       |> FluidAST.replace(FluidExpression.toID(e), ~replacement=EVariable(gid(), varname))

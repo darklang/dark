@@ -74,6 +74,31 @@ module MatchPattern = {
   }
 }
 
+module LetPattern = {
+  @ppx.deriving(show({with_path: false}))
+  type t =
+    | LPVariable(id, string)
+
+  let encode = (letPattern: t): Js.Json.t => {
+    open Json_encode_extended
+    let ev = variant
+    switch letPattern {
+    | LPVariable(id', name) => ev("LPVariable", list{ID.encode(id'), string(name)})
+    }
+  }
+
+  let decode = (j): t => {
+    open Json_decode_extended
+    let dv2 = variant2
+    variants(
+      list{
+        ("LPVariable", dv2((a, b) => LPVariable(a, b), ID.decode, string)),
+      },
+      j,
+    )
+  }
+}
+
 module Expr = {
   module SendToRail = {
     @ppx.deriving(show({with_path: false}))
@@ -132,7 +157,7 @@ module Expr = {
     | EFloat(id, float)
     | ENull(id)
     | EBlank(id)
-    | ELet(id, string, t, t)
+    | ELet(id, LetPattern.t, t, t)
     | EIf(id, t, t, t)
     | ELambda(id, list<(id, string)>, t)
     | EFieldAccess(id, t, string)
@@ -165,7 +190,8 @@ module Expr = {
         ("EFloat", dv2((a, b) => EFloat(a, b), ID.decode, Json_decode_extended.float')),
         ("ENull", dv1(x => ENull(x), ID.decode)),
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
-        ("ELet", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, string, de, de)),
+        ("ELet", dv4((a, b, c, d) => ELet(a, LPVariable(ID.generate(), b), c, d), ID.decode, string, de, de)),
+        ("ELetWithPattern", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, LetPattern.decode, de, de)),
         ("EIf", dv4((a, b, c, d) => EIf(a, b, c, d), ID.decode, de, de, de)),
         (
           "ELambda",
@@ -208,8 +234,11 @@ module Expr = {
     open Json_encode_extended
     let ev = variant
     switch expr {
-    | ELet(id, lhs, rhs, body) =>
-      ev("ELet", list{ID.encode(id), string(lhs), encode(rhs), encode(body)})
+    | ELet(id, pat, rhs, body) =>
+      let varName = switch pat {
+        | LPVariable(_, name) => name
+      }
+      ev("ELet", list{ID.encode(id), string(varName), encode(rhs), encode(body)})
     | EIf(id', cond, ifbody, elsebody) =>
       ev("EIf", list{ID.encode(id'), encode(cond), encode(ifbody), encode(elsebody)})
     | ELambda(id, vars, body) =>

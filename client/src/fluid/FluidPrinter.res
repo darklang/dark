@@ -125,7 +125,15 @@ let rec eToTestcase = (e: E.t): string => {
   | EConstructor(_, name, exprs) =>
     spaced(list{"constructor", quoted(name), listed(List.map(exprs, ~f=r))})
   | EIf(_, cond, thenExpr, elseExpr) => spaced(list{"if'", r(cond), r(thenExpr), r(elseExpr)})
-  | ELet(_, lhs, rhs, body) => spaced(list{"let'", quoted(lhs), r(rhs), r(body)})
+  | ELet(_, pat, rhs, body) =>
+    let lpToTestcase = (mp: FluidLetPattern.t): string => {
+      let quoted = str => "\"" ++ (str ++ "\"")
+      let spaced = elems => String.join(~sep=" ", elems)
+      switch mp {
+      | LPVariable(_, name) => spaced(list{"lpVar", quoted(name)})
+      }
+    }
+    spaced(list{"let'", quoted(lpToTestcase(pat)), r(rhs), r(body)})
   | ELambda(_, names, body) =>
     let names = List.map(names, ~f=((_, name)) => quoted(name)) |> listed
 

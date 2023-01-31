@@ -75,8 +75,8 @@ let run = () => {
   describe("variablesIn", () => {
     test("variablesIn correctly identifies available vars in let RHS with incomplete LHS", () => {
       let testID = ID.fromInt(923478769)
-      let inner = ELet(gid(), "", EBlank(testID), E.newB())
-      let outer = ELet(gid(), "variable", int(4), inner)
+      let inner = ELet(gid(), LPVariable(gid(), ""), EBlank(testID), E.newB())
+      let outer = ELet(gid(), LPVariable(gid(), "variable"), int(4), inner)
       let vars = variablesIn(outer)->Map.get(~key=testID)
       let varsFor = vars |> Option.map(~f=d => Map.keys(d))
       expect(varsFor) |> toEqual(Some(list{"variable"}))
@@ -84,13 +84,15 @@ let run = () => {
     test("variablesIn correctly gets rhs id of latest let definition", () => {
       let let1ID = ID.fromInt(45683422)
       let let2ID = ID.fromInt(2388325)
+      let let1PatID = ID.fromInt(183674)
+      let let2PatID = ID.fromInt(1273)
       let a1ID = ID.fromInt(92305834)
       let a1 = int(~id=a1ID, 4)
       let a2ID = ID.fromInt(23353463)
       let a2 = int(~id=a2ID, 9)
       let lastBlankID = ID.fromInt(93490346)
       let lastBlank = EBlank(lastBlankID)
-      let ast = ELet(let1ID, "a", a1, ELet(let2ID, "a", a2, lastBlank))
+      let ast = ELet(let1ID, LPVariable(let1PatID, "a"), a1, ELet(let2ID, LPVariable(let2PatID, "a"), a2, lastBlank))
       expect(
         variablesIn(ast)
         |> Map.get(~key=lastBlankID)

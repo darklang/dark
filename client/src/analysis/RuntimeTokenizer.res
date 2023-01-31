@@ -157,6 +157,13 @@ let rec matchPatternToTokens = (matchID: id, mp: RuntimeTypes.MatchPattern.t, ~i
   }
 }
 
+// TODO do we need the letID for anything, really?
+let letPatternToTokens = (_letID: id, pat: RuntimeTypes.LetPattern.t): list<string> => {
+  switch pat {
+  | LPVariable(_, name) => list{name}
+  }
+}
+
 let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
   let r = exprToTokens
   open Builder
@@ -208,10 +215,10 @@ let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
   | ENull(_) => b |> add("null")
   | EFloat(_, f) => b |> add(Float.to_string(f))
   | EBlank(_) => b |> add("___")
-  | ELet(_, lhs, rhs, next) =>
+  | ELet(id, pat, rhs, next) =>
     b
     |> add("let ")
-    |> add(lhs)
+    |> addMany(letPatternToTokens(id, pat))
     |> add(" ")
     |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded

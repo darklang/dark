@@ -187,7 +187,7 @@ let switching_from_default_repl_space_removes_name = (m: model): testResult => {
 
 let tabbing_through_let = (m: model): testResult =>
   switch onlyExpr(m) {
-  | Some(ELet(_, "myvar", EInteger(_, 5L), EInteger(_, 5L))) => pass
+  | Some(ELet(_, LPVariable(_, "myvar"), EInteger(_, 5L), EInteger(_, 5L))) => pass
   | e => fail(e)
   }
 
@@ -241,7 +241,7 @@ let feature_flag_works = (m: model): testResult => {
   switch ast {
   | Some(ELet(
       _,
-      "a",
+      LPVariable(_, "a"),
       EInteger(_, 13L),
       EFeatureFlag(
         id,

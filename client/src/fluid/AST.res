@@ -12,7 +12,7 @@ open ProgramTypes.MatchPattern
 
 let isDefinitionOf = (var: string, expr: E.t): bool =>
   switch expr {
-  | ELet(_, lhs, _, _) => lhs == var && lhs != ""
+  | ELet(_, LPVariable(_, name), _, _) => name == var && name != ""
   | ELambda(_, vars, _) =>
     vars |> List.map(~f=Tuple2.second) |> List.any(~f=v => v == var && v != "")
   | EMatch(_, _, cases) =>
@@ -45,7 +45,8 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
       } else {
         list{}
       }
-    | ELet(_, _, rhs, body) => List.flatten(list{u(rhs), u(body)})
+    | ELet(_, _, rhs, body) =>
+      List.flatten(list{u(rhs), u(body)})
     | EIf(_, cond, ifbody, elsebody) => List.flatten(list{u(cond), u(ifbody), u(elsebody)})
     | EFnCall(_, _, exprs, _) => exprs |> List.map(~f=u) |> List.flatten
     | EInfix(_, _, lhs, rhs) => Belt.List.concat(u(lhs), u(rhs))
@@ -155,7 +156,7 @@ let freeVariables = (ast: E.t): list<(id, string)> => {
     |> E.filterMap(~f=x =>
       // Grab all uses of the `lhs` of a Let in its body
       switch x {
-      | ELet(_, lhs, _, body) => Some(uses(lhs, body))
+      | ELet(_, LPVariable(_, varName), _, body) => Some(uses(varName, body))
       // Grab all uses of the `vars` of a Lambda in its body
       | ELambda(_, vars, body) =>
         vars
@@ -224,15 +225,17 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     | EBlank(_)
     | EPipeTarget(_) => ()
     | EVariable(_) => ()
-    | ELet(_id, lhs, rhs, body) =>
+    | ELet(_id, LPVariable(_, varName), rhs, body) =>
       sexe(st, rhs)
-      let bound = if lhs != "" {
-        Map.update(~key=lhs, ~f=_v => Some(E.toID(rhs)), st)
+      
+      let bound = if varName != "" {
+        Map.update(~key=varName, ~f=_v => Some(E.toID(rhs)), st)
       } else {
         st
       }
 
       sexe(bound, body)
+
     | EFnCall(_, _, exprs, _) => List.forEach(~f=sexe(st), exprs)
     | EInfix(_, _, lhs, rhs) => List.forEach(~f=sexe(st), list{lhs, rhs})
     | EIf(_, cond, ifbody, elsebody)
