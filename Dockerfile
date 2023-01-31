@@ -19,7 +19,7 @@
 # change.
 
 
-FROM ubuntu:22.04 as dark-base
+FROM ubuntu:23.04 as dark-base
 
 ENV FORCE_BUILD 3
 
