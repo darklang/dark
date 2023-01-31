@@ -123,7 +123,6 @@ module PersistedSerializations =
           (V.RuntimeTypes.dval
            |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
 
-        v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
         v<ClientTypes.Program.Handler.T>
           "simple"
           (CT2Program.Handler.toCT V.ProgramTypes.Handler.http)

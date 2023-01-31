@@ -159,7 +159,6 @@ let run = () => {
       "vanilla_LibExecution-DvalReprInternalNew-RoundtrippableSerializationFormatV0-Dval_complete.json",
       "vanilla_ClientTypes-Program-Handler-T_simple.json",
       "vanilla_LibBackend-EventQueueV2-NotificationData_simple.json",
-      "vanilla_Microsoft-FSharp-Collections-FSharpList-1-LibExecution-ProgramTypes-Op-_complete.json",
       "vanilla_Microsoft-FSharp-Collections-FSharpList-1-ClientTypes-Program-Op-_simple.json",
       "vanilla_LibExecution-ProgramTypes-Position_simple.json",
       "vanilla_LibExecution-AnalysisTypes-TraceData_testTraceData.json",
