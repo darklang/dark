@@ -15,7 +15,7 @@ module AstRef = {
   @ppx.deriving(show({with_path: false}))
   type rec astLetPart =
     | LPKeyword
-    | LPVarName
+    | LPVarName // TODO: extract out astLetPatternPart
     | LPAssignment
 
   @ppx.deriving(show({with_path: false}))

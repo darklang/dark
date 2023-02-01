@@ -112,13 +112,13 @@ module Builder = {
     b.tokens->List.reverse->List.join(~sep="")
 }
 
-let rec matchPatternToTokens = (matchID: id, mp: RuntimeTypes.MatchPattern.t, ~idx: int): list<
+let rec matchPatternToTokens = (mp: RuntimeTypes.MatchPattern.t, ~idx: int): list<
   string,
 > => {
   switch mp {
   | MPVariable(_, name) => list{name}
   | MPConstructor(_, name, args) =>
-    let args = List.map(args, ~f=a => list{" ", ...matchPatternToTokens(matchID, a, ~idx)})
+    let args = List.map(args, ~f=a => list{" ", ...matchPatternToTokens(a, ~idx)})
 
     List.flatten(list{list{name}, ...args})
   | MPInteger(_, i) => list{Int64.to_string(i)}
@@ -143,7 +143,7 @@ let rec matchPatternToTokens = (matchID: id, mp: RuntimeTypes.MatchPattern.t, ~i
       subPatterns
       |> List.mapWithIndex(~f=(i, p) => {
         let isLastSubpattern = i == subPatternCount - 1
-        let subpatternTokens = matchPatternToTokens(matchID, p, ~idx)
+        let subpatternTokens = matchPatternToTokens(p, ~idx)
 
         if isLastSubpattern {
           subpatternTokens
@@ -157,8 +157,7 @@ let rec matchPatternToTokens = (matchID: id, mp: RuntimeTypes.MatchPattern.t, ~i
   }
 }
 
-// TODO do we need the letID for anything, really?
-let letPatternToTokens = (_letID: id, pat: RuntimeTypes.LetPattern.t): list<string> => {
+let letPatternToTokens = (pat: RuntimeTypes.LetPattern.t): list<string> => {
   switch pat {
   | LPVariable(_, name) => list{name}
   }
@@ -215,10 +214,10 @@ let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
   | ENull(_) => b |> add("null")
   | EFloat(_, f) => b |> add(Float.to_string(f))
   | EBlank(_) => b |> add("___")
-  | ELet(id, pat, rhs, next) =>
+  | ELet(_, pat, rhs, next) =>
     b
     |> add("let ")
-    |> addMany(letPatternToTokens(id, pat))
+    |> addMany(letPatternToTokens(pat))
     |> add(" ")
     |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded
@@ -345,7 +344,7 @@ let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
       )
       |> addMany(list{"\n", "}"})
     }
-  | EMatch(id, mexpr, pairs) =>
+  | EMatch(_, mexpr, pairs) =>
     b
     |> add("match")
     |> addNested(~f=r(mexpr))
@@ -354,7 +353,7 @@ let rec exprToTokens = (e: Expr.t, b: Builder.t): Builder.t => {
       |> addIter(pairs, ~f=(i, (mp, expr), b) =>
         b
         |> addNewlineIfNeeded
-        |> addMany(matchPatternToTokens(id, mp, ~idx=i))
+        |> addMany(matchPatternToTokens(mp, ~idx=i))
         |> add(" -> ")
         |> addNested(~f=r(expr))
       )

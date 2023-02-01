@@ -40,16 +40,16 @@ let findLetPattern = (patID: id, within: t): option<t> =>
     }
   }
 
-let preTraversal = (~f: t => t, mp: t): t => {
-  let mp = f(mp)
-  switch mp {
-  | LPVariable(_) => mp
+let preTraversal = (~f: t => t, lp: t): t => {
+  let lp = f(lp)
+  switch lp {
+  | LPVariable(_) => lp
   }
 }
 
-let postTraversal = (~f: t => t, mp: t): t => {
-  let result = switch mp {
-  | LPVariable(_) => mp
+let postTraversal = (~f: t => t, lp: t): t => {
+  let result = switch lp {
+  | LPVariable(_) => lp
   }
 
   f(result)

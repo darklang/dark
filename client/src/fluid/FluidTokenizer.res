@@ -182,8 +182,9 @@ let letPatternToTokens = (parentID: option<id>, letID: id, rhsID: id, lp: FluidL
 > => {
   open FluidTypes.Token
 
-  // TODO: I'm not sure why this needs the context of the letID, or rhsID, or parentID
-  // and we probably shouldn't throw away the parent's ID
+  // LetPatternTODO: investigate how these different fields are used;
+  // we likely should include the pattern's ID, in addition to the letID.
+  // I've no idea why we need the rhsID here - maybe remove it.
   switch lp {
   | LPVariable(_id, name) => list{TLetVarName(letID, rhsID, name, parentID)}
   }

@@ -683,9 +683,11 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (EBool(_, v), EBool(_, v')) => v == v'
   | (EFloat(_, sign, whole, frac), EFloat(_, sign', whole', frac')) =>
     sign == sign' && whole == whole' && frac == frac'
-  | (ELet(_, _pat, rhs, body), ELet(_, _pat', rhs', body')) =>
-    // todo: compare lhs
-    eq2((rhs, rhs'), (body, body'))
+  | (ELet(_, pat, rhs, body), ELet(_, pat', rhs', body')) =>
+    switch (pat, pat') {
+    | (LPVariable(_, varName), LPVariable(_, varName')) =>
+      varName == varName' && eq2((rhs, rhs'), (body, body'))
+    }
   | (EIf(_, con, thn, els), EIf(_, con', thn', els')) => eq3((con, con'), (thn, thn'), (els, els'))
   | (EList(_, l), EList(_, l')) => eqList(l, l')
   | (ETuple(_, first, second, theRest), ETuple(_, first', second', theRest')) =>
@@ -835,10 +837,8 @@ let toHumanReadable = (expr: t, showID: bool): string => {
     | EIf(_, cond, then', else') => `(if${id} ${r(cond)}\n${rin(then')}\n${rin(else')})`
     | ELet(_, pat, rhs, body) =>
       let lpToHumanReadable = (p: FluidLetPattern.t): string => {
-        // TODO: review this whole thing; it's probably wrong.
-        let spaced = elems => String.join(~sep=" ", elems)
         switch p {
-        | LPVariable(_, name) => spaced(list{"lpVar", quoted(name)})
+        | LPVariable(_, name) => name
         }
       }
 
