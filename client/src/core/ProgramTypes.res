@@ -360,9 +360,10 @@ module Expr = {
         ),
         ("ENull", dv1(x => ENull(x), ID.decode)),
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
-        // TODO: the `ID.fromInt(0)` here is a hack to ensure roundtripping is
-        // consistent as tested by the `fluidExpr` in `TestJsonEncoding.res`.
-        // Once we start communicating in new-style `let`s, we can remove this hack.
+        // LetPatternTODO: the `ID.fromInt(0)` here is a hack to ensure
+        // roundtripping is consistent as tested by the `fluidExpr` in
+        // `TestJsonEncoding.res`. Once we start communicating in new-style `let`s,
+        // we can remove this hack.
         (
           "ELet",
           dv4(

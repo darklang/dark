@@ -128,6 +128,8 @@ let run = () => {
       }
     , FluidTestData.complexExpr)
 
+    // LetPatternTODO: remove this replacement and just use FluidTestData.complexExpr
+    // once we start to client-server communicate in the _new_ kind of Let expressions
     t("complex", complexWithEmptyLetVariablePatternId)
   })
 
