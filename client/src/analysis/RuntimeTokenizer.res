@@ -112,9 +112,7 @@ module Builder = {
     b.tokens->List.reverse->List.join(~sep="")
 }
 
-let rec matchPatternToTokens = (mp: RuntimeTypes.MatchPattern.t, ~idx: int): list<
-  string,
-> => {
+let rec matchPatternToTokens = (mp: RuntimeTypes.MatchPattern.t, ~idx: int): list<string> => {
   switch mp {
   | MPVariable(_, name) => list{name}
   | MPConstructor(_, name, args) =>

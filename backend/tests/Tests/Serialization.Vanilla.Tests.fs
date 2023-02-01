@@ -769,7 +769,7 @@ let tests =
       // testList
       //   "roundtrip PTs to and from client types"
       //   RoundtripTests.ProgramTypes.tests
-        ]
+      ]
 
 // TODO: ensure (using reflection) we've covered all types within ClientTypes
 // (many of which we'll have to explicity exclude, if they don't have exact

@@ -96,8 +96,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           |> List.iter (fun (id, dv) ->
             state.tracing.traceDval state.onExecutionPath id dv)
         else // If we're "previewing" (analysis), persist traces for all patterns
-          traces
-          |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
+          traces |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
 
         let! r = eval state newSymtable body
         return r
