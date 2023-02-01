@@ -124,7 +124,12 @@ let longLets = ELet(
   gid(),
   LPVariable(gid(), "firstLetName"),
   EString(gid(), "ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-  ELet(gid(), LPVariable(gid(), "secondLetName"), EString(gid(), "0123456789"), EString(gid(), "RESULT")),
+  ELet(
+    gid(),
+    LPVariable(gid(), "secondLetName"),
+    EString(gid(), "0123456789"),
+    EString(gid(), "RESULT"),
+  ),
 )
 
 let letWithLhs = ELet(gid(), LPVariable(gid(), "n"), EInteger(gid(), 6L), EInteger(gid(), 5L))
@@ -204,7 +209,12 @@ let matchWithTwoLets = {
     list{
       (
         MPBlank(gid()),
-        ELet(gid(), LPVariable(gid(), "x"), EInteger(gid(), 5L), ELet(gid(), LPVariable(gid(), "y"), EInteger(gid(), 6L), EBlank(gid()))),
+        ELet(
+          gid(),
+          LPVariable(gid(), "x"),
+          EInteger(gid(), 5L),
+          ELet(gid(), LPVariable(gid(), "y"), EInteger(gid(), 6L), EBlank(gid())),
+        ),
       ),
     },
   )

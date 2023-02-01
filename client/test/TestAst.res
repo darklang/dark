@@ -92,7 +92,12 @@ let run = () => {
       let a2 = int(~id=a2ID, 9)
       let lastBlankID = ID.fromInt(93490346)
       let lastBlank = EBlank(lastBlankID)
-      let ast = ELet(let1ID, LPVariable(let1PatID, "a"), a1, ELet(let2ID, LPVariable(let2PatID, "a"), a2, lastBlank))
+      let ast = ELet(
+        let1ID,
+        LPVariable(let1PatID, "a"),
+        a1,
+        ELet(let2ID, LPVariable(let2PatID, "a"), a2, lastBlank),
+      )
       expect(
         variablesIn(ast)
         |> Map.get(~key=lastBlankID)

@@ -263,8 +263,9 @@ let changeStrings = (id: id, ~f: string => string, ast: E.t): E.t => {
     }
   E.postTraversal(ast, ~f=x =>
     switch x {
-      // todo: i'm not sure I used the right ID below
-    | ELet(id, LPVariable(patId, name), rhs, next) => ELet(id, LPVariable(patId, fStr(id, name)), rhs, next)
+    // todo: i'm not sure I used the right ID below
+    | ELet(id, LPVariable(patId, name), rhs, next) =>
+      ELet(id, LPVariable(patId, fStr(id, name)), rhs, next)
     | EFieldAccess(id, expr, fieldname) => EFieldAccess(id, expr, fStr(id, fieldname))
     | EPartial(id, name, expr) =>
       let newName = fStr(id, name)

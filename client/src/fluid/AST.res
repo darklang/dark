@@ -45,8 +45,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
       } else {
         list{}
       }
-    | ELet(_, _, rhs, body) =>
-      List.flatten(list{u(rhs), u(body)})
+    | ELet(_, _, rhs, body) => List.flatten(list{u(rhs), u(body)})
     | EIf(_, cond, ifbody, elsebody) => List.flatten(list{u(cond), u(ifbody), u(elsebody)})
     | EFnCall(_, _, exprs, _) => exprs |> List.map(~f=u) |> List.flatten
     | EInfix(_, _, lhs, rhs) => Belt.List.concat(u(lhs), u(rhs))
@@ -227,7 +226,7 @@ let rec sym_exec = (~trace: (E.t, sym_set) => unit, st: sym_set, expr: E.t): uni
     | EVariable(_) => ()
     | ELet(_id, LPVariable(_, varName), rhs, body) =>
       sexe(st, rhs)
-      
+
       let bound = if varName != "" {
         Map.update(~key=varName, ~f=_v => Some(E.toID(rhs)), st)
       } else {

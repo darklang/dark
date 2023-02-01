@@ -1383,7 +1383,12 @@ let makeIntoLetBody = (id: id, astInfo: ASTInfo.t): (ASTInfo.t, id) => {
   let astInfo = recordAction("makeIntoLetBody(${ID.toString(id)})", astInfo)
 
   let lid = gid()
-  let ast = FluidAST.update(id, astInfo.ast, ~f=expr => ELet(lid, LPVariable(gid(), ""), E.newB(), expr))
+  let ast = FluidAST.update(id, astInfo.ast, ~f=expr => ELet(
+    lid,
+    LPVariable(gid(), ""),
+    E.newB(),
+    expr,
+  ))
 
   (astInfo |> ASTInfo.setAST(ast), lid)
 }
@@ -1495,7 +1500,8 @@ let replacePartialWithArguments = (props: props, ~newExpr: E.t, id: id, ast: Flu
     | list{} | list{(_, _, EBlank(_), _), ..._} => expr
     // don't wrap parameter that's set to a variable
     | list{(_, _, EVariable(_), _), ..._} => expr
-    | list{(name, _, rhs, _), ...rest} => ELet(gid(), LPVariable(gid(), name), rhs, wrapWithLets(~expr, rest))
+    | list{(name, _, rhs, _), ...rest} =>
+      ELet(gid(), LPVariable(gid(), name), rhs, wrapWithLets(~expr, rest))
     }
 
   let getArgs = expr =>
@@ -2582,7 +2588,12 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
 
     | (ARLet(_, LPVarName), ELet(id, LPVariable(_, oldName), value, body)) =>
       let newName = mutation(oldName)
-      let newExpr = ELet(id, LPVariable(gid(), newName), value, E.renameVariableUses(~oldName, ~newName, body))
+      let newExpr = ELet(
+        id,
+        LPVariable(gid(), newName),
+        value,
+        E.renameVariableUses(~oldName, ~newName, body),
+      )
 
       if newName == "" {
         Some(Expr(newExpr), {astRef: currAstRef, offset: 0})
@@ -2836,11 +2847,19 @@ let doExplicitBackspace = (currCaretTarget: CT.t, ast: FluidAST.t): (FluidAST.t,
 
     // Delete leading keywords of empty expressions
     | (ARLet(_, LPKeyword), ELet(_, LPVariable(_, varName), expr, EBlank(_)))
-    | (ARLet(_, LPKeyword), ELet(_, LPVariable(_, varName), EBlank(_), expr)) if varName == "" || varName == "_" =>
+    | (ARLet(_, LPKeyword), ELet(_, LPVariable(_, varName), EBlank(_), expr))
+      if varName == "" || varName == "_" =>
       Some(Expr(expr), CT.forStartOfExpr'(expr))
     // Removing a let wrapping another let
-    | (ARLet(_, LPKeyword), ELet(_, LPVariable(_, varName), ELet(id, LPVariable(_, nestedVarName), rhs, EBlank(_)), body))
-      if varName == "" || varName == "_" =>
+    | (
+        ARLet(_, LPKeyword),
+        ELet(
+          _,
+          LPVariable(_, varName),
+          ELet(id, LPVariable(_, nestedVarName), rhs, EBlank(_)),
+          body,
+        ),
+      ) if varName == "" || varName == "_" =>
       let expr = ELet(id, LPVariable(gid(), nestedVarName), rhs, body)
       Some(Expr(expr), CT.forStartOfExpr'(expr))
     | (ARIf(_, IPIfKeyword), EIf(_, EBlank(_), EBlank(_), EBlank(_)))
@@ -3523,7 +3542,12 @@ let doExplicitInsert = (
       let newName = mutation(oldName)
       if FluidUtil.isValidIdentifier(newName) {
         Some(
-          ELet(id, LPVariable(gid(), newName), value, E.renameVariableUses(~oldName, ~newName, body)),
+          ELet(
+            id,
+            LPVariable(gid(), newName),
+            value,
+            E.renameVariableUses(~oldName, ~newName, body),
+          ),
           currCTPlusLen,
         )
       } else {
@@ -5386,8 +5410,10 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
         | (None, None) if newLhs != "" => Some(EPartial(gid(), newLhs, EVariable(gid(), newLhs)))
         | (None, Some(e)) => Some(e)
         | (Some(newRhs), None) => Some(ELet(id, LPVariable(gid(), newLhs), newRhs, EBlank(gid())))
-        | (Some(newRhs), Some(newBody)) => Some(ELet(id, LPVariable(gid(), newLhs), newRhs, newBody))
-        | (None, None) if letKeywordSelected => Some(ELet(id, LPVariable(gid(), newLhs), EBlank(gid()), EBlank(gid())))
+        | (Some(newRhs), Some(newBody)) =>
+          Some(ELet(id, LPVariable(gid(), newLhs), newRhs, newBody))
+        | (None, None) if letKeywordSelected =>
+          Some(ELet(id, LPVariable(gid(), newLhs), EBlank(gid()), EBlank(gid())))
         | (_, _) => None
         }
       | EIf(eID, cond, thenBody, elseBody) =>
@@ -5419,8 +5445,17 @@ let reconstructExprFromRange = (astInfo: ASTInfo.t, (startPos, endPos): (int, in
            * (by elevating the argument expressions into ELets provided they aren't blanks) */
           switch (newExpr1, newExpr2) {
           | (EBlank(_), EBlank(_)) => None
-          | (EBlank(_), e) | (e, EBlank(_)) => Some(ELet(gid(), LPVariable(gid(), ""), e, EBlank(gid())))
-          | (e1, e2) => Some(ELet(gid(), LPVariable(gid(), ""), e1, ELet(gid(), LPVariable(gid(), ""), e2, EBlank(gid()))))
+          | (EBlank(_), e) | (e, EBlank(_)) =>
+            Some(ELet(gid(), LPVariable(gid(), ""), e, EBlank(gid())))
+          | (e1, e2) =>
+            Some(
+              ELet(
+                gid(),
+                LPVariable(gid(), ""),
+                e1,
+                ELet(gid(), LPVariable(gid(), ""), e2, EBlank(gid())),
+              ),
+            )
           }
         | (None, Some(e)) =>
           let e = EInfix(id, op, EBlank(gid()), e)

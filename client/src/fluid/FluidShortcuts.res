@@ -71,7 +71,12 @@ let fieldAccess = (~id=gid(), expr: t, fieldName: string): t => EFieldAccess(id,
 
 let if' = (~id=gid(), cond: t, then': t, else': t): t => EIf(id, cond, then', else')
 
-let let' = (~id=gid(), ~varId=gid(), varName: string, rhs: t, body: t): t => ELet(id, LPVariable(varId, varName), rhs, body)
+let let' = (~id=gid(), ~varId=gid(), varName: string, rhs: t, body: t): t => ELet(
+  id,
+  LPVariable(varId, varName),
+  rhs,
+  body,
+)
 
 let lambda = (~id=gid(), varNames: list<string>, body: t): t => ELambda(
   id,

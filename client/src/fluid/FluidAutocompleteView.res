@@ -35,7 +35,25 @@ let viewAutocompleteItemTypes = ({item, validity}: data): Html.html<AppTypes.msg
 
       args
       |> List.intersperse(~sep=Html.text(", "))
-      |> (args => Belt.List.concatMany([list{Html.text("(")}, list{Html.span(list{Attrs.class(%twc("inline-block align-top overflow-hidden max-w-[25ch] text-ellipsis whitespace-nowrap"))},args)}, list{Html.text(") -> ")}]))
+      |> (
+        args =>
+          Belt.List.concatMany([
+            list{Html.text("(")},
+            list{
+              Html.span(
+                list{
+                  Attrs.class(
+                    %twc(
+                      "inline-block align-top overflow-hidden max-w-[25ch] text-ellipsis whitespace-nowrap"
+                    ),
+                  ),
+                },
+                args,
+              ),
+            },
+            list{Html.text(") -> ")},
+          ])
+      )
     }
 
     Belt.List.concat(argsHtml, returnTypeHtml)

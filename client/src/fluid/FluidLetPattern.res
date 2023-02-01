@@ -10,8 +10,7 @@ let toID = (p: t): id =>
   | LPVariable(id, _) => id
   }
 
-let ids = (p: t): list<id> =>
-  list{toID(p)}
+let ids = (p: t): list<id> => list{toID(p)}
 
 let clone = (p: t): t =>
   switch p {
@@ -55,4 +54,3 @@ let postTraversal = (~f: t => t, mp: t): t => {
 
   f(result)
 }
-

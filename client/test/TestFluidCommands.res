@@ -53,7 +53,8 @@ let run = () =>
     )
     test("has discard+commit flag for target expr inside flag", () => {
       let targetExpr = oneCharStr
-      let ast = ELet(gid(), LPVariable(gid(), "a"), aShortInt, flagOld(targetExpr)) |> FluidAST.ofExpr
+      let ast =
+        ELet(gid(), LPVariable(gid(), "a"), aShortInt, flagOld(targetExpr)) |> FluidAST.ofExpr
 
       let hasDiscard = hasCmd("discard-feature-flag", targetExpr, ast)
       let hasCommit = hasCmd("commit-feature-flag", targetExpr, ast)
@@ -61,7 +62,8 @@ let run = () =>
     })
     test("no discard or commit flag for target expr outside flag", () => {
       let targetExpr = aShortInt
-      let ast = ELet(gid(), LPVariable(gid(), "a"), targetExpr, flagOld(oneCharStr)) |> FluidAST.ofExpr
+      let ast =
+        ELet(gid(), LPVariable(gid(), "a"), targetExpr, flagOld(oneCharStr)) |> FluidAST.ofExpr
 
       let hasDiscard = hasCmd("discard-feature-flag", targetExpr, ast)
       let hasCommit = hasCmd("commit-feature-flag", targetExpr, ast)

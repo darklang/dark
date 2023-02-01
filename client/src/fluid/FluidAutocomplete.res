@@ -841,7 +841,10 @@ let documentationForFunction = (
     }
   } else {
     list{
-      Html.span(list{tw(%twc("font-text text-grey2 text-xs whitespace-nowrap"))}, list{Html.text("Not deprecated ")}),
+      Html.span(
+        list{tw(%twc("font-text text-grey2 text-xs whitespace-nowrap"))},
+        list{Html.text("Not deprecated ")},
+      ),
     }
   }
 

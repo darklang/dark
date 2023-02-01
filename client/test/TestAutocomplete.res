@@ -542,7 +542,12 @@ let run = () => {
       let fn = aFunction(
         ~tlid=TLID.fromInt(789),
         ~name="fn1",
-        ~expr=ELet(gid(), LPVariable(gid(), "bunny"), EInteger(gid(), 9L), EString(gid(), "\"hello\"")),
+        ~expr=ELet(
+          gid(),
+          LPVariable(gid(), "bunny"),
+          EInteger(gid(), 9L),
+          EString(gid(), "\"hello\""),
+        ),
         (),
       )
 

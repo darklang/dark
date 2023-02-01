@@ -54,10 +54,7 @@ let rec findExprOrPat = (target: id, within: fluidMatchPatOrExpr): option<fluidM
     | EBlank(id)
     | EVariable(id, _)
     | EPipeTarget(id) => (id, list{})
-    | ELet(id, _, e1, e2) | EInfix(id, _, e1, e2) => (
-        id,
-        list{Expr(e1), Expr(e2)},
-      )
+    | ELet(id, _, e1, e2) | EInfix(id, _, e1, e2) => (id, list{Expr(e1), Expr(e2)})
     | EIf(id, e1, e2, e3) | EFeatureFlag(id, _, e1, e2, e3) => (
         id,
         list{Expr(e1), Expr(e2), Expr(e3)},
@@ -127,8 +124,7 @@ let rec findExpr = (target: id, expr: t): option<t> => {
     | EPipeTarget(_)
     | EFloat(_) =>
       None
-    | ELet(_, _, rhs, next) =>
-      fe(rhs) |> Option.orElseLazy(() => fe(next))
+    | ELet(_, _, rhs, next) => fe(rhs) |> Option.orElseLazy(() => fe(next))
     | EIf(_, cond, ifexpr, elseexpr) =>
       fe(cond) |> Option.orElseLazy(() => fe(ifexpr)) |> Option.orElseLazy(() => fe(elseexpr))
     | EInfix(_, _, lexpr, rexpr) => fe(lexpr) |> Option.orElseLazy(() => fe(rexpr))
@@ -463,10 +459,9 @@ let rec updateVariableUses = (oldVarName: string, ~f: t => t, ast: t): t => {
       ast
     }
   | ELet(id, pat, rhs, body) =>
-    let varName =
-      switch pat {
-        | LPVariable(_, name) => name
-      }
+    let varName = switch pat {
+    | LPVariable(_, name) => name
+    }
 
     if oldVarName == varName {
       ELet(id, LPVariable(ID.generate(), varName), u(rhs), body)
@@ -513,8 +508,7 @@ let rec clone = (expr: t): t => {
   let c = e => clone(e)
   let cl = es => List.map(~f=c, es)
   switch expr {
-  | ELet(_, pat, rhs, body) =>
-    ELet(gid(), FluidLetPattern.clone(pat), c(rhs), c(body))
+  | ELet(_, pat, rhs, body) => ELet(gid(), FluidLetPattern.clone(pat), c(rhs), c(body))
   | EIf(_, cond, ifbody, elsebody) => EIf(gid(), c(cond), c(ifbody), c(elsebody))
   | EFnCall(_, name, exprs, r) => EFnCall(gid(), name, cl(exprs), r)
   | EInfix(_, name, left, right) => EInfix(gid(), name, c(left), c(right))
@@ -566,8 +560,7 @@ let ancestors = (id: id, expr: t): list<t> => {
       | EBlank(_)
       | EPipeTarget(_) => list{}
       | EVariable(_) => list{}
-      | ELet(_, _, rhs, body) =>
-        reclist(id, exp, walk, list{rhs, body})
+      | ELet(_, _, rhs, body) => reclist(id, exp, walk, list{rhs, body})
       | EIf(_, cond, ifbody, elsebody) => reclist(id, exp, walk, list{cond, ifbody, elsebody})
       | EFnCall(_, _, exprs, _) => reclist(id, exp, walk, exprs)
       | EInfix(_, _, lhs, rhs) => reclist(id, exp, walk, list{lhs, rhs})

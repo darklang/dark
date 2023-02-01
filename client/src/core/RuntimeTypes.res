@@ -76,8 +76,7 @@ module MatchPattern = {
 
 module LetPattern = {
   @ppx.deriving(show({with_path: false}))
-  type t =
-    | LPVariable(id, string)
+  type t = LPVariable(id, string)
 
   let encode = (letPattern: t): Js.Json.t => {
     open Json_encode_extended
@@ -90,12 +89,7 @@ module LetPattern = {
   let decode = (j): t => {
     open Json_decode_extended
     let dv2 = variant2
-    variants(
-      list{
-        ("LPVariable", dv2((a, b) => LPVariable(a, b), ID.decode, string)),
-      },
-      j,
-    )
+    variants(list{("LPVariable", dv2((a, b) => LPVariable(a, b), ID.decode, string))}, j)
   }
 }
 
@@ -190,8 +184,20 @@ module Expr = {
         ("EFloat", dv2((a, b) => EFloat(a, b), ID.decode, Json_decode_extended.float')),
         ("ENull", dv1(x => ENull(x), ID.decode)),
         ("EBlank", dv1(x => EBlank(x), ID.decode)),
-        ("ELet", dv4((a, b, c, d) => ELet(a, LPVariable(ID.generate(), b), c, d), ID.decode, string, de, de)),
-        ("ELetWithPattern", dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, LetPattern.decode, de, de)),
+        (
+          "ELet",
+          dv4(
+            (a, b, c, d) => ELet(a, LPVariable(ID.generate(), b), c, d),
+            ID.decode,
+            string,
+            de,
+            de,
+          ),
+        ),
+        (
+          "ELetWithPattern",
+          dv4((a, b, c, d) => ELet(a, b, c, d), ID.decode, LetPattern.decode, de, de),
+        ),
         ("EIf", dv4((a, b, c, d) => EIf(a, b, c, d), ID.decode, de, de, de)),
         (
           "ELambda",
@@ -236,7 +242,7 @@ module Expr = {
     switch expr {
     | ELet(id, pat, rhs, body) =>
       let varName = switch pat {
-        | LPVariable(_, name) => name
+      | LPVariable(_, name) => name
       }
       ev("ELet", list{ID.encode(id), string(varName), encode(rhs), encode(body)})
     | EIf(id', cond, ifbody, elsebody) =>
