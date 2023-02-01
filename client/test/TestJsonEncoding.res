@@ -119,7 +119,16 @@ let run = () => {
 
   describe("fluidExpr", () => {
     let t = testRoundtrip(PT.Expr.decode, PT.Expr.encode)
-    t("complex", FluidTestData.complexExpr)
+
+    let complexWithEmptyLetVariablePatternId = FluidExpression.preTraversal(~f=expr =>
+      switch expr {
+      | ELet(id, LPVariable(_id, name), rhs, body) =>
+        ELet(id, LPVariable(ID.fromInt(0), name), rhs, body)
+      | other => other
+      }
+    , FluidTestData.complexExpr)
+
+    t("complex", complexWithEmptyLetVariablePatternId)
   })
 
   describe("typ", () => {
