@@ -297,7 +297,6 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
 
   // When we add patterns on the left hand side of lets, the pattern below
   // could be expanded to use convertPat
-  // TODO: this doesn't allow nesting (i.e. `let (a, (b, c)) = (1, (2, 3))`. Should it?)
   | SynExpr.LetOrUse (_,
                       _,
                       [ SynBinding (_, _, _, _, _, _, _, pat, _, rhs, _, _, _) ],

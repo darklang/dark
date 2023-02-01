@@ -8,7 +8,6 @@ open Prelude
 open VendoredTablecloth
 open RuntimeTypes
 
-// TODO: should this also traverse MatchPatterns (in `EMatch`) and LetPatterns (in `ELetWithPattern`)?
 let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = preTraversal f
   let expr = f expr
@@ -43,7 +42,6 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EOr (id, left, right) -> EOr(id, r left, r right)
 
 
-// TODO: should this also traverse MatchPatterns (in `EMatch`) and LetPatterns (in `ELetWithPattern`)?
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
 

@@ -409,8 +409,6 @@ let partiallyEvaluate
             | ENull _
             | EFloat _ -> return expr
             | ELet (id, pat, rhs, next) ->
-              // todo: do I need to do anything with the pattern?
-              // (check matchPatterns)
               let! rhs = r rhs
               let! next = r next
               return ELet(id, pat, rhs, next)
@@ -441,10 +439,10 @@ let partiallyEvaluate
 
               let! pairs =
                 Ply.List.mapSequentially
-                  (fun (name, expr) ->
+                  (fun (mp, expr) ->
                     uply {
                       let! expr = r expr
-                      return (name, expr)
+                      return (mp, expr)
                     })
                   pairs
 

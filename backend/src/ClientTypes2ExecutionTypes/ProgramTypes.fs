@@ -158,10 +158,10 @@ module Expr =
     | CTPT.Expr.ENull (id) -> PT.ENull(id)
     | CTPT.Expr.EBlank (id) -> PT.EBlank(id)
     | CTPT.Expr.ELet (id, varName, expr, body) ->
-      // TODO: is gid() optimal here?
+      // LetPatternTODO: stop generating a new ID each time
+      // (once we migrate away from the old `let`)
       PT.ELet(id, PT.LPVariable(gid (), varName), fromCT expr, fromCT body)
     | CTPT.Expr.ELetWithPattern (id, pat, expr, body) ->
-      // currently unused
       PT.ELet(id, LetPattern.fromCT pat, fromCT expr, fromCT body)
     | CTPT.Expr.EIf (id, cond, ifExpr, thenExpr) ->
       PT.EIf(id, fromCT cond, fromCT ifExpr, fromCT thenExpr)

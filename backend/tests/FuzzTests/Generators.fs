@@ -166,7 +166,7 @@ module RuntimeTypes =
 
     let genVar = simpleString |> Gen.map (fun s -> RT.MPVariable(gid (), s))
 
-    let constructor (s, genArg) : Gen<RT.MatchPattern> =
+    let genConstructor (s, genArg) : Gen<RT.MatchPattern> =
       let withMostlyFixedArgLen (name, expectedParamCount) =
         gen {
           let! argCount =
@@ -217,7 +217,9 @@ module RuntimeTypes =
           MP.genStr
           MP.genVar ]
 
-      let allPatterns = MP.constructor (s, gen') :: finitePatterns
+      let nestedPatterns = [ MP.genConstructor (s, gen'); MP.genTuple (s, gen') ]
+
+      let allPatterns = nestedPatterns @ finitePatterns
 
       match s with
       | 0 -> Gen.oneof finitePatterns
@@ -237,8 +239,6 @@ module RuntimeTypes =
   module LetPattern =
     let genVar = simpleString |> Gen.map (fun s -> RT.LPVariable(gid (), s))
 
-
-
   module LP = LetPattern
 
   let letPattern =
@@ -254,7 +254,7 @@ module RuntimeTypes =
       | n when n > 0 -> Gen.oneof allPatterns
       | _ -> invalidArg "s" "Only positive arguments are allowed"
 
-    Gen.sized gen' // todo: depth of 10 seems kinda reasonable
+    Gen.sized gen' // todo: depth of 5 seems kinda reasonable
 
 
   module Expr =
@@ -270,17 +270,6 @@ module RuntimeTypes =
 
     // Recursive exprs
     let genLet genSubExpr s =
-      gen {
-        let! varName = simpleString
-        let! rhsExpr = genSubExpr (s / 2)
-        let! nextExpr = genSubExpr (s / 2)
-
-        let varPattern = RT.LPVariable(gid (), varName)
-
-        return RT.ELet(gid (), varPattern, rhsExpr, nextExpr)
-      }
-
-    let genLetWithPattern genSubExpr s =
       gen {
         let! pat = letPattern
         let! rhsExpr = genSubExpr (s / 2)
@@ -398,7 +387,6 @@ module RuntimeTypes =
     let recursiveExprs =
       [ genConstructor
         genLet
-        genLetWithPattern
         genIf
         genFF
         genTuple
@@ -518,11 +506,10 @@ module ProgramTypes =
     // Recursive exprs
     let genLet genSubExpr s =
       gen {
-        let! varName = simpleString
+        let! varPattern =
+          simpleString |> Gen.map (fun varName -> PT.LPVariable(gid (), varName))
         let! rhsExpr = genSubExpr (s / 2)
         let! nextExpr = genSubExpr (s / 2)
-
-        let varPattern = PT.LPVariable(gid (), varName)
 
         return PT.ELet(gid (), varPattern, rhsExpr, nextExpr)
       }

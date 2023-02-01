@@ -128,7 +128,6 @@ module Expr =
       Exception.raiseInternal "package serialized as a binop" [ "name", name ]
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | ST.ELetWithoutPattern (id, lhs, rhs, body) ->
-      // todo: what to do instead of gid()? or maybe it's OK
       PT.ELet(id, PT.LPVariable(gid (), lhs), toPT rhs, toPT body)
     | ST.ELet (id, pat, rhs, body) ->
       PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)

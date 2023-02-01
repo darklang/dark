@@ -187,10 +187,10 @@ module Expr =
     | Expr.EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | Expr.ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
     | Expr.ELet (id, varName, rhs, body) ->
-      // todo: is gid() the best?
+      // LetPatternTODO: stop generating a new ID each time
+      // (once we migrate away from the old `let`)
       RT.ELet(id, RT.LPVariable(gid (), varName), r rhs, r body)
     | Expr.ELetWithPattern (id, pat, rhs, body) ->
-      // branch unused for now
       RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)

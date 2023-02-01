@@ -59,21 +59,48 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ENull _id -> return DNull
     | ECharacter (_id, s) -> return DChar s
 
-    | ELet (_id, pat, rhs, body) ->
+    | ELet (_id, pattern, rhs, body) ->
+      // The current implemention of this is a bit more complicated than it needs
+      // to be right now, but sets us up well for additional LetPatterns such
+      // as a 'tuple' let pattern which is nested. The algorithm here is modeled
+      // after the `match` pattern-checking logic, while resulting in the same
+      // results as the previous ELet implementation.
       let! rhs = eval state st rhs
 
       match rhs with
       // Usually fakevals get propagated when they're evaluated. However, if we
       // don't use the value, we still want to propagate the errorrail here, so
       // return it instead of evaling the body
-      | DErrorRail v -> return rhs
+      | DErrorRail _v -> return rhs
       | _ ->
-        let varName =
-          match pat with
-          | LPVariable (_, name) -> name
+        /// Does the dval 'match' the given pattern?
+        ///
+        /// Returns:
+        /// - whether or not the expr 'matches' the pattern
+        /// - new vars (name * value)
+        /// - traces
+        let rec checkPattern
+          dv
+          pattern
+          : bool * List<string * Dval> * List<id * Dval> =
+          match pattern with
 
-        let st = if varName <> "" then Map.add varName rhs st else st
-        return! eval state st body
+          | LPVariable (id, varName) ->
+            not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
+
+        let passes, newDefs, traces = checkPattern rhs pattern
+        let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
+
+        if passes then
+          traces
+          |> List.iter (fun (id, dv) ->
+            state.tracing.traceDval state.onExecutionPath id dv)
+        else // If we're "previewing" (analysis), persist traces for all patterns
+          traces
+          |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
+
+        let! r = eval state newSymtable body
+        return r
 
     | EList (_id, exprs) ->
       // We ignore incompletes but not error rail.
