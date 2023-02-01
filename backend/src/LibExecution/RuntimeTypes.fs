@@ -214,8 +214,7 @@ and MatchPattern =
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
-and LetPattern =
-  | LPVariable of id * name : string
+and LetPattern = LPVariable of id * name : string
 
 type DvalMap = Map<string, Dval>
 

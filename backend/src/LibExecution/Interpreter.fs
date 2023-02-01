@@ -68,8 +68,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // return it instead of evaling the body
       | DErrorRail v -> return rhs
       | _ ->
-        let varName = match pat with | LPVariable(_, name) -> name
-        
+        let varName =
+          match pat with
+          | LPVariable (_, name) -> name
+
         let st = if varName <> "" then Map.add varName rhs st else st
         return! eval state st body
 

@@ -275,7 +275,7 @@ module RuntimeTypes =
         let! rhsExpr = genSubExpr (s / 2)
         let! nextExpr = genSubExpr (s / 2)
 
-        let varPattern = RT.LPVariable(gid(), varName)
+        let varPattern = RT.LPVariable(gid (), varName)
 
         return RT.ELet(gid (), varPattern, rhsExpr, nextExpr)
       }
@@ -522,7 +522,7 @@ module ProgramTypes =
         let! rhsExpr = genSubExpr (s / 2)
         let! nextExpr = genSubExpr (s / 2)
 
-        let varPattern = PT.LPVariable(gid(), varName)
+        let varPattern = PT.LPVariable(gid (), varName)
 
         return PT.ELet(gid (), varPattern, rhsExpr, nextExpr)
       }

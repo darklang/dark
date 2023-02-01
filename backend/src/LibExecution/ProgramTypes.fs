@@ -49,8 +49,7 @@ type MatchPattern =
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
-type LetPattern =
-  | LPVariable of id * name : string
+type LetPattern = LPVariable of id * name : string
 
 /// Whether a function's result is unwrapped automatically (and, in the case of
 /// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.

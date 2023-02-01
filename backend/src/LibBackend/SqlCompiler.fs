@@ -139,8 +139,8 @@ let rec inline'
       | ELet (_, pat, expr, body) ->
         let varName =
           match pat with
-          | LPVariable(_id, name) -> name
-          
+          | LPVariable (_id, name) -> name
+
         inline' paramName (Map.add varName expr symtable) body
       | EVariable (_, name) as expr when name <> paramName ->
         (match Map.get name symtable with

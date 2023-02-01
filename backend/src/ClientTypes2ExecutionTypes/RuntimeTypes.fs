@@ -188,8 +188,8 @@ module Expr =
     | Expr.ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
     | Expr.ELet (id, varName, rhs, body) ->
       // todo: is gid() the best?
-      RT.ELet(id, RT.LPVariable(gid(), varName), r rhs, r body)
-    | Expr.ELetWithPattern(id, pat, rhs, body) ->
+      RT.ELet(id, RT.LPVariable(gid (), varName), r rhs, r body)
+    | Expr.ELetWithPattern (id, pat, rhs, body) ->
       // branch unused for now
       RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
@@ -231,7 +231,9 @@ module Expr =
     | RT.EFieldAccess (id, obj, fieldname) -> Expr.EFieldAccess(id, r obj, fieldname)
     | RT.ELambda (id, vars, body) -> Expr.ELambda(id, vars, r body)
     | RT.ELet (id, pat, rhs, body) ->
-      let varName = match pat with | RT.LPVariable(_, name) -> name
+      let varName =
+        match pat with
+        | RT.LPVariable (_, name) -> name
       Expr.ELet(id, varName, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)

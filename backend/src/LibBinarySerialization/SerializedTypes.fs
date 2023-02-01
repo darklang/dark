@@ -112,8 +112,7 @@ type MatchPattern =
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 [<MessagePack.MessagePackObject>]
-type LetPattern =
-  | LPVariable of id * name : string
+type LetPattern = LPVariable of id * name : string
 
 [<MessagePack.MessagePackObject>]
 type SendToRail =

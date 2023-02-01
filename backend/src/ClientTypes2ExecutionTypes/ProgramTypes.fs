@@ -159,7 +159,7 @@ module Expr =
     | CTPT.Expr.EBlank (id) -> PT.EBlank(id)
     | CTPT.Expr.ELet (id, varName, expr, body) ->
       // TODO: is gid() optimal here?
-      PT.ELet(id, PT.LPVariable(gid(), varName), fromCT expr, fromCT body)
+      PT.ELet(id, PT.LPVariable(gid (), varName), fromCT expr, fromCT body)
     | CTPT.Expr.ELetWithPattern (id, pat, expr, body) ->
       // currently unused
       PT.ELet(id, LetPattern.fromCT pat, fromCT expr, fromCT body)
@@ -214,7 +214,7 @@ module Expr =
     | PT.ELet (id, pat, expr, body) ->
       let varName =
         match pat with
-        | PT.LPVariable(_id, varName) -> varName
+        | PT.LPVariable (_id, varName) -> varName
       CTPT.Expr.ELet(id, varName, toCT expr, toCT body)
     | PT.EIf (id, cond, ifExpr, thenExpr) ->
       CTPT.Expr.EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
