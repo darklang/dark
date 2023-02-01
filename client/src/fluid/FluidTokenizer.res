@@ -177,6 +177,19 @@ let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
 // --------------------------------------
 
 // TODO: pass in a `b: Builder.t` as `exprToTokens` does
+let letPatternToTokens = (parentID: option<id>, letID: id, rhsID: id, lp: FluidLetPattern.t): list<
+  fluidToken,
+> => {
+  open FluidTypes.Token
+
+  // TODO: I'm not sure why this needs the context of the letID, or rhsID, or parentID
+  // and we probably shouldn't throw away the parent's ID
+  switch lp {
+  | LPVariable(_id, name) => list{TLetVarName(letID, rhsID, name, parentID)}
+  }
+}
+
+// TODO: pass in a `b: Builder.t` as `exprToTokens` does
 let rec matchPatternToTokens = (matchID: id, ~idx: int, mp: FluidMatchPattern.t): list<
   fluidToken,
 > => {
@@ -383,7 +396,7 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     b |> addMany(Belt.List.concatMany([whole, list{TFloatPoint(id, parentID)}, fraction]))
   | EBlank(id) => b |> add(TBlank(id, id, parentID))
 
-  | ELet(id, _pat, rhs, next) =>
+  | ELet(id, pat, rhs, next) =>
     let rhsID = switch rhs {
     | ERightPartial(_, _, oldExpr)
     | ELeftPartial(_, _, oldExpr)
@@ -393,8 +406,7 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     }
     b
     |> add(TLetKeyword(id, rhsID, parentID))
-    // TODO:
-    //|> add(TLetVarName(id, rhsID, pat, parentID))
+    |> addMany(letPatternToTokens(parentID, id, rhsID, pat))
     |> add(TLetAssignment(id, rhsID, parentID))
     |> addNested(~f=r(rhs))
     |> addNewlineIfNeeded(Some(E.toID(next), id, None))
