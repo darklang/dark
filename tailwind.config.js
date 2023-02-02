@@ -57,8 +57,12 @@ module.exports = {
       "user-functions": "var(--userFunctionsColor)",
       db: "var(--dbColor)",
       tooltip: "var(--tooltipColor)",
+      "highlight-color": "var(--highlightColor)",
     },
     extend: {
+      content: {
+        search: '"\\f002"',
+      },
       borderWidth: {
         3: "3px",
       },
@@ -66,6 +70,7 @@ module.exports = {
         xxxs: "0.5rem",
         xxs: "0.625rem",
         md: "1.0625rem", // 17px - between base and lg
+        code: "13.3333px",
       },
       margin: {
         0.25: "0.0625rem",
@@ -80,6 +85,7 @@ module.exports = {
       },
       width: {
         "17/20": "85%",
+        "toplevel-min-width": "360px",
       },
       zIndex: {
         100: "100",
@@ -92,6 +98,7 @@ module.exports = {
       code: ['"Fira Code"', "mono"],
       text: ['"Source Sans Pro"', "sans-serif"],
       brands: ['"Font Awesome 6 Brands"', "sans-serif"],
+      icons: ['"Font Awesome 5 Free"', "sans-serif"],
     },
   },
   corePlugins: {

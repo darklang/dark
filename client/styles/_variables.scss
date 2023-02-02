@@ -66,6 +66,8 @@ $repl-color: $pink;
 $user-functions: saturate($cyan, 10%);
 $db-color: #a1887f;
 $tooltip-color: lighten(saturate($cyan, 20%), 10%);
+$highlight-color: saturate(darken($blue, 20%), 10%);
+
 :root {
   --httpGetColor: #{$http-get};
   --httpPostColor: #{$http-post};
@@ -80,7 +82,9 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
   --userFunctionsColor: #{$user-functions};
   --dbColor: #{$db-color};
   --tooltipColor: #{$tooltip-color};
+  --highlightColor: #{$highlight-color};
 }
+
 :root {
   --sidebarBgColor: #{darken($canvas-background, 10%)};
   --sidebarHoverColor: #{lighten($yellow, 10%)};
@@ -97,8 +101,6 @@ $lock-color: lighten($red, 10%);
 
 $link-color: $white1;
 $link-hover-color: $yellow;
-
-$highlight-color: saturate(darken($blue, 20%), 10%);
 
 /* Typograhy */
 $code-font-size: 13.3333px;
