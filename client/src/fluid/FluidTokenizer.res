@@ -401,29 +401,25 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     recover("tokenizing echaracter is not supported", b |> add(TBlank(id, id, parentID)))
 
   | EString(id, str) =>
-    let strLines = String.split(~on="\n", str)
-    let isMultiLineString = String.length(str) > strLimit || List.length(strLines) > 1
+    let strLines =
+      String.split(~on="\n", str)
+      |> List.map(~f=strLine => String.segment(~size=strLimit, strLine))
+      |> List.flatten
 
-    if isMultiLineString {
-      let strLines =
-        strLines |> List.map(~f=strLine => String.segment(~size=strLimit, strLine)) |> List.flatten
+    let isMultiLine = List.length(strLines) > 1
 
-      b
-      |> add(TStringOpenQuote(id, str))
-      |> addIter(strLines, ~f=(i, strLine, b) =>
+    b
+    |> add(TStringOpenQuote(id, str))
+    |> addIter(strLines, ~f=(i, strLine, b) =>
+      if isMultiLine {
         b
         |> add(TStringML(id, strLine, i, str))
         |> addIf(i != List.length(strLines), TNewline(None))
-      )
-      |> add(TStringCloseQuote(id, str))
-    } else if str == "" {
-      b |> add(TStringOpenQuote(id, str)) |> add(TStringCloseQuote(id, str))
-    } else {
-      b
-      |> add(TStringOpenQuote(id, str))
-      |> add(TString(id, str, parentID))
-      |> add(TStringCloseQuote(id, str))
-    }
+      } else {
+        b |> add(TString(id, str, parentID))
+      }
+    )
+    |> add(TStringCloseQuote(id, str))
 
   | EIf(id, cond, if', else') =>
     b
