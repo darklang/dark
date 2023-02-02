@@ -51,7 +51,7 @@ module Builder = {
 
   let lineLimit = 120
 
-  let strLimit = 40
+  let strLimit = 60
 
   let listLimit = 60
 
@@ -399,45 +399,32 @@ let rec exprToTokens = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
     |> addNested(~f=r(next))
   | ECharacter(id, _) =>
     recover("tokenizing echaracter is not supported", b |> add(TBlank(id, id, parentID)))
+
   | EString(id, str) =>
-    let strings = if String.length(str) > strLimit {
-      String.segment(~size=strLimit, str)
+    let strLines = String.split(~on="\n", str)
+    let isMultiLineString = String.length(str) > strLimit || List.length(strLines) > 1
+
+    if isMultiLineString {
+      let strLines =
+        strLines |> List.map(~f=strLine => String.segment(~size=strLimit, strLine)) |> List.flatten
+
+      b
+      |> add(TStringOpenQuote(id, str))
+      |> addIter(strLines, ~f=(i, strLine, b) =>
+        b
+        |> add(TStringML(id, strLine, i, str))
+        |> addIf(i != List.length(strLines), TNewline(None))
+      )
+      |> add(TStringCloseQuote(id, str))
     } else if str == "" {
-      list{}
+      b |> add(TStringOpenQuote(id, str)) |> add(TStringCloseQuote(id, str))
     } else {
-      list{str}
+      b
+      |> add(TStringOpenQuote(id, str))
+      |> add(TString(id, str, parentID))
+      |> add(TStringCloseQuote(id, str))
     }
 
-    switch strings {
-    // Empty string
-    | list{} => b |> add(TStringOpenQuote(id, str)) |> add(TStringCloseQuote(id, str))
-    | list{starting, ...rest} =>
-      switch List.reverse(rest) {
-      // Only one segment, use TString
-      | list{} =>
-        b
-        |> add(TStringOpenQuote(id, str))
-        |> add(TString(id, str, parentID))
-        |> add(TStringCloseQuote(id, str))
-      // Multiline string
-      | list{ending, ...revrest} =>
-        b |> addNested(~f=b => {
-          let endingOffset = strLimit * (List.length(revrest) + 1)
-          b
-          |> add(TStringOpenQuote(id, str))
-          |> add(TStringML(id, starting, 0, str))
-          |> add(TNewline(None))
-          |> indentBy(~indent=1, ~f=b =>
-            b
-            |> addIter(List.reverse(revrest), ~f=(i, s, b) =>
-              b |> add(TStringML(id, s, strLimit * (i + 1), str)) |> add(TNewline(None))
-            )
-            |> add(TStringML(id, ending, endingOffset, str))
-            |> add(TStringCloseQuote(id, str))
-          )
-        })
-      }
-    }
   | EIf(id, cond, if', else') =>
     b
     |> add(TIfKeyword(id, parentID))
