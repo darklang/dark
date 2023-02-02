@@ -38,7 +38,7 @@
     "rollbar": "2.26.1",
     "sha2": "1.0.2",
     "tablecloth-rescript": "0.0.8-1",
-    "validator": "13.7.0"
+    "validator": "13.9.0"
   },
   "scripts": {
     "clean": "./scripts/build/_rescript-wrapper.sh clean",
