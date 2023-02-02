@@ -62,7 +62,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBool a; DBool b ] -> Ply(DBool(a <> b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
             | _ -> DBool false
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -98,7 +98,7 @@ let fns : List<BuiltInFn> =
             | _ -> DBool false
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated =
         DeprecatedBecause

@@ -5,7 +5,7 @@
   "token_url": "https://sts.googleapis.com/v1/token",
   "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/circleci-deployer@balmy-ground-195100.iam.gserviceaccount.com:generateAccessToken",
   "credential_source": {
-    "file": "CIRCLE_OIDC_TOKEN_FILE",
+    "file": "/home/dark/app/CIRCLE_OIDC_TOKEN_FILE",
     "format": {
       "type": "text"
     }

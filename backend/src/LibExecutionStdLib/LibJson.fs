@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
             | _ -> return DNull
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "JSON" "read" 1) }
 
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
           | Ok dv -> Ply dv
           | Error msg -> Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "JSON" "parse" 1) }
 
@@ -85,6 +85,6 @@ let fns : List<BuiltInFn> =
           |> DResult
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]

@@ -7,6 +7,7 @@ module.exports = {
     colors: {
       transparent: "transparent",
       current: "currentColor",
+      inherit: "inherit",
       black1: "#181818",
       black2: "#282828",
       black3: "#383838",
@@ -28,10 +29,13 @@ module.exports = {
       red: "#ab4642",
       orange: "#dc9656",
       yellow: "#f7ca88",
+      yellow1: "#fadfb8", //lighten($yellow, 10%)
       green: "#a1b56c",
       cyan: "#86c1b9",
+      cyan1: "#3cbfad", //darken($tooltip-color, 25%)
       blue: "#7cafc2",
       purple: "#b18bba",
+      purple1: "#c7abcd", // lighten($purple, 10%)
       pink: "#d5839d",
       magenta: "magenta",
 
@@ -52,15 +56,16 @@ module.exports = {
       "default-toplevel": "var(--defaultToplevelColor)",
       "user-functions": "var(--userFunctionsColor)",
       db: "var(--dbColor)",
+      tooltip: "var(--tooltipColor)",
     },
     extend: {
       borderWidth: {
         3: "3px",
       },
       fontSize: {
+        xxxs: "0.5rem",
         xxs: "0.625rem",
         md: "1.0625rem", // 17px - between base and lg
-        xxxs: "0.5rem",
       },
       margin: {
         0.25: "0.0625rem",
@@ -86,6 +91,7 @@ module.exports = {
       accents: ['"Fira Code"', "sans-serif"],
       code: ['"Fira Code"', "mono"],
       text: ['"Source Sans Pro"', "sans-serif"],
+      brands: ['"Font Awesome 6 Brands"', "sans-serif"],
     },
   },
   corePlugins: {

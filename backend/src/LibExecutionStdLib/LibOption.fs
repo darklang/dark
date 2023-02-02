@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
             | None _ -> return (DOption None)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Option" "map" 1) }
 
@@ -71,7 +71,7 @@ let fns : List<BuiltInFn> =
             | None -> return DOption None
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -102,7 +102,7 @@ let fns : List<BuiltInFn> =
               return Dval.optionJust result
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -136,7 +136,7 @@ let fns : List<BuiltInFn> =
             | None -> return DOption None
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -154,6 +154,6 @@ let fns : List<BuiltInFn> =
            | Some dv -> Ply dv
            | None -> Ply default')
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

@@ -73,8 +73,6 @@ commands:
   ##########################
   deploy-lock-remove-on-fail:
     steps:
-      # Can only be used from in-container executors as it needs gcloud
-      - auth-with-gcp-on-fail
       - run:
           name: Remove deploy lock
           when: on_fail
@@ -82,12 +80,6 @@ commands:
             if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
               ./scripts/deployment/deploy-lock-one-remove
             fi
-
-  deploy-lock-remove:
-    steps:
-      - run:
-          name: Remove deploy lock
-          command: ./scripts/deployment/deploy-lock-one-remove
 
   ##########################
   # Slack
@@ -177,23 +169,25 @@ commands:
           name: Auth with GCP
           background: << parameters.background >>
           command: |
-            echo $CIRCLE_OIDC_TOKEN >> CIRCLE_OIDC_TOKEN_FILE
-            gcloud auth login --brief --cred-file .circleci/gcp-workflow-identity-config.json
-            gcloud auth configure-docker
-            ./scripts/production/gcp-authorize-kubectl
+            # Don't run a second time (no need, but also token becomes invalid after an hour)
+            if [[ ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
+              echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
+              gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
+            fi
 
-  auth-with-gcp-on-fail:
+  auth-kubernetes:
     steps:
       - run:
-          name: Auth with GCP
-          when: on_fail
+          name: Auth with Kubernetes
           command: |
-            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
-              echo $CIRCLE_OIDC_TOKEN >> CIRCLE_OIDC_TOKEN_FILE
-              gcloud auth login --brief --cred-file .circleci/gcp-workflow-idenity-config.json
-              gcloud auth configure-docker
-              ./scripts/production/gcp-authorize-kubectl
-            fi
+            ./scripts/production/gcp-authorize-kubectl
+
+  auth-gcr:
+    steps:
+      - run:
+          name: Auth with GCR
+          command: |
+            gcloud auth configure-docker
 
 ##########################
 # Actual workflow
@@ -336,6 +330,7 @@ jobs:
     steps:
       - darkcheckout
       - auth-with-gcp: { background: false }
+      - auth-kubernetes
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
       - slack-notify-job-failure
@@ -407,6 +402,7 @@ jobs:
       - setup-app
       - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: true }
+      - auth-gcr
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
@@ -438,7 +434,6 @@ jobs:
     executor: in-container
     steps:
       - darkcheckout
-      - auth-with-gcp: { background: false }
       - run: scripts/deployment/deploy-lock-one-add
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
@@ -450,6 +445,7 @@ jobs:
       - setup-app
       - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: false }
+      - auth-kubernetes
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # deploy lock is removed as part of the gke-deploy script
@@ -472,7 +468,7 @@ workflows:
             - gcp context
           filters:
             branches:
-              ignore: /^(pull\/).*$/
+              ignore: /^(pull|dependabot)\/.*$/
       - validate-honeycomb-config
       - build-client
       - build-backend
@@ -537,8 +533,6 @@ workflows:
             - predeployment-checks
 
       - deploy-lock:
-          context:
-            - gcp context
           filters:
             branches:
               only: main

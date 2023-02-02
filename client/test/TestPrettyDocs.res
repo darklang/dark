@@ -39,7 +39,14 @@ let run = () => {
     )
     test("convert_ parses nested tags correctly", () =>
       expect(convert("{{<param d1> > <param d2>}}")) |> toEqual(list{
-        tag("code", list{tag("param", list{txt("d1")}), txt(" > "), tag("param", list{txt("d2")})}),
+        tag(
+          "bg-grey1 py-0 px-1.5",
+          list{
+            tag("text-purple1", list{txt("d1")}),
+            txt(" > "),
+            tag("text-purple1", list{txt("d2")}),
+          },
+        ),
       })
     )
 
@@ -51,13 +58,16 @@ let run = () => {
     test("converts tagged string", () =>
       expect(convert("takes in <type Option>")) |> toEqual(list{
         txt("takes in "),
-        tag("type", list{txt("Option")}),
+        tag("text-green", list{txt("Option")}),
       })
     )
     test("converts normal string", () => expect(convert("Bye")) |> toEqual(list{txt("Bye")}))
     test("converts code blocks", () =>
       expect(convert("{{Ok <var value>}}")) |> toEqual(list{
-        tag("code", list{txt("Ok "), tag("var", list{txt("value")})}),
+        tag(
+          "bg-grey1 py-0 px-1.5",
+          list{txt("Ok "), tag("text-purple1", list{txt("value")})},
+        ),
       })
     )
     test("converts link tag", () =>
@@ -73,11 +83,14 @@ let run = () => {
         ),
       ) |> toEqual(list{
         txt("Returns an "),
-        tag("type", list{txt("Result")}),
+        tag("text-green", list{txt("Result")}),
         txt(".\n It will got to "),
         link("error rail", "https://docs.darklang.com/tutorials/handle-error-errorrail"),
         txt(", if it is "),
-        tag("code", list{txt("Error "), tag("var", list{txt("message")})}),
+        tag(
+          "bg-grey1 py-0 px-1.5",
+          list{txt("Error "), tag("text-purple1", list{txt("message")})},
+        ),
       })
     )
     ()

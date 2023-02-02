@@ -946,7 +946,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Control+\\");
 
     await page.waitForSelector("#cmd-filter");
-    await page.waitForSelector(".documentation-box");
+    await page.waitForSelector("#documentation-box");
   });
 
   // Regression test:

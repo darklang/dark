@@ -11,6 +11,9 @@ module Msg = AppTypes.Msg
 
 type model = AppTypes.model
 
+let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
+
 @ppx.deriving(show) type rec t = FT.AutoComplete.t
 
 @ppx.deriving(show) type rec item = FT.AutoComplete.item
@@ -707,7 +710,11 @@ let selectUp = (a: t): t =>
 
 let isOpened = (ac: t): bool => Option.isSome(ac.index)
 
+let fontSharedStyle = %twc("font-text tracking-wider")
+
 let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
+  let expected = Html.span(list{tw2(fontSharedStyle, %twc("mx-1"))}, list{Html.text("Expected: ")})
+  let actual = Html.span(list{tw2(fontSharedStyle, %twc("ml-1 mr-5"))}, list{Html.text("Actual: ")})
   let _types = asTypeStrings(item)
   let _validity = validity
   switch validity {
@@ -718,42 +725,84 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<AppTypes.msg> => {
     let typeInfo = switch acFirstArgType {
     | None => list{Html.text(" takes no arguments.")}
     | Some(typeStr) => list{
-        Html.text(" takes a "),
-        Html.span(list{Attrs.class("type")}, list{Html.text(typeStr)}),
-        Html.text(" as its first argument."),
+        Html.span(list{tw(fontSharedStyle)}, list{Html.text(" takes a ")}),
+        Html.span(list{tw(%twc("px-1.5 text-green"))}, list{Html.text(typeStr)}),
+        Html.span(list{tw(fontSharedStyle)}, list{Html.text(" as its first argument.")}),
       }
     }
 
     Html.div(
-      list{},
+      list{tw(%twc("bg-black2 rounded-md p-3 my-2"))},
       list{
-        Html.span(list{Attrs.class("err")}, list{Html.text("Type error: ")}),
-        Html.text("A value of type "),
-        Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(typ))}),
-        Html.text(" is being piped into this function call, but "),
-        Html.span(list{Attrs.class("fn")}, list{Html.text(acFunction)}),
+        Html.div(
+          list{},
+          list{
+            expected,
+            Html.span(
+              list{tw(%twc("bg-grey1/50 rounded text-green px-1 py-px"))},
+              list{Html.text(acFirstArgType->Belt.Option.getWithDefault("no argument"))},
+            ),
+          },
+        ),
+        Html.div(
+          list{tw(%twc("mb-2 mt-1"))},
+          list{
+            actual,
+            Html.span(
+              list{tw(%twc("bg-grey1/50 rounded text-orange px-1 py-px"))},
+              list{Html.text(DType.type2str(typ))},
+            ),
+          },
+        ),
+        Html.span(list{tw(fontSharedStyle)}, list{Html.text("A value of type ")}),
+        Html.span(list{tw(%twc("px-1 text-green"))}, list{Html.text(DType.type2str(typ))}),
+        Html.span(
+          list{tw(fontSharedStyle)},
+          list{Html.text(" is being piped into this function call, but ")},
+        ),
+        Html.span(list{tw(%twc("px-1 text-purple1"))}, list{Html.text(acFunction)}),
         ...typeInfo,
       },
     )
   | FACItemInvalidReturnType({fnName, paramName, returnType}) =>
     let acFunction = asName(item)
     let acReturnType = asTypeStrings(item) |> Tuple2.second
+    let invalidTypeTextStyle = %twc("font-text px-1")
     Html.div(
-      list{},
+      list{tw(%twc("bg-black2 rounded-md p-3 my-2"))},
       list{
-        Html.span(list{Attrs.class("err")}, list{Html.text("Type error: ")}),
+        Html.div(
+          list{},
+          list{
+            expected,
+            Html.span(
+              list{tw(%twc("bg-grey1/50 rounded text-green px-1 py-px"))},
+              list{Html.span(list{}, list{Html.text(DType.type2str(returnType))})},
+            ),
+          },
+        ),
+        Html.div(
+          list{tw(%twc("mb-2 mt-1"))},
+          list{
+            actual,
+            Html.span(
+              list{tw(%twc("bg-grey1/50 rounded text-orange px-1 py-px"))},
+              list{Html.text(acReturnType)},
+            ),
+          },
+        ),
         Html.span(
-          list{Attrs.class("fn")},
+          list{tw(%twc("text-purple1"))},
           list{Html.text(fnName->Option.map(~f=FQFnName.toString)->Option.unwrap(~default=""))},
         ),
-        Html.text(" expects "),
-        Html.span(list{Attrs.class("param")}, list{Html.text(paramName)}),
-        Html.text(" to be a "),
-        Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(returnType))}),
-        Html.text(", but "),
-        Html.span(list{Attrs.class("fn")}, list{Html.text(acFunction)}),
-        Html.text(" returns a "),
-        Html.span(list{Attrs.class("type")}, list{Html.text(acReturnType)}),
+        Html.span(list{tw(invalidTypeTextStyle)}, list{Html.text(" expects ")}),
+        Html.span(list{tw(%twc("text-purple1"))}, list{Html.text(paramName)}),
+        Html.span(list{tw(invalidTypeTextStyle)}, list{Html.text(" to be a ")}),
+        Html.span(list{tw(%twc("text-green"))}, list{Html.text(DType.type2str(returnType))}),
+        Html.span(list{tw(invalidTypeTextStyle)}, list{Html.text(", but ")}),
+        Html.span(list{tw(%twc("text-purple1"))}, list{Html.text(acFunction)}),
+        Html.span(list{tw(invalidTypeTextStyle)}, list{Html.text(" returns a ")}),
+        Html.span(list{tw(%twc("text-green"))}, list{Html.text(acReturnType)}),
       },
     )
   }
@@ -763,6 +812,49 @@ let documentationForFunction = (
   f: Function.t,
   sendToRail: option<ProgramTypes.Expr.SendToRail.t>,
 ): list<Tea.Html.html<'msg>> => {
+  let deprecationHeader = if f.deprecation != NotDeprecated {
+    list{
+      Html.span(
+        list{},
+        list{
+          Tooltip.tooltip(
+            ~style=%twc("left-11 top-9 bg-black3"),
+            ~info=Html.span(
+              list{tw(%twc("font-text text-sm text-white3"))},
+              list{
+                Html.text(
+                  "We frequently deprecate old functions and add updates. When we deprecate old versions, your code does not change, and you keep using the old ones. We intend to support automated refactoring and updating in the future.",
+                ),
+              },
+            ),
+            ~error=None,
+            "",
+            list{
+              Html.span(
+                list{tw(%twc("font-text text-pink text-xs font-semibold mr-1.5"))},
+                list{Html.text("Deprecated ")},
+              ),
+            },
+          ),
+        },
+      ),
+    }
+  } else {
+    list{
+      Html.span(list{tw(%twc("font-text text-grey2 text-xs whitespace-nowrap"))}, list{Html.text("Not deprecated ")}),
+    }
+  }
+
+  let name = Html.span(
+    list{tw(%twc("text-grey3 text-xs text-ellipsis w-max overflow-hidden whitespace-nowrap"))},
+    list{Html.text(f.name |> FQFnName.toString)},
+  )
+
+  let documentationHeader = Html.div(
+    list{tw(%twc("flex justify-between items-center mb-2"))},
+    list{name, Html.div(list{}, deprecationHeader)},
+  )
+
   let desc = if String.length(f.description) != 0 {
     PrettyDocs.convert(f.description)
   } else {
@@ -770,34 +862,88 @@ let documentationForFunction = (
   }
 
   let return = Html.div(
-    list{Attrs.class("returnType")},
+    list{Attrs.class(%twc("flex items-center"))},
     list{
-      Html.text("Returns: "),
-      Html.span(list{Attrs.class("type")}, list{Html.text(DType.type2str(f.returnType))}),
+      Icons.fontAwesome(~style=%twc("rotate-90 mr-2.5 mt-0.5 text-xxs"), "level-down-alt"),
+      Html.div(
+        list{tw(%twc("text-grey5 font-text"))},
+        list{
+          Html.text("Returns "),
+          Html.span(
+            list{tw(%twc("text-green text-xs mx-2.5"))},
+            list{Html.text(DType.type2str(f.returnType))},
+          ),
+        },
+      ),
     },
   )
 
-  let deprecationHeader = if f.deprecation != NotDeprecated {
-    list{Html.span(list{Attrs.class("err")}, list{Html.text("DEPRECATED: ")})}
+  let onErrorRail = if ViewErrorRailDoc.hintForFunction(f, sendToRail) != Html.noNode {
+    Html.div(
+      list{tw(%twc("flex items-center font-text ml-2"))},
+      list{
+        Html.span(list{tw(%twc("text-grey6 font-medium mr-px"))}, list{Html.text("(")}),
+        Tooltip.tooltip(
+          ~style=%twc("-left-5 top-0 bg-black3"),
+          ~info=ViewErrorRailDoc.hintForFunction(f, sendToRail),
+          ~error=None,
+          "",
+          list{Html.text("On Error Rail")},
+        ),
+        Html.span(list{tw(%twc("text-grey6 font-medium ml-px"))}, list{Html.text(")")}),
+      },
+    )
   } else {
-    list{}
+    Html.noNode
   }
 
+  let row = Html.div(list{tw(%twc("flex items-center mt-2"))}, list{return, onErrorRail})
+
   let deprecationFooter = {
+    let sharedStyle = %twc("font-text font-medium text-xs tracking-wide")
     let deprecationFooterContents = switch f.deprecation {
     | NotDeprecated => list{}
-    | ReplacedBy(name) => list{Html.text("replaced by " ++ FQFnName.StdlibFnName.toString(name))}
-    | RenamedTo(name) => list{Html.text("renamed to " ++ FQFnName.StdlibFnName.toString(name))}
-    | DeprecatedBecause(reason) => list{Html.text(reason)}
+    | ReplacedBy(name) => list{
+        Html.span(
+          list{tw(sharedStyle)},
+          list{
+            Html.text("replaced by "),
+            Html.span(
+              list{tw(%twc("font-code text-purple1"))},
+              list{Html.text(FQFnName.StdlibFnName.toString(name))},
+            ),
+          },
+        ),
+      }
+    | RenamedTo(name) => list{
+        Html.span(
+          list{tw(sharedStyle)},
+          list{
+            Html.text("renamed to "),
+            Html.span(
+              list{tw(%twc("font-code text-purple1"))},
+              list{Html.text(FQFnName.StdlibFnName.toString(name))},
+            ),
+          },
+        ),
+      }
+    | DeprecatedBecause(reason) => list{Html.span(list{tw(sharedStyle)}, list{Html.text(reason)})}
     }
     if deprecationFooterContents == list{} {
       list{}
     } else {
       list{
         Html.div(
-          list{Attrs.class("deprecation-reason")},
+          list{tw(%twc("my-4"))},
           list{
-            Html.span(list{Attrs.class("err")}, list{Html.text("DEPRECATED: ")}),
+            Html.span(
+              list{
+                tw(
+                  %twc("bg-grey1 rounded-full text-pink font-text text-xs pt-0.5 pb-1 px-1.5 mr-2"),
+                ),
+              },
+              list{Html.text("Deprecated")},
+            ),
             ...deprecationFooterContents,
           },
         ),
@@ -805,13 +951,7 @@ let documentationForFunction = (
     }
   }
 
-  Belt.List.concatMany([
-    deprecationHeader,
-    desc,
-    list{ViewErrorRailDoc.hintForFunction(f, sendToRail)},
-    deprecationFooter,
-    list{return},
-  ])
+  Belt.List.concatMany([list{documentationHeader}, desc, list{row}, deprecationFooter])
 }
 
 let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>> => {

@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBytes data ] -> MD5.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
           let hmac = new HMACSHA256(key)
           data |> hmac.ComputeHash |> DBytes |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -66,6 +66,6 @@ let fns : List<BuiltInFn> =
           let hmac = new HMACSHA1(key)
           data |> hmac.ComputeHash |> DBytes |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
       deprecated = NotDeprecated } ]
