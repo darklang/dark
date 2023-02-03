@@ -9,7 +9,10 @@ open Tablecloth
 /// Depending on `includeAdminFns` flag, may exclude Dark admin-only fns
 let functions (includeAdminFns : bool) : string =
   let fnFilter (fn : LibExecution.RuntimeTypes.BuiltInFn) =
-    if includeAdminFns then true else fn.name.module_ <> "DarkInternal"
+    if includeAdminFns then
+      true
+    else
+      fn.name.module_ <> "DarkInternal" && fn.name.module_ <> "HttpBaseClient"
 
   LibRealExecution.RealExecution.stdlibFns
   |> Map.values
