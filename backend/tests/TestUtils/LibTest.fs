@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ value ] -> Ply(DErrorRail(value))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
           let msg = LibBackend.SqlCompiler.errorTemplate + errorString
           Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DFloat(System.Double.NaN))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DFloat(System.Double.PositiveInfinity))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -102,7 +102,7 @@ let fns : List<BuiltInFn> =
           else
             Ply(DOption None)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -115,7 +115,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> Ply(DFloat(System.Double.NegativeInfinity))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -132,7 +132,7 @@ let fns : List<BuiltInFn> =
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
           Ply(arg)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -145,7 +145,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [] -> Ply(Dval.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -160,7 +160,7 @@ let fns : List<BuiltInFn> =
           print $"{msg}: {v}"
           Ply v
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -173,7 +173,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr msg ] -> Ply(DOption(Some(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -186,7 +186,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -199,7 +199,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -221,7 +221,7 @@ let fns : List<BuiltInFn> =
             return DNull
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -263,7 +263,7 @@ let fns : List<BuiltInFn> =
           |> DBytes
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 

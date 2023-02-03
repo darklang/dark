@@ -17,7 +17,7 @@ let generateCRUDContent: Tutorial.tooltipContent = {
     ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/first-dark-application")),
   ),
   align: Left,
-  tipAlignment: "align-left",
+  tipAlignment: %twc("-right-1 top-6"),
   tooltipStyle: Crud,
 }
 
@@ -32,7 +32,7 @@ let generateTutorialContent = (tutorialStep: step, username: string): Tutorial.t
       }),
       action: None,
       align: Left,
-      tipAlignment: "align-left",
+      tipAlignment: %twc("-right-1 top-6"),
       tooltipStyle: Tutorial(tutorialStep),
     }
   | VerbChange => {
@@ -40,7 +40,7 @@ let generateTutorialContent = (tutorialStep: step, username: string): Tutorial.t
       details: None,
       action: None,
       align: Right,
-      tipAlignment: "align-top",
+      tipAlignment: %twc("top-3.5 -left-1 bottom-6"),
       tooltipStyle: Tutorial(tutorialStep),
     }
   | ReturnValue => {
@@ -48,7 +48,7 @@ let generateTutorialContent = (tutorialStep: step, username: string): Tutorial.t
       details: None,
       action: None,
       align: Right,
-      tipAlignment: "align-top",
+      tipAlignment: %twc("top-3.5 -left-1 bottom-6"),
       tooltipStyle: Tutorial(tutorialStep),
     }
   | OpenTab => {
@@ -56,7 +56,7 @@ let generateTutorialContent = (tutorialStep: step, username: string): Tutorial.t
       details: None,
       action: None,
       align: Right,
-      tipAlignment: "align-top",
+      tipAlignment: %twc("top-3.5 -left-1 bottom-6"),
       tooltipStyle: Tutorial(tutorialStep),
     }
   | GettingStarted => {
@@ -67,7 +67,7 @@ let generateTutorialContent = (tutorialStep: step, username: string): Tutorial.t
         ToolTipMsg(OpenLink("https://darklang.com/a/" ++ (username ++ "-crud"))),
       ),
       align: Right,
-      tipAlignment: "align-top",
+      tipAlignment: %twc("top-3.5 -left-1 bottom-6"),
       tooltipStyle: Tutorial(tutorialStep),
     }
   }

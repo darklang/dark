@@ -5,8 +5,6 @@
 
 set -euo pipefail
 
-set -x
-
 cat integration-tests/tests.ts \
   | grep "^  test(" integration-tests/tests.ts \
   | sed 's/.*"\(.*\)".*/\1/'

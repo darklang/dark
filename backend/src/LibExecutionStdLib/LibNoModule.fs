@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
         | _, [ a ] ->
           a |> DvalReprLegacyExternal.toEnduserReadableTextV0 |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -44,7 +44,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ a ] -> Ply(DStr(DvalReprDeveloper.toRepr a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = DeprecatedBecause "Not intended for external use" }
 
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> =
             )
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = DeprecatedBecause "It is just a demo function" }
 
@@ -118,7 +118,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DError (_, err) ] -> Ply(DStr err)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated =
         DeprecatedBecause "It is no longer allowed to use errors as arguments" }
@@ -177,7 +177,7 @@ let fns : List<BuiltInFn> =
 
           sb |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -190,6 +190,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

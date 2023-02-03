@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr k; v ] -> Ply(DObj(Map.ofList [ (k, v) ]))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -43,7 +43,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o ] -> Ply(DInt(int64 (Map.count o)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
           |> fun l -> DList l
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -77,7 +77,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o ] -> o |> Map.values |> Seq.toList |> (fun l -> DList l |> Ply)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
           |> DList
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -129,7 +129,7 @@ let fns : List<BuiltInFn> =
           let result = List.fold Map.empty f l
           Ply(DObj result)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -169,7 +169,7 @@ let fns : List<BuiltInFn> =
           | Some map -> Ply(DOption(Some(DObj(map))))
           | None -> Ply(DOption None)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -186,7 +186,7 @@ let fns : List<BuiltInFn> =
            | Some d -> Ply(d)
            | None -> Ply(DNull))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
 
@@ -200,7 +200,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o; DStr s ] -> Ply(DOption(Map.tryFind s o))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 2) }
 
@@ -215,7 +215,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o; DStr s ] -> Map.tryFind s o |> Dval.option |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -230,7 +230,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o; DStr s ] -> Ply(DBool(Map.containsKey s o))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -257,7 +257,7 @@ let fns : List<BuiltInFn> =
             return DObj result
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "map" 0) }
 
@@ -294,7 +294,7 @@ let fns : List<BuiltInFn> =
             return DObj result
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -342,7 +342,7 @@ let fns : List<BuiltInFn> =
               return DObj result
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "filter" 1) }
 
@@ -398,7 +398,7 @@ let fns : List<BuiltInFn> =
             | Error dv -> return dv
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -463,7 +463,7 @@ let fns : List<BuiltInFn> =
             | Some v -> return v
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -489,7 +489,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj dict ] -> Ply(DBool(Map.isEmpty dict))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -504,7 +504,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj l; DObj r ] -> Ply(DObj(Map.mergeFavoringRight l r))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -519,7 +519,7 @@ let fns : List<BuiltInFn> =
         | _, [ DObj o ] ->
           DObj o |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -536,7 +536,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o; DStr k; v ] -> Ply(DObj(Map.add k v o))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -550,6 +550,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o; DStr k ] -> Ply(DObj(Map.remove k o))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

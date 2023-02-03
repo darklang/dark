@@ -10,19 +10,19 @@
     "browserify-incremental": "3.1.1",
     "rescript": "9.1.4",
     "dom-storage": "2.1.0",
-    "jsdom": "21.0.0",
+    "jsdom": "21.1.0",
     "jsdom-global": "3.0.2",
     "npm-run-all": "4.1.5",
     "postcss": "8.4.21",
     "postcss-cli": "10.1.0",
-    "sass": "1.57.1",
+    "sass": "1.58.0",
     "tailwind-scrollbar": "2.1.0",
     "tailwindcss": "3.2.4"
   },
   "dependencies": {
     "@fullstory/browser": "1.6.2",
     "@glennsl/bs-json": "5.0.3",
-    "acorn": "8.8.1",
+    "acorn": "8.8.2",
     "bs-fetch": "0.6.2",
     "bs-uuid": "0.3.1",
     "rescript-webapi": "0.7.0",
@@ -32,13 +32,13 @@
     "minimist": "1.2.7",
     "moment": "2.29.4",
     "mouse-wheel": "1.2.0",
-    "pusher-js": "8.0.0",
+    "pusher-js": "8.0.1",
     "rescript-js": "0.7.0",
     "rescript-nodejs": "14.3.1",
     "rollbar": "2.26.1",
     "sha2": "1.0.2",
     "tablecloth-rescript": "0.0.8-1",
-    "validator": "13.7.0"
+    "validator": "13.9.0"
   },
   "scripts": {
     "clean": "./scripts/build/_rescript-wrapper.sh clean",

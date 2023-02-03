@@ -58,7 +58,7 @@ let fns : List<BuiltInFn> =
             |> DResult
             |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = ReplacedBy(fn "Bytes" "base64Decode" 1) }
 
@@ -99,7 +99,7 @@ let fns : List<BuiltInFn> =
             with
             | e -> Ply(DResult(Error(DStr("Not a valid base64 string"))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -119,7 +119,7 @@ let fns : List<BuiltInFn> =
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -147,7 +147,7 @@ let fns : List<BuiltInFn> =
 
           buf |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -160,6 +160,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBytes bytes ] -> bytes |> Array.length |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

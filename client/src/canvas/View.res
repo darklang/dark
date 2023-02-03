@@ -16,6 +16,9 @@ module Msg = AppTypes.Msg
 type model = AppTypes.model
 type msg = AppTypes.msg
 
+let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
+
 let appID = "app"
 
 let fontAwesome = Icons.fontAwesome
@@ -492,7 +495,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
   | FocusedFn(_) =>
     let helpIcon = Html.div(
       list{
-        Attrs.class("help-icon"),
+        tw(%twc("text-4xl text-cyan")),
         EventListeners.eventNoPropagation(~key="ept", "mouseenter", _ => Msg.ToolTipMsg(
           OpenFnTooltip(true),
         )),
@@ -509,12 +512,19 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
       )
 
     Html.div(
-      list{Attrs.id("back-to-canvas"), Attrs.class("back-to-canvas")},
+      list{
+        Attrs.id("back-to-canvas"),
+        tw(
+          %twc(
+            "fixed bottom-2 right-16 w-36 cursor-pointer text-center text-cyan font-text text-base"
+          ),
+        ),
+      },
       list{
         tooltip,
         Html.div(
           list{
-            Attrs.class("back-to-canvas-content"),
+            tw(%twc("flex items-center justify-between")),
             Vdom.prop("alt", "architecture preview"),
             EventListeners.eventNoPropagation(~key="return-to-arch", "click", _ =>
               Msg.GoToArchitecturalView
@@ -522,7 +532,7 @@ let viewBackToCanvas = (currentPage: AppTypes.Page.t, showTooltip: bool): Html.h
           },
           list{
             helpIcon,
-            Html.a(list{Attrs.class("content")}, list{Vdom.text("Return to main canvas")}),
+            Html.a(list{tw(%twc("w-24 font-text"))}, list{Vdom.text("Return to main canvas")}),
           },
         ),
       },
@@ -558,14 +568,18 @@ let viewToast = (t: AppTypes.Toast.t): Html.html<msg> => {
 }
 
 let accountView = (m: model): Html.html<msg> => {
+  let accountActionBtnStyle = %twc(
+    "m-2.5 cursor-pointer text-white1 font-text hover:text-purple mt-1.5 no-underline"
+  )
+
   let logout = Html.a(
-    list{Attrs.class("account-action-btn"), Attrs.href("https://login.darklang.com/logout")},
+    list{tw(accountActionBtnStyle), Attrs.href("https://login.darklang.com/logout")},
     list{Html.text("Logout")},
   )
 
   let docs = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href(docsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-doc", "click", _ => Msg.UpdateHeapio(
@@ -577,7 +591,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let functionRefs = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href(functionRefsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-fn-ref", "click", _ => Msg.UpdateHeapio(
@@ -589,7 +603,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let keyboardRefs = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href(keyboardRefsURL),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="account-fn-ref", "click", _ => Msg.UpdateHeapio(
@@ -601,19 +615,27 @@ let accountView = (m: model): Html.html<msg> => {
 
   let discordRef = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href("https://darklang.com/discord-invite"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="discord-invite-ref", "click", _ => Msg.UpdateHeapio(
         OpenKeyboardRef,
       )),
     },
-    list{Html.text("Discord Community")},
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{
+          Html.text("Discord Community"),
+          Icons.fontAwesomeBrands(~style=%twc("ml-1.5 text-sm"), "discord"),
+        },
+      ),
+    },
   )
 
   let contributeRef = Html.a(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       Attrs.href("https://docs.darklang.com/contributing/getting-started"),
       Attrs.target("_blank"),
       EventListeners.eventNoPropagation(~key="contributor-ref", "click", _ => Msg.UpdateHeapio(
@@ -625,7 +647,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   let tutorial = Html.p(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       EventListeners.eventNoPropagation(~key="tutorial", "click", _ => Msg.ToolTipMsg(
         UpdateTutorial(ReopenTutorial),
       )),
@@ -633,10 +655,10 @@ let accountView = (m: model): Html.html<msg> => {
     list{Html.text("Hello World tutorial")},
   )
 
-  let spacer = Html.div(list{Attrs.class("account-action-spacer")}, list{})
+  let spacer = Html.div(list{tw(%twc("bg-grey2 h-px my-2.5 mx-0"))}, list{})
   let settings = Html.p(
     list{
-      Attrs.class("account-action-btn"),
+      tw(accountActionBtnStyle),
       EventListeners.eventNoPropagation(~key="open-settings", "click", _ => Msg.SettingsMsg(
         Open(Canvases),
       )),
@@ -644,14 +666,31 @@ let accountView = (m: model): Html.html<msg> => {
     list{Html.text("Settings")},
   )
 
-  let share = Html.p(
+  let reportBugRef = Html.a(
     list{
-      Attrs.class("account-action-btn invite"),
-      EventListeners.eventNoPropagation(~key="open-invite", "click", _ => Msg.SettingsMsg(
-        Open(Invite),
-      )),
+      tw(accountActionBtnStyle),
+      Attrs.href("https://github.com/darklang/dark/issues"),
+      Attrs.target("_blank"),
     },
-    list{Html.text("Share Dark")},
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{Html.text("Report Bug"), Icons.fontAwesomeBrands(~style=%twc("ml-2"), "github")},
+      ),
+    },
+  )
+  let feedbackRef = Html.a(
+    list{
+      tw2(accountActionBtnStyle, %twc("mr-1")),
+      Attrs.href("https://github.com/darklang/dark/discussions/categories/feedback"),
+      Attrs.target("_blank"),
+    },
+    list{
+      Html.span(
+        list{tw(%twc("font-text"))},
+        list{Html.text("Post Feedback"), Icons.fontAwesome(~style=%twc("ml-2"), "file-pen")},
+      ),
+    },
   )
 
   let tooltip = {
@@ -672,7 +711,7 @@ let accountView = (m: model): Html.html<msg> => {
 
   Html.div(
     list{
-      Attrs.class("my-account"),
+      tw(%twc("group fixed top-1.5 right-2.5 z-[20000] text-right")),
       // Block opening the omnibox here by preventing canvas pan start
       EventListeners.nothingMouseEvent("mousedown"),
     },
@@ -680,18 +719,26 @@ let accountView = (m: model): Html.html<msg> => {
       m->Avatar.myAvatar->Avatar.avatarDiv(~style=Avatar.Styles.main),
       tooltip,
       Html.div(
-        list{Attrs.class("account-actions")},
+        list{
+          tw(
+            %twc(
+              "hidden group-hover:flex py-1.5 px-2 box-border bg-black3 overflow-hidden flex-col justify-around text-right"
+            ),
+          ),
+        },
         list{
           settings,
-          share,
           logout,
           spacer,
           docs,
           functionRefs,
           keyboardRefs,
-          discordRef,
           contributeRef,
           tutorial,
+          spacer,
+          reportBugRef,
+          discordRef,
+          feedbackRef,
         },
       ),
     },
@@ -733,14 +780,18 @@ let view = (m: model): Html.html<msg> => {
   let viewDocs = list{
     Html.a(
       list{
-        Attrs.class("doc-container"),
+        tw(
+          %twc(
+            "font-text cursor-pointer flex flex-col items-center justify-center absolute bottom-0 right-0 no-underline text-inherit pt-0 pr-2.5 pb-2.5 pl-0 hover:text-yellow1 active:outline-none focus:outline-none"
+          ),
+        ),
         Attrs.href(docsURL),
         Attrs.target("_blank"),
         // Block opening the omnibox here by preventing canvas pan start
         EventListeners.nothingMouseEvent("mousedown"),
         EventListeners.eventNoPropagation(~key="doc", "click", _ => Msg.UpdateHeapio(OpenDocs)),
       },
-      list{fontAwesome("book"), Html.text("Docs")},
+      list{fontAwesome(~style=%twc("text-2xl"), "book"), Html.text("Docs")},
     ),
   }
 

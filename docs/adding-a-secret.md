@@ -54,6 +54,6 @@ via `ui.html`, which has values filled in from `Ui.fs`.
 ## Non-secret configuration
 
 Non-secret config should be stored in `config/gke-builtwithdark` (substitude
-dev, etc, for gke-builtwithdark) , and passed from there into production. You
+dev, etc, for gke-builtwithdark), and passed from there into production. You
 should leave placeholders for the values loaded from kubernetes (the dynamic
 configs are loaded last, and will overwrite the config-file config).

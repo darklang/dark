@@ -54,6 +54,6 @@ let fns : List<BuiltInFn> =
             // certificate if it fails (either data is bullshit or it's not an RSA cert).
             Ply(DResult(Error(DStr "No certificates")))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

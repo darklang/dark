@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
           Ply(DObj(Map [ "Authorization", (DStr(encodeBasicAuthBroken u p)) ]))
         | args -> incorrectArgs ())
       previewable = Pure
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       deprecated = ReplacedBy(fn "HttpClient" "basicAuth" 1) }
 
 
@@ -64,5 +64,5 @@ let fns : List<BuiltInFn> =
           Ply(DObj(Map [ "Authorization", (DStr(encodeBasicAuth u p)) ]))
         | args -> incorrectArgs ())
       previewable = Pure
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       deprecated = NotDeprecated } ]
