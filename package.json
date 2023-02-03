@@ -8,7 +8,7 @@
     "@greenlabs/res-tailwindcss": "0.1.12",
     "browserify": "17.0.0",
     "browserify-incremental": "3.1.1",
-    "rescript": "9.1.4",
+    "rescript": "10.1.2",
     "dom-storage": "2.1.0",
     "jsdom": "21.1.0",
     "jsdom-global": "3.0.2",
