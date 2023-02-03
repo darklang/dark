@@ -20,7 +20,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] -> DBytes [||] |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
