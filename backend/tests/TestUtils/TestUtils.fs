@@ -454,6 +454,9 @@ let rec debugDval (v : Dval) : string =
     |> Array.toList
     |> List.map string
     |> String.concat ", "
+    // TODO: when I try to prepend this with "DBytes ",
+    // the console output is "DB[|...|]", and the "ytes " are cut off.
+    // Why?
     |> fun s -> $"[|{s}|]"
 
   | _ -> v.ToString()

@@ -13,12 +13,35 @@ open LibExecution.RuntimeTypes
 open LibBackend
 open VendoredTablecloth
 
+module Telemetry = LibService.Telemetry
+
 
 module HttpBaseClient =
-  module Telemetry = LibService.Telemetry
+  type Method = HttpMethod
 
-  type private HttpResult = { body : byte []; code : int; headers : HttpHeaders.T }
-  type private ClientError = { error : string; code : int option }
+  module Headers =
+    type Header = string * string
+    type T = List<Header>
+
+  type Body = byte array
+
+  type HttpRequest =
+    { url : string
+      method : Method
+      headers : Headers.T
+      body : Body }
+
+  type HttpResult = { statusCode : int; headers : Headers.T; body : Body }
+
+  // forked from Elm's HttpError type
+  // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
+  type HttpRequestError =
+    | BadUrl of details : string
+    | Timeout
+    | NetworkError
+    | Other of details : string
+
+  type HttpRequestResult = Result<HttpResult, HttpRequestError>
 
   // There has been quite a history of .NET's HttpClient having problems,
   // including socket exhaustion and DNS results not expiring.
@@ -32,7 +55,7 @@ module HttpBaseClient =
   //
   // Note that the number of sockets was verified manually, with:
   // `sudo netstat -apn | grep _WAIT`
-  // TODO: I don't see where "the nunber of sockets" is actually configured?
+  // TODO: I don't see where "the number of sockets" is actually configured?
   let private socketHandler : HttpMessageHandler =
     new SocketsHttpHandler(
       // Avoid DNS problems
@@ -41,6 +64,7 @@ module HttpBaseClient =
 
       // HttpBaseClientTODO avail functions to compress/decompress with common
       // compression algorithms (gzip, brottli, deflate)
+      //
       // HttpBaseClientTODO consider: is there any reason to think that ASP.NET
       // does something fancy such that automatic .net httpclient -level
       // decompression would be notably more efficient than doing so 'manually'
@@ -65,52 +89,48 @@ module HttpBaseClient =
     new HttpClient(
       socketHandler,
       disposeHandler = false,
-
-      // HttpBaseClientTODO are these appropriate defaults?
-      // Should users be able to override these somehow?
       Timeout = System.TimeSpan.FromSeconds 30.0,
       MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
     )
 
-  // HttpBaseClientTODO test what happens when user credentials are included
-  // in the URL - adjust according to the results.
-  let private httpCall
-    (url : string)
-    (method : HttpMethod)
-    (reqHeaders : List<string * string>)
-    (reqBody : byte array)
-    : Task<Result<HttpResult, ClientError>> =
+  let request (httpRequest : HttpRequest) : Task<HttpRequestResult> =
     task {
       use _ =
         Telemetry.child
           "HttpBaseClient.call"
-          [ "request.url", url; "request.method", method ]
+          [ "request.url", httpRequest.url; "request.method", httpRequest.method ]
       try
-        let uri = System.Uri(url, System.UriKind.Absolute)
+        let uri = System.Uri(httpRequest.url, System.UriKind.Absolute)
 
         // currently we only support http(s) requests
         if uri.Scheme <> "https" && uri.Scheme <> "http" then
-          return Error { code = None; error = "Unsupported protocol" }
+          return Error(BadUrl "Unsupported Protocol")
         else
           let reqUri =
             System.UriBuilder(
               Scheme = uri.Scheme,
               Host = uri.Host,
               Port = uri.Port,
-              Path = uri.AbsolutePath
+              Path = uri.AbsolutePath,
+              Query = uri.Query
             )
+            |> string
 
           use req =
             new HttpRequestMessage(
-              method,
-              string reqUri,
-              // HttpBaseClientTODO does this mean 'use exactly 3.0'?
+              httpRequest.method,
+              reqUri,
+              Content = new ByteArrayContent(httpRequest.body),
+
+              // Support both Http 2.0 and 3.0
+              // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
+              // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
               Version = System.Net.HttpVersion.Version30,
-              Content = new ByteArrayContent(reqBody)
+              VersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
             )
 
           // headers
-          reqHeaders
+          httpRequest.headers
           |> List.iter (fun (k, v) ->
             // .NET handles "content headers" separately from other headers.
             // They're put into `req.Content.Headers` rather than `req.Headers`
@@ -133,9 +153,6 @@ module HttpBaseClient =
           Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
           use! response = httpClient.SendAsync req
 
-          // HttpBaseClientTODO: errors after an HTTP response is returned
-          // should include the status code. (right now they don't always).
-
           Telemetry.addTags [ "response.status_code", response.StatusCode
                               "response.version", response.Version ]
           use! responseStream = response.Content.ReadAsStreamAsync()
@@ -149,54 +166,46 @@ module HttpBaseClient =
             |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
 
           return
-            { body = respBody; code = int response.StatusCode; headers = headers }
+            { statusCode = int response.StatusCode
+              headers = headers
+              body = respBody }
             |> Ok
+
       with
-      | :? TaskCanceledException -> // only timeouts
+      | :? TaskCanceledException ->
         Telemetry.addTags [ "error", true; "error.msg", "Timeout" ]
-        return Error { code = None; error = "Timeout" }
-      | :? System.ArgumentException as e -> // incorrect protocol, possibly more
-        let message =
-          if e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')" then
-            "Unsupported protocol"
-          else
-            e.Message
-        Telemetry.addTags [ "error", true; "error.msg", message ]
-        return Error { code = None; error = message }
+        return Error Timeout
+
+      | :? System.ArgumentException as e ->
+        // We know of one specific case indicating Unsupported Protocol
+        // If we get this otherwise, return generic error
+        //
+        // TODO: would this be better as a guard (i.e. `when e.Message = ...`),
+        //   leaving other cases un-caught?
+        if e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')" then
+          Telemetry.addTags [ "error", true; "error.msg", "Unsupported Protocol" ]
+          return Error(BadUrl "Unsupported Protocol")
+        else
+          Telemetry.addTags [ "error", true; "error.msg", e.Message ]
+          return Error(Other e.Message)
+
       | :? System.UriFormatException ->
         Telemetry.addTags [ "error", true; "error.msg", "Invalid URI" ]
-        return Error { code = None; error = "Invalid URI" }
-      | :? IOException as e -> return Error { code = None; error = e.Message }
+        return Error(BadUrl "Invalid URI")
+
+      | :? IOException as e -> return Error(Other e.Message)
+
       | :? HttpRequestException as e ->
-        let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
-        Telemetry.addException [ "error.status_code", code ] e
-        let message = e |> Exception.getMessages |> String.concat " "
-        return Error { code = Some code; error = message }
-    }
+        // This is a bit of an awkward case. I'm unsure how it fits into our model.
+        // We've made a request, and _potentially_ (according to .NET) have a status
+        // code. That should return some sort of Error - but our Error case type
+        // doesn't have a good slot to include the status code. We could have a new
+        // case of `| ErrorHandlingResponse of statusCode: int` but that feels wrong.
+        let statusCode = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
 
-  let sendRequest
-    (uri : string)
-    (verb : HttpMethod)
-    (reqBody : byte array)
-    (reqHeaders : List<string * string>)
-    : Ply<Dval> =
-    uply {
-      match! httpCall uri verb reqHeaders reqBody with
-      | Ok response ->
-        let responseHeaders =
-          response.headers
-          |> List.map (fun (k, v) ->
-            DTuple(DStr(String.toLowercase k), DStr(String.toLowercase v), []))
-          |> DList
+        Telemetry.addException [ "error.status_code", statusCode ] e
 
-        return
-          [ ("body", DBytes response.body)
-            ("headers", responseHeaders)
-            ("code", DInt(int64 response.code)) ]
-          |> Dval.obj
-          |> Ok
-          |> DResult
-      | Error err -> return DResult(Error(DStr err.error))
+        return Error(Other(Exception.getMessages e |> String.concat " "))
     }
 
 
@@ -208,69 +217,104 @@ let fn = FQFnName.stdlibFnName
 
 let headersType = TList(TTuple(TStr, TStr, []))
 
-let parameters =
-  [ // HttpBaseClientTODO consider method being a new type (DU).
-    // Alternatively, leave it as a string, and don't try to parse it.
-    // (instead, just do `new HttpMethod(userInputMethod)`)
-    Param.make "method" TStr ""
 
-    // HttpBaseClientTODO consider URI being a new type (complex type)
-    Param.make "uri" TStr ""
-
-    Param.make "body" TBytes ""
-
-    Param.make "headers" headersType "" ]
-
-let returnType =
-  TResult(TRecord [ "body", TBytes; "headers", headersType; "code", TInt ], TStr)
-
-// HttpBaseClientTODO maybe the errors should be in the form of a 'custom' DU?
-// Elm's http response type is well thought out and could provide a good model
-// for us. https://package.elm-lang.org/packages/elm/http/latest/Http.
-// In other words, `returnType` above may be adjusted significantly.
 
 let fns : List<BuiltInFn> =
-  [ // HttpBaseClientTODO expose as non-internal fn
-    // HttpBaseClientTODO better name than 'call'?
-    // HttpBaseClientTODO thorough testing
-    { name = fn "DarkInternal" "baseHttpClientCall" 0
-      parameters = parameters
-      returnType = returnType
+  [ { name = fn "HttpBaseClient" "request" 0
+      parameters =
+        [ Param.make "method" TStr ""
+          Param.make "uri" TStr ""
+          Param.make "headers" headersType ""
+          Param.make "body" TBytes "" ]
+      returnType =
+        TResult(
+          TRecord [ "statusCode", TInt; "headers", headersType; "body", TBytes ],
+          TStr
+        )
       description =
-        // HttpBaseClientTODO better description
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
         the response is wrapped in {{ Ok }} if a response was successfully
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
-        // HttpBaseClientTODO expose as non-internal fn
         LibDarkInternal.internalFn (function
-          | _, [ DStr method; DStr uri; DBytes body; DList headers ] ->
+          | _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
+            let reqHeaders : Result<List<string * string>, string> =
+              reqHeaders
+              |> List.fold (Ok []) (fun agg item ->
+                match agg, item with
+                | (Error err, _) -> Error err
+                | (Ok pairs, DTuple (DStr k, DStr v, [])) ->
+                  // TODO: what about whitespace? What else can break?
+                  if k = "" then
+                    Error "Empty request header key provided"
+                  else
+                    Ok((k, v) :: pairs)
+
+                | (_, notAPair) ->
+                  // this should be a DError, not a "normal" error
+                  Error
+                    $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}")
+              |> Result.map (fun pairs -> List.rev pairs)
+
             let method =
-              match String.toLowercase method with
-              | "get" -> Some HttpMethod.Get
-              | "post" -> Some HttpMethod.Post
-              | "put" -> Some HttpMethod.Put
-              | "patch" -> Some HttpMethod.Patch
-              | "delete" -> Some HttpMethod.Delete
-              | "head" -> Some HttpMethod.Head
-              | "options" -> Some HttpMethod.Options
+              try
+                Some(HttpMethod method)
+              with
               | _ -> None
 
-            let headers =
-              headers
-              |> List.map (fun pair ->
-                match pair with
-                | DTuple (DStr k, DStr v, []) -> Ok(k, v)
-                | other ->
-                  Error
-                    $"Expected a (string * string), but got: {DvalReprDeveloper.toRepr other}")
-              |> Tablecloth.Result.values
+            match reqHeaders, method with
+            | Ok reqHeaders, Some method ->
+              uply {
+                let request : HttpBaseClient.HttpRequest =
+                  { url = uri
+                    method = method
+                    headers = reqHeaders
+                    body = reqBody }
 
-            // HttpBaseClientTODO return better error messages
-            match headers, method with
-            | Ok headers, Some method ->
-              HttpBaseClient.sendRequest uri method body headers
-            | _ -> incorrectArgs ()
+                let! (response : HttpBaseClient.HttpRequestResult) =
+                  HttpBaseClient.request request
+
+                match response with
+                | Ok response ->
+                  let responseHeaders =
+                    response.headers
+                    |> List.map (fun (k, v) ->
+                      DTuple(
+                        DStr(String.toLowercase k),
+                        DStr(String.toLowercase v),
+                        []
+                      ))
+                    |> DList
+
+                  return
+                    [ ("statusCode", DInt(int64 response.statusCode))
+                      ("headers", responseHeaders)
+                      ("body", DBytes response.body) ]
+                    |> Dval.obj
+                    |> Ok
+                    |> DResult
+
+                | Error (HttpBaseClient.BadUrl details) ->
+                  // TODO: include a DvalSource rather than SourceNone
+                  return DError(SourceNone, $"Bad URL: {details}")
+
+                | Error (HttpBaseClient.Timeout) ->
+                  return DResult(Error(DStr $"Request timed out"))
+
+                | Error (HttpBaseClient.NetworkError) ->
+                  return DResult(Error(DStr $"Network error"))
+
+                | Error (HttpBaseClient.Other details) ->
+                  return DResult(Error(DStr details))
+              }
+
+            | Error reqHeadersErr, _ ->
+              uply { return DError(SourceNone, reqHeadersErr) }
+
+            | _, None ->
+              let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
+              uply { return DError(SourceNone, error) }
+
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
