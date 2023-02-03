@@ -123,65 +123,14 @@ $wrapper-background: $black2;
   }
 }
 
-.omnibox {
-  position: fixed;
-  top: 200px;
-  left: 40%;
-
-  $box-width: 400px;
-  $left-margin: 24px;
-
-  // honestly couldnt tell you where this magic number comes from
-  font-size: $code-font-size * 1.5;
-  margin-top: -9px;
-
-  .string-entry {
-    margin-top: -21px;
-  }
-
-  .entry form #search-container {
-    min-width: $box-width;
-    background-color: $black3;
-    padding: 0 $left-margin;
-    @include border-radius-top(6px);
-
-    #fluidWidthSpan {
-      width: 100%;
-      box-sizing: border-box;
-      margin-left: $left-margin;
-
-      &:before {
-        display: inline-block;
-        margin-left: -0.85 * $left-margin;
-        margin-top: -$spacing-medium;
-        // This is a magic amount of margin that ensures that the left of first
-        // character is in line with the first character of the results
-        margin-right: 4px;
-
-        @include font-awesome($fa-search);
-        color: $grey2;
-        font-size: 16px;
-      }
-    }
-  }
-
-  ul#autocomplete-holder {
-    width: 100%;
-    max-height: unset;
-    background-color: $wrapper-background;
-    overflow-y: visible;
-    list-style-type: none;
-    @include border-radius-bottom(6px);
-
-    li.autocomplete-item {
-      font-size: $code-font-size;
-      padding: 2px $left-margin;
-
-      &.new-tl + .found-in,
-      &.new-tl + .jump-to,
-      &.found-in + .jump-to {
-        margin-top: 10px;
-      }
+.omnibox{
+  ul#autocomplete-holder{
+    li.autocomplete-item{
+      &.new-tl+.found-in,
+        &.new-tl+.jump-to,
+        &.found-in+.jump-to {
+          margin-top: 10px;
+        }
     }
   }
 }

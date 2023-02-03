@@ -9,6 +9,7 @@ module Events = Tea.Events
 module RT = Runtime
 
 let tw = Attrs.class
+let tw2 = (c1, c2) => Attrs.class(`${c1} ${c2}`)
 
 let onSubmit = (~key, fn) =>
   Events.onWithOptions(
@@ -184,6 +185,7 @@ let omniboxEntryHtml = (placeholder: string, ac: AppTypes.AutoComplete.t): Html.
             (%twc("bg-highlight-color"), highlighted),
             (class', true),
             (specialClass, true),
+            ("autocomplete-item",true)
           }),
           EventListeners.nothingMouseEvent("mouseup"),
           defaultPasteHandler,
@@ -302,9 +304,9 @@ let viewEntry = (m: AppTypes.model): Html.html<AppTypes.msg> =>
       })
     | None => Vdom.noProp
     }
-
+  //omnibox
     Html.div(
-      list{tw(%twc("fixed top-[200px] left-[40%] -mt-2 text-lg  ")), styleProp},
+      list{tw2("omnibox", %twc("fixed top-[200px] left-[40%] -mt-2 text-lg")), styleProp},
       list{omniboxEntryHtml("", m.complete)},
     )
   | _ => Vdom.noNode
