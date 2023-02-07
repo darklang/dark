@@ -28,7 +28,6 @@
     <Compile Include="Api/APITunnels.fs" />
     <Compile Include="Api/APIWorkers.fs" />
     <Compile Include="Api/APIInitialLoad.fs" />
-    <Compile Include="IntegrationTests.fs" />
     <Compile Include="Functions.fs" />
     <Compile Include="Ui.fs" />
     <Compile Include="ApiServer.fs" />

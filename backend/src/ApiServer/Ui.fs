@@ -132,8 +132,6 @@ let uiHtml
   string t
 
 /// API endpoint that returns HTML for given Canvas
-///
-/// Contains special logic for special case of integration tests
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
     use t = startTimer "read-request" ctx
@@ -148,14 +146,6 @@ let uiHandler (ctx : HttpContext) : Task<string> =
 
     t.next "create-at"
     let! createdAt = Account.getUserCreatedAt user.username
-
-    // Create the data for integration tests
-    t.next "integration-tests"
-    let integrationTests =
-      ctx.GetQueryStringValue "integration-test" |> Option.isSome
-
-    if integrationTests && Config.allowTestRoutes then
-      do! IntegrationTests.loadAndResaveFromTestFile canvasInfo
 
     // CLEANUP this results in 2 DB queries, but could be reduced to 1
     let! canAccessOperations =
