@@ -9,7 +9,7 @@ If you're using VSCode, see instead [docs/vscode-setup.md](docs/vscode-setup.md)
 ### Formatting
 
 You will also want to support formatting in your client. Dark uses Prettier for
-json and other files, and Fantomas for F#. The script
+JS/HTML/CSS and Fantomas for F#. The script
 `script/formatting/format` can be used to format or check formatting, and there is a
 pre-commit hook you can use to run it automatically.
 

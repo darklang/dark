@@ -35,6 +35,7 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   # Always build for linux/amd64 (new OSX arm machines have emulation). This is
   # slow on MacOS but it gets there eventually.
   # Most of the work is done to enable arm64 builds
+  # LightTODO revisit this
   docker buildx build --platform linux/amd64 -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
 
   echo "Removing running containers"
@@ -44,24 +45,6 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   fi
 fi
 
-# --------------
-# --------------
-echo "watching for local changes"
-RELOAD_BROWSER=""
-for i in "$@"
-do
-  case $i in
-      --watch)
-	  RELOAD_BROWSER=true
-    ;;
-  esac
-done
-
-if [ -n "$RELOAD_BROWSER" ]; then
-    echo "Starting the browser reload script"
-    mkdir -p rundir/logs
-    scripts/build/_reload-browser > rundir/logs/browser.log 2>&1 &
-fi
 
 # --------------
 # Mounts

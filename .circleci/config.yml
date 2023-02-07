@@ -171,6 +171,7 @@ commands:
 # Actual workflow
 ##########################
 jobs:
+
   # Build server binaries and run tests
   build-backend:
     executor: in-container
@@ -221,7 +222,7 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
-   static-checks:
+  static-checks:
     executor: in-container
     steps:
       - darkcheckout
@@ -324,60 +325,64 @@ workflows:
               ignore: /^(pull|dependabot)\/.*$/
       - build-backend
 
-      - gcp-containers-test:
-          # This is fully covered by push-assets-to-gcp, so no need to do it twice
-          filters:
-            branches:
-              ignore: main
-          requires:
-            - build-backend
+      # LightTODO the below has all been commented out until we
+      # get to a point where this is worth 'hosting'.
+      # For now, CI just ensures everything builds OK.
 
-      # pre-deploy
-      - push-assets-to-gcp:
-          context:
-            - gcp context
-          filters:
-            branches:
-              only: main
-          requires:
-            - build-backend
+      # - gcp-containers-test:
+      #     # This is fully covered by push-assets-to-gcp, so no need to do it twice
+      #     filters:
+      #       branches:
+      #         ignore: main
+      #     requires:
+      #       - build-backend
+      #
+      # # pre-deploy
+      # - push-assets-to-gcp:
+      #     context:
+      #       - gcp context
+      #     filters:
+      #       branches:
+      #         only: main
+      #     requires:
+      #       - build-backend
 
-      # pre-deploy
-      - push-containers-to-gcp:
-          context:
-            - gcp context
-          filters:
-            branches:
-              only: main
-          requires:
-            - build-backend
+      # # pre-deploy
+      # - push-containers-to-gcp:
+      #     context:
+      #       - gcp context
+      #     filters:
+      #       branches:
+      #         only: main
+      #     requires:
+      #       - build-backend
 
-      # actual deploy
-      - deploy:
-          context:
-            - gcp context
-          filters:
-            branches:
-              only: main
-          requires:
-            - deploy-lock
-            - validate-honeycomb-config
-            - push-containers-to-gcp
-            - push-assets-to-gcp
-            - static-checks
-            - predeployment-checks
+      # # actual deploy
+      # - deploy:
+      #     context:
+      #       - gcp context
+      #     filters:
+      #       branches:
+      #         only: main
+      #     requires:
+      #       - deploy-lock
+      #       - validate-honeycomb-config
+      #       - push-containers-to-gcp
+      #       - push-assets-to-gcp
+      #       - static-checks
+      #       - predeployment-checks
 
-      - deploy-lock:
-          filters:
-            branches:
-              only: main
+      # - deploy-lock:
+      #     filters:
+      #       branches:
+      #         only: main
 
-      - notify-non-deploy:
-          filters:
-            branches:
-              ignore: main
-          requires:
-            - build-backend
-            - gcp-containers-test
-            - static-checks
-            - predeployment-checks
+      # - notify-non-deploy:
+      #     filters:
+      #       branches:
+      #         ignore: main
+      #     requires:
+      #       - build-backend
+      #       - gcp-containers-test
+      #       - static-checks
+      #       - predeployment-checks

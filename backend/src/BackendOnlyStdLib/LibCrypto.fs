@@ -10,6 +10,7 @@
 /// System.Security.Cryptography functions can be executed on the client:
 /// LIGHTTODO
 /// https://docs.microsoft.com/en-us/dotnet/core/compatibility/cryptography/5.0/cryptography-apis-not-supported-on-blazor-webassembly
+/// LightTODO review this
 /// </remarks>
 module BackendOnlyStdLib.LibCrypto
 

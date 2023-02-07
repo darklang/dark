@@ -38,11 +38,6 @@ If you want to include a link, use the same delimiters as markdown. `[LINK NAME]
 
 Link tags cannot contain code blocks or other tags.
 
-### Validating Syntax
-
-LightTODO revisit this
-Once you updated your function's description save the file and re-compile. Run the integration test **function_docstrings_are_valid** to verify it passes the syntax checker. `./integration-tests/run.sh --pattern=function_docstrings_are_valid`
-
 ## Rendering
 
 How the tags will be styled are defined in [the spec](https://www.notion.so/darklang/Rich-Text-Docstrings-1358553ec49d4ba0b52d04995014152c)

@@ -102,15 +102,6 @@ def npm_install():
   return run_frontend(start, build)
 
 
-def client_test():
-  start = time.time()
-  flags = ""
-  if in_ci:
-    flags = "--verbose --dom"
-  result = run_test(start, f"./scripts/run-client-tests {flags}")
-  return result
-
-
 def shellcheck(f):
   start = time.time()
   result = run_backend(start, "scripts/linting/shellchecker " + f)
@@ -371,11 +362,9 @@ def ignore(filename):
   ignores = [
       ".git",
       ".ionide",
-      ".browser-trigger",
       "scripts/build/compile",
       "rundir/",
       "backend/serialization/",
-      "node_modules",
       "backend/Build",
       "paket-files",
       ".paket/load",

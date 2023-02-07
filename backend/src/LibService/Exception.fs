@@ -13,7 +13,7 @@ type Exception with
   /// <remarks>
   /// LIGHTTODO
   /// This is in LibService because it uses reflection and would possibly break
-  /// in the Wasm project.
+  /// in the Wasm project. LightTODO
   ///
   /// Sources:
   /// - https://github.com/fsharp/fslang-suggestions/issues/660#issuecomment-382070639
