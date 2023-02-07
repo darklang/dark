@@ -119,7 +119,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       unzip \
       docker-ce \
       build-essential \
-      kubectl \
       python3-pip \
       python3-setuptools \
       python3-dev \
@@ -299,18 +298,6 @@ RUN sudo chown dark:dark /home/dark/install-exe-file
 RUN chmod +x /home/dark/install-exe-file
 
 ############################
-# Kubernetes
-############################
-RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
-
-RUN /home/dark/install-targz-file \
-  --arm64-sha256=57fa17b6bb040a3788116557a72579f2180ea9620b4ee8a9b7244e5901df02e4 \
-  --amd64-sha256=2315941a13291c277dac9f65e75ead56386440d3907e0540bf157ae70f188347 \
-  --url=https://get.helm.sh/helm-v3.10.2-linux-${TARGETARCH}.tar.gz \
-  --extract-file=linux-${TARGETARCH}/helm \
-  --target=/usr/bin/helm
-
-############################
 # Google cloud
 ############################
 # Cloud SQL proxy
@@ -330,26 +317,6 @@ RUN /home/dark/install-targz-file \
   --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.42.2/fake-gcs-server_1.42.2_Linux_${TARGETARCH}.tar.gz\
   --extract-file=fake-gcs-server \
   --target=/usr/bin/fake-gcs-server
-
-# GKE
-ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
-
-# crcmod for gsutil; this gets us the compiled (faster), not pure Python
-# (slower) crcmod, as described in `gsutil help crcmod`
-#
-# It requires that python3-pip, python3-dev, python3-setuptools, and gcc be
-# installed. You'll also need CLOUDSDK_PYTHON=python3 to be set when you use
-# gsutil. (Which the ENV line handles.)
-#
-# The last line greps to confirm that gsutil has a compiled crcmod.
-# Possible failure modes; missing deps above (-pip, -dev, -setuptools, gcc); a
-# pre-installed crcmod that needs to be uninstalled first.  Added that because
-# this install is a bit brittle, and it's easy to invisibly install the pure
-# Python crcmod.
-ENV CLOUDSDK_PYTHON=python3
-RUN sudo pip3 install -U --no-cache-dir -U crcmod \
-  && ((gsutil version -l | grep compiled.crcmod:.True) \
-      || (echo "Compiled crcmod not installed." && false))
 
 ############################
 # Pip packages
@@ -380,19 +347,6 @@ RUN \
   --url=https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
   --extract-file=shellcheck-${VERSION}/shellcheck \
   --target=/usr/bin/shellcheck
-
-############################
-# Kubeconform - for linting k8s files
-############################
-
-RUN \
-  VERSION=v0.4.14 \
-  && /home/dark/install-targz-file \
-  --arm64-sha256=0ff34c19b3b19905a9c87906c801d9d4325d0614ae48bc1b2543dc9ec908cf13 \
-  --amd64-sha256=140044a5eb44a18e52d737ba15936f87b0e5fca3d34a02ae13b2d68025a449f3 \
-  --url=https://github.com/yannh/kubeconform/releases/download/$VERSION/kubeconform-linux-${TARGETARCH}.tar.gz \
-  --extract-file=kubeconform \
-  --target=/usr/bin/kubeconform
 
 ####################################
 # Honeytail and honeymarker installs
@@ -481,11 +435,6 @@ RUN touch .bash_history
 RUN mkdir -p .config/gcloud
 RUN mkdir -p .config/configstore
 RUN mkdir -p app
-RUN mkdir -p app/_build
-RUN mkdir -p app/_esy
-RUN mkdir -p .esy
-RUN mkdir -p app/node_modules
-RUN mkdir -p app/lib
 RUN mkdir -p app/backend/Build
 
 RUN mkdir -p \
