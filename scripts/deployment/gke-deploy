@@ -64,21 +64,14 @@ trap cleanup_deploy_lock INT QUIT TERM ERR
 # Check it's safe to deploy
 #############################
 
-# Check that the prod cluster matches our view of the world, once we have the lock
-./scripts/deployment/shipit manual diff > /dev/null 2>&1
-
+# LIGHTTODO
 # Check that the everything can be deployed
 CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
-
-./scripts/deployment/shipit release push --dry-run=client --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
-./scripts/deployment/shipit release push --dry-run=server --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
 #############################
 # Actually do the deploy
 #############################
-
-# deploy the config for the newly-created deployment containers
-./scripts/deployment/shipit release push --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
+# LIGHTTODO
 
 #########################
 # Tell everyone about the deploy

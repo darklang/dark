@@ -129,27 +129,6 @@ def terraform_validate():
   return result
 
 
-def shipit_validate(f):
-  start = time.time()
-  return run_backend(start, f"scripts/deployment/shipit validate {f}")
-
-
-def pip_install():
-  start = time.time()
-  return run_backend(start, f"pip3 install -r scripts/deployment/requirements.txt")
-
-
-def mypy_shipit():
-  start = time.time()
-  args = [
-      "--disallow-any-unimported", "--disallow-untyped-calls",
-      "--disallow-untyped-defs", "--no-implicit-optional", "--warn-redundant-casts",
-      "--warn-unused-ignores", "--warn-return-any"
-  ]
-  argstr = " ".join(args)
-  return run_backend(start, f"mypy {argstr} scripts/deployment/shipit")
-
-
 def circleci_validate():
   start = time.time()
   return run_backend(start, "circleci config validate")
@@ -288,8 +267,6 @@ class Should:
     self.sass_compile = False
     self.copy_static = False
     self.circleci_validate = False
-    self.pip_install = False
-    self.mypy_shipit = False
     self.reload_backend_server = False
     self.generate_etags = False
     self.shellcheck = []
@@ -322,12 +299,6 @@ def execute(should):
 
   if should.circleci_validate:
     if not circleci_validate(): success = False
-
-  if should.pip_install:
-    if not pip_install(): success = False
-
-  if should.mypy_shipit:
-    if not mypy_shipit(): success = False
 
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
@@ -452,12 +423,6 @@ def mark(should, f):
   elif ("/tf/" in f and ".tf" in f):
     should.terraform_validate = True
 
-  elif ("/scripts/deployment/requirements.txt" in f):
-    should.pip_install = True
-
-  elif ("/scripts/deployment/shipit" in f):
-    should.mypy_shipit = True
-
   elif ("/scripts/" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
@@ -478,16 +443,11 @@ def ignore(filename):
       ".browser-trigger",
       "scripts/build/compile",
       "rundir/",
-      ".mypy_cache/",
       "backend/serialization/",
-      "backend/static/",
       "node_modules",
       "backend/Build",
       "paket-files",
       ".paket/load",
-      ".bs.js",
-      ".bsdeps",
-      ".bsbuild",
       "/obj/fsac.cache",
       "/backend/packages/analysis",
       ".sourcedirs.json",
