@@ -102,8 +102,6 @@ let addRoutes
   // Provide an unauthenticated route to check the server
   builder.MapGet("/check-apiserver", checkApiserver) |> ignore<IRouteBuilder>
 
-  addRoute "GET" "/a/{canvasName}" html R (htmlHandler Ui.uiHandler)
-
   // For internal testing - please don't test this out, it might page me
   let exceptionFn (ctx : HttpContext) =
     let userInfo = loadUserInfo ctx

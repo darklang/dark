@@ -29,7 +29,6 @@
     <Compile Include="Api/APIWorkers.fs" />
     <Compile Include="Api/APIInitialLoad.fs" />
     <Compile Include="Functions.fs" />
-    <Compile Include="Ui.fs" />
     <Compile Include="ApiServer.fs" />
   </ItemGroup>
   <ItemGroup>
