@@ -196,7 +196,7 @@ let serverTags : List<string * obj> =
 
 let addServerTags (span : Span.T) : unit = Span.addTags serverTags span
 
-// Call, passing with serviceName for this service, such as "ApiServer"
+// Call, passing with serviceName for this service, such as "BwdServer"
 let init (serviceName : string) : unit =
   print "Configuring Telemetry"
   // Not enabled by default - https://jimmybogard.com/building-end-to-end-diagnostics-and-tracing-a-primer-trace-context/

@@ -84,7 +84,6 @@ drop table check_its_working;
       - edit the secret: `kubectl edit secrets cloudsql-db-credentials -n darklang`
     - restart each service (least risky first):
       - `kubectl rollout restart deployment exechost-deployment -n darklang`
-      - `kubectl rollout restart deployment apiserver-deployment -n darklang`
       - `kubectl rollout restart deployment queueworker-deployment -n darklang`
       - `kubectl rollout restart deployment bwdserver-deployment -n darklang`
     - check each starts up

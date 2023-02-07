@@ -38,7 +38,6 @@ backend/.paket/load/
 ###############
 
 # Templates for these are in services/*/*.template.yaml
-services/apiserver-deployment-darklang/apiserver-deployment.yaml
 services/bwdserver-deployment-darklang/bwdserver-deployment.yaml
 services/cronchecker-deployment/cronchecker-deployment.yaml
 services/exechost-deployment/exechost-deployment.yaml

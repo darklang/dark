@@ -26,7 +26,6 @@ killall server.exe || true
 killall queue_worker.exe || true
 killall cron_checker.exe || true
 killall Tests.exe || true
-killall ApiServer.exe || true
 killall BwdServer.exe || true
 killall QueueWorker.exe || true
 killall CronChecker.exe || true

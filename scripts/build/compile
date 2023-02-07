@@ -421,10 +421,7 @@ def execute(should):
 
 
 def mark(should, f):
-  if ("/backend/src/ApiServer/Templates/" in f) and (".html" in f):
-    should.reload_backend_server = True
-
-  elif ("/backend/global.json" in f or \
+  if ("/backend/global.json" in f or \
         "/backend/.config/dotnet-tools.json" in f or \
         "/backend/Directory.Build.props" in f):
     should.fsharp_tool_restore = True

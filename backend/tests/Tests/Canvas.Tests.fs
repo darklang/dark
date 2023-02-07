@@ -455,84 +455,6 @@ let testCanvasVerificationUndoRenameDupedName =
   }
 
 
-let testCanvasClone =
-  testTask "canvas clone" {
-    let username = UserName.create "clone"
-    match! Account.getUser username with
-    | None ->
-      let user : Account.Account =
-        { username = username
-          password = LibBackend.Password.invalid
-          email = "clone@example.com"
-          name = "Cloney McCloneFace" }
-      let! (added : Result<unit, string>) = Account.upsertNonAdmin user
-      assert Result.isOk added
-    | Some _ -> ()
-
-    let sourceCanvasName = CanvasName.createExn "sample-gettingstarted"
-    let targetCanvasName = CanvasName.createExn "clone-gettingstarted"
-
-    let! sourceMeta = Canvas.getMetaAndCreate sourceCanvasName
-    do! ApiServer.IntegrationTests.loadAndResaveFromTestFile sourceMeta
-
-    do! CanvasClone.cloneCanvas sourceCanvasName targetCanvasName false
-    // Do this after to test the clone has created the canvas
-    let! targetMeta = Canvas.getMetaExn targetCanvasName
-
-    let! (sourceCanvas : Canvas.T) = Canvas.loadAll sourceMeta
-    let! (targetCanvas : Canvas.T) = Canvas.loadAll targetMeta
-
-    let! tlids = Serialize.fetchAllTLIDs sourceMeta.id
-    let! sourceOplists =
-      Serialize.loadOplists Serialize.IncludeDeletedToplevels sourceMeta.id tlids
-    let! targetOplists =
-      Serialize.loadOplists Serialize.IncludeDeletedToplevels targetMeta.id tlids
-
-    let hasCreationOps oplists =
-      oplists
-      |> List.map (fun (_, ops) ->
-        CanvasClone.onlyOpsSinceLastSavepoint ops
-        |> List.any CanvasClone.isOpThatCreatesToplevel)
-      |> List.all Fun.identity
-
-    let canvasOpsLength oplists =
-      oplists |> List.map Tuple2.second |> List.concat |> List.length
-
-    Expect.isTrue
-      (hasCreationOps sourceOplists)
-      "only_ops_since_last_savepoint retrieve latest ops from the last complete op"
-
-    Expect.isGreaterThan (canvasOpsLength targetOplists) 0 "make sure it exists"
-
-    Expect.isGreaterThan
-      (canvasOpsLength sourceOplists)
-      (canvasOpsLength targetOplists)
-      "fewer ops means we removed old history"
-
-    Expect.equal sourceCanvas.dbs targetCanvas.dbs "Same DBs when loading from db"
-
-    let tweakedSourceHandlers =
-      sourceCanvas.handlers
-      |> Map.values
-      |> List.map ClientTypes2ExecutionTypes.ProgramTypes.Handler.toCT
-      |> List.map Json.Vanilla.serialize
-      |> List.map (
-        String.replace
-          "http://sample-gettingstarted.builtwithdark.localhost"
-          "http://clone-gettingstarted.builtwithdark.localhost"
-      )
-      |> List.map Json.Vanilla.deserialize<ClientTypes.Program.Handler.T>
-      |> List.map ClientTypes2ExecutionTypes.ProgramTypes.Handler.fromCT
-
-    Expect.equal
-      tweakedSourceHandlers
-      (Map.values targetCanvas.handlers)
-      "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
-
-    return ()
-  }
-
-
 let tests =
   testList
     "canvas"
@@ -552,4 +474,4 @@ let tests =
       testCanvasVerificationDuplicationRenaming
       testCanvasVerificationNoError
       testCanvasVerificationUndoRenameDupedName
-      testCanvasClone ]
+    ]

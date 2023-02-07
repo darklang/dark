@@ -12,11 +12,6 @@ variable "service_env_vars" {
 
     # Ports
 
-    ## ApiServer
-    "DARK_CONFIG_APISERVER_NGINX_PORT"      = "9000"
-    "DARK_CONFIG_APISERVER_BACKEND_PORT"    = "9001"
-    "DARK_CONFIG_APISERVER_KUBERNETES_PORT" = "9002"
-
     ## BwdServer
     "DARK_CONFIG_BWDSERVER_BACKEND_PORT"    = "11001"
     "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT" = "11002"
@@ -34,9 +29,6 @@ variable "service_env_vars" {
     "DARK_CONFIG_CREATE_ACCOUNTS"       = "n"
     "DARK_CONFIG_USE_HTTPS"             = "y"
 
-    "DARK_CONFIG_APISERVER_SERVE_STATIC_CONTENT" = "n"
-    "DARK_CONFIG_APISERVER_HOST"                 = "darklang.com"
-    "DARK_CONFIG_APISERVER_STATIC_HOST"          = "static.darklang.com"
     "DARK_CONFIG_COOKIE_DOMAIN"                  = ".darklang.com"
     "DARK_CONFIG_BWDSERVER_HOST"                 = "builtwithdark.com"
 

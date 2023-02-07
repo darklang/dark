@@ -70,7 +70,6 @@ If you have no specific indicator of a problem, some starting points:
     - Crons: `service.name = CronChecker`
     - Queues and crons: `service.name = QueueWorker`
     - builtwithdark or custom domains: `service.name = BwdServer`
-    - editor: `service.name = ApiServer`
   - search exceptions with `exception = true`
   - use `duration_ms`
     - `heatmap(duration_ms)` then "bubble up"
@@ -102,20 +101,6 @@ DB.
 You can also check long running queries in the dashboard, in the postgres
 dataset in honeycomb (there's some useful boards here), by searching honeycomb
 kubernetes-bwd-ocaml dataset for `name = postgres`, group by the SQL query.
-
-### Kubernetes
-
-Kubernetes has lots of information on why something might be going wrong
-
-- if the service is restarting or won't start, try the logs:
-  - eg `kubectl logs -n darklang deploy/apiserver-deployment -c apiserver-ctr`
-- the GKE dashboard shows you CPU and memory use. Look at the 7 day chart to
-  see what you expect them to be and compare them to right now.
-- the GKE workloads show you if things are restarting. Sometimes clicking through
-  will tell you more, or highlight an error
-- if the service is down, the GKE ingress/service dashboard shows you healthchecks
-- google's monitoring can help you find logs that often don't exist elsewhere (eg
-  ingress requests). However, they can be challenging to find.
 
 ### Where are the logs?
 

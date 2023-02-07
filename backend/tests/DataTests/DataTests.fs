@@ -161,19 +161,6 @@ let forEachCanvas
   }
 
 
-/// Iterate through all canvases passing in an appropriate HTTP client
-let forEachCanvasWithClient
-  (concurrency : int)
-  (failOnError : bool)
-  (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
-  =
-  forEachCanvas concurrency failOnError (fun canvasName ->
-    let username = (Account.ownerNameFromCanvasName canvasName).toUserName ()
-    let client = lazy (Tests.ApiServer.forceLogin username)
-    fn client canvasName)
-
-
-
 let validate
   (name : string)
   (expected : 'a)

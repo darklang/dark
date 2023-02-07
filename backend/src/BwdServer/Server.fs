@@ -616,8 +616,7 @@ let run () : unit =
   (webserver LibService.Logging.noLogger port k8sPort).Run()
 
 
-// Generally speaking, this should be the same list as QueueWorker's,
-// which is roughly a subset of ApiServer's list.
+// Generally speaking, this should be the same list as QueueWorker's
 let initSerializers () =
   // universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"

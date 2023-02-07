@@ -57,22 +57,6 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "build-apiserver",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "/property:GenerateFullPaths=true",
-        "--no-restore",
-        "/consoleloggerparameters:NoSummary",
-        "src/ApiServer/ApiServer.fsproj"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/backend"
-      },
-      "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
       "label": "build-bwdserver",
       "command": "dotnet",
       "args": [
