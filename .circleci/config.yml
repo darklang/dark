@@ -220,7 +220,7 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
-  # Build server binaries and run tests (but not blazor, which is separated out for build speed)
+  # Build server binaries and run tests
   build-backend:
     executor: in-container
     resource_class: xlarge
@@ -270,44 +270,6 @@ jobs:
           key: v1-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  # We build blazor in parallel with server binaries
-  build-blazor:
-    executor: in-container
-    resource_class: xlarge
-    steps:
-      - darkcheckout
-      # Set the timestamp to the commit time. This allows timestamp-based build tools
-      # like .NET to use their incremental build feature. Without this, the checkout
-      # time is always newer than the cached object file, and files are always
-      # rebuilt.
-      - run: git restore-mtime
-      - setup-app
-      # The date is used to get a fresh cache each week
-      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
-      - restore_cache:
-          keys:
-            - v2-blazor-{{ checksum "../checksum" }}
-            # Fails often enough that it's better not to have a fallback
-      - show-large-files-and-directories
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
-      - run: rsync -a backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
-      - assert-clean-worktree
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - backend/static/blazor
-      - show-large-files-and-directories
-      - save_cache:
-          paths:
-            - backend/Build/obj
-            - /home/dark/.nuget
-          key: v2-blazor-{{ checksum "../checksum" }}
-      - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -431,7 +393,6 @@ workflows:
       - validate-honeycomb-config
       - build-client
       - build-backend
-      - build-blazor
 
       - gcp-containers-test:
           # This is fully covered by push-assets-to-gcp, so no need to do it twice
@@ -441,7 +402,6 @@ workflows:
           requires:
             - build-client # to rebuild etags
             - build-backend
-            - build-blazor # etags
 
       # pre-deploy
       - push-assets-to-gcp:
@@ -451,7 +411,6 @@ workflows:
             branches:
               only: main
           requires:
-            - build-blazor
             - build-backend
             - build-client
 
@@ -464,8 +423,6 @@ workflows:
               only: main
           requires:
             - build-backend
-            # CLEANUP: need this because of etags, should be able to remove it
-            - build-blazor
             - build-client
 
       # actual deploy
@@ -495,7 +452,6 @@ workflows:
           requires:
             - build-client
             - build-backend
-            - build-blazor
             - gcp-containers-test
             - static-checks
             - predeployment-checks

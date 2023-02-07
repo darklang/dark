@@ -21,6 +21,7 @@ BUCKET = "gs://darklang-static-assets"
 # allows, we must make a call to the tool once per Content-Type. We must also ensure
 # we maintain relative file paths when uploaded. (i.e.
 # backend/static/blazor/blazor.js should end up at {BUCKET}/blazor/blazor-HASH.js).
+# LightTODO consider a different example above
 #
 # TODO: reevaluate now that we use `gcloud storage cp`
 # Inconveniently, `gsutil cp` doesn't provide a way to pass in a list of (local
@@ -83,17 +84,6 @@ def mime_type_for(file_name):
     return "font/woff2"
   elif file_name.endswith(".eot"):
     return "application/vnd.ms-fontobject"
-    # Blazor
-  elif file_name.endswith(".wasm"):
-    return "application/wasm"
-  elif file_name.endswith(".pdb"):
-    return "text/plain"
-  elif file_name.endswith(".dll"):
-    return "application/octet-stream"
-  elif file_name.endswith(".dat"):
-    return "application/octet-stream"
-  elif file_name.endswith(".blat"):
-    return "application/octet-stream"
   else:
     # Don't allow anything else
     print(f'Unknown extension for {file_name}')

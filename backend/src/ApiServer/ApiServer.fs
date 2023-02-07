@@ -139,12 +139,6 @@ let addRoutes
 let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
   if Config.apiServerServeStaticContent then
     let contentTypeProvider = FileExtensionContentTypeProvider()
-    // See also scripts/deployment/_push-assets-to-cdn
-    contentTypeProvider.Mappings[ ".wasm" ] <- "application/wasm"
-    contentTypeProvider.Mappings[ ".pdb" ] <- "text/plain"
-    contentTypeProvider.Mappings[ ".dll" ] <- "application/octet-stream"
-    contentTypeProvider.Mappings[ ".dat" ] <- "application/octet-stream"
-    contentTypeProvider.Mappings[ ".blat" ] <- "application/octet-stream"
 
     app.UseStaticFiles(
       StaticFileOptions(

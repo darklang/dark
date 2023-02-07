@@ -38,7 +38,7 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   # slow on MacOS but it gets there eventually.
   # Most of the work is done to enable arm64 builds, but rescript 9.1.4 won't
   # build on arm64 (10 supposedly does), and dotnet won't support building wasm
-  # until dotnet 8 at the earliest.
+  # until dotnet 8 at the earliest. LightTODO revisit this
   docker buildx build --platform linux/amd64 -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
 
   echo "Removing running containers"
