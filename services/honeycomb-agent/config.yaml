@@ -55,17 +55,6 @@ watchers:
     dataset: cloudsql-proxy
     parser: json
 
-  ## nginx sidecar (for editor, which only does static assets traffic)
-  - labelSelector: "app=editor-app"
-    containerName: http-proxy
-    dataset: kubernetes-bwd-nginx
-    parser:
-      name: nginx
-      dataset: kubernetes-bwd-nginx
-      options:
-        config_file: /etc/nginx/conf.d/nginx.conf
-        log_format: '$remote_addr - $remote_user [$time_local] $host "$request" $status $bytes_sent $body_bytes_sent $request_time "$http_referer" "$http_user_agent" $request_length "$http_authorization" "$http_x_forwarded_proto" "$http_x_forwarded_for" $server_name "$upstream_http_x_darklang_execution_id" "$http_cookie" "$upstream_http_x_dark_username" "$http_x_darklang_client_version" "$upstream_http_x_darklang_server_version"'
-
   # -------------
   # ingress
   # -------------

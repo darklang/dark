@@ -27,7 +27,6 @@ RUNNING=true
 if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
-if [[ $(pgrep nginx -c) -eq 0 ]]; then RUNNING=false; fi
 # TODO pubsub and tunnel
 
 
@@ -62,7 +61,6 @@ sudo pkill -f "QueueWorker" || true
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator
 ./scripts/run-httptunnel
-./scripts/run-nginx-server
 
 echo "Waiting for postgres"
 ./scripts/devcontainer/_wait-for-background-services postgresql

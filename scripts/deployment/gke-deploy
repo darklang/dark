@@ -77,8 +77,6 @@ CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git
 # Actually do the deploy
 #############################
 
-# CLEANUP: we can remove the `nginx` configmap once the OCaml backend users are long gone
-
 # deploy the config for the newly-created deployment containers
 ./scripts/deployment/shipit release push --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 

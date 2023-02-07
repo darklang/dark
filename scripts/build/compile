@@ -155,11 +155,6 @@ def circleci_validate():
   return run_backend(start, "circleci config validate")
 
 
-def test_nginx():
-  start = time.time()
-  return run_backend(start, "sudo nginx -t -c /etc/nginx-apiserver/nginx.conf")
-
-
 ###########
 # F#
 ###########
@@ -263,12 +258,6 @@ def backend_full_build():
   return result
 
 
-def reload_nginx_server():
-  start = time.time()
-  runserver = "scripts/run-nginx-server"
-  return run_backend(start, runserver)
-
-
 def reload_backend_server():
   start = time.time()
   if optimize:
@@ -307,9 +296,7 @@ class Should:
     self.circleci_validate = False
     self.pip_install = False
     self.mypy_shipit = False
-    self.test_nginx = False
     self.reload_browser = False
-    self.reload_nginx_server = False
     self.reload_backend_server = False
     self.generate_etags = False
     self.shellcheck = []
@@ -381,13 +368,6 @@ def execute(should):
     # This should probably cause a restart, but it breaks CI atm
     # should.reload_backend_server |= success
 
-  if should.reload_nginx_server:
-    if not reload_nginx_server(): success = False
-    should.reload_browser |= success
-
-  if should.test_nginx:
-    if not test_nginx(): success = False
-
   if should.reload_backend_server:
     if not reload_backend_server(): success = False
     should.reload_browser |= success
@@ -448,16 +428,6 @@ def mark(should, f):
 
   elif ("/backend/" in f) and ("/tests/" in f):
     should.backend_test = True
-
-  elif "run-nginx-server" in f:
-    should.shellcheck += [f]
-    should.reload_nginx_server = True
-    should.test_nginx = True
-
-  elif (("/containers/fsharp-nginx/" in f and ".conf" in f)
-        or ("/services/" in f and "nginx" in f and ".conf" in f)):
-    should.reload_nginx_server = True
-    should.test_nginx = True
 
   elif "/scripts/run-backend-server" in f:
     should.shellcheck += [f]

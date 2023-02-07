@@ -158,8 +158,6 @@ These can be rolled back: `kubectl rollout undo ...` TODO
 - You can prevent HTTP traffic to darklang.com, builtwithdark.com, or
   static.darklang.com or darksa.com by adding AppArmor rules to disable the
   traffic.
-- You can prevent HTTP traffic to custom domains by adding config to the
-  nginx-controller's nginx.conf
 - You can disable queues by adding a scheduling rule (LibDarkInternal). Solves crons
   too.
 - You can safely add launchdarkly flags to anything to be able to selectively disable

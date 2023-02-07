@@ -64,13 +64,10 @@ RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-RUN curl -sSL https://nginx.org/keys/nginx_signing.key | apt-key add -
 RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
 # We want postgres 9.6, but it is not in later ubuntus
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
-
-RUN echo "deb https://nginx.org/packages/ubuntu/ jammy nginx" > /etc/apt/sources.list.d/nginx.list
 
 RUN echo "deb https://deb.nodesource.com/node_14.x jammy main" > /etc/apt/sources.list.d/nodesource.list
 RUN echo "deb-src https://deb.nodesource.com/node_14.x jammy main" >> /etc/apt/sources.list.d/nodesource.list
@@ -135,7 +132,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       pv \
       htop \
       net-tools \
-      nginx \
       bash-completion \
       openssh-server \
       dnsutils \
@@ -206,14 +202,6 @@ VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 RUN sudo chown postgres:postgres -R /etc/postgresql
 RUN sudo chown postgres:postgres -R /var/log/postgresql
 RUN sudo chown postgres:postgres -R /var/lib/postgresql
-
-############################
-# Nginx
-############################
-# We'll use our app's version
-RUN sudo rm /etc/nginx/conf.d/default.conf
-RUN sudo rm -r /etc/nginx/nginx.conf
-RUN sudo chown -R dark:dark /var/log/nginx
 
 ############################
 # Scripts to install files from the internet
