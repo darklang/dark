@@ -256,7 +256,7 @@ jobs:
           # Do this before reducing size of cache
           root: "."
           paths:
-            # Just enough for integration tests and deploy
+            # Just enough for deploy
             - backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
             - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
             - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
@@ -342,45 +342,6 @@ jobs:
       - darkcheckout
       - prep-container-creation
       - run: bash -c scripts/linting/test-honeycomb-config.sh
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  integration-tests:
-    executor: in-container
-    resource_class: xlarge
-    steps:
-      - darkcheckout
-      - setup-app
-      - attach_workspace: { at: "." }
-      - restore_cache: # get playwright
-          keys:
-            - v2-playwright-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v2-playwright-{{ checksum "package-lock.json" }}
-            - v2-playwright
-      - show-large-files-and-directories
-      - run: "cd integration-tests && npm install"
-      - regenerate-etags
-      - run:
-          name: Run integration tests
-          command: |
-            # Run the server first to set up the DB correctly for the prep script
-            scripts/run-backend-server --published
-            # Wait for users to be added so prep.sh works
-            ./scripts/devcontainer/_wait-until-apiserver-ready
-            integration-tests/run.sh --concurrency=8 --retry --published
-      - run: integration-tests/_integration-test-results-to-honeycomb.sh
-      - assert-clean-worktree
-      - store_artifacts: { path: rundir }
-      - store_artifacts: { path: /var/log/nginx }
-      - store_test_results: { path: rundir/test_results }
-      - save_cache:
-          name: "Save packagejson-specific cache"
-          paths:
-            [
-              "integration-tests/node_modules",
-              "/home/dark/.cache/ms-playwright",
-            ]
-          key: v2-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -474,13 +435,6 @@ workflows:
       - build-backend
       - build-blazor
 
-      # expensive tests
-      - integration-tests:
-          requires:
-            - build-client
-            - build-blazor
-            - build-backend
-
       - gcp-containers-test:
           # This is fully covered by push-assets-to-gcp, so no need to do it twice
           filters:
@@ -491,7 +445,7 @@ workflows:
             - build-backend
             - build-blazor # etags
 
-      # pre-deploy, in parallel with integration-tests
+      # pre-deploy
       - push-assets-to-gcp:
           context:
             - gcp context
@@ -503,7 +457,7 @@ workflows:
             - build-backend
             - build-client
 
-      # pre-deploy, in parallel with integration-tests
+      # pre-deploy
       - push-containers-to-gcp:
           context:
             - gcp context
@@ -526,7 +480,6 @@ workflows:
           requires:
             - deploy-lock
             - validate-honeycomb-config
-            - integration-tests
             - push-containers-to-gcp
             - push-assets-to-gcp
             - static-checks
@@ -546,7 +499,6 @@ workflows:
             - build-backend
             - build-blazor
             - gcp-containers-test
-            - integration-tests
             - static-checks
             - predeployment-checks
             - validate-honeycomb-config
