@@ -295,13 +295,11 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
-      - run: cp -f backend/src/Wasm/static/BlazorWorker.js backend/static/
       - run: rsync -a backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
       - persist_to_workspace:
           root: "."
           paths:
-            - backend/static/BlazorWorker.js
             - backend/static/blazor
       - show-large-files-and-directories
       - save_cache:
