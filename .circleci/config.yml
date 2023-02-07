@@ -160,13 +160,6 @@ commands:
               gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
             fi
 
-  auth-kubernetes:
-    steps:
-      - run:
-          name: Auth with Kubernetes
-          command: |
-            ./scripts/production/gcp-authorize-kubectl
-
   auth-gcr:
     steps:
       - run:
