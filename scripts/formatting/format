@@ -6,7 +6,6 @@ set -euo pipefail
 CHECK=255 # (0 mean check, 1 means format, 255 means error)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
 FSHARP=0 # (0 means check fsharp files, 1 means don't)
-RESCRIPT=1 # (0 means check rescript files, 1 means don't)
 FILES=()
 
 # rescript files aren't checked/formatted by default since it has a dependency
@@ -23,8 +22,6 @@ function print_help ()
 	printf '\t%s\n' "format: Format file or dir. Formats all files with no argument. Does not error or format if file is not supported."
   printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
   printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
-  printf '\t%s\n' "--include-rescript: Include rescript files (res, resi)"
-  printf '\t%s\n' "--rescript-only: Only check rescript files (res, resi)"
 }
 
 FILES=()
@@ -41,14 +38,6 @@ for val in "${@}"; do
         ;;
     --fsharp-only)
         PRETTIER=1
-        ;;
-    --include-rescript)
-        RESCRIPT=0
-        ;;
-    --rescript-only)
-        RESCRIPT=0
-        PRETTIER=1
-        FSHARP=1
         ;;
     check)
       CHECK=0
@@ -83,10 +72,6 @@ is_dir() {
 
 is_fsharp() {
   [[ $1 == *.fs || $1 == *.fsi ]]
-}
-
-is_rescript() {
-  [[ $1 == *.res || $1 == *.resi ]]
 }
 
 is_allowed() {
@@ -160,30 +145,6 @@ all_fsharp_files() {
     \) -print
 }
 
-all_rescript_files() {
-  find "$1" \
-    \( -path ".git" \
-    -o -path "_build" \
-    -o -path "./_build" \
-    -o -path "node_modules" \
-    -o -path "./node_modules" \
-    -o -path "_esy" \
-    -o -path "./_esy" \
-    -o -path "/home/dark/.esy" \
-    -o -path "esy.lock" \
-    -o -path "backend" \
-    -o -path "backend/.paket" \
-    -o -path "./backend/.paket" \
-    -o -path "backend/Build" \
-    -o -path "./backend/Build" \
-    \) -prune -false \
-    \
-    -o -type f \
-    \( -name "*.res" \
-    -o -name "*.resi" \
-    \) -print
-}
-
 check_fantomas () {
   xargs fantomas --check
 }
@@ -192,20 +153,12 @@ check_prettier () {
   xargs -0 npx prettier --list-different
 }
 
-check_rescript () {
-  xargs -L1 ./scripts/formatting/rescript-check.sh
-}
-
 format_fantomas() {
   xargs fantomas
 }
 
 format_prettier() {
   xargs -0 npx prettier --write
-}
-
-format_rescript() {
-  xargs -L1 ./scripts/formatting/rescript-format.sh
 }
 
 do_fantomas() {
@@ -224,14 +177,6 @@ do_prettier() {
   fi
 }
 
-do_rescript() {
-  if [[ 0 -eq "$CHECK" ]]; then
-    check_rescript
-  else
-    format_rescript
-  fi
-}
-
 # TODO sqlfmt for sql
 # TODO add python
 # TODO bash formatter
@@ -247,17 +192,10 @@ for i in "${FILES[@]}"; do
     if [[ 0 -eq "$PRETTIER" ]]; then
       all_prettier_files "$i" | do_prettier
     fi
-    if [[ 0 -eq "$RESCRIPT" ]]; then
-      all_rescript_files "$i" | do_rescript
-    fi
   elif is_allowed "$i"; then
     if is_fsharp "$i"; then
       if [[ 0 -eq "$FSHARP" ]]; then
         echo "$i" | do_fantomas
-      fi
-    elif is_rescript "$i"; then
-      if [[ 0 -eq "$RESCRIPT" ]]; then
-        echo "$i" | do_rescript
       fi
     else
       if [[ 0 -eq "$PRETTIER" ]]; then
