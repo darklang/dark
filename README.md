@@ -112,17 +112,6 @@ Unit tests run when you specify `--test` to `scripts/builder`. You can run them 
 - `scripts/run-client-tests`
 - `scripts/run-backend-tests`
 
-Integration tests:
-
-- `scripts/run-in-docker ./integration-tests/run.sh`
-
-You can also run integration tests on your (host) machine, which gives you some debugging ability, and typically runs faster:
-
-- `./integration-tests/run.sh`
-
-There are good debugging options for integration testing. See
-[integration-tests/README.md](integration-tests/README.md).
-
 ## Running unix commands in the container
 
 - `scripts/run-in-docker bash`
