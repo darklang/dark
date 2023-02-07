@@ -122,19 +122,6 @@ commands:
           buildType: "build"
 
   ##########################
-  # etags
-  ##########################
-  regenerate-etags:
-    steps:
-      - run:
-          name: Regenerate combined ETags
-          command: |
-            scripts/build/_generate-etags
-            cat backend/static/etags.json
-            scripts/linting/_check-etags
-            cp backend/static/etags.json rundir/
-
-  ##########################
   # Initializing the containers
   ##########################
   prep-container-creation:
@@ -215,7 +202,6 @@ jobs:
           paths:
             - backend/static/
       - store_artifacts: { path: rundir }
-      - store_artifacts: { path: backend/static/etags.json }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
@@ -244,8 +230,6 @@ jobs:
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
-      - run: cp client/static/favicon-32x32.png backend/static/
-      - run: scripts/build/_generate-etags
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
@@ -279,21 +263,17 @@ jobs:
       - run: scripts/linting/shellchecker
       - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
-      - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit validate
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
   predeployment-checks:
     executor: in-container
-    steps:
-      - darkcheckout
-      - auth-with-gcp: { background: false }
-      - auth-kubernetes
-      - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
+    steps: [] # LIGHTTODO
+      # - darkcheckout
+      # - auth-with-gcp: { background: false }
+      # - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
+      # - slack-notify-job-failure
+      # - deploy-lock-remove-on-fail
 
   validate-honeycomb-config:
     executor: simple-executor
@@ -399,7 +379,6 @@ workflows:
             branches:
               ignore: main
           requires:
-            - build-client # to rebuild etags
             - build-backend
 
       # pre-deploy
@@ -422,8 +401,6 @@ workflows:
               only: main
           requires:
             - build-backend
-            # CLEANUP: need this because of etags, should be able to remove it
-            - build-client
 
       # actual deploy
       - deploy:
