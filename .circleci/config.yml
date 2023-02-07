@@ -178,31 +178,6 @@ commands:
 # Actual workflow
 ##########################
 jobs:
-  build-client:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - restore_cache:
-          keys:
-            - v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v4-client-{{ checksum "package-lock.json" }}
-            - v4-client
-      - run: scripts/build/compile-project client --test
-      - assert-clean-worktree
-      - show-large-files-and-directories
-      - save_cache:
-          name: "Save packagejson-specific cache"
-          paths: ["node_modules"]
-          key: v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - backend/static/
-      - store_artifacts: { path: rundir }
-      - store_test_results: { path: rundir/test_results }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
 
   # Build server binaries and run tests
   build-backend:
@@ -373,7 +348,6 @@ workflows:
             branches:
               ignore: /^(pull|dependabot)\/.*$/
       - validate-honeycomb-config
-      - build-client
       - build-backend
 
       - gcp-containers-test:
@@ -382,7 +356,6 @@ workflows:
             branches:
               ignore: main
           requires:
-            - build-client
             - build-backend
 
       # pre-deploy
@@ -394,7 +367,6 @@ workflows:
               only: main
           requires:
             - build-backend
-            - build-client
 
       # pre-deploy
       - push-containers-to-gcp:
@@ -405,7 +377,6 @@ workflows:
               only: main
           requires:
             - build-backend
-            - build-client
 
       # actual deploy
       - deploy:
@@ -432,7 +403,6 @@ workflows:
             branches:
               ignore: main
           requires:
-            - build-client
             - build-backend
             - gcp-containers-test
             - static-checks
