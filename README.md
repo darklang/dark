@@ -109,7 +109,6 @@ If you've gotten this far, you're now ready to [contribute your first PR](https:
 
 Unit tests run when you specify `--test` to `scripts/builder`. You can run them as a once off using:
 
-- `scripts/run-client-tests`
 - `scripts/run-backend-tests`
 
 ## Running unix commands in the container

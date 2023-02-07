@@ -102,15 +102,6 @@ def npm_install():
   return run_frontend(start, build)
 
 
-def client_test():
-  start = time.time()
-  flags = ""
-  if in_ci:
-    flags = "--verbose --dom"
-  result = run_test(start, f"./scripts/run-client-tests {flags}")
-  return result
-
-
 def shellcheck(f):
   start = time.time()
   result = run_backend(start, "scripts/linting/shellchecker " + f)
@@ -301,7 +292,6 @@ class Should:
     self.backend_test = False
     self.npm_install = False
     self.client_build = False
-    self.client_test = False
     self.sass_compile = False
     self.copy_static = False
     self.circleci_validate = False
@@ -366,7 +356,6 @@ def execute(should):
 
   if should.client_build:
     if not client_build(): success = False
-    should.client_test |= success
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -394,10 +383,6 @@ def execute(should):
 
   if should.reload_browser:
     if not reload_browser(): success = False
-
-  # After the fast path get tests run
-  if should.client_test:
-    if not client_test(): success = False
 
   if should.backend_test:
     if not backend_test(): success = False
