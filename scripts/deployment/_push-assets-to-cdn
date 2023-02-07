@@ -84,8 +84,6 @@ def mime_type_for(file_name):
   elif file_name.endswith(".eot"):
     return "application/vnd.ms-fontobject"
     # Blazor
-  elif file_name.endswith(".wasm"):
-    return "application/wasm"
   elif file_name.endswith(".pdb"):
     return "text/plain"
   elif file_name.endswith(".dll"):

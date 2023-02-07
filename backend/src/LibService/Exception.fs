@@ -11,6 +11,7 @@ type Exception with
   /// </summary>
   ///
   /// <remarks>
+  /// LIGHTTODO
   /// This is in LibService because it uses reflection and would possibly break
   /// in the Wasm project.
   ///

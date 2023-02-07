@@ -14,7 +14,6 @@ function wait_for {
 
 wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/app.js
 wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/app.css
-wait_for http://${DARK_CONFIG_APISERVER_STATIC_HOST}/blazor/dotnet.wasm
 
 # The static server is often ready before the ApiServer
 wait_for http://${DARK_CONFIG_APISERVER_HOST}/check-apiserver

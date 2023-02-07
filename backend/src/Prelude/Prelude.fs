@@ -239,6 +239,7 @@ let matches (pattern : string) (input : string) : bool =
 // ----------------------
 // Runtime info
 // ----------------------
+/// LIGHTTODO
 let isBlazor = System.OperatingSystem.IsBrowser()
 
 // ----------------------
