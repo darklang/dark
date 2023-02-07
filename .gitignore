@@ -9,15 +9,8 @@ config/local
 .ionide/
 
 # Build system
-.browser-trigger
 rundir/
 *.pyc
-
-# Frontend
-lib/
-node_modules/
-.merlin
-/backend/static
 
 # F#
 backend/packages/

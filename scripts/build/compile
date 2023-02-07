@@ -273,12 +273,6 @@ def generate_etags():
   return run_frontend(start, "./scripts/build/_generate-etags")
 
 
-def reload_browser():
-  start = time.time()
-  # Sends a signal to another fswatch on your mac
-  return run_frontend(start, "touch .browser-trigger")
-
-
 class Should:
 
   def __init__(self):
@@ -296,7 +290,6 @@ class Should:
     self.circleci_validate = False
     self.pip_install = False
     self.mypy_shipit = False
-    self.reload_browser = False
     self.reload_backend_server = False
     self.generate_etags = False
     self.shellcheck = []
@@ -355,25 +348,18 @@ def execute(should):
     if not client_build(): success = False
     should.client_test |= success
     should.generate_etags |= success
-    should.reload_browser |= success
 
   if should.copy_static:
     if not copy_static(): success = False
     should.generate_etags |= success
-    should.reload_browser |= success
 
   if should.generate_etags:
     if not generate_etags(): success = False
-    should.reload_browser |= success
     # This should probably cause a restart, but it breaks CI atm
     # should.reload_backend_server |= success
 
   if should.reload_backend_server:
     if not reload_backend_server(): success = False
-    should.reload_browser |= success
-
-  if should.reload_browser:
-    if not reload_browser(): success = False
 
   # After the fast path get tests run
   if should.client_test:
@@ -477,9 +463,6 @@ def mark(should, f):
 
   elif (".yml" in f or ".yaml" in f):
     should.yamllint += [f]
-
-  elif ".html" in f:
-    should.reload_browser = True
 
   else:
     print("non-build file: " + f, end='')

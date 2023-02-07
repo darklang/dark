@@ -7,10 +7,5 @@ prepare () {
   sudo chown -R dark:dark $1
 }
 
-prepare "_build"
-prepare "_esy"
-prepare "/home/dark/.esy"
-prepare "node_modules"
-prepare "lib"
 prepare "backend/Build"
 prepare "/home/dark/cloud-storage"

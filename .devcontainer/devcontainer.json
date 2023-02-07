@@ -89,9 +89,7 @@
     // "type=bind,src=/home/paulbiggar/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
 
     // Build directories
-    "type=volume,src=dark_fsharp_build,dst=/home/dark/app/backend/Build",
-    "type=volume,src=dark_lib,dst=/home/dark/app/lib",
-    "type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules",
+    "type=volume,src=dark_build,dst=/home/dark/app/backend/Build",
     "type=volume,src=dark_nuget,dst=/home/dark/.nuget",
 
     // Postgres

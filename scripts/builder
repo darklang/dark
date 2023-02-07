@@ -17,8 +17,6 @@ fi
 
 # Sometimes these dirs leak out of the container, causing confusion and
 # slowness
-rm -Rf node_modules
-rm -Rf lib
 rm -Rf backend/src/*/obj
 rm -Rf backend/tests/*/obj
 rm -Rf backend/Build
@@ -72,9 +70,7 @@ fi
 MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 
 # Avoid docker syncing everything to the host, slowing compiles down by 5x
-MOUNTS+=" --mount type=volume,src=dark_fsharp_build,dst=/home/dark/app/backend/Build"
-MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
-MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
+MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/backend/Build"
 MOUNTS+=" --mount type=volume,src=dark_nuget,dst=/home/dark/.nuget"
 
 if [[ -e "$HOME/.config/gcloud" ]]; then
