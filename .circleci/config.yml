@@ -135,15 +135,13 @@ commands:
           command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
 
   build-gcp-containers:
-    steps:
-      - prep-container-creation
-      - regenerate-etags
-      - store_artifacts: { path: backend/static/etags.json }
-      - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
-      - run: cat gcr-image-ids.json
+    steps: []
+      # LIGHTTODO
+      # - prep-container-creation
+      # - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
+      # - run: cat gcr-image-ids.json
       # Test them
-      - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
+      # - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
   ##########################
   # Google Cloud
@@ -296,11 +294,11 @@ jobs:
       - deploy-lock-remove-on-fail
 
   push-containers-to-gcp:
+    # LIGHTTODO
     executor: in-container
     steps:
       - darkcheckout
       - setup-app
-      - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: true }
       - auth-gcr
       - attach_workspace: { at: "." }
@@ -309,7 +307,7 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths: ["gcr-image-ids.json"]
-      - run: scripts/deployment/shipit containers push
+      # - run: scripts/deployment/shipit containers push
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -321,7 +319,6 @@ jobs:
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - regenerate-etags
       - run: scripts/deployment/_push-assets-to-cdn
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
@@ -340,18 +337,16 @@ jobs:
 
   deploy:
     executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - run: scripts/build/compile-project shipit
-      - auth-with-gcp: { background: false }
-      - auth-kubernetes
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      # deploy lock is removed as part of the gke-deploy script
-      - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
-      - slack-notify-deploy
-      - deploy-lock-remove-on-fail
+    steps: [] # LIGHTTODO
+      # - darkcheckout
+      # - setup-app
+      # - auth-with-gcp: { background: false }
+      # - attach_workspace: { at: "." }
+      # - show-large-files-and-directories
+      # # deploy lock is removed as part of the gke-deploy script
+      # # - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
+      # - slack-notify-deploy
+      # - deploy-lock-remove-on-fail
 
   notify-non-deploy:
     executor: simple-executor

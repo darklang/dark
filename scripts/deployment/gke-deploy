@@ -41,7 +41,8 @@ set -x
 #############################
 # Ensure we got a good one
 #############################
-./scripts/deployment/shipit validate
+# LIGHTTODO
+# ./scripts/deployment/shipit validate
 
 #############################
 # Lock before doing a deploy (unlocks on fail or at end of file)

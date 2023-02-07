@@ -10,7 +10,6 @@ config/local
 
 # Build system
 rundir/
-*.pyc
 
 # F#
 backend/packages/
@@ -36,8 +35,5 @@ services/cronchecker-deployment/cronchecker-deployment.yaml
 services/exechost-deployment/exechost-deployment.yaml
 services/queueworker-deployment/queueworker-deployment.yaml
 services/tunnel2-deployment/tunnel2-deployment.yaml
-
-# Files that get created on CI. We check that status is clean so need to list these.
-gzipped_assets
 
 deploy-lock-manual-deploy
