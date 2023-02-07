@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-# Kill other processes
-(ps aux | pgrep -f '.browser-trigger' | xargs kill -9 > /dev/null 2>&1) || true
-
-
-livereload -t "$(dirname "$0")/../../.browser-trigger"

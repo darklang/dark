@@ -48,24 +48,6 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   fi
 fi
 
-# --------------
-# --------------
-echo "watching for local changes"
-RELOAD_BROWSER=""
-for i in "$@"
-do
-  case $i in
-      --watch)
-	  RELOAD_BROWSER=true
-    ;;
-  esac
-done
-
-if [ -n "$RELOAD_BROWSER" ]; then
-    echo "Starting the browser reload script"
-    mkdir -p rundir/logs
-    scripts/build/_reload-browser > rundir/logs/browser.log 2>&1 &
-fi
 
 # --------------
 # Mounts
