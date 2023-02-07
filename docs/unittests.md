@@ -38,7 +38,3 @@ file in question to run automatically, and new files need to be added to
 Our test harness is a tiny homegrown test suite, in `client/test/tester.res`.
 We initially used jest; Unfortunately, it had such poor performance that a
 rewrite was faster than figuring out why it was bad.
-
-## Integration tests
-
-There are also integration tests, see `integration-tests/README.md`.

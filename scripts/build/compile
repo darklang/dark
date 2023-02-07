@@ -555,7 +555,6 @@ def ignore(filename):
       ".ionide",
       ".browser-trigger",
       "scripts/build/compile",
-      "integration-tests/tests.js",
       "rundir/",
       ".mypy_cache/",
       "backend/serialization/",

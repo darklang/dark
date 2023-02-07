@@ -40,10 +40,8 @@ Link tags cannot contain code blocks or other tags.
 
 ### Validating Syntax
 
+LightTODO revisit this
 Once you updated your function's description save the file and re-compile. Run the integration test **function_docstrings_are_valid** to verify it passes the syntax checker. `./integration-tests/run.sh --pattern=function_docstrings_are_valid`
-
-Even though the syntax checker catches some typos and mistakes. It's always best to check it visually on the client to make sure it renders exactly how you want it to look.
-
 
 ## Rendering
 

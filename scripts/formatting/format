@@ -104,8 +104,6 @@ all_prettier_files() {
     -o -path "./_build" \
     -o -path "node_modules" \
     -o -path "./node_modules" \
-    -o -path "integration-tests/node_modules" \
-    -o -path "./integration-tests/node_modules" \
     -o -path "_esy" \
     -o -path "./_esy" \
     -o -path "/home/dark/.esy" \
@@ -145,8 +143,6 @@ all_fsharp_files() {
     -o -path "./_build" \
     -o -path "node_modules" \
     -o -path "./node_modules" \
-    -o -path "integration-tests/node_modules" \
-    -o -path "./integration-tests/node_modules" \
     -o -path "_esy" \
     -o -path "./_esy" \
     -o -path "/home/dark/.esy" \
@@ -171,8 +167,6 @@ all_rescript_files() {
     -o -path "./_build" \
     -o -path "node_modules" \
     -o -path "./node_modules" \
-    -o -path "integration-tests/node_modules" \
-    -o -path "./integration-tests/node_modules" \
     -o -path "_esy" \
     -o -path "./_esy" \
     -o -path "/home/dark/.esy" \
