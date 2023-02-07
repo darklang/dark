@@ -2,7 +2,7 @@
 
 ## Overview
 
-Unit tests run automatically on the client and backend, as part of
+Unit tests run automatically on the backend, as part of
 the builder script. Run it with `--test` to run tests.
 
 ## Backend
