@@ -455,17 +455,6 @@ let testCanvasVerificationUndoRenameDupedName =
   }
 
 
-let testCanvasClone =
-  testTask "canvas clone" {
-    Expect.equal
-      1
-      2
-      "LightTODO: review what this test used to be, and replicate it maybe"
-
-    return ()
-  }
-
-
 let tests =
   testList
     "canvas"
@@ -485,4 +474,4 @@ let tests =
       testCanvasVerificationDuplicationRenaming
       testCanvasVerificationNoError
       testCanvasVerificationUndoRenameDupedName
-      testCanvasClone ]
+    ]

@@ -197,7 +197,7 @@ module PersistedSerializations =
 
 
         // ------------------
-        // ApiServer
+        // ClientTypes
         // ------------------
 
         // AddOps

@@ -70,10 +70,6 @@ let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 // --------------------
 // ports
 // --------------------
-let apiServerPort = int "DARK_CONFIG_APISERVER_BACKEND_PORT"
-let apiServerNginxPort = int "DARK_CONFIG_APISERVER_NGINX_PORT"
-let apiServerKubernetesPort = int "DARK_CONFIG_APISERVER_KUBERNETES_PORT"
-
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"
 let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
 

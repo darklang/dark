@@ -13,7 +13,6 @@ module CTApi = ClientTypes.Api
 module CTPusher = ClientTypes.Pusher
 
 let initSerializers () =
-  ApiServer.ApiServer.initSerializers ()
   BwdServer.Server.initSerializers ()
 
   // These are serializers used in the tests that are not used in the main program
@@ -31,14 +30,12 @@ let main (args : string array) : int =
     (LibRealExecution.Init.init name).Result
     (LibBackend.Account.initializeDevelopmentAccounts name).Result
 
-    ApiServer.ApiServer.initSerializers ()
     LibAnalysis.initSerializers ()
     initSerializers ()
 
     let tests =
       [ Tests.Account.tests
         Tests.AnalysisTypes.tests
-        Tests.ApiServer.tests
         Tests.Authorization.tests
         Tests.BwdServer.tests
         Tests.Canvas.tests
@@ -68,7 +65,6 @@ let main (args : string array) : int =
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
-    let apiServerTestsTask = Tests.ApiServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     let httpBaseClientTestsTask =
       Tests.HttpBaseClient.init cancelationTokenSource.Token

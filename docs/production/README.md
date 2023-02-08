@@ -2,9 +2,9 @@
 
 The docs in this directory are used by Dark employees to run the production Dark infrastructure.
 
-## Overview
+**Almost nothing in this file is true.**
 
-We're running in kubernetes on GKE.
+## Overview
 
 The production containers are deployed as part of the CI build on the main branch.
 
@@ -37,17 +37,6 @@ Push the production container to Google Cloud Registry:
 Trigger the deploy:
 
 - `./script/deployment/gke-deploy`
-
-### How to rollback a deploy (or pause deploys):
-
-Use:
-
-- `kubectl rollout history <deployment>`
-- `kubectl rollout undo <deployment> --to-revision=N`
-- `kubectl rollout pause <deployment>` (keeps CI from deploying while you work on a fix)
-- `kubectl rollout resume <deployment>` (to resume after pausing)
-
-See `docs/kubectl-rollout.md` for details.
 
 ## How to pull the prod db locally
 

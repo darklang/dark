@@ -3,7 +3,7 @@
 ## Overview
 
 Unit tests run automatically on the backend, as part of
-the builder script. Run it with `--test` to run tests.
+the builder script, if enabled with `--test`.
 
 ## Backend
 

@@ -304,8 +304,7 @@ let run () : Task<unit> =
   }
 
 
-// Generally speaking, this should be the same list as BwdServer's,
-// which is roughly a subset of ApiServer's list.
+// Generally speaking, this should be the same list as BwdServer's
 let initSerializers () =
   // universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"

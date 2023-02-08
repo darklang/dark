@@ -34,12 +34,6 @@ let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
 // -------------------------
 // Web configuration
 // -------------------------
-let apiServerServeStaticContent = bool "DARK_CONFIG_APISERVER_SERVE_STATIC_CONTENT"
-
-let apiServerStaticHost = string "DARK_CONFIG_APISERVER_STATIC_HOST"
-
-let cookieDomain = string "DARK_CONFIG_COOKIE_DOMAIN"
-
 let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
 
 // -------------------------

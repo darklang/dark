@@ -8,9 +8,6 @@ PRETTIER=0 # (0 means check prettier files, 1 means don't)
 FSHARP=0 # (0 means check fsharp files, 1 means don't)
 FILES=()
 
-# rescript files aren't checked/formatted by default since it has a dependency
-# on `bs-platform`, which not all usages (i.e. CI) have in context.
-
 #######################
 # --help
 #######################

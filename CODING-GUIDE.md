@@ -88,7 +88,7 @@
 
 - initialization code should be in a function called `init` in a file called `Init.fs`
 
-- Library initialization code can rely on the DB but the services (eg ApiServer) must
+- Library initialization code can rely on the DB but the services (eg BwdServer) must
   ensure to call them in the right order to ensure the DB is available and in the right
   shape (as migrations will not necessarily have run in tests at that point).
 
@@ -145,10 +145,3 @@ module RuleEngine =
   ```
 
   Failing to do so may result in conflicting generators or unexpected behaviour.
-
-## Rescript
-
-- we are moving our CSS to Tailwind:
-  - Use Tailwind instead of CSS in separate files
-  - Use the `%twc` macro to validate strings of Tailwind classes
-  - do not put Tailwind classes and other classes in the same string literal

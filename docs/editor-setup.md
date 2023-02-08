@@ -13,24 +13,6 @@ JS/HTML/CSS and Fantomas for F#. The script
 `script/formatting/format` can be used to format or check formatting, and there is a
 pre-commit hook you can use to run it automatically.
 
-For emacs, see [the
-readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup).
-
-For vim:
-
-- install [ALE](https://github.com/w0rp/ale)
-- Add to your `.vimrc` (with an appropriate path-to-dark replacement):
-
-```
-let g:ale_javascript_prettier_executable= '~/path to dark]/dark/scripts/formatting/prettier'
-let g:ale_fixers =
-\ {'javascript': ['prettier'],
-\  'js': ['prettier'],
-\  'html': ['prettier'],
-\  'css': ['prettier'],
-\  'scss': ['prettier']}
-```
-
 ### Pre-commit hook
 
 You probably also want to install a pre-commit hook that the formatters for

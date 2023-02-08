@@ -5,24 +5,6 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach to ApiServer",
-      "type": "coreclr",
-      "request": "attach",
-      "program": "/home/dark/app/backend/Build/out/ApiServer/Debug/net6.0/linux-x64/ApiServer",
-      "stopAtEntry": true
-    },
-    {
-      "name": "ApiServer",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build-apiserver",
-      "program": "/home/dark/app/backend/Build/out/ApiServer/Debug/net6.0/linux-x64/ApiServer",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "console": "internalConsole"
-    },
-    {
       "name": "BwdServer",
       "type": "coreclr",
       "request": "launch",

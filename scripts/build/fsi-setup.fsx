@@ -14,7 +14,6 @@ printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fs
 #r "LibService/Debug/net6.0/LibService.dll"
 #r "LibExecution/Debug/net6.0/linux-x64/LibExecution.dll"
 #r "LibBackend/Debug/net6.0/LibBackend.dll"
-#r "ApiServer/Debug/net6.0/linux-x64/ApiServer.dll"
 #r "BwdServer/Debug/net6.0/linux-x64/BwdServer.dll"
 #r "TestUtils/Debug/net6.0/TestUtils.dll"
 #r "Tests/Debug/net6.0/linux-x64/Tests.dll"

@@ -1,5 +1,4 @@
 /// StdLib functions for building Dark functionality via Dark canvases
-/// instead of the ApiServer or other means
 module BackendOnlyStdLib.LibDarkInternal
 
 open System.Threading.Tasks

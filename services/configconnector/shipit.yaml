@@ -1,8 +1,0 @@
-k8s:
-  namespace: default
-  manually-deployed:
-    configs:
-      - configconnector.yaml
-      - config-connector-experiment-storagebucket.yaml
-      - config-connector-experiment-ingress.yaml
-      - configconnector.darklang.com-tls.yaml

@@ -135,13 +135,13 @@ commands:
           command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
 
   build-gcp-containers:
-    steps:
-      - prep-container-creation
-      - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
-      - run: cat gcr-image-ids.json
+    steps: []
+      # LIGHTTODO
+      # - prep-container-creation
+      # - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
+      # - run: cat gcr-image-ids.json
       # Test them
-      - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
+      # - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
   ##########################
   # Google Cloud
@@ -159,13 +159,6 @@ commands:
               echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
               gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
             fi
-
-  auth-kubernetes:
-    steps:
-      - run:
-          name: Auth with Kubernetes
-          command: |
-            ./scripts/production/gcp-authorize-kubectl
 
   auth-gcr:
     steps:
@@ -203,11 +196,10 @@ jobs:
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
-      - run: cp client/static/favicon-32x32.png backend/static/
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
       - run: scripts/run-backend-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
@@ -215,7 +207,6 @@ jobs:
           root: "."
           paths:
             # Just enough for deploy
-            - backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
             - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
             - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
             - backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
@@ -238,30 +229,17 @@ jobs:
       - run: scripts/linting/shellchecker
       - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
-      - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit validate
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
   predeployment-checks:
     executor: in-container
-    steps:
-      - darkcheckout
-      - auth-with-gcp: { background: false }
-      - auth-kubernetes
-      - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  validate-honeycomb-config:
-    executor: simple-executor
-    steps:
-      - darkcheckout
-      - prep-container-creation
-      - run: bash -c scripts/linting/test-honeycomb-config.sh
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
+    steps: [] # LIGHTTODO
+      # - darkcheckout
+      # - auth-with-gcp: { background: false }
+      # - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
+      # - slack-notify-job-failure
+      # - deploy-lock-remove-on-fail
 
   gcp-containers-test:
     executor: in-container
@@ -275,11 +253,11 @@ jobs:
       - deploy-lock-remove-on-fail
 
   push-containers-to-gcp:
+    # LIGHTTODO
     executor: in-container
     steps:
       - darkcheckout
       - setup-app
-      - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: true }
       - auth-gcr
       - attach_workspace: { at: "." }
@@ -288,7 +266,7 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths: ["gcr-image-ids.json"]
-      - run: scripts/deployment/shipit containers push
+      # - run: scripts/deployment/shipit containers push
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -318,18 +296,16 @@ jobs:
 
   deploy:
     executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - run: scripts/build/compile-project shipit
-      - auth-with-gcp: { background: false }
-      - auth-kubernetes
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      # deploy lock is removed as part of the gke-deploy script
-      - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
-      - slack-notify-deploy
-      - deploy-lock-remove-on-fail
+    steps: [] # LIGHTTODO
+      # - darkcheckout
+      # - setup-app
+      # - auth-with-gcp: { background: false }
+      # - attach_workspace: { at: "." }
+      # - show-large-files-and-directories
+      # # deploy lock is removed as part of the gke-deploy script
+      # # - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
+      # - slack-notify-deploy
+      # - deploy-lock-remove-on-fail
 
   notify-non-deploy:
     executor: simple-executor
@@ -347,7 +323,6 @@ workflows:
           filters:
             branches:
               ignore: /^(pull|dependabot)\/.*$/
-      - validate-honeycomb-config
       - build-backend
 
       # LightTODO the below has all been commented out until we
@@ -411,4 +386,3 @@ workflows:
       #       - gcp-containers-test
       #       - static-checks
       #       - predeployment-checks
-      #       - validate-honeycomb-config

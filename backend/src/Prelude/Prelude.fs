@@ -239,6 +239,7 @@ let matches (pattern : string) (input : string) : bool =
 // ----------------------
 // Runtime info
 // ----------------------
+/// LIGHTTODO
 let isWasm = System.OperatingSystem.IsBrowser()
 
 // ----------------------
