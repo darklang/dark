@@ -81,7 +81,6 @@ let main (args : string array) : int =
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
     bwdServerTestsTask.Wait()
-    apiServerTestsTask.Wait()
     httpClientTestsTask.Wait()
     httpBaseClientTestsTask.Wait()
     QueueWorker.shouldShutdown <- true
