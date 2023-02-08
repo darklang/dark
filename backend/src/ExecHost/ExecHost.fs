@@ -26,25 +26,6 @@ let listMigrations () : unit =
   LibBackend.Migrations.migrationsToRun ()
   |> List.iter (fun name -> print $" - {name}")
 
-/// Given a username, returns a cookie to use to access Canvases
-///
-/// Mostly available for when Auth0 is down
-let emergencyLogin (username : string) : Task<unit> =
-  task {
-    print $"Generating a cookie for {LibBackend.Config.cookieDomain}"
-    // validate the user exists
-    let username = UserName.create username
-    let! _user = LibBackend.Account.getUser username
-    let! authData = LibBackend.Session.insert username
-    print
-      $"See docs/emergency-login.md for instructions. Your values are
-  Name = __session
-  Value = {authData.sessionKey}
-  Domain = {LibBackend.Config.cookieDomain}
-  (note: initial dot is _important_)"
-    return ()
-  }
-
 /// Send multiple messages to Rollbar, to ensure our usage is generally OK
 let triggerRollbar () : unit =
   let tags = [ "int", 6 :> obj; "string", "string"; "float", -0.6; "bool", true ]
@@ -71,7 +52,6 @@ let triggerPagingRollbar () : int =
 
 let help () : unit =
   [ "USAGE:"
-    "  ExecHost emergency-login <user>"
     "  ExecHost migrations list"
     "  ExecHost migrations run"
     "  ExecHost trigger-rollbar"
@@ -82,7 +62,6 @@ let help () : unit =
   |> print
 
 type Options =
-  | EmergencyLogin of string
   | MigrationList
   | MigrationsRun
   | TriggerRollbar
@@ -94,7 +73,6 @@ type Options =
 
 let parse (args : string []) : Options =
   match args with
-  | [| "emergency-login"; username |] -> EmergencyLogin username
   | [| "migrations"; "list" |] -> MigrationList
   | [| "migrations"; "run" |] -> MigrationsRun
   | [| "trigger-rollbar" |] -> TriggerRollbar
@@ -106,7 +84,6 @@ let parse (args : string []) : Options =
 
 let usesDB (options : Options) =
   match options with
-  | EmergencyLogin _
   | MigrationList
   | MigrationsRun -> true
   | TriggerRollbar
@@ -141,11 +118,6 @@ let run (options : Options) : Task<int> =
     Rollbar.notify "execHost called" [ "options", string options ]
 
     match options with
-
-    | EmergencyLogin username ->
-      Rollbar.notify "emergencyLogin called" [ "username", username ]
-      do! emergencyLogin username
-      return 0
 
     | MigrationList ->
       listMigrations ()
