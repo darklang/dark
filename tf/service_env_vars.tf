@@ -29,13 +29,12 @@ variable "service_env_vars" {
     "DARK_CONFIG_CREATE_ACCOUNTS"       = "n"
     "DARK_CONFIG_USE_HTTPS"             = "y"
 
-    "DARK_CONFIG_COOKIE_DOMAIN"                  = ".darklang.com"
-    "DARK_CONFIG_BWDSERVER_HOST"                 = "builtwithdark.com"
+    "DARK_CONFIG_BWDSERVER_HOST" = "builtwithdark.com"
 
     # Serialization
     "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA" = "n"
     "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"        = "n"
-    "DARK_CONFIG_SERIALIZATION_HEALTH_CHECK_HOSTS" = "dark-editor,ops-adduser,ops-corpsite,ops-login,sample-crud"
+    "DARK_CONFIG_SERIALIZATION_HEALTH_CHECK_HOSTS" = "dark-editor"
 
     # Logging
     "DARK_CONFIG_ENV_DISPLAY_NAME" = "production"
