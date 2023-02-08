@@ -19,7 +19,6 @@ printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fs
 #r "TestUtils/Debug/net6.0/TestUtils.dll"
 #r "Tests/Debug/net6.0/linux-x64/Tests.dll"
 #r "FuzzTests/Debug/net6.0/FuzzTests.dll"
-#r "Wasm/Debug/net6.0/Wasm.dll"
 #r "BackendOnlyStdLib/Debug/net6.0/BackendOnlyStdLib.dll"
 // #r "ExecHost/Debug/net6.0/ExecHost.dll"
 #r "HttpMiddleware/Debug/net6.0/HttpMiddleware.dll"

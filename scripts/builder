@@ -38,7 +38,7 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   # slow on MacOS but it gets there eventually.
   # Most of the work is done to enable arm64 builds, but rescript 9.1.4 won't
   # build on arm64 (10 supposedly does), and dotnet won't support building wasm
-  # until dotnet 8 at the earliest.
+  # until dotnet 8 at the earliest. LightTODO revisit this
   docker buildx build --platform linux/amd64 -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
 
   echo "Removing running containers"
@@ -48,24 +48,6 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   fi
 fi
 
-# --------------
-# --------------
-echo "watching for local changes"
-RELOAD_BROWSER=""
-for i in "$@"
-do
-  case $i in
-      --watch)
-	  RELOAD_BROWSER=true
-    ;;
-  esac
-done
-
-if [ -n "$RELOAD_BROWSER" ]; then
-    echo "Starting the browser reload script"
-    mkdir -p rundir/logs
-    scripts/build/_reload-browser > rundir/logs/browser.log 2>&1 &
-fi
 
 # --------------
 # Mounts

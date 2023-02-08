@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Clear DBs
 
-DBLOG="${DARK_CONFIG_RUNDIR}/integration-tests/clear-db.log"
+DBLOG="${DARK_CONFIG_RUNDIR}/clear-db.log"
 echo "Clearing old DB data (logs in ${DBLOG})"
 DB="${DARK_CONFIG_DB_DBNAME}"
 

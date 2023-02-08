@@ -467,9 +467,6 @@ sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 dotnet --help
 EOF
 
-# Not supported on arm64 until maybe dotnet 8 - https://github.com/dotnet/runtime/issues/75613
-RUN sudo dotnet workload install wasm-tools
-
 # formatting
 RUN dotnet tool install fantomas-tool --version 4.7.9 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"

@@ -109,19 +109,7 @@ If you've gotten this far, you're now ready to [contribute your first PR](https:
 
 Unit tests run when you specify `--test` to `scripts/builder`. You can run them as a once off using:
 
-- `scripts/run-client-tests`
 - `scripts/run-backend-tests`
-
-Integration tests:
-
-- `scripts/run-in-docker ./integration-tests/run.sh`
-
-You can also run integration tests on your (host) machine, which gives you some debugging ability, and typically runs faster:
-
-- `./integration-tests/run.sh`
-
-There are good debugging options for integration testing. See
-[integration-tests/README.md](integration-tests/README.md).
 
 ## Running unix commands in the container
 
@@ -178,7 +166,6 @@ the dev container.
 ## Production Services
 
 The app is split into [backend](backend) and [client/](client).
-Part of the backend is used in the client ([Wasm](backend/src/Wasm)).
 
 These are compiled to create libraries and binaries.
 

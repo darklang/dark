@@ -89,23 +89,6 @@ def copy_static():
   return run_frontend(start, "npm run copy:static")
 
 
-def copy_backend_static():
-  start = time.time()
-  blazor = run_backend(
-      start, "cp -f backend/src/Wasm/static/BlazorWorker.js backend/static/")
-  if optimize:
-    wwwroot = run_backend(
-        start,
-        "rsync -a backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
-    )
-  else:
-    wwwroot = run_backend(
-        start,
-        "rsync -a backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
-    )
-  return blazor and wwwroot
-
-
 def client_build():
   start = time.time()
   build = "./scripts/build/_npm-run-build-with-retry"
@@ -117,15 +100,6 @@ def npm_install():
   start = time.time()
   build = "./scripts/build/_npm-install-with-retry"
   return run_frontend(start, build)
-
-
-def client_test():
-  start = time.time()
-  flags = ""
-  if in_ci:
-    flags = "--verbose --dom"
-  result = run_test(start, f"./scripts/run-client-tests {flags}")
-  return result
 
 
 def shellcheck(f):
@@ -301,12 +275,6 @@ def generate_etags():
   return run_frontend(start, "./scripts/build/_generate-etags")
 
 
-def reload_browser():
-  start = time.time()
-  # Sends a signal to another fswatch on your mac
-  return run_frontend(start, "touch .browser-trigger")
-
-
 class Should:
 
   def __init__(self):
@@ -318,15 +286,12 @@ class Should:
     self.backend_test = False
     self.npm_install = False
     self.client_build = False
-    self.client_test = False
     self.sass_compile = False
     self.copy_static = False
-    self.copy_backend_static = False
     self.circleci_validate = False
     self.pip_install = False
     self.mypy_shipit = False
     self.test_nginx = False
-    self.reload_browser = False
     self.reload_nginx_server = False
     self.reload_backend_server = False
     self.generate_etags = False
@@ -355,7 +320,6 @@ def execute(should):
   if should.backend_full_build:
     should.backend_quick_build = False  # no need to do both
     if not backend_full_build(): success = False
-    should.copy_backend_static |= success
     should.backend_test |= success
     should.reload_backend_server |= success
 
@@ -370,7 +334,6 @@ def execute(should):
 
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
-    should.copy_backend_static |= success
     should.backend_test |= success
     should.reload_backend_server |= success
 
@@ -386,43 +349,25 @@ def execute(should):
 
   if should.client_build:
     if not client_build(): success = False
-    should.client_test |= success
     should.generate_etags |= success
-    should.reload_browser |= success
 
   if should.copy_static:
     if not copy_static(): success = False
     should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.copy_backend_static:
-    if not copy_backend_static(): success = False
-    should.generate_etags |= success
-    should.reload_browser |= success
 
   if should.generate_etags:
     if not generate_etags(): success = False
-    should.reload_browser |= success
     # This should probably cause a restart, but it breaks CI atm
     # should.reload_backend_server |= success
 
   if should.reload_nginx_server:
     if not reload_nginx_server(): success = False
-    should.reload_browser |= success
 
   if should.test_nginx:
     if not test_nginx(): success = False
 
   if should.reload_backend_server:
     if not reload_backend_server(): success = False
-    should.reload_browser |= success
-
-  if should.reload_browser:
-    if not reload_browser(): success = False
-
-  # After the fast path get tests run
-  if should.client_test:
-    if not client_test(): success = False
 
   if should.backend_test:
     if not backend_test(): success = False
@@ -515,9 +460,6 @@ def mark(should, f):
   elif "/client/static/" in f:
     should.copy_static = True
 
-  elif "/backend/src/Wasm/static/" in f:
-    should.copy_backend_static = True
-
   elif (".circleci/config.yml" in f):
     should.circleci_validate = True
 
@@ -539,9 +481,6 @@ def mark(should, f):
   elif (".yml" in f or ".yaml" in f):
     should.yamllint += [f]
 
-  elif ".html" in f:
-    should.reload_browser = True
-
   else:
     print("non-build file: " + f, end='')
 
@@ -555,7 +494,6 @@ def ignore(filename):
       ".ionide",
       ".browser-trigger",
       "scripts/build/compile",
-      "integration-tests/tests.js",
       "rundir/",
       ".mypy_cache/",
       "backend/serialization/",

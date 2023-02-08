@@ -13,13 +13,6 @@ updates:
     interval: daily
   open-pull-requests-limit: 10
 
-# The playwright packages need to be updated together and dependabot doesn't support that yet
-# - package-ecosystem: npm
-#   directory: "/integration-tests"
-#   schedule:
-#     interval: daily
-#   open-pull-requests-limit: 10
-
 - package-ecosystem: nuget
   directory: "/backend"
   schedule:

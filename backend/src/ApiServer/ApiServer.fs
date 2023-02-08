@@ -102,8 +102,6 @@ let addRoutes
   // Provide an unauthenticated route to check the server
   builder.MapGet("/check-apiserver", checkApiserver) |> ignore<IRouteBuilder>
 
-  addRoute "GET" "/a/{canvasName}" html R (htmlHandler Ui.uiHandler)
-
   // For internal testing - please don't test this out, it might page me
   let exceptionFn (ctx : HttpContext) =
     let userInfo = loadUserInfo ctx
@@ -139,12 +137,6 @@ let addRoutes
 let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
   if Config.apiServerServeStaticContent then
     let contentTypeProvider = FileExtensionContentTypeProvider()
-    // See also scripts/deployment/_push-assets-to-cdn
-    contentTypeProvider.Mappings[ ".wasm" ] <- "application/wasm"
-    contentTypeProvider.Mappings[ ".pdb" ] <- "text/plain"
-    contentTypeProvider.Mappings[ ".dll" ] <- "application/octet-stream"
-    contentTypeProvider.Mappings[ ".dat" ] <- "application/octet-stream"
-    contentTypeProvider.Mappings[ ".blat" ] <- "application/octet-stream"
 
     app.UseStaticFiles(
       StaticFileOptions(
@@ -293,9 +285,6 @@ let initSerializers () =
   // for data injected from UI.fs into ui.html
   Json.Vanilla.allow<List<ClientTypes.UI.Functions.BuiltInFn>> "ApiServer.Functions"
   Json.Vanilla.allow<Map<string, string>> "ApiServer.UI"
-
-  // for integration tests
-  Json.Vanilla.allow<IntegrationTests.OnDiskFormat> "integrationTestsOnDiskFormat"
 
 
 [<EntryPoint>]

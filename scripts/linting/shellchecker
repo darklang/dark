@@ -26,8 +26,6 @@ else
     -o -path "./client/static/vendor" \
     -o -path "lib" \
     -o -path "./lib" \
-    -o -path "integration-tests/node_modules" \
-    -o -path "./integration-tests/node_modules" \
     -o -path "_esy" -prune \
     -o -path "./_esy" -prune \
     -o -path "lib" -prune \
