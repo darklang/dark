@@ -22,7 +22,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
-let parse = FSharpToExpr.parseRTExpr
+let parse = Parser.parseRTExpr
 
 let executionStateForPreview
   (name : string)

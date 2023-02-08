@@ -1,5 +1,5 @@
 /// Converts strings of F# into Dark. Used for testing.
-module FSharpToExpr
+module Parser
 
 // refer to https://fsharp.github.io/fsharp-compiler-docs
 

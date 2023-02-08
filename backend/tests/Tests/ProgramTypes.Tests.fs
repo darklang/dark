@@ -141,7 +141,7 @@ let parseTests =
 let testPipesToRuntimeTypes =
   test "pipes to runtime types" {
     let actual =
-      FSharpToExpr.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+      Parser.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
 
     let expected =
       S.ePipeApply

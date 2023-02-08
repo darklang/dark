@@ -164,10 +164,10 @@ let t
         let state =
           { state with libraries = { state.libraries with packageFns = rtPackageFns } }
 
-        let source = FSharpToExpr.parse code
+        let source = Parser.parse code
 
         let shouldEqual, actualProg, expectedResult =
-          FSharpToExpr.convertToTest source
+          Parser.convertToTest source
 
         let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
 
@@ -360,7 +360,7 @@ let fileTests () : Test =
                   module_ = "Test"
                   function_ = currentFn.name
                   version = 0 }
-              body = FSharpToExpr.parsePTExpr currentFn.code
+              body = Parser.parsePTExpr currentFn.code
               parameters = parameters
               returnType = PT.TVariable "a"
               author = "test"
@@ -376,7 +376,7 @@ let fileTests () : Test =
               returnTypeID = gid ()
               description = "test function"
               infix = false
-              body = FSharpToExpr.parsePTExpr currentFn.code
+              body = Parser.parsePTExpr currentFn.code
               parameters = currentFn.parameters }
           functions <- Map.add currentFn.name fn functions
 

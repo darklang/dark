@@ -20,7 +20,7 @@ module PTParser = LibExecution.ProgramTypesParser
 module CanvasClone = LibBackend.CanvasClone
 module Account = LibBackend.Account
 
-let parse = FSharpToExpr.parsePTExpr
+let parse = Parser.parsePTExpr
 
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
@@ -473,5 +473,4 @@ let tests =
       testCanvasVerificationDuplicationCreationOffDisk
       testCanvasVerificationDuplicationRenaming
       testCanvasVerificationNoError
-      testCanvasVerificationUndoRenameDupedName
-    ]
+      testCanvasVerificationUndoRenameDupedName ]

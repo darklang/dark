@@ -33,7 +33,7 @@ let hashCheckRoundtrip (rawPassword : string) : bool =
 
       let ast =
         $"Password.check_v0 (Password.hash_v0 \"{rawPassword}\") \"{rawPassword}\""
-        |> FSharpToExpr.parseRTExpr
+        |> Parser.parseRTExpr
 
       match! LibExecution.Execution.executeExpr state Map.empty ast with
       | RT.DBool true -> return true

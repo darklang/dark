@@ -16,6 +16,7 @@
 #r "../../Build/out/Tests.dll"
 #r "../../Build/out/TestUtils.dll"
 #r "../../Build/out/Prelude.dll"
+#r "../../Build/out/Parser.dll"
 #r "../../Build/out/LibBackend.dll"
 #r "../../Build/out/LibExecution.dll"
 #r "../../Build/out/LibExecutionStdLib.dll"
@@ -27,7 +28,7 @@ let output =
   |> Seq.map (fun x -> $"  {x}")
   |> String.concat "\n"
   |> (fun input -> $"do ({input})")
-  |> FSharpToExpr.parseRTExpr
+  |> Parser.parseRTExpr
   |> LibExecution.Shortcuts.toStringRepr
 
 printfn "%s" output

@@ -9,18 +9,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
-    <ProjectReference Include="../../src/Parser/Parser.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
-    <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
-    <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="RTShortcuts.fs" />
-    <Compile Include="LibTest.fs" />
-    <Compile Include="TestUtils.fs" />
-    <Compile Include="FSI.fs" />
+    <Compile Include="Parser.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
