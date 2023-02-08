@@ -25,8 +25,6 @@ let serializationDir = $"{backendDir}serialization/"
 // -------------------------
 // Configurable dirs
 // -------------------------
-let templatesDir = absoluteDir "DARK_CONFIG_TEMPLATES_DIR"
-
 let webrootDir = absoluteDir "DARK_CONFIG_WEBROOT_DIR"
 
 let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
@@ -48,7 +46,6 @@ let httpclientProxyUrl = string "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL"
 
 type Root =
   | Serialization
-  | Templates
   | Webroot
   | Testdata
   | Migrations
@@ -57,7 +54,6 @@ type Root =
 let dir (root : Root) : string =
   match root with
   | Serialization -> serializationDir
-  | Templates -> templatesDir
   | Webroot -> webrootDir
   | Testdata -> testdataDir
   | Migrations -> migrationsDir

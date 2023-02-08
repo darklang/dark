@@ -6,7 +6,6 @@ variable "service_env_vars" {
     "DARK_CONFIG_ROOT_DIR" = "/home/dark"
 
     # Important dirs
-    "DARK_CONFIG_TEMPLATES_DIR"  = "/home/dark/templates"
     "DARK_CONFIG_WEBROOT_DIR"    = "/home/dark/webroot/static"
     "DARK_CONFIG_MIGRATIONS_DIR" = "/home/dark/migrations"
 
