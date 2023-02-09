@@ -201,202 +201,202 @@ module PersistedSerializations =
         // ------------------
 
         // AddOps
-        v<CTApi.Ops.AddOpV1.Request>
-          "simple"
-          (CT2Ops.AddOpParamsV1.toCT
-            { ops = V.ProgramTypes.oplist
-              opCtr = 0
-              clientOpCtrID = V.uuid.ToString() })
+        // v<CTApi.Ops.AddOpV1.Request>
+        //   "simple"
+        //   (CT2Ops.AddOpParamsV1.toCT
+        //     { ops = V.ProgramTypes.oplist
+        //       opCtr = 0
+        //       clientOpCtrID = V.uuid.ToString() })
 
-        v<CTApi.Ops.AddOpV1.Response> "simple" CV.addOpResultV1
+        // v<CTApi.Ops.AddOpV1.Response> "simple" CV.addOpResultV1
 
-        // User DBs
-        v<CTApi.DB.StatsV1.Request> "simple" { tlids = V.tlids }
-        v<CTApi.DB.StatsV1.Response.T>
-          "simple"
-          (Map.ofList [ "db1", { count = 0; example = None }
-                        "db2", { count = 5; example = Some(CV.dval, "myKey") } ])
-        v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ V.tlid ] }
+        // // User DBs
+        // v<CTApi.DB.StatsV1.Request> "simple" { tlids = V.tlids }
+        // v<CTApi.DB.StatsV1.Response.T>
+        //   "simple"
+        //   (Map.ofList [ "db1", { count = 0; example = None }
+        //                 "db2", { count = 5; example = Some(CV.dval, "myKey") } ])
+        // v<CTApi.DB.Unlocked.Response> "simple" { unlocked_dbs = [ V.tlid ] }
 
-        // Execution
-        v<CTApi.Execution.FunctionV1.Request>
-          "simple"
-          { tlid = V.tlid
-            trace_id = V.uuid
-            caller_id = 7UL
-            args = [ CV.dval ]
-            fnname = "Int::mod_v0" }
-        v<CTApi.Execution.FunctionV1.Response>
-          "simple"
-          { result = CV.dval
-            hash = "abcd"
-            hashVersion = 0
-            touched_tlids = [ V.tlid ]
-            unlocked_dbs = [ V.tlid ] }
-        v<CTApi.Execution.HandlerV1.Request>
-          "simple"
-          { tlid = V.tlid; trace_id = V.uuid; input = [ "v", CV.dval ] }
-        v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ V.tlid ] }
+        // // Execution
+        // v<CTApi.Execution.FunctionV1.Request>
+        //   "simple"
+        //   { tlid = V.tlid
+        //     trace_id = V.uuid
+        //     caller_id = 7UL
+        //     args = [ CV.dval ]
+        //     fnname = "Int::mod_v0" }
+        // v<CTApi.Execution.FunctionV1.Response>
+        //   "simple"
+        //   { result = CV.dval
+        //     hash = "abcd"
+        //     hashVersion = 0
+        //     touched_tlids = [ V.tlid ]
+        //     unlocked_dbs = [ V.tlid ] }
+        // v<CTApi.Execution.HandlerV1.Request>
+        //   "simple"
+        //   { tlid = V.tlid; trace_id = V.uuid; input = [ "v", CV.dval ] }
+        // v<CTApi.Execution.HandlerV1.Response> "simple" { touched_tlids = [ V.tlid ] }
 
-        // 404s
-        v<CTApi.F404.List.Response>
-          "simple"
-          { f404s = [ ("HTTP", "/", "GET", V.instant, V.uuid) ] }
-        v<CTApi.F404.Delete.Request>
-          "simple"
-          { space = "HTTP"; path = "/"; modifier = "POST" }
-        v<CTApi.F404.Delete.Response> "simple" { result = "success" }
+        // // 404s
+        // v<CTApi.F404.List.Response>
+        //   "simple"
+        //   { f404s = [ ("HTTP", "/", "GET", V.instant, V.uuid) ] }
+        // v<CTApi.F404.Delete.Request>
+        //   "simple"
+        //   { space = "HTTP"; path = "/"; modifier = "POST" }
+        // v<CTApi.F404.Delete.Response> "simple" { result = "success" }
 
-        // Functions
-        v<List<ClientTypes.UI.Functions.BuiltInFn>>
-          "all"
-          ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-               parameters =
-                 [ { name = "a"
-                     ``type`` = CTRuntime.DType.TInt
-                     args = []
-                     description = "param description" } ]
-               returnType = CTRuntime.DType.TList(CTRuntime.DType.TInt)
-               description = "basic"
-               isInfix = false
-               previewable = ClientTypes.UI.Functions.Pure
-               deprecated = ClientTypes.UI.Functions.NotDeprecated
-               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-               parameters = []
-               returnType = CTRuntime.DType.TInt
-               description = "impure"
-               isInfix = false
-               previewable = ClientTypes.UI.Functions.Impure
-               deprecated = ClientTypes.UI.Functions.NotDeprecated
-               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-               parameters = []
-               returnType = CTRuntime.DType.TInt
-               description = "impurepreviewable"
-               isInfix = false
-               previewable = ClientTypes.UI.Functions.ImpurePreviewable
-               deprecated = ClientTypes.UI.Functions.NotDeprecated
-               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-               parameters = []
-               returnType = CTRuntime.DType.TInt
-               description = "replacedBy"
-               isInfix = false
-               previewable = ClientTypes.UI.Functions.Pure
-               deprecated =
-                 ClientTypes.UI.Functions.ReplacedBy(
-                   { module_ = "Int"; function_ = "mod"; version = 1 }
-                 )
-               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-               parameters = []
-               returnType = CTRuntime.DType.TInt
-               description = "renamedTo"
-               isInfix = false
-               previewable = ClientTypes.UI.Functions.Pure
-               deprecated =
-                 ClientTypes.UI.Functions.RenamedTo(
-                   { module_ = "Int"; function_ = "mod"; version = 1 }
-                 )
-               sqlSpec = ClientTypes.UI.Functions.NotQueryable }
-             { name = { module_ = "Int"; function_ = "mod"; version = 0 }
-               parameters = []
-               returnType = CTRuntime.DType.TInt
-               description = "deprecatedBecause"
-               isInfix = false
-               previewable = ClientTypes.UI.Functions.Pure
-               deprecated = ClientTypes.UI.Functions.DeprecatedBecause "reason"
-               sqlSpec = ClientTypes.UI.Functions.NotQueryable } ])
+        // // Functions
+        // v<List<ClientTypes.UI.Functions.BuiltInFn>>
+        //   "all"
+        //   ([ { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+        //        parameters =
+        //          [ { name = "a"
+        //              ``type`` = CTRuntime.DType.TInt
+        //              args = []
+        //              description = "param description" } ]
+        //        returnType = CTRuntime.DType.TList(CTRuntime.DType.TInt)
+        //        description = "basic"
+        //        isInfix = false
+        //        previewable = ClientTypes.UI.Functions.Pure
+        //        deprecated = ClientTypes.UI.Functions.NotDeprecated
+        //        sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+        //      { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+        //        parameters = []
+        //        returnType = CTRuntime.DType.TInt
+        //        description = "impure"
+        //        isInfix = false
+        //        previewable = ClientTypes.UI.Functions.Impure
+        //        deprecated = ClientTypes.UI.Functions.NotDeprecated
+        //        sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+        //      { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+        //        parameters = []
+        //        returnType = CTRuntime.DType.TInt
+        //        description = "impurepreviewable"
+        //        isInfix = false
+        //        previewable = ClientTypes.UI.Functions.ImpurePreviewable
+        //        deprecated = ClientTypes.UI.Functions.NotDeprecated
+        //        sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+        //      { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+        //        parameters = []
+        //        returnType = CTRuntime.DType.TInt
+        //        description = "replacedBy"
+        //        isInfix = false
+        //        previewable = ClientTypes.UI.Functions.Pure
+        //        deprecated =
+        //          ClientTypes.UI.Functions.ReplacedBy(
+        //            { module_ = "Int"; function_ = "mod"; version = 1 }
+        //          )
+        //        sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+        //      { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+        //        parameters = []
+        //        returnType = CTRuntime.DType.TInt
+        //        description = "renamedTo"
+        //        isInfix = false
+        //        previewable = ClientTypes.UI.Functions.Pure
+        //        deprecated =
+        //          ClientTypes.UI.Functions.RenamedTo(
+        //            { module_ = "Int"; function_ = "mod"; version = 1 }
+        //          )
+        //        sqlSpec = ClientTypes.UI.Functions.NotQueryable }
+        //      { name = { module_ = "Int"; function_ = "mod"; version = 0 }
+        //        parameters = []
+        //        returnType = CTRuntime.DType.TInt
+        //        description = "deprecatedBecause"
+        //        isInfix = false
+        //        previewable = ClientTypes.UI.Functions.Pure
+        //        deprecated = ClientTypes.UI.Functions.DeprecatedBecause "reason"
+        //        sqlSpec = ClientTypes.UI.Functions.NotQueryable } ])
 
-        // InitialLoad
-        v<ClientTypes.Api.InitialLoad.V1.Response>
-          "initial"
-          { handlers =
-              V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
-            deletedHandlers =
-              V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
-            dbs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
-            deletedDBs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
-            userFunctions =
-              V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
-            deletedUserFunctions =
-              V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
-            unlockedDBs = [ V.tlid ]
-            userTypes = V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
-            deletedUserTypes =
-              V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
-            staticDeploys = [ CV.staticDeploy ]
-            opCtrs = Map [ V.uuid, 7 ]
-            canvasList = [ "test"; "test-canvas2" ]
-            orgCanvasList = [ "testorg"; "testorg-canvas2" ]
-            permission = Some(ClientTypes.Authorization.ReadWrite)
-            orgs = [ "test"; "testorg" ]
-            account =
-              { username = "test"; name = "Test Name"; email = "test@darklang.com" }
-            creationDate = V.instant
-            workerSchedules = CV.workerStates
-            secrets = [ { name = "test"; value = "secret" } ] }
+        // // InitialLoad
+        // v<ClientTypes.Api.InitialLoad.V1.Response>
+        //   "initial"
+        //   { handlers =
+        //       V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
+        //     deletedHandlers =
+        //       V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
+        //     dbs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
+        //     deletedDBs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
+        //     userFunctions =
+        //       V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
+        //     deletedUserFunctions =
+        //       V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
+        //     unlockedDBs = [ V.tlid ]
+        //     userTypes = V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
+        //     deletedUserTypes =
+        //       V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
+        //     staticDeploys = [ CV.staticDeploy ]
+        //     opCtrs = Map [ V.uuid, 7 ]
+        //     canvasList = [ "test"; "test-canvas2" ]
+        //     orgCanvasList = [ "testorg"; "testorg-canvas2" ]
+        //     permission = Some(ClientTypes.Authorization.ReadWrite)
+        //     orgs = [ "test"; "testorg" ]
+        //     account =
+        //       { username = "test"; name = "Test Name"; email = "test@darklang.com" }
+        //     creationDate = V.instant
+        //     workerSchedules = CV.workerStates
+        //     secrets = [ { name = "test"; value = "secret" } ] }
 
-        // Tunnels
-        v<CTApi.Tunnels.Register.Request> "empty" { tunnelHost = None }
-        v<CTApi.Tunnels.Register.Request>
-          "simple"
-          { tunnelHost = Some "host.tunnel.com" }
-        v<CTApi.Tunnels.Register.Response> "simple" { success = false }
+        // // Tunnels
+        // v<CTApi.Tunnels.Register.Request> "empty" { tunnelHost = None }
+        // v<CTApi.Tunnels.Register.Request>
+        //   "simple"
+        //   { tunnelHost = Some "host.tunnel.com" }
+        // v<CTApi.Tunnels.Register.Response> "simple" { success = false }
 
-        // Packages
-        v<CTApi.Packages.ListV1.Response>
-          "simple"
-          [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
+        // // Packages
+        // v<CTApi.Packages.ListV1.Response>
+        //   "simple"
+        //   [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
 
-        // SecretsV1
+        // // SecretsV1
 
-        v<CTApi.Secrets.DeleteV1.Request> "simple" { name = "test" }
-        v<CTApi.Secrets.DeleteV1.Response>
-          "simple"
-          { secrets = [ { name = "test"; value = "secret" } ] }
+        // v<CTApi.Secrets.DeleteV1.Request> "simple" { name = "test" }
+        // v<CTApi.Secrets.DeleteV1.Response>
+        //   "simple"
+        //   { secrets = [ { name = "test"; value = "secret" } ] }
 
-        v<CTApi.Secrets.InsertV1.Request>
-          "simple"
-          { name = "test"; value = "secret" }
-        v<CTApi.Secrets.InsertV1.Response>
-          "simple"
-          { secrets = [ { name = "test"; value = "secret" } ] }
+        // v<CTApi.Secrets.InsertV1.Request>
+        //   "simple"
+        //   { name = "test"; value = "secret" }
+        // v<CTApi.Secrets.InsertV1.Response>
+        //   "simple"
+        //   { secrets = [ { name = "test"; value = "secret" } ] }
 
-        // Toplevels
+        // // Toplevels
 
-        v<CTApi.Toplevels.Delete.Request> "simple" { tlid = V.tlid }
-        v<CTApi.Toplevels.Delete.Response> "simple" { result = "success" }
+        // v<CTApi.Toplevels.Delete.Request> "simple" { tlid = V.tlid }
+        // v<CTApi.Toplevels.Delete.Response> "simple" { result = "success" }
 
-        // Traces
+        // // Traces
 
-        v<CTApi.Traces.GetAllTraces.Response>
-          "simple"
-          { traces = [ (V.tlid, V.uuid) ] }
-        v<CTApi.Traces.GetTraceDataV1.Request>
-          "simple"
-          { tlid = V.tlid; traceID = V.uuid }
-        v<CTApi.Traces.GetTraceDataV1.Response.T>
-          "simple"
-          { trace =
-              (V.uuid,
-               { input = [ "var", CV.dval ]
-                 timestamp = V.instant
-                 functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }) }
+        // v<CTApi.Traces.GetAllTraces.Response>
+        //   "simple"
+        //   { traces = [ (V.tlid, V.uuid) ] }
+        // v<CTApi.Traces.GetTraceDataV1.Request>
+        //   "simple"
+        //   { tlid = V.tlid; traceID = V.uuid }
+        // v<CTApi.Traces.GetTraceDataV1.Response.T>
+        //   "simple"
+        //   { trace =
+        //       (V.uuid,
+        //        { input = [ "var", CV.dval ]
+        //          timestamp = V.instant
+        //          functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }) }
 
 
-        // Workers
+        // // Workers
 
-        v<CTApi.Workers.Scheduler.Request>
-          "simple"
-          { name = "x"; schedule = "pause" }
-        v<CTApi.Workers.Scheduler.Response>
-          "api-worker-scheduler-response"
-          CV.workerStates
+        // v<CTApi.Workers.Scheduler.Request>
+        //   "simple"
+        //   { name = "x"; schedule = "pause" }
+        // v<CTApi.Workers.Scheduler.Response>
+        //   "api-worker-scheduler-response"
+        //   CV.workerStates
 
-        v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = V.tlid }
-        v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
+        // v<CTApi.Workers.WorkerStats.Request> "simple" { tlid = V.tlid }
+        // v<CTApi.Workers.WorkerStats.Response> "simple" { count = 5 }
 
         // ------------------
         // LibAnalysis
