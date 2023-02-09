@@ -8,16 +8,6 @@ all_yaml_files() {
     \( -name "*.yml" \
     -o -name "*.yaml" \) -print \
     -o -path ".git" -prune \
-    -o -path "_build" -prune \
-    -o -path "./_build" -prune \
-    -o -path "node_modules" -prune \
-    -o -path "./node_modules" -prune \
-    -o -path "_esy" -prune \
-    -o -path "./_esy" -prune \
-    -o -path "lib" -prune \
-    -o -path "./lib" -prune \
-    -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune \
     -o -path "rundir" -prune \
     -o -path "./rundir" -prune \
     -o -path "backend/paket-files" -prune \

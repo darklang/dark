@@ -33,7 +33,6 @@ x-goog-storage-class: STANDARD
 x-goog-stored-content-encoding: identity
 x-goog-stored-content-length: 38
 X-GUploader-UploadID: xxxx
-Vary: X-Goog-Allowed-Resources
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 <html><body>Hello world</body></html>

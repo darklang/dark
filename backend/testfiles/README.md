@@ -20,10 +20,10 @@ within the subdirectories on how to write types of tests.
 - `data` houses static assets useful in tests
 - `staticassets` files ... TODO
 
-## Syntax (FSharpToExpr.fs)
+## Syntax (Parser.fs)
 
 All "Dark code" in tests is parsed by the F# parser, then converted from F# to
-Dark - the converseion is within `FSharpToExpr.fs`. The error messages around
+Dark - the converseion is within `Parser.fs`. The error messages around
 this are not very good, but there are a few things to be careful of:
 
 - be explicit around pipes, wrapping them in parens to make sure the right
@@ -43,4 +43,4 @@ this are not very good, but there are a few things to be careful of:
   `Test.typeError` produces a built-in error.
 
 When new langauge constructs are added to Dark, updates are often also required
-in `FSharpToExpr.fs`.
+in `Parser.fs`.

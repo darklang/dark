@@ -135,7 +135,8 @@ commands:
           command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
 
   build-gcp-containers:
-    steps: []
+    steps:
+      - run: echo TODO
       # LIGHTTODO
       # - prep-container-creation
       # - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
@@ -227,14 +228,17 @@ jobs:
     steps:
       - darkcheckout
       - run: scripts/linting/shellchecker
-      - run: scripts/linting/yamllinter
+      # There are currently no yaml files
+      # - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
   predeployment-checks:
     executor: in-container
-    steps: [] # LIGHTTODO
+    steps:
+      - run: echo TODO
+      # LIGHTTODO
       # - darkcheckout
       # - auth-with-gcp: { background: false }
       # - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
@@ -296,7 +300,9 @@ jobs:
 
   deploy:
     executor: in-container
-    steps: [] # LIGHTTODO
+    steps:
+      - run: echo TODO
+      # LIGHTTODO
       # - darkcheckout
       # - setup-app
       # - auth-with-gcp: { background: false }

@@ -1,6 +1,6 @@
 /// The test values within this module are used to verify the exact output of our
 /// serializers against saved test files. So, we need the test inputs to be
-/// consistent, which is why we never use `gid ()` below, or `FSharpToExpr`
+/// consistent, which is why we never use `gid ()` below, or `Parser`
 /// functions.
 [<RequireQualifiedAccess>]
 module Tests.SerializationTestValues

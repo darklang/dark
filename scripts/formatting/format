@@ -82,21 +82,9 @@ is_allowed() {
 all_prettier_files() {
   find "$1" \
     \( -path ".git" \
-    -o -path "_build" \
-    -o -path "./_build" \
-    -o -path "node_modules" \
-    -o -path "./node_modules" \
-    -o -path "_esy" \
-    -o -path "./_esy" \
-    -o -path "/home/dark/.esy" \
-    -o -path "esy.lock" \
     -o -path "backend" \
     -o -path "backend/static" \
     -o -path "./backend/static" \
-    -o -path "client/static/vendor" \
-    -o -path "./client/static/vendor" \
-    -o -path "lib" \
-    -o -path "./lib" \
     -o -path "backend/.paket" \
     -o -path "./backend/.paket" \
     -o -path "backend/Build" \
@@ -111,9 +99,6 @@ all_prettier_files() {
     -o -name "*.js" \
     -o -name "*.ts" \
     -o -name "*.html" \
-    -o -path "bsconfig.json" \
-    -o -path "package.json" \
-    -o -path "esy.json" \
     \) -print0 \
     | grep --null-data --invert-match reset-normalize
 }
@@ -121,14 +106,6 @@ all_prettier_files() {
 all_fsharp_files() {
   find "$1" \
     \( -path ".git" \
-    -o -path "_build" \
-    -o -path "./_build" \
-    -o -path "node_modules" \
-    -o -path "./node_modules" \
-    -o -path "_esy" \
-    -o -path "./_esy" \
-    -o -path "/home/dark/.esy" \
-    -o -path "esy.lock" \
     -o -path "backend" \
     -o -path "backend/.paket" \
     -o -path "./backend/.paket" \

@@ -1,4 +1,4 @@
-module Tests.FSharpToExpr
+module Tests.Parser
 
 open Expecto
 
@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 let parserTests =
   let t name testStr expectedExpr =
     testTask name {
-      let actual = FSharpToExpr.parseRTExpr testStr
+      let actual = Parser.parseRTExpr testStr
       return Expect.equalExprIgnoringIDs actual (PT2RT.Expr.toRT expectedExpr)
     }
   let id = 0UL // since we're ignoring IDs, just use the same one everywhere
@@ -81,4 +81,4 @@ let parserTests =
         "myFnCall_ster 5"
         (PT.EFnCall(id, PT.FQFnName.User "myFnCall", [ PT.EInteger(id, 5) ], PT.Rail)) ]
 
-let tests = testList "FSharpToExpr" [ parserTests ]
+let tests = testList "Parser" [ parserTests ]
