@@ -87,18 +87,6 @@ let clientJsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
       return! ctx.WriteClientJsonAsync result
     })
 
-/// Helper to write a Optional value as serialized JSON response body
-///
-/// In the case of a None, responds with 404
-let clientJsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
-  (fun ctx ->
-    task {
-      match! f ctx with
-      | Some result -> return! ctx.WriteClientJsonAsync result
-      | None ->
-        ctx.Response.StatusCode <- 404
-        return! ctx.WriteTextAsync "Not found"
-    })
 
 // --------------------
 // Handlers
@@ -109,31 +97,16 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
 
   let builder = RouteBuilder(ab)
 
-  let addRoute (verb : string) (pattern : string) (handler : HttpHandler) =
-    builder.MapMiddlewareVerb(
-      verb,
-      pattern,
-      (fun appBuilder -> appBuilder.Run(handler))
-    )
-    |> ignore<IRouteBuilder>
+  let addRoute (pattern : string) (handler : HttpHandler) =
+    builder.MapPost(pattern, handler) |> ignore<IRouteBuilder>
 
-  let clientJsonGETApi name version f =
+  let clientJsonApi name version (f : HttpContext -> Task<'a>) =
     let handler = clientJsonHandler f
     let route = $"/api/v{version}/{name}"
-    addRoute "GET" route handler
+    addRoute route handler
 
-  let clientJsonApi name version f =
-    let handler = clientJsonHandler f
-    let route = $"/api/v{version}/{name}"
-    addRoute "POST" route handler
-
-  let clientJsonApiOption name version f =
-    let handler = clientJsonOptionHandler f
-    let route = $"/api/v{version}/{name}"
-    addRoute "POST" route handler
-
-  clientJsonApi "v0/execute-text" 0 API.ExecuteText.post
-  clientJsonApi "v0/execute-json" 0 API.ExecuteJson.post
+  clientJsonApi "execute-text" 0 API.ExecuteText.post
+  clientJsonApi "execute-json" 0 API.ExecuteJson.post
 
   app.UseRouter(builder.Build())
 
@@ -200,8 +173,37 @@ let webserver
   configureApp app
   app
 
-let runServer (port : int) (hcPort : int) : unit =
-  (webserver LibService.Logging.noLogger port hcPort).Run()
+let runServer (debug : bool) (port : int) (hcPort : int) : unit =
+  let logger =
+    // LIGHTTODO
+    // if debug then LibService.Logging.debugLogger else
+    LibService.Logging.noLogger
+  System.Console.WriteLine
+    $"Starting server on port {port}, health check on {hcPort}"
+  (webserver logger port hcPort).Run()
+
+let readFromStdin () : unit =
+  let stdin = System.Console.In.ReadToEnd()
+  let expr = Parser.parseRTExpr stdin
+  let result = Execute.execute expr Map.empty
+  let dval = result.Result
+  let output = LibExecution.DvalReprLegacyExternal.toEnduserReadableTextV0 dval
+  System.Console.Out.WriteLine output
+
+let readFiles (files : string list) : unit =
+  let expr =
+    files
+    |> List.map (fun file -> System.IO.File.ReadAllText file)
+    |> String.concat "\n"
+    |> Parser.parseRTExpr
+
+  let result = Execute.execute expr Map.empty
+  let dval = result.Result
+  let output = LibExecution.DvalReprLegacyExternal.toEnduserReadableTextV0 dval
+  System.Console.Out.WriteLine output
+
+
+
 
 
 // Generally speaking, this should be a superset of BwdServer's list.
@@ -225,23 +227,75 @@ let initSerializers () =
 // for API request/response payloads
 // Json.Vanilla.allow<CTApi.Workers.WorkerStats.Request> "ApiServer.Workers"
 // Json.Vanilla.allow<CTApi.Workers.WorkerStats.Response> "ApiServer.Workers"
+module Arguments =
+  type Mode =
+    | Serve of port : int * healthCheckPort : int
+    | Execute of List<string>
+    | Help
 
+  type Option = | Debug
+
+  let printHelp () : unit =
+    System.Console.Out.WriteLine
+      "Usage: darklang-executor [serve [--port=3275] [--healthCheckPort=3276]] [--debug] ...files"
+    System.Console.Out.WriteLine
+      "  serve [--port=3275] [--healthCheckPort=3276]  Run the server, accepting requests on the given port at /execute-text and /execute-json"
+    System.Console.Out.WriteLine "  --debug  Enable debug logging"
+    System.Console.Out.WriteLine "  --help  Print this help message"
+
+
+  let parse (cliArgs : List<string>) : (Mode * List<Option>) =
+    let result =
+      List.fold
+        (None, [])
+        (fun (state : Option<Mode> * List<Option>) (cliArg : string) ->
+          match state, cliArg |> String.split "=" with
+          // help
+          | (Some Help, _), _ -> (Some Help, [])
+          | _, [ "--help" ] -> (Some Help, [])
+          | (mode, opts), [ "--debug" ] -> (mode, opts @ [ Debug ])
+          // serve
+          | (None, opts), [ "serve" ] ->
+            (Some(Serve(port = 3275, healthCheckPort = 3276)), opts)
+          // server --port
+          | (Some (Serve (_, hcPort)), opts), [ "--port"; port ] ->
+            (Some(Serve(port = int port, healthCheckPort = hcPort)), opts)
+          // server --healthCheckPort
+          | (Some (Serve (port, _)), opts), [ "--healthCheckPort"; hcPort ] ->
+            (Some(Serve(port = port, healthCheckPort = int hcPort)), opts)
+          // file list
+          | (None, opts), [ file ] -> (Some(Execute [ file ]), opts)
+          | (Some (Execute files), opts), [ file ] ->
+            (Some(Execute(files @ [ file ])), opts)
+          | _ ->
+            print "Invalid argument {{cliArg}}, in state {{state}}"
+            (Some Help, []))
+        cliArgs
+    match result with
+    | (None, opts) -> (Execute [], opts)
+    | (Some mode, opts) -> (mode, opts)
 
 
 [<EntryPoint>]
-let main _ =
-  // try
-  let name = "Executor"
-  print "Starting Executor"
+let main (args : string []) =
+  try
+    initSerializers ()
+    let cliArgs = args |> List.fromArray |> Arguments.parse
+    let debug = List.contains Arguments.Debug (snd cliArgs)
+    match cliArgs with
+    | (Arguments.Serve (port, hcPort), _) -> runServer debug port hcPort
+    | (Arguments.Execute [], _) -> readFromStdin ()
+    | (Arguments.Execute files, _) -> readFiles files
+    | (Arguments.Help, _) -> Arguments.printHelp ()
 
-  initSerializers ()
+    // LibService.Init.init name
+    // (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    // (LibRealExecution.Init.init name).Result
 
-  // LibService.Init.init name
-  // (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-  // (LibRealExecution.Init.init name).Result
-
-  runServer 3004 13004
-  0
-// LibService.Init.shutdown name 0
-// with
-// | e -> LibService.Rollbar.lastDitchBlockAndPage "Error starting ApiServer" e
+    0
+  // LibService.Init.shutdown name 0
+  with
+  | e ->
+    System.Console.WriteLine $"Error starting Executor: {{e}}"
+    1
+//  LibService.Rollbar.lastDitchBlockAndPage "Error starting ApiServer" e
