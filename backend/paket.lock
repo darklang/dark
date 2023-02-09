@@ -147,7 +147,6 @@ NUGET
       LaunchDarkly.JsonStream (>= 1.0.3)
       LaunchDarkly.Logging (>= 1.0.1)
       System.Collections.Immutable (>= 1.7.1)
-    Lib.AspNetCore.ServerTiming (4.3)
     libsodium (1.0.18.1)
     MessagePack (2.3.85)
       MessagePack.Annotations (>= 2.3.85)
