@@ -228,7 +228,8 @@ jobs:
     steps:
       - darkcheckout
       - run: scripts/linting/shellchecker
-      - run: scripts/linting/yamllinter
+      # There are currently no yaml files
+      # - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
