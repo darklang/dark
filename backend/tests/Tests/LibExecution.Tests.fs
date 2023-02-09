@@ -166,8 +166,7 @@ let t
 
         let source = Parser.parse code
 
-        let shouldEqual, actualProg, expectedResult =
-          Parser.convertToTest source
+        let shouldEqual, actualProg, expectedResult = Parser.convertToTest source
 
         let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
 

@@ -110,8 +110,7 @@ let compileTests =
 
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
-    let expr =
-      Parser.parseRTExpr "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
+    let expr = Parser.parseRTExpr "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
     let expected = Parser.parseRTExpr "3 + 5"
     let result = C.inline' "value" Map.empty expr
