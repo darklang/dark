@@ -137,6 +137,7 @@ let configureApp (appBuilder : WebApplication) =
   // |> fun app -> app.UseServerTiming() // must go early or this is dropped
   // |> fun app -> Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseRouting()
+  |> fun app -> app.UseDeveloperExceptionPage()
   // must go after UseRouting
   // |> Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
   |> addRoutes
