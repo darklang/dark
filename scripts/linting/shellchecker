@@ -16,22 +16,8 @@ else
   # shellcheck disable=SC2038
   find ./* \
     -path ".git" -prune \
-    -o -path "_build" -prune \
-    -o -path "./_build" -prune \
-    -o -path "node_modules" -prune \
-    -o -path "./node_modules" -prune \
     -o -path "backend/static" \
     -o -path "./backend/static" \
-    -o -path "client/static/vendor" \
-    -o -path "./client/static/vendor" \
-    -o -path "lib" \
-    -o -path "./lib" \
-    -o -path "_esy" -prune \
-    -o -path "./_esy" -prune \
-    -o -path "lib" -prune \
-    -o -path "./lib" -prune \
-    -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune \
     -o -path "rundir" -prune \
     -o -path "./rundir" -prune \
     -o -path "backend/paket-files" -prune \
