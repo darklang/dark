@@ -1,16 +1,30 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-set -x
+
 
 BUCKET="gs://darklang-downloads"
 
-
+hash=$(git rev-parse --short HEAD)
 dir=$(mktemp -d -t darklang-executor-XXXXXX)
-file="$dir/darklang-executor-linux-x64"
+runtimes="linux-x64 linux-musl-x64 linux-arm64 osx-x64 osx-arm64 win-x64 win-arm64"
 
-cp backend/Build/out/Executor/Release/net6.0/linux-x64/publish/Executor "$file"
-brotli -6 "$file" -o "$file.br"
+for runtime in $runtimes; do
+  cp backend/Build/out/Executor/Release/net6.0/$runtime/publish/Executor "$dir/darklang-executor-$hash-$runtime" &>/dev/null || true
+  cp backend/Build/out/Executor/Release/net6.0/$runtime/publish/Executor.exe "$dir/darklang-executor-$hash-$runtime" &>/dev/null || true
+done
+
+# Compress the files in parallel. Using brotli level 5 as 6 doesn't provide much
+# benefit and 7 is much much slower.
+find $dir -type f -print0 \
+  | xargs --null --replace --max-procs 8 --verbose \
+    -- brotli -5 {} -o {}.br
+
+# Remove the .br suffix and the uncompressed files
+for f in "$dir"/*.br; do
+  mv "$f" "${f%.br}"
+done
+
 ls -la $dir
 
 gcloud storage cp \
@@ -18,5 +32,7 @@ gcloud storage cp \
   --content-type "application/octet-stream" \
   --cache-control "public, no-transform" \
   --content-encoding br \
-  "$file.br" "$BUCKET"/darklang-executor-linux-x64
+  "$dir/*" "$BUCKET"
 
+rm "$dir"/*
+rmdir "$dir"
