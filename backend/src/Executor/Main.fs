@@ -22,12 +22,12 @@ open Tablecloth
 // open Http
 // open Middleware
 
-module Config = LibBackend.Config
+// module Config = LibBackend.Config
 
-module FireAndForget = LibService.FireAndForget
-module Kubernetes = LibService.Kubernetes
-module Rollbar = LibService.Rollbar
-module Telemetry = LibService.Telemetry
+// module FireAndForget = LibService.FireAndForget
+// module Kubernetes = LibService.Kubernetes
+// module Rollbar = LibService.Rollbar
+// module Telemetry = LibService.Telemetry
 
 type Packages = List<LibExecution.ProgramTypes.Package.Fn>
 
@@ -158,7 +158,7 @@ let webserver
   (httpPort : int)
   (healthCheckPort : int)
   : WebApplication =
-  let hcUrl = Kubernetes.url healthCheckPort
+  // let hcUrl = Kubernetes.url healthCheckPort
 
   let builder = WebApplication.CreateBuilder()
   configureServices builder.Services
@@ -166,8 +166,9 @@ let webserver
 
   builder.WebHost
   |> fun wh -> wh.ConfigureLogging(loggerSetup)
-  |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
-  |> fun wh -> wh.UseUrls(hcUrl, $"http://localhost:{httpPort}")
+  // |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
+  // |> fun wh -> wh.UseUrls(hcUrl, $"http://localhost:{httpPort}")
+  |> fun wh -> wh.UseUrls($"http://localhost:{httpPort}")
   |> ignore<IWebHostBuilder>
 
   let app = builder.Build()
@@ -178,7 +179,8 @@ let runServer (debug : bool) (port : int) (hcPort : int) : unit =
   let logger =
     // LIGHTTODO
     // if debug then LibService.Logging.debugLogger else
-    LibService.Logging.noLogger
+    // LibService.Logging.noLogger
+    fun (builder: ILoggingBuilder) -> (builder.ClearProviders() |> ignore<ILoggingBuilder>)
   System.Console.WriteLine
     $"Starting server on port {port}, health check on {hcPort}"
   (webserver logger port hcPort).Run()

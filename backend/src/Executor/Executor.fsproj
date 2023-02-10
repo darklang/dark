@@ -7,10 +7,14 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
     <PublishReadyToRun>true</PublishReadyToRun>
-    <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- We publish these for lots of different runtimes, so leave these empty
+         and then specify them during the build
+         (scripts/build/dotnet-publish-all-executors.sh) -->
+    <!-- <SelfContained>true</SelfContained> -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
@@ -22,7 +26,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../Parser/Parser.fsproj" />
     <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
-    <ProjectReference Include="../ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
+    <ProjectReference Include="../ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -9,7 +9,7 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <SelfContained>false</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
-    <!-- We don't trim any of these, as if we do the JSON serializrts break. This is
+    <!-- We don't trim any of these, as if we do the JSON serializers break. This is
          because they use reflection which is a documented thing that's likely to
          break. When we get source generators going, this might improve. -->
     <PublishTrimmed>false</PublishTrimmed>

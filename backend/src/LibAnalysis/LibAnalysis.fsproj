@@ -7,8 +7,6 @@
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
