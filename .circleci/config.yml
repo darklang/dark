@@ -204,14 +204,14 @@ jobs:
       - run: scripts/run-backend-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
-          # Do this before reducing size of cache
           root: "."
           paths:
             # Just enough for deploy
-            - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/BwdServer
+            - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/QueueWorker
+            - backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/CronChecker
+            - backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost
+            - backend/Build/out/Executor/Release/net6.0/linux-x64/publish/Executor
       - show-large-files-and-directories
       - save_cache:
           paths:
@@ -315,15 +315,17 @@ jobs:
     steps:
       - run: echo TODO
       # LIGHTTODO
-      # - darkcheckout
-      # - setup-app
+      - darkcheckout
+      - setup-app
       # - auth-with-gcp: { background: false }
       # - attach_workspace: { at: "." }
-      # - show-large-files-and-directories
+      - show-large-files-and-directories
+      # LIGHTTODO
       # # deploy lock is removed as part of the gke-deploy script
+      - run: ./scripts/deployment/deploy-lock-one-remove
       # # - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
-      # - slack-notify-deploy
-      # - deploy-lock-remove-on-fail
+      - slack-notify-deploy
+      - deploy-lock-remove-on-fail
 
   notify-non-deploy:
     executor: simple-executor
@@ -365,25 +367,26 @@ workflows:
           requires:
             - build-backend
 
-      # # actual deploy
-      # - deploy:
-      #     context:
-      #       - gcp context
-      #     filters:
-      #       branches:
-      #         only: main
-      #     requires:
-      #       - deploy-lock
-      #       - validate-honeycomb-config
-      #       - push-containers-to-gcp
-      #       - push-assets-to-gcp
-      #       - static-checks
-      #       - predeployment-checks
+      # actual deploy
+      - deploy:
+          context:
+            - gcp context
+          filters:
+            branches:
+              only: main
+          requires:
+            - deploy-lock
+            # LIGHTTODO
+            # - push-containers-to-gcp
+            # - push-assets-to-gcp
+            - push-executor-to-gcp
+            - static-checks
+            - predeployment-checks
 
-      # - deploy-lock:
-      #     filters:
-      #       branches:
-      #         only: main
+      - deploy-lock:
+          filters:
+            branches:
+              only: main
 
       - notify-non-deploy:
           filters:
