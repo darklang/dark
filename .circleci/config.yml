@@ -342,7 +342,6 @@ workflows:
             branches:
               ignore: /^(pull|dependabot)\/.*$/
       - build-backend
-      - push-executor-to-gcp
 
       # LightTODO the below has all been commented out until we
       # get to a point where this is worth 'hosting'.
