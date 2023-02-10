@@ -1,4 +1,4 @@
-#!/usr/bin/env /bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 set -x
@@ -6,7 +6,7 @@ set -x
 BUCKET="gs://darklang-downloads"
 
 
-dir=`mktemp -d -t darklang-executor-XXXXXX`
+dir=$(mktemp -d -t darklang-executor-XXXXXX)
 file="$dir/darklang-executor-linux-x64"
 
 cp backend/Build/out/Executor/Release/net6.0/linux-x64/publish/Executor "$file"
