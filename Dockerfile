@@ -178,7 +178,7 @@ ENV LC_ALL en_US.UTF-8
 ############################
 # Frontend
 ############################
-RUN sudo npm install -g prettier@2.7.1
+RUN sudo npm install -g prettier@2.8.4
 
 ############################
 # Postgres
@@ -313,9 +313,9 @@ ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
 
 # GCS emulator
 RUN /home/dark/install-targz-file \
-  --arm64-sha256=74b5d65027b19167854705f273c32b1b295e9ea0c7c03f9cb421e53c99ed3ef5 \
-  --amd64-sha256=c38b83b813d15f554003b5c7823174ee23f3097ac977f7267a2cdc8b479524d3 \
-  --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.42.2/fake-gcs-server_1.42.2_Linux_${TARGETARCH}.tar.gz\
+  --arm64-sha256=31f39066aa0d2ece95458d98ed86a7ac21cc82f734a5202196bef64574e586dd \
+  --amd64-sha256=b426a537811d505809caf21f5b5fa27bb00b7fa081bafd9f90ca7a4b26398220 \
+  --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.44.0/fake-gcs-server_1.44.0_Linux_${TARGETARCH}.tar.gz\
   --extract-file=fake-gcs-server \
   --target=/usr/bin/fake-gcs-server
 
@@ -336,27 +336,22 @@ RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/ma
 ############################
 
 RUN \
-  VERSION=v0.8.0 \
+  VERSION=v0.9.0 \
   && case ${TARGETARCH} in \
        arm64) FILENAME=shellcheck-$VERSION.linux.aarch64.tar.xz;; \
        amd64) FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz;; \
        *) exit 1;; \
      esac \
   && /home/dark/install-targz-file \
-  --arm64-sha256=9f47bbff5624babfa712eb9d64ece14c6c46327122d0c54983f627ae3a30a4ac \
-  --amd64-sha256=ab6ee1b178f014d1b86d1e24da20d1139656c8b0ed34d2867fbb834dad02bf0a \
+  --arm64-sha256=179c579ef3481317d130adebede74a34dbbc2df961a70916dd4039ebf0735fae \
+  --amd64-sha256=700324c6dd0ebea0117591c6cc9d7350d9c7c5c287acbad7630fa17b1d4d9e2f \
   --url=https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
   --extract-file=shellcheck-${VERSION}/shellcheck \
   --target=/usr/bin/shellcheck
 
 ####################################
-# Honeytail and honeymarker installs
+# Honeymarker installs
 ####################################
-RUN /home/dark/install-exe-file \
-  --arm64-sha256=c5a57a729b0ccf4ca0f2287c862538812604f5fd67d102372e91215701afdbe1 \
-  --amd64-sha256=d774112265ee8e98c6221232461cf36c35faf844005cc98b43b55bb375761766 \
-  --url=https://github.com/honeycombio/honeytail/releases/download/v1.8.2/honeytail-linux-${TARGETARCH} \
-  --target=/usr/bin/honeytail
 
 RUN /home/dark/install-exe-file \
   --arm64-sha256=fef8c383419c86ceabb0bbffd3bcad2bf9223537fba9f848218480f873a96e8d \
