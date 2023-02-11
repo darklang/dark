@@ -18,5 +18,6 @@ echo $runtimes \
           src/Executor/Executor.fsproj \
           /p:DebugType=None \
           /p:DebugSymbols=false \
+          /p:PublishSingleFile=true \
           --self-contained true \
           --runtime

@@ -7,14 +7,14 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
     <PublishReadyToRun>true</PublishReadyToRun>
-    <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- We publish these for lots of different runtimes, so leave these empty
          and then specify them during the build
          (scripts/build/dotnet-publish-all-executors.sh) -->
+    <!-- <PublishSingleFile>true</PublishSingleFile> -->
     <!-- <SelfContained>true</SelfContained> -->
-    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
+    <!-- <RuntimeIdentifier>linux-x64</RuntimeIdentifier> -->
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
