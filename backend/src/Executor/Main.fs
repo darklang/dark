@@ -180,23 +180,20 @@ let runServer (debug : bool) (port : int) (hcPort : int) : unit =
     // LIGHTTODO
     // if debug then LibService.Logging.debugLogger else
     // LibService.Logging.noLogger
-    fun (builder: ILoggingBuilder) -> (builder.ClearProviders() |> ignore<ILoggingBuilder>)
+    fun (builder : ILoggingBuilder) ->
+      (builder.ClearProviders() |> ignore<ILoggingBuilder>)
   System.Console.WriteLine
     $"Starting server on port {port}, health check on {hcPort}"
   (webserver logger port hcPort).Run()
 
-let readFromStdin () : unit =
-  let stdin = System.Console.In.ReadToEnd()
-  let expr = Parser.parseRTExpr stdin
-  let result = Execute.execute expr Map.empty
-  let dval = result.Result
-  let output = LibExecution.DvalReprLegacyExternal.toEnduserReadableTextV0 dval
-  System.Console.Out.WriteLine output
-
 let readFiles (files : string list) : unit =
   let expr =
     files
-    |> List.map (fun file -> System.IO.File.ReadAllText file)
+    |> List.map (fun file ->
+      if file = "-" then
+        System.Console.In.ReadToEnd()
+      else
+        System.IO.File.ReadAllText file)
     |> String.concat "\n"
     |> Parser.parseRTExpr
 
@@ -236,7 +233,8 @@ module Arguments =
     | Execute of List<string>
     | Help
 
-  type Option = | Debug
+  type Config = { debug : bool }
+  let defaultConfig = { debug = false }
 
   let printHelp () : unit =
     System.Console.Out.WriteLine
@@ -247,49 +245,47 @@ module Arguments =
     System.Console.Out.WriteLine "  --help  Print this help message"
 
 
-  let parse (cliArgs : List<string>) : (Mode * List<Option>) =
+  let parse (cliArgs : List<string>) : (Mode * Config) =
     let result =
       List.fold
-        (None, [])
-        (fun (state : Option<Mode> * List<Option>) (cliArg : string) ->
-          match state, cliArg |> String.split "=" with
+        (None, defaultConfig)
+        (fun ((mode, config) : Option<Mode> * Config) (cliArg : string) ->
+          match mode, cliArg |> String.split "=" with
           // help
-          | (Some Help, _), _ -> (Some Help, [])
-          | _, [ "--help" ] -> (Some Help, [])
-          | (mode, opts), [ "--debug" ] -> (mode, opts @ [ Debug ])
+          | Some Help, _ -> (Some Help, config)
+          | _, [ "--help" ] -> (Some Help, config)
+          | mode, [ "--debug" ] -> (mode, { config with debug = true })
           // serve
-          | (None, opts), [ "serve" ] ->
-            (Some(Serve(port = 3275, healthCheckPort = 3276)), opts)
+          | None, [ "serve" ] ->
+            (Some(Serve(port = 3275, healthCheckPort = 3276)), config)
           // server --port
-          | (Some (Serve (_, hcPort)), opts), [ "--port"; port ] ->
-            (Some(Serve(port = int port, healthCheckPort = hcPort)), opts)
+          | Some (Serve (_, hcPort)), [ "--port"; port ] ->
+            (Some(Serve(port = int port, healthCheckPort = hcPort)), config)
           // server --healthCheckPort
-          | (Some (Serve (port, _)), opts), [ "--healthCheckPort"; hcPort ] ->
-            (Some(Serve(port = port, healthCheckPort = int hcPort)), opts)
+          | Some (Serve (port, _)), [ "--healthCheckPort"; hcPort ] ->
+            (Some(Serve(port = port, healthCheckPort = int hcPort)), config)
           // file list
-          | (None, opts), [ file ] -> (Some(Execute [ file ]), opts)
-          | (Some (Execute files), opts), [ file ] ->
-            (Some(Execute(files @ [ file ])), opts)
+          | None, [ file ] -> (Some(Execute [ file ]), config)
+          | Some (Execute files), [ file ] ->
+            (Some(Execute(files @ [ file ])), config)
           | _ ->
             print "Invalid argument {{cliArg}}, in state {{state}}"
-            (Some Help, []))
+            (Some Help, config))
         cliArgs
     match result with
-    | (None, opts) -> (Execute [], opts)
-    | (Some mode, opts) -> (mode, opts)
+    | (None, _) -> (Help, defaultConfig)
+    | (Some mode, config) -> (mode, config)
 
 
 [<EntryPoint>]
 let main (args : string []) =
   try
     initSerializers ()
-    let cliArgs = args |> List.fromArray |> Arguments.parse
-    let debug = List.contains Arguments.Debug (snd cliArgs)
-    match cliArgs with
-    | (Arguments.Serve (port, hcPort), _) -> runServer debug port hcPort
-    | (Arguments.Execute [], _) -> readFromStdin ()
-    | (Arguments.Execute files, _) -> readFiles files
-    | (Arguments.Help, _) -> Arguments.printHelp ()
+    let (mode, config) = args |> List.fromArray |> Arguments.parse
+    match mode with
+    | Arguments.Serve (port, hcPort) -> runServer config.debug port hcPort
+    | Arguments.Execute files -> readFiles files
+    | Arguments.Help -> Arguments.printHelp ()
 
     // LibService.Init.init name
     // (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
