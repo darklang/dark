@@ -311,18 +311,6 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
-  push-assets-to-gcp:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - auth-with-gcp: { background: true }
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - run: scripts/deployment/_push-assets-to-cdn
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
   push-executor-to-gcp:
     executor: in-container
     steps:
@@ -388,7 +376,7 @@ workflows:
       # For now, CI just ensures everything builds OK.
 
       # - gcp-containers-test:
-      #     # This is fully covered by push-assets-to-gcp, so no need to do it twice
+      #     # This is fully covered by push-containers-to-gcp, so no need to do it twice
       #     filters:
       #       branches:
       #         ignore: main
@@ -416,7 +404,6 @@ workflows:
             - deploy-lock
             # LIGHTTODO
             # - push-containers-to-gcp
-            # - push-assets-to-gcp
             - push-executor-to-gcp
             - static-checks
             - predeployment-checks
