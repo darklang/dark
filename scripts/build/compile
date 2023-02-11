@@ -199,7 +199,6 @@ def backend_quick_build():
       --no-restore \
       --verbosity {verbosity} \
       --configuration {configuration} \
-      --runtime linux-x64 \
       fsdark.sln"
 
   result = run_backend(start, build)
