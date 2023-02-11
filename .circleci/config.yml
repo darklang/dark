@@ -223,6 +223,43 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
+  # Build Executor on all platforms
+  build-multiplatform-executor:
+    executor: in-container
+    resource_class: xlarge
+    steps:
+      - darkcheckout
+      - setup-app
+      # The date is used to get a fresh cache each week
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
+      - restore_cache:
+          keys:
+            - v0-executor-{{ checksum "../checksum" }}
+      - show-large-files-and-directories
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      # Build the executors and save them
+      - run: ./scripts/build/dotnet-publish-all-executors
+      - assert-clean-worktree
+      - run: mkdir executors
+      - run: ./scripts/deployment/_executor-collect executors
+      - run: ./scripts/deployment/_executor-compress executors
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - executors/
+      - show-large-files-and-directories
+      - save_cache:
+          paths:
+            - backend/Build/obj
+            - /home/dark/.nuget
+          key: v0-executors-{{ checksum "../checksum" }}
+      - store_artifacts: { path: rundir }
+      - store_test_results: { path: rundir/test_results }
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
+
   static-checks:
     executor: in-container
     steps:
@@ -294,7 +331,7 @@ jobs:
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run: scripts/deployment/_push-executor-to-cdn
+      - run: scripts/deployment/_executor-push-to-cdn
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -344,6 +381,7 @@ workflows:
             branches:
               ignore: /^(pull|dependabot)\/.*$/
       - build-backend
+      - build-multiplatform-executor
 
       # LightTODO the below has all been commented out until we
       # get to a point where this is worth 'hosting'.
@@ -365,7 +403,7 @@ workflows:
             branches:
               only: main
           requires:
-            - build-backend
+            - build-multiplatform-executor
 
       # actual deploy
       - deploy:
@@ -397,5 +435,4 @@ workflows:
             # - gcp-containers-test
             - static-checks
             - predeployment-checks
-            # For now
-            - push-executor-to-gcp
+            - build-multiplatform-executor
