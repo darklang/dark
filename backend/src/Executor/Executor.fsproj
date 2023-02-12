@@ -6,13 +6,13 @@
     <LangVersion>6.0</LangVersion>
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
-    <PublishReadyToRun>true</PublishReadyToRun>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- We publish these for lots of different runtimes, so leave these empty
          and then specify them during the build
          (see scripts/build/dotnet-publish-all-executors.sh) -->
     <!-- <PublishTrimmed>true</PublishTrimmed> -->
     <!-- <PublishSingleFile>true</PublishSingleFile> -->
+    <!-- <PublishReadyToRun>false</PublishReadyToRun> -->
     <!-- <SelfContained>true</SelfContained> -->
     <!-- <RuntimeIdentifier>linux-x64</RuntimeIdentifier> -->
   </PropertyGroup>
