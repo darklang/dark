@@ -239,7 +239,7 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # Build the executors and save them
-      - run: ./scripts/build/dotnet-publish-all-executors
+      - run: ./scripts/build/dotnet-publish-all-executors.sh
       - assert-clean-worktree
       - run: mkdir executors
       - run: ./scripts/deployment/_executor-collect executors
