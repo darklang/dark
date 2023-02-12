@@ -311,7 +311,7 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
-  push-executor-to-gcp:
+  push-executor-to-cdn:
     executor: in-container
     steps:
       - darkcheckout
@@ -345,6 +345,7 @@ jobs:
       # - auth-with-gcp: { background: false }
       # - attach_workspace: { at: "." }
       - show-large-files-and-directories
+      - run: ./scripts/deployment/_executor-set-latest.sh
       # LIGHTTODO
       # # deploy lock is removed as part of the gke-deploy script
       - run: ./scripts/deployment/deploy-lock-one-remove
@@ -384,7 +385,7 @@ workflows:
       #       - build-backend
 
       # pre-deploy
-      - push-executor-to-gcp:
+      - push-executor-to-cdn:
           context:
             - gcp context
           filters:
@@ -404,7 +405,7 @@ workflows:
             - deploy-lock
             # LIGHTTODO
             # - push-containers-to-gcp
-            - push-executor-to-gcp
+            - push-executor-to-cdn
             - static-checks
             - predeployment-checks
 
