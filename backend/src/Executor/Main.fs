@@ -240,7 +240,20 @@ module Arguments =
     System.Console.Out.WriteLine
       "Usage: darklang-executor [serve [--port=3275] [--healthCheckPort=3276]] [--debug] ...files"
     System.Console.Out.WriteLine
-      "  serve [--port=3275] [--healthCheckPort=3276]  Run the server, accepting requests on the given port at /execute-text and /execute-json"
+      "
+  [files] Execute the given files, printing the result to stdout
+          Use '-' for stdin
+
+  serve [--port=3275] [--healthCheckPort=3276] Run a server, accepting requests on the given port:
+
+    POST /api/v0/execute-text
+      Request Body (json): { code: string, symtable: Map<string, Dval> }
+      Response body (json): Dval
+
+    POST /api/v0/execute-json
+      Request Body (json): { expr: Expr, symtable: Map<string, Dval> }
+      Response body (json): Dval
+"
     System.Console.Out.WriteLine "  --debug  Enable debug logging"
     System.Console.Out.WriteLine "  --help  Print this help message"
 
