@@ -7,11 +7,11 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
     <PublishReadyToRun>true</PublishReadyToRun>
-    <PublishTrimmed>true</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- We publish these for lots of different runtimes, so leave these empty
          and then specify them during the build
-         (scripts/build/dotnet-publish-all-executors.sh) -->
+         (see scripts/build/dotnet-publish-all-executors.sh) -->
+    <!-- <PublishTrimmed>true</PublishTrimmed> -->
     <!-- <PublishSingleFile>true</PublishSingleFile> -->
     <!-- <SelfContained>true</SelfContained> -->
     <!-- <RuntimeIdentifier>linux-x64</RuntimeIdentifier> -->

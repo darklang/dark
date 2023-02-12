@@ -19,5 +19,6 @@ echo $runtimes \
           /p:DebugType=None \
           /p:DebugSymbols=false \
           /p:PublishSingleFile=true \
+          /p:PublishTrimmed=true \
           --self-contained true \
           --runtime
