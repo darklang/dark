@@ -10,14 +10,14 @@ version: 2.1
 executors:
   simple-executor:
     docker:
-      - image: cimg/base:2022.10
+      - image: cimg/base:2023.02
   in-container:
     working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:447cd3d
+      - image: darklang/dark-base:de1e8ba
 
 commands:
   show-large-files-and-directories:
@@ -204,14 +204,14 @@ jobs:
       - run: scripts/run-backend-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
-          # Do this before reducing size of cache
           root: "."
           paths:
             # Just enough for deploy
-            - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
-            - backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
+            - backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/BwdServer
+            - backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/QueueWorker
+            - backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/CronChecker
+            - backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost
+            - backend/Build/out/Executor/Release/net6.0/linux-x64/publish/Executor
       - show-large-files-and-directories
       - save_cache:
           paths:
@@ -222,6 +222,43 @@ jobs:
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
+
+  # Build Executor on all platforms
+  build-multiplatform-executor:
+    executor: in-container
+    resource_class: xlarge
+    steps:
+      - darkcheckout
+      - setup-app
+      # The date is used to get a fresh cache each week
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
+      - restore_cache:
+          keys:
+            - v0-executor-{{ checksum "../checksum" }}
+      - show-large-files-and-directories
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      # Build the executors and save them
+      - run: ./scripts/build/dotnet-publish-all-executors.sh
+      - assert-clean-worktree
+      - run: mkdir executors
+      - run: ./scripts/deployment/_executor-collect executors
+      - run: ./scripts/deployment/_executor-compress executors
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - executors/
+      - show-large-files-and-directories
+      - save_cache:
+          paths:
+            - backend/Build/obj
+            - /home/dark/.nuget
+          key: v0-executors-{{ checksum "../checksum" }}
+      - store_artifacts: { path: rundir }
+      - store_test_results: { path: rundir/test_results }
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
 
   static-checks:
     executor: in-container
@@ -274,7 +311,7 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
-  push-assets-to-gcp:
+  push-executor-to-cdn:
     executor: in-container
     steps:
       - darkcheckout
@@ -282,7 +319,7 @@ jobs:
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run: scripts/deployment/_push-assets-to-cdn
+      - run: scripts/deployment/_executor-push-to-cdn
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -303,15 +340,18 @@ jobs:
     steps:
       - run: echo TODO
       # LIGHTTODO
-      # - darkcheckout
-      # - setup-app
+      - darkcheckout
+      - setup-app
       # - auth-with-gcp: { background: false }
       # - attach_workspace: { at: "." }
-      # - show-large-files-and-directories
+      - show-large-files-and-directories
+      - run: ./scripts/deployment/_executor-set-latest.sh
+      # LIGHTTODO
       # # deploy lock is removed as part of the gke-deploy script
+      - run: ./scripts/deployment/deploy-lock-one-remove
       # # - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
-      # - slack-notify-deploy
-      # - deploy-lock-remove-on-fail
+      - slack-notify-deploy
+      - deploy-lock-remove-on-fail
 
   notify-non-deploy:
     executor: simple-executor
@@ -330,65 +370,57 @@ workflows:
             branches:
               ignore: /^(pull|dependabot)\/.*$/
       - build-backend
+      - build-multiplatform-executor
 
       # LightTODO the below has all been commented out until we
       # get to a point where this is worth 'hosting'.
       # For now, CI just ensures everything builds OK.
 
       # - gcp-containers-test:
-      #     # This is fully covered by push-assets-to-gcp, so no need to do it twice
+      #     # This is fully covered by push-containers-to-gcp, so no need to do it twice
       #     filters:
       #       branches:
       #         ignore: main
       #     requires:
       #       - build-backend
-      #
-      # # pre-deploy
-      # - push-assets-to-gcp:
-      #     context:
-      #       - gcp context
-      #     filters:
-      #       branches:
-      #         only: main
-      #     requires:
-      #       - build-backend
 
-      # # pre-deploy
-      # - push-containers-to-gcp:
-      #     context:
-      #       - gcp context
-      #     filters:
-      #       branches:
-      #         only: main
-      #     requires:
-      #       - build-backend
+      # pre-deploy
+      - push-executor-to-cdn:
+          context:
+            - gcp context
+          filters:
+            branches:
+              only: main
+          requires:
+            - build-multiplatform-executor
 
-      # # actual deploy
-      # - deploy:
-      #     context:
-      #       - gcp context
-      #     filters:
-      #       branches:
-      #         only: main
-      #     requires:
-      #       - deploy-lock
-      #       - validate-honeycomb-config
-      #       - push-containers-to-gcp
-      #       - push-assets-to-gcp
-      #       - static-checks
-      #       - predeployment-checks
+      # actual deploy
+      - deploy:
+          context:
+            - gcp context
+          filters:
+            branches:
+              only: main
+          requires:
+            - deploy-lock
+            # LIGHTTODO
+            # - push-containers-to-gcp
+            - push-executor-to-cdn
+            - static-checks
+            - predeployment-checks
 
-      # - deploy-lock:
-      #     filters:
-      #       branches:
-      #         only: main
+      - deploy-lock:
+          filters:
+            branches:
+              only: main
 
-      # - notify-non-deploy:
-      #     filters:
-      #       branches:
-      #         ignore: main
-      #     requires:
-      #       - build-backend
-      #       - gcp-containers-test
-      #       - static-checks
-      #       - predeployment-checks
+      - notify-non-deploy:
+          filters:
+            branches:
+              ignore: main
+          requires:
+            - build-backend
+            # - gcp-containers-test
+            - static-checks
+            - predeployment-checks
+            - build-multiplatform-executor

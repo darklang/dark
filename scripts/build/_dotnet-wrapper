@@ -19,6 +19,7 @@ cd backend && dotnet "$@" 2>&1 | while read -r line; do
     killall Tests || true
     killall DataTests || true
     killall FuzzTests || true
+    killall Executor || true
   fi
   echo "$line"
 done

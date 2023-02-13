@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BUCKET="gs://darklang-downloads"
+dir=$1
+
+ls -la $dir
+
+# Remove the .br suffix and the uncompressed files
+for f in "$dir"/*.br; do
+  mv "$f" "${f%.br}"
+done
+
+gcloud storage cp \
+  --verbosity debug \
+  --content-type "application/octet-stream" \
+  --cache-control "public, no-transform" \
+  --content-encoding br \
+  "$dir/*" "$BUCKET"
