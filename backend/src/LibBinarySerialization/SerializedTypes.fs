@@ -340,7 +340,6 @@ type Op =
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
   | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
-  | MoveTL of tlid * Position
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
   | ChangeDBColType of tlid * id * string

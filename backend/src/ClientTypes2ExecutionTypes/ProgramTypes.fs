@@ -529,7 +529,6 @@ module Op =
     | CTPT.Op.SetDBColName (tlid, id, name) -> PT.Op.SetDBColName(tlid, id, name)
     | CTPT.Op.SetDBColType (tlid, id, tipe) -> PT.Op.SetDBColType(tlid, id, tipe)
     | CTPT.Op.DeleteTL (tlid) -> PT.Op.DeleteTL(tlid)
-    | CTPT.Op.MoveTL (tlid, pos) -> PT.Op.MoveTL(tlid, Position.fromCT pos)
     | CTPT.Op.SetFunction (uf) -> PT.Op.SetFunction(UserFunction.fromCT uf)
     | CTPT.Op.ChangeDBColName (tlid, id, name) ->
       PT.Op.ChangeDBColName(tlid, id, name)
@@ -558,7 +557,6 @@ module Op =
     | PT.Op.SetDBColName (tlid, id, name) -> CTPT.Op.SetDBColName(tlid, id, name)
     | PT.Op.SetDBColType (tlid, id, tipe) -> CTPT.Op.SetDBColType(tlid, id, tipe)
     | PT.Op.DeleteTL (tlid) -> CTPT.Op.DeleteTL(tlid)
-    | PT.Op.MoveTL (tlid, pos) -> CTPT.Op.MoveTL(tlid, Position.toCT pos)
     | PT.Op.SetFunction (uf) -> CTPT.Op.SetFunction(UserFunction.toCT uf)
     | PT.Op.ChangeDBColName (tlid, id, name) ->
       CTPT.Op.ChangeDBColName(tlid, id, name)

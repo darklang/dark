@@ -646,7 +646,6 @@ module ProgramTypes =
       PT.SetDBColName(tlid, id, "name")
       PT.SetDBColType(tlid, id, "int")
       PT.DeleteTL tlid
-      PT.MoveTL(tlid, pos)
       PT.SetFunction(userFunction)
       PT.ChangeDBColName(tlid, id, "name")
       PT.ChangeDBColType(tlid, id, "int")

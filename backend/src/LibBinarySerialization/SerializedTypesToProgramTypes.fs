@@ -301,9 +301,6 @@ module Op =
     | ST.SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))
     | ST.SetDBColType (tlid, id, string) -> Some(PT.SetDBColType(tlid, id, string))
     | ST.DeleteTL tlid -> Some(PT.DeleteTL tlid)
-    | ST.MoveTL (tlid, pos) ->
-      let position : PT.Position = { x = pos.x; y = pos.y }
-      Some(PT.MoveTL(tlid, position))
     | ST.SetFunction fn -> Some(PT.SetFunction(UserFunction.toPT fn))
     | ST.ChangeDBColName (tlid, id, string) ->
       Some(PT.ChangeDBColName(tlid, id, string))
