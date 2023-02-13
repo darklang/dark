@@ -65,7 +65,7 @@ export async function startExecutorHttpServer(
   //   vscode.window.showInformationMessage(`pwd: ${data}`);
   // });
 
-  executorSubprocess = spawn(`${executorLocation} serve --port ${port}`);
+  executorSubprocess = spawn(executorLocation, ["serve", `--port=${port}`]);
 
   executorSubprocess.stdout?.on("data", data => {
     vscode.window.showInformationMessage(`stdout: ${data}`);

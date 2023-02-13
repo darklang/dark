@@ -45,11 +45,22 @@ export async function activate(context: vscode.ExtensionContext) {
   // faking this until Paul tidies something up
   let latestExecutorHash = "526c07b8f"; //await Executor.latestExecutorHash();
 
-  // TODO: don't download if we already have latest on disk
+  // LightTODO: it's possible for us to end in a state where the spawned dark-executor
+  // process hasn't been properly cleaned up. You may have to manually kill this running process.
+  // I'm not sure why the spawned process isn't always cleaned up properly - thought
+  // the deactivate() fn would clear that up. If you're trying to work on something else
+  // and are hitting issues here, comment out the next few (~3) lines of code.
+  //
+  // LightTODO: don't download if we already have latest on disk
   let executorPath = await Executor.downloadExecutor(latestExecutorHash);
   let executorHttpServerPort = "3275";
   await Executor.startExecutorHttpServer(executorPath, executorHttpServerPort);
 
+  // LightTODO: for some reason, the HTTP request here fails with
+  // request to http://localhost:3275/api/v0/execute-text failed,
+  // reason: connect ECONNREFUSED 127.0.0.1:3275.
+  // I'm not sure why.
+  //
   // const z = await Executor.evalSomeCodeAgainstHttpServer(
   //   executorHttpServerPort,
   //   "1+2",
